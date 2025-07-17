@@ -29,6 +29,7 @@ import './public-path';
 import Vue from 'vue';
 
 import LogButton from '@/components/log-button';
+import LogIcon from '@/components/log-icon';
 import i18n from '@/language/i18n';
 import docsLinkMixin from '@/mixins/docs-link-mixin';
 
@@ -69,6 +70,7 @@ const setRouterErrorHandle = router => {
 
 Vue.component('JsonFormatWrapper', JsonFormatWrapper);
 Vue.component('LogButton', LogButton);
+Vue.component('LogIcon', LogIcon);
 Vue.mixin(docsLinkMixin);
 Vue.use(methods);
 Vue.use(VueVirtualScroller)
@@ -84,7 +86,7 @@ const mountedVueInstance = () => {
     const bkBizId = store.state.storage[BK_LOG_STORAGE.BK_BIZ_ID];
 
     let externalMenu = [];
-     if (window.IS_EXTERNAL && space) {
+    if (window.IS_EXTERNAL && space) {
       externalMenu = getExternalMenuListBySpace(space) ?? [];
       store.commit('updateExternalMenu', externalMenu);
     }

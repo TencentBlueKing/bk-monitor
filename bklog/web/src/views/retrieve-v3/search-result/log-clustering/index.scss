@@ -1,0 +1,10 @@
+.log-cluster-table-container-main {
+  min-height: calc(100vh - 200px);
+  padding: 8px 16px;
+  background-color: #fff;
+
+  .log-cluster-table-container {
+    height: 100%;
+    overflow: visible;
+  }
+}

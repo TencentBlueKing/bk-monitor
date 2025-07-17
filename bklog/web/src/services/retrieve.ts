@@ -24,6 +24,43 @@
  * IN THE SOFTWARE.
  */
 
+export type IndexSetDataList = {
+  space_uid: string;
+  index_set_id: number;
+  index_set_name: string;
+  collector_config_id: number | null;
+  scenario_id: string;
+  storage_cluster_id: number;
+  category_id: string;
+  created_at: string;
+  time_field: string;
+  time_field_type: string;
+  time_field_unit: string;
+  target_fields: any[];
+  sort_fields: any[];
+  support_doris: boolean;
+  doris_table_id: number | null;
+  indices: {
+    bk_biz_id: number;
+    index_set_id: number;
+    result_table_id: string;
+    result_table_name: string | null;
+    time_field: string | null;
+  }[];
+  scenario_name: string;
+  bk_biz_id: number;
+  tags: {
+    name: string;
+    color: string;
+    tag_id: number;
+  }[];
+  is_favorite: boolean;
+  no_data_check_time: string;
+  collector_scenario_id: number | null;
+  permission: {
+    search_log_v2: boolean;
+  };
+}[];
 const getIndexSetList = {
   url: '/search/index_set/',
   method: 'get',
@@ -173,6 +210,37 @@ const fieldDistinctCount = {
   url: '/field/index_set/fetch_distinct_count_list/',
   method: 'post',
 };
+export type UserGroupList = {
+  id: number;
+  name: string;
+  bk_biz_id: number;
+  need_duty: boolean;
+  channels: string[];
+  desc: string;
+  timezone: string;
+  update_user: string;
+  update_time: string;
+  create_user: string;
+  create_time: string;
+  duty_rules: any[]; // 无法确定具体结构，使用any[]
+  mention_list: {
+    id: string;
+    type: string;
+  }[];
+  mention_type: number;
+  app: string;
+  users: {
+    id: string;
+    display_name: string;
+    type: string;
+  }[];
+  strategy_count: number;
+  rules_count: number;
+  delete_allowed: boolean;
+  edit_allowed: boolean;
+  config_source: string;
+}[];
+
 /** 聚类告警列表 */
 const userGroup = {
   url: '/clustering_monitor/search_user_groups/',
@@ -188,6 +256,14 @@ const newClsStrategy = {
   url: '/clustering_monitor/:index_set_id/new_cls_strategy/',
   method: 'post',
 };
+export interface ClusteringInfo {
+  strategy_id: number;
+  level: number;
+  user_groups: number[];
+  label_name: string[];
+  interval: number;
+  threshold: number;
+}
 /** 获取策略详情 */
 const getClusteringInfo = {
   url: '/clustering_monitor/:index_set_id/get_strategy/?strategy_type=:strategy_type',
@@ -208,6 +284,21 @@ const updateClusteringConfig = {
   url: '/clustering_config/:index_set_id/access/update/',
   method: 'post',
 };
+export interface ClusteringConfigStatus {
+  access_finished: boolean;
+  flow_create: {
+    status: string;
+    message: string;
+  };
+  flow_run: {
+    status: string;
+    message: string;
+  };
+  data_check: {
+    status: string;
+    message: string;
+  };
+}
 /** 查询聚类接入状态*/
 const getClusteringConfigStatus = {
   url: '/clustering_config/:index_set_id/access/status/',
