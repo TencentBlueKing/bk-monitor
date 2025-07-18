@@ -24,6 +24,7 @@ class UnifyQueryChartHandler(UnifyQueryHandler):
         for q in base_dict["query_list"]:
             q["sql"] = self.sql
             q["table_id"] = f"bkdata_{q['table_id'].split('_', 1)[1]}"
+        return base_dict
 
     def get_chart_data(self):
         start_time = time.time()
