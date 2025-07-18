@@ -36,8 +36,8 @@
       v-show="showValidate && validator.content && position === 'right'"
     />
     <span
-      class="bottom-text"
       v-show="showValidate && position === 'bottom'"
+      :class="['bottom-text', { 'custom-time-error-text': showValidate }]"
       >{{ validator.content }}</span
     >
   </div>
@@ -60,6 +60,10 @@ export default {
       },
     },
     showValidate: {
+      type: Boolean,
+      default: false,
+    },
+    isCustomTime: {
       type: Boolean,
       default: false,
     },
@@ -95,6 +99,10 @@ export default {
     font-size: 12px;
     line-height: 1;
     color: #f56c6c;
+
+    &.custom-time-error-text {
+      top: 80px;
+    }
   }
 
   :deep(.bk-select) {
