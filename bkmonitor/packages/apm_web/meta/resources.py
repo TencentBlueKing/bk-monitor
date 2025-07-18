@@ -286,11 +286,22 @@ class ListApplicationInfoResource(Resource):
         bk_biz_id = validated_request_data["bk_biz_id"]
         qs = Application.objects.filter(bk_biz_id=bk_biz_id).filter(Application.q_filter_create_finished())
         apps = self.ApplicationInfoResponseSerializer(instance=qs, many=True).data
+        app_ids = [str(app["application_id"]) for app in apps]
+        amc_dict = dict(
+            ApmMetaConfig.objects.filter(
+                config_level=ApmMetaConfig.APPLICATION_LEVEL,
+                level_key__in=app_ids,
+                config_key=Application.TRACE_VIEW_CONFIG_KEY,
+            ).values_list("level_key", "config_value")
+        )
         biz_trpc_apps = settings.APM_TRPC_APPS.get(str(bk_biz_id)) or []
         for app in apps:
             app_name = app["app_name"]
-            app["view_config"] = TRPC_TRACE_VIEW_CONFIG if app_name in biz_trpc_apps else DEFAULT_TRACE_VIEW_CONFIG
-
+            app_id_str = str(app["application_id"])
+            if app_id_str in amc_dict:
+                app["view_config"] = amc_dict[app_id_str]
+            else:
+                app["view_config"] = TRPC_TRACE_VIEW_CONFIG if app_name in biz_trpc_apps else DEFAULT_TRACE_VIEW_CONFIG
         return apps
 
 
