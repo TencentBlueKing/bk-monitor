@@ -337,6 +337,10 @@ ANOMALY_RECORD_CONVERGED_ACTION_WINDOW = 3
 # access模块策略拉取耗时限制（每10分钟）
 ACCESS_TIME_PER_WINDOW = 30
 
+# access 模块流控数据源列表
+QOS_DATASOURCE_LABELS = []
+QOS_INTERVAL_EXPAND = 3
+
 # 环境变量
 PYTHON_HOME = sys.executable.rsplit("/", 1)[0]  # virtualenv path
 PYTHON = PYTHON_HOME + "/python"  # python bin
