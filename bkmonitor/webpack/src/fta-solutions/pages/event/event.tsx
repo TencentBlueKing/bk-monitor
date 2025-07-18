@@ -2630,6 +2630,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
                 searchType={this.searchType}
                 value={this.queryString}
                 valueMap={this.valueMap}
+                bkBizIds={this.bizIds}
                 onChange={this.handleQueryStringChange}
                 onClear={this.handleQueryStringChange}
               />
