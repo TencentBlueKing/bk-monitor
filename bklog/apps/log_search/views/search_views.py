@@ -52,8 +52,8 @@ from apps.log_search.constants import (
     ExportStatus,
     ExportType,
     IndexSetType,
-    QueryMode,
     SearchScopeEnum,
+    QueryMode,
 )
 from apps.log_search.decorators import search_history_record
 from apps.log_search.exceptions import BaseSearchIndexSetException
@@ -108,6 +108,7 @@ from apps.log_unifyquery.handler.async_export_handlers import (
 )
 from apps.log_unifyquery.handler.base import UnifyQueryHandler
 from apps.log_unifyquery.handler.context import UnifyQueryContextHandler
+from apps.log_unifyquery.handler.chart import UnifyQueryChartHandler
 from apps.log_unifyquery.handler.tail import UnifyQueryTailHandler
 from apps.utils.drf import detail_route, list_route
 from apps.utils.local import get_request_external_username, get_request_username
@@ -1932,53 +1933,21 @@ class SearchViewSet(APIViewSet):
         {
           "result": true,
           "data": {
-            "total_records": 2,
-            "time_taken": 0.092,
-            "list": [
-              {
-                "aa": "aa",
-                "number": 16.3
-                "time": 1731260184
-              },
-              {
-                "aa": "bb",
-                "number": 20.56
-                "time": 1731260184
-              }
-            ],
-            "select_fields_order": [
-              "aa",
-              "number",
-              "time"
-            ],
-            "result_schema": [
-            {
-                "field_type": "string",
-                "field_name": "aa",
-                "field_alias": "aa",
-                "field_index": 0
-            },
-            {
-                "field_type": "double",
-                "field_name": "number",
-                "field_alias": "number",
-                "field_index": 1
-            },
-            {
-                "field_type": "long",
-                "field_name": "time",
-                "field_alias": "time",
-                "field_index": 2
-            }
-            ]
-          },
+            "list": [{
+              "__index": "1001.axa.aa",
+              "__result_table": "abcd.__default__",
+              "log": "xxx1",
+              "time": xxx,
+              ...
+              }],
           "code": 0,
           "message": ""
         }
         """
         params = self.params_valid(ChartSerializer)
-        instance = ChartHandler.get_instance(index_set_id=index_set_id, mode=params["query_mode"])
-        result = instance.get_chart_data(params)
+        params["index_set_ids"] = [index_set_id]
+        query_handler = UnifyQueryChartHandler(params)
+        result = query_handler.get_chart_data(params)
         return Response(result)
 
     @detail_route(methods=["POST"], url_path="generate_sql")
