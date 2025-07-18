@@ -106,14 +106,13 @@ class DataLink(models.Model):
         """
         生成基础采集时序链路配置
         @param data_source: 数据源
-        @param table_id: 监控平台结果表ID
         @param storage_cluster_name: 存储集群名称
         @param bk_biz_id: 业务id
         @param source: 数据来源
         @return: config_list 配置列表
         """
         logger.info(
-            "compose_basereport_configs: data_link_name->[%s] ,bk_data_id->[%s],table_id->[%s],vm_cluster_name->[%s] "
+            "compose_basereport_configs: data_link_name->[%s] ,bk_data_id->[%s],vm_cluster_name->[%s] "
             "start to compose configs",
             self.data_link_name,
             data_source.bk_data_id,

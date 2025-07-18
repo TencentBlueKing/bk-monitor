@@ -3142,3 +3142,74 @@ BASEREPORT_RESULT_TABLE_FIELD_MAP = {
         },
     ],
 }
+
+BASE_EVENT_RESULT_TABLE_FIELD_MAP = {
+    "base_event": [
+        {
+            "field_name": "dimensions",
+            "field_type": "object",
+            "description": "",
+            "unit": "",
+            "tag": "dimension",
+            "is_config_by_user": True,
+            "default_value": None,
+            "alias_name": "",
+            "is_disabled": False,
+        },
+        {
+            "field_name": "event",
+            "field_type": "object",
+            "description": "",
+            "unit": "",
+            "tag": "dimension",
+            "is_config_by_user": True,
+            "default_value": None,
+            "alias_name": "",
+            "is_disabled": False,
+        },
+        {
+            "field_name": "event_name",
+            "field_type": "string",
+            "description": "",
+            "unit": "",
+            "tag": "dimension",
+            "is_config_by_user": True,
+            "default_value": None,
+            "alias_name": "",
+            "is_disabled": False,
+        },
+        {
+            "field_name": "target",
+            "field_type": "string",
+            "description": "",
+            "unit": "",
+            "tag": "dimension",
+            "is_config_by_user": True,
+            "default_value": None,
+            "alias_name": "",
+            "is_disabled": False,
+        },
+        {
+            "field_name": "time",
+            "field_type": "timestamp",
+            "description": "数据上报时间",
+            "unit": "",
+            "tag": "timestamp",
+            "is_config_by_user": True,
+            "default_value": None,
+            "alias_name": "",
+            "is_disabled": False,
+        },
+    ]
+}
+
+BASE_EVENT_RESULT_TABLE_OPTION_MAP = {
+    "base_event": [
+        {
+            "name": "es_unique_field_list",
+            "creator": "system",
+            "value_type": "list",
+            "value": '["event","target","dimensions","event_name","time"]',
+        }
+    ]
+}
