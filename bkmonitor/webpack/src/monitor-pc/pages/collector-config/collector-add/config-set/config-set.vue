@@ -502,7 +502,7 @@
             <bk-popconfirm
               width="200"
               :content="$tc('确认采集下发?')"
-              :disabled="!canNext || (info && info.plugin && info.plugin.type) !== 'K8S'"
+              :disabled="!canNext || info?.plugin?.type !== 'K8S'"
               :tippy-options="tippyOptions"
               placement="top"
               trigger="click"
@@ -1408,7 +1408,7 @@ export default {
         this.tipsData = data;
       }
     },
-    async pluginTypeInfo(val, loading, needSetConfig) {
+    async pluginTypeInfo(val, _loading, needSetConfig) {
       // 获取提示输入数据
       this.loading = true;
       // 先去获取有关的所有插件，并处理数据
@@ -1470,7 +1470,7 @@ export default {
                 if (item.auth_json !== undefined) {
                   if (this.config.mode === 'edit' || this.isClone) {
                     const authJson = item.auth_json;
-                    for (const item of authJson) {
+                    for (const _item of authJson) {
                       for (const p of set) {
                         const mode = p.mode === 'collector' ? 'collector' : 'plugin';
                         const paramDefault = this.info.params[mode][p.key];

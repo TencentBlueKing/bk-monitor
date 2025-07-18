@@ -212,15 +212,12 @@
             ext-popover-cls="select-popover-custom"
           >
             <bk-option
-              v-for="option in allConfig &&
-              allConfig.auth_priv &&
-              allConfig.auth_priv[curAuthPriv] &&
-              allConfig.auth_priv[curAuthPriv].need
+              v-for="option in allConfig?.auth_priv?.[curAuthPriv]?.need
                 ? allConfig.auth_priv[curAuthPriv].election
                 : allConfig.election"
               :key="option"
-              :id="option && option.id ? option.id : option"
-              :name="option && option.name ? option.name : option"
+              :id="option?.id ? option.id : option"
+              :name="option?.name ? option.name : option"
             />
           </bk-select>
         </div>
@@ -474,7 +471,7 @@ export default class StrategySetTarget extends Vue {
   getIndex(newVal: string, oldVal: string): number {
     const tempStr = newVal.length > oldVal.length ? newVal : oldVal;
     let diffIndex = 0;
-    tempStr.split('').find((item, idx) => {
+    tempStr.split('').find((_item, idx) => {
       diffIndex = idx;
       return oldVal[idx] !== newVal[idx];
     });

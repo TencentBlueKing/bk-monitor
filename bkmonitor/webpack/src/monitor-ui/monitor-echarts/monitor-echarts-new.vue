@@ -194,7 +194,7 @@
     >
       <div class="chart-table-title">
         <span>{{ $t('原始数据') }}</span>
-        <span class="title-count">{{ $t('共 {num} 条', { num: (tableData && tableData.length) || 0 }) }}</span>
+        <span class="title-count">{{ $t('共 {num} 条', { num: tableData?.length || 0 }) }}</span>
         <bk-button
           class="export-csv-btn"
           size="small"
@@ -475,7 +475,7 @@ export default class MonitorEcharts extends Vue {
           },
           formatter: this.handleSetTooltip,
           appendToBody: true,
-          position: (pos, params, dom, rect, size) => {
+          position: (pos, _params, _domm_rectct, size) => {
             const { contentSize } = size;
             const chartRect = this.$el.getBoundingClientRect();
             const posRect = {
@@ -529,7 +529,7 @@ export default class MonitorEcharts extends Vue {
       },
       (this.options || {}) as MonitorEchartOptions,
       {
-        arrayMerge: (destinationArray, sourceArray) => sourceArray,
+        arrayMerge: (_destinationArray, sourceArray) => sourceArray,
       }
     );
   }
