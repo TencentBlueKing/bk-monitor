@@ -62,6 +62,7 @@ export class AlertScenario extends BaseScenario {
     private readonly context: {
       handleShowDetail: (id: string) => void;
       hoverPopoverTools: IUsePopoverTools;
+      handleAlertContentDetailShow: (e: MouseEvent) => void;
       [methodName: string]: any;
     }
   ) {
@@ -196,7 +197,10 @@ export class AlertScenario extends BaseScenario {
     return (
       <div class='explore-col explore-prefix-icon-col alert-description-col'>
         <i class={`prefix-icon ${item?.prefixIcon}`} />
-        <div class={`${renderCtx.isEnabledCellEllipsis(column)} description-click`}>
+        <div
+          class={`${renderCtx.isEnabledCellEllipsis(column)} description-click`}
+          onClick={this.context.handleAlertContentDetailShow}
+        >
           <span>{item.alias || '--'}</span>
         </div>
       </div>
@@ -266,7 +270,9 @@ export class AlertScenario extends BaseScenario {
     const tplStr = `<div class='extend-info-popover-container'>
         ${content}
       </div>`;
-    this.context.hoverPopoverTools.showPopover(e, tplStr);
+    this.context.hoverPopoverTools.showPopover(e, tplStr, {
+      allowHTML: true,
+    });
   }
 
   /**

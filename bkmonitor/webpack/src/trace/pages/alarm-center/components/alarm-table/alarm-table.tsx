@@ -89,13 +89,13 @@ export default defineComponent({
   },
   setup(props) {
     // const alarmStore = useAlarmCenterStore();
+    const tableRef = useTemplateRef<InstanceType<typeof CommonTable>>('tableRef');
+    const alertContentDetailRef = useTemplateRef<InstanceType<typeof AlertContentDetail>>('alertContentDetailRef');
+
     /** hover 场景使用的popover工具函数 */
     const hoverPopoverTools = usePopover();
     /** click 场景使用的popover工具函数 */
-    const clickPopoverTools = usePopover();
-
-    const tableRef = useTemplateRef<InstanceType<typeof CommonTable>>('tableRef');
-    const alertContentDetailRef = useTemplateRef<InstanceType<typeof AlertContentDetail>>('alertContentDetail');
+    const clickPopoverTools = usePopover({ trigger: 'click' });
     /** 多选状态 */
     const selectedRowKeys = deepRef<(number | string)[]>([]);
     /* 关注人则禁用操作 */
@@ -108,6 +108,7 @@ export default defineComponent({
     const scenarioContext: AlertScenario['context'] & IncidentScenario['context'] & ActionScenario['context'] = {
       handleShowDetail,
       hoverPopoverTools,
+      handleAlertContentDetailShow,
     };
     // 使用场景渲染器
     const { transformColumns, currentScenario } = useScenarioRenderer(scenarioContext);
@@ -148,6 +149,7 @@ export default defineComponent({
     function handleScroll() {
       updateTablePointEvents('none');
       hoverPopoverTools.hidePopover();
+      clickPopoverTools.hidePopover();
       scrollPointerEventsTimer && clearTimeout(scrollPointerEventsTimer);
       scrollPointerEventsTimer = setTimeout(() => {
         updateTablePointEvents('auto');
@@ -175,6 +177,14 @@ export default defineComponent({
      */
     function handleShowDetail(id: string) {
       alert(`记录${id}的详情弹窗`);
+    }
+
+    /**
+     * @description 打开告警内容详情 popover
+     */
+    function handleAlertContentDetailShow(e: MouseEvent) {
+      console.log('================ alertContentDetailRef.value ================', alertContentDetailRef.value);
+      clickPopoverTools.showPopover(e, () => alertContentDetailRef.value.$el);
     }
 
     watch(
