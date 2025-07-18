@@ -155,7 +155,7 @@ export class AlertScenario extends BaseScenario {
   private renderAlertName(row: any): SlotReturnValue {
     const rectColor = AlarmLevelIconMap?.[row?.severity]?.iconColor;
     return (
-      <div class='explore-col lever-rect-col'>
+      <div class='explore-col alert-lever-rect-col'>
         <i
           style={{ '--lever-rect-color': rectColor }}
           class='lever-rect'
@@ -176,9 +176,8 @@ export class AlertScenario extends BaseScenario {
    */
   private renderExtendInfo(row: any): SlotReturnValue {
     return (
-      <div class='explore-col'>
+      <div class='explore-col alert-extend-info-col'>
         <div
-          class='extend-info-col'
           onMouseenter={e => this.handleExtendInfoHover(e, row.extend_info)}
           onMouseleave={this.context.clearPopoverTimer}
         >
@@ -194,9 +193,9 @@ export class AlertScenario extends BaseScenario {
   private renderDescription(row: any, column: BaseTableColumn, renderCtx: TableCellRenderContext): SlotReturnValue {
     const item = column?.getRenderValue?.(row, column);
     return (
-      <div class='explore-col explore-prefix-icon-col '>
+      <div class='explore-col explore-prefix-icon-col alert-description-col'>
         <i class={`prefix-icon ${item?.prefixIcon}`} />
-        <div class={`${renderCtx.isEnabledCellEllipsis(column)} description-click-col`}>
+        <div class={`${renderCtx.isEnabledCellEllipsis(column)} description-click`}>
           <span>{item.alias || '--'}</span>
         </div>
       </div>
