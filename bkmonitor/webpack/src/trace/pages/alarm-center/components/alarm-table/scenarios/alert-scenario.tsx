@@ -43,7 +43,9 @@ import {
 } from '../../../typings';
 import { BaseScenario } from './base-scenario';
 
+import type { IUsePopoverTools } from '../hooks/use-popover';
 import type { SlotReturnValue } from 'tdesign-vue-next';
+import type { TippyContent } from 'vue-tippy';
 
 /**
  * @class AlertScenario
@@ -59,8 +61,7 @@ export class AlertScenario extends BaseScenario {
   constructor(
     private readonly context: {
       handleShowDetail: (id: string) => void;
-      showPopover: (e: MouseEvent, content: any) => void;
-      clearPopoverTimer: () => void;
+      hoverPopoverTools: IUsePopoverTools;
       [methodName: string]: any;
     }
   ) {
@@ -164,7 +165,7 @@ export class AlertScenario extends BaseScenario {
           class='lever-rect-text ellipsis-text'
           onClick={() => this.context.handleShowDetail(row.id)}
           onMouseenter={e => this.handleAlterNameHover(e, row)}
-          onMouseleave={this.context.clearPopoverTimer}
+          onMouseleave={this.context.hoverPopoverTools.clearPopoverTimer}
         >
           <span>{row?.alert_name}</span>
         </div>
@@ -179,7 +180,7 @@ export class AlertScenario extends BaseScenario {
       <div class='explore-col alert-extend-info-col'>
         <div
           onMouseenter={e => this.handleExtendInfoHover(e, row.extend_info)}
-          onMouseleave={this.context.clearPopoverTimer}
+          onMouseleave={this.context.hoverPopoverTools.clearPopoverTimer}
         >
           {row.extend_info?.type ? this.getExtendInfoColumn(row) : '--'}
         </div>
@@ -234,8 +235,8 @@ export class AlertScenario extends BaseScenario {
           </div>
         </div>
       </div>
-    );
-    this.context.showPopover(e, content);
+    ) as unknown as TippyContent;
+    this.context.hoverPopoverTools.showPopover(e, content);
   }
 
   /**
@@ -265,7 +266,7 @@ export class AlertScenario extends BaseScenario {
     const tplStr = `<div class='extend-info-popover-container'>
         ${content}
       </div>`;
-    this.context.showPopover(e, tplStr);
+    this.context.hoverPopoverTools.showPopover(e, tplStr);
   }
 
   /**

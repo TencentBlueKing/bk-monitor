@@ -89,7 +89,10 @@ export default defineComponent({
   },
   setup(props) {
     // const alarmStore = useAlarmCenterStore();
-    const { showPopover, hidePopover, clearPopoverTimer } = usePopover();
+    /** hover 场景使用的popover工具函数 */
+    const hoverPopoverTools = usePopover();
+    /** click 场景使用的popover工具函数 */
+    const clickPopoverTools = usePopover();
 
     const tableRef = useTemplateRef<InstanceType<typeof CommonTable>>('tableRef');
     const alertContentDetailRef = useTemplateRef<InstanceType<typeof AlertContentDetail>>('alertContentDetail');
@@ -104,9 +107,7 @@ export default defineComponent({
     /** 创建场景上下文 */
     const scenarioContext: AlertScenario['context'] & IncidentScenario['context'] & ActionScenario['context'] = {
       handleShowDetail,
-      showPopover,
-      hidePopover,
-      clearPopoverTimer,
+      hoverPopoverTools,
     };
     // 使用场景渲染器
     const { transformColumns, currentScenario } = useScenarioRenderer(scenarioContext);
@@ -146,7 +147,7 @@ export default defineComponent({
      */
     function handleScroll() {
       updateTablePointEvents('none');
-      hidePopover();
+      hoverPopoverTools.hidePopover();
       scrollPointerEventsTimer && clearTimeout(scrollPointerEventsTimer);
       scrollPointerEventsTimer = setTimeout(() => {
         updateTablePointEvents('auto');

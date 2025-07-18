@@ -25,13 +25,22 @@
  */
 
 import { toValue } from 'vue';
-import { type TippyOptions, useTippy } from 'vue-tippy';
+import { type TippyContent, type TippyOptions, useTippy } from 'vue-tippy';
+
+export interface IUsePopoverTools {
+  /** 显示 Popover */
+  showPopover: (e: MouseEvent, content: TippyContent, options?: TippyOptions) => void;
+  /** 清除 popover */
+  hidePopover: () => void;
+  /** 清除 popover 延时打开定时器 */
+  clearPopoverTimer: () => void;
+}
 
 /**
  * @description Popover 管理钩子（单例）
  * @returns Popover 控制方法
  */
-export function usePopover() {
+export function usePopover(): IUsePopoverTools {
   /** popover 实例 */
   let popoverInstance = null;
   /** popover 延迟打开定时器 */
@@ -58,7 +67,7 @@ export function usePopover() {
    * @param options 自定义选项
    *
    */
-  function showPopover(e: MouseEvent, content, customOptions: TippyOptions = {}) {
+  function showPopover(e: MouseEvent, content: TippyContent, customOptions: TippyOptions = {}) {
     if (popoverInstance || popoverDelayTimer) {
       hidePopover();
     }

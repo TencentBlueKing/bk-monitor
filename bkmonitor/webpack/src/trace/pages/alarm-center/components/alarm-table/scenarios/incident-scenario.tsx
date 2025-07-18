@@ -28,6 +28,7 @@ import { INCIDENT_STORAGE_KEY } from '../../../services/incident-services';
 import { BaseScenario } from './base-scenario';
 
 import type { BaseTableColumn } from '../../../../trace-explore/components/trace-explore-table/typing';
+import type { IUsePopoverTools } from '../hooks/use-popover';
 
 /**
  * @class IncidentScenario
@@ -42,8 +43,7 @@ export class IncidentScenario extends BaseScenario {
 
   constructor(
     private readonly context: {
-      showPopover: (e: MouseEvent, content: any) => void;
-      clearPopoverTimer: () => void;
+      hoverPopoverTools: IUsePopoverTools;
       [methodName: string]: any;
     }
   ) {
