@@ -34,6 +34,7 @@ from apps.log_search.constants import (
     TimeFieldUnitEnum,
     MAX_ASYNC_COUNT,
     SCROLL,
+    MAX_QUICK_EXPORT_ASYNC_COUNT,
 )
 from apps.log_search.exceptions import BaseSearchResultAnalyzeException
 from apps.log_search.handlers.index_set import BaseIndexSetHandler
@@ -56,7 +57,8 @@ from apps.utils.ipchooser import IPChooser
 from apps.utils.local import (
     get_local_param,
     get_request_external_username,
-    get_request_username, get_request,
+    get_request_username,
+    get_request,
 )
 from apps.utils.log import logger
 from apps.utils.lucene import EnhanceLuceneAdapter
@@ -231,6 +233,19 @@ class UnifyQueryHandler:
             return UnifyQueryApi.query_ts_raw(search_dict)
         except Exception as e:  # pylint: disable=broad-except
             logger.exception("query ts raw error: %s, search params: %s", e, search_dict)
+            if raise_exception:
+                raise e
+            return {"list": []}
+
+    @staticmethod
+    def query_ts_raw_with_scroll(search_dict, raise_exception=True):
+        """
+        日志下载
+        """
+        try:
+            return UnifyQueryApi.query_ts_raw_with_scroll(search_dict)
+        except Exception as e:  # pylint: disable=broad-except
+            logger.exception("query ts raw with scroll error: %s, search params: %s", e, search_dict)
             if raise_exception:
                 raise e
             return {"list": []}
@@ -1040,6 +1055,29 @@ class UnifyQueryHandler:
             search_after_size = len(search_result["list"])
             result_size += search_after_size
             yield self._deal_query_result(search_result)
+
+    def export_data(self, is_quick_export: bool = False):
+        """
+        轮询滚动查询接口导出数据
+        """
+        max_count = MAX_QUICK_EXPORT_ASYNC_COUNT if is_quick_export else MAX_ASYNC_COUNT
+
+        search_params = copy.deepcopy(self.base_dict)
+        search_params["limit"] = MAX_RESULT_WINDOW
+        search_params["scroll"] = SCROLL
+
+        total_count = 0
+        while True:
+            search_result = UnifyQueryHandler.query_ts_raw_with_scroll(search_params)
+            total_count += len(search_result["list"])
+
+            if is_quick_export:
+                yield search_result["list"]
+            else:
+                yield self._deal_query_result(search_result)["origin_log_list"]
+
+            if search_result.get("done", True) or total_count >= max_count:
+                break
 
     def _get_user_sorted_list(self, sorted_fields):
         index_set_id = self.index_info_list[0]["index_set_id"]
