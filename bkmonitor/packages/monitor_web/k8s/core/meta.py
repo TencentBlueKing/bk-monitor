@@ -615,8 +615,8 @@ class K8sClusterMeta(K8sResourceMeta):
                 "sum by (bcs_cluster_id)(sum by (bcs_cluster_id,pod) "
                 f"({self.agg_method}_over_time(kube_pod_container_resource_requests{{{filter_string}}}[1m:]))"
                 " / "
-                f"on (pod) group_left() count by (pod)"
-                f'(kube_pod_status_phase{{{self.bcs_cluster_id_filter},phase!="Evicted"}}))'
+                f"on (pod) group_left() count (count by (pod)"
+                f'(kube_pod_status_phase{{{self.bcs_cluster_id_filter},phase!="Evicted"}})) by (pod))'
                 " / "
                 f"{self.tpl_prom_with_nothing('kube_node_status_allocatable', filter_string=filter_string)}"
             )
@@ -624,8 +624,8 @@ class K8sClusterMeta(K8sResourceMeta):
             "sum by (bcs_cluster_id)(sum by (bcs_cluster_id,pod) "
             f"(kube_pod_container_resource_requests{{{filter_string}}})"
             " / "
-            f"on (pod) group_left() count by (pod)"
-            f'(kube_pod_status_phase{{{self.bcs_cluster_id_filter},phase!="Evicted"}}))'
+            f"on (pod) group_left() count (count by (pod)"
+            f'(kube_pod_status_phase{{{self.bcs_cluster_id_filter},phase!="Evicted"}})) by (pod))'
             " / "
             f"{self.tpl_prom_with_nothing('kube_node_status_allocatable', filter_string=filter_string)}"
         )
@@ -671,8 +671,8 @@ class K8sClusterMeta(K8sResourceMeta):
                 "sum by (bcs_cluster_id)(sum by (bcs_cluster_id,pod) "
                 f"({self.agg_method}_over_time(kube_pod_container_resource_requests{{{filter_string}}}[1m:]))"
                 " / "
-                f"on (pod) group_left() count by (pod)"
-                f'(kube_pod_status_phase{{{self.bcs_cluster_id_filter},phase!="Evicted"}}))'
+                f"on (pod) group_left() count (count by (pod)"
+                f'(kube_pod_status_phase{{{self.bcs_cluster_id_filter},phase!="Evicted"}})) by (pod))'
                 "/"
                 f"{self.tpl_prom_with_nothing('kube_node_status_allocatable', filter_string=filter_string)}"
             )
@@ -680,8 +680,8 @@ class K8sClusterMeta(K8sResourceMeta):
             "sum by (bcs_cluster_id)(sum by (bcs_cluster_id,pod) "
             f"(kube_pod_container_resource_requests{{{filter_string}}})"
             " / "
-            f"on (pod) group_left() count by (pod)"
-            f'(kube_pod_status_phase{{{self.bcs_cluster_id_filter},phase!="Evicted"}}))'
+            f"on (pod) group_left() count (count by (pod)"
+            f'(kube_pod_status_phase{{{self.bcs_cluster_id_filter},phase!="Evicted"}})) by (pod))'
             "/"
             f"{self.tpl_prom_with_nothing('kube_node_status_allocatable', filter_string=filter_string)}"
         )
@@ -791,8 +791,8 @@ class K8sNodeMeta(K8sResourceMeta):
                 "sum by (node)(sum by (node,pod) "
                 f"({self.agg_method}_over_time(kube_pod_container_resource_requests{{{filter_string}}}[1m:]))"
                 " / "
-                f"on (pod) group_left() count by (pod)"
-                f'(kube_pod_status_phase{{{self.bcs_cluster_id_filter},phase!="Evicted"}}))'
+                f"on (pod) group_left() count (count by (pod)"
+                f'(kube_pod_status_phase{{{self.bcs_cluster_id_filter},phase!="Evicted"}})) by (pod))'
                 " / "
                 f"{self.tpl_prom_with_nothing('kube_node_status_allocatable', filter_string=filter_string)}"
             )
@@ -800,8 +800,8 @@ class K8sNodeMeta(K8sResourceMeta):
             "sum by (node)(sum by (node,pod) "
             f"(kube_pod_container_resource_requests{{{filter_string}}})"
             " / "
-            f"on (pod) group_left() count by (pod)"
-            f'(kube_pod_status_phase{{{self.bcs_cluster_id_filter},phase!="Evicted"}}))'
+            f"on (pod) group_left() count (count by (pod)"
+            f'(kube_pod_status_phase{{{self.bcs_cluster_id_filter},phase!="Evicted"}})) by (pod))'
             " / "
             f"{self.tpl_prom_with_nothing('kube_node_status_allocatable', filter_string=filter_string)}"
         )
@@ -848,8 +848,8 @@ class K8sNodeMeta(K8sResourceMeta):
                 "sum by (node)(sum by (node,pod) "
                 f"({self.agg_method}_over_time(kube_pod_container_resource_requests{{{filter_string}}}[1m:]))"
                 " / "
-                f"on (pod) group_left() count by (pod)"
-                f'(kube_pod_status_phase{{{self.bcs_cluster_id_filter},phase!="Evicted"}}))'
+                f"on (pod) group_left() count (count by (pod)"
+                f'(kube_pod_status_phase{{{self.bcs_cluster_id_filter},phase!="Evicted"}})) by (pod))'
                 "/"
                 f"{self.tpl_prom_with_nothing('kube_node_status_allocatable', filter_string=filter_string)}"
             )
@@ -857,8 +857,8 @@ class K8sNodeMeta(K8sResourceMeta):
             "sum by (node)(sum by (node,pod) "
             f"(kube_pod_container_resource_requests{{{filter_string}}})"
             " / "
-            f"on (pod) group_left() count by (pod)"
-            f'(kube_pod_status_phase{{{self.bcs_cluster_id_filter},phase!="Evicted"}}))'
+            f"on (pod) group_left() count (count by (pod)"
+            f'(kube_pod_status_phase{{{self.bcs_cluster_id_filter},phase!="Evicted"}})) by (pod))'
             "/"
             f"{self.tpl_prom_with_nothing('kube_node_status_allocatable', filter_string=filter_string)}"
         )
