@@ -81,6 +81,7 @@ class AccessBeater(MonitorBeater):
                         for config in item["query_configs"]:
                             if config.get("agg_interval"):
                                 _interval_list.append(config["agg_interval"])
+
                             if (
                                 not _is_qos
                                 and [config.get("data_source_label"), config.get("data_type_label")] in qos_labels
@@ -105,6 +106,7 @@ class AccessBeater(MonitorBeater):
                 if (data_source_label, data_type_label) == tuple(strategy_source):
                     is_qos = True
                     break
+
             bk_biz_id = strategy_group.pop("bk_biz_id", None)
             strategy_ids = strategy_group.keys()
             if bk_biz_id is not None:
