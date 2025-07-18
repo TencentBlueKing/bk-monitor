@@ -51,7 +51,7 @@ def test_compose_data_id_config(create_or_delete_records):
     """
 
     # 单租户模式
-    settings.ENABLE_MULTI_TENANT_MODE = False
+    settings.ENABLE_BKBASE_V4_MULTI_TENANT = False
     ds = models.DataSource.objects.get(bk_data_id=50010)
     bkbase_data_name = utils.compose_bkdata_data_id_name(ds.data_name)
     assert bkbase_data_name == "bkm_data_link_test"
@@ -69,7 +69,7 @@ def test_compose_data_id_config(create_or_delete_records):
     assert json.dumps(content) == expected_config
 
     # 多租户模式
-    settings.ENABLE_MULTI_TENANT_MODE = True
+    settings.ENABLE_BKBASE_V4_MULTI_TENANT = True
     expected_config = (
         '{"kind":"DataId","metadata":{"name":"bkm_data_link_test","namespace":"bkmonitor",'
         '"tenant":"system","labels":{"bk_biz_id":"111"}},"spec":{"alias":"bkm_data_link_test",'
@@ -86,7 +86,7 @@ def test_compose_vm_result_table_config(create_or_delete_records):
     测试VMResultTableConfig能否正确生成
     """
     # 单租户模式
-    settings.ENABLE_MULTI_TENANT_MODE = False
+    settings.ENABLE_BKBASE_V4_MULTI_TENANT = False
 
     ds = models.DataSource.objects.get(bk_data_id=50010)
     rt = models.ResultTable.objects.get(table_id="1001_bkmonitor_time_series_50010.__default__")
@@ -112,7 +112,7 @@ def test_compose_vm_result_table_config(create_or_delete_records):
     assert json.dumps(content) == expect_config
 
     # 多租户模式
-    settings.ENABLE_MULTI_TENANT_MODE = True
+    settings.ENABLE_BKBASE_V4_MULTI_TENANT = True
     expect_config = (
         '{"kind":"ResultTable","metadata":{"name":"bkm_1001_bkmonitor_time_series_50010",'
         '"namespace":"bkmonitor","tenant":"system","labels":{"bk_biz_id":"111"}},'
@@ -130,7 +130,7 @@ def test_compose_vm_storage_binding_config(create_or_delete_records):
     测试VMStorageBindingConfig能否正确生成
     """
     # 单租户模式
-    settings.ENABLE_MULTI_TENANT_MODE = False
+    settings.ENABLE_BKBASE_V4_MULTI_TENANT = False
     ds = models.DataSource.objects.get(bk_data_id=50010)
     rt = models.ResultTable.objects.get(table_id="1001_bkmonitor_time_series_50010.__default__")
 
@@ -159,7 +159,7 @@ def test_compose_vm_storage_binding_config(create_or_delete_records):
     assert json.dumps(content) == expect_config
 
     # 多租户模式
-    settings.ENABLE_MULTI_TENANT_MODE = True
+    settings.ENABLE_BKBASE_V4_MULTI_TENANT = True
 
     expect_config = (
         '{"kind":"VmStorageBinding","metadata":{"name":"bkm_1001_bkmonitor_time_series_50010",'
@@ -179,7 +179,7 @@ def test_compose_data_bus_config(create_or_delete_records):
     测试DataBusConfig能否正确生成
     """
     # 单租户模式
-    settings.ENABLE_MULTI_TENANT_MODE = False
+    settings.ENABLE_BKBASE_V4_MULTI_TENANT = False
     ds = models.DataSource.objects.get(bk_data_id=50010)
     rt = models.ResultTable.objects.get(table_id="1001_bkmonitor_time_series_50010.__default__")
 
@@ -218,7 +218,7 @@ def test_compose_data_bus_config(create_or_delete_records):
     assert json.dumps(content) == expect_config
 
     # 多租户模式
-    settings.ENABLE_MULTI_TENANT_MODE = True
+    settings.ENABLE_BKBASE_V4_MULTI_TENANT = True
 
     # 生成sink的时候,需要加上tenant
     sinks = [
@@ -249,7 +249,7 @@ def test_compose_single_conditional_sink_config(create_or_delete_records):
     测试单集群ConditionalSinkConfig能否正确生成
     """
     # 单租户模式
-    settings.ENABLE_MULTI_TENANT_MODE = False
+    settings.ENABLE_BKBASE_V4_MULTI_TENANT = False
     ds = models.DataSource.objects.get(bk_data_id=50010)
     rt = models.ResultTable.objects.get(table_id="1001_bkmonitor_time_series_50010.__default__")
 
@@ -301,7 +301,7 @@ def test_compose_single_conditional_sink_config(create_or_delete_records):
     assert json.dumps(content) == expected
 
     # 多租户模式
-    settings.ENABLE_MULTI_TENANT_MODE = True
+    settings.ENABLE_BKBASE_V4_MULTI_TENANT = True
 
     expected = (
         '{"kind":"ConditionalSink","metadata":{"namespace":"bkmonitor",'
@@ -336,7 +336,7 @@ def test_compose_multi_conditional_sink_config(create_or_delete_records):
     测试多集群ConditionalSinkConfig能否正确生成
     """
     # 单租户模式
-    settings.ENABLE_MULTI_TENANT_MODE = False
+    settings.ENABLE_BKBASE_V4_MULTI_TENANT = False
     ds = models.DataSource.objects.get(bk_data_id=50010)
     rt = models.ResultTable.objects.get(table_id="1001_bkmonitor_time_series_50010.__default__")
 
@@ -407,7 +407,7 @@ def test_compose_multi_conditional_sink_config(create_or_delete_records):
     assert json.dumps(content) == expected
 
     # 多租户模式
-    settings.ENABLE_MULTI_TENANT_MODE = True
+    settings.ENABLE_BKBASE_V4_MULTI_TENANT = True
 
     expected = (
         '{"kind":"ConditionalSink","metadata":{"namespace":"bkmonitor",'

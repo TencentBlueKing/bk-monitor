@@ -25,7 +25,12 @@ from constants.common import DEFAULT_TENANT_ID
 from core.prometheus import metrics
 from metadata import models
 from metadata.models import BkBaseResultTable, DataSource
-from metadata.models.constants import DataIdCreatedFromSystem, BASEREPORT_RESULT_TABLE_FIELD_MAP
+from metadata.models.constants import (
+    DataIdCreatedFromSystem,
+    BASEREPORT_RESULT_TABLE_FIELD_MAP,
+    BASE_EVENT_RESULT_TABLE_FIELD_MAP,
+    BASE_EVENT_RESULT_TABLE_OPTION_MAP,
+)
 from metadata.models.data_link.constants import DataLinkResourceStatus, BASEREPORT_SOURCE_SYSTEM, BASEREPORT_USAGES
 from metadata.models.data_link.service import get_data_link_component_status
 from metadata.models.space.constants import SpaceTypes, EtlConfigs
@@ -988,7 +993,7 @@ def create_basereport_datalink_for_bkcc(bk_biz_id, storage_cluster_name=None):
                 .last()
                 .cluster_name
             )
-    except Exception as e:  # pyling: disable=broad-except
+    except Exception as e:  # pylint: disable=broad-except
         logger.error("create_basereport_datalink_for_bkcc: get default vm cluster failed,error->[%s]", e)
         return
 
@@ -1241,4 +1246,154 @@ def create_basereport_datalink_for_bkcc(bk_biz_id, storage_cluster_name=None):
 
     logger.info(
         "create_basereport_datalink_for_bkcc: finished creating basereport datalink,for bk_biz_id->[%s]", bk_biz_id
+    )
+
+
+def create_base_event_datalink_for_bkcc(bk_biz_id):
+    """
+    创建Agent基础事件数据链路
+    @param bk_biz_id: 业务ID
+    """
+
+    logger.info("create_base_event_datalink_for_bkcc: try to create base event datalink for bk_biz_id->[%s]", bk_biz_id)
+
+    if not settings.ENABLE_MULTI_TENANT_MODE:
+        logger.error("create_base_event_datalink_for_bkcc: multi tenant mode is not enabled,return!")
+        return
+
+    space_ins = models.Space.objects.get(space_type_id=SpaceTypes.BKCC.value, space_id=bk_biz_id)
+    bk_tenant_id = space_ins.bk_tenant_id
+    space_uid = f"{SpaceTypes.BKCC.value}__{bk_biz_id}"
+
+    data_name = f"base_{bk_biz_id}_agent_event"
+
+    try:
+        data_source = models.DataSource.objects.get(data_name=data_name, bk_tenant_id=bk_tenant_id)
+    except models.DataSource.DoesNotExist:
+        logger.info(
+            "create_base_event_datalink_for_bkcc: data source not found,for bk_biz_id->[%s],try to create it", bk_biz_id
+        )
+        data_source = models.DataSource.create_data_source(
+            data_name=data_name,
+            etl_config=EtlConfigs.BK_MULTI_TENANCY_AGENT_EVENT_ETL_CONFIG,
+            operator="system",
+            source_label="bk_monitor",
+            type_label="event",
+            space_uid=space_uid,
+            bk_biz_id=bk_biz_id,
+        )
+
+    logger.info(
+        "create_base_event_datalink_for_bkcc: data source created,for bk_biz_id->[%s],bk_data_id->[%s]",
+        bk_biz_id,
+        data_source.bk_data_id,
+    )
+
+    table_id = f"base_{bk_tenant_id}_{bk_biz_id}_event"
+
+    rt_queryset = models.ResultTable.objects.filter(table_id=table_id, bk_tenant_id=bk_tenant_id)
+
+    if not rt_queryset:
+        result_table = models.ResultTable.objects.create(
+            table_id=table_id,
+            bk_tenant_id=bk_tenant_id,
+            default_storage=models.ClusterInfo.TYPE_ES,
+            table_name_zh=f"{bk_tenant_id}_{bk_biz_id}_基础事件",
+            is_custom_table=False,
+            schema_type="free",
+            creator="system",
+            label="os",
+            bk_biz_id=bk_biz_id,
+            data_label="system_event",
+        )
+    else:
+        result_table = rt_queryset.first()
+
+    result_table_field_to_create = []
+    existing_fields = list(
+        models.ResultTableField.objects.filter(table_id=table_id, bk_tenant_id=bk_tenant_id).values_list(
+            "field_name", flat=True
+        )
+    )
+
+    fields = BASE_EVENT_RESULT_TABLE_FIELD_MAP.get("base_event", [])
+
+    for field in fields:
+        if field["field_name"] in existing_fields:
+            continue
+
+        result_table_field_to_create.append(
+            models.ResultTableField(
+                table_id=table_id,
+                bk_tenant_id=bk_tenant_id,
+                field_name=field["field_name"],
+                field_type=field["field_type"],
+                description=field.get("description", ""),
+                unit=field.get("unit", ""),
+                tag=field.get("tag", ""),
+                is_config_by_user=field.get("is_config_by_user", False),
+                default_value=field.get("default_value"),
+                creator="system",
+                alias_name=field.get("alias_name", ""),
+                is_disabled=field.get("is_disabled", False),
+            )
+        )
+
+    if result_table_field_to_create:
+        logger.info("create_base_event_datalink_for_bkcc: creating rt fields,table_id->[%s]", table_id)
+        models.ResultTableField.objects.bulk_create(result_table_field_to_create)
+
+    # ResultTableOption
+    result_table_option_to_create = []
+
+    existing_options = list(
+        models.ResultTableOption.objects.filter(table_id=table_id, bk_tenant_id=bk_tenant_id).values_list(
+            "name", flat=True
+        )
+    )
+
+    options = BASE_EVENT_RESULT_TABLE_OPTION_MAP.get("base_event", [])
+    for option in options:
+        if option["name"] in existing_options:
+            continue
+
+        result_table_option_to_create.append(
+            models.ResultTableOption(
+                table_id=table_id,
+                bk_tenant_id=bk_tenant_id,
+                value=option["value"],
+                value_type=option["value_type"],
+                name=option["name"],
+                creator=option["creator"],
+            )
+        )
+
+    if result_table_option_to_create:
+        logger.info("create_base_event_datalink_for_bkcc: creating rt options,table_id->[%s]", table_id)
+        models.ResultTableOption.objects.bulk_create(result_table_option_to_create)
+
+    # ESStorage
+    es_storage_qs = models.ESStorage.objects.filter(table_id=table_id, bk_tenant_id=bk_tenant_id)
+    if not es_storage_qs:
+        es_storage = models.ESStorage.objects.create(
+            table_id=table_id,
+            bk_tenant_id=bk_tenant_id,
+            date_format="%Y%m%d",
+            slice_size=500,
+            slice_gap=1440,
+            retention=30,
+            index_settings='{"number_of_shards":4,"number_of_replicas":1}',
+            mapping_settings='{"dynamic_templates":[{"discover_dimension":{"path_match":"dimensions.*","mapping":{'
+            '"type":"keyword"}}}]}',
+            source_type="log",
+            need_create_index=True,
+            index_set=table_id,
+        )
+    else:
+        es_storage = es_storage_qs.first()
+
+    logger.info(
+        "create_base_event_datalink_for_bkcc: create base event datalink for bk_biz_id->[%s] success,table_id->[%s]",
+        result_table.bk_biz_id,
+        es_storage.table_id,
     )
