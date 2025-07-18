@@ -84,12 +84,18 @@
           }
 
           .expand-update-record {
-            margin-left: 106px;
+            margin-left: 176px;
+            font-size: 12px;
+            color: #63656E;
 
-            .update-user,
-            .update-time {
-              margin-left: 5px;
+            .separator {
+              display: inline-block;
+              width: 1px;
+              height: 9px;
+              margin: 0 7.5px;
+              background-color: #C4C6CC;
             }
+
           }
 
           .title-wrap {
