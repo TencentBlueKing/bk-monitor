@@ -24,14 +24,23 @@
  * IN THE SOFTWARE.
  */
 
-import { toValue } from 'vue';
-import { type TippyOptions, useTippy } from 'vue-tippy';
+import { onBeforeUnmount } from 'vue';
+import { type TippyContent, type TippyOptions, useTippy } from 'vue-tippy';
+
+export interface IUsePopoverTools {
+  /** 显示 Popover */
+  showPopover: (e: MouseEvent, content: TippyContent, options?: TippyOptions) => void;
+  /** 清除 popover */
+  hidePopover: () => void;
+  /** 清除 popover 延时打开定时器 */
+  clearPopoverTimer: () => void;
+}
 
 /**
  * @description Popover 管理钩子（单例）
  * @returns Popover 控制方法
  */
-export function usePopover() {
+export function usePopover(popoverDefaultOptions: TippyOptions = {}): IUsePopoverTools {
   /** popover 实例 */
   let popoverInstance = null;
   /** popover 延迟打开定时器 */
@@ -40,15 +49,17 @@ export function usePopover() {
   // 默认配置
   const defaultOptions: Partial<TippyOptions> = {
     appendTo: () => document.body,
+    trigger: 'mouseenter',
     animation: false,
     maxWidth: 'none',
-    allowHTML: true,
+    allowHTML: false,
     arrow: true,
     interactive: true,
     theme: 'alarm-center-popover max-width-50vw text-wrap padding-0',
     onHidden: () => {
       hidePopover();
     },
+    ...popoverDefaultOptions,
   };
 
   /**
@@ -58,12 +69,12 @@ export function usePopover() {
    * @param options 自定义选项
    *
    */
-  function showPopover(e: MouseEvent, content, customOptions: TippyOptions = {}) {
+  function showPopover(e: MouseEvent, content: TippyContent, customOptions: TippyOptions = {}) {
     if (popoverInstance || popoverDelayTimer) {
       hidePopover();
     }
     popoverInstance = useTippy(e.currentTarget, {
-      content: toValue(content),
+      content: content,
       ...defaultOptions,
       ...customOptions,
     });
@@ -96,6 +107,10 @@ export function usePopover() {
     popoverDelayTimer && clearTimeout(popoverDelayTimer);
     popoverDelayTimer = null;
   }
+
+  onBeforeUnmount(() => {
+    hidePopover();
+  });
 
   return {
     showPopover,

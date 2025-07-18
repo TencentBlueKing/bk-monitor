@@ -12,10 +12,26 @@
   .alarm-table {
     flex-grow: 1;
     flex-basis: auto;
+
+    .t-table {
+      .t-table__content {
+        .t-table__body {
+          tr:not(.t-table__row--full) {
+            &:hover {
+              .explore-tags-col {
+                .tag-item {
+                  background-color: var(--tag-hover-bg-color);
+                }
+              }
+            }
+          }
+        }
+      }
+    }
   }
 
   .explore-col {
-    &.lever-rect-col {
+    &.alert-lever-rect-col {
       display: flex;
       align-items: center;
 
@@ -33,42 +49,46 @@
       }
     }
 
-    .extend-info-col {
-      display: inline-flex;
-      flex-direction: column;
-      justify-content: center;
-      max-width: 100%;
-      line-height: 18px;
+    &.alert-extend-info-col {
+      & > div {
+        display: inline-flex;
+        flex-direction: column;
+        justify-content: center;
+        max-width: 100%;
+        line-height: 18px;
 
-      .extend-content {
-        display: flex;
-        height: 18px;
+        .extend-content {
+          display: flex;
+          height: 18px;
 
-        @include text-ellipsis;
-
-        &-message {
           @include text-ellipsis;
-        }
 
-        &-link {
-          color: #3a84ff;
-          cursor: pointer;
+          &-message {
+            @include text-ellipsis;
+          }
 
-          &.link-more {
-            float: right;
-            margin-left: 6px;
+          &-link {
+            color: #3a84ff;
+            cursor: pointer;
+
+            &.link-more {
+              float: right;
+              margin-left: 6px;
+            }
           }
         }
       }
     }
 
-    .description-click-col {
-      text-decoration: underline;
-      text-underline-offset: 4px;
-      cursor: pointer;
+    &.alert-description-col {
+      .description-click {
+        text-decoration: underline;
+        text-underline-offset: 4px;
+        cursor: pointer;
 
-      &:hover {
-        color: #3a84ff;
+        &:hover {
+          color: #3a84ff;
+        }
       }
     }
 

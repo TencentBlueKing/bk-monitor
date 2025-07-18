@@ -11,6 +11,7 @@
     @include traceTable.table-theme();
 
     &.t-table {
+      color: #313238;
       // 容器有剩余空间时撑满容器
       .t-table__content {
         // 1px 是由于兼容 tdesign 使用滚动条吸底功能时填充多加了1px
