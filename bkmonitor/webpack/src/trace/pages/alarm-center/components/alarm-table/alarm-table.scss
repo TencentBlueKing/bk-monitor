@@ -12,6 +12,22 @@
   .alarm-table {
     flex-grow: 1;
     flex-basis: auto;
+
+    .t-table {
+      .t-table__content {
+        .t-table__body {
+          tr:not(.t-table__row--full) {
+            &:hover {
+              .explore-tags-col {
+                .tag-item {
+                  background-color: var(--tag-hover-bg-color);
+                }
+              }
+            }
+          }
+        }
+      }
+    }
   }
 
   .explore-col {
