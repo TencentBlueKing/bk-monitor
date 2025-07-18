@@ -16,8 +16,8 @@ from apps.log_unifyquery.handler.base import UnifyQueryHandler
 
 class UnifyQueryChartHandler(UnifyQueryHandler):
     def __init__(self, params):
-        super().__init__(params)
         self.sql = params["sql"]
+        super().__init__(params)
 
     def init_base_dict(self):
         base_dict = super().init_base_dict()
