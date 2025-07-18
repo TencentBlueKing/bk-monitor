@@ -19,7 +19,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
-
+from django.conf import settings
 from django.utils.translation import gettext_lazy as _
 
 from apps.api.base import DataAPI
@@ -29,10 +29,22 @@ from config.domains import STOREKIT_APIGATEWAY_ROOT
 
 class _BkDataStorekitApi:
     MODULE = _("数据平台存储模块")
+    
+    @property
+    def use_apigw(self):
+        return settings.ENABLE_MULTI_TENANT_MODE
+
+    def _build_url(self, new_path, old_path):
+        return (
+            f"{settings.PAAS_API_HOST}/api/bk-base/{settings.ENVIRONMENT}/v3/storekit/{new_path}"
+            if self.use_apigw
+            else f"{STOREKIT_APIGATEWAY_ROOT}{old_path}"
+        )
 
     def __init__(self):
         self.get_schema_and_sql = DataAPI(
-            url=STOREKIT_APIGATEWAY_ROOT + "result_tables/{result_table_id}/schema_and_sql/",
+            url=self._build_url("result_tables/{result_table_id}/schema_and_sql/",
+                                "result_tables/{result_table_id}/schema_and_sql/"),
             module=self.MODULE,
             method="GET",
             url_keys=["result_table_id"],
@@ -41,7 +53,8 @@ class _BkDataStorekitApi:
             before_request=add_esb_info_before_request_for_bkdata_user,
         )
         self.get_cluster_config = DataAPI(
-            url=STOREKIT_APIGATEWAY_ROOT + "storage_cluster_configs/{cluster_name}/",
+            url=self._build_url("storage_cluster_configs/{cluster_name}/",
+                                "storage_cluster_configs/{cluster_name}/"),
             module=self.MODULE,
             method="GET",
             description="查询集群详情",
@@ -49,7 +62,7 @@ class _BkDataStorekitApi:
             url_keys=["cluster_name"],
         )
         self.storekit_es_route = DataAPI(
-            url=STOREKIT_APIGATEWAY_ROOT + "es/route/",
+            url=self._build_url("es/route/", "es/route/"),
             module=self.MODULE,
             method="GET",
             description="ES GET 请求转发",

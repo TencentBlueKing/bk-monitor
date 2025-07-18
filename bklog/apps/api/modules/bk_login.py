@@ -60,27 +60,24 @@ class _BKLoginApi:
     def use_apigw(self):
         return settings.ENABLE_MULTI_TENANT_MODE
 
-    def __init__(self):
-        if self.use_apigw:
-            self.get_user = DataAPI(
-                method="GET",
-                url=settings.PAAS_API_HOST + "/api/bk-login/prod/login/api/v3/open/bk-tokens/userinfo/",
-                module=self.MODULE,
-                description="获取单个用户",
-                before_request=get_user_before,
-                after_request=get_user_after,
-            )
-        else:
-            self.get_user = DataAPI(
-                method="GET",
-                url=USER_MANAGE_APIGATEWAY_ROOT + "retrieve_user/",
-                module=self.MODULE,
-                description="获取单个用户",
-                before_request=get_user_before,
-                after_request=get_user_after,
-            )
+    def _build_url(self, new_path, old_path):
+        return (
+            f"{settings.PAAS_API_HOST}{new_path}"
+            if self.use_apigw
+            else f"{USER_MANAGE_APIGATEWAY_ROOT}{old_path}"
+        )
 
-        if settings.ENABLE_MULTI_TENANT_MODE:
+    def __init__(self):
+        self.get_user = DataAPI(
+            method="GET",
+            url=self._build_url("/api/bk-login/prod/login/api/v3/open/bk-tokens/userinfo/", "retrieve_user/"),
+            module=self.MODULE,
+            description="获取单个用户",
+            before_request=get_user_before,
+            after_request=get_user_after,
+        )
+
+        if self.use_apigw:
             self.list_tenant = DataAPI(
                 method="GET",
                 url=settings.PAAS_API_HOST + "/api/bk-user/prod/api/v3/open/tenants/",
@@ -90,6 +87,13 @@ class _BKLoginApi:
         else:
             # 没有开启多租户的，返回固定内容
             self.list_tenant = lambda *args, **kwargs: [{"id": "system", "name": "Blueking", "status": "enabled"}]
+
+        self.batch_lookup_virtual_user = DataAPI(
+                method="GET",
+                url=settings.PAAS_API_HOST + "/api/bk-user/prod/api/v3/open/tenant/virtual-users/-/lookup/",
+                module=self.MODULE,
+                description="获取虚拟用户",
+        )
 
         self.list_department_profiles = DataAPI(
             method="GET",

@@ -18,7 +18,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
-
+from django.conf import settings
 from django.utils.translation import gettext_lazy as _
 
 from apps.api.base import DataDRFAPISet, DRFActionAPI
@@ -32,9 +32,20 @@ from config.domains import META_APIGATEWAY_ROOT
 class _BkDataMetaApi:
     MODULE = _("计算平台元数据模块")
 
+    @property
+    def use_apigw(self):
+        return settings.ENABLE_MULTI_TENANT_MODE
+
+    def _build_url(self, new_path, old_path):
+        return (
+            f"{settings.PAAS_API_HOST}/api/bk-base/{settings.ENVIRONMENT}/v3/meta/{new_path}"
+            if self.use_apigw
+            else f"{META_APIGATEWAY_ROOT}{old_path}"
+        )
+
     def __init__(self):
         self.result_tables = DataDRFAPISet(
-            url=META_APIGATEWAY_ROOT + "result_tables/",
+            url=self._build_url("result_tables/", "result_tables/"),
             module=self.MODULE,
             primary_key="result_table_id",
             description="结果表操作",

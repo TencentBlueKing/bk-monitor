@@ -18,6 +18,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+from django.conf import settings
 
 """
 Access 部署 + 采集模块
@@ -33,10 +34,21 @@ from config.domains import ACCESS_APIGATEWAY_ROOT  # noqa
 class _BkDataAccessApi:
     MODULE = _("数据平台接入模块")
 
+    @property
+    def use_apigw(self):
+        return settings.ENABLE_MULTI_TENANT_MODE
+
+    def _build_url(self, new_path, old_path):
+        return (
+            f"{settings.PAAS_API_HOST}/api/bk-base/{settings.ENVIRONMENT}/v3/access/{new_path}"
+            if self.use_apigw
+            else f"{ACCESS_APIGATEWAY_ROOT}{old_path}"
+        )
+
     def __init__(self):
         self.list_raw_data = DataAPI(
             method="GET",
-            url=ACCESS_APIGATEWAY_ROOT + "rawdata/",
+            url=self._build_url("rawdata/", "rawdata/"),
             module=self.MODULE,
             description="源数据列表",
             before_request=add_esb_info_before_request_for_bkdata_user,
@@ -44,7 +56,7 @@ class _BkDataAccessApi:
         )
         self.get_deploy_summary = DataAPI(
             method="GET",
-            url=ACCESS_APIGATEWAY_ROOT + "deploy_plan/{raw_data_id}/",
+            url=self._build_url("deploy_plan/{raw_data_id}/", "deploy_plan/{raw_data_id}/"),
             module=self.MODULE,
             description="查询部署计划",
             before_request=add_esb_info_before_request_for_bkdata_user,
@@ -55,7 +67,7 @@ class _BkDataAccessApi:
         )
         self.stop_collectorhub = DataAPI(
             method="POST",
-            url=ACCESS_APIGATEWAY_ROOT + "collectorhub/{raw_data_id}/stop/",
+            url=self._build_url("collectorhub/{raw_data_id}/stop/", "collectorhub/{raw_data_id}/stop/"),
             module=self.MODULE,
             description="停止单个采集器",
             before_request=add_esb_info_before_request_for_bkdata_user,
@@ -64,7 +76,7 @@ class _BkDataAccessApi:
         )
         self.deploy_plan_post = DataAPI(
             method="POST",
-            url=ACCESS_APIGATEWAY_ROOT + "deploy_plan/",
+            url=self._build_url("deploy_plan/", "deploy_plan/"),
             module=self.MODULE,
             description="创建部署计划",
             before_request=add_esb_info_before_request_for_bkdata_user,
@@ -73,7 +85,7 @@ class _BkDataAccessApi:
         )
         self.deploy_plan_put = DataAPI(
             method="PUT",
-            url=ACCESS_APIGATEWAY_ROOT + "deploy_plan/{raw_data_id}/",
+            url=self._build_url("deploy_plan/{raw_data_id}/", "deploy_plan/{raw_data_id}/"),
             module=self.MODULE,
             description="更新部署计划",
             before_request=add_esb_info_before_request_for_bkdata_user,
