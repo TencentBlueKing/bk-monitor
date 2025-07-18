@@ -361,7 +361,7 @@ export default {
 
   // 业务
   '-我有告警的业务-': '-Alarming Business-',
-  新业务接入详情: 'Access Details',
+  新业务接入详情: 'There is no business, you need to create one first.',
   业务拓扑: 'Business Topology',
   业务数: 'Businesses',
   本业务可见: 'This Business',
@@ -1220,7 +1220,7 @@ export default {
   一级分类: 'Top Category',
   二级分类: 'Sub Category',
   前一时刻: 'Previous Moment',
-  故障自愈: 'Fault self-healing',
+  故障自愈: 'Fault Tree Analysis',
   全部收起: 'Collapse All',
   全部展开: 'Expand All',
   拨测地址: 'Probe Address',
