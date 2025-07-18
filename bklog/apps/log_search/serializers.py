@@ -1008,7 +1008,6 @@ class SearchConditionSerializer(serializers.Serializer):
 
 
 class ChartSerializer(serializers.Serializer):
-    bk_biz_id = serializers.IntegerField(label=_("业务ID"), required=True)
     sql = serializers.CharField(label=_("sql语句"), required=True)
     start_time = serializers.IntegerField(required=True)
     end_time = serializers.IntegerField(required=True)
@@ -1018,7 +1017,6 @@ class ChartSerializer(serializers.Serializer):
         default=list,
         child=SearchConditionSerializer(label=_("搜索条件"), required=False),
     )
-    alias_settings = AliasSettingSerializer(many=True, required=False, default=list)
 
     def to_representation(self, instance):
         representation = super().to_representation(instance)

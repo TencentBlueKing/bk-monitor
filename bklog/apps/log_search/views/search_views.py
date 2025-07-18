@@ -34,7 +34,7 @@ from apps.constants import NotifyType, UserOperationActionEnum, UserOperationTyp
 from apps.decorators import user_operation_record
 from apps.exceptions import ValidationError
 from apps.feature_toggle.handlers.toggle import FeatureToggleObject
-from apps.feature_toggle.plugins.constants import LOG_DESENSITIZE, UNIFY_QUERY_SEARCH
+from apps.feature_toggle.plugins.constants import UNIFY_QUERY_SEARCH
 from apps.generic import APIViewSet
 from apps.iam import ActionEnum, ResourceEnum
 from apps.iam.handlers.drf import (
@@ -1931,8 +1931,9 @@ class SearchViewSet(APIViewSet):
         """
         params = self.params_valid(ChartSerializer)
         params["index_set_ids"] = [index_set_id]
+        params["bk_biz_id"] = space_uid_to_bk_biz_id(self.get_object().space_uid)
         query_handler = UnifyQueryChartHandler(params)
-        result = query_handler.get_chart_data(params)
+        result = query_handler.get_chart_data()
         return Response(result)
 
     @detail_route(methods=["POST"], url_path="generate_sql")
