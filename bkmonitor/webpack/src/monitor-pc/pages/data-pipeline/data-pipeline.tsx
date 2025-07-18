@@ -39,7 +39,7 @@ import DataPipelineConfig from './data-pipeline-config';
 
 import './data-pipeline.scss';
 
-enum EColunm {
+enum EColumn {
   influxdbStorage = 'influxdbStorage',
   isDefault = 'isDefault',
   isEnable = 'isEnable',
@@ -51,7 +51,7 @@ enum EColunm {
   transfer = 'Transfer',
   type = 'type',
 }
-enum EChildColunm {
+enum EChildColumn {
   influxdbStorage = 'influxdbStorage',
   kafkaTopic = 'kafkaTopic',
   kafkaTopicStorage = 'kafkaTopicStorage',
@@ -125,16 +125,16 @@ export default class DataPipeline extends tsc<object> {
   /* 表格数据 */
   tableData: ITableData = {
     columns: [
-      { id: EColunm.name, name: window.i18n.tc('链路名称'), width: 125, disabled: true, checked: true },
-      { id: EColunm.scope, name: window.i18n.tc('使用范围'), disabled: false, checked: true },
-      { id: EColunm.type, name: window.i18n.tc('数据类型'), disabled: false, checked: true },
-      { id: EColunm.kafka, name: 'Kafka', width: 163, disabled: false, checked: true },
-      { id: EColunm.transfer, name: 'Transfer', width: 163, disabled: false, checked: true },
-      { id: EColunm.influxdbStorage, name: window.i18n.tc('投递到存储'), width: 163, disabled: false, checked: true },
-      { id: EColunm.kafkaStorage, name: window.i18n.tc('投递到Kafka'), width: 163, disabled: false, checked: true },
-      { id: EColunm.isDefault, name: window.i18n.tc('是否默认'), disabled: false, checked: true },
+      { id: EColumn.name, name: window.i18n.tc('链路名称'), width: 125, disabled: true, checked: true },
+      { id: EColumn.scope, name: window.i18n.tc('使用范围'), disabled: false, checked: true },
+      { id: EColumn.type, name: window.i18n.tc('数据类型'), disabled: false, checked: true },
+      { id: EColumn.kafka, name: 'Kafka', width: 163, disabled: false, checked: true },
+      { id: EColumn.transfer, name: 'Transfer', width: 163, disabled: false, checked: true },
+      { id: EColumn.influxdbStorage, name: window.i18n.tc('投递到存储'), width: 163, disabled: false, checked: true },
+      { id: EColumn.kafkaStorage, name: window.i18n.tc('投递到Kafka'), width: 163, disabled: false, checked: true },
+      { id: EColumn.isDefault, name: window.i18n.tc('是否默认'), disabled: false, checked: true },
       {
-        id: EColunm.isEnable,
+        id: EColumn.isEnable,
         name: window.i18n.tc('是否可用'),
         width: 100,
         disabled: false,
@@ -145,7 +145,7 @@ export default class DataPipeline extends tsc<object> {
         ],
         filterMultiple: false,
       },
-      { id: EColunm.operate, name: window.i18n.tc('操作'), width: 70, disabled: true, checked: true },
+      { id: EColumn.operate, name: window.i18n.tc('操作'), width: 70, disabled: true, checked: true },
     ],
     expandRowKeys: [],
     /* 搜索及筛选数据 */
@@ -153,12 +153,12 @@ export default class DataPipeline extends tsc<object> {
     data: [],
   };
   childTableColumns = [
-    { id: EChildColunm.name, name: window.i18n.tc('数据名'), width: 300 },
-    { id: EChildColunm.space, name: window.i18n.tc('所属空间') },
-    { id: EChildColunm.type, name: window.i18n.tc('类型') },
-    { id: EChildColunm.kafkaTopic, name: 'Kafka (topic)' },
-    { id: EChildColunm.influxdbStorage, name: window.i18n.tc('投递到 influxdb') },
-    { id: EChildColunm.kafkaTopicStorage, name: window.i18n.tc('投递到 Kafka (topic)') },
+    { id: EChildColumn.name, name: window.i18n.tc('数据名'), width: 300 },
+    { id: EChildColumn.space, name: window.i18n.tc('所属空间') },
+    { id: EChildColumn.type, name: window.i18n.tc('类型') },
+    { id: EChildColumn.kafkaTopic, name: 'Kafka (topic)' },
+    { id: EChildColumn.influxdbStorage, name: window.i18n.tc('投递到 influxdb') },
+    { id: EChildColumn.kafkaTopicStorage, name: window.i18n.tc('投递到 Kafka (topic)') },
   ];
   childTablePageSize = 10; // 子表格每页显示条数
   childTableLoading = false; // 子表格loading
@@ -257,7 +257,7 @@ export default class DataPipeline extends tsc<object> {
     this.tableData.data.forEach(item => {
       !!item.kafka_cluster_id && clusterIdsSet.add(item.kafka_cluster_id);
       /* transfer需要加上cluster_type */
-      if (!!item.transfer_cluster_id) {
+      if (item.transfer_cluster_id) {
         clusterIdsSet.add(item.transfer_cluster_id);
         transferId.add(item.transfer_cluster_id);
       }
@@ -372,7 +372,7 @@ export default class DataPipeline extends tsc<object> {
   }
   /* 表格过滤 */
   handleFilterChange(filter) {
-    const isEnableData = filter[EColunm.isEnable];
+    const isEnableData = filter[EColumn.isEnable];
     if (isEnableData?.length) {
       this.filterIsEnable = isEnableData[0] ? 1 : 0;
     } else {
@@ -443,7 +443,7 @@ export default class DataPipeline extends tsc<object> {
     await this.init();
     this.tableKey = random(8);
     const item = this.tableData.data.find(item => item.name === name);
-    if (!!item) {
+    if (item) {
       this.handleEdit(item);
     }
   }
@@ -474,9 +474,9 @@ export default class DataPipeline extends tsc<object> {
   }
 
   /* 表格内容 */
-  handleSetFormatter(id: EColunm, row: IPiplineData, _index) {
+  handleSetFormatter(id: EColumn, row: IPiplineData, _index) {
     switch (id) {
-      case EColunm.name: {
+      case EColumn.name: {
         return (
           <span class='pipline-name'>
             <span
@@ -486,13 +486,13 @@ export default class DataPipeline extends tsc<object> {
           </span>
         );
       }
-      case EColunm.scope: {
+      case EColumn.scope: {
         return <div v-bk-overflow-tips>{row.spaceStr}</div>;
       }
-      case EColunm.type: {
+      case EColumn.type: {
         return row.etlConfigStr;
       }
-      case EColunm.transfer: {
+      case EColumn.transfer: {
         return (
           <span class='count-status-info'>
             <div class='name-info'>
@@ -503,7 +503,7 @@ export default class DataPipeline extends tsc<object> {
           </span>
         );
       }
-      case EColunm.kafka: {
+      case EColumn.kafka: {
         return (
           <span
             key={`${this.statusKey}_kafka_cluster`}
@@ -517,19 +517,21 @@ export default class DataPipeline extends tsc<object> {
           </span>
         );
       }
-      case EColunm.influxdbStorage: {
-        <span
-          key={`${this.statusKey}_influxdb_storage_cluste`}
-          class='count-status-info'
-        >
-          <div class='name-info'>
-            <span class='name'>{row.influxdb_storage_cluster_name || '--'}</span>
-            <span class='icon-monitor icon-fenxiang' />
-          </div>
-          {this.countStatusContent(this.getStautsContent(row.influxdb_storage_cluster_id) as any)}
-        </span>;
+      case EColumn.influxdbStorage: {
+        return (
+          <span
+            key={`${this.statusKey}_influxdb_storage_cluste`}
+            class='count-status-info'
+          >
+            <div class='name-info'>
+              <span class='name'>{row.influxdb_storage_cluster_name || '--'}</span>
+              <span class='icon-monitor icon-fenxiang' />
+            </div>
+            {this.countStatusContent(this.getStautsContent(row.influxdb_storage_cluster_id) as any)}
+          </span>
+        );
       }
-      case EColunm.kafkaStorage: {
+      case EColumn.kafkaStorage: {
         return (
           <span
             key={`${this.statusKey}_kafka_storage_cluster`}
@@ -543,10 +545,10 @@ export default class DataPipeline extends tsc<object> {
           </span>
         );
       }
-      case EColunm.isDefault: {
+      case EColumn.isDefault: {
         return <span>{row.isDefault ? this.$t('是') : this.$t('否')}</span>;
       }
-      case EColunm.isEnable: {
+      case EColumn.isEnable: {
         return (
           <div onClick={(e: Event) => e.stopPropagation()}>
             <bk-switcher
@@ -558,7 +560,7 @@ export default class DataPipeline extends tsc<object> {
           </div>
         );
       }
-      case EColunm.operate: {
+      case EColumn.operate: {
         return (
           <div
             onClick={(e: Event) => {
@@ -576,9 +578,9 @@ export default class DataPipeline extends tsc<object> {
     }
   }
   /* 子表格内容 */
-  handleSetChildFormatter(id: EChildColunm, row: IChildTableData) {
+  handleSetChildFormatter(id: EChildColumn, row: IChildTableData) {
     switch (id) {
-      case EChildColunm.name: {
+      case EChildColumn.name: {
         return (
           <span class='data-name'>
             <div class='title'>{row.dataName}</div>
@@ -586,7 +588,7 @@ export default class DataPipeline extends tsc<object> {
           </span>
         );
       }
-      case EChildColunm.space: {
+      case EChildColumn.space: {
         return (
           <span class='data-name'>
             <div class='title'>{row.spaceName}</div>
@@ -594,16 +596,16 @@ export default class DataPipeline extends tsc<object> {
           </span>
         );
       }
-      case EChildColunm.type: {
+      case EChildColumn.type: {
         return row.isPlatformDataId ? this.$t('公共') : this.$t('私有');
       }
-      case EChildColunm.kafkaTopic: {
+      case EChildColumn.kafkaTopic: {
         return row.kafkaTopic;
       }
-      case EChildColunm.influxdbStorage: {
+      case EChildColumn.influxdbStorage: {
         return row.influxdbDomainName || '--';
       }
-      case EChildColunm.kafkaTopicStorage: {
+      case EChildColumn.kafkaTopicStorage: {
         return row.kafkaStorageTopic || '--';
       }
       default: {
@@ -723,7 +725,7 @@ export default class DataPipeline extends tsc<object> {
                     key={key}
                     width={column.width}
                     formatter={(row, _column, _cellValue, index) =>
-                      this.handleSetFormatter(column.id as EColunm, row, index)
+                      this.handleSetFormatter(column.id as EColumn, row, index)
                     }
                     column-key={column.id}
                     filter-multiple={!!column.filterMultiple}

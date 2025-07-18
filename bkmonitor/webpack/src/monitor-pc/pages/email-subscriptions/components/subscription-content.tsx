@@ -120,7 +120,7 @@ export default class SubscriptionContent extends tsc<ISubscriptionContent> {
   @Debounce(300)
   @Emit('imgInputChange')
   handleInputChange(index, inputVal, isHeightInput = false) {
-    return { index, inputVal, isHeightInput }
+    return { index, inputVal, isHeightInput };
   }
 
   created() {

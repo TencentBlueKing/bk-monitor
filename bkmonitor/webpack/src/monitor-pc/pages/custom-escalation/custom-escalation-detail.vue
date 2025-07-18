@@ -2227,7 +2227,7 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
       csvList.push(['', '', '', '', '', '']);
       csvList.push(tableThArr.join(','));
       tableTdArr.forEach(row => {
-        const rowString = row.reduce((str, item, index) => str + (!!index ? ',' : '') + item, '');
+        const rowString = row.reduce((str, item, index) => str + (index ? ',' : '') + item, '');
         csvList.push(rowString);
       });
       const csvString = csvList.join('\n');

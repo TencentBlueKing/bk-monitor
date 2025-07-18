@@ -123,7 +123,7 @@ export default class TimeSeriesOutlier extends LineChart {
       return total;
     }, []);
     const item = list[0];
-    if (!!item) {
+    if (item) {
       return Object.entries(item)
         .reduce((total, tar) => {
           const [, val] = tar;

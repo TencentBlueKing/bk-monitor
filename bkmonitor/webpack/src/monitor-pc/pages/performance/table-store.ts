@@ -686,7 +686,7 @@ export default class TableStore {
     item.totalAlarmCount = item.alarm_count?.reduce((pre, cur) => pre + cur.count, 0);
     // 当前悬浮状态
     // item.hover = false
-    item.mark = Object.prototype.hasOwnProperty.call(this.stickyValue, item.rowId);
+    item.mark = Object.hasOwn(this.stickyValue, item.rowId);
     // item.order = this.sticky[item.rowId] ? 99999 : i
     // todo 排序进程
     for (const com of item?.component || []) {
@@ -848,15 +848,15 @@ export default class TableStore {
 
   setState(rowId: string, key: string, value: any) {
     const row = this.allData.find(item => item.rowId === rowId);
-    if (Object.prototype.hasOwnProperty.call(row, key)) {
+    if (Object.hasOwn(row, key)) {
       row[key] = value;
     }
   }
 
   sortDataByKey(data: ITableRow[]) {
     data.sort((pre, next) => {
-      const isPreTop = Object.prototype.hasOwnProperty.call(this.stickyValue, pre.rowId) ? 1 : 0;
-      const isNextTop = Object.prototype.hasOwnProperty.call(this.stickyValue, next.rowId) ? 1 : 0;
+      const isPreTop = Object.hasOwn(this.stickyValue, pre.rowId) ? 1 : 0;
+      const isNextTop = Object.hasOwn(this.stickyValue, next.rowId) ? 1 : 0;
       if (isPreTop === isNextTop) {
         return this.order === 'ascending'
           ? +pre[this.sortKey] - +next[this.sortKey]

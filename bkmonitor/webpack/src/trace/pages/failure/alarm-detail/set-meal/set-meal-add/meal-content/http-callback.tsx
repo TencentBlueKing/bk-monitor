@@ -776,7 +776,7 @@ export default defineComponent({
     // tab的label模板
     const tplTabLabel = (tab: IHeaderInfo) => {
       const { key } = tab;
-      let tips = undefined;
+      let tips;
       if (['Params', 'Headers'].includes(key)) {
         const value = (tab.value as IParamsValueItem[]).filter(item => item.isEnabled && !rowIsEmpty(item));
         const num = value.length;

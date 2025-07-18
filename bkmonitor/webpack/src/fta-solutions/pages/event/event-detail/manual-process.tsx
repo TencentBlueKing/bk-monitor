@@ -320,7 +320,7 @@ export default class ManualProcess extends tsc<IProps, IEvent> {
 
   /* 保存 */
   async handleConfirm() {
-    if (!Boolean(this.mealId)) {
+    if (!this.mealId) {
       return;
     }
     let paramsData = null;

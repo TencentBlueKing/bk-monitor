@@ -23,9 +23,9 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { type VueConstructor } from 'vue';
+import type { VueConstructor } from 'vue';
 
-import { type DirectiveBinding, type DirectiveOptions } from 'vue/types/options';
+import type { DirectiveBinding, DirectiveOptions } from 'vue/types/options';
 
 import { random } from '../utils/utils';
 
@@ -77,7 +77,7 @@ const handleMouseMove = (event: MouseEvent) => {
   if (maxWidth && width > maxWidth) {
     width = maxWidth;
   } else if (width < minWidth) {
-    if (!!autoHidden) {
+    if (autoHidden) {
       width = 0;
       onHidden?.();
     } else {

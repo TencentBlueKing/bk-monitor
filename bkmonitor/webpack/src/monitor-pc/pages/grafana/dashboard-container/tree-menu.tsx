@@ -76,7 +76,7 @@ export default class TreeMenu extends tsc<IProps, IEvents> {
 
   @Watch('data', { immediate: true })
   handleDataChange(data: ITreeMenuItem[]) {
-    if (!!data) {
+    if (data) {
       this.initialized = true;
       this.localData = this.handleTreeData(data);
       this.checkedChange(this.checked);

@@ -75,7 +75,7 @@ export default class FunctionSelect extends tsc<IFunctionProps, IEvent> {
       this.metricFunctions.forEach(item => {
         this.value.forEach(vItem => {
           const funcItem = item?.children?.find(set => set.id === vItem.id);
-          if (!!funcItem) {
+          if (funcItem) {
             this.localValue.push({
               ...funcItem,
               key: random(10),

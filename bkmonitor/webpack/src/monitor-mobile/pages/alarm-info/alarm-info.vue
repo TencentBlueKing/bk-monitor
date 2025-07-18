@@ -51,7 +51,7 @@
       </van-collapse-item>
     </van-collapse>
     <div class="list-title">
-      {{ `${$t('事件列表')}(${eventList?.length})` }}
+      {{ `${$t('事件列表')}(${(eventList && eventList.length) || 0})` }}
     </div>
     <van-list class="card-list">
       <div
@@ -155,6 +155,7 @@ import { ackEvent } from '../../../monitor-api/modules/mobile_event';
 import MonitorMobileEcharts from '../../../monitor-ui/monitor-echarts/monitor-mobile-echarts.vue';
 import FooterButton from '../../components/footer-button/footer-button.vue';
 import AlarmModule from '../../store/modules/alarm-info';
+
 import type { IEventItem, IHeader, IStatusMap } from '../../types/alarm-info';
 
 @Component({
