@@ -1357,6 +1357,29 @@ class IndexSetHandler(APIModel):
             "bk_tenant_id": space.bk_tenant_id,
         }
 
+    def update_alias_settings(self, query_alias_settings):
+        self.data.query_alias_settings = query_alias_settings
+        self.data.save()
+        multi_execute_func = MultiExecuteFunc()
+        try:
+            objs = LogIndexSetData.objects.filter(index_set_id=self.index_set_id)
+            for obj in objs:
+                multi_execute_func.append(
+                    result_key=obj.result_table_id,
+                    func=TransferApi.create_or_update_log_router,
+                    params={
+                        "table_id": f"bklog_index_set_{self.index_set_id}_{obj.result_table_id.replace('.', '_')}.__default__",
+                        "query_alias_settings": query_alias_settings,
+                        "space_type": self.data.space_uid.split("__")[0],
+                        "space_id": self.data.space_uid.split("__")[-1],
+                        "data_label": f"bklog_index_set_{self.index_set_id}",
+                    },
+                )
+            multi_execute_func.run()
+        except Exception as e:
+            logger.exception("create or update index set(%s) es router failed：%s", self.index_set_id, e)
+        return {"index_set_id": self.index_set_id}
+
     @classmethod
     def query_by_bk_data_id(cls, bk_data_id):
         collector_config = CollectorConfig.objects.filter(bk_data_id=bk_data_id).first()

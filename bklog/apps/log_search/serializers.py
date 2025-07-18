@@ -1136,6 +1136,10 @@ class LogGrepQuerySerializer(serializers.Serializer):
     sort_list = serializers.ListField(required=False, allow_null=True, allow_empty=True, child=serializers.ListField())
     alias_settings = AliasSettingSerializer(many=True, required=False, default=list)
 
+
+class AliasSettingsSerializer(serializers.Serializer):
+    alias_settings = AliasSettingSerializer(many=True, required=True)
+
     def to_representation(self, instance):
         representation = super().to_representation(instance)
         # 根据 alias_settings 的内容创建 alias_mappings
