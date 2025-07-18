@@ -600,6 +600,7 @@ class LogDataBusConfig(DataLinkResourceConfigBase):
         """
         基础事件清洗总线配置（固定逻辑）
         原先的1000 基础事件
+        链路的各个环节的组件name一致
         """
         tpl = """
             {

@@ -26,10 +26,14 @@ from metadata.models.data_link.data_link_configs import (
     ConditionalSinkConfig,
     DataBusConfig,
     VMResultTableConfig,
+    LogResultTableConfig,
     VMStorageBindingConfig,
+    ESStorageBindingConfig,
+    LogDataBusConfig,
 )
-from metadata.models.data_link.utils import get_bkbase_raw_data_id_name
+from metadata.models.data_link.utils import get_bkbase_raw_data_id_name, generate_result_table_field_list
 from metadata.models.storage import ClusterInfo
+import json
 
 logger = logging.getLogger("metadata")
 
@@ -44,12 +48,14 @@ class DataLink(models.Model):
     BCS_FEDERAL_PROXY_TIME_SERIES = "bcs_federal_proxy_time_series"  # 联邦代理集群（父集群）时序链路
     BCS_FEDERAL_SUBSET_TIME_SERIES = "bcs_federal_subset_time_series"  # 联邦集群（子集群）时序链路
     BASEREPORT_TIME_SERIES_V1 = "basereport_time_series_v1"  # 主机基础数据上报时序链路
+    BASE_EVENT_V1 = "base_event_v1"  # 基础事件链路
 
     DATA_LINK_STRATEGY_CHOICES = (
         (BK_STANDARD_V2_TIME_SERIES, "标准单指标单表时序数据链路"),
         (BCS_FEDERAL_PROXY_TIME_SERIES, "联邦代理时序数据链路"),
         (BCS_FEDERAL_SUBSET_TIME_SERIES, "联邦子集时序数据链路"),
         (BASEREPORT_TIME_SERIES_V1, "主机基础采集时序数据链路"),
+        (BASE_EVENT_V1, "基础事件链路"),
     )
 
     # 各个套餐所需要的链路资源
@@ -63,6 +69,7 @@ class DataLink(models.Model):
             DataBusConfig,
         ],
         BASEREPORT_TIME_SERIES_V1: [VMResultTableConfig, VMStorageBindingConfig, ConditionalSinkConfig, DataBusConfig],
+        BASE_EVENT_V1: [LogResultTableConfig, ESStorageBindingConfig, LogDataBusConfig],
     }
 
     STORAGE_TYPE_MAP = {
@@ -70,6 +77,7 @@ class DataLink(models.Model):
         BCS_FEDERAL_PROXY_TIME_SERIES: ClusterInfo.TYPE_VM,
         BCS_FEDERAL_SUBSET_TIME_SERIES: ClusterInfo.TYPE_VM,
         BASEREPORT_TIME_SERIES_V1: ClusterInfo.TYPE_VM,
+        BASE_EVENT_V1: ClusterInfo.TYPE_ES,
     }
 
     data_link_name = models.CharField(max_length=255, verbose_name="链路名称", primary_key=True)
@@ -96,6 +104,7 @@ class DataLink(models.Model):
             DataLink.BCS_FEDERAL_PROXY_TIME_SERIES: self.compose_bcs_federal_proxy_time_series_configs,
             DataLink.BCS_FEDERAL_SUBSET_TIME_SERIES: self.compose_bcs_federal_subset_time_series_configs,
             DataLink.BASEREPORT_TIME_SERIES_V1: self.compose_basereport_time_series_configs,
+            DataLink.BASE_EVENT_V1: self.compose_base_event_configs,
         }
         compose_method = switcher.get(
             self.data_link_strategy,
@@ -237,6 +246,89 @@ class DataLink(models.Model):
             self.data_link_name,
             len(config_list),
         )
+
+        return config_list
+
+    def compose_base_event_configs(self, data_source, table_id, storage_cluster_name, bk_biz_id, timezone=0):
+        """
+        生成基础事件链路配置(固定逻辑)
+        @param data_source: 数据源
+        @param table_id: 监控平台结果表ID
+        @param storage_cluster_name: 存储集群名称(ES)
+        @param bk_biz_id: 业务id
+        @param timezone: 时区 默认0时区
+        """
+
+        component_name = f"base_{bk_biz_id}_agent_event"
+
+        logger.info(
+            "compose_base_event_configs: data_link_name->[%s] ,bk_data_id->[%s],es_cluster_name->[%s],table_id->[%s]"
+            "start to compose configs",
+            self.data_link_name,
+            data_source.bk_data_id,
+            storage_cluster_name,
+            table_id,
+        )
+
+        config_list = []
+
+        try:
+            with transaction.atomic():
+                es_table_ins, _ = LogResultTableConfig.objects.get_or_create(
+                    name=component_name,
+                    namespace=self.namespace,
+                    bk_tenant_id=self.bk_tenant_id,
+                    bk_biz_id=bk_biz_id,
+                    data_link_name=self.data_link_name,
+                )
+
+                es_storage_ins, _ = ESStorageBindingConfig.objects.get_or_create(
+                    name=component_name,
+                    namespace=self.namespace,
+                    bk_tenant_id=self.bk_tenant_id,
+                    bk_biz_id=bk_biz_id,
+                    data_link_name=self.data_link_name,
+                    es_cluster_name=storage_cluster_name,
+                    timezone=timezone,  # 时区,默认0时区
+                )
+
+                fields = generate_result_table_field_list(table_id=table_id, bk_tenant_id=self.bk_tenant_id)
+                index_name = table_id.replace(".", "_")
+                write_alias = f"write_%Y%m%d_{index_name}"
+                unique_field_list = json.loads(
+                    models.ResultTableOption.objects.get(table_id=table_id, name="es_unique_field_list").value
+                )
+
+                databus_ins, _ = LogDataBusConfig.objects.get_or_create(
+                    name=component_name,
+                    namespace=self.namespace,
+                    bk_tenant_id=self.bk_tenant_id,
+                    bk_biz_id=bk_biz_id,
+                    data_link_name=self.data_link_name,
+                    data_id_name=component_name,
+                )
+
+                es_rt_config = es_table_ins.compose_config(fields=fields)
+                es_binding_config = es_storage_ins.compose_config(
+                    storage_cluster_name=storage_cluster_name,
+                    write_alias_format=write_alias,
+                    unique_field_list=unique_field_list,
+                )
+                databus_config = databus_ins.compose_base_event_config()
+
+                config_list.extend([es_rt_config, es_binding_config, databus_config])
+                logger.info(
+                    "compose_base_event_configs: data_link_name->[%s] composed %d configs successfully,config_list->["
+                    "%s]",
+                    self.data_link_name,
+                    config_list,
+                )
+
+        except Exception as e:  # pylint: disable=broad-except
+            logger.error(
+                "compose_base_event_configs: data_link_name->[%s] error->[%s],rollback!", self.data_link_name, e
+            )
+            raise e
 
         return config_list
 
