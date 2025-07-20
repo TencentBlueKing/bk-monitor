@@ -29,8 +29,14 @@ class UnifyQueryChartHandler(UnifyQueryHandler):
     def get_chart_data(self):
         start_time = time.time()
         data = UnifyQueryApi.query_ts_raw(self.base_dict)
+        for record in data["list"]:
+            # 删除内置字段
+            for key in ["__data_label", "__index", "__result_table"]:
+                record.pop(key, None)
+
         return {
             "list": data["list"],
             "total_records": data["total"],
             "time_taken": time.time() - start_time,
+            "result_schema": data.get("result_schema", []),
         }

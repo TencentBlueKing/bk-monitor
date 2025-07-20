@@ -44,6 +44,7 @@ from apps.log_search.constants import (
     SearchScopeEnum,
     TagColor,
     TemplateType,
+    QueryMode,
 )
 from apps.log_search.models import LogIndexSetData, ProjectInfo, Scenario
 from apps.log_unifyquery.constants import FIELD_TYPE_MAP
@@ -1017,6 +1018,10 @@ class ChartSerializer(serializers.Serializer):
         default=list,
         child=SearchConditionSerializer(label=_("搜索条件"), required=False),
     )
+    query_mode = serializers.ChoiceField(
+        label=_("查询模式"), required=False, choices=QueryMode.get_choices(), default=QueryMode.SQL.value
+    )
+    alias_settings = AliasSettingSerializer(many=True, required=False, default=list)
 
     def to_representation(self, instance):
         representation = super().to_representation(instance)
