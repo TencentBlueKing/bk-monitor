@@ -360,13 +360,21 @@ export default class AlarmDetail extends Vue {
       params.dimension_keys = this.selectedDimension;
     }
     quickShield(params)
-      .then(() => {
+      .then(e => {
         Toast({
-          message: this.$tc('操作成功'),
+          message: e?.message || this.$tc('操作成功'),
           duration: 2000,
           position: 'bottom',
         });
-        this.$router.back();
+        const { batchAction, ...rest } = this.$route.params || {};
+        if (!batchAction) {
+          this.$router.back();
+          return;
+        }
+        this.$router.push({
+          name: 'alarm-info',
+          params: { ...rest },
+        });
       })
       .catch(e => {
         Toast({
