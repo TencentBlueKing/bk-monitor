@@ -28,7 +28,7 @@ import { ofType } from 'vue-tsx-support';
 
 import dayjs from 'dayjs';
 import deepmerge from 'deepmerge';
-import { CancelToken } from 'monitor-api/index';
+import { CancelToken } from 'monitor-api/cancel';
 import { alertDateHistogram } from 'monitor-api/modules/alert';
 import { Debounce } from 'monitor-common/utils/utils';
 import ListLegend from 'monitor-ui/chart-plugins/components/chart-legend/common-legend';

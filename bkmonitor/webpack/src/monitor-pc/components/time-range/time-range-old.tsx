@@ -144,7 +144,7 @@ export default class TimeRange extends tsc<IProps, IEvents> {
 
   /** 点击快捷时间选项 */
   handleShortcutChange(data) {
-    if (!!data?.value) {
+    if (data?.value) {
       this.isPanelTimeRange = false;
       const value = [...data.value] as TimeRangeType;
       this.handleTransformTime(value);

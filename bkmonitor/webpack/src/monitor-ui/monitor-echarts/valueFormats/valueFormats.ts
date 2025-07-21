@@ -74,7 +74,7 @@ export function toFixed(value: number, decimals?: DecimalCount): string {
     return value.toLocaleString();
   }
 
-  const factor = decimals ? Math.pow(10, Math.max(0, decimals)) : 1;
+  const factor = decimals ? 10 ** Math.max(0, decimals) : 1;
   const formatted = String(Math.round(value * factor) / factor);
 
   // if exponent return directly

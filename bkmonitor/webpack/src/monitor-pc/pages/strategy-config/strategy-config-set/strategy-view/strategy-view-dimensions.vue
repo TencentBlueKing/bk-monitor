@@ -147,7 +147,7 @@ export default class DimensionsPanel extends Vue {
     } else {
       filterList = item.list.filter(l => l.id.toString().indexOf(value) > -1 || l.name.toString().indexOf(value) > -1);
     }
-    this.menuInstance.$props.list = !!value ? filterList : item.list;
+    this.menuInstance.$props.list = value ? filterList : item.list;
     this.handleShowPop(event);
   }
   @Debounce(300)

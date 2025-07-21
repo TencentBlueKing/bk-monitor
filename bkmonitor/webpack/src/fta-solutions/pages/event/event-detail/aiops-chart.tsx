@@ -52,7 +52,7 @@ export const createAutoTimeRange = (
   const INTERVAL_1440 = 1440 * interval * 1000;
   const INTERVAL_60 = 60 * interval * 1000;
   let newStartTime = startTime * 1000;
-  let newEndTime = !!endTime ? endTime * 1000 : +new Date();
+  let newEndTime = endTime ? endTime * 1000 : +new Date();
   newEndTime = Math.min(newEndTime + INTERVAL_5, newStartTime + INTERVAL_1440);
   let diff = INTERVAL_1440 - (newEndTime - newStartTime);
   if (diff < INTERVAL_5) {

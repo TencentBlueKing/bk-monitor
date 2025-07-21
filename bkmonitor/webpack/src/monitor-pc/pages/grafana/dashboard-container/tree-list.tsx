@@ -181,7 +181,7 @@ export default class TreeList extends tsc<IProps, IEvents> {
   }
 
   /** 点击项 */
-  handleClickRow(e: MouseEvent, item: TreeMenuItem) {
+  handleClickRow(_e: MouseEvent, item: TreeMenuItem) {
     if (item.isGroup) {
       item.expend = !item.expend;
     } else {
@@ -230,7 +230,7 @@ export default class TreeList extends tsc<IProps, IEvents> {
       case MoreType.rename:
         item.edit = true;
         setTimeout(() => {
-          const input = this.$refs[`input-${item.id}`] as any;
+          const input = this.$refs[`input-${item.id}`] as HTMLInputElement;
           input.focus();
         }, 100);
         break;

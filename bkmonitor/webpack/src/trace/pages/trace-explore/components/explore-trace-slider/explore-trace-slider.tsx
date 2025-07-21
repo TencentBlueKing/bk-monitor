@@ -26,7 +26,7 @@
 import { defineComponent, ref as deepRef, watch, shallowRef } from 'vue';
 
 import { Sideslider } from 'bkui-vue';
-import { CancelToken } from 'monitor-api/index';
+import { CancelToken } from 'monitor-api/cancel';
 import { traceDetail } from 'monitor-api/modules/apm_trace';
 
 import { DEFAULT_TRACE_DATA, QUERY_TRACE_RELATION_APP } from '../../../../store/constant';

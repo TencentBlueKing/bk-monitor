@@ -293,7 +293,7 @@ const getMarkArea = (thresholdLine: any[]) => {
       const current = threshold[index];
       const nextThreshold = threshold[index + 1];
       // 判断是否为一个闭合区间
-      let yAxis = undefined;
+      let yAxis;
       if (
         openInterval.includes(current.method) &&
         nextThreshold &&

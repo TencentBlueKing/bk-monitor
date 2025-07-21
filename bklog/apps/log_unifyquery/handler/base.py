@@ -978,7 +978,7 @@ class UnifyQueryHandler:
         search_dict["limit"] = max_result_window
         search_dict["trace_id"] = scroll_result["trace_id"]
         search_dict["scroll"] = scroll
-        while scroll_size == max_result_window and result_size < max(index_set.max_async_count, MAX_ASYNC_COUNT):
+        while scroll_size >= max_result_window and result_size < max(index_set.max_async_count, MAX_ASYNC_COUNT):
             search_dict["result_table_options"] = scroll_result["result_table_options"]
             scroll_result = UnifyQueryApi.query_ts_raw(search_dict)
             scroll_size = len(scroll_result["list"])
@@ -1034,7 +1034,7 @@ class UnifyQueryHandler:
         # 参数补充
         search_dict["from"] = self.search_params["begin"]
         search_dict["limit"] = max_result_window
-        while search_after_size == max_result_window and result_size < max(index_set.max_async_count, MAX_ASYNC_COUNT):
+        while search_after_size >= max_result_window and result_size < max(index_set.max_async_count, MAX_ASYNC_COUNT):
             search_dict["result_table_options"] = search_result["result_table_options"]
             search_result = UnifyQueryApi.query_ts_raw(search_dict)
             search_after_size = len(search_result["list"])

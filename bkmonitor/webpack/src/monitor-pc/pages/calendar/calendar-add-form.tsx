@@ -328,7 +328,7 @@ export default class CalendarAddForm extends tsc<IProps, IEvents> {
     this.addFormRef
       .validate()
       .then(async () => {
-        if (!!this.editData) {
+        if (this.editData) {
           if (this.editData.repeat.freq) {
             this.infoConfig.value = true;
             if (this.editData.is_first) {
@@ -446,7 +446,7 @@ export default class CalendarAddForm extends tsc<IProps, IEvents> {
       repeatType: freq,
       repeatNum: interval,
       repeatDays: every,
-      endDate: !!until ? dayjs.tz(until * 1000).format('YYYY-MM-DD HH:mm:ss') : '',
+      endDate: until ? dayjs.tz(until * 1000).format('YYYY-MM-DD HH:mm:ss') : '',
       endDateNoRepeat: !until,
     };
     if (!freq) {

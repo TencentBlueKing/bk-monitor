@@ -522,7 +522,12 @@ export default class StrategyConfigDialog extends tsc<IProps, IEvents> {
         if (templateValidate) {
           this.data.templateError = window.i18n.tc('必填项');
         } else {
-          return { notice: { config: { template: this.data.template }, options: { chart_image_enabled: this.data.chartImageEnabled } } };
+          return {
+            notice: {
+              config: { template: this.data.template },
+              options: { chart_image_enabled: this.data.chartImageEnabled },
+            },
+          };
         }
       },
       /* 修改告警风暴开关 */

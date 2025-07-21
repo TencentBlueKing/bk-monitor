@@ -367,10 +367,10 @@ export default class AiopsDimensionPoint extends tsc<IProps> {
     if (detailWrapper) {
       detailWrapper.addEventListener('scroll', this.hidePointTips);
     }
-    (window as any).handleTooltipItem = this.handleTooltipItem;
+    window.handleTooltipItem = this.handleTooltipItem;
   }
   destroy(): void {
-    (window as any).handleTooltipItem = null;
+    window.handleTooltipItem = null;
   }
   beforeDestroy() {
     const detailWrapper = document.querySelector('.event-detail-container');

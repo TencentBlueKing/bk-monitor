@@ -173,4 +173,5 @@ export default {
   告警异常维度分析: 'Alarm abnormal dimension analysis',
   '故障关联的告警，统计出最异常的维度（组合）：':
     'Alarms related to the fault, statistics are the most abnormal dimension (combination):',
+  '来源于以下 {0} 个策略': 'From the following  {0} strategies',
 };

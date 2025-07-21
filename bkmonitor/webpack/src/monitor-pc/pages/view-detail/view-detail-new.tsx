@@ -342,7 +342,7 @@ export default class ViewDetailNew extends tsc<IProps> {
           item.filter_dict[key] = val;
         }
       } else {
-        if (Object.prototype.hasOwnProperty.call(item.filter_dict, key)) {
+        if (Object.hasOwn(item.filter_dict, key)) {
           hasChanged = true;
           this.$delete(item.filter_dict, key);
         }

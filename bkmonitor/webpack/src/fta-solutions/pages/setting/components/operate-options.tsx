@@ -96,7 +96,7 @@ export default class OperateOptions extends tsc<IOperateOptionsProps, IOperateOp
               content: item?.tip,
               placement: 'top',
               boundary: 'window',
-              disabled: !Boolean(item?.tip),
+              disabled: !item?.tip,
               allowHTML: false,
             }}
           >
