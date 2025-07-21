@@ -296,12 +296,20 @@ class StrategyCacheManager(CacheManager):
             # hack agg_interval with fake_event
             if query_config["metric_id"] in fake_event_metric_id_mapping.values():
                 query_config["agg_interval"] = query_config.get("agg_interval", cls.fake_event_agg_interval)
-            # 主机重启优化
-            # alarm_backends/service/detect/strategy/os_restart.py:32
             if query_config["metric_id"] == "bk_monitor.os_restart":
+                # 主机重启优化
+                # alarm_backends/service/detect/strategy/os_restart.py:32
                 query_config["alias"] = "a"
                 # 1h 内的都查上
                 item["expression"] = "a <= 3600"
+            if query_config["metric_id"] == "bk_monitor.ping-gse":
+                # alarm_backends/service/detect/strategy/ping_unreachable.py:37
+                query_config["alias"] = "a"
+                item["expression"] = "a >= 1"
+            if query_config["metric_id"] == "bk_monitor.proc_port":
+                # alarm_backends/service/detect/strategy/proc_port.py:32
+                query_config["alias"] = "a"
+                item["expression"] = "a != 1"
             query_config.setdefault("agg_dimension", [])
             is_instance_dimension = cls.instance_dimensions & set(query_config["agg_dimension"])
 
