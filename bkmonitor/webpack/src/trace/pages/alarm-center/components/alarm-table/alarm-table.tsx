@@ -23,7 +23,17 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, defineComponent, ref as deepRef, type PropType, useTemplateRef, shallowRef, watch } from 'vue';
+import {
+  computed,
+  defineComponent,
+  ref as deepRef,
+  type PropType,
+  useTemplateRef,
+  shallowRef,
+  watch,
+  onMounted,
+  onBeforeUnmount,
+} from 'vue';
 
 import { CONTENT_SCROLL_ELEMENT_CLASS_NAME, type TableColumnItem, type TablePagination } from '../../typings';
 import AlertContentDetail from './components/alert-content-detail/alert-content-detail';
@@ -79,25 +89,81 @@ export default defineComponent({
   },
   setup(props) {
     // const alarmStore = useAlarmCenterStore();
-    const { showPopover, hidePopover, clearPopoverTimer } = usePopover();
+    const tableRef = useTemplateRef<InstanceType<typeof CommonTable>>('tableRef');
+    const alertContentDetailRef = useTemplateRef<InstanceType<typeof AlertContentDetail>>('alertContentDetailRef');
 
-    const alertContentDetailRef = useTemplateRef<InstanceType<typeof AlertContentDetail>>('alertContentDetail');
+    /** hover 场景使用的popover工具函数 */
+    const hoverPopoverTools = usePopover();
+    /** click 场景使用的popover工具函数 */
+    const clickPopoverTools = usePopover({ trigger: 'click' });
     /** 多选状态 */
     const selectedRowKeys = deepRef<(number | string)[]>([]);
     /* 关注人则禁用操作 */
     const isSelectedFollower = shallowRef(false);
-
+    /** 滚动容器元素 */
+    let scrollContainer: HTMLElement = null;
+    /** 滚动结束后回调逻辑执行计时器  */
+    let scrollPointerEventsTimer = null;
     /** 创建场景上下文 */
     const scenarioContext: AlertScenario['context'] & IncidentScenario['context'] & ActionScenario['context'] = {
       handleShowDetail,
-      showPopover,
-      hidePopover,
-      clearPopoverTimer,
+      hoverPopoverTools,
+      handleAlertContentDetailShow,
     };
     // 使用场景渲染器
     const { transformColumns, currentScenario } = useScenarioRenderer(scenarioContext);
     /** 转换后的列配置 */
     const transformedColumns = computed(() => transformColumns(props.columns));
+
+    onMounted(() => {
+      addScrollListener();
+    });
+
+    onBeforeUnmount(() => {
+      scrollPointerEventsTimer && clearTimeout(scrollPointerEventsTimer);
+      removeScrollListener();
+    });
+
+    /**
+     * @description 添加滚动监听
+     */
+    function addScrollListener() {
+      removeScrollListener();
+      scrollContainer = document.querySelector(`.${CONTENT_SCROLL_ELEMENT_CLASS_NAME}`);
+      if (!scrollContainer) return;
+      scrollContainer.addEventListener('scroll', handleScroll);
+    }
+
+    /**
+     * @description 移除滚动监听
+     */
+    function removeScrollListener() {
+      if (!scrollContainer) return;
+      scrollContainer.removeEventListener('scroll', handleScroll);
+      scrollContainer = null;
+    }
+
+    /**
+     * @description 滚动触发事件
+     */
+    function handleScroll() {
+      updateTablePointEvents('none');
+      hoverPopoverTools.hidePopover();
+      clickPopoverTools.hidePopover();
+      scrollPointerEventsTimer && clearTimeout(scrollPointerEventsTimer);
+      scrollPointerEventsTimer = setTimeout(() => {
+        updateTablePointEvents('auto');
+      }, 600);
+    }
+
+    /**
+     * @description 配置表格是否能够触发事件target
+     */
+    function updateTablePointEvents(val: 'auto' | 'none') {
+      const tableDom = tableRef?.value?.$el;
+      if (!tableDom) return;
+      tableDom.style.pointerEvents = val;
+    }
 
     /**
      * @description 处理行选择变化
@@ -111,6 +177,14 @@ export default defineComponent({
      */
     function handleShowDetail(id: string) {
       alert(`记录${id}的详情弹窗`);
+    }
+
+    /**
+     * @description 打开告警内容详情 popover
+     */
+    function handleAlertContentDetailShow(e: MouseEvent) {
+      console.log('================ alertContentDetailRef.value ================', alertContentDetailRef.value);
+      clickPopoverTools.showPopover(e, () => alertContentDetailRef.value.$el);
     }
 
     watch(
@@ -133,6 +207,7 @@ export default defineComponent({
     return (
       <div class='alarm-table-container'>
         <CommonTable
+          ref='tableRef'
           class='alarm-table'
           firstFullRow={
             this.selectedRowKeys?.length
