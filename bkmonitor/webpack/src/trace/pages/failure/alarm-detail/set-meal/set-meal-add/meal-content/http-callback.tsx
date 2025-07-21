@@ -560,6 +560,7 @@ export default defineComponent({
           <PrimaryTable
             columns={columns}
             data={data}
+            needCustomScroll={false}
           />
         </div>
       );
@@ -604,6 +605,7 @@ export default defineComponent({
           <PrimaryTable
             columns={columns}
             data={temp}
+            needCustomScroll={false}
           />
         </div>
       );
@@ -707,6 +709,7 @@ export default defineComponent({
               class='table'
               columns={columns}
               data={data}
+              needCustomScroll={false}
             />
           ) : undefined}
         </div>
