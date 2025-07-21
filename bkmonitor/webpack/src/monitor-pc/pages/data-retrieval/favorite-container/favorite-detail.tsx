@@ -84,7 +84,7 @@ export default class FavoriteDetail extends tsc<IProps> {
     this.nameInput = this.value.name;
     this.$nextTick(() => {
       this.nameInputWrapRef?.focus();
-    })
+    });
   }
 
   /**

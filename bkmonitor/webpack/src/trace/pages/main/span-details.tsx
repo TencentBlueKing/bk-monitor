@@ -32,7 +32,7 @@ import VueJsonPretty from 'vue-json-pretty';
 import { Button, Exception, Loading, Message, Popover, Sideslider, Switcher, Tab } from 'bkui-vue';
 import { EnlargeLine } from 'bkui-vue/lib/icon';
 import dayjs from 'dayjs';
-import { CancelToken } from 'monitor-api/index';
+import { CancelToken } from 'monitor-api/cancel';
 import { query as apmProfileQuery } from 'monitor-api/modules/apm_profile';
 import { getSceneView } from 'monitor-api/modules/scene_view';
 import { copyText, deepClone, random } from 'monitor-common/utils/utils';
@@ -618,7 +618,7 @@ export default defineComponent({
 
     /* 复制kv部分文本 */
     const handleCopy = (content: ITagContent) => {
-      const queryStr = `${content.query_key}: "${String(content.query_value)?.replace(/\"/g, '\\"') ?? ''}"`; // value转义双引号
+      const queryStr = `${content.query_key}: "${String(content.query_value)?.replace(/"/g, '\\"') ?? ''}"`; // value转义双引号
       copyText(
         queryStr,
         (msg: string) => {

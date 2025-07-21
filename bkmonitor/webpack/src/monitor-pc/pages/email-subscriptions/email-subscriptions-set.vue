@@ -710,7 +710,7 @@ export default class SubscriptionsSet extends Vue {
       }));
     }
     // this.
-    this.formData.timeRange = !!data.frequency.dataRange
+    this.formData.timeRange = data.frequency.dataRange
       ? this.getTimeRange(data.frequency.dataRange)
       : DEFAULT_TIME_RANGE;
     this.getReceiverId(data.receivers);

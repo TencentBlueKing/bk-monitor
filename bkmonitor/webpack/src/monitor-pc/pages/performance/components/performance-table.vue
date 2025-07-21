@@ -393,10 +393,10 @@
                 {{ row.cpu_usage | emptyNumberFilter }}
               </div>
               <bk-progress
-                size="small"
                 :color="row.cpu_usage | progressColors"
                 :percent="+(row.cpu_usage * 0.01).toFixed(2) || 0"
                 :show-text="false"
+                size="small"
               />
             </div>
           </template>
@@ -421,10 +421,10 @@
                 {{ row.disk_in_use | emptyNumberFilter }}
               </div>
               <bk-progress
-                size="small"
                 :color="row.disk_in_use | progressColors"
                 :percent="+(row.disk_in_use * 0.01).toFixed(2) || 0"
                 :show-text="false"
+                size="small"
               />
             </div>
           </template>
@@ -449,10 +449,10 @@
                 {{ row.io_util | emptyNumberFilter }}
               </div>
               <bk-progress
-                size="small"
                 :color="row.io_util | progressColors"
                 :percent="+(row.io_util * 0.01).toFixed(2) || 0"
                 :show-text="false"
+                size="small"
               />
             </div>
           </template>
@@ -477,10 +477,10 @@
                 {{ row.mem_usage | emptyNumberFilter }}
               </div>
               <bk-progress
-                size="small"
                 :color="row.mem_usage | progressColors"
                 :percent="+(row.mem_usage * 0.01).toFixed(2) || 0"
                 :show-text="false"
+                size="small"
               />
             </div>
           </template>
@@ -505,10 +505,10 @@
                 {{ row.psc_mem_usage | emptyNumberFilter }}
               </div>
               <bk-progress
-                size="small"
                 :color="row.psc_mem_usage | progressColors"
                 :percent="+(row.psc_mem_usage * 0.01).toFixed(2) || 0"
                 :show-text="false"
+                size="small"
               />
             </div>
           </template>
@@ -542,7 +542,7 @@
               class="process-module"
             >
               <div
-                v-if="row.component?.length"
+                v-if="row.component && row.component.length"
                 class="process-module-wrap"
                 :ref="'table-row-' + $index"
               >
@@ -561,7 +561,6 @@
                 <span
                   v-if="overflowRowIds[row.rowId]"
                   class="process-status-3 process-overflow"
-                  @click="openProcessView(row, 'row-overflow')"
                   v-bk-tooltips="{
                     content: () => row.component.map(({ display_name }) => display_name).join('、'),
                     showOnInit: false,
@@ -569,6 +568,7 @@
                     interactive: false,
                     allowHTML: false,
                   }"
+                  @click="openProcessView(row, 'row-overflow')"
                 >
                   {{ `+${overflowRowIds[row.rowId]}` }}
                 </span>
@@ -631,23 +631,25 @@
   </div>
 </template>
 <script lang="ts">
-import type { CreateElement } from 'vue';
 import { Component, Emit, Prop, Ref, Vue, Watch } from 'vue-property-decorator';
 
 import { typeTools } from 'monitor-common/utils/utils.js';
 
+import type { CreateElement } from 'vue';
+
 // import AbnormalTips from '../../../components/abnormal-tips/abnormal-tips.vue'
 import TipsTpl from '../../../components/abnormal-tips/tips-tpl.vue';
 import EmptyStatus from '../../../components/empty-status/empty-status';
-import type { EmptyStatusOperationType, EmptyStatusType } from '../../../components/empty-status/types';
 import PerformanceModule from '../../../store/modules/performance';
-import type MonitorVue from '../../../types/index';
+import { countElementsNotInFirstRow } from '../../strategy-config/util';
 import ColumnCheck from '../column-check/column-check.vue';
-import type { CheckType, ICheck, IPageConfig, ISort, ITableRow } from '../performance-type';
 import { AlarmStatus } from '../types';
 import UnresolveList from '../unresolve-list/unresolve-list.vue';
 import IpStatusTips, { handleIpStatusData } from './ip-status-tips';
-import { countElementsNotInFirstRow } from '../../strategy-config/util';
+
+import type { EmptyStatusOperationType, EmptyStatusType } from '../../../components/empty-status/types';
+import type MonitorVue from '../../../types/index';
+import type { CheckType, ICheck, IPageConfig, ISort, ITableRow } from '../performance-type';
 
 /** 告警类型对应的颜色 */
 const alarmColorMap: { [key in AlarmStatus]: string } = {
@@ -1021,7 +1023,7 @@ export default class PerformanceTable extends Vue<MonitorVue> {
     });
   }
 
-  handleTipsMouseenter(e: MouseEvent, item, type: 'Host' | 'Thread' | 'noProcess') {
+  handleTipsMouseenter(e: MouseEvent, item, type: 'Host' | 'noProcess' | 'Thread') {
     if (type === 'Host' && [2, 3].includes(item.status)) {
       this.tipsData.tipsText = this.statusMap[item.status].tips;
       this.tipsData.linkText = this.$t('前往节点管理处理');
@@ -1091,7 +1093,7 @@ export default class PerformanceTable extends Vue<MonitorVue> {
   cellClassName({ column }) {
     const id = column.property;
     const columnData = this.columns[id];
-    return !!columnData?.headerPreIcon ? 'has-header-pre-icon' : '';
+    return columnData?.headerPreIcon ? 'has-header-pre-icon' : '';
   }
 
   public sort({ prop, order }: ISort) {
@@ -1378,7 +1380,7 @@ $processColors: #ea3636 #c4c6cc #63656e;
     justify-content: flex-start;
     height: 60px;
     padding: 0 20px;
-    border: 1px solid $defaultBorderColor;
+    border: 1px solid #dcdee5;
     border-top: 0;
 
     &-pagination {

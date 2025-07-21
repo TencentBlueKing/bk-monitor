@@ -168,7 +168,7 @@ class MetricListItem extends Mixins(metricTipsContentMixin) {
           case 'method':
             item.value = metric.agg_method;
             break;
-          case 'interval':
+          case 'interval': {
             const unitMap = {
               m: 'min',
               s: 's',
@@ -177,6 +177,7 @@ class MetricListItem extends Mixins(metricTipsContentMixin) {
             const interalObj = secToString({ value: metric.agg_interval, unit: '' });
             item.value = `${interalObj?.value} ${unitMap[interalObj?.unit]}`;
             break;
+          }
           case 'groupBy':
             item.value = this.handleGroupByTpl();
             break;
@@ -260,7 +261,7 @@ class MetricListItem extends Mixins(metricTipsContentMixin) {
     return functions
       .reduce((total, func) => {
         const paramsStr = `${func.params.map(item => item.value).toString()}`;
-        const funcStr = `${func.id}${!!paramsStr ? `(${paramsStr})` : ''}`;
+        const funcStr = `${func.id}${paramsStr ? `(${paramsStr})` : ''}`;
         total.push(funcStr);
         return total;
       }, [])

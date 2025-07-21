@@ -213,11 +213,11 @@ export default class CustomInput extends Vue {
     // 分类数据
     this.tabData = res.data.reduce(
       (pre, next) => {
-        if (!!next.is_innerip) {
+        if (next.is_innerip) {
           pre.inner.push(next);
-        } else if (!!next.is_outerip) {
+        } else if (next.is_outerip) {
           pre.outer.push(next);
-        } else if (!!next.is_external_ip) {
+        } else if (next.is_external_ip) {
           pre.other.push(next);
         }
         return pre;

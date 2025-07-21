@@ -339,7 +339,6 @@ export default class AddContent extends Vue {
     }
   }
 
-
   /**
    * 确认操作
    */

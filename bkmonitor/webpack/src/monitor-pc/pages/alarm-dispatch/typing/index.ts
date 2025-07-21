@@ -124,6 +124,8 @@ export interface IRuleGroup {
   priority: number; // 优先级
   ruleData: IRuleDataItem[];
   editAllowed?: boolean;
+  updateTime: string;
+  updateUser: string;
 }
 
 export interface LevelItem {
@@ -156,6 +158,9 @@ export class RuleGroupData {
   priority = 0;
   ruleData = [];
   settings = {};
+  updateTime = '';
+  updateUser = '';
+
   constructor(data: IRuleGroup) {
     const TEMP_THIS = JSON.parse(JSON.stringify(this));
     Object.keys(TEMP_THIS).forEach(key => {

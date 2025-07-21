@@ -29,7 +29,7 @@ import { ofType, modifiers } from 'vue-tsx-support';
 import { addListener, removeListener } from '@blueking/fork-resize-detector';
 import SearchSelect from '@blueking/search-select-v3/vue2';
 import dayjs from 'dayjs';
-import { CancelToken } from 'monitor-api/index';
+import { CancelToken } from 'monitor-api/cancel';
 import { exportConfigFile } from 'monitor-api/modules/as_code';
 import { noticeGroupList } from 'monitor-api/modules/notice_group';
 import { disableShield } from 'monitor-api/modules/shield';

@@ -310,7 +310,7 @@ export default class ApmTopo extends tsc<ICommonListProps, ICommonListEvent> {
         v-bkloading={{ isLoading: this.loading }}
       >
         <div class='list-header'>
-          {!!this.conditionList.length ? (
+          {this.conditionList.length ? (
             <SearchSelect
               clearable={false}
               data={this.currentConditionList}

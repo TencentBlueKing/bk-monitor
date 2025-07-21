@@ -230,7 +230,7 @@ export default class DetectionRules extends tsc<IDetectionRules, IEvent> {
 
     const isTimeSeries = dataTypeLabel === 'time_series' || this.dataTypeLabel === 'time_series'; // 数据类型是否为指标
     const isLogMetric = dataTypeLabel === 'log' || this.dataTypeLabel === 'log';
-    const isEventMetric = dataTypeLabel === 'event' || this.dataTypeLabel === 'event'
+    const isEventMetric = dataTypeLabel === 'event' || this.dataTypeLabel === 'event';
     const isValidMetricData = this.metricData.length <= 1;
     return isValidMetricData && (isTimeSeries || isLogMetric || isEventMetric);
   }

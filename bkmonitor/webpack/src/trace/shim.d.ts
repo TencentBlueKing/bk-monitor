@@ -69,6 +69,7 @@ declare global {
     FEATURE_TOGGLE?: Record<string, 'off' | 'on'>;
     // 多租户用户中心是否开启
     enable_multi_tenant_mode?: boolean;
+    enable_create_chat_group?: boolean;
   }
 }
 

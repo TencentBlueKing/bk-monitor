@@ -87,13 +87,14 @@ export const getSingleDiffColor = ({ mark, comparison, baseline }: IDiffInfo) =>
       return COMPARE_REMOVED_COLOR;
     case 'unchanged':
       return COMPARE_DIFF_COLOR_LIST[5].color;
-    default:
+    default: {
       const percent = ((baseline - comparison) / comparison) * 100;
       const colorIndex = COMPARE_DIFF_COLOR_LIST.findIndex(val => val.value > percent);
 
       if (colorIndex === -1) return COMPARE_DIFF_COLOR_LIST[10].color;
       if (percent > 0) return COMPARE_DIFF_COLOR_LIST[colorIndex].color;
       return COMPARE_DIFF_COLOR_LIST[colorIndex - 1].color;
+    }
   }
 };
 

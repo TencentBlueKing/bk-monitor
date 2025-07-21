@@ -36,7 +36,7 @@ import 'monitor-ui/directive/index';
 
 import Api from 'monitor-api/api';
 import Axios from 'monitor-api/axios/axios';
-import { setVue } from 'monitor-api/utils/index';
+import { setVue, type VueInstance } from 'monitor-api/utils/index';
 import { immediateRegister } from 'monitor-common/service-worker/service-worker';
 import { getUrlParam, mergeSpaceList, setGlobalBizId } from 'monitor-common/utils';
 import { assignWindowField } from 'monitor-common/utils/assign-window';
@@ -60,7 +60,7 @@ window.source_app = 'monitor';
 window.slimit = 500;
 window.AJAX_URL_PREFIX = '/apm_log_forward/bklog/api/v1';
 Vue.config.ignoredElements = ['custom-incident-detail'];
-setVue(Vue);
+setVue(Vue as VueInstance);
 const hasRouteHash = getUrlParam('routeHash');
 const spaceUid = getUrlParam('space_uid');
 const bizId = getUrlParam('bizId')?.replace(/\//gim, '');

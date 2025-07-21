@@ -44,7 +44,7 @@ import { useRoute, useRouter } from 'vue-router';
 
 import { addListener, removeListener } from '@blueking/fork-resize-detector';
 import { Checkbox, Loading, Popover, Radio, Table, Sideslider } from 'bkui-vue';
-import { CancelToken } from 'monitor-api/index';
+import { CancelToken } from 'monitor-api/cancel';
 import { listOptionValues, spanDetail, traceDetail } from 'monitor-api/modules/apm_trace';
 import { random } from 'monitor-common/utils/utils';
 import { echartsDisconnect } from 'monitor-ui/monitor-echarts/utils';

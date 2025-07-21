@@ -169,11 +169,11 @@ export default class PerformanceTool extends Vue<MonitorVue> {
 
   // 可用于筛选的字段信息
   get filterPanelData() {
-    return this.fieldData.filter(item => Object.prototype.hasOwnProperty.call(item, 'filterChecked'));
+    return this.fieldData.filter(item => Object.hasOwn(item, 'filterChecked'));
   }
   // 可用于设置自定义列的信息
   get fieldSettingData() {
-    return this.fieldData.filter(item => Object.prototype.hasOwnProperty.call(item, 'checked'));
+    return this.fieldData.filter(item => Object.hasOwn(item, 'checked'));
   }
 
   get isFilter() {
@@ -207,7 +207,7 @@ export default class PerformanceTool extends Vue<MonitorVue> {
     const selections = this.getSelections();
     const firstRow = selections[0];
     const compares = selections.reduce((total, item, index) => {
-      if (!!index)
+      if (index)
         total.push({
           bk_host_id: item.bk_host_id,
           bk_target_cloud_id: item.bk_cloud_id,

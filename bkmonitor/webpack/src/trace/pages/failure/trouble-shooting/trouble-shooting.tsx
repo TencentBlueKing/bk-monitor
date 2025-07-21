@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, defineComponent, shallowRef, watch, reactive, onMounted } from 'vue';
+import { computed, defineComponent, shallowRef, watch, reactive, onMounted, inject, type Ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute } from 'vue-router';
 
@@ -32,7 +32,7 @@ import { incidentDiagnosis } from 'monitor-api/modules/incident';
 
 import MarkdownViewer from '../../../components/markdown-editor/viewer';
 
-import type { IContentList, IListItem, IAlertData, IAnomalyAnalysis } from '../types';
+import type { IContentList, IListItem, IAlertData, IAnomalyAnalysis, IStrategyMapItem } from '../types';
 
 import './trouble-shooting.scss';
 
@@ -44,7 +44,7 @@ export default defineComponent({
       default: () => ({}),
     },
   },
-  emits: ['alertList'],
+  emits: ['alertList', 'strategy'],
   setup(props, { emit }) {
     const { t } = useI18n();
     const route = useRoute();
@@ -55,6 +55,7 @@ export default defineComponent({
     });
     const activeIndex = shallowRef([]);
     const childActiveIndex = shallowRef([0]);
+    const bkzIds = inject<Ref<string[]>>('bkzIds');
     const subPanels = computed(() => {
       return props.panelConfig.sub_panels || {};
     });
@@ -69,14 +70,14 @@ export default defineComponent({
     const dimensionalTitleSlot = (item: IAnomalyAnalysis) => (
       <span class='dimensional-title'>
         {item.name || `异常维度（组合）${item.$index + 1}`}
-        <span class='red-font'>
-          {t('可疑程度')} {(item?.score || 0).toFixed(2) * 100}%
-        </span>
+        {/* <span class='red-font'>
+          {t('可疑程度')} {((item?.score || 0) * 100).toFixed(2)}%
+        </span> */}
       </span>
     );
-    /** 侧滑展开告警详情 */
-    const goDetail = (data: IAlertData) => {
-      window.__BK_WEWEB_DATA__?.showDetailSlider?.(data);
+    /** 跳转到告警tab带上策路ID过滤 */
+    const goDetail = (data: IStrategyMapItem) => {
+      emit('strategy', data);
     };
     /** 跳转到告警tab */
     const goAlertList = (list: IAlertData[]) => {
@@ -104,23 +105,27 @@ export default defineComponent({
               </span>
             </span>
           ))}
-          <span class='content-title'>
-            {t('包含')}
-            <b
-              class='blue-txt'
-              onClick={() => goAlertList(item.alerts)}
-            >
-              {item.alert_count}
-            </b>
-            {t('个告警')}
-          </span>
-          {(item.alerts || []).map((ele: IAlertData) => (
+          {item.alerts.length > 0 && (
+            <span class='content-title'>
+              {t('包含')}
+              <b
+                class='blue-txt'
+                onClick={() => goAlertList(item.alerts)}
+              >
+                {item.alert_count}
+              </b>
+              {t('个告警')}，{t('来源于以下 {0} 个策略', [Object.values(item.strategy_alerts_mapping || {}).length])}
+            </span>
+          )}
+          {Object.values(item.strategy_alerts_mapping || {}).map((ele: IStrategyMapItem) => (
             <span
-              key={ele.id}
+              key={ele.strategy_id}
               class='dimensional-content-link'
               onClick={() => goDetail(ele)}
             >
-              <span class='blue-txt'>{ele.alert_name}</span>
+              <span class='blue-txt'>
+                {ele.strategy_name} - {ele.strategy_id}
+              </span>
             </span>
           ))}
         </span>
@@ -187,30 +192,42 @@ export default defineComponent({
     const getIncidentDiagnosis = (key: string) => {
       loadingList[key] = true;
       incidentDiagnosis({
+        bk_biz_ids: bkzIds.value,
         id: route.params.id,
         sub_panel: key,
       }).then(res => {
-        contentList[key] = res.contents;
+        contentList[key] = res.contents || '';
         const { sub_panels } = props.panelConfig;
         loadingList[key] = sub_panels[key].status === 'running';
       });
     };
+    /** 获取tab的展示内容 */
+    const getTabContent = () => {
+      const { status, sub_panels } = props.panelConfig;
+      let keys = Object.keys(sub_panels);
+      if (status === 'running') {
+        keys = Object.keys(sub_panels || {}).filter(
+          key => sub_panels[key].enabled && sub_panels[key].status === 'running'
+        );
+      }
+      keys.map(key => {
+        getIncidentDiagnosis(key);
+      });
+    };
+    watch(
+      () => bkzIds.value,
+      val => {
+        val.length > 0 && getTabContent();
+      }
+    );
     watch(
       () => props.panelConfig,
-      val => {
-        const { status, sub_panels } = val;
-        let keys = Object.keys(sub_panels);
-        if (status === 'running') {
-          keys = Object.keys(sub_panels || {}).filter(
-            key => sub_panels[key].enabled && sub_panels[key].status === 'running'
-          );
-        }
-        keys.map(key => {
-          getIncidentDiagnosis(key);
-        });
+      () => {
+        bkzIds.value.length > 0 && getTabContent();
       },
       { deep: true, immediate: true }
     );
+
     const handleToPanel = (key: string) => {
       const id = `panel-${key}`;
       if (key !== 'summary') {
