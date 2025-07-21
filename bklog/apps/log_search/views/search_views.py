@@ -1960,14 +1960,22 @@ class SearchViewSet(APIViewSet):
         }
         """
         params = self.params_valid(UISearchSerializer)
-        data = ChartHandler.generate_sql(
-            addition=params["addition"],
-            start_time=params["start_time"],
-            end_time=params["end_time"],
-            sql_param=params["sql"],
-            keyword=params["keyword"],
-            alias_mappings=params["alias_mappings"],
-        )
+        bk_biz_id = space_uid_to_bk_biz_id(self.get_object().space_uid)
+
+        if FeatureToggleObject.switch(UNIFY_QUERY_SQL, bk_biz_id):
+            params["index_set_ids"] = [index_set_id]
+            params["bk_biz_id"] = bk_biz_id
+            query_handler = UnifyQueryChartHandler(params)
+            data = query_handler.generate_sql()
+        else:
+            data = ChartHandler.generate_sql(
+                addition=params["addition"],
+                start_time=params["start_time"],
+                end_time=params["end_time"],
+                sql_param=params["sql"],
+                keyword=params["keyword"],
+                alias_mappings=params["alias_mappings"],
+            )
         return Response(data)
 
     @list_route(methods=["POST"], url_path="generate_querystring")

@@ -8,6 +8,7 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+import copy
 import time
 
 from apps.api import UnifyQueryApi
@@ -28,15 +29,29 @@ class UnifyQueryChartHandler(UnifyQueryHandler):
 
     def get_chart_data(self):
         start_time = time.time()
-        data = UnifyQueryApi.query_ts_raw(self.base_dict)
-        for record in data["list"]:
+        result = UnifyQueryApi.query_ts_raw(self.base_dict)
+        for record in result["list"]:
             # 删除内置字段
             for key in ["__data_label", "__index", "__result_table"]:
                 record.pop(key, None)
 
+        result_table_options = list(result.get("result_table_options", {}).values())
+        result_schema = result_table_options[0]["result_schema"] if result_table_options else []
+
         return {
-            "list": data["list"],
-            "total_records": data["total"],
+            "list": result["list"],
+            "total_records": result["total"],
             "time_taken": time.time() - start_time,
-            "result_schema": data.get("result_schema", []),
+            "result_schema": result_schema,
+        }
+
+    def generate_sql(self):
+        search_dict = copy.deepcopy(self.base_dict)
+        search_dict["dry_run"] = True
+        result = UnifyQueryApi.query_ts_raw(search_dict)
+        result_table_options = list(result.get("result_table_options", {}).values())
+        sql = result_table_options[0]["sql"] if result_table_options else ""
+        return {
+            "sql": sql,
+            "additional_where_clause": sql,
         }
