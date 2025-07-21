@@ -80,7 +80,9 @@ const submit = async () => {
     params: {
       index_set_id: route.params.indexId,
     },
-    data: formData.value,
+    data: {
+      alias_settings: formData.value,
+    }
   });
   if (res.code === 0) {
     showSlider.value = false;
