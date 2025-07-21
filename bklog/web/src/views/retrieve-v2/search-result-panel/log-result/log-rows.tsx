@@ -254,9 +254,10 @@ export default defineComponent({
                 }
                 return item;
               });
+              const updateSortList= syncSpecifiedFieldSort(field.field_name,updatedSortList);
               store.commit('updateLocalSort', true);
-              store.commit('updateIndexFieldInfo', { sort_list: updatedSortList });
-              store.commit('updateIndexItemParams', { sort_list: sortList });
+              store.commit('updateIndexFieldInfo', { sort_list: updateSortList });
+              store.commit('updateIndexItemParams', { sort_list: updateSortList });
               store.dispatch('requestIndexSetQuery');
             }
           });
@@ -560,6 +561,31 @@ export default defineComponent({
       }
     };
 
+    const syncSpecifiedFieldSort = (field_name,updatedSortList) => {
+        const requiredFields = ['gseIndex', 'iterationIndex','dtEventTimeStamp'];
+        if (!requiredFields.includes(field_name)) {
+          return updatedSortList
+        }
+        const fields = store.state.indexFieldInfo.fields.map(item => item.field_name);
+        const currentSort = updatedSortList.find(([key]) => key === field_name)[1];
+
+        requiredFields.forEach(field => {
+          if (field === field_name)  return
+          if (fields.includes(field)) {
+            const index = updatedSortList.findIndex(([key]) => key === field);
+            const sortItem = [field, currentSort];
+
+            if (index !== -1) {
+              updatedSortList[index] = sortItem;
+            } else {
+              updatedSortList.push(sortItem);
+            }
+          }
+        });
+        console.log(updatedSortList);
+        
+        return updatedSortList;
+    }
     watch(
       () => [tableShowRowIndex.value],
       () => {

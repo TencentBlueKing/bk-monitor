@@ -8,12 +8,28 @@
       <transition-group>
         <li
           v-for="({ key, sorts }, index) in sortList"
+          v-show="isFieldHidden(sorts[0])"
           class="custom-select-item"
           :key="key"
         >
           <span class="icon bklog-icon bklog-ketuodong"></span>
 
+          <div 
+            v-if="sorts[0] === 'dtEventTimeStamp'"  
+            v-bk-tooltips="{
+              allowHTML:true,
+              placement:'top',
+              content: $t('综合时间排序,是基于：dtEventTimeStamp、gesIndex、iterationIndex 3个字段的排序结果'),
+            }" 
+            class="table-sort-option-time"
+          >
+            <span>
+              {{$t('综合时间排序')}}
+              <span class="badge" >{{ totalTimeCount }}</span>
+            </span>
+          </div>
           <bk-select
+            v-else
             style="width: 174px"
             class="rtl-text"
             v-model="sorts[0]"
@@ -43,11 +59,19 @@
                   >
                   </span>
                   <div
+                    v-if="option.query_alias"
                     class="display-container rtl-text"
                     v-bk-overflow-tips="{ placement: 'right' }"
                   >
                     <span class="field-alias">{{ option.query_alias || option.field_name }}</span>
                     <span class="field-name">({{ option.field_name }})</span>
+                  </div>
+                  <div 
+                    v-else 
+                    class="display-container rtl-text" 
+                    v-bk-overflow-tips="{ placement: 'right' }"
+                  >
+                    <span class="field-name">{{ option.field_name }}</span>
                   </div>
                 </div>
               </bk-option>
@@ -121,14 +145,21 @@
   const sortList = ref<{ key: string; sorts: string[] }[]>([]);
 
   const shadowSort = computed(() => sortList.value.map(e => e.sorts));
+  const fieldList = computed(() => store.state.indexFieldInfo.fields);
   const selectList = computed(() => {
-    const data = store.state.indexFieldInfo.fields;
-    const filterFn = field => field.field_type !== '__virtual__';
-    return data.filter(filterFn).map(field => {
+    const filterFn = field => field.field_type !== '__virtual__'  && isFieldHidden(field.field_name);
+    return fieldList.value.filter(filterFn).map(field => {
       return Object.assign({}, field, { disabled: shadowSort.value.some(item => item[0] === field.field_name) });
     });
   });
-
+  const totalTimeCount = computed(()=>{
+    const requiredFields = ['gseIndex', 'iterationIndex','dtEventTimeStamp'];
+    return fieldList.value.filter(field =>{
+      if (requiredFields.includes(field.field_name)) {
+        return true;
+      }
+    }).length;
+  })
   const deleteTableItem = (val: number) => {
     sortList.value = sortList.value.slice(0, val).concat(sortList.value.slice(val + 1));
   };
@@ -143,6 +174,9 @@
   };
   const getFieldIcon = fieldType => {
     return fieldTypeMap.value?.[fieldType] ? fieldTypeMap.value?.[fieldType]?.icon : 'bklog-icon bklog-unkown';
+  };
+  const isFieldHidden = (fieldName) => {
+    return fieldName !== 'gseIndex' && fieldName !== 'iterationIndex'
   };
   watch(
     () => [props.initData, props.shouldRefresh],
@@ -177,6 +211,24 @@
     }
   }
 
+  .table-sort-option-time{
+    width: 174px;
+    border: 1px solid #c4c6cc;
+    border-radius: 2px;
+    line-height: 30px;
+    color: #63656e;
+    box-sizing: border-box;
+    padding: 0 36px 0 10px;
+    font-size: 12px;
+    cursor: not-allowed;
+    background-color: #fafbfc;
+    .badge{
+      background-color: #eaebee;
+      padding: 0px 7px;
+      border-radius: 8px;
+      color: #979bb4;
+    }
+  }
   .table-sort-option-container {
     .custom-option-item {
       display: flex;
@@ -190,5 +242,8 @@
         white-space: nowrap;
       }
     }
+  }
+  .bklog-circle-minus-filled{
+    cursor: pointer;
   }
 </style>
