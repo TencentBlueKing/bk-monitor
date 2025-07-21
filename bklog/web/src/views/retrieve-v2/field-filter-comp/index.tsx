@@ -30,12 +30,13 @@ import { Component as tsc } from 'vue-tsx-support';
 import { TABLE_LOG_FIELDS_SORT_REGULAR, getRegExp } from '@/common/util';
 import { builtInInitHiddenList } from '@/const/index.js';
 import VueDraggable from 'vuedraggable';
-import { BK_LOG_STORAGE } from '../../../store/store.type';
 
 import EmptyStatus from '../../../components/empty-status/index.vue';
+import { BK_LOG_STORAGE } from '../../../store/store.type';
 import FieldItem from './field-item';
 // import FieldSelectConfig from './components/field-select-config.vue';
-import FieldSelectConfig from './update/field-list.vue';
+
+import FieldSetting from './update/field-setting.vue';
 
 import './index.scss';
 
@@ -536,7 +537,7 @@ export default class FieldFilterComp extends tsc<object> {
             <div class='fields-container is-selected'>
               <div class='title'>
                 <span>{this.$t('显示字段')}</span>
-                <FieldSelectConfig />
+                <FieldSetting />
               </div>
               {!!this.visibleFields.filter(item => item.filterVisible).length ? (
                 <VueDraggable
