@@ -7,9 +7,8 @@
     >
       <transition-group>
         <li
-          v-if="dtEventTimeStampSort"
           class="custom-select-item"
-          :key="dtEventTimeStampSort.key"
+          :key="dtEventTimeStampSort?.key"
         >
           <span class="icon bklog-icon bklog-ketuodong"></span>
           <div 
@@ -45,7 +44,6 @@
         </li>
         <li
           v-for="({ key, sorts }, index) in showFieldList"
-          v-show="isFieldHidden(sorts[0])"
           class="custom-select-item"
           :key="key"
         >
@@ -168,7 +166,7 @@
   const shadowSort = computed(() => sortList.value.map(e => e.sorts));
   const fieldList = computed(() => store.state.indexFieldInfo.fields);
   const dtEventTimeStampSort = computed(() => {
-    return sortList.value.find(e => e.sorts[0] === 'dtEventTimeStamp');
+    return sortList.value.find(e => e.sorts[0] === 'dtEventTimeStamp') || { key: random(8), sorts: ['dtEventTimeStamp', 'desc'] };
   });
   const showFieldList = computed(() => {
     return sortList.value.filter( e =>{
