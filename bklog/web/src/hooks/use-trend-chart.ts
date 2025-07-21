@@ -78,27 +78,6 @@ export default ({ target, handleChartDataZoom, dynamicHeight }: TrandChartOption
     delegateMethod('dispatchAction', payload);
   };
 
-  // const formatTimeString = (data, interval) => {
-  //   if (/\d+s$/.test(interval)) {
-  //     return dayjs.tz(data).format('HH:mm:ss');
-  //   }
-
-  //   if (/\d+(m|h)$/.test(interval)) {
-  //     const { start_time, end_time } = retrieveParams.value;
-  //     const durationHour = (end_time / 1000 - start_time / 1000) / 3600;
-  //     // 当筛选时间间隔6小时以上 显示日期
-  //     const format = durationHour < 6 ? 'HH:mm:ss' : 'MM-DD HH:mm:ss';
-  //     return dayjs.tz(data).format(format).replace(/:00$/, '');
-  //   }
-
-  //   if (/\d+d$/.test(interval)) {
-  //     return dayjs
-  //       .tz(data)
-  //       .format('MM-DD HH:mm:ss')
-  //       .replace(/00:00:00$/, '');
-  //   }
-  // };
-
   const getIntervalValue = (interval: string) => {
     const timeunit = {
       s: 1,
