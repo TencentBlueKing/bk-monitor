@@ -318,8 +318,7 @@ class DataLink(models.Model):
 
                 config_list.extend([es_rt_config, es_binding_config, databus_config])
                 logger.info(
-                    "compose_base_event_configs: data_link_name->[%s] composed %d configs successfully,config_list->["
-                    "%s]",
+                    "compose_base_event_configs: data_link_name->[%s] composed configs successfully,config_list->[%s]",
                     self.data_link_name,
                     config_list,
                 )
