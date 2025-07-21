@@ -582,8 +582,6 @@ export default defineComponent({
             }
           }
         });
-        console.log(updatedSortList);
-        
         return updatedSortList;
     }
     watch(
