@@ -90,6 +90,11 @@ enum BK_LOG_STORAGE {
    * 趋势图是否折叠
    */
   TREND_CHART_IS_FOLD = '_17',
+
+  /**
+   * 缓存趋势图历史选择的起止时间列表
+   */
+  CACHED_BATCH_LIST = '_18',
 }
 
 

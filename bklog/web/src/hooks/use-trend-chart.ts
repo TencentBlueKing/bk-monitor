@@ -36,6 +36,7 @@ import { formatNumberWithRegex } from '@/common/util';
 
 import chartOption, { COLOR_LIST, getSeriesData } from './trend-chart-options';
 import RetrieveHelper, { RetrieveEvent } from '../views/retrieve-helper';
+import { BK_LOG_STORAGE } from '@/store/store.type.ts';
 
 export type TrandChartOption = {
   target: Ref<HTMLDivElement | null>;
@@ -361,7 +362,6 @@ export default ({ target, handleChartDataZoom, dynamicHeight }: TrandChartOption
 
     const keys = [...opt_data.keys()];
     keys.sort((a, b) => a[0] - b[0]);
-    // let data = keys.map(key => [key, opt_data.get(key)[0], opt_data.get(key)[1]]);
     let data = keys.map(key => {
       const val = opt_data.get(key);
       return [key, val ? val[0] : 0, val ? val[1] : null] as [number, number, string | null];
@@ -485,7 +485,7 @@ export default ({ target, handleChartDataZoom, dynamicHeight }: TrandChartOption
     });
   };
 
-  const cachedBatch = ref<Array<any>>([]);
+  const cachedBatch = computed(() => store.state.storage[BK_LOG_STORAGE.CACHED_BATCH_LIST] || []);
   const canGoBack = computed(() => cachedBatch.value.length > 1);
 
   const handleDataZoom = debounce(event => {
@@ -500,6 +500,7 @@ export default ({ target, handleChartDataZoom, dynamicHeight }: TrandChartOption
         start: start_time,
         end: end_time,
       });
+      store.commit('updateStorage', { [BK_LOG_STORAGE.CACHED_BATCH_LIST]: cachedBatch.value });
     }
 
     // 每次有效选择都 push
@@ -510,6 +511,7 @@ export default ({ target, handleChartDataZoom, dynamicHeight }: TrandChartOption
         start: batch.startValue,
         end: batch.endValue,
       });
+      store.commit('updateStorage', { [BK_LOG_STORAGE.CACHED_BATCH_LIST]: cachedBatch.value });
     }
 
     if (batch.startValue && batch.endValue) {
@@ -547,6 +549,7 @@ export default ({ target, handleChartDataZoom, dynamicHeight }: TrandChartOption
         isBack: true, // 标记本次是回退,避免点击回退时触发handleDataZoom的push操作
       });
       cachedBatch.value.pop();
+      store.commit('updateStorage', { [BK_LOG_STORAGE.CACHED_BATCH_LIST]: cachedBatch.value });
     }
   };
 
@@ -565,6 +568,7 @@ export default ({ target, handleChartDataZoom, dynamicHeight }: TrandChartOption
         batch: [first],
       });
       cachedBatch.value.splice(0, cachedBatch.value.length);  // 清空缓存时间组
+      store.commit('updateStorage', { [BK_LOG_STORAGE.CACHED_BATCH_LIST]: cachedBatch.value });
     }
   };
 
