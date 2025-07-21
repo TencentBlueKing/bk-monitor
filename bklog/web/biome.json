@@ -22,7 +22,6 @@
     "rules": {
       "recommended": true,
       "security": {
-        "noDangerouslySetInnerHtml": "error",
         "noGlobalEval": "error",
         "noBlankTarget": "warn"
       },

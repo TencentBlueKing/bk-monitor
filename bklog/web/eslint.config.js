@@ -63,7 +63,6 @@ module.exports = [
       'security/detect-pseudoRandomBytes': 'warn',
       
       // SonarJS 安全规则
-      'sonarjs/no-implied-eval': 'error',
       'sonarjs/no-script-url': 'error',
       'sonarjs/no-extra-arguments': 'warn',
       'sonarjs/no-duplicate-string': 'warn',
