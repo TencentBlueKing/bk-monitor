@@ -296,6 +296,7 @@ class StrategyCacheManager(CacheManager):
             # hack agg_interval with fake_event
             if query_config["metric_id"] in fake_event_metric_id_mapping.values():
                 query_config["agg_interval"] = query_config.get("agg_interval", cls.fake_event_agg_interval)
+
             if query_config["metric_id"] == "bk_monitor.os_restart":
                 # 主机重启优化
                 # alarm_backends/service/detect/strategy/os_restart.py:32
@@ -312,6 +313,7 @@ class StrategyCacheManager(CacheManager):
                     # alarm_backends/service/detect/strategy/proc_port.py:32
                     query_config["alias"] = "a"
                     item["expression"] = "a != 1"
+
             query_config.setdefault("agg_dimension", [])
             is_instance_dimension = cls.instance_dimensions & set(query_config["agg_dimension"])
 
