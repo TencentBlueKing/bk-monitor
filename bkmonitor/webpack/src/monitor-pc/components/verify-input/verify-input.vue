@@ -63,10 +63,6 @@ export default {
       type: Boolean,
       default: false,
     },
-    isCustomTime: {
-      type: Boolean,
-      default: false,
-    },
   },
   methods: {
     handleFocus() {
