@@ -245,7 +245,7 @@ export default defineComponent({
         } else {
           noData.value = true;
         }
-      } catch (e) {
+      } catch {
         noData.value = true;
       } finally {
         chartTitle.value = props.title;
