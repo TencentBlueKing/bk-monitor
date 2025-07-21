@@ -36,9 +36,6 @@ import type { IUsePopoverTools } from '../hooks/use-popover';
  * @extends BaseScenario
  */
 export class ActionScenario extends BaseScenario {
-  /**
-   * @readonly 场景标识
-   */
   readonly name = ACTION_STORAGE_KEY;
 
   constructor(
@@ -50,13 +47,8 @@ export class ActionScenario extends BaseScenario {
     super();
   }
 
-  /**
-   * @description 获取当前场景的特殊列配置
-   */
   getColumnsConfig(): Record<string, Partial<BaseTableColumn>> {
-    const commonColumnConfig = this.getCommonColumnsConfig();
     const columns = {
-      ...commonColumnConfig,
       // ... other private columns config
     };
 

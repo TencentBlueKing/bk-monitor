@@ -54,9 +54,6 @@ import type { TippyContent } from 'vue-tippy';
  * @extends BaseScenario
  */
 export class AlertScenario extends BaseScenario {
-  /**
-   * @readonly 场景标识
-   */
   readonly name = ALERT_STORAGE_KEY;
 
   constructor(
@@ -75,13 +72,8 @@ export class AlertScenario extends BaseScenario {
     super();
   }
 
-  /**
-   * @description 获取当前场景的特殊列配置
-   */
   getColumnsConfig(): Record<string, Partial<BaseTableColumn>> {
-    const commonColumnConfig = this.getCommonColumnsConfig();
     const columns: Record<string, Partial<BaseTableColumn>> = {
-      ...commonColumnConfig,
       /** 告警状态(alert_status) 列 */
       alert_name: {
         cellRenderer: row => this.renderAlertName(row),

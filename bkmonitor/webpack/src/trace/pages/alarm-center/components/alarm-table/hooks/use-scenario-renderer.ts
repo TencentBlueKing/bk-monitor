@@ -39,6 +39,8 @@ import type { BaseScenario } from '../scenarios/base-scenario';
 
 export function useScenarioRenderer(context: any) {
   const alarmStore = useAlarmCenterStore();
+  // 用 Map 缓存场景实例，避免重复创建
+  let scenarioInstanceMap = new Map<string, BaseScenario>();
 
   // 场景映射表
   const scenarioMap: Record<string, new (ctx: any) => BaseScenario> = {
@@ -52,7 +54,10 @@ export function useScenarioRenderer(context: any) {
     const storageKey = alarmStore.alarmService.storageKey;
     // eslint-disable-next-line @typescript-eslint/naming-convention
     const ScenarioClass = scenarioMap[storageKey] || AlertScenario; // 默认告警场景
-    return new ScenarioClass(context);
+    if (!scenarioInstanceMap.has(storageKey)) {
+      scenarioInstanceMap.set(storageKey, new ScenarioClass(context));
+    }
+    return scenarioInstanceMap.get(storageKey);
   });
 
   /**
@@ -72,7 +77,7 @@ export function useScenarioRenderer(context: any) {
         fixed: 'left',
       });
     }
-    const scenarioColumns = currentScenario.value.getColumnsConfig();
+    const scenarioColumns = currentScenario.value.getMergedColumnsConfig();
     for (const column of columns) {
       const scenarioConfig = scenarioColumns[column.colKey];
       const targetColumn = scenarioConfig ? { ...column, ...scenarioConfig } : column;
@@ -96,6 +101,8 @@ export function useScenarioRenderer(context: any) {
 
   onBeforeUnmount(() => {
     currentScenario.value?.cleanup?.();
+    scenarioInstanceMap.clear();
+    scenarioInstanceMap = null;
   });
 
   return {
