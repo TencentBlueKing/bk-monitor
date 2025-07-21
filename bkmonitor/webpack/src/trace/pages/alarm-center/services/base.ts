@@ -75,10 +75,7 @@ export abstract class AlarmService<S = AlarmType> {
     extend_info: AlertExtendInfoResult;
   }> {
     if (this.scenes !== AlarmType.ALERT) {
-      return {
-        event_count: {},
-        extend_info: {},
-      };
+      return null;
     }
     const params = { ids: data.map(item => item.id) };
     const eventCountPromise = alertEventCount(params).catch(() => {}) as Promise<Record<string, number>>;

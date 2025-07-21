@@ -38,6 +38,7 @@ import {
   AlarmLevelIconMap,
   AlertDataTypeMap,
   AlertStatusMap,
+  type AlertTableItem,
   AlertTargetTypeMap,
   EXTEND_INFO_MAP,
 } from '../../../typings';
@@ -63,6 +64,11 @@ export class AlertScenario extends BaseScenario {
       handleShowDetail: (id: string) => void;
       hoverPopoverTools: IUsePopoverTools;
       handleAlertContentDetailShow: (e: MouseEvent) => void;
+      handleAlertOperationClick: (
+        clickType: 'chart' | 'confirm' | 'manual' | 'more',
+        row: AlertTableItem,
+        e?: MouseEvent
+      ) => void;
       [methodName: string]: any;
     }
   ) {
@@ -74,7 +80,7 @@ export class AlertScenario extends BaseScenario {
    */
   getColumnsConfig(): Record<string, Partial<BaseTableColumn>> {
     const commonColumnConfig = this.getCommonColumnsConfig();
-    const columns = {
+    const columns: Record<string, Partial<BaseTableColumn>> = {
       ...commonColumnConfig,
       /** 告警状态(alert_status) 列 */
       alert_name: {
@@ -144,6 +150,8 @@ export class AlertScenario extends BaseScenario {
       status: {
         renderType: ExploreTableColumnTypeEnum.PREFIX_ICON,
         getRenderValue: row => AlertStatusMap?.[row.status],
+        attrs: { class: 'alert-status-col' },
+        suffixSlot: row => this.renderOperatePanel(row),
       },
     };
 
@@ -154,7 +162,7 @@ export class AlertScenario extends BaseScenario {
   /**
    * @description 告警名称(alert_name) 列渲染方法
    */
-  private renderAlertName(row: any): SlotReturnValue {
+  private renderAlertName(row: AlertTableItem): SlotReturnValue {
     const rectColor = AlarmLevelIconMap?.[row?.severity]?.iconColor;
     return (
       <div class='explore-col alert-lever-rect-col'>
@@ -176,7 +184,7 @@ export class AlertScenario extends BaseScenario {
   /**
    * @description 关联信息(extend_info) 列渲染方法
    */
-  private renderExtendInfo(row: any): SlotReturnValue {
+  private renderExtendInfo(row: AlertTableItem): SlotReturnValue {
     return (
       <div class='explore-col alert-extend-info-col'>
         <div
@@ -192,7 +200,11 @@ export class AlertScenario extends BaseScenario {
   /**
    * @description 告警内容(description) 列渲染方法
    */
-  private renderDescription(row: any, column: BaseTableColumn, renderCtx: TableCellRenderContext): SlotReturnValue {
+  private renderDescription(
+    row: AlertTableItem,
+    column: BaseTableColumn,
+    renderCtx: TableCellRenderContext
+  ): SlotReturnValue {
     const item = column?.getRenderValue?.(row, column);
     return (
       <div class='explore-col explore-prefix-icon-col alert-description-col'>
@@ -207,11 +219,70 @@ export class AlertScenario extends BaseScenario {
     ) as unknown as SlotReturnValue;
   }
 
+  /**
+   * @description 状态(status) 列 插槽 操作面板渲染方法
+   */
+  private renderOperatePanel(row: AlertTableItem) {
+    const { status, is_ack: isAck, ack_operator: ackOperator, followerDisabled } = row;
+    return (
+      <div class='operate-panel'>
+        {window.enable_create_chat_group ? (
+          <span
+            class='operate-panel-item icon-monitor icon-we-com'
+            v-tippy={{ content: window.i18n.t('一键拉群'), delay: 200, appendTo: 'parent' }}
+            onClick={() => this.context.handleAlertOperationClick('chart', row)}
+          />
+        ) : null}
+        <span
+          class={[
+            'operate-panel-item icon-monitor icon-duihao',
+            { 'is-disable': isAck || ['RECOVERED', 'CLOSED'].includes(status) || followerDisabled },
+          ]}
+          v-tippy={{
+            content:
+              isAck || ['RECOVERED', 'CLOSED'].includes(status) || followerDisabled
+                ? this.askTipMsg(isAck, status, ackOperator, followerDisabled)
+                : window.i18n.t('告警确认'),
+            delay: 200,
+            appendTo: 'parent',
+            allowHTML: false,
+          }}
+          onClick={() =>
+            !isAck &&
+            !['RECOVERED', 'CLOSED'].includes(status) &&
+            !followerDisabled &&
+            this.context.handleAlertOperationClick('confirm', row)
+          }
+        />
+        <span
+          class={[
+            'operate-panel-item icon-monitor icon-chuli',
+            {
+              'is-disable': followerDisabled,
+            },
+          ]}
+          v-tippy={{
+            content: followerDisabled ? window.i18n.t('关注人禁用此操作') : window.i18n.t('手动处理'),
+            delay: 200,
+            appendTo: 'parent',
+          }}
+          onClick={() => !followerDisabled && this.context.handleAlertOperationClick('manual', row)}
+        />
+        <span
+          class={['operate-more']}
+          onClick={e => this.context.handleAlertOperationClick('manual', row, e)}
+        >
+          <span class='icon-monitor icon-mc-more' />
+        </span>
+      </div>
+    ) as unknown as SlotReturnValue;
+  }
+
   // ----------------- 告警场景私有逻辑方法 -----------------
   /**
    * @description 告警名称(alert_name) 列 hover事件
    */
-  private handleAlterNameHover(e: MouseEvent, row: any) {
+  private handleAlterNameHover(e: MouseEvent, row: AlertTableItem) {
     const content = (
       <div class='alert-name-popover-container'>
         <div class='alert-name-item'>
@@ -278,7 +349,7 @@ export class AlertScenario extends BaseScenario {
   /**
    * @description 关联信息(extend_info) 列 不同类型需要展示不同的内容
    */
-  private getExtendInfoColumn(row: any) {
+  private getExtendInfoColumn(row: AlertTableItem) {
     const extendInfo = row.extend_info;
     const bizId = row.bk_biz_id?.toString?.();
     switch (extendInfo.type) {
@@ -399,5 +470,22 @@ export class AlertScenario extends BaseScenario {
   private getStrategyUrl(strategy_id, bk_biz_id) {
     if (!strategy_id) return;
     return `${location.origin}${location.pathname}?bizId=${bk_biz_id}#/strategy-config/detail/${strategy_id}`;
+  }
+
+  /*
+   * @description 告警确认文案
+   */
+  private askTipMsg(isAak, status, ackOperator, followerDisabled) {
+    const statusNames = {
+      RECOVERED: window.i18n.t('告警已恢复'),
+      CLOSED: window.i18n.t('告警已关闭'),
+    };
+    if (followerDisabled) {
+      return window.i18n.t('关注人禁用此操作');
+    }
+    if (!isAak) {
+      return statusNames[status];
+    }
+    return `${ackOperator || ''}${window.i18n.t('已确认')}`;
   }
 }
