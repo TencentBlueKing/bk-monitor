@@ -33,6 +33,7 @@ from django.utils.translation import gettext as _
 from apps.api import BkLogApi, TransferApi
 from apps.constants import UserOperationActionEnum, UserOperationTypeEnum
 from apps.decorators import user_operation_record
+from apps.exceptions import CreateOrUpdateLogRouterException
 from apps.feature_toggle.handlers.toggle import feature_switch
 from apps.iam import Permission, ResourceEnum
 from apps.log_databus.constants import STORAGE_CLUSTER_TYPE
@@ -1357,6 +1358,7 @@ class IndexSetHandler(APIModel):
             "bk_tenant_id": space.bk_tenant_id,
         }
 
+    @transaction.atomic()
     def update_alias_settings(self, query_alias_settings):
         self.data.query_alias_settings = query_alias_settings
         self.data.save()
@@ -1368,16 +1370,23 @@ class IndexSetHandler(APIModel):
                     result_key=obj.result_table_id,
                     func=TransferApi.create_or_update_log_router,
                     params={
-                        "table_id": f"bklog_index_set_{self.index_set_id}_{obj.result_table_id.replace('.', '_')}.__default__",
+                        "table_id": BaseIndexSetHandler.get_rt_id(
+                            self.index_set_id, obj.result_table_id.replace(".", "_")
+                        ),
                         "query_alias_settings": query_alias_settings,
                         "space_type": self.data.space_uid.split("__")[0],
                         "space_id": self.data.space_uid.split("__")[-1],
-                        "data_label": f"bklog_index_set_{self.index_set_id}",
+                        "data_label": BaseIndexSetHandler.get_data_label(self.index_set_id),
                     },
                 )
             multi_execute_func.run()
         except Exception as e:
             logger.exception("create or update index set(%s) es router failed：%s", self.index_set_id, e)
+            raise CreateOrUpdateLogRouterException(
+                CreateOrUpdateLogRouterException.MESSAGE.format(
+                    reason=f"create or update index set({self.index_set_id}) es router failed：{e}"
+                )
+            )
         return {"index_set_id": self.index_set_id}
 
     @classmethod
@@ -1558,18 +1567,14 @@ class BaseIndexSetHandler:
         return self.index_set_obj
 
     @staticmethod
-    def get_rt_id(index_set_id, collector_config_id, indexes, clustered_rt=None):
-        if clustered_rt:
-            return f"bklog_index_set_{str(index_set_id)}_clustered.__default__"
-        if collector_config_id:
-            return ",".join([index["result_table_id"] for index in indexes])
-        return f"bklog_index_set_{str(index_set_id)}.__default__"
+    def get_rt_id(index_set_id, result_table_id):
+        table_id = f"bklog_index_set_{index_set_id}_{result_table_id.replace('.', '_')}.__default__"
+        return table_id
 
     @staticmethod
-    def get_data_label(scenario_id, index_set_id, clustered_rt=None):
-        if clustered_rt:
-            return f"{scenario_id}_index_set_{str(index_set_id)}_clustered"
-        return f"{scenario_id}_index_set_{str(index_set_id)}"
+    def get_data_label(index_set_id):
+        data_label = f"bklog_index_set_{index_set_id}"
+        return data_label
 
     def post_create(self, index_set):
         # 新建授权
