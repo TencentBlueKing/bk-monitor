@@ -5,43 +5,44 @@
       class="custom-select-list"
       v-model="sortList"
     >
-      <transition-group>
-        <li
-          class="custom-select-item"
-          :key="dtEventTimeStampSort?.key"
+      <li
+        class="custom-select-item"
+        :key="dtEventTimeStampSort?.key"
+      >
+        <span style="width:18px"></span>
+        <div 
+          v-bk-tooltips="{
+            allowHTML:true,
+            placement:'top',
+            content: $t('综合时间排序,是基于：dtEventTimeStamp、gesIndex、iterationIndex 3个字段的排序结果'),
+          }" 
+          class="table-sort-option-time"
         >
-          <span class="icon bklog-icon bklog-ketuodong"></span>
-          <div 
-            v-bk-tooltips="{
-              allowHTML:true,
-              placement:'top',
-              content: $t('综合时间排序,是基于：dtEventTimeStamp、gesIndex、iterationIndex 3个字段的排序结果'),
-            }" 
-            class="table-sort-option-time"
+          <span>
+            {{$t('综合时间排序')}}
+            <span class="badge" >{{ totalTimeCount }}</span>
+          </span>
+        </div>
+        <bk-select
+          style="width: 77px"
+          v-model="dtEventTimeStampSort.sorts[1]"
+          :placeholder="$t('请选择')"
+        >
+          <bk-option
+            v-for="option in orderList"
+            class="bklog-v3-popover-tag"
+            :id="option.id"
+            :key="option.id"
+            :name="option.name"
           >
-            <span>
-              {{$t('综合时间排序')}}
-              <span class="badge" >{{ totalTimeCount }}</span>
-            </span>
-          </div>
-          <bk-select
-            style="width: 77px"
-            v-model="dtEventTimeStampSort.sorts[1]"
-            :placeholder="$t('请选择')"
-          >
-            <bk-option
-              v-for="option in orderList"
-              class="bklog-v3-popover-tag"
-              :id="option.id"
-              :key="option.id"
-              :name="option.name"
-            >
-            </bk-option>
-          </bk-select>
-          <span
-            style="width: 14px"
-          ></span>
-        </li>
+          </bk-option>
+        </bk-select>
+        <span
+          style="width: 14px"
+        ></span>
+      </li>
+      <transition-group>
+       
         <li
           v-for="({ key, sorts }, index) in showFieldList"
           class="custom-select-item"

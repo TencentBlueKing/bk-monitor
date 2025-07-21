@@ -42,7 +42,7 @@ export default () => {
   const visibleFields = computed(() => store.state.visibleFields);
   const isNotVisibleFieldsShow = computed(() => store.state.isNotVisibleFieldsShow);
   const activeSortField = computed(() => store.state.indexItem.sort_list);
-  const SortShow = (field_name,currentSortField) => {
+  const sortShow = (field_name,currentSortField) => {
     const requiredFields = ['gseIndex', 'iterationIndex','dtEventTimeStamp'];
     if (requiredFields.includes(field_name) && requiredFields.includes(currentSortField)) {
       return true;
@@ -52,7 +52,7 @@ export default () => {
   const renderHead = (field, onClickFn) => {
     const currentSort = activeSortField.value?.[0] || null;
     const currentSortField = currentSort ? currentSort[0] : null;
-    const isSortShow = SortShow(field.field_name,currentSortField)
+    const isSortShow = sortShow(field.field_name,currentSortField)
     const isDesc = currentSort ? currentSort[1] === 'desc' : false;
     const isAsc = currentSort ? currentSort[1] === 'asc' : false;
     const isShowSwitcher = ['date', 'date_nanos'].includes(field?.field_type);

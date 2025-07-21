@@ -352,7 +352,7 @@
       async confirmModifyFields() {
         const currentSortList = this.$refs?.tableSortRef?.shadowSort || this.cachedSortFields;
         const currentVisibleList = this.$refs.fieldSettingRef.shadowVisible.map(item => item.field_name);
-        const updatSortList = this.syncSort(currentSortList)
+        const updateSortList = this.syncSort(currentSortList)
         if (currentVisibleList.length === 0) {
           this.messageWarn(this.$t('显示字段不能为空'));
           return;
@@ -362,7 +362,7 @@
           if (this.isTemplateConfig) {
             const confirmConfigData = {
               editStr: this.currentClickConfigData.name,
-              sort_list:updatSortList,
+              sort_list:updateSortList,
               display_fields: currentVisibleList,
               id: this.currentClickConfigData.id,
             };
@@ -380,7 +380,7 @@
           this.$store
             .dispatch('userFieldConfigChange', {
               displayFields: currentVisibleList,
-              sortList: updatSortList,
+              sortList: updateSortList,
               fieldsWidth: {},
             })
             .then(() => {
