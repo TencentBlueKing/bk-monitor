@@ -82,8 +82,10 @@ const submit = async () => {
     },
     data: formData.value,
   });
-  showSlider.value = false;
-  location.reload();
+  if (res.code === 0) {
+    showSlider.value = false;
+    location.reload();
+  }
 };
 const handleCancel = () => {
   showSlider.value = false;
