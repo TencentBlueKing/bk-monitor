@@ -7,15 +7,12 @@
     >
       <transition-group>
         <li
-          v-for="({ key, sorts }, index) in sortList"
-          v-show="isFieldHidden(sorts[0])"
+          v-if="dtEventTimeStampSort"
           class="custom-select-item"
-          :key="key"
+          :key="dtEventTimeStampSort.key"
         >
           <span class="icon bklog-icon bklog-ketuodong"></span>
-
           <div 
-            v-if="sorts[0] === 'dtEventTimeStamp'"  
             v-bk-tooltips="{
               allowHTML:true,
               placement:'top',
@@ -29,7 +26,31 @@
             </span>
           </div>
           <bk-select
-            v-else
+            style="width: 77px"
+            v-model="dtEventTimeStampSort.sorts[1]"
+            :placeholder="$t('请选择')"
+          >
+            <bk-option
+              v-for="option in orderList"
+              class="bklog-v3-popover-tag"
+              :id="option.id"
+              :key="option.id"
+              :name="option.name"
+            >
+            </bk-option>
+          </bk-select>
+          <span
+            style="width: 14px"
+          ></span>
+        </li>
+        <li
+          v-for="({ key, sorts }, index) in showFieldList"
+          v-show="isFieldHidden(sorts[0])"
+          class="custom-select-item"
+          :key="key"
+        >
+          <span class="icon bklog-icon bklog-ketuodong"></span>
+          <bk-select
             style="width: 174px"
             class="rtl-text"
             v-model="sorts[0]"
@@ -146,6 +167,14 @@
 
   const shadowSort = computed(() => sortList.value.map(e => e.sorts));
   const fieldList = computed(() => store.state.indexFieldInfo.fields);
+  const dtEventTimeStampSort = computed(() => {
+    return sortList.value.find(e => e.sorts[0] === 'dtEventTimeStamp');
+  });
+  const showFieldList = computed(() => {
+    return sortList.value.filter( e =>{
+      return  isFieldHidden(e.sorts[0])
+    })
+  });
   const selectList = computed(() => {
     const filterFn = field => field.field_type !== '__virtual__'  && isFieldHidden(field.field_name);
     return fieldList.value.filter(filterFn).map(field => {
@@ -176,7 +205,8 @@
     return fieldTypeMap.value?.[fieldType] ? fieldTypeMap.value?.[fieldType]?.icon : 'bklog-icon bklog-unkown';
   };
   const isFieldHidden = (fieldName) => {
-    return fieldName !== 'gseIndex' && fieldName !== 'iterationIndex'
+    const hiddenFields = ['gseIndex', 'iterationIndex','dtEventTimeStamp'];
+    return !hiddenFields.includes(fieldName);
   };
   watch(
     () => [props.initData, props.shouldRefresh],
@@ -212,37 +242,40 @@
   }
 
   .table-sort-option-time{
-    width: 174px;
-    border: 1px solid #c4c6cc;
-    border-radius: 2px;
-    line-height: 30px;
-    color: #63656e;
     box-sizing: border-box;
+    width: 174px;
     padding: 0 36px 0 10px;
     font-size: 12px;
+    line-height: 30px;
+    color: #63656e;
     cursor: not-allowed;
     background-color: #fafbfc;
+    border: 1px solid #c4c6cc;
+    border-radius: 2px;
+
     .badge{
-      background-color: #eaebee;
       padding: 0px 7px;
-      border-radius: 8px;
       color: #979bb4;
+      background-color: #eaebee;
+      border-radius: 8px;
     }
   }
+
   .table-sort-option-container {
     .custom-option-item {
       display: flex;
       align-items: center;
 
       .display-container {
-        padding: 0 4px;
         width: calc(100% - 12px);
+        padding: 0 4px;
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
       }
     }
   }
+
   .bklog-circle-minus-filled{
     cursor: pointer;
   }
