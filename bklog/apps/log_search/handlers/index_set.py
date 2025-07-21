@@ -1568,18 +1568,14 @@ class BaseIndexSetHandler:
         return self.index_set_obj
 
     @staticmethod
-    def get_rt_id(index_set_id, collector_config_id, indexes, clustered_rt=None):
-        if clustered_rt:
-            return f"bklog_index_set_{str(index_set_id)}_clustered.__default__"
-        if collector_config_id:
-            return ",".join([index["result_table_id"] for index in indexes])
-        return f"bklog_index_set_{str(index_set_id)}.__default__"
+    def get_rt_id(index_set_id, result_table_id):
+        return f"bklog_index_set_{index_set_id}_{result_table_id.replace('.', '_')}.__default__"
 
     @staticmethod
-    def get_data_label(scenario_id, index_set_id, clustered_rt=None):
+    def get_data_label(index_set_id, clustered_rt=None):
         if clustered_rt:
-            return f"{scenario_id}_index_set_{str(index_set_id)}_clustered"
-        return f"{scenario_id}_index_set_{str(index_set_id)}"
+            return f"bklog_index_set_{index_set_id}_clustered"
+        return f"bklog_index_set_{index_set_id}"
 
     def post_create(self, index_set):
         # 新建授权
@@ -1594,7 +1590,7 @@ class BaseIndexSetHandler:
             request_params = {
                 "cluster_id": index_set.storage_cluster_id,
                 "index_set": ",".join([index["result_table_id"] for index in self.indexes]).replace(".", "_"),
-                "data_label": f"bklog_index_set_{index_set.index_set_id}",
+                "data_label": self.get_data_label(index_set.index_set_id),
                 "space_id": index_set.space_uid.split("__")[-1],
                 "space_type": index_set.space_uid.split("__")[0],
                 "need_create_index": True if index_set.collector_config_id else False,
@@ -1624,7 +1620,7 @@ class BaseIndexSetHandler:
             for obj in objs:
                 request_params.update(
                     {
-                        "table_id": f"bklog_index_set_{index_set.index_set_id}_{obj.result_table_id.replace('.', '_')}.__default__",
+                        "table_id": self.get_rt_id(index_set.index_set_id, obj.result_table_id),
                         "source_type": obj.scenario_id,
                         "storage_cluster_id": obj.storage_cluster_id,
                     }
