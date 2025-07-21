@@ -90,14 +90,14 @@ class NumberChart extends CommonSimpleChart {
    */
   updateChartData(srcData) {
     this.chartDataList = srcData.reduce((total, cur) => {
-      if (!!cur) return total.concat(cur);
+      if (cur) return total.concat(cur);
       return total;
     }, []);
   }
 
   /** 点击跳转 */
   handleLinkTo(item) {
-    if (!!item.link) {
+    if (item.link) {
       if (item.link.target === 'self') {
         this.$router.push({
           path: `${window.__BK_WEWEB_DATA__?.baseroute || ''}${item.link.url}`.replace(/\/\//g, '/'),

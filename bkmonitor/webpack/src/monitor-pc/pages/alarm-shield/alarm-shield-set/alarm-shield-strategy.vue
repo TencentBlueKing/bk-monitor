@@ -568,7 +568,7 @@ export default class AlarmShieldStrategy extends Mixins(alarmShieldMixin, strate
         this.dimensionCondition.metricMeta = null;
       }
       this.dimensionCondition.dimensionList = (
-        !!metricList.length
+        metricList.length
           ? metricList.reduce((pre, cur) => {
               const dimensionList = pre
                 .concat(cur.dimensions.filter(item => typeof item.is_dimension === 'undefined' || item.is_dimension))
@@ -621,7 +621,7 @@ export default class AlarmShieldStrategy extends Mixins(alarmShieldMixin, strate
     };
     if (this.shieldTarget && !this.isEdit && this.isShowShieldScope) {
       const targetData: { scope_type: string; target: [] } = this.shieldTarget.getTargetData();
-      if (!!targetData?.target?.length) {
+      if (targetData?.target?.length) {
         params.dimension_config.scope_type = targetData.scope_type;
         params.dimension_config.target = targetData.target;
       }

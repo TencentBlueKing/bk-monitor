@@ -87,9 +87,9 @@ export default class ConvergenceOptions extends Vue {
       this.selectList.unshift({ id: 'all', name: this.$tc('全部') });
       this.checkData = 'all';
     }
-    if(this.defaultValue) {
-      for(const item of this.selectList) {
-        if(item.id === this.defaultValue) {
+    if (this.defaultValue) {
+      for (const item of this.selectList) {
+        if (item.id === this.defaultValue) {
           this.checkData = item.id;
           break;
         }

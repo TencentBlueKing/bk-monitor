@@ -125,7 +125,7 @@ export default class SettingsVar extends tsc<SettingsVarType.IProps, SettingsVar
 
   @Watch('bookMarkData', { immediate: true, deep: true })
   bookMarkDataChange(bookMark: IBookMark[]) {
-    if (!!bookMark.length) {
+    if (bookMark.length) {
       this.$nextTick(() => {
         this.initData(this.localActiveTab);
         this.internalVarsFilter();
@@ -477,7 +477,7 @@ export default class SettingsVar extends tsc<SettingsVarType.IProps, SettingsVar
             <i class='icon-monitor icon-mc-add' />
             <span class='set-var-btn-text'>{this.$t('新增')}</span>
           </bk-button>
-          {!!this.localVarList.length ? (
+          {this.localVarList.length ? (
             <MonitorDraggable
               class='set-var-item-list'
               onDragstart={this.handleDragstrart}

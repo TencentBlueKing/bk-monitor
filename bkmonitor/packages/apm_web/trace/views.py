@@ -35,11 +35,11 @@ from apm_web.trace.resources import (
     TraceFieldStatisticsGraphResource,
     TraceFieldStatisticsInfoResource,
     TraceFieldsTopKResource,
+    TraceGenerateQueryStringResource,
     TraceListByHostInstanceResource,
     TraceListByIdResource,
     TraceOptionsResource,
     TraceStatisticsResource,
-    TraceGenerateQueryStringResource,
 )
 from apm_web.trace.serializers import TraceFieldsTopkRequestSerializer
 from apm_web.utils import generate_csv_file_download_response
@@ -174,9 +174,7 @@ class TraceQueryViewSet(ResourceViewSet):
         api_topk_data = DimensionStatisticsAPIHandler.get_api_topk_data(validated_data)
 
         file_name = f"topk_{validated_data['bk_biz_id']}_{validated_data['app_name']}_{validated_data['fields'][0]}.csv"
-        file_content = (
-            [item["value"], item["count"], f"{item['proportions']:.2f}%"] for item in api_topk_data[0]["list"]
-        )
+        file_content = ([item["value"], item["count"], f"{item['proportions']}%"] for item in api_topk_data[0]["list"])
         response = generate_csv_file_download_response(file_name, file_content)
 
         return response

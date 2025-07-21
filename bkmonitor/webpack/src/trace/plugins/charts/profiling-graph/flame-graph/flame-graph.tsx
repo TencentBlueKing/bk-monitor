@@ -219,8 +219,8 @@ export default defineComponent({
                     tipDetail.value = {};
                     return;
                   }
-                  let detailsData = undefined;
-                  let dataText = undefined;
+                  let detailsData;
+                  let dataText;
                   const { value: dataValue, text: profileText } = parseProfileDataTypeValue(
                     d.data.value,
                     props.unit,
@@ -229,7 +229,7 @@ export default defineComponent({
                   detailsData = dataValue;
                   dataText = profileText;
 
-                  let diffData = undefined;
+                  let diffData;
                   let diffValue = 0;
                   if (props.isCompared && d.data?.diff_info) {
                     const { value: diffProfileValue } = parseProfileDataTypeValue(

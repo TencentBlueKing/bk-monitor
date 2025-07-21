@@ -32,7 +32,7 @@ import { handleTransformToTimestamp } from '@/components/time-range/utils';
 import { useTraceExploreStore } from '@/store/modules/explore';
 import { get } from '@vueuse/core';
 import dayjs from 'dayjs';
-import { CancelToken } from 'monitor-api/index';
+import { CancelToken } from 'monitor-api/cancel';
 import { arraysEqual } from 'monitor-common/utils/equal';
 import { COLOR_LIST_BAR } from 'monitor-ui/chart-plugins/constants/charts';
 import { getValueFormat } from 'monitor-ui/monitor-echarts/valueFormats/valueFormats';

@@ -463,15 +463,13 @@ export default class MonitorEcharts extends Vue {
       } as any);
       const optionData = this.chartOptionInstance.getOptions(this.handleTransformSeries(data), {});
       const legendShow =
-        this.options?.legend && Object.prototype.hasOwnProperty.call(this.options.legend, 'show')
-          ? this.options.legend.show
-          : true;
+        this.options?.legend && Object.hasOwn(this.options.legend, 'show') ? this.options.legend.show : true;
       if (['bar', 'line'].includes(this.chartType)) {
         this.legend.show = legendShow && hasSeries && optionData.legendData.length > 0;
       } else {
         // eslint-disable-next-line no-nested-ternary
         this.legend.show = optionData.options.lengend
-          ? Object.prototype.hasOwnProperty.call(optionData.options.lengend, 'show')
+          ? Object.hasOwn(optionData.options.lengend, 'show')
             ? optionData.options.lengend.show
             : true
           : false;

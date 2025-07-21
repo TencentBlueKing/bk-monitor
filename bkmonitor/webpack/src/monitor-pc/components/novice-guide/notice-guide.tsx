@@ -40,7 +40,7 @@ export interface INoticeGuideProps {
   defaultStep?: number;
 }
 interface INoticeGuideEvent {
-  onDone: undefined;
+  onDone: void;
 }
 @Component
 export default class NoticeGuide extends tsc<INoticeGuideProps, INoticeGuideEvent> {

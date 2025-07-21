@@ -26,7 +26,7 @@
 import { defineComponent, getCurrentInstance, inject, reactive, type PropType, ref, watch, type Ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 
-import { CancelToken } from 'monitor-api/index';
+import { CancelToken } from 'monitor-api/cancel';
 import { isShadowEqual } from 'monitor-ui/chart-plugins/utils';
 
 import { VariablesService } from '../../utils';

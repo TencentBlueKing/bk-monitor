@@ -17,6 +17,7 @@ from django.utils import timezone
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
+from bkmonitor.utils.request import get_request_tenant_id
 from core.drf_resource import Resource
 from metadata import models
 from metadata.config import METADATA_RESULT_TABLE_WHITE_LIST
@@ -364,10 +365,14 @@ class QueryDataLinkInfoResource(Resource):
         检查结果表指标路由
         若在Transfer/计算平台侧存在指标，但是在RESULT_TABLE_DETAIL中不存在，说明路由异常
         """
+        bk_tenant_id = get_request_tenant_id()
         rt_detail_router_infos = []
         for table_id in self.time_series_table_ids:
             try:
-                router = RedisTools.hget(RESULT_TABLE_DETAIL_KEY, table_id)
+                if settings.ENABLE_MULTI_TENANT_MODE:
+                    router = RedisTools.hget(RESULT_TABLE_DETAIL_KEY, f"{table_id}|{bk_tenant_id}")
+                else:
+                    router = RedisTools.hget(RESULT_TABLE_DETAIL_KEY, table_id)
                 ts_group = models.TimeSeriesGroup.objects.get(table_id=table_id)
                 remote_metrics = ts_group.get_metrics_from_redis()
                 router_data = json.loads(router.decode("utf-8"))
@@ -398,12 +403,16 @@ class QueryDataLinkInfoResource(Resource):
         检查空间-结果表路由
         若在空间允许访问的结果表中不包含该table_id对应的结果表，说明空间路由异常
         """
+        bk_tenant_id = get_request_tenant_id()
         space_to_result_table_router_infos = {}
 
         for item in authorized_space_uids:
             try:
                 # 从 Redis 获取当前空间的路由信息
-                space_router = RedisTools.hget(SPACE_TO_RESULT_TABLE_KEY, item)
+                if settings.ENABLE_MULTI_TENANT_MODE:
+                    space_router = RedisTools.hget(SPACE_TO_RESULT_TABLE_KEY, f"{item}|{bk_tenant_id}")
+                else:
+                    space_router = RedisTools.hget(SPACE_TO_RESULT_TABLE_KEY, item)
                 if not space_router:
                     continue
                 space_router_data: dict[str, dict[str, dict]] = json.loads(space_router.decode("utf-8"))

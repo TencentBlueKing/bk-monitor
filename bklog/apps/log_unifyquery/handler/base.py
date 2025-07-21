@@ -17,6 +17,7 @@ from django.conf import settings
 
 from apps.api import UnifyQueryApi
 from apps.api.modules.utils import get_non_bkcc_space_related_bkcc_biz_id
+from apps.feature_toggle.plugins.constants import LOG_DESENSITIZE
 from apps.log_clustering.models import ClusteringConfig
 from apps.log_desensitize.handlers.desensitize import DesensitizeHandler
 from apps.log_desensitize.models import DesensitizeConfig, DesensitizeFieldConfig
@@ -46,6 +47,7 @@ from apps.log_search.models import (
     UserIndexSetFieldsConfig,
     UserIndexSetSearchHistory,
 )
+from apps.log_search.permission import Permission
 from apps.log_unifyquery.constants import BASE_OP_MAP, MAX_LEN_DICT, REFERENCE_ALIAS
 from apps.log_unifyquery.utils import deal_time_format, transform_advanced_addition
 from apps.utils.cache import cache_five_minute
@@ -54,7 +56,7 @@ from apps.utils.ipchooser import IPChooser
 from apps.utils.local import (
     get_local_param,
     get_request_external_username,
-    get_request_username,
+    get_request_username, get_request,
 )
 from apps.utils.log import logger
 from apps.utils.lucene import EnhanceLuceneAdapter
@@ -136,7 +138,7 @@ class UnifyQueryHandler:
         # result fields
         self.field: dict[str, MAX_LEN_DICT] = {}
 
-        self.is_desensitize = params.get("is_desensitize", True)
+        self.is_desensitize = self._init_desensitize()
 
         # 初始化DB脱敏配置
         desensitize_config_obj = DesensitizeConfig.objects.filter(index_set_id=self.index_set_ids[0]).first()
@@ -492,6 +494,28 @@ class UnifyQueryHandler:
             scope=scope,
             default_sort_tag=self.search_params.get("default_sort_tag", False),
         )
+
+    def _init_desensitize(self) -> bool:
+        is_desensitize = self.search_params.get("is_desensitize", True)
+
+        if not is_desensitize:
+            request = get_request(peaceful=True)
+            if request:
+                auth_info = Permission.get_auth_info(request, raise_exception=False)
+                # 应用不在白名单 → 强制开启脱敏
+                if not auth_info or auth_info["bk_app_code"] not in settings.ESQUERY_WHITE_LIST:
+                    is_desensitize = True
+
+        if is_desensitize:
+            bk_biz_id = self.search_params.get("bk_biz_id", "")
+            request_user = get_request_username()
+            feature_toggle = FeatureToggleObject.toggle(LOG_DESENSITIZE)
+            if feature_toggle and isinstance(feature_toggle.feature_config, dict):
+                user_white_list = feature_toggle.feature_config.get("user_white_list", {})
+                if request_user in user_white_list.get(str(bk_biz_id), []):
+                    is_desensitize = False  # 特权用户关闭脱敏
+
+        return is_desensitize
 
     def init_base_dict(self):
         # 自动周期处理
@@ -954,7 +978,7 @@ class UnifyQueryHandler:
         search_dict["limit"] = max_result_window
         search_dict["trace_id"] = scroll_result["trace_id"]
         search_dict["scroll"] = scroll
-        while scroll_size == max_result_window and result_size < max(index_set.max_async_count, MAX_ASYNC_COUNT):
+        while scroll_size >= max_result_window and result_size < max(index_set.max_async_count, MAX_ASYNC_COUNT):
             search_dict["result_table_options"] = scroll_result["result_table_options"]
             scroll_result = UnifyQueryApi.query_ts_raw(search_dict)
             scroll_size = len(scroll_result["list"])
@@ -1010,7 +1034,7 @@ class UnifyQueryHandler:
         # 参数补充
         search_dict["from"] = self.search_params["begin"]
         search_dict["limit"] = max_result_window
-        while search_after_size == max_result_window and result_size < max(index_set.max_async_count, MAX_ASYNC_COUNT):
+        while search_after_size >= max_result_window and result_size < max(index_set.max_async_count, MAX_ASYNC_COUNT):
             search_dict["result_table_options"] = search_result["result_table_options"]
             search_result = UnifyQueryApi.query_ts_raw(search_dict)
             search_after_size = len(search_result["list"])

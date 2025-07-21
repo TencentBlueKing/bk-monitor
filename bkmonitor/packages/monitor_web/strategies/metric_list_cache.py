@@ -1258,11 +1258,15 @@ class BkmonitorMetricCacheManager(BaseMetricCacheManager):
 
     def get_metric_pool(self):
         # 去掉进程采集相关,因为实际是自定义指标上报上来的。
-        return MetricListCache.objects.filter(
-            data_source_label=DataSourceLabel.BK_MONITOR_COLLECTOR,
-            data_type_label=DataTypeLabel.TIME_SERIES,
-            bk_tenant_id=self.bk_tenant_id,
-        ).exclude(result_table_id="", result_table_id__in=BuildInProcessMetric.result_table_list() + [""])
+        return (
+            MetricListCache.objects.filter(
+                data_source_label=DataSourceLabel.BK_MONITOR_COLLECTOR,
+                data_type_label=DataTypeLabel.TIME_SERIES,
+                bk_tenant_id=self.bk_tenant_id,
+            )
+            .exclude(result_table_id="")
+            .exclude(result_table_id__in=BuildInProcessMetric.result_table_list())
+        )
 
     def get_tables(self):
         if self.bk_biz_id is None:

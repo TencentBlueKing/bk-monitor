@@ -28,9 +28,9 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import customEscalationViewStore from '@store/modules/custom-escalation-view';
 import _ from 'lodash';
-import { getCustomTsDimensionValues } from 'monitor-api/modules/scene_view_new';
 import ValueTagSelector from 'monitor-pc/components/retrieval-filter/value-tag-selector';
 
+import { getCustomTsDimensionValues } from '../../../../../../../../services/scene_view_new';
 import { methodMap } from './index';
 
 import './panel-value-select.scss';

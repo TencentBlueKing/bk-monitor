@@ -33,7 +33,7 @@ import { register, unregister } from 'monitor-common/service-worker/service-work
 import { getUrlParam } from 'monitor-common/utils/utils';
 import Notify from 'vant/lib/notify';
 
-import { setVue } from '../monitor-api/utils/index';
+import { setVue, type VueInstance } from '../monitor-api/utils/index';
 import App from './pages/app.vue';
 import router from './router/router';
 import store from './store/store';
@@ -63,7 +63,7 @@ Vue.prototype.$bkMessage = (params: IMessageParam) => {
     message: params.message,
   });
 };
-setVue(Vue);
+setVue(Vue as VueInstance);
 window.i18n = i18n;
 store.commit('app/SET_APP_DATA', {
   bizId,

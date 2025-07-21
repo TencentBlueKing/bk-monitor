@@ -23,12 +23,21 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-const moduleFiles = require.context('./modules', false, /\.js$/);
-const modules = moduleFiles.keys().reduce((modules, modulePath) => {
-  const moduleName = modulePath.replace(/^\.\/(.*)\.\w+$/, '$1');
-  const value = moduleFiles(modulePath);
-  modules[moduleName] = value.default;
-  return modules;
-}, {});
+import type { PluginContext } from '@toast-ui/editor/types/editor';
 
-export default modules;
+export default function fixUrlPlugin(context: PluginContext) {
+  context.eventEmitter.listen('afterPreviewRender', () => {
+    setTimeout(() => {
+      const previewArea = context.instance.options.el;
+      if (previewArea) {
+        const originalHtml = previewArea.innerHTML;
+        // 通过正则表达式识别并修改 href 属性
+        const fixedHtml = originalHtml.replace(/href="([^"/]+\/)*(http(s)?:\/\/[^"]*)"/g, 'href="$2"');
+        previewArea.innerHTML = fixedHtml;
+      }
+    }, 100); // 延迟以确保预览已经渲染
+  });
+  return {
+    name: 'fixUrlPlugin',
+  };
+}

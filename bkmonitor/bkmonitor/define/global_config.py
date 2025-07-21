@@ -138,6 +138,8 @@ ADVANCED_OPTIONS = OrderedDict(
         ("BACKEND_VERSION", slz.CharField(label="Backend版本号", default="unknown")),
         ("WXWORK_BOT_WEBHOOK_URL", slz.CharField(label="企业微信机器人回调地址", default="", allow_blank=True)),
         ("ACCESS_TIME_PER_WINDOW", slz.IntegerField(label="access模块策略拉取耗时限制（每10分钟）", default=30)),
+        ("QOS_DATASOURCE_LABELS", slz.ListField(label="access模块流控数据源列表", default=[])),
+        ("QOS_INTERVAL_EXPAND", slz.IntegerField(label="access模块触发流控后周期放大倍数", default=3)),
         ("RSA_PRIVATE_KEY", slz.CharField(label="RSA PRIVATE KEY", default=settings.RSA_PRIVATE_KEY)),
         ("SKIP_PLUGIN_DEBUG", slz.BooleanField(label="跳过插件调试", default=False)),
         ("BKUNIFYLOGBEAT_METRIC_BIZ", slz.IntegerField(label="日志采集器指标所属业务", default=0)),
@@ -152,6 +154,7 @@ ADVANCED_OPTIONS = OrderedDict(
         ("BIZ_WHITE_LIST_FOR_3RD_EVENT", slz.ListField(label="第三方事件接入业务白名单", default=[])),
         ("TIME_SERIES_METRIC_EXPIRED_SECONDS", slz.IntegerField(label="自定义指标过期时间", default=30 * 24 * 3600)),
         ("AIDEV_AGENT_LLM_DEFAULT_TEMPERATURE", slz.IntegerField(label="LLM默认温度参数", default=0.3)),
+        ("AIDEV_COMMAND_AGENT_MAPPING", slz.DictField(label="快捷指令<->Agent映射", default={})),
         ("FETCH_TIME_SERIES_METRIC_INTERVAL_SECONDS", slz.IntegerField(label="获取自定义指标的间隔时间", default=7200)),
         ("ENABLE_BKDATA_METRIC_CACHE", slz.BooleanField(label="是否开启数据平台指标缓存", default=True)),
         (
@@ -365,6 +368,10 @@ ADVANCED_OPTIONS = OrderedDict(
         (
             "ALWAYS_RUNNING_FAKE_BCS_CLUSTER_ID_LIST",
             slz.ListField(label="特殊的不会被置为删除状态的BCS集群列表", default=[]),
+        ),
+        (
+            "SPECIAL_RT_ROUTE_ALIAS_RESULT_TABLE_LIST",
+            slz.ListField(label="使用RT中的路由过滤别名的结果表列表", default=[]),
         ),
         ("BKCI_SPACE_ACCESS_PLUGIN_LIST", slz.ListField(label="蓝盾空间允许访问的插件列表", default=[])),
         ("ENABLE_V2_BKDATA_GSE_RESOURCE", slz.BooleanField(label="是否启用新版的GSE资源申请", default=False)),
@@ -631,8 +638,8 @@ STANDARD_CONFIGS = OrderedDict(
         ("IS_SUBSCRIPTION_ENABLED", slz.BooleanField(label="是否开启采集订阅巡检功能", default=True)),
         # K8S新版灰度配置
         ("K8S_V2_BIZ_LIST", slz.ListField(label=_("K8S新版灰度配置"), default=[])),
-        # APM UnifyQuery 灰度配置，开启后检索能力切换到 UnifyQuery。
-        ("TRACE_V2_BIZ_LIST", slz.ListField(label=_("APM UnifyQuery 查询灰度配置"), default=[])),
+        # APM UnifyQuery 查询业务黑名单，在此列表内的业务，检索能力不切换到 UnifyQuery。
+        ("APM_UNIFY_QUERY_BLACK_BIZ_LIST", slz.ListField(label=_("APM UnifyQuery 查询业务黑名单"), default=[])),
         # 文档链接配置
         ("DOC_LINK_MAPPING", slz.DictField(label=_("文档链接配置"), default={})),
         # 自定义事件休眠开关

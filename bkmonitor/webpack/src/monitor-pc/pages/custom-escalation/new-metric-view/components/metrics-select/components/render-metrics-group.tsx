@@ -28,9 +28,9 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import customEscalationViewStore from '@store/modules/custom-escalation-view';
 import _ from 'lodash';
-import { getCustomTsMetricGroups } from 'monitor-api/modules/scene_view_new';
 import { makeMap } from 'monitor-common/utils/make-map';
 
+import { getCustomTsMetricGroups } from '../../../services/scene_view_new';
 import RenderMetric from './render-metric';
 
 import './render-metrics-group.scss';

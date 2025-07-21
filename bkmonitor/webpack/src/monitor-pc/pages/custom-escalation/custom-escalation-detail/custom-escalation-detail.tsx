@@ -202,8 +202,8 @@ export default class CustomEscalationDetailNew extends tsc<any, any> {
         // 过滤分组
         (length
           ? this.groupFilterList.some(
-            g => item.labels.map(l => l.name).includes(g) || (!item.labels.length && g === NULL_LABEL)
-          )
+              g => item.labels.map(l => l.name).includes(g) || (!item.labels.length && g === NULL_LABEL)
+            )
           : true) &&
         // 过滤名称
         (nameLength ? this.metricSearchObj.name.some(n => fuzzyMatch(item.name, n)) : true) &&
@@ -273,75 +273,75 @@ export default class CustomEscalationDetailNew extends tsc<any, any> {
     // 构建JSON内容
     const dimensions = this.dimensions.length
       ? this.dimensions.map(({ name, type, description, disabled, common }) => ({
-        name,
-        type,
-        description,
-        disabled,
-        common,
-      }))
+          name,
+          type,
+          description,
+          disabled,
+          common,
+        }))
       : [
-        {
-          name: 'dimension1',
-          type: 'dimension',
-          description: '',
-          disabled: true,
-          common: true,
-        },
-      ];
+          {
+            name: 'dimension1',
+            type: 'dimension',
+            description: '',
+            disabled: true,
+            common: true,
+          },
+        ];
 
     const metrics = this.metricData.length
       ? this.metricData.map(
-        ({
-          name,
-          type,
-          description,
-          disabled,
-          unit,
-          hidden,
-          aggregate_method,
-          interval,
-          label,
-          dimensions,
-          function: func,
-        }) => ({
-          type,
-          name,
-          description,
-          disabled,
-          unit,
-          hidden,
-          aggregate_method,
-          interval,
-          label,
-          dimensions,
-          function: func,
-        })
-      )
+          ({
+            name,
+            type,
+            description,
+            disabled,
+            unit,
+            hidden,
+            aggregate_method,
+            interval,
+            label,
+            dimensions,
+            function: func,
+          }) => ({
+            type,
+            name,
+            description,
+            disabled,
+            unit,
+            hidden,
+            aggregate_method,
+            interval,
+            label,
+            dimensions,
+            function: func,
+          })
+        )
       : [
-        {
-          name: 'metric1',
-          type: 'metric',
-          description: '',
-          disabled: false,
-          unit: '',
-          hidden: false,
-          aggregate_method: '',
-          function: {},
-          interval: 0,
-          label: [],
-          dimensions: ['dimension1'],
-        },
-      ];
+          {
+            name: 'metric1',
+            type: 'metric',
+            description: '',
+            disabled: false,
+            unit: '',
+            hidden: false,
+            aggregate_method: '',
+            function: {},
+            interval: 0,
+            label: [],
+            dimensions: ['dimension1'],
+          },
+        ];
 
     const groupRules = this.groupList
       ? this.groupList
       : [
-        {
-          name: '测试分组',
-          manual_list: ['metric1'],
-          auto_rules: ['rule1'],
-        },
-      ];
+          {
+            name: '测试分组',
+            manual_list: ['metric1'],
+            auto_rules: ['rule1'],
+          },
+        ];
 
     const template = {
       dimensions,
@@ -942,7 +942,6 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
    * 处理路由跳转
    */
   handleJump(): void {
-
     const toView = {
       customEvent: () => {
         this.$router.push({
@@ -1520,7 +1519,9 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
                       {this.$t('prometheus sdk 库：https://prometheus.io/docs/instrumenting/clientlibs/')}
                     </div>
                     <div class='mt10'>
-                      {this.$t('如果上报渠道不支持加入自定义 headers, 也可以使用 BasicAuth 进行验证, user: bkmonitor, password: $TOKEN')}
+                      {this.$t(
+                        '如果上报渠道不支持加入自定义 headers, 也可以使用 BasicAuth 进行验证, user: bkmonitor, password: $TOKEN'
+                      )}
                     </div>
                   </div>
 

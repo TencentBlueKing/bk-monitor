@@ -34,7 +34,7 @@ import 'monitor-static/svg-icons';
 import 'monitor-ui/directive/index';
 
 import Api from 'monitor-api/api';
-import { setVue } from 'monitor-api/utils/index';
+import { setVue, type VueInstance } from 'monitor-api/utils/index';
 import { immediateRegister } from 'monitor-common/service-worker/service-worker';
 import { getUrlParam, mergeSpaceList, setGlobalBizId } from 'monitor-common/utils';
 import { assignWindowField } from 'monitor-common/utils/assign-window';
@@ -55,7 +55,7 @@ window.source_app = 'apm';
 const spaceUid = getUrlParam('space_uid');
 const bizId = getUrlParam('bizId')?.replace(/\//gim, '');
 
-setVue(Vue);
+setVue(Vue as VueInstance);
 if (process.env.NODE_ENV === 'development') {
   window.site_url = '/';
 }

@@ -288,7 +288,7 @@ export default class DebuggingResult extends tsc<IProps, IEvent> {
                           <span class='rule'>
                             <span>{this.$t('匹配规则')}: </span>
                             <span class='rule-wrap'>
-                              {!!config.conditions?.length ? (
+                              {config.conditions?.length ? (
                                 <CommonCondition
                                   groupKey={GROUP_KEYS}
                                   groupKeys={this.conditionProps.groupKeys}

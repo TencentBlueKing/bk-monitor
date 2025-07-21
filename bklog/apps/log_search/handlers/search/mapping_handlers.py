@@ -524,7 +524,6 @@ class MappingHandlers:
         }
         if not storage_cluster_record_objs.exists():
             return self._direct_latest_mapping(params)
-
         multi_execute_func = MultiExecuteFunc()
         multi_num = 1
         storage_cluster_ids = {self.storage_cluster_id}
@@ -555,7 +554,6 @@ class MappingHandlers:
         except Exception as e:
             logger.error(f"[_multi_get_latest_mapping] error -> e: {e}")
             raise MultiFieldsErrorException()
-
         return merge_result
 
     @staticmethod
@@ -578,13 +576,15 @@ class MappingHandlers:
     @classmethod
     def tokenize_on_chars(cls, field_dict: dict[str, Any]) -> str:
         # 历史清洗的格式内, 未配置大小写敏感和分词器的字段, 所以不存在analyzer,analyzer_details,tokenizer_details
-        if not field_dict.get("analyzer"):
-            return ""
         if not field_dict.get("analyzer_details"):
             return ""
         # tokenizer_details在analyzer_details中
         if not field_dict["analyzer_details"].get("tokenizer_details", {}):
             return ""
+        if not field_dict.get("analyzer"):
+            return ""
+        elif field_dict.get("analyzer") == "bkbase_custom":
+            return field_dict["analyzer_details"].get("tokenizer_details", {}).get("tokenize_on_chars", "")
         result = "".join(field_dict["analyzer_details"].get("tokenizer_details", {}).get("tokenize_on_chars", []))
         return unicode_str_encode(result)
 
