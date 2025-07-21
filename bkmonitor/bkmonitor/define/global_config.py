@@ -283,6 +283,7 @@ ADVANCED_OPTIONS = OrderedDict(
                 default=[],
             ),
         ),
+        ("OPTZ_FAKE_EVENT_BIZ_IDS", slz.ListField(label="启用进程端口，ping不可达优化的业务ID列表", default=[])),
         ("ACCESS_DATA_TIME_DELAY", slz.IntegerField(label="access数据拉取延迟时间(s)", default=10)),
         ("ACCESS_LATENCY_INTERVAL_FACTOR", slz.IntegerField(label="access数据源延迟上报周期因子", default=1)),
         ("ACCESS_LATENCY_THRESHOLD_CONSTANT", slz.IntegerField(label="access数据源延迟上报常量阈值", default=180)),
