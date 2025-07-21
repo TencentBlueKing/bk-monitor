@@ -270,7 +270,7 @@ export class AlertScenario extends BaseScenario {
         />
         <span
           class={['operate-more']}
-          onClick={e => this.context.handleAlertOperationClick('manual', row, e)}
+          onClick={e => this.context.handleAlertOperationClick('more', row, e)}
         >
           <span class='icon-monitor icon-mc-more' />
         </span>
