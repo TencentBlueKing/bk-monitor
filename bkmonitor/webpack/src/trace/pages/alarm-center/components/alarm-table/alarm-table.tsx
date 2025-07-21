@@ -95,7 +95,11 @@ export default defineComponent({
     /** hover 场景使用的popover工具函数 */
     const hoverPopoverTools = usePopover();
     /** click 场景使用的popover工具函数 */
-    const clickPopoverTools = usePopover({ trigger: 'click' });
+    const clickPopoverTools = usePopover({
+      trigger: 'click',
+      placement: 'bottom',
+      theme: 'light alarm-center-popover max-width-50vw text-wrap padding-0',
+    });
     /** 多选状态 */
     const selectedRowKeys = deepRef<(number | string)[]>([]);
     /* 关注人则禁用操作 */
