@@ -1730,7 +1730,7 @@ const store = new Vuex.Store({
       state.searchTotal = 0;
       const start_time = Math.floor(getters.retrieveParams.start_time);
       const end_time = Math.ceil(getters.retrieveParams.end_time);
-      http
+      return http
         .request(
           'retrieve/fieldStatisticsTotal',
           {

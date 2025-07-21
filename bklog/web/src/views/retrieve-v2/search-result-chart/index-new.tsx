@@ -323,9 +323,22 @@ export default defineComponent({
       runningTimer && clearTimeout(runningTimer); // 清理上一次的定时器
 
       // 开始拉取新一轮趋势数据
-      runningTimer = setTimeout(() => {
+      runningTimer = setTimeout(async () => {
         finishPolling.value = false;
         isInit = true;
+        // 若未选择索引集（无索引集或索引集为空数组），则直接关闭loading 并终止后续流程
+        if (!store.state.indexItem.ids || !store.state.indexItem.ids.length) {
+          store.commit('retrieve/updateTrendDataLoading', false);
+          return;
+        }
+        // 1. 先请求总数
+        await store.dispatch('requestSearchTotal');
+        // 2. 判断总数
+        if (store.state.searchTotal === 0) {
+          store.commit('retrieve/updateTrendDataLoading', false);
+          return;
+        }
+        // 3. 有数据才请求趋势图
         getSeriesData(retrieveParams.value.start_time, retrieveParams.value.end_time);
       });
     };
