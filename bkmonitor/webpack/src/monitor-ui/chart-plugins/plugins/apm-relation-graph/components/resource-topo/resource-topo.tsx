@@ -35,7 +35,7 @@ import {
   type IResourceSidebar,
   type IResourceData,
 } from '@blueking/monitor-resource-topo/vue2';
-import { CancelToken } from 'monitor-api/index';
+import { CancelToken } from 'monitor-api/cancel';
 import { nodeRelation, nodeRelationDetail, topoLink } from 'monitor-api/modules/apm_topo';
 import { Debounce, random } from 'monitor-common/utils';
 import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';

@@ -72,7 +72,7 @@ export default class ExpressionItem extends tsc<IProps, IEvents> {
    * 选择函数
    */
   handleFunctionsChange() {
-    if (!!this.localValue.value.trim()) this.handleChange();
+    if (this.localValue.value.trim()) this.handleChange();
   }
 
   @Emit('change')

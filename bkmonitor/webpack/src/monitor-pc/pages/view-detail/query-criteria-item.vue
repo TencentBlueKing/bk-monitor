@@ -35,12 +35,12 @@
       />{{ queryConfig.name }}
     </div>
     <transition
-      @before-enter="beforeEnter"
-      @enter="enter"
       @after-enter="afterEnter"
-      @before-leave="beforeLeave"
-      @leave="leave"
       @after-leave="afterLeave"
+      @before-enter="beforeEnter"
+      @before-leave="beforeLeave"
+      @enter="enter"
+      @leave="leave"
     >
       <template v-if="metricDetail || queryConfigItem.data_source_label === 'prometheus'">
         <div v-show="queryConfig.show">
@@ -59,17 +59,17 @@
                 </div>
                 <div class="retrieval-content-row">
                   <span
-                    class="row-label"
                     style="padding-top: 3px"
+                    class="row-label"
                     >{{ $t('监控条件') }} :
                   </span>
                   <span class="row-content">
                     <div class="item-agg-condition">
                       <div
-                        class="item-agg-dimension mb-2"
                         v-for="(item, index) in getWhereData(queryConfigItem.where)"
-                        :key="index"
                         :style="{ color: aggConditionColorMap[item], 'font-weight': aggConditionFontMap[item] }"
+                        class="item-agg-dimension mb-2"
+                        :key="index"
                       >
                         {{ Array.isArray(item) ? item.join(' , ') : item }}
                       </div>
@@ -83,15 +83,15 @@
                 </div>
                 <bk-select
                   v-model="queryConfigItem.metrics[0].method"
-                  searchable
                   :clearable="false"
-                  @change="handleMethodChange"
                   :popover-options="{ appendTo: 'parent' }"
+                  searchable
+                  @change="handleMethodChange"
                 >
                   <bk-option
                     v-for="option in metricDetail.aggMethodList"
-                    :key="option.id"
                     :id="option.id"
+                    :key="option.id"
                     :name="option.name"
                   />
                 </bk-select>
@@ -102,8 +102,8 @@
                 </div>
                 <cycle-input
                   v-model="queryConfigItem.interval"
-                  @change="handleIntervalChange"
                   append-to="parent"
+                  @change="handleIntervalChange"
                 />
               </div>
             </template>
@@ -111,22 +111,22 @@
               <div class="promql-content">
                 <div class="edit-wrap">
                   <promql-editor
-                    :value="queryConfigItem.promql"
                     :min-height="80"
-                    @change="handlePromqlDataCodeChange"
+                    :value="queryConfigItem.promql"
                     @blur="handlePromqlDataCodeBlur"
+                    @change="handlePromqlDataCodeChange"
                   />
                 </div>
                 <div class="step-wrap">
                   <bk-input
                     class="step-input"
                     :value="queryConfigItem.agg_interval"
-                    @change="handleSourceStepChange"
                     @blur="handleSourceStepBlur"
+                    @change="handleSourceStepChange"
                   >
                     <div
-                      slot="prepend"
                       class="step-input-prepend"
+                      slot="prepend"
                     >
                       <span>Step</span>
                       <span
@@ -150,8 +150,8 @@
               </div>
               <div
                 v-for="(item, index) in queryConfigdata.query_configs"
-                :key="index"
                 class="query-configs-metric"
+                :key="index"
               >
                 <div class="retrieval-content-row">
                   <span class="row-label">{{ item.metrics[0].alias }}</span>
@@ -171,13 +171,13 @@
                   <span class="row-content">
                     <div class="item-agg-condition">
                       <div
-                        class="item-agg-dimension mb-2"
                         v-for="(condition, i) in getWhereData(item.where)"
-                        :key="i"
                         :style="{
                           color: aggConditionColorMap[condition],
                           'font-weight': aggConditionFontMap[condition],
                         }"
+                        class="item-agg-dimension mb-2"
+                        :key="i"
                       >
                         {{ Array.isArray(condition) ? condition.join(' , ') : condition }}
                       </div>
@@ -202,42 +202,42 @@
             <convergence-options-item
               class="retrieval-convergence"
               v-show="item.checked"
-              :title="item.name"
+              :default-value="(item && item.defaultValue) || ''"
+              :groupby-list="() => getGroupByList(item.id)"
+              :has-close-icon="!item.disabled"
               :id="item.id"
               :is-default="item.disabled"
-              :has-close-icon="!item.disabled"
-              :defaultValue="item?.defaultValue || ''"
-              :groupby-list="() => getGroupByList(item.id)"
+              :title="item.name"
               @checked-change="handleCheckedChange"
               @delete-dimension="handleDeleteDimension(item.id)"
             />
           </div>
           <div
-            class="add-convergence"
             v-if="queryConfigItem.data_source_label !== 'prometheus'"
+            class="add-convergence"
           >
             <custom-select
+              :searchable="false"
               :value="groupChecked"
               :z-index="5000"
               multiple
-              :searchable="false"
               @change="handleWhereSelected"
               @showChange="handleShowChange"
             >
               <span
-                slot="target"
                 class="add-convergence-trigger"
+                slot="target"
               >
                 <i class="icon-monitor icon-mc-plus-fill" />
                 {{ $t('添加条件') }}
               </span>
               <bk-option
-                class="add-con-option"
                 v-for="item in groupList"
-                :key="item.id"
-                :id="item.id"
-                :name="item.name"
+                class="add-con-option"
                 :disabled="item.disabled"
+                :id="item.id"
+                :key="item.id"
+                :name="item.name"
               />
             </custom-select>
           </div>
@@ -245,18 +245,18 @@
       </template>
     </transition>
     <monitor-dialog
-      :value="isdialogShow"
-      :title="$t('添加条件')"
       :before-close="handleBackStep"
+      :title="$t('添加条件')"
+      :value="isdialogShow"
       @on-confirm="handleAddDimension"
     >
       <bk-checkbox-group v-model="groupChecked">
         <bk-checkbox
-          class="dialog-checkbox"
           v-for="item in groupList"
+          class="dialog-checkbox"
+          :disabled="item.disabled"
           :key="item.id"
           :value="item.id"
-          :disabled="item.disabled"
         >
           {{ item.name }}
         </bk-checkbox>
@@ -266,11 +266,12 @@
 </template>
 
 <script lang="ts">
+import { Component, Emit, Mixins, Prop, Watch } from 'vue-property-decorator';
+
 import { dimensionUnifyQuery } from 'monitor-api/modules/grafana';
 import { getMetricListV2 } from 'monitor-api/modules/strategies';
 import { deepClone } from 'monitor-common/utils/utils';
 import MonitorDialog from 'monitor-ui/monitor-dialog/monitor-dialog.vue';
-import { Component, Emit, Mixins, Prop, Watch } from 'vue-property-decorator';
 
 import { strategyMapMixin } from '../../common/mixins';
 import CustomSelect from '../../components/custom-select/custom-select';
@@ -282,7 +283,6 @@ import { handleTransformToTimestamp } from '../../components/time-range/utils';
 import { CONDITION_METHOD_LIST } from '../../constant/constant';
 import collapseMixin from '../../mixins/collapseMixin';
 import { MetricDetail } from '../strategy-config/strategy-config-set-new/typings';
-
 import ConvergenceOptionsItem from './convergence-options-item.vue';
 
 @Component({

@@ -197,7 +197,7 @@ export default class TopoSearch extends Vue {
     this.showPanel = false;
     return {
       selections: this.selections.map(select => select.data),
-      excludeData: !!this.selections.length ? [] : this.searchData.map(item => item.data),
+      excludeData: this.selections.length ? [] : this.searchData.map(item => item.data),
     };
   }
 

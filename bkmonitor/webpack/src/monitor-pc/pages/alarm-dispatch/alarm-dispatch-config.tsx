@@ -28,6 +28,7 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import dayjs from 'dayjs';
 import { listActionConfig, listAssignGroup, listAssignRule, listUserGroup } from 'monitor-api/modules/model';
+import { plainStrategyList } from 'monitor-api/modules/strategies';
 import { getCookie, random, transformDataKey } from 'monitor-common/utils';
 import { deepClone } from 'monitor-common/utils/utils';
 
@@ -763,6 +764,22 @@ export default class AlarmDispatchConfig extends tsc<object> {
       }
     );
   }
+  async handleRefreshStrategyList() {
+    return plainStrategyList()
+      .then(strategyList => {
+        const list = strategyList.map(item => ({
+          ...item,
+          id: String(item.id),
+          name: item.name,
+        }));
+        this.kvOptionsData.valueMap.set('alert.strategy_id', list);
+        return list;
+      })
+      .catch(() => {
+        this.kvOptionsData.valueMap.set('alert.strategy_id', []);
+        return [];
+      });
+  }
   handleConditionChange(v, index: number) {
     this.tableData[index].setConditions(v);
     this.handleDiffRuleItemChange(this.tableData[index], 'conditions', index);
@@ -878,7 +895,9 @@ export default class AlarmDispatchConfig extends tsc<object> {
         item.actionId || '',
         item.alertSeverity,
         // 补充 规则 通知
-        item.additionalTags.map(tag => `${tag.key}:${tag.value}`).join(';'),
+        item.additionalTags
+          .map(tag => `${tag.key}:${tag.value}`)
+          .join(';'),
         item.isEnabled,
       ];
       tdArr.push(row);
@@ -1616,6 +1635,7 @@ export default class AlarmDispatchConfig extends tsc<object> {
             keyList={this.kvOptionsData.keys as any}
             loading={this.conditionsLoading}
             needValidate={!row.isNullData}
+            refreshStrategyList={this.handleRefreshStrategyList}
             replaceData={row.replaceData}
             settingsValue={this.unifiedSettings.conditions}
             specialOptions={this.kvOptionsData.specialOptions}

@@ -300,7 +300,7 @@ export default class MealContentNew extends tsc<IMealContentNewProps, IMealConte
       } else {
         v = value;
       }
-      const vPlaceholder = !!v ? `${this.$t('案例')} : ${v}` : '';
+      const vPlaceholder = v ? `${this.$t('案例')} : ${v}` : '';
       const obj = {
         key: item.key,
         value: '',

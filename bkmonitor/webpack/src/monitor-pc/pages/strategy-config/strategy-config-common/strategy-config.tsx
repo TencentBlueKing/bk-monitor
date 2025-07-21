@@ -29,7 +29,7 @@ import { ofType, modifiers } from 'vue-tsx-support';
 import { addListener, removeListener } from '@blueking/fork-resize-detector';
 import SearchSelect from '@blueking/search-select-v3/vue2';
 import dayjs from 'dayjs';
-import { CancelToken } from 'monitor-api/index';
+import { CancelToken } from 'monitor-api/cancel';
 import { exportConfigFile } from 'monitor-api/modules/as_code';
 import { noticeGroupList } from 'monitor-api/modules/notice_group';
 import { disableShield } from 'monitor-api/modules/shield';
@@ -40,7 +40,7 @@ import {
   getTargetDetail,
   updatePartialStrategyV2,
 } from 'monitor-api/modules/strategies';
-import { commonPageSizeGet, commonPageSizeSet } from 'monitor-common/utils';
+import { commonPageSizeGet, commonPageSizeSet, copyText, tryURLDecodeParse } from 'monitor-common/utils';
 import { debounce } from 'throttle-debounce';
 
 import EmptyStatus from '../../../components/empty-status/empty-status';
@@ -138,6 +138,7 @@ class StrategyConfig extends Mixins(UserConfigMixin, authorityMixinCreate(strate
       // { id: 4, name: I18N.t('修改告警恢复通知') },
       { id: 6, name: I18N.t('启/停策略') },
       { id: 7, name: I18N.t('删除策略') },
+      { id: 23, name: I18N.t('分享策略') },
       // { id: 9, name: I18N.t('修改告警模版') },
       { id: 8, name: I18N.t('增删目标') },
       { id: 10, name: I18N.t('修改标签') },
@@ -892,12 +893,24 @@ class StrategyConfig extends Mixins(UserConfigMixin, authorityMixinCreate(strate
    * @return {*}
    */
   checkColInit() {
-    let fieldSettingData: any = localStorage.getItem(STRATEGY_CONFIG_SETTING);
-    if (fieldSettingData) {
-      fieldSettingData = JSON.parse(fieldSettingData);
-      for (const item of fieldSettingData) {
-        if (this.fieldSettingData[item.id]) {
-          this.fieldSettingData[item.id].checked = item.checked;
+    const { columns } = this.$route.query;
+    const checkedColumns = tryURLDecodeParse(columns as string, []);
+    if (checkedColumns.length) {
+      for (const key in this.fieldSettingData) {
+        if (checkedColumns.includes(key)) {
+          this.fieldSettingData[key].checked = true;
+        } else {
+          this.fieldSettingData[key].checked = false;
+        }
+      }
+    } else {
+      let fieldSettingData: any = localStorage.getItem(STRATEGY_CONFIG_SETTING);
+      if (fieldSettingData) {
+        fieldSettingData = JSON.parse(fieldSettingData);
+        for (const item of fieldSettingData) {
+          if (this.fieldSettingData[item.id]) {
+            this.fieldSettingData[item.id].checked = item.checked;
+          }
         }
       }
     }
@@ -1272,11 +1285,7 @@ class StrategyConfig extends Mixins(UserConfigMixin, authorityMixinCreate(strate
       const { page, pageSize, filters } = this.$route.query;
       this.tableInstance.page = Number(page) || 1;
       this.tableInstance.pageSize = Number(pageSize) || commonPageSizeGet();
-      try {
-        this.header.condition = filters ? JSON.parse(filters as string) : [];
-      } catch {
-        this.header.condition = [];
-      }
+      this.header.condition = tryURLDecodeParse(filters as string, []);
     } else {
       const { route } = this.$router.resolve({
         name: this.$route.name,
@@ -1477,6 +1486,37 @@ class StrategyConfig extends Mixins(UserConfigMixin, authorityMixinCreate(strate
       this.$router.push({
         name: 'export-import',
       });
+      return;
+    }
+    if (v === 23) {
+      let hasErr = false;
+      const filters = [
+        {
+          key: 'strategy_id',
+          value: [this.table.select.map(item => item.id).join(' | ')],
+        },
+      ];
+      const columns = Object.keys(this.fieldSettingData).reduce((pre, cur) => {
+        if (this.fieldSettingData[cur].checked) pre.push(cur);
+        return pre;
+      }, []);
+      const url = location.href.replace(
+        location.hash,
+        `#/strategy-config?filters=${encodeURIComponent(JSON.stringify(filters))}&columns=${encodeURIComponent(JSON.stringify(columns))}`
+      );
+      copyText(url, errMsg => {
+        this.$bkMessage({
+          message: errMsg,
+          theme: 'error',
+        });
+        hasErr = !!errMsg;
+      });
+      if (!hasErr)
+        this.$bkMessage({
+          theme: 'success',
+          message: this.$t('链接已复制成功，可粘贴分享'),
+        });
+
       return;
     }
     // 批量增删目标

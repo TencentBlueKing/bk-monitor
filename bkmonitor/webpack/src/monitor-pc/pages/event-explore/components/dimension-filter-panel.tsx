@@ -27,7 +27,7 @@
 import { Component, Emit, Ref, InjectReactive, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { CancelToken } from 'monitor-api/index';
+import { CancelToken } from 'monitor-api/cancel';
 import { Debounce } from 'monitor-common/utils';
 
 import EmptyStatus from '../../../components/empty-status/empty-status';

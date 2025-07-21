@@ -179,7 +179,7 @@ export default defineComponent({
     const popoperOperateIndex = deepRef(-1);
     const hoverRowIndex = deepRef(999999);
     const tableToolList = deepRef([]);
-    const enableCreateChatGroup = deepRef((window as any).enable_create_chat_group || false);
+    const enableCreateChatGroup = deepRef(window.enable_create_chat_group || false);
     const alertIdsData = deepRef(props.alertIdsObject);
     const alarmDetailRef = deepRef(null);
     const alarmDetailHeight = deepRef(0);
@@ -862,16 +862,15 @@ export default defineComponent({
   render() {
     const alertData = this.alertData.filter(item => item.alerts.length > 0);
     return (
-      <>
-        <Loading
-          class='alarm-detail-loading'
-          loading={this.tableLoading}
+      <Loading
+        class='alarm-detail-loading'
+        loading={this.tableLoading}
+      >
+        <div
+          ref='alarmDetailRef'
+          class='alarm-detail bk-scroll-y'
         >
-          <div
-            ref='alarmDetailRef'
-            class='alarm-detail bk-scroll-y'
-          >
-            {/* {this.alertIdsData?.label && (
+          {/* {this.alertIdsData?.label && (
               <Tag
                 style={{ marginBottom: '10px' }}
                 theme='info'
@@ -881,106 +880,105 @@ export default defineComponent({
                 {this.alertIdsData.label}
               </Tag>
             )} */}
-            <FeedbackCauseDialog
-              data={this.currentData}
-              visible={this.dialog.rootCauseConfirm.show}
-              onEditSuccess={this.handleGetTable}
-              onRefresh={this.refresh}
-              onUpdate:isShow={this.handleFeedbackChange}
+          <FeedbackCauseDialog
+            data={this.currentData}
+            visible={this.dialog.rootCauseConfirm.show}
+            onEditSuccess={this.handleGetTable}
+            onRefresh={this.refresh}
+            onUpdate:isShow={this.handleFeedbackChange}
+          />
+          <ChatGroup
+            alarmEventName={this.chatGroupDialog.alertName}
+            alertIds={this.chatGroupDialog.alertIds}
+            assignee={this.chatGroupDialog.assignee}
+            data={this.currentData}
+            show={this.chatGroupDialog.show}
+            onRefresh={this.refresh}
+            onShowChange={this.chatGroupShowChange}
+          />
+          <QuickShield
+            bizIds={this.currentBizIds}
+            data={this.currentData}
+            details={this.dialog.quickShield.details}
+            ids={this.currentIds}
+            show={this.dialog.quickShield.show}
+            onChange={this.quickShieldChange}
+            onRefresh={this.refresh}
+            onSuccess={this.quickShieldSuccess}
+          />
+          <ManualProcess
+            alertIds={this.currentIds}
+            bizIds={this.currentBizIds}
+            data={this.currentData}
+            show={this.dialog.manualProcess.show}
+            onDebugStatus={this.handleDebugStatus}
+            onMealInfo={this.handleMealInfo}
+            onRefresh={this.refresh}
+            onShowChange={this.manualProcessShowChange}
+          />
+          <AlarmDispatch
+            alertIds={this.currentIds}
+            bizIds={this.currentBizIds}
+            data={this.currentData}
+            show={this.dialog.alarmDispatch.show}
+            onRefresh={this.refresh}
+            onShow={this.handleAlarmDispatchShowChange}
+            onSuccess={this.handleAlarmDispatchSuccess}
+          />
+          <AlarmConfirm
+            bizIds={this.currentBizIds}
+            data={this.currentData}
+            ids={this.currentIds}
+            show={this.dialog.alarmConfirm.show}
+            onChange={this.alarmConfirmChange}
+            onConfirm={this.handleConfirmAfter}
+            onRefresh={this.refresh}
+          />
+          {this.getMoreOperate()}
+          {this.alertData.map(item => {
+            return item.alerts.length > 0 ? (
+              <Collapse
+                id={item.id}
+                key={item.id}
+                collapse={this.collapseId !== item.id}
+                num={item.alerts.length}
+                title={item.name}
+                onChangeCollapse={this.handleChangeCollapse}
+              >
+                <div class='alarm-detail-table'>
+                  <PrimaryTable
+                    key={item.id}
+                    bkUiSettings={{
+                      checked: this.columns
+                        .filter(item => !this.disableKey.includes(item.colKey))
+                        .map(item => item.colKey),
+                    }}
+                    // autoResize={true}
+                    // bordered={true}
+                    columns={this.columns}
+                    data={item.alerts}
+                    maxHeight={alertData.length > 1 ? 616 : this.alarmDetailHeight - 100}
+                    tooltip-config={{ showAll: false }}
+                    onRowMouseenter={this.handleEnter}
+                    onRowMouseleave={() => {
+                      this.hoverRowIndex = -1;
+                    }}
+                  />
+                </div>
+              </Collapse>
+            ) : (
+              ''
+            );
+          })}
+          {alertData.length === 0 && (
+            <Exception
+              description={this.t('搜索数据为空')}
+              scene='part'
+              type='empty'
             />
-            <ChatGroup
-              alarmEventName={this.chatGroupDialog.alertName}
-              alertIds={this.chatGroupDialog.alertIds}
-              assignee={this.chatGroupDialog.assignee}
-              data={this.currentData}
-              show={this.chatGroupDialog.show}
-              onRefresh={this.refresh}
-              onShowChange={this.chatGroupShowChange}
-            />
-            <QuickShield
-              bizIds={this.currentBizIds}
-              data={this.currentData}
-              details={this.dialog.quickShield.details}
-              ids={this.currentIds}
-              show={this.dialog.quickShield.show}
-              onChange={this.quickShieldChange}
-              onRefresh={this.refresh}
-              onSuccess={this.quickShieldSuccess}
-            />
-            <ManualProcess
-              alertIds={this.currentIds}
-              bizIds={this.currentBizIds}
-              data={this.currentData}
-              show={this.dialog.manualProcess.show}
-              onDebugStatus={this.handleDebugStatus}
-              onMealInfo={this.handleMealInfo}
-              onRefresh={this.refresh}
-              onShowChange={this.manualProcessShowChange}
-            />
-            <AlarmDispatch
-              alertIds={this.currentIds}
-              bizIds={this.currentBizIds}
-              data={this.currentData}
-              show={this.dialog.alarmDispatch.show}
-              onRefresh={this.refresh}
-              onShow={this.handleAlarmDispatchShowChange}
-              onSuccess={this.handleAlarmDispatchSuccess}
-            />
-            <AlarmConfirm
-              bizIds={this.currentBizIds}
-              data={this.currentData}
-              ids={this.currentIds}
-              show={this.dialog.alarmConfirm.show}
-              onChange={this.alarmConfirmChange}
-              onConfirm={this.handleConfirmAfter}
-              onRefresh={this.refresh}
-            />
-            {this.getMoreOperate()}
-            {this.alertData.map(item => {
-              return item.alerts.length > 0 ? (
-                <Collapse
-                  id={item.id}
-                  key={item.id}
-                  collapse={this.collapseId !== item.id}
-                  num={item.alerts.length}
-                  title={item.name}
-                  onChangeCollapse={this.handleChangeCollapse}
-                >
-                  <div class='alarm-detail-table'>
-                    <PrimaryTable
-                      key={item.id}
-                      bkUiSettings={{
-                        checked: this.columns
-                          .filter(item => !this.disableKey.includes(item.colKey))
-                          .map(item => item.colKey),
-                      }}
-                      // autoResize={true}
-                      // bordered={true}
-                      columns={this.columns}
-                      data={item.alerts}
-                      maxHeight={alertData.length > 1 ? 616 : this.alarmDetailHeight - 100}
-                      tooltip-config={{ showAll: false }}
-                      onRowMouseenter={this.handleEnter}
-                      onRowMouseleave={() => {
-                        this.hoverRowIndex = -1;
-                      }}
-                    />
-                  </div>
-                </Collapse>
-              ) : (
-                ''
-              );
-            })}
-            {alertData.length === 0 && (
-              <Exception
-                description={this.t('搜索数据为空')}
-                scene='part'
-                type='empty'
-              />
-            )}
-          </div>
-        </Loading>
-      </>
+          )}
+        </div>
+      </Loading>
     );
   },
 });

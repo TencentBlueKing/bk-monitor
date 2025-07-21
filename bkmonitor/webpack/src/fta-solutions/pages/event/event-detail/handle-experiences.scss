@@ -1,21 +1,20 @@
-
 $textcolor: #63656e;
 
 // 书签样式
-@mixin bookmarks($color:#ffb848) {
+@mixin bookmarks($color: #ffb848) {
   position: absolute;
   top: 0px;
   left: -8px;
-  height: 18px;
   width: 12px;
+  height: 18px;
   background: $color;
 
   &::before,
   &::after {
-    content: '';
     position: absolute;
     width: 0px;
     height: 0px;
+    content: '';
     border: 12px solid #0000;
   }
 
@@ -25,16 +24,16 @@ $textcolor: #63656e;
   }
 
   &::before {
-    right: 0;
     top: 0;
+    right: 0;
     border-right: 12px solid $color;
   }
 }
 
 .event-detail-handleexperiences {
   width: 100%;
-  margin-top: 16px;
   padding: 17px 16px 24px 16px;
+  margin-top: 16px;
   background: #ffff;
 
   &.displaynone {
@@ -47,19 +46,19 @@ $textcolor: #63656e;
   }
 
   .big-add-btn {
-    border: 1px dashed #dcdee5;
-    border-radius: 2px;
-    height: 48px;
     display: flex;
     align-items: center;
     justify-content: center;
-    color: #979ba5;
+    height: 48px;
     margin-top: 16px;
+    color: #979ba5;
+    border: 1px dashed #dcdee5;
+    border-radius: 2px;
 
     &:hover {
+      color: #3a84ff;
       cursor: pointer;
       border: 1px dashed #3a84ff;
-      color: #3a84ff;
     }
 
     .center-text {
@@ -82,11 +81,11 @@ $textcolor: #63656e;
     }
 
     .bk-exception-text {
-      font-size: 12px;
-      color: $textcolor;
-      line-height: 20px;
       position: relative;
       top: -30px;
+      font-size: 12px;
+      line-height: 20px;
+      color: $textcolor;
     }
   }
 
@@ -99,31 +98,31 @@ $textcolor: #63656e;
       }
 
       .item-header {
-        min-height: 40px;
-        border-radius: 2px 2px 0px 0px;
-        background: #fafbfd;
-        border: 1px solid #dcdee5;
         display: flex;
         align-items: flex-start;
+        min-height: 40px;
         padding: 0 16px;
         font-size: 12px;
+        background: #fafbfd;
+        border: 1px solid #dcdee5;
+        border-radius: 2px 2px 0px 0px;
 
         .bookmarks {
           @include bookmarks();
         }
 
         .metric-title {
-          color: $textcolor;
-          font-weight: bold;
-          padding: 10px 0 10px 12px;
-          line-height: 20px;
           position: relative;
+          padding: 10px 0 10px 12px;
+          font-weight: bold;
+          line-height: 20px;
+          color: $textcolor;
           word-break: break-all;
         }
 
         .dimsion-title {
-          font-weight: bold;
           padding: 10px 0;
+          font-weight: bold;
 
           .condition-readonly {
             line-height: 20px;
@@ -131,29 +130,29 @@ $textcolor: #63656e;
         }
 
         .status {
+          padding: 0 10px;
+          margin: 9px 0 0 8px;
+          line-height: 22px;
+          color: #14a568;
+          white-space: nowrap;
           background: #e4faf0;
           border-radius: 2px;
-          line-height: 22px;
-          padding: 0 10px;
-          color: #14a568;
-          margin: 9px 0 0 8px;
-          white-space: nowrap;
         }
 
         .update-time {
-          color: #979ba5;
-          margin-left: 24px;
           margin-right: 24px;
+          margin-left: 24px;
           line-height: 40px;
+          color: #979ba5;
           white-space: nowrap;
         }
 
         .operate-options {
-          margin: 0 0 0 auto;
-          font-size: 16px;
           display: flex;
           align-items: center;
           height: 40px;
+          margin: 0 0 0 auto;
+          font-size: 16px;
 
           .icon-bianji {
             margin-right: 24px;
@@ -165,17 +164,17 @@ $textcolor: #63656e;
             color: #979ba5;
 
             &:hover {
-              cursor: pointer;
               color: $textcolor;
+              cursor: pointer;
             }
           }
         }
       }
 
       .item-content {
+        padding: 8px 16px 8px 16px;
         border: 1px solid #dcdee5;
         border-top: 0;
-        padding: 8px 16px 8px 16px;
       }
     }
   }
@@ -197,8 +196,8 @@ $textcolor: #63656e;
         }
 
         .red {
-          color: #ea3636;
           margin: 0 12px 0 6px;
+          color: #ea3636;
         }
 
         .bind-select {
@@ -212,10 +211,10 @@ $textcolor: #63656e;
 
         .metric-name {
           display: flex;
-          color: $textcolor;
-          line-height: 16px;
-          word-break: break-all;
           margin-top: 8px;
+          line-height: 16px;
+          color: $textcolor;
+          word-break: break-all;
         }
 
         .condition-item-value {
@@ -232,11 +231,11 @@ $textcolor: #63656e;
       }
 
       .updata-time {
-        color: #979ba5;
-        margin: 0 0 0 auto;
         display: flex;
         align-items: center;
         height: 32px;
+        margin: 0 0 0 auto;
+        color: #979ba5;
       }
     }
 

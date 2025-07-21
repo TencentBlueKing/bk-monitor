@@ -79,9 +79,9 @@ import JsonViewer from 'vue-json-viewer';
 @Component({
   name: 'strategy-view-log',
   components: {
-    JsonViewer
-  }
- })
+    JsonViewer,
+  },
+})
 export default class StrategyViewLog extends Vue {
   @Prop({ default: () => [], type: Array }) private readonly data!: any[];
   @Prop({ default: false, type: Boolean }) private readonly isLast!: boolean;
@@ -112,7 +112,7 @@ export default class StrategyViewLog extends Vue {
     }
   }
   handleShowDetai(row) {
-    const content = row.content || row['event.content']
+    const content = row.content || row['event.content'];
     try {
       this.logDetail = JSON.parse(content);
     } catch {

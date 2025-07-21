@@ -125,22 +125,29 @@ class QueryClientBkData(QueryClientTemplate):  # pylint: disable=invalid-name
                 continue
             result_table_mappings[item["result_table_id"]] = tokenizers
         if not result_table_mappings:
-            return
+            return mapping
 
         for result_table_id, result_table_config in mapping.items():
+            if not result_table_config["mappings"]:
+                continue
+
             result_table_id_bkbase = result_table_id.rsplit("_", maxsplit=1)[0]
             tokenizers_config = result_table_mappings.get(result_table_id_bkbase)
             if not tokenizers_config:
                 continue
-            result_table_id_es = result_table_id_bkbase.split("_", maxsplit=1)[-1]
-            field_configs = result_table_config["mappings"][result_table_id_es]["properties"]
+
+            if "properties" in result_table_config["mappings"]:
+                field_configs = result_table_config["mappings"]["properties"]
+            else:
+                # ES 5.X 的情况
+                field_configs = list(result_table_config["mappings"].values())[0].get("properties", [])
             for field_name, field_config in field_configs.items():
                 if field_name in tokenizers_config:
                     field_config.update(
                         {
-                            "analyzer": "custom",
+                            "analyzer": "bkbase_custom",
                             "analyzer_details": {
-                                "tokenizer_details": {"tokenize_on_chars": tokenizers_config[field_name].split(",")}
+                                "tokenizer_details": {"tokenize_on_chars": tokenizers_config[field_name]}
                             },
                         }
                     )

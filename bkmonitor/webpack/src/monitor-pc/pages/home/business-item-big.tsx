@@ -99,7 +99,7 @@ export default class BusinessItemBig extends tsc<IProps, IEvent> {
 
   async getBusinessAlarmOverviewData() {
     this.businessAlarmLoading = true;
-    const data = {uptimecheck: [], service: [], process: [], os: []};
+    const data = { uptimecheck: [], service: [], process: [], os: [] };
     this.businessAlarm = [data.uptimecheck, data.service, data.process, data.os];
     this.businessAlarmLoading = false;
   }

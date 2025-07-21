@@ -225,7 +225,7 @@ export default class CollectionDialog extends Mixins(collapseMixin)<MonitorVue> 
     this.loading = true;
     const list = await getDirectoryTree().catch(() => []);
     this.dashBoardList = list;
-    if (!!this.search) {
+    if (this.search) {
       this.handleSearchChange(this.search);
     } else {
       this.searchDashBoardList = list;
@@ -382,7 +382,7 @@ export default class CollectionDialog extends Mixins(collapseMixin)<MonitorVue> 
   }
   @Debounce(300)
   handleSearchChange(value: string) {
-    if (!!value) {
+    if (value) {
       this.searchDashBoardList = this.dashBoardList
         .filter(item => !!item.dashboards.filter(child => child.title.indexOf(value) > -1).length)
         .map(item => ({

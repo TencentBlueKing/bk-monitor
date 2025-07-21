@@ -920,6 +920,14 @@ class StrategyCacheManager(CacheManager):
                                 f"strategy({strategy['id']}) item({item['id']}) interval config is invalid: {config}"
                             )
                             strategy_groups[item["query_md5"]].setdefault("interval_list", []).append(interval)
+                            # 新增设置数据源类型
+                            if (
+                                config.get("data_source_label")
+                                and "strategy_source" not in strategy_groups[item["query_md5"]]
+                            ):
+                                strategy_groups[item["query_md5"]]["strategy_source"] = [
+                                    (config.get("data_source_label"), config.get("data_type_label"))
+                                ]
                         except (TypeError, ValueError, AssertionError):
                             continue
 

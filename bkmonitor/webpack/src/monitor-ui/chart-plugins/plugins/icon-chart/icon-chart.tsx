@@ -122,7 +122,7 @@ class IconChart extends CommonSimpleChart {
    */
   updateChartData(srcData) {
     this.chartDataList = srcData.reduce((total, cur) => {
-      if (!!cur) return total.concat(cur);
+      if (cur) return total.concat(cur);
       return total;
     }, []);
   }

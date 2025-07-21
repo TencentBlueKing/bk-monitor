@@ -27,6 +27,7 @@ import { Component, Watch, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import AIBlueking from '@blueking/ai-blueking/vue2';
+import { random } from 'monitor-common/utils/utils';
 
 import aiWhaleStore from '../../store/modules/ai-whale';
 
@@ -35,6 +36,9 @@ import '@blueking/ai-blueking/dist/vue2/style.css';
 @Component
 export default class AiBluekingWrapper extends tsc<object> {
   @Ref('aiBlueking') aiBluekingRef: typeof AIBlueking;
+  headers = {
+    Traceparent: `00-${random(32, 'abcdef0123456789')}-${random(16, 'abcdef0123456789')}-01`,
+  };
   get apiUrl() {
     return '/ai_agents/chat';
   }
@@ -93,6 +97,7 @@ export default class AiBluekingWrapper extends tsc<object> {
           {
             type: 'textarea',
             key: 'bk_data_id',
+            fillBack: true,
             name: this.$t('数据源ID'),
             placeholder: this.$t('请输入数据源ID'),
           },
@@ -121,11 +126,17 @@ export default class AiBluekingWrapper extends tsc<object> {
       <div class='ai-blueking-wrapper'>
         <AIBlueking
           ref='aiBlueking'
+          requestOptions={{
+            headers: this.headers,
+          }}
           enablePopup={true}
           hideNimbus={true}
           prompts={[]}
           shortcuts={this.shortcuts}
           url={this.apiUrl}
+          on-send-message={() => {
+            this.headers.Traceparent = `00-${random(32, 'abcdef0123456789')}-${random(16, 'abcdef0123456789')}-01`;
+          }}
           onClose={() => {
             aiWhaleStore.setShowAIBlueking(false);
           }}

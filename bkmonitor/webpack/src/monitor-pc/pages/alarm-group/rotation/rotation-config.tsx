@@ -200,7 +200,7 @@ export default class RotationConfig extends tsc<IProps> {
       config: {
         duty_rules: this.dutyList.map(d => d.id),
       },
-      id: !!this.alarmGroupId ? this.alarmGroupId : undefined,
+      id: this.alarmGroupId ? this.alarmGroupId : undefined,
     };
     this.handleDutyChange();
     this.previewLoading = true;
@@ -242,7 +242,7 @@ export default class RotationConfig extends tsc<IProps> {
       config: {
         duty_rules: this.dutyList.map(d => d.id),
       },
-      id: !!this.alarmGroupId ? this.alarmGroupId : undefined,
+      id: this.alarmGroupId ? this.alarmGroupId : undefined,
     };
     this.previewLoading = true;
     const data = await previewUserGroupPlan(params).catch(() => []);
@@ -484,7 +484,7 @@ export default class RotationConfig extends tsc<IProps> {
    */
   handleDocumentvisibilitychange() {
     if (!document.hidden) {
-      if (!!this.curToEditDutyId) {
+      if (this.curToEditDutyId) {
         this.handleRefresh().catch(() => []);
         // this.curToEditDutyId = 0;
       }
