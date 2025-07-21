@@ -1572,9 +1572,10 @@ class BaseIndexSetHandler:
         return table_id
 
     @staticmethod
-    def get_data_label(index_set_id):
-        data_label = f"bklog_index_set_{index_set_id}"
-        return data_label
+    def get_data_label(index_set_id, clustered_rt=None):
+        if clustered_rt:
+            return f"bklog_index_set_{index_set_id}_clustered"
+        return f"bklog_index_set_{index_set_id}"
 
     def post_create(self, index_set):
         # 新建授权
