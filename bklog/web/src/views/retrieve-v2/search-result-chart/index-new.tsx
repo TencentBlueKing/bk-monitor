@@ -260,7 +260,7 @@ export default defineComponent({
         // 计算本轮请求开始时间
         let start_time = requestInterval === 0 ? startTimeStamp : end_time - requestInterval;
 
-        // 边界条件处理，与原始代码保持一致
+        // 边界条件处理
         if (start_time < startTimeStamp) {
           start_time = startTimeStamp;
         }
@@ -275,19 +275,16 @@ export default defineComponent({
         const params = buildQueryParams(start_time, end_time);
 
         if ((!isUnionSearch.value && !!params.indexId) || (isUnionSearch.value && unionIndexList.value?.length)) {
-          // 添加isInit参数
           yield { ...params, isInit: localIsInit };
 
           // 更新isInit状态
           localIsInit = false;
 
-          // 如果不分段，请求一次直接结束
+          // 如果不分段，请求一次就直接结束
           if (requestInterval === 0) break;
 
-          // 如果已经到达起始时间，结束生成
-          if (start_time === startTimeStamp) {
-            return;
-          }
+          // 如果已经到达起始时间，结束生成yield
+          if (start_time === startTimeStamp) return;
 
           currentTimeStamp -= requestInterval;
         } else {
