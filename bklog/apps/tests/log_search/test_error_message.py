@@ -1,5 +1,4 @@
 from django.test import TestCase
-import logging
 from apps.log_search.exceptions import (
     ESQuerySyntaxException,
     HighlightException,
@@ -12,10 +11,6 @@ from apps.log_search.utils import handle_es_query_error
 
 
 class TestESExceptionHandler(TestCase):
-    def setUp(self):
-        # 禁用日志输出，避免测试时打印过多信息
-        logging.disable(logging.CRITICAL)
-
     def test_handle_es_query_syntax_error(self):
         # 测试查询语法错误模式
         error_messages = [
