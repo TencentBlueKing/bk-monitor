@@ -11,7 +11,7 @@
     "dev:trace": "nodemon --exec \"cross-env MONITOR_APP=trace  bkmonitor-cli dev --log\"",
     "build": "cross-env MONITOR_APP=log bkmonitor-cli build --log",
     "build:apm": "cross-env MONITOR_APP=apm bkmonitor-cli build --log && node ./scripts/update-version.js monitor-apm-retrieve",
-    "build:trace": "cross-env MONITOR_APP=trace bkmonitor-cli build --log && node ./scripts/prefix-css.js && node ./scripts/update-version.js monitor-trace-retrieve",
+    "build:trace": "cross-env MONITOR_APP=trace bkmonitor-cli build --log && node ./scripts/update-version.js monitor-trace-retrieve",
     "analyze:apm": "cross-env MONITOR_APP=apm bkmonitor-cli build --log -a",
     "analyze:trace": "cross-env MONITOR_APP=trace bkmonitor-cli build --log -a",
     "clean": "rimraf ../static/dist/*",
@@ -19,7 +19,9 @@
     "lint": "eslint \"**/*.{js,ts,tsx}\" --fix",
     "stylelint": "stylelint \"./src/**/*.(vue|scss|css)\" --fix",
     "biome:check": "biome check .",
-    "biome:format": "biome format . --write"
+    "biome:format": "biome format . --write",
+    "security:check": "node scripts/security-check.js",
+    "security:full": "npm run security:check && npm run lint && npm run biome:check"
   },
   "dependencies": {
     "@babel/helper-module-imports": "7.24.7",
@@ -115,6 +117,8 @@
     "eslint-config-tencent": "1.0.4",
     "eslint-plugin-codecc": "1.0.0-beta.1",
     "eslint-plugin-perfectionist": "2.10.0",
+    "eslint-plugin-security": "^3.0.1",
+    "eslint-plugin-sonarjs": "^3.0.4",
     "lint-staged": "15.2.0",
     "nodemon": "3.1.0",
     "picocolors": "1.0.0",

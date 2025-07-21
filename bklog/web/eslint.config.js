@@ -26,7 +26,12 @@
 module.exports = [
   ...require('@blueking/bkui-lint/eslint'),
   {
+    plugins: {
+      security: require('eslint-plugin-security'),
+      sonarjs: require('eslint-plugin-sonarjs')
+    },
     rules: {
+      // 基础规则
       'vue/multi-word-component-names': 'off',
       'vue/no-reserved-component-names': 'off',
       'vue/no-deprecated-v-bind-sync': 'off',
@@ -42,6 +47,39 @@ module.exports = [
       ],
       'perfectionist/sort-classes': 'off',
       'declaration-no-important': 'off',
+      
+      // 安全检测规则
+      'security/detect-object-injection': 'warn',
+      'security/detect-non-literal-regexp': 'warn',
+      'security/detect-unsafe-regex': 'warn',
+      'security/detect-buffer-noassert': 'warn',
+      'security/detect-child-process': 'warn',
+      'security/detect-disable-mustache-escape': 'warn',
+      'security/detect-eval-with-expression': 'error',
+      'security/detect-no-csrf-before-method-override': 'warn',
+      'security/detect-non-literal-fs-filename': 'warn',
+      'security/detect-non-literal-require': 'warn',
+      'security/detect-possible-timing-attacks': 'warn',
+      'security/detect-pseudoRandomBytes': 'warn',
+      
+      // SonarJS 安全规则
+      'sonarjs/no-implied-eval': 'error',
+      'sonarjs/no-script-url': 'error',
+      'sonarjs/no-extra-arguments': 'warn',
+      'sonarjs/no-duplicate-string': 'warn',
+      'sonarjs/no-inverted-boolean-check': 'warn',
+      'sonarjs/no-one-iteration-loop': 'warn',
+      'sonarjs/prefer-immediate-return': 'warn',
+      'sonarjs/no-identical-expressions': 'error',
+      'sonarjs/no-identical-functions': 'warn',
+      'sonarjs/no-redundant-boolean': 'warn',
+      'sonarjs/no-redundant-jump': 'warn',
+      'sonarjs/no-unused-collection': 'warn',
+      'sonarjs/no-use-of-empty-return-value': 'warn',
+      'sonarjs/non-existent-operator': 'error',
+      'sonarjs/prefer-object-literal': 'warn',
+      'sonarjs/prefer-single-boolean-return': 'warn',
+      'sonarjs/prefer-while': 'warn'
     },
   },
   {
