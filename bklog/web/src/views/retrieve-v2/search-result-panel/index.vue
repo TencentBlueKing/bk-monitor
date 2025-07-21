@@ -8,8 +8,7 @@
   import RetrieveHelper from '../../retrieve-helper';
   import NoIndexSet from '../result-comp/no-index-set';
   // #if MONITOR_APP !== 'trace'
-  // import SearchResultChart from '../search-result-chart/index.vue';
-  import SearchResultChart from '../search-result-chart/index-new';
+  import SearchResultChart from '../search-result-chart/index';
   // #else
   // #code const SearchResultChart = () => null;
   // #endif

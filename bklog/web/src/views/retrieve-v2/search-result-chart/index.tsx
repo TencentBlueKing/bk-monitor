@@ -37,7 +37,7 @@ import useTrendChart from '@/hooks/use-trend-chart';
 import { getCommonFilterAddition } from '@/store/helper';
 import { BK_LOG_STORAGE } from '@/store/store.type.ts';
 import { throttle } from 'lodash';
-import './index-new.scss';
+import './index.scss';
 
 export default defineComponent({
   name: 'SearchResultChart',
