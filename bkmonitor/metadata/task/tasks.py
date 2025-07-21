@@ -1399,6 +1399,19 @@ def create_base_event_datalink_for_bkcc(bk_biz_id, storage_cluster_name=None):
                 logger.info("create_base_event_datalink_for_bkcc: creating rt options,table_id->[%s]", table_id)
                 models.ResultTableOption.objects.bulk_create(result_table_option_to_create)
 
+            dsrt_qs = models.DataSourceResultTable.objects.filter(bk_data_id=data_source.bk_data_id, table_id=table_id)
+            if not dsrt_qs:
+                logger.info(
+                    "create_base_event_datalink_for_bkcc: creating data_source_result_table relation for "
+                    "bk_data_id->[%s],table_id->[%s],bk_biz_id->[%s]",
+                    data_source.bk_data_id,
+                    table_id,
+                    bk_biz_id,
+                )
+                models.DataSourceResultTable.objects.create(
+                    bk_data_id=data_source.bk_data_id, table_id=table_id, bk_tenant_id=bk_tenant_id
+                )
+
             # ESStorage
             es_storage_qs = models.ESStorage.objects.filter(table_id=table_id, bk_tenant_id=bk_tenant_id)
             if not es_storage_qs:

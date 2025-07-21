@@ -258,6 +258,7 @@ class DataLink(models.Model):
         @param bk_biz_id: 业务id
         @param timezone: 时区 默认0时区
         """
+        from metadata.models import ResultTableOption
 
         component_name = f"base_{bk_biz_id}_agent_event"
 
@@ -296,7 +297,7 @@ class DataLink(models.Model):
                 index_name = table_id.replace(".", "_")
                 write_alias = f"write_%Y%m%d_{index_name}"
                 unique_field_list = json.loads(
-                    models.ResultTableOption.objects.get(table_id=table_id, name="es_unique_field_list").value
+                    ResultTableOption.objects.get(table_id=table_id, name="es_unique_field_list").value
                 )
 
                 databus_ins, _ = LogDataBusConfig.objects.get_or_create(

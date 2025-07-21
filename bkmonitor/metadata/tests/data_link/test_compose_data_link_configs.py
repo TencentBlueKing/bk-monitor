@@ -174,6 +174,205 @@ def test_compose_vm_storage_binding_config(create_or_delete_records):
 
 
 @pytest.mark.django_db(databases="__all__")
+def test_compose_log_result_table_config(create_or_delete_records):
+    """
+    测试LogResultTableConfig能否正确生成
+    """
+    # 单租户模式
+    settings.ENABLE_BKBASE_V4_MULTI_TENANT = False
+    log_result_table_ins, _ = models.LogResultTableConfig.objects.get_or_create(
+        name="base_1_agent_event",
+        namespace="bkmonitor",
+        bk_biz_id=1,
+        bk_tenant_id="system",
+        data_link_name="base_1_agent_event",
+    )
+
+    fields = [
+        {"field_name": "dimensions", "field_alias": "", "field_type": "object", "is_dimension": True, "field_index": 0},
+        {"field_name": "event", "field_alias": "", "field_type": "object", "is_dimension": True, "field_index": 1},
+        {"field_name": "event_name", "field_alias": "", "field_type": "string", "is_dimension": True, "field_index": 2},
+        {"field_name": "target", "field_alias": "", "field_type": "string", "is_dimension": True, "field_index": 3},
+        {
+            "field_name": "time",
+            "field_alias": "数据上报时间",
+            "field_type": "timestamp",
+            "is_dimension": False,
+            "field_index": 4,
+        },
+    ]
+    expected_config = {
+        "kind": "ResultTable",
+        "metadata": {"labels": {"bk_biz_id": "1"}, "name": "base_1_agent_event", "namespace": "bkmonitor"},
+        "spec": {
+            "alias": "base_1_agent_event",
+            "bizId": 0,
+            "dataType": "log",
+            "description": "base_1_agent_event",
+            "fields": [
+                {
+                    "field_alias": "",
+                    "field_index": 0,
+                    "field_name": "dimensions",
+                    "field_type": "object",
+                    "is_dimension": True,
+                },
+                {
+                    "field_alias": "",
+                    "field_index": 1,
+                    "field_name": "event",
+                    "field_type": "object",
+                    "is_dimension": True,
+                },
+                {
+                    "field_alias": "",
+                    "field_index": 2,
+                    "field_name": "event_name",
+                    "field_type": "string",
+                    "is_dimension": True,
+                },
+                {
+                    "field_alias": "",
+                    "field_index": 3,
+                    "field_name": "target",
+                    "field_type": "string",
+                    "is_dimension": True,
+                },
+                {
+                    "field_alias": "数据上报时间",
+                    "field_index": 4,
+                    "field_name": "time",
+                    "field_type": "timestamp",
+                    "is_dimension": False,
+                },
+            ],
+            "maintainers": ["admin"],
+        },
+    }
+    actual_result = log_result_table_ins.compose_config(fields=fields)
+    assert actual_result == expected_config
+
+    # 多租户模式
+    settings.ENABLE_BKBASE_V4_MULTI_TENANT = True
+    expected_config = {
+        "kind": "ResultTable",
+        "metadata": {
+            "labels": {"bk_biz_id": "1"},
+            "name": "base_1_agent_event",
+            "tenant": "system",
+            "namespace": "bkmonitor",
+        },
+        "spec": {
+            "alias": "base_1_agent_event",
+            "bizId": 0,
+            "dataType": "log",
+            "description": "base_1_agent_event",
+            "fields": [
+                {
+                    "field_alias": "",
+                    "field_index": 0,
+                    "field_name": "dimensions",
+                    "field_type": "object",
+                    "is_dimension": True,
+                },
+                {
+                    "field_alias": "",
+                    "field_index": 1,
+                    "field_name": "event",
+                    "field_type": "object",
+                    "is_dimension": True,
+                },
+                {
+                    "field_alias": "",
+                    "field_index": 2,
+                    "field_name": "event_name",
+                    "field_type": "string",
+                    "is_dimension": True,
+                },
+                {
+                    "field_alias": "",
+                    "field_index": 3,
+                    "field_name": "target",
+                    "field_type": "string",
+                    "is_dimension": True,
+                },
+                {
+                    "field_alias": "数据上报时间",
+                    "field_index": 4,
+                    "field_name": "time",
+                    "field_type": "timestamp",
+                    "is_dimension": False,
+                },
+            ],
+            "maintainers": ["admin"],
+        },
+    }
+
+    actual_result = log_result_table_ins.compose_config(fields=fields)
+    assert actual_result == expected_config
+
+
+@pytest.mark.django_db(databases="__all__")
+def test_compose_es_storage_binding_config(create_or_delete_records):
+    """
+    测试ESStorageBindingConfig能否正确生成
+    """
+    # 单租户模式
+    settings.ENABLE_BKBASE_V4_MULTI_TENANT = False
+
+    es_storage_ins, _ = models.ESStorageBindingConfig.objects.get_or_create(
+        name="base_1_agent_event",
+        namespace="bkmonitor",
+        es_cluster_name="es_default",
+        bk_biz_id=1,
+        data_link_name="base_1_agent_event",
+    )
+
+    expected_config = {
+        "kind": "ElasticSearchBinding",
+        "metadata": {"labels": {"bk_biz_id": "1"}, "name": "base_1_agent_event", "namespace": "bkmonitor"},
+        "spec": {
+            "data": {"kind": "ResultTable", "name": "base_1_agent_event", "namespace": "bkmonitor"},
+            "maintainers": ["admin"],
+            "storage": {"kind": "ElasticSearch", "name": "es_default", "namespace": "bkmonitor"},
+            "unique_field_list": ["event", "target", "dimensions", "event_name", "time"],
+            "write_alias": {"TimeBased": {"format": "write_%Y%m%d_base_system_1_event", "timezone": 0}},
+        },
+    }
+    actual_result = es_storage_ins.compose_config(
+        storage_cluster_name="es_default",
+        write_alias_format="write_%Y%m%d_base_system_1_event",
+        unique_field_list=["event", "target", "dimensions", "event_name", "time"],
+    )
+    assert actual_result == expected_config
+
+    # 多租户模式
+    settings.ENABLE_BKBASE_V4_MULTI_TENANT = True
+    expected_config = {
+        "kind": "ElasticSearchBinding",
+        "metadata": {
+            "labels": {"bk_biz_id": "1"},
+            "name": "base_1_agent_event",
+            "tenant": "system",
+            "namespace": "bkmonitor",
+        },
+        "spec": {
+            "data": {"kind": "ResultTable", "name": "base_1_agent_event", "tenant": "system", "namespace": "bkmonitor"},
+            "maintainers": ["admin"],
+            "storage": {"kind": "ElasticSearch", "tenant": "system", "name": "es_default", "namespace": "bkmonitor"},
+            "unique_field_list": ["event", "target", "dimensions", "event_name", "time"],
+            "write_alias": {"TimeBased": {"format": "write_%Y%m%d_base_system_1_event", "timezone": 0}},
+        },
+    }
+    actual_result = es_storage_ins.compose_config(
+        storage_cluster_name="es_default",
+        write_alias_format="write_%Y%m%d_base_system_1_event",
+        unique_field_list=["event", "target", "dimensions", "event_name", "time"],
+    )
+    assert actual_result == expected_config
+
+
+@pytest.mark.django_db(databases="__all__")
 def test_compose_data_bus_config(create_or_delete_records):
     """
     测试DataBusConfig能否正确生成
@@ -241,6 +440,60 @@ def test_compose_data_bus_config(create_or_delete_records):
 
     content = data_bus_ins.compose_config(sinks)
     assert json.dumps(content) == expect_config
+
+
+@pytest.mark.django_db(databases="__all__")
+def test_compose_log_databus_config(create_or_delete_records):
+    """
+    测试LogDatabusConfig能否正确生成
+    """
+    # 单租户模式
+    settings.ENABLE_BKBASE_V4_MULTI_TENANT = False
+    log_databus_ins, _ = models.LogDataBusConfig.objects.get_or_create(
+        name="base_1_agent_event",
+        namespace="bkmonitor",
+        data_link_name="base_1_agent_event",
+        data_id_name="base_1_agent_event",
+    )
+    expected_config = {
+        "kind": "Databus",
+        "metadata": {"labels": {"bk_biz_id": "0"}, "name": "base_1_agent_event", "namespace": "bkmonitor"},
+        "spec": {
+            "maintainers": ["admin"],
+            "sinks": [{"kind": "ElasticSearchBinding", "name": "base_1_agent_event", "namespace": "bkmonitor"}],
+            "sources": [{"kind": "DataId", "name": "base_1_agent_event", "namespace": "bkmonitor"}],
+            "transforms": [{"kind": "PreDefinedLogic", "name": "gse_system_event"}],
+        },
+    }
+    actual_result = log_databus_ins.compose_base_event_config()
+    assert actual_result == expected_config
+
+    # 多租户模式
+    settings.ENABLE_BKBASE_V4_MULTI_TENANT = True
+    expected_config = {
+        "kind": "Databus",
+        "metadata": {
+            "labels": {"bk_biz_id": "0"},
+            "name": "base_1_agent_event",
+            "tenant": "system",
+            "namespace": "bkmonitor",
+        },
+        "spec": {
+            "maintainers": ["admin"],
+            "sinks": [
+                {
+                    "kind": "ElasticSearchBinding",
+                    "tenant": "system",
+                    "name": "base_1_agent_event",
+                    "namespace": "bkmonitor",
+                }
+            ],
+            "sources": [{"kind": "DataId", "tenant": "system", "name": "base_1_agent_event", "namespace": "bkmonitor"}],
+            "transforms": [{"kind": "PreDefinedLogic", "name": "gse_system_event"}],
+        },
+    }
+    actual_result = log_databus_ins.compose_base_event_config()
+    assert actual_result == expected_config
 
 
 @pytest.mark.django_db(databases="__all__")
