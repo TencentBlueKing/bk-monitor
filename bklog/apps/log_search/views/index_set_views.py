@@ -326,7 +326,9 @@ class IndexSetViewSet(ModelViewSet):
             if index_set.get("index_set_id")
         }
         index_list = list(
-            LogIndexSetData.objects.filter(index_set_id__in=index_set_ids).values("index_set_id", "result_table_id")
+            LogIndexSetData.objects.filter(index_set_id__in=index_set_ids).values(
+                "index_set_id", "result_table_id", "scenario_id", "storage_cluster_id"
+            )
         )
         for index in index_list:
             index_set = index_set_dict.get(index["index_set_id"], {})
@@ -340,42 +342,47 @@ class IndexSetViewSet(ModelViewSet):
         for index_set_id, index_set in index_set_dict.items():
             if not index_set.get("indexes", []):
                 continue
-            origin_index_set = ",".join([index["result_table_id"] for index in index_set["indexes"]])
+            indexes = index_set["indexes"]
+            origin_index_set = ",".join([index["result_table_id"] for index in indexes])
             if index_set["scenario_id"] == Scenario.LOG:
                 origin_index_set = origin_index_set.replace(".", "_")
-            router_list.append(
-                {
-                    "cluster_id": index_set["storage_cluster_id"],
-                    "index_set": origin_index_set,
-                    "source_type": index_set["scenario_id"],
-                    "data_label": BaseIndexSetHandler.get_data_label(index_set["scenario_id"], index_set_id),
-                    "table_id": BaseIndexSetHandler.get_rt_id(
-                        index_set_id, index_set["collector_config_id"], index_set["indexes"]
-                    ),
-                    "space_uid": index_set["space_uid"],
-                    "need_create_index": True if index_set["collector_config_id"] else False,
-                    "options": [
-                        {
-                            "name": "time_field",
-                            "value_type": "dict",
-                            "value": json.dumps(
-                                {
-                                    "name": index_set["time_field"],
-                                    "type": index_set["time_field_type"],
-                                    "unit": index_set["time_field_unit"]
-                                    if index_set["time_field_type"] != TimeFieldTypeEnum.DATE.value
-                                    else TimeFieldUnitEnum.MILLISECOND.value,
-                                }
-                            ),
-                        },
-                        {
-                            "name": "need_add_time",
-                            "value_type": "bool",
-                            "value": json.dumps(index_set["scenario_id"] != Scenario.ES),
-                        },
-                    ],
-                }
-            )
+            es_router_list = {
+                "cluster_id": index_set["storage_cluster_id"],
+                "index_set": origin_index_set,
+                "data_label": BaseIndexSetHandler.get_data_label(index_set_id),
+                "space_uid": index_set["space_uid"],
+                "need_create_index": True if index_set["collector_config_id"] else False,
+                "options": [
+                    {
+                        "name": "time_field",
+                        "value_type": "dict",
+                        "value": json.dumps(
+                            {
+                                "name": index_set["time_field"],
+                                "type": index_set["time_field_type"],
+                                "unit": index_set["time_field_unit"]
+                                if index_set["time_field_type"] != TimeFieldTypeEnum.DATE.value
+                                else TimeFieldUnitEnum.MILLISECOND.value,
+                            }
+                        ),
+                    },
+                    {
+                        "name": "need_add_time",
+                        "value_type": "bool",
+                        "value": json.dumps(index_set["scenario_id"] != Scenario.ES),
+                    },
+                ],
+            }
+
+            for index in indexes:
+                es_router_list.update(
+                    {
+                        "table_id": BaseIndexSetHandler.get_rt_id(index_set_id, index["result_table_id"]),
+                        "source_type": index["scenario_id"],
+                        "storage_cluster_id": index["storage_cluster_id"],
+                    }
+                )
+                router_list.append(es_router_list)
 
         # 聚类索引路由创建，追加至列表末尾，不支持space过滤
         if qs.count() < params["pagesize"]:
@@ -390,11 +397,10 @@ class IndexSetViewSet(ModelViewSet):
                         "cluster_id": index_set["storage_cluster_id"],
                         "index_set": clustered_rt,
                         "source_type": Scenario.BKDATA,
-                        "data_label": BaseIndexSetHandler.get_data_label(
-                            index_set["scenario_id"], index_set_id, clustered_rt
-                        ),
+                        "data_label": BaseIndexSetHandler.get_data_label(index_set_id, clustered_rt=clustered_rt),
                         "table_id": BaseIndexSetHandler.get_rt_id(
-                            index_set_id, index_set["collector_config_id"], [], clustered_rt
+                            index_set.index_set_id,
+                            clustered_rt,
                         ),
                         "space_uid": index_set["space_uid"],
                         "need_create_index": False,
