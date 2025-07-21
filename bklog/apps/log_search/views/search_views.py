@@ -54,6 +54,8 @@ from apps.log_search.constants import (
     IndexSetType,
     SearchScopeEnum,
     QueryMode,
+    SQL_PREFIX,
+    SQL_SUFFIX,
 )
 from apps.log_search.decorators import search_history_record
 from apps.log_search.exceptions import BaseSearchIndexSetException
@@ -1960,6 +1962,7 @@ class SearchViewSet(APIViewSet):
         }
         """
         params = self.params_valid(UISearchSerializer)
+        params["sql"] = params["sql"] or f"{SQL_PREFIX} {SQL_SUFFIX}"
         bk_biz_id = space_uid_to_bk_biz_id(self.get_object().space_uid)
 
         if FeatureToggleObject.switch(UNIFY_QUERY_SQL, bk_biz_id):
