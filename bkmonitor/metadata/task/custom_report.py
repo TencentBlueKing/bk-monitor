@@ -201,8 +201,8 @@ def refresh_custom_log_config(log_group_id=None):
     if not log_group_id:
         return
 
-    log_group = models.LogGroup.objects.filter(is_enable=True, log_group_id=log_group_id)
-    if not log_group.exists():
+    log_group = models.LogGroup.objects.filter(is_enable=True, log_group_id=log_group_id).first()
+    if log_group is None:
         return
 
     try:

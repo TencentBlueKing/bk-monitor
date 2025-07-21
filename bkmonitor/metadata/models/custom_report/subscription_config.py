@@ -531,6 +531,7 @@ class LogSubscriptionConfig(models.Model):
             "bk_data_token": log_group.get_bk_data_token(),
             "bk_biz_id": log_group.bk_biz_id,
             "bk_app_name": log_group.log_group_name,
+            "log_data_id": log_group.bk_data_id,
             "qps_config": {
                 "name": "rate_limiter/token_bucket",
                 "type": "token_bucket",
@@ -613,3 +614,4 @@ class LogSubscriptionConfig(models.Model):
                 actions={cls.PLUGIN_NAME: "INSTALL"},
             )
             logger.info(f"run custom log config subscription result:{result}")
+            return subscription_id
