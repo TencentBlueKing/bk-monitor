@@ -43,6 +43,7 @@ class UnifyQueryChartHandler(UnifyQueryHandler):
             "total_records": result["total"],
             "time_taken": time.time() - start_time,
             "result_schema": result_schema,
+            "select_fields_order": [field["field_alias"] for field in result_schema],
         }
 
     def generate_sql(self):
@@ -50,8 +51,9 @@ class UnifyQueryChartHandler(UnifyQueryHandler):
         search_dict["dry_run"] = True
         result = UnifyQueryApi.query_ts_raw(search_dict)
         result_table_options = list(result.get("result_table_options", {}).values())
-        sql = result_table_options[0]["sql"] if result_table_options else ""
+        final_sql = result_table_options[0]["sql"] if result_table_options else ""
+
         return {
-            "sql": sql,
-            "additional_where_clause": sql,
+            "sql": self.sql,
+            "additional_where_clause": final_sql,
         }
