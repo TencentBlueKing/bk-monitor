@@ -146,7 +146,7 @@ export default defineComponent({
       formatter: (p: any) => handleSetTooltip(p),
       position: (pos: (number | string)[], params: any, dom: any, rect: any, size: any) => {
         const { contentSize } = size;
-        const chartRect = chartRef.value!.getBoundingClientRect();
+        const chartRect = chartRef.value?.getBoundingClientRect();
         const posRect = {
           x: chartRect.x + +pos[0],
           y: chartRect.y + +pos[1],
