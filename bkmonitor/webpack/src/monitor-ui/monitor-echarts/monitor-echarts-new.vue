@@ -475,7 +475,7 @@ export default class MonitorEcharts extends Vue {
           },
           formatter: this.handleSetTooltip,
           appendToBody: true,
-          position: (pos, _params, _domm_rectct, size) => {
+          position: (pos, _params, _dom, _rect, size) => {
             const { contentSize } = size;
             const chartRect = this.$el.getBoundingClientRect();
             const posRect = {
