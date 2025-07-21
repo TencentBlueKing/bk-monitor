@@ -89,198 +89,198 @@ export const COLOR_LIST = [
   '#DEDAF7',
 ];
 export default {
-  useUTC: false,
   animation: false,
-  animationThreshold: 2000,
-  animationDurationUpdate: 0,
-  animationDuration: 20,
   animationDelay: 300,
-  title: {
-    text: '',
-    show: false,
-  },
-  // color: COLOR_LIST,
-  legend: {
-    show: true,
-    bottom: 0,
-    icon: 'rect',
-    height: 25,
-    itemWidth: 10,
-    itemHeight: 10,
-    itemGap: 20,
-    padding: [10, 10, 5, 10],
-    animation: false,
-    type: 'scroll',
-    textStyle: {
-      fontSize: 12,
-      color: '#313238',
-      fontFamily: 'Roboto-Regular',
-    },
-  },
-  tooltip: {
-    show: true,
-    trigger: 'axis',
-    axisPointer: {
-      type: 'line',
-      label: {
-        backgroundColor: '#6a7985',
-      },
-    },
-    transitionDuration: 0,
-    alwaysShowContent: false,
-    backgroundColor: 'rgba(54,58,67,.88)',
-    borderWidth: 0,
-    textStyle: {
-      fontSize: 12,
-      color: '#BEC0C6',
-    },
-    extraCssText: 'border-radius: 4px',
-    appendToBody: true,
-  },
-  toolbox: {
-    showTitle: false,
-    itemSize: 0,
-    iconStyle: {
-      color: '#979ba5',
-      borderWidth: 0,
-      shadowColor: '#979ba5',
-      shadowOffsetX: 0,
-      shadowOffsetY: 0,
-    },
-    feature: {
-      saveAsImage: {
-        icon: 'path://',
-      },
-      dataZoom: {
-        icon: {
-          zoom: 'path://',
-          back: 'path://',
-        },
-        show: true,
-        yAxisIndex: false,
-        iconStyle: {
-          opacity: 0,
-        },
-      },
-      restore: { icon: 'path://' },
-    },
-  },
+  animationDuration: 20,
+  animationDurationUpdate: 0,
+  animationThreshold: 2000,
   grid: {
+    backgroundColor: 'transparent',
+    bottom: 25,
     containLabel: true,
     left: 16,
     right: 16,
     top: 10,
-    bottom: 25,
-    backgroundColor: 'transparent',
   },
-  xAxis: [
-    {
-      type: 'time',
-      boundaryGap: false,
-      axisTick: {
-        show: false,
-      },
-      axisLine: {
-        show: false,
-        lineStyle: {
-          color: '#ccd6eb',
-          width: 1,
-          type: 'solid',
-        },
-      },
-      axisLabel: {
-        fontSize: 12,
-        color: '#979BA5',
-        showMinLabel: false,
-        showMaxLabel: false,
-        align: 'center',
-      },
-      splitLine: {
-        show: false,
-      },
-      minInterval: 5 * 60 * 1000,
-      splitNumber: 10,
-      scale: true,
+  // color: COLOR_LIST,
+  legend: {
+    animation: false,
+    bottom: 0,
+    height: 25,
+    icon: 'rect',
+    itemGap: 20,
+    itemHeight: 10,
+    itemWidth: 10,
+    padding: [10, 10, 5, 10],
+    show: true,
+    textStyle: {
+      color: '#313238',
+      fontFamily: 'Roboto-Regular',
+      fontSize: 12,
     },
-  ],
+    type: 'scroll',
+  },
   markLine: [
     {
       z: 100, // markLine markArea不支持单独设置层级
     },
   ],
-  yAxis: [
+  series: [],
+  title: {
+    show: false,
+    text: '',
+  },
+  toolbox: {
+    feature: {
+      dataZoom: {
+        icon: {
+          back: 'path://',
+          zoom: 'path://',
+        },
+        iconStyle: {
+          opacity: 0,
+        },
+        show: true,
+        yAxisIndex: false,
+      },
+      restore: { icon: 'path://' },
+      saveAsImage: {
+        icon: 'path://',
+      },
+    },
+    iconStyle: {
+      borderWidth: 0,
+      color: '#979ba5',
+      shadowColor: '#979ba5',
+      shadowOffsetX: 0,
+      shadowOffsetY: 0,
+    },
+    itemSize: 0,
+    showTitle: false,
+  },
+  tooltip: {
+    alwaysShowContent: false,
+    appendToBody: true,
+    axisPointer: {
+      label: {
+        backgroundColor: '#6a7985',
+      },
+      type: 'line',
+    },
+    backgroundColor: 'rgba(54,58,67,.88)',
+    borderWidth: 0,
+    extraCssText: 'border-radius: 4px',
+    show: true,
+    textStyle: {
+      color: '#BEC0C6',
+      fontSize: 12,
+    },
+    transitionDuration: 0,
+    trigger: 'axis',
+  },
+  useUTC: false,
+  xAxis: [
     {
-      type: 'value',
+      axisLabel: {
+        align: 'center',
+        color: '#979BA5',
+        fontSize: 12,
+        showMaxLabel: false,
+        showMinLabel: false,
+      },
       axisLine: {
-        show: false,
         lineStyle: {
           color: '#ccd6eb',
-          width: 1,
           type: 'solid',
+          width: 1,
         },
+        show: false,
       },
       axisTick: {
         show: false,
       },
+      boundaryGap: false,
+      minInterval: 5 * 60 * 1000,
+      scale: true,
+      splitLine: {
+        show: false,
+      },
+      splitNumber: 10,
+      type: 'time',
+    },
+  ],
+  yAxis: [
+    {
       axisLabel: {
         color: '#979BA5',
       },
+      axisLine: {
+        lineStyle: {
+          color: '#ccd6eb',
+          type: 'solid',
+          width: 1,
+        },
+        show: false,
+      },
+      axisTick: {
+        show: false,
+      },
+      min: (value) => Math.min(0, value.min),
+      scale: true,
       splitLine: {
-        show: true,
         lineStyle: {
           color: '#F0F1F5',
           type: 'dashed',
         },
+        show: true,
       },
-      scale: true,
-      min: value => Math.min(0, value.min),
+      type: 'value',
       z: 3,
     },
   ],
-  series: [],
 };
 
-export const getSeriesData = ({ data, name, color }) => ({
-  data,
-  name,
-  type: 'bar',
-  stack: 'total',
-  z: 4,
-  markLine: {},
-  markArea: {},
-  color: [],
-  zlevel: 0,
-  coordinateSystem: 'cartesian2d',
-  legendHoverLink: true,
-  large: false,
-  largeThreshold: 400,
-  progressive: 3000,
-  progressiveChunkMode: 'mod',
-  itemStyle: {
-    color,
-  },
-
-  colorBy: 'data',
-  emphasis: {
-    label: {},
-  },
-  clip: true,
-  roundCap: false,
-  showBackground: false,
-
+export const getSeriesData = ({ color, data, name }) => ({
+  animationDuration: 1000, // 动画持续时间
+  animationEasing: 'cubicOut', // 动画缓动效果
   backgroundStyle: {
-    color: 'rgba(180, 180, 180, 0.2)',
     borderColor: null,
-    borderWidth: 0,
-    borderType: 'solid',
     borderRadius: 0,
+    borderType: 'solid',
+    borderWidth: 0,
+    color: 'rgba(180, 180, 180, 0.2)',
+    opacity: 1,
     shadowBlur: 0,
     shadowColor: null,
     shadowOffsetX: 0,
     shadowOffsetY: 0,
-    opacity: 1,
+  },
+  clip: true,
+  color: [],
+  colorBy: 'data',
+  coordinateSystem: 'cartesian2d',
+  data,
+  emphasis: {
+    label: {},
+  },
+  itemStyle: {
+    color,
   },
   label: {},
-  animationDuration: 1000, // 动画持续时间
-  animationEasing: 'cubicOut', // 动画缓动效果
+  large: false,
+  largeThreshold: 400,
+  legendHoverLink: true,
+  markArea: {},
+  markLine: {},
+
+  name,
+  progressive: 3000,
+  progressiveChunkMode: 'mod',
+  roundCap: false,
+  showBackground: false,
+
+  stack: 'total',
+  type: 'bar',
+  z: 4,
+  zlevel: 0,
 });

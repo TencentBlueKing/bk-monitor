@@ -27,6 +27,12 @@
 import { deepClone, deepEqual } from '../common/util';
 
 export default {
+  computed: {
+    // 监听的formData对象 如果有多个监听则不使用mixin的默认值 自行在组件内设置计算属性
+    _watchFormData_({ formData }) {
+      return { formData };
+    },
+  },
   data() {
     return {
       _initCloneData_: null, // 初始化时的formData
@@ -34,10 +40,59 @@ export default {
       _isDataInit_: false,
     };
   },
-  computed: {
-    // 监听的formData对象 如果有多个监听则不使用mixin的默认值 自行在组件内设置计算属性
-    _watchFormData_({ formData }) {
-      return { formData };
+  methods: {
+    /**
+     * 侧边栏离开，二次确认
+     * @returns {Boolean} 是否编辑过
+     */
+    $isSidebarClosed(): Promise<boolean> {
+      // eslint-disable-next-line @typescript-eslint/no-this-alias
+      const _this = this;
+      return new Promise((resolve) => {
+        if (this._isChange_) {
+          // 已编辑
+          this.$bkInfo({
+            cancelFn() {
+              resolve(false);
+            },
+            confirmFn() {
+              resolve(true);
+              _this._isChange_ = false;
+              _this._isDataInit_ = false;
+            },
+            extCls: 'sideslider-close-cls',
+            okText: this.$t('离开'),
+            subTitle: this.$t('离开将会导致未保存信息丢失'),
+            title: this.$t('确认离开当前页？'),
+          });
+        } else {
+          // 未编辑
+          resolve(true);
+          _this._isChange_ = false;
+          _this._isDataInit_ = false;
+        }
+      });
+    },
+    /**
+     * @desc: 是否改变过侧边弹窗的数据
+     * @returns {Boolean} true为没改 false为改了 触发二次弹窗
+     */
+    async handleCloseSidebar(): Promise<boolean> {
+      return await this.$isSidebarClosed();
+    },
+    /**
+     * @desc: 初始化对比时的formData值
+     */
+    initSidebarFormData(): void {
+      // 从计算属性中获取所需要对比的key列表
+      this._initCloneData_ = Object.keys(this._watchFormData_).reduce(
+        (pre: object, cur: string) => {
+          pre[cur] = deepClone(this[cur]);
+          return pre;
+        },
+        {}
+      );
+      this._isDataInit_ = true;
     },
   },
   watch: {
@@ -49,58 +104,6 @@ export default {
         // 对比是否进行过修改
         if (!deepEqual(newVal, this._initCloneData_)) this._isChange_ = true;
       },
-    },
-  },
-  methods: {
-    /**
-     * 侧边栏离开，二次确认
-     * @returns {Boolean} 是否编辑过
-     */
-    $isSidebarClosed(): Promise<boolean> {
-      // eslint-disable-next-line @typescript-eslint/no-this-alias
-      const _this = this;
-      return new Promise(resolve => {
-        if (this._isChange_) {
-          // 已编辑
-          this.$bkInfo({
-            extCls: 'sideslider-close-cls',
-            title: this.$t('确认离开当前页？'),
-            subTitle: this.$t('离开将会导致未保存信息丢失'),
-            okText: this.$t('离开'),
-            confirmFn() {
-              resolve(true);
-              _this._isChange_ = false;
-              _this._isDataInit_ = false;
-            },
-            cancelFn() {
-              resolve(false);
-            },
-          });
-        } else {
-          // 未编辑
-          resolve(true);
-          _this._isChange_ = false;
-          _this._isDataInit_ = false;
-        }
-      });
-    },
-    /**
-     * @desc: 初始化对比时的formData值
-     */
-    initSidebarFormData(): void {
-      // 从计算属性中获取所需要对比的key列表
-      this._initCloneData_ = Object.keys(this._watchFormData_).reduce((pre: object, cur: string) => {
-        pre[cur] = deepClone(this[cur]);
-        return pre;
-      }, {});
-      this._isDataInit_ = true;
-    },
-    /**
-     * @desc: 是否改变过侧边弹窗的数据
-     * @returns {Boolean} true为没改 false为改了 触发二次弹窗
-     */
-    async handleCloseSidebar(): Promise<boolean> {
-      return await this.$isSidebarClosed();
     },
   },
 };

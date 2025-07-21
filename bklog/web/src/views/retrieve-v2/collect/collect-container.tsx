@@ -24,16 +24,14 @@
  * IN THE SOFTWARE.
  */
 
+import { Exception } from 'bk-magic-vue';
 import { Component, Emit, Provide, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-
-import { Exception } from 'bk-magic-vue';
 import VueDraggable from 'vuedraggable';
 
+import './collect-container.scss';
 import CollectGroup from './collect-group';
 import { IGroupItem } from './collect-index';
-
-import './collect-container.scss';
 
 interface IProps {
   dataList: IGroupItem[];
@@ -45,10 +43,10 @@ interface IProps {
 
 @Component
 export default class CollectContainer extends tsc<IProps> {
-  @Prop({ type: Array, required: true }) dataList: IGroupItem[];
-  @Prop({ type: Array, required: true }) groupList: IGroupItem[];
-  @Prop({ type: Boolean, default: false }) isSearchFilter: boolean;
-  @Prop({ type: Boolean, default: false }) collectLoading: boolean;
+  @Prop({ required: true, type: Array }) dataList: IGroupItem[];
+  @Prop({ required: true, type: Array }) groupList: IGroupItem[];
+  @Prop({ default: false, type: Boolean }) isSearchFilter: boolean;
+  @Prop({ default: false, type: Boolean }) collectLoading: boolean;
   @Prop({ type: Number }) activeFavoriteID: number;
 
   collectGroupRefs: (CollectGroup | null)[] = [];
@@ -72,14 +70,14 @@ export default class CollectContainer extends tsc<IProps> {
     };
   }
   // 使用 @Watch 装饰器监听 dragList 的变化
-  @Watch('dragList', { immediate: true, deep: true })
+  @Watch('dragList', { deep: true, immediate: true })
   onDragListChange(newList: IGroupItem[]) {
     // 初始化或更新 collectGroupRefs 数组
     this.collectGroupRefs = newList.map(() => null);
   }
 
   handleMoveEnd() {
-    const dragIDList = this.dragList.map(item => item.group_id);
+    const dragIDList = this.dragList.map((item) => item.group_id);
     this.handleValueChange('drag-move-end', dragIDList);
   }
   handleMoveIng(e) {
@@ -91,7 +89,7 @@ export default class CollectContainer extends tsc<IProps> {
   }
 
   handleGroupIsHidden(hidden: boolean) {
-    this.collectGroupRefs.forEach(groupRef => {
+    this.collectGroupRefs.forEach((groupRef) => {
       if (groupRef && typeof groupRef.handleGroupIsHidden === 'function') {
         groupRef.handleGroupIsHidden(hidden);
       }
@@ -105,11 +103,11 @@ export default class CollectContainer extends tsc<IProps> {
   // 新增方法来渲染空消息
   private renderEmptyMessage(emptyType) {
     return (
-      <div class='data-empty'>
-        <div class='empty-box'>
+      <div class="data-empty">
+        <div class="empty-box">
           <Exception
-            class='exception-wrap-item exception-part'
-            scene='part'
+            class="exception-wrap-item exception-part"
+            scene="part"
             type={emptyType}
           ></Exception>
         </div>
@@ -120,33 +118,36 @@ export default class CollectContainer extends tsc<IProps> {
   render() {
     return (
       <div
-        style='backgroundColor:#ebeef5'
-        class='bklog-v3-retrieve-collect-container'
+        class="bklog-v3-retrieve-collect-container"
+        style="backgroundColor:#ebeef5"
       >
         {this.$slots.default}
         <div
-          class='group-container-new'
+          class="group-container-new"
           v-bkloading={{ isLoading: this.collectLoading }}
         >
           {!this.isSearchEmpty ? (
             this.dragList.length ? (
               <VueDraggable
-                vModel={this.dragList}
-                animation='150'
+                animation="150"
                 disabled={true}
-                handle='.group-title'
+                handle=".group-title"
                 move={this.handleMoveIng}
                 on-end={this.handleMoveEnd}
+                vModel={this.dragList}
               >
                 <transition-group>
                   {this.dragList.map((item, index) => (
                     <div key={item.group_id}>
                       <CollectGroup
-                        ref={el => (this.collectGroupRefs[index] = el as CollectGroup | null)}
                         activeFavoriteID={this.activeFavoriteID}
                         collectItem={item}
                         groupList={this.groupList}
                         isSearchFilter={this.isSearchFilter}
+                        ref={(el) =>
+                          (this.collectGroupRefs[index] =
+                            el as CollectGroup | null)
+                        }
                       ></CollectGroup>
                     </div>
                   ))}

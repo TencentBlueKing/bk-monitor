@@ -40,7 +40,10 @@ export default defineComponent({
       isFavoriteShown.value = val;
     };
 
-    RetrieveHelper.on(RetrieveEvent.FAVORITE_SHOWN_CHANGE, onFavoriteShowChange);
+    RetrieveHelper.on(
+      RetrieveEvent.FAVORITE_SHOWN_CHANGE,
+      onFavoriteShowChange
+    );
 
     const handleCollectionShowChange = () => {
       isFavoriteShown.value = !isFavoriteShown.value;
@@ -48,17 +51,22 @@ export default defineComponent({
     };
 
     onBeforeUnmount(() => {
-      RetrieveHelper.off(RetrieveEvent.FAVORITE_SHOWN_CHANGE, onFavoriteShowChange);
+      RetrieveHelper.off(
+        RetrieveEvent.FAVORITE_SHOWN_CHANGE,
+        onFavoriteShowChange
+      );
     });
 
     return () => (
-      <div class='v3-bklog-toolbar'>
+      <div class="v3-bklog-toolbar">
         {!window.__IS_MONITOR_COMPONENT__ && (
-          <div class={`collection-box ${isFavoriteShown.value ? 'active' : ''}`}>
+          <div
+            class={`collection-box ${isFavoriteShown.value ? 'active' : ''}`}
+          >
             <span
-              style={{ color: isFavoriteShown.value ? '#3A84FF' : '' }}
-              class='bklog-icon bklog-shoucangjia'
+              class="bklog-icon bklog-shoucangjia"
               onClick={handleCollectionShowChange}
+              style={{ color: isFavoriteShown.value ? '#3A84FF' : '' }}
             ></span>
           </div>
         )}

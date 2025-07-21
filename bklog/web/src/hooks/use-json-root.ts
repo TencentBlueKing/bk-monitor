@@ -49,16 +49,16 @@ export default ({ fields, onSegmentClick }) => {
   const rootFieldOperator = new Map<string, RootFieldOperator>();
   let initEditPromise: Promise<any>;
 
-  const initRootOperator = depth => {
-    initEditPromise = new Promise(resolve => {
-      rootFieldOperator.values().forEach(value => {
+  const initRootOperator = (depth) => {
+    initEditPromise = new Promise((resolve) => {
+      rootFieldOperator.values().forEach((value) => {
         if (!value.editor) {
           value.editor = new UseJsonFormatter({
-            target: value.ref,
+            field: value.field,
             fields,
             jsonValue: value.value,
             onSegmentClick,
-            field: value.field,
+            target: value.ref,
           });
         }
 
@@ -78,15 +78,15 @@ export default ({ fields, onSegmentClick }) => {
     return initEditPromise;
   };
 
-  const setEditor = depth => {
-    rootFieldOperator.values().forEach(value => {
+  const setEditor = (depth) => {
+    rootFieldOperator.values().forEach((value) => {
       if (!value.editor) {
         value.editor = new UseJsonFormatter({
-          target: value.ref,
+          field: value.field,
           fields,
           jsonValue: value.value,
           onSegmentClick,
-          field: value.field,
+          target: value.ref,
         });
       }
 
@@ -102,7 +102,7 @@ export default ({ fields, onSegmentClick }) => {
   };
 
   const destroy = () => {
-    rootFieldOperator.values().forEach(value => {
+    rootFieldOperator.values().forEach((value) => {
       if (value.isJson && value.ref.value) {
         value.editor?.destroy();
       }
@@ -113,35 +113,38 @@ export default ({ fields, onSegmentClick }) => {
     });
   };
 
-  const updateRootFieldOperator = (rootFieldList: RootField[], depth: number) => {
-    rootFieldList.forEach(({ name, formatter }) => {
+  const updateRootFieldOperator = (
+    rootFieldList: RootField[],
+    depth: number
+  ) => {
+    rootFieldList.forEach(({ formatter, name }) => {
       if (rootFieldOperator.has(name)) {
         Object.assign(rootFieldOperator.get(name), {
+          field: formatter.field,
           isJson: formatter.isJson,
           ref: formatter.ref,
           value: formatter.value,
-          field: formatter.field,
         });
 
         rootFieldOperator.get(name).editor?.update({
-          target: formatter.ref,
+          field: formatter.field,
           fields,
           jsonValue: formatter.value,
           onSegmentClick,
-          field: formatter.field,
+          target: formatter.ref,
         });
       } else {
         rootFieldOperator.set(name, {
+          field: formatter.field,
           isJson: formatter.isJson,
           ref: formatter.ref,
           value: formatter.value,
-          field: formatter.field,
         });
       }
     });
 
-    rootFieldOperator.keys().forEach(key => {
-      if (!rootFieldList.some(f => f.name === key)) {
+    rootFieldOperator.keys().forEach((key) => {
+      if (!rootFieldList.some((f) => f.name === key)) {
         const target = rootFieldOperator.get(key).editor;
         target?.destroy?.();
         rootFieldOperator.delete(key);
@@ -158,8 +161,8 @@ export default ({ fields, onSegmentClick }) => {
     // });
   };
 
-  const setExpand = depth => {
-    rootFieldOperator.values().forEach(item => {
+  const setExpand = (depth) => {
+    rootFieldOperator.values().forEach((item) => {
       if (item.isJson) {
         item.editor?.setExpand(depth);
       }
@@ -167,9 +170,9 @@ export default ({ fields, onSegmentClick }) => {
   };
 
   return {
-    updateRootFieldOperator,
-    setExpand,
-    setEditor,
     destroy,
+    setEditor,
+    setExpand,
+    updateRootFieldOperator,
   };
 };

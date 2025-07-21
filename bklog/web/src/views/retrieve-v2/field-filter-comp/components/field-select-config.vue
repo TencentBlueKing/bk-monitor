@@ -25,69 +25,73 @@
 -->
 
 <script setup>
-  import { computed, ref } from 'vue';
+import { computed, ref } from 'vue';
 
-  import useLocale from '@/hooks/use-locale';
-  import useStore from '@/hooks/use-store';
-  import { useRoute } from 'vue-router/composables';
+import useLocale from '@/hooks/use-locale';
+import useStore from '@/hooks/use-store';
+import { useRoute } from 'vue-router/composables';
 
-  import $http from '@/api';
+import $http from '@/api';
 
-  const store = useStore();
-  const route = useRoute();
-  const { $t } = useLocale();
+const store = useStore();
+const route = useRoute();
+const { $t } = useLocale();
 
-  const emit = defineEmits(['select-fields-config']);
+const emit = defineEmits(['select-fields-config']);
 
-  const isDropdownShow = ref(false);
-  const isLoading = ref(false);
-  const configList = ref([]);
+const isDropdownShow = ref(false);
+const isLoading = ref(false);
+const configList = ref([]);
 
-  const unionIndexList = computed(() => store.state.unionIndexList);
-  const isUnionSearch = computed(() => store.state.isUnionSearch);
-  const dropdownShow = () => {
-    isDropdownShow.value = true;
-    getFiledConfigList();
-  };
-  const dropdownHide = () => {
-    isDropdownShow.value = false;
-  };
+const unionIndexList = computed(() => store.state.unionIndexList);
+const isUnionSearch = computed(() => store.state.isUnionSearch);
+const dropdownShow = () => {
+  isDropdownShow.value = true;
+  getFiledConfigList();
+};
+const dropdownHide = () => {
+  isDropdownShow.value = false;
+};
 
-  const getFiledConfigList = async () => {
-    isLoading.value = true;
-    try {
-      const res = await $http.request('retrieve/getFieldsListConfig', {
-        data: {
-          ...(isUnionSearch.value
-            ? { index_set_ids: unionIndexList.value }
-            : { index_set_id: window.__IS_MONITOR_COMPONENT__ ? route.query.indexId : route.params.indexId }),
-          scope: 'default',
-          index_set_type: isUnionSearch.value ? 'union' : 'single',
-        },
-      });
-      configList.value = res.data;
-    } catch (error) {
-    } finally {
-      isLoading.value = false;
-    }
-  };
-  const handleClickManagementConfig = () => {
-    store.commit('updateShowFieldsConfigPopoverNum', 1);
-  };
+const getFiledConfigList = async () => {
+  isLoading.value = true;
+  try {
+    const res = await $http.request('retrieve/getFieldsListConfig', {
+      data: {
+        ...(isUnionSearch.value
+          ? { index_set_ids: unionIndexList.value }
+          : {
+              index_set_id: window.__IS_MONITOR_COMPONENT__
+                ? route.query.indexId
+                : route.params.indexId,
+            }),
+        scope: 'default',
+        index_set_type: isUnionSearch.value ? 'union' : 'single',
+      },
+    });
+    configList.value = res.data;
+  } catch (error) {
+  } finally {
+    isLoading.value = false;
+  }
+};
+const handleClickManagementConfig = () => {
+  store.commit('updateShowFieldsConfigPopoverNum', 1);
+};
 
-  const handleClickSelectConfig = item => {
-    store.commit('updateIsSetDefaultTableColumn', false);
-    store
-      .dispatch('userFieldConfigChange', {
-        displayFields: item.display_fields,
-        fieldsWidth: {},
-      })
-      .then(() => {
-        store.commit('resetVisibleFields', item.display_fields);
-        store.commit('updateIsSetDefaultTableColumn');
-        emit('select-fields-config', item.display_fields);
-      });
-  };
+const handleClickSelectConfig = (item) => {
+  store.commit('updateIsSetDefaultTableColumn', false);
+  store
+    .dispatch('userFieldConfigChange', {
+      displayFields: item.display_fields,
+      fieldsWidth: {},
+    })
+    .then(() => {
+      store.commit('resetVisibleFields', item.display_fields);
+      store.commit('updateIsSetDefaultTableColumn');
+      emit('select-fields-config', item.display_fields);
+    });
+};
 </script>
 <template>
   <div class="field-select-config">
@@ -109,14 +113,8 @@
           class="bk-dropdown-list"
           v-bkloading="{ isLoading: isLoading, size: 'small' }"
         >
-          <li
-            v-for="(item, index) in configList"
-            :key="index"
-          >
-            <a
-              href="javascript:;"
-              @click="() => handleClickSelectConfig(item)"
-            >
+          <li v-for="(item, index) in configList" :key="index">
+            <a href="javascript:;" @click="() => handleClickSelectConfig(item)">
               {{ item.name }}
             </a>
           </li>
@@ -135,5 +133,5 @@
   </div>
 </template>
 <style lang="scss">
-  @import './field-select-config.scss';
+@import './field-select-config.scss';
 </style>

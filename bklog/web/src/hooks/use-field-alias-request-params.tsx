@@ -33,18 +33,18 @@ export default () => {
   const alias_settings = computed(() =>
     // eslint-disable-next-line @typescript-eslint/prefer-optional-chain
     (store.state.indexFieldInfo?.fields ?? {})
-      .filter(f => f.query_alias)
-      .map(f => ({
+      .filter((f) => f.query_alias)
+      .map((f) => ({
         field_name: f.field_name,
-        query_alias: f.query_alias,
         path_type: f.field_type,
-      })),
+        query_alias: f.query_alias,
+      }))
   );
 
   const sort_list = computed(() =>
     store.state.localSort
-      ? store.state.indexItem.sort_list ?? []
-      : store.state.retrieve.catchFieldCustomConfig.sortList ?? [],
+      ? (store.state.indexItem.sort_list ?? [])
+      : (store.state.retrieve.catchFieldCustomConfig.sortList ?? [])
   );
 
   return {

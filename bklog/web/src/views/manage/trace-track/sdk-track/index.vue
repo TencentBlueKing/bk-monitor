@@ -29,10 +29,10 @@
 </template>
 
 <script>
-  export default {
-    name: 'SdkTrack',
-    data() {
-      return {};
-    },
-  };
+export default {
+  name: 'SdkTrack',
+  data() {
+    return {};
+  },
+};
 </script>

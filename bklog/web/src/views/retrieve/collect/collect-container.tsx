@@ -24,16 +24,14 @@
  * IN THE SOFTWARE.
  */
 
+import { Exception } from 'bk-magic-vue';
 import { Component, Emit, Provide, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-
-import { Exception } from 'bk-magic-vue';
 import VueDraggable from 'vuedraggable';
 
+import './collect-container.scss';
 import CollectGroup from './collect-group';
 import { IGroupItem } from './collect-index';
-
-import './collect-container.scss';
 
 interface IProps {
   dataList: IGroupItem[];
@@ -45,10 +43,10 @@ interface IProps {
 
 @Component
 export default class CollectContainer extends tsc<IProps> {
-  @Prop({ type: Array, required: true }) dataList: IGroupItem[];
-  @Prop({ type: Array, required: true }) groupList: IGroupItem[];
-  @Prop({ type: Boolean, default: false }) isSearchFilter: boolean;
-  @Prop({ type: Boolean, default: false }) collectLoading: boolean;
+  @Prop({ required: true, type: Array }) dataList: IGroupItem[];
+  @Prop({ required: true, type: Array }) groupList: IGroupItem[];
+  @Prop({ default: false, type: Boolean }) isSearchFilter: boolean;
+  @Prop({ default: false, type: Boolean }) collectLoading: boolean;
   @Prop({ type: Number }) activeFavoriteID: number;
 
   dragList: IGroupItem[] = []; // 可拖拽的收藏列表
@@ -71,7 +69,7 @@ export default class CollectContainer extends tsc<IProps> {
   }
 
   handleMoveEnd() {
-    const dragIDList = this.dragList.map(item => item.group_id);
+    const dragIDList = this.dragList.map((item) => item.group_id);
     this.handleValueChange('drag-move-end', dragIDList);
   }
   handleMoveIng(e) {
@@ -90,23 +88,23 @@ export default class CollectContainer extends tsc<IProps> {
   // eslint-disable-next-line @typescript-eslint/member-ordering
   render() {
     return (
-      <div class='retrieve-collect-container'>
+      <div class="retrieve-collect-container">
         {this.$slots.default}
         <div
-          class='group-container'
+          class="group-container"
           v-bkloading={{ isLoading: this.collectLoading }}
         >
           {!this.isSearchEmpty ? (
             <VueDraggable
-              vModel={this.dragList}
-              animation='150'
+              animation="150"
               disabled={true}
-              handle='.group-title'
+              handle=".group-title"
               move={this.handleMoveIng}
               on-end={this.handleMoveEnd}
+              vModel={this.dragList}
             >
               <transition-group>
-                {this.dragList.map(item => (
+                {this.dragList.map((item) => (
                   <div key={item.group_id}>
                     <CollectGroup
                       activeFavoriteID={this.activeFavoriteID}
@@ -119,14 +117,14 @@ export default class CollectContainer extends tsc<IProps> {
               </transition-group>
             </VueDraggable>
           ) : (
-            <div class='data-empty'>
-              <div class='empty-box'>
+            <div class="data-empty">
+              <div class="empty-box">
                 <Exception
-                  class='exception-wrap-item exception-part'
-                  scene='part'
-                  type='search-empty'
+                  class="exception-wrap-item exception-part"
+                  scene="part"
+                  type="search-empty"
                 >
-                  <span class='empty-text'>{this.$t('无符合条件收藏')}</span>
+                  <span class="empty-text">{this.$t('无符合条件收藏')}</span>
                 </Exception>
               </div>
             </div>

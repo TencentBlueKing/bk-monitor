@@ -25,49 +25,43 @@
 -->
 
 <template>
-  <div
-    v-if="isError"
-    class="table-status-container failed"
-  >
+  <div v-if="isError" class="table-status-container failed">
     <i class="bk-icon icon-close-circle-shape icon-fai"></i>
     <span class="text">{{ $t('失败') }}</span>
   </div>
-  <div
-    v-else
-    class="table-status-container success"
-  >
+  <div v-else class="table-status-container success">
     <i class="bk-icon icon-check-circle-shape icon-sec"></i>
     <span class="text">{{ $t('成功') }}</span>
   </div>
 </template>
 
 <script>
-  export default {
-    props: {
-      isError: {
-        type: Boolean,
-        required: true,
-      },
+export default {
+  props: {
+    isError: {
+      type: Boolean,
+      required: true,
     },
-  };
+  },
+};
 </script>
 
 <style lang="scss" scoped>
-  .table-status-container {
-    display: flex;
-    align-items: center;
+.table-status-container {
+  display: flex;
+  align-items: center;
 
-    &.success .bk-icon {
-      color: #2dcb56;
-    }
-
-    &.failed .bk-icon {
-      color: #ea3636;
-    }
-
-    .text {
-      margin-left: 2px;
-      color: #63656e;
-    }
+  &.success .bk-icon {
+    color: #2dcb56;
   }
+
+  &.failed .bk-icon {
+    color: #ea3636;
+  }
+
+  .text {
+    margin-left: 2px;
+    color: #63656e;
+  }
+}
 </style>

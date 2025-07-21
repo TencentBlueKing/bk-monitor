@@ -24,24 +24,22 @@
  * IN THE SOFTWARE.
  */
 
+import $http from '@/api';
+import _escape from 'lodash/escape';
 import { Component, Prop, Inject, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-
-import _escape from 'lodash/escape';
-
-import $http from '@/api';
 
 import './agg-chart.scss';
 
 @Component
 export default class AggChart extends tsc<object> {
-  @Prop({ type: String, required: true }) fieldName: string;
-  @Prop({ type: String, required: true }) fieldType: string;
-  @Prop({ type: Boolean, default: false }) parentExpand: boolean;
-  @Prop({ type: Object, required: true }) retrieveParams: any;
-  @Prop({ type: String, required: true }) reQueryAggChart: string;
-  @Prop({ type: Boolean, default: false }) isFrontStatistics: boolean;
-  @Prop({ type: Object, default: () => ({}) }) statisticalFieldData: any;
+  @Prop({ required: true, type: String }) fieldName: string;
+  @Prop({ required: true, type: String }) fieldType: string;
+  @Prop({ default: false, type: Boolean }) parentExpand: boolean;
+  @Prop({ required: true, type: Object }) retrieveParams: any;
+  @Prop({ required: true, type: String }) reQueryAggChart: string;
+  @Prop({ default: false, type: Boolean }) isFrontStatistics: boolean;
+  @Prop({ default: () => ({}), type: Object }) statisticalFieldData: any;
 
   @Inject('addFilterCondition') addFilterCondition;
 
@@ -55,12 +53,12 @@ export default class AggChart extends tsc<object> {
   };
   limitSize = 5;
   fieldValueData = {
-    name: '',
     columns: [],
-    types: [],
-    limit: 5,
-    total_count: 0,
     field_count: 0,
+    limit: 5,
+    name: '',
+    total_count: 0,
+    types: [],
     values: [],
   };
 
@@ -73,23 +71,33 @@ export default class AggChart extends tsc<object> {
   get topFiveList() {
     const totalList = Object.entries(this.statisticalFieldData);
     totalList.sort((a, b) => Number(b[1]) - Number(a[1]));
-    totalList.forEach(item => {
+    totalList.forEach((item) => {
       const markList = item[0].toString().match(/(<mark>).*?(<\/mark>)/g) || [];
       if (markList.length) {
-        item[0] = markList.map(item => item.replace(/<mark>/g, '').replace(/<\/mark>/g, '')).join(',');
+        item[0] = markList
+          .map((item) => item.replace(/<mark>/g, '').replace(/<\/mark>/g, ''))
+          .join(',');
       }
     });
     this.shouldShowMore = totalList.length > 5;
-    return this.showAllList ? totalList : totalList.filter((item, index) => index < 5);
+    return this.showAllList
+      ? totalList
+      : totalList.filter((item, index) => index < 5);
   }
   get showFiveList() {
-    return this.isFrontStatistics ? this.topFiveList : this.fieldValueData.values;
+    return this.isFrontStatistics
+      ? this.topFiveList
+      : this.fieldValueData.values;
   }
   get showValidCount() {
-    return this.isFrontStatistics ? this.statisticalFieldData.__validCount : this.fieldValueData.field_count;
+    return this.isFrontStatistics
+      ? this.statisticalFieldData.__validCount
+      : this.fieldValueData.field_count;
   }
   get showTotalCount() {
-    return this.isFrontStatistics ? this.statisticalFieldData.__totalCount : this.fieldValueData.total_count;
+    return this.isFrontStatistics
+      ? this.statisticalFieldData.__totalCount
+      : this.fieldValueData.total_count;
   }
 
   mounted() {
@@ -106,7 +114,10 @@ export default class AggChart extends tsc<object> {
   computePercent(count) {
     const percentageNum = count / this.showTotalCount;
     // 当百分比 大于1 的时候 不显示后面的小数点， 若小于1% 则展示0.xx 保留两位小数
-    const showPercentageStr = percentageNum >= 0.01 ? Math.round(+percentageNum.toFixed(2) * 100) : 0.01;
+    const showPercentageStr =
+      percentageNum >= 0.01
+        ? Math.round(+percentageNum.toFixed(2) * 100)
+        : 0.01;
     return `${showPercentageStr}%`;
   }
   addCondition(operator, value) {
@@ -114,7 +125,8 @@ export default class AggChart extends tsc<object> {
     this.addFilterCondition(this.fieldName, operator, value);
   }
   getIconPopover(operator, value) {
-    if (this.fieldType === '__virtual__') return this.$t('该字段为平台补充 不可检索');
+    if (this.fieldType === '__virtual__')
+      return this.$t('该字段为平台补充 不可检索');
     if (this.filterIsExist(operator, value)) return this.$t('已添加过滤条件');
     return `${this.fieldName} ${operator} ${_escape(value)}`;
   }
@@ -122,7 +134,7 @@ export default class AggChart extends tsc<object> {
     if (this.fieldType === '__virtual__') return true;
     if (this.retrieveParams?.addition.length) {
       if (operator === 'not') operator = 'is not';
-      return this.retrieveParams.addition.some(addition => {
+      return this.retrieveParams.addition.some((addition) => {
         return (
           addition.field === this.fieldName &&
           addition.operator === (this.mappingKay[operator] ?? operator) && // is is not 值映射
@@ -135,13 +147,15 @@ export default class AggChart extends tsc<object> {
   async queryFieldFetchTopList(limit = 5) {
     this.limitSize = limit;
     try {
-      const indexSetIDs = this.isUnionSearch ? this.unionIndexList : [this.$route.params.indexId];
+      const indexSetIDs = this.isUnionSearch
+        ? this.unionIndexList
+        : [this.$route.params.indexId];
       this.listLoading = true;
       const data = {
         ...this.retrieveParams,
         agg_field: this.fieldName,
-        limit,
         index_set_ids: indexSetIDs,
+        limit,
       };
       const res = await $http.request('retrieve/fieldFetchTopList', {
         data,
@@ -159,53 +173,55 @@ export default class AggChart extends tsc<object> {
 
   render() {
     return (
-      <div
-        class='field-data'
-        v-bkloading={{ isLoading: this.listLoading }}
-      >
-        <div class='title'>
-          <i18n path='{0}/{1}条记录中数量排名前 {2} 的数据值'>
+      <div class="field-data" v-bkloading={{ isLoading: this.listLoading }}>
+        <div class="title">
+          <i18n path="{0}/{1}条记录中数量排名前 {2} 的数据值">
             <span>{this.showValidCount}</span>
             <span>{this.showTotalCount}</span>
             <span>{this.limitSize}</span>
           </i18n>
         </div>
-        <ul class='chart-list'>
-          {this.showFiveList.map(item => (
-            <li class='chart-item'>
-              <div class='chart-content'>
-                <div class='text-container'>
-                  <div
-                    class='text-value'
-                    v-bk-overflow-tips
-                  >
+        <ul class="chart-list">
+          {this.showFiveList.map((item) => (
+            <li class="chart-item">
+              <div class="chart-content">
+                <div class="text-container">
+                  <div class="text-value" v-bk-overflow-tips>
                     {item[0]}
                   </div>
-                  <div class='percent-value'>{this.computePercent(item[1])}</div>
+                  <div class="percent-value">
+                    {this.computePercent(item[1])}
+                  </div>
                 </div>
-                <div class='percent-bar-container'>
+                <div class="percent-bar-container">
                   <div
+                    class="percent-bar"
                     style={{ width: this.computePercent(item[1]) }}
-                    class='percent-bar'
                   ></div>
                 </div>
               </div>
-              <div class='operation-container'>
+              <div class="operation-container">
                 <span
-                  class={['bk-icon icon-enlarge-line', this.filterIsExist('is', item[0]) ? 'disable' : '']}
-                  v-bk-tooltips={this.getIconPopover('=', item[0])}
+                  class={[
+                    'bk-icon icon-enlarge-line',
+                    this.filterIsExist('is', item[0]) ? 'disable' : '',
+                  ]}
                   onClick={() => this.addCondition('is', item[0])}
+                  v-bk-tooltips={this.getIconPopover('=', item[0])}
                 ></span>
                 <span
-                  class={['bk-icon icon-narrow-line', this.filterIsExist('is not', item[0]) ? 'disable' : '']}
-                  v-bk-tooltips={this.getIconPopover('!=', item[0])}
+                  class={[
+                    'bk-icon icon-narrow-line',
+                    this.filterIsExist('is not', item[0]) ? 'disable' : '',
+                  ]}
                   onClick={() => this.addCondition('is not', item[0])}
+                  v-bk-tooltips={this.getIconPopover('!=', item[0])}
                 ></span>
               </div>
             </li>
           ))}
           {
-            <li class='more-item'>
+            <li class="more-item">
               <div>
                 {!this.showAllList && this.shouldShowMore && (
                   <span

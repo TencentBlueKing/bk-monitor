@@ -27,11 +27,11 @@
 export default {
   data() {
     return {
-      minIntroWidth: 300, // 最小宽度
-      maxIntroWidth: 480, // 默认最大宽度
+      currentTreeBoxWidth: null, // 当前侧边宽度
       introWidth: 400, // 侧边栏宽度
       isDraging: false, // 是否正在拖拽
-      currentTreeBoxWidth: null, // 当前侧边宽度
+      maxIntroWidth: 480, // 默认最大宽度
+      minIntroWidth: 300, // 最小宽度
     };
   },
   methods: {
@@ -44,7 +44,8 @@ export default {
     },
     dragMoving(e) {
       this.isDraging = true;
-      const newTreeBoxWidth = this.currentTreeBoxWidth - e.screenX + this.currentScreenX;
+      const newTreeBoxWidth =
+        this.currentTreeBoxWidth - e.screenX + this.currentScreenX;
       if (newTreeBoxWidth < this.minIntroWidth) {
         this.introWidth = this.minIntroWidth;
       } else if (newTreeBoxWidth >= this.maxIntroWidth) {

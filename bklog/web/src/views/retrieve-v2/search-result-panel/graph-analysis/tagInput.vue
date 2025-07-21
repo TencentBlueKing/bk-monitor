@@ -24,19 +24,19 @@
 * IN THE SOFTWARE.
 -->
 <script setup>
-import { ref, defineExpose, computed } from "vue";
-import settingSVG from "@/images/icons/setting-fill.svg";
-import Draggable from "vuedraggable";
-import QueryPanelMetricAdd from "./QueryPanelMetricAdd.vue";
-import useLocale from "@/hooks/use-locale";
+import { ref, defineExpose, computed } from 'vue';
+import settingSVG from '@/images/icons/setting-fill.svg';
+import Draggable from 'vuedraggable';
+import QueryPanelMetricAdd from './QueryPanelMetricAdd.vue';
+import useLocale from '@/hooks/use-locale';
 const { $t } = useLocale();
 const formData = ref([
-  { id: 1, name: "aaa" },
-  { id: 2, name: "bbb" },
+  { id: 1, name: 'aaa' },
+  { id: 2, name: 'bbb' },
 ]);
 const fields = ref([]);
 const preferRawData = ref(false);
-const errorMsg = ref("");
+const errorMsg = ref('');
 const svgImg = ref(settingSVG);
 const isCanPutInTips = computed(() => {
   //   if (
@@ -55,7 +55,7 @@ const isCanPutInTips = computed(() => {
   //   if (computedMetricType.value === "single" && formData.value.length > 0) {
   //     return $t("dashboards.当前配置已满");
   //   }
-  return "";
+  return '';
 });
 const verifyRelation = (rule, currentLength, targetLength, isAdd = false) => {
   if (!isObject(rule)) return null;
@@ -70,14 +70,22 @@ const verifyRelation = (rule, currentLength, targetLength, isAdd = false) => {
     if (!isAdd) {
       result = asRule.relation.some(({ condition, count }) => {
         const currResult = evaluateCondition(count, currentLength, false);
-        const conditionResult = evaluateCondition(condition, targetLength, false);
+        const conditionResult = evaluateCondition(
+          condition,
+          targetLength,
+          false
+        );
         return conditionResult && currResult;
       });
     } else {
       result = asRule.relation.every(({ condition, count }) => {
         /** 这里注意evaluateCondition isAdd添加模式下 可添加返回结果是false  */
         const currResult = evaluateCondition(count, currentLength, isAdd);
-        const conditionResult = evaluateCondition(condition, targetLength, false);
+        const conditionResult = evaluateCondition(
+          condition,
+          targetLength,
+          false
+        );
         if (!conditionResult) return true;
         // 添加验证情况下，如果依赖条件不符合则直接返回true 由后续取反返回结果即可
         return conditionResult && !currResult;
@@ -88,7 +96,7 @@ const verifyRelation = (rule, currentLength, targetLength, isAdd = false) => {
   }
 
   // 检查 rule 是否有 'count' 属性
-  if (Object.prototype.hasOwnProperty.call(rule, "count")) {
+  if (Object.prototype.hasOwnProperty.call(rule, 'count')) {
     return evaluateCondition(asRule.count, currentLength, isAdd);
   }
 
@@ -100,13 +108,15 @@ function addFormField(data) {
   const name = item?.name;
   const exitActiveItem = namesMap.value?.names?.get(name);
   const aggregationOptions = getFileTypeAggregation(data.type);
-  const tempArr = aggregationOptions?.filter((option) => !exitActiveItem?.has(option.id));
+  const tempArr = aggregationOptions?.filter(
+    (option) => !exitActiveItem?.has(option.id)
+  );
 
   if (!tempArr?.length) {
     Message({
-      theme: "error",
-      message: `${item.aggregate ? `[${item.aggregate}]` : ""}${item.name}，${t(
-        "dashboards.已经存该字段，不可重复添加！"
+      theme: 'error',
+      message: `${item.aggregate ? `[${item.aggregate}]` : ''}${item.name}，${t(
+        'dashboards.已经存该字段，不可重复添加！'
       )}`,
     });
     return;
@@ -126,9 +136,9 @@ function addFormField(data) {
     namesMap.value.names.get(item.name).has(item.aggregate)
   ) {
     Message({
-      theme: "error",
-      message: `${item.aggregate ? `[${item.aggregate}]` : ""}${item.name}，${$t(
-        "dashboards.已经存该字段，不可重复添加！"
+      theme: 'error',
+      message: `${item.aggregate ? `[${item.aggregate}]` : ''}${item.name}，${$t(
+        'dashboards.已经存该字段，不可重复添加！'
       )}`,
     });
     return;
@@ -142,7 +152,7 @@ function handleDragStart() {
 }
 function add(item) {
   formData.value.push(item);
-  emit("change", item);
+  emit('change', item);
 }
 const namesMap = computed(() => {
   const names = new Map();

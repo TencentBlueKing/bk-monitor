@@ -24,71 +24,84 @@
 * IN THE SOFTWARE.
 -->
 <script setup>
-  import { ref, defineProps, watch, computed, defineEmits } from 'vue';
+import { ref, defineProps, watch, computed, defineEmits } from 'vue';
 
-  const props = defineProps({
-    options: {
-      type: Object,
-      default: () => ({
-        xFields: [],
-        yFields: [],
-        dimensions: [],
-        hiddenFields: [],
-        category: '',
-      }),
-    },
+const props = defineProps({
+  options: {
+    type: Object,
+    default: () => ({
+      xFields: [],
+      yFields: [],
+      dimensions: [],
+      hiddenFields: [],
+      category: '',
+    }),
+  },
 
-    result_schema: {
-      type: Array,
-    },
-  });
+  result_schema: {
+    type: Array,
+  },
+});
 
-  const emit = defineEmits(['update']);
-  const list = computed(() => props.result_schema.map(item => item.field_alias));
+const emit = defineEmits(['update']);
+const list = computed(() =>
+  props.result_schema.map((item) => item.field_alias)
+);
 
-  const excludeList = computed(() => [...props.options.yFields, ...props.options.dimensions, ...props.options.xFields]);
-  const xFieldOptions = computed(() =>
-    props.result_schema
-      .filter(item => !excludeList.value.includes(item.field_alias) || props.options.xFields.includes(item.field_alias))
-      .map(item => {
-        return {
-          item: item.field_alias,
-          disabled: false,
-        };
-      }),
-  );
+const excludeList = computed(() => [
+  ...props.options.yFields,
+  ...props.options.dimensions,
+  ...props.options.xFields,
+]);
+const xFieldOptions = computed(() =>
+  props.result_schema
+    .filter(
+      (item) =>
+        !excludeList.value.includes(item.field_alias) ||
+        props.options.xFields.includes(item.field_alias)
+    )
+    .map((item) => {
+      return {
+        item: item.field_alias,
+        disabled: false,
+      };
+    })
+);
 
-  const yFieldOptions = computed(() =>
-    props.result_schema
-      .filter(
-        item =>
-          /long|number|int|float|bigint|double/.test(item.field_type) &&
-          (!excludeList.value.includes(item.field_alias) || props.options.yFields.includes(item.field_alias)),
-      )
-      .map(item => {
-        return {
-          item: item.field_alias,
-          disabled: false,
-        };
-      }),
-  );
+const yFieldOptions = computed(() =>
+  props.result_schema
+    .filter(
+      (item) =>
+        /long|number|int|float|bigint|double/.test(item.field_type) &&
+        (!excludeList.value.includes(item.field_alias) ||
+          props.options.yFields.includes(item.field_alias))
+    )
+    .map((item) => {
+      return {
+        item: item.field_alias,
+        disabled: false,
+      };
+    })
+);
 
-  const dimensionsOptions = computed(() =>
-    props.result_schema
-      .filter(
-        item => !excludeList.value.includes(item.field_alias) || props.options.dimensions.includes(item.field_alias),
-      )
-      .map(item => {
-        return {
-          item: item.field_alias,
-          disabled: false,
-        };
-      }),
-  );
+const dimensionsOptions = computed(() =>
+  props.result_schema
+    .filter(
+      (item) =>
+        !excludeList.value.includes(item.field_alias) ||
+        props.options.dimensions.includes(item.field_alias)
+    )
+    .map((item) => {
+      return {
+        item: item.field_alias,
+        disabled: false,
+      };
+    })
+);
 
-  function change(axis, newValue) {
-    emit('update', axis, newValue);
-  }
+function change(axis, newValue) {
+  emit('update', axis, newValue);
+}
 </script>
 <template>
   <div class="bklog-chart-field">
@@ -161,14 +174,25 @@
           :key="option"
           :id="option"
           :name="option"
-          :disabled="list.length - options.hiddenFields.length === 1 && !options.hiddenFields.includes(option)"
+          :disabled="
+            list.length - options.hiddenFields.length === 1 &&
+            !options.hiddenFields.includes(option)
+          "
         >
-          <div v-if="list.length - options.hiddenFields.length !== 1 || options.hiddenFields.includes(option)">
+          <div
+            v-if="
+              list.length - options.hiddenFields.length !== 1 ||
+              options.hiddenFields.includes(option)
+            "
+          >
             {{ option }}
           </div>
           <div
             v-else
-            v-bk-tooltips="{ content: $t('至少需要一个字段'), placements: ['top-start'] }"
+            v-bk-tooltips="{
+              content: $t('至少需要一个字段'),
+              placements: ['top-start'],
+            }"
           >
             {{ option }}
           </div>
@@ -179,11 +203,11 @@
 </template>
 
 <style lang="scss" scoped>
-  .bklog-chart-field {
-    .title {
-      margin: 10px 0;
-      font-size: 12px;
-      color: #63656e;
-    }
+.bklog-chart-field {
+  .title {
+    margin: 10px 0;
+    font-size: 12px;
+    color: #63656e;
   }
+}
 </style>

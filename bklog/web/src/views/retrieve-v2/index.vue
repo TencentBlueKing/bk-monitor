@@ -25,187 +25,200 @@
 -->
 
 <script setup>
-  import { computed, ref, watch } from 'vue';
+import { computed, ref, watch } from 'vue';
 
-  import useStore from '@/hooks/use-store';
-  import RouteUrlResolver, { RetrieveUrlResolver } from '@/store/url-resolver';
-  import { debounce } from 'lodash';
-  import { useRoute, useRouter } from 'vue-router/composables';
+import useStore from '@/hooks/use-store';
+import RouteUrlResolver, { RetrieveUrlResolver } from '@/store/url-resolver';
+import { debounce } from 'lodash';
+import { useRoute, useRouter } from 'vue-router/composables';
 
-  import CollectFavorites from './collect/collect-index';
-  import SearchBar from './search-bar/index.vue';
-  import SearchResultPanel from './search-result-panel/index.vue';
-  import SearchResultTab from './search-result-tab/index.vue';
+import CollectFavorites from './collect/collect-index';
+import SearchBar from './search-bar/index.vue';
+import SearchResultPanel from './search-result-panel/index.vue';
+import SearchResultTab from './search-result-tab/index.vue';
 
-  import GraphAnalysis from './search-result-panel/graph-analysis';
-  import SubBar from './sub-bar/index.vue';
+import GraphAnalysis from './search-result-panel/graph-analysis';
+import SubBar from './sub-bar/index.vue';
 
-  import useResizeObserve from '../../hooks/use-resize-observe';
-  import RetrieveHelper from '../retrieve-helper';
-  import useRetrieveHook from './use-retrieve-hook';
+import useResizeObserve from '../../hooks/use-resize-observe';
+import RetrieveHelper from '../retrieve-helper';
+import useRetrieveHook from './use-retrieve-hook';
 
-  const store = useStore();
-  const router = useRouter();
-  const route = useRoute();
+const store = useStore();
+const router = useRouter();
+const route = useRoute();
 
-  const showFavorites = ref(false);
-  const favoriteRef = ref(null);
-  const favoriteWidth = ref(240);
+const showFavorites = ref(false);
+const favoriteRef = ref(null);
+const favoriteWidth = ref(240);
 
-  RetrieveHelper.setScrollSelector();
-  const GLOBAL_SCROLL_SELECTOR = RetrieveHelper.getScrollSelector();
+RetrieveHelper.setScrollSelector();
+const GLOBAL_SCROLL_SELECTOR = RetrieveHelper.getScrollSelector();
 
-  const spaceUid = computed(() => store.state.spaceUid);
-  const bkBizId = computed(() => store.state.bkBizId);
+const spaceUid = computed(() => store.state.spaceUid);
+const bkBizId = computed(() => store.state.bkBizId);
 
-  const { search_mode, addition, keyword } = route.query;
+const { search_mode, addition, keyword } = route.query;
 
-  const { resolveQueryParams } = useRetrieveHook();
-  resolveQueryParams({ search_mode, addition, keyword });
+const { resolveQueryParams } = useRetrieveHook();
+resolveQueryParams({ search_mode, addition, keyword });
 
-  /**
-   * 拉取索引集列表
-   */
-  const getIndexSetList = () => {
-    store.dispatch('retrieve/getIndexSetList', { spaceUid: spaceUid.value, bkBizId: bkBizId.value }).then(resp => {});
-  };
+/**
+ * 拉取索引集列表
+ */
+const getIndexSetList = () => {
+  store
+    .dispatch('retrieve/getIndexSetList', {
+      spaceUid: spaceUid.value,
+      bkBizId: bkBizId.value,
+    })
+    .then((resp) => {});
+};
 
-  const handleSpaceIdChange = () => {
-    store.commit('resetIndexsetItemParams');
-    store.commit('updateIndexId', '');
-    store.commit('updateUnionIndexList', []);
-    getIndexSetList();
-    store.dispatch('requestFavoriteList');
-  };
+const handleSpaceIdChange = () => {
+  store.commit('resetIndexsetItemParams');
+  store.commit('updateIndexId', '');
+  store.commit('updateUnionIndexList', []);
+  getIndexSetList();
+  store.dispatch('requestFavoriteList');
+};
 
+handleSpaceIdChange();
+
+watch(spaceUid, () => {
   handleSpaceIdChange();
+  const routeQuery = route.query ?? {};
 
-  watch(spaceUid, () => {
-    handleSpaceIdChange();
-    const routeQuery = route.query ?? {};
+  if (routeQuery.spaceUid !== spaceUid.value) {
+    const resolver = new RouteUrlResolver({ route });
 
-    if (routeQuery.spaceUid !== spaceUid.value) {
-      const resolver = new RouteUrlResolver({ route });
-
-      router.replace({
-        params: {
-          indexId: undefined,
-        },
-        query: {
-          ...resolver.getDefUrlQuery(),
-          spaceUid: spaceUid.value,
-          bizId: bkBizId.value,
-        },
-      });
-    }
-  });
-
-  const handleFavoritesClick = () => {
-    if (showFavorites.value) return;
-    showFavorites.value = true;
-  };
-
-  const handleFavoritesClose = e => {
-    e.stopPropagation();
-    showFavorites.value = false;
-  };
-
-  const handleEditFavoriteGroup = e => {
-    e.stopPropagation();
-    favoriteRef.value.isShowManageDialog = true;
-  };
-
-  const isRefreshList = ref(false);
-  const searchBarHeight = ref(0);
-  /** 刷新收藏夹列表 */
-  const handleRefresh = v => {
-    isRefreshList.value = v;
-  };
-  const handleHeightChange = height => {
-    searchBarHeight.value = height;
-  };
-
-  const debounceUpdateTabValue = debounce(value => {
-    const isClustering = value === 'clustering';
     router.replace({
-      params: { ...(route.params ?? {}) },
+      params: {
+        indexId: undefined,
+      },
       query: {
-        ...(route.query ?? {}),
-        tab: value,
-        ...(isClustering ? {} : { clusterParams: undefined }),
+        ...resolver.getDefUrlQuery(),
+        spaceUid: spaceUid.value,
+        bizId: bkBizId.value,
       },
     });
-  }, 60);
+  }
+});
 
-  const activeTab = computed({
-    get() {
-      return route.query.tab ?? 'origin';
+const handleFavoritesClick = () => {
+  if (showFavorites.value) return;
+  showFavorites.value = true;
+};
+
+const handleFavoritesClose = (e) => {
+  e.stopPropagation();
+  showFavorites.value = false;
+};
+
+const handleEditFavoriteGroup = (e) => {
+  e.stopPropagation();
+  favoriteRef.value.isShowManageDialog = true;
+};
+
+const isRefreshList = ref(false);
+const searchBarHeight = ref(0);
+/** 刷新收藏夹列表 */
+const handleRefresh = (v) => {
+  isRefreshList.value = v;
+};
+const handleHeightChange = (height) => {
+  searchBarHeight.value = height;
+};
+
+const debounceUpdateTabValue = debounce((value) => {
+  const isClustering = value === 'clustering';
+  router.replace({
+    params: { ...(route.params ?? {}) },
+    query: {
+      ...(route.query ?? {}),
+      tab: value,
+      ...(isClustering ? {} : { clusterParams: undefined }),
     },
-    set(val) {
-      debounceUpdateTabValue(val);
-    },
   });
+}, 60);
 
-  const stickyStyle = computed(() => {
-    return {
-      '--offset-search-bar': `${searchBarHeight.value + 8}px`,
-    };
-  });
+const activeTab = computed({
+  get() {
+    return route.query.tab ?? 'origin';
+  },
+  set(val) {
+    debounceUpdateTabValue(val);
+  },
+});
 
-  const contentStyle = computed(() => {
-    return {
-      '--left-width': `${showFavorites.value ? favoriteWidth.value : 0}px`,
-    };
-  });
-
-  const showAnalysisTab = computed(() => activeTab.value === 'graphAnalysis');
-  const activeFavorite = ref();
-  const updateActiveFavorite = value => {
-    activeFavorite.value = value;
+const stickyStyle = computed(() => {
+  return {
+    '--offset-search-bar': `${searchBarHeight.value + 8}px`,
   };
+});
 
-  /** 开始处理滚动容器滚动时，收藏夹高度 */
+const contentStyle = computed(() => {
+  return {
+    '--left-width': `${showFavorites.value ? favoriteWidth.value : 0}px`,
+  };
+});
 
-  // 顶部二级导航高度，这个高度是固定的
-  const subBarHeight = ref(64);
-  const paddingTop = ref(0);
-  // 滚动容器高度
-  const scrollContainerHeight = ref(0);
+const showAnalysisTab = computed(() => activeTab.value === 'graphAnalysis');
+const activeFavorite = ref();
+const updateActiveFavorite = (value) => {
+  activeFavorite.value = value;
+};
 
-  RetrieveHelper.on(RetrieveEvent.GLOBAL_SCROLL, event => {
-    const scrollTop = event.target.scrollTop;
-    paddingTop.value = scrollTop > subBarHeight.value ? subBarHeight.value : scrollTop;
-  });
+/** 开始处理滚动容器滚动时，收藏夹高度 */
 
-  useResizeObserve(
-    GLOBAL_SCROLL_SELECTOR,
-    entry => {
-      scrollContainerHeight.value = entry.target.offsetHeight;
-    },
-    0,
-  );
+// 顶部二级导航高度，这个高度是固定的
+const subBarHeight = ref(64);
+const paddingTop = ref(0);
+// 滚动容器高度
+const scrollContainerHeight = ref(0);
 
-  const favoritesStlye = computed(() => {
-    const height = scrollContainerHeight.value - subBarHeight.value;
-    if (showFavorites.value) {
-      return {
-        height: `${height + paddingTop.value}px`,
-      };
-    }
+RetrieveHelper.on(RetrieveEvent.GLOBAL_SCROLL, (event) => {
+  const scrollTop = event.target.scrollTop;
+  paddingTop.value =
+    scrollTop > subBarHeight.value ? subBarHeight.value : scrollTop;
+});
 
-    return {};
-  });
+useResizeObserve(
+  GLOBAL_SCROLL_SELECTOR,
+  (entry) => {
+    scrollContainerHeight.value = entry.target.offsetHeight;
+  },
+  0
+);
 
-  const isStickyTop = computed(() => {
-    return paddingTop.value === subBarHeight.value;
-  });
+const favoritesStlye = computed(() => {
+  const height = scrollContainerHeight.value - subBarHeight.value;
+  if (showFavorites.value) {
+    return {
+      height: `${height + paddingTop.value}px`,
+    };
+  }
 
-  /*** 结束计算 ***/
+  return {};
+});
+
+const isStickyTop = computed(() => {
+  return paddingTop.value === subBarHeight.value;
+});
+
+/*** 结束计算 ***/
 </script>
 <template>
   <div
     :style="stickyStyle"
-    :class="['retrieve-v2-index', { 'show-favorites': showFavorites, 'scroll-y': true, 'is-sticky-top': isStickyTop }]"
+    :class="[
+      'retrieve-v2-index',
+      {
+        'show-favorites': showFavorites,
+        'scroll-y': true,
+        'is-sticky-top': isStickyTop,
+      },
+    ]"
   >
     <div class="sub-head">
       <div
@@ -213,13 +226,12 @@
         class="box-favorites"
         @click="handleFavoritesClick"
       >
-        <div
-          v-if="showFavorites"
-          class="collet-label"
-        >
+        <div v-if="showFavorites" class="collet-label">
           <div class="left-info">
             <span class="collect-title">{{ $t('收藏夹') }}</span>
-            <span class="collect-count">{{ favoriteRef?.allFavoriteNumber }}</span>
+            <span class="collect-count">{{
+              favoriteRef?.allFavoriteNumber
+            }}</span>
             <span
               class="collect-edit bklog-icon bklog-wholesale-editor"
               @click="handleEditFavoriteGroup"
@@ -234,20 +246,22 @@
           <div class="collection-box">
             <span
               style="font-size: 18px"
-              :class="['bklog-icon bklog-shoucangjia', { active: showFavorites }]"
+              :class="[
+                'bklog-icon bklog-shoucangjia',
+                { active: showFavorites },
+              ]"
             ></span>
           </div>
         </template>
       </div>
       <SubBar
-        :style="{ width: `calc(100% - ${showFavorites ? favoriteWidth : 42}px` }"
+        :style="{
+          width: `calc(100% - ${showFavorites ? favoriteWidth : 42}px`,
+        }"
         show-favorites
       />
     </div>
-    <div
-      :style="contentStyle"
-      :class="['retrieve-v2-body']"
-    >
+    <div :style="contentStyle" :class="['retrieve-v2-body']">
       <CollectFavorites
         ref="favoriteRef"
         :style="favoritesStlye"
@@ -277,20 +291,20 @@
   </div>
 </template>
 <style lang="scss">
-  @import './index.scss';
+@import './index.scss';
 </style>
 <style lang="scss">
-  @import './segment-pop.scss';
+@import './segment-pop.scss';
 
-  .retrieve-v2-index {
-    .collection-box {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      width: 32px;
-      height: 32px;
-      background: #f0f1f5;
-      border-radius: 2px;
-    }
+.retrieve-v2-index {
+  .collection-box {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    background: #f0f1f5;
+    border-radius: 2px;
   }
+}
 </style>

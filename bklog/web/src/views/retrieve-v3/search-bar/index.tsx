@@ -36,14 +36,14 @@ export default defineComponent({
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   setup(_, {}) {
     const searchBarHeight = ref(0);
-    const handleHeightChange = height => {
+    const handleHeightChange = (height) => {
       searchBarHeight.value = height;
       RetrieveHelper.setSearchBarHeight(height);
     };
 
     return () => (
       <V2SearchBar
-        class='v3-search-bar-root'
+        class="v3-search-bar-root"
         on-height-change={handleHeightChange}
       ></V2SearchBar>
     );

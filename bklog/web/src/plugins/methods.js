@@ -26,7 +26,11 @@
 
 const methods = {
   install(Vue) {
-    Vue.prototype.$easeScroll = function (to = 0, duration = 300, target = window) {
+    Vue.prototype.$easeScroll = function (
+      to = 0,
+      duration = 300,
+      target = window
+    ) {
       const start = target === window ? target.scrollY : target.scrollTop;
       const beginTime = Date.now();
 

@@ -73,7 +73,12 @@
                   :name="option.storage_cluster_name"
                 >
                   <div
-                    v-if="!(option.permission && option.permission[authorityMap.MANAGE_ES_SOURCE_AUTH])"
+                    v-if="
+                      !(
+                        option.permission &&
+                        option.permission[authorityMap.MANAGE_ES_SOURCE_AUTH]
+                      )
+                    "
                     class="option-slot-container no-authority"
                     @click.stop
                   >
@@ -86,19 +91,12 @@
                       >{{ $t('申请权限') }}</span
                     >
                   </div>
-                  <div
-                    v-else
-                    class="option-slot-container"
-                    v-bk-overflow-tips
-                  >
+                  <div v-else class="option-slot-container" v-bk-overflow-tips>
                     <span>{{ option.storage_cluster_name }}</span>
                   </div>
                 </bk-option>
               </bk-select>
-              <p
-                v-if="esClusterSource"
-                class="es-source"
-              >
+              <p v-if="esClusterSource" class="es-source">
                 <span>{{ $t('来源') }}：</span>
                 <span>{{ esClusterSource }}</span>
               </p>
@@ -111,16 +109,16 @@
             >
               <div
                 v-for="card in repository"
-                :class="{ 'repository-card': true, 'is-active': formData.es_config.type === card.id }"
+                :class="{
+                  'repository-card': true,
+                  'is-active': formData.es_config.type === card.id,
+                }"
                 :data-test-id="`addNewStorehouse_div_${card.id}`"
                 :key="card.name"
                 @click="changeRepository(card)"
               >
                 <span class="repository-name">{{ card.name }}</span>
-                <img
-                  class="card-image"
-                  :src="card.image"
-                />
+                <img class="card-image" :src="card.image" />
               </div>
             </bk-form-item>
             <bk-alert type="info">
@@ -128,7 +126,11 @@
                 <div class="repository-alert">
                   <div v-if="formData.es_config.type === 'hdfs'">
                     <p>
-                      {{ $t('1. 用户需要在hdfs设置的kerberos中创建给es使用的principal, 然后导出对应的keytab文件') }}
+                      {{
+                        $t(
+                          '1. 用户需要在hdfs设置的kerberos中创建给es使用的principal, 然后导出对应的keytab文件'
+                        )
+                      }}
                     </p>
                     <p>{{ $t('2. 将keytab放es每个节点对应的目录中去') }}</p>
                   </div>
@@ -154,10 +156,7 @@
               </bk-input>
             </bk-form-item>
             <!-- HDFS -->
-            <div
-              v-if="formData.es_config.type === 'hdfs'"
-              key="hdfs"
-            >
+            <div v-if="formData.es_config.type === 'hdfs'" key="hdfs">
               <bk-form-item
                 :label="$t('归档目录')"
                 :property="formData.hdfsFormData.path"
@@ -205,10 +204,7 @@
               </bk-form-item>
             </div>
             <!-- FS -->
-            <div
-              v-if="formData.es_config.type === 'fs'"
-              key="fs"
-            >
+            <div v-if="formData.es_config.type === 'fs'" key="fs">
               <bk-form-item
                 :label="$t('归档目录')"
                 :property="formData.fsFormData.location"
@@ -220,10 +216,7 @@
               </bk-form-item>
             </div>
             <!-- COS -->
-            <div
-              v-if="formData.es_config.type === 'cos'"
-              key="cos"
-            >
+            <div v-if="formData.es_config.type === 'cos'" key="cos">
               <bk-form-item
                 :label="$t('归档目录')"
                 :property="formData.cosFormData.base_path"
@@ -316,64 +309,107 @@
 </template>
 
 <script>
-  import SidebarDiffMixin from '@/mixins/sidebar-diff-mixin';
-  import { mapGetters } from 'vuex';
+import SidebarDiffMixin from '@/mixins/sidebar-diff-mixin';
+import { mapGetters } from 'vuex';
 
-  import * as authorityMap from '../../../../common/authority-map';
+import * as authorityMap from '../../../../common/authority-map';
 
-  const cosConfigForm = () => {
-    return {
-      app_id: '',
-      access_key_id: '',
-      access_key_secret: '',
-      bucket: '',
-      region: '',
-      compress: true,
-    };
+const cosConfigForm = () => {
+  return {
+    app_id: '',
+    access_key_id: '',
+    access_key_secret: '',
+    bucket: '',
+    region: '',
+    compress: true,
   };
+};
 
-  const hdfsConfigForm = () => {
-    return {
-      uri: '',
-      path: '',
-      isSecurity: false,
-      compress: true,
-      security: {
-        principal: '',
-      },
-    };
-  };
-
-  const fsConfigForm = () => {
-    return {
-      location: '',
-    };
-  };
-
-  export default {
-    mixins: [SidebarDiffMixin],
-    props: {
-      showSlider: {
-        type: Boolean,
-        default: false,
-      },
-      editClusterId: {
-        type: Number,
-        default: null,
-      },
+const hdfsConfigForm = () => {
+  return {
+    uri: '',
+    path: '',
+    isSecurity: false,
+    compress: true,
+    security: {
+      principal: '',
     },
-    data() {
-      return {
-        confirmLoading: false,
-        sliderLoading: false,
-        esClusterSource: '',
-        esClusterList: [],
-        repository: [
-          { id: 'hdfs', name: 'HDFS', image: require('@/images/hdfs.png') },
-          { id: 'fs', name: this.$t('共享目录'), image: require('@/images/fs.png') },
-          { id: 'cos', name: 'COS', image: require('@/images/cos.png') },
-        ],
-        formData: {
+  };
+};
+
+const fsConfigForm = () => {
+  return {
+    location: '',
+  };
+};
+
+export default {
+  mixins: [SidebarDiffMixin],
+  props: {
+    showSlider: {
+      type: Boolean,
+      default: false,
+    },
+    editClusterId: {
+      type: Number,
+      default: null,
+    },
+  },
+  data() {
+    return {
+      confirmLoading: false,
+      sliderLoading: false,
+      esClusterSource: '',
+      esClusterList: [],
+      repository: [
+        { id: 'hdfs', name: 'HDFS', image: require('@/images/hdfs.png') },
+        {
+          id: 'fs',
+          name: this.$t('共享目录'),
+          image: require('@/images/fs.png'),
+        },
+        { id: 'cos', name: 'COS', image: require('@/images/cos.png') },
+      ],
+      formData: {
+        cluster_id: '',
+        snapshot_repository_name: '',
+        es_config: {
+          type: 'hdfs',
+        },
+        cosFormData: cosConfigForm(),
+        hdfsFormData: hdfsConfigForm(),
+        fsFormData: fsConfigForm(),
+      },
+      requiredRules: {
+        required: true,
+        trigger: 'blur',
+      },
+      basicRules: {},
+    };
+  },
+  computed: {
+    ...mapGetters({
+      bkBizId: 'bkBizId',
+    }),
+    authorityMap() {
+      return authorityMap;
+    },
+    isEdit() {
+      return this.editClusterId !== null;
+    },
+  },
+  watch: {
+    showSlider(val) {
+      if (val) {
+        this.getEsClusterList();
+        if (this.isEdit) {
+        } else {
+          //
+        }
+        this.initSidebarFormData();
+      } else {
+        // 清空表单数据
+        this.formData = {
           cluster_id: '',
           snapshot_repository_name: '',
           es_config: {
@@ -382,330 +418,293 @@
           cosFormData: cosConfigForm(),
           hdfsFormData: hdfsConfigForm(),
           fsFormData: fsConfigForm(),
-        },
-        requiredRules: {
-          required: true,
+        };
+      }
+    },
+  },
+  created() {
+    this.basicRules = {
+      cluster_id: [this.requiredRules],
+      snapshot_repository_name: [
+        {
+          regex: /^[A-Za-z0-9_]+$/,
           trigger: 'blur',
         },
-        basicRules: {},
-      };
+      ],
+      path: [this.requiredRules],
+      uri: [this.requiredRules],
+      principal: [
+        {
+          validator: () => {
+            const { isSecurity, security } = this.formData.hdfsFormData;
+            if (isSecurity && security.principal.trim() === '') {
+              return false;
+            }
+            return true;
+          },
+          trigger: 'blur',
+        },
+      ],
+      location: [this.requiredRules],
+      base_path: [this.requiredRules],
+      region: [this.requiredRules],
+      access_key_id: [this.requiredRules],
+      access_key_secret: [this.requiredRules],
+      app_id: [this.requiredRules],
+      bucket: [this.requiredRules],
+    };
+  },
+  methods: {
+    async getEsClusterList() {
+      const res = await this.$http.request('/source/getEsList', {
+        query: {
+          bk_biz_id: this.bkBizId,
+          enable_archive: 1,
+        },
+      });
+      if (res.data) {
+        this.esClusterList = res.data;
+        // this.esClusterList = res.data.filter(item => !item.cluster_config.is_default_cluster);
+      }
     },
-    computed: {
-      ...mapGetters({
-        bkBizId: 'bkBizId',
-      }),
-      authorityMap() {
-        return authorityMap;
-      },
-      isEdit() {
-        return this.editClusterId !== null;
-      },
+    handleChangeCluster(value) {
+      const curCluster = this.esClusterList.find(
+        (cluster) => cluster.cluster_config.cluster_id === value
+      );
+      this.esClusterSource = curCluster.source_name || '';
     },
-    watch: {
-      showSlider(val) {
-        if (val) {
-          this.getEsClusterList();
-          if (this.isEdit) {
-          } else {
-            //
-          }
-          this.initSidebarFormData();
-        } else {
-          // 清空表单数据
-          this.formData = {
-            cluster_id: '',
-            snapshot_repository_name: '',
-            es_config: {
-              type: 'hdfs',
-            },
-            cosFormData: cosConfigForm(),
-            hdfsFormData: hdfsConfigForm(),
-            fsFormData: fsConfigForm(),
+    updateIsShow() {
+      this.$emit('hidden');
+      this.$emit('update:show-slider', false);
+    },
+    handleCancel() {
+      this.$emit('update:show-slider', false);
+    },
+    changeRepository(card) {
+      if (this.formData.es_config.type !== card.id) {
+        this.$refs.validateForm.clearError();
+        this.formData.es_config.type = card.id;
+      }
+    },
+    async handleConfirm() {
+      try {
+        await this.$refs.validateForm.validate();
+        const url = '/archive/createRepository';
+        const {
+          cluster_id,
+          snapshot_repository_name: snapshotRepositoryName,
+          es_config: esConfig,
+          hdfsFormData,
+          fsFormData,
+          cosFormData,
+        } = this.formData;
+        const paramsData = {
+          cluster_id,
+          snapshot_repository_name: snapshotRepositoryName,
+          alias: snapshotRepositoryName,
+          es_config: {
+            type: esConfig.type,
+          },
+          bk_biz_id: this.bkBizId,
+        };
+        if (esConfig.type === 'hdfs') {
+          const { uri, path, isSecurity, security, compress } = hdfsFormData;
+          const principal = isSecurity ? security.principal : undefined;
+          paramsData.es_config.settings = {
+            uri,
+            path,
+            compress,
+            'security.principal': principal,
           };
         }
-      },
-    },
-    created() {
-      this.basicRules = {
-        cluster_id: [this.requiredRules],
-        snapshot_repository_name: [
-          {
-            regex: /^[A-Za-z0-9_]+$/,
-            trigger: 'blur',
-          },
-        ],
-        path: [this.requiredRules],
-        uri: [this.requiredRules],
-        principal: [
-          {
-            validator: () => {
-              const { isSecurity, security } = this.formData.hdfsFormData;
-              if (isSecurity && security.principal.trim() === '') {
-                return false;
-              }
-              return true;
-            },
-            trigger: 'blur',
-          },
-        ],
-        location: [this.requiredRules],
-        base_path: [this.requiredRules],
-        region: [this.requiredRules],
-        access_key_id: [this.requiredRules],
-        access_key_secret: [this.requiredRules],
-        app_id: [this.requiredRules],
-        bucket: [this.requiredRules],
-      };
-    },
-    methods: {
-      async getEsClusterList() {
-        const res = await this.$http.request('/source/getEsList', {
-          query: {
-            bk_biz_id: this.bkBizId,
-            enable_archive: 1,
-          },
-        });
-        if (res.data) {
-          this.esClusterList = res.data;
-          // this.esClusterList = res.data.filter(item => !item.cluster_config.is_default_cluster);
+        if (esConfig.type === 'fs') {
+          paramsData.es_config.settings = { ...fsFormData };
         }
-      },
-      handleChangeCluster(value) {
-        const curCluster = this.esClusterList.find(cluster => cluster.cluster_config.cluster_id === value);
-        this.esClusterSource = curCluster.source_name || '';
-      },
-      updateIsShow() {
-        this.$emit('hidden');
-        this.$emit('update:show-slider', false);
-      },
-      handleCancel() {
-        this.$emit('update:show-slider', false);
-      },
-      changeRepository(card) {
-        if (this.formData.es_config.type !== card.id) {
-          this.$refs.validateForm.clearError();
-          this.formData.es_config.type = card.id;
+        if (esConfig.type === 'cos') {
+          paramsData.es_config.settings = { ...cosFormData };
         }
-      },
-      async handleConfirm() {
-        try {
-          await this.$refs.validateForm.validate();
-          const url = '/archive/createRepository';
-          const {
-            cluster_id,
-            snapshot_repository_name: snapshotRepositoryName,
-            es_config: esConfig,
-            hdfsFormData,
-            fsFormData,
-            cosFormData,
-          } = this.formData;
-          const paramsData = {
-            cluster_id,
-            snapshot_repository_name: snapshotRepositoryName,
-            alias: snapshotRepositoryName,
-            es_config: {
-              type: esConfig.type,
-            },
-            bk_biz_id: this.bkBizId,
-          };
-          if (esConfig.type === 'hdfs') {
-            const { uri, path, isSecurity, security, compress } = hdfsFormData;
-            const principal = isSecurity ? security.principal : undefined;
-            paramsData.es_config.settings = {
-              uri,
-              path,
-              compress,
-              'security.principal': principal,
-            };
-          }
-          if (esConfig.type === 'fs') {
-            paramsData.es_config.settings = { ...fsFormData };
-          }
-          if (esConfig.type === 'cos') {
-            paramsData.es_config.settings = { ...cosFormData };
-          }
 
-          this.confirmLoading = true;
-          await this.$http.request(url, {
-            data: paramsData,
-          });
-          this.$bkMessage({
-            theme: 'success',
-            message: this.$t('保存成功'),
-            delay: 1500,
-          });
-          this.$emit('updated');
-        } catch (e) {
-          console.warn(e);
-        } finally {
-          this.confirmLoading = false;
-        }
-      },
-      // es集群管理权限申请
-      async applyProjectAccess(option) {
-        this.$el.click(); // 手动关闭下拉
-        try {
-          this.$bkLoading();
-          const res = await this.$store.dispatch('getApplyData', {
-            action_ids: [authorityMap.MANAGE_ES_SOURCE_AUTH],
-            resources: [
-              {
-                type: 'es_source',
-                id: option.cluster_config.cluster_id,
-              },
-            ],
-          });
-          window.open(res.data.apply_url);
-        } catch (err) {
-          console.warn(err);
-        } finally {
-          this.$bkLoading.hide();
-        }
-      },
+        this.confirmLoading = true;
+        await this.$http.request(url, {
+          data: paramsData,
+        });
+        this.$bkMessage({
+          theme: 'success',
+          message: this.$t('保存成功'),
+          delay: 1500,
+        });
+        this.$emit('updated');
+      } catch (e) {
+        console.warn(e);
+      } finally {
+        this.confirmLoading = false;
+      }
     },
-  };
+    // es集群管理权限申请
+    async applyProjectAccess(option) {
+      this.$el.click(); // 手动关闭下拉
+      try {
+        this.$bkLoading();
+        const res = await this.$store.dispatch('getApplyData', {
+          action_ids: [authorityMap.MANAGE_ES_SOURCE_AUTH],
+          resources: [
+            {
+              type: 'es_source',
+              id: option.cluster_config.cluster_id,
+            },
+          ],
+        });
+        window.open(res.data.apply_url);
+      } catch (err) {
+        console.warn(err);
+      } finally {
+        this.$bkLoading.hide();
+      }
+    },
+  },
+};
 </script>
 
 <style lang="scss">
-  .repository-slider-content {
-    min-height: 394px;
+.repository-slider-content {
+  min-height: 394px;
 
-    .bk-form.bk-form-vertical {
-      padding: 0 0 26px 36px;
+  .bk-form.bk-form-vertical {
+    padding: 0 0 26px 36px;
+
+    .bk-form-content {
+      width: 500px;
+    }
+
+    .bk-form-item {
+      padding-left: 34px;
+      margin-top: 12px;
+    }
+
+    .bk-alert {
+      width: 500px;
+      margin: 10px 0 12px 34px;
+    }
+
+    .bk-select,
+    .bk-date-picker {
+      width: 300px;
+    }
+
+    .es-cluster-item {
+      display: flex;
+      margin-top: 16px;
+
+      .bk-label {
+        /* stylelint-disable-next-line declaration-no-important */
+        width: auto !important;
+      }
 
       .bk-form-content {
-        width: 500px;
-      }
-
-      .bk-form-item {
-        padding-left: 34px;
-        margin-top: 12px;
-      }
-
-      .bk-alert {
-        width: 500px;
-        margin: 10px 0 12px 34px;
-      }
-
-      .bk-select,
-      .bk-date-picker {
-        width: 300px;
-      }
-
-      .es-cluster-item {
         display: flex;
-        margin-top: 16px;
-
-        .bk-label {
-          /* stylelint-disable-next-line declaration-no-important */
-          width: auto !important;
-        }
-
-        .bk-form-content {
-          display: flex;
-        }
-
-        .bk-select {
-          width: 240px;
-        }
-
-        .es-source {
-          margin-left: 10px;
-          font-size: 14px;
-          color: #63656e;
-        }
       }
 
-      .repository-item {
-        display: inline-block;
+      .bk-select {
+        width: 240px;
       }
 
-      .repository-card {
-        position: relative;
-        float: left;
-        width: 158px;
-        height: 76px;
-        padding: 12px;
-        margin-right: 12px;
+      .es-source {
+        margin-left: 10px;
         font-size: 14px;
         color: #63656e;
-        cursor: pointer;
-        background: #f5f7fa;
-        border: 1px solid #f5f7fa;
-        border-radius: 2px;
-
-        &:last-child {
-          margin-right: 0;
-        }
-
-        &.is-active {
-          color: #3a84ff;
-          background: #e1ecff;
-          border: 1px solid #a3c5fd;
-        }
-      }
-
-      .card-image {
-        position: absolute;
-        right: 20px;
-        bottom: 10px;
       }
     }
 
-    .form-title {
-      padding: 0 0 8px 10px;
-      margin: 24px 40px 0 0;
+    .repository-item {
+      display: inline-block;
+    }
+
+    .repository-card {
+      position: relative;
+      float: left;
+      width: 158px;
+      height: 76px;
+      padding: 12px;
+      margin-right: 12px;
       font-size: 14px;
-      font-weight: 600;
-      line-height: 20px;
       color: #63656e;
-      border-bottom: 1px solid #dcdee5;
-    }
+      cursor: pointer;
+      background: #f5f7fa;
+      border: 1px solid #f5f7fa;
+      border-radius: 2px;
 
-    .repository-alert {
-      padding-right: 10px;
-    }
-
-    .principal-item {
-      display: flex;
-      align-items: center;
-
-      .bk-switcher {
-        margin-right: 16px;
+      &:last-child {
+        margin-right: 0;
       }
 
-      .bk-form-control {
-        flex: 1;
-      }
-    }
-  }
-
-  .option-slot-container {
-    min-height: 32px;
-    padding: 8px 0;
-    line-height: 14px;
-
-    &.no-authority {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      color: #c4c6cc;
-      cursor: not-allowed;
-
-      .text {
-        width: calc(100% - 56px);
-      }
-
-      .apply-text {
-        display: none;
-        flex-shrink: 0;
+      &.is-active {
         color: #3a84ff;
-        cursor: pointer;
-      }
-
-      &:hover .apply-text {
-        display: flex;
+        background: #e1ecff;
+        border: 1px solid #a3c5fd;
       }
     }
+
+    .card-image {
+      position: absolute;
+      right: 20px;
+      bottom: 10px;
+    }
   }
+
+  .form-title {
+    padding: 0 0 8px 10px;
+    margin: 24px 40px 0 0;
+    font-size: 14px;
+    font-weight: 600;
+    line-height: 20px;
+    color: #63656e;
+    border-bottom: 1px solid #dcdee5;
+  }
+
+  .repository-alert {
+    padding-right: 10px;
+  }
+
+  .principal-item {
+    display: flex;
+    align-items: center;
+
+    .bk-switcher {
+      margin-right: 16px;
+    }
+
+    .bk-form-control {
+      flex: 1;
+    }
+  }
+}
+
+.option-slot-container {
+  min-height: 32px;
+  padding: 8px 0;
+  line-height: 14px;
+
+  &.no-authority {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    color: #c4c6cc;
+    cursor: not-allowed;
+
+    .text {
+      width: calc(100% - 56px);
+    }
+
+    .apply-text {
+      display: none;
+      flex-shrink: 0;
+      color: #3a84ff;
+      cursor: pointer;
+    }
+
+    &:hover .apply-text {
+      display: flex;
+    }
+  }
+}
 </style>

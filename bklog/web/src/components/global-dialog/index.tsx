@@ -24,10 +24,9 @@
  * IN THE SOFTWARE.
  */
 
+import { Dialog } from 'bk-magic-vue';
 import { Component, Model, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-
-import { Dialog } from 'bk-magic-vue';
 
 import './index.scss';
 
@@ -38,40 +37,40 @@ interface IProps {
 
 @Component
 export default class MaskingDialog extends tsc<IProps> {
-  @Model('change', { type: Boolean, default: false }) value: IProps['value'];
-  @Prop({ required: true, default: '' }) title: IProps['title'];
+  @Model('change', { default: false, type: Boolean }) value: IProps['value'];
+  @Prop({ default: '', required: true }) title: IProps['title'];
 
   render() {
     return (
       <Dialog
-        style='z-index: 1000;'
-        width='100%'
-        ext-cls='global-dialog'
-        position={{
-          top: 50,
-          left: 0,
-        }}
         close-icon={false}
         draggable={false}
-        render-directive='if'
+        ext-cls="global-dialog"
+        position={{
+          left: 0,
+          top: 50,
+        }}
+        render-directive="if"
+        scrollable
         show-footer={false}
         show-mask={false}
+        style="z-index: 1000;"
         value={this.value}
-        scrollable
+        width="100%"
       >
-        <div class='global-container'>
-          <div class='global-title'>
+        <div class="global-container">
+          <div class="global-title">
             <div></div>
             <span>{this.title}</span>
             <div
-              class='bk-icon icon-close'
+              class="bk-icon icon-close"
               onClick={() => {
                 this.$emit('change', false);
               }}
             ></div>
           </div>
-          <div class='center-box'>
-            <div class='content-panel'>{this.$slots.default}</div>
+          <div class="center-box">
+            <div class="content-panel">{this.$slots.default}</div>
           </div>
         </div>
       </Dialog>

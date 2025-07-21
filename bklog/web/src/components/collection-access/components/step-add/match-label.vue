@@ -37,14 +37,8 @@
         <span>{{ isLabel ? $t('添加标签') : $t('添加表达式') }}</span>
       </div>
     </div>
-    <div
-      class="add-filling flex-ac"
-      v-show="isShowAdd"
-    >
-      <div
-        v-if="isLabel"
-        class="customize-box"
-      >
+    <div class="add-filling flex-ac" v-show="isShowAdd">
+      <div v-if="isLabel" class="customize-box">
         <bk-input
           v-model.trim="matchKey"
           :class="`label-input ${isKeyError && 'input-error'}`"
@@ -55,10 +49,7 @@
           :class="`label-input ${isValueError && 'input-error'}`"
         ></bk-input>
       </div>
-      <div
-        v-else
-        class="customize-box"
-      >
+      <div v-else class="customize-box">
         <bk-select
           v-model.trim="matchKey"
           :class="`fill-first ${isKeyError && 'select-error'}`"
@@ -92,20 +83,14 @@
         ></bk-input>
       </div>
       <div class="add-operate flex-ac">
-        <span
-          class="bk-icon icon-check-line"
-          @click="handleAddMatch"
-        ></span>
+        <span class="bk-icon icon-check-line" @click="handleAddMatch"></span>
         <span
           class="bk-icon icon-close-line-2"
           @click="handleCancelMatch"
         ></span>
       </div>
     </div>
-    <div
-      :style="`height: ${isShowAdd ? 170 : 202}px`"
-      class="list-container"
-    >
+    <div :style="`height: ${isShowAdd ? 170 : 202}px`" class="list-container">
       <template v-if="matchList.length">
         <bk-checkbox-group v-model="matchSelectList">
           <bk-checkbox
@@ -126,12 +111,17 @@
               </div>
               <div class="justify-sb">
                 <span
-                  v-bk-tooltips.light.click="{ allowHtml: true, content: '#content-copy-html' }"
+                  v-bk-tooltips.light.click="{
+                    allowHtml: true,
+                    content: '#content-copy-html',
+                  }"
                   @click.stop
                 >
                   {{ item.key }}
                 </span>
-                <span class="match-left">{{ getOperateShow(item.operator) }}</span>
+                <span class="match-left">{{
+                  getOperateShow(item.operator)
+                }}</span>
               </div>
               <div class="justify-sb">
                 <span v-bk-overflow-tips>{{ item.value }}</span>
@@ -141,25 +131,17 @@
                     v-show="activeItemID === item.id"
                     @click.stop="handleDeleteMatch(item.id)"
                   ></span>
-                  <span
-                    class="match-right"
-                    v-show="activeItemID !== item.id"
-                    >{{ $t('自定义') }}</span
-                  >
+                  <span class="match-right" v-show="activeItemID !== item.id">{{
+                    $t('自定义')
+                  }}</span>
                 </span>
               </div>
             </div>
           </bk-checkbox>
         </bk-checkbox-group>
       </template>
-      <div
-        v-else
-        class="match-empty"
-      >
-        <empty-status
-          :show-text="false"
-          empty-type="empty"
-        >
+      <div v-else class="match-empty">
+        <empty-status :show-text="false" empty-type="empty">
           <p>{{ !isLabel ? $t('请添加表达式') : $t('请添加标签') }}</p>
         </empty-status>
       </div>
@@ -167,310 +149,338 @@
   </div>
 </template>
 <script>
-  import { copyMessage, random } from '@/common/util';
-  import EmptyStatus from '@/components/empty-status';
+import { copyMessage, random } from '@/common/util';
+import EmptyStatus from '@/components/empty-status';
 
-  export default {
-    components: {
-      EmptyStatus,
+export default {
+  components: {
+    EmptyStatus,
+  },
+  props: {
+    matchLabelOption: {
+      type: Array,
+      default: () => [],
     },
-    props: {
-      matchLabelOption: {
-        type: Array,
-        default: () => [],
-      },
-      matchType: {
-        type: String,
-        require: true,
-      },
-      matchObj: {
-        type: Object,
-        default: () => ({}),
-      },
-      allMatchList: {
-        type: Array,
-        default: () => [],
-      },
-      matchSelector: {
-        type: Array,
-        require: true,
-      },
+    matchType: {
+      type: String,
+      require: true,
     },
-    data() {
-      return {
-        matchList: [], // 标签总选择列表
-        isShowAdd: false, // 是否展示添加操作
-        matchSelectList: [], // 组件的标签用户选择ID列表
-        matchCacheList: [], // 存储的用户选择或自定义的标签值列表
-        matchKey: '', // 自定义匹配键名
-        matchValue: '', // 自定义匹配值
-        matchOperator: 'In', // 自定义匹配操作
-        activeItemID: -1, // 当前鼠标hover的列表元素ID
-        expressOperatorList: [
-          {
-            // 表达式操作选项
-            id: 'In',
-            name: 'In',
-          },
-          {
-            id: 'NotIn',
-            name: 'NotIn',
-          },
-          {
-            id: 'Exists',
-            name: 'Exists',
-          },
-          {
-            id: 'DoesNotExist',
-            name: 'DoesNotExist',
-          },
-        ],
-        isKeyError: false,
-        isValueError: false,
-        matchExpressOption: [],
-      };
+    matchObj: {
+      type: Object,
+      default: () => ({}),
     },
-    computed: {
-      isLabel() {
-        return this.matchType === 'label';
-      },
-      expressInputIsDisabled() {
-        return ['Exists', 'DoesNotExist'].includes(this.matchOperator);
-      },
+    allMatchList: {
+      type: Array,
+      default: () => [],
     },
-    watch: {
-      'matchObj.treeList': {
-        handler(val) {
-          this.handleSelectTreeItem(val);
+    matchSelector: {
+      type: Array,
+      require: true,
+    },
+  },
+  data() {
+    return {
+      matchList: [], // 标签总选择列表
+      isShowAdd: false, // 是否展示添加操作
+      matchSelectList: [], // 组件的标签用户选择ID列表
+      matchCacheList: [], // 存储的用户选择或自定义的标签值列表
+      matchKey: '', // 自定义匹配键名
+      matchValue: '', // 自定义匹配值
+      matchOperator: 'In', // 自定义匹配操作
+      activeItemID: -1, // 当前鼠标hover的列表元素ID
+      expressOperatorList: [
+        {
+          // 表达式操作选项
+          id: 'In',
+          name: 'In',
         },
-      },
-      matchKey() {
-        return (this.isKeyError = false);
-      },
-      matchValue() {
-        return (this.isValueError = false);
-      },
-      matchList: {
-        // 获取label的key数组为表达式下拉框选项赋值
-        deep: true,
-        handler(val) {
-          if (this.isLabel) {
-            const setList = new Set();
-            const filterList = val.filter(item => !setList.has(item.key) && setList.add(item.key));
-            this.$emit('update:all-match-list', filterList);
-          }
+        {
+          id: 'NotIn',
+          name: 'NotIn',
         },
-      },
-      matchLabelOption: {
-        deep: true,
-        handler(val) {
-          if (!this.isLabel) {
-            const setList = new Set();
-            const allMatchVal = this.matchList.concat(val);
-            this.matchExpressOption = allMatchVal.filter(item => !setList.has(item.key) && setList.add(item.key));
-          }
+        {
+          id: 'Exists',
+          name: 'Exists',
         },
-      },
-      matchSelectList(val) {
-        const selectList = [];
-        this.matchList.forEach(item => {
-          if (val.includes(item.id)) {
-            selectList.push({ key: item.key, value: item.value, operator: item.operator });
-          }
-        });
-        this.$emit('update:matchObj', Object.assign(this.matchObj, { selectList }));
+        {
+          id: 'DoesNotExist',
+          name: 'DoesNotExist',
+        },
+      ],
+      isKeyError: false,
+      isValueError: false,
+      matchExpressOption: [],
+    };
+  },
+  computed: {
+    isLabel() {
+      return this.matchType === 'label';
+    },
+    expressInputIsDisabled() {
+      return ['Exists', 'DoesNotExist'].includes(this.matchOperator);
+    },
+  },
+  watch: {
+    'matchObj.treeList': {
+      handler(val) {
+        this.handleSelectTreeItem(val);
       },
     },
-    created() {
-      this.initMatch();
+    matchKey() {
+      return (this.isKeyError = false);
     },
-    methods: {
-      handleDeleteMatch(id) {
-        // 删除自定义时  应该把列表，缓存列表，选择ID列表都删除对应元素
-        this.spliceListElement(this.matchList, item => item.id === id);
-        this.spliceListElement(this.matchCacheList, item => item.id === id);
-        this.spliceListElement(this.matchSelectList, item => item === id);
-      },
-      /**
-       * @desc: 删除操作删除对应的元素值
-       * @param { Array } list 操作的列表
-       * @param { Function } callback 找到下标的回调函数
-       */
-      spliceListElement(list, callback) {
-        const index = list.findIndex(callback);
-        if (index >= 0) list.splice(index, 1);
-      },
-      /**
-       * @desc: 切换不同的树的值时过滤展示标签和表达式
-       * @param treeList 树的值列表
-       */
-      handleSelectTreeItem(treeList) {
-        const treeIdList = treeList.map(item => ({ ...item, id: random(10) })) || [];
-        // 当前列表为空时 直接赋值树列表
-        if (!this.matchList.length) {
-          this.matchList = treeIdList;
-        } else {
-          const notCustomSelectList = []; // 非自定义选择的列表
-          const customSelectList = []; // 选择的自定义列表
-          const customList = []; // 没选择的自定义列表
-          // 按照选择的标签  选择的自定义标签  未选择的自定义标签顺序排序
-          this.matchList.forEach(item => {
-            const isSelect = this.matchSelectList.includes(item.id);
-            if (!item.customize && isSelect) {
-              notCustomSelectList.push(item);
-            } else if (item.customize && isSelect) {
-              customSelectList.push(item);
-            } else if (item.customize && !isSelect) {
-              customList.push(item);
-            }
-          });
-          this.matchCacheList = notCustomSelectList.concat(customSelectList, customList);
-          // 切换不同的列表时与当前自定义，选择的列表进行去重
-          const filterList = this.comparedListItem(treeIdList, this.matchCacheList);
-          this.matchList = this.matchCacheList.concat(filterList);
-        }
-      },
-      handleAddMatch() {
-        if (!this.expressInputIsDisabled) {
-          // key value 不能为空
-          if (!this.matchKey || !this.matchValue) {
-            !this.matchKey && (this.isKeyError = true);
-            !this.matchValue && (this.isValueError = true);
-            return;
-          }
-        } else {
-          // 输入框禁止的时候 value可以为空
-          if (!this.matchKey) {
-            !this.matchKey && (this.isKeyError = true);
-            return;
-          }
-        }
-        // 是否有重复
-        const isRepeat = this.matchList.some(item => {
-          return (
-            this.matchKey === item.key &&
-            this.matchValue === item.value &&
-            (this.isLabel ? true : this.matchOperator === item.operator)
+    matchValue() {
+      return (this.isValueError = false);
+    },
+    matchList: {
+      // 获取label的key数组为表达式下拉框选项赋值
+      deep: true,
+      handler(val) {
+        if (this.isLabel) {
+          const setList = new Set();
+          const filterList = val.filter(
+            (item) => !setList.has(item.key) && setList.add(item.key)
           );
-        });
-        if (!isRepeat) {
-          this.matchList.unshift({
-            key: this.matchKey,
-            // 输入框禁止 value为空字符串
-            value: this.expressInputIsDisabled ? '' : this.matchValue,
-            // 匹配标签 操作则永远是等号
-            operator: this.isLabel ? '=' : this.matchOperator,
-            customize: true,
-            id: random(10),
-          });
+          this.$emit('update:all-match-list', filterList);
         }
-        this.handleCancelMatch();
-      },
-      handleCancelMatch() {
-        this.matchKey = '';
-        this.matchValue = '';
-        this.isKeyError = false;
-        this.isValueError = false;
-        this.isShowAdd = false;
-        this.matchOperator = 'In';
-      },
-      /**
-       * @desc: 判断两个list键 值 操作是否都相同
-       * @param firstList 树的值列表
-       * @param secondList 选中或自定义列表
-       * @returns 返回有一种或多种不同的数组
-       */
-      comparedListItem(firstList = [], secondList = []) {
-        return firstList.filter(fItem => {
-          return !secondList.find(sItem => {
-            const { key: fKey, value: fValue, operator: fOperator } = fItem;
-            const { key: sKey, value: sValue, operator: sOperator } = sItem;
-            return fKey === sKey && fValue === sValue && fOperator === sOperator;
-          });
-        });
-      },
-      getOperateShow(operate) {
-        return this.expressOperatorList.find(item => item.id === operate)?.name || '=';
-      },
-      copyContent(text) {
-        copyMessage(text);
-      },
-      initMatch() {
-        let initMatchList;
-        if (this.matchType === 'express') {
-          // 表达式的所有值都赋值为自定义
-          initMatchList = this.matchSelector.map(item => ({ ...item, id: random(10), customize: true }));
-        } else {
-          initMatchList = this.matchSelector.map(item => ({ ...item, id: random(10) }));
-        }
-        this.matchList.push(...initMatchList);
-        this.matchSelectList.push(...initMatchList.map(item => item.id));
       },
     },
-  };
+    matchLabelOption: {
+      deep: true,
+      handler(val) {
+        if (!this.isLabel) {
+          const setList = new Set();
+          const allMatchVal = this.matchList.concat(val);
+          this.matchExpressOption = allMatchVal.filter(
+            (item) => !setList.has(item.key) && setList.add(item.key)
+          );
+        }
+      },
+    },
+    matchSelectList(val) {
+      const selectList = [];
+      this.matchList.forEach((item) => {
+        if (val.includes(item.id)) {
+          selectList.push({
+            key: item.key,
+            value: item.value,
+            operator: item.operator,
+          });
+        }
+      });
+      this.$emit(
+        'update:matchObj',
+        Object.assign(this.matchObj, { selectList })
+      );
+    },
+  },
+  created() {
+    this.initMatch();
+  },
+  methods: {
+    handleDeleteMatch(id) {
+      // 删除自定义时  应该把列表，缓存列表，选择ID列表都删除对应元素
+      this.spliceListElement(this.matchList, (item) => item.id === id);
+      this.spliceListElement(this.matchCacheList, (item) => item.id === id);
+      this.spliceListElement(this.matchSelectList, (item) => item === id);
+    },
+    /**
+     * @desc: 删除操作删除对应的元素值
+     * @param { Array } list 操作的列表
+     * @param { Function } callback 找到下标的回调函数
+     */
+    spliceListElement(list, callback) {
+      const index = list.findIndex(callback);
+      if (index >= 0) list.splice(index, 1);
+    },
+    /**
+     * @desc: 切换不同的树的值时过滤展示标签和表达式
+     * @param treeList 树的值列表
+     */
+    handleSelectTreeItem(treeList) {
+      const treeIdList =
+        treeList.map((item) => ({ ...item, id: random(10) })) || [];
+      // 当前列表为空时 直接赋值树列表
+      if (!this.matchList.length) {
+        this.matchList = treeIdList;
+      } else {
+        const notCustomSelectList = []; // 非自定义选择的列表
+        const customSelectList = []; // 选择的自定义列表
+        const customList = []; // 没选择的自定义列表
+        // 按照选择的标签  选择的自定义标签  未选择的自定义标签顺序排序
+        this.matchList.forEach((item) => {
+          const isSelect = this.matchSelectList.includes(item.id);
+          if (!item.customize && isSelect) {
+            notCustomSelectList.push(item);
+          } else if (item.customize && isSelect) {
+            customSelectList.push(item);
+          } else if (item.customize && !isSelect) {
+            customList.push(item);
+          }
+        });
+        this.matchCacheList = notCustomSelectList.concat(
+          customSelectList,
+          customList
+        );
+        // 切换不同的列表时与当前自定义，选择的列表进行去重
+        const filterList = this.comparedListItem(
+          treeIdList,
+          this.matchCacheList
+        );
+        this.matchList = this.matchCacheList.concat(filterList);
+      }
+    },
+    handleAddMatch() {
+      if (!this.expressInputIsDisabled) {
+        // key value 不能为空
+        if (!this.matchKey || !this.matchValue) {
+          !this.matchKey && (this.isKeyError = true);
+          !this.matchValue && (this.isValueError = true);
+          return;
+        }
+      } else {
+        // 输入框禁止的时候 value可以为空
+        if (!this.matchKey) {
+          !this.matchKey && (this.isKeyError = true);
+          return;
+        }
+      }
+      // 是否有重复
+      const isRepeat = this.matchList.some((item) => {
+        return (
+          this.matchKey === item.key &&
+          this.matchValue === item.value &&
+          (this.isLabel ? true : this.matchOperator === item.operator)
+        );
+      });
+      if (!isRepeat) {
+        this.matchList.unshift({
+          key: this.matchKey,
+          // 输入框禁止 value为空字符串
+          value: this.expressInputIsDisabled ? '' : this.matchValue,
+          // 匹配标签 操作则永远是等号
+          operator: this.isLabel ? '=' : this.matchOperator,
+          customize: true,
+          id: random(10),
+        });
+      }
+      this.handleCancelMatch();
+    },
+    handleCancelMatch() {
+      this.matchKey = '';
+      this.matchValue = '';
+      this.isKeyError = false;
+      this.isValueError = false;
+      this.isShowAdd = false;
+      this.matchOperator = 'In';
+    },
+    /**
+     * @desc: 判断两个list键 值 操作是否都相同
+     * @param firstList 树的值列表
+     * @param secondList 选中或自定义列表
+     * @returns 返回有一种或多种不同的数组
+     */
+    comparedListItem(firstList = [], secondList = []) {
+      return firstList.filter((fItem) => {
+        return !secondList.find((sItem) => {
+          const { key: fKey, value: fValue, operator: fOperator } = fItem;
+          const { key: sKey, value: sValue, operator: sOperator } = sItem;
+          return fKey === sKey && fValue === sValue && fOperator === sOperator;
+        });
+      });
+    },
+    getOperateShow(operate) {
+      return (
+        this.expressOperatorList.find((item) => item.id === operate)?.name ||
+        '='
+      );
+    },
+    copyContent(text) {
+      copyMessage(text);
+    },
+    initMatch() {
+      let initMatchList;
+      if (this.matchType === 'express') {
+        // 表达式的所有值都赋值为自定义
+        initMatchList = this.matchSelector.map((item) => ({
+          ...item,
+          id: random(10),
+          customize: true,
+        }));
+      } else {
+        initMatchList = this.matchSelector.map((item) => ({
+          ...item,
+          id: random(10),
+        }));
+      }
+      this.matchList.push(...initMatchList);
+      this.matchSelectList.push(...initMatchList.map((item) => item.id));
+    },
+  },
+};
 </script>
 <style lang="scss" scoped>
-  @import '@/scss/mixins/flex.scss';
+@import '@/scss/mixins/flex.scss';
 
-  .customize-box {
-    display: flex;
-    align-items: center;
-    width: 100%;
+.customize-box {
+  display: flex;
+  align-items: center;
+  width: 100%;
 
-    > span {
-      padding: 0 8px;
-      color: #ff9c01;
-    }
+  > span {
+    padding: 0 8px;
+    color: #ff9c01;
   }
+}
 
-  .list-container {
-    overflow-y: auto;
+.list-container {
+  overflow-y: auto;
+}
+
+.match-empty {
+  flex-direction: column;
+  min-height: 202px;
+
+  @include flex-center();
+
+  .icon-empty {
+    font-size: 50px;
+    color: #c3cdd7;
   }
+}
 
-  .match-empty {
-    flex-direction: column;
-    min-height: 202px;
+#content-copy-html {
+  display: flex;
+  align-items: center;
+  height: 20px;
+  font-size: 20px;
+  cursor: pointer;
 
-    @include flex-center();
-
-    .icon-empty {
-      font-size: 50px;
-      color: #c3cdd7;
-    }
+  .icon-copy {
+    display: inline-block;
   }
+}
 
-  #content-copy-html {
-    display: flex;
-    align-items: center;
-    height: 20px;
-    font-size: 20px;
-    cursor: pointer;
+.flex-ac {
+  @include flex-align();
+}
 
-    .icon-copy {
-      display: inline-block;
-    }
+.justify-sb {
+  @include flex-justify(space-between);
+
+  > span:first-child {
+    padding-right: 4px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
+}
 
-  .flex-ac {
-    @include flex-align();
-  }
+.select-error {
+  border-color: #ff5656;
+}
 
-  .justify-sb {
-    @include flex-justify(space-between);
-
-    > span:first-child {
-      padding-right: 4px;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
-  }
-
-  .select-error {
-    border-color: #ff5656;
-  }
-
-  :deep(.input-error .bk-form-input) {
-    border-color: #ff5656;
-  }
+:deep(.input-error .bk-form-input) {
+  border-color: #ff5656;
+}
 </style>

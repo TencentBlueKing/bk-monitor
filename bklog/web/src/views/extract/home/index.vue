@@ -116,8 +116,12 @@
           <div
             :class="{
               'task-status-warning': true,
-              'task-status-success': row.download_status === 'downloadable' || row.download_status === 'redownloadable',
-              'task-status-error': row.download_status === 'expired' || row.download_status === 'failed',
+              'task-status-success':
+                row.download_status === 'downloadable' ||
+                row.download_status === 'redownloadable',
+              'task-status-error':
+                row.download_status === 'expired' ||
+                row.download_status === 'failed',
             }"
           >
             <span
@@ -143,11 +147,9 @@
       >
         <template #default="{ row }">
           <div class="task-operation-container">
-            <span
-              class="task-operation"
-              @click="viewDetail(row)"
-              >{{ $t('详情') }}</span
-            >
+            <span class="task-operation" @click="viewDetail(row)">{{
+              $t('详情')
+            }}</span>
             <span
               v-bk-tooltips.top="{
                 content: row.message,
@@ -179,10 +181,7 @@
       </bk-table-column>
       <template #empty>
         <div>
-          <empty-status
-            :empty-type="emptyType"
-            @operation="handleOperation"
-          />
+          <empty-status :empty-type="emptyType" @operation="handleOperation" />
         </div>
       </template>
     </bk-table>
@@ -237,434 +236,444 @@
 </template>
 
 <script>
-  import EmptyStatus from '@/components/empty-status';
+import EmptyStatus from '@/components/empty-status';
 
-  import DownloadUrl from './download-url';
-  import ListBox from './list-box';
-  import TaskStatusDetail from './task-status-detail';
-  import TextFilterDetail from './text-filter-detail';
+import DownloadUrl from './download-url';
+import ListBox from './list-box';
+import TaskStatusDetail from './task-status-detail';
+import TextFilterDetail from './text-filter-detail';
 
-  export default {
-    name: 'ExtractHome',
-    components: {
-      ListBox,
-      DownloadUrl,
-      TaskStatusDetail,
-      TextFilterDetail,
-      EmptyStatus,
-    },
-    data() {
-      return {
-        searchKeyword: '',
+export default {
+  name: 'ExtractHome',
+  components: {
+    ListBox,
+    DownloadUrl,
+    TaskStatusDetail,
+    TextFilterDetail,
+    EmptyStatus,
+  },
+  data() {
+    return {
+      searchKeyword: '',
+      isLoading: false,
+      // 列表数据
+      taskList: [],
+      pagination: {
+        count: 0,
+        current: 1,
+        limit: 10,
+      },
+      // 轮询时间(s)
+      timeout: 10,
+      timeoutID: null,
+      // 侧边栏
+      sideSlider: {
         isLoading: false,
-        // 列表数据
-        taskList: [],
-        pagination: {
-          count: 0,
-          current: 1,
-          limit: 10,
-        },
-        // 轮询时间(s)
-        timeout: 10,
-        timeoutID: null,
-        // 侧边栏
-        sideSlider: {
-          isLoading: false,
-          isShow: false,
-          data: {},
-        },
-        // 不需要转圈的状态
-        notLoadingStatus: ['downloadable', 'redownloadable', 'expired', 'failed'],
-        // 不需要轮询的状态
-        doneStatus: ['redownloadable', 'expired', 'failed'],
-        emptyType: 'empty',
-        displayNameList: [],
-      };
-    },
-    computed: {
-      pollingList() {
-        // 需要轮询状态的下载项
-        return this.taskList.filter(item => !this.doneStatus.includes(item.download_status));
+        isShow: false,
+        data: {},
       },
+      // 不需要转圈的状态
+      notLoadingStatus: ['downloadable', 'redownloadable', 'expired', 'failed'],
+      // 不需要轮询的状态
+      doneStatus: ['redownloadable', 'expired', 'failed'],
+      emptyType: 'empty',
+      displayNameList: [],
+    };
+  },
+  computed: {
+    pollingList() {
+      // 需要轮询状态的下载项
+      return this.taskList.filter(
+        (item) => !this.doneStatus.includes(item.download_status)
+      );
     },
-    created() {
-      this.initTaskList();
-    },
-    mounted() {
-      document.addEventListener('visibilitychange', this.handleVisibilityChange);
-    },
-    beforeUnmount() {
-      clearTimeout(this.timeoutID);
-      document.removeEventListener('visibilitychange', this.handleVisibilityChange);
-    },
-    methods: {
-      async initTaskList() {
-        try {
-          clearTimeout(this.timeoutID);
-          this.isLoading = true;
-          this.emptyType = this.searchKeyword ? 'search-empty' : 'empty';
-          const payload = {
-            query: {
-              bk_biz_id: this.$store.state.bkBizId,
-              page: this.pagination.current,
-              pagesize: this.pagination.limit,
-            },
-          };
-          if (this.searchKeyword) {
-            payload.query.keyword = this.searchKeyword;
-          }
-          const res = await this.$http.request('extract/getTaskList', payload);
-          this.pagination.count = res.data.total;
-          // 获取请求displayName的 ipList参数列表
-          const allIpList = res.data.list.reduce((pre, cur) => {
-            if (!cur.enable_clone) return pre;
-            pre.push(
-              ...cur.ip_list.map(item => {
-                if (item?.bk_host_id) {
-                  return {
-                    host_id: item.bk_host_id,
-                  };
-                }
+  },
+  created() {
+    this.initTaskList();
+  },
+  mounted() {
+    document.addEventListener('visibilitychange', this.handleVisibilityChange);
+  },
+  beforeUnmount() {
+    clearTimeout(this.timeoutID);
+    document.removeEventListener(
+      'visibilitychange',
+      this.handleVisibilityChange
+    );
+  },
+  methods: {
+    async initTaskList() {
+      try {
+        clearTimeout(this.timeoutID);
+        this.isLoading = true;
+        this.emptyType = this.searchKeyword ? 'search-empty' : 'empty';
+        const payload = {
+          query: {
+            bk_biz_id: this.$store.state.bkBizId,
+            page: this.pagination.current,
+            pagesize: this.pagination.limit,
+          },
+        };
+        if (this.searchKeyword) {
+          payload.query.keyword = this.searchKeyword;
+        }
+        const res = await this.$http.request('extract/getTaskList', payload);
+        this.pagination.count = res.data.total;
+        // 获取请求displayName的 ipList参数列表
+        const allIpList = res.data.list.reduce((pre, cur) => {
+          if (!cur.enable_clone) return pre;
+          pre.push(
+            ...cur.ip_list.map((item) => {
+              if (item?.bk_host_id) {
                 return {
-                  ip: item.ip ?? '',
-                  cloud_id: item.bk_cloud_id ?? '',
+                  host_id: item.bk_host_id,
                 };
-              }),
-            );
-            return pre;
-          }, []);
-          // 获取displayName
-          await this.queryDisplayName(allIpList);
-          this.taskList = res.data.list;
-          this.timeout = res.data.timeout || 10;
-          this.pollingTaskStatus();
-        } catch (e) {
-          console.warn(e);
-          this.emptyType = '500';
-        } finally {
-          this.isLoading = false;
-        }
-      },
-      async queryDisplayName(hostList) {
-        try {
-          const res = await this.$http.request('extract/getIpListDisplayName', {
-            data: {
-              host_list: hostList,
-            },
-            params: {
-              bk_biz_id: this.$store.state.bkBizId,
-            },
-          });
-          this.displayNameList = res.data;
-        } catch (error) {
-          this.displayNameList = [];
-        }
-      },
-      pollingTaskStatus() {
-        if (this.$route.name !== 'extract-home') {
-          clearTimeout(this.timeoutID);
-          this.timeoutID = null;
+              }
+              return {
+                ip: item.ip ?? '',
+                cloud_id: item.bk_cloud_id ?? '',
+              };
+            })
+          );
+          return pre;
+        }, []);
+        // 获取displayName
+        await this.queryDisplayName(allIpList);
+        this.taskList = res.data.list;
+        this.timeout = res.data.timeout || 10;
+        this.pollingTaskStatus();
+      } catch (e) {
+        console.warn(e);
+        this.emptyType = '500';
+      } finally {
+        this.isLoading = false;
+      }
+    },
+    async queryDisplayName(hostList) {
+      try {
+        const res = await this.$http.request('extract/getIpListDisplayName', {
+          data: {
+            host_list: hostList,
+          },
+          params: {
+            bk_biz_id: this.$store.state.bkBizId,
+          },
+        });
+        this.displayNameList = res.data;
+      } catch (error) {
+        this.displayNameList = [];
+      }
+    },
+    pollingTaskStatus() {
+      if (this.$route.name !== 'extract-home') {
+        clearTimeout(this.timeoutID);
+        this.timeoutID = null;
+        return;
+      }
+
+      // eslint-disable-next-line @typescript-eslint/no-misused-promises
+      this.timeoutID = setTimeout(async () => {
+        if (!this.pollingList.length) {
           return;
         }
-
-        // eslint-disable-next-line @typescript-eslint/no-misused-promises
-        this.timeoutID = setTimeout(async () => {
-          if (!this.pollingList.length) {
-            return;
-          }
-          try {
-            const res = await this.$http.request('extract/pollingTaskStatus', {
-              query: {
-                task_list: this.pollingList.map(item => item.task_id).join(','),
-              },
-            });
-
-            res.data.forEach(newItem => {
-              const taskItem = this.taskList.find(item => item.task_id === newItem.task_id);
-              if (taskItem) {
-                taskItem.task_process_info = newItem.task_process_info;
-                taskItem.download_status = newItem.download_status;
-                taskItem.download_status_display = newItem.download_status_display;
-              }
-            });
-          } catch (err) {
-            console.warn(err);
-          }
-          this.pollingTaskStatus();
-        }, this.timeout * 1000);
-      },
-      handleVisibilityChange() {
-        if (document.hidden) {
-          clearTimeout(this.timeoutID);
-        } else {
-          this.initTaskList();
-        }
-      },
-      handleSearch() {
-        this.pagination.current = 1;
-        this.initTaskList();
-      },
-      async viewDetail(row) {
         try {
-          this.sideSlider.isShow = true;
-          this.sideSlider.isLoading = true;
-          this.sideSlider.data = {};
-          const res = await this.$http.request('extract/getTaskDetail', {
-            params: {
-              id: row.task_id,
+          const res = await this.$http.request('extract/pollingTaskStatus', {
+            query: {
+              task_list: this.pollingList.map((item) => item.task_id).join(','),
             },
           });
-          this.sideSlider.data = res.data;
+
+          res.data.forEach((newItem) => {
+            const taskItem = this.taskList.find(
+              (item) => item.task_id === newItem.task_id
+            );
+            if (taskItem) {
+              taskItem.task_process_info = newItem.task_process_info;
+              taskItem.download_status = newItem.download_status;
+              taskItem.download_status_display =
+                newItem.download_status_display;
+            }
+          });
         } catch (err) {
           console.warn(err);
-        } finally {
-          this.sideSlider.isLoading = false;
         }
-      },
-      handlePageChange(page) {
-        if (this.pagination.current !== page) {
-          this.pagination.current = page;
-          this.initTaskList();
-        }
-      },
-      handlePageLimitChange(limit) {
-        this.pagination.limit = limit;
+        this.pollingTaskStatus();
+      }, this.timeout * 1000);
+    },
+    handleVisibilityChange() {
+      if (document.hidden) {
+        clearTimeout(this.timeoutID);
+      } else {
+        this.initTaskList();
+      }
+    },
+    handleSearch() {
+      this.pagination.current = 1;
+      this.initTaskList();
+    },
+    async viewDetail(row) {
+      try {
+        this.sideSlider.isShow = true;
+        this.sideSlider.isLoading = true;
+        this.sideSlider.data = {};
+        const res = await this.$http.request('extract/getTaskDetail', {
+          params: {
+            id: row.task_id,
+          },
+        });
+        this.sideSlider.data = res.data;
+      } catch (err) {
+        console.warn(err);
+      } finally {
+        this.sideSlider.isLoading = false;
+      }
+    },
+    handlePageChange(page) {
+      if (this.pagination.current !== page) {
+        this.pagination.current = page;
+        this.initTaskList();
+      }
+    },
+    handlePageLimitChange(limit) {
+      this.pagination.limit = limit;
+      this.pagination.current = 1;
+      this.initTaskList();
+    },
+    handleCreateTask() {
+      this.$router.push({
+        name: 'extract-create',
+      });
+    },
+    // 克隆
+    cloneTask(row) {
+      if (!row.enable_clone) return;
+      sessionStorage.setItem('cloneData', JSON.stringify(row));
+      this.$router.push({
+        name: 'extract-clone',
+      });
+    },
+    // 下载文件
+    downloadFile({ task_id }) {
+      let urlPrefix = window.AJAX_URL_PREFIX;
+      if (!urlPrefix.endsWith('/')) urlPrefix += '/';
+      const { bkBizId } = this.$store.state;
+
+      const downloadUrl = `${urlPrefix}log_extract/tasks/download/?task_id=${task_id}&bk_biz_id=${bkBizId}`;
+      window.open(downloadUrl);
+    },
+    // 重新下载
+    async reDownloadFile({ task_id }) {
+      try {
+        this.isLoading = true;
+        await this.$http.request('extract/reDownloadFile', {
+          data: {
+            task_id,
+            bk_biz_id: this.$store.state.bkBizId,
+          },
+        });
+        await this.initTaskList();
+      } catch (e) {
+        console.warn(e);
+        this.isLoading = false;
+      }
+    },
+    // 列表的下载目标显示
+    getShowIpList(row) {
+      if (row.enable_clone) {
+        return this.getIPDisplayNameList(row.ip_list).join('; ');
+      }
+      return row.ip_list.join('; ');
+    },
+    // 下载目标列表显示
+    getDownloadTheTargetList(targetItem) {
+      if (targetItem.enable_clone) {
+        return this.getIPDisplayNameList(targetItem.ip_list);
+      }
+      return targetItem.ip_list;
+    },
+    getIPDisplayNameList(ipList) {
+      // 获取displayName字符串列表
+      if (ipList?.length) {
+        return ipList.map((item) => {
+          return (
+            this.displayNameList.find((dItem) => {
+              const hostMatch = item.bk_host_id === dItem.bk_host_id;
+              const ipMatch =
+                `${item.ip}_${item.bk_cloud_id}` ===
+                `${dItem.bk_host_innerip}_${dItem.bk_cloud_id}`;
+              if (item?.bk_host_id) return hostMatch || ipMatch;
+              return ipMatch;
+            })?.display_name || ''
+          );
+        });
+      }
+      return [];
+    },
+    handleSearchChange(val) {
+      if (val === '' && !this.isLoading) {
+        this.initTaskList();
+      }
+    },
+    handleOperation(type) {
+      if (type === 'clear-filter') {
+        this.searchKeyword = '';
         this.pagination.current = 1;
         this.initTaskList();
-      },
-      handleCreateTask() {
-        this.$router.push({
-          name: 'extract-create',
-        });
-      },
-      // 克隆
-      cloneTask(row) {
-        if (!row.enable_clone) return;
-        sessionStorage.setItem('cloneData', JSON.stringify(row));
-        this.$router.push({
-          name: 'extract-clone',
-        });
-      },
-      // 下载文件
-      downloadFile({ task_id }) {
-        let urlPrefix = window.AJAX_URL_PREFIX;
-        if (!urlPrefix.endsWith('/')) urlPrefix += '/';
-        const { bkBizId } = this.$store.state;
+        return;
+      }
 
-        const downloadUrl = `${urlPrefix}log_extract/tasks/download/?task_id=${task_id}&bk_biz_id=${bkBizId}`;
-        window.open(downloadUrl);
-      },
-      // 重新下载
-      async reDownloadFile({ task_id }) {
-        try {
-          this.isLoading = true;
-          await this.$http.request('extract/reDownloadFile', {
-            data: {
-              task_id,
-              bk_biz_id: this.$store.state.bkBizId,
-            },
-          });
-          await this.initTaskList();
-        } catch (e) {
-          console.warn(e);
-          this.isLoading = false;
-        }
-      },
-      // 列表的下载目标显示
-      getShowIpList(row) {
-        if (row.enable_clone) {
-          return this.getIPDisplayNameList(row.ip_list).join('; ');
-        }
-        return row.ip_list.join('; ');
-      },
-      // 下载目标列表显示
-      getDownloadTheTargetList(targetItem) {
-        if (targetItem.enable_clone) {
-          return this.getIPDisplayNameList(targetItem.ip_list);
-        }
-        return targetItem.ip_list;
-      },
-      getIPDisplayNameList(ipList) {
-        // 获取displayName字符串列表
-        if (ipList?.length) {
-          return ipList.map(item => {
-            return (
-              this.displayNameList.find(dItem => {
-                const hostMatch = item.bk_host_id === dItem.bk_host_id;
-                const ipMatch = `${item.ip}_${item.bk_cloud_id}` === `${dItem.bk_host_innerip}_${dItem.bk_cloud_id}`;
-                if (item?.bk_host_id) return hostMatch || ipMatch;
-                return ipMatch;
-              })?.display_name || ''
-            );
-          });
-        }
-        return [];
-      },
-      handleSearchChange(val) {
-        if (val === '' && !this.isLoading) {
-          this.initTaskList();
-        }
-      },
-      handleOperation(type) {
-        if (type === 'clear-filter') {
-          this.searchKeyword = '';
-          this.pagination.current = 1;
-          this.initTaskList();
-          return;
-        }
-
-        if (type === 'refresh') {
-          this.emptyType = 'empty';
-          this.pagination.current = 1;
-          this.initTaskList();
-          return;
-        }
-      },
+      if (type === 'refresh') {
+        this.emptyType = 'empty';
+        this.pagination.current = 1;
+        this.initTaskList();
+        return;
+      }
     },
-  };
+  },
+};
 </script>
 
 <style lang="scss" scoped>
-  .main-container {
-    /*新增任务样式*/
-    .option-container {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 20px 0;
+.main-container {
+  /*新增任务样式*/
+  .option-container {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 20px 0;
 
-      .king-input-search {
-        width: 486px;
+    .king-input-search {
+      width: 486px;
 
-        :deep(.icon-search) {
-          &:hover {
-            color: #3b84ff;
-            cursor: pointer;
-          }
-        }
-      }
-    }
-
-    /*表格内容样式*/
-    :deep(.king-table) {
-      background-color: #fff;
-
-      /*分页下拉*/
-      .bk-select-name {
-        /* stylelint-disable-next-line declaration-no-important */
-        width: 76px !important;
-      }
-
-      .task-operation-container {
-        display: flex;
-        align-items: center;
-
-        .task-operation {
-          margin-right: 12px;
-          color: #3a84ff;
+      :deep(.icon-search) {
+        &:hover {
+          color: #3b84ff;
           cursor: pointer;
         }
-
-        .cannot-click {
-          color: #989dab;
-          cursor: no-drop;
-        }
-      }
-
-      .task-status-warning {
-        display: flex;
-        align-items: center;
-        color: #ff9c01;
-
-        .icon-info-fill {
-          margin-left: 2px;
-          cursor: pointer;
-        }
-
-        .icon-refresh {
-          margin-right: 2px;
-          animation: refresh-rotate 1s linear infinite;
-
-          @keyframes refresh-rotate {
-            0% {
-              transform: rotate(0deg);
-            }
-
-            100% {
-              transform: rotate(360deg);
-            }
-          }
-        }
-      }
-
-      .task-status-success {
-        color: #2dcb56;
-      }
-
-      .task-status-error {
-        color: #ea3636;
       }
     }
   }
 
-  /*侧边栏插槽*/
-  .task-detail-content {
-    height: calc(100vh - 60px);
-    padding-bottom: 20px;
-    overflow: auto;
+  /*表格内容样式*/
+  :deep(.king-table) {
+    background-color: #fff;
 
-    :deep(.list-box-container) {
-      padding: 14px 20px 10px;
-      font-size: 15px;
-      line-height: 40px;
-      color: #63656e;
+    /*分页下拉*/
+    .bk-select-name {
+      /* stylelint-disable-next-line declaration-no-important */
+      width: 76px !important;
+    }
 
-      .list-title {
-        display: flex;
-        align-items: center;
+    .task-operation-container {
+      display: flex;
+      align-items: center;
 
-        .bk-icon {
-          margin-right: 6px;
-          font-size: 14px;
+      .task-operation {
+        margin-right: 12px;
+        color: #3a84ff;
+        cursor: pointer;
+      }
+
+      .cannot-click {
+        color: #989dab;
+        cursor: no-drop;
+      }
+    }
+
+    .task-status-warning {
+      display: flex;
+      align-items: center;
+      color: #ff9c01;
+
+      .icon-info-fill {
+        margin-left: 2px;
+        cursor: pointer;
+      }
+
+      .icon-refresh {
+        margin-right: 2px;
+        animation: refresh-rotate 1s linear infinite;
+
+        @keyframes refresh-rotate {
+          0% {
+            transform: rotate(0deg);
+          }
+
+          100% {
+            transform: rotate(360deg);
+          }
+        }
+      }
+    }
+
+    .task-status-success {
+      color: #2dcb56;
+    }
+
+    .task-status-error {
+      color: #ea3636;
+    }
+  }
+}
+
+/*侧边栏插槽*/
+.task-detail-content {
+  height: calc(100vh - 60px);
+  padding-bottom: 20px;
+  overflow: auto;
+
+  :deep(.list-box-container) {
+    padding: 14px 20px 10px;
+    font-size: 15px;
+    line-height: 40px;
+    color: #63656e;
+
+    .list-title {
+      display: flex;
+      align-items: center;
+
+      .bk-icon {
+        margin-right: 6px;
+        font-size: 14px;
+      }
+
+      .text {
+        padding: 10px 0;
+        margin: 0;
+        font-size: 16px;
+        font-weight: 500;
+        line-height: 20px;
+        color: #313238;
+        word-break: break-all;
+      }
+
+      &.mark {
+        .bklog-icon {
+          margin-right: 4px;
+          font-size: 16px;
+          color: #ea3636;
         }
 
         .text {
-          padding: 10px 0;
-          margin: 0;
-          font-size: 16px;
-          font-weight: 500;
-          line-height: 20px;
-          color: #313238;
-          word-break: break-all;
-        }
-
-        &.mark {
-          .bklog-icon {
-            margin-right: 4px;
-            font-size: 16px;
-            color: #ea3636;
-          }
-
-          .text {
-            color: #ea3636;
-          }
+          color: #ea3636;
         }
       }
+    }
 
-      .list-box {
-        border-top: 1px solid #dcdee5;
+    .list-box {
+      border-top: 1px solid #dcdee5;
 
-        .list-item {
-          padding: 10px 0;
-          line-height: 20px;
-          word-break: break-all;
-          border-bottom: 1px solid #dcdee5;
+      .list-item {
+        padding: 10px 0;
+        line-height: 20px;
+        word-break: break-all;
+        border-bottom: 1px solid #dcdee5;
 
-          &:hover {
-            background-color: #f0f1f5;
-          }
+        &:hover {
+          background-color: #f0f1f5;
         }
       }
     }
   }
+}
 </style>

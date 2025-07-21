@@ -49,10 +49,7 @@
     >
     </i>
     <div v-show="false">
-      <ul
-        ref="moreTools"
-        class="tool-list"
-      >
+      <ul ref="moreTools" class="tool-list">
         <template>
           <li
             v-for="item in moreToolsList"
@@ -70,132 +67,132 @@
 </template>
 
 <script lang="ts">
-  import { Vue, Component, Prop, Emit } from 'vue-property-decorator';
+import { Vue, Component, Prop, Emit } from 'vue-property-decorator';
 
-  import { IMoreToolItem, MoreChartToolItem } from '../options/type-interface';
-  @Component({
-    name: 'ChartTools',
-  })
-  export default class ChartTools extends Vue {
-    @Prop({ default: false }) needFullScreen: boolean;
-    @Prop({ default: false }) isFullScreen: boolean;
-    @Prop({ default: () => [] }) moreList: MoreChartToolItem[];
-    moreToolInstance: any = null;
-    moreToolsList: IMoreToolItem[] = [];
-    created() {
-      this.moreToolsList = [
-        {
-          name: '检索',
-          checked: false,
-          id: 'explore',
-        },
-        {
-          name: 'Y轴固定最小值0',
-          checked: false,
-          id: 'set',
-          nextName: 'Y轴自适应',
-        },
-        {
-          name: '添加策略',
-          checked: false,
-          id: 'strategy',
-        },
-        {
-          name: '面积图',
-          checked: false,
-          id: 'area',
-          nextName: '线性图',
-        },
-      ];
-    }
-    beforeDestroy() {
-      this.handleDestroy();
-    }
-    @Emit('store-img')
-    handleStoreImage(e) {
-      return e;
-    }
-    @Emit('collect-chart')
-    handleCollectChart(e) {
-      return e;
-    }
-    @Emit('full-screen')
-    handleFullScreen(e) {
-      return e;
-    }
-    handleToArea() {
-      this.$emit('transform-area');
-    }
-    handleMoreClick(e: MouseEvent) {
-      this.moreToolInstance = this.$bkPopover(e.target, {
-        content: this.$refs.moreTools,
-        trigger: 'click',
-        arrow: false,
-        theme: 'light common-monitor monitor-chart',
-        maxWidth: 520,
-        offset: '50, -6',
-        sticky: true,
-        duration: [275, 0],
-        interactive: true,
-      });
-      this.moreToolInstance?.show(100);
-    }
-    @Emit('tool-item')
-    handleMoreItemClick(item: IMoreToolItem) {
-      item.checked = !item.checked;
-      this.handleDestroy();
-      return { ...item };
-    }
-    handleDestroy() {
-      if (this.moreToolInstance) {
-        this.moreToolInstance.hide(0);
-        this.moreToolInstance.destroy();
-        this.moreToolInstance = null;
-      }
+import { IMoreToolItem, MoreChartToolItem } from '../options/type-interface';
+@Component({
+  name: 'ChartTools',
+})
+export default class ChartTools extends Vue {
+  @Prop({ default: false }) needFullScreen: boolean;
+  @Prop({ default: false }) isFullScreen: boolean;
+  @Prop({ default: () => [] }) moreList: MoreChartToolItem[];
+  moreToolInstance: any = null;
+  moreToolsList: IMoreToolItem[] = [];
+  created() {
+    this.moreToolsList = [
+      {
+        name: '检索',
+        checked: false,
+        id: 'explore',
+      },
+      {
+        name: 'Y轴固定最小值0',
+        checked: false,
+        id: 'set',
+        nextName: 'Y轴自适应',
+      },
+      {
+        name: '添加策略',
+        checked: false,
+        id: 'strategy',
+      },
+      {
+        name: '面积图',
+        checked: false,
+        id: 'area',
+        nextName: '线性图',
+      },
+    ];
+  }
+  beforeDestroy() {
+    this.handleDestroy();
+  }
+  @Emit('store-img')
+  handleStoreImage(e) {
+    return e;
+  }
+  @Emit('collect-chart')
+  handleCollectChart(e) {
+    return e;
+  }
+  @Emit('full-screen')
+  handleFullScreen(e) {
+    return e;
+  }
+  handleToArea() {
+    this.$emit('transform-area');
+  }
+  handleMoreClick(e: MouseEvent) {
+    this.moreToolInstance = this.$bkPopover(e.target, {
+      content: this.$refs.moreTools,
+      trigger: 'click',
+      arrow: false,
+      theme: 'light common-monitor monitor-chart',
+      maxWidth: 520,
+      offset: '50, -6',
+      sticky: true,
+      duration: [275, 0],
+      interactive: true,
+    });
+    this.moreToolInstance?.show(100);
+  }
+  @Emit('tool-item')
+  handleMoreItemClick(item: IMoreToolItem) {
+    item.checked = !item.checked;
+    this.handleDestroy();
+    return { ...item };
+  }
+  handleDestroy() {
+    if (this.moreToolInstance) {
+      this.moreToolInstance.hide(0);
+      this.moreToolInstance.destroy();
+      this.moreToolInstance = null;
     }
   }
+}
 </script>
 
 <style lang="scss" scoped>
-  .chart-tools {
-    display: flex;
+.chart-tools {
+  display: flex;
 
-    .tools-icon {
-      margin-right: 8px;
+  .tools-icon {
+    margin-right: 8px;
+
+    &:hover {
+      color: #3a84ff;
+      cursor: pointer;
+    }
+  }
+}
+
+.monitor-chart-theme {
+  z-index: 999;
+
+  /* stylelint-disable-next-line declaration-no-important */
+  background: white !important;
+
+  .tool-list {
+    display: flex;
+    flex-direction: column;
+    padding: 6px 0;
+    overflow: auto;
+    background-color: white;
+
+    &-item {
+      display: flex;
+      flex: 0 0 32px;
+      align-items: center;
+      padding: 0 10px 0 15px;
+      color: #63656e;
 
       &:hover {
         color: #3a84ff;
         cursor: pointer;
+        background-color: #eaf3ff;
       }
     }
   }
-
-  .monitor-chart-theme {
-    z-index: 999;
-
-    /* stylelint-disable-next-line declaration-no-important */
-    background: white !important;
-
-    .tool-list {
-      display: flex;
-      flex-direction: column;
-      padding: 6px 0;
-      overflow: auto;
-      background-color: white;
-
-      &-item {
-        display: flex;
-        flex: 0 0 32px;
-        align-items: center;
-        padding: 0 10px 0 15px;
-        color: #63656e;
-
-        &:hover {
-          color: #3a84ff;
-          cursor: pointer;
-          background-color: #eaf3ff;
-        }
-      }
-    }
-  }
+}
 </style>

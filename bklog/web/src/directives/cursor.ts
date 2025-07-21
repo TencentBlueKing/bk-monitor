@@ -26,8 +26,8 @@
 
 const DEFAULT_OPTIONS = {
   active: true,
-  offset: [15, 0],
   cls: 'cursor-element',
+  offset: [15, 0],
 };
 
 function init(el, binding) {
@@ -73,12 +73,12 @@ export default {
     binding.value = Object.assign({}, DEFAULT_OPTIONS, binding.value);
     init(el, binding);
   },
+  unbind(el) {
+    destroy(el);
+  },
   update(el, binding) {
     binding.value = Object.assign({}, DEFAULT_OPTIONS, binding.value);
     destroy(el);
     init(el, binding);
-  },
-  unbind(el) {
-    destroy(el);
   },
 };

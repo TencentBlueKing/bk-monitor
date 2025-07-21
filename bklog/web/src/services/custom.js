@@ -25,13 +25,13 @@
  */
 
 const createCustom = {
-  url: '/databus/collectors/custom_create/',
   method: 'post',
+  url: '/databus/collectors/custom_create/',
 };
 
 const setCustom = {
-  url: '/databus/collectors/:collector_config_id/custom_update/',
   method: 'post',
+  url: '/databus/collectors/:collector_config_id/custom_update/',
 };
 
 export { createCustom, setCustom };

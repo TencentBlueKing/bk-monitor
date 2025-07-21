@@ -26,20 +26,20 @@
 
 // 固定的内置字段
 export const builtInInitHiddenList = [
-    'gseIndex',
-    'gseindex',
-    'iterationIndex',
-    'iterationindex',
-    '_iteration_idx',
-    '__dist_01',
-    '__dist_03',
-    '__dist_05',
-    '__dist_07',
-    '__dist_09',
-    '__ipv6__',
-    '__parse_failure',
-    'time',
-    '__module__',
-    '__set__',
-    '__ipv6__'
-]
+  'gseIndex',
+  'gseindex',
+  'iterationIndex',
+  'iterationindex',
+  '_iteration_idx',
+  '__dist_01',
+  '__dist_03',
+  '__dist_05',
+  '__dist_07',
+  '__dist_09',
+  '__ipv6__',
+  '__parse_failure',
+  'time',
+  '__module__',
+  '__set__',
+  '__ipv6__',
+];

@@ -51,57 +51,57 @@
 </template>
 
 <script>
-  import Tippy from 'bk-magic-vue/lib/utils/tippy';
+import Tippy from 'bk-magic-vue/lib/utils/tippy';
 
-  export default {
-    props: {
-      taskId: {
-        type: Number,
-        default: undefined,
-      },
+export default {
+  props: {
+    taskId: {
+      type: Number,
+      default: undefined,
     },
-    data() {
-      return {
-        loading: false,
-      };
-    },
-    methods: {
-      async handleClick() {
-        try {
-          this.loading = true;
-          const res = await this.$http.request('extract/getDownloadUrl', {
-            query: {
-              bk_biz_id: this.$store.state.bkBizId,
-              task_id: this.taskId,
-              is_url: true,
-            },
+  },
+  data() {
+    return {
+      loading: false,
+    };
+  },
+  methods: {
+    async handleClick() {
+      try {
+        this.loading = true;
+        const res = await this.$http.request('extract/getDownloadUrl', {
+          query: {
+            bk_biz_id: this.$store.state.bkBizId,
+            task_id: this.taskId,
+            is_url: true,
+          },
+        });
+
+        const input = document.createElement('input');
+        input.setAttribute('value', res.data);
+        document.body.appendChild(input);
+        input.select();
+        document.execCommand('copy');
+        document.body.removeChild(input);
+
+        const el = this.$refs.button.$el;
+        if (!el._tippy) {
+          el._tippy = Tippy(el, {
+            content: this.$t('已复制到剪切板'),
+            placement: 'top',
+            trigger: 'manual',
+            arrow: true,
+            size: 'small',
+            extCls: 'copy-successfully-tippy',
           });
-
-          const input = document.createElement('input');
-          input.setAttribute('value', res.data);
-          document.body.appendChild(input);
-          input.select();
-          document.execCommand('copy');
-          document.body.removeChild(input);
-
-          const el = this.$refs.button.$el;
-          if (!el._tippy) {
-            el._tippy = Tippy(el, {
-              content: this.$t('已复制到剪切板'),
-              placement: 'top',
-              trigger: 'manual',
-              arrow: true,
-              size: 'small',
-              extCls: 'copy-successfully-tippy',
-            });
-          }
-          el._tippy.show();
-        } catch (e) {
-          console.warn(e);
-        } finally {
-          this.loading = false;
         }
-      },
+        el._tippy.show();
+      } catch (e) {
+        console.warn(e);
+      } finally {
+        this.loading = false;
+      }
     },
-  };
+  },
+};
 </script>

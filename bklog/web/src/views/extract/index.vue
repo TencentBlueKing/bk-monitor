@@ -25,113 +25,110 @@
 -->
 
 <template>
-  <div
-    class="log-extract-container"
-    v-bkloading="{ isLoading }"
-  >
+  <div class="log-extract-container" v-bkloading="{ isLoading }">
     <router-view></router-view>
   </div>
 </template>
 
 <script>
-  export default {
-    name: 'Extract',
-    data() {
-      return {
-        isRender: true,
-        isLoading: false,
-      };
+export default {
+  name: 'Extract',
+  data() {
+    return {
+      isRender: true,
+      isLoading: false,
+    };
+  },
+  computed: {
+    bkBizId() {
+      return this.$store.state.bkBizId;
     },
-    computed: {
-      bkBizId() {
-        return this.$store.state.bkBizId;
-      },
+  },
+  watch: {
+    // 切换业务销毁实例
+    bkBizId() {
+      this.isLoading = true;
+      this.isRender = false;
+      setTimeout(() => {
+        this.isRender = true;
+        if (this.$route.query.create) {
+          this.isLoading = false;
+        }
+      }, 400);
     },
-    watch: {
-      // 切换业务销毁实例
-      bkBizId() {
-        this.isLoading = true;
-        this.isRender = false;
-        setTimeout(() => {
-          this.isRender = true;
-          if (this.$route.query.create) {
-            this.isLoading = false;
-          }
-        }, 400);
-      },
-    },
-    methods: {
-      backHome() {
-        this.$router.push({
-          name: 'extract',
-          query: {
-            spaceUid: this.$store.state.spaceUid,
-          },
-        });
-      },
-      handleLoading(bool) {
-        this.isLoading = bool;
-      },
-    },
-    mounted() {
-      const bkBizId = this.$store.state.bkBizId;
-      const spaceUid = this.$store.state.spaceUid;
-
-      this.$router.replace({
+  },
+  methods: {
+    backHome() {
+      this.$router.push({
+        name: 'extract',
         query: {
-          bizId: bkBizId,
-          spaceUid: spaceUid,
-          ...this.$route.query,
+          spaceUid: this.$store.state.spaceUid,
         },
       });
     },
-  };
+    handleLoading(bool) {
+      this.isLoading = bool;
+    },
+  },
+  mounted() {
+    const bkBizId = this.$store.state.bkBizId;
+    const spaceUid = this.$store.state.spaceUid;
+
+    this.$router.replace({
+      query: {
+        bizId: bkBizId,
+        spaceUid: spaceUid,
+        ...this.$route.query,
+      },
+    });
+  },
+};
 </script>
 
 <style lang="scss" scoped>
-  @import '../../scss/mixins/scroller';
+@import '../../scss/mixins/scroller';
 
-  .log-extract-container {
-    padding: 0 24px 20px;
-    font-size: 14px;
-    color: #313238;
+.log-extract-container {
+  padding: 0 24px 20px;
+  font-size: 14px;
+  color: #313238;
 
-    .top-title-container {
-      height: 60px;
-      padding: 20px 0;
-      margin: 0 60px;
-      border-bottom: 1px solid #dde4eb;
+  .top-title-container {
+    height: 60px;
+    padding: 20px 0;
+    margin: 0 60px;
+    border-bottom: 1px solid #dde4eb;
 
-      .top-title {
-        display: flex;
-        align-items: center;
-        padding-left: 10px;
-        margin: 0;
-        font-size: 14px;
-        font-weight: bold;
-        line-height: 20px;
-        border-left: 2px solid #a3c5fd;
+    .top-title {
+      display: flex;
+      align-items: center;
+      padding-left: 10px;
+      margin: 0;
+      font-size: 14px;
+      font-weight: bold;
+      line-height: 20px;
+      border-left: 2px solid #a3c5fd;
 
-        .icon-arrows-left-shape {
-          padding: 2px 8px 2px 2px;
-          color: #979ba5;
-          cursor: pointer;
+      .icon-arrows-left-shape {
+        padding: 2px 8px 2px 2px;
+        color: #979ba5;
+        cursor: pointer;
+        transition: color 0.2s;
+
+        &:hover {
+          color: #3a84ff;
           transition: color 0.2s;
-
-          &:hover {
-            color: #3a84ff;
-            transition: color 0.2s;
-          }
         }
       }
     }
-
-    :deep(.main-container) {
-      position: relative;
-      padding-bottom: 60px;
-      overflow: auto;
-
-      @include scroller($backgroundColor: #c4c6cc, $width: 4px);
-    }
   }
+
+  :deep(.main-container) {
+    position: relative;
+    padding-bottom: 60px;
+    overflow: auto;
+
+    @include scroller($backgroundColor: #c4c6cc, $width: 4px);
+  }
+}
 </style>

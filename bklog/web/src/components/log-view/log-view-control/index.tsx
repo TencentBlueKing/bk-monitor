@@ -102,7 +102,8 @@ export default class LogViewControl extends tsc<IProps> {
       const markTop = markDom.getBoundingClientRect().top;
       let isFindShow = false;
       for (let index = 0; index < this.highlightHtmlList.length; index++) {
-        const iItemTop = this.highlightHtmlList[index].getBoundingClientRect().top;
+        const iItemTop =
+          this.highlightHtmlList[index].getBoundingClientRect().top;
         if (iItemTop > markTop) {
           this.currentViewIndex = Number(index) + 1;
           this.catchViewIndex = this.currentViewIndex;
@@ -115,7 +116,7 @@ export default class LogViewControl extends tsc<IProps> {
         this.catchViewIndex = this.highlightHtmlList.length;
         this.handelChangeLight(this.highlightHtmlList.length);
       }
-      this.colorList[3].color = (lightList as any).map(item => item.color);
+      this.colorList[3].color = (lightList as any).map((item) => item.color);
     }
   }
 
@@ -146,13 +147,20 @@ export default class LogViewControl extends tsc<IProps> {
     const $target = event.target;
     const value = parseInt($target.textContent, 10);
     // 无效值不抛出事件
-    if (!value || value < 1 || value > this.lightSize || value === this.currentViewIndex) return;
+    if (
+      !value ||
+      value < 1 ||
+      value > this.lightSize ||
+      value === this.currentViewIndex
+    )
+      return;
     this.currentViewIndex = value;
   }
 
   handleBlur() {
     this.focus = false;
-    if (typeof this.catchViewIndex !== 'string') this.catchViewIndex = this.currentViewIndex;
+    if (typeof this.catchViewIndex !== 'string')
+      this.catchViewIndex = this.currentViewIndex;
     this.handelChangeLight(this.currentViewIndex);
   }
 
@@ -171,15 +179,18 @@ export default class LogViewControl extends tsc<IProps> {
   render() {
     return (
       <div class={['markdown-control', `control-${this.currentShowType}`]}>
-        <div class='left'>
+        <div class="left">
           {this.colorList.map((item, index) => {
             if (!item.color.length) return undefined;
             return (
-              <div class='color-item'>
-                {item.color.map(cItem => (
+              <div class="color-item">
+                {item.color.map((cItem) => (
                   <div
-                    style={{ backgroundColor: index === 3 ? cItem.dark : cItem[this.currentShowType] }}
-                    class='color-block'
+                    class="color-block"
+                    style={{
+                      backgroundColor:
+                        index === 3 ? cItem.dark : cItem[this.currentShowType],
+                    }}
                   ></div>
                 ))}
                 <span>{item.name}</span>
@@ -187,40 +198,42 @@ export default class LogViewControl extends tsc<IProps> {
             );
           })}
         </div>
-        <div class='right'>
+        <div class="right">
           {!!this.lightSize && (
             <div>
               <div class={['jump-input-wrapper', { focus: this.focus }]}>
                 <span
-                  ref='jumpInput'
-                  class='jump-input'
+                  class="jump-input"
                   contenteditable
                   onBlur={this.handleBlur}
                   onFocus={() => (this.focus = true)}
                   onInput={this.handleInputChange}
                   onKeydown={this.handleKeyDown}
+                  ref="jumpInput"
                 >
                   {this.catchViewIndex}
                 </span>
-                <span class={['page-total', { focus: this.focus }]}>/ {this.lightSize}</span>
+                <span class={['page-total', { focus: this.focus }]}>
+                  / {this.lightSize}
+                </span>
               </div>
               <div
-                class='jump-btn'
+                class="jump-btn"
                 onClick={() => {
                   if (this.currentViewIndex === 1) return;
                   this.handelChangeLight(this.currentViewIndex - 1);
                 }}
               >
-                <i class='bk-icon icon-angle-up'></i>
+                <i class="bk-icon icon-angle-up"></i>
               </div>
               <div
-                class='jump-btn next'
+                class="jump-btn next"
                 onClick={() => {
                   if (this.currentViewIndex === this.lightSize) return;
                   this.handelChangeLight(this.currentViewIndex + 1);
                 }}
               >
-                <i class='bk-icon icon-angle-up'></i>
+                <i class="bk-icon icon-angle-up"></i>
               </div>
             </div>
           )}

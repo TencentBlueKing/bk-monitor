@@ -23,12 +23,14 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+import $http from '@/api';
 import useStore from '@/hooks/use-store';
 import { useRoute, useRouter } from 'vue-router/composables';
 
 import { ConsitionItem } from '../../store/store.type';
-import RouteUrlResolver, { RetrieveUrlResolver } from '../../store/url-resolver';
-import $http from '@/api';
+import RouteUrlResolver, {
+  RetrieveUrlResolver,
+} from '../../store/url-resolver';
 
 export default () => {
   const store = useStore();
@@ -41,14 +43,31 @@ export default () => {
    * @param ignoreKeywodLength 是否忽略 keyword 长度，如果忽略，则不进行 keyword 的长度校验, 默认为 false
    * @returns
    */
-  const resolveQueryParams = ({ search_mode, addition, keyword }, ignoreKeywodLength = false) => {
+  const resolveQueryParams = (
+    { addition, keyword, search_mode },
+    ignoreKeywodLength = false
+  ) => {
     // 此时说明来自旧版URL，同时带有 addition 和 keyword
     // 这种情况下需要将 addition 转换为 keyword 进行查询合并
     // 同时设置 search_mode 为 sql
-    if (!search_mode && addition?.length > 0 && (ignoreKeywodLength || keyword?.length > 0)) {
+    if (
+      !search_mode &&
+      addition?.length > 0 &&
+      (ignoreKeywodLength || keyword?.length > 0)
+    ) {
       // 这里不好做同步请求，所以直接设置 search_mode 为 sql
-      router.push({ query: { ...route.query, search_mode: 'sql', addition: '[]', tab: 'origin' } });
-      const resolver = new RouteUrlResolver({ route, resolveFieldList: ['addition'] });
+      router.push({
+        query: {
+          ...route.query,
+          addition: '[]',
+          search_mode: 'sql',
+          tab: 'origin',
+        },
+      });
+      const resolver = new RouteUrlResolver({
+        resolveFieldList: ['addition'],
+        route,
+      });
       const target = Array.isArray(addition)
         ? { addition }
         : resolver.convertQueryToStore<{ addition: ConsitionItem[] }>();
@@ -60,17 +79,24 @@ export default () => {
               addition: target.addition,
             },
           })
-          .then(res => {
+          .then((res) => {
             if (res.result) {
               let newKeyword = [keyword, res.data?.querystring]
-                .filter(item => item.length > 0 && item !== '*')
+                .filter((item) => item.length > 0 && item !== '*')
                 .join(' AND ');
               if (newKeyword.length === 0) {
                 newKeyword = '*';
               }
 
               store.commit('updateIndexItemParams', { keyword: newKeyword });
-              return router.replace({ query: { ...route.query, keyword: newKeyword, addition: [], tab: 'origin' } });
+              return router.replace({
+                query: {
+                  ...route.query,
+                  addition: [],
+                  keyword: newKeyword,
+                  tab: 'origin',
+                },
+              });
             }
 
             return Promise.resolve(true);
@@ -81,11 +107,13 @@ export default () => {
     return Promise.resolve(true);
   };
 
-  const resolveCommonParams = ({ search_mode, addition, keyword }) => {
+  const resolveCommonParams = ({ addition, keyword, search_mode }) => {
     if (!search_mode) {
       if (keyword?.length > 0 && addition.length < 4) {
         store.commit('updateIndexItemParams', { keyword, search_mode: 'sql' });
-        return router.replace({ query: { ...route.query, keyword, addition: [] } });
+        return router.replace({
+          query: { ...route.query, addition: [], keyword },
+        });
       }
 
       if (addition?.length >= 4 && keyword?.length === 0) {
@@ -93,8 +121,8 @@ export default () => {
 
         const resolver = new RetrieveUrlResolver({
           addition,
-          search_mode: 'ui',
           keyword: '',
+          search_mode: 'ui',
         });
 
         const query = route.query;
@@ -107,5 +135,5 @@ export default () => {
     return Promise.resolve(true);
   };
 
-  return { resolveQueryParams, resolveCommonParams };
+  return { resolveCommonParams, resolveQueryParams };
 };

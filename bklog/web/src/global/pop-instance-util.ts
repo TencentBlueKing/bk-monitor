@@ -23,12 +23,16 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { isRef, ref, Ref } from 'vue';
 import { debounce } from 'lodash';
 import tippy, { Props, Placement, Instance } from 'tippy.js';
+import { isRef, ref, Ref } from 'vue';
 
 type PopInstanceUtilType = {
-  refContent: (() => HTMLElement | string) | HTMLElement | Ref<{ $el?: HTMLElement } | string> | string;
+  refContent:
+    | (() => HTMLElement | string)
+    | HTMLElement
+    | Ref<{ $el?: HTMLElement } | string>
+    | string;
   onShowFn: () => boolean;
   onHiddenFn: () => boolean;
   arrow: boolean;
@@ -39,8 +43,11 @@ type PopInstanceUtilType = {
 
 export default class PopInstanceUtil {
   private tippyInstance: Instance<Props>;
-  private refContent: (() => HTMLElement | string) | HTMLElement | Ref<{ $el?: HTMLElement } | string> | string =
-    ref(null);
+  private refContent:
+    | (() => HTMLElement | string)
+    | HTMLElement
+    | Ref<{ $el?: HTMLElement } | string>
+    | string = ref(null);
   private onShowFn;
   private onHiddenFn;
   private arrow = true;
@@ -54,11 +61,11 @@ export default class PopInstanceUtil {
   private hiddenTimer;
 
   constructor({
-    refContent,
-    onShowFn,
-    onHiddenFn,
     arrow = true,
     newInstance = true,
+    onHiddenFn,
+    onShowFn,
+    refContent,
     tippyOptions = {},
     watchElement = ref(null), // 添加需要监视的元素，能在元素高度变化时，自动更新 pop
   }: Partial<PopInstanceUtilType>) {
@@ -155,18 +162,10 @@ export default class PopInstanceUtil {
     return {
       arrow: this.arrow,
       content: (content as any)?.$el ?? content,
-      trigger: 'manual',
-      theme: 'log-light',
-      placement: 'bottom-start' as Placement,
       interactive: true,
       maxWidth: 800,
-      zIndex: (window as any).__bk_zIndex_manager.nextZIndex(),
-      onShow: () => {
-        this.onMounted();
-        return this.onShowFn?.(this.tippyInstance) ?? true;
-      },
-      onShown: () => {
-        this.setIsShowing(true);
+      onHidden: () => {
+        this.setIsShowing(false);
       },
       onHide: () => {
         this.setIsShowing(false);
@@ -176,16 +175,24 @@ export default class PopInstanceUtil {
 
         this.onBeforeUnmount();
       },
-      onHidden: () => {
-        this.setIsShowing(false);
+      onShow: () => {
+        this.onMounted();
+        return this.onShowFn?.(this.tippyInstance) ?? true;
       },
+      onShown: () => {
+        this.setIsShowing(true);
+      },
+      placement: 'bottom-start' as Placement,
+      theme: 'log-light',
+      trigger: 'manual',
+      zIndex: (window as any).__bk_zIndex_manager.nextZIndex(),
     };
   }
 
   getMergeTippyOptions(): Partial<Props> {
     const options = this.getDefaultOption();
 
-    Object.keys(this.tippyOptions).forEach(key => {
+    Object.keys(this.tippyOptions).forEach((key) => {
       if (typeof this.tippyOptions[key] === 'function') {
         const oldFn = options[key] ?? (() => {});
 
@@ -194,7 +201,10 @@ export default class PopInstanceUtil {
           return oldFn(...args);
         };
       } else {
-        if (this.tippyOptions[key] !== undefined && this.tippyOptions[key] !== null) {
+        if (
+          this.tippyOptions[key] !== undefined &&
+          this.tippyOptions[key] !== null
+        ) {
           options[key] = this.tippyOptions[key];
         }
       }

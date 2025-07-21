@@ -43,7 +43,7 @@ export default (userName: string): string =>
   style="font-size: 12px;">
   ${userName}
 </text>
-</svg>`),
-        ),
+</svg>`)
+        )
       )}`
     : '';

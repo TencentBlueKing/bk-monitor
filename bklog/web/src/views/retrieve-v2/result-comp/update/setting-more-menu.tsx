@@ -64,7 +64,10 @@ const FIELD_SETTING_MENU = [
 ];
 
 @Component
-export default class SettingMoreMenu extends tsc<SettingMoreMenuProps, SettingMoreMenuEvents> {
+export default class SettingMoreMenu extends tsc<
+  SettingMoreMenuProps,
+  SettingMoreMenuEvents
+> {
   /** 字段设置 more 下拉菜单 */
   @Prop({ default: () => FIELD_SETTING_MENU }) settingMoreList: MenuOption[];
 
@@ -93,20 +96,20 @@ export default class SettingMoreMenu extends tsc<SettingMoreMenuProps, SettingMo
       return;
     }
     this.popoverInstance = this.$bkPopover(e.currentTarget, {
-      content: this.menuRef,
       animateFill: false,
-      trigger: 'click',
-      placement: 'bottom-end',
-      theme: 'light field-template-menu field-template-menu-expand',
       arrow: false,
-      followCursor: false,
       boundary: 'viewport',
+      content: this.menuRef,
       distance: 4,
+      followCursor: false,
       offset: '8, 0',
       onHidden: () => {
         this.popoverInstance?.destroy?.();
         this.popoverInstance = null;
       },
+      placement: 'bottom-end',
+      theme: 'light field-template-menu field-template-menu-expand',
+      trigger: 'click',
     });
     this.$nextTick(() => {
       this.popoverInstance?.show(100);
@@ -115,22 +118,19 @@ export default class SettingMoreMenu extends tsc<SettingMoreMenuProps, SettingMo
 
   render() {
     return (
-      <div class='field-setting-more'>
+      <div class="field-setting-more">
         <div
           class={`popover-trigger ${this.popoverInstance ? 'is-active' : ''}`}
           onClick={this.handleMenuListShow}
         >
-          <i class='bklog-icon bklog-more' />
+          <i class="bklog-icon bklog-more" />
         </div>
-        <div style='display: none'>
-          <ul
-            ref='menu'
-            class='field-setting-list-menu bklog-v3-popover-tag'
-          >
-            {this.settingMoreList.map(item => (
+        <div style="display: none">
+          <ul class="field-setting-list-menu bklog-v3-popover-tag" ref="menu">
+            {this.settingMoreList.map((item) => (
               <li
+                class="menu-item"
                 key={item.id}
-                class='menu-item'
                 onClick={() => this.handleMenuClick(item.id)}
               >
                 {item.name}

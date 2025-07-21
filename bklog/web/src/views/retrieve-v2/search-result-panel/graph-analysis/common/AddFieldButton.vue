@@ -24,13 +24,13 @@
 * IN THE SOFTWARE.
 -->
 <script setup>
-import { ref, computed } from "vue";
-import useLocale from "@/hooks/use-locale";
+import { ref, computed } from 'vue';
+import useLocale from '@/hooks/use-locale';
 const { $t } = useLocale();
 const props = defineProps({
   disabledTips: {
     type: String,
-    default: "",
+    default: '',
   },
 });
 </script>
@@ -52,20 +52,21 @@ const props = defineProps({
   height: 26px;
   margin: 3px 0;
   font-size: 16px;
-  color: #3A84FF;
-  background: #E1ECFF;
+  color: #3a84ff;
+  background: #e1ecff;
   border-radius: 2px;
 
   &:hover {
     color: #fff;
-    background: #3A84FF;
+    background: #3a84ff;
   }
 
-  .is-disabled &, &.is-disabled {
+  .is-disabled &,
+  &.is-disabled {
     color: #fff;
     cursor: not-allowed;
     background-color: #dcdee5;
     border-color: #dcdee5;
   }
-} 
+}
 </style>

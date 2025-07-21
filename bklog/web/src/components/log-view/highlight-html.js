@@ -27,25 +27,25 @@
 export default {
   functional: true,
   props: {
-    item: {
-      type: Object,
-      required: true,
-    },
     ignoreCase: {
-      type: Boolean,
       default: false,
-    },
-    lightList: {
-      type: Array,
-      default: () => [],
+      type: Boolean,
     },
     isShowKey: {
-      type: Boolean,
       default: true,
+      type: Boolean,
+    },
+    item: {
+      required: true,
+      type: Object,
+    },
+    lightList: {
+      default: () => [],
+      type: Array,
     },
   },
   render(h, c) {
-    const { item, lightList, ignoreCase, isShowKey } = c.props;
+    const { ignoreCase, isShowKey, item, lightList } = c.props;
 
     /**
      * @desc: 包含和高亮的列表生成的展示数组
@@ -59,21 +59,26 @@ export default {
       let resultArray = [{ str: str, style: null }];
 
       // 先处理 isUnique 为 true 的高亮项
-      for (const highlight of highlights.filter(h => h.isUnique)) {
+      for (const highlight of highlights.filter((h) => h.isUnique)) {
         const { str: searchStr, style } = highlight;
         let regexFlags = caseInsensitive ? '' : 'i';
 
-        const re = new RegExp(searchStr.replace(/[-[\]{}()*+?.,\\^$|#\s*]/g, '\\$&'), regexFlags);
+        const re = new RegExp(
+          searchStr.replace(/[-[\]{}()*+?.,\\^$|#\s*]/g, '\\$&'),
+          regexFlags
+        );
         const tempResultArray = [];
 
-        resultArray.forEach(segment => {
+        resultArray.forEach((segment) => {
           if (segment.style === null) {
             const match = re.exec(segment.str);
             if (match) {
               const matchedText = match[0];
               const matchIndex = match.index;
               const beforeMatch = segment.str.slice(0, matchIndex);
-              const afterMatch = segment.str.slice(matchIndex + matchedText.length);
+              const afterMatch = segment.str.slice(
+                matchIndex + matchedText.length
+              );
 
               if (beforeMatch) {
                 tempResultArray.push({ str: beforeMatch, style: null });
@@ -95,15 +100,18 @@ export default {
 
       // 再处理 isUnique 为 false 的高亮项
       highlights
-        .filter(h => !h.isUnique)
-        .forEach(highlight => {
+        .filter((h) => !h.isUnique)
+        .forEach((highlight) => {
           const { str: searchStr, style } = highlight;
           let regexFlags = caseInsensitive ? 'g' : 'gi';
 
-          const re = new RegExp(searchStr.replace(/[-[\]{}()*+?.,\\^$|#\s*]/g, '\\$&'), regexFlags);
+          const re = new RegExp(
+            searchStr.replace(/[-[\]{}()*+?.,\\^$|#\s*]/g, '\\$&'),
+            regexFlags
+          );
           const tempResultArray = [];
 
-          resultArray.forEach(segment => {
+          resultArray.forEach((segment) => {
             if (segment.style === null) {
               let matchIndex = 0;
               let match;
@@ -114,12 +122,19 @@ export default {
                 if (beforeMatch) {
                   tempResultArray.push({ str: beforeMatch, style: null });
                 }
-                tempResultArray.push({ str: matchedText, style: style, isHighLight: true });
+                tempResultArray.push({
+                  isHighLight: true,
+                  str: matchedText,
+                  style: style,
+                });
                 matchIndex = match.index + matchedText.length;
               }
 
               if (matchIndex < segment.str.length) {
-                tempResultArray.push({ str: segment.str.slice(matchIndex), style: null });
+                tempResultArray.push({
+                  str: segment.str.slice(matchIndex),
+                  style: null,
+                });
               }
             } else {
               tempResultArray.push(segment);
@@ -137,23 +152,23 @@ export default {
       val: highlightStringToArray(val, lightList, ignoreCase),
     }));
     return (
-      <span style='white-space: normal;word-break: break-all; white-space: pre-wrap;'>
-        {parseList.map(item => (
+      <span style="white-space: normal;word-break: break-all; white-space: pre-wrap;">
+        {parseList.map((item) => (
           <span>
             {isShowKey && (
               <span>
-                <span style='background: #EBECF0; color: #313238; display: inline-block; line-height: 16px; padding: 0 2px;'>
+                <span style="background: #EBECF0; color: #313238; display: inline-block; line-height: 16px; padding: 0 2px;">
                   {item.key}:
                 </span>
                 {'\u00a0'}
               </span>
             )}
-            {item.val.map(item => {
+            {item.val.map((item) => {
               if (item.style)
                 return (
                   <span
-                    style={item.style}
                     data-index={item?.isHighLight ? 'light' : 'filter'}
+                    style={item.style}
                   >
                     {item.str}
                   </span>

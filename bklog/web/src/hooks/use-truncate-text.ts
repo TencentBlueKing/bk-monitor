@@ -46,7 +46,7 @@ export default (options: ComputedRef<TextOption>) => {
   };
 
   const truncateTextWithCanvas = () => {
-    const { text, maxWidth, font } = options.value;
+    const { font, maxWidth, text } = options.value;
     if (maxWidth <= 0) {
       return '';
     }
@@ -108,7 +108,11 @@ export default (options: ComputedRef<TextOption>) => {
   };
 
   const truncatedText = computed(() => truncateTextWithCanvas());
-  const showMore = computed(() => truncatedText.value.length < options.value.text.length && options.value.maxWidth > 0);
+  const showMore = computed(
+    () =>
+      truncatedText.value.length < options.value.text.length &&
+      options.value.maxWidth > 0
+  );
 
-  return { truncatedText, showMore };
+  return { showMore, truncatedText };
 };

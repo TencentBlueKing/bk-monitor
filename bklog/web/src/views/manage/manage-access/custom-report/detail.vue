@@ -36,10 +36,7 @@
       :info="authPageInfo"
     ></auth-container-page>
     <template v-if="!authPageInfo && !basicLoading && reportDetail">
-      <basic-tab
-        :active.sync="activePanel"
-        type="border-card"
-      >
+      <basic-tab :active.sync="activePanel" type="border-card">
         <bk-tab-panel
           v-for="panel in panels"
           v-bind="panel"
@@ -50,11 +47,9 @@
             <div class="search-text">
               <span class="bk-icon icon-info"></span>
               <i18n path="数据采集好了，去 {0}">
-                <span
-                  class="search-button"
-                  @click="handleGoSearch"
-                  >{{ $t('查看数据') }}</span
-                >
+                <span class="search-button" @click="handleGoSearch">{{
+                  $t('查看数据')
+                }}</span>
               </i18n>
             </div>
           </div>
@@ -81,10 +76,7 @@
         :style="`right: ${introWidth - 18}px`"
         :class="`drag-item ${!introWidth && 'hidden-drag'}`"
       >
-        <span
-          class="bk-icon icon-more"
-          @mousedown.left="dragBegin"
-        ></span>
+        <span class="bk-icon icon-more" @mousedown.left="dragBegin"></span>
       </div>
       <intro-panel
         :data="reportDetail"
@@ -96,179 +88,182 @@
 </template>
 
 <script>
-  import BasicTab from '@/components/basic-tab';
-  import AuthContainerPage from '@/components/common/auth-container-page';
-  import dragMixin from '@/mixins/drag-mixin';
-  import UsageDetails from '@/views/manage/manage-access/components/usage-details';
+import BasicTab from '@/components/basic-tab';
+import AuthContainerPage from '@/components/common/auth-container-page';
+import dragMixin from '@/mixins/drag-mixin';
+import UsageDetails from '@/views/manage/manage-access/components/usage-details';
 
-  import * as authorityMap from '../../../../common/authority-map';
-  import BasicInfo from '../log-collection/collection-item/manage-collection/basic-info';
-  import DataStatus from '../log-collection/collection-item/manage-collection/data-status';
-  import DataStorage from '../log-collection/collection-item/manage-collection/data-storage';
-  import FieldInfo from '../log-collection/collection-item/manage-collection/field-info.tsx';
-  import IntroPanel from './components/intro-panel';
+import * as authorityMap from '../../../../common/authority-map';
+import BasicInfo from '../log-collection/collection-item/manage-collection/basic-info';
+import DataStatus from '../log-collection/collection-item/manage-collection/data-status';
+import DataStorage from '../log-collection/collection-item/manage-collection/data-storage';
+import FieldInfo from '../log-collection/collection-item/manage-collection/field-info.tsx';
+import IntroPanel from './components/intro-panel';
 
-  export default {
-    name: 'CollectionItem',
-    components: {
-      AuthContainerPage,
-      BasicInfo,
-      DataStorage,
-      DataStatus,
-      UsageDetails,
-      IntroPanel,
-      BasicTab,
-      FieldInfo,
-    },
-    mixins: [dragMixin],
-    data() {
-      return {
-        basicLoading: true,
-        authPageInfo: null,
-        reportDetail: {},
-        activePanel: this.$route.query.type || 'basicInfo',
-        isOpenWindow: true,
-        editAuth: false,
-        editAuthData: null,
-        panels: [
-          { name: 'basicInfo', label: this.$t('配置信息') },
-          { name: 'dataStorage', label: this.$t('数据存储') },
-          { name: 'fieldInfo', label: this.$t('字段信息') },
-          { name: 'dataStatus', label: this.$t('数据状态') },
-          { name: 'usageDetails', label: this.$t('使用详情') },
-        ],
+export default {
+  name: 'CollectionItem',
+  components: {
+    AuthContainerPage,
+    BasicInfo,
+    DataStorage,
+    DataStatus,
+    UsageDetails,
+    IntroPanel,
+    BasicTab,
+    FieldInfo,
+  },
+  mixins: [dragMixin],
+  data() {
+    return {
+      basicLoading: true,
+      authPageInfo: null,
+      reportDetail: {},
+      activePanel: this.$route.query.type || 'basicInfo',
+      isOpenWindow: true,
+      editAuth: false,
+      editAuthData: null,
+      panels: [
+        { name: 'basicInfo', label: this.$t('配置信息') },
+        { name: 'dataStorage', label: this.$t('数据存储') },
+        { name: 'fieldInfo', label: this.$t('字段信息') },
+        { name: 'dataStatus', label: this.$t('数据状态') },
+        { name: 'usageDetails', label: this.$t('使用详情') },
+      ],
+    };
+  },
+  computed: {
+    dynamicComponent() {
+      const componentMaP = {
+        basicInfo: 'BasicInfo',
+        dataStorage: 'DataStorage',
+        fieldInfo: 'FieldInfo',
+        dataStatus: 'DataStatus',
+        usageDetails: 'UsageDetails',
       };
+      return componentMaP[this.activePanel] || 'BasicInfo';
     },
-    computed: {
-      dynamicComponent() {
-        const componentMaP = {
-          basicInfo: 'BasicInfo',
-          dataStorage: 'DataStorage',
-          fieldInfo: 'FieldInfo',
-          dataStatus: 'DataStatus',
-          usageDetails: 'UsageDetails',
+  },
+  created() {
+    this.initPage();
+    this.getEditAuth();
+  },
+  mounted() {
+    this.$nextTick(() => {
+      this.maxIntroWidth = this.$refs.detailRef.clientWidth - 380;
+    });
+  },
+  methods: {
+    async initPage() {
+      // 进入路由需要先判断权限
+      try {
+        const paramData = {
+          action_ids: [authorityMap.VIEW_COLLECTION_AUTH],
+          resources: [
+            {
+              type: 'collection',
+              id: this.$route.params.collectorId,
+            },
+          ],
         };
-        return componentMaP[this.activePanel] || 'BasicInfo';
-      },
-    },
-    created() {
-      this.initPage();
-      this.getEditAuth();
-    },
-    mounted() {
-      this.$nextTick(() => {
-        this.maxIntroWidth = this.$refs.detailRef.clientWidth - 380;
-      });
-    },
-    methods: {
-      async initPage() {
-        // 进入路由需要先判断权限
-        try {
-          const paramData = {
-            action_ids: [authorityMap.VIEW_COLLECTION_AUTH],
-            resources: [
-              {
-                type: 'collection',
-                id: this.$route.params.collectorId,
-              },
-            ],
-          };
-          const res = await this.$store.dispatch('checkAndGetData', paramData);
-          if (res.isAllowed === false) {
-            this.authPageInfo = res.data;
-            // 显示无权限页面
-          } else {
-            // 正常显示页面
-            const { data: reportDetail } = await this.$http.request('collect/details', {
+        const res = await this.$store.dispatch('checkAndGetData', paramData);
+        if (res.isAllowed === false) {
+          this.authPageInfo = res.data;
+          // 显示无权限页面
+        } else {
+          // 正常显示页面
+          const { data: reportDetail } = await this.$http.request(
+            'collect/details',
+            {
               params: {
                 collector_config_id: this.$route.params.collectorId,
               },
-            });
-            this.reportDetail = reportDetail;
-            this.$store.commit('collect/setCurCollect', reportDetail);
-          }
-        } catch (err) {
-          console.warn(err);
-        } finally {
-          this.basicLoading = false;
+            }
+          );
+          this.reportDetail = reportDetail;
+          this.$store.commit('collect/setCurCollect', reportDetail);
         }
-      },
-      handleActiveDetails(state) {
-        this.isOpenWindow = state;
-        this.introWidth = state ? 360 : 0;
-      },
-      handleGoSearch() {
-        const params = {
-          indexId: this.reportDetail.index_set_id
-            ? this.reportDetail.index_set_id
-            : this.reportDetail.bkdata_index_set_ids[0],
-        };
-        this.$router.push({
-          name: 'retrieve',
-          params,
-          query: {
-            spaceUid: this.$store.state.spaceUid,
-            bizId: this.$store.state.bkBizId,
-          },
-        });
-      },
-      async getEditAuth() {
-        try {
-          const paramData = {
-            action_ids: [authorityMap.MANAGE_COLLECTION_AUTH],
-            resources: [
-              {
-                type: 'collection',
-                id: this.$route.params.collectorId,
-              },
-            ],
-          };
-          const res = await this.$store.dispatch('checkAndGetData', paramData);
-          if (!res.isAllowed) this.editAuthData = res.data;
-          this.editAuth = res.isAllowed;
-        } catch (error) {
-          this.editAuth = false;
-        }
-      },
+      } catch (err) {
+        console.warn(err);
+      } finally {
+        this.basicLoading = false;
+      }
     },
-  };
+    handleActiveDetails(state) {
+      this.isOpenWindow = state;
+      this.introWidth = state ? 360 : 0;
+    },
+    handleGoSearch() {
+      const params = {
+        indexId: this.reportDetail.index_set_id
+          ? this.reportDetail.index_set_id
+          : this.reportDetail.bkdata_index_set_ids[0],
+      };
+      this.$router.push({
+        name: 'retrieve',
+        params,
+        query: {
+          spaceUid: this.$store.state.spaceUid,
+          bizId: this.$store.state.bkBizId,
+        },
+      });
+    },
+    async getEditAuth() {
+      try {
+        const paramData = {
+          action_ids: [authorityMap.MANAGE_COLLECTION_AUTH],
+          resources: [
+            {
+              type: 'collection',
+              id: this.$route.params.collectorId,
+            },
+          ],
+        };
+        const res = await this.$store.dispatch('checkAndGetData', paramData);
+        if (!res.isAllowed) this.editAuthData = res.data;
+        this.editAuth = res.isAllowed;
+      } catch (error) {
+        this.editAuth = false;
+      }
+    },
+  },
+};
 </script>
 
 <style lang="scss">
-  .intro-container {
-    position: fixed;
-    top: 99px;
-    right: 0;
-    z-index: 999;
-    height: calc(100vh - 99px);
-    overflow: hidden;
+.intro-container {
+  position: fixed;
+  top: 99px;
+  right: 0;
+  z-index: 999;
+  height: calc(100vh - 99px);
+  overflow: hidden;
 
-    .drag-item {
-      position: absolute;
-      top: 48%;
-      right: 304px;
-      z-index: 100;
-      display: inline-block;
-      width: 20px;
-      height: 40px;
-      color: #c4c6cc;
-      cursor: col-resize;
-      user-select: none;
+  .drag-item {
+    position: absolute;
+    top: 48%;
+    right: 304px;
+    z-index: 100;
+    display: inline-block;
+    width: 20px;
+    height: 40px;
+    color: #c4c6cc;
+    cursor: col-resize;
+    user-select: none;
 
-      &.hidden-drag {
-        display: none;
-      }
-
-      .icon-more::after {
-        position: absolute;
-        top: 12px;
-        left: 0;
-        content: '\e189';
-      }
+    &.hidden-drag {
+      display: none;
     }
 
-    &.draging-move {
-      border-left-color: #3a84ff;
+    .icon-more::after {
+      position: absolute;
+      top: 12px;
+      left: 0;
+      content: '\e189';
     }
   }
+
+  &.draging-move {
+    border-left-color: #3a84ff;
+  }
+}
 </style>

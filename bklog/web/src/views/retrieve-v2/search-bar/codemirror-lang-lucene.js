@@ -38,10 +38,10 @@ const luceneParser = parser.configure({
 });
 
 const luceneLanguage = LRLanguage.define({
-  parser: luceneParser,
   languageData: {
     commentTokens: { line: '//' },
   },
+  parser: luceneParser,
 });
 
 export default function luceneLanguageSupport() {

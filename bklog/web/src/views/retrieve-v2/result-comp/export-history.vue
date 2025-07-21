@@ -41,22 +41,13 @@
       {{ $t('下载历史') }}
     </div>
     <div class="search-history">
-      <span
-        class="top-start"
-        v-bk-tooltips="$t('查看所有的索引集的下载历史')"
-      >
-        <bk-button
-          theme="primary"
-          @click="handleSearchAll"
-        >
+      <span class="top-start" v-bk-tooltips="$t('查看所有的索引集的下载历史')">
+        <bk-button theme="primary" @click="handleSearchAll">
           {{ $t('查看所有') }}</bk-button
         >
       </span>
     </div>
-    <div
-      class="table-container"
-      v-bkloading="{ isLoading: tableLoading }"
-    >
+    <div class="table-container" v-bkloading="{ isLoading: tableLoading }">
       <bk-table
         class="export-table"
         :data="exportList"
@@ -66,17 +57,10 @@
         @page-limit-change="handleLimitChange"
       >
         <!-- ID -->
-        <bk-table-column
-          width="80"
-          label="ID"
-          prop="id"
-        ></bk-table-column>
+        <bk-table-column width="80" label="ID" prop="id"></bk-table-column>
         <!-- index_set_id -->
         <template v-if="isShowSetLabel">
-          <bk-table-column
-            width="100"
-            :label="$t('索引集ID')"
-          >
+          <bk-table-column width="100" :label="$t('索引集ID')">
             <template #default="{ row }">
               <span>
                 {{ getIndexSetIDs(row) }}
@@ -85,15 +69,9 @@
           </bk-table-column>
         </template>
         <!-- 检测请求参数 -->
-        <bk-table-column
-          width="180"
-          :label="$t('检索请求参数')"
-        >
+        <bk-table-column width="180" :label="$t('检索请求参数')">
           <template #default="{ row }">
-            <bk-popover
-              placement="top"
-              theme="light"
-            >
+            <bk-popover placement="top" theme="light">
               <template #content>
                 <div>
                   <!-- eslint-disable-next-line vue/no-v-html -->
@@ -113,11 +91,10 @@
           header-align="center"
         >
           <template #default="{ row }">
-            <div
-              class="title-overflow"
-              v-bk-overflow-tips
-            >
-              <span>{{ row.export_type === 'async' ? $t('异步') : $t('同步') }}</span>
+            <div class="title-overflow" v-bk-overflow-tips>
+              <span>{{
+                row.export_type === 'async' ? $t('异步') : $t('同步')
+              }}</span>
             </div>
           </template>
         </bk-table-column>
@@ -137,7 +114,8 @@
               <template #content>
                 <div>
                   <span v-if="!row.error_msg">
-                    {{ $t('完成时间') }}: {{ getFormatDate(row.export_completed_at) }}
+                    {{ $t('完成时间') }}:
+                    {{ getFormatDate(row.export_completed_at) }}
                   </span>
                   <span v-else>{{ $t('异常原因') }}: {{ row.error_msg }}</span>
                 </div>
@@ -166,10 +144,7 @@
           header-align="center"
         >
           <template #default="{ row }">
-            <div
-              class="title-overflow"
-              v-bk-overflow-tips
-            >
+            <div class="title-overflow" v-bk-overflow-tips>
               <span>{{ row.export_pkg_name || '--' }}</span>
             </div>
           </template>
@@ -181,7 +156,9 @@
           header-align="center"
         >
           <template #default="{ row }">
-            <span>{{ row.export_pkg_size ? `${row.export_pkg_size}M` : '--' }}</span>
+            <span>{{
+              row.export_pkg_size ? `${row.export_pkg_size}M` : '--'
+            }}</span>
           </template>
         </bk-table-column>
         <!-- 操作者 -->
@@ -191,10 +168,7 @@
           header-align="center"
         >
           <template #default="{ row }">
-            <div
-              class="title-overflow"
-              v-bk-overflow-tips
-            >
+            <div class="title-overflow" v-bk-overflow-tips>
               <span>{{ row.export_created_by || '--' }}</span>
             </div>
           </template>
@@ -207,10 +181,7 @@
           header-align="center"
         >
           <template #default="{ row }">
-            <div
-              class="title-overflow"
-              v-bk-overflow-tips
-            >
+            <div class="title-overflow" v-bk-overflow-tips>
               <span>{{ getFormatDate(row.export_created_at) }}</span>
             </div>
           </template>
@@ -223,10 +194,7 @@
           header-align="center"
         >
           <template #default="{ row }">
-            <span
-              v-if="isShowDownload(row)"
-              style="margin-right: 10px"
-            >
+            <span v-if="isShowDownload(row)" style="margin-right: 10px">
               <bk-button
                 v-if="row.download_able"
                 text
@@ -234,23 +202,13 @@
               >
                 {{ $t('下载') }}
               </bk-button>
-              <span
-                v-else
-                class="top-start"
-                v-bk-tooltips="$t('下载链接过期')"
-              >
-                <bk-button
-                  disabled
-                  text
-                >
+              <span v-else class="top-start" v-bk-tooltips="$t('下载链接过期')">
+                <bk-button disabled text>
                   {{ $t('下载') }}
                 </bk-button>
               </span>
             </span>
-            <span
-              v-if="isShowRetry(row)"
-              style="margin-right: 10px"
-            >
+            <span v-if="isShowRetry(row)" style="margin-right: 10px">
               <bk-button
                 v-if="row.retry_able && row.export_status !== 'success'"
                 text
@@ -266,18 +224,12 @@
                   disabled: row.export_status === 'success',
                 }"
               >
-                <bk-button
-                  disabled
-                  text
-                >
+                <bk-button disabled text>
                   {{ $t('重试') }}
                 </bk-button>
               </span>
             </span>
-            <bk-button
-              text
-              @click="handleRetrieve(row)"
-            >
+            <bk-button text @click="handleRetrieve(row)">
               {{ $t('检索') }}
             </bk-button>
           </template>
@@ -288,375 +240,391 @@
 </template>
 
 <script>
-  import { formatDate, blobDownload } from '@/common/util';
-  import { mapGetters } from 'vuex';
+import { formatDate, blobDownload } from '@/common/util';
+import { mapGetters } from 'vuex';
 
-  import { axiosInstance } from '@/api';
+import { axiosInstance } from '@/api';
 
-  export default {
-    props: {
-      showHistoryExport: {
-        type: Boolean,
-        default: false,
-      },
-      indexSetList: {
-        type: Array,
-        required: true,
-      },
+export default {
+  props: {
+    showHistoryExport: {
+      type: Boolean,
+      default: false,
     },
-    data() {
-      return {
-        exportList: [],
-        isShowDialog: false,
-        tableLoading: false,
-        isSearchAll: false, // 是否查看所有索引集下载历史
-        isShowSetLabel: false, // 是否展示索引集ID
-        timer: false,
-        exportStatusList: {
-          download_log: this.$t('拉取中'),
-          export_package: this.$t('打包中'),
-          export_upload: this.$t('上传中'),
-          success: this.$t('完成'),
-          failed: this.$t('异常'),
-          download_expired: this.$t('下载链接过期'),
-          data_expired: this.$t('数据源过期'),
-          null: this.$t('下载中'),
-        },
-        pagination: {
-          current: 1,
-          count: 0,
-          limit: 10,
-        },
-        position: {
-          top: 120,
-        },
-        enTableWidth: {
-          export_status: '190',
-          operate: '220',
-        },
-        cnTableWidth: {
-          export_status: '170',
-          operate: '150',
-        },
-      };
+    indexSetList: {
+      type: Array,
+      required: true,
     },
-    computed: {
-      bkBizId() {
-        return this.$store.state.bkBizId;
+  },
+  data() {
+    return {
+      exportList: [],
+      isShowDialog: false,
+      tableLoading: false,
+      isSearchAll: false, // 是否查看所有索引集下载历史
+      isShowSetLabel: false, // 是否展示索引集ID
+      timer: false,
+      exportStatusList: {
+        download_log: this.$t('拉取中'),
+        export_package: this.$t('打包中'),
+        export_upload: this.$t('上传中'),
+        success: this.$t('完成'),
+        failed: this.$t('异常'),
+        download_expired: this.$t('下载链接过期'),
+        data_expired: this.$t('数据源过期'),
+        null: this.$t('下载中'),
       },
-      getTableWidth() {
-        return this.$store.getters.isEnLanguage ? this.enTableWidth : this.cnTableWidth;
+      pagination: {
+        current: 1,
+        count: 0,
+        limit: 10,
       },
-      ...mapGetters({
-        unionIndexList: 'unionIndexList',
-        isUnionSearch: 'isUnionSearch',
-      }),
+      position: {
+        top: 120,
+      },
+      enTableWidth: {
+        export_status: '190',
+        operate: '220',
+      },
+      cnTableWidth: {
+        export_status: '170',
+        operate: '150',
+      },
+    };
+  },
+  computed: {
+    bkBizId() {
+      return this.$store.state.bkBizId;
     },
-    watch: {
-      showHistoryExport(val) {
-        this.isShowDialog = val;
-        if (val) {
-          this.getTableList();
-          this.startStatusPolling();
-        }
-      },
+    getTableWidth() {
+      return this.$store.getters.isEnLanguage
+        ? this.enTableWidth
+        : this.cnTableWidth;
     },
-    methods: {
-      downloadExport($row) {
-        // 异步导出使用downloadURL下载
-        if ($row.download_url) {
-          window.open($row.download_url);
-          return;
-        }
+    ...mapGetters({
+      unionIndexList: 'unionIndexList',
+      isUnionSearch: 'isUnionSearch',
+    }),
+  },
+  watch: {
+    showHistoryExport(val) {
+      this.isShowDialog = val;
+      if (val) {
+        this.getTableList();
+        this.startStatusPolling();
+      }
+    },
+  },
+  methods: {
+    downloadExport($row) {
+      // 异步导出使用downloadURL下载
+      if ($row.download_url) {
+        window.open($row.download_url);
+        return;
+      }
+      this.openDownloadUrl($row);
+      this.startStatusPolling();
+    },
+    retryExport($row) {
+      // 异常任务直接异步下载
+      if ($row.export_type === 'sync') {
         this.openDownloadUrl($row);
-        this.startStatusPolling();
-      },
-      retryExport($row) {
-        // 异常任务直接异步下载
-        if ($row.export_type === 'sync') {
-          this.openDownloadUrl($row);
-        } else {
-          this.downloadAsync($row.search_dict);
-        }
-        this.startStatusPolling();
-      },
-      /**
-       * @desc: 同步下载
-       * @param { Object } params
-       */
-      openDownloadUrl(params) {
-        const data = params.search_dict;
-        const stringParamsIndexSetID = String(params.log_index_set_id);
-        axiosInstance
-          .post(`/search/index_set/${stringParamsIndexSetID}/export/`, data)
-          .then(res => {
-            if (typeof res !== 'string') {
-              this.$bkMessage({
-                theme: 'error',
-                message: this.$t('导出失败'),
-              });
-              return;
-            }
-            const lightName = this.indexSetList.find(item => item.index_set_id === stringParamsIndexSetID)?.lightenName;
-            const downloadName = lightName
-              ? `bk_log_search_${lightName.substring(2, lightName.length - 1)}.txt`
-              : 'bk_log_search.txt';
-            blobDownload(res, downloadName);
-          })
-          .finally(() => {
-            this.getTableList(true);
-          });
-      },
-      /**
-       * @desc: 异步下载
-       * @param { Object } data
-       */
-      downloadAsync(data) {
-        this.tableLoading = true;
-        this.$http
-          .request('retrieve/exportAsync', {
-            params: {
-              index_set_id: window.__IS_MONITOR_COMPONENT__ ? this.$route.query.indexId : this.$route.params.indexId,
-            },
-            data,
-          })
-          .then(res => {
-            if (res.result) {
-              this.$bkMessage({
-                theme: 'success',
-                message: res.data.prompt,
-              });
-            }
-          })
-          .finally(() => {
-            setTimeout(() => {
-              this.getTableList(true);
-            }, 1000);
-          });
-      },
-      handleSearchAll() {
-        if (this.tableLoading) {
-          return;
-        }
-        this.isSearchAll = true;
-        this.getTableList();
-      },
-      getSearchDictStr(searchObj) {
-        return JSON.stringify(searchObj);
-      },
-      getSearchDictHtml(searchObj) {
-        const objStr = JSON.stringify(searchObj, null, 4);
-        return objStr.replace(/\n/g, '<br>').replace(/\s/g, ' ');
-      },
-      isShowDownload(row) {
-        return ['success', 'download_expired', 'data_expired'].includes(row.export_status);
-      },
-      isShowRetry(row) {
-        return ['failed', 'download_expired', 'data_expired', 'success'].includes(row.export_status);
-      },
-      isShowShape(status) {
-        return ['success', 'failed'].includes(status);
-      },
-      getStatusStr(status) {
-        return this.exportStatusList[status];
-      },
-      getFormatDate(time) {
-        return formatDate(new Date(time).getTime());
-      },
-      handleRetrieve($row) {
-        const { spaceUid } = this.$store.state;
-        const { log_index_set_id: indexSetID, search_dict: dict } = $row;
-        // 检索数据回填
-        const queryParamsStr = {};
-        for (const key in dict) {
-          switch (key) {
-            case 'keyword':
-            case 'start_time':
-            case 'end_time':
-            case 'time_range':
-              if (dict[key] !== '') {
-                queryParamsStr[key] = encodeURIComponent(dict[key]);
-              }
-              break;
-            case 'ip_chooser':
-            case 'addition':
-              queryParamsStr[key] = JSON.stringify(dict[key]);
-              break;
-            default:
-              break;
-          }
-        }
-        const params = Object.keys(queryParamsStr)
-          .reduce((output, key) => {
-            output.push(`${key}=${encodeURIComponent(queryParamsStr[key])}`);
-            return output;
-          }, [])
-          .join('&');
-        const jumpUrl = `${window.SITE_URL}#/retrieve/${indexSetID}?spaceUid=${spaceUid}&bizId=${dict.bk_biz_id}&${params}`;
-        window.open(jumpUrl, '_blank');
-      },
-      /**
-       * @desc: 轮询
-       */
-      startStatusPolling() {
-        this.stopStatusPolling();
-        this.timer = setInterval(() => {
-          this.getTableList(false, true);
-        }, 10000);
-      },
-      stopStatusPolling() {
-        clearTimeout(this.timer);
-      },
-      /**
-       * @desc: 导出状态轮询
-       * @param { Array } data 数据
-       * @param { Boolean } isPolling 该次请求是否是轮询
-       */
-      setExportListData(data, isPolling) {
-        if (isPolling) {
-          data.forEach(item => {
-            this.exportList.forEach(row => {
-              if (row.id === item.id) {
-                Object.assign(row, { ...item });
-              }
-            });
-          });
-        } else {
-          this.exportList = data;
-          this.startStatusPolling();
-        }
-      },
-      /**
-       * @desc: 获取table列表数据
-       * @param { Boolean } isReset 是否从1页开始查询
-       * @param { Boolean } isPolling 该次请求是否是轮询
-       */
-      getTableList(isReset = false, isPolling = false) {
-        isReset && (this.pagination.current = 1);
-        !isPolling && (this.tableLoading = true);
-        const { limit, current } = this.pagination;
-        const queryUrl = this.isUnionSearch ? 'unionSearch/unionExportHistory' : 'retrieve/getExportHistoryList';
-        const params = {
-          index_set_id: window.__IS_MONITOR_COMPONENT__ ? this.$route.query.indexId : this.$route.params.indexId,
-          bk_biz_id: this.bkBizId,
-          page: current,
-          pagesize: limit,
-          show_all: this.isSearchAll,
-        };
-        if (this.isUnionSearch) {
-          Object.assign(params, { index_set_ids: this.unionIndexList });
-        }
-        this.$http
-          .request(queryUrl, {
-            params,
-          })
-          .then(res => {
-            if (res.result) {
-              this.pagination.count = res.data.total;
-              this.setExportListData(res.data.list, isPolling);
-            }
-            // 查询所有索引集时才显示索引集IDLabel
-            if (this.isSearchAll) {
-              this.isShowSetLabel = true;
-            }
-          })
-          .finally(() => {
-            this.tableLoading = false;
-          });
-      },
-      handlePageChange(page) {
-        this.pagination.current = page;
-        this.getTableList();
-      },
-      handleLimitChange(size) {
-        if (this.pagination.limit !== size) {
-          this.pagination.current = 1;
-          this.pagination.limit = size;
-          this.getTableList();
-        }
-      },
-      /**
-       * @desc: 关闭table弹窗清空数据
-       */
-      closeDialog() {
-        this.isSearchAll = false;
-        this.isShowSetLabel = false;
-        this.exportList = [];
-        this.pagination = {
-          current: 1,
-          count: 0,
-          limit: 10,
-        };
-        this.stopStatusPolling();
-        this.$emit('handle-close-dialog');
-      },
-      getIndexSetIDs(row) {
-        return row.log_index_set_ids?.length ? row.log_index_set_ids.join(',') : row.log_index_set_id;
-      },
+      } else {
+        this.downloadAsync($row.search_dict);
+      }
+      this.startStatusPolling();
     },
-  };
+    /**
+     * @desc: 同步下载
+     * @param { Object } params
+     */
+    openDownloadUrl(params) {
+      const data = params.search_dict;
+      const stringParamsIndexSetID = String(params.log_index_set_id);
+      axiosInstance
+        .post(`/search/index_set/${stringParamsIndexSetID}/export/`, data)
+        .then((res) => {
+          if (typeof res !== 'string') {
+            this.$bkMessage({
+              theme: 'error',
+              message: this.$t('导出失败'),
+            });
+            return;
+          }
+          const lightName = this.indexSetList.find(
+            (item) => item.index_set_id === stringParamsIndexSetID
+          )?.lightenName;
+          const downloadName = lightName
+            ? `bk_log_search_${lightName.substring(2, lightName.length - 1)}.txt`
+            : 'bk_log_search.txt';
+          blobDownload(res, downloadName);
+        })
+        .finally(() => {
+          this.getTableList(true);
+        });
+    },
+    /**
+     * @desc: 异步下载
+     * @param { Object } data
+     */
+    downloadAsync(data) {
+      this.tableLoading = true;
+      this.$http
+        .request('retrieve/exportAsync', {
+          params: {
+            index_set_id: window.__IS_MONITOR_COMPONENT__
+              ? this.$route.query.indexId
+              : this.$route.params.indexId,
+          },
+          data,
+        })
+        .then((res) => {
+          if (res.result) {
+            this.$bkMessage({
+              theme: 'success',
+              message: res.data.prompt,
+            });
+          }
+        })
+        .finally(() => {
+          setTimeout(() => {
+            this.getTableList(true);
+          }, 1000);
+        });
+    },
+    handleSearchAll() {
+      if (this.tableLoading) {
+        return;
+      }
+      this.isSearchAll = true;
+      this.getTableList();
+    },
+    getSearchDictStr(searchObj) {
+      return JSON.stringify(searchObj);
+    },
+    getSearchDictHtml(searchObj) {
+      const objStr = JSON.stringify(searchObj, null, 4);
+      return objStr.replace(/\n/g, '<br>').replace(/\s/g, ' ');
+    },
+    isShowDownload(row) {
+      return ['success', 'download_expired', 'data_expired'].includes(
+        row.export_status
+      );
+    },
+    isShowRetry(row) {
+      return ['failed', 'download_expired', 'data_expired', 'success'].includes(
+        row.export_status
+      );
+    },
+    isShowShape(status) {
+      return ['success', 'failed'].includes(status);
+    },
+    getStatusStr(status) {
+      return this.exportStatusList[status];
+    },
+    getFormatDate(time) {
+      return formatDate(new Date(time).getTime());
+    },
+    handleRetrieve($row) {
+      const { spaceUid } = this.$store.state;
+      const { log_index_set_id: indexSetID, search_dict: dict } = $row;
+      // 检索数据回填
+      const queryParamsStr = {};
+      for (const key in dict) {
+        switch (key) {
+          case 'keyword':
+          case 'start_time':
+          case 'end_time':
+          case 'time_range':
+            if (dict[key] !== '') {
+              queryParamsStr[key] = encodeURIComponent(dict[key]);
+            }
+            break;
+          case 'ip_chooser':
+          case 'addition':
+            queryParamsStr[key] = JSON.stringify(dict[key]);
+            break;
+          default:
+            break;
+        }
+      }
+      const params = Object.keys(queryParamsStr)
+        .reduce((output, key) => {
+          output.push(`${key}=${encodeURIComponent(queryParamsStr[key])}`);
+          return output;
+        }, [])
+        .join('&');
+      const jumpUrl = `${window.SITE_URL}#/retrieve/${indexSetID}?spaceUid=${spaceUid}&bizId=${dict.bk_biz_id}&${params}`;
+      window.open(jumpUrl, '_blank');
+    },
+    /**
+     * @desc: 轮询
+     */
+    startStatusPolling() {
+      this.stopStatusPolling();
+      this.timer = setInterval(() => {
+        this.getTableList(false, true);
+      }, 10000);
+    },
+    stopStatusPolling() {
+      clearTimeout(this.timer);
+    },
+    /**
+     * @desc: 导出状态轮询
+     * @param { Array } data 数据
+     * @param { Boolean } isPolling 该次请求是否是轮询
+     */
+    setExportListData(data, isPolling) {
+      if (isPolling) {
+        data.forEach((item) => {
+          this.exportList.forEach((row) => {
+            if (row.id === item.id) {
+              Object.assign(row, { ...item });
+            }
+          });
+        });
+      } else {
+        this.exportList = data;
+        this.startStatusPolling();
+      }
+    },
+    /**
+     * @desc: 获取table列表数据
+     * @param { Boolean } isReset 是否从1页开始查询
+     * @param { Boolean } isPolling 该次请求是否是轮询
+     */
+    getTableList(isReset = false, isPolling = false) {
+      isReset && (this.pagination.current = 1);
+      !isPolling && (this.tableLoading = true);
+      const { limit, current } = this.pagination;
+      const queryUrl = this.isUnionSearch
+        ? 'unionSearch/unionExportHistory'
+        : 'retrieve/getExportHistoryList';
+      const params = {
+        index_set_id: window.__IS_MONITOR_COMPONENT__
+          ? this.$route.query.indexId
+          : this.$route.params.indexId,
+        bk_biz_id: this.bkBizId,
+        page: current,
+        pagesize: limit,
+        show_all: this.isSearchAll,
+      };
+      if (this.isUnionSearch) {
+        Object.assign(params, { index_set_ids: this.unionIndexList });
+      }
+      this.$http
+        .request(queryUrl, {
+          params,
+        })
+        .then((res) => {
+          if (res.result) {
+            this.pagination.count = res.data.total;
+            this.setExportListData(res.data.list, isPolling);
+          }
+          // 查询所有索引集时才显示索引集IDLabel
+          if (this.isSearchAll) {
+            this.isShowSetLabel = true;
+          }
+        })
+        .finally(() => {
+          this.tableLoading = false;
+        });
+    },
+    handlePageChange(page) {
+      this.pagination.current = page;
+      this.getTableList();
+    },
+    handleLimitChange(size) {
+      if (this.pagination.limit !== size) {
+        this.pagination.current = 1;
+        this.pagination.limit = size;
+        this.getTableList();
+      }
+    },
+    /**
+     * @desc: 关闭table弹窗清空数据
+     */
+    closeDialog() {
+      this.isSearchAll = false;
+      this.isShowSetLabel = false;
+      this.exportList = [];
+      this.pagination = {
+        current: 1,
+        count: 0,
+        limit: 10,
+      };
+      this.stopStatusPolling();
+      this.$emit('handle-close-dialog');
+    },
+    getIndexSetIDs(row) {
+      return row.log_index_set_ids?.length
+        ? row.log_index_set_ids.join(',')
+        : row.log_index_set_id;
+    },
+  },
+};
 </script>
 
 <style lang="scss" scoped>
-  @import '@/scss/mixins/flex.scss';
-  @import '@/scss/conf';
+@import '@/scss/mixins/flex.scss';
+@import '@/scss/conf';
 
-  .table-title {
-    font-size: 16px;
-    font-weight: 700;
-  }
+.table-title {
+  font-size: 16px;
+  font-weight: 700;
+}
 
-  .search-history {
-    width: 100%;
-    margin: 10px 0 20px 0;
-    text-align: right;
-  }
+.search-history {
+  width: 100%;
+  margin: 10px 0 20px 0;
+  text-align: right;
+}
 
-  .export-table {
-    height: calc(100vh - 380px);
-    overflow-y: auto;
+.export-table {
+  height: calc(100vh - 380px);
+  overflow-y: auto;
 
-    .bk-table-body-wrapper {
-      min-height: calc(100vh - 520px);
+  .bk-table-body-wrapper {
+    min-height: calc(100vh - 520px);
 
-      .bk-table-empty-block {
-        min-height: calc(100vh - 440px);
+    .bk-table-empty-block {
+      min-height: calc(100vh - 440px);
 
-        @include flex-center;
-      }
+      @include flex-center;
     }
   }
+}
 
-  .parameter-search {
-    max-width: 170px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    cursor: pointer;
+.parameter-search {
+  max-width: 170px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.file-name {
+  width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.status {
+  cursor: pointer;
+
+  &.status-null i {
+    display: inline-block;
+    animation: button-icon-loading 1s linear infinite;
   }
 
-  .file-name {
-    width: 140px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    cursor: pointer;
+  &.status-success i {
+    color: $iconSuccessColor;
   }
 
-  .status {
-    cursor: pointer;
-
-    &.status-null i {
-      display: inline-block;
-      animation: button-icon-loading 1s linear infinite;
-    }
-
-    &.status-success i {
-      color: $iconSuccessColor;
-    }
-
-    &.status-failed i {
-      color: $iconFailColor;
-    }
+  &.status-failed i {
+    color: $iconFailColor;
   }
+}
 </style>

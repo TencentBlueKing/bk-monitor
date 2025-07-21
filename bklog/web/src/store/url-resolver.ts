@@ -25,10 +25,13 @@
  */
 
 // @ts-ignore
-import { handleTransformToTimestamp, intTimestampStr } from '@/components/time-range/utils';
+import {
+  handleTransformToTimestamp,
+  intTimestampStr,
+} from '@/components/time-range/utils';
+import { Route } from 'vue-router';
 
 import { ConditionOperator } from './condition-operator';
-import { Route } from 'vue-router';
 import { BK_LOG_STORAGE } from './store.type';
 
 /**
@@ -40,10 +43,17 @@ class RouteUrlResolver {
   private resolver: Map<string, (str) => unknown>;
   private resolveFieldList: string[];
 
-  constructor({ route, resolveFieldList }: { route: Route; resolveFieldList?: string[] }) {
+  constructor({
+    resolveFieldList,
+    route,
+  }: {
+    route: Route;
+    resolveFieldList?: string[];
+  }) {
     this.route = route;
     this.resolver = new Map<string, (str) => unknown>();
-    this.resolveFieldList = resolveFieldList ?? this.getDefaultResolveFieldList();
+    this.resolveFieldList =
+      resolveFieldList ?? this.getDefaultResolveFieldList();
     this.setDefaultResolver();
   }
 
@@ -64,7 +74,9 @@ class RouteUrlResolver {
    */
   public convertQueryToStore<T>(): T {
     return this.resolveFieldList.reduce((output, key) => {
-      const value = this.resolver.get(key)?.(this.query?.[key]) ?? this.commonResolver(this.query?.[key]);
+      const value =
+        this.resolver.get(key)?.(this.query?.[key]) ??
+        this.commonResolver(this.query?.[key]);
       if (value !== undefined) {
         return Object.assign(output, { [key]: value });
       }
@@ -79,8 +91,13 @@ class RouteUrlResolver {
    */
   public getDefUrlQuery(ignoreList = []) {
     const routeQuery = this.query;
-    const appendParamKeys = [...this.resolveFieldList, 'end_time'].filter(f => !(ignoreList ?? []).includes(f));
-    const undefinedQuery = appendParamKeys.reduce((out, key) => Object.assign(out, { [key]: undefined }), {});
+    const appendParamKeys = [...this.resolveFieldList, 'end_time'].filter(
+      (f) => !(ignoreList ?? []).includes(f)
+    );
+    const undefinedQuery = appendParamKeys.reduce(
+      (out, key) => Object.assign(out, { [key]: undefined }),
+      {}
+    );
     return {
       ...routeQuery,
       ...undefinedQuery,
@@ -121,7 +138,9 @@ class RouteUrlResolver {
   }
 
   private objectResolver(str) {
-    return this.commonResolver(str, val => JSON.parse(decodeURIComponent(val)));
+    return this.commonResolver(str, (val) =>
+      JSON.parse(decodeURIComponent(val))
+    );
   }
 
   private arrayResolver(str) {
@@ -141,22 +160,25 @@ class RouteUrlResolver {
    * @param timeRange [start_time, end_time]
    */
   private dateTimeRangeResolver(timeRange: string[]) {
-    const decodeValue = timeRange.map(t => {
+    const decodeValue = timeRange.map((t) => {
       const r = decodeURIComponent(t);
       return intTimestampStr(r);
     });
 
-    const result: number[] = handleTransformToTimestamp(decodeValue, this.timeFormatResolver(this.query.format));
-    return { start_time: result[0], end_time: result[1] };
+    const result: number[] = handleTransformToTimestamp(
+      decodeValue,
+      this.timeFormatResolver(this.query.format)
+    );
+    return { end_time: result[1], start_time: result[0] };
   }
 
   private additionResolver(str) {
-    return this.commonResolver(str, value => {
+    return this.commonResolver(str, (value) => {
       if (value === undefined || value === null || value === '') {
         return [];
       }
 
-      return (JSON.parse(decodeURIComponent(value)) ?? []).map(val => {
+      return (JSON.parse(decodeURIComponent(value)) ?? []).map((val) => {
         const instance = new ConditionOperator(val);
         return instance.formatApiOperatorToFront(true);
       });
@@ -164,7 +186,7 @@ class RouteUrlResolver {
   }
 
   private datePickerValueResolver() {
-    return this.commonResolver(this.query.start_time, value => {
+    return this.commonResolver(this.query.start_time, (value) => {
       const endTime = this.commonResolver(this.query.end_time) ?? value;
       return [intTimestampStr(value), intTimestampStr(endTime)];
     });
@@ -173,7 +195,9 @@ class RouteUrlResolver {
   private searchModeResolver() {
     const hasAddition = this.query.keyword?.length;
     const hasKeyword = this.query.addition?.length;
-    const defValue = ['sql', 'ui'].includes(this.query.search_mode) ? this.query.search_mode : 'ui';
+    const defValue = ['sql', 'ui'].includes(this.query.search_mode)
+      ? this.query.search_mode
+      : 'ui';
 
     if (hasAddition && hasKeyword) {
       return defValue;
@@ -201,17 +225,20 @@ class RouteUrlResolver {
     this.resolver.set('format', this.timeFormatResolver.bind(this));
 
     // datePicker默认直接获取URL中的 start_time, end_time
-    this.resolver.set('datePickerValue', this.datePickerValueResolver.bind(this));
+    this.resolver.set(
+      'datePickerValue',
+      this.datePickerValueResolver.bind(this)
+    );
 
-    this.resolver.set('start_time', val => {
-      return this.commonResolver(val, value => {
+    this.resolver.set('start_time', (val) => {
+      return this.commonResolver(val, (value) => {
         const end_time = this.commonResolver(this.query?.end_time) ?? value;
         return this.dateTimeRangeResolver([value, end_time]).start_time;
       });
     });
 
-    this.resolver.set('end_time', val => {
-      return this.commonResolver(val, value => {
+    this.resolver.set('end_time', (val) => {
+      return this.commonResolver(val, (value) => {
         const start_time = this.commonResolver(this.query?.start_time) ?? value;
         return this.dateTimeRangeResolver([start_time, value]).end_time;
       });
@@ -235,35 +262,14 @@ class RetrieveUrlResolver {
   }
 
   resolveParamsToUrl() {
-    const getEncodeString = val => JSON.stringify(val);
+    const getEncodeString = (val) => JSON.stringify(val);
 
     /**
      * 路由参数格式化字典函数
      * 不同的字段需要不同的格式化函数
      */
     const routeQueryMap = {
-      host_scopes: val => {
-        const isEmpty = !Object.keys(val ?? {}).some(k => {
-          if (typeof val[k] === 'object') {
-            return Array.isArray(val[k]) ? val[k].length : Object.keys(val[k] ?? {}).length;
-          }
-
-          return val[k]?.length;
-        });
-
-        return isEmpty ? undefined : getEncodeString(val);
-      },
-      start_time: () => this.routeQueryParams.datePickerValue[0],
-      end_time: () => this.routeQueryParams.datePickerValue[1],
-      keyword: val => (/^\s*\*\s*$/.test(val) ? undefined : val),
-      unionList: val => {
-        if (this.routeQueryParams.isUnionIndex && val?.length) {
-          return getEncodeString(val);
-        }
-
-        return undefined;
-      },
-      default: val => {
+      default: (val) => {
         if (typeof val === 'object' && val !== null) {
           if (Array.isArray(val) && val.length) {
             return getEncodeString(val);
@@ -278,16 +284,42 @@ class RetrieveUrlResolver {
 
         return val?.length ? val : undefined;
       },
+      end_time: () => this.routeQueryParams.datePickerValue[1],
+      host_scopes: (val) => {
+        const isEmpty = !Object.keys(val ?? {}).some((k) => {
+          if (typeof val[k] === 'object') {
+            return Array.isArray(val[k])
+              ? val[k].length
+              : Object.keys(val[k] ?? {}).length;
+          }
+
+          return val[k]?.length;
+        });
+
+        return isEmpty ? undefined : getEncodeString(val);
+      },
+      keyword: (val) => (/^\s*\*\s*$/.test(val) ? undefined : val),
+      start_time: () => this.routeQueryParams.datePickerValue[0],
+      unionList: (val) => {
+        if (this.routeQueryParams.isUnionIndex && val?.length) {
+          return getEncodeString(val);
+        }
+
+        return undefined;
+      },
     };
 
     const getRouteQueryValue = () => {
       return Object.keys(this.routeQueryParams)
-        .filter(key => {
+        .filter((key) => {
           return !['ids', 'isUnionIndex', 'datePickerValue'].includes(key);
         })
         .reduce((result, key) => {
           const val = this.routeQueryParams[key];
-          const valueFn = typeof routeQueryMap[key] === 'function' ? routeQueryMap[key] : routeQueryMap.default;
+          const valueFn =
+            typeof routeQueryMap[key] === 'function'
+              ? routeQueryMap[key]
+              : routeQueryMap.default;
           const value = valueFn(val);
           const fieldName = this.storeFieldKeyMap[key] ?? key;
           return Object.assign(result, { [fieldName]: value });

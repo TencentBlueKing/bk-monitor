@@ -26,7 +26,12 @@
 import { Ref } from 'vue';
 
 import segmentPopInstance from '../global/utils/segment-pop-instance';
-import { getClickTargetElement, optimizedSplit, setPointerCellClickTargetHandler } from './hooks-helper';
+
+import {
+  getClickTargetElement,
+  optimizedSplit,
+  setPointerCellClickTargetHandler,
+} from './hooks-helper';
 import LuceneSegment from './lucene.segment';
 import UseSegmentPropInstance from './use-segment-pop';
 
@@ -54,44 +59,63 @@ export type WordListItem = {
   line?: number;
 };
 
-export type SegmentAppendText = { text: string; onClick?: (...args) => void; attributes?: Record<string, string> };
+export type SegmentAppendText = {
+  text: string;
+  onClick?: (...args) => void;
+  attributes?: Record<string, string>;
+};
 export default class UseTextSegmentation {
-  getSegmentContent: (keyRef: object, fn: (...args) => void) => Ref<HTMLElement>;
+  getSegmentContent: (
+    keyRef: object,
+    fn: (...args) => void
+  ) => Ref<HTMLElement>;
   onSegmentClick: (...args) => void;
   clickValue: string;
   keyRef: any;
   options = {
-    field: null,
     content: '',
     data: {},
+    field: null,
   };
   constructor(cfg: FormatterConfig) {
     this.keyRef = {};
-    this.getSegmentContent = UseSegmentPropInstance.getSegmentContent.bind(UseSegmentPropInstance);
+    this.getSegmentContent = UseSegmentPropInstance.getSegmentContent.bind(
+      UseSegmentPropInstance
+    );
     this.onSegmentClick = cfg.onSegmentClick;
     this.clickValue = '';
     Object.assign(this.options, cfg.options ?? {});
   }
 
-  getCellClickHandler(e: MouseEvent, value, { offsetY = 0, offsetX = 0 }) {
-    const target = setPointerCellClickTargetHandler(e, { offsetY, offsetX });
+  getCellClickHandler(e: MouseEvent, value, { offsetX = 0, offsetY = 0 }) {
+    const target = setPointerCellClickTargetHandler(e, { offsetX, offsetY });
     this.handleSegmentClick(target, value);
   }
 
   getTextCellClickHandler(e: MouseEvent) {
     if ((e.target as HTMLElement).classList.contains('valid-text')) {
-      const { offsetY, offsetX } = getClickTargetElement(e);
-      const offsetTarget = setPointerCellClickTargetHandler(e, { offsetY, offsetX });
-      this.handleSegmentClick(offsetTarget, (e.target as HTMLElement).textContent);
+      const { offsetX, offsetY } = getClickTargetElement(e);
+      const offsetTarget = setPointerCellClickTargetHandler(e, {
+        offsetX,
+        offsetY,
+      });
+      this.handleSegmentClick(
+        offsetTarget,
+        (e.target as HTMLElement).textContent
+      );
     }
   }
 
   getChildNodes(forceSplit = false) {
     let start = 0;
-    return this.getSplitList(this.options.field, this.options.content, forceSplit).map(item => {
+    return this.getSplitList(
+      this.options.field,
+      this.options.content,
+      forceSplit
+    ).map((item) => {
       Object.assign(item, {
-        startIndex: start,
         endIndex: start + item.text.length,
+        startIndex: start,
       });
       start = start + item.text.length;
       return item;
@@ -122,8 +146,12 @@ export default class UseTextSegmentation {
   private onSegmentEnumClick(val, isLink) {
     const tippyInstance = segmentPopInstance.getInstance();
     const currentValue = this.clickValue;
-    const depth = tippyInstance.reference.closest('[data-depth]')?.getAttribute('data-depth');
-    const isNestedField = tippyInstance.reference.closest('[is-nested-value]')?.getAttribute('is-nested-value');
+    const depth = tippyInstance.reference
+      .closest('[data-depth]')
+      ?.getAttribute('data-depth');
+    const isNestedField = tippyInstance.reference
+      .closest('[is-nested-value]')
+      ?.getAttribute('is-nested-value');
 
     const activeField = this.getField();
     const target = ['date', 'date_nanos'].includes(activeField?.field_type)
@@ -131,14 +159,14 @@ export default class UseTextSegmentation {
       : currentValue;
 
     const option = {
+      depth,
       fieldName: activeField?.field_name,
+      isNestedField,
       operation: val === 'not' ? 'is not' : val,
       value: this.getCellValue(target ?? currentValue),
-      depth,
-      isNestedField,
     };
 
-    this.onSegmentClick?.({ option, isLink });
+    this.onSegmentClick?.({ isLink, option });
     segmentPopInstance.hide();
   }
 
@@ -151,10 +179,21 @@ export default class UseTextSegmentation {
     if (!value.toString() || value === '--') return;
 
     this.clickValue = value;
-    const content = this.getSegmentContent(this.keyRef, this.onSegmentEnumClick.bind(this));
-    const traceView = content.value.querySelector('.bklog-trace-view')?.closest('.segment-event-box') as HTMLElement;
-    traceView?.style.setProperty('display', this.isValidTraceId(value) ? 'inline-flex' : 'none');
-    segmentPopInstance.show(target, this.getSegmentContent(this.keyRef, this.onSegmentEnumClick.bind(this)));
+    const content = this.getSegmentContent(
+      this.keyRef,
+      this.onSegmentEnumClick.bind(this)
+    );
+    const traceView = content.value
+      .querySelector('.bklog-trace-view')
+      ?.closest('.segment-event-box') as HTMLElement;
+    traceView?.style.setProperty(
+      'display',
+      this.isValidTraceId(value) ? 'inline-flex' : 'none'
+    );
+    segmentPopInstance.show(
+      target,
+      this.getSegmentContent(this.keyRef, this.onSegmentEnumClick.bind(this))
+    );
   }
 
   private isAnalyzed(field: any) {
@@ -167,7 +206,9 @@ export default class UseTextSegmentation {
    * @return {*}
    */
   private isVirtualObjField(field: any) {
-    return (field?.is_virtual_obj_node ?? false) && field?.field_type === 'object';
+    return (
+      (field?.is_virtual_obj_node ?? false) && field?.field_type === 'object'
+    );
   }
 
   private isJSONStructure(str: string) {
@@ -195,7 +236,9 @@ export default class UseTextSegmentation {
   }
 
   private convertVirtaulObjToArray() {
-    const target = this.options.data[this.options.field.field_name] ?? this.convertJsonStrToObj(this.options.content);
+    const target =
+      this.options.data[this.options.field.field_name] ??
+      this.convertJsonStrToObj(this.options.content);
 
     const convertObjToArray = (root: object, isValue = false) => {
       const result = [];
@@ -203,45 +246,45 @@ export default class UseTextSegmentation {
       if (typeof root === 'object') {
         if (Array.isArray(root)) {
           result.push({
+            isCursorText: false,
+            isMark: false,
             text: '[',
-            isCursorText: false,
-            isMark: false,
           });
-          result.push(root.map(child => convertObjToArray(child)));
+          result.push(root.map((child) => convertObjToArray(child)));
           result.push({
-            text: ']',
             isCursorText: false,
             isMark: false,
+            text: ']',
           });
 
           result.push({
-            text: ',',
             isCursorText: false,
             isMark: false,
+            text: ',',
           });
           return result;
         }
 
         result.push({
-          text: '{',
           isCursorText: false,
           isMark: false,
+          text: '{',
         });
 
         Object.entries(root).forEach(([key, value]) => {
           result.push({
-            text: `"${key}":`,
             isCursorText: false,
             isMark: false,
+            text: `"${key}":`,
           });
 
           if (result.length < 1000) {
             result.push(...convertObjToArray(value, true));
           } else {
             result.push({
-              text: value,
               isCursorText: false,
               isMark: false,
+              text: value,
             });
           }
         });
@@ -252,15 +295,15 @@ export default class UseTextSegmentation {
         }
 
         result.push({
-          text: '}',
           isCursorText: false,
           isMark: false,
+          text: '}',
         });
 
         result.push({
-          text: ',',
           isCursorText: false,
           isMark: false,
+          text: ',',
         });
         return result;
       }
@@ -272,27 +315,27 @@ export default class UseTextSegmentation {
       const isMark = new RegExp(markRegStr).test(value);
 
       result.push({
-        text: '"',
         isCursorText: false,
         isMark: false,
+        text: '"',
       });
 
       result.push({
-        text: formatValue,
         isCursorText: isValue,
         isMark,
+        text: formatValue,
       });
 
       result.push({
+        isCursorText: false,
+        isMark: false,
         text: '"',
-        isCursorText: false,
-        isMark: false,
       });
 
       result.push({
-        text: ',',
         isCursorText: false,
         isMark: false,
+        text: ',',
       });
       return result;
     };
@@ -308,17 +351,20 @@ export default class UseTextSegmentation {
 
   private escapeString(val: string) {
     const map = {
-      '&amp;': '&',
-      '&lt;': '<',
-      '&gt;': '>',
-      '&quot;': '"',
       '&#x27;': "'",
+      '&amp;': '&',
+      '&gt;': '>',
+      '&lt;': '<',
+      '&quot;': '"',
       // ' ': '\u2002',
     };
 
     return typeof val !== 'string'
       ? `${val}`
-      : val.replace(RegExp(`(${Object.keys(map).join('|')})`, 'g'), match => map[match]);
+      : val.replace(
+          RegExp(`(${Object.keys(map).join('|')})`, 'g'),
+          (match) => map[match]
+        );
   }
 
   private getSplitList(field: any, content: any, forceSplit = false) {
@@ -342,9 +388,9 @@ export default class UseTextSegmentation {
     const isMark = new RegExp(markRegStr).test(value);
     return [
       {
-        text: formatValue,
         isCursorText: true,
         isMark,
+        text: formatValue,
       },
     ];
   }

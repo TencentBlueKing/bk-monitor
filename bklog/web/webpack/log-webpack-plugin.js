@@ -142,11 +142,11 @@ module.exports = class LogWebpackPlugin {
     if (chunk.match?.(reg)) {
       const res = chunk.replace(reg, 'http://blueking.com');
       return {
-        source() {
-          return res;
-        },
         size() {
           return res.length;
+        },
+        source() {
+          return res;
         },
       };
     }

@@ -24,10 +24,9 @@
  * IN THE SOFTWARE.
  */
 
-import { computed, type ComputedRef, defineComponent, onUnmounted } from 'vue';
-
 import useStore from '@/hooks/use-store';
 import { debounce } from 'lodash';
+import { computed, type ComputedRef, defineComponent, onUnmounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router/composables';
 
 // #if MONITOR_APP !== 'apm' && MONITOR_APP !== 'trace'
@@ -55,7 +54,7 @@ export default defineComponent({
     const route = useRoute();
     const store = useStore();
 
-    const debounceUpdateTabValue = debounce(value => {
+    const debounceUpdateTabValue = debounce((value) => {
       const isClustering = value === 'clustering';
       router.replace({
         params: { ...(route.params ?? {}) },
@@ -67,7 +66,9 @@ export default defineComponent({
       });
     }, 60);
 
-    const activeTab = computed(() => route.query.tab ?? 'origin') as ComputedRef<string>;
+    const activeTab = computed(
+      () => route.query.tab ?? 'origin'
+    ) as ComputedRef<string>;
 
     const handleTabChange = (tab: string, triggerTrend = false) => {
       debounceUpdateTabValue(tab);
@@ -80,14 +81,22 @@ export default defineComponent({
       }
     };
 
-    const handleFavoriteChange = item => {
-      debounceUpdateTabValue(item.favorite_type === 'chart' ? 'graphAnalysis' : 'origin');
+    const handleFavoriteChange = (item) => {
+      debounceUpdateTabValue(
+        item.favorite_type === 'chart' ? 'graphAnalysis' : 'origin'
+      );
     };
 
-    RetrieveHelper.on(RetrieveEvent.FAVORITE_ACTIVE_CHANGE, handleFavoriteChange);
+    RetrieveHelper.on(
+      RetrieveEvent.FAVORITE_ACTIVE_CHANGE,
+      handleFavoriteChange
+    );
 
     onUnmounted(() => {
-      RetrieveHelper.off(RetrieveEvent.FAVORITE_ACTIVE_CHANGE, handleFavoriteChange);
+      RetrieveHelper.off(
+        RetrieveEvent.FAVORITE_ACTIVE_CHANGE,
+        handleFavoriteChange
+      );
     });
 
     const renderTabContent = () => {
@@ -108,10 +117,10 @@ export default defineComponent({
     };
 
     return () => (
-      <div class='v3-bklog-body'>
+      <div class="v3-bklog-body">
         <SearchResultTab
-          value={activeTab.value}
           on-input={handleTabChange}
+          value={activeTab.value}
         ></SearchResultTab>
         {renderTabContent()}
       </div>

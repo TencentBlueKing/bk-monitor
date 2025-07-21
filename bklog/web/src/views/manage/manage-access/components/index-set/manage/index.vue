@@ -34,10 +34,7 @@
       :info="authPageInfo"
     ></auth-container-page>
     <template v-if="!authPageInfo && !basicLoading && curIndexSet">
-      <basic-tab
-        :active.sync="activePanel"
-        type="border-card"
-      >
+      <basic-tab :active.sync="activePanel" type="border-card">
         <bk-tab-panel
           v-for="panel in panels"
           v-bind="panel"
@@ -48,11 +45,9 @@
             <div class="search-text">
               <span class="bk-icon icon-info"></span>
               <i18n path="数据采集好了，去 {0}">
-                <span
-                  class="search-button"
-                  @click="handleGoSearch"
-                  >{{ $t('查看数据') }}</span
-                >
+                <span class="search-button" @click="handleGoSearch">{{
+                  $t('查看数据')
+                }}</span>
               </i18n>
             </div>
           </div>
@@ -73,117 +68,126 @@
 </template>
 
 <script>
-  import BasicTab from '@/components/basic-tab';
-  import AuthContainerPage from '@/components/common/auth-container-page';
-  import UsageDetails from '@/views/manage/manage-access/components/usage-details';
-  import FieldInfo from '@/views/manage/manage-access/log-collection/collection-item/manage-collection/field-info.tsx';
-  import { mapState } from 'vuex';
+import BasicTab from '@/components/basic-tab';
+import AuthContainerPage from '@/components/common/auth-container-page';
+import UsageDetails from '@/views/manage/manage-access/components/usage-details';
+import FieldInfo from '@/views/manage/manage-access/log-collection/collection-item/manage-collection/field-info.tsx';
+import { mapState } from 'vuex';
 
-  import * as authorityMap from '../../../../../../common/authority-map';
-  import BasicInfo from './basic-info';
+import * as authorityMap from '../../../../../../common/authority-map';
+import BasicInfo from './basic-info';
 
-  export default {
-    name: 'IndexSetManage',
-    components: {
-      AuthContainerPage,
-      BasicInfo,
-      FieldInfo,
-      UsageDetails,
-      BasicTab,
-    },
-    data() {
-      const scenarioId = this.$route.name.split('-')[0];
-      return {
-        scenarioId,
-        basicLoading: true,
-        authPageInfo: null,
-        activePanel: this.$route.query.type || 'basicInfo',
-        panels: [
-          { name: 'basicInfo', label: this.$t('配置信息') },
-          { name: 'usageDetails', label: this.$t('使用详情') },
-          { name: 'fieldInfo', label: this.$t('字段信息') },
-        ],
+export default {
+  name: 'IndexSetManage',
+  components: {
+    AuthContainerPage,
+    BasicInfo,
+    FieldInfo,
+    UsageDetails,
+    BasicTab,
+  },
+  data() {
+    const scenarioId = this.$route.name.split('-')[0];
+    return {
+      scenarioId,
+      basicLoading: true,
+      authPageInfo: null,
+      activePanel: this.$route.query.type || 'basicInfo',
+      panels: [
+        { name: 'basicInfo', label: this.$t('配置信息') },
+        { name: 'usageDetails', label: this.$t('使用详情') },
+        { name: 'fieldInfo', label: this.$t('字段信息') },
+      ],
+    };
+  },
+  computed: {
+    ...mapState('collect', ['curIndexSet', 'scenarioMap']),
+    dynamicComponent() {
+      const componentMaP = {
+        basicInfo: 'BasicInfo',
+        usageDetails: 'UsageDetails',
+        fieldInfo: 'FieldInfo',
       };
+      return componentMaP[this.activePanel] || 'BasicInfo';
     },
-    computed: {
-      ...mapState('collect', ['curIndexSet', 'scenarioMap']),
-      dynamicComponent() {
-        const componentMaP = {
-          basicInfo: 'BasicInfo',
-          usageDetails: 'UsageDetails',
-          fieldInfo: 'FieldInfo',
+  },
+  created() {
+    this.initPage();
+  },
+  methods: {
+    async initPage() {
+      // 进入路由需要先判断权限
+      const indexSetId = this.$route.params.indexSetId.toString();
+      try {
+        const paramData = {
+          action_ids: [authorityMap.MANAGE_INDICES_AUTH],
+          resources: [
+            {
+              type: 'indices',
+              id: indexSetId,
+            },
+          ],
         };
-        return componentMaP[this.activePanel] || 'BasicInfo';
-      },
-    },
-    created() {
-      this.initPage();
-    },
-    methods: {
-      async initPage() {
-        // 进入路由需要先判断权限
-        const indexSetId = this.$route.params.indexSetId.toString();
-        try {
-          const paramData = {
-            action_ids: [authorityMap.MANAGE_INDICES_AUTH],
-            resources: [
-              {
-                type: 'indices',
-                id: indexSetId,
-              },
-            ],
-          };
-          const res = await this.$store.dispatch('checkAndGetData', paramData);
-          if (res.isAllowed === false) {
-            this.authPageInfo = res.data;
-            // 显示无权限页面
-          } else {
-            // 正常显示页面
-            await Promise.all([this.fetchIndexSetData(indexSetId), this.fetchScenarioMap()]);
-          }
-        } catch (err) {
-          console.warn(err);
-        } finally {
-          this.basicLoading = false;
+        const res = await this.$store.dispatch('checkAndGetData', paramData);
+        if (res.isAllowed === false) {
+          this.authPageInfo = res.data;
+          // 显示无权限页面
+        } else {
+          // 正常显示页面
+          await Promise.all([
+            this.fetchIndexSetData(indexSetId),
+            this.fetchScenarioMap(),
+          ]);
         }
-      },
-      // 索引集详情
-      async fetchIndexSetData(indexSetId) {
-        if (!this.curIndexSet.index_set_id || this.curIndexSet.index_set_id.toString() !== indexSetId) {
-          const { data: indexSetData } = await this.$http.request('indexSet/info', {
+      } catch (err) {
+        console.warn(err);
+      } finally {
+        this.basicLoading = false;
+      }
+    },
+    // 索引集详情
+    async fetchIndexSetData(indexSetId) {
+      if (
+        !this.curIndexSet.index_set_id ||
+        this.curIndexSet.index_set_id.toString() !== indexSetId
+      ) {
+        const { data: indexSetData } = await this.$http.request(
+          'indexSet/info',
+          {
             params: {
               index_set_id: indexSetId,
             },
-          });
-          this.$store.commit('collect/updateCurIndexSet', indexSetData);
-        }
-      },
-      // 数据源(场景)映射关系
-      async fetchScenarioMap() {
-        if (!this.scenarioMap) {
-          const { data } = await this.$http.request('meta/scenario');
-          const map = {};
-          data.forEach(item => {
-            map[item.scenario_id] = item.scenario_name;
-          });
-          this.$store.commit('collect/updateScenarioMap', map);
-        }
-      },
-      handleGoSearch() {
-        const params = {
-          indexId: this.curIndexSet.index_set_id
-            ? this.curIndexSet.index_set_id
-            : this.curIndexSet.bkdata_index_set_ids[0],
-        };
-        this.$router.push({
-          name: 'retrieve',
-          params,
-          query: {
-            spaceUid: this.$store.state.spaceUid,
-            bizId: this.$store.state.bkBizId,
-          },
-        });
-      },
+          }
+        );
+        this.$store.commit('collect/updateCurIndexSet', indexSetData);
+      }
     },
-  };
+    // 数据源(场景)映射关系
+    async fetchScenarioMap() {
+      if (!this.scenarioMap) {
+        const { data } = await this.$http.request('meta/scenario');
+        const map = {};
+        data.forEach((item) => {
+          map[item.scenario_id] = item.scenario_name;
+        });
+        this.$store.commit('collect/updateScenarioMap', map);
+      }
+    },
+    handleGoSearch() {
+      const params = {
+        indexId: this.curIndexSet.index_set_id
+          ? this.curIndexSet.index_set_id
+          : this.curIndexSet.bkdata_index_set_ids[0],
+      };
+      this.$router.push({
+        name: 'retrieve',
+        params,
+        query: {
+          spaceUid: this.$store.state.spaceUid,
+          bizId: this.$store.state.bkBizId,
+        },
+      });
+    },
+  },
+};
 </script>

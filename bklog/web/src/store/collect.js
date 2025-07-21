@@ -27,20 +27,10 @@
 import vue from 'vue';
 
 export default {
-  namespaced: true,
-  state: {
-    curCollect: {},
-    curIndexSet: {},
-    scenarioMap: null,
-    exportCollectObj: {
-      collectID: null,
-      syncType: [],
-      collect: {},
-    },
-  },
+  actions: {},
   getters: {
-    curCollect: state => state.curCollect,
-    exportCollectObj: state => state.exportCollectObj,
+    curCollect: (state) => state.curCollect,
+    exportCollectObj: (state) => state.exportCollectObj,
   },
   mutations: {
     setCurCollect(state, collect) {
@@ -58,12 +48,22 @@ export default {
     updateCurIndexSet(state, payload) {
       state.curIndexSet = payload;
     },
-    updateScenarioMap(state, payload) {
-      state.scenarioMap = payload;
-    },
     updateExportCollectObj(state, payload) {
       state.exportCollectObj = payload;
     },
+    updateScenarioMap(state, payload) {
+      state.scenarioMap = payload;
+    },
   },
-  actions: {},
+  namespaced: true,
+  state: {
+    curCollect: {},
+    curIndexSet: {},
+    exportCollectObj: {
+      collect: {},
+      collectID: null,
+      syncType: [],
+    },
+    scenarioMap: null,
+  },
 };

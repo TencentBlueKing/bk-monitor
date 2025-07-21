@@ -91,10 +91,7 @@
         </div>
         <div>
           <span class="switch-label">{{ $t('换行') }}</span>
-          <bk-switcher
-            v-model="isWrap"
-            theme="primary"
-          ></bk-switcher>
+          <bk-switcher v-model="isWrap" theme="primary"></bk-switcher>
         </div>
         <!-- <time-formatter v-show="!showOriginalLog" /> -->
         <div class="operation-icons">
@@ -153,307 +150,313 @@
 </template>
 
 <script>
-  import axios from 'axios';
-  import { mapGetters } from 'vuex';
+import axios from 'axios';
+import { mapGetters } from 'vuex';
 
-  import ExportLog from '../../result-comp/export-log.vue';
-  import FieldsSetting from '../../result-comp/fields-setting';
-  import TableLog from './table-log.vue';
-  const CancelToken = axios.CancelToken;
+import ExportLog from '../../result-comp/export-log.vue';
+import FieldsSetting from '../../result-comp/fields-setting';
+import TableLog from './table-log.vue';
+const CancelToken = axios.CancelToken;
 
-  export default {
-    components: {
-      TableLog,
-      FieldsSetting,
-      ExportLog,
+export default {
+  components: {
+    TableLog,
+    FieldsSetting,
+    ExportLog,
+  },
+  inheritAttrs: false,
+  props: {
+    retrieveParams: {
+      type: Object,
+      required: true,
     },
-    inheritAttrs: false,
-    props: {
-      retrieveParams: {
-        type: Object,
-        required: true,
-      },
-      totalCount: {
-        type: Number,
-        default: 0,
-      },
-      queueStatus: {
-        type: Boolean,
-        default: true,
-      },
-      configWatchBool: {
-        type: Boolean,
-        default: false,
-      },
-      isThollteField: {
-        type: Boolean,
-        default: false,
-      },
+    totalCount: {
+      type: Number,
+      default: 0,
     },
-    data() {
-      return {
-        contentType: 'table',
-        isWrap: true,
-        /** 是否是第一次加载字段列表 用于初始化原始日志，否则会导致操作列表失效 */
-        isFirstInitFiled: false,
-        showFieldsSetting: false,
-        showAsyncExport: false, // 异步下载弹窗
-        exportLoading: false,
-        fieldsConfigList: [],
-        fieldConfigIsLoading: false,
-        expandTextView: false,
-      };
+    queueStatus: {
+      type: Boolean,
+      default: true,
     },
-    computed: {
-      showOriginalLog() {
-        return this.contentType === 'original';
-      },
-      asyncExportUsable() {
-        return this.$attrs['async-export-usable'];
-      },
-      asyncExportUsableReason() {
-        return this.$attrs['async-export-usable-reason'];
-      },
-      filedSettingConfigID() {
-        // 当前索引集的显示字段ID
-        return this.$store.state.retrieve.filedSettingConfigID;
-      },
-      ...mapGetters({
-        unionIndexList: 'unionIndexList',
-        isUnionSearch: 'isUnionSearch',
-      }),
-      watchQueryIndexValue() {
-        return `${this.routeIndexSet}_${this.configWatchBool}`;
-      },
-      routeIndexSet() {
-        return this.$route.params.indexId;
-      },
-      showFieldsConfigPopoverNum() {
-        return this.$store.state.showFieldsConfigPopoverNum;
-      },
+    configWatchBool: {
+      type: Boolean,
+      default: false,
     },
-    watch: {
-      watchQueryIndexValue: {
-        handler() {
-          if ((!this.isUnionSearch && this.routeIndexSet) || (this.isUnionSearch && this.unionIndexList?.length)) {
-            this.requestFiledConfig();
-          }
-        },
-      },
-      isThollteField(v) {
-        if (!v && !this.isFirstInitFiled) {
-          this.isFirstInitFiled = true;
-          this.contentType = localStorage.getItem('SEARCH_STORAGE_ACTIVE_TAB') || 'table';
+    isThollteField: {
+      type: Boolean,
+      default: false,
+    },
+  },
+  data() {
+    return {
+      contentType: 'table',
+      isWrap: true,
+      /** 是否是第一次加载字段列表 用于初始化原始日志，否则会导致操作列表失效 */
+      isFirstInitFiled: false,
+      showFieldsSetting: false,
+      showAsyncExport: false, // 异步下载弹窗
+      exportLoading: false,
+      fieldsConfigList: [],
+      fieldConfigIsLoading: false,
+      expandTextView: false,
+    };
+  },
+  computed: {
+    showOriginalLog() {
+      return this.contentType === 'original';
+    },
+    asyncExportUsable() {
+      return this.$attrs['async-export-usable'];
+    },
+    asyncExportUsableReason() {
+      return this.$attrs['async-export-usable-reason'];
+    },
+    filedSettingConfigID() {
+      // 当前索引集的显示字段ID
+      return this.$store.state.retrieve.filedSettingConfigID;
+    },
+    ...mapGetters({
+      unionIndexList: 'unionIndexList',
+      isUnionSearch: 'isUnionSearch',
+    }),
+    watchQueryIndexValue() {
+      return `${this.routeIndexSet}_${this.configWatchBool}`;
+    },
+    routeIndexSet() {
+      return this.$route.params.indexId;
+    },
+    showFieldsConfigPopoverNum() {
+      return this.$store.state.showFieldsConfigPopoverNum;
+    },
+  },
+  watch: {
+    watchQueryIndexValue: {
+      handler() {
+        if (
+          (!this.isUnionSearch && this.routeIndexSet) ||
+          (this.isUnionSearch && this.unionIndexList?.length)
+        ) {
+          this.requestFiledConfig();
         }
       },
-      showFieldsConfigPopoverNum() {
-        this.handleAddNewConfig();
-      },
     },
+    isThollteField(v) {
+      if (!v && !this.isFirstInitFiled) {
+        this.isFirstInitFiled = true;
+        this.contentType =
+          localStorage.getItem('SEARCH_STORAGE_ACTIVE_TAB') || 'table';
+      }
+    },
+    showFieldsConfigPopoverNum() {
+      this.handleAddNewConfig();
+    },
+  },
 
-    methods: {
-      // 字段设置
-      handleDropdownShow() {
-        this.showFieldsSetting = true;
-      },
-      handleDropdownHide() {
-        this.showFieldsSetting = false;
-        this.requestFiledConfig();
-      },
-      confirmModifyFields(displayFieldNames, showFieldAlias) {
-        this.modifyFields(displayFieldNames, showFieldAlias);
-        this.closeDropdown();
-      },
-      cancelModifyFields() {
-        this.closeDropdown();
-      },
-      /** 更新显示字段 */
-      modifyFields(displayFieldNames, showFieldAlias) {
-        this.$emit('fields-updated', displayFieldNames, showFieldAlias);
-        this.$emit('should-retrieve');
-      },
-      closeDropdown() {
-        this.showFieldsSetting = false;
-        this.$refs.fieldsSettingPopper?.instance.hide();
-        this.$refs.fieldsSettingPopper?.instance.hide();
-      },
-      setPopperInstance(status = true) {
-        this.$refs.fieldsSettingPopper?.instance.set({
-          hideOnClick: status,
-        });
-      },
-      async requestFiledConfig() {
-        /** 获取配置列表 */
-        this.fieldConfigIsLoading = true;
-        try {
-          const res = await this.$http.request(
-            'retrieve/getFieldsListConfig',
-            {
-              data: {
-                ...(this.isUnionSearch ? { index_set_ids: this.unionIndexList } : { index_set_id: this.routeIndexSet }),
-                scope: 'default',
-                index_set_type: this.isUnionSearch ? 'union' : 'single',
-              },
-            },
-            {
-              cancelToken: new CancelToken(c => {
-                this.getFieldsConfigCancelFn = c;
-              }),
-            },
-          );
-          this.fieldsConfigList = res.data;
-        } catch (error) {
-        } finally {
-          this.fieldConfigIsLoading = false;
-        }
-      },
-      getFieldsConfigCancelFn() {},
-      async handleSelectFieldConfig(configID, option) {
-        const { display_fields: displayFields, sort_list: sortList } = option;
-        // 更新config
-        await this.$http
-          .request('retrieve/postFieldsConfig', {
+  methods: {
+    // 字段设置
+    handleDropdownShow() {
+      this.showFieldsSetting = true;
+    },
+    handleDropdownHide() {
+      this.showFieldsSetting = false;
+      this.requestFiledConfig();
+    },
+    confirmModifyFields(displayFieldNames, showFieldAlias) {
+      this.modifyFields(displayFieldNames, showFieldAlias);
+      this.closeDropdown();
+    },
+    cancelModifyFields() {
+      this.closeDropdown();
+    },
+    /** 更新显示字段 */
+    modifyFields(displayFieldNames, showFieldAlias) {
+      this.$emit('fields-updated', displayFieldNames, showFieldAlias);
+      this.$emit('should-retrieve');
+    },
+    closeDropdown() {
+      this.showFieldsSetting = false;
+      this.$refs.fieldsSettingPopper?.instance.hide();
+      this.$refs.fieldsSettingPopper?.instance.hide();
+    },
+    setPopperInstance(status = true) {
+      this.$refs.fieldsSettingPopper?.instance.set({
+        hideOnClick: status,
+      });
+    },
+    async requestFiledConfig() {
+      /** 获取配置列表 */
+      this.fieldConfigIsLoading = true;
+      try {
+        const res = await this.$http.request(
+          'retrieve/getFieldsListConfig',
+          {
             data: {
-              index_set_id: this.routeIndexSet,
-              index_set_ids: this.unionIndexList,
+              ...(this.isUnionSearch
+                ? { index_set_ids: this.unionIndexList }
+                : { index_set_id: this.routeIndexSet }),
+              scope: 'default',
               index_set_type: this.isUnionSearch ? 'union' : 'single',
-              display_fields: this.shadowVisible,
-              sort_list: this.shadowSort,
-              config_id: configID,
             },
-          })
-          .catch(e => {
-            console.warn(e);
-          });
-        this.confirmModifyFields(displayFields, sortList);
-      },
-      handleAddNewConfig() {
-        this.$refs.configSelectRef?.close();
-        this.$refs.fieldsSettingPopper?.instance.show();
-      },
-      handleClickTableBtn(active = 'table') {
-        this.contentType = active;
-        localStorage.setItem('SEARCH_STORAGE_ACTIVE_TAB', active);
-      },
-      handleChangeExpandView(val) {
-        this.$store.commit('updateStorage', { isLimitExpandView: val });
-      },
+          },
+          {
+            cancelToken: new CancelToken((c) => {
+              this.getFieldsConfigCancelFn = c;
+            }),
+          }
+        );
+        this.fieldsConfigList = res.data;
+      } catch (error) {
+      } finally {
+        this.fieldConfigIsLoading = false;
+      }
     },
-  };
+    getFieldsConfigCancelFn() {},
+    async handleSelectFieldConfig(configID, option) {
+      const { display_fields: displayFields, sort_list: sortList } = option;
+      // 更新config
+      await this.$http
+        .request('retrieve/postFieldsConfig', {
+          data: {
+            index_set_id: this.routeIndexSet,
+            index_set_ids: this.unionIndexList,
+            index_set_type: this.isUnionSearch ? 'union' : 'single',
+            display_fields: this.shadowVisible,
+            sort_list: this.shadowSort,
+            config_id: configID,
+          },
+        })
+        .catch((e) => {
+          console.warn(e);
+        });
+      this.confirmModifyFields(displayFields, sortList);
+    },
+    handleAddNewConfig() {
+      this.$refs.configSelectRef?.close();
+      this.$refs.fieldsSettingPopper?.instance.show();
+    },
+    handleClickTableBtn(active = 'table') {
+      this.contentType = active;
+      localStorage.setItem('SEARCH_STORAGE_ACTIVE_TAB', active);
+    },
+    handleChangeExpandView(val) {
+      this.$store.commit('updateStorage', { isLimitExpandView: val });
+    },
+  },
+};
 </script>
 
 <style lang="scss" scoped>
-  @import '@/scss/mixins/flex.scss';
+@import '@/scss/mixins/flex.scss';
 
-  .original-log-panel {
-    .original-log-panel-tools {
-      display: flex;
-      justify-content: space-between;
-    }
-
-    .tools-more {
-      @include flex-center;
-
-      .switch-label {
-        margin-right: 2px;
-        font-size: 12px;
-        color: #63656e;
-      }
-    }
-
-    .operation-icons {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      margin-left: 16px;
-
-      .operation-icon {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        width: 32px;
-        height: 32px;
-        margin-left: 10px;
-        cursor: pointer;
-        border: 1px solid #c4c6cc;
-        border-radius: 2px;
-        outline: none;
-        transition: boder-color 0.2s;
-
-        &:hover {
-          border-color: #979ba5;
-          transition: boder-color 0.2s;
-        }
-
-        &:active {
-          border-color: #3a84ff;
-          transition: boder-color 0.2s;
-        }
-
-        .bklog-icon {
-          width: 16px;
-          font-size: 16px;
-          color: #979ba5;
-        }
-      }
-
-      .disabled-icon {
-        cursor: not-allowed;
-        background-color: #fff;
-        border-color: #dcdee5;
-
-        &:hover,
-        .bklog-icon {
-          color: #c4c6cc;
-          border-color: #dcdee5;
-        }
-      }
-    }
-
-    .left-operate {
-      flex-wrap: nowrap;
-      align-items: center;
-
-      @include flex-justify(space-between);
-
-      > div {
-        flex-shrink: 0;
-      }
-    }
-
-    .field-select {
-      position: relative;
-      width: 120px;
-      margin-left: 16px;
-
-      .icon-field-config {
-        position: absolute;
-        top: 4px;
-        left: 4px;
-        width: 18px;
-      }
-
-      :deep(.bk-select .bk-select-name) {
-        padding: 0px 36px 0 30px;
-      }
-    }
+.original-log-panel {
+  .original-log-panel-tools {
+    display: flex;
+    justify-content: space-between;
   }
 
-  .extension-add-new-config {
-    cursor: pointer;
+  .tools-more {
+    @include flex-center;
 
-    @include flex-center();
-
-    :last-child {
-      margin-left: 4px;
+    .switch-label {
+      margin-right: 2px;
+      font-size: 12px;
       color: #63656e;
     }
+  }
 
-    .icon-close-circle {
-      margin-left: 4px;
-      font-size: 14px;
-      color: #979ba5;
-      transform: rotateZ(45deg);
+  .operation-icons {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-left: 16px;
+
+    .operation-icon {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 32px;
+      height: 32px;
+      margin-left: 10px;
+      cursor: pointer;
+      border: 1px solid #c4c6cc;
+      border-radius: 2px;
+      outline: none;
+      transition: boder-color 0.2s;
+
+      &:hover {
+        border-color: #979ba5;
+        transition: boder-color 0.2s;
+      }
+
+      &:active {
+        border-color: #3a84ff;
+        transition: boder-color 0.2s;
+      }
+
+      .bklog-icon {
+        width: 16px;
+        font-size: 16px;
+        color: #979ba5;
+      }
+    }
+
+    .disabled-icon {
+      cursor: not-allowed;
+      background-color: #fff;
+      border-color: #dcdee5;
+
+      &:hover,
+      .bklog-icon {
+        color: #c4c6cc;
+        border-color: #dcdee5;
+      }
     }
   }
+
+  .left-operate {
+    flex-wrap: nowrap;
+    align-items: center;
+
+    @include flex-justify(space-between);
+
+    > div {
+      flex-shrink: 0;
+    }
+  }
+
+  .field-select {
+    position: relative;
+    width: 120px;
+    margin-left: 16px;
+
+    .icon-field-config {
+      position: absolute;
+      top: 4px;
+      left: 4px;
+      width: 18px;
+    }
+
+    :deep(.bk-select .bk-select-name) {
+      padding: 0px 36px 0 30px;
+    }
+  }
+}
+
+.extension-add-new-config {
+  cursor: pointer;
+
+  @include flex-center();
+
+  :last-child {
+    margin-left: 4px;
+    color: #63656e;
+  }
+
+  .icon-close-circle {
+    margin-left: 4px;
+    font-size: 14px;
+    color: #979ba5;
+    transform: rotateZ(45deg);
+  }
+}
 </style>

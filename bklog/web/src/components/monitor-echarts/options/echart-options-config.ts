@@ -25,223 +25,223 @@
  */
 
 export const lineOrBarOptions = {
-  useUTC: true,
-  title: {
-    text: '',
-    show: false,
-    textAlign: 'auto',
-    textVerticalAlign: 'auto',
-    left: 'left',
-    top: 12,
-    padding: [0, 0, 0, 16],
-    textStyle: {
-      color: '#63656E',
-      fontSize: 12,
-      fontWeight: 'bold',
-    },
-    subtext: null,
-    subtextStyle: {
-      color: '#979BA5',
-      fontSize: 12,
-      fontWeight: 'bold',
-      align: 'left',
-    },
-  },
+  animation: true,
   color: [],
-  legend: {
-    type: 'scroll',
-    bottom: 0,
-    show: true,
-    itemGap: 12,
-    itemWidth: 12,
-    itemHeight: 8,
-    padding: [5, 5, 0, 0],
-    selectedMode: 'multiple',
-    textStyle: {
-      color: '#63656E',
-      fontSize: 12,
-    },
-    icon: 'rect',
-  },
-  tooltip: {
-    show: true,
-    trigger: 'axis',
-    axisPointer: {
-      type: 'line',
-      label: {
-        backgroundColor: '#6a7985',
-      },
-    },
-    transitionDuration: 0,
-    alwaysShowContent: false,
-    backgroundColor: 'rgba(0,0,0,0.8)',
-    borderWidth: 0,
-    textStyle: {
-      fontSize: 12,
-    },
-    extraCssText: 'border-radius: 0',
-  },
-  toolbox: {
-    showTitle: false,
-    itemSize: 0,
-    iconStyle: {
-      color: '#979ba5',
-      fontSize: 14,
-      borderWidth: 0,
-      shadowColor: '#979ba5',
-      shadowOffsetX: 0,
-      shadowOffsetY: 0,
-    },
-    feature: {
-      saveAsImage: {
-        icon: 'path://',
-      },
-      dataZoom: {
-        icon: {
-          zoom: 'path://',
-          back: 'path://',
-        },
-        show: true,
-        yAxisIndex: [],
-        iconStyle: {
-          opacity: 0,
-        },
-      },
-      restore: { icon: 'path://' },
-    },
-  },
   grid: {
+    backgroundColor: 'transparent',
+    bottom: 0,
     containLabel: true,
     left: 0,
     right: 26,
     top: 16,
-    bottom: 0,
-    backgroundColor: 'transparent',
   },
+  legend: {
+    bottom: 0,
+    icon: 'rect',
+    itemGap: 12,
+    itemHeight: 8,
+    itemWidth: 12,
+    padding: [5, 5, 0, 0],
+    selectedMode: 'multiple',
+    show: true,
+    textStyle: {
+      color: '#63656E',
+      fontSize: 12,
+    },
+    type: 'scroll',
+  },
+  series: [],
+  title: {
+    left: 'left',
+    padding: [0, 0, 0, 16],
+    show: false,
+    subtext: null,
+    subtextStyle: {
+      align: 'left',
+      color: '#979BA5',
+      fontSize: 12,
+      fontWeight: 'bold',
+    },
+    text: '',
+    textAlign: 'auto',
+    textStyle: {
+      color: '#63656E',
+      fontSize: 12,
+      fontWeight: 'bold',
+    },
+    textVerticalAlign: 'auto',
+    top: 12,
+  },
+  toolbox: {
+    feature: {
+      dataZoom: {
+        icon: {
+          back: 'path://',
+          zoom: 'path://',
+        },
+        iconStyle: {
+          opacity: 0,
+        },
+        show: true,
+        yAxisIndex: [],
+      },
+      restore: { icon: 'path://' },
+      saveAsImage: {
+        icon: 'path://',
+      },
+    },
+    iconStyle: {
+      borderWidth: 0,
+      color: '#979ba5',
+      fontSize: 14,
+      shadowColor: '#979ba5',
+      shadowOffsetX: 0,
+      shadowOffsetY: 0,
+    },
+    itemSize: 0,
+    showTitle: false,
+  },
+  tooltip: {
+    alwaysShowContent: false,
+    axisPointer: {
+      label: {
+        backgroundColor: '#6a7985',
+      },
+      type: 'line',
+    },
+    backgroundColor: 'rgba(0,0,0,0.8)',
+    borderWidth: 0,
+    extraCssText: 'border-radius: 0',
+    show: true,
+    textStyle: {
+      fontSize: 12,
+    },
+    transitionDuration: 0,
+    trigger: 'axis',
+  },
+  useUTC: true,
   xAxis: {
-    type: 'time',
-    boundaryGap: false,
+    axisLabel: {
+      align: 'left',
+      color: '#979BA5',
+      fontSize: 12,
+      showMaxLabel: false,
+      showMinLabel: false,
+    },
+    axisLine: {
+      lineStyle: {
+        color: '#ccd6eb',
+        type: 'solid',
+        width: 1,
+      },
+      show: false,
+    },
     axisTick: {
       show: false,
     },
-    axisLine: {
-      show: false,
-      lineStyle: {
-        color: '#ccd6eb',
-        width: 1,
-        type: 'solid',
-      },
-    },
-    axisLabel: {
-      fontSize: 12,
-      color: '#979BA5',
-      showMinLabel: false,
-      showMaxLabel: false,
-      align: 'left',
-    },
+    boundaryGap: false,
+    minInterval: 60 * 1000,
+    scale: true,
     splitLine: {
       show: false,
     },
-    minInterval: 60 * 1000,
     splitNumber: 10,
-    scale: true,
+    type: 'time',
   },
   yAxis: {
-    type: 'value',
+    axisLabel: {
+      color: '#979BA5',
+    },
     axisLine: {
-      show: false,
       lineStyle: {
         color: '#ccd6eb',
-        width: 1,
         type: 'solid',
+        width: 1,
       },
+      show: false,
     },
     axisTick: {
       show: false,
     },
-    axisLabel: {
-      color: '#979BA5',
-    },
+    scale: false,
     splitLine: {
-      show: true,
       lineStyle: {
         color: '#F0F1F5',
         type: 'dashed',
       },
+      show: true,
     },
-    scale: false,
+    type: 'value',
     // splitNumber: 3,
     z: 3,
   },
-  series: [],
-  animation: true,
 };
 
 export const pieOptions: any = {
   lengend: {
     show: false,
   },
-  tooltip: {
-    trigger: 'item',
-  },
   series: [
     {
-      type: 'pie',
-      radius: ['50%', '70%'],
       avoidLabelOverlap: false,
       label: {
-        show: false,
         position: 'center',
+        show: false,
       },
       labelLine: {
         show: false,
       },
+      radius: ['50%', '70%'],
+      type: 'pie',
     },
   ],
+  tooltip: {
+    trigger: 'item',
+  },
 };
 
 export const pillarChartOption = {
+  grid: {
+    bottom: '0',
+    containLabel: true,
+    left: '0',
+    right: '4%',
+    top: '4%',
+  },
+  series: [],
   tooltip: {
     trigger: 'axis',
   },
   xAxis: {
-    axisLine: {
-      show: false,
-    },
-    axisTick: {
-      show: false,
-    },
     axisLabel: {
       color: '#979BA5',
     },
-    type: 'category',
-    data: [],
-  },
-  yAxis: {
-    type: 'value',
+    axisLine: {
+      show: false,
+    },
     axisTick: {
       show: false,
     },
+    data: [],
+    type: 'category',
+  },
+  yAxis: {
+    axisLabel: {
+      color: '#979BA5',
+    },
     axisLine: {
+      show: false,
+    },
+    axisTick: {
       show: false,
     },
     splitLine: {
-      show: true,
       lineStyle: {
-        type: 'dashed',
         color: '#F0F1F5',
+        type: 'dashed',
       },
+      show: true,
     },
-    axisLabel: {
-      color: '#979BA5',
-    },
+    type: 'value',
   },
-  grid: {
-    left: '0',
-    right: '4%',
-    top: '4%',
-    bottom: '0',
-    containLabel: true,
-  },
-  series: [],
 };

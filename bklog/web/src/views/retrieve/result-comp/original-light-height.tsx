@@ -28,9 +28,9 @@ import { Component, Prop, Emit } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { getFlatObjValues } from '../../../common/util';
-import TextSegmentation from './text-segmentation';
 
 import './original-light-height.scss';
+import TextSegmentation from './text-segmentation';
 
 interface IProps {
   originJson: object;
@@ -41,13 +41,13 @@ interface IProps {
 @Component
 export default class QueryStatement extends tsc<IProps> {
   /** 原始日志 */
-  @Prop({ type: Object, required: true }) originJson;
-  @Prop({ type: Array<any>, required: true }) visibleFields;
-  @Prop({ type: Boolean, required: true }) isWrap;
-  @Prop({ type: Object, required: true }) operatorConfig;
+  @Prop({ required: true, type: Object }) originJson;
+  @Prop({ required: true, type: Array<any> }) visibleFields;
+  @Prop({ required: true, type: Boolean }) isWrap;
+  @Prop({ required: true, type: Object }) operatorConfig;
 
   get visibleFieldsNameList() {
-    return this.visibleFields.map(item => item.field_name);
+    return this.visibleFields.map((item) => item.field_name);
   }
 
   get strOriginJson() {
@@ -62,17 +62,22 @@ export default class QueryStatement extends tsc<IProps> {
   get fieldMapDataObj() {
     const { newObject } = getFlatObjValues(this.originJson || {});
     const visibleObject = {};
-    Object.keys(newObject).forEach(el => {
+    Object.keys(newObject).forEach((el) => {
       if (this.visibleFieldsNameList.includes(el)) {
         visibleObject[el] = newObject[el];
       }
     });
     const sortObject = this.visibleFields.reduce((pre, cur) => {
       let fieldValue = visibleObject[cur.field_name];
-      if (this.operatorConfig?.isShowSourceField && cur?.tag === 'union-source') {
+      if (
+        this.operatorConfig?.isShowSourceField &&
+        cur?.tag === 'union-source'
+      ) {
         fieldValue =
-          this.unionIndexItemList.find(item => item.index_set_id === String(this.originJson.__index_set_id__))
-            ?.index_set_name ?? '';
+          this.unionIndexItemList.find(
+            (item) =>
+              item.index_set_id === String(this.originJson.__index_set_id__)
+          )?.index_set_name ?? '';
       }
       pre[cur.field_name] = fieldValue ?? '';
       return pre;
@@ -82,27 +87,33 @@ export default class QueryStatement extends tsc<IProps> {
 
   @Emit('menu-click')
   handleEmitMenuClick(type, content, key, isLink) {
-    const option = { fieldName: key, operation: type === 'not' ? 'is not' : type, value: content };
-    const newMenuObj = { option, isLink };
+    const option = {
+      fieldName: key,
+      operation: type === 'not' ? 'is not' : type,
+      value: content,
+    };
+    const newMenuObj = { isLink, option };
     return newMenuObj;
   }
 
   getField(fieldName: string) {
-    return this.visibleFields.find(item => item.field_name === fieldName);
+    return this.visibleFields.find((item) => item.field_name === fieldName);
   }
 
   render() {
     return (
-      <span class='origin-content'>
+      <span class="origin-content">
         {Object.entries(this.fieldMapDataObj).map(([key, value]) => {
           return (
             <span>
-              <span class='black-mark'>&nbsp;{key}:&nbsp;</span>
-              <span class='origin-value'>
+              <span class="black-mark">&nbsp;{key}:&nbsp;</span>
+              <span class="origin-value">
                 <TextSegmentation
                   content={value}
                   field={this.getField(key)}
-                  menu-click={(type, content, isLink) => this.handleEmitMenuClick(type, content, key, isLink)}
+                  menu-click={(type, content, isLink) =>
+                    this.handleEmitMenuClick(type, content, key, isLink)
+                  }
                 />
               </span>
             </span>

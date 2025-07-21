@@ -28,7 +28,7 @@ export default class CanvasText {
   fontFamily;
   canvasInstance: HTMLCanvasElement;
   canvasContext: CanvasRenderingContext2D;
-  constructor({ fontSize, fontFamily }) {
+  constructor({ fontFamily, fontSize }) {
     this.canvasInstance = document.createElement('canvas');
     this.canvasContext = this.canvasInstance.getContext('2d');
     this.fontSize = fontSize;

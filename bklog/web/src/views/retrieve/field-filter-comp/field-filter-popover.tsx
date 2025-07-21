@@ -31,7 +31,7 @@ import './field-filter-popover.scss';
 
 @Component
 export default class FieldAnalysis extends tsc<object> {
-  @Prop({ type: Boolean, default: false }) value: boolean;
+  @Prop({ default: false, type: Boolean }) value: boolean;
 
   polymerizableCache = null;
   fieldTypeCache = null;
@@ -39,38 +39,39 @@ export default class FieldAnalysis extends tsc<object> {
   fieldType = 'any';
   fieldTypeList = ['any', 'number', 'keyword', 'text', 'date', '__virtual__'];
   fieldTypeMap = {
+    __virtual__: {
+      icon: 'bklog-icon bklog-ext',
+      name: window.mainComponent.$t('虚拟字段'),
+    },
     any: {
-      name: window.mainComponent.$t('不限'),
       icon: 'bk-icon icon-check-line',
-    },
-    number: {
-      name: window.mainComponent.$t('数字'),
-      icon: 'bklog-icon bklog-number',
-    },
-    keyword: {
-      name: window.mainComponent.$t('字符串'),
-      icon: 'bklog-icon bklog-string',
-    },
-    text: {
-      name: window.mainComponent.$t('文本'),
-      icon: 'bklog-icon bklog-text',
+      name: window.mainComponent.$t('不限'),
     },
     date: {
-      name: window.mainComponent.$t('时间'),
       icon: 'bk-icon icon-clock',
+      name: window.mainComponent.$t('时间'),
     },
     date_nanos: {
-      name: window.mainComponent.$t('时间'),
       icon: 'bk-icon icon-clock',
+      name: window.mainComponent.$t('时间'),
     },
-    __virtual__: {
-      name: window.mainComponent.$t('虚拟字段'),
-      icon: 'bklog-icon bklog-ext',
+    keyword: {
+      icon: 'bklog-icon bklog-string',
+      name: window.mainComponent.$t('字符串'),
+    },
+    number: {
+      icon: 'bklog-icon bklog-number',
+      name: window.mainComponent.$t('数字'),
+    },
+    text: {
+      icon: 'bklog-icon bklog-text',
+      name: window.mainComponent.$t('文本'),
     },
   };
 
   get showFieldTypeList() {
-    if (this.polymerizable === '1') return this.fieldTypeList.filter(item => item !== 'date');
+    if (this.polymerizable === '1')
+      return this.fieldTypeList.filter((item) => item !== 'date');
     return this.fieldTypeList;
   }
 
@@ -98,8 +99,8 @@ export default class FieldAnalysis extends tsc<object> {
   @Emit('confirm')
   emitConfirm() {
     return {
-      polymerizable: this.polymerizable,
       fieldType: this.fieldType,
+      polymerizable: this.polymerizable,
     };
   }
 
@@ -115,44 +116,48 @@ export default class FieldAnalysis extends tsc<object> {
 
   render() {
     return (
-      <div class='filter-popover-content'>
-        <div class='title'>{this.$t('是否可聚合')}</div>
-        <bk-radio-group
-          class='king-radio-group'
-          v-model={this.polymerizable}
-        >
-          <bk-radio value='0'>{this.$t('不限')}</bk-radio>
-          <bk-radio value='1'>{this.$t('是')}</bk-radio>
-          <bk-radio value='2'>{this.$t('否')}</bk-radio>
+      <div class="filter-popover-content">
+        <div class="title">{this.$t('是否可聚合')}</div>
+        <bk-radio-group class="king-radio-group" v-model={this.polymerizable}>
+          <bk-radio value="0">{this.$t('不限')}</bk-radio>
+          <bk-radio value="1">{this.$t('是')}</bk-radio>
+          <bk-radio value="2">{this.$t('否')}</bk-radio>
         </bk-radio-group>
-        <div class='title'>{this.$t('字段类型')}</div>
-        <div class='bk-button-group'>
-          {this.showFieldTypeList.map(item => (
+        <div class="title">{this.$t('字段类型')}</div>
+        <div class="bk-button-group">
+          {this.showFieldTypeList.map((item) => (
             <bk-button
               class={this.fieldType === item ? 'is-selected' : ''}
-              size='small'
               onClick={() => (this.fieldType = item)}
+              size="small"
             >
-              <div class='custom-button'>
-                <span class={['field-filter-option-icon', item === 'any' ? '' : this.fieldTypeMap[item].icon]}></span>
-                <span class='bk-option-name'>{this.fieldTypeMap[item].name}</span>
+              <div class="custom-button">
+                <span
+                  class={[
+                    'field-filter-option-icon',
+                    item === 'any' ? '' : this.fieldTypeMap[item].icon,
+                  ]}
+                ></span>
+                <span class="bk-option-name">
+                  {this.fieldTypeMap[item].name}
+                </span>
               </div>
             </bk-button>
           ))}
         </div>
-        <div class='button-container'>
+        <div class="button-container">
           <bk-button
-            class='king-button mr10'
-            size='small'
-            theme='primary'
+            class="king-button mr10"
             onClick={() => this.handleConfirm()}
+            size="small"
+            theme="primary"
           >
             {this.$t('确定')}
           </bk-button>
           <bk-button
-            class='king-button'
-            size='small'
+            class="king-button"
             onClick={() => this.handleCancel()}
+            size="small"
           >
             {this.$t('取消')}
           </bk-button>

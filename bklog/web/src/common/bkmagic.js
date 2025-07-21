@@ -38,36 +38,36 @@ const Message = Vue.prototype.$bkMessage;
 
 export const messageError = (message, delay = 3000, ellipsisLine = 0) => {
   Message({
-    message,
     delay,
     ellipsisLine,
+    message,
     theme: 'error',
   });
 };
 
 export const messageSuccess = (message, delay = 3000, ellipsisLine = 0) => {
   Message({
-    message,
     delay,
     ellipsisLine,
+    message,
     theme: 'success',
   });
 };
 
 export const messageInfo = (message, delay = 3000, ellipsisLine = 0) => {
   Message({
-    message,
     delay,
     ellipsisLine,
+    message,
     theme: 'primary',
   });
 };
 
 export const messageWarn = (message, delay = 3000, ellipsisLine = 0) => {
   Message({
-    message,
     delay,
     ellipsisLine,
+    message,
     theme: 'warning',
   });
 };

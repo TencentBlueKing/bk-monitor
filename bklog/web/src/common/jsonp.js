@@ -51,10 +51,10 @@ export const useJSONP = (url, options) => {
   return new Promise((resolve, reject) => {
     jsonp(url, {
       ...options,
-      callback: response => {
+      callback: (response) => {
         resolve(response);
       },
-      onError: e => {
+      onError: (e) => {
         reject(e);
       },
     });

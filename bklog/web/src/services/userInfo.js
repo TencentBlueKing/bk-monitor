@@ -25,13 +25,13 @@
  */
 
 const getUserInfo = {
-  url: '/api/user/',
   method: 'get',
+  url: '/api/user/',
 };
 
 const getUsername = {
-  url: '/meta/mine/',
   method: 'get',
+  url: '/meta/mine/',
 };
 
 export { getUserInfo, getUsername };

@@ -24,11 +24,10 @@
  * IN THE SOFTWARE.
  */
 
-import { Component } from 'vue-property-decorator';
-import { Component as tsc } from 'vue-tsx-support';
-
 import { Switcher } from 'bk-magic-vue';
 import jsCookie from 'js-cookie';
+import { Component } from 'vue-property-decorator';
+import { Component as tsc } from 'vue-tsx-support';
 
 import './time-formatter-switcher.scss';
 
@@ -46,19 +45,16 @@ export default class TimeFormatterSwitcher extends tsc<object> {
   }
   render() {
     return (
-      <div
-        class='switcher-box'
-        onClick={e => e.stopPropagation()}
-      >
+      <div class="switcher-box" onClick={(e) => e.stopPropagation()}>
         <Switcher
+          off-text={this.$t('时间')}
+          onChange={this.handleClickSwitcher}
           props={{
             'on-text': this.$t('时间'),
           }}
-          off-text={this.$t('时间')}
-          value={this.isFormatDate}
           // v-bk-tooltips={this.$t('开启后将表格内的 UNIX 时间戳格式化为可读时间')}
           show-text
-          onChange={this.handleClickSwitcher}
+          value={this.isFormatDate}
         ></Switcher>
       </div>
     );

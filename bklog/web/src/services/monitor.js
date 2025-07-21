@@ -30,104 +30,104 @@
 
 // 监控策略列表
 const list = {
-  url: '/monitor/policy/',
   method: 'get',
+  url: '/monitor/policy/',
 };
 
 // 创建监控策略
 const create = {
-  url: '/monitor/policy/',
   method: 'post',
+  url: '/monitor/policy/',
 };
 
 // 删除监控策略
 const remove = {
-  url: '/monitor/policy/:policy_id/',
   method: 'delete',
+  url: '/monitor/policy/:policy_id/',
 };
 
 // 监控策略启动
 const start = {
-  url: '/monitor/policy/:policy_id/start/',
   method: 'post',
+  url: '/monitor/policy/:policy_id/start/',
 };
 
 // 监控策略停止
 const stop = {
-  url: '/monitor/policy/:policy_id/stop/',
   method: 'post',
+  url: '/monitor/policy/:policy_id/stop/',
 };
 
 // 编辑监控策略
 const updata = {
-  url: '/monitor/policy/:policy_id/',
   method: 'put',
+  url: '/monitor/policy/:policy_id/',
 };
 
 // 监控策略详情
 const particulars = {
-  url: '/monitor/policy/:policy_id/',
   method: 'get',
+  url: '/monitor/policy/:policy_id/',
 };
 
 // 获取监控类型列表
 const type = {
-  url: '/monitor/',
   method: 'get',
+  url: '/monitor/',
 };
 
 // 获取告警等级
 const levels = {
-  url: '/monitor/alarm/levels/',
   method: 'get',
+  url: '/monitor/alarm/levels/',
 };
 
 // 获取告警记录
 const alarm = {
-  url: '/monitor/alarm/',
   method: 'get',
+  url: '/monitor/alarm/',
 };
 
 // 获取屏蔽策略列表
 const shields = {
-  url: '/monitor/shields/',
   method: 'get',
+  url: '/monitor/shields/',
 };
 
 // 获取屏蔽类型
 const shieldsType = {
-  url: '/monitor/shields/type/',
   method: 'get',
+  url: '/monitor/shields/type/',
 };
 
 // 新增屏蔽策略
 const addShields = {
-  url: '/monitor/shields/',
   method: 'post',
+  url: '/monitor/shields/',
 };
 
 // 删除屏蔽策略
 const removeShields = {
-  url: '/monitor/shields/:shield_id/',
   method: 'delete',
+  url: '/monitor/shields/:shield_id/',
 };
 
 // 获取屏蔽策略详情
 const shieldsInfo = {
-  url: '/monitor/shields/:shield_id/',
   method: 'get',
+  url: '/monitor/shields/:shield_id/',
 };
 
 // 更新屏蔽策略
 const updateShields = {
-  url: '/monitor/shields/:shield_id/',
   method: 'put',
+  url: '/monitor/shields/:shield_id/',
 };
 
 // 获取索引集
 const index = {
-  url: '/monitor/index_set/',
   method: 'get',
+  url: '/monitor/index_set/',
 };
 
 export {

@@ -30,26 +30,73 @@ import dayjs from 'dayjs';
 export default {
   data() {
     return {
-      finishPolling: false,
-      pollingStartTime: 0,
-      pollingEndTime: 0,
-      requestInterval: 0, // 请求间隔时间
-      interval: 'auto',
       chartInterval: 'auto',
+      finishPolling: false,
+      interval: 'auto',
       intervalMap: {
-        '5s': 5,
+        '1d': 86400,
+        '1h': 3600,
         '1m': 60,
+        '4h': 14400,
         '5m': 300,
+        '5s': 5,
+        '12h': 43200,
         '15m': 900,
         '30m': 1800,
-        '1h': 3600,
-        '4h': 14400,
-        '12h': 43200,
-        '1d': 86400,
       },
+      pollingEndTime: 0,
+      pollingStartTime: 0,
+      requestInterval: 0, // 请求间隔时间
     };
   },
   methods: {
+    // 时间向下取整
+    getIntegerTime(time) {
+      if (this.interval === '1d') {
+        // 如果周期是 天 则特殊处理
+        const step = dayjs.tz(time).format('YYYY-MM-DD');
+        return Date.parse(`${step} 00:00:00`);
+      }
+
+      const step = this.intervalMap[this.interval] * 1000;
+      return Math.floor(time / step) * step;
+    },
+    // 获取轮询时间间隔
+    getInterval() {
+      if (this.chartInterval !== 'auto') {
+        // 若选择了汇聚周期则使用retrieveParams
+        this.interval = this.chartInterval;
+        return;
+      }
+
+      this.interval = '1h';
+    },
+    // 获取实际查询开始和结束时间
+    getRealTimeRange() {
+      // if (!this.pickerTimeRange.length) {
+      //   return {
+      //     startTimeStamp: new Date(this.retrieveParams.start_time.replace(/-/g, '/')).getTime(),
+      //     endTimeStamp: new Date(this.retrieveParams.end_time.replace(/-/g, '/')).getTime(),
+      //   };
+      // };
+
+      const tempList = handleTransformToTimestamp(this.datePickerValue);
+      return {
+        endTimeStamp: tempList[1],
+        startTimeStamp: tempList[0],
+      };
+    },
+    // 获取时间分片数组
+    getTimeRange(startTime, endTime) {
+      // 根据时间范围获取和横坐标分片
+      const rangeArr = [];
+      const range = this.intervalMap[this.interval] * 1000;
+      for (let index = endTime; index >= startTime; index = index - range) {
+        rangeArr.push([0, index]);
+      }
+
+      return rangeArr;
+    },
     // 坐标分片规则
     handleIntervalSplit(startTime, endTime) {
       if (this.chartInterval !== 'auto') {
@@ -82,53 +129,6 @@ export default {
         return 21600 * 1000;
       } // 大于1天 按0.5天请求
       return (86400 * 1000) / 2;
-    },
-    // 获取实际查询开始和结束时间
-    getRealTimeRange() {
-      // if (!this.pickerTimeRange.length) {
-      //   return {
-      //     startTimeStamp: new Date(this.retrieveParams.start_time.replace(/-/g, '/')).getTime(),
-      //     endTimeStamp: new Date(this.retrieveParams.end_time.replace(/-/g, '/')).getTime(),
-      //   };
-      // };
-
-      const tempList = handleTransformToTimestamp(this.datePickerValue);
-      return {
-        startTimeStamp: tempList[0],
-        endTimeStamp: tempList[1],
-      };
-    },
-    // 获取轮询时间间隔
-    getInterval() {
-      if (this.chartInterval !== 'auto') {
-        // 若选择了汇聚周期则使用retrieveParams
-        this.interval = this.chartInterval;
-        return;
-      }
-
-      this.interval = '1h';
-    },
-    // 获取时间分片数组
-    getTimeRange(startTime, endTime) {
-      // 根据时间范围获取和横坐标分片
-      const rangeArr = [];
-      const range = this.intervalMap[this.interval] * 1000;
-      for (let index = endTime; index >= startTime; index = index - range) {
-        rangeArr.push([0, index]);
-      }
-
-      return rangeArr;
-    },
-    // 时间向下取整
-    getIntegerTime(time) {
-      if (this.interval === '1d') {
-        // 如果周期是 天 则特殊处理
-        const step = dayjs.tz(time).format('YYYY-MM-DD');
-        return Date.parse(`${step} 00:00:00`);
-      }
-
-      const step = this.intervalMap[this.interval] * 1000;
-      return Math.floor(time / step) * step;
     },
   },
 };

@@ -28,36 +28,36 @@ export default {
   name: '', // 图表名称
   series: [
     {
+      datapoints: [
+        [622, 1450754160000],
+        [365, 1450754220000],
+      ],
       dimensions: {
         bk_target_ip: '127.0.0.1',
       },
       target: 'MEAN(used)[bk_target_ip: 127.0.0.1]',
       threshold: {
+        name: '阈值',
         // 阈值
         value: 100,
-        name: '阈值',
       },
       unit: '%', // 单位
-      datapoints: [
-        [622, 1450754160000],
-        [365, 1450754220000],
-      ],
     },
     {
+      datapoints: [
+        [622, 1450754160000],
+        [365, 1450754220000],
+      ],
       dimensions: {
         bk_target_ip: '127.0.0.1',
       },
       target: 'MEAN(used)[bk_target_ip: 127.0.0.1]',
       threshold: {
+        name: '阈值',
         // 阈值
         value: 100,
-        name: '阈值',
       },
       unit: '%', // 单位
-      datapoints: [
-        [622, 1450754160000],
-        [365, 1450754220000],
-      ],
     },
   ],
 };

@@ -27,7 +27,10 @@
   <div class="fingerprint-setting fl-sb">
     <div
       class="is-near24"
-      v-bk-tooltips="{ content: $t('请先新建新类告警策略'), disabled: strategyHaveSubmit }"
+      v-bk-tooltips="{
+        content: $t('请先新建新类告警策略'),
+        disabled: strategyHaveSubmit,
+      }"
     >
       <bk-checkbox
         v-model="isNear24"
@@ -86,11 +89,9 @@
               >
             </li>
             <li>
-              <a
-                href="javascript:;"
-                @click="goToMySubscription"
-                >{{ $t('我的订阅') }}</a
-              >
+              <a href="javascript:;" @click="goToMySubscription">{{
+                $t('我的订阅')
+              }}</a>
             </li>
           </ul>
         </template>
@@ -132,7 +133,9 @@
               <span class="title">{{ $t('维度') }}</span>
               <i
                 class="notice bklog-icon bklog-help"
-                v-bk-tooltips.top="$t('修改字段会影响当前聚类结果，请勿随意修改')"
+                v-bk-tooltips.top="
+                  $t('修改字段会影响当前聚类结果，请勿随意修改')
+                "
               ></i>
             </span>
             <bk-select
@@ -160,7 +163,9 @@
             </bk-select>
             <div class="group-alert">
               <i class="bk-icon icon-info"></i>
-              <span>{{ $t('如需根据某些维度拆分聚类结果，可将字段设置为维度。') }}</span>
+              <span>{{
+                $t('如需根据某些维度拆分聚类结果，可将字段设置为维度。')
+              }}</span>
             </div>
           </div>
           <div class="piece">
@@ -192,11 +197,7 @@
           <div class="piece">
             <span class="title">{{ $t('同比') }}</span>
             <div class="year-on-year">
-              <bk-switcher
-                v-model="yearSwitch"
-                theme="primary"
-              >
-              </bk-switcher>
+              <bk-switcher v-model="yearSwitch" theme="primary"> </bk-switcher>
               <bk-select
                 ext-cls="compared-select"
                 v-model="yearOnYearHour"
@@ -230,7 +231,9 @@
                       <div class="compared-select-icon">
                         <span
                           class="top-end"
-                          v-bk-tooltips="$t('自定义输入格式: 如 1h 代表一小时 h小时')"
+                          v-bk-tooltips="
+                            $t('自定义输入格式: 如 1h 代表一小时 h小时')
+                          "
                         >
                           <i class="bklog-icon bklog-help"></i>
                         </span>
@@ -250,11 +253,7 @@
             >
               {{ $t('保存') }}
             </bk-button>
-            <bk-button
-              size="small"
-              theme="default"
-              @click="cancelPopover"
-            >
+            <bk-button size="small" theme="default" @click="cancelPopover">
               {{ $t('取消') }}
             </bk-button>
           </div>
@@ -265,463 +264,489 @@
 </template>
 
 <script>
-  import { debounce } from 'throttle-debounce';
+import { debounce } from 'throttle-debounce';
 
-  import QuickCreateSubscription from './quick-create-subscription-drawer/quick-create-subscription.tsx';
-  export default {
-    components: {
-      QuickCreateSubscription,
+import QuickCreateSubscription from './quick-create-subscription-drawer/quick-create-subscription.tsx';
+export default {
+  components: {
+    QuickCreateSubscription,
+  },
+  props: {
+    fingerOperateData: {
+      type: Object,
+      require: true,
     },
-    props: {
-      fingerOperateData: {
-        type: Object,
-        require: true,
+    isClusterActive: {
+      type: Boolean,
+      default: false,
+    },
+    requestData: {
+      type: Object,
+      require: true,
+    },
+    totalFields: {
+      type: Array,
+      require: true,
+    },
+    clusterSwitch: {
+      type: Boolean,
+      default: false,
+    },
+    strategyHaveSubmit: {
+      type: Boolean,
+      default: false,
+    },
+  },
+  data() {
+    return {
+      interactType: false, // false 为hover true 为click
+      dimension: [], // 当前维度字段的值
+      group: [], // 当前分组选中的值
+      isToggle: false, // 当前是否显示分组下拉框
+      patternSize: 0,
+      yearOnYearHour: 1,
+      isNear24: false,
+      popoverInstance: null,
+      isShowPopoverInstance: false,
+      yearSwitch: false,
+      tippyOptions: {
+        theme: 'light',
+        trigger: 'manual',
+        hideOnClick: false,
+        offset: '16',
+        interactive: true,
       },
-      isClusterActive: {
-        type: Boolean,
-        default: false,
-      },
-      requestData: {
-        type: Object,
-        require: true,
-      },
-      totalFields: {
-        type: Array,
-        require: true,
-      },
-      clusterSwitch: {
-        type: Boolean,
-        default: false,
-      },
-      strategyHaveSubmit: {
-        type: Boolean,
-        default: false,
+      isCurrentIndexSetIdCreateSubscription: false,
+      isShowQuickCreateSubscriptionDrawer: false,
+      /** 打开设置弹窗时的维度 */
+      catchDimension: [],
+    };
+  },
+  computed: {
+    bkBizId() {
+      return this.$store.state.bkBizId;
+    },
+    dimensionList() {
+      return this.fingerOperateData.groupList.filter(
+        (item) => !this.group.includes(item.id)
+      );
+    },
+    groupList() {
+      return this.fingerOperateData.groupList.filter(
+        (item) => !this.dimension.includes(item.id)
+      );
+    },
+    indexSetId() {
+      return window.__IS_MONITOR_COMPONENT__
+        ? this.$route.query.indexId
+        : this.$route.params.indexId;
+    },
+  },
+  watch: {
+    group: {
+      deep: true,
+      handler(list) {
+        // 分组列表未展开时数组变化则发送请求
+        if (!this.isToggle) {
+          this.$emit('handle-finger-operate', 'group', list);
+        }
       },
     },
-    data() {
-      return {
-        interactType: false, // false 为hover true 为click
-        dimension: [], // 当前维度字段的值
-        group: [], // 当前分组选中的值
-        isToggle: false, // 当前是否显示分组下拉框
-        patternSize: 0,
-        yearOnYearHour: 1,
-        isNear24: false,
-        popoverInstance: null,
-        isShowPopoverInstance: false,
-        yearSwitch: false,
-        tippyOptions: {
-          theme: 'light',
-          trigger: 'manual',
-          hideOnClick: false,
-          offset: '16',
-          interactive: true,
-        },
-        isCurrentIndexSetIdCreateSubscription: false,
-        isShowQuickCreateSubscriptionDrawer: false,
-        /** 打开设置弹窗时的维度 */
-        catchDimension: [],
-      };
-    },
-    computed: {
-      bkBizId() {
-        return this.$store.state.bkBizId;
-      },
-      dimensionList() {
-        return this.fingerOperateData.groupList.filter(item => !this.group.includes(item.id));
-      },
-      groupList() {
-        return this.fingerOperateData.groupList.filter(item => !this.dimension.includes(item.id));
-      },
-      indexSetId() {
-        return window.__IS_MONITOR_COMPONENT__ ? this.$route.query.indexId : this.$route.params.indexId;
+  },
+  created() {
+    this.checkReportIsExistedDebounce = debounce(
+      1000,
+      this.checkReportIsExisted
+    );
+  },
+  mounted() {
+    if (!this.isClusterActive) return;
+    this.handleShowMorePopover();
+    this.checkReportIsExistedDebounce();
+  },
+  beforeUnmount() {
+    this.popoverInstance = null;
+  },
+  methods: {
+    /**
+     * @desc: 同比自定义输入
+     * @param { String } val
+     */
+    handleEnterCompared(val) {
+      const matchVal = val.match(/^(\d+)h$/);
+      if (!matchVal) {
+        this.$bkMessage({
+          theme: 'warning',
+          message: this.$t('请按照提示输入'),
+        });
+        return;
       }
-    },
-    watch: {
-      group: {
-        deep: true,
-        handler(list) {
-          // 分组列表未展开时数组变化则发送请求
-          if (!this.isToggle) {
-            this.$emit('handle-finger-operate', 'group', list);
-          }
-        },
-      },
-    },
-    created() {
-      this.checkReportIsExistedDebounce = debounce(1000, this.checkReportIsExisted);
-    },
-    mounted() {
-      if (!this.isClusterActive) return;
-      this.handleShowMorePopover();
-      this.checkReportIsExistedDebounce();
-    },
-    beforeUnmount() {
-      this.popoverInstance = null;
-    },
-    methods: {
-      /**
-       * @desc: 同比自定义输入
-       * @param { String } val
-       */
-      handleEnterCompared(val) {
-        const matchVal = val.match(/^(\d+)h$/);
-        if (!matchVal) {
-          this.$bkMessage({
-            theme: 'warning',
-            message: this.$t('请按照提示输入'),
-          });
-          return;
-        }
-        this.changeCustomizeState(true);
-        const { comparedList: propComparedList } = this.fingerOperateData;
-        const isRepeat = propComparedList.some(el => el.id === Number(matchVal[1]));
-        if (isRepeat) {
-          this.yearOnYearHour = Number(matchVal[1]);
-          return;
-        }
-        propComparedList.push({
-          id: Number(matchVal[1]),
-          name: this.$t('{n} 小时前', { n: matchVal[1] }),
-        });
-        this.$emit('handle-finger-operate', 'fingerOperateData', {
-          comparedList: propComparedList,
-        });
+      this.changeCustomizeState(true);
+      const { comparedList: propComparedList } = this.fingerOperateData;
+      const isRepeat = propComparedList.some(
+        (el) => el.id === Number(matchVal[1])
+      );
+      if (isRepeat) {
         this.yearOnYearHour = Number(matchVal[1]);
-      },
-      handleShowNearPattern(state) {
-        this.$emit('handle-finger-operate', 'requestData', { show_new_pattern: state }, true);
-      },
-      handleChangepatternSize(val) {
-        this.$emit(
-          'handle-finger-operate',
-          'requestData',
-          { pattern_level: this.fingerOperateData.patternList[val] },
-          true,
-        );
-      },
-      changeCustomizeState(val) {
-        this.$emit('handle-finger-operate', 'fingerOperateData', { isShowCustomize: val });
-      },
-      handleClickGroupPopover() {
-        !this.isShowPopoverInstance ? this.$refs.groupPopover.instance.show() : this.$refs.groupPopover.instance.hide();
-        this.isShowPopoverInstance = !this.isShowPopoverInstance;
-      },
-      async submitPopover() {
-        // 设置过维度 进行二次确认弹窗判断
-        if (this.catchDimension.length) {
-          const dimensionSortStr = this.dimension.sort().join(',');
-          const catchDimensionSortStr = this.catchDimension.sort().join(',');
-          const isShowInfo = dimensionSortStr !== catchDimensionSortStr;
-          if (isShowInfo) {
-            this.$bkInfo({
-              type: 'warning',
-              title: this.$t('修改维度字段会影响已有备注、告警配置，如无必要，请勿随意变动。请确定是否修改？'),
-              confirmFn: async () => {
-                await this.updateInitGroup();
-                this.finishEmit();
-              },
-            });
-          } else {
-            // 不请求更新维度接口 直接提交
-            this.finishEmit();
-          }
+        return;
+      }
+      propComparedList.push({
+        id: Number(matchVal[1]),
+        name: this.$t('{n} 小时前', { n: matchVal[1] }),
+      });
+      this.$emit('handle-finger-operate', 'fingerOperateData', {
+        comparedList: propComparedList,
+      });
+      this.yearOnYearHour = Number(matchVal[1]);
+    },
+    handleShowNearPattern(state) {
+      this.$emit(
+        'handle-finger-operate',
+        'requestData',
+        { show_new_pattern: state },
+        true
+      );
+    },
+    handleChangepatternSize(val) {
+      this.$emit(
+        'handle-finger-operate',
+        'requestData',
+        { pattern_level: this.fingerOperateData.patternList[val] },
+        true
+      );
+    },
+    changeCustomizeState(val) {
+      this.$emit('handle-finger-operate', 'fingerOperateData', {
+        isShowCustomize: val,
+      });
+    },
+    handleClickGroupPopover() {
+      !this.isShowPopoverInstance
+        ? this.$refs.groupPopover.instance.show()
+        : this.$refs.groupPopover.instance.hide();
+      this.isShowPopoverInstance = !this.isShowPopoverInstance;
+    },
+    async submitPopover() {
+      // 设置过维度 进行二次确认弹窗判断
+      if (this.catchDimension.length) {
+        const dimensionSortStr = this.dimension.sort().join(',');
+        const catchDimensionSortStr = this.catchDimension.sort().join(',');
+        const isShowInfo = dimensionSortStr !== catchDimensionSortStr;
+        if (isShowInfo) {
+          this.$bkInfo({
+            type: 'warning',
+            title: this.$t(
+              '修改维度字段会影响已有备注、告警配置，如无必要，请勿随意变动。请确定是否修改？'
+            ),
+            confirmFn: async () => {
+              await this.updateInitGroup();
+              this.finishEmit();
+            },
+          });
         } else {
-          // 没设置过维度 直接提交
-          if (this.dimension.length) await this.updateInitGroup();
+          // 不请求更新维度接口 直接提交
           this.finishEmit();
         }
-      },
-      finishEmit() {
-        this.$emit('handle-finger-operate', 'fingerOperateData', {
-          dimensionList: this.dimension,
-          selectGroupList: this.group,
-          yearSwitch: this.yearSwitch,
-          yearOnYearHour: this.yearOnYearHour,
-        });
-        this.$emit(
-          'handle-finger-operate',
-          'requestData',
-          {
-            group_by: [...this.group, ...this.dimension],
-            year_on_year_hour: this.yearSwitch ? this.yearOnYearHour : 0,
-          },
-          true,
-        );
-        this.cancelPopover();
-      },
-      /**
-       * @desc: 是否默认展示分组接口
-       */
-      async updateInitGroup() {
-        await this.$http.request('/logClustering/updateInitGroup', {
-          params: {
-            index_set_id: window.__IS_MONITOR_COMPONENT__ ? this.$route.query.indexId : this.$route.params.indexId,
-          },
-          data: {
-            group_fields: this.dimension,
-          },
-        });
-      },
-      cancelPopover() {
-        this.isShowPopoverInstance = false;
-        this.$refs.groupPopover.instance.hide();
-      },
-      toggleYearSelect(val) {
-        !val && this.changeCustomizeState(true);
-      },
-      handleShowMorePopover() {
-        const finger = this.fingerOperateData;
-        this.isNear24 = this.requestData.show_new_pattern;
-        this.patternSize = finger.patternSize;
-        this.dimension = finger.dimensionList;
-        this.catchDimension = finger.dimensionList;
-        this.group = finger.selectGroupList;
-        this.yearSwitch = finger.yearSwitch;
-        this.yearOnYearHour = finger.yearOnYearHour;
-      },
-      /**
-       * 检查当前 索引集 是否创建过订阅。
-       */
-      checkReportIsExisted() {
-        this.$http
-          .request('newReport/getExistReports/', {
-            query: {
-              scenario: 'clustering',
-              bk_biz_id: this.$store.state.bkBizId,
-              index_set_id: window.__IS_MONITOR_COMPONENT__ ? this.$route.query.indexId : this.$route.params.indexId,
-            },
-          })
-          .then(response => {
-            this.isCurrentIndexSetIdCreateSubscription = !!response.data.length;
-          })
-          .catch(console.log);
-      },
-      /**
-       * 空方法 checkReportIsExisted 的 debounce 版。
-       */
-      checkReportIsExistedDebounce() {},
-      /**
-       * 打开 我的订阅 全局弹窗
-       */
-      goToMySubscription() {
-        window.bus.$emit('showGlobalDialog');
-      },
+      } else {
+        // 没设置过维度 直接提交
+        if (this.dimension.length) await this.updateInitGroup();
+        this.finishEmit();
+      }
     },
-  };
+    finishEmit() {
+      this.$emit('handle-finger-operate', 'fingerOperateData', {
+        dimensionList: this.dimension,
+        selectGroupList: this.group,
+        yearSwitch: this.yearSwitch,
+        yearOnYearHour: this.yearOnYearHour,
+      });
+      this.$emit(
+        'handle-finger-operate',
+        'requestData',
+        {
+          group_by: [...this.group, ...this.dimension],
+          year_on_year_hour: this.yearSwitch ? this.yearOnYearHour : 0,
+        },
+        true
+      );
+      this.cancelPopover();
+    },
+    /**
+     * @desc: 是否默认展示分组接口
+     */
+    async updateInitGroup() {
+      await this.$http.request('/logClustering/updateInitGroup', {
+        params: {
+          index_set_id: window.__IS_MONITOR_COMPONENT__
+            ? this.$route.query.indexId
+            : this.$route.params.indexId,
+        },
+        data: {
+          group_fields: this.dimension,
+        },
+      });
+    },
+    cancelPopover() {
+      this.isShowPopoverInstance = false;
+      this.$refs.groupPopover.instance.hide();
+    },
+    toggleYearSelect(val) {
+      !val && this.changeCustomizeState(true);
+    },
+    handleShowMorePopover() {
+      const finger = this.fingerOperateData;
+      this.isNear24 = this.requestData.show_new_pattern;
+      this.patternSize = finger.patternSize;
+      this.dimension = finger.dimensionList;
+      this.catchDimension = finger.dimensionList;
+      this.group = finger.selectGroupList;
+      this.yearSwitch = finger.yearSwitch;
+      this.yearOnYearHour = finger.yearOnYearHour;
+    },
+    /**
+     * 检查当前 索引集 是否创建过订阅。
+     */
+    checkReportIsExisted() {
+      this.$http
+        .request('newReport/getExistReports/', {
+          query: {
+            scenario: 'clustering',
+            bk_biz_id: this.$store.state.bkBizId,
+            index_set_id: window.__IS_MONITOR_COMPONENT__
+              ? this.$route.query.indexId
+              : this.$route.params.indexId,
+          },
+        })
+        .then((response) => {
+          this.isCurrentIndexSetIdCreateSubscription = !!response.data.length;
+        })
+        .catch(console.log);
+    },
+    /**
+     * 空方法 checkReportIsExisted 的 debounce 版。
+     */
+    checkReportIsExistedDebounce() {},
+    /**
+     * 打开 我的订阅 全局弹窗
+     */
+    goToMySubscription() {
+      window.bus.$emit('showGlobalDialog');
+    },
+  },
+};
 </script>
 <style lang="scss" scoped>
-  @import '@/scss/mixins/flex.scss';
+@import '@/scss/mixins/flex.scss';
 
-  .fingerprint-setting {
-    flex-shrink: 0;
-    height: 32px;
-    font-size: 12px;
-    line-height: 24px;
+.fingerprint-setting {
+  flex-shrink: 0;
+  height: 32px;
+  font-size: 12px;
+  line-height: 24px;
 
-    .is-near24 {
-      margin-right: 20px;
-      @include flex-center;
+  .is-near24 {
+    margin-right: 20px;
+    @include flex-center;
 
-      > span {
-        margin-left: 4px;
-        line-height: 16px;
-        cursor: pointer;
-      }
-    }
-
-    .pattern {
-      width: 200px;
-      margin-right: 20px;
-
-      .pattern-slider-box {
-        width: 154px;
-      }
-
-      .pattern-slider {
-        width: 114px;
-      }
+    > span {
+      margin-left: 4px;
+      line-height: 16px;
+      cursor: pointer;
     }
   }
 
-  .compared-select-option {
-    .compared-customize {
-      position: relative;
-      padding: 4px 0;
+  .pattern {
+    width: 200px;
+    margin-right: 20px;
+
+    .pattern-slider-box {
+      width: 154px;
     }
 
-    .compared-select-icon {
-      position: absolute;
-      top: 3px;
-      right: 22px;
+    .pattern-slider {
+      width: 114px;
+    }
+  }
+}
+
+.compared-select-option {
+  .compared-customize {
+    position: relative;
+    padding: 4px 0;
+  }
+
+  .compared-select-icon {
+    position: absolute;
+    top: 3px;
+    right: 22px;
+    font-size: 14px;
+  }
+
+  .customize-option {
+    padding: 0 16px;
+    cursor: pointer;
+  }
+
+  .bk-form-control {
+    width: 90%;
+    margin: 0 auto;
+  }
+
+  .bk-form-input {
+    /* stylelint-disable-next-line declaration-no-important */
+    padding: 0 18px 0 10px !important;
+  }
+}
+
+.selected-ext {
+  .bk-option.is-selected {
+    /* stylelint-disable-next-line declaration-no-important */
+    background: none !important;
+  }
+
+  .bk-option:hover {
+    background: #f4f6fa;
+  }
+}
+
+.popover-content {
+  .group-popover {
+    padding-top: 8px;
+
+    .piece {
+      margin-bottom: 13px;
+    }
+
+    .title {
+      display: inline-block;
+      margin-bottom: 6px;
+      color: #63656e;
+    }
+
+    .notice {
       font-size: 14px;
-    }
-
-    .customize-option {
-      padding: 0 16px;
+      color: #979ba5;
       cursor: pointer;
     }
 
-    .bk-form-control {
-      width: 90%;
-      margin: 0 auto;
-    }
-
-    .bk-form-input {
-      /* stylelint-disable-next-line declaration-no-important */
-      padding: 0 18px 0 10px !important;
-    }
-  }
-
-  .selected-ext {
-    .bk-option.is-selected {
-      /* stylelint-disable-next-line declaration-no-important */
-      background: none !important;
-    }
-
-    .bk-option:hover {
-      background: #f4f6fa;
-    }
-  }
-
-  .popover-content {
-    .group-popover {
-      padding-top: 8px;
-
-      .piece {
-        margin-bottom: 13px;
-      }
-
-      .title {
-        display: inline-block;
-        margin-bottom: 6px;
-        color: #63656e;
-      }
-
-      .notice {
-        font-size: 14px;
-        color: #979ba5;
-        cursor: pointer;
-      }
-
-      .group-alert {
-        position: relative;
-        padding: 6px 30px;
-        margin: 6px 0 14px 0;
-        line-height: 20px;
-        color: #63656e;
-        background: #f0f1f5;
-        border-radius: 2px;
-
-        .icon-info {
-          position: absolute;
-          top: 8px;
-          left: 8px;
-          font-size: 16px;
-          color: #979ba5;
-        }
-      }
-
-      .year-on-year {
-        @include flex-center();
-      }
-
-      .compared-select {
-        flex: 1;
-        margin-left: 20px;
-      }
-
-      .popover-button {
-        padding: 12px 0;
-
-        @include flex-justify(flex-end);
-      }
-    }
-  }
-
-  .ext-box {
-    /* stylelint-disable-next-line declaration-no-important */
-    display: flex !important;
-    height: 32px;
-
-    @include flex-center();
-
-    :deep(.bk-checkbox-text) {
-      width: calc(100% - 20px);
-      overflow: hidden;
-
-      /* stylelint-disable-next-line declaration-no-important */
-      font-size: 12px !important;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
-  }
-
-  .disabled-icon {
-    cursor: not-allowed;
-    background-color: #fff;
-    border-color: #dcdee5;
-
-    &:hover,
-    .bklog-icon {
-      color: #c4c6cc;
-      border-color: #dcdee5;
-    }
-  }
-
-  .operation-icon {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 26px;
-    height: 26px;
-    cursor: pointer;
-    border: 1px solid #c4c6cc;
-    border-radius: 2px;
-    outline: none;
-    transition: boder-color 0.2s;
-
-    &:hover {
-      border-color: #979ba5;
-      transition: boder-color 0.2s;
-    }
-
-    &:active {
-      border-color: #3a84ff;
-      transition: boder-color 0.2s;
-    }
-
-    .icon-more {
-      width: 16px;
-      font-size: 16px;
-      color: #979ba5;
-    }
-  }
-
-  .fl-sb {
-    align-items: center;
-
-    @include flex-justify(space-between);
-  }
-
-  .btn-subscription {
-    margin-right: 20px;
-    font-size: 14px;
-    color: #63656e;
-    cursor: pointer;
-    border-radius: 2px;
-
-    &.selected {
-      color: #3a84ff;
-    }
-
-    &:hover {
+    .group-alert {
+      position: relative;
+      padding: 6px 30px;
+      margin: 6px 0 14px 0;
+      line-height: 20px;
+      color: #63656e;
       background: #f0f1f5;
+      border-radius: 2px;
+
+      .icon-info {
+        position: absolute;
+        top: 8px;
+        left: 8px;
+        font-size: 16px;
+        color: #979ba5;
+      }
     }
 
-    &:active {
-      background-color: #e1ecff;
+    .year-on-year {
+      @include flex-center();
+    }
+
+    .compared-select {
+      flex: 1;
+      margin-left: 20px;
+    }
+
+    .popover-button {
+      padding: 12px 0;
+
+      @include flex-justify(flex-end);
     }
   }
+}
+
+.ext-box {
+  /* stylelint-disable-next-line declaration-no-important */
+  display: flex !important;
+  height: 32px;
+
+  @include flex-center();
+
+  :deep(.bk-checkbox-text) {
+    width: calc(100% - 20px);
+    overflow: hidden;
+
+    /* stylelint-disable-next-line declaration-no-important */
+    font-size: 12px !important;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
+.disabled-icon {
+  cursor: not-allowed;
+  background-color: #fff;
+  border-color: #dcdee5;
+
+  &:hover,
+  .bklog-icon {
+    color: #c4c6cc;
+    border-color: #dcdee5;
+  }
+}
+
+.operation-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  cursor: pointer;
+  border: 1px solid #c4c6cc;
+  border-radius: 2px;
+  outline: none;
+  transition: boder-color 0.2s;
+
+  &:hover {
+    border-color: #979ba5;
+    transition: boder-color 0.2s;
+  }
+
+  &:active {
+    border-color: #3a84ff;
+    transition: boder-color 0.2s;
+  }
+
+  .icon-more {
+    width: 16px;
+    font-size: 16px;
+    color: #979ba5;
+  }
+}
+
+.fl-sb {
+  align-items: center;
+
+  @include flex-justify(space-between);
+}
+
+.btn-subscription {
+  margin-right: 20px;
+  font-size: 14px;
+  color: #63656e;
+  cursor: pointer;
+  border-radius: 2px;
+
+  &.selected {
+    color: #3a84ff;
+  }
+
+  &:hover {
+    background: #f0f1f5;
+  }
+
+  &:active {
+    background-color: #e1ecff;
+  }
+}
 </style>
 ./quick-create-subscription-drawer/quick-create-subscription.jsx

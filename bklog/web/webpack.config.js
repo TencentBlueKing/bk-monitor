@@ -38,11 +38,11 @@ const loginHost = 'https://paas-dev.bktencent.com';
 const devPort = 8001;
 
 let devConfig = {
-  port: devPort,
+  cache: null,
   devProxyUrl,
   loginHost,
+  port: devPort,
   proxy: {},
-  cache: null,
 };
 const logPluginConfig = {
   pcBuildVariates: `
@@ -89,39 +89,39 @@ if (fs.existsSync(path.resolve(__dirname, './local.settings.js'))) {
   const localConfig = require('./local.settings');
   devConfig = Object.assign({}, devConfig, localConfig);
 }
-module.exports = (baseConfig, { app, mobile, production, fta, log, email = false }) => {
+module.exports = (baseConfig, { app, email = false, fta, log, mobile, production }) => {
   const isMonitorRetrieveBuild = ['apm', 'trace'].includes(process.env.MONITOR_APP) && production; // 判断是否监控检索构建
   const config = baseConfig;
   const distUrl = path.resolve('../static/dist');
   if (!production) {
     config.devServer = Object.assign({}, config.devServer || {}, {
-      port: devConfig.port,
       host: devConfig.host,
       open: false,
-      static: [],
+      port: devConfig.port,
       proxy: [
         {
           ...devConfig.proxy,
         },
       ],
+      static: [],
     });
     config.plugins.push(
       new webpack.DefinePlugin({
         process: {
           env: {
-            proxyUrl: JSON.stringify(devConfig.devProxyUrl),
-            devUrl: JSON.stringify(`${devConfig.host}:${devConfig.port}`),
-            devHost: JSON.stringify(`${devConfig.host}`),
-            loginHost: JSON.stringify(devConfig.loginHost),
-            loginUrl: JSON.stringify(`${devConfig.loginHost}/login/`),
             APP: JSON.stringify(`${process.env.MONITOR_APP}`),
             MONITOR_APP: JSON.stringify(`${process.env.MONITOR_APP}`),
+            devHost: JSON.stringify(`${devConfig.host}`),
+            devUrl: JSON.stringify(`${devConfig.host}:${devConfig.port}`),
+            loginHost: JSON.stringify(devConfig.loginHost),
+            loginUrl: JSON.stringify(`${devConfig.loginHost}/login/`),
+            proxyUrl: JSON.stringify(devConfig.devProxyUrl),
           },
         },
       }),
     );
   } else if (!email && !isMonitorRetrieveBuild) {
-    config.plugins.push(new LogWebpackPlugin({ ...logPluginConfig, mobile, fta }));
+    config.plugins.push(new LogWebpackPlugin({ ...logPluginConfig, fta, mobile }));
     config.plugins.push(
       new CopyWebpackPlugin({
         patterns: [
@@ -136,8 +136,8 @@ module.exports = (baseConfig, { app, mobile, production, fta, log, email = false
       new webpack.DefinePlugin({
         process: {
           env: {
-            NODE_ENV: JSON.stringify('production'),
             APP: JSON.stringify(`${app}`),
+            NODE_ENV: JSON.stringify('production'),
           },
         },
       }),
@@ -153,11 +153,11 @@ module.exports = (baseConfig, { app, mobile, production, fta, log, email = false
       item.options.languages.push('json');
       item.options.customLanguages = [
         {
-          label: 'yaml',
           entry: 'monaco-yaml',
+          label: 'yaml',
           worker: {
-            id: 'monaco-yaml/yamlWorker',
             entry: 'monaco-yaml/yaml.worker',
+            id: 'monaco-yaml/yamlWorker',
           },
         },
       ];
@@ -166,29 +166,6 @@ module.exports = (baseConfig, { app, mobile, production, fta, log, email = false
   });
   return {
     ...config,
-    output: {
-      ...config.output,
-      path: distUrl,
-    },
-    entry: {
-      ...config.entry,
-      main: './src/main.js',
-    },
-    resolve: {
-      ...config.resolve,
-      alias: {
-        vue$: 'vue/dist/vue.esm.js',
-        '@': path.resolve('src'),
-      },
-    },
-    plugins: baseConfig.plugins.map(plugin => {
-      return plugin instanceof webpack.ProgressPlugin
-        ? new WebpackBar({
-            profile: true,
-            name: `日志平台 ${production ? 'Production模式' : 'Development模式'} 构建`,
-          })
-        : plugin;
-    }),
     cache: production
       ? false
       : {
@@ -199,5 +176,28 @@ module.exports = (baseConfig, { app, mobile, production, fta, log, email = false
           name: `${process.env.MONITOR_APP || config.app}-cache`,
           type: 'filesystem',
         },
+    entry: {
+      ...config.entry,
+      main: './src/main.js',
+    },
+    output: {
+      ...config.output,
+      path: distUrl,
+    },
+    plugins: baseConfig.plugins.map(plugin => {
+      return plugin instanceof webpack.ProgressPlugin
+        ? new WebpackBar({
+            name: `日志平台 ${production ? 'Production模式' : 'Development模式'} 构建`,
+            profile: true,
+          })
+        : plugin;
+    }),
+    resolve: {
+      ...config.resolve,
+      alias: {
+        '@': path.resolve('src'),
+        vue$: 'vue/dist/vue.esm.js',
+      },
+    },
   };
 };

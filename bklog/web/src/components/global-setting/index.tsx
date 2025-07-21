@@ -24,10 +24,9 @@
  * IN THE SOFTWARE.
  */
 
+import { Dialog } from 'bk-magic-vue';
 import { Component, Model, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-
-import { Dialog } from 'bk-magic-vue';
 
 import MaskingSetting from '../log-masking/masking-setting';
 
@@ -49,7 +48,7 @@ interface IProps {
 
 @Component
 export default class MaskingDialog extends tsc<IProps> {
-  @Model('change', { type: Boolean, default: false }) value: IProps['value'];
+  @Model('change', { default: false, type: Boolean }) value: IProps['value'];
   @Prop({ default: () => [], type: Array }) readonly menuList: IMenuItem[];
   @Prop({ default: '', type: String }) readonly activeMenu: string;
 
@@ -73,45 +72,52 @@ export default class MaskingDialog extends tsc<IProps> {
   render() {
     return (
       <Dialog
-        width='100%'
-        ext-cls='masking-dialog'
-        position={{
-          top: this.showAlert ? 90 : 50,
-          left: 0,
-        }}
         close-icon={false}
         draggable={false}
-        render-directive='if'
+        ext-cls="masking-dialog"
+        position={{
+          left: 0,
+          top: this.showAlert ? 90 : 50,
+        }}
+        render-directive="if"
+        scrollable
         show-footer={false}
         show-mask={false}
         value={this.value}
-        scrollable
+        width="100%"
       >
-        <div class={`masking-container ${this.showAlert ? 'is-show-notice' : ''}`}>
-          <div class='masking-title'>
+        <div
+          class={`masking-container ${this.showAlert ? 'is-show-notice' : ''}`}
+        >
+          <div class="masking-title">
             <div></div>
             <span>{this.$t('全局设置')}</span>
             <div
-              class='bk-icon icon-close'
+              class="bk-icon icon-close"
               onClick={this.handleCloseDialog}
             ></div>
           </div>
-          <div class='center-box'>
+          <div class="center-box">
             <div
+              class="left-panel"
               style={{ display: this.menuList?.length ? 'flex' : 'none' }}
-              class='left-panel'
             >
-              {this.menuList.map(item => (
+              {this.menuList.map((item) => (
                 <div
-                  key={item.id}
                   class={`menu-item ${this.activeMenu === item.id ? 'active-menu' : ''}`}
-                  onClick={() => this.activeMenu !== item.id && this.$emit('menu-change', item)}
+                  key={item.id}
+                  onClick={() =>
+                    this.activeMenu !== item.id &&
+                    this.$emit('menu-change', item)
+                  }
                 >
                   {item.name}
                 </div>
               ))}
             </div>
-            <div class='content-panel'>{this.getContentPanel(this.activeMenu)}</div>
+            <div class="content-panel">
+              {this.getContentPanel(this.activeMenu)}
+            </div>
           </div>
         </div>
       </Dialog>

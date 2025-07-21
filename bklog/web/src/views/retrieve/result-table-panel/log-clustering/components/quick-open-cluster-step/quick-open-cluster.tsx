@@ -24,16 +24,15 @@
  * IN THE SOFTWARE.
  */
 
+import { From } from 'bk-magic-vue';
 import { Component, Prop, Emit, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-
-import { From } from 'bk-magic-vue';
 
 import $http from '../../../../../../api';
 import { deepClone } from '../../../../../../common/util';
 import clusterImg from '../../../../../../images/cluster-img/cluster.png';
-import FilterRule from './filter-rule';
 
+import FilterRule from './filter-rule';
 import './quick-open-cluster.scss';
 
 interface IProps {
@@ -44,9 +43,9 @@ const { $i18n } = window.mainComponent;
 
 @Component
 export default class QuickOpenCluster extends tsc<IProps> {
-  @Prop({ type: Array, required: true }) totalFields: Array<any>;
-  @Prop({ type: Array, required: true }) datePickerValue: Array<any>;
-  @Prop({ type: Object, required: true }) retrieveParams: object;
+  @Prop({ required: true, type: Array }) totalFields: Array<any>;
+  @Prop({ required: true, type: Array }) datePickerValue: Array<any>;
+  @Prop({ required: true, type: Object }) retrieveParams: object;
   @Ref('quickClusterFrom') quickClusterFromRef: From;
   @Ref('filterRule') filterRuleRef;
 
@@ -71,9 +70,9 @@ export default class QuickOpenCluster extends tsc<IProps> {
 
   get clusterField() {
     return this.totalFields
-      .filter(item => item.is_analyzed)
-      .map(el => {
-        const { field_name: id, field_alias: alias } = el;
+      .filter((item) => item.is_analyzed)
+      .map((el) => {
+        const { field_alias: alias, field_name: id } = el;
         return { id, name: alias ? `${id}(${alias})` : id };
       });
   }
@@ -98,9 +97,14 @@ export default class QuickOpenCluster extends tsc<IProps> {
   @Watch('formData.clustering_fields')
   handleClusteringFields(fieldName) {
     if (this.formData.filter_rules.length) {
-      this.formData.filter_rules.forEach(rule => {
-        const targetField = this.totalFields.find(f => f.field_name === fieldName);
-        Object.assign(rule, { ...targetField, fields_name: targetField.field_name });
+      this.formData.filter_rules.forEach((rule) => {
+        const targetField = this.totalFields.find(
+          (f) => f.field_name === fieldName
+        );
+        Object.assign(rule, {
+          ...targetField,
+          fields_name: targetField.field_name,
+        });
       });
     }
   }
@@ -117,26 +121,28 @@ export default class QuickOpenCluster extends tsc<IProps> {
         const data = {
           bk_biz_id: this.bkBizId,
           clustering_fields: this.formData.clustering_fields,
-          new_cls_strategy_enable: this.formData.new_cls_strategy_enable,
-          normal_strategy_enable: this.formData.normal_strategy_enable,
           filter_rules: this.formData.filter_rules
-            .filter(item => item.value.length)
-            .map(item => ({
+            .filter((item) => item.value.length)
+            .map((item) => ({
               fields_name: item.fields_name,
               logic_operator: item.logic_operator,
               op: item.op,
               value: item.value[0],
             })),
+          new_cls_strategy_enable: this.formData.new_cls_strategy_enable,
+          normal_strategy_enable: this.formData.normal_strategy_enable,
         };
         const res = await $http.request('retrieve/createClusteringConfig', {
+          data,
           params: {
             index_set_id: this.indexId,
           },
-          data,
         });
         if (res.code === 0) {
           // 若是从未弹窗过的话，打开更多聚类的弹窗
-          const clusterPopoverState = localStorage.getItem('CLUSTER_MORE_POPOVER');
+          const clusterPopoverState = localStorage.getItem(
+            'CLUSTER_MORE_POPOVER'
+          );
           if (!Boolean(clusterPopoverState)) {
             const dom = document.querySelector('#more-operator');
             dom.addEventListener('popoverShowEvent', this.operatorTargetEvent);
@@ -157,6 +163,8 @@ export default class QuickOpenCluster extends tsc<IProps> {
   operatorTargetEvent(event: Event) {
     this.popoverDestroy();
     this.popoverInstance = this.$bkPopover(event.target, {
+      allowHTML: true,
+      arrow: true,
       content: `<div style='width: 230px; padding: 4px 8px; line-height: 18px;'>
           <div style='display: flex; justify-content: space-between'>
             <i 
@@ -182,14 +190,12 @@ export default class QuickOpenCluster extends tsc<IProps> {
             </div>
           </div>
         </div>`,
-      arrow: true,
-      trigger: 'manual',
-      theme: 'light',
-      placement: 'bottom-end',
+      distance: -10,
       hideOnClick: false,
       interactive: true,
-      allowHTML: true,
-      distance: -10,
+      placement: 'bottom-end',
+      theme: 'light',
+      trigger: 'manual',
     });
     this.popoverInstance.show(500);
     const iKnowDom = document.querySelector('#i-know');
@@ -210,12 +216,14 @@ export default class QuickOpenCluster extends tsc<IProps> {
 
       if (this.clusterField[0]?.id) {
         this.formData.clustering_fields = this.clusterField[0]?.id || '';
-        const targetField = this.totalFields.find(f => f.field_name === this.clusterField[0]?.id);
+        const targetField = this.totalFields.find(
+          (f) => f.field_name === this.clusterField[0]?.id
+        );
         this.formData.filter_rules.push({
           ...targetField,
+          fields_name: targetField.field_name,
           op: 'LIKE',
           value: ['%ERROR%'],
-          fields_name: targetField.field_name,
         });
       }
     } else {
@@ -225,26 +233,28 @@ export default class QuickOpenCluster extends tsc<IProps> {
   render() {
     const accessDialogSlot = () => (
       <bk-dialog
-        width='640'
-        ext-cls='cluster-set-dialog'
-        v-model={this.isShowDialog}
         confirm-fn={this.handleConfirmSubmit}
-        header-position='left'
+        ext-cls="cluster-set-dialog"
+        header-position="left"
         loading={this.confirmLading}
         mask-close={false}
-        render-directive='if'
-        theme='primary'
-        title={$i18n.t('日志聚类接入')}
         on-value-change={this.handleOpenDialog}
+        render-directive="if"
+        theme="primary"
+        title={$i18n.t('日志聚类接入')}
+        v-model={this.isShowDialog}
+        width="640"
       >
-        <bk-alert type='info'>
-          <div slot='title'>
-            {$i18n.t('大量的日志会导致聚类结果过多，建议使用过滤规则将重要日志进行聚类；如：仅聚类 warn 日志')}
+        <bk-alert type="info">
+          <div slot="title">
+            {$i18n.t(
+              '大量的日志会导致聚类结果过多，建议使用过滤规则将重要日志进行聚类；如：仅聚类 warn 日志'
+            )}
           </div>
         </bk-alert>
         <bk-form
-          ref='quickClusterFrom'
-          form-type='vertical'
+          form-type="vertical"
+          ref="quickClusterFrom"
           {...{
             props: {
               model: this.formData,
@@ -254,55 +264,50 @@ export default class QuickOpenCluster extends tsc<IProps> {
         >
           <bk-form-item
             label={$i18n.t('聚类字段')}
-            property='clustering_fields'
+            property="clustering_fields"
             required
           >
-            <div class='setting-item'>
+            <div class="setting-item">
               <bk-select
-                style='width: 482px'
-                v-model={this.formData.clustering_fields}
                 clearable={false}
+                style="width: 482px"
+                v-model={this.formData.clustering_fields}
               >
-                {this.clusterField.map(option => (
-                  <bk-option
-                    id={option.id}
-                    name={option.name}
-                  ></bk-option>
+                {this.clusterField.map((option) => (
+                  <bk-option id={option.id} name={option.name}></bk-option>
                 ))}
               </bk-select>
               <span
                 v-bk-tooltips={{
-                  content: $i18n.t('只能基于一个字段进行聚类，并且字段是为text的分词类型，默认为log字段'),
+                  content: $i18n.t(
+                    '只能基于一个字段进行聚类，并且字段是为text的分词类型，默认为log字段'
+                  ),
                   placements: ['right'],
                 }}
               >
-                <span class='bk-icon icon-info'></span>
+                <span class="bk-icon icon-info"></span>
               </span>
             </div>
           </bk-form-item>
-          <bk-form-item
-            label={$i18n.t('过滤规则')}
-            property='filter_rules'
-          >
+          <bk-form-item label={$i18n.t('过滤规则')} property="filter_rules">
             <FilterRule
-              ref='filterRule'
-              v-model={this.formData.filter_rules}
               date-picker-value={this.datePickerValue}
+              ref="filterRule"
               retrieve-params={this.retrieveParams}
               total-fields={this.totalFields}
+              v-model={this.formData.filter_rules}
             ></FilterRule>
           </bk-form-item>
-          <bk-form-item
-            label={$i18n.t('告警配置')}
-            property='threshold'
-          >
-            <div class='cluster-set'>
+          <bk-form-item label={$i18n.t('告警配置')} property="threshold">
+            <div class="cluster-set">
               <bk-checkbox v-model={this.formData.new_cls_strategy_enable}>
                 {$i18n.t('开启新类告警')}
                 <i
-                  class='log-icon icon-help'
+                  class="log-icon icon-help"
                   v-bk-tooltips={{
-                    content: $i18n.t('表示近一段时间内新增日志模式。可自定义新类判定的时间区间。如：近30天内新增'),
+                    content: $i18n.t(
+                      '表示近一段时间内新增日志模式。可自定义新类判定的时间区间。如：近30天内新增'
+                    ),
                     placements: ['top'],
                   }}
                 ></i>
@@ -310,9 +315,11 @@ export default class QuickOpenCluster extends tsc<IProps> {
               <bk-checkbox v-model={this.formData.normal_strategy_enable}>
                 {$i18n.t('开启数量突增告警')}
                 <i
-                  class='log-icon icon-help'
+                  class="log-icon icon-help"
                   v-bk-tooltips={{
-                    content: $i18n.t('表示某日志模式数量突然异常增长，可能某些模块突发风险'),
+                    content: $i18n.t(
+                      '表示某日志模式数量突然异常增长，可能某些模块突发风险'
+                    ),
                     placements: ['top'],
                   }}
                 ></i>
@@ -344,30 +351,40 @@ export default class QuickOpenCluster extends tsc<IProps> {
       </bk-dialog>
     );
     return (
-      <div class='quick-open-cluster-container'>
+      <div class="quick-open-cluster-container">
         {accessDialogSlot()}
-        <div class='left-box'>
+        <div class="left-box">
           <h2>{$i18n.t('快速开启日志聚类')}</h2>
           <p>
-            {$i18n.t('日志聚类可以通过智能分析算法，将相似度高的日志进行快速的汇聚分析，提取日志 Pattern 并进行展示')}
+            {$i18n.t(
+              '日志聚类可以通过智能分析算法，将相似度高的日志进行快速的汇聚分析，提取日志 Pattern 并进行展示'
+            )}
           </p>
           <h3>{$i18n.t('日志聚类的优势')}</h3>
-          <p>1. {$i18n.t('有利于发现日志中的规律和共性问题，方便从海量日志中排查问题，定位故障')}</p>
           <p>
-            2. {$i18n.t('可从海量日志中，提取共性部分同时保留独立信息以便于减少存储成本，最多可减少 10% 的存储成本')}
+            1.{' '}
+            {$i18n.t(
+              '有利于发现日志中的规律和共性问题，方便从海量日志中排查问题，定位故障'
+            )}
+          </p>
+          <p>
+            2.{' '}
+            {$i18n.t(
+              '可从海量日志中，提取共性部分同时保留独立信息以便于减少存储成本，最多可减少 10% 的存储成本'
+            )}
           </p>
           <p>3. {$i18n.t('当版本变更时，可快速定位变更后新增问题')}</p>
           {!this.isExternal && (
             <bk-button
-              style='margin-top: 32px;'
-              theme='primary'
               onClick={this.handleAccessCluster}
+              style="margin-top: 32px;"
+              theme="primary"
             >
               {$i18n.t('接入日志聚类')}
             </bk-button>
           )}
         </div>
-        <div class='right-box'>
+        <div class="right-box">
           <img src={clusterImg} />
         </div>
       </div>

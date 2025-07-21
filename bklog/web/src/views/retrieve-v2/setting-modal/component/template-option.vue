@@ -32,16 +32,13 @@
       @mouseenter="isHoverItem = true"
       @mouseleave="isHoverItem = false"
     >
-      <span
-        class="panel-name"
-        :title="configItem.name"
-      >
+      <span class="panel-name" :title="configItem.name">
         {{ configItem.name }}
       </span>
       <div
         class="panel-operate"
         v-if="isShowEditIcon"
-        @click="e => e.stopPropagation()"
+        @click="(e) => e.stopPropagation()"
       >
         <i
           class="bk-icon edit-icon icon-edit-line"
@@ -57,7 +54,7 @@
     <div
       class="config-tab-item"
       v-show="configItem.isShowEdit"
-      @click="e => e.stopPropagation()"
+      @click="(e) => e.stopPropagation()"
     >
       <bk-input
         v-model="nameStr"
@@ -65,179 +62,178 @@
         :placeholder="$t('请输入模板名')"
       ></bk-input>
       <div class="panel-operate">
-        <i
-          class="bk-icon icon-check-line"
-          @click="emitOperate('update')"
-        ></i>
-        <i
-          class="bk-icon icon-close-line-2"
-          @click="emitOperate('cancel')"
-        ></i>
+        <i class="bk-icon icon-check-line" @click="emitOperate('update')"></i>
+        <i class="bk-icon icon-close-line-2" @click="emitOperate('cancel')"></i>
       </div>
     </div>
   </div>
 </template>
 
 <script>
-  import { deepClone } from '@/components/monitor-echarts/utils';
+import { deepClone } from '@/components/monitor-echarts/utils';
 
-  export default {
-    props: {
-      configItem: {
-        type: Object,
-        require: true,
-      },
-      templateList: {
-        type: Array,
-        default: () => [],
-      },
+export default {
+  props: {
+    configItem: {
+      type: Object,
+      require: true,
     },
-    data() {
-      return {
-        isHoverItem: false,
-        nameStr: '', // 编辑
-        isInputError: false, // 名称是否非法
-        tippyOptions: {
-          placement: 'bottom',
-          trigger: 'click',
-          theme: 'light',
-          interactive: true,
-        },
-      };
+    templateList: {
+      type: Array,
+      default: () => [],
     },
-    computed: {
-      isShowEditIcon() {
-        // 是否展示编辑或删除icon
-        return this.isHoverItem;
+  },
+  data() {
+    return {
+      isHoverItem: false,
+      nameStr: '', // 编辑
+      isInputError: false, // 名称是否非法
+      tippyOptions: {
+        placement: 'bottom',
+        trigger: 'click',
+        theme: 'light',
+        interactive: true,
       },
-      isShowDeleteIcon() {
-        return this.templateList.length !== 1;
-      },
+    };
+  },
+  computed: {
+    isShowEditIcon() {
+      // 是否展示编辑或删除icon
+      return this.isHoverItem;
     },
-    watch: {
-      nameStr() {
-        this.isInputError = false;
-      },
+    isShowDeleteIcon() {
+      return this.templateList.length !== 1;
     },
-    methods: {
-      /** 用户配置操作 */
-      emitOperate(type) {
-        // 赋值名称
-        if (type === 'edit') this.nameStr = this.configItem.name;
-        // 更新前判断名称是否合法
-        if (type === 'update' && !this.nameStr) {
-          this.isInputError = true;
-          return;
-        }
-        const submitData = deepClone(this.configItem);
-        submitData.editStr = this.nameStr;
-        this.$emit('operate-change', type, submitData);
-      },
-      handleDelete() {
-        if (!this.configItem.related_index_set_list.length) {
-          this.emitOperate('delete');
-          return;
-        }
-        const h = this.$createElement;
-        const relatedList = this.configItem.related_index_set_list.map(item => item.index_set_name);
-        const vNodes = relatedList.map(text =>
-          h(
-            'div',
-            {
-              style: {
-                backgroundColor: 'rgba(151, 155, 165, .1)',
-                borderColor: 'rgba(220, 222, 229, .6)',
-                color: '#63656e',
-                display: 'inline-block',
-                fontSize: '12px',
-                padding: '0 10px',
-                marginBottom: '4px',
-                borderRadius: '2px',
-              },
+  },
+  watch: {
+    nameStr() {
+      this.isInputError = false;
+    },
+  },
+  methods: {
+    /** 用户配置操作 */
+    emitOperate(type) {
+      // 赋值名称
+      if (type === 'edit') this.nameStr = this.configItem.name;
+      // 更新前判断名称是否合法
+      if (type === 'update' && !this.nameStr) {
+        this.isInputError = true;
+        return;
+      }
+      const submitData = deepClone(this.configItem);
+      submitData.editStr = this.nameStr;
+      this.$emit('operate-change', type, submitData);
+    },
+    handleDelete() {
+      if (!this.configItem.related_index_set_list.length) {
+        this.emitOperate('delete');
+        return;
+      }
+      const h = this.$createElement;
+      const relatedList = this.configItem.related_index_set_list.map(
+        (item) => item.index_set_name
+      );
+      const vNodes = relatedList.map((text) =>
+        h(
+          'div',
+          {
+            style: {
+              backgroundColor: 'rgba(151, 155, 165, .1)',
+              borderColor: 'rgba(220, 222, 229, .6)',
+              color: '#63656e',
+              display: 'inline-block',
+              fontSize: '12px',
+              padding: '0 10px',
+              marginBottom: '4px',
+              borderRadius: '2px',
             },
-            text,
-          ),
-        );
-        this.$bkInfo({
-          title: this.$t(`当前模板在下列索引集中占用，取消占用后才能删除模板：{n}`, { n: this.configItem.name }),
-          type: 'warning',
-          subHeader: h(
-            'div',
-            {
-              style: {
-                display: 'flex',
-                justifyContent: 'center',
-                alignItems: 'center',
-                flexWrap: 'wrap',
-              },
+          },
+          text
+        )
+      );
+      this.$bkInfo({
+        title: this.$t(
+          `当前模板在下列索引集中占用，取消占用后才能删除模板：{n}`,
+          { n: this.configItem.name }
+        ),
+        type: 'warning',
+        subHeader: h(
+          'div',
+          {
+            style: {
+              display: 'flex',
+              justifyContent: 'center',
+              alignItems: 'center',
+              flexWrap: 'wrap',
             },
-            vNodes,
-          ),
-        });
-      },
+          },
+          vNodes
+        ),
+      });
     },
-  };
+  },
+};
 </script>
 
 <style lang="scss" scoped>
-  .config-tab-item {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    width: 100%;
-    height: 40px;
+.config-tab-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  height: 40px;
 
-    .config-input {
-      width: 120px;
+  .config-input {
+    width: 120px;
+  }
+
+  .panel-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .panel-operate {
+    flex-shrink: 0;
+    margin-left: 6px;
+    font-size: 16px;
+    color: #979ba5;
+    cursor: pointer;
+
+    .edit-icon:hover {
+      color: #3a84ff;
     }
 
-    .panel-name {
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
+    .icon-check-line {
+      color: #3a84ff;
     }
 
-    .panel-operate {
-      flex-shrink: 0;
-      margin-left: 6px;
-      font-size: 16px;
-      color: #979ba5;
-      cursor: pointer;
-
-      .edit-icon:hover {
-        color: #3a84ff;
-      }
-
-      .icon-check-line {
-        color: #3a84ff;
-      }
-
-      .icon-close-line-2 {
-        color: #d7473f;
-      }
+    .icon-close-line-2 {
+      color: #d7473f;
     }
+  }
 
-    .input-error {
-      :deep(.bk-form-input) {
-        border: 1px solid #d7473f;
-      }
+  .input-error {
+    :deep(.bk-form-input) {
+      border: 1px solid #d7473f;
     }
+  }
 
-    .popover-slot {
-      padding: 8px 8px 4px;
+  .popover-slot {
+    padding: 8px 8px 4px;
 
-      .popover-btn {
-        margin-top: 6px;
-        text-align: right;
+    .popover-btn {
+      margin-top: 6px;
+      text-align: right;
 
-        > :first-child {
-          margin-right: 4px;
-        }
+      > :first-child {
+        margin-right: 4px;
+      }
 
-        .bk-button-text {
-          font-size: 12px;
-        }
+      .bk-button-text {
+        font-size: 12px;
       }
     }
   }
+}
 </style>

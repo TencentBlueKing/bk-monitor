@@ -25,8 +25,8 @@
  */
 
 const getTest = {
-  url: '/api/test/:id/test/',
   method: 'post',
+  url: '/api/test/:id/test/',
 };
 
 export { getTest };

@@ -43,7 +43,7 @@ export default class CachedPromise {
    */
   get(id) {
     if (typeof id === 'undefined') {
-      return Object.keys(this.cache).map(requestId => this.cache[requestId]);
+      return Object.keys(this.cache).map((requestId) => this.cache[requestId]);
     }
     return this.cache[id];
   }
@@ -72,7 +72,7 @@ export default class CachedPromise {
     if (typeof deleteIds === 'undefined') {
       requestIds = Object.keys(this.cache);
     } else if (deleteIds instanceof Array) {
-      deleteIds.forEach(id => {
+      deleteIds.forEach((id) => {
         if (this.get(id)) {
           requestIds.push(id);
         }
@@ -81,7 +81,7 @@ export default class CachedPromise {
       requestIds.push(deleteIds);
     }
 
-    requestIds.forEach(requestId => {
+    requestIds.forEach((requestId) => {
       delete this.cache[requestId];
     });
 

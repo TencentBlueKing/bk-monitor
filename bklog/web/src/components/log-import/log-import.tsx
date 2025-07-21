@@ -75,14 +75,14 @@ export default class LogExport extends tsc<LogExportProps, LogExportEvents> {
     const [file] = Array.from(event.target.files);
     const fileName = file.name;
     let contents = {};
-    new Promise(resolve => {
+    new Promise((resolve) => {
       const reader = new FileReader();
       reader.onload = (e: { target: any }) => {
         try {
           if (this.returnFileInfo) {
             contents = {
-              name: fileName,
               fileStr: e.target.result,
+              name: fileName,
               size: file.size,
             };
           } else {
@@ -106,17 +106,14 @@ export default class LogExport extends tsc<LogExportProps, LogExportEvents> {
 
   render() {
     return (
-      <div
-        class='log-import'
-        onClick={this.handleClick}
-      >
+      <div class="log-import" onClick={this.handleClick}>
         {this.$slots.default || this.$t('导入')}
         <input
-          ref='fileInput'
           accept={this.accept}
-          type='file'
           // @ts-ignore
           onInput={this.handleInput}
+          ref="fileInput"
+          type="file"
         />
       </div>
     );

@@ -28,50 +28,50 @@
  * 通知列表
  */
 const type = {
-  url: '/meta/msg_type/',
   method: 'get',
+  url: '/meta/msg_type/',
 };
 
 // 支持的语言列表
 const language = {
-  url: '/meta/language/',
   method: 'get',
+  url: '/meta/language/',
 };
 
 // 修改语言
 const updateLanguage = {
-  url: '/meta/language/',
   method: 'post',
+  url: '/meta/language/',
 };
 
 // 获取接入场景
 const scenario = {
-  url: '/meta/scenario/',
   method: 'get',
+  url: '/meta/scenario/',
 };
 
 // 获取菜单列表吧
 const menu = {
-  url: '/meta/menu/',
   method: 'get',
+  url: '/meta/menu/',
 };
 
 // 根据业务id获取业务名、运维人员id信息
 const getMaintainerApi = {
-  url: '/meta/biz_maintainer/',
   method: 'get',
+  url: '/meta/biz_maintainer/',
 };
 
 // 获取新人指引
 const getUserGuide = {
-  url: '/meta/user_guide/',
   method: 'get',
+  url: '/meta/user_guide/',
 };
 
 // 更新新人指引
 const updateUserGuide = {
-  url: '/meta/update_user_guide/',
   method: 'post',
+  url: '/meta/update_user_guide/',
 };
 
 // 环境变量

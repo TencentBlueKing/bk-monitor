@@ -24,14 +24,19 @@
  * IN THE SOFTWARE.
  */
 
+import {
+  Sideslider,
+  Form,
+  FormItem,
+  Input,
+  Button,
+  Popover,
+} from 'bk-magic-vue';
 import { Component, Model, Emit, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { Sideslider, Form, FormItem, Input, Button, Popover } from 'bk-magic-vue';
-
-import MaskingSelectRuleTable from './masking-select-rule-table';
-
 import './masking-extract.scss';
+import MaskingSelectRuleTable from './masking-select-rule-table';
 
 interface IProps {
   value: boolean;
@@ -39,7 +44,7 @@ interface IProps {
 
 @Component
 export default class MaskingExtract extends tsc<IProps> {
-  @Model('change', { type: Boolean, default: false }) value: IProps['value'];
+  @Model('change', { default: false, type: Boolean }) value: IProps['value'];
 
   logOriginal = '';
   debugRequesting = false;
@@ -96,21 +101,21 @@ export default class MaskingExtract extends tsc<IProps> {
     // 判断当前是否有实例 如果有实例 则给操作列表常驻显示
     if (!this.tablePopoverInstance) {
       this.tablePopoverInstance = this.$bkPopover(e.target, {
-        content: this.ruleTableRef,
-        interactive: true,
-        theme: 'light shield',
-        trigger: 'manual',
-        offset: '-40, 6',
-        arrow: true,
-        hideOnClick: false,
         appendTo: 'parent',
-        placement: 'top-start',
+        arrow: true,
+        content: this.ruleTableRef,
         extCls: 'rule-table-dialog',
-        zIndex: 999,
+        hideOnClick: false,
+        interactive: true,
+        offset: '-40, 6',
         onHidden: () => {
           this.destroyPopoverInstance();
         },
         onShow: () => {},
+        placement: 'top-start',
+        theme: 'light shield',
+        trigger: 'manual',
+        zIndex: 999,
       });
       this.tablePopoverInstance.show(100);
     }
@@ -125,90 +130,74 @@ export default class MaskingExtract extends tsc<IProps> {
   render() {
     const tableSlot = () => (
       <div style={{ display: 'none' }}>
-        <div
-          ref='ruleTable'
-          class='rule-table-content'
-        >
-          <div style='padding: 16px;'>
-            <span class='title'>{this.$t('选择脱敏规则')}</span>
-            <MaskingSelectRuleTable onNewRuleSidesliderState={(state: boolean) => (this.isMarginRight = state)} />
+        <div class="rule-table-content" ref="ruleTable">
+          <div style="padding: 16px;">
+            <span class="title">{this.$t('选择脱敏规则')}</span>
+            <MaskingSelectRuleTable
+              onNewRuleSidesliderState={(state: boolean) =>
+                (this.isMarginRight = state)
+              }
+            />
           </div>
         </div>
       </div>
     );
     return (
       <Sideslider
-        width={640}
         ext-cls={`${this.isMarginRight && 'open-add-rule-sideslider'}`}
         is-show={this.value}
-        title={'新增提取'}
-        quick-close
-        transfer
         on-hidden={() => this.destroyPopoverInstance()}
+        quick-close
+        title={'新增提取'}
+        transfer
+        width={640}
         {...{
           on: {
             'update:isShow': this.hiddenSlider,
           },
         }}
       >
-        <div
-          class='masking-extract-slider'
-          slot='content'
-        >
-          <Form
-            ext-cls='masking-form'
-            form-type='vertical'
-            label-width={200}
-          >
-            <FormItem
-              label={'名称'}
-              required
-            >
+        <div class="masking-extract-slider" slot="content">
+          <Form ext-cls="masking-form" form-type="vertical" label-width={200}>
+            <FormItem label={'名称'} required>
               <Input></Input>
             </FormItem>
-            <FormItem
-              label={'脱敏设置'}
-              required
-            >
+            <FormItem label={'脱敏设置'} required>
               <span
-                class='masking-btn'
-                onClick={e => this.handleClickAddNewRule(e)}
+                class="masking-btn"
+                onClick={(e) => this.handleClickAddNewRule(e)}
               >
-                <Button size='small'>{this.$t('添加规则')}</Button>
+                <Button size="small">{this.$t('添加规则')}</Button>
               </span>
-              <div class='masking-rule'>
-                <span class='rule-name'>手机号脱敏</span>
-                <span class='rule-value'>替换｜替换为 0</span>
-                <i class='rule-icon bk-icon icon-close-circle-shape'></i>
+              <div class="masking-rule">
+                <span class="rule-name">手机号脱敏</span>
+                <span class="rule-value">替换｜替换为 0</span>
+                <i class="rule-icon bk-icon icon-close-circle-shape"></i>
               </div>
-              <div class='masking-rule'>
-                <span class='rule-name'>手机号脱敏</span>
-                <span class='rule-value'>替换｜替换为 0</span>
-                <i class='rule-icon bk-icon icon-close-circle-shape'></i>
+              <div class="masking-rule">
+                <span class="rule-name">手机号脱敏</span>
+                <span class="rule-value">替换｜替换为 0</span>
+                <i class="rule-icon bk-icon icon-close-circle-shape"></i>
               </div>
-              <div class='form-item-tips'>
+              <div class="form-item-tips">
                 <i
-                  class='bklog-icon bklog-info-fill'
-                  v-bk-tooltips={{ content: this.$t('字段名与表达式至少填写 1 个') }}
+                  class="bklog-icon bklog-info-fill"
+                  v-bk-tooltips={{
+                    content: this.$t('字段名与表达式至少填写 1 个'),
+                  }}
                 ></i>
               </div>
             </FormItem>
-            <FormItem
-              label={'用户列表'}
-              required
-            >
+            <FormItem label={'用户列表'} required>
               <Input></Input>
             </FormItem>
-            <FormItem
-              label={'授权目录'}
-              required
-            >
+            <FormItem label={'授权目录'} required>
               {this.directoryList.map((item, index) => (
-                <div class='length-change-item'>
+                <div class="length-change-item">
                   <Input></Input>
-                  <div class='ml9'>
+                  <div class="ml9">
                     <i
-                      class='bk-icon icon-plus-circle-shape icons'
+                      class="bk-icon icon-plus-circle-shape icons"
                       onClick={() => this.addDirectory()}
                     ></i>
                     <i
@@ -222,58 +211,44 @@ export default class MaskingExtract extends tsc<IProps> {
                 </div>
               ))}
             </FormItem>
-            <FormItem
-              label={'文件后缀'}
-              required
-            >
+            <FormItem label={'文件后缀'} required>
               {this.suffixList.map((item, index) => (
-                <div class='length-change-item'>
+                <div class="length-change-item">
                   <Input></Input>
-                  <div class='ml9'>
+                  <div class="ml9">
                     <i
-                      class='bk-icon icon-plus-circle-shape icons'
+                      class="bk-icon icon-plus-circle-shape icons"
                       onClick={() => this.addSuffix()}
                     ></i>
                     <i
-                      class={['bk-icon icon-minus-circle-shape icons ml9', { disable: this.suffixList.length === 1 }]}
+                      class={[
+                        'bk-icon icon-minus-circle-shape icons ml9',
+                        { disable: this.suffixList.length === 1 },
+                      ]}
                       onClick={() => this.delSuffix(index)}
                     ></i>
                   </div>
                 </div>
               ))}
             </FormItem>
-            <FormItem
-              label={'授权目标'}
-              required
-            >
-              <Button size='small'>{this.$t('选择目标')}</Button>
+            <FormItem label={'授权目标'} required>
+              <Button size="small">{this.$t('选择目标')}</Button>
             </FormItem>
-            <FormItem
-              desc='hello desc'
-              label={'执行人'}
-              required
-            >
-              <div class='length-change-item'>
+            <FormItem desc="hello desc" label={'执行人'} required>
+              <div class="length-change-item">
                 <Input></Input>
-                <Button
-                  class='ml9'
-                  theme='primary'
-                  outline
-                >
+                <Button class="ml9" outline theme="primary">
                   {this.$t('改为我')}
                 </Button>
               </div>
             </FormItem>
           </Form>
 
-          <div class='submit-box'>
-            <Button
-              theme='primary'
-              onClick={() => this.handleSubmit()}
-            >
+          <div class="submit-box">
+            <Button onClick={() => this.handleSubmit()} theme="primary">
               {this.$t('提交')}
             </Button>
-            <Button theme='default'>{this.$t('取消')}</Button>
+            <Button theme="default">{this.$t('取消')}</Button>
           </div>
           {tableSlot()}
         </div>

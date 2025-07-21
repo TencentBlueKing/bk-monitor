@@ -30,92 +30,92 @@
 
 // 索引集列表
 const list = {
-  url: '/index_set/',
   method: 'get',
+  url: '/index_set/',
 };
 
 // 索引集详情
 const info = {
-  url: '/index_set/:index_set_id/',
   method: 'get',
+  url: '/index_set/:index_set_id/',
 };
 
 // 创建索引集
 const create = {
-  url: '/index_set/',
   method: 'post',
+  url: '/index_set/',
 };
 
 // 更新索引集
 const update = {
-  url: '/index_set/:index_set_id/',
   method: 'put',
+  url: '/index_set/:index_set_id/',
 };
 
 // 删除索引集
 const remove = {
-  url: '/index_set/:index_set_id/',
   method: 'delete',
+  url: '/index_set/:index_set_id/',
 };
 
 // 索引列表
 const index = {
-  url: '/index_set/:index_set_id/index/',
   method: 'get',
+  url: '/index_set/:index_set_id/index/',
 };
 
 // 采集索引列表
 const indexes = {
-  url: '/index_set/:index_set_id/indices/',
   method: 'get',
+  url: '/index_set/:index_set_id/indices/',
 };
 
 // 创建索引
 const createIndex = {
-  url: '/index_set/:index_set_id/index/',
   method: 'get',
+  url: '/index_set/:index_set_id/index/',
 };
 
 // 删除索引
 const removeIndex = {
-  url: '/index_set/:index_set_id/index/:index_id/',
   method: 'post',
+  url: '/index_set/:index_set_id/index/:index_id/',
 };
 
 // 标记索引集为收藏索引集
 const mark = {
-  url: '/index_set/:index_set_id/mark_favorite/',
   method: 'post',
+  url: '/index_set/:index_set_id/mark_favorite/',
 };
 
 // 取消标记为收藏索引集
 const cancelMark = {
-  url: '/index_set/:index_set_id/cancel_favorite/',
   method: 'post',
+  url: '/index_set/:index_set_id/cancel_favorite/',
 };
 
 // 使用次数趋势
 const getIndexTimes = {
-  url: '/admin/index_set/:index_set_id/history/date_histogram/',
   method: 'get',
+  url: '/admin/index_set/:index_set_id/history/date_histogram/',
 };
 
 // 用户使用频次
 const getIndexFrequency = {
-  url: '/admin/index_set/:index_set_id/history/user_terms/',
   method: 'get',
+  url: '/admin/index_set/:index_set_id/history/user_terms/',
 };
 
 // 检索耗时统计
 const getIndexSpent = {
-  url: '/admin/index_set/:index_set_id/history/duration_terms/',
   method: 'get',
+  url: '/admin/index_set/:index_set_id/history/duration_terms/',
 };
 
 // 检索记录（表格）
 const getIndexHistory = {
-  url: '/admin/index_set/:index_set_id/history/',
   method: 'get',
+  url: '/admin/index_set/:index_set_id/history/',
 };
 
 // 操作记录

@@ -8,22 +8,25 @@
     header-position="left"
   >
     <template #default>
-      <pre class="per" style=" height: 424px; white-space: pre-wrap;background: #f5f7fa">
+      <pre
+        class="per"
+        style="height: 424px; white-space: pre-wrap; background: #f5f7fa"
+      >
         <code v-html="highlightedCode" class="flex-column" />
         <div class="vertical"></div>
       </pre>
     </template>
     <template #footer>
       <!-- <bk-button @click="copy" theme="primary">{{ $t("复制SQL") }}</bk-button> -->
-      <bk-button @click="close">{{ $t("关闭") }}</bk-button>
+      <bk-button @click="close">{{ $t('关闭') }}</bk-button>
     </template>
   </bk-dialog>
 </template>
 
 <script setup>
-import { computed } from "vue";
+import { computed } from 'vue';
 // import { Button, Dialog, Message } from "bkui-vue";
-import useLocale from "@/hooks/use-locale";
+import useLocale from '@/hooks/use-locale';
 const { $t } = useLocale();
 // import hljs from "highlight.js/lib/core";
 // import sql from "highlight.js/lib/languages/sql";
@@ -41,11 +44,11 @@ const props = defineProps({
   },
   sqlContent: {
     type: String,
-    default: "",
+    default: '',
   },
 });
 
-const emit = defineEmits(["update:isShow"]);
+const emit = defineEmits(['update:isShow']);
 
 // const { t } = useI18n();
 
@@ -59,30 +62,28 @@ const highlightedCode = computed(() => {
 
 // Function to add line numbers to highlighted SQL
 function addLineNumbers(highlightedCode) {
-  const lines = highlightedCode.split("\n");
-  return (
-    lines
-      .map((line, index) => {
-        return `
+  const lines = highlightedCode.split('\n');
+  return lines
+    .map((line, index) => {
+      return `
       <div class="flex-row">
         <span class="sql-line-number">${index + 1}</span>
         <div class="flex-1 pl-min">${line}</div>
       </div>
     `;
-      })
-      .join("\n")
-  );
+    })
+    .join('\n');
 }
 
 // Function to close the dialog
 function close() {
-  emit("update:isShow", false);
+  emit('update:isShow', false);
 }
 
 // Function to copy SQL to clipboard
 function copy() {
   copyToClipboard(props.sql).catch(() => {
-    Message({ theme: "error", message: $t("dashboards.复制失败") });
+    Message({ theme: 'error', message: $t('dashboards.复制失败') });
   });
 }
 </script>

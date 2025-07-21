@@ -23,16 +23,15 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { onBeforeUnmount, onMounted, ref, Ref } from 'vue';
-
 import { debounce } from 'lodash';
+import { onBeforeUnmount, onMounted, ref, Ref } from 'vue';
 
 import { getTargetElement } from './hooks-helper';
 
 export default (
   target: (() => HTMLElement) | HTMLElement | Ref<HTMLElement> | string,
   callback: (entry: IntersectionObserverEntry) => void,
-  options?: IntersectionObserverInit,
+  options?: IntersectionObserverInit
 ) => {
   let observer = null;
   const destroyObserver = () => {
@@ -42,12 +41,14 @@ export default (
     }
   };
   const isIntersecting = ref(false);
-  const debounceCallback = debounce((entry: IntersectionObserverEntry) => callback?.(entry));
+  const debounceCallback = debounce((entry: IntersectionObserverEntry) =>
+    callback?.(entry)
+  );
 
   const createObserver = () => {
     observer = new IntersectionObserver(
-      entries => {
-        entries.forEach(entry => {
+      (entries) => {
+        entries.forEach((entry) => {
           isIntersecting.value = entry.isIntersecting;
           debounceCallback(entry);
         });
@@ -56,7 +57,7 @@ export default (
         root: null,
         threshold: 0.01,
         ...(options ?? {}),
-      },
+      }
     );
 
     const targetElement = getTargetElement(target);
@@ -73,5 +74,5 @@ export default (
     destroyObserver();
   });
 
-  return { isIntersecting, destroyObserver };
+  return { destroyObserver, isIntersecting };
 };

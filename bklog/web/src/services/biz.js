@@ -30,8 +30,8 @@
 
 // 业务列表
 const list = {
-  url: '/bizs/',
   method: 'get',
+  url: '/bizs/',
 };
 
 export { list };

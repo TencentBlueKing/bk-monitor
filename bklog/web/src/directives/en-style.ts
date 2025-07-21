@@ -24,9 +24,8 @@
  * IN THE SOFTWARE.
  */
 
-import { VueConstructor } from 'vue';
-
 import jsCookie from 'js-cookie';
+import { VueConstructor } from 'vue';
 import { DirectiveBinding } from 'vue/types/options';
 
 export default class EnStyleDirective {
@@ -35,7 +34,8 @@ export default class EnStyleDirective {
       bind(el: HTMLDivElement, binding: DirectiveBinding) {
         if (
           jsCookie.get('blueking_language') !== 'en' ||
-          (typeof binding.value === 'string' && el.style.cssText?.includes(binding.value))
+          (typeof binding.value === 'string' &&
+            el.style.cssText?.includes(binding.value))
         ) {
           return;
         }
@@ -53,7 +53,7 @@ export default class EnStyleDirective {
         if (typeof options.styles === 'string') {
           cssText += options.styles;
         } else
-          Object.keys(options.styles).forEach(key => {
+          Object.keys(options.styles).forEach((key) => {
             cssText += `${key}: ${options.styles[key]};`;
           });
         el.style.cssText += cssText;

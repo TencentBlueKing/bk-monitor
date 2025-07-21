@@ -57,9 +57,9 @@ const createMonitorConfig = config => {
   );
   config.plugins.push(
     new webpack.DefinePlugin({
-      NODE_ENV: JSON.stringify('production'),
       APP: JSON.stringify(process.env.MONITOR_APP),
       MONITOR_APP: JSON.stringify(process.env.MONITOR_APP),
+      NODE_ENV: JSON.stringify('production'),
     }),
   );
   const fileLoaders = config.module.rules[1].oneOf.find(item => item.test.test('.ttf'));
@@ -69,38 +69,13 @@ const createMonitorConfig = config => {
   urlLoaderOptions.publicPath = '../fonts';
   return {
     ...config,
+    cache: production ? false : config.cache,
     entry: {
       main: isTrace ? './src/views/retrieve-v3/monitor/trace.ts' : './src/views/retrieve-v3/monitor/apm.ts',
-    },
-    output: {
-      filename: '[name].js',
-      path: outputUrl,
-      library: {
-        type: 'module',
-      },
-      environment: {
-        module: true,
-      },
-      chunkFormat: 'module',
-      module: true,
-      clean: true,
-      publicPath: '',
-    },
-    resolve: {
-      ...config.resolve,
-      alias: {
-        vue$: 'vue/dist/vue.esm.js',
-        '@': resolve('src'),
-      },
     },
     experiments: {
       outputModule: true,
     },
-    optimization: {
-      minimize: false,
-      mangleExports: false,
-    },
-    externalsType: 'module',
     externals: isTrace
       ? [
           /@blueking\/date-picker/,
@@ -166,6 +141,25 @@ const createMonitorConfig = config => {
             cb();
           },
         ],
+    externalsType: 'module',
+    optimization: {
+      mangleExports: false,
+      minimize: false,
+    },
+    output: {
+      chunkFormat: 'module',
+      clean: true,
+      environment: {
+        module: true,
+      },
+      filename: '[name].js',
+      library: {
+        type: 'module',
+      },
+      module: true,
+      path: outputUrl,
+      publicPath: '',
+    },
     plugins: config.plugins
       .filter(plugin => !(plugin instanceof HtmlWebpackPlugin))
       .map(plugin => {
@@ -177,12 +171,18 @@ const createMonitorConfig = config => {
         }
         return plugin instanceof webpack.ProgressPlugin
           ? new WebpackBar({
-              profile: true,
               name: `监控日志检索组件 ${production ? 'Production模式' : 'Development模式'} 构建`,
+              profile: true,
             })
           : plugin;
       }),
-    cache: production ? false : config.cache,
+    resolve: {
+      ...config.resolve,
+      alias: {
+        '@': resolve('src'),
+        vue$: 'vue/dist/vue.esm.js',
+      },
+    },
   };
 };
 

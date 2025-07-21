@@ -28,7 +28,7 @@
  * 获取Cookie
  * @param {String} name
  */
-export const getCookie = name => {
+export const getCookie = (name) => {
   const reg = new RegExp(`(^|)${name}=([^;]*)(;|$)`);
   const data = document.cookie.match(reg);
   if (data) {
@@ -64,14 +64,17 @@ export const deepClone = (obj, hash = new WeakMap()) => {
   if (obj instanceof Map) {
     Array.from(obj, ([key, val]) => result.set(key, deepClone(val, hash)));
   }
-  return Object.assign(result, ...Object.keys(obj).map(key => ({ [key]: deepClone(obj[key], hash) })));
+  return Object.assign(
+    result,
+    ...Object.keys(obj).map((key) => ({ [key]: deepClone(obj[key], hash) }))
+  );
 };
 
 /**
  * 生成随机数
  * @param {Number} n
  */
-export const random = n => {
+export const random = (n) => {
   // 生成n位长度的字符串
   const str = 'abcdefghijklmnopqrstuvwxyz0123456789'; // 可以作为常量放到random外面
   let result = '';
@@ -81,7 +84,7 @@ export const random = n => {
   return result;
 };
 
-export const isPostiveInt = val => /^[1-9][0-9]*$/.test(`${val}`);
+export const isPostiveInt = (val) => /^[1-9][0-9]*$/.test(`${val}`);
 
 /**
  * 命名转换
@@ -89,21 +92,29 @@ export const isPostiveInt = val => /^[1-9][0-9]*$/.test(`${val}`);
  * @param {Boolean} flag 转换方向 default: false; false: snake_case命名转换为camelCase命名 true: camelCase命名转snake_case命名
  */
 export const transformDataKey = (data = {}, flag = false) => {
-  if (!['[object Array]', '[object Object]'].includes(Object.prototype.toString.call(data))) return data;
+  if (
+    !['[object Array]', '[object Object]'].includes(
+      Object.prototype.toString.call(data)
+    )
+  )
+    return data;
   const result = {};
   if (Array.isArray(data)) {
-    return data.map(item => transformDataKey(item, flag));
+    return data.map((item) => transformDataKey(item, flag));
   }
-  Object.keys(data).forEach(key => {
+  Object.keys(data).forEach((key) => {
     const matchList = flag ? key.match(/([A-Z])/g) : key.match(/(_[a-zA-Z])/g);
     let newKey = key;
     const item = data[key];
     if (matchList) {
-      matchList.forEach(set => {
+      matchList.forEach((set) => {
         if (flag) {
           newKey = newKey.replace(set, `_${set.toLocaleLowerCase()}`);
         } else {
-          newKey = newKey.replace(set, set.replace('_', '').toLocaleUpperCase());
+          newKey = newKey.replace(
+            set,
+            set.replace('_', '').toLocaleUpperCase()
+          );
         }
       });
     }
@@ -133,14 +144,16 @@ export const copyText = (text, errorMsg) => {
  * 类型检测工具
  */
 export const typeTools = {
-  isArray: obj => Object.prototype.toString.call(obj) === '[object Array]',
-  isObject: obj => Object.prototype.toString.call(obj) === '[object Object]',
-  isNumber: obj => Object.prototype.toString.call(obj) === '[object Number]',
-  isString: obj => Object.prototype.toString.call(obj) === '[object String]',
-  isFunction: obj => Object.prototype.toString.call(obj) === '[object Function]',
-  isBoolean: obj => Object.prototype.toString.call(obj) === '[object Boolean]',
-  isNull: obj => obj === null || obj === '' || obj === undefined,
-  isNotNull: obj => !this.isNull(obj),
+  isArray: (obj) => Object.prototype.toString.call(obj) === '[object Array]',
+  isBoolean: (obj) =>
+    Object.prototype.toString.call(obj) === '[object Boolean]',
+  isFunction: (obj) =>
+    Object.prototype.toString.call(obj) === '[object Function]',
+  isNotNull: (obj) => !this.isNull(obj),
+  isNull: (obj) => obj === null || obj === '' || obj === undefined,
+  isNumber: (obj) => Object.prototype.toString.call(obj) === '[object Number]',
+  isObject: (obj) => Object.prototype.toString.call(obj) === '[object Object]',
+  isString: (obj) => Object.prototype.toString.call(obj) === '[object String]',
 };
 
 /**
@@ -151,24 +164,33 @@ export const typeTools = {
 export const formatDatetime = (time, fmt) => {
   const obj = {
     'M+': time.getMonth() + 1, // 月份
+    S: time.getMilliseconds(), // 毫秒
     'd+': time.getDate(), // 日
     'h+': time.getHours(), // 小时
     'm+': time.getMinutes(), // 分
-    's+': time.getSeconds(), // 秒
     'q+': Math.floor((time.getMonth() + 3) / 3), // 季度
-    S: time.getMilliseconds(), // 毫秒
+    's+': time.getSeconds(), // 秒
   };
-  if (/(y+)/.test(fmt)) fmt = fmt.replace(RegExp.$1, `${time.getFullYear()}`.substr(4 - RegExp.$1.length));
+  if (/(y+)/.test(fmt))
+    fmt = fmt.replace(
+      RegExp.$1,
+      `${time.getFullYear()}`.substr(4 - RegExp.$1.length)
+    );
   for (const key in obj) {
     if (new RegExp(`(${key})`).test(fmt)) {
-      fmt = fmt.replace(RegExp.$1, RegExp.$1.length === 1 ? obj[key] : `00${obj[key]}`.substr(`${obj[key]}`.length));
+      fmt = fmt.replace(
+        RegExp.$1,
+        RegExp.$1.length === 1
+          ? obj[key]
+          : `00${obj[key]}`.substr(`${obj[key]}`.length)
+      );
     }
   }
   return fmt;
 };
 
 // 获取url中的参数
-export const getUrlParam = name => {
+export const getUrlParam = (name) => {
   const reg = new RegExp(`(^|&)${name}=([^&]*)(&|$)`); // 构造一个含有目标参数的正则表达式对象
   const r = window.location.search.substr(1).match(reg); // 匹配目标参数
   if (r != null) return decodeURI(r[2]);
@@ -183,13 +205,13 @@ export const getUrlParam = name => {
 export const transfromNum = (num, digits = 0) => {
   if (!num) return num;
   const si = [
-    { value: 1, symbol: '' },
-    { value: 1e3, symbol: 'K' },
-    { value: 1e6, symbol: 'M' },
-    { value: 1e9, symbol: 'G' },
-    { value: 1e12, symbol: 'T' },
-    { value: 1e15, symbol: 'P' },
-    { value: 1e18, symbol: 'E' },
+    { symbol: '', value: 1 },
+    { symbol: 'K', value: 1e3 },
+    { symbol: 'M', value: 1e6 },
+    { symbol: 'G', value: 1e9 },
+    { symbol: 'T', value: 1e12 },
+    { symbol: 'P', value: 1e15 },
+    { symbol: 'E', value: 1e18 },
   ];
   const rx = /\.0+$|(\.[0-9]*[1-9])0+$/;
   let i;

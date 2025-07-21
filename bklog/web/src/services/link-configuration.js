@@ -30,38 +30,46 @@
 
 // 链路列表
 const getLinkList = {
-  url: '/databus/data_link/',
   method: 'get',
+  url: '/databus/data_link/',
 };
 // 链路详情
 const getLinkDetail = {
-  url: '/databus/data_link/:data_link_id/',
   method: 'get',
+  url: '/databus/data_link/:data_link_id/',
 };
 // 创建链路
 const createLink = {
-  url: '/databus/data_link/',
   method: 'post',
+  url: '/databus/data_link/',
 };
 // 更新链路
 const updateLink = {
-  url: '/databus/data_link/:data_link_id/',
   method: 'put',
+  url: '/databus/data_link/:data_link_id/',
 };
 // 删除链路
 const deleteLink = {
-  url: '/databus/data_link/:data_link_id/',
   method: 'delete',
+  url: '/databus/data_link/:data_link_id/',
 };
 
 // 集群列表
 const getClusterList = {
-  url: '/databus/data_link/get_cluster_list/',
   method: 'get',
+  url: '/databus/data_link/get_cluster_list/',
 };
 // cmdb补充数据列表
 const getSearchObjectAttribute = {
-  url: '/databus/collectors/search_object_attribute/',
   method: 'get',
+  url: '/databus/collectors/search_object_attribute/',
 };
-export { getLinkList, getLinkDetail, createLink, updateLink, deleteLink, getClusterList, getSearchObjectAttribute };
+export {
+  getLinkList,
+  getLinkDetail,
+  createLink,
+  updateLink,
+  deleteLink,
+  getClusterList,
+  getSearchObjectAttribute,
+};

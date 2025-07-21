@@ -26,98 +26,98 @@
 
 /** 联合检索 */
 const unionSearch = {
-  url: '/search/index_set/union_search/',
   method: 'post',
+  url: '/search/index_set/union_search/',
 };
 
 /** 联合查询Mapping操作符 */
 const unionMapping = {
-  url: '/search/index_set/union_search/fields/',
   method: 'post',
+  url: '/search/index_set/union_search/fields/',
 };
 
 /** 联合查询图表 */
 const unionDateHistogram = {
-  url: '/search/index_set/aggs/union_search/date_histogram/',
   method: 'post',
+  url: '/search/index_set/aggs/union_search/date_histogram/',
 };
 
 /** 联合查询导出日志 */
 const unionExport = {
-  url: '/search/index_set/union_search/export/',
   method: 'get',
+  url: '/search/index_set/union_search/export/',
 };
 
 /** 联合查询导出历史 */
 const unionExportHistory = {
-  url: '/search/index_set/union_search/export_history/?bk_biz_id=:bk_biz_id&page=:page&pagesize=:pagesize&show_all=:show_all&index_set_ids=:index_set_ids',
   method: 'get',
+  url: '/search/index_set/union_search/export_history/?bk_biz_id=:bk_biz_id&page=:page&pagesize=:pagesize&show_all=:show_all&index_set_ids=:index_set_ids',
 };
 
 /** 联合查询检索历史 */
 const unionSearchHistory = {
-  url: '/search/index_set/union_search/history/?index_set_ids=:index_set_ids',
   method: 'get',
+  url: '/search/index_set/union_search/history/?index_set_ids=:index_set_ids',
 };
 
 /** 联合查询标签列表 */
 const unionLabelList = {
-  url: '/index_set/tag/list/',
   method: 'get',
+  url: '/index_set/tag/list/',
 };
 
 /** 联合查询创造标签 */
 const unionCreateLabel = {
-  url: '/index_set/tag/',
   method: 'post',
+  url: '/index_set/tag/',
 };
 
 /** 索引集添加标签 */
 const unionAddLabel = {
-  url: '/index_set/:index_set_id/tag/add/',
   method: 'post',
+  url: '/index_set/:index_set_id/tag/add/',
 };
 
 /** 索引集删除标签 */
 const unionDeleteLabel = {
-  url: '/index_set/:index_set_id/tag/delete/',
   method: 'post',
+  url: '/index_set/:index_set_id/tag/delete/',
 };
 
 /** 创建联合查询收藏组合 */
 const unionCreateFavorite = {
-  url: '/search/favorite_union/',
   method: 'post',
+  url: '/search/favorite_union/',
 };
 
 /** 删除联合查询收藏组合 */
 const unionDeleteFavorite = {
-  url: '/search/favorite_union/:favorite_union_id/',
   method: 'delete',
+  url: '/search/favorite_union/:favorite_union_id/',
 };
 
 /** 联合查询收藏组合列表 */
 const unionFavoriteList = {
-  url: '/search/favorite_union/?space_uid=:space_uid',
   method: 'get',
+  url: '/search/favorite_union/?space_uid=:space_uid',
 };
 
 /** 联合查询历史记录列表 */
 const unionHistoryList = {
-  url: '/search/index_set/option/history/',
   method: 'post',
+  url: '/search/index_set/option/history/',
 };
 
 /** 联合查询删除历史记录 */
 const unionDeleteHistory = {
-  url: '/search/index_set/option/history/delete/',
   method: 'post',
+  url: '/search/index_set/option/history/delete/',
 };
 
 /** 联合查询删除历史记录 */
 const unionTerms = {
-  url: '/search/index_set/aggs/union_search/terms/',
   method: 'post',
+  url: '/search/index_set/aggs/union_search/terms/',
 };
 
 export {

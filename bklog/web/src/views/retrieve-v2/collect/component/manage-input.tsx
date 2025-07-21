@@ -24,10 +24,9 @@
  * IN THE SOFTWARE.
  */
 
+import { Input } from 'bk-magic-vue';
 import { Component, Ref, Emit, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-
-import { Input } from 'bk-magic-vue';
 
 import { IFavoriteItem } from '../collect-index';
 
@@ -38,7 +37,7 @@ interface IProps {
 }
 @Component
 export default class ManageInput extends tsc<IProps> {
-  @Prop({ type: Object, default: () => ({}) }) favoriteData: IFavoriteItem;
+  @Prop({ default: () => ({}), type: Object }) favoriteData: IFavoriteItem;
   @Ref() inputRef: any;
 
   inputStr = '';
@@ -46,7 +45,9 @@ export default class ManageInput extends tsc<IProps> {
 
   /** 是否展示失效 */
   isFailFavorite(item) {
-    return item.index_set_type === 'single' ? !item.is_active : !item.is_actives.every(Boolean);
+    return item.index_set_type === 'single'
+      ? !item.is_active
+      : !item.is_actives.every(Boolean);
   }
 
   @Watch('favoriteData.name', { immediate: true })
@@ -76,28 +77,27 @@ export default class ManageInput extends tsc<IProps> {
   }
   render() {
     return (
-      <div
-        class='manage-input'
-        onClick={this.handleClickInput}
-      >
+      <div class="manage-input" onClick={this.handleClickInput}>
         {this.isClick ? (
           <Input
-            ref='inputRef'
-            vModel={this.inputStr}
             maxlength={30}
             onBlur={this.blurInput}
+            ref="inputRef"
+            vModel={this.inputStr}
           ></Input>
         ) : (
-          <div class='collect-box'>
-            <span
-              class='collect-name'
-              v-bk-overflow-tips
-            >
+          <div class="collect-box">
+            <span class="collect-name" v-bk-overflow-tips>
               {this.inputStr}
             </span>
             {!this.favoriteData.is_active ? (
-              <span v-bk-tooltips={{ content: this.$t('数据源不存在'), placement: 'right' }}>
-                <span class='bk-icon bklog-icon bklog-shixiao'></span>
+              <span
+                v-bk-tooltips={{
+                  content: this.$t('数据源不存在'),
+                  placement: 'right',
+                }}
+              >
+                <span class="bk-icon bklog-icon bklog-shixiao"></span>
               </span>
             ) : undefined}
           </div>

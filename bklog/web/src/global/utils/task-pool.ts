@@ -36,7 +36,7 @@ export class TaskPool {
     this.poolList = [];
     this.isRunning = false;
     this.clearingNext = [];
-    this.clearingDebounce = debounce(resolve => {
+    this.clearingDebounce = debounce((resolve) => {
       resolve();
     });
     this.runningTask = debounce(() => {
@@ -51,7 +51,7 @@ export class TaskPool {
     this.clearingNext.push(next);
     this.poolList.length = 0;
 
-    this.clearingPromise = new Promise(r1 => {
+    this.clearingPromise = new Promise((r1) => {
       this.clearingDebounce(r1);
       this.isRunning = false;
     });

@@ -50,10 +50,7 @@
         style="width: 671px; height: 224px"
         class="bk-select-dropdown-content"
       >
-        <div
-          style="height: 32px"
-          class="bk-select-search-wrapper"
-        >
+        <div style="height: 32px" class="bk-select-search-wrapper">
           <i class="left-icon bk-icon icon-search"></i>
           <input
             class="bk-select-search-input"
@@ -62,14 +59,8 @@
             type="text"
           />
         </div>
-        <div
-          style="max-height: 190px"
-          class="bk-options-wrapper"
-        >
-          <ul
-            style="max-height: 190px"
-            class="bk-options bk-options-single"
-          >
+        <div style="max-height: 190px" class="bk-options-wrapper">
+          <ul style="max-height: 190px" class="bk-options bk-options-single">
             <li
               v-for="option in filesSearchedPath"
               class="bk-option"
@@ -80,10 +71,7 @@
             </li>
           </ul>
         </div>
-        <div
-          v-if="!filesSearchedPath.length"
-          class="bk-select-empty"
-        >
+        <div v-if="!filesSearchedPath.length" class="bk-select-empty">
           {{ $t('暂无选项') }}
         </div>
       </div>
@@ -92,67 +80,69 @@
 </template>
 
 <script>
-  export default {
-    model: {
-      event: 'change',
+export default {
+  model: {
+    event: 'change',
+  },
+  props: {
+    value: {
+      type: String,
+      required: true,
     },
-    props: {
-      value: {
-        type: String,
-        required: true,
-      },
-      availablePaths: {
-        type: Array,
-        required: true,
-      },
+    availablePaths: {
+      type: Array,
+      required: true,
     },
-    data() {
-      return {
-        isError: false,
-        showValue: '',
-        searchValue: '',
-      };
+  },
+  data() {
+    return {
+      isError: false,
+      showValue: '',
+      searchValue: '',
+    };
+  },
+  computed: {
+    filesSearchedPath() {
+      return this.availablePaths.filter((item) =>
+        item.toLowerCase().includes(this.searchValue.toLowerCase())
+      );
     },
-    computed: {
-      filesSearchedPath() {
-        return this.availablePaths.filter(item => item.toLowerCase().includes(this.searchValue.toLowerCase()));
-      },
+  },
+  watch: {
+    availablePaths() {
+      this.showValue && this.handleChange(this.showValue);
     },
-    watch: {
-      availablePaths() {
-        this.showValue && this.handleChange(this.showValue);
-      },
-      value(val) {
-        this.showValue = val;
-      },
+    value(val) {
+      this.showValue = val;
     },
-    methods: {
-      handleChange(val) {
-        if (this.validate(val)) {
-          this.$emit('change', val);
-        } else {
-          this.$emit('change', '');
-        }
-      },
-      handleSelectOption(val) {
-        this.validate(val);
-        this.showValue = val;
+  },
+  methods: {
+    handleChange(val) {
+      if (this.validate(val)) {
         this.$emit('change', val);
-        this.$emit('update:select', val);
-        this.$refs.selectDropdown.hideHandler();
-      },
-      validate(val) {
-        let isAvailable = false;
-        for (const path of this.availablePaths) {
-          if (val.startsWith(path)) {
-            isAvailable = true;
-            break;
-          }
-        }
-        const isValidated = isAvailable && !/\.\//.test(val);
-        this.isError = !isValidated;
-        return isValidated;
-      },
+      } else {
+        this.$emit('change', '');
+      }
     },
-  };
+    handleSelectOption(val) {
+      this.validate(val);
+      this.showValue = val;
+      this.$emit('change', val);
+      this.$emit('update:select', val);
+      this.$refs.selectDropdown.hideHandler();
+    },
+    validate(val) {
+      let isAvailable = false;
+      for (const path of this.availablePaths) {
+        if (val.startsWith(path)) {
+          isAvailable = true;
+          break;
+        }
+      }
+      const isValidated = isAvailable && !/\.\//.test(val);
+      this.isError = !isValidated;
+      return isValidated;
+    },
+  },
+};
 </script>

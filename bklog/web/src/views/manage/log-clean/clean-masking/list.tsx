@@ -45,7 +45,7 @@ export default class MaskingList extends tsc<object> {
   }
   /** 进入路由前判断是否是灰度业务 */
   beforeRouteEnter(from, to, next) {
-    next(vm => {
+    next((vm) => {
       vm.goToCollection(!vm.$store.getters.isShowMaskingTemplate);
     });
   }
@@ -63,7 +63,7 @@ export default class MaskingList extends tsc<object> {
 
   render() {
     return (
-      <div class='masking-list-container'>
+      <div class="masking-list-container">
         <MaskingSetting is-public-list={false} />
       </div>
     );

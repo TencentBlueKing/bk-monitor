@@ -23,22 +23,21 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, onBeforeUnmount, onMounted, ref } from 'vue';
-
+import { axiosInstance } from '@/api';
 import { readBlobRespToJson } from '@/common/util';
 import useFieldAliasRequestParams from '@/hooks/use-field-alias-request-params';
 import useStore from '@/hooks/use-store';
 import RequestPool from '@/store/request-pool';
 import { debounce } from 'lodash';
+import { defineComponent, onBeforeUnmount, onMounted, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router/composables';
 
 import RetrieveHelper, { RetrieveEvent } from '../../retrieve-helper';
+
 import GrepCli from './grep-cli';
+import './grep-cli.scss';
 import GrepCliResult from './grep-cli-result';
 import { GrepRequestResult } from './types';
-import { axiosInstance } from '@/api';
-
-import './grep-cli.scss';
 
 export default defineComponent({
   name: 'GrepView',
@@ -56,12 +55,12 @@ export default defineComponent({
     const field = ref((route.query.grep_field as string) ?? '');
     const grepQuery = ref((route.query.grep_query as string) ?? '');
     const grepRequestResult = ref<GrepRequestResult>({
-      offset: 0,
-      is_loading: true,
-      list: [],
+      exception_msg: '',
       has_more: true,
       is_error: false,
-      exception_msg: '',
+      is_loading: true,
+      list: [],
+      offset: 0,
     });
 
     const matchMode = ref({
@@ -79,11 +78,15 @@ export default defineComponent({
      */
     const setDefaultFieldValue = () => {
       if (field.value === '' && store.state.indexFieldInfo.fields.length > 0) {
-        const logField = store.state.indexFieldInfo.fields.find(field => field.field_name === 'log');
+        const logField = store.state.indexFieldInfo.fields.find(
+          (field) => field.field_name === 'log'
+        );
         if (logField) {
           field.value = logField.field_name;
         } else {
-          const textField = store.state.indexFieldInfo.fields.find(field => field.field_type === 'text');
+          const textField = store.state.indexFieldInfo.fields.find(
+            (field) => field.field_type === 'text'
+          );
           if (textField) {
             field.value = textField.field_name;
           }
@@ -103,7 +106,10 @@ export default defineComponent({
 
     const resetGrepRequestResult = () => {
       grepRequestResult.value.has_more = true;
-      grepRequestResult.value.list.splice(0, grepRequestResult.value.list.length);
+      grepRequestResult.value.list.splice(
+        0,
+        grepRequestResult.value.list.length
+      );
       grepRequestResult.value.offset = 0;
     };
 
@@ -116,33 +122,36 @@ export default defineComponent({
       grepRequestResult.value.is_error = false;
       grepRequestResult.value.exception_msg = '';
 
-      const baseUrl = process.env.NODE_ENV === 'development' ? 'api/v1' : window.AJAX_URL_PREFIX;
+      const baseUrl =
+        process.env.NODE_ENV === 'development'
+          ? 'api/v1'
+          : window.AJAX_URL_PREFIX;
       const cancelTokenKey = 'requestIndexSetGrepQueryToken';
       RequestPool.execCanceToken(cancelTokenKey);
       const requestCancelToken = RequestPool.getCancelToken(cancelTokenKey);
 
-      const { start_time, end_time, keyword, addition } = store.state.indexItem;
+      const { addition, end_time, keyword, start_time } = store.state.indexItem;
       const { alias_settings, sort_list } = useFieldAliasRequestParams();
 
       const params: any = {
-        method: 'post',
-        url: `/search/index_set/${store.state.indexId}/grep_query/`,
-        cancelToken: requestCancelToken,
-        withCredentials: true,
         baseURL: baseUrl,
-        responseType: 'blob',
+        cancelToken: requestCancelToken,
         data: {
-          start_time,
-          end_time,
-          keyword,
           addition,
-          grep_query: grepQuery.value,
-          grep_field: field.value,
-          begin: grepRequestResult.value.offset,
-          sort_list: sort_list.value,
           alias_settings: alias_settings.value,
+          begin: grepRequestResult.value.offset,
+          end_time,
+          grep_field: field.value,
+          grep_query: grepQuery.value,
+          keyword,
           size: 100,
+          sort_list: sort_list.value,
+          start_time,
         },
+        method: 'post',
+        responseType: 'blob',
+        url: `/search/index_set/${store.state.indexId}/grep_query/`,
+        withCredentials: true,
       };
 
       if (store.state.isExternal) {
@@ -156,22 +165,24 @@ export default defineComponent({
       return axiosInstance(params)
         .then((resp: any) => {
           if (resp.data && !resp.message) {
-            return readBlobRespToJson(resp.data).then(({ data, result, message }) => {
-              if (result) {
-                grepRequestResult.value.has_more = data.list.length === 100;
-                grepRequestResult.value.list.push(...data.list);
-                setTimeout(() => {
-                  RetrieveHelper.highLightKeywords([searchValue.value], true);
-                });
+            return readBlobRespToJson(resp.data).then(
+              ({ data, message, result }) => {
+                if (result) {
+                  grepRequestResult.value.has_more = data.list.length === 100;
+                  grepRequestResult.value.list.push(...data.list);
+                  setTimeout(() => {
+                    RetrieveHelper.highLightKeywords([searchValue.value], true);
+                  });
 
+                  return;
+                }
+
+                grepRequestResult.value.is_loading = false;
+                grepRequestResult.value.is_error = !result;
+                grepRequestResult.value.exception_msg = message;
                 return;
               }
-
-              grepRequestResult.value.is_loading = false;
-              grepRequestResult.value.is_error = !result;
-              grepRequestResult.value.exception_msg = message;
-              return;
-            });
+            );
           }
 
           grepRequestResult.value.is_loading = false;
@@ -200,9 +211,13 @@ export default defineComponent({
     // 处理匹配模式更新
     const handleMatchModeUpdate = (mode: any) => {
       Object.assign(matchMode.value, mode);
-      RetrieveHelper.markInstance?.setCaseSensitive(matchMode.value.caseSensitive);
+      RetrieveHelper.markInstance?.setCaseSensitive(
+        matchMode.value.caseSensitive
+      );
       RetrieveHelper.markInstance?.setRegExpMode(matchMode.value.regexMode);
-      RetrieveHelper.markInstance?.setAccuracy(matchMode.value.wordMatch ? 'exactly' : 'partially');
+      RetrieveHelper.markInstance?.setAccuracy(
+        matchMode.value.wordMatch ? 'exactly' : 'partially'
+      );
       RetrieveHelper.highLightKeywords([searchValue.value], true);
     };
 
@@ -263,10 +278,22 @@ export default defineComponent({
       handleRequestResult(!isSearching);
     };
 
-    RetrieveHelper.on([RetrieveEvent.SEARCH_VALUE_CHANGE, RetrieveEvent.SEARCH_TIME_CHANGE], handleRequestResult);
-    RetrieveHelper.on([RetrieveEvent.SEARCHING_CHANGE, RetrieveEvent.INDEX_SET_ID_CHANGE], handleSearchingChange);
+    RetrieveHelper.on(
+      [RetrieveEvent.SEARCH_VALUE_CHANGE, RetrieveEvent.SEARCH_TIME_CHANGE],
+      handleRequestResult
+    );
+    RetrieveHelper.on(
+      [RetrieveEvent.SEARCHING_CHANGE, RetrieveEvent.INDEX_SET_ID_CHANGE],
+      handleSearchingChange
+    );
 
-    const handleParamsChange = ({ isParamsChange, option }: { isParamsChange: boolean; option: any }) => {
+    const handleParamsChange = ({
+      isParamsChange,
+      option,
+    }: {
+      isParamsChange: boolean;
+      option: any;
+    }) => {
       if (isParamsChange) {
         resetGrepRequestResult();
         requestGrepList();
@@ -291,22 +318,28 @@ export default defineComponent({
       resetGrepRequestResult();
 
       RetrieveHelper.destroyMarkInstance();
-      RetrieveHelper.off(RetrieveEvent.SEARCH_VALUE_CHANGE, handleRequestResult);
+      RetrieveHelper.off(
+        RetrieveEvent.SEARCH_VALUE_CHANGE,
+        handleRequestResult
+      );
       RetrieveHelper.off(RetrieveEvent.SEARCHING_CHANGE, handleSearchingChange);
       RetrieveHelper.off(RetrieveEvent.SEARCH_TIME_CHANGE, handleRequestResult);
-      RetrieveHelper.off(RetrieveEvent.INDEX_SET_ID_CHANGE, handleRequestResult);
+      RetrieveHelper.off(
+        RetrieveEvent.INDEX_SET_ID_CHANGE,
+        handleRequestResult
+      );
     });
 
     return () => (
-      <div class='grep-view'>
+      <div class="grep-view">
         <GrepCli
           field-value={field.value}
-          search-count={totalMatches.value}
-          search-value={searchValue.value}
           on-field-change={handleFieldChange}
           on-grep-enter={handleGrepEnter}
           on-match-mode={handleMatchModeUpdate}
           on-search-change={handleSearchUpdate}
+          search-count={totalMatches.value}
+          search-value={searchValue.value}
         />
         <GrepCliResult
           fieldName={field.value}

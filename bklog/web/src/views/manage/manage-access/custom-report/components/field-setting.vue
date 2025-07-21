@@ -64,10 +64,7 @@
           @selected="handleAddSortFields"
         >
           <template #trigger>
-            <bk-button
-              class="king-button"
-              icon="plus"
-            ></bk-button>
+            <bk-button class="king-button" icon="plus"></bk-button>
           </template>
           <bk-option
             v-for="option in targetFieldSelectList"
@@ -83,104 +80,104 @@
   </div>
 </template>
 <script setup lang="ts">
-  import { ref, watch, defineProps, defineEmits } from 'vue';
-  import VueDraggable from 'vuedraggable';
-  import $http from '../../../../../api';
-  import { cloneDeep } from 'lodash';
+import { ref, watch, defineProps, defineEmits } from 'vue';
+import VueDraggable from 'vuedraggable';
+import $http from '../../../../../api';
+import { cloneDeep } from 'lodash';
 
-  const props = defineProps({
-    value: {
-      type: Object,
-      default: () => ({}),
-      required: true,
+const props = defineProps({
+  value: {
+    type: Object,
+    default: () => ({}),
+    required: true,
+  },
+});
+
+const emits = defineEmits(['update:value']);
+
+// 获取字段设置数据列表
+const targetFieldSelectList = ref([]);
+
+const initTargetFieldSelectList = async () => {
+  const res = await $http.request('retrieve/getLogTableHead', {
+    params: {
+      index_set_id: props?.value?.indexSetId,
+    },
+    query: {
+      is_realtime: 'True',
     },
   });
+  targetFieldSelectList.value = res?.data?.fields.map((item) => {
+    return {
+      id: item.field_name,
+      name: item.field_name,
+    };
+  });
+};
 
-  const emits = defineEmits(['update:value']);
+watch(
+  () => props.value,
+  (newVal) => {
+    if (newVal && newVal?.indexSetId) {
+      initTargetFieldSelectList();
+    }
+  },
+  {
+    immediate: true,
+    deep: true,
+  }
+);
 
-  // 获取字段设置数据列表
-  const targetFieldSelectList = ref([]);
+const getSortDisabledState = (id) => {
+  return props.value.sortFields?.includes(id);
+};
 
-  const initTargetFieldSelectList = async () => {
-    const res = await $http.request('retrieve/getLogTableHead', {
-      params: {
-        index_set_id: props?.value?.indexSetId,
-      },
-      query: {
-        is_realtime: 'True',
-      },
-    });
-    targetFieldSelectList.value = res?.data?.fields.map(item => {
-      return {
-        id: item.field_name,
-        name: item.field_name,
-      };
-    });
-  };
+const handleAddSortFields = (val) => {
+  props.value?.sortFields.push(val);
+};
 
-  watch(
-    () => props.value,
-    newVal => {
-      if (newVal && newVal?.indexSetId) {
-        initTargetFieldSelectList();
-      }
-    },
-    {
-      immediate: true,
-      deep: true,
-    },
-  );
-
-  const getSortDisabledState = id => {
-    return props.value.sortFields?.includes(id);
-  };
-
-  const handleAddSortFields = val => {
-    props.value?.sortFields.push(val);
-  };
-
-  const handleCloseSortFiled = (item, index) => {
-    props.value?.sortFields.splice(index, 1);
-  };
+const handleCloseSortFiled = (item, index) => {
+  props.value?.sortFields.splice(index, 1);
+};
 </script>
 <style lang="scss" scoped>
-  .sort-box {
-    display: inline-flex;
-    align-items: center;
+.sort-box {
+  display: inline-flex;
+  align-items: center;
 
-    .add-sort-btn {
+  .add-sort-btn {
+    display: inline-block;
+    margin-left: 6px;
+    border: none;
+    box-shadow: none;
+  }
+
+  .not-sort {
+    margin-left: 0;
+  }
+}
+
+.title-tips {
+  margin-left: 16px;
+  font-size: 12px;
+  font-weight: normal;
+
+  .icon-exclamation-circle {
+    font-size: 16px;
+    color: #ea3636;
+  }
+}
+
+.collection-select {
+  .tag-items {
+    height: 32px;
+    line-height: 32px;
+
+    .icon-grag-fill {
       display: inline-block;
-      margin-left: 6px;
-      border: none;
-      box-shadow: none;
-    }
-
-    .not-sort {
-      margin-left: 0;
+      cursor: move;
+      transform: translateY(-1px);
     }
   }
-
-  .title-tips {
-    margin-left: 16px;
-    font-size: 12px;
-    font-weight: normal;
-
-    .icon-exclamation-circle {
-      font-size: 16px;
-      color: #ea3636;
-    }
-  }
-
-  .collection-select {
-    .tag-items {
-      height: 32px;
-      line-height: 32px;
-
-      .icon-grag-fill {
-        display: inline-block;
-        cursor: move;
-        transform: translateY(-1px);
-      }
-    }
-  }
+}
 </style>

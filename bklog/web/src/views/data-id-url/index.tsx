@@ -24,9 +24,8 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, onMounted, ref } from 'vue';
-
 import http from '@/api/index';
+import { defineComponent, onMounted, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router/composables';
 
 import './index.scss';
@@ -47,22 +46,27 @@ export default defineComponent({
     const getLinkParams = () => {
       errorMessage.value = '正在解析地址, 请稍候 ...';
       http
-        .request('retrieve/getIndexSetDataByDataId', { query: { bk_data_id: linkId } }, { catchIsShowMessage: false })
-        .then(resp => {
+        .request(
+          'retrieve/getIndexSetDataByDataId',
+          { query: { bk_data_id: linkId } },
+          { catchIsShowMessage: false }
+        )
+        .then((resp) => {
           if (resp.result) {
             const { index_set_id, space_uid } = resp.data;
             router.push({
               name: 'retrieve',
               params: { indexId: index_set_id },
-              query: { ...route.query, spaceUid: space_uid, bizId: undefined },
+              query: { ...route.query, bizId: undefined, spaceUid: space_uid },
             });
             return;
           }
 
           errorMessage.value = resp.message || '解析地址失败，请稍后重试！';
         })
-        .catch(err => {
-          errorMessage.value = err.message || err || '解析地址失败，请稍后重试！';
+        .catch((err) => {
+          errorMessage.value =
+            err.message || err || '解析地址失败，请稍后重试！';
         });
     };
 
@@ -71,17 +75,17 @@ export default defineComponent({
     });
 
     return () => (
-      <div class='analysis-animation-container'>
+      <div class="analysis-animation-container">
         <bk-exception
+          scene="part"
           style={{
+            left: '50%',
             marginTop: '10%',
             position: 'absolute',
-            left: '50%',
-            transform: 'translateX(-50%)',
             top: '0',
+            transform: 'translateX(-50%)',
           }}
-          scene='part'
-          type='search-empty'
+          type="search-empty"
         >
           {errorMessage.value}
         </bk-exception>

@@ -1,21 +1,52 @@
-type ScrollDirection = 'up' | 'down' | 'none';
+/*
+ * Tencent is pleased to support the open source community by making
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
+ *
+ * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+ *
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
+ *
+ * License for 蓝鲸智云PaaS平台 (BlueKing PaaS):
+ *
+ * ---------------------------------------------------
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
+ * documentation files (the "Software"), to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and
+ * to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all copies or substantial portions of
+ * the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
+ * THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
+ * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+ * IN THE SOFTWARE.
+ */
+type ScrollDirection = 'down' | 'none' | 'up';
 
 class LazyTaskManager {
   private static instance: LazyTaskManager;
-  tasks: Map<number, (isInBuffer: boolean, direction: ScrollDirection) => void> = new Map();
+  tasks: Map<
+    number,
+    (isInBuffer: boolean, direction: ScrollDirection) => void
+  > = new Map();
   visibleIndexes: Set<number> = new Set();
-  bufferCount: number = 20;
-  batchSize: number = 10;
+  bufferCount = 20;
+  batchSize = 10;
   observer: IntersectionObserver;
   scheduledTasks: Map<number, number> = new Map();
-  debounceTimeout: number | null = null;
-  maxVisibleIndex: number = -Infinity;
-  minVisibleIndex: number = Infinity;
+  debounceTimeout: null | number = null;
+  maxVisibleIndex = -Infinity;
+  minVisibleIndex = Infinity;
 
   private constructor() {
-    this.observer = new IntersectionObserver(this.handleIntersections.bind(this), {
-      rootMargin: '200px',
-    });
+    this.observer = new IntersectionObserver(
+      this.handleIntersections.bind(this),
+      {
+        rootMargin: '200px',
+      }
+    );
   }
 
   static getInstance() {
@@ -26,8 +57,10 @@ class LazyTaskManager {
   }
 
   private handleIntersections(entries: IntersectionObserverEntry[]) {
-    entries.forEach(entry => {
-      const index = parseInt((entry.target as HTMLElement).dataset.index || '-1');
+    entries.forEach((entry) => {
+      const index = parseInt(
+        (entry.target as HTMLElement).dataset.index || '-1'
+      );
       if (index !== -1) {
         if (entry.isIntersecting) {
           this.visibleIndexes.add(index);
@@ -74,7 +107,10 @@ class LazyTaskManager {
     this.observer.unobserve(element);
   }
 
-  addTask(index: number, task: (isInBuffer: boolean, direction: ScrollDirection) => void) {
+  addTask(
+    index: number,
+    task: (isInBuffer: boolean, direction: ScrollDirection) => void
+  ) {
     if (!this.tasks.has(index)) {
       this.tasks.set(index, task);
     }
@@ -82,7 +118,9 @@ class LazyTaskManager {
 
   executeBufferTasks(direction: ScrollDirection) {
     const indexes = Array.from(this.tasks.keys()).sort((a, b) => a - b);
-    const visibleIndexes = Array.from(this.visibleIndexes).sort((a, b) => a - b);
+    const visibleIndexes = Array.from(this.visibleIndexes).sort(
+      (a, b) => a - b
+    );
     if (visibleIndexes.length === 0) return;
 
     const minIndex = visibleIndexes[0];
@@ -91,11 +129,16 @@ class LazyTaskManager {
     let currentBatchStart = 0;
 
     const executeBatch = () => {
-      const batchEnd = Math.min(currentBatchStart + this.batchSize, indexes.length);
+      const batchEnd = Math.min(
+        currentBatchStart + this.batchSize,
+        indexes.length
+      );
 
       for (let i = currentBatchStart; i < batchEnd; i++) {
         const index = indexes[i];
-        const isInBuffer = index >= minIndex - this.bufferCount && index <= maxIndex + this.bufferCount;
+        const isInBuffer =
+          index >= minIndex - this.bufferCount &&
+          index <= maxIndex + this.bufferCount;
 
         if (!isInBuffer && this.scheduledTasks.has(index)) {
           cancelAnimationFrame(this.scheduledTasks.get(index)!);

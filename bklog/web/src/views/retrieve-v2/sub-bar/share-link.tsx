@@ -24,8 +24,6 @@
  * IN THE SOFTWARE.
  */
 
-import { computed, defineComponent, Ref, ref } from 'vue';
-
 import http from '@/api/index';
 import { messageError } from '@/common/bkmagic';
 import { copyMessage } from '@/common/util';
@@ -35,6 +33,7 @@ import { handleTransformToTimestamp } from '@/components/time-range/utils';
 import useLocale from '@/hooks/use-locale';
 import useStore from '@/hooks/use-store';
 import dayjs from 'dayjs';
+import { computed, defineComponent, Ref, ref } from 'vue';
 import { useRoute } from 'vue-router/composables';
 
 export default defineComponent({
@@ -113,48 +112,51 @@ export default defineComponent({
     };
 
     const handleShareLinkClick = () => {
-      const result = handleTransformToTimestamp(formatTimeRange.value, format.value);
+      const result = handleTransformToTimestamp(
+        formatTimeRange.value,
+        format.value
+      );
       const params = {
         route: {
           name: route.name,
-          path: route.path,
           params: { ...route.params },
+          path: route.path,
           query: {
             ...route.query,
-            start_time: formatTimeRange.value[0],
             end_time: formatTimeRange.value[1],
-            timezone: timezone.value,
             format: format.value,
+            start_time: formatTimeRange.value[0],
+            timezone: timezone.value,
           },
         },
         store: {
-          storage: store.state.storage,
+          catchFieldCustomConfig: store.state.retrieve.catchFieldCustomConfig,
           indexItem: {
             ...store.state.indexItem,
-            items: [],
             datePickerValue: formatTimeRange.value,
+            items: [],
           },
 
-          catchFieldCustomConfig: store.state.retrieve.catchFieldCustomConfig,
+          storage: store.state.storage,
         },
       };
 
       http
         .request('retrieve/createOrUpdateToken', {
           data: {
-            type: 'search',
-            expire_time: getExpireEndTime(expireTime.value), // 默认1天
-            expire_period: expireTime.value,
-            lock_search: false,
-            start_time: result[0],
-            end_time: result[1],
-            timezone: timezone.value,
-            default_time_range: timeRange.value,
-            space_uid: store.state.spaceUid,
             data: params,
+            default_time_range: timeRange.value,
+            end_time: result[1],
+            expire_period: expireTime.value,
+            expire_time: getExpireEndTime(expireTime.value), // 默认1天
+            lock_search: false,
+            space_uid: store.state.spaceUid,
+            start_time: result[0],
+            timezone: timezone.value,
+            type: 'search',
           },
         })
-        .then(resp => {
+        .then((resp) => {
           if (resp.result) {
             link.value = `${window.location.origin}/#/share/${resp.data.token}`;
             copyMessage(link.value, '复制成功！');
@@ -163,7 +165,7 @@ export default defineComponent({
 
           messageError(resp.message || t('生成链接失败，请稍后重试'));
         })
-        .catch(err => {
+        .catch((err) => {
           messageError(err.message || t('生成链接失败，请稍后重试'));
           console.error(err);
         });
@@ -201,8 +203,8 @@ export default defineComponent({
         const customUnit = val.slice(-1);
         const validUnits = {
           d: 1,
-          w: 7,
           m: 30,
+          w: 7,
         };
         const count = validUnits[customUnit] * customNum;
         if (count > 90) {
@@ -219,10 +221,10 @@ export default defineComponent({
 
     const getContentView = () => {
       return (
-        <div style='width: 600px; padding: 20px; display: flex; flex-direction: column; font-size: 12px;'>
-          <div style='font-size: 20px; margin-bottom: 30px;'>
-            <span class='bklog-icon bklog-share'></span>
-            <span style='margin-left: 6px;'>{t('临时分享')}</span>
+        <div style="width: 600px; padding: 20px; display: flex; flex-direction: column; font-size: 12px;">
+          <div style="font-size: 20px; margin-bottom: 30px;">
+            <span class="bklog-icon bklog-share"></span>
+            <span style="margin-left: 6px;">{t('临时分享')}</span>
           </div>
           {/* <div style='display: flex; align-items: center; margin-bottom: 10px;'>
             <span>{t('时间设置')}：</span>
@@ -234,82 +236,88 @@ export default defineComponent({
               on-format-change={handleFormatChange}
             ></TimeRange>
           </div> */}
-          <div style='display: flex; align-items: flex-start; margin-bottom: 10px;'>
-            <span style='display: inline-block; min-width: fit-content;'>{t('时间格式')}：</span>
+          <div style="display: flex; align-items: flex-start; margin-bottom: 10px;">
+            <span style="display: inline-block; min-width: fit-content;">
+              {t('时间格式')}：
+            </span>
             <div>
-              <div style='margin-bottom: 6px;'>
+              <div style="margin-bottom: 6px;">
                 <bk-radio
-                  style='font-size: 12px;'
                   checked={timeValueType.value === 'static'}
-                  on-change={val => val && handleTimeValueTypeChange('static')}
+                  on-change={(val) =>
+                    val && handleTimeValueTypeChange('static')
+                  }
+                  style="font-size: 12px;"
                 >
                   {t('静态时间')}
                 </bk-radio>
-                <span style='margin-left: 8px; font-size: 10px; color: #979BA5;'>
+                <span style="margin-left: 8px; font-size: 10px; color: #979BA5;">
                   {t('会将时间转换为时间戳，按照访问人的时间进行载入')}
                 </span>
               </div>
               <div>
                 <bk-radio
-                  style='font-size: 12px;'
                   checked={timeValueType.value === 'dynamic'}
-                  on-change={val => val && handleTimeValueTypeChange('dynamic')}
+                  on-change={(val) =>
+                    val && handleTimeValueTypeChange('dynamic')
+                  }
+                  style="font-size: 12px;"
                 >
                   {t('动态时间')}
                 </bk-radio>
-                <span style='margin-left: 8px; font-size: 10px; color: #979BA5;'>
-                  {t('会将近 xxx 这种时间保留，按照访问人的近 xxx 时间进行载入')}
+                <span style="margin-left: 8px; font-size: 10px; color: #979BA5;">
+                  {t(
+                    '会将近 xxx 这种时间保留，按照访问人的近 xxx 时间进行载入'
+                  )}
                 </span>
               </div>
             </div>
           </div>
-          <div style='margin-bottom: 20px'>
+          <div style="margin-bottom: 20px">
             <span>{t('时间示例')}：</span>
-            <span style='color: #979BA5;'>{placeholder.value}</span>
+            <span style="color: #979BA5;">{placeholder.value}</span>
           </div>
 
-          <div style='display: flex; align-items: center; margin-bottom: 12px;'>
+          <div style="display: flex; align-items: center; margin-bottom: 12px;">
             <span>{t('链接有效期')}:</span>
             <bk-select
-              style='width: 200px; margin-left: 10px;'
-              ext-popover-cls='bklog-v3-select-popover'
-              value={expireTime.value}
+              ext-popover-cls="bklog-v3-select-popover"
               on-change={handleExpireTimeChange}
+              style="width: 200px; margin-left: 10px;"
+              value={expireTime.value}
             >
-              {expireTimeList.value.map(item => (
-                <bk-option
-                  id={item.id}
-                  key={item.id}
-                  name={item.name}
-                >
+              {expireTimeList.value.map((item) => (
+                <bk-option id={item.id} key={item.id} name={item.name}>
                   {item.name}
                 </bk-option>
               ))}
 
               <div
-                style='display: flex; align-items: center; padding: 10px;'
-                class='bklog-v3-select-popover'
+                class="bklog-v3-select-popover"
+                style="display: flex; align-items: center; padding: 10px;"
               >
-                <span style='display: inline-block; min-width: fit-content;'>{t('自定义')}:</span>
+                <span style="display: inline-block; min-width: fit-content;">
+                  {t('自定义')}:
+                </span>
                 <bk-input
-                  style='width: 100%; height: 28px; margin-left: 4px;'
-                  placeholder='{number}d|w|m'
-                  on-enter={val => handleCutomExpireTimeChange(val)}
+                  on-enter={(val) => handleCutomExpireTimeChange(val)}
+                  placeholder="{number}d|w|m"
+                  style="width: 100%; height: 28px; margin-left: 4px;"
                 ></bk-input>
               </div>
             </bk-select>
           </div>
 
-          <div style='display: flex; width: 100%; margin-top: 12px;'>
+          <div style="display: flex; width: 100%; margin-top: 12px;">
             <bk-input
               placeholder={`{SITE_URL}/share/{LINK_ID}`}
               readonly={true}
               value={link.value}
             ></bk-input>
             <bk-button
-              style='margin-left: -2px; border-radius: 0 2px 2px 0; min-width: fit-content;'
-              theme='primary'
               on-click={handleShareLinkClick}
+              style="margin-left: -2px; border-radius: 0 2px 2px 0; min-width: fit-content;"
+              theme="primary"
             >
               {t('生成并复制链接')}
             </bk-button>
@@ -320,16 +328,16 @@ export default defineComponent({
     return () => {
       return (
         <BklogPopover
-          style='height: 100%;border-right: solid 1px #eaebf0; align-items: center; display: flex; justify-content: center; cursor: pointer; padding: 0 20px;'
           beforeHide={beforePopoverHide}
           options={{ hideOnClick: false, onShow: beforeShow } as any}
-          trigger='click'
+          style="height: 100%;border-right: solid 1px #eaebf0; align-items: center; display: flex; justify-content: center; cursor: pointer; padding: 0 20px;"
+          trigger="click"
           {...{
             scopedSlots: { content: getContentView },
           }}
         >
-          <span class='bklog-icon bklog-share'></span>
-          <span style='margin-left: 6px;'>{t('分享')}</span>
+          <span class="bklog-icon bklog-share"></span>
+          <span style="margin-left: 6px;">{t('分享')}</span>
         </BklogPopover>
       );
     };

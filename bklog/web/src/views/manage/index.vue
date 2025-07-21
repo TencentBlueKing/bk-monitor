@@ -26,114 +26,108 @@
 
 <template>
   <div class="manage-container">
-    <div
-      v-if="!pageLoading"
-      class="manage-main"
-    >
+    <div v-if="!pageLoading" class="manage-main">
       <sub-nav></sub-nav>
-      <router-view
-        class="manage-content"
-        :key="routerKey"
-      ></router-view>
+      <router-view class="manage-content" :key="routerKey"></router-view>
     </div>
   </div>
 </template>
 
 <script>
-  import SubNav from '@/components/nav/manage-nav';
-  import { mapState, mapGetters } from 'vuex';
+import SubNav from '@/components/nav/manage-nav';
+import { mapState, mapGetters } from 'vuex';
 
-  export default {
-    name: 'ManageIndex',
-    components: {
-      SubNav,
-    },
-    data() {
-      return {
-        navThemeColor: '#2c354d',
-        routerKey: 0,
-        isExpand: true,
-      };
-    },
+export default {
+  name: 'ManageIndex',
+  components: {
+    SubNav,
+  },
+  data() {
+    return {
+      navThemeColor: '#2c354d',
+      routerKey: 0,
+      isExpand: true,
+    };
+  },
 
-    computed: {
-      ...mapState(['topMenu', 'activeManageNav']),
-      ...mapState('globals', ['globalsData']),
-      ...mapGetters({
-        pageLoading: 'pageLoading',
-      }),
-      manageNavList() {
-        return this.topMenu.find(item => item.id === 'manage')?.children || [];
-      },
+  computed: {
+    ...mapState(['topMenu', 'activeManageNav']),
+    ...mapState('globals', ['globalsData']),
+    ...mapGetters({
+      pageLoading: 'pageLoading',
+    }),
+    manageNavList() {
+      return this.topMenu.find((item) => item.id === 'manage')?.children || [];
     },
-    methods: {
-      getMenuIcon(item) {
-        if (item.icon) {
-          return `bklog-icon bklog-${item.icon}`;
-        }
+  },
+  methods: {
+    getMenuIcon(item) {
+      if (item.icon) {
+        return `bklog-icon bklog-${item.icon}`;
+      }
 
-        return 'bk-icon icon-home-shape';
-      },
-      handleClickNavItem(id) {
-        this.$router.push({
-          name: id,
-          query: {
-            spaceUid: this.$store.state.spaceUid,
-          },
-        });
-        if (this.activeManageNav.id === id) {
-          // this.routerKey += 1;
-        }
-      },
-      handleToggle(data) {
-        this.isExpand = data;
-      },
+      return 'bk-icon icon-home-shape';
     },
-    mounted() {
-      const bkBizId = this.$store.state.bkBizId;
-      const spaceUid = this.$store.state.spaceUid;
-
-      this.$router.replace({
+    handleClickNavItem(id) {
+      this.$router.push({
+        name: id,
         query: {
-          bizId: bkBizId,
-          spaceUid: spaceUid,
-          ...this.$route.query,
+          spaceUid: this.$store.state.spaceUid,
         },
       });
+      if (this.activeManageNav.id === id) {
+        // this.routerKey += 1;
+      }
     },
-  };
+    handleToggle(data) {
+      this.isExpand = data;
+    },
+  },
+  mounted() {
+    const bkBizId = this.$store.state.bkBizId;
+    const spaceUid = this.$store.state.spaceUid;
+
+    this.$router.replace({
+      query: {
+        bizId: bkBizId,
+        spaceUid: spaceUid,
+        ...this.$route.query,
+      },
+    });
+  },
+};
 </script>
 
 <style lang="scss" scoped>
-  @import '../../scss/mixins/scroller.scss';
+@import '../../scss/mixins/scroller.scss';
 
-  .manage-container {
+.manage-container {
+  height: 100%;
+
+  .manage-content {
+    // height: 100%;
+    position: relative;
+    top: 48px;
+    height: calc(100% - 52px);
+    overflow: auto;
+
+    @include scroller($backgroundColor: #c4c6cc, $width: 4px);
+  }
+
+  .manage-main {
     height: 100%;
+  }
 
-    .manage-content {
-      // height: 100%;
-      position: relative;
-      top: 48px;
-      height: calc(100% - 52px);
-      overflow: auto;
+  :deep(.bk-table) {
+    background: #fff;
 
-      @include scroller($backgroundColor: #c4c6cc, $width: 4px);
+    .cell {
+      display: block;
     }
 
-    .manage-main {
-      height: 100%;
-    }
-
-    :deep(.bk-table) {
-      background: #fff;
-
-      .cell {
-        display: block;
-      }
-
-      .bk-table-pagination-wrapper {
-        background: #fafbfd;
-      }
+    .bk-table-pagination-wrapper {
+      background: #fafbfd;
     }
   }
+}
 </style>

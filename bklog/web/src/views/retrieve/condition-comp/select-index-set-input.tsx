@@ -31,10 +31,10 @@ import './select-index-set-input.scss';
 
 @Component
 export default class SelectIndexSetInput extends tsc<object> {
-  @Prop({ type: Array, required: true }) selectedItemList: Array<any>;
-  @Prop({ type: Boolean, required: true }) isShowSelectPopover: boolean;
-  @Prop({ type: Boolean, required: true }) isAloneType: boolean;
-  @Prop({ type: Object, required: true }) selectedItem: object;
+  @Prop({ required: true, type: Array }) selectedItemList: Array<any>;
+  @Prop({ required: true, type: Boolean }) isShowSelectPopover: boolean;
+  @Prop({ required: true, type: Boolean }) isAloneType: boolean;
+  @Prop({ required: true, type: Object }) selectedItem: object;
 
   overflowTagNode = null;
   overflowTagIndex = null;
@@ -124,7 +124,7 @@ export default class SelectIndexSetInput extends tsc<object> {
   }
 
   isShowNotVal(item) {
-    return item.tags.some(item => item.tag_id === 4);
+    return item.tags.some((item) => item.tag_id === 4);
   }
 
   render() {
@@ -132,11 +132,13 @@ export default class SelectIndexSetInput extends tsc<object> {
       if (this.isAloneType) {
         return (
           <div
-            class='bk-select-name'
+            class="bk-select-name"
             v-bk-overflow-tips={{ placement: 'right' }}
           >
             <span>{(this.selectedItem as any).indexName}</span>
-            <span style='color: #979ba5;'>{(this.selectedItem as any).lightenName}</span>
+            <span style="color: #979ba5;">
+              {(this.selectedItem as any).lightenName}
+            </span>
           </div>
         );
       }
@@ -147,12 +149,12 @@ export default class SelectIndexSetInput extends tsc<object> {
             'is-fixed-height': !this.isShowSelectPopover,
           }}
         >
-          {this.selectedItemList.map(item => (
-            <div class='select-tag width-limit-tag'>
-              <span class='tag-name'>
-                {this.isShowNotVal(item) && <i class='not-val'></i>}
+          {this.selectedItemList.map((item) => (
+            <div class="select-tag width-limit-tag">
+              <span class="tag-name">
+                {this.isShowNotVal(item) && <i class="not-val"></i>}
                 <span
-                  class='title-overflow'
+                  class="title-overflow"
                   v-bk-overflow-tips={{
                     content: `${item.indexName}${item.lightenName}`,
                   }}

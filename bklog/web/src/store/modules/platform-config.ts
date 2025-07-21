@@ -23,10 +23,19 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { getPlatformConfig, setShortcutIcon, setDocumentTitle } from '@blueking/platform-config';
-import { Action, Mutation, getModule, Module, VuexModule } from 'vuex-module-decorators';
-
 import store from '@/store';
+import {
+  getPlatformConfig,
+  setShortcutIcon,
+  setDocumentTitle,
+} from '@blueking/platform-config';
+import {
+  Action,
+  Mutation,
+  getModule,
+  Module,
+  VuexModule,
+} from 'vuex-module-decorators';
 
 interface II18nData {
   name: string;
@@ -42,14 +51,14 @@ interface IPlatformConfig {
 }
 
 export const initialConfig = {
-  name: '日志平台',
-  nameEn: 'Log',
   brandName: '蓝鲸智云',
   brandNameEn: 'Tencent BlueKing',
+  name: '日志平台',
+  nameEn: 'Log',
   version: window.VERSION,
 };
 
-@Module({ name: 'platform-config', dynamic: true, namespaced: true, store })
+@Module({ dynamic: true, name: 'platform-config', namespaced: true, store })
 class PlatformConfigStore extends VuexModule {
   public publicConfig: IPlatformConfig = {};
 
@@ -64,7 +73,10 @@ class PlatformConfigStore extends VuexModule {
     const bkRepoUrl = window.BK_SHARED_RES_URL;
     if (bkRepoUrl) {
       const repoUrl = bkRepoUrl.endsWith('/') ? bkRepoUrl : `${bkRepoUrl}/`;
-      configPromise = getPlatformConfig(`${repoUrl}/bk_log_search/base.js`, initialConfig);
+      configPromise = getPlatformConfig(
+        `${repoUrl}/bk_log_search/base.js`,
+        initialConfig
+      );
     } else {
       configPromise = getPlatformConfig(initialConfig);
     }

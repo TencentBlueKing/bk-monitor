@@ -25,13 +25,13 @@
  */
 // 使用次数趋势
 const searchSQL = {
-  url: '/search/index_set/:index_set_id/chart/',
   method: 'post',
+  url: '/search/index_set/:index_set_id/chart/',
 };
 
 const generateSql = {
-  url: '/search/index_set/:index_set_id/generate_sql/',
   method: 'post',
+  url: '/search/index_set/:index_set_id/generate_sql/',
 };
 
 export { searchSQL, generateSql };

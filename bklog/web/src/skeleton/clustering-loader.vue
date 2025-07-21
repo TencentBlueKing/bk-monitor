@@ -42,75 +42,69 @@
       >
         <!-- eslint-disable-next-line vue/no-unused-vars -->
         <template #default="props">
-          <div
-            :style="`width:${getRandom()}%`"
-            class="cell-bar"
-          ></div>
+          <div :style="`width:${getRandom()}%`" class="cell-bar"></div>
         </template>
       </bk-table-column>
     </template>
-    <bk-table-column
-      v-if="!isLoading"
-      width="84"
-    ></bk-table-column>
+    <bk-table-column v-if="!isLoading" width="84"></bk-table-column>
   </bk-table>
 </template>
 
 <script>
-  export default {
-    props: {
-      // 用于初次loading
-      isLoading: {
-        type: Boolean,
-        default: false,
-      },
-      widthList: {
-        type: Array,
-        require: true,
-      },
-      loaderLen: {
-        // 骨架行数
-        type: Number,
-        default: 24,
-      },
+export default {
+  props: {
+    // 用于初次loading
+    isLoading: {
+      type: Boolean,
+      default: false,
     },
-    data() {
-      return {};
+    widthList: {
+      type: Array,
+      require: true,
     },
-    computed: {
-      renderList() {
-        return new Array(this.loaderLen).fill('');
-      },
+    loaderLen: {
+      // 骨架行数
+      type: Number,
+      default: 24,
     },
-    methods: {
-      getRandom() {
-        // 骨架占位随机长度
-        return Math.floor(Math.random() * (20 - 100) + 100);
-      },
+  },
+  data() {
+    return {};
+  },
+  computed: {
+    renderList() {
+      return new Array(this.loaderLen).fill('');
     },
-  };
+  },
+  methods: {
+    getRandom() {
+      // 骨架占位随机长度
+      return Math.floor(Math.random() * (20 - 100) + 100);
+    },
+  },
+};
 </script>
 
 <style lang="scss">
-  .skeleton-table {
-    &:before {
-      z-index: -1;
-    }
-
-    .cell {
-      width: 100%;
-      padding-top: 14px;
-    }
-
-    .cell-bar {
-      position: relative;
-      height: 12px;
-      background-color: #e9e9e9;
-    }
-
-    :deep(.bk-table-empty-text) {
-      width: 100%;
-      padding: 0;
-    }
+.skeleton-table {
+  &:before {
+    z-index: -1;
   }
+
+  .cell {
+    width: 100%;
+    padding-top: 14px;
+  }
+
+  .cell-bar {
+    position: relative;
+    height: 12px;
+    background-color: #e9e9e9;
+  }
+
+  :deep(.bk-table-empty-text) {
+    width: 100%;
+    padding: 0;
+  }
+}
 </style>

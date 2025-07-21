@@ -24,6 +24,7 @@
  * IN THE SOFTWARE.
  */
 import { formatDate, formatDateNanos, random } from '../../common/util';
+
 import { getRGBAColors } from './colors';
 import OptimizedHighlighter from './optimized-highlighter';
 import RetrieveEvent from './retrieve-events';
@@ -100,7 +101,9 @@ export default class {
 
     if (formatFn[field_type]) {
       if (`${data}`.startsWith('<mark>')) {
-        const value = `${data}`.replace(/^<mark>/i, '').replace(/<\/mark>$/i, '');
+        const value = `${data}`
+          .replace(/^<mark>/i, '')
+          .replace(/<\/mark>$/i, '');
 
         if (/^\d+$/.test(value)) {
           return `<mark>${formatFn[field_type](Number(value))}</mark>`;
@@ -119,7 +122,7 @@ export default class {
 
   on(fnName: RetrieveEvent | RetrieveEvent[], callbackFn: (...args) => void) {
     const targetEvents = Array.isArray(fnName) ? fnName : [fnName];
-    targetEvents.forEach(event => {
+    targetEvents.forEach((event) => {
       if (this.events.has(event)) {
         if (!this.events.get(event).includes(callbackFn)) {
           this.events.get(event)?.push(callbackFn);
@@ -150,7 +153,9 @@ export default class {
    */
   off(eventName: RetrieveEvent, fn?: (...args) => void) {
     if (typeof fn === 'function') {
-      const index = this.events.get(eventName)?.findIndex(item => item === fn);
+      const index = this.events
+        .get(eventName)
+        ?.findIndex((item) => item === fn);
       if (index !== -1) {
         this.events.get(eventName)?.splice(index, 1);
       }
@@ -160,7 +165,7 @@ export default class {
   }
 
   runEvent(event: RetrieveEvent, ...args) {
-    this.events.get(event)?.forEach(item => {
+    this.events.get(event)?.forEach((item) => {
       if (typeof item === 'function') {
         item(...args);
       }

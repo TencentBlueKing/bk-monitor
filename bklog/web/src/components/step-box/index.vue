@@ -25,11 +25,7 @@
 -->
 
 <template>
-  <div
-    :style="style"
-    class="step-box"
-    :class="className"
-  >
+  <div :style="style" class="step-box" :class="className">
     <div class="step-title">
       <slot name="title"></slot>
     </div>
@@ -44,115 +40,115 @@
 </template>
 
 <script>
-  export default {
-    props: {
-      placement: {
-        type: String,
-        default: '',
-      },
-      tipStyles: {
-        type: Object,
-        default: () => ({}),
-      },
-      hasBorder: {
-        type: Boolean,
-        default: false,
-      },
+export default {
+  props: {
+    placement: {
+      type: String,
+      default: '',
     },
-    computed: {
-      className() {
-        return `${this.placement} ${this.hasBorder ? 'has-border' : ''}`;
-        // return this.placement;
-      },
-      style() {
-        return this.tipStyles;
-      },
+    tipStyles: {
+      type: Object,
+      default: () => ({}),
     },
-  };
+    hasBorder: {
+      type: Boolean,
+      default: false,
+    },
+  },
+  computed: {
+    className() {
+      return `${this.placement} ${this.hasBorder ? 'has-border' : ''}`;
+      // return this.placement;
+    },
+    style() {
+      return this.tipStyles;
+    },
+  },
+};
 </script>
 
 <style lang="scss">
-  .step-box {
+.step-box {
+  position: absolute;
+  width: 270px;
+  min-height: 110px;
+  padding: 12px 10px 10px;
+  font-size: 12px;
+  color: #313238;
+  background: #fff;
+  border-radius: 2px;
+
+  .target-arrow {
     position: absolute;
-    width: 270px;
-    min-height: 110px;
-    padding: 12px 10px 10px;
-    font-size: 12px;
-    color: #313238;
-    background: #fff;
-    border-radius: 2px;
+    width: 8px;
+    height: 8px;
+    background: inherit;
+    transform: rotateZ(45deg);
+  }
 
+  &.has-border {
+    background-color: #fff;
+    border: 1px solid #dcdee5;
+    box-shadow: 0 0 6px 0 #dcdee5;
+  }
+
+  &.right {
     .target-arrow {
-      position: absolute;
-      width: 8px;
-      height: 8px;
-      background: inherit;
-      transform: rotateZ(45deg);
-    }
-
-    &.has-border {
-      background-color: #fff;
-      border: 1px solid #dcdee5;
-      box-shadow: 0 0 6px 0 #dcdee5;
-    }
-
-    &.right {
-      .target-arrow {
-        top: 30px;
-        left: -4px;
-      }
-    }
-
-    &.left {
-      .target-arrow {
-        top: 30px;
-        right: -4px;
-      }
-    }
-
-    &.bottom {
-      .target-arrow {
-        top: -4px;
-        left: 50%;
-      }
-    }
-
-    &.top {
-      .target-arrow {
-        bottom: -4px;
-        left: 50%;
-      }
-    }
-
-    .step-title {
-      font-weight: bold;
-      line-height: 16px;
-    }
-
-    .step-content {
-      margin-top: 7px;
-    }
-
-    .step-action {
-      display: flex;
-      justify-content: flex-end;
-      margin-top: 14px;
-
-      .action-text {
-        color: #3a84ff;
-        cursor: pointer;
-      }
-
-      .action-btn {
-        height: 20px;
-        padding: 0 8px;
-        margin-left: 14px;
-        line-height: 20px;
-        color: #fff;
-        cursor: pointer;
-        background: #3a84ff;
-        border-radius: 10px;
-      }
+      top: 30px;
+      left: -4px;
     }
   }
+
+  &.left {
+    .target-arrow {
+      top: 30px;
+      right: -4px;
+    }
+  }
+
+  &.bottom {
+    .target-arrow {
+      top: -4px;
+      left: 50%;
+    }
+  }
+
+  &.top {
+    .target-arrow {
+      bottom: -4px;
+      left: 50%;
+    }
+  }
+
+  .step-title {
+    font-weight: bold;
+    line-height: 16px;
+  }
+
+  .step-content {
+    margin-top: 7px;
+  }
+
+  .step-action {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 14px;
+
+    .action-text {
+      color: #3a84ff;
+      cursor: pointer;
+    }
+
+    .action-btn {
+      height: 20px;
+      padding: 0 8px;
+      margin-left: 14px;
+      line-height: 20px;
+      color: #fff;
+      cursor: pointer;
+      background: #3a84ff;
+      border-radius: 10px;
+    }
+  }
+}
 </style>

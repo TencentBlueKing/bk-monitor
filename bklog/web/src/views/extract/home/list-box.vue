@@ -25,20 +25,13 @@
 -->
 
 <template>
-  <div
-    v-if="listData.length || (mark && title)"
-    class="list-box-container"
-  >
+  <div v-if="listData.length || (mark && title)" class="list-box-container">
     <div :class="['list-title', mark && 'mark']">
       <span :class="icon"></span>
       <h2 class="text">{{ title }}</h2>
     </div>
     <ul class="list-box">
-      <li
-        v-for="item in listData"
-        class="list-item"
-        :key="item"
-      >
+      <li v-for="item in listData" class="list-item" :key="item">
         {{ item }}
       </li>
     </ul>
@@ -46,35 +39,35 @@
 </template>
 
 <script>
-  export default {
-    props: {
-      icon: {
-        type: String,
-        required: true,
-      },
-      title: {
-        type: String,
-        default: '',
-      },
-      mark: {
-        type: Boolean,
-        default: false,
-      },
-      list: {
-        type: [String, Array],
-        default: '',
-      },
+export default {
+  props: {
+    icon: {
+      type: String,
+      required: true,
     },
-    computed: {
-      listData() {
-        if (this.list && typeof this.list === 'string') {
-          return [this.list];
-        }
-        if (Array.isArray(this.list)) {
-          return this.list;
-        }
-        return [];
-      },
+    title: {
+      type: String,
+      default: '',
     },
-  };
+    mark: {
+      type: Boolean,
+      default: false,
+    },
+    list: {
+      type: [String, Array],
+      default: '',
+    },
+  },
+  computed: {
+    listData() {
+      if (this.list && typeof this.list === 'string') {
+        return [this.list];
+      }
+      if (Array.isArray(this.list)) {
+        return this.list;
+      }
+      return [];
+    },
+  },
+};
 </script>

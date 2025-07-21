@@ -30,80 +30,80 @@
 
 // 新建容器日志
 const create = {
-  url: '/databus/collectors/',
   method: 'post',
+  url: '/databus/collectors/',
 };
 
 // 更新容器日志
 const update = {
-  url: '/databus/collectors/:collector_config_id/',
   method: 'put',
+  url: '/databus/collectors/:collector_config_id/',
 };
 
 // 获取容器日志详情
 const getDetail = {
-  url: '/databus/collectors/:collector_config_id/',
   method: 'get',
+  url: '/databus/collectors/:collector_config_id/',
 };
 
 // 获取namespace列表
 const getNameSpace = {
-  url: '/databus/collectors/list_namespace/',
   method: 'get',
+  url: '/databus/collectors/list_namespace/',
 };
 
 // 获取 集群-node树或集群-namespace-pod列表
 const getPodTree = {
-  url: '/databus/collectors/list_topo/',
   method: 'get',
+  url: '/databus/collectors/list_topo/',
 };
 
 // 获取node 标签列表
 const getNodeLabelList = {
-  url: '/databus/collectors/get_labels/',
   method: 'get',
+  url: '/databus/collectors/get_labels/',
 };
 
 // 获取标签命中的结果
 const getHitResult = {
-  url: '/databus/collectors/match_labels/',
   method: 'post',
+  url: '/databus/collectors/match_labels/',
 };
 
 // 获取workload类型
 const getWorkLoadType = {
-  url: '/databus/collectors/list_workload_type/',
   method: 'get',
+  url: '/databus/collectors/list_workload_type/',
 };
 
 // 获取workload name
 const getWorkLoadName = {
-  url: '/databus/collectors/get_workload/',
   method: 'get',
+  url: '/databus/collectors/get_workload/',
 };
 
 // 获取bcs集群列表
 const getBcsList = {
-  url: '/databus/collectors/list_bcs_clusters/',
   method: 'get',
+  url: '/databus/collectors/list_bcs_clusters/',
 };
 
 // yaml判断
 const yamlJudgement = {
-  url: '/databus/collectors/validate_container_config_yaml/',
   method: 'post',
+  url: '/databus/collectors/validate_container_config_yaml/',
 };
 
 // ui配置转yaml base64
 const containerConfigsToYaml = {
-  url: 'databus/collectors/container_configs_to_yaml/',
   method: 'post',
+  url: 'databus/collectors/container_configs_to_yaml/',
 };
 
 // 预览
 const getLabelHitView = {
-  url: '/databus/collectors/preview_containers/',
   method: 'post',
+  url: '/databus/collectors/preview_containers/',
 };
 
 export {

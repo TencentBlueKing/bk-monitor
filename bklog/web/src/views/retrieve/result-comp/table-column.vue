@@ -41,122 +41,123 @@
 </template>
 
 <script>
-  import TextSegmentation from './text-segmentation';
+import TextSegmentation from './text-segmentation';
 
-  export default {
-    components: {
-      TextSegmentation,
+export default {
+  components: {
+    TextSegmentation,
+  },
+  props: {
+    isWrap: {
+      type: Boolean,
+      default: false,
     },
-    props: {
-      isWrap: {
-        type: Boolean,
-        default: false,
-      },
-      content: {
-        type: [String, Number, Boolean],
-        required: true,
-      },
+    content: {
+      type: [String, Number, Boolean],
+      required: true,
+    },
 
-      field: {
-        type: Object,
-        required: true,
-      },
+    field: {
+      type: Object,
+      required: true,
     },
-    data() {
-      return {
-        isInViewPort: false,
-      };
+  },
+  data() {
+    return {
+      isInViewPort: false,
+    };
+  },
+  mounted() {
+    setTimeout(this.registerObserver, 20);
+  },
+  beforeUnmount() {
+    this.unregisterOberver();
+  },
+  methods: {
+    handleMenuClick(option, content, isLink = false) {
+      const operator = option === 'not' ? 'is not' : option;
+      this.$emit('icon-click', operator, content, isLink);
     },
-    mounted() {
-      setTimeout(this.registerObserver, 20);
+    unregisterOberver() {
+      if (this.intersectionObserver) {
+        this.intersectionObserver.unobserve(this.$el);
+        this.intersectionObserver.disconnect();
+        this.intersectionObserver = null;
+      }
     },
-    beforeUnmount() {
-      this.unregisterOberver();
-    },
-    methods: {
-      handleMenuClick(option, content, isLink = false) {
-        const operator = option === 'not' ? 'is not' : option;
-        this.$emit('icon-click', operator, content, isLink);
-      },
-      unregisterOberver() {
-        if (this.intersectionObserver) {
-          this.intersectionObserver.unobserve(this.$el);
-          this.intersectionObserver.disconnect();
-          this.intersectionObserver = null;
-        }
-      },
-      // 注册Intersection监听
-      registerObserver() {
-        if (this.intersectionObserver) {
-          this.unregisterOberver();
-        }
-        this.intersectionObserver = new IntersectionObserver(entries => {
-          entries.forEach(entry => {
-            if (this.intersectionObserver) {
-              if (entry.boundingClientRect.height > 72) this.$emit('computed-height');
-            }
-          });
+    // 注册Intersection监听
+    registerObserver() {
+      if (this.intersectionObserver) {
+        this.unregisterOberver();
+      }
+      this.intersectionObserver = new IntersectionObserver((entries) => {
+        entries.forEach((entry) => {
+          if (this.intersectionObserver) {
+            if (entry.boundingClientRect.height > 72)
+              this.$emit('computed-height');
+          }
         });
-        this.intersectionObserver?.observe(this.$el);
-      },
+      });
+      this.intersectionObserver?.observe(this.$el);
     },
-  };
+  },
+};
 </script>
 
 <style lang="scss" scoped>
-  .td-log-container {
-    position: relative;
-    line-height: 20px;
+.td-log-container {
+  position: relative;
+  line-height: 20px;
 
-    &.is-wrap {
-      padding-bottom: 3px;
-    }
+  &.is-wrap {
+    padding-bottom: 3px;
+  }
 
-    .field-container {
-      font-family: var(--table-fount-family);
-      font-size: var(--table-fount-size);
-      color: var(--table-fount-color);
+  .field-container {
+    font-family: var(--table-fount-family);
+    font-size: var(--table-fount-size);
+    color: var(--table-fount-color);
 
-      &.active:hover {
-        color: #3a84ff;
-        cursor: pointer;
-      }
-
-      &.mark {
-        color: black;
-        background: #f3e186;
-      }
-    }
-
-    .icon-search-container {
-      display: none;
-      align-items: center;
-      justify-content: center;
-      width: 14px;
-      height: 14px;
-      margin-left: 5px;
-      vertical-align: bottom;
+    &.active:hover {
+      color: #3a84ff;
       cursor: pointer;
-      background: #3a84ff;
-
-      .icon {
-        font-size: 12px;
-        font-weight: bold;
-        color: #fff;
-        background: #3a84ff;
-        transform: scale(0.6);
-
-        &.icon-copy {
-          font-size: 14px;
-          transform: scale(1);
-        }
-      }
     }
 
-    &:hover {
-      .icon-search-container {
-        display: inline-flex;
+    &.mark {
+      color: black;
+      background: #f3e186;
+    }
+  }
+
+  .icon-search-container {
+    display: none;
+    align-items: center;
+    justify-content: center;
+    width: 14px;
+    height: 14px;
+    margin-left: 5px;
+    vertical-align: bottom;
+    cursor: pointer;
+    background: #3a84ff;
+
+    .icon {
+      font-size: 12px;
+      font-weight: bold;
+      color: #fff;
+      background: #3a84ff;
+      transform: scale(0.6);
+
+      &.icon-copy {
+        font-size: 14px;
+        transform: scale(1);
       }
     }
   }
+
+  &:hover {
+    .icon-search-container {
+      display: inline-flex;
+    }
+  }
+}
 </style>

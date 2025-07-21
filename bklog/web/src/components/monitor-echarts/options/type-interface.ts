@@ -45,7 +45,10 @@ export interface IChartOptionPorps {
 }
 
 export interface IChartInstance {
-  getOptions: (data: any, otherOptions?: EChartOption) => { options: EChartOption; legendData: ILegendItem[] };
+  getOptions: (
+    data: any,
+    otherOptions?: EChartOption
+  ) => { options: EChartOption; legendData: ILegendItem[] };
 }
 
 export interface IMoreToolItem {

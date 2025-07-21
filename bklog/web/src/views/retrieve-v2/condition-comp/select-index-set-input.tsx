@@ -24,18 +24,17 @@
  * IN THE SOFTWARE.
  */
 
+import { getOsCommandLabel } from '@/common/util';
 import { Component, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-
-import { getOsCommandLabel } from '@/common/util';
 
 import './select-index-set-input.scss';
 @Component
 export default class SelectIndexSetInput extends tsc<object> {
-  @Prop({ type: Array, required: true }) selectedItemList: Array<any>;
-  @Prop({ type: Boolean, required: true }) isShowSelectPopover: boolean;
-  @Prop({ type: Boolean, required: true }) isAloneType: boolean;
-  @Prop({ type: Object, required: true }) selectedItem: object;
+  @Prop({ required: true, type: Array }) selectedItemList: Array<any>;
+  @Prop({ required: true, type: Boolean }) isShowSelectPopover: boolean;
+  @Prop({ required: true, type: Boolean }) isAloneType: boolean;
+  @Prop({ required: true, type: Object }) selectedItem: object;
 
   overflowTagNode = null;
   overflowTagIndex = null;
@@ -45,7 +44,9 @@ export default class SelectIndexSetInput extends tsc<object> {
   }
 
   get arrowClassName() {
-    return this.isShowSelectPopover ? 'bk-icon icon-angle-up' : 'bklog-icon bklog-arrow-down-filled';
+    return this.isShowSelectPopover
+      ? 'bk-icon icon-angle-up'
+      : 'bklog-icon bklog-arrow-down-filled';
   }
 
   @Watch('watchCalcOverflowVal', { immediate: true })
@@ -129,7 +130,7 @@ export default class SelectIndexSetInput extends tsc<object> {
   }
 
   isShowNotVal(item) {
-    return item.tags.some(item => item.tag_id === 4);
+    return item.tags.some((item) => item.tag_id === 4);
   }
 
   render() {
@@ -139,21 +140,27 @@ export default class SelectIndexSetInput extends tsc<object> {
         return (
           <div>
             <div
-              class='bk-select-name'
+              class="bk-select-name"
               v-bk-overflow-tips={{ placement: 'right' }}
             >
-              <span style={{ color: '#313238', fontSize: '14px' }}>{(this.selectedItem as any).indexName}</span>
-              <span style='color: #757880;'>{(this.selectedItem as any).lightenName}</span>
+              <span style={{ color: '#313238', fontSize: '14px' }}>
+                {(this.selectedItem as any).indexName}
+              </span>
+              <span style="color: #757880;">
+                {(this.selectedItem as any).lightenName}
+              </span>
               <span
+                class="bklog-icon bklog-arrow-down-filled"
                 style={{
                   fontSize: '16px',
-                  transform: this.isShowSelectPopover ? 'rotate(180deg)' : '',
                   marginTop: this.isShowSelectPopover ? '-8px' : '',
+                  transform: this.isShowSelectPopover ? 'rotate(180deg)' : '',
                 }}
-                class='bklog-icon bklog-arrow-down-filled'
               ></span>
             </div>
-            {!this.isShowSelectPopover && <span class='shortcut'>{shortcutKey}</span>}
+            {!this.isShowSelectPopover && (
+              <span class="shortcut">{shortcutKey}</span>
+            )}
           </div>
         );
       }
@@ -164,12 +171,12 @@ export default class SelectIndexSetInput extends tsc<object> {
             'is-fixed-height': !this.isShowSelectPopover,
           }}
         >
-          {this.selectedItemList.map(item => (
-            <div class='select-tag width-limit-tag'>
-              <span class='tag-name'>
-                {this.isShowNotVal(item) && <i class='not-val'></i>}
+          {this.selectedItemList.map((item) => (
+            <div class="select-tag width-limit-tag">
+              <span class="tag-name">
+                {this.isShowNotVal(item) && <i class="not-val"></i>}
                 <span
-                  class='title-overflow'
+                  class="title-overflow"
                   v-bk-overflow-tips={{
                     content: `${item.indexName}${item.lightenName}`,
                   }}
@@ -178,12 +185,12 @@ export default class SelectIndexSetInput extends tsc<object> {
             </div>
           ))}
           <span
+            class="bklog-icon bklog-arrow-down-filled"
             style={{
               fontSize: '16px',
-              transform: this.isShowSelectPopover ? 'rotate(180deg)' : '',
               marginTop: this.isShowSelectPopover ? '-8px' : '',
+              transform: this.isShowSelectPopover ? 'rotate(180deg)' : '',
             }}
-            class='bklog-icon bklog-arrow-down-filled'
           ></span>
         </div>
       );

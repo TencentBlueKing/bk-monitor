@@ -28,7 +28,10 @@ import deepMerge from 'deepmerge';
 
 import MonitorBaseSeries from './base-chart-option';
 import { IChartInstance } from './type-interface';
-export default class MonitorPieSeries extends MonitorBaseSeries implements IChartInstance {
+export default class MonitorPieSeries
+  extends MonitorBaseSeries
+  implements IChartInstance
+{
   public defaultOption: any;
   public defaultSeriesData: { name: string; value: number }[] = [
     {
@@ -177,22 +180,10 @@ export default class MonitorPieSeries extends MonitorBaseSeries implements IChar
     const hasSeries = series && series.length > 0;
     const legendData: any[] = [];
     const options = {
-      tooltip: {
-        show: true,
-        formatter: (params: any) => {
-          if (params.value) {
-            return `<div>
-            <strong>${params.seriesName}</strong>
-            <div>${params.value}</div>
-            </div>`;
-          }
-          return '';
-        },
-      },
       series: hasSeries
         ? series.map((item: any) => {
             const itemData = item.data || [];
-            const seriesData = this.defaultSeriesData.map(set => {
+            const seriesData = this.defaultSeriesData.map((set) => {
               const matchItem = itemData.find((s: any) => s.name === set.name);
               if (matchItem) {
                 return {
@@ -202,36 +193,54 @@ export default class MonitorPieSeries extends MonitorBaseSeries implements IChar
               }
               return {
                 ...set,
-                itemStyle: {
-                  borderColor: '#c4c6cc',
-                  borderWidth: 1,
-                },
                 emphasis: {
                   itemStyle: {
-                    color: '#f7f7f7',
                     areaColor: '#f7f7f7',
                     borderColor: '#c4c6cc',
                     borderWidth: 1,
+                    color: '#f7f7f7',
                   },
+                },
+                itemStyle: {
+                  borderColor: '#c4c6cc',
+                  borderWidth: 1,
                 },
               };
             });
             return {
               ...item,
-              type: 'map',
-              mapType: 'china',
-              roam: false,
               data: seriesData,
+              mapType: 'china',
               right: 50,
+              roam: false,
+              type: 'map',
             };
           })
         : [],
+      tooltip: {
+        formatter: (params: any) => {
+          if (params.value) {
+            return `<div>
+            <strong>${params.seriesName}</strong>
+            <div>${params.value}</div>
+            </div>`;
+          }
+          return '';
+        },
+        show: true,
+      },
     };
     return {
-      options: deepMerge(deepMerge(this.defaultOption, otherOptions, { arrayMerge: this.overwriteMerge }), options, {
-        arrayMerge: this.overwriteMerge,
-      }),
       legendData,
+      options: deepMerge(
+        deepMerge(this.defaultOption, otherOptions, {
+          arrayMerge: this.overwriteMerge,
+        }),
+        options,
+        {
+          arrayMerge: this.overwriteMerge,
+        }
+      ),
     };
   }
 }

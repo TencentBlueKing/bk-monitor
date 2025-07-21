@@ -23,7 +23,14 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, defineComponent, onMounted, onBeforeUnmount, Ref, ref } from 'vue';
+import {
+  computed,
+  defineComponent,
+  onMounted,
+  onBeforeUnmount,
+  Ref,
+  ref,
+} from 'vue';
 
 export default defineComponent({
   props: {
@@ -37,6 +44,9 @@ export default defineComponent({
     },
   },
   emits: ['scroll-change'],
+  render() {
+    return this.renderScrollXBar();
+  },
   setup(props, { emit, expose }) {
     const scrollXElementStyle = computed(() => {
       return {
@@ -54,9 +64,9 @@ export default defineComponent({
     const renderScrollXBar = () => {
       return (
         <div
+          class="bklog-scroll-x"
           ref={refSrollRoot}
           style={scrollXElementStyle.value}
-          class='bklog-scroll-x'
         >
           <div style={scrollXInnerElementStyle.value}></div>
         </div>
@@ -72,7 +82,10 @@ export default defineComponent({
       if (!isAnimating) {
         isAnimating = true;
         requestAnimationFrame(() => {
-          emit('scroll-change', { ...event, target: event.target || refSrollRoot.value });
+          emit('scroll-change', {
+            ...event,
+            target: event.target || refSrollRoot.value,
+          });
           isAnimating = false;
         });
       }
@@ -95,8 +108,5 @@ export default defineComponent({
     return {
       renderScrollXBar,
     };
-  },
-  render() {
-    return this.renderScrollXBar();
   },
 });

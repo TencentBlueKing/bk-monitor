@@ -39,10 +39,7 @@
       </bk-option>
     </bk-select>
     <!-- 关键字过滤 -->
-    <div
-      class="filter-content"
-      v-show="filterType === 'match_word'"
-    >
+    <div class="filter-content" v-show="filterType === 'match_word'">
       <bk-input
         style="width: 300px"
         v-model="filterContent.keyword"
@@ -69,10 +66,7 @@
     </div>
     <!-- 关键字范围 -->
     <div v-show="filterType === 'match_range'">
-      <i18n
-        class="filter-content"
-        path="从匹配{0}开始到匹配{1}之间的所有行"
-      >
+      <i18n class="filter-content" path="从匹配{0}开始到匹配{1}之间的所有行">
         <bk-input
           style="width: 180px; margin: 0 6px"
           v-model="filterContent.start"
@@ -88,10 +82,7 @@
       </i18n>
     </div>
     <!-- 最新行数 -->
-    <div
-      class="filter-content"
-      v-show="filterType === 'tail_line'"
-    >
+    <div class="filter-content" v-show="filterType === 'tail_line'">
       <bk-input
         style="width: 120px"
         :placeholder="$t('请输入整数')"
@@ -104,10 +95,7 @@
     </div>
     <!-- 按行过滤 -->
     <div v-show="filterType === 'line_range'">
-      <i18n
-        class="filter-content"
-        path="从第{0}行到第{1}行"
-      >
+      <i18n class="filter-content" path="从第{0}行到第{1}行">
         <bk-input
           style="width: 120px; margin: 0 6px"
           :placeholder="$t('请输入整数')"
@@ -131,86 +119,86 @@
 </template>
 
 <script>
-  export default {
-    data() {
-      return {
-        filterType: '',
-        filterList: [
-          {
-            id: 'match_word',
-            name: this.$t('关键字过滤'),
-          },
-          {
-            id: 'match_range',
-            name: this.$t('关键字范围'),
-          },
-          {
-            id: 'tail_line',
-            name: this.$t('最新行数'),
-          },
-          {
-            id: 'line_range',
-            name: this.$t('按行过滤'),
-          },
-        ],
-        filterContent: {
-          // 关键字过滤
-          keyword: '',
-          keyword_type: 'keyword_and',
-          // 关键字范围
-          start: '',
-          end: '',
-          // 最新行数
-          line_num: 0,
-          // 按行过滤
-          start_line: 0,
-          end_line: 0,
+export default {
+  data() {
+    return {
+      filterType: '',
+      filterList: [
+        {
+          id: 'match_word',
+          name: this.$t('关键字过滤'),
         },
-        keywordTypeList: [
-          {
-            id: 'keyword_and',
-            name: this.$t('与'),
-          },
-          {
-            id: 'keyword_or',
-            name: this.$t('或'),
-          },
-          {
-            id: 'keyword_not',
-            name: this.$t('非'),
-          },
-        ],
-      };
-    },
-    methods: {
-      handleClone({ filter_type: filterType, filter_content: filterContent }) {
-        this.filterType = filterType;
-        Object.assign(this.filterContent, filterContent);
+        {
+          id: 'match_range',
+          name: this.$t('关键字范围'),
+        },
+        {
+          id: 'tail_line',
+          name: this.$t('最新行数'),
+        },
+        {
+          id: 'line_range',
+          name: this.$t('按行过滤'),
+        },
+      ],
+      filterContent: {
+        // 关键字过滤
+        keyword: '',
+        keyword_type: 'keyword_and',
+        // 关键字范围
+        start: '',
+        end: '',
+        // 最新行数
+        line_num: 0,
+        // 按行过滤
+        start_line: 0,
+        end_line: 0,
       },
-      handleChangeNumber(key, val) {
-        const num = Number(val);
-        if (num <= 0 && val !== '') {
-          // 保证大于0并触发响应式数据更新
-          this.filterContent[key] = -1;
-          this.$nextTick(() => {
-            this.filterContent[key] = 0;
-          });
-        } else {
-          this.filterContent[key] = num;
-        }
-      },
+      keywordTypeList: [
+        {
+          id: 'keyword_and',
+          name: this.$t('与'),
+        },
+        {
+          id: 'keyword_or',
+          name: this.$t('或'),
+        },
+        {
+          id: 'keyword_not',
+          name: this.$t('非'),
+        },
+      ],
+    };
+  },
+  methods: {
+    handleClone({ filter_type: filterType, filter_content: filterContent }) {
+      this.filterType = filterType;
+      Object.assign(this.filterContent, filterContent);
     },
-  };
+    handleChangeNumber(key, val) {
+      const num = Number(val);
+      if (num <= 0 && val !== '') {
+        // 保证大于0并触发响应式数据更新
+        this.filterContent[key] = -1;
+        this.$nextTick(() => {
+          this.filterContent[key] = 0;
+        });
+      } else {
+        this.filterContent[key] = num;
+      }
+    },
+  },
+};
 </script>
 
 <style lang="scss" scoped>
-  .text-filter-container {
+.text-filter-container {
+  display: flex;
+  align-items: center;
+
+  .filter-content {
     display: flex;
     align-items: center;
-
-    .filter-content {
-      display: flex;
-      align-items: center;
-    }
   }
+}
 </style>

@@ -26,13 +26,12 @@
 window.__IS_MONITOR_COMPONENT__ = true;
 window.__IS_MONITOR_TRACE__ = true;
 window.__IS_MONITOR_APM__ = false;
-import Vue from 'vue';
-
 import i18n from '@/language/i18n';
+import Vue from 'vue';
 if (!window.mainComponent?.$t) {
   window.mainComponent = {
-    $t: i18n.t.bind(i18n),
     $i18n: i18n,
+    $t: i18n.t.bind(i18n),
   };
 }
 import JsonFormatWrapper from '@/global/json-format-wrapper.vue';
@@ -42,11 +41,18 @@ import MonitorTraceLog from './monitor';
 
 const logStore = useStore();
 
-const initMonitorState = payload => {
+const initMonitorState = (payload) => {
   logStore.commit('initMonitorState', payload);
 };
 const initGlobalComponents = () => {
   Vue.component('JsonFormatWrapper', JsonFormatWrapper);
 };
 const Vue2 = Vue;
-export { MonitorTraceLog, logStore, i18n, Vue2, initMonitorState, initGlobalComponents };
+export {
+  MonitorTraceLog,
+  logStore,
+  i18n,
+  Vue2,
+  initMonitorState,
+  initGlobalComponents,
+};

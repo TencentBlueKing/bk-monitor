@@ -24,6 +24,7 @@
  * IN THE SOFTWARE.
  */
 import { computed, defineComponent, PropType } from 'vue';
+
 import './index.scss';
 
 export type ShowListType = {
@@ -31,43 +32,45 @@ export type ShowListType = {
   label?: string;
   desc?: string;
   descType?: string;
-  valueRender?: (value: any, object: any) => string | HTMLElement;
+  valueRender?: (value: any, object: any) => HTMLElement | string;
 };
 
 export default defineComponent({
   props: {
-    object: {
-      type: Object,
-      default: () => ({}),
-    },
-    showList: {
-      type: Array as PropType<ShowListType[]>,
-      default: () => [],
-    },
-    labelWidth: {
-      type: Number,
-      default: 200,
-    },
     formType: {
       type: String,
     },
+    labelWidth: {
+      default: 200,
+      type: Number,
+    },
+    object: {
+      default: () => ({}),
+      type: Object,
+    },
+    showList: {
+      default: () => [],
+      type: Array as PropType<ShowListType[]>,
+    },
   },
   setup(props) {
-    const defaultValueRender = (name: string) => <span>{props.object[name] ?? 'undefined'}</span>;
+    const defaultValueRender = (name: string) => (
+      <span>{props.object[name] ?? 'undefined'}</span>
+    );
     const renderList = computed(() => {
       if (props.showList.length) {
-        return props.showList.map(item => {
+        return props.showList.map((item) => {
           return {
+            desc: item.desc,
+            descType: item.descType,
             fieldName: item.fieldName,
             label: item.label,
             valueRender: item.valueRender ?? defaultValueRender,
-            desc: item.desc,
-            descType: item.descType,
           };
         });
       }
 
-      return Object.keys(props.object).map(name => {
+      return Object.keys(props.object).map((name) => {
         return {
           fieldName: name,
           label: name,
@@ -77,18 +80,18 @@ export default defineComponent({
     });
     return () => (
       <bk-form
+        formType={props.formType}
         label-width={props.labelWidth}
         model={props.object}
-        formType={props.formType}
         on-input={() => {}}
       >
-        {renderList.value.map(item => (
+        {renderList.value.map((item) => (
           <bk-form-item
-            label={item.label ?? item.fieldName}
             desc={item.desc}
             desc-type={item.descType}
-            style='margin-top: 0;'
-            ext-cls='bklog-v3-object-view-item'
+            ext-cls="bklog-v3-object-view-item"
+            label={item.label ?? item.fieldName}
+            style="margin-top: 0;"
           >
             {item.valueRender(item.fieldName, props.object)}
           </bk-form-item>

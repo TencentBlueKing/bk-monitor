@@ -25,14 +25,8 @@
 -->
 
 <template>
-  <div
-    v-if="isNotApplyPage"
-    class="step-result-wrapper"
-  >
-    <div
-      class="step-result-container"
-      data-test-id="finish_div_finishBox"
-    >
+  <div v-if="isNotApplyPage" class="step-result-wrapper">
+    <div class="step-result-container" data-test-id="finish_div_finishBox">
       <i class="bk-icon icon-check-circle"></i>
       <h3 class="title">{{ finishText }}</h3>
       <!-- <p v-if="host.count"> -->
@@ -60,14 +54,8 @@
       </div>
     </div>
   </div>
-  <div
-    v-else
-    class="approval-detail-container"
-  >
-    <bk-exception
-      v-if="applyData"
-      type="building"
-    >
+  <div v-else class="approval-detail-container">
+    <bk-exception v-if="applyData" type="building">
       <div class="approval-text">
         <span>{{ $t('容量评估进行中') }}</span>
         <a
@@ -85,153 +73,153 @@
 </template>
 
 <script>
-  export default {
-    name: 'StepResult',
-    props: {
-      operateType: String,
-      isSwitch: Boolean,
-      indexSetId: {
-        type: [String, Number],
-        default: '',
+export default {
+  name: 'StepResult',
+  props: {
+    operateType: String,
+    isSwitch: Boolean,
+    indexSetId: {
+      type: [String, Number],
+      default: '',
+    },
+    type: {
+      type: String,
+      default: 'create',
+    },
+    host: {
+      type: Object,
+      default() {
+        return {};
       },
-      type: {
-        type: String,
-        default: 'create',
+    },
+    applyData: {
+      type: Object,
+      require: true,
+    },
+  },
+  data() {
+    return {
+      finish: {
+        add: this.$t('采集项创建完成'),
+        edit: this.$t('采集项修改完成'),
+        editFinish: this.$t('采集项修改完成'),
+        field: this.$t('采集项修改完成'),
+        start: this.$t('采集项启用完成'),
+        stop: this.$t('采集项停用完成'),
+        storage: this.$t('采集项修改完成'),
+        container: this.$t('采集项修改完成'),
+        masking: this.$t('采集项修改完成'),
       },
-      host: {
-        type: Object,
-        default() {
-          return {};
+    };
+  },
+  computed: {
+    // title () {
+    //     const titleText = {
+    //         add: '采集配置创建完成',
+    //         edit: '采集配置修改完成',
+    //         start: '启用采集配置任务完成',
+    //         stop: '停用采集配置任务完成'
+    //     }
+    //     return titleText[this.operateType]
+    // }
+    finishText() {
+      return this.finish[this.operateType];
+    },
+    isNotApplyPage() {
+      return this.applyData?.itsm_ticket_status !== 'applying';
+    },
+  },
+  methods: {
+    routeChange(type) {
+      let routeName = 'collection-item';
+      if (type === 'search' || type === 'clear') {
+        routeName = 'retrieve';
+      }
+      this.$router.replace({
+        name: routeName,
+        params: {
+          indexId: type === 'search' && this.indexSetId ? this.indexSetId : '',
         },
-      },
-      applyData: {
-        type: Object,
-        require: true,
-      },
-    },
-    data() {
-      return {
-        finish: {
-          add: this.$t('采集项创建完成'),
-          edit: this.$t('采集项修改完成'),
-          editFinish: this.$t('采集项修改完成'),
-          field: this.$t('采集项修改完成'),
-          start: this.$t('采集项启用完成'),
-          stop: this.$t('采集项停用完成'),
-          storage: this.$t('采集项修改完成'),
-          container: this.$t('采集项修改完成'),
-          masking: this.$t('采集项修改完成'),
+        query: {
+          spaceUid: this.$store.state.spaceUid,
         },
-      };
+      });
+      this.$emit('step-result-back');
     },
-    computed: {
-      // title () {
-      //     const titleText = {
-      //         add: '采集配置创建完成',
-      //         edit: '采集配置修改完成',
-      //         start: '启用采集配置任务完成',
-      //         stop: '停用采集配置任务完成'
-      //     }
-      //     return titleText[this.operateType]
-      // }
-      finishText() {
-        return this.finish[this.operateType];
-      },
-      isNotApplyPage() {
-        return this.applyData?.itsm_ticket_status !== 'applying';
-      },
-    },
-    methods: {
-      routeChange(type) {
-        let routeName = 'collection-item';
-        if (type === 'search' || type === 'clear') {
-          routeName = 'retrieve';
-        }
-        this.$router.replace({
-          name: routeName,
-          params: {
-            indexId: type === 'search' && this.indexSetId ? this.indexSetId : '',
-          },
-          query: {
-            spaceUid: this.$store.state.spaceUid,
-          },
-        });
-        this.$emit('step-result-back');
-      },
-    },
-  };
+  },
+};
 </script>
 
 <style lang="scss">
-  @import '@/scss/conf';
+@import '@/scss/conf';
 
-  .step-result-wrapper {
-    position: relative;
-    padding-top: 105px;
+.step-result-wrapper {
+  position: relative;
+  padding-top: 105px;
 
-    .step-result-container {
-      width: 500px;
-      margin: 0 auto;
-      text-align: center;
+  .step-result-container {
+    width: 500px;
+    margin: 0 auto;
+    text-align: center;
 
-      .icon-check-circle {
-        font-size: 56px;
-        color: $successColor;
-      }
-
-      .title {
-        padding: 0;
-        margin: 21px 0 0 0;
-        font-size: 16px;
-        color: #000;
-      }
-
-      .info {
-        margin-top: 10px;
-        font-size: 12px;
-        color: #6e7079;
-      }
-
-      .host-number {
-        margin: 0 3px;
-      }
-
-      .text-primary {
-        color: $primaryColor;
-      }
-
-      .text-success {
-        color: $successColor;
-      }
-
-      .text-failed {
-        color: $failColor;
-      }
+    .icon-check-circle {
+      font-size: 56px;
+      color: $successColor;
     }
 
-    .result-button-group {
-      margin-top: 36px;
-      font-size: 0;
-
-      .bk-button + .bk-button {
-        margin-left: 10px;
-      }
-    }
-  }
-
-  .approval-detail-container {
-    height: 100%;
-    padding-top: 100px;
-    font-size: 14px;
-
-    .approval-text {
-      display: flex;
-      flex-flow: column;
+    .title {
+      padding: 0;
+      margin: 21px 0 0 0;
       font-size: 16px;
+      color: #000;
+    }
 
-      .button-text {
-        margin-top: 16px;
-      }
+    .info {
+      margin-top: 10px;
+      font-size: 12px;
+      color: #6e7079;
+    }
+
+    .host-number {
+      margin: 0 3px;
+    }
+
+    .text-primary {
+      color: $primaryColor;
+    }
+
+    .text-success {
+      color: $successColor;
+    }
+
+    .text-failed {
+      color: $failColor;
     }
   }
+
+  .result-button-group {
+    margin-top: 36px;
+    font-size: 0;
+
+    .bk-button + .bk-button {
+      margin-left: 10px;
+    }
+  }
+}
+
+.approval-detail-container {
+  height: 100%;
+  padding-top: 100px;
+  font-size: 14px;
+
+  .approval-text {
+    display: flex;
+    flex-flow: column;
+    font-size: 16px;
+
+    .button-text {
+      margin-top: 16px;
+    }
+  }
+}
 </style>

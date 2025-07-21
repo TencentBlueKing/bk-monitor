@@ -25,14 +25,8 @@
 -->
 
 <template>
-  <div
-    class="log-clean-create-container"
-    v-bkloading="{ isLoading: loading }"
-  >
-    <article
-      v-if="!isCleaning"
-      class="article"
-    >
+  <div class="log-clean-create-container" v-bkloading="{ isLoading: loading }">
+    <article v-if="!isCleaning" class="article">
       <step-field
         :cur-step="curStep"
         :is-clean-field="true"
@@ -49,94 +43,91 @@
       /> -->
     </article>
 
-    <article
-      v-else
-      class="article clean-landing"
-    >
+    <article v-else class="article clean-landing">
       <advance-clean-land back-router="log-clean-list" />
     </article>
   </div>
 </template>
 
 <script>
-  // import stepStorage from '@/components/collection-access/step-storage';
-  import advanceCleanLand from '@/components/collection-access/advance-clean-land';
-  import stepField from '@/components/collection-access/step-field';
-  import { mapState } from 'vuex';
+// import stepStorage from '@/components/collection-access/step-storage';
+import advanceCleanLand from '@/components/collection-access/advance-clean-land';
+import stepField from '@/components/collection-access/step-field';
+import { mapState } from 'vuex';
 
-  export default {
-    name: 'LogCleanCreate',
-    components: {
-      stepField,
-      // stepStorage,
-      advanceCleanLand,
-    },
-    data() {
-      return {
-        curStep: 1,
-        isCleaning: false,
-        loading: false,
-        isSubmit: false,
-        collectItem: '',
-      };
-    },
-    computed: {
-      ...mapState({
-        showRouterLeaveTip: state => state.showRouterLeaveTip,
-      }),
-    },
+export default {
+  name: 'LogCleanCreate',
+  components: {
+    stepField,
+    // stepStorage,
+    advanceCleanLand,
+  },
+  data() {
+    return {
+      curStep: 1,
+      isCleaning: false,
+      loading: false,
+      isSubmit: false,
+      collectItem: '',
+    };
+  },
+  computed: {
+    ...mapState({
+      showRouterLeaveTip: (state) => state.showRouterLeaveTip,
+    }),
+  },
 
-    beforeRouteLeave(to, from, next) {
-      if (!this.isSubmit && !this.showRouterLeaveTip) {
-        this.$bkInfo({
-          title: this.$t('是否放弃本次操作？'),
-          confirmFn: () => {
-            next();
+  beforeRouteLeave(to, from, next) {
+    if (!this.isSubmit && !this.showRouterLeaveTip) {
+      this.$bkInfo({
+        title: this.$t('是否放弃本次操作？'),
+        confirmFn: () => {
+          next();
+        },
+      });
+      return;
+    }
+    next();
+  },
+  methods: {
+    changeSubmit(isSubmit) {
+      this.isSubmit = isSubmit;
+    },
+    stepChange(num) {
+      if (num === 'back') {
+        this.$router.push({
+          name: 'log-clean-list',
+          query: {
+            spaceUid: this.$store.state.spaceUid,
           },
         });
         return;
       }
-      next();
     },
-    methods: {
-      changeSubmit(isSubmit) {
-        this.isSubmit = isSubmit;
-      },
-      stepChange(num) {
-        if (num === 'back') {
-          this.$router.push({
-            name: 'log-clean-list',
-            query: {
-              spaceUid: this.$store.state.spaceUid,
-            },
-          });
-          return;
-        }
-      },
-    },
-  };
+  },
+};
 </script>
 
 <style lang="scss" scoped>
-  @import '@/scss/mixins/scroller';
+@import '@/scss/mixins/scroller';
 
-  .log-clean-create-container {
-    height: 100%;
-    padding: 20px 24px;
-    overflow: auto;
+.log-clean-create-container {
+  height: 100%;
+  padding: 20px 24px;
+  overflow: auto;
 
-    @include scroller($backgroundColor: #adadad, $width: 4px);
+  @include scroller($backgroundColor: #adadad, $width: 4px);
 
-    .article {
-      margin-bottom: 20px;
-      background-color: #fff;
-      border: 1px solid #dcdee5;
-      border-radius: 3px;
-    }
-
-    .clean-landing {
-      height: calc(100% - 24px);
-      border: 0;
-    }
+  .article {
+    margin-bottom: 20px;
+    background-color: #fff;
+    border: 1px solid #dcdee5;
+    border-radius: 3px;
   }
+
+  .clean-landing {
+    height: calc(100% - 24px);
+    border: 0;
+  }
+}
 </style>

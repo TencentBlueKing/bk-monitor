@@ -23,10 +23,9 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, onMounted, Ref, ref } from 'vue';
-
 // import useResizeObserve from '@/hooks/use-resize-observe';
 import { debounce } from 'lodash';
+import { computed, onMounted, Ref, ref } from 'vue';
 
 import useIntersectionObserver from '../../../../hooks/use-intersection-observer';
 import RetrieveHelper from '../../../retrieve-helper';
@@ -38,7 +37,9 @@ function deepQueryShadowSelector(selector) {
     if (el) return el;
 
     // 查找当前根下所有可能的 Shadow Host
-    const shadowHosts = Array.from(root.querySelectorAll('*')).filter(el => el.shadowRoot);
+    const shadowHosts = Array.from(root.querySelectorAll('*')).filter(
+      (el) => el.shadowRoot
+    );
 
     // 递归穿透每个 Shadow Host
     for (const host of shadowHosts) {
@@ -54,8 +55,8 @@ function deepQueryShadowSelector(selector) {
 }
 
 export default ({
-  loadMoreFn,
   container,
+  loadMoreFn,
   refLoadMoreElement,
 }: {
   rootElement?: Ref<HTMLElement>;
@@ -95,7 +96,11 @@ export default ({
   };
 
   const scrollToTop = (top = 0, smooth = true) => {
-    getScrollElement()?.scrollTo({ left: 0, top: top, behavior: smooth ? 'smooth' : 'instant' });
+    getScrollElement()?.scrollTo({
+      behavior: smooth ? 'smooth' : 'instant',
+      left: 0,
+      top: top,
+    });
   };
 
   const hasScrollX = computed(() => scrollWidth.value > offsetWidth.value);
@@ -108,7 +113,7 @@ export default ({
 
   const debounceComputeRect = debounce(computeRect, 300);
 
-  useIntersectionObserver(refLoadMoreElement, inter => {
+  useIntersectionObserver(refLoadMoreElement, (inter) => {
     if (inter.isIntersecting) {
       loadMoreFn?.();
     }
@@ -119,11 +124,11 @@ export default ({
   });
 
   return {
-    scrollToTop,
-    hasScrollX,
     computeRect: debounceComputeRect,
-    scrollDirection,
+    hasScrollX,
     offsetWidth,
+    scrollDirection,
+    scrollToTop,
     scrollWidth,
   };
 };

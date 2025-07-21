@@ -30,6 +30,8 @@ module.exports = function (api) {
     [
       '@babel/preset-env',
       {
+        corejs: 3,
+        debug: false,
         targets: {
           browsers: isMonitorCompiler
             ? ['> 0.3%', 'Chrome > 90', 'last 2 versions', 'Firefox ESR', 'not dead']
@@ -37,8 +39,6 @@ module.exports = function (api) {
           node: 'current',
         },
         useBuiltIns: 'usage',
-        corejs: 3,
-        debug: false,
       },
     ],
     ['@vue/babel-preset-jsx', { compositionAPI: true }],
@@ -56,15 +56,15 @@ module.exports = function (api) {
     [
       'module-resolver',
       {
-        root: ['./src'],
         alias: {
           '@': './src',
         },
+        root: ['./src'],
       },
     ],
   ].filter(Boolean);
   return {
-    presets,
     plugins,
+    presets,
   };
 };

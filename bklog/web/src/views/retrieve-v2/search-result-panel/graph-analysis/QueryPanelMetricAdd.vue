@@ -24,13 +24,13 @@
 * IN THE SOFTWARE.
 -->
 <script setup>
-import { ref, computed } from "vue";
-import useLocale from "@/hooks/use-locale";
+import { ref, computed } from 'vue';
+import useLocale from '@/hooks/use-locale';
 const { $t } = useLocale();
 const isShow = ref(false);
-const keyword = ref("");
+const keyword = ref('');
 const formData = ref({
-  name: "",
+  name: '',
   aggregate: null,
 });
 const disabledTips = ref(false);
@@ -43,7 +43,7 @@ const props = defineProps({
   isAdd: Boolean,
   disabledTips: {
     type: String,
-    default: "",
+    default: '',
   },
   fields: {
     type: Array,
@@ -74,7 +74,9 @@ const cancel = () => {};
 
 const isDisabled = (row) => {
   const exitItem = namesMap.value.names.get(row.name);
-  return exitItem && aggregationOptions.value.every((item) => exitItem.has(item.id));
+  return (
+    exitItem && aggregationOptions.value.every((item) => exitItem.has(item.id))
+  );
 };
 
 const isActive = (row) => {
@@ -102,7 +104,9 @@ const isActive = (row) => {
       <div class="full-height flex-column bv-query--order-select-box-shadow">
         <div class="flex-1 flex-row">
           <div class="bv-metric-select flex-column full-height flex-1">
-            <div class="flex-row align-items-center justify-content-between mb-min">
+            <div
+              class="flex-row align-items-center justify-content-between mb-min"
+            >
               <Input
                 v-model.trim="keyword"
                 behavior="simplicity"
@@ -129,7 +133,8 @@ const isActive = (row) => {
                     :class="[
                       'bv-metric-field flex-row align-items-center cursor-pointer',
                       {
-                        'bv-metric-field-disabled': isDisabled(row) && !isActive(row),
+                        'bv-metric-field-disabled':
+                          isDisabled(row) && !isActive(row),
                         'bv-metric-field-active': isActive(row),
                       },
                     ]"
@@ -140,14 +145,14 @@ const isActive = (row) => {
                   <div
                     class="full-height align-items-center justify-content-center flex-column text-gray"
                   >
-                    {{ keyword ? $t("无匹配数据") : $t("暂无数据") }}
+                    {{ keyword ? $t('无匹配数据') : $t('暂无数据') }}
                   </div>
                 </template>
               </div>
             </div>
           </div>
           <div class="bv-metric-radio-box">
-            <div class="text-title mb-small">{{ $t("聚合算法") }}</div>
+            <div class="text-title mb-small">{{ $t('聚合算法') }}</div>
             <!-- <Radio.Group v-model="formData.aggregate">
               <div class="flex-1 overflow-auto">
                 <div
@@ -163,7 +168,9 @@ const isActive = (row) => {
             </Radio.Group> -->
           </div>
         </div>
-        <div class="bv-metric-footer flex-row justify-content-end align-items-center">
+        <div
+          class="bv-metric-footer flex-row justify-content-end align-items-center"
+        >
           <Button
             @click="ensure"
             :disabled="!formData.name"
@@ -171,10 +178,10 @@ const isActive = (row) => {
             theme="primary"
             class="mr-normal"
           >
-            {{ $t("确定") }}
+            {{ $t('确定') }}
           </Button>
           <Button @click="cancel" size="small">
-            {{ $t("取消") }}
+            {{ $t('取消') }}
           </Button>
         </div>
       </div>

@@ -56,28 +56,26 @@
           ></bk-input>
           <bk-button
             class="king-button"
-            :disabled="!formData.resultTableId || formData.resultTableId === '*'"
+            :disabled="
+              !formData.resultTableId || formData.resultTableId === '*'
+            "
             :loading="searchLoading"
             @click="handleSearch"
           >
             {{ $t('搜索') }}
           </bk-button>
-          <div
-            v-if="indexErrorText"
-            class="error-tips-container"
-          >
+          <div v-if="indexErrorText" class="error-tips-container">
             <span
               class="bklog-icon bklog-info-fill"
               v-bk-tooltips="{ width: 440, content: indexErrorText }"
             ></span>
           </div>
-          <div class="input-tips">{{ $t('支持“*”匹配，不支持其他特殊符号') }}</div>
+          <div class="input-tips">
+            {{ $t('支持“*”匹配，不支持其他特殊符号') }}
+          </div>
         </bk-form-item>
         <bk-form-item label="">
-          <div
-            v-if="matchedTableIds.length"
-            class="result-tips"
-          >
+          <div v-if="matchedTableIds.length" class="result-tips">
             <i class="bk-icon icon-check-circle-shape"></i>
             {{ $t('成功匹配 {x} 条索引', { x: matchedTableIds.length }) }}
           </div>
@@ -102,11 +100,7 @@
             </template>
           </bk-table>
         </bk-form-item>
-        <bk-form-item
-          :label="$t('时间字段')"
-          property="time_field"
-          required
-        >
+        <bk-form-item :label="$t('时间字段')" property="time_field" required>
           <bk-select
             :clearable="false"
             :value="formData.time_field"
@@ -151,10 +145,7 @@
           </div>
         </template>
       </bk-form>
-      <div
-        class="button-footer"
-        slot="footer"
-      >
+      <div class="button-footer" slot="footer">
         <bk-button
           class="king-button"
           :loading="confirmLoading"
@@ -163,44 +154,103 @@
         >
           {{ $t('添加') }}
         </bk-button>
-        <bk-button
-          class="king-button"
-          @click="handleCancel"
-          >{{ $t('取消') }}</bk-button
-        >
+        <bk-button class="king-button" @click="handleCancel">{{
+          $t('取消')
+        }}</bk-button>
       </div>
     </div>
   </bk-dialog>
 </template>
 
 <script>
-  import EmptyStatus from '@/components/empty-status';
-  import { mapState } from 'vuex';
+import EmptyStatus from '@/components/empty-status';
+import { mapState } from 'vuex';
 
-  export default {
-    components: {
-      EmptyStatus,
+export default {
+  components: {
+    EmptyStatus,
+  },
+  props: {
+    parentData: {
+      type: Object,
+      required: true,
     },
-    props: {
-      parentData: {
-        type: Object,
-        required: true,
-      },
-      timeIndex: {
-        type: Object,
-        default: null,
-      },
+    timeIndex: {
+      type: Object,
+      default: null,
     },
-    data() {
-      const scenarioId = this.$route.name.split('-')[0];
-      return {
-        scenarioId,
-        showDialog: false,
+  },
+  data() {
+    const scenarioId = this.$route.name.split('-')[0];
+    return {
+      scenarioId,
+      showDialog: false,
+      tableLoading: false,
+      searchLoading: false,
+      confirmLoading: false,
+      indexErrorText: '',
+      emptyType: 'empty',
+      matchedTableIds: [], // 匹配到的索引 id，result table id list
+      timeFields: [], // 字段类型为 date 或 long 的字段
+      formData: {
+        resultTableId: '',
+        time_field: '',
+        time_field_type: '',
+        time_field_unit: 'microsecond',
+      },
+      timeUnits: [
+        { name: this.$t('秒（second）'), id: 'second' },
+        { name: this.$t('毫秒（millisecond）'), id: 'millisecond' },
+        { name: this.$t('微秒（microsecond）'), id: 'microsecond' },
+      ],
+      formRules: {
+        resultTableId: [
+          {
+            required: true,
+            trigger: 'blur',
+          },
+          {
+            validator: (val) => val && val !== '*',
+            trigger: 'blur',
+          },
+        ],
+        time_field: [
+          {
+            required: true,
+            trigger: 'change',
+          },
+          {
+            validator: (val) => {
+              if (!this.timeIndex) return true;
+              return this.timeIndex.time_field === val;
+            },
+            message: this.$t('时间字段需要保持一致'),
+            trigger: 'change',
+          },
+        ],
+        time_field_unit: [
+          {
+            required: true,
+            trigger: 'change',
+          },
+        ],
+      },
+    };
+  },
+  computed: {
+    ...mapState(['spaceUid', 'bkBizId']),
+  },
+  methods: {
+    openDialog() {
+      this.showDialog = true;
+      this.$refs.formRef.clearError();
+      this.emptyType = 'empty';
+      Object.assign(this, {
         tableLoading: false,
         searchLoading: false,
         confirmLoading: false,
+
         indexErrorText: '',
-        emptyType: 'empty',
         matchedTableIds: [], // 匹配到的索引 id，result table id list
         timeFields: [], // 字段类型为 date 或 long 的字段
         formData: {
@@ -209,278 +259,226 @@
           time_field_type: '',
           time_field_unit: 'microsecond',
         },
-        timeUnits: [
-          { name: this.$t('秒（second）'), id: 'second' },
-          { name: this.$t('毫秒（millisecond）'), id: 'millisecond' },
-          { name: this.$t('微秒（microsecond）'), id: 'microsecond' },
-        ],
-        formRules: {
-          resultTableId: [
-            {
-              required: true,
-              trigger: 'blur',
-            },
-            {
-              validator: val => val && val !== '*',
-              trigger: 'blur',
-            },
-          ],
-          time_field: [
-            {
-              required: true,
-              trigger: 'change',
-            },
-            {
-              validator: val => {
-                if (!this.timeIndex) return true;
-                return this.timeIndex.time_field === val;
-              },
-              message: this.$t('时间字段需要保持一致'),
-              trigger: 'change',
-            },
-          ],
-          time_field_unit: [
-            {
-              required: true,
-              trigger: 'change',
-            },
-          ],
-        },
-      };
+      });
     },
-    computed: {
-      ...mapState(['spaceUid', 'bkBizId']),
-    },
-    methods: {
-      openDialog() {
-        this.showDialog = true;
-        this.$refs.formRef.clearError();
+    handleOperation(type) {
+      if (type === 'clear-filter') {
+        this.formData.resultTableId = '*';
         this.emptyType = 'empty';
-        Object.assign(this, {
-          tableLoading: false,
-          searchLoading: false,
-          confirmLoading: false,
+        this.handleSearch();
+        return;
+      }
 
-          indexErrorText: '',
-          matchedTableIds: [], // 匹配到的索引 id，result table id list
-          timeFields: [], // 字段类型为 date 或 long 的字段
-          formData: {
-            resultTableId: '',
-            time_field: '',
-            time_field_type: '',
-            time_field_unit: 'microsecond',
+      if (type === 'refresh') {
+        this.emptyType = 'empty';
+        this.handleSearch();
+        return;
+      }
+    },
+    // 如果result_table_id为空，在光标后自动追加*
+    handleFocus(value, event) {
+      if (!this.formData.resultTableId) {
+        this.formData.resultTableId = '*';
+        setTimeout(() => {
+          event.target.setSelectionRange(0, 0);
+        }, 50);
+      }
+    },
+    // 匹配索引和字段
+    async handleSearch() {
+      if (!this.formData.resultTableId || this.formData.resultTableId === '*') {
+        return;
+      }
+      this.emptyType = 'search-empty';
+      this.indexErrorText = '';
+      this.formData.time_field = '';
+      this.formData.time_field_type = '';
+      this.formData.time_field_unit = 'microsecond';
+      this.searchLoading = true;
+      this.tableLoading = true;
+      const [idRes, fieldRes] = await Promise.all([
+        this.fetchList(),
+        this.fetchInfo(),
+      ]);
+      this.matchedTableIds = idRes;
+      this.timeFields = fieldRes;
+      this.searchLoading = false;
+      this.tableLoading = false;
+    },
+    async fetchList() {
+      try {
+        const res = await this.$http.request('/resultTables/list', {
+          query: {
+            scenario_id: this.scenarioId,
+            bk_biz_id: this.bkBizId,
+            storage_cluster_id: this.parentData.storage_cluster_id,
+            result_table_id: this.formData.resultTableId,
           },
         });
-      },
-      handleOperation(type) {
-        if (type === 'clear-filter') {
-          this.formData.resultTableId = '*';
-          this.emptyType = 'empty';
-          this.handleSearch();
-          return;
-        }
-
-        if (type === 'refresh') {
-          this.emptyType = 'empty';
-          this.handleSearch();
-          return;
-        }
-      },
-      // 如果result_table_id为空，在光标后自动追加*
-      handleFocus(value, event) {
-        if (!this.formData.resultTableId) {
-          this.formData.resultTableId = '*';
-          setTimeout(() => {
-            event.target.setSelectionRange(0, 0);
-          }, 50);
-        }
-      },
-      // 匹配索引和字段
-      async handleSearch() {
-        if (!this.formData.resultTableId || this.formData.resultTableId === '*') {
-          return;
-        }
-        this.emptyType = 'search-empty';
-        this.indexErrorText = '';
-        this.formData.time_field = '';
-        this.formData.time_field_type = '';
-        this.formData.time_field_unit = 'microsecond';
-        this.searchLoading = true;
-        this.tableLoading = true;
-        const [idRes, fieldRes] = await Promise.all([this.fetchList(), this.fetchInfo()]);
-        this.matchedTableIds = idRes;
-        this.timeFields = fieldRes;
-        this.searchLoading = false;
-        this.tableLoading = false;
-      },
-      async fetchList() {
-        try {
-          const res = await this.$http.request('/resultTables/list', {
-            query: {
-              scenario_id: this.scenarioId,
-              bk_biz_id: this.bkBizId,
-              storage_cluster_id: this.parentData.storage_cluster_id,
-              result_table_id: this.formData.resultTableId,
-            },
-          });
-          return res.data;
-        } catch (e) {
-          console.warn(e);
-          this.indexErrorText += e.message;
-          this.emptyType = '500';
-          return [];
-        }
-      },
-      async fetchInfo(foreignParams) {
-        try {
-          const res = await this.$http.request(
-            '/resultTables/info',
-            !!foreignParams
-              ? foreignParams
-              : {
-                  params: {
-                    result_table_id: this.formData.resultTableId,
-                  },
-                  query: {
-                    scenario_id: this.scenarioId,
-                    bk_biz_id: this.bkBizId,
-                    storage_cluster_id: this.parentData.storage_cluster_id,
-                  },
+        return res.data;
+      } catch (e) {
+        console.warn(e);
+        this.indexErrorText += e.message;
+        this.emptyType = '500';
+        return [];
+      }
+    },
+    async fetchInfo(foreignParams) {
+      try {
+        const res = await this.$http.request(
+          '/resultTables/info',
+          !!foreignParams
+            ? foreignParams
+            : {
+                params: {
+                  result_table_id: this.formData.resultTableId,
                 },
+                query: {
+                  scenario_id: this.scenarioId,
+                  bk_biz_id: this.bkBizId,
+                  storage_cluster_id: this.parentData.storage_cluster_id,
+                },
+              }
+        );
+        if (foreignParams) return res;
+        const timeFields = res.data.fields.filter(
+          (item) => item.field_type === 'date' || item.field_type === 'long'
+        );
+        // 如果已经添加了索引，回填三个字段（禁止更改字段名）
+        if (this.timeIndex) {
+          const find = timeFields.find(
+            (item) => item.field_name === this.timeIndex.time_field
           );
-          if (foreignParams) return res;
-          const timeFields = res.data.fields.filter(item => item.field_type === 'date' || item.field_type === 'long');
-          // 如果已经添加了索引，回填三个字段（禁止更改字段名）
-          if (this.timeIndex) {
-            const find = timeFields.find(item => item.field_name === this.timeIndex.time_field);
-            if (find) {
-              Object.assign(this.formData, this.timeIndex);
-            }
+          if (find) {
+            Object.assign(this.formData, this.timeIndex);
           }
-          return timeFields;
-        } catch (e) {
-          console.warn(e);
-          this.indexErrorText += e.message;
-          this.emptyType = '500';
-          return [];
         }
-      },
-      // 选择时间字段
-      handleSelectedTimeField(fieldName) {
-        this.formData.time_field = fieldName;
-        this.formData.time_field_type = this.timeFields.find(item => item.field_name === fieldName).field_type;
-      },
-      // 确认添加
-      async handleConfirm() {
-        try {
-          await this.$refs.formRef.validate();
-          this.confirmLoading = true;
-          const data = {
-            scenario_id: this.scenarioId,
-            storage_cluster_id: this.parentData.storage_cluster_id,
-            basic_indices: this.parentData.indexes.map(item => ({
-              index: item.result_table_id,
-              time_field: this.formData.time_field,
-              time_field_type: this.formData.time_field_type,
-            })),
-            append_index: {
-              index: this.formData.resultTableId,
-              time_field: this.formData.time_field,
-              time_field_type: this.formData.time_field_type,
-            },
-          };
-          await this.$http.request('/resultTables/adapt', { data });
-          this.$emit('selected', {
-            bk_biz_id: this.bkBizId,
-            result_table_id: this.formData.resultTableId,
-          });
-          this.$emit('update:time-index', {
+        return timeFields;
+      } catch (e) {
+        console.warn(e);
+        this.indexErrorText += e.message;
+        this.emptyType = '500';
+        return [];
+      }
+    },
+    // 选择时间字段
+    handleSelectedTimeField(fieldName) {
+      this.formData.time_field = fieldName;
+      this.formData.time_field_type = this.timeFields.find(
+        (item) => item.field_name === fieldName
+      ).field_type;
+    },
+    // 确认添加
+    async handleConfirm() {
+      try {
+        await this.$refs.formRef.validate();
+        this.confirmLoading = true;
+        const data = {
+          scenario_id: this.scenarioId,
+          storage_cluster_id: this.parentData.storage_cluster_id,
+          basic_indices: this.parentData.indexes.map((item) => ({
+            index: item.result_table_id,
             time_field: this.formData.time_field,
             time_field_type: this.formData.time_field_type,
-            time_field_unit: this.formData.time_field_unit,
-          });
-          this.showDialog = false;
-        } catch (e) {
-          console.warn(e);
-        } finally {
-          this.confirmLoading = false;
-        }
-      },
-      handleCancel() {
+          })),
+          append_index: {
+            index: this.formData.resultTableId,
+            time_field: this.formData.time_field,
+            time_field_type: this.formData.time_field_type,
+          },
+        };
+        await this.$http.request('/resultTables/adapt', { data });
+        this.$emit('selected', {
+          bk_biz_id: this.bkBizId,
+          result_table_id: this.formData.resultTableId,
+        });
+        this.$emit('update:time-index', {
+          time_field: this.formData.time_field,
+          time_field_type: this.formData.time_field_type,
+          time_field_unit: this.formData.time_field_unit,
+        });
         this.showDialog = false;
-      },
+      } catch (e) {
+        console.warn(e);
+      } finally {
+        this.confirmLoading = false;
+      }
     },
-  };
+    handleCancel() {
+      this.showDialog = false;
+    },
+  },
+};
 </script>
 
 <style scoped lang="scss">
-  .slot-container {
-    padding-right: 40px;
+.slot-container {
+  padding-right: 40px;
 
-    :deep(.bk-form) {
-      .bk-label {
-        text-align: left;
-      }
-
-      .bk-form-content {
-        position: relative;
-      }
+  :deep(.bk-form) {
+    .bk-label {
+      text-align: left;
     }
 
-    .add-index-input-container {
+    .bk-form-content {
       position: relative;
+    }
+  }
 
-      .king-input {
-        width: calc(100% - 90px);
-      }
+  .add-index-input-container {
+    position: relative;
 
-      .king-button {
-        position: absolute;
-        top: 0;
-        right: 0;
-      }
-
-      .error-tips-container {
-        position: absolute;
-        top: 0;
-        right: -32px;
-      }
-
-      .bklog-icon {
-        font-size: 18px;
-        color: #ea3636;
-        cursor: pointer;
-      }
-
-      .input-tips {
-        margin-top: 2px;
-        font-size: 12px;
-        line-height: 14px;
-        color: #979ba5;
-      }
+    .king-input {
+      width: calc(100% - 90px);
     }
 
-    .result-tips {
+    .king-button {
       position: absolute;
-      top: 7px;
-      right: 14px;
-      z-index: 10;
-      padding-left: 12px;
-      font-size: 12px;
-      color: #2dcb56;
+      top: 0;
+      right: 0;
     }
 
-    .button-footer {
-      margin-top: 20px;
-      text-align: right;
+    .error-tips-container {
+      position: absolute;
+      top: 0;
+      right: -32px;
+    }
 
-      .king-button {
-        width: 86px;
+    .bklog-icon {
+      font-size: 18px;
+      color: #ea3636;
+      cursor: pointer;
+    }
 
-        &:first-child {
-          margin-right: 8px;
-        }
+    .input-tips {
+      margin-top: 2px;
+      font-size: 12px;
+      line-height: 14px;
+      color: #979ba5;
+    }
+  }
+
+  .result-tips {
+    position: absolute;
+    top: 7px;
+    right: 14px;
+    z-index: 10;
+    padding-left: 12px;
+    font-size: 12px;
+    color: #2dcb56;
+  }
+
+  .button-footer {
+    margin-top: 20px;
+    text-align: right;
+
+    .king-button {
+      width: 86px;
+
+      &:first-child {
+        margin-right: 8px;
       }
     }
   }
+}
 </style>

@@ -42,10 +42,7 @@
         </span>
         <div class="title-name">{{ title }}</div>
       </div>
-      <div
-        v-if="subtitle"
-        class="sub-title"
-      >
+      <div v-if="subtitle" class="sub-title">
         {{ subtitle }}
       </div>
     </div>
@@ -59,111 +56,111 @@
 </template>
 
 <script lang="ts">
-  import { Component, Vue, Prop, Ref } from 'vue-property-decorator';
+import { Component, Vue, Prop, Ref } from 'vue-property-decorator';
 
-  import ChartMenu from './chart-menu.vue';
-  @Component({
-    name: 'chart-title',
-    components: {
-      ChartMenu,
-    },
-  })
-  export default class ChartTitle extends Vue {
-    @Prop({ default: '' }) title: string;
-    @Prop({ default: '' }) subtitle: string;
-    @Prop({ default: () => [] }) menuList: string[];
-    @Ref('chartTitle') chartTitleRef: HTMLDivElement;
-    private showMenu = false;
-    private menuLeft = 0;
-    isExpand: Boolean = true;
-    handleShowMenu(e: MouseEvent) {
-      this.showMenu = !this.showMenu;
-      const rect = this.chartTitleRef.getBoundingClientRect();
-      this.menuLeft = rect.width - 185 < e.layerX ? rect.width - 185 : e.layerX;
-    }
-    handleMenuClick(item) {
-      this.showMenu = false;
-      this.$emit('menu-click', item);
-    }
-    toggleExpand() {
-      this.isExpand = !this.isExpand;
-      this.$emit('toggle-expand', this.isExpand);
-    }
+import ChartMenu from './chart-menu.vue';
+@Component({
+  name: 'chart-title',
+  components: {
+    ChartMenu,
+  },
+})
+export default class ChartTitle extends Vue {
+  @Prop({ default: '' }) title: string;
+  @Prop({ default: '' }) subtitle: string;
+  @Prop({ default: () => [] }) menuList: string[];
+  @Ref('chartTitle') chartTitleRef: HTMLDivElement;
+  private showMenu = false;
+  private menuLeft = 0;
+  isExpand: Boolean = true;
+  handleShowMenu(e: MouseEvent) {
+    this.showMenu = !this.showMenu;
+    const rect = this.chartTitleRef.getBoundingClientRect();
+    this.menuLeft = rect.width - 185 < e.layerX ? rect.width - 185 : e.layerX;
   }
+  handleMenuClick(item) {
+    this.showMenu = false;
+    this.$emit('menu-click', item);
+  }
+  toggleExpand() {
+    this.isExpand = !this.isExpand;
+    this.$emit('toggle-expand', this.isExpand);
+  }
+}
 </script>
 
 <style lang="scss" scoped>
-  .title-wrapper {
-    flex: 1;
-    width: 100%;
+.title-wrapper {
+  flex: 1;
+  width: 100%;
 
-    .chart-title {
-      padding: 5px 10px;
-      margin-left: -10px;
-      font-size: 12px;
-      color: #63656e;
-      border-radius: 2px;
+  .chart-title {
+    padding: 5px 10px;
+    margin-left: -10px;
+    font-size: 12px;
+    color: #63656e;
+    border-radius: 2px;
 
-      .main-title {
-        display: flex;
-        flex-wrap: nowrap;
-        align-items: center;
-        font-weight: 700;
+    .main-title {
+      display: flex;
+      flex-wrap: nowrap;
+      align-items: center;
+      font-weight: 700;
 
-        .title-name {
-          height: 20px;
-          overflow: hidden;
-          line-height: 20px;
-          text-overflow: ellipsis;
-          white-space: nowrap;
-        }
-
-        .icon-down-shape {
-          margin-right: 8px;
-          font-size: 16px;
-          color: #c4c6cc;
-          transition: transform 0.3s;
-
-          &.is-flip {
-            transition: transform 0.3s;
-            transform: rotate(-90deg);
-          }
-        }
-
-        &::after {
-          display: none;
-          align-items: center;
-          justify-content: center;
-          width: 24px;
-          height: 16px;
-          margin-right: auto;
-          font-size: 20px;
-          color: #979ba5;
-          content: '\e61c';
-        }
-      }
-
-      &:hover {
-        cursor: pointer;
-        background-color: #f0f1f5;
-
-        .main-title {
-          color: black;
-
-          &::after {
-            display: flex;
-          }
-        }
-      }
-
-      .sub-title {
-        height: 16px;
+      .title-name {
+        height: 20px;
         overflow: hidden;
-        line-height: 16px;
-        color: #979ba5;
+        line-height: 20px;
         text-overflow: ellipsis;
         white-space: nowrap;
       }
+
+      .icon-down-shape {
+        margin-right: 8px;
+        font-size: 16px;
+        color: #c4c6cc;
+        transition: transform 0.3s;
+
+        &.is-flip {
+          transition: transform 0.3s;
+          transform: rotate(-90deg);
+        }
+      }
+
+      &::after {
+        display: none;
+        align-items: center;
+        justify-content: center;
+        width: 24px;
+        height: 16px;
+        margin-right: auto;
+        font-size: 20px;
+        color: #979ba5;
+        content: '\e61c';
+      }
+    }
+
+    &:hover {
+      cursor: pointer;
+      background-color: #f0f1f5;
+
+      .main-title {
+        color: black;
+
+        &::after {
+          display: flex;
+        }
+      }
+    }
+
+    .sub-title {
+      height: 16px;
+      overflow: hidden;
+      line-height: 16px;
+      color: #979ba5;
+      text-overflow: ellipsis;
+      white-space: nowrap;
     }
   }
+}
 </style>

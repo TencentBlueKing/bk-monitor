@@ -1,3 +1,28 @@
+/*
+ * Tencent is pleased to support the open source community by making
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
+ *
+ * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+ *
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
+ *
+ * License for 蓝鲸智云PaaS平台 (BlueKing PaaS):
+ *
+ * ---------------------------------------------------
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
+ * documentation files (the "Software"), to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and
+ * to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all copies or substantial portions of
+ * the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
+ * THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
+ * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+ * IN THE SOFTWARE.
+ */
 /**
  * Grep 语法验证器
  * 根据 EBNF 语法定义验证 grep 命令的正确性
@@ -17,7 +42,18 @@ export interface ValidationResult {
 }
 
 export class GrepValidator {
-  private readonly supportedArgs = ['i', 'v', 'E', 'e', 'w', 'x', 'c', 'n', 'H', 'h'];
+  private readonly supportedArgs = [
+    'i',
+    'v',
+    'E',
+    'e',
+    'w',
+    'x',
+    'c',
+    'n',
+    'H',
+    'h',
+  ];
 
   /**
    * 验证 grep 命令语法
@@ -27,7 +63,7 @@ export class GrepValidator {
     const warnings: ValidationError[] = [];
 
     if (!input.trim()) {
-      return { isValid: true, errors, warnings };
+      return { errors, isValid: true, warnings };
     }
 
     // 分析管道命令
@@ -35,9 +71,12 @@ export class GrepValidator {
 
     for (let i = 0; i < pipeCommands.length; i++) {
       const command = pipeCommands[i];
-      const commandErrors = this.validateSingleCommand(command, this.getCommandPosition(input, i));
-      errors.push(...commandErrors.filter(e => e.type === 'error'));
-      warnings.push(...commandErrors.filter(e => e.type === 'warning'));
+      const commandErrors = this.validateSingleCommand(
+        command,
+        this.getCommandPosition(input, i)
+      );
+      errors.push(...commandErrors.filter((e) => e.type === 'error'));
+      warnings.push(...commandErrors.filter((e) => e.type === 'warning'));
     }
 
     // 检查逻辑组合合理性
@@ -45,8 +84,8 @@ export class GrepValidator {
     warnings.push(...logicWarnings);
 
     return {
-      isValid: errors.length === 0,
       errors,
+      isValid: errors.length === 0,
       warnings,
     };
   }
@@ -109,7 +148,10 @@ export class GrepValidator {
   /**
    * 验证单个命令
    */
-  private validateSingleCommand(command: string, basePosition: number): ValidationError[] {
+  private validateSingleCommand(
+    command: string,
+    basePosition: number
+  ): ValidationError[] {
     const errors: ValidationError[] = [];
     const tokens = this.tokenizeCommand(command);
 
@@ -141,9 +183,9 @@ export class GrepValidator {
 
         case 'unknown':
           errors.push({
+            length: token.value.length,
             message: `未识别的标记: "${token.value}"`,
             position,
-            length: token.value.length,
             type: 'error',
           });
           break;
@@ -153,9 +195,9 @@ export class GrepValidator {
     // 检查是否有搜索模式
     if (!hasPattern && command.trim()) {
       errors.push({
+        length: command.length,
         message: '缺少搜索模式',
         position: basePosition,
-        length: command.length,
         type: 'error',
       });
     }
@@ -171,9 +213,9 @@ export class GrepValidator {
 
     if (!arg.startsWith('-')) {
       errors.push({
+        length: arg.length,
         message: '参数必须以 "-" 开头',
         position,
-        length: arg.length,
         type: 'error',
       });
       return errors;
@@ -182,9 +224,9 @@ export class GrepValidator {
     const argName = arg.substring(1);
     if (!argName) {
       errors.push({
+        length: arg.length,
         message: '参数名不能为空',
         position,
-        length: arg.length,
         type: 'error',
       });
       return errors;
@@ -195,9 +237,9 @@ export class GrepValidator {
       const char = argName[i];
       if (!this.supportedArgs.includes(char)) {
         errors.push({
+          length: 1,
           message: `不支持的参数: "-${char}"`,
           position: position + 1 + i,
-          length: 1,
           type: 'warning',
         });
       }
@@ -214,9 +256,9 @@ export class GrepValidator {
 
     if (str.length < 2) {
       errors.push({
+        length: str.length,
         message: '字符串格式错误',
         position,
-        length: str.length,
         type: 'error',
       });
       return errors;
@@ -229,9 +271,9 @@ export class GrepValidator {
 
     if (str[str.length - 1] !== quote) {
       errors.push({
+        length: str.length,
         message: `未闭合的${quote === '"' ? '双' : '单'}引号`,
         position,
-        length: str.length,
         type: 'error',
       });
       return errors;
@@ -241,11 +283,14 @@ export class GrepValidator {
     for (let i = 1; i < str.length - 1; i++) {
       if (str[i] === '\\' && i + 1 < str.length - 1) {
         const nextChar = str[i + 1];
-        if (!['"', "'", '\\', 'n', 't', 'r'].includes(nextChar) && !nextChar.match(/x[0-9a-fA-F]/)) {
+        if (
+          !['"', "'", '\\', 'n', 't', 'r'].includes(nextChar) &&
+          !nextChar.match(/x[0-9a-fA-F]/)
+        ) {
           errors.push({
+            length: 2,
             message: `无效的转义字符: "\\${nextChar}"`,
             position: position + i,
-            length: 2,
             type: 'warning',
           });
         }
@@ -266,9 +311,9 @@ export class GrepValidator {
       const lastCommand = commands[commands.length - 1];
       if (lastCommand.includes('-v')) {
         warnings.push({
+          length: 0,
           message: '最后一个命令包含 -v 参数，结果将不会高亮',
           position: 0,
-          length: 0,
           type: 'warning',
         });
       }
@@ -280,9 +325,9 @@ export class GrepValidator {
       if (command.includes('-i')) {
         if (hasIgnoreCase) {
           warnings.push({
+            length: 0,
             message: '检测到重复的 -i 参数',
             position: 0,
-            length: 0,
             type: 'warning',
           });
           break;
@@ -317,9 +362,9 @@ export class GrepValidator {
       const grepMatch = command.substr(pos).match(/^(grep|egrep)(?=\s|$)/);
       if (grepMatch) {
         tokens.push({
+          position: pos,
           type: 'command',
           value: grepMatch[0],
-          position: pos,
         });
         pos += grepMatch[0].length;
         continue;
@@ -329,9 +374,9 @@ export class GrepValidator {
       const argMatch = command.substr(pos).match(/^-[a-zA-Z0-9]+/);
       if (argMatch) {
         tokens.push({
+          position: pos,
           type: 'argument',
           value: argMatch[0],
-          position: pos,
         });
         pos += argMatch[0].length;
         continue;
@@ -351,9 +396,9 @@ export class GrepValidator {
         if (end < len) end++; // 包含结束引号
 
         tokens.push({
+          position: pos,
           type: 'string',
           value: command.substring(pos, end),
-          position: pos,
         });
         pos = end;
         continue;
@@ -363,9 +408,9 @@ export class GrepValidator {
       const patternMatch = command.substr(pos).match(/^[^\s]+/);
       if (patternMatch) {
         tokens.push({
+          position: pos,
           type: 'pattern',
           value: patternMatch[0],
-          position: pos,
         });
         pos += patternMatch[0].length;
         continue;
@@ -373,9 +418,9 @@ export class GrepValidator {
 
       // 未知标记
       tokens.push({
+        position: pos,
         type: 'unknown',
         value: command[pos],
-        position: pos,
       });
       pos++;
     }

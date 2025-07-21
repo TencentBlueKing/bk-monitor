@@ -25,10 +25,7 @@
 -->
 <template>
   <ShadowWrapper :shadow-content="false">
-    <VueJsonPretty
-      :data="jsonShowData"
-      :deep="deep"
-    >
+    <VueJsonPretty :data="jsonShowData" :deep="deep">
       <template #nodeValue="{ defaultValue }">
         <span v-text="defaultValue"></span>
       </template>
@@ -36,35 +33,35 @@
   </ShadowWrapper>
 </template>
 <script>
-  import VueJsonPretty from 'vue-json-pretty';
+import VueJsonPretty from 'vue-json-pretty';
 
-  import ShadowWrapper from './shadow-wrapper.vue';
+import ShadowWrapper from './shadow-wrapper.vue';
 
-  import 'vue-json-pretty/lib/styles.css';
+import 'vue-json-pretty/lib/styles.css';
 
-  export default {
-    name: 'JsonFormatWrapper',
-    components: {
-      VueJsonPretty,
-      ShadowWrapper,
+export default {
+  name: 'JsonFormatWrapper',
+  components: {
+    VueJsonPretty,
+    ShadowWrapper,
+  },
+  props: {
+    data: {
+      type: Object,
+      default: () => {},
     },
-    props: {
-      data: {
-        type: Object,
-        default: () => {},
-      },
-      deep: {
-        type: Number,
-        default: 5,
-      },
+    deep: {
+      type: Number,
+      default: 5,
     },
-    computed: {
-      jsonShowData() {
-        return this.data;
-      },
-      isShadowContent() {
-        return false;
-      },
+  },
+  computed: {
+    jsonShowData() {
+      return this.data;
     },
-  };
+    isShadowContent() {
+      return false;
+    },
+  },
+};
 </script>
