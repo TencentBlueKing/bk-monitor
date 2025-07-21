@@ -17,10 +17,11 @@ from jinja2.sandbox import SandboxedEnvironment as Environment
 from django.conf import settings
 from django.db import models
 
-from bkmonitor.utils.bk_collector_config import BkCollectorClusterConfig
+from bkmonitor.utils.bk_collector_config import BkCollectorClusterConfig, BkCollectorConfig
 from bkmonitor.utils.common_utils import count_md5
 from bkmonitor.utils.db.fields import JsonField
 from constants.bk_collector import BkCollectorComp
+from constants.common import DEFAULT_TENANT_ID
 from core.drf_resource import api
 from core.errors.api import BKAPIError
 from metadata.models.constants import LOG_REPORT_MAX_QPS
@@ -491,6 +492,8 @@ class LogSubscriptionConfig(models.Model):
     Subscription Config for Custom Log Report
     """
 
+    bk_tenant_id = models.CharField(verbose_name="租户ID", default=DEFAULT_TENANT_ID, max_length=128)
+
     bk_biz_id = models.IntegerField("业务id", default=int)
     log_name = models.CharField("日志名称", max_length=128, blank=True)
     subscription_id = models.IntegerField("节点管理订阅ID", default=int)
@@ -507,44 +510,23 @@ class LogSubscriptionConfig(models.Model):
     PLUGIN_LOG_CONFIG_TEMPLATE_NAME = "bk-collector-application.conf"
 
     @classmethod
-    def get_target_hosts(cls) -> list[dict[str, Any]]:
-        """
-        查询云区域下所有的Proxy机器列表
-        """
-        target_hosts = [
-            {"ip": proxy_ip, "bk_cloud_id": 0, "bk_supplier_id": 0}
-            for proxy_ip in settings.CUSTOM_REPORT_DEFAULT_PROXY_IP
-        ]
-
-        cloud_infos = api.cmdb.search_cloud_area()
-        for cloud_info in cloud_infos:
-            bk_cloud_id = cloud_info.get("bk_cloud_id", -1)
-            if int(bk_cloud_id) == 0:
-                continue
-
-            proxy_list = api.node_man.get_proxies(bk_cloud_id=bk_cloud_id)
-            for p in proxy_list:
-                if p["status"] != "RUNNING":
-                    logger.warning("proxy({}) can not be use with bk-collector, it's not running".format(p["inner_ip"]))
-                else:
-                    target_hosts.append(
-                        {"ip": p["inner_ip"], "bk_cloud_id": p.get("bk_cloud_id", 0), "bk_supplier_id": 0}
-                    )
-        return target_hosts
-
-    @classmethod
     def refresh(cls, log_group: "LogGroup") -> None:
         """
         Refresh Config
         """
+        bk_tenant_id = log_group.bk_tenant_id
+        bk_biz_id = log_group.bk_biz_id
 
-        # Get Hosts
-        bk_host_ids = cls.get_target_hosts()
-        if not bk_host_ids:
+        # 1.1 获取指定租户指定业务下的主机
+        proxy_target_hosts = BkCollectorConfig.get_target_host_ids_by_biz_id(bk_tenant_id, bk_biz_id)
+
+        # 1.2 获取默认租户下全局配置中主机配置列表
+        default_target_hosts = BkCollectorConfig.get_target_host_in_default_cloud_area()
+        if not default_target_hosts and not proxy_target_hosts:
             logger.info("no bk-collector node, otlp is disabled")
             return
 
-        # Initial Config
+        # 2. 获取配置
         log_config = {
             "bk_data_token": log_group.get_bk_data_token(),
             "bk_biz_id": log_group.bk_biz_id,
@@ -556,14 +538,18 @@ class LogSubscriptionConfig(models.Model):
             },
         }
 
-        # Deploy Config
+        # 3. 下发配置
         try:
-            cls.deploy(log_group=log_group, platform_config=log_config, bk_host_ids=bk_host_ids)
-        except Exception:
-            logger.exception("auto deploy bk-collector log config error")
+            if bk_tenant_id == DEFAULT_TENANT_ID:
+                cls.deploy(bk_tenant_id, log_group, log_config, default_target_hosts + proxy_target_hosts)
+            else:
+                cls.deploy(DEFAULT_TENANT_ID, log_group, log_config, default_target_hosts)
+                cls.deploy(bk_tenant_id, log_group, log_config, proxy_target_hosts)
+        except Exception as e:  # pylint: disable=broad-except
+            logger.exception(f"auto deploy bk-collector log config error ({e})")
 
     @classmethod
-    def deploy(cls, log_group: "LogGroup", platform_config: dict, bk_host_ids: list[dict[str, Any]]) -> None:
+    def deploy(cls, bk_tenant_id: str, log_group: "LogGroup", log_config: dict, bk_host_ids: list[int]) -> None:
         """
         Deploy Custom Log Config
         """
@@ -583,12 +569,14 @@ class LogSubscriptionConfig(models.Model):
                         "plugin_version": "latest",
                         "config_templates": [{"name": cls.PLUGIN_LOG_CONFIG_TEMPLATE_NAME, "version": "latest"}],
                     },
-                    "params": {"context": platform_config},
+                    "params": {"context": log_config},
                 }
             ],
         }
 
-        log_subscription = cls.objects.filter(bk_biz_id=log_group.bk_biz_id, log_name=log_group.log_group_name)
+        log_subscription = cls.objects.filter(
+            bk_tenant_id=bk_tenant_id, bk_biz_id=log_group.bk_biz_id, log_name=log_group.log_group_name
+        )
         sub_config_obj = log_subscription.first()
 
         if sub_config_obj:
@@ -600,18 +588,19 @@ class LogSubscriptionConfig(models.Model):
             new_subscription_params_md5 = count_md5(subscription_params)
             if old_subscription_params_md5 != new_subscription_params_md5:
                 logger.info("custom log config subscription task config has changed, update it.")
-                result = api.node_man.update_subscription(bk_tenant_id=log_group.bk_tenant_id, **subscription_params)
+                result = api.node_man.update_subscription(bk_tenant_id=bk_tenant_id, **subscription_params)
                 logger.info(f"update custom log config subscription successful, result:{result}")
                 log_subscription.update(config=subscription_params)
             return sub_config_obj.subscription_id
         else:
             logger.info("custom log config subscription task not exists, create it.")
-            result = api.node_man.create_subscription(bk_tenant_id=log_group.bk_tenant_id, **subscription_params)
+            result = api.node_man.create_subscription(bk_tenant_id=bk_tenant_id, **subscription_params)
             logger.info(f"create custom log config subscription successful, result:{result}")
 
             # 创建订阅成功后，优先存储下来，不然因为其他报错会导致订阅ID丢失
             subscription_id = result["subscription_id"]
             LogSubscriptionConfig.objects.create(
+                bk_tenant_id=bk_tenant_id,
                 bk_biz_id=log_group.bk_biz_id,
                 log_name=log_group.log_group_name,
                 config=subscription_params,
@@ -619,7 +608,7 @@ class LogSubscriptionConfig(models.Model):
             )
 
             result = api.node_man.run_subscription(
-                bk_tenant_id=log_group.bk_tenant_id,
+                bk_tenant_id=bk_tenant_id,
                 subscription_id=subscription_id,
                 actions={cls.PLUGIN_NAME: "INSTALL"},
             )
