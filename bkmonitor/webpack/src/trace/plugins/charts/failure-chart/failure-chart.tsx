@@ -245,7 +245,7 @@ export default defineComponent({
         } else {
           noData.value = true;
         }
-      } catch (e) {
+      } catch {
         noData.value = true;
       } finally {
         chartTitle.value = props.title;
@@ -555,12 +555,12 @@ export default defineComponent({
         const series = deepMerge([], data || []);
         const hasSeries =
           (series && series.length > 0 && series.some(item => item?.datapoints?.length)) ||
-          (series && Object.prototype.hasOwnProperty.call(series, 'series') && series.series.length);
+          (series && Object.hasOwn(series, 'series') && series.series.length);
         noData.value = !hasSeries;
         if (!hasSeries) {
           return;
         }
-        const realSeries = Object.prototype.hasOwnProperty.call(series, 'series') ? series.series : series;
+        const realSeries = Object.hasOwn(series, 'series') ? series.series : series;
         if (props.chartType === 'line' && realSeries[0]?.metric) {
           const [
             {
@@ -587,7 +587,7 @@ export default defineComponent({
           legend.value.show = hasSeries && optionData.legendData.length > 0;
         } else {
           legend.value.show = optionData.options.lengend
-            ? Object.prototype.hasOwnProperty.call(optionData.options.lengend, 'show')
+            ? Object.hasOwn(optionData.options.lengend, 'show')
               ? optionData.options.lengend.show
               : true
             : false;

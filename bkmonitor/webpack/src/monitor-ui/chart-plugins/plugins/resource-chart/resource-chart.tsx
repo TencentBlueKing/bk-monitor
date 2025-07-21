@@ -234,7 +234,7 @@ class ResourceChart extends CommonSimpleChart {
       case 1:
         window.open(location.href.replace(location.hash, `#/strategy-config?metricId=${JSON.stringify(metricIds)}`));
         break;
-      case 2:
+      case 2: {
         const eventTargetStr = alarmStatus.targetStr;
 
         window.open(
@@ -246,6 +246,7 @@ class ResourceChart extends CommonSimpleChart {
           )
         );
         break;
+      }
     }
   }
 

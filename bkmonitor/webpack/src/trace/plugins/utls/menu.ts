@@ -121,7 +121,7 @@ export const transformLogUrlQuery = (data: ILogUrlParams): string => {
     const itemVal = (queryObj as any)[key];
     if (itemVal !== undefined) {
       const itemValStr = typeof itemVal === 'object' ? JSON.stringify(itemVal) : `${itemVal}`;
-      str = `${str}${!!i ? '&' : ''}${key}=${encodeURIComponent(itemValStr)}`;
+      str = `${str}${i ? '&' : ''}${key}=${encodeURIComponent(itemValStr)}`;
     }
     return str;
   }, '?');
@@ -344,7 +344,7 @@ export const transformSrcData = (data: IUnifyQuerySeriesItem[]) => {
 export const transformTableDataToCsvStr = (tableThArr: string[], tableTdArr: Array<IIableTdArrItem[]>): string => {
   const csvList: string[] = [tableThArr.join(',')];
   tableTdArr.forEach(row => {
-    const rowString = row.reduce((str, item, index) => str + (!!index ? ',' : '') + item.value, '');
+    const rowString = row.reduce((str, item, index) => str + (index ? ',' : '') + item.value, '');
     csvList.push(rowString);
   });
   const csvString = csvList.join('\n');

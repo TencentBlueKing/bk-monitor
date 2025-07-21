@@ -133,7 +133,7 @@ export default class Form extends tsc<IProps, IEvents> {
   handleSelectMultipleValue(item: FormItem) {
     let { value } = item;
     if (item.multiple) {
-      value = !!value
+      value = value
         ? `${item.value}`.split(item.separator || '|').map(set => (item.valueType === 'number' ? +set : set))
         : [];
     }

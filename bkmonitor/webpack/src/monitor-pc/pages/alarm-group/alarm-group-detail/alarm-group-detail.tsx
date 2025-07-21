@@ -667,16 +667,18 @@ export default class AlarmGroupDetail extends tsc<IAlarmGroupDetail, IEvent> {
                       this.refreshKey.alertKey = true;
                     }}
                   >
-                    {this.notice[ALERT_NOTICE].map(item => ({
-                      key: item.key,
-                      label: item.time_range.replace('--', '-'),
-                    })).map(item => (
-                      <bk-tab-panel
-                        key={item.key}
-                        label={item.label}
-                        name={item.key}
-                      />
-                    ))}
+                    {this.notice[ALERT_NOTICE]
+                      .map(item => ({
+                        key: item.key,
+                        label: item.time_range.replace('--', '-'),
+                      }))
+                      .map(item => (
+                        <bk-tab-panel
+                          key={item.key}
+                          label={item.label}
+                          name={item.key}
+                        />
+                      ))}
                   </bk-tab>
                   <div class='notice-item-content'>
                     <NoticeModeNew
@@ -706,16 +708,18 @@ export default class AlarmGroupDetail extends tsc<IAlarmGroupDetail, IEvent> {
                       this.refreshKey.actionKey = true;
                     }}
                   >
-                    {this.notice[ACTION_NOTICE].map(item => ({
-                      key: item.key,
-                      label: item.time_range.replace('--', '-'),
-                    })).map(item => (
-                      <bk-tab-panel
-                        key={item.key}
-                        label={item.label}
-                        name={item.key}
-                      />
-                    ))}
+                    {this.notice[ACTION_NOTICE]
+                      .map(item => ({
+                        key: item.key,
+                        label: item.time_range.replace('--', '-'),
+                      }))
+                      .map(item => (
+                        <bk-tab-panel
+                          key={item.key}
+                          label={item.label}
+                          name={item.key}
+                        />
+                      ))}
                   </bk-tab>
                   <div class='notice-item-content'>
                     <NoticeModeNew

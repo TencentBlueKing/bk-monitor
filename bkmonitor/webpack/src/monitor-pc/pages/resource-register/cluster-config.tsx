@@ -239,7 +239,7 @@ export default class ClusterConfig extends tsc<object> {
         }
       });
       this.formData.clusterName = data.cluster_name; // 回填集群名称
-      this.formData.label = !!data.label ? data.label?.split(',') : []; // 回填集群用途
+      this.formData.label = data.label ? data.label?.split(',') : []; // 回填集群用途
       this.formData.description = data.description;
       this.formData.operator = data.creator;
       this.userSelectorKey = random(8);
@@ -354,7 +354,7 @@ export default class ClusterConfig extends tsc<object> {
     const api = this.isEdit ? updateRegisteredCluster : registerCluster;
     const res = await api(params).catch(() => false);
     this.submitButtonLoading = false;
-    if (!!res) {
+    if (res) {
       this.$bkMessage({
         theme: 'success',
         message: this.isEdit ? this.$t('修改成功') : this.$t('创建成功'),
@@ -434,7 +434,7 @@ export default class ClusterConfig extends tsc<object> {
       ...params,
     }).catch(() => false);
     this.connectTestButtonLoading = false;
-    this.connectionStatus = !!res ? ConnectionStatus.success : ConnectionStatus.fail;
+    this.connectionStatus = res ? ConnectionStatus.success : ConnectionStatus.fail;
   }
   /* 资源类型为日志的查询实例列表 */
   handleSearchInstanceList() {

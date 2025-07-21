@@ -7,7 +7,10 @@
   "scripts": {
     "lint": "stylelint --fix"
   },
-  "keywords": ["monitor", "static"],
+  "keywords": [
+    "monitor",
+    "static"
+  ],
   "author": "bk fe",
   "license": "MIT",
   "dependencies": {

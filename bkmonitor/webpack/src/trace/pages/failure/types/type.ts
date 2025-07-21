@@ -551,6 +551,12 @@ export interface IAlertObj {
   ids?: string;
   label?: string;
 }
+export interface IStrategyMapItem {
+  strategy_id?: number;
+  strategy_name?: string;
+  alerts?: string[];
+}
+
 export interface IAnomalyAnalysis {
   name?: string;
   $index?: number;
@@ -560,6 +566,9 @@ export interface IAnomalyAnalysis {
     [key: string]: string[];
   };
   alerts?: IAlertData[];
+  strategy_alerts_mapping?: {
+    [key: number]: IStrategyMapItem;
+  };
 }
 export interface IContentList {
   suggestion?: string;

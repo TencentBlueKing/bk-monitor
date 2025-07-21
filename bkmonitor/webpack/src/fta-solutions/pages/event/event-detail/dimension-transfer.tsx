@@ -143,7 +143,7 @@ export default class ResidentSettingTransfer extends tsc<
   handleAdd(index: number) {
     const item = JSON.parse(JSON.stringify(this.searchLocalFields[index]));
     this.selectedFields.push(item);
-    this.handleSetLocalFields()
+    this.handleSetLocalFields();
   }
 
   // 单独删除已选列表

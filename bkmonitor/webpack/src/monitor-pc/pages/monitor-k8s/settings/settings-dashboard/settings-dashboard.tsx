@@ -454,7 +454,7 @@ export default class SettingsDashboard extends tsc<SettingsDashboardType.IProps,
         } catch (err) {
           panels = [];
         }
-        const autoRules = !!row[3] ? row[3].split(';') : [];
+        const autoRules = row[3] ? row[3].split(';') : [];
         if (!tempIds.has(id)) {
           if (id !== '__UNGROUP__') {
             orderList.push({
@@ -514,7 +514,7 @@ export default class SettingsDashboard extends tsc<SettingsDashboardType.IProps,
     const transformTableDataToCsvStr = (tableThArr: string[], tableTdArr: Array<string[]>): string => {
       const csvList: string[] = [tableThArr.join(',')];
       tableTdArr.forEach(row => {
-        const rowString = row.reduce((str, item, index) => str + (!!index ? ',' : '') + item, '');
+        const rowString = row.reduce((str, item, index) => str + (index ? ',' : '') + item, '');
         csvList.push(rowString);
       });
       const csvString = csvList.join('\n');

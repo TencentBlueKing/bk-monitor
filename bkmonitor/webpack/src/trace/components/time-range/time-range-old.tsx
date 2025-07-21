@@ -158,7 +158,7 @@ export default defineComponent({
 
     /** 点击快捷时间选项 */
     const handleShortcutChange = data => {
-      if (!!data?.value) {
+      if (data?.value) {
         isPanelTimeRange.value = false;
         const value = [...data.value] as TimeRangeType;
         handleTransformTimeValue(value);

@@ -335,7 +335,7 @@ export default class Calendar extends tsc<object> {
                         <span class='calendar-list-item-left'>
                           <bk-checkbox
                             style={{ '--color': set.color }}
-                            class={['calendar-checkedbox', !!set.color ? 'color-theme' : '']}
+                            class={['calendar-checkedbox', set.color ? 'color-theme' : '']}
                             v-model={set.checked}
                             onChange={this.handleCheckedCalendar}
                           />
@@ -413,7 +413,7 @@ export default class Calendar extends tsc<object> {
           v-model={this.curCalendarInfo.show}
           infoTitle={this.$tc('确定删除该日历？')}
         >
-          {!!this.curCalendarInfo.scheduleCount ? (
+          {this.curCalendarInfo.scheduleCount ? (
             <i18n
               slot='infoDesc'
               path='当前日历下包含{0}个日程，删除日历和其下所有日程'
@@ -431,7 +431,7 @@ export default class Calendar extends tsc<object> {
               theme='primary'
               onClick={this.handleDeleteCalendar}
             >
-              {this.$tc(!!this.curCalendarInfo.scheduleCount ? '删除全部' : '确认')}
+              {this.$tc(this.curCalendarInfo.scheduleCount ? '删除全部' : '确认')}
             </bk-button>
             {false && this.mergeable && (
               <CustomSelect

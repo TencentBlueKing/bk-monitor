@@ -27,7 +27,7 @@ import { Component, Inject, InjectReactive, Prop, Watch } from 'vue-property-dec
 
 import dayjs from 'dayjs';
 import deepmerge from 'deepmerge';
-import { CancelToken } from 'monitor-api/index';
+import { CancelToken } from 'monitor-api/cancel';
 import { metricRecommendationFeedback } from 'monitor-api/modules/alert';
 import { createAnomalyDimensionTips } from 'monitor-common/tips/anomaly-dimension-tips';
 import { random } from 'monitor-common/utils/utils';

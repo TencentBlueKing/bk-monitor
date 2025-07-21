@@ -1353,10 +1353,13 @@ export default class StrategyConfigDetailCommon extends tsc<object> {
                                 </span>
                               </i18n>
                               {item.options?.skip_delay > 0 ? (
-                                <i18n path='当首次异常时间超过{0}分钟时不执行该套餐' class='bold-span enable-delay'>
+                                <i18n
+                                  path='当首次异常时间超过{0}分钟时不执行该套餐'
+                                  class='bold-span enable-delay'
+                                >
                                   {item.options.skip_delay}
                                 </i18n>
-                              ) : undefined }
+                              ) : undefined}
                             </span>
                           ) : (
                             window.i18n.t('关闭')
