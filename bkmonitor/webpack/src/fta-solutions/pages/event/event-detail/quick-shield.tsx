@@ -252,6 +252,7 @@ export default class EventQuickShield extends tsc<IQuickShieldProps> {
 
   @Emit('change')
   handleShowChange(v) {
+    this.rule.customTime = false;
     return v;
   }
   @Emit('time-change')
