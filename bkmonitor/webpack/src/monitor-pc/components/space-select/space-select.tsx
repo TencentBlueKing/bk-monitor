@@ -572,7 +572,7 @@ export default class SpaceSelect extends tsc<
     const newUrl = `${window.location.pathname}?${searchParams.toString()}#${this.$route.fullPath}`;
     history.replaceState({}, '', newUrl);
   }
-  /*  */
+  /* 自动选择当前空间 */
   handleAutoSetCurBiz() {
     if (this.isAutoSelectCurrentSpace) {
       const selected = this.localValue.filter(v => !specialIds.includes(v));
@@ -671,10 +671,10 @@ export default class SpaceSelect extends tsc<
     const smoothScrollTo = (element: HTMLDivElement, targetPosition: number, duration: number, callback) => {
       const startPosition = element.scrollLeft;
       const distance = targetPosition - startPosition;
-      const startTime = new Date().getTime();
+      const startTime = Date.now();
       const easeOutCubic = t => 1 - (1 - t) ** 3;
       const scroll = () => {
-        const elapsed = new Date().getTime() - startTime;
+        const elapsed = Date.now() - startTime;
         const progress = easeOutCubic(Math.min(elapsed / duration, 1));
         element.scrollLeft = startPosition + distance * progress;
         if (progress < 1) requestAnimationFrame(scroll);
