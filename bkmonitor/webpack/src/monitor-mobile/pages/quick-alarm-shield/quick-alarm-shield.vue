@@ -182,6 +182,8 @@ enum TimeSemantics {
   Custom = 6,
 }
 
+Component.registerHooks(['beforeRouteLeave']);
+
 @Component({
   name: 'quick-alarm-shield',
   components: {
@@ -343,6 +345,22 @@ export default class AlarmDetail extends Vue {
     return Y + M + D + h + m + s;
   }
 
+  beforeRouteLeave(to, from, next) {
+    if (to.name === 'alarm-info') {
+      const { query } = to;
+      if (query.batchAction) {
+        this.$router.replace({
+          name: to.name,
+          query: {
+            ...query,
+            batchAction: undefined, // alarm-info页面的url中有该参数时，会自动跳转回当前页面。需要删除该参数
+          },
+        });
+      }
+    }
+    next();
+  }
+
   //  提交快捷屏蔽
   handleSubmit() {
     if (this.active === TimeSemantics.Custom && this.dataPickerList[5].name === '自定义') {
@@ -360,13 +378,17 @@ export default class AlarmDetail extends Vue {
       params.dimension_keys = this.selectedDimension;
     }
     quickShield(params)
-      .then(() => {
+      .then(e => {
         Toast({
-          message: this.$tc('操作成功'),
+          message: e?.message || this.$tc('操作成功'),
           duration: 2000,
           position: 'bottom',
         });
-        this.$router.back();
+        if (window.history.length > 1) {
+          this.$router.back();
+        } else {
+          this.$router.replace({ name: 'alarm-info' });
+        }
       })
       .catch(e => {
         Toast({
