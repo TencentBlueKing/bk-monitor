@@ -71,6 +71,7 @@ export function useTableCell({
     cellEllipsisClass: cellEllipsisClass || ENABLED_TABLE_ELLIPSIS_CELL_CLASS_NAME,
     cellRenderHandleMap,
     isEnabledCellEllipsis,
+    getRowId,
   };
 
   /**

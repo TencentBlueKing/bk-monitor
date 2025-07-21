@@ -63,6 +63,9 @@ export type AlertEventCountResult = Record<string, number>;
 export interface AlertExtendInfoItem {
   data_label: string;
   result_table_id: string;
+  type?: string;
+  hostname?: string;
+  topo_info?: string;
 }
 /** 告警 -- 关联告警信息接口返回数据类型 */
 export type AlertExtendInfoResult = Record<string, AlertExtendInfoItem>;
@@ -88,7 +91,7 @@ export type AlertTableItem = {
   assignee: string[];
   appointee: string[];
   supervisor: null | string;
-  follower: null | string;
+  follower: null | string[];
   is_ack: boolean | null;
   is_shielded: boolean;
   shield_left_time: string;
@@ -139,6 +142,7 @@ export type AlertTableItem = {
   bk_biz_name: string;
   event_count?: number;
   extend_info?: AlertExtendInfoItem;
+  followerDisabled?: boolean;
 };
 
 /**
