@@ -33,24 +33,24 @@
   </bk-checkbox>
 </template>
 <script>
-  export default {
-    props: {
-      value: {
-        type: Number,
-        default: 0,
-      },
-      disabled: {
-        type: Boolean,
-        default: true,
-      },
+export default {
+  props: {
+    value: {
+      type: Number,
+      default: 0,
     },
-    data() {
-      return {};
+    disabled: {
+      type: Boolean,
+      default: true,
     },
-    methods: {
-      handleCheckChange(state) {
-        this.$emit('change', state);
-      },
+  },
+  data() {
+    return {};
+  },
+  methods: {
+    handleCheckChange(state) {
+      this.$emit('change', state);
     },
-  };
+  },
+};
 </script>

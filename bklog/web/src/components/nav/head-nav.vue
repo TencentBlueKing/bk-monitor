@@ -249,367 +249,365 @@
 </template>
 
 <script>
-  import { useJSONP } from '@/common/jsonp';
-  import GlobalDialog from '@/components/global-dialog';
-  import logoImg from '@/images/log-logo.png';
-  import { useNavMenu } from '@/hooks/use-nav-menu';
-  import platformConfigStore from '@/store/modules/platform-config';
-  import jsCookie from 'js-cookie';
-  import { mapState, mapGetters } from 'vuex';
+import { useJSONP } from '@/common/jsonp';
+import GlobalDialog from '@/components/global-dialog';
+import logoImg from '@/images/log-logo.png';
+import { useNavMenu } from '@/hooks/use-nav-menu';
+import platformConfigStore from '@/store/modules/platform-config';
+import jsCookie from 'js-cookie';
+import { mapState, mapGetters } from 'vuex';
 
-  import { menuArr } from './complete-menu';
-  import LogVersion from './log-version';
-  import BizMenuSelect from '@/global/bk-space-choice/index'
+import { menuArr } from './complete-menu';
+import LogVersion from './log-version';
+import BizMenuSelect from '@/global/bk-space-choice/index';
 
-  export default {
-    name: 'HeaderNav',
-    components: {
-      LogVersion,
-      GlobalDialog,
-      BizMenuSelect,
+export default {
+  name: 'HeaderNav',
+  components: {
+    LogVersion,
+    GlobalDialog,
+    BizMenuSelect,
+  },
+  props: {
+    welcomeData: {
+      type: Object,
+      default: null,
     },
-    props: {
-      welcomeData: {
-        type: Object,
-        default: null,
-      },
-    },
-    data() {
+  },
+  data() {
+    return {
+      navMenu: null,
+      isFirstLoad: true,
+      isOpenVersion: window.RUN_VER.indexOf('open') !== -1,
+      username: '',
+      usernameRequested: false,
+      isShowLanguageDropdown: false,
+      isShowGlobalDropdown: false,
+      isShowHelpDropdown: false,
+      isShowLogoutDropdown: false,
+      showLogVersion: false,
+      language: 'zh-cn',
+      languageList: [
+        { id: 'zh-cn', name: '中文' },
+        { id: 'en', name: 'English' },
+      ],
+      showGlobalDialog: false,
+      globalDialogTitle: '',
+      targetSrc: '',
+    };
+  },
+  computed: {
+    ...mapState({
+      currentMenu: state => state.currentMenu,
+      errorPage: state => state.errorPage,
+      asIframe: state => state.asIframe,
+      iframeQuery: state => state.iframeQuery,
+      isExternal: state => state.isExternal,
+      isShowGlobalDialog: state => state.isShowGlobalDialog,
+      globalSettingList: state => state.globalSettingList,
+    }),
+    ...mapGetters('globals', ['globalsData']),
+    platformData() {
+      const { appLogo, i18n } = platformConfigStore.publicConfig;
+      const bkRepoUrl = window.BK_SHARED_RES_URL;
+      const publicConfigName = i18n?.name ?? this.$t('日志平台');
       return {
-        navMenu: null,
-        isFirstLoad: true,
-        isOpenVersion: window.RUN_VER.indexOf('open') !== -1,
-        username: '',
-        usernameRequested: false,
-        isShowLanguageDropdown: false,
-        isShowGlobalDropdown: false,
-        isShowHelpDropdown: false,
-        isShowLogoutDropdown: false,
-        showLogVersion: false,
-        language: 'zh-cn',
-        languageList: [
-          { id: 'zh-cn', name: '中文' },
-          { id: 'en', name: 'English' },
-        ],
-        showGlobalDialog: false,
-        globalDialogTitle: '',
-        targetSrc: '',
+        name: !!bkRepoUrl ? publicConfigName : this.$t('日志平台'),
+        logo: appLogo || logoImg,
       };
     },
-    computed: {
-      ...mapState({
-        currentMenu: state => state.currentMenu,
-        errorPage: state => state.errorPage,
-        asIframe: state => state.asIframe,
-        iframeQuery: state => state.iframeQuery,
-        isExternal: state => state.isExternal,
-        isShowGlobalDialog: state => state.isShowGlobalDialog,
-        globalSettingList: state => state.globalSettingList,
-      }),
-      ...mapGetters('globals', ['globalsData']),
-      platformData() {
-        const { appLogo, i18n } = platformConfigStore.publicConfig;
-        const bkRepoUrl = window.BK_SHARED_RES_URL;
-        const publicConfigName = i18n?.name ?? this.$t('日志平台');
-        return {
-          name: !!bkRepoUrl ? publicConfigName : this.$t('日志平台'),
-          logo: appLogo || logoImg,
-        };
-      },
-      envConfig() {
-        const { paas_api_host: host, bk_domain: bkDomain } = this.globalsData;
-        return {
-          host,
-          bkDomain,
-        };
-      },
-      dropDownActive() {
-        let current;
-        if (this.currentMenu.dropDown && this.currentMenu.children) {
-          const routeName = this.$route.name;
-          current = this.navMenu.activeTopMenu(this.currentMenu.children, routeName);
-        }
-        return current || {};
-      },
-      isDisableSelectBiz() {
-        return Boolean(this.$route.name === 'trace' && this.$route.query.traceId);
-      },
-      menuList() {
-        const list = this.navMenu.topMenu.filter(menu => {
-          return menu.feature === 'on' && (this.isExternal ? this.externalMenu.includes(menu.id) : true);
-        });
-        // #if MONITOR_APP === 'apm'
-        if (process.env.NODE_ENV === 'development' && process.env.MONITOR_APP === 'apm' && list?.length) {
-          return [...list, { id: 'monitor-apm-log', name: 'APM Log检索' }];
-        }
-        // #elif MONITOR_APP === 'trace'
-        if (process.env.NODE_ENV === 'development' && process.env.MONITOR_APP === 'trace' && list?.length) {
-          return [...list, { id: 'monitor-trace-log', name: 'Trace Log检索' }];
-        }
-        // #else
-        return list;
-        // #endif
-      },
-      isShowGlobalSetIcon() {
-        return !this.welcomeData && !this.isExternal;
-      },
+    envConfig() {
+      const { paas_api_host: host, bk_domain: bkDomain } = this.globalsData;
+      return {
+        host,
+        bkDomain,
+      };
     },
-    watch: {
-      $route() {
-        /** 当路由改变时应该把 dialog 关闭掉 */
-        this.showGlobalDialog = false;
-      },
+    dropDownActive() {
+      let current;
+      if (this.currentMenu.dropDown && this.currentMenu.children) {
+        const routeName = this.$route.name;
+        current = this.navMenu.activeTopMenu(this.currentMenu.children, routeName);
+      }
+      return current || {};
     },
-    async created() {
-      this.language = jsCookie.get('blueking_language') || 'zh-cn';
-      this.$store.commit('updateMenuList', menuArr);
-
-      // 初始化 navMenu 并保存到组件数据
-      this.navMenu = useNavMenu({
-        t: $t,
-        bkInfo: window.$bkInfo,
-        http: window.$http,
-        emit: window.$emit
+    isDisableSelectBiz() {
+      return Boolean(this.$route.name === 'trace' && this.$route.query.traceId);
+    },
+    menuList() {
+      const list = this.navMenu.topMenu.filter(menu => {
+        return menu.feature === 'on' && (this.isExternal ? this.externalMenu.includes(menu.id) : true);
       });
-
-      this.navMenu.requestMySpaceList();
-      
-      this.getGlobalsData();
-      this.getUserInfo();
-      window.bus.$on('showGlobalDialog', this.handleGoToMyReport);
+      // #if MONITOR_APP === 'apm'
+      if (process.env.NODE_ENV === 'development' && process.env.MONITOR_APP === 'apm' && list?.length) {
+        return [...list, { id: 'monitor-apm-log', name: 'APM Log检索' }];
+      }
+      // #elif MONITOR_APP === 'trace'
+      if (process.env.NODE_ENV === 'development' && process.env.MONITOR_APP === 'trace' && list?.length) {
+        return [...list, { id: 'monitor-trace-log', name: 'Trace Log检索' }];
+      }
+      // #else
+      return list;
+      // #endif
     },
-    beforeUnmount() {
-      window.bus.$off('showGlobalDialog', this.handleGoToMyReport);
+    isShowGlobalSetIcon() {
+      return !this.welcomeData && !this.isExternal;
     },
+  },
+  watch: {
+    $route() {
+      /** 当路由改变时应该把 dialog 关闭掉 */
+      this.showGlobalDialog = false;
+    },
+  },
+  async created() {
+    this.language = jsCookie.get('blueking_language') || 'zh-cn';
+    this.$store.commit('updateMenuList', menuArr);
 
-    methods: {
-      async getUserInfo() {
-        try {
-          const res = this.$store.state.userMeta;
-          this.username = res.username;
-          // this.$store.commit('updateUserMeta', res.data);
-          if (window.__aegisInstance) {
-            window.__aegisInstance.setConfig({
-              uin: res.username,
-            });
-          }
-        } catch (e) {
-          console.warn(e);
-        } finally {
-          this.usernameRequested = true;
-        }
-      },
-      // 获取全局数据和 判断是否可以保存 已有的日志聚类
-      getGlobalsData() {
-        // if (Object.keys(this.globalsData).length) return;
-        // this.$http
-        //   .request('collect/globals')
-        //   .then(res => {
-        //     this.$store.commit('globals/setGlobalsData', res.data);
-        //   })
-        //   .catch(e => {
-        //     console.warn(e);
-        //   });
-      },
-      jumpToHome() {
-        this.$store.commit('updateIsShowGlobalDialog', false);
+    // 初始化 navMenu 并保存到组件数据
+    this.navMenu = useNavMenu({
+      t: $t,
+      bkInfo: window.$bkInfo,
+      http: window.$http,
+      emit: window.$emit,
+    });
 
-        if (window.IS_EXTERNAL) {
-          this.$router.push({
-            name: 'manage',
-            query: {
-              spaceUid: this.$store.state.spaceUid,
-              bizId: this.$store.state.bizId,
-            },
+    this.navMenu.requestMySpaceList();
+
+    this.getGlobalsData();
+    this.getUserInfo();
+    window.bus.$on('showGlobalDialog', this.handleGoToMyReport);
+  },
+  beforeUnmount() {
+    window.bus.$off('showGlobalDialog', this.handleGoToMyReport);
+  },
+
+  methods: {
+    async getUserInfo() {
+      try {
+        const res = this.$store.state.userMeta;
+        this.username = res.username;
+        // this.$store.commit('updateUserMeta', res.data);
+        if (window.__aegisInstance) {
+          window.__aegisInstance.setConfig({
+            uin: res.username,
           });
-
-          return;
         }
+      } catch (e) {
+        console.warn(e);
+      } finally {
+        this.usernameRequested = true;
+      }
+    },
+    // 获取全局数据和 判断是否可以保存 已有的日志聚类
+    getGlobalsData() {
+      // if (Object.keys(this.globalsData).length) return;
+      // this.$http
+      //   .request('collect/globals')
+      //   .then(res => {
+      //     this.$store.commit('globals/setGlobalsData', res.data);
+      //   })
+      //   .catch(e => {
+      //     console.warn(e);
+      //   });
+    },
+    jumpToHome() {
+      this.$store.commit('updateIsShowGlobalDialog', false);
+
+      if (window.IS_EXTERNAL) {
         this.$router.push({
-          name: 'retrieve',
+          name: 'manage',
           query: {
             spaceUid: this.$store.state.spaceUid,
+            bizId: this.$store.state.bizId,
           },
         });
-        setTimeout(() => {
-          this.$emit('reload-router');
-        });
-      },
-      routerHandler(menu) {
-        // 关闭全局设置弹窗
-        this.$store.commit('updateIsShowGlobalDialog', false);
-        if (menu.id === this.navMenu.activeTopMenu.id) {
-          if (menu.id === 'retrieve') {
-            this.$router.push({
-              name: menu.id,
-              query: {
-                spaceUid: this.$store.state.spaceUid,
-              },
-            });
-            this.$emit('reload-router');
-            return;
-          }
-          if (menu.id === 'extract') {
-            if (this.$route.query.create) {
-              this.$router.push({
-                name: 'extract',
-                query: {
-                  spaceUid: this.$store.state.spaceUid,
-                },
-              });
-            } else {
-              this.$emit('reload-router');
-            }
-            return;
-          }
-          if (menu.id === 'trace') {
-            if (this.$route.name === 'trace-detail') {
-              this.$router.push({
-                name: 'trace-list',
-                query: {
-                  spaceUid: this.$store.state.spaceUid,
-                },
-              });
-            } else {
-              this.$emit('reload-router');
-            }
-            return;
-          }
-          if (menu.id === 'dashboard') {
-            // if (this.$route.query.manageAction) {
-            //   const newQuery = { ...this.$route.query };
-            //   delete newQuery.manageAction;
-            //   this.$router.push({
-            //     name: 'dashboard',
-            //     query: newQuery,
-            //   });
-            // }
-            // this.$emit('reload-router');
-            // return;
-            this.$router.push({
-              name: menu.id,
-              query: {
-                spaceUid: this.$store.state.spaceUid,
-              },
-            });
-            this.$emit('reload-router');
-            return;
-          }
-          if (menu.id === 'manage') {
-            if (this.$route.name !== 'collection-item') {
-              this.$router.push({
-                name: 'manage',
-                query: {
-                  spaceUid: this.$store.state.spaceUid,
-                },
-              });
-            } else {
-              this.$emit('reload-router');
-            }
-            return;
-          }
-          this.$emit('reload-router');
-          return;
-        }
-        if (menu.id === 'monitor') {
-          window.open(`${window.MONITOR_URL}/?bizId=${this.bkBizId}#/strategy-config`, '_blank');
-        } else if (menu.id === 'trace') {
-          this.$router.push({
-            name: 'trace-list',
-            query: {
-              spaceUid: this.$store.state.spaceUid,
-            },
-          });
-        } else {
+
+        return;
+      }
+      this.$router.push({
+        name: 'retrieve',
+        query: {
+          spaceUid: this.$store.state.spaceUid,
+        },
+      });
+      setTimeout(() => {
+        this.$emit('reload-router');
+      });
+    },
+    routerHandler(menu) {
+      // 关闭全局设置弹窗
+      this.$store.commit('updateIsShowGlobalDialog', false);
+      if (menu.id === this.navMenu.activeTopMenu.id) {
+        if (menu.id === 'retrieve') {
           this.$router.push({
             name: menu.id,
             query: {
               spaceUid: this.$store.state.spaceUid,
             },
           });
+          this.$emit('reload-router');
+          return;
         }
-      },
-      async changeLanguage(value) {
-        jsCookie.remove('blueking_language', { path: '' });
-        jsCookie.set('blueking_language', value, {
-          expires: 3600,
-          domain:
-            this.envConfig.bkDomain || location.host.split('.').slice(-2).join('.').replace(`:${location.port}`, ''),
-        });
-        if (this.envConfig.host) {
-          try {
-            useJSONP(
-              `${this.envConfig.host
-                .replace(/\/$/, '')
-                .replace(/^http:/, location.protocol)}/api/c/compapi/v2/usermanage/fe_update_user_language`,
-              {
-                data: {
-                  language: value,
-                },
+        if (menu.id === 'extract') {
+          if (this.$route.query.create) {
+            this.$router.push({
+              name: 'extract',
+              query: {
+                spaceUid: this.$store.state.spaceUid,
               },
-            );
-          } catch (error) {
-            console.warn(error);
-            location.reload();
-          } finally {
-            location.reload();
+            });
+          } else {
+            this.$emit('reload-router');
           }
           return;
         }
-        location.reload();
-      },
-
-      dropdownHelpTriggerHandler(type) {
-        this.$refs.dropdownHelp.hide();
-        if (type === 'logVersion') {
-          this.showLogVersion = true;
-        } else if (type === 'docCenter') {
-          // window.open(window.BK_DOC_URL);
-          this.handleGotoLink('docCenter');
-        } else if (type === 'feedback') {
-          window.open(window.BK_FAQ_URL);
+        if (menu.id === 'trace') {
+          if (this.$route.name === 'trace-detail') {
+            this.$router.push({
+              name: 'trace-list',
+              query: {
+                spaceUid: this.$store.state.spaceUid,
+              },
+            });
+          } else {
+            this.$emit('reload-router');
+          }
+          return;
         }
-      },
-      /** 前往 我申请的 */
-      handleGoToMyApplication() {
-        this.showGlobalDialog = false;
-        this.$nextTick(() => {
-          const bizId = this.$store.state.bkBizId;
-          const host =
-            process.env.NODE_ENV === 'development' ? `http://${process.env.devHost}:7001` : window.MONITOR_URL;
-          const targetSrc = `${host}/?bizId=${bizId}&needMenu=false#/trace/report/my-applied-report`;
-          this.globalDialogTitle = this.$t('我申请的');
-          this.showGlobalDialog = true;
-          this.targetSrc = targetSrc;
+        if (menu.id === 'dashboard') {
+          // if (this.$route.query.manageAction) {
+          //   const newQuery = { ...this.$route.query };
+          //   delete newQuery.manageAction;
+          //   this.$router.push({
+          //     name: 'dashboard',
+          //     query: newQuery,
+          //   });
+          // }
+          // this.$emit('reload-router');
+          // return;
+          this.$router.push({
+            name: menu.id,
+            query: {
+              spaceUid: this.$store.state.spaceUid,
+            },
+          });
+          this.$emit('reload-router');
+          return;
+        }
+        if (menu.id === 'manage') {
+          if (this.$route.name !== 'collection-item') {
+            this.$router.push({
+              name: 'manage',
+              query: {
+                spaceUid: this.$store.state.spaceUid,
+              },
+            });
+          } else {
+            this.$emit('reload-router');
+          }
+          return;
+        }
+        this.$emit('reload-router');
+        return;
+      }
+      if (menu.id === 'monitor') {
+        window.open(`${window.MONITOR_URL}/?bizId=${this.bkBizId}#/strategy-config`, '_blank');
+      } else if (menu.id === 'trace') {
+        this.$router.push({
+          name: 'trace-list',
+          query: {
+            spaceUid: this.$store.state.spaceUid,
+          },
         });
-      },
-      /** 前往 我的订阅 */
-      handleGoToMyReport() {
-        this.showGlobalDialog = false;
-        this.$nextTick(() => {
-          const bizId = this.$store.state.bkBizId;
-          const host =
-            process.env.NODE_ENV === 'development' ? `http://${process.env.devHost}:7001` : window.MONITOR_URL;
-          const targetSrc = `${host}/?bizId=${bizId}&needMenu=false#/trace/report/my-report`;
-          this.globalDialogTitle = this.$t('我的订阅');
-          this.showGlobalDialog = true;
-          this.targetSrc = targetSrc;
+      } else {
+        this.$router.push({
+          name: menu.id,
+          query: {
+            spaceUid: this.$store.state.spaceUid,
+          },
         });
-      },
-      /** 退出登录 */
-      handleQuit() {
-        location.href = `${window.BK_PLAT_HOST}/console/accounts/logout/`;
-      },
-      handleClickGlobalDialog(id) {
-        // 打开全局设置弹窗
-        this.$store.commit('updateGlobalActiveLabel', id);
-        this.$store.commit('updateIsShowGlobalDialog', true);
-      },
-      getLanguageClass(language) {
-        return language === 'en' ? 'bk-icon icon-english' : 'bk-icon icon-chinese';
-      },
+      }
     },
-  };
+    async changeLanguage(value) {
+      jsCookie.remove('blueking_language', { path: '' });
+      jsCookie.set('blueking_language', value, {
+        expires: 3600,
+        domain:
+          this.envConfig.bkDomain || location.host.split('.').slice(-2).join('.').replace(`:${location.port}`, ''),
+      });
+      if (this.envConfig.host) {
+        try {
+          useJSONP(
+            `${this.envConfig.host
+              .replace(/\/$/, '')
+              .replace(/^http:/, location.protocol)}/api/c/compapi/v2/usermanage/fe_update_user_language`,
+            {
+              data: {
+                language: value,
+              },
+            }
+          );
+        } catch (error) {
+          console.warn(error);
+          location.reload();
+        } finally {
+          location.reload();
+        }
+        return;
+      }
+      location.reload();
+    },
+
+    dropdownHelpTriggerHandler(type) {
+      this.$refs.dropdownHelp.hide();
+      if (type === 'logVersion') {
+        this.showLogVersion = true;
+      } else if (type === 'docCenter') {
+        // window.open(window.BK_DOC_URL);
+        this.handleGotoLink('docCenter');
+      } else if (type === 'feedback') {
+        window.open(window.BK_FAQ_URL);
+      }
+    },
+    /** 前往 我申请的 */
+    handleGoToMyApplication() {
+      this.showGlobalDialog = false;
+      this.$nextTick(() => {
+        const bizId = this.$store.state.bkBizId;
+        const host = process.env.NODE_ENV === 'development' ? `http://${process.env.devHost}:7001` : window.MONITOR_URL;
+        const targetSrc = `${host}/?bizId=${bizId}&needMenu=false#/trace/report/my-applied-report`;
+        this.globalDialogTitle = this.$t('我申请的');
+        this.showGlobalDialog = true;
+        this.targetSrc = targetSrc;
+      });
+    },
+    /** 前往 我的订阅 */
+    handleGoToMyReport() {
+      this.showGlobalDialog = false;
+      this.$nextTick(() => {
+        const bizId = this.$store.state.bkBizId;
+        const host = process.env.NODE_ENV === 'development' ? `http://${process.env.devHost}:7001` : window.MONITOR_URL;
+        const targetSrc = `${host}/?bizId=${bizId}&needMenu=false#/trace/report/my-report`;
+        this.globalDialogTitle = this.$t('我的订阅');
+        this.showGlobalDialog = true;
+        this.targetSrc = targetSrc;
+      });
+    },
+    /** 退出登录 */
+    handleQuit() {
+      location.href = `${window.BK_PLAT_HOST}/console/accounts/logout/`;
+    },
+    handleClickGlobalDialog(id) {
+      // 打开全局设置弹窗
+      this.$store.commit('updateGlobalActiveLabel', id);
+      this.$store.commit('updateIsShowGlobalDialog', true);
+    },
+    getLanguageClass(language) {
+      return language === 'en' ? 'bk-icon icon-english' : 'bk-icon icon-chinese';
+    },
+  },
+};
 </script>
 
 <style lang="scss">

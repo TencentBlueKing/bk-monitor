@@ -92,67 +92,67 @@
 </template>
 
 <script>
-  export default {
-    model: {
-      event: 'change',
+export default {
+  model: {
+    event: 'change',
+  },
+  props: {
+    value: {
+      type: String,
+      required: true,
     },
-    props: {
-      value: {
-        type: String,
-        required: true,
-      },
-      availablePaths: {
-        type: Array,
-        required: true,
-      },
+    availablePaths: {
+      type: Array,
+      required: true,
     },
-    data() {
-      return {
-        isError: false,
-        showValue: '',
-        searchValue: '',
-      };
+  },
+  data() {
+    return {
+      isError: false,
+      showValue: '',
+      searchValue: '',
+    };
+  },
+  computed: {
+    filesSearchedPath() {
+      return this.availablePaths.filter(item => item.toLowerCase().includes(this.searchValue.toLowerCase()));
     },
-    computed: {
-      filesSearchedPath() {
-        return this.availablePaths.filter(item => item.toLowerCase().includes(this.searchValue.toLowerCase()));
-      },
+  },
+  watch: {
+    availablePaths() {
+      this.showValue && this.handleChange(this.showValue);
     },
-    watch: {
-      availablePaths() {
-        this.showValue && this.handleChange(this.showValue);
-      },
-      value(val) {
-        this.showValue = val;
-      },
+    value(val) {
+      this.showValue = val;
     },
-    methods: {
-      handleChange(val) {
-        if (this.validate(val)) {
-          this.$emit('change', val);
-        } else {
-          this.$emit('change', '');
-        }
-      },
-      handleSelectOption(val) {
-        this.validate(val);
-        this.showValue = val;
+  },
+  methods: {
+    handleChange(val) {
+      if (this.validate(val)) {
         this.$emit('change', val);
-        this.$emit('update:select', val);
-        this.$refs.selectDropdown.hideHandler();
-      },
-      validate(val) {
-        let isAvailable = false;
-        for (const path of this.availablePaths) {
-          if (val.startsWith(path)) {
-            isAvailable = true;
-            break;
-          }
-        }
-        const isValidated = isAvailable && !/\.\//.test(val);
-        this.isError = !isValidated;
-        return isValidated;
-      },
+      } else {
+        this.$emit('change', '');
+      }
     },
-  };
+    handleSelectOption(val) {
+      this.validate(val);
+      this.showValue = val;
+      this.$emit('change', val);
+      this.$emit('update:select', val);
+      this.$refs.selectDropdown.hideHandler();
+    },
+    validate(val) {
+      let isAvailable = false;
+      for (const path of this.availablePaths) {
+        if (val.startsWith(path)) {
+          isAvailable = true;
+          break;
+        }
+      }
+      const isValidated = isAvailable && !/\.\//.test(val);
+      this.isError = !isValidated;
+      return isValidated;
+    },
+  },
+};
 </script>

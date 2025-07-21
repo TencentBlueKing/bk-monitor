@@ -1,155 +1,158 @@
 <script setup lang="ts">
-  import { ref, computed, watch, nextTick } from 'vue';
+import { ref, computed, watch, nextTick } from 'vue';
 
-  import { getOperatorKey } from '@/common/util';
-  import useLocale from '@/hooks/use-locale';
-  import useStore from '@/hooks/use-store';
+import { getOperatorKey } from '@/common/util';
+import useLocale from '@/hooks/use-locale';
+import useStore from '@/hooks/use-store';
 
-  import bklogTagChoice from './bklog-tag-choice';
-  import CommonFilterSetting from './common-filter-setting.vue';
-  import { FulltextOperator, FulltextOperatorKey, withoutValueConditionList } from './const.common';
-  import { operatorMapping, translateKeys } from './const-values';
-  import useFieldEgges from './use-field-egges';
-  import RetrieveHelper from '../../retrieve-helper';
-  import { useRoute } from 'vue-router/composables';
-  import { getCommonFilterAddition, getCommonFilterFieldsList, setStorageCommonFilterAddition } from '../../../store/helper';
-  import { BK_LOG_STORAGE } from '../../../store/store.type';
+import bklogTagChoice from './bklog-tag-choice';
+import CommonFilterSetting from './common-filter-setting.vue';
+import { FulltextOperator, FulltextOperatorKey, withoutValueConditionList } from './const.common';
+import { operatorMapping, translateKeys } from './const-values';
+import useFieldEgges from './use-field-egges';
+import RetrieveHelper from '../../retrieve-helper';
+import { useRoute } from 'vue-router/composables';
+import {
+  getCommonFilterAddition,
+  getCommonFilterFieldsList,
+  setStorageCommonFilterAddition,
+} from '../../../store/helper';
+import { BK_LOG_STORAGE } from '../../../store/store.type';
 
-  const { $t } = useLocale();
-  const store = useStore();
-  const route = useRoute();
-  const filterFieldsList = computed(() => getCommonFilterFieldsList(store.state));
+const { $t } = useLocale();
+const store = useStore();
+const route = useRoute();
+const filterFieldsList = computed(() => getCommonFilterFieldsList(store.state));
 
-  // 判定当前选中条件是否需要设置Value
-  const isShowConditonValueSetting = operator => !withoutValueConditionList.includes(operator);
-  const commonFilterAddition = ref([]);
+// 判定当前选中条件是否需要设置Value
+const isShowConditonValueSetting = operator => !withoutValueConditionList.includes(operator);
+const commonFilterAddition = ref([]);
 
-  const setCommonFilterAddition = () => {
-    commonFilterAddition.value.length = 0;
-    commonFilterAddition.value = [];
-    // 合并策略优化
-    commonFilterAddition.value = getCommonFilterAddition(store.state);
+const setCommonFilterAddition = () => {
+  commonFilterAddition.value.length = 0;
+  commonFilterAddition.value = [];
+  // 合并策略优化
+  commonFilterAddition.value = getCommonFilterAddition(store.state);
+};
+
+watch(
+  () => [filterFieldsList.value, store.state.indexId], // 同时监听 indexId
+  () => {
+    setCommonFilterAddition();
+  },
+  { immediate: true, deep: true }
+);
+const activeIndex = ref(-1);
+
+const operatorDictionary = computed(() => {
+  const defVal = {
+    [getOperatorKey(FulltextOperatorKey)]: { label: $t('包含'), operator: FulltextOperator },
   };
-
-
-  watch(
-    () => [filterFieldsList.value, store.state.indexId], // 同时监听 indexId
-    () => {
-      setCommonFilterAddition();
-    },
-    { immediate: true, deep: true },
-  );
-  const activeIndex = ref(-1);
-
-  const operatorDictionary = computed(() => {
-    const defVal = {
-      [getOperatorKey(FulltextOperatorKey)]: { label: $t('包含'), operator: FulltextOperator },
-    };
-    return {
-      ...defVal,
-      ...store.state.operatorDictionary,
-    };
-  });
-
-  const textDir = computed(() => {
-    const textEllipsisDir = store.state.storage[BK_LOG_STORAGE.TEXT_ELLIPSIS_DIR];
-    return textEllipsisDir === 'start' ? 'rtl' : 'ltr';
-  });
-
-  /**
-   * 获取操作符展示文本
-   * @param {*} item
-   */
-  const getOperatorLabel = item => {
-    if (item.field === '_ip-select_') {
-      return '';
-    }
-
-    const key = item.field === '*' ? getOperatorKey(`*${item.operator}`) : getOperatorKey(item.operator);
-    if (translateKeys.includes(operatorMapping[item.operator])) {
-      return $t(operatorMapping[item.operator] ?? item.operator);
-    }
-
-    return operatorMapping[item.operator] ?? operatorDictionary.value[key]?.label ?? item.operator;
+  return {
+    ...defVal,
+    ...store.state.operatorDictionary,
   };
+});
 
-  const { requestFieldEgges, isRequesting } = useFieldEgges();
-  const handleToggle = (visable, item, index) => {
-    if (visable) {
-      activeIndex.value = index;
-      requestFieldEgges(item, null, resp => {
-        if (typeof resp === 'boolean') {
-          return;
-        }
-        commonFilterAddition.value[index].list = store.state.indexFieldInfo.aggs_items[item.field_name] ?? [];
-      });
-    }
-  };
+const textDir = computed(() => {
+  const textEllipsisDir = store.state.storage[BK_LOG_STORAGE.TEXT_ELLIPSIS_DIR];
+  return textEllipsisDir === 'start' ? 'rtl' : 'ltr';
+});
 
-  const handleInputVlaueChange = (value, item, index) => {
+/**
+ * 获取操作符展示文本
+ * @param {*} item
+ */
+const getOperatorLabel = item => {
+  if (item.field === '_ip-select_') {
+    return '';
+  }
+
+  const key = item.field === '*' ? getOperatorKey(`*${item.operator}`) : getOperatorKey(item.operator);
+  if (translateKeys.includes(operatorMapping[item.operator])) {
+    return $t(operatorMapping[item.operator] ?? item.operator);
+  }
+
+  return operatorMapping[item.operator] ?? operatorDictionary.value[key]?.label ?? item.operator;
+};
+
+const { requestFieldEgges, isRequesting } = useFieldEgges();
+const handleToggle = (visable, item, index) => {
+  if (visable) {
     activeIndex.value = index;
-    requestFieldEgges(item, value, resp => {
+    requestFieldEgges(item, null, resp => {
       if (typeof resp === 'boolean') {
         return;
       }
       commonFilterAddition.value[index].list = store.state.indexFieldInfo.aggs_items[item.field_name] ?? [];
     });
-  };
+  }
+};
 
-  const handleChange = () => {
-    commonFilterAddition.value.forEach(item => {
-      if (!isShowConditonValueSetting(item.operator)) {
-        item.value = [];
-      }
-    });
-
-    setStorageCommonFilterAddition(store.state, commonFilterAddition.value);
-
-    store.commit('retrieve/updateCatchFilterAddition', { addition: commonFilterAddition.value });
-
-    if (route.query.tab !== 'graphAnalysis') {
-      store.dispatch('requestIndexSetQuery');
-    }
-
-    RetrieveHelper.searchValueChange('filter', commonFilterAddition.value);
-  };
-
-  const focusIndex = ref(null);
-  const handleRowFocus = (index, e) => {
-    if (document.activeElement === e.target) {
-      focusIndex.value = index;
-    }
-  };
-
-  const isChoiceInputFocus = ref(false);
-
-  const handleChoiceFocus = index => {
-    isChoiceInputFocus.value = true;
-    focusIndex.value = index;
-  };
-
-  const handleChoiceBlur = index => {
-    if (focusIndex.value === index) {
-      focusIndex.value = null;
-      isChoiceInputFocus.value = null;
-    }
-  };
-
-  const handleRowBlur = () => {
-    if (isChoiceInputFocus.value) {
+const handleInputVlaueChange = (value, item, index) => {
+  activeIndex.value = index;
+  requestFieldEgges(item, value, resp => {
+    if (typeof resp === 'boolean') {
       return;
     }
+    commonFilterAddition.value[index].list = store.state.indexFieldInfo.aggs_items[item.field_name] ?? [];
+  });
+};
 
-    focusIndex.value = null;
-  };
-
-  const handleDeleAllOptions = () => {
-    commonFilterAddition.value.forEach(item => {
+const handleChange = () => {
+  commonFilterAddition.value.forEach(item => {
+    if (!isShowConditonValueSetting(item.operator)) {
       item.value = [];
-    });
+    }
+  });
 
-    handleChange();
-  };
+  setStorageCommonFilterAddition(store.state, commonFilterAddition.value);
+
+  store.commit('retrieve/updateCatchFilterAddition', { addition: commonFilterAddition.value });
+
+  if (route.query.tab !== 'graphAnalysis') {
+    store.dispatch('requestIndexSetQuery');
+  }
+
+  RetrieveHelper.searchValueChange('filter', commonFilterAddition.value);
+};
+
+const focusIndex = ref(null);
+const handleRowFocus = (index, e) => {
+  if (document.activeElement === e.target) {
+    focusIndex.value = index;
+  }
+};
+
+const isChoiceInputFocus = ref(false);
+
+const handleChoiceFocus = index => {
+  isChoiceInputFocus.value = true;
+  focusIndex.value = index;
+};
+
+const handleChoiceBlur = index => {
+  if (focusIndex.value === index) {
+    focusIndex.value = null;
+    isChoiceInputFocus.value = null;
+  }
+};
+
+const handleRowBlur = () => {
+  if (isChoiceInputFocus.value) {
+    return;
+  }
+
+  focusIndex.value = null;
+};
+
+const handleDeleAllOptions = () => {
+  commonFilterAddition.value.forEach(item => {
+    item.value = [];
+  });
+
+  handleChange();
+};
 </script>
 
 <template>

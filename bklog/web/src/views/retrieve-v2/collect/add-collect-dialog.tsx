@@ -166,7 +166,6 @@ export default class CollectDialog extends tsc<IProps> {
   get favStrList() {
     const favoriteItem = this.favoriteList.find(item => item.group_id === this.favoriteData.group_id);
     return favoriteItem?.favorites.map(group => group.name) || [];
-     
   }
 
   get unionIndexList() {
@@ -262,7 +261,7 @@ export default class CollectDialog extends tsc<IProps> {
   checkName() {
     if (this.verifyData.groupName.trim() === '') return true;
     return /^[\u4e00-\u9fa5_a-zA-Z0-9`~!@#$%^&*()_\-+=<>?:"{}|\s,.\/;'\\[\]·~！@#￥%……&*（）——\-+={}|《》？：“”【】、；‘'，。、]+$/im.test(
-      this.verifyData.groupName.trim(),
+      this.verifyData.groupName.trim()
     );
   }
 
@@ -272,13 +271,17 @@ export default class CollectDialog extends tsc<IProps> {
 
   /** 判断是否收藏名是否重复 */
   checkRepeatName() {
-    if (this.currentFavoriteName === this.favoriteData.name && this.currentFavoriteGroupID === this.favoriteData.group_id) return true;
+    if (
+      this.currentFavoriteName === this.favoriteData.name &&
+      this.currentFavoriteGroupID === this.favoriteData.group_id
+    )
+      return true;
     return !this.favStrList.includes(this.favoriteData.name);
   }
   /** 检查收藏语法是否正确 */
   checkSpecification() {
     return /^[\u4e00-\u9fa5_a-zA-Z0-9`~!@#$%^&*()_\-+=<>?:"{}|\s,.\/;'\\[\]·~！@#￥%……&*（）——\-+={}|《》？：“”【】、；‘'，。、]+$/im.test(
-      this.favoriteData.name.trim(),
+      this.favoriteData.name.trim()
     );
   }
   /** 检查是否有内置名称不能使用 */

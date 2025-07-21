@@ -72,37 +72,37 @@
 </template>
 
 <script lang="ts">
-  import { Component, Vue, Prop, Ref } from 'vue-property-decorator';
+import { Component, Vue, Prop, Ref } from 'vue-property-decorator';
 
-  import ChartMenu from './chart-menu.vue';
+import ChartMenu from './chart-menu.vue';
 
-  @Component({
-    name: 'chart-title',
-    components: {
-      ChartMenu,
-    },
-  })
-  export default class ChartTitle extends Vue {
-    @Prop({ default: '' }) title: string;
-    @Prop({ default: '' }) subtitle: string;
-    @Prop({ default: () => [] }) menuList: string[];
-    @Prop({ default: localStorage.getItem('chartIsFold') === 'true' }) isFold: boolean;
-    @Prop({ default: true }) loading: boolean;
-    @Ref('chartTitle') chartTitleRef: HTMLDivElement;
-    private showMenu = false;
-    private menuLeft = 0;
-    handleShowMenu(e: MouseEvent) {
-      this.$emit('toggle-expand', !this.isFold);
+@Component({
+  name: 'chart-title',
+  components: {
+    ChartMenu,
+  },
+})
+export default class ChartTitle extends Vue {
+  @Prop({ default: '' }) title: string;
+  @Prop({ default: '' }) subtitle: string;
+  @Prop({ default: () => [] }) menuList: string[];
+  @Prop({ default: localStorage.getItem('chartIsFold') === 'true' }) isFold: boolean;
+  @Prop({ default: true }) loading: boolean;
+  @Ref('chartTitle') chartTitleRef: HTMLDivElement;
+  private showMenu = false;
+  private menuLeft = 0;
+  handleShowMenu(e: MouseEvent) {
+    this.$emit('toggle-expand', !this.isFold);
 
-      // this.showMenu = !this.showMenu
-      // const rect = this.chartTitleRef.getBoundingClientRect()
-      // this.menuLeft = rect.width  - 185 < e.layerX ? rect.width  - 185 : e.layerX
-    }
-    handleMenuClick(item) {
-      this.showMenu = false;
-      this.$emit('menu-click', item);
-    }
+    // this.showMenu = !this.showMenu
+    // const rect = this.chartTitleRef.getBoundingClientRect()
+    // this.menuLeft = rect.width  - 185 < e.layerX ? rect.width  - 185 : e.layerX
   }
+  handleMenuClick(item) {
+    this.showMenu = false;
+    this.$emit('menu-click', item);
+  }
+}
 </script>
 <style lang="scss" scoped>
   .title-wrapper {

@@ -90,7 +90,7 @@ export default {
           }
           this.storageList = s1.concat(s2);
           this.storageList.forEach(item =>
-            item.is_platform ? this.clusterList.push(item) : this.exclusiveList.push(item),
+            item.is_platform ? this.clusterList.push(item) : this.exclusiveList.push(item)
           );
         }
       } catch (error) {
@@ -156,7 +156,7 @@ export default {
             spaceUid: this.$store.state.spaceUid,
           },
         }).href,
-        '_blank',
+        '_blank'
       );
     },
     // 存储集群管理权限

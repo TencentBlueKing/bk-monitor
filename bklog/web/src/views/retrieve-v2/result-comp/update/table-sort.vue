@@ -85,78 +85,78 @@
   </div>
 </template>
 <script setup lang="ts">
-  import { computed, ref, defineExpose, watch } from 'vue';
-  import useLocale from '@/hooks/use-locale';
-  import useStore from '@/hooks/use-store';
-  import VueDraggable from 'vuedraggable';
+import { computed, ref, defineExpose, watch } from 'vue';
+import useLocale from '@/hooks/use-locale';
+import useStore from '@/hooks/use-store';
+import VueDraggable from 'vuedraggable';
 
-  import { deepClone, random } from '../../../../common/util';
-  import { BK_LOG_STORAGE } from '../../../../store/store.type';
-  const props = defineProps({
-    initData: {
-      type: Array,
-      default: () => [],
-    },
-    shouldRefresh: {
-      type: Boolean,
-      default: false,
-    },
+import { deepClone, random } from '../../../../common/util';
+import { BK_LOG_STORAGE } from '../../../../store/store.type';
+const props = defineProps({
+  initData: {
+    type: Array,
+    default: () => [],
+  },
+  shouldRefresh: {
+    type: Boolean,
+    default: false,
+  },
+});
+const { $t } = useLocale();
+const isStartTextEllipsis = computed(() => store.state.storage[BK_LOG_STORAGE.TEXT_ELLIPSIS_DIR] === 'start');
+const fieldTypeMap = computed(() => store.state.globals.fieldTypeMap);
+const dragOptions = {
+  animation: 150,
+  tag: 'ul',
+  handle: '.bklog-ketuodong',
+  'ghost-class': 'sortable-ghost-class',
+};
+const orderList = [
+  { id: 'desc', name: $t('降序') },
+  { id: 'asc', name: $t('升序') },
+];
+const store = useStore();
+
+/** 新增变量处理v-for时需要使用的 key 字段，避免重复新建 VNode */
+const sortList = ref<{ key: string; sorts: string[] }[]>([]);
+
+const shadowSort = computed(() => sortList.value.map(e => e.sorts));
+const selectList = computed(() => {
+  const data = store.state.indexFieldInfo.fields;
+  const filterFn = field => field.field_type !== '__virtual__';
+  return data.filter(filterFn).map(field => {
+    return Object.assign({}, field, { disabled: shadowSort.value.some(item => item[0] === field.field_name) });
   });
-  const { $t } = useLocale();
-  const isStartTextEllipsis = computed(() => store.state.storage[BK_LOG_STORAGE.TEXT_ELLIPSIS_DIR] === 'start');
-  const fieldTypeMap = computed(() => store.state.globals.fieldTypeMap);
-  const dragOptions = {
-    animation: 150,
-    tag: 'ul',
-    handle: '.bklog-ketuodong',
-    'ghost-class': 'sortable-ghost-class',
-  };
-  const orderList = [
-    { id: 'desc', name: $t('降序') },
-    { id: 'asc', name: $t('升序') },
-  ];
-  const store = useStore();
+});
 
-  /** 新增变量处理v-for时需要使用的 key 字段，避免重复新建 VNode */
-  const sortList = ref<{ key: string; sorts: string[] }[]>([]);
-
-  const shadowSort = computed(() => sortList.value.map(e => e.sorts));
-  const selectList = computed(() => {
-    const data = store.state.indexFieldInfo.fields;
-    const filterFn = field => field.field_type !== '__virtual__';
-    return data.filter(filterFn).map(field => {
-      return Object.assign({}, field, { disabled: shadowSort.value.some(item => item[0] === field.field_name) });
-    });
-  });
-
-  const deleteTableItem = (val: number) => {
-    sortList.value = sortList.value.slice(0, val).concat(sortList.value.slice(val + 1));
-  };
-  const addTableItem = () => {
-    sortList.value.push({ key: random(8), sorts: ['', ''] });
-  };
-  const getFieldIconColor = type => {
-    return fieldTypeMap.value?.[type] ? fieldTypeMap.value?.[type]?.color : '#EAEBF0';
-  };
-  const getFieldIconTextColor = type => {
-    return fieldTypeMap.value?.[type]?.textColor;
-  };
-  const getFieldIcon = fieldType => {
-    return fieldTypeMap.value?.[fieldType] ? fieldTypeMap.value?.[fieldType]?.icon : 'bklog-icon bklog-unkown';
-  };
-  watch(
-    () => [props.initData, props.shouldRefresh],
-    ([newInitData, newShouldRefresh]) => {
-      // 当有初始数据时，直接更新
-      if (Array.isArray(newInitData) && newInitData.length) {
-        sortList.value = deepClone(newInitData).map(sorts => ({ key: random(8), sorts }));
-      } else {
-        sortList.value = [];
-      }
-    },
-    { immediate: true, deep: true },
-  );
-  defineExpose({ shadowSort });
+const deleteTableItem = (val: number) => {
+  sortList.value = sortList.value.slice(0, val).concat(sortList.value.slice(val + 1));
+};
+const addTableItem = () => {
+  sortList.value.push({ key: random(8), sorts: ['', ''] });
+};
+const getFieldIconColor = type => {
+  return fieldTypeMap.value?.[type] ? fieldTypeMap.value?.[type]?.color : '#EAEBF0';
+};
+const getFieldIconTextColor = type => {
+  return fieldTypeMap.value?.[type]?.textColor;
+};
+const getFieldIcon = fieldType => {
+  return fieldTypeMap.value?.[fieldType] ? fieldTypeMap.value?.[fieldType]?.icon : 'bklog-icon bklog-unkown';
+};
+watch(
+  () => [props.initData, props.shouldRefresh],
+  ([newInitData, newShouldRefresh]) => {
+    // 当有初始数据时，直接更新
+    if (Array.isArray(newInitData) && newInitData.length) {
+      sortList.value = deepClone(newInitData).map(sorts => ({ key: random(8), sorts }));
+    } else {
+      sortList.value = [];
+    }
+  },
+  { immediate: true, deep: true }
+);
+defineExpose({ shadowSort });
 </script>
 <style lang="scss" scoped>
   .custom-select-list {

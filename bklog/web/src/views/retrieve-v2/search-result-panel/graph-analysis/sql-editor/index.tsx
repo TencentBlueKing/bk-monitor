@@ -312,7 +312,7 @@ export default defineComponent({
         RetrieveEvent.LEFT_FIELD_INFO_UPDATE,
       ],
       // eslint-disable-next-line @typescript-eslint/no-misused-promises
-      onRefereceChange,
+      onRefereceChange
     );
     useResizeObserve(refSqlPreviewElement, debounceUpdateHeight);
 

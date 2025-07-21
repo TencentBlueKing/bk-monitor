@@ -174,33 +174,94 @@
 </template>
 
 <script>
-  import EmptyStatus from '@/components/empty-status';
-  import { mapState } from 'vuex';
+import EmptyStatus from '@/components/empty-status';
+import { mapState } from 'vuex';
 
-  export default {
-    components: {
-      EmptyStatus,
+export default {
+  components: {
+    EmptyStatus,
+  },
+  props: {
+    parentData: {
+      type: Object,
+      required: true,
     },
-    props: {
-      parentData: {
-        type: Object,
-        required: true,
-      },
-      timeIndex: {
-        type: Object,
-        default: null,
-      },
+    timeIndex: {
+      type: Object,
+      default: null,
     },
-    data() {
-      const scenarioId = this.$route.name.split('-')[0];
-      return {
-        scenarioId,
-        showDialog: false,
+  },
+  data() {
+    const scenarioId = this.$route.name.split('-')[0];
+    return {
+      scenarioId,
+      showDialog: false,
+      tableLoading: false,
+      searchLoading: false,
+      confirmLoading: false,
+      indexErrorText: '',
+      emptyType: 'empty',
+      matchedTableIds: [], // 匹配到的索引 id，result table id list
+      timeFields: [], // 字段类型为 date 或 long 的字段
+      formData: {
+        resultTableId: '',
+        time_field: '',
+        time_field_type: '',
+        time_field_unit: 'microsecond',
+      },
+      timeUnits: [
+        { name: this.$t('秒（second）'), id: 'second' },
+        { name: this.$t('毫秒（millisecond）'), id: 'millisecond' },
+        { name: this.$t('微秒（microsecond）'), id: 'microsecond' },
+      ],
+      formRules: {
+        resultTableId: [
+          {
+            required: true,
+            trigger: 'blur',
+          },
+          {
+            validator: val => val && val !== '*',
+            trigger: 'blur',
+          },
+        ],
+        time_field: [
+          {
+            required: true,
+            trigger: 'change',
+          },
+          {
+            validator: val => {
+              if (!this.timeIndex) return true;
+              return this.timeIndex.time_field === val;
+            },
+            message: this.$t('时间字段需要保持一致'),
+            trigger: 'change',
+          },
+        ],
+        time_field_unit: [
+          {
+            required: true,
+            trigger: 'change',
+          },
+        ],
+      },
+    };
+  },
+  computed: {
+    ...mapState(['spaceUid', 'bkBizId']),
+  },
+  methods: {
+    openDialog() {
+      this.showDialog = true;
+      this.$refs.formRef.clearError();
+      this.emptyType = 'empty';
+      Object.assign(this, {
         tableLoading: false,
         searchLoading: false,
         confirmLoading: false,
+
         indexErrorText: '',
-        emptyType: 'empty',
         matchedTableIds: [], // 匹配到的索引 id，result table id list
         timeFields: [], // 字段类型为 date 或 long 的字段
         formData: {
@@ -209,208 +270,147 @@
           time_field_type: '',
           time_field_unit: 'microsecond',
         },
-        timeUnits: [
-          { name: this.$t('秒（second）'), id: 'second' },
-          { name: this.$t('毫秒（millisecond）'), id: 'millisecond' },
-          { name: this.$t('微秒（microsecond）'), id: 'microsecond' },
-        ],
-        formRules: {
-          resultTableId: [
-            {
-              required: true,
-              trigger: 'blur',
-            },
-            {
-              validator: val => val && val !== '*',
-              trigger: 'blur',
-            },
-          ],
-          time_field: [
-            {
-              required: true,
-              trigger: 'change',
-            },
-            {
-              validator: val => {
-                if (!this.timeIndex) return true;
-                return this.timeIndex.time_field === val;
-              },
-              message: this.$t('时间字段需要保持一致'),
-              trigger: 'change',
-            },
-          ],
-          time_field_unit: [
-            {
-              required: true,
-              trigger: 'change',
-            },
-          ],
-        },
-      };
+      });
     },
-    computed: {
-      ...mapState(['spaceUid', 'bkBizId']),
-    },
-    methods: {
-      openDialog() {
-        this.showDialog = true;
-        this.$refs.formRef.clearError();
+    handleOperation(type) {
+      if (type === 'clear-filter') {
+        this.formData.resultTableId = '*';
         this.emptyType = 'empty';
-        Object.assign(this, {
-          tableLoading: false,
-          searchLoading: false,
-          confirmLoading: false,
+        this.handleSearch();
+        return;
+      }
 
-          indexErrorText: '',
-          matchedTableIds: [], // 匹配到的索引 id，result table id list
-          timeFields: [], // 字段类型为 date 或 long 的字段
-          formData: {
-            resultTableId: '',
-            time_field: '',
-            time_field_type: '',
-            time_field_unit: 'microsecond',
+      if (type === 'refresh') {
+        this.emptyType = 'empty';
+        this.handleSearch();
+        return;
+      }
+    },
+    // 如果result_table_id为空，在光标后自动追加*
+    handleFocus(value, event) {
+      if (!this.formData.resultTableId) {
+        this.formData.resultTableId = '*';
+        setTimeout(() => {
+          event.target.setSelectionRange(0, 0);
+        }, 50);
+      }
+    },
+    // 匹配索引和字段
+    async handleSearch() {
+      if (!this.formData.resultTableId || this.formData.resultTableId === '*') {
+        return;
+      }
+      this.emptyType = 'search-empty';
+      this.indexErrorText = '';
+      this.formData.time_field = '';
+      this.formData.time_field_type = '';
+      this.formData.time_field_unit = 'microsecond';
+      this.searchLoading = true;
+      this.tableLoading = true;
+      const [idRes, fieldRes] = await Promise.all([this.fetchList(), this.fetchInfo()]);
+      this.matchedTableIds = idRes;
+      this.timeFields = fieldRes;
+      this.searchLoading = false;
+      this.tableLoading = false;
+    },
+    async fetchList() {
+      try {
+        const res = await this.$http.request('/resultTables/list', {
+          query: {
+            scenario_id: this.scenarioId,
+            bk_biz_id: this.bkBizId,
+            storage_cluster_id: this.parentData.storage_cluster_id,
+            result_table_id: this.formData.resultTableId,
           },
         });
-      },
-      handleOperation(type) {
-        if (type === 'clear-filter') {
-          this.formData.resultTableId = '*';
-          this.emptyType = 'empty';
-          this.handleSearch();
-          return;
-        }
-
-        if (type === 'refresh') {
-          this.emptyType = 'empty';
-          this.handleSearch();
-          return;
-        }
-      },
-      // 如果result_table_id为空，在光标后自动追加*
-      handleFocus(value, event) {
-        if (!this.formData.resultTableId) {
-          this.formData.resultTableId = '*';
-          setTimeout(() => {
-            event.target.setSelectionRange(0, 0);
-          }, 50);
-        }
-      },
-      // 匹配索引和字段
-      async handleSearch() {
-        if (!this.formData.resultTableId || this.formData.resultTableId === '*') {
-          return;
-        }
-        this.emptyType = 'search-empty';
-        this.indexErrorText = '';
-        this.formData.time_field = '';
-        this.formData.time_field_type = '';
-        this.formData.time_field_unit = 'microsecond';
-        this.searchLoading = true;
-        this.tableLoading = true;
-        const [idRes, fieldRes] = await Promise.all([this.fetchList(), this.fetchInfo()]);
-        this.matchedTableIds = idRes;
-        this.timeFields = fieldRes;
-        this.searchLoading = false;
-        this.tableLoading = false;
-      },
-      async fetchList() {
-        try {
-          const res = await this.$http.request('/resultTables/list', {
-            query: {
-              scenario_id: this.scenarioId,
-              bk_biz_id: this.bkBizId,
-              storage_cluster_id: this.parentData.storage_cluster_id,
-              result_table_id: this.formData.resultTableId,
-            },
-          });
-          return res.data;
-        } catch (e) {
-          console.warn(e);
-          this.indexErrorText += e.message;
-          this.emptyType = '500';
-          return [];
-        }
-      },
-      async fetchInfo(foreignParams) {
-        try {
-          const res = await this.$http.request(
-            '/resultTables/info',
-            !!foreignParams
-              ? foreignParams
-              : {
-                  params: {
-                    result_table_id: this.formData.resultTableId,
-                  },
-                  query: {
-                    scenario_id: this.scenarioId,
-                    bk_biz_id: this.bkBizId,
-                    storage_cluster_id: this.parentData.storage_cluster_id,
-                  },
+        return res.data;
+      } catch (e) {
+        console.warn(e);
+        this.indexErrorText += e.message;
+        this.emptyType = '500';
+        return [];
+      }
+    },
+    async fetchInfo(foreignParams) {
+      try {
+        const res = await this.$http.request(
+          '/resultTables/info',
+          !!foreignParams
+            ? foreignParams
+            : {
+                params: {
+                  result_table_id: this.formData.resultTableId,
                 },
-          );
-          if (foreignParams) return res;
-          const timeFields = res.data.fields.filter(item => item.field_type === 'date' || item.field_type === 'long');
-          // 如果已经添加了索引，回填三个字段（禁止更改字段名）
-          if (this.timeIndex) {
-            const find = timeFields.find(item => item.field_name === this.timeIndex.time_field);
-            if (find) {
-              Object.assign(this.formData, this.timeIndex);
-            }
+                query: {
+                  scenario_id: this.scenarioId,
+                  bk_biz_id: this.bkBizId,
+                  storage_cluster_id: this.parentData.storage_cluster_id,
+                },
+              }
+        );
+        if (foreignParams) return res;
+        const timeFields = res.data.fields.filter(item => item.field_type === 'date' || item.field_type === 'long');
+        // 如果已经添加了索引，回填三个字段（禁止更改字段名）
+        if (this.timeIndex) {
+          const find = timeFields.find(item => item.field_name === this.timeIndex.time_field);
+          if (find) {
+            Object.assign(this.formData, this.timeIndex);
           }
-          return timeFields;
-        } catch (e) {
-          console.warn(e);
-          this.indexErrorText += e.message;
-          this.emptyType = '500';
-          return [];
         }
-      },
-      // 选择时间字段
-      handleSelectedTimeField(fieldName) {
-        this.formData.time_field = fieldName;
-        this.formData.time_field_type = this.timeFields.find(item => item.field_name === fieldName).field_type;
-      },
-      // 确认添加
-      async handleConfirm() {
-        try {
-          await this.$refs.formRef.validate();
-          this.confirmLoading = true;
-          const data = {
-            scenario_id: this.scenarioId,
-            storage_cluster_id: this.parentData.storage_cluster_id,
-            basic_indices: this.parentData.indexes.map(item => ({
-              index: item.result_table_id,
-              time_field: this.formData.time_field,
-              time_field_type: this.formData.time_field_type,
-            })),
-            append_index: {
-              index: this.formData.resultTableId,
-              time_field: this.formData.time_field,
-              time_field_type: this.formData.time_field_type,
-            },
-          };
-          await this.$http.request('/resultTables/adapt', { data });
-          this.$emit('selected', {
-            bk_biz_id: this.bkBizId,
-            result_table_id: this.formData.resultTableId,
-          });
-          this.$emit('update:time-index', {
+        return timeFields;
+      } catch (e) {
+        console.warn(e);
+        this.indexErrorText += e.message;
+        this.emptyType = '500';
+        return [];
+      }
+    },
+    // 选择时间字段
+    handleSelectedTimeField(fieldName) {
+      this.formData.time_field = fieldName;
+      this.formData.time_field_type = this.timeFields.find(item => item.field_name === fieldName).field_type;
+    },
+    // 确认添加
+    async handleConfirm() {
+      try {
+        await this.$refs.formRef.validate();
+        this.confirmLoading = true;
+        const data = {
+          scenario_id: this.scenarioId,
+          storage_cluster_id: this.parentData.storage_cluster_id,
+          basic_indices: this.parentData.indexes.map(item => ({
+            index: item.result_table_id,
             time_field: this.formData.time_field,
             time_field_type: this.formData.time_field_type,
-            time_field_unit: this.formData.time_field_unit,
-          });
-          this.showDialog = false;
-        } catch (e) {
-          console.warn(e);
-        } finally {
-          this.confirmLoading = false;
-        }
-      },
-      handleCancel() {
+          })),
+          append_index: {
+            index: this.formData.resultTableId,
+            time_field: this.formData.time_field,
+            time_field_type: this.formData.time_field_type,
+          },
+        };
+        await this.$http.request('/resultTables/adapt', { data });
+        this.$emit('selected', {
+          bk_biz_id: this.bkBizId,
+          result_table_id: this.formData.resultTableId,
+        });
+        this.$emit('update:time-index', {
+          time_field: this.formData.time_field,
+          time_field_type: this.formData.time_field_type,
+          time_field_unit: this.formData.time_field_unit,
+        });
         this.showDialog = false;
-      },
+      } catch (e) {
+        console.warn(e);
+      } finally {
+        this.confirmLoading = false;
+      }
     },
-  };
+    handleCancel() {
+      this.showDialog = false;
+    },
+  },
+};
 </script>
 
 <style scoped lang="scss">

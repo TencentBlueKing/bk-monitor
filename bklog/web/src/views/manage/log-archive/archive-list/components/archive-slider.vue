@@ -163,265 +163,265 @@
 </template>
 
 <script>
-  import SidebarDiffMixin from '@/mixins/sidebar-diff-mixin';
-  import { mapGetters } from 'vuex';
+import SidebarDiffMixin from '@/mixins/sidebar-diff-mixin';
+import { mapGetters } from 'vuex';
 
-  import * as authorityMap from '../../../../../common/authority-map';
+import * as authorityMap from '../../../../../common/authority-map';
 
-  export default {
-    mixins: [SidebarDiffMixin],
-    props: {
-      showSlider: {
-        type: Boolean,
-        default: false,
-      },
-      editArchive: {
-        type: Object,
-        default: null,
-      },
+export default {
+  mixins: [SidebarDiffMixin],
+  props: {
+    showSlider: {
+      type: Boolean,
+      default: false,
     },
-    data() {
-      return {
-        confirmLoading: false,
-        sliderLoading: false,
-        customRetentionDay: '', // 自定义过期天数
-        collectorList: [
-          { id: 'collector_config', name: this.$t('采集项'), list: [] }, // 采集项
-          { id: 'collector_plugin', name: this.$t('采集插件'), list: [] }, // 采集插件
-        ], // 采集项列表
-        repositoryOriginList: [], // 仓库列表
-        // repositoryRenderList: [], // 根据采集项关联的仓库列表
-        retentionDaysList: [], // 过期天数列表
-        formData: {
+    editArchive: {
+      type: Object,
+      default: null,
+    },
+  },
+  data() {
+    return {
+      confirmLoading: false,
+      sliderLoading: false,
+      customRetentionDay: '', // 自定义过期天数
+      collectorList: [
+        { id: 'collector_config', name: this.$t('采集项'), list: [] }, // 采集项
+        { id: 'collector_plugin', name: this.$t('采集插件'), list: [] }, // 采集插件
+      ], // 采集项列表
+      repositoryOriginList: [], // 仓库列表
+      // repositoryRenderList: [], // 根据采集项关联的仓库列表
+      retentionDaysList: [], // 过期天数列表
+      formData: {
+        snapshot_days: '',
+        instance_id: '',
+        target_snapshot_repository_name: '',
+      },
+      collectorType: 'collector_config',
+      basicRules: {},
+      requiredRules: {
+        required: true,
+        trigger: 'blur',
+      },
+    };
+  },
+  computed: {
+    ...mapGetters({
+      bkBizId: 'bkBizId',
+      globalsData: 'globals/globalsData',
+    }),
+    authorityMap() {
+      return authorityMap;
+    },
+    isEdit() {
+      return this.editArchive !== null;
+    },
+    repositoryRenderList() {
+      let list = [];
+      const collectorId = this.formData.instance_id;
+      if (collectorId && this.collectorList.length && this.repositoryOriginList.length) {
+        const targetList = this.collectorList.find(item => item.id === this.collectorType)?.list || [];
+        const curCollector = targetList.find(collect => collect.id === collectorId);
+        const clusterId = curCollector.storage_cluster_id;
+        list = this.repositoryOriginList.filter(item => item.cluster_id === clusterId);
+      }
+
+      return list;
+    },
+    getDaysStr() {
+      if (String(this.formData.snapshot_days) === '0') {
+        return this.$t('永久');
+      }
+      return !!this.formData.snapshot_days ? this.formData.snapshot_days + this.$t('天') : '';
+    },
+  },
+  watch: {
+    async showSlider(val) {
+      if (val) {
+        this.sliderLoading = this.isEdit;
+        await this.getCollectorList();
+        await this.getRepoList();
+        this.updateDaysList();
+
+        if (this.isEdit) {
+          const {
+            instance_id: instanceId,
+            target_snapshot_repository_name,
+            snapshot_days,
+            instance_type: instanceType,
+          } = this.editArchive;
+          Object.assign(this.formData, {
+            instance_id: instanceId,
+            target_snapshot_repository_name,
+            snapshot_days,
+          });
+          this.collectorType = instanceType;
+        }
+        this.initSidebarFormData();
+      } else {
+        // 清空表单数据
+        this.formData = {
           snapshot_days: '',
           instance_id: '',
           target_snapshot_repository_name: '',
-        },
-        collectorType: 'collector_config',
-        basicRules: {},
-        requiredRules: {
-          required: true,
-          trigger: 'blur',
-        },
-      };
-    },
-    computed: {
-      ...mapGetters({
-        bkBizId: 'bkBizId',
-        globalsData: 'globals/globalsData',
-      }),
-      authorityMap() {
-        return authorityMap;
-      },
-      isEdit() {
-        return this.editArchive !== null;
-      },
-      repositoryRenderList() {
-        let list = [];
-        const collectorId = this.formData.instance_id;
-        if (collectorId && this.collectorList.length && this.repositoryOriginList.length) {
-          const targetList = this.collectorList.find(item => item.id === this.collectorType)?.list || [];
-          const curCollector = targetList.find(collect => collect.id === collectorId);
-          const clusterId = curCollector.storage_cluster_id;
-          list = this.repositoryOriginList.filter(item => item.cluster_id === clusterId);
-        }
-
-        return list;
-      },
-      getDaysStr() {
-        if (String(this.formData.snapshot_days) === '0') {
-          return this.$t('永久');
-        }
-        return !!this.formData.snapshot_days ? this.formData.snapshot_days + this.$t('天') : '';
-      },
-    },
-    watch: {
-      async showSlider(val) {
-        if (val) {
-          this.sliderLoading = this.isEdit;
-          await this.getCollectorList();
-          await this.getRepoList();
-          this.updateDaysList();
-
-          if (this.isEdit) {
-            const {
-              instance_id: instanceId,
-              target_snapshot_repository_name,
-              snapshot_days,
-              instance_type: instanceType,
-            } = this.editArchive;
-            Object.assign(this.formData, {
-              instance_id: instanceId,
-              target_snapshot_repository_name,
-              snapshot_days,
-            });
-            this.collectorType = instanceType;
-          }
-          this.initSidebarFormData();
-        } else {
-          // 清空表单数据
-          this.formData = {
-            snapshot_days: '',
-            instance_id: '',
-            target_snapshot_repository_name: '',
-          };
-        }
-      },
-    },
-    created() {
-      this.basicRules = {
-        instance_id: [this.requiredRules],
-        target_snapshot_repository_name: [this.requiredRules],
-        snapshot_days: [this.requiredRules],
-      };
-    },
-    methods: {
-      // 获取采集项列表
-      getCollectorList() {
-        const query = {
-          bk_biz_id: this.bkBizId,
-          have_data_id: 1,
         };
-        this.$http.request('collect/getAllCollectors', { query }).then(res => {
-          this.collectorList[0].list =
-            res.data.map(item => {
-              return {
-                id: item.collector_config_id,
-                name: item.collector_config_name,
-                ...item,
-              };
-            }) || [];
-        });
-        this.$http.request('collect/getCollectorPlugins', { query }).then(res => {
-          this.collectorList[1].list =
-            res.data.map(item => {
-              return {
-                id: item.collector_plugin_id,
-                name: item.collector_plugin_name,
-                ...item,
-              };
-            }) || [];
-        });
-      },
-      // 获取归档仓库列表
-      getRepoList() {
-        this.$http
-          .request('archive/getRepositoryList', {
-            query: {
-              bk_biz_id: this.bkBizId,
-            },
-          })
-          .then(res => {
-            const { data } = res;
-            this.repositoryOriginList = data || [];
-          })
-          .finally(() => {
-            this.sliderLoading = false;
-          });
-      },
-      handleCollectorChange(value) {
-        this.collectorType = this.collectorList.find(item => item.list.some(val => val.id === value))?.id || '';
-        this.formData.target_snapshot_repository_name = '';
-      },
-      updateIsShow() {
-        this.$emit('hidden');
-        this.$emit('update:show-slider', false);
-      },
-      handleCancel() {
-        this.$emit('update:show-slider', false);
-      },
-      updateDaysList() {
-        const retentionDaysList = [...this.globalsData.storage_duration_time].filter(item => {
-          return item.id;
-        });
-        retentionDaysList.push({
-          default: false,
-          id: '0',
-          name: this.$t('永久'),
-        });
-        this.retentionDaysList = retentionDaysList;
-      },
-      // 输入自定义过期天数
-      enterCustomDay(val) {
-        const numberVal = parseInt(val.trim(), 10);
-        const stringVal = numberVal.toString();
-        if (numberVal) {
-          if (!this.retentionDaysList.some(item => item.id === stringVal)) {
-            this.retentionDaysList.push({
-              id: stringVal,
-              name: stringVal + this.$t('天'),
-            });
-          }
-          this.formData.snapshot_days = stringVal;
-          this.customRetentionDay = '';
-          document.body.click();
-        } else {
-          this.customRetentionDay = '';
-          this.messageError(this.$t('请输入有效数值'));
-        }
-      },
-      // 采集项列表点击申请采集项目管理权限
-      async applyProjectAccess(item) {
-        this.$el.click(); // 手动关闭下拉
-        try {
-          this.$bkLoading();
-          const res = await this.$store.dispatch('getApplyData', {
-            action_ids: [authorityMap.MANAGE_COLLECTION_AUTH],
-            resources: [
-              {
-                type: 'collection',
-                id: item.collector_config_id,
-              },
-            ],
-          });
-          window.open(res.data.apply_url);
-        } catch (err) {
-          console.warn(err);
-        } finally {
-          this.$bkLoading.hide();
-        }
-      },
-      async handleConfirm() {
-        try {
-          await this.$refs.validateForm.validate();
-          let url = '/archive/createArchive';
-          const params = {};
-          let paramsData = {
-            ...this.formData,
-            instance_type: this.collectorType,
+      }
+    },
+  },
+  created() {
+    this.basicRules = {
+      instance_id: [this.requiredRules],
+      target_snapshot_repository_name: [this.requiredRules],
+      snapshot_days: [this.requiredRules],
+    };
+  },
+  methods: {
+    // 获取采集项列表
+    getCollectorList() {
+      const query = {
+        bk_biz_id: this.bkBizId,
+        have_data_id: 1,
+      };
+      this.$http.request('collect/getAllCollectors', { query }).then(res => {
+        this.collectorList[0].list =
+          res.data.map(item => {
+            return {
+              id: item.collector_config_id,
+              name: item.collector_config_name,
+              ...item,
+            };
+          }) || [];
+      });
+      this.$http.request('collect/getCollectorPlugins', { query }).then(res => {
+        this.collectorList[1].list =
+          res.data.map(item => {
+            return {
+              id: item.collector_plugin_id,
+              name: item.collector_plugin_name,
+              ...item,
+            };
+          }) || [];
+      });
+    },
+    // 获取归档仓库列表
+    getRepoList() {
+      this.$http
+        .request('archive/getRepositoryList', {
+          query: {
             bk_biz_id: this.bkBizId,
+          },
+        })
+        .then(res => {
+          const { data } = res;
+          this.repositoryOriginList = data || [];
+        })
+        .finally(() => {
+          this.sliderLoading = false;
+        });
+    },
+    handleCollectorChange(value) {
+      this.collectorType = this.collectorList.find(item => item.list.some(val => val.id === value))?.id || '';
+      this.formData.target_snapshot_repository_name = '';
+    },
+    updateIsShow() {
+      this.$emit('hidden');
+      this.$emit('update:show-slider', false);
+    },
+    handleCancel() {
+      this.$emit('update:show-slider', false);
+    },
+    updateDaysList() {
+      const retentionDaysList = [...this.globalsData.storage_duration_time].filter(item => {
+        return item.id;
+      });
+      retentionDaysList.push({
+        default: false,
+        id: '0',
+        name: this.$t('永久'),
+      });
+      this.retentionDaysList = retentionDaysList;
+    },
+    // 输入自定义过期天数
+    enterCustomDay(val) {
+      const numberVal = parseInt(val.trim(), 10);
+      const stringVal = numberVal.toString();
+      if (numberVal) {
+        if (!this.retentionDaysList.some(item => item.id === stringVal)) {
+          this.retentionDaysList.push({
+            id: stringVal,
+            name: stringVal + this.$t('天'),
+          });
+        }
+        this.formData.snapshot_days = stringVal;
+        this.customRetentionDay = '';
+        document.body.click();
+      } else {
+        this.customRetentionDay = '';
+        this.messageError(this.$t('请输入有效数值'));
+      }
+    },
+    // 采集项列表点击申请采集项目管理权限
+    async applyProjectAccess(item) {
+      this.$el.click(); // 手动关闭下拉
+      try {
+        this.$bkLoading();
+        const res = await this.$store.dispatch('getApplyData', {
+          action_ids: [authorityMap.MANAGE_COLLECTION_AUTH],
+          resources: [
+            {
+              type: 'collection',
+              id: item.collector_config_id,
+            },
+          ],
+        });
+        window.open(res.data.apply_url);
+      } catch (err) {
+        console.warn(err);
+      } finally {
+        this.$bkLoading.hide();
+      }
+    },
+    async handleConfirm() {
+      try {
+        await this.$refs.validateForm.validate();
+        let url = '/archive/createArchive';
+        const params = {};
+        let paramsData = {
+          ...this.formData,
+          instance_type: this.collectorType,
+          bk_biz_id: this.bkBizId,
+        };
+
+        if (this.isEdit) {
+          url = '/archive/editArchive';
+          const { snapshot_days } = this.formData;
+          const { archive_config_id } = this.editArchive;
+          paramsData = {
+            snapshot_days,
           };
 
-          if (this.isEdit) {
-            url = '/archive/editArchive';
-            const { snapshot_days } = this.formData;
-            const { archive_config_id } = this.editArchive;
-            paramsData = {
-              snapshot_days,
-            };
-
-            params.archive_config_id = archive_config_id;
-          }
-
-          this.confirmLoading = true;
-          await this.$http.request(url, {
-            data: paramsData,
-            params,
-          });
-          this.$bkMessage({
-            theme: 'success',
-            message: this.$t('保存成功'),
-            delay: 1500,
-          });
-          this.$emit('updated');
-        } catch (e) {
-          console.warn(e);
-        } finally {
-          this.confirmLoading = false;
+          params.archive_config_id = archive_config_id;
         }
-      },
+
+        this.confirmLoading = true;
+        await this.$http.request(url, {
+          data: paramsData,
+          params,
+        });
+        this.$bkMessage({
+          theme: 'success',
+          message: this.$t('保存成功'),
+          delay: 1500,
+        });
+        this.$emit('updated');
+      } catch (e) {
+        console.warn(e);
+      } finally {
+        this.confirmLoading = false;
+      }
     },
-  };
+  },
+};
 </script>
 
 <style lang="scss" scoped>

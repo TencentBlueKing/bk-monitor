@@ -163,11 +163,11 @@
 </template>
 
 <script setup>
-import { ref, watch, computed, nextTick } from "vue";
-import { bkMessage } from "bk-magic-vue";
-import useLocale from "@/hooks/use-locale";
-import useStore from "@/hooks/use-store";
-import $http from "@/api";
+import { ref, watch, computed, nextTick } from 'vue';
+import { bkMessage } from 'bk-magic-vue';
+import useLocale from '@/hooks/use-locale';
+import useStore from '@/hooks/use-store';
+import $http from '@/api';
 const { $t } = useLocale();
 const props = defineProps({
   selectFavoriteList: {
@@ -176,7 +176,7 @@ const props = defineProps({
   },
   favoriteType: {
     type: String,
-    default: "event",
+    default: 'event',
   },
   favoriteGroupList: {
     type: Array,
@@ -185,7 +185,7 @@ const props = defineProps({
 });
 const store = useStore();
 const spaceUid = computed(() => store.state.spaceUid);
-const emit = defineEmits(["operateChange"]);
+const emit = defineEmits(['operateChange']);
 const operationMenuRef = ref(null);
 const batchMoveToGroupMenuRef = ref(null);
 const moveToGroupInputRef = ref(null);
@@ -195,47 +195,47 @@ const batchDeleteDialogVisible = ref(false);
 const moveToGroupAddGroup = ref(false);
 
 const addGroupData = ref({
-  name: "",
+  name: '',
 });
 
 const rules = {
   name: [
-    { validator: checkName, message: $t("组名不规范, 包含了特殊符号."), trigger: "blur" },
-    { validator: checkExistName, message: $t("注意: 名字冲突"), trigger: "blur" },
-    { required: true, message: $t("必填项"), trigger: "blur" },
-    { max: 30, message: $t("注意：最大值为30个字符"), trigger: "blur" },
+    { validator: checkName, message: $t('组名不规范, 包含了特殊符号.'), trigger: 'blur' },
+    { validator: checkExistName, message: $t('注意: 名字冲突'), trigger: 'blur' },
+    { required: true, message: $t('必填项'), trigger: 'blur' },
+    { max: 30, message: $t('注意：最大值为30个字符'), trigger: 'blur' },
   ],
 };
 
 function checkName() {
-  if (addGroupData.value.name.trim() === "") return true;
+  if (addGroupData.value.name.trim() === '') return true;
   return /^[\u4e00-\u9fa5_a-zA-Z0-9`~!@#$%^&*()_\-+=<>?:"\s{}|,./;'\\[\]·~！@#￥%……&*（）——\-+={}|《》？：“”【】、；‘'，。、]+$/im.test(
     addGroupData.value.name.trim()
   );
 }
 
 function checkExistName() {
-  return !props.favoriteGroupList.some((item) => item.name === addGroupData.value.name);
+  return !props.favoriteGroupList.some(item => item.name === addGroupData.value.name);
 }
 
 // 显示批量删除对话框
 function handleShowBatchDeleteDialog() {
   batchDeleteDialogVisible.value = true;
-  batchOperatePopoverRef.value?.hideHandler();;
+  batchOperatePopoverRef.value?.hideHandler();
 }
 
 // 批量删除收藏
 async function handleBatchDeleteFavorite() {
   try {
-    const res = await $http.request("favorite/batchFavoriteDelete", {
+    const res = await $http.request('favorite/batchFavoriteDelete', {
       data: {
-        id_list: props.selectFavoriteList.map((item) => item.id),
+        id_list: props.selectFavoriteList.map(item => item.id),
       },
     });
     if (res.result) {
-      bkMessage({ theme: "success", message: $t("批量删除成功") });
+      bkMessage({ theme: 'success', message: $t('批量删除成功') });
       batchDeleteDialogVisible.value = false;
-      emit("operateChange");
+      emit('operateChange');
     }
   } catch (error) {
     console.warn(error);
@@ -244,7 +244,7 @@ async function handleBatchDeleteFavorite() {
 
 // 批量移动分组
 async function handleBatchMoveToGroup(id) {
-  const params = props.selectFavoriteList.map((row) => {
+  const params = props.selectFavoriteList.map(row => {
     return {
       id: row.id,
       name: row.name,
@@ -260,19 +260,18 @@ async function handleBatchMoveToGroup(id) {
     };
   });
   return $http
-    .request("favorite/batchFavoriteUpdate", {
+    .request('favorite/batchFavoriteUpdate', {
       data: {
         params,
       },
     })
     .then(() => {
-      emit("operateChange", id);
-      batchOperatePopoverRef.value?.hideHandler();;
+      emit('operateChange', id);
+      batchOperatePopoverRef.value?.hideHandler();
     })
-    .catch((error) => {
-      console.error("Batch update failed", error);
+    .catch(error => {
+      console.error('Batch update failed', error);
     });
- 
 }
 
 // 添加新分组确认
@@ -280,31 +279,30 @@ async function handleAddGroupConfirm() {
   try {
     await checkInputAddFormRef.value.validate();
     const data = { name: addGroupData.value.name, space_uid: spaceUid.value };
-    const res = await $http
-      .request(`favorite/createGroup`, {
-        data,
-      })
-    moveToGroupAddGroup.value = false
+    const res = await $http.request(`favorite/createGroup`, {
+      data,
+    });
+    moveToGroupAddGroup.value = false;
     checkInputAddFormRef.value?.clearError();
     operationMenuRef.value?.hideHandler();
-    handleBatchMoveToGroup(res.data.id)
+    handleBatchMoveToGroup(res.data.id);
   } catch (error) {
     console.error(error);
   }
 }
-function handleShowOperationMenuRef (val){
+function handleShowOperationMenuRef(val) {
   batchOperatePopoverRef?.value.instance.set({ hideOnClick: val });
-  moveToGroupAddGroup.value = false
+  moveToGroupAddGroup.value = false;
 }
 
 // 表单输入焦点处理
-watch(moveToGroupAddGroup, (val) => {
+watch(moveToGroupAddGroup, val => {
   if (val) {
     nextTick(() => {
       moveToGroupInputRef.value?.focus();
     });
   } else {
-    addGroupData.value.name = "";
+    addGroupData.value.name = '';
   }
 });
 </script>

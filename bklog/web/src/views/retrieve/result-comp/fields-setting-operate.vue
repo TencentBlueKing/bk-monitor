@@ -106,68 +106,68 @@
 </template>
 
 <script>
-  import { deepClone } from '@/components/monitor-echarts/utils';
+import { deepClone } from '@/components/monitor-echarts/utils';
 
-  export default {
-    props: {
-      configItem: {
-        type: Object,
-        require: true,
-      },
+export default {
+  props: {
+    configItem: {
+      type: Object,
+      require: true,
     },
-    data() {
-      return {
-        isHoverItem: false,
-        isClickDelete: false, // 是否点击删除配置
-        nameStr: '', // 编辑
-        isInputError: false, // 名称是否非法
-        tippyOptions: {
-          placement: 'bottom',
-          trigger: 'click',
-          theme: 'light',
-        },
-      };
+  },
+  data() {
+    return {
+      isHoverItem: false,
+      isClickDelete: false, // 是否点击删除配置
+      nameStr: '', // 编辑
+      isInputError: false, // 名称是否非法
+      tippyOptions: {
+        placement: 'bottom',
+        trigger: 'click',
+        theme: 'light',
+      },
+    };
+  },
+  computed: {
+    isShowEditIcon() {
+      // 是否展示编辑或删除icon
+      return this.isHoverItem && this.configItem.index !== 0;
     },
-    computed: {
-      isShowEditIcon() {
-        // 是否展示编辑或删除icon
-        return this.isHoverItem && this.configItem.index !== 0;
-      },
+  },
+  watch: {
+    nameStr() {
+      this.isInputError = false;
     },
-    watch: {
-      nameStr() {
-        this.isInputError = false;
-      },
+  },
+  methods: {
+    /** 用户配置操作 */
+    emitOperate(type) {
+      // 赋值名称
+      if (type === 'edit') this.nameStr = this.configItem.name;
+      // 更新前判断名称是否合法
+      if (type === 'update' && !this.nameStr) {
+        this.isInputError = true;
+        return;
+      }
+      const submitData = deepClone(this.configItem);
+      submitData.editStr = this.nameStr;
+      this.$emit('operateChange', type, submitData);
     },
-    methods: {
-      /** 用户配置操作 */
-      emitOperate(type) {
-        // 赋值名称
-        if (type === 'edit') this.nameStr = this.configItem.name;
-        // 更新前判断名称是否合法
-        if (type === 'update' && !this.nameStr) {
-          this.isInputError = true;
-          return;
-        }
-        const submitData = deepClone(this.configItem);
-        submitData.editStr = this.nameStr;
-        this.$emit('operateChange', type, submitData);
-      },
-      popoverHidden() {
-        this.$emit('setPopperInstance', true);
-        setTimeout(() => {
-          this.isClickDelete = false;
-        }, 300);
-      },
-      handleCancelDelete() {
-        this.$refs.deletePopoverRef.hideHandler();
-      },
-      handleClickDeleteConfigIcon() {
-        this.isClickDelete = true;
-        this.$emit('setPopperInstance', false);
-      },
+    popoverHidden() {
+      this.$emit('setPopperInstance', true);
+      setTimeout(() => {
+        this.isClickDelete = false;
+      }, 300);
     },
-  };
+    handleCancelDelete() {
+      this.$refs.deletePopoverRef.hideHandler();
+    },
+    handleClickDeleteConfigIcon() {
+      this.isClickDelete = true;
+      this.$emit('setPopperInstance', false);
+    },
+  },
+};
 </script>
 
 <style lang="scss" scoped>

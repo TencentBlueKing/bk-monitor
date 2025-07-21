@@ -96,7 +96,7 @@ export default {
           filterAddition: [],
           sortList: [],
         },
-        payload ?? {},
+        payload ?? {}
       );
     },
 

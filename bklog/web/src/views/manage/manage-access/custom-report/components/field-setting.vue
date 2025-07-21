@@ -83,65 +83,65 @@
   </div>
 </template>
 <script setup lang="ts">
-  import { ref, watch, defineProps, defineEmits } from 'vue';
-  import VueDraggable from 'vuedraggable';
-  import $http from '../../../../../api';
-  import { cloneDeep } from 'lodash';
+import { ref, watch, defineProps, defineEmits } from 'vue';
+import VueDraggable from 'vuedraggable';
+import $http from '../../../../../api';
+import { cloneDeep } from 'lodash';
 
-  const props = defineProps({
-    value: {
-      type: Object,
-      default: () => ({}),
-      required: true,
+const props = defineProps({
+  value: {
+    type: Object,
+    default: () => ({}),
+    required: true,
+  },
+});
+
+const emits = defineEmits(['update:value']);
+
+// 获取字段设置数据列表
+const targetFieldSelectList = ref([]);
+
+const initTargetFieldSelectList = async () => {
+  const res = await $http.request('retrieve/getLogTableHead', {
+    params: {
+      index_set_id: props?.value?.indexSetId,
+    },
+    query: {
+      is_realtime: 'True',
     },
   });
+  targetFieldSelectList.value = res?.data?.fields.map(item => {
+    return {
+      id: item.field_name,
+      name: item.field_name,
+    };
+  });
+};
 
-  const emits = defineEmits(['update:value']);
+watch(
+  () => props.value,
+  newVal => {
+    if (newVal && newVal?.indexSetId) {
+      initTargetFieldSelectList();
+    }
+  },
+  {
+    immediate: true,
+    deep: true,
+  }
+);
 
-  // 获取字段设置数据列表
-  const targetFieldSelectList = ref([]);
+const getSortDisabledState = id => {
+  return props.value.sortFields?.includes(id);
+};
 
-  const initTargetFieldSelectList = async () => {
-    const res = await $http.request('retrieve/getLogTableHead', {
-      params: {
-        index_set_id: props?.value?.indexSetId,
-      },
-      query: {
-        is_realtime: 'True',
-      },
-    });
-    targetFieldSelectList.value = res?.data?.fields.map(item => {
-      return {
-        id: item.field_name,
-        name: item.field_name,
-      };
-    });
-  };
+const handleAddSortFields = val => {
+  props.value?.sortFields.push(val);
+};
 
-  watch(
-    () => props.value,
-    newVal => {
-      if (newVal && newVal?.indexSetId) {
-        initTargetFieldSelectList();
-      }
-    },
-    {
-      immediate: true,
-      deep: true,
-    },
-  );
-
-  const getSortDisabledState = id => {
-    return props.value.sortFields?.includes(id);
-  };
-
-  const handleAddSortFields = val => {
-    props.value?.sortFields.push(val);
-  };
-
-  const handleCloseSortFiled = (item, index) => {
-    props.value?.sortFields.splice(index, 1);
-  };
+const handleCloseSortFiled = (item, index) => {
+  props.value?.sortFields.splice(index, 1);
+};
 </script>
 <style lang="scss" scoped>
   .sort-box {

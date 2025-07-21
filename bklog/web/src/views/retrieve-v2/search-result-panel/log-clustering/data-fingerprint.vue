@@ -434,869 +434,876 @@
 </template>
 
 <script>
-  import TextHighlight from 'vue-text-highlight';
+import BkUserSelector from '@blueking/user-selector';
+import TextHighlight from 'vue-text-highlight';
+import { copyMessage, deepClone, deepEqual, formatDate } from '@/common/util';
+import EmptyStatus from '@/components/empty-status';
+import ClusteringLoader from '@/skeleton/clustering-loader';
+import { BK_LOG_STORAGE } from '@/store/store.type';
+import { RetrieveUrlResolver } from '@/store/url-resolver';
+import RetrieveHelper from '@/views/retrieve-helper';
+import { getConditionRouterParams } from '../panel-util';
+import fingerSelectColumn from './components/finger-select-column';
+import ClusterFilter from './components/finger-tools/cluster-filter';
+import ClusterEventPopover from './components/finger-tools/cluster-popover.tsx';
 
-  import { copyMessage, formatDate, deepClone, deepEqual } from '@/common/util';
-  import EmptyStatus from '@/components/empty-status';
-  import ClusteringLoader from '@/skeleton/clustering-loader';
-  import BkUserSelector from '@blueking/user-selector';
-
-  import ClusterEventPopover from './components/finger-tools/cluster-popover.tsx';
-  import ClusterFilter from './components/finger-tools/cluster-filter';
-  import fingerSelectColumn from './components/finger-select-column';
-  import { getConditionRouterParams } from '../panel-util';
-  import { RetrieveUrlResolver } from '@/store/url-resolver';
-  import { BK_LOG_STORAGE } from '@/store/store.type';
-  import RetrieveHelper from '@/views/retrieve-helper';
-
-  export default {
-    components: {
-      ClusterEventPopover,
-      ClusteringLoader,
-      TextHighlight,
-      EmptyStatus,
-      BkUserSelector,
+export default {
+  components: {
+    ClusterEventPopover,
+    ClusteringLoader,
+    TextHighlight,
+    EmptyStatus,
+    BkUserSelector,
+  },
+  inheritAttrs: false,
+  props: {
+    fingerList: {
+      type: Array,
+      require: true,
     },
-    inheritAttrs: false,
-    props: {
-      fingerList: {
-        type: Array,
-        require: true,
-      },
-      requestData: {
-        type: Object,
-        require: true,
-      },
-      clusteringConfig: {
-        type: Object,
-        require: true,
-      },
-      loaderWidthList: {
-        type: Array,
-        default: () => [''],
-      },
-      isPageOver: {
-        type: Boolean,
-        default: false,
-      },
-      allFingerList: {
-        type: Array,
-        require: true,
-      },
+    requestData: {
+      type: Object,
+      require: true,
     },
-    data() {
-      return {
-        cacheExpandStr: [], // 展示pattern按钮数组
-        selectSize: 0, // 当前选择几条数据
-        isSelectAll: false, // 当前是否点击全选
-        selectList: [], // 当前选中的数组
-        isRequestAlarm: false, // 是否正在请求告警接口
-        checkValue: 0, // 0为不选 1为半选 2为全选
-        /** 当前编辑备注或标签的 唯一判断数据 */
-        curEditUniqueVal: {},
-        /** 输入框弹窗的字符串 */
-        verifyData: {
-          textInputStr: '',
+    clusteringConfig: {
+      type: Object,
+      require: true,
+    },
+    loaderWidthList: {
+      type: Array,
+      default: () => [''],
+    },
+    isPageOver: {
+      type: Boolean,
+      default: false,
+    },
+    allFingerList: {
+      type: Array,
+      require: true,
+    },
+  },
+  data() {
+    return {
+      cacheExpandStr: [], // 展示pattern按钮数组
+      selectSize: 0, // 当前选择几条数据
+      isSelectAll: false, // 当前是否点击全选
+      selectList: [], // 当前选中的数组
+      isRequestAlarm: false, // 是否正在请求告警接口
+      checkValue: 0, // 0为不选 1为半选 2为全选
+      /** 当前编辑备注或标签的 唯一判断数据 */
+      curEditUniqueVal: {},
+      /** 输入框弹窗的字符串 */
+      verifyData: {
+        textInputStr: '',
+      },
+      rules: {
+        labelRules: [
+          {
+            validator: this.checkName,
+            message: this.$t('{n}不规范, 包含特殊符号.', { n: this.$t('备注') }),
+            trigger: 'blur',
+          },
+          {
+            max: 100,
+            message: this.$t('不能多于{n}个字符', { n: 100 }),
+            trigger: 'blur',
+          },
+        ],
+      },
+      enTableWidth: {
+        number: '110',
+        percentage: '116',
+        year_on_year_count: '171',
+        year_on_year_percentage: '171',
+      },
+      cnTableWidth: {
+        number: '91',
+        percentage: '96',
+        year_on_year_count: '101',
+        year_on_year_percentage: '101',
+      },
+      /** 编辑标签或备注的弹窗 */
+      isShowStrInputDialog: false,
+      /** 当前备注信息 */
+      currentRemarkList: [],
+      popoverInstance: null,
+      userApi: window.BK_LOGIN_URL,
+      catchOperatorVal: {},
+      ownerBaseList: [
+        {
+          id: 'all',
+          name: this.$t('全部'),
         },
-        rules: {
-          labelRules: [
+        {
+          id: 'no_owner',
+          name: this.$t('未指定责任人'),
+        },
+      ],
+      remarkSelect: ['all'],
+      ownerSelect: ['all'],
+      remarkList: [
+        {
+          id: 'all',
+          name: this.$t('全部'),
+        },
+        {
+          id: 'remarked',
+          name: this.$t('已备注'),
+        },
+        {
+          id: 'no_remark',
+          name: this.$t('未备注'),
+        },
+      ],
+      ownerList: [],
+      // ownerLoading: false,
+    };
+  },
+  computed: {
+    bkBizId() {
+      return this.$store.state.bkBizId;
+    },
+    isLimitExpandView() {
+      return this.$store.state.storage[BK_LOG_STORAGE.IS_LIMIT_EXPAND_VIEW];
+    },
+    isShowBottomTips() {
+      return this.fingerList.length >= 50 && this.fingerList.length === this.allFingerList.length;
+    },
+    getTableWidth() {
+      return this.$store.getters.isEnLanguage ? this.enTableWidth : this.cnTableWidth;
+    },
+    /** 获取当前编辑操作的数据 */
+    getHoverRowValue() {
+      const uniqueVal = this.curEditUniqueVal;
+      // 如果有分组也带上分组的条件
+      const fingerRow = this.fingerList.find(item =>
+        Object.keys(uniqueVal).every(key => deepEqual(item[key], uniqueVal[key]))
+      );
+      return fingerRow;
+    },
+    scrollContent() {
+      return document.querySelector('.finger-container');
+    },
+    isGroupSearch() {
+      return !!this.requestData.group_by.length;
+    },
+    username() {
+      return this.$store.state.userMeta?.username;
+    },
+    isExternal() {
+      return window.IS_EXTERNAL === true;
+    },
+  },
+  watch: {
+    'fingerList.length': {
+      handler(newLength, oldLength) {
+        // 全选时 分页下拉新增页默认选中
+        if (this.isSelectAll) {
+          this.$nextTick(() => {
+            this.selectList.push(...this.fingerList.slice(oldLength, newLength));
+          });
+        }
+      },
+    },
+    'selectList.length'(newLength) {
+      // 选择列表数据大小计算
+      if (this.isSelectAll) {
+        this.selectSize = newLength + this.allFingerList.length - this.fingerList.length;
+      } else {
+        this.selectSize = newLength;
+      }
+      // 根据手动选择列表长度来判断全选框显示 全选 半选 不选
+      if (!newLength) {
+        this.checkValue = 0;
+        return;
+      }
+      if (newLength && newLength !== this.fingerList.length) {
+        this.checkValue = 1;
+      } else {
+        this.checkValue = 2;
+      }
+    },
+  },
+  mounted() {
+    this.handleToggleUserSelect();
+    this.handleToggleRemarkSelect();
+    this.scrollEvent('add');
+  },
+  beforeDestroy() {
+    this.scrollEvent('close');
+  },
+  methods: {
+    handleMenuClick(option, row, isLink = false) {
+      switch (option) {
+        // pattern 下钻
+        case 'show original':
+          this.handleMenuBatchClick(row, isLink);
+          if (!isLink) this.$emit('show-origin-log');
+          break;
+        case 'copy':
+          copyMessage(row.pattern);
+          break;
+      }
+    },
+    handleMenuBatchClick(row, isLink = true) {
+      const additionList = [];
+      const groupBy = this.requestData.group_by;
+      if (groupBy.length) {
+        groupBy.forEach((el, index) => {
+          additionList.push({
+            field: el,
+            operator: 'is',
+            value: row.group[index],
+            isLink,
+          });
+        });
+      }
+      additionList.push({
+        field: `__dist_${this.requestData.pattern_level}`,
+        operator: 'is',
+        value: row.signature.toString(),
+        isLink,
+      });
+
+      const router = this.$router;
+      const route = this.$route;
+      const store = this.$store;
+
+      // 聚类下钻只能使用ui模式
+      this.$store.commit('updateIndexItem', { search_mode: 'ui' });
+      // 新开页打开首页是原始日志，不需要传聚类参数，如果传了则会初始化为聚类
+      this.$store.commit('updateClusterParams', null);
+      this.$store.dispatch('setQueryCondition', additionList).then(([newSearchList, searchMode, isNewSearchPage]) => {
+        if (isLink) {
+          const openUrl = getConditionRouterParams(newSearchList, searchMode, isNewSearchPage, { tab: 'origin' });
+          window.open(openUrl, '_blank');
+          // 新开页后当前页面回填聚类参数
+          this.$store.commit('updateClusterParams', this.requestData);
+          return;
+        } else {
+          this.$emit('show-change', 'origin');
+        }
+
+        const query = { ...route.query };
+
+        const resolver = new RetrieveUrlResolver({
+          clusterParams: store.state.clusterParams,
+          addition: additionList,
+          searchMode,
+        });
+
+        Object.assign(query, resolver.resolveParamsToUrl());
+
+        router.push({
+          params: { ...route.params },
+          query: { ...query, tab: 'origin', clusterParams: undefined },
+        });
+
+        // 触发索引集查询
+        this.$nextTick(() => {
+          store.dispatch('requestIndexSetQuery');
+        });
+      });
+    },
+    showArrowsClass(row) {
+      if (row.year_on_year_percentage === 0) return '';
+      return row.year_on_year_percentage < 0 ? 'icon-arrows-down' : 'icon-arrows-up';
+    },
+    handleShowWhole(index) {
+      this.cacheExpandStr.push(index);
+    },
+    handleHideWhole(index) {
+      this.cacheExpandStr = this.cacheExpandStr.map(item => item !== index);
+    },
+    handleLeaveCurrent() {
+      this.$emit('show-setting-log');
+    },
+    toFixedNumber(value, size) {
+      if (typeof value === 'number' && !isNaN(value)) {
+        if (value === 0) return 0;
+        return value.toFixed(size);
+      }
+      return value;
+    },
+    /**
+     * @desc: 添加或删除监听分页事件
+     * @param { String } state 新增或删除
+     */
+    scrollEvent(state = 'add') {
+      const scrollEl = document.querySelector(RetrieveHelper.globalScrollSelector);
+      if (!scrollEl) return;
+      if (state === 'add') {
+        scrollEl.addEventListener('scroll', this.handleScroll, { passive: true });
+      }
+      if (state === 'close') {
+        scrollEl.removeEventListener('scroll', this.handleScroll, { passive: true });
+      }
+    },
+    /**
+     * @desc: 批量开启或者关闭告警
+     * @param { Boolean } option 开启或关闭
+     */
+    handleBatchUseAlarm(option = true) {
+      if (this.isRequestAlarm) {
+        return;
+      }
+      const title = option ? this.$t('是否批量开启告警') : this.$t('是否批量关闭告警');
+      this.$bkInfo({
+        title,
+        confirmFn: () => {
+          let alarmList = this.selectList;
+          if (this.isSelectAll) {
+            // 全选时获取未显示的数据指纹
+            alarmList = alarmList.concat(this.allFingerList.slice(alarmList.length));
+          }
+          // 过滤告警开启或者关闭状态的元素
+          let filterList;
+          if (option) {
+            filterList = alarmList.filter(el => !el.monitor.is_active);
+          } else {
+            filterList = alarmList.filter(el => !!el.monitor.is_active);
+          }
+          // 分组情况下过滤重复的列表元素
+          if (this.isGroupSearch) {
+            filterList = this.getSetList(filterList);
+          }
+          this.requestAlarm(filterList, option, () => {
+            // 批量成功后刷新数据指纹请求
+            this.$emit('update-request');
+          });
+        },
+      });
+    },
+    getSetList(list = []) {
+      const setIDList = new Set();
+      const returnList = list.filter(el => {
+        if (!setIDList.has(el.signature)) {
+          setIDList.add(el.signature);
+          return true;
+        }
+      });
+      return returnList;
+    },
+    /**
+     * @desc: 数据指纹告警请求
+     * @param { Array } alarmList 告警数组
+     * @param { Boolean } state 启用或关闭
+     * @param { Function } callback 回调函数
+     */
+    requestAlarm(alarmList = [], state, callback) {
+      if (!alarmList.length) {
+        this.$bkMessage({
+          theme: 'success',
+          message: state ? this.$t('已全部开启告警') : this.$t('已全部关闭告警'),
+        });
+        return;
+      }
+
+      const action = state ? 'create' : 'delete';
+      // 组合告警请求数组
+      const actions = alarmList.reduce((pre, cur) => {
+        const {
+          signature,
+          pattern,
+          monitor: { strategy_id },
+        } = cur;
+        const queryObj = {
+          signature,
+          pattern,
+          strategy_id,
+          action,
+        };
+        !queryObj.strategy_id && delete queryObj.strategy_id;
+        pre.push(queryObj);
+        return pre;
+      }, []);
+      this.isRequestAlarm = true;
+      this.$http
+        .request('/logClustering/updateStrategies', {
+          params: {
+            index_set_id: window.__IS_MONITOR_COMPONENT__ ? this.$route.query.indexId : this.$route.params.indexId,
+          },
+          data: {
+            bk_biz_id: this.bkBizId,
+            pattern_level: this.requestData.pattern_level,
+            actions,
+          },
+        })
+        .then(response => {
+          const { operators, result } = response.data;
+          /**
+           * 当操作成功时 统一提示操作成功
+           * 当操作失败时 分批量和单次
+           * 单次显示返回值的提示 批量则显示部分操作成功
+           */
+          let theme;
+          let message;
+          if (result) {
+            theme = 'success';
+            message = this.$t('操作成功');
+          } else {
+            theme = this.isSelectAll ? 'warning' : 'error';
+            message = this.isSelectAll ? this.$t('部分操作成功') : operators[0].operator_msg;
+          }
+          this.$bkMessage({
+            theme,
+            message,
+            ellipsisLine: 0,
+          });
+          callback(result, operators[0].strategy_id);
+        })
+        .finally(() => {
+          this.isRequestAlarm = false;
+        });
+    },
+    handleScroll() {
+      if (this.throttle) return;
+      this.throttle = true;
+      setTimeout(() => {
+        this.throttle = false;
+        // scroll变化时判断是否展示返回顶部的Icon
+        this.$emit('handle-scroll-is-show');
+        if (this.fingerList.length >= this.allFingerList.length) return;
+        const el = document.querySelector('.finger-container');
+        if (el.scrollHeight - el.offsetHeight - el.scrollTop < 5) {
+          el.scrollTop = el.scrollTop - 5;
+          this.throttle = false;
+          this.$emit('pagination-options');
+        }
+      }, 200);
+    },
+    renderHeader(h) {
+      return h(fingerSelectColumn, {
+        props: {
+          value: this.checkValue,
+          disabled: !this.fingerList.length,
+        },
+        on: {
+          change: this.handleSelectionChange,
+        },
+      });
+    },
+    /**
+     * @desc: 单选操作
+     * @param { Object } row 操作元素
+     * @param { Boolean } state 单选状态
+     */
+    handleRowCheckChange(row, state) {
+      if (state) {
+        this.selectList.push(row);
+      } else {
+        const index = this.selectList.indexOf(row);
+        this.selectList.splice(index, 1);
+      }
+    },
+    getCheckedStatus(row) {
+      return this.selectList.includes(row);
+    },
+    /**
+     * @desc: 全选和全不选操作
+     * @param { Boolean } state 是否全选
+     */
+    handleSelectionChange(state) {
+      this.isSelectAll = state;
+      this.selectSize = state ? this.allFingerList.length : 0;
+      // 先清空数组，如果是全选状态再添加当前已显示的元素
+      this.selectList.splice(0, this.selectList.length);
+      state && this.selectList.push(...this.fingerList);
+    },
+    handleReturnTop() {
+      const el = document.querySelector('.finger-container');
+      this.$easeScroll(0, 300, el);
+    },
+    getHeightLightStr(str) {
+      return str ? str : this.$t('未匹配');
+    },
+    getHeightLightList(str) {
+      return str.match(/#.*?#/g) || [];
+    },
+    /** 设置负责人 */
+    handleChangePrincipal(val, row) {
+      // 当创建告警策略开启时，不允许删掉最后一个责任人
+      if (row.strategy_enabled && !val.length) {
+        this.$bkMessage({
+          theme: 'error',
+          message: this.$t('删除失败，开启告警时，需要至少一个责任人'),
+        });
+        return;
+      }
+
+      // if (!row.owners.length) {
+      //   return;
+      // }
+
+      this.curEditUniqueVal = {
+        signature: row.signature,
+        group: row.group,
+      };
+      this.$http
+        .request('/logClustering/setOwner', {
+          params: {
+            index_set_id: window.__IS_MONITOR_COMPONENT__ ? this.$route.query.indexId : this.$route.params.indexId,
+          },
+          data: {
+            signature: this.getHoverRowValue.signature,
+            owners: val ?? row.owners,
+            origin_pattern: this.getHoverRowValue.origin_pattern,
+            groups: this.getGroupsValue(row.group),
+          },
+        })
+        .then(res => {
+          if (res.result) {
+            const { signature, groups, owners } = res.data;
+            this.curEditUniqueVal = {
+              signature,
+              group: this.requestData.group_by.map(gKey => groups[gKey]),
+            };
+            this.getHoverRowValue.owners = owners;
+            this.$bkMessage({
+              theme: 'success',
+              message: this.$t('操作成功'),
+            });
+          }
+        })
+        .finally(() => {
+          this.curEditUniqueVal = {};
+        });
+    },
+    /** 设置备注  */
+    remarkQuery(markType = 'add') {
+      let additionData;
+      let queryStr;
+      switch (markType) {
+        case 'update':
+          queryStr = 'updateRemark';
+          additionData = {
+            new_remark: this.verifyData.textInputStr.trim(),
+            ...this.catchOperatorVal,
+          };
+          break;
+        case 'delete':
+          queryStr = 'deleteRemark';
+          additionData = {
+            remark: this.verifyData.textInputStr.trim(),
+            ...this.catchOperatorVal,
+          };
+          break;
+        case 'add':
+          queryStr = 'setRemark';
+          additionData = {
+            remark: this.verifyData.textInputStr.trim(),
+          };
+          break;
+      }
+      this.$http
+        .request(`/logClustering/${queryStr}`, {
+          params: {
+            index_set_id: window.__IS_MONITOR_COMPONENT__ ? this.$route.query.indexId : this.$route.params.indexId,
+          },
+          data: {
+            signature: this.getHoverRowValue.signature,
+            ...additionData,
+            origin_pattern: this.getHoverRowValue.origin_pattern,
+            groups: this.getGroupsValue(this.curEditUniqueVal.group),
+          },
+        })
+        .then(res => {
+          if (res.result) {
+            const { signature, groups, remark } = res.data;
+            this.curEditUniqueVal = {
+              signature,
+              group: this.requestData.group_by.map(gKey => groups[gKey]),
+            };
+            this.getHoverRowValue.remark = remark;
+            this.$bkMessage({
+              theme: 'success',
+              message: this.$t('操作成功'),
+            });
+          }
+        })
+        .finally(() => {
+          this.curEditUniqueVal = {};
+          this.verifyData.textInputStr = '';
+          this.catchOperatorVal = {};
+        });
+    },
+    checkName() {
+      if (this.verifyData.textInputStr.trim() === '') return true;
+
+      return /^[\u4e00-\u9fa5_a-zA-Z0-9`~!\s@#$%^&*()_\-+=<>?:"{}|,./;'\\[\]·~！@#￥%……&*（）——\-+={}|《》？：“”【】、；‘'，。、]+$/im.test(
+        this.verifyData.textInputStr.trim()
+      );
+    },
+    handleHoverRemarkIcon(e, row) {
+      if (!this.popoverInstance) {
+        this.currentRemarkList = row.remark
+          .map(item => ({
+            ...item,
+            showTime: item.create_time > 0 ? formatDate(item.create_time) : '',
+          }))
+          .sort((a, b) => b.create_time - a.create_time);
+        this.popoverInstance = this.$bkPopover(e.target, {
+          content: this.$refs.remarkTips,
+          allowHTML: true,
+          arrow: true,
+          theme: 'light',
+          sticky: true,
+          duration: [275, 0],
+          interactive: true,
+          boundary: 'window',
+          placement: 'top',
+          width: 240,
+          onShow: () => {
+            this.curEditUniqueVal = {
+              signature: row.signature,
+              group: row.group,
+            };
+          },
+          onHidden: () => {
+            this.popoverInstance?.destroy();
+            this.popoverInstance = null;
+          },
+        });
+      }
+      this.popoverInstance.show();
+    },
+    /** 提交新的备注 */
+    async confirmDialogStr() {
+      try {
+        await this.$refs.labelRef.validate();
+        const queryType = Object.keys(this.catchOperatorVal).length ? 'update' : 'add';
+        this.remarkQuery(queryType);
+        this.isShowStrInputDialog = false;
+      } catch (err) {
+        return false;
+      }
+    },
+    /** 点击新增备注 */
+    handleClickAddNewRemark() {
+      this.popoverInstance.hide();
+      this.verifyData.textInputStr = '';
+      this.isShowStrInputDialog = true;
+    },
+    handleEditRemark(row) {
+      this.popoverInstance.hide();
+      this.verifyData.textInputStr = row.remark;
+      this.catchOperatorVal = {
+        old_remark: row.remark,
+        create_time: row.create_time,
+      };
+      this.isShowStrInputDialog = true;
+    },
+    handleDeleteRemark(row) {
+      this.popoverInstance.hide();
+      this.catchOperatorVal = {
+        remark: row.remark,
+        create_time: row.create_time,
+      };
+      this.remarkQuery('delete');
+    },
+    remarkContent(remarkList) {
+      if (!remarkList.length) return '--';
+      const maxTimestamp = remarkList.reduce((pre, cur) => {
+        return cur.create_time > pre.create_time ? cur : pre;
+      }, remarkList[0]);
+      return maxTimestamp.remark;
+    },
+    /**
+     * @desc: 获取当前数据指纹所有的责任人
+     */
+    getUserList() {
+      this.ownerLoading = true;
+      const cloneOwnerBase = deepClone(this.ownerBaseList);
+      this.$http
+        .request('/logClustering/getOwnerList', {
+          params: {
+            index_set_id: window.__IS_MONITOR_COMPONENT__ ? this.$route.query.indexId : this.$route.params.indexId,
+          },
+        })
+        .then(res => {
+          this.ownerList = res.data.reduce((acc, cur) => {
+            acc.push({
+              id: cur,
+              name: cur,
+            });
+            return acc;
+          }, cloneOwnerBase);
+        })
+        .finally(() => {
+          this.ownerLoading = false;
+        });
+    },
+    /**
+     * @desc: 选中责任人列表里的值
+     */
+    handleUserSelectChange(v) {
+      if (!v.length) {
+        this.ownerSelect = ['all'];
+        return;
+      }
+      const lastSelect = v[v.length - 1];
+      if (lastSelect === 'all') {
+        this.ownerSelect = [lastSelect];
+      } else {
+        this.ownerSelect = v.filter(item => !(item === 'all'));
+      }
+    },
+    /**
+     * @desc: 选中备注列表里的值 单选永远是最后一个
+     */
+    handleRemarkSelectChange(v) {
+      if (!v.length) {
+        this.remarkSelect = ['all'];
+        return;
+      }
+      this.remarkSelect = [v[v.length - 1]];
+    },
+    /**
+     * @desc: 责任人提交
+     */
+    handleUserSubmit(v) {
+      const ownerData = v.includes('all')
+        ? {
+            owner_config: 'all',
+            owners: [],
+          }
+        : {
+            owner_config: v.includes('no_owner') ? 'no_owner' : 'owner',
+            owners: v.filter(item => item !== 'no_owner'),
+          };
+      this.$emit('handle-finger-operate', 'requestData', ownerData, true);
+    },
+    /**
+     * @desc: 备注提交
+     */
+    handleRemarkSubmit(v) {
+      this.$emit('handle-finger-operate', 'requestData', { remark_config: v[v.length - 1] }, true);
+    },
+    /**
+     * @desc: 初始化责任人选择的数据和初始化责任人列表
+     */
+    handleToggleUserSelect(v) {
+      this.ownerSelect = this.requestData.owners.length ? this.requestData.owners : [this.requestData.owner_config];
+      if (v) this.getUserList();
+    },
+    /**
+     * @desc: 初始化备注选择的数据
+     */
+    handleToggleRemarkSelect() {
+      this.remarkSelect = [this.requestData.remark_config];
+    },
+    renderUserHeader(h, { column }) {
+      const isActive = this.ownerSelect.length && !this.ownerSelect.includes('all');
+      return h(ClusterFilter, {
+        props: {
+          title: column.label,
+          disabled: false,
+          select: this.ownerSelect,
+          selectList: this.ownerList,
+          loading: this.ownerLoading,
+          toggle: this.handleToggleUserSelect,
+          isActive,
+        },
+        on: {
+          selected: this.handleUserSelectChange,
+          submit: this.handleUserSubmit,
+        },
+      });
+    },
+    renderAlertPolicyHeader(h, { column }) {
+      const directive = {
+        name: 'bkTooltips',
+        content: this.$t(
+          '勾选后，基于聚类结果为责任人创建关键字告警。持续监测您的异常问题。通过开关可控制告警策略启停。'
+        ),
+        placement: 'top',
+      };
+      return h('p', { class: 'custom-header-cell' }, [
+        column.label,
+        ' ',
+        h('span', {
+          class: 'bklog-icon bklog-help',
+          directives: [
             {
-              validator: this.checkName,
-              message: this.$t('{n}不规范, 包含特殊符号.', { n: this.$t('备注') }),
-              trigger: 'blur',
-            },
-            {
-              max: 100,
-              message: this.$t('不能多于{n}个字符', { n: 100 }),
-              trigger: 'blur',
+              name: 'bk-tooltips',
+              value: directive,
             },
           ],
+        }),
+      ]);
+    },
+    renderRemarkHeader(h, { column }) {
+      const isActive = this.remarkSelect.length && !this.remarkSelect.includes('all');
+      return h(ClusterFilter, {
+        props: {
+          title: column.label,
+          searchable: false,
+          popoverMinWidth: 170,
+          disabled: false,
+          select: this.remarkSelect,
+          selectList: this.remarkList,
+          toggle: this.handleToggleRemarkSelect,
+          isActive,
         },
-        enTableWidth: {
-          number: '110',
-          percentage: '116',
-          year_on_year_count: '171',
-          year_on_year_percentage: '171',
+        on: {
+          selected: this.handleRemarkSelectChange,
+          submit: this.handleRemarkSubmit,
         },
-        cnTableWidth: {
-          number: '91',
-          percentage: '96',
-          year_on_year_count: '101',
-          year_on_year_percentage: '101',
-        },
-        /** 编辑标签或备注的弹窗 */
-        isShowStrInputDialog: false,
-        /** 当前备注信息 */
-        currentRemarkList: [],
-        popoverInstance: null,
-        userApi: window.BK_LOGIN_URL,
-        catchOperatorVal: {},
-        ownerBaseList: [
-          {
-            id: 'all',
-            name: this.$t('全部'),
-          },
-          {
-            id: 'no_owner',
-            name: this.$t('未指定责任人'),
-          },
-        ],
-        remarkSelect: ['all'],
-        ownerSelect: ['all'],
-        remarkList: [
-          {
-            id: 'all',
-            name: this.$t('全部'),
-          },
-          {
-            id: 'remarked',
-            name: this.$t('已备注'),
-          },
-          {
-            id: 'no_remark',
-            name: this.$t('未备注'),
-          },
-        ],
-        ownerList: [],
-        // ownerLoading: false,
+      });
+    },
+    /** 将分组的数组改成对像 */
+    getGroupsValue(group) {
+      if (!this.requestData.group_by.length) return {};
+      return this.requestData.group_by.reduce((acc, cur, index) => {
+        acc[cur] = group?.[index] ?? '';
+        return acc;
+      }, {});
+    },
+    getLimitState(index) {
+      if (this[BK_LOG_STORAGE.IS_LIMIT_EXPAND_VIEW]) return false;
+      return !this.cacheExpandStr.includes(index);
+    },
+    changeStrategy(val, row) {
+      this.curEditUniqueVal = {
+        signature: row.signature,
+        origin_pattern: row.origin_pattern,
+        group: row.group,
+        strategy_enabled: val,
       };
-    },
-    computed: {
-      bkBizId() {
-        return this.$store.state.bkBizId;
-      },
-      isLimitExpandView() {
-        return this.$store.state.storage[BK_LOG_STORAGE.IS_LIMIT_EXPAND_VIEW];
-      },
-      isShowBottomTips() {
-        return this.fingerList.length >= 50 && this.fingerList.length === this.allFingerList.length;
-      },
-      getTableWidth() {
-        return this.$store.getters.isEnLanguage ? this.enTableWidth : this.cnTableWidth;
-      },
-      /** 获取当前编辑操作的数据 */
-      getHoverRowValue() {
-        const uniqueVal = this.curEditUniqueVal;
-        // 如果有分组也带上分组的条件
-        const fingerRow = this.fingerList.find(item =>
-          Object.keys(uniqueVal).every(key => deepEqual(item[key], uniqueVal[key])),
-        );
-        return fingerRow;
-      },
-      scrollContent() {
-        return document.querySelector('.finger-container');
-      },
-      isGroupSearch() {
-        return !!this.requestData.group_by.length;
-      },
-      username() {
-        return this.$store.state.userMeta?.username;
-      },
-      isExternal() {
-        return window.IS_EXTERNAL === true;
-      },
-    },
-    watch: {
-      'fingerList.length': {
-        handler(newLength, oldLength) {
-          // 全选时 分页下拉新增页默认选中
-          if (this.isSelectAll) {
-            this.$nextTick(() => {
-              this.selectList.push(...this.fingerList.slice(oldLength, newLength));
-            });
-          }
-        },
-      },
-      'selectList.length'(newLength) {
-        // 选择列表数据大小计算
-        if (this.isSelectAll) {
-          this.selectSize = newLength + this.allFingerList.length - this.fingerList.length;
-        } else {
-          this.selectSize = newLength;
-        }
-        // 根据手动选择列表长度来判断全选框显示 全选 半选 不选
-        if (!newLength) {
-          this.checkValue = 0;
-          return;
-        }
-        if (newLength && newLength !== this.fingerList.length) {
-          this.checkValue = 1;
-        } else {
-          this.checkValue = 2;
-        }
-      },
-    },
-    mounted() {
-      this.handleToggleUserSelect();
-      this.handleToggleRemarkSelect();
-      this.scrollEvent('add');
-    },
-    beforeDestroy() {
-      this.scrollEvent('close');
-    },
-    methods: {
-      handleMenuClick(option, row, isLink = false) {
-        switch (option) {
-          // pattern 下钻
-          case 'show original':
-            this.handleMenuBatchClick(row, isLink);
-            if (!isLink) this.$emit('show-origin-log');
-            break;
-          case 'copy':
-            copyMessage(row.pattern);
-            break;
-        }
-      },
-      handleMenuBatchClick(row, isLink = true) {
-        const additionList = [];
-        const groupBy = this.requestData.group_by;
-        if (groupBy.length) {
-          groupBy.forEach((el, index) => {
-            additionList.push({
-              field: el,
-              operator: 'is',
-              value: row.group[index],
-              isLink,
-            });
-          });
-        }
-        additionList.push({
-          field: `__dist_${this.requestData.pattern_level}`,
-          operator: 'is',
-          value: row.signature.toString(),
-          isLink,
-        });
-
-        const router = this.$router;
-        const route = this.$route;
-        const store = this.$store;
-
-        // 聚类下钻只能使用ui模式
-        this.$store.commit('updateIndexItem', { search_mode: 'ui' });
-        // 新开页打开首页是原始日志，不需要传聚类参数，如果传了则会初始化为聚类
-        this.$store.commit('updateClusterParams', null);
-        this.$store.dispatch('setQueryCondition', additionList).then(([newSearchList, searchMode, isNewSearchPage]) => {
-          if (isLink) {
-            const openUrl = getConditionRouterParams(newSearchList, searchMode, isNewSearchPage, { tab: 'origin' });
-            window.open(openUrl, '_blank');
-            // 新开页后当前页面回填聚类参数
-            this.$store.commit('updateClusterParams', this.requestData);
-            return
-          } else {
-            this.$emit('show-change', 'origin');
-          }
-
-          const query = { ...route.query };
-
-          const resolver = new RetrieveUrlResolver({
-            clusterParams: store.state.clusterParams,
-            addition: additionList,
-            searchMode,
-          });
-
-          Object.assign(query, resolver.resolveParamsToUrl());
-
-          router.push({
-            params: { ...route.params },
-            query: { ...query, tab: 'origin', clusterParams: undefined },
-          });
-
-          // 触发索引集查询
-          this.$nextTick(() => {
-            store.dispatch('requestIndexSetQuery');
-          });
-        });
-      },
-      showArrowsClass(row) {
-        if (row.year_on_year_percentage === 0) return '';
-        return row.year_on_year_percentage < 0 ? 'icon-arrows-down' : 'icon-arrows-up';
-      },
-      handleShowWhole(index) {
-        this.cacheExpandStr.push(index);
-      },
-      handleHideWhole(index) {
-        this.cacheExpandStr = this.cacheExpandStr.map(item => item !== index);
-      },
-      handleLeaveCurrent() {
-        this.$emit('show-setting-log');
-      },
-      toFixedNumber(value, size) {
-        if (typeof value === 'number' && !isNaN(value)) {
-          if (value === 0) return 0;
-          return value.toFixed(size);
-        }
-        return value;
-      },
-      /**
-       * @desc: 添加或删除监听分页事件
-       * @param { String } state 新增或删除
-       */
-      scrollEvent(state = 'add') {
-        const scrollEl = document.querySelector(RetrieveHelper.globalScrollSelector);
-        if (!scrollEl) return;
-        if (state === 'add') {
-          scrollEl.addEventListener('scroll', this.handleScroll, { passive: true });
-        }
-        if (state === 'close') {
-          scrollEl.removeEventListener('scroll', this.handleScroll, { passive: true });
-        }
-      },
-      /**
-       * @desc: 批量开启或者关闭告警
-       * @param { Boolean } option 开启或关闭
-       */
-      handleBatchUseAlarm(option = true) {
-        if (this.isRequestAlarm) {
-          return;
-        }
-        const title = option ? this.$t('是否批量开启告警') : this.$t('是否批量关闭告警');
-        this.$bkInfo({
-          title,
-          confirmFn: () => {
-            let alarmList = this.selectList;
-            if (this.isSelectAll) {
-              // 全选时获取未显示的数据指纹
-              alarmList = alarmList.concat(this.allFingerList.slice(alarmList.length));
-            }
-            // 过滤告警开启或者关闭状态的元素
-            let filterList;
-            if (option) {
-              filterList = alarmList.filter(el => !el.monitor.is_active);
-            } else {
-              filterList = alarmList.filter(el => !!el.monitor.is_active);
-            }
-            // 分组情况下过滤重复的列表元素
-            if (this.isGroupSearch) {
-              filterList = this.getSetList(filterList);
-            }
-            this.requestAlarm(filterList, option, () => {
-              // 批量成功后刷新数据指纹请求
-              this.$emit('update-request');
-            });
+      this.$http
+        .request('/logClustering/updatePatternStrategy', {
+          params: {
+            index_set_id: window.__IS_MONITOR_COMPONENT__ ? this.$route.query.indexId : this.$route.params.indexId,
           },
-        });
-      },
-      getSetList(list = []) {
-        const setIDList = new Set();
-        const returnList = list.filter(el => {
-          if (!setIDList.has(el.signature)) {
-            setIDList.add(el.signature);
-            return true;
-          }
-        });
-        return returnList;
-      },
-      /**
-       * @desc: 数据指纹告警请求
-       * @param { Array } alarmList 告警数组
-       * @param { Boolean } state 启用或关闭
-       * @param { Function } callback 回调函数
-       */
-      requestAlarm(alarmList = [], state, callback) {
-        if (!alarmList.length) {
-          this.$bkMessage({
-            theme: 'success',
-            message: state ? this.$t('已全部开启告警') : this.$t('已全部关闭告警'),
-          });
-          return;
-        }
-
-        const action = state ? 'create' : 'delete';
-        // 组合告警请求数组
-        const actions = alarmList.reduce((pre, cur) => {
-          const {
-            signature,
-            pattern,
-            monitor: { strategy_id },
-          } = cur;
-          const queryObj = {
-            signature,
-            pattern,
-            strategy_id,
-            action,
-          };
-          !queryObj.strategy_id && delete queryObj.strategy_id;
-          pre.push(queryObj);
-          return pre;
-        }, []);
-        this.isRequestAlarm = true;
-        this.$http
-          .request('/logClustering/updateStrategies', {
-            params: {
-              index_set_id: window.__IS_MONITOR_COMPONENT__ ? this.$route.query.indexId : this.$route.params.indexId,
-            },
-            data: {
-              bk_biz_id: this.bkBizId,
-              pattern_level: this.requestData.pattern_level,
-              actions,
-            },
-          })
-          .then(({ data: { operators, result } }) => {
-            /**
-             * 当操作成功时 统一提示操作成功
-             * 当操作失败时 分批量和单次
-             * 单次显示返回值的提示 批量则显示部分操作成功
-             */
-            let theme;
-            let message;
-            if (result) {
-              theme = 'success';
-              message = this.$t('操作成功');
-            } else {
-              theme = this.isSelectAll ? 'warning' : 'error';
-              message = this.isSelectAll ? this.$t('部分操作成功') : operators[0].operator_msg;
-            }
+          data: {
+            signature: this.getHoverRowValue.signature,
+            origin_pattern: this.getHoverRowValue.origin_pattern,
+            strategy_enabled: this.getHoverRowValue.strategy_enabled,
+            groups: this.getGroupsValue(row.group),
+          },
+        })
+        .then(res => {
+          if (res.result) {
+            const { strategy_id } = res.data;
             this.$bkMessage({
-              theme,
-              message,
-              ellipsisLine: 0,
+              theme: 'success',
+              message: this.$t('操作成功'),
             });
-            callback(result, operators[0].strategy_id);
-          })
-          .finally(() => {
-            this.isRequestAlarm = false;
-          });
-      },
-      handleScroll() {
-        if (this.throttle) return;
-        this.throttle = true;
-        setTimeout(() => {
-          this.throttle = false;
-          // scroll变化时判断是否展示返回顶部的Icon
-          this.$emit('handle-scroll-is-show');
-          if (this.fingerList.length >= this.allFingerList.length) return;
-          const el = document.querySelector('.finger-container');
-          if (el.scrollHeight - el.offsetHeight - el.scrollTop < 5) {
-            el.scrollTop = el.scrollTop - 5;
-            this.throttle = false;
-            this.$emit('pagination-options');
+            this.$set(row, 'strategy_id', strategy_id);
           }
-        }, 200);
-      },
-      renderHeader(h) {
-        return h(fingerSelectColumn, {
-          props: {
-            value: this.checkValue,
-            disabled: !this.fingerList.length,
-          },
-          on: {
-            change: this.handleSelectionChange,
-          },
+        })
+        .finally(() => {
+          this.curEditUniqueVal = {};
         });
-      },
-      /**
-       * @desc: 单选操作
-       * @param { Object } row 操作元素
-       * @param { Boolean } state 单选状态
-       */
-      handleRowCheckChange(row, state) {
-        if (state) {
-          this.selectList.push(row);
-        } else {
-          const index = this.selectList.indexOf(row);
-          this.selectList.splice(index, 1);
-        }
-      },
-      getCheckedStatus(row) {
-        return this.selectList.includes(row);
-      },
-      /**
-       * @desc: 全选和全不选操作
-       * @param { Boolean } state 是否全选
-       */
-      handleSelectionChange(state) {
-        this.isSelectAll = state;
-        this.selectSize = state ? this.allFingerList.length : 0;
-        // 先清空数组，如果是全选状态再添加当前已显示的元素
-        this.selectList.splice(0, this.selectList.length);
-        state && this.selectList.push(...this.fingerList);
-      },
-      handleReturnTop() {
-        const el = document.querySelector('.finger-container');
-        this.$easeScroll(0, 300, el);
-      },
-      getHeightLightStr(str) {
-        return !!str ? str : this.$t('未匹配');
-      },
-      getHeightLightList(str) {
-        return str.match(/#.*?#/g) || [];
-      },
-      /** 设置负责人 */
-      handleChangePrincipal(val, row) {
-        // 当创建告警策略开启时，不允许删掉最后一个责任人
-        if (row.strategy_enabled && !val.length) {
-          this.$bkMessage({
-            theme: 'error',
-            message: this.$t('删除失败，开启告警时，需要至少一个责任人'),
-          });
-          return;
-        }
-
-        // if (!row.owners.length) {
-        //   return;
-        // }
-
-        this.curEditUniqueVal = {
-          signature: row.signature,
-          group: row.group,
-        };
-        this.$http
-          .request('/logClustering/setOwner', {
-            params: {
-              index_set_id: window.__IS_MONITOR_COMPONENT__ ? this.$route.query.indexId : this.$route.params.indexId,
-            },
-            data: {
-              signature: this.getHoverRowValue.signature,
-              owners: val ?? row.owners,
-              origin_pattern: this.getHoverRowValue.origin_pattern,
-              groups: this.getGroupsValue(row.group),
-            },
-          })
-          .then(res => {
-            if (res.result) {
-              const { signature, groups, owners } = res.data;
-              this.curEditUniqueVal = {
-                signature,
-                group: this.requestData.group_by.map(gKey => groups[gKey]),
-              };
-              this.getHoverRowValue.owners = owners;
-              this.$bkMessage({
-                theme: 'success',
-                message: this.$t('操作成功'),
-              });
-            }
-          })
-          .finally(() => (this.curEditUniqueVal = {}));
-      },
-      /** 设置备注  */
-      remarkQuery(markType = 'add') {
-        let additionData;
-        let queryStr;
-        switch (markType) {
-          case 'update':
-            queryStr = 'updateRemark';
-            additionData = {
-              new_remark: this.verifyData.textInputStr.trim(),
-              ...this.catchOperatorVal,
-            };
-            break;
-          case 'delete':
-            queryStr = 'deleteRemark';
-            additionData = {
-              remark: this.verifyData.textInputStr.trim(),
-              ...this.catchOperatorVal,
-            };
-            break;
-          case 'add':
-            queryStr = 'setRemark';
-            additionData = {
-              remark: this.verifyData.textInputStr.trim(),
-            };
-            break;
-        }
-        this.$http
-          .request(`/logClustering/${queryStr}`, {
-            params: {
-              index_set_id: window.__IS_MONITOR_COMPONENT__ ? this.$route.query.indexId : this.$route.params.indexId,
-            },
-            data: {
-              signature: this.getHoverRowValue.signature,
-              ...additionData,
-              origin_pattern: this.getHoverRowValue.origin_pattern,
-              groups: this.getGroupsValue(this.curEditUniqueVal.group),
-            },
-          })
-          .then(res => {
-            if (res.result) {
-              const { signature, groups, remark } = res.data;
-              this.curEditUniqueVal = {
-                signature,
-                group: this.requestData.group_by.map(gKey => groups[gKey]),
-              };
-              this.getHoverRowValue.remark = remark;
-              this.$bkMessage({
-                theme: 'success',
-                message: this.$t('操作成功'),
-              });
-            }
-          })
-          .finally(() => {
-            this.curEditUniqueVal = {};
-            this.verifyData.textInputStr = '';
-            this.catchOperatorVal = {};
-          });
-      },
-      checkName() {
-        if (this.verifyData.textInputStr.trim() === '') return true;
-
-        return /^[\u4e00-\u9fa5_a-zA-Z0-9`~!\s@#$%^&*()_\-+=<>?:"{}|,.\/;'\\[\]·~！@#￥%……&*（）——\-+={}|《》？：“”【】、；‘'，。、]+$/im.test(
-          this.verifyData.textInputStr.trim(),
-        );
-      },
-      handleHoverRemarkIcon(e, row) {
-        if (!this.popoverInstance) {
-          this.currentRemarkList = row.remark
-            .map(item => ({
-              ...item,
-              showTime: item.create_time > 0 ? formatDate(item.create_time) : '',
-            }))
-            .sort((a, b) => b.create_time - a.create_time);
-          this.popoverInstance = this.$bkPopover(e.target, {
-            content: this.$refs.remarkTips,
-            allowHTML: true,
-            arrow: true,
-            theme: 'light',
-            sticky: true,
-            duration: [275, 0],
-            interactive: true,
-            boundary: 'window',
-            placement: 'top',
-            width: 240,
-            onShow: () => {
-              this.curEditUniqueVal = {
-                signature: row.signature,
-                group: row.group,
-              };
-            },
-            onHidden: () => {
-              this.popoverInstance?.destroy();
-              this.popoverInstance = null;
-            },
-          });
-        }
-        this.popoverInstance.show();
-      },
-      /** 提交新的备注 */
-      async confirmDialogStr() {
-        try {
-          await this.$refs.labelRef.validate();
-          const queryType = Object.keys(this.catchOperatorVal).length ? 'update' : 'add';
-          this.remarkQuery(queryType);
-          this.isShowStrInputDialog = false;
-        } catch (err) {
-          return false;
-        }
-      },
-      /** 点击新增备注 */
-      handleClickAddNewRemark() {
-        this.popoverInstance.hide();
-        this.verifyData.textInputStr = '';
-        this.isShowStrInputDialog = true;
-      },
-      handleEditRemark(row) {
-        this.popoverInstance.hide();
-        this.verifyData.textInputStr = row.remark;
-        this.catchOperatorVal = {
-          old_remark: row.remark,
-          create_time: row.create_time,
-        };
-        this.isShowStrInputDialog = true;
-      },
-      handleDeleteRemark(row) {
-        this.popoverInstance.hide();
-        this.catchOperatorVal = {
-          remark: row.remark,
-          create_time: row.create_time,
-        };
-        this.remarkQuery('delete');
-      },
-      remarkContent(remarkList) {
-        if (!remarkList.length) return '--';
-        const maxTimestamp = remarkList.reduce((pre, cur) => {
-          return cur.create_time > pre.create_time ? cur : pre;
-        }, remarkList[0]);
-        return maxTimestamp.remark;
-      },
-      /**
-       * @desc: 获取当前数据指纹所有的责任人
-       */
-      getUserList() {
-        this.ownerLoading = true;
-        const cloneOwnerBase = deepClone(this.ownerBaseList);
-        this.$http
-          .request('/logClustering/getOwnerList', {
-            params: {
-              index_set_id: window.__IS_MONITOR_COMPONENT__ ? this.$route.query.indexId : this.$route.params.indexId,
-            },
-          })
-          .then(res => {
-            this.ownerList = res.data.reduce((acc, cur) => {
-              acc.push({
-                id: cur,
-                name: cur,
-              });
-              return acc;
-            }, cloneOwnerBase);
-          })
-          .finally(() => {
-            this.ownerLoading = false;
-          });
-      },
-      /**
-       * @desc: 选中责任人列表里的值
-       */
-      handleUserSelectChange(v) {
-        if (!v.length) {
-          this.ownerSelect = ['all'];
-          return;
-        }
-        const lastSelect = v[v.length - 1];
-        if (lastSelect === 'all') {
-          this.ownerSelect = [lastSelect];
-        } else {
-          this.ownerSelect = v.filter(item => !(item === 'all'));
-        }
-      },
-      /**
-       * @desc: 选中备注列表里的值 单选永远是最后一个
-       */
-      handleRemarkSelectChange(v) {
-        if (!v.length) {
-          this.remarkSelect = ['all'];
-          return;
-        }
-        this.remarkSelect = [v[v.length - 1]];
-      },
-      /**
-       * @desc: 责任人提交
-       */
-      handleUserSubmit(v) {
-        const ownerData = v.includes('all')
-          ? {
-              owner_config: 'all',
-              owners: [],
-            }
-          : {
-              owner_config: v.includes('no_owner') ? 'no_owner' : 'owner',
-              owners: v.filter(item => item !== 'no_owner'),
-            };
-        this.$emit('handle-finger-operate', 'requestData', ownerData, true);
-      },
-      /**
-       * @desc: 备注提交
-       */
-      handleRemarkSubmit(v) {
-        this.$emit('handle-finger-operate', 'requestData', { remark_config: v[v.length - 1] }, true);
-      },
-      /**
-       * @desc: 初始化责任人选择的数据和初始化责任人列表
-       */
-      handleToggleUserSelect(v) {
-        this.ownerSelect = !!this.requestData.owners.length ? this.requestData.owners : [this.requestData.owner_config];
-        if (v) this.getUserList();
-      },
-      /**
-       * @desc: 初始化备注选择的数据
-       */
-      handleToggleRemarkSelect() {
-        this.remarkSelect = [this.requestData.remark_config];
-      },
-      renderUserHeader(h, { column }) {
-        const isActive = this.ownerSelect.length && !this.ownerSelect.includes('all');
-        return h(ClusterFilter, {
-          props: {
-            title: column.label,
-            disabled: false,
-            select: this.ownerSelect,
-            selectList: this.ownerList,
-            loading: this.ownerLoading,
-            toggle: this.handleToggleUserSelect,
-            isActive,
-          },
-          on: {
-            selected: this.handleUserSelectChange,
-            submit: this.handleUserSubmit,
-          },
-        });
-      },
-      renderAlertPolicyHeader(h, { column }) {
-        const directive = {
-          name: 'bkTooltips',
-          content: this.$t(
-            '勾选后，基于聚类结果为责任人创建关键字告警。持续监测您的异常问题。通过开关可控制告警策略启停。',
-          ),
-          placement: 'top',
-        };
-        return (
-          <p class='custom-header-cell'>
-            {column.label}{' '}
-            <span
-              class='bklog-icon bklog-help'
-              v-bk-tooltips={directive}
-            ></span>
-          </p>
-        );
-      },
-      renderRemarkHeader(h, { column }) {
-        const isActive = this.remarkSelect.length && !this.remarkSelect.includes('all');
-        return h(ClusterFilter, {
-          props: {
-            title: column.label,
-            searchable: false,
-            popoverMinWidth: 170,
-            disabled: false,
-            select: this.remarkSelect,
-            selectList: this.remarkList,
-            toggle: this.handleToggleRemarkSelect,
-            isActive,
-          },
-          on: {
-            selected: this.handleRemarkSelectChange,
-            submit: this.handleRemarkSubmit,
-          },
-        });
-      },
-      /** 将分组的数组改成对像 */
-      getGroupsValue(group) {
-        if (!this.requestData.group_by.length) return {};
-        return this.requestData.group_by.reduce((acc, cur, index) => {
-          acc[cur] = group?.[index] ?? '';
-          return acc;
-        }, {});
-      },
-      getLimitState(index) {
-        if (this[BK_LOG_STORAGE.IS_LIMIT_EXPAND_VIEW]) return false;
-        return !this.cacheExpandStr.includes(index);
-      },
-      changeStrategy(val, row) {
-        this.curEditUniqueVal = {
-          signature: row.signature,
-          origin_pattern: row.origin_pattern,
-          group: row.group,
-          strategy_enabled: val,
-        };
-        this.$http
-          .request('/logClustering/updatePatternStrategy', {
-            params: {
-              index_set_id: window.__IS_MONITOR_COMPONENT__ ? this.$route.query.indexId : this.$route.params.indexId,
-            },
-            data: {
-              signature: this.getHoverRowValue.signature,
-              origin_pattern: this.getHoverRowValue.origin_pattern,
-              strategy_enabled: this.getHoverRowValue.strategy_enabled,
-              groups: this.getGroupsValue(row.group),
-            },
-          })
-          .then(res => {
-            if (res.result) {
-              const { strategy_id } = res.data;
-              this.$bkMessage({
-                theme: 'success',
-                message: this.$t('操作成功'),
-              });
-              this.$set(row, 'strategy_id', strategy_id);
-            }
-          })
-          .finally(() => (this.curEditUniqueVal = {}));
-      },
-      handleStrategyInfoClick(row) {
-        window.open(
-          `${window.MONITOR_URL}/?bizId=${this.$store.state.bkBizId}#/strategy-config/detail/${row.strategy_id}`,
-          '_blank',
-        );
-      },
     },
-  };
+    handleStrategyInfoClick(row) {
+      window.open(
+        `${window.MONITOR_URL}/?bizId=${this.$store.state.bkBizId}#/strategy-config/detail/${row.strategy_id}`,
+        '_blank'
+      );
+    },
+  },
+};
 </script>
 
 <style lang="scss" scoped>

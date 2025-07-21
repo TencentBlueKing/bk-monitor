@@ -362,383 +362,380 @@
   </div>
 </template>
 <script>
-  import { mapGetters } from 'vuex';
+import { mapGetters } from 'vuex';
 
-  import { deepClone } from '../../../monitor-echarts/utils';
-  import LogFilter from '../log-filter';
-  import MultilineRegDialog from './multiline-reg-dialog';
-  import DeviceMetadata from './device-metadata.vue';
-  export default {
-    components: {
-      MultilineRegDialog,
-      LogFilter,
-      DeviceMetadata,
+import { deepClone } from '../../../monitor-echarts/utils';
+import LogFilter from '../log-filter';
+import MultilineRegDialog from './multiline-reg-dialog';
+import DeviceMetadata from './device-metadata.vue';
+export default {
+  components: {
+    MultilineRegDialog,
+    LogFilter,
+    DeviceMetadata,
+  },
+  props: {
+    showType: {
+      type: String,
+      default: 'horizontal',
     },
-    props: {
-      showType: {
-        type: String,
-        default: 'horizontal',
-      },
-      configData: {
-        type: Object,
-        required: true,
-      },
-      scenarioId: {
-        type: String,
-        required: true,
-      },
-      currentEnvironment: {
-        type: String,
-        require: true,
-      },
-      configLength: {
-        type: Number,
-        default: 0,
-      },
-      configChangeLength: {
-        type: Number,
-        require: true,
-      },
-      isCloneOrUpdate: {
-        type: Boolean,
-        require: true,
-      },
-      enLabelWidth: {
-        type: Number,
-        default: 180,
-      },
+    configData: {
+      type: Object,
+      required: true,
     },
-    data() {
-      return {
-        rules: {
+    scenarioId: {
+      type: String,
+      required: true,
+    },
+    currentEnvironment: {
+      type: String,
+      require: true,
+    },
+    configLength: {
+      type: Number,
+      default: 0,
+    },
+    configChangeLength: {
+      type: Number,
+      require: true,
+    },
+    isCloneOrUpdate: {
+      type: Boolean,
+      require: true,
+    },
+    enLabelWidth: {
+      type: Number,
+      default: 180,
+    },
+  },
+  data() {
+    return {
+      rules: {
+        paths: [
+          // 日志路径
+          {
+            required: true,
+            trigger: 'change',
+          },
+        ],
+        notEmptyForm: [
+          // 不能为空的表单
+          {
+            required: true,
+            trigger: 'blur',
+          },
+        ],
+        maxLine: [
+          // 最多匹配行数
+          {
+            validator: val => {
+              if (val > 5000) {
+                this.formData.params.multiline_max_lines = '5000';
+              } else if (val < 1) {
+                this.formData.params.multiline_max_lines = '1';
+              }
+              return true;
+            },
+            trigger: 'blur',
+          },
+        ],
+        maxTimeout: [
+          // 最大耗时
+          {
+            validator: val => {
+              if (val > 10) {
+                this.formData.params.multiline_timeout = '10';
+              } else if (val < 1) {
+                this.formData.params.multiline_timeout = '1';
+              }
+              return true;
+            },
+            trigger: 'blur',
+          },
+        ],
+      },
+      subFormData: {
+        data_encoding: 'UTF-8', // 日志字符集
+        params: {
+          multiline_pattern: '', // 行首正则, char
+          multiline_max_lines: '50', // 最多匹配行数, int
+          multiline_timeout: '2', // 最大耗时, int
           paths: [
             // 日志路径
-            {
-              required: true,
-              trigger: 'change',
-            },
+            { value: '' },
           ],
-          notEmptyForm: [
-            // 不能为空的表单
-            {
-              required: true,
-              trigger: 'blur',
-            },
+          exclude_files: [
+            // 日志黑名单路径
+            { value: '' },
           ],
-          maxLine: [
-            // 最多匹配行数
-            {
-              validator: val => {
-                if (val > 5000) {
-                  this.formData.params.multiline_max_lines = '5000';
-                } else if (val < 1) {
-                  this.formData.params.multiline_max_lines = '1';
-                }
-                return true;
-              },
-              trigger: 'blur',
-            },
-          ],
-          maxTimeout: [
-            // 最大耗时
-            {
-              validator: val => {
-                if (val > 10) {
-                  this.formData.params.multiline_timeout = '10';
-                } else if (val < 1) {
-                  this.formData.params.multiline_timeout = '1';
-                }
-                return true;
-              },
-              trigger: 'blur',
-            },
-          ],
-        },
-        subFormData: {
-          data_encoding: 'UTF-8', // 日志字符集
-          params: {
-            multiline_pattern: '', // 行首正则, char
-            multiline_max_lines: '50', // 最多匹配行数, int
-            multiline_timeout: '2', // 最大耗时, int
-            paths: [
-              // 日志路径
-              { value: '' },
+          conditions: {
+            type: 'none', // 过滤方式类型
+            match_type: 'include', // 过滤方式 可选字段 include, exclude
+            match_content: '',
+            separator: '|',
+            separator_filters: [
+              // 分隔符过滤条件
+              { fieldindex: '', word: '', op: '=', logic_op: 'and' },
             ],
-            exclude_files: [
-              // 日志黑名单路径
-              { value: '' },
-            ],
-            conditions: {
-              type: 'none', // 过滤方式类型
-              match_type: 'include', // 过滤方式 可选字段 include, exclude
-              match_content: '',
-              separator: '|',
-              separator_filters: [
-                // 分隔符过滤条件
-                { fieldindex: '', word: '', op: '=', logic_op: 'and' },
-              ],
-            },
-            winlog_name: [], // windows事件名称
-            winlog_level: [], // windows事件等级
-            winlog_event_id: [], // windows事件id
-            extra_labels: [], // 补充元数据
           },
-        },
-        type: 'and',
-        showRegDialog: false, // 显示段日志调试弹窗
-        otherRules: false, // 是否有其他规则
-        logSpeciesList: [
-          {
-            id: 'Application',
-            name: this.$t('应用程序(Application)'),
-          },
-          {
-            id: 'Security',
-            name: this.$t('安全(Security)'),
-          },
-          {
-            id: 'System',
-            name: this.$t('系统(System)'),
-          },
-          {
-            id: 'Other',
-            name: this.$t('其他'),
-          },
-        ],
-        selectLogSpeciesList: ['Application', 'Security', 'System', 'Other'],
-        otherSpeciesList: [],
-        selectEventList: [
-          {
-            id: 'winlog_event_id',
-            name: this.$t('事件ID'),
-            isSelect: false,
-          },
-          {
-            id: 'winlog_level',
-            name: this.$t('级别'),
-            isSelect: false,
-          },
-          {
-            id: 'winlog_source',
-            name: this.$t('事件来源'),
-            isSelect: false,
-          },
-          {
-            id: 'winlog_content',
-            name: this.$t('事件内容'),
-            isSelect: false,
-          },
-        ],
-        eventSettingList: [{ type: 'winlog_event_id', list: [], isCorrect: true }],
-        isShowBlackList: false,
-      };
-    },
-    computed: {
-      ...mapGetters('globals', ['globalsData']),
-      // 是否打开行首正则功能
-      hasMultilineReg() {
-        return this.scenarioId === 'section';
-      },
-      // 日志路径
-      logPaths() {
-        return this.subFormData.params.paths || [];
-      },
-      blackLogListPaths() {
-        return this.subFormData.params?.exclude_files || [];
-      },
-      labelWidth() {
-        return this.$store.state.isEnLanguage ? this.enLabelWidth : 115;
-      },
-      // 是否是标准输出
-      isStandardOutput() {
-        return this.currentEnvironment === 'std_log_config';
-      },
-      // win日志类型是否有报错
-      winCannotPass() {
-        return this.eventSettingList.some(el => el.isCorrect === false) || this.otherRules;
-      },
-      getWinParamsData() {
-        // wineventlog日志类型时进行params属性修改
-        const winParams = {};
-        const { selectLogSpeciesList, otherSpeciesList, eventSettingList } = this;
-        const cloneSpeciesList = deepClone(selectLogSpeciesList);
-        if (cloneSpeciesList.includes('Other')) {
-          cloneSpeciesList.splice(cloneSpeciesList.indexOf('Other'), 1);
-        }
-        winParams.winlog_name = cloneSpeciesList.concat(otherSpeciesList);
-        eventSettingList.forEach(el => {
-          winParams[el.type] = el.list;
-        });
-        return winParams;
-      },
-    },
-    watch: {
-      subFormData: {
-        deep: true,
-        handler(val) {
-          const { data_encoding, params } = val;
-          this.$emit('config-change', { data_encoding, params });
+          winlog_name: [], // windows事件名称
+          winlog_level: [], // windows事件等级
+          winlog_event_id: [], // windows事件id
+          extra_labels: [], // 补充元数据
         },
       },
-      configLength() {
-        this.assignSubData(this.configData);
-      },
-      configChangeLength() {
-        this.initConfigLogSet();
+      type: 'and',
+      showRegDialog: false, // 显示段日志调试弹窗
+      otherRules: false, // 是否有其他规则
+      logSpeciesList: [
+        {
+          id: 'Application',
+          name: this.$t('应用程序(Application)'),
+        },
+        {
+          id: 'Security',
+          name: this.$t('安全(Security)'),
+        },
+        {
+          id: 'System',
+          name: this.$t('系统(System)'),
+        },
+        {
+          id: 'Other',
+          name: this.$t('其他'),
+        },
+      ],
+      selectLogSpeciesList: ['Application', 'Security', 'System', 'Other'],
+      otherSpeciesList: [],
+      selectEventList: [
+        {
+          id: 'winlog_event_id',
+          name: this.$t('事件ID'),
+          isSelect: false,
+        },
+        {
+          id: 'winlog_level',
+          name: this.$t('级别'),
+          isSelect: false,
+        },
+        {
+          id: 'winlog_source',
+          name: this.$t('事件来源'),
+          isSelect: false,
+        },
+        {
+          id: 'winlog_content',
+          name: this.$t('事件内容'),
+          isSelect: false,
+        },
+      ],
+      eventSettingList: [{ type: 'winlog_event_id', list: [], isCorrect: true }],
+      isShowBlackList: false,
+    };
+  },
+  computed: {
+    ...mapGetters('globals', ['globalsData']),
+    // 是否打开行首正则功能
+    hasMultilineReg() {
+      return this.scenarioId === 'section';
+    },
+    // 日志路径
+    logPaths() {
+      return this.subFormData.params.paths || [];
+    },
+    blackLogListPaths() {
+      return this.subFormData.params?.exclude_files || [];
+    },
+    labelWidth() {
+      return this.$store.state.isEnLanguage ? this.enLabelWidth : 115;
+    },
+    // 是否是标准输出
+    isStandardOutput() {
+      return this.currentEnvironment === 'std_log_config';
+    },
+    // win日志类型是否有报错
+    winCannotPass() {
+      return this.eventSettingList.some(el => el.isCorrect === false) || this.otherRules;
+    },
+    getWinParamsData() {
+      // wineventlog日志类型时进行params属性修改
+      const winParams = {};
+      const { selectLogSpeciesList, otherSpeciesList, eventSettingList } = this;
+      const cloneSpeciesList = deepClone(selectLogSpeciesList);
+      if (cloneSpeciesList.includes('Other')) {
+        cloneSpeciesList.splice(cloneSpeciesList.indexOf('Other'), 1);
+      }
+      winParams.winlog_name = cloneSpeciesList.concat(otherSpeciesList);
+      eventSettingList.forEach(el => {
+        winParams[el.type] = el.list;
+      });
+      return winParams;
+    },
+  },
+  watch: {
+    subFormData: {
+      deep: true,
+      handler(val) {
+        const { data_encoding, params } = val;
+        this.$emit('config-change', { data_encoding, params });
       },
     },
-    mounted() {
-      (this.isCloneOrUpdate || this.configChangeLength > 0) && this.initConfigLogSet();
+    configLength() {
+      this.assignSubData(this.configData);
     },
-    methods: {
-      initPathList(params, type = 'paths') {
-        if (params[type]?.length > 0) {
-          params[type] =
-            typeof params[type][0] === 'string' ? params[type].map(item => ({ value: item })) : params[type];
-        } else {
-          // 兼容原日志路径为空列表
-          params[type] = [{ value: '' }];
-        }
-      },
-      addLog(type = 'paths') {
-        this.subFormData.params[type].push({ value: '' });
-      },
-      delLog(index, type = 'paths') {
-        if (this.subFormData.params[type].length > 1) {
-          this.subFormData.params[type].splice(
-            this.subFormData.params[type].findIndex((item, ind) => ind === index),
-            1,
-          );
-        }
-      },
-      addWinEvent() {
-        const eventType = this.eventSettingList.map(el => el.type);
-        const selectType = this.selectEventList.map(el => el.id);
-        if (eventType.length !== selectType.length) {
-          const selectFilter = selectType.filter(v => eventType.indexOf(v) === -1);
-          this.eventSettingList.push({ type: selectFilter[0], list: [], isCorrect: true });
-          this.selectDisabledChange(true);
-        }
-      },
-      delWinEvent(index) {
-        if (this.eventSettingList.length > 1) {
-          this.eventSettingList.splice(
-            this.eventSettingList.findIndex((el, ind) => index === ind),
-            1,
-          );
-          this.selectDisabledChange(false);
-        }
-      },
-      selectDisabledChange(state = true) {
-        if (this.eventSettingList.length === 1) {
-          this.selectEventList.forEach(el => (el.isSelect = false));
-        }
-        if (this.eventSettingList.length === this.selectEventList.length) {
-          this.selectEventList.forEach(el => (el.isSelect = true));
-        }
-        for (const eItem of this.eventSettingList) {
-          for (const sItem of this.selectEventList) {
-            if (eItem.type === sItem.id) {
-              sItem.isSelect = state;
-            }
+    configChangeLength() {
+      this.initConfigLogSet();
+    },
+  },
+  mounted() {
+    (this.isCloneOrUpdate || this.configChangeLength > 0) && this.initConfigLogSet();
+  },
+  methods: {
+    initPathList(params, type = 'paths') {
+      if (params[type]?.length > 0) {
+        params[type] = typeof params[type][0] === 'string' ? params[type].map(item => ({ value: item })) : params[type];
+      } else {
+        // 兼容原日志路径为空列表
+        params[type] = [{ value: '' }];
+      }
+    },
+    addLog(type = 'paths') {
+      this.subFormData.params[type].push({ value: '' });
+    },
+    delLog(index, type = 'paths') {
+      if (this.subFormData.params[type].length > 1) {
+        this.subFormData.params[type].splice(
+          this.subFormData.params[type].findIndex((item, ind) => ind === index),
+          1
+        );
+      }
+    },
+    addWinEvent() {
+      const eventType = this.eventSettingList.map(el => el.type);
+      const selectType = this.selectEventList.map(el => el.id);
+      if (eventType.length !== selectType.length) {
+        const selectFilter = selectType.filter(v => eventType.indexOf(v) === -1);
+        this.eventSettingList.push({ type: selectFilter[0], list: [], isCorrect: true });
+        this.selectDisabledChange(true);
+      }
+    },
+    delWinEvent(index) {
+      if (this.eventSettingList.length > 1) {
+        this.eventSettingList.splice(
+          this.eventSettingList.findIndex((el, ind) => index === ind),
+          1
+        );
+        this.selectDisabledChange(false);
+      }
+    },
+    selectDisabledChange(state = true) {
+      if (this.eventSettingList.length === 1) {
+        this.selectEventList.forEach(el => (el.isSelect = false));
+      }
+      if (this.eventSettingList.length === this.selectEventList.length) {
+        this.selectEventList.forEach(el => (el.isSelect = true));
+      }
+      for (const eItem of this.eventSettingList) {
+        for (const sItem of this.selectEventList) {
+          if (eItem.type === sItem.id) {
+            sItem.isSelect = state;
           }
-        }
-      },
-      otherBlurRules(input, tags) {
-        if (!tags) return;
-        this.otherRules = !tags.every(Boolean);
-        tags.length === 0 && (this.otherRules = false);
-        const slist = this.selectLogSpeciesList;
-        if (slist.length === 1 && slist[0] === 'Other' && !this.otherSpeciesList.length) {
-          this.otherRules = true;
-        }
-      },
-      tagBlurRules(item, index) {
-        switch (item.type) {
-          case 'winlog_event_id':
-            this.eventSettingList[index].isCorrect = item.list.every(el => /^[\d]+$/.test(el));
-            break;
-          case 'winlog_level':
-            this.eventSettingList[index].isCorrect = item.list.every(Boolean);
-            break;
-          default:
-            this.eventSettingList[index].isCorrect = true;
-            break;
-        }
-      },
-      pasteFn(v, index) {
-        const oldEventList = this.eventSettingList[index].list;
-        const matchList = v.split(/\n/g); // 根据换行符进行切割
-        this.eventSettingList[index].list = oldEventList.concat(matchList);
-      },
-      assignSubData(assignObj = {}) {
-        Object.assign(this.subFormData, assignObj);
-      },
-      async logFilterValidate() {
-        try {
-          await this.$refs.validateForm?.validate();
-          await this.$refs.logFilterRef?.inputValidate();
-          return true;
-        } catch (error) {
-          return false;
-        }
-      },
-      initConfigLogSet() {
-        this.assignSubData(this.configData);
-        const { params } = this.subFormData;
-        if (this.scenarioId === 'wineventlog') {
-          const otherList = params.winlog_name.filter(v => ['Application', 'Security', 'System'].indexOf(v) === -1);
-          if (otherList.length > 0) {
-            this.otherSpeciesList = otherList;
-            this.selectLogSpeciesList = params.winlog_name.filter(v =>
-              ['Application', 'Security', 'System'].includes(v),
-            );
-            this.selectLogSpeciesList.push('Other');
-          } else {
-            this.selectLogSpeciesList = params.winlog_name;
-          }
-
-          delete params.ignore_older;
-          delete params.max_bytes;
-          delete params.tail_files;
-
-          const newEventSettingList = [];
-          const selectStrList = this.selectEventList.map(item => item.id);
-          for (const [key, val] of Object.entries(params)) {
-            if (selectStrList.includes(key) && val[0] !== '') {
-              newEventSettingList.push({
-                type: key,
-                list: val,
-                isCorrect: true,
-              });
-            }
-          }
-          if (newEventSettingList.length !== 0) {
-            this.eventSettingList = newEventSettingList;
-          }
-          this.selectDisabledChange();
-        }
-        this.initPathList(params, 'paths');
-        this.initPathList(params, 'exclude_files');
-        this.isShowBlackList = params.exclude_files.some(item => !!item.value);
-        this.$nextTick(() => {
-          this.$refs.logFilterRef?.initContainerData();
-        });
-      },
-      extraLabelsChange(val) {
-        this.$set(this.subFormData.params, 'extra_labels', val);
-      },
-      // 自定义标签表单验证
-      async extraLabelsValidate() {
-        try {
-          await this.$refs.deviceMetadataRef?.extraLabelsValidate();
-          return true;
-        } catch (error) {
-          return false;
         }
       }
     },
-  };
+    otherBlurRules(input, tags) {
+      if (!tags) return;
+      this.otherRules = !tags.every(Boolean);
+      tags.length === 0 && (this.otherRules = false);
+      const slist = this.selectLogSpeciesList;
+      if (slist.length === 1 && slist[0] === 'Other' && !this.otherSpeciesList.length) {
+        this.otherRules = true;
+      }
+    },
+    tagBlurRules(item, index) {
+      switch (item.type) {
+        case 'winlog_event_id':
+          this.eventSettingList[index].isCorrect = item.list.every(el => /^[\d]+$/.test(el));
+          break;
+        case 'winlog_level':
+          this.eventSettingList[index].isCorrect = item.list.every(Boolean);
+          break;
+        default:
+          this.eventSettingList[index].isCorrect = true;
+          break;
+      }
+    },
+    pasteFn(v, index) {
+      const oldEventList = this.eventSettingList[index].list;
+      const matchList = v.split(/\n/g); // 根据换行符进行切割
+      this.eventSettingList[index].list = oldEventList.concat(matchList);
+    },
+    assignSubData(assignObj = {}) {
+      Object.assign(this.subFormData, assignObj);
+    },
+    async logFilterValidate() {
+      try {
+        await this.$refs.validateForm?.validate();
+        await this.$refs.logFilterRef?.inputValidate();
+        return true;
+      } catch (error) {
+        return false;
+      }
+    },
+    initConfigLogSet() {
+      this.assignSubData(this.configData);
+      const { params } = this.subFormData;
+      if (this.scenarioId === 'wineventlog') {
+        const otherList = params.winlog_name.filter(v => ['Application', 'Security', 'System'].indexOf(v) === -1);
+        if (otherList.length > 0) {
+          this.otherSpeciesList = otherList;
+          this.selectLogSpeciesList = params.winlog_name.filter(v => ['Application', 'Security', 'System'].includes(v));
+          this.selectLogSpeciesList.push('Other');
+        } else {
+          this.selectLogSpeciesList = params.winlog_name;
+        }
+
+        delete params.ignore_older;
+        delete params.max_bytes;
+        delete params.tail_files;
+
+        const newEventSettingList = [];
+        const selectStrList = this.selectEventList.map(item => item.id);
+        for (const [key, val] of Object.entries(params)) {
+          if (selectStrList.includes(key) && val[0] !== '') {
+            newEventSettingList.push({
+              type: key,
+              list: val,
+              isCorrect: true,
+            });
+          }
+        }
+        if (newEventSettingList.length !== 0) {
+          this.eventSettingList = newEventSettingList;
+        }
+        this.selectDisabledChange();
+      }
+      this.initPathList(params, 'paths');
+      this.initPathList(params, 'exclude_files');
+      this.isShowBlackList = params.exclude_files.some(item => !!item.value);
+      this.$nextTick(() => {
+        this.$refs.logFilterRef?.initContainerData();
+      });
+    },
+    extraLabelsChange(val) {
+      this.$set(this.subFormData.params, 'extra_labels', val);
+    },
+    // 自定义标签表单验证
+    async extraLabelsValidate() {
+      try {
+        await this.$refs.deviceMetadataRef?.extraLabelsValidate();
+        return true;
+      } catch (error) {
+        return false;
+      }
+    },
+  },
+};
 </script>
 <style lang="scss" scoped>
   @import '@/scss/mixins/flex.scss';

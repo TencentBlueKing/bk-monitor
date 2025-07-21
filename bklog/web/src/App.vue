@@ -132,227 +132,227 @@
 </template>
 
 <script>
-  import BizMenuSelect from '@/global/bk-space-choice'
-  import AuthContainerPage from '@/components/common/auth-container-page';
-  import AuthDialog from '@/components/common/auth-dialog';
-  import WelcomePage from '@/components/common/welcome-page';
-  import GlobalSettingDialog from '@/components/global-setting';
-  import headNav from '@/components/nav/head-nav';
-  import NoviceGuide from '@/components/novice-guide';
-  import { handleTransformToTimestamp } from '@/components/time-range/utils';
-  import platformConfigStore from '@/store/modules/platform-config';
-  import NoticeComponent from '@blueking/notice-component-vue2';
-  import jsCookie from 'js-cookie';
-  import { mapState, mapGetters } from 'vuex';
+import BizMenuSelect from '@/global/bk-space-choice';
+import AuthContainerPage from '@/components/common/auth-container-page';
+import AuthDialog from '@/components/common/auth-dialog';
+import WelcomePage from '@/components/common/welcome-page';
+import GlobalSettingDialog from '@/components/global-setting';
+import headNav from '@/components/nav/head-nav';
+import NoviceGuide from '@/components/novice-guide';
+import { handleTransformToTimestamp } from '@/components/time-range/utils';
+import platformConfigStore from '@/store/modules/platform-config';
+import NoticeComponent from '@blueking/notice-component-vue2';
+import jsCookie from 'js-cookie';
+import { mapState, mapGetters } from 'vuex';
 
-  import '@blueking/notice-component-vue2/dist/style.css';
+import '@blueking/notice-component-vue2/dist/style.css';
 
-  export default {
-    name: 'App',
-    components: {
-      headNav,
-      AuthContainerPage,
-      AuthDialog,
-      WelcomePage,
-      BizMenuSelect,
-      NoviceGuide,
-      GlobalSettingDialog,
-      NoticeComponent,
+export default {
+  name: 'App',
+  components: {
+    headNav,
+    AuthContainerPage,
+    AuthDialog,
+    WelcomePage,
+    BizMenuSelect,
+    NoviceGuide,
+    GlobalSettingDialog,
+    NoticeComponent,
+  },
+  data() {
+    return {
+      loginData: null,
+      welcomePageData: null,
+      routerKey: 0,
+      navThemeColor: '#2c354d',
+      isExpand: true,
+      curGuideStep: 0,
+      rightClickRouteName: '', // 当前右键选中的路由
+      visible: false, // 是否展示右键菜单
+      top: 0, // 右键菜单定位top
+      left: 0, // 右键菜单定位left
+      /** 全局设置列表 */
+      dialogSettingList: [{ id: 'masking-setting', name: this.$t('全局脱敏') }],
+      noticeComponentHeight: 0,
+    };
+  },
+  computed: {
+    ...mapState([
+      'topMenu',
+      'activeTopMenu',
+      'activeManageNav',
+      'userGuideData',
+      'isExternal',
+      'isShowGlobalDialog',
+      'globalSettingList',
+      'globalActiveLabel',
+      'showAlert',
+    ]),
+    ...mapGetters({
+      pageLoading: 'pageLoading',
+      isAsIframe: 'asIframe',
+      authPageInfo: 'globals/authContainerInfo',
+      maskingToggle: 'maskingToggle',
+    }),
+    navActive() {
+      return '';
     },
-    data() {
+    menuList() {
+      const list = this.topMenu.find(item => item.id === this.activeTopMenu.id)?.children;
+      if (this.isExternal && this.activeTopMenu.id === 'manage') {
+        // 外部版只保留【日志提取】菜单
+        return list.filter(menu => menu.id === 'manage-extract-strategy');
+      }
+      return list;
+    },
+    displayRetrieve() {
+      return this.$store.state.retrieve.displayRetrieve;
+    },
+    guideStep() {
+      return this.userGuideData?.default || {};
+    },
+    noticeComponentStyle() {
       return {
-        loginData: null,
-        welcomePageData: null,
-        routerKey: 0,
-        navThemeColor: '#2c354d',
-        isExpand: true,
-        curGuideStep: 0,
-        rightClickRouteName: '', // 当前右键选中的路由
-        visible: false, // 是否展示右键菜单
-        top: 0, // 右键菜单定位top
-        left: 0, // 右键菜单定位left
-        /** 全局设置列表 */
-        dialogSettingList: [{ id: 'masking-setting', name: this.$t('全局脱敏') }],
-        noticeComponentHeight: 0,
+        '--notice-component-height': `${this.noticeComponentHeight}px`,
       };
     },
-    computed: {
-      ...mapState([
-        'topMenu',
-        'activeTopMenu',
-        'activeManageNav',
-        'userGuideData',
-        'isExternal',
-        'isShowGlobalDialog',
-        'globalSettingList',
-        'globalActiveLabel',
-        'showAlert',
-      ]),
-      ...mapGetters({
-        pageLoading: 'pageLoading',
-        isAsIframe: 'asIframe',
-        authPageInfo: 'globals/authContainerInfo',
-        maskingToggle: 'maskingToggle',
-      }),
-      navActive() {
-        return '';
-      },
-      menuList() {
-        const list = this.topMenu.find(item => item.id === this.activeTopMenu.id)?.children;
-        if (this.isExternal && this.activeTopMenu.id === 'manage') {
-          // 外部版只保留【日志提取】菜单
-          return list.filter(menu => menu.id === 'manage-extract-strategy');
-        }
-        return list;
-      },
-      displayRetrieve() {
-        return this.$store.state.retrieve.displayRetrieve;
-      },
-      guideStep() {
-        return this.userGuideData?.default || {};
-      },
-      noticeComponentStyle() {
-        return {
-          '--notice-component-height': `${this.noticeComponentHeight}px`,
-        };
+  },
+  watch: {
+    maskingToggle: {
+      deep: true,
+      handler(val) {
+        // 更新全局操作列表
+        const isShowSettingList = val.toggleString !== 'off';
+        this.$store.commit('updateGlobalSettingList', isShowSettingList ? this.dialogSettingList : []);
       },
     },
-    watch: {
-      maskingToggle: {
-        deep: true,
-        handler(val) {
-          // 更新全局操作列表
-          const isShowSettingList = val.toggleString !== 'off';
-          this.$store.commit('updateGlobalSettingList', isShowSettingList ? this.dialogSettingList : []);
+  },
+  created() {
+    platformConfigStore.fetchConfig();
+    const platform = window.navigator.platform.toLowerCase();
+    if (platform.indexOf('win') === 0) {
+      document.body.style['font-family'] = 'Microsoft Yahei, pingFang-SC-Regular, Helvetica, Aria, sans-serif';
+    } else {
+      document.body.style['font-family'] = 'pingFang-SC-Regular, Microsoft Yahei, Helvetica, Aria, sans-serif';
+    }
+    this.$store.commit('updateRunVersion', window.RUN_VER || '');
+
+    // 是否转换日期类型字段格式
+    const isFormatDate = jsCookie.get('operation');
+    if (isFormatDate === 'false') {
+      this.$store.commit('updateIsFormatDate', false);
+    }
+    const isEnLanguage = (jsCookie.get('blueking_language') || 'zh-cn') === 'en';
+    this.$store.commit('updateIsEnLanguage', isEnLanguage);
+    if (isEnLanguage) {
+      document.body.classList.add('language-en');
+    } else {
+      document.body.classList.remove('language-en');
+    }
+    // 初始化脱敏灰度相关的代码
+    this.initMaskingToggle();
+
+    if (!this.isAsIframe) this.getUserGuide();
+
+    const defaultTime = localStorage.getItem('SEARCH_DEFAULT_TIME');
+    if (defaultTime) {
+      const datePickerValue = JSON.parse(defaultTime);
+      const timeList = handleTransformToTimestamp(datePickerValue);
+      this.$store.commit('updateIndexItemParams', {
+        datePickerValue,
+        start_time: timeList[0],
+        end_time: timeList[1],
+      });
+    }
+
+    this.$store.state.isExternal = window.IS_EXTERNAL ? JSON.parse(window.IS_EXTERNAL) : false;
+  },
+
+  methods: {
+    /** 初始化脱敏灰度相关的数据 */
+    initMaskingToggle() {
+      const { log_desensitize: logDesensitize } = window.FEATURE_TOGGLE;
+      let toggleList = window.FEATURE_TOGGLE_WHITE_LIST?.log_desensitize || [];
+      switch (logDesensitize) {
+        case 'on':
+          toggleList = [];
+          break;
+        case 'off': {
+          toggleList = [];
+          // const index = this.dialogSettingList.findIndex(item => item.id === 'masking-setting');
+          // const newSettingList = this.dialogSettingList.slice(index, 1);
+          this.$store.commit('updateGlobalSettingList', []);
+          break;
+        }
+        default:
+          break;
+      }
+      this.$store.commit('updateMaskingToggle', {
+        toggleString: logDesensitize,
+        toggleList,
+      });
+    },
+    /** 更新全局弹窗的选项 */
+    handleChangeMenu(item) {
+      this.$store.commit('updateGlobalActiveLabel', item.id);
+    },
+    getMenuIcon(item) {
+      if (item.icon) {
+        return `bk-icon bklog-icon bklog-${item.icon}`;
+      }
+
+      return 'bk-icon icon-home-shape';
+    },
+    handleClickNavItem(id) {
+      this.$router.push({
+        name: id,
+        query: {
+          spaceUid: this.$store.state.spaceUid,
         },
-      },
+      });
+      if (id === 'default-dashboard') {
+        this.routerKey = this.routerKey + 1;
+      }
     },
-    created() {
-      platformConfigStore.fetchConfig();
-      const platform = window.navigator.platform.toLowerCase();
-      if (platform.indexOf('win') === 0) {
-        document.body.style['font-family'] = 'Microsoft Yahei, pingFang-SC-Regular, Helvetica, Aria, sans-serif';
-      } else {
-        document.body.style['font-family'] = 'pingFang-SC-Regular, Microsoft Yahei, Helvetica, Aria, sans-serif';
-      }
-      this.$store.commit('updateRunVersion', window.RUN_VER || '');
-
-      // 是否转换日期类型字段格式
-      const isFormatDate = jsCookie.get('operation');
-      if (isFormatDate === 'false') {
-        this.$store.commit('updateIsFormatDate', false);
-      }
-      const isEnLanguage = (jsCookie.get('blueking_language') || 'zh-cn') === 'en';
-      this.$store.commit('updateIsEnLanguage', isEnLanguage);
-      if(isEnLanguage){
-        document.body.classList.add('language-en');
-      }else {
-        document.body.classList.remove('language-en');
-      }
-      // 初始化脱敏灰度相关的代码
-      this.initMaskingToggle();
-
-      if (!this.isAsIframe) this.getUserGuide();
-
-      const defaultTime = localStorage.getItem('SEARCH_DEFAULT_TIME');
-      if (defaultTime) {
-        const datePickerValue = JSON.parse(defaultTime);
-        const timeList = handleTransformToTimestamp(datePickerValue);
-        this.$store.commit('updateIndexItemParams', {
-          datePickerValue,
-          start_time: timeList[0],
-          end_time: timeList[1],
-        });
-      }
-
-      this.$store.state.isExternal = window.IS_EXTERNAL ? JSON.parse(window.IS_EXTERNAL) : false;
+    handleToggle(val) {
+      this.isExpand = val;
     },
-
-    methods: {
-      /** 初始化脱敏灰度相关的数据 */
-      initMaskingToggle() {
-        const { log_desensitize: logDesensitize } = window.FEATURE_TOGGLE;
-        let toggleList = window.FEATURE_TOGGLE_WHITE_LIST?.log_desensitize || [];
-        switch (logDesensitize) {
-          case 'on':
-            toggleList = [];
-            break;
-          case 'off': {
-            toggleList = [];
-            // const index = this.dialogSettingList.findIndex(item => item.id === 'masking-setting');
-            // const newSettingList = this.dialogSettingList.slice(index, 1);
-            this.$store.commit('updateGlobalSettingList', []);
-            break;
-          }
-          default:
-            break;
-        }
-        this.$store.commit('updateMaskingToggle', {
-          toggleString: logDesensitize,
-          toggleList,
+    getUserGuide() {
+      this.$http
+        .request('meta/getUserGuide')
+        .then(res => {
+          this.$store.commit('setUserGuideData', res.data);
+        })
+        .catch(e => {
+          console.warn(e);
         });
-      },
-      /** 更新全局弹窗的选项 */
-      handleChangeMenu(item) {
-        this.$store.commit('updateGlobalActiveLabel', item.id);
-      },
-      getMenuIcon(item) {
-        if (item.icon) {
-          return `bk-icon bklog-icon bklog-${item.icon}`;
-        }
-
-        return 'bk-icon icon-home-shape';
-      },
-      handleClickNavItem(id) {
-        this.$router.push({
-          name: id,
-          query: {
-            spaceUid: this.$store.state.spaceUid,
-          },
-        });
-        if (id === 'default-dashboard') {
-          this.routerKey = this.routerKey + 1;
-        }
-      },
-      handleToggle(val) {
-        this.isExpand = val;
-      },
-      getUserGuide() {
-        this.$http
-          .request('meta/getUserGuide')
-          .then(res => {
-            this.$store.commit('setUserGuideData', res.data);
-          })
-          .catch(e => {
-            console.warn(e);
-          });
-      },
-      getRouteHref(pageName) {
-        const newUrl = this.$router.resolve({
-          name: pageName,
-          query: {
-            spaceUid: this.$store.state.spaceUid,
-          },
-        });
-        return newUrl.href;
-      },
-      /** 侧边导航菜单 */
-      getGroupChildren(list) {
-        if (this.isExternal && this.activeTopMenu.id === 'manage') {
-          // 外部版只保留【日志提取任务】
-          return list.filter(menu => menu.id === 'log-extract-task');
-        }
-        return list;
-      },
-      showAlertChange(v) {
-        this.$store.commit('updateNoticeAlert', v);
-        const refNoticeComponent = this.$refs.refNoticeComponent;
-        if (refNoticeComponent) {
-          this.noticeComponentHeight = refNoticeComponent.$el.offsetHeight;
-        }
-      },
     },
-  };
+    getRouteHref(pageName) {
+      const newUrl = this.$router.resolve({
+        name: pageName,
+        query: {
+          spaceUid: this.$store.state.spaceUid,
+        },
+      });
+      return newUrl.href;
+    },
+    /** 侧边导航菜单 */
+    getGroupChildren(list) {
+      if (this.isExternal && this.activeTopMenu.id === 'manage') {
+        // 外部版只保留【日志提取任务】
+        return list.filter(menu => menu.id === 'log-extract-task');
+      }
+      return list;
+    },
+    showAlertChange(v) {
+      this.$store.commit('updateNoticeAlert', v);
+      const refNoticeComponent = this.$refs.refNoticeComponent;
+      if (refNoticeComponent) {
+        this.noticeComponentHeight = refNoticeComponent.$el.offsetHeight;
+      }
+    },
+  },
+};
 </script>
 
 <style lang="scss">

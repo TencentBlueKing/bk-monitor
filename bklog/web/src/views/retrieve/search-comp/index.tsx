@@ -421,7 +421,7 @@ export default class SearchComp extends tsc<IProps> {
       findOperatorItem = this.containsStrList.includes(operator) ? containsItem : notContainsItem;
     } else {
       findOperatorItem = findField?.operatorList.find(
-        item => item.operator === operator || item?.wildcard_operator === operator,
+        item => item.operator === operator || item?.wildcard_operator === operator
       );
     }
     const operatorItem = findOperatorItem ?? {}; // 找不到则是ip选择器

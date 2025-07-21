@@ -79,104 +79,104 @@
 </template>
 
 <script>
-  import { deepClone } from '@/components/monitor-echarts/utils';
+import { deepClone } from '@/components/monitor-echarts/utils';
 
-  export default {
-    props: {
-      configItem: {
-        type: Object,
-        require: true,
-      },
-      templateList: {
-        type: Array,
-        default: () => [],
-      },
+export default {
+  props: {
+    configItem: {
+      type: Object,
+      require: true,
     },
-    data() {
-      return {
-        isHoverItem: false,
-        nameStr: '', // 编辑
-        isInputError: false, // 名称是否非法
-        tippyOptions: {
-          placement: 'bottom',
-          trigger: 'click',
-          theme: 'light',
-          interactive: true,
-        },
-      };
+    templateList: {
+      type: Array,
+      default: () => [],
     },
-    computed: {
-      isShowEditIcon() {
-        // 是否展示编辑或删除icon
-        return this.isHoverItem;
+  },
+  data() {
+    return {
+      isHoverItem: false,
+      nameStr: '', // 编辑
+      isInputError: false, // 名称是否非法
+      tippyOptions: {
+        placement: 'bottom',
+        trigger: 'click',
+        theme: 'light',
+        interactive: true,
       },
-      isShowDeleteIcon() {
-        return this.templateList.length !== 1;
-      },
+    };
+  },
+  computed: {
+    isShowEditIcon() {
+      // 是否展示编辑或删除icon
+      return this.isHoverItem;
     },
-    watch: {
-      nameStr() {
-        this.isInputError = false;
-      },
+    isShowDeleteIcon() {
+      return this.templateList.length !== 1;
     },
-    methods: {
-      /** 用户配置操作 */
-      emitOperate(type) {
-        // 赋值名称
-        if (type === 'edit') this.nameStr = this.configItem.name;
-        // 更新前判断名称是否合法
-        if (type === 'update' && !this.nameStr) {
-          this.isInputError = true;
-          return;
-        }
-        const submitData = deepClone(this.configItem);
-        submitData.editStr = this.nameStr;
-        this.$emit('operate-change', type, submitData);
-      },
-      handleDelete() {
-        if (!this.configItem.related_index_set_list.length) {
-          this.emitOperate('delete');
-          return;
-        }
-        const h = this.$createElement;
-        const relatedList = this.configItem.related_index_set_list.map(item => item.index_set_name);
-        const vNodes = relatedList.map(text =>
-          h(
-            'div',
-            {
-              style: {
-                backgroundColor: 'rgba(151, 155, 165, .1)',
-                borderColor: 'rgba(220, 222, 229, .6)',
-                color: '#63656e',
-                display: 'inline-block',
-                fontSize: '12px',
-                padding: '0 10px',
-                marginBottom: '4px',
-                borderRadius: '2px',
-              },
+  },
+  watch: {
+    nameStr() {
+      this.isInputError = false;
+    },
+  },
+  methods: {
+    /** 用户配置操作 */
+    emitOperate(type) {
+      // 赋值名称
+      if (type === 'edit') this.nameStr = this.configItem.name;
+      // 更新前判断名称是否合法
+      if (type === 'update' && !this.nameStr) {
+        this.isInputError = true;
+        return;
+      }
+      const submitData = deepClone(this.configItem);
+      submitData.editStr = this.nameStr;
+      this.$emit('operate-change', type, submitData);
+    },
+    handleDelete() {
+      if (!this.configItem.related_index_set_list.length) {
+        this.emitOperate('delete');
+        return;
+      }
+      const h = this.$createElement;
+      const relatedList = this.configItem.related_index_set_list.map(item => item.index_set_name);
+      const vNodes = relatedList.map(text =>
+        h(
+          'div',
+          {
+            style: {
+              backgroundColor: 'rgba(151, 155, 165, .1)',
+              borderColor: 'rgba(220, 222, 229, .6)',
+              color: '#63656e',
+              display: 'inline-block',
+              fontSize: '12px',
+              padding: '0 10px',
+              marginBottom: '4px',
+              borderRadius: '2px',
             },
-            text,
-          ),
-        );
-        this.$bkInfo({
-          title: this.$t(`当前模板在下列索引集中占用，取消占用后才能删除模板：{n}`, { n: this.configItem.name }),
-          type: 'warning',
-          subHeader: h(
-            'div',
-            {
-              style: {
-                display: 'flex',
-                justifyContent: 'center',
-                alignItems: 'center',
-                flexWrap: 'wrap',
-              },
+          },
+          text
+        )
+      );
+      this.$bkInfo({
+        title: this.$t(`当前模板在下列索引集中占用，取消占用后才能删除模板：{n}`, { n: this.configItem.name }),
+        type: 'warning',
+        subHeader: h(
+          'div',
+          {
+            style: {
+              display: 'flex',
+              justifyContent: 'center',
+              alignItems: 'center',
+              flexWrap: 'wrap',
             },
-            vNodes,
-          ),
-        });
-      },
+          },
+          vNodes
+        ),
+      });
     },
-  };
+  },
+};
 </script>
 
 <style lang="scss" scoped>

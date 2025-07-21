@@ -143,265 +143,264 @@
 </template>
 
 <script>
-  import FullTextIndex from './full-text-index';
-  import LogCluster from './log-cluster';
+import FullTextIndex from './full-text-index';
+import LogCluster from './log-cluster';
 
-  export default {
-    components: {
-      FullTextIndex,
-      LogCluster,
+export default {
+  components: {
+    FullTextIndex,
+    LogCluster,
+  },
+  model: {
+    prop: 'value', // 对应 props msg
+    event: 'change',
+  },
+  props: {
+    value: {
+      type: Boolean,
+      default: false,
     },
-    model: {
-      prop: 'value', // 对应 props msg
-      event: 'change',
+    selectChoice: {
+      type: String,
+      default: 'index',
     },
-    props: {
-      value: {
-        type: Boolean,
-        default: false,
-      },
-      selectChoice: {
-        type: String,
-        default: 'index',
-      },
-      indexSetItem: {
-        type: Object,
-        require: true,
-      },
-      totalFields: {
-        type: Array,
-        default: () => [],
-      },
-      configData: {
-        type: Object,
-        require: true,
-      },
-      cleanConfig: {
-        type: Object,
-        require: true,
-      },
-      datePickerValue: {
-        type: Array,
-        required: true,
-      },
-      retrieveParams: {
-        type: Object,
-        default: () => ({}),
-      },
+    indexSetItem: {
+      type: Object,
+      require: true,
     },
-    data() {
-      return {
-        isShowPage: true,
-        currentChoice: '', // 当前nav选中
-        showComponent: 'LogCluster', // 当前显示的组件
-        isSubmit: false, // 在当前设置页是否保存成功
-        isDebugRequest: false,
-        currentList: [
-          // {
-          //   id: 'index',
-          //   componentsName: 'FullTextIndex',
-          //   name: this.$t('全文索引'),
-          //   isEditable: true,
-          // },
-          // !!TODO 先关闭字段清洗入口
-          // {
-          //   id: 'extract',
-          //   componentsName: 'FieldExtraction',
-          //   name: this.$t('字段清洗'),
-          //   isEditable: false,
-          //   isDisabled: false
-          // },
-          {
-            id: 'clustering',
-            componentsName: 'LogCluster',
-            name: this.$t('日志聚类'),
-            isEditable: false,
-            isDisabled: false,
-          },
-        ],
-        showCurrentList: [],
-      };
+    totalFields: {
+      type: Array,
+      default: () => [],
     },
-    computed: {
-      globalEditable() {
-        return true;
-        // return this.showCurrentList.find(el => el.id === this.currentChoice)?.isEditable;
-      },
-      isCollector() {
-        // 字段提取的索引集来源是否为采集项
-        return this.cleanConfig?.extra?.collector_config_id !== null;
-      },
-      isExtractActive() {
-        // 字段提取是否开启
-        return this.cleanConfig?.is_active;
-      },
-      isClusteringActive() {
-        // 日志聚类是否开启
-        return this.configData?.is_active;
-      },
-      isSignatureActive() {
-        // 日志聚类的数据指纹是否开启
-        return this.configData?.extra?.signature_switch;
-      },
-      showResultTableID() {
-        return this.indexSetItem?.indices[0]?.result_table_id || '';
-      },
-      isOpenPage: {
-        get() {
-          return this.value;
+    configData: {
+      type: Object,
+      require: true,
+    },
+    cleanConfig: {
+      type: Object,
+      require: true,
+    },
+    datePickerValue: {
+      type: Array,
+      required: true,
+    },
+    retrieveParams: {
+      type: Object,
+      default: () => ({}),
+    },
+  },
+  data() {
+    return {
+      isShowPage: true,
+      currentChoice: '', // 当前nav选中
+      showComponent: 'LogCluster', // 当前显示的组件
+      isSubmit: false, // 在当前设置页是否保存成功
+      isDebugRequest: false,
+      currentList: [
+        // {
+        //   id: 'index',
+        //   componentsName: 'FullTextIndex',
+        //   name: this.$t('全文索引'),
+        //   isEditable: true,
+        // },
+        // !!TODO 先关闭字段清洗入口
+        // {
+        //   id: 'extract',
+        //   componentsName: 'FieldExtraction',
+        //   name: this.$t('字段清洗'),
+        //   isEditable: false,
+        //   isDisabled: false
+        // },
+        {
+          id: 'clustering',
+          componentsName: 'LogCluster',
+          name: this.$t('日志聚类'),
+          isEditable: false,
+          isDisabled: false,
         },
-        set(v) {
-          this.$emit('change', v);
-        },
+      ],
+      showCurrentList: [],
+    };
+  },
+  computed: {
+    globalEditable() {
+      return true;
+      // return this.showCurrentList.find(el => el.id === this.currentChoice)?.isEditable;
+    },
+    isCollector() {
+      // 字段提取的索引集来源是否为采集项
+      return this.cleanConfig?.extra?.collector_config_id !== null;
+    },
+    isExtractActive() {
+      // 字段提取是否开启
+      return this.cleanConfig?.is_active;
+    },
+    isClusteringActive() {
+      // 日志聚类是否开启
+      return this.configData?.is_active;
+    },
+    isSignatureActive() {
+      // 日志聚类的数据指纹是否开启
+      return this.configData?.extra?.signature_switch;
+    },
+    showResultTableID() {
+      return this.indexSetItem?.indices[0]?.result_table_id || '';
+    },
+    isOpenPage: {
+      get() {
+        return this.value;
+      },
+      set(v) {
+        this.$emit('change', v);
       },
     },
-    watch: {
-      value(val) {
-        val && this.handleMenuStatus();
-      },
-      'indexSetItem.scenario_id': {
-        immediate: true,
-        handler(val) {
-          this.setIsShowExtract(val === 'log');
-        },
+  },
+  watch: {
+    value(val) {
+      val && this.handleMenuStatus();
+    },
+    'indexSetItem.scenario_id': {
+      immediate: true,
+      handler(val) {
+        this.setIsShowExtract(val === 'log');
       },
     },
-    methods: {
-      handleMenuStatus() {
-        const { isExtractActive, isClusteringActive, isCollector } = this;
-        this.showCurrentList = this.showCurrentList.map(list => {
-          return {
-            ...list,
-            isEditable: list.id === 'extract' ? isExtractActive : isClusteringActive,
-            isDisabled: list.id === 'extract' ? !isCollector : isClusteringActive,
-          };
-        });
-      },
-      /**
-       * @desc: 离开当前页面无点击nav开关
-       * @param { Object } item
-       */
-      handleNavClick(item) {
-        if (item.id === this.currentChoice) return;
+  },
+  methods: {
+    handleMenuStatus() {
+      const { isExtractActive, isClusteringActive, isCollector } = this;
+      this.showCurrentList = this.showCurrentList.map(list => {
+        return {
+          ...list,
+          isEditable: list.id === 'extract' ? isExtractActive : isClusteringActive,
+          isDisabled: list.id === 'extract' ? !isCollector : isClusteringActive,
+        };
+      });
+    },
+    /**
+     * @desc: 离开当前页面无点击nav开关
+     * @param { Object } item
+     */
+    handleNavClick(item) {
+      if (item.id === this.currentChoice) return;
 
-        if (this.isSubmit) {
+      if (this.isSubmit) {
+        this.currentChoice = item.id;
+        this.showComponent = item.componentsName;
+        this.isSubmit = false;
+        return;
+      }
+      this.$bkInfo({
+        title: this.$t('是否放弃本次操作？'),
+        confirmFn: () => {
+          this.jumpCloseSwitch();
           this.currentChoice = item.id;
           this.showComponent = item.componentsName;
-          this.isSubmit = false;
-          return;
-        }
-        this.$bkInfo({
-          title: this.$t('是否放弃本次操作？'),
-          confirmFn: () => {
-            this.jumpCloseSwitch();
-            this.currentChoice = item.id;
-            this.showComponent = item.componentsName;
-          },
-        });
-      },
-      /**
-       * @desc: 离开当前页并点击nav开关
-       * @param { Object } item
-       */
-      stopChangeSwitch(item) {
-        if (item.isDisable) return;
-
-        if (!item.isEditable) {
-          // 当前tab不在操作的开关菜单 则跳转到对应菜单
-          if (this.currentChoice !== item.id) {
-            this.jumpCloseSwitch();
-            this.currentChoice = item.id;
-            this.showComponent = item.componentsName;
-          }
-          item.isEditable = true;
-          return;
-        }
-        const msg = item.id === 'extract' ? this.$t('是否关闭字段提取？') : this.$t('是否关闭日志聚类？');
-
-        if (item.id === 'extract') {
-          this.$bkInfo({
-            title: msg,
-            confirmLoading: true,
-            confirmFn: async () => {
-              const isFinish =
-                item.id === 'extract' ? await this.requestCloseClean() : await this.requestCloseCluster();
-              isFinish && (item.isEditable = false);
-            },
-          });
-        } else {
-          item.isEditable = false;
-        }
-      },
-      async requestCloseClean() {
-        const {
-          extra: { collector_config_id },
-        } = this.cleanConfig;
-        const res = await this.$http.request('/logClustering/closeClean', {
-          params: {
-            collector_config_id,
-          },
-          data: {
-            collector_config_id,
-          },
-        });
-        return res.result;
-      },
-      requestCloseCluster() {
-        return true;
-      },
-      closeSetting() {
-        if (this.isSubmit || !this.$refs.clusterRef.getIsChangeRule()) {
-          this.isOpenPage = false;
-          return;
-        }
-        this.$bkInfo({
-          title: this.$t('当前聚类规则有更改，退出无法保存，是否要要退出？'),
-          confirmFn: () => {
-            this.isOpenPage = false;
-          },
-        });
-      },
-      /**
-       * @desc: 若nav的switch为关闭状态离开当前页面时判断是否发送保存请求，没有则关闭可编辑状态
-       */
-      jumpCloseSwitch() {
-        if (!this.isClusteringActive && this.currentChoice === 'clustering') {
-          this.showCurrentList[1].isEditable = false;
-        }
-        if (
-          !this.isSubmit &&
-          this.currentChoice === 'extract' &&
-          this.showCurrentList[0].isDisabled !== true &&
-          !this.isExtractActive
-        ) {
-          this.showCurrentList[0].isEditable = false;
-        }
-      },
-      debugRequestChange(val) {
-        this.isDebugRequest = val;
-      },
-      updateLogFields() {
-        this.isSubmit = true;
-        this.$emit('update-log-fields');
-        this.closeSetting();
-      },
-      handleClickDetail() {
-        const {
-          extra: { collector_config_id: collectorID, collector_scenario_id: scenarioID },
-        } = this.cleanConfig;
-        if (!collectorID) return;
-        const { spaceUid } = this.$store.state;
-        const jumpUrl =
-          scenarioID === 'custom'
-            ? `/#/manage/custom-report/detail/${collectorID}?spaceUid=${spaceUid}`
-            : `/#/manage/log-collection/collection-item/manage/${collectorID}?spaceUid=${spaceUid}`;
-        window.open(jumpUrl, '_blank');
-      },
-      setIsShowExtract(state) {
-        this.showCurrentList = this.currentList.filter(item => (state ? true : item.id !== 'extract'));
-      },
+        },
+      });
     },
-  };
+    /**
+     * @desc: 离开当前页并点击nav开关
+     * @param { Object } item
+     */
+    stopChangeSwitch(item) {
+      if (item.isDisable) return;
+
+      if (!item.isEditable) {
+        // 当前tab不在操作的开关菜单 则跳转到对应菜单
+        if (this.currentChoice !== item.id) {
+          this.jumpCloseSwitch();
+          this.currentChoice = item.id;
+          this.showComponent = item.componentsName;
+        }
+        item.isEditable = true;
+        return;
+      }
+      const msg = item.id === 'extract' ? this.$t('是否关闭字段提取？') : this.$t('是否关闭日志聚类？');
+
+      if (item.id === 'extract') {
+        this.$bkInfo({
+          title: msg,
+          confirmLoading: true,
+          confirmFn: async () => {
+            const isFinish = item.id === 'extract' ? await this.requestCloseClean() : await this.requestCloseCluster();
+            isFinish && (item.isEditable = false);
+          },
+        });
+      } else {
+        item.isEditable = false;
+      }
+    },
+    async requestCloseClean() {
+      const {
+        extra: { collector_config_id },
+      } = this.cleanConfig;
+      const res = await this.$http.request('/logClustering/closeClean', {
+        params: {
+          collector_config_id,
+        },
+        data: {
+          collector_config_id,
+        },
+      });
+      return res.result;
+    },
+    requestCloseCluster() {
+      return true;
+    },
+    closeSetting() {
+      if (this.isSubmit || !this.$refs.clusterRef.getIsChangeRule()) {
+        this.isOpenPage = false;
+        return;
+      }
+      this.$bkInfo({
+        title: this.$t('当前聚类规则有更改，退出无法保存，是否要要退出？'),
+        confirmFn: () => {
+          this.isOpenPage = false;
+        },
+      });
+    },
+    /**
+     * @desc: 若nav的switch为关闭状态离开当前页面时判断是否发送保存请求，没有则关闭可编辑状态
+     */
+    jumpCloseSwitch() {
+      if (!this.isClusteringActive && this.currentChoice === 'clustering') {
+        this.showCurrentList[1].isEditable = false;
+      }
+      if (
+        !this.isSubmit &&
+        this.currentChoice === 'extract' &&
+        this.showCurrentList[0].isDisabled !== true &&
+        !this.isExtractActive
+      ) {
+        this.showCurrentList[0].isEditable = false;
+      }
+    },
+    debugRequestChange(val) {
+      this.isDebugRequest = val;
+    },
+    updateLogFields() {
+      this.isSubmit = true;
+      this.$emit('update-log-fields');
+      this.closeSetting();
+    },
+    handleClickDetail() {
+      const {
+        extra: { collector_config_id: collectorID, collector_scenario_id: scenarioID },
+      } = this.cleanConfig;
+      if (!collectorID) return;
+      const { spaceUid } = this.$store.state;
+      const jumpUrl =
+        scenarioID === 'custom'
+          ? `/#/manage/custom-report/detail/${collectorID}?spaceUid=${spaceUid}`
+          : `/#/manage/log-collection/collection-item/manage/${collectorID}?spaceUid=${spaceUid}`;
+      window.open(jumpUrl, '_blank');
+    },
+    setIsShowExtract(state) {
+      this.showCurrentList = this.currentList.filter(item => (state ? true : item.id !== 'extract'));
+    },
+  },
+};
 </script>
 
 <style lang="scss" scoped>

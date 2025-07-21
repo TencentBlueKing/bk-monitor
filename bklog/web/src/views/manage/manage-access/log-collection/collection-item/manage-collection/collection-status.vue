@@ -227,399 +227,393 @@
 </template>
 
 <script>
-  import { projectManages } from '@/common/util';
-  import EmptyStatus from '@/components/empty-status';
+import { projectManages } from '@/common/util';
+import EmptyStatus from '@/components/empty-status';
 
-  import CollectionReportView from '../../../components/collection-report-view';
-  import containerStatus from './components/container-status.vue';
+import CollectionReportView from '../../../components/collection-report-view';
+import containerStatus from './components/container-status.vue';
 
-  export default {
-    components: {
-      containerStatus,
-      CollectionReportView,
-      EmptyStatus,
+export default {
+  components: {
+    containerStatus,
+    CollectionReportView,
+    EmptyStatus,
+  },
+  props: {
+    collectorData: {
+      type: Object,
+      required: true,
     },
-    props: {
-      collectorData: {
-        type: Object,
-        required: true,
-      },
-    },
-    data() {
-      return {
-        basicLoading: false,
-        currentPage: 0,
-        isPageOver: false, // 前端分页加载是否结束
-        dataListPaged: [], // 将列表数据按 pageSize 分页
-        count: 0, // 数据总条数
-        pageSize: 30, // 每页展示多少数据
-        totalPage: 1,
-        size: 'small',
-        renderTableList: [
-          {
-            is_label: false,
-            bk_obj_name: '-',
-            node_path: '-',
-            bk_obj_id: '-',
-            label_name: '',
-            child: [],
-            bk_inst_id: 6,
-            bk_inst_name: '-',
-          },
-        ],
-        detail: {
-          isShow: false,
-          title: this.$t('详情'),
-          loading: true,
-          content: '',
-          log: '',
+  },
+  data() {
+    return {
+      basicLoading: false,
+      currentPage: 0,
+      isPageOver: false, // 前端分页加载是否结束
+      dataListPaged: [], // 将列表数据按 pageSize 分页
+      count: 0, // 数据总条数
+      pageSize: 30, // 每页展示多少数据
+      totalPage: 1,
+      size: 'small',
+      renderTableList: [
+        {
+          is_label: false,
+          bk_obj_name: '-',
+          node_path: '-',
+          bk_obj_id: '-',
+          label_name: '',
+          child: [],
+          bk_inst_id: 6,
+          bk_inst_name: '-',
         },
-        dataButton: [
-          {
-            key: 'all',
-            content: this.$t('全部'),
-            dataList: {},
-          },
-          {
-            key: 'sec',
-            content: this.$t('正常'),
-            dataList: {},
-          },
-          {
-            key: 'fal',
-            content: this.$t('失败'),
-            dataList: {},
-          },
-          {
-            key: 'pen',
-            content: this.$t('执行中'),
-            dataList: {},
-          },
-        ],
-        collapseColor: {
-          type: String,
-          default: '#63656E',
+      ],
+      detail: {
+        isShow: false,
+        title: this.$t('详情'),
+        loading: true,
+        content: '',
+        log: '',
+      },
+      dataButton: [
+        {
+          key: 'all',
+          content: this.$t('全部'),
+          dataList: {},
         },
-        showSetting: true,
-        reloadTable: false,
-        instance: null,
-        clickSec: {
-          selected: 'all',
-          data: '',
+        {
+          key: 'sec',
+          content: this.$t('正常'),
+          dataList: {},
         },
-        dataFir: null,
-        dataSec: {},
-        dataFal: {},
-        dataPen: {},
-        dataAll: {},
-        // 是否支持一键检测
-        enableCheckCollector: JSON.parse(window.ENABLE_CHECK_COLLECTOR),
-        // 一键检测弹窗配置
-        reportDetailShow: false,
-        // 一键检测采集项标识
-        checkRecordId: '',
-      };
-    },
-    computed: {
-      collectProject() {
-        return projectManages(this.$store.state.topMenu, 'collection-item');
+        {
+          key: 'fal',
+          content: this.$t('失败'),
+          dataList: {},
+        },
+        {
+          key: 'pen',
+          content: this.$t('执行中'),
+          dataList: {},
+        },
+      ],
+      collapseColor: {
+        type: String,
+        default: '#63656E',
       },
-      isContainer() {
-        return this.collectorData.environment === 'container';
+      showSetting: true,
+      reloadTable: false,
+      instance: null,
+      clickSec: {
+        selected: 'all',
+        data: '',
       },
-      hostIdentifierPriority() {
-        return this.$store.getters['globals/globalsData']?.host_identifier_priority ?? ['ip', 'host_name', 'ipv6'];
-      },
+      dataFir: null,
+      dataSec: {},
+      dataFal: {},
+      dataPen: {},
+      dataAll: {},
+      // 是否支持一键检测
+      enableCheckCollector: JSON.parse(window.ENABLE_CHECK_COLLECTOR),
+      // 一键检测弹窗配置
+      reportDetailShow: false,
+      // 一键检测采集项标识
+      checkRecordId: '',
+    };
+  },
+  computed: {
+    collectProject() {
+      return projectManages(this.$store.state.topMenu, 'collection-item');
     },
-    created() {
-      // 容器日志展示容器日志的内容
-      if (this.isContainer) return;
-      this.getCollectList();
+    isContainer() {
+      return this.collectorData.environment === 'container';
     },
-    beforeDestroy() {
-      // 清除定时器
-      this.timer && clearInterval(this.timer);
+    hostIdentifierPriority() {
+      return this.$store.getters['globals/globalsData']?.host_identifier_priority ?? ['ip', 'host_name', 'ipv6'];
     },
-    mounted() {
-      // 容器日志展示容器日志的内容
-      if (this.isContainer) return;
-      this.adadScrollEvent();
+  },
+  created() {
+    // 容器日志展示容器日志的内容
+    if (this.isContainer) return;
+    this.getCollectList();
+  },
+  beforeDestroy() {
+    // 清除定时器
+    this.timer && clearInterval(this.timer);
+  },
+  mounted() {
+    // 容器日志展示容器日志的内容
+    if (this.isContainer) return;
+    this.adadScrollEvent();
+  },
+  methods: {
+    closeTable(val) {
+      this.$refs.unfold[val].style.height = this.$refs.unfold[val].style.height === '' ? '43px' : '';
+      this.$refs.icon[val].classList.value =
+        this.$refs.unfold[val].style.height === ''
+          ? 'bk-icon title-icon icon-down-shape'
+          : 'bk-icon title-icon icon-right-shape';
     },
-    methods: {
-      closeTable(val) {
-        this.$refs.unfold[val].style.height = this.$refs.unfold[val].style.height === '' ? '43px' : '';
-        this.$refs.icon[val].classList.value =
-          this.$refs.unfold[val].style.height === ''
-            ? 'bk-icon title-icon icon-down-shape'
-            : 'bk-icon title-icon icon-right-shape';
-      },
-      adadScrollEvent() {
-        this.scrollontentEl = document.querySelector('.allocation');
-        if (!this.scrollontentEl) return;
+    adadScrollEvent() {
+      this.scrollontentEl = document.querySelector('.allocation');
+      if (!this.scrollontentEl) return;
 
-        this.scrollontentEl.addEventListener('scroll', this.handleScroll, { passive: true });
-      },
-      // 获取采集状态
-      getCollectList(isLoading = true) {
-        if (isLoading) {
-          this.reloadTable = true;
-          this.basicLoading = true;
-        }
-        this.dataAll = { totalLenght: 0 };
-        this.dataSec = { totalLenght: 0 };
-        this.dataFal = { totalLenght: 0 };
-        this.dataPen = { totalLenght: 0 };
-        this.$http
-          .request('source/collectList', {
-            params: {
-              collector_config_id: this.$route.params.collectorId,
-            },
-            manualSchema: true,
-          })
-          .then(res => {
-            this.dataFir = res.data;
-            if (this.dataFir.contents.length !== 0) {
-              // 过滤child为空的节点
-              this.dataFir.contents = this.dataFir.contents.filter(data => data.child.length);
+      this.scrollontentEl.addEventListener('scroll', this.handleScroll, { passive: true });
+    },
+    // 获取采集状态
+    getCollectList(isLoading = true) {
+      if (isLoading) {
+        this.reloadTable = true;
+        this.basicLoading = true;
+      }
+      this.dataAll = { totalLenght: 0 };
+      this.dataSec = { totalLenght: 0 };
+      this.dataFal = { totalLenght: 0 };
+      this.dataPen = { totalLenght: 0 };
+      this.$http
+        .request('source/collectList', {
+          params: {
+            collector_config_id: this.$route.params.collectorId,
+          },
+          manualSchema: true,
+        })
+        .then(res => {
+          this.dataFir = res.data;
+          if (this.dataFir.contents.length !== 0) {
+            // 过滤child为空的节点
+            this.dataFir.contents = this.dataFir.contents.filter(data => data.child.length);
 
-              for (let x = 0; x < this.dataFir.contents.length; x++) {
-                let allSet = [];
-                const secSet = [];
-                const failSet = [];
-                const penSet = [];
-                allSet = this.dataFir.contents[x].child;
-                for (let i = 0; i < allSet.length; i++) {
-                  if (allSet[i].status === 'SUCCESS') {
-                    secSet.push(allSet[i]);
-                  } else if (allSet[i].status === 'FAILED') {
-                    failSet.push(allSet[i]);
-                  } else {
-                    penSet.push(allSet[i]);
-                  }
+            for (let x = 0; x < this.dataFir.contents.length; x++) {
+              let allSet = [];
+              const secSet = [];
+              const failSet = [];
+              const penSet = [];
+              allSet = this.dataFir.contents[x].child;
+              for (let i = 0; i < allSet.length; i++) {
+                if (allSet[i].status === 'SUCCESS') {
+                  secSet.push(allSet[i]);
+                } else if (allSet[i].status === 'FAILED') {
+                  failSet.push(allSet[i]);
+                } else {
+                  penSet.push(allSet[i]);
                 }
-                this.dataAll[x] = allSet;
-                this.dataSec[x] = secSet;
-                this.dataFal[x] = failSet;
-                this.dataPen[x] = penSet;
-                this.dataAll.totalLenght += allSet.length;
-                this.dataSec.totalLenght += secSet.length;
-                this.dataFal.totalLenght += failSet.length;
-                this.dataPen.totalLenght += penSet.length;
-                this.reloadTable = false;
               }
-              this.dataButton.forEach(item => {
-                item.dataList =
-                  item.key === 'pen'
-                    ? this.dataPen
-                    : item.key === 'sec'
-                      ? this.dataSec
-                      : item.key === 'fal'
-                        ? this.dataFal
-                        : this.dataAll;
-              });
-              const sel = this.clickSec.selected;
-              this.clickSec.data =
-                sel === 'pen'
+              this.dataAll[x] = allSet;
+              this.dataSec[x] = secSet;
+              this.dataFal[x] = failSet;
+              this.dataPen[x] = penSet;
+              this.dataAll.totalLenght += allSet.length;
+              this.dataSec.totalLenght += secSet.length;
+              this.dataFal.totalLenght += failSet.length;
+              this.dataPen.totalLenght += penSet.length;
+              this.reloadTable = false;
+            }
+            this.dataButton.forEach(item => {
+              item.dataList =
+                item.key === 'pen'
                   ? this.dataPen
-                  : sel === 'sec'
+                  : item.key === 'sec'
                     ? this.dataSec
-                    : sel === 'fal'
+                    : item.key === 'fal'
                       ? this.dataFal
                       : this.dataAll;
-
-              if (!this.timer) {
-                this.dataListPaged = [];
-                this.dataListShadow = [];
-                this.renderTableList = [];
-                this.initPageConf(this.dataFir.contents);
-                this.loadPage();
-              }
-
-              //  如果存在执行中添加定时器
-              if (this.dataPen.totalLenght === 0) {
-                clearInterval(this.timer);
-                this.timer = null;
-              } else {
-                if (this.timer) {
-                  return 1;
-                }
-                this.timer = setInterval(() => {
-                  this.getCollectList(false);
-                }, 10000);
-              }
-            }
-          })
-          .catch(e => {
-            console.warn(e);
-            this.reloadTable = false;
-          })
-          .finally(() => {
-            this.basicLoading = false;
-          });
-      },
-      // 采集状态过滤
-      handleChangeGroup(val) {
-        this.clickSec.selected = val.key;
-        this.clickSec.data = val.dataList;
-        this.dataListPaged = [];
-        this.dataListShadow = [];
-        this.renderTableList = [];
-        this.initPageConf(this.dataFir.contents || []);
-        this.loadPage();
-      },
-      // 初始化前端分页
-      initPageConf(list) {
-        this.currentPage = 0;
-        this.isPageOver = false;
-
-        this.count = list.length;
-        this.totalPage = Math.ceil(this.count / this.pageSize) || 1;
-        this.dataListShadow = list;
-        this.dataListPaged = [];
-        for (let i = 0; i < this.count; i += this.pageSize) {
-          this.dataListPaged.push(this.dataListShadow.slice(i, i + this.pageSize));
-        }
-      },
-      loadPage() {
-        this.currentPage += 1;
-        this.isPageOver = this.currentPage === this.totalPage;
-
-        if (this.dataListPaged[this.currentPage - 1]) {
-          this.renderTableList.splice(this.renderTableList.length, 0, ...this.dataListPaged[this.currentPage - 1]);
-          top &&
-            this.$nextTick(() => {
-              // this.scrollontentEl.scrollTop = top
             });
-        }
-      },
-      handleScroll() {
-        if (this.throttle) {
+            const sel = this.clickSec.selected;
+            this.clickSec.data =
+              sel === 'pen' ? this.dataPen : sel === 'sec' ? this.dataSec : sel === 'fal' ? this.dataFal : this.dataAll;
+
+            if (!this.timer) {
+              this.dataListPaged = [];
+              this.dataListShadow = [];
+              this.renderTableList = [];
+              this.initPageConf(this.dataFir.contents);
+              this.loadPage();
+            }
+
+            //  如果存在执行中添加定时器
+            if (this.dataPen.totalLenght === 0) {
+              clearInterval(this.timer);
+              this.timer = null;
+            } else {
+              if (this.timer) {
+                return 1;
+              }
+              this.timer = setInterval(() => {
+                this.getCollectList(false);
+              }, 10000);
+            }
+          }
+        })
+        .catch(e => {
+          console.warn(e);
+          this.reloadTable = false;
+        })
+        .finally(() => {
+          this.basicLoading = false;
+        });
+    },
+    // 采集状态过滤
+    handleChangeGroup(val) {
+      this.clickSec.selected = val.key;
+      this.clickSec.data = val.dataList;
+      this.dataListPaged = [];
+      this.dataListShadow = [];
+      this.renderTableList = [];
+      this.initPageConf(this.dataFir.contents || []);
+      this.loadPage();
+    },
+    // 初始化前端分页
+    initPageConf(list) {
+      this.currentPage = 0;
+      this.isPageOver = false;
+
+      this.count = list.length;
+      this.totalPage = Math.ceil(this.count / this.pageSize) || 1;
+      this.dataListShadow = list;
+      this.dataListPaged = [];
+      for (let i = 0; i < this.count; i += this.pageSize) {
+        this.dataListPaged.push(this.dataListShadow.slice(i, i + this.pageSize));
+      }
+    },
+    loadPage() {
+      this.currentPage += 1;
+      this.isPageOver = this.currentPage === this.totalPage;
+
+      if (this.dataListPaged[this.currentPage - 1]) {
+        this.renderTableList.splice(this.renderTableList.length, 0, ...this.dataListPaged[this.currentPage - 1]);
+        top &&
+          this.$nextTick(() => {
+            // this.scrollontentEl.scrollTop = top
+          });
+      }
+    },
+    handleScroll() {
+      if (this.throttle) {
+        return;
+      }
+
+      this.throttle = true;
+      setTimeout(() => {
+        this.throttle = false;
+
+        const el = this.scrollontentEl;
+
+        if (this.isPageOver) {
           return;
         }
-
-        this.throttle = true;
-        setTimeout(() => {
-          this.throttle = false;
-
-          const el = this.scrollontentEl;
-
-          if (this.isPageOver) {
-            return;
-          }
-          if (el.scrollHeight - el.offsetHeight - el.scrollTop < 60) {
-            this.loadPage(el.scrollTop);
-          }
-        }, 200);
-      },
-      // 重试
-      retryClick(val, key) {
-        this.reloadTable = true;
-        const retryList = [];
-        if (key === 'odd') {
-          retryList.push(val.instance_id);
-        } else {
-          if (val.totalLenght === 0) {
-            // 判断是否存在失败项
-            this.reloadTable = false;
-            return 1;
-          }
-          for (let y = 0; y < key; y++) {
-            for (let i = 0; i < val[y].length; i++) {
-              retryList.push(val[y][i].instance_id);
-            }
+        if (el.scrollHeight - el.offsetHeight - el.scrollTop < 60) {
+          this.loadPage(el.scrollTop);
+        }
+      }, 200);
+    },
+    // 重试
+    retryClick(val, key) {
+      this.reloadTable = true;
+      const retryList = [];
+      if (key === 'odd') {
+        retryList.push(val.instance_id);
+      } else {
+        if (val.totalLenght === 0) {
+          // 判断是否存在失败项
+          this.reloadTable = false;
+          return 1;
+        }
+        for (let y = 0; y < key; y++) {
+          for (let i = 0; i < val[y].length; i++) {
+            retryList.push(val[y][i].instance_id);
           }
         }
-        this.$http
-          .request('source/retryList', {
-            params: {
-              collector_config_id: this.$route.params.collectorId,
-            },
-            data: {
-              instance_id_list: retryList,
-            },
-          })
-          .then(() => {
-            this.getCollectList();
-          })
-          .catch(e => {
-            console.warn(e);
-            this.reloadTable = false
-          });
-      },
-      viewDetail(row) {
-        this.detail.isShow = true;
-        this.detail.loading = true;
-        this.requestDetail(row);
-      },
-      requestDetail(row) {
-        this.$http
-          .request('collect/executDetails', {
-            params: {
-              collector_id: this.$route.params.collectorId,
-            },
-            query: {
-              instance_id: row.instance_id,
-              task_id: row.task_id,
-            },
-          })
-          .then(res => {
-            if (res.result) {
-              this.detail.log = res.data.log_detail;
-              this.detail.content = res.data.log_detail;
-            }
-          })
-          .catch(err => {
-            this.$bkMessage({
-              theme: 'error',
-              message: err.message || err,
-            });
-          })
-          .finally(() => {
-            this.detail.loading = false;
-          });
-      },
-      closeSlider() {
-        this.detail.content = '';
-        this.detail.loading = false;
-      },
-      jsonFormatClick() {
-        // this.$router.push({
-        //   name: 'jsonFormat',
-        //   params: {
-        //     collectorId: this.config_id,
-        //   },
-        //   query: {
-        //     spaceUid: this.$store.state.spaceUid,
-        //   },
-        // });
-      },
-      viewReport(row) {
-        const { cloud_id: cloudId, host_id: hostId, ip } = row;
-        this.$http
-          .request('collect/runCheck', {
-            data: {
-              collector_config_id: this.$route.params.collectorId,
-              hosts: [
-                {
-                  bk_cloud_id: cloudId,
-                  bk_host_id: hostId,
-                  ip,
-                },
-              ],
-            },
-          })
-          .then(res => {
-            if (res.data?.check_record_id) {
-              this.reportDetailShow = true;
-              this.checkRecordId = res.data.check_record_id;
-            }
-          });
-      },
-      getShowIp(row) {
-        return row[this.hostIdentifierPriority.find(pItem => Boolean(row[pItem]))] ?? row.ip;
-      },
+      }
+      this.$http
+        .request('source/retryList', {
+          params: {
+            collector_config_id: this.$route.params.collectorId,
+          },
+          data: {
+            instance_id_list: retryList,
+          },
+        })
+        .then(() => {
+          this.getCollectList();
+        })
+        .catch(e => {
+          console.warn(e);
+          this.reloadTable = false;
+        });
     },
-  };
+    viewDetail(row) {
+      this.detail.isShow = true;
+      this.detail.loading = true;
+      this.requestDetail(row);
+    },
+    requestDetail(row) {
+      this.$http
+        .request('collect/executDetails', {
+          params: {
+            collector_id: this.$route.params.collectorId,
+          },
+          query: {
+            instance_id: row.instance_id,
+            task_id: row.task_id,
+          },
+        })
+        .then(res => {
+          if (res.result) {
+            this.detail.log = res.data.log_detail;
+            this.detail.content = res.data.log_detail;
+          }
+        })
+        .catch(err => {
+          this.$bkMessage({
+            theme: 'error',
+            message: err.message || err,
+          });
+        })
+        .finally(() => {
+          this.detail.loading = false;
+        });
+    },
+    closeSlider() {
+      this.detail.content = '';
+      this.detail.loading = false;
+    },
+    jsonFormatClick() {
+      // this.$router.push({
+      //   name: 'jsonFormat',
+      //   params: {
+      //     collectorId: this.config_id,
+      //   },
+      //   query: {
+      //     spaceUid: this.$store.state.spaceUid,
+      //   },
+      // });
+    },
+    viewReport(row) {
+      const { cloud_id: cloudId, host_id: hostId, ip } = row;
+      this.$http
+        .request('collect/runCheck', {
+          data: {
+            collector_config_id: this.$route.params.collectorId,
+            hosts: [
+              {
+                bk_cloud_id: cloudId,
+                bk_host_id: hostId,
+                ip,
+              },
+            ],
+          },
+        })
+        .then(res => {
+          if (res.data?.check_record_id) {
+            this.reportDetailShow = true;
+            this.checkRecordId = res.data.check_record_id;
+          }
+        });
+    },
+    getShowIp(row) {
+      return row[this.hostIdentifierPriority.find(pItem => Boolean(row[pItem]))] ?? row.ip;
+    },
+  },
+};
 </script>
 
 <style lang="scss" scoped>

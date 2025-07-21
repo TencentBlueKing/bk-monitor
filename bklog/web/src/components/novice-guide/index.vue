@@ -107,256 +107,256 @@
 </template>
 
 <script>
-  import throttle from 'lodash/throttle';
+import throttle from 'lodash/throttle';
 
-  import StepBox from '../step-box/index.vue';
-  // import cookie from 'cookie';
+import StepBox from '../step-box/index.vue';
+// import cookie from 'cookie';
 
-  // const CACHE_KEY = 'lesscode_supermen';
+// const CACHE_KEY = 'lesscode_supermen';
 
-  export default {
-    name: '',
-    components: {
-      StepBox,
+export default {
+  name: '',
+  components: {
+    StepBox,
+  },
+  props: {
+    guidePage: {
+      type: String,
+      required: '',
     },
-    props: {
-      guidePage: {
-        type: String,
-        required: '',
-      },
-      data: {
-        type: Object,
-        required: true,
-      },
+    data: {
+      type: Object,
+      required: true,
     },
-    data() {
-      return {
-        isShowFinisheDialog: false,
-        isShowStopDialog: false,
-        // isDone: cookie.parse(document.cookie).hasOwnProperty(CACHE_KEY),
-        isDone: false,
-        currentStepIndex: 0,
-        currentStep: {},
-        tipStyles: {},
-        placement: '',
-        doneCountTime: 3,
-      };
+  },
+  data() {
+    return {
+      isShowFinisheDialog: false,
+      isShowStopDialog: false,
+      // isDone: cookie.parse(document.cookie).hasOwnProperty(CACHE_KEY),
+      isDone: false,
+      currentStepIndex: 0,
+      currentStep: {},
+      tipStyles: {},
+      placement: '',
+      doneCountTime: 3,
+    };
+  },
+  computed: {
+    currentStepNum() {
+      return this.currentStepIndex + 1;
     },
-    computed: {
-      currentStepNum() {
-        return this.currentStepIndex + 1;
-      },
-      stepList() {
-        return this.data?.step_list || [];
-      },
-      isInitStep() {
-        return this.data?.current_step || 0;
-      },
-      isLast() {
-        return this.currentStepIndex === this.stepList.length - 1;
-      },
+    stepList() {
+      return this.data?.step_list || [];
     },
-    created() {
-      this.helpImg = '';
-      window.__lesscodeEditPageGuide = this;
-      this.currentStepIndex = this.isInitStep;
-      this.isDone = this.isInitStep === this.stepList.length;
+    isInitStep() {
+      return this.data?.current_step || 0;
     },
-    mounted() {
-      this.init();
-      window.addEventListener('resize', this.handleReize);
+    isLast() {
+      return this.currentStepIndex === this.stepList.length - 1;
     },
-    beforeUnmount() {
-      this.clearActive();
-      this.$refs.wraper?.parentNode.removeChild(this.$refs.wraper);
-      window.removeEventListener('resize', this.handleReize);
+  },
+  created() {
+    this.helpImg = '';
+    window.__lesscodeEditPageGuide = this;
+    this.currentStepIndex = this.isInitStep;
+    this.isDone = this.isInitStep === this.stepList.length;
+  },
+  mounted() {
+    this.init();
+    window.addEventListener('resize', this.handleReize);
+  },
+  beforeUnmount() {
+    this.clearActive();
+    this.$refs.wraper?.parentNode.removeChild(this.$refs.wraper);
+    window.removeEventListener('resize', this.handleReize);
+  },
+  methods: {
+    /**
+     * 指引初始化
+     */
+    init() {
+      if (!this.isDone) {
+        document.body.appendChild(this.$refs.wraper);
+        this.activeStep();
+      }
     },
-    methods: {
-      /**
-       * 指引初始化
-       */
-      init() {
-        if (!this.isDone) {
-          document.body.appendChild(this.$refs.wraper);
-          this.activeStep();
-        }
-      },
-      /**
-       * 外部调用，开始指引
-       */
-      start() {
-        this.isDone = false;
-        this.isShowFinisheDialog = false;
-        this.isShowStopDialog = false;
-        this.currentStepIndex = 0;
-        this.doneCountTime = 3;
-        // document.cookie = cookie.serialize(CACHE_KEY, Date.now(), {
-        //   expires: new Date(Date.now() - 1),
-        //   path: '/',
-        // });
-        this.$nextTick(() => {
-          this.init();
-        });
-      },
-      /**
-       * 步骤切换时激活目标步骤
-       */
-      activeStep() {
-        this.$nextTick(() => {
-          const windowWidth = window.innerWidth;
-          const windowHieght = window.innerHeight;
-          const currentStep = this.stepList[this.currentStepIndex];
-          const $stepTarget = document.querySelector(currentStep.target);
-          $stepTarget.classList.add('guide-highlight');
-          if (typeof this.currentStep.leave === 'function') {
-            this.currentStep.leave();
-          }
-          if (typeof currentStep.entry === 'function') {
-            currentStep.entry();
-          }
-          setTimeout(() => {
-            const {
-              top: targetTop,
-              right: targetRight,
-              bottom: targeBottom,
-              left: targetLeft,
-              width: targetWidth,
-            } = $stepTarget.getBoundingClientRect();
-            const { width, height } = this.$refs.tip.$el.getBoundingClientRect();
-
-            let placement = 'left';
-            if (width > height && targeBottom < 0.3 * windowHieght) {
-              placement = targeBottom > 0.5 * windowHieght ? 'top' : 'bottom';
-            } else {
-              placement = targetLeft > 0.5 * windowWidth ? 'left' : 'right';
-            }
-
-            let styles = {};
-
-            if (placement === 'bottom') {
-              styles = {
-                top: `${targeBottom + 10}px`,
-                left: `${targetLeft + (targetWidth - width) / 2}px`,
-              };
-            } else if (placement === 'top') {
-              styles = {
-                top: `${windowHieght - targetTop - height - 10}px`,
-                left: `${targetLeft + (targetWidth - width) / 2}px`,
-              };
-            } else if (placement === 'left') {
-              styles = {
-                top: `${targetTop}px`,
-                right: `${windowWidth - targetLeft + 10}px`,
-              };
-            } else if (placement === 'right') {
-              styles = {
-                top: `${targetTop}px`,
-                left: `${targetRight + 10}px`,
-              };
-            }
-            this.currentStep = Object.freeze(currentStep);
-            this.tipStyles = Object.freeze(styles);
-            this.placement = placement;
-          });
-        });
-      },
-      /**
-       * 清空所有步骤的激活状态
-       */
-      clearActive() {
-        document.body.querySelectorAll('.guide-highlight').forEach(el => {
-          el.classList.remove('guide-highlight');
-        });
-      },
-      /**
-       * 完成指引
-       */
-      doneGudie() {
-        // document.cookie = cookie.serialize(CACHE_KEY, Date.now(), {
-        //   expires: new Date(Date.now() + 31104000000),
-        //   path: '/',
-        // });
-        this.isDone = true;
-        if (this.currentStep && typeof this.currentStep.leave === 'function') {
+    /**
+     * 外部调用，开始指引
+     */
+    start() {
+      this.isDone = false;
+      this.isShowFinisheDialog = false;
+      this.isShowStopDialog = false;
+      this.currentStepIndex = 0;
+      this.doneCountTime = 3;
+      // document.cookie = cookie.serialize(CACHE_KEY, Date.now(), {
+      //   expires: new Date(Date.now() - 1),
+      //   path: '/',
+      // });
+      this.$nextTick(() => {
+        this.init();
+      });
+    },
+    /**
+     * 步骤切换时激活目标步骤
+     */
+    activeStep() {
+      this.$nextTick(() => {
+        const windowWidth = window.innerWidth;
+        const windowHieght = window.innerHeight;
+        const currentStep = this.stepList[this.currentStepIndex];
+        const $stepTarget = document.querySelector(currentStep.target);
+        $stepTarget.classList.add('guide-highlight');
+        if (typeof this.currentStep.leave === 'function') {
           this.currentStep.leave();
         }
-        setTimeout(() => {
-          this.$refs.wraper?.parentNode.removeChild(this.$refs.wraper);
-        });
-      },
-      /**
-       * 窗口缩放
-       */
-      handleReize: throttle(function () {
-        if (!this.isDone) {
-          this.activeStep();
+        if (typeof currentStep.entry === 'function') {
+          currentStep.entry();
         }
-      }, 100),
-      /**
-       * 跳过指引确认操作
-       */
-      handleStop() {
-        // this.isShowStopDialog = true;
-        this.clearActive();
-        this.handleDone();
-      },
-      /**
-       * 取消跳过指引
-       */
-      handleCancelStop() {
-        this.isShowStopDialog = false;
-        this.activeStep();
-      },
-      /**
-       * 切换步骤
-       */
-      handleNext() {
-        this.currentStepIndex += 1;
-        this.clearActive();
-        this.activeStep();
-      },
-      /**
-       * 结束指引确认操作
-       */
-      handleFinish() {
-        this.clearActive();
-        this.doneGudie();
-        // this.isShowFinisheDialog = true;
-        // const countdown = () => {
-        //   setTimeout(() => {
-        //     this.doneCountTime -= 1;
-        //     if (this.doneCountTime > 0) {
-        //       countdown();
-        //     } else {
-        //       this.doneGudie();
-        //     }
-        //   }, 1000);
-        // };
-        // countdown();
-      },
-      /**
-       * 完成指引
-       */
-      handleDone() {
-        this.doneGudie();
-      },
-      /**
-       * 完成指引
-       */
-      handleStepChange(step) {
-        const curStep = ['stop', 'finish'].includes(step) ? this.stepList.length : this.currentStepIndex + 1;
+        setTimeout(() => {
+          const {
+            top: targetTop,
+            right: targetRight,
+            bottom: targeBottom,
+            left: targetLeft,
+            width: targetWidth,
+          } = $stepTarget.getBoundingClientRect();
+          const { width, height } = this.$refs.tip.$el.getBoundingClientRect();
 
-        this.$http
-          .request('meta/updateUserGuide', { data: { [this.guidePage]: curStep } })
-          .then(() => {
-            step === 'next' ? this.handleNext() : step === 'finish' ? this.handleFinish() : this.handleStop();
-          })
-          .catch(e => {
-            console.warn(e);
-          });
-      },
+          let placement = 'left';
+          if (width > height && targeBottom < 0.3 * windowHieght) {
+            placement = targeBottom > 0.5 * windowHieght ? 'top' : 'bottom';
+          } else {
+            placement = targetLeft > 0.5 * windowWidth ? 'left' : 'right';
+          }
+
+          let styles = {};
+
+          if (placement === 'bottom') {
+            styles = {
+              top: `${targeBottom + 10}px`,
+              left: `${targetLeft + (targetWidth - width) / 2}px`,
+            };
+          } else if (placement === 'top') {
+            styles = {
+              top: `${windowHieght - targetTop - height - 10}px`,
+              left: `${targetLeft + (targetWidth - width) / 2}px`,
+            };
+          } else if (placement === 'left') {
+            styles = {
+              top: `${targetTop}px`,
+              right: `${windowWidth - targetLeft + 10}px`,
+            };
+          } else if (placement === 'right') {
+            styles = {
+              top: `${targetTop}px`,
+              left: `${targetRight + 10}px`,
+            };
+          }
+          this.currentStep = Object.freeze(currentStep);
+          this.tipStyles = Object.freeze(styles);
+          this.placement = placement;
+        });
+      });
     },
-  };
+    /**
+     * 清空所有步骤的激活状态
+     */
+    clearActive() {
+      document.body.querySelectorAll('.guide-highlight').forEach(el => {
+        el.classList.remove('guide-highlight');
+      });
+    },
+    /**
+     * 完成指引
+     */
+    doneGudie() {
+      // document.cookie = cookie.serialize(CACHE_KEY, Date.now(), {
+      //   expires: new Date(Date.now() + 31104000000),
+      //   path: '/',
+      // });
+      this.isDone = true;
+      if (this.currentStep && typeof this.currentStep.leave === 'function') {
+        this.currentStep.leave();
+      }
+      setTimeout(() => {
+        this.$refs.wraper?.parentNode.removeChild(this.$refs.wraper);
+      });
+    },
+    /**
+     * 窗口缩放
+     */
+    handleReize: throttle(function () {
+      if (!this.isDone) {
+        this.activeStep();
+      }
+    }, 100),
+    /**
+     * 跳过指引确认操作
+     */
+    handleStop() {
+      // this.isShowStopDialog = true;
+      this.clearActive();
+      this.handleDone();
+    },
+    /**
+     * 取消跳过指引
+     */
+    handleCancelStop() {
+      this.isShowStopDialog = false;
+      this.activeStep();
+    },
+    /**
+     * 切换步骤
+     */
+    handleNext() {
+      this.currentStepIndex += 1;
+      this.clearActive();
+      this.activeStep();
+    },
+    /**
+     * 结束指引确认操作
+     */
+    handleFinish() {
+      this.clearActive();
+      this.doneGudie();
+      // this.isShowFinisheDialog = true;
+      // const countdown = () => {
+      //   setTimeout(() => {
+      //     this.doneCountTime -= 1;
+      //     if (this.doneCountTime > 0) {
+      //       countdown();
+      //     } else {
+      //       this.doneGudie();
+      //     }
+      //   }, 1000);
+      // };
+      // countdown();
+    },
+    /**
+     * 完成指引
+     */
+    handleDone() {
+      this.doneGudie();
+    },
+    /**
+     * 完成指引
+     */
+    handleStepChange(step) {
+      const curStep = ['stop', 'finish'].includes(step) ? this.stepList.length : this.currentStepIndex + 1;
+
+      this.$http
+        .request('meta/updateUserGuide', { data: { [this.guidePage]: curStep } })
+        .then(() => {
+          step === 'next' ? this.handleNext() : step === 'finish' ? this.handleFinish() : this.handleStop();
+        })
+        .catch(e => {
+          console.warn(e);
+        });
+    },
+  },
+};
 </script>
 
 <style lang="scss">

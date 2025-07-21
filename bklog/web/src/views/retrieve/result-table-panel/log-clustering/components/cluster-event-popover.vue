@@ -73,69 +73,69 @@
 </template>
 
 <script>
-  export default {
-    props: {
-      placement: {
-        type: String,
-        default: 'bottom',
-      },
-      trigger: {
-        type: String,
-        default: 'click',
-      },
-      isCluster: {
-        type: Boolean,
-        default: true,
-      },
-      tippyOptions: {
-        type: Object,
-        default: () => {},
-      },
-      context: {
-        type: String,
-        require: true,
-      },
+export default {
+  props: {
+    placement: {
+      type: String,
+      default: 'bottom',
     },
-    computed: {
-      isHavePattern() {
-        return this.context !== '';
-      },
+    trigger: {
+      type: String,
+      default: 'click',
     },
-    methods: {
-      handleClick(id, isLink = false) {
-        this.$emit('event-click', id, isLink);
-      },
-      unregisterOberver() {
-        if (this.intersectionObserver) {
-          this.intersectionObserver.unobserve(this.$el);
-          this.intersectionObserver.disconnect();
-          this.intersectionObserver = null;
-        }
-      },
-      // 注册Intersection监听
-      registerObserver() {
-        if (this.intersectionObserver) {
-          this.unregisterOberver();
-        }
-        this.intersectionObserver = new IntersectionObserver(entries => {
-          entries.forEach(entry => {
-            if (this.intersectionObserver) {
-              if (entry.intersectionRatio <= 0) {
-                this.$refs.eventPopover.instance.hide();
-              }
-            }
-          });
-        });
-        this.intersectionObserver.observe(this.$el);
-      },
-      handlePopoverShow() {
-        setTimeout(this.registerObserver, 20);
-      },
-      handlePopoverHide() {
+    isCluster: {
+      type: Boolean,
+      default: true,
+    },
+    tippyOptions: {
+      type: Object,
+      default: () => {},
+    },
+    context: {
+      type: String,
+      require: true,
+    },
+  },
+  computed: {
+    isHavePattern() {
+      return this.context !== '';
+    },
+  },
+  methods: {
+    handleClick(id, isLink = false) {
+      this.$emit('event-click', id, isLink);
+    },
+    unregisterOberver() {
+      if (this.intersectionObserver) {
+        this.intersectionObserver.unobserve(this.$el);
+        this.intersectionObserver.disconnect();
+        this.intersectionObserver = null;
+      }
+    },
+    // 注册Intersection监听
+    registerObserver() {
+      if (this.intersectionObserver) {
         this.unregisterOberver();
-      },
+      }
+      this.intersectionObserver = new IntersectionObserver(entries => {
+        entries.forEach(entry => {
+          if (this.intersectionObserver) {
+            if (entry.intersectionRatio <= 0) {
+              this.$refs.eventPopover.instance.hide();
+            }
+          }
+        });
+      });
+      this.intersectionObserver.observe(this.$el);
     },
-  };
+    handlePopoverShow() {
+      setTimeout(this.registerObserver, 20);
+    },
+    handlePopoverHide() {
+      this.unregisterOberver();
+    },
+  },
+};
 </script>
 
 <style lang="scss">

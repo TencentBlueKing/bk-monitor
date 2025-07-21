@@ -443,7 +443,7 @@ export default class SelectIndexSet extends tsc<object> {
         // 当前未全选中  则把过滤后的标签索引集id全放到缓存的id列表
         this.selectTagCatchIDList = [...new Set([...this.selectedItemIDlist, ...this.havValRenderIDSetList])].slice(
           0,
-          MAX_UNION_INDEXSET_LIMIT,
+          MAX_UNION_INDEXSET_LIMIT
         ); // 最多选10条数据
       } else {
         // 全选选中 清空 已有的过滤后的标签索引集id
@@ -710,7 +710,7 @@ export default class SelectIndexSet extends tsc<object> {
               this.multipleFavoriteSelectID = res.data.id;
             });
         },
-        () => {},
+        () => {}
       );
     } else {
       this.favoritePopoverRef.hideHandler();

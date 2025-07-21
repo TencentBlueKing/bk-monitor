@@ -60,95 +60,95 @@
 </template>
 
 <script>
-  export default {
-    props: {
-      timeRange: {
-        type: String,
-        required: true,
-      },
-      timeValue: {
-        type: Array,
-        required: true,
-      },
+export default {
+  props: {
+    timeRange: {
+      type: String,
+      required: true,
     },
-    data() {
-      const oneDay = 1000 * 60 * 60 * 24;
-      const oneWeek = oneDay * 7;
-      const oneMonth = oneDay * 30;
-      return {
-        showDatePicker: false,
-        shortcuts: [
-          {
-            text: this.$t('近一天'),
-            value() {
-              const end = new Date();
-              const start = new Date();
-              start.setTime(start.getTime() - oneDay);
-              return [start, end];
-            },
+    timeValue: {
+      type: Array,
+      required: true,
+    },
+  },
+  data() {
+    const oneDay = 1000 * 60 * 60 * 24;
+    const oneWeek = oneDay * 7;
+    const oneMonth = oneDay * 30;
+    return {
+      showDatePicker: false,
+      shortcuts: [
+        {
+          text: this.$t('近一天'),
+          value() {
+            const end = new Date();
+            const start = new Date();
+            start.setTime(start.getTime() - oneDay);
+            return [start, end];
           },
-          {
-            text: this.$t('近一周'),
-            value() {
-              const end = new Date();
-              const start = new Date();
-              start.setTime(start.getTime() - oneWeek);
-              return [start, end];
-            },
-          },
-          {
-            text: this.$t('近一月'),
-            value() {
-              const end = new Date();
-              const start = new Date();
-              start.setTime(start.getTime() - oneMonth);
-              return [start, end];
-            },
-          },
-          {
-            text: this.$t('所有'),
-            value() {
-              const end = new Date();
-              const start = new Date('2000-01-01');
-              return [start, end];
-            },
-          },
-        ],
-        shortTextEnum: {
-          [this.$t('近一天')]: '1d',
-          [this.$t('近一周')]: '1w',
-          [this.$t('近一月')]: '1m',
-          [this.$t('所有')]: 'all',
-          '1d': this.$t('近一天'),
-          '1w': this.$t('近一周'),
-          '1m': this.$t('近一月'),
-          all: this.$t('所有'),
         },
-      };
+        {
+          text: this.$t('近一周'),
+          value() {
+            const end = new Date();
+            const start = new Date();
+            start.setTime(start.getTime() - oneWeek);
+            return [start, end];
+          },
+        },
+        {
+          text: this.$t('近一月'),
+          value() {
+            const end = new Date();
+            const start = new Date();
+            start.setTime(start.getTime() - oneMonth);
+            return [start, end];
+          },
+        },
+        {
+          text: this.$t('所有'),
+          value() {
+            const end = new Date();
+            const start = new Date('2000-01-01');
+            return [start, end];
+          },
+        },
+      ],
+      shortTextEnum: {
+        [this.$t('近一天')]: '1d',
+        [this.$t('近一周')]: '1w',
+        [this.$t('近一月')]: '1m',
+        [this.$t('所有')]: 'all',
+        '1d': this.$t('近一天'),
+        '1w': this.$t('近一周'),
+        '1m': this.$t('近一月'),
+        all: this.$t('所有'),
+      },
+    };
+  },
+  methods: {
+    togglePicker() {
+      this.showDatePicker = !this.showDatePicker;
     },
-    methods: {
-      togglePicker() {
-        this.showDatePicker = !this.showDatePicker;
-      },
-      handleOpenChange(state) {
-        this.showDatePicker = state;
-      },
-      handleDateChange(date) {
-        // if (type !== undefined) console.log('日期选择事件')
-        // else console.log('快捷键事件')
-        this.$emit('update:time-value', date);
-      },
-      handleShortcutChange(data) {
-        if (data !== undefined) {
-          // 快捷键事件
-          this.$emit('update:time-range', this.shortTextEnum[data.text]);
-        } else {
-          // 日期选择事件
-          this.$emit('update:time-range', 'custom');
-        }
-      },
+    handleOpenChange(state) {
+      this.showDatePicker = state;
     },
-  };
+    handleDateChange(date) {
+      // if (type !== undefined) console.log('日期选择事件')
+      // else console.log('快捷键事件')
+      this.$emit('update:time-value', date);
+    },
+    handleShortcutChange(data) {
+      if (data !== undefined) {
+        // 快捷键事件
+        this.$emit('update:time-range', this.shortTextEnum[data.text]);
+      } else {
+        // 日期选择事件
+        this.$emit('update:time-range', 'custom');
+      }
+    },
+  },
+};
 </script>
 
 <style lang="scss" scoped>

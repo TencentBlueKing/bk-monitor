@@ -179,13 +179,13 @@ class UseSegmentProp {
                             ]
                           : [],
                       },
-                      [h('i', { class: item.link.iconName })],
+                      [h('i', { class: item.link.iconName })]
                     )
                   : null,
-              ],
+              ]
             ),
-          ],
-        ),
+          ]
+        )
       ),
     ]);
   }

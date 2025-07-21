@@ -105,109 +105,109 @@
 </template>
 
 <script lang="ts">
-  import { Component, Vue, Prop, Ref, Watch } from 'vue-property-decorator';
+import { Component, Vue, Prop, Ref, Watch } from 'vue-property-decorator';
 
-  import { formatNumberWithRegex } from '@/common/util';
+import { formatNumberWithRegex } from '@/common/util';
 
-  import ChartMenu from './chart-menu.vue';
-  import BklogPopover from '../../bklog-popover';
-  import GradeOption from './grade-option';
-  import RetrieveHelper, { RetrieveEvent } from '../../../views/retrieve-helper';
+import ChartMenu from './chart-menu.vue';
+import BklogPopover from '../../bklog-popover';
+import GradeOption from './grade-option';
+import RetrieveHelper, { RetrieveEvent } from '../../../views/retrieve-helper';
 
-  @Component({
-    name: 'chart-title-v2',
-    components: {
-      ChartMenu,
-      BklogPopover,
-      GradeOption,
+@Component({
+  name: 'chart-title-v2',
+  components: {
+    ChartMenu,
+    BklogPopover,
+    GradeOption,
+  },
+})
+export default class ChartTitle extends Vue {
+  @Prop({ default: '' }) title: string;
+  @Prop({ default: '' }) subtitle: string;
+  @Prop({ default: () => [] }) menuList: string[];
+  @Prop({ default: localStorage.getItem('chartIsFold') === 'true' }) isFold: boolean;
+  @Prop({ default: true }) loading: boolean;
+  @Prop({ default: true }) isEmptyChart: boolean;
+  @Prop({ required: true }) totalCount: number;
+  @Ref('chartTitle') chartTitleRef: HTMLDivElement;
+
+  chartInterval = 'auto';
+  intervalArr = [
+    { id: 'auto', name: 'auto' },
+    { id: '1m', name: '1 min' },
+    { id: '5m', name: '5 min' },
+    { id: '1h', name: '1 h' },
+    { id: '1d', name: '1 d' },
+  ];
+
+  tippyOptions = {
+    appendTo: document.body,
+    hideOnClick: false,
+    onShown: () => {
+      const cfg = this.$store.state.indexFieldInfo.custom_config?.grade_options ?? {};
+      (this.$refs.refGradeOption as any)?.updateOptions?.(cfg);
     },
-  })
-  export default class ChartTitle extends Vue {
-    @Prop({ default: '' }) title: string;
-    @Prop({ default: '' }) subtitle: string;
-    @Prop({ default: () => [] }) menuList: string[];
-    @Prop({ default: localStorage.getItem('chartIsFold') === 'true' }) isFold: boolean;
-    @Prop({ default: true }) loading: boolean;
-    @Prop({ default: true }) isEmptyChart: boolean;
-    @Prop({ required: true }) totalCount: number;
-    @Ref('chartTitle') chartTitleRef: HTMLDivElement;
+  };
 
-    chartInterval = 'auto';
-    intervalArr = [
-      { id: 'auto', name: 'auto' },
-      { id: '1m', name: '1 min' },
-      { id: '5m', name: '5 min' },
-      { id: '1h', name: '1 h' },
-      { id: '1d', name: '1 d' },
-    ];
+  get retrieveParams() {
+    return this.$store.getters.retrieveParams;
+  }
 
-    tippyOptions = {
-      appendTo: document.body,
-      hideOnClick: false,
-      onShown: () => {
-        const cfg = this.$store.state.indexFieldInfo.custom_config?.grade_options ?? {};
-        (this.$refs.refGradeOption as any)?.updateOptions?.(cfg);
-      },
-    };
+  get tookTime() {
+    return Number.parseFloat(this.$store.state.tookTime).toFixed(0);
+  }
 
-    get retrieveParams() {
-      return this.$store.getters.retrieveParams;
-    }
+  get fieldList() {
+    return this.$store.state.indexFieldInfo.fields ?? [];
+  }
 
-    get tookTime() {
-      return Number.parseFloat(this.$store.state.tookTime).toFixed(0);
-    }
+  @Watch('retrieveParams.interval')
+  watchChangeChartInterval(newVal) {
+    this.chartInterval = newVal;
+  }
 
-    get fieldList() {
-      return this.$store.state.indexFieldInfo.fields ?? [];
-    }
+  handleShowMenu(e: MouseEvent) {
+    this.$emit('toggle-expand', !this.isFold);
+  }
+  getShowTotalNum(num) {
+    return formatNumberWithRegex(num);
+  }
+  handleMenuClick(item) {
+    this.$emit('menu-click', item);
+  }
+  // 汇聚周期改变
+  handleIntervalChange() {
+    this.$emit('interval-change', this.chartInterval);
+    setTimeout(() => {
+      RetrieveHelper.fire(RetrieveEvent.TREND_GRAPH_SEARCH);
+    });
+  }
 
-    @Watch('retrieveParams.interval')
-    watchChangeChartInterval(newVal) {
-      this.chartInterval = newVal;
-    }
-
-    handleShowMenu(e: MouseEvent) {
-      this.$emit('toggle-expand', !this.isFold);
-    }
-    getShowTotalNum(num) {
-      return formatNumberWithRegex(num);
-    }
-    handleMenuClick(item) {
-      this.$emit('menu-click', item);
-    }
-    // 汇聚周期改变
-    handleIntervalChange() {
-      this.$emit('interval-change', this.chartInterval);
-      setTimeout(() => {
-        RetrieveHelper.fire(RetrieveEvent.TREND_GRAPH_SEARCH);
-      });
-    }
-
-    handleGradeOptionChange({ isSave }) {
-      (this.$refs.refGradePopover as any)?.hide();
-      if (isSave) {
-        RetrieveHelper.fire(RetrieveEvent.TREND_GRAPH_SEARCH);
-      }
-    }
-
-    /**
-     * 通过判定当前点击元素是否为指定弹出下拉菜单的子元素判定是否允许关闭弹出
-     * @param e
-     */
-    beforePopoverHide(e: MouseEvent) {
-      const target = e.target as HTMLElement;
-
-      if (
-        ((target.classList.contains('bk-option-name') || target.classList.contains('bk-option-content-default')) &&
-          target.closest('.bk-select-dropdown-content.bklog-popover-stop')) ||
-        target.classList.contains('bklog-popover-stop')
-      ) {
-        return false;
-      }
-      return true;
+  handleGradeOptionChange({ isSave }) {
+    (this.$refs.refGradePopover as any)?.hide();
+    if (isSave) {
+      RetrieveHelper.fire(RetrieveEvent.TREND_GRAPH_SEARCH);
     }
   }
+
+  /**
+   * 通过判定当前点击元素是否为指定弹出下拉菜单的子元素判定是否允许关闭弹出
+   * @param e
+   */
+  beforePopoverHide(e: MouseEvent) {
+    const target = e.target as HTMLElement;
+
+    if (
+      ((target.classList.contains('bk-option-name') || target.classList.contains('bk-option-content-default')) &&
+        target.closest('.bk-select-dropdown-content.bklog-popover-stop')) ||
+      target.classList.contains('bklog-popover-stop')
+    ) {
+      return false;
+    }
+    return true;
+  }
+}
 </script>
 <style lang="scss" scoped>
   .title-wrapper-new {

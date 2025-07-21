@@ -46,8 +46,8 @@ export default (
     addInputListener = true,
     handleWrapperClick = undefined,
     onInputFocus = undefined,
-    afterShowKeyEnter = undefined
-  },
+    afterShowKeyEnter = undefined,
+  }
 ) => {
   const modelValue = ref([]);
   const sectionHeight = ref(0);
@@ -179,7 +179,7 @@ export default (
     () => {
       setModelValue(props.value);
     },
-    { deep: true, immediate: true },
+    { deep: true, immediate: true }
   );
 
   const handleWrapperClickCapture = e => {
@@ -199,7 +199,6 @@ export default (
   };
 
   const handleKeydown = event => {
-
     // 检查按下的键是否是斜杠 "/"（需兼容不同键盘布局）
     const isSlashKey = event.key === '/' || event.keyCode === 191;
     const isEscKey = event.key === 'Escape' || event.keyCode === 27;

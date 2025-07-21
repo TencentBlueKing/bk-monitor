@@ -42,14 +42,14 @@
 </template>
 
 <script>
-  export default {
-    props: {
-      isError: {
-        type: Boolean,
-        required: true,
-      },
+export default {
+  props: {
+    isError: {
+      type: Boolean,
+      required: true,
     },
-  };
+  },
+};
 </script>
 
 <style lang="scss" scoped>

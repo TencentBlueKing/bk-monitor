@@ -517,7 +517,7 @@ export default class AuthorizationList extends tsc<object> {
             view_type: this.angleType,
           },
         },
-        { signal },
+        { signal }
       );
       return [true, res?.data ?? []];
     } catch (error) {
@@ -539,7 +539,7 @@ export default class AuthorizationList extends tsc<object> {
             space_uid: this.spaceUid,
           },
         },
-        { signal },
+        { signal }
       );
       return [true, res?.data ?? []];
     } catch (error) {
@@ -652,7 +652,9 @@ export default class AuthorizationList extends tsc<object> {
           scopedSlots={{
             default: ({ row }) => (
               <div v-bk-overflow-tips={{ content: row.authorized_users?.join(',') }}>
-                {row.authorized_users?.map(item => <Tag class='user-tag'>{item}</Tag>)}
+                {row.authorized_users?.map(item => (
+                  <Tag class='user-tag'>{item}</Tag>
+                ))}
               </div>
             ),
           }}
@@ -678,7 +680,7 @@ export default class AuthorizationList extends tsc<object> {
                     {row.resources?.map((id, ind) =>
                       ind < 3 || row.isExpand ? (
                         <div class='resource-item'>{resourceList.find(item => item.uid === id)?.text}</div>
-                      ) : undefined,
+                      ) : undefined
                     )}
                     {row.resources?.length > 3 && (
                       <p
@@ -834,7 +836,7 @@ export default class AuthorizationList extends tsc<object> {
         <div class='page-content'>
           <Alert
             title={this.$t(
-              '需遵循公司规范，禁止对外暴露用户或公司内部敏感信息（用户PII信息、账号密码、云AKSK、内部系统鉴权/Token、保密文档等），若因授权不当造成数据泄露须承担相应责任; ',
+              '需遵循公司规范，禁止对外暴露用户或公司内部敏感信息（用户PII信息、账号密码、云AKSK、内部系统鉴权/Token、保密文档等），若因授权不当造成数据泄露须承担相应责任; '
             )}
             type='error'
           />

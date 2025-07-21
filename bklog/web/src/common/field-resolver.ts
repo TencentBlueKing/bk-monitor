@@ -73,7 +73,7 @@ export const formatHierarchy = (fieldList: Partial<FieldItem>[]) => {
             is_virtual_obj_node: fieldName !== field.field_name,
             field_type: fieldType,
             query_alias: queryAlias,
-          }),
+          })
         );
       }
     }

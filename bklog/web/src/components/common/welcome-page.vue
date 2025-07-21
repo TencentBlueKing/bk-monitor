@@ -130,51 +130,51 @@
 </template>
 
 <script>
-  export default {
-    props: {
-      data: {
-        type: Object,
-        default: () => ({
-          newBusiness: {
-            url: '', // 新业务接入链接
-          },
-          getAccess: {
-            url: '', // 权限申请链接（接入权限中心时必填）
-            businessName: '', // 业务ID对应的业务名（URL带ID时找到对应业务）
-            operatorId: '', // 业务ID对应的运维人员ID（没有接入权限中心时URL带ID找到运维人员）
-          },
-          demoBusiness: {
-            url: '', // 业务DEMO链接
-          },
-        }),
-      },
+export default {
+  props: {
+    data: {
+      type: Object,
+      default: () => ({
+        newBusiness: {
+          url: '', // 新业务接入链接
+        },
+        getAccess: {
+          url: '', // 权限申请链接（接入权限中心时必填）
+          businessName: '', // 业务ID对应的业务名（URL带ID时找到对应业务）
+          operatorId: '', // 业务ID对应的运维人员ID（没有接入权限中心时URL带ID找到运维人员）
+        },
+        demoBusiness: {
+          url: '', // 业务DEMO链接
+        },
+      }),
     },
-    methods: {
-      handleMouseEnter(e) {
-        const button = e.target.querySelector('.king-button');
-        if (button) {
-          button.classList.remove('bk-default');
-          button.classList.add('bk-primary');
-        }
-      },
-      handleMouseLeave(e) {
-        const button = e.target.querySelector('.king-button');
-        if (button) {
-          button.classList.remove('bk-primary');
-          button.classList.add('bk-default');
-        }
-      },
-      handleNewBusiness() {
-        window.open(this.data.newBusiness.url);
-      },
-      handleDemoBusiness() {
-        window.open(this.data.demoBusiness.url);
-      },
-      handleGetAccess() {
-        window.open(this.data.getAccess.url);
-      },
+  },
+  methods: {
+    handleMouseEnter(e) {
+      const button = e.target.querySelector('.king-button');
+      if (button) {
+        button.classList.remove('bk-default');
+        button.classList.add('bk-primary');
+      }
     },
-  };
+    handleMouseLeave(e) {
+      const button = e.target.querySelector('.king-button');
+      if (button) {
+        button.classList.remove('bk-primary');
+        button.classList.add('bk-default');
+      }
+    },
+    handleNewBusiness() {
+      window.open(this.data.newBusiness.url);
+    },
+    handleDemoBusiness() {
+      window.open(this.data.demoBusiness.url);
+    },
+    handleGetAccess() {
+      window.open(this.data.getAccess.url);
+    },
+  },
+};
 </script>
 
 <style lang="scss" scoped>

@@ -177,300 +177,300 @@
   </bk-dialog>
 </template>
 <script>
-  import { random } from '@/common/util';
-  import EmptyStatus from '@/components/empty-status';
+import { random } from '@/common/util';
+import EmptyStatus from '@/components/empty-status';
 
-  import matchLabelItem from './match-label-item';
+import matchLabelItem from './match-label-item';
 
-  export default {
-    components: {
-      matchLabelItem,
-      EmptyStatus,
+export default {
+  components: {
+    matchLabelItem,
+    EmptyStatus,
+  },
+  props: {
+    isShowDialog: {
+      type: Boolean,
+      default: false,
     },
-    props: {
-      isShowDialog: {
-        type: Boolean,
-        default: false,
-      },
-      labelParams: {
-        type: Object,
-        default: () => ({}),
-      },
-      clusterList: {
-        type: Array,
-        require: true,
-      },
+    labelParams: {
+      type: Object,
+      default: () => ({}),
     },
-    data() {
-      return {
-        treeList: [],
-        filterStr: '', // 搜索过滤字符串
-        defaultExpandList: [], // 默认展开数组
-        leftRange: [300, 600],
-        matchCheckedList: [], // 已选择的
-        matchCheckedItemList: [], // 已选择的选择列表
-        matchSelectList: [], // 备选的
-        matchSelectItemList: [], // 备选的选择列表
-        leftPreWidth: 300,
-        treeLoading: false, // 树loading
-        labelLoading: false, // 标签loading
-        activeStretchBtn: '',
-        treeIsEmpty: false, // 树结构是否搜索为空
-        cacheRequestParams: {
-          // 缓存树结构传参
-          bk_biz_id: null,
-          bcs_cluster_id: null,
-          type: null,
-          namespace: null,
-        },
-      };
+    clusterList: {
+      type: Array,
+      require: true,
     },
-    computed: {
-      // 根据已选择的列表来计算备选和主页已选择的公用最大高度
-      getNoChoiceMaxHeight() {
-        const selectLength = this.matchCheckedItemList.length ?? 0;
-        if (!selectLength) return 544;
-        return 544 - (78 + Math.min(this.matchCheckedItemList.length, 6) * 42);
+  },
+  data() {
+    return {
+      treeList: [],
+      filterStr: '', // 搜索过滤字符串
+      defaultExpandList: [], // 默认展开数组
+      leftRange: [300, 600],
+      matchCheckedList: [], // 已选择的
+      matchCheckedItemList: [], // 已选择的选择列表
+      matchSelectList: [], // 备选的
+      matchSelectItemList: [], // 备选的选择列表
+      leftPreWidth: 300,
+      treeLoading: false, // 树loading
+      labelLoading: false, // 标签loading
+      activeStretchBtn: '',
+      treeIsEmpty: false, // 树结构是否搜索为空
+      cacheRequestParams: {
+        // 缓存树结构传参
+        bk_biz_id: null,
+        bcs_cluster_id: null,
+        type: null,
+        namespace: null,
       },
-      isEmpty() {
-        const allList = [...this.matchCheckedItemList, ...this.matchSelectItemList];
-        return !allList.length;
-      },
-      labelKeyStrList() {
-        return this.labelParams.labelSelector.map(item => item.key);
-      },
-      isHaveSelectItem() {
-        return !!(this.matchSelectList.length + this.matchCheckedList.length);
-      },
+    };
+  },
+  computed: {
+    // 根据已选择的列表来计算备选和主页已选择的公用最大高度
+    getNoChoiceMaxHeight() {
+      const selectLength = this.matchCheckedItemList.length ?? 0;
+      if (!selectLength) return 544;
+      return 544 - (78 + Math.min(this.matchCheckedItemList.length, 6) * 42);
     },
-    watch: {
-      isShowDialog(val) {
-        if (val) {
-          const { bk_biz_id, bcs_cluster_id, type, namespaceStr } = this.labelParams;
-          const requestParams = { bk_biz_id, bcs_cluster_id, type, namespace: namespaceStr };
-          this.treeList = [];
-          this.defaultExpandList = [];
-          this.cacheRequestParams = requestParams;
-          this.getTreeList();
-          if (this.labelParams.labelSelector.length) {
-            this.matchCheckedItemList = this.labelParams.labelSelector.map(item => ({
-              ...item,
-              id: random(10),
-            }));
-            this.matchCheckedList = this.matchCheckedItemList.map(item => item.id);
-          }
-        } else {
-          this.resetSelect();
-          this.filterStr = '';
+    isEmpty() {
+      const allList = [...this.matchCheckedItemList, ...this.matchSelectItemList];
+      return !allList.length;
+    },
+    labelKeyStrList() {
+      return this.labelParams.labelSelector.map(item => item.key);
+    },
+    isHaveSelectItem() {
+      return !!(this.matchSelectList.length + this.matchCheckedList.length);
+    },
+  },
+  watch: {
+    isShowDialog(val) {
+      if (val) {
+        const { bk_biz_id, bcs_cluster_id, type, namespaceStr } = this.labelParams;
+        const requestParams = { bk_biz_id, bcs_cluster_id, type, namespace: namespaceStr };
+        this.treeList = [];
+        this.defaultExpandList = [];
+        this.cacheRequestParams = requestParams;
+        this.getTreeList();
+        if (this.labelParams.labelSelector.length) {
+          this.matchCheckedItemList = this.labelParams.labelSelector.map(item => ({
+            ...item,
+            id: random(10),
+          }));
+          this.matchCheckedList = this.matchCheckedItemList.map(item => item.id);
         }
-      },
+      } else {
+        this.resetSelect();
+        this.filterStr = '';
+      }
     },
-    methods: {
-      handleSelectTreeItem(treeItem) {
-        if (!['pod', 'node'].includes(treeItem.data.type)) {
-          this.catchCheckedItemList();
-          this.matchSelectList = [];
-          this.matchSelectItemList = [];
-          return;
-        }
-
-        const [nameSpaceStr, nameStr] = this.getNameStrAndNameSpace(treeItem); // 获取当前树节点标签请求name字符串
-        const { bk_biz_id, bcs_cluster_id, type } = this.labelParams;
-        const query = { namespace: nameSpaceStr, bcs_cluster_id, type, bk_biz_id, name: nameStr };
-        if (type === 'node') delete query.namespace;
-        this.labelLoading = true;
+  },
+  methods: {
+    handleSelectTreeItem(treeItem) {
+      if (!['pod', 'node'].includes(treeItem.data.type)) {
         this.catchCheckedItemList();
-        this.$http
-          .request('container/getNodeLabelList', { query })
-          .then(res => {
-            if (res.code === 0) {
-              this.matchSelectItemList = res.data
-                .filter(item => {
-                  // 先生成已选列表和主页已选列表 若为没有 则全返回
-                  const allCheckedItemList = [...this.matchCheckedItemList, ...this.labelParams.labelSelector];
-                  if (!allCheckedItemList.length) return true;
-                  // 判断当前备选是否在已选和主页已选有重复 若有重复则不返回
-                  return !allCheckedItemList.some(
-                    mItem => item.key === mItem.key && item.value === mItem.value && mItem.operator === '=',
-                  );
-                })
-                .map(item => ({ ...item, operator: '=', id: random(10) }));
-            }
-          })
-          .catch(err => {
-            console.warn(err);
-          })
-          .finally(() => {
-            this.labelLoading = false;
-          });
-      },
-      // 切换树选项时缓存备选列表里的值
-      catchCheckedItemList() {
-        if (!this.matchSelectList.length) return; // 备选没有选择
-        const checkedItemList = this.matchSelectItemList.filter(item => {
-          if (this.matchSelectList.includes(item.id)) {
-            // 包含了id 过滤已选择里有过的值
-            return !this.matchCheckedItemList.some(
-              mItem => item.key === mItem.key && item.value === mItem.value && item.operator === mItem.operator,
-            );
-          }
-          return false;
-        });
-        this.matchCheckedItemList = [...this.matchCheckedItemList, ...checkedItemList];
-        this.matchCheckedList = [...this.matchSelectList, ...this.matchCheckedList];
-        this.matchSelectList = [];
-      },
-      // 关闭弹窗 重置备选 已选数组
-      resetSelect() {
         this.matchSelectList = [];
         this.matchSelectItemList = [];
-        this.matchCheckedList = [];
-        this.matchCheckedItemList = [];
-      },
-      handelConfirmLabel() {
-        const allCheckedKey = [...this.matchSelectList, ...this.matchCheckedList];
-        const allCheckedValue = [...this.matchSelectItemList, ...this.matchCheckedItemList].map(item => ({
-          ...item,
-          type: item.operator === '=' ? 'match_labels' : 'match_expressions',
-        }));
-        const matchLabels = allCheckedValue.filter(item => allCheckedKey.includes(item.id));
-        const labelObj = { labelSelector: [...matchLabels] };
-        this.resetSelect();
-        this.$emit('config-label-change', labelObj);
-        this.$emit('update:is-show-dialog', false);
-      },
-      /**
-       * @desc: 根据请求类型获取树列表
-       */
-      getTreeList() {
-        const { bk_biz_id, bcs_cluster_id, type, namespaceStr } = this.labelParams;
-        const query = { namespace: namespaceStr, bcs_cluster_id, type, bk_biz_id };
-        if (type === 'node') delete query.namespace;
-        this.treeLoading = true;
-        this.$http
-          .request('container/getPodTree', { query })
-          .then(res => {
-            if (res.code === 0) {
-              // 树列表
-              this.treeList = this.initTreeList(typeof res.data === 'object' ? [res.data] : res.data);
-              const expandList = this.getResultStrList(this.treeList);
-              // 默认展开列表
-              this.defaultExpandList = expandList;
-            }
-          })
-          .catch(err => {
-            console.warn(err);
-          })
-          .finally(() => {
-            this.treeLoading = false;
-          });
-      },
-      /**
-       * @desc: 根据树节点的值获取结果回填数组
-       * @param { Array } treeList 树数组
-       * @returns { Array } strList 结果回填数组
-       */
-      getResultStrList(treeList) {
-        const absoluteNameList = []; // 最后一级之前拼接的name值
-        const expandList = []; // 默认展示ID数组
-        // 树结构是数组 进行for循环遍历
-        treeList.forEach((item, index) => {
-          (function recurse(currentItem, fatherItem) {
-            if (currentItem.children) {
-              // 还有子数组则先判断name列表里当前对象是否有缓存name
-              if (absoluteNameList.find(aItem => aItem.index === index)) {
-                absoluteNameList[index].name = `${fatherItem.name}/${currentItem.name}`;
-              } else {
-                absoluteNameList.push({
-                  index,
-                  name: currentItem.name,
-                });
-              }
-              for (const child of currentItem.children) {
-                recurse(child, item);
-              }
-              expandList.push(currentItem.id);
-            }
-          })(item); // 自执行函数保存递归函数
-        });
-        return expandList;
-      },
-      // 给集群赋值名字
-      initTreeList(treeList) {
-        return treeList.map(item => {
-          if (item.type === 'cluster') {
-            const cluster = this.clusterList.find(cItem => cItem.id === item.id);
-            if (!!cluster) item.name = `${cluster.name} (${item.id})`;
-          }
-          return item;
-        });
-      },
-      /**
-       * @desc: 根据选中的树节点获取请求用的name字符串
-       * @param { Array } treeList
-       * @returns { String } 'name1,name2,name3'
-       */
-      getNameStrAndNameSpace(treeList) {
-        const namespaceSetList = new Set();
-        const strList = []; // 结果字符串数组
-        (function recurse(currentItem) {
-          if (currentItem.data?.children) {
-            for (const child of currentItem.children) {
-              recurse(child);
-            }
-          } else {
-            if (currentItem.parent.data.type === 'namespace') {
-              namespaceSetList.add(currentItem.parent.data.id);
-            }
-            strList.push(currentItem.data.id);
-            return;
-          }
-        })(treeList); // 自执行函数保存递归函数
-        const nameStr = strList.join(',');
-        const nameSpaceStr = [...namespaceSetList].join(',');
-        return [nameSpaceStr, nameStr];
-      },
-      handleMouseDown(e, direction = 'left') {
-        const node = e.target;
-        const { parentNode } = node;
+        return;
+      }
 
-        if (!parentNode) return;
-
-        const nodeRect = node.getBoundingClientRect();
-        const rect = parentNode.getBoundingClientRect();
-        this.activeStretchBtn = direction;
-        const handleMouseMove = event => {
-          const [min, max] = this.leftRange;
-          const newWidth = event.clientX - rect.left - nodeRect.width;
-          this.leftPreWidth = newWidth < min ? min : Math.min(newWidth, max);
-        };
-        const handleMouseUp = () => {
-          this.activeStretchBtn = '';
-          window.removeEventListener('mousemove', handleMouseMove);
-          window.removeEventListener('mouseup', handleMouseUp);
-        };
-        window.addEventListener('mousemove', handleMouseMove);
-        window.addEventListener('mouseup', handleMouseUp);
-      },
-      handelCancelDialog() {
-        this.$emit('update:is-show-dialog', false);
-      },
-      isSelectItem(listName, key) {
-        return this[listName].includes(key);
-      },
-      search() {
-        this.$refs.labelTreeRef.filter(this.filterStr);
-        this.treeIsEmpty = this.$refs.labelTreeRef.isSearchEmpty;
-      },
-      filterMethod(keyword, node) {
-        return node.data.name.includes(keyword);
-      },
-      handleOperation() {
-        this.filterStr = '';
-        this.search();
-      },
+      const [nameSpaceStr, nameStr] = this.getNameStrAndNameSpace(treeItem); // 获取当前树节点标签请求name字符串
+      const { bk_biz_id, bcs_cluster_id, type } = this.labelParams;
+      const query = { namespace: nameSpaceStr, bcs_cluster_id, type, bk_biz_id, name: nameStr };
+      if (type === 'node') delete query.namespace;
+      this.labelLoading = true;
+      this.catchCheckedItemList();
+      this.$http
+        .request('container/getNodeLabelList', { query })
+        .then(res => {
+          if (res.code === 0) {
+            this.matchSelectItemList = res.data
+              .filter(item => {
+                // 先生成已选列表和主页已选列表 若为没有 则全返回
+                const allCheckedItemList = [...this.matchCheckedItemList, ...this.labelParams.labelSelector];
+                if (!allCheckedItemList.length) return true;
+                // 判断当前备选是否在已选和主页已选有重复 若有重复则不返回
+                return !allCheckedItemList.some(
+                  mItem => item.key === mItem.key && item.value === mItem.value && mItem.operator === '='
+                );
+              })
+              .map(item => ({ ...item, operator: '=', id: random(10) }));
+          }
+        })
+        .catch(err => {
+          console.warn(err);
+        })
+        .finally(() => {
+          this.labelLoading = false;
+        });
     },
-  };
+    // 切换树选项时缓存备选列表里的值
+    catchCheckedItemList() {
+      if (!this.matchSelectList.length) return; // 备选没有选择
+      const checkedItemList = this.matchSelectItemList.filter(item => {
+        if (this.matchSelectList.includes(item.id)) {
+          // 包含了id 过滤已选择里有过的值
+          return !this.matchCheckedItemList.some(
+            mItem => item.key === mItem.key && item.value === mItem.value && item.operator === mItem.operator
+          );
+        }
+        return false;
+      });
+      this.matchCheckedItemList = [...this.matchCheckedItemList, ...checkedItemList];
+      this.matchCheckedList = [...this.matchSelectList, ...this.matchCheckedList];
+      this.matchSelectList = [];
+    },
+    // 关闭弹窗 重置备选 已选数组
+    resetSelect() {
+      this.matchSelectList = [];
+      this.matchSelectItemList = [];
+      this.matchCheckedList = [];
+      this.matchCheckedItemList = [];
+    },
+    handelConfirmLabel() {
+      const allCheckedKey = [...this.matchSelectList, ...this.matchCheckedList];
+      const allCheckedValue = [...this.matchSelectItemList, ...this.matchCheckedItemList].map(item => ({
+        ...item,
+        type: item.operator === '=' ? 'match_labels' : 'match_expressions',
+      }));
+      const matchLabels = allCheckedValue.filter(item => allCheckedKey.includes(item.id));
+      const labelObj = { labelSelector: [...matchLabels] };
+      this.resetSelect();
+      this.$emit('config-label-change', labelObj);
+      this.$emit('update:is-show-dialog', false);
+    },
+    /**
+     * @desc: 根据请求类型获取树列表
+     */
+    getTreeList() {
+      const { bk_biz_id, bcs_cluster_id, type, namespaceStr } = this.labelParams;
+      const query = { namespace: namespaceStr, bcs_cluster_id, type, bk_biz_id };
+      if (type === 'node') delete query.namespace;
+      this.treeLoading = true;
+      this.$http
+        .request('container/getPodTree', { query })
+        .then(res => {
+          if (res.code === 0) {
+            // 树列表
+            this.treeList = this.initTreeList(typeof res.data === 'object' ? [res.data] : res.data);
+            const expandList = this.getResultStrList(this.treeList);
+            // 默认展开列表
+            this.defaultExpandList = expandList;
+          }
+        })
+        .catch(err => {
+          console.warn(err);
+        })
+        .finally(() => {
+          this.treeLoading = false;
+        });
+    },
+    /**
+     * @desc: 根据树节点的值获取结果回填数组
+     * @param { Array } treeList 树数组
+     * @returns { Array } strList 结果回填数组
+     */
+    getResultStrList(treeList) {
+      const absoluteNameList = []; // 最后一级之前拼接的name值
+      const expandList = []; // 默认展示ID数组
+      // 树结构是数组 进行for循环遍历
+      treeList.forEach((item, index) => {
+        (function recurse(currentItem, fatherItem) {
+          if (currentItem.children) {
+            // 还有子数组则先判断name列表里当前对象是否有缓存name
+            if (absoluteNameList.find(aItem => aItem.index === index)) {
+              absoluteNameList[index].name = `${fatherItem.name}/${currentItem.name}`;
+            } else {
+              absoluteNameList.push({
+                index,
+                name: currentItem.name,
+              });
+            }
+            for (const child of currentItem.children) {
+              recurse(child, item);
+            }
+            expandList.push(currentItem.id);
+          }
+        })(item); // 自执行函数保存递归函数
+      });
+      return expandList;
+    },
+    // 给集群赋值名字
+    initTreeList(treeList) {
+      return treeList.map(item => {
+        if (item.type === 'cluster') {
+          const cluster = this.clusterList.find(cItem => cItem.id === item.id);
+          if (!!cluster) item.name = `${cluster.name} (${item.id})`;
+        }
+        return item;
+      });
+    },
+    /**
+     * @desc: 根据选中的树节点获取请求用的name字符串
+     * @param { Array } treeList
+     * @returns { String } 'name1,name2,name3'
+     */
+    getNameStrAndNameSpace(treeList) {
+      const namespaceSetList = new Set();
+      const strList = []; // 结果字符串数组
+      (function recurse(currentItem) {
+        if (currentItem.data?.children) {
+          for (const child of currentItem.children) {
+            recurse(child);
+          }
+        } else {
+          if (currentItem.parent.data.type === 'namespace') {
+            namespaceSetList.add(currentItem.parent.data.id);
+          }
+          strList.push(currentItem.data.id);
+          return;
+        }
+      })(treeList); // 自执行函数保存递归函数
+      const nameStr = strList.join(',');
+      const nameSpaceStr = [...namespaceSetList].join(',');
+      return [nameSpaceStr, nameStr];
+    },
+    handleMouseDown(e, direction = 'left') {
+      const node = e.target;
+      const { parentNode } = node;
+
+      if (!parentNode) return;
+
+      const nodeRect = node.getBoundingClientRect();
+      const rect = parentNode.getBoundingClientRect();
+      this.activeStretchBtn = direction;
+      const handleMouseMove = event => {
+        const [min, max] = this.leftRange;
+        const newWidth = event.clientX - rect.left - nodeRect.width;
+        this.leftPreWidth = newWidth < min ? min : Math.min(newWidth, max);
+      };
+      const handleMouseUp = () => {
+        this.activeStretchBtn = '';
+        window.removeEventListener('mousemove', handleMouseMove);
+        window.removeEventListener('mouseup', handleMouseUp);
+      };
+      window.addEventListener('mousemove', handleMouseMove);
+      window.addEventListener('mouseup', handleMouseUp);
+    },
+    handelCancelDialog() {
+      this.$emit('update:is-show-dialog', false);
+    },
+    isSelectItem(listName, key) {
+      return this[listName].includes(key);
+    },
+    search() {
+      this.$refs.labelTreeRef.filter(this.filterStr);
+      this.treeIsEmpty = this.$refs.labelTreeRef.isSearchEmpty;
+    },
+    filterMethod(keyword, node) {
+      return node.data.name.includes(keyword);
+    },
+    handleOperation() {
+      this.filterStr = '';
+      this.search();
+    },
+  },
+};
 </script>
 <style lang="scss">
   @import '@/scss/mixins/flex.scss';

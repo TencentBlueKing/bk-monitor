@@ -447,7 +447,7 @@ export default class MaskingField extends tsc<IProps> {
       const typeIndex = lItem.findIndex(item => item.field_class === fieldItem.field_class);
       // 找到对应fieldName的索引
       const fieldIndex = lItem[typeIndex].fieldList?.findIndex(
-        (item: IFieldItem) => item.field_name === fieldItem.field_name,
+        (item: IFieldItem) => item.field_name === fieldItem.field_name
       );
       callback(lItem[typeIndex].fieldList[fieldIndex]);
     });
@@ -721,7 +721,7 @@ export default class MaskingField extends tsc<IProps> {
       .map(fItem => ({
         ...fItem,
         fieldList: (fItem.fieldList as any).filter(item =>
-          item.field_name.toString().toLowerCase().includes(this.searchStr.toLowerCase()),
+          item.field_name.toString().toLowerCase().includes(this.searchStr.toLowerCase())
         ),
       }))
       .filter(item => !!item.fieldList.length);
@@ -764,9 +764,9 @@ export default class MaskingField extends tsc<IProps> {
               click: () => this.handleAllSync(),
             },
           },
-          this.$t('同步所有变更'),
+          this.$t('同步所有变更')
         ),
-      ],
+      ]
     );
   }
 
@@ -787,7 +787,7 @@ export default class MaskingField extends tsc<IProps> {
             },
           ],
         }),
-      ],
+      ]
     );
   }
 
@@ -853,7 +853,7 @@ export default class MaskingField extends tsc<IProps> {
         {
           fieldList: [],
           fieldObj: {},
-        },
+        }
       );
     } catch (err) {
       return {
@@ -874,7 +874,7 @@ export default class MaskingField extends tsc<IProps> {
         {
           params: { index_set_id: this.collectData?.index_set_id },
         },
-        { catchIsShowMessage: false },
+        { catchIsShowMessage: false }
       );
       return res.data.field_configs;
     } catch (err) {
@@ -1661,7 +1661,7 @@ export default class MaskingField extends tsc<IProps> {
                   })
                 : this.$t(
                     '当前规则【{n}】已进行了变更，同步该规则可能会导致命中结果变更，请确认是否需要同步该变更或忽略，也可重新选择规则',
-                    { n: this.currentOperateRule.rule_name },
+                    { n: this.currentOperateRule.rule_name }
                   )}
             </span>
             <div class={`rule-change-container rule-${this.currentRuleState}`}>

@@ -17,64 +17,64 @@
 </template>
 
 <script setup>
-  import { ref, computed, onBeforeUnmount } from 'vue';
-  import useIntersectionObserver from '@/hooks/use-intersection-observer';
-  import { isElement } from 'lodash';
+import { ref, computed, onBeforeUnmount } from 'vue';
+import useIntersectionObserver from '@/hooks/use-intersection-observer';
+import { isElement } from 'lodash';
 
-  const props = defineProps({
-    delay: {
-      type: Number,
-      default: 0,
-    },
-    visibleOnly: {
-      type: Boolean,
-      default: false,
-    },
-    minHeight: {
-      type: String,
-      default: '40px',
-    },
-    root: {
-      type: HTMLDivElement,
-      default: null,
-    },
-  });
+const props = defineProps({
+  delay: {
+    type: Number,
+    default: 0,
+  },
+  visibleOnly: {
+    type: Boolean,
+    default: false,
+  },
+  minHeight: {
+    type: String,
+    default: '40px',
+  },
+  root: {
+    type: HTMLDivElement,
+    default: null,
+  },
+});
 
-  const lazyRenderCell = ref(null);
-  const isVisible = ref(false);
-  const localHeight = ref();
-  const isIntersecting = ref(false);
+const lazyRenderCell = ref(null);
+const isVisible = ref(false);
+const localHeight = ref();
+const isIntersecting = ref(false);
 
-  const cellStyle = computed(() => {
-    return {
-      minHeight: localHeight.value ?? props.minHeight,
-    };
-  });
+const cellStyle = computed(() => {
+  return {
+    minHeight: localHeight.value ?? props.minHeight,
+  };
+});
 
-  let resizeObserver = new ResizeObserver(() => {
-    localHeight.value = `${lazyRenderCell.value?.firstElementChild?.offsetHeight ?? props.minHeight}px}`;
-  });
+let resizeObserver = new ResizeObserver(() => {
+  localHeight.value = `${lazyRenderCell.value?.firstElementChild?.offsetHeight ?? props.minHeight}px}`;
+});
 
-  useIntersectionObserver(lazyRenderCell, entry => {
-    if (entry.isIntersecting) {
-      isVisible.value = true;
-      if (lazyRenderCell.value?.firstElementChild && isElement(lazyRenderCell.value.firstElementChild)) {
-        resizeObserver.observe(lazyRenderCell.value.firstElementChild);
-      }
-    } else {
-      if (lazyRenderCell.value?.firstElementChild && isElement(lazyRenderCell.value.firstElementChild)) {
-        resizeObserver.unobserve(lazyRenderCell.value.firstElementChild);
-      }
-      if (props.visibleOnly) {
-        isVisible.value = false;
-      }
+useIntersectionObserver(lazyRenderCell, entry => {
+  if (entry.isIntersecting) {
+    isVisible.value = true;
+    if (lazyRenderCell.value?.firstElementChild && isElement(lazyRenderCell.value.firstElementChild)) {
+      resizeObserver.observe(lazyRenderCell.value.firstElementChild);
     }
-  });
+  } else {
+    if (lazyRenderCell.value?.firstElementChild && isElement(lazyRenderCell.value.firstElementChild)) {
+      resizeObserver.unobserve(lazyRenderCell.value.firstElementChild);
+    }
+    if (props.visibleOnly) {
+      isVisible.value = false;
+    }
+  }
+});
 
-  onBeforeUnmount(() => {
-    resizeObserver.disconnect();
-    resizeObserver = null;
-  });
+onBeforeUnmount(() => {
+  resizeObserver.disconnect();
+  resizeObserver = null;
+});
 </script>
 
 <style>

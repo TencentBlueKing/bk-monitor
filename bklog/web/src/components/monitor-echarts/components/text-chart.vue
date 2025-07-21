@@ -40,21 +40,21 @@
 </template>
 
 <script lang="ts">
-  import { Vue, Prop, Component } from 'vue-property-decorator';
+import { Vue, Prop, Component } from 'vue-property-decorator';
 
-  import { ITextSeries } from '../options/type-interface';
+import { ITextSeries } from '../options/type-interface';
 
-  @Component({
-    name: 'TextChart',
+@Component({
+  name: 'TextChart',
+})
+export default class TextChart extends Vue {
+  @Prop({
+    default() {
+      return {};
+    },
   })
-  export default class TextChart extends Vue {
-    @Prop({
-      default() {
-        return {};
-      },
-    })
-    series: ITextSeries;
-  }
+  series: ITextSeries;
+}
 </script>
 
 <style lang="scss" scoped>

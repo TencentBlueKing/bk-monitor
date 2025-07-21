@@ -135,7 +135,7 @@ export default class FieldFilterComp extends tsc<object> {
       {
         headerList: [],
         filterHeaderBuiltFields: [],
-      },
+      }
     );
     return [...headerList, ...this.sortHiddenList([filterHeaderBuiltFields])];
   }
@@ -153,7 +153,7 @@ export default class FieldFilterComp extends tsc<object> {
       {
         initHiddenList: [],
         otherList: [],
-      },
+      }
     );
     const visibleBuiltLength = this.builtInFields.filter(item => item.filterVisible).length;
     const hiddenFieldVisible = !!initHiddenList.filter(item => item.filterVisible).length;

@@ -125,57 +125,57 @@
 </template>
 
 <script lang="ts">
-  import { Component, Vue, Prop, Emit, Watch } from 'vue-property-decorator';
+import { Component, Vue, Prop, Emit, Watch } from 'vue-property-decorator';
 
-  import { ILegendItem } from '../options/type-interface';
+import { ILegendItem } from '../options/type-interface';
 
-  @Component({
-    name: 'chart-legend',
-  })
-  export default class ChartLegend extends Vue {
-    @Prop({ required: true }) readonly legendData: ILegendItem[];
-    @Prop({ default: 'common' }) readonly legendType: 'common' | 'table';
-    headList: string[] = ['Min', 'Max', 'Avg'];
-    list: ILegendItem[] = [];
-    sort = 0;
-    sortTitle = '';
-    @Watch('legendData', { immediate: true })
-    handleLegendDataChange() {
-      this.handleSortChange();
-    }
-
-    @Emit('legend-event')
-    handleLegendEvent(e, actionType: string, item: ILegendItem) {
-      let eventType = actionType;
-      if (e.shiftKey && actionType === 'click') {
-        eventType = 'shift-click';
-      }
-      return { actionType: eventType, item };
-    }
-    handleSortChange(title?: 'Avg' | 'Max' | 'Min', sort?) {
-      this.sortTitle = title || '';
-      if (title) {
-        if (typeof sort === 'number') {
-          this.sort = sort;
-        } else {
-          this.sort = (this.sort + 1) % 3;
-        }
-      }
-      if (this.sort === 0 || !title) {
-        this.list = this.legendData;
-        return;
-      }
-      const sortId = title.toLocaleLowerCase();
-      this.list = this.legendData.slice().sort((a, b) => {
-        const [aVal] = a[sortId].match(/\d+\.?\d+/) || [0];
-        const [bVal] = b[sortId].match(/\d+\.?\d+/) || [0];
-        if (this.sort === 1) {
-          return +aVal - +bVal;
-        }
-        return +bVal - +aVal;
-      });
-    }
+@Component({
+  name: 'chart-legend',
+})
+export default class ChartLegend extends Vue {
+  @Prop({ required: true }) readonly legendData: ILegendItem[];
+  @Prop({ default: 'common' }) readonly legendType: 'common' | 'table';
+  headList: string[] = ['Min', 'Max', 'Avg'];
+  list: ILegendItem[] = [];
+  sort = 0;
+  sortTitle = '';
+  @Watch('legendData', { immediate: true })
+  handleLegendDataChange() {
+    this.handleSortChange();
   }
+
+  @Emit('legend-event')
+  handleLegendEvent(e, actionType: string, item: ILegendItem) {
+    let eventType = actionType;
+    if (e.shiftKey && actionType === 'click') {
+      eventType = 'shift-click';
+    }
+    return { actionType: eventType, item };
+  }
+  handleSortChange(title?: 'Avg' | 'Max' | 'Min', sort?) {
+    this.sortTitle = title || '';
+    if (title) {
+      if (typeof sort === 'number') {
+        this.sort = sort;
+      } else {
+        this.sort = (this.sort + 1) % 3;
+      }
+    }
+    if (this.sort === 0 || !title) {
+      this.list = this.legendData;
+      return;
+    }
+    const sortId = title.toLocaleLowerCase();
+    this.list = this.legendData.slice().sort((a, b) => {
+      const [aVal] = a[sortId].match(/\d+\.?\d+/) || [0];
+      const [bVal] = b[sortId].match(/\d+\.?\d+/) || [0];
+      if (this.sort === 1) {
+        return +aVal - +bVal;
+      }
+      return +bVal - +aVal;
+    });
+  }
+}
 </script>
 
 <style lang="scss" scoped>

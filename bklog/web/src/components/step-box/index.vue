@@ -44,31 +44,31 @@
 </template>
 
 <script>
-  export default {
-    props: {
-      placement: {
-        type: String,
-        default: '',
-      },
-      tipStyles: {
-        type: Object,
-        default: () => ({}),
-      },
-      hasBorder: {
-        type: Boolean,
-        default: false,
-      },
+export default {
+  props: {
+    placement: {
+      type: String,
+      default: '',
     },
-    computed: {
-      className() {
-        return `${this.placement} ${this.hasBorder ? 'has-border' : ''}`;
-        // return this.placement;
-      },
-      style() {
-        return this.tipStyles;
-      },
+    tipStyles: {
+      type: Object,
+      default: () => ({}),
     },
-  };
+    hasBorder: {
+      type: Boolean,
+      default: false,
+    },
+  },
+  computed: {
+    className() {
+      return `${this.placement} ${this.hasBorder ? 'has-border' : ''}`;
+      // return this.placement;
+    },
+    style() {
+      return this.tipStyles;
+    },
+  },
+};
 </script>
 
 <style lang="scss">

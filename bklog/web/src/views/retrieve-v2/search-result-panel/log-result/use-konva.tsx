@@ -153,10 +153,10 @@ export default ({ onSegmentClick }) => {
     if (item.split?.length) {
       const [leftItem, rightItem] = item.split;
       const leftDistance = Math.abs(
-        getDistance(leftItem.left + leftItem.width / 2, leftItem.top + fontSize / 2, pointer.x, pointer.y),
+        getDistance(leftItem.left + leftItem.width / 2, leftItem.top + fontSize / 2, pointer.x, pointer.y)
       );
       const rightDistance = Math.abs(
-        getDistance(rightItem.left + rightItem.width / 2, rightItem.top + fontSize / 2, pointer.x, pointer.y),
+        getDistance(rightItem.left + rightItem.width / 2, rightItem.top + fontSize / 2, pointer.x, pointer.y)
       );
 
       if (leftDistance < rightDistance) {
@@ -213,7 +213,7 @@ export default ({ onSegmentClick }) => {
     frontContainer: HTMLDivElement,
     width: number,
     height: number,
-    family: string,
+    family: string
   ) => {
     fontFamily = family;
     boxWidth = width;
@@ -327,7 +327,7 @@ export default ({ onSegmentClick }) => {
     itemList: WordListItem[],
     currentIndex: number,
     originLeft: number,
-    updateLeft = true,
+    updateLeft = true
   ) => {
     const item = itemList[currentIndex];
 

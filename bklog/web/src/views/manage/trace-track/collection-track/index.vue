@@ -29,10 +29,10 @@
 </template>
 
 <script>
-  export default {
-    name: 'CollectionTrack',
-    data() {
-      return {};
-    },
-  };
+export default {
+  name: 'CollectionTrack',
+  data() {
+    return {};
+  },
+};
 </script>

@@ -160,7 +160,7 @@ export default ({ target, type }: { target: Ref<any>; type: string }) => {
                 data: mapValue[k],
               };
             });
-          }),
+          })
         ).flat(2),
       };
     }
@@ -302,11 +302,11 @@ export default ({ target, type }: { target: Ref<any>; type: string }) => {
     yFields?: string[],
     dimensions?: string[],
     data?: any,
-    type?: string,
+    type?: string
   ) => {
     const { categories, seriesData } = formatTimeDimensionResultData(
       aggregateData(data?.list ?? [], xFields, yFields, type, dimensions[0]),
-      dimensions.length === 1,
+      dimensions.length === 1
     );
     options.xAxis.data = categories;
     Object.assign(options.yAxis.axisLabel, getYAxisLabel());
@@ -325,7 +325,7 @@ export default ({ target, type }: { target: Ref<any>; type: string }) => {
     yFields?: string[],
     dimensions?: string[],
     data?: any,
-    type?: string,
+    type?: string
   ) => {
     const actionMap = {
       pie: updatePieOption,
@@ -341,7 +341,7 @@ export default ({ target, type }: { target: Ref<any>; type: string }) => {
     yFields?: string[],
     dimensions?: string[],
     data?: any,
-    type?: string,
+    type?: string
   ) => {
     chartInstance?.clear();
     if (!chartInstance) {

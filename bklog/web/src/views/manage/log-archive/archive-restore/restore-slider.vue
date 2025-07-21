@@ -149,268 +149,268 @@
 </template>
 
 <script>
-  import SidebarDiffMixin from '@/mixins/sidebar-diff-mixin';
-  import { mapGetters } from 'vuex';
+import SidebarDiffMixin from '@/mixins/sidebar-diff-mixin';
+import { mapGetters } from 'vuex';
 
-  import * as authorityMap from '../../../../common/authority-map';
-  import ValidateUserSelector from '../../manage-extract/manage-extract-permission/validate-user-selector';
+import * as authorityMap from '../../../../common/authority-map';
+import ValidateUserSelector from '../../manage-extract/manage-extract-permission/validate-user-selector';
 
-  export default {
-    components: {
-      ValidateUserSelector,
+export default {
+  components: {
+    ValidateUserSelector,
+  },
+  mixins: [SidebarDiffMixin],
+  props: {
+    showSlider: {
+      type: Boolean,
+      default: false,
     },
-    mixins: [SidebarDiffMixin],
-    props: {
-      showSlider: {
-        type: Boolean,
-        default: false,
-      },
-      editRestore: {
-        type: Object,
-        default: null,
-      },
-      archiveId: {
-        type: Number,
-        default: null,
-      },
+    editRestore: {
+      type: Object,
+      default: null,
     },
-    data() {
-      return {
-        confirmLoading: false,
-        sliderLoading: false,
-        userApi: window.BK_LOGIN_URL,
-        customRetentionDay: '', // 自定义过期天数
-        retentionDaysList: [], // 过期天数列表
-        archiveList: [],
-        formData: {
+    archiveId: {
+      type: Number,
+      default: null,
+    },
+  },
+  data() {
+    return {
+      confirmLoading: false,
+      sliderLoading: false,
+      userApi: window.BK_LOGIN_URL,
+      customRetentionDay: '', // 自定义过期天数
+      retentionDaysList: [], // 过期天数列表
+      archiveList: [],
+      formData: {
+        index_set_name: '',
+        archive_config_id: '',
+        datePickerValue: ['', ''],
+        datePickerExpired: '',
+        expired_time: '',
+        notice_user: [],
+        start_time: '',
+        end_time: '',
+      },
+      basicRules: {},
+      requiredRules: {
+        required: true,
+        trigger: 'blur',
+      },
+      expiredDatePicker: {
+        disabledDate(time) {
+          return time.getTime() < Date.now();
+        },
+      },
+    };
+  },
+  computed: {
+    ...mapGetters({
+      bkBizId: 'bkBizId',
+      user: 'uesr',
+      globalsData: 'globals/globalsData',
+    }),
+    authorityMap() {
+      return authorityMap;
+    },
+    isEdit() {
+      return this.editRestore !== null;
+    },
+  },
+  watch: {
+    showSlider(val) {
+      if (val) {
+        this.sliderLoading = this.isEdit;
+        this.getArchiveList();
+        this.updateDaysList();
+        if (this.isEdit) {
+          const {
+            index_set_name,
+            archive_config_id,
+            expired_time: expiredTime,
+            notice_user,
+            start_time,
+            end_time,
+          } = this.editRestore;
+          Object.assign(this.formData, {
+            index_set_name,
+            archive_config_id,
+            expired_time: expiredTime,
+            notice_user,
+            start_time,
+            end_time,
+
+            datePickerValue: [start_time, end_time],
+            datePickerExpired: expiredTime,
+          });
+        } else {
+          const { userMeta } = this.$store.state;
+          if (userMeta?.username) {
+            this.formData.notice_user.push(userMeta.username);
+          }
+        }
+
+        if (this.archiveId) {
+          // 从归档列表新建回溯
+          this.formData.archive_config_id = this.archiveId;
+        }
+        this.initSidebarFormData();
+      } else {
+        // 清空表单数据
+        this.formData = {
           index_set_name: '',
           archive_config_id: '',
           datePickerValue: ['', ''],
-          datePickerExpired: '',
           expired_time: '',
+          datePickerExpired: '',
           notice_user: [],
           start_time: '',
           end_time: '',
-        },
-        basicRules: {},
-        requiredRules: {
-          required: true,
+        };
+      }
+    },
+  },
+  created() {
+    this.basicRules = {
+      index_set_name: [this.requiredRules],
+      archive_config_id: [this.requiredRules],
+      datePickerExpired: [this.requiredRules],
+      datePickerValue: [
+        {
+          validator: val => {
+            if (val.length) {
+              return !!val.every(item => item);
+            }
+            return false;
+          },
           trigger: 'blur',
         },
-        expiredDatePicker: {
-          disabledDate(time) {
-            return time.getTime() < Date.now();
+      ],
+      notice_user: [
+        {
+          validator: val => {
+            return !!val.length;
           },
+          trigger: 'blur',
         },
+      ],
+    };
+  },
+  methods: {
+    getArchiveList() {
+      const query = {
+        bk_biz_id: this.bkBizId,
       };
-    },
-    computed: {
-      ...mapGetters({
-        bkBizId: 'bkBizId',
-        user: 'uesr',
-        globalsData: 'globals/globalsData',
-      }),
-      authorityMap() {
-        return authorityMap;
-      },
-      isEdit() {
-        return this.editRestore !== null;
-      },
-    },
-    watch: {
-      showSlider(val) {
-        if (val) {
-          this.sliderLoading = this.isEdit;
-          this.getArchiveList();
-          this.updateDaysList();
-          if (this.isEdit) {
-            const {
-              index_set_name,
-              archive_config_id,
-              expired_time: expiredTime,
-              notice_user,
-              start_time,
-              end_time,
-            } = this.editRestore;
-            Object.assign(this.formData, {
-              index_set_name,
-              archive_config_id,
-              expired_time: expiredTime,
-              notice_user,
-              start_time,
-              end_time,
-
-              datePickerValue: [start_time, end_time],
-              datePickerExpired: expiredTime,
-            });
-          } else {
-            const { userMeta } = this.$store.state;
-            if (userMeta?.username) {
-              this.formData.notice_user.push(userMeta.username);
-            }
+      this.$http
+        .request('archive/getAllArchives', { query })
+        .then(res => {
+          this.archiveList = res.data || [];
+          if (!this.isEdit) {
+            this.formData.archive_config_id = res.data[0].archive_config_id || '';
+            this.handleArchiveChange(res.data[0].archive_config_id);
           }
-
-          if (this.archiveId) {
-            // 从归档列表新建回溯
-            this.formData.archive_config_id = this.archiveId;
-          }
-          this.initSidebarFormData();
-        } else {
-          // 清空表单数据
-          this.formData = {
-            index_set_name: '',
-            archive_config_id: '',
-            datePickerValue: ['', ''],
-            expired_time: '',
-            datePickerExpired: '',
-            notice_user: [],
-            start_time: '',
-            end_time: '',
-          };
+        })
+        .finally(() => {
+          this.sliderLoading = false;
+        });
+    },
+    updateIsShow() {
+      this.$emit('hidden');
+      this.$emit('update:show-slider', false);
+    },
+    handleCancel() {
+      this.$emit('update:show-slider', false);
+    },
+    handleTimeChange(val) {
+      this.formData.start_time = val[0];
+      this.formData.end_time = val[1];
+    },
+    handleExpiredChange(val) {
+      this.formData.expired_time = val;
+    },
+    handleArchiveChange(nval) {
+      const selectArchive = this.archiveList.find(el => el.archive_config_id === nval);
+      const date = new Date();
+      const year = date.getFullYear();
+      const month = date.getMonth() * 1 + 1 >= 10 ? date.getMonth() * 1 + 1 : `0${date.getMonth() * 1 + 1}`;
+      const day = date.getDate() >= 10 ? date.getDate() : `0${date.getDate()}`;
+      const hour = date.getHours() >= 10 ? date.getHours() : `0${date.getHours()}`;
+      const min = date.getMinutes() >= 10 ? date.getMinutes() : `0${date.getMinutes()}`;
+      const dateStr = `${year}${month}${day}${hour}${min}`;
+      this.formData.index_set_name = selectArchive
+        ? `${selectArchive?.instance_name}-${this.$t('回溯')}-${dateStr}`
+        : '';
+    },
+    updateDaysList() {
+      const retentionDaysList = [...this.globalsData.storage_duration_time].filter(item => {
+        return item.id;
+      });
+      this.retentionDaysList = retentionDaysList;
+    },
+    // 输入自定义过期天数
+    enterCustomDay(val) {
+      const numberVal = parseInt(val.trim(), 10);
+      const stringVal = numberVal.toString();
+      if (numberVal) {
+        if (!this.retentionDaysList.some(item => item.id === stringVal)) {
+          this.retentionDaysList.push({
+            id: stringVal,
+            name: stringVal + this.$t('天'),
+          });
         }
-      },
+        this.formData.snapshot_days = stringVal;
+        this.customRetentionDay = '';
+        document.body.click();
+      } else {
+        this.customRetentionDay = '';
+        this.messageError(this.$t('请输入有效数值'));
+      }
     },
-    created() {
-      this.basicRules = {
-        index_set_name: [this.requiredRules],
-        archive_config_id: [this.requiredRules],
-        datePickerExpired: [this.requiredRules],
-        datePickerValue: [
-          {
-            validator: val => {
-              if (val.length) {
-                return !!val.every(item => item);
-              }
-              return false;
-            },
-            trigger: 'blur',
-          },
-        ],
-        notice_user: [
-          {
-            validator: val => {
-              return !!val.length;
-            },
-            trigger: 'blur',
-          },
-        ],
-      };
-    },
-    methods: {
-      getArchiveList() {
-        const query = {
+    async handleConfirm() {
+      try {
+        await this.$refs.validateForm.validate();
+        let url = '/archive/createRestore';
+        let paramsData = {
+          ...this.formData,
           bk_biz_id: this.bkBizId,
         };
-        this.$http
-          .request('archive/getAllArchives', { query })
-          .then(res => {
-            this.archiveList = res.data || [];
-            if (!this.isEdit) {
-              this.formData.archive_config_id = res.data[0].archive_config_id || '';
-              this.handleArchiveChange(res.data[0].archive_config_id);
-            }
-          })
-          .finally(() => {
-            this.sliderLoading = false;
-          });
-      },
-      updateIsShow() {
-        this.$emit('hidden');
-        this.$emit('update:show-slider', false);
-      },
-      handleCancel() {
-        this.$emit('update:show-slider', false);
-      },
-      handleTimeChange(val) {
-        this.formData.start_time = val[0];
-        this.formData.end_time = val[1];
-      },
-      handleExpiredChange(val) {
-        this.formData.expired_time = val;
-      },
-      handleArchiveChange(nval) {
-        const selectArchive = this.archiveList.find(el => el.archive_config_id === nval);
-        const date = new Date();
-        const year = date.getFullYear();
-        const month = date.getMonth() * 1 + 1 >= 10 ? date.getMonth() * 1 + 1 : `0${date.getMonth() * 1 + 1}`;
-        const day = date.getDate() >= 10 ? date.getDate() : `0${date.getDate()}`;
-        const hour = date.getHours() >= 10 ? date.getHours() : `0${date.getHours()}`;
-        const min = date.getMinutes() >= 10 ? date.getMinutes() : `0${date.getMinutes()}`;
-        const dateStr = `${year}${month}${day}${hour}${min}`;
-        this.formData.index_set_name = selectArchive
-          ? `${selectArchive?.instance_name}-${this.$t('回溯')}-${dateStr}`
-          : '';
-      },
-      updateDaysList() {
-        const retentionDaysList = [...this.globalsData.storage_duration_time].filter(item => {
-          return item.id;
-        });
-        this.retentionDaysList = retentionDaysList;
-      },
-      // 输入自定义过期天数
-      enterCustomDay(val) {
-        const numberVal = parseInt(val.trim(), 10);
-        const stringVal = numberVal.toString();
-        if (numberVal) {
-          if (!this.retentionDaysList.some(item => item.id === stringVal)) {
-            this.retentionDaysList.push({
-              id: stringVal,
-              name: stringVal + this.$t('天'),
-            });
-          }
-          this.formData.snapshot_days = stringVal;
-          this.customRetentionDay = '';
-          document.body.click();
-        } else {
-          this.customRetentionDay = '';
-          this.messageError(this.$t('请输入有效数值'));
-        }
-      },
-      async handleConfirm() {
-        try {
-          await this.$refs.validateForm.validate();
-          let url = '/archive/createRestore';
-          let paramsData = {
-            ...this.formData,
-            bk_biz_id: this.bkBizId,
+        const params = {};
+        delete paramsData.datePickerValue;
+        delete paramsData.datePickerExpired;
+        this.confirmLoading = true;
+
+        if (this.isEdit) {
+          url = '/archive/editRestore';
+          const { expired_time } = this.formData;
+          const { restore_config_id } = this.editRestore;
+
+          paramsData = {
+            expired_time,
+            restore_config_id,
           };
-          const params = {};
-          delete paramsData.datePickerValue;
-          delete paramsData.datePickerExpired;
-          this.confirmLoading = true;
 
-          if (this.isEdit) {
-            url = '/archive/editRestore';
-            const { expired_time } = this.formData;
-            const { restore_config_id } = this.editRestore;
-
-            paramsData = {
-              expired_time,
-              restore_config_id,
-            };
-
-            params.restore_config_id = restore_config_id;
-          }
-
-          await this.$http.request(url, {
-            data: paramsData,
-            params,
-          });
-
-          this.$bkMessage({
-            theme: 'success',
-            message: this.$t('保存成功'),
-            delay: 1500,
-          });
-          this.$emit('updated');
-        } catch (e) {
-          console.warn(e);
-        } finally {
-          this.confirmLoading = false;
+          params.restore_config_id = restore_config_id;
         }
-      },
+
+        await this.$http.request(url, {
+          data: paramsData,
+          params,
+        });
+
+        this.$bkMessage({
+          theme: 'success',
+          message: this.$t('保存成功'),
+          delay: 1500,
+        });
+        this.$emit('updated');
+      } catch (e) {
+        console.warn(e);
+      } finally {
+        this.confirmLoading = false;
+      }
     },
-  };
+  },
+};
 </script>
 
 <style lang="scss">

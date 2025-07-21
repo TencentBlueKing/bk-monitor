@@ -71,46 +71,46 @@
 </template>
 
 <script>
-  export default {
-    props: {
-      emptyType: {
-        type: String,
-        default: 'empty',
-      },
-      scene: {
-        type: String,
-        default: 'part',
-      },
-      showOperation: {
-        type: Boolean,
-        default: true,
-      },
-      showText: {
-        type: Boolean,
-        default: true,
-      },
+export default {
+  props: {
+    emptyType: {
+      type: String,
+      default: 'empty',
     },
-    data() {
-      return {
-        defaultTextMap: {
-          empty: this.$t('暂无数据'),
-          'search-empty': this.$t('搜索结果为空'),
-          500: this.$t('数据获取异常'),
-          403: this.$t('无业务权限'),
-        },
-      };
+    scene: {
+      type: String,
+      default: 'part',
     },
-    computed: {
-      typeText() {
-        return this.defaultTextMap[this.emptyType];
+    showOperation: {
+      type: Boolean,
+      default: true,
+    },
+    showText: {
+      type: Boolean,
+      default: true,
+    },
+  },
+  data() {
+    return {
+      defaultTextMap: {
+        empty: this.$t('暂无数据'),
+        'search-empty': this.$t('搜索结果为空'),
+        500: this.$t('数据获取异常'),
+        403: this.$t('无业务权限'),
       },
+    };
+  },
+  computed: {
+    typeText() {
+      return this.defaultTextMap[this.emptyType];
     },
-    methods: {
-      handleOperation(type) {
-        this.$emit('operation', type);
-      },
+  },
+  methods: {
+    handleOperation(type) {
+      this.$emit('operation', type);
     },
-  };
+  },
+};
 </script>
 
 <style lang="scss">

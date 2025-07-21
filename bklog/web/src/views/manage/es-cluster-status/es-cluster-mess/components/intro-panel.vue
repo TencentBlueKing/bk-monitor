@@ -122,104 +122,104 @@
 </template>
 
 <script>
-  import BkUserSelector from '@blueking/user-selector';
-  import { mapGetters, mapState } from 'vuex';
+import BkUserSelector from '@blueking/user-selector';
+import { mapGetters, mapState } from 'vuex';
 
-  export default {
-    components: {
-      BkUserSelector,
+export default {
+  components: {
+    BkUserSelector,
+  },
+  props: {
+    isOpenWindow: {
+      type: Boolean,
+      default: true,
     },
-    props: {
-      isOpenWindow: {
-        type: Boolean,
-        default: true,
-      },
+  },
+  data() {
+    return {
+      isShowDialog: false,
+      formDataAdmin: [], // 用户数据名
+      baseAdmin: [], // 本人和列表里的人物，不能够进行删除操作
+      chatName: '', // 群聊名称
+      userApi: window.BK_LOGIN_URL,
+    };
+  },
+  computed: {
+    ...mapState({
+      userMeta: state => state.userMeta,
+    }),
+    ...mapGetters({
+      globalsData: 'globals/globalsData',
+    }),
+    esSourceList() {
+      const { es_source_type: esSourceList } = this.globalsData;
+      return esSourceList || [];
     },
-    data() {
-      return {
-        isShowDialog: false,
-        formDataAdmin: [], // 用户数据名
-        baseAdmin: [], // 本人和列表里的人物，不能够进行删除操作
-        chatName: '', // 群聊名称
-        userApi: window.BK_LOGIN_URL,
+    customTypeIntro() {
+      return this.filterSourceShow(this.esSourceList) || [];
+    },
+  },
+  methods: {
+    filterSourceShow(list) {
+      const filterList = list.filter(item => item.help_md || item.button_list.length);
+      // help_md赋值标题
+      const showList = filterList.reduce((pre, cur) => {
+        const helpMd = `<h1>${cur.name}</h1>\n${cur.help_md}`;
+        pre.push({
+          ...cur,
+          help_md: helpMd,
+        });
+        return pre;
+      }, []);
+      return showList || [];
+    },
+    handleActiveDetails(state) {
+      this.$emit('handle-active-details', state ? state : !this.isOpenWindow);
+    },
+    handleCreateAGroup(adminList) {
+      this.isShowDialog = true;
+      this.chatName = adminList.chat_name;
+      // 创建新的群聊时带上本人和默认人员
+      this.formDataAdmin = adminList.users.concat([this.userMeta.username]);
+      // 用于存储本人和默认人员 不能进行删除
+      this.baseAdmin = JSON.parse(JSON.stringify(this.formDataAdmin));
+    },
+    handleSubmitQWGroup() {
+      const data = {
+        user_list: this.formDataAdmin,
+        name: this.chatName,
       };
-    },
-    computed: {
-      ...mapState({
-        userMeta: state => state.userMeta,
-      }),
-      ...mapGetters({
-        globalsData: 'globals/globalsData',
-      }),
-      esSourceList() {
-        const { es_source_type: esSourceList } = this.globalsData;
-        return esSourceList || [];
-      },
-      customTypeIntro() {
-        return this.filterSourceShow(this.esSourceList) || [];
-      },
-    },
-    methods: {
-      filterSourceShow(list) {
-        const filterList = list.filter(item => item.help_md || item.button_list.length);
-        // help_md赋值标题
-        const showList = filterList.reduce((pre, cur) => {
-          const helpMd = `<h1>${cur.name}</h1>\n${cur.help_md}`;
-          pre.push({
-            ...cur,
-            help_md: helpMd,
-          });
-          return pre;
-        }, []);
-        return showList || [];
-      },
-      handleActiveDetails(state) {
-        this.$emit('handle-active-details', state ? state : !this.isOpenWindow);
-      },
-      handleCreateAGroup(adminList) {
-        this.isShowDialog = true;
-        this.chatName = adminList.chat_name;
-        // 创建新的群聊时带上本人和默认人员
-        this.formDataAdmin = adminList.users.concat([this.userMeta.username]);
-        // 用于存储本人和默认人员 不能进行删除
-        this.baseAdmin = JSON.parse(JSON.stringify(this.formDataAdmin));
-      },
-      handleSubmitQWGroup() {
-        const data = {
-          user_list: this.formDataAdmin,
-          name: this.chatName,
-        };
-        this.$http
-          .request('collect/createWeWork', {
-            data,
-          })
-          .then(res => {
-            if (res.data) {
-              this.$bkMessage({
-                theme: 'success',
-                message: this.$t('创建成功'),
-              });
-            }
-          })
-          .catch(() => {
+      this.$http
+        .request('collect/createWeWork', {
+          data,
+        })
+        .then(res => {
+          if (res.data) {
             this.$bkMessage({
-              theme: 'error',
-              message: this.$t('创建失败'),
+              theme: 'success',
+              message: this.$t('创建成功'),
             });
+          }
+        })
+        .catch(() => {
+          this.$bkMessage({
+            theme: 'error',
+            message: this.$t('创建失败'),
           });
-      },
-      handleCancelQWGroup() {
-        this.formDataAdmin = [];
-        this.baseAdmin = [];
-        this.chatName = '';
-      },
-      handleChangePrincipal(val) {
-        // 删除操作时保留原来的基础人员
-        const setList = new Set([...this.baseAdmin, ...val]);
-        this.formDataAdmin = [...setList];
-      },
+        });
     },
-  };
+    handleCancelQWGroup() {
+      this.formDataAdmin = [];
+      this.baseAdmin = [];
+      this.chatName = '';
+    },
+    handleChangePrincipal(val) {
+      // 删除操作时保留原来的基础人员
+      const setList = new Set([...this.baseAdmin, ...val]);
+      this.formDataAdmin = [...setList];
+    },
+  },
+};
 </script>
 
 <style lang="scss">

@@ -140,7 +140,7 @@ export default class FieldFilterComp extends tsc<object> {
       {
         headerList: [],
         filterHeaderBuiltFields: [],
-      },
+      }
     );
     let arr = [...headerList, ...this.sortHiddenList([filterHeaderBuiltFields])];
     let result = this.objectHierarchy(arr);
@@ -154,7 +154,7 @@ export default class FieldFilterComp extends tsc<object> {
         item.field_name.includes('.') ? objArr.push(item) : otherArr.push(item);
         return [objArr, otherArr];
       },
-      [[], []],
+      [[], []]
     );
     if (!objArr.length) {
       return arrData;
@@ -233,7 +233,7 @@ export default class FieldFilterComp extends tsc<object> {
       {
         initHiddenList: [],
         otherList: [],
-      },
+      }
     );
 
     const visibleBuiltLength = builtInFieldsValue.filter(item => item.filterVisible).length;
@@ -253,7 +253,7 @@ export default class FieldFilterComp extends tsc<object> {
   get showIndexSetFields() {
     if (this.searchKeyword) return this.objectHierarchy(this.indexSetFields());
     const result = this.objectHierarchy(
-      this.isShowAllIndexSet ? this.indexSetFields() : this.sliceFields(this.indexSetFields()),
+      this.isShowAllIndexSet ? this.indexSetFields() : this.sliceFields(this.indexSetFields())
     );
     return result;
   }
@@ -428,7 +428,7 @@ export default class FieldFilterComp extends tsc<object> {
         }
         return acc;
       },
-      { withDot: [], withoutDot: [] },
+      { withDot: [], withoutDot: [] }
     );
     return [...withDot, ...withoutDot.slice(0, 9)];
   }
@@ -592,7 +592,7 @@ export default class FieldFilterComp extends tsc<object> {
                         type='hidden'
                         onToggleItem={({ type, fieldItem }) => this.handleToggleItem(type, fieldItem)}
                       />
-                    ),
+                    )
                   )}
                   {this.getIsShowIndexSetExpand() && (
                     <div
@@ -634,7 +634,7 @@ export default class FieldFilterComp extends tsc<object> {
                         type='hidden'
                         onToggleItem={({ type, fieldItem }) => this.handleToggleItem(type, fieldItem)}
                       />
-                    ),
+                    )
                   )}
                   {/* {this.builtInFieldsShowObj().isShowBuiltExpandBtn && (
                     <div

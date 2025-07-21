@@ -185,170 +185,170 @@
 </template>
 
 <script>
-  import { formatFileSize } from '@/common/util';
-  import { mapState } from 'vuex';
+import { formatFileSize } from '@/common/util';
+import { mapState } from 'vuex';
 
-  export default {
-    props: {
-      indexSetData: {
-        type: Object,
-        required: true,
-      },
+export default {
+  props: {
+    indexSetData: {
+      type: Object,
+      required: true,
     },
-    data() {
-      return {
-        tableLoading1: true, // 采集项
-        indexesData: [],
-        // 健康状态，文案待定，先不国际化
-        healthMap: {
-          green: this.$t('健康'),
-          yellow: this.$t('部分故障'),
-          red: this.$t('严重故障'),
-        },
-        indexesPagination: {
-          current: 1,
-          limit: 10,
-          count: 0,
-        },
-        tableLoading2: true, // 操作记录
-        recordsData: [],
-        recordsPagination: {
-          current: 1,
-          limit: 10,
-          count: 0,
-        },
-      };
-    },
-    computed: {
-      ...mapState(['spaceUid', 'bkBizId']),
-      ...mapState('collect', ['scenarioMap']),
-      pagedIndexesList() {
-        const start = (this.indexesPagination.current - 1) * this.indexesPagination.limit;
-        const end = start + this.indexesPagination.limit;
-        return this.indexesData.slice(start, end);
+  },
+  data() {
+    return {
+      tableLoading1: true, // 采集项
+      indexesData: [],
+      // 健康状态，文案待定，先不国际化
+      healthMap: {
+        green: this.$t('健康'),
+        yellow: this.$t('部分故障'),
+        red: this.$t('严重故障'),
       },
-      categoryMap() {
-        const map = {};
-        this.$store.state.globals.globalsData.category.forEach(child => {
-          child.children.forEach(item => {
-            map[item.id] = item.name;
-          });
+      indexesPagination: {
+        current: 1,
+        limit: 10,
+        count: 0,
+      },
+      tableLoading2: true, // 操作记录
+      recordsData: [],
+      recordsPagination: {
+        current: 1,
+        limit: 10,
+        count: 0,
+      },
+    };
+  },
+  computed: {
+    ...mapState(['spaceUid', 'bkBizId']),
+    ...mapState('collect', ['scenarioMap']),
+    pagedIndexesList() {
+      const start = (this.indexesPagination.current - 1) * this.indexesPagination.limit;
+      const end = start + this.indexesPagination.limit;
+      return this.indexesData.slice(start, end);
+    },
+    categoryMap() {
+      const map = {};
+      this.$store.state.globals.globalsData.category.forEach(child => {
+        child.children.forEach(item => {
+          map[item.id] = item.name;
         });
-        return map;
-      },
+      });
+      return map;
     },
-    created() {
-      this.fetchIndexes();
-      this.fetchRecords();
-    },
-    methods: {
-      async fetchIndexes() {
-        try {
-          // 获取索引列表
-          const res = await this.$http.request('indexSet/indexes', {
-            params: {
-              index_set_id: this.indexSetData.index_set_id,
-            },
-          });
-          this.indexesData = res.data.list;
-          this.indexesPagination.count = res.data.total;
-        } catch (e) {
-          console.warn(e);
-        } finally {
-          this.tableLoading1 = false;
-        }
-      },
-      handleIndexesPageChange(page) {
-        this.indexesPagination.current = page;
-      },
-      handleIndexesLimitChange(limit) {
-        this.indexesPagination.limit = limit;
-        this.indexesPagination.current = 1;
-      },
-      // 移除索引（采集项）
-      removeIndex(row) {
-        this.$bkInfo({
-          title: `${this.$t('确认删除索引')}【${row.result_table_id}】`,
-          maskClose: true,
-          confirmLoading: true,
-          width: 600,
-          confirmFn: async () => {
-            try {
-              const scenarioId = this.$route.name.split('-')[0];
-              const requestBody = {
-                scenario_id: scenarioId,
-                index_set_name: this.indexSetData.index_set_name,
-                category_id: this.indexSetData.category_id,
-                indexes: this.indexSetData.indexes.filter(item => item.result_table_id !== row.result_table_id),
-                view_roles: [], // 兼容后端历史遗留代码
-                space_uid: this.spaceUid,
-              };
-              if (this.$route.name.includes('track')) {
-                // 全链路追踪
-                requestBody.is_trace_log = true;
-              }
-              if (this.scenarioId === 'es') {
-                Object.assign(requestBody, {
-                  time_field: this.indexSetData.time_field,
-                  time_field_type: this.indexSetData.time_field_type,
-                  time_field_unit: this.indexSetData.time_field_unit,
-                  storage_cluster_id: this.indexSetData.storage_cluster_id,
-                });
-              }
-              const res = await this.$http.request('/indexSet/update', {
-                params: {
-                  index_set_id: this.$route.params.indexSetId,
-                },
-                data: requestBody,
-              });
-              this.indexesData.splice(
-                this.indexesData.findIndex(item => item === row),
-                1,
-              );
-              this.indexesPagination.count -= 1;
-              this.$store.commit('collect/updateCurIndexSet', res.data);
-              this.messageSuccess(this.$t('删除成功'));
-            } catch (e) {
-              console.warn(e);
-            }
+  },
+  created() {
+    this.fetchIndexes();
+    this.fetchRecords();
+  },
+  methods: {
+    async fetchIndexes() {
+      try {
+        // 获取索引列表
+        const res = await this.$http.request('indexSet/indexes', {
+          params: {
+            index_set_id: this.indexSetData.index_set_id,
           },
         });
-      },
-      async fetchRecords() {
-        try {
-          // 获取操作记录数据
-          this.tableLoading2 = true;
-          const res = await this.$http.request('indexSet/getOperationRecord', {
-            query: {
-              bk_biz_id: this.bkBizId,
-              record_type: 'index_set',
-              record_object_id: this.indexSetData.index_set_id,
-              page: this.recordsPagination.current,
-              pagesize: this.recordsPagination.limit,
-            },
-          });
-          this.recordsData = res.data.list;
-          this.recordsPagination.count = res.data.total;
-        } catch (e) {
-          console.warn(e);
-        } finally {
-          this.tableLoading2 = false;
-        }
-      },
-      handleRecordsPageChange(page) {
-        this.recordsPagination.current = page;
-        this.fetchRecords();
-      },
-      handleRecordsLimitChange(limit) {
-        this.recordsPagination.limit = limit;
-        this.recordsPagination.current = 1;
-        this.fetchRecords();
-      },
-      getFileSize(size) {
-        return formatFileSize(size);
-      },
+        this.indexesData = res.data.list;
+        this.indexesPagination.count = res.data.total;
+      } catch (e) {
+        console.warn(e);
+      } finally {
+        this.tableLoading1 = false;
+      }
     },
-  };
+    handleIndexesPageChange(page) {
+      this.indexesPagination.current = page;
+    },
+    handleIndexesLimitChange(limit) {
+      this.indexesPagination.limit = limit;
+      this.indexesPagination.current = 1;
+    },
+    // 移除索引（采集项）
+    removeIndex(row) {
+      this.$bkInfo({
+        title: `${this.$t('确认删除索引')}【${row.result_table_id}】`,
+        maskClose: true,
+        confirmLoading: true,
+        width: 600,
+        confirmFn: async () => {
+          try {
+            const scenarioId = this.$route.name.split('-')[0];
+            const requestBody = {
+              scenario_id: scenarioId,
+              index_set_name: this.indexSetData.index_set_name,
+              category_id: this.indexSetData.category_id,
+              indexes: this.indexSetData.indexes.filter(item => item.result_table_id !== row.result_table_id),
+              view_roles: [], // 兼容后端历史遗留代码
+              space_uid: this.spaceUid,
+            };
+            if (this.$route.name.includes('track')) {
+              // 全链路追踪
+              requestBody.is_trace_log = true;
+            }
+            if (this.scenarioId === 'es') {
+              Object.assign(requestBody, {
+                time_field: this.indexSetData.time_field,
+                time_field_type: this.indexSetData.time_field_type,
+                time_field_unit: this.indexSetData.time_field_unit,
+                storage_cluster_id: this.indexSetData.storage_cluster_id,
+              });
+            }
+            const res = await this.$http.request('/indexSet/update', {
+              params: {
+                index_set_id: this.$route.params.indexSetId,
+              },
+              data: requestBody,
+            });
+            this.indexesData.splice(
+              this.indexesData.findIndex(item => item === row),
+              1
+            );
+            this.indexesPagination.count -= 1;
+            this.$store.commit('collect/updateCurIndexSet', res.data);
+            this.messageSuccess(this.$t('删除成功'));
+          } catch (e) {
+            console.warn(e);
+          }
+        },
+      });
+    },
+    async fetchRecords() {
+      try {
+        // 获取操作记录数据
+        this.tableLoading2 = true;
+        const res = await this.$http.request('indexSet/getOperationRecord', {
+          query: {
+            bk_biz_id: this.bkBizId,
+            record_type: 'index_set',
+            record_object_id: this.indexSetData.index_set_id,
+            page: this.recordsPagination.current,
+            pagesize: this.recordsPagination.limit,
+          },
+        });
+        this.recordsData = res.data.list;
+        this.recordsPagination.count = res.data.total;
+      } catch (e) {
+        console.warn(e);
+      } finally {
+        this.tableLoading2 = false;
+      }
+    },
+    handleRecordsPageChange(page) {
+      this.recordsPagination.current = page;
+      this.fetchRecords();
+    },
+    handleRecordsLimitChange(limit) {
+      this.recordsPagination.limit = limit;
+      this.recordsPagination.current = 1;
+      this.fetchRecords();
+    },
+    getFileSize(size) {
+      return formatFileSize(size);
+    },
+  },
+};
 </script>
 
 <style lang="scss" scoped>

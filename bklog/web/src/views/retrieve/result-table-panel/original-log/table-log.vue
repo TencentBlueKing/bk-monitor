@@ -90,161 +90,161 @@
 </template>
 
 <script>
-  import tableRowDeepViewMixin from '@/mixins/table-row-deep-view-mixin';
-  import { mapState } from 'vuex';
+import tableRowDeepViewMixin from '@/mixins/table-row-deep-view-mixin';
+import { mapState } from 'vuex';
 
-  import ContextLog from '../../result-comp/context-log';
-  import RealTimeLog from '../../result-comp/real-time-log';
-  import OriginalList from './original-list';
-  import TableList from './table-list';
+import ContextLog from '../../result-comp/context-log';
+import RealTimeLog from '../../result-comp/real-time-log';
+import OriginalList from './original-list';
+import TableList from './table-list';
 
-  export default {
-    components: {
-      RealTimeLog,
-      ContextLog,
-      OriginalList,
-      TableList,
+export default {
+  components: {
+    RealTimeLog,
+    ContextLog,
+    OriginalList,
+    TableList,
+  },
+  mixins: [tableRowDeepViewMixin],
+  inheritAttrs: false,
+  props: {
+    retrieveParams: {
+      type: Object,
+      required: true,
     },
-    mixins: [tableRowDeepViewMixin],
-    inheritAttrs: false,
-    props: {
-      retrieveParams: {
-        type: Object,
-        required: true,
-      },
-      tableList: {
-        type: Array,
-        required: true,
-      },
-      showOriginal: {
-        type: Boolean,
-        default: false,
-      },
+    tableList: {
+      type: Array,
+      required: true,
     },
-    data() {
-      return {
-        limitCount: 2000,
-        webConsoleLoading: false,
-        targetFields: [],
-        logDialog: {
-          title: '',
-          type: '',
-          width: '100%',
-          visible: false,
-          headerPosition: 'left',
-          fullscreen: true,
-          data: {},
-        },
-      };
+    showOriginal: {
+      type: Boolean,
+      default: false,
     },
-    computed: {
-      ...mapState({
-        bkBizId: state => state.bkBizId,
-      }),
-      ...mapState('globals', ['fieldTypeMap']),
+  },
+  data() {
+    return {
+      limitCount: 2000,
+      webConsoleLoading: false,
+      targetFields: [],
+      logDialog: {
+        title: '',
+        type: '',
+        width: '100%',
+        visible: false,
+        headerPosition: 'left',
+        fullscreen: true,
+        data: {},
+      },
+    };
+  },
+  computed: {
+    ...mapState({
+      bkBizId: state => state.bkBizId,
+    }),
+    ...mapState('globals', ['fieldTypeMap']),
+  },
+  inject: ['changeShowUnionSource'],
+  methods: {
+    // 滚动到顶部
+    scrollToTop() {
+      this.$easeScroll(0, 300, this.$parent.$parent.$parent.$refs.scrollContainer);
     },
-    inject: ['changeShowUnionSource'],
-    methods: {
-      // 滚动到顶部
-      scrollToTop() {
-        this.$easeScroll(0, 300, this.$parent.$parent.$parent.$refs.scrollContainer);
-      },
-      // 打开实时日志或上下文弹窗
-      openLogDialog(row, type) {
-        this.logDialog.data = row;
-        this.logDialog.type = type;
-        this.logDialog.title = type === 'realTimeLog' ? this.$t('实时滚动日志') : this.$t('上下文');
-        this.logDialog.visible = true;
-        this.logDialog.fullscreen = true;
-      },
-      openWebConsole(row) {
-        // (('cluster', 'container_id'),
-        // ('__ext.io_tencent_bcs_cluster', '__ext.container_id'),
-        // ('__ext.bk_bcs_cluster_id', '__ext.container_id')) 不能同时为空
-        const { cluster, container_id: containerID, __ext } = row;
-        let queryData = {};
-        if (cluster && containerID) {
-          queryData = {
-            cluster_id: encodeURIComponent(cluster),
-            container_id: containerID,
-          };
-        } else {
-          if (!__ext) return;
-          if (!__ext.container_id) return;
-          queryData = { container_id: __ext.container_id };
-          if (__ext.io_tencent_bcs_cluster) {
-            Object.assign(queryData, {
-              cluster_id: encodeURIComponent(__ext.io_tencent_bcs_cluster),
-            });
-          } else if (__ext.bk_bcs_cluster_id) {
-            Object.assign(queryData, {
-              cluster_id: encodeURIComponent(__ext.bk_bcs_cluster_id),
-            });
-          }
-        }
-        if (!queryData.cluster_id || !queryData.container_id) return;
-        this.webConsoleLoading = true;
-        this.$http
-          .request('retrieve/getWebConsoleUrl', {
-            params: {
-              index_set_id: this.$route.params.indexId,
-            },
-            query: queryData,
-          })
-          .then(res => {
-            window.open(res.data);
-          })
-          .catch(e => {
-            console.warn(e);
-          })
-          .finally(() => {
-            this.webConsoleLoading = false;
+    // 打开实时日志或上下文弹窗
+    openLogDialog(row, type) {
+      this.logDialog.data = row;
+      this.logDialog.type = type;
+      this.logDialog.title = type === 'realTimeLog' ? this.$t('实时滚动日志') : this.$t('上下文');
+      this.logDialog.visible = true;
+      this.logDialog.fullscreen = true;
+    },
+    openWebConsole(row) {
+      // (('cluster', 'container_id'),
+      // ('__ext.io_tencent_bcs_cluster', '__ext.container_id'),
+      // ('__ext.bk_bcs_cluster_id', '__ext.container_id')) 不能同时为空
+      const { cluster, container_id: containerID, __ext } = row;
+      let queryData = {};
+      if (cluster && containerID) {
+        queryData = {
+          cluster_id: encodeURIComponent(cluster),
+          container_id: containerID,
+        };
+      } else {
+        if (!__ext) return;
+        if (!__ext.container_id) return;
+        queryData = { container_id: __ext.container_id };
+        if (__ext.io_tencent_bcs_cluster) {
+          Object.assign(queryData, {
+            cluster_id: encodeURIComponent(__ext.io_tencent_bcs_cluster),
           });
-      },
-      handleClickTools(event, row, config) {
-        if (['realTimeLog', 'contextLog'].includes(event)) {
-          const contextFields = config.contextAndRealtime.extra?.context_fields;
-          const dialogNewParams = {};
-          Object.assign(dialogNewParams, { dtEventTimeStamp: row.dtEventTimeStamp });
-          const { targetFields, sortFields } = config.indexSetValue;
-          const fieldParamsKey = [...new Set([...targetFields, ...sortFields])];
-          this.targetFields = targetFields ?? [];
-          // 非日志采集的情况下判断是否设置过字段设置 设置了的话传已设置过的参数
-          if (config.indexSetValue.scenarioID !== 'log' && fieldParamsKey.length) {
-            fieldParamsKey.forEach(field => {
-              dialogNewParams[field] = this.tableRowDeepView(row, field, '', this.$store.state.isFormatDate, '');
-            });
-          } else if (Array.isArray(contextFields) && contextFields.length) {
-            // 传参配置指定字段
-            contextFields.push(config.timeField);
-            contextFields.forEach(field => {
-              if (field === 'bk_host_id') {
-                if (row[field]) dialogNewParams[field] = row[field];
-              } else {
-                dialogNewParams[field] = this.tableRowDeepView(row, field, '', this.$store.state.isFormatDate, '');
-              }
-            });
-          } else {
-            Object.assign(dialogNewParams, row);
-          }
-          this.openLogDialog(dialogNewParams, event);
-        } else if (event === 'webConsole') this.openWebConsole(row);
-        else if (event === 'logSource') this.changeShowUnionSource();
-      },
-      // 关闭实时日志或上下文弹窗后的回调
-      hideDialog() {
-        this.logDialog.type = '';
-        this.logDialog.title = '';
-        this.logDialog.visible = false;
-        this.targetFields = [];
-      },
-      // 实时日志或上下文弹窗开启或关闭全屏
-      toggleScreenFull(isScreenFull) {
-        this.logDialog.width = isScreenFull ? '100%' : 1078;
-        this.logDialog.fullscreen = isScreenFull;
-      },
+        } else if (__ext.bk_bcs_cluster_id) {
+          Object.assign(queryData, {
+            cluster_id: encodeURIComponent(__ext.bk_bcs_cluster_id),
+          });
+        }
+      }
+      if (!queryData.cluster_id || !queryData.container_id) return;
+      this.webConsoleLoading = true;
+      this.$http
+        .request('retrieve/getWebConsoleUrl', {
+          params: {
+            index_set_id: this.$route.params.indexId,
+          },
+          query: queryData,
+        })
+        .then(res => {
+          window.open(res.data);
+        })
+        .catch(e => {
+          console.warn(e);
+        })
+        .finally(() => {
+          this.webConsoleLoading = false;
+        });
     },
-  };
+    handleClickTools(event, row, config) {
+      if (['realTimeLog', 'contextLog'].includes(event)) {
+        const contextFields = config.contextAndRealtime.extra?.context_fields;
+        const dialogNewParams = {};
+        Object.assign(dialogNewParams, { dtEventTimeStamp: row.dtEventTimeStamp });
+        const { targetFields, sortFields } = config.indexSetValue;
+        const fieldParamsKey = [...new Set([...targetFields, ...sortFields])];
+        this.targetFields = targetFields ?? [];
+        // 非日志采集的情况下判断是否设置过字段设置 设置了的话传已设置过的参数
+        if (config.indexSetValue.scenarioID !== 'log' && fieldParamsKey.length) {
+          fieldParamsKey.forEach(field => {
+            dialogNewParams[field] = this.tableRowDeepView(row, field, '', this.$store.state.isFormatDate, '');
+          });
+        } else if (Array.isArray(contextFields) && contextFields.length) {
+          // 传参配置指定字段
+          contextFields.push(config.timeField);
+          contextFields.forEach(field => {
+            if (field === 'bk_host_id') {
+              if (row[field]) dialogNewParams[field] = row[field];
+            } else {
+              dialogNewParams[field] = this.tableRowDeepView(row, field, '', this.$store.state.isFormatDate, '');
+            }
+          });
+        } else {
+          Object.assign(dialogNewParams, row);
+        }
+        this.openLogDialog(dialogNewParams, event);
+      } else if (event === 'webConsole') this.openWebConsole(row);
+      else if (event === 'logSource') this.changeShowUnionSource();
+    },
+    // 关闭实时日志或上下文弹窗后的回调
+    hideDialog() {
+      this.logDialog.type = '';
+      this.logDialog.title = '';
+      this.logDialog.visible = false;
+      this.targetFields = [];
+    },
+    // 实时日志或上下文弹窗开启或关闭全屏
+    toggleScreenFull(isScreenFull) {
+      this.logDialog.width = isScreenFull ? '100%' : 1078;
+      this.logDialog.fullscreen = isScreenFull;
+    },
+  },
+};
 </script>
 
 <style lang="scss">

@@ -175,7 +175,7 @@ export default class QueryStatement extends tsc<IProps> {
               this.tagSelectRef.close();
             });
         },
-        () => {},
+        () => {}
       );
     } else {
       this.isShowNewGroupInput = false;

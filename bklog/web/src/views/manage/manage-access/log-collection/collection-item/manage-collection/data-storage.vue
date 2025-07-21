@@ -118,90 +118,90 @@
 </template>
 
 <script>
-  import { formatFileSize } from '@/common/util';
-  import EmptyStatus from '@/components/empty-status';
-  export default {
-    components: {
-      EmptyStatus,
+import { formatFileSize } from '@/common/util';
+import EmptyStatus from '@/components/empty-status';
+export default {
+  components: {
+    EmptyStatus,
+  },
+  props: {
+    collectorData: {
+      type: Object,
+      required: true,
     },
-    props: {
-      collectorData: {
-        type: Object,
-        required: true,
-      },
-      isShowEditBtn: {
-        type: Boolean,
-        default: false,
-      },
-      editAuth: {
-        type: Boolean,
-        default: false,
-      },
-      editAuthData: {
-        type: Object,
-        default: null,
-        validator(value) {
-          // 校验 value 是否为 null 或一个有效的对象
-          return value === null || (typeof value === 'object' && value !== null);
-        },
+    isShowEditBtn: {
+      type: Boolean,
+      default: false,
+    },
+    editAuth: {
+      type: Boolean,
+      default: false,
+    },
+    editAuthData: {
+      type: Object,
+      default: null,
+      validator(value) {
+        // 校验 value 是否为 null 或一个有效的对象
+        return value === null || (typeof value === 'object' && value !== null);
       },
     },
-    data() {
-      return {
-        tableLoading1: true,
-        indexesData: [],
-        // 健康状态，文案待定，先不国际化
-        healthMap: {
-          green: this.$t('健康'),
-          yellow: this.$t('部分故障'),
-          red: this.$t('严重故障'),
-        },
-        tableLoading2: true,
-        timeField: '',
-        fieldsData: [],
-      };
-    },
-    created() {
-      this.fetchIndexes();
-    },
-    methods: {
-      getFileSize(size) {
-        return formatFileSize(size);
+  },
+  data() {
+    return {
+      tableLoading1: true,
+      indexesData: [],
+      // 健康状态，文案待定，先不国际化
+      healthMap: {
+        green: this.$t('健康'),
+        yellow: this.$t('部分故障'),
+        red: this.$t('严重故障'),
       },
-      async fetchIndexes() {
-        try {
-          const res = await this.$http.request('source/getIndexes', {
-            params: {
-              collector_config_id: this.collectorData.collector_config_id,
-            },
-          });
-          this.indexesData = res.data;
-        } catch (e) {
-          console.warn(e);
-        } finally {
-          this.tableLoading1 = false;
-        }
-      },
-      handleClickEdit() {
-        if (!this.editAuth && this.editAuthData) {
-          this.$store.commit('updateAuthDialogData', this.editAuthData);
-          return;
-        }
-        const params = {
-          collectorId: this.$route.params.collectorId,
-        };
-        this.$router.push({
-          name: 'collectStorage',
-          params,
-          query: {
-            spaceUid: this.$store.state.spaceUid,
-            backRoute: 'manage-collection',
-            type: 'dataStorage',
+      tableLoading2: true,
+      timeField: '',
+      fieldsData: [],
+    };
+  },
+  created() {
+    this.fetchIndexes();
+  },
+  methods: {
+    getFileSize(size) {
+      return formatFileSize(size);
+    },
+    async fetchIndexes() {
+      try {
+        const res = await this.$http.request('source/getIndexes', {
+          params: {
+            collector_config_id: this.collectorData.collector_config_id,
           },
         });
-      },
+        this.indexesData = res.data;
+      } catch (e) {
+        console.warn(e);
+      } finally {
+        this.tableLoading1 = false;
+      }
     },
-  };
+    handleClickEdit() {
+      if (!this.editAuth && this.editAuthData) {
+        this.$store.commit('updateAuthDialogData', this.editAuthData);
+        return;
+      }
+      const params = {
+        collectorId: this.$route.params.collectorId,
+      };
+      this.$router.push({
+        name: 'collectStorage',
+        params,
+        query: {
+          spaceUid: this.$store.state.spaceUid,
+          backRoute: 'manage-collection',
+          type: 'dataStorage',
+        },
+      });
+    },
+  },
+};
 </script>
 
 <style lang="scss" scoped>

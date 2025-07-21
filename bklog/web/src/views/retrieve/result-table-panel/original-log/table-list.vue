@@ -161,11 +161,11 @@
 </template>
 
 <script>
-  import resultTableMixin from '@/mixins/result-table-mixin';
+import resultTableMixin from '@/mixins/result-table-mixin';
 
-  export default {
-    name: 'TableList',
-    mixins: [resultTableMixin],
-    inheritAttrs: false,
-  };
+export default {
+  name: 'TableList',
+  mixins: [resultTableMixin],
+  inheritAttrs: false,
+};
 </script>

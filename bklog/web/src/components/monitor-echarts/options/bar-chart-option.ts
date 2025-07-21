@@ -44,10 +44,10 @@ export default class MonitorLineSeries extends MonitorBaseSeries implements ICha
             },
           },
         },
-        { arrayMerge: this.overwriteMerge },
+        { arrayMerge: this.overwriteMerge }
       ),
       this.chartOption,
-      { arrayMerge: this.overwriteMerge },
+      { arrayMerge: this.overwriteMerge }
     );
   }
   public getOptions(data: any, otherOptions = {}): any {

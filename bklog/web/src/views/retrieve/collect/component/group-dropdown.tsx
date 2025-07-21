@@ -132,7 +132,7 @@ export default class CollectGroup extends tsc<IProps> {
     if (this.verifyData.groupEditName.trim() === '') return true;
 
     return /^[\u4e00-\u9fa5_a-zA-Z0-9`~!@#$%^&*()_\-+=<>?:"{}|,.\/;'\\[\]·~！@#￥%……&*（）——\-+={}|《》？：“”【】、；‘'，。、]+$/im.test(
-      this.verifyData.groupEditName.trim(),
+      this.verifyData.groupEditName.trim()
     );
   }
 

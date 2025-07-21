@@ -292,7 +292,7 @@ export default {
           },
           {
             immediate: true,
-          },
+          }
         );
 
         return menuList;

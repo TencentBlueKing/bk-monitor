@@ -162,116 +162,116 @@
   </div>
 </template>
 <script>
-  import EmptyStatus from '@/components/empty-status';
-  import { mapGetters } from 'vuex';
+import EmptyStatus from '@/components/empty-status';
+import { mapGetters } from 'vuex';
 
-  import { formatFileSize } from '../../../common/util';
+import { formatFileSize } from '../../../common/util';
 
-  export default {
-    components: {
-      EmptyStatus,
+export default {
+  components: {
+    EmptyStatus,
+  },
+  props: {
+    tableList: {
+      type: Array,
+      default: () => [],
     },
-    props: {
-      tableList: {
-        type: Array,
-        default: () => [],
-      },
-      tableType: {
-        type: String,
-        default: 'shared',
-      },
-      storageClusterId: {
-        type: [Number, String],
-        require: true,
-      },
-      isChangeSelect: {
-        type: Boolean,
-        require: true,
-      },
+    tableType: {
+      type: String,
+      default: 'shared',
     },
-    data() {
-      return {
-        isShowTable: true,
-        clusterSelect: null,
-        illustrateLabelData: {
+    storageClusterId: {
+      type: [Number, String],
+      require: true,
+    },
+    isChangeSelect: {
+      type: Boolean,
+      require: true,
+    },
+  },
+  data() {
+    return {
+      isShowTable: true,
+      clusterSelect: null,
+      illustrateLabelData: {
+        [this.$t('副本数')]: '',
+        [this.$t('过期时间')]: '',
+        [this.$t('热冷数据')]: '',
+        [this.$t('日志归档')]: '',
+      },
+      description: '',
+      activeItem: null,
+      isShow: false,
+      throttle: false,
+    };
+  },
+  computed: {
+    ...mapGetters({
+      curCollect: 'collect/curCollect',
+    }),
+    tableShowType() {
+      return this.tableType !== 'exclusive';
+    },
+  },
+  watch: {
+    storageClusterId(val) {
+      if (val === undefined) return;
+      this.clusterSelect = val;
+      this.activeItem = this.tableList.find(item => item.storage_cluster_id === val);
+      if (!!this.activeItem) {
+        const { number_of_replicas_max: replicasMax, retention_days_max: daysMax } = this.activeItem.setup_config;
+        const { enable_hot_warm: hotWarm, enable_archive: archive } = this.activeItem;
+        this.illustrateLabelData = {
+          [this.$t('副本数')]: `${this.$t('最大')} ${replicasMax} ${this.$t('个')}`,
+          [this.$t('过期时间')]: `${this.$t('最大')} ${daysMax} ${this.$t('天')}`,
+          [this.$t('热冷数据')]: hotWarm ? this.$t('支持') : this.$t('不支持'),
+          [this.$t('日志归档')]: archive ? this.$t('支持') : this.$t('不支持'),
+        };
+        this.description = this.activeItem.description;
+      } else {
+        this.illustrateLabelData = {
           [this.$t('副本数')]: '',
           [this.$t('过期时间')]: '',
           [this.$t('热冷数据')]: '',
           [this.$t('日志归档')]: '',
-        },
-        description: '',
-        activeItem: null,
-        isShow: false,
-        throttle: false,
-      };
+        };
+        this.description = '';
+      }
     },
-    computed: {
-      ...mapGetters({
-        curCollect: 'collect/curCollect',
-      }),
-      tableShowType() {
-        return this.tableType !== 'exclusive';
-      },
-    },
-    watch: {
-      storageClusterId(val) {
-        if (val === undefined) return;
-        this.clusterSelect = val;
-        this.activeItem = this.tableList.find(item => item.storage_cluster_id === val);
-        if (!!this.activeItem) {
-          const { number_of_replicas_max: replicasMax, retention_days_max: daysMax } = this.activeItem.setup_config;
-          const { enable_hot_warm: hotWarm, enable_archive: archive } = this.activeItem;
-          this.illustrateLabelData = {
-            [this.$t('副本数')]: `${this.$t('最大')} ${replicasMax} ${this.$t('个')}`,
-            [this.$t('过期时间')]: `${this.$t('最大')} ${daysMax} ${this.$t('天')}`,
-            [this.$t('热冷数据')]: hotWarm ? this.$t('支持') : this.$t('不支持'),
-            [this.$t('日志归档')]: archive ? this.$t('支持') : this.$t('不支持'),
-          };
-          this.description = this.activeItem.description;
-        } else {
-          this.illustrateLabelData = {
-            [this.$t('副本数')]: '',
-            [this.$t('过期时间')]: '',
-            [this.$t('热冷数据')]: '',
-            [this.$t('日志归档')]: '',
-          };
-          this.description = '';
-        }
-      },
-    },
-    mounted() {
-      this.formatFileSize = formatFileSize;
-    },
-    methods: {
-      handleSelectCluster($row) {
-        if (this.throttle || this.storageClusterId === $row.storage_cluster_id) return;
+  },
+  mounted() {
+    this.formatFileSize = formatFileSize;
+  },
+  methods: {
+    handleSelectCluster($row) {
+      if (this.throttle || this.storageClusterId === $row.storage_cluster_id) return;
 
-        this.throttle = true;
-        setTimeout(() => {
-          this.throttle = false;
-        }, 300);
-        if (this.isChangeSelect || this.storageClusterId === '') {
-          this.$emit('update:is-change-select', true);
-          this.$emit('update:storage-cluster-id', $row.storage_cluster_id);
-          return;
-        }
+      this.throttle = true;
+      setTimeout(() => {
+        this.throttle = false;
+      }, 300);
+      if (this.isChangeSelect || this.storageClusterId === '') {
         this.$emit('update:is-change-select', true);
         this.$emit('update:storage-cluster-id', $row.storage_cluster_id);
-      },
-      handleCreateCluster() {
-        const newUrl = this.$router.resolve({
-          name: 'es-cluster-manage',
-          query: {
-            spaceUid: this.$store.state.spaceUid,
-          },
-        });
-        window.open(newUrl.href, '_blank');
-      },
-      getPercent($row) {
-        return (100 - $row.storage_usage) / 100;
-      },
+        return;
+      }
+      this.$emit('update:is-change-select', true);
+      this.$emit('update:storage-cluster-id', $row.storage_cluster_id);
     },
-  };
+    handleCreateCluster() {
+      const newUrl = this.$router.resolve({
+        name: 'es-cluster-manage',
+        query: {
+          spaceUid: this.$store.state.spaceUid,
+        },
+      });
+      window.open(newUrl.href, '_blank');
+    },
+    getPercent($row) {
+      return (100 - $row.storage_usage) / 100;
+    },
+  },
+};
 </script>
 <style lang="scss" scoped>
   @import '@/scss/mixins/flex.scss';

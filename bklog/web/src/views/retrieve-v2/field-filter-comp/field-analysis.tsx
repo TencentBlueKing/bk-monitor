@@ -183,7 +183,7 @@ export default class FieldAnalysis extends Vue {
           cancelToken: new CancelToken(c => {
             this.getInfoCancelFn = c;
           }),
-        },
+        }
       );
       Object.assign(this.fieldData, res.data);
     } catch (error) {
@@ -214,7 +214,7 @@ export default class FieldAnalysis extends Vue {
           cancelToken: new CancelToken(c => {
             this.getChartsCancelFn = c;
           }),
-        },
+        }
       );
       this.isShowEmpty = false;
       // 分折线图和柱状图显示
@@ -507,7 +507,7 @@ export default class FieldAnalysis extends Vue {
         notMerge: true,
         lazyUpdate: false,
         silent: true,
-      },
+      }
     );
     setTimeout(() => {
       this.chart.resize();

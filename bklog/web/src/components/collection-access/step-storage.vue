@@ -344,608 +344,605 @@
 </template>
 
 <script>
-  import { projectManages, deepEqual } from '@/common/util';
-  import storageMixin from '@/mixins/storage-mixin';
-  import { mapGetters } from 'vuex';
+import { projectManages, deepEqual } from '@/common/util';
+import storageMixin from '@/mixins/storage-mixin';
+import { mapGetters } from 'vuex';
 
-  import ClusterTable from './components/cluster-table';
+import ClusterTable from './components/cluster-table';
 
-  export default {
-    components: {
-      ClusterTable,
+export default {
+  components: {
+    ClusterTable,
+  },
+  mixins: [storageMixin],
+  props: {
+    operateType: String,
+    curStep: {
+      type: Number,
+      default: 1,
     },
-    mixins: [storageMixin],
-    props: {
-      operateType: String,
-      curStep: {
-        type: Number,
-        default: 1,
-      },
-      collectorId: String,
-      /** 是否已走过一次完整步骤，编辑状态显示不同的操作按钮 */
-      isFinishCreateStep: {
-        type: Boolean,
-        require: true,
-      },
+    collectorId: String,
+    /** 是否已走过一次完整步骤，编辑状态显示不同的操作按钮 */
+    isFinishCreateStep: {
+      type: Boolean,
+      require: true,
     },
-    data() {
-      return {
-        isItsm: window.FEATURE_TOGGLE.collect_itsm === 'on',
-        HOST_COUNT: window.ASSESSMEN_HOST_COUNT,
-        refresh: false,
+  },
+  data() {
+    return {
+      isItsm: window.FEATURE_TOGGLE.collect_itsm === 'on',
+      HOST_COUNT: window.ASSESSMEN_HOST_COUNT,
+      refresh: false,
 
-        isLoading: false,
-        basicLoading: true,
-        isUnmodifiable: false,
-        isUnmodfyIndexName: false,
-        // roleList: [],
-        fieldType: '',
-        deletedVisible: true,
-        copysText: {},
-        jsonText: {},
-        defaultSettings: {
-          isShow: false,
+      isLoading: false,
+      basicLoading: true,
+      isUnmodifiable: false,
+      isUnmodfyIndexName: false,
+      // roleList: [],
+      fieldType: '',
+      deletedVisible: true,
+      copysText: {},
+      jsonText: {},
+      defaultSettings: {
+        isShow: false,
+      },
+      logOriginal: '',
+      params: {
+        // 此处为可以变动的数据，如果调试成功，则将此条件保存至formData，保存时还需要对比此处与formData是否有差异
+        etl_config: 'bk_log_text',
+        etl_params: {
+          separator_regexp: '',
+          separator: '',
         },
-        logOriginal: '',
-        params: {
-          // 此处为可以变动的数据，如果调试成功，则将此条件保存至formData，保存时还需要对比此处与formData是否有差异
-          etl_config: 'bk_log_text',
-          etl_params: {
-            separator_regexp: '',
-            separator: '',
+      },
+      formData: {
+        // 最后一次正确的结果，保存以此数据为准
+        table_id: '',
+        etl_config: 'bk_log_text',
+        etl_params: {
+          retain_original_text: true,
+          retain_extra_json: false,
+          separator_regexp: '',
+          separator: '',
+          enable_retain_content: true, // 保留失败日志
+          path_regexp: '', // 采集路径分割的正则
+          // separator_field_list: '',
+          metadata_fields: [],
+        },
+        fields: [],
+        view_roles: [],
+        retention: '',
+        storage_replies: 0,
+        es_shards: 0,
+        allocation_min_days: '0',
+        storage_cluster_id: '',
+        assessment_config: {
+          log_assessment: '',
+          need_approval: false,
+          approvals: [],
+        },
+      },
+      selectedStorageCluster: {}, // 选择的es集群
+      retentionDaysList: [], // 过期天数列表
+      customRetentionDay: '', // 自定义过期天数
+      hotDataDaysList: [], // 冷热集群存储期限列表
+      customHotDataDay: '', // 自定义冷热集群存储期限天数
+      rules: {
+        cluster_id: [
+          {
+            validator(val) {
+              return val !== '';
+            },
+            trigger: 'change',
           },
-        },
-        formData: {
-          // 最后一次正确的结果，保存以此数据为准
-          table_id: '',
-          etl_config: 'bk_log_text',
-          etl_params: {
-            retain_original_text: true,
-            retain_extra_json: false,
-            separator_regexp: '',
-            separator: '',
-            enable_retain_content: true, // 保留失败日志
-            path_regexp: '', // 采集路径分割的正则
-            // separator_field_list: '',
-            metadata_fields: [],
+        ],
+        view_roles: [
+          {
+            validator(val) {
+              return val.length >= 1;
+            },
+            trigger: 'change',
           },
-          fields: [],
-          view_roles: [],
-          retention: '',
-          storage_replies: 0,
-          es_shards: 0,
-          allocation_min_days: '0',
-          storage_cluster_id: '',
-          assessment_config: {
-            log_assessment: '',
-            need_approval: false,
-            approvals: [],
+        ],
+        storage_replies: [
+          {
+            validator: this.checkStorageReplies,
+            message: () => window.mainComponent.$t('最大自定义副本数为: {n}', { n: this.replicasMax }),
+            trigger: 'blur',
           },
-        },
-        selectedStorageCluster: {}, // 选择的es集群
-        retentionDaysList: [], // 过期天数列表
-        customRetentionDay: '', // 自定义过期天数
-        hotDataDaysList: [], // 冷热集群存储期限列表
-        customHotDataDay: '', // 自定义冷热集群存储期限天数
-        rules: {
-          cluster_id: [
-            {
-              validator(val) {
-                return val !== '';
-              },
-              trigger: 'change',
-            },
-          ],
-          view_roles: [
-            {
-              validator(val) {
-                return val.length >= 1;
-              },
-              trigger: 'change',
-            },
-          ],
-          storage_replies: [
-            {
-              validator: this.checkStorageReplies,
-              message: () => window.mainComponent.$t('最大自定义副本数为: {n}', { n: this.replicasMax }),
-              trigger: 'blur',
-            },
-            {
-              validator: this.checkStorageReplies,
-              message: () => window.mainComponent.$t('最大自定义副本数为: {n}', { n: this.replicasMax }),
-              trigger: 'change',
-            },
-          ],
-          es_shards: [
-            {
-              validator: this.checkEsShards,
-              message: () => window.mainComponent.$t('最大自定义分片数为: {n}', { n: this.shardsMax }),
-              trigger: 'blur',
-            },
-            {
-              validator: this.checkEsShards,
-              message: () => window.mainComponent.$t('最大自定义分片数为: {n}', { n: this.shardsMax }),
-              trigger: 'change',
-            },
-          ],
-        },
-        storage_capacity: '',
-        tips_storage: [],
-        tip_storage: [],
-        storageList: [],
-        clusterList: [], // 共享集群
-        exclusiveList: [], // 独享集群
-        dialogVisible: false,
-        rowTemplate: {
-          alias_name: '',
-          description: '',
-          field_type: '',
-          is_analyzed: false,
-          is_built_in: false,
-          is_delete: false,
-          is_dimension: false,
-          is_time: false,
-          value: '',
-          option: {
-            time_format: '',
-            time_zone: '',
+          {
+            validator: this.checkStorageReplies,
+            message: () => window.mainComponent.$t('最大自定义副本数为: {n}', { n: this.replicasMax }),
+            trigger: 'change',
           },
-        },
-        stashCleanConf: null, // 清洗缓存,
-        isShowAssessment: false,
-        isChangeSelect: false,
-        hostNumber: 0,
-        replicasMax: 7,
-        shardsMax: 7,
-        isForcedFillAssessment: false, // 是否必须容量评估
-        editStorageClusterID: null, // 存储页进入时判断是否有选择过存储集群
-        editComparedData: {},
-      };
-    },
-    computed: {
-      ...mapGetters({
-        bkBizId: 'bkBizId',
-        spaceUid: 'spaceUid',
-        curCollect: 'collect/curCollect',
-        globalsData: 'globals/globalsData',
-        accessUserManage: 'accessUserManage',
-        isShowMaskingTemplate: 'isShowMaskingTemplate',
-        exportCollectObj: 'collect/exportCollectObj',
-      }),
-      collectProject() {
-        return projectManages(this.$store.state.topMenu, 'collection-item');
+        ],
+        es_shards: [
+          {
+            validator: this.checkEsShards,
+            message: () => window.mainComponent.$t('最大自定义分片数为: {n}', { n: this.shardsMax }),
+            trigger: 'blur',
+          },
+          {
+            validator: this.checkEsShards,
+            message: () => window.mainComponent.$t('最大自定义分片数为: {n}', { n: this.shardsMax }),
+            trigger: 'change',
+          },
+        ],
       },
-      defaultRetention() {
-        const { storage_duration_time } = this.globalsData;
+      storage_capacity: '',
+      tips_storage: [],
+      tip_storage: [],
+      storageList: [],
+      clusterList: [], // 共享集群
+      exclusiveList: [], // 独享集群
+      dialogVisible: false,
+      rowTemplate: {
+        alias_name: '',
+        description: '',
+        field_type: '',
+        is_analyzed: false,
+        is_built_in: false,
+        is_delete: false,
+        is_dimension: false,
+        is_time: false,
+        value: '',
+        option: {
+          time_format: '',
+          time_zone: '',
+        },
+      },
+      stashCleanConf: null, // 清洗缓存,
+      isShowAssessment: false,
+      isChangeSelect: false,
+      hostNumber: 0,
+      replicasMax: 7,
+      shardsMax: 7,
+      isForcedFillAssessment: false, // 是否必须容量评估
+      editStorageClusterID: null, // 存储页进入时判断是否有选择过存储集群
+      editComparedData: {},
+    };
+  },
+  computed: {
+    ...mapGetters({
+      bkBizId: 'bkBizId',
+      spaceUid: 'spaceUid',
+      curCollect: 'collect/curCollect',
+      globalsData: 'globals/globalsData',
+      accessUserManage: 'accessUserManage',
+      isShowMaskingTemplate: 'isShowMaskingTemplate',
+      exportCollectObj: 'collect/exportCollectObj',
+    }),
+    collectProject() {
+      return projectManages(this.$store.state.topMenu, 'collection-item');
+    },
+    defaultRetention() {
+      const { storage_duration_time } = this.globalsData;
 
-        return storage_duration_time?.filter(item => item.default === true)[0].id;
-      },
-      isCanUseAssessment() {
-        /**
-         * itsm开启时, 当前选择的集群容量评估开启时
-         * isChangeSelect 当前步骤非新增,且进行集群切换满足上面条件则展示容量评估
-         */
-        return this.isItsm && this.selectedStorageCluster.enable_assessment && this.isChangeSelect;
-      },
-      getApprover() {
-        if (this.isCanUseAssessment) {
-          // eslint-disable-next-line vue/no-side-effects-in-computed-properties
-          this.formData.assessment_config.approvals = this.selectedStorageCluster?.admin || [];
-          return this.selectedStorageCluster?.admin.join(', ') || '';
-        }
-        return '';
-      },
+      return storage_duration_time?.filter(item => item.default === true)[0].id;
     },
-    async mounted() {
-      this.operateType === 'add' && (this.isChangeSelect = true);
-      await this.getStorage();
-      await this.getCleanStash();
-      this.getDetail();
-      this.exportStorage();
+    isCanUseAssessment() {
+      /**
+       * itsm开启时, 当前选择的集群容量评估开启时
+       * isChangeSelect 当前步骤非新增,且进行集群切换满足上面条件则展示容量评估
+       */
+      return this.isItsm && this.selectedStorageCluster.enable_assessment && this.isChangeSelect;
     },
-    created() {
-      this.curCollect.environment !== 'container' && this.getHostNumber();
+    getApprover() {
+      if (this.isCanUseAssessment) {
+        // eslint-disable-next-line vue/no-side-effects-in-computed-properties
+        this.formData.assessment_config.approvals = this.selectedStorageCluster?.admin || [];
+        return this.selectedStorageCluster?.admin.join(', ') || '';
+      }
+      return '';
     },
-    methods: {
-      // 获取采集项清洗基础配置缓存 用于存储入库提交
-      async getCleanStash() {
-        try {
-          const res = await this.$http.request('clean/getCleanStash', {
-            params: {
-              collector_config_id: this.curCollect.collector_config_id,
-            },
-          });
-          if (res.data) this.stashCleanConf = res.data;
-        } catch (error) {}
-      },
-      // 存储入库
-      fieldCollection(callback) {
-        const data = this.getSubmitData();
+  },
+  async mounted() {
+    this.operateType === 'add' && (this.isChangeSelect = true);
+    await this.getStorage();
+    await this.getCleanStash();
+    this.getDetail();
+    this.exportStorage();
+  },
+  created() {
+    this.curCollect.environment !== 'container' && this.getHostNumber();
+  },
+  methods: {
+    // 获取采集项清洗基础配置缓存 用于存储入库提交
+    async getCleanStash() {
+      try {
+        const res = await this.$http.request('clean/getCleanStash', {
+          params: {
+            collector_config_id: this.curCollect.collector_config_id,
+          },
+        });
+        if (res.data) this.stashCleanConf = res.data;
+      } catch (error) {}
+    },
+    // 存储入库
+    fieldCollection(callback) {
+      const data = this.getSubmitData();
 
-        this.isLoading = true;
-        this.$http
-          .request('collect/fieldCollection', {
-            params: {
-              collector_config_id: this.curCollect.collector_config_id,
-            },
-            data,
-          })
-          .then(res => {
-            if (res.code === 0) {
-              // this.storageList = res.data
-              // this.formData.storage_cluster_id = this.storageList[0].storage_cluster_id
-              if (res.data) {
-                this.$store.commit('collect/updateCurCollect', Object.assign({}, this.formData, data, res.data));
-                this.$emit('change-index-set-id', res.data.index_set_id || '');
-              }
-              if (data.need_assessment && data.assessment_config.need_approval) {
-                this.$emit('set-assessment-item', {
-                  iframe_ticket_url: res.data.ticket_url,
-                  itsm_ticket_status: 'applying',
-                });
-              } else {
-                this.$emit('set-assessment-item', {});
-              }
-              if (this.isFinishCreateStep) {
-                this.messageSuccess(this.$t('保存成功'));
-                if (callback) {
-                  this.$emit('reset-cur-collect-val');
-                  callback(true);
-                  return;
-                }
-                this.$emit('change-submit', true);
-                this.$emit('step-change', 'back');
+      this.isLoading = true;
+      this.$http
+        .request('collect/fieldCollection', {
+          params: {
+            collector_config_id: this.curCollect.collector_config_id,
+          },
+          data,
+        })
+        .then(res => {
+          if (res.code === 0) {
+            // this.storageList = res.data
+            // this.formData.storage_cluster_id = this.storageList[0].storage_cluster_id
+            if (res.data) {
+              this.$store.commit('collect/updateCurCollect', Object.assign({}, this.formData, data, res.data));
+              this.$emit('change-index-set-id', res.data.index_set_id || '');
+            }
+            if (data.need_assessment && data.assessment_config.need_approval) {
+              this.$emit('set-assessment-item', {
+                iframe_ticket_url: res.data.ticket_url,
+                itsm_ticket_status: 'applying',
+              });
+            } else {
+              this.$emit('set-assessment-item', {});
+            }
+            if (this.isFinishCreateStep) {
+              this.messageSuccess(this.$t('保存成功'));
+              if (callback) {
+                this.$emit('reset-cur-collect-val');
+                callback(true);
                 return;
               }
-              // 只有在不展示日志脱敏的情况下才改变保存状态
-              if (!this.isShowMaskingTemplate) this.$emit('change-submit', true);
-              this.$emit('step-change');
+              this.$emit('change-submit', true);
+              this.$emit('step-change', 'back');
+              return;
             }
-          })
-          .catch(() => callback?.(false))
-          .finally(() => {
-            this.isLoading = false;
-          });
-      },
-      /** 导航切换提交函数 */
-      stepSubmitFun(callback) {
-        this.finish(callback);
-      },
-      // 完成按钮
-      finish(callback) {
-        const isCanSubmit = this.getSubmitAuthority();
-        if (!isCanSubmit) {
-          callback?.(false);
-          return;
-        }
-        const promises = [this.checkStore()];
-        Promise.all(promises).then(
-          () => {
-            this.fieldCollection(callback);
-          },
-          validator => {
-            console.warn('保存失败', validator);
-          },
-        );
-      },
-      // 存储校验
-      checkStore() {
-        return new Promise((resolve, reject) => {
-          // if (!this.isUnmodifiable) {
-
-          // } else {
-          //   resolve();
-          // }
-          this.$refs.validateForm
-            .validate()
-            .then(validator => {
-              resolve(validator);
-            })
-            .catch(err => {
-              console.warn('存储校验错误');
-              reject(err);
-            });
-        });
-      },
-      prevHandler() {
-        this.$emit('step-change', this.curStep - 1);
-      },
-      // 获取详情
-      getDetail() {
-        const tsStorageId = this.formData.storage_cluster_id;
-        const {
-          table_id,
-          storage_cluster_id,
-          retention,
-          storage_replies,
-          storage_shards_nums: storageShardsNums,
-          allocation_min_days,
-          table_id_prefix,
-          view_roles,
-          etl_config,
-          etl_params,
-          fields,
-          collector_config_name_en,
-        } = this.curCollect;
-        const option = { time_zone: '', time_format: '' };
-        const copyFields = fields ? JSON.parse(JSON.stringify(fields)) : [];
-        copyFields.forEach(row => {
-          row.value = '';
-          if (row.is_delete) {
-            const copyRow = Object.assign(
-              JSON.parse(JSON.stringify(this.rowTemplate)),
-              JSON.parse(JSON.stringify(row)),
-            );
-            Object.assign(row, copyRow);
+            // 只有在不展示日志脱敏的情况下才改变保存状态
+            if (!this.isShowMaskingTemplate) this.$emit('change-submit', true);
+            this.$emit('step-change');
           }
-          if (row.option) {
-            row.option = Object.assign({}, option, row.option || {});
-          } else {
-            row.option = Object.assign({}, option);
-          }
+        })
+        .catch(() => callback?.(false))
+        .finally(() => {
+          this.isLoading = false;
         });
-        /* eslint-disable */
-        this.params.etl_config = etl_config;
-        Object.assign(this.params.etl_params, {
-          separator_regexp: etl_params.separator_regexp || '',
-          separator: etl_params.separator || '',
-        });
-        this.isUnmodifiable = !!(table_id || storage_cluster_id);
-        this.isUnmodfyIndexName = !!(table_id || storage_cluster_id || collector_config_name_en);
-        this.fieldType = etl_config || 'bk_log_text';
-        let default_exclusive_cluster_id;
-        if (!storage_cluster_id && this.exclusiveList.length) {
-          // 新增时若有业务独享集群则直接赋值独享集群列表第一条id
-          this.isChangeSelect = true; // 不提示切换集群dialog
-          default_exclusive_cluster_id = this.exclusiveList[0].storage_cluster_id;
-        }
-        // this.switcher = etl_config ? etl_config !== 'bk_log_text' : false
-        /* eslint-enable */
-        Object.assign(this.formData, {
-          table_id: table_id ? table_id : collector_config_name_en ? collector_config_name_en : '',
-
-          storage_cluster_id: default_exclusive_cluster_id ? default_exclusive_cluster_id : storage_cluster_id,
-          es_shards: storageShardsNums,
-          table_id_prefix,
-          etl_config: this.fieldType,
-          etl_params: Object.assign(
-            {
-              retain_original_text: true,
-              retain_extra_json: false,
-              original_text_is_case_sensitive: false,
-              original_text_tokenize_on_chars: '',
-              separator_regexp: '',
-              separator: '',
-              // separator_field_list: ''
-            },
-
-            etl_params ? JSON.parse(JSON.stringify(etl_params)) : {},
-          ),
-          fields: copyFields.filter(item => !item.is_built_in),
-          retention: retention ? `${retention}` : this.defaultRetention,
-          storage_replies,
-
-          allocation_min_days: allocation_min_days ? `${allocation_min_days}` : '0',
-          view_roles,
-        });
-
-        if (this.stashCleanConf) {
-          // 缓存清洗配置
-          Object.assign(this.formData, {
-            etl_config: this.stashCleanConf.clean_type,
-            etl_params: this.stashCleanConf.etl_params,
-            fields: this.stashCleanConf.etl_fields,
-          });
-        }
-
-        this.editStorageClusterID = storage_cluster_id;
-        this.formData.storage_cluster_id =
-          this.formData.storage_cluster_id === null ? tsStorageId : this.formData.storage_cluster_id;
-        this.basicLoading = false;
-      },
-      cancel() {
-        if (this.isFinishCreateStep) {
-          this.$emit('change-submit', true);
-        }
-        let routeName;
-        const { backRoute, ...reset } = this.$route.query;
-        if (backRoute) {
-          routeName = backRoute;
-        } else {
-          routeName = 'collection-item';
-        }
-        this.$router.push({
-          name: routeName,
-          query: {
-            ...reset,
-            spaceUid: this.$store.state.spaceUid,
-          },
-        });
-      },
-      /**
-       * @desc: 获取主机数数量 若主机数大于assessment_host_count则显示容量评估
-       */
-      getHostNumber() {
-        const curTaskIdList = new Set();
-        this.curCollect.task_id_list.forEach(id => curTaskIdList.add(id));
-        const params = {
-          collector_config_id: this.curCollect.collector_config_id,
-        };
-        this.$http
-          .request('collect/getIssuedClusterList', {
-            params,
-            query: { task_id_list: [...curTaskIdList.keys()].join(',') },
-          })
-          .then(res => {
-            const data = res.data.contents;
-            let hostLength = 0;
-            data.forEach(cluster => {
-              hostLength += cluster.child.length;
-            });
-            // 这里获取主机总数量赋值并与HOST_COUNT比较如果主机数量大于最大值则必填容量评估内容
-            const isOverHost = hostLength > Number(this.HOST_COUNT);
-            this.hostNumber = hostLength;
-            this.isShowAssessment = isOverHost;
-            this.isForcedFillAssessment = isOverHost;
-            this.formData.assessment_config.need_approval = isOverHost;
-          })
-          .catch(() => {
-            this.hostNumber = 0;
-            this.isForcedFillAssessment = false;
-            this.formData.assessment_config.need_approval = false;
-          });
-      },
-      getSubmitAuthority() {
-        /**
-         * 当前未选择集群 提示
-         * 主机数量 >= assessment_host_count 强制审批 提示
-         */
-        const { storage_cluster_id: clusterID, assessment_config: assessmentConfig } = this.formData;
-        const isNotSelectedID = clusterID === '';
-        const isNotFillLog =
-          this.isForcedFillAssessment && this.isCanUseAssessment && assessmentConfig.log_assessment === '';
-        if (isNotSelectedID || isNotFillLog) {
-          const message = isNotSelectedID ? this.$t('请选择集群') : this.$t('请填写容量评估的每日单台日志量');
-          this.$bkMessage({
-            theme: 'error',
-            message,
-          });
-          return false;
-        }
-        return true;
-      },
-      getNeedAssessmentStatus() {
-        const {
-          assessment_config: { log_assessment: logAssessment, need_approval: needApproval },
-        } = this.formData;
-        return this.isCanUseAssessment && (logAssessment !== '' || needApproval);
-      },
-      /** 判断提交信息是否有更改过值 */
-      getIsUpdateSubmitValue() {
-        // 如果还在初始化的时候快速切换其他导航则直接跳转 不进行数据修改判断
-        if (this.basicLoading) return false;
-        const params = this.getSubmitData();
-        return !deepEqual(this.editComparedData, params);
-      },
-      getSubmitData() {
-        const {
-          etl_config,
-          table_id,
-          storage_cluster_id,
-          retention,
-          storage_replies,
-          es_shards,
-          allocation_min_days: allMinDays,
-          view_roles,
-          fields,
-          etl_params: etlParams,
-          assessment_config: assessmentConfig,
-        } = this.formData;
-        const isNeedAssessment = this.getNeedAssessmentStatus();
-        const isOpenHotWarm = this.selectedStorageCluster.enable_hot_warm;
-
-        etlParams.metadata_fields =
-          etlParams?.metadata_fields?.map(item => {
-            item.metadata_type = 'path';
-            return item;
-          }) ?? [];
-
-        const data = {
-          etl_config,
-          table_id,
-          storage_cluster_id,
-          retention: Number(retention),
-          storage_replies: Number(storage_replies),
-          es_shards: Number(es_shards),
-          allocation_min_days: isOpenHotWarm ? Number(allMinDays) : 0,
-          view_roles,
-          etl_params: {
-            retain_original_text: etlParams.retain_original_text,
-            retain_extra_json: etlParams.retain_extra_json ?? false,
-            original_text_is_case_sensitive: etlParams.original_text_is_case_sensitive ?? false,
-            original_text_tokenize_on_chars: etlParams.original_text_tokenize_on_chars ?? '',
-            separator_regexp: etlParams.separator === 'bk_log_regexp' ? etlParams.separator_regexp : '',
-            separator: etlParams.separator,
-            enable_retain_content: etlParams.enable_retain_content,
-            record_parse_failure: etlParams.enable_retain_content,
-            path_regexp: etlParams.path_regexp,
-            metadata_fields: etlParams.metadata_fields,
-          },
-          fields,
-          assessment_config: {
-            log_assessment: `${assessmentConfig.log_assessment}G`,
-            need_approval: assessmentConfig.need_approval,
-            approvals: assessmentConfig.approvals,
-          },
-          need_assessment: isNeedAssessment,
-        };
-        !isNeedAssessment && delete data.assessment_config;
-        /* eslint-disable */
-        if (etl_config !== 'bk_log_text') {
-          const payload = {
-            retain_original_text: etlParams.retain_original_text,
-            retain_extra_json: etlParams.retain_extra_json ?? false,
-            original_text_is_case_sensitive: etlParams.original_text_is_case_sensitive ?? false,
-            original_text_tokenize_on_chars: etlParams.original_text_tokenize_on_chars ?? '',
-            enable_retain_content: etlParams.enable_retain_content,
-            record_parse_failure: etlParams.enable_retain_content,
-            path_regexp: etlParams.path_regexp,
-          };
-          if (etl_config === 'bk_log_delimiter') {
-            payload.separator = etlParams.separator;
-          }
-          if (etl_config === 'bk_log_regexp') {
-            payload.separator_regexp = etlParams.separator_regexp;
-          }
-          data.etl_params = payload;
-        }
-        data.alias_settings = data.fields
-          .filter(item => item.query_alias)
-          .map(item => {
-            return {
-              field_name: item.alias_name || item.field_name,
-              query_alias: item.query_alias,
-              path_type: item.field_type,
-            };
-          });
-        return data;
-      },
-      checkStorageReplies() {
-        return this.formData.storage_replies <= this.replicasMax;
-      },
-      checkEsShards() {
-        return this.formData.es_shards <= this.shardsMax;
-      },
-      exportStorage() {
-        const { syncType, collect } = this.exportCollectObj;
-        // 必须是有存储集群的值，而不是未完成的才可以采集配置导入
-        const isSyncExport = syncType.includes('storage_config') && !!collect.storage_cluster_id;
-        // 这里分两步赋值时因为mixins里有个watch storage_cluster_id的监听函数，会修改其他值
-        if (isSyncExport) {
-          if (this.storageList.some(item => item.storage_cluster_id === collect.storage_cluster_id)) {
-            this.formData.storage_cluster_id = collect.storage_cluster_id;
-          } else {
-            this.formData.storage_cluster_id = '';
-            this.$bkInfo({
-              type: 'warning',
-              title: this.$t('导入的集群已被删除，请手动选择集群。'),
-            });
-          }
-        }
-        this.$nextTick(() => {
-          if (isSyncExport) {
-            const { retention, storage_replies, storage_shards_nums } = collect;
-            Object.assign(this.formData, {
-              storage_replies,
-              es_shards: storage_shards_nums,
-              retention,
-            });
-          }
-          this.editComparedData = this.getSubmitData();
-        });
-      },
     },
-  };
+    /** 导航切换提交函数 */
+    stepSubmitFun(callback) {
+      this.finish(callback);
+    },
+    // 完成按钮
+    finish(callback) {
+      const isCanSubmit = this.getSubmitAuthority();
+      if (!isCanSubmit) {
+        callback?.(false);
+        return;
+      }
+      const promises = [this.checkStore()];
+      Promise.all(promises).then(
+        () => {
+          this.fieldCollection(callback);
+        },
+        validator => {
+          console.warn('保存失败', validator);
+        }
+      );
+    },
+    // 存储校验
+    checkStore() {
+      return new Promise((resolve, reject) => {
+        // if (!this.isUnmodifiable) {
+
+        // } else {
+        //   resolve();
+        // }
+        this.$refs.validateForm
+          .validate()
+          .then(validator => {
+            resolve(validator);
+          })
+          .catch(err => {
+            console.warn('存储校验错误');
+            reject(err);
+          });
+      });
+    },
+    prevHandler() {
+      this.$emit('step-change', this.curStep - 1);
+    },
+    // 获取详情
+    getDetail() {
+      const tsStorageId = this.formData.storage_cluster_id;
+      const {
+        table_id,
+        storage_cluster_id,
+        retention,
+        storage_replies,
+        storage_shards_nums: storageShardsNums,
+        allocation_min_days,
+        table_id_prefix,
+        view_roles,
+        etl_config,
+        etl_params,
+        fields,
+        collector_config_name_en,
+      } = this.curCollect;
+      const option = { time_zone: '', time_format: '' };
+      const copyFields = fields ? JSON.parse(JSON.stringify(fields)) : [];
+      copyFields.forEach(row => {
+        row.value = '';
+        if (row.is_delete) {
+          const copyRow = Object.assign(JSON.parse(JSON.stringify(this.rowTemplate)), JSON.parse(JSON.stringify(row)));
+          Object.assign(row, copyRow);
+        }
+        if (row.option) {
+          row.option = Object.assign({}, option, row.option || {});
+        } else {
+          row.option = Object.assign({}, option);
+        }
+      });
+      /* eslint-disable */
+      this.params.etl_config = etl_config;
+      Object.assign(this.params.etl_params, {
+        separator_regexp: etl_params.separator_regexp || '',
+        separator: etl_params.separator || '',
+      });
+      this.isUnmodifiable = !!(table_id || storage_cluster_id);
+      this.isUnmodfyIndexName = !!(table_id || storage_cluster_id || collector_config_name_en);
+      this.fieldType = etl_config || 'bk_log_text';
+      let default_exclusive_cluster_id;
+      if (!storage_cluster_id && this.exclusiveList.length) {
+        // 新增时若有业务独享集群则直接赋值独享集群列表第一条id
+        this.isChangeSelect = true; // 不提示切换集群dialog
+        default_exclusive_cluster_id = this.exclusiveList[0].storage_cluster_id;
+      }
+      // this.switcher = etl_config ? etl_config !== 'bk_log_text' : false
+      /* eslint-enable */
+      Object.assign(this.formData, {
+        table_id: table_id ? table_id : collector_config_name_en ? collector_config_name_en : '',
+
+        storage_cluster_id: default_exclusive_cluster_id ? default_exclusive_cluster_id : storage_cluster_id,
+        es_shards: storageShardsNums,
+        table_id_prefix,
+        etl_config: this.fieldType,
+        etl_params: Object.assign(
+          {
+            retain_original_text: true,
+            retain_extra_json: false,
+            original_text_is_case_sensitive: false,
+            original_text_tokenize_on_chars: '',
+            separator_regexp: '',
+            separator: '',
+            // separator_field_list: ''
+          },
+
+          etl_params ? JSON.parse(JSON.stringify(etl_params)) : {}
+        ),
+        fields: copyFields.filter(item => !item.is_built_in),
+        retention: retention ? `${retention}` : this.defaultRetention,
+        storage_replies,
+
+        allocation_min_days: allocation_min_days ? `${allocation_min_days}` : '0',
+        view_roles,
+      });
+
+      if (this.stashCleanConf) {
+        // 缓存清洗配置
+        Object.assign(this.formData, {
+          etl_config: this.stashCleanConf.clean_type,
+          etl_params: this.stashCleanConf.etl_params,
+          fields: this.stashCleanConf.etl_fields,
+        });
+      }
+
+      this.editStorageClusterID = storage_cluster_id;
+      this.formData.storage_cluster_id =
+        this.formData.storage_cluster_id === null ? tsStorageId : this.formData.storage_cluster_id;
+      this.basicLoading = false;
+    },
+    cancel() {
+      if (this.isFinishCreateStep) {
+        this.$emit('change-submit', true);
+      }
+      let routeName;
+      const { backRoute, ...reset } = this.$route.query;
+      if (backRoute) {
+        routeName = backRoute;
+      } else {
+        routeName = 'collection-item';
+      }
+      this.$router.push({
+        name: routeName,
+        query: {
+          ...reset,
+          spaceUid: this.$store.state.spaceUid,
+        },
+      });
+    },
+    /**
+     * @desc: 获取主机数数量 若主机数大于assessment_host_count则显示容量评估
+     */
+    getHostNumber() {
+      const curTaskIdList = new Set();
+      this.curCollect.task_id_list.forEach(id => curTaskIdList.add(id));
+      const params = {
+        collector_config_id: this.curCollect.collector_config_id,
+      };
+      this.$http
+        .request('collect/getIssuedClusterList', {
+          params,
+          query: { task_id_list: [...curTaskIdList.keys()].join(',') },
+        })
+        .then(res => {
+          const data = res.data.contents;
+          let hostLength = 0;
+          data.forEach(cluster => {
+            hostLength += cluster.child.length;
+          });
+          // 这里获取主机总数量赋值并与HOST_COUNT比较如果主机数量大于最大值则必填容量评估内容
+          const isOverHost = hostLength > Number(this.HOST_COUNT);
+          this.hostNumber = hostLength;
+          this.isShowAssessment = isOverHost;
+          this.isForcedFillAssessment = isOverHost;
+          this.formData.assessment_config.need_approval = isOverHost;
+        })
+        .catch(() => {
+          this.hostNumber = 0;
+          this.isForcedFillAssessment = false;
+          this.formData.assessment_config.need_approval = false;
+        });
+    },
+    getSubmitAuthority() {
+      /**
+       * 当前未选择集群 提示
+       * 主机数量 >= assessment_host_count 强制审批 提示
+       */
+      const { storage_cluster_id: clusterID, assessment_config: assessmentConfig } = this.formData;
+      const isNotSelectedID = clusterID === '';
+      const isNotFillLog =
+        this.isForcedFillAssessment && this.isCanUseAssessment && assessmentConfig.log_assessment === '';
+      if (isNotSelectedID || isNotFillLog) {
+        const message = isNotSelectedID ? this.$t('请选择集群') : this.$t('请填写容量评估的每日单台日志量');
+        this.$bkMessage({
+          theme: 'error',
+          message,
+        });
+        return false;
+      }
+      return true;
+    },
+    getNeedAssessmentStatus() {
+      const {
+        assessment_config: { log_assessment: logAssessment, need_approval: needApproval },
+      } = this.formData;
+      return this.isCanUseAssessment && (logAssessment !== '' || needApproval);
+    },
+    /** 判断提交信息是否有更改过值 */
+    getIsUpdateSubmitValue() {
+      // 如果还在初始化的时候快速切换其他导航则直接跳转 不进行数据修改判断
+      if (this.basicLoading) return false;
+      const params = this.getSubmitData();
+      return !deepEqual(this.editComparedData, params);
+    },
+    getSubmitData() {
+      const {
+        etl_config,
+        table_id,
+        storage_cluster_id,
+        retention,
+        storage_replies,
+        es_shards,
+        allocation_min_days: allMinDays,
+        view_roles,
+        fields,
+        etl_params: etlParams,
+        assessment_config: assessmentConfig,
+      } = this.formData;
+      const isNeedAssessment = this.getNeedAssessmentStatus();
+      const isOpenHotWarm = this.selectedStorageCluster.enable_hot_warm;
+
+      etlParams.metadata_fields =
+        etlParams?.metadata_fields?.map(item => {
+          item.metadata_type = 'path';
+          return item;
+        }) ?? [];
+
+      const data = {
+        etl_config,
+        table_id,
+        storage_cluster_id,
+        retention: Number(retention),
+        storage_replies: Number(storage_replies),
+        es_shards: Number(es_shards),
+        allocation_min_days: isOpenHotWarm ? Number(allMinDays) : 0,
+        view_roles,
+        etl_params: {
+          retain_original_text: etlParams.retain_original_text,
+          retain_extra_json: etlParams.retain_extra_json ?? false,
+          original_text_is_case_sensitive: etlParams.original_text_is_case_sensitive ?? false,
+          original_text_tokenize_on_chars: etlParams.original_text_tokenize_on_chars ?? '',
+          separator_regexp: etlParams.separator === 'bk_log_regexp' ? etlParams.separator_regexp : '',
+          separator: etlParams.separator,
+          enable_retain_content: etlParams.enable_retain_content,
+          record_parse_failure: etlParams.enable_retain_content,
+          path_regexp: etlParams.path_regexp,
+          metadata_fields: etlParams.metadata_fields,
+        },
+        fields,
+        assessment_config: {
+          log_assessment: `${assessmentConfig.log_assessment}G`,
+          need_approval: assessmentConfig.need_approval,
+          approvals: assessmentConfig.approvals,
+        },
+        need_assessment: isNeedAssessment,
+      };
+      !isNeedAssessment && delete data.assessment_config;
+      /* eslint-disable */
+      if (etl_config !== 'bk_log_text') {
+        const payload = {
+          retain_original_text: etlParams.retain_original_text,
+          retain_extra_json: etlParams.retain_extra_json ?? false,
+          original_text_is_case_sensitive: etlParams.original_text_is_case_sensitive ?? false,
+          original_text_tokenize_on_chars: etlParams.original_text_tokenize_on_chars ?? '',
+          enable_retain_content: etlParams.enable_retain_content,
+          record_parse_failure: etlParams.enable_retain_content,
+          path_regexp: etlParams.path_regexp,
+        };
+        if (etl_config === 'bk_log_delimiter') {
+          payload.separator = etlParams.separator;
+        }
+        if (etl_config === 'bk_log_regexp') {
+          payload.separator_regexp = etlParams.separator_regexp;
+        }
+        data.etl_params = payload;
+      }
+      data.alias_settings = data.fields
+        .filter(item => item.query_alias)
+        .map(item => {
+          return {
+            field_name: item.alias_name || item.field_name,
+            query_alias: item.query_alias,
+            path_type: item.field_type,
+          };
+        });
+      return data;
+    },
+    checkStorageReplies() {
+      return this.formData.storage_replies <= this.replicasMax;
+    },
+    checkEsShards() {
+      return this.formData.es_shards <= this.shardsMax;
+    },
+    exportStorage() {
+      const { syncType, collect } = this.exportCollectObj;
+      // 必须是有存储集群的值，而不是未完成的才可以采集配置导入
+      const isSyncExport = syncType.includes('storage_config') && !!collect.storage_cluster_id;
+      // 这里分两步赋值时因为mixins里有个watch storage_cluster_id的监听函数，会修改其他值
+      if (isSyncExport) {
+        if (this.storageList.some(item => item.storage_cluster_id === collect.storage_cluster_id)) {
+          this.formData.storage_cluster_id = collect.storage_cluster_id;
+        } else {
+          this.formData.storage_cluster_id = '';
+          this.$bkInfo({
+            type: 'warning',
+            title: this.$t('导入的集群已被删除，请手动选择集群。'),
+          });
+        }
+      }
+      this.$nextTick(() => {
+        if (isSyncExport) {
+          const { retention, storage_replies, storage_shards_nums } = collect;
+          Object.assign(this.formData, {
+            storage_replies,
+            es_shards: storage_shards_nums,
+            retention,
+          });
+        }
+        this.editComparedData = this.getSubmitData();
+      });
+    },
+  },
+};
 </script>
 
 <style lang="scss">

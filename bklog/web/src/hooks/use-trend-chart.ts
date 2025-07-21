@@ -53,7 +53,7 @@ export default ({ target, handleChartDataZoom, dynamicHeight }: TrandChartOption
 
   const retrieveParams = computed(() => store.getters.retrieveParams);
   const gradeOptionsGroups = computed(() =>
-    (store.state.indexFieldInfo.custom_config?.grade_options?.settings ?? []).filter(setting => setting.enable),
+    (store.state.indexFieldInfo.custom_config?.grade_options?.settings ?? []).filter(setting => setting.enable)
   );
 
   /**

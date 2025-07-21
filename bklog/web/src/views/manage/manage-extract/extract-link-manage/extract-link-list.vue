@@ -104,40 +104,78 @@
 </template>
 
 <script>
-  import EmptyStatus from '@/components/empty-status';
-  import { mapGetters } from 'vuex';
+import EmptyStatus from '@/components/empty-status';
+import { mapGetters } from 'vuex';
 
-  import * as authorityMap from '../../../../common/authority-map';
+import * as authorityMap from '../../../../common/authority-map';
 
-  export default {
-    name: 'ExtractLinkList',
-    components: {
-      EmptyStatus,
+export default {
+  name: 'ExtractLinkList',
+  components: {
+    EmptyStatus,
+  },
+  data() {
+    return {
+      isLoading: true,
+      extractLinkList: [],
+      isAllowedManage: null, // 是否有管理权限
+      isButtonLoading: false, // 没有权限时点击新增按钮请求权限链接
+      linkNameMap: {
+        common: this.$t('内网链路'),
+        qcloud_cos: this.$t('腾讯云链路'),
+        bk_repo: this.$t('蓝鲸制品库'),
+      },
+      emptyType: 'empty',
+    };
+  },
+  computed: {
+    ...mapGetters(['spaceUid']),
+  },
+  created() {
+    this.checkManageAuth();
+  },
+  methods: {
+    async checkManageAuth() {
+      try {
+        const res = await this.$store.dispatch('checkAllowed', {
+          action_ids: [authorityMap.MANAGE_EXTRACT_AUTH],
+          resources: [
+            {
+              type: 'space',
+              id: this.spaceUid,
+            },
+          ],
+        });
+        this.isAllowedManage = res.isAllowed;
+        if (res.isAllowed) {
+          this.initList();
+        } else {
+          this.isLoading = false;
+        }
+      } catch (err) {
+        console.warn(err);
+        this.isLoading = false;
+        this.isAllowedManage = false;
+      }
     },
-    data() {
-      return {
-        isLoading: true,
-        extractLinkList: [],
-        isAllowedManage: null, // 是否有管理权限
-        isButtonLoading: false, // 没有权限时点击新增按钮请求权限链接
-        linkNameMap: {
-          common: this.$t('内网链路'),
-          qcloud_cos: this.$t('腾讯云链路'),
-          bk_repo: this.$t('蓝鲸制品库'),
-        },
-        emptyType: 'empty',
-      };
+    // 初始化提取链路列表
+    async initList() {
+      try {
+        const res = await this.$http.request('extractManage/getLogExtractLinks');
+        this.extractLinkList = res.data;
+      } catch (e) {
+        console.warn(e);
+        this.emptyType = '500';
+      } finally {
+        this.isLoading = false;
+      }
     },
-    computed: {
-      ...mapGetters(['spaceUid']),
-    },
-    created() {
-      this.checkManageAuth();
-    },
-    methods: {
-      async checkManageAuth() {
+    // 新增提取链路
+    async handleCreate() {
+      if (!this.isAllowedManage) {
         try {
-          const res = await this.$store.dispatch('checkAllowed', {
+          this.isButtonLoading = true;
+          const res = await this.$store.dispatch('getApplyData', {
             action_ids: [authorityMap.MANAGE_EXTRACT_AUTH],
             resources: [
               {
@@ -146,103 +184,65 @@
               },
             ],
           });
-          this.isAllowedManage = res.isAllowed;
-          if (res.isAllowed) {
-            this.initList();
-          } else {
-            this.isLoading = false;
-          }
+          this.$store.commit('updateAuthDialogData', res.data);
         } catch (err) {
           console.warn(err);
-          this.isLoading = false;
-          this.isAllowedManage = false;
-        }
-      },
-      // 初始化提取链路列表
-      async initList() {
-        try {
-          const res = await this.$http.request('extractManage/getLogExtractLinks');
-          this.extractLinkList = res.data;
-        } catch (e) {
-          console.warn(e);
-          this.emptyType = '500';
         } finally {
-          this.isLoading = false;
+          this.isButtonLoading = false;
         }
-      },
-      // 新增提取链路
-      async handleCreate() {
-        if (!this.isAllowedManage) {
-          try {
-            this.isButtonLoading = true;
-            const res = await this.$store.dispatch('getApplyData', {
-              action_ids: [authorityMap.MANAGE_EXTRACT_AUTH],
-              resources: [
-                {
-                  type: 'space',
-                  id: this.spaceUid,
-                },
-              ],
-            });
-            this.$store.commit('updateAuthDialogData', res.data);
-          } catch (err) {
-            console.warn(err);
-          } finally {
-            this.isButtonLoading = false;
-          }
-        } else {
-          this.$router.push({
-            name: 'extract-link-create',
-            query: {
-              spaceUid: this.$store.state.spaceUid,
-            },
-          });
-        }
-      },
-      // 编辑提取链路
-      handleEditStrategy(row) {
+      } else {
         this.$router.push({
-          name: 'extract-link-edit',
-          params: {
-            linkId: row.link_id,
-          },
+          name: 'extract-link-create',
           query: {
             spaceUid: this.$store.state.spaceUid,
-            editName: row.name,
           },
         });
-      },
-      // 删除提取链路
-      handleDeleteStrategy(row) {
-        this.$bkInfo({
-          title: `${this.$t('确定要删除')}【${row.name}】？`,
-          confirmLoading: true,
-          confirmFn: async () => {
-            try {
-              this.isLoading = true;
-              await this.$http.request('extractManage/deleteLogExtractLink', {
-                params: {
-                  link_id: row.link_id,
-                },
-              });
-              this.messageSuccess(this.$t('删除成功'));
-              await this.initList();
-            } catch (e) {
-              console.warn(e);
-              this.isLoading = false;
-            }
-          },
-        });
-      },
-      handleOperation(type) {
-        if (type === 'refresh') {
-          this.emptyType = 'empty';
-          this.search();
-          return;
-        }
-      },
+      }
     },
-  };
+    // 编辑提取链路
+    handleEditStrategy(row) {
+      this.$router.push({
+        name: 'extract-link-edit',
+        params: {
+          linkId: row.link_id,
+        },
+        query: {
+          spaceUid: this.$store.state.spaceUid,
+          editName: row.name,
+        },
+      });
+    },
+    // 删除提取链路
+    handleDeleteStrategy(row) {
+      this.$bkInfo({
+        title: `${this.$t('确定要删除')}【${row.name}】？`,
+        confirmLoading: true,
+        confirmFn: async () => {
+          try {
+            this.isLoading = true;
+            await this.$http.request('extractManage/deleteLogExtractLink', {
+              params: {
+                link_id: row.link_id,
+              },
+            });
+            this.messageSuccess(this.$t('删除成功'));
+            await this.initList();
+          } catch (e) {
+            console.warn(e);
+            this.isLoading = false;
+          }
+        },
+      });
+    },
+    handleOperation(type) {
+      if (type === 'refresh') {
+        this.emptyType = 'empty';
+        this.search();
+        return;
+      }
+    },
+  },
+};
 </script>
 
 <style lang="scss" scoped>

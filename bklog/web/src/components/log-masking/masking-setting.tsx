@@ -419,7 +419,7 @@ export default class MaskingSetting extends tsc<IProps> {
   handleChangeTableListValue(
     changeTableID: number,
     callback: (any) => void,
-    list = [this.tableSearchList, this.tableList],
+    list = [this.tableSearchList, this.tableList]
   ) {
     list.forEach(lItem => {
       lItem.forEach(item => {
@@ -494,7 +494,7 @@ export default class MaskingSetting extends tsc<IProps> {
 
   searchRule() {
     this.tableSearchList = this.tableList.filter(item =>
-      item.ruleName.toString().toLowerCase().includes(this.searchStr.toLowerCase()),
+      item.ruleName.toString().toLowerCase().includes(this.searchStr.toLowerCase())
     );
     this.pageLimitChange(10);
     this.emptyType = 'search-empty';
@@ -734,7 +734,7 @@ export default class MaskingSetting extends tsc<IProps> {
         <Alert
           class='top-alert'
           title={this.$t(
-            '脱敏规则会应用到本业务全部索引集。为保证脱敏规则效力，配置规则后，需针对计算平台索引集、第三方ES索引集进行手动校准指定，校准后索引集恢复可用状态。',
+            '脱敏规则会应用到本业务全部索引集。为保证脱敏规则效力，配置规则后，需针对计算平台索引集、第三方ES索引集进行手动校准指定，校准后索引集恢复可用状态。'
           )}
           type='info'
           closable

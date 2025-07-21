@@ -226,7 +226,7 @@ export const IndexFieldInfo = {
 export const IndexsetItemParams = { ...DEFAULT_RETRIEVE_PARAMS };
 export const IndexItem = {
   ids: (URL_ARGS.unionList?.length ? [...URL_ARGS.unionList] : [URL_ARGS.index_id]).filter(
-    t => t !== '' && t !== undefined && t !== null,
+    t => t !== '' && t !== undefined && t !== null
   ),
   isUnionIndex: URL_ARGS.unionList?.length ?? false,
   items: [],
@@ -349,6 +349,6 @@ export const getStorageOptions = (values?: any) => {
       [BK_LOG_STORAGE.LAST_INDEX_SET_ID]: {},
       [BK_LOG_STORAGE.COMMON_SPACE_ID_LIST]: [],
     },
-    storage,
+    storage
   );
 };

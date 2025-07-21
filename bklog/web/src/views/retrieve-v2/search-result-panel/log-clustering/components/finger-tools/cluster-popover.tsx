@@ -74,7 +74,7 @@ export default class ClusterPopover extends tsc<object> {
     if (this.feedRulesData.textInputStr.trim() === '') return true;
 
     return /^[\u4e00-\u9fa5_a-zA-Z0-9`~!\s@#$%^&*()_\-+=<>?:"{}|,.\/;'\\[\]·~！@#￥%……&*（）——\-+={}|《》？：“”【】、；‘'，。、]+$/im.test(
-      this.feedRulesData.textInputStr.trim(),
+      this.feedRulesData.textInputStr.trim()
     );
   }
 

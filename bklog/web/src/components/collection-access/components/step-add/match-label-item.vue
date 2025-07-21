@@ -155,244 +155,244 @@
   </div>
 </template>
 <script>
-  export default {
-    props: {
-      matchItem: {
-        type: Object,
-        default: () => ({
-          key: '',
-          operator: 'In',
-          value: '',
-        }),
-      },
-      onlyShowSelectEdit: {
-        type: Boolean,
-        default: false,
-      },
-      showEdit: {
-        type: Boolean,
-        default: false,
-      },
-      submitEdit: {
-        type: Function,
-      },
-      activeLabelEditID: {
-        type: String,
-        default: '',
-      },
-      labelSelector: {
-        type: Array,
-        require: true,
-      },
-      isDialogItem: {
-        type: Boolean,
-        default: false,
-      },
-      isLabelEdit: {
-        type: Boolean,
-        default: true,
-      },
+export default {
+  props: {
+    matchItem: {
+      type: Object,
+      default: () => ({
+        key: '',
+        operator: 'In',
+        value: '',
+      }),
     },
-    data() {
-      return {
-        verifyData: {
-          matchKey: '',
-        },
-        rules: {
-          matchKey: [
-            {
-              validator: this.checkName,
-              message: this.$t('标签名称不符合正则{n}', { n: '([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9]' }),
-              trigger: 'blur',
-            },
-            {
-              required: true,
-              message: this.$t('必填项'),
-              trigger: 'blur',
-            },
-          ],
-        },
-        matchValue: '', // 自定义匹配值
-        matchValueArr: [],
-        matchOperator: 'In', // 自定义匹配操作
-        catchOperator: 'In',
-        expressOperatorList: [
+    onlyShowSelectEdit: {
+      type: Boolean,
+      default: false,
+    },
+    showEdit: {
+      type: Boolean,
+      default: false,
+    },
+    submitEdit: {
+      type: Function,
+    },
+    activeLabelEditID: {
+      type: String,
+      default: '',
+    },
+    labelSelector: {
+      type: Array,
+      require: true,
+    },
+    isDialogItem: {
+      type: Boolean,
+      default: false,
+    },
+    isLabelEdit: {
+      type: Boolean,
+      default: true,
+    },
+  },
+  data() {
+    return {
+      verifyData: {
+        matchKey: '',
+      },
+      rules: {
+        matchKey: [
           {
-            // 表达式操作选项
-            id: '=',
-            name: '=',
+            validator: this.checkName,
+            message: this.$t('标签名称不符合正则{n}', { n: '([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9]' }),
+            trigger: 'blur',
           },
           {
-            id: 'In',
-            name: 'In',
-          },
-          {
-            id: 'NotIn',
-            name: 'NotIn',
-          },
-          {
-            id: 'Exists',
-            name: 'Exists',
-          },
-          {
-            id: 'DoesNotExist',
-            name: 'DoesNotExist',
+            required: true,
+            message: this.$t('必填项'),
+            trigger: 'blur',
           },
         ],
-        isValueError: false,
-        matchExpressOption: [],
-        isEdit: false, // select编辑
-      };
+      },
+      matchValue: '', // 自定义匹配值
+      matchValueArr: [],
+      matchOperator: 'In', // 自定义匹配操作
+      catchOperator: 'In',
+      expressOperatorList: [
+        {
+          // 表达式操作选项
+          id: '=',
+          name: '=',
+        },
+        {
+          id: 'In',
+          name: 'In',
+        },
+        {
+          id: 'NotIn',
+          name: 'NotIn',
+        },
+        {
+          id: 'Exists',
+          name: 'Exists',
+        },
+        {
+          id: 'DoesNotExist',
+          name: 'DoesNotExist',
+        },
+      ],
+      isValueError: false,
+      matchExpressOption: [],
+      isEdit: false, // select编辑
+    };
+  },
+  computed: {
+    expressInputIsDisabled() {
+      return ['Exists', 'DoesNotExist'].includes(this.matchOperator);
     },
-    computed: {
-      expressInputIsDisabled() {
-        return ['Exists', 'DoesNotExist'].includes(this.matchOperator);
-      },
-      isHaveCompared() {
-        return ['In', 'NotIn'].includes(this.matchOperator);
-      },
-      labelKeyStrList() {
-        return this.labelSelector.filter(item => this.matchItem.key !== item.key).map(item => item.key);
-      },
-      validateFrontCheck() {
-        if (!this.expressInputIsDisabled) {
-          const matchValueError = this.isHaveCompared ? !this.matchValueArr.length : !this.matchValue;
-          // key value 不能为空
-          if (matchValueError) {
-            // eslint-disable-next-line vue/no-side-effects-in-computed-properties
-            matchValueError && (this.isValueError = true);
-            return false;
-          }
+    isHaveCompared() {
+      return ['In', 'NotIn'].includes(this.matchOperator);
+    },
+    labelKeyStrList() {
+      return this.labelSelector.filter(item => this.matchItem.key !== item.key).map(item => item.key);
+    },
+    validateFrontCheck() {
+      if (!this.expressInputIsDisabled) {
+        const matchValueError = this.isHaveCompared ? !this.matchValueArr.length : !this.matchValue;
+        // key value 不能为空
+        if (matchValueError) {
+          // eslint-disable-next-line vue/no-side-effects-in-computed-properties
+          matchValueError && (this.isValueError = true);
+          return false;
         }
-        return true;
-      },
+      }
+      return true;
     },
-    watch: {
-      matchValue() {
+  },
+  watch: {
+    matchValue() {
+      return (this.isValueError = false);
+    },
+    'matchValueArr.length': {
+      handler() {
         return (this.isValueError = false);
       },
-      'matchValueArr.length': {
-        handler() {
-          return (this.isValueError = false);
-        },
-      },
-      activeLabelEditID(val) {
-        if (val !== this.matchItem?.id) this.isEdit = false;
-      },
-      matchItem: {
-        immediate: true,
-        handler(val) {
-          if (val.operator) {
-            this.matchOperator = val.operator || 'In';
-          }
-          if (!this.isLabelEdit) {
-            this.expressOperatorList.shift();
-          }
-        },
+    },
+    activeLabelEditID(val) {
+      if (val !== this.matchItem?.id) this.isEdit = false;
+    },
+    matchItem: {
+      immediate: true,
+      handler(val) {
+        if (val.operator) {
+          this.matchOperator = val.operator || 'In';
+        }
+        if (!this.isLabelEdit) {
+          this.expressOperatorList.shift();
+        }
       },
     },
-    created() {},
-    methods: {
-      handleAddMatch() {
-        this.$refs.keyRef.validate().then(() => {
-          if (!this.validateFrontCheck) return;
+  },
+  created() {},
+  methods: {
+    handleAddMatch() {
+      this.$refs.keyRef.validate().then(() => {
+        if (!this.validateFrontCheck) return;
 
-          let goodJob = true;
+        let goodJob = true;
 
-          if (typeof this.submitEdit === 'function') {
-            const value = this.expressInputIsDisabled
-              ? ''
-              : this.isHaveCompared
-                ? this.matchValueArr.join(',')
-                : this.matchValue;
-            goodJob = this.submitEdit({
-              key: this.verifyData.matchKey,
-              operator: this.matchOperator,
-              value,
+        if (typeof this.submitEdit === 'function') {
+          const value = this.expressInputIsDisabled
+            ? ''
+            : this.isHaveCompared
+              ? this.matchValueArr.join(',')
+              : this.matchValue;
+          goodJob = this.submitEdit({
+            key: this.verifyData.matchKey,
+            operator: this.matchOperator,
+            value,
+          });
+          if (typeof goodJob.then === 'function') {
+            return goodJob.then(() => {
+              this.resetStatus();
             });
-            if (typeof goodJob.then === 'function') {
-              return goodJob.then(() => {
-                this.resetStatus();
-              });
-            }
           }
+        }
 
-          if (goodJob) {
-            this.resetStatus();
-          }
-        });
-      },
-      handleCancelMatch() {
-        if (!this.onlyShowSelectEdit) this.matchOperator = this.catchOperator;
-        this.$emit('cancel-edit');
-        this.isEdit = false;
-      },
-      handleEditItem() {
-        const { key, operator, value } = this.matchItem;
+        if (goodJob) {
+          this.resetStatus();
+        }
+      });
+    },
+    handleCancelMatch() {
+      if (!this.onlyShowSelectEdit) this.matchOperator = this.catchOperator;
+      this.$emit('cancel-edit');
+      this.isEdit = false;
+    },
+    handleEditItem() {
+      const { key, operator, value } = this.matchItem;
 
-        this.matchOperator = operator;
-        this.catchOperator = operator;
-        this.verifyData.matchKey = key;
+      this.matchOperator = operator;
+      this.catchOperator = operator;
+      this.verifyData.matchKey = key;
+      if (this.isHaveCompared) {
+        const splitValue = value.split(',');
+        this.matchValueArr = splitValue.length ? splitValue : [];
+      } else {
+        this.matchValue = value;
+      }
+      this.isEdit = true;
+    },
+    handleDeleteItem() {
+      this.$emit('delete-item');
+    },
+    handleValueBlur(input, list) {
+      if (!input) return;
+      this.matchValueArr = !list.length ? [input] : [...new Set([...this.matchValueArr, input])];
+    },
+    checkName() {
+      if (this.verifyData.matchKey === '') return true;
+
+      return /^([A-Za-z0-9][-A-Za-z0-9_.\/]*)?[A-Za-z0-9]$/.test(this.verifyData.matchKey);
+    },
+    resetStatus() {
+      this.isEdit = false;
+      this.isValueError = false;
+      this.matchValue = '';
+      this.verifyData.matchKey = '';
+      this.matchValueArr = [];
+    },
+    checkOperatorDisabled(id) {
+      return !this.matchItem.value && ['=', 'In', 'NotIn'].includes(id);
+    },
+    handleOperateChange(isExternal = false) {
+      if (isExternal) {
+        const { key, value } = this.matchItem;
         if (this.isHaveCompared) {
           const splitValue = value.split(',');
-          this.matchValueArr = splitValue.length ? splitValue : [];
+          this.matchValueArr = !!splitValue[0] ? splitValue : [];
         } else {
           this.matchValue = value;
         }
-        this.isEdit = true;
-      },
-      handleDeleteItem() {
-        this.$emit('delete-item');
-      },
-      handleValueBlur(input, list) {
-        if (!input) return;
-        this.matchValueArr = !list.length ? [input] : [...new Set([...this.matchValueArr, input])];
-      },
-      checkName() {
-        if (this.verifyData.matchKey === '') return true;
-
-        return /^([A-Za-z0-9][-A-Za-z0-9_.\/]*)?[A-Za-z0-9]$/.test(this.verifyData.matchKey);
-      },
-      resetStatus() {
-        this.isEdit = false;
-        this.isValueError = false;
-        this.matchValue = '';
-        this.verifyData.matchKey = '';
-        this.matchValueArr = [];
-      },
-      checkOperatorDisabled(id) {
-        return !this.matchItem.value && ['=', 'In', 'NotIn'].includes(id);
-      },
-      handleOperateChange(isExternal = false) {
-        if (isExternal) {
-          const { key, value } = this.matchItem;
-          if (this.isHaveCompared) {
-            const splitValue = value.split(',');
-            this.matchValueArr = !!splitValue[0] ? splitValue : [];
-          } else {
-            this.matchValue = value;
+        this.submitEdit({
+          key,
+          operator: this.matchOperator,
+          value: this.expressInputIsDisabled ? '' : value,
+          isExternal: true,
+        });
+      } else {
+        if (this.isHaveCompared) {
+          if (!this.matchValueArr.length && !!this.matchValue) {
+            const splitValue = this.matchValue.split(',');
+            this.matchValueArr = !!splitValue ? splitValue : [];
           }
-          this.submitEdit({
-            key,
-            operator: this.matchOperator,
-            value: this.expressInputIsDisabled ? '' : value,
-            isExternal: true,
-          });
         } else {
-          if (this.isHaveCompared) {
-            if (!this.matchValueArr.length && !!this.matchValue) {
-              const splitValue = this.matchValue.split(',');
-              this.matchValueArr = !!splitValue ? splitValue : [];
-            }
-          } else {
-            if (!!this.matchValueArr.length && !this.matchValue) {
-              this.matchValue = this.matchValueArr[0];
-            }
+          if (!!this.matchValueArr.length && !this.matchValue) {
+            this.matchValue = this.matchValueArr[0];
           }
         }
-      },
+      }
     },
-  };
+  },
+};
 </script>
 <style lang="scss" scoped>
   @import '@/scss/mixins/flex.scss';

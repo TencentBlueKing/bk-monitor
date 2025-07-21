@@ -105,30 +105,30 @@
 </template>
 
 <script>
-  export default {
-    props: {
-      globalEditable: {
-        type: Boolean,
-        default: true,
+export default {
+  props: {
+    globalEditable: {
+      type: Boolean,
+      default: true,
+    },
+  },
+  data() {
+    return {
+      demo1: true,
+      rules: {},
+      formData: {
+        is_case_sensitive: 1, // 大小写敏感
+        delimeter: '', // 分词符
       },
-    },
-    data() {
-      return {
-        demo1: true,
-        rules: {},
-        formData: {
-          is_case_sensitive: 1, // 大小写敏感
-          delimeter: '', // 分词符
-        },
-      };
-    },
-    mounted() {},
-    methods: {
-      handleSubmit() {},
-      handleReset() {},
-      handleDefaultReset() {},
-    },
-  };
+    };
+  },
+  mounted() {},
+  methods: {
+    handleSubmit() {},
+    handleReset() {},
+    handleDefaultReset() {},
+  },
+};
 </script>
 
 <style lang="scss" scoped>

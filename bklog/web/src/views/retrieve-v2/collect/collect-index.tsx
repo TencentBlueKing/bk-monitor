@@ -245,7 +245,7 @@ export default class CollectIndex extends tsc<IProps> {
         group_name,
         group_type,
         favorites: favorites.filter(
-          fItem => fItem.created_by.includes(this.searchVal) || fItem.name.includes(this.searchVal),
+          fItem => fItem.created_by.includes(this.searchVal) || fItem.name.includes(this.searchVal)
         ),
       };
     };
@@ -438,7 +438,7 @@ export default class CollectIndex extends tsc<IProps> {
     if (isUnionIndex) {
       this.$store.commit(
         'updateUnionIndexList',
-        cloneValue.index_set_ids.map(item => String(item)),
+        cloneValue.index_set_ids.map(item => String(item))
       );
     }
     if (JSON.stringify(ip_chooser) !== '{}') {
@@ -649,7 +649,7 @@ export default class CollectIndex extends tsc<IProps> {
   checkName() {
     if (this.verifyData.groupName.trim() === '') return true;
     return /^[\u4e00-\u9fa5_a-zA-Z0-9`~!@#$%^&*()_\-+=<>?:"\s{}|,.\/;'\\[\]·~！@#￥%……&*（）——\-+={}|《》？：“”【】、；‘'，。、]+$/im.test(
-      this.verifyData.groupName.trim(),
+      this.verifyData.groupName.trim()
     );
   }
   checkExistName() {

@@ -56,7 +56,7 @@ const i18n = new VueI18n({
       Object.keys(logEnJson).reduce((pre, key) => {
         pre[key] = key;
         return pre;
-      }, {}),
+      }, {})
     ),
     // 英文语言包
     // en: Object.assign(lang.enUS, en),

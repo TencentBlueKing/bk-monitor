@@ -39,42 +39,42 @@
 </template>
 
 <script>
-  import stepField from '@/components/collection-access/step-field';
-  import { mapState } from 'vuex';
+import stepField from '@/components/collection-access/step-field';
+import { mapState } from 'vuex';
 
-  export default {
-    name: 'LogCleanCreate',
-    components: { stepField },
-    data() {
-      return {
-        loading: false,
-        isSubmit: false,
-      };
-    },
-    computed: {
-      ...mapState({
-        showRouterLeaveTip: state => state.showRouterLeaveTip,
-      }),
-    },
+export default {
+  name: 'LogCleanCreate',
+  components: { stepField },
+  data() {
+    return {
+      loading: false,
+      isSubmit: false,
+    };
+  },
+  computed: {
+    ...mapState({
+      showRouterLeaveTip: state => state.showRouterLeaveTip,
+    }),
+  },
 
-    beforeRouteLeave(to, from, next) {
-      if (!this.isSubmit && !this.showRouterLeaveTip) {
-        this.$bkInfo({
-          title: this.$t('是否放弃本次操作？'),
-          confirmFn: () => {
-            next();
-          },
-        });
-        return;
-      }
-      next();
+  beforeRouteLeave(to, from, next) {
+    if (!this.isSubmit && !this.showRouterLeaveTip) {
+      this.$bkInfo({
+        title: this.$t('是否放弃本次操作？'),
+        confirmFn: () => {
+          next();
+        },
+      });
+      return;
+    }
+    next();
+  },
+  methods: {
+    changeSubmit(isSubmit) {
+      this.isSubmit = isSubmit;
     },
-    methods: {
-      changeSubmit(isSubmit) {
-        this.isSubmit = isSubmit;
-      },
-    },
-  };
+  },
+};
 </script>
 
 <style lang="scss" scoped>

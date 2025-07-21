@@ -110,156 +110,156 @@
 </template>
 
 <script>
-  import { copyMessage } from '@/common/util';
-  import EmptyStatus from '@/components/empty-status';
+import { copyMessage } from '@/common/util';
+import EmptyStatus from '@/components/empty-status';
 
-  export default {
-    components: {
-      EmptyStatus,
+export default {
+  components: {
+    EmptyStatus,
+  },
+  props: {
+    showSelectDialog: {
+      type: Boolean,
+      default: false,
     },
-    props: {
-      showSelectDialog: {
-        type: Boolean,
-        default: false,
-      },
+  },
+  data() {
+    return {
+      isLoading: true,
+      searchWord: '',
+      topoTemplate: [],
+      selectedIpNodes: [],
+      topoCache: [], // 缓存已选择的树节点
+    };
+  },
+  computed: {
+    selectedIpList() {
+      return this.selectedIpNodes.map(item => ({
+        ip: item.ip,
+        bk_cloud_id: item.bk_cloud_id,
+      }));
     },
-    data() {
-      return {
-        isLoading: true,
-        searchWord: '',
-        topoTemplate: [],
-        selectedIpNodes: [],
-        topoCache: [], // 缓存已选择的树节点
-      };
-    },
-    computed: {
-      selectedIpList() {
-        return this.selectedIpNodes.map(item => ({
-          ip: item.ip,
-          bk_cloud_id: item.bk_cloud_id,
-        }));
-      },
-    },
-    created() {
-      this.initTopoTemplate();
-    },
-    methods: {
-      async initTopoTemplate() {
-        try {
-          this.isLoading = true;
-          const res = await this.$http.request('extract/getTopoIpList', {
-            query: {
-              bk_biz_id: this.$store.state.bkBizId,
-            },
-          });
-          this.topoTemplate = res.data;
-        } catch (e) {
-          console.warn(e);
-        } finally {
-          this.isLoading = false;
-        }
-      },
-      handleNodeCheck(checkedId, checkedNode) {
-        this.handleTree(checkedNode.tree);
-      },
-      handleTree(tree) {
-        const { nodes, checkedNodes } = tree;
-        const ipSet = new Set();
-        const ipObj = {};
-        // 从 topo 中已勾选的节点找到带 ip 的节点，去重
-        checkedNodes.forEach(node => {
-          const ip = node.data?.ip;
-          if (ip && !ipSet.has(ip)) {
-            ipSet.add(ip);
-            ipObj[ip] = {
-              ip,
-              bk_cloud_id: node.data.bk_cloud_id,
-            };
-          }
-        });
-        // 并将所有带此 ip 的节点勾选上
-        const ipList = [...ipSet];
-        nodes.forEach(node => {
-          if (ipList.includes(node.data?.ip)) {
-            node.checked = true;
-          }
-        });
+  },
+  created() {
+    this.initTopoTemplate();
+  },
+  methods: {
+    async initTopoTemplate() {
+      try {
         this.isLoading = true;
-        this.$http
-          .request('collect/getHostByIp', {
-            params: {
-              bk_biz_id: this.$store.state.bkBizId,
-            },
-            data: {
-              bk_biz_id: this.$store.state.bkBizId,
-              ip_list: Object.values(ipObj),
-            },
-          })
-          .then(res => {
-            this.selectedIpNodes = res.data;
-          })
-          .catch(err => {
-            console.warn(err);
-          })
-          .finally(() => {
-            this.isLoading = false;
-          });
-      },
-      handleRemoveIp(scope) {
-        this.selectedIpNodes.splice(scope.$index, 1);
-        this.$refs.treeRef.nodes.forEach(node => {
-          if (node.data?.ip === scope.row.ip) {
-            node.checked = false;
-          }
+        const res = await this.$http.request('extract/getTopoIpList', {
+          query: {
+            bk_biz_id: this.$store.state.bkBizId,
+          },
         });
-      },
-      handleValueChange(val) {
-        if (val === true && this.topoCache.length) {
-          // 恢复数据到确定选择的数据
-          this.$refs.treeRef.setChecked(this.topoCache);
-          this.handleTree(this.$refs.treeRef);
-        }
-        this.$emit('update:show-select-dialog', val);
-      },
-      copyIp() {
-        copyMessage(JSON.stringify(this.selectedIpList));
-      },
-      clearIp() {
-        this.selectedIpNodes.splice(0);
-        this.$refs.treeRef.nodes.forEach(node => {
-          node.checked = false;
-        });
-      },
-      async handleConfirm() {
-        if (!this.selectedIpList.length) {
-          return;
-        }
-
-        try {
-          this.isLoading = true;
-          // 选择服务器后，获取可预览的路径
-          const res = await this.$http.request('extract/getAvailableExplorerPath', {
-            data: {
-              bk_biz_id: this.$store.state.bkBizId,
-              ip_list: this.selectedIpList,
-            },
-          });
-          const availablePaths = res.data.map(item => item.file_path);
-          this.$emit('confirm', this.selectedIpList, availablePaths);
-          this.$emit('update:show-select-dialog', false);
-
-          this.topoCache = JSON.parse(JSON.stringify(this.$refs.treeRef.checked));
-        } catch (e) {
-          console.warn(e);
-        } finally {
-          this.isLoading = false;
-        }
-      },
-      search() {
-        this.$refs.treeRef.filter(this.searchWord);
-      },
+        this.topoTemplate = res.data;
+      } catch (e) {
+        console.warn(e);
+      } finally {
+        this.isLoading = false;
+      }
     },
-  };
+    handleNodeCheck(checkedId, checkedNode) {
+      this.handleTree(checkedNode.tree);
+    },
+    handleTree(tree) {
+      const { nodes, checkedNodes } = tree;
+      const ipSet = new Set();
+      const ipObj = {};
+      // 从 topo 中已勾选的节点找到带 ip 的节点，去重
+      checkedNodes.forEach(node => {
+        const ip = node.data?.ip;
+        if (ip && !ipSet.has(ip)) {
+          ipSet.add(ip);
+          ipObj[ip] = {
+            ip,
+            bk_cloud_id: node.data.bk_cloud_id,
+          };
+        }
+      });
+      // 并将所有带此 ip 的节点勾选上
+      const ipList = [...ipSet];
+      nodes.forEach(node => {
+        if (ipList.includes(node.data?.ip)) {
+          node.checked = true;
+        }
+      });
+      this.isLoading = true;
+      this.$http
+        .request('collect/getHostByIp', {
+          params: {
+            bk_biz_id: this.$store.state.bkBizId,
+          },
+          data: {
+            bk_biz_id: this.$store.state.bkBizId,
+            ip_list: Object.values(ipObj),
+          },
+        })
+        .then(res => {
+          this.selectedIpNodes = res.data;
+        })
+        .catch(err => {
+          console.warn(err);
+        })
+        .finally(() => {
+          this.isLoading = false;
+        });
+    },
+    handleRemoveIp(scope) {
+      this.selectedIpNodes.splice(scope.$index, 1);
+      this.$refs.treeRef.nodes.forEach(node => {
+        if (node.data?.ip === scope.row.ip) {
+          node.checked = false;
+        }
+      });
+    },
+    handleValueChange(val) {
+      if (val === true && this.topoCache.length) {
+        // 恢复数据到确定选择的数据
+        this.$refs.treeRef.setChecked(this.topoCache);
+        this.handleTree(this.$refs.treeRef);
+      }
+      this.$emit('update:show-select-dialog', val);
+    },
+    copyIp() {
+      copyMessage(JSON.stringify(this.selectedIpList));
+    },
+    clearIp() {
+      this.selectedIpNodes.splice(0);
+      this.$refs.treeRef.nodes.forEach(node => {
+        node.checked = false;
+      });
+    },
+    async handleConfirm() {
+      if (!this.selectedIpList.length) {
+        return;
+      }
+
+      try {
+        this.isLoading = true;
+        // 选择服务器后，获取可预览的路径
+        const res = await this.$http.request('extract/getAvailableExplorerPath', {
+          data: {
+            bk_biz_id: this.$store.state.bkBizId,
+            ip_list: this.selectedIpList,
+          },
+        });
+        const availablePaths = res.data.map(item => item.file_path);
+        this.$emit('confirm', this.selectedIpList, availablePaths);
+        this.$emit('update:show-select-dialog', false);
+
+        this.topoCache = JSON.parse(JSON.stringify(this.$refs.treeRef.checked));
+      } catch (e) {
+        console.warn(e);
+      } finally {
+        this.isLoading = false;
+      }
+    },
+    search() {
+      this.$refs.treeRef.filter(this.searchWord);
+    },
+  },
+};
 </script>
 
 <style lang="scss" scoped>

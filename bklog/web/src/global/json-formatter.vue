@@ -47,273 +47,272 @@
   </div>
 </template>
 <script setup lang="ts">
-  import { computed, ref, watch, onBeforeUnmount, onMounted, inject } from 'vue';
+import { computed, ref, watch, onBeforeUnmount, onMounted, inject } from 'vue';
 
-  // @ts-ignore
-  import { parseTableRowData } from '@/common/util';
-  import useFieldNameHook from '@/hooks/use-field-name';
+// @ts-ignore
+import { parseTableRowData } from '@/common/util';
+import useFieldNameHook from '@/hooks/use-field-name';
 
-  import useJsonRoot from '../hooks/use-json-root';
-  import useStore from '../hooks/use-store';
-  import RetrieveHelper from '../views/retrieve-helper';
-  import { BK_LOG_STORAGE } from '../store/store.type';
-  import { debounce } from 'lodash';
-  import JSONBig from 'json-bigint';
-  import useLocale from '@/hooks/use-locale';
+import useJsonRoot from '../hooks/use-json-root';
+import useStore from '../hooks/use-store';
+import RetrieveHelper from '../views/retrieve-helper';
+import { BK_LOG_STORAGE } from '../store/store.type';
+import { debounce } from 'lodash';
+import JSONBig from 'json-bigint';
+import useLocale from '@/hooks/use-locale';
 
-  const emit = defineEmits(['menu-click']);
-  const store = useStore();
-  const { $t } = useLocale();
+const emit = defineEmits(['menu-click']);
+const store = useStore();
+const { $t } = useLocale();
 
-  const props = defineProps({
-    jsonValue: {
-      type: [Object, String, Number],
-      default: () => ({}),
-    },
-    fields: {
-      type: [Array, Object],
-      default: () => [],
-    },
+const props = defineProps({
+  jsonValue: {
+    type: [Object, String, Number],
+    default: () => ({}),
+  },
+  fields: {
+    type: [Array, Object],
+    default: () => [],
+  },
 
-    limitRow: {
-      type: [Number, String, null],
-      default: 3,
-    },
-  });
+  limitRow: {
+    type: [Number, String, null],
+    default: 3,
+  },
+});
 
-  const bigJson = JSONBig({ useNativeBigInt: true });
-  const formatCounter = ref(0);
-  const refJsonFormatterCell = ref();
-  const showAllText = ref(false);
-  const hasScrollY = ref(false);
-  const isRowIntersecting = inject('isRowIntersecting', ref(false));
-  const isResolved = ref(isRowIntersecting.value);
+const bigJson = JSONBig({ useNativeBigInt: true });
+const formatCounter = ref(0);
+const refJsonFormatterCell = ref();
+const showAllText = ref(false);
+const hasScrollY = ref(false);
+const isRowIntersecting = inject('isRowIntersecting', ref(false));
+const isResolved = ref(isRowIntersecting.value);
 
-  const isFormatDateField = computed(() => store.state.isFormatDate);
-  const isWrap = computed(() => store.state.storage[BK_LOG_STORAGE.TABLE_LINE_IS_WRAP]);
-  const isLimitExpandText = computed(() => store.state.storage[BK_LOG_STORAGE.IS_LIMIT_EXPAND_VIEW]);
-  const formatJson = computed(() => store.state.storage[BK_LOG_STORAGE.TABLE_JSON_FORMAT]);
+const isFormatDateField = computed(() => store.state.isFormatDate);
+const isWrap = computed(() => store.state.storage[BK_LOG_STORAGE.TABLE_LINE_IS_WRAP]);
+const isLimitExpandText = computed(() => store.state.storage[BK_LOG_STORAGE.IS_LIMIT_EXPAND_VIEW]);
+const formatJson = computed(() => store.state.storage[BK_LOG_STORAGE.TABLE_JSON_FORMAT]);
 
-  const isCurrentCellExpandText = computed(() => {
-    if (isLimitExpandText.value) {
-      return true;
-    }
+const isCurrentCellExpandText = computed(() => {
+  if (isLimitExpandText.value) {
+    return true;
+  }
 
-    return showAllText.value;
-  });
+  return showAllText.value;
+});
 
-  const rootElementStyle = computed(() => {
-    if (formatJson.value) {
-      return {
-        maxHeight: undefined,
-      };
-    }
-
-    if (isCurrentCellExpandText.value) {
-      return {
-        maxHeight: '50vh',
-      };
-    }
-
-    if (typeof props.limitRow === 'number') {
-      return {
-        maxHeight: `${20 * props.limitRow}px`,
-      };
-    }
-
+const rootElementStyle = computed(() => {
+  if (formatJson.value) {
     return {
       maxHeight: undefined,
     };
-  });
+  }
 
-  const fieldList = computed(() => {
-    if (Array.isArray(props.fields)) {
-      return props.fields;
-    }
+  if (isCurrentCellExpandText.value) {
+    return {
+      maxHeight: '50vh',
+    };
+  }
 
-    return [Object.assign({}, props.fields, { __is_virtual_root__: true })];
-  });
+  if (typeof props.limitRow === 'number') {
+    return {
+      maxHeight: `${20 * props.limitRow}px`,
+    };
+  }
 
-  const showMoreTextAction = computed(() => {
-    if (typeof props.limitRow === 'number' && !formatJson.value && !isLimitExpandText.value) {
-      return true;
-    }
-
-    return false;
-  });
-
-  const showAllWords = computed(() => {
-    return !showMoreTextAction.value || showAllText.value;
-  });
-
-  const btnText = computed(() => {
-    if (showAllText.value) {
-      return ` ...${$t('收起')}`;
-    }
-
-    return ` ...${$t('更多')}`;
-  });
-
-  const handleClickMore = e => {
-    e.stopPropagation();
-    e.preventDefault();
-    showAllText.value = !showAllText.value;
+  return {
+    maxHeight: undefined,
   };
+});
 
-  const onSegmentClick = args => {
-    emit('menu-click', args);
-  };
-  const { updateRootFieldOperator, setExpand, setEditor, destroy } = useJsonRoot({
-    fields: fieldList.value,
-    onSegmentClick,
-  });
+const fieldList = computed(() => {
+  if (Array.isArray(props.fields)) {
+    return props.fields;
+  }
 
-  const convertToObject = val => {
-    if (typeof val === 'string' && formatJson.value) {
-      if (/^(\{|\[)/.test(val)) {
-        try {
-          return bigJson.parse(val);
-        } catch (e) {
-          if (/<mark>(-?\d+\.?\d*)<\/mark>/.test(val)) {
-            console.warn(`${e.name}: ${e.message}; `, e);
+  return [Object.assign({}, props.fields, { __is_virtual_root__: true })];
+});
 
-            return convertToObject(val.replace(/<mark>(-?\d+\.?\d*)<\/mark>/gim, '$1'));
-          }
-          return val;
+const showMoreTextAction = computed(() => {
+  if (typeof props.limitRow === 'number' && !formatJson.value && !isLimitExpandText.value) {
+    return true;
+  }
+
+  return false;
+});
+
+const showAllWords = computed(() => {
+  return !showMoreTextAction.value || showAllText.value;
+});
+
+const btnText = computed(() => {
+  if (showAllText.value) {
+    return ` ...${$t('收起')}`;
+  }
+
+  return ` ...${$t('更多')}`;
+});
+
+const handleClickMore = e => {
+  e.stopPropagation();
+  e.preventDefault();
+  showAllText.value = !showAllText.value;
+};
+
+const onSegmentClick = args => {
+  emit('menu-click', args);
+};
+const { updateRootFieldOperator, setExpand, setEditor, destroy } = useJsonRoot({
+  fields: fieldList.value,
+  onSegmentClick,
+});
+
+const convertToObject = val => {
+  if (typeof val === 'string' && formatJson.value) {
+    if (/^(\{|\[)/.test(val)) {
+      try {
+        return bigJson.parse(val);
+      } catch (e) {
+        if (/<mark>(-?\d+\.?\d*)<\/mark>/.test(val)) {
+          console.warn(`${e.name}: ${e.message}; `, e);
+
+          return convertToObject(val.replace(/<mark>(-?\d+\.?\d*)<\/mark>/gim, '$1'));
         }
+        return val;
       }
     }
+  }
 
-    return val;
-  };
+  return val;
+};
 
-  const getDateFieldValue = (field, content, formatDate) => {
-    if (formatDate) {
-      return RetrieveHelper.formatDateValue(content, field.field_type);
-    }
+const getDateFieldValue = (field, content, formatDate) => {
+  if (formatDate) {
+    return RetrieveHelper.formatDateValue(content, field.field_type);
+  }
 
-    return content;
-  };
+  return content;
+};
 
-  const getFieldValue = field => {
-    if (formatJson.value) {
-      if (typeof props.jsonValue === 'string') {
-        return [convertToObject(props.jsonValue), props.jsonValue];
-      }
-
-      if (typeof props.jsonValue === 'object') {
-        const fieldValue = parseTableRowData(props.jsonValue, field.field_name);
-        return [convertToObject(fieldValue), fieldValue];
-      }
-
-      return [props.jsonValue, props.jsonValue];
-
+const getFieldValue = field => {
+  if (formatJson.value) {
+    if (typeof props.jsonValue === 'string') {
+      return [convertToObject(props.jsonValue), props.jsonValue];
     }
 
     if (typeof props.jsonValue === 'object') {
       const fieldValue = parseTableRowData(props.jsonValue, field.field_name);
-      return [fieldValue, fieldValue];
+      return [convertToObject(fieldValue), fieldValue];
     }
 
     return [props.jsonValue, props.jsonValue];
-  };
+  }
 
-  const getCellRender = (val: unknown) => {
-    if (typeof val === 'object') {
-      try {
-        return JSON.stringify(val, null, 2);
-      } catch (e) {
-        console.warn(`JSON.stringify error: ${e.name}: ${e.message}; `, e);
-        return String(val);
-      }
+  if (typeof props.jsonValue === 'object') {
+    const fieldValue = parseTableRowData(props.jsonValue, field.field_name);
+    return [fieldValue, fieldValue];
+  }
+
+  return [props.jsonValue, props.jsonValue];
+};
+
+const getCellRender = (val: unknown) => {
+  if (typeof val === 'object') {
+    try {
+      return JSON.stringify(val, null, 2);
+    } catch (e) {
+      console.warn(`JSON.stringify error: ${e.name}: ${e.message}; `, e);
+      return String(val);
     }
+  }
 
-    return val;
+  return val;
+};
+
+const getFieldFormatter = (field, formatDate) => {
+  const [objValue, val] = getFieldValue(field);
+
+  return {
+    ref: ref(),
+    isJson: typeof objValue === 'object' && objValue !== undefined,
+    value: getDateFieldValue(field, objValue, formatDate),
+    stringValue: getDateFieldValue(field, getCellRender(val), formatDate),
+    field,
   };
+};
 
-  const getFieldFormatter = (field, formatDate) => {
-    const [objValue, val] = getFieldValue(field);
+const getFieldName = field => {
+  const { getFieldName } = useFieldNameHook({ store });
+  return getFieldName(field);
+};
 
-    return {
-      ref: ref(),
-      isJson: typeof objValue === 'object' && objValue !== undefined,
-      value: getDateFieldValue(field, objValue, formatDate),
-      stringValue: getDateFieldValue(field, getCellRender(val), formatDate),
-      field,
-    };
-  };
+const rootList = computed(() => {
+  formatCounter.value++;
+  return fieldList.value.map((f: any) => ({
+    name: f.field_name,
+    type: f.field_type,
+    formatter: getFieldFormatter(f, isFormatDateField.value && !!f.__is_virtual_root__),
+    __is_virtual_root__: !!f.__is_virtual_root__,
+  }));
+});
 
-  const getFieldName = field => {
-    const { getFieldName } = useFieldNameHook({ store });
-    return getFieldName(field);
-  };
-
-  const rootList = computed(() => {
-    formatCounter.value++;
-    return fieldList.value.map((f: any) => ({
-      name: f.field_name,
-      type: f.field_type,
-      formatter: getFieldFormatter(f, isFormatDateField.value && !!f.__is_virtual_root__),
-      __is_virtual_root__: !!f.__is_virtual_root__,
-    }));
-  });
-
-  const depth = computed(() => store.state.storage[BK_LOG_STORAGE.TABLE_JSON_FORMAT_DEPTH]);
-  const debounceUpdate = debounce(() => {
-    updateRootFieldOperator(rootList.value, depth.value);
-    setEditor(depth.value);
-    isResolved.value = true;
-    setTimeout(() => {
-      RetrieveHelper.highlightElement(refJsonFormatterCell.value);
-      setIsOverflowY();
-    });
-  });
-
-  const setIsOverflowY = () => {
-    if (refJsonFormatterCell.value) {
-      const { offsetHeight, scrollHeight } = refJsonFormatterCell.value;
-      hasScrollY.value = offsetHeight > 0 && scrollHeight > offsetHeight;
-      return;
-    }
-
-    hasScrollY.value = false;
-  };
-
-  watch(
-    () => [isRowIntersecting.value],
-    () => {
-      if (isRowIntersecting.value && !isResolved.value) {
-        debounceUpdate();
-      }
-    },
-  );
-
-  watch(
-    () => [formatCounter.value],
-    () => {
-      if (isResolved.value) {
-        debounceUpdate();
-      }
-    },
-    {
-      immediate: true,
-    },
-  );
-
-  watch(
-    () => [depth.value],
-    () => {
-      setExpand(depth.value);
-    },
-  );
-
-  onMounted(() => {
+const depth = computed(() => store.state.storage[BK_LOG_STORAGE.TABLE_JSON_FORMAT_DEPTH]);
+const debounceUpdate = debounce(() => {
+  updateRootFieldOperator(rootList.value, depth.value);
+  setEditor(depth.value);
+  isResolved.value = true;
+  setTimeout(() => {
+    RetrieveHelper.highlightElement(refJsonFormatterCell.value);
     setIsOverflowY();
   });
+});
 
-  onBeforeUnmount(() => {
-    destroy();
-  });
+const setIsOverflowY = () => {
+  if (refJsonFormatterCell.value) {
+    const { offsetHeight, scrollHeight } = refJsonFormatterCell.value;
+    hasScrollY.value = offsetHeight > 0 && scrollHeight > offsetHeight;
+    return;
+  }
+
+  hasScrollY.value = false;
+};
+
+watch(
+  () => [isRowIntersecting.value],
+  () => {
+    if (isRowIntersecting.value && !isResolved.value) {
+      debounceUpdate();
+    }
+  }
+);
+
+watch(
+  () => [formatCounter.value],
+  () => {
+    if (isResolved.value) {
+      debounceUpdate();
+    }
+  },
+  {
+    immediate: true,
+  }
+);
+
+watch(
+  () => [depth.value],
+  () => {
+    setExpand(depth.value);
+  }
+);
+
+onMounted(() => {
+  setIsOverflowY();
+});
+
+onBeforeUnmount(() => {
+  destroy();
+});
 </script>
 <style lang="scss">
   @import '../global/json-view/index.scss';

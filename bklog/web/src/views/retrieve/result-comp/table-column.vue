@@ -41,66 +41,66 @@
 </template>
 
 <script>
-  import TextSegmentation from './text-segmentation';
+import TextSegmentation from './text-segmentation';
 
-  export default {
-    components: {
-      TextSegmentation,
+export default {
+  components: {
+    TextSegmentation,
+  },
+  props: {
+    isWrap: {
+      type: Boolean,
+      default: false,
     },
-    props: {
-      isWrap: {
-        type: Boolean,
-        default: false,
-      },
-      content: {
-        type: [String, Number, Boolean],
-        required: true,
-      },
+    content: {
+      type: [String, Number, Boolean],
+      required: true,
+    },
 
-      field: {
-        type: Object,
-        required: true,
-      },
+    field: {
+      type: Object,
+      required: true,
     },
-    data() {
-      return {
-        isInViewPort: false,
-      };
+  },
+  data() {
+    return {
+      isInViewPort: false,
+    };
+  },
+  mounted() {
+    setTimeout(this.registerObserver, 20);
+  },
+  beforeUnmount() {
+    this.unregisterOberver();
+  },
+  methods: {
+    handleMenuClick(option, content, isLink = false) {
+      const operator = option === 'not' ? 'is not' : option;
+      this.$emit('icon-click', operator, content, isLink);
     },
-    mounted() {
-      setTimeout(this.registerObserver, 20);
+    unregisterOberver() {
+      if (this.intersectionObserver) {
+        this.intersectionObserver.unobserve(this.$el);
+        this.intersectionObserver.disconnect();
+        this.intersectionObserver = null;
+      }
     },
-    beforeUnmount() {
-      this.unregisterOberver();
-    },
-    methods: {
-      handleMenuClick(option, content, isLink = false) {
-        const operator = option === 'not' ? 'is not' : option;
-        this.$emit('icon-click', operator, content, isLink);
-      },
-      unregisterOberver() {
-        if (this.intersectionObserver) {
-          this.intersectionObserver.unobserve(this.$el);
-          this.intersectionObserver.disconnect();
-          this.intersectionObserver = null;
-        }
-      },
-      // 注册Intersection监听
-      registerObserver() {
-        if (this.intersectionObserver) {
-          this.unregisterOberver();
-        }
-        this.intersectionObserver = new IntersectionObserver(entries => {
-          entries.forEach(entry => {
-            if (this.intersectionObserver) {
-              if (entry.boundingClientRect.height > 72) this.$emit('computed-height');
-            }
-          });
+    // 注册Intersection监听
+    registerObserver() {
+      if (this.intersectionObserver) {
+        this.unregisterOberver();
+      }
+      this.intersectionObserver = new IntersectionObserver(entries => {
+        entries.forEach(entry => {
+          if (this.intersectionObserver) {
+            if (entry.boundingClientRect.height > 72) this.$emit('computed-height');
+          }
         });
-        this.intersectionObserver?.observe(this.$el);
-      },
+      });
+      this.intersectionObserver?.observe(this.$el);
     },
-  };
+  },
+};
 </script>
 
 <style lang="scss" scoped>

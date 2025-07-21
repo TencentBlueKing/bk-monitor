@@ -67,36 +67,36 @@
 </template>
 
 <script lang="ts">
-  import { Component, Vue, Prop } from 'vue-property-decorator';
+import { Component, Vue, Prop } from 'vue-property-decorator';
 
-  import { IAnnotation, IAnnotationListItem } from '../options/type-interface';
+import { IAnnotation, IAnnotationListItem } from '../options/type-interface';
 
-  @Component({ name: 'ChartAnnotation' })
-  export default class ChartAnnotation extends Vue {
-    @Prop({ required: true }) annotation: IAnnotation;
-    get toolBarMap() {
-      return {
-        ip: this.$t('相关主机详情'),
-        process: this.$t('相关进程信息'),
-        strategy: this.$t('相关策略'),
-      };
-    }
-    handleGotoDetail(item: IAnnotationListItem) {
-      switch (item.id) {
-        case 'ip':
-          window.open(location.href.replace(location.hash, `#/performance/detail/${item.value}`));
-          break;
-        case 'process':
-          window.open(
-            location.href.replace(location.hash, `#/performance/detail-new/${item.value.id}/${item.value.processId}`),
-          );
-          break;
-        case 'strategy':
-          window.open(location.href.replace(location.hash, `#/strategy-config?metricId=${item.value}`));
-          break;
-      }
+@Component({ name: 'ChartAnnotation' })
+export default class ChartAnnotation extends Vue {
+  @Prop({ required: true }) annotation: IAnnotation;
+  get toolBarMap() {
+    return {
+      ip: this.$t('相关主机详情'),
+      process: this.$t('相关进程信息'),
+      strategy: this.$t('相关策略'),
+    };
+  }
+  handleGotoDetail(item: IAnnotationListItem) {
+    switch (item.id) {
+      case 'ip':
+        window.open(location.href.replace(location.hash, `#/performance/detail/${item.value}`));
+        break;
+      case 'process':
+        window.open(
+          location.href.replace(location.hash, `#/performance/detail-new/${item.value.id}/${item.value.processId}`)
+        );
+        break;
+      case 'strategy':
+        window.open(location.href.replace(location.hash, `#/strategy-config?metricId=${item.value}`));
+        break;
     }
   }
+}
 </script>
 
 <style lang="scss" scoped>

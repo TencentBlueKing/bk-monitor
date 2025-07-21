@@ -1,132 +1,132 @@
 <script setup>
-  import { defineEmits, defineProps, computed, watch, ref, onMounted } from 'vue';
-  import useStore from '@/hooks/use-store';
-  import useLocale from '@/hooks/use-locale';
-  import { useRoute } from 'vue-router/composables';
-  import $http from '@/api';
+import { defineEmits, defineProps, computed, watch, ref, onMounted } from 'vue';
+import useStore from '@/hooks/use-store';
+import useLocale from '@/hooks/use-locale';
+import { useRoute } from 'vue-router/composables';
+import $http from '@/api';
 
-  const props = defineProps({
-    value: {
-      type: String,
-      required: true,
-    },
-  });
+const props = defineProps({
+  value: {
+    type: String,
+    required: true,
+  },
+});
 
-  const { $t } = useLocale();
-  const store = useStore();
-  const route = useRoute();
+const { $t } = useLocale();
+const store = useStore();
+const route = useRoute();
 
-  const emit = defineEmits(['input']);
+const emit = defineEmits(['input']);
 
-  const indexSetId = computed(() => store.state.indexId);
+const indexSetId = computed(() => store.state.indexId);
 
-  const indexSetItem = computed(() =>
-    store.state.retrieve.indexSetList?.find(item => `${item.index_set_id}` === `${indexSetId.value}`),
+const indexSetItem = computed(() =>
+  store.state.retrieve.indexSetList?.find(item => `${item.index_set_id}` === `${indexSetId.value}`)
+);
+
+const retrieveParams = computed(() => store.getters.retrieveParams);
+
+const isAiopsToggle = computed(() => {
+  return (
+    (indexSetItem.value?.scenario_id === 'log' && indexSetItem.value.collector_config_id !== null) ||
+    indexSetItem.value?.scenario_id === 'bkdata'
   );
+});
 
-  const retrieveParams = computed(() => store.getters.retrieveParams);
+const isChartEnable = computed(() => indexSetItem.value?.support_doris && !store.getters.isUnionSearch);
 
-  const isAiopsToggle = computed(() => {
-    return (
-      (indexSetItem.value?.scenario_id === 'log' && indexSetItem.value.collector_config_id !== null) ||
-      indexSetItem.value?.scenario_id === 'bkdata'
-    );
+const isExternal = computed(() => window.IS_EXTERNAL === true);
+// 可切换Tab数组
+const panelList = computed(() => {
+  return [
+    { name: 'origin', label: $t('原始日志'), disabled: false },
+    { name: 'clustering', label: $t('日志聚类'), disabled: !isAiopsToggle.value },
+    { name: 'graphAnalysis', label: $t('图表分析'), disabled: !isChartEnable.value },
+    { name: 'grep', label: $t('Grep模式'), disabled: !indexSetItem.value?.support_doris },
+  ];
+});
+
+const renderPanelList = computed(() => panelList.value.filter(item => !item.disabled));
+
+const tabClassList = computed(() => {
+  return renderPanelList.value.map((item, index) => {
+    const isActive = props.value === item.name;
+    const isPreItemActive = renderPanelList.value[index - 1]?.name === props.value;
+
+    if (isActive || index === 0 || isPreItemActive) {
+      return [];
+    }
+
+    return ['border-left'];
   });
+});
 
-  const isChartEnable = computed(() => indexSetItem.value?.support_doris && !store.getters.isUnionSearch);
+const handleAddAlertPolicy = async () => {
+  const params = {
+    bizId: store.state.bkBizId,
+    indexSetId: indexSetId.value,
+    scenarioId: '',
+    indexStatement: retrieveParams.value.keyword, // 查询语句
+    dimension: [], // 监控维度
+    condition: [], // 监控条件
+  };
+  const indexSet = (store.state.retrieve.indexSetList ?? []).find(item => item.index_set_id === indexSetId);
+  if (indexSet) {
+    params.scenarioId = indexSet.category_id;
+  }
 
-  const isExternal = computed(() => window.IS_EXTERNAL === true);
-  // 可切换Tab数组
-  const panelList = computed(() => {
-    return [
-      { name: 'origin', label: $t('原始日志'), disabled: false },
-      { name: 'clustering', label: $t('日志聚类'), disabled: !isAiopsToggle.value },
-      { name: 'graphAnalysis', label: $t('图表分析'), disabled: !isChartEnable.value },
-      { name: 'grep', label: $t('Grep模式'), disabled: !indexSetItem.value?.support_doris },
-    ];
-  });
-
-  const renderPanelList = computed(() => panelList.value.filter(item => !item.disabled));
-
-  const tabClassList = computed(() => {
-    return renderPanelList.value.map((item, index) => {
-      const isActive = props.value === item.name;
-      const isPreItemActive = renderPanelList.value[index - 1]?.name === props.value;
-
-      if (isActive || index === 0 || isPreItemActive) {
-        return [];
-      }
-
-      return ['border-left'];
+  if (retrieveParams.value.addition.length) {
+    const resp = await $http.request('retrieve/generateQueryString', {
+      data: {
+        addition: retrieveParams.value.addition,
+      },
     });
-  });
 
-  const handleAddAlertPolicy = async () => {
-    const params = {
-      bizId: store.state.bkBizId,
-      indexSetId: indexSetId.value,
-      scenarioId: '',
-      indexStatement: retrieveParams.value.keyword, // 查询语句
-      dimension: [], // 监控维度
-      condition: [], // 监控条件
-    };
-    const indexSet = (store.state.retrieve.indexSetList ?? []).find(item => item.index_set_id === indexSetId);
-    if (indexSet) {
-      params.scenarioId = indexSet.category_id;
+    if (resp.result) {
+      params.indexStatement = [retrieveParams.value.keyword, resp.data?.querystring]
+        .filter(item => item.length > 0 && item !== '*')
+        .join(' AND ');
     }
+  }
 
-    if (retrieveParams.value.addition.length) {
-      const resp = await $http.request('retrieve/generateQueryString', {
-        data: {
-          addition: retrieveParams.value.addition,
-        },
-      });
+  const urlArr = [];
+  for (const key in params) {
+    if (key === 'dimension' || key === 'condition') {
+      urlArr.push(`${key}=${encodeURI(JSON.stringify(params[key]))}`);
+    } else {
+      urlArr.push(`${key}=${params[key]}`);
+    }
+  }
+  window.open(`${window.MONITOR_URL}/?${urlArr.join('&')}#/strategy-config/add`, '_blank');
+};
 
-      if (resp.result) {
-        params.indexStatement = [retrieveParams.value.keyword, resp.data?.querystring]
-          .filter(item => item.length > 0 && item !== '*')
-          .join(' AND ');
+const handleActive = panel => {
+  if (props.value === panel) return;
+
+  emit('input', panel, panel === 'origin');
+};
+
+watch(
+  () => [indexSetItem.value?.support_doris, isChartEnable.value, isAiopsToggle.value],
+  ([grepEnable, graphEnable, aiopsEnable]) => {
+    if (['clustering', 'graphAnalysis', 'grep'].includes(route.query.tab)) {
+      if (
+        (!grepEnable && route.query.tab === 'grep') ||
+        (!graphEnable && route.query.tab === 'graphAnalysis') ||
+        (!aiopsEnable && route.query.tab === 'clustering')
+      ) {
+        handleActive('origin');
       }
     }
+  }
+);
 
-    const urlArr = [];
-    for (const key in params) {
-      if (key === 'dimension' || key === 'condition') {
-        urlArr.push(`${key}=${encodeURI(JSON.stringify(params[key]))}`);
-      } else {
-        urlArr.push(`${key}=${params[key]}`);
-      }
-    }
-    window.open(`${window.MONITOR_URL}/?${urlArr.join('&')}#/strategy-config/add`, '_blank');
-  };
-
-  const handleActive = panel => {
-    if (props.value === panel) return;
-
-    emit('input', panel, panel === 'origin');
-  };
-
-  watch(
-    () => [indexSetItem.value?.support_doris, isChartEnable.value, isAiopsToggle.value],
-    ([grepEnable, graphEnable, aiopsEnable]) => {
-      if (['clustering', 'graphAnalysis', 'grep'].includes(route.query.tab)) {
-        if (
-          (!grepEnable && route.query.tab === 'grep') ||
-          (!graphEnable && route.query.tab === 'graphAnalysis') ||
-          (!aiopsEnable && route.query.tab === 'clustering')
-        ) {
-          handleActive('origin');
-        }
-      }
-    },
-  );
-
-  onMounted(() => {
-    const tabName = route.query.tab ?? 'origin';
-    if (panelList.value.find(item => item.name === tabName)?.disabled ?? true) {
-      handleActive(panelList.value[0].name);
-    }
-  });
+onMounted(() => {
+  const tabName = route.query.tab ?? 'origin';
+  if (panelList.value.find(item => item.name === tabName)?.disabled ?? true) {
+    handleActive(panelList.value[0].name);
+  }
+});
 </script>
 <template>
   <div class="retrieve2-tab">

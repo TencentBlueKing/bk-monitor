@@ -239,150 +239,150 @@
 </template>
 
 <script>
-  import SidebarDiffMixin from '@/mixins/sidebar-diff-mixin';
+import SidebarDiffMixin from '@/mixins/sidebar-diff-mixin';
 
-  // import LogIpSelector from '@/components/log-ip-selector/log-ip-selector';
-  import ModuleSelect from './module-select';
-  import ValidateInput from './validate-input';
-  import ValidateUserSelector from './validate-user-selector';
+// import LogIpSelector from '@/components/log-ip-selector/log-ip-selector';
+import ModuleSelect from './module-select';
+import ValidateInput from './validate-input';
+import ValidateUserSelector from './validate-user-selector';
 
-  export default {
-    components: {
-      // LogIpSelector,
-      ModuleSelect,
-      ValidateInput,
-      ValidateUserSelector,
+export default {
+  components: {
+    // LogIpSelector,
+    ModuleSelect,
+    ValidateInput,
+    ValidateUserSelector,
+  },
+  mixins: [SidebarDiffMixin],
+  props: {
+    strategyData: {
+      type: Object,
+      default: () => ({
+        strategy_name: '',
+        user_list: [],
+        visible_dir: [''],
+        file_type: [''],
+        select_type: '',
+        modules: [],
+        operator: '',
+      }),
     },
-    mixins: [SidebarDiffMixin],
-    props: {
-      strategyData: {
-        type: Object,
-        default: () => ({
-          strategy_name: '',
-          user_list: [],
-          visible_dir: [''],
-          file_type: [''],
-          select_type: '',
-          modules: [],
-          operator: '',
-        }),
-      },
-      userApi: {
-        type: String,
-        required: true,
-      },
-      allowCreate: {
-        type: Boolean,
-        required: true,
-      },
+    userApi: {
+      type: String,
+      required: true,
     },
-    data() {
-      // 避免后台造的数据为空数组
-      const strategyData = JSON.parse(JSON.stringify(this.strategyData));
-      if (!strategyData.visible_dir?.length) {
-        strategyData.visible_dir = [''];
+    allowCreate: {
+      type: Boolean,
+      required: true,
+    },
+  },
+  data() {
+    // 避免后台造的数据为空数组
+    const strategyData = JSON.parse(JSON.stringify(this.strategyData));
+    if (!strategyData.visible_dir?.length) {
+      strategyData.visible_dir = [''];
+    }
+    if (!strategyData.file_type?.length) {
+      strategyData.file_type = [''];
+    }
+
+    return {
+      isChangeOperatorLoading: false,
+      showSelectDialog: false,
+      manageStrategyData: strategyData,
+    };
+  },
+  computed: {
+    isValidated() {
+      return (
+        this.manageStrategyData.strategy_name &&
+        this.manageStrategyData.user_list.length &&
+        this.manageStrategyData.visible_dir.every(item => Boolean(this.validateVisibleDir(item))) &&
+        this.manageStrategyData.file_type.every(item => Boolean(this.validateFileExtension(item))) &&
+        this.manageStrategyData.modules.length &&
+        this.manageStrategyData.operator
+      );
+    },
+    // 侧边栏需要对比的formData
+    _watchFormData_({ manageStrategyData }) {
+      return { manageStrategyData };
+    },
+  },
+  mounted() {
+    this.initSidebarFormData();
+  },
+  methods: {
+    // 校验授权目录
+    validateVisibleDir(val) {
+      // 只允许：数字 字母 _-./
+      // 不得出现 ./
+      // 必须以 / 开头
+      // 必须以 / 结尾
+
+      return !/[^\w\-\.\/]/.test(val) && !/\.\//.test(val) && val.startsWith('/') && val.endsWith('/');
+    },
+    // 校验文件后缀
+    validateFileExtension(val) {
+      return !val.startsWith('.') && val;
+    },
+    handleAddVisibleDir() {
+      this.manageStrategyData.visible_dir.push('');
+      this.$nextTick(() => {
+        const inputList = this.$el.querySelectorAll('.visible-dir input');
+        inputList[inputList.length - 1].focus();
+      });
+    },
+    handleAddFileType() {
+      this.manageStrategyData.file_type.push('');
+      this.$nextTick(() => {
+        const inputList = this.$el.querySelectorAll('.file-type input');
+        inputList[inputList.length - 1].focus();
+      });
+    },
+    // handleConfirmSelect(value) {
+    //   const { node_list: nodeList, service_template_list: serviceTemplateList } = value;
+    //   let selectType = '';
+    //   let modules = [];
+    //   if (nodeList.length) {
+    //     selectType = 'topo';
+    //     modules = nodeList;
+    //   } else if (serviceTemplateList.length) {
+    //     selectType = 'module';
+    //     modules = serviceTemplateList;
+    //   }
+    //   this.manageStrategyData.select_type = selectType;
+    //   this.manageStrategyData.modules = modules;
+    // },
+    handleConfirmSelect(selectType, modules) {
+      this.manageStrategyData.select_type = selectType;
+      this.manageStrategyData.modules = modules;
+    },
+    async changeOperator() {
+      const { operator } = this.$store.state.userMeta;
+      if (operator) {
+        this.manageStrategyData.operator = operator;
+        return;
       }
-      if (!strategyData.file_type?.length) {
-        strategyData.file_type = [''];
+
+      try {
+        this.isChangeOperatorLoading = true;
+        const res = await this.$http.request('userInfo/getUsername');
+        this.$store.commit('updateUserMeta', res.data);
+        this.manageStrategyData.operator = res.data.operator;
+      } catch (e) {
+        console.warn(e);
+      } finally {
+        this.isChangeOperatorLoading = false;
       }
-
-      return {
-        isChangeOperatorLoading: false,
-        showSelectDialog: false,
-        manageStrategyData: strategyData,
-      };
     },
-    computed: {
-      isValidated() {
-        return (
-          this.manageStrategyData.strategy_name &&
-          this.manageStrategyData.user_list.length &&
-          this.manageStrategyData.visible_dir.every(item => Boolean(this.validateVisibleDir(item))) &&
-          this.manageStrategyData.file_type.every(item => Boolean(this.validateFileExtension(item))) &&
-          this.manageStrategyData.modules.length &&
-          this.manageStrategyData.operator
-        );
-      },
-      // 侧边栏需要对比的formData
-      _watchFormData_({ manageStrategyData }) {
-        return { manageStrategyData };
-      },
+    handleCancel() {
+      this.$emit('confirm', null);
     },
-    mounted() {
-      this.initSidebarFormData();
+    handleConfirm() {
+      this.$emit('confirm', this.manageStrategyData);
     },
-    methods: {
-      // 校验授权目录
-      validateVisibleDir(val) {
-        // 只允许：数字 字母 _-./
-        // 不得出现 ./
-        // 必须以 / 开头
-        // 必须以 / 结尾
-
-        return !/[^\w\-\.\/]/.test(val) && !/\.\//.test(val) && val.startsWith('/') && val.endsWith('/');
-      },
-      // 校验文件后缀
-      validateFileExtension(val) {
-        return !val.startsWith('.') && val;
-      },
-      handleAddVisibleDir() {
-        this.manageStrategyData.visible_dir.push('');
-        this.$nextTick(() => {
-          const inputList = this.$el.querySelectorAll('.visible-dir input');
-          inputList[inputList.length - 1].focus();
-        });
-      },
-      handleAddFileType() {
-        this.manageStrategyData.file_type.push('');
-        this.$nextTick(() => {
-          const inputList = this.$el.querySelectorAll('.file-type input');
-          inputList[inputList.length - 1].focus();
-        });
-      },
-      // handleConfirmSelect(value) {
-      //   const { node_list: nodeList, service_template_list: serviceTemplateList } = value;
-      //   let selectType = '';
-      //   let modules = [];
-      //   if (nodeList.length) {
-      //     selectType = 'topo';
-      //     modules = nodeList;
-      //   } else if (serviceTemplateList.length) {
-      //     selectType = 'module';
-      //     modules = serviceTemplateList;
-      //   }
-      //   this.manageStrategyData.select_type = selectType;
-      //   this.manageStrategyData.modules = modules;
-      // },
-      handleConfirmSelect(selectType, modules) {
-        this.manageStrategyData.select_type = selectType;
-        this.manageStrategyData.modules = modules;
-      },
-      async changeOperator() {
-        const { operator } = this.$store.state.userMeta;
-        if (operator) {
-          this.manageStrategyData.operator = operator;
-          return;
-        }
-
-        try {
-          this.isChangeOperatorLoading = true;
-          const res = await this.$http.request('userInfo/getUsername');
-          this.$store.commit('updateUserMeta', res.data);
-          this.manageStrategyData.operator = res.data.operator;
-        } catch (e) {
-          console.warn(e);
-        } finally {
-          this.isChangeOperatorLoading = false;
-        }
-      },
-      handleCancel() {
-        this.$emit('confirm', null);
-      },
-      handleConfirm() {
-        this.$emit('confirm', this.manageStrategyData);
-      },
-    },
-  };
+  },
+};
 </script>
 
 <style lang="scss" scoped>

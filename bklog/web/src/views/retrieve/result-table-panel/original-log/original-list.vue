@@ -163,22 +163,22 @@
 </template>
 
 <script>
-  import resultTableMixin from '@/mixins/result-table-mixin';
+import resultTableMixin from '@/mixins/result-table-mixin';
 
-  export default {
-    name: 'OriginalList',
-    mixins: [resultTableMixin],
-    inheritAttrs: false,
-    computed: {
-      scrollContent() {
-        return document.querySelector('.result-scroll-container');
-      },
+export default {
+  name: 'OriginalList',
+  mixins: [resultTableMixin],
+  inheritAttrs: false,
+  computed: {
+    scrollContent() {
+      return document.querySelector('.result-scroll-container');
     },
-    activated() {
-      // keep-alive之后再进入到原始日志时需要重新布局表格
-      this.$refs.resultTable.doLayout();
-    },
-  };
+  },
+  activated() {
+    // keep-alive之后再进入到原始日志时需要重新布局表格
+    this.$refs.resultTable.doLayout();
+  },
+};
 </script>
 <style lang="scss">
 td {

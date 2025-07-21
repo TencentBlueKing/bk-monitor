@@ -89,181 +89,181 @@
 </template>
 
 <script>
-  import { setFieldsWidth, parseBigNumberList, formatNumberWithRegex } from '@/common/util';
-  import tableRowDeepViewMixin from '@/mixins/table-row-deep-view-mixin';
-  import { mapState, mapGetters } from 'vuex';
+import { setFieldsWidth, parseBigNumberList, formatNumberWithRegex } from '@/common/util';
+import tableRowDeepViewMixin from '@/mixins/table-row-deep-view-mixin';
+import { mapState, mapGetters } from 'vuex';
 
-  import ResultTablePanel from '../result-table-panel';
-  import ResultChart from './result-chart';
+import ResultTablePanel from '../result-table-panel';
+import ResultChart from './result-chart';
 
-  export default {
-    components: {
-      ResultChart,
-      ResultTablePanel,
+export default {
+  components: {
+    ResultChart,
+    ResultTablePanel,
+  },
+  mixins: [tableRowDeepViewMixin],
+  inheritAttrs: false,
+  props: {
+    retrieveParams: {
+      type: Object,
+      required: true,
     },
-    mixins: [tableRowDeepViewMixin],
-    inheritAttrs: false,
-    props: {
-      retrieveParams: {
-        type: Object,
-        required: true,
-      },
-      tookTime: {
-        type: Number,
-        required: true,
-      },
-      tableData: {
-        type: Object,
-        required: true,
-      },
-      indexSetList: {
-        type: Array,
-        required: true,
-      },
-      datePickerValue: {
-        type: Array,
-        default: () => [],
-      },
-      indexSetItem: {
-        type: Object,
-        default: () => ({}),
-      },
+    tookTime: {
+      type: Number,
+      required: true,
     },
-    data() {
-      return {
-        originTableList: [],
-        tableList: [],
-        throttle: false, // 滚动节流 是否进入cd
-        isPageOver: false, // 前端分页加载是否结束
-        count: 0, // 数据总条数
-        pageSize: 50, // 每页展示多少数据
-        currentPage: 1, // 当前加载了多少页
-        totalCount: 0,
-        scrollHeight: 0,
-        limitCount: 0,
-        queueStatus: false,
-        showScrollTop: false, // 显示滚动到顶部icon
-        isInit: false,
-        timer: null,
-        kvShowFieldsList: [],
-      };
+    tableData: {
+      type: Object,
+      required: true,
     },
-    computed: {
-      ...mapState({
-        bkBizId: state => state.bkBizId,
-        isExternal: state => state.isExternal,
-      }),
-      ...mapGetters({
-        isUnionSearch: 'isUnionSearch',
-      }),
-      showAddMonitor() {
-        return (
-          !this.isExternal &&
-          Boolean(window.MONITOR_URL && this.$store.state.topMenu.some(item => item.id === 'monitor')) &&
-          !this.isUnionSearch
-        );
-      },
+    indexSetList: {
+      type: Array,
+      required: true,
     },
-    watch: {
-      tableData(data) {
-        this.finishPolling = data?.finishPolling;
-        if (data?.list?.length) {
-          if (this.isInit) {
-            // 根据接口 data.fields ==> item.max_length 设置各个字段的宽度比例
-            setFieldsWidth(this.visibleFields, data.fields, 500);
-            this.isInit = true;
-          }
-          const list = parseBigNumberList(data.list);
-          const originLogList = parseBigNumberList(data.origin_log_list);
-          this.count += data.list.length;
-          this.kvShowFieldsList = Object.keys(data.fields || []);
-          this.tableList.push(...list);
-          this.originTableList.push(...originLogList);
-          this.$nextTick(() => {
-            this.$refs.scrollContainer.scrollTop = this.newScrollHeight;
-          });
-          this.isPageOver = false;
+    datePickerValue: {
+      type: Array,
+      default: () => [],
+    },
+    indexSetItem: {
+      type: Object,
+      default: () => ({}),
+    },
+  },
+  data() {
+    return {
+      originTableList: [],
+      tableList: [],
+      throttle: false, // 滚动节流 是否进入cd
+      isPageOver: false, // 前端分页加载是否结束
+      count: 0, // 数据总条数
+      pageSize: 50, // 每页展示多少数据
+      currentPage: 1, // 当前加载了多少页
+      totalCount: 0,
+      scrollHeight: 0,
+      limitCount: 0,
+      queueStatus: false,
+      showScrollTop: false, // 显示滚动到顶部icon
+      isInit: false,
+      timer: null,
+      kvShowFieldsList: [],
+    };
+  },
+  computed: {
+    ...mapState({
+      bkBizId: state => state.bkBizId,
+      isExternal: state => state.isExternal,
+    }),
+    ...mapGetters({
+      isUnionSearch: 'isUnionSearch',
+    }),
+    showAddMonitor() {
+      return (
+        !this.isExternal &&
+        Boolean(window.MONITOR_URL && this.$store.state.topMenu.some(item => item.id === 'monitor')) &&
+        !this.isUnionSearch
+      );
+    },
+  },
+  watch: {
+    tableData(data) {
+      this.finishPolling = data?.finishPolling;
+      if (data?.list?.length) {
+        if (this.isInit) {
+          // 根据接口 data.fields ==> item.max_length 设置各个字段的宽度比例
+          setFieldsWidth(this.visibleFields, data.fields, 500);
+          this.isInit = true;
         }
-      },
-    },
-    methods: {
-      // 跳转到监控
-      jumpMonitor() {
-        const indexSetId = this.$route.params.indexId;
-        const params = {
-          bizId: this.$store.state.bkBizId,
-          indexSetId,
-          scenarioId: '',
-          indexStatement: this.retrieveParams.keyword, // 查询语句
-          dimension: [], // 监控维度
-          condition: [], // 监控条件
-        };
-        const indexSet = this.indexSetList.find(item => item.index_set_id === indexSetId);
-        if (indexSet) {
-          params.scenarioId = indexSet.category_id;
-        }
-        this.retrieveParams.addition.forEach(item => {
-          params.condition.push({
-            condition: 'and',
-            key: item.field,
-            method: item.operator === 'eq' ? 'is' : item.operator,
-            value: item.value,
-          });
-        });
-        const urlArr = [];
-        for (const key in params) {
-          if (key === 'dimension' || key === 'condition') {
-            urlArr.push(`${key}=${encodeURI(JSON.stringify(params[key]))}`);
-          } else {
-            urlArr.push(`${key}=${params[key]}`);
-          }
-        }
-        window.open(`${window.MONITOR_URL}/?${urlArr.join('&')}#/strategy-config/add`, '_blank');
-      },
-      reset() {
-        this.newScrollHeight = 0;
+        const list = parseBigNumberList(data.list);
+        const originLogList = parseBigNumberList(data.origin_log_list);
+        this.count += data.list.length;
+        this.kvShowFieldsList = Object.keys(data.fields || []);
+        this.tableList.push(...list);
+        this.originTableList.push(...originLogList);
         this.$nextTick(() => {
           this.$refs.scrollContainer.scrollTop = this.newScrollHeight;
         });
-        this.count = 0;
-        this.currentPage = 1;
-        this.originTableList = [];
-        this.tableList = [];
-        this.isInit = false;
-      },
-      // 滚动到顶部
-      scrollToTop() {
-        this.$easeScroll(0, 300, this.$refs.scrollContainer);
-      },
-      handleScroll() {
-        if (this.isPageOver || this.$refs.resultTablePanel.active === 'clustering') {
-          return;
-        }
-        clearTimeout(this.timer);
-        this.timer = setTimeout(() => {
-          const el = this.$refs.scrollContainer;
-          this.showScrollTop = el.scrollTop > 550;
-          if (el.scrollHeight - el.offsetHeight - el.scrollTop < 20) {
-            if (this.count === this.limitCount || this.finishPolling) return;
-
-            this.isPageOver = true;
-            this.currentPage += 1;
-            this.newScrollHeight = el.scrollTop;
-            this.$emit('request-table-data');
-          }
-        }, 200);
-      },
-      changeTotalCount(count) {
-        this.totalCount = count;
-      },
-      changeQueueRes(status) {
-        this.queueStatus = status;
-      },
-      getShowTotalNum(num) {
-        return formatNumberWithRegex(num);
-      },
+        this.isPageOver = false;
+      }
     },
-  };
+  },
+  methods: {
+    // 跳转到监控
+    jumpMonitor() {
+      const indexSetId = this.$route.params.indexId;
+      const params = {
+        bizId: this.$store.state.bkBizId,
+        indexSetId,
+        scenarioId: '',
+        indexStatement: this.retrieveParams.keyword, // 查询语句
+        dimension: [], // 监控维度
+        condition: [], // 监控条件
+      };
+      const indexSet = this.indexSetList.find(item => item.index_set_id === indexSetId);
+      if (indexSet) {
+        params.scenarioId = indexSet.category_id;
+      }
+      this.retrieveParams.addition.forEach(item => {
+        params.condition.push({
+          condition: 'and',
+          key: item.field,
+          method: item.operator === 'eq' ? 'is' : item.operator,
+          value: item.value,
+        });
+      });
+      const urlArr = [];
+      for (const key in params) {
+        if (key === 'dimension' || key === 'condition') {
+          urlArr.push(`${key}=${encodeURI(JSON.stringify(params[key]))}`);
+        } else {
+          urlArr.push(`${key}=${params[key]}`);
+        }
+      }
+      window.open(`${window.MONITOR_URL}/?${urlArr.join('&')}#/strategy-config/add`, '_blank');
+    },
+    reset() {
+      this.newScrollHeight = 0;
+      this.$nextTick(() => {
+        this.$refs.scrollContainer.scrollTop = this.newScrollHeight;
+      });
+      this.count = 0;
+      this.currentPage = 1;
+      this.originTableList = [];
+      this.tableList = [];
+      this.isInit = false;
+    },
+    // 滚动到顶部
+    scrollToTop() {
+      this.$easeScroll(0, 300, this.$refs.scrollContainer);
+    },
+    handleScroll() {
+      if (this.isPageOver || this.$refs.resultTablePanel.active === 'clustering') {
+        return;
+      }
+      clearTimeout(this.timer);
+      this.timer = setTimeout(() => {
+        const el = this.$refs.scrollContainer;
+        this.showScrollTop = el.scrollTop > 550;
+        if (el.scrollHeight - el.offsetHeight - el.scrollTop < 20) {
+          if (this.count === this.limitCount || this.finishPolling) return;
+
+          this.isPageOver = true;
+          this.currentPage += 1;
+          this.newScrollHeight = el.scrollTop;
+          this.$emit('request-table-data');
+        }
+      }, 200);
+    },
+    changeTotalCount(count) {
+      this.totalCount = count;
+    },
+    changeQueueRes(status) {
+      this.queueStatus = status;
+    },
+    getShowTotalNum(num) {
+      return formatNumberWithRegex(num);
+    },
+  },
+};
 </script>
 
 <style lang="scss" scoped>

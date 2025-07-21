@@ -128,350 +128,350 @@
 </template>
 
 <script>
-  import FieldsConfig from '@/components/common/fields-config';
-  import logView from '@/components/log-view';
-  import logViewControl from '@/components/log-view/log-view-control';
-  import { getFlatObjValues } from '@/common/util';
+import FieldsConfig from '@/components/common/fields-config';
+import logView from '@/components/log-view';
+import logViewControl from '@/components/log-view/log-view-control';
+import { getFlatObjValues } from '@/common/util';
 
-  import DataFilter from '../condition-comp/data-filter.vue';
+import DataFilter from '../condition-comp/data-filter.vue';
 
-  export default {
-    name: 'ContextLog',
-    components: {
-      logView,
-      logViewControl,
-      FieldsConfig,
-      DataFilter,
+export default {
+  name: 'ContextLog',
+  components: {
+    logView,
+    logViewControl,
+    FieldsConfig,
+    DataFilter,
+  },
+  props: {
+    retrieveParams: {
+      type: Object,
+      required: true,
     },
-    props: {
-      retrieveParams: {
-        type: Object,
-        required: true,
-      },
-      logParams: {
-        type: Object,
-        default() {
-          return {};
-        },
-      },
-      title: {
-        type: String,
-        require: true,
-      },
-      targetFields: {
-        type: Array,
-        default: () => [],
+    logParams: {
+      type: Object,
+      default() {
+        return {};
       },
     },
-    data() {
-      const id = 'fields-config-tippy';
-      return {
-        logLoading: false,
-        totalFields: [], // 所有字段信息
-        totalFieldNames: [], // 所有的字段名
-        displayFields: [], // 按顺序展示的字段信息
-        displayFieldNames: [], // 展示的字段名
-        isConfigLoading: false,
-        fieldsConfigId: id,
-        fieldsConfigTooltip: {
-          allowHtml: true,
-          width: 380,
-          trigger: 'click',
-          placement: 'bottom-end',
-          theme: 'light',
-          extCls: 'fields-config-tippy',
-          content: `#${id}`,
-          onShow: this.requestFields,
-        },
-        rawList: [],
-        logList: [],
-        reverseRawList: [],
-        reverseLogList: [],
-        isScreenFull: true,
-        params: {},
-        zero: true,
-        prevBegin: 0,
-        nextBegin: 0,
-        firstLogEl: null,
-        filterType: 'include',
-        activeFilterKey: '',
-        timer: null,
-        throttleTimer: null,
-        ignoreCase: false,
-        flipScreen: '',
-        flipScreenList: [],
-        interval: {
-          prev: 0,
-          next: 0,
-        },
-        showType: 'log',
-        highlightList: [],
-        currentConfigID: 0,
-        isRowChange: false,
-      };
+    title: {
+      type: String,
+      require: true,
     },
-    computed: {
-      filedSettingConfigID() {
-        // 当前索引集的显示字段ID
-        return this.$store.state.retrieve.filedSettingConfigID;
+    targetFields: {
+      type: Array,
+      default: () => [],
+    },
+  },
+  data() {
+    const id = 'fields-config-tippy';
+    return {
+      logLoading: false,
+      totalFields: [], // 所有字段信息
+      totalFieldNames: [], // 所有的字段名
+      displayFields: [], // 按顺序展示的字段信息
+      displayFieldNames: [], // 展示的字段名
+      isConfigLoading: false,
+      fieldsConfigId: id,
+      fieldsConfigTooltip: {
+        allowHtml: true,
+        width: 380,
+        trigger: 'click',
+        placement: 'bottom-end',
+        theme: 'light',
+        extCls: 'fields-config-tippy',
+        content: `#${id}`,
+        onShow: this.requestFields,
       },
-      getTargetFieldsStr() {
-        return this.targetFields.reduce((acc, cur) => {
-          acc += `${cur}: ${this.params[cur] || '/ '} `;
-          return acc;
-        }, '');
+      rawList: [],
+      logList: [],
+      reverseRawList: [],
+      reverseLogList: [],
+      isScreenFull: true,
+      params: {},
+      zero: true,
+      prevBegin: 0,
+      nextBegin: 0,
+      firstLogEl: null,
+      filterType: 'include',
+      activeFilterKey: '',
+      timer: null,
+      throttleTimer: null,
+      ignoreCase: false,
+      flipScreen: '',
+      flipScreenList: [],
+      interval: {
+        prev: 0,
+        next: 0,
       },
+      showType: 'log',
+      highlightList: [],
+      currentConfigID: 0,
+      isRowChange: false,
+    };
+  },
+  computed: {
+    filedSettingConfigID() {
+      // 当前索引集的显示字段ID
+      return this.$store.state.retrieve.filedSettingConfigID;
     },
-    created() {
-      this.deepClone(this.logParams);
+    getTargetFieldsStr() {
+      return this.targetFields.reduce((acc, cur) => {
+        acc += `${cur}: ${this.params[cur] || '/ '} `;
+        return acc;
+      }, '');
     },
-    async mounted() {
-      document.addEventListener('keyup', this.handleKeyup);
+  },
+  created() {
+    this.deepClone(this.logParams);
+  },
+  async mounted() {
+    document.addEventListener('keyup', this.handleKeyup);
 
-      await this.requestFields();
-      await this.requestContentLog();
+    await this.requestFields();
+    await this.requestContentLog();
 
-      this.$nextTick(() => {
-        document.querySelector('.dialog-log-markdown').focus();
-      });
+    this.$nextTick(() => {
+      document.querySelector('.dialog-log-markdown').focus();
+    });
+  },
+  destroyed() {
+    document.removeEventListener('keyup', this.handleKeyup);
+  },
+  methods: {
+    handleFixCurrentRow() {
+      const target = this.$refs.contextLog;
+      const listElement = target.querySelector('#log-content');
+      const activeRow = listElement.querySelector('.line.log-init');
+      const scrollTop = activeRow.offsetTop;
+      target.scrollTo({ left: 0, top: scrollTop, behavior: 'smooth' });
     },
-    destroyed() {
-      document.removeEventListener('keyup', this.handleKeyup);
+    handleKeyup(event) {
+      if (event.keyCode === 27) {
+        this.$emit('close-dialog');
+      }
     },
-    methods: {
-      handleFixCurrentRow() {
-        const target = this.$refs.contextLog;
-        const listElement = target.querySelector('#log-content');
-        const activeRow = listElement.querySelector('.line.log-init');
-        const scrollTop = activeRow.offsetTop;
-        target.scrollTo({ left: 0, top: scrollTop, behavior: 'smooth' });
-      },
-      handleKeyup(event) {
-        if (event.keyCode === 27) {
-          this.$emit('close-dialog');
-        }
-      },
-      deepClone(obj) {
-        for (const key in obj) {
-          if (typeof obj[key] === 'object') {
-            this.deepClone(obj[key]);
-          } else {
-            this.params[key] = String(obj[key])
-              .replace(/<mark>/g, '')
-              .replace(/<\/mark>/g, '');
-          }
-        }
-      },
-      toggleScreenFull() {
-        this.isScreenFull = !this.isScreenFull;
-        this.$emit('toggle-screen-full', this.isScreenFull);
-      },
-      async requestFields() {
-        try {
-          this.isConfigLoading = true;
-          const res = await this.$http.request('retrieve/getLogTableHead', {
-            params: { index_set_id: this.$route.params.indexId },
-            query: {
-              scope: 'search_context',
-              start_time: this.retrieveParams.start_time,
-              end_time: this.retrieveParams.end_time,
-              is_realtime: 'True',
-            },
-          });
-          this.currentConfigID = res.data.config_id;
-          this.totalFields = res.data.fields;
-          this.displayFieldNames = res.data.display_fields;
-          this.totalFieldNames = res.data.fields.map(fieldInfo => fieldInfo.field_name);
-          this.displayFields = res.data.display_fields.map(fieldName => {
-            return res.data.fields.find(fieldInfo => fieldInfo.field_name === fieldName);
-          });
-          return true;
-        } catch (err) {
-          console.warn(err);
-        } finally {
-          this.isConfigLoading = false;
-        }
-      },
-      async requestContentLog(direction) {
-        const data = Object.assign(
-          {
-            size: 50,
-            zero: this.zero,
-            dtEventTimeStamp: this.logParams.dtEventTimeStamp,
-          },
-          this.params,
-        );
-        if (direction === 'down') {
-          data.begin = this.nextBegin;
-        } else if (direction === 'top') {
-          data.begin = this.prevBegin;
+    deepClone(obj) {
+      for (const key in obj) {
+        if (typeof obj[key] === 'object') {
+          this.deepClone(obj[key]);
         } else {
-          data.begin = 0;
+          this.params[key] = String(obj[key])
+            .replace(/<mark>/g, '')
+            .replace(/<\/mark>/g, '');
         }
+      }
+    },
+    toggleScreenFull() {
+      this.isScreenFull = !this.isScreenFull;
+      this.$emit('toggle-screen-full', this.isScreenFull);
+    },
+    async requestFields() {
+      try {
+        this.isConfigLoading = true;
+        const res = await this.$http.request('retrieve/getLogTableHead', {
+          params: { index_set_id: this.$route.params.indexId },
+          query: {
+            scope: 'search_context',
+            start_time: this.retrieveParams.start_time,
+            end_time: this.retrieveParams.end_time,
+            is_realtime: 'True',
+          },
+        });
+        this.currentConfigID = res.data.config_id;
+        this.totalFields = res.data.fields;
+        this.displayFieldNames = res.data.display_fields;
+        this.totalFieldNames = res.data.fields.map(fieldInfo => fieldInfo.field_name);
+        this.displayFields = res.data.display_fields.map(fieldName => {
+          return res.data.fields.find(fieldInfo => fieldInfo.field_name === fieldName);
+        });
+        return true;
+      } catch (err) {
+        console.warn(err);
+      } finally {
+        this.isConfigLoading = false;
+      }
+    },
+    async requestContentLog(direction) {
+      const data = Object.assign(
+        {
+          size: 50,
+          zero: this.zero,
+          dtEventTimeStamp: this.logParams.dtEventTimeStamp,
+        },
+        this.params
+      );
+      if (direction === 'down') {
+        data.begin = this.nextBegin;
+      } else if (direction === 'top') {
+        data.begin = this.prevBegin;
+      } else {
+        data.begin = 0;
+      }
 
-        try {
-          this.logLoading = true;
-          const res = await this.$http.request('retrieve/getContentLog', {
-            params: { index_set_id: this.$route.params.indexId },
-            data,
-          });
+      try {
+        this.logLoading = true;
+        const res = await this.$http.request('retrieve/getContentLog', {
+          params: { index_set_id: this.$route.params.indexId },
+          data,
+        });
 
-          const { list } = res.data;
-          if (list && list.length) {
-            const formatList = this.formatList(list, this.displayFieldNames.length ? this.displayFieldNames : ['log']);
-            if (direction) {
-              if (direction === 'down') {
-                this.logList.push(...formatList);
-                this.rawList.push(...list);
-                this.nextBegin += formatList.length;
-              } else {
-                this.reverseLogList.unshift(...formatList);
-                this.reverseRawList.unshift(...list);
-                this.prevBegin -= formatList.length;
-              }
+        const { list } = res.data;
+        if (list && list.length) {
+          const formatList = this.formatList(list, this.displayFieldNames.length ? this.displayFieldNames : ['log']);
+          if (direction) {
+            if (direction === 'down') {
+              this.logList.push(...formatList);
+              this.rawList.push(...list);
+              this.nextBegin += formatList.length;
             } else {
-              const zeroIndex = res.data.zero_index;
-              if ((!zeroIndex && zeroIndex !== 0) || zeroIndex === -1) {
-                this.logList.splice(this.logList.length, 0, { error: this.$t('无法定位上下文') });
-              } else {
-                this.logList.push(...formatList.slice(zeroIndex, list.length));
-                this.rawList.push(...list.slice(zeroIndex, list.length));
+              this.reverseLogList.unshift(...formatList);
+              this.reverseRawList.unshift(...list);
+              this.prevBegin -= formatList.length;
+            }
+          } else {
+            const zeroIndex = res.data.zero_index;
+            if ((!zeroIndex && zeroIndex !== 0) || zeroIndex === -1) {
+              this.logList.splice(this.logList.length, 0, { error: this.$t('无法定位上下文') });
+            } else {
+              this.logList.push(...formatList.slice(zeroIndex, list.length));
+              this.rawList.push(...list.slice(zeroIndex, list.length));
 
-                this.reverseLogList.unshift(...formatList.slice(0, zeroIndex));
-                this.reverseRawList.unshift(...list.slice(0, zeroIndex));
+              this.reverseLogList.unshift(...formatList.slice(0, zeroIndex));
+              this.reverseRawList.unshift(...list.slice(0, zeroIndex));
 
-                const value = zeroIndex - res.data.count_start;
-                this.nextBegin = value + this.logList.length;
-                this.prevBegin = value - this.reverseLogList.length;
-              }
+              const value = zeroIndex - res.data.count_start;
+              this.nextBegin = value + this.logList.length;
+              this.prevBegin = value - this.reverseLogList.length;
             }
           }
-        } catch (e) {
-          console.warn(e);
-        } finally {
-          this.logLoading = false;
-          if (this.highlightList.length) this.$refs.viewControlRef.initLightItemList();
-          if (this.zero) {
-            this.$nextTick(() => {
-              this.initLogScrollPosition();
-            });
-          }
         }
-      },
-      /**
-       * 将列表根据字段组合成字符串数组
-       * @param {Array} list 当前页码
-       * @param {Array} displayFieldNames 当前页码
-       * @return {Array<string>}
-       **/
-      formatList(list, displayFieldNames) {
-        const filterDisplayList = [];
-        list.forEach(listItem => {
-          const displayObj = {};
-          const { newObject } = getFlatObjValues(listItem);
-          displayFieldNames.forEach(field => {
-            Object.assign(displayObj, { [field]: newObject[field] });
+      } catch (e) {
+        console.warn(e);
+      } finally {
+        this.logLoading = false;
+        if (this.highlightList.length) this.$refs.viewControlRef.initLightItemList();
+        if (this.zero) {
+          this.$nextTick(() => {
+            this.initLogScrollPosition();
           });
-          filterDisplayList.push(displayObj);
-        });
-        return filterDisplayList;
-      },
-      // 确定设置显示字段
-      async confirmConfig(list) {
-        this.isConfigLoading = true;
-        const data = { display_fields: list };
-        try {
-          const configRes = await this.$http.request('retrieve/getFieldsConfigByContextLog', {
-            params: { index_set_id: this.$route.params.indexId, config_id: this.currentConfigID },
-          });
-          Object.assign(data, {
-            sort_list: configRes.data.sort_list,
-            name: configRes.data.name,
-            config_id: this.currentConfigID,
-            index_set_id: this.$route.params.indexId,
-          });
-          await this.$http.request('retrieve/updateFieldsConfig', {
-            data,
-          });
-          const res = await this.requestFields();
-          if (res) {
-            this.logList = this.formatList(this.rawList, this.displayFieldNames);
-            this.reverseLogList = this.formatList(this.reverseRawList, this.displayFieldNames);
-            this.$refs.fieldsConfigRef._tippy.hide();
-            this.messageSuccess(this.$t('设置成功'));
-          }
-        } catch (err) {
-          console.warn(err);
-          this.isConfigLoading = false;
         }
-      },
-      // 取消设置显示字段
-      cancelConfig() {
-        this.$refs.fieldsConfigRef._tippy.hide();
-      },
-      initLogScrollPosition() {
-        // 确定第0条的位置
-        this.firstLogEl = document.querySelector('.dialog-log-markdown .log-init');
-        // 没有数据
-        if (!this.firstLogEl) return;
-        const logContentHeight = this.firstLogEl.scrollHeight;
-        const logOffsetTop = this.firstLogEl.offsetTop;
-
-        const wrapperOffsetHeight = this.$refs.contextLog.offsetHeight;
-
-        if (wrapperOffsetHeight <= logContentHeight) {
-          this.$refs.contextLog.scrollTop = logOffsetTop;
-        } else {
-          this.$refs.contextLog.scrollTop = logOffsetTop - Math.ceil((wrapperOffsetHeight - logContentHeight) / 2);
-        }
-        this.zero = false;
-        // 避免重复请求
-        setTimeout(() => {
-          this.$refs.contextLog.addEventListener('scroll', this.handleScroll, { passive: true });
-        }, 64);
-      },
-      handleScroll() {
-        clearTimeout(this.timer);
-        this.timer = setTimeout(() => {
-          if (this.logLoading) return;
-          const { scrollTop } = this.$refs.contextLog;
-          const { scrollHeight } = this.$refs.contextLog;
-          const { offsetHeight } = this.$refs.contextLog;
-          if (scrollTop === 0) {
-            // 滚动到顶部
-            this.requestContentLog('top').then(() => {
-              this.$nextTick(() => {
-                // 记录刷新前滚动位置
-                const newScrollHeight = this.$refs.contextLog.scrollHeight;
-                this.$refs.contextLog.scrollTo({ top: newScrollHeight - scrollHeight });
-              });
-            });
-          } else if (scrollHeight - scrollTop - offsetHeight < 1) {
-            // 滚动到底部
-            this.requestContentLog('down');
-          }
-        }, 200);
-      },
-      handleFilter(field, value) {
-        if (field === 'filterKey') {
-          this.filterLog(value);
-        } else {
-          this[field] = value;
-        }
-      },
-      filterLog(value) {
-        this.activeFilterKey = value;
-        clearTimeout(this.throttleTimer);
-        this.throttleTimer = setTimeout(() => {
-          if (!value) {
-            this.$nextTick(() => {
-              this.initLogScrollPosition();
-            });
-          }
-        }, 300);
-      },
+      }
     },
-  };
+    /**
+     * 将列表根据字段组合成字符串数组
+     * @param {Array} list 当前页码
+     * @param {Array} displayFieldNames 当前页码
+     * @return {Array<string>}
+     **/
+    formatList(list, displayFieldNames) {
+      const filterDisplayList = [];
+      list.forEach(listItem => {
+        const displayObj = {};
+        const { newObject } = getFlatObjValues(listItem);
+        displayFieldNames.forEach(field => {
+          Object.assign(displayObj, { [field]: newObject[field] });
+        });
+        filterDisplayList.push(displayObj);
+      });
+      return filterDisplayList;
+    },
+    // 确定设置显示字段
+    async confirmConfig(list) {
+      this.isConfigLoading = true;
+      const data = { display_fields: list };
+      try {
+        const configRes = await this.$http.request('retrieve/getFieldsConfigByContextLog', {
+          params: { index_set_id: this.$route.params.indexId, config_id: this.currentConfigID },
+        });
+        Object.assign(data, {
+          sort_list: configRes.data.sort_list,
+          name: configRes.data.name,
+          config_id: this.currentConfigID,
+          index_set_id: this.$route.params.indexId,
+        });
+        await this.$http.request('retrieve/updateFieldsConfig', {
+          data,
+        });
+        const res = await this.requestFields();
+        if (res) {
+          this.logList = this.formatList(this.rawList, this.displayFieldNames);
+          this.reverseLogList = this.formatList(this.reverseRawList, this.displayFieldNames);
+          this.$refs.fieldsConfigRef._tippy.hide();
+          this.messageSuccess(this.$t('设置成功'));
+        }
+      } catch (err) {
+        console.warn(err);
+        this.isConfigLoading = false;
+      }
+    },
+    // 取消设置显示字段
+    cancelConfig() {
+      this.$refs.fieldsConfigRef._tippy.hide();
+    },
+    initLogScrollPosition() {
+      // 确定第0条的位置
+      this.firstLogEl = document.querySelector('.dialog-log-markdown .log-init');
+      // 没有数据
+      if (!this.firstLogEl) return;
+      const logContentHeight = this.firstLogEl.scrollHeight;
+      const logOffsetTop = this.firstLogEl.offsetTop;
+
+      const wrapperOffsetHeight = this.$refs.contextLog.offsetHeight;
+
+      if (wrapperOffsetHeight <= logContentHeight) {
+        this.$refs.contextLog.scrollTop = logOffsetTop;
+      } else {
+        this.$refs.contextLog.scrollTop = logOffsetTop - Math.ceil((wrapperOffsetHeight - logContentHeight) / 2);
+      }
+      this.zero = false;
+      // 避免重复请求
+      setTimeout(() => {
+        this.$refs.contextLog.addEventListener('scroll', this.handleScroll, { passive: true });
+      }, 64);
+    },
+    handleScroll() {
+      clearTimeout(this.timer);
+      this.timer = setTimeout(() => {
+        if (this.logLoading) return;
+        const { scrollTop } = this.$refs.contextLog;
+        const { scrollHeight } = this.$refs.contextLog;
+        const { offsetHeight } = this.$refs.contextLog;
+        if (scrollTop === 0) {
+          // 滚动到顶部
+          this.requestContentLog('top').then(() => {
+            this.$nextTick(() => {
+              // 记录刷新前滚动位置
+              const newScrollHeight = this.$refs.contextLog.scrollHeight;
+              this.$refs.contextLog.scrollTo({ top: newScrollHeight - scrollHeight });
+            });
+          });
+        } else if (scrollHeight - scrollTop - offsetHeight < 1) {
+          // 滚动到底部
+          this.requestContentLog('down');
+        }
+      }, 200);
+    },
+    handleFilter(field, value) {
+      if (field === 'filterKey') {
+        this.filterLog(value);
+      } else {
+        this[field] = value;
+      }
+    },
+    filterLog(value) {
+      this.activeFilterKey = value;
+      clearTimeout(this.throttleTimer);
+      this.throttleTimer = setTimeout(() => {
+        if (!value) {
+          this.$nextTick(() => {
+            this.initLogScrollPosition();
+          });
+        }
+      }, 300);
+    },
+  },
+};
 </script>
 
 <style lang="scss" scoped>

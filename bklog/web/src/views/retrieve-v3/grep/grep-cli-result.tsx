@@ -66,7 +66,7 @@ export default defineComponent({
       },
       {
         root: document.querySelector(RetrieveHelper.globalScrollSelector),
-      },
+      }
     );
 
     const handleMenuClick = event => {

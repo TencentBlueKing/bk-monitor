@@ -789,7 +789,7 @@ export default defineComponent({
         calcItemEllipsis().then(() => {
           autoFocusInput();
         });
-      },
+      }
     );
 
     watch(
@@ -801,7 +801,7 @@ export default defineComponent({
         }
 
         emit('blur', isInputFocused.value);
-      },
+      }
     );
 
     onMounted(() => {

@@ -38,7 +38,7 @@ export default ({ indexSetList }: { indexSetList: ComputedRef<any[]> }) => {
 
         return acc;
       },
-      new Map<number, { tag_id: number; name: string; color: string }>(),
+      new Map<number, { tag_id: number; name: string; color: string }>()
     );
 
     return Array.from(listMap.values());

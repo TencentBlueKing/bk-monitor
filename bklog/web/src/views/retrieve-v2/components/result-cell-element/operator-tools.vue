@@ -139,97 +139,97 @@
 </template>
 
 <script>
-  import { mapGetters } from 'vuex';
-  export default {
-    props: {
-      index: {
-        type: Number,
-        default: 0,
-      },
-      rowData: {
-        type: Object,
-        required: true,
-      },
-      operatorConfig: {
-        type: Object,
-        required: true,
-      },
-      logType: {
-        type: String,
-        default: 'table',
-      },
-      handleClick: Function,
+import { mapGetters } from 'vuex';
+export default {
+  props: {
+    index: {
+      type: Number,
+      default: 0,
     },
-    emits: ['handleAi'],
-    data() {
-      return {
-        showAllHandle: false, // hove操作区域显示全部icon
-      };
+    rowData: {
+      type: Object,
+      required: true,
     },
-    computed: {
-      ...mapGetters({
-        unionIndexList: 'unionIndexList',
-        isUnionSearch: 'isUnionSearch',
-      }),
-      aiImageUrl() {
-        return require('@/images/rowAiNew.svg');
-      },
-      isActiveLog() {
-        return this.operatorConfig?.contextAndRealtime?.is_active ?? false;
-      },
-      isActiveWebConsole() {
-        return this.operatorConfig?.bcsWebConsole?.is_active ?? false;
-      },
-      isAiAssistanceActive() {
-        return this.$store.getters.isAiAssistantActive;
-      },
-      /** 判断webConsole是否能点击 */
-      isCanClickWebConsole() {
-        if (!this.isActiveWebConsole) return false;
-        const { cluster, container_id: containerID, __ext } = this.rowData;
-        let queryData = {};
-        if (cluster && containerID) {
-          queryData = {
-            cluster,
-            container_id: containerID,
-          };
-        } else {
-          if (!__ext) return false;
-          if (!__ext.container_id) return false;
-          queryData = { container_id: __ext.container_id };
-          if (__ext.io_tencent_bcs_cluster) {
-            Object.assign(queryData, {
-              cluster: __ext.io_tencent_bcs_cluster,
-            });
-          } else if (__ext.bk_bcs_cluster_id) {
-            Object.assign(queryData, {
-              cluster: __ext.bk_bcs_cluster_id,
-            });
-          }
+    operatorConfig: {
+      type: Object,
+      required: true,
+    },
+    logType: {
+      type: String,
+      default: 'table',
+    },
+    handleClick: Function,
+  },
+  emits: ['handleAi'],
+  data() {
+    return {
+      showAllHandle: false, // hove操作区域显示全部icon
+    };
+  },
+  computed: {
+    ...mapGetters({
+      unionIndexList: 'unionIndexList',
+      isUnionSearch: 'isUnionSearch',
+    }),
+    aiImageUrl() {
+      return require('@/images/rowAiNew.svg');
+    },
+    isActiveLog() {
+      return this.operatorConfig?.contextAndRealtime?.is_active ?? false;
+    },
+    isActiveWebConsole() {
+      return this.operatorConfig?.bcsWebConsole?.is_active ?? false;
+    },
+    isAiAssistanceActive() {
+      return this.$store.getters.isAiAssistantActive;
+    },
+    /** 判断webConsole是否能点击 */
+    isCanClickWebConsole() {
+      if (!this.isActiveWebConsole) return false;
+      const { cluster, container_id: containerID, __ext } = this.rowData;
+      let queryData = {};
+      if (cluster && containerID) {
+        queryData = {
+          cluster,
+          container_id: containerID,
+        };
+      } else {
+        if (!__ext) return false;
+        if (!__ext.container_id) return false;
+        queryData = { container_id: __ext.container_id };
+        if (__ext.io_tencent_bcs_cluster) {
+          Object.assign(queryData, {
+            cluster: __ext.io_tencent_bcs_cluster,
+          });
+        } else if (__ext.bk_bcs_cluster_id) {
+          Object.assign(queryData, {
+            cluster: __ext.bk_bcs_cluster_id,
+          });
         }
-        if (!queryData.cluster || !queryData.container_id) return false;
-        return true;
-      },
-      toolMessage() {
-        return (
-          this.operatorConfig?.toolMessage ?? {
-            realTimeLog: '',
-            webConsole: '',
-            contextLog: '',
-          }
-        );
-      },
-      isShowSourceField() {
-        return this.operatorConfig?.isShowSourceField;
-      },
+      }
+      if (!queryData.cluster || !queryData.container_id) return false;
+      return true;
     },
-    methods: {
-      handleCheckClick(clickType, isActive = false, event) {
-        if (!isActive) return;
-        return this.handleClick(clickType, event);
-      },
+    toolMessage() {
+      return (
+        this.operatorConfig?.toolMessage ?? {
+          realTimeLog: '',
+          webConsole: '',
+          contextLog: '',
+        }
+      );
     },
-  };
+    isShowSourceField() {
+      return this.operatorConfig?.isShowSourceField;
+    },
+  },
+  methods: {
+    handleCheckClick(clickType, isActive = false, event) {
+      if (!isActive) return;
+      return this.handleClick(clickType, event);
+    },
+  },
+};
 </script>
 
 <style lang="scss" scoped>

@@ -110,150 +110,150 @@
 </template>
 
 <script>
-  import { mapGetters } from 'vuex';
-  export default {
-    inheritAttrs: false,
-    props: {
-      retrieveSearchNumber: {
-        type: Number,
-        require: true,
-      },
-      indexSetItem: {
-        type: Object,
-        require: true,
-      },
+import { mapGetters } from 'vuex';
+export default {
+  inheritAttrs: false,
+  props: {
+    retrieveSearchNumber: {
+      type: Number,
+      require: true,
     },
-    data() {
-      return {
-        grammarMap: [
-          {
-            key: this.$t('带字段全文检索更高效'),
-            value: 'log:abc',
-          },
-          {
-            key: this.$t('模糊检索使用通配符'),
-            value: this.$t('abc* 或 ab?c'),
-          },
-          {
-            key: this.$t('双引号匹配完整字符串'),
-            value: 'log:"ERROR MSG"',
-          },
-          {
-            key: this.$t('数值字段范围匹配'),
-            value: 'count:[1 TO 5]',
-          },
-          {
-            key: this.$t('正则匹配'),
-            value: 'name:/joh?n(ath[oa]n)/',
-          },
-          {
-            key: this.$t('组合检索注意大写'),
-            value: 'log: (error OR info)',
-          },
-        ],
-        routeNameList: {
-          // 路由跳转name
-          log: 'manage-collection',
-          custom: 'custom-report-detail',
-          manage: 'bkdata-index-set-manage',
-          indexManage: 'log-index-set-manage',
+    indexSetItem: {
+      type: Object,
+      require: true,
+    },
+  },
+  data() {
+    return {
+      grammarMap: [
+        {
+          key: this.$t('带字段全文检索更高效'),
+          value: 'log:abc',
         },
-        detailJumpRouteKey: 'log',
-      };
-    },
-    computed: {
-      ...mapGetters({
-        indexId: 'indexId',
-        spaceUid: 'spaceUid',
-      }),
-      isFirstSearch() {
-        return this.retrieveSearchNumber <= 1;
+        {
+          key: this.$t('模糊检索使用通配符'),
+          value: this.$t('abc* 或 ab?c'),
+        },
+        {
+          key: this.$t('双引号匹配完整字符串'),
+          value: 'log:"ERROR MSG"',
+        },
+        {
+          key: this.$t('数值字段范围匹配'),
+          value: 'count:[1 TO 5]',
+        },
+        {
+          key: this.$t('正则匹配'),
+          value: 'name:/joh?n(ath[oa]n)/',
+        },
+        {
+          key: this.$t('组合检索注意大写'),
+          value: 'log: (error OR info)',
+        },
+      ],
+      routeNameList: {
+        // 路由跳转name
+        log: 'manage-collection',
+        custom: 'custom-report-detail',
+        manage: 'bkdata-index-set-manage',
+        indexManage: 'log-index-set-manage',
       },
+      detailJumpRouteKey: 'log',
+    };
+  },
+  computed: {
+    ...mapGetters({
+      indexId: 'indexId',
+      spaceUid: 'spaceUid',
+    }),
+    isFirstSearch() {
+      return this.retrieveSearchNumber <= 1;
     },
-    watch: {
-      indexSetItem: {
-        handler(nVal) {
-          if (JSON.stringify(nVal) === '{}') return;
-          if (nVal.scenario_id === 'log') {
-            // 索引集类型为采集项或自定义上报
-            if (nVal.collector_scenario_id === null) {
-              // 若无日志类型 则类型为索引集
-              this.getDetailJumpRouteKey('setIndex');
-              return;
-            }
-            // 判断是否是自定义上报类型
-            this.getDetailJumpRouteKey(nVal.collector_scenario_id === 'custom' ? 'custom' : 'log');
+  },
+  watch: {
+    indexSetItem: {
+      handler(nVal) {
+        if (JSON.stringify(nVal) === '{}') return;
+        if (nVal.scenario_id === 'log') {
+          // 索引集类型为采集项或自定义上报
+          if (nVal.collector_scenario_id === null) {
+            // 若无日志类型 则类型为索引集
+            this.getDetailJumpRouteKey('setIndex');
             return;
           }
-          // 当scenario_id不为log（采集项，索引集，自定义上报）时
-          this.getDetailJumpRouteKey(nVal.scenario_id);
-        },
-        immediate: true,
+          // 判断是否是自定义上报类型
+          this.getDetailJumpRouteKey(nVal.collector_scenario_id === 'custom' ? 'custom' : 'log');
+          return;
+        }
+        // 当scenario_id不为log（采集项，索引集，自定义上报）时
+        this.getDetailJumpRouteKey(nVal.scenario_id);
       },
+      immediate: true,
     },
-    mounted() {
-      const el = document.querySelector('.bk-table-empty-block');
-      if (el) el.classList.add('empty-clear-width');
-    },
-    methods: {
-      handleBtnClick(clickType) {
-        let baseUrl = window.SITE_URL;
-        if (!baseUrl.startsWith('/')) baseUrl = `/${baseUrl}`;
-        if (!baseUrl.endsWith('/')) baseUrl += '/';
-        baseUrl = window.location.origin + baseUrl;
-        switch (clickType) {
-          case 'queryString': // 查询更多语法
-            this.handleGotoLink('queryString');
-            break;
-          case 'indexConfig':
-            {
-              // 索引配置
-              if (JSON.stringify(this.indexSetItem) === '{}') {
-                this.$bkMessage({
-                  theme: 'error',
-                  message: this.$t('未找到对应的采集项'),
-                });
-                return;
-              }
-              const params = {};
-              if (['manage', 'indexManage'].includes(this.detailJumpRouteKey)) {
-                params.indexSetId = this.indexSetItem?.index_set_id;
-              } else {
-                params.collectorId = this.indexSetItem?.collector_config_id;
-              }
-              const { href } = this.$router.resolve({
-                name: this.routeNameList[this.detailJumpRouteKey],
-                params,
-                query: {
-                  spaceUid: this.$store.state.spaceUid,
-                },
+  },
+  mounted() {
+    const el = document.querySelector('.bk-table-empty-block');
+    if (el) el.classList.add('empty-clear-width');
+  },
+  methods: {
+    handleBtnClick(clickType) {
+      let baseUrl = window.SITE_URL;
+      if (!baseUrl.startsWith('/')) baseUrl = `/${baseUrl}`;
+      if (!baseUrl.endsWith('/')) baseUrl += '/';
+      baseUrl = window.location.origin + baseUrl;
+      switch (clickType) {
+        case 'queryString': // 查询更多语法
+          this.handleGotoLink('queryString');
+          break;
+        case 'indexConfig':
+          {
+            // 索引配置
+            if (JSON.stringify(this.indexSetItem) === '{}') {
+              this.$bkMessage({
+                theme: 'error',
+                message: this.$t('未找到对应的采集项'),
               });
-              window.open(href, '_blank');
+              return;
             }
-            break;
-          case 'goToConfig':
-            {
-              // 前往配置
-              const jumpUrl = `${baseUrl}#/manage/log-collection/collection-item?spaceUid=${this.spaceUid}`;
-              window.open(jumpUrl, '_blank');
+            const params = {};
+            if (['manage', 'indexManage'].includes(this.detailJumpRouteKey)) {
+              params.indexSetId = this.indexSetItem?.index_set_id;
+            } else {
+              params.collectorId = this.indexSetItem?.collector_config_id;
             }
-            break;
-          case 'clickToQuery': // 点击查询
-            this.$emit('should-retrieve');
-            break;
-        }
-      },
-      getDetailJumpRouteKey(detailStr) {
-        if (['es', 'bkdata'].includes(detailStr)) {
-          this.detailJumpRouteKey = 'manage';
-        } else if (detailStr === 'setIndex') {
-          this.detailJumpRouteKey = 'indexManage';
-        } else {
-          this.detailJumpRouteKey = detailStr;
-        }
-      },
+            const { href } = this.$router.resolve({
+              name: this.routeNameList[this.detailJumpRouteKey],
+              params,
+              query: {
+                spaceUid: this.$store.state.spaceUid,
+              },
+            });
+            window.open(href, '_blank');
+          }
+          break;
+        case 'goToConfig':
+          {
+            // 前往配置
+            const jumpUrl = `${baseUrl}#/manage/log-collection/collection-item?spaceUid=${this.spaceUid}`;
+            window.open(jumpUrl, '_blank');
+          }
+          break;
+        case 'clickToQuery': // 点击查询
+          this.$emit('should-retrieve');
+          break;
+      }
     },
-  };
+    getDetailJumpRouteKey(detailStr) {
+      if (['es', 'bkdata'].includes(detailStr)) {
+        this.detailJumpRouteKey = 'manage';
+      } else if (detailStr === 'setIndex') {
+        this.detailJumpRouteKey = 'indexManage';
+      } else {
+        this.detailJumpRouteKey = detailStr;
+      }
+    },
+  },
+};
 </script>
 
 <style lang="scss" scoped>

@@ -110,130 +110,129 @@
   </div>
 </template>
 <script setup>
-  import { ref, onMounted, watch } from 'vue';
-  import $http from '@/api';
-  const props = defineProps({
-    metadata: {
-      type: Array,
-      required: true,
-    },
-  });
-  const switcherValue = ref(false);
-  const selectValue = ref([]);
-  const groupList = ref([]);
-  const extraLabelList = ref([]);
-  const isExtraError = ref(false);
-  const emit = defineEmits(['extra-labels-change']);
-  const emitExtraLabels = () => {
+import { ref, onMounted, watch } from 'vue';
+import $http from '@/api';
+const props = defineProps({
+  metadata: {
+    type: Array,
+    required: true,
+  },
+});
+const switcherValue = ref(false);
+const selectValue = ref([]);
+const groupList = ref([]);
+const extraLabelList = ref([]);
+const isExtraError = ref(false);
+const emit = defineEmits(['extra-labels-change']);
+const emitExtraLabels = () => {
+  const result = groupList.value.reduce((accumulator, item) => {
+    if (selectValue.value.includes(item.field)) {
+      accumulator.push({ key: item.field, value: item.key });
+    }
+    return accumulator;
+  }, []);
+  emit('extra-labels-change', result);
+};
+
+const switcherChange = val => {
+  if (!val) {
+    emit('extra-labels-change', []);
+  }
+};
+
+// 获取元数据
+const getDeviceMetaData = async () => {
+  try {
+    const res = await $http.request('linkConfiguration/getSearchObjectAttribute');
+    const { scope = [], host = [] } = res.data;
+    groupList.value.push(
+      ...scope.map(item => {
+        item.key = 'scope';
+        return item;
+      })
+    );
+    groupList.value.push(
+      ...host.map(item => {
+        item.key = 'host';
+        return item;
+      })
+    );
+    selectValue.value = props.metadata.map(item => {
+      if (item.key.startsWith('host.')) {
+        return item.key.slice(5);
+      }
+    });
+    extraLabelList.value = props.metadata
+      .filter(metadataItem => {
+        const isDuplicate = groupList.value.some(groupItem => groupItem.field === metadataItem.key.slice(5));
+        return !isDuplicate;
+      })
+      .map(item => {
+        return {
+          key: item.key,
+          value: item.value,
+          duplicateKey: false,
+        };
+      });
+  } catch (e) {
+    console.warn(e);
+  }
+};
+
+const handleAddExtraLabel = () => {
+  extraLabelList.value.push({ key: '', value: '' });
+};
+const handleDeleteExtraLabel = index => {
+  extraLabelList.value.splice(index, 1);
+};
+
+const extraLabelsValidate = () => {
+  if (!switcherValue.value) {
+    return true;
+  }
+  isExtraError.value = false;
+  if (extraLabelList.value.length) {
+    extraLabelList.value.forEach(item => {
+      if (item.key === '' || item.value === '') {
+        isExtraError.value = true;
+      }
+      if (groupList.value.find(group => group.field === item.key)) {
+        item.duplicateKey = true;
+        isExtraError.value = true;
+      }
+    });
+  }
+  if (isExtraError.value) {
+    throw new Error();
+  }
+  handleExtraLabelsChange();
+  return true;
+};
+const handleExtraLabelsChange = () => {
+  if (extraLabelList.value.length) {
     const result = groupList.value.reduce((accumulator, item) => {
       if (selectValue.value.includes(item.field)) {
         accumulator.push({ key: item.field, value: item.key });
       }
       return accumulator;
     }, []);
+    result.push(...extraLabelList.value);
     emit('extra-labels-change', result);
-  };
-
-  const switcherChange = val => {
-    if (!val) {
-      emit('extra-labels-change', []);
-    }
-  };
-
-
-  // 获取元数据
-  const getDeviceMetaData = async () => {
-    try {
-      const res = await $http.request('linkConfiguration/getSearchObjectAttribute');
-      const { scope = [], host = [] } = res.data;
-      groupList.value.push(
-        ...scope.map(item => {
-          item.key = 'scope';
-          return item;
-        }),
-      );
-      groupList.value.push(
-        ...host.map(item => {
-          item.key = 'host';
-          return item;
-        }),
-      );
-      selectValue.value = props.metadata.map(item => {
-        if (item.key.startsWith('host.')) {
-          return item.key.slice(5);
-        } 
-      });
-      extraLabelList.value = props.metadata.filter(metadataItem => {
-        const isDuplicate = groupList.value.some(
-          groupItem => groupItem.field === metadataItem.key.slice(5)
-        );
-        return !isDuplicate;
-      }).map( item => {
-        return { 
-          key: item.key, 
-          value: item.value,
-          duplicateKey: false,
-        };
-      });
-    } catch (e) {
-      console.warn(e);
-    }
-  };
-
-  const handleAddExtraLabel = () => {
-    extraLabelList.value.push({ key: '', value: '' });
   }
-  const handleDeleteExtraLabel = (index) => {
-    extraLabelList.value.splice(index, 1);
+};
+onMounted(() => {
+  getDeviceMetaData();
+  if (props.metadata.filter(item => item.key).length) {
+    switcherValue.value = true;
   }
-  
-  const extraLabelsValidate = () => {
-    if(!switcherValue.value){
-      return true;
-    }
-    isExtraError.value = false;
-    if (extraLabelList.value.length) {
-      extraLabelList.value.forEach(item => {
-        if (item.key === '' || item.value === '') {
-          isExtraError.value = true;
-        }
-        if (groupList.value.find(group => group.field === item.key)) {
-          item.duplicateKey = true;
-          isExtraError.value = true;
-        }
-      });
-    }
-    if (isExtraError.value) {
-      throw new Error
-    }
-    handleExtraLabelsChange()
-    return true
-  }
-  const handleExtraLabelsChange = () => {
-    if (extraLabelList.value.length) {
-      const result = groupList.value.reduce((accumulator, item) => {
-        if (selectValue.value.includes(item.field)) {
-          accumulator.push({ key: item.field, value: item.key });
-        }
-        return accumulator;
-      }, []);
-      result.push(...extraLabelList.value);
-      emit('extra-labels-change', result);
-    }
-  }
-  onMounted(() => {
-    getDeviceMetaData();
-    if (props.metadata.filter(item => item.key).length) {
-      switcherValue.value = true;
-    }
-  });
+});
 
-  watch(selectValue, () => {
-    emitExtraLabels();
-  });
-  defineExpose({
-    extraLabelsValidate,
-  });
+watch(selectValue, () => {
+  emitExtraLabels();
+});
+defineExpose({
+  extraLabelsValidate,
+});
 </script>
 <style lang="scss" scoped>
   .filter-table-container {

@@ -245,231 +245,231 @@
 </template>
 
 <script>
-  import { mapGetters } from 'vuex';
+import { mapGetters } from 'vuex';
 
-  export default {
-    data() {
-      return {
-        maxCapacity: Number(window.ES_STORAGE_CAPACITY),
-        maxHostPeak: 10240, // 单机流量峰值超过 10M 警告
-        formData: {
-          expect_access_data: '', // 期待接入日期 2020-01-01
-          single_log_size: '', // 单条日志大小(bytes)
-          single_host_peak: '', // 单机流量峰值(KB/s)
-          single_host_log_volume: '', // 单机增长日志量(G)
-          expect_host_size: '', // 预计接入的主机数量
-          log_keep_days: '', // 日志保留天数
-          hot_data_days: '', // 热数据天数
-          apply_reason: '', // 申请原因
-        },
-        rules: {
-          expect_access_data: [
-            {
-              required: true,
-              message: this.$t('必填项'),
-              trigger: 'blur',
-            },
-          ],
-          single_log_size: [
-            {
-              required: true,
-              message: this.$t('必填项'),
-              trigger: 'blur',
-            },
-          ],
-          single_host_peak: [
-            {
-              required: true,
-              message: this.$t('必填项'),
-              trigger: 'blur',
-            },
-          ],
-          single_host_log_volume: [
-            {
-              required: true,
-              message: this.$t('必填项'),
-              trigger: 'blur',
-            },
-          ],
-          expect_host_size: [
-            {
-              required: true,
-              message: this.$t('必填项'),
-              trigger: 'blur',
-            },
-          ],
-          log_keep_days: [
-            {
-              required: true,
-              message: this.$t('必填项'),
-              trigger: 'blur',
-            },
-          ],
-          hot_data_days: [
-            {
-              required: true,
-              message: this.$t('必填项'),
-              trigger: 'blur',
-            },
-          ],
-          apply_reason: [
-            {
-              required: true,
-              message: this.$t('必填项'),
-              trigger: 'blur',
-            },
-          ],
-        },
-        showApplyResult: false, // 显示审批详情/结果页面
-        isApplySuccess: false, // 单据申请成功
-        applyData: null, // 单据申请状态、数据
-        applyLoading: false, // 获取单据申请数据 loading
-        submitLoading: false, // 提交表单 loading
-      };
-    },
-    computed: {
-      ...mapGetters('collect', ['curCollect']),
-      showComputedCapacity() {
-        return this.formData.single_host_log_volume && this.formData.expect_host_size && this.formData.log_keep_days;
+export default {
+  data() {
+    return {
+      maxCapacity: Number(window.ES_STORAGE_CAPACITY),
+      maxHostPeak: 10240, // 单机流量峰值超过 10M 警告
+      formData: {
+        expect_access_data: '', // 期待接入日期 2020-01-01
+        single_log_size: '', // 单条日志大小(bytes)
+        single_host_peak: '', // 单机流量峰值(KB/s)
+        single_host_log_volume: '', // 单机增长日志量(G)
+        expect_host_size: '', // 预计接入的主机数量
+        log_keep_days: '', // 日志保留天数
+        hot_data_days: '', // 热数据天数
+        apply_reason: '', // 申请原因
       },
-      computedCapacity() {
-        const logVolume = Number(this.formData.single_host_log_volume) || 0;
-        const hostCount = Number(this.formData.expect_host_size) || 0;
-        const keepDays = Number(this.formData.log_keep_days) || 0;
-        const result = logVolume * hostCount * 3 * (keepDays + 1);
-        return result.toFixed(0);
+      rules: {
+        expect_access_data: [
+          {
+            required: true,
+            message: this.$t('必填项'),
+            trigger: 'blur',
+          },
+        ],
+        single_log_size: [
+          {
+            required: true,
+            message: this.$t('必填项'),
+            trigger: 'blur',
+          },
+        ],
+        single_host_peak: [
+          {
+            required: true,
+            message: this.$t('必填项'),
+            trigger: 'blur',
+          },
+        ],
+        single_host_log_volume: [
+          {
+            required: true,
+            message: this.$t('必填项'),
+            trigger: 'blur',
+          },
+        ],
+        expect_host_size: [
+          {
+            required: true,
+            message: this.$t('必填项'),
+            trigger: 'blur',
+          },
+        ],
+        log_keep_days: [
+          {
+            required: true,
+            message: this.$t('必填项'),
+            trigger: 'blur',
+          },
+        ],
+        hot_data_days: [
+          {
+            required: true,
+            message: this.$t('必填项'),
+            trigger: 'blur',
+          },
+        ],
+        apply_reason: [
+          {
+            required: true,
+            message: this.$t('必填项'),
+            trigger: 'blur',
+          },
+        ],
       },
+      showApplyResult: false, // 显示审批详情/结果页面
+      isApplySuccess: false, // 单据申请成功
+      applyData: null, // 单据申请状态、数据
+      applyLoading: false, // 获取单据申请数据 loading
+      submitLoading: false, // 提交表单 loading
+    };
+  },
+  computed: {
+    ...mapGetters('collect', ['curCollect']),
+    showComputedCapacity() {
+      return this.formData.single_host_log_volume && this.formData.expect_host_size && this.formData.log_keep_days;
     },
-    created() {
-      if (this.operateType === 'add') {
-        // 新增、创建单据
-      } else {
-        switch (this.curCollect.itsm_ticket_status) {
-          case 'not_apply':
-            // 编辑、但是未创建单据，需要创建单据
-            break;
-          case 'applying':
-            // 单据正在审批，查询单据状态
-            this.showApplyResult = true;
-            this.getApplyData();
-            break;
-          case 'fail_apply':
-            // 单据被拒，重新创建单据
-            break;
-          case 'success_apply':
-            this.isApplySuccess = true;
-            this.getApplyData();
-            // 审批通过，查询之前申请的数据，如果用户再对其修改，需要重新申请，如果不修改，进入下一步采集接入
-            break;
-        }
-      }
+    computedCapacity() {
+      const logVolume = Number(this.formData.single_host_log_volume) || 0;
+      const hostCount = Number(this.formData.expect_host_size) || 0;
+      const keepDays = Number(this.formData.log_keep_days) || 0;
+      const result = logVolume * hostCount * 3 * (keepDays + 1);
+      return result.toFixed(0);
     },
-    methods: {
-      // 1、编辑未完成采集项，之前已经申请过 ITSM 单据，查询单据状态
-      // 2、编辑已通过审批的采集项，获取申请的数据回填表单
-      async getApplyData() {
-        try {
-          this.applyLoading = true;
-          const res = await this.$http.request('collect/queryItsmTicket', {
-            params: {
-              collector_config_id: this.curCollect.collector_config_id,
-            },
-          });
-          if (this.isApplySuccess) {
-            this.formDataCache = {
-              expect_access_data: res.data.expect_access_data,
-              single_log_size: res.data.single_log_size,
-              single_host_peak: res.data.single_host_peak,
-              single_host_log_volume: res.data.single_host_log_volume,
-              expect_host_size: res.data.expect_host_size,
-              log_keep_days: res.data.log_keep_days,
-              hot_data_days: res.data.hot_data_days,
-              apply_reason: res.data.apply_reason,
-            };
-            Object.assign(this.formData, this.formDataCache);
-          } else {
-            this.applyData = res.data;
-          }
-        } catch (e) {
-          console.warn(e);
-        } finally {
-          this.applyLoading = false;
-        }
-      },
-      async handleSubmit() {
-        try {
-          this.submitLoading = true;
-          await this.$refs.formRef.validate();
-          const res = await this.$http.request('collect/applyItsmTicket', {
-            params: {
-              collector_config_id: this.curCollect.collector_config_id,
-            },
-            data: {
-              ...this.formData,
-              expect_access_data: this.formatDate(this.formData.expect_access_data),
-            },
-          });
-          this.applyData = res.data;
+  },
+  created() {
+    if (this.operateType === 'add') {
+      // 新增、创建单据
+    } else {
+      switch (this.curCollect.itsm_ticket_status) {
+        case 'not_apply':
+          // 编辑、但是未创建单据，需要创建单据
+          break;
+        case 'applying':
+          // 单据正在审批，查询单据状态
           this.showApplyResult = true;
-        } catch (e) {
-          console.warn(e);
-        } finally {
-          this.submitLoading = false;
-        }
-      },
-      formatDate(date) {
-        try {
-          const yyyy = date.getFullYear();
-          const mm = `0${date.getMonth() + 1}`.slice(-2);
-          const dd = `0${date.getDate()}`.slice(-2);
-          return `${yyyy}-${mm}-${dd}`;
-        } catch (e) {
-          console.warn('无效的时间', e);
-          return '';
-        }
-      },
-      async handleNext() {
-        if (this.judgeIsModified()) {
-          // 修改了表单，重新提交
-          return this.handleSubmit();
-        }
-        // 没有修改，第一步调用了 only_update，这里需要调用 update，再进入下一步采集接入
-        try {
-          this.submitLoading = true;
-          await this.$http.request(
-            'collect/updateCollection',
-            JSON.parse(sessionStorage.getItem('collectionUpdateData')),
-          );
-          this.$emit('step-change', 3);
-        } catch (e) {
-          console.warn(e);
-        } finally {
-          this.submitLoading = false;
-        }
-      },
-      // 判断之前提交的已经通过的单据是否被修改
-      judgeIsModified() {
-        const newFormData = {
-          ...this.formData,
-          expect_access_data: this.formatDate(this.formData.expect_access_data),
-        };
-        for (const key of Object.keys(newFormData)) {
-          if (newFormData[key] !== this.formDataCache[key]) {
-            return true;
-          }
-        }
-        return false;
-      },
-      handleCancel() {
-        this.$router.push({
-          name: 'collection-item',
-          query: {
-            spaceUid: this.$store.state.spaceUid,
+          this.getApplyData();
+          break;
+        case 'fail_apply':
+          // 单据被拒，重新创建单据
+          break;
+        case 'success_apply':
+          this.isApplySuccess = true;
+          this.getApplyData();
+          // 审批通过，查询之前申请的数据，如果用户再对其修改，需要重新申请，如果不修改，进入下一步采集接入
+          break;
+      }
+    }
+  },
+  methods: {
+    // 1、编辑未完成采集项，之前已经申请过 ITSM 单据，查询单据状态
+    // 2、编辑已通过审批的采集项，获取申请的数据回填表单
+    async getApplyData() {
+      try {
+        this.applyLoading = true;
+        const res = await this.$http.request('collect/queryItsmTicket', {
+          params: {
+            collector_config_id: this.curCollect.collector_config_id,
           },
         });
-      },
+        if (this.isApplySuccess) {
+          this.formDataCache = {
+            expect_access_data: res.data.expect_access_data,
+            single_log_size: res.data.single_log_size,
+            single_host_peak: res.data.single_host_peak,
+            single_host_log_volume: res.data.single_host_log_volume,
+            expect_host_size: res.data.expect_host_size,
+            log_keep_days: res.data.log_keep_days,
+            hot_data_days: res.data.hot_data_days,
+            apply_reason: res.data.apply_reason,
+          };
+          Object.assign(this.formData, this.formDataCache);
+        } else {
+          this.applyData = res.data;
+        }
+      } catch (e) {
+        console.warn(e);
+      } finally {
+        this.applyLoading = false;
+      }
     },
-  };
+    async handleSubmit() {
+      try {
+        this.submitLoading = true;
+        await this.$refs.formRef.validate();
+        const res = await this.$http.request('collect/applyItsmTicket', {
+          params: {
+            collector_config_id: this.curCollect.collector_config_id,
+          },
+          data: {
+            ...this.formData,
+            expect_access_data: this.formatDate(this.formData.expect_access_data),
+          },
+        });
+        this.applyData = res.data;
+        this.showApplyResult = true;
+      } catch (e) {
+        console.warn(e);
+      } finally {
+        this.submitLoading = false;
+      }
+    },
+    formatDate(date) {
+      try {
+        const yyyy = date.getFullYear();
+        const mm = `0${date.getMonth() + 1}`.slice(-2);
+        const dd = `0${date.getDate()}`.slice(-2);
+        return `${yyyy}-${mm}-${dd}`;
+      } catch (e) {
+        console.warn('无效的时间', e);
+        return '';
+      }
+    },
+    async handleNext() {
+      if (this.judgeIsModified()) {
+        // 修改了表单，重新提交
+        return this.handleSubmit();
+      }
+      // 没有修改，第一步调用了 only_update，这里需要调用 update，再进入下一步采集接入
+      try {
+        this.submitLoading = true;
+        await this.$http.request(
+          'collect/updateCollection',
+          JSON.parse(sessionStorage.getItem('collectionUpdateData'))
+        );
+        this.$emit('step-change', 3);
+      } catch (e) {
+        console.warn(e);
+      } finally {
+        this.submitLoading = false;
+      }
+    },
+    // 判断之前提交的已经通过的单据是否被修改
+    judgeIsModified() {
+      const newFormData = {
+        ...this.formData,
+        expect_access_data: this.formatDate(this.formData.expect_access_data),
+      };
+      for (const key of Object.keys(newFormData)) {
+        if (newFormData[key] !== this.formDataCache[key]) {
+          return true;
+        }
+      }
+      return false;
+    },
+    handleCancel() {
+      this.$router.push({
+        name: 'collection-item',
+        query: {
+          spaceUid: this.$store.state.spaceUid,
+        },
+      });
+    },
+  },
+};
 </script>
 
 <style lang="scss" scoped>

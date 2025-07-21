@@ -57,38 +57,38 @@
 </template>
 
 <script>
-  export default {
-    props: {
-      // 用于初次loading
-      isLoading: {
-        type: Boolean,
-        default: false,
-      },
-      widthList: {
-        type: Array,
-        require: true,
-      },
-      loaderLen: {
-        // 骨架行数
-        type: Number,
-        default: 24,
-      },
+export default {
+  props: {
+    // 用于初次loading
+    isLoading: {
+      type: Boolean,
+      default: false,
     },
-    data() {
-      return {};
+    widthList: {
+      type: Array,
+      require: true,
     },
-    computed: {
-      renderList() {
-        return new Array(this.loaderLen).fill('');
-      },
+    loaderLen: {
+      // 骨架行数
+      type: Number,
+      default: 24,
     },
-    methods: {
-      getRandom() {
-        // 骨架占位随机长度
-        return Math.floor(Math.random() * (20 - 100) + 100);
-      },
+  },
+  data() {
+    return {};
+  },
+  computed: {
+    renderList() {
+      return new Array(this.loaderLen).fill('');
     },
-  };
+  },
+  methods: {
+    getRandom() {
+      // 骨架占位随机长度
+      return Math.floor(Math.random() * (20 - 100) + 100);
+    },
+  },
+};
 </script>
 
 <style lang="scss">

@@ -59,250 +59,250 @@
 </template>
 
 <script>
-  import HighlightHtml from './highlight-html';
+import HighlightHtml from './highlight-html';
 
-  export default {
-    name: 'LogView',
-    components: {
-      HighlightHtml,
-    },
-    props: {
-      reverseLogList: {
-        type: Array,
-        default() {
-          return [];
-        },
-      },
-      logList: {
-        type: Array,
-        default() {
-          return [];
-        },
-      },
-      filterKey: {
-        type: String,
-        default: '',
-      },
-      isRealTimeLog: {
-        type: Boolean,
-        default: false,
-      },
-      maxLength: {
-        type: Number,
-        default: 0,
-      },
-      shiftLength: {
-        type: Number,
-        default: 0,
-      },
-      interval: {
-        type: Object,
-        default: () => ({}),
-      },
-      filterType: {
-        type: String,
-        default: '',
-      },
-      ignoreCase: {
-        type: Boolean,
-        default: false,
-      },
-      lightList: {
-        type: Array,
-        default() {
-          return [];
-        },
-      },
-      showType: {
-        type: String,
-        default: 'log',
+export default {
+  name: 'LogView',
+  components: {
+    HighlightHtml,
+  },
+  props: {
+    reverseLogList: {
+      type: Array,
+      default() {
+        return [];
       },
     },
-    data() {
-      return {
-        oldIndex: null,
-        newIndex: null,
-        intervalTime: null,
-        realNewIndexTimer: null,
-        resRangeIndexs: [],
-        reverseResRangeIndexs: [],
-      };
-    },
-    computed: {
-      escapedLogList() {
-        return this.logList.map(this.escapeString);
-      },
-      escapedReverseLogList() {
-        return this.reverseLogList.map(this.escapeString);
-      },
-      isIncludeFilter() {
-        return this.filterType === 'include';
-      },
-      getViewLightList() {
-        const list = [];
-        if (!!this.filterKey) {
-          list.push({
-            str: this.filterKey,
-            style: 'color: #FF5656; font-size: 16px; font-weight: 700;',
-            isUnique: true,
-          });
-        }
-        list.push(
-          ...this.lightList.map(item => ({ str: item.heightKey, style: this.getLineColor(item), isUnique: false })),
-        );
-        return list;
+    logList: {
+      type: Array,
+      default() {
+        return [];
       },
     },
-    watch: {
-      logList(val) {
-        if (this.isRealTimeLog) {
-          // 实时日志记录新增日志索引
-          if (this.oldIndex) {
-            this.newIndex = this.oldIndex;
-            this.oldIndex = val.length;
-          } else {
-            this.oldIndex = val.length;
-          }
-          // 超过限制长度的处理
-          if (val.length > this.maxLength) {
-            this.oldIndex = this.oldIndex - this.shiftLength;
-          }
-          clearTimeout(this.realNewIndexTimer);
-          this.realNewIndexTimer = setTimeout(() => {
-            this.newIndex = null;
-          }, 5000);
-        }
+    filterKey: {
+      type: String,
+      default: '',
+    },
+    isRealTimeLog: {
+      type: Boolean,
+      default: false,
+    },
+    maxLength: {
+      type: Number,
+      default: 0,
+    },
+    shiftLength: {
+      type: Number,
+      default: 0,
+    },
+    interval: {
+      type: Object,
+      default: () => ({}),
+    },
+    filterType: {
+      type: String,
+      default: '',
+    },
+    ignoreCase: {
+      type: Boolean,
+      default: false,
+    },
+    lightList: {
+      type: Array,
+      default() {
+        return [];
       },
-      escapedReverseLogList() {
-        if (this.filterKey.length) {
-          this.setResRange();
-        }
-      },
-      filterKey(val) {
-        if (val.length) {
-          this.setResRange();
+    },
+    showType: {
+      type: String,
+      default: 'log',
+    },
+  },
+  data() {
+    return {
+      oldIndex: null,
+      newIndex: null,
+      intervalTime: null,
+      realNewIndexTimer: null,
+      resRangeIndexs: [],
+      reverseResRangeIndexs: [],
+    };
+  },
+  computed: {
+    escapedLogList() {
+      return this.logList.map(this.escapeString);
+    },
+    escapedReverseLogList() {
+      return this.reverseLogList.map(this.escapeString);
+    },
+    isIncludeFilter() {
+      return this.filterType === 'include';
+    },
+    getViewLightList() {
+      const list = [];
+      if (!!this.filterKey) {
+        list.push({
+          str: this.filterKey,
+          style: 'color: #FF5656; font-size: 16px; font-weight: 700;',
+          isUnique: true,
+        });
+      }
+      list.push(
+        ...this.lightList.map(item => ({ str: item.heightKey, style: this.getLineColor(item), isUnique: false }))
+      );
+      return list;
+    },
+  },
+  watch: {
+    logList(val) {
+      if (this.isRealTimeLog) {
+        // 实时日志记录新增日志索引
+        if (this.oldIndex) {
+          this.newIndex = this.oldIndex;
+          this.oldIndex = val.length;
         } else {
-          this.reverseResRangeIndexs.splice(0, this.reverseResRangeIndexs.length);
-          this.resRangeIndexs.splice(0, this.resRangeIndexs.length);
+          this.oldIndex = val.length;
         }
-      },
-      interval: {
-        deep: true,
-        handler() {
-          clearTimeout(this.intervalTime);
-          this.intervalTime = setTimeout(() => {
-            if (this.filterKey.length) {
-              this.setResRange();
-            }
-          }, 500);
-        },
-      },
-      ignoreCase() {
+        // 超过限制长度的处理
+        if (val.length > this.maxLength) {
+          this.oldIndex = this.oldIndex - this.shiftLength;
+        }
+        clearTimeout(this.realNewIndexTimer);
+        this.realNewIndexTimer = setTimeout(() => {
+          this.newIndex = null;
+        }, 5000);
+      }
+    },
+    escapedReverseLogList() {
+      if (this.filterKey.length) {
         this.setResRange();
-      },
+      }
     },
-    methods: {
-      checkLineShow(item, index, field) {
-        if (this.isIncludeFilter) {
-          const list = field === 'reverse' ? this.reverseResRangeIndexs : this.resRangeIndexs;
-          return this.handleMatch(item) || list.includes(index);
-        }
-        return this.filterKey.length ? !this.handleMatch(item) : true;
-      },
-      handleMatch(item) {
-        const valStr = Object.values(item).join(' ');
-        let { filterKey } = this;
-        const keyVal = this.ignoreCase ? valStr : valStr.toLowerCase();
-        filterKey = this.ignoreCase ? filterKey : filterKey.toLowerCase();
-
-        return keyVal.includes(filterKey);
-      },
-      lineMatch(item) {
-        if (!this.filterKey) return false;
-        return this.handleMatch(item) && Object.values(this.interval).some(Boolean);
-      },
-      escapeString(item) {
-        const map = {
-          '&amp;': '&',
-          '&lt;': '<',
-          '&gt;': '>',
-          '&quot;': '"',
-          '&#x27;': "'",
-        };
-        const escapeObj = Object.fromEntries(
-          Object.entries(item).map(([key, val]) => {
-            return [
-              [key],
-              typeof val !== 'string'
-                ? String(val ?? ' ')
-                : val.replace(RegExp(`(${Object.keys(map).join('|')})`, 'g'), match => map[match]),
-            ];
-          }),
-        );
-        return escapeObj;
-      },
-      setResRange() {
-        this.resRangeIndexs.splice(0, this.resRangeIndexs.length);
+    filterKey(val) {
+      if (val.length) {
+        this.setResRange();
+      } else {
         this.reverseResRangeIndexs.splice(0, this.reverseResRangeIndexs.length);
-        const reverListLen = this.escapedReverseLogList.length;
-        const listLen = this.escapedLogList.length;
-        let resExtra = 0;
-        let reverseResExtra = 0;
-
-        // 根据前后行数缓存索引
-        this.escapedReverseLogList.forEach((item, index) => {
-          if (this.handleMatch(item)) {
-            const min = index - Number(this.interval.prev);
-            const max = index + Number(this.interval.next);
-            const minVal = min < 0 ? 0 : min;
-            const maxVal = max >= reverListLen ? reverListLen - 1 : max;
-
-            if (max >= reverListLen) resExtra = Math.abs(max - index);
-
-            for (let i = minVal; i <= maxVal; i++) {
-              this.reverseResRangeIndexs.push(i);
-            }
+        this.resRangeIndexs.splice(0, this.resRangeIndexs.length);
+      }
+    },
+    interval: {
+      deep: true,
+      handler() {
+        clearTimeout(this.intervalTime);
+        this.intervalTime = setTimeout(() => {
+          if (this.filterKey.length) {
+            this.setResRange();
           }
-        });
-
-        // 根据前后行数缓存索引
-        this.escapedLogList.forEach((item, index) => {
-          if (this.handleMatch(item)) {
-            const min = index - Number(this.interval.prev);
-            const max = index + Number(this.interval.next);
-            const minVal = min < 0 ? 0 : min;
-            const maxVal = max >= listLen ? listLen - 1 : max;
-
-            if (min < 0) reverseResExtra = Math.abs(min);
-
-            for (let i = minVal; i <= maxVal; i++) {
-              this.resRangeIndexs.push(i);
-            }
-          }
-        });
-
-        if (resExtra) {
-          for (let i = 0; i < resExtra; i++) {
-            if (!this.resRangeIndexs.includes(i)) {
-              this.resRangeIndexs.push(i);
-            }
-          }
-        }
-
-        if (reverseResExtra) {
-          for (let i = 0; i < reverseResExtra; i++) {
-            const index = this.escapedReverseLogList.length - i - 1;
-            if (!this.reverseResRangeIndexs.includes(index)) {
-              this.reverseResRangeIndexs.push(index);
-            }
-          }
-        }
-      },
-      getLineColor(item) {
-        return `background: ${item.color.dark}; color: #FFFFFF; padding: 0 4px; margin: 2px 1px ; border-radius: 2px; height: 30px; display: inline-block; line-height: 30px; font-weight: 700; opacity: 0.5`;
+        }, 500);
       },
     },
-  };
+    ignoreCase() {
+      this.setResRange();
+    },
+  },
+  methods: {
+    checkLineShow(item, index, field) {
+      if (this.isIncludeFilter) {
+        const list = field === 'reverse' ? this.reverseResRangeIndexs : this.resRangeIndexs;
+        return this.handleMatch(item) || list.includes(index);
+      }
+      return this.filterKey.length ? !this.handleMatch(item) : true;
+    },
+    handleMatch(item) {
+      const valStr = Object.values(item).join(' ');
+      let { filterKey } = this;
+      const keyVal = this.ignoreCase ? valStr : valStr.toLowerCase();
+      filterKey = this.ignoreCase ? filterKey : filterKey.toLowerCase();
+
+      return keyVal.includes(filterKey);
+    },
+    lineMatch(item) {
+      if (!this.filterKey) return false;
+      return this.handleMatch(item) && Object.values(this.interval).some(Boolean);
+    },
+    escapeString(item) {
+      const map = {
+        '&amp;': '&',
+        '&lt;': '<',
+        '&gt;': '>',
+        '&quot;': '"',
+        '&#x27;': "'",
+      };
+      const escapeObj = Object.fromEntries(
+        Object.entries(item).map(([key, val]) => {
+          return [
+            [key],
+            typeof val !== 'string'
+              ? String(val ?? ' ')
+              : val.replace(RegExp(`(${Object.keys(map).join('|')})`, 'g'), match => map[match]),
+          ];
+        })
+      );
+      return escapeObj;
+    },
+    setResRange() {
+      this.resRangeIndexs.splice(0, this.resRangeIndexs.length);
+      this.reverseResRangeIndexs.splice(0, this.reverseResRangeIndexs.length);
+      const reverListLen = this.escapedReverseLogList.length;
+      const listLen = this.escapedLogList.length;
+      let resExtra = 0;
+      let reverseResExtra = 0;
+
+      // 根据前后行数缓存索引
+      this.escapedReverseLogList.forEach((item, index) => {
+        if (this.handleMatch(item)) {
+          const min = index - Number(this.interval.prev);
+          const max = index + Number(this.interval.next);
+          const minVal = min < 0 ? 0 : min;
+          const maxVal = max >= reverListLen ? reverListLen - 1 : max;
+
+          if (max >= reverListLen) resExtra = Math.abs(max - index);
+
+          for (let i = minVal; i <= maxVal; i++) {
+            this.reverseResRangeIndexs.push(i);
+          }
+        }
+      });
+
+      // 根据前后行数缓存索引
+      this.escapedLogList.forEach((item, index) => {
+        if (this.handleMatch(item)) {
+          const min = index - Number(this.interval.prev);
+          const max = index + Number(this.interval.next);
+          const minVal = min < 0 ? 0 : min;
+          const maxVal = max >= listLen ? listLen - 1 : max;
+
+          if (min < 0) reverseResExtra = Math.abs(min);
+
+          for (let i = minVal; i <= maxVal; i++) {
+            this.resRangeIndexs.push(i);
+          }
+        }
+      });
+
+      if (resExtra) {
+        for (let i = 0; i < resExtra; i++) {
+          if (!this.resRangeIndexs.includes(i)) {
+            this.resRangeIndexs.push(i);
+          }
+        }
+      }
+
+      if (reverseResExtra) {
+        for (let i = 0; i < reverseResExtra; i++) {
+          const index = this.escapedReverseLogList.length - i - 1;
+          if (!this.reverseResRangeIndexs.includes(index)) {
+            this.reverseResRangeIndexs.push(index);
+          }
+        }
+      }
+    },
+    getLineColor(item) {
+      return `background: ${item.color.dark}; color: #FFFFFF; padding: 0 4px; margin: 2px 1px ; border-radius: 2px; height: 30px; display: inline-block; line-height: 30px; font-weight: 700; opacity: 0.5`;
+    },
+  },
+};
 </script>
 
 <style lang="scss">

@@ -87,7 +87,7 @@ export default class LogFilter extends tsc<object> {
       if (!this.validateFormRef) reject(true);
       this.validateFormRef.validate().then(
         () => reject(true),
-        () => reject(false),
+        () => reject(false)
       );
     });
   }

@@ -38,13 +38,13 @@ export default () => {
         field_name: f.field_name,
         query_alias: f.query_alias,
         path_type: f.field_type,
-      })),
+      }))
   );
 
   const sort_list = computed(() =>
     store.state.localSort
-      ? store.state.indexItem.sort_list ?? []
-      : store.state.retrieve.catchFieldCustomConfig.sortList ?? [],
+      ? (store.state.indexItem.sort_list ?? [])
+      : (store.state.retrieve.catchFieldCustomConfig.sortList ?? [])
   );
 
   return {

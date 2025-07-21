@@ -195,341 +195,341 @@
 </template>
 
 <script>
-  import { clearTableFilter } from '@/common/util';
-  import EmptyStatus from '@/components/empty-status';
-  import { mapGetters } from 'vuex';
+import { clearTableFilter } from '@/common/util';
+import EmptyStatus from '@/components/empty-status';
+import { mapGetters } from 'vuex';
 
-  import * as authorityMap from '../../../../common/authority-map';
+import * as authorityMap from '../../../../common/authority-map';
 
-  export default {
-    name: 'CleanList',
-    components: {
-      EmptyStatus,
-    },
-    data() {
-      return {
-        isTableLoading: true,
-        size: 'small',
-        syncLoading: false,
-        pagination: {
-          current: 1,
-          count: 0,
-          limit: 10,
-          limitList: [10, 20, 50, 100],
-        },
-        cleanList: [],
-        params: {
-          keyword: '',
-          etl_config: '',
-        },
-        emptyType: 'empty',
-        isFilterSearch: false,
-      };
-    },
-    computed: {
-      ...mapGetters({
-        spaceUid: 'spaceUid',
-        bkBizId: 'bkBizId',
-        globalsData: 'globals/globalsData',
-      }),
-      authorityMap() {
-        return authorityMap;
+export default {
+  name: 'CleanList',
+  components: {
+    EmptyStatus,
+  },
+  data() {
+    return {
+      isTableLoading: true,
+      size: 'small',
+      syncLoading: false,
+      pagination: {
+        current: 1,
+        count: 0,
+        limit: 10,
+        limitList: [10, 20, 50, 100],
       },
-      formatFilters() {
-        const { etl_config: etlConfig } = this.globalsData;
-        const target = [];
-        etlConfig?.forEach(data => {
-          target.push({
-            text: data.name,
-            value: data.id,
-          });
+      cleanList: [],
+      params: {
+        keyword: '',
+        etl_config: '',
+      },
+      emptyType: 'empty',
+      isFilterSearch: false,
+    };
+  },
+  computed: {
+    ...mapGetters({
+      spaceUid: 'spaceUid',
+      bkBizId: 'bkBizId',
+      globalsData: 'globals/globalsData',
+    }),
+    authorityMap() {
+      return authorityMap;
+    },
+    formatFilters() {
+      const { etl_config: etlConfig } = this.globalsData;
+      const target = [];
+      etlConfig?.forEach(data => {
+        target.push({
+          text: data.name,
+          value: data.id,
         });
-        target.push(
-          { text: this.$t('原始数据'), value: 'bk_log_text' },
-          { text: this.$t('高级清洗'), value: 'bkdata_clean' },
-        );
-        return target;
-      },
-      operateWidth() {
-        return this.$store.state.isEnLanguage ? '240' : '200';
-      },
+      });
+      target.push(
+        { text: this.$t('原始数据'), value: 'bk_log_text' },
+        { text: this.$t('高级清洗'), value: 'bkdata_clean' }
+      );
+      return target;
     },
-    mounted() {
+    operateWidth() {
+      return this.$store.state.isEnLanguage ? '240' : '200';
+    },
+  },
+  mounted() {
+    this.search();
+  },
+  beforeUnmount() {
+    // 清除定时器
+    this.timer && clearInterval(this.timer);
+  },
+  methods: {
+    search() {
+      this.pagination.current = 1;
+      this.requestData();
+    },
+    handleFilterChange(data) {
+      Object.keys(data).forEach(item => {
+        this.params[item] = data[item].join('');
+      });
+      this.isFilterSearch = Object.values(data).reduce((pre, cur) => ((pre += cur.length), pre), 0);
+      this.pagination.current = 1;
       this.search();
     },
-    beforeUnmount() {
-      // 清除定时器
-      this.timer && clearInterval(this.timer);
-    },
-    methods: {
-      search() {
-        this.pagination.current = 1;
+    /**
+     * 分页变换
+     * @param  {Number} page 当前页码
+     * @return {[type]}      [description]
+     */
+    handlePageChange(page) {
+      if (this.pagination.current !== page) {
+        this.pagination.current = page;
         this.requestData();
-      },
-      handleFilterChange(data) {
-        Object.keys(data).forEach(item => {
-          this.params[item] = data[item].join('');
-        });
-        this.isFilterSearch = Object.values(data).reduce((pre, cur) => ((pre += cur.length), pre), 0);
-        this.pagination.current = 1;
-        this.search();
-      },
-      /**
-       * 分页变换
-       * @param  {Number} page 当前页码
-       * @return {[type]}      [description]
-       */
-      handlePageChange(page) {
-        if (this.pagination.current !== page) {
-          this.pagination.current = page;
-          this.requestData();
-        }
-      },
-      /**
-       * 分页限制
-       * @param  {Number} page 当前页码
-       * @return {[type]}      [description]
-       */
-      handleLimitChange(page) {
-        if (this.pagination.limit !== page) {
-          this.pagination.current = 1;
-          this.pagination.limit = page;
-          this.requestData();
-        }
-      },
-      requestData() {
-        this.isTableLoading = true;
-        this.emptyType = this.params.keyword || this.isFilterSearch ? 'search-empty' : 'empty';
-        this.$http
-          .request('clean/cleanList', {
-            query: {
-              ...this.params,
-              bk_biz_id: this.bkBizId,
-              page: this.pagination.current,
-              pagesize: this.pagination.limit,
-            },
-          })
-          .then(res => {
-            const { data } = res;
-            this.pagination.count = data.total;
-            this.cleanList = data.list;
-          })
-          .catch(err => {
-            console.warn(err);
-            this.emptyType = '500';
-          })
-          .finally(() => {
-            this.isTableLoading = false;
-          });
-      },
-      handleCreate() {
-        this.$router.push({
-          name: 'clean-create',
-          query: {
-            spaceUid: this.$store.state.spaceUid,
-          },
-        });
-      },
-      async getOptionApplyData(paramData) {
-        try {
-          this.isTableLoading = true;
-          const res = await this.$store.dispatch('getApplyData', paramData);
-          this.$store.commit('updateAuthDialogData', res.data);
-        } catch (err) {
-          console.warn(err);
-        } finally {
-          this.isTableLoading = false;
-        }
-      },
-      getTipText(row) {
-        if (!row.is_active) {
-          return '';
-        }
-
-        if (!row.index_set_id) {
-          return '';
-        }
-      },
-      operateHandler(row, operateType) {
-        if (['edit', 'delete'].includes(operateType) && row.etl_config === 'bkdata_clean') {
-          // 编辑、删除操作，高级清洗跳转计算平台
-          const id = row.bk_data_id;
-          const jumpUrl = `${window.BKDATA_URL}/#/data-access/data-detail/${id}/3`;
-          window.open(jumpUrl, '_blank');
-          return;
-        }
-        if (operateType === 'delete' && row.etl_config !== 'bkdata_clean') {
-          const h = this.$createElement;
-          this.$bkInfo({
-            title: this.$t('确定要删除清洗：{n}？', { n: row.collector_config_name }),
-            subHeader: h('div', this.$t('请注意！删除后不能恢复。')),
-            type: 'warning',
-            confirmLoading: true,
-            confirmFn: async () => {
-              try {
-                const res = await this.$http.request('clean/deleteParsing', {
-                  params: { collector_config_id: row.collector_config_id },
-                });
-                if (res.data) {
-                  this.messageSuccess(this.$t('删除成功'));
-                  this.search();
-                }
-              } catch (err) {
-                console.warn(err);
-              }
-            },
-            okText: this.$t('button-确定').replace('button-', ''),
-            cancelText: this.$t('button-取消').replace('button-', ''),
-          });
-          return;
-        }
-        if (operateType === 'edit') {
-          // 基础清洗
-          if (!row.permission?.[authorityMap.MANAGE_COLLECTION_AUTH]) {
-            // 管理权限
-            return this.getOptionApplyData({
-              action_ids: [authorityMap.MANAGE_COLLECTION_AUTH],
-              resources: [
-                {
-                  type: 'collection',
-                  id: row.collector_config_id,
-                },
-              ],
-            });
-          }
-        }
-        if (operateType === 'search') {
-          if (!row.permission?.[authorityMap.SEARCH_LOG_AUTH]) {
-            // 检索权限
-            return this.getOptionApplyData({
-              action_ids: [authorityMap.SEARCH_LOG_AUTH],
-              resources: [
-                {
-                  type: 'indices',
-                  id: row.index_set_id,
-                },
-              ],
-            });
-          }
-        }
-
-        let routeName = '';
-        const params = {};
-        const query = {};
-        if (operateType === 'edit') {
-          routeName = 'clean-edit';
-          query.spaceUid = this.$store.state.spaceUid;
-          query.editName = row.collector_config_name;
-          params.collectorId = row.collector_config_id;
-        } else if (operateType === 'search') {
-          routeName = 'retrieve';
-          params.indexId = row.index_set_id;
-        }
-
-        this.$router.push({
-          name: routeName,
-          params,
-          query,
-        });
-      },
-      getFormatName(row) {
-        const cleantype = row.etl_config;
-        const matchItem = this.formatFilters?.find(conf => {
-          return conf.value === cleantype;
-        });
-        return matchItem ? matchItem.text : '';
-      },
-      // 计算平台授权跳转
-      handleAuth({ bkdata_auth_url: authUrl, index_set_id: id }) {
-        let redirectUrl = ''; // 数据平台授权地址
-        if (process.env.NODE_ENV === 'development') {
-          redirectUrl = `${authUrl}&redirect_url=${window.origin}/static/auth.html`;
-        } else {
-          let siteUrl = window.SITE_URL;
-          if (siteUrl.startsWith('http')) {
-            if (!siteUrl.endsWith('/')) siteUrl += '/';
-            redirectUrl = `${authUrl}&redirect_url=${siteUrl}bkdata_auth/`;
-          } else {
-            if (!siteUrl.startsWith('/')) siteUrl = `/${siteUrl}`;
-            if (!siteUrl.endsWith('/')) siteUrl += '/';
-            redirectUrl = `${authUrl}&redirect_url=${window.origin}${siteUrl}bkdata_auth/`;
-          }
-        }
-        // auth.html 返回清洗列表的路径
-        const cleanPath = location.href.match(/http.*\/clean-list/)[0];
-        // auth.html 需要使用的数据
-        const urlComponent = `?indexSetId=${id}&ajaxUrl=${window.AJAX_URL_PREFIX}&redirectUrl=${cleanPath}`;
-        redirectUrl += encodeURIComponent(urlComponent);
-        if (self !== top) {
-          // 当前页面是 iframe
-          window.open(redirectUrl);
-          this.returnIndexList();
-        } else {
-          window.location.assign(redirectUrl);
-        }
-      },
-      // 同步计算平台结果表
-      handleSync() {
-        if (!this.syncLoading) {
-          this.getSyncStatus();
-        }
-      },
-      // 同步计算平台结果表
-      getSyncStatus(isPolling = false) {
-        this.syncLoading = true;
-        this.$http
-          .request('clean/sync', {
-            query: {
-              bk_biz_id: this.bkBizId,
-              polling: isPolling,
-            },
-          })
-          .then(res => {
-            const { data } = res;
-            if (data.status === 'DONE') {
-              clearInterval(this.timer);
-              this.timer = null;
-              this.syncLoading = false;
-              this.messageSuccess(this.$t('同步计算平台的结果表成功'));
-              this.requestData();
-            } else if (data.status === 'RUNNING') {
-              // 轮循直至同步成功
-              if (this.timer) {
-                return 1;
-              }
-              this.timer = setInterval(() => {
-                this.getSyncStatus(true);
-              }, 2000);
-            } else {
-              this.messageError(this.$t('同步计算平台的结果表失败'));
-              this.syncLoading = false;
-            }
-          })
-          .catch(() => {
-            this.syncLoading = false;
-          });
-      },
-      handleSearchChange(val) {
-        if (val === '' && !this.isTableLoading) {
-          this.search();
-        }
-      },
-      handleOperation(type) {
-        if (type === 'clear-filter') {
-          this.params.keyword = '';
-          clearTableFilter(this.$refs.cleanTable);
-          this.search();
-          return;
-        }
-
-        if (type === 'refresh') {
-          this.emptyType = 'empty';
-          this.search();
-          return;
-        }
-      },
+      }
     },
-  };
+    /**
+     * 分页限制
+     * @param  {Number} page 当前页码
+     * @return {[type]}      [description]
+     */
+    handleLimitChange(page) {
+      if (this.pagination.limit !== page) {
+        this.pagination.current = 1;
+        this.pagination.limit = page;
+        this.requestData();
+      }
+    },
+    requestData() {
+      this.isTableLoading = true;
+      this.emptyType = this.params.keyword || this.isFilterSearch ? 'search-empty' : 'empty';
+      this.$http
+        .request('clean/cleanList', {
+          query: {
+            ...this.params,
+            bk_biz_id: this.bkBizId,
+            page: this.pagination.current,
+            pagesize: this.pagination.limit,
+          },
+        })
+        .then(res => {
+          const { data } = res;
+          this.pagination.count = data.total;
+          this.cleanList = data.list;
+        })
+        .catch(err => {
+          console.warn(err);
+          this.emptyType = '500';
+        })
+        .finally(() => {
+          this.isTableLoading = false;
+        });
+    },
+    handleCreate() {
+      this.$router.push({
+        name: 'clean-create',
+        query: {
+          spaceUid: this.$store.state.spaceUid,
+        },
+      });
+    },
+    async getOptionApplyData(paramData) {
+      try {
+        this.isTableLoading = true;
+        const res = await this.$store.dispatch('getApplyData', paramData);
+        this.$store.commit('updateAuthDialogData', res.data);
+      } catch (err) {
+        console.warn(err);
+      } finally {
+        this.isTableLoading = false;
+      }
+    },
+    getTipText(row) {
+      if (!row.is_active) {
+        return '';
+      }
+
+      if (!row.index_set_id) {
+        return '';
+      }
+    },
+    operateHandler(row, operateType) {
+      if (['edit', 'delete'].includes(operateType) && row.etl_config === 'bkdata_clean') {
+        // 编辑、删除操作，高级清洗跳转计算平台
+        const id = row.bk_data_id;
+        const jumpUrl = `${window.BKDATA_URL}/#/data-access/data-detail/${id}/3`;
+        window.open(jumpUrl, '_blank');
+        return;
+      }
+      if (operateType === 'delete' && row.etl_config !== 'bkdata_clean') {
+        const h = this.$createElement;
+        this.$bkInfo({
+          title: this.$t('确定要删除清洗：{n}？', { n: row.collector_config_name }),
+          subHeader: h('div', this.$t('请注意！删除后不能恢复。')),
+          type: 'warning',
+          confirmLoading: true,
+          confirmFn: async () => {
+            try {
+              const res = await this.$http.request('clean/deleteParsing', {
+                params: { collector_config_id: row.collector_config_id },
+              });
+              if (res.data) {
+                this.messageSuccess(this.$t('删除成功'));
+                this.search();
+              }
+            } catch (err) {
+              console.warn(err);
+            }
+          },
+          okText: this.$t('button-确定').replace('button-', ''),
+          cancelText: this.$t('button-取消').replace('button-', ''),
+        });
+        return;
+      }
+      if (operateType === 'edit') {
+        // 基础清洗
+        if (!row.permission?.[authorityMap.MANAGE_COLLECTION_AUTH]) {
+          // 管理权限
+          return this.getOptionApplyData({
+            action_ids: [authorityMap.MANAGE_COLLECTION_AUTH],
+            resources: [
+              {
+                type: 'collection',
+                id: row.collector_config_id,
+              },
+            ],
+          });
+        }
+      }
+      if (operateType === 'search') {
+        if (!row.permission?.[authorityMap.SEARCH_LOG_AUTH]) {
+          // 检索权限
+          return this.getOptionApplyData({
+            action_ids: [authorityMap.SEARCH_LOG_AUTH],
+            resources: [
+              {
+                type: 'indices',
+                id: row.index_set_id,
+              },
+            ],
+          });
+        }
+      }
+
+      let routeName = '';
+      const params = {};
+      const query = {};
+      if (operateType === 'edit') {
+        routeName = 'clean-edit';
+        query.spaceUid = this.$store.state.spaceUid;
+        query.editName = row.collector_config_name;
+        params.collectorId = row.collector_config_id;
+      } else if (operateType === 'search') {
+        routeName = 'retrieve';
+        params.indexId = row.index_set_id;
+      }
+
+      this.$router.push({
+        name: routeName,
+        params,
+        query,
+      });
+    },
+    getFormatName(row) {
+      const cleantype = row.etl_config;
+      const matchItem = this.formatFilters?.find(conf => {
+        return conf.value === cleantype;
+      });
+      return matchItem ? matchItem.text : '';
+    },
+    // 计算平台授权跳转
+    handleAuth({ bkdata_auth_url: authUrl, index_set_id: id }) {
+      let redirectUrl = ''; // 数据平台授权地址
+      if (process.env.NODE_ENV === 'development') {
+        redirectUrl = `${authUrl}&redirect_url=${window.origin}/static/auth.html`;
+      } else {
+        let siteUrl = window.SITE_URL;
+        if (siteUrl.startsWith('http')) {
+          if (!siteUrl.endsWith('/')) siteUrl += '/';
+          redirectUrl = `${authUrl}&redirect_url=${siteUrl}bkdata_auth/`;
+        } else {
+          if (!siteUrl.startsWith('/')) siteUrl = `/${siteUrl}`;
+          if (!siteUrl.endsWith('/')) siteUrl += '/';
+          redirectUrl = `${authUrl}&redirect_url=${window.origin}${siteUrl}bkdata_auth/`;
+        }
+      }
+      // auth.html 返回清洗列表的路径
+      const cleanPath = location.href.match(/http.*\/clean-list/)[0];
+      // auth.html 需要使用的数据
+      const urlComponent = `?indexSetId=${id}&ajaxUrl=${window.AJAX_URL_PREFIX}&redirectUrl=${cleanPath}`;
+      redirectUrl += encodeURIComponent(urlComponent);
+      if (self !== top) {
+        // 当前页面是 iframe
+        window.open(redirectUrl);
+        this.returnIndexList();
+      } else {
+        window.location.assign(redirectUrl);
+      }
+    },
+    // 同步计算平台结果表
+    handleSync() {
+      if (!this.syncLoading) {
+        this.getSyncStatus();
+      }
+    },
+    // 同步计算平台结果表
+    getSyncStatus(isPolling = false) {
+      this.syncLoading = true;
+      this.$http
+        .request('clean/sync', {
+          query: {
+            bk_biz_id: this.bkBizId,
+            polling: isPolling,
+          },
+        })
+        .then(res => {
+          const { data } = res;
+          if (data.status === 'DONE') {
+            clearInterval(this.timer);
+            this.timer = null;
+            this.syncLoading = false;
+            this.messageSuccess(this.$t('同步计算平台的结果表成功'));
+            this.requestData();
+          } else if (data.status === 'RUNNING') {
+            // 轮循直至同步成功
+            if (this.timer) {
+              return 1;
+            }
+            this.timer = setInterval(() => {
+              this.getSyncStatus(true);
+            }, 2000);
+          } else {
+            this.messageError(this.$t('同步计算平台的结果表失败'));
+            this.syncLoading = false;
+          }
+        })
+        .catch(() => {
+          this.syncLoading = false;
+        });
+    },
+    handleSearchChange(val) {
+      if (val === '' && !this.isTableLoading) {
+        this.search();
+      }
+    },
+    handleOperation(type) {
+      if (type === 'clear-filter') {
+        this.params.keyword = '';
+        clearTableFilter(this.$refs.cleanTable);
+        this.search();
+        return;
+      }
+
+      if (type === 'refresh') {
+        this.emptyType = 'empty';
+        this.search();
+        return;
+      }
+    },
+  },
+};
 </script>
 
 <style lang="scss">

@@ -107,68 +107,68 @@
 </template>
 
 <script lang="ts">
-  import { Component, Vue, Prop, Ref, Watch } from 'vue-property-decorator';
-  import { formatNumberWithRegex } from '@/common/util';
+import { Component, Vue, Prop, Ref, Watch } from 'vue-property-decorator';
+import { formatNumberWithRegex } from '@/common/util';
 
-  import ChartMenu from './chart-menu.vue';
+import ChartMenu from './chart-menu.vue';
 
-  @Component({
-    name: 'chart-title',
-    components: {
-      ChartMenu,
-    },
-  })
-  export default class ChartTitle extends Vue {
-    @Prop({ default: '' }) title: string;
-    @Prop({ default: '' }) subtitle: string;
-    @Prop({ default: () => [] }) menuList: string[];
-    @Prop({ default: localStorage.getItem('chartIsFold') === 'true' }) isFold: boolean;
-    @Prop({ default: true }) loading: boolean;
-    @Prop({ default: true }) isEmptyChart: boolean;
-    @Prop({ required: true }) totalCount: number;
-    @Ref('chartTitle') chartTitleRef: HTMLDivElement;
+@Component({
+  name: 'chart-title',
+  components: {
+    ChartMenu,
+  },
+})
+export default class ChartTitle extends Vue {
+  @Prop({ default: '' }) title: string;
+  @Prop({ default: '' }) subtitle: string;
+  @Prop({ default: () => [] }) menuList: string[];
+  @Prop({ default: localStorage.getItem('chartIsFold') === 'true' }) isFold: boolean;
+  @Prop({ default: true }) loading: boolean;
+  @Prop({ default: true }) isEmptyChart: boolean;
+  @Prop({ required: true }) totalCount: number;
+  @Ref('chartTitle') chartTitleRef: HTMLDivElement;
 
-    chartInterval = 'auto';
-    intervalArr = [
-      { id: 'auto', name: 'auto' },
-      { id: '1m', name: '1 min' },
-      { id: '5m', name: '5 min' },
-      { id: '1h', name: '1 h' },
-      { id: '1d', name: '1d' },
-    ];
+  chartInterval = 'auto';
+  intervalArr = [
+    { id: 'auto', name: 'auto' },
+    { id: '1m', name: '1 min' },
+    { id: '5m', name: '5 min' },
+    { id: '1h', name: '1 h' },
+    { id: '1d', name: '1d' },
+  ];
 
-    get retrieveParams() {
-      return this.$store.state.retrieveParams;
-    }
-
-    get tookTime() {
-      return this.$store.state.tookTime;
-    }
-
-    @Watch('retrieveParams.interval')
-    watchChangeChartInterval(newVal) {
-      this.chartInterval = newVal;
-    }
-
-    handleShowMenu(e: MouseEvent) {
-      this.$emit('toggle-expand', !this.isFold);
-
-      // this.showMenu = !this.showMenu
-      // const rect = this.chartTitleRef.getBoundingClientRect()
-      // this.menuLeft = rect.width  - 185 < e.layerX ? rect.width  - 185 : e.layerX
-    }
-    getShowTotalNum(num) {
-      return formatNumberWithRegex(num);
-    }
-    handleMenuClick(item) {
-      this.$emit('menu-click', item);
-    }
-    // 汇聚周期改变
-    handleIntervalChange() {
-      this.$emit('interval-change', this.chartInterval);
-      this.$store.commit('retrieve/updateChartKey');
-    }
+  get retrieveParams() {
+    return this.$store.state.retrieveParams;
   }
+
+  get tookTime() {
+    return this.$store.state.tookTime;
+  }
+
+  @Watch('retrieveParams.interval')
+  watchChangeChartInterval(newVal) {
+    this.chartInterval = newVal;
+  }
+
+  handleShowMenu(e: MouseEvent) {
+    this.$emit('toggle-expand', !this.isFold);
+
+    // this.showMenu = !this.showMenu
+    // const rect = this.chartTitleRef.getBoundingClientRect()
+    // this.menuLeft = rect.width  - 185 < e.layerX ? rect.width  - 185 : e.layerX
+  }
+  getShowTotalNum(num) {
+    return formatNumberWithRegex(num);
+  }
+  handleMenuClick(item) {
+    this.$emit('menu-click', item);
+  }
+  // 汇聚周期改变
+  handleIntervalChange() {
+    this.$emit('interval-change', this.chartInterval);
+    this.$store.commit('retrieve/updateChartKey');
+  }
+}
 </script>
 <style lang="scss" scoped>
   .title-wrapper-new {

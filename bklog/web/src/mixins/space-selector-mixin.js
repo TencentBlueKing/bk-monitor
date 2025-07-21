@@ -68,7 +68,7 @@ export default {
                 item.space_full_code_name,
                 this.isUseMark && item.is_use ? `（${this.$t('正在使用')}）` : '',
               ]),
-            ],
+            ]
           ),
           h(
             'div',
@@ -86,16 +86,16 @@ export default {
                         ...SPACE_TYPE_MAP[tag.id].light,
                       },
                     },
-                    tag.name,
-                  ),
+                    tag.name
+                  )
                 ),
               this.spaceMultiple &&
                 h('span', {
                   class: this.visibleBkBiz.includes(item.bk_biz_id) && 'bk-icon icon-check-1',
                 }),
-            ],
+            ]
           ),
-        ],
+        ]
       );
     },
   },

@@ -46,7 +46,7 @@ export default defineComponent({
         if (isIntersection) {
           isResolved.value = true;
         }
-      },
+      }
     );
 
     const renderPlaceholder = computed(() => {
@@ -73,7 +73,7 @@ export default defineComponent({
             innerHTML: renderPlaceholder.value || '--',
           },
         },
-        [],
+        []
       );
     };
   },

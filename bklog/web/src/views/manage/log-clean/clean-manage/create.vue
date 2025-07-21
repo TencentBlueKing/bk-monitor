@@ -59,62 +59,62 @@
 </template>
 
 <script>
-  // import stepStorage from '@/components/collection-access/step-storage';
-  import advanceCleanLand from '@/components/collection-access/advance-clean-land';
-  import stepField from '@/components/collection-access/step-field';
-  import { mapState } from 'vuex';
+// import stepStorage from '@/components/collection-access/step-storage';
+import advanceCleanLand from '@/components/collection-access/advance-clean-land';
+import stepField from '@/components/collection-access/step-field';
+import { mapState } from 'vuex';
 
-  export default {
-    name: 'LogCleanCreate',
-    components: {
-      stepField,
-      // stepStorage,
-      advanceCleanLand,
-    },
-    data() {
-      return {
-        curStep: 1,
-        isCleaning: false,
-        loading: false,
-        isSubmit: false,
-        collectItem: '',
-      };
-    },
-    computed: {
-      ...mapState({
-        showRouterLeaveTip: state => state.showRouterLeaveTip,
-      }),
-    },
+export default {
+  name: 'LogCleanCreate',
+  components: {
+    stepField,
+    // stepStorage,
+    advanceCleanLand,
+  },
+  data() {
+    return {
+      curStep: 1,
+      isCleaning: false,
+      loading: false,
+      isSubmit: false,
+      collectItem: '',
+    };
+  },
+  computed: {
+    ...mapState({
+      showRouterLeaveTip: state => state.showRouterLeaveTip,
+    }),
+  },
 
-    beforeRouteLeave(to, from, next) {
-      if (!this.isSubmit && !this.showRouterLeaveTip) {
-        this.$bkInfo({
-          title: this.$t('是否放弃本次操作？'),
-          confirmFn: () => {
-            next();
+  beforeRouteLeave(to, from, next) {
+    if (!this.isSubmit && !this.showRouterLeaveTip) {
+      this.$bkInfo({
+        title: this.$t('是否放弃本次操作？'),
+        confirmFn: () => {
+          next();
+        },
+      });
+      return;
+    }
+    next();
+  },
+  methods: {
+    changeSubmit(isSubmit) {
+      this.isSubmit = isSubmit;
+    },
+    stepChange(num) {
+      if (num === 'back') {
+        this.$router.push({
+          name: 'log-clean-list',
+          query: {
+            spaceUid: this.$store.state.spaceUid,
           },
         });
         return;
       }
-      next();
     },
-    methods: {
-      changeSubmit(isSubmit) {
-        this.isSubmit = isSubmit;
-      },
-      stepChange(num) {
-        if (num === 'back') {
-          this.$router.push({
-            name: 'log-clean-list',
-            query: {
-              spaceUid: this.$store.state.spaceUid,
-            },
-          });
-          return;
-        }
-      },
-    },
-  };
+  },
+};
 </script>
 
 <style lang="scss" scoped>

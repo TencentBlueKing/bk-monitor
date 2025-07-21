@@ -24,13 +24,13 @@
 * IN THE SOFTWARE.
 -->
 <script setup>
-import { ref, computed } from "vue";
-import useLocale from "@/hooks/use-locale";
+import { ref, computed } from 'vue';
+import useLocale from '@/hooks/use-locale';
 const { $t } = useLocale();
 const props = defineProps({
   disabledTips: {
     type: String,
-    default: "",
+    default: '',
   },
 });
 </script>

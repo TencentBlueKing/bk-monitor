@@ -70,21 +70,21 @@
 </template>
 
 <script>
-  export default {
-    props: {
-      statusData: {
-        type: Array,
-        default() {
-          return [];
-        },
+export default {
+  props: {
+    statusData: {
+      type: Array,
+      default() {
+        return [];
       },
     },
-    data() {
-      return {
-        successState: ['CREATED', 'RUNNING', 'FINISHED'],
-      };
-    },
-  };
+  },
+  data() {
+    return {
+      successState: ['CREATED', 'RUNNING', 'FINISHED'],
+    };
+  },
+};
 </script>
 
 <style lang="scss" scoped>

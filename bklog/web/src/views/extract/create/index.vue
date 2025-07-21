@@ -165,226 +165,226 @@
 </template>
 
 <script>
-  // #if MONITOR_APP !== 'apm' && MONITOR_APP !== 'trace'
-  import LogIpSelector, { toSelectorNode, toTransformNode } from '@/components/log-ip-selector/log-ip-selector';
-  // #else
-  // #code const LogIpSelector = () => null;
-  // #endif
+// #if MONITOR_APP !== 'apm' && MONITOR_APP !== 'trace'
+import LogIpSelector, { toSelectorNode, toTransformNode } from '@/components/log-ip-selector/log-ip-selector';
+// #else
+// #code const LogIpSelector = () => null;
+// #endif
 
-  import FilesInput from '@/views/extract/create/files-input';
-  import PreviewFiles from '@/views/extract/create/preview-files';
-  import TextFilter from '@/views/extract/create/test-filter';
-  import { mapGetters } from 'vuex';
+import FilesInput from '@/views/extract/create/files-input';
+import PreviewFiles from '@/views/extract/create/preview-files';
+import TextFilter from '@/views/extract/create/test-filter';
+import { mapGetters } from 'vuex';
 
-  export default {
-    name: 'ExtractCreate',
-    components: {
-      LogIpSelector,
-      // IpSelect,
-      FilesInput,
-      TextFilter,
-      PreviewFiles,
+export default {
+  name: 'ExtractCreate',
+  components: {
+    LogIpSelector,
+    // IpSelect,
+    FilesInput,
+    TextFilter,
+    PreviewFiles,
+  },
+  data() {
+    return {
+      showSelectDialog: false,
+      ipList: [], // 下载目标
+      fileOrPath: '', // 目录
+      availablePaths: [], // 目录可选列表
+      downloadFiles: [], // 下载的文件
+      remark: '', // 备注
+      extractLinks: [], // 提取链路
+      link_id: null,
+      // 编辑态ip选择器初始值
+      ipSelectorOriginalValue: null,
+      ipSelectNewNameList: [], // 生成新的展示所用的预览地址列表
+    };
+  },
+  computed: {
+    ...mapGetters({
+      globalsData: 'globals/globalsData',
+    }),
+    canSubmit() {
+      return (!this.ipList.length || !this.downloadFiles.length) && this.link_id != null;
     },
-    data() {
-      return {
-        showSelectDialog: false,
-        ipList: [], // 下载目标
-        fileOrPath: '', // 目录
-        availablePaths: [], // 目录可选列表
-        downloadFiles: [], // 下载的文件
-        remark: '', // 备注
-        extractLinks: [], // 提取链路
-        link_id: null,
-        // 编辑态ip选择器初始值
-        ipSelectorOriginalValue: null,
-        ipSelectNewNameList: [], // 生成新的展示所用的预览地址列表
-      };
+    isClone() {
+      return this.$route.name === 'extract-clone' && !!sessionStorage.getItem('cloneData');
     },
-    computed: {
-      ...mapGetters({
-        globalsData: 'globals/globalsData',
-      }),
-      canSubmit() {
-        return (!this.ipList.length || !this.downloadFiles.length) && this.link_id != null;
-      },
-      isClone() {
-        return this.$route.name === 'extract-clone' && !!sessionStorage.getItem('cloneData');
-      },
-      // ip选择器选中节点
-      selectorNodes() {
-        return { host_list: toSelectorNode(this.ipList, 'INSTANCE') };
-      },
+    // ip选择器选中节点
+    selectorNodes() {
+      return { host_list: toSelectorNode(this.ipList, 'INSTANCE') };
     },
-    mounted() {
-      this.checkIsClone();
-      this.getExtractLinkList();
-    },
-    methods: {
-      async checkIsClone() {
-        if (this.isClone) {
-          const cloneData = JSON.parse(sessionStorage.getItem('cloneData'));
-          sessionStorage.removeItem('cloneData');
-          this.ipList = cloneData.ip_list; // 克隆下载目标
-          this.fileOrPath = cloneData.preview_directory; // 克隆目录
-          this.$refs.textFilter.handleClone(cloneData); // 克隆文本过滤
-          this.remark = cloneData.remark; // 克隆备注
-          // 获取目录下拉列表和预览地址
-          this.initCloneDisplayName(); // 克隆时 请求displayName列表来展示预览字段
-          this.handleCloneAvailablePaths(cloneData);
-          this.$nextTick(() => {
-            this.$refs.preview.handleClone(cloneData);
-          });
-          this.ipSelectorOriginalValue = { host_list: toSelectorNode(this.ipList, 'INSTANCE') };
-        }
-      },
-      initCloneDisplayName() {
-        const requestIpList = this.ipList.map(item => {
-          if (item?.bk_host_id) {
-            return {
-              host_id: item.bk_host_id,
-            };
-          }
-          return {
-            ip: item.ip ?? '',
-            cloud_id: item.bk_cloud_id ?? '',
-          };
+  },
+  mounted() {
+    this.checkIsClone();
+    this.getExtractLinkList();
+  },
+  methods: {
+    async checkIsClone() {
+      if (this.isClone) {
+        const cloneData = JSON.parse(sessionStorage.getItem('cloneData'));
+        sessionStorage.removeItem('cloneData');
+        this.ipList = cloneData.ip_list; // 克隆下载目标
+        this.fileOrPath = cloneData.preview_directory; // 克隆目录
+        this.$refs.textFilter.handleClone(cloneData); // 克隆文本过滤
+        this.remark = cloneData.remark; // 克隆备注
+        // 获取目录下拉列表和预览地址
+        this.initCloneDisplayName(); // 克隆时 请求displayName列表来展示预览字段
+        this.handleCloneAvailablePaths(cloneData);
+        this.$nextTick(() => {
+          this.$refs.preview.handleClone(cloneData);
         });
-        this.$http
-          .request('extract/getIpListDisplayName', {
-            data: {
-              host_list: requestIpList,
-            },
-            params: {
-              bk_biz_id: this.$store.state.bkBizId,
-            },
-          })
-          .then(res => {
-            this.initSelectNewNameList(res.data, true);
-          })
-          .catch(err => {
-            console.warn(err);
-            this.ipSelectNewNameList = [];
-          });
-      },
-      getExtractLinkList() {
-        this.$http
-          .request('extract/getExtractLinkList', {
-            data: { bk_biz_id: this.$store.state.bkBizId },
-          })
-          .then(res => {
-            this.extractLinks = res.data;
-            this.link_id = this.extractLinks[0].link_id;
-          })
-          .catch(e => {
-            console.warn(e);
-          });
-      },
-      handleCloneAvailablePaths(cloneData) {
-        this.$http
-          .request('extract/getAvailableExplorerPath', {
-            data: {
-              bk_biz_id: this.$store.state.bkBizId,
-              ip_list: cloneData.ip_list,
-            },
-          })
-          .then(res => {
-            this.availablePaths = res.data.map(item => item.file_path);
-          })
-          .catch(e => {
-            console.warn(e);
-          });
-      },
-      handleFileOrPathUpdate(fileOrPath) {
-        this.fileOrPath = fileOrPath;
-      },
-      handleFilesSelect(fileOrPath) {
-        this.$refs.preview.getExplorerList({ path: fileOrPath });
-      },
-      async handleConfirm(value) {
-        const { host_list: hostList } = value;
-        this.initSelectNewNameList(hostList);
-        const ipList = toTransformNode(hostList, 'INSTANCE', true);
-        // 选择服务器后，获取可预览的路径
-        const strategies = await this.$http.request('extract/getAvailableExplorerPath', {
+        this.ipSelectorOriginalValue = { host_list: toSelectorNode(this.ipList, 'INSTANCE') };
+      }
+    },
+    initCloneDisplayName() {
+      const requestIpList = this.ipList.map(item => {
+        if (item?.bk_host_id) {
+          return {
+            host_id: item.bk_host_id,
+          };
+        }
+        return {
+          ip: item.ip ?? '',
+          cloud_id: item.bk_cloud_id ?? '',
+        };
+      });
+      this.$http
+        .request('extract/getIpListDisplayName', {
+          data: {
+            host_list: requestIpList,
+          },
+          params: {
+            bk_biz_id: this.$store.state.bkBizId,
+          },
+        })
+        .then(res => {
+          this.initSelectNewNameList(res.data, true);
+        })
+        .catch(err => {
+          console.warn(err);
+          this.ipSelectNewNameList = [];
+        });
+    },
+    getExtractLinkList() {
+      this.$http
+        .request('extract/getExtractLinkList', {
+          data: { bk_biz_id: this.$store.state.bkBizId },
+        })
+        .then(res => {
+          this.extractLinks = res.data;
+          this.link_id = this.extractLinks[0].link_id;
+        })
+        .catch(e => {
+          console.warn(e);
+        });
+    },
+    handleCloneAvailablePaths(cloneData) {
+      this.$http
+        .request('extract/getAvailableExplorerPath', {
           data: {
             bk_biz_id: this.$store.state.bkBizId,
-            ip_list: ipList,
+            ip_list: cloneData.ip_list,
           },
+        })
+        .then(res => {
+          this.availablePaths = res.data.map(item => item.file_path);
+        })
+        .catch(e => {
+          console.warn(e);
         });
-        const availablePaths = strategies.data.map(item => item.file_path);
-        this.ipList = ipList;
-        this.availablePaths = availablePaths;
-      },
-      /**
-       * @desc: 初始化预览地址
-       * @param {Array} hostList host列表
-       * @param {Boolean} isClone 是否是克隆回显
-       */
-      initSelectNewNameList(hostList, isClone = false) {
-        if (!isClone) {
-          // 新增 使用ip选择器里的值展示
-          const priorityList = this.globalsData.host_identifier_priority ?? ['ip', 'host_name', 'ipv6'];
-          this.ipSelectNewNameList = hostList.map(item => ({
-            bk_host_id: item.host_id,
-            ip: item.ip,
-            bk_cloud_id: item.cloud_area.id,
-            selectID: `${item.host_id ?? ''}_${item.ip ?? ''}_${item.cloud_area.id ?? ''}`, // select唯一key
-            name: item[priorityList.find(pItem => Boolean(item[pItem]))] ?? '',
-          }));
-        } else {
-          // 克隆 通过接口请求返回的display_name展示值
-          this.ipSelectNewNameList = hostList.map(item => ({
-            bk_host_id: item.bk_host_id,
-            ip: item.bk_host_innerip,
-            bk_cloud_id: item.bk_cloud_id,
-            selectID: `${item.bk_host_id ?? ''}_${item.bk_host_innerip ?? ''}_${item.bk_cloud_id ?? ''}`, // select唯一key
-            name: item.display_name,
-          }));
-        }
-      },
-      // handleConfirm(ipList, availablePaths) {
-      //   this.ipList = ipList;
-      //   this.availablePaths = availablePaths;
-      // },
-      handleSubmit() {
-        this.$emit('loading', true);
-        // 根据预览地址选择的文件提交下载任务
-        this.$http
-          .request('extract/createDownloadTask', {
-            data: {
-              bk_biz_id: this.$store.state.bkBizId,
-              ip_list: this.ipList, // 下载目标
-              preview_directory: this.fileOrPath, // 目录
-              preview_ip_list: this.$refs.preview.getFindIpList(), // 预览地址
-              preview_time_range: this.$refs.preview.timeRange, // 文件日期
-              preview_start_time: this.$refs.preview.timeStringValue[0], // 文件日期
-              preview_end_time: this.$refs.preview.timeStringValue[1], // 文件日期
-              preview_is_search_child: this.$refs.preview.isSearchChild, // 是否搜索子目录
-              file_path: this.downloadFiles, // 下载文件
-              filter_type: this.$refs.textFilter.filterType, // 过滤类型
-              filter_content: this.$refs.textFilter.filterContent, // 过滤内容
-              remark: this.remark, // 备注
-              link_id: this.link_id,
-            },
-          })
-          .then(() => {
-            this.goToHome();
-          })
-          .catch(err => {
-            console.warn(err);
-            this.$emit('loading', false);
-          });
-      },
-      goToHome() {
-        this.$router.push({
-          name: 'log-extract-task',
-          query: {
-            spaceUid: this.$store.state.spaceUid,
-          },
-        });
-      },
     },
-  };
+    handleFileOrPathUpdate(fileOrPath) {
+      this.fileOrPath = fileOrPath;
+    },
+    handleFilesSelect(fileOrPath) {
+      this.$refs.preview.getExplorerList({ path: fileOrPath });
+    },
+    async handleConfirm(value) {
+      const { host_list: hostList } = value;
+      this.initSelectNewNameList(hostList);
+      const ipList = toTransformNode(hostList, 'INSTANCE', true);
+      // 选择服务器后，获取可预览的路径
+      const strategies = await this.$http.request('extract/getAvailableExplorerPath', {
+        data: {
+          bk_biz_id: this.$store.state.bkBizId,
+          ip_list: ipList,
+        },
+      });
+      const availablePaths = strategies.data.map(item => item.file_path);
+      this.ipList = ipList;
+      this.availablePaths = availablePaths;
+    },
+    /**
+     * @desc: 初始化预览地址
+     * @param {Array} hostList host列表
+     * @param {Boolean} isClone 是否是克隆回显
+     */
+    initSelectNewNameList(hostList, isClone = false) {
+      if (!isClone) {
+        // 新增 使用ip选择器里的值展示
+        const priorityList = this.globalsData.host_identifier_priority ?? ['ip', 'host_name', 'ipv6'];
+        this.ipSelectNewNameList = hostList.map(item => ({
+          bk_host_id: item.host_id,
+          ip: item.ip,
+          bk_cloud_id: item.cloud_area.id,
+          selectID: `${item.host_id ?? ''}_${item.ip ?? ''}_${item.cloud_area.id ?? ''}`, // select唯一key
+          name: item[priorityList.find(pItem => Boolean(item[pItem]))] ?? '',
+        }));
+      } else {
+        // 克隆 通过接口请求返回的display_name展示值
+        this.ipSelectNewNameList = hostList.map(item => ({
+          bk_host_id: item.bk_host_id,
+          ip: item.bk_host_innerip,
+          bk_cloud_id: item.bk_cloud_id,
+          selectID: `${item.bk_host_id ?? ''}_${item.bk_host_innerip ?? ''}_${item.bk_cloud_id ?? ''}`, // select唯一key
+          name: item.display_name,
+        }));
+      }
+    },
+    // handleConfirm(ipList, availablePaths) {
+    //   this.ipList = ipList;
+    //   this.availablePaths = availablePaths;
+    // },
+    handleSubmit() {
+      this.$emit('loading', true);
+      // 根据预览地址选择的文件提交下载任务
+      this.$http
+        .request('extract/createDownloadTask', {
+          data: {
+            bk_biz_id: this.$store.state.bkBizId,
+            ip_list: this.ipList, // 下载目标
+            preview_directory: this.fileOrPath, // 目录
+            preview_ip_list: this.$refs.preview.getFindIpList(), // 预览地址
+            preview_time_range: this.$refs.preview.timeRange, // 文件日期
+            preview_start_time: this.$refs.preview.timeStringValue[0], // 文件日期
+            preview_end_time: this.$refs.preview.timeStringValue[1], // 文件日期
+            preview_is_search_child: this.$refs.preview.isSearchChild, // 是否搜索子目录
+            file_path: this.downloadFiles, // 下载文件
+            filter_type: this.$refs.textFilter.filterType, // 过滤类型
+            filter_content: this.$refs.textFilter.filterContent, // 过滤内容
+            remark: this.remark, // 备注
+            link_id: this.link_id,
+          },
+        })
+        .then(() => {
+          this.goToHome();
+        })
+        .catch(err => {
+          console.warn(err);
+          this.$emit('loading', false);
+        });
+    },
+    goToHome() {
+      this.$router.push({
+        name: 'log-extract-task',
+        query: {
+          spaceUid: this.$store.state.spaceUid,
+        },
+      });
+    },
+  },
+};
 </script>
 
 <style lang="scss" scoped>

@@ -270,248 +270,248 @@
 </template>
 
 <script>
-  import BkUserSelector from '@blueking/user-selector';
-  import { mapState } from 'vuex';
+import BkUserSelector from '@blueking/user-selector';
+import { mapState } from 'vuex';
 
-  export default {
-    name: 'ExtractLinkCreate',
-    components: {
-      BkUserSelector,
-    },
-    data() {
-      return {
-        basicLoading: false,
-        submitLoading: false,
-        isSubmit: false,
-        userApi: window.BK_LOGIN_URL,
-        formData: {
-          name: '',
-          link_type: 'common',
-          operator: [],
-          op_bk_biz_id: '',
-          qcloud_secret_id: '', // 腾讯云SecretId
-          qcloud_secret_key: '', // 腾讯云SecretKey
-          qcloud_cos_bucket: '', // 腾讯云Cos桶名称
-          qcloud_cos_region: '', // 腾讯云Cos区域
-          is_enable: true, // 是否启用
-          hosts: [
-            {
-              keyId: Date.now(),
-              target_dir: '', // 挂载目录
-              bk_cloud_id: '', // 主机管控区域id
-              ip: '', // 主机ip
-            },
-          ], // 中转机列表
-        },
-        formRules: {
-          name: [
-            {
-              required: true,
-              trigger: 'blur',
-            },
-          ],
-          op_bk_biz_id: [
-            {
-              required: true,
-              trigger: 'blur',
-            },
-          ],
-          qcloud_secret_key: [
-            {
-              required: true,
-              trigger: 'blur',
-            },
-          ],
-          qcloud_cos_bucket: [
-            {
-              required: true,
-              trigger: 'blur',
-            },
-          ],
-          qcloud_secret_id: [
-            {
-              required: true,
-              trigger: 'blur',
-            },
-          ],
-          qcloud_cos_region: [
-            {
-              required: true,
-              trigger: 'blur',
-            },
-          ],
-        },
-        isAdminError: false, // 人员是否为空
-        cacheOperator: [], // 缓存的人员
-        isDisableCommon: false, // 是否禁用内网链路
-        editInitLinkType: '', // 编辑初始化时的链路类型
-      };
-    },
-    computed: {
-      ...mapState({
-        showRouterLeaveTip: state => state.showRouterLeaveTip,
-      }),
-      isK8sDeploy() {
-        // 是否要禁用内网链路
-        return this.$store.getters['globals/globalsData']?.is_k8s_deploy;
-      },
-      isShowCommon() {
-        // 禁用内网链路且 编辑时初始化是内网链路则展示内网链路且禁用选项
-        return this.$route.params.linkId && this.editInitLinkType === 'common';
-      },
-    },
-    created() {
-      this.init();
-    },
-
-    beforeRouteLeave(to, from, next) {
-      if (!this.isSubmit && !this.showRouterLeaveTip) {
-        this.$bkInfo({
-          title: this.$t('是否放弃本次操作？'),
-          confirmFn: () => {
-            next();
+export default {
+  name: 'ExtractLinkCreate',
+  components: {
+    BkUserSelector,
+  },
+  data() {
+    return {
+      basicLoading: false,
+      submitLoading: false,
+      isSubmit: false,
+      userApi: window.BK_LOGIN_URL,
+      formData: {
+        name: '',
+        link_type: 'common',
+        operator: [],
+        op_bk_biz_id: '',
+        qcloud_secret_id: '', // 腾讯云SecretId
+        qcloud_secret_key: '', // 腾讯云SecretKey
+        qcloud_cos_bucket: '', // 腾讯云Cos桶名称
+        qcloud_cos_region: '', // 腾讯云Cos区域
+        is_enable: true, // 是否启用
+        hosts: [
+          {
+            keyId: Date.now(),
+            target_dir: '', // 挂载目录
+            bk_cloud_id: '', // 主机管控区域id
+            ip: '', // 主机ip
           },
-        });
-        return;
-      }
-      next();
+        ], // 中转机列表
+      },
+      formRules: {
+        name: [
+          {
+            required: true,
+            trigger: 'blur',
+          },
+        ],
+        op_bk_biz_id: [
+          {
+            required: true,
+            trigger: 'blur',
+          },
+        ],
+        qcloud_secret_key: [
+          {
+            required: true,
+            trigger: 'blur',
+          },
+        ],
+        qcloud_cos_bucket: [
+          {
+            required: true,
+            trigger: 'blur',
+          },
+        ],
+        qcloud_secret_id: [
+          {
+            required: true,
+            trigger: 'blur',
+          },
+        ],
+        qcloud_cos_region: [
+          {
+            required: true,
+            trigger: 'blur',
+          },
+        ],
+      },
+      isAdminError: false, // 人员是否为空
+      cacheOperator: [], // 缓存的人员
+      isDisableCommon: false, // 是否禁用内网链路
+      editInitLinkType: '', // 编辑初始化时的链路类型
+    };
+  },
+  computed: {
+    ...mapState({
+      showRouterLeaveTip: state => state.showRouterLeaveTip,
+    }),
+    isK8sDeploy() {
+      // 是否要禁用内网链路
+      return this.$store.getters['globals/globalsData']?.is_k8s_deploy;
     },
-    methods: {
-      async init() {
-        const { linkId } = this.$route.params;
-        if (linkId) {
-          try {
-            this.basicLoading = true;
-            const res = await this.$http.request('extractManage/getLogExtractLinkDetail', {
-              params: {
-                link_id: linkId,
-              },
-            });
-            const formData = res.data;
-            delete formData.link_id;
-            formData.hosts.forEach((item, index) => {
-              item.keyId = index;
-            });
-            // 字符串转成数组展示
-            formData.operator = [formData.operator];
-            if (formData.link_type === 'qcloud_cos') {
-              formData.qcloud_secret_key = res.qcloud_secret_key || '******';
-            }
-            this.formData = Object.assign({}, this.formData, formData);
-            this.basicLoading = false;
-            this.editInitLinkType = this.formData.link_type;
-          } catch (e) {
-            console.warn(e);
-            this.$router.push({
-              name: 'extract-link-list',
-              query: {
-                spaceUid: this.$store.state.spaceUid,
-              },
-            });
-          } finally {
-            if (this.isK8sDeploy && this.editInitLinkType === 'common') {
-              this.isDisableCommon = true; // 禁用内网链路选项
-            }
-          }
-        } else {
-          // 新建时 内网链路禁用则更改初始值
-          if (this.isK8sDeploy) this.formData.link_type = 'qcloud_cos';
-        }
-      },
-      addHost() {
-        this.formData.hosts.push({
-          keyId: Date.now(),
-          target_dir: '', // 挂载目录
-          bk_cloud_id: '', // 主机管控区域id
-          ip: '', // 主机ip
-        });
-      },
-      deleteHost(index) {
-        this.formData.hosts.splice(index, 1);
-      },
-      handleInputBlur(value, event) {
-        if (value) {
-          event.target.classList.remove('error');
-        } else {
-          event.target.classList.add('error');
-        }
-      },
-      async submitForm() {
+    isShowCommon() {
+      // 禁用内网链路且 编辑时初始化是内网链路则展示内网链路且禁用选项
+      return this.$route.params.linkId && this.editInitLinkType === 'common';
+    },
+  },
+  created() {
+    this.init();
+  },
+
+  beforeRouteLeave(to, from, next) {
+    if (!this.isSubmit && !this.showRouterLeaveTip) {
+      this.$bkInfo({
+        title: this.$t('是否放弃本次操作？'),
+        confirmFn: () => {
+          next();
+        },
+      });
+      return;
+    }
+    next();
+  },
+  methods: {
+    async init() {
+      const { linkId } = this.$route.params;
+      if (linkId) {
         try {
-          let isError = false;
-          const inputList = this.$refs.hostListRef.getElementsByClassName('bk-form-input');
-          for (const inputEl of inputList) {
-            if (!inputEl.value) {
-              isError = true;
-              inputEl.classList.add('error');
-            } else {
-              inputEl.classList.remove('error');
-            }
-          }
-          await this.$refs.formRef.validate();
-          if (isError || this.isAdminError) return;
-          this.submitLoading = true;
-          const requestData = { ...this.formData };
-          if (requestData.link_type === 'common') {
-            delete requestData.qcloud_cos_bucket;
-            delete requestData.qcloud_cos_region;
-            delete requestData.qcloud_secret_id;
-            delete requestData.qcloud_secret_key;
-          }
-          if (requestData.link_type === 'qcloud_cos' && requestData.qcloud_secret_key === '******') {
-            requestData.qcloud_secret_key = '';
-          }
-          requestData.hosts.forEach(host => {
-            delete host.keyId;
+          this.basicLoading = true;
+          const res = await this.$http.request('extractManage/getLogExtractLinkDetail', {
+            params: {
+              link_id: linkId,
+            },
           });
-          // 数组修改为字符串传参
-          requestData.operator = requestData.operator[0];
-          const { linkId } = this.$route.params;
-          if (linkId) {
-            await this.$http.request('extractManage/updateLogExtractLink', {
-              params: {
-                link_id: linkId,
-              },
-              data: requestData,
-            });
-            this.messageSuccess(this.$t('保存成功'));
-          } else {
-            await this.$http.request('extractManage/createLogExtractLink', {
-              data: requestData,
-            });
-            this.messageSuccess(this.$t('创建成功'));
+          const formData = res.data;
+          delete formData.link_id;
+          formData.hosts.forEach((item, index) => {
+            item.keyId = index;
+          });
+          // 字符串转成数组展示
+          formData.operator = [formData.operator];
+          if (formData.link_type === 'qcloud_cos') {
+            formData.qcloud_secret_key = res.qcloud_secret_key || '******';
           }
-          this.isSubmit = true;
+          this.formData = Object.assign({}, this.formData, formData);
+          this.basicLoading = false;
+          this.editInitLinkType = this.formData.link_type;
+        } catch (e) {
+          console.warn(e);
           this.$router.push({
             name: 'extract-link-list',
             query: {
               spaceUid: this.$store.state.spaceUid,
             },
           });
-        } catch (e) {
-          console.warn(e);
-          this.submitLoading = false;
+        } finally {
+          if (this.isK8sDeploy && this.editInitLinkType === 'common') {
+            this.isDisableCommon = true; // 禁用内网链路选项
+          }
         }
-      },
-      handleUserChange(val) {
-        const realVal = val.filter(item => item !== undefined);
-        this.isAdminError = !realVal.length;
-        this.formData.operator = realVal;
-        this.cacheOperator = realVal;
-      },
-      handleClearOperator() {
-        if (this.formData.operator.length) {
-          this.cacheOperator = this.formData.operator;
-          this.formData.operator = [];
-        }
-      },
-      handleBlur() {
-        if (this.cacheOperator.length) {
-          this.formData.operator = this.cacheOperator;
-        }
-      },
+      } else {
+        // 新建时 内网链路禁用则更改初始值
+        if (this.isK8sDeploy) this.formData.link_type = 'qcloud_cos';
+      }
     },
-  };
+    addHost() {
+      this.formData.hosts.push({
+        keyId: Date.now(),
+        target_dir: '', // 挂载目录
+        bk_cloud_id: '', // 主机管控区域id
+        ip: '', // 主机ip
+      });
+    },
+    deleteHost(index) {
+      this.formData.hosts.splice(index, 1);
+    },
+    handleInputBlur(value, event) {
+      if (value) {
+        event.target.classList.remove('error');
+      } else {
+        event.target.classList.add('error');
+      }
+    },
+    async submitForm() {
+      try {
+        let isError = false;
+        const inputList = this.$refs.hostListRef.getElementsByClassName('bk-form-input');
+        for (const inputEl of inputList) {
+          if (!inputEl.value) {
+            isError = true;
+            inputEl.classList.add('error');
+          } else {
+            inputEl.classList.remove('error');
+          }
+        }
+        await this.$refs.formRef.validate();
+        if (isError || this.isAdminError) return;
+        this.submitLoading = true;
+        const requestData = { ...this.formData };
+        if (requestData.link_type === 'common') {
+          delete requestData.qcloud_cos_bucket;
+          delete requestData.qcloud_cos_region;
+          delete requestData.qcloud_secret_id;
+          delete requestData.qcloud_secret_key;
+        }
+        if (requestData.link_type === 'qcloud_cos' && requestData.qcloud_secret_key === '******') {
+          requestData.qcloud_secret_key = '';
+        }
+        requestData.hosts.forEach(host => {
+          delete host.keyId;
+        });
+        // 数组修改为字符串传参
+        requestData.operator = requestData.operator[0];
+        const { linkId } = this.$route.params;
+        if (linkId) {
+          await this.$http.request('extractManage/updateLogExtractLink', {
+            params: {
+              link_id: linkId,
+            },
+            data: requestData,
+          });
+          this.messageSuccess(this.$t('保存成功'));
+        } else {
+          await this.$http.request('extractManage/createLogExtractLink', {
+            data: requestData,
+          });
+          this.messageSuccess(this.$t('创建成功'));
+        }
+        this.isSubmit = true;
+        this.$router.push({
+          name: 'extract-link-list',
+          query: {
+            spaceUid: this.$store.state.spaceUid,
+          },
+        });
+      } catch (e) {
+        console.warn(e);
+        this.submitLoading = false;
+      }
+    },
+    handleUserChange(val) {
+      const realVal = val.filter(item => item !== undefined);
+      this.isAdminError = !realVal.length;
+      this.formData.operator = realVal;
+      this.cacheOperator = realVal;
+    },
+    handleClearOperator() {
+      if (this.formData.operator.length) {
+        this.cacheOperator = this.formData.operator;
+        this.formData.operator = [];
+      }
+    },
+    handleBlur() {
+      if (this.cacheOperator.length) {
+        this.formData.operator = this.cacheOperator;
+      }
+    },
+  },
+};
 </script>
 
 <style lang="scss" scoped>

@@ -275,338 +275,337 @@
   </div>
 </template>
 <script>
-  import containerTargetItem from './container-target-item';
-  import configLogSetItem from './config-log-set-item';
-  import labelTargetDialog from './label-target-dialog';
-  import configViewDialog from './config-view-dialog';
-  import ConfigLogSetEditItem from './config-log-set-edit-item';
-  import { mapGetters } from 'vuex';
+import containerTargetItem from './container-target-item';
+import configLogSetItem from './config-log-set-item';
+import labelTargetDialog from './label-target-dialog';
+import configViewDialog from './config-view-dialog';
+import ConfigLogSetEditItem from './config-log-set-edit-item';
+import { mapGetters } from 'vuex';
 
-  export default {
-    components: {
-      containerTargetItem,
-      configLogSetItem,
-      labelTargetDialog,
-      configViewDialog,
-      ConfigLogSetEditItem,
+export default {
+  components: {
+    containerTargetItem,
+    configLogSetItem,
+    labelTargetDialog,
+    configViewDialog,
+    ConfigLogSetEditItem,
+  },
+  props: {
+    formData: {
+      type: Object,
+      required: true,
     },
-    props: {
-      formData: {
-        type: Object,
-        required: true,
-      },
-      isNode: {
-        type: Boolean,
-        required: true,
-      },
-      configChangeLength: {
-        type: Number,
-        required: true,
-      },
-      currentEnvironment: {
-        type: String,
-        required: true,
-      },
-      isCloneOrUpdate: {
-        type: Boolean,
-        required: true,
-      },
-      clusterList: {
-        type: Array,
-        required: true,
-      },
-      isPhysicsEnvironment: {
-        type: Boolean,
-        required: true,
-      },
-      isUpdate: {
-        type: Boolean,
-        required: true,
-      },
+    isNode: {
+      type: Boolean,
+      required: true,
     },
-    data() {
-      return {
-        nameSpaceRequest: false, // 是否正在请求namespace接口
-        operatorSelectList: [
-          {
-            id: '=',
-            name: '=',
-          },
-          {
-            id: '!=',
-            name: '!=',
-          },
-        ],
-        isShowViewDialog: false, // 是否展预览dialog
-        isShowLabelTargetDialog: false, // 是否展示指定标签dialog
-        nameSpacesSelectList: [], // namespace 列表
-        scopeNameList: {
-          namespace: this.$t('按命名空间选择'),
-          label: this.$t('按标签选择'),
-          annotation: this.$t('按annotation选择'),
-          load: this.$t('按工作负载选择'),
-          containerName: this.$t('直接指定{n}', { n: 'Container' }),
+    configChangeLength: {
+      type: Number,
+      required: true,
+    },
+    currentEnvironment: {
+      type: String,
+      required: true,
+    },
+    isCloneOrUpdate: {
+      type: Boolean,
+      required: true,
+    },
+    clusterList: {
+      type: Array,
+      required: true,
+    },
+    isPhysicsEnvironment: {
+      type: Boolean,
+      required: true,
+    },
+    isUpdate: {
+      type: Boolean,
+      required: true,
+    },
+  },
+  data() {
+    return {
+      nameSpaceRequest: false, // 是否正在请求namespace接口
+      operatorSelectList: [
+        {
+          id: '=',
+          name: '=',
         },
-        viewQueryParams: {}, // 预览弹窗传参
-        currentSelector: {}, // 当前操作的配置项指定标签值
-        currentSetIndex: 0, // 当前操作的配置项的下标
-        typeList: [],
-      };
-    },
-    computed: {
-      ...mapGetters({
-        bkBizId: 'bkBizId',
-      }),
-    },
-    mounted() {
-      // 容器环境
-      this.getNameSpaceList(this.formData.bcs_cluster_id);
-      !this.typeList.length && this.getWorkLoadTypeList();
-    },
-    methods: {
-      isShowContainerTips(configItem) {
-        const { containerExclude, namespacesExclude } = configItem.noQuestParams;
-        return [containerExclude, namespacesExclude].includes('!=');
+        {
+          id: '!=',
+          name: '!=',
+        },
+      ],
+      isShowViewDialog: false, // 是否展预览dialog
+      isShowLabelTargetDialog: false, // 是否展示指定标签dialog
+      nameSpacesSelectList: [], // namespace 列表
+      scopeNameList: {
+        namespace: this.$t('按命名空间选择'),
+        label: this.$t('按标签选择'),
+        annotation: this.$t('按annotation选择'),
+        load: this.$t('按工作负载选择'),
+        containerName: this.$t('直接指定{n}', { n: 'Container' }),
       },
-      getFromCharCode(index) {
-        return String.fromCharCode(index + 65);
-      },
-      getNameSpaceList(clusterID, isFirstUpdateSelect = false) {
-        if (!clusterID || (this.isPhysicsEnvironment && this.isUpdate) || this.nameSpaceRequest) return;
-        const query = { bcs_cluster_id: clusterID, bk_biz_id: this.bkBizId };
-        this.nameSpaceRequest = true;
-        this.$http
-          .request('container/getNameSpace', { query })
-          .then(res => {
-            // 判断是否是第一次切换集群 如果是 则进行详情页namespace数据回显
-            if (isFirstUpdateSelect) {
-              const namespaceList = [];
-              this.formData.configs.forEach(configItem => {
-                namespaceList.push(...configItem.namespaces);
-              });
-              const resIDList = res.data.map(item => item.id);
-              const setList = new Set([...namespaceList, ...resIDList]);
-              setList.delete('*');
-              const allList = [...setList].map(item => ({ id: item, name: item }));
-              this.nameSpacesSelectList = [...allList];
-              if (!this.getIsSharedCluster()) {
-                this.nameSpacesSelectList.unshift({ name: this.$t('所有'), id: '*' });
-              }
-              return;
-            }
-            this.nameSpacesSelectList = [...res.data];
+      viewQueryParams: {}, // 预览弹窗传参
+      currentSelector: {}, // 当前操作的配置项指定标签值
+      currentSetIndex: 0, // 当前操作的配置项的下标
+      typeList: [],
+    };
+  },
+  computed: {
+    ...mapGetters({
+      bkBizId: 'bkBizId',
+    }),
+  },
+  mounted() {
+    // 容器环境
+    this.getNameSpaceList(this.formData.bcs_cluster_id);
+    !this.typeList.length && this.getWorkLoadTypeList();
+  },
+  methods: {
+    isShowContainerTips(configItem) {
+      const { containerExclude, namespacesExclude } = configItem.noQuestParams;
+      return [containerExclude, namespacesExclude].includes('!=');
+    },
+    getFromCharCode(index) {
+      return String.fromCharCode(index + 65);
+    },
+    getNameSpaceList(clusterID, isFirstUpdateSelect = false) {
+      if (!clusterID || (this.isPhysicsEnvironment && this.isUpdate) || this.nameSpaceRequest) return;
+      const query = { bcs_cluster_id: clusterID, bk_biz_id: this.bkBizId };
+      this.nameSpaceRequest = true;
+      this.$http
+        .request('container/getNameSpace', { query })
+        .then(res => {
+          // 判断是否是第一次切换集群 如果是 则进行详情页namespace数据回显
+          if (isFirstUpdateSelect) {
+            const namespaceList = [];
+            this.formData.configs.forEach(configItem => {
+              namespaceList.push(...configItem.namespaces);
+            });
+            const resIDList = res.data.map(item => item.id);
+            const setList = new Set([...namespaceList, ...resIDList]);
+            setList.delete('*');
+            const allList = [...setList].map(item => ({ id: item, name: item }));
+            this.nameSpacesSelectList = [...allList];
             if (!this.getIsSharedCluster()) {
               this.nameSpacesSelectList.unshift({ name: this.$t('所有'), id: '*' });
             }
-          })
-          .catch(err => {
-            console.warn(err);
-          })
-          .finally(() => {
-            this.nameSpaceRequest = false;
-          });
-      },
-      /**
-       * @desc: 配置项点击所有容器
-       * @param { Number } index 下标
-       * @param { Boolean } state 状态
-       */
-      getWorkLoadTypeList() {
-        this.$http
-          .request('container/getWorkLoadType')
-          .then(res => {
-            if (res.code === 0) this.typeList = res.data.map(item => ({ id: item, name: item }));
-          })
-          .catch(err => {
-            console.warn(err);
-          });
-      },
-      // 当前所选集群是否共享集群
-      getIsSharedCluster() {
-        return this.clusterList?.find(cluster => cluster.id === this.formData.bcs_cluster_id)?.is_shared ?? false;
-      },
-      handleDeleteConfig(index, letterIndex) {
-        // 删除配置项
-        this.$bkInfo({
-          subTitle: this.$t('确定要删除配置项{n}？', { n: this.getFromCharCode(letterIndex) }),
-          type: 'warning',
-          confirmFn: () => {
-            this.formData.configs.splice(index, 1);
-          },
-        });
-      },
-      // 点击删除icon 隐藏对应范围模块 初始化对应的值
-      handleDeleteConfigParamsItem(conIndex, scope) {
-        const config = this.formData.configs[conIndex];
-        switch (scope) {
-          case 'namespace':
-            config.namespaces = [];
-            break;
-          case 'load':
-            config.container.workload_type = '';
-            config.container.workload_name = '';
-            break;
-          case 'label':
-            config.labelSelector = [];
-            break;
-          case 'annotation':
-            config.annotationSelector = [];
-            break;
-          case 'containerName':
-            config.containerNameList = [];
-            break;
-          default:
-            break;
-        }
-        if (scope === 'label' && this.isNode) return;
-        this.getScopeSelectShow(conIndex)[scope] = true;
-      },
-      handleConfigChange(index, val) {
-        Object.assign(this.formData.configs[index], val);
-      },
-      // 点击添加范围的列表 显示对应模块
-      handleAddNewScope(conIndex, scope) {
-        this.getScopeSelectShow(conIndex)[scope] = false;
-      },
-      // 是否显示对应模块的列表的按钮
-      isShowScopeButton(conIndex, scope) {
-        // 当前环境为node时， 除了label列表全部不显示
-        return this.getScopeSelectShow(conIndex)[scope];
-      },
-      getScopeName(conItem) {
-        return this.scopeNameList[conItem];
-      },
-      /**
-       * @desc: 指定操作弹窗
-       * @param { Number } index 下标
-       * @param { String } dialogType 标签或预览
-       */
-      handelShowDialog(index, dialogType = 'label') {
-        if (!this.formData.bcs_cluster_id) return;
-        this.currentSetIndex = index;
-        const type = this.isNode ? 'node' : 'pod';
-        const config = this.formData.configs[index];
-        const containerKey =
-          config.noQuestParams.containerExclude === '!=' ? 'container_name_exclude' : 'container_name';
-        const namespacesKey = config.noQuestParams.namespacesExclude === '!=' ? 'namespaces_exclude' : 'namespaces';
-        if (dialogType === 'label') {
-          this.currentSelector = {
-            bk_biz_id: this.bkBizId,
-            bcs_cluster_id: this.formData.bcs_cluster_id,
-            type,
-            namespaceStr: config.noQuestParams.namespaceStr,
-            labelSelector: config.labelSelector,
-          };
-        } else if (dialogType === 'view') {
-          const { workload_type: workloadType, workload_name: workloadName } = config.container;
-          const namespaces = config.namespaces.length === 1 && config.namespaces[0] === '*' ? [] : config.namespaces;
-          this.viewQueryParams = {
-            bk_biz_id: this.bkBizId,
-            bcs_cluster_id: this.formData.bcs_cluster_id,
-            type,
-            [namespacesKey]: namespaces,
-            label_selector: this.getLabelSelectorQueryParams(config.labelSelector, {
-              match_labels: [],
-              match_expressions: [],
-            }),
-            annotation_selector: this.getLabelSelectorQueryParams(config.annotationSelector, {
-              match_annotations: [],
-            }),
-            container: {
-              workload_type: workloadType,
-              workload_name: workloadName,
-              [containerKey]: config.containerNameList.join(','),
-            },
-          };
-        }
-        dialogType === 'label' ? (this.isShowLabelTargetDialog = true) : (this.isShowViewDialog = true);
-      },
-      /**
-       * @desc: 展示用的标签格式转化成存储或传参的标签格式
-       * @param {Object} labelSelector 主页展示用的label_selector
-       * @returns {Object} 返回传参用的label_selector
-       */
-      getLabelSelectorQueryParams(labelSelector, preParams) {
-        return labelSelector.reduce((pre, cur) => {
-          const value = ['NotIn', 'In'].includes(cur.operator) ? `(${cur.value})` : cur.value;
-          pre[cur.type].push({
-            key: cur.key,
-            operator: cur.operator,
-            value,
-          });
-          return pre;
-        }, preParams);
-      },
-      // 是否展示对应操作范围模块
-      isShowScopeItem(conIndex, scope) {
-        if (this.isNode) return ['label', 'annotation'].includes(scope); // 当前环境为node时 若是标签模块则直接显示 其余均不显示
-        return !this.getScopeSelectShow(conIndex)[scope];
-      },
-      // 获取config里添加范围的列表
-      getScopeSelectShow(conIndex) {
-        return this.formData.configs[conIndex].noQuestParams.scopeSelectShow;
-      },
-      handleNameSpaceSelect(option, index) {
-        const config = this.formData.configs[index];
-        if (option[option.length - 1] === '*') {
-          // 如果最后一步选择所有，则清空数组填所有
-          const nameSpacesLength = config.namespaces.length;
-          config.namespaces.splice(0, nameSpacesLength, '*');
-          config.noQuestParams.namespaceStr = this.getNameSpaceStr(config.namespaces);
-          return;
-        }
-        if (option.length > 1 && option.includes('*')) {
-          // 如果选中其他的值 包含所有则去掉所有选项
-          const allIndex = option.findIndex(item => item === '*');
-          config.namespaces.splice(allIndex, 1);
-        }
-        config.noQuestParams.namespaceStr = this.getNameSpaceStr(config.namespaces);
-      },
-      getNameSpaceStr(namespaces) {
-        return namespaces.length === 1 && namespaces[0] === '*' ? '' : namespaces.join(',');
-      },
-      showNameSpacesSelectList(conIndex) {
-        const config = this.formData.configs[conIndex];
-        const operate = config.noQuestParams.namespacesExclude;
-        if (!this.nameSpacesSelectList.length) return [];
-        if (operate === '!=' && this.nameSpacesSelectList.some(item => item.id === '*')) {
-          if (config.namespaces.length === 1 && config.namespaces[0] === '*') config.namespaces = [];
-          return this.nameSpacesSelectList.slice(1);
-        }
-        return this.nameSpacesSelectList;
-      },
-      handleContainerNameBlur(input, list, conIndex) {
-        if (!input) return;
-        const config = this.formData.configs[conIndex];
-        config.containerNameList = !list.length ? [input] : [...new Set([...config.containerNameList, input])];
-      },
-      // 是否展示添加范围的按钮
-      isShowAddScopeButton(conIndex) {
-        // 当前为node环境时 隐藏按钮直接显示操作范围模块
-        if (this.isNode) return false;
-        return Object.values(this.getScopeSelectShow(conIndex)).some(Boolean);
-      },
-      /**
-       * @desc: 用户操作合并form数据
-       * @param { Object } val 操作后返回值对象
-       * @param { String } operator 配置项还是form本身
-       * @param { Number } index 配置项下标
-       */
-      handelFormChange(val, operator, index) {
-        const setIndex = index ? index : this.currentSetIndex;
-        const setTime = operator === 'dialogChange' ? 10 : 500;
-        clearTimeout(this.formTime);
-        this.formTime = setTimeout(() => {
-          switch (operator) {
-            case 'dialogChange':
-            case 'containerConfig':
-              Object.assign(this.formData.configs[setIndex], val);
-              break;
+            return;
           }
-        }, setTime);
-      },
+          this.nameSpacesSelectList = [...res.data];
+          if (!this.getIsSharedCluster()) {
+            this.nameSpacesSelectList.unshift({ name: this.$t('所有'), id: '*' });
+          }
+        })
+        .catch(err => {
+          console.warn(err);
+        })
+        .finally(() => {
+          this.nameSpaceRequest = false;
+        });
     },
-  };
+    /**
+     * @desc: 配置项点击所有容器
+     * @param { Number } index 下标
+     * @param { Boolean } state 状态
+     */
+    getWorkLoadTypeList() {
+      this.$http
+        .request('container/getWorkLoadType')
+        .then(res => {
+          if (res.code === 0) this.typeList = res.data.map(item => ({ id: item, name: item }));
+        })
+        .catch(err => {
+          console.warn(err);
+        });
+    },
+    // 当前所选集群是否共享集群
+    getIsSharedCluster() {
+      return this.clusterList?.find(cluster => cluster.id === this.formData.bcs_cluster_id)?.is_shared ?? false;
+    },
+    handleDeleteConfig(index, letterIndex) {
+      // 删除配置项
+      this.$bkInfo({
+        subTitle: this.$t('确定要删除配置项{n}？', { n: this.getFromCharCode(letterIndex) }),
+        type: 'warning',
+        confirmFn: () => {
+          this.formData.configs.splice(index, 1);
+        },
+      });
+    },
+    // 点击删除icon 隐藏对应范围模块 初始化对应的值
+    handleDeleteConfigParamsItem(conIndex, scope) {
+      const config = this.formData.configs[conIndex];
+      switch (scope) {
+        case 'namespace':
+          config.namespaces = [];
+          break;
+        case 'load':
+          config.container.workload_type = '';
+          config.container.workload_name = '';
+          break;
+        case 'label':
+          config.labelSelector = [];
+          break;
+        case 'annotation':
+          config.annotationSelector = [];
+          break;
+        case 'containerName':
+          config.containerNameList = [];
+          break;
+        default:
+          break;
+      }
+      if (scope === 'label' && this.isNode) return;
+      this.getScopeSelectShow(conIndex)[scope] = true;
+    },
+    handleConfigChange(index, val) {
+      Object.assign(this.formData.configs[index], val);
+    },
+    // 点击添加范围的列表 显示对应模块
+    handleAddNewScope(conIndex, scope) {
+      this.getScopeSelectShow(conIndex)[scope] = false;
+    },
+    // 是否显示对应模块的列表的按钮
+    isShowScopeButton(conIndex, scope) {
+      // 当前环境为node时， 除了label列表全部不显示
+      return this.getScopeSelectShow(conIndex)[scope];
+    },
+    getScopeName(conItem) {
+      return this.scopeNameList[conItem];
+    },
+    /**
+     * @desc: 指定操作弹窗
+     * @param { Number } index 下标
+     * @param { String } dialogType 标签或预览
+     */
+    handelShowDialog(index, dialogType = 'label') {
+      if (!this.formData.bcs_cluster_id) return;
+      this.currentSetIndex = index;
+      const type = this.isNode ? 'node' : 'pod';
+      const config = this.formData.configs[index];
+      const containerKey = config.noQuestParams.containerExclude === '!=' ? 'container_name_exclude' : 'container_name';
+      const namespacesKey = config.noQuestParams.namespacesExclude === '!=' ? 'namespaces_exclude' : 'namespaces';
+      if (dialogType === 'label') {
+        this.currentSelector = {
+          bk_biz_id: this.bkBizId,
+          bcs_cluster_id: this.formData.bcs_cluster_id,
+          type,
+          namespaceStr: config.noQuestParams.namespaceStr,
+          labelSelector: config.labelSelector,
+        };
+      } else if (dialogType === 'view') {
+        const { workload_type: workloadType, workload_name: workloadName } = config.container;
+        const namespaces = config.namespaces.length === 1 && config.namespaces[0] === '*' ? [] : config.namespaces;
+        this.viewQueryParams = {
+          bk_biz_id: this.bkBizId,
+          bcs_cluster_id: this.formData.bcs_cluster_id,
+          type,
+          [namespacesKey]: namespaces,
+          label_selector: this.getLabelSelectorQueryParams(config.labelSelector, {
+            match_labels: [],
+            match_expressions: [],
+          }),
+          annotation_selector: this.getLabelSelectorQueryParams(config.annotationSelector, {
+            match_annotations: [],
+          }),
+          container: {
+            workload_type: workloadType,
+            workload_name: workloadName,
+            [containerKey]: config.containerNameList.join(','),
+          },
+        };
+      }
+      dialogType === 'label' ? (this.isShowLabelTargetDialog = true) : (this.isShowViewDialog = true);
+    },
+    /**
+     * @desc: 展示用的标签格式转化成存储或传参的标签格式
+     * @param {Object} labelSelector 主页展示用的label_selector
+     * @returns {Object} 返回传参用的label_selector
+     */
+    getLabelSelectorQueryParams(labelSelector, preParams) {
+      return labelSelector.reduce((pre, cur) => {
+        const value = ['NotIn', 'In'].includes(cur.operator) ? `(${cur.value})` : cur.value;
+        pre[cur.type].push({
+          key: cur.key,
+          operator: cur.operator,
+          value,
+        });
+        return pre;
+      }, preParams);
+    },
+    // 是否展示对应操作范围模块
+    isShowScopeItem(conIndex, scope) {
+      if (this.isNode) return ['label', 'annotation'].includes(scope); // 当前环境为node时 若是标签模块则直接显示 其余均不显示
+      return !this.getScopeSelectShow(conIndex)[scope];
+    },
+    // 获取config里添加范围的列表
+    getScopeSelectShow(conIndex) {
+      return this.formData.configs[conIndex].noQuestParams.scopeSelectShow;
+    },
+    handleNameSpaceSelect(option, index) {
+      const config = this.formData.configs[index];
+      if (option[option.length - 1] === '*') {
+        // 如果最后一步选择所有，则清空数组填所有
+        const nameSpacesLength = config.namespaces.length;
+        config.namespaces.splice(0, nameSpacesLength, '*');
+        config.noQuestParams.namespaceStr = this.getNameSpaceStr(config.namespaces);
+        return;
+      }
+      if (option.length > 1 && option.includes('*')) {
+        // 如果选中其他的值 包含所有则去掉所有选项
+        const allIndex = option.findIndex(item => item === '*');
+        config.namespaces.splice(allIndex, 1);
+      }
+      config.noQuestParams.namespaceStr = this.getNameSpaceStr(config.namespaces);
+    },
+    getNameSpaceStr(namespaces) {
+      return namespaces.length === 1 && namespaces[0] === '*' ? '' : namespaces.join(',');
+    },
+    showNameSpacesSelectList(conIndex) {
+      const config = this.formData.configs[conIndex];
+      const operate = config.noQuestParams.namespacesExclude;
+      if (!this.nameSpacesSelectList.length) return [];
+      if (operate === '!=' && this.nameSpacesSelectList.some(item => item.id === '*')) {
+        if (config.namespaces.length === 1 && config.namespaces[0] === '*') config.namespaces = [];
+        return this.nameSpacesSelectList.slice(1);
+      }
+      return this.nameSpacesSelectList;
+    },
+    handleContainerNameBlur(input, list, conIndex) {
+      if (!input) return;
+      const config = this.formData.configs[conIndex];
+      config.containerNameList = !list.length ? [input] : [...new Set([...config.containerNameList, input])];
+    },
+    // 是否展示添加范围的按钮
+    isShowAddScopeButton(conIndex) {
+      // 当前为node环境时 隐藏按钮直接显示操作范围模块
+      if (this.isNode) return false;
+      return Object.values(this.getScopeSelectShow(conIndex)).some(Boolean);
+    },
+    /**
+     * @desc: 用户操作合并form数据
+     * @param { Object } val 操作后返回值对象
+     * @param { String } operator 配置项还是form本身
+     * @param { Number } index 配置项下标
+     */
+    handelFormChange(val, operator, index) {
+      const setIndex = index ? index : this.currentSetIndex;
+      const setTime = operator === 'dialogChange' ? 10 : 500;
+      clearTimeout(this.formTime);
+      this.formTime = setTimeout(() => {
+        switch (operator) {
+          case 'dialogChange':
+          case 'containerConfig':
+            Object.assign(this.formData.configs[setIndex], val);
+            break;
+        }
+      }, setTime);
+    },
+  },
+};
 </script>
 <style lang="scss" scoped>
   @import '@/scss/mixins/flex.scss';

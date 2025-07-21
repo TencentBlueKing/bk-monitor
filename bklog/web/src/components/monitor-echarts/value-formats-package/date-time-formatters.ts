@@ -77,7 +77,7 @@ export function toNanoSeconds(size: number, decimals: DecimalCount = 2, scaledDe
 export function toMicroSeconds(
   size: number,
   decimals: DecimalCount = 2,
-  scaledDecimals?: DecimalCount,
+  scaledDecimals?: DecimalCount
 ): FormattedValue {
   if (size === null) {
     return { text: '' };
@@ -95,7 +95,7 @@ export function toMicroSeconds(
 export function toMilliSeconds(
   size: number,
   decimals: DecimalCount = 2,
-  scaledDecimals?: DecimalCount,
+  scaledDecimals?: DecimalCount
 ): FormattedValue {
   if (size === null) {
     return { text: '' };
@@ -389,7 +389,7 @@ export function dateTimeFromNow(
   value: number,
   decimals: DecimalCount,
   scaledDecimals: DecimalCount,
-  timeZone?,
+  timeZone?
 ): FormattedValue {
   const isUtc = timeZone === 'utc';
   const time = isUtc ? toUtc(value) : dateTime(value);

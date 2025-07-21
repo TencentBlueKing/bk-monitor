@@ -201,7 +201,7 @@ export default {
     fieldAliasMap() {
       return (this.indexFieldInfo.fields ?? []).reduce(
         (out, field) => ({ ...out, [field.field_name]: field.field_alias || field.field_name }),
-        {},
+        {}
       );
     },
     timeFieldType() {
@@ -355,7 +355,7 @@ export default {
                 ],
                 class: { 'lack-index-filed': isLackIndexFields },
               },
-              [fieldName],
+              [fieldName]
             ),
             h(TimeFormatterSwitcher, {
               class: 'timer-formatter',
@@ -387,7 +387,7 @@ export default {
                 },
               },
             }),
-          ],
+          ]
         );
       }
     },

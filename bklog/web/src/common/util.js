@@ -105,9 +105,9 @@ export function randomColor(baseColor, count) {
   // 生成 count 组颜色，色差 20 * Math.random
   for (let i = 0; i < count; i++) {
     ret[i] = `#${Math.floor(segments[0] + (Math.random() < 0.5 ? -1 : 1) * Math.random() * 20).toString(
-      16,
+      16
     )}${Math.floor(segments[1] + (Math.random() < 0.5 ? -1 : 1) * Math.random() * 20).toString(
-      16,
+      16
     )}${Math.floor(segments[2] + (Math.random() < 0.5 ? -1 : 1) * Math.random() * 20).toString(16)}`;
   }
   return ret;
@@ -575,7 +575,7 @@ export function parseBigNumberList(lsit) {
         ...output,
         [key]: formatBigNumListValue(item[key]),
       };
-    }, {}),
+    }, {})
   );
 }
 
@@ -608,7 +608,7 @@ export const copyMessage = (val, alertMsg = undefined) => {
     document.execCommand('copy');
     document.body.removeChild(input);
     window.mainComponent.messageSuccess(
-      alertMsg ? alertMsg ?? window.mainComponent.$t('复制失败') : window.mainComponent.$t('复制成功'),
+      alertMsg ? (alertMsg ?? window.mainComponent.$t('复制失败')) : window.mainComponent.$t('复制成功')
     );
   } catch (e) {
     console.warn(e);
@@ -632,7 +632,7 @@ export const base64Decode = str => {
     atob(str)
       .split('')
       .map(c => `%${`00${c.charCodeAt(0).toString(16)}`.slice(-2)}`)
-      .join(''),
+      .join('')
   );
 };
 
@@ -761,7 +761,7 @@ export const deepEqual = (object1, object2, ignoreArr = []) => {
 // 是否是ipv6
 export const isIPv6 = (str = '') => {
   return /^\s*((([0-9A-Fa-f]{1,4}:){7}([0-9A-Fa-f]{1,4}|:))|(([0-9A-Fa-f]{1,4}:){6}(:[0-9A-Fa-f]{1,4}|((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3})|:))|(([0-9A-Fa-f]{1,4}:){5}(((:[0-9A-Fa-f]{1,4}){1,2})|:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3})|:))|(([0-9A-Fa-f]{1,4}:){4}(((:[0-9A-Fa-f]{1,4}){1,3})|((:[0-9A-Fa-f]{1,4})?:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(([0-9A-Fa-f]{1,4}:){3}(((:[0-9A-Fa-f]{1,4}){1,4})|((:[0-9A-Fa-f]{1,4}){0,2}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(([0-9A-Fa-f]{1,4}:){2}(((:[0-9A-Fa-f]{1,4}){1,5})|((:[0-9A-Fa-f]{1,4}){0,3}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(([0-9A-Fa-f]{1,4}:){1}(((:[0-9A-Fa-f]{1,4}){1,6})|((:[0-9A-Fa-f]{1,4}){0,4}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(:(((:[0-9A-Fa-f]{1,4}){1,7})|((:[0-9A-Fa-f]{1,4}){0,5}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:)))(%.+)?\s*$/.test(
-    str,
+    str
   );
 };
 
@@ -842,7 +842,7 @@ export const parseTableRowData = (
   key,
   fieldType = undefined,
   isFormatDate = store.state.isFormatDate,
-  emptyCharacter = '--',
+  emptyCharacter = '--'
 ) => {
   const keyArr = key.split('.');
   let data;
@@ -867,7 +867,7 @@ export const parseTableRowData = (
         if (Array.isArray(data)) {
           data = data
             .map(item =>
-              parseTableRowData(item, keyArr.slice(index).join('.'), fieldType, isFormatDate, emptyCharacter),
+              parseTableRowData(item, keyArr.slice(index).join('.'), fieldType, isFormatDate, emptyCharacter)
             )
             .filter(item => item !== emptyCharacter);
           break;

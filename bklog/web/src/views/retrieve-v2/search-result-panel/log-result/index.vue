@@ -110,205 +110,205 @@
 </template>
 
 <script>
-  import { mapGetters, mapState } from 'vuex';
-  import { debounce } from 'lodash';
-  // MONITOR_APP !== 'trace'
-  import ExportLog from '../../result-comp/export-log.vue';
-  // #else
-  // #code const ExportLog = () => null;
-  // #endif
-  import FieldsSetting from '../../result-comp/update/fields-setting';
-  import TableLog from './log-result.vue';
-  import RetrieveHelper, { RetrieveEvent } from '../../../retrieve-helper';
-  import bklogTagChoice from '../../search-bar/bklog-tag-choice';
-  import ResultStorage from '../../components/result-storage/index';
-  import BkLogPopover from '../../../../components/bklog-popover/index';
-  import { BK_LOG_STORAGE } from '@/store/store.type';
+import { mapGetters, mapState } from 'vuex';
+import { debounce } from 'lodash';
+// MONITOR_APP !== 'trace'
+import ExportLog from '../../result-comp/export-log.vue';
+// #else
+// #code const ExportLog = () => null;
+// #endif
+import FieldsSetting from '../../result-comp/update/fields-setting';
+import TableLog from './log-result.vue';
+import RetrieveHelper, { RetrieveEvent } from '../../../retrieve-helper';
+import bklogTagChoice from '../../search-bar/bklog-tag-choice';
+import ResultStorage from '../../components/result-storage/index';
+import BkLogPopover from '../../../../components/bklog-popover/index';
+import { BK_LOG_STORAGE } from '@/store/store.type';
 
-  let logResultResizeObserver;
-  let logResultResizeObserverFn;
+let logResultResizeObserver;
+let logResultResizeObserverFn;
 
-  export default {
-    components: {
-      TableLog,
-      FieldsSetting,
-      ExportLog,
-      bklogTagChoice,
-      ResultStorage,
-      BkLogPopover,
+export default {
+  components: {
+    TableLog,
+    FieldsSetting,
+    ExportLog,
+    bklogTagChoice,
+    ResultStorage,
+    BkLogPopover,
+  },
+  inheritAttrs: false,
+  props: {
+    retrieveParams: {
+      type: Object,
+      required: true,
     },
-    inheritAttrs: false,
-    props: {
-      retrieveParams: {
-        type: Object,
-        required: true,
-      },
-      totalCount: {
-        type: Number,
-        default: 0,
-      },
-      queueStatus: {
-        type: Boolean,
-        default: true,
-      },
+    totalCount: {
+      type: Number,
+      default: 0,
     },
-    data() {
+    queueStatus: {
+      type: Boolean,
+      default: true,
+    },
+  },
+  data() {
+    return {
+      highlightValue: [],
+      contentType: 'table',
+      showFieldsSetting: false,
+      showAsyncExport: false, // 异步下载弹窗
+      exportLoading: false,
+      isInitActiveTab: false,
+      isMonitorTrace: window.__IS_MONITOR_TRACE__,
+      highlightWidth: 200,
+      tippyOptions: {
+        maxWidth: 1200,
+        arrow: false,
+        hideOnClick: false,
+      },
+    };
+  },
+  computed: {
+    showOriginalLog() {
+      return this.contentType === 'original';
+    },
+    asyncExportUsable() {
+      return this.$attrs['async-export-usable'];
+    },
+    asyncExportUsableReason() {
+      return this.$attrs['async-export-usable-reason'];
+    },
+    filedSettingConfigID() {
+      // 当前索引集的显示字段ID
+      return this.$store.state.retrieve.filedSettingConfigID;
+    },
+    ...mapGetters({
+      unionIndexList: 'unionIndexList',
+      isUnionSearch: 'isUnionSearch',
+    }),
+    ...mapState({
+      indexSetList: state => state.retrieve?.indexSetList ?? [],
+      indexSetQueryResult: 'indexSetQueryResult',
+      indexFieldInfo: 'indexFieldInfo',
+    }),
+
+    routeIndexSet() {
+      return this.$route.params.indexId;
+    },
+
+    tableList() {
+      return this.indexSetQueryResult.list ?? [];
+    },
+
+    fieldAliasMap() {
+      return (this.indexFieldInfo.fields ?? []).reduce(
+        (out, field) => ({ ...out, [field.field_name]: field.field_alias || field.field_name }),
+        {}
+      );
+    },
+    showFieldsConfigPopoverNum() {
+      return this.$store.state.showFieldsConfigPopoverNum;
+    },
+    jsonFormat() {
+      return this.$store.state.storage[BK_LOG_STORAGE.TABLE_JSON_FORMAT];
+    },
+    highlightStyle() {
       return {
-        highlightValue: [],
-        contentType: 'table',
-        showFieldsSetting: false,
-        showAsyncExport: false, // 异步下载弹窗
-        exportLoading: false,
-        isInitActiveTab: false,
-        isMonitorTrace: window.__IS_MONITOR_TRACE__,
-        highlightWidth: 200,
-        tippyOptions: {
-          maxWidth: 1200,
-          arrow: false,
-          hideOnClick: false,
+        width: `${this.highlightWidth}px`,
+      };
+    },
+  },
+  watch: {
+    showFieldsConfigPopoverNum() {
+      this.handleAddNewConfig();
+    },
+    jsonFormat() {
+      this.$nextTick(this.calcHighlightWidth);
+    },
+  },
+  mounted() {
+    this.contentType = localStorage.getItem('SEARCH_STORAGE_ACTIVE_TAB') || 'table';
+    RetrieveHelper.setMarkInstance();
+    RetrieveHelper.on(RetrieveEvent.HILIGHT_TRIGGER, ({ event, value }) => {
+      if (event === 'mark' && !this.highlightValue.includes(value)) {
+        this.highlightValue.push(...value.split(/\s+/));
+        RetrieveHelper.highLightKeywords(this.highlightValue.filter(w => w.length > 0));
+      }
+    });
+
+    if (document.body.offsetHeight < 900) {
+      this.$refs.refFieldsSettingPopper?.setProps({
+        placement: 'auto',
+        arrow: true,
+      });
+    }
+
+    logResultResizeObserverFn = debounce(this.calcHighlightWidth, 100);
+    logResultResizeObserver = new ResizeObserver(logResultResizeObserverFn);
+    logResultResizeObserver.observe(this.$el);
+  },
+  unmounted() {
+    logResultResizeObserver?.unobserve(this.$el);
+    logResultResizeObserver?.disconnect();
+    logResultResizeObserver = null;
+    logResultResizeObserverFn = null;
+  },
+  methods: {
+    calcHighlightWidth() {
+      const { offsetWidth } = this.$el;
+      const leftWidth = this.$el.querySelector('.left-operate')?.offsetWidth ?? 0;
+      const rightWidth = 200;
+      const calcWidth = offsetWidth - leftWidth - rightWidth;
+      if (calcWidth > 400) {
+        this.highlightWidth = 400;
+        return;
+      }
+
+      this.highlightWidth = offsetWidth - leftWidth - rightWidth;
+    },
+    handleBeforeHide(e) {
+      if (e.target?.closest?.('.bklog-v3-popover-tag')) {
+        return false;
+      }
+
+      return true;
+    },
+    handleTagRender(item, index) {
+      const colors = RetrieveHelper.RGBA_LIST;
+      return {
+        style: {
+          backgroundColor: colors[index % colors.length],
         },
       };
     },
-    computed: {
-      showOriginalLog() {
-        return this.contentType === 'original';
-      },
-      asyncExportUsable() {
-        return this.$attrs['async-export-usable'];
-      },
-      asyncExportUsableReason() {
-        return this.$attrs['async-export-usable-reason'];
-      },
-      filedSettingConfigID() {
-        // 当前索引集的显示字段ID
-        return this.$store.state.retrieve.filedSettingConfigID;
-      },
-      ...mapGetters({
-        unionIndexList: 'unionIndexList',
-        isUnionSearch: 'isUnionSearch',
-      }),
-      ...mapState({
-        indexSetList: state => state.retrieve?.indexSetList ?? [],
-        indexSetQueryResult: 'indexSetQueryResult',
-        indexFieldInfo: 'indexFieldInfo',
-      }),
-
-      routeIndexSet() {
-        return this.$route.params.indexId;
-      },
-
-      tableList() {
-        return this.indexSetQueryResult.list ?? [];
-      },
-
-      fieldAliasMap() {
-        return (this.indexFieldInfo.fields ?? []).reduce(
-          (out, field) => ({ ...out, [field.field_name]: field.field_alias || field.field_name }),
-          {},
-        );
-      },
-      showFieldsConfigPopoverNum() {
-        return this.$store.state.showFieldsConfigPopoverNum;
-      },
-      jsonFormat() {
-        return this.$store.state.storage[BK_LOG_STORAGE.TABLE_JSON_FORMAT];
-      },
-      highlightStyle() {
-        return {
-          width: `${this.highlightWidth}px`,
-        };
-      },
+    handleHighlightEnter(valList) {
+      this.highlightValue = valList
+        .map(v => v.split(/\s+/))
+        .flat()
+        .filter(w => w.length > 0);
+      RetrieveHelper.highLightKeywords(this.highlightValue);
     },
-    watch: {
-      showFieldsConfigPopoverNum() {
-        this.handleAddNewConfig();
-      },
-      jsonFormat() {
-        this.$nextTick(this.calcHighlightWidth);
-      },
+
+    cancelModifyFields() {
+      this.closeDropdown();
     },
-    mounted() {
-      this.contentType = localStorage.getItem('SEARCH_STORAGE_ACTIVE_TAB') || 'table';
-      RetrieveHelper.setMarkInstance();
-      RetrieveHelper.on(RetrieveEvent.HILIGHT_TRIGGER, ({ event, value }) => {
-        if (event === 'mark' && !this.highlightValue.includes(value)) {
-          this.highlightValue.push(...value.split(/\s+/));
-          RetrieveHelper.highLightKeywords(this.highlightValue.filter(w => w.length > 0));
-        }
-      });
-
-      if (document.body.offsetHeight < 900) {
-        this.$refs.refFieldsSettingPopper?.setProps({
-          placement: 'auto',
-          arrow: true,
-        });
-      }
-
-      logResultResizeObserverFn = debounce(this.calcHighlightWidth, 100);
-      logResultResizeObserver = new ResizeObserver(logResultResizeObserverFn);
-      logResultResizeObserver.observe(this.$el);
+    closeDropdown() {
+      this.$refs.refFieldsSettingPopper?.hide();
     },
-    unmounted() {
-      logResultResizeObserver?.unobserve(this.$el);
-      logResultResizeObserver?.disconnect();
-      logResultResizeObserver = null;
-      logResultResizeObserverFn = null;
+
+    handleAddNewConfig() {
+      this.$refs.refFieldsSettingPopper.show();
     },
-    methods: {
-      calcHighlightWidth() {
-        const { offsetWidth } = this.$el;
-        const leftWidth = this.$el.querySelector('.left-operate')?.offsetWidth ?? 0;
-        const rightWidth = 200;
-        const calcWidth = offsetWidth - leftWidth - rightWidth;
-        if (calcWidth > 400) {
-          this.highlightWidth = 400;
-          return;
-        }
-
-        this.highlightWidth = offsetWidth - leftWidth - rightWidth;
-      },
-      handleBeforeHide(e) {
-        if (e.target?.closest?.('.bklog-v3-popover-tag')) {
-          return false;
-        }
-
-        return true;
-      },
-      handleTagRender(item, index) {
-        const colors = RetrieveHelper.RGBA_LIST;
-        return {
-          style: {
-            backgroundColor: colors[index % colors.length],
-          },
-        };
-      },
-      handleHighlightEnter(valList) {
-        this.highlightValue = valList
-          .map(v => v.split(/\s+/))
-          .flat()
-          .filter(w => w.length > 0);
+    handleClickTableBtn(active = 'table') {
+      this.contentType = active;
+      localStorage.setItem('SEARCH_STORAGE_ACTIVE_TAB', active);
+      setTimeout(() => {
         RetrieveHelper.highLightKeywords(this.highlightValue);
-      },
-
-      cancelModifyFields() {
-        this.closeDropdown();
-      },
-      closeDropdown() {
-        this.$refs.refFieldsSettingPopper?.hide();
-      },
-
-      handleAddNewConfig() {
-        this.$refs.refFieldsSettingPopper.show();
-      },
-      handleClickTableBtn(active = 'table') {
-        this.contentType = active;
-        localStorage.setItem('SEARCH_STORAGE_ACTIVE_TAB', active);
-        setTimeout(() => {
-          RetrieveHelper.highLightKeywords(this.highlightValue);
-        });
-      },
+      });
     },
-  };
+  },
+};
 </script>
 
 <style lang="scss" scoped>

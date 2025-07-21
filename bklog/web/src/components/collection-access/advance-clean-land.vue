@@ -51,64 +51,64 @@
 </template>
 
 <script>
-  import { mapGetters } from 'vuex';
+import { mapGetters } from 'vuex';
 
-  export default {
-    props: {
-      collectorId: {
-        type: String,
-        dafault: '',
-      },
-      backRouter: {
-        type: String,
-        dafault: '',
-      },
+export default {
+  props: {
+    collectorId: {
+      type: String,
+      dafault: '',
     },
-    data() {
-      return {
-        loading: false,
-        isInit: false,
-        resultList: [], // 清洗结果
-      };
+    backRouter: {
+      type: String,
+      dafault: '',
     },
-    computed: {
-      ...mapGetters({
-        bkBizId: 'bkBizId',
-        curCollect: 'collect/curCollect',
-      }),
+  },
+  data() {
+    return {
+      loading: false,
+      isInit: false,
+      resultList: [], // 清洗结果
+    };
+  },
+  computed: {
+    ...mapGetters({
+      bkBizId: 'bkBizId',
+      curCollect: 'collect/curCollect',
+    }),
+  },
+  methods: {
+    backToList() {
+      this.$router.push({
+        name: this.backRouter,
+        query: {
+          spaceUid: this.$store.state.spaceUid,
+        },
+      });
     },
-    methods: {
-      backToList() {
-        this.$router.push({
-          name: this.backRouter,
-          query: {
-            spaceUid: this.$store.state.spaceUid,
+    handleRefresh() {
+      const { collector_config_id, bkdata_data_id: bkdataDataId } = this.curCollect;
+      this.loading = true;
+      this.$http
+        .request('clean/refreshClean', {
+          params: {
+            collector_config_id,
           },
+          query: {
+            bk_biz_id: this.bkBizId,
+            bk_data_id: bkdataDataId,
+          },
+        })
+        .then(res => {
+          this.isInit = true;
+          this.resultList = res.data;
+        })
+        .finally(() => {
+          this.loading = false;
         });
-      },
-      handleRefresh() {
-        const { collector_config_id, bkdata_data_id: bkdataDataId } = this.curCollect;
-        this.loading = true;
-        this.$http
-          .request('clean/refreshClean', {
-            params: {
-              collector_config_id,
-            },
-            query: {
-              bk_biz_id: this.bkBizId,
-              bk_data_id: bkdataDataId,
-            },
-          })
-          .then(res => {
-            this.isInit = true;
-            this.resultList = res.data;
-          })
-          .finally(() => {
-            this.loading = false;
-          });
-      },
     },
-  };
+  },
+};
 </script>
 
 <style lang="scss">

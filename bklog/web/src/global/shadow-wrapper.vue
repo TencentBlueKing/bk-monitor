@@ -30,50 +30,50 @@
 </template>
 
 <script>
-  import Vue from 'vue';
+import Vue from 'vue';
 
-  export default {
-    name: 'ShadowWrapper',
-    props: {
-      shadowContent: {
-        type: Boolean,
-        default: true,
-      },
+export default {
+  name: 'ShadowWrapper',
+  props: {
+    shadowContent: {
+      type: Boolean,
+      default: true,
     },
-    mounted() {
-      this.setupShadowDom();
-    },
-    updated() {
-      this.setupShadowDom();
-    },
-    methods: {
-      setupShadowDom() {
-        if (!this.shadowContent) {
-          return;
+  },
+  mounted() {
+    this.setupShadowDom();
+  },
+  updated() {
+    this.setupShadowDom();
+  },
+  methods: {
+    setupShadowDom() {
+      if (!this.shadowContent) {
+        return;
+      }
+
+      if (!this.shadowRoot) {
+        this.shadowRoot = this.$refs.shadowHost.attachShadow({ mode: 'open' });
+      } else {
+        // 清理先前的内容
+        while (this.shadowRoot.firstChild) {
+          this.shadowRoot.firstChild.remove();
         }
+      }
 
-        if (!this.shadowRoot) {
-          this.shadowRoot = this.$refs.shadowHost.attachShadow({ mode: 'open' });
-        } else {
-          // 清理先前的内容
-          while (this.shadowRoot.firstChild) {
-            this.shadowRoot.firstChild.remove();
-          }
-        }
+      // 缓存插槽内容的 VNode
+      const slotContent = this.$slots.default;
 
-        // 缓存插槽内容的 VNode
-        const slotContent = this.$slots.default;
-
-        // 延迟渲染插槽内容，通过 Vue 的 nextTick 确保 DOM 已经完全更新
-        this.$nextTick(() => {
-          new Vue({
-            parent: this.$parent,
-            render: h => h('div', { class: 'shadow-container' }, slotContent),
-          }).$mount(this.shadowRoot.appendChild(document.createElement('div')));
-        });
-      },
+      // 延迟渲染插槽内容，通过 Vue 的 nextTick 确保 DOM 已经完全更新
+      this.$nextTick(() => {
+        new Vue({
+          parent: this.$parent,
+          render: h => h('div', { class: 'shadow-container' }, slotContent),
+        }).$mount(this.shadowRoot.appendChild(document.createElement('div')));
+      });
     },
-  };
+  },
+};
 </script>
 
 <style scoped>

@@ -48,7 +48,7 @@ export default defineComponent({
     const store = useStore();
     const isWrap = computed(() => store.state.storage[BK_LOG_STORAGE.TABLE_LINE_IS_WRAP]);
     const isLimitExpandView = computed(
-      () => store.state.storage[BK_LOG_STORAGE.IS_LIMIT_EXPAND_VIEW] || props.forceAll,
+      () => store.state.storage[BK_LOG_STORAGE.IS_LIMIT_EXPAND_VIEW] || props.forceAll
     );
 
     const handleMenuClick = event => {

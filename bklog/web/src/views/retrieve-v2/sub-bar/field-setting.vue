@@ -1,48 +1,48 @@
 <script setup>
-  import { computed, ref } from 'vue';
-  import FieldsSetting from '../result-comp/fields-setting';
-  import useStore from '@/hooks/use-store';
+import { computed, ref } from 'vue';
+import FieldsSetting from '../result-comp/fields-setting';
+import useStore from '@/hooks/use-store';
 
-  const store = useStore();
-  const isShowFieldsSetting = ref(false);
-  const retrieveParams = computed(() => store.getters.retrieveParams);
+const store = useStore();
+const isShowFieldsSetting = ref(false);
+const retrieveParams = computed(() => store.getters.retrieveParams);
 
-  const emit = defineEmits(['update-log-fields', 'fields-updated', 'should-retrieve']);
+const emit = defineEmits(['update-log-fields', 'fields-updated', 'should-retrieve']);
 
-  const handleDropdownHide = () => {
-    isShowFieldsSetting.value = false;
-    requestFiledConfig();
-  };
-  const requestFiledConfig = () => {
-    // !!TODO 用store监听去更新原始日志旁边的快速选中下拉框
-  };
-  const handleDropdownShow = () => {
-    isShowFieldsSetting.value = true;
-  };
+const handleDropdownHide = () => {
+  isShowFieldsSetting.value = false;
+  requestFiledConfig();
+};
+const requestFiledConfig = () => {
+  // !!TODO 用store监听去更新原始日志旁边的快速选中下拉框
+};
+const handleDropdownShow = () => {
+  isShowFieldsSetting.value = true;
+};
 
-  const closeDropdown = () => {
-    isShowFieldsSetting.value = false;
-    fieldsSettingPopper.value?.instance.hide();
-  };
-  const modifyFields = (displayFieldNames, showFieldAlias) => {
-    emit('fields-updated', displayFieldNames, showFieldAlias);
-    emit('should-retrieve');
-  };
+const closeDropdown = () => {
+  isShowFieldsSetting.value = false;
+  fieldsSettingPopper.value?.instance.hide();
+};
+const modifyFields = (displayFieldNames, showFieldAlias) => {
+  emit('fields-updated', displayFieldNames, showFieldAlias);
+  emit('should-retrieve');
+};
 
-  const confirmModifyFields = (displayFieldNames, showFieldAlias) => {
-    modifyFields(displayFieldNames, showFieldAlias);
-    closeDropdown();
-  };
+const confirmModifyFields = (displayFieldNames, showFieldAlias) => {
+  modifyFields(displayFieldNames, showFieldAlias);
+  closeDropdown();
+};
 
-  const cancelModifyFields = () => {
-    closeDropdown();
-  };
+const cancelModifyFields = () => {
+  closeDropdown();
+};
 
-  const setPopperInstance = (status = true) => {
-    fieldsSettingPopper.value?.instance.set({
-      hideOnClick: status,
-    });
-  };
+const setPopperInstance = (status = true) => {
+  fieldsSettingPopper.value?.instance.set({
+    hideOnClick: status,
+  });
+};
 </script>
 <template>
   <bk-popover

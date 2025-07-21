@@ -94,376 +94,376 @@
   </div>
 </template>
 <script>
-  import * as monaco from 'monaco-editor';
-  const PLACEHOLDER_SELECTOR = '.monaco-placeholder';
+import * as monaco from 'monaco-editor';
+const PLACEHOLDER_SELECTOR = '.monaco-placeholder';
 
-  self.MonacoEnvironment = {
-    getWorkerUrl(moduleId, label) {
-      if (label === 'yaml') {
-        return process.env.NODE_ENV === 'production' ? `${window.BK_STATIC_URL}/yaml.worker.js` : './yaml.worker.js';
-      }
-      if (label === 'json') {
-        return process.env.NODE_ENV === 'production' ? `${window.BK_STATIC_URL}/json.worker.js` : './json.worker.js';
-      }
-      return process.env.NODE_ENV === 'production' ? `${window.BK_STATIC_URL}/editor.worker.js` : './editor.worker.js';
-    },
-  };
+self.MonacoEnvironment = {
+  getWorkerUrl(moduleId, label) {
+    if (label === 'yaml') {
+      return process.env.NODE_ENV === 'production' ? `${window.BK_STATIC_URL}/yaml.worker.js` : './yaml.worker.js';
+    }
+    if (label === 'json') {
+      return process.env.NODE_ENV === 'production' ? `${window.BK_STATIC_URL}/json.worker.js` : './json.worker.js';
+    }
+    return process.env.NODE_ENV === 'production' ? `${window.BK_STATIC_URL}/editor.worker.js` : './editor.worker.js';
+  },
+};
 
-  export default {
-    model: {
-      prop: 'value',
-      event: 'change',
+export default {
+  model: {
+    prop: 'value',
+    event: 'change',
+  },
+  props: {
+    options: {
+      type: Object,
+      default: () => ({}),
     },
-    props: {
-      options: {
-        type: Object,
-        default: () => ({}),
-      },
-      value: {
-        type: String,
-        default: '',
-      },
-      theme: {
-        type: String,
-        default: 'vs-dark',
-      },
-      language: {
-        type: String,
-        require: true,
-      },
-      fullScreen: {
-        type: Boolean,
-        default: false,
-      },
-      width: {
-        type: String,
-        default: '100%',
-      },
-      height: {
-        type: Number,
-        default: 600,
-      },
-      isShowProblem: {
-        type: Boolean,
-        default: true,
-      },
-      fontFamily: {
-        type: String,
-        default: 'Microsoft YaHei',
-      },
-      warningList: {
-        type: Array,
-        default: () => [],
-      },
-      isShowTopLabel: {
-        type: Boolean,
-        default: true,
-      },
-      fontSize: {
-        type: Number,
-        default: 16,
-      },
-      isShowProblemDrag: {
-        type: Boolean,
-        default: true,
-      },
-      placeholder: {
-        type: String,
-        default: '',
-      },
-      monacoConfig: {
-        type: Object,
-        default: () => ({}),
-      },
-      placeholderStyle: {
-        type: Object,
-        default: () => ({
-          fontSize: '12px',
-        }),
-      },
-      initMonacoBeforeFun: {
-        type: Function,
-      },
+    value: {
+      type: String,
+      default: '',
     },
-    data() {
-      return {
-        editor: null,
-        renderWidth: '100%',
-        renderHeight: 500,
-        problemList: [],
-        isHaveError: false,
-        isFull: false,
-        problemHeight: null,
-        range: [20, 500],
-      };
+    theme: {
+      type: String,
+      default: 'vs-dark',
     },
-    watch: {
-      value: {
-        immediate: true,
-        handler(newValue) {
-          if (this.editor) {
-            if (newValue !== this.editor.getValue()) {
-              this.editor.setValue(newValue);
-            }
-            if (this.placeholder) {
-              newValue === '' ? this.showPlaceholder('') : this.hidePlaceholder();
-            }
+    language: {
+      type: String,
+      require: true,
+    },
+    fullScreen: {
+      type: Boolean,
+      default: false,
+    },
+    width: {
+      type: String,
+      default: '100%',
+    },
+    height: {
+      type: Number,
+      default: 600,
+    },
+    isShowProblem: {
+      type: Boolean,
+      default: true,
+    },
+    fontFamily: {
+      type: String,
+      default: 'Microsoft YaHei',
+    },
+    warningList: {
+      type: Array,
+      default: () => [],
+    },
+    isShowTopLabel: {
+      type: Boolean,
+      default: true,
+    },
+    fontSize: {
+      type: Number,
+      default: 16,
+    },
+    isShowProblemDrag: {
+      type: Boolean,
+      default: true,
+    },
+    placeholder: {
+      type: String,
+      default: '',
+    },
+    monacoConfig: {
+      type: Object,
+      default: () => ({}),
+    },
+    placeholderStyle: {
+      type: Object,
+      default: () => ({
+        fontSize: '12px',
+      }),
+    },
+    initMonacoBeforeFun: {
+      type: Function,
+    },
+  },
+  data() {
+    return {
+      editor: null,
+      renderWidth: '100%',
+      renderHeight: 500,
+      problemList: [],
+      isHaveError: false,
+      isFull: false,
+      problemHeight: null,
+      range: [20, 500],
+    };
+  },
+  watch: {
+    value: {
+      immediate: true,
+      handler(newValue) {
+        if (this.editor) {
+          if (newValue !== this.editor.getValue()) {
+            this.editor.setValue(newValue);
           }
-        },
-      },
-      options: {
-        deep: true,
-        handler(options) {
-          if (this.editor) {
-            this.editor.updateOptions(options);
-            this.editor.layout();
+          if (this.placeholder) {
+            newValue === '' ? this.showPlaceholder('') : this.hidePlaceholder();
           }
-        },
-      },
-      language(newVal) {
-        this.editor && monaco.editor.setModelLanguage(monaco.editor.getModels()[0], newVal);
-      },
-      theme(newVal) {
-        this.editor && monaco.editor.setTheme(newVal);
-      },
-      width(newVal) {
-        this.renderWidth = newVal;
-        this.initWidth = this.width;
-      },
-      height(newVal) {
-        this.renderHeight = newVal;
-        this.initHeight = this.height;
-      },
-      warningList(newVal) {
-        this.setWaringMarker(newVal);
-      },
-      'problemList.length'() {
-        this.isHaveError = this.problemList.some(item => item.codiconClass === 'icon-close-circle-shape');
-        this.$emit('get-problem-state', this.isHaveError);
+        }
       },
     },
-    mounted() {
+    options: {
+      deep: true,
+      handler(options) {
+        if (this.editor) {
+          this.editor.updateOptions(options);
+          this.editor.layout();
+        }
+      },
+    },
+    language(newVal) {
+      this.editor && monaco.editor.setModelLanguage(monaco.editor.getModels()[0], newVal);
+    },
+    theme(newVal) {
+      this.editor && monaco.editor.setTheme(newVal);
+    },
+    width(newVal) {
+      this.renderWidth = newVal;
       this.initWidth = this.width;
+    },
+    height(newVal) {
+      this.renderHeight = newVal;
       this.initHeight = this.height;
-      this.renderWidth = this.width;
-      this.renderHeight = this.height;
-      let initMonaco = monaco;
-      // 初始化编辑器前的回调函数
-      if (this.initMonacoBeforeFun) {
-        initMonaco = this.initMonacoBeforeFun(initMonaco);
-      }
-      this.initMonaco(initMonaco);
-      this.$nextTick().then(() => {
-        this.editor.layout();
+    },
+    warningList(newVal) {
+      this.setWaringMarker(newVal);
+    },
+    'problemList.length'() {
+      this.isHaveError = this.problemList.some(item => item.codiconClass === 'icon-close-circle-shape');
+      this.$emit('get-problem-state', this.isHaveError);
+    },
+  },
+  mounted() {
+    this.initWidth = this.width;
+    this.initHeight = this.height;
+    this.renderWidth = this.width;
+    this.renderHeight = this.height;
+    let initMonaco = monaco;
+    // 初始化编辑器前的回调函数
+    if (this.initMonacoBeforeFun) {
+      initMonaco = this.initMonacoBeforeFun(initMonaco);
+    }
+    this.initMonaco(initMonaco);
+    this.$nextTick().then(() => {
+      this.editor.layout();
+    });
+    window.addEventListener('resize', this.handleFullScreen);
+  },
+  beforeUnmount() {
+    this.editor?.dispose();
+    window.removeEventListener('resize', this.handleFullScreen);
+  },
+  methods: {
+    calcSize(size) {
+      const _size = size.toString();
+      if (_size.match(/^\d*$/)) return `${size}px`;
+      if (_size.match(/^[0-9]?%$/)) return _size;
+      return '100%';
+    },
+
+    initMonaco(monaco) {
+      const options = Object.assign(
+        {
+          value: this.value,
+          theme: this.theme,
+          language: this.language,
+          fontFamily: this.fontFamily,
+          fontSize: this.fontSize,
+          cursorBlinking: 'solid',
+          automaticLayout: true,
+          ...this.monacoConfig,
+        },
+        this.options
+      );
+      this.editor = monaco.editor.create(this.$refs.editorRefs, options);
+      this.$emit('editorDidMount', this.editor);
+      this.editor.onContextMenu(event => this.$emit('contextMenu', event));
+      this.editor.onDidBlurEditorWidget(() => this.$emit('blur', this.editor.getValue()));
+      this.editor.onDidBlurEditorText(() => this.$emit('blurText'));
+      this.editor.onDidChangeConfiguration(event => this.$emit('configuration', event));
+      this.editor.onDidChangeCursorPosition(event => {
+        this.$emit('position', event);
       });
-      window.addEventListener('resize', this.handleFullScreen);
-    },
-    beforeUnmount() {
-      this.editor?.dispose();
-      window.removeEventListener('resize', this.handleFullScreen);
-    },
-    methods: {
-      calcSize(size) {
-        const _size = size.toString();
-        if (_size.match(/^\d*$/)) return `${size}px`;
-        if (_size.match(/^[0-9]?%$/)) return _size;
-        return '100%';
-      },
+      this.editor.onDidChangeCursorSelection(event => {
+        this.$emit('selection', event);
+      });
+      this.editor.onDidChangeModelContent(event => {
+        const value = this.editor.getValue();
+        if (this.value !== value) {
+          this.$emit('change', value, event);
+        }
+      });
+      this.editor.onDidChangeModelDecorations(event => this.$emit('modelDecorations', event));
+      this.editor.onDidChangeModelLanguage(event => this.$emit('modelLanguage', event));
+      this.editor.onDidChangeModelOptions(event => this.$emit('modelOptions', event));
+      this.editor.onDidDispose(event => this.$emit('afterDispose', event));
+      this.editor.onDidFocusEditorWidget(() => this.$emit('focus'));
+      this.editor.onDidFocusEditorText(() => this.$emit('focusText'));
+      this.editor.onDidLayoutChange(event => this.$emit('layout', event));
+      this.editor.onDidScrollChange(event => this.$emit('scroll', event));
+      this.editor.onKeyDown(event => this.$emit('keydown', event));
+      this.editor.onKeyUp(event => this.$emit('keyup', event));
+      this.editor.onMouseDown(event => this.$emit('mouseDown', event));
+      this.editor.onMouseLeave(event => this.$emit('mouseLeave', event));
+      this.editor.onMouseMove(event => this.$emit('mouseMove', event));
+      this.editor.onMouseUp(event => this.$emit('mouseUp', event));
+      this.isShowProblem && this.markerChange(monaco);
+      if (this.placeholder) {
+        this.value === '' ? this.showPlaceholder('') : this.hidePlaceholder();
+        this.editor.onDidBlurEditorWidget(() => {
+          this.showPlaceholder(this.editor.getValue());
+        });
 
-      initMonaco(monaco) {
-        const options = Object.assign(
-          {
-            value: this.value,
-            theme: this.theme,
-            language: this.language,
-            fontFamily: this.fontFamily,
-            fontSize: this.fontSize,
-            cursorBlinking: 'solid',
-            automaticLayout: true,
-            ...this.monacoConfig,
-          },
-          this.options,
-        );
-        this.editor = monaco.editor.create(this.$refs.editorRefs, options);
-        this.$emit('editorDidMount', this.editor);
-        this.editor.onContextMenu(event => this.$emit('contextMenu', event));
-        this.editor.onDidBlurEditorWidget(() => this.$emit('blur', this.editor.getValue()));
-        this.editor.onDidBlurEditorText(() => this.$emit('blurText'));
-        this.editor.onDidChangeConfiguration(event => this.$emit('configuration', event));
-        this.editor.onDidChangeCursorPosition(event => {
-          this.$emit('position', event);
+        this.editor.onDidFocusEditorWidget(() => {
+          this.hidePlaceholder();
         });
-        this.editor.onDidChangeCursorSelection(event => {
-          this.$emit('selection', event);
+      }
+    },
+
+    showPlaceholder(value) {
+      if (value === '') {
+        document.querySelector(PLACEHOLDER_SELECTOR).style.display = 'initial';
+      }
+    },
+
+    hidePlaceholder() {
+      document.querySelector(PLACEHOLDER_SELECTOR).style.display = 'none';
+    },
+
+    exitFullScreen() {
+      const exitMethod = document.exitFullscreen; // W3C
+      if (exitMethod) {
+        exitMethod.call(document);
+      }
+    },
+
+    openFullScreen() {
+      const element = this.$refs.editorRefs;
+      const fullScreenMethod =
+        element.requestFullScreen || // W3C
+        element.webkitRequestFullScreen || // FireFox
+        element.webkitExitFullscreen || // Chrome等
+        element.msRequestFullscreen; // IE11
+      if (fullScreenMethod) {
+        fullScreenMethod.call(element);
+        this.renderWidth = window.screen.width;
+        this.renderHeight = window.screen.height;
+        this.$nextTick().then(() => {
+          this.editor.layout();
         });
-        this.editor.onDidChangeModelContent(event => {
-          const value = this.editor.getValue();
-          if (this.value !== value) {
-            this.$emit('change', value, event);
+      } else {
+        this.$bkMessage({
+          showClose: true,
+          message: `${this.$t('此浏览器不支持全屏操作')}, ${this.$t('请使用chrome浏览器')}`,
+          theme: 'warning',
+        });
+      }
+    },
+
+    handleFullScreen() {
+      if (document.fullscreenElement) {
+        this.isFull = true;
+        return true;
+      }
+      if (this.isFull) {
+        this.isFull = false;
+        this.renderWidth = this.initWidth;
+        this.renderHeight = this.initHeight;
+        this.$nextTick().then(() => {
+          this.editor.layout();
+        });
+      }
+      return false;
+    },
+
+    /**
+     * @desc: 报错提示与警告提示
+     * @param { Object } resource
+     * @param { Object } monaco
+     */
+    markerChange(monaco) {
+      monaco.editor.onDidChangeMarkers(([resource]) => {
+        const markers = monaco.editor.getModelMarkers({ resource });
+        this.problemList = [];
+        for (const marker of markers) {
+          if (marker.severity === monaco.MarkerSeverity.Hint) {
+            continue;
           }
-        });
-        this.editor.onDidChangeModelDecorations(event => this.$emit('modelDecorations', event));
-        this.editor.onDidChangeModelLanguage(event => this.$emit('modelLanguage', event));
-        this.editor.onDidChangeModelOptions(event => this.$emit('modelOptions', event));
-        this.editor.onDidDispose(event => this.$emit('afterDispose', event));
-        this.editor.onDidFocusEditorWidget(() => this.$emit('focus'));
-        this.editor.onDidFocusEditorText(() => this.$emit('focusText'));
-        this.editor.onDidLayoutChange(event => this.$emit('layout', event));
-        this.editor.onDidScrollChange(event => this.$emit('scroll', event));
-        this.editor.onKeyDown(event => this.$emit('keydown', event));
-        this.editor.onKeyUp(event => this.$emit('keyup', event));
-        this.editor.onMouseDown(event => this.$emit('mouseDown', event));
-        this.editor.onMouseLeave(event => this.$emit('mouseLeave', event));
-        this.editor.onMouseMove(event => this.$emit('mouseMove', event));
-        this.editor.onMouseUp(event => this.$emit('mouseUp', event));
-        this.isShowProblem && this.markerChange(monaco);
-        if (this.placeholder) {
-          this.value === '' ? this.showPlaceholder('') : this.hidePlaceholder();
-          this.editor.onDidBlurEditorWidget(() => {
-            this.showPlaceholder(this.editor.getValue());
-          });
-
-          this.editor.onDidFocusEditorWidget(() => {
-            this.hidePlaceholder();
+          this.problemList.push({
+            codiconClass:
+              marker.severity === monaco.MarkerSeverity.Warning
+                ? 'icon-exclamation-circle-shape'
+                : 'icon-close-circle-shape',
+            lineNumber: marker.startLineNumber,
+            column: marker.startColumn,
+            problemMessage: marker.message,
           });
         }
-      },
+      });
+    },
 
-      showPlaceholder(value) {
-        if (value === '') {
-          document.querySelector(PLACEHOLDER_SELECTOR).style.display = 'initial';
-        }
-      },
+    /**
+     * @desc: 设置警告提示
+     * Tips: 传参参数为 [{startLineNumber:xxx, endLineNumber:xxx, startColumn:xxx, endColumn:xxx, message:xxx}]
+     */
+    setWaringMarker(markers = []) {
+      if (this.isHaveError) return;
+      const waringMarkers = markers.map(item => ({
+        lineNumber: item.startLineNumber,
+        column: item.startColumn,
+        problemMessage: item.message,
+        codiconClass: 'icon-exclamation-circle-shape',
+      }));
+      this.problemList = waringMarkers;
+      // 这是monaco编辑器自带的告警方法 行和列为0的话默认1-1 暂时不显示行列标记
+      // monaco.editor.setModelMarkers(this.editor.getModel(), 'owner', waringMarkers);
+    },
+    /**
+     * @desc: 警告bottom点击鼠标事件
+     */
+    handelClickProblemBtn(lineNumber, column) {
+      if (!lineNumber || !column) return;
+      this.editor.setPosition({
+        lineNumber,
+        column,
+      });
+      this.editor.focus();
+    },
+    handleMouseDown(e) {
+      const node = e.target;
+      const { parentNode } = node;
+      this.problemHeight = parentNode.offsetHeight;
 
-      hidePlaceholder() {
-        document.querySelector(PLACEHOLDER_SELECTOR).style.display = 'none';
-      },
+      if (!parentNode) return;
 
-      exitFullScreen() {
-        const exitMethod = document.exitFullscreen; // W3C
-        if (exitMethod) {
-          exitMethod.call(document);
-        }
-      },
-
-      openFullScreen() {
-        const element = this.$refs.editorRefs;
-        const fullScreenMethod =
-          element.requestFullScreen || // W3C
-          element.webkitRequestFullScreen || // FireFox
-          element.webkitExitFullscreen || // Chrome等
-          element.msRequestFullscreen; // IE11
-        if (fullScreenMethod) {
-          fullScreenMethod.call(element);
-          this.renderWidth = window.screen.width;
-          this.renderHeight = window.screen.height;
-          this.$nextTick().then(() => {
-            this.editor.layout();
-          });
+      const rect = parentNode.getBoundingClientRect();
+      const handleMouseMove = event => {
+        const [min, max] = this.range;
+        const newHeight = rect.top - event.clientY + rect.height;
+        if (newHeight < min) {
+          this.problemHeight = 0;
         } else {
-          this.$bkMessage({
-            showClose: true,
-            message: `${this.$t('此浏览器不支持全屏操作')}, ${this.$t('请使用chrome浏览器')}`,
-            theme: 'warning',
-          });
+          this.problemHeight = Math.min(newHeight, max);
         }
-      },
-
-      handleFullScreen() {
-        if (document.fullscreenElement) {
-          this.isFull = true;
-          return true;
-        }
-        if (this.isFull) {
-          this.isFull = false;
-          this.renderWidth = this.initWidth;
-          this.renderHeight = this.initHeight;
-          this.$nextTick().then(() => {
-            this.editor.layout();
-          });
-        }
-        return false;
-      },
-
-      /**
-       * @desc: 报错提示与警告提示
-       * @param { Object } resource
-       * @param { Object } monaco
-       */
-      markerChange(monaco) {
-        monaco.editor.onDidChangeMarkers(([resource]) => {
-          const markers = monaco.editor.getModelMarkers({ resource });
-          this.problemList = [];
-          for (const marker of markers) {
-            if (marker.severity === monaco.MarkerSeverity.Hint) {
-              continue;
-            }
-            this.problemList.push({
-              codiconClass:
-                marker.severity === monaco.MarkerSeverity.Warning
-                  ? 'icon-exclamation-circle-shape'
-                  : 'icon-close-circle-shape',
-              lineNumber: marker.startLineNumber,
-              column: marker.startColumn,
-              problemMessage: marker.message,
-            });
-          }
-        });
-      },
-
-      /**
-       * @desc: 设置警告提示
-       * Tips: 传参参数为 [{startLineNumber:xxx, endLineNumber:xxx, startColumn:xxx, endColumn:xxx, message:xxx}]
-       */
-      setWaringMarker(markers = []) {
-        if (this.isHaveError) return;
-        const waringMarkers = markers.map(item => ({
-          lineNumber: item.startLineNumber,
-          column: item.startColumn,
-          problemMessage: item.message,
-          codiconClass: 'icon-exclamation-circle-shape',
-        }));
-        this.problemList = waringMarkers;
-        // 这是monaco编辑器自带的告警方法 行和列为0的话默认1-1 暂时不显示行列标记
-        // monaco.editor.setModelMarkers(this.editor.getModel(), 'owner', waringMarkers);
-      },
-      /**
-       * @desc: 警告bottom点击鼠标事件
-       */
-      handelClickProblemBtn(lineNumber, column) {
-        if (!lineNumber || !column) return;
-        this.editor.setPosition({
-          lineNumber,
-          column,
-        });
-        this.editor.focus();
-      },
-      handleMouseDown(e) {
-        const node = e.target;
-        const { parentNode } = node;
-        this.problemHeight = parentNode.offsetHeight;
-
-        if (!parentNode) return;
-
-        const rect = parentNode.getBoundingClientRect();
-        const handleMouseMove = event => {
-          const [min, max] = this.range;
-          const newHeight = rect.top - event.clientY + rect.height;
-          if (newHeight < min) {
-            this.problemHeight = 0;
-          } else {
-            this.problemHeight = Math.min(newHeight, max);
-          }
-        };
-        const handleMouseUp = () => {
-          window.removeEventListener('mousemove', handleMouseMove);
-          window.removeEventListener('mouseup', handleMouseUp);
-        };
-        window.addEventListener('mousemove', handleMouseMove);
-        window.addEventListener('mouseup', handleMouseUp);
-      },
+      };
+      const handleMouseUp = () => {
+        window.removeEventListener('mousemove', handleMouseMove);
+        window.removeEventListener('mouseup', handleMouseUp);
+      };
+      window.addEventListener('mousemove', handleMouseMove);
+      window.addEventListener('mouseup', handleMouseUp);
     },
-  };
+  },
+};
 </script>
 <style lang="scss" scoped>
   @import '@/scss/mixins/flex.scss';

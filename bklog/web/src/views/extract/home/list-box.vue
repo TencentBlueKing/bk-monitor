@@ -46,35 +46,35 @@
 </template>
 
 <script>
-  export default {
-    props: {
-      icon: {
-        type: String,
-        required: true,
-      },
-      title: {
-        type: String,
-        default: '',
-      },
-      mark: {
-        type: Boolean,
-        default: false,
-      },
-      list: {
-        type: [String, Array],
-        default: '',
-      },
+export default {
+  props: {
+    icon: {
+      type: String,
+      required: true,
     },
-    computed: {
-      listData() {
-        if (this.list && typeof this.list === 'string') {
-          return [this.list];
-        }
-        if (Array.isArray(this.list)) {
-          return this.list;
-        }
-        return [];
-      },
+    title: {
+      type: String,
+      default: '',
     },
-  };
+    mark: {
+      type: Boolean,
+      default: false,
+    },
+    list: {
+      type: [String, Array],
+      default: '',
+    },
+  },
+  computed: {
+    listData() {
+      if (this.list && typeof this.list === 'string') {
+        return [this.list];
+      }
+      if (Array.isArray(this.list)) {
+        return this.list;
+      }
+      return [];
+    },
+  },
+};
 </script>

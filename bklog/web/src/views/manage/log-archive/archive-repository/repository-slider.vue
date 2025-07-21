@@ -316,64 +316,103 @@
 </template>
 
 <script>
-  import SidebarDiffMixin from '@/mixins/sidebar-diff-mixin';
-  import { mapGetters } from 'vuex';
+import SidebarDiffMixin from '@/mixins/sidebar-diff-mixin';
+import { mapGetters } from 'vuex';
 
-  import * as authorityMap from '../../../../common/authority-map';
+import * as authorityMap from '../../../../common/authority-map';
 
-  const cosConfigForm = () => {
-    return {
-      app_id: '',
-      access_key_id: '',
-      access_key_secret: '',
-      bucket: '',
-      region: '',
-      compress: true,
-    };
+const cosConfigForm = () => {
+  return {
+    app_id: '',
+    access_key_id: '',
+    access_key_secret: '',
+    bucket: '',
+    region: '',
+    compress: true,
   };
+};
 
-  const hdfsConfigForm = () => {
-    return {
-      uri: '',
-      path: '',
-      isSecurity: false,
-      compress: true,
-      security: {
-        principal: '',
-      },
-    };
-  };
-
-  const fsConfigForm = () => {
-    return {
-      location: '',
-    };
-  };
-
-  export default {
-    mixins: [SidebarDiffMixin],
-    props: {
-      showSlider: {
-        type: Boolean,
-        default: false,
-      },
-      editClusterId: {
-        type: Number,
-        default: null,
-      },
+const hdfsConfigForm = () => {
+  return {
+    uri: '',
+    path: '',
+    isSecurity: false,
+    compress: true,
+    security: {
+      principal: '',
     },
-    data() {
-      return {
-        confirmLoading: false,
-        sliderLoading: false,
-        esClusterSource: '',
-        esClusterList: [],
-        repository: [
-          { id: 'hdfs', name: 'HDFS', image: require('@/images/hdfs.png') },
-          { id: 'fs', name: this.$t('共享目录'), image: require('@/images/fs.png') },
-          { id: 'cos', name: 'COS', image: require('@/images/cos.png') },
-        ],
-        formData: {
+  };
+};
+
+const fsConfigForm = () => {
+  return {
+    location: '',
+  };
+};
+
+export default {
+  mixins: [SidebarDiffMixin],
+  props: {
+    showSlider: {
+      type: Boolean,
+      default: false,
+    },
+    editClusterId: {
+      type: Number,
+      default: null,
+    },
+  },
+  data() {
+    return {
+      confirmLoading: false,
+      sliderLoading: false,
+      esClusterSource: '',
+      esClusterList: [],
+      repository: [
+        { id: 'hdfs', name: 'HDFS', image: require('@/images/hdfs.png') },
+        { id: 'fs', name: this.$t('共享目录'), image: require('@/images/fs.png') },
+        { id: 'cos', name: 'COS', image: require('@/images/cos.png') },
+      ],
+      formData: {
+        cluster_id: '',
+        snapshot_repository_name: '',
+        es_config: {
+          type: 'hdfs',
+        },
+        cosFormData: cosConfigForm(),
+        hdfsFormData: hdfsConfigForm(),
+        fsFormData: fsConfigForm(),
+      },
+      requiredRules: {
+        required: true,
+        trigger: 'blur',
+      },
+      basicRules: {},
+    };
+  },
+  computed: {
+    ...mapGetters({
+      bkBizId: 'bkBizId',
+    }),
+    authorityMap() {
+      return authorityMap;
+    },
+    isEdit() {
+      return this.editClusterId !== null;
+    },
+  },
+  watch: {
+    showSlider(val) {
+      if (val) {
+        this.getEsClusterList();
+        if (this.isEdit) {
+        } else {
+          //
+        }
+        this.initSidebarFormData();
+      } else {
+        // 清空表单数据
+        this.formData = {
           cluster_id: '',
           snapshot_repository_name: '',
           es_config: {
@@ -382,188 +421,149 @@
           cosFormData: cosConfigForm(),
           hdfsFormData: hdfsConfigForm(),
           fsFormData: fsConfigForm(),
-        },
-        requiredRules: {
-          required: true,
+        };
+      }
+    },
+  },
+  created() {
+    this.basicRules = {
+      cluster_id: [this.requiredRules],
+      snapshot_repository_name: [
+        {
+          regex: /^[A-Za-z0-9_]+$/,
           trigger: 'blur',
         },
-        basicRules: {},
-      };
+      ],
+      path: [this.requiredRules],
+      uri: [this.requiredRules],
+      principal: [
+        {
+          validator: () => {
+            const { isSecurity, security } = this.formData.hdfsFormData;
+            if (isSecurity && security.principal.trim() === '') {
+              return false;
+            }
+            return true;
+          },
+          trigger: 'blur',
+        },
+      ],
+      location: [this.requiredRules],
+      base_path: [this.requiredRules],
+      region: [this.requiredRules],
+      access_key_id: [this.requiredRules],
+      access_key_secret: [this.requiredRules],
+      app_id: [this.requiredRules],
+      bucket: [this.requiredRules],
+    };
+  },
+  methods: {
+    async getEsClusterList() {
+      const res = await this.$http.request('/source/getEsList', {
+        query: {
+          bk_biz_id: this.bkBizId,
+          enable_archive: 1,
+        },
+      });
+      if (res.data) {
+        this.esClusterList = res.data;
+        // this.esClusterList = res.data.filter(item => !item.cluster_config.is_default_cluster);
+      }
     },
-    computed: {
-      ...mapGetters({
-        bkBizId: 'bkBizId',
-      }),
-      authorityMap() {
-        return authorityMap;
-      },
-      isEdit() {
-        return this.editClusterId !== null;
-      },
+    handleChangeCluster(value) {
+      const curCluster = this.esClusterList.find(cluster => cluster.cluster_config.cluster_id === value);
+      this.esClusterSource = curCluster.source_name || '';
     },
-    watch: {
-      showSlider(val) {
-        if (val) {
-          this.getEsClusterList();
-          if (this.isEdit) {
-          } else {
-            //
-          }
-          this.initSidebarFormData();
-        } else {
-          // 清空表单数据
-          this.formData = {
-            cluster_id: '',
-            snapshot_repository_name: '',
-            es_config: {
-              type: 'hdfs',
-            },
-            cosFormData: cosConfigForm(),
-            hdfsFormData: hdfsConfigForm(),
-            fsFormData: fsConfigForm(),
+    updateIsShow() {
+      this.$emit('hidden');
+      this.$emit('update:show-slider', false);
+    },
+    handleCancel() {
+      this.$emit('update:show-slider', false);
+    },
+    changeRepository(card) {
+      if (this.formData.es_config.type !== card.id) {
+        this.$refs.validateForm.clearError();
+        this.formData.es_config.type = card.id;
+      }
+    },
+    async handleConfirm() {
+      try {
+        await this.$refs.validateForm.validate();
+        const url = '/archive/createRepository';
+        const {
+          cluster_id,
+          snapshot_repository_name: snapshotRepositoryName,
+          es_config: esConfig,
+          hdfsFormData,
+          fsFormData,
+          cosFormData,
+        } = this.formData;
+        const paramsData = {
+          cluster_id,
+          snapshot_repository_name: snapshotRepositoryName,
+          alias: snapshotRepositoryName,
+          es_config: {
+            type: esConfig.type,
+          },
+          bk_biz_id: this.bkBizId,
+        };
+        if (esConfig.type === 'hdfs') {
+          const { uri, path, isSecurity, security, compress } = hdfsFormData;
+          const principal = isSecurity ? security.principal : undefined;
+          paramsData.es_config.settings = {
+            uri,
+            path,
+            compress,
+            'security.principal': principal,
           };
         }
-      },
-    },
-    created() {
-      this.basicRules = {
-        cluster_id: [this.requiredRules],
-        snapshot_repository_name: [
-          {
-            regex: /^[A-Za-z0-9_]+$/,
-            trigger: 'blur',
-          },
-        ],
-        path: [this.requiredRules],
-        uri: [this.requiredRules],
-        principal: [
-          {
-            validator: () => {
-              const { isSecurity, security } = this.formData.hdfsFormData;
-              if (isSecurity && security.principal.trim() === '') {
-                return false;
-              }
-              return true;
-            },
-            trigger: 'blur',
-          },
-        ],
-        location: [this.requiredRules],
-        base_path: [this.requiredRules],
-        region: [this.requiredRules],
-        access_key_id: [this.requiredRules],
-        access_key_secret: [this.requiredRules],
-        app_id: [this.requiredRules],
-        bucket: [this.requiredRules],
-      };
-    },
-    methods: {
-      async getEsClusterList() {
-        const res = await this.$http.request('/source/getEsList', {
-          query: {
-            bk_biz_id: this.bkBizId,
-            enable_archive: 1,
-          },
-        });
-        if (res.data) {
-          this.esClusterList = res.data;
-          // this.esClusterList = res.data.filter(item => !item.cluster_config.is_default_cluster);
+        if (esConfig.type === 'fs') {
+          paramsData.es_config.settings = { ...fsFormData };
         }
-      },
-      handleChangeCluster(value) {
-        const curCluster = this.esClusterList.find(cluster => cluster.cluster_config.cluster_id === value);
-        this.esClusterSource = curCluster.source_name || '';
-      },
-      updateIsShow() {
-        this.$emit('hidden');
-        this.$emit('update:show-slider', false);
-      },
-      handleCancel() {
-        this.$emit('update:show-slider', false);
-      },
-      changeRepository(card) {
-        if (this.formData.es_config.type !== card.id) {
-          this.$refs.validateForm.clearError();
-          this.formData.es_config.type = card.id;
+        if (esConfig.type === 'cos') {
+          paramsData.es_config.settings = { ...cosFormData };
         }
-      },
-      async handleConfirm() {
-        try {
-          await this.$refs.validateForm.validate();
-          const url = '/archive/createRepository';
-          const {
-            cluster_id,
-            snapshot_repository_name: snapshotRepositoryName,
-            es_config: esConfig,
-            hdfsFormData,
-            fsFormData,
-            cosFormData,
-          } = this.formData;
-          const paramsData = {
-            cluster_id,
-            snapshot_repository_name: snapshotRepositoryName,
-            alias: snapshotRepositoryName,
-            es_config: {
-              type: esConfig.type,
-            },
-            bk_biz_id: this.bkBizId,
-          };
-          if (esConfig.type === 'hdfs') {
-            const { uri, path, isSecurity, security, compress } = hdfsFormData;
-            const principal = isSecurity ? security.principal : undefined;
-            paramsData.es_config.settings = {
-              uri,
-              path,
-              compress,
-              'security.principal': principal,
-            };
-          }
-          if (esConfig.type === 'fs') {
-            paramsData.es_config.settings = { ...fsFormData };
-          }
-          if (esConfig.type === 'cos') {
-            paramsData.es_config.settings = { ...cosFormData };
-          }
 
-          this.confirmLoading = true;
-          await this.$http.request(url, {
-            data: paramsData,
-          });
-          this.$bkMessage({
-            theme: 'success',
-            message: this.$t('保存成功'),
-            delay: 1500,
-          });
-          this.$emit('updated');
-        } catch (e) {
-          console.warn(e);
-        } finally {
-          this.confirmLoading = false;
-        }
-      },
-      // es集群管理权限申请
-      async applyProjectAccess(option) {
-        this.$el.click(); // 手动关闭下拉
-        try {
-          this.$bkLoading();
-          const res = await this.$store.dispatch('getApplyData', {
-            action_ids: [authorityMap.MANAGE_ES_SOURCE_AUTH],
-            resources: [
-              {
-                type: 'es_source',
-                id: option.cluster_config.cluster_id,
-              },
-            ],
-          });
-          window.open(res.data.apply_url);
-        } catch (err) {
-          console.warn(err);
-        } finally {
-          this.$bkLoading.hide();
-        }
-      },
+        this.confirmLoading = true;
+        await this.$http.request(url, {
+          data: paramsData,
+        });
+        this.$bkMessage({
+          theme: 'success',
+          message: this.$t('保存成功'),
+          delay: 1500,
+        });
+        this.$emit('updated');
+      } catch (e) {
+        console.warn(e);
+      } finally {
+        this.confirmLoading = false;
+      }
     },
-  };
+    // es集群管理权限申请
+    async applyProjectAccess(option) {
+      this.$el.click(); // 手动关闭下拉
+      try {
+        this.$bkLoading();
+        const res = await this.$store.dispatch('getApplyData', {
+          action_ids: [authorityMap.MANAGE_ES_SOURCE_AUTH],
+          resources: [
+            {
+              type: 'es_source',
+              id: option.cluster_config.cluster_id,
+            },
+          ],
+        });
+        window.open(res.data.apply_url);
+      } catch (err) {
+        console.warn(err);
+      } finally {
+        this.$bkLoading.hide();
+      }
+    },
+  },
+};
 </script>
 
 <style lang="scss">

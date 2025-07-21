@@ -51,8 +51,8 @@ import './scss/theme/theme-dark.scss';
 import './scss/theme/theme-light.scss';
 import { BK_LOG_STORAGE } from './store/store.type';
 
-import VueVirtualScroller from 'vue-virtual-scroller'
-import 'vue-virtual-scroller/dist/vue-virtual-scroller.css'
+import VueVirtualScroller from 'vue-virtual-scroller';
+import 'vue-virtual-scroller/dist/vue-virtual-scroller.css';
 
 Vue.prototype.$renderHeader = renderHeader;
 
@@ -71,7 +71,7 @@ Vue.component('JsonFormatWrapper', JsonFormatWrapper);
 Vue.component('LogButton', LogButton);
 Vue.mixin(docsLinkMixin);
 Vue.use(methods);
-Vue.use(VueVirtualScroller)
+Vue.use(VueVirtualScroller);
 
 const mountedVueInstance = () => {
   window.mainComponent = {
@@ -84,7 +84,7 @@ const mountedVueInstance = () => {
     const bkBizId = store.state.storage[BK_LOG_STORAGE.BK_BIZ_ID];
 
     let externalMenu = [];
-     if (window.IS_EXTERNAL && space) {
+    if (window.IS_EXTERNAL && space) {
       externalMenu = getExternalMenuListBySpace(space) ?? [];
       store.commit('updateExternalMenu', externalMenu);
     }

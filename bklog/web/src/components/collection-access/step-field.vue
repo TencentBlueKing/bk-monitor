@@ -920,366 +920,577 @@
   </section>
 </template>
 <script>
-  import { projectManages } from '@/common/util';
-  import AuthContainerPage from '@/components/common/auth-container-page';
-  import SpaceSelectorMixin from '@/mixins/space-selector-mixin';
-  import { mapGetters, mapState } from 'vuex';
-  import * as authorityMap from '../../common/authority-map';
-  import { deepClone, deepEqual } from '../../common/util';
-  import fieldTable from './field-table';
+import { projectManages } from '@/common/util';
+import AuthContainerPage from '@/components/common/auth-container-page';
+import SpaceSelectorMixin from '@/mixins/space-selector-mixin';
+import { mapGetters, mapState } from 'vuex';
+import * as authorityMap from '../../common/authority-map';
+import { deepClone, deepEqual } from '../../common/util';
+import fieldTable from './field-table';
 
-  export default {
-    components: {
-      fieldTable,
-      AuthContainerPage,
+export default {
+  components: {
+    fieldTable,
+    AuthContainerPage,
+  },
+  mixins: [SpaceSelectorMixin],
+  props: {
+    operateType: String,
+    curStep: {
+      type: Number,
+      default: 1,
     },
-    mixins: [SpaceSelectorMixin],
-    props: {
-      operateType: String,
-      curStep: {
-        type: Number,
-        default: 1,
+    collectorId: String,
+    isCleanField: Boolean,
+    isTempField: Boolean,
+    /** 是否是字段提取 */
+    isSetEdit: Boolean,
+    setId: Number,
+    /** 字段提取是否禁用 */
+    setDisabled: Boolean,
+    isFinishCreateStep: Boolean,
+  },
+  data() {
+    return {
+      // isItsm: window.FEATURE_TOGGLE.collect_itsm === 'on',
+      refresh: false,
+      defaultRegex: '(?P<request_ip>[\d\.]+)[^[]+\[(?P<request_time>[^]]+)\]',
+      isLoading: false,
+      basicLoading: false,
+      logOriginalLoding: false,
+      pathExampleLoading: false,
+      isUnmodifiable: false,
+      fieldType: '',
+      deletedVisible: true,
+      copysText: {},
+      jsonText: {},
+      defaultSettings: {
+        isShow: false,
       },
-      collectorId: String,
-      isCleanField: Boolean,
-      isTempField: Boolean,
-      /** 是否是字段提取 */
-      isSetEdit: Boolean,
-      setId: Number,
-      /** 字段提取是否禁用 */
-      setDisabled: Boolean,
-      isFinishCreateStep: Boolean,
-    },
-    data() {
-      return {
-        // isItsm: window.FEATURE_TOGGLE.collect_itsm === 'on',
-        refresh: false,
-        defaultRegex: '(?P<request_ip>[\d\.]+)[^[]+\[(?P<request_time>[^]]+)\]',
-        isLoading: false,
-        basicLoading: false,
-        logOriginalLoding: false,
-        pathExampleLoading: false,
-        isUnmodifiable: false,
-        fieldType: '',
-        deletedVisible: true,
-        copysText: {},
-        jsonText: {},
-        defaultSettings: {
-          isShow: false,
+      logOriginal: '',
+      params: {
+        // 此处为可以变动的数据，如果调试成功，则将此条件保存至formData，保存时还需要对比此处与formData是否有差异
+        etl_config: 'bk_log_text',
+        etl_params: {
+          separator_regexp: '',
+          separator: '',
         },
-        logOriginal: '',
-        params: {
-          // 此处为可以变动的数据，如果调试成功，则将此条件保存至formData，保存时还需要对比此处与formData是否有差异
-          etl_config: 'bk_log_text',
-          etl_params: {
-            separator_regexp: '',
-            separator: '',
+      },
+      formData: {
+        // 最后一次正确的结果，保存以此数据为准
+        table_id: '',
+        etl_config: 'bk_log_text',
+        etl_params: {
+          retain_original_text: true,
+          original_text_is_case_sensitive: false,
+          original_text_tokenize_on_chars: '',
+          separator_regexp: '',
+          separator: '',
+          retain_extra_json: false,
+          enable_retain_content: true, // 保留失败日志
+          path_regexp: '', // 采集路径分割的正则
+          metadata_fields: [],
+        },
+        fields: [],
+        visible_type: 'current_biz', // 可见范围单选项
+        visible_bk_biz: [], // 多个业务
+        log_original: '',
+        log_reporting_time: true, // 日志上报时间
+        field_name: '',
+        time_format: '',
+        time_zone: '',
+      },
+      copyBuiltField: [],
+      formatResult: true, // 验证结果是否通过
+      rules: {
+        table_id: [
+          {
+            required: true,
+            trigger: 'blur',
           },
+          {
+            max: 50,
+            trigger: 'blur',
+          },
+          {
+            min: 5,
+            trigger: 'blur',
+          },
+          {
+            regex: /^[A-Za-z0-9_]+$/,
+            trigger: 'blur',
+          },
+        ],
+        field_name: [
+          {
+            required: true,
+            trigger: 'blur',
+          },
+        ],
+        time_format: [
+          {
+            required: true,
+            trigger: 'blur',
+          },
+        ],
+        time_zone: [
+          {
+            required: true,
+            trigger: 'blur',
+          },
+        ],
+        path_regexp: [
+          {
+            required: true,
+            trigger: 'blur',
+          },
+        ],
+      },
+      isExtracting: false,
+      dialogVisible: false,
+      rowTemplate: {
+        alias_name: '',
+        description: '',
+        field_type: '',
+        is_case_sensitive: false,
+        is_analyzed: false,
+        is_built_in: false,
+        is_delete: false,
+        is_dimension: false,
+        is_time: false,
+        query_alias: '',
+        value: '',
+        option: {
+          time_format: '',
+          time_zone: '',
         },
-        formData: {
-          // 最后一次正确的结果，保存以此数据为准
-          table_id: '',
-          etl_config: 'bk_log_text',
-          etl_params: {
+        // 是否是自定义分词
+        tokenize_on_chars: '',
+        participleState: 'default',
+      },
+      activePanel: 'base',
+      panels: [
+        { name: 'base', label: this.$t('基础') },
+        { name: 'advance', label: this.$t('高级') },
+      ],
+      selectTemplate: '', // 应用模板
+      saveTempName: '',
+      templateList: [], // 模板列表
+      currentTemplateList: [],
+      templateDialogVisible: false,
+      isSaveTempDialog: false,
+      cleanCollector: '', // 日志清洗选择的采集项
+      cleanCollectorList: [],
+      renderKey: 0, // key-changing
+      authPageInfo: null,
+      docCenterUrl: window.BK_DOC_DATA_URL,
+      visibleScopeSelectList: [
+        // 可见范围单选列表
+        { id: 'current_biz', name: this.$t('当前空间可见') },
+        { id: 'multi_biz', name: this.$t('多空间选择') },
+        { id: 'all_biz', name: this.$t('全平台') },
+      ],
+      participleList: [
+        {
+          id: 'default',
+          name: this.$t('自然语言分词'),
+        },
+        {
+          id: 'custom',
+          name: this.$t('自定义'),
+        },
+      ],
+      visibleBkBiz: [], // 多业务选择id列表
+      cacheVisibleList: [], // 缓存多业务选择下拉框
+      visibleIsToggle: false,
+      docUrl: window.BK_ETL_DOC_URL,
+      /** 添加字段的基础数据 */
+      baseFieldObj: {
+        value: '',
+        option: {
+          time_zone: '',
+          time_format: '',
+        },
+        is_time: false,
+        verdict: false,
+        is_delete: false,
+        alias_name: '',
+        field_name: '',
+        field_type: '',
+        description: '',
+        query_alias: '',
+        is_case_sensitive: false,
+        is_analyzed: false,
+        is_built_in: false,
+        is_add_in: true,
+        is_dimension: false,
+        previous_type: '',
+        tokenize_on_chars: '',
+        participleState: 'default',
+      },
+      originParticipleState: 'default',
+      enableMetaData: false,
+      pathExample: '',
+      defaultParticipleStr: '@&()=\'",;:<>[]{}/ \\n\\t\\r\\\\',
+      catchEtlConfig: '',
+      catchFields: [],
+      isFinishCatchFrom: false,
+      /** 编辑时最后的参数判断 */
+      editComparedData: {
+        isLogOriginLast: false,
+        comparedVal: {},
+      },
+      isUseMark: false,
+      enLabelWidth: 180,
+      fieldNameList: [],
+      templateKeyWord: '',
+      timeCheckContent: '',
+      metaDataList: [],
+      isDebugLoading: false,
+      builtFieldShow: false,
+      fieldsObjectData: [],
+      alias_settings: [],
+    };
+  },
+  computed: {
+    ...mapState({
+      mySpaceList: state => state.mySpaceList,
+    }),
+    ...mapGetters({
+      bkBizId: 'bkBizId',
+      spaceUid: 'spaceUid',
+      curCollect: 'collect/curCollect',
+      globalsData: 'globals/globalsData',
+      exportCollectObj: 'collect/exportCollectObj',
+    }),
+    authorityMap() {
+      return authorityMap;
+    },
+    timeZone() {
+      return (this.globalsData?.time_zone ?? []).toReversed();
+    },
+    isJsonOrOperator() {
+      return this.params.etl_config === 'bk_log_json' || this.params.etl_config === 'bk_log_delimiter';
+    },
+    showDebugBtn() {
+      const methods = this.params.etl_config;
+      if (!methods || methods === 'bk_log_text') return false;
+      if (methods === 'bk_log_delimiter') {
+        return this.params.etl_params.separator;
+      }
+      if (methods === 'bk_log_regexp') {
+        return this.params.etl_params.separator_regexp !== '';
+      }
+      return true;
+    },
+    showDebugPathRegexBtn() {
+      return this.formData.etl_params.path_regexp && this.pathExample;
+    },
+    hasFields() {
+      return this.formData.fields.length;
+    },
+    collectProject() {
+      return projectManages(this.$store.state.topMenu, 'collection-item');
+    },
+    isEditTemp() {
+      return this.$route.name === 'clean-template-edit';
+    },
+    isEditCleanItem() {
+      return this.$route.name === 'clean-edit' || this.isSetEdit;
+    },
+    advanceDisable() {
+      return (
+        window.FEATURE_TOGGLE.scenario_bkdata !== 'on' ||
+        this.curCollect.bkdata_data_id === null ||
+        (this.isCleanField && !this.cleanCollector)
+      );
+    },
+    advanceDisableTips() {
+      if (window.FEATURE_TOGGLE.scenario_bkdata !== 'on') {
+        return '';
+      }
+      if (this.curCollect.bkdata_data_id === null) {
+        return '';
+      }
+      return '';
+    },
+    unAuthBkdata() {
+      return window.FEATURE_TOGGLE.scenario_bkdata !== 'on';
+    },
+    isSetDisabled() {
+      return this.isSetEdit && this.setDisabled;
+    },
+    isShowAddFields() {
+      return this.params.etl_config === 'bk_log_json';
+    },
+    // 可见范围单选判断，禁用下拉框
+    scopeValueType() {
+      return this.formData.visible_type === 'multi_biz';
+    },
+    // 入口是否是清洗模板
+    isClearTemplate() {
+      return ['clean-template-create', 'clean-template-edit'].includes(this.$route.name);
+    },
+    labelWidth() {
+      return this.$store.state.isEnLanguage ? this.enLabelWidth : 130;
+    },
+    renderFieldNameList() {
+      return this.fieldNameList.filter(item => {
+        return item.field_name && !item.is_built_in;
+      });
+    },
+  },
+  watch: {
+    'formData.fields'() {
+      this.renderKey = this.renderKey + 1;
+    },
+    'params.etl_config'() {
+      this.formatResult = true;
+    },
+    // 切换可见范围时 恢复缓存或清空业务选择
+    'formData.visible_type': {
+      handler(val) {
+        this.visibleBkBiz = val !== 'multi_biz' ? [] : JSON.parse(JSON.stringify(this.cacheVisibleList));
+      },
+    },
+    'formData.etl_params.retain_original_text': {
+      // 当不保留原始日志时，保留失败日志置为false
+      handler(val) {
+        if (!val) {
+          this.formData.etl_params.enable_retain_content = false;
+        }
+      },
+    },
+    templateKeyWord: {
+      handler(val) {
+        // 当搜索关键字为空时，显示所有模板
+        if (!val) {
+          this.currentTemplateList = this.templateList;
+        }
+      },
+    },
+    'formData.etl_params.metadata_fields': {
+      handler(val) {
+        this.metaDataList = val ?? [];
+      },
+    },
+  },
+  created() {
+    if (this.unAuthBkdata) {
+      // 未授权计算平台则禁用高级清洗
+      this.panels[1].disabled = true;
+      this.panels[1].renderLabel = h => {
+        return h(
+          'div',
+          {
+            class: 'render-header',
+          },
+          [
+            h(
+              'span',
+              {
+                directives: [
+                  {
+                    name: 'bk-tooltips',
+                    value: this.$t('未部署基础计算平台，无法进行高级清洗'),
+                  },
+                ],
+              },
+              this.$t('高级')
+            ),
+          ]
+        );
+      };
+    }
+  },
+  async mounted() {
+    // 清洗列表进入
+    if (this.isCleanField) {
+      this.initCleanItem();
+      return;
+    }
+
+    // 清洗模板进入
+    if (this.isTempField) {
+      this.initCleanTemp();
+      return;
+    }
+
+    // 检索字段提取进入
+    if (this.isSetEdit) {
+      if (this.setId) {
+        // 可设置字段提取
+        this.setDetail(this.setId);
+      } else {
+        setTimeout(() => {
+          this.basicLoading = false;
+        }, 10);
+      }
+      return;
+    }
+
+    // 采集项编辑进入
+    this.getDetail();
+    let collectorID;
+    if (this.exportCollectObj.syncType.includes('field_clear_config')) {
+      collectorID = this.exportCollectObj.collectID;
+    } else {
+      const { type, collectorId } = this.$route.query;
+      const { collector_config_id: curConfigID } = this.curCollect;
+      const cloneCollectorID = collectorId || curConfigID;
+      collectorID = type === 'clone' ? cloneCollectorID : curConfigID;
+    }
+    await this.getCleanStash(collectorID);
+    this.getDataLog('init');
+  },
+  methods: {
+    handlerSearchTemplate() {
+      const query = this.templateKeyWord.toLowerCase();
+      this.currentTemplateList = this.templateList.filter(item => item.name.toLowerCase().includes(query));
+    },
+    handleSelectTemplate(templateId, name) {
+      this.selectTemplate = templateId;
+      this.templateKeyWord = name;
+    },
+    handleTableData(data) {
+      this.fieldNameList = data;
+    },
+    // 切换显示内置字段
+    handleBuiltField(value) {
+      this.builtFieldShow = value;
+      if (value) {
+        const allFields = this.$refs.fieldTable.getData();
+        this.formData.fields = [...allFields, ...this.copyBuiltField];
+        this.savaFormData();
+      } else {
+        const allFields = this.$refs.fieldTable.getData();
+        const builtFields = allFields.filter(item => item.is_built_in);
+        this.formData.fields = allFields.filter(item => !item.is_built_in && !item.is_objectKey);
+        if (builtFields.length) {
+          this.copyBuiltField = builtFields;
+        }
+      }
+    },
+    // 初始化清洗项
+    initCleanItem() {
+      this.basicLoading = true;
+      const query = {
+        bk_biz_id: this.bkBizId,
+        have_data_id: 1,
+      };
+      if (!this.isEditCleanItem) {
+        query.bkdata = true;
+      }
+      // 获取采集项列表
+      this.$http
+        .request('collect/getAllCollectors', { query })
+        .then(res => {
+          const { data } = res;
+          if (data.length) {
+            this.cleanCollectorList = data;
+            if (this.isEditCleanItem) {
+              if (this.isSetEdit) {
+                this.cleanCollector = this.setId;
+              } else {
+                this.cleanCollector = this.$route.params.collectorId;
+              }
+            } else this.basicLoading = false;
+          } else this.basicLoading = false;
+        })
+        .catch(() => {
+          this.basicLoading = false;
+        });
+    },
+    // 初始化清洗模板详情
+    initCleanTemp() {
+      if (this.isEditTemp) {
+        // 克隆与编辑获取模板详情
+        const { templateId } = this.$route.params;
+        this.basicLoading = true;
+        this.$http
+          .request('clean/templateDetail', {
+            params: {
+              clean_template_id: templateId,
+            },
+            query: {
+              bk_biz_id: this.bkBizId,
+            },
+          })
+          .then(res => {
+            if (res.data) {
+              this.setTempDetail(res.data);
+            }
+          })
+          .finally(() => {
+            this.basicLoading = false;
+          });
+      } else {
+        setTimeout(() => {
+          this.basicLoading = false;
+        }, 100);
+      }
+    },
+    // 设置模板已有fields
+    setTempDetail(data) {
+      const {
+        name,
+        clean_type,
+        etl_params: etlParams,
+        etl_fields: etlFields,
+        visible_type,
+        visible_bk_biz_id: visibleBkBizList,
+      } = data;
+      this.saveTempName = name;
+
+      this.params.etl_config = clean_type;
+      this.catchEtlConfig = clean_type;
+      Object.assign(this.params.etl_params, {
+        separator_regexp: etlParams.separator_regexp || '',
+        separator: etlParams.separator || '',
+      });
+
+      const logTimeOption = {};
+      etlFields.forEach(row => {
+        if (row.is_time) {
+          Object.assign(logTimeOption, {
+            log_reporting_time: false,
+            field_name: row.field_name,
+            time_format: row.option.time_format,
+            time_zone: row.option.time_zone,
+          });
+        }
+      });
+
+      this.visibleBkBiz = visibleBkBizList;
+      this.cacheVisibleList = visibleBkBizList;
+      this.fieldType = clean_type;
+      this.enableMetaData = etlParams.path_regexp ? true : false;
+      Object.assign(this.formData, {
+        etl_config: this.fieldType,
+        etl_params: Object.assign(
+          {
             retain_original_text: true,
             original_text_is_case_sensitive: false,
             original_text_tokenize_on_chars: '',
             separator_regexp: '',
             separator: '',
             retain_extra_json: false,
-            enable_retain_content: true, // 保留失败日志
-            path_regexp: '', // 采集路径分割的正则
+            enable_retain_content: true,
             metadata_fields: [],
           },
-          fields: [],
-          visible_type: 'current_biz', // 可见范围单选项
-          visible_bk_biz: [], // 多个业务
-          log_original: '',
-          log_reporting_time: true, // 日志上报时间
-          field_name: '',
-          time_format: '',
-          time_zone: '',
-        },
-        copyBuiltField: [],
-        formatResult: true, // 验证结果是否通过
-        rules: {
-          table_id: [
-            {
-              required: true,
-              trigger: 'blur',
-            },
-            {
-              max: 50,
-              trigger: 'blur',
-            },
-            {
-              min: 5,
-              trigger: 'blur',
-            },
-            {
-              regex: /^[A-Za-z0-9_]+$/,
-              trigger: 'blur',
-            },
-          ],
-          field_name: [
-            {
-              required: true,
-              trigger: 'blur',
-            },
-          ],
-          time_format: [
-            {
-              required: true,
-              trigger: 'blur',
-            },
-          ],
-          time_zone: [
-            {
-              required: true,
-              trigger: 'blur',
-            },
-          ],
-          path_regexp: [
-            {
-              required: true,
-              trigger: 'blur',
-            },
-          ],
-        },
-        isExtracting: false,
-        dialogVisible: false,
-        rowTemplate: {
-          alias_name: '',
-          description: '',
-          field_type: '',
-          is_case_sensitive: false,
-          is_analyzed: false,
-          is_built_in: false,
-          is_delete: false,
-          is_dimension: false,
-          is_time: false,
-          query_alias: '',
-          value: '',
-          option: {
-            time_format: '',
-            time_zone: '',
-          },
-          // 是否是自定义分词
-          tokenize_on_chars: '',
-          participleState: 'default',
-        },
-        activePanel: 'base',
-        panels: [
-          { name: 'base', label: this.$t('基础') },
-          { name: 'advance', label: this.$t('高级') },
-        ],
-        selectTemplate: '', // 应用模板
-        saveTempName: '',
-        templateList: [], // 模板列表
-        currentTemplateList: [],
-        templateDialogVisible: false,
-        isSaveTempDialog: false,
-        cleanCollector: '', // 日志清洗选择的采集项
-        cleanCollectorList: [],
-        renderKey: 0, // key-changing
-        authPageInfo: null,
-        docCenterUrl: window.BK_DOC_DATA_URL,
-        visibleScopeSelectList: [
-          // 可见范围单选列表
-          { id: 'current_biz', name: this.$t('当前空间可见') },
-          { id: 'multi_biz', name: this.$t('多空间选择') },
-          { id: 'all_biz', name: this.$t('全平台') },
-        ],
-        participleList: [
-          {
-            id: 'default',
-            name: this.$t('自然语言分词'),
-          },
-          {
-            id: 'custom',
-            name: this.$t('自定义'),
-          },
-        ],
-        visibleBkBiz: [], // 多业务选择id列表
-        cacheVisibleList: [], // 缓存多业务选择下拉框
-        visibleIsToggle: false,
-        docUrl: window.BK_ETL_DOC_URL,
-        /** 添加字段的基础数据 */
-        baseFieldObj: {
-          value: '',
-          option: {
-            time_zone: '',
-            time_format: '',
-          },
-          is_time: false,
-          verdict: false,
-          is_delete: false,
-          alias_name: '',
-          field_name: '',
-          field_type: '',
-          description: '',
-          query_alias: '',
-          is_case_sensitive: false,
-          is_analyzed: false,
-          is_built_in: false,
-          is_add_in: true,
-          is_dimension: false,
-          previous_type: '',
-          tokenize_on_chars: '',
-          participleState: 'default',
-        },
-        originParticipleState: 'default',
-        enableMetaData: false,
-        pathExample: '',
-        defaultParticipleStr: '@&()=\'",;:<>[]{}/ \\n\\t\\r\\\\',
-        catchEtlConfig: '',
-        catchFields: [],
-        isFinishCatchFrom: false,
-        /** 编辑时最后的参数判断 */
-        editComparedData: {
-          isLogOriginLast: false,
-          comparedVal: {},
-        },
-        isUseMark: false,
-        enLabelWidth: 180,
-        fieldNameList: [],
-        templateKeyWord: '',
-        timeCheckContent: '',
-        metaDataList: [],
-        isDebugLoading: false,
-        builtFieldShow: false,
-        fieldsObjectData: [],
-        alias_settings: [],
-      };
+          etlParams ? JSON.parse(JSON.stringify(etlParams)) : {}
+        ),
+        fields: etlFields,
+        visible_type,
+        ...logTimeOption,
+      });
     },
-    computed: {
-      ...mapState({
-        mySpaceList: state => state.mySpaceList,
-      }),
-      ...mapGetters({
-        bkBizId: 'bkBizId',
-        spaceUid: 'spaceUid',
-        curCollect: 'collect/curCollect',
-        globalsData: 'globals/globalsData',
-        exportCollectObj: 'collect/exportCollectObj',
-      }),
-      authorityMap() {
-        return authorityMap;
-      },
-      timeZone() {
-        return (this.globalsData?.time_zone ?? []).toReversed();
-      },
-      isJsonOrOperator() {
-        return this.params.etl_config === 'bk_log_json' || this.params.etl_config === 'bk_log_delimiter';
-      },
-      showDebugBtn() {
-        const methods = this.params.etl_config;
-        if (!methods || methods === 'bk_log_text') return false;
-        if (methods === 'bk_log_delimiter') {
-          return this.params.etl_params.separator;
-        }
-        if (methods === 'bk_log_regexp') {
-          return this.params.etl_params.separator_regexp !== '';
-        }
-        return true;
-      },
-      showDebugPathRegexBtn() {
-        return this.formData.etl_params.path_regexp && this.pathExample;
-      },
-      hasFields() {
-        return this.formData.fields.length;
-      },
-      collectProject() {
-        return projectManages(this.$store.state.topMenu, 'collection-item');
-      },
-      isEditTemp() {
-        return this.$route.name === 'clean-template-edit';
-      },
-      isEditCleanItem() {
-        return this.$route.name === 'clean-edit' || this.isSetEdit;
-      },
-      advanceDisable() {
-        return (
-          window.FEATURE_TOGGLE.scenario_bkdata !== 'on' ||
-          this.curCollect.bkdata_data_id === null ||
-          (this.isCleanField && !this.cleanCollector)
-        );
-      },
-      advanceDisableTips() {
-        if (window.FEATURE_TOGGLE.scenario_bkdata !== 'on') {
-          return '';
-        }
-        if (this.curCollect.bkdata_data_id === null) {
-          return '';
-        }
-        return '';
-      },
-      unAuthBkdata() {
-        return window.FEATURE_TOGGLE.scenario_bkdata !== 'on';
-      },
-      isSetDisabled() {
-        return this.isSetEdit && this.setDisabled;
-      },
-      isShowAddFields() {
-        return this.params.etl_config === 'bk_log_json';
-      },
-      // 可见范围单选判断，禁用下拉框
-      scopeValueType() {
-        return this.formData.visible_type === 'multi_biz';
-      },
-      // 入口是否是清洗模板
-      isClearTemplate() {
-        return ['clean-template-create', 'clean-template-edit'].includes(this.$route.name);
-      },
-      labelWidth() {
-        return this.$store.state.isEnLanguage ? this.enLabelWidth : 130;
-      },
-      renderFieldNameList() {
-        return this.fieldNameList.filter(item => {
-          return item.field_name && !item.is_built_in;
-        });
-      },
-    },
-    watch: {
-      'formData.fields'() {
-        this.renderKey = this.renderKey + 1;
-      },
-      'params.etl_config'() {
-        this.formatResult = true;
-      },
-      // 切换可见范围时 恢复缓存或清空业务选择
-      'formData.visible_type': {
-        handler(val) {
-          this.visibleBkBiz = val !== 'multi_biz' ? [] : JSON.parse(JSON.stringify(this.cacheVisibleList));
-        },
-      },
-      'formData.etl_params.retain_original_text': {
-        // 当不保留原始日志时，保留失败日志置为false
-        handler(val) {
-          if (!val) {
-            this.formData.etl_params.enable_retain_content = false;
-          }
-        },
-      },
-      templateKeyWord: {
-        handler(val) {
-          // 当搜索关键字为空时，显示所有模板
-          if (!val) {
-            this.currentTemplateList = this.templateList;
-          }
-        },
-      },
-      'formData.etl_params.metadata_fields': {
-        handler(val) {
-          this.metaDataList = val ?? [];
-        },
-      },
-    },
-    created() {
-      if (this.unAuthBkdata) {
-        // 未授权计算平台则禁用高级清洗
-        this.panels[1].disabled = true;
-        this.panels[1].renderLabel = h => {
+    // 高级清洗配置
+    setAdvanceCleanTab(isAdvance) {
+      if (isAdvance) {
+        this.activePanel = 'advance';
+        this.panels[0].disabled = true;
+        this.panels[0].renderLabel = h => {
           return h(
             'div',
             {
@@ -1292,1395 +1503,1181 @@
                   directives: [
                     {
                       name: 'bk-tooltips',
-                      value: this.$t('未部署基础计算平台，无法进行高级清洗'),
+                      value: this.$t('当前采集项已配置基础清洗，无需重复配置'),
                     },
                   ],
                 },
-                this.$t('高级'),
+                this.$t('基础')
               ),
-            ],
+            ]
           );
         };
-      }
-    },
-    async mounted() {
-      // 清洗列表进入
-      if (this.isCleanField) {
-        this.initCleanItem();
-        return;
-      }
-
-      // 清洗模板进入
-      if (this.isTempField) {
-        this.initCleanTemp();
-        return;
-      }
-
-      // 检索字段提取进入
-      if (this.isSetEdit) {
-        if (this.setId) {
-          // 可设置字段提取
-          this.setDetail(this.setId);
-        } else {
-          setTimeout(() => {
-            this.basicLoading = false;
-          }, 10);
-        }
-        return;
-      }
-
-      // 采集项编辑进入
-      this.getDetail();
-      let collectorID;
-      if (this.exportCollectObj.syncType.includes('field_clear_config')) {
-        collectorID = this.exportCollectObj.collectID;
       } else {
-        const { type, collectorId } = this.$route.query;
-        const { collector_config_id: curConfigID } = this.curCollect;
-        const cloneCollectorID = collectorId || curConfigID;
-        collectorID = type === 'clone' ? cloneCollectorID : curConfigID;
+        if (this.unAuthBkdata) return;
+        this.activePanel = 'base';
+        this.panels = [
+          { name: 'base', label: this.$t('基础') },
+          { name: 'advance', label: this.$t('高级') },
+        ];
       }
-      await this.getCleanStash(collectorID);
-      this.getDataLog('init');
     },
-    methods: {
-      handlerSearchTemplate() {
-        const query = this.templateKeyWord.toLowerCase();
-        this.currentTemplateList = this.templateList.filter(item => item.name.toLowerCase().includes(query));
-      },
-      handleSelectTemplate(templateId, name) {
-        this.selectTemplate = templateId;
-        this.templateKeyWord = name;
-      },
-      handleTableData(data) {
-        this.fieldNameList = data;
-      },
-      // 切换显示内置字段
-      handleBuiltField(value) {
-        this.builtFieldShow = value;
-        if (value) {
-          const allFields = this.$refs.fieldTable.getData();
-          this.formData.fields = [...allFields, ...this.copyBuiltField];
-          this.savaFormData();
-        } else {
-          const allFields = this.$refs.fieldTable.getData();
-          const builtFields = allFields.filter(item => item.is_built_in);
-          this.formData.fields = allFields.filter(item => !item.is_built_in && !item.is_objectKey);
-          if (builtFields.length) {
-            this.copyBuiltField = builtFields;
-          }
-        }
-      },
-      // 初始化清洗项
-      initCleanItem() {
-        this.basicLoading = true;
-        const query = {
-          bk_biz_id: this.bkBizId,
-          have_data_id: 1,
-        };
-        if (!this.isEditCleanItem) {
-          query.bkdata = true;
-        }
-        // 获取采集项列表
-        this.$http
-          .request('collect/getAllCollectors', { query })
-          .then(res => {
-            const { data } = res;
-            if (data.length) {
-              this.cleanCollectorList = data;
-              if (this.isEditCleanItem) {
-                if (this.isSetEdit) {
-                  this.cleanCollector = this.setId;
-                } else {
-                  this.cleanCollector = this.$route.params.collectorId;
-                }
-              } else this.basicLoading = false;
-            } else this.basicLoading = false;
-          })
-          .catch(() => {
-            this.basicLoading = false;
-          });
-      },
-      // 初始化清洗模板详情
-      initCleanTemp() {
-        if (this.isEditTemp) {
-          // 克隆与编辑获取模板详情
-          const { templateId } = this.$route.params;
-          this.basicLoading = true;
-          this.$http
-            .request('clean/templateDetail', {
-              params: {
-                clean_template_id: templateId,
-              },
-              query: {
-                bk_biz_id: this.bkBizId,
-              },
-            })
-            .then(res => {
-              if (res.data) {
-                this.setTempDetail(res.data);
-              }
-            })
-            .finally(() => {
-              this.basicLoading = false;
-            });
-        } else {
-          setTimeout(() => {
-            this.basicLoading = false;
-          }, 100);
-        }
-      },
-      // 设置模板已有fields
-      setTempDetail(data) {
-        const {
-          name,
-          clean_type,
-          etl_params: etlParams,
-          etl_fields: etlFields,
-          visible_type,
-          visible_bk_biz_id: visibleBkBizList,
-        } = data;
-        this.saveTempName = name;
-
-        this.params.etl_config = clean_type;
-        this.catchEtlConfig = clean_type;
-        Object.assign(this.params.etl_params, {
-          separator_regexp: etlParams.separator_regexp || '',
-          separator: etlParams.separator || '',
+    debuggerPathRegex() {
+      const data = {
+        etl_config: 'bk_log_regexp',
+        etl_params: {
+          separator_regexp: this.formData.etl_params?.path_regexp,
+        },
+        data: this.pathExample,
+      };
+      const urlParams = {};
+      this.isDebugLoading = true;
+      urlParams.collector_config_id = this.curCollect.collector_config_id;
+      const updateData = { params: urlParams, data };
+      // 先置空防止接口失败显示旧数据
+      this.formData.etl_params.metadata_fields?.splice(0, this.formData.etl_params.metadata_fields?.length);
+      this.metaDataList.splice(0, this.metaDataList.length);
+      this.$http
+        .request('collect/getEtlPreview', updateData)
+        .then(res => {
+          const fields = res.data?.fields || [];
+          this.formData.etl_params?.metadata_fields.push(...fields);
+        })
+        .finally(() => {
+          this.isDebugLoading = false;
         });
-
-        const logTimeOption = {};
-        etlFields.forEach(row => {
-          if (row.is_time) {
-            Object.assign(logTimeOption, {
-              log_reporting_time: false,
-              field_name: row.field_name,
-              time_format: row.option.time_format,
-              time_zone: row.option.time_zone,
-            });
-          }
-        });
-
-        this.visibleBkBiz = visibleBkBizList;
-        this.cacheVisibleList = visibleBkBizList;
-        this.fieldType = clean_type;
-        this.enableMetaData = etlParams.path_regexp ? true : false;
-        Object.assign(this.formData, {
-          etl_config: this.fieldType,
-          etl_params: Object.assign(
-            {
-              retain_original_text: true,
-              original_text_is_case_sensitive: false,
-              original_text_tokenize_on_chars: '',
-              separator_regexp: '',
-              separator: '',
-              retain_extra_json: false,
-              enable_retain_content: true,
-              metadata_fields: [],
-            },
-            etlParams ? JSON.parse(JSON.stringify(etlParams)) : {},
-          ),
-          fields: etlFields,
-          visible_type,
-          ...logTimeOption,
-        });
-      },
-      // 高级清洗配置
-      setAdvanceCleanTab(isAdvance) {
-        if (isAdvance) {
-          this.activePanel = 'advance';
-          this.panels[0].disabled = true;
-          this.panels[0].renderLabel = h => {
-            return h(
-              'div',
-              {
-                class: 'render-header',
-              },
-              [
-                h(
-                  'span',
-                  {
-                    directives: [
-                      {
-                        name: 'bk-tooltips',
-                        value: this.$t('当前采集项已配置基础清洗，无需重复配置'),
-                      },
-                    ],
-                  },
-                  this.$t('基础'),
-                ),
-              ],
-            );
-          };
-        } else {
-          if (this.unAuthBkdata) return;
-          this.activePanel = 'base';
-          this.panels = [
-            { name: 'base', label: this.$t('基础') },
-            { name: 'advance', label: this.$t('高级') },
-          ];
+    },
+    debugHandler() {
+      this.formData.fields.splice(0, this.formData.fields.length);
+      this.isFinishCatchFrom = false;
+      this.requestEtlPreview();
+    },
+    // 字段提取
+    fieldCollection(isCollect = false, callback) {
+      this.isLoading = true;
+      this.basicLoading = true;
+      const { etl_config: etlConfig, etl_params: etlParams } = this.formData;
+      // 获取当前表格字段
+      const fieldTableData = this.getNotParticipleFieldTableData();
+      const data = this.getSubmitParams();
+      /* eslint-disable */
+      if (etlConfig !== 'bk_log_text') {
+        if (etlConfig === 'bk_log_delimiter') {
+          data.etl_params.separator = etlParams.separator;
         }
-      },
-      debuggerPathRegex() {
-        const data = {
-          etl_config: 'bk_log_regexp',
-          etl_params: {
-            separator_regexp: this.formData.etl_params?.path_regexp,
-          },
-          data: this.pathExample,
-        };
-        const urlParams = {};
-        this.isDebugLoading = true;
-        urlParams.collector_config_id = this.curCollect.collector_config_id;
-        const updateData = { params: urlParams, data };
-        // 先置空防止接口失败显示旧数据
-        this.formData.etl_params.metadata_fields?.splice(0, this.formData.etl_params.metadata_fields?.length);
-        this.metaDataList.splice(0, this.metaDataList.length);
-        this.$http
-          .request('collect/getEtlPreview', updateData)
-          .then(res => {
-            const fields = res.data?.fields || [];
-            this.formData.etl_params?.metadata_fields.push(...fields);
-          })
-          .finally(() => {
-            this.isDebugLoading = false;
-          });
-      },
-      debugHandler() {
-        this.formData.fields.splice(0, this.formData.fields.length);
-        this.isFinishCatchFrom = false;
-        this.requestEtlPreview();
-      },
-      // 字段提取
-      fieldCollection(isCollect = false, callback) {
-        this.isLoading = true;
-        this.basicLoading = true;
-        const { etl_config: etlConfig, etl_params: etlParams } = this.formData;
-        // 获取当前表格字段
-        const fieldTableData = this.getNotParticipleFieldTableData();
-        const data = this.getSubmitParams();
-        /* eslint-disable */
-        if (etlConfig !== 'bk_log_text') {
-          if (etlConfig === 'bk_log_delimiter') {
-            data.etl_params.separator = etlParams.separator;
-          }
-          if (etlConfig === 'bk_log_regexp') {
-            data.etl_params.separator_regexp = etlParams.separator_regexp;
-          }
-          // 判断是否有设置字段清洗，如果没有则把etl_params设置成 bk_log_text
-          data.clean_type = !fieldTableData.length ? 'bk_log_text' : etlConfig;
-          data.etl_fields = fieldTableData;
-          // 添加内置字段
-          if (!this.builtFieldShow) {
-            const copyBuiltField = deepClone(this.copyBuiltField);
-            copyBuiltField.forEach(field => {
-              if (field.hasOwnProperty('expand')) {
-                if (field.expand === false) {
-                  copyBuiltField.push(...field.children);
-                }
-              }
-            });
-            data.etl_fields.push(...copyBuiltField);
-          } else {
-            delete data.etl_params['separator_regexp'];
-            delete data.etl_params['separator'];
-          }
+        if (etlConfig === 'bk_log_regexp') {
+          data.etl_params.separator_regexp = etlParams.separator_regexp;
         }
-        data.alias_settings = fieldTableData
-          .filter(item => item.query_alias)
-          .map(item => {
-            return {
-              field_name: item.alias_name || item.field_name,
-              query_alias: item.query_alias,
-              path_type: item.field_type,
-            };
-          });
-        data.etl_fields = data.etl_fields.filter(item => !item.is_built_in && !item.is_objectKey);
-        let requestUrl;
-        const urlParams = {};
-        if (this.isSetEdit) {
-          // 检索设置 直接入库
-          this.fieldCollectionRequest(data);
-          return;
-        } else if (isCollect) {
-          // 除 新建采集项 步骤字段清洗设置外 其余情况下保存直接入库 不需提交暂存
-          if (this.isFinishCreateStep || this.isCleanField) {
-            this.fieldCollectionRequest(data, callback);
-            return;
-          } else {
-            // 缓存采集项清洗配置
-            urlParams.collector_config_id = this.curCollect.collector_config_id;
-            data.bk_biz_id = this.bkBizId;
-            delete data.visible_type;
-            requestUrl = 'clean/updateCleanStash';
-          }
-        } else {
-          // 新建/编辑清洗模板
-          data.name = this.saveTempName;
-          data.bk_biz_id = this.bkBizId;
-          // 可见范围非多业务选择时删除visible_bk_biz_id
-          data.visible_bk_biz_id = this.visibleBkBiz;
-          data.visible_type !== 'multi_biz' && delete data.visible_bk_biz_id;
-          if (this.isEditTemp) urlParams.clean_template_id = this.$route.params.templateId;
-          requestUrl = this.isEditTemp ? 'clean/updateTemplate' : 'clean/createTemplate';
-        }
-        const updateData = { params: urlParams, data };
-        this.$http
-          .request(requestUrl, updateData)
-          .then(res => {
-            if (res.code === 0) {
-              // 检索页弹窗的字段清洗
-              if (this.isSetEdit) {
-                this.messageSuccess(this.$t('保存成功'));
-                this.$emit('update-log-fields');
-              } else if (isCollect) {
-                // 下发页的字段清洗
-                if (this.isFinishCreateStep || this.isCleanField) {
-                  // 编辑的情况下要请求入库接口
-                  this.fieldCollectionRequest(res.data, callback);
-                } else {
-                  this.$emit('step-change');
-                }
-              } else {
-                // 新建/编辑清洗模板
-                this.messageSuccess(this.$t('保存成功'));
-                this.isLoading = false;
-                this.basicLoading = false;
-                // 清洗模板编辑则返回模板列表
-                if (this.isTempField) {
-                  this.$emit('change-submit', true);
-                  this.handleCancel();
-                }
+        // 判断是否有设置字段清洗，如果没有则把etl_params设置成 bk_log_text
+        data.clean_type = !fieldTableData.length ? 'bk_log_text' : etlConfig;
+        data.etl_fields = fieldTableData;
+        // 添加内置字段
+        if (!this.builtFieldShow) {
+          const copyBuiltField = deepClone(this.copyBuiltField);
+          copyBuiltField.forEach(field => {
+            if (field.hasOwnProperty('expand')) {
+              if (field.expand === false) {
+                copyBuiltField.push(...field.children);
               }
             }
-          })
-          .catch(() => callback?.(false))
-          .finally(() => {
-            if (!this.isFinishCreateStep && !this.isCleanField) {
+          });
+          data.etl_fields.push(...copyBuiltField);
+        } else {
+          delete data.etl_params['separator_regexp'];
+          delete data.etl_params['separator'];
+        }
+      }
+      data.alias_settings = fieldTableData
+        .filter(item => item.query_alias)
+        .map(item => {
+          return {
+            field_name: item.alias_name || item.field_name,
+            query_alias: item.query_alias,
+            path_type: item.field_type,
+          };
+        });
+      data.etl_fields = data.etl_fields.filter(item => !item.is_built_in && !item.is_objectKey);
+      let requestUrl;
+      const urlParams = {};
+      if (this.isSetEdit) {
+        // 检索设置 直接入库
+        this.fieldCollectionRequest(data);
+        return;
+      } else if (isCollect) {
+        // 除 新建采集项 步骤字段清洗设置外 其余情况下保存直接入库 不需提交暂存
+        if (this.isFinishCreateStep || this.isCleanField) {
+          this.fieldCollectionRequest(data, callback);
+          return;
+        } else {
+          // 缓存采集项清洗配置
+          urlParams.collector_config_id = this.curCollect.collector_config_id;
+          data.bk_biz_id = this.bkBizId;
+          delete data.visible_type;
+          requestUrl = 'clean/updateCleanStash';
+        }
+      } else {
+        // 新建/编辑清洗模板
+        data.name = this.saveTempName;
+        data.bk_biz_id = this.bkBizId;
+        // 可见范围非多业务选择时删除visible_bk_biz_id
+        data.visible_bk_biz_id = this.visibleBkBiz;
+        data.visible_type !== 'multi_biz' && delete data.visible_bk_biz_id;
+        if (this.isEditTemp) urlParams.clean_template_id = this.$route.params.templateId;
+        requestUrl = this.isEditTemp ? 'clean/updateTemplate' : 'clean/createTemplate';
+      }
+      const updateData = { params: urlParams, data };
+      this.$http
+        .request(requestUrl, updateData)
+        .then(res => {
+          if (res.code === 0) {
+            // 检索页弹窗的字段清洗
+            if (this.isSetEdit) {
+              this.messageSuccess(this.$t('保存成功'));
+              this.$emit('update-log-fields');
+            } else if (isCollect) {
+              // 下发页的字段清洗
+              if (this.isFinishCreateStep || this.isCleanField) {
+                // 编辑的情况下要请求入库接口
+                this.fieldCollectionRequest(res.data, callback);
+              } else {
+                this.$emit('step-change');
+              }
+            } else {
+              // 新建/编辑清洗模板
+              this.messageSuccess(this.$t('保存成功'));
               this.isLoading = false;
               this.basicLoading = false;
-            }
-          });
-      },
-      /** 获取集群列表 */
-      async getStorage() {
-        try {
-          const queryData = { bk_biz_id: this.bkBizId };
-          if (this.curCollect?.data_link_id) {
-            queryData.data_link_id = this.curCollect.data_link_id;
-          }
-          const res = await this.$http.request('collect/getStorage', {
-            query: queryData,
-          });
-          return res.data;
-        } catch (e) {
-          console.warn(e);
-          return [];
-        }
-      },
-      /** 入库请求 */
-      async fieldCollectionRequest(atLastFormData, callback) {
-        const { clean_type: etlConfig, etl_params: etlParams, etl_fields: etlFields, alias_settings } = atLastFormData;
-        // 检索设置 直接入库
-        const {
-          table_id,
-          storage_cluster_id,
-          retention,
-          storage_replies,
-          allocation_min_days,
-          view_roles,
-          storage_shards_nums: storageShardsNums,
-        } = this.curCollect;
-        const storageList = await this.getStorage();
-        const isOpenHotWarm = storageList.find(item => item.storage_cluster_id === storage_cluster_id)?.enable_hot_warm;
-        const data = {
-          table_id,
-          storage_cluster_id,
-          retention,
-          storage_replies,
-          es_shards: storageShardsNums,
-          allocation_min_days: isOpenHotWarm ? Number(allocation_min_days) : 0,
-          view_roles,
-          etl_config: etlConfig,
-          fields: etlFields,
-          etl_params: etlParams,
-          alias_settings,
-        };
-
-        const updateData = {
-          params: {
-            collector_config_id: this.curCollect.collector_config_id,
-          },
-          data,
-        };
-        this.$http
-          .request('collect/fieldCollection', updateData)
-          .then(res => {
-            if (res.code === 0) {
-              // 检索页弹窗的字段清洗
-              if (this.isSetEdit) {
-                this.messageSuccess(this.$t('保存成功'));
-                this.$emit('update-log-fields');
-              } else if (this.isFinishCreateStep || this.isCleanField) {
-                if (callback) {
-                  callback(true);
-                  return;
-                }
-                // 编辑保存的情况下, 回退到列表
+              // 清洗模板编辑则返回模板列表
+              if (this.isTempField) {
+                this.$emit('change-submit', true);
                 this.handleCancel();
               }
             }
-          })
-          .catch(() => callback?.(false))
-          .finally(() => {
+          }
+        })
+        .catch(() => callback?.(false))
+        .finally(() => {
+          if (!this.isFinishCreateStep && !this.isCleanField) {
             this.isLoading = false;
             this.basicLoading = false;
-          });
-      },
-      // 检查提取方法或条件是否已变更
-      checkEtlConfChnage(isCollect = false, callback) {
-        let isConfigChange = false; // 提取方法或条件是否已变更
-        const etlConfigParam = this.params.etl_config;
-        // 如果未选模式 则默认传bk_log_text
-        if (etlConfigParam !== 'bk_log_text' && !!etlConfigParam) {
-          const etlConfigForm = this.formData.etl_config;
-          if (etlConfigParam !== etlConfigForm) {
-            isConfigChange = true;
-          } else {
-            const etlParams = this.params.etl_params;
-            const etlParamsForm = this.formData.etl_params;
-            if (etlConfigParam === 'bk_log_regexp') {
-              isConfigChange = etlParams.separator_regexp !== etlParamsForm.separator_regexp;
-            }
-            if (etlConfigParam === 'bk_log_delimiter') {
-              isConfigChange = etlParams.separator !== etlParamsForm.separator;
-            }
-          }
-        }
-        if (isConfigChange) {
-          const h = this.$createElement;
-          this.$bkInfo({
-            type: 'warning',
-            title: this.$t('是否按原配置提交?'),
-            subHeader: h(
-              'p',
-              {
-                style: {
-                  whiteSpace: 'normal',
-                },
-              },
-              this.$t('字段提取方法或条件已发生变更，需【调试&设置】按钮点击操作成功才会生效'),
-            ),
-            confirmFn: () => {
-              isCollect ? this.fieldCollection(true, callback) : this.handleSaveTemp();
-            },
-          });
-          return;
-        }
-        isCollect ? this.fieldCollection(true, callback) : this.handleSaveTemp();
-      },
-      /** 导航切换提交函数 */
-      stepSubmitFun(callback) {
-        this.finish(true, callback);
-      },
-      // 对时间格式做校验逻辑
-      async requestCheckTime() {
-        const { time_format, time_zone, field_name } = this.formData;
-        let fieldsData = this.$refs.fieldTable.getData() || [];
-        const timeValueItem = fieldsData.find(item => field_name === item.field_name);
-        let result = '';
-        await this.$http
-          .request('collect/getCheckTime', {
-            params: {
-              collector_config_id: this.curCollect.collector_config_id,
-            },
-            data: {
-              time_format,
-              time_zone,
-              data: timeValueItem?.value || '',
-            },
-          })
-          .then(res => {
-            this.timeCheckContent = '';
-            result = true;
-          })
-          .catch(err => {
-            this.timeCheckContent = err;
-            result = false;
-          });
-        return result;
-      },
-      // 完成按钮
-      finish(isCollect = false, callback) {
-        this.$refs.validateForm.validate().then(async res => {
-          if (res) {
-            // 当选择的是指定字段为日志时间时，对时间格式做校验
-            if (!this.formData.log_reporting_time) {
-              const isValid = await this.requestCheckTime();
-              if (!isValid) return;
-            }
-            const hideDeletedTable = this.$refs.fieldTable.hideDeletedTable.length;
-            if (!this.formData.etl_params.retain_original_text && !hideDeletedTable) {
-              this.messageError(this.$t('请完成字段清洗或者勾选“保留原始日志”, 否则接入日志内容将无法展示。'));
-              callback?.(false);
-              return;
-            }
-            // 清洗模板选择多业务时不能为空
-            if (this.formData.visible_type === 'multi_biz' && !this.visibleBkBiz.length && this.isClearTemplate) {
-              this.messageError(this.$t('可见类型为业务属性时，业务标签不能为空'));
-              callback?.(false);
-              return;
-            }
-            // const promises = [this.checkStore()];
-            const promises = [];
-            // if (this.formData.etl_config !== 'bk_log_text') {
-            promises.splice(1, 0, ...this.checkFieldsTable());
-            // }
-            Promise.all(promises).then(
-              () => {
-                this.checkEtlConfChnage(isCollect, callback);
-              },
-              validator => {
-                callback?.(false);
-                console.warn('保存失败', validator);
-              },
-            );
           }
         });
-      },
-      // 字段表格校验
-      checkFieldsTable() {
-        return this.$refs.fieldTable.validateFieldTable();
-        // return this.formData.etl_config !== 'bk_log_text' ? this.$refs.fieldTable.validateFieldTable() : [];
-      },
-      handleCancel() {
-        if (this.isSetEdit) {
-          this.$emit('reset-page');
-          return;
+    },
+    /** 获取集群列表 */
+    async getStorage() {
+      try {
+        const queryData = { bk_biz_id: this.bkBizId };
+        if (this.curCollect?.data_link_id) {
+          queryData.data_link_id = this.curCollect.data_link_id;
         }
-        let routeName;
-        // 保存, 回退到列表
-        if (this.isFinishCreateStep || this.isCleanField) {
-          this.$emit('change-submit', true);
-        }
-        const { backRoute, ...reset } = this.$route.query;
-        if (backRoute) {
-          routeName = backRoute;
-        } else if (['edit', 'storage', 'masking'].includes(this.operateType)) {
-          routeName = 'collection-item';
+        const res = await this.$http.request('collect/getStorage', {
+          query: queryData,
+        });
+        return res.data;
+      } catch (e) {
+        console.warn(e);
+        return [];
+      }
+    },
+    /** 入库请求 */
+    async fieldCollectionRequest(atLastFormData, callback) {
+      const { clean_type: etlConfig, etl_params: etlParams, etl_fields: etlFields, alias_settings } = atLastFormData;
+      // 检索设置 直接入库
+      const {
+        table_id,
+        storage_cluster_id,
+        retention,
+        storage_replies,
+        allocation_min_days,
+        view_roles,
+        storage_shards_nums: storageShardsNums,
+      } = this.curCollect;
+      const storageList = await this.getStorage();
+      const isOpenHotWarm = storageList.find(item => item.storage_cluster_id === storage_cluster_id)?.enable_hot_warm;
+      const data = {
+        table_id,
+        storage_cluster_id,
+        retention,
+        storage_replies,
+        es_shards: storageShardsNums,
+        allocation_min_days: isOpenHotWarm ? Number(allocation_min_days) : 0,
+        view_roles,
+        etl_config: etlConfig,
+        fields: etlFields,
+        etl_params: etlParams,
+        alias_settings,
+      };
+
+      const updateData = {
+        params: {
+          collector_config_id: this.curCollect.collector_config_id,
+        },
+        data,
+      };
+      this.$http
+        .request('collect/fieldCollection', updateData)
+        .then(res => {
+          if (res.code === 0) {
+            // 检索页弹窗的字段清洗
+            if (this.isSetEdit) {
+              this.messageSuccess(this.$t('保存成功'));
+              this.$emit('update-log-fields');
+            } else if (this.isFinishCreateStep || this.isCleanField) {
+              if (callback) {
+                callback(true);
+                return;
+              }
+              // 编辑保存的情况下, 回退到列表
+              this.handleCancel();
+            }
+          }
+        })
+        .catch(() => callback?.(false))
+        .finally(() => {
+          this.isLoading = false;
+          this.basicLoading = false;
+        });
+    },
+    // 检查提取方法或条件是否已变更
+    checkEtlConfChnage(isCollect = false, callback) {
+      let isConfigChange = false; // 提取方法或条件是否已变更
+      const etlConfigParam = this.params.etl_config;
+      // 如果未选模式 则默认传bk_log_text
+      if (etlConfigParam !== 'bk_log_text' && !!etlConfigParam) {
+        const etlConfigForm = this.formData.etl_config;
+        if (etlConfigParam !== etlConfigForm) {
+          isConfigChange = true;
         } else {
-          routeName = this.isCleanField ? 'log-clean-list' : 'log-clean-templates';
+          const etlParams = this.params.etl_params;
+          const etlParamsForm = this.formData.etl_params;
+          if (etlConfigParam === 'bk_log_regexp') {
+            isConfigChange = etlParams.separator_regexp !== etlParamsForm.separator_regexp;
+          }
+          if (etlConfigParam === 'bk_log_delimiter') {
+            isConfigChange = etlParams.separator !== etlParamsForm.separator;
+          }
         }
-        this.$router.push({
-          name: routeName,
-          query: {
-            ...reset,
-            spaceUid: this.$store.state.spaceUid,
-          },
-        });
-      },
-      prevHandler() {
-        this.$emit('step-change', this.curStep - 1);
-      },
-      // 即将前往高级清洗
-      advanceHandler() {
+      }
+      if (isConfigChange) {
         const h = this.$createElement;
-        // const h = this.$createElement;
         this.$bkInfo({
           type: 'warning',
-          title: this.$t('跳转到计算平台'),
+          title: this.$t('是否按原配置提交?'),
           subHeader: h(
             'p',
             {
               style: {
                 whiteSpace: 'normal',
-                padding: '0 28px',
-                color: '#63656e',
               },
             },
-            this.$t('高级清洗需要跳转到计算平台并终止当前流程，请确认是否继续跳转'),
+            this.$t('字段提取方法或条件已发生变更，需【调试&设置】按钮点击操作成功才会生效')
           ),
-          // okText: this.$t('直接下载'),
           confirmFn: () => {
-            const id = this.curCollect.bkdata_data_id;
-            const jumpUrl = `${window.BKDATA_URL}/#/data-hub-detail/clean/list/${id}/index`;
-            window.open(jumpUrl, '_blank');
-            this.$emit('change-submit', true);
-            // 前往高级清洗刷新页
-            this.$emit('change-clean');
+            isCollect ? this.fieldCollection(true, callback) : this.handleSaveTemp();
           },
         });
-      },
-      // 获取详情
-      getDetail() {
-        // const tsStorageId = this.formData.storage_cluster_id;
-        const {
-          table_id,
-          storage_cluster_id,
-          table_id_prefix,
-          etl_config,
-          etl_params: etlParams,
-          fields,
-          index_set_id,
-          alias_settings,
-        } = this.curCollect;
-        const option = { time_zone: '', time_format: '' };
-        const copyFields = fields ? JSON.parse(JSON.stringify(fields)) : [];
-        this.alias_settings = this.changeAliasSettings(alias_settings);
-        this.concatenationQueryAlias(copyFields);
-        copyFields.forEach(row => {
-          row.value = '';
-          if (row.is_delete) {
-            const copyRow = Object.assign(
-              JSON.parse(JSON.stringify(this.rowTemplate)),
-              JSON.parse(JSON.stringify(row)),
-            );
-            Object.assign(row, copyRow);
+        return;
+      }
+      isCollect ? this.fieldCollection(true, callback) : this.handleSaveTemp();
+    },
+    /** 导航切换提交函数 */
+    stepSubmitFun(callback) {
+      this.finish(true, callback);
+    },
+    // 对时间格式做校验逻辑
+    async requestCheckTime() {
+      const { time_format, time_zone, field_name } = this.formData;
+      let fieldsData = this.$refs.fieldTable.getData() || [];
+      const timeValueItem = fieldsData.find(item => field_name === item.field_name);
+      let result = '';
+      await this.$http
+        .request('collect/getCheckTime', {
+          params: {
+            collector_config_id: this.curCollect.collector_config_id,
+          },
+          data: {
+            time_format,
+            time_zone,
+            data: timeValueItem?.value || '',
+          },
+        })
+        .then(res => {
+          this.timeCheckContent = '';
+          result = true;
+        })
+        .catch(err => {
+          this.timeCheckContent = err;
+          result = false;
+        });
+      return result;
+    },
+    // 完成按钮
+    finish(isCollect = false, callback) {
+      this.$refs.validateForm.validate().then(async res => {
+        if (res) {
+          // 当选择的是指定字段为日志时间时，对时间格式做校验
+          if (!this.formData.log_reporting_time) {
+            const isValid = await this.requestCheckTime();
+            if (!isValid) return;
           }
-          if (row.option) {
-            row.option = Object.assign({}, option, row.option || {});
-          } else {
-            row.option = Object.assign({}, option);
+          const hideDeletedTable = this.$refs.fieldTable.hideDeletedTable.length;
+          if (!this.formData.etl_params.retain_original_text && !hideDeletedTable) {
+            this.messageError(this.$t('请完成字段清洗或者勾选“保留原始日志”, 否则接入日志内容将无法展示。'));
+            callback?.(false);
+            return;
           }
-        });
-        this.params.etl_config = etl_config;
-        Object.assign(this.params.etl_params, {
-          separator_regexp: etlParams?.separator_regexp || '',
-          separator: etlParams?.separator || '',
-        });
-        this.isUnmodifiable = !!(table_id || storage_cluster_id);
-        this.fieldType = etl_config || 'bk_log_text';
-        // /* eslint-enable */
-        Object.assign(this.formData, {
-          table_id,
-          // storage_cluster_id,
-          table_id_prefix,
-          etl_config: this.fieldType,
-          etl_params: Object.assign(
-            {
-              retain_original_text: true,
-              separator_regexp: '',
-              separator: '',
-              retain_extra_json: false,
-              original_text_is_case_sensitive: false,
-              original_text_tokenize_on_chars: '',
-              enable_retain_content: true,
-              path_regexp: '',
-              metadata_fields: [],
+          // 清洗模板选择多业务时不能为空
+          if (this.formData.visible_type === 'multi_biz' && !this.visibleBkBiz.length && this.isClearTemplate) {
+            this.messageError(this.$t('可见类型为业务属性时，业务标签不能为空'));
+            callback?.(false);
+            return;
+          }
+          // const promises = [this.checkStore()];
+          const promises = [];
+          // if (this.formData.etl_config !== 'bk_log_text') {
+          promises.splice(1, 0, ...this.checkFieldsTable());
+          // }
+          Promise.all(promises).then(
+            () => {
+              this.checkEtlConfChnage(isCollect, callback);
             },
-            etlParams
-              ? {
-                  ...JSON.parse(JSON.stringify(etlParams)),
-                  metadata_fields: etlParams.metadata_fields || [],
-                }
-              : {},
-          ),
-          fields: copyFields.filter(item => !item.is_built_in),
-        });
-
-        if (!this.copyBuiltField.length) {
-          this.copyBuiltField = copyFields.filter(item => item.is_built_in);
+            validator => {
+              callback?.(false);
+              console.warn('保存失败', validator);
+            }
+          );
         }
-        if (this.curCollect.etl_config && this.curCollect.etl_config !== 'bk_log_text') {
-          this.formatResult = true;
-        }
-        this.requestFields(index_set_id);
-      },
-      clickFile() {
-        this.defaultSettings.isShow = true;
-      },
-      //  原始日志刷新
-      refreshClick() {
-        if (this.refresh) {
-          this.getDataLog('logOriginRefresh');
-        }
-      },
-      //  路径样例刷新
-      pathRefreshClick() {
-        if (this.refresh) {
-          this.getDataLog('pathRefresh');
-        }
-      },
-      viewStandard() {
-        if (!this.formData.fields.length) return;
-        this.dialogVisible = true;
-      },
-      copyText(data) {
-        const createInput = document.createElement('input');
-        createInput.value = data;
-        document.body.appendChild(createInput);
-        createInput.select(); // 选择对象
-        document.execCommand('Copy'); // 执行浏览器复制命令
-        createInput.style.display = 'none';
-        const h = this.$createElement;
-        this.$bkMessage({
-          message: h(
-            'p',
-            {
-              style: {
-                textAlign: 'center',
-              },
+      });
+    },
+    // 字段表格校验
+    checkFieldsTable() {
+      return this.$refs.fieldTable.validateFieldTable();
+      // return this.formData.etl_config !== 'bk_log_text' ? this.$refs.fieldTable.validateFieldTable() : [];
+    },
+    handleCancel() {
+      if (this.isSetEdit) {
+        this.$emit('reset-page');
+        return;
+      }
+      let routeName;
+      // 保存, 回退到列表
+      if (this.isFinishCreateStep || this.isCleanField) {
+        this.$emit('change-submit', true);
+      }
+      const { backRoute, ...reset } = this.$route.query;
+      if (backRoute) {
+        routeName = backRoute;
+      } else if (['edit', 'storage', 'masking'].includes(this.operateType)) {
+        routeName = 'collection-item';
+      } else {
+        routeName = this.isCleanField ? 'log-clean-list' : 'log-clean-templates';
+      }
+      this.$router.push({
+        name: routeName,
+        query: {
+          ...reset,
+          spaceUid: this.$store.state.spaceUid,
+        },
+      });
+    },
+    prevHandler() {
+      this.$emit('step-change', this.curStep - 1);
+    },
+    // 即将前往高级清洗
+    advanceHandler() {
+      const h = this.$createElement;
+      // const h = this.$createElement;
+      this.$bkInfo({
+        type: 'warning',
+        title: this.$t('跳转到计算平台'),
+        subHeader: h(
+          'p',
+          {
+            style: {
+              whiteSpace: 'normal',
+              padding: '0 28px',
+              color: '#63656e',
             },
-            this.$t('复制成功'),
-          ),
-          offsetY: 80,
-        });
-      },
-      requestEtlPreview(type) {
-        const { etl_config, etl_params } = this.params;
-        /* eslint-disable */
-        if (!this.logOriginal || !etl_config || etl_config === 'bk_log_text') return;
-        if (etl_config === 'bk_log_regexp' && !etl_params.separator_regexp) return;
-        if (etl_config === 'bk_log_delimiter' && !etl_params.separator) return;
-        const newFields = this.$refs.fieldTable ? this.$refs.fieldTable.getData() : []; // 不能取原fileds，因字段修改后的信息保留在table组件里
-        this.isExtracting = type === 'init' ? !type : true;
-        const etlParams = {};
-        if (etl_config === 'bk_log_delimiter') {
-          etlParams.separator = etl_params.separator;
+          },
+          this.$t('高级清洗需要跳转到计算平台并终止当前流程，请确认是否继续跳转')
+        ),
+        // okText: this.$t('直接下载'),
+        confirmFn: () => {
+          const id = this.curCollect.bkdata_data_id;
+          const jumpUrl = `${window.BKDATA_URL}/#/data-hub-detail/clean/list/${id}/index`;
+          window.open(jumpUrl, '_blank');
+          this.$emit('change-submit', true);
+          // 前往高级清洗刷新页
+          this.$emit('change-clean');
+        },
+      });
+    },
+    // 获取详情
+    getDetail() {
+      // const tsStorageId = this.formData.storage_cluster_id;
+      const {
+        table_id,
+        storage_cluster_id,
+        table_id_prefix,
+        etl_config,
+        etl_params: etlParams,
+        fields,
+        index_set_id,
+        alias_settings,
+      } = this.curCollect;
+      const option = { time_zone: '', time_format: '' };
+      const copyFields = fields ? JSON.parse(JSON.stringify(fields)) : [];
+      this.alias_settings = this.changeAliasSettings(alias_settings);
+      this.concatenationQueryAlias(copyFields);
+      copyFields.forEach(row => {
+        row.value = '';
+        if (row.is_delete) {
+          const copyRow = Object.assign(JSON.parse(JSON.stringify(this.rowTemplate)), JSON.parse(JSON.stringify(row)));
+          Object.assign(row, copyRow);
         }
-        if (etl_config === 'bk_log_regexp') {
-          etlParams.separator_regexp = etl_params.separator_regexp;
-        }
-
-        let requestUrl;
-        const urlParams = {};
-        const data = {
-          etl_config,
-          etl_params: etlParams,
-          data: this.logOriginal,
-        };
-
-        if (this.isTempField) {
-          requestUrl = 'clean/getEtlPreview';
+        if (row.option) {
+          row.option = Object.assign({}, option, row.option || {});
         } else {
-          (urlParams.collector_config_id = this.curCollect.collector_config_id), (requestUrl = 'collect/getEtlPreview');
+          row.option = Object.assign({}, option);
         }
-        const updateData = { params: urlParams, data };
-        this.$http
-          .request(requestUrl, updateData)
-          .then(res => {
-            // 以下为整个页面关键逻辑
-            /**
-             * 只有点击调试按钮，并且成功了，才会改变原有的fields列表，否则只是结果失败，不做任何操作
-             */
-            // value 用于展示右边的预览值 - 编辑进入时需要触发预览
-            if (res.data && res.data.fields) {
-              const dataFields = res.data.fields;
-              const validFieldPattern = /^[A-Za-z_][0-9A-Za-z_]*$/;
-              dataFields.forEach(item => {
-                if(item.field_name && !validFieldPattern.test(item.field_name)){
-                  item.field_name = JSON.stringify(item.field_name)
-                }
-                item.verdict = this.judgeNumber(item);
-              });
-              const fields = this.formData.fields;
-              if (!type) {
-                // 只有点击了调试按钮，才能修改fields列表  // 原始日志更新值改边预览值
-                if (!this.formData.etl_config || this.formData.etl_config !== etl_config || !newFields.length) {
-                  // 如果没有提取方式 || 提取方式发生变化 || 不存在任何字段
+      });
+      this.params.etl_config = etl_config;
+      Object.assign(this.params.etl_params, {
+        separator_regexp: etlParams?.separator_regexp || '',
+        separator: etlParams?.separator || '',
+      });
+      this.isUnmodifiable = !!(table_id || storage_cluster_id);
+      this.fieldType = etl_config || 'bk_log_text';
+      // /* eslint-enable */
+      Object.assign(this.formData, {
+        table_id,
+        // storage_cluster_id,
+        table_id_prefix,
+        etl_config: this.fieldType,
+        etl_params: Object.assign(
+          {
+            retain_original_text: true,
+            separator_regexp: '',
+            separator: '',
+            retain_extra_json: false,
+            original_text_is_case_sensitive: false,
+            original_text_tokenize_on_chars: '',
+            enable_retain_content: true,
+            path_regexp: '',
+            metadata_fields: [],
+          },
+          etlParams
+            ? {
+                ...JSON.parse(JSON.stringify(etlParams)),
+                metadata_fields: etlParams.metadata_fields || [],
+              }
+            : {}
+        ),
+        fields: copyFields.filter(item => !item.is_built_in),
+      });
+
+      if (!this.copyBuiltField.length) {
+        this.copyBuiltField = copyFields.filter(item => item.is_built_in);
+      }
+      if (this.curCollect.etl_config && this.curCollect.etl_config !== 'bk_log_text') {
+        this.formatResult = true;
+      }
+      this.requestFields(index_set_id);
+    },
+    clickFile() {
+      this.defaultSettings.isShow = true;
+    },
+    //  原始日志刷新
+    refreshClick() {
+      if (this.refresh) {
+        this.getDataLog('logOriginRefresh');
+      }
+    },
+    //  路径样例刷新
+    pathRefreshClick() {
+      if (this.refresh) {
+        this.getDataLog('pathRefresh');
+      }
+    },
+    viewStandard() {
+      if (!this.formData.fields.length) return;
+      this.dialogVisible = true;
+    },
+    copyText(data) {
+      const createInput = document.createElement('input');
+      createInput.value = data;
+      document.body.appendChild(createInput);
+      createInput.select(); // 选择对象
+      document.execCommand('Copy'); // 执行浏览器复制命令
+      createInput.style.display = 'none';
+      const h = this.$createElement;
+      this.$bkMessage({
+        message: h(
+          'p',
+          {
+            style: {
+              textAlign: 'center',
+            },
+          },
+          this.$t('复制成功')
+        ),
+        offsetY: 80,
+      });
+    },
+    requestEtlPreview(type) {
+      const { etl_config, etl_params } = this.params;
+      /* eslint-disable */
+      if (!this.logOriginal || !etl_config || etl_config === 'bk_log_text') return;
+      if (etl_config === 'bk_log_regexp' && !etl_params.separator_regexp) return;
+      if (etl_config === 'bk_log_delimiter' && !etl_params.separator) return;
+      const newFields = this.$refs.fieldTable ? this.$refs.fieldTable.getData() : []; // 不能取原fileds，因字段修改后的信息保留在table组件里
+      this.isExtracting = type === 'init' ? !type : true;
+      const etlParams = {};
+      if (etl_config === 'bk_log_delimiter') {
+        etlParams.separator = etl_params.separator;
+      }
+      if (etl_config === 'bk_log_regexp') {
+        etlParams.separator_regexp = etl_params.separator_regexp;
+      }
+
+      let requestUrl;
+      const urlParams = {};
+      const data = {
+        etl_config,
+        etl_params: etlParams,
+        data: this.logOriginal,
+      };
+
+      if (this.isTempField) {
+        requestUrl = 'clean/getEtlPreview';
+      } else {
+        (urlParams.collector_config_id = this.curCollect.collector_config_id), (requestUrl = 'collect/getEtlPreview');
+      }
+      const updateData = { params: urlParams, data };
+      this.$http
+        .request(requestUrl, updateData)
+        .then(res => {
+          // 以下为整个页面关键逻辑
+          /**
+           * 只有点击调试按钮，并且成功了，才会改变原有的fields列表，否则只是结果失败，不做任何操作
+           */
+          // value 用于展示右边的预览值 - 编辑进入时需要触发预览
+          if (res.data && res.data.fields) {
+            const dataFields = res.data.fields;
+            const validFieldPattern = /^[A-Za-z_][0-9A-Za-z_]*$/;
+            dataFields.forEach(item => {
+              if (item.field_name && !validFieldPattern.test(item.field_name)) {
+                item.field_name = JSON.stringify(item.field_name);
+              }
+              item.verdict = this.judgeNumber(item);
+            });
+            const fields = this.formData.fields;
+            if (!type) {
+              // 只有点击了调试按钮，才能修改fields列表  // 原始日志更新值改边预览值
+              if (!this.formData.etl_config || this.formData.etl_config !== etl_config || !newFields.length) {
+                // 如果没有提取方式 || 提取方式发生变化 || 不存在任何字段
+                const list = dataFields.reduce((arr, item) => {
+                  const field = Object.assign({}, JSON.parse(JSON.stringify(this.rowTemplate)), item);
+                  arr.push(field);
+                  return arr;
+                }, []);
+                this.formData.fields.splice(0, fields.length, ...list);
+              } else {
+                // 否则 - 将对table已修改值-> newFields进行操作
+                if (etl_config === 'bk_log_json' || etl_config === 'bk_log_regexp') {
                   const list = dataFields.reduce((arr, item) => {
-                    const field = Object.assign({}, JSON.parse(JSON.stringify(this.rowTemplate)), item);
-                    arr.push(field);
+                    const child = newFields.find(field => {
+                      // return  !field.is_built_in && (field.field_name === item.field_name || field.alias_name === item.field_name)
+                      return !field.is_built_in && field.field_name === item.field_name;
+                    });
+                    item = child
+                      ? Object.assign({}, child, item)
+                      : Object.assign(JSON.parse(JSON.stringify(this.rowTemplate)), item);
+                    arr.push(item);
                     return arr;
                   }, []);
-                  this.formData.fields.splice(0, fields.length, ...list);
-                } else {
-                  // 否则 - 将对table已修改值-> newFields进行操作
-                  if (etl_config === 'bk_log_json' || etl_config === 'bk_log_regexp') {
-                    const list = dataFields.reduce((arr, item) => {
-                      const child = newFields.find(field => {
-                        // return  !field.is_built_in && (field.field_name === item.field_name || field.alias_name === item.field_name)
-                        return !field.is_built_in && field.field_name === item.field_name;
-                      });
-                      item = child
-                        ? Object.assign({}, child, item)
-                        : Object.assign(JSON.parse(JSON.stringify(this.rowTemplate)), item);
-                      arr.push(item);
+                  if (etl_config === 'bk_log_json') {
+                    // json方式下已删除操作的需要拿出来合并到新的field列表里
+                    const deletedFileds = newFields.reduce((arr, field) => {
+                      if (field.is_delete && !dataFields.find(item => item.field_name === field.field_name)) {
+                        arr.push(field);
+                      }
                       return arr;
                     }, []);
-                    if (etl_config === 'bk_log_json') {
-                      // json方式下已删除操作的需要拿出来合并到新的field列表里
-                      const deletedFileds = newFields.reduce((arr, field) => {
-                        if (field.is_delete && !dataFields.find(item => item.field_name === field.field_name)) {
-                          arr.push(field);
-                        }
-                        return arr;
-                      }, []);
-                      list.splice(list.length, 0, ...deletedFileds);
-                    }
-
-                    list.forEach((item, itemIndex) => {
-                      item.field_index = itemIndex;
-                    });
-                    this.formData.fields.splice(0, fields.length, ...list);
+                    list.splice(list.length, 0, ...deletedFileds);
                   }
 
-                  if (etl_config === 'bk_log_delimiter') {
-                    // 分隔符逻辑较特殊，需要单独拎出来
-                    let index = [];
-                    newFields.forEach((item, idx) => {
-                      // 找到最后一个field_name不为空的下标
-                      if (item.field_name && !item.is_delete) {
-                        index.push(item);
-                      }
-                    });
-
-                    const list = [];
-                    // 将标记为删除的字段过滤出来，并添加到 list 中
-                    const deletedFileds = newFields.filter(item => item.is_delete);
-                    list.splice(list.length, 0, ...deletedFileds); // 将已删除的字段存进数组
-                    // 因为已过滤掉 is_delete 字段，故 field_index 和 dataFields 的对应关系并不严格
-                    if (index.length) {
-                      index.forEach((item, idx) => {
-                        const child = dataFields[idx];
-                        item.value = child ? child.value : '';
-                        list.push(item);
-                      });
-                      // 处理 dataFields 中超出 index 范围的部分
-                      if (dataFields.length > index.length) {
-                        dataFields.slice(index.length).forEach(item => {
-                          const newItem = Object.assign(JSON.parse(JSON.stringify(this.rowTemplate)), item);
-                          list.push(newItem);
-                        });
-                      }
-                    } else {
-                      dataFields.reduce((arr, item) => {
-                        item.field_index = arr.length;
-                        const field = Object.assign(JSON.parse(JSON.stringify(this.rowTemplate)), item);
-                        arr.push(field);
-                        return arr;
-                      }, list);
-                    }
-                    // list.sort((a, b) => a.field_index - b.field_index); // 按 field_index 大小进行排序
-                    this.formData.fields.splice(0, fields.length, ...list);
-                  }
+                  list.forEach((item, itemIndex) => {
+                    item.field_index = itemIndex;
+                  });
+                  this.formData.fields.splice(0, fields.length, ...list);
                 }
-                this.formatResult = true; // 此时才能将结果设置为成功
-                this.savaFormData();
-              } else {
-                // 仅做预览赋值操作，不改变结果
-                newFields.forEach(field => {
-                  const child = dataFields.find(item => {
-                    if (etl_config === 'bk_log_json') {
-                      return field.field_name === item.field_name;
-                      // return  field.field_name === item.field_name || field.alias_name === item.field_name // 同上
-                    } else {
-                      return etl_config === 'bk_log_delimiter'
-                        ? field.field_index === item.field_index
-                        : field.field_name === item.field_name;
+
+                if (etl_config === 'bk_log_delimiter') {
+                  // 分隔符逻辑较特殊，需要单独拎出来
+                  let index = [];
+                  newFields.forEach((item, idx) => {
+                    // 找到最后一个field_name不为空的下标
+                    if (item.field_name && !item.is_delete) {
+                      index.push(item);
                     }
                   });
-                  if (!field.is_built_in) {
-                    field.value = child ? child.value : '';
+
+                  const list = [];
+                  // 将标记为删除的字段过滤出来，并添加到 list 中
+                  const deletedFileds = newFields.filter(item => item.is_delete);
+                  list.splice(list.length, 0, ...deletedFileds); // 将已删除的字段存进数组
+                  // 因为已过滤掉 is_delete 字段，故 field_index 和 dataFields 的对应关系并不严格
+                  if (index.length) {
+                    index.forEach((item, idx) => {
+                      const child = dataFields[idx];
+                      item.value = child ? child.value : '';
+                      list.push(item);
+                    });
+                    // 处理 dataFields 中超出 index 范围的部分
+                    if (dataFields.length > index.length) {
+                      dataFields.slice(index.length).forEach(item => {
+                        const newItem = Object.assign(JSON.parse(JSON.stringify(this.rowTemplate)), item);
+                        list.push(newItem);
+                      });
+                    }
+                  } else {
+                    dataFields.reduce((arr, item) => {
+                      item.field_index = arr.length;
+                      const field = Object.assign(JSON.parse(JSON.stringify(this.rowTemplate)), item);
+                      arr.push(field);
+                      return arr;
+                    }, list);
+                  }
+                  // list.sort((a, b) => a.field_index - b.field_index); // 按 field_index 大小进行排序
+                  this.formData.fields.splice(0, fields.length, ...list);
+                }
+              }
+              this.formatResult = true; // 此时才能将结果设置为成功
+              this.savaFormData();
+            } else {
+              // 仅做预览赋值操作，不改变结果
+              newFields.forEach(field => {
+                const child = dataFields.find(item => {
+                  if (etl_config === 'bk_log_json') {
+                    return field.field_name === item.field_name;
+                    // return  field.field_name === item.field_name || field.alias_name === item.field_name // 同上
+                  } else {
+                    return etl_config === 'bk_log_delimiter'
+                      ? field.field_index === item.field_index
+                      : field.field_name === item.field_name;
                   }
                 });
-                this.formData.fields.splice(0, fields.length, ...newFields);
-              }
-              /* eslint-enable */
-            } else {
-              this.formatResult = false;
-            }
-          })
-          .catch(() => {
-            if (!type) {
-              // 原始日志内容修改不引发结果变更
-              this.formatResult = false;
-            }
-          })
-          .finally(() => {
-            this.isExtracting = false;
-            this.catchEtlConfig = this.params.etl_config;
-            this.$nextTick(() => {
-              if (!this.editComparedData.isLogOriginLast && this.isFinishCreateStep) {
-                this.editComparedData.isLogOriginLast = true;
-                this.editComparedData.comparedVal = this.getSubmitParams();
-              }
-            });
-          });
-      },
-      savaFormData() {
-        this.formData.etl_config = this.params.etl_config;
-        Object.assign(this.formData.etl_params, this.params.etl_params);
-      },
-      //  获取采样状态
-      getDataLog(type) {
-        this.refresh = false;
-        if (type === 'init') {
-          this.basicLoading = true;
-        } else if (type === 'logOriginRefresh') {
-          this.logOriginalLoding = true;
-        } else if (type === 'pathRefresh') {
-          this.pathExampleLoading = true;
-        }
-        this.$http
-          .request('source/dataList', {
-            params: {
-              collector_config_id: this.curCollect.collector_config_id,
-            },
-          })
-          .then(res => {
-            if (res.data?.length) {
-              this.copysText = Object.assign(res.data[0].etl, res.data[0].etl.items[0]) || {};
-              const data = res.data[0];
-              this.jsonText = data.origin || {};
-              this.pathExample = this.jsonText.filename;
-              this.logOriginal = data.etl.data || '';
-              if (this.logOriginal) {
-                this.requestEtlPreview(isInit);
-              }
-              this.copyBuiltField.forEach(item => {
-                const fieldName = item.field_name;
-                if (fieldName) {
-                  if (item.hasOwnProperty('value')) {
-                    item.value = this.copysText[fieldName];
-                  } else {
-                    this.$set(item, 'value', this.copysText[fieldName]);
-                  }
+                if (!field.is_built_in) {
+                  field.value = child ? child.value : '';
                 }
               });
+              this.formData.fields.splice(0, fields.length, ...newFields);
             }
-          })
-          .catch(() => {})
-          .finally(() => {
-            if (type === 'init') {
-              this.basicLoading = false;
-            } else if (type === 'logOriginRefresh') {
-              this.logOriginalLoding = false;
-            } else if (type === 'pathRefresh') {
-              this.pathExampleLoading = false;
+            /* eslint-enable */
+          } else {
+            this.formatResult = false;
+          }
+        })
+        .catch(() => {
+          if (!type) {
+            // 原始日志内容修改不引发结果变更
+            this.formatResult = false;
+          }
+        })
+        .finally(() => {
+          this.isExtracting = false;
+          this.catchEtlConfig = this.params.etl_config;
+          this.$nextTick(() => {
+            if (!this.editComparedData.isLogOriginLast && this.isFinishCreateStep) {
+              this.editComparedData.isLogOriginLast = true;
+              this.editComparedData.comparedVal = this.getSubmitParams();
             }
-            this.refresh = true;
           });
-      },
-      visibleHandle(val) {
-        this.deletedVisible = val;
-      },
-      judgeNumber(val) {
-        const { value } = val;
-        if (value === 0) return false;
-
-        return value && value !== ' ' ? isNaN(value) : true;
-      },
-      // 模板弹窗确认
-      handleTemplConfirm() {
-        if (this.isSaveTempDialog) {
-          if (this.saveTempName.trim() === '') {
-            this.$bkMessage({
-              theme: 'error',
-              message: this.$t('请输入模板名称'),
+        });
+    },
+    savaFormData() {
+      this.formData.etl_config = this.params.etl_config;
+      Object.assign(this.formData.etl_params, this.params.etl_params);
+    },
+    //  获取采样状态
+    getDataLog(type) {
+      this.refresh = false;
+      if (type === 'init') {
+        this.basicLoading = true;
+      } else if (type === 'logOriginRefresh') {
+        this.logOriginalLoding = true;
+      } else if (type === 'pathRefresh') {
+        this.pathExampleLoading = true;
+      }
+      this.$http
+        .request('source/dataList', {
+          params: {
+            collector_config_id: this.curCollect.collector_config_id,
+          },
+        })
+        .then(res => {
+          if (res.data?.length) {
+            this.copysText = Object.assign(res.data[0].etl, res.data[0].etl.items[0]) || {};
+            const data = res.data[0];
+            this.jsonText = data.origin || {};
+            this.pathExample = this.jsonText.filename;
+            this.logOriginal = data.etl.data || '';
+            if (this.logOriginal) {
+              this.requestEtlPreview(isInit);
+            }
+            this.copyBuiltField.forEach(item => {
+              const fieldName = item.field_name;
+              if (fieldName) {
+                if (item.hasOwnProperty('value')) {
+                  item.value = this.copysText[fieldName];
+                } else {
+                  this.$set(item, 'value', this.copysText[fieldName]);
+                }
+              }
             });
-            return;
           }
-          this.templateDialogVisible = false;
-          this.fieldCollection(false);
-        } else {
-          if (!this.selectTemplate) {
-            this.$bkMessage({
-              theme: 'error',
-              message: this.$t('请选择清洗模板'),
-            });
-            return;
+        })
+        .catch(() => {})
+        .finally(() => {
+          if (type === 'init') {
+            this.basicLoading = false;
+          } else if (type === 'logOriginRefresh') {
+            this.logOriginalLoding = false;
+          } else if (type === 'pathRefresh') {
+            this.pathExampleLoading = false;
           }
+          this.refresh = true;
+        });
+    },
+    visibleHandle(val) {
+      this.deletedVisible = val;
+    },
+    judgeNumber(val) {
+      const { value } = val;
+      if (value === 0) return false;
 
-          // 应用模板设置
-          const curTemp = this.templateList.find(temp => temp.clean_template_id === this.selectTemplate);
-          this.formData.fields.splice(0, this.formData.fields.length);
-          this.setTempDetail(curTemp);
-          this.templateDialogVisible = false;
+      return value && value !== ' ' ? isNaN(value) : true;
+    },
+    // 模板弹窗确认
+    handleTemplConfirm() {
+      if (this.isSaveTempDialog) {
+        if (this.saveTempName.trim() === '') {
+          this.$bkMessage({
+            theme: 'error',
+            message: this.$t('请输入模板名称'),
+          });
+          return;
         }
-      },
-      // 打开保存/选择模板弹窗
-      openTemplateDialog(isSave = false) {
-        if (isSave) {
-          // 保存模板前往检验
-          this.finish(false);
+        this.templateDialogVisible = false;
+        this.fieldCollection(false);
+      } else {
+        if (!this.selectTemplate) {
+          this.$bkMessage({
+            theme: 'error',
+            message: this.$t('请选择清洗模板'),
+          });
           return;
         }
 
-        // 新增清洗未选择采集项
-        if ((this.isCleanField && !this.cleanCollector) || this.isSetDisabled) return;
-        // 选择应用模板
-        this.isSaveTempDialog = isSave;
-        this.templateDialogVisible = true;
-        this.$http
-          .request('clean/cleanTemplate', {
-            query: {
-              bk_biz_id: this.bkBizId,
-            },
-          })
-          .then(res => {
-            if (res.data) {
-              this.templateList = res.data;
-              this.currentTemplateList = res.data;
-            }
-          });
-      },
-      // 保存模板
-      handleSaveTemp() {
-        this.isSaveTempDialog = true;
-        this.templateDialogVisible = true;
-      },
-      // 获取采集项清洗基础配置缓存 用于存储入库提交
-      getCleanStash(id) {
-        this.$http
-          .request('clean/getCleanStash', {
-            params: {
-              collector_config_id: id,
-            },
-          })
-          .then(res => {
-            if (res.data) {
-              const { clean_type, etl_params: etlParams, etl_fields: etlFields } = res.data;
-              this.concatenationQueryAlias(etlFields);
-              this.formData.fields.splice(0, this.formData.fields.length);
+        // 应用模板设置
+        const curTemp = this.templateList.find(temp => temp.clean_template_id === this.selectTemplate);
+        this.formData.fields.splice(0, this.formData.fields.length);
+        this.setTempDetail(curTemp);
+        this.templateDialogVisible = false;
+      }
+    },
+    // 打开保存/选择模板弹窗
+    openTemplateDialog(isSave = false) {
+      if (isSave) {
+        // 保存模板前往检验
+        this.finish(false);
+        return;
+      }
 
-              this.params.etl_config = clean_type;
-              const logTimeOption = {};
-              const previousStateFields = etlFields.map(item => {
-                if (item.is_time) {
-                  Object.assign(logTimeOption, {
-                    log_reporting_time: false,
-                    field_name: item.field_name,
-                    time_format: item.option.time_format,
-                    time_zone: item.option.time_zone,
-                  });
-                }
-                return {
-                  ...item,
-                  participleState: item.tokenize_on_chars ? 'custom' : 'default',
-                };
-              });
-              Object.assign(this.params.etl_params, {
-                separator_regexp: etlParams.separator_regexp || '',
-                separator: etlParams.separator || '',
-              });
-              this.fieldType = clean_type;
-              this.enableMetaData = !!etlParams.path_regexp;
-
-              Object.assign(this.formData, {
-                etl_config: this.fieldType,
-                etl_params: Object.assign(
-                  {
-                    retain_original_text: true,
-                    separator_regexp: '',
-                    separator: '',
-                    retain_extra_json: false,
-                    enable_retain_content: true,
-                  },
-                  etlParams
-                    ? {
-                        ...JSON.parse(JSON.stringify(etlParams)),
-                        metadata_fields: etlParams.metadata_fields || [],
-                      }
-                    : {},
-                ),
-                fields: previousStateFields,
-                ...logTimeOption,
-              });
-              if (etlParams.original_text_tokenize_on_chars) {
-                this.originParticipleState = 'custom';
-                this.defaultParticipleStr = etlParams.original_text_tokenize_on_chars;
-              }
-            }
-            // 暂存信息可能为空 对比项仍需赋值
-            if (this.isFinishCreateStep) {
-              this.editComparedData.comparedVal = this.getSubmitParams();
-            }
-          })
-          .finally(() => {
-            this.basicLoading = false;
-          });
-      },
-      // 新建、编辑采集项时获取更新详情
-      async setDetail(id) {
-        if (!id) return;
-        this.basicLoading = true;
-        this.$http
-          .request('collect/details', {
-            params: { collector_config_id: id },
-          })
-          .then(async res => {
-            if (res.data) {
-              this.alias_settings = this.changeAliasSettings(res.data.alias_settings);
-              this.concatenationQueryAlias(res.data.fields);
-              this.$store.commit('collect/setCurCollect', res.data);
-              this.getDetail();
-              await this.getCleanStash(id);
-              this.getDataLog('init');
-            }
-          })
-          .finally(() => {
-            this.basicLoading = false;
-          });
-      },
-      // 拼接query_alias
-      concatenationQueryAlias(fields) {
-        fields.forEach(item => {
-          this.alias_settings.forEach(item2 => {
-            if (item.field_name === item2.field_name || item.alias_name === item2.field_name) {
-              item.query_alias = item2.query_alias;
-            }
-          });
+      // 新增清洗未选择采集项
+      if ((this.isCleanField && !this.cleanCollector) || this.isSetDisabled) return;
+      // 选择应用模板
+      this.isSaveTempDialog = isSave;
+      this.templateDialogVisible = true;
+      this.$http
+        .request('clean/cleanTemplate', {
+          query: {
+            bk_biz_id: this.bkBizId,
+          },
+        })
+        .then(res => {
+          if (res.data) {
+            this.templateList = res.data;
+            this.currentTemplateList = res.data;
+          }
         });
-      },
-      // 新增、编辑清洗选择采集项
-      async handleCollectorChange(id) {
-        this.basicLoading = true;
-        // 先校验有无采集项管理权限
-        const paramData = {
+    },
+    // 保存模板
+    handleSaveTemp() {
+      this.isSaveTempDialog = true;
+      this.templateDialogVisible = true;
+    },
+    // 获取采集项清洗基础配置缓存 用于存储入库提交
+    getCleanStash(id) {
+      this.$http
+        .request('clean/getCleanStash', {
+          params: {
+            collector_config_id: id,
+          },
+        })
+        .then(res => {
+          if (res.data) {
+            const { clean_type, etl_params: etlParams, etl_fields: etlFields } = res.data;
+            this.concatenationQueryAlias(etlFields);
+            this.formData.fields.splice(0, this.formData.fields.length);
+
+            this.params.etl_config = clean_type;
+            const logTimeOption = {};
+            const previousStateFields = etlFields.map(item => {
+              if (item.is_time) {
+                Object.assign(logTimeOption, {
+                  log_reporting_time: false,
+                  field_name: item.field_name,
+                  time_format: item.option.time_format,
+                  time_zone: item.option.time_zone,
+                });
+              }
+              return {
+                ...item,
+                participleState: item.tokenize_on_chars ? 'custom' : 'default',
+              };
+            });
+            Object.assign(this.params.etl_params, {
+              separator_regexp: etlParams.separator_regexp || '',
+              separator: etlParams.separator || '',
+            });
+            this.fieldType = clean_type;
+            this.enableMetaData = !!etlParams.path_regexp;
+
+            Object.assign(this.formData, {
+              etl_config: this.fieldType,
+              etl_params: Object.assign(
+                {
+                  retain_original_text: true,
+                  separator_regexp: '',
+                  separator: '',
+                  retain_extra_json: false,
+                  enable_retain_content: true,
+                },
+                etlParams
+                  ? {
+                      ...JSON.parse(JSON.stringify(etlParams)),
+                      metadata_fields: etlParams.metadata_fields || [],
+                    }
+                  : {}
+              ),
+              fields: previousStateFields,
+              ...logTimeOption,
+            });
+            if (etlParams.original_text_tokenize_on_chars) {
+              this.originParticipleState = 'custom';
+              this.defaultParticipleStr = etlParams.original_text_tokenize_on_chars;
+            }
+          }
+          // 暂存信息可能为空 对比项仍需赋值
+          if (this.isFinishCreateStep) {
+            this.editComparedData.comparedVal = this.getSubmitParams();
+          }
+        })
+        .finally(() => {
+          this.basicLoading = false;
+        });
+    },
+    // 新建、编辑采集项时获取更新详情
+    async setDetail(id) {
+      if (!id) return;
+      this.basicLoading = true;
+      this.$http
+        .request('collect/details', {
+          params: { collector_config_id: id },
+        })
+        .then(async res => {
+          if (res.data) {
+            this.alias_settings = this.changeAliasSettings(res.data.alias_settings);
+            this.concatenationQueryAlias(res.data.fields);
+            this.$store.commit('collect/setCurCollect', res.data);
+            this.getDetail();
+            await this.getCleanStash(id);
+            this.getDataLog('init');
+          }
+        })
+        .finally(() => {
+          this.basicLoading = false;
+        });
+    },
+    // 拼接query_alias
+    concatenationQueryAlias(fields) {
+      fields.forEach(item => {
+        this.alias_settings.forEach(item2 => {
+          if (item.field_name === item2.field_name || item.alias_name === item2.field_name) {
+            item.query_alias = item2.query_alias;
+          }
+        });
+      });
+    },
+    // 新增、编辑清洗选择采集项
+    async handleCollectorChange(id) {
+      this.basicLoading = true;
+      // 先校验有无采集项管理权限
+      const paramData = {
+        action_ids: [authorityMap.MANAGE_COLLECTION_AUTH],
+        resources: [
+          {
+            type: 'collection',
+            id,
+          },
+        ],
+      };
+      const res = await this.$store.dispatch('checkAndGetData', paramData);
+      if (res.isAllowed === false) {
+        this.authPageInfo = res.data;
+        this.basicLoading = false;
+        return;
+      }
+      const curCollect = this.cleanCollectorList.find(item => {
+        return item.collector_config_id.toString() === id.toString();
+      });
+      if (curCollect.create_clean_able || this.isEditCleanItem) {
+        this.setAdvanceCleanTab(false);
+
+        // 获取采集项详情
+        await this.setDetail(id);
+      } else {
+        // 新增清洗且当前采集项已有基础清洗 则默认只能新增高级清洗
+        this.$store.commit('collect/setCurCollect', curCollect);
+        this.setAdvanceCleanTab(true);
+        this.basicLoading = false;
+      }
+    },
+    // 采集项列表点击申请采集项目管理权限
+    async applyProjectAccess(item) {
+      this.$el.click(); // 手动关闭下拉
+      try {
+        this.$bkLoading();
+        const res = await this.$store.dispatch('getApplyData', {
           action_ids: [authorityMap.MANAGE_COLLECTION_AUTH],
           resources: [
             {
               type: 'collection',
-              id,
+              id: item.collector_config_id,
             },
           ],
-        };
-        const res = await this.$store.dispatch('checkAndGetData', paramData);
-        if (res.isAllowed === false) {
-          this.authPageInfo = res.data;
-          this.basicLoading = false;
-          return;
-        }
-        const curCollect = this.cleanCollectorList.find(item => {
-          return item.collector_config_id.toString() === id.toString();
         });
-        if (curCollect.create_clean_able || this.isEditCleanItem) {
-          this.setAdvanceCleanTab(false);
-
-          // 获取采集项详情
-          await this.setDetail(id);
-        } else {
-          // 新增清洗且当前采集项已有基础清洗 则默认只能新增高级清洗
-          this.$store.commit('collect/setCurCollect', curCollect);
-          this.setAdvanceCleanTab(true);
-          this.basicLoading = false;
-        }
-      },
-      // 采集项列表点击申请采集项目管理权限
-      async applyProjectAccess(item) {
-        this.$el.click(); // 手动关闭下拉
-        try {
-          this.$bkLoading();
-          const res = await this.$store.dispatch('getApplyData', {
-            action_ids: [authorityMap.MANAGE_COLLECTION_AUTH],
-            resources: [
-              {
-                type: 'collection',
-                id: item.collector_config_id,
-              },
-            ],
-          });
-          window.open(res.data.apply_url);
-        } catch (err) {
-          console.warn(err);
-        } finally {
-          this.$bkLoading.hide();
-        }
-      },
-      handleOpenDocument() {
-        window.open(this.docUrl, '_blank');
-      },
-      /** 切换匹配模式 */
-      handleSelectConfig(id) {
-        if (this.params.etl_config === id) {
-          return;
-        }
-        if (!this.isFinishCatchFrom) {
-          this.catchFields = this.$refs.fieldTable.getData();
-          this.isFinishCatchFrom = true;
-        }
-        this.params.etl_config = id;
-        if (id === this.catchEtlConfig) {
-          this.formData.fields = this.catchFields;
-          this.isFinishCatchFrom = false;
-          return;
-        }
-        this.handleBuiltField(false);
-        this.formData.fields = []; // 切换匹配模式时需要清空字段
-      },
-      /** json格式新增字段 */
-      addNewField() {
-        const fields = deepClone(this.formData.fields);
-        const newBaseFieldObj = {
-          ...this.baseFieldObj,
-          field_index: this.formData.fields.length,
-        };
-        // 获取table表格编辑的数据 新增新的字段对象
-        this.formData.fields.splice(0, fields.length, ...[...this.$refs.fieldTable.getData(), newBaseFieldObj]);
-        this.deletedVisible = true;
-        this.savaFormData();
-      },
-      handleChangeParticipleState(val) {
-        this.formData.etl_params.original_text_tokenize_on_chars = val === 'custom' ? this.defaultParticipleStr : '';
-      },
-      /** 传参需要的data */
-      getSubmitParams(fieldsData = null) {
-        const { etl_config: etlConfig, etl_params: etlParams, visible_type } = this.formData;
-        if (!fieldsData) {
-          fieldsData = this.formData.fields.map(item => {
-            const { participleState, ...otherValue } = item;
-            return otherValue;
-          });
-        }
-        etlParams.metadata_fields =
-          etlParams?.metadata_fields?.map(item => {
-            item.metadata_type = 'path';
-            return item;
-          }) ?? [];
-        const payload = {
-          retain_original_text: etlParams.retain_original_text,
-          original_text_is_case_sensitive: etlParams.original_text_is_case_sensitive ?? false,
-          original_text_tokenize_on_chars: etlParams.original_text_tokenize_on_chars ?? '',
-          retain_extra_json: etlParams.retain_extra_json ?? false,
-          path_regexp: this.enableMetaData ? etlParams.path_regexp : null,
-          enable_retain_content: etlParams.enable_retain_content,
-          record_parse_failure: etlParams.enable_retain_content,
-          metadata_fields: etlParams.metadata_fields,
-        };
-        const data = {
-          clean_type: etlConfig,
-          etl_params: {
-            separator_regexp: etlParams.separator === 'bk_log_regexp' ? etlParams.separator_regexp : '',
-            separator: etlParams.separator,
-            ...payload,
-          },
-          etl_fields: fieldsData,
-          visible_type,
-        };
-        return data;
-      },
-      /** 判断是否有更改过值 */
-      getIsUpdateSubmitValue() {
-        // 如果还在初始化的时候快速切换其他导航则直接跳转 不进行数据修改判断
-        if (this.basicLoading) return false;
-        const fieldTableData = this.getNotParticipleFieldTableData();
-        const editParams = this.editComparedData.comparedVal;
-        const params = this.getSubmitParams(fieldTableData);
-        editParams.etl_fields = this.getFieldComparedKeys(editParams.etl_fields);
-        params.etl_fields = this.getFieldComparedKeys(params.etl_fields);
-        return !deepEqual(editParams, params);
-      },
-      getNotParticipleFieldTableData() {
-        const fieldsData = this.$refs.fieldTable.getData() || [];
-
-        const { field_name, time_zone, time_format } = this.formData;
-        const isReportingTime = this.formData.log_reporting_time;
-        const result = fieldsData.map(item => {
-          // 通用的删除操作
-          delete item.participleState;
-
-          if (isReportingTime) {
-            // 当指定日志时间为日志上报时间时
-            item.is_time = false;
-            if (item.option) {
-              item.option.time_zone = '';
-              item.option.time_format = '';
-            }
-          } else if (item.field_name === field_name) {
-            // 当不是日志上报时间时
-            item.is_time = true;
-            if (item.option) {
-              item.option.time_zone = time_zone;
-              item.option.time_format = time_format;
-            }
-          }
-
-          return item;
-        });
-        Object.assign(fieldsData, result);
-        return fieldsData;
-      },
-      /** 最后字段对比的对象 */
-      getFieldComparedKeys(fields) {
-        const fieldComparedKeys = [
-          'field_name',
-          'field_type',
-          'is_analyzed',
-          'tokenize_on_chars',
-          'is_case_sensitive',
-          'is_delete',
-          'option',
-        ];
-        return fields.map(item =>
-          Object.entries(item).reduce((acc, [fKey, fVal]) => {
-            if (fieldComparedKeys.includes(fKey)) {
-              acc[fKey] = fVal;
-              if (fKey === 'option') {
-                acc[fKey] = {
-                  time_format: fKey.time_format,
-                  time_zone: fKey.time_zone,
-                };
-              }
-            }
-            return acc;
-          }, {}),
-        );
-      },
-      /** 获取fields */
-      async requestFields(indexSetId) {
-        if (!indexSetId) {
-          return;
-        }
-        const typeConversion = {
-          keyword: 'string',
-          long: 'string',
-        };
-        try {
-          const res = await this.$http.request('retrieve/getLogTableHead', {
-            params: {
-              index_set_id: indexSetId,
-            },
-          });
-          this.fieldsObjectData = res.data.fields.filter(item => item.field_name.includes('.'));
-          this.fieldsObjectData.forEach(item => {
-            let name = item.field_name.split('.')[0];
-            item.field_type = typeConversion[item.field_type];
-            item.is_objectKey = true;
-            item.is_delete = false;
-
-            this.addChildrenToBuiltField(this.copyBuiltField, item, name);
-            this.addChildrenToBuiltField(this.formData.fields, item, name);
-          });
-        } catch (err) {
-          console.warn(err);
-        }
-      },
-      deleteField(field) {
-        this.formData.fields = this.formData.fields.filter(item => item.field_index !== field.field_index);
-      },
-      // 转换alias_settings格式
-      changeAliasSettings(alias_settings) {
-        const keys = Object.keys(alias_settings || {});
-        return keys.map(key => {
-          return {
-            query_alias: key,
-            field_name: alias_settings[key].path,
-          };
-        });
-      },
-      addChildrenToBuiltField(builtFieldList, item, name) {
-        const field_name = name.split('.')[0].replace(/^_+|_+$/g, '');
-        builtFieldList.forEach(builtField => {
-          if (builtField.field_type === 'object' && field_name === builtField.field_name?.split('.')[0]) {
-            if (!Array.isArray(builtField.children)) {
-              builtField.children = [];
-              this.$set(builtField, 'expand', false);
-            }
-            builtField.children.push(item);
-          }
-        });
-      },
-      // 切换后time_unix字段后，取消上次time_unix标识
-      changeFieldName(val, oldVal) {
-        this.fieldNameList.forEach(item => {
-          if (item.field_name === oldVal) {
-            item.is_time = false;
-          }
-        });
-      },
+        window.open(res.data.apply_url);
+      } catch (err) {
+        console.warn(err);
+      } finally {
+        this.$bkLoading.hide();
+      }
     },
-  };
+    handleOpenDocument() {
+      window.open(this.docUrl, '_blank');
+    },
+    /** 切换匹配模式 */
+    handleSelectConfig(id) {
+      if (this.params.etl_config === id) {
+        return;
+      }
+      if (!this.isFinishCatchFrom) {
+        this.catchFields = this.$refs.fieldTable.getData();
+        this.isFinishCatchFrom = true;
+      }
+      this.params.etl_config = id;
+      if (id === this.catchEtlConfig) {
+        this.formData.fields = this.catchFields;
+        this.isFinishCatchFrom = false;
+        return;
+      }
+      this.handleBuiltField(false);
+      this.formData.fields = []; // 切换匹配模式时需要清空字段
+    },
+    /** json格式新增字段 */
+    addNewField() {
+      const fields = deepClone(this.formData.fields);
+      const newBaseFieldObj = {
+        ...this.baseFieldObj,
+        field_index: this.formData.fields.length,
+      };
+      // 获取table表格编辑的数据 新增新的字段对象
+      this.formData.fields.splice(0, fields.length, ...[...this.$refs.fieldTable.getData(), newBaseFieldObj]);
+      this.deletedVisible = true;
+      this.savaFormData();
+    },
+    handleChangeParticipleState(val) {
+      this.formData.etl_params.original_text_tokenize_on_chars = val === 'custom' ? this.defaultParticipleStr : '';
+    },
+    /** 传参需要的data */
+    getSubmitParams(fieldsData = null) {
+      const { etl_config: etlConfig, etl_params: etlParams, visible_type } = this.formData;
+      if (!fieldsData) {
+        fieldsData = this.formData.fields.map(item => {
+          const { participleState, ...otherValue } = item;
+          return otherValue;
+        });
+      }
+      etlParams.metadata_fields =
+        etlParams?.metadata_fields?.map(item => {
+          item.metadata_type = 'path';
+          return item;
+        }) ?? [];
+      const payload = {
+        retain_original_text: etlParams.retain_original_text,
+        original_text_is_case_sensitive: etlParams.original_text_is_case_sensitive ?? false,
+        original_text_tokenize_on_chars: etlParams.original_text_tokenize_on_chars ?? '',
+        retain_extra_json: etlParams.retain_extra_json ?? false,
+        path_regexp: this.enableMetaData ? etlParams.path_regexp : null,
+        enable_retain_content: etlParams.enable_retain_content,
+        record_parse_failure: etlParams.enable_retain_content,
+        metadata_fields: etlParams.metadata_fields,
+      };
+      const data = {
+        clean_type: etlConfig,
+        etl_params: {
+          separator_regexp: etlParams.separator === 'bk_log_regexp' ? etlParams.separator_regexp : '',
+          separator: etlParams.separator,
+          ...payload,
+        },
+        etl_fields: fieldsData,
+        visible_type,
+      };
+      return data;
+    },
+    /** 判断是否有更改过值 */
+    getIsUpdateSubmitValue() {
+      // 如果还在初始化的时候快速切换其他导航则直接跳转 不进行数据修改判断
+      if (this.basicLoading) return false;
+      const fieldTableData = this.getNotParticipleFieldTableData();
+      const editParams = this.editComparedData.comparedVal;
+      const params = this.getSubmitParams(fieldTableData);
+      editParams.etl_fields = this.getFieldComparedKeys(editParams.etl_fields);
+      params.etl_fields = this.getFieldComparedKeys(params.etl_fields);
+      return !deepEqual(editParams, params);
+    },
+    getNotParticipleFieldTableData() {
+      const fieldsData = this.$refs.fieldTable.getData() || [];
+
+      const { field_name, time_zone, time_format } = this.formData;
+      const isReportingTime = this.formData.log_reporting_time;
+      const result = fieldsData.map(item => {
+        // 通用的删除操作
+        delete item.participleState;
+
+        if (isReportingTime) {
+          // 当指定日志时间为日志上报时间时
+          item.is_time = false;
+          if (item.option) {
+            item.option.time_zone = '';
+            item.option.time_format = '';
+          }
+        } else if (item.field_name === field_name) {
+          // 当不是日志上报时间时
+          item.is_time = true;
+          if (item.option) {
+            item.option.time_zone = time_zone;
+            item.option.time_format = time_format;
+          }
+        }
+
+        return item;
+      });
+      Object.assign(fieldsData, result);
+      return fieldsData;
+    },
+    /** 最后字段对比的对象 */
+    getFieldComparedKeys(fields) {
+      const fieldComparedKeys = [
+        'field_name',
+        'field_type',
+        'is_analyzed',
+        'tokenize_on_chars',
+        'is_case_sensitive',
+        'is_delete',
+        'option',
+      ];
+      return fields.map(item =>
+        Object.entries(item).reduce((acc, [fKey, fVal]) => {
+          if (fieldComparedKeys.includes(fKey)) {
+            acc[fKey] = fVal;
+            if (fKey === 'option') {
+              acc[fKey] = {
+                time_format: fKey.time_format,
+                time_zone: fKey.time_zone,
+              };
+            }
+          }
+          return acc;
+        }, {})
+      );
+    },
+    /** 获取fields */
+    async requestFields(indexSetId) {
+      if (!indexSetId) {
+        return;
+      }
+      const typeConversion = {
+        keyword: 'string',
+        long: 'string',
+      };
+      try {
+        const res = await this.$http.request('retrieve/getLogTableHead', {
+          params: {
+            index_set_id: indexSetId,
+          },
+        });
+        this.fieldsObjectData = res.data.fields.filter(item => item.field_name.includes('.'));
+        this.fieldsObjectData.forEach(item => {
+          let name = item.field_name.split('.')[0];
+          item.field_type = typeConversion[item.field_type];
+          item.is_objectKey = true;
+          item.is_delete = false;
+
+          this.addChildrenToBuiltField(this.copyBuiltField, item, name);
+          this.addChildrenToBuiltField(this.formData.fields, item, name);
+        });
+      } catch (err) {
+        console.warn(err);
+      }
+    },
+    deleteField(field) {
+      this.formData.fields = this.formData.fields.filter(item => item.field_index !== field.field_index);
+    },
+    // 转换alias_settings格式
+    changeAliasSettings(alias_settings) {
+      const keys = Object.keys(alias_settings || {});
+      return keys.map(key => {
+        return {
+          query_alias: key,
+          field_name: alias_settings[key].path,
+        };
+      });
+    },
+    addChildrenToBuiltField(builtFieldList, item, name) {
+      const field_name = name.split('.')[0].replace(/^_+|_+$/g, '');
+      builtFieldList.forEach(builtField => {
+        if (builtField.field_type === 'object' && field_name === builtField.field_name?.split('.')[0]) {
+          if (!Array.isArray(builtField.children)) {
+            builtField.children = [];
+            this.$set(builtField, 'expand', false);
+          }
+          builtField.children.push(item);
+        }
+      });
+    },
+    // 切换后time_unix字段后，取消上次time_unix标识
+    changeFieldName(val, oldVal) {
+      this.fieldNameList.forEach(item => {
+        if (item.field_name === oldVal) {
+          item.is_time = false;
+        }
+      });
+    },
+  },
+};
 </script>
 
 <style lang="scss">

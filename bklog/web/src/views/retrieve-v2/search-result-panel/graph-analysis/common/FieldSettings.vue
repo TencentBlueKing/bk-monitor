@@ -24,74 +24,74 @@
 * IN THE SOFTWARE.
 -->
 <script setup>
-  import { ref, defineProps, watch, computed, defineEmits } from 'vue';
+import { ref, defineProps, watch, computed, defineEmits } from 'vue';
 
-  const props = defineProps({
-    xAxis: {
-      type: Array,
-    },
-    yAxis: {
-      type: Array,
-    },
+const props = defineProps({
+  xAxis: {
+    type: Array,
+  },
+  yAxis: {
+    type: Array,
+  },
 
-    activeGraphCategory: {
-      type: String,
-    },
-    result_schema: {
-      type: Array,
-    },
-  });
-  const emit = defineEmits(['update']);
-  const selectedXAxis = ref(props.xAxis);
-  const selectedYAxis = ref(props.yAxis);
-  const timeAxis = ref('');
-  const hiddenField = ref([]);
-  const list = computed(() => props.result_schema.map(item => item.field_alias));
-  const filterFields = (typeCheck, excludeList) => {
-    return props.result_schema.filter(item => typeCheck(item)).filter(item => !excludeList.includes(item.field_alias));
-  };
+  activeGraphCategory: {
+    type: String,
+  },
+  result_schema: {
+    type: Array,
+  },
+});
+const emit = defineEmits(['update']);
+const selectedXAxis = ref(props.xAxis);
+const selectedYAxis = ref(props.yAxis);
+const timeAxis = ref('');
+const hiddenField = ref([]);
+const list = computed(() => props.result_schema.map(item => item.field_alias));
+const filterFields = (typeCheck, excludeList) => {
+  return props.result_schema.filter(item => typeCheck(item)).filter(item => !excludeList.includes(item.field_alias));
+};
 
-  const xAxisFilterList = computed(() => {
-    const fields = [...selectedYAxis.value];
-    if (props.activeGraphCategory !== "pie") {
-      fields.push(timeAxis.value);
-    }
-    return filterFields(item => true, fields);
-  });
-
-  const yAxisFilterList = computed(() => {
-    return filterFields(item => item.field_type !== 'string', [...selectedXAxis.value, timeAxis.value]);
-  });
-
-  const timeFilterList = computed(() => {
-    return filterFields(item => item.field_type == 'long', [...selectedYAxis.value, ...selectedXAxis.value]);
-  });
-  // 监听 props.xAxis 的变化并更新 selectedXAxis
-  watch(
-    () => props.xAxis,
-    newValue => {
-      selectedXAxis.value = newValue;
-    },
-  );
-
-  // 同样操作 yAxis，如果需要的话
-  watch(
-    () => props.yAxis,
-    newValue => {
-      selectedYAxis.value = newValue;
-    },
-  );
-  watch(
-    () => props.activeGraphCategory,
-    newValue => {
-     if(newValue !== 'pie'){
-      selectedXAxis.value = selectedXAxis.value.filter(item => item !== timeAxis.value);
-     }
-    },
-  );
-  function change(axis, newValue) {
-    emit('update', axis, newValue);
+const xAxisFilterList = computed(() => {
+  const fields = [...selectedYAxis.value];
+  if (props.activeGraphCategory !== 'pie') {
+    fields.push(timeAxis.value);
   }
+  return filterFields(item => true, fields);
+});
+
+const yAxisFilterList = computed(() => {
+  return filterFields(item => item.field_type !== 'string', [...selectedXAxis.value, timeAxis.value]);
+});
+
+const timeFilterList = computed(() => {
+  return filterFields(item => item.field_type == 'long', [...selectedYAxis.value, ...selectedXAxis.value]);
+});
+// 监听 props.xAxis 的变化并更新 selectedXAxis
+watch(
+  () => props.xAxis,
+  newValue => {
+    selectedXAxis.value = newValue;
+  }
+);
+
+// 同样操作 yAxis，如果需要的话
+watch(
+  () => props.yAxis,
+  newValue => {
+    selectedYAxis.value = newValue;
+  }
+);
+watch(
+  () => props.activeGraphCategory,
+  newValue => {
+    if (newValue !== 'pie') {
+      selectedXAxis.value = selectedXAxis.value.filter(item => item !== timeAxis.value);
+    }
+  }
+);
+function change(axis, newValue) {
+  emit('update', axis, newValue);
+}
 </script>
 <template>
   <div class="bklog-chart-field">

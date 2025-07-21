@@ -126,7 +126,7 @@ export default defineComponent({
       handleValueChange(
         item.index_set_ids.map(id => `${id}`),
         'union',
-        item.id,
+        item.id
       );
     };
 

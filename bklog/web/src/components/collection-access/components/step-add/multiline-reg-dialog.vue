@@ -95,82 +95,82 @@
 </template>
 
 <script>
-  export default {
-    props: {
-      showDialog: {
-        type: Boolean,
-        default: false,
-      },
-      oldPattern: {
-        // 父组件输入的行首正则内容
-        type: String,
-        default: '',
-      },
+export default {
+  props: {
+    showDialog: {
+      type: Boolean,
+      default: false,
     },
-    data() {
-      const top = (window.innerHeight - 380) / 2;
-      const dialogTop = top < 70 ? 70 : top;
-      return {
-        dialogTop,
-        isMatchLoading: false, // 匹配验证
-        formData: {
-          log_sample: '', // 日志样例
-          multiline_pattern: '', // 行首正则表达式
+    oldPattern: {
+      // 父组件输入的行首正则内容
+      type: String,
+      default: '',
+    },
+  },
+  data() {
+    const top = (window.innerHeight - 380) / 2;
+    const dialogTop = top < 70 ? 70 : top;
+    return {
+      dialogTop,
+      isMatchLoading: false, // 匹配验证
+      formData: {
+        log_sample: '', // 日志样例
+        multiline_pattern: '', // 行首正则表达式
+      },
+      notEmptyRule: [
+        {
+          required: true,
+          trigger: 'blur',
         },
-        notEmptyRule: [
-          {
-            required: true,
-            trigger: 'blur',
+      ],
+      matchLines: null, // 匹配条数
+    };
+  },
+  computed: {
+    getDialogWidth() {
+      return this.$store.getters.isEnLanguage ? '800' : '680';
+    },
+    getLabelWidth() {
+      return this.$store.getters.isEnLanguage ? 215 : 124;
+    },
+  },
+  methods: {
+    handleValueChange(val) {
+      this.$emit('update:show-dialog', val);
+      if (val) {
+        // 打开时填入采集页行首正则内容
+        this.formData.multiline_pattern = this.oldPattern;
+      } else {
+        // 关闭时重置数据
+        this.formData.log_sample = '';
+        this.formData.multiline_pattern = '';
+        this.matchLines = null;
+      }
+    },
+    // 匹配验证
+    async handleMatch() {
+      try {
+        await this.$refs.formRef.validate();
+        this.isMatchLoading = true;
+        const res = await this.$http.request('collect/regexDebug', {
+          params: {
+            collector_id: Number(this.$route.params.collectorId),
           },
-        ],
-        matchLines: null, // 匹配条数
-      };
+          data: this.formData,
+        });
+        this.matchLines = res.data.match_lines;
+      } catch (e) {
+        console.warn(e);
+        this.matchLines = 0;
+      } finally {
+        this.isMatchLoading = false;
+      }
     },
-    computed: {
-      getDialogWidth() {
-        return this.$store.getters.isEnLanguage ? '800' : '680';
-      },
-      getLabelWidth() {
-        return this.$store.getters.isEnLanguage ? 215 : 124;
-      },
+    handleSave() {
+      this.$emit('update:old-pattern', this.formData.multiline_pattern);
     },
-    methods: {
-      handleValueChange(val) {
-        this.$emit('update:show-dialog', val);
-        if (val) {
-          // 打开时填入采集页行首正则内容
-          this.formData.multiline_pattern = this.oldPattern;
-        } else {
-          // 关闭时重置数据
-          this.formData.log_sample = '';
-          this.formData.multiline_pattern = '';
-          this.matchLines = null;
-        }
-      },
-      // 匹配验证
-      async handleMatch() {
-        try {
-          await this.$refs.formRef.validate();
-          this.isMatchLoading = true;
-          const res = await this.$http.request('collect/regexDebug', {
-            params: {
-              collector_id: Number(this.$route.params.collectorId),
-            },
-            data: this.formData,
-          });
-          this.matchLines = res.data.match_lines;
-        } catch (e) {
-          console.warn(e);
-          this.matchLines = 0;
-        } finally {
-          this.isMatchLoading = false;
-        }
-      },
-      handleSave() {
-        this.$emit('update:old-pattern', this.formData.multiline_pattern);
-      },
-    },
-  };
+  },
+};
 </script>
 
 <style lang="scss" scoped>

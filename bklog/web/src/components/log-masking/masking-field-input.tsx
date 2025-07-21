@@ -248,7 +248,7 @@ export default class MaskingFieldInput extends Mixins(classDragMixin) {
             <span class='title'>{this.$t('采样日志')}</span>
             <span class='alert'>
               {this.$t(
-                '日志脱敏会结合您的采样预览日志自动匹配并选用规则，无采样预览日志无法展示预览结果。您也可以新增采样，手动构造日志',
+                '日志脱敏会结合您的采样预览日志自动匹配并选用规则，无采样预览日志无法展示预览结果。您也可以新增采样，手动构造日志'
               )}
             </span>
           </div>

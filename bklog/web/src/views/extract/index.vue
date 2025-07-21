@@ -34,58 +34,58 @@
 </template>
 
 <script>
-  export default {
-    name: 'Extract',
-    data() {
-      return {
-        isRender: true,
-        isLoading: false,
-      };
+export default {
+  name: 'Extract',
+  data() {
+    return {
+      isRender: true,
+      isLoading: false,
+    };
+  },
+  computed: {
+    bkBizId() {
+      return this.$store.state.bkBizId;
     },
-    computed: {
-      bkBizId() {
-        return this.$store.state.bkBizId;
-      },
+  },
+  watch: {
+    // 切换业务销毁实例
+    bkBizId() {
+      this.isLoading = true;
+      this.isRender = false;
+      setTimeout(() => {
+        this.isRender = true;
+        if (this.$route.query.create) {
+          this.isLoading = false;
+        }
+      }, 400);
     },
-    watch: {
-      // 切换业务销毁实例
-      bkBizId() {
-        this.isLoading = true;
-        this.isRender = false;
-        setTimeout(() => {
-          this.isRender = true;
-          if (this.$route.query.create) {
-            this.isLoading = false;
-          }
-        }, 400);
-      },
-    },
-    methods: {
-      backHome() {
-        this.$router.push({
-          name: 'extract',
-          query: {
-            spaceUid: this.$store.state.spaceUid,
-          },
-        });
-      },
-      handleLoading(bool) {
-        this.isLoading = bool;
-      },
-    },
-    mounted() {
-      const bkBizId = this.$store.state.bkBizId;
-      const spaceUid = this.$store.state.spaceUid;
-
-      this.$router.replace({
+  },
+  methods: {
+    backHome() {
+      this.$router.push({
+        name: 'extract',
         query: {
-          bizId: bkBizId,
-          spaceUid: spaceUid,
-          ...this.$route.query,
+          spaceUid: this.$store.state.spaceUid,
         },
       });
     },
-  };
+    handleLoading(bool) {
+      this.isLoading = bool;
+    },
+  },
+  mounted() {
+    const bkBizId = this.$store.state.bkBizId;
+    const spaceUid = this.$store.state.spaceUid;
+
+    this.$router.replace({
+      query: {
+        bizId: bkBizId,
+        spaceUid: spaceUid,
+        ...this.$route.query,
+      },
+    });
+  },
+};
 </script>
 
 <style lang="scss" scoped>

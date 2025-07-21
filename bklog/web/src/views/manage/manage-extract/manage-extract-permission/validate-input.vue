@@ -37,36 +37,36 @@
 </template>
 
 <script>
-  export default {
-    model: {
-      event: 'change',
+export default {
+  model: {
+    event: 'change',
+  },
+  props: {
+    value: {
+      type: String,
+      default: '',
     },
-    props: {
-      value: {
-        type: String,
-        default: '',
-      },
-      placeholder: {
-        type: String,
-        default: '',
-      },
-      validator: {
-        type: Function,
-        default: val => Boolean(val),
-      },
+    placeholder: {
+      type: String,
+      default: '',
     },
-    data() {
-      return {
-        isError: false,
-      };
+    validator: {
+      type: Function,
+      default: val => Boolean(val),
     },
-    methods: {
-      handleChange(val) {
-        this.$emit('change', val);
-      },
-      handleBlur(val) {
-        this.isError = !this.validator(val);
-      },
+  },
+  data() {
+    return {
+      isError: false,
+    };
+  },
+  methods: {
+    handleChange(val) {
+      this.$emit('change', val);
     },
-  };
+    handleBlur(val) {
+      this.isError = !this.validator(val);
+    },
+  },
+};
 </script>

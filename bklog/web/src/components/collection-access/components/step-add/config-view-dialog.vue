@@ -89,64 +89,64 @@
   </bk-dialog>
 </template>
 <script>
-  import EmptyStatus from '@/components/empty-status';
+import EmptyStatus from '@/components/empty-status';
 
-  export default {
-    components: {
-      EmptyStatus,
+export default {
+  components: {
+    EmptyStatus,
+  },
+  props: {
+    isShowDialog: {
+      type: Boolean,
+      default: false,
     },
-    props: {
-      isShowDialog: {
-        type: Boolean,
-        default: false,
-      },
-      viewQueryParams: {
-        type: Object,
-        require: true,
-      },
-      isNode: {
-        type: Boolean,
-        require: true,
-      },
+    viewQueryParams: {
+      type: Object,
+      require: true,
     },
-    data() {
-      return {
-        isShowList: false,
-        viewList: [],
-        loading: false,
-      };
+    isNode: {
+      type: Boolean,
+      require: true,
     },
-    computed: {},
-    watch: {
-      isShowDialog(val) {
-        if (val) {
-          this.loading = true;
-          this.$http
-            .request('container/getLabelHitView', {
-              data: this.viewQueryParams,
-            })
-            .then(res => {
-              this.viewList = res.data.map(item => ({ ...item, isShowTarget: true }));
-            })
-            .finally(() => {
-              this.loading = false;
-            });
-        } else {
-          setTimeout(() => {
-            this.viewList = [];
-          }, 1000);
-        }
-      },
+  },
+  data() {
+    return {
+      isShowList: false,
+      viewList: [],
+      loading: false,
+    };
+  },
+  computed: {},
+  watch: {
+    isShowDialog(val) {
+      if (val) {
+        this.loading = true;
+        this.$http
+          .request('container/getLabelHitView', {
+            data: this.viewQueryParams,
+          })
+          .then(res => {
+            this.viewList = res.data.map(item => ({ ...item, isShowTarget: true }));
+          })
+          .finally(() => {
+            this.loading = false;
+          });
+      } else {
+        setTimeout(() => {
+          this.viewList = [];
+        }, 1000);
+      }
     },
-    methods: {
-      handelCancelDialog() {
-        this.$emit('update:is-show-dialog', false);
-      },
-      handleClickTitle(index, showValue) {
-        this.viewList[index].isShowTarget = !showValue;
-      },
+  },
+  methods: {
+    handelCancelDialog() {
+      this.$emit('update:is-show-dialog', false);
     },
-  };
+    handleClickTitle(index, showValue) {
+      this.viewList[index].isShowTarget = !showValue;
+    },
+  },
+};
 </script>
 <style lang="scss" scoped>
   @import '@/scss/mixins/flex.scss';

@@ -151,171 +151,171 @@
 </template>
 
 <script>
-  import EmptyStatus from '@/components/empty-status';
-  import { mapState } from 'vuex';
+import EmptyStatus from '@/components/empty-status';
+import { mapState } from 'vuex';
 
-  import * as authorityMap from '../../../../../../common/authority-map';
+import * as authorityMap from '../../../../../../common/authority-map';
 
-  export default {
-    components: {
-      EmptyStatus,
+export default {
+  components: {
+    EmptyStatus,
+  },
+  props: {
+    parentData: {
+      type: Object,
+      required: true,
     },
-    props: {
-      parentData: {
-        type: Object,
-        required: true,
+  },
+  data() {
+    const scenarioId = this.$route.name.split('-')[0];
+    return {
+      scenarioId,
+      showDialog: false,
+      basicLoading: false,
+      tableLoading: false,
+      confirmLoading: false,
+      collectionList: [], // log bkdata 下拉列表
+      tableData: [], // log bkdata 表格
+      formData: {
+        resultTableId: '',
       },
+      formRules: {
+        resultTableId: [
+          {
+            required: true,
+            trigger: 'blur',
+          },
+        ],
+      },
+    };
+  },
+  computed: {
+    ...mapState(['spaceUid', 'bkBizId']),
+    authorityMap() {
+      return authorityMap;
     },
-    data() {
-      const scenarioId = this.$route.name.split('-')[0];
-      return {
-        scenarioId,
-        showDialog: false,
+    getShowCollectionList() {
+      if (this.parentData.storage_cluster_id && this.scenarioId === 'log') {
+        return this.collectionList.filter(item => item.storage_cluster_id === this.parentData.storage_cluster_id);
+      }
+      return this.collectionList;
+    },
+  },
+  mounted() {
+    this.fetchCollectionList();
+  },
+  methods: {
+    openDialog() {
+      this.showDialog = true;
+      this.emptyType = 'empty';
+      Object.assign(this, {
         basicLoading: false,
         tableLoading: false,
         confirmLoading: false,
-        collectionList: [], // log bkdata 下拉列表
         tableData: [], // log bkdata 表格
         formData: {
           resultTableId: '',
         },
-        formRules: {
-          resultTableId: [
-            {
-              required: true,
-              trigger: 'blur',
-            },
-          ],
-        },
-      };
+      });
     },
-    computed: {
-      ...mapState(['spaceUid', 'bkBizId']),
-      authorityMap() {
-        return authorityMap;
-      },
-      getShowCollectionList() {
-        if (this.parentData.storage_cluster_id && this.scenarioId === 'log') {
-          return this.collectionList.filter(item => item.storage_cluster_id === this.parentData.storage_cluster_id);
-        }
-        return this.collectionList;
-      },
-    },
-    mounted() {
-      this.fetchCollectionList();
-    },
-    methods: {
-      openDialog() {
-        this.showDialog = true;
-        this.emptyType = 'empty';
-        Object.assign(this, {
-          basicLoading: false,
-          tableLoading: false,
-          confirmLoading: false,
-          tableData: [], // log bkdata 表格
-          formData: {
-            resultTableId: '',
+    // 获取下拉列表
+    async fetchCollectionList() {
+      try {
+        this.basicLoading = true;
+        const res = await this.$http.request('/resultTables/list', {
+          query: {
+            scenario_id: this.scenarioId,
+            bk_biz_id: this.bkBizId,
           },
         });
-      },
-      // 获取下拉列表
-      async fetchCollectionList() {
-        try {
-          this.basicLoading = true;
-          const res = await this.$http.request('/resultTables/list', {
-            query: {
-              scenario_id: this.scenarioId,
-              bk_biz_id: this.bkBizId,
-            },
-          });
-          this.collectionList = res.data.map(item => {
-            // 后端要传这个值，虽然不太合理
-            item.bk_biz_id = this.bkBizId;
-            return item;
-          });
-        } catch (e) {
-          console.warn(e);
-        } finally {
-          this.basicLoading = false;
-        }
-      },
-      // 选择采集项
-      async handleCollectionSelected(id, foreignParams) {
-        try {
-          this.tableLoading = true;
-          const res = await this.$http.request(
-            '/resultTables/info',
-            !!foreignParams
-              ? foreignParams
-              : {
-                  params: {
-                    result_table_id: id,
-                  },
-                  query: {
-                    scenario_id: this.scenarioId,
-                    bk_biz_id: this.bkBizId,
-                  },
-                },
-          );
-          if (foreignParams) return res;
-          this.tableData = res.data.fields;
-          this.tableLoading = false;
-        } catch (e) {
-          console.warn(e);
-        }
-      },
-      // 采集项-申请权限
-      async applyCollectorAccess(option) {
-        try {
-          this.$el.click(); // 因为下拉在loading上面所以需要关闭下拉
-          this.basicLoading = true;
-          const res = await this.$store.dispatch('getApplyData', {
-            action_ids: [authorityMap.MANAGE_COLLECTION_AUTH],
-            resources: [
-              {
-                type: 'collection',
-                id: option.collector_config_id,
-              },
-            ],
-          });
-          window.open(res.data.apply_url);
-        } catch (err) {
-          console.warn(err);
-        } finally {
-          this.basicLoading = false;
-        }
-      },
-      // 确认添加
-      async handleConfirm() {
-        try {
-          await this.$refs.formRef.validate();
-          this.confirmLoading = true;
-          const data = {
-            scenario_id: this.scenarioId,
-            basic_indices: this.parentData.indexes.map(item => ({
-              index: item.result_table_id,
-            })),
-            append_index: {
-              index: this.formData.resultTableId,
-            },
-          };
-          await this.$http.request('/resultTables/adapt', { data });
-          this.$emit(
-            'selected',
-            this.collectionList.find(item => item.result_table_id === this.formData.resultTableId),
-          );
-          this.showDialog = false;
-        } catch (e) {
-          console.warn(e);
-        } finally {
-          this.confirmLoading = false;
-        }
-      },
-      handleCancel() {
-        this.showDialog = false;
-      },
+        this.collectionList = res.data.map(item => {
+          // 后端要传这个值，虽然不太合理
+          item.bk_biz_id = this.bkBizId;
+          return item;
+        });
+      } catch (e) {
+        console.warn(e);
+      } finally {
+        this.basicLoading = false;
+      }
     },
-  };
+    // 选择采集项
+    async handleCollectionSelected(id, foreignParams) {
+      try {
+        this.tableLoading = true;
+        const res = await this.$http.request(
+          '/resultTables/info',
+          !!foreignParams
+            ? foreignParams
+            : {
+                params: {
+                  result_table_id: id,
+                },
+                query: {
+                  scenario_id: this.scenarioId,
+                  bk_biz_id: this.bkBizId,
+                },
+              }
+        );
+        if (foreignParams) return res;
+        this.tableData = res.data.fields;
+        this.tableLoading = false;
+      } catch (e) {
+        console.warn(e);
+      }
+    },
+    // 采集项-申请权限
+    async applyCollectorAccess(option) {
+      try {
+        this.$el.click(); // 因为下拉在loading上面所以需要关闭下拉
+        this.basicLoading = true;
+        const res = await this.$store.dispatch('getApplyData', {
+          action_ids: [authorityMap.MANAGE_COLLECTION_AUTH],
+          resources: [
+            {
+              type: 'collection',
+              id: option.collector_config_id,
+            },
+          ],
+        });
+        window.open(res.data.apply_url);
+      } catch (err) {
+        console.warn(err);
+      } finally {
+        this.basicLoading = false;
+      }
+    },
+    // 确认添加
+    async handleConfirm() {
+      try {
+        await this.$refs.formRef.validate();
+        this.confirmLoading = true;
+        const data = {
+          scenario_id: this.scenarioId,
+          basic_indices: this.parentData.indexes.map(item => ({
+            index: item.result_table_id,
+          })),
+          append_index: {
+            index: this.formData.resultTableId,
+          },
+        };
+        await this.$http.request('/resultTables/adapt', { data });
+        this.$emit(
+          'selected',
+          this.collectionList.find(item => item.result_table_id === this.formData.resultTableId)
+        );
+        this.showDialog = false;
+      } catch (e) {
+        console.warn(e);
+      } finally {
+        this.confirmLoading = false;
+      }
+    },
+    handleCancel() {
+      this.showDialog = false;
+    },
+  },
+};
 </script>
 
 <style scoped lang="scss">

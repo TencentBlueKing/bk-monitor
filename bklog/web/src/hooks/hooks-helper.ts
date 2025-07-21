@@ -48,7 +48,7 @@ function deepQueryShadowSelector(selector) {
 }
 
 export const getTargetElement = (
-  target: (() => HTMLElement) | HTMLElement | Ref<HTMLElement> | string,
+  target: (() => HTMLElement) | HTMLElement | Ref<HTMLElement> | string
 ): HTMLElement => {
   if (typeof target === 'string') {
     if (window.__IS_MONITOR_TRACE__) {
@@ -165,7 +165,7 @@ export const setScrollLoadCell = (
   wordList: Array<unknown>,
   rootElement: HTMLElement,
   contentElement: HTMLElement,
-  renderFn: (item: unknown) => HTMLElement,
+  renderFn: (item: unknown) => HTMLElement
 ) => {
   let startIndex = 0;
   let scrollEvtAdded = false;

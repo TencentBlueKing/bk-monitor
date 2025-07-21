@@ -24,68 +24,68 @@
 * IN THE SOFTWARE.
 -->
 <script setup>
-  import { ref, onMounted, defineExpose, nextTick, computed } from 'vue';
-  import { useRoute } from 'vue-router/composables';
-  import { bkMessage } from 'bk-magic-vue';
-  import * as monaco from 'monaco-editor';
-  import useLocale from '@/hooks/use-locale';
-  import PreviewSql from './common/PreviewSql.vue';
-  import $http from '../../../../api';
-  const { $t } = useLocale();
-  const route = useRoute();
-  const editorContainer = ref(null);
-  const showDialog = ref(false);
-  const sqlContent = ref('');
-  const emit = defineEmits(['search-completed']);
-  let editorInstance = null;
-  window.MonacoEnvironment = {
-    // 根据提供的worker类别标签（label）返回一个新的Worker实例, Worker负责处理与该标签相关的任务
-    // 当label是’json’时，将初始化并返回一个专门处理JSON文件的Worker。如果label不是’json’，则返回一个通用的编辑器Worker
-    getWorker: () => {
-      return process.env.NODE_ENV === 'production' ? `${window.BK_STATIC_URL}/editor.worker.js` : './editor.worker.js';
+import { ref, onMounted, defineExpose, nextTick, computed } from 'vue';
+import { useRoute } from 'vue-router/composables';
+import { bkMessage } from 'bk-magic-vue';
+import * as monaco from 'monaco-editor';
+import useLocale from '@/hooks/use-locale';
+import PreviewSql from './common/PreviewSql.vue';
+import $http from '../../../../api';
+const { $t } = useLocale();
+const route = useRoute();
+const editorContainer = ref(null);
+const showDialog = ref(false);
+const sqlContent = ref('');
+const emit = defineEmits(['search-completed']);
+let editorInstance = null;
+window.MonacoEnvironment = {
+  // 根据提供的worker类别标签（label）返回一个新的Worker实例, Worker负责处理与该标签相关的任务
+  // 当label是’json’时，将初始化并返回一个专门处理JSON文件的Worker。如果label不是’json’，则返回一个通用的编辑器Worker
+  getWorker: () => {
+    return process.env.NODE_ENV === 'production' ? `${window.BK_STATIC_URL}/editor.worker.js` : './editor.worker.js';
+  },
+};
+
+function preview() {
+  showDialog.value = true;
+  sqlContent.value = editorInstance.getValue();
+}
+
+function emitQuery() {}
+function emitStop() {}
+async function sqlSearch() {
+  if (!editorInstance) {
+    console.error('Editor instance is not available.');
+    return;
+  }
+
+  // 获取编辑器内容
+  const sqlQuery = editorInstance.getValue();
+
+  const res = await $http.request('graphAnalysis/searchSQL', {
+    params: {
+      index_set_id: route.params.indexId,
     },
-  };
-
-  function preview() {
-    showDialog.value = true;
-    sqlContent.value = editorInstance.getValue();
-  }
-
-  function emitQuery() {}
-  function emitStop() {}
-  async function sqlSearch() {
-    if (!editorInstance) {
-      console.error('Editor instance is not available.');
-      return;
-    }
-
-    // 获取编辑器内容
-    const sqlQuery = editorInstance.getValue();
-
-    const res = await $http.request('graphAnalysis/searchSQL', {
-      params: {
-        index_set_id: route.params.indexId,
-      },
-      data: {
-        query_mode: 'sql',
-        sql: sqlQuery, // 使用获取到的内容
-      },
+    data: {
+      query_mode: 'sql',
+      sql: sqlQuery, // 使用获取到的内容
+    },
+  });
+  if (!res.data.list.length) {
+    bkMessage({
+      theme: 'primary',
+      message: '没有查询到数据',
     });
-    if (!res.data.list.length) {
-      bkMessage({
-        theme: 'primary',
-        message: '没有查询到数据',
-      });
-      return;
-    }
-    emit('search-completed', res);
+    return;
   }
-  onMounted(() => {
-    // 在组件挂载后初始化 Monaco Editor
-    if (editorContainer.value) {
-      // editorContainer.value.style.height = "100%"; // 设置高度
-      editorInstance = monaco.editor.create(editorContainer.value, {
-        value: `SELECT
+  emit('search-completed', res);
+}
+onMounted(() => {
+  // 在组件挂载后初始化 Monaco Editor
+  if (editorContainer.value) {
+    // editorContainer.value.style.height = "100%"; // 设置高度
+    editorInstance = monaco.editor.create(editorContainer.value, {
+      value: `SELECT
     thedate,
     dtEventTimeStamp,
     iterationIndex,
@@ -97,14 +97,14 @@ WHERE
     thedate >= '20241120'
     AND thedate <= '20241120'
 LIMIT 2;`,
-        language: 'sql',
-        theme: 'vs-dark',
-      });
-    }
-  });
-  defineExpose({
-    // resize,
-  });
+      language: 'sql',
+      theme: 'vs-dark',
+    });
+  }
+});
+defineExpose({
+  // resize,
+});
 </script>
 <template>
   <div class="sql-editor">

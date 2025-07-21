@@ -107,10 +107,10 @@
 </template>
 
 <script setup>
-import { ref, watch, computed } from "vue";
-import JsonFormatWrapper from "@/global/json-format-wrapper.vue";
-import $http from "@/api";
-import useLocale from "@/hooks/use-locale";
+import { ref, watch, computed } from 'vue';
+import JsonFormatWrapper from '@/global/json-format-wrapper.vue';
+import $http from '@/api';
+import useLocale from '@/hooks/use-locale';
 const { $t } = useLocale();
 
 const props = defineProps({
@@ -124,14 +124,14 @@ const props = defineProps({
   },
   favoriteType: {
     type: String,
-    default: "event",
+    default: 'event',
   },
 });
 
-const emit = defineEmits(["success","close"]);
+const emit = defineEmits(['success', 'close']);
 
 const showNameInput = ref(false);
-const nameInput = ref("");
+const nameInput = ref('');
 const nameLoading = ref(false);
 const showGroupInput = ref(false);
 const groupInput = ref(null);
@@ -159,7 +159,7 @@ const handleUpdateName = async () => {
     };
     const success = await handleUpdateFavorite(params);
     nameLoading.value = false;
-    success && emit("success", params);
+    success && emit('success', params);
   }
 };
 
@@ -167,24 +167,22 @@ const handleUpdateGroup = async () => {
   showGroupInput.value = false;
   if (groupInput.value && groupInput.value !== props.value.group_id) {
     groupLoading.value = true;
-    const group_name = props.groups.find(
-      (item) => String(item.id) === String(groupInput.value)
-    )?.name;
+    const group_name = props.groups.find(item => String(item.id) === String(groupInput.value))?.name;
     const params = {
       ...props.value,
-      group_id: groupInput.value === "null" ? null : groupInput.value,
+      group_id: groupInput.value === 'null' ? null : groupInput.value,
     };
     const success = await handleUpdateFavorite(params);
     groupLoading.value = false;
     success &&
-      emit("success", {
+      emit('success', {
         ...params,
         group_name: group_name || props.value.group_name,
       });
   }
 };
 
-const handleUpdateFavorite = async (row) => {
+const handleUpdateFavorite = async row => {
   const params = [
     {
       id: row.id,
@@ -202,7 +200,7 @@ const handleUpdateFavorite = async (row) => {
   ];
 
   return $http
-    .request("favorite/batchFavoriteUpdate", {
+    .request('favorite/batchFavoriteUpdate', {
       data: {
         params,
       },
@@ -210,13 +208,13 @@ const handleUpdateFavorite = async (row) => {
     .then(() => {
       return Promise.resolve(true);
     })
-    .catch((error) => {
-      console.error("Batch update failed", error);
+    .catch(error => {
+      console.error('Batch update failed', error);
       return Promise.reject(error);
     });
 };
-function handleCloseDialog (){
-  emit("close")
+function handleCloseDialog() {
+  emit('close');
 }
 function mergeWhereList(source, target) {
   let result = [];

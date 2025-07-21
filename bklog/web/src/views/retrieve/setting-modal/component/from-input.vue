@@ -72,99 +72,99 @@
   </div>
 </template>
 <script>
-  export default {
-    model: {
-      prop: 'value',
-      event: 'change',
+export default {
+  model: {
+    prop: 'value',
+    event: 'change',
+  },
+  props: {
+    value: {
+      type: String,
+      default: '',
     },
-    props: {
-      value: {
-        type: String,
-        default: '',
+    btnStr: {
+      type: String,
+      default: '',
+    },
+    templateList: {
+      type: Array,
+      default: () => [],
+    },
+    placeholder: {
+      type: String,
+      default: '',
+    },
+  },
+  data() {
+    return {
+      verifyData: {
+        inputStr: '',
       },
-      btnStr: {
-        type: String,
-        default: '',
+      isShowAddInput: false,
+      verifyRules: {
+        inputStr: [
+          {
+            validator: this.checkName,
+            message: this.$t('{n}不规范, 包含特殊符号', { n: this.$t('模板名称') }),
+            trigger: 'blur',
+          },
+          {
+            validator: this.checkExistName,
+            message: this.$t('模板名重复'),
+            trigger: 'blur',
+          },
+          {
+            required: true,
+            message: this.$t('必填项'),
+            trigger: 'blur',
+          },
+          {
+            max: 30,
+            message: this.$t('不能多于{n}个字符', { n: 30 }),
+            trigger: 'blur',
+          },
+        ],
       },
-      templateList: {
-        type: Array,
-        default: () => [],
+    };
+  },
+  computed: {
+    inputStr: {
+      get() {
+        return this.value;
       },
-      placeholder: {
-        type: String,
-        default: '',
+      set(v) {
+        this.$emit('change', v);
       },
     },
-    data() {
-      return {
-        verifyData: {
-          inputStr: '',
-        },
-        isShowAddInput: false,
-        verifyRules: {
-          inputStr: [
-            {
-              validator: this.checkName,
-              message: this.$t('{n}不规范, 包含特殊符号', { n: this.$t('模板名称') }),
-              trigger: 'blur',
-            },
-            {
-              validator: this.checkExistName,
-              message: this.$t('模板名重复'),
-              trigger: 'blur',
-            },
-            {
-              required: true,
-              message: this.$t('必填项'),
-              trigger: 'blur',
-            },
-            {
-              max: 30,
-              message: this.$t('不能多于{n}个字符', { n: 30 }),
-              trigger: 'blur',
-            },
-          ],
-        },
-      };
+  },
+  methods: {
+    checkName() {
+      if (this.verifyData.inputStr.trim() === '') return true;
+      return /^[\u4e00-\u9fa5_a-zA-Z0-9`~!@#$%^&*()_\-+=<>?:"{}|\s,.\/;'\\[\]·~！@#￥%……&*（）——\-+={}|《》？：“”【】、；‘'，。、]+$/im.test(
+        this.verifyData.inputStr.trim()
+      );
     },
-    computed: {
-      inputStr: {
-        get() {
-          return this.value;
-        },
-        set(v) {
-          this.$emit('change', v);
-        },
-      },
+    checkExistName() {
+      return !this.templateList.some(item => item.name === this.verifyData.inputStr);
     },
-    methods: {
-      checkName() {
-        if (this.verifyData.inputStr.trim() === '') return true;
-        return /^[\u4e00-\u9fa5_a-zA-Z0-9`~!@#$%^&*()_\-+=<>?:"{}|\s,.\/;'\\[\]·~！@#￥%……&*（）——\-+={}|《》？：“”【】、；‘'，。、]+$/im.test(
-          this.verifyData.inputStr.trim(),
-        );
-      },
-      checkExistName() {
-        return !this.templateList.some(item => item.name === this.verifyData.inputStr);
-      },
-      handleAddNew() {
-        this.$refs.checkInputForm.validate().then(() => {
-          this.inputStr = this.verifyData.inputStr;
-          this.$emit('created', this.verifyData.inputStr);
-          this.isShowAddInput = false;
-        });
-      },
-      handleCancelNew() {
-        this.verifyData.inputStr = '';
+    handleAddNew() {
+      this.$refs.checkInputForm.validate().then(() => {
+        this.inputStr = this.verifyData.inputStr;
+        this.$emit('created', this.verifyData.inputStr);
         this.isShowAddInput = false;
-      },
-      handleShowAddInput() {
-        this.isShowAddInput = true;
-        this.verifyData.inputStr = this.inputStr;
-        this.$refs.checkInputForm.clearError();
-      },
+      });
     },
-  };
+    handleCancelNew() {
+      this.verifyData.inputStr = '';
+      this.isShowAddInput = false;
+    },
+    handleShowAddInput() {
+      this.isShowAddInput = true;
+      this.verifyData.inputStr = this.inputStr;
+      this.$refs.checkInputForm.clearError();
+    },
+  },
+};
 </script>
 <style lang="scss" scoped>
   @import '@/scss/mixins/flex.scss';

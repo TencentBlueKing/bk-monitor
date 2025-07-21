@@ -192,324 +192,324 @@
 </template>
 
 <script>
-  import { formatFileSize } from '@/common/util';
-  import EmptyStatus from '@/components/empty-status';
-  import { mapGetters } from 'vuex';
+import { formatFileSize } from '@/common/util';
+import EmptyStatus from '@/components/empty-status';
+import { mapGetters } from 'vuex';
 
-  import * as authorityMap from '../../../../common/authority-map';
-  import RestoreSlider from './restore-slider';
+import * as authorityMap from '../../../../common/authority-map';
+import RestoreSlider from './restore-slider';
 
-  export default {
-    name: 'ArchiveRestore',
-    components: {
-      RestoreSlider,
-      EmptyStatus,
-    },
-    data() {
-      return {
-        isTableLoading: false,
-        isRenderSlider: true,
-        showSlider: false,
-        editRestore: null,
-        timer: null,
-        timerNum: 0,
-        keyword: '',
-        dataList: [],
-        restoreIds: [], // 异步获取状态参数
-        pagination: {
-          current: 1,
-          count: 0,
-          limit: 10,
-          limitList: [10, 20, 50, 100],
-        },
-        params: {
-          keyword: '',
-        },
-        emptyType: 'empty',
-      };
-    },
-    computed: {
-      ...mapGetters({
-        bkBizId: 'bkBizId',
-      }),
-      authorityMap() {
-        return authorityMap;
+export default {
+  name: 'ArchiveRestore',
+  components: {
+    RestoreSlider,
+    EmptyStatus,
+  },
+  data() {
+    return {
+      isTableLoading: false,
+      isRenderSlider: true,
+      showSlider: false,
+      editRestore: null,
+      timer: null,
+      timerNum: 0,
+      keyword: '',
+      dataList: [],
+      restoreIds: [], // 异步获取状态参数
+      pagination: {
+        current: 1,
+        count: 0,
+        limit: 10,
+        limitList: [10, 20, 50, 100],
       },
+      params: {
+        keyword: '',
+      },
+      emptyType: 'empty',
+    };
+  },
+  computed: {
+    ...mapGetters({
+      bkBizId: 'bkBizId',
+    }),
+    authorityMap() {
+      return authorityMap;
     },
-    created() {
+  },
+  created() {
+    this.search();
+  },
+  beforeUnmount() {
+    this.timerNum = -1;
+    this.stopStatusPolling();
+  },
+  methods: {
+    search() {
+      this.pagination.current = 1;
+      this.stopStatusPolling();
+      this.requestData();
+    },
+    handleFilterChange(data) {
+      Object.keys(data).forEach(item => {
+        this.params[item] = data[item].join('');
+      });
+      this.pagination.current = 1;
       this.search();
     },
-    beforeUnmount() {
-      this.timerNum = -1;
-      this.stopStatusPolling();
+    handleCreate() {
+      this.showSlider = true;
+      this.editRestore = null;
     },
-    methods: {
-      search() {
-        this.pagination.current = 1;
+    /**
+     * 分页变换
+     * @param  {Number} page 当前页码
+     * @return {[type]}      [description]
+     */
+    handlePageChange(page) {
+      if (this.pagination.current !== page) {
+        this.pagination.current = page;
         this.stopStatusPolling();
         this.requestData();
-      },
-      handleFilterChange(data) {
-        Object.keys(data).forEach(item => {
-          this.params[item] = data[item].join('');
-        });
+      }
+    },
+    /**
+     * 分页限制
+     * @param  {Number} page 当前页码
+     * @return {[type]}      [description]
+     */
+    handleLimitChange(page) {
+      if (this.pagination.limit !== page) {
         this.pagination.current = 1;
-        this.search();
-      },
-      handleCreate() {
-        this.showSlider = true;
-        this.editRestore = null;
-      },
-      /**
-       * 分页变换
-       * @param  {Number} page 当前页码
-       * @return {[type]}      [description]
-       */
-      handlePageChange(page) {
-        if (this.pagination.current !== page) {
-          this.pagination.current = page;
-          this.stopStatusPolling();
-          this.requestData();
-        }
-      },
-      /**
-       * 分页限制
-       * @param  {Number} page 当前页码
-       * @return {[type]}      [description]
-       */
-      handleLimitChange(page) {
-        if (this.pagination.limit !== page) {
-          this.pagination.current = 1;
-          this.pagination.limit = page;
-          this.stopStatusPolling();
-          this.requestData();
-        }
-      },
-      // 轮询
-      startStatusPolling() {
-        this.timerNum += 1;
-        const { timerNum } = this;
+        this.pagination.limit = page;
         this.stopStatusPolling();
-        this.timer = setTimeout(() => {
-          timerNum === this.timerNum && this.restoreIds && this.requestRestoreStatus(true);
-        }, 10000);
-      },
-      stopStatusPolling() {
-        clearTimeout(this.timer);
-      },
-      requestRestoreList() {
-        return new Promise((resolve, reject) => {
-          this.$http
-            .request('archive/restoreList', {
-              query: {
-                ...this.params,
-                bk_biz_id: this.bkBizId,
-                page: this.pagination.current,
-                pagesize: this.pagination.limit,
-              },
-            })
-            .then(res => {
-              const { data } = res;
-              this.restoreIds = [];
-              this.pagination.count = data.total;
-              this.restoreIds = [];
-              data.list.forEach(row => {
-                row.status = '';
-                row.status_name = '';
-                this.restoreIds.push(row.restore_config_id);
-              });
-              this.dataList.splice(0, this.dataList.length, ...data.list);
-              resolve(res);
-            })
-            .catch(err => {
-              reject(err);
-            })
-            .finally(() => {
-              this.isTableLoading = false;
-            });
-        });
-      },
-      requestData() {
-        this.isTableLoading = true;
-        this.emptyType = this.params.keyword ? 'search-empty' : 'empty';
-        Promise.all([this.requestRestoreList()])
-          .then(() => {
-            if (this.restoreIds.length) {
-              this.requestRestoreStatus();
-            }
+        this.requestData();
+      }
+    },
+    // 轮询
+    startStatusPolling() {
+      this.timerNum += 1;
+      const { timerNum } = this;
+      this.stopStatusPolling();
+      this.timer = setTimeout(() => {
+        timerNum === this.timerNum && this.restoreIds && this.requestRestoreStatus(true);
+      }, 10000);
+    },
+    stopStatusPolling() {
+      clearTimeout(this.timer);
+    },
+    requestRestoreList() {
+      return new Promise((resolve, reject) => {
+        this.$http
+          .request('archive/restoreList', {
+            query: {
+              ...this.params,
+              bk_biz_id: this.bkBizId,
+              page: this.pagination.current,
+              pagesize: this.pagination.limit,
+            },
           })
-          .catch(() => {
-            this.emptyType = '500';
+          .then(res => {
+            const { data } = res;
+            this.restoreIds = [];
+            this.pagination.count = data.total;
+            this.restoreIds = [];
+            data.list.forEach(row => {
+              row.status = '';
+              row.status_name = '';
+              this.restoreIds.push(row.restore_config_id);
+            });
+            this.dataList.splice(0, this.dataList.length, ...data.list);
+            resolve(res);
+          })
+          .catch(err => {
+            reject(err);
           })
           .finally(() => {
             this.isTableLoading = false;
           });
-      },
-      requestRestoreStatus(isPrivate) {
-        const { timerNum } = this;
-        this.$http
-          .request('archive/getRestoreStatus', {
-            data: {
-              restore_config_ids: this.restoreIds,
-            },
-          })
-          .then(res => {
-            if (timerNum === this.timerNum) {
-              this.statusHandler(res.data || []);
-              this.startStatusPolling();
-            }
-            if (!isPrivate) {
-              this.loadingStatus = true;
-            }
-          })
-          .catch(() => {
-            if (isPrivate) {
-              this.stopStatusPolling();
-            }
-          });
-      },
-      statusHandler(data) {
-        data.forEach(item => {
-          this.dataList.forEach(row => {
-            if (row.restore_config_id === item.restore_config_id) {
-              const completeCount = item.complete_doc_count;
-              const totalCount = item.total_doc_count;
-
-              if (completeCount >= totalCount) {
-                row.status = 'finish';
-                row.status_name = this.$t('完成');
-              }
-              if (completeCount === 0) {
-                row.statusHandler = 'unStart';
-                row.status_name = this.$t('未开始');
-              }
-              if (completeCount > 0 && completeCount < totalCount) {
-                const precent = `${Math.round((completeCount / totalCount) * 100)}%`;
-                row.status = 'restoring';
-                row.status_name = `${this.$t('回溯中')}(${precent})`;
-              }
-            }
-          });
-        });
-      },
-      handleUpdated() {
-        this.showSlider = false;
-        this.search();
-      },
-      operateHandler(row, operateType) {
-        if (operateType === 'search') {
-          if (!row.permission?.[authorityMap.SEARCH_LOG_AUTH]) {
-            return this.getOptionApplyData({
-              action_ids: [authorityMap.SEARCH_LOG_AUTH],
-              resources: [
-                {
-                  type: 'indices',
-                  id: row.index_set_id,
-                },
-              ],
-            });
-          }
-        }
-
-        if (operateType === 'edit' || operateType === 'delete') {
-          if (!row.permission?.[authorityMap.MANAGE_COLLECTION_AUTH]) {
-            return this.getOptionApplyData({
-              action_ids: [authorityMap.MANAGE_COLLECTION_AUTH],
-              resources: [
-                {
-                  type: 'collection',
-                  id: row.instance_id,
-                },
-              ],
-            });
-          }
-        }
-
-        if (operateType === 'search') {
-          this.$router.push({
-            name: 'retrieve',
-            params: {
-              indexId: row.index_set_id,
-            },
-          });
-          return;
-        }
-
-        if (operateType === 'edit') {
-          this.editRestore = row;
-          this.showSlider = true;
-          return;
-        }
-
-        if (operateType === 'delete') {
-          this.$bkInfo({
-            type: 'warning',
-            title: this.$t('确认删除该回溯？'),
-            confirmFn: () => {
-              this.requestDelete(row);
-            },
-          });
-        }
-      },
-      requestDelete(row) {
-        this.$http
-          .request('archive/deleteRestore', {
-            params: {
-              restore_config_id: row.restore_config_id,
-            },
-          })
-          .then(res => {
-            if (res.result) {
-              const page =
-                this.dataList.length <= 1
-                  ? this.pagination.current > 1
-                    ? this.pagination.current - 1
-                    : 1
-                  : this.pagination.current;
-              this.messageSuccess(this.$t('删除成功'));
-              if (page !== this.pagination.current) {
-                this.handlePageChange(page);
-              } else {
-                this.requestData();
-              }
-            }
-          })
-          .catch(() => {});
-      },
-      getFileSize(size) {
-        return formatFileSize(size);
-      },
-      async getOptionApplyData(paramData) {
-        try {
-          this.isTableLoading = true;
-          const res = await this.$store.dispatch('getApplyData', paramData);
-          this.$store.commit('updateAuthDialogData', res.data);
-        } catch (err) {
-          console.warn(err);
-        } finally {
-          this.isTableLoading = false;
-        }
-      },
-      handleSearchChange(val) {
-        if (val === '' && !this.isTableLoading) {
-          this.search();
-        }
-      },
-      handleOperation(type) {
-        if (type === 'clear-filter') {
-          this.params.keyword = '';
-          this.search();
-          return;
-        }
-
-        if (type === 'refresh') {
-          this.emptyType = 'empty';
-          this.search();
-          return;
-        }
-      },
+      });
     },
-  };
+    requestData() {
+      this.isTableLoading = true;
+      this.emptyType = this.params.keyword ? 'search-empty' : 'empty';
+      Promise.all([this.requestRestoreList()])
+        .then(() => {
+          if (this.restoreIds.length) {
+            this.requestRestoreStatus();
+          }
+        })
+        .catch(() => {
+          this.emptyType = '500';
+        })
+        .finally(() => {
+          this.isTableLoading = false;
+        });
+    },
+    requestRestoreStatus(isPrivate) {
+      const { timerNum } = this;
+      this.$http
+        .request('archive/getRestoreStatus', {
+          data: {
+            restore_config_ids: this.restoreIds,
+          },
+        })
+        .then(res => {
+          if (timerNum === this.timerNum) {
+            this.statusHandler(res.data || []);
+            this.startStatusPolling();
+          }
+          if (!isPrivate) {
+            this.loadingStatus = true;
+          }
+        })
+        .catch(() => {
+          if (isPrivate) {
+            this.stopStatusPolling();
+          }
+        });
+    },
+    statusHandler(data) {
+      data.forEach(item => {
+        this.dataList.forEach(row => {
+          if (row.restore_config_id === item.restore_config_id) {
+            const completeCount = item.complete_doc_count;
+            const totalCount = item.total_doc_count;
+
+            if (completeCount >= totalCount) {
+              row.status = 'finish';
+              row.status_name = this.$t('完成');
+            }
+            if (completeCount === 0) {
+              row.statusHandler = 'unStart';
+              row.status_name = this.$t('未开始');
+            }
+            if (completeCount > 0 && completeCount < totalCount) {
+              const precent = `${Math.round((completeCount / totalCount) * 100)}%`;
+              row.status = 'restoring';
+              row.status_name = `${this.$t('回溯中')}(${precent})`;
+            }
+          }
+        });
+      });
+    },
+    handleUpdated() {
+      this.showSlider = false;
+      this.search();
+    },
+    operateHandler(row, operateType) {
+      if (operateType === 'search') {
+        if (!row.permission?.[authorityMap.SEARCH_LOG_AUTH]) {
+          return this.getOptionApplyData({
+            action_ids: [authorityMap.SEARCH_LOG_AUTH],
+            resources: [
+              {
+                type: 'indices',
+                id: row.index_set_id,
+              },
+            ],
+          });
+        }
+      }
+
+      if (operateType === 'edit' || operateType === 'delete') {
+        if (!row.permission?.[authorityMap.MANAGE_COLLECTION_AUTH]) {
+          return this.getOptionApplyData({
+            action_ids: [authorityMap.MANAGE_COLLECTION_AUTH],
+            resources: [
+              {
+                type: 'collection',
+                id: row.instance_id,
+              },
+            ],
+          });
+        }
+      }
+
+      if (operateType === 'search') {
+        this.$router.push({
+          name: 'retrieve',
+          params: {
+            indexId: row.index_set_id,
+          },
+        });
+        return;
+      }
+
+      if (operateType === 'edit') {
+        this.editRestore = row;
+        this.showSlider = true;
+        return;
+      }
+
+      if (operateType === 'delete') {
+        this.$bkInfo({
+          type: 'warning',
+          title: this.$t('确认删除该回溯？'),
+          confirmFn: () => {
+            this.requestDelete(row);
+          },
+        });
+      }
+    },
+    requestDelete(row) {
+      this.$http
+        .request('archive/deleteRestore', {
+          params: {
+            restore_config_id: row.restore_config_id,
+          },
+        })
+        .then(res => {
+          if (res.result) {
+            const page =
+              this.dataList.length <= 1
+                ? this.pagination.current > 1
+                  ? this.pagination.current - 1
+                  : 1
+                : this.pagination.current;
+            this.messageSuccess(this.$t('删除成功'));
+            if (page !== this.pagination.current) {
+              this.handlePageChange(page);
+            } else {
+              this.requestData();
+            }
+          }
+        })
+        .catch(() => {});
+    },
+    getFileSize(size) {
+      return formatFileSize(size);
+    },
+    async getOptionApplyData(paramData) {
+      try {
+        this.isTableLoading = true;
+        const res = await this.$store.dispatch('getApplyData', paramData);
+        this.$store.commit('updateAuthDialogData', res.data);
+      } catch (err) {
+        console.warn(err);
+      } finally {
+        this.isTableLoading = false;
+      }
+    },
+    handleSearchChange(val) {
+      if (val === '' && !this.isTableLoading) {
+        this.search();
+      }
+    },
+    handleOperation(type) {
+      if (type === 'clear-filter') {
+        this.params.keyword = '';
+        this.search();
+        return;
+      }
+
+      if (type === 'refresh') {
+        this.emptyType = 'empty';
+        this.search();
+        return;
+      }
+    },
+  },
+};
 </script>
 
 <style lang="scss">

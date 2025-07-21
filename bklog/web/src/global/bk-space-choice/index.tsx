@@ -139,7 +139,7 @@ export default defineComponent({
     });
 
     const lowerCaseKeyword = computed(() => keyword.value.trim().toLocaleLowerCase());
-    
+
     const authorizedList = computed(() =>
       mySpaceList.value.filter(item => {
         let show = false;
@@ -160,13 +160,13 @@ export default defineComponent({
         if (!show) return false;
         if (!item.permission?.[authorityMap.VIEW_BUSINESS]) return false;
         return true;
-      }),
+      })
     );
 
     const commonList = computed(
       () =>
         commonListIdsLog.value.map(id => authorizedList.value.find(item => Number(item.id) === id)).filter(Boolean) ||
-        [],
+        []
     );
 
     // 初始化业务列表

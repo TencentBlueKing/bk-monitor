@@ -143,7 +143,7 @@ export default class LuceneSegment {
     }
     if (this.isMidNumLet(c)) {
       return Boolean(
-        prev && next && ((this.isLetter(prev) && this.isLetter(next)) || (this.isNumber(prev) && this.isNumber(next))),
+        prev && next && ((this.isLetter(prev) && this.isLetter(next)) || (this.isNumber(prev) && this.isNumber(next)))
       );
     }
     if (this.isMidNum(c)) {
@@ -158,7 +158,7 @@ export default class LuceneSegment {
   private static processBuffer(
     buffer: string,
     MAX_TOKENS: number,
-    currentTokenCount: number,
+    currentTokenCount: number
   ): { text: string; isMark: boolean; isCursorText: boolean }[] {
     const result: { text: string; isMark: boolean; isCursorText: boolean }[] = [];
     let currentToken = '';

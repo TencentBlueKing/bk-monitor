@@ -58,74 +58,74 @@
 </template>
 
 <script>
-  import DailyChart from './daily-chart';
-  import DataSampling from './data-sampling';
-  import MinuteChart from './minute-chart';
+import DailyChart from './daily-chart';
+import DataSampling from './data-sampling';
+import MinuteChart from './minute-chart';
 
-  export default {
-    components: {
-      DataSampling,
-      MinuteChart,
-      DailyChart,
+export default {
+  components: {
+    DataSampling,
+    MinuteChart,
+    DailyChart,
+  },
+  props: {
+    collectorData: {
+      type: Object,
+      require: true,
     },
-    props: {
-      collectorData: {
-        type: Object,
-        require: true,
-      },
+  },
+  data() {
+    return {
+      dataSamplingLoading: true,
+      dataSamplingList: [],
+      isMasking: false,
+    };
+  },
+  async created() {
+    try {
+      this.dataSamplingLoading = true;
+      this.isMasking = await this.getMaskingConfig(); // 获取脱敏配置信息
+      if (!this.isMasking) this.fetchDataSampling(); // 未脱敏才能查看是否采样
+    } catch (error) {
+      this.dataSamplingLoading = false;
+    }
+  },
+  methods: {
+    /**
+     * @desc: 判断当前是采集项是否有脱敏
+     * @returns {Array}
+     */
+    async getMaskingConfig() {
+      try {
+        await this.$http.request(
+          'masking/getMaskingConfig',
+          {
+            params: { index_set_id: this.collectorData?.index_set_id },
+          },
+          { catchIsShowMessage: false }
+        );
+        return true;
+      } catch (err) {
+        return false;
+      }
     },
-    data() {
-      return {
-        dataSamplingLoading: true,
-        dataSamplingList: [],
-        isMasking: false,
-      };
-    },
-    async created() {
+    // 数据采样
+    async fetchDataSampling() {
       try {
         this.dataSamplingLoading = true;
-        this.isMasking = await this.getMaskingConfig(); // 获取脱敏配置信息
-        if (!this.isMasking) this.fetchDataSampling(); // 未脱敏才能查看是否采样
-      } catch (error) {
+        const dataSamplingRes = await this.$http.request('source/dataList', {
+          params: {
+            collector_config_id: this.$route.params.collectorId,
+          },
+        });
+        this.dataSamplingList = dataSamplingRes.data;
+      } catch (e) {
+        console.warn(e);
+        this.dataSamplingList = [];
+      } finally {
         this.dataSamplingLoading = false;
       }
     },
-    methods: {
-      /**
-       * @desc: 判断当前是采集项是否有脱敏
-       * @returns {Array}
-       */
-      async getMaskingConfig() {
-        try {
-          await this.$http.request(
-            'masking/getMaskingConfig',
-            {
-              params: { index_set_id: this.collectorData?.index_set_id },
-            },
-            { catchIsShowMessage: false },
-          );
-          return true;
-        } catch (err) {
-          return false;
-        }
-      },
-      // 数据采样
-      async fetchDataSampling() {
-        try {
-          this.dataSamplingLoading = true;
-          const dataSamplingRes = await this.$http.request('source/dataList', {
-            params: {
-              collector_config_id: this.$route.params.collectorId,
-            },
-          });
-          this.dataSamplingList = dataSamplingRes.data;
-        } catch (e) {
-          console.warn(e);
-          this.dataSamplingList = [];
-        } finally {
-          this.dataSamplingLoading = false;
-        }
-      },
-    },
-  };
+  },
+};
 </script>

@@ -49,80 +49,80 @@
 </template>
 
 <script lang="ts">
-  import { Component, Vue, Emit, Prop } from 'vue-property-decorator';
-  interface menuItem {
-    id: string;
-    name: string;
-    nextName?: string;
-    checked: boolean;
-    icon: string;
-    hasLink?: boolean;
-    nextIcon?: string;
+import { Component, Vue, Emit, Prop } from 'vue-property-decorator';
+interface menuItem {
+  id: string;
+  name: string;
+  nextName?: string;
+  checked: boolean;
+  icon: string;
+  hasLink?: boolean;
+  nextIcon?: string;
+}
+@Component({
+  name: 'chart-menu',
+})
+export default class ChartMenu extends Vue {
+  @Prop({ default: () => [] }) list: string[];
+  menuList: menuItem[] = [];
+  created() {
+    this.menuList = [
+      {
+        name: '保存到仪表盘',
+        checked: false,
+        id: 'save',
+        icon: 'mc-mark',
+      },
+      {
+        name: '截图到本地',
+        checked: false,
+        id: 'screenshot',
+        icon: 'mc-camera',
+      },
+      {
+        name: '查看大图',
+        checked: false,
+        id: 'fullscreen',
+        icon: 'fullscreen',
+      },
+      {
+        name: '检索',
+        checked: false,
+        id: 'explore',
+        icon: 'mc-retrieval',
+        hasLink: true,
+      },
+      {
+        name: '添加策略',
+        checked: false,
+        id: 'strategy',
+        icon: 'menu-strategy',
+        hasLink: true,
+      },
+      {
+        name: 'Y轴固定最小值为0',
+        checked: false,
+        id: 'set',
+        nextName: 'Y轴自适应',
+        icon: 'mc-yaxis',
+        nextIcon: 'mc-yaxis-scale',
+      },
+      {
+        name: '面积图',
+        checked: false,
+        id: 'area',
+        nextName: '线性图',
+        icon: 'mc-area',
+        nextIcon: 'mc-line',
+      },
+    ];
   }
-  @Component({
-    name: 'chart-menu',
-  })
-  export default class ChartMenu extends Vue {
-    @Prop({ default: () => [] }) list: string[];
-    menuList: menuItem[] = [];
-    created() {
-      this.menuList = [
-        {
-          name: '保存到仪表盘',
-          checked: false,
-          id: 'save',
-          icon: 'mc-mark',
-        },
-        {
-          name: '截图到本地',
-          checked: false,
-          id: 'screenshot',
-          icon: 'mc-camera',
-        },
-        {
-          name: '查看大图',
-          checked: false,
-          id: 'fullscreen',
-          icon: 'fullscreen',
-        },
-        {
-          name: '检索',
-          checked: false,
-          id: 'explore',
-          icon: 'mc-retrieval',
-          hasLink: true,
-        },
-        {
-          name: '添加策略',
-          checked: false,
-          id: 'strategy',
-          icon: 'menu-strategy',
-          hasLink: true,
-        },
-        {
-          name: 'Y轴固定最小值为0',
-          checked: false,
-          id: 'set',
-          nextName: 'Y轴自适应',
-          icon: 'mc-yaxis',
-          nextIcon: 'mc-yaxis-scale',
-        },
-        {
-          name: '面积图',
-          checked: false,
-          id: 'area',
-          nextName: '线性图',
-          icon: 'mc-area',
-          nextIcon: 'mc-line',
-        },
-      ];
-    }
-    @Emit('menu-click')
-    handleMenuClick(item: menuItem) {
-      item.checked = !item.checked;
-      return item;
-    }
+  @Emit('menu-click')
+  handleMenuClick(item: menuItem) {
+    item.checked = !item.checked;
+    return item;
   }
+}
 </script>
 
 <style lang="scss" scoped>

@@ -141,7 +141,7 @@ export default defineComponent({
       handleStart,
       handleReceiveMessage,
       handleEnd,
-      handleError,
+      handleError
     );
 
     const handleChoosePrompt = () => {};

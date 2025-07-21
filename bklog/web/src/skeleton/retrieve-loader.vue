@@ -56,98 +56,96 @@
 </template>
 
 <script>
-  export default {
-    props: {
-      visibleFields: {
-        type: Array,
-        required: true,
-      },
-      // 用于初次loading
-      isLoading: {
-        type: Boolean,
-        default: false,
-      },
-      // 是否原始日志
-      isOriginalField: {
-        type: Boolean,
-        default: false,
-      },
-      isPageOver: {
-        type: Boolean,
-        required: false,
-      },
-      isNewSearch: {
-        type: Boolean,
-        default: false,
-      },
-      static: {
-        type: Boolean,
-        default: false,
-      },
-      maxLength: {
-        type: Number
+export default {
+  props: {
+    visibleFields: {
+      type: Array,
+      required: true,
+    },
+    // 用于初次loading
+    isLoading: {
+      type: Boolean,
+      default: false,
+    },
+    // 是否原始日志
+    isOriginalField: {
+      type: Boolean,
+      default: false,
+    },
+    isPageOver: {
+      type: Boolean,
+      required: false,
+    },
+    isNewSearch: {
+      type: Boolean,
+      default: false,
+    },
+    static: {
+      type: Boolean,
+      default: false,
+    },
+    maxLength: {
+      type: Number,
+    },
+  },
+  data() {
+    return {
+      throttle: false, // 滚动节流
+      loaderLen: 12, // 骨架行数
+    };
+  },
+  computed: {
+    renderList() {
+      return new Array(this.maxLength ?? this.loaderLen).fill('');
+    },
+    columnField() {
+      const visibleTable = !this.visibleFields.length ? Array(3).fill({ width: '', minWidth: 0 }) : this.visibleFields;
+      return this.isOriginalField
+        ? [
+            { width: 160, minWidth: 0, field_name: 'time' },
+            { width: '', minWidth: 0, field_name: 'log' },
+          ]
+        : visibleTable;
+    },
+    loaderClassName() {
+      return this.isNewSearch ? '.result-table-container' : '.result-scroll-container';
+    },
+  },
+  mounted() {
+    if (!this.static) {
+      if (this.isLoading) this.loaderLen = 12;
+      const ele = document.querySelector(this.loaderClassName);
+      if (ele) ele.addEventListener('scroll', this.handleScroll);
+    }
+  },
+  beforeDestroy() {
+    if (!this.static) {
+      const ele = document.querySelector(this.loaderClassName);
+      if (ele) ele.removeEventListener('scroll', this.handleScroll);
+    }
+  },
+  methods: {
+    getRandom() {
+      // 骨架占位随机长度
+      return Math.floor(Math.random() * (20 - 100) + 100);
+    },
+    handleScroll() {
+      if (this.throttle || this.isLoading) {
+        return;
       }
-    },
-    data() {
-      return {
-        throttle: false, // 滚动节流
-        loaderLen: 12, // 骨架行数
-      };
-    },
-    computed: {
-      renderList() {
-        return new Array(this.maxLength ?? this.loaderLen).fill('');
-      },
-      columnField() {
-        const visibleTable = !this.visibleFields.length
-          ? Array(3).fill({ width: '', minWidth: 0 })
-          : this.visibleFields;
-        return this.isOriginalField
-          ? [
-              { width: 160, minWidth: 0, field_name: 'time' },
-              { width: '', minWidth: 0, field_name: 'log' },
-            ]
-          : visibleTable;
-      },
-      loaderClassName() {
-        return this.isNewSearch ? '.result-table-container' : '.result-scroll-container';
-      },
-    },
-    mounted() {
-      if (!this.static) {
-        if (this.isLoading) this.loaderLen = 12;
-        const ele = document.querySelector(this.loaderClassName);
-        if (ele) ele.addEventListener('scroll', this.handleScroll);
-      }
-    },
-    beforeDestroy() {
-      if (!this.static) {
-        const ele = document.querySelector(this.loaderClassName);
-        if (ele) ele.removeEventListener('scroll', this.handleScroll);
-      }
-    },
-    methods: {
-      getRandom() {
-        // 骨架占位随机长度
-        return Math.floor(Math.random() * (20 - 100) + 100);
-      },
-      handleScroll() {
-        if (this.throttle || this.isLoading) {
-          return;
-        }
 
-        const el = document.querySelector(this.loaderClassName);
-        if (el.scrollHeight - el.offsetHeight - el.scrollTop < 100) {
-          this.throttle = true;
-          setTimeout(() => {
-            this.loaderLen = this.loaderLen + 24;
-            el.scrollTop = el.scrollTop - 100;
-            this.throttle = false;
-          }, 100);
-        }
-      },
+      const el = document.querySelector(this.loaderClassName);
+      if (el.scrollHeight - el.offsetHeight - el.scrollTop < 100) {
+        this.throttle = true;
+        setTimeout(() => {
+          this.loaderLen = this.loaderLen + 24;
+          el.scrollTop = el.scrollTop - 100;
+          this.throttle = false;
+        }, 100);
+      }
     },
-  };
+  },
+};
 </script>
 
 <style lang="scss">

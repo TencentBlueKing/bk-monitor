@@ -43,54 +43,54 @@
 </template>
 
 <script>
-  export default {
-    props: {
-      theme: {
-        type: String,
-        default: 'dark',
-      },
-      buttonText: {
-        type: String,
-        default: '',
-      },
-      text: {
-        type: Boolean,
-        default: false,
-      },
-      extCls: {
-        type: String,
-        default: '',
-      },
-      disabled: {
-        type: Boolean,
-        default: false,
-      },
-      cursorActive: {
-        type: Boolean,
-        default: false,
-      },
-      tipsConf: {
-        // eslint-disable-next-line vue/require-prop-type-constructor
-        type: Object | String,
-        default: '',
-      },
+export default {
+  props: {
+    theme: {
+      type: String,
+      default: 'dark',
     },
-    computed: {
-      tooltips() {
-        const conf = typeof this.tipsConf === 'string' ? { content: this.tipsConf } : this.tipsConf;
-        return {
-          ...conf,
-          delay: 100,
-          disabled: !this.disabled || conf.content === '',
-        };
-      },
+    buttonText: {
+      type: String,
+      default: '',
     },
-    methods: {
-      handleClick() {
-        this.$emit('on-click');
-      },
+    text: {
+      type: Boolean,
+      default: false,
     },
-  };
+    extCls: {
+      type: String,
+      default: '',
+    },
+    disabled: {
+      type: Boolean,
+      default: false,
+    },
+    cursorActive: {
+      type: Boolean,
+      default: false,
+    },
+    tipsConf: {
+      // eslint-disable-next-line vue/require-prop-type-constructor
+      type: Object | String,
+      default: '',
+    },
+  },
+  computed: {
+    tooltips() {
+      const conf = typeof this.tipsConf === 'string' ? { content: this.tipsConf } : this.tipsConf;
+      return {
+        ...conf,
+        delay: 100,
+        disabled: !this.disabled || conf.content === '',
+      };
+    },
+  },
+  methods: {
+    handleClick() {
+      this.$emit('on-click');
+    },
+  },
+};
 </script>
 
 <style lang="scss" scoped>

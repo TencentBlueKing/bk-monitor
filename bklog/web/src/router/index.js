@@ -1191,7 +1191,7 @@ export default (spaceId, bkBizId, externalMenu) => {
           _LOG_TO_MONITOR_: true,
           _MONITOR_URL_: window.MONITOR_URL,
         },
-        '*',
+        '*'
         // window.MONITOR_URL,
       );
     }

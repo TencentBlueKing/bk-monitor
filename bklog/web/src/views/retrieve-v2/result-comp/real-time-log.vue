@@ -126,269 +126,269 @@
 </template>
 
 <script>
-  import { getFlatObjValues } from '@/common/util';
-  import logView from '@/components/log-view';
-  import logViewControl from '@/components/log-view/log-view-control';
+import { getFlatObjValues } from '@/common/util';
+import logView from '@/components/log-view';
+import logViewControl from '@/components/log-view/log-view-control';
 
-  import DataFilter from '../condition-comp/data-filter';
+import DataFilter from '../condition-comp/data-filter';
 
-  export default {
-    name: 'RealTimeLog',
-    components: {
-      logView,
-      logViewControl,
-      DataFilter,
-    },
-    props: {
-      logParams: {
-        type: Object,
-        default() {
-          return {};
-        },
-      },
-      title: {
-        type: String,
-        require: true,
-      },
-      targetFields: {
-        type: Array,
-        default: () => [],
-      },
-      indexSetId: {
-        type: Number,
-        default: 0,
+export default {
+  name: 'RealTimeLog',
+  components: {
+    logView,
+    logViewControl,
+    DataFilter,
+  },
+  props: {
+    logParams: {
+      type: Object,
+      default() {
+        return {};
       },
     },
-    data() {
-      return {
-        filterType: 'include',
-        activeFilterKey: '',
-        params: {},
-        isScreenFull: true,
-        loading: false, // 是否已经发出请求
-        isPolling: false,
-        timer: null,
-        cloudAreaList: [],
-        logList: [],
-        reverseLogList: [],
-        // 日志最大长度
-        maxLength: Number(window.REAL_TIME_LOG_MAX_LENGTH) || 20000,
-        // 超过此长度删除部分日志
-        shiftLength: Number(window.REAL_TIME_LOG_SHIFT_LENGTH) || 10000,
-        isScrollBottom: true,
-        logWrapperEl: null,
-        zero: true,
-        ignoreCase: false,
-        flipScreen: '',
-        flipScreenList: [],
-        interval: {
-          prev: 0,
-          next: 0,
-        },
-        showType: 'log',
-        highlightList: [],
-        rowShowParams: {},
-        throttleTimer: null,
-        isInit: true,
-      };
+    title: {
+      type: String,
+      require: true,
     },
-    computed: {
-      getTargetFieldsStr() {
-        return this.targetFields.reduce((acc, cur) => {
-          acc += `${cur}: ${this.rowShowParams[cur] || '/ '} `;
-          return acc;
-        }, '');
+    targetFields: {
+      type: Array,
+      default: () => [],
+    },
+    indexSetId: {
+      type: Number,
+      default: 0,
+    },
+  },
+  data() {
+    return {
+      filterType: 'include',
+      activeFilterKey: '',
+      params: {},
+      isScreenFull: true,
+      loading: false, // 是否已经发出请求
+      isPolling: false,
+      timer: null,
+      cloudAreaList: [],
+      logList: [],
+      reverseLogList: [],
+      // 日志最大长度
+      maxLength: Number(window.REAL_TIME_LOG_MAX_LENGTH) || 20000,
+      // 超过此长度删除部分日志
+      shiftLength: Number(window.REAL_TIME_LOG_SHIFT_LENGTH) || 10000,
+      isScrollBottom: true,
+      logWrapperEl: null,
+      zero: true,
+      ignoreCase: false,
+      flipScreen: '',
+      flipScreenList: [],
+      interval: {
+        prev: 0,
+        next: 0,
       },
+      showType: 'log',
+      highlightList: [],
+      rowShowParams: {},
+      throttleTimer: null,
+      isInit: true,
+    };
+  },
+  computed: {
+    getTargetFieldsStr() {
+      return this.targetFields.reduce((acc, cur) => {
+        acc += `${cur}: ${this.rowShowParams[cur] || '/ '} `;
+        return acc;
+      }, '');
     },
-    created() {
-      this.deepClone(this.logParams);
-    },
-    mounted() {
-      document.addEventListener('keyup', this.handleKeyup);
-      this.requestRealTimeLog();
-      this.togglePolling();
-      this.registerScrollEvent();
-    },
-    beforeDestroy() {
-      document.removeEventListener('keyup', this.handleKeyup);
+  },
+  created() {
+    this.deepClone(this.logParams);
+  },
+  mounted() {
+    document.addEventListener('keyup', this.handleKeyup);
+    this.requestRealTimeLog();
+    this.togglePolling();
+    this.registerScrollEvent();
+  },
+  beforeDestroy() {
+    document.removeEventListener('keyup', this.handleKeyup);
 
-      this.timer && clearInterval(this.timer);
+    this.timer && clearInterval(this.timer);
+  },
+  methods: {
+    handleKeyup(event) {
+      if (event.keyCode === 27) {
+        this.$emit('close-dialog');
+      }
     },
-    methods: {
-      handleKeyup(event) {
-        if (event.keyCode === 27) {
-          this.$emit('close-dialog');
-        }
-      },
-      deepClone(obj) {
-        const string = JSON.stringify(obj)
-          .replace(/<mark>/g, '')
-          .replace(/<\/mark>/g, '');
-        // 扁平化对象内的对象值
-        const parseObj = JSON.parse(string);
-        if (this.targetFields.length) {
-          const { newObject } = getFlatObjValues(parseObj);
-          this.rowShowParams = newObject;
-        }
-        this.params = parseObj;
-      },
-      requestRealTimeLog() {
-        if (this.loading) {
-          return false;
-        }
-        this.loading = true;
-        this.$http
-          .request('retrieve/getRealTimeLog', {
-            params: {
-              index_set_id: this.indexSetId,
-            },
-            data: Object.assign(
-              { order: '-', size: 50, zero: this.zero, dtEventTimeStamp: this.logParams.dtEventTimeStamp },
-              this.params,
-            ),
-          })
-          .then(res => {
-            // 通过gseindex 去掉出返回日志， 并加入现有日志
-            const { list } = res.data;
-            if (list && list.length) {
-              // 超过最大长度时剔除部分日志
-              if (this.logList.length > this.maxLength) {
-                this.logList.splice(0, this.shiftLength);
-                this.logWrapperEl.scrollTo({ top: 0 });
-              }
-
-              const logArr = [];
-              list.forEach(item => {
-                const { log } = item;
-                logArr.push({ log });
-              });
-              this.deepClone(list[list.length - 1]);
-              if (this.isInit) {
-                this.reverseLogList = logArr.slice(0, -1);
-                this.logList = logArr.slice(-1);
-              } else {
-                this.logList.splice(this.logList.length, 0, ...logArr);
-              }
-              if (this.isScrollBottom) {
-                this.$nextTick(() => {
-                  if (this.zero) {
-                    // 首次不要滚动动画
-                    this.logWrapperEl.scrollTo({ top: this.logWrapperEl.scrollHeight });
-                    this.zero = false;
-                  } else {
-                    this.$easeScroll(
-                      this.logWrapperEl.scrollHeight - this.logWrapperEl.offsetHeight,
-                      300,
-                      this.logWrapperEl,
-                    );
-                  }
-                });
-              }
+    deepClone(obj) {
+      const string = JSON.stringify(obj)
+        .replace(/<mark>/g, '')
+        .replace(/<\/mark>/g, '');
+      // 扁平化对象内的对象值
+      const parseObj = JSON.parse(string);
+      if (this.targetFields.length) {
+        const { newObject } = getFlatObjValues(parseObj);
+        this.rowShowParams = newObject;
+      }
+      this.params = parseObj;
+    },
+    requestRealTimeLog() {
+      if (this.loading) {
+        return false;
+      }
+      this.loading = true;
+      this.$http
+        .request('retrieve/getRealTimeLog', {
+          params: {
+            index_set_id: this.indexSetId,
+          },
+          data: Object.assign(
+            { order: '-', size: 50, zero: this.zero, dtEventTimeStamp: this.logParams.dtEventTimeStamp },
+            this.params
+          ),
+        })
+        .then(res => {
+          // 通过gseindex 去掉出返回日志， 并加入现有日志
+          const { list } = res.data;
+          if (list && list.length) {
+            // 超过最大长度时剔除部分日志
+            if (this.logList.length > this.maxLength) {
+              this.logList.splice(0, this.shiftLength);
+              this.logWrapperEl.scrollTo({ top: 0 });
             }
-          })
-          .finally(() => {
-            this.isInit = false;
-            setTimeout(() => {
-              this.loading = false;
-            }, 300);
-          });
-      },
-      clearLogList() {
-        if (this.isPolling) {
-          this.timer && clearInterval(this.timer);
-        }
-        this.logList.splice(0, this.logList.length);
-        if (this.isPolling) {
-          this.isPolling = false;
-          this.requestRealTimeLog();
-          this.togglePolling();
-        }
-      },
-      togglePolling() {
-        this.isPolling = !this.isPolling;
-        this.timer && clearInterval(this.timer);
-        if (this.isPolling) {
-          this.timer = setInterval(this.requestRealTimeLog, 5000);
-        }
-      },
-      toggleScreenFull() {
-        this.isScreenFull = !this.isScreenFull;
-        this.$emit('toggle-screen-full', this.isScreenFull);
-      },
-      registerScrollEvent() {
-        this.logWrapperEl = document.querySelector('.dialog-log-markdown');
-        this.logWrapperEl.addEventListener('scroll', () => {
-          const { scrollTop } = this.logWrapperEl;
-          const contentHeight = this.logWrapperEl.scrollHeight;
-          const { offsetHeight } = this.logWrapperEl;
-          if (scrollTop + offsetHeight >= contentHeight) {
-            this.isScrollBottom = true;
-          } else {
-            this.isScrollBottom = false;
-          }
-        });
-      },
-      copyLogText() {
-        const el = document.createElement('textarea');
-        const copyStrList = this.reverseLogList.concat(this.logList).map(item => item.log);
-        el.value = copyStrList.join('\n');
-        el.setAttribute('readonly', '');
-        el.style.position = 'absolute';
-        el.style.left = '-9999px';
-        document.body.appendChild(el);
-        const selected = document.getSelection().rangeCount > 0 ? document.getSelection().getRangeAt(0) : false;
-        el.select();
-        document.execCommand('copy');
-        document.body.removeChild(el);
-        if (selected) {
-          document.getSelection().removeAllRanges();
-          document.getSelection().addRange(selected);
-        }
-        this.$bkMessage({
-          theme: 'success',
-          message: this.$t('复制成功'),
-        });
-      },
-      filterLog(value) {
-        this.activeFilterKey = value;
-        clearTimeout(this.throttleTimer);
-        this.throttleTimer = setTimeout(() => {
-          if (!value) {
-            this.$nextTick(() => {
-              this.initLogScrollPosition();
+
+            const logArr = [];
+            list.forEach(item => {
+              const { log } = item;
+              logArr.push({ log });
             });
+            this.deepClone(list[list.length - 1]);
+            if (this.isInit) {
+              this.reverseLogList = logArr.slice(0, -1);
+              this.logList = logArr.slice(-1);
+            } else {
+              this.logList.splice(this.logList.length, 0, ...logArr);
+            }
+            if (this.isScrollBottom) {
+              this.$nextTick(() => {
+                if (this.zero) {
+                  // 首次不要滚动动画
+                  this.logWrapperEl.scrollTo({ top: this.logWrapperEl.scrollHeight });
+                  this.zero = false;
+                } else {
+                  this.$easeScroll(
+                    this.logWrapperEl.scrollHeight - this.logWrapperEl.offsetHeight,
+                    300,
+                    this.logWrapperEl
+                  );
+                }
+              });
+            }
           }
-        }, 300);
-      },
-      initLogScrollPosition() {
-        // 确定第0条的位置
-        this.firstLogEl = document.querySelector('.dialog-log-markdown .log-init');
-        // 没有数据
-        if (!this.firstLogEl) return;
-        const logContentHeight = this.firstLogEl.scrollHeight;
-        const logOffsetTop = this.firstLogEl.offsetTop;
-
-        const wrapperOffsetHeight = this.$refs.realTimeLog.offsetHeight;
-
-        if (wrapperOffsetHeight <= logContentHeight) {
-          this.$refs.realTimeLog.scrollTop = logOffsetTop;
-        } else {
-          this.$refs.realTimeLog.scrollTop = logOffsetTop - Math.ceil((wrapperOffsetHeight - logContentHeight) / 2);
-        }
-        // 避免重复请求
-        setTimeout(() => {
-          this.$refs.realTimeLog.addEventListener('scroll', this.handleScroll, { passive: true });
-        }, 64);
-      },
-      handleFilter(field, value) {
-        if (field === 'filterKey') {
-          this.filterLog(value);
-        } else {
-          this[field] = value;
-        }
-      },
+        })
+        .finally(() => {
+          this.isInit = false;
+          setTimeout(() => {
+            this.loading = false;
+          }, 300);
+        });
     },
-  };
+    clearLogList() {
+      if (this.isPolling) {
+        this.timer && clearInterval(this.timer);
+      }
+      this.logList.splice(0, this.logList.length);
+      if (this.isPolling) {
+        this.isPolling = false;
+        this.requestRealTimeLog();
+        this.togglePolling();
+      }
+    },
+    togglePolling() {
+      this.isPolling = !this.isPolling;
+      this.timer && clearInterval(this.timer);
+      if (this.isPolling) {
+        this.timer = setInterval(this.requestRealTimeLog, 5000);
+      }
+    },
+    toggleScreenFull() {
+      this.isScreenFull = !this.isScreenFull;
+      this.$emit('toggle-screen-full', this.isScreenFull);
+    },
+    registerScrollEvent() {
+      this.logWrapperEl = document.querySelector('.dialog-log-markdown');
+      this.logWrapperEl.addEventListener('scroll', () => {
+        const { scrollTop } = this.logWrapperEl;
+        const contentHeight = this.logWrapperEl.scrollHeight;
+        const { offsetHeight } = this.logWrapperEl;
+        if (scrollTop + offsetHeight >= contentHeight) {
+          this.isScrollBottom = true;
+        } else {
+          this.isScrollBottom = false;
+        }
+      });
+    },
+    copyLogText() {
+      const el = document.createElement('textarea');
+      const copyStrList = this.reverseLogList.concat(this.logList).map(item => item.log);
+      el.value = copyStrList.join('\n');
+      el.setAttribute('readonly', '');
+      el.style.position = 'absolute';
+      el.style.left = '-9999px';
+      document.body.appendChild(el);
+      const selected = document.getSelection().rangeCount > 0 ? document.getSelection().getRangeAt(0) : false;
+      el.select();
+      document.execCommand('copy');
+      document.body.removeChild(el);
+      if (selected) {
+        document.getSelection().removeAllRanges();
+        document.getSelection().addRange(selected);
+      }
+      this.$bkMessage({
+        theme: 'success',
+        message: this.$t('复制成功'),
+      });
+    },
+    filterLog(value) {
+      this.activeFilterKey = value;
+      clearTimeout(this.throttleTimer);
+      this.throttleTimer = setTimeout(() => {
+        if (!value) {
+          this.$nextTick(() => {
+            this.initLogScrollPosition();
+          });
+        }
+      }, 300);
+    },
+    initLogScrollPosition() {
+      // 确定第0条的位置
+      this.firstLogEl = document.querySelector('.dialog-log-markdown .log-init');
+      // 没有数据
+      if (!this.firstLogEl) return;
+      const logContentHeight = this.firstLogEl.scrollHeight;
+      const logOffsetTop = this.firstLogEl.offsetTop;
+
+      const wrapperOffsetHeight = this.$refs.realTimeLog.offsetHeight;
+
+      if (wrapperOffsetHeight <= logContentHeight) {
+        this.$refs.realTimeLog.scrollTop = logOffsetTop;
+      } else {
+        this.$refs.realTimeLog.scrollTop = logOffsetTop - Math.ceil((wrapperOffsetHeight - logContentHeight) / 2);
+      }
+      // 避免重复请求
+      setTimeout(() => {
+        this.$refs.realTimeLog.addEventListener('scroll', this.handleScroll, { passive: true });
+      }, 64);
+    },
+    handleFilter(field, value) {
+      if (field === 'filterKey') {
+        this.filterLog(value);
+      } else {
+        this[field] = value;
+      }
+    },
+  },
+};
 </script>
 
 <style lang="scss">

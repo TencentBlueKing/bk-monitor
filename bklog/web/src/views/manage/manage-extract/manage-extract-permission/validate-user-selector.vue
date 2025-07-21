@@ -42,71 +42,71 @@
 </template>
 
 <script>
-  import BkUserSelector from '@blueking/user-selector';
+import BkUserSelector from '@blueking/user-selector';
 
-  export default {
-    components: {
-      BkUserSelector,
+export default {
+  components: {
+    BkUserSelector,
+  },
+  model: {
+    event: 'change',
+  },
+  props: {
+    value: {
+      type: Array,
+      default: () => [],
     },
-    model: {
-      event: 'change',
+    placeholder: {
+      type: String,
+      default: '',
     },
-    props: {
-      value: {
-        type: Array,
-        default: () => [],
-      },
-      placeholder: {
-        type: String,
-        default: '',
-      },
-      api: {
-        type: String,
-        default: '',
-      },
-      disabled: {
-        type: Boolean,
-        type: false,
-      },
+    api: {
+      type: String,
+      default: '',
     },
-    data() {
-      return {
-        isError: false,
-      };
+    disabled: {
+      type: Boolean,
+      type: false,
     },
-    methods: {
-      validateInitValue() {
-        if (this.value.length) {
-          this.isError = false;
-        } else {
-          this.isError = true;
+  },
+  data() {
+    return {
+      isError: false,
+    };
+  },
+  methods: {
+    validateInitValue() {
+      if (this.value.length) {
+        this.isError = false;
+      } else {
+        this.isError = true;
+      }
+    },
+    handleChange(val) {
+      const realVal = val.filter(item => item !== undefined);
+      this.isError = !realVal.length;
+      this.$emit('change', realVal);
+    },
+    handleBlur() {
+      this.isError = !this.value.length;
+    },
+    pasteFn(val) {
+      const users = [...this.value];
+      val.split(';').forEach(item => {
+        item = item.trim();
+        if (item) {
+          this.list.forEach(user => {
+            if ((user.displayname === item || user.username === item) && !users.includes(user.username)) {
+              users.push(user.username);
+            }
+          });
         }
-      },
-      handleChange(val) {
-        const realVal = val.filter(item => item !== undefined);
-        this.isError = !realVal.length;
-        this.$emit('change', realVal);
-      },
-      handleBlur() {
-        this.isError = !this.value.length;
-      },
-      pasteFn(val) {
-        const users = [...this.value];
-        val.split(';').forEach(item => {
-          item = item.trim();
-          if (item) {
-            this.list.forEach(user => {
-              if ((user.displayname === item || user.username === item) && !users.includes(user.username)) {
-                users.push(user.username);
-              }
-            });
-          }
-        });
-        this.$emit('change', users);
-        return [];
-      },
+      });
+      this.$emit('change', users);
+      return [];
     },
-  };
+  },
+};
 </script>
 
 <style lang="scss" scoped>

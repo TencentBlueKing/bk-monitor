@@ -54,81 +54,81 @@
 </template>
 
 <script>
-  import { mapGetters } from 'vuex';
-  import $http from '../../../../../api';
-  export default {
-    props: {
-      data: {
-        type: Object,
-        required: true,
-      },
-      isOpenWindow: {
-        type: Boolean,
-        default: true,
-      },
+import { mapGetters } from 'vuex';
+import $http from '../../../../../api';
+export default {
+  props: {
+    data: {
+      type: Object,
+      required: true,
     },
-    data() {
-      return {
-        proxyHost:[]
-      };
+    isOpenWindow: {
+      type: Boolean,
+      default: true,
     },
-    computed: {
-      ...mapGetters({
-        globalsData: 'globals/globalsData',
-      }),
-      dataTypeList() {
-        const { databus_custom: databusCustom } = this.globalsData;
-        return databusCustom || [];
-      },
-      customTypeIntro() {
-        const curType = this.dataTypeList.find(type => type.id === this.data.custom_type);
-        return curType ? this.replaceVaribles(curType.introduction) : '';
-      },
+  },
+  data() {
+    return {
+      proxyHost: [],
+    };
+  },
+  computed: {
+    ...mapGetters({
+      globalsData: 'globals/globalsData',
+    }),
+    dataTypeList() {
+      const { databus_custom: databusCustom } = this.globalsData;
+      return databusCustom || [];
     },
-    mounted() {
-      this.initTargetFieldSelectList();
+    customTypeIntro() {
+      const curType = this.dataTypeList.find(type => type.id === this.data.custom_type);
+      return curType ? this.replaceVaribles(curType.introduction) : '';
     },
-    methods: {
-      replaceVaribles(intro) {
-        let str = this.updateStringWithNewData(intro);
-        const varibleList = intro.match(/\{\{([^)]*)\}\}/g);
-        varibleList?.forEach(item => {
-          const val = item.match(/\{\{([^)]*)\}\}/)[1];
-          str = this.data[val] ? str.replace(item, this.data[val]) : str;
-        });
+  },
+  mounted() {
+    this.initTargetFieldSelectList();
+  },
+  methods: {
+    replaceVaribles(intro) {
+      let str = this.updateStringWithNewData(intro);
+      const varibleList = intro.match(/\{\{([^)]*)\}\}/g);
+      varibleList?.forEach(item => {
+        const val = item.match(/\{\{([^)]*)\}\}/)[1];
+        str = this.data[val] ? str.replace(item, this.data[val]) : str;
+      });
 
-        return str;
-      },
-      handleActiveDetails(state) {
-        this.$emit('handle-active-details', state ? state : !this.isOpenWindow);
-        this.$store.commit('updateChartSize');
-      },
-      async initTargetFieldSelectList () {
-        const res = await $http.request('retrieve/getProxyHost', {
-          query: {
-            space_uid: this.$route.query.spaceUid,
-          }
-        });
-        this.proxyHost = res.data
-        
-      },
-      updateStringWithNewData(originalString) {
-        const regex = /<code>[\s\S]*?云区域ID[\s\S]*?<\/code>/
-
-        // 格式化新的数据以便插入到 <code> 标签中
-        const newDataContent = this.proxyHost.map(dataGroup =>
-          dataGroup.urls.map(data => 
-            `云区域ID ${dataGroup.bk_cloud_id} ${data.protocol}: ${data.report_url}`
-          ).join('\n')
-        ).join('\n');
-        console.log(newDataContent);
-        
-        const updatedString = originalString.replace(regex,  `<code>${newDataContent}</code>`);
-        return updatedString;
-      }
-
+      return str;
     },
-  };
+    handleActiveDetails(state) {
+      this.$emit('handle-active-details', state ? state : !this.isOpenWindow);
+      this.$store.commit('updateChartSize');
+    },
+    async initTargetFieldSelectList() {
+      const res = await $http.request('retrieve/getProxyHost', {
+        query: {
+          space_uid: this.$route.query.spaceUid,
+        },
+      });
+      this.proxyHost = res.data;
+    },
+    updateStringWithNewData(originalString) {
+      const regex = /<code>[\s\S]*?云区域ID[\s\S]*?<\/code>/;
+
+      // 格式化新的数据以便插入到 <code> 标签中
+      const newDataContent = this.proxyHost
+        .map(dataGroup =>
+          dataGroup.urls
+            .map(data => `云区域ID ${dataGroup.bk_cloud_id} ${data.protocol}: ${data.report_url}`)
+            .join('\n')
+        )
+        .join('\n');
+      console.log(newDataContent);
+
+      const updatedString = originalString.replace(regex, `<code>${newDataContent}</code>`);
+      return updatedString;
+    },
+  },
+};
 </script>
 
 <style lang="scss">

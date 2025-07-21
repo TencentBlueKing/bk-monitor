@@ -249,192 +249,192 @@
   </div>
 </template>
 <script>
-  import { copyMessage, base64Encode } from '@/common/util';
-  import EmptyStatus from '@/components/empty-status';
-  import RegisterColumn from '@/views/retrieve/result-comp/register-column';
-  import ClusterEventPopover from '@/views/retrieve/result-table-panel/log-clustering/components/cluster-event-popover';
-  import TextHighlight from 'vue-text-highlight';
-  import VueDraggable from 'vuedraggable';
-  import RuleTopTools from './component/rule-top-tools.vue';
+import { copyMessage, base64Encode } from '@/common/util';
+import EmptyStatus from '@/components/empty-status';
+import RegisterColumn from '@/views/retrieve/result-comp/register-column';
+import ClusterEventPopover from '@/views/retrieve/result-table-panel/log-clustering/components/cluster-event-popover';
+import TextHighlight from 'vue-text-highlight';
+import VueDraggable from 'vuedraggable';
+import RuleTopTools from './component/rule-top-tools.vue';
 
-  export default {
-    components: {
-      VueDraggable,
-      ClusterEventPopover,
-      RegisterColumn,
-      EmptyStatus,
-      TextHighlight,
-      RuleTopTools,
+export default {
+  components: {
+    VueDraggable,
+    ClusterEventPopover,
+    RegisterColumn,
+    EmptyStatus,
+    TextHighlight,
+    RuleTopTools,
+  },
+  props: {
+    globalEditable: {
+      type: Boolean,
+      default: true,
     },
-    props: {
-      globalEditable: {
-        type: Boolean,
-        default: true,
+    tableStr: {
+      type: String,
+      require: true,
+    },
+    cleanConfig: {
+      type: Object,
+      require: true,
+    },
+    submitLading: {
+      type: Boolean,
+      default: true,
+    },
+  },
+  data() {
+    return {
+      rulesList: [],
+      tableLoading: false,
+      logOriginal: '', // 日志源
+      effectOriginal: '',
+      isShowAddRule: false, // 是否展开添加规则弹窗
+      editRulesIndex: 0, // 当前编辑的index
+      isDetection: false, // 是否在检测
+      debugRequest: false, // 调试中
+      isClickAlertIcon: false,
+      isChangeRule: false,
+      logOriginalRequest: false, // 原始日志是否正在请求
+      isFirstInitLogOrigin: false, // 是否第一次点击调试工具按钮
+      dragOptions: {
+        animation: 150,
+        tag: 'ul',
+        handle: '.bklog-drag-dots',
+        'ghost-class': 'sortable-ghost-class',
       },
-      tableStr: {
-        type: String,
-        require: true,
+      tippyOptions: {
+        placement: 'bottom',
+        trigger: 'click',
+        theme: 'light',
+        interactive: true,
       },
-      cleanConfig: {
-        type: Object,
-        require: true,
-      },
-      submitLading: {
-        type: Boolean,
-        default: true,
+    };
+  },
+  watch: {
+    tableStr: {
+      handler(val) {
+        this.rulesList = this.$refs.ruleTopToolsRef.base64ToRuleArr(val);
       },
     },
-    data() {
-      return {
-        rulesList: [],
-        tableLoading: false,
-        logOriginal: '', // 日志源
-        effectOriginal: '',
-        isShowAddRule: false, // 是否展开添加规则弹窗
-        editRulesIndex: 0, // 当前编辑的index
-        isDetection: false, // 是否在检测
-        debugRequest: false, // 调试中
-        isClickAlertIcon: false,
-        isChangeRule: false,
-        logOriginalRequest: false, // 原始日志是否正在请求
-        isFirstInitLogOrigin: false, // 是否第一次点击调试工具按钮
-        dragOptions: {
-          animation: 150,
-          tag: 'ul',
-          handle: '.bklog-drag-dots',
-          'ghost-class': 'sortable-ghost-class',
-        },
-        tippyOptions: {
-          placement: 'bottom',
-          trigger: 'click',
-          theme: 'light',
-          interactive: true,
-        },
+    debugRequest(val) {
+      this.$emit('debug-request-change', val);
+    },
+  },
+  beforeDestroy() {
+    this.$emit('debug-request-change', false);
+  },
+  methods: {
+    clusterEdit(index) {
+      this.$refs.ruleTopToolsRef.clusterEdit(index);
+    },
+    clusterAddRule(index) {
+      this.$refs.ruleTopToolsRef.clusterAddRule(index);
+    },
+    handleCancelDelete(index) {
+      this.$refs.deletePopoverRef[index].hideHandler();
+    },
+    clusterRemove(index) {
+      this.rulesList.splice(index, 1);
+      this.showTableLoading();
+    },
+    ruleArrToBase64(arr = []) {
+      arr.length === 0 && (arr = this.rulesList);
+      try {
+        const ruleNewList = arr.reduce((pre, cur) => {
+          const key = Object.keys(cur)[0];
+          const val = Object.values(cur)[0];
+          const rulesStr = JSON.stringify(`${key}:${val}`);
+          pre.push(rulesStr);
+          return pre;
+        }, []);
+        const ruleArrStr = `[${ruleNewList.join(' ,')}]`;
+        return base64Encode(ruleArrStr);
+      } catch (error) {
+        return '';
+      }
+    },
+    debugging() {
+      this.debugRequest = true;
+      this.effectOriginal = '';
+      const predefinedVariables = this.ruleArrToBase64(this.rulesList);
+      const query = {
+        input_data: this.logOriginal,
+        predefined_varibles: predefinedVariables,
       };
+      this.$http
+        .request('/logClustering/debug', { data: { ...query } })
+        .then(res => {
+          this.effectOriginal = res.data;
+        })
+        .finally(() => {
+          this.debugRequest = false;
+        });
     },
-    watch: {
-      tableStr: {
-        handler(val) {
-          this.rulesList = this.$refs.ruleTopToolsRef.base64ToRuleArr(val);
-        },
-      },
-      debugRequest(val) {
-        this.$emit('debug-request-change', val);
-      },
+    handleClickDebugButton() {
+      this.isClickAlertIcon = !this.isClickAlertIcon;
+      // 请求了一次原始日志后就不再请求
+      if (!this.isFirstInitLogOrigin) {
+        this.getLogOriginal();
+      }
+      this.isFirstInitLogOrigin = true;
     },
-    beforeDestroy() {
-      this.$emit('debug-request-change', false);
+    /**
+     * @desc: 获取原始日志内容
+     */
+    getLogOriginal() {
+      const {
+        extra: { collector_config_id: collectorConfigId },
+      } = this.cleanConfig;
+      if (!collectorConfigId) return;
+      this.logOriginalRequest = true;
+      this.$http
+        .request('source/dataList', {
+          params: {
+            collector_config_id: collectorConfigId,
+          },
+        })
+        .then(res => {
+          if (res.data?.length) {
+            const data = res.data[0];
+            this.logOriginal = data.etl.data || '';
+          }
+        })
+        .catch(() => {})
+        .finally(() => {
+          this.logOriginalRequest = false;
+        });
     },
-    methods: {
-      clusterEdit(index) {
-        this.$refs.ruleTopToolsRef.clusterEdit(index);
-      },
-      clusterAddRule(index) {
-        this.$refs.ruleTopToolsRef.clusterAddRule(index);
-      },
-      handleCancelDelete(index) {
-        this.$refs.deletePopoverRef[index].hideHandler();
-      },
-      clusterRemove(index) {
-        this.rulesList.splice(index, 1);
-        this.showTableLoading();
-      },
-      ruleArrToBase64(arr = []) {
-        arr.length === 0 && (arr = this.rulesList);
-        try {
-          const ruleNewList = arr.reduce((pre, cur) => {
-            const key = Object.keys(cur)[0];
-            const val = Object.values(cur)[0];
-            const rulesStr = JSON.stringify(`${key}:${val}`);
-            pre.push(rulesStr);
-            return pre;
-          }, []);
-          const ruleArrStr = `[${ruleNewList.join(' ,')}]`;
-          return base64Encode(ruleArrStr);
-        } catch (error) {
-          return '';
-        }
-      },
-      debugging() {
-        this.debugRequest = true;
-        this.effectOriginal = '';
-        const predefinedVariables = this.ruleArrToBase64(this.rulesList);
-        const query = {
-          input_data: this.logOriginal,
-          predefined_varibles: predefinedVariables,
-        };
-        this.$http
-          .request('/logClustering/debug', { data: { ...query } })
-          .then(res => {
-            this.effectOriginal = res.data;
-          })
-          .finally(() => {
-            this.debugRequest = false;
-          });
-      },
-      handleClickDebugButton() {
-        this.isClickAlertIcon = !this.isClickAlertIcon;
-        // 请求了一次原始日志后就不再请求
-        if (!this.isFirstInitLogOrigin) {
-          this.getLogOriginal();
-        }
-        this.isFirstInitLogOrigin = true;
-      },
-      /**
-       * @desc: 获取原始日志内容
-       */
-      getLogOriginal() {
-        const {
-          extra: { collector_config_id: collectorConfigId },
-        } = this.cleanConfig;
-        if (!collectorConfigId) return;
-        this.logOriginalRequest = true;
-        this.$http
-          .request('source/dataList', {
-            params: {
-              collector_config_id: collectorConfigId,
-            },
-          })
-          .then(res => {
-            if (res.data?.length) {
-              const data = res.data[0];
-              this.logOriginal = data.etl.data || '';
-            }
-          })
-          .catch(() => {})
-          .finally(() => {
-            this.logOriginalRequest = false;
-          });
-      },
-      handleMenuClick(item) {
-        copyMessage(Object.values(item)[0]);
-      },
-      showTableLoading() {
-        this.tableLoading = true;
-        setTimeout(() => {
-          this.tableLoading = false;
-        }, 500);
-      },
-      getHeightLightList(str) {
-        return str.match(/#.*?#/g) || [];
-      },
-      submitRuleChange() {
-        this.$emit('submit-rule');
-      },
-      handleClickOutSide() {
-        this.isClickAlertIcon = false;
-      },
-      getRuleType() {
-        return this.$refs.ruleTopToolsRef.ruleType;
-      },
-      getTemplateID() {
-        return this.$refs.ruleTopToolsRef.templateRule;
-      },
-      initSelect(v) {
-        this.$refs.ruleTopToolsRef.initTemplateSelect(v);
-      },
+    handleMenuClick(item) {
+      copyMessage(Object.values(item)[0]);
     },
-  };
+    showTableLoading() {
+      this.tableLoading = true;
+      setTimeout(() => {
+        this.tableLoading = false;
+      }, 500);
+    },
+    getHeightLightList(str) {
+      return str.match(/#.*?#/g) || [];
+    },
+    submitRuleChange() {
+      this.$emit('submit-rule');
+    },
+    handleClickOutSide() {
+      this.isClickAlertIcon = false;
+    },
+    getRuleType() {
+      return this.$refs.ruleTopToolsRef.ruleType;
+    },
+    getTemplateID() {
+      return this.$refs.ruleTopToolsRef.templateRule;
+    },
+    initSelect(v) {
+      this.$refs.ruleTopToolsRef.initTemplateSelect(v);
+    },
+  },
+};
 </script>
 <style lang="scss" scoped>
   @import '@/scss/mixins/flex.scss';

@@ -185,299 +185,299 @@
 </template>
 
 <script>
-  import { blobDownload } from '@/common/util';
-  import { mapGetters, mapState } from 'vuex';
+import { blobDownload } from '@/common/util';
+import { mapGetters, mapState } from 'vuex';
 
-  import exportHistory from './export-history';
-  import { axiosInstance } from '@/api';
+import exportHistory from './export-history';
+import { axiosInstance } from '@/api';
 
-  export default {
-    components: {
-      exportHistory,
+export default {
+  components: {
+    exportHistory,
+  },
+  inheritAttrs: false,
+  props: {
+    retrieveParams: {
+      type: Object,
+      required: true,
     },
-    inheritAttrs: false,
-    props: {
-      retrieveParams: {
-        type: Object,
-        required: true,
-      },
-      totalCount: {
-        type: Number,
-        default: 0,
-      },
-      visibleFields: {
-        type: Array,
-        require: true,
-      },
-      queueStatus: {
-        type: Boolean,
-        default: true,
-      },
-      asyncExportUsable: {
-        type: Boolean,
-        default: true,
-      },
-      asyncExportUsableReason: {
-        type: String,
-        default: '',
-      },
-      totalFields: {
-        type: Array,
-        require: true,
-      },
-      datePickerValue: {
-        type: Array,
-        require: true,
-      },
-      indexSetList: {
-        type: Array,
-        required: true,
-      },
+    totalCount: {
+      type: Number,
+      default: 0,
     },
-    data() {
-      return {
-        isShowExportDialog: false,
-        exportLoading: false,
-        showHistoryExport: false,
-        selectFiledList: [], // 手动选择字段列表
-        selectFiledType: 'all', // 字段下载类型
-        desensitizeRadioType: 'desensitize', // 原文还是脱敏下载日志类型
-        popoverInstance: null,
-        exportFirstComparedSize: 10000, // 显示异步下载的临界值
-        exportSecondComparedSize: 2000000, // 可异步下载最大值
-        radioMap: {
-          all: this.$t('全部字段'),
-          show: this.$t('当前显示字段'),
-          specify: this.$t('指定字段'),
-        },
-        downloadType: 'all',
-        downloadTypeRadioMap: {
-          all: this.$t('全文下载'),
-          quick: this.$t('快速下载(提速100%+)'),
-          sampling: this.$t('取样下载(前1万条)'),
-        },
-        typeTipsMap: {
-          quick: this.$t(
-            '该模式下，仅下载您上报的无序日志原文，您可以通过日志时间进行本地排序；日志无法包含平台补充字段：如集群名、模块名等信息。该模式的日志导出上限为500万条',
-          ),
-          all: this.$t('该模式下，下载的日志有序，可包含平台补充字段，但下载时间较长。该模式的日志导出上限为200万条'),
-          sampling: '',
-        },
-        timeCalculateMap: {
-          all: 200000,
-          quick: 400000,
-          sampling: 0,
-        },
-        logTypeMap: {
-          desensitize: this.$t('脱敏'),
-          // origin: this.$t('原始'),
-        },
-        documentType: 'log',
-        documentTypeList: [
-          // {
-          //   id: 'csv',
-          //   name: 'csv',
-          // },
-          {
-            id: 'log',
-            name: 'log',
-          },
-        ],
-        modeHintMap: {},
-        // queueStatus: true
-      };
+    visibleFields: {
+      type: Array,
+      require: true,
     },
-    computed: {
-      ...mapState({
-        // totalCount: state => state.searchTotal,
-        // queueStatus: state => state.retrieve.isTrendDataLoading
-      }),
-      ...mapGetters({
-        bkBizId: 'bkBizId',
-        spaceUid: 'spaceUid',
-        isShowMaskingTemplate: 'isShowMaskingTemplate',
-        unionIndexList: 'unionIndexList',
-        isUnionSearch: 'isUnionSearch',
-      }),
-      sizDownload() {
-        if (this.downloadType === 'sampling') return '< 1';
-        return Math.ceil(this.totalCount / this.timeCalculateMap[this.downloadType]);
-      },
-      submitSelectFiledList() {
-        // 下载时提交的字段
-        if (this.selectFiledType === 'specify') return this.selectFiledList;
-        if (this.selectFiledType === 'show') return this.visibleFields.map(item => item.field_name);
-        return [];
-      },
-      routerIndexSet() {
-        return this.$route.params.indexId;
-      },
+    queueStatus: {
+      type: Boolean,
+      default: true,
     },
-    beforeUnmount() {
+    asyncExportUsable: {
+      type: Boolean,
+      default: true,
+    },
+    asyncExportUsableReason: {
+      type: String,
+      default: '',
+    },
+    totalFields: {
+      type: Array,
+      require: true,
+    },
+    datePickerValue: {
+      type: Array,
+      require: true,
+    },
+    indexSetList: {
+      type: Array,
+      required: true,
+    },
+  },
+  data() {
+    return {
+      isShowExportDialog: false,
+      exportLoading: false,
+      showHistoryExport: false,
+      selectFiledList: [], // 手动选择字段列表
+      selectFiledType: 'all', // 字段下载类型
+      desensitizeRadioType: 'desensitize', // 原文还是脱敏下载日志类型
+      popoverInstance: null,
+      exportFirstComparedSize: 10000, // 显示异步下载的临界值
+      exportSecondComparedSize: 2000000, // 可异步下载最大值
+      radioMap: {
+        all: this.$t('全部字段'),
+        show: this.$t('当前显示字段'),
+        specify: this.$t('指定字段'),
+      },
+      downloadType: 'all',
+      downloadTypeRadioMap: {
+        all: this.$t('全文下载'),
+        quick: this.$t('快速下载(提速100%+)'),
+        sampling: this.$t('取样下载(前1万条)'),
+      },
+      typeTipsMap: {
+        quick: this.$t(
+          '该模式下，仅下载您上报的无序日志原文，您可以通过日志时间进行本地排序；日志无法包含平台补充字段：如集群名、模块名等信息。该模式的日志导出上限为500万条'
+        ),
+        all: this.$t('该模式下，下载的日志有序，可包含平台补充字段，但下载时间较长。该模式的日志导出上限为200万条'),
+        sampling: '',
+      },
+      timeCalculateMap: {
+        all: 200000,
+        quick: 400000,
+        sampling: 0,
+      },
+      logTypeMap: {
+        desensitize: this.$t('脱敏'),
+        // origin: this.$t('原始'),
+      },
+      documentType: 'log',
+      documentTypeList: [
+        // {
+        //   id: 'csv',
+        //   name: 'csv',
+        // },
+        {
+          id: 'log',
+          name: 'log',
+        },
+      ],
+      modeHintMap: {},
+      // queueStatus: true
+    };
+  },
+  computed: {
+    ...mapState({
+      // totalCount: state => state.searchTotal,
+      // queueStatus: state => state.retrieve.isTrendDataLoading
+    }),
+    ...mapGetters({
+      bkBizId: 'bkBizId',
+      spaceUid: 'spaceUid',
+      isShowMaskingTemplate: 'isShowMaskingTemplate',
+      unionIndexList: 'unionIndexList',
+      isUnionSearch: 'isUnionSearch',
+    }),
+    sizDownload() {
+      if (this.downloadType === 'sampling') return '< 1';
+      return Math.ceil(this.totalCount / this.timeCalculateMap[this.downloadType]);
+    },
+    submitSelectFiledList() {
+      // 下载时提交的字段
+      if (this.selectFiledType === 'specify') return this.selectFiledList;
+      if (this.selectFiledType === 'show') return this.visibleFields.map(item => item.field_name);
+      return [];
+    },
+    routerIndexSet() {
+      return this.$route.params.indexId;
+    },
+  },
+  beforeUnmount() {
+    this.popoverInstance = null;
+  },
+
+  methods: {
+    handleShowAlarmPopover(e) {
+      if (this.popoverInstance || !this.queueStatus) return;
+      this.popoverInstance?.hide();
+      this.popoverInstance?.destroyed();
       this.popoverInstance = null;
+      this.popoverInstance = this.$bkPopover(e.target, {
+        content: this.$refs.downloadTips,
+        trigger: 'mouseenter',
+        placement: 'top',
+        theme: 'light',
+        offset: '0, -1',
+        interactive: true,
+        hideOnClick: false,
+        extCls: 'download-box',
+        arrow: true,
+      });
+      this.popoverInstance?.show();
     },
-
-    methods: {
-      handleShowAlarmPopover(e) {
-        if (this.popoverInstance || !this.queueStatus) return;
-        this.popoverInstance?.hide();
-        this.popoverInstance?.destroyed();
-        this.popoverInstance = null;
-        this.popoverInstance = this.$bkPopover(e.target, {
-          content: this.$refs.downloadTips,
-          trigger: 'mouseenter',
-          placement: 'top',
-          theme: 'light',
-          offset: '0, -1',
-          interactive: true,
-          hideOnClick: false,
-          extCls: 'download-box',
-          arrow: true,
+    exportLog() {
+      if (!this.queueStatus) return;
+      this.popoverInstance.hide(0);
+      // 导出数据为空
+      if (!this.totalCount) {
+        const infoDialog = this.$bkInfo({
+          type: 'error',
+          title: this.$t('导出失败'),
+          subTitle: this.$t('检索结果条数为0'),
+          showFooter: false,
         });
-        this.popoverInstance?.show();
-      },
-      exportLog() {
-        if (!this.queueStatus) return;
-        this.popoverInstance.hide(0);
-        // 导出数据为空
-        if (!this.totalCount) {
-          const infoDialog = this.$bkInfo({
-            type: 'error',
-            title: this.$t('导出失败'),
-            subTitle: this.$t('检索结果条数为0'),
-            showFooter: false,
-          });
-          setTimeout(() => infoDialog.close(), 3000);
-          return;
-        }
-        this.isShowExportDialog = true;
-      },
-      handleClickSubmit() {
-        if (this.downloadType === 'quick') {
-          this.quickDownload();
-        } else if (this.downloadType === 'all') {
-          this.downloadAsync();
-        } else {
-          this.openDownloadUrl();
-        }
-        this.isShowExportDialog = false;
-      },
-      quickDownload() {
-        const { timezone, ...rest } = this.retrieveParams;
-        const params = Object.assign(rest, { begin: 0, bk_biz_id: this.bkBizId });
-        const downRequestUrl = `/search/index_set/${this.routerIndexSet}/quick_export/`;
-        const data = {
-          ...params,
-          size: this.totalCount,
-          time_range: 'customized',
-          export_fields: this.submitSelectFiledList,
-          is_desensitize: this.desensitizeRadioType === 'desensitize',
-          file_type: this.documentType,
-        };
-        axiosInstance
-          .post(downRequestUrl, data)
-          .then(res => {
-            if (res.result) {
-              this.$bkMessage({
-                theme: 'success',
-                message: this.$t('任务提交成功，下载完成将会收到邮件通知。可前往下载历史查看下载状态'),
-                ellipsisLine: 2,
-              });
-            }
-          })
-          .catch(err => {
-            console.log(err);
-          })
-          .finally(() => {
-            this.isShowExportDialog = false;
-            this.selectFiledList = [];
-          });
-      },
-      openDownloadUrl() {
-        const { timezone, ...rest } = this.retrieveParams;
-        const params = Object.assign(rest, { begin: 0, bk_biz_id: this.bkBizId });
-        let downRequestUrl = `/search/index_set/${this.routerIndexSet}/export/`;
-        if (this.isUnionSearch) {
-          // 判断是否是联合查询 如果是 则加参数
-          downRequestUrl = '/search/index_set/union_search/export/';
-          Object.assign(params, { index_set_ids: this.unionIndexList });
-        }
-        const data = {
-          ...params,
-          size: this.totalCount,
-          time_range: 'customized',
-          export_fields: this.submitSelectFiledList,
-          is_desensitize: this.desensitizeRadioType === 'desensitize',
-          file_type: this.documentType,
-        };
-        axiosInstance
-          .post(downRequestUrl, data)
-          .then(res => {
-            if (typeof res !== 'string') {
-              this.$bkMessage({
-                theme: 'error',
-                message: this.$t('导出失败'),
-              });
-              return;
-            }
-            const lightName = this.indexSetList.find(item => item.index_set_id === this.routerIndexSet)?.lightenName;
-            const downloadName = lightName
-              ? `bk_log_search_${lightName.substring(2, lightName.length - 1)}.${this.documentType}`
-              : `bk_log_search.${this.documentType}`;
-            blobDownload(res, downloadName);
-          })
-          .finally(() => {
-            this.isShowExportDialog = false;
-            this.selectFiledList = [];
-          });
-      },
-      downloadAsync() {
-        const { timezone, ...rest } = this.retrieveParams;
-        const params = Object.assign(rest, { begin: 0, bk_biz_id: this.bkBizId });
-        const data = { ...params };
-        data.size = this.totalCount;
-        data.export_fields = this.submitSelectFiledList;
-        data.is_desensitize = this.desensitizeRadioType === 'desensitize';
-
-        this.exportLoading = true;
-        this.$http
-          .request('retrieve/exportAsync', {
-            params: {
-              index_set_id: this.routerIndexSet,
-            },
-            data,
-          })
-          .then(res => {
-            if (res.result) {
-              this.$bkMessage({
-                theme: 'success',
-                ellipsisLine: 2,
-                message: this.$t('任务提交成功，下载完成将会收到邮件通知。可前往下载历史查看下载状态'),
-              });
-            }
-          })
-          .catch(err => {
-            console.log(err);
-          })
-          .finally(() => {
-            this.exportLoading = false;
-            this.isShowExportDialog = false;
-            this.selectFiledList = [];
-          });
-      },
-      closeExportDialog() {
-        this.selectFiledType = 'all';
-        this.selectFiledList = [];
-      },
-      downloadTable() {
-        this.showHistoryExport = true;
-        this.popoverInstance.hide(0);
-      },
-      handleCloseDialog() {
-        this.showHistoryExport = false;
-      },
+        setTimeout(() => infoDialog.close(), 3000);
+        return;
+      }
+      this.isShowExportDialog = true;
     },
-  };
+    handleClickSubmit() {
+      if (this.downloadType === 'quick') {
+        this.quickDownload();
+      } else if (this.downloadType === 'all') {
+        this.downloadAsync();
+      } else {
+        this.openDownloadUrl();
+      }
+      this.isShowExportDialog = false;
+    },
+    quickDownload() {
+      const { timezone, ...rest } = this.retrieveParams;
+      const params = Object.assign(rest, { begin: 0, bk_biz_id: this.bkBizId });
+      const downRequestUrl = `/search/index_set/${this.routerIndexSet}/quick_export/`;
+      const data = {
+        ...params,
+        size: this.totalCount,
+        time_range: 'customized',
+        export_fields: this.submitSelectFiledList,
+        is_desensitize: this.desensitizeRadioType === 'desensitize',
+        file_type: this.documentType,
+      };
+      axiosInstance
+        .post(downRequestUrl, data)
+        .then(res => {
+          if (res.result) {
+            this.$bkMessage({
+              theme: 'success',
+              message: this.$t('任务提交成功，下载完成将会收到邮件通知。可前往下载历史查看下载状态'),
+              ellipsisLine: 2,
+            });
+          }
+        })
+        .catch(err => {
+          console.log(err);
+        })
+        .finally(() => {
+          this.isShowExportDialog = false;
+          this.selectFiledList = [];
+        });
+    },
+    openDownloadUrl() {
+      const { timezone, ...rest } = this.retrieveParams;
+      const params = Object.assign(rest, { begin: 0, bk_biz_id: this.bkBizId });
+      let downRequestUrl = `/search/index_set/${this.routerIndexSet}/export/`;
+      if (this.isUnionSearch) {
+        // 判断是否是联合查询 如果是 则加参数
+        downRequestUrl = '/search/index_set/union_search/export/';
+        Object.assign(params, { index_set_ids: this.unionIndexList });
+      }
+      const data = {
+        ...params,
+        size: this.totalCount,
+        time_range: 'customized',
+        export_fields: this.submitSelectFiledList,
+        is_desensitize: this.desensitizeRadioType === 'desensitize',
+        file_type: this.documentType,
+      };
+      axiosInstance
+        .post(downRequestUrl, data)
+        .then(res => {
+          if (typeof res !== 'string') {
+            this.$bkMessage({
+              theme: 'error',
+              message: this.$t('导出失败'),
+            });
+            return;
+          }
+          const lightName = this.indexSetList.find(item => item.index_set_id === this.routerIndexSet)?.lightenName;
+          const downloadName = lightName
+            ? `bk_log_search_${lightName.substring(2, lightName.length - 1)}.${this.documentType}`
+            : `bk_log_search.${this.documentType}`;
+          blobDownload(res, downloadName);
+        })
+        .finally(() => {
+          this.isShowExportDialog = false;
+          this.selectFiledList = [];
+        });
+    },
+    downloadAsync() {
+      const { timezone, ...rest } = this.retrieveParams;
+      const params = Object.assign(rest, { begin: 0, bk_biz_id: this.bkBizId });
+      const data = { ...params };
+      data.size = this.totalCount;
+      data.export_fields = this.submitSelectFiledList;
+      data.is_desensitize = this.desensitizeRadioType === 'desensitize';
+
+      this.exportLoading = true;
+      this.$http
+        .request('retrieve/exportAsync', {
+          params: {
+            index_set_id: this.routerIndexSet,
+          },
+          data,
+        })
+        .then(res => {
+          if (res.result) {
+            this.$bkMessage({
+              theme: 'success',
+              ellipsisLine: 2,
+              message: this.$t('任务提交成功，下载完成将会收到邮件通知。可前往下载历史查看下载状态'),
+            });
+          }
+        })
+        .catch(err => {
+          console.log(err);
+        })
+        .finally(() => {
+          this.exportLoading = false;
+          this.isShowExportDialog = false;
+          this.selectFiledList = [];
+        });
+    },
+    closeExportDialog() {
+      this.selectFiledType = 'all';
+      this.selectFiledList = [];
+    },
+    downloadTable() {
+      this.showHistoryExport = true;
+      this.popoverInstance.hide(0);
+    },
+    handleCloseDialog() {
+      this.showHistoryExport = false;
+    },
+  },
+};
 </script>
 
 <style lang="scss" scoped>

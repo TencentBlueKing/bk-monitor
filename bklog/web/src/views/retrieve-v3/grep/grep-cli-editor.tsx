@@ -241,7 +241,7 @@ export default defineComponent({
           });
           editorView.dispatch(transaction);
         }
-      },
+      }
     );
 
     // 监听自适应高度属性变化
@@ -252,7 +252,7 @@ export default defineComponent({
           editorRef.value.style.height = props.height;
           currentHeight.value = props.height;
         }
-      },
+      }
     );
 
     // 监听 placeholder 变化
@@ -277,7 +277,7 @@ export default defineComponent({
             selection: { anchor: cursorPos, head: cursorPos },
           });
         }
-      },
+      }
     );
 
     // 获取编辑器实例（供外部调用）

@@ -24,13 +24,13 @@
 * IN THE SOFTWARE.
 -->
 <script setup>
-import { ref, computed } from "vue";
-import useLocale from "@/hooks/use-locale";
+import { ref, computed } from 'vue';
+import useLocale from '@/hooks/use-locale';
 const { $t } = useLocale();
 const isShow = ref(false);
-const keyword = ref("");
+const keyword = ref('');
 const formData = ref({
-  name: "",
+  name: '',
   aggregate: null,
 });
 const disabledTips = ref(false);
@@ -43,7 +43,7 @@ const props = defineProps({
   isAdd: Boolean,
   disabledTips: {
     type: String,
-    default: "",
+    default: '',
   },
   fields: {
     type: Array,
@@ -66,18 +66,18 @@ const filteredFields = computed(() => {
 
 const handleAfterHidden = () => {};
 
-const changeColumn = (row) => {};
+const changeColumn = row => {};
 
 const ensure = () => {};
 
 const cancel = () => {};
 
-const isDisabled = (row) => {
+const isDisabled = row => {
   const exitItem = namesMap.value.names.get(row.name);
-  return exitItem && aggregationOptions.value.every((item) => exitItem.has(item.id));
+  return exitItem && aggregationOptions.value.every(item => exitItem.has(item.id));
 };
 
-const isActive = (row) => {
+const isActive = row => {
   return formData.value.name === row.name;
 };
 </script>

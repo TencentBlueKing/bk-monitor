@@ -50,80 +50,80 @@
 </template>
 
 <script>
-  import { mapState } from 'vuex';
-  import TextSegmentation from './text-segmentation';
-  import JsonFormatter from '@/global/json-formatter.vue';
+import { mapState } from 'vuex';
+import TextSegmentation from './text-segmentation';
+import JsonFormatter from '@/global/json-formatter.vue';
 
-  import { BK_LOG_STORAGE } from '../../../store/store.type';
+import { BK_LOG_STORAGE } from '../../../store/store.type';
 
-  export default {
-    components: {
-      TextSegmentation,
-      JsonFormatter,
+export default {
+  components: {
+    TextSegmentation,
+    JsonFormatter,
+  },
+  props: {
+    content: {
+      type: [String, Number, Boolean],
+      required: true,
     },
-    props: {
-      content: {
-        type: [String, Number, Boolean],
-        required: true,
-      },
 
-      field: {
-        type: Object,
-        required: true,
-      },
+    field: {
+      type: Object,
+      required: true,
     },
-    data() {
-      return {
-        isInViewPort: false,
-      };
-    },
-    computed: {
-      ...mapState({
-        formatJson: state => state.storage[BK_LOG_STORAGE.TABLE_JSON_FORMAT],
-        tableLineIsWrap: state => state.storage[BK_LOG_STORAGE.TABLE_LINE_IS_WRAP],
-      }),
+  },
+  data() {
+    return {
+      isInViewPort: false,
+    };
+  },
+  computed: {
+    ...mapState({
+      formatJson: state => state.storage[BK_LOG_STORAGE.TABLE_JSON_FORMAT],
+      tableLineIsWrap: state => state.storage[BK_LOG_STORAGE.TABLE_LINE_IS_WRAP],
+    }),
 
-      isJsonFormat() {
-        return this.formatJson && /^\[|\{/.test(this.content);
-      },
+    isJsonFormat() {
+      return this.formatJson && /^\[|\{/.test(this.content);
     },
-    mounted() {
-      setTimeout(this.registerObserver, 20);
+  },
+  mounted() {
+    setTimeout(this.registerObserver, 20);
+  },
+  beforeUnmount() {
+    this.unregisterOberver();
+  },
+  methods: {
+    handleJsonSegmentClick({ isLink, option }) {
+      // 为了兼容旧的逻辑，先这么写吧
+      // 找时间梳理下这块，写的太随意了
+      const { depth, operation, value } = option;
+      const operator = operation === 'not' ? 'is not' : operation;
+      this.$emit('icon-click', operator, value, isLink, depth); // type, content, field, row, isLink
     },
-    beforeUnmount() {
-      this.unregisterOberver();
+    unregisterOberver() {
+      if (this.intersectionObserver) {
+        this.intersectionObserver.unobserve(this.$el);
+        this.intersectionObserver.disconnect();
+        this.intersectionObserver = null;
+      }
     },
-    methods: {
-      handleJsonSegmentClick({ isLink, option }) {
-        // 为了兼容旧的逻辑，先这么写吧
-        // 找时间梳理下这块，写的太随意了
-        const { depth, operation, value } = option;
-        const operator = operation === 'not' ? 'is not' : operation;
-        this.$emit('icon-click', operator, value, isLink, depth); // type, content, field, row, isLink
-      },
-      unregisterOberver() {
-        if (this.intersectionObserver) {
-          this.intersectionObserver.unobserve(this.$el);
-          this.intersectionObserver.disconnect();
-          this.intersectionObserver = null;
-        }
-      },
-      // 注册Intersection监听
-      registerObserver() {
-        if (this.intersectionObserver) {
-          this.unregisterOberver();
-        }
-        this.intersectionObserver = new IntersectionObserver(entries => {
-          entries.forEach(entry => {
-            if (this.intersectionObserver) {
-              if (entry.boundingClientRect.height > 72) this.$emit('computed-height');
-            }
-          });
+    // 注册Intersection监听
+    registerObserver() {
+      if (this.intersectionObserver) {
+        this.unregisterOberver();
+      }
+      this.intersectionObserver = new IntersectionObserver(entries => {
+        entries.forEach(entry => {
+          if (this.intersectionObserver) {
+            if (entry.boundingClientRect.height > 72) this.$emit('computed-height');
+          }
         });
-        this.intersectionObserver?.observe(this.$el);
-      },
+      });
+      this.intersectionObserver?.observe(this.$el);
     },
-  };
+  },
+};
 </script>
 
 <style lang="scss" scoped>

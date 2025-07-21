@@ -262,10 +262,10 @@ export default class Strategy extends tsc<object> {
                 color: '#63656E',
               },
             },
-            [this.$t('策略：') as string],
+            [this.$t('策略：') as string]
           ),
           h('span', this.$t(type === 'alarm' ? '新类告警策略' : '数量突增告警策略') as string),
-        ],
+        ]
       ),
       confirmFn: async () => {
         try {
@@ -328,7 +328,7 @@ export default class Strategy extends tsc<object> {
   handleJumpStrategyList() {
     window.open(
       `${window.MONITOR_URL}/?bizId=${this.bkBizId}#/strategy-config?strategyLabels=${JSON.stringify(this.labelName)}`,
-      '_blank',
+      '_blank'
     );
   }
   handleCreateUserGroups() {

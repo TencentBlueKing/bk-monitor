@@ -297,7 +297,7 @@ export default class MaskingSelectRuleTable extends tsc<IProps> {
 
   searchRule() {
     this.tableSearchList = this.tableList.filter(item =>
-      item.rule_name.toString().toLowerCase().includes(this.searchStr.toLowerCase()),
+      item.rule_name.toString().toLowerCase().includes(this.searchStr.toLowerCase())
     );
     this.pageLimitChange(this.pagination.limit);
     this.selectList = this.tableSearchList.filter(v => this.selectList.includes(v.id)).map(item => item.id);

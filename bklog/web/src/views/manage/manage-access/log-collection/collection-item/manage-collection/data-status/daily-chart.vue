@@ -63,187 +63,187 @@
 </template>
 
 <script>
-  import { formatDate } from '@/common/util';
-  import dayjs from 'dayjs';
-  import * as echarts from 'echarts';
-  import { mapGetters } from 'vuex';
+import { formatDate } from '@/common/util';
+import dayjs from 'dayjs';
+import * as echarts from 'echarts';
+import { mapGetters } from 'vuex';
 
-  import SelectDate from './select-date';
+import SelectDate from './select-date';
 
-  export default {
-    components: {
-      SelectDate,
-    },
-    data() {
-      const currentTime = Date.now();
-      const startTime = formatDate(currentTime - 7 * 86400000).slice(0, 10);
-      const endTime = formatDate(currentTime).slice(0, 10);
+export default {
+  components: {
+    SelectDate,
+  },
+  data() {
+    const currentTime = Date.now();
+    const startTime = formatDate(currentTime - 7 * 86400000).slice(0, 10);
+    const endTime = formatDate(currentTime).slice(0, 10);
 
-      return {
-        isEmpty: false,
-        basicLoading: true,
-        datePickerValue: [startTime, endTime], // 日期选择器
-        retrieveParams: {
-          bk_biz_id: this.$store.state.bkBizId,
-          keyword: '*',
-          time_range: 'custom',
-          start_time: startTime, // 时间范围，格式 YYYY-MM-DDThh:mm[:ss[.uuuuuu]][+HH:MM|-HH:MM|Z]
-          end_time: endTime,
-          host_scopes: {
-            modules: [],
-            ips: '',
-          },
-          addition: [],
-          begin: 0,
-          size: 500,
-          interval: '1d',
+    return {
+      isEmpty: false,
+      basicLoading: true,
+      datePickerValue: [startTime, endTime], // 日期选择器
+      retrieveParams: {
+        bk_biz_id: this.$store.state.bkBizId,
+        keyword: '*',
+        time_range: 'custom',
+        start_time: startTime, // 时间范围，格式 YYYY-MM-DDThh:mm[:ss[.uuuuuu]][+HH:MM|-HH:MM|Z]
+        end_time: endTime,
+        host_scopes: {
+          modules: [],
+          ips: '',
         },
-      };
-    },
-    computed: {
-      ...mapGetters({
-        chartSizeNum: 'chartSizeNum',
-      }),
-      ...mapGetters('collect', ['curCollect']),
-    },
-    watch: {
-      chartSizeNum() {
-        this.resizeChart();
+        addition: [],
+        begin: 0,
+        size: 500,
+        interval: '1d',
       },
+    };
+  },
+  computed: {
+    ...mapGetters({
+      chartSizeNum: 'chartSizeNum',
+    }),
+    ...mapGetters('collect', ['curCollect']),
+  },
+  watch: {
+    chartSizeNum() {
+      this.resizeChart();
     },
-    created() {
-      this.fetchChartData();
-    },
-    mounted() {
-      let timer = 0;
-      this.resizeChart = () => {
-        if (!timer) {
-          timer = setTimeout(() => {
-            timer = 0;
-            if (this.instance && !this.instance.isDisposed()) {
-              this.instance.resize();
-            }
-          }, 400);
-        }
-      };
-      window.addEventListener('resize', this.resizeChart);
-    },
-    beforeUnmount() {
-      window.removeEventListener('resize', this.resizeChart);
-    },
-    methods: {
-      // 获取数据
-      async fetchChartData() {
-        try {
-          this.basicLoading = true;
-          const res = await this.$http.request('retrieve/getLogChartList', {
-            params: { index_set_id: this.curCollect.index_set_id },
-            data: Object.assign({}, this.retrieveParams, {
-              start_time: `${this.retrieveParams.start_time} 00:00:00`,
-              end_time: `${this.retrieveParams.end_time} 23:59:59`,
-              addition: this.retrieveParams.addition,
-            }),
-          });
-          const originChartData = res.data.aggs?.group_by_histogram?.buckets || [];
-          const chartData = {
-            labels: [],
-            values: [],
-          };
-          originChartData.forEach(item => {
-            chartData.labels.push(item.key_as_string);
-            chartData.values.push(item.doc_count);
-          });
-          this.updateChart(chartData);
-        } catch (e) {
-          console.warn(e);
-          this.updateChart(null);
-        } finally {
-          this.basicLoading = false;
-        }
-      },
-      // 初始化图表
-      updateChart(chartData) {
-        if (!chartData?.values.length) {
+  },
+  created() {
+    this.fetchChartData();
+  },
+  mounted() {
+    let timer = 0;
+    this.resizeChart = () => {
+      if (!timer) {
+        timer = setTimeout(() => {
+          timer = 0;
           if (this.instance && !this.instance.isDisposed()) {
-            this.instance.dispose();
+            this.instance.resize();
           }
-          this.isEmpty = true;
-          return;
-        }
-
-        this.isEmpty = false;
-        if (!this.instance || this.instance.isDisposed()) {
-          this.instance = echarts.init(this.$refs.chartRef);
-        }
-
-        this.instance.setOption({
-          xAxis: {
-            type: 'category',
-            data: chartData.labels,
-            axisTick: {
-              alignWithLabel: true,
-            },
-            axisLabel: {
-              align: 'center',
-              formatter(value) {
-                return dayjs.tz(value).format('MM-DD');
-              },
-            },
-            axisLine: {
-              lineStyle: {
-                color: '#DCDEE5',
-              },
-            },
-          },
-          yAxis: {
-            type: 'value',
-            axisTick: {
-              show: false,
-            },
-            axisLine: {
-              show: false,
-            },
-            splitLine: {
-              lineStyle: {
-                color: '#DCDEE5',
-                type: 'dashed',
-              },
-            },
-          },
-          series: [
-            {
-              data: chartData.values,
-              type: 'bar',
-              barMaxWidth: 24,
-              itemStyle: {
-                color: '#339DFF',
-              },
-            },
-          ],
-          tooltip: {
-            trigger: 'item',
-          },
-          textStyle: {
-            color: '#63656E',
-          },
-          grid: {
-            x: 40,
-            y: 10,
-            x2: 40,
-            y2: 40,
-            containLabel: true,
-          },
+        }, 400);
+      }
+    };
+    window.addEventListener('resize', this.resizeChart);
+  },
+  beforeUnmount() {
+    window.removeEventListener('resize', this.resizeChart);
+  },
+  methods: {
+    // 获取数据
+    async fetchChartData() {
+      try {
+        this.basicLoading = true;
+        const res = await this.$http.request('retrieve/getLogChartList', {
+          params: { index_set_id: this.curCollect.index_set_id },
+          data: Object.assign({}, this.retrieveParams, {
+            start_time: `${this.retrieveParams.start_time} 00:00:00`,
+            end_time: `${this.retrieveParams.end_time} 23:59:59`,
+            addition: this.retrieveParams.addition,
+          }),
         });
-      },
-
-      // 检索参数：日期改变
-      handleDateChange(val) {
-        this.datePickerValue = val;
-        Object.assign(this.retrieveParams, {
-          start_time: val[0],
-          end_time: val[1],
+        const originChartData = res.data.aggs?.group_by_histogram?.buckets || [];
+        const chartData = {
+          labels: [],
+          values: [],
+        };
+        originChartData.forEach(item => {
+          chartData.labels.push(item.key_as_string);
+          chartData.values.push(item.doc_count);
         });
-      },
+        this.updateChart(chartData);
+      } catch (e) {
+        console.warn(e);
+        this.updateChart(null);
+      } finally {
+        this.basicLoading = false;
+      }
     },
-  };
+    // 初始化图表
+    updateChart(chartData) {
+      if (!chartData?.values.length) {
+        if (this.instance && !this.instance.isDisposed()) {
+          this.instance.dispose();
+        }
+        this.isEmpty = true;
+        return;
+      }
+
+      this.isEmpty = false;
+      if (!this.instance || this.instance.isDisposed()) {
+        this.instance = echarts.init(this.$refs.chartRef);
+      }
+
+      this.instance.setOption({
+        xAxis: {
+          type: 'category',
+          data: chartData.labels,
+          axisTick: {
+            alignWithLabel: true,
+          },
+          axisLabel: {
+            align: 'center',
+            formatter(value) {
+              return dayjs.tz(value).format('MM-DD');
+            },
+          },
+          axisLine: {
+            lineStyle: {
+              color: '#DCDEE5',
+            },
+          },
+        },
+        yAxis: {
+          type: 'value',
+          axisTick: {
+            show: false,
+          },
+          axisLine: {
+            show: false,
+          },
+          splitLine: {
+            lineStyle: {
+              color: '#DCDEE5',
+              type: 'dashed',
+            },
+          },
+        },
+        series: [
+          {
+            data: chartData.values,
+            type: 'bar',
+            barMaxWidth: 24,
+            itemStyle: {
+              color: '#339DFF',
+            },
+          },
+        ],
+        tooltip: {
+          trigger: 'item',
+        },
+        textStyle: {
+          color: '#63656E',
+        },
+        grid: {
+          x: 40,
+          y: 10,
+          x2: 40,
+          y2: 40,
+          containLabel: true,
+        },
+      });
+    },
+
+    // 检索参数：日期改变
+    handleDateChange(val) {
+      this.datePickerValue = val;
+      Object.assign(this.retrieveParams, {
+        start_time: val[0],
+        end_time: val[1],
+      });
+    },
+  },
+};
 </script>

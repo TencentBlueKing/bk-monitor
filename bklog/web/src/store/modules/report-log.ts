@@ -77,7 +77,7 @@ class ReportLogStore extends VuexModule {
         },
         {
           catchIsShowMessage: false,
-        },
+        }
       )
       .catch(() => false);
   }

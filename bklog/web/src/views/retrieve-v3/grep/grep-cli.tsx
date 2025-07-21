@@ -68,7 +68,7 @@ export default defineComponent({
 
     const store = useStore();
     const fieldList = computed(() =>
-      (store.state.indexFieldInfo.fields ?? []).filter(field => field.field_type === 'text'),
+      (store.state.indexFieldInfo.fields ?? []).filter(field => field.field_type === 'text')
     );
 
     // 计算是否有搜索结果

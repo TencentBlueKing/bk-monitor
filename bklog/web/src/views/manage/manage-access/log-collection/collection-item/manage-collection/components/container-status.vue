@@ -129,177 +129,177 @@
   </div>
 </template>
 <script>
-  import { mapGetters } from 'vuex';
+import { mapGetters } from 'vuex';
 
-  export default {
-    props: {
-      isLoading: {
-        type: Boolean,
-        default: false,
-      },
+export default {
+  props: {
+    isLoading: {
+      type: Boolean,
+      default: false,
     },
-    data() {
-      return {
-        navActive: 'all', // 当前活跃按钮
-        navBtnList: [
-          // 按钮列表
-          {
-            id: 'all',
-            listNum: 0,
-          },
-          {
-            id: 'success',
-            listNum: 0,
-          },
-          {
-            id: 'failed',
-            listNum: 0,
-          },
-          {
-            id: 'running',
-            listNum: 0,
-          },
-        ],
-        colorClass: {
-          // 成功失败类名
-          success: 'circle-green',
-          failed: 'circle-red',
+  },
+  data() {
+    return {
+      navActive: 'all', // 当前活跃按钮
+      navBtnList: [
+        // 按钮列表
+        {
+          id: 'all',
+          listNum: 0,
         },
-        statusNameList: {
-          // 状态中文名
-          all: this.$t('全部'),
-          success: this.$t('正常'),
-          failed: this.$t('失败'),
-          running: this.$t('执行中'),
+        {
+          id: 'success',
+          listNum: 0,
         },
-        timer: null,
-        renderTitleList: [], // 当前活跃的目标
-        curTaskIdStr: '',
-        allFailedIDList: [], // 所有状态为失败的config_id
-      };
-    },
-    computed: {
-      ...mapGetters('collect', ['curCollect']),
-      hasRunning() {
-        // 是否还有执行中的状态
-        return this.navBtnList[3].listNum;
+        {
+          id: 'failed',
+          listNum: 0,
+        },
+        {
+          id: 'running',
+          listNum: 0,
+        },
+      ],
+      colorClass: {
+        // 成功失败类名
+        success: 'circle-green',
+        failed: 'circle-red',
       },
+      statusNameList: {
+        // 状态中文名
+        all: this.$t('全部'),
+        success: this.$t('正常'),
+        failed: this.$t('失败'),
+        running: this.$t('执行中'),
+      },
+      timer: null,
+      renderTitleList: [], // 当前活跃的目标
+      curTaskIdStr: '',
+      allFailedIDList: [], // 所有状态为失败的config_id
+    };
+  },
+  computed: {
+    ...mapGetters('collect', ['curCollect']),
+    hasRunning() {
+      // 是否还有执行中的状态
+      return this.navBtnList[3].listNum;
     },
-    created() {
-      this.curTaskIdStr = [...new Set([...this.curCollect.task_id_list])].join(',');
+  },
+  created() {
+    this.curTaskIdStr = [...new Set([...this.curCollect.task_id_list])].join(',');
+  },
+  mounted() {
+    this.getContainerList();
+    this.pollingStatus();
+  },
+  beforeUnmount() {
+    clearInterval(this.timer);
+  },
+  methods: {
+    handleClickTitle(index, isClose) {
+      this.renderTitleList[index].isShowTable = !isClose;
     },
-    mounted() {
-      this.getContainerList();
-      this.pollingStatus();
+    handleClickNav(activeID) {
+      this.navActive = activeID;
     },
-    beforeUnmount() {
+    /**
+     * @desc: 轮询状态
+     */
+    pollingStatus() {
       clearInterval(this.timer);
+      this.timer = setInterval(() => {
+        this.getContainerList('polling');
+      }, 5000);
     },
-    methods: {
-      handleClickTitle(index, isClose) {
-        this.renderTitleList[index].isShowTable = !isClose;
-      },
-      handleClickNav(activeID) {
-        this.navActive = activeID;
-      },
-      /**
-       * @desc: 轮询状态
-       */
-      pollingStatus() {
-        clearInterval(this.timer);
-        this.timer = setInterval(() => {
-          this.getContainerList('polling');
-        }, 5000);
-      },
-      /**
-       * @desc: 容器日志list，与轮询共用
-       * @param { String } isPolling 是否是轮询状态
-       */
-      getContainerList(isPolling = '') {
-        if (isPolling !== 'polling') this.$emit('update:is-loading', true);
-        const params = { collector_config_id: this.curCollect.collector_config_id };
-        this.$http
-          .request('collect/getIssuedClusterList', {
-            params,
-            query: { task_id_list: this.curTaskIdStr },
-          })
-          .then(res => {
-            const data = JSON.parse(JSON.stringify(res.data.contents)) || [];
-            this.allFailedIDList = [];
-            this.navBtnList.forEach(item => (item.listNum = 0));
-            this.renderTitleList = data.reduce((pre, cur) => {
-              cur.isShowTable = true;
-              this.navBtnList.forEach(item => (cur[item.id] = []));
-              if (cur.child.length) {
-                cur.all = cur.child;
-                for (const childItem of cur.child) {
-                  childItem.status = childItem.status === 'PENDING' ? 'running' : childItem.status.toLowerCase();
-                  childItem.status === 'failed' && this.allFailedIDList.push(childItem.container_collector_config_id);
-                  cur[childItem.status].push(childItem);
-                }
-                delete cur.child;
+    /**
+     * @desc: 容器日志list，与轮询共用
+     * @param { String } isPolling 是否是轮询状态
+     */
+    getContainerList(isPolling = '') {
+      if (isPolling !== 'polling') this.$emit('update:is-loading', true);
+      const params = { collector_config_id: this.curCollect.collector_config_id };
+      this.$http
+        .request('collect/getIssuedClusterList', {
+          params,
+          query: { task_id_list: this.curTaskIdStr },
+        })
+        .then(res => {
+          const data = JSON.parse(JSON.stringify(res.data.contents)) || [];
+          this.allFailedIDList = [];
+          this.navBtnList.forEach(item => (item.listNum = 0));
+          this.renderTitleList = data.reduce((pre, cur) => {
+            cur.isShowTable = true;
+            this.navBtnList.forEach(item => (cur[item.id] = []));
+            if (cur.child.length) {
+              cur.all = cur.child;
+              for (const childItem of cur.child) {
+                childItem.status = childItem.status === 'PENDING' ? 'running' : childItem.status.toLowerCase();
+                childItem.status === 'failed' && this.allFailedIDList.push(childItem.container_collector_config_id);
+                cur[childItem.status].push(childItem);
               }
-              this.navBtnList.forEach(item => (item.listNum += cur[item.id].length));
-              pre.push(cur);
-              return pre;
-            }, []);
-          })
-          .catch(err => {
-            console.warn(err);
-          })
-          .finally(() => {
-            this.$emit('update:is-loading', false);
-            if (isPolling === 'polling' && !this.hasRunning) clearInterval(this.timer);
-          });
-      },
-      issuedRetry(alone = '', renderItem, row) {
-        const retrySubmitList = alone ? [row.container_collector_config_id] : this.allFailedIDList;
-        // ID列表为空或者全局失败数为0时不请求
-        if (!retrySubmitList.length || !this.navBtnList[2].listNum) return;
-        if (row) {
-          row.status = 'running'; // 单选 单独变成running状态
-          // 失败-1 执行中+1
-          renderItem.running.push(row);
-          const renderIndex = renderItem.failed.findIndex(item => item.name === row.name);
-          renderItem.failed.splice(renderIndex, 1);
-          this.navBtnList[3].listNum += 1;
-          this.navBtnList[2].listNum -= 1;
-        } else {
-          // 批量重试 清空失败 将所有的失败添加到执行中
-          this.renderTitleList.forEach(tableItem => {
-            tableItem.all.forEach(item => item.status === 'failed' && (item.status = 'running'));
-            tableItem.failed.forEach(item => (item.status = 'running'));
-            tableItem.running.push(...tableItem.failed);
-            tableItem.failed = [];
-          });
-          this.navBtnList[3].listNum = this.navBtnList[3].listNum + this.navBtnList[2].listNum;
-          this.navBtnList[2].listNum = 0;
-        }
-        this.$http
-          .request('source/retryList', {
-            params: {
-              collector_config_id: this.$route.params.collectorId,
-            },
-            data: {
-              instance_id_list: retrySubmitList,
-            },
-          })
-          .then(() => {
-            this.pollingStatus();
-          })
-          .catch(e => {
-            console.warn(e);
-          });
-      },
-      /**
-       * @desc: 是否有重试执行中的采集状态
-       * @param {Object} item
-       */
-      isHaveRunning(item) {
-        return item.id === 'running' && item.listNum !== 0;
-      },
+              delete cur.child;
+            }
+            this.navBtnList.forEach(item => (item.listNum += cur[item.id].length));
+            pre.push(cur);
+            return pre;
+          }, []);
+        })
+        .catch(err => {
+          console.warn(err);
+        })
+        .finally(() => {
+          this.$emit('update:is-loading', false);
+          if (isPolling === 'polling' && !this.hasRunning) clearInterval(this.timer);
+        });
     },
-  };
+    issuedRetry(alone = '', renderItem, row) {
+      const retrySubmitList = alone ? [row.container_collector_config_id] : this.allFailedIDList;
+      // ID列表为空或者全局失败数为0时不请求
+      if (!retrySubmitList.length || !this.navBtnList[2].listNum) return;
+      if (row) {
+        row.status = 'running'; // 单选 单独变成running状态
+        // 失败-1 执行中+1
+        renderItem.running.push(row);
+        const renderIndex = renderItem.failed.findIndex(item => item.name === row.name);
+        renderItem.failed.splice(renderIndex, 1);
+        this.navBtnList[3].listNum += 1;
+        this.navBtnList[2].listNum -= 1;
+      } else {
+        // 批量重试 清空失败 将所有的失败添加到执行中
+        this.renderTitleList.forEach(tableItem => {
+          tableItem.all.forEach(item => item.status === 'failed' && (item.status = 'running'));
+          tableItem.failed.forEach(item => (item.status = 'running'));
+          tableItem.running.push(...tableItem.failed);
+          tableItem.failed = [];
+        });
+        this.navBtnList[3].listNum = this.navBtnList[3].listNum + this.navBtnList[2].listNum;
+        this.navBtnList[2].listNum = 0;
+      }
+      this.$http
+        .request('source/retryList', {
+          params: {
+            collector_config_id: this.$route.params.collectorId,
+          },
+          data: {
+            instance_id_list: retrySubmitList,
+          },
+        })
+        .then(() => {
+          this.pollingStatus();
+        })
+        .catch(e => {
+          console.warn(e);
+        });
+    },
+    /**
+     * @desc: 是否有重试执行中的采集状态
+     * @param {Object} item
+     */
+    isHaveRunning(item) {
+      return item.id === 'running' && item.listNum !== 0;
+    },
+  },
+};
 </script>
 <style lang="scss">
   @import '@/scss/mixins/flex.scss';

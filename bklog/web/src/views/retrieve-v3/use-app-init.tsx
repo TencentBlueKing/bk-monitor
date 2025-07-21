@@ -201,7 +201,7 @@ export default () => {
           const lastIndexSetIds = store.state.storage[BK_LOG_STORAGE.LAST_INDEX_SET_ID]?.[spaceUid.value];
           if (lastIndexSetIds?.length) {
             const validateIndexSetIds = lastIndexSetIds.filter(id =>
-              resp[1].some(item => `${item.index_set_id}` === `${id}`),
+              resp[1].some(item => `${item.index_set_id}` === `${id}`)
             );
             if (validateIndexSetIds.length) {
               store.commit('updateIndexItem', { ids: validateIndexSetIds });
@@ -270,7 +270,7 @@ export default () => {
         if (emptyIndexSetList.length === 0) {
           RetrieveHelper.setSearchingValue(true);
 
-          const type = indexId ?? route.params.indexId ? 'single' : 'union';
+          const type = (indexId ?? route.params.indexId) ? 'single' : 'union';
           if (indexId && type === 'single') {
             store.commit('updateIndexId', indexId);
             store.commit('updateUnionIndexList', { updateIndexItem: false, list: [] });
@@ -328,7 +328,7 @@ export default () => {
         const queryTab = RetrieveHelper.routeQueryTabValueFix(
           store.state.indexItem.items?.[0],
           route.query.tab,
-          store.getters.isUnionSearch,
+          store.getters.isUnionSearch
         );
 
         router.replace({
@@ -423,7 +423,7 @@ export default () => {
     entry => {
       scrollContainerHeight.value = (entry.target as HTMLElement).offsetHeight;
     },
-    0,
+    0
   );
 
   /**

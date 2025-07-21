@@ -31,64 +31,64 @@
   </div>
 </template>
 <script>
-  export default {
-    props: {
-      context: {
-        type: String,
-        require: true,
-      },
-      rootMargin: {
-        type: String,
-        default: '0px 0px 0px 0px',
-      },
+export default {
+  props: {
+    context: {
+      type: String,
+      require: true,
     },
-    data() {
-      return {
-        isMountContent: true,
-      };
+    rootMargin: {
+      type: String,
+      default: '0px 0px 0px 0px',
     },
-    deactivated() {
-      this.isMountContent = false;
-      this.unregisterObserver();
-    },
-    activated() {
-      this.isMountContent = true;
-      setTimeout(this.registerObserver, 20);
-    },
-    mounted() {
-      this.isMountContent = true;
-      setTimeout(this.registerObserver, 20);
-    },
-    methods: {
-      registerObserver() {
-        if (this.intersectionObserver) {
-          this.unregisterObserver();
-        }
-        this.intersectionObserver = new IntersectionObserver(
-          entries => {
-            entries.forEach(entry => {
-              if (this.intersectionObserver) {
-                if (entry.intersectionRatio > 0) {
-                  this.isMountContent = true;
-                } else {
-                  this.isMountContent = false;
-                }
+  },
+  data() {
+    return {
+      isMountContent: true,
+    };
+  },
+  deactivated() {
+    this.isMountContent = false;
+    this.unregisterObserver();
+  },
+  activated() {
+    this.isMountContent = true;
+    setTimeout(this.registerObserver, 20);
+  },
+  mounted() {
+    this.isMountContent = true;
+    setTimeout(this.registerObserver, 20);
+  },
+  methods: {
+    registerObserver() {
+      if (this.intersectionObserver) {
+        this.unregisterObserver();
+      }
+      this.intersectionObserver = new IntersectionObserver(
+        entries => {
+          entries.forEach(entry => {
+            if (this.intersectionObserver) {
+              if (entry.intersectionRatio > 0) {
+                this.isMountContent = true;
+              } else {
+                this.isMountContent = false;
               }
-            });
-          },
-          {
-            rootMargin: this.rootMargin, // '-180px 0px 0px 0px',
-          },
-        );
-        this.intersectionObserver.observe(this.$el);
-      },
-      unregisterObserver() {
-        if (this.intersectionObserver) {
-          this.intersectionObserver.unobserve(this.$el);
-          this.intersectionObserver.disconnect();
-          this.intersectionObserver = null;
+            }
+          });
+        },
+        {
+          rootMargin: this.rootMargin, // '-180px 0px 0px 0px',
         }
-      },
+      );
+      this.intersectionObserver.observe(this.$el);
     },
-  };
+    unregisterObserver() {
+      if (this.intersectionObserver) {
+        this.intersectionObserver.unobserve(this.$el);
+        this.intersectionObserver.disconnect();
+        this.intersectionObserver = null;
+      }
+    },
+  },
+};
 </script>

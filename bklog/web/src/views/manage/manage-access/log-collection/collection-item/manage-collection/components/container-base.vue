@@ -350,251 +350,251 @@
 </template>
 
 <script>
-  import { operatorMappingObj, operatorMapping } from '@/components/collection-access/components/log-filter/type';
+import { operatorMappingObj, operatorMapping } from '@/components/collection-access/components/log-filter/type';
 
-  export default {
-    props: {
-      collectorData: {
-        type: Object,
-        required: true,
-      },
-      isLoading: {
-        type: Boolean,
-        default: false,
-      },
+export default {
+  props: {
+    collectorData: {
+      type: Object,
+      required: true,
     },
-    data() {
-      return {
-        collectorConfigs: [], // config
-        extraLabelList: [], // 附加日志标签
-        specifyName: {
-          // 指定容器中文名
-          workload_type: this.$t('应用类型'),
-          workload_name: this.$t('应用名称'),
-        },
-        collectorNameMap: {
-          container_log_config: 'Container',
-          node_log_config: 'Node',
-          std_log_config: this.$t('标准输出'),
-        },
-        dataLinkName: '--',
-        bcsClusterName: '--', // 容器环境集群名
-        groupList: [this.$t('过滤参数'), this.$t('操作符'), 'Value'],
-      };
+    isLoading: {
+      type: Boolean,
+      default: false,
     },
-    computed: {},
-    async created() {
-      this.$emit('update:is-loading', true);
-      try {
-        await this.getLinkData(this.collectorData);
-        await this.initContainerConfigData(this.collectorData);
-      } catch (error) {
-        console.warn(error);
-      } finally {
-        this.$emit('update:is-loading', false);
+  },
+  data() {
+    return {
+      collectorConfigs: [], // config
+      extraLabelList: [], // 附加日志标签
+      specifyName: {
+        // 指定容器中文名
+        workload_type: this.$t('应用类型'),
+        workload_name: this.$t('应用名称'),
+      },
+      collectorNameMap: {
+        container_log_config: 'Container',
+        node_log_config: 'Node',
+        std_log_config: this.$t('标准输出'),
+      },
+      dataLinkName: '--',
+      bcsClusterName: '--', // 容器环境集群名
+      groupList: [this.$t('过滤参数'), this.$t('操作符'), 'Value'],
+    };
+  },
+  computed: {},
+  async created() {
+    this.$emit('update:is-loading', true);
+    try {
+      await this.getLinkData(this.collectorData);
+      await this.initContainerConfigData(this.collectorData);
+    } catch (error) {
+      console.warn(error);
+    } finally {
+      this.$emit('update:is-loading', false);
+    }
+  },
+  methods: {
+    // 判断是否超出  超出提示
+    handleEnter(e) {
+      const cWidth = e.target.clientWidth;
+      const sWidth = e.target.scrollWidth;
+      if (sWidth > cWidth) {
+        this.instance = this.$bkPopover(e.target, {
+          content: e.target.innerText,
+          arrow: true,
+          placement: 'right',
+        });
+        this.instance.show(1000);
       }
     },
-    methods: {
-      // 判断是否超出  超出提示
-      handleEnter(e) {
-        const cWidth = e.target.clientWidth;
-        const sWidth = e.target.scrollWidth;
-        if (sWidth > cWidth) {
-          this.instance = this.$bkPopover(e.target, {
-            content: e.target.innerText,
-            arrow: true,
-            placement: 'right',
-          });
-          this.instance.show(1000);
-        }
-      },
-      /**
-       * @desc: 初始化编辑的form表单值
-       * @returns { Object } 返回初始化后的Form表单
-       */
-      async initContainerConfigData(data) {
-        // 分yaml模式和ui模式下的config展示
-        try {
-          this.bcsClusterName = await this.getBcsClusterName(data.bcs_cluster_id);
-          const showData = data.yaml_config_enabled ? await this.getYamlConfigData(data.yaml_config) : data;
-          this.extraLabelList = showData.extra_labels;
-          this.collectorConfigs = showData.configs.map(item => {
-            const {
-              workload_name,
+    /**
+     * @desc: 初始化编辑的form表单值
+     * @returns { Object } 返回初始化后的Form表单
+     */
+    async initContainerConfigData(data) {
+      // 分yaml模式和ui模式下的config展示
+      try {
+        this.bcsClusterName = await this.getBcsClusterName(data.bcs_cluster_id);
+        const showData = data.yaml_config_enabled ? await this.getYamlConfigData(data.yaml_config) : data;
+        this.extraLabelList = showData.extra_labels;
+        this.collectorConfigs = showData.configs.map(item => {
+          const {
+            workload_name,
+            workload_type,
+            container_name: baseContainerName,
+            match_expressions,
+            match_labels,
+            data_encoding,
+            params,
+            container: yamlContainer,
+            label_selector: yamlSelector,
+            annotation_selector: yamlAnnotationSelector,
+            namespaces,
+            namespaces_exclude,
+            match_annotations,
+            collector_type: collectorType,
+          } = item;
+          let container;
+          let labelSelector;
+          let Annotations;
+          let containerName = this.getContainerNameList(baseContainerName);
+          if (data.yaml_config_enabled) {
+            const { workload_name, workload_type, container_name: yamlContainerName } = yamlContainer;
+            container = { workload_name, workload_type };
+            containerName = this.getContainerNameList(yamlContainerName);
+            labelSelector = yamlSelector;
+            Annotations = yamlAnnotationSelector;
+          } else {
+            container = {
               workload_type,
-              container_name: baseContainerName,
-              match_expressions,
-              match_labels,
-              data_encoding,
-              params,
-              container: yamlContainer,
-              label_selector: yamlSelector,
-              annotation_selector: yamlAnnotationSelector,
-              namespaces,
-              namespaces_exclude,
+              workload_name,
+            };
+            Annotations = {
               match_annotations,
-              collector_type: collectorType,
-            } = item;
-            let container;
-            let labelSelector;
-            let Annotations;
-            let containerName = this.getContainerNameList(baseContainerName);
-            if (data.yaml_config_enabled) {
-              const { workload_name, workload_type, container_name: yamlContainerName } = yamlContainer;
-              container = { workload_name, workload_type };
-              containerName = this.getContainerNameList(yamlContainerName);
-              labelSelector = yamlSelector;
-              Annotations = yamlAnnotationSelector;
-            } else {
-              container = {
-                workload_type,
-                workload_name,
-              };
-              Annotations = {
-                match_annotations,
-              };
-              labelSelector = {
-                match_labels,
-                match_expressions,
-              };
-            }
-            const collectorName = this.collectorNameMap[collectorType] || '--';
-            return {
-              namespaces,
-              namespaces_exclude,
-              data_encoding,
-              container,
-              collectorName,
-              containerName,
-              label_selector: labelSelector,
-              match_annotations: Annotations,
-              params,
             };
-          });
-        } catch (error) {
-          console.warn(error);
-        }
-      },
-      getContainerNameList(containerName = '') {
-        const splitList = containerName.split(',');
-        if (splitList.length === 1 && splitList[0] === '') return [];
-        return splitList;
-      },
-      async getLinkData(collectorData) {
-        try {
-          const res = await this.$http.request('linkConfiguration/getLinkList', {
-            query: {
-              bk_biz_id: this.$store.state.bkBizId,
-            },
-          });
-          this.dataLinkName =
-            res.data.find(item => item.data_link_id === collectorData.data_link_id)?.link_group_name || '--';
-        } catch (e) {
-          console.warn(e);
-        }
-      },
-      getFromCharCode(index) {
-        return String.fromCharCode(index + 65);
-      },
-      async getYamlConfigData(yamlConfig) {
-        const defaultConfigData = {
-          configs: [],
-          extra_labels: [],
-        };
-        try {
-          const res = await this.$http.request('container/yamlJudgement', {
-            data: {
-              bk_biz_id: this.$store.state.bkBizId,
-              bcs_cluster_id: this.collectorData.bcs_cluster_id,
-              yaml_config: yamlConfig,
-            },
-          });
-          const { parse_result: parseResult, parse_status: parseStatus } = res.data;
-          if (Array.isArray(parseResult) && !parseStatus) return defaultConfigData; // 返回值若是数组则表示yaml解析出错
-          if (parseStatus)
-            return {
-              configs: parseResult.configs,
-              extra_labels: parseResult.extra_labels,
+            labelSelector = {
+              match_labels,
+              match_expressions,
             };
-        } catch (error) {
-          console.warn(error);
-          return defaultConfigData;
-        }
-      },
-      handleLeave() {
-        this.instance?.destroy(true);
-      },
-      isSelectorHaveValue(labelSelector = []) {
-        return Object.values(labelSelector)?.some(item => item?.length) || false;
-      },
-      isContainerHaveValue(container = []) {
-        return Object.values(container)?.some(item => !!item) || false;
-      },
-      /**
-       * @desc: 获取bcs集群列表名
-       */
-      async getBcsClusterName(bcsID) {
-        try {
-          const query = { bk_biz_id: this.$store.state.bkBizId };
-          const res = await this.$http.request('container/getBcsList', { query });
-          return res.data.find(item => item.id === bcsID)?.name || '--';
-        } catch (error) {
-          return '--';
-        }
-      },
-      showOperatorObj(params) {
-        return Object.keys(operatorMappingObj).reduce((pre, acc) => {
-          let newKey = acc;
-          if ((this.isMatchType(params) && acc === 'include') || (!this.isMatchType(params) && acc === 'eq'))
-            newKey = '=';
-          pre[newKey] = operatorMappingObj[acc];
-          return pre;
-        }, {});
-      },
-      isHaveFilter(params) {
-        if (params.type === 'none') return false;
-        return !!params.conditions?.separator_filters?.length;
-      },
-      isMatchType(params) {
-        return params.conditions.type === 'match';
-      },
-      filterGroup(params) {
-        const filters = params.conditions?.separator_filters;
-        return this.splitFilters(filters ?? []);
-      },
-      groupKey(params) {
-        return this.isMatchType(params) ? this.groupList.slice(1) : this.groupList;
-      },
-      /** 设置过滤分组 */
-      splitFilters(filters) {
-        const groups = [];
-        let currentGroup = [];
-
-        filters.forEach((filter, index) => {
-          const mappingFilter = {
-            ...filter,
-            op: operatorMapping[filter.op] ?? filter.op, // 映射操作符
-          };
-          currentGroup.push(mappingFilter);
-          // 检查下一个 filter
-          if (filters[index + 1]?.logic_op === 'or' || index === filters.length - 1) {
-            groups.push(currentGroup);
-            currentGroup = [];
           }
+          const collectorName = this.collectorNameMap[collectorType] || '--';
+          return {
+            namespaces,
+            namespaces_exclude,
+            data_encoding,
+            container,
+            collectorName,
+            containerName,
+            label_selector: labelSelector,
+            match_annotations: Annotations,
+            params,
+          };
         });
-        if (currentGroup.length > 0) {
-          groups.push(currentGroup);
-        }
-        return groups;
-      },
-      nameSpaceType(configItem) {
-        return configItem.namespaces_exclude?.length ? '!=' : '=';
-      },
-      showNameSpace(configItem) {
-        return configItem.namespaces_exclude?.length ? configItem.namespaces_exclude : configItem.namespaces;
-      },
+      } catch (error) {
+        console.warn(error);
+      }
     },
-  };
+    getContainerNameList(containerName = '') {
+      const splitList = containerName.split(',');
+      if (splitList.length === 1 && splitList[0] === '') return [];
+      return splitList;
+    },
+    async getLinkData(collectorData) {
+      try {
+        const res = await this.$http.request('linkConfiguration/getLinkList', {
+          query: {
+            bk_biz_id: this.$store.state.bkBizId,
+          },
+        });
+        this.dataLinkName =
+          res.data.find(item => item.data_link_id === collectorData.data_link_id)?.link_group_name || '--';
+      } catch (e) {
+        console.warn(e);
+      }
+    },
+    getFromCharCode(index) {
+      return String.fromCharCode(index + 65);
+    },
+    async getYamlConfigData(yamlConfig) {
+      const defaultConfigData = {
+        configs: [],
+        extra_labels: [],
+      };
+      try {
+        const res = await this.$http.request('container/yamlJudgement', {
+          data: {
+            bk_biz_id: this.$store.state.bkBizId,
+            bcs_cluster_id: this.collectorData.bcs_cluster_id,
+            yaml_config: yamlConfig,
+          },
+        });
+        const { parse_result: parseResult, parse_status: parseStatus } = res.data;
+        if (Array.isArray(parseResult) && !parseStatus) return defaultConfigData; // 返回值若是数组则表示yaml解析出错
+        if (parseStatus)
+          return {
+            configs: parseResult.configs,
+            extra_labels: parseResult.extra_labels,
+          };
+      } catch (error) {
+        console.warn(error);
+        return defaultConfigData;
+      }
+    },
+    handleLeave() {
+      this.instance?.destroy(true);
+    },
+    isSelectorHaveValue(labelSelector = []) {
+      return Object.values(labelSelector)?.some(item => item?.length) || false;
+    },
+    isContainerHaveValue(container = []) {
+      return Object.values(container)?.some(item => !!item) || false;
+    },
+    /**
+     * @desc: 获取bcs集群列表名
+     */
+    async getBcsClusterName(bcsID) {
+      try {
+        const query = { bk_biz_id: this.$store.state.bkBizId };
+        const res = await this.$http.request('container/getBcsList', { query });
+        return res.data.find(item => item.id === bcsID)?.name || '--';
+      } catch (error) {
+        return '--';
+      }
+    },
+    showOperatorObj(params) {
+      return Object.keys(operatorMappingObj).reduce((pre, acc) => {
+        let newKey = acc;
+        if ((this.isMatchType(params) && acc === 'include') || (!this.isMatchType(params) && acc === 'eq'))
+          newKey = '=';
+        pre[newKey] = operatorMappingObj[acc];
+        return pre;
+      }, {});
+    },
+    isHaveFilter(params) {
+      if (params.type === 'none') return false;
+      return !!params.conditions?.separator_filters?.length;
+    },
+    isMatchType(params) {
+      return params.conditions.type === 'match';
+    },
+    filterGroup(params) {
+      const filters = params.conditions?.separator_filters;
+      return this.splitFilters(filters ?? []);
+    },
+    groupKey(params) {
+      return this.isMatchType(params) ? this.groupList.slice(1) : this.groupList;
+    },
+    /** 设置过滤分组 */
+    splitFilters(filters) {
+      const groups = [];
+      let currentGroup = [];
+
+      filters.forEach((filter, index) => {
+        const mappingFilter = {
+          ...filter,
+          op: operatorMapping[filter.op] ?? filter.op, // 映射操作符
+        };
+        currentGroup.push(mappingFilter);
+        // 检查下一个 filter
+        if (filters[index + 1]?.logic_op === 'or' || index === filters.length - 1) {
+          groups.push(currentGroup);
+          currentGroup = [];
+        }
+      });
+      if (currentGroup.length > 0) {
+        groups.push(currentGroup);
+      }
+      return groups;
+    },
+    nameSpaceType(configItem) {
+      return configItem.namespaces_exclude?.length ? '!=' : '=';
+    },
+    showNameSpace(configItem) {
+      return configItem.namespaces_exclude?.length ? configItem.namespaces_exclude : configItem.namespaces;
+    },
+  },
+};
 </script>
 
 <style lang="scss" scoped>

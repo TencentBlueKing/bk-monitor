@@ -85,81 +85,81 @@
 </template>
 
 <script>
-  export default {
-    name: 'StepResult',
-    props: {
-      operateType: String,
-      isSwitch: Boolean,
-      indexSetId: {
-        type: [String, Number],
-        default: '',
+export default {
+  name: 'StepResult',
+  props: {
+    operateType: String,
+    isSwitch: Boolean,
+    indexSetId: {
+      type: [String, Number],
+      default: '',
+    },
+    type: {
+      type: String,
+      default: 'create',
+    },
+    host: {
+      type: Object,
+      default() {
+        return {};
       },
-      type: {
-        type: String,
-        default: 'create',
+    },
+    applyData: {
+      type: Object,
+      require: true,
+    },
+  },
+  data() {
+    return {
+      finish: {
+        add: this.$t('采集项创建完成'),
+        edit: this.$t('采集项修改完成'),
+        editFinish: this.$t('采集项修改完成'),
+        field: this.$t('采集项修改完成'),
+        start: this.$t('采集项启用完成'),
+        stop: this.$t('采集项停用完成'),
+        storage: this.$t('采集项修改完成'),
+        container: this.$t('采集项修改完成'),
+        masking: this.$t('采集项修改完成'),
       },
-      host: {
-        type: Object,
-        default() {
-          return {};
+    };
+  },
+  computed: {
+    // title () {
+    //     const titleText = {
+    //         add: '采集配置创建完成',
+    //         edit: '采集配置修改完成',
+    //         start: '启用采集配置任务完成',
+    //         stop: '停用采集配置任务完成'
+    //     }
+    //     return titleText[this.operateType]
+    // }
+    finishText() {
+      return this.finish[this.operateType];
+    },
+    isNotApplyPage() {
+      return this.applyData?.itsm_ticket_status !== 'applying';
+    },
+  },
+  methods: {
+    routeChange(type) {
+      let routeName = 'collection-item';
+      if (type === 'search' || type === 'clear') {
+        routeName = 'retrieve';
+      }
+      this.$router.replace({
+        name: routeName,
+        params: {
+          indexId: type === 'search' && this.indexSetId ? this.indexSetId : '',
         },
-      },
-      applyData: {
-        type: Object,
-        require: true,
-      },
-    },
-    data() {
-      return {
-        finish: {
-          add: this.$t('采集项创建完成'),
-          edit: this.$t('采集项修改完成'),
-          editFinish: this.$t('采集项修改完成'),
-          field: this.$t('采集项修改完成'),
-          start: this.$t('采集项启用完成'),
-          stop: this.$t('采集项停用完成'),
-          storage: this.$t('采集项修改完成'),
-          container: this.$t('采集项修改完成'),
-          masking: this.$t('采集项修改完成'),
+        query: {
+          spaceUid: this.$store.state.spaceUid,
         },
-      };
+      });
+      this.$emit('step-result-back');
     },
-    computed: {
-      // title () {
-      //     const titleText = {
-      //         add: '采集配置创建完成',
-      //         edit: '采集配置修改完成',
-      //         start: '启用采集配置任务完成',
-      //         stop: '停用采集配置任务完成'
-      //     }
-      //     return titleText[this.operateType]
-      // }
-      finishText() {
-        return this.finish[this.operateType];
-      },
-      isNotApplyPage() {
-        return this.applyData?.itsm_ticket_status !== 'applying';
-      },
-    },
-    methods: {
-      routeChange(type) {
-        let routeName = 'collection-item';
-        if (type === 'search' || type === 'clear') {
-          routeName = 'retrieve';
-        }
-        this.$router.replace({
-          name: routeName,
-          params: {
-            indexId: type === 'search' && this.indexSetId ? this.indexSetId : '',
-          },
-          query: {
-            spaceUid: this.$store.state.spaceUid,
-          },
-        });
-        this.$emit('step-result-back');
-      },
-    },
-  };
+  },
+};
 </script>
 
 <style lang="scss">

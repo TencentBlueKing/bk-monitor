@@ -104,94 +104,94 @@
 </template>
 
 <script>
-  import { formatFileSize } from '@/common/util';
+import { formatFileSize } from '@/common/util';
 
-  export default {
-    name: 'ArchiveState',
-    props: {
-      archiveConfigId: {
-        type: Number,
+export default {
+  name: 'ArchiveState',
+  props: {
+    archiveConfigId: {
+      type: Number,
+    },
+  },
+  data() {
+    return {
+      isTableLoading: false,
+      throttle: false, // 滚动节流
+      isPageOver: false,
+      dataList: [],
+      stateMap: {
+        SUCCESS: this.$t('成功'),
+        FAIL: this.$t('失败'),
+        PARTIAL: this.$t('失败'),
+        IN_PROGRESS: this.$t('回溯中'),
       },
-    },
-    data() {
-      return {
-        isTableLoading: false,
-        throttle: false, // 滚动节流
-        isPageOver: false,
-        dataList: [],
-        stateMap: {
-          SUCCESS: this.$t('成功'),
-          FAIL: this.$t('失败'),
-          PARTIAL: this.$t('失败'),
-          IN_PROGRESS: this.$t('回溯中'),
-        },
-        curPage: 0,
-        pageSize: 20,
-      };
-    },
-    created() {
-      this.init();
-    },
-    methods: {
-      handleScroll() {
-        if (this.throttle || this.isPageOver) {
-          return;
+      curPage: 0,
+      pageSize: 20,
+    };
+  },
+  created() {
+    this.init();
+  },
+  methods: {
+    handleScroll() {
+      if (this.throttle || this.isPageOver) {
+        return;
+      }
+      this.throttle = true;
+      setTimeout(() => {
+        this.throttle = false;
+        const el = this.$refs.scrollContainer;
+        if (el.scrollHeight - el.offsetHeight - el.scrollTop < 60) {
+          this.loadMore(el.scrollTop);
         }
-        this.throttle = true;
-        setTimeout(() => {
-          this.throttle = false;
-          const el = this.$refs.scrollContainer;
-          if (el.scrollHeight - el.offsetHeight - el.scrollTop < 60) {
-            this.loadMore(el.scrollTop);
-          }
-        }, 200);
-      },
-      loadMore() {
-        this.curPage = this.curPage + 1;
-        this.requestData();
-      },
-      init() {
-        this.isTableLoading = true;
-        Promise.all([this.requestData()]).finally(() => {
-          this.isTableLoading = false;
-        });
-      },
-      requestData() {
-        return new Promise(() => {
-          this.$http
-            .request('archive/archiveConfig', {
-              query: {
-                page: this.curPage,
-                pagesize: this.pageSize,
-              },
-              params: {
-                archive_config_id: this.archiveConfigId,
-              },
-            })
-            .then(res => {
-              const { data } = res;
-              this.isPageOver = data.indices.length < this.pageSize;
-              if (data.indices.length) {
-                const list = [];
-                data.indices.forEach(item => {
-                  list.push({
-                    ...item,
-                  });
-                });
-                this.dataList.splice(this.dataList.length, 0, ...list);
-              }
-            })
-            .finally(() => {
-              this.isTableLoading = false;
-            });
-        });
-      },
-      operateHandler() {},
-      getFileSize(size) {
-        return formatFileSize(size);
-      },
+      }, 200);
     },
-  };
+    loadMore() {
+      this.curPage = this.curPage + 1;
+      this.requestData();
+    },
+    init() {
+      this.isTableLoading = true;
+      Promise.all([this.requestData()]).finally(() => {
+        this.isTableLoading = false;
+      });
+    },
+    requestData() {
+      return new Promise(() => {
+        this.$http
+          .request('archive/archiveConfig', {
+            query: {
+              page: this.curPage,
+              pagesize: this.pageSize,
+            },
+            params: {
+              archive_config_id: this.archiveConfigId,
+            },
+          })
+          .then(res => {
+            const { data } = res;
+            this.isPageOver = data.indices.length < this.pageSize;
+            if (data.indices.length) {
+              const list = [];
+              data.indices.forEach(item => {
+                list.push({
+                  ...item,
+                });
+              });
+              this.dataList.splice(this.dataList.length, 0, ...list);
+            }
+          })
+          .finally(() => {
+            this.isTableLoading = false;
+          });
+      });
+    },
+    operateHandler() {},
+    getFileSize(size) {
+      return formatFileSize(size);
+    },
+  },
+};
 </script>
 
 <style lang="scss">

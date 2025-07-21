@@ -272,245 +272,246 @@
 </template>
 
 <script>
-  import { debounce } from 'throttle-debounce';
+import { debounce } from 'throttle-debounce';
 
-  import QuickCreateSubscription from './quick-create-subscription-drawer/quick-create-subscription.tsx';
-  export default {
-    components: {
-      QuickCreateSubscription,
+import QuickCreateSubscription from './quick-create-subscription-drawer/quick-create-subscription.tsx';
+export default {
+  components: {
+    QuickCreateSubscription,
+  },
+  props: {
+    fingerOperateData: {
+      type: Object,
+      require: true,
     },
-    props: {
-      fingerOperateData: {
-        type: Object,
-        require: true,
-      },
-      requestData: {
-        type: Object,
-        require: true,
-      },
-      totalFields: {
-        type: Array,
-        require: true,
-      },
-      clusterSwitch: {
-        type: Boolean,
-        default: false,
-      },
-      strategyHaveSubmit: {
-        type: Boolean,
-        default: false,
-      },
+    requestData: {
+      type: Object,
+      require: true,
     },
-    data() {
-      return {
-        interactType: false, // false 为hover true 为click
-        dimension: [], // 当前维度字段的值
-        group: [], // 当前分组选中的值
-        isToggle: false, // 当前是否显示分组下拉框
-        patternSize: 0,
-        yearOnYearHour: 1,
-        isNear24: false,
-        popoverInstance: null,
-        isShowPopoverInstance: false,
-        yearSwitch: false,
-        tippyOptions: {
-          theme: 'light',
-          trigger: 'manual',
-          hideOnClick: false,
-          offset: '16',
-          interactive: true,
-        },
-        isCurrentIndexSetIdCreateSubscription: false,
-        isShowQuickCreateSubscriptionDrawer: false,
-        /** 打开设置弹窗时的维度 */
-        catchDimension: [],
-      };
+    totalFields: {
+      type: Array,
+      require: true,
     },
-    computed: {
-      bkBizId() {
-        return this.$store.state.bkBizId;
+    clusterSwitch: {
+      type: Boolean,
+      default: false,
+    },
+    strategyHaveSubmit: {
+      type: Boolean,
+      default: false,
+    },
+  },
+  data() {
+    return {
+      interactType: false, // false 为hover true 为click
+      dimension: [], // 当前维度字段的值
+      group: [], // 当前分组选中的值
+      isToggle: false, // 当前是否显示分组下拉框
+      patternSize: 0,
+      yearOnYearHour: 1,
+      isNear24: false,
+      popoverInstance: null,
+      isShowPopoverInstance: false,
+      yearSwitch: false,
+      tippyOptions: {
+        theme: 'light',
+        trigger: 'manual',
+        hideOnClick: false,
+        offset: '16',
+        interactive: true,
       },
-      dimensionList() {
-        return this.fingerOperateData.groupList.filter(item => !this.group.includes(item.id));
-      },
-      groupList() {
-        return this.fingerOperateData.groupList.filter(item => !this.dimension.includes(item.id));
-      },
-      isExternal() {
-        return this.$store.state.isExternal;
-      },
+      isCurrentIndexSetIdCreateSubscription: false,
+      isShowQuickCreateSubscriptionDrawer: false,
+      /** 打开设置弹窗时的维度 */
+      catchDimension: [],
+    };
+  },
+  computed: {
+    bkBizId() {
+      return this.$store.state.bkBizId;
     },
-    watch: {
-      group: {
-        deep: true,
-        handler(list) {
-          // 分组列表未展开时数组变化则发送请求
-          if (!this.isToggle) {
-            this.$emit('handle-finger-operate', 'group', list);
-          }
-        },
-      },
+    dimensionList() {
+      return this.fingerOperateData.groupList.filter(item => !this.group.includes(item.id));
     },
-    created() {
-      this.checkReportIsExistedDebounce = debounce(1000, this.checkReportIsExisted);
+    groupList() {
+      return this.fingerOperateData.groupList.filter(item => !this.dimension.includes(item.id));
     },
-    mounted() {
-      this.handleShowMorePopover();
-      !this.isExternal && this.checkReportIsExistedDebounce();
+    isExternal() {
+      return this.$store.state.isExternal;
     },
-    beforeUnmount() {
-      this.popoverInstance = null;
-    },
-    methods: {
-      /**
-       * @desc: 同比自定义输入
-       * @param { String } val
-       */
-      handleEnterCompared(val) {
-        const matchVal = val.match(/^(\d+)h$/);
-        if (!matchVal) {
-          this.$bkMessage({
-            theme: 'warning',
-            message: this.$t('请按照提示输入'),
-          });
-          return;
+  },
+  watch: {
+    group: {
+      deep: true,
+      handler(list) {
+        // 分组列表未展开时数组变化则发送请求
+        if (!this.isToggle) {
+          this.$emit('handle-finger-operate', 'group', list);
         }
-        this.changeCustomizeState(true);
-        const { comparedList: propComparedList } = this.fingerOperateData;
-        const isRepeat = propComparedList.some(el => el.id === Number(matchVal[1]));
-        if (isRepeat) {
-          this.yearOnYearHour = Number(matchVal[1]);
-          return;
-        }
-        propComparedList.push({
-          id: Number(matchVal[1]),
-          name: this.$t('{n} 小时前', { n: matchVal[1] }),
+      },
+    },
+  },
+  created() {
+    this.checkReportIsExistedDebounce = debounce(1000, this.checkReportIsExisted);
+  },
+  mounted() {
+    this.handleShowMorePopover();
+    !this.isExternal && this.checkReportIsExistedDebounce();
+  },
+  beforeUnmount() {
+    this.popoverInstance = null;
+  },
+  methods: {
+    /**
+     * @desc: 同比自定义输入
+     * @param { String } val
+     */
+    handleEnterCompared(val) {
+      const matchVal = val.match(/^(\d+)h$/);
+      if (!matchVal) {
+        this.$bkMessage({
+          theme: 'warning',
+          message: this.$t('请按照提示输入'),
         });
-        this.$emit('handle-finger-operate', 'fingerOperateData', {
-          comparedList: propComparedList,
-        });
+        return;
+      }
+      this.changeCustomizeState(true);
+      const { comparedList: propComparedList } = this.fingerOperateData;
+      const isRepeat = propComparedList.some(el => el.id === Number(matchVal[1]));
+      if (isRepeat) {
         this.yearOnYearHour = Number(matchVal[1]);
-      },
-      handleShowNearPattern(state) {
-        this.$emit('handle-finger-operate', 'requestData', { show_new_pattern: state }, true);
-      },
-      handleChangepatternSize(val) {
-        this.$emit(
-          'handle-finger-operate',
-          'requestData',
-          { pattern_level: this.fingerOperateData.patternList[val] },
-          true,
-        );
-      },
-      changeCustomizeState(val) {
-        this.$emit('handle-finger-operate', 'fingerOperateData', { isShowCustomize: val });
-      },
-      handleClickGroupPopover() {
-        !this.isShowPopoverInstance ? this.$refs.groupPopover.instance.show() : this.$refs.groupPopover.instance.hide();
-        this.isShowPopoverInstance = !this.isShowPopoverInstance;
-      },
-      async submitPopover() {
-        // 设置过维度 进行二次确认弹窗判断
-        if (this.catchDimension.length) {
-          const dimensionSortStr = this.dimension.sort().join(',');
-          const catchDimensionSortStr = this.catchDimension.sort().join(',');
-          const isShowInfo = dimensionSortStr !== catchDimensionSortStr;
-          if (isShowInfo && !this.isExternal) { // 外部版不能改维度
-            this.$bkInfo({
-              type: 'warning',
-              title: this.$t('修改维度字段会影响已有备注、告警配置，如无必要，请勿随意变动。请确定是否修改？'),
-              confirmFn: async () => {
-                await this.updateInitGroup();
-                this.finishEmit();
-              },
-            });
-          } else {
-            // 不请求更新维度接口 直接提交
-            this.finishEmit();
-          }
+        return;
+      }
+      propComparedList.push({
+        id: Number(matchVal[1]),
+        name: this.$t('{n} 小时前', { n: matchVal[1] }),
+      });
+      this.$emit('handle-finger-operate', 'fingerOperateData', {
+        comparedList: propComparedList,
+      });
+      this.yearOnYearHour = Number(matchVal[1]);
+    },
+    handleShowNearPattern(state) {
+      this.$emit('handle-finger-operate', 'requestData', { show_new_pattern: state }, true);
+    },
+    handleChangepatternSize(val) {
+      this.$emit(
+        'handle-finger-operate',
+        'requestData',
+        { pattern_level: this.fingerOperateData.patternList[val] },
+        true
+      );
+    },
+    changeCustomizeState(val) {
+      this.$emit('handle-finger-operate', 'fingerOperateData', { isShowCustomize: val });
+    },
+    handleClickGroupPopover() {
+      !this.isShowPopoverInstance ? this.$refs.groupPopover.instance.show() : this.$refs.groupPopover.instance.hide();
+      this.isShowPopoverInstance = !this.isShowPopoverInstance;
+    },
+    async submitPopover() {
+      // 设置过维度 进行二次确认弹窗判断
+      if (this.catchDimension.length) {
+        const dimensionSortStr = this.dimension.sort().join(',');
+        const catchDimensionSortStr = this.catchDimension.sort().join(',');
+        const isShowInfo = dimensionSortStr !== catchDimensionSortStr;
+        if (isShowInfo && !this.isExternal) {
+          // 外部版不能改维度
+          this.$bkInfo({
+            type: 'warning',
+            title: this.$t('修改维度字段会影响已有备注、告警配置，如无必要，请勿随意变动。请确定是否修改？'),
+            confirmFn: async () => {
+              await this.updateInitGroup();
+              this.finishEmit();
+            },
+          });
         } else {
-          // 没设置过维度 直接提交
-          if (this.dimension.length) await this.updateInitGroup();
+          // 不请求更新维度接口 直接提交
           this.finishEmit();
         }
-      },
-      finishEmit() {
-        this.$emit('handle-finger-operate', 'fingerOperateData', {
-          dimensionList: this.dimension,
-          selectGroupList: this.group,
-          yearSwitch: this.yearSwitch,
-          yearOnYearHour: this.yearOnYearHour,
-        });
-        this.$emit(
-          'handle-finger-operate',
-          'requestData',
-          {
-            group_by: [...this.group, ...this.dimension],
-            year_on_year_hour: this.yearSwitch ? this.yearOnYearHour : 0,
-          },
-          true,
-        );
-        this.cancelPopover();
-      },
-      /**
-       * @desc: 是否默认展示分组接口
-       */
-      async updateInitGroup() {
-        await this.$http.request('/logClustering/updateInitGroup', {
-          params: {
+      } else {
+        // 没设置过维度 直接提交
+        if (this.dimension.length) await this.updateInitGroup();
+        this.finishEmit();
+      }
+    },
+    finishEmit() {
+      this.$emit('handle-finger-operate', 'fingerOperateData', {
+        dimensionList: this.dimension,
+        selectGroupList: this.group,
+        yearSwitch: this.yearSwitch,
+        yearOnYearHour: this.yearOnYearHour,
+      });
+      this.$emit(
+        'handle-finger-operate',
+        'requestData',
+        {
+          group_by: [...this.group, ...this.dimension],
+          year_on_year_hour: this.yearSwitch ? this.yearOnYearHour : 0,
+        },
+        true
+      );
+      this.cancelPopover();
+    },
+    /**
+     * @desc: 是否默认展示分组接口
+     */
+    async updateInitGroup() {
+      await this.$http.request('/logClustering/updateInitGroup', {
+        params: {
+          index_set_id: this.$route.params.indexId,
+        },
+        data: {
+          group_fields: this.dimension,
+        },
+      });
+    },
+    cancelPopover() {
+      this.isShowPopoverInstance = false;
+      this.$refs.groupPopover.instance.hide();
+    },
+    toggleYearSelect(val) {
+      !val && this.changeCustomizeState(true);
+    },
+    handleShowMorePopover() {
+      const finger = this.fingerOperateData;
+      this.isNear24 = this.requestData.show_new_pattern;
+      this.patternSize = finger.patternSize;
+      this.dimension = finger.dimensionList;
+      this.catchDimension = finger.dimensionList;
+      this.group = finger.selectGroupList;
+      this.yearSwitch = finger.yearSwitch;
+      this.yearOnYearHour = finger.yearOnYearHour;
+    },
+    /**
+     * 检查当前 索引集 是否创建过订阅。
+     */
+    checkReportIsExisted() {
+      this.$http
+        .request('newReport/getExistReports/', {
+          query: {
+            scenario: 'clustering',
+            bk_biz_id: this.$route.query.bizId,
             index_set_id: this.$route.params.indexId,
           },
-          data: {
-            group_fields: this.dimension,
-          },
-        });
-      },
-      cancelPopover() {
-        this.isShowPopoverInstance = false;
-        this.$refs.groupPopover.instance.hide();
-      },
-      toggleYearSelect(val) {
-        !val && this.changeCustomizeState(true);
-      },
-      handleShowMorePopover() {
-        const finger = this.fingerOperateData;
-        this.isNear24 = this.requestData.show_new_pattern;
-        this.patternSize = finger.patternSize;
-        this.dimension = finger.dimensionList;
-        this.catchDimension = finger.dimensionList;
-        this.group = finger.selectGroupList;
-        this.yearSwitch = finger.yearSwitch;
-        this.yearOnYearHour = finger.yearOnYearHour;
-      },
-      /**
-       * 检查当前 索引集 是否创建过订阅。
-       */
-      checkReportIsExisted() {
-        this.$http
-          .request('newReport/getExistReports/', {
-            query: {
-              scenario: 'clustering',
-              bk_biz_id: this.$route.query.bizId,
-              index_set_id: this.$route.params.indexId,
-            },
-          })
-          .then(response => {
-            this.isCurrentIndexSetIdCreateSubscription = !!response.data.length;
-          })
-          .catch(console.log);
-      },
-      /**
-       * 空方法 checkReportIsExisted 的 debounce 版。
-       */
-      checkReportIsExistedDebounce() {},
-      /**
-       * 打开 我的订阅 全局弹窗
-       */
-      goToMySubscription() {
-        window.bus.$emit('showGlobalDialog');
-      },
+        })
+        .then(response => {
+          this.isCurrentIndexSetIdCreateSubscription = !!response.data.length;
+        })
+        .catch(console.log);
     },
-  };
+    /**
+     * 空方法 checkReportIsExisted 的 debounce 版。
+     */
+    checkReportIsExistedDebounce() {},
+    /**
+     * 打开 我的订阅 全局弹窗
+     */
+    goToMySubscription() {
+      window.bus.$emit('showGlobalDialog');
+    },
+  },
+};
 </script>
 <style lang="scss" scoped>
   @import '@/scss/mixins/flex.scss';

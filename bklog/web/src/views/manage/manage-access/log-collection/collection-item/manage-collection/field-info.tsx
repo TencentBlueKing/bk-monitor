@@ -163,7 +163,7 @@ export default class FieldInfo extends tsc<IProps> {
         {
           params: { index_set_id: (this.collectorData as any)?.index_set_id },
         },
-        { catchIsShowMessage: false },
+        { catchIsShowMessage: false }
       );
       return res.data.field_configs;
     } catch (err) {

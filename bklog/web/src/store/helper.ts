@@ -76,7 +76,7 @@ export const filterCommontAdditionByIndexSetId = (indexSetIdList: string[], list
   const formatList = indexSetIdList.map(id => `${id}`);
   return jsonValue?.find(
     item =>
-      item.indexSetIdList.length === formatList.length && item.indexSetIdList.every(id => formatList.includes(`${id}`)),
+      item.indexSetIdList.length === formatList.length && item.indexSetIdList.every(id => formatList.includes(`${id}`))
   );
 };
 

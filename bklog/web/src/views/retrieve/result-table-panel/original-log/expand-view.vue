@@ -67,59 +67,59 @@
 </template>
 
 <script>
-  import { TABLE_LOG_FIELDS_SORT_REGULAR } from '@/common/util';
-  import tableRowDeepViewMixin from '@/mixins/table-row-deep-view-mixin';
+import { TABLE_LOG_FIELDS_SORT_REGULAR } from '@/common/util';
+import tableRowDeepViewMixin from '@/mixins/table-row-deep-view-mixin';
 
-  import KvList from '../../result-comp/kv-list.vue';
+import KvList from '../../result-comp/kv-list.vue';
 
-  export default {
-    components: {
-      KvList,
+export default {
+  components: {
+    KvList,
+  },
+  mixins: [tableRowDeepViewMixin],
+  inheritAttrs: false,
+  props: {
+    data: {
+      type: Object,
+      default: () => {},
     },
-    mixins: [tableRowDeepViewMixin],
-    inheritAttrs: false,
-    props: {
-      data: {
-        type: Object,
-        default: () => {},
-      },
-      totalFields: {
-        type: Array,
-        required: true,
-      },
-      listData: {
-        type: Object,
-        default: () => {},
-      },
-      kvShowFieldsList: {
-        type: Array,
-        require: true,
-      },
+    totalFields: {
+      type: Array,
+      required: true,
     },
-    data() {
-      return {
-        activeExpandView: 'kv',
-      };
+    listData: {
+      type: Object,
+      default: () => {},
     },
-    computed: {
-      kvListData() {
-        return this.totalFields
-          .filter(item => this.kvShowFieldsList.includes(item.field_name))
-          .sort((a, b) => {
-            const sortA = a.field_name.replace(TABLE_LOG_FIELDS_SORT_REGULAR, 'z');
-            const sortB = b.field_name.replace(TABLE_LOG_FIELDS_SORT_REGULAR, 'z');
-            return sortA.localeCompare(sortB);
-          });
-      },
-      jsonShowData() {
-        return this.kvListData.reduce((pre, cur) => {
-          const showTableData = cur.field_type === '__virtual__' ? this.listData : this.data;
-          pre[cur.field_name] = this.tableRowDeepView(showTableData, cur.field_name, cur.field_type) ?? '';
-          return pre;
-        }, {});
-      },
+    kvShowFieldsList: {
+      type: Array,
+      require: true,
     },
-  };
+  },
+  data() {
+    return {
+      activeExpandView: 'kv',
+    };
+  },
+  computed: {
+    kvListData() {
+      return this.totalFields
+        .filter(item => this.kvShowFieldsList.includes(item.field_name))
+        .sort((a, b) => {
+          const sortA = a.field_name.replace(TABLE_LOG_FIELDS_SORT_REGULAR, 'z');
+          const sortB = b.field_name.replace(TABLE_LOG_FIELDS_SORT_REGULAR, 'z');
+          return sortA.localeCompare(sortB);
+        });
+    },
+    jsonShowData() {
+      return this.kvListData.reduce((pre, cur) => {
+        const showTableData = cur.field_type === '__virtual__' ? this.listData : this.data;
+        pre[cur.field_name] = this.tableRowDeepView(showTableData, cur.field_name, cur.field_type) ?? '';
+        return pre;
+      }, {});
+    },
+  },
+};
 </script>
 
 <style lang="scss" scoped>

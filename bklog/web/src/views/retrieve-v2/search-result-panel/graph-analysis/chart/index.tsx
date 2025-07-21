@@ -75,7 +75,7 @@ export default defineComponent({
             item,
             timeFields.reduce((acc, cur) => {
               return Object.assign({}, acc, { [cur.field_alias]: formatDateTimeField(item[cur.field_alias]) });
-            }, {}),
+            }, {})
           );
         }),
         result_schema,
@@ -98,7 +98,7 @@ export default defineComponent({
       const field = props.chartOptions.xFields[index];
       if (field) {
         return (formatListData.value?.list ?? []).map(item =>
-          getChildNodes({ ...parent, [field]: item[field] }, index + 1),
+          getChildNodes({ ...parent, [field]: item[field] }, index + 1)
         );
       }
 
@@ -159,7 +159,7 @@ export default defineComponent({
         }
 
         debounceUpdateChartOptions(xFields, yFields, dimensions, type);
-      },
+      }
     );
 
     const pagination = ref({
@@ -180,7 +180,7 @@ export default defineComponent({
       if (showTable.value) {
         if (props.chartOptions.category === 'table') {
           return (props.chartOptions.data?.select_fields_order ?? []).filter(
-            col => !(props.chartOptions.hiddenFields ?? []).includes(col),
+            col => !(props.chartOptions.hiddenFields ?? []).includes(col)
           );
         }
 

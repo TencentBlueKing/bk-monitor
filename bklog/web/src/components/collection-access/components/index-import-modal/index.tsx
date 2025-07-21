@@ -72,7 +72,7 @@ export default class IndexImportModal extends tsc<IProps> {
     let collect = this.collectList;
     if (this.keyword) {
       collect = collect.filter(item =>
-        item.collector_config_name.toString().toLowerCase().includes(this.keyword.toLowerCase()),
+        item.collector_config_name.toString().toLowerCase().includes(this.keyword.toLowerCase())
       );
     }
     this.emptyType = this.keyword ? 'search-empty' : 'empty';

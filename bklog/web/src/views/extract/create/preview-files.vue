@@ -143,223 +143,223 @@
 </template>
 
 <script>
-  import { formatDate } from '@/common/util';
-  import EmptyStatus from '@/components/empty-status';
-  import FileDatePicker from '@/views/extract/home/file-date-picker';
+import { formatDate } from '@/common/util';
+import EmptyStatus from '@/components/empty-status';
+import FileDatePicker from '@/views/extract/home/file-date-picker';
 
-  export default {
-    components: {
-      FileDatePicker,
-      EmptyStatus,
+export default {
+  components: {
+    FileDatePicker,
+    EmptyStatus,
+  },
+  model: {
+    prop: 'downloadFiles',
+    event: 'checked',
+  },
+  props: {
+    ipList: {
+      type: Array,
+      required: true,
     },
-    model: {
-      prop: 'downloadFiles',
-      event: 'checked',
+    fileOrPath: {
+      type: String,
+      required: true,
     },
-    props: {
-      ipList: {
-        type: Array,
-        required: true,
-      },
-      fileOrPath: {
-        type: String,
-        required: true,
-      },
-      ipSelectNewNameList: {
-        type: Array,
-        required: true,
-      },
+    ipSelectNewNameList: {
+      type: Array,
+      required: true,
     },
-    data() {
-      // 默认范围一周
-      const currentTime = Date.now();
-      const startTime = new Date(currentTime - 1000 * 60 * 60 * 24 * 7);
-      const endTime = new Date(currentTime);
+  },
+  data() {
+    // 默认范围一周
+    const currentTime = Date.now();
+    const startTime = new Date(currentTime - 1000 * 60 * 60 * 24 * 7);
+    const endTime = new Date(currentTime);
 
-      return {
-        isLoading: false,
-        previewIp: [],
-        timeRange: '1w', // 时间跨度 ["1d", "1w", "1m", "all", "custom"]
-        timeValue: [formatDate(startTime), formatDate(endTime)],
-        isSearchChild: false,
-        explorerList: [],
-        historyStack: [], // 预览地址历史
-        emptyType: 'empty',
+    return {
+      isLoading: false,
+      previewIp: [],
+      timeRange: '1w', // 时间跨度 ["1d", "1w", "1m", "all", "custom"]
+      timeValue: [formatDate(startTime), formatDate(endTime)],
+      isSearchChild: false,
+      explorerList: [],
+      historyStack: [], // 预览地址历史
+      emptyType: 'empty',
+    };
+  },
+  computed: {
+    timeStringValue() {
+      return [this.timeValue[0], this.timeValue[1]];
+    },
+  },
+  watch: {
+    ipList(val) {
+      this.previewIp.splice(0);
+      if (val.length) {
+        this.previewIp.push(this.getIpListID(val[0]));
+      }
+      this.explorerList.splice(0); // 选择服务器后清空表格
+      this.historyStack.splice(0); // 选择服务器后清空历史堆栈
+    },
+  },
+  methods: {
+    getExplorerList(row) {
+      const { path = this.fileOrPath, size } = row;
+      const cacheList = {
+        exploreList: this.explorerList.splice(0),
+        fileOrPath: path,
       };
-    },
-    computed: {
-      timeStringValue() {
-        return [this.timeValue[0], this.timeValue[1]];
-      },
-    },
-    watch: {
-      ipList(val) {
-        this.previewIp.splice(0);
-        if (val.length) {
-          this.previewIp.push(this.getIpListID(val[0]));
-        }
-        this.explorerList.splice(0); // 选择服务器后清空表格
-        this.historyStack.splice(0); // 选择服务器后清空历史堆栈
-      },
-    },
-    methods: {
-      getExplorerList(row) {
-        const { path = this.fileOrPath, size } = row;
-        const cacheList = {
-          exploreList: this.explorerList.splice(0),
-          fileOrPath: path,
-        };
-        this.$emit('checked', []);
-        if (path === '../' && this.historyStack.length) {
-          // 返回上一级
-          const cache = this.historyStack.pop();
-          this.explorerList = cache.exploreList;
-          const { fileOrPath } = this.historyStack[this.historyStack.length - 1];
-          this.$emit('update:file-or-path', fileOrPath);
-          return;
-        }
-        this.$emit('update:file-or-path', path);
-        const ipList = this.getFindIpList();
+      this.$emit('checked', []);
+      if (path === '../' && this.historyStack.length) {
+        // 返回上一级
+        const cache = this.historyStack.pop();
+        this.explorerList = cache.exploreList;
+        const { fileOrPath } = this.historyStack[this.historyStack.length - 1];
+        this.$emit('update:file-or-path', fileOrPath);
+        return;
+      }
+      this.$emit('update:file-or-path', path);
+      const ipList = this.getFindIpList();
 
-        this.isLoading = true;
-        this.emptyType = 'search-empty';
-        this.$http
-          .request('extract/getExplorerList', {
-            data: {
-              bk_biz_id: this.$store.state.bkBizId,
-              ip_list: ipList,
-              path: path || this.fileOrPath,
-              time_range: this.timeRange,
-              start_time: this.timeStringValue[0],
-              end_time: this.timeStringValue[1],
-              is_search_child: this.isSearchChild,
-            },
-          })
-          .then(res => {
-            if (path) {
-              // 指定目录搜索
-              this.historyStack.push(cacheList);
-              const temp = {
-                ...row,
-                path: '../',
-              };
+      this.isLoading = true;
+      this.emptyType = 'search-empty';
+      this.$http
+        .request('extract/getExplorerList', {
+          data: {
+            bk_biz_id: this.$store.state.bkBizId,
+            ip_list: ipList,
+            path: path || this.fileOrPath,
+            time_range: this.timeRange,
+            start_time: this.timeStringValue[0],
+            end_time: this.timeStringValue[1],
+            is_search_child: this.isSearchChild,
+          },
+        })
+        .then(res => {
+          if (path) {
+            // 指定目录搜索
+            this.historyStack.push(cacheList);
+            const temp = {
+              ...row,
+              path: '../',
+            };
 
-              if (size === '0') this.explorerList = [temp, ...res.data];
-              else this.explorerList = [...res.data];
-            } else {
-              // 搜索按钮
-              this.historyStack = [];
-              this.explorerList = res.data;
-            }
-          })
-          .catch(err => {
-            console.warn(err);
-            this.emptyType = '500';
-          })
-          .finally(() => {
-            this.isLoading = false;
-          });
-      },
-      getFindIpList() {
-        const ipList = [];
-        for (let i = 0; i < this.previewIp.length; i++) {
-          const target = this.ipList.find(item => this.getIpListID(item) === this.previewIp[i]);
-          ipList.push(target);
-        }
-        return ipList;
-      },
-      // 拼接预览地址唯一key
-      getIpListID(option) {
-        return `${option.bk_host_id ?? ''}_${option.ip ?? ''}_${option.bk_cloud_id ?? ''}`;
-      },
-      // 父组件克隆时调用
-      handleClone({
-        ip_list: ipList,
-        preview_ip_list: previewIpList,
-        preview_directory: path,
-        preview_time_range: timeRange,
-        preview_start_time: startTime,
-        preview_end_time: endTime,
-        preview_is_search_child: isSearchChild,
-        file_path: downloadFiles,
-      }) {
-        this.timeRange = timeRange;
-        this.timeValue = [formatDate(new Date(startTime)), formatDate(new Date(endTime))];
-        this.isSearchChild = isSearchChild;
-        const findIpList = this.findPreviewIpListValue(previewIpList, ipList);
-        this.previewIp = findIpList.map(item => this.getIpListID(item));
-
-        this.isLoading = true;
-        this.emptyType = 'search-empty';
-        this.$http
-          .request('extract/getExplorerList', {
-            data: {
-              bk_biz_id: this.$store.state.bkBizId,
-              ip_list: findIpList,
-              path,
-              time_range: timeRange,
-              start_time: startTime,
-              end_time: endTime,
-              is_search_child: isSearchChild,
-            },
-          })
-          .then(res => {
+            if (size === '0') this.explorerList = [temp, ...res.data];
+            else this.explorerList = [...res.data];
+          } else {
+            // 搜索按钮
             this.historyStack = [];
             this.explorerList = res.data;
-            this.$nextTick(() => {
-              downloadFiles.forEach(path => {
-                for (const item of this.explorerList) {
-                  if (item.path === path) {
-                    this.$refs.previewTable.toggleRowSelection(item, true);
-                    break;
-                  }
-                }
-              });
-            });
-          })
-          .catch(e => {
-            console.warn(e);
-            this.emptyType = '500';
-          })
-          .finally(() => {
-            this.isLoading = false;
-          });
-      },
-      findPreviewIpListValue(previewIpList, ipList) {
-        // 获取previewIpList对应的ipList参数
-        if (previewIpList?.length) {
-          return previewIpList.map(item => {
-            return ipList.find(dItem => {
-              const hostMatch = item.bk_host_id === dItem.bk_host_id;
-              const ipMatch = `${item.ip}_${item.bk_cloud_id}` === `${dItem.ip}_${dItem.bk_cloud_id}`;
-              if (item?.bk_host_id) return hostMatch || ipMatch;
-              return ipMatch;
-            });
-          });
-        }
-        return [];
-      },
-      handleOperation(type) {
-        if (type === 'clear-filter') {
-          this.params.keyword = '';
-          this.getExplorerList({});
-          return;
-        }
-
-        if (type === 'refresh') {
-          this.emptyType = 'empty';
-          this.getExplorerList({});
-          return;
-        }
-      },
-      handleSelect(selection) {
-        this.$emit(
-          'checked',
-          selection.map(item => item.path),
-        );
-      },
+          }
+        })
+        .catch(err => {
+          console.warn(err);
+          this.emptyType = '500';
+        })
+        .finally(() => {
+          this.isLoading = false;
+        });
     },
-  };
+    getFindIpList() {
+      const ipList = [];
+      for (let i = 0; i < this.previewIp.length; i++) {
+        const target = this.ipList.find(item => this.getIpListID(item) === this.previewIp[i]);
+        ipList.push(target);
+      }
+      return ipList;
+    },
+    // 拼接预览地址唯一key
+    getIpListID(option) {
+      return `${option.bk_host_id ?? ''}_${option.ip ?? ''}_${option.bk_cloud_id ?? ''}`;
+    },
+    // 父组件克隆时调用
+    handleClone({
+      ip_list: ipList,
+      preview_ip_list: previewIpList,
+      preview_directory: path,
+      preview_time_range: timeRange,
+      preview_start_time: startTime,
+      preview_end_time: endTime,
+      preview_is_search_child: isSearchChild,
+      file_path: downloadFiles,
+    }) {
+      this.timeRange = timeRange;
+      this.timeValue = [formatDate(new Date(startTime)), formatDate(new Date(endTime))];
+      this.isSearchChild = isSearchChild;
+      const findIpList = this.findPreviewIpListValue(previewIpList, ipList);
+      this.previewIp = findIpList.map(item => this.getIpListID(item));
+
+      this.isLoading = true;
+      this.emptyType = 'search-empty';
+      this.$http
+        .request('extract/getExplorerList', {
+          data: {
+            bk_biz_id: this.$store.state.bkBizId,
+            ip_list: findIpList,
+            path,
+            time_range: timeRange,
+            start_time: startTime,
+            end_time: endTime,
+            is_search_child: isSearchChild,
+          },
+        })
+        .then(res => {
+          this.historyStack = [];
+          this.explorerList = res.data;
+          this.$nextTick(() => {
+            downloadFiles.forEach(path => {
+              for (const item of this.explorerList) {
+                if (item.path === path) {
+                  this.$refs.previewTable.toggleRowSelection(item, true);
+                  break;
+                }
+              }
+            });
+          });
+        })
+        .catch(e => {
+          console.warn(e);
+          this.emptyType = '500';
+        })
+        .finally(() => {
+          this.isLoading = false;
+        });
+    },
+    findPreviewIpListValue(previewIpList, ipList) {
+      // 获取previewIpList对应的ipList参数
+      if (previewIpList?.length) {
+        return previewIpList.map(item => {
+          return ipList.find(dItem => {
+            const hostMatch = item.bk_host_id === dItem.bk_host_id;
+            const ipMatch = `${item.ip}_${item.bk_cloud_id}` === `${dItem.ip}_${dItem.bk_cloud_id}`;
+            if (item?.bk_host_id) return hostMatch || ipMatch;
+            return ipMatch;
+          });
+        });
+      }
+      return [];
+    },
+    handleOperation(type) {
+      if (type === 'clear-filter') {
+        this.params.keyword = '';
+        this.getExplorerList({});
+        return;
+      }
+
+      if (type === 'refresh') {
+        this.emptyType = 'empty';
+        this.getExplorerList({});
+        return;
+      }
+    },
+    handleSelect(selection) {
+      this.$emit(
+        'checked',
+        selection.map(item => item.path)
+      );
+    },
+  },
+};
 </script>
 
 <style lang="scss">

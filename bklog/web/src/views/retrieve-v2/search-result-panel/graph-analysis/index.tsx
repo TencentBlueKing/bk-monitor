@@ -584,11 +584,11 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
         item =>
           !/date|time/.test(item.field_alias) &&
           !this.xFields.includes(item.field_alias) &&
-          !this.dimensions.includes(item.field_alias),
+          !this.dimensions.includes(item.field_alias)
       );
 
       const defValue = filterList?.find(
-        item => /long|number|int|float|bigint|double/.test(item.field_type) && !this.xFields.includes(item.field_alias),
+        item => /long|number|int|float|bigint|double/.test(item.field_type) && !this.xFields.includes(item.field_alias)
       )?.field_alias;
 
       if (defValue) {

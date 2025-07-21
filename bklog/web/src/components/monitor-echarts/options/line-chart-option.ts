@@ -45,10 +45,10 @@ export default class MonitorLineSeries extends MonitorBaseSeries implements ICha
             },
           },
         },
-        { arrayMerge: this.overwriteMerge },
+        { arrayMerge: this.overwriteMerge }
       ),
       this.chartOption,
-      { arrayMerge: this.overwriteMerge },
+      { arrayMerge: this.overwriteMerge }
     );
   }
   handleSetThreholds(series: any) {
@@ -126,7 +126,7 @@ export default class MonitorLineSeries extends MonitorBaseSeries implements ICha
       const precision = this.handleGetMinPrecision(
         item.data.filter((set: any) => typeof set[1] === 'number').map(set => set[1]),
         unitFormatter,
-        item.unit,
+        item.unit
       );
       item.data.forEach((seriesItem: any, seriesIndex: number) => {
         if (seriesItem?.length && seriesItem[1]) {

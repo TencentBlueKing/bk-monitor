@@ -79,77 +79,77 @@
 </template>
 
 <script>
-  import { TABLE_LOG_FIELDS_SORT_REGULAR, copyMessage } from '@/common/util';
-  import { getFieldNameByField } from '@/hooks/use-field-name';
-  import tableRowDeepViewMixin from '@/mixins/table-row-deep-view-mixin';
+import { TABLE_LOG_FIELDS_SORT_REGULAR, copyMessage } from '@/common/util';
+import { getFieldNameByField } from '@/hooks/use-field-name';
+import tableRowDeepViewMixin from '@/mixins/table-row-deep-view-mixin';
 
-  import KvList from '../../result-comp/kv-list.vue';
+import KvList from '../../result-comp/kv-list.vue';
 
-  export default {
-    components: {
-      KvList,
+export default {
+  components: {
+    KvList,
+  },
+  mixins: [tableRowDeepViewMixin],
+  inheritAttrs: false,
+  props: {
+    data: {
+      type: Object,
+      default: () => {},
     },
-    mixins: [tableRowDeepViewMixin],
-    inheritAttrs: false,
-    props: {
-      data: {
-        type: Object,
-        default: () => {},
-      },
-      listData: {
-        type: Object,
-        default: () => {},
-      },
-      kvShowFieldsList: {
-        type: Array,
-        require: true,
-      },
-      rowIndex: {
-        type: Number,
-      },
+    listData: {
+      type: Object,
+      default: () => {},
     },
-    data() {
-      return {
-        activeExpandView: 'kv',
-      };
+    kvShowFieldsList: {
+      type: Array,
+      require: true,
     },
-    computed: {
-      visibleFields() {
-        return this.$store.state.visibleFields ?? [];
-      },
-      totalFields() {
-        return this.$store.state.indexFieldInfo.fields ?? [];
-      },
-      kvListData() {
-        return this.totalFields
-          .filter(item => this.kvShowFieldsList.includes(item.field_name))
-          .sort((a, b) => {
-            const sortA = getFieldNameByField(a, this.$store).replace(TABLE_LOG_FIELDS_SORT_REGULAR, 'z');
-            const sortB = getFieldNameByField(b, this.$store).replace(TABLE_LOG_FIELDS_SORT_REGULAR, 'z');
-            return sortA.localeCompare(sortB);
-          });
-      },
-      jsonList() {
-        if (this.rowIndex === undefined) {
-          return this.listData ?? this.data;
-        }
+    rowIndex: {
+      type: Number,
+    },
+  },
+  data() {
+    return {
+      activeExpandView: 'kv',
+    };
+  },
+  computed: {
+    visibleFields() {
+      return this.$store.state.visibleFields ?? [];
+    },
+    totalFields() {
+      return this.$store.state.indexFieldInfo.fields ?? [];
+    },
+    kvListData() {
+      return this.totalFields
+        .filter(item => this.kvShowFieldsList.includes(item.field_name))
+        .sort((a, b) => {
+          const sortA = getFieldNameByField(a, this.$store).replace(TABLE_LOG_FIELDS_SORT_REGULAR, 'z');
+          const sortB = getFieldNameByField(b, this.$store).replace(TABLE_LOG_FIELDS_SORT_REGULAR, 'z');
+          return sortA.localeCompare(sortB);
+        });
+    },
+    jsonList() {
+      if (this.rowIndex === undefined) {
+        return this.listData ?? this.data;
+      }
 
-        return this.$store.state.indexSetQueryResult?.origin_log_list?.[this.rowIndex] ?? this.listData ?? this.data;
-      },
-      jsonShowData() {
-        return this.kvListData.reduce((pre, cur) => {
-          const fieldName = getFieldNameByField(cur, this.$store);
-          pre[fieldName] = this.tableRowDeepView(this.jsonList, cur.field_name, cur.field_type) ?? '';
-          return pre;
-        }, {});
-      },
+      return this.$store.state.indexSetQueryResult?.origin_log_list?.[this.rowIndex] ?? this.listData ?? this.data;
     },
-    methods: {
-      handleCopy() {
-        copyMessage(JSON.stringify(this.jsonShowData));
-      },
+    jsonShowData() {
+      return this.kvListData.reduce((pre, cur) => {
+        const fieldName = getFieldNameByField(cur, this.$store);
+        pre[fieldName] = this.tableRowDeepView(this.jsonList, cur.field_name, cur.field_type) ?? '';
+        return pre;
+      }, {});
     },
-  };
+  },
+  methods: {
+    handleCopy() {
+      copyMessage(JSON.stringify(this.jsonShowData));
+    },
+  },
+};
 </script>
 
 <style lang="scss" scoped>

@@ -86,139 +86,139 @@
 </template>
 
 <script>
-  import { deepClone } from '@/components/monitor-echarts/utils';
-  import { debounce } from 'lodash';
+import { deepClone } from '@/components/monitor-echarts/utils';
+import { debounce } from 'lodash';
 
-  import SettingMoreMenu from './setting-more-menu';
+import SettingMoreMenu from './setting-more-menu';
 
-  export default {
-    components: {
-      SettingMoreMenu,
+export default {
+  components: {
+    SettingMoreMenu,
+  },
+  props: {
+    configItem: {
+      type: Object,
+      require: true,
     },
-    props: {
-      configItem: {
-        type: Object,
-        require: true,
-      },
-      /** 是否渲染 更多icon */
-      hasMoreIcon: {
-        type: Boolean,
-        default: true,
-      },
+    /** 是否渲染 更多icon */
+    hasMoreIcon: {
+      type: Boolean,
+      default: true,
     },
-    data() {
-      return {
-        isClickDelete: false, // 是否点击删除配置
-        nameStr: '', // 编辑
-        isInputError: false, // 名称是否非法
-        deleteTipInstance: null,
-      };
+  },
+  data() {
+    return {
+      isClickDelete: false, // 是否点击删除配置
+      nameStr: '', // 编辑
+      isInputError: false, // 名称是否非法
+      deleteTipInstance: null,
+    };
+  },
+
+  watch: {
+    nameStr() {
+      this.isInputError = false;
+    },
+  },
+  methods: {
+    /** 用户配置操作 */
+    async emitOperate(type) {
+      // 进入编辑状态
+      if (type === 'edit') {
+        this.nameStr = this.configItem.name;
+      }
+      const submitData = deepClone(this.configItem);
+      submitData.editStr = this.nameStr;
+      this.$emit('operateChange', type, submitData);
+      // 进入编辑态时 focus 聚焦到input框
+      this.$nextTick(() => {
+        type === 'edit' && this.$refs.inputRef?.$el?.querySelector('.bk-form-input')?.focus?.();
+      });
     },
 
-    watch: {
-      nameStr() {
-        this.isInputError = false;
-      },
+    /**
+     * @description input 失焦/enter 后更新字段名称回调方法
+     *
+     */
+    handleUpdateName: debounce(function () {
+      let execOperate = 'update';
+      // 更新前判断名称是否合法
+      if (!this.nameStr) {
+        this.isInputError = true;
+        return;
+      }
+      // 如果名称未修改则不请求接口直接切换查看状态
+      if (this.nameStr === this.configItem.name) {
+        execOperate = 'cancel';
+      }
+
+      this.emitOperate(execOperate);
+    }, 300),
+
+    /**
+     * @description 更多 下拉菜单 点击事件后回调
+     * @param type
+     *
+     */
+    handleMenuClick(type) {
+      if (type !== 'delete') {
+        this.emitOperate(type);
+        return;
+      }
+      this.handleDeleteTipPopoverShow();
     },
-    methods: {
-      /** 用户配置操作 */
-      async emitOperate(type) {
-        // 进入编辑状态
-        if (type === 'edit') {
-          this.nameStr = this.configItem.name;
-        }
-        const submitData = deepClone(this.configItem);
-        submitData.editStr = this.nameStr;
-        this.$emit('operateChange', type, submitData);
-        // 进入编辑态时 focus 聚焦到input框
-        this.$nextTick(() => {
-          type === 'edit' && this.$refs.inputRef?.$el?.querySelector('.bk-form-input')?.focus?.();
-        });
-      },
 
-      /**
-       * @description input 失焦/enter 后更新字段名称回调方法
-       *
-       */
-      handleUpdateName: debounce(function () {
-        let execOperate = 'update';
-        // 更新前判断名称是否合法
-        if (!this.nameStr) {
-          this.isInputError = true;
-          return;
-        }
-        // 如果名称未修改则不请求接口直接切换查看状态
-        if (this.nameStr === this.configItem.name) {
-          execOperate = 'cancel';
-        }
+    /**
+     * @description 确认删除回调
+     *
+     */
+    handleDeleteVerify() {
+      this.handleDeleteTipPopoverHide();
+      this.emitOperate('delete');
+    },
 
-        this.emitOperate(execOperate);
-      }, 300),
-
-      /**
-       * @description 更多 下拉菜单 点击事件后回调
-       * @param type
-       *
-       */
-      handleMenuClick(type) {
-        if (type !== 'delete') {
-          this.emitOperate(type);
-          return;
-        }
-        this.handleDeleteTipPopoverShow();
-      },
-
-      /**
-       * @description 确认删除回调
-       *
-       */
-      handleDeleteVerify() {
+    /**
+     * @description 打开 删除确认提示 popover
+     *
+     */
+    async handleDeleteTipPopoverShow() {
+      if (this.deleteTipInstance) {
         this.handleDeleteTipPopoverHide();
-        this.emitOperate('delete');
-      },
+      }
+      if (!this.$refs?.panelNameRef || !this.$refs?.deleteTipRef) {
+        return;
+      }
 
-      /**
-       * @description 打开 删除确认提示 popover
-       *
-       */
-      async handleDeleteTipPopoverShow() {
-        if (this.deleteTipInstance) {
-          this.handleDeleteTipPopoverHide();
-        }
-        if (!this.$refs?.panelNameRef || !this.$refs?.deleteTipRef) {
-          return;
-        }
-
-        this.deleteTipInstance = this.$bkPopover(this.$refs?.panelNameRef, {
-          content: this.$refs.deleteTipRef,
-          trigger: 'click',
-          animateFill: false,
-          placement: 'bottom-start',
-          theme: 'light field-setting-item-delete-tips',
-          arrow: true,
-          interactive: true,
-          boundary: 'viewport',
-          distance: 0,
-          onHidden: () => {
-            this.deleteTipInstance?.destroy?.();
-            this.deleteTipInstance = null;
-          },
-        });
-        await this.$nextTick();
-        this.deleteTipInstance?.show();
-      },
-
-      /**
-       * @description 关闭 删除确认提示 popover
-       *
-       */
-      handleDeleteTipPopoverHide() {
-        this.deleteTipInstance?.hide?.();
-        this.deleteTipInstance?.destroy?.();
-        this.deleteTipInstance = null;
-      },
+      this.deleteTipInstance = this.$bkPopover(this.$refs?.panelNameRef, {
+        content: this.$refs.deleteTipRef,
+        trigger: 'click',
+        animateFill: false,
+        placement: 'bottom-start',
+        theme: 'light field-setting-item-delete-tips',
+        arrow: true,
+        interactive: true,
+        boundary: 'viewport',
+        distance: 0,
+        onHidden: () => {
+          this.deleteTipInstance?.destroy?.();
+          this.deleteTipInstance = null;
+        },
+      });
+      await this.$nextTick();
+      this.deleteTipInstance?.show();
     },
-  };
+
+    /**
+     * @description 关闭 删除确认提示 popover
+     *
+     */
+    handleDeleteTipPopoverHide() {
+      this.deleteTipInstance?.hide?.();
+      this.deleteTipInstance?.destroy?.();
+      this.deleteTipInstance = null;
+    },
+  },
+};
 </script>
 
 <style lang="scss" scoped>

@@ -32,7 +32,7 @@ import { getTargetElement } from './hooks-helper';
 export default (
   target: (() => HTMLElement) | HTMLElement | Ref<HTMLElement> | string,
   callback: (entry: IntersectionObserverEntry) => void,
-  options?: IntersectionObserverInit,
+  options?: IntersectionObserverInit
 ) => {
   let observer = null;
   const destroyObserver = () => {
@@ -56,7 +56,7 @@ export default (
         root: null,
         threshold: 0.01,
         ...(options ?? {}),
-      },
+      }
     );
 
     const targetElement = getTargetElement(target);

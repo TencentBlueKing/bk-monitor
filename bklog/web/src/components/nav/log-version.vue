@@ -69,107 +69,107 @@
 </template>
 
 <script>
-  import { axiosInstance } from '@/api';
-  import { mapState } from 'vuex';
+import { axiosInstance } from '@/api';
+import { mapState } from 'vuex';
 
-  export default {
-    name: 'LogVersion',
-    props: {
-      // 是否显示
-      dialogShow: Boolean,
+export default {
+  name: 'LogVersion',
+  props: {
+    // 是否显示
+    dialogShow: Boolean,
+  },
+  data() {
+    return {
+      show: false,
+      current: 0,
+      active: 0,
+      logList: [],
+      loading: false,
+    };
+  },
+  computed: {
+    ...mapState({
+      spaceUid: state => state.spaceUid,
+      isExternal: state => state.isExternal,
+    }),
+    currentLog() {
+      return this.logList[this.active] || {};
     },
-    data() {
-      return {
-        show: false,
-        current: 0,
-        active: 0,
-        logList: [],
-        loading: false,
-      };
-    },
-    computed: {
-      ...mapState({
-        spaceUid: state => state.spaceUid,
-        isExternal: state => state.isExternal,
-      }),
-      currentLog() {
-        return this.logList[this.active] || {};
-      },
-    },
-    watch: {
-      dialogShow: {
-        async handler(v) {
-          this.show = v;
-          if (v) {
-            this.loading = true;
-            this.logList = await this.getVersionLogsList();
-            if (this.logList.length) {
-              await this.handleItemClick();
-            }
-            this.loading = false;
-          }
-        },
-        immediate: true,
-      },
-    },
-    beforeUnmount() {
-      this.show = false;
-      this.$emit('update:dialog-show', false);
-    },
-    methods: {
-      //  dialog显示变更触发
-      handleValueChange(v) {
-        this.$emit('update:dialog-show', v);
-      },
-      // 点击左侧log查看详情
-      async handleItemClick(v = 0) {
-        this.active = v;
-        if (!this.currentLog.detail) {
+  },
+  watch: {
+    dialogShow: {
+      async handler(v) {
+        this.show = v;
+        if (v) {
           this.loading = true;
-          const detail = await this.getVersionLogsDetail();
-          this.currentLog.detail = detail;
+          this.logList = await this.getVersionLogsList();
+          if (this.logList.length) {
+            await this.handleItemClick();
+          }
           this.loading = false;
         }
       },
-      // 获取左侧版本日志列表
-      async getVersionLogsList() {
-        const params = {
-          method: 'get',
-          url: `${window.SITE_URL}version_log/version_logs_list/`,
-        };
-        if (this.isExternal) {
-          params.headers = {
-            'X-Bk-Space-Uid': this.spaceUid,
-          };
-        }
-        const { data } = await axiosInstance(params).catch(_ => {
-          console.warn(_);
-          return { data: { data: [] } };
-        });
-        return data.data.map(item => ({ title: item[0], date: item[1], detail: '' }));
-      },
-      // 获取右侧对应的版本详情
-      async getVersionLogsDetail() {
-        const params = {
-          method: 'get',
-          url: `${window.SITE_URL}version_log/version_log_detail/`,
-          params: {
-            log_version: this.currentLog.title,
-          },
-        };
-        if (this.isExternal) {
-          params.headers = {
-            'X-Bk-Space-Uid': this.spaceUid,
-          };
-        }
-        const { data } = await axiosInstance(params).catch(_ => {
-          console.warn(_);
-          return { data: '' };
-        });
-        return data.data;
-      },
+      immediate: true,
     },
-  };
+  },
+  beforeUnmount() {
+    this.show = false;
+    this.$emit('update:dialog-show', false);
+  },
+  methods: {
+    //  dialog显示变更触发
+    handleValueChange(v) {
+      this.$emit('update:dialog-show', v);
+    },
+    // 点击左侧log查看详情
+    async handleItemClick(v = 0) {
+      this.active = v;
+      if (!this.currentLog.detail) {
+        this.loading = true;
+        const detail = await this.getVersionLogsDetail();
+        this.currentLog.detail = detail;
+        this.loading = false;
+      }
+    },
+    // 获取左侧版本日志列表
+    async getVersionLogsList() {
+      const params = {
+        method: 'get',
+        url: `${window.SITE_URL}version_log/version_logs_list/`,
+      };
+      if (this.isExternal) {
+        params.headers = {
+          'X-Bk-Space-Uid': this.spaceUid,
+        };
+      }
+      const { data } = await axiosInstance(params).catch(_ => {
+        console.warn(_);
+        return { data: { data: [] } };
+      });
+      return data.data.map(item => ({ title: item[0], date: item[1], detail: '' }));
+    },
+    // 获取右侧对应的版本详情
+    async getVersionLogsDetail() {
+      const params = {
+        method: 'get',
+        url: `${window.SITE_URL}version_log/version_log_detail/`,
+        params: {
+          log_version: this.currentLog.title,
+        },
+      };
+      if (this.isExternal) {
+        params.headers = {
+          'X-Bk-Space-Uid': this.spaceUid,
+        };
+      }
+      const { data } = await axiosInstance(params).catch(_ => {
+        console.warn(_);
+        return { data: '' };
+      });
+      return data.data;
+    },
+  },
+};
 </script>
 
 <style lang="scss" scoped>

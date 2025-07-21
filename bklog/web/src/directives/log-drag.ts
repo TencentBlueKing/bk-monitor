@@ -70,7 +70,7 @@ const getBindValue = (data: IBindValue): IBindValue => {
 const handleMouseMove = throttle((event: MouseEvent) => {
   if (!insertedEl) return;
   const { maxWidth, minWidth, placement, autoHidden, onHidden, onWidthChange } = getBindValue(
-    insertedEl._bk_log_drag.value as IBindValue,
+    insertedEl._bk_log_drag.value as IBindValue
   );
   const rect = insertedEl.getBoundingClientRect();
   let width = placement === 'left' ? event.clientX - rect.left : rect.right - event.clientX;

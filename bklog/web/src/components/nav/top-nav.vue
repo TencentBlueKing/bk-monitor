@@ -74,89 +74,89 @@
 </template>
 
 <script>
-  import { projectManage } from '@/common/util';
-  import { mapState } from 'vuex';
+import { projectManage } from '@/common/util';
+import { mapState } from 'vuex';
 
-  export default {
-    name: 'TopNav',
-    components: {},
-    props: {
-      title: {
-        type: String,
-        default: '',
-      },
-      menu: {
-        type: Object,
-        default() {
-          return {};
-        },
-      },
-      goBack: {
-        type: Function,
-        default() {
-          this.getParentRoute(this.currentMenu, null);
-          if (this.parentRoute) {
-            this.$router.replace({
-              name: this.parentRoute,
-              query: {
-                spaceUid: this.$store.state.spaceUid,
-              },
-            });
-          }
-        },
+export default {
+  name: 'TopNav',
+  components: {},
+  props: {
+    title: {
+      type: String,
+      default: '',
+    },
+    menu: {
+      type: Object,
+      default() {
+        return {};
       },
     },
-    data() {
-      return {
-        parentRoute: '',
-      };
-    },
-    computed: {
-      ...mapState({
-        currentMenu: state => state.currentMenu,
-        menuProject: state => state.menuProject,
-      }),
-      routerName() {
-        return this.$route.name;
-      },
-      collectProject() {
-        return projectManage(this.menuProject, 'manage', 'manage');
-      },
-    },
-    methods: {
-      routerHandler(menu) {
-        if (menu.id === 'esAccess' && !this.collectProject) return;
-        if (menu.id !== this.routerName) {
-          this.$router.push({
-            name: menu.id,
+    goBack: {
+      type: Function,
+      default() {
+        this.getParentRoute(this.currentMenu, null);
+        if (this.parentRoute) {
+          this.$router.replace({
+            name: this.parentRoute,
             query: {
               spaceUid: this.$store.state.spaceUid,
             },
           });
         }
       },
-      getParentRoute(routeMenu, parent) {
-        if (routeMenu.id === this.routerName) {
-          this.parentRoute = parent ? parent.id : routeMenu.id;
-          return false;
-        }
-        if (routeMenu.children) {
-          routeMenu.children.forEach(child => {
-            this.getParentRoute(child, routeMenu);
-          });
-        }
-      },
-      clickSkip(val) {
+    },
+  },
+  data() {
+    return {
+      parentRoute: '',
+    };
+  },
+  computed: {
+    ...mapState({
+      currentMenu: state => state.currentMenu,
+      menuProject: state => state.menuProject,
+    }),
+    routerName() {
+      return this.$route.name;
+    },
+    collectProject() {
+      return projectManage(this.menuProject, 'manage', 'manage');
+    },
+  },
+  methods: {
+    routerHandler(menu) {
+      if (menu.id === 'esAccess' && !this.collectProject) return;
+      if (menu.id !== this.routerName) {
         this.$router.push({
-          name: val,
-          hash: '#hisitory',
+          name: menu.id,
           query: {
             spaceUid: this.$store.state.spaceUid,
           },
         });
-      },
+      }
     },
-  };
+    getParentRoute(routeMenu, parent) {
+      if (routeMenu.id === this.routerName) {
+        this.parentRoute = parent ? parent.id : routeMenu.id;
+        return false;
+      }
+      if (routeMenu.children) {
+        routeMenu.children.forEach(child => {
+          this.getParentRoute(child, routeMenu);
+        });
+      }
+    },
+    clickSkip(val) {
+      this.$router.push({
+        name: val,
+        hash: '#hisitory',
+        query: {
+          spaceUid: this.$store.state.spaceUid,
+        },
+      });
+    },
+  },
+};
 </script>
 
 <style lang="scss">

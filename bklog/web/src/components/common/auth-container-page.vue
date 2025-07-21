@@ -88,41 +88,41 @@
 </template>
 
 <script>
-  export default {
-    props: {
-      info: {
-        type: Object,
-        default: () => ({}),
-      },
+export default {
+  props: {
+    info: {
+      type: Object,
+      default: () => ({}),
     },
-    data() {
-      return {
-        authNames: '',
-      };
+  },
+  data() {
+    return {
+      authNames: '',
+    };
+  },
+  computed: {
+    authorityDetail() {
+      return this.info.apply_data || {};
     },
-    computed: {
-      authorityDetail() {
-        return this.info.apply_data || {};
-      },
+  },
+  methods: {
+    confirmPageApply() {
+      window.open(this.info.apply_url);
     },
-    methods: {
-      confirmPageApply() {
-        window.open(this.info.apply_url);
-      },
-      getResource(related) {
-        if (!Array.isArray(related)) return [];
-        try {
-          return related[0].instances[0].reduce(
-            (pre, cur) => (pre.push(`${cur.type_name}: [${cur.id}] ${cur.name}`), pre),
-            [],
-          );
-        } catch (error) {
-          console.warn(error);
-          return [];
-        }
-      },
+    getResource(related) {
+      if (!Array.isArray(related)) return [];
+      try {
+        return related[0].instances[0].reduce(
+          (pre, cur) => (pre.push(`${cur.type_name}: [${cur.id}] ${cur.name}`), pre),
+          []
+        );
+      } catch (error) {
+        console.warn(error);
+        return [];
+      }
     },
-  };
+  },
+};
 </script>
 
 <style lang="scss" scoped>

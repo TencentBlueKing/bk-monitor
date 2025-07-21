@@ -43,5 +43,5 @@ const strategyList = {
 const getLogRelatedInfo = {
   url: '/alert_strategy/:index_set_id/log_related_info/',
   method: 'get',
-}
+};
 export { alertList, strategyList, getLogRelatedInfo };

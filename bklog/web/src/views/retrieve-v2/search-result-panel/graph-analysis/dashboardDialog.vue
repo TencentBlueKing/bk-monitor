@@ -24,34 +24,37 @@
 * IN THE SOFTWARE.
 -->
 <script setup>
-import { ref, defineExpose } from "vue";
-import "bk-magic-vue/lib/utils/svg-icon";
+import { ref, defineExpose } from 'vue';
+import 'bk-magic-vue/lib/utils/svg-icon';
 const isShow = ref(false);
 const checkValue = ref(false);
-const inputValue = ref("");
+const inputValue = ref('');
 const collapseValue = ref([]);
 const arrData = ref([
   {
     id: 1,
-    name: "General",
+    name: 'General',
     children: [
-      { id: 11, name: "aaaa" },
-      { id: 12, name: "bbbb" },
-      { id: 13, name: "cccc" },
+      { id: 11, name: 'aaaa' },
+      { id: 12, name: 'bbbb' },
+      { id: 13, name: 'cccc' },
     ],
   },
   {
     id: 2,
-    name: "a 回到仓库",
+    name: 'a 回到仓库',
     children: [
-      { id: 21, name: "aaaa" },
-      { id: 22, name: "bbbb" },
+      { id: 21, name: 'aaaa' },
+      { id: 22, name: 'bbbb' },
     ],
   },
   {
     id: 3,
-    name: "aaaa 会刷",
-    children: [{ id: 31, name: "33aaaa"}, { id: 32, name: "a333aaa" }],
+    name: 'aaaa 会刷',
+    children: [
+      { id: 31, name: '33aaaa' },
+      { id: 32, name: 'a333aaa' },
+    ],
   },
 ]);
 const handleShow = () => {

@@ -318,220 +318,220 @@
 </template>
 
 <script>
-  import { utcFormatDate, copyMessage } from '@/common/util';
-  import { operatorMappingObj, operatorMapping } from '@/components/collection-access/components/log-filter/type';
-  import { mapState } from 'vuex';
+import { utcFormatDate, copyMessage } from '@/common/util';
+import { operatorMappingObj, operatorMapping } from '@/components/collection-access/components/log-filter/type';
+import { mapState } from 'vuex';
 
-  import containerBase from './components/container-base';
+import containerBase from './components/container-base';
 
-  export default {
-    components: {
-      containerBase,
+export default {
+  components: {
+    containerBase,
+  },
+  props: {
+    collectorData: {
+      type: Object,
+      required: true,
     },
-    props: {
-      collectorData: {
-        type: Object,
-        required: true,
+    editAuth: {
+      type: Boolean,
+      default: false,
+    },
+    editAuthData: {
+      type: Object,
+      default: null,
+      validator(value) {
+        // 校验 value 是否为 null 或一个有效的对象
+        return value === null || (typeof value === 'object' && value !== null);
       },
-      editAuth: {
-        type: Boolean,
-        default: false,
-      },
-      editAuthData: {
-        type: Object,
-        default: null,
-        validator(value) {
-          // 校验 value 是否为 null 或一个有效的对象
-          return value === null || (typeof value === 'object' && value !== null);
+    },
+  },
+  data() {
+    return {
+      // 右边展示的创建人、创建时间
+      createAndTimeData: [],
+      basicLoading: false,
+      isShowToken: false, // 是否展示 oltp_log Token
+      showPassword: true, // 是否展示Token值
+      tokenLoading: false,
+      tokenStr: '', // token 的值
+      groupList: [this.$t('过滤参数'), this.$t('操作符'), 'Value'],
+    };
+  },
+  computed: {
+    ...mapState(['spaceUid']),
+    getEventIDStr() {
+      return this.params.winlog_event_id?.join(',') || '';
+    },
+    getLevelStr() {
+      return this.params.winlog_level?.join(',') || '';
+    },
+    getLogSpeciesStr() {
+      return this.params.winlog_name?.join(',') || '';
+    },
+    isHaveEventValue() {
+      return this.params.winlog_event_id.length || this.params.winlog_level.length;
+    },
+    isContainer() {
+      return this.collectorData.environment === 'container';
+    },
+    // 自定义上报基本信息
+    isCustomReport() {
+      return this.$route.name === 'custom-report-detail';
+    },
+    isWinEventLog() {
+      return this.collectorData.collector_scenario_id === 'wineventlog';
+    },
+    isNotWinAndHaveFilter() {
+      if (this.isWinEventLog || this.params.type === 'none') return false;
+      return this.conditions && !!this.conditions?.separator_filters.length;
+    },
+    isMatchType() {
+      return this.conditions.type === 'match';
+    },
+    params() {
+      return this.collectorData.params;
+    },
+    conditions() {
+      return this.collectorData.params.conditions;
+    },
+    filterGroup() {
+      const filters = this.conditions?.separator_filters;
+      return this.splitFilters(filters ?? []);
+    },
+    showOperatorObj() {
+      return Object.keys(operatorMappingObj).reduce((pre, acc) => {
+        let newKey = acc;
+        if ((this.isMatchType && acc === 'include') || (!this.isMatchType && acc === 'eq')) newKey = '=';
+        pre[newKey] = operatorMappingObj[acc];
+        return pre;
+      }, {});
+    },
+    groupKey() {
+      return this.isMatchType ? this.groupList.slice(1) : this.groupList;
+    },
+  },
+  created() {
+    this.getCollectDetail();
+  },
+  methods: {
+    getCollectDetail() {
+      try {
+        const { collectorData } = this;
+        const createAndTimeData = [
+          {
+            key: 'updated_by',
+            label: this.$t('更新人'),
+          },
+          {
+            key: 'updated_at',
+            label: this.$t('更新时间'),
+          },
+          {
+            key: 'created_by',
+            label: this.$t('创建人'),
+          },
+          {
+            key: 'created_at',
+            label: this.$t('创建时间'),
+          },
+        ];
+        this.createAndTimeData = createAndTimeData.map(item => {
+          if (item.key === 'created_at' || item.key === 'updated_at') {
+            item.value = utcFormatDate(collectorData[item.key]);
+          } else {
+            item.value = collectorData[item.key];
+          }
+          return item;
+        });
+      } catch (e) {
+        console.warn(e);
+      }
+    },
+    handleClickTarget() {
+      this.$emit('update-active-panel', 'collectionStatus');
+    },
+    // 判断是否超出  超出提示
+    handleEnter(e) {
+      const cWidth = e.target.clientWidth;
+      const sWidth = e.target.scrollWidth;
+      if (sWidth > cWidth) {
+        this.instance = this.$bkPopover(e.target, {
+          content: e.target.innerText,
+          arrow: true,
+          placement: 'right',
+        });
+        this.instance.show(1000);
+      }
+    },
+    handleLeave() {
+      this.instance?.destroy(true);
+    },
+    handleClickEdit() {
+      if (!this.editAuth && this.editAuthData) {
+        this.$store.commit('updateAuthDialogData', this.editAuthData);
+        return;
+      }
+      const params = {};
+      params.collectorId = this.$route.params.collectorId;
+      const routeName = this.isCustomReport ? 'custom-report-edit' : 'collectEdit';
+      this.$router.push({
+        name: routeName,
+        params,
+        query: {
+          spaceUid: this.$store.state.spaceUid,
+          backRoute: 'manage-collection',
+          type: 'basicInfo',
         },
-      },
+      });
     },
-    data() {
-      return {
-        // 右边展示的创建人、创建时间
-        createAndTimeData: [],
-        basicLoading: false,
-        isShowToken: false, // 是否展示 oltp_log Token
-        showPassword: true, // 是否展示Token值
-        tokenLoading: false,
-        tokenStr: '', // token 的值
-        groupList: [this.$t('过滤参数'), this.$t('操作符'), 'Value'],
-      };
-    },
-    computed: {
-      ...mapState(['spaceUid']),
-      getEventIDStr() {
-        return this.params.winlog_event_id?.join(',') || '';
-      },
-      getLevelStr() {
-        return this.params.winlog_level?.join(',') || '';
-      },
-      getLogSpeciesStr() {
-        return this.params.winlog_name?.join(',') || '';
-      },
-      isHaveEventValue() {
-        return this.params.winlog_event_id.length || this.params.winlog_level.length;
-      },
-      isContainer() {
-        return this.collectorData.environment === 'container';
-      },
-      // 自定义上报基本信息
-      isCustomReport() {
-        return this.$route.name === 'custom-report-detail';
-      },
-      isWinEventLog() {
-        return this.collectorData.collector_scenario_id === 'wineventlog';
-      },
-      isNotWinAndHaveFilter() {
-        if (this.isWinEventLog || this.params.type === 'none') return false;
-        return this.conditions && !!this.conditions?.separator_filters.length;
-      },
-      isMatchType() {
-        return this.conditions.type === 'match';
-      },
-      params() {
-        return this.collectorData.params;
-      },
-      conditions() {
-        return this.collectorData.params.conditions;
-      },
-      filterGroup() {
-        const filters = this.conditions?.separator_filters;
-        return this.splitFilters(filters ?? []);
-      },
-      showOperatorObj() {
-        return Object.keys(operatorMappingObj).reduce((pre, acc) => {
-          let newKey = acc;
-          if ((this.isMatchType && acc === 'include') || (!this.isMatchType && acc === 'eq')) newKey = '=';
-          pre[newKey] = operatorMappingObj[acc];
-          return pre;
-        }, {});
-      },
-      groupKey() {
-        return this.isMatchType ? this.groupList.slice(1) : this.groupList;
-      },
-    },
-    created() {
-      this.getCollectDetail();
-    },
-    methods: {
-      getCollectDetail() {
-        try {
-          const { collectorData } = this;
-          const createAndTimeData = [
-            {
-              key: 'updated_by',
-              label: this.$t('更新人'),
-            },
-            {
-              key: 'updated_at',
-              label: this.$t('更新时间'),
-            },
-            {
-              key: 'created_by',
-              label: this.$t('创建人'),
-            },
-            {
-              key: 'created_at',
-              label: this.$t('创建时间'),
-            },
-          ];
-          this.createAndTimeData = createAndTimeData.map(item => {
-            if (item.key === 'created_at' || item.key === 'updated_at') {
-              item.value = utcFormatDate(collectorData[item.key]);
-            } else {
-              item.value = collectorData[item.key];
-            }
-            return item;
-          });
-        } catch (e) {
-          console.warn(e);
-        }
-      },
-      handleClickTarget() {
-        this.$emit('update-active-panel', 'collectionStatus');
-      },
-      // 判断是否超出  超出提示
-      handleEnter(e) {
-        const cWidth = e.target.clientWidth;
-        const sWidth = e.target.scrollWidth;
-        if (sWidth > cWidth) {
-          this.instance = this.$bkPopover(e.target, {
-            content: e.target.innerText,
-            arrow: true,
-            placement: 'right',
-          });
-          this.instance.show(1000);
-        }
-      },
-      handleLeave() {
-        this.instance?.destroy(true);
-      },
-      handleClickEdit() {
-        if (!this.editAuth && this.editAuthData) {
-          this.$store.commit('updateAuthDialogData', this.editAuthData);
-          return;
-        }
-        const params = {};
-        params.collectorId = this.$route.params.collectorId;
-        const routeName = this.isCustomReport ? 'custom-report-edit' : 'collectEdit';
-        this.$router.push({
-          name: routeName,
-          params,
-          query: {
-            spaceUid: this.$store.state.spaceUid,
-            backRoute: 'manage-collection',
-            type: 'basicInfo',
+    async handleGetToken() {
+      if (!this.editAuth && this.editAuthData) {
+        this.$store.commit('updateAuthDialogData', this.editAuthData);
+        return;
+      }
+      try {
+        this.tokenLoading = true;
+        const res = await this.$http.request('collect/reviewToken', {
+          params: {
+            collector_config_id: this.$route.params.collectorId,
           },
         });
-      },
-      async handleGetToken() {
-        if (!this.editAuth && this.editAuthData) {
-          this.$store.commit('updateAuthDialogData', this.editAuthData);
-          return;
-        }
-        try {
-          this.tokenLoading = true;
-          const res = await this.$http.request('collect/reviewToken', {
-            params: {
-              collector_config_id: this.$route.params.collectorId,
-            },
-          });
-          this.tokenStr = res.data?.bk_data_token || '-';
-        } catch (error) {
-          console.warn(error);
-          this.tokenStr = '';
-        } finally {
-          this.tokenLoading = false;
-        }
-      },
-      handleCopy(text) {
-        copyMessage(text);
-      },
-      /** 设置过滤分组 */
-      splitFilters(filters) {
-        const groups = [];
-        let currentGroup = [];
-
-        filters.forEach((filter, index) => {
-          const mappingFilter = {
-            ...filter,
-            op: operatorMapping[filter.op] ?? filter.op, // 映射操作符
-          };
-          currentGroup.push(mappingFilter);
-          // 检查下一个 filter
-          if (filters[index + 1]?.logic_op === 'or' || index === filters.length - 1) {
-            groups.push(currentGroup);
-            currentGroup = [];
-          }
-        });
-        if (currentGroup.length > 0) {
-          groups.push(currentGroup);
-        }
-        return groups;
-      },
+        this.tokenStr = res.data?.bk_data_token || '-';
+      } catch (error) {
+        console.warn(error);
+        this.tokenStr = '';
+      } finally {
+        this.tokenLoading = false;
+      }
     },
-  };
+    handleCopy(text) {
+      copyMessage(text);
+    },
+    /** 设置过滤分组 */
+    splitFilters(filters) {
+      const groups = [];
+      let currentGroup = [];
+
+      filters.forEach((filter, index) => {
+        const mappingFilter = {
+          ...filter,
+          op: operatorMapping[filter.op] ?? filter.op, // 映射操作符
+        };
+        currentGroup.push(mappingFilter);
+        // 检查下一个 filter
+        if (filters[index + 1]?.logic_op === 'or' || index === filters.length - 1) {
+          groups.push(currentGroup);
+          currentGroup = [];
+        }
+      });
+      if (currentGroup.length > 0) {
+        groups.push(currentGroup);
+      }
+      return groups;
+    },
+  },
+};
 </script>
 
 <style lang="scss" scoped>

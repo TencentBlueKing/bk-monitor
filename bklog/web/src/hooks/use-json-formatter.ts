@@ -247,7 +247,7 @@ export default class UseJsonFormatter {
     fieldName,
     valueSelector = '.bklog-json-field-value',
     textValue?: string,
-    appendText?: SegmentAppendText,
+    appendText?: SegmentAppendText
   ) {
     this.addWordSegmentClick(target);
     target.querySelectorAll(valueSelector).forEach((element: HTMLElement) => {
@@ -270,7 +270,7 @@ export default class UseJsonFormatter {
           vlaues,
           element,
           segmentContent,
-          this.getChildItem,
+          this.getChildItem
         );
         removeScrollEvent();
 
@@ -346,7 +346,7 @@ export default class UseJsonFormatter {
             vlaues,
             rootNode,
             segmentContent,
-            this.getChildItem,
+            this.getChildItem
           );
           removeScrollEvent();
           setListItem(600);

@@ -53,23 +53,23 @@
 </template>
 
 <script lang="ts">
-  import { Vue, Prop, Component } from 'vue-property-decorator';
-  @Component({
-    name: 'StatusChart',
+import { Vue, Prop, Component } from 'vue-property-decorator';
+@Component({
+  name: 'StatusChart',
+})
+export default class StatusChart extends Vue {
+  // 端口列表
+  @Prop({
+    default() {
+      return [];
+    },
   })
-  export default class StatusChart extends Vue {
-    // 端口列表
-    @Prop({
-      default() {
-        return [];
-      },
-    })
-    readonly series: { value: string; status: string }[];
-    private statusList: any[];
-    created() {
-      this.statusList = [this.$t('正常'), this.$t('停用'), this.$t('异常')];
-    }
+  readonly series: { value: string; status: string }[];
+  private statusList: any[];
+  created() {
+    this.statusList = [this.$t('正常'), this.$t('停用'), this.$t('异常')];
   }
+}
 </script>
 
 <style lang="scss" scoped>

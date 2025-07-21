@@ -1,66 +1,66 @@
 <script setup>
-  import { computed } from 'vue';
+import { computed } from 'vue';
 
-  // @ts-ignore
-  import useStore from '@/hooks/use-store';
-  import { getRegExp } from '@/common/util';
+// @ts-ignore
+import useStore from '@/hooks/use-store';
+import { getRegExp } from '@/common/util';
 
-  const props = defineProps({
-    searchValue: {
-      type: String,
-      default: '',
-    },
-  });
+const props = defineProps({
+  searchValue: {
+    type: String,
+    default: '',
+  },
+});
 
-  const store = useStore();
-  const emit = defineEmits(['change']);
+const store = useStore();
+const emit = defineEmits(['change']);
 
-  const indexSetItemIdList = computed(() => store.state.indexItem.ids);
-  const favoriteGroupList = computed(() => store.state.favoriteList.map(f => f.favorites).flat());
+const indexSetItemIdList = computed(() => store.state.indexItem.ids);
+const favoriteGroupList = computed(() => store.state.favoriteList.map(f => f.favorites).flat());
 
-  const separator = /\s+(AND\s+NOT|OR|AND)\s+/i; // 区分查询语句条件
-  const regFormat = str => `${str}`.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&');
+const separator = /\s+(AND\s+NOT|OR|AND)\s+/i; // 区分查询语句条件
+const regFormat = str => `${str}`.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&');
 
-  const regExpStringList = computed(() =>
-    (props.searchValue ?? '')
-      .split(separator)
-      .filter(item => item.length)
-      .map(k => new RegExp(regFormat(k).replace(':', '\\s*:\\s*'), 'ig')),
-  );
+const regExpStringList = computed(() =>
+  (props.searchValue ?? '')
+    .split(separator)
+    .filter(item => item.length)
+    .map(k => new RegExp(regFormat(k).replace(':', '\\s*:\\s*'), 'ig'))
+);
 
-  const isSqlMode = item => {
-    return item.search_mode === 'sql' && !(item.params.chart_params?.type ?? false);
-  };
+const isSqlMode = item => {
+  return item.search_mode === 'sql' && !(item.params.chart_params?.type ?? false);
+};
 
-  // 数据格式: [{ group_id: '', group_name: '', group_type: '' }]
-  const favoriteList = computed(() => {
-    const filter = favoriteGroupList.value
-      .filter(item => {
+// 数据格式: [{ group_id: '', group_name: '', group_type: '' }]
+const favoriteList = computed(() => {
+  const filter = favoriteGroupList.value
+    .filter(item => {
+      return (
+        (isSqlMode(item) && indexSetItemIdList.value.includes(`${item.index_set_id}`)) ||
+        item.index_set_ids?.some(id => indexSetItemIdList.value.includes(`${id}`))
+      );
+    })
+    .filter(child => {
+      if (child.favorite_type === 'chart') {
         return (
-          (isSqlMode(item) && indexSetItemIdList.value.includes(`${item.index_set_id}`)) ||
-          item.index_set_ids?.some(id => indexSetItemIdList.value.includes(`${id}`))
+          regExpStringList.value.length &&
+          regExpStringList.value.every(reg => reg.test(child.params?.chart_params?.sql))
         );
-      })
-      .filter(child => {
-        if (child.favorite_type === 'chart') {
-          return (
-            regExpStringList.value.length &&
-            regExpStringList.value.every(reg => reg.test(child.params?.chart_params?.sql))
-          );
-        }
+      }
 
-        return (
-          child.params?.keyword === '*' ||
-          (regExpStringList.value.length && regExpStringList.value.every(reg => reg.test(child.params?.keyword)))
-        );
-      });
+      return (
+        child.params?.keyword === '*' ||
+        (regExpStringList.value.length && regExpStringList.value.every(reg => reg.test(child.params?.keyword)))
+      );
+    });
 
-    return filter;
-  });
+  return filter;
+});
 
-  const handleClickFavorite = item => {
-    emit('change', item);
-  };
+const handleClickFavorite = item => {
+  emit('change', item);
+};
 </script>
 <template>
   <div class="favorite-footer">

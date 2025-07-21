@@ -130,7 +130,7 @@ export default () => {
               ],
               class: { 'lack-index-filed': isLackIndexFields },
             },
-            [fieldName],
+            [fieldName]
           ),
           h(TimeFormatterSwitcher, {
             class: 'timer-formatter',
@@ -173,7 +173,7 @@ export default () => {
               },
             },
           }),
-        ],
+        ]
       );
     }
   };

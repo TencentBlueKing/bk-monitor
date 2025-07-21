@@ -102,81 +102,81 @@
 </template>
 
 <script>
-  import VueDraggable from 'vuedraggable';
+import VueDraggable from 'vuedraggable';
 
-  export default {
-    components: {
-      VueDraggable,
+export default {
+  components: {
+    VueDraggable,
+  },
+  props: {
+    id: {
+      type: String,
+      required: true,
     },
-    props: {
-      id: {
-        type: String,
-        required: true,
-      },
-      isLoading: {
-        type: Boolean,
-        required: true,
-      },
-      total: {
-        type: Array,
-        required: true,
-      },
-      display: {
-        type: Array,
-        required: true,
-      },
+    isLoading: {
+      type: Boolean,
+      required: true,
     },
-    data() {
-      return {
-        totalFieldNames: [], // 所有的字段名
-        displayFieldNames: [], // 展示的字段名
+    total: {
+      type: Array,
+      required: true,
+    },
+    display: {
+      type: Array,
+      required: true,
+    },
+  },
+  data() {
+    return {
+      totalFieldNames: [], // 所有的字段名
+      displayFieldNames: [], // 展示的字段名
 
-        dragOptions: {
-          animation: 150,
-          tag: 'ul',
-          handle: '.bklog-drag-dots',
-          'ghost-class': 'sortable-ghost-class',
-        },
-      };
+      dragOptions: {
+        animation: 150,
+        tag: 'ul',
+        handle: '.bklog-drag-dots',
+        'ghost-class': 'sortable-ghost-class',
+      },
+    };
+  },
+  computed: {
+    restFieldNames() {
+      return this.totalFieldNames.filter(field => !this.displayFieldNames.includes(field));
     },
-    computed: {
-      restFieldNames() {
-        return this.totalFieldNames.filter(field => !this.displayFieldNames.includes(field));
-      },
-      // 最少显示一个字段
-      disabledRemove() {
-        return this.displayFieldNames.length <= 1;
-      },
+    // 最少显示一个字段
+    disabledRemove() {
+      return this.displayFieldNames.length <= 1;
     },
-    watch: {
-      total() {
-        this.totalFieldNames = [...this.total];
-        this.displayFieldNames = [...this.display];
-      },
+  },
+  watch: {
+    total() {
+      this.totalFieldNames = [...this.total];
+      this.displayFieldNames = [...this.display];
     },
-    methods: {
-      /**
-       * 移除某个显示字段
-       * @param {Number} index
-       */
-      removeItem(index) {
-        !this.disabledRemove && this.displayFieldNames.splice(index, 1);
-      },
-      /**
-       * 增加某个字段名
-       * @param {String} fieldName
-       */
-      addItem(fieldName) {
-        this.displayFieldNames.push(fieldName);
-      },
-      handleConfirm() {
-        this.$emit('confirm', this.displayFieldNames);
-      },
-      handleCancel() {
-        this.$emit('cancel');
-      },
+  },
+  methods: {
+    /**
+     * 移除某个显示字段
+     * @param {Number} index
+     */
+    removeItem(index) {
+      !this.disabledRemove && this.displayFieldNames.splice(index, 1);
     },
-  };
+    /**
+     * 增加某个字段名
+     * @param {String} fieldName
+     */
+    addItem(fieldName) {
+      this.displayFieldNames.push(fieldName);
+    },
+    handleConfirm() {
+      this.$emit('confirm', this.displayFieldNames);
+    },
+    handleCancel() {
+      this.$emit('cancel');
+    },
+  },
+};
 </script>
 
 <style lang="scss">

@@ -103,120 +103,120 @@
 </template>
 
 <script>
-  import { deepClone, contextHighlightColor } from '../../../common/util';
-  export default {
-    props: {
-      isScreenFull: Boolean,
-    },
-    data() {
-      return {
-        filterType: 'include',
-        filterKey: '',
-        catchFilterKey: '',
-        ignoreCase: false,
-        filterTypeList: [
-          { id: 'include', name: this.$t('包含') },
-          { id: 'uninclude', name: this.$t('不包含') },
-        ],
-        interval: {
-          prev: 0,
-          next: 0,
-        },
-        baseInterval: {
-          prev: 0,
-          next: 0,
-        },
-        /** 高亮list */
-        highlightList: [],
-        colorHighlightList: [],
-        /** 显示前-后行开关 */
-        intervalSwitcher: true,
-        /** 当前的展示类型 */
-        showType: 'log',
-      };
-    },
-    watch: {
-      ignoreCase(val) {
-        this.$emit('handle-filter', 'ignoreCase', val);
-      },
+import { deepClone, contextHighlightColor } from '../../../common/util';
+export default {
+  props: {
+    isScreenFull: Boolean,
+  },
+  data() {
+    return {
+      filterType: 'include',
+      filterKey: '',
+      catchFilterKey: '',
+      ignoreCase: false,
+      filterTypeList: [
+        { id: 'include', name: this.$t('包含') },
+        { id: 'uninclude', name: this.$t('不包含') },
+      ],
       interval: {
-        deep: true,
-        handler(val) {
-          this.$emit('handle-filter', 'interval', this.intervalSwitcher ? val : this.baseInterval);
-        },
+        prev: 0,
+        next: 0,
+      },
+      baseInterval: {
+        prev: 0,
+        next: 0,
+      },
+      /** 高亮list */
+      highlightList: [],
+      colorHighlightList: [],
+      /** 显示前-后行开关 */
+      intervalSwitcher: true,
+      /** 当前的展示类型 */
+      showType: 'log',
+    };
+  },
+  watch: {
+    ignoreCase(val) {
+      this.$emit('handle-filter', 'ignoreCase', val);
+    },
+    interval: {
+      deep: true,
+      handler(val) {
+        this.$emit('handle-filter', 'interval', this.intervalSwitcher ? val : this.baseInterval);
       },
     },
-    computed: {
-      catchColorIndexList() {
-        return this.colorHighlightList.map(item => item.colorIndex);
-      },
+  },
+  computed: {
+    catchColorIndexList() {
+      return this.colorHighlightList.map(item => item.colorIndex);
     },
-    methods: {
-      handleScrollToCurrentRow() {
-        this.$emit('fix-current-row');
-      },
-      filterLog() {
-        this.catchFilterKey = this.filterKey;
-        this.$emit('handle-filter', 'filterKey', this.filterKey);
-      },
-      blurFilterLog() {
-        if (!this.catchFilterKey && !this.filterKey) return;
-        this.filterLog();
-      },
-      changeLightList() {
-        // 找出未显示的颜色
-        const colorIndex = contextHighlightColor.findIndex((item, index) => !this.catchColorIndexList.includes(index));
-        const catchCloneColorList = deepClone(this.colorHighlightList);
-        // 给高亮颜色重新赋值
-        this.colorHighlightList = this.highlightList.map(item => {
-          const notChangeItem = catchCloneColorList.find(cItem => cItem.heightKey === item);
-          if (notChangeItem) return notChangeItem;
-          return {
-            heightKey: item,
-            colorIndex,
-            color: contextHighlightColor[colorIndex],
-          };
-        });
-        // 更新input输入框的颜色
-        this.$nextTick(() => {
-          this.initTagInputColor();
-        });
-        this.$emit('handle-filter', 'highlightList', this.colorHighlightList);
-      },
-      handleFilterType(val) {
-        this.$emit('handle-filter', 'filterType', val);
-      },
-      handleSelectShowType(type) {
-        this.showType = type;
-        this.$emit('handle-filter', 'showType', type);
-      },
-      handleChangeIntervalShow(state) {
-        this.$emit('handle-filter', 'interval', state ? this.interval : this.baseInterval);
-      },
-      // 粘贴过滤条件
-      pasteFn(pasteValue) {
-        const trimPasteValue = pasteValue.trim();
-        if (!this.highlightList.includes(trimPasteValue) && this.highlightList.length < 5) {
-          this.highlightList.push(trimPasteValue);
-          this.changeLightList();
-        }
-        return [];
-      },
-      /** 更新taginput组件中的颜色 */
-      initTagInputColor() {
-        const childEl = this.$refs.tagInput.$el.querySelectorAll('.key-node');
-        childEl.forEach(child => {
-          const tag = child.querySelectorAll('.tag')[0];
-          const colorObj = this.colorHighlightList.find(item => item.heightKey === tag.innerText);
-          [child, tag].forEach(item => {
-            Object.assign(item.style, {
-              backgroundColor: colorObj.color.light,
-            });
+  },
+  methods: {
+    handleScrollToCurrentRow() {
+      this.$emit('fix-current-row');
+    },
+    filterLog() {
+      this.catchFilterKey = this.filterKey;
+      this.$emit('handle-filter', 'filterKey', this.filterKey);
+    },
+    blurFilterLog() {
+      if (!this.catchFilterKey && !this.filterKey) return;
+      this.filterLog();
+    },
+    changeLightList() {
+      // 找出未显示的颜色
+      const colorIndex = contextHighlightColor.findIndex((item, index) => !this.catchColorIndexList.includes(index));
+      const catchCloneColorList = deepClone(this.colorHighlightList);
+      // 给高亮颜色重新赋值
+      this.colorHighlightList = this.highlightList.map(item => {
+        const notChangeItem = catchCloneColorList.find(cItem => cItem.heightKey === item);
+        if (notChangeItem) return notChangeItem;
+        return {
+          heightKey: item,
+          colorIndex,
+          color: contextHighlightColor[colorIndex],
+        };
+      });
+      // 更新input输入框的颜色
+      this.$nextTick(() => {
+        this.initTagInputColor();
+      });
+      this.$emit('handle-filter', 'highlightList', this.colorHighlightList);
+    },
+    handleFilterType(val) {
+      this.$emit('handle-filter', 'filterType', val);
+    },
+    handleSelectShowType(type) {
+      this.showType = type;
+      this.$emit('handle-filter', 'showType', type);
+    },
+    handleChangeIntervalShow(state) {
+      this.$emit('handle-filter', 'interval', state ? this.interval : this.baseInterval);
+    },
+    // 粘贴过滤条件
+    pasteFn(pasteValue) {
+      const trimPasteValue = pasteValue.trim();
+      if (!this.highlightList.includes(trimPasteValue) && this.highlightList.length < 5) {
+        this.highlightList.push(trimPasteValue);
+        this.changeLightList();
+      }
+      return [];
+    },
+    /** 更新taginput组件中的颜色 */
+    initTagInputColor() {
+      const childEl = this.$refs.tagInput.$el.querySelectorAll('.key-node');
+      childEl.forEach(child => {
+        const tag = child.querySelectorAll('.tag')[0];
+        const colorObj = this.colorHighlightList.find(item => item.heightKey === tag.innerText);
+        [child, tag].forEach(item => {
+          Object.assign(item.style, {
+            backgroundColor: colorObj.color.light,
           });
         });
-      },
+      });
     },
-  };
+  },
+};
 </script>
 
 <style lang="scss" scoped>

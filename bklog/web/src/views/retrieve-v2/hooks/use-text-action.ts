@@ -31,7 +31,7 @@ export default function useTextAction(emit?: Function, from?: string) {
     value: string,
     isLink: boolean,
     depth?: number,
-    isNestedField?: string,
+    isNestedField?: string
   ) => {
     const { getQueryAlias } = useFieldNameHook({ store });
     const fieldName = field?.field_name ? getQueryAlias(field) : field;
@@ -101,7 +101,7 @@ export default function useTextAction(emit?: Function, from?: string) {
       fieldName?: string;
       operation?: string;
       displayFieldNames?: string[];
-    },
+    }
   ) => {
     const {
       content,

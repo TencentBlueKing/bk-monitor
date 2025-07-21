@@ -126,158 +126,158 @@
 </template>
 
 <script>
-  import EmptyStatus from '@/components/empty-status';
+import EmptyStatus from '@/components/empty-status';
 
-  import ConfigDialog from './config-dialog';
+import ConfigDialog from './config-dialog';
 
-  export default {
-    name: 'LinkConfiguration',
-    components: {
-      ConfigDialog,
-      EmptyStatus,
+export default {
+  name: 'LinkConfiguration',
+  components: {
+    ConfigDialog,
+    EmptyStatus,
+  },
+  data() {
+    return {
+      tableData: [],
+      tableLoading: false,
+      dialogSetting: {
+        visible: false,
+        type: 'create', // create edit
+        dataSource: {},
+      },
+      selectData: {
+        kafka: [],
+        transfer: [],
+        es: [],
+      },
+      emptyType: 'empty',
+    };
+  },
+  computed: {
+    projectList() {
+      return [{ bk_biz_id: '0', space_full_code_name: this.$t('全部空间') }, ...this.$store.state.mySpaceList];
     },
-    data() {
-      return {
-        tableData: [],
-        tableLoading: false,
-        dialogSetting: {
-          visible: false,
-          type: 'create', // create edit
-          dataSource: {},
+  },
+  created() {
+    this.init();
+  },
+  methods: {
+    async init() {
+      try {
+        this.tableLoading = true;
+        const [listRes, kafkaRes, transferRes, esRes] = await Promise.all([
+          this.$http.request('linkConfiguration/getLinkList'),
+          this.$http.request('linkConfiguration/getClusterList', { query: { cluster_type: 'kafka' } }),
+          this.$http.request('linkConfiguration/getClusterList', { query: { cluster_type: 'transfer' } }),
+          this.$http.request('linkConfiguration/getClusterList', { query: { cluster_type: 'es' } }),
+        ]);
+
+        listRes.data.forEach(item => {
+          item.bk_biz_id += '';
+        });
+        this.tableData = listRes.data;
+        Object.assign(this.selectData, {
+          kafka: kafkaRes.data,
+          transfer: transferRes.data,
+          es: esRes.data,
+        });
+      } catch (e) {
+        console.warn(e);
+        this.emptyType = '500';
+      } finally {
+        this.tableLoading = false;
+      }
+    },
+    async getLinkData() {
+      try {
+        this.tableLoading = true;
+        const res = await this.$http.request('linkConfiguration/getLinkList');
+        res.data.forEach(item => {
+          item.bk_biz_id += '';
+        });
+        this.tableData = res.data;
+      } catch (e) {
+        this.tableData.splice(0);
+        console.warn(e);
+      } finally {
+        this.tableLoading = false;
+      }
+    },
+    filterProjectName(row) {
+      return this.projectList.find(item => item.bk_biz_id === row.bk_biz_id)?.space_name;
+    },
+    filterLinkInformation(row) {
+      const kafkaName = this.selectData.kafka.find(item => {
+        return item.cluster_id === row.kafka_cluster_id;
+      })?.cluster_name;
+      if (!kafkaName) {
+        return '';
+      }
+      const transferName = this.selectData.transfer.find(item => {
+        return item.cluster_id === row.transfer_cluster_id;
+      })?.cluster_name;
+      if (!transferName) {
+        return '';
+      }
+      const esNameList = row.es_cluster_ids.map(
+        id =>
+          this.selectData.es.find(item => {
+            return item.cluster_id === id;
+          })?.cluster_name
+      );
+      if (!esNameList.length || esNameList.includes(undefined)) {
+        return '';
+      }
+      const esName = esNameList.join(', ');
+
+      return `Kafka（${kafkaName}）—> Transfer（${transferName}）—> ES（${esName}）`;
+    },
+    createConfig() {
+      this.dialogSetting = {
+        visible: true,
+        type: 'create',
+        dataSource: {
+          link_group_name: '',
+          bk_biz_id: '0',
+          kafka_cluster_id: '',
+          transfer_cluster_id: '',
+          es_cluster_ids: [],
+          is_active: true,
+          description: '',
         },
-        selectData: {
-          kafka: [],
-          transfer: [],
-          es: [],
-        },
-        emptyType: 'empty',
       };
     },
-    computed: {
-      projectList() {
-        return [{ bk_biz_id: '0', space_full_code_name: this.$t('全部空间') }, ...this.$store.state.mySpaceList];
-      },
+    editConfig(item) {
+      this.dialogSetting = {
+        visible: true,
+        type: 'edit',
+        dataSource: item,
+      };
     },
-    created() {
-      this.init();
+    handleOperation(type) {
+      if (type === 'refresh') {
+        this.emptyType = 'empty';
+        this.init();
+        return;
+      }
     },
-    methods: {
-      async init() {
-        try {
-          this.tableLoading = true;
-          const [listRes, kafkaRes, transferRes, esRes] = await Promise.all([
-            this.$http.request('linkConfiguration/getLinkList'),
-            this.$http.request('linkConfiguration/getClusterList', { query: { cluster_type: 'kafka' } }),
-            this.$http.request('linkConfiguration/getClusterList', { query: { cluster_type: 'transfer' } }),
-            this.$http.request('linkConfiguration/getClusterList', { query: { cluster_type: 'es' } }),
-          ]);
-
-          listRes.data.forEach(item => {
-            item.bk_biz_id += '';
-          });
-          this.tableData = listRes.data;
-          Object.assign(this.selectData, {
-            kafka: kafkaRes.data,
-            transfer: transferRes.data,
-            es: esRes.data,
-          });
-        } catch (e) {
-          console.warn(e);
-          this.emptyType = '500';
-        } finally {
-          this.tableLoading = false;
-        }
-      },
-      async getLinkData() {
-        try {
-          this.tableLoading = true;
-          const res = await this.$http.request('linkConfiguration/getLinkList');
-          res.data.forEach(item => {
-            item.bk_biz_id += '';
-          });
-          this.tableData = res.data;
-        } catch (e) {
-          this.tableData.splice(0);
-          console.warn(e);
-        } finally {
-          this.tableLoading = false;
-        }
-      },
-      filterProjectName(row) {
-        return this.projectList.find(item => item.bk_biz_id === row.bk_biz_id)?.space_name;
-      },
-      filterLinkInformation(row) {
-        const kafkaName = this.selectData.kafka.find(item => {
-          return item.cluster_id === row.kafka_cluster_id;
-        })?.cluster_name;
-        if (!kafkaName) {
-          return '';
-        }
-        const transferName = this.selectData.transfer.find(item => {
-          return item.cluster_id === row.transfer_cluster_id;
-        })?.cluster_name;
-        if (!transferName) {
-          return '';
-        }
-        const esNameList = row.es_cluster_ids.map(
-          id =>
-            this.selectData.es.find(item => {
-              return item.cluster_id === id;
-            })?.cluster_name,
-        );
-        if (!esNameList.length || esNameList.includes(undefined)) {
-          return '';
-        }
-        const esName = esNameList.join(', ');
-
-        return `Kafka（${kafkaName}）—> Transfer（${transferName}）—> ES（${esName}）`;
-      },
-      createConfig() {
-        this.dialogSetting = {
-          visible: true,
-          type: 'create',
-          dataSource: {
-            link_group_name: '',
-            bk_biz_id: '0',
-            kafka_cluster_id: '',
-            transfer_cluster_id: '',
-            es_cluster_ids: [],
-            is_active: true,
-            description: '',
-          },
-        };
-      },
-      editConfig(item) {
-        this.dialogSetting = {
-          visible: true,
-          type: 'edit',
-          dataSource: item,
-        };
-      },
-      handleOperation(type) {
-        if (type === 'refresh') {
-          this.emptyType = 'empty';
-          this.init();
-          return;
-        }
-      },
-      // async deleteConfig (item) {
-      //     try {
-      //         this.tableLoading = true
-      //         await this.$http.request('linkConfiguration/deleteLink', {
-      //             params: {
-      //                 data_link_id: item.data_link_id
-      //             }
-      //         })
-      //         this.messageSuccess(this.$t('删除成功'))
-      //         this.getLinkData()
-      //     } catch (e) {
-      //         console.warn(e)
-      //         this.tableLoading = false
-      //     }
-      // }
-    },
-  };
+    // async deleteConfig (item) {
+    //     try {
+    //         this.tableLoading = true
+    //         await this.$http.request('linkConfiguration/deleteLink', {
+    //             params: {
+    //                 data_link_id: item.data_link_id
+    //             }
+    //         })
+    //         this.messageSuccess(this.$t('删除成功'))
+    //         this.getLinkData()
+    //     } catch (e) {
+    //         console.warn(e)
+    //         this.tableLoading = false
+    //     }
+    // }
+  },
+};
 </script>
 
 <style lang="scss" scoped>

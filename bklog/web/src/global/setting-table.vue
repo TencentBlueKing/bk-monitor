@@ -357,750 +357,756 @@
   </div>
 </template>
 <script>
-  import { mapGetters } from 'vuex';
-  import { cloneDeep } from 'lodash';
-  export default {
-    name: 'SettingTable',
-    props: {
-      isEditJson: {
-        type: Boolean,
-        default: undefined,
-      },
-      isPreviewMode: {
-        type: Boolean,
-        default: true,
-      },
-      // 分为原始日志表格和索引日志表格
-      tableType: {
-        type: String,
-        default: 'originLog',
-      },
-      extractMethod: {
-        type: String,
-        default: 'bk_log_json',
-      },
-      // jsonText: {
-      //     type: Array
-      // },
-      fields: {
-        type: Array,
-        default: () => [],
-      },
-      builtFields: {
-        type: Array,
-        default: () => [],
-      },
-      isTempField: {
-        type: Boolean,
-        default: false,
-      },
-      isExtracting: {
-        type: Boolean,
-        default: false,
-      },
-      originalTextTokenizeOnChars: {
-        type: String,
-        default: '',
-      },
-      retainExtraJson: {
-        type: Boolean,
-        default: false,
-      },
-      selectEtlConfig: {
-        type: String,
-        default: 'bk_log_json',
-      },
-      isSetDisabled: {
-        type: Boolean,
-        default: false,
-      },
-      collectorConfigId: {
-        type: [Number, String],
-        default: '',
-      },
+import { mapGetters } from 'vuex';
+import { cloneDeep } from 'lodash';
+export default {
+  name: 'SettingTable',
+  props: {
+    isEditJson: {
+      type: Boolean,
+      default: undefined,
     },
-    data() {
-      return {
-        isReset: false,
-        dialogDate: false,
-        curRow: {},
-        formData: {
-          tableList: [],
+    isPreviewMode: {
+      type: Boolean,
+      default: true,
+    },
+    // 分为原始日志表格和索引日志表格
+    tableType: {
+      type: String,
+      default: 'originLog',
+    },
+    extractMethod: {
+      type: String,
+      default: 'bk_log_json',
+    },
+    // jsonText: {
+    //     type: Array
+    // },
+    fields: {
+      type: Array,
+      default: () => [],
+    },
+    builtFields: {
+      type: Array,
+      default: () => [],
+    },
+    isTempField: {
+      type: Boolean,
+      default: false,
+    },
+    isExtracting: {
+      type: Boolean,
+      default: false,
+    },
+    originalTextTokenizeOnChars: {
+      type: String,
+      default: '',
+    },
+    retainExtraJson: {
+      type: Boolean,
+      default: false,
+    },
+    selectEtlConfig: {
+      type: String,
+      default: 'bk_log_json',
+    },
+    isSetDisabled: {
+      type: Boolean,
+      default: false,
+    },
+    collectorConfigId: {
+      type: [Number, String],
+      default: '',
+    },
+  },
+  data() {
+    return {
+      isReset: false,
+      dialogDate: false,
+      curRow: {},
+      formData: {
+        tableList: [],
+      },
+      isShowParticiple: false,
+      // timeCheckResult: false,
+      checkLoading: false,
+      retainOriginalText: true, // 保留原始日志
+      currentIsAnalyzed: false,
+      currentParticipleState: '',
+      currentTokenizeOnChars: '',
+      currentIsCaseSensitive: false,
+      builtFieldVisible: false,
+      keyword: '',
+      participleList: [
+        {
+          id: 'default',
+          name: this.$t('自然语言分词'),
+          placeholder: this.$t('自然语言分词，按照日常语法习惯进行分词'),
         },
-        isShowParticiple: false,
-        // timeCheckResult: false,
-        checkLoading: false,
-        retainOriginalText: true, // 保留原始日志
-        currentIsAnalyzed: false,
-        currentParticipleState: '',
-        currentTokenizeOnChars: '',
-        currentIsCaseSensitive: false,
-        builtFieldVisible: false,
-        keyword: '',
-        participleList: [
+        {
+          id: 'custom',
+          name: this.$t('自定义'),
+          placeholder: this.$t('支持自定义分词符，可按需自行配置符号进行分词'),
+        },
+      ],
+      rules: {
+        field_name: [
+          // 存在bug，暂时启用
+          // {
+          //     required: true,
+          //     trigger: 'blur'
+          // },
+          // {
+          //     validator: this.checkFieldNameFormat,
+          //     trigger: 'blur'
+          // },
+          // {
+          //     validator: this.checkFieldName,
+          //     trigger: 'blur'
+          // }
+        ],
+        query_alias: [
+          // 目前组件不能拿到其他字段的值，不能通过validator进行验证
+          // {
+          //     validator: this.checkAliasName,
+          //     trigger: 'blur'
+          // }
           {
-            id: 'default',
-            name: this.$t('自然语言分词'),
-            placeholder: this.$t('自然语言分词，按照日常语法习惯进行分词'),
+            max: 50,
+            trigger: 'blur',
           },
           {
-            id: 'custom',
-            name: this.$t('自定义'),
-            placeholder: this.$t('支持自定义分词符，可按需自行配置符号进行分词'),
+            regex: /^[A-Za-z0-9_]+$/,
+            trigger: 'blur',
           },
         ],
-        rules: {
-          field_name: [
-            // 存在bug，暂时启用
-            // {
-            //     required: true,
-            //     trigger: 'blur'
-            // },
-            // {
-            //     validator: this.checkFieldNameFormat,
-            //     trigger: 'blur'
-            // },
-            // {
-            //     validator: this.checkFieldName,
-            //     trigger: 'blur'
-            // }
-          ],
-          query_alias: [
-            // 目前组件不能拿到其他字段的值，不能通过validator进行验证
-            // {
-            //     validator: this.checkAliasName,
-            //     trigger: 'blur'
-            // }
-            {
-              max: 50,
-              trigger: 'blur',
+        field_type: [
+          // {
+          //     required: true,
+          //     trigger: 'change'
+          // }
+        ],
+        notCheck: [
+          {
+            validator() {
+              return true;
             },
-            {
-              regex: /^[A-Za-z0-9_]+$/,
-              trigger: 'blur',
-            },
-          ],
-          field_type: [
-            // {
-            //     required: true,
-            //     trigger: 'change'
-            // }
-          ],
-          notCheck: [
-            {
-              validator() {
-                return true;
-              },
-              trigger: 'change',
-            },
-          ],
-        },
-        expandRowKeys: []
+            trigger: 'change',
+          },
+        ],
+      },
+      expandRowKeys: [],
+    };
+  },
+  computed: {
+    ...mapGetters({
+      bkBizId: 'bkBizId',
+    }),
+    ...mapGetters('collect', ['curCollect']),
+    ...mapGetters('globals', ['globalsData']),
+    isSettingDisable() {
+      return !this.fields.length;
+    },
+    tableList() {
+      return this.formData.tableList;
+    },
+    tableAllList() {
+      return [...this.tableList, ...this.builtFields];
+    },
+    changeTableList() {
+      const currentTableList = this.builtFieldVisible ? this.tableAllList : this.tableList;
+      if (this.keyword) {
+        const query = this.keyword.toLowerCase();
+        return currentTableList.filter(
+          item =>
+            item.field_name.toLowerCase().includes(query) || (item.query_alias?.toLowerCase().includes(query) ?? false)
+        );
+      } else {
+        return currentTableList;
+      }
+    },
+    getParticipleWidth() {
+      return this.$store.getters.isEnLanguage ? '65' : '50';
+    },
+  },
+  watch: {
+    fields: {
+      deep: true,
+      handler() {
+        this.reset();
+      },
+    },
+  },
+  async mounted() {
+    this.reset();
+    this.$emit('handle-table-data', this.changeTableList);
+    this.addObject();
+  },
+  methods: {
+    reset() {
+      let arr = [];
+      const copyFields = cloneDeep(this.fields); // option指向地址bug
+      const errTemp = {
+        fieldErr: '',
+        typeErr: false,
+        aliasErr: '',
       };
-    },
-    computed: {
-      ...mapGetters({
-        bkBizId: 'bkBizId',
-      }),
-      ...mapGetters('collect', ['curCollect']),
-      ...mapGetters('globals', ['globalsData']),
-      isSettingDisable() {
-        return !this.fields.length;
-      },
-      tableList() {
-        return this.formData.tableList;
-      },
-      tableAllList() {
-        return [...this.tableList, ...this.builtFields];
-      },
-      changeTableList() {
-        const currentTableList = this.builtFieldVisible ? this.tableAllList : this.tableList;
-        if (this.keyword) {
-          const query = this.keyword.toLowerCase();
-          return currentTableList.filter(
-            item => item.field_name.toLowerCase().includes(query) || (item.query_alias?.toLowerCase().includes(query) ?? false) ,
-          );
-        } else {
-          return currentTableList;
+      if (this.extractMethod !== 'bk_log_json') {
+        errTemp.aliasErr = false;
+      }
+      copyFields.reduce((list, item) => {
+        // 采集路径分割正则不展示
+        if (item.option?.metadata_type !== 'path') {
+          list.push(Object.assign({}, errTemp, item));
         }
-      },
-      getParticipleWidth() {
-        return this.$store.getters.isEnLanguage ? '65' : '50';
-      },
-    },
-    watch: {
-      fields: {
-        deep: true,
-        handler() {
-          this.reset();
-        },
-      },
-    },
-    async mounted() {
-      this.reset();
-      this.$emit('handle-table-data', this.changeTableList);
-      this.addObject()
-    },
-    methods: {
-      reset() {
-        let arr = [];
-        const copyFields = cloneDeep(this.fields); // option指向地址bug
-        const errTemp = {
-          fieldErr: '',
-          typeErr: false,
-          aliasErr: '',
-        };
-        if (this.extractMethod !== 'bk_log_json') {
-          errTemp.aliasErr = false;
-        }
-        copyFields.reduce((list, item) => {
-          // 采集路径分割正则不展示
-          if(item.option?.metadata_type !== 'path'){
-            list.push(Object.assign({}, errTemp, item));
-          }
-          return list;
-        }, arr);
-        arr.forEach(item => (item.previous_type = item.field_type));
+        return list;
+      }, arr);
+      arr.forEach(item => (item.previous_type = item.field_type));
 
-        if (this.isEditJson === false && !this.isTempField) {
-          // 新建JSON时，类型如果不是数字，则默认为字符串
-          arr.forEach(item => {
-            if (typeof item.value !== 'number') {
-              item.field_type = 'string';
-              item.previous_type = 'string';
-            }
-          });
-        }
-
-        // 根据预览值 value 判断不是数字，则默认为字符串
+      if (this.isEditJson === false && !this.isTempField) {
+        // 新建JSON时，类型如果不是数字，则默认为字符串
         arr.forEach(item => {
-          const { value, field_type } = item;
-          item.participleState = item.tokenize_on_chars ? 'custom' : 'default';
-
-          if (field_type === '' && value !== '' && this.judgeNumber(value)) {
+          if (typeof item.value !== 'number') {
             item.field_type = 'string';
             item.previous_type = 'string';
           }
-          this.validateInput(item)
         });
-        this.formData.tableList.splice(0, this.formData.tableList.length, ...arr);
-      },
-      resetField() {
-        this.$emit('reset');
-      },
-      batchAddField() {
-        const indexSetList = this.$store.state.retrieve.indexSetList;
-        const indexSetId = this.$route.params?.indexId;
-        const currentIndexSet = indexSetList.find(item => `${item.index_set_id}` == indexSetId);
+      }
 
-        if (!this.collectorConfigId) return;
-        const newURL = this.$router.resolve({
-          name: 'clean-edit',
-          params: {
-            collectorId: this.collectorConfigId,
-          },
-          query: {
-            spaceUid: currentIndexSet?.space_uid,
-          },
-        });
-        window.open(newURL.href, '_blank');
-      },
-      // 当前字段类型是否禁用
-      isTypeDisabled(row, option) {
-        if (row.verdict) {
-          // 不是数值，相关数值类型选项被禁用
-          return ['int', 'long', 'double', 'float'].includes(option.id);
+      // 根据预览值 value 判断不是数字，则默认为字符串
+      arr.forEach(item => {
+        const { value, field_type } = item;
+        item.participleState = item.tokenize_on_chars ? 'custom' : 'default';
+
+        if (field_type === '' && value !== '' && this.judgeNumber(value)) {
+          item.field_type = 'string';
+          item.previous_type = 'string';
         }
-        // 是数值，如果值大于 2147483647 即 2^31 - 1，int 选项被禁用
-        return option.id === 'int' && row.value > 2147483647;
-      },
-      fieldTypeSelect(val, $row, $index) {
-        const fieldName = $row.field_name;
-        const fieldType = $row.field_type;
-        const previousType = $row.previous_type;
-        const isAnalyzed = $row.is_analyzed;
-        const isCaseSensitive = $row.is_case_sensitive;
-        const participleState = $row.participleState;
-        const tokenizeOnChars = $row.tokenize_on_chars;
-        if (val !== 'string') {
-          const assignObj = {
-            is_analyzed: false,
-            participleState: 'default',
-            tokenize_on_chars: '',
-            is_case_sensitive: false,
-          };
-          Object.assign(this.changeTableList[$index], assignObj);
-        }
-        if (fieldType && this.curCollect.table_id) {
-          const row = this.fields.find(item => item.field_name === fieldName);
-          if (row?.field_type && row.field_type !== val) {
-            const h = this.$createElement;
-            this.$bkInfo({
-              // title: '修改',
-              // subTitle: '修改类型后，会影响到之前采集的数据',
-              subHeader: h(
-                'p',
-                {
-                  style: {
-                    whiteSpace: 'normal',
-                  },
+        this.validateInput(item);
+      });
+      this.formData.tableList.splice(0, this.formData.tableList.length, ...arr);
+    },
+    resetField() {
+      this.$emit('reset');
+    },
+    batchAddField() {
+      const indexSetList = this.$store.state.retrieve.indexSetList;
+      const indexSetId = this.$route.params?.indexId;
+      const currentIndexSet = indexSetList.find(item => `${item.index_set_id}` == indexSetId);
+
+      if (!this.collectorConfigId) return;
+      const newURL = this.$router.resolve({
+        name: 'clean-edit',
+        params: {
+          collectorId: this.collectorConfigId,
+        },
+        query: {
+          spaceUid: currentIndexSet?.space_uid,
+        },
+      });
+      window.open(newURL.href, '_blank');
+    },
+    // 当前字段类型是否禁用
+    isTypeDisabled(row, option) {
+      if (row.verdict) {
+        // 不是数值，相关数值类型选项被禁用
+        return ['int', 'long', 'double', 'float'].includes(option.id);
+      }
+      // 是数值，如果值大于 2147483647 即 2^31 - 1，int 选项被禁用
+      return option.id === 'int' && row.value > 2147483647;
+    },
+    fieldTypeSelect(val, $row, $index) {
+      const fieldName = $row.field_name;
+      const fieldType = $row.field_type;
+      const previousType = $row.previous_type;
+      const isAnalyzed = $row.is_analyzed;
+      const isCaseSensitive = $row.is_case_sensitive;
+      const participleState = $row.participleState;
+      const tokenizeOnChars = $row.tokenize_on_chars;
+      if (val !== 'string') {
+        const assignObj = {
+          is_analyzed: false,
+          participleState: 'default',
+          tokenize_on_chars: '',
+          is_case_sensitive: false,
+        };
+        Object.assign(this.changeTableList[$index], assignObj);
+      }
+      if (fieldType && this.curCollect.table_id) {
+        const row = this.fields.find(item => item.field_name === fieldName);
+        if (row?.field_type && row.field_type !== val) {
+          const h = this.$createElement;
+          this.$bkInfo({
+            // title: '修改',
+            // subTitle: '修改类型后，会影响到之前采集的数据',
+            subHeader: h(
+              'p',
+              {
+                style: {
+                  whiteSpace: 'normal',
                 },
-                this.$t('更改字段类型后在同时检索新老数据时可能会出现异常，确认请继续'),
-              ),
-              type: 'warning',
-              confirmFn: () => {
-                this.changeTableList[$index].field_type = val;
-                this.changeTableList[$index].previousType = val;
-                this.checkTypeItem($row);
               },
-              cancelFn: () => {
-                const assignObj = {
-                  field_type: previousType,
-                  is_analyzed: isAnalyzed,
-                  participleState,
-                  tokenize_on_chars: tokenizeOnChars,
-                  is_case_sensitive: isCaseSensitive,
-                };
-                Object.assign(this.changeTableList[$index], assignObj);
-                this.checkTypeItem($row);
-              },
-            });
-            return false;
-          }
-        } else {
-          this.changeTableList[$index].field_type = val;
+              this.$t('更改字段类型后在同时检索新老数据时可能会出现异常，确认请继续')
+            ),
+            type: 'warning',
+            confirmFn: () => {
+              this.changeTableList[$index].field_type = val;
+              this.changeTableList[$index].previousType = val;
+              this.checkTypeItem($row);
+            },
+            cancelFn: () => {
+              const assignObj = {
+                field_type: previousType,
+                is_analyzed: isAnalyzed,
+                participleState,
+                tokenize_on_chars: tokenizeOnChars,
+                is_case_sensitive: isCaseSensitive,
+              };
+              Object.assign(this.changeTableList[$index], assignObj);
+              this.checkTypeItem($row);
+            },
+          });
+          return false;
         }
-        this.checkTypeItem($row);
-      },
-      handlePopover(row) {
-        this.currentParticipleState = row.participleState;
-        this.currentIsCaseSensitive = row.is_case_sensitive;
-        this.currentTokenizeOnChars = row.tokenize_on_chars;
-        this.currentIsAnalyzed = row.is_analyzed;
-      },
-      handleConfirmParticiple(row) {
-        this.$set(row, 'is_analyzed', this.currentIsAnalyzed);
-        this.$set(row, 'is_case_sensitive', this.currentIsCaseSensitive);
-        this.$set(row, 'tokenize_on_chars', this.currentTokenizeOnChars);
-        this.$set(row, 'participleState', this.currentParticipleState);
-      },
-      handelChangeAnalyzed() {
-        if (!this.currentIsAnalyzed) {
-          this.currentIsCaseSensitive = false;
-          this.currentTokenizeOnChars = '';
-          this.currentParticipleState = 'default';
+      } else {
+        this.changeTableList[$index].field_type = val;
+      }
+      this.checkTypeItem($row);
+    },
+    handlePopover(row) {
+      this.currentParticipleState = row.participleState;
+      this.currentIsCaseSensitive = row.is_case_sensitive;
+      this.currentTokenizeOnChars = row.tokenize_on_chars;
+      this.currentIsAnalyzed = row.is_analyzed;
+    },
+    handleConfirmParticiple(row) {
+      this.$set(row, 'is_analyzed', this.currentIsAnalyzed);
+      this.$set(row, 'is_case_sensitive', this.currentIsCaseSensitive);
+      this.$set(row, 'tokenize_on_chars', this.currentTokenizeOnChars);
+      this.$set(row, 'participleState', this.currentParticipleState);
+    },
+    handelChangeAnalyzed() {
+      if (!this.currentIsAnalyzed) {
+        this.currentIsCaseSensitive = false;
+        this.currentTokenizeOnChars = '';
+        this.currentParticipleState = 'default';
+      }
+    },
+    handleChangeParticipleState(state) {
+      this.currentParticipleState = state;
+      this.currentTokenizeOnChars = state === 'custom' ? this.originalTextTokenizeOnChars : '';
+    },
+    judgeNumber(value) {
+      if (value === 0) return false;
+
+      return value && value !== ' ' ? isNaN(value) : true;
+    },
+    getData() {
+      const data = cloneDeep(this.changeTableList);
+
+      data.forEach(item => {
+        if (item.hasOwnProperty('fieldErr')) {
+          delete item.fieldErr;
         }
-      },
-      handleChangeParticipleState(state) {
-        this.currentParticipleState = state;
-        this.currentTokenizeOnChars = state === 'custom' ? this.originalTextTokenizeOnChars : '';
-      },
-      judgeNumber(value) {
-        if (value === 0) return false;
+        if (item.hasOwnProperty('aliasErr')) {
+          delete item.aliasErr;
+        }
 
-        return value && value !== ' ' ? isNaN(value) : true;
-      },
-      getData() {
-        const data = cloneDeep(this.changeTableList);
+        if (item.hasOwnProperty('typeErr')) {
+          delete item.typeErr;
+        }
+      });
+      return data;
+    },
+    getAllData() {
+      const data = cloneDeep(this.tableAllList);
+      data.forEach(field => {
+        if (field.hasOwnProperty('expand')) {
+          if (field.expand === false) {
+            data.push(...field.children);
+          }
+        }
+      });
+      data.forEach(item => {
+        if (item.hasOwnProperty('fieldErr')) {
+          delete item.fieldErr;
+        }
 
-        data.forEach(item => {
-          if (item.hasOwnProperty('fieldErr')) {
-            delete item.fieldErr;
-          }
-          if (item.hasOwnProperty('aliasErr')) {
-            delete item.aliasErr;
-          }
+        if (item.hasOwnProperty('aliasErr')) {
+          delete item.aliasErr;
+        }
 
-          if (item.hasOwnProperty('typeErr')) {
-            delete item.typeErr;
-          }
-        });
-        return data;
-      },
-      getAllData() {
-        const data = cloneDeep(this.tableAllList);
-        data.forEach(field => {
-          if (field.hasOwnProperty('expand')) {
-            if (field.expand === false) {
-              data.push(...field.children)
-            } 
-          }
-        })
-        data.forEach(item => {
-          if (item.hasOwnProperty('fieldErr')) {
-            delete item.fieldErr;
-          }
-
-          if (item.hasOwnProperty('aliasErr')) {
-            delete item.aliasErr;
-          }
-
-          if (item.hasOwnProperty('typeErr')) {
-            delete item.typeErr;
-          }
-        });
-        return data;
-      },
-      // checkFieldNameFormat (val) {
-      //     return /^(?!_)(?!.*?_$)^[A-Za-z0-9_]+$/ig.test(val)
-      // },
-      // checkFieldName (val) {
-      //     return this.extractMethod === 'bk_log_json' ?
-      //             true : !this.globalsData.field_built_in.find(item => item.id === val.toLocaleLowerCase())
-      // },
-      checkTypeItem(row) {
-        row.typeErr = row.is_delete ? false : !row.field_type;
-        return !row.typeErr;
-      },
-      checkType() {
-        return new Promise((resolve, reject) => {
-          try {
-            let result = true;
-            this.formData.tableList.forEach(row => {
-              if (!this.checkTypeItem(row)) {
-                result = false;
-              }
-            });
-            if (result) {
-              resolve();
-            } else {
-              console.warn('Type校验错误');
-              reject(result);
+        if (item.hasOwnProperty('typeErr')) {
+          delete item.typeErr;
+        }
+      });
+      return data;
+    },
+    // checkFieldNameFormat (val) {
+    //     return /^(?!_)(?!.*?_$)^[A-Za-z0-9_]+$/ig.test(val)
+    // },
+    // checkFieldName (val) {
+    //     return this.extractMethod === 'bk_log_json' ?
+    //             true : !this.globalsData.field_built_in.find(item => item.id === val.toLocaleLowerCase())
+    // },
+    checkTypeItem(row) {
+      row.typeErr = row.is_delete ? false : !row.field_type;
+      return !row.typeErr;
+    },
+    checkType() {
+      return new Promise((resolve, reject) => {
+        try {
+          let result = true;
+          this.formData.tableList.forEach(row => {
+            if (!this.checkTypeItem(row)) {
+              result = false;
             }
-          } catch (err) {
-            console.warn('Type校验错误');
-            reject(err);
-          }
-        });
-      },
-      checkFieldNameItem(row) {
-        const { field_name, is_delete, field_index, is_built_in, alias_name } = row;
-        let result = '';
-        if (!is_delete && !is_built_in && !alias_name) {
-          if (!field_name) {
-            result = this.$t('必填项');
-          } else if (this.extractMethod !== 'bk_log_json' && !/^(?!_)(?!.*?_$)^[A-Za-z0-9_]+$/gi.test(field_name)) {
-            result = this.$t('只能包含a-z、A-Z、0-9和_，且不能以_开头和结尾');
-          } else if (
-            this.extractMethod !== 'bk_log_json' &&
-            this.globalsData.field_built_in.find(item => item.id === field_name.toLocaleLowerCase())
-          ) {
-            result =
-              this.extractMethod === 'bk_log_regexp'
-                ? this.$t('字段名与系统字段重复，必须修改正则表达式')
-                : this.$t('字段名与系统内置字段重复');
-          } else if (this.extractMethod === 'bk_log_delimiter' || this.selectEtlConfig === 'bk_log_json') {
-            result = this.filedNameIsConflict(field_index, field_name) ? this.$t('字段名称冲突, 请调整') : '';
+          });
+          if (result) {
+            resolve();
           } else {
-            result = '';
+            console.warn('Type校验错误');
+            reject(result);
           }
+        } catch (err) {
+          console.warn('Type校验错误');
+          reject(err);
+        }
+      });
+    },
+    checkFieldNameItem(row) {
+      const { field_name, is_delete, field_index, is_built_in, alias_name } = row;
+      let result = '';
+      if (!is_delete && !is_built_in && !alias_name) {
+        if (!field_name) {
+          result = this.$t('必填项');
+        } else if (this.extractMethod !== 'bk_log_json' && !/^(?!_)(?!.*?_$)^[A-Za-z0-9_]+$/gi.test(field_name)) {
+          result = this.$t('只能包含a-z、A-Z、0-9和_，且不能以_开头和结尾');
+        } else if (
+          this.extractMethod !== 'bk_log_json' &&
+          this.globalsData.field_built_in.find(item => item.id === field_name.toLocaleLowerCase())
+        ) {
+          result =
+            this.extractMethod === 'bk_log_regexp'
+              ? this.$t('字段名与系统字段重复，必须修改正则表达式')
+              : this.$t('字段名与系统内置字段重复');
+        } else if (this.extractMethod === 'bk_log_delimiter' || this.selectEtlConfig === 'bk_log_json') {
+          result = this.filedNameIsConflict(field_index, field_name) ? this.$t('字段名称冲突, 请调整') : '';
         } else {
           result = '';
         }
-        row.fieldErr = result;
-        this.$emit('handle-table-data', this.changeTableList);
-        return result;
-      },
-      checkFieldName() {
-        return new Promise((resolve, reject) => {
-          try {
-            let result = true;
-            this.formData.tableList.forEach(row => {
-              // 如果有重命名，不判断字段名，判断重命名，如果为内置字段不判断
-              if (!row.is_built_in) {
-                const hasAliasNameIssue = row.alias_name && !this.checkAliasNameItem(row);
-                const hasFieldNameIssue = this.checkFieldNameItem(row);
-                if (hasAliasNameIssue || hasFieldNameIssue) {
-                  result = false;
-                }
-              }
-            });
-            if (result) {
-              resolve();
-            } else {
-              console.warn('FieldName校验错误');
-              reject(result);
-            }
-          } catch (err) {
-            console.warn('FieldName校验错误');
-            reject(err);
-          }
-        });
-      },
-      checkAliasNameItem(row) {
-        const { field_name: fieldName, alias_name: aliasName, is_delete: isDelete } = row;
-        if (isDelete) {
-          return true;
-        }
-        if (aliasName) {
-          // 设置了重命名
-          if (!/^[A-Za-z0-9_]+$/g.test(aliasName)) {
-            row.fieldErr = this.$t('重命名只能包含a-z、A-Z、0-9和_');
-            return false;
-          }else if (aliasName === fieldName) {
-            row.fieldErr = this.$t('重命名与字段名重复');
-          }
-          if (this.globalsData.field_built_in.find(item => item.id === aliasName.toLocaleLowerCase())&&this.tableType !== 'originLog') {
-            row.fieldErr = this.$t('重命名不能与内置字段名相同');
-            return false;
-          }
-        } 
-
-        row.fieldErr = '';
-        return true;
-      },
-      checkAliasName() {
-        return new Promise((resolve, reject) => {
-          try {
-            let result = true;
-            this.formData.tableList.forEach(row => {
-              if (!row.is_built_in && !this.checkAliasNameItem(row)) {
+      } else {
+        result = '';
+      }
+      row.fieldErr = result;
+      this.$emit('handle-table-data', this.changeTableList);
+      return result;
+    },
+    checkFieldName() {
+      return new Promise((resolve, reject) => {
+        try {
+          let result = true;
+          this.formData.tableList.forEach(row => {
+            // 如果有重命名，不判断字段名，判断重命名，如果为内置字段不判断
+            if (!row.is_built_in) {
+              const hasAliasNameIssue = row.alias_name && !this.checkAliasNameItem(row);
+              const hasFieldNameIssue = this.checkFieldNameItem(row);
+              if (hasAliasNameIssue || hasFieldNameIssue) {
                 result = false;
               }
-            });
-            if (result) {
-              resolve();
-            } else {
-              console.warn('AliasName校验错误');
-              reject(result);
             }
-          } catch (err) {
-            console.warn('AliasName校验错误');
-            reject(err);
+          });
+          if (result) {
+            resolve();
+          } else {
+            console.warn('FieldName校验错误');
+            reject(result);
           }
-        });
-      },
-      checkQueryAliasItem(row) {
-        const { field_name: fieldName, query_alias: queryAlias, alias_name: aliasName, is_delete: isDelete } = row;
-        if (isDelete) {
-          return true;
+        } catch (err) {
+          console.warn('FieldName校验错误');
+          reject(err);
         }
-        this.$set(row, 'aliasErr', '');
-        if (queryAlias) {
-          // 设置了别名
-          if (!/^(?!^\d)[\w]+$/gi.test(queryAlias)) {
-            row.aliasErr = this.$t('别名只支持【英文、数字、下划线】，并且不能以数字开头');
-            return false;
-          }else if (queryAlias === fieldName) {
-            row.aliasErr = this.$t('别名与字段名重复');
-            return false;
-          }else if (queryAlias === aliasName) {
-            row.aliasErr = this.$t('别名与重命名重复');
-            return false;
-          }
-          if (this.globalsData.field_built_in.find(item => item.id === queryAlias.toLocaleLowerCase())) {
-            row.aliasErr = this.$t('别名不能与内置字段名相同');
-            return false;
-          }
-        } else if (this.globalsData.field_built_in.find(item => item.id === fieldName.toLocaleLowerCase())) {
-          if(row.alias_name || row.is_built_in){
-            row.aliasErr = '';
-            return true
-          }
-          row.aliasErr = this.$t('字段名与内置字段冲突，必须设置别名');
+      });
+    },
+    checkAliasNameItem(row) {
+      const { field_name: fieldName, alias_name: aliasName, is_delete: isDelete } = row;
+      if (isDelete) {
+        return true;
+      }
+      if (aliasName) {
+        // 设置了重命名
+        if (!/^[A-Za-z0-9_]+$/g.test(aliasName)) {
+          row.fieldErr = this.$t('重命名只能包含a-z、A-Z、0-9和_');
+          return false;
+        } else if (aliasName === fieldName) {
+          row.fieldErr = this.$t('重命名与字段名重复');
+        }
+        if (
+          this.globalsData.field_built_in.find(item => item.id === aliasName.toLocaleLowerCase()) &&
+          this.tableType !== 'originLog'
+        ) {
+          row.fieldErr = this.$t('重命名不能与内置字段名相同');
           return false;
         }
-        row.aliasErr = '';
-        return true;
-      },
-      checkQueryAlias() {
-        return new Promise((resolve, reject) => {
-          try {
-            let result = true;
-            const data = this.getAllData();
-            data.forEach(row => {
-              if (!this.checkQueryAliasItem(row)) {
-                result = false;
-              }
-            });
+      }
 
-            if (result) {
-              resolve();
-            } else {
-              console.warn('QueryAlias校验错误');
-              reject(result);
+      row.fieldErr = '';
+      return true;
+    },
+    checkAliasName() {
+      return new Promise((resolve, reject) => {
+        try {
+          let result = true;
+          this.formData.tableList.forEach(row => {
+            if (!row.is_built_in && !this.checkAliasNameItem(row)) {
+              result = false;
             }
-          } catch (err) {
-            console.warn('QueryAlias校验错误');
-            reject(err);
-          }
-        });
-      },
-      validateFieldTable() {
-        const promises = [];
-        promises.push(this.checkAliasName());
-        promises.push(this.checkFieldName());
-        promises.push(this.checkQueryAlias());
-        promises.push(this.checkType());
-        return promises;
-      },
-      // visibleHandle() {
-      //   if (this.isSettingDisable) return;
-      // },
-      handleKeepLog(value) {
-        this.$emit('handle-keep-log', value);
-      },
-      handleKeepField(value) {
-        this.$emit('handle-keep-field', value);
-      },
-      renderHeaderFieldName(h) {
-        return h(
-          'div',
-          {
-            class: 'render-header',
-          },
-          [h('span', { directives: [{ name: 'bk-overflow-tips' }], class: 'title-overflow' }, [this.$t('字段名')])],
-        );
-      },
-      renderHeaderAliasName(h) {
-        return h(
-          'div',
-          {
-            directives: [
-              {
-                name: 'bk-tooltips',
-                value: this.$t('填写后原字段名和别名均可查询'),
-              },
-            ],
-            class: 'render-header decoration-header-cell',
-          },
-          [
-            h(
-              'span',
-              {
-                class: 'title-overflow',
-              },
-              [this.$t('别名')],
-            ),
-            h('span', this.$t('(选填)')),
-          ],
-        );
-      },
-      renderHeaderDataType(h) {
-        return h(
-          'div',
-          {
-            class: 'render-header',
-          },
-          [h('span', { directives: [{ name: 'bk-overflow-tips' }], class: 'title-overflow' }, [this.$t('数据类型')])],
-        );
-      },
-      renderHeaderParticipleName(h) {
-        return h(
-          'span',
-          {
-            class: 'render-header decoration-header-cell',
-            directives: [
-              {
-                name: 'bk-tooltips',
-                value: this.$t('选中分词,适用于分词检索,不能用于指标和维度'),
-              },
-            ],
-          },
-          [
-            h(
-              'span',
-              {
-                class: 'render-Participle title-overflow',
-                directives: [{ name: 'bk-overflow-tips' }],
-              },
-              [this.$t('分词符')],
-            ),
-          ],
-        );
-      },
-      filedNameIsConflict(fieldIndex, fieldName) {
-        const otherFieldNameList = this.formData.tableList.filter(item => item.field_index !== fieldIndex);
-        return otherFieldNameList.some(item => item.field_name === fieldName);
-      },
-      /** 当前字段是否禁用 */
-      getFieldEditDisabled(row) {
-        if (row?.is_delete) return true;
-        if (this.selectEtlConfig === 'bk_log_json') return false;
-        return this.extractMethod !== 'bk_log_delimiter' || this.isSetDisabled;
-      },
-      /**
-       * @desc: 判断当前分词符或者分词符有关的子项是否禁用
-       * @param {Any} row 字段信息
-       * @param {String} type 是分词还是分词有关的子项
-       * @returns {Boolean}
-       */
-      getCustomizeDisabled(row, type = 'analyzed-item') {
-        const { is_delete: isDelete, field_type: fieldType } = row;
-        let atLastAnalyzed = this.currentIsAnalyzed;
-        if (type === 'analyzed') {
-          // 原始日志表格分词禁用
-          if (this.tableType === 'originLog') {
-            atLastAnalyzed = false;
+          });
+          if (result) {
+            resolve();
           } else {
-            atLastAnalyzed = true;
+            console.warn('AliasName校验错误');
+            reject(result);
           }
+        } catch (err) {
+          console.warn('AliasName校验错误');
+          reject(err);
         }
-        return (
-          (this.isPreviewMode && !row.is_edit) ||
-          isDelete ||
-          fieldType !== 'string' ||
-          !atLastAnalyzed ||
-          this.isSetDisabled
-        );
-      },
-      // isShowFieldDateIcon(row) {
-      //   return ['string', 'int', 'long'].includes(row.field_type);
-      // },
-      expandObject(row, show){
-        row.expand = show;
-        const index = this.changeTableList.findIndex(item => item.field_name === row.field_name);
-        if (show) {
-            if (index !== -1) {
-              this.changeTableList.splice(index + 1, 0, ...row.children);
-            }
-        } else {
-            if (index !== -1) {
-              const childrenCount = row.children.length;
-              this.changeTableList.splice(index + 1, childrenCount);
-            }
+      });
+    },
+    checkQueryAliasItem(row) {
+      const { field_name: fieldName, query_alias: queryAlias, alias_name: aliasName, is_delete: isDelete } = row;
+      if (isDelete) {
+        return true;
+      }
+      this.$set(row, 'aliasErr', '');
+      if (queryAlias) {
+        // 设置了别名
+        if (!/^(?!^\d)[\w]+$/gi.test(queryAlias)) {
+          row.aliasErr = this.$t('别名只支持【英文、数字、下划线】，并且不能以数字开头');
+          return false;
+        } else if (queryAlias === fieldName) {
+          row.aliasErr = this.$t('别名与字段名重复');
+          return false;
+        } else if (queryAlias === aliasName) {
+          row.aliasErr = this.$t('别名与重命名重复');
+          return false;
         }
-      },
-      addObject(){
-        const fieldsObjectData = cloneDeep(this.$store.state.indexFieldInfo.fields.filter(item => item.field_name.includes('.')))
-        fieldsObjectData.forEach(item => {
-          let name = item.field_name?.split('.')[0].replace(/^_+|_+$/g, '');
-          item.is_objectKey = true
-          this.tableAllList.forEach( builtField => {
-            if(builtField.field_type === "object" && name === builtField.field_name?.split('.')[0]){
-              if (!Array.isArray(builtField.children)) {
-                builtField.children = [];
-                this.$set(builtField, 'expand', false);
-              }
-              builtField.children.push(item);
-            }
-          } )
-        })
-      },
-      aliasShow(row){
-        if (row.is_built_in) {
+        if (this.globalsData.field_built_in.find(item => item.id === queryAlias.toLocaleLowerCase())) {
+          row.aliasErr = this.$t('别名不能与内置字段名相同');
+          return false;
+        }
+      } else if (this.globalsData.field_built_in.find(item => item.id === fieldName.toLocaleLowerCase())) {
+        if (row.alias_name || row.is_built_in) {
+          row.aliasErr = '';
           return true;
         }
-        return !row.alias_name
-      },
-      validateInput(row) {
-        if(!row.field_name ){
-          return
-        }
-        const quotedPattern = /^".*"$/;
-        // 定义正则，用于检测字段名称的合法性
-        const validFieldPattern = /^[A-Za-z_][0-9A-Za-z_]*$/;
-
-        if (!quotedPattern.test(row.field_name)) {
-          // 如果未被引号包裹
-          if (!validFieldPattern.test(row.field_name)) {
-            // 且不符合字段名称的合法性
-            row.field_name = `"${row.field_name}"`; // 则添加引号
-          }
-        }
-    }
+        row.aliasErr = this.$t('字段名与内置字段冲突，必须设置别名');
+        return false;
+      }
+      row.aliasErr = '';
+      return true;
     },
-  };
+    checkQueryAlias() {
+      return new Promise((resolve, reject) => {
+        try {
+          let result = true;
+          const data = this.getAllData();
+          data.forEach(row => {
+            if (!this.checkQueryAliasItem(row)) {
+              result = false;
+            }
+          });
+
+          if (result) {
+            resolve();
+          } else {
+            console.warn('QueryAlias校验错误');
+            reject(result);
+          }
+        } catch (err) {
+          console.warn('QueryAlias校验错误');
+          reject(err);
+        }
+      });
+    },
+    validateFieldTable() {
+      const promises = [];
+      promises.push(this.checkAliasName());
+      promises.push(this.checkFieldName());
+      promises.push(this.checkQueryAlias());
+      promises.push(this.checkType());
+      return promises;
+    },
+    // visibleHandle() {
+    //   if (this.isSettingDisable) return;
+    // },
+    handleKeepLog(value) {
+      this.$emit('handle-keep-log', value);
+    },
+    handleKeepField(value) {
+      this.$emit('handle-keep-field', value);
+    },
+    renderHeaderFieldName(h) {
+      return h(
+        'div',
+        {
+          class: 'render-header',
+        },
+        [h('span', { directives: [{ name: 'bk-overflow-tips' }], class: 'title-overflow' }, [this.$t('字段名')])]
+      );
+    },
+    renderHeaderAliasName(h) {
+      return h(
+        'div',
+        {
+          directives: [
+            {
+              name: 'bk-tooltips',
+              value: this.$t('填写后原字段名和别名均可查询'),
+            },
+          ],
+          class: 'render-header decoration-header-cell',
+        },
+        [
+          h(
+            'span',
+            {
+              class: 'title-overflow',
+            },
+            [this.$t('别名')]
+          ),
+          h('span', this.$t('(选填)')),
+        ]
+      );
+    },
+    renderHeaderDataType(h) {
+      return h(
+        'div',
+        {
+          class: 'render-header',
+        },
+        [h('span', { directives: [{ name: 'bk-overflow-tips' }], class: 'title-overflow' }, [this.$t('数据类型')])]
+      );
+    },
+    renderHeaderParticipleName(h) {
+      return h(
+        'span',
+        {
+          class: 'render-header decoration-header-cell',
+          directives: [
+            {
+              name: 'bk-tooltips',
+              value: this.$t('选中分词,适用于分词检索,不能用于指标和维度'),
+            },
+          ],
+        },
+        [
+          h(
+            'span',
+            {
+              class: 'render-Participle title-overflow',
+              directives: [{ name: 'bk-overflow-tips' }],
+            },
+            [this.$t('分词符')]
+          ),
+        ]
+      );
+    },
+    filedNameIsConflict(fieldIndex, fieldName) {
+      const otherFieldNameList = this.formData.tableList.filter(item => item.field_index !== fieldIndex);
+      return otherFieldNameList.some(item => item.field_name === fieldName);
+    },
+    /** 当前字段是否禁用 */
+    getFieldEditDisabled(row) {
+      if (row?.is_delete) return true;
+      if (this.selectEtlConfig === 'bk_log_json') return false;
+      return this.extractMethod !== 'bk_log_delimiter' || this.isSetDisabled;
+    },
+    /**
+     * @desc: 判断当前分词符或者分词符有关的子项是否禁用
+     * @param {Any} row 字段信息
+     * @param {String} type 是分词还是分词有关的子项
+     * @returns {Boolean}
+     */
+    getCustomizeDisabled(row, type = 'analyzed-item') {
+      const { is_delete: isDelete, field_type: fieldType } = row;
+      let atLastAnalyzed = this.currentIsAnalyzed;
+      if (type === 'analyzed') {
+        // 原始日志表格分词禁用
+        if (this.tableType === 'originLog') {
+          atLastAnalyzed = false;
+        } else {
+          atLastAnalyzed = true;
+        }
+      }
+      return (
+        (this.isPreviewMode && !row.is_edit) ||
+        isDelete ||
+        fieldType !== 'string' ||
+        !atLastAnalyzed ||
+        this.isSetDisabled
+      );
+    },
+    // isShowFieldDateIcon(row) {
+    //   return ['string', 'int', 'long'].includes(row.field_type);
+    // },
+    expandObject(row, show) {
+      row.expand = show;
+      const index = this.changeTableList.findIndex(item => item.field_name === row.field_name);
+      if (show) {
+        if (index !== -1) {
+          this.changeTableList.splice(index + 1, 0, ...row.children);
+        }
+      } else {
+        if (index !== -1) {
+          const childrenCount = row.children.length;
+          this.changeTableList.splice(index + 1, childrenCount);
+        }
+      }
+    },
+    addObject() {
+      const fieldsObjectData = cloneDeep(
+        this.$store.state.indexFieldInfo.fields.filter(item => item.field_name.includes('.'))
+      );
+      fieldsObjectData.forEach(item => {
+        let name = item.field_name?.split('.')[0].replace(/^_+|_+$/g, '');
+        item.is_objectKey = true;
+        this.tableAllList.forEach(builtField => {
+          if (builtField.field_type === 'object' && name === builtField.field_name?.split('.')[0]) {
+            if (!Array.isArray(builtField.children)) {
+              builtField.children = [];
+              this.$set(builtField, 'expand', false);
+            }
+            builtField.children.push(item);
+          }
+        });
+      });
+    },
+    aliasShow(row) {
+      if (row.is_built_in) {
+        return true;
+      }
+      return !row.alias_name;
+    },
+    validateInput(row) {
+      if (!row.field_name) {
+        return;
+      }
+      const quotedPattern = /^".*"$/;
+      // 定义正则，用于检测字段名称的合法性
+      const validFieldPattern = /^[A-Za-z_][0-9A-Za-z_]*$/;
+
+      if (!quotedPattern.test(row.field_name)) {
+        // 如果未被引号包裹
+        if (!validFieldPattern.test(row.field_name)) {
+          // 且不符合字段名称的合法性
+          row.field_name = `"${row.field_name}"`; // 则添加引号
+        }
+      }
+    },
+  },
+};
 </script>
 <style lang="scss" scoped>
   @import '@/scss/mixins/clearfix';

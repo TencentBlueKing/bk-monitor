@@ -45,74 +45,74 @@
 </template>
 
 <script>
-  import JsonFormatter from '@/global/json-formatter.vue';
-  import { mapState } from 'vuex';
-  import { formatDate, formatDateNanos } from '@/common/util';
-  import { BK_LOG_STORAGE } from '@/store/store.type';
+import JsonFormatter from '@/global/json-formatter.vue';
+import { mapState } from 'vuex';
+import { formatDate, formatDateNanos } from '@/common/util';
+import { BK_LOG_STORAGE } from '@/store/store.type';
 
-  import TextSegmentation from './text-segmentation';
-  export default {
-    components: {
-      TextSegmentation,
-      JsonFormatter,
+import TextSegmentation from './text-segmentation';
+export default {
+  components: {
+    TextSegmentation,
+    JsonFormatter,
+  },
+  props: {
+    formatJson: {
+      type: Boolean,
+      default: false,
     },
-    props: {
-      formatJson: {
-        type: Boolean,
-        default: false,
-      },
-      content: {
-        type: [String, Number, Boolean],
-        required: true,
-      },
-
-      field: {
-        type: Object,
-        required: true,
-      },
-      row: {
-        type: Object,
-      },
+    content: {
+      type: [String, Number, Boolean],
+      required: true,
     },
-    data() {
-      return {
-        isInViewPort: false,
-      };
+
+    field: {
+      type: Object,
+      required: true,
     },
-    computed: {
-      ...mapState({
-        tableLineIsWrap: state => state.storage[BK_LOG_STORAGE.TABLE_LINE_IS_WRAP],
-        isFormatDateField: state => state.isFormatDate,
-      }),
+    row: {
+      type: Object,
+    },
+  },
+  data() {
+    return {
+      isInViewPort: false,
+    };
+  },
+  computed: {
+    ...mapState({
+      tableLineIsWrap: state => state.storage[BK_LOG_STORAGE.TABLE_LINE_IS_WRAP],
+      isFormatDateField: state => state.isFormatDate,
+    }),
 
-      isJsonFormat() {
-        return this.formatJson && /^\[|\{/.test(this.content);
-      },
+    isJsonFormat() {
+      return this.formatJson && /^\[|\{/.test(this.content);
+    },
 
-      formatContent() {
-        if (this.isFormatDateField) {
-          if (this.field.field_type === 'date') {
-            return formatDate(Number(this.content)) || this.content || '--';
-          }
-
-          // 处理纳秒精度的UTC时间格式
-          if (this.field.field_type === 'date_nanos') {
-            return formatDateNanos(this.content) || '--';
-          }
+    formatContent() {
+      if (this.isFormatDateField) {
+        if (this.field.field_type === 'date') {
+          return formatDate(Number(this.content)) || this.content || '--';
         }
-        return this.content;
-      },
+
+        // 处理纳秒精度的UTC时间格式
+        if (this.field.field_type === 'date_nanos') {
+          return formatDateNanos(this.content) || '--';
+        }
+      }
+      return this.content;
     },
-    methods: {
-      handleJsonSegmentClick({ isLink, option }) {
-        // 为了兼容旧的逻辑，先这么写吧
-        // 找时间梳理下这块，写的太随意了
-        const { depth, operation, value, isNestedField } = option;
-        const operator = operation === 'not' ? 'is not' : operation;
-        this.$emit('icon-click', operator, value, isLink, depth, isNestedField); // type, content, field, row, isLink
-      },
+  },
+  methods: {
+    handleJsonSegmentClick({ isLink, option }) {
+      // 为了兼容旧的逻辑，先这么写吧
+      // 找时间梳理下这块，写的太随意了
+      const { depth, operation, value, isNestedField } = option;
+      const operator = operation === 'not' ? 'is not' : operation;
+      this.$emit('icon-click', operator, value, isLink, depth, isNestedField); // type, content, field, row, isLink
     },
-  };
+  },
+};
 </script>
 
 <style lang="scss" scoped>

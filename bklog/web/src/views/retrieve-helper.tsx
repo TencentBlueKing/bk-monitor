@@ -128,7 +128,7 @@ class RetrieveHelper extends RetrieveBase {
           textReg: new RegExp(`^${keyword}$`, caseSensitive ? '' : 'i'),
         };
       }),
-      reset,
+      reset
     );
   }
 

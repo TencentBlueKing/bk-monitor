@@ -75,37 +75,37 @@
 </template>
 
 <script>
-  import { mapGetters } from 'vuex';
+import { mapGetters } from 'vuex';
 
-  export default {
-    computed: {
-      ...mapGetters({
-        space: 'space',
-      }),
+export default {
+  computed: {
+    ...mapGetters({
+      space: 'space',
+    }),
+  },
+  methods: {
+    goToCreateIndex() {
+      this.$router.push({
+        path: '/manage/log-collection/log-index-set',
+        query: {
+          spaceUid: this.$store.state.spaceUid,
+        },
+      });
     },
-    methods: {
-      goToCreateIndex() {
+    goToCreateCollection() {
+      if (window.FEATURE_TOGGLE.scenario_log === 'on') {
         this.$router.push({
-          path: '/manage/log-collection/log-index-set',
+          path: '/manage/log-collection',
           query: {
             spaceUid: this.$store.state.spaceUid,
           },
         });
-      },
-      goToCreateCollection() {
-        if (window.FEATURE_TOGGLE.scenario_log === 'on') {
-          this.$router.push({
-            path: '/manage/log-collection',
-            query: {
-              spaceUid: this.$store.state.spaceUid,
-            },
-          });
-        } else {
-          window.open(window.BKDATA_URL);
-        }
-      },
+      } else {
+        window.open(window.BKDATA_URL);
+      }
     },
-  };
+  },
+};
 </script>
 
 <style scoped lang="scss">

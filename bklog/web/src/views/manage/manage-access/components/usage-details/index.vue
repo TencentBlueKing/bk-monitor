@@ -121,170 +121,170 @@
 </template>
 
 <script>
-  import EmptyStatus from '@/components/empty-status';
-  import TimeRange from '@/components/time-range/time-range';
-  import { handleTransformToTimestamp } from '@/components/time-range/utils';
-  import dayjs from 'dayjs';
+import EmptyStatus from '@/components/empty-status';
+import TimeRange from '@/components/time-range/time-range';
+import { handleTransformToTimestamp } from '@/components/time-range/utils';
+import dayjs from 'dayjs';
 
-  import { utcFormatDate } from '../../../../../common/util';
-  import { updateTimezone } from '../../../../../language/dayjs';
-  import ChartComponent from './chart-component';
+import { utcFormatDate } from '../../../../../common/util';
+import { updateTimezone } from '../../../../../language/dayjs';
+import ChartComponent from './chart-component';
 
-  export default {
-    components: {
-      ChartComponent,
-      TimeRange,
-      EmptyStatus,
+export default {
+  components: {
+    ChartComponent,
+    TimeRange,
+    EmptyStatus,
+  },
+  props: {
+    indexSetId: {
+      type: [String, Number],
+      required: true,
     },
-    props: {
-      indexSetId: {
-        type: [String, Number],
-        required: true,
+  },
+  data() {
+    return {
+      utcFormatDate,
+      timesChartLoading: true,
+      timesChartData: null,
+      frequencyChartLoading: true,
+      frequencyChartData: null,
+      spentChartLoading: true,
+      spentChartData: null,
+      chartDateValue: ['now-7d', 'now'],
+      tableLoading: true,
+      tableData: [],
+      pagination: {
+        current: 1,
+        count: 0,
+        limit: 10,
       },
+      tableDateValue: ['now-2d', 'now'],
+      timezone: dayjs.tz.guess(),
+    };
+  },
+  created() {
+    this.initPage();
+  },
+  beforeUnmount() {
+    updateTimezone();
+  },
+  methods: {
+    initPage() {
+      this.fetchChartData();
+      this.fetchTableData();
     },
-    data() {
-      return {
-        utcFormatDate,
-        timesChartLoading: true,
-        timesChartData: null,
-        frequencyChartLoading: true,
-        frequencyChartData: null,
-        spentChartLoading: true,
-        spentChartData: null,
-        chartDateValue: ['now-7d', 'now'],
-        tableLoading: true,
-        tableData: [],
-        pagination: {
-          current: 1,
-          count: 0,
-          limit: 10,
+    fetchChartData() {
+      const tempList = handleTransformToTimestamp(this.chartDateValue, this.$store.getters.retrieveParams.format);
+      const payload = {
+        params: {
+          index_set_id: this.indexSetId,
         },
-        tableDateValue: ['now-2d', 'now'],
-        timezone: dayjs.tz.guess(),
+        query: {
+          start_time: tempList[0],
+          end_time: tempList[1],
+        },
       };
+      this.fetchTimesChart(payload);
+      this.fetchFrequencyChart(payload);
+      this.fetchSpentChart(payload);
     },
-    created() {
-      this.initPage();
+    /**
+     * @desc 使用统计时间筛选
+     * @param { Array } val
+     */
+    handleDateValueChange(val) {
+      this.chartDateValue = val;
+      this.fetchChartData();
     },
-    beforeUnmount() {
-      updateTimezone();
+    /**
+     * @desc 检索记录时间筛选
+     * @param { Array } val
+     */
+    handleTableDateValueChange(val) {
+      this.tableDateValue = val;
+      this.fetchTableData();
     },
-    methods: {
-      initPage() {
-        this.fetchChartData();
-        this.fetchTableData();
-      },
-      fetchChartData() {
-        const tempList = handleTransformToTimestamp(this.chartDateValue, this.$store.getters.retrieveParams.format);
-        const payload = {
+    handleTimezoneChange(timezone) {
+      this.timezone = timezone;
+      updateTimezone(timezone);
+      this.fetchTableData();
+    },
+    async fetchTimesChart(payload) {
+      try {
+        this.timesChartLoading = true;
+        const res = await this.$http.request('indexSet/getIndexTimes', payload);
+        this.timesChartData = res.data;
+      } catch (e) {
+        console.warn(e);
+        this.timesChartData = [];
+      } finally {
+        this.timesChartLoading = false;
+      }
+    },
+    async fetchFrequencyChart(payload) {
+      try {
+        this.frequencyChartLoading = true;
+        const res = await this.$http.request('indexSet/getIndexFrequency', payload);
+        this.frequencyChartData = res.data;
+      } catch (e) {
+        console.warn(e);
+        this.frequencyChartData = [];
+      } finally {
+        this.frequencyChartLoading = false;
+      }
+    },
+    async fetchSpentChart(payload) {
+      try {
+        this.spentChartLoading = true;
+        const res = await this.$http.request('indexSet/getIndexSpent', payload);
+        this.spentChartData = res.data;
+      } catch (e) {
+        console.warn(e);
+        this.spentChartData = [];
+      } finally {
+        this.spentChartLoading = false;
+      }
+    },
+    async fetchTableData() {
+      try {
+        this.tableLoading = true;
+        const tempList = handleTransformToTimestamp(this.tableDateValue, this.$store.getters.retrieveParams.format);
+        const res = await this.$http.request('indexSet/getIndexHistory', {
           params: {
             index_set_id: this.indexSetId,
           },
           query: {
             start_time: tempList[0],
             end_time: tempList[1],
+            page: this.pagination.current,
+            pagesize: this.pagination.limit,
           },
-        };
-        this.fetchTimesChart(payload);
-        this.fetchFrequencyChart(payload);
-        this.fetchSpentChart(payload);
-      },
-      /**
-       * @desc 使用统计时间筛选
-       * @param { Array } val
-       */
-      handleDateValueChange(val) {
-        this.chartDateValue = val;
-        this.fetchChartData();
-      },
-      /**
-       * @desc 检索记录时间筛选
-       * @param { Array } val
-       */
-      handleTableDateValueChange(val) {
-        this.tableDateValue = val;
-        this.fetchTableData();
-      },
-      handleTimezoneChange(timezone) {
-        this.timezone = timezone;
-        updateTimezone(timezone);
-        this.fetchTableData();
-      },
-      async fetchTimesChart(payload) {
-        try {
-          this.timesChartLoading = true;
-          const res = await this.$http.request('indexSet/getIndexTimes', payload);
-          this.timesChartData = res.data;
-        } catch (e) {
-          console.warn(e);
-          this.timesChartData = [];
-        } finally {
-          this.timesChartLoading = false;
-        }
-      },
-      async fetchFrequencyChart(payload) {
-        try {
-          this.frequencyChartLoading = true;
-          const res = await this.$http.request('indexSet/getIndexFrequency', payload);
-          this.frequencyChartData = res.data;
-        } catch (e) {
-          console.warn(e);
-          this.frequencyChartData = [];
-        } finally {
-          this.frequencyChartLoading = false;
-        }
-      },
-      async fetchSpentChart(payload) {
-        try {
-          this.spentChartLoading = true;
-          const res = await this.$http.request('indexSet/getIndexSpent', payload);
-          this.spentChartData = res.data;
-        } catch (e) {
-          console.warn(e);
-          this.spentChartData = [];
-        } finally {
-          this.spentChartLoading = false;
-        }
-      },
-      async fetchTableData() {
-        try {
-          this.tableLoading = true;
-          const tempList = handleTransformToTimestamp(this.tableDateValue, this.$store.getters.retrieveParams.format);
-          const res = await this.$http.request('indexSet/getIndexHistory', {
-            params: {
-              index_set_id: this.indexSetId,
-            },
-            query: {
-              start_time: tempList[0],
-              end_time: tempList[1],
-              page: this.pagination.current,
-              pagesize: this.pagination.limit,
-            },
-          });
-          this.pagination.count = res.data.total;
-          this.tableData = res.data.list;
-        } catch (e) {
-          console.warn(e);
-          this.pagination.current = 1;
-          this.pagination.count = 0;
-          this.tableData.splice(0);
-        } finally {
-          this.tableLoading = false;
-        }
-      },
-      handlePageChange(page) {
-        if (this.pagination.current !== page) {
-          this.pagination.current = page;
-          this.fetchTableData();
-        }
-      },
-      handlePageLimitChange(limit) {
+        });
+        this.pagination.count = res.data.total;
+        this.tableData = res.data.list;
+      } catch (e) {
+        console.warn(e);
         this.pagination.current = 1;
-        this.pagination.limit = limit;
-        this.fetchTableData();
-      },
+        this.pagination.count = 0;
+        this.tableData.splice(0);
+      } finally {
+        this.tableLoading = false;
+      }
     },
-  };
+    handlePageChange(page) {
+      if (this.pagination.current !== page) {
+        this.pagination.current = page;
+        this.fetchTableData();
+      }
+    },
+    handlePageLimitChange(limit) {
+      this.pagination.current = 1;
+      this.pagination.limit = limit;
+      this.fetchTableData();
+    },
+  },
+};
 </script>
 
 <style lang="scss" scoped>

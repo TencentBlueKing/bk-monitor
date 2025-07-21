@@ -50,7 +50,7 @@ export default defineComponent({
           isRowIntersecting.value = true;
           nextTick(destroyObserver);
         }
-      },
+      }
     );
 
     const renderRowVNode = () => {

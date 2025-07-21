@@ -87,74 +87,74 @@
 </template>
 
 <script>
-  export default {
-    data() {
-      return {
-        showApplyDialog: false,
-        showConfirmDialog: false,
-        tableData: [],
-      };
+export default {
+  data() {
+    return {
+      showApplyDialog: false,
+      showConfirmDialog: false,
+      tableData: [],
+    };
+  },
+  computed: {
+    authDialogData() {
+      return this.$store.state.authDialogData;
     },
-    computed: {
-      authDialogData() {
-        return this.$store.state.authDialogData;
-      },
-    },
-    watch: {
-      authDialogData: {
-        handler(val) {
-          if (val) {
-            this.updateData(val);
-          } else {
-            this.tableData.splice(0);
-            this.showApplyDialog = false;
-          }
-          this.showConfirmDialog = false;
-        },
-        immediate: true,
-      },
-    },
-    methods: {
-      updateData(authData) {
-        try {
-          const tableData = [];
-          authData.apply_data.actions.forEach(action => {
-            const item = {
-              system: authData.apply_data.system_name, // 系统
-              sources: [], // 资源
-              permission: action.name, // 需要申请的权限
-            };
-            action.related_resource_types.forEach(resource => {
-              resource.instances.flat().forEach(instance => {
-                item.sources.push(`${instance.type_name}：${instance.name}`);
-              });
-            });
-            tableData.push(item);
-          });
-
-          this.tableData = tableData;
-          this.showApplyDialog = true;
-        } catch (err) {
-          console.log('无权限的数据格式不对', err);
+  },
+  watch: {
+    authDialogData: {
+      handler(val) {
+        if (val) {
+          this.updateData(val);
+        } else {
+          this.tableData.splice(0);
+          this.showApplyDialog = false;
         }
+        this.showConfirmDialog = false;
       },
-      confirmSourceApply() {
-        this.showApplyDialog = false;
-
-        setTimeout(() => {
-          this.showConfirmDialog = true;
-          window.open(this.authDialogData.apply_url);
-        }, 360);
-      },
-      confirmHasApply() {
-        this.closeAuth();
-        location.reload();
-      },
-      closeAuth() {
-        this.$store.commit('updateAuthDialogData', null);
-      },
+      immediate: true,
     },
-  };
+  },
+  methods: {
+    updateData(authData) {
+      try {
+        const tableData = [];
+        authData.apply_data.actions.forEach(action => {
+          const item = {
+            system: authData.apply_data.system_name, // 系统
+            sources: [], // 资源
+            permission: action.name, // 需要申请的权限
+          };
+          action.related_resource_types.forEach(resource => {
+            resource.instances.flat().forEach(instance => {
+              item.sources.push(`${instance.type_name}：${instance.name}`);
+            });
+          });
+          tableData.push(item);
+        });
+
+        this.tableData = tableData;
+        this.showApplyDialog = true;
+      } catch (err) {
+        console.log('无权限的数据格式不对', err);
+      }
+    },
+    confirmSourceApply() {
+      this.showApplyDialog = false;
+
+      setTimeout(() => {
+        this.showConfirmDialog = true;
+        window.open(this.authDialogData.apply_url);
+      }, 360);
+    },
+    confirmHasApply() {
+      this.closeAuth();
+      location.reload();
+    },
+    closeAuth() {
+      this.$store.commit('updateAuthDialogData', null);
+    },
+  },
+};
 </script>
 
 <style lang="scss" scoped>

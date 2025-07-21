@@ -157,7 +157,7 @@ const grepHighlighter = ViewPlugin.fromClass(
   },
   {
     decorations: v => v.decorations,
-  },
+  }
 );
 
 // CSS 样式

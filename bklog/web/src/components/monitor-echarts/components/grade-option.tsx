@@ -130,7 +130,7 @@ export default defineComponent({
     const isLoading = ref(false);
 
     const fieldList = computed(() =>
-      (store.state.indexFieldInfo.fields ?? []).filter(f => f.es_doc_values && f.field_type === 'keyword'),
+      (store.state.indexFieldInfo.fields ?? []).filter(f => f.es_doc_values && f.field_type === 'keyword')
     );
 
     const gradeOptionField = computed(() => fieldList.value.find(f => f.field_name === gradeOptionForm.value.field));
@@ -140,10 +140,10 @@ export default defineComponent({
         return Array.from(
           new Set([
             ...store.state.indexSetQueryResult.list.map(item =>
-              parseTableRowData(item, gradeOptionForm.value.field, gradeOptionField.value?.field_type, true),
+              parseTableRowData(item, gradeOptionForm.value.field, gradeOptionField.value?.field_type, true)
             ),
             ...storedValues,
-          ]),
+          ])
         ).map(f => ({ id: `${f}`, name: `${f}` }));
       }
 

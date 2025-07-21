@@ -120,96 +120,96 @@
 </template>
 
 <script>
-  import EmptyStatus from '@/components/empty-status';
-  export default {
-    components: {
-      EmptyStatus,
+import EmptyStatus from '@/components/empty-status';
+export default {
+  components: {
+    EmptyStatus,
+  },
+  props: {
+    loading: {
+      type: Boolean,
+      required: true,
     },
-    props: {
-      loading: {
-        type: Boolean,
-        required: true,
+    data: {
+      type: Array,
+      required: true,
+    },
+  },
+  data() {
+    return {
+      instance: null,
+      customSettings: {
+        isShow: false,
+        title: this.$t('上报日志详情'),
       },
-      data: {
-        type: Array,
-        required: true,
+      jsonText: '',
+      defaultSettings: {
+        isShow: false,
       },
+      size: 'small',
+      expandIndex: -1,
+    };
+  },
+  methods: {
+    showClick(e, rowIndex) {
+      if (this.expandIndex === rowIndex) {
+        this.expandIndex = -1;
+        return;
+      }
+      this.expandIndex = rowIndex;
     },
-    data() {
-      return {
-        instance: null,
-        customSettings: {
-          isShow: false,
-          title: this.$t('上报日志详情'),
-        },
-        jsonText: '',
-        defaultSettings: {
-          isShow: false,
-        },
-        size: 'small',
-        expandIndex: -1,
-      };
-    },
-    methods: {
-      showClick(e, rowIndex) {
-        if (this.expandIndex === rowIndex) {
-          this.expandIndex = -1;
-          return;
+    divClose() {
+      const divHeight = document.getElementsByClassName('text-style');
+      for (let i = 0; i < divHeight.length; i++) {
+        if (divHeight[i].offsetHeight > 54) {
+          divHeight[i].style.height = '54px';
         }
-        this.expandIndex = rowIndex;
-      },
-      divClose() {
-        const divHeight = document.getElementsByClassName('text-style');
-        for (let i = 0; i < divHeight.length; i++) {
-          if (divHeight[i].offsetHeight > 54) {
-            divHeight[i].style.height = '54px';
-          }
-        }
-      },
-      handleEnter(e) {
-        this.instance = this.$bkPopover(e.target, {
-          content: this.$t('点击展示全部'),
-          arrow: true,
-          placement: 'top',
+      }
+    },
+    handleEnter(e) {
+      this.instance = this.$bkPopover(e.target, {
+        content: this.$t('点击展示全部'),
+        arrow: true,
+        placement: 'top',
+      });
+      this.instance.show(1000);
+    },
+    handleLeave() {
+      this.instance?.destroy(true);
+    },
+    chickFile(data) {
+      this.defaultSettings.isShow = true;
+      this.jsonText = data.origin;
+    },
+    copyText(data, val) {
+      let sta = '';
+      if (val === 'log') {
+        data.forEach(item => {
+          sta = `${sta + item}\n`;
         });
-        this.instance.show(1000);
-      },
-      handleLeave() {
-        this.instance?.destroy(true);
-      },
-      chickFile(data) {
-        this.defaultSettings.isShow = true;
-        this.jsonText = data.origin;
-      },
-      copyText(data, val) {
-        let sta = '';
-        if (val === 'log') {
-          data.forEach(item => {
-            sta = `${sta + item}\n`;
-          });
-        }
-        const createInput = document.createElement('textarea');
-        createInput.value = val === 'log' ? sta : data;
-        document.body.appendChild(createInput);
-        createInput.select(); // 选择对象
-        document.execCommand('Copy'); // 执行浏览器复制命令
-        createInput.style.display = 'none';
-        const h = this.$createElement;
-        this.$bkMessage({
-          message: h(
-            'p',
-            {
-              style: {
-                textAlign: 'center',
-              },
+      }
+      const createInput = document.createElement('textarea');
+      createInput.value = val === 'log' ? sta : data;
+      document.body.appendChild(createInput);
+      createInput.select(); // 选择对象
+      document.execCommand('Copy'); // 执行浏览器复制命令
+      createInput.style.display = 'none';
+      const h = this.$createElement;
+      this.$bkMessage({
+        message: h(
+          'p',
+          {
+            style: {
+              textAlign: 'center',
             },
-            this.$t('复制成功'),
-          ),
-          offsetY: 80,
-        });
-      },
+          },
+          this.$t('复制成功')
+        ),
+        offsetY: 80,
+      });
     },
-  };
+  },
+};
 </script>
 
 <style scoped lang="scss">

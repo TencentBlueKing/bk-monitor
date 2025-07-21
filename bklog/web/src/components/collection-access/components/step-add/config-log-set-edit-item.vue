@@ -81,108 +81,108 @@
   </div>
 </template>
 <script>
-  import EmptyStatus from '@/components/empty-status';
-  import matchLabelItem from './match-label-item';
-  import { random } from '@/common/util';
+import EmptyStatus from '@/components/empty-status';
+import matchLabelItem from './match-label-item';
+import { random } from '@/common/util';
 
-  export default {
-    components: {
-      EmptyStatus,
-      matchLabelItem,
+export default {
+  components: {
+    EmptyStatus,
+    matchLabelItem,
+  },
+  props: {
+    editType: {
+      type: String,
+      required: true,
     },
-    props: {
-      editType: {
-        type: String,
-        required: true,
-      },
-      config: {
-        type: Object,
-        required: true,
-      },
-      isNode: {
-        type: Boolean,
-        required: true,
-      },
+    config: {
+      type: Object,
+      required: true,
     },
-    data() {
-      return {
-        handleEdit: false,
-      };
+    isNode: {
+      type: Boolean,
+      required: true,
     },
-    computed: {
-      selectorType() {
-        return this.editType === 'label' ? 'labelSelector' : 'annotationSelector';
-      },
-      isLabelEdit() {
-        return this.editType === 'label';
-      },
+  },
+  data() {
+    return {
+      handleEdit: false,
+    };
+  },
+  computed: {
+    selectorType() {
+      return this.editType === 'label' ? 'labelSelector' : 'annotationSelector';
     },
-    methods: {
-      handleDeleteConfigParamsItem() {
-        this.$emit('delete-config-params-item', this.editType);
-      },
-      // 手动添加表达式
-      handleSubmitExpressions(val) {
-        const selector = this.config?.[this.selectorType];
-        const isRepeat = selector.some(item => {
-          return val.key === item.key && val.value === item.value && val.operator === item.operator;
-        });
-        return new Promise(resolve => {
-          if (!isRepeat) {
-            let type;
-            if (this.isLabelEdit) {
-              type = val.operator === '=' ? 'match_labels' : 'match_expressions';
-            } else {
-              type = 'match_annotations';
-            }
-            selector.unshift({
-              ...val,
-              id: random(10),
-              type,
-            });
-            this.$emit('config-change', {
-              [this.selectorType]: selector,
-            });
-          }
-          this.handleEdit = false;
-          resolve(true);
-        });
-      },
-      handelShowDialog() {
-        this.$emit('show-dialog');
-      },
-      handleLabelEdit(matchID, newValue) {
-        const selector = this.config?.[this.selectorType];
-
-        const isRepeat = selector.some(item => {
-          return newValue.key === item.key && newValue.value === item.value && newValue.operator === item.operator;
-        });
-
-        let type;
-        if (this.isLabelEdit) {
-          type = newValue.operator === '=' ? 'match_labels' : 'match_expressions';
-        } else {
-          type = 'match_annotations';
-        }
-
-        return new Promise(resolve => {
-          const labelIndex = selector.findIndex(item => item.id === matchID);
-          if (!isRepeat) {
-            const newMatchObject = { ...selector[labelIndex], ...newValue, type };
-            selector.splice(labelIndex, 1, newMatchObject);
+    isLabelEdit() {
+      return this.editType === 'label';
+    },
+  },
+  methods: {
+    handleDeleteConfigParamsItem() {
+      this.$emit('delete-config-params-item', this.editType);
+    },
+    // 手动添加表达式
+    handleSubmitExpressions(val) {
+      const selector = this.config?.[this.selectorType];
+      const isRepeat = selector.some(item => {
+        return val.key === item.key && val.value === item.value && val.operator === item.operator;
+      });
+      return new Promise(resolve => {
+        if (!isRepeat) {
+          let type;
+          if (this.isLabelEdit) {
+            type = val.operator === '=' ? 'match_labels' : 'match_expressions';
           } else {
-            if (newValue?.isExternal) selector.splice(labelIndex, 1);
+            type = 'match_annotations';
           }
-          resolve(true);
-        });
-      },
-      deleteLabItem(matchID) {
-        const selector = this.config?.[this.selectorType];
-        const labelIndex = selector.findIndex(item => item.id === matchID);
-        selector.splice(labelIndex, 1);
-      },
+          selector.unshift({
+            ...val,
+            id: random(10),
+            type,
+          });
+          this.$emit('config-change', {
+            [this.selectorType]: selector,
+          });
+        }
+        this.handleEdit = false;
+        resolve(true);
+      });
     },
-  };
+    handelShowDialog() {
+      this.$emit('show-dialog');
+    },
+    handleLabelEdit(matchID, newValue) {
+      const selector = this.config?.[this.selectorType];
+
+      const isRepeat = selector.some(item => {
+        return newValue.key === item.key && newValue.value === item.value && newValue.operator === item.operator;
+      });
+
+      let type;
+      if (this.isLabelEdit) {
+        type = newValue.operator === '=' ? 'match_labels' : 'match_expressions';
+      } else {
+        type = 'match_annotations';
+      }
+
+      return new Promise(resolve => {
+        const labelIndex = selector.findIndex(item => item.id === matchID);
+        if (!isRepeat) {
+          const newMatchObject = { ...selector[labelIndex], ...newValue, type };
+          selector.splice(labelIndex, 1, newMatchObject);
+        } else {
+          if (newValue?.isExternal) selector.splice(labelIndex, 1);
+        }
+        resolve(true);
+      });
+    },
+    deleteLabItem(matchID) {
+      const selector = this.config?.[this.selectorType];
+      const labelIndex = selector.findIndex(item => item.id === matchID);
+      selector.splice(labelIndex, 1);
+    },
+  },
+};
 </script>
 <style lang="scss" scoped>
   .config-item-title {

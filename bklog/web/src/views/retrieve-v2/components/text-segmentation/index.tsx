@@ -158,7 +158,7 @@ export default defineComponent({
 
             child.textContent = item.text?.length ? item.text : '""';
             return child;
-          },
+          }
         );
 
         setWordSegmentRender();
@@ -194,7 +194,7 @@ export default defineComponent({
       () => props.isLimitExpandView,
       () => {
         renderMoreItems();
-      },
+      }
     );
 
     watch(
@@ -212,7 +212,7 @@ export default defineComponent({
         const { reset } = cellScrollInstance;
         reset(wordList);
         setWordSegmentRender();
-      },
+      }
     );
 
     const showMoreAction = computed(() => hasOverflowY.value || (showAll.value && !props.isLimitExpandView));

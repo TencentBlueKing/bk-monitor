@@ -239,432 +239,432 @@
 </template>
 
 <script setup lang="ts">
-  import { computed, ref, nextTick } from 'vue';
+import { computed, ref, nextTick } from 'vue';
 
-  import { deepClone } from '@/common/util';
-  import { builtInInitHiddenList } from '@/const/index.js';
-  import useLocale from '@/hooks/use-locale';
-  import useStore from '@/hooks/use-store';
-  import { useRoute, useRouter } from 'vue-router/composables';
+import { deepClone } from '@/common/util';
+import { builtInInitHiddenList } from '@/const/index.js';
+import useLocale from '@/hooks/use-locale';
+import useStore from '@/hooks/use-store';
+import { useRoute, useRouter } from 'vue-router/composables';
 
-  import * as authorityMap from '../common/authority-map';
-  import settingTable from './setting-table.vue';
-  import http from '@/api';
-  import RetrieveHelper, { RetrieveEvent } from '@/views/retrieve-helper'
+import * as authorityMap from '../common/authority-map';
+import settingTable from './setting-table.vue';
+import http from '@/api';
+import RetrieveHelper, { RetrieveEvent } from '@/views/retrieve-helper';
 
-  const { t } = useLocale();
-  const store = useStore();
-  const route = useRoute();
-  const router = useRouter();
-  const showSlider = ref(false);
-  const sliderLoading = ref(false);
+const { t } = useLocale();
+const store = useStore();
+const route = useRoute();
+const router = useRouter();
+const showSlider = ref(false);
+const sliderLoading = ref(false);
 
-  const tableField = ref([]);
-  const cleanType = ref('');
-  const collectorConfigId = ref('');
-  const defaultParticipleStr = ref('@&()=\'",;:<>[]{}/ \\n\\t\\r\\\\');
+const tableField = ref([]);
+const cleanType = ref('');
+const collectorConfigId = ref('');
+const defaultParticipleStr = ref('@&()=\'",;:<>[]{}/ \\n\\t\\r\\\\');
 
-  const formData = ref({
-    data_link_id: '',
-    bk_biz_id: '',
-    collector_config_name: '',
-    collector_config_name_en: '',
-    bk_data_id: '',
-    storage_cluster_name: '',
-    storage_cluster_id: '',
-    retention: '',
-    etl_params: {
-      retain_original_text: false,
-      original_text_tokenize_on_chars: '',
-      original_text_is_case_sensitive: '',
+const formData = ref({
+  data_link_id: '',
+  bk_biz_id: '',
+  collector_config_name: '',
+  collector_config_name_en: '',
+  bk_data_id: '',
+  storage_cluster_name: '',
+  storage_cluster_id: '',
+  retention: '',
+  etl_params: {
+    retain_original_text: false,
+    original_text_tokenize_on_chars: '',
+    original_text_is_case_sensitive: '',
+  },
+  etl_config: '',
+  fields: [],
+});
+const formDataCopy = ref({});
+const fieldsCopy = ref([]);
+const isEdit = ref(false);
+const isEditConfigName = ref(false);
+const isEditRetention = ref(false);
+
+const hideSingleConfigInput = () => {
+  isEditConfigName.value = false;
+  isEditRetention.value = false;
+};
+/** 添加字段的基础数据 */
+const baseFieldObj = ref({
+  value: '',
+  option: {
+    time_zone: '',
+    time_format: '',
+  },
+  is_time: false,
+  verdict: false,
+  is_delete: false,
+  alias_name: '',
+  field_name: '',
+  field_type: '',
+  description: '',
+  is_case_sensitive: false,
+  is_analyzed: false,
+  is_built_in: false,
+  is_dimension: false,
+  previous_type: '',
+  tokenize_on_chars: '',
+  participleState: 'default',
+  is_edit: true,
+});
+const alias_settings = ref([]);
+const batchAddField = () => {
+  if (!collectorConfigId.value) return;
+  // router.replace({
+  //   name: 'clean-edit',
+  //   params: {
+  //     collectorId: collectorConfigId.value,
+  //   },
+  //   query: {
+  //     spaceUid: store.state.spaceUid,
+  //   },
+  // });
+  const newURL = router.resolve({
+    name: 'clean-edit',
+    params: {
+      collectorId: collectorConfigId.value,
     },
-    etl_config: '',
-    fields: [],
+    query: {
+      spaceUid: store.state.spaceUid,
+    },
   });
-  const formDataCopy = ref({});
-  const fieldsCopy = ref([]);
-  const isEdit = ref(false);
-  const isEditConfigName = ref(false);
-  const isEditRetention = ref(false);
+  window.open(newURL.href, '_blank');
+};
+const maxRetention = ref(0);
 
-  const hideSingleConfigInput = () => {
-    isEditConfigName.value = false;
-    isEditRetention.value = false;
+const basicRules = ref({
+  collector_config_name: [
+    {
+      required: true,
+      trigger: 'blur',
+      validator: val => {
+        if (val) {
+          isEditConfigName.value = false;
+        }
+        return val;
+      },
+    },
+  ],
+  collector_config_name_en: [
+    {
+      required: true,
+      trigger: 'blur',
+    },
+  ],
+  bk_data_id: [
+    {
+      required: true,
+      trigger: 'blur',
+    },
+  ],
+  storage_cluster_id: [
+    {
+      required: true,
+      trigger: 'blur',
+    },
+  ],
+  retention: [
+    {
+      required: true,
+      trigger: 'blur',
+    },
+    {
+      validator: () => {
+        return formData.value.storage_cluster_id;
+      },
+      message: t('请先选择集群'),
+      trigger: 'blur',
+    },
+    {
+      validator: val => {
+        if (val) {
+          const currentStorageCluster = storageList.value.find(
+            item => item.storage_cluster_id === formData.value.storage_cluster_id
+          );
+          maxRetention.value = currentStorageCluster?.setup_config?.retention_days_max || 30;
+          if (val <= maxRetention.value) {
+            isEditRetention.value = false;
+          }
+          return val <= maxRetention.value;
+        }
+      },
+      message: function () {
+        return t(`超出集群最大可保存天数，当前最大可保存{n}天`, { n: maxRetention.value });
+      },
+      trigger: 'blur',
+    },
+  ],
+});
+
+const isShowAddFields = computed(() => {
+  return cleanType.value === 'bk_log_json';
+});
+const labelWidth = computed(() => {
+  return store.state.isEnLanguage ? 130 : 94;
+});
+const indexfieldTable = ref(null);
+const addNewField = () => {
+  const fields = deepClone(indexfieldTable.value.getData());
+  const newBaseFieldObj = {
+    ...baseFieldObj.value,
+    field_index: tableField.value.length + 1,
   };
-  /** 添加字段的基础数据 */
-  const baseFieldObj = ref({
-    value: '',
-    option: {
-      time_zone: '',
-      time_format: '',
-    },
-    is_time: false,
-    verdict: false,
-    is_delete: false,
-    alias_name: '',
-    field_name: '',
-    field_type: '',
-    description: '',
-    is_case_sensitive: false,
-    is_analyzed: false,
-    is_built_in: false,
-    is_dimension: false,
-    previous_type: '',
-    tokenize_on_chars: '',
-    participleState: 'default',
-    is_edit: true,
+  // 获取table表格编辑的数据 新增新的字段对象
+  tableField.value.splice(0, fields.length, ...[...indexfieldTable.value.getData(), newBaseFieldObj]);
+};
+RetrieveHelper.on(RetrieveEvent.INDEX_CONFIG_OPEN, val => {
+  hideSingleConfigInput();
+  handleOpenSidebar();
+  nextTick(() => {
+    handleEdit();
   });
-  const alias_settings = ref([]);
-  const batchAddField = () => {
-    if (!collectorConfigId.value) return;
-    // router.replace({
-    //   name: 'clean-edit',
-    //   params: {
-    //     collectorId: collectorConfigId.value,
-    //   },
-    //   query: {
-    //     spaceUid: store.state.spaceUid,
-    //   },
-    // });
-    const newURL = router.resolve({
-      name: 'clean-edit',
+});
+function formLableFormatter(label) {
+  return `${label} :`;
+}
+
+const handleEdit = () => {
+  formDataCopy.value = deepClone(formData.value);
+  fieldsCopy.value = deepClone(indexfieldTable.value.getData());
+  isEdit.value = true;
+};
+
+const handleCancel = async () => {
+  formData.value = deepClone(formDataCopy.value);
+  tableField.value = deepClone(fieldsCopy.value);
+  nextTick(() => {
+    isEdit.value = false;
+  });
+};
+
+const handleOpenSidebar = async () => {
+  showSlider.value = true;
+  sliderLoading.value = true;
+  await initFormData();
+  getStorage();
+};
+const originBuiltFields = ref([]);
+const indexBuiltField = ref([]);
+
+const initFormData = async () => {
+  const indexSetList = store.state.retrieve.indexSetList;
+  const indexSetId = route.params?.indexId;
+  const currentIndexSet = indexSetList.find(item => item.index_set_id === `${indexSetId}`);
+  if (!currentIndexSet?.collector_config_id) return;
+  collectorConfigId.value = currentIndexSet.collector_config_id;
+  await http
+    .request('collect/details', {
       params: {
-        collectorId: collectorConfigId.value,
+        collector_config_id: currentIndexSet.collector_config_id,
       },
+    })
+    .then(res => {
+      const keys = Object.keys(res.data.alias_settings || {});
+      const arr = keys.map(key => {
+        return {
+          query_alias: key,
+          field_name: res.data.alias_settings[key].path,
+        };
+      });
+      alias_settings.value = arr;
+      concatenationQueryAlias(res.data.fields);
+      const collectData = res?.data || {};
+      formData.value = collectData;
+      cleanType.value = collectData?.etl_config;
+      indexBuiltField.value = collectData?.fields.filter(
+        item =>
+          builtInInitHiddenList.includes(item.field_name) ||
+          (builtInInitHiddenList.includes(item.alias_name) && item.field_name !== 'data')
+      );
+      originBuiltFields.value = collectData?.fields?.filter(item => item.is_built_in && item.field_name === 'data');
+    });
+
+  await http
+    .request('clean/getCleanStash', {
+      params: {
+        collector_config_id: currentIndexSet.collector_config_id,
+      },
+    })
+    .then(res => {
+      const etlFields = res?.data?.etl_fields || [];
+      const existingFields = formData.value.fields || [];
+      const existingFieldsMap = new Map(existingFields.map(field => [field.field_name, field]));
+      const mergedFields = [];
+
+      // 遍历 etlFields，将其添加到结果数组中
+      etlFields.forEach(etlField => {
+        mergedFields.push(etlField);
+        // 从 existingFieldsMap 中删除已经处理过的 field_name
+        existingFieldsMap.delete(etlField.field_name);
+      });
+
+      // 遍历 existingFieldsMap 中剩余的项（即那些在 etlFields 中未出现的项），将其添加到结果数组中
+      existingFieldsMap.forEach(existingField => {
+        mergedFields.push(existingField);
+      });
+      mergedFields.forEach(field => {
+        const matchingAlias = alias_settings.value.find(
+          alias => field.field_name === alias.field_name || field.alias_name === alias.field_name
+        );
+        if (matchingAlias) {
+          field.query_alias = matchingAlias.query_alias;
+        }
+      });
+
+      tableField.value = mergedFields.filter(
+        item =>
+          !builtInInitHiddenList.includes(item.field_name) &&
+          !builtInInitHiddenList.includes(item.alias_name) &&
+          !item.is_delete
+      );
+      formData.value.etl_params.retain_original_text = res?.data?.etl_params.retain_original_text;
+    });
+  sliderLoading.value = false;
+};
+// 拼接query_alias
+const concatenationQueryAlias = fields => {
+  fields.forEach(item => {
+    alias_settings.value.forEach(item2 => {
+      if (item.field_name === item2.field_name || item.alias_name === item2.field_name) {
+        item.query_alias = item2.query_alias;
+      }
+    });
+  });
+};
+const storageList = ref([]);
+const getStorage = async () => {
+  try {
+    const res = await http.request('collect/getStorage', {
       query: {
-        spaceUid: store.state.spaceUid,
+        bk_biz_id: formData.value.bk_biz_id,
+        data_link_id: formData.value.data_link_id,
       },
     });
-    window.open(newURL.href, '_blank');
-  };
-  const maxRetention = ref(0);
+    if (res.data) {
+      // 根据权限排序
+      const s1 = [];
+      const s2 = [];
+      for (const item of res.data) {
+        if (item.permission?.[authorityMap.MANAGE_ES_SOURCE_AUTH]) {
+          s1.push(item);
+        } else {
+          s2.push(item);
+        }
+      }
+      storageList.value = s1.concat(s2);
+    }
+  } catch (error) {
+    console.log(error, 'error');
+  }
+};
 
-  const basicRules = ref({
-    collector_config_name: [
-      {
-        required: true,
-        trigger: 'blur',
-        validator: val => {
-          if (val) {
-            isEditConfigName.value = false;
-          }
-          return val;
-        },
-      },
-    ],
-    collector_config_name_en: [
-      {
-        required: true,
-        trigger: 'blur',
-      },
-    ],
-    bk_data_id: [
-      {
-        required: true,
-        trigger: 'blur',
-      },
-    ],
-    storage_cluster_id: [
-      {
-        required: true,
-        trigger: 'blur',
-      },
-    ],
-    retention: [
-      {
-        required: true,
-        trigger: 'blur',
-      },
-      {
-        validator: () => {
-          return formData.value.storage_cluster_id;
-        },
-        message: t('请先选择集群'),
-        trigger: 'blur',
-      },
-      {
-        validator: val => {
-          if (val) {
-            const currentStorageCluster = storageList.value.find(
-              item => item.storage_cluster_id === formData.value.storage_cluster_id,
-            );
-            maxRetention.value = currentStorageCluster?.setup_config?.retention_days_max || 30;
-            if (val <= maxRetention.value) {
-              isEditRetention.value = false;
-            }
-            return val <= maxRetention.value;
-          }
-        },
-        message: function () {
-          return t(`超出集群最大可保存天数，当前最大可保存{n}天`, { n: maxRetention.value });
-        },
-        trigger: 'blur',
-      },
-    ],
-  });
+const validateForm = ref(null);
+const confirmLoading = ref(false);
+// 字段表格校验
+const checkFieldsTable = () => {
+  return indexfieldTable.value.validateFieldTable();
+  // return formData.value.etl_config === 'bk_log_json' ? indexfieldTable.value.validateFieldTable() : [];
+};
 
-  const isShowAddFields = computed(() => {
-    return cleanType.value === 'bk_log_json';
+const originfieldTable = ref(null);
+
+const submit = () => {
+  validateForm.value.validate().then(res => {
+    if (res) {
+      const promises = [];
+      // if (formData.value.etl_config === 'bk_log_json') {
+      promises.splice(1, 0, ...checkFieldsTable());
+      // }
+      Promise.all(promises).then(
+        async () => {
+          confirmLoading.value = true;
+          sliderLoading.value = true;
+          const originfieldTableData = originfieldTable.value?.getData();
+          const indexfieldTableData = indexfieldTable.value.getAllData().filter(item => item.query_alias);
+          const data = {
+            collector_config_name: formData.value.collector_config_name,
+            storage_cluster_id: formData.value.storage_cluster_id,
+            retention: formData.value.retention,
+            etl_params: {
+              ...formData.value.etl_params,
+              original_text_is_case_sensitive: originfieldTableData?.length
+                ? originfieldTableData[0].is_case_sensitive
+                : false,
+              original_text_tokenize_on_chars: originfieldTableData?.length
+                ? originfieldTableData[0].tokenize_on_chars
+                : '',
+            },
+            etl_config: formData.value.etl_config,
+            fields: indexfieldTable.value.getData().filter(item => !item.is_objectKey && !item.is_built_in),
+            alias_settings: [
+              ...indexfieldTableData.map(item => {
+                return {
+                  field_name: item.alias_name || item.field_name,
+                  query_alias: item.query_alias,
+                  path_type: item.field_type,
+                };
+              }),
+            ],
+          };
+          await http
+            .request('collect/fastUpdateCollection', {
+              params: {
+                collector_config_id: collectorConfigId.value,
+              },
+              data,
+            })
+            .then(res => {
+              if (res.code === 0) {
+                window.mainComponent.messageSuccess(t('保存成功'));
+                nextTick(() => {
+                  showSlider.value = false;
+                  isEdit.value = false;
+                });
+              }
+              // 请求成功后刷新页面
+              location.reload();
+              // store.dispatch('requestIndexSetFieldInfo',)
+            })
+            .finally(() => {
+              confirmLoading.value = false;
+              sliderLoading.value = false;
+            });
+        },
+        validator => {
+          console.warn('保存失败', validator);
+        }
+      );
+    }
   });
-  const labelWidth = computed(() => {
-      return store.state.isEnLanguage ?  130 : 94;
-    });
-  const indexfieldTable = ref(null);
-  const addNewField = () => {
-    const fields = deepClone(indexfieldTable.value.getData());
-    const newBaseFieldObj = {
-      ...baseFieldObj.value,
-      field_index: tableField.value.length + 1,
-    };
-    // 获取table表格编辑的数据 新增新的字段对象
-    tableField.value.splice(0, fields.length, ...[...indexfieldTable.value.getData(), newBaseFieldObj]);
-  };
-  RetrieveHelper.on(RetrieveEvent.INDEX_CONFIG_OPEN, val => {
-    hideSingleConfigInput();
-    handleOpenSidebar();
-    nextTick(() => {
-      handleEdit()
-    });
-  });
-  function formLableFormatter(label) {
-    return `${label} :`;
+};
+const closeSlider = () => {
+  isEdit.value = false;
+};
+
+const isOriginTableSaved = computed(() => {
+  if (
+    Object.prototype.hasOwnProperty.call(formData.value.etl_params ?? {}, 'retain_original_text') &&
+    typeof formData.value.etl_params.retain_original_text === 'boolean'
+  ) {
+    return formData.value.etl_params.retain_original_text;
   }
 
-  const handleEdit = () => {
-    formDataCopy.value = deepClone(formData.value);
-    fieldsCopy.value = deepClone(indexfieldTable.value.getData());
-    isEdit.value = true;
-  };
+  return true;
+});
 
-  const handleCancel = async() => {
-    formData.value = deepClone(formDataCopy.value);
-    tableField.value = deepClone(fieldsCopy.value);
-    nextTick(() => {
-      isEdit.value = false;
-    });
-  };
-
-  const handleOpenSidebar = async () => {
-    showSlider.value = true;
-    sliderLoading.value = true;
-    await initFormData();
-    getStorage();
-  };
-  const originBuiltFields = ref([]);
-  const indexBuiltField = ref([]);
-
-  const initFormData = async () => {
-    const indexSetList = store.state.retrieve.indexSetList;
-    const indexSetId = route.params?.indexId;
-    const currentIndexSet = indexSetList.find(item => item.index_set_id === `${indexSetId}`);
-    if (!currentIndexSet?.collector_config_id) return;
-    collectorConfigId.value = currentIndexSet.collector_config_id;
-    await http
-      .request('collect/details', {
-        params: {
-          collector_config_id: currentIndexSet.collector_config_id,
-        },
-      })
-      .then(res => {
-        const keys = Object.keys(res.data.alias_settings || {});
-        const arr = keys.map(key => {
-          return {
-            query_alias: key,
-            field_name: res.data.alias_settings[key].path,
-          };
-        });
-        alias_settings.value = arr;
-        concatenationQueryAlias(res.data.fields);
-        const collectData = res?.data || {};
-        formData.value = collectData;
-        cleanType.value = collectData?.etl_config;
-        indexBuiltField.value = collectData?.fields.filter(
-          item =>
-            builtInInitHiddenList.includes(item.field_name) ||
-            (builtInInitHiddenList.includes(item.alias_name) && item.field_name !== 'data'),
-        );
-        originBuiltFields.value = collectData?.fields?.filter(item => item.is_built_in && item.field_name === 'data');
-      });
-
-    await http
-      .request('clean/getCleanStash', {
-        params: {
-          collector_config_id: currentIndexSet.collector_config_id,
-        },
-      })
-      .then(res => {
-        const etlFields = res?.data?.etl_fields || [];
-        const existingFields = formData.value.fields || [];
-        const existingFieldsMap = new Map(existingFields.map(field => [field.field_name, field]));
-        const mergedFields = [];
-
-        // 遍历 etlFields，将其添加到结果数组中
-        etlFields.forEach(etlField => {
-          mergedFields.push(etlField);
-          // 从 existingFieldsMap 中删除已经处理过的 field_name
-          existingFieldsMap.delete(etlField.field_name);
-        });
-
-        // 遍历 existingFieldsMap 中剩余的项（即那些在 etlFields 中未出现的项），将其添加到结果数组中
-        existingFieldsMap.forEach(existingField => {
-          mergedFields.push(existingField);
-        });
-        mergedFields.forEach(field => {
-          const matchingAlias = alias_settings.value.find(
-            alias => field.field_name === alias.field_name || field.alias_name === alias.field_name,
-          );
-          if (matchingAlias) {
-            field.query_alias = matchingAlias.query_alias;
-          }
-        });
-
-        tableField.value = mergedFields.filter(
-          item =>
-            !builtInInitHiddenList.includes(item.field_name) &&
-            !builtInInitHiddenList.includes(item.alias_name) &&
-            !item.is_delete,
-        );
-        formData.value.etl_params.retain_original_text = res?.data?.etl_params.retain_original_text;
-      });
-    sliderLoading.value = false;
-  };
-  // 拼接query_alias
-  const concatenationQueryAlias = fields => {
-    fields.forEach(item => {
-      alias_settings.value.forEach(item2 => {
-        if (item.field_name === item2.field_name || item.alias_name === item2.field_name) {
-          item.query_alias = item2.query_alias;
-        }
-      });
-    });
-  };
-  const storageList = ref([]);
-  const getStorage = async () => {
-    try {
-      const res = await http.request('collect/getStorage', {
-        query: {
-          bk_biz_id: formData.value.bk_biz_id,
-          data_link_id: formData.value.data_link_id,
-        },
-      });
-      if (res.data) {
-        // 根据权限排序
-        const s1 = [];
-        const s2 = [];
-        for (const item of res.data) {
-          if (item.permission?.[authorityMap.MANAGE_ES_SOURCE_AUTH]) {
-            s1.push(item);
-          } else {
-            s2.push(item);
-          }
-        }
-        storageList.value = s1.concat(s2);
-      }
-    } catch (error) {
-      console.log(error, 'error');
-    }
-  };
-
-  const validateForm = ref(null);
-  const confirmLoading = ref(false);
-  // 字段表格校验
-  const checkFieldsTable = () => {
-    return indexfieldTable.value.validateFieldTable();
-    // return formData.value.etl_config === 'bk_log_json' ? indexfieldTable.value.validateFieldTable() : [];
-  };
-
-  const originfieldTable = ref(null);
-
-  const submit = () => {
-    validateForm.value.validate().then(res => {
-      if (res) {
-        const promises = [];
-        // if (formData.value.etl_config === 'bk_log_json') {
-        promises.splice(1, 0, ...checkFieldsTable());
-        // }
-        Promise.all(promises).then(
-          async () => {
-            confirmLoading.value = true;
-            sliderLoading.value = true;
-            const originfieldTableData = originfieldTable.value?.getData();
-            const indexfieldTableData = indexfieldTable.value.getAllData().filter(item => item.query_alias);
-            const data = {
-              collector_config_name: formData.value.collector_config_name,
-              storage_cluster_id: formData.value.storage_cluster_id,
-              retention: formData.value.retention,
-              etl_params: {
-                ...formData.value.etl_params,
-                original_text_is_case_sensitive: originfieldTableData?.length
-                  ? originfieldTableData[0].is_case_sensitive
-                  : false,
-                original_text_tokenize_on_chars: originfieldTableData?.length
-                  ? originfieldTableData[0].tokenize_on_chars
-                  : '',
-              },
-              etl_config: formData.value.etl_config,
-              fields: indexfieldTable.value.getData().filter(item => !item.is_objectKey && !item.is_built_in),
-              alias_settings: [
-                ...indexfieldTableData.map(item => {
-                  return {
-                    field_name: item.alias_name || item.field_name,
-                    query_alias: item.query_alias,
-                    path_type: item.field_type,
-                  };
-                }),
-              ],
-            };
-            await http
-              .request('collect/fastUpdateCollection', {
-                params: {
-                  collector_config_id: collectorConfigId.value,
-                },
-                data,
-              })
-              .then(res => {
-                if (res.code === 0) {
-                  window.mainComponent.messageSuccess(t('保存成功'));
-                  nextTick(() => {
-                    showSlider.value = false;
-                    isEdit.value = false;
-                  });
-                }
-                // 请求成功后刷新页面
-                location.reload();
-                // store.dispatch('requestIndexSetFieldInfo',)
-              })
-              .finally(() => {
-                confirmLoading.value = false;
-                sliderLoading.value = false;
-              });
-          },
-          validator => {
-            console.warn('保存失败', validator);
-          },
-        );
-      }
-    });
-  };
-  const closeSlider = () => {
-    isEdit.value = false;
-  };
-
-  const isOriginTableSaved = computed(() => {
-    if (
-      Object.prototype.hasOwnProperty.call(formData.value.etl_params ?? {}, 'retain_original_text') &&
-      typeof formData.value.etl_params.retain_original_text === 'boolean'
-    ) {
-      return formData.value.etl_params.retain_original_text;
-    }
-
-    return true;
-  });
-
-  defineExpose({
-    handleShowSlider: () => {
-      hideSingleConfigInput();
-      handleOpenSidebar();
-    },
-  });
+defineExpose({
+  handleShowSlider: () => {
+    hideSingleConfigInput();
+    handleOpenSidebar();
+  },
+});
 </script>
 
 <style lang="scss">

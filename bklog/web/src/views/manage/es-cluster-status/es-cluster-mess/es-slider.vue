@@ -587,39 +587,212 @@
 </template>
 
 <script>
-  import SidebarDiffMixin from '@/mixins/sidebar-diff-mixin';
-  import SpaceSelectorMixin from '@/mixins/space-selector-mixin';
-  import BkUserSelector from '@blueking/user-selector';
-  import { mapState, mapGetters } from 'vuex';
+import SidebarDiffMixin from '@/mixins/sidebar-diff-mixin';
+import SpaceSelectorMixin from '@/mixins/space-selector-mixin';
+import BkUserSelector from '@blueking/user-selector';
+import { mapState, mapGetters } from 'vuex';
 
-  import EsDialog from './es-dialog';
+import EsDialog from './es-dialog';
 
-  export default { 
-    components: {
-      EsDialog,
-      BkUserSelector,
+export default {
+  components: {
+    EsDialog,
+    BkUserSelector,
+  },
+  mixins: [SidebarDiffMixin, SpaceSelectorMixin],
+  props: {
+    showSlider: {
+      type: Boolean,
+      default: false,
     },
-    mixins: [SidebarDiffMixin, SpaceSelectorMixin],
-    props: {
-      showSlider: {
-        type: Boolean,
-        default: false,
-      },
-      editClusterId: {
-        type: Number,
-        default: null,
-      },
+    editClusterId: {
+      type: Number,
+      default: null,
     },
-    data() {
-      return {
-        configDocUrl: window.BK_HOT_WARM_CONFIG_URL,
-        archiveDocUrl: window.BK_ARCHIVE_DOC_URL, // 日志归档跳转链接
-        isItsm: window.FEATURE_TOGGLE.collect_itsm === 'on', // 容量评估全局参数
-        confirmLoading: false,
-        sliderLoading: false,
-        formData: {
+  },
+  data() {
+    return {
+      configDocUrl: window.BK_HOT_WARM_CONFIG_URL,
+      archiveDocUrl: window.BK_ARCHIVE_DOC_URL, // 日志归档跳转链接
+      isItsm: window.FEATURE_TOGGLE.collect_itsm === 'on', // 容量评估全局参数
+      confirmLoading: false,
+      sliderLoading: false,
+      formData: {
+        cluster_name: '', // 集群名
+        source_type: '', // 来源
+        source_name: '',
+        domain_name: '', // 地址
+        port: '', // 端口
+        schema: 'http', // 协议
+        auth_info: {
+          username: '', // 用户名
+          password: '', // 密码
+        },
+        enable_hot_warm: false, // 是否开启冷热数据
+        hot_attr_name: '', // 热节点属性名称
+        hot_attr_value: '', // 热节点属性值
+        warm_attr_name: '', // 冷节点属性名称
+        warm_attr_value: '', // 冷节点属性值
+        setup_config: {
+          // 过期时间 副本数
+          retention_days_max: 14,
+          retention_days_default: 7,
+          number_of_replicas_max: 3,
+          number_of_replicas_default: 1,
+          es_shards_default: 1,
+          es_shards_max: 3,
+        },
+        admin: [], // 负责人名单
+        description: '', // 集群说明
+        enable_archive: false, // 日志存档开关
+        enable_assessment: false, // 容量评估开关
+        visible_config: {
+          // 可见范围配置
+          visible_type: 'current_biz', // 可见范围单选项
+          bk_biz_labels: {}, // 按照业务属性选择
+          visible_bk_biz: [], // 多个业务
+        },
+      },
+      basicFormData: {
+        cluster_name: '', // 集群名
+        source_type: '', // 来源
+        source_name: '',
+        domain_name: '', // 地址
+        port: '', // 端口
+        schema: 'http', // 协议
+        auth_info: {
+          username: '', // 用户名
+          password: '', // 密码
+        },
+      },
+      basicRules: {
+        source_type: [
+          {
+            required: true,
+            trigger: 'blur',
+          },
+        ],
+        cluster_name: [
+          {
+            required: true,
+            trigger: 'blur',
+          },
+        ],
+        domain_name: [
+          {
+            required: true,
+            trigger: 'blur',
+          },
+        ],
+        port: [
+          {
+            required: true,
+            trigger: 'blur',
+          },
+        ],
+      },
+
+      connectLoading: false,
+      connectResult: '', // success failed
+      connectFailedMessage: '',
+
+      hotColdOriginList: [], // 新增编辑时的冷热数据
+      hotColdAttrSet: [], // 相同 attr value 的集合
+      selectedHotId: '', // 热 attr:value
+      selectedColdId: '', // 冷 attr:value
+      showInstanceDialog: false, // 查看实例列表
+      viewInstanceType: '', // hot、cold 查看热数据/冷数据实例列表
+      visibleScopeSelectList: [
+        // 可见范围单选列表
+        { id: 'current_biz', name: this.$t('当前空间可见') },
+        { id: 'multi_biz', name: this.$t('多空间选择') },
+        { id: 'all_biz', name: this.$t('全平台') },
+        { id: 'biz_attr', name: this.$t('按照空间属性选择') },
+      ],
+      visibleBkBiz: [], // 下拉框选中的值列表
+      visibleList: [], // 多业务选择下拉框
+      cacheVisibleList: [], // 缓存多业务选择下拉框
+      bkBizLabelsList: [], // 按照业务属性选择列表
+      cacheBkBizLabelsList: [], // 缓存按照业务属性选择
+      bizParentList: [], // 按照业务属性父级列表
+      bizChildrenList: {}, // 业务属性选择子级键值对象
+      visibleIsToggle: false, // 多业务选择icon方向
+      userApi: window.BK_LOGIN_URL, // 负责人api
+      isShowManagement: false, // 是否展示集群管理
+      retentionDaysList: [], // 默认过期时间列表
+      maxDaysList: [], // 最大过期时间列表
+      customRetentionDay: '', // 默认过期时间输入框
+      customMaxDay: '', // 最大过期时间输入框
+      isAdminError: false, // 集群负责人是否为空
+      bizSelectID: '', // 选中的当前按照业务属性选择
+      bizInputStr: '', // 按照业务属性选择输入值
+      isFirstShow: true, // 是否是第一次渲染
+      selectZIndex: 3007,
+    };
+  },
+  computed: {
+    ...mapState({
+      mySpaceList: state => state.mySpaceList,
+      userMeta: state => state.userMeta,
+    }),
+    ...mapGetters({
+      bkBizId: 'bkBizId',
+      globalsData: 'globals/globalsData',
+    }),
+    isEdit() {
+      return this.editClusterId !== null;
+    },
+    // 冷热设置不对，禁用提交
+    invalidHotSetting() {
+      return this.formData.enable_hot_warm && !(this.formData.hot_attr_value && this.formData.warm_attr_value);
+    },
+    isRulesCheckSubmit() {
+      return !this.formData.admin.length;
+    },
+    // 标签数量不足，禁止开启冷热设置
+    isDisableHotSetting() {
+      return this.hotColdAttrSet.length < 2;
+    },
+    sourceNameCheck() {
+      const { source_type, source_name } = this.formData;
+
+      if (source_type === 'other' && source_name.trim() === '') return true;
+      return false;
+    },
+    // 可见范围单选判断，禁用下拉框
+    scopeValueType() {
+      return this.formData.visible_config.visible_type !== 'multi_biz';
+    },
+    isBizAttr() {
+      return this.formData.visible_config.visible_type === 'biz_attr';
+    },
+    // 提交按钮是否禁用
+    isDisableClickSubmit() {
+      return this.connectResult !== 'success' || this.invalidHotSetting || this.isRulesCheckSubmit;
+    },
+    // 侧边栏需要对比的formData
+    _watchFormData_({ formData, basicFormData }) {
+      return { formData, basicFormData };
+    },
+  },
+  watch: {
+    showSlider(val) {
+      if (val) {
+        if (this.isEdit) {
+          this.isShowManagement = true;
+          this.editDataSource();
+        } else {
+          // 集群负责人默认本人
+          this.formData.admin = [this.userMeta.username];
+          this.initSidebarFormData();
+        }
+        this.updateDaysList();
+        this.getBizPropertyId();
+      } else {
+        // 清空表单数据
+        this.formData = {
           cluster_name: '', // 集群名
-          source_type: '', // 来源
+          source_type: '',
           source_name: '',
           domain_name: '', // 地址
           port: '', // 端口
@@ -634,7 +807,6 @@
           warm_attr_name: '', // 冷节点属性名称
           warm_attr_value: '', // 冷节点属性值
           setup_config: {
-            // 过期时间 副本数
             retention_days_max: 14,
             retention_days_default: 7,
             number_of_replicas_max: 3,
@@ -642,684 +814,512 @@
             es_shards_default: 1,
             es_shards_max: 3,
           },
-          admin: [], // 负责人名单
-          description: '', // 集群说明
-          enable_archive: false, // 日志存档开关
-          enable_assessment: false, // 容量评估开关
+          admin: [],
+          description: '',
+          enable_archive: false,
+          enable_assessment: false,
           visible_config: {
-            // 可见范围配置
-            visible_type: 'current_biz', // 可见范围单选项
-            bk_biz_labels: {}, // 按照业务属性选择
-            visible_bk_biz: [], // 多个业务
+            visible_type: 'current_biz',
+            visible_bk_biz: [],
+            bk_biz_labels: {},
           },
-        },
-        basicFormData: {
-          cluster_name: '', // 集群名
-          source_type: '', // 来源
-          source_name: '',
-          domain_name: '', // 地址
-          port: '', // 端口
-          schema: 'http', // 协议
-          auth_info: {
-            username: '', // 用户名
-            password: '', // 密码
-          },
-        },
-        basicRules: {
-          source_type: [
-            {
-              required: true,
-              trigger: 'blur',
-            },
-          ],
-          cluster_name: [
-            {
-              required: true,
-              trigger: 'blur',
-            },
-          ],
-          domain_name: [
-            {
-              required: true,
-              trigger: 'blur',
-            },
-          ],
-          port: [
-            {
-              required: true,
-              trigger: 'blur',
-            },
-          ],
-        },
-
-        connectLoading: false,
-        connectResult: '', // success failed
-        connectFailedMessage: '',
-
-        hotColdOriginList: [], // 新增编辑时的冷热数据
-        hotColdAttrSet: [], // 相同 attr value 的集合
-        selectedHotId: '', // 热 attr:value
-        selectedColdId: '', // 冷 attr:value
-        showInstanceDialog: false, // 查看实例列表
-        viewInstanceType: '', // hot、cold 查看热数据/冷数据实例列表
-        visibleScopeSelectList: [
-          // 可见范围单选列表
-          { id: 'current_biz', name: this.$t('当前空间可见') },
-          { id: 'multi_biz', name: this.$t('多空间选择') },
-          { id: 'all_biz', name: this.$t('全平台') },
-          { id: 'biz_attr', name: this.$t('按照空间属性选择') },
-        ],
-        visibleBkBiz: [], // 下拉框选中的值列表
-        visibleList: [], // 多业务选择下拉框
-        cacheVisibleList: [], // 缓存多业务选择下拉框
-        bkBizLabelsList: [], // 按照业务属性选择列表
-        cacheBkBizLabelsList: [], // 缓存按照业务属性选择
-        bizParentList: [], // 按照业务属性父级列表
-        bizChildrenList: {}, // 业务属性选择子级键值对象
-        visibleIsToggle: false, // 多业务选择icon方向
-        userApi: window.BK_LOGIN_URL, // 负责人api
-        isShowManagement: false, // 是否展示集群管理
-        retentionDaysList: [], // 默认过期时间列表
-        maxDaysList: [], // 最大过期时间列表
-        customRetentionDay: '', // 默认过期时间输入框
-        customMaxDay: '', // 最大过期时间输入框
-        isAdminError: false, // 集群负责人是否为空
-        bizSelectID: '', // 选中的当前按照业务属性选择
-        bizInputStr: '', // 按照业务属性选择输入值
-        isFirstShow: true, // 是否是第一次渲染
-        selectZIndex: 3007,
-      };
-    },
-    computed: {
-      ...mapState({
-        mySpaceList: state => state.mySpaceList,
-        userMeta: state => state.userMeta,
-      }),
-      ...mapGetters({
-        bkBizId: 'bkBizId',
-        globalsData: 'globals/globalsData',
-      }),
-      isEdit() {
-        return this.editClusterId !== null;
-      },
-      // 冷热设置不对，禁用提交
-      invalidHotSetting() {
-        return this.formData.enable_hot_warm && !(this.formData.hot_attr_value && this.formData.warm_attr_value);
-      },
-      isRulesCheckSubmit() {
-        return !this.formData.admin.length;
-      },
-      // 标签数量不足，禁止开启冷热设置
-      isDisableHotSetting() {
-        return this.hotColdAttrSet.length < 2;
-      },
-      sourceNameCheck() {
-        const { source_type, source_name } = this.formData;
-
-        if (source_type === 'other' && source_name.trim() === '') return true;
-        return false;
-      },
-      // 可见范围单选判断，禁用下拉框
-      scopeValueType() {
-        return this.formData.visible_config.visible_type !== 'multi_biz';
-      },
-      isBizAttr() {
-        return this.formData.visible_config.visible_type === 'biz_attr';
-      },
-      // 提交按钮是否禁用
-      isDisableClickSubmit() {
-        return this.connectResult !== 'success' || this.invalidHotSetting || this.isRulesCheckSubmit;
-      },
-      // 侧边栏需要对比的formData
-      _watchFormData_({ formData, basicFormData }) {
-        return { formData, basicFormData };
-      },
-    },
-    watch: {
-      showSlider(val) {
-        if (val) {
-          if (this.isEdit) {
-            this.isShowManagement = true;
-            this.editDataSource();
-          } else {
-            // 集群负责人默认本人
-            this.formData.admin = [this.userMeta.username];
-            this.initSidebarFormData();
-          }
-          this.updateDaysList();
-          this.getBizPropertyId();
-        } else {
-          // 清空表单数据
-          this.formData = {
-            cluster_name: '', // 集群名
-            source_type: '',
-            source_name: '',
-            domain_name: '', // 地址
-            port: '', // 端口
-            schema: 'http', // 协议
-            auth_info: {
-              username: '', // 用户名
-              password: '', // 密码
-            },
-            enable_hot_warm: false, // 是否开启冷热数据
-            hot_attr_name: '', // 热节点属性名称
-            hot_attr_value: '', // 热节点属性值
-            warm_attr_name: '', // 冷节点属性名称
-            warm_attr_value: '', // 冷节点属性值
-            setup_config: {
-              retention_days_max: 14,
-              retention_days_default: 7,
-              number_of_replicas_max: 3,
-              number_of_replicas_default: 1,
-              es_shards_default: 1,
-              es_shards_max: 3,
-            },
-            admin: [],
-            description: '',
-            enable_archive: false,
-            enable_assessment: false,
-            visible_config: {
-              visible_type: 'current_biz',
-              visible_bk_biz: [],
-              bk_biz_labels: {},
-            },
-          };
-          this.visibleBkBiz = [];
-          this.visibleList = [];
-          this.cacheVisibleList = [];
-          this.bkBizLabelsList = [];
-          this.cacheBkBizLabelsList = [];
-          // 清空连通测试结果
-          this.connectResult = '';
-          this.connectFailedMessage = '';
-          this.isShowManagement = false;
-          this.isFirstShow = true;
-        }
-      },
-      basicFormData: {
-        handler() {
-          if (!this.isFirstShow) {
-            this.connectResult = '';
-          }
-          this.isFirstShow = false;
-        },
-        deep: true,
-      },
-      'formData.setup_config.retention_days_default': {
-        handler() {
-          this.daySelectAddToDisable();
-        },
-      },
-      'formData.setup_config.retention_days_max': {
-        handler() {
-          this.daySelectAddToDisable();
-        },
-      },
-      // 切换可见范围时 恢复缓存或清空业务选择
-      'formData.visible_config.visible_type': {
-        handler(val) {
-          if (val !== 'multi_biz') {
-            this.visibleList = [];
-          } else {
-            this.visibleList = JSON.parse(JSON.stringify(this.cacheVisibleList));
-          }
-          if (val !== 'biz_attr') {
-            this.bkBizLabelsList = [];
-          } else {
-            this.bkBizLabelsList = JSON.parse(JSON.stringify(this.cacheBkBizLabelsList));
-          }
-        },
-      },
-      visibleList(val) {
-        this.visibleBkBiz = val.map(item => item.id);
-      },
-    },
-    methods: {
-      handleShowSlider() {
-        this.selectZIndex = window.__bk_zIndex_manager.nextZIndex();
-      },
-      updateIsShow() {
-        this.$emit('hidden');
-        this.$emit('update:show-slider', false);
-      },
-      inUseProjectPopover(isUse) {
-        return {
-          theme: 'light',
-          content: this.$t('该业务已有采集使用，无法取消可见'),
-          disabled: !isUse,
         };
-      },
-      handleDeleteTag(index) {
-        this.visibleList.splice(index, 1);
-      },
-      handleChangeSource(data) {
-        if (data !== 'other') {
-          this.formData.source_name = '';
+        this.visibleBkBiz = [];
+        this.visibleList = [];
+        this.cacheVisibleList = [];
+        this.bkBizLabelsList = [];
+        this.cacheBkBizLabelsList = [];
+        // 清空连通测试结果
+        this.connectResult = '';
+        this.connectFailedMessage = '';
+        this.isShowManagement = false;
+        this.isFirstShow = true;
+      }
+    },
+    basicFormData: {
+      handler() {
+        if (!this.isFirstShow) {
+          this.connectResult = '';
         }
+        this.isFirstShow = false;
       },
-      handleToggleVisible(data) {
-        this.visibleIsToggle = data;
-        if (!data) {
-          this.visibleList.splice(0, this.visibleList.length);
-          this.visibleBkBiz.forEach(val => {
-            if (!this.visibleList.some(item => String(item.id) === val)) {
-              const target = this.mySpaceList.find(project => project.bk_biz_id === val);
-              this.visibleList.push({
-                id: val,
-                name: target.space_full_code_name,
-                is_use: false,
-              });
-            }
-          });
-        }
-      },
-      // 编辑 es 源，回填数据
-      async editDataSource() {
-        try {
-          this.sliderLoading = true;
-          const res = await this.$http.request('/source/info', {
-            params: {
-              cluster_id: this.editClusterId,
-              bk_biz_id: this.bkBizId,
-            },
-          });
-          this.basicFormData = {
-            cluster_name: res.data.cluster_config.cluster_name, // 集群名
-            source_type: res.data.cluster_config.custom_option?.source_type || '', // 来源
-            source_name:
-              res.data.cluster_config.custom_option?.source_type === 'other'
-                ? res.data.cluster_config.custom_option?.source_name
-                : '',
-            domain_name: res.data.cluster_config.domain_name, // 地址
-            port: res.data.cluster_config.port, // 端口
-            schema: res.data.cluster_config.schema, // 协议
-            auth_info: {
-              username: res.data.auth_info.username, // 用户名
-              password: res.data.auth_info.password || '******', // 密码
-            },
-          };
-          this.formData = {
-            enable_hot_warm: res.data.cluster_config.enable_hot_warm, // 是否开启冷热数据
-            hot_attr_name: res.data.cluster_config.custom_option?.hot_warm_config?.hot_attr_name || '', // 热节点属性名称
-            hot_attr_value: res.data.cluster_config.custom_option?.hot_warm_config?.hot_attr_value || '', // 热节点属性值
-            warm_attr_name: res.data.cluster_config.custom_option?.hot_warm_config?.warm_attr_name || '', // 冷节点属性名称
-            warm_attr_value: res.data.cluster_config.custom_option?.hot_warm_config?.warm_attr_value || '', // 冷节点属性值
-            setup_config: res.data.cluster_config.custom_option?.setup_config || {},
-            admin: res.data.cluster_config.custom_option?.admin || [],
-            description: res.data.cluster_config.custom_option?.description || '',
-            enable_archive: res.data.cluster_config.custom_option?.enable_archive || false,
-            enable_assessment: res.data.cluster_config.custom_option?.enable_assessment || false,
-            visible_config: res.data.cluster_config.custom_option?.visible_config || {},
-          };
-          Object.assign(this.formData, this.basicFormData);
-          this.initSidebarFormData();
-          (res.data.cluster_config.custom_option.visible_config?.visible_bk_biz ?? []).forEach(val => {
-            const target = this.mySpaceList.find(project => project.bk_biz_id === String(val.bk_biz_id));
-            if (target) {
-              target.is_use = val.is_use;
-              const targetObj = {
-                id: String(val.bk_biz_id),
-                name: target.space_full_code_name,
-                is_use: val.is_use,
-              };
-              this.visibleList.push(targetObj);
-              this.cacheVisibleList.push(targetObj);
-            }
-          });
-
-          this.bkBizLabelsList = Object.entries(
-            res.data.cluster_config.custom_option.visible_config?.bk_biz_labels || {},
-          ).reduce((pre, cur) => {
-            const propertyName = this.bizParentList.find(item => item.id === cur[0]);
-            const obj = {
-              name: `${propertyName?.name}`,
-              id: cur[0],
-              values: cur[1].map(item => ({ id: item, name: item })),
-            };
-            pre.push(obj);
-            return pre;
-          }, []);
-          this.cacheBkBizLabelsList = JSON.parse(JSON.stringify(this.bkBizLabelsList));
-          this.$nextTick(() => {
-            // 编辑的时候直接联通测试 通过则展开ES集群管理
-            this.handleTestConnect();
-          });
-        } catch (e) {
-          console.warn(e);
-        } finally {
-          this.sliderLoading = false;
-        }
-      },
-
-      // 连通性测试
-      async handleTestConnect() {
-        try {
-          await this.$refs.validateForm.validate();
-          const postData = {
-            bk_biz_id: this.bkBizId,
-            cluster_name: this.basicFormData.cluster_name, // 集群名
-            domain_name: this.basicFormData.domain_name, // 地址
-            port: this.basicFormData.port, // 端口
-            schema: this.basicFormData.schema, // 协议
-            es_auth_info: {
-              username: this.basicFormData.auth_info.username,
-              password: this.basicFormData.auth_info.password,
-            },
-          };
-          if (this.isEdit) {
-            postData.cluster_id = this.editClusterId;
-          }
-          if (postData.es_auth_info.password === '******') {
-            postData.es_auth_info.password = '';
-          }
-          this.connectLoading = true;
-          await this.$http.request('/source/connectivityDetect', { data: postData }, { catchIsShowMessage: false });
-          this.connectResult = 'success';
-          // 连通性测试通过之后获取冷热数据
-          const attrsRes = await this.$http.request('/source/getNodeAttrs', { data: postData });
-          this.hotColdOriginList = attrsRes.data;
-          if (!this.isEdit) {
-            this.formData.setup_config.es_shards_default = this.hotColdOriginList.length;
-            this.formData.setup_config.es_shards_max = this.hotColdOriginList.length;
-          }
-        } catch (e) {
-          console.warn(e);
-          this.connectResult = 'failed';
-          this.connectFailedMessage = e.message;
-          this.hotColdOriginList = [];
-        } finally {
-          this.connectLoading = false;
-          this.dealWithHotColdData();
-        }
-      },
-      handleChangeHotWarm(v) {
-        if (!this.isEdit && v) {
-          this.formData.setup_config.es_shards_default = this.hotColdAttrSet.length;
-          this.formData.setup_config.es_shards_max = this.hotColdAttrSet.length;
-        }
-      },
-      dealWithHotColdData() {
-        const hotColdAttrSet = [];
-        this.hotColdOriginList.forEach(item => {
-          const newItem = { ...item };
-          newItem.computedId = `${item.attr}:${item.value}`;
-          newItem.computedName = `${item.attr}:${item.value}`;
-          newItem.computedCounts = 1;
-          newItem.isSelected = false;
-          const existItem = hotColdAttrSet.find(item => item.computedId === newItem.computedId);
-          if (existItem) {
-            existItem.computedCounts += 1;
-          } else {
-            hotColdAttrSet.push(newItem);
-          }
-        });
-        this.hotColdAttrSet = hotColdAttrSet;
-        this.selectedHotId = this.formData.hot_attr_name
-          ? `${this.formData.hot_attr_name}:${this.formData.hot_attr_value}`
-          : '';
-        this.selectedColdId = this.formData.warm_attr_name
-          ? `${this.formData.warm_attr_name}:${this.formData.warm_attr_value}`
-          : '';
-      },
-      handleHotSelected(value) {
-        const item = this.hotColdAttrSet.find(item => item.computedId === value);
-        this.formData.hot_attr_name = item?.attr || '';
-        this.formData.hot_attr_value = item?.value || '';
-        this.computeIsSelected();
-      },
-      handleColdSelected(value) {
-        const item = this.hotColdAttrSet.find(item => item.computedId === value);
-        this.formData.warm_attr_name = item?.attr || '';
-        this.formData.warm_attr_value = item?.value || '';
-        this.computeIsSelected();
-      },
-      computeIsSelected() {
-        for (const item of this.hotColdAttrSet) {
-          item.isSelected = this.selectedColdId === item.computedId || this.selectedHotId === item.computedId;
-        }
-      },
-      handleViewInstanceList(type) {
-        this.viewInstanceType = type;
-        this.showInstanceDialog = true;
-      },
-
-      // 确认提交新增或编辑
-      async handleConfirm() {
-        const isCanSubmit = this.checkSelectItem();
-        if (!isCanSubmit) return;
-        try {
-          await this.$refs.validateForm.validate();
-          let url = '/source/create';
-          const paramsData = {
-            bk_biz_id: this.bkBizId,
-          };
-          Object.assign(this.formData, this.basicFormData);
-          const postData = JSON.parse(JSON.stringify(this.formData));
-          postData.bk_biz_id = this.bkBizId;
-          if (!postData.enable_hot_warm) {
-            delete postData.hot_attr_name;
-            delete postData.hot_attr_value;
-            delete postData.warm_attr_name;
-            delete postData.warm_attr_value;
-          }
-          for (const key in postData.setup_config) {
-            postData.setup_config[key] = Number(postData.setup_config[key]);
-          }
-          if (postData.source_type !== 'other') {
-            delete postData.source_name;
-          }
-          if (this.visibleList.length) {
-            postData.visible_config.visible_bk_biz = this.visibleList.map(item => item.id);
-          } else {
-            postData.visible_config.visible_bk_biz = [];
-          }
-          if (this.bkBizLabelsList.length) {
-            postData.visible_config.bk_biz_labels = this.filterBzID();
-          } else {
-            postData.visible_config.bk_biz_labels = {};
-          }
-          if (this.isEdit) {
-            url = '/source/update';
-            paramsData.cluster_id = this.editClusterId;
-            if (postData.auth_info.password === '******') {
-              postData.auth_info.password = '';
-            }
-          }
-          this.confirmLoading = true;
-          await this.$http.request(url, {
-            data: postData,
-            params: paramsData,
-          });
-          this.$bkMessage({
-            theme: 'success',
-            message: this.$t('保存成功'),
-            delay: 1500,
-          });
-          this.$emit('updated');
-        } catch (e) {
-          console.warn(e);
-        } finally {
-          this.confirmLoading = false;
-        }
-      },
-      handleCancel() {
-        this.$emit('update:show-slider', false);
-      },
-      updateDaysList() {
-        const retentionDaysList = [...this.globalsData.storage_duration_time].filter(item => {
-          return item.id;
-        });
-        this.retentionDaysList = retentionDaysList;
-        this.maxDaysList = JSON.parse(JSON.stringify(retentionDaysList));
+      deep: true,
+    },
+    'formData.setup_config.retention_days_default': {
+      handler() {
         this.daySelectAddToDisable();
       },
-      /**
-       * @desc: 判断过期时间输入的值
-       * @param { String } val 输入的值
-       * @param { type } type 默认或最大
-       */
-      enterCustomDay(val, type) {
-        const numberVal = parseInt(val.trim(), 10);
-        const stringVal = numberVal.toString();
-        const isRetention = type === 'retention';
-        if (numberVal) {
-          const isExceed = isRetention
-            ? this.formData.setup_config.retention_days_max < numberVal
-            : this.formData.setup_config.retention_days_default > numberVal;
-          if (isExceed) {
-            this.messageError(this.$t('默认天数不能大于最大天数'));
-            return;
-          }
-          if (isRetention) {
-            if (!this.retentionDaysList.some(item => item.id === stringVal)) {
-              this.retentionDaysList.push({
-                id: stringVal,
-                name: stringVal + this.$t('天'),
-              });
-            }
-            this.formData.setup_config.retention_days_default = stringVal;
-            this.customRetentionDay = '';
-          } else {
-            if (!this.maxDaysList.some(item => item.id === stringVal)) {
-              this.maxDaysList.push({
-                id: stringVal,
-                name: stringVal + this.$t('天'),
-              });
-            }
-            this.formData.setup_config.retention_days_max = stringVal;
-            this.customMaxDay = '';
-          }
-          document.body.click();
-        } else {
-          isRetention ? (this.customRetentionDay = '') : (this.customMaxDay = '');
-          this.messageError(this.$t('请输入有效数值'));
-        }
-      },
-      /**
-       * @desc: 更新过期时间列表里禁止选中的情况
-       */
-      daySelectAddToDisable() {
-        const { retention_days_default: defaultDays, retention_days_max: maxDays } = this.formData.setup_config;
-        this.retentionDaysList.forEach(el => (el.disabled = Number(maxDays) < Number(el.id)));
-        this.maxDaysList.forEach(el => (el.disabled = Number(defaultDays) > Number(el.id)));
-      },
-      handleChangePrincipal(val) {
-        // 集群负责人为空时报错警告
-        const realVal = val.filter(item => item !== undefined);
-        this.isAdminError = !realVal.length;
-        this.formData.admin = realVal;
-      },
-      handleBlur() {
-        this.isAdminError = !this.formData.admin.length;
-      },
-      getBizPropertyId() {
-        // 因搜索框如果直接搜索子级元素则返回值不带父级元素 传参需要父级元素则分开展示
-        this.$http.request('/source/getProperty').then(res => {
-          // 父级键名
-          this.bizParentList = res.data.map(item => {
-            return {
-              name: item.biz_property_name,
-              id: item.biz_property_id,
-              multiable: true,
-              remote: true,
-            };
-          });
-          // 生成子级数组
-          res.data.forEach(item => {
-            this.bizChildrenList[item.biz_property_id] = item.biz_property_value.map(item => {
-              return {
-                id: item,
-                name: item,
-              };
-            });
-          });
-        });
-      },
-      handleRemoteMethod() {
-        return new Promise(resolve => {
-          setTimeout(() => {
-            // 空值返回全部，搜索返回部分
-            if (!!this.bizInputStr) {
-              resolve(this.bizChildrenList[this.bizSelectID].filter(item => item.name.includes(this.bizInputStr)));
-            } else {
-              resolve(this.bizChildrenList[this.bizSelectID]);
-            }
-          }, 1000);
-        });
-      },
-      handleMenuSelect(item) {
-        // 赋值当前选择的ItemID
-        this.bizSelectID = item.id;
-        // 父选项选中后搜索设置为空
-        this.bizInputStr = '';
-      },
-      handleChildMenuSelect() {
-        // 子选项选中后搜索设置为空
-        this.bizInputStr = '';
-      },
-      handleClickOutside() {
-        // searchSelect组件若没有点击确认则清除输入框和选中的值
-        if (!this.$refs.searchSelectRef.input.focus) {
-          this.$refs.searchSelectRef.input.value = '';
-          this.$refs.searchSelectRef.menu.active = -1;
-          this.$refs.searchSelectRef.menu.id = null;
-          this.$refs.searchSelectRef.updateInput();
-          this.$refs.searchSelectRef.clearInput();
-          this.$refs.searchSelectRef.menu.checked = {};
-          this.$refs.searchSelectRef.menuChildInstance && (this.$refs.searchSelectRef.menuChildInstance.checked = {});
-          this.$refs.searchSelectRef.menuInstance = null;
-        }
-      },
-      handleInputChange($event) {
-        // 按照业务属性选择赋值
-        this.bizInputStr = $event.data;
-      },
-      /**
-       * @desc: 过滤和去重按照业务属性选择
-       */
-      filterBzID() {
-        const parentSet = new Set();
-        const list = {};
-        this.bkBizLabelsList.forEach(item => {
-          // 若当前元素父级未重复则生成新键名并赋值
-          if (!parentSet.has(item.id)) {
-            parentSet.add(item.id);
-            list[item.id] = [];
-            const valuesList = item.values.map(item => item.id);
-            list[item.id] = list[item.id].concat(valuesList);
-          } else {
-            // 若当前元素父级重复则去重过滤
-            const valuesList = item.values.map(item => item.id);
-            const concatList = valuesList.concat(list[item.id]);
-            const childSet = new Set([...concatList]);
-            list[item.id] = [...childSet];
-          }
-        });
-        return list;
-      },
-      handleOpenDocument() {
-        window.open(this.archiveDocUrl, '_blank');
-      },
-      checkSelectItem() {
-        let messageType;
-        const { visible_type: visibleType } = this.formData.visible_config;
-        visibleType === 'multi_biz' &&
-          !this.visibleList.length &&
-          (messageType = this.$t('可见类型为业务属性时，业务标签不能为空'));
-        visibleType === 'biz_attr' &&
-          !this.bkBizLabelsList.length &&
-          (messageType = this.$t('可见类型为多业务时，可见业务范围不能为空'));
-        if (!!messageType) {
-          this.$bkMessage({
-            theme: 'error',
-            message: messageType,
-          });
-          return false;
-        }
-        return true;
+    },
+    'formData.setup_config.retention_days_max': {
+      handler() {
+        this.daySelectAddToDisable();
       },
     },
-  };
+    // 切换可见范围时 恢复缓存或清空业务选择
+    'formData.visible_config.visible_type': {
+      handler(val) {
+        if (val !== 'multi_biz') {
+          this.visibleList = [];
+        } else {
+          this.visibleList = JSON.parse(JSON.stringify(this.cacheVisibleList));
+        }
+        if (val !== 'biz_attr') {
+          this.bkBizLabelsList = [];
+        } else {
+          this.bkBizLabelsList = JSON.parse(JSON.stringify(this.cacheBkBizLabelsList));
+        }
+      },
+    },
+    visibleList(val) {
+      this.visibleBkBiz = val.map(item => item.id);
+    },
+  },
+  methods: {
+    handleShowSlider() {
+      this.selectZIndex = window.__bk_zIndex_manager.nextZIndex();
+    },
+    updateIsShow() {
+      this.$emit('hidden');
+      this.$emit('update:show-slider', false);
+    },
+    inUseProjectPopover(isUse) {
+      return {
+        theme: 'light',
+        content: this.$t('该业务已有采集使用，无法取消可见'),
+        disabled: !isUse,
+      };
+    },
+    handleDeleteTag(index) {
+      this.visibleList.splice(index, 1);
+    },
+    handleChangeSource(data) {
+      if (data !== 'other') {
+        this.formData.source_name = '';
+      }
+    },
+    handleToggleVisible(data) {
+      this.visibleIsToggle = data;
+      if (!data) {
+        this.visibleList.splice(0, this.visibleList.length);
+        this.visibleBkBiz.forEach(val => {
+          if (!this.visibleList.some(item => String(item.id) === val)) {
+            const target = this.mySpaceList.find(project => project.bk_biz_id === val);
+            this.visibleList.push({
+              id: val,
+              name: target.space_full_code_name,
+              is_use: false,
+            });
+          }
+        });
+      }
+    },
+    // 编辑 es 源，回填数据
+    async editDataSource() {
+      try {
+        this.sliderLoading = true;
+        const res = await this.$http.request('/source/info', {
+          params: {
+            cluster_id: this.editClusterId,
+            bk_biz_id: this.bkBizId,
+          },
+        });
+        this.basicFormData = {
+          cluster_name: res.data.cluster_config.cluster_name, // 集群名
+          source_type: res.data.cluster_config.custom_option?.source_type || '', // 来源
+          source_name:
+            res.data.cluster_config.custom_option?.source_type === 'other'
+              ? res.data.cluster_config.custom_option?.source_name
+              : '',
+          domain_name: res.data.cluster_config.domain_name, // 地址
+          port: res.data.cluster_config.port, // 端口
+          schema: res.data.cluster_config.schema, // 协议
+          auth_info: {
+            username: res.data.auth_info.username, // 用户名
+            password: res.data.auth_info.password || '******', // 密码
+          },
+        };
+        this.formData = {
+          enable_hot_warm: res.data.cluster_config.enable_hot_warm, // 是否开启冷热数据
+          hot_attr_name: res.data.cluster_config.custom_option?.hot_warm_config?.hot_attr_name || '', // 热节点属性名称
+          hot_attr_value: res.data.cluster_config.custom_option?.hot_warm_config?.hot_attr_value || '', // 热节点属性值
+          warm_attr_name: res.data.cluster_config.custom_option?.hot_warm_config?.warm_attr_name || '', // 冷节点属性名称
+          warm_attr_value: res.data.cluster_config.custom_option?.hot_warm_config?.warm_attr_value || '', // 冷节点属性值
+          setup_config: res.data.cluster_config.custom_option?.setup_config || {},
+          admin: res.data.cluster_config.custom_option?.admin || [],
+          description: res.data.cluster_config.custom_option?.description || '',
+          enable_archive: res.data.cluster_config.custom_option?.enable_archive || false,
+          enable_assessment: res.data.cluster_config.custom_option?.enable_assessment || false,
+          visible_config: res.data.cluster_config.custom_option?.visible_config || {},
+        };
+        Object.assign(this.formData, this.basicFormData);
+        this.initSidebarFormData();
+        (res.data.cluster_config.custom_option.visible_config?.visible_bk_biz ?? []).forEach(val => {
+          const target = this.mySpaceList.find(project => project.bk_biz_id === String(val.bk_biz_id));
+          if (target) {
+            target.is_use = val.is_use;
+            const targetObj = {
+              id: String(val.bk_biz_id),
+              name: target.space_full_code_name,
+              is_use: val.is_use,
+            };
+            this.visibleList.push(targetObj);
+            this.cacheVisibleList.push(targetObj);
+          }
+        });
+
+        this.bkBizLabelsList = Object.entries(
+          res.data.cluster_config.custom_option.visible_config?.bk_biz_labels || {}
+        ).reduce((pre, cur) => {
+          const propertyName = this.bizParentList.find(item => item.id === cur[0]);
+          const obj = {
+            name: `${propertyName?.name}`,
+            id: cur[0],
+            values: cur[1].map(item => ({ id: item, name: item })),
+          };
+          pre.push(obj);
+          return pre;
+        }, []);
+        this.cacheBkBizLabelsList = JSON.parse(JSON.stringify(this.bkBizLabelsList));
+        this.$nextTick(() => {
+          // 编辑的时候直接联通测试 通过则展开ES集群管理
+          this.handleTestConnect();
+        });
+      } catch (e) {
+        console.warn(e);
+      } finally {
+        this.sliderLoading = false;
+      }
+    },
+
+    // 连通性测试
+    async handleTestConnect() {
+      try {
+        await this.$refs.validateForm.validate();
+        const postData = {
+          bk_biz_id: this.bkBizId,
+          cluster_name: this.basicFormData.cluster_name, // 集群名
+          domain_name: this.basicFormData.domain_name, // 地址
+          port: this.basicFormData.port, // 端口
+          schema: this.basicFormData.schema, // 协议
+          es_auth_info: {
+            username: this.basicFormData.auth_info.username,
+            password: this.basicFormData.auth_info.password,
+          },
+        };
+        if (this.isEdit) {
+          postData.cluster_id = this.editClusterId;
+        }
+        if (postData.es_auth_info.password === '******') {
+          postData.es_auth_info.password = '';
+        }
+        this.connectLoading = true;
+        await this.$http.request('/source/connectivityDetect', { data: postData }, { catchIsShowMessage: false });
+        this.connectResult = 'success';
+        // 连通性测试通过之后获取冷热数据
+        const attrsRes = await this.$http.request('/source/getNodeAttrs', { data: postData });
+        this.hotColdOriginList = attrsRes.data;
+        if (!this.isEdit) {
+          this.formData.setup_config.es_shards_default = this.hotColdOriginList.length;
+          this.formData.setup_config.es_shards_max = this.hotColdOriginList.length;
+        }
+      } catch (e) {
+        console.warn(e);
+        this.connectResult = 'failed';
+        this.connectFailedMessage = e.message;
+        this.hotColdOriginList = [];
+      } finally {
+        this.connectLoading = false;
+        this.dealWithHotColdData();
+      }
+    },
+    handleChangeHotWarm(v) {
+      if (!this.isEdit && v) {
+        this.formData.setup_config.es_shards_default = this.hotColdAttrSet.length;
+        this.formData.setup_config.es_shards_max = this.hotColdAttrSet.length;
+      }
+    },
+    dealWithHotColdData() {
+      const hotColdAttrSet = [];
+      this.hotColdOriginList.forEach(item => {
+        const newItem = { ...item };
+        newItem.computedId = `${item.attr}:${item.value}`;
+        newItem.computedName = `${item.attr}:${item.value}`;
+        newItem.computedCounts = 1;
+        newItem.isSelected = false;
+        const existItem = hotColdAttrSet.find(item => item.computedId === newItem.computedId);
+        if (existItem) {
+          existItem.computedCounts += 1;
+        } else {
+          hotColdAttrSet.push(newItem);
+        }
+      });
+      this.hotColdAttrSet = hotColdAttrSet;
+      this.selectedHotId = this.formData.hot_attr_name
+        ? `${this.formData.hot_attr_name}:${this.formData.hot_attr_value}`
+        : '';
+      this.selectedColdId = this.formData.warm_attr_name
+        ? `${this.formData.warm_attr_name}:${this.formData.warm_attr_value}`
+        : '';
+    },
+    handleHotSelected(value) {
+      const item = this.hotColdAttrSet.find(item => item.computedId === value);
+      this.formData.hot_attr_name = item?.attr || '';
+      this.formData.hot_attr_value = item?.value || '';
+      this.computeIsSelected();
+    },
+    handleColdSelected(value) {
+      const item = this.hotColdAttrSet.find(item => item.computedId === value);
+      this.formData.warm_attr_name = item?.attr || '';
+      this.formData.warm_attr_value = item?.value || '';
+      this.computeIsSelected();
+    },
+    computeIsSelected() {
+      for (const item of this.hotColdAttrSet) {
+        item.isSelected = this.selectedColdId === item.computedId || this.selectedHotId === item.computedId;
+      }
+    },
+    handleViewInstanceList(type) {
+      this.viewInstanceType = type;
+      this.showInstanceDialog = true;
+    },
+
+    // 确认提交新增或编辑
+    async handleConfirm() {
+      const isCanSubmit = this.checkSelectItem();
+      if (!isCanSubmit) return;
+      try {
+        await this.$refs.validateForm.validate();
+        let url = '/source/create';
+        const paramsData = {
+          bk_biz_id: this.bkBizId,
+        };
+        Object.assign(this.formData, this.basicFormData);
+        const postData = JSON.parse(JSON.stringify(this.formData));
+        postData.bk_biz_id = this.bkBizId;
+        if (!postData.enable_hot_warm) {
+          delete postData.hot_attr_name;
+          delete postData.hot_attr_value;
+          delete postData.warm_attr_name;
+          delete postData.warm_attr_value;
+        }
+        for (const key in postData.setup_config) {
+          postData.setup_config[key] = Number(postData.setup_config[key]);
+        }
+        if (postData.source_type !== 'other') {
+          delete postData.source_name;
+        }
+        if (this.visibleList.length) {
+          postData.visible_config.visible_bk_biz = this.visibleList.map(item => item.id);
+        } else {
+          postData.visible_config.visible_bk_biz = [];
+        }
+        if (this.bkBizLabelsList.length) {
+          postData.visible_config.bk_biz_labels = this.filterBzID();
+        } else {
+          postData.visible_config.bk_biz_labels = {};
+        }
+        if (this.isEdit) {
+          url = '/source/update';
+          paramsData.cluster_id = this.editClusterId;
+          if (postData.auth_info.password === '******') {
+            postData.auth_info.password = '';
+          }
+        }
+        this.confirmLoading = true;
+        await this.$http.request(url, {
+          data: postData,
+          params: paramsData,
+        });
+        this.$bkMessage({
+          theme: 'success',
+          message: this.$t('保存成功'),
+          delay: 1500,
+        });
+        this.$emit('updated');
+      } catch (e) {
+        console.warn(e);
+      } finally {
+        this.confirmLoading = false;
+      }
+    },
+    handleCancel() {
+      this.$emit('update:show-slider', false);
+    },
+    updateDaysList() {
+      const retentionDaysList = [...this.globalsData.storage_duration_time].filter(item => {
+        return item.id;
+      });
+      this.retentionDaysList = retentionDaysList;
+      this.maxDaysList = JSON.parse(JSON.stringify(retentionDaysList));
+      this.daySelectAddToDisable();
+    },
+    /**
+     * @desc: 判断过期时间输入的值
+     * @param { String } val 输入的值
+     * @param { type } type 默认或最大
+     */
+    enterCustomDay(val, type) {
+      const numberVal = parseInt(val.trim(), 10);
+      const stringVal = numberVal.toString();
+      const isRetention = type === 'retention';
+      if (numberVal) {
+        const isExceed = isRetention
+          ? this.formData.setup_config.retention_days_max < numberVal
+          : this.formData.setup_config.retention_days_default > numberVal;
+        if (isExceed) {
+          this.messageError(this.$t('默认天数不能大于最大天数'));
+          return;
+        }
+        if (isRetention) {
+          if (!this.retentionDaysList.some(item => item.id === stringVal)) {
+            this.retentionDaysList.push({
+              id: stringVal,
+              name: stringVal + this.$t('天'),
+            });
+          }
+          this.formData.setup_config.retention_days_default = stringVal;
+          this.customRetentionDay = '';
+        } else {
+          if (!this.maxDaysList.some(item => item.id === stringVal)) {
+            this.maxDaysList.push({
+              id: stringVal,
+              name: stringVal + this.$t('天'),
+            });
+          }
+          this.formData.setup_config.retention_days_max = stringVal;
+          this.customMaxDay = '';
+        }
+        document.body.click();
+      } else {
+        isRetention ? (this.customRetentionDay = '') : (this.customMaxDay = '');
+        this.messageError(this.$t('请输入有效数值'));
+      }
+    },
+    /**
+     * @desc: 更新过期时间列表里禁止选中的情况
+     */
+    daySelectAddToDisable() {
+      const { retention_days_default: defaultDays, retention_days_max: maxDays } = this.formData.setup_config;
+      this.retentionDaysList.forEach(el => (el.disabled = Number(maxDays) < Number(el.id)));
+      this.maxDaysList.forEach(el => (el.disabled = Number(defaultDays) > Number(el.id)));
+    },
+    handleChangePrincipal(val) {
+      // 集群负责人为空时报错警告
+      const realVal = val.filter(item => item !== undefined);
+      this.isAdminError = !realVal.length;
+      this.formData.admin = realVal;
+    },
+    handleBlur() {
+      this.isAdminError = !this.formData.admin.length;
+    },
+    getBizPropertyId() {
+      // 因搜索框如果直接搜索子级元素则返回值不带父级元素 传参需要父级元素则分开展示
+      this.$http.request('/source/getProperty').then(res => {
+        // 父级键名
+        this.bizParentList = res.data.map(item => {
+          return {
+            name: item.biz_property_name,
+            id: item.biz_property_id,
+            multiable: true,
+            remote: true,
+          };
+        });
+        // 生成子级数组
+        res.data.forEach(item => {
+          this.bizChildrenList[item.biz_property_id] = item.biz_property_value.map(item => {
+            return {
+              id: item,
+              name: item,
+            };
+          });
+        });
+      });
+    },
+    handleRemoteMethod() {
+      return new Promise(resolve => {
+        setTimeout(() => {
+          // 空值返回全部，搜索返回部分
+          if (!!this.bizInputStr) {
+            resolve(this.bizChildrenList[this.bizSelectID].filter(item => item.name.includes(this.bizInputStr)));
+          } else {
+            resolve(this.bizChildrenList[this.bizSelectID]);
+          }
+        }, 1000);
+      });
+    },
+    handleMenuSelect(item) {
+      // 赋值当前选择的ItemID
+      this.bizSelectID = item.id;
+      // 父选项选中后搜索设置为空
+      this.bizInputStr = '';
+    },
+    handleChildMenuSelect() {
+      // 子选项选中后搜索设置为空
+      this.bizInputStr = '';
+    },
+    handleClickOutside() {
+      // searchSelect组件若没有点击确认则清除输入框和选中的值
+      if (!this.$refs.searchSelectRef.input.focus) {
+        this.$refs.searchSelectRef.input.value = '';
+        this.$refs.searchSelectRef.menu.active = -1;
+        this.$refs.searchSelectRef.menu.id = null;
+        this.$refs.searchSelectRef.updateInput();
+        this.$refs.searchSelectRef.clearInput();
+        this.$refs.searchSelectRef.menu.checked = {};
+        this.$refs.searchSelectRef.menuChildInstance && (this.$refs.searchSelectRef.menuChildInstance.checked = {});
+        this.$refs.searchSelectRef.menuInstance = null;
+      }
+    },
+    handleInputChange($event) {
+      // 按照业务属性选择赋值
+      this.bizInputStr = $event.data;
+    },
+    /**
+     * @desc: 过滤和去重按照业务属性选择
+     */
+    filterBzID() {
+      const parentSet = new Set();
+      const list = {};
+      this.bkBizLabelsList.forEach(item => {
+        // 若当前元素父级未重复则生成新键名并赋值
+        if (!parentSet.has(item.id)) {
+          parentSet.add(item.id);
+          list[item.id] = [];
+          const valuesList = item.values.map(item => item.id);
+          list[item.id] = list[item.id].concat(valuesList);
+        } else {
+          // 若当前元素父级重复则去重过滤
+          const valuesList = item.values.map(item => item.id);
+          const concatList = valuesList.concat(list[item.id]);
+          const childSet = new Set([...concatList]);
+          list[item.id] = [...childSet];
+        }
+      });
+      return list;
+    },
+    handleOpenDocument() {
+      window.open(this.archiveDocUrl, '_blank');
+    },
+    checkSelectItem() {
+      let messageType;
+      const { visible_type: visibleType } = this.formData.visible_config;
+      visibleType === 'multi_biz' &&
+        !this.visibleList.length &&
+        (messageType = this.$t('可见类型为业务属性时，业务标签不能为空'));
+      visibleType === 'biz_attr' &&
+        !this.bkBizLabelsList.length &&
+        (messageType = this.$t('可见类型为多业务时，可见业务范围不能为空'));
+      if (!!messageType) {
+        this.$bkMessage({
+          theme: 'error',
+          message: messageType,
+        });
+        return false;
+      }
+      return true;
+    },
+  },
+};
 </script>
 
 <style lang="scss" scoped>

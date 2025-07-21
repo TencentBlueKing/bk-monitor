@@ -82,7 +82,7 @@ export default defineComponent({
 
     const propValueStrList = computed(() => props.value.map(id => `${id}`));
     const valueList = computed(() =>
-      props.list.filter((item: any) => propValueStrList.value.includes(`${item.index_set_id}`)),
+      props.list.filter((item: any) => propValueStrList.value.includes(`${item.index_set_id}`))
     );
 
     const formatList = computed(() => {
@@ -90,7 +90,7 @@ export default defineComponent({
         return ['index_set_name', 'index_set_id', 'bk_biz_id', 'collector_config_id'].some(
           key =>
             `${node[key]}`.indexOf(searchText.value) !== -1 ||
-            (node.indices ?? []).some(idc => `${idc.result_table_id}`.indexOf(searchText.value) !== -1),
+            (node.indices ?? []).some(idc => `${idc.result_table_id}`.indexOf(searchText.value) !== -1)
         );
       };
       // 检查节点是否应该显示
@@ -220,7 +220,7 @@ export default defineComponent({
           filterFullList.value.includes(item) ||
           (item.children ?? []).filter(child => filterFullList.value.includes(child)).length > 0
         );
-      }),
+      })
     );
 
     /**
@@ -258,7 +258,7 @@ export default defineComponent({
                 disableList.value.push(id);
               } else {
                 // 如果是非选中，从 disableList 中移除
-                const index = disableList.value.findIndex(v => (v === id));
+                const index = disableList.value.findIndex(v => v === id);
                 if (index >= 0) {
                   disableList.value.splice(index, 1);
                 }
@@ -277,7 +277,7 @@ export default defineComponent({
       emit(
         'favorite-change',
         Object.assign(item, { id: item.id ?? item.index_set_id, index_set_type: 'single' }),
-        !item.is_favorite,
+        !item.is_favorite
       );
     };
 
@@ -388,7 +388,7 @@ export default defineComponent({
       is_child = false,
       has_child = true,
       is_root_checked = false,
-      has_no_data_child = false,
+      has_no_data_child = false
     ) => {
       const hasPermission = item.permission?.[authorityMap.SEARCH_LOG_AUTH];
       const isEmptyNode = item.tags?.some(tag => tag.tag_id === 4);
@@ -520,56 +520,56 @@ export default defineComponent({
                   {$t('清空选择')}
                 </span>
               </div>
-              { 
-                !isMonitorComponent && <BklogPopover
-                trigger='click'
-                ref={refFavoriteGroup}
-                {...{
-                  scopedSlots: {
-                    content: () => (
-                      <bk-form
-                        label-width={200}
-                        form-type='vertical'
-                        style='padding: 16px; width: 300px;'
-                      >
-                        <bk-form-item
-                          label={$t('收藏名称')}
-                          required={true}
-                          property='name'
-                          ref={refFavoriteItemName}
+              {!isMonitorComponent && (
+                <BklogPopover
+                  trigger='click'
+                  ref={refFavoriteGroup}
+                  {...{
+                    scopedSlots: {
+                      content: () => (
+                        <bk-form
+                          label-width={200}
+                          form-type='vertical'
+                          style='padding: 16px; width: 300px;'
                         >
-                          <bk-input
-                            value={favoriteFormData.value.name}
-                            on-change={val => (favoriteFormData.value.name = val)}
-                          ></bk-input>
-                        </bk-form-item>
-                        <bk-form-item style='text-align: right;'>
-                          <bk-button
-                            style='margin-right: 3px;'
-                            theme='primary'
-                            onClick={handleFavoriteGroupClick}
+                          <bk-form-item
+                            label={$t('收藏名称')}
+                            required={true}
+                            property='name'
+                            ref={refFavoriteItemName}
                           >
-                            {$t('确定')}
-                          </bk-button>
-                          <bk-button
-                            ext-cls='mr5'
-                            theme='default'
-                          >
-                            {$t('取消')}
-                          </bk-button>
-                        </bk-form-item>
-                      </bk-form>
-                    ),
-                  },
-                }}
-              >
-                <span
-                  class='bklog-icon bklog-lc-star-shape'
-                  style='color: #DCDEE5; font-size: 14px; margin-right: 4px;'
-                ></span>
-                <span style='font-size: 12px;color: #3A84FF;'>{$t('收藏该组合')}</span>
-              </BklogPopover>
-            }
+                            <bk-input
+                              value={favoriteFormData.value.name}
+                              on-change={val => (favoriteFormData.value.name = val)}
+                            ></bk-input>
+                          </bk-form-item>
+                          <bk-form-item style='text-align: right;'>
+                            <bk-button
+                              style='margin-right: 3px;'
+                              theme='primary'
+                              onClick={handleFavoriteGroupClick}
+                            >
+                              {$t('确定')}
+                            </bk-button>
+                            <bk-button
+                              ext-cls='mr5'
+                              theme='default'
+                            >
+                              {$t('取消')}
+                            </bk-button>
+                          </bk-form-item>
+                        </bk-form>
+                      ),
+                    },
+                  }}
+                >
+                  <span
+                    class='bklog-icon bklog-lc-star-shape'
+                    style='color: #DCDEE5; font-size: 14px; margin-right: 4px;'
+                  ></span>
+                  <span style='font-size: 12px;color: #3A84FF;'>{$t('收藏该组合')}</span>
+                </BklogPopover>
+              )}
             </div>
             <div class='row-item-list'>
               {valueList.value.map((item: any) => (

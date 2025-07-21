@@ -365,442 +365,408 @@
 </template>
 
 <script>
-  import { projectManages } from '@/common/util';
-  import AuthContainerPage from '@/components/common/auth-container-page';
-  import VueDraggable from 'vuedraggable';
-  import { mapGetters, mapState } from 'vuex';
+import { projectManages } from '@/common/util';
+import AuthContainerPage from '@/components/common/auth-container-page';
+import VueDraggable from 'vuedraggable';
+import { mapGetters, mapState } from 'vuex';
 
-  import * as authorityMap from '../../../../../../common/authority-map';
-  import SelectCollection from './select-collection';
-  import SelectEs from './select-es';
+import * as authorityMap from '../../../../../../common/authority-map';
+import SelectCollection from './select-collection';
+import SelectEs from './select-es';
 
-  export default {
-    name: 'IndexSetCreate',
-    components: {
-      SelectCollection,
-      SelectEs,
-      AuthContainerPage,
-      VueDraggable,
+export default {
+  name: 'IndexSetCreate',
+  components: {
+    SelectCollection,
+    SelectEs,
+    AuthContainerPage,
+    VueDraggable,
+  },
+  data() {
+    const scenarioId = this.$route.name.split('-')[0];
+    return {
+      scenarioId,
+      isEdit: false, // 编辑索引集 or 新建索引集
+      basicLoading: false,
+      submitLoading: false,
+      authPageInfo: null,
+      isSubmit: false,
+      clusterList: [], // 集群列表
+      timeIndex: null,
+      formData: {
+        scenario_id: scenarioId, // 采集接入
+        index_set_name: '', // 索引集名称
+        category_id: '', // 数据分类
+        storage_cluster_id: '', // 集群
+        indexes: [], // 采集项
+        target_fields: [],
+        sort_fields: [],
+      },
+      formRules: {
+        index_set_name: [
+          {
+            required: true,
+            trigger: 'blur',
+          },
+        ],
+        category_id: [
+          {
+            required: true,
+            trigger: 'blur',
+          },
+        ],
+        storage_cluster_id: [
+          {
+            required: true,
+            trigger: 'blur',
+          },
+        ],
+      },
+      tableLoading: false,
+      currentActiveShowID: '',
+      currentMatchedTableIds: [], // 匹配到的索引 id，result table id list
+      collectionTableData: [],
+      targetFieldSelectList: [],
+    };
+  },
+  computed: {
+    ...mapState(['spaceUid', 'bkBizId', 'showRouterLeaveTip']),
+    ...mapState('collect', ['curIndexSet']),
+    ...mapGetters('globals', ['globalsData']),
+    authorityMap() {
+      return authorityMap;
     },
-    data() {
-      const scenarioId = this.$route.name.split('-')[0];
-      return {
-        scenarioId,
-        isEdit: false, // 编辑索引集 or 新建索引集
-        basicLoading: false,
-        submitLoading: false,
-        authPageInfo: null,
-        isSubmit: false,
-        clusterList: [], // 集群列表
-        timeIndex: null,
-        formData: {
-          scenario_id: scenarioId, // 采集接入
-          index_set_name: '', // 索引集名称
-          category_id: '', // 数据分类
-          storage_cluster_id: '', // 集群
-          indexes: [], // 采集项
-          target_fields: [],
-          sort_fields: [],
-        },
-        formRules: {
-          index_set_name: [
-            {
-              required: true,
-              trigger: 'blur',
-            },
-          ],
-          category_id: [
-            {
-              required: true,
-              trigger: 'blur',
-            },
-          ],
-          storage_cluster_id: [
-            {
-              required: true,
-              trigger: 'blur',
-            },
-          ],
-        },
-        tableLoading: false,
-        currentActiveShowID: '',
-        currentMatchedTableIds: [], // 匹配到的索引 id，result table id list
-        collectionTableData: [],
-        targetFieldSelectList: [],
+    collectProject() {
+      return projectManages(this.$store.state.topMenu, 'collection-item');
+    },
+    subTitle() {
+      const textMap = {
+        log: this.$t('采集项'),
+        es: this.$t('索引'),
+        bkdata: this.$t('数据源'),
       };
+      return textMap[this.scenarioId];
     },
-    computed: {
-      ...mapState(['spaceUid', 'bkBizId', 'showRouterLeaveTip']),
-      ...mapState('collect', ['curIndexSet']),
-      ...mapGetters('globals', ['globalsData']),
-      authorityMap() {
-        return authorityMap;
-      },
-      collectProject() {
-        return projectManages(this.$store.state.topMenu, 'collection-item');
-      },
-      subTitle() {
-        const textMap = {
-          log: this.$t('采集项'),
-          es: this.$t('索引'),
-          bkdata: this.$t('数据源'),
-        };
-        return textMap[this.scenarioId];
-      },
-      getTimeFiled() {
-        return this.timeIndex?.time_field || '--';
-      },
+    getTimeFiled() {
+      return this.timeIndex?.time_field || '--';
     },
-    created() {
-      this.checkAuth();
-      this.fetchPageData();
-      this.getIndexStorage();
-    },
+  },
+  created() {
+    this.checkAuth();
+    this.fetchPageData();
+    this.getIndexStorage();
+  },
 
-    beforeRouteLeave(to, from, next) {
-      if (!this.isSubmit && !this.showRouterLeaveTip) {
-        this.$bkInfo({
-          title: this.$t('是否放弃本次操作？'),
-          confirmFn: () => {
-            next();
+  beforeRouteLeave(to, from, next) {
+    if (!this.isSubmit && !this.showRouterLeaveTip) {
+      this.$bkInfo({
+        title: this.$t('是否放弃本次操作？'),
+        confirmFn: () => {
+          next();
+        },
+      });
+      return;
+    }
+    next();
+  },
+  methods: {
+    // 检查权限、确认基本信息
+    async checkAuth() {
+      try {
+        this.basicLoading = true;
+        const isEdit = this.$route.name.endsWith('edit');
+        this.isEdit = isEdit;
+        const paramData = isEdit
+          ? {
+              action_ids: [authorityMap.MANAGE_INDICES_AUTH],
+              resources: [
+                {
+                  type: 'indices',
+                  id: this.$route.params.indexSetId,
+                },
+              ],
+            }
+          : {
+              action_ids: [authorityMap.CREATE_INDICES_AUTH],
+              resources: [
+                {
+                  type: 'space',
+                  id: this.spaceUid,
+                },
+              ],
+            };
+        const res = await this.$store.dispatch('checkAndGetData', paramData);
+        if (res.isAllowed === false) {
+          this.authPageInfo = res.data;
+        }
+        if (isEdit) {
+          await this.fetchIndexSetData();
+          const data = this.curIndexSet;
+          Object.assign(this.formData, {
+            index_set_name: data.index_set_name,
+            category_id: data.category_id,
+            storage_cluster_id: data.storage_cluster_id,
+            indexes: data.indexes,
+            target_fields: data.target_fields ?? [],
+            sort_fields: data.sort_fields ?? [],
+          });
+          this.timeIndex = {
+            time_field: data.time_field,
+            time_field_type: data.time_field_type,
+            time_field_unit: data.time_field_unit,
+          };
+          await this.handleChangeShowTableList(data.indexes[0].result_table_id, true);
+        }
+      } catch (err) {
+        console.warn(err);
+        this.$nextTick(this.returnIndexList);
+      } finally {
+        this.basicLoading = false;
+      }
+    },
+    // 索引集详情
+    async fetchIndexSetData() {
+      const indexSetId = this.$route.params.indexSetId.toString();
+      if (!this.curIndexSet.index_set_id || this.curIndexSet.index_set_id.toString() !== indexSetId) {
+        const { data: indexSetData } = await this.$http.request('indexSet/info', {
+          params: {
+            index_set_id: indexSetId,
           },
         });
-        return;
+        this.$store.commit('collect/updateCurIndexSet', indexSetData);
       }
-      next();
     },
-    methods: {
-      // 检查权限、确认基本信息
-      async checkAuth() {
-        try {
-          this.basicLoading = true;
-          const isEdit = this.$route.name.endsWith('edit');
-          this.isEdit = isEdit;
-          const paramData = isEdit
-            ? {
-                action_ids: [authorityMap.MANAGE_INDICES_AUTH],
-                resources: [
-                  {
-                    type: 'indices',
-                    id: this.$route.params.indexSetId,
-                  },
-                ],
-              }
-            : {
-                action_ids: [authorityMap.CREATE_INDICES_AUTH],
-                resources: [
-                  {
-                    type: 'space',
-                    id: this.spaceUid,
-                  },
-                ],
-              };
-          const res = await this.$store.dispatch('checkAndGetData', paramData);
-          if (res.isAllowed === false) {
-            this.authPageInfo = res.data;
+    // 初始化集群列表
+    async fetchPageData() {
+      try {
+        if (this.scenarioId !== 'es') return;
+        const clusterRes = await this.$http.request('/source/logList', {
+          query: {
+            bk_biz_id: this.bkBizId,
+            scenario_id: 'es',
+          },
+        });
+        // 有权限的优先展示
+        const s1 = [];
+        const s2 = [];
+        for (const item of clusterRes.data) {
+          if (item.permission?.[authorityMap.MANAGE_ES_SOURCE_AUTH]) {
+            s1.push(item);
+          } else {
+            s2.push(item);
           }
-          if (isEdit) {
-            await this.fetchIndexSetData();
-            const data = this.curIndexSet;
-            Object.assign(this.formData, {
-              index_set_name: data.index_set_name,
-              category_id: data.category_id,
-              storage_cluster_id: data.storage_cluster_id,
-              indexes: data.indexes,
-              target_fields: data.target_fields ?? [],
-              sort_fields: data.sort_fields ?? [],
-            });
-            this.timeIndex = {
-              time_field: data.time_field,
-              time_field_type: data.time_field_type,
-              time_field_unit: data.time_field_unit,
-            };
-            await this.handleChangeShowTableList(data.indexes[0].result_table_id, true);
+        }
+        this.clusterList = s1.concat(s2).filter(item => !item.is_platform);
+        if (this.$route.query.cluster) {
+          const clusterId = this.$route.query.cluster;
+          if (this.clusterList.some(item => item.storage_cluster_id === Number(clusterId))) {
+            this.formData.storage_cluster_id = Number(clusterId);
           }
-        } catch (err) {
-          console.warn(err);
-          this.$nextTick(this.returnIndexList);
-        } finally {
-          this.basicLoading = false;
         }
-      },
-      // 索引集详情
-      async fetchIndexSetData() {
-        const indexSetId = this.$route.params.indexSetId.toString();
-        if (!this.curIndexSet.index_set_id || this.curIndexSet.index_set_id.toString() !== indexSetId) {
-          const { data: indexSetData } = await this.$http.request('indexSet/info', {
-            params: {
-              index_set_id: indexSetId,
-            },
-          });
-          this.$store.commit('collect/updateCurIndexSet', indexSetData);
-        }
-      },
-      // 初始化集群列表
-      async fetchPageData() {
-        try {
-          if (this.scenarioId !== 'es') return;
-          const clusterRes = await this.$http.request('/source/logList', {
-            query: {
-              bk_biz_id: this.bkBizId,
-              scenario_id: 'es',
-            },
-          });
-          // 有权限的优先展示
+      } catch (e) {
+        console.warn(e);
+      }
+    },
+    async getIndexStorage() {
+      // 索引集列表的集群
+      try {
+        if (this.scenarioId !== 'log') return;
+        const queryData = { bk_biz_id: this.bkBizId };
+        const res = await this.$http.request('collect/getStorage', {
+          query: queryData,
+        });
+        if (res.data) {
+          // 根据权限排序
           const s1 = [];
           const s2 = [];
-          for (const item of clusterRes.data) {
-            if (item.permission?.[authorityMap.MANAGE_ES_SOURCE_AUTH]) {
+          for (const item of res.data) {
+            if (item.permission?.manage_es_source) {
               s1.push(item);
             } else {
               s2.push(item);
             }
           }
-          this.clusterList = s1.concat(s2).filter(item => !item.is_platform);
-          if (this.$route.query.cluster) {
-            const clusterId = this.$route.query.cluster;
-            if (this.clusterList.some(item => item.storage_cluster_id === Number(clusterId))) {
-              this.formData.storage_cluster_id = Number(clusterId);
-            }
-          }
-        } catch (e) {
-          console.warn(e);
+          this.clusterList = s1.concat(s2);
         }
-      },
-      async getIndexStorage() {
-        // 索引集列表的集群
-        try {
-          if (this.scenarioId !== 'log') return;
-          const queryData = { bk_biz_id: this.bkBizId };
-          const res = await this.$http.request('collect/getStorage', {
-            query: queryData,
-          });
-          if (res.data) {
-            // 根据权限排序
-            const s1 = [];
-            const s2 = [];
-            for (const item of res.data) {
-              if (item.permission?.manage_es_source) {
-                s1.push(item);
-              } else {
-                s2.push(item);
-              }
-            }
-            this.clusterList = s1.concat(s2);
-          }
-        } catch (e) {
-          console.warn(e);
-        }
-      },
-      // 申请集群权限
-      async applyClusterAccess(option) {
-        try {
-          this.$el.click(); // 因为下拉在loading上面所以需要关闭下拉
-          this.basicLoading = true;
-          const res = await this.$store.dispatch('getApplyData', {
-            action_ids: [authorityMap.MANAGE_ES_SOURCE_AUTH],
-            resources: [
-              {
-                type: 'es_source',
-                id: option.storage_cluster_id,
-              },
-            ],
-          });
-          window.open(res.data.apply_url);
-        } catch (err) {
-          console.warn(err);
-        } finally {
-          this.basicLoading = false;
-        }
-      },
-      // 增加采集项
-      openDialog() {
-        if (this.scenarioId === 'es' && !this.formData.storage_cluster_id) {
-          return this.messageError(this.$t('请选择集群'));
-        }
-        this.$refs.selectCollectionRef.openDialog();
-      },
-      addCollection(item) {
-        if (this.scenarioId === 'log') this.formData.storage_cluster_id = item.storage_cluster_id;
-        this.formData.indexes.push(item);
-        this.handleChangeShowTableList(item.result_table_id, true);
-      },
-      handleClickTag(resultTableID) {
-        if (this.scenarioId === 'es') this.handleChangeShowTableList(resultTableID, false);
-      },
-      // 删除采集项
-      removeCollection(index, closeID) {
-        this.formData.indexes.splice(index, 1);
-        if (!this.formData.indexes.length) {
-          this.timeIndex = null;
-          this.currentMatchedTableIds = [];
-        }
-        if (this.currentActiveShowID === closeID || this.scenarioId !== 'es') {
-          this.handleChangeShowTableList(this.formData.indexes[0].result_table_id, true);
-        }
-      },
-      // 新建索引集提交
-      async submitForm() {
-        try {
-          await this.$refs.formRef.validate();
-          if (!this.formData.indexes.length) {
-            return this.messageError(this.$t('请选择索引'));
-          }
-          this.submitLoading = true;
-          const requestBody = Object.assign(
+      } catch (e) {
+        console.warn(e);
+      }
+    },
+    // 申请集群权限
+    async applyClusterAccess(option) {
+      try {
+        this.$el.click(); // 因为下拉在loading上面所以需要关闭下拉
+        this.basicLoading = true;
+        const res = await this.$store.dispatch('getApplyData', {
+          action_ids: [authorityMap.MANAGE_ES_SOURCE_AUTH],
+          resources: [
             {
-              view_roles: [], // 兼容后端历史遗留代码
-              space_uid: this.spaceUid,
+              type: 'es_source',
+              id: option.storage_cluster_id,
             },
-            this.formData,
-          );
-          if (this.scenarioId === 'es') {
-            Object.assign(requestBody, this.timeIndex);
-          } else {
-            delete requestBody.storage_cluster_id;
-          }
-          const res = this.isEdit
-            ? await this.$http.request('/indexSet/update', {
-                params: {
-                  index_set_id: this.$route.params.indexSetId,
-                },
-                data: requestBody,
-              })
-            : await this.$http.request('/indexSet/create', { data: requestBody });
-          this.isSubmit = true;
-          this.handleCreatSuccess(res.data);
-        } catch (e) {
-          console.warn(e);
-        } finally {
-          this.submitLoading = false;
+          ],
+        });
+        window.open(res.data.apply_url);
+      } catch (err) {
+        console.warn(err);
+      } finally {
+        this.basicLoading = false;
+      }
+    },
+    // 增加采集项
+    openDialog() {
+      if (this.scenarioId === 'es' && !this.formData.storage_cluster_id) {
+        return this.messageError(this.$t('请选择集群'));
+      }
+      this.$refs.selectCollectionRef.openDialog();
+    },
+    addCollection(item) {
+      if (this.scenarioId === 'log') this.formData.storage_cluster_id = item.storage_cluster_id;
+      this.formData.indexes.push(item);
+      this.handleChangeShowTableList(item.result_table_id, true);
+    },
+    handleClickTag(resultTableID) {
+      if (this.scenarioId === 'es') this.handleChangeShowTableList(resultTableID, false);
+    },
+    // 删除采集项
+    removeCollection(index, closeID) {
+      this.formData.indexes.splice(index, 1);
+      if (!this.formData.indexes.length) {
+        this.timeIndex = null;
+        this.currentMatchedTableIds = [];
+      }
+      if (this.currentActiveShowID === closeID || this.scenarioId !== 'es') {
+        this.handleChangeShowTableList(this.formData.indexes[0].result_table_id, true);
+      }
+    },
+    // 新建索引集提交
+    async submitForm() {
+      try {
+        await this.$refs.formRef.validate();
+        if (!this.formData.indexes.length) {
+          return this.messageError(this.$t('请选择索引'));
         }
-      },
-      handleCreatSuccess({ bkdata_auth_url: authUrl, index_set_id: id }) {
-        if (authUrl) {
-          let redirectUrl = ''; // 数据平台授权地址
-          if (process.env.NODE_ENV === 'development') {
-            redirectUrl = `${authUrl}&redirect_url=${window.origin}/static/auth.html`;
-          } else {
-            let siteUrl = window.SITE_URL;
-            if (siteUrl.startsWith('http')) {
-              if (!siteUrl.endsWith('/')) siteUrl += '/';
-              redirectUrl = `${authUrl}&redirect_url=${siteUrl}bkdata_auth/`;
-            } else {
-              if (!siteUrl.startsWith('/')) siteUrl = `/${siteUrl}`;
-              if (!siteUrl.endsWith('/')) siteUrl += '/';
-              redirectUrl = `${authUrl}&redirect_url=${window.origin}${siteUrl}bkdata_auth/`;
-            }
-          }
-          // auth.html 返回索引集管理的路径
-          let indexSetPath = '';
-          const { href } = this.$router.resolve({
-            name: `${this.scenarioId}-index-set-list`,
-          });
+        this.submitLoading = true;
+        const requestBody = Object.assign(
+          {
+            view_roles: [], // 兼容后端历史遗留代码
+            space_uid: this.spaceUid,
+          },
+          this.formData
+        );
+        if (this.scenarioId === 'es') {
+          Object.assign(requestBody, this.timeIndex);
+        } else {
+          delete requestBody.storage_cluster_id;
+        }
+        const res = this.isEdit
+          ? await this.$http.request('/indexSet/update', {
+              params: {
+                index_set_id: this.$route.params.indexSetId,
+              },
+              data: requestBody,
+            })
+          : await this.$http.request('/indexSet/create', { data: requestBody });
+        this.isSubmit = true;
+        this.handleCreatSuccess(res.data);
+      } catch (e) {
+        console.warn(e);
+      } finally {
+        this.submitLoading = false;
+      }
+    },
+    handleCreatSuccess({ bkdata_auth_url: authUrl, index_set_id: id }) {
+      if (authUrl) {
+        let redirectUrl = ''; // 数据平台授权地址
+        if (process.env.NODE_ENV === 'development') {
+          redirectUrl = `${authUrl}&redirect_url=${window.origin}/static/auth.html`;
+        } else {
           let siteUrl = window.SITE_URL;
           if (siteUrl.startsWith('http')) {
             if (!siteUrl.endsWith('/')) siteUrl += '/';
-            indexSetPath = siteUrl + href;
+            redirectUrl = `${authUrl}&redirect_url=${siteUrl}bkdata_auth/`;
           } else {
             if (!siteUrl.startsWith('/')) siteUrl = `/${siteUrl}`;
             if (!siteUrl.endsWith('/')) siteUrl += '/';
-            indexSetPath = window.origin + siteUrl + href;
+            redirectUrl = `${authUrl}&redirect_url=${window.origin}${siteUrl}bkdata_auth/`;
           }
-          // auth.html 需要使用的数据
-          const urlComponent = `?indexSetId=${id}&ajaxUrl=${window.AJAX_URL_PREFIX}&redirectUrl=${indexSetPath}`;
-          redirectUrl += encodeURIComponent(urlComponent);
-          if (self !== top) {
-            // 当前页面是 iframe
-            window.open(redirectUrl);
-            this.returnIndexList();
-          } else {
-            window.location.assign(redirectUrl);
-          }
-        } else {
-          this.messageSuccess(this.isEdit ? this.$t('设置成功') : this.$t('创建成功'));
-          this.returnIndexList();
         }
-      },
-      returnIndexList() {
-        const { editName: _, ...rest } = this.$route.query;
-        this.$router.push({
-          name: this.$route.name.replace(/create|edit/, 'list'),
-          query: { ...rest },
+        // auth.html 返回索引集管理的路径
+        let indexSetPath = '';
+        const { href } = this.$router.resolve({
+          name: `${this.scenarioId}-index-set-list`,
         });
-      },
-      getIndexActive(resultTableId) {
-        if (this.scenarioId !== 'es') return '';
-        if (resultTableId === this.currentActiveShowID) return 'info';
-        return '';
-      },
-      handleCloseSortFiled(item) {
-        const splitIndex = this.formData.sort_fields.findIndex(fItem => fItem === item);
-        this.formData.sort_fields.splice(splitIndex, 1);
-      },
-      async handleChangeShowTableList(resultTableId, isInitTarget = false) {
-        this.currentActiveShowID = resultTableId;
-        if (this.scenarioId === 'es') {
-          this.currentMatchedTableIds = await this.fetchList(resultTableId);
+        let siteUrl = window.SITE_URL;
+        if (siteUrl.startsWith('http')) {
+          if (!siteUrl.endsWith('/')) siteUrl += '/';
+          indexSetPath = siteUrl + href;
         } else {
-          this.collectionTableData = await this.collectList();
+          if (!siteUrl.startsWith('/')) siteUrl = `/${siteUrl}`;
+          if (!siteUrl.endsWith('/')) siteUrl += '/';
+          indexSetPath = window.origin + siteUrl + href;
         }
-        if (isInitTarget) this.initTargetFieldSelectList();
-      },
-      async fetchList(resultTableId) {
-        this.tableLoading = true;
-        try {
-          const res = await this.$http.request('/resultTables/list', {
-            query: {
-              scenario_id: this.scenarioId,
-              bk_biz_id: this.bkBizId,
-              storage_cluster_id: this.formData.storage_cluster_id,
-              result_table_id: resultTableId,
-            },
-          });
-          return res.data;
-        } catch (e) {
-          console.warn(e);
-          return [];
-        } finally {
-          this.tableLoading = false;
+        // auth.html 需要使用的数据
+        const urlComponent = `?indexSetId=${id}&ajaxUrl=${window.AJAX_URL_PREFIX}&redirectUrl=${indexSetPath}`;
+        redirectUrl += encodeURIComponent(urlComponent);
+        if (self !== top) {
+          // 当前页面是 iframe
+          window.open(redirectUrl);
+          this.returnIndexList();
+        } else {
+          window.location.assign(redirectUrl);
         }
-      },
-      async collectList() {
-        this.tableLoading = true;
-        try {
-          const resultTableID = this.formData.indexes.map(item => item.result_table_id);
-          const queryData = resultTableID.map(item => ({
-            params: {
-              result_table_id: item,
-            },
-            query: {
-              scenario_id: this.scenarioId,
-              bk_biz_id: this.bkBizId,
-            },
-          }));
-          const promiseQuery = queryData.map(item =>
-            this.$refs.selectCollectionRef.handleCollectionSelected(null, item),
-          );
-          const res = await Promise.all(promiseQuery);
-          const collectionMap = new Map();
-          res.forEach(item => {
-            item.data.fields.forEach(el => {
-              if (!collectionMap.has(el.field_name)) {
-                collectionMap.set(el.field_name, el);
-              }
-            });
-          });
-          return [...collectionMap.values()];
-        } catch (error) {
-          console.warn(error);
-          return [];
-        } finally {
-          this.tableLoading = false;
-        }
-      },
-      /**
-       * @desc: 初始化字段设置所需的字段
-       */
-      async initTargetFieldSelectList() {
+      } else {
+        this.messageSuccess(this.isEdit ? this.$t('设置成功') : this.$t('创建成功'));
+        this.returnIndexList();
+      }
+    },
+    returnIndexList() {
+      const { editName: _, ...rest } = this.$route.query;
+      this.$router.push({
+        name: this.$route.name.replace(/create|edit/, 'list'),
+        query: { ...rest },
+      });
+    },
+    getIndexActive(resultTableId) {
+      if (this.scenarioId !== 'es') return '';
+      if (resultTableId === this.currentActiveShowID) return 'info';
+      return '';
+    },
+    handleCloseSortFiled(item) {
+      const splitIndex = this.formData.sort_fields.findIndex(fItem => fItem === item);
+      this.formData.sort_fields.splice(splitIndex, 1);
+    },
+    async handleChangeShowTableList(resultTableId, isInitTarget = false) {
+      this.currentActiveShowID = resultTableId;
+      if (this.scenarioId === 'es') {
+        this.currentMatchedTableIds = await this.fetchList(resultTableId);
+      } else {
+        this.collectionTableData = await this.collectList();
+      }
+      if (isInitTarget) this.initTargetFieldSelectList();
+    },
+    async fetchList(resultTableId) {
+      this.tableLoading = true;
+      try {
+        const res = await this.$http.request('/resultTables/list', {
+          query: {
+            scenario_id: this.scenarioId,
+            bk_biz_id: this.bkBizId,
+            storage_cluster_id: this.formData.storage_cluster_id,
+            result_table_id: resultTableId,
+          },
+        });
+        return res.data;
+      } catch (e) {
+        console.warn(e);
+        return [];
+      } finally {
+        this.tableLoading = false;
+      }
+    },
+    async collectList() {
+      this.tableLoading = true;
+      try {
         const resultTableID = this.formData.indexes.map(item => item.result_table_id);
         const queryData = resultTableID.map(item => ({
           params: {
@@ -809,38 +775,70 @@
           query: {
             scenario_id: this.scenarioId,
             bk_biz_id: this.bkBizId,
-            storage_cluster_id: this.scenarioId === 'es' ? this.formData.storage_cluster_id : undefined,
           },
         }));
-        let promiseQuery = [];
-        if (this.scenarioId === 'es') {
-          promiseQuery = queryData.map(item => this.$refs.selectCollectionRef.fetchInfo(item));
-        } else {
-          promiseQuery = queryData.map(item => this.$refs.selectCollectionRef.handleCollectionSelected(null, item));
-        }
+        const promiseQuery = queryData.map(item => this.$refs.selectCollectionRef.handleCollectionSelected(null, item));
         const res = await Promise.all(promiseQuery);
-        const { target_fields: targetField, sort_fields: sortFields } = this.formData;
-        const targetFieldSet = new Set([...(sortFields ?? []), ...(targetField ?? [])]);
+        const collectionMap = new Map();
         res.forEach(item => {
           item.data.fields.forEach(el => {
-            if (!targetFieldSet.has(el.field_name)) {
-              targetFieldSet.add(el.field_name);
+            if (!collectionMap.has(el.field_name)) {
+              collectionMap.set(el.field_name, el);
             }
           });
         });
-        this.targetFieldSelectList = [...targetFieldSet].map(item => ({
-          id: item,
-          name: item,
-        }));
-      },
-      handleAddSortFields(val) {
-        this.formData.sort_fields.push(val);
-      },
-      getSortDisabledState(id) {
-        return this.formData.sort_fields.includes(id);
-      },
+        return [...collectionMap.values()];
+      } catch (error) {
+        console.warn(error);
+        return [];
+      } finally {
+        this.tableLoading = false;
+      }
     },
-  };
+    /**
+     * @desc: 初始化字段设置所需的字段
+     */
+    async initTargetFieldSelectList() {
+      const resultTableID = this.formData.indexes.map(item => item.result_table_id);
+      const queryData = resultTableID.map(item => ({
+        params: {
+          result_table_id: item,
+        },
+        query: {
+          scenario_id: this.scenarioId,
+          bk_biz_id: this.bkBizId,
+          storage_cluster_id: this.scenarioId === 'es' ? this.formData.storage_cluster_id : undefined,
+        },
+      }));
+      let promiseQuery = [];
+      if (this.scenarioId === 'es') {
+        promiseQuery = queryData.map(item => this.$refs.selectCollectionRef.fetchInfo(item));
+      } else {
+        promiseQuery = queryData.map(item => this.$refs.selectCollectionRef.handleCollectionSelected(null, item));
+      }
+      const res = await Promise.all(promiseQuery);
+      const { target_fields: targetField, sort_fields: sortFields } = this.formData;
+      const targetFieldSet = new Set([...(sortFields ?? []), ...(targetField ?? [])]);
+      res.forEach(item => {
+        item.data.fields.forEach(el => {
+          if (!targetFieldSet.has(el.field_name)) {
+            targetFieldSet.add(el.field_name);
+          }
+        });
+      });
+      this.targetFieldSelectList = [...targetFieldSet].map(item => ({
+        id: item,
+        name: item,
+      }));
+    },
+    handleAddSortFields(val) {
+      this.formData.sort_fields.push(val);
+    },
+    getSortDisabledState(id) {
+      return this.formData.sort_fields.includes(id);
+    },
+  },
+};
 </script>
 
 <style scoped lang="scss">

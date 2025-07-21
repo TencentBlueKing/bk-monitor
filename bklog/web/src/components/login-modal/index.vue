@@ -38,20 +38,20 @@
 </template>
 
 <script>
-  export default {
-    props: {
-      loginData: {
-        type: Object,
-        default() {
-          return {
-            loginUrl: '',
-            width: '400',
-            height: '400',
-          };
-        },
+export default {
+  props: {
+    loginData: {
+      type: Object,
+      default() {
+        return {
+          loginUrl: '',
+          width: '400',
+          height: '400',
+        };
       },
     },
-  };
+  },
+};
 </script>
 
 <style lang="scss" scoped>

@@ -54,39 +54,39 @@
 </template>
 
 <script setup lang="ts">
-  import { reactive, ref } from 'vue';
+import { reactive, ref } from 'vue';
 
-  const props = defineProps<{
-    confirmHandler: (
-      updateItem: { editStr: string; sort_list: any[]; display_fields: any[] },
-      isCreate: boolean,
-      successMsg: string,
-    ) => Promise<void>;
-    sortList: any[];
-    displayFields: any[];
-  }>();
+const props = defineProps<{
+  confirmHandler: (
+    updateItem: { editStr: string; sort_list: any[]; display_fields: any[] },
+    isCreate: boolean,
+    successMsg: string
+  ) => Promise<void>;
+  sortList: any[];
+  displayFields: any[];
+}>();
 
-  const formRef = ref(null);
-  const popoverRef = ref(null);
-  const formModel = reactive({ editStr: '' });
-  const rules = reactive({
-    name: [{ required: true, message: '必填项' }],
-  });
+const formRef = ref(null);
+const popoverRef = ref(null);
+const formModel = reactive({ editStr: '' });
+const rules = reactive({
+  name: [{ required: true, message: '必填项' }],
+});
 
-  const handleConfirm = async () => {
-    await formRef.value.validate();
+const handleConfirm = async () => {
+  await formRef.value.validate();
 
-    await props.confirmHandler(
-      { editStr: formModel.editStr, display_fields: props.displayFields, sort_list: props.sortList },
-      true,
-      '模板保存成功，请在字段模板中查看。',
-    );
-    handleCancel();
-  };
-  const handleCancel = () => {
-    popoverRef.value.hideHandler();
-    Object.assign(formModel, { editStr: '' });
-  };
+  await props.confirmHandler(
+    { editStr: formModel.editStr, display_fields: props.displayFields, sort_list: props.sortList },
+    true,
+    '模板保存成功，请在字段模板中查看。'
+  );
+  handleCancel();
+};
+const handleCancel = () => {
+  popoverRef.value.hideHandler();
+  Object.assign(formModel, { editStr: '' });
+};
 </script>
 
 <style lang="scss" scoped>

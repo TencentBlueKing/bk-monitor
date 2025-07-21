@@ -116,7 +116,7 @@ export default defineComponent({
         }
       },
       120,
-      props.activeEllipsisCount,
+      props.activeEllipsisCount
     );
 
     const handleMouseenter = (e: MouseEvent) => {
@@ -184,7 +184,7 @@ export default defineComponent({
           stopObserve();
         }
       },
-      { immediate: true },
+      { immediate: true }
     );
 
     watch(() => showMoreItemNum.value, addMouseHoverEvent);

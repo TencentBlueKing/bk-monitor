@@ -160,143 +160,143 @@
   </bk-popover>
 </template>
 <script setup>
-  import { ref, computed, nextTick } from 'vue';
+import { ref, computed, nextTick } from 'vue';
 
-  import { getRegExp } from '@/common/util';
-  import useLocale from '@/hooks/use-locale';
-  import useStore from '@/hooks/use-store';
-  import VueDraggable from 'vuedraggable';
+import { getRegExp } from '@/common/util';
+import useLocale from '@/hooks/use-locale';
+import useStore from '@/hooks/use-store';
+import VueDraggable from 'vuedraggable';
 
-  import { excludesFields } from './const.common';
-  import { getCommonFilterAddition } from '../../../store/helper';
-  import { BK_LOG_STORAGE } from '@/store/store.type';
-  // 获取 store
-  const store = useStore();
-  const { $t } = useLocale();
-  const searchKeyword = ref('');
-  const tippyOptions = {
-    offset: '0, 4',
+import { excludesFields } from './const.common';
+import { getCommonFilterAddition } from '../../../store/helper';
+import { BK_LOG_STORAGE } from '@/store/store.type';
+// 获取 store
+const store = useStore();
+const { $t } = useLocale();
+const searchKeyword = ref('');
+const tippyOptions = {
+  offset: '0, 4',
+};
+const isStartTextEllipsis = computed(() => store.state.storage[BK_LOG_STORAGE.TEXT_ELLIPSIS_DIR] === 'start');
+
+// 定义响应式数据
+const isLoading = ref(false);
+const fieldList = computed(() => {
+  return store.state.indexFieldInfo.fields;
+});
+
+const filterFieldsList = computed(() => {
+  if (Array.isArray(store.state.retrieve.catchFieldCustomConfig?.filterSetting)) {
+    return store.state.retrieve.catchFieldCustomConfig?.filterSetting ?? [];
+  }
+
+  return [];
+});
+
+const textDir = computed(() => {
+  const textEllipsisDir = store.state.storage[BK_LOG_STORAGE.TEXT_ELLIPSIS_DIR];
+  return textEllipsisDir === 'start' ? 'rtl' : 'ltr';
+});
+
+const shadowTotal = computed(() => {
+  const reg = getRegExp(searchKeyword.value);
+  const filterFn = field =>
+    !shadowVisible.value.some(shadowField => shadowField.field_name === field.field_name) &&
+    field.field_type !== '__virtual__' &&
+    !excludesFields.includes(field.field_name) &&
+    (reg.test(field.field_name) || reg.test(field.query_alias ?? ''));
+
+  const mapFn = item =>
+    Object.assign({}, item, {
+      first_name: item.query_alias || item.field_name,
+      last_name: item.field_name,
+    });
+
+  return fieldList.value.filter(filterFn).map(mapFn);
+});
+
+const shadowVisible = ref([]);
+
+const dragOptions = ref({
+  animation: 150,
+  tag: 'ul',
+  handle: '.bklog-ketuodong',
+  'ghost-class': 'sortable-ghost-class',
+});
+
+// 计算属性
+const toSelectLength = computed(() => {
+  return shadowTotal.value.length;
+});
+
+const fieldTypeMap = computed(() => store.state.globals.fieldTypeMap);
+const getFieldIcon = fieldType => {
+  return fieldTypeMap.value?.[fieldType] ? fieldTypeMap.value?.[fieldType]?.icon : 'bklog-icon bklog-unkown';
+};
+
+const getFieldIconColor = type => {
+  return fieldTypeMap.value?.[type] ? fieldTypeMap.value?.[type]?.color : '#EAEBF0';
+};
+
+const getFieldIconTextColor = type => {
+  return fieldTypeMap.value?.[type]?.textColor;
+};
+
+// 新建提交逻辑
+const handleCreateRequest = async () => {
+  const param = {
+    filterSetting: shadowVisible.value,
+    filterAddition: [],
   };
-  const isStartTextEllipsis = computed(() => store.state.storage[BK_LOG_STORAGE.TEXT_ELLIPSIS_DIR] === 'start');
+  isLoading.value = true;
 
-  // 定义响应式数据
-  const isLoading = ref(false);
-  const fieldList = computed(() => {
-    return store.state.indexFieldInfo.fields;
+  store.dispatch('userFieldConfigChange', param).finally(() => {
+    isLoading.value = false;
   });
+};
 
-  const filterFieldsList = computed(() => {
-    if (Array.isArray(store.state.retrieve.catchFieldCustomConfig?.filterSetting)) {
-      return store.state.retrieve.catchFieldCustomConfig?.filterSetting ?? [];
+const confirmModifyFields = async () => {
+  handleCreateRequest();
+  fieldsSettingPopperRef?.value.instance.hide();
+};
+
+const fieldsSettingPopperRef = ref('');
+const cancelModifyFields = () => {
+  fieldsSettingPopperRef?.value.instance.hide();
+};
+
+const addField = fieldInfo => {
+  shadowVisible.value.push(fieldInfo);
+};
+
+const deleteField = (fieldName, index) => {
+  shadowVisible.value.splice(index, 1);
+};
+
+const addAllField = () => {
+  shadowTotal.value.forEach(fieldInfo => {
+    if (!shadowVisible.value.includes(fieldInfo)) {
+      shadowVisible.value.push(fieldInfo);
     }
-
-    return [];
   });
+};
 
-  const textDir = computed(() => {
-    const textEllipsisDir = store.state.storage[BK_LOG_STORAGE.TEXT_ELLIPSIS_DIR];
-    return textEllipsisDir === 'start' ? 'rtl' : 'ltr';
+const deleteAllField = () => {
+  shadowVisible.value = [];
+};
+
+const setDefaultFilterList = () => {
+  shadowVisible.value = [];
+  shadowVisible.value.push(...filterFieldsList.value);
+};
+
+const commonFilterSearchInputRef = ref(null);
+const handlePopoverShow = () => {
+  setDefaultFilterList();
+  nextTick(() => {
+    commonFilterSearchInputRef.value?.focus();
   });
-
-  const shadowTotal = computed(() => {
-    const reg = getRegExp(searchKeyword.value);
-    const filterFn = field =>
-      !shadowVisible.value.some(shadowField => shadowField.field_name === field.field_name) &&
-      field.field_type !== '__virtual__' &&
-      !excludesFields.includes(field.field_name) &&
-      (reg.test(field.field_name) || reg.test(field.query_alias ?? ''));
-
-    const mapFn = item =>
-      Object.assign({}, item, {
-        first_name: item.query_alias || item.field_name,
-        last_name: item.field_name,
-      });
-
-    return fieldList.value.filter(filterFn).map(mapFn);
-  });
-
-  const shadowVisible = ref([]);
-
-  const dragOptions = ref({
-    animation: 150,
-    tag: 'ul',
-    handle: '.bklog-ketuodong',
-    'ghost-class': 'sortable-ghost-class',
-  });
-
-  // 计算属性
-  const toSelectLength = computed(() => {
-    return shadowTotal.value.length;
-  });
-
-  const fieldTypeMap = computed(() => store.state.globals.fieldTypeMap);
-  const getFieldIcon = fieldType => {
-    return fieldTypeMap.value?.[fieldType] ? fieldTypeMap.value?.[fieldType]?.icon : 'bklog-icon bklog-unkown';
-  };
-
-  const getFieldIconColor = type => {
-    return fieldTypeMap.value?.[type] ? fieldTypeMap.value?.[type]?.color : '#EAEBF0';
-  };
-
-  const getFieldIconTextColor = type => {
-    return fieldTypeMap.value?.[type]?.textColor;
-  };
-
-  // 新建提交逻辑
-  const handleCreateRequest = async () => {
-    const param = {
-      filterSetting: shadowVisible.value,
-      filterAddition: [],
-    };
-    isLoading.value = true;
-
-    store.dispatch('userFieldConfigChange', param).finally(() => {
-      isLoading.value = false;
-    });
-  };
-
-  const confirmModifyFields = async () => {
-    handleCreateRequest();
-    fieldsSettingPopperRef?.value.instance.hide();
-  };
-
-  const fieldsSettingPopperRef = ref('');
-  const cancelModifyFields = () => {
-    fieldsSettingPopperRef?.value.instance.hide();
-  };
-
-  const addField = fieldInfo => {
-    shadowVisible.value.push(fieldInfo);
-  };
-
-  const deleteField = (fieldName, index) => {
-    shadowVisible.value.splice(index, 1);
-  };
-
-  const addAllField = () => {
-    shadowTotal.value.forEach(fieldInfo => {
-      if (!shadowVisible.value.includes(fieldInfo)) {
-        shadowVisible.value.push(fieldInfo);
-      }
-    });
-  };
-
-  const deleteAllField = () => {
-    shadowVisible.value = [];
-  };
-
-  const setDefaultFilterList = () => {
-    shadowVisible.value = [];
-    shadowVisible.value.push(...filterFieldsList.value);
-  };
-
-  const commonFilterSearchInputRef = ref(null);
-  const handlePopoverShow = () => {
-    setDefaultFilterList();
-    nextTick(() => {
-      commonFilterSearchInputRef.value?.focus();
-    });
-  };
+};
 </script>
 
 <style lang="scss">

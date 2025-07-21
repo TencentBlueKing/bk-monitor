@@ -55,7 +55,7 @@ class HttpRequst {
       _service = Object.assign({}, { method: options.method || 'get' }, _service);
       if (service.callback && typeof service.callback === 'function') {
         return this.__axios(_service.url, _service.method, options.data, options.query, options.ext, config).then(res =>
-          service.callback(res, options),
+          service.callback(res, options)
         );
       }
       return this.__axios(_service.url, _service.method, options.data, options.query, options.ext, config);
@@ -72,8 +72,8 @@ class HttpRequst {
               options.data,
               options.query,
               options.ext,
-              config,
-            ),
+              config
+            )
           );
         } else {
           let _service = this.__formatService(url, options);
@@ -192,7 +192,7 @@ class HttpRequst {
         },
       },
       ext || {},
-      config,
+      config
     );
     if (window.__IS_MONITOR_COMPONENT__) {
       // 兼容监控逻辑

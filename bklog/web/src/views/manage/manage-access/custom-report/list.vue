@@ -349,266 +349,266 @@
 </template>
 
 <script>
-  import { projectManages } from '@/common/util';
-  import EmptyStatus from '@/components/empty-status';
-  import IndexSetLabelSelect from '@/components/index-set-label-select';
-  import collectedItemsMixin from '@/mixins/collected-items-mixin';
-  import { mapGetters } from 'vuex';
-  import { formatBytes, requestStorageUsage } from '../util';
-  import * as authorityMap from '../../../../common/authority-map';
+import { projectManages } from '@/common/util';
+import EmptyStatus from '@/components/empty-status';
+import IndexSetLabelSelect from '@/components/index-set-label-select';
+import collectedItemsMixin from '@/mixins/collected-items-mixin';
+import { mapGetters } from 'vuex';
+import { formatBytes, requestStorageUsage } from '../util';
+import * as authorityMap from '../../../../common/authority-map';
 
-  export default {
-    name: 'CustomReportList',
-    components: {
-      EmptyStatus,
-      IndexSetLabelSelect,
+export default {
+  name: 'CustomReportList',
+  components: {
+    EmptyStatus,
+    IndexSetLabelSelect,
+  },
+  mixins: [collectedItemsMixin],
+  data() {
+    return {
+      inputKeyWords: '',
+      collectList: [],
+      selectLabelList: [],
+      isAllowedCreate: null,
+      collectProject: projectManages(this.$store.state.topMenu, 'collection-item'), // 权限
+      isRequest: false,
+      params: {
+        collector_config_id: '',
+      },
+      pagination: {
+        current: 1,
+        count: 100,
+        limit: 10,
+        limitList: [10, 20, 50, 100],
+      },
+      emptyType: 'empty',
+    };
+  },
+  computed: {
+    ...mapGetters({
+      spaceUid: 'spaceUid',
+      bkBizId: 'bkBizId',
+      authGlobalInfo: 'globals/authContainerInfo',
+      isShowMaskingTemplate: 'isShowMaskingTemplate',
+    }),
+    authorityMap() {
+      return authorityMap;
     },
-    mixins: [collectedItemsMixin],
-    data() {
-      return {
-        inputKeyWords: '',
-        collectList: [],
-        selectLabelList: [],
-        isAllowedCreate: null,
-        collectProject: projectManages(this.$store.state.topMenu, 'collection-item'), // 权限
-        isRequest: false,
-        params: {
-          collector_config_id: '',
-        },
-        pagination: {
-          current: 1,
-          count: 100,
-          limit: 10,
-          limitList: [10, 20, 50, 100],
-        },
-        emptyType: 'empty',
-      };
-    },
-    computed: {
-      ...mapGetters({
-        spaceUid: 'spaceUid',
-        bkBizId: 'bkBizId',
-        authGlobalInfo: 'globals/authContainerInfo',
-        isShowMaskingTemplate: 'isShowMaskingTemplate',
-      }),
-      authorityMap() {
-        return authorityMap;
+  },
+  created() {
+    !this.authGlobalInfo && this.checkCreateAuth();
+  },
+  mounted() {
+    !this.authGlobalInfo && this.initLabelSelectList();
+    !this.authGlobalInfo && this.search();
+  },
+  watch: {
+    collectList: {
+      handler(val) {
+        if (val) {
+          const callbackFn = (item, key, value) => {
+            this.$set(item, key, value[key]);
+          };
+          requestStorageUsage(this.bkBizId, val, true, callbackFn)
+            .catch(error => {
+              console.error('Error loading data:', error);
+            })
+            .finally(() => {
+              this.isTableLoading = false;
+            });
+        }
       },
     },
-    created() {
-      !this.authGlobalInfo && this.checkCreateAuth();
+  },
+  methods: {
+    search() {
+      this.pagination.current = 1;
+      this.requestData();
     },
-    mounted() {
-      !this.authGlobalInfo && this.initLabelSelectList();
-      !this.authGlobalInfo && this.search();
-    },
-    watch:{
-      collectList:{
-        handler(val) {
-          if (val) {
-            const callbackFn = (item, key, value) => {
-                this.$set(item, key, value[key]);
-            };
-            requestStorageUsage(this.bkBizId, val, true, callbackFn)
-              .catch((error) => {
-                console.error('Error loading data:', error);
-              })
-              .finally(() => {
-                this.isTableLoading = false;
-              });
-          }
-        },
+    // 路由跳转
+    leaveCurrentPage(row, operateType) {
+      if (operateType === 'start' || operateType === 'stop') {
+        if (!this.collectProject) return;
+        if (operateType === 'stop') {
+          this.$bkInfo({
+            type: 'warning',
+            title: this.$t('确认停用当前采集项？'),
+            confirmFn: () => {
+              this.toggleCollect(row, operateType);
+            },
+          });
+        } else {
+          this.toggleCollect(row, operateType);
+        }
+        return;
       }
+
+      let backRoute;
+      let editName;
+      const params = {};
+      const query = {};
+      const routeMap = {
+        add: 'custom-report-create',
+        edit: 'custom-report-edit',
+        search: 'retrieve',
+        clean: 'clean-edit',
+        view: 'custom-report-detail',
+        masking: 'custom-report-masking',
+      };
+
+      if (operateType === 'search') {
+        if (!row.index_set_id && !row.bkdata_index_set_ids.length) return;
+        params.indexId = row.index_set_id ? row.index_set_id : row.bkdata_index_set_ids[0];
+      }
+
+      if (operateType === 'masking') {
+        if (!row.index_set_id && !row.bkdata_index_set_ids.length) return;
+        params.indexSetId = row.index_set_id ? row.index_set_id : row.bkdata_index_set_ids[0];
+        editName = row.collector_config_name;
+      }
+
+      if (['clean', 'edit', 'view'].includes(operateType)) {
+        params.collectorId = row.collector_config_id;
+      }
+
+      if (operateType === 'clean') {
+        backRoute = this.$route.name;
+      }
+
+      if (operateType === 'edit') {
+        editName = row.collector_config_name;
+      }
+
+      const targetRoute = routeMap[operateType];
+      // this.$store.commit('collect/setCurCollect', row);
+      this.$router.push({
+        name: targetRoute,
+        params,
+        query: {
+          ...query,
+          spaceUid: this.$store.state.spaceUid,
+          backRoute,
+          editName,
+        },
+      });
     },
-    methods: {
-      search() {
-        this.pagination.current = 1;
-        this.requestData();
-      },
-      // 路由跳转
-      leaveCurrentPage(row, operateType) {
-        if (operateType === 'start' || operateType === 'stop') {
-          if (!this.collectProject) return;
-          if (operateType === 'stop') {
-            this.$bkInfo({
-              type: 'warning',
-              title: this.$t('确认停用当前采集项？'),
-              confirmFn: () => {
-                this.toggleCollect(row, operateType);
+    // 启用 || 停用
+    toggleCollect(row, type) {
+      const { isActive } = row;
+      this.$http
+        .request(`collect/${type === 'start' ? 'startCollect' : 'stopCollect'}`, {
+          params: {
+            collector_config_id: row.collector_config_id,
+          },
+        })
+        .then(res => {
+          if (res.result) {
+            row.is_active = !row.is_active;
+            res.result && this.messageSuccess(this.$t('修改成功'));
+            this.requestData();
+          }
+        })
+        .catch(() => {
+          row.is_active = isActive;
+        });
+    },
+    // 删除
+    deleteCollect(row) {
+      this.$bkInfo({
+        type: 'warning',
+        subTitle: this.$t('当前上报名称为{n}，确认要删除？', { n: row.collector_config_name }),
+        confirmFn: () => {
+          this.requestDeleteCollect(row);
+        },
+      });
+    },
+    requestData() {
+      this.isRequest = true;
+      this.emptyType = this.inputKeyWords ? 'search-empty' : 'empty';
+      const { ids } = this.$route.query; // 根据id来检索
+      const collectorIdList = ids ? decodeURIComponent(ids) : [];
+      this.$http
+        .request('collect/getCollectList', {
+          query: {
+            bk_biz_id: this.bkBizId,
+            keyword: this.inputKeyWords,
+            page: this.pagination.current,
+            pagesize: this.pagination.limit,
+            collector_scenario_id: 'custom',
+            collector_id_list: collectorIdList,
+          },
+        })
+        .then(async res => {
+          const { data } = res;
+          if (data?.list) {
+            const resList = data.list;
+            const indexIdList = resList.filter(item => !!item.index_set_id).map(item => item.index_set_id);
+            const { data: desensitizeStatus } = await this.getDesensitizeStatus(indexIdList);
+            const newCollectList = resList.map(item => ({
+              ...item,
+              is_desensitize: desensitizeStatus[item.index_set_id]?.is_desensitize ?? false,
+            }));
+            this.collectList.splice(0, this.collectList.length, ...newCollectList);
+            this.pagination.count = data.total;
+          }
+        })
+        .catch(() => {
+          this.emptyType = '500';
+        })
+        .finally(() => {
+          this.isRequest = false;
+          // 如果有ids 重置路由
+          if (ids)
+            this.$router.replace({
+              query: {
+                spaceUid: this.$route.query.spaceUid,
               },
             });
-          } else {
-            this.toggleCollect(row, operateType);
-          }
-          return;
-        }
-
-        let backRoute;
-        let editName;
-        const params = {};
-        const query = {};
-        const routeMap = {
-          add: 'custom-report-create',
-          edit: 'custom-report-edit',
-          search: 'retrieve',
-          clean: 'clean-edit',
-          view: 'custom-report-detail',
-          masking: 'custom-report-masking',
-        };
-
-        if (operateType === 'search') {
-          if (!row.index_set_id && !row.bkdata_index_set_ids.length) return;
-          params.indexId = row.index_set_id ? row.index_set_id : row.bkdata_index_set_ids[0];
-        }
-
-        if (operateType === 'masking') {
-          if (!row.index_set_id && !row.bkdata_index_set_ids.length) return;
-          params.indexSetId = row.index_set_id ? row.index_set_id : row.bkdata_index_set_ids[0];
-          editName = row.collector_config_name;
-        }
-
-        if (['clean', 'edit', 'view'].includes(operateType)) {
-          params.collectorId = row.collector_config_id;
-        }
-
-        if (operateType === 'clean') {
-          backRoute = this.$route.name;
-        }
-
-        if (operateType === 'edit') {
-          editName = row.collector_config_name;
-        }
-
-        const targetRoute = routeMap[operateType];
-        // this.$store.commit('collect/setCurCollect', row);
-        this.$router.push({
-          name: targetRoute,
-          params,
-          query: {
-            ...query,
-            spaceUid: this.$store.state.spaceUid,
-            backRoute,
-            editName,
-          },
         });
-      },
-      // 启用 || 停用
-      toggleCollect(row, type) {
-        const { isActive } = row;
-        this.$http
-          .request(`collect/${type === 'start' ? 'startCollect' : 'stopCollect'}`, {
-            params: {
-              collector_config_id: row.collector_config_id,
-            },
-          })
-          .then(res => {
-            if (res.result) {
-              row.is_active = !row.is_active;
-              res.result && this.messageSuccess(this.$t('修改成功'));
-              this.requestData();
-            }
-          })
-          .catch(() => {
-            row.is_active = isActive;
-          });
-      },
-      // 删除
-      deleteCollect(row) {
-        this.$bkInfo({
-          type: 'warning',
-          subTitle: this.$t('当前上报名称为{n}，确认要删除？', { n: row.collector_config_name }),
-          confirmFn: () => {
-            this.requestDeleteCollect(row);
-          },
-        });
-      },
-      requestData() {
-        this.isRequest = true;
-        this.emptyType = this.inputKeyWords ? 'search-empty' : 'empty';
-        const { ids } = this.$route.query; // 根据id来检索
-        const collectorIdList = ids ? decodeURIComponent(ids) : [];
-        this.$http
-          .request('collect/getCollectList', {
-            query: {
-              bk_biz_id: this.bkBizId,
-              keyword: this.inputKeyWords,
-              page: this.pagination.current,
-              pagesize: this.pagination.limit,
-              collector_scenario_id: 'custom',
-              collector_id_list: collectorIdList,
-            },
-          })
-          .then(async res => {
-            const { data } = res;
-            if (data?.list) {
-              const resList = data.list;
-              const indexIdList = resList.filter(item => !!item.index_set_id).map(item => item.index_set_id);
-              const { data: desensitizeStatus } = await this.getDesensitizeStatus(indexIdList);
-              const newCollectList = resList.map(item => ({
-                ...item,
-                is_desensitize: desensitizeStatus[item.index_set_id]?.is_desensitize ?? false,
-              }));
-              this.collectList.splice(0, this.collectList.length, ...newCollectList);
-              this.pagination.count = data.total;
-            }
-          })
-          .catch(() => {
-            this.emptyType = '500';
-          })
-          .finally(() => {
-            this.isRequest = false;
-            // 如果有ids 重置路由
-            if (ids)
-              this.$router.replace({
-                query: {
-                  spaceUid: this.$route.query.spaceUid,
-                },
-              });
-          });
-      },
-      handleSearchChange(val) {
-        if (val === '' && !this.isRequest) {
-          this.requestData();
-        }
-      },
-      handleOperation(type) {
-        if (type === 'clear-filter') {
-          this.inputKeyWords = '';
-          this.pagination.current = 1;
-          this.requestData();
-          return;
-        }
-
-        if (type === 'refresh') {
-          this.emptyType = 'empty';
-          this.pagination.current = 1;
-          this.requestData();
-          return;
-        }
-      },
-      async getDesensitizeStatus(indexIdList = []) {
-        try {
-          return await this.$http.request('masking/getDesensitizeState', {
-            data: { index_set_ids: indexIdList },
-          });
-        } catch (error) {
-          return [];
-        }
-      },
-      /** 初始化标签列表 */
-      async initLabelSelectList() {
-        try {
-          const res = await this.$http.request('unionSearch/unionLabelList');
-          this.selectLabelList = res.data;
-        } catch (error) {
-          this.selectLabelList = [];
-        }
-      },
-      formatUsage(dailyUsage, totalUsage) {
-        return `${formatBytes(dailyUsage)} / ${formatBytes(totalUsage)}`;
+    },
+    handleSearchChange(val) {
+      if (val === '' && !this.isRequest) {
+        this.requestData();
       }
     },
-  };
+    handleOperation(type) {
+      if (type === 'clear-filter') {
+        this.inputKeyWords = '';
+        this.pagination.current = 1;
+        this.requestData();
+        return;
+      }
+
+      if (type === 'refresh') {
+        this.emptyType = 'empty';
+        this.pagination.current = 1;
+        this.requestData();
+        return;
+      }
+    },
+    async getDesensitizeStatus(indexIdList = []) {
+      try {
+        return await this.$http.request('masking/getDesensitizeState', {
+          data: { index_set_ids: indexIdList },
+        });
+      } catch (error) {
+        return [];
+      }
+    },
+    /** 初始化标签列表 */
+    async initLabelSelectList() {
+      try {
+        const res = await this.$http.request('unionSearch/unionLabelList');
+        this.selectLabelList = res.data;
+      } catch (error) {
+        this.selectLabelList = [];
+      }
+    },
+    formatUsage(dailyUsage, totalUsage) {
+      return `${formatBytes(dailyUsage)} / ${formatBytes(totalUsage)}`;
+    },
+  },
+};
 </script>
 
 <style lang="scss">

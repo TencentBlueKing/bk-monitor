@@ -193,273 +193,273 @@
 </template>
 
 <script>
-  import RuleTable from './rule-table';
-  import FilterRule from '../result-table-panel/log-clustering/components/quick-open-cluster-step/filter-rule';
+import RuleTable from './rule-table';
+import FilterRule from '../result-table-panel/log-clustering/components/quick-open-cluster-step/filter-rule';
 
-  export default {
-    components: {
-      RuleTable,
-      FilterRule,
+export default {
+  components: {
+    RuleTable,
+    FilterRule,
+  },
+  props: {
+    globalEditable: {
+      type: Boolean,
+      default: true,
     },
-    props: {
-      globalEditable: {
-        type: Boolean,
-        default: true,
-      },
-      totalFields: {
-        type: Array,
-        default: () => [],
-      },
-      indexSetItem: {
-        type: Object,
-        require: true,
-      },
-      configData: {
-        type: Object,
-        require: true,
-      },
-      cleanConfig: {
-        type: Object,
-        require: true,
-      },
-      datePickerValue: {
-        // 过滤条件字段可选值关系表
-        type: Array,
-        required: true,
-      },
-      retrieveParams: {
-        type: Object,
-        default: () => ({}),
-      },
+    totalFields: {
+      type: Array,
+      default: () => [],
     },
-    data() {
-      return {
-        clusterField: [], // 聚类字段
-        globalLoading: false,
-        fingerSwitch: false, // 数据指纹
-        isShowAddFilterIcon: true, // 是否显示过滤规则增加按钮
-        isShowSubmitDialog: false, // 是否展开保存弹窗
-        isHandle: false, // 保存loading
-        isCloseSelect: false, // 过滤规则下拉框隐藏
-        defaultData: {},
-        defaultVaribles: '',
-        rules: {
-          clustering_fields: [
-            {
-              required: true,
-              trigger: 'blur',
-            },
-          ],
-          max_log_length: [
-            {
-              required: true,
-              trigger: 'blur',
-            },
-          ],
-        },
-        formData: {
-          max_dist_list: '', // 敏感度
-          predefined_varibles: '', //	预先定义的正则表达式
-          max_log_length: 1, // 最大日志长度
-          clustering_fields: '', // 聚类字段
-          filter_rules: [], // 过滤规则
-          signature_enable: false,
-          regex_rule_type: 'customize',
-          regex_template_id: 0,
-        },
-        isShowFingerTips: false,
-        isActive: false,
-      };
+    indexSetItem: {
+      type: Object,
+      require: true,
     },
-    mounted() {
-      this.initList();
+    configData: {
+      type: Object,
+      require: true,
     },
-    methods: {
-      /**
-       * @desc: 数据指纹请求
-       * @param { Boolean } isDefault 是否请求默认值
-       */
-      async requestCluster(isDefault = false, isInit = false) {
-        this.globalLoading = true;
-        try {
-          const params = { index_set_id: this.$route.params.indexId };
-          const data = { collector_config_id: this.configID };
-          const baseUrl = '/logClustering';
-          const requestBehindUrl = isDefault ? '/getDefaultConfig' : '/getConfig';
-          const requestUrl = `${baseUrl}${requestBehindUrl}`;
-          const res = await this.$http.request(requestUrl, !isDefault && { params, data });
-          const {
-            max_dist_list,
-            predefined_varibles,
-            max_log_length,
-            clustering_fields,
-            filter_rules: filterRules,
-            regex_rule_type,
-            regex_template_id,
-          } = res.data;
-          const newFilterRules = filterRules.map(item => ({
-            ...(this.totalFields.find(tItem => tItem.field_name === item.fields_name) ?? {}),
-            ...item,
-            value: [item.value],
-          }));
-          this.defaultVaribles = predefined_varibles;
-          const assignObj = {
-            max_dist_list,
-            predefined_varibles,
-            max_log_length,
-            clustering_fields,
-            filter_rules: newFilterRules || [],
-            regex_rule_type,
-            regex_template_id,
-          };
-          Object.assign(this.formData, assignObj);
-          Object.assign(this.defaultData, assignObj);
-          if (isInit) this.$refs.ruleTableRef.initSelect(assignObj);
-          // 当前回填的字段如果在聚类字段列表里找不到则赋值为空需要用户重新赋值
-          const isHaveFieldsItem = this.clusterField.find(item => item.id === res.data.clustering_fields);
-          if (!isHaveFieldsItem) this.formData.clustering_fields = '';
-        } catch (e) {
-          console.warn(e);
-        } finally {
-          this.globalLoading = false;
-        }
-      },
-      initList() {
-        this.fingerSwitch = true;
-        this.isShowFingerTips = true;
-        this.isActive = this.configData.is_active;
-        this.configID = this.$store.state.indexSetFieldConfig.clean_config?.extra.collector_config_id;
-        this.formData.clustering_fields = this.configData?.extra.clustering_fields;
-        this.clusterField = this.totalFields
-          .filter(item => item.is_analyzed)
-          .map(el => {
-            const { field_name: id, field_alias: alias } = el;
-            return { id, name: alias ? `${id}(${alias})` : id };
-          });
-        // 日志聚类且数据指纹同时打开则不请求默认值
-        this.requestCluster(false, true);
-      },
-      /**
-       * @desc: 数据指纹开关
-       */
-      handleChangeFinger() {
-        if (!this.globalEditable) return;
-
-        if (this.fingerSwitch) {
-          this.fingerSwitch = false;
-          // this.$bkInfo({
-          //   title: this.$t('是否关闭数据指纹'),
-          //   confirmFn: () => {
-          //     this.fingerSwitch = false;
-          //   },
-          // });
-        } else {
-          // 当前如果是计算平台则直接请求 计算平台无configID
-          if (this.indexSetItem.scenario_id === 'bkdata') {
-            this.fingerSwitch = true;
-            this.requestCluster(true);
-            return;
-          }
-          if (!this.configID) {
-            this.$bkInfo({
-              title: this.$t('当前索引集为非采集项,无法设置数据指纹'),
-              confirmFn: () => {},
-            });
-            return;
-          }
-          this.fingerSwitch = true;
-          this.requestCluster(true);
-        }
-      },
-      getIsChangeRule() {
-        return this.$refs.ruleTableRef.ruleArrToBase64() !== this.defaultVaribles;
-      },
-      async handleSubmit() {
-        const isRulePass = await this.$refs.filterRuleRef.handleCheckRuleValidate();
-        if (!isRulePass) return;
-        this.$refs.validateForm.validate().then(
-          () => {
-            const newPredefinedVaribles = this.$refs.ruleTableRef.ruleArrToBase64();
-            if (newPredefinedVaribles !== this.defaultVaribles) {
-              this.$refs.ruleTableRef.isClickAlertIcon = true;
-              this.$refs.ruleTableRef.isChangeRule = true;
-              this.$refs.ruleTableRef.effectOriginal = '';
-              this.$refs.ruleTableRef.getLogOriginal();
-              return;
-            }
-            this.handleSubmitClusterChange();
+    cleanConfig: {
+      type: Object,
+      require: true,
+    },
+    datePickerValue: {
+      // 过滤条件字段可选值关系表
+      type: Array,
+      required: true,
+    },
+    retrieveParams: {
+      type: Object,
+      default: () => ({}),
+    },
+  },
+  data() {
+    return {
+      clusterField: [], // 聚类字段
+      globalLoading: false,
+      fingerSwitch: false, // 数据指纹
+      isShowAddFilterIcon: true, // 是否显示过滤规则增加按钮
+      isShowSubmitDialog: false, // 是否展开保存弹窗
+      isHandle: false, // 保存loading
+      isCloseSelect: false, // 过滤规则下拉框隐藏
+      defaultData: {},
+      defaultVaribles: '',
+      rules: {
+        clustering_fields: [
+          {
+            required: true,
+            trigger: 'blur',
           },
-          () => {},
-        );
+        ],
+        max_log_length: [
+          {
+            required: true,
+            trigger: 'blur',
+          },
+        ],
       },
-      handleSubmitClusterChange() {
-        this.isHandle = true;
-        const { index_set_id, bk_biz_id } = this.indexSetItem;
+      formData: {
+        max_dist_list: '', // 敏感度
+        predefined_varibles: '', //	预先定义的正则表达式
+        max_log_length: 1, // 最大日志长度
+        clustering_fields: '', // 聚类字段
+        filter_rules: [], // 过滤规则
+        signature_enable: false,
+        regex_rule_type: 'customize',
+        regex_template_id: 0,
+      },
+      isShowFingerTips: false,
+      isActive: false,
+    };
+  },
+  mounted() {
+    this.initList();
+  },
+  methods: {
+    /**
+     * @desc: 数据指纹请求
+     * @param { Boolean } isDefault 是否请求默认值
+     */
+    async requestCluster(isDefault = false, isInit = false) {
+      this.globalLoading = true;
+      try {
+        const params = { index_set_id: this.$route.params.indexId };
+        const data = { collector_config_id: this.configID };
+        const baseUrl = '/logClustering';
+        const requestBehindUrl = isDefault ? '/getDefaultConfig' : '/getConfig';
+        const requestUrl = `${baseUrl}${requestBehindUrl}`;
+        const res = await this.$http.request(requestUrl, !isDefault && { params, data });
         const {
           max_dist_list,
           predefined_varibles,
-          delimeter,
           max_log_length,
-          is_case_sensitive,
           clustering_fields,
-          filter_rules,
+          filter_rules: filterRules,
           regex_rule_type,
           regex_template_id,
-        } = this.formData;
-        const paramsData = {
+        } = res.data;
+        const newFilterRules = filterRules.map(item => ({
+          ...(this.totalFields.find(tItem => tItem.field_name === item.fields_name) ?? {}),
+          ...item,
+          value: [item.value],
+        }));
+        this.defaultVaribles = predefined_varibles;
+        const assignObj = {
           max_dist_list,
           predefined_varibles,
-          delimeter,
           max_log_length,
-          is_case_sensitive,
           clustering_fields,
-          filter_rules,
+          filter_rules: newFilterRules || [],
           regex_rule_type,
           regex_template_id,
         };
-        // 获取子组件传来的聚类规则数组base64字符串
-        paramsData.predefined_varibles = this.$refs.ruleTableRef.ruleArrToBase64();
-        paramsData.regex_rule_type = this.$refs.ruleTableRef.getRuleType();
-        paramsData.regex_template_id = this.$refs.ruleTableRef.getTemplateID();
-        // 过滤规则数组形式转成字符串形式传参
-        paramsData.filter_rules = paramsData.filter_rules
-          .filter(item => item.value.length)
-          .map(item => ({
-            fields_name: item.fields_name,
-            logic_operator: item.logic_operator,
-            op: item.op,
-            value: item.value[0],
-          }));
-        this.$http
-          .request('retrieve/updateClusteringConfig', {
-            params: {
-              index_set_id,
-            },
-            data: {
-              ...paramsData,
-              signature_enable: this.fingerSwitch,
-              collector_config_id: this.configID,
-              index_set_id,
-              bk_biz_id,
-            },
-          })
-          .then(() => {
-            this.isShowSubmitDialog = true;
-          })
-          .finally(() => {
-            this.isHandle = false;
-          });
-      },
-      resetPage() {
-        this.defaultData.predefined_varibles = '';
-        this.requestCluster(false);
-      },
-      closeKnowDialog() {
-        this.isShowSubmitDialog = false;
-        this.$emit('update-log-fields');
-      },
+        Object.assign(this.formData, assignObj);
+        Object.assign(this.defaultData, assignObj);
+        if (isInit) this.$refs.ruleTableRef.initSelect(assignObj);
+        // 当前回填的字段如果在聚类字段列表里找不到则赋值为空需要用户重新赋值
+        const isHaveFieldsItem = this.clusterField.find(item => item.id === res.data.clustering_fields);
+        if (!isHaveFieldsItem) this.formData.clustering_fields = '';
+      } catch (e) {
+        console.warn(e);
+      } finally {
+        this.globalLoading = false;
+      }
     },
-  };
+    initList() {
+      this.fingerSwitch = true;
+      this.isShowFingerTips = true;
+      this.isActive = this.configData.is_active;
+      this.configID = this.$store.state.indexSetFieldConfig.clean_config?.extra.collector_config_id;
+      this.formData.clustering_fields = this.configData?.extra.clustering_fields;
+      this.clusterField = this.totalFields
+        .filter(item => item.is_analyzed)
+        .map(el => {
+          const { field_name: id, field_alias: alias } = el;
+          return { id, name: alias ? `${id}(${alias})` : id };
+        });
+      // 日志聚类且数据指纹同时打开则不请求默认值
+      this.requestCluster(false, true);
+    },
+    /**
+     * @desc: 数据指纹开关
+     */
+    handleChangeFinger() {
+      if (!this.globalEditable) return;
+
+      if (this.fingerSwitch) {
+        this.fingerSwitch = false;
+        // this.$bkInfo({
+        //   title: this.$t('是否关闭数据指纹'),
+        //   confirmFn: () => {
+        //     this.fingerSwitch = false;
+        //   },
+        // });
+      } else {
+        // 当前如果是计算平台则直接请求 计算平台无configID
+        if (this.indexSetItem.scenario_id === 'bkdata') {
+          this.fingerSwitch = true;
+          this.requestCluster(true);
+          return;
+        }
+        if (!this.configID) {
+          this.$bkInfo({
+            title: this.$t('当前索引集为非采集项,无法设置数据指纹'),
+            confirmFn: () => {},
+          });
+          return;
+        }
+        this.fingerSwitch = true;
+        this.requestCluster(true);
+      }
+    },
+    getIsChangeRule() {
+      return this.$refs.ruleTableRef.ruleArrToBase64() !== this.defaultVaribles;
+    },
+    async handleSubmit() {
+      const isRulePass = await this.$refs.filterRuleRef.handleCheckRuleValidate();
+      if (!isRulePass) return;
+      this.$refs.validateForm.validate().then(
+        () => {
+          const newPredefinedVaribles = this.$refs.ruleTableRef.ruleArrToBase64();
+          if (newPredefinedVaribles !== this.defaultVaribles) {
+            this.$refs.ruleTableRef.isClickAlertIcon = true;
+            this.$refs.ruleTableRef.isChangeRule = true;
+            this.$refs.ruleTableRef.effectOriginal = '';
+            this.$refs.ruleTableRef.getLogOriginal();
+            return;
+          }
+          this.handleSubmitClusterChange();
+        },
+        () => {}
+      );
+    },
+    handleSubmitClusterChange() {
+      this.isHandle = true;
+      const { index_set_id, bk_biz_id } = this.indexSetItem;
+      const {
+        max_dist_list,
+        predefined_varibles,
+        delimeter,
+        max_log_length,
+        is_case_sensitive,
+        clustering_fields,
+        filter_rules,
+        regex_rule_type,
+        regex_template_id,
+      } = this.formData;
+      const paramsData = {
+        max_dist_list,
+        predefined_varibles,
+        delimeter,
+        max_log_length,
+        is_case_sensitive,
+        clustering_fields,
+        filter_rules,
+        regex_rule_type,
+        regex_template_id,
+      };
+      // 获取子组件传来的聚类规则数组base64字符串
+      paramsData.predefined_varibles = this.$refs.ruleTableRef.ruleArrToBase64();
+      paramsData.regex_rule_type = this.$refs.ruleTableRef.getRuleType();
+      paramsData.regex_template_id = this.$refs.ruleTableRef.getTemplateID();
+      // 过滤规则数组形式转成字符串形式传参
+      paramsData.filter_rules = paramsData.filter_rules
+        .filter(item => item.value.length)
+        .map(item => ({
+          fields_name: item.fields_name,
+          logic_operator: item.logic_operator,
+          op: item.op,
+          value: item.value[0],
+        }));
+      this.$http
+        .request('retrieve/updateClusteringConfig', {
+          params: {
+            index_set_id,
+          },
+          data: {
+            ...paramsData,
+            signature_enable: this.fingerSwitch,
+            collector_config_id: this.configID,
+            index_set_id,
+            bk_biz_id,
+          },
+        })
+        .then(() => {
+          this.isShowSubmitDialog = true;
+        })
+        .finally(() => {
+          this.isHandle = false;
+        });
+    },
+    resetPage() {
+      this.defaultData.predefined_varibles = '';
+      this.requestCluster(false);
+    },
+    closeKnowDialog() {
+      this.isShowSubmitDialog = false;
+      this.$emit('update-log-fields');
+    },
+  },
+};
 </script>
 
 <style lang="scss" scoped>

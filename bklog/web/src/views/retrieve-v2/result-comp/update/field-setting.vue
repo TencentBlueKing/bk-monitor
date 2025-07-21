@@ -126,139 +126,139 @@
   </div>
 </template>
 <script setup>
-  import { ref, computed, watch, defineProps, defineExpose } from 'vue';
+import { ref, computed, watch, defineProps, defineExpose } from 'vue';
 
-  import { formatHierarchy } from '@/common/field-resolver';
-  import { getRegExp } from '@/common/util';
-  import useLocale from '@/hooks/use-locale';
-  import useStore from '@/hooks/use-store';
-  import VueDraggable from 'vuedraggable';
-  import { BK_LOG_STORAGE } from '@/store/store.type';
+import { formatHierarchy } from '@/common/field-resolver';
+import { getRegExp } from '@/common/util';
+import useLocale from '@/hooks/use-locale';
+import useStore from '@/hooks/use-store';
+import VueDraggable from 'vuedraggable';
+import { BK_LOG_STORAGE } from '@/store/store.type';
 
-  // 获取 store
-  const store = useStore();
-  const { $t } = useLocale();
-  const searchKeyword = ref('');
+// 获取 store
+const store = useStore();
+const { $t } = useLocale();
+const searchKeyword = ref('');
 
-  const props = defineProps({
-    initData: {
-      type: Array,
-      default: () => [],
-    },
-  });
-  // 定义响应式数据
-  const fieldList = computed(() => {
-    return formatHierarchy(store.state.indexFieldInfo.fields);
-  });
+const props = defineProps({
+  initData: {
+    type: Array,
+    default: () => [],
+  },
+});
+// 定义响应式数据
+const fieldList = computed(() => {
+  return formatHierarchy(store.state.indexFieldInfo.fields);
+});
 
-  /** 将 fieldList 数组转换成 kv 结构(k-field_name,v-fieldItem) ,控制字段渲染顺序使用 */
-  const fieldListMap = computed(() => {
-    return fieldList.value.reduce((prev, curr) => {
-      prev[curr.field_name] = curr;
-      return prev;
-    }, {});
-  });
+/** 将 fieldList 数组转换成 kv 结构(k-field_name,v-fieldItem) ,控制字段渲染顺序使用 */
+const fieldListMap = computed(() => {
+  return fieldList.value.reduce((prev, curr) => {
+    prev[curr.field_name] = curr;
+    return prev;
+  }, {});
+});
 
-  const shadowTotal = computed(() => {
-    const reg = getRegExp(searchKeyword.value);
-    const filterFn = field =>
-      !shadowVisible.value.some(shadowField => shadowField.field_name === field.field_name) &&
-      field.field_type !== '__virtual__' &&
-      (reg.test(field.field_name) || reg.test(field.query_alias ?? ''));
-    const mapFn = item =>
-      Object.assign({}, item, {
-        first_name: item.query_alias || item.field_name,
-        last_name: item.field_name,
-      });
-
-    return fieldList.value.filter(filterFn).map(mapFn);
-  });
-
-  const emptyType = computed(() => {
-    if (!!shadowTotal?.value?.length) {
-      return '';
-    }
-    if (searchKeyword.value == '') {
-      return 'empty';
-    }
-    return 'search-empty';
-  });
-
-  const shadowVisible = ref([]);
-
-  const dragOptions = ref({
-    animation: 150,
-    tag: 'ul',
-    handle: '.bklog-ketuodong',
-    'ghost-class': 'sortable-ghost-class',
-  });
-
-  // 计算属性
-  const toSelectLength = computed(() => {
-    return shadowTotal.value.length;
-  });
-
-  const textDir = computed(() => {
-    const textEllipsisDir = store.state.storage[BK_LOG_STORAGE.TEXT_ELLIPSIS_DIR];
-    return textEllipsisDir === 'start' ? 'rtl' : 'ltr';
-  });
-
-  const fieldTypeMap = computed(() => store.state.globals.fieldTypeMap);
-  const getFieldIcon = fieldType => {
-    return fieldTypeMap.value?.[fieldType] ? fieldTypeMap.value?.[fieldType]?.icon : 'bklog-icon bklog-unkown';
-  };
-
-  const getFieldIconColor = type => {
-    return fieldTypeMap.value?.[type] ? fieldTypeMap.value?.[type]?.color : '#EAEBF0';
-  };
-
-  const getFieldIconTextColor = type => {
-    return fieldTypeMap.value?.[type]?.textColor;
-  };
-
-  const addField = fieldInfo => {
-    shadowVisible.value.push(fieldInfo);
-  };
-
-  const deleteField = (e, fieldName, index) => {
-    if (e.target.hasAttribute('data-del-disabled')) {
-      return;
-    }
-
-    shadowVisible.value.splice(index, 1);
-  };
-
-  const addAllField = () => {
-    shadowTotal.value.forEach(fieldInfo => {
-      if (!shadowVisible.value.includes(fieldInfo)) {
-        shadowVisible.value.push(fieldInfo);
-      }
+const shadowTotal = computed(() => {
+  const reg = getRegExp(searchKeyword.value);
+  const filterFn = field =>
+    !shadowVisible.value.some(shadowField => shadowField.field_name === field.field_name) &&
+    field.field_type !== '__virtual__' &&
+    (reg.test(field.field_name) || reg.test(field.query_alias ?? ''));
+  const mapFn = item =>
+    Object.assign({}, item, {
+      first_name: item.query_alias || item.field_name,
+      last_name: item.field_name,
     });
-  };
 
-  const deleteAllField = () => {
-    shadowVisible.value = [];
-  };
-  watch(
-    () => props.initData,
-    val => {
-      if (val.length) {
-        const mapFn = item =>
-          Object.assign({}, item, {
-            first_name: item.query_alias || item.field_name,
-            last_name: item.field_name,
-          });
-        shadowVisible.value = val
-          .map(fieldName => fieldListMap.value[fieldName])
-          .filter(Boolean)
-          .map(mapFn);
-      } else {
-        shadowVisible.value = [];
-      }
-    },
-    { immediate: true, deep: true },
-  );
-  defineExpose({ shadowVisible });
+  return fieldList.value.filter(filterFn).map(mapFn);
+});
+
+const emptyType = computed(() => {
+  if (!!shadowTotal?.value?.length) {
+    return '';
+  }
+  if (searchKeyword.value == '') {
+    return 'empty';
+  }
+  return 'search-empty';
+});
+
+const shadowVisible = ref([]);
+
+const dragOptions = ref({
+  animation: 150,
+  tag: 'ul',
+  handle: '.bklog-ketuodong',
+  'ghost-class': 'sortable-ghost-class',
+});
+
+// 计算属性
+const toSelectLength = computed(() => {
+  return shadowTotal.value.length;
+});
+
+const textDir = computed(() => {
+  const textEllipsisDir = store.state.storage[BK_LOG_STORAGE.TEXT_ELLIPSIS_DIR];
+  return textEllipsisDir === 'start' ? 'rtl' : 'ltr';
+});
+
+const fieldTypeMap = computed(() => store.state.globals.fieldTypeMap);
+const getFieldIcon = fieldType => {
+  return fieldTypeMap.value?.[fieldType] ? fieldTypeMap.value?.[fieldType]?.icon : 'bklog-icon bklog-unkown';
+};
+
+const getFieldIconColor = type => {
+  return fieldTypeMap.value?.[type] ? fieldTypeMap.value?.[type]?.color : '#EAEBF0';
+};
+
+const getFieldIconTextColor = type => {
+  return fieldTypeMap.value?.[type]?.textColor;
+};
+
+const addField = fieldInfo => {
+  shadowVisible.value.push(fieldInfo);
+};
+
+const deleteField = (e, fieldName, index) => {
+  if (e.target.hasAttribute('data-del-disabled')) {
+    return;
+  }
+
+  shadowVisible.value.splice(index, 1);
+};
+
+const addAllField = () => {
+  shadowTotal.value.forEach(fieldInfo => {
+    if (!shadowVisible.value.includes(fieldInfo)) {
+      shadowVisible.value.push(fieldInfo);
+    }
+  });
+};
+
+const deleteAllField = () => {
+  shadowVisible.value = [];
+};
+watch(
+  () => props.initData,
+  val => {
+    if (val.length) {
+      const mapFn = item =>
+        Object.assign({}, item, {
+          first_name: item.query_alias || item.field_name,
+          last_name: item.field_name,
+        });
+      shadowVisible.value = val
+        .map(fieldName => fieldListMap.value[fieldName])
+        .filter(Boolean)
+        .map(mapFn);
+    } else {
+      shadowVisible.value = [];
+    }
+  },
+  { immediate: true, deep: true }
+);
+defineExpose({ shadowVisible });
 </script>
 
 <style lang="scss">

@@ -251,7 +251,7 @@ export default class CollectDialog extends tsc<IProps> {
   checkName() {
     if (this.verifyData.groupName.trim() === '') return true;
     return /^[\u4e00-\u9fa5_a-zA-Z0-9`~!@#$%^&*()_\-+=<>?:"{}|\s,.\/;'\\[\]·~！@#￥%……&*（）——\-+={}|《》？：“”【】、；‘'，。、]+$/im.test(
-      this.verifyData.groupName.trim(),
+      this.verifyData.groupName.trim()
     );
   }
 
@@ -267,7 +267,7 @@ export default class CollectDialog extends tsc<IProps> {
   /** 检查收藏语法是否正确 */
   checkSpecification() {
     return /^[\u4e00-\u9fa5_a-zA-Z0-9`~!@#$%^&*()_\-+=<>?:"{}|\s,.\/;'\\[\]·~！@#￥%……&*（）——\-+={}|《》？：“”【】、；‘'，。、]+$/im.test(
-      this.favoriteData.name.trim(),
+      this.favoriteData.name.trim()
     );
   }
   /** 检查是否有内置名称不能使用 */
@@ -600,7 +600,7 @@ export default class CollectDialog extends tsc<IProps> {
           <FormItem label={this.$t('表单模式')}>
             <div class='explanation-field'>
               {this.$t(
-                '该功能指从查询语句中获取相应的字段，当勾选对应的字段时，将以表单的填写方式显示给收藏的使用者。（字段说明：没有字段时，为全文检索；重复的字段增加显示序号(N) ，默认不勾选任何字段)',
+                '该功能指从查询语句中获取相应的字段，当勾选对应的字段时，将以表单的填写方式显示给收藏的使用者。（字段说明：没有字段时，为全文检索；重复的字段增加显示序号(N) ，默认不勾选任何字段)'
               )}
             </div>
             <CheckboxGroup vModel={this.favoriteData.params.search_fields}>

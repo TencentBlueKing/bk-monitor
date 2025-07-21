@@ -372,7 +372,7 @@ export default class Condition extends tsc<object> {
         operatorItem, // 更新操作元素
         operator: newOperator, // 更新操作符
       },
-      isQuery,
+      isQuery
     );
   }
 

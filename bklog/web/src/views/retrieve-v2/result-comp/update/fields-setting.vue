@@ -158,491 +158,491 @@
 </template>
 
 <script>
-  import { formatHierarchy } from '@/common/field-resolver';
-  import { random, downJsonFile } from '@/common/util';
-  import VueDraggable from 'vuedraggable';
-  import { mapGetters } from 'vuex';
+import { formatHierarchy } from '@/common/field-resolver';
+import { random, downJsonFile } from '@/common/util';
+import VueDraggable from 'vuedraggable';
+import { mapGetters } from 'vuex';
 
-  import LogExport from '../../../../components/log-import/log-import';
-  import saveAsPopover from './children/save-as-popover.vue';
-  import fieldSetting from './field-setting';
-  import fieldsSettingOperate from './fields-setting-operate';
-  import tableSort from './table-sort';
-  import { BK_LOG_STORAGE } from '@/store/store.type';
-  /** 导出配置字段文件名前缀 */
-  const FIELD_CONFIG_FILENAME_PREFIX = 'log-field-';
+import LogExport from '../../../../components/log-import/log-import';
+import saveAsPopover from './children/save-as-popover.vue';
+import fieldSetting from './field-setting';
+import fieldsSettingOperate from './fields-setting-operate';
+import tableSort from './table-sort';
+import { BK_LOG_STORAGE } from '@/store/store.type';
+/** 导出配置字段文件名前缀 */
+const FIELD_CONFIG_FILENAME_PREFIX = 'log-field-';
 
-  export default {
-    components: {
-      // eslint-disable-next-line vue/no-unused-components
-      VueDraggable,
-      fieldSetting,
-      tableSort,
-      LogExport,
-      saveAsPopover,
+export default {
+  components: {
+    // eslint-disable-next-line vue/no-unused-components
+    VueDraggable,
+    fieldSetting,
+    tableSort,
+    LogExport,
+    saveAsPopover,
+  },
+  props: {
+    retrieveParams: {
+      type: Object,
+      required: true,
     },
-    props: {
-      retrieveParams: {
-        type: Object,
-        required: true,
-      },
-      /** 组件展示状态 -- template:模板配置  list: 列表配置 */
-      configType: {
-        type: String,
-        default: 'list',
-      },
-      isShow: {
-        type: Boolean,
-        default: false,
-      },
+    /** 组件展示状态 -- template:模板配置  list: 列表配置 */
+    configType: {
+      type: String,
+      default: 'list',
     },
-    data() {
-      return {
-        isLoading: false,
-        tableSortRef: null,
-        fieldSettingRef: null,
-        shadowVisible: [],
-        shadowAllTotal: [], // 所有字段
-        newConfigStr: '', // 新增配置配置名
-        isShowAddInput: false, // 是否展示新增配置输入框
-        currentClickConfigID: 0, // 当前配置项ID
-        activeFieldTab: 'visible',
-        activeConfigTab: 'default', // 当前活跃的配置配置名
-        isConfirmSubmit: false, // 是否点击保存
-        isInputError: false, // 新建配置名称是否不合法
-        cachedVisibleFields: [], // 缓存显示字段
-        cachedSortFields: [], // 缓存排序字段
-        shouldRefreshSort: false, // 控制排序组件刷新
-        fieldTabPanels: [
-          { name: 'visible', label: this.$t('显示字段') },
-          { name: 'sort', label: this.$t('排序权重') },
-        ],
-        configTabPanels: [], // 配置列表
-        dragOptions: {
-          animation: 150,
-          tag: 'ul',
-          handle: '.bklog-drag-dots',
-          'ghost-class': 'sortable-ghost-class',
-        },
-        isSortFieldChanged: false,
-        keyword: '',
-      };
+    isShow: {
+      type: Boolean,
+      default: false,
     },
-    computed: {
-      /** 当前组件展示状态是否为 模板配置 */
-      isTemplateConfig() {
-        return this.configType === 'template';
+  },
+  data() {
+    return {
+      isLoading: false,
+      tableSortRef: null,
+      fieldSettingRef: null,
+      shadowVisible: [],
+      shadowAllTotal: [], // 所有字段
+      newConfigStr: '', // 新增配置配置名
+      isShowAddInput: false, // 是否展示新增配置输入框
+      currentClickConfigID: 0, // 当前配置项ID
+      activeFieldTab: 'visible',
+      activeConfigTab: 'default', // 当前活跃的配置配置名
+      isConfirmSubmit: false, // 是否点击保存
+      isInputError: false, // 新建配置名称是否不合法
+      cachedVisibleFields: [], // 缓存显示字段
+      cachedSortFields: [], // 缓存排序字段
+      shouldRefreshSort: false, // 控制排序组件刷新
+      fieldTabPanels: [
+        { name: 'visible', label: this.$t('显示字段') },
+        { name: 'sort', label: this.$t('排序权重') },
+      ],
+      configTabPanels: [], // 配置列表
+      dragOptions: {
+        animation: 150,
+        tag: 'ul',
+        handle: '.bklog-drag-dots',
+        'ghost-class': 'sortable-ghost-class',
       },
-      catchFieldCustomSortList() {
-        return this.$store.state.retrieve?.catchFieldCustomConfig?.sortList;
-      },
-      /** 当前本地用户正在应用的展示字段设置 */
-      localVisibleFields() {
-        return (this.$store.state.visibleFields ?? []).map(e => e.field_name);
-      },
-      shadowSort() {
-        if (!this.isTemplateConfig && this.catchFieldCustomSortList?.length) {
-          return this.catchFieldCustomSortList;
+      isSortFieldChanged: false,
+      keyword: '',
+    };
+  },
+  computed: {
+    /** 当前组件展示状态是否为 模板配置 */
+    isTemplateConfig() {
+      return this.configType === 'template';
+    },
+    catchFieldCustomSortList() {
+      return this.$store.state.retrieve?.catchFieldCustomConfig?.sortList;
+    },
+    /** 当前本地用户正在应用的展示字段设置 */
+    localVisibleFields() {
+      return (this.$store.state.visibleFields ?? []).map(e => e.field_name);
+    },
+    shadowSort() {
+      if (!this.isTemplateConfig && this.catchFieldCustomSortList?.length) {
+        return this.catchFieldCustomSortList;
+      }
+      return this.$store.state.indexFieldInfo.sort_list;
+    },
+    shadowTotal() {
+      return formatHierarchy(this.$store.state.indexFieldInfo.fields);
+    },
+    filterShadowTotal() {
+      const fields = this.$store.state.indexFieldInfo.fields;
+      return fields.filter(item => {
+        const matchesKeyword = item.field_name?.includes(this.keyword) || item.query_alias?.includes(this.keyword);
+        const isInShadowVisible = this.shadowVisible.some(shadowItem => shadowItem === item.field_name);
+        return matchesKeyword && !isInShadowVisible;
+      });
+    },
+    showFieldAlias() {
+      return this.$store.state.storage[BK_LOG_STORAGE.SHOW_FIELD_ALIAS];
+    },
+    fieldAliasMap() {
+      let fieldAliasMap = {};
+      this.$store.state.indexFieldInfo.fields.forEach(item => {
+        fieldAliasMap[item.field_name] = item.field_alias || item.field_name;
+      });
+      return fieldAliasMap;
+    },
+    toSelectLength() {
+      if (this.keyword) {
+        return this.filterShadowTotal.length;
+      }
+      if (this.activeFieldTab === 'visible') {
+        return this.shadowTotal.length - this.shadowVisible.length;
+      }
+      let totalLength = 0;
+      this.shadowTotal.forEach(fieldInfo => {
+        if (fieldInfo.es_doc_values) {
+          totalLength += 1;
         }
-        return this.$store.state.indexFieldInfo.sort_list;
-      },
-      shadowTotal() {
-        return formatHierarchy(this.$store.state.indexFieldInfo.fields);
-      },
-      filterShadowTotal() {
-        const fields = this.$store.state.indexFieldInfo.fields;
-        return fields.filter(item => {
-          const matchesKeyword = item.field_name?.includes(this.keyword) || item.query_alias?.includes(this.keyword);
-          const isInShadowVisible = this.shadowVisible.some(shadowItem => shadowItem === item.field_name);
-          return matchesKeyword && !isInShadowVisible;
-        });
-      },
-      showFieldAlias() {
-        return this.$store.state.storage[BK_LOG_STORAGE.SHOW_FIELD_ALIAS];
-      },
-      fieldAliasMap() {
-        let fieldAliasMap = {};
-        this.$store.state.indexFieldInfo.fields.forEach(item => {
-          fieldAliasMap[item.field_name] = item.field_alias || item.field_name;
-        });
-        return fieldAliasMap;
-      },
-      toSelectLength() {
-        if (this.keyword) {
-          return this.filterShadowTotal.length;
-        }
-        if (this.activeFieldTab === 'visible') {
-          return this.shadowTotal.length - this.shadowVisible.length;
-        }
-        let totalLength = 0;
-        this.shadowTotal.forEach(fieldInfo => {
-          if (fieldInfo.es_doc_values) {
-            totalLength += 1;
-          }
-        });
-        return totalLength - this.cachedSortFields.length;
-      },
+      });
+      return totalLength - this.cachedSortFields.length;
+    },
 
-      filedSettingConfigID() {
-        // 当前索引集的显示字段ID
-        return this.$store.state.retrieve.filedSettingConfigID;
-      },
-      currentClickConfigData() {
-        // 当前选中的配置
-        return this.configTabPanels.find(item => item.id === this.currentClickConfigID) || this.configTabPanels?.[0];
-      },
-      fieldWidth() {
-        return this.$store.state.isEnLanguage ? '60' : '114';
-      },
-      currentSortList() {
-        return this.$refs?.tableSortRef?.shadowSort || this.cachedSortFields;
-      },
-      currentVisibleList() {
-        return (
-          this.$refs?.fieldSettingRef?.shadowVisible?.map(item => item.field_name) ||
-          this.shadowVisible?.map(item => item.field_name)
-        );
-      },
-      ...mapGetters({
-        unionIndexList: 'unionIndexList',
-        isUnionSearch: 'isUnionSearch',
-      }),
+    filedSettingConfigID() {
+      // 当前索引集的显示字段ID
+      return this.$store.state.retrieve.filedSettingConfigID;
     },
-    watch: {
-      newConfigStr() {
-        this.isInputError = false;
-      },
-      isShow() {
-        if (this.isShow) {
-          this.$nextTick(() => {
-            this.initRequestConfigListShow();
-          });
-        }
-      },
-      localVisibleFields() {
-        if (this.isShow && !this.isTemplateConfig) {
+    currentClickConfigData() {
+      // 当前选中的配置
+      return this.configTabPanels.find(item => item.id === this.currentClickConfigID) || this.configTabPanels?.[0];
+    },
+    fieldWidth() {
+      return this.$store.state.isEnLanguage ? '60' : '114';
+    },
+    currentSortList() {
+      return this.$refs?.tableSortRef?.shadowSort || this.cachedSortFields;
+    },
+    currentVisibleList() {
+      return (
+        this.$refs?.fieldSettingRef?.shadowVisible?.map(item => item.field_name) ||
+        this.shadowVisible?.map(item => item.field_name)
+      );
+    },
+    ...mapGetters({
+      unionIndexList: 'unionIndexList',
+      isUnionSearch: 'isUnionSearch',
+    }),
+  },
+  watch: {
+    newConfigStr() {
+      this.isInputError = false;
+    },
+    isShow() {
+      if (this.isShow) {
+        this.$nextTick(() => {
           this.initRequestConfigListShow();
-        }
-      },
+        });
+      }
     },
-    created() {
-      this.currentClickConfigID = this.filedSettingConfigID;
-      this.initRequestConfigListShow();
+    localVisibleFields() {
+      if (this.isShow && !this.isTemplateConfig) {
+        this.initRequestConfigListShow();
+      }
     },
+  },
+  created() {
+    this.currentClickConfigID = this.filedSettingConfigID;
+    this.initRequestConfigListShow();
+  },
 
-    methods: {
-      /** 带config列表请求的初始化 */
-      async initRequestConfigListShow() {
-        // 如果是从字段模板打开则需要请求接口获取字段列表及配置
-        // 如果从表格 setting icon打开，则不请求接口直接取本地的显示字段配置
-        if (!this.isTemplateConfig) {
-          this.initShadowFields(this.localVisibleFields);
-          // 在数据初始化后缓存，使用深拷贝
-          this.cachedVisibleFields = JSON.parse(JSON.stringify(this.shadowVisible));
-          this.cachedSortFields = JSON.parse(JSON.stringify(this.shadowSort));
-          return;
-        }
-        await this.getFiledConfigList();
-        this.initShadowFields();
+  methods: {
+    /** 带config列表请求的初始化 */
+    async initRequestConfigListShow() {
+      // 如果是从字段模板打开则需要请求接口获取字段列表及配置
+      // 如果从表格 setting icon打开，则不请求接口直接取本地的显示字段配置
+      if (!this.isTemplateConfig) {
+        this.initShadowFields(this.localVisibleFields);
         // 在数据初始化后缓存，使用深拷贝
         this.cachedVisibleFields = JSON.parse(JSON.stringify(this.shadowVisible));
         this.cachedSortFields = JSON.parse(JSON.stringify(this.shadowSort));
-      },
-      /** 保存或应用 */
-      async confirmModifyFields() {
-        const currentSortList = this.$refs?.tableSortRef?.shadowSort || this.cachedSortFields;
-        const currentVisibleList = this.$refs.fieldSettingRef.shadowVisible.map(item => item.field_name);
+        return;
+      }
+      await this.getFiledConfigList();
+      this.initShadowFields();
+      // 在数据初始化后缓存，使用深拷贝
+      this.cachedVisibleFields = JSON.parse(JSON.stringify(this.shadowVisible));
+      this.cachedSortFields = JSON.parse(JSON.stringify(this.shadowSort));
+    },
+    /** 保存或应用 */
+    async confirmModifyFields() {
+      const currentSortList = this.$refs?.tableSortRef?.shadowSort || this.cachedSortFields;
+      const currentVisibleList = this.$refs.fieldSettingRef.shadowVisible.map(item => item.field_name);
 
-        if (currentVisibleList.length === 0) {
-          this.messageWarn(this.$t('显示字段不能为空'));
-          return;
-        }
-        try {
-          // 字段模板保持配置逻辑，表格设置打开时不需要执行
-          if (this.isTemplateConfig) {
-            const confirmConfigData = {
-              editStr: this.currentClickConfigData.name,
-              sort_list: currentSortList,
-              display_fields: currentVisibleList,
-              id: this.currentClickConfigData.id,
-            };
-            this.isConfirmSubmit = true;
-            await this.handleUpdateConfig(confirmConfigData);
-            // 判断当前应用的config_id 与 索引集使用的config_id是否相同 不同则更新config
-            if (this.currentClickConfigData.id !== this.filedSettingConfigID) {
-              await this.submitFieldsSet(this.currentClickConfigData.id);
-            }
+      if (currentVisibleList.length === 0) {
+        this.messageWarn(this.$t('显示字段不能为空'));
+        return;
+      }
+      try {
+        // 字段模板保持配置逻辑，表格设置打开时不需要执行
+        if (this.isTemplateConfig) {
+          const confirmConfigData = {
+            editStr: this.currentClickConfigData.name,
+            sort_list: currentSortList,
+            display_fields: currentVisibleList,
+            id: this.currentClickConfigData.id,
+          };
+          this.isConfirmSubmit = true;
+          await this.handleUpdateConfig(confirmConfigData);
+          // 判断当前应用的config_id 与 索引集使用的config_id是否相同 不同则更新config
+          if (this.currentClickConfigData.id !== this.filedSettingConfigID) {
+            await this.submitFieldsSet(this.currentClickConfigData.id);
           }
-
-          this.cancelModifyFields();
-          this.$store.commit('updateLocalSort', false);
-          this.$store.commit('updateIsSetDefaultTableColumn', false);
-          this.$store
-            .dispatch('userFieldConfigChange', {
-              displayFields: currentVisibleList,
-              sortList: currentSortList,
-              fieldsWidth: {},
-            })
-            .then(() => {
-              this.$store.commit('resetVisibleFields', currentVisibleList);
-              this.$store.commit('updateIsSetDefaultTableColumn');
-            });
-          await this.$store.dispatch('requestIndexSetFieldInfo');
-
-          await this.$store.dispatch('requestIndexSetQuery');
-        } catch (error) {
-          console.warn(error);
-        } finally {
-          this.isConfirmSubmit = false;
         }
-      },
-      /** 更新config */
-      async submitFieldsSet(configID) {
-        await this.$http
-          .request('retrieve/postFieldsConfig', {
-            data: {
-              index_set_id: window.__IS_MONITOR_COMPONENT__ ? this.$route.query.indexId : this.$route.params.indexId,
-              index_set_ids: this.unionIndexList,
-              index_set_type: this.isUnionSearch ? 'union' : 'single',
-              display_fields: this.shadowVisible,
-              sort_list: this.cachedSortFields,
-              config_id: configID,
-            },
+
+        this.cancelModifyFields();
+        this.$store.commit('updateLocalSort', false);
+        this.$store.commit('updateIsSetDefaultTableColumn', false);
+        this.$store
+          .dispatch('userFieldConfigChange', {
+            displayFields: currentVisibleList,
+            sortList: currentSortList,
+            fieldsWidth: {},
           })
-          .catch(e => {
-            console.warn(e);
+          .then(() => {
+            this.$store.commit('resetVisibleFields', currentVisibleList);
+            this.$store.commit('updateIsSetDefaultTableColumn');
           });
-      },
-      cancelModifyFields() {
-        // 取消时恢复缓存数据，使用深拷贝
-        if (!this.isTemplateConfig) {
-          // 只更新父组件的数据，子组件会通过 props 自动更新
-          this.shadowVisible = JSON.parse(JSON.stringify(this.cachedVisibleFields));
-          // this.shadowSort = JSON.parse(JSON.stringify(this.cachedSortFields));
-          this.cachedSortFields = JSON.parse(JSON.stringify(this.shadowSort));
-        }
-        this.$emit('cancel');
-        this.isSortFieldChanged = false;
-      },
-      renderHeader(h, row, index) {
-        row.index = index;
-        return h(fieldsSettingOperate, {
-          props: {
-            configItem: row,
-            hasMoreIcon: index !== 0,
+        await this.$store.dispatch('requestIndexSetFieldInfo');
+
+        await this.$store.dispatch('requestIndexSetQuery');
+      } catch (error) {
+        console.warn(error);
+      } finally {
+        this.isConfirmSubmit = false;
+      }
+    },
+    /** 更新config */
+    async submitFieldsSet(configID) {
+      await this.$http
+        .request('retrieve/postFieldsConfig', {
+          data: {
+            index_set_id: window.__IS_MONITOR_COMPONENT__ ? this.$route.query.indexId : this.$route.params.indexId,
+            index_set_ids: this.unionIndexList,
+            index_set_type: this.isUnionSearch ? 'union' : 'single',
+            display_fields: this.shadowVisible,
+            sort_list: this.cachedSortFields,
+            config_id: configID,
           },
-          on: {
-            operateChange: this.handleLeftOperateChange,
-          },
+        })
+        .catch(e => {
+          console.warn(e);
         });
-      },
-      /** 用户操作 */
-      handleLeftOperateChange(type, configItem) {
-        switch (type) {
-          case 'click':
-            this.currentClickConfigID = configItem.id;
-            this.initShadowFields();
-            break;
-          case 'delete':
-            this.handleDeleteConfig(configItem.id);
-            break;
-          case 'edit':
-            this.handleEditConfigName(configItem.index);
-            break;
-          case 'update':
-            this.handleUpdateConfig(configItem, false, this.$t('修改成功'));
-            break;
-          case 'cancel':
-            this.handleCancelEditConfig(configItem.index);
-            break;
-          case 'export':
-            this.handleFieldConfigExport(configItem);
-            break;
-        }
-      },
+    },
+    cancelModifyFields() {
+      // 取消时恢复缓存数据，使用深拷贝
+      if (!this.isTemplateConfig) {
+        // 只更新父组件的数据，子组件会通过 props 自动更新
+        this.shadowVisible = JSON.parse(JSON.stringify(this.cachedVisibleFields));
+        // this.shadowSort = JSON.parse(JSON.stringify(this.cachedSortFields));
+        this.cachedSortFields = JSON.parse(JSON.stringify(this.shadowSort));
+      }
+      this.$emit('cancel');
+      this.isSortFieldChanged = false;
+    },
+    renderHeader(h, row, index) {
+      row.index = index;
+      return h(fieldsSettingOperate, {
+        props: {
+          configItem: row,
+          hasMoreIcon: index !== 0,
+        },
+        on: {
+          operateChange: this.handleLeftOperateChange,
+        },
+      });
+    },
+    /** 用户操作 */
+    handleLeftOperateChange(type, configItem) {
+      switch (type) {
+        case 'click':
+          this.currentClickConfigID = configItem.id;
+          this.initShadowFields();
+          break;
+        case 'delete':
+          this.handleDeleteConfig(configItem.id);
+          break;
+        case 'edit':
+          this.handleEditConfigName(configItem.index);
+          break;
+        case 'update':
+          this.handleUpdateConfig(configItem, false, this.$t('修改成功'));
+          break;
+        case 'cancel':
+          this.handleCancelEditConfig(configItem.index);
+          break;
+        case 'export':
+          this.handleFieldConfigExport(configItem);
+          break;
+      }
+    },
 
-      /**
-       * @description 导入字段配置
-       * @param fieldContent 导入文件的内容
-       *
-       */
-      handleFieldConfigImport(fieldContent) {
-        try {
-          const fieldConfig = JSON.parse(fieldContent);
-          fieldConfig.editStr = `导入模板-${random(3)}`;
-          this.handleUpdateConfig(fieldConfig, true, this.$t('导入成功'));
-        } catch (error) {
-          this.messageWarn(this.$t('请导入正确的JSON格式文件~'));
-          return;
-        }
-      },
+    /**
+     * @description 导入字段配置
+     * @param fieldContent 导入文件的内容
+     *
+     */
+    handleFieldConfigImport(fieldContent) {
+      try {
+        const fieldConfig = JSON.parse(fieldContent);
+        fieldConfig.editStr = `导入模板-${random(3)}`;
+        this.handleUpdateConfig(fieldConfig, true, this.$t('导入成功'));
+      } catch (error) {
+        this.messageWarn(this.$t('请导入正确的JSON格式文件~'));
+        return;
+      }
+    },
 
-      /**
-       * @description 导出选中字段配置为 JSON 文件
-       *
-       */
-      handleFieldConfigExport(updateItem) {
-        let fieldName = `${updateItem.name}`;
-        const fieldConfigParam = {
-          name: fieldName,
-          sort_list: updateItem.sort_list,
-          display_fields: updateItem.display_fields,
-          config_id: undefined,
-          index_set_id: window.__IS_MONITOR_COMPONENT__ ? this.$route.query.indexId : this.$route.params.indexId,
-          index_set_ids: this.unionIndexList,
-          index_set_type: this.isUnionSearch ? 'union' : 'single',
-        };
-        downJsonFile(JSON.stringify(fieldConfigParam, null, 4), `${FIELD_CONFIG_FILENAME_PREFIX}${fieldName}.json`);
-      },
+    /**
+     * @description 导出选中字段配置为 JSON 文件
+     *
+     */
+    handleFieldConfigExport(updateItem) {
+      let fieldName = `${updateItem.name}`;
+      const fieldConfigParam = {
+        name: fieldName,
+        sort_list: updateItem.sort_list,
+        display_fields: updateItem.display_fields,
+        config_id: undefined,
+        index_set_id: window.__IS_MONITOR_COMPONENT__ ? this.$route.query.indexId : this.$route.params.indexId,
+        index_set_ids: this.unionIndexList,
+        index_set_type: this.isUnionSearch ? 'union' : 'single',
+      };
+      downJsonFile(JSON.stringify(fieldConfigParam, null, 4), `${FIELD_CONFIG_FILENAME_PREFIX}${fieldName}.json`);
+    },
 
-      /** 编辑配置 */
-      handleEditConfigName(index) {
-        this.configTabPanels.forEach(item => (item.isShowEdit = false));
-        this.configTabPanels[index].isShowEdit = true;
-        this.isShowAddInput = false;
-      },
-      /** 点击新增配置 */
-      handleClickAddNew() {
-        this.configTabPanels.forEach(item => (item.isShowEdit = false));
-        this.isShowAddInput = true;
-      },
-      /** 新增配置 */
-      handleAddNewConfig() {
-        if (!this.newConfigStr) {
-          this.isInputError = true;
-          return;
+    /** 编辑配置 */
+    handleEditConfigName(index) {
+      this.configTabPanels.forEach(item => (item.isShowEdit = false));
+      this.configTabPanels[index].isShowEdit = true;
+      this.isShowAddInput = false;
+    },
+    /** 点击新增配置 */
+    handleClickAddNew() {
+      this.configTabPanels.forEach(item => (item.isShowEdit = false));
+      this.isShowAddInput = true;
+    },
+    /** 新增配置 */
+    handleAddNewConfig() {
+      if (!this.newConfigStr) {
+        this.isInputError = true;
+        return;
+      }
+      const configValue = this.configTabPanels[0];
+      configValue.editStr = this.newConfigStr;
+      this.handleUpdateConfig(configValue, true, this.$t('修改成功'));
+    },
+    /** 取消新增配置 */
+    handleCancelNewConfig() {
+      this.newConfigStr = '';
+      this.isShowAddInput = false;
+      this.isInputError = false;
+    },
+    /** 取消编辑配置 */
+    handleCancelEditConfig(index) {
+      this.configTabPanels[index].editStr = this.configTabPanels[index].name;
+      this.configTabPanels[index].isShowEdit = false;
+    },
+    /** 更新配置 */
+    async handleUpdateConfig(updateItem, isCreate = false, successMsg) {
+      const requestStr = isCreate ? 'create' : 'update';
+      const data = {
+        name: updateItem.editStr,
+        sort_list: updateItem.sort_list,
+        display_fields: updateItem.display_fields,
+        config_id: undefined,
+        index_set_id: window.__IS_MONITOR_COMPONENT__ ? this.$route.query.indexId : this.$route.params.indexId,
+        index_set_ids: this.unionIndexList,
+        index_set_type: this.isUnionSearch ? 'union' : 'single',
+      };
+      if (!isCreate) data.config_id = updateItem.id;
+      try {
+        await this.$http.request(`retrieve/${requestStr}FieldsConfig`, {
+          data,
+        });
+        if (this.activeFieldTab === 'sort') {
+          if (this.isSortFieldChanged) {
+            this.$store.dispatch('requestIndexSetQuery', { formChartChange: false }).then(() => {
+              this.isSortFieldChanged = false;
+            });
+          }
+          this.$emit('should-retrieve', undefined, false); // 不请求图表
         }
-        const configValue = this.configTabPanels[0];
-        configValue.editStr = this.newConfigStr;
-        this.handleUpdateConfig(configValue, true, this.$t('修改成功'));
-      },
-      /** 取消新增配置 */
-      handleCancelNewConfig() {
+        if (successMsg) {
+          isCreate ? this.messageSuccess(successMsg) : this.messageInfo(successMsg);
+        }
+      } catch (error) {
+      } finally {
+        if (!this.isConfirmSubmit) this.initRequestConfigListShow();
         this.newConfigStr = '';
         this.isShowAddInput = false;
-        this.isInputError = false;
-      },
-      /** 取消编辑配置 */
-      handleCancelEditConfig(index) {
-        this.configTabPanels[index].editStr = this.configTabPanels[index].name;
-        this.configTabPanels[index].isShowEdit = false;
-      },
-      /** 更新配置 */
-      async handleUpdateConfig(updateItem, isCreate = false, successMsg) {
-        const requestStr = isCreate ? 'create' : 'update';
-        const data = {
-          name: updateItem.editStr,
-          sort_list: updateItem.sort_list,
-          display_fields: updateItem.display_fields,
-          config_id: undefined,
-          index_set_id: window.__IS_MONITOR_COMPONENT__ ? this.$route.query.indexId : this.$route.params.indexId,
-          index_set_ids: this.unionIndexList,
-          index_set_type: this.isUnionSearch ? 'union' : 'single',
-        };
-        if (!isCreate) data.config_id = updateItem.id;
-        try {
-          await this.$http.request(`retrieve/${requestStr}FieldsConfig`, {
-            data,
-          });
-          if (this.activeFieldTab === 'sort') {
-            if (this.isSortFieldChanged) {
-              this.$store.dispatch('requestIndexSetQuery', { formChartChange: false }).then(() => {
-                this.isSortFieldChanged = false;
-              });
-            }
-            this.$emit('should-retrieve', undefined, false); // 不请求图表
-          }
-          if (successMsg) {
-            isCreate ? this.messageSuccess(successMsg) : this.messageInfo(successMsg);
-          }
-        } catch (error) {
-        } finally {
-          if (!this.isConfirmSubmit) this.initRequestConfigListShow();
-          this.newConfigStr = '';
-          this.isShowAddInput = false;
-        }
-      },
-      /** 删除配置 */
-      async handleDeleteConfig(configID) {
-        try {
-          await this.$http.request('retrieve/deleteFieldsConfig', {
-            data: {
-              config_id: configID,
-              index_set_id: window.__IS_MONITOR_COMPONENT__ ? this.$route.query.indexId : this.$route.params.indexId,
-              index_set_ids: this.unionIndexList,
-              index_set_type: this.isUnionSearch ? 'union' : 'single',
-            },
-          });
-        } catch (error) {
-        } finally {
-          this.initRequestConfigListShow();
-          this.newConfigStr = '';
-          if (this.filedSettingConfigID === configID) {
-            this.currentClickConfigID = this.configTabPanels[0].id;
-            const { display_fields } = this.configTabPanels[0];
-            this.$store.commit('resetVisibleFields', display_fields);
-            this.$store.dispatch('requestIndexSetQuery');
-            this.cancelModifyFields();
-          }
-        }
-      },
-      /** 初始化显示字段 */
-      initShadowFields(configData) {
-        this.activeConfigTab = this.currentClickConfigData?.name;
-        this.shadowTotal.forEach(fieldInfo => {
-          this.shadowSort.forEach(item => {
-            if (fieldInfo.field_name === item[0]) {
-              fieldInfo.isSorted = true;
-            }
-          });
-        });
-        // 后台给的 display_fields 可能有无效字段 所以进行过滤，获得排序后的字段
-        this.shadowVisible =
-          configData ||
-          this.currentClickConfigData.display_fields
-            ?.map(displayName => {
-              for (const field of this.shadowTotal) {
-                if (field.field_name === displayName) {
-                  field.is_display = true;
-                  return displayName;
-                }
-              }
-            })
-            ?.filter(Boolean) ||
-          [];
-      },
-      /** 获取配置列表 */
-      async getFiledConfigList() {
-        this.isLoading = true;
-        try {
-          const res = await this.$http.request('retrieve/getFieldsListConfig', {
-            data: {
-              ...(this.isUnionSearch
-                ? { index_set_ids: this.unionIndexList }
-                : {
-                    index_set_id: window.__IS_MONITOR_COMPONENT__
-                      ? this.$route.query.indexId
-                      : this.$route.params.indexId,
-                  }),
-              scope: 'default',
-              index_set_type: this.isUnionSearch ? 'union' : 'single',
-            },
-          });
-          this.configTabPanels = res.data.map(item => ({
-            ...item,
-            isShowEdit: false,
-            editStr: item.name,
-          }));
-        } catch (error) {
-        } finally {
-          this.isLoading = false;
-        }
-      },
-      searchChange(v) {
-        this.keyword = v;
-      },
+      }
     },
-  };
+    /** 删除配置 */
+    async handleDeleteConfig(configID) {
+      try {
+        await this.$http.request('retrieve/deleteFieldsConfig', {
+          data: {
+            config_id: configID,
+            index_set_id: window.__IS_MONITOR_COMPONENT__ ? this.$route.query.indexId : this.$route.params.indexId,
+            index_set_ids: this.unionIndexList,
+            index_set_type: this.isUnionSearch ? 'union' : 'single',
+          },
+        });
+      } catch (error) {
+      } finally {
+        this.initRequestConfigListShow();
+        this.newConfigStr = '';
+        if (this.filedSettingConfigID === configID) {
+          this.currentClickConfigID = this.configTabPanels[0].id;
+          const { display_fields } = this.configTabPanels[0];
+          this.$store.commit('resetVisibleFields', display_fields);
+          this.$store.dispatch('requestIndexSetQuery');
+          this.cancelModifyFields();
+        }
+      }
+    },
+    /** 初始化显示字段 */
+    initShadowFields(configData) {
+      this.activeConfigTab = this.currentClickConfigData?.name;
+      this.shadowTotal.forEach(fieldInfo => {
+        this.shadowSort.forEach(item => {
+          if (fieldInfo.field_name === item[0]) {
+            fieldInfo.isSorted = true;
+          }
+        });
+      });
+      // 后台给的 display_fields 可能有无效字段 所以进行过滤，获得排序后的字段
+      this.shadowVisible =
+        configData ||
+        this.currentClickConfigData.display_fields
+          ?.map(displayName => {
+            for (const field of this.shadowTotal) {
+              if (field.field_name === displayName) {
+                field.is_display = true;
+                return displayName;
+              }
+            }
+          })
+          ?.filter(Boolean) ||
+        [];
+    },
+    /** 获取配置列表 */
+    async getFiledConfigList() {
+      this.isLoading = true;
+      try {
+        const res = await this.$http.request('retrieve/getFieldsListConfig', {
+          data: {
+            ...(this.isUnionSearch
+              ? { index_set_ids: this.unionIndexList }
+              : {
+                  index_set_id: window.__IS_MONITOR_COMPONENT__
+                    ? this.$route.query.indexId
+                    : this.$route.params.indexId,
+                }),
+            scope: 'default',
+            index_set_type: this.isUnionSearch ? 'union' : 'single',
+          },
+        });
+        this.configTabPanels = res.data.map(item => ({
+          ...item,
+          isShowEdit: false,
+          editStr: item.name,
+        }));
+      } catch (error) {
+      } finally {
+        this.isLoading = false;
+      }
+    },
+    searchChange(v) {
+      this.keyword = v;
+    },
+  },
+};
 </script>
 
 <style lang="scss" scoped>

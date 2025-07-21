@@ -342,7 +342,7 @@ export default class CollectIndex extends tsc<IProps> {
   checkName() {
     if (this.verifyData.groupName.trim() === '') return true;
     return /^[\u4e00-\u9fa5_a-zA-Z0-9`~!@#$%^&*()_\-+=<>?:"\s{}|,.\/;'\\[\]·~！@#￥%……&*（）——\-+={}|《》？：“”【】、；‘'，。、]+$/im.test(
-      this.verifyData.groupName.trim(),
+      this.verifyData.groupName.trim()
     );
   }
   checkExistName() {
@@ -394,7 +394,7 @@ export default class CollectIndex extends tsc<IProps> {
       .map(item => ({
         ...item,
         favorites: item.favorites.filter(
-          fItem => fItem.created_by.includes(this.searchVal) || fItem.name.includes(this.searchVal),
+          fItem => fItem.created_by.includes(this.searchVal) || fItem.name.includes(this.searchVal)
         ),
       }))
       .filter(item => item.favorites.length);

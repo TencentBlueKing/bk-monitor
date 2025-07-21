@@ -302,495 +302,495 @@
   </div>
 </template>
 <script>
-  import rightPanel from '@/components/ip-select/right-panel';
-  import containerStatus from '@/views/manage/manage-access/log-collection/collection-item/manage-collection/components/container-status';
-  import { mapGetters } from 'vuex';
+import rightPanel from '@/components/ip-select/right-panel';
+import containerStatus from '@/views/manage/manage-access/log-collection/collection-item/manage-collection/components/container-status';
+import { mapGetters } from 'vuex';
 
-  import stepResult from './step-result';
+import stepResult from './step-result';
 
-  export default {
-    name: 'IssuedSlider',
-    components: {
-      rightPanel,
-      containerStatus,
-      stepResult,
+export default {
+  name: 'IssuedSlider',
+  components: {
+    rightPanel,
+    containerStatus,
+    stepResult,
+  },
+  props: {
+    operateType: String,
+    isSwitch: Boolean,
+    isFinishCreateStep: {
+      type: Boolean,
+      default: false,
     },
-    props: {
-      operateType: String,
-      isSwitch: Boolean,
-      isFinishCreateStep: {
-        type: Boolean,
-        default: false,
-      },
-      // 此抽屉有两种情况使用，一种是编辑、新建采集项时步骤右下方悬浮按钮打开采集下发抽屉，一种是停用时打开采集下发抽屉并显示停用逻辑
-      isStopCollection: {
-        type: Boolean,
-        default: false,
-      },
-      currentRowCollectorConfigId: {
-        type: String,
-        default: '',
-      },
-      indexSetId: {
-        type: [String, Number],
-        default: '',
-      },
-      applyData: {
-        type: Object,
-        default: () => {},
-      },
+    // 此抽屉有两种情况使用，一种是编辑、新建采集项时步骤右下方悬浮按钮打开采集下发抽屉，一种是停用时打开采集下发抽屉并显示停用逻辑
+    isStopCollection: {
+      type: Boolean,
+      default: false,
     },
-    data() {
-      return {
+    currentRowCollectorConfigId: {
+      type: String,
+      default: '',
+    },
+    indexSetId: {
+      type: [String, Number],
+      default: '',
+    },
+    applyData: {
+      type: Object,
+      default: () => {},
+    },
+  },
+  data() {
+    return {
+      loading: false,
+      notReady: false, // 节点管理准备好了吗
+      detail: {
+        isShow: false,
+        title: this.$t('详情'),
         loading: false,
-        notReady: false, // 节点管理准备好了吗
-        detail: {
-          isShow: false,
-          title: this.$t('详情'),
-          loading: false,
-          content: '',
-          log: '',
+        content: '',
+        log: '',
+      },
+      currentRow: null,
+      timer: null,
+      timerNum: 0,
+      tableListAll: [],
+      tableList: [],
+      curTaskIdList: new Set(),
+      curTab: 'all',
+      tabList: [
+        {
+          type: 'all',
+          name: this.$t('全部'),
+          num: 0,
         },
-        currentRow: null,
-        timer: null,
-        timerNum: 0,
-        tableListAll: [],
-        tableList: [],
-        curTaskIdList: new Set(),
-        curTab: 'all',
-        tabList: [
-          {
-            type: 'all',
-            name: this.$t('全部'),
-            num: 0,
-          },
-          {
-            type: 'success',
-            name: this.$t('成功'),
-            num: 0,
-          },
-          {
-            type: 'failed',
-            name: this.$t('失败'),
-            num: 0,
-          },
-          {
-            type: 'running',
-            name: this.$t('执行中'),
-            num: 0,
-          },
-        ],
+        {
+          type: 'success',
+          name: this.$t('成功'),
+          num: 0,
+        },
+        {
+          type: 'failed',
+          name: this.$t('失败'),
+          num: 0,
+        },
+        {
+          type: 'running',
+          name: this.$t('执行中'),
+          num: 0,
+        },
+      ],
+      count: 0,
+      size: 'small',
+      pagination: {
+        current: 1,
         count: 0,
-        size: 'small',
-        pagination: {
-          current: 1,
-          count: 0,
-          limit: 100,
-        },
-        isLeavePage: false,
-        isShowStepInfo: false,
-        isHandle: false,
-        currentActiveRow: '',
-        elapsedSeconds: 0,
-        displaySeconds: 0,
-        collectionName: '',
-        isFinishStep: false,
+        limit: 100,
+      },
+      isLeavePage: false,
+      isShowStepInfo: false,
+      isHandle: false,
+      currentActiveRow: '',
+      elapsedSeconds: 0,
+      displaySeconds: 0,
+      collectionName: '',
+      isFinishStep: false,
 
-        // operateInfo: {}
+      // operateInfo: {}
+    };
+  },
+  computed: {
+    ...mapGetters('collect', ['curCollect']),
+    hasFailed() {
+      return !!this.tabList[2].num;
+    },
+    hasRunning() {
+      return !!this.tabList[3].num || this.notReady;
+    },
+    isEdit() {
+      return this.operateType === 'edit';
+    },
+    isContainer() {
+      return this.curCollect.environment === 'container';
+    },
+    getNextPageStr() {
+      if (this.hasRunning) return this.$t('执行中');
+      if (this.operateType === 'stop') return this.$t('停用');
+      return this.$t('完成');
+    },
+    hostIdentifierPriority() {
+      return this.$store.getters['globals/globalsData']?.host_identifier_priority ?? ['ip', 'host_name', 'ipv6'];
+    },
+  },
+  watch: {
+    hasRunning(newVal, val) {
+      if (!val && newVal) {
+        this.startStatusPolling();
+      }
+      if (!newVal) {
+        this.stopStatusPolling();
+      }
+    },
+    notReady(val) {
+      if (!val) {
+        const len = this.tableList.length;
+        this.isShowStepInfo = this.tableList.filter(item => item.child.length === 0).length === len;
+      }
+    },
+  },
+  created() {
+    if (this.isContainer) return; // 容器日志展示容器日志的内容
+    this.curCollect?.task_id_list?.forEach(id => this.curTaskIdList.add(id));
+    this.collectionName = this.curCollect?.collector_config_name ?? '';
+  },
+  mounted() {
+    if (this.isContainer) return; // 容器日志展示容器日志的内容
+    this.isLeavePage = false;
+    this.isShowStepInfo = false;
+    if (!this.isStopCollection) this.requestIssuedClusterList();
+  },
+  beforeUnmount() {
+    this.isLeavePage = true;
+    this.isFinishStep = false;
+    this.stopStatusPolling();
+  },
+  methods: {
+    tableRowClassName({ row }) {
+      return row.ip === this.currentActiveRow ? 'selected-row' : '';
+    },
+    getRightPanelTitle(cluster) {
+      return {
+        type: cluster.bk_obj_name,
+        number: cluster.success,
       };
     },
-    computed: {
-      ...mapGetters('collect', ['curCollect']),
-      hasFailed() {
-        return !!this.tabList[2].num;
-      },
-      hasRunning() {
-        return !!this.tabList[3].num || this.notReady;
-      },
-      isEdit() {
-        return this.operateType === 'edit';
-      },
-      isContainer() {
-        return this.curCollect.environment === 'container';
-      },
-      getNextPageStr() {
-        if (this.hasRunning) return this.$t('执行中');
-        if (this.operateType === 'stop') return this.$t('停用');
-        return this.$t('完成');
-      },
-      hostIdentifierPriority() {
-        return this.$store.getters['globals/globalsData']?.host_identifier_priority ?? ['ip', 'host_name', 'ipv6'];
-      },
-    },
-    watch: {
-      hasRunning(newVal, val) {
-        if (!val && newVal) {
-          this.startStatusPolling();
-        }
-        if (!newVal) {
-          this.stopStatusPolling();
-        }
-      },
-      notReady(val) {
-        if (!val) {
-          const len = this.tableList.length;
-          this.isShowStepInfo = this.tableList.filter(item => item.child.length === 0).length === len;
-        }
-      },
-    },
-    created() {
-      if (this.isContainer) return; // 容器日志展示容器日志的内容
-      this.curCollect?.task_id_list?.forEach(id => this.curTaskIdList.add(id));
-      this.collectionName = this.curCollect?.collector_config_name ?? '';
-    },
-    mounted() {
-      if (this.isContainer) return; // 容器日志展示容器日志的内容
-      this.isLeavePage = false;
-      this.isShowStepInfo = false;
-      if (!this.isStopCollection) this.requestIssuedClusterList();
-    },
-    beforeUnmount() {
-      this.isLeavePage = true;
-      this.isFinishStep = false;
-      this.stopStatusPolling();
-    },
-    methods: {
-      tableRowClassName({ row }) {
-        return row.ip === this.currentActiveRow ? 'selected-row' : '';
-      },
-      getRightPanelTitle(cluster) {
-        return {
-          type: cluster.bk_obj_name,
-          number: cluster.success,
-        };
-      },
-      tabHandler(tab, manual) {
-        if (this.curTab === tab.type && !manual) {
-          return false;
-        }
-        this.curTab = tab.type;
-        if (this.curTab === 'all') {
-          this.tableList = JSON.parse(JSON.stringify(this.tableListAll));
-        } else {
-          const child = [];
-          this.tableListAll.forEach(item => {
-            const copyItem = JSON.parse(JSON.stringify(item));
-            copyItem.child = copyItem.child.filter(row => row.status === this.curTab);
-            if (copyItem.child.length) {
-              child.push(copyItem);
-            }
-          });
-          const data = child.map((val, index) => {
-            return {
-              ...val,
-              collapse: index < 5,
-            };
-          });
-          this.tableList.splice(0, this.tableList.length, ...data);
-        }
-      },
-      prevHandler() {
-        if (this.operateType === 'add') {
-          this.$store.commit('updateRouterLeaveTip', true);
-          this.$router.replace({
-            name: 'collectEdit',
-            params: {
-              collectorId: this.curCollect.collector_config_id,
-              notAdd: true,
-            },
-            query: {
-              spaceUid: this.$store.state.spaceUid,
-            },
-          });
-        }
-        this.$emit('step-change', 1);
-      },
-      nextHandler() {
-        if (this.operateType === 'stop') {
-          // 停用操作
-          this.isHandle = true;
-          this.$http
-            .request('collect/stopCollect', {
-              params: {
-                collector_config_id: this.curCollect.collector_config_id,
-              },
-            })
-            .then(res => {
-              if (res.result) {
-                this.isFinishStep = true;
-                this.$emit('step-change');
-              }
-            })
-            .catch(error => {
-              console.warn(error);
-            })
-            .finally(() => {
-              this.isHandle = false;
-            });
-          return;
-        }
-        this.$emit('step-change');
-      },
-      cancel() {
-        this.detail.isShow = false;
-        // 如果已经点击停止操作，那么回到列表页需要重新刷新页面
-        if (this.isFinishStep) {
-          location.reload();
-        }
-      },
-      viewDetail() {
-        this.isFinishStep = false;
-        this.collectionName = this.curCollect?.collector_config_name ?? '';
-        this.detail.isShow = true;
-        if (this.tableList?.length && this.tableList[0].child?.length) {
-          this.currentRow = this.tableList[0].child[0];
-        }
-        this.requestDetail(this.currentRow);
-      },
-      handleRefreshDetail() {
-        this.requestDetail(this.currentRow);
-      },
-      showSlider() {
-        if (!this.isStopCollection) this.requestIssuedClusterList();
-      },
-      closeSlider() {
-        this.detail.content = '';
-        this.detail.loading = false;
-        this.tableList?.splice(0, this.tableList?.length);
-        this.tableAllList?.splice(0, this.tableAllList?.length);
-        this.stopStatusPolling();
-      },
-      calcTabNum() {
-        const num = {
-          all: 0,
-          success: 0,
-          failed: 0,
-          running: 0,
-        };
-        this.tableListAll.forEach(cluster => {
-          num.all += cluster.child.length;
-          cluster.child.length &&
-            cluster.child.forEach(row => {
-              num[row.status] = num[row.status] + 1;
-            });
+    tabHandler(tab, manual) {
+      if (this.curTab === tab.type && !manual) {
+        return false;
+      }
+      this.curTab = tab.type;
+      if (this.curTab === 'all') {
+        this.tableList = JSON.parse(JSON.stringify(this.tableListAll));
+      } else {
+        const child = [];
+        this.tableListAll.forEach(item => {
+          const copyItem = JSON.parse(JSON.stringify(item));
+          copyItem.child = copyItem.child.filter(row => row.status === this.curTab);
+          if (copyItem.child.length) {
+            child.push(copyItem);
+          }
         });
-        this.tabList.forEach(tab => {
-          tab.num = num[tab.type];
+        const data = child.map((val, index) => {
+          return {
+            ...val,
+            collapse: index < 5,
+          };
         });
-      },
-      collaspseHeadInfo(cluster) {
-        const list = cluster.child;
-        let success = 0;
-        let failed = 0;
-        list.forEach(row => {
-          if (row.status === 'success') {
-            success = success + 1;
-          }
-          if (row.status === 'failed') {
-            failed = failed + 1;
-          }
-          // if (row.status === 'running') {
-          //     running++
-          // }
+        this.tableList.splice(0, this.tableList.length, ...data);
+      }
+    },
+    prevHandler() {
+      if (this.operateType === 'add') {
+        this.$store.commit('updateRouterLeaveTip', true);
+        this.$router.replace({
+          name: 'collectEdit',
+          params: {
+            collectorId: this.curCollect.collector_config_id,
+            notAdd: true,
+          },
+          query: {
+            spaceUid: this.$store.state.spaceUid,
+          },
         });
-        return `<span style="color: #34d97b" class="success-status">${success}</span> ${this.$t('个成功')}，<span style="color: #ff5656">${failed}</span> ${this.$t('个失败')}`;
-      },
-      startStatusPolling() {
-        this.timerNum += 1;
-        this.stopStatusPolling();
-        this.timer = setTimeout(() => {
-          if (this.isLeavePage) {
-            this.stopStatusPolling();
-            return;
-          }
-          this.elapsedSeconds += 0.5;
-          if (this.elapsedSeconds % 1 !== 0.5) {
-            this.displaySeconds = this.elapsedSeconds.toFixed(0);
-          }
-          this.requestIssuedClusterList('polling');
-        }, 500);
-      },
-      stopStatusPolling() {
-        clearTimeout(this.timer);
-      },
-      /**
-       *  集群list，与轮询共用
-       */
-      async requestIssuedClusterList(isPolling = '') {
-        if (!isPolling) {
-          this.loading = true;
-        }
-        const params = {
-          collector_config_id: this.curCollect.collector_config_id,
-        };
-        const { timerNum } = this;
-        await this.$http
-          .request('collect/getIssuedClusterList', {
-            params,
-            query: { task_id_list: [...this.curTaskIdList.keys()].join(',') },
-          })
-          .then(res => {
-            const data = res.data.contents || [];
-            this.notReady = res.data.task_ready === false; // 如果没有该字段，默认准备好了
-            if (isPolling === 'polling') {
-              if (timerNum === this.timerNum) {
-                // 之前返回的 contents 为空
-                if (!this.tableListAll.length) {
-                  let collapseCount = 0; // 展开前5个状态表格信息
-                  data.forEach(cluster => {
-                    cluster.collapse = cluster.child.length && collapseCount < 5;
-                    if (cluster.child.length) collapseCount += 1;
-                    cluster.child.forEach(host => {
-                      host.status = host.status === 'PENDING' ? 'running' : host.status.toLowerCase(); // pending-等待状态，与running不做区分
-                    });
-                  });
-                  this.tableListAll = [...data];
-                  this.tableList = [...data];
-                }
-                this.syncHostStatus(data);
-                this.tabHandler({ type: this.curTab }, true);
-                this.calcTabNum();
-                if (this.hasRunning) {
-                  this.startStatusPolling();
-                }
-              }
-            } else {
-              let collapseCount = 0; // 展开前5个状态表格信息
-              data.forEach(cluster => {
-                cluster.collapse = cluster.child.length && collapseCount < 5;
-                if (cluster.child.length) collapseCount += 1;
-                cluster.child.forEach(host => {
-                  host.status = host.status === 'PENDING' ? 'running' : host.status.toLowerCase(); // pending-等待状态，与running不做区分
-                });
-              });
-              this.tableListAll = [...data];
-              this.tableList = [...data];
-              this.calcTabNum();
-            }
-          })
-          .catch(err => {
-            this.$bkMessage({
-              theme: 'error',
-              message: err.message,
-            });
-          })
-          .finally(() => {
-            setTimeout(() => {
-              this.loading = false;
-            }, 500);
-          });
-      },
-      /**
-       * 重试
-       */
-      issuedRetry(row, cluster) {
-        const instanceIDList = [];
-        if (cluster) {
-          // 单条重试
-          row.status = 'running';
-          this.tableListAll.forEach(item => {
-            if (cluster.bk_inst_id === item.bk_inst_id && cluster.bk_obj_name === item.bk_obj_name) {
-              item.child?.forEach(itemRow => {
-                if (itemRow.ip === row.ip && itemRow.bk_cloud_id === row.bk_cloud_id) {
-                  itemRow.status = 'running';
-                }
-              });
-            }
-          });
-          instanceIDList.push(row.instance_id);
-        } else {
-          // 失败批量重试
-          this.tableListAll.forEach(item => {
-            item.child?.forEach(itemRow => {
-              if (itemRow.status === 'failed') {
-                itemRow.status = 'running';
-                instanceIDList.push(itemRow.instance_id);
-              }
-            });
-          });
-        }
-        this.tabHandler({ type: this.curTab }, true);
-        this.calcTabNum();
+      }
+      this.$emit('step-change', 1);
+    },
+    nextHandler() {
+      if (this.operateType === 'stop') {
+        // 停用操作
+        this.isHandle = true;
         this.$http
-          .request('collect/retry', {
-            // manualSchema: true,
-            params: { collector_config_id: this.curCollect.collector_config_id },
-            data: {
-              instance_id_list: instanceIDList,
-            },
-          })
-          .then(res => {
-            if (res.data) {
-              res.data.forEach(item => this.curTaskIdList.add(item));
-              this.startStatusPolling();
-            }
-          })
-          .catch(err => {
-            this.$bkMessage({
-              theme: 'error',
-              message: err.message,
-            });
-          });
-      },
-      // 同步机器状态信息
-      syncHostStatus(data) {
-        this.tableListAll.forEach(table => {
-          const cluster = data.find(item => {
-            return item.bk_inst_id === table.bk_inst_id && item.bk_obj_name === table.bk_obj_name;
-          });
-          if (cluster?.child?.length && table.child?.length) {
-            table.child.forEach(row => {
-              const tarHost = cluster.child.find(item => {
-                // 优先判断host_id 若没找到对应的host_id则对比ip_host_name_ipv6的组成的字符串
-                const tableStrKey = `${item.ip}_${item.host_name}_${item.ipv6}`;
-                const childStrKey = `${row.ip}_${row.host_name}_${row.ipv6}`;
-                if (item?.host_id) return item.host_id === row.host_id || tableStrKey === childStrKey;
-                return tableStrKey === childStrKey;
-              });
-              if (tarHost) {
-                row.status = tarHost.status === 'PENDING' ? 'running' : tarHost.status.toLowerCase(); // pending-等待状态，与running不做区分
-                row.task_id = tarHost.task_id;
-              }
-            });
-          }
-        });
-      },
-      requestDetail(row) {
-        if (!row || this.isContainer) return;
-        this.detail.loading = true;
-        this.currentActiveRow = row?.ip || '';
-        this.currentRow = row;
-        this.$http
-          .request('collect/executDetails', {
+          .request('collect/stopCollect', {
             params: {
-              collector_id: this.curCollect.collector_config_id,
-            },
-            query: {
-              instance_id: row.instance_id,
-              task_id: row.task_id,
+              collector_config_id: this.curCollect.collector_config_id,
             },
           })
           .then(res => {
             if (res.result) {
-              this.detail.log = res.data.log_detail;
-              this.detail.content = res.data.log_detail;
+              this.isFinishStep = true;
+              this.$emit('step-change');
             }
           })
-          .catch(err => {
-            this.$bkMessage({
-              theme: 'error',
-              message: err.message || err,
-            });
+          .catch(error => {
+            console.warn(error);
           })
           .finally(() => {
-            this.detail.loading = false;
+            this.isHandle = false;
           });
-      },
-      getShowIp(row) {
-        return row[this.hostIdentifierPriority.find(pItem => Boolean(row[pItem]))] ?? row.ip;
-      },
+        return;
+      }
+      this.$emit('step-change');
     },
-  };
+    cancel() {
+      this.detail.isShow = false;
+      // 如果已经点击停止操作，那么回到列表页需要重新刷新页面
+      if (this.isFinishStep) {
+        location.reload();
+      }
+    },
+    viewDetail() {
+      this.isFinishStep = false;
+      this.collectionName = this.curCollect?.collector_config_name ?? '';
+      this.detail.isShow = true;
+      if (this.tableList?.length && this.tableList[0].child?.length) {
+        this.currentRow = this.tableList[0].child[0];
+      }
+      this.requestDetail(this.currentRow);
+    },
+    handleRefreshDetail() {
+      this.requestDetail(this.currentRow);
+    },
+    showSlider() {
+      if (!this.isStopCollection) this.requestIssuedClusterList();
+    },
+    closeSlider() {
+      this.detail.content = '';
+      this.detail.loading = false;
+      this.tableList?.splice(0, this.tableList?.length);
+      this.tableAllList?.splice(0, this.tableAllList?.length);
+      this.stopStatusPolling();
+    },
+    calcTabNum() {
+      const num = {
+        all: 0,
+        success: 0,
+        failed: 0,
+        running: 0,
+      };
+      this.tableListAll.forEach(cluster => {
+        num.all += cluster.child.length;
+        cluster.child.length &&
+          cluster.child.forEach(row => {
+            num[row.status] = num[row.status] + 1;
+          });
+      });
+      this.tabList.forEach(tab => {
+        tab.num = num[tab.type];
+      });
+    },
+    collaspseHeadInfo(cluster) {
+      const list = cluster.child;
+      let success = 0;
+      let failed = 0;
+      list.forEach(row => {
+        if (row.status === 'success') {
+          success = success + 1;
+        }
+        if (row.status === 'failed') {
+          failed = failed + 1;
+        }
+        // if (row.status === 'running') {
+        //     running++
+        // }
+      });
+      return `<span style="color: #34d97b" class="success-status">${success}</span> ${this.$t('个成功')}，<span style="color: #ff5656">${failed}</span> ${this.$t('个失败')}`;
+    },
+    startStatusPolling() {
+      this.timerNum += 1;
+      this.stopStatusPolling();
+      this.timer = setTimeout(() => {
+        if (this.isLeavePage) {
+          this.stopStatusPolling();
+          return;
+        }
+        this.elapsedSeconds += 0.5;
+        if (this.elapsedSeconds % 1 !== 0.5) {
+          this.displaySeconds = this.elapsedSeconds.toFixed(0);
+        }
+        this.requestIssuedClusterList('polling');
+      }, 500);
+    },
+    stopStatusPolling() {
+      clearTimeout(this.timer);
+    },
+    /**
+     *  集群list，与轮询共用
+     */
+    async requestIssuedClusterList(isPolling = '') {
+      if (!isPolling) {
+        this.loading = true;
+      }
+      const params = {
+        collector_config_id: this.curCollect.collector_config_id,
+      };
+      const { timerNum } = this;
+      await this.$http
+        .request('collect/getIssuedClusterList', {
+          params,
+          query: { task_id_list: [...this.curTaskIdList.keys()].join(',') },
+        })
+        .then(res => {
+          const data = res.data.contents || [];
+          this.notReady = res.data.task_ready === false; // 如果没有该字段，默认准备好了
+          if (isPolling === 'polling') {
+            if (timerNum === this.timerNum) {
+              // 之前返回的 contents 为空
+              if (!this.tableListAll.length) {
+                let collapseCount = 0; // 展开前5个状态表格信息
+                data.forEach(cluster => {
+                  cluster.collapse = cluster.child.length && collapseCount < 5;
+                  if (cluster.child.length) collapseCount += 1;
+                  cluster.child.forEach(host => {
+                    host.status = host.status === 'PENDING' ? 'running' : host.status.toLowerCase(); // pending-等待状态，与running不做区分
+                  });
+                });
+                this.tableListAll = [...data];
+                this.tableList = [...data];
+              }
+              this.syncHostStatus(data);
+              this.tabHandler({ type: this.curTab }, true);
+              this.calcTabNum();
+              if (this.hasRunning) {
+                this.startStatusPolling();
+              }
+            }
+          } else {
+            let collapseCount = 0; // 展开前5个状态表格信息
+            data.forEach(cluster => {
+              cluster.collapse = cluster.child.length && collapseCount < 5;
+              if (cluster.child.length) collapseCount += 1;
+              cluster.child.forEach(host => {
+                host.status = host.status === 'PENDING' ? 'running' : host.status.toLowerCase(); // pending-等待状态，与running不做区分
+              });
+            });
+            this.tableListAll = [...data];
+            this.tableList = [...data];
+            this.calcTabNum();
+          }
+        })
+        .catch(err => {
+          this.$bkMessage({
+            theme: 'error',
+            message: err.message,
+          });
+        })
+        .finally(() => {
+          setTimeout(() => {
+            this.loading = false;
+          }, 500);
+        });
+    },
+    /**
+     * 重试
+     */
+    issuedRetry(row, cluster) {
+      const instanceIDList = [];
+      if (cluster) {
+        // 单条重试
+        row.status = 'running';
+        this.tableListAll.forEach(item => {
+          if (cluster.bk_inst_id === item.bk_inst_id && cluster.bk_obj_name === item.bk_obj_name) {
+            item.child?.forEach(itemRow => {
+              if (itemRow.ip === row.ip && itemRow.bk_cloud_id === row.bk_cloud_id) {
+                itemRow.status = 'running';
+              }
+            });
+          }
+        });
+        instanceIDList.push(row.instance_id);
+      } else {
+        // 失败批量重试
+        this.tableListAll.forEach(item => {
+          item.child?.forEach(itemRow => {
+            if (itemRow.status === 'failed') {
+              itemRow.status = 'running';
+              instanceIDList.push(itemRow.instance_id);
+            }
+          });
+        });
+      }
+      this.tabHandler({ type: this.curTab }, true);
+      this.calcTabNum();
+      this.$http
+        .request('collect/retry', {
+          // manualSchema: true,
+          params: { collector_config_id: this.curCollect.collector_config_id },
+          data: {
+            instance_id_list: instanceIDList,
+          },
+        })
+        .then(res => {
+          if (res.data) {
+            res.data.forEach(item => this.curTaskIdList.add(item));
+            this.startStatusPolling();
+          }
+        })
+        .catch(err => {
+          this.$bkMessage({
+            theme: 'error',
+            message: err.message,
+          });
+        });
+    },
+    // 同步机器状态信息
+    syncHostStatus(data) {
+      this.tableListAll.forEach(table => {
+        const cluster = data.find(item => {
+          return item.bk_inst_id === table.bk_inst_id && item.bk_obj_name === table.bk_obj_name;
+        });
+        if (cluster?.child?.length && table.child?.length) {
+          table.child.forEach(row => {
+            const tarHost = cluster.child.find(item => {
+              // 优先判断host_id 若没找到对应的host_id则对比ip_host_name_ipv6的组成的字符串
+              const tableStrKey = `${item.ip}_${item.host_name}_${item.ipv6}`;
+              const childStrKey = `${row.ip}_${row.host_name}_${row.ipv6}`;
+              if (item?.host_id) return item.host_id === row.host_id || tableStrKey === childStrKey;
+              return tableStrKey === childStrKey;
+            });
+            if (tarHost) {
+              row.status = tarHost.status === 'PENDING' ? 'running' : tarHost.status.toLowerCase(); // pending-等待状态，与running不做区分
+              row.task_id = tarHost.task_id;
+            }
+          });
+        }
+      });
+    },
+    requestDetail(row) {
+      if (!row || this.isContainer) return;
+      this.detail.loading = true;
+      this.currentActiveRow = row?.ip || '';
+      this.currentRow = row;
+      this.$http
+        .request('collect/executDetails', {
+          params: {
+            collector_id: this.curCollect.collector_config_id,
+          },
+          query: {
+            instance_id: row.instance_id,
+            task_id: row.task_id,
+          },
+        })
+        .then(res => {
+          if (res.result) {
+            this.detail.log = res.data.log_detail;
+            this.detail.content = res.data.log_detail;
+          }
+        })
+        .catch(err => {
+          this.$bkMessage({
+            theme: 'error',
+            message: err.message || err,
+          });
+        })
+        .finally(() => {
+          this.detail.loading = false;
+        });
+    },
+    getShowIp(row) {
+      return row[this.hostIdentifierPriority.find(pItem => Boolean(row[pItem]))] ?? row.ip;
+    },
+  },
+};
 </script>
 
 <style scoped lang="scss">

@@ -602,687 +602,686 @@
 </template>
 
 <script>
-  import {
-    projectManages,
-    clearTableFilter,
-    getDefaultSettingSelectFiled,
-    setDefaultSettingSelectFiled,
-    deepClone,
-  } from '@/common/util';
-  import collectedItemsMixin from '@/mixins/collected-items-mixin';
-  import { mapGetters } from 'vuex';
-  import { formatBytes, requestStorageUsage } from '../../util.js';
-  import * as authorityMap from '../../../../../common/authority-map';
-  import EmptyStatus from '../../../../../components/empty-status';
-  import IndexSetLabelSelect from '../../../../../components/index-set-label-select';
-  import CollectionReportView from '../../components/collection-report-view';
-  import ClusterFilter from '../../../../retrieve-v2/search-result-panel/log-clustering/components/finger-tools/cluster-filter.tsx';
-  import issuedSlider from '@/components/collection-access/issued-slider.vue';
+import {
+  projectManages,
+  clearTableFilter,
+  getDefaultSettingSelectFiled,
+  setDefaultSettingSelectFiled,
+  deepClone,
+} from '@/common/util';
+import collectedItemsMixin from '@/mixins/collected-items-mixin';
+import { mapGetters } from 'vuex';
+import { formatBytes, requestStorageUsage } from '../../util.js';
+import * as authorityMap from '../../../../../common/authority-map';
+import EmptyStatus from '../../../../../components/empty-status';
+import IndexSetLabelSelect from '../../../../../components/index-set-label-select';
+import CollectionReportView from '../../components/collection-report-view';
+import ClusterFilter from '../../../../retrieve-v2/search-result-panel/log-clustering/components/finger-tools/cluster-filter.tsx';
+import issuedSlider from '@/components/collection-access/issued-slider.vue';
 
-  export default {
-    name: 'CollectionItem',
-    components: {
-      CollectionReportView,
-      EmptyStatus,
-      IndexSetLabelSelect,
-      issuedSlider,
-    },
-    mixins: [collectedItemsMixin],
-    data() {
-      const settingFields = [
-        // 数据ID
-        {
-          id: 'bk_data_id',
-          label: this.$t('数据ID'),
-        },
-        // 采集配置名称
-        {
-          id: 'collector_config_name',
-          label: this.$t('名称'),
-          disabled: true,
-        },
-        // 用量展示
-        {
-          id: 'storage_usage',
-          label: this.$t('日用量/总用量'),
-          disabled: true,
-        },
-        // 存储名
-        {
-          id: 'table_id',
-          label: this.$t('存储名'),
-        },
-        // 日志类型
-        {
-          id: 'collector_scenario_name',
-          label: this.$t('日志类型'),
-        },
-        // 过期时间
-        {
-          id: 'retention',
-          label: this.$t('过期时间'),
-        },
-        {
-          id: 'label',
-          label: this.$t('标签'),
-        },
-        // 采集状态
-        {
-          id: 'es_host_state',
-          label: this.$t('采集状态'),
-        },
-        // 更新人
-        {
-          id: 'updated_by',
-          label: this.$t('更新人'),
-        },
-        // 更新时间
-        {
-          id: 'updated_at',
-          label: this.$t('更新时间'),
-        },
-        // 存储集群
-        {
-          id: 'storage_cluster_name',
-          label: this.$t('存储集群'),
-        },
-        // 数据类型
-        {
-          id: 'category_name',
-          label: this.$t('数据类型'),
-        },
-        // 操作
-        {
-          id: 'operation',
-          label: this.$t('操作'),
-          disabled: true,
-        },
-      ];
-      const statusEnum = [
-        {
-          text: this.$t('label-正常').replace('label-', ''),
-          value: 'success',
-        },
-        {
-          text: this.$t('label-失败').replace('label-', ''),
-          value: 'failed',
-        },
-        {
-          text: this.$t('label-部署中').replace('label-', ''),
-          value: 'running',
-        },
-        {
-          text: this.$t('label-已停用').replace('label-', ''),
-          value: 'terminated',
-        },
-        {
-          text: this.$t('label-未知').replace('label-', ''),
-          value: 'unknown',
-        },
-        {
-          text: this.$t('label-准备中').replace('label-', ''),
-          value: 'prepare',
-        },
-      ];
+export default {
+  name: 'CollectionItem',
+  components: {
+    CollectionReportView,
+    EmptyStatus,
+    IndexSetLabelSelect,
+    issuedSlider,
+  },
+  mixins: [collectedItemsMixin],
+  data() {
+    const settingFields = [
+      // 数据ID
+      {
+        id: 'bk_data_id',
+        label: this.$t('数据ID'),
+      },
+      // 采集配置名称
+      {
+        id: 'collector_config_name',
+        label: this.$t('名称'),
+        disabled: true,
+      },
+      // 用量展示
+      {
+        id: 'storage_usage',
+        label: this.$t('日用量/总用量'),
+        disabled: true,
+      },
+      // 存储名
+      {
+        id: 'table_id',
+        label: this.$t('存储名'),
+      },
+      // 日志类型
+      {
+        id: 'collector_scenario_name',
+        label: this.$t('日志类型'),
+      },
+      // 过期时间
+      {
+        id: 'retention',
+        label: this.$t('过期时间'),
+      },
+      {
+        id: 'label',
+        label: this.$t('标签'),
+      },
+      // 采集状态
+      {
+        id: 'es_host_state',
+        label: this.$t('采集状态'),
+      },
+      // 更新人
+      {
+        id: 'updated_by',
+        label: this.$t('更新人'),
+      },
+      // 更新时间
+      {
+        id: 'updated_at',
+        label: this.$t('更新时间'),
+      },
+      // 存储集群
+      {
+        id: 'storage_cluster_name',
+        label: this.$t('存储集群'),
+      },
+      // 数据类型
+      {
+        id: 'category_name',
+        label: this.$t('数据类型'),
+      },
+      // 操作
+      {
+        id: 'operation',
+        label: this.$t('操作'),
+        disabled: true,
+      },
+    ];
+    const statusEnum = [
+      {
+        text: this.$t('label-正常').replace('label-', ''),
+        value: 'success',
+      },
+      {
+        text: this.$t('label-失败').replace('label-', ''),
+        value: 'failed',
+      },
+      {
+        text: this.$t('label-部署中').replace('label-', ''),
+        value: 'running',
+      },
+      {
+        text: this.$t('label-已停用').replace('label-', ''),
+        value: 'terminated',
+      },
+      {
+        text: this.$t('label-未知').replace('label-', ''),
+        value: 'unknown',
+      },
+      {
+        text: this.$t('label-准备中').replace('label-', ''),
+        value: 'prepare',
+      },
+    ];
 
-      return {
-        keyword: '',
-        searchKeyword: '',
+    return {
+      keyword: '',
+      searchKeyword: '',
+      count: 0,
+      size: 'small',
+      needGuide: false,
+      timer: null,
+      loadingStatus: false,
+      isTableLoading: false,
+      pagination: {
+        current: 1,
         count: 0,
-        size: 'small',
-        needGuide: false,
-        timer: null,
-        loadingStatus: false,
-        isTableLoading: false,
-        pagination: {
-          current: 1,
-          count: 0,
-          limit: 10,
-          limitList: [10, 20, 50, 100],
+        limit: 10,
+        limitList: [10, 20, 50, 100],
+      },
+      collectList: [],
+      collectorIdStr: '',
+      collectProject: projectManages(this.$store.state.topMenu, 'collection-item'),
+      filterParams: {
+        status: '',
+        collector_scenario_id: '',
+        category_id: '',
+        tags: '',
+        storage_cluster_name: '',
+      },
+      isAllowedCreate: null,
+      columnSetting: {
+        fields: settingFields,
+        selectedFields: [...settingFields.slice(3, 8), settingFields[2]],
+      },
+      statusEnum: statusEnum,
+      // 是否支持一键检测
+      enableCheckCollector: JSON.parse(window.ENABLE_CHECK_COLLECTOR),
+      // 一键检测弹窗配置
+      reportDetailShow: false,
+      // 一键检测采集项标识
+      checkRecordId: '',
+      emptyType: 'empty',
+      filterSearchObj: {},
+      isShouldPollCollect: false, // 当前列表是否需要轮询
+      settingCacheKey: 'clusterList',
+      selectLabelList: [],
+      filterLabelList: [],
+      tagSelect: ['all'],
+      tagsData: {
+        tags: [],
+      },
+      tagBaseList: [
+        {
+          id: 'all',
+          name: this.$t('全部'),
         },
-        collectList: [],
-        collectorIdStr: '',
-        collectProject: projectManages(this.$store.state.topMenu, 'collection-item'),
-        filterParams: {
-          status: '',
-          collector_scenario_id: '',
-          category_id: '',
-          tags: '',
-          storage_cluster_name: '',
-        },
-        isAllowedCreate: null,
-        columnSetting: {
-          fields: settingFields,
-          selectedFields: [...settingFields.slice(3, 8), settingFields[2]],
-        },
-        statusEnum: statusEnum,
-        // 是否支持一键检测
-        enableCheckCollector: JSON.parse(window.ENABLE_CHECK_COLLECTOR),
-        // 一键检测弹窗配置
-        reportDetailShow: false,
-        // 一键检测采集项标识
-        checkRecordId: '',
-        emptyType: 'empty',
-        filterSearchObj: {},
-        isShouldPollCollect: false, // 当前列表是否需要轮询
-        settingCacheKey: 'clusterList',
-        selectLabelList: [],
-        filterLabelList: [],
-        tagSelect: ['all'],
-        tagsData: {
-          tags: [],
-        },
-        tagBaseList: [
-          {
-            id: 'all',
-            name: this.$t('全部'),
-          },
-        ],
-        filterStorageLabelList: [],
-        currentRowCollectorConfigId: '',
-      };
+      ],
+      filterStorageLabelList: [],
+      currentRowCollectorConfigId: '',
+    };
+  },
+  computed: {
+    ...mapGetters({
+      spaceUid: 'spaceUid',
+      bkBizId: 'bkBizId',
+      authGlobalInfo: 'globals/authContainerInfo',
+      isShowMaskingTemplate: 'isShowMaskingTemplate',
+    }),
+    ...mapGetters('globals', ['globalsData']),
+    authorityMap() {
+      return authorityMap;
     },
-    computed: {
-      ...mapGetters({
-        spaceUid: 'spaceUid',
-        bkBizId: 'bkBizId',
-        authGlobalInfo: 'globals/authContainerInfo',
-        isShowMaskingTemplate: 'isShowMaskingTemplate',
-      }),
-      ...mapGetters('globals', ['globalsData']),
-      authorityMap() {
-        return authorityMap;
-      },
-      scenarioFilters() {
-        const { collector_scenario: collectorScenario } = this.globalsData;
-        const target = [];
+    scenarioFilters() {
+      const { collector_scenario: collectorScenario } = this.globalsData;
+      const target = [];
 
-        collectorScenario?.forEach(data => {
-          if (data.is_active) {
-            target.push({
-              text: data.name,
-              value: data.id,
-            });
-          }
-        });
-        return target;
-      },
-      categoryFilters() {
-        const { category } = this.globalsData;
-        const target = [];
-        category?.forEach(data => {
-          data.children.forEach(val => {
-            target.push({
-              text: val.name,
-              value: val.id,
-            });
+      collectorScenario?.forEach(data => {
+        if (data.is_active) {
+          target.push({
+            text: data.name,
+            value: data.id,
+          });
+        }
+      });
+      return target;
+    },
+    categoryFilters() {
+      const { category } = this.globalsData;
+      const target = [];
+      category?.forEach(data => {
+        data.children.forEach(val => {
+          target.push({
+            text: val.name,
+            value: val.id,
           });
         });
-        return target;
-      },
-      collectShowList() {
-        let collect = this.collectList;
-        if (this.isFilterSearch) {
-          const fParams = this.filterParams;
-          collect = collect.filter(item =>
-            Object.keys(fParams).every(key =>
-              this.filterIsNotCompared(fParams[key]) ? true : this.compareFilter(item[key], fParams[key], key),
-            ),
-          );
-        }
-        if (this.keyword) {
-          collect = collect.filter(item =>
-            item.collector_config_name.toString().toLowerCase().includes(this.keyword.toLowerCase()),
-          );
-        }
-        this.emptyType = this.keyword || this.isFilterSearch ? 'search-empty' : 'empty';
-        this.changePagination({ count: collect.length });
-        const { current, limit } = this.pagination;
-        const startIndex = (current - 1) * limit;
-        const endIndex = current * limit;
-        return collect.slice(startIndex, endIndex);
-      },
-      isFilterSearch() {
-        return !!Object.values(this.filterParams).some(item => !this.filterIsNotCompared(item));
-      },
+      });
+      return target;
     },
-    created() {
-      !this.authGlobalInfo && this.checkCreateAuth();
-      const { selectedFields } = this.columnSetting;
-      this.columnSetting.selectedFields = getDefaultSettingSelectFiled(this.settingCacheKey, selectedFields);
+    collectShowList() {
+      let collect = this.collectList;
+      if (this.isFilterSearch) {
+        const fParams = this.filterParams;
+        collect = collect.filter(item =>
+          Object.keys(fParams).every(key =>
+            this.filterIsNotCompared(fParams[key]) ? true : this.compareFilter(item[key], fParams[key], key)
+          )
+        );
+      }
+      if (this.keyword) {
+        collect = collect.filter(item =>
+          item.collector_config_name.toString().toLowerCase().includes(this.keyword.toLowerCase())
+        );
+      }
+      this.emptyType = this.keyword || this.isFilterSearch ? 'search-empty' : 'empty';
+      this.changePagination({ count: collect.length });
+      const { current, limit } = this.pagination;
+      const startIndex = (current - 1) * limit;
+      const endIndex = current * limit;
+      return collect.slice(startIndex, endIndex);
     },
-    async mounted() {
-      this.needGuide = !localStorage.getItem('needGuide');
-      !this.authGlobalInfo && (await this.initLabelSelectList());
-      !this.authGlobalInfo && this.requestData();
+    isFilterSearch() {
+      return !!Object.values(this.filterParams).some(item => !this.filterIsNotCompared(item));
     },
-    beforeDestroy() {
-      this.isShouldPollCollect = false;
-      this.stopStatusPolling();
-    },
-    watch: {
-      collectShowList: {
-        handler(val) {
-          if (val) {
-            const callbackFn = (item, key, value) => {
-              this.$set(item, key, value[key]);
-            };
-            requestStorageUsage(this.bkBizId, val, true, callbackFn)
-              .catch(error => {
-                console.error('Error loading data:', error);
-              })
-              .finally(() => {
-                this.isTableLoading = false;
-              });
-          }
-        },
-      },
-    },
-    methods: {
-      async stopCollectHandler(row) {
-        if (this.getOperatorCanClick(row, 'stop')) {
-          this.$store.commit('collect/setCurCollect', row);
-          await this.$refs.issuedSliderRef.requestIssuedClusterList();
-          this.$refs.issuedSliderRef?.viewDetail();
-          this.currentRowCollectorConfigId = row?.collector_config_id ?? '';
+  },
+  created() {
+    !this.authGlobalInfo && this.checkCreateAuth();
+    const { selectedFields } = this.columnSetting;
+    this.columnSetting.selectedFields = getDefaultSettingSelectFiled(this.settingCacheKey, selectedFields);
+  },
+  async mounted() {
+    this.needGuide = !localStorage.getItem('needGuide');
+    !this.authGlobalInfo && (await this.initLabelSelectList());
+    !this.authGlobalInfo && this.requestData();
+  },
+  beforeDestroy() {
+    this.isShouldPollCollect = false;
+    this.stopStatusPolling();
+  },
+  watch: {
+    collectShowList: {
+      handler(val) {
+        if (val) {
+          const callbackFn = (item, key, value) => {
+            this.$set(item, key, value[key]);
+          };
+          requestStorageUsage(this.bkBizId, val, true, callbackFn)
+            .catch(error => {
+              console.error('Error loading data:', error);
+            })
+            .finally(() => {
+              this.isTableLoading = false;
+            });
         }
       },
-      handleSearchChange(val) {
-        if (val === '') {
-          this.changePagination({ current: 1 });
-          this.keyword = '';
-          this.searchKeyword = '';
+    },
+  },
+  methods: {
+    async stopCollectHandler(row) {
+      if (this.getOperatorCanClick(row, 'stop')) {
+        this.$store.commit('collect/setCurCollect', row);
+        await this.$refs.issuedSliderRef.requestIssuedClusterList();
+        this.$refs.issuedSliderRef?.viewDetail();
+        this.currentRowCollectorConfigId = row?.collector_config_id ?? '';
+      }
+    },
+    handleSearchChange(val) {
+      if (val === '') {
+        this.changePagination({ current: 1 });
+        this.keyword = '';
+        this.searchKeyword = '';
+      }
+    },
+    search() {
+      this.keyword = this.searchKeyword;
+      this.emptyType = this.keyword || this.isFilterSearch ? 'search-empty' : 'empty';
+    },
+    checkcFields(field) {
+      return this.columnSetting.selectedFields.some(item => item.id === field);
+    },
+    // 离开当前页路由操作
+    leaveCurrentPage(row, operateType) {
+      if (operateType === 'status' && (!this.loadingStatus || row.status === 'terminated')) return; // 已停用禁止操作
+      if (operateType === 'status' && (!row.status || row.status === 'prepare')) {
+        return this.operateHandler(row, 'edit');
+      }
+      // running、prepare 状态不能启用、停用
+      if (operateType === 'start' || operateType === 'stop') {
+        if (!this.loadingStatus || row.status === 'running' || row.status === 'prepare' || !this.collectProject) return;
+        if (operateType === 'start') {
+          // 启用
+          this.toggleCollect(row);
+        } else {
+          // 如果是容器采集项则停用页显示状态页
+          this.$router.push({
+            name: 'collectStop',
+            params: {
+              collectorId: row.collector_config_id || '',
+            },
+            query: {
+              spaceUid: this.$store.state.spaceUid,
+            },
+          });
         }
-      },
-      search() {
-        this.keyword = this.searchKeyword;
-        this.emptyType = this.keyword || this.isFilterSearch ? 'search-empty' : 'empty';
-      },
-      checkcFields(field) {
-        return this.columnSetting.selectedFields.some(item => item.id === field);
-      },
-      // 离开当前页路由操作
-      leaveCurrentPage(row, operateType) {
-        if (operateType === 'status' && (!this.loadingStatus || row.status === 'terminated')) return; // 已停用禁止操作
-        if (operateType === 'status' && (!row.status || row.status === 'prepare')) {
+        return;
+      }
+      // running 状态不能删除
+      if (operateType === 'delete') {
+        if (!this.collectProject) return;
+        if (!row.is_active && row.status !== 'running') {
+          this.$bkInfo({
+            type: 'warning',
+            subTitle: this.$t('当前采集项名称为{n}，确认要删除？', { n: row.collector_config_name }),
+            confirmFn: () => {
+              this.requestDeleteCollect(row);
+            },
+          });
+        }
+        return;
+      }
+
+      let backRoute = undefined;
+      const params = {};
+      const query = {};
+      const routeMap = {
+        add: 'collectAdd',
+        view: 'manage-collection',
+        status: 'manage-collection',
+        edit: 'collectEdit',
+        field: 'collectField',
+        search: 'retrieve',
+        clean: 'clean-edit',
+        storage: 'collectStorage',
+        clone: 'collectAdd',
+        masking: 'collectMasking',
+      };
+      const targetRoute = routeMap[operateType];
+      // 查看详情 - 如果处于未完成状态，应该跳转到编辑页面
+      if (targetRoute === 'manage-collection') {
+        if (!row.table_id) {
           return this.operateHandler(row, 'edit');
         }
-        // running、prepare 状态不能启用、停用
-        if (operateType === 'start' || operateType === 'stop') {
-          if (!this.loadingStatus || row.status === 'running' || row.status === 'prepare' || !this.collectProject)
-            return;
-          if (operateType === 'start') {
-            // 启用
-            this.toggleCollect(row);
-          } else {
-            // 如果是容器采集项则停用页显示状态页
-            this.$router.push({
-              name: 'collectStop',
-              params: {
-                collectorId: row.collector_config_id || '',
-              },
-              query: {
-                spaceUid: this.$store.state.spaceUid,
-              },
-            });
-          }
-          return;
-        }
-        // running 状态不能删除
-        if (operateType === 'delete') {
-          if (!this.collectProject) return;
-          if (!row.is_active && row.status !== 'running') {
-            this.$bkInfo({
-              type: 'warning',
-              subTitle: this.$t('当前采集项名称为{n}，确认要删除？', { n: row.collector_config_name }),
-              confirmFn: () => {
-                this.requestDeleteCollect(row);
-              },
-            });
-          }
-          return;
-        }
-
-        let backRoute = undefined;
-        const params = {};
-        const query = {};
-        const routeMap = {
-          add: 'collectAdd',
-          view: 'manage-collection',
-          status: 'manage-collection',
-          edit: 'collectEdit',
-          field: 'collectField',
-          search: 'retrieve',
-          clean: 'clean-edit',
-          storage: 'collectStorage',
-          clone: 'collectAdd',
-          masking: 'collectMasking',
-        };
-        const targetRoute = routeMap[operateType];
-        // 查看详情 - 如果处于未完成状态，应该跳转到编辑页面
-        if (targetRoute === 'manage-collection') {
-          if (!row.table_id) {
-            return this.operateHandler(row, 'edit');
-          }
-        }
-        if (
-          ['manage-collection', 'collectEdit', 'collectField', 'collectStorage', 'collectMasking'].includes(targetRoute)
-        ) {
-          params.collectorId = row.collector_config_id;
-        }
-        if (operateType === 'status') {
-          query.type = 'collectionStatus';
-        }
-        if (operateType === 'search') {
-          if (!row.index_set_id && !row.bkdata_index_set_ids.length) return;
-          params.indexId = row.index_set_id ? row.index_set_id : row.bkdata_index_set_ids[0];
-        }
-        if (operateType === 'clean') {
-          params.collectorId = row.collector_config_id;
-          if (row.itsm_ticket_status === 'applying') {
-            return this.operateHandler(row, 'field');
-          }
-          backRoute = this.$route.name;
-        }
-        // 克隆操作需要ID进行数据回显
-        if (operateType === 'clone') {
-          params.collectorId = row.collector_config_id;
-          query.collectorId = row.collector_config_id;
-          query.type = 'clone';
-        }
-        if (operateType === 'masking') {
-          // 直接跳转到脱敏页隐藏左侧的步骤
-          query.type = 'masking';
-        }
-        this.$store.commit('collect/setCurCollect', row);
-
-        this.$router.push({
-          name: targetRoute,
-          params,
-          query: {
-            ...query,
-            spaceUid: this.$store.state.spaceUid,
-            backRoute,
-          },
-        });
-      },
-      // 表头过滤
-      handleFilterChange(data) {
-        this.changePagination({ current: 1 });
-        Object.keys(data).forEach(item => {
-          this.filterParams[item] = item !== 'tags' ? data[item].join('') : data[item];
-        });
-      },
-      handleSettingChange({ fields }) {
-        this.columnSetting.selectedFields = fields;
-        setDefaultSettingSelectFiled(this.settingCacheKey, fields);
-      },
-      // 轮询
-      startStatusPolling() {
-        this.stopStatusPolling();
-        this.timer = setTimeout(() => {
-          this.isShouldPollCollect && this.collectorIdStr && this.requestCollectStatus(true);
-        }, 10000);
-      },
-      stopStatusPolling() {
-        clearTimeout(this.timer);
-      },
-      requestData() {
-        this.isTableLoading = true;
-        const ids = this.$route.query.ids; // 根据id来检索
-        const collectorIdList = ids ? decodeURIComponent(ids) : [];
-        this.$http
-          .request('collect/getAllCollectors', {
-            query: {
-              bk_biz_id: this.bkBizId,
-              collector_id_list: collectorIdList,
-              have_data_id: 1,
-              not_custom: 1,
-            },
-          })
-          .then(async res => {
-            const { data } = res;
-            if (data && data.length) {
-              const idList = [];
-              const indexIdList = data.filter(item => !!item.index_set_id).map(item => item.index_set_id);
-              const { data: desensitizeStatus } = await this.getDesensitizeStatus(indexIdList);
-              const setStorageClusterName = new Set();
-              data.forEach(row => {
-                row.status = '';
-                row.status_name = '';
-                idList.push(row.collector_config_id);
-                row.is_desensitize = desensitizeStatus[row.index_set_id]?.is_desensitize ?? false;
-                if (!!row.storage_cluster_name) setStorageClusterName.add(row.storage_cluster_name);
-              });
-              this.filterStorageLabelList = Array.from(setStorageClusterName).map(item => ({
-                text: item,
-                value: item,
-              }));
-              this.collectList = data;
-              this.changePagination({ count: data.length });
-              this.collectorIdStr = idList.join(',');
-              if (this.needGuide) {
-                setTimeout(() => {
-                  localStorage.setItem('needGuide', 'false');
-                  this.needGuide = false;
-                }, 3000);
-              }
-            }
-            if (this.collectorIdStr) {
-              this.requestCollectStatus();
-            }
-          })
-          .catch(() => {
-            this.emptyType = '500';
-          })
-          .finally(() => {
-            this.isTableLoading = false;
-            // 如果有ids 重置路由
-            if (ids)
-              this.$router.replace({
-                query: {
-                  spaceUid: this.$route.query.spaceUid,
-                },
-              });
-          });
-      },
-      handleOperation(type) {
-        if (type === 'clear-filter') {
-          this.keyword = '';
-          this.searchKeyword = '';
-          this.changePagination({ current: 1 });
-          clearTableFilter(this.$refs.collectTable);
-          return;
-        }
-
-        if (type === 'refresh') {
-          this.emptyType = 'empty';
-          this.changePagination({ current: 1 });
-          this.requestData();
-          return;
-        }
-      },
-      requestCollectStatus(isPrivate) {
-        this.$http
-          .request('collect/getCollectStatus', {
-            query: {
-              collector_id_list: this.collectorIdStr,
-            },
-          })
-          .then(res => {
-            this.statusHandler(res.data || []);
-            if (this.isShouldPollCollect) this.startStatusPolling();
-            if (!isPrivate) this.loadingStatus = true;
-          })
-          .catch(() => {
-            if (isPrivate) this.stopStatusPolling();
-          });
-      },
-      // 启用
-      toggleCollect(row) {
-        const { isActive, status, statusName } = row;
-        row.status = 'running';
-        row.status_name = this.$t('部署中');
-        this.$http
-          .request('collect/startCollect', {
-            params: {
-              collector_config_id: row.collector_config_id,
-            },
-          })
-          .then(res => {
-            if (res.result) {
-              row.is_active = !row.is_active;
-              this.startStatusPolling();
-            }
-          })
-          .catch(() => {
-            row.is_active = isActive;
-            row.status = status;
-            row.status_name = statusName;
-          });
-      },
-      // PREPARE  RUNNING  UNKNOWN
-      statusHandler(data) {
-        this.isShouldPollCollect = false;
-        data.forEach(item => {
-          if (['prepare', 'running', 'unknown'].includes(item.status.toLowerCase())) this.isShouldPollCollect = true;
-          this.collectList.forEach(row => {
-            if (row.collector_config_id === item.collector_id) {
-              row.status = item.status.toLowerCase();
-              row.status_name = item.status_name;
-            }
-          });
-        });
-      },
-      handleShowReport(row) {
-        this.$http
-          .request('collect/runCheck', {
-            data: {
-              collector_config_id: row.collector_config_id,
-            },
-          })
-          .then(res => {
-            if (res.data?.check_record_id) {
-              this.reportDetailShow = true;
-              this.checkRecordId = res.data.check_record_id;
-            }
-          });
-      },
-      async getDesensitizeStatus(indexIdList = []) {
-        try {
-          return await this.$http.request('masking/getDesensitizeState', {
-            data: { index_set_ids: indexIdList },
-          });
-        } catch (error) {
-          return [];
-        }
-      },
-      /** 初始化标签列表 */
-      async initLabelSelectList() {
-        try {
-          const res = await this.$http.request('unionSearch/unionLabelList');
-          this.selectLabelList = res.data;
-          const cloneTagBase = deepClone(this.tagBaseList);
-          const notBuiltInList = res.data
-            .filter(item => !item.is_built_in)
-            .map(item => ({
-              id: item.name,
-              name: item.name,
-            }));
-          this.filterLabelList = cloneTagBase.concat(notBuiltInList);
-        } catch (error) {
-          this.selectLabelList = [];
-          this.filterLabelList = [];
-        }
-      },
-      handleRowClassName({ row }) {
+      }
+      if (
+        ['manage-collection', 'collectEdit', 'collectField', 'collectStorage', 'collectMasking'].includes(targetRoute)
+      ) {
+        params.collectorId = row.collector_config_id;
+      }
+      if (operateType === 'status') {
+        query.type = 'collectionStatus';
+      }
+      if (operateType === 'search') {
+        if (!row.index_set_id && !row.bkdata_index_set_ids.length) return;
+        params.indexId = row.index_set_id ? row.index_set_id : row.bkdata_index_set_ids[0];
+      }
+      if (operateType === 'clean') {
+        params.collectorId = row.collector_config_id;
         if (row.itsm_ticket_status === 'applying') {
-          return 'itsm-ticket-applying';
+          return this.operateHandler(row, 'field');
         }
+        backRoute = this.$route.name;
+      }
+      // 克隆操作需要ID进行数据回显
+      if (operateType === 'clone') {
+        params.collectorId = row.collector_config_id;
+        query.collectorId = row.collector_config_id;
+        query.type = 'clone';
+      }
+      if (operateType === 'masking') {
+        // 直接跳转到脱敏页隐藏左侧的步骤
+        query.type = 'masking';
+      }
+      this.$store.commit('collect/setCurCollect', row);
 
-        return '';
-      },
-      handleRowMouseEnter(_index, e, row) {
-        if (row.itsm_ticket_status === 'applying') {
-          if (!this.itsmApplyingPopoverInstance) {
-            this.itsmApplyingPopoverInstance = this.$bkPopover(e.target, {
-              content: this.$t('容量审核中，请等待'),
-              placement: 'top',
-              arrow: true,
-              extCls: 'itsm-applying-popover',
-              onHidden: () => {
-                this.itsmApplyingPopoverInstance?.destroy();
-                this.itsmApplyingPopoverInstance = null;
-              },
-            });
-          }
-          this.itsmApplyingPopoverInstance?.show(300);
-        }
-      },
-      handleRowMouseLeave() {
-        this.itsmApplyingPopoverInstance?.destroy();
-        this.itsmApplyingPopoverInstance = null;
-      },
-      handleCollectPageChange(current) {
-        this.changePagination({ current });
-      },
-      handleCollectLimitChange(limit) {
-        this.changePagination({ limit, current: 1 });
-      },
-      changePagination(pagination = {}) {
-        Object.assign(this.pagination, pagination);
-      },
-      filterIsNotCompared(val) {
-        if (typeof val === 'string' && val === '') return true;
-        if (typeof val === 'obj' && JSON.stringify(val) === '{}') return true;
-        if (Array.isArray(val) && !val.length) return true;
-        return false;
-      },
-      compareFilter(compare, fCompare, key) {
-        if (key === 'tags') return compare.some(item => fCompare.includes(item.name));
-        return compare === fCompare;
-      },
-      handleTagSelectChange(v) {
-        if (!v.length) {
-          this.tagSelect = ['all'];
-          return;
-        }
-        const lastSelect = v[v.length - 1];
-        if (lastSelect === 'all') {
-          this.tagSelect = [lastSelect];
-        } else {
-          this.tagSelect = v.filter(item => !(item === 'all'));
-        }
-      },
-      handleTagSubmit(v) {
-        this.tagsData.tags = !v.includes('all') ? v : [];
-        this.handleFilterChange(this.tagsData);
-      },
-      handleToggleTagSelect() {
-        this.tagSelect = !!this.tagsData.tags.length ? deepClone(this.tagsData.tags) : ['all'];
-      },
-      renderTagsHeader(h, { column }) {
-        const isActive = !!this.filterLabelList.length && !this.tagSelect.includes('all');
-        return h(ClusterFilter, {
-          props: {
-            title: column.label,
-            disabled: false,
-            select: this.tagSelect,
-            selectList: this.filterLabelList,
-            toggle: this.handleToggleTagSelect,
-            isActive,
-          },
-          on: {
-            selected: this.handleTagSelectChange,
-            submit: this.handleTagSubmit,
-          },
-        });
-      },
-      formatUsage(dailyUsage, totalUsage) {
-        return `${formatBytes(dailyUsage)} / ${formatBytes(totalUsage)}`;
-      },
+      this.$router.push({
+        name: targetRoute,
+        params,
+        query: {
+          ...query,
+          spaceUid: this.$store.state.spaceUid,
+          backRoute,
+        },
+      });
     },
-  };
+    // 表头过滤
+    handleFilterChange(data) {
+      this.changePagination({ current: 1 });
+      Object.keys(data).forEach(item => {
+        this.filterParams[item] = item !== 'tags' ? data[item].join('') : data[item];
+      });
+    },
+    handleSettingChange({ fields }) {
+      this.columnSetting.selectedFields = fields;
+      setDefaultSettingSelectFiled(this.settingCacheKey, fields);
+    },
+    // 轮询
+    startStatusPolling() {
+      this.stopStatusPolling();
+      this.timer = setTimeout(() => {
+        this.isShouldPollCollect && this.collectorIdStr && this.requestCollectStatus(true);
+      }, 10000);
+    },
+    stopStatusPolling() {
+      clearTimeout(this.timer);
+    },
+    requestData() {
+      this.isTableLoading = true;
+      const ids = this.$route.query.ids; // 根据id来检索
+      const collectorIdList = ids ? decodeURIComponent(ids) : [];
+      this.$http
+        .request('collect/getAllCollectors', {
+          query: {
+            bk_biz_id: this.bkBizId,
+            collector_id_list: collectorIdList,
+            have_data_id: 1,
+            not_custom: 1,
+          },
+        })
+        .then(async res => {
+          const { data } = res;
+          if (data && data.length) {
+            const idList = [];
+            const indexIdList = data.filter(item => !!item.index_set_id).map(item => item.index_set_id);
+            const { data: desensitizeStatus } = await this.getDesensitizeStatus(indexIdList);
+            const setStorageClusterName = new Set();
+            data.forEach(row => {
+              row.status = '';
+              row.status_name = '';
+              idList.push(row.collector_config_id);
+              row.is_desensitize = desensitizeStatus[row.index_set_id]?.is_desensitize ?? false;
+              if (!!row.storage_cluster_name) setStorageClusterName.add(row.storage_cluster_name);
+            });
+            this.filterStorageLabelList = Array.from(setStorageClusterName).map(item => ({
+              text: item,
+              value: item,
+            }));
+            this.collectList = data;
+            this.changePagination({ count: data.length });
+            this.collectorIdStr = idList.join(',');
+            if (this.needGuide) {
+              setTimeout(() => {
+                localStorage.setItem('needGuide', 'false');
+                this.needGuide = false;
+              }, 3000);
+            }
+          }
+          if (this.collectorIdStr) {
+            this.requestCollectStatus();
+          }
+        })
+        .catch(() => {
+          this.emptyType = '500';
+        })
+        .finally(() => {
+          this.isTableLoading = false;
+          // 如果有ids 重置路由
+          if (ids)
+            this.$router.replace({
+              query: {
+                spaceUid: this.$route.query.spaceUid,
+              },
+            });
+        });
+    },
+    handleOperation(type) {
+      if (type === 'clear-filter') {
+        this.keyword = '';
+        this.searchKeyword = '';
+        this.changePagination({ current: 1 });
+        clearTableFilter(this.$refs.collectTable);
+        return;
+      }
+
+      if (type === 'refresh') {
+        this.emptyType = 'empty';
+        this.changePagination({ current: 1 });
+        this.requestData();
+        return;
+      }
+    },
+    requestCollectStatus(isPrivate) {
+      this.$http
+        .request('collect/getCollectStatus', {
+          query: {
+            collector_id_list: this.collectorIdStr,
+          },
+        })
+        .then(res => {
+          this.statusHandler(res.data || []);
+          if (this.isShouldPollCollect) this.startStatusPolling();
+          if (!isPrivate) this.loadingStatus = true;
+        })
+        .catch(() => {
+          if (isPrivate) this.stopStatusPolling();
+        });
+    },
+    // 启用
+    toggleCollect(row) {
+      const { isActive, status, statusName } = row;
+      row.status = 'running';
+      row.status_name = this.$t('部署中');
+      this.$http
+        .request('collect/startCollect', {
+          params: {
+            collector_config_id: row.collector_config_id,
+          },
+        })
+        .then(res => {
+          if (res.result) {
+            row.is_active = !row.is_active;
+            this.startStatusPolling();
+          }
+        })
+        .catch(() => {
+          row.is_active = isActive;
+          row.status = status;
+          row.status_name = statusName;
+        });
+    },
+    // PREPARE  RUNNING  UNKNOWN
+    statusHandler(data) {
+      this.isShouldPollCollect = false;
+      data.forEach(item => {
+        if (['prepare', 'running', 'unknown'].includes(item.status.toLowerCase())) this.isShouldPollCollect = true;
+        this.collectList.forEach(row => {
+          if (row.collector_config_id === item.collector_id) {
+            row.status = item.status.toLowerCase();
+            row.status_name = item.status_name;
+          }
+        });
+      });
+    },
+    handleShowReport(row) {
+      this.$http
+        .request('collect/runCheck', {
+          data: {
+            collector_config_id: row.collector_config_id,
+          },
+        })
+        .then(res => {
+          if (res.data?.check_record_id) {
+            this.reportDetailShow = true;
+            this.checkRecordId = res.data.check_record_id;
+          }
+        });
+    },
+    async getDesensitizeStatus(indexIdList = []) {
+      try {
+        return await this.$http.request('masking/getDesensitizeState', {
+          data: { index_set_ids: indexIdList },
+        });
+      } catch (error) {
+        return [];
+      }
+    },
+    /** 初始化标签列表 */
+    async initLabelSelectList() {
+      try {
+        const res = await this.$http.request('unionSearch/unionLabelList');
+        this.selectLabelList = res.data;
+        const cloneTagBase = deepClone(this.tagBaseList);
+        const notBuiltInList = res.data
+          .filter(item => !item.is_built_in)
+          .map(item => ({
+            id: item.name,
+            name: item.name,
+          }));
+        this.filterLabelList = cloneTagBase.concat(notBuiltInList);
+      } catch (error) {
+        this.selectLabelList = [];
+        this.filterLabelList = [];
+      }
+    },
+    handleRowClassName({ row }) {
+      if (row.itsm_ticket_status === 'applying') {
+        return 'itsm-ticket-applying';
+      }
+
+      return '';
+    },
+    handleRowMouseEnter(_index, e, row) {
+      if (row.itsm_ticket_status === 'applying') {
+        if (!this.itsmApplyingPopoverInstance) {
+          this.itsmApplyingPopoverInstance = this.$bkPopover(e.target, {
+            content: this.$t('容量审核中，请等待'),
+            placement: 'top',
+            arrow: true,
+            extCls: 'itsm-applying-popover',
+            onHidden: () => {
+              this.itsmApplyingPopoverInstance?.destroy();
+              this.itsmApplyingPopoverInstance = null;
+            },
+          });
+        }
+        this.itsmApplyingPopoverInstance?.show(300);
+      }
+    },
+    handleRowMouseLeave() {
+      this.itsmApplyingPopoverInstance?.destroy();
+      this.itsmApplyingPopoverInstance = null;
+    },
+    handleCollectPageChange(current) {
+      this.changePagination({ current });
+    },
+    handleCollectLimitChange(limit) {
+      this.changePagination({ limit, current: 1 });
+    },
+    changePagination(pagination = {}) {
+      Object.assign(this.pagination, pagination);
+    },
+    filterIsNotCompared(val) {
+      if (typeof val === 'string' && val === '') return true;
+      if (typeof val === 'obj' && JSON.stringify(val) === '{}') return true;
+      if (Array.isArray(val) && !val.length) return true;
+      return false;
+    },
+    compareFilter(compare, fCompare, key) {
+      if (key === 'tags') return compare.some(item => fCompare.includes(item.name));
+      return compare === fCompare;
+    },
+    handleTagSelectChange(v) {
+      if (!v.length) {
+        this.tagSelect = ['all'];
+        return;
+      }
+      const lastSelect = v[v.length - 1];
+      if (lastSelect === 'all') {
+        this.tagSelect = [lastSelect];
+      } else {
+        this.tagSelect = v.filter(item => !(item === 'all'));
+      }
+    },
+    handleTagSubmit(v) {
+      this.tagsData.tags = !v.includes('all') ? v : [];
+      this.handleFilterChange(this.tagsData);
+    },
+    handleToggleTagSelect() {
+      this.tagSelect = !!this.tagsData.tags.length ? deepClone(this.tagsData.tags) : ['all'];
+    },
+    renderTagsHeader(h, { column }) {
+      const isActive = !!this.filterLabelList.length && !this.tagSelect.includes('all');
+      return h(ClusterFilter, {
+        props: {
+          title: column.label,
+          disabled: false,
+          select: this.tagSelect,
+          selectList: this.filterLabelList,
+          toggle: this.handleToggleTagSelect,
+          isActive,
+        },
+        on: {
+          selected: this.handleTagSelectChange,
+          submit: this.handleTagSubmit,
+        },
+      });
+    },
+    formatUsage(dailyUsage, totalUsage) {
+      return `${formatBytes(dailyUsage)} / ${formatBytes(totalUsage)}`;
+    },
+  },
+};
 </script>
 
 <style lang="scss">

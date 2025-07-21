@@ -217,481 +217,481 @@
 </template>
 
 <script>
-  import { debounce } from 'throttle-debounce';
+import { debounce } from 'throttle-debounce';
 
-  import MonacoDetailInput from '../search-comp/retrieve-detail-input-editor.tsx';
+import MonacoDetailInput from '../search-comp/retrieve-detail-input-editor.tsx';
 
-  export default {
-    components: {
-      MonacoDetailInput,
+export default {
+  components: {
+    MonacoDetailInput,
+  },
+  model: {
+    event: 'change',
+  },
+  props: {
+    value: {
+      type: String,
+      required: true,
     },
-    model: {
-      event: 'change',
+    retrievedKeyword: {
+      type: String,
+      default: '*',
     },
-    props: {
-      value: {
-        type: String,
-        required: true,
-      },
-      retrievedKeyword: {
-        type: String,
-        default: '*',
-      },
-      dropdownData: {
-        type: Object,
-        required: true,
-      },
-      isAutoQuery: {
-        type: Boolean,
-        default: false,
-      },
-      isShowUiType: {
-        type: Boolean,
-        default: false,
-      },
-      totalFields: {
-        type: Array,
-        required: true,
-      },
+    dropdownData: {
+      type: Object,
+      required: true,
     },
-    data() {
-      return {
-        separator: /AND|OR|and|or/, // 区分查询语句条件
-        shouldHandleBlur: true, // blur 时是否触发检索
-        showDropdown: false, // 显示下拉
-        activeIndex: null, // 下拉列表激活的项目索引
-        showFields: false, // 显示下拉可选字段
-        showValue: false, // 显示下拉可选值
-        showColon: false, // : :*
-        showContinue: false, // AND OR
-        showOperator: false, // = > >= < <=
-        isSearchRecord: false,
-        isKeywordsError: false, // 语句是否有误
-        keywordErrorMessage: '', // 无法修复的语句的原因
-        keywordIsResolved: false, // 语句是否可以被修复
-        resetKeyword: '', // 修复过后的语句
-        originFieldList: [], // 所有字段列表 ['name', 'age']
-        fieldList: [], // 显示字段列表，['name', 'age']
-        valueList: [], // 字段可能的值 ['"arman"', '"xxx yyy"'] [18, 22]
-        operatorSelectList: [
-          {
-            operator: '>',
-            label: this.$t('大于'),
-          },
-          {
-            operator: '<',
-            label: this.$t('小于'),
-          },
-          {
-            operator: '>=',
-            label: this.$t('大于或等于'),
-          },
-          {
-            operator: '<=',
-            label: this.$t('小于或等于'),
-          },
-        ],
-      };
+    isAutoQuery: {
+      type: Boolean,
+      default: false,
     },
-    computed: {
-      renderDropdown() {
-        if (this.showValue && this.showDropdown && !this.valueList.length) return false;
-        return this.showDropdown && (this.showFields || this.showValue || this.showColon || this.showContinue);
-      },
-      /** 获取数字类型的字段name */
-      getNumTypeFieldList() {
-        return this.totalFields
-          .filter(item => ['long', 'integer', 'float'].includes(item.field_type))
-          .map(item => item.field_name);
-      },
-      /** 语法检查需要的字段信息 */
-      getCheckKeywordsFields() {
-        return this.totalFields.map(item => ({
-          field_name: item.field_name,
-          is_analyzed: item.is_analyzed,
-          field_type: item.field_type,
-        }));
-      },
-      /** 所有字段的字段名 */
-      totalFieldsNameList() {
-        return this.totalFields.map(item => item.field_name);
-      },
+    isShowUiType: {
+      type: Boolean,
+      default: false,
     },
-    watch: {
-      showDropdown(val) {
-        if (val) {
-          this.calculateDropdown();
-        } else {
-          this.showFields = false;
-          this.showValue = false;
-          this.showColon = false;
-          this.showContinue = false;
-          this.fieldList.splice(0);
-          this.valueList.splice(0);
-        }
-      },
-      dropdownData: {
-        handler(val) {
-          // 检索后的日志数据如果字段在字段接口找不到则不展示联想的key
-          this.originFieldList = Object.keys(val).filter(v => this.totalFieldsNameList.includes(v));
-          if (this.originFieldList.length && this.showDropdown) {
-            // 可能字段接口还没返回用户就 focus 了输入框
-            this.calculateDropdown();
-          }
+    totalFields: {
+      type: Array,
+      required: true,
+    },
+  },
+  data() {
+    return {
+      separator: /AND|OR|and|or/, // 区分查询语句条件
+      shouldHandleBlur: true, // blur 时是否触发检索
+      showDropdown: false, // 显示下拉
+      activeIndex: null, // 下拉列表激活的项目索引
+      showFields: false, // 显示下拉可选字段
+      showValue: false, // 显示下拉可选值
+      showColon: false, // : :*
+      showContinue: false, // AND OR
+      showOperator: false, // = > >= < <=
+      isSearchRecord: false,
+      isKeywordsError: false, // 语句是否有误
+      keywordErrorMessage: '', // 无法修复的语句的原因
+      keywordIsResolved: false, // 语句是否可以被修复
+      resetKeyword: '', // 修复过后的语句
+      originFieldList: [], // 所有字段列表 ['name', 'age']
+      fieldList: [], // 显示字段列表，['name', 'age']
+      valueList: [], // 字段可能的值 ['"arman"', '"xxx yyy"'] [18, 22]
+      operatorSelectList: [
+        {
+          operator: '>',
+          label: this.$t('大于'),
         },
-        deep: true,
-      },
+        {
+          operator: '<',
+          label: this.$t('小于'),
+        },
+        {
+          operator: '>=',
+          label: this.$t('大于或等于'),
+        },
+        {
+          operator: '<=',
+          label: this.$t('小于或等于'),
+        },
+      ],
+    };
+  },
+  computed: {
+    renderDropdown() {
+      if (this.showValue && this.showDropdown && !this.valueList.length) return false;
+      return this.showDropdown && (this.showFields || this.showValue || this.showColon || this.showContinue);
     },
-    created() {
-      this.handleRetrieve = debounce(300, () => this.$emit('retrieve'));
+    /** 获取数字类型的字段name */
+    getNumTypeFieldList() {
+      return this.totalFields
+        .filter(item => ['long', 'integer', 'float'].includes(item.field_type))
+        .map(item => item.field_name);
     },
-    methods: {
-      handleClickDropdown(e) {
-        e.stopPropagation();
-        this.shouldHandleBlur = false;
-        this.clickDropdownTimer && clearTimeout(this.clickDropdownTimer);
-        this.clickDropdownTimer = setTimeout(() => {
-          this.shouldHandleBlur = true;
-        }, 200);
-        this.$refs.editorElement.focus();
-      },
-      handleClickOutside() {
-        this.showDropdown = false;
-      },
-      handleFocus() {
-        this.$emit('isCanSearch', false);
-        if (this.isSearchRecord) {
-          this.$refs.editorElement.blur();
-          this.isSearchRecord = false;
-          return;
+    /** 语法检查需要的字段信息 */
+    getCheckKeywordsFields() {
+      return this.totalFields.map(item => ({
+        field_name: item.field_name,
+        is_analyzed: item.is_analyzed,
+        field_type: item.field_type,
+      }));
+    },
+    /** 所有字段的字段名 */
+    totalFieldsNameList() {
+      return this.totalFields.map(item => item.field_name);
+    },
+  },
+  watch: {
+    showDropdown(val) {
+      if (val) {
+        this.calculateDropdown();
+      } else {
+        this.showFields = false;
+        this.showValue = false;
+        this.showColon = false;
+        this.showContinue = false;
+        this.fieldList.splice(0);
+        this.valueList.splice(0);
+      }
+    },
+    dropdownData: {
+      handler(val) {
+        // 检索后的日志数据如果字段在字段接口找不到则不展示联想的key
+        this.originFieldList = Object.keys(val).filter(v => this.totalFieldsNameList.includes(v));
+        if (this.originFieldList.length && this.showDropdown) {
+          // 可能字段接口还没返回用户就 focus 了输入框
+          this.calculateDropdown();
         }
-
-        this.showDropdown = true;
+      },
+      deep: true,
+    },
+  },
+  created() {
+    this.handleRetrieve = debounce(300, () => this.$emit('retrieve'));
+  },
+  methods: {
+    handleClickDropdown(e) {
+      e.stopPropagation();
+      this.shouldHandleBlur = false;
+      this.clickDropdownTimer && clearTimeout(this.clickDropdownTimer);
+      this.clickDropdownTimer = setTimeout(() => {
+        this.shouldHandleBlur = true;
+      }, 200);
+      this.$refs.editorElement.focus();
+    },
+    handleClickOutside() {
+      this.showDropdown = false;
+    },
+    handleFocus() {
+      this.$emit('isCanSearch', false);
+      if (this.isSearchRecord) {
+        this.$refs.editorElement.blur();
         this.isSearchRecord = false;
-      },
-      handleInput(val) {
-        this.$emit('change', val);
-        if (this.originFieldList.length) {
-          this.inputTimer && clearTimeout(this.inputTimer);
-          this.inputTimer = setTimeout(this.calculateDropdown, 300);
-        }
-      },
-      handleKeydown(e) {
-        const { code } = e;
-        if (code === 'Escape') {
-          this.closeDropdown();
-          return;
-        }
+        return;
+      }
 
-        const dropdownEl = this.$refs.dropdownRef;
-        if (!dropdownEl) {
-          if (code === 'NumpadEnter' || code === 'Enter') {
-            e.preventDefault();
-            this.closeDropdown();
-            this.handleRetrieve();
-          }
-          return;
-        }
+      this.showDropdown = true;
+      this.isSearchRecord = false;
+    },
+    handleInput(val) {
+      this.$emit('change', val);
+      if (this.originFieldList.length) {
+        this.inputTimer && clearTimeout(this.inputTimer);
+        this.inputTimer = setTimeout(this.calculateDropdown, 300);
+      }
+    },
+    handleKeydown(e) {
+      const { code } = e;
+      if (code === 'Escape') {
+        this.closeDropdown();
+        return;
+      }
 
-        const dropdownList = dropdownEl.querySelectorAll('.list-item');
+      const dropdownEl = this.$refs.dropdownRef;
+      if (!dropdownEl) {
         if (code === 'NumpadEnter' || code === 'Enter') {
           e.preventDefault();
-          if (this.activeIndex !== null) {
-            // enter 选中下拉选项
-            dropdownList[this.activeIndex].click();
-          } else {
-            // enter 检索
-            this.closeDropdown();
-          }
-        } else if (code === 'ArrowUp') {
-          if (this.activeIndex) {
-            this.activeIndex -= 1;
-          } else {
-            this.activeIndex = dropdownList.length - 1;
-          }
-          this.calculateScroll(true);
-        } else if (code === 'ArrowDown') {
-          if (this.activeIndex === null || this.activeIndex === dropdownList.length - 1) {
-            this.activeIndex = 0;
-          } else {
-            this.activeIndex += 1;
-          }
-          this.calculateScroll(false);
+          this.closeDropdown();
+          this.handleRetrieve();
         }
-        dropdownList.forEach((item, index) => {
-          if (index === this.activeIndex) {
-            item.classList.add('active');
-          } else {
-            item.classList.remove('active');
-          }
-        });
-      },
-      // 上下键选择项目时滚动到可视区域
-      calculateScroll(alignToTop) {
-        this.$nextTick(() => {
-          // 列表容器
-          const containerEl = this.$refs.dropdownRef;
-          const containerRect = containerEl.getBoundingClientRect();
-          const containerTop = containerRect.top;
-          const containerBottom = containerTop + containerRect.height;
-          // 激活的列表项
-          const itemEl = containerEl.querySelector('.list-item.active');
-          const itemRect = itemEl.getBoundingClientRect();
-          const itemTop = itemRect.top;
-          const itemBottom = itemTop + itemRect.height;
-          // 列表项不在容器可视范围
-          if (itemTop < containerTop || itemBottom > containerBottom) {
-            const currentScrollTop = containerEl.scrollTop;
-            if (alignToTop) {
-              containerEl.scrollTop = currentScrollTop + itemTop - containerTop;
-            } else {
-              containerEl.scrollTop = currentScrollTop + itemBottom - containerBottom;
-            }
-          }
-        });
-      },
-      handleBlur(val) {
-        this.$emit('keywordBlurUpdate', this.value);
-        setTimeout(() => {
-          this.$emit('isCanSearch', true);
-        }, 100);
-        // 非自动搜索时 鼠标失焦后 判断语句是否出错
-        this.blurTimer && clearTimeout(this.blurTimer);
-        this.blurTimer = setTimeout(() => {
-          if (this.shouldHandleBlur || this.isKeywordsError) this.handleCheckKeywords(val.trim()); // 检查语句是否有错误;
-        }, 200);
-        // 如果当前有点击收藏且有选择表单模式的key时 监听新输入的检索语句判断
-        if (this.isShowUiType) this.$emit('inputBlur', val);
+        return;
+      }
 
-        if (this.isSearchRecord || !this.isAutoQuery) return;
-        // blur 时检索
-        // 下拉菜单 click 时也会触发 blur 事件，但是不执行检索相关逻辑
-        // 下拉菜单 click 事件在 blur 事件触发后 100+ms 后触发
-        // 所以 blur 事件回调延迟 200ms 执行，让 click 事件执行后才确认如何执行
-        this.blurTimer && clearTimeout(this.blurTimer);
-        this.blurTimer = setTimeout(async () => {
-          if (this.shouldHandleBlur) {
-            // 非点击下拉触发的 blur 事件
-            this.showDropdown = false;
-            // 自动搜索时 先判断语句是否出错 如果出错 则提示出错原因 且不进行请求
-            if (this.retrievedKeyword !== val.trim() || this.isKeywordsError) {
-              const isCanSearch = await this.handleCheckKeywords(val.trim());
-              if (isCanSearch) this.handleRetrieve();
-            }
-          } else {
-            // 点击了下拉菜单，会再次聚焦
-          }
-        }, 200);
-      },
-      handleRefreshKeywords() {
-        // 替换语句
-        this.$emit('change', this.resetKeyword);
-        this.resetKeyword = '';
-        this.isKeywordsError = false;
-        this.keywordIsResolved = false;
-        this.keywordErrorMessage = '';
-        this.$emit('isCanSearch', true);
-        if (this.isAutoQuery) this.handleRetrieve();
-      },
-      async handleCheckKeywords(keyword) {
-        // 检查检索语句是否有误
-        if (keyword === '') keyword = '*';
-        try {
-          const { data } = await this.$http.request('favorite/checkKeywords', {
-            data: {
-              keyword,
-              fields: this.getCheckKeywordsFields,
-            },
-          });
-          this.isKeywordsError = !data.is_legal;
-          this.keywordIsResolved = data.is_resolved;
-          this.keywordErrorMessage = data.message;
-          this.resetKeyword = data.keyword;
-          this.$emit('isCanSearch', data.is_legal);
-          return data.is_legal || data.is_resolved;
-        } catch (error) {
-          return true;
-        }
-      },
-      closeDropdown() {
-        this.showDropdown = false;
-        this.handleBlur(this.$refs.editorElement.editor.getValue());
-      },
-
-      // 根据当前输入关键字计算提示内容
-      calculateDropdown() {
-        if (!this.originFieldList.length) {
-          return;
-        }
-        const { value } = this;
-        const trimValue = value.trim();
-        const lastFragments = value.split(this.separator);
-        const lastFragment = lastFragments[lastFragments.length - 1];
-        // 以 name:"arman" OR age:18 为例，还没开始输入字段
-        if (
-          !trimValue ||
-          trimValue === '*' ||
-          /\s+AND\s+$/.test(value) ||
-          /\s+OR\s+$/.test(value) ||
-          /\s+and\s+$/.test(value) ||
-          /\s+or\s+$/.test(value)
-        ) {
-          this.showWhichDropdown('Fields');
-          this.fieldList = [...this.originFieldList];
-          return;
-        }
-        // 开始输入字段【nam】
-        const inputField = /^\s*(?<field>[\w.]+)$/.exec(lastFragment)?.groups.field;
-        if (inputField) {
-          this.fieldList = this.originFieldList.filter(item => {
-            if (item.includes(inputField)) {
-              if (item === inputField) {
-                // 完全匹配字段同时和 : :* 选项
-                this.showColon = true;
-                this.showOperator = this.isNumTypeField(inputField.trim());
-              }
-              return true;
-            }
-          });
-          this.showWhichDropdown(this.fieldList.length ? 'Fields' : undefined);
-          return;
-        }
-        // 字段输入完毕【name 】
-        if (/^\s*(?<field>[\w.]+)\s*$/.test(lastFragment)) {
-          this.showWhichDropdown('Colon');
-          this.showOperator = this.isNumTypeField(lastFragment.trim());
-          return;
-        }
-        // 准备输入值【name:】
-        const confirmField = /^\s*(?<field>[\w.]+)\s*(:|>=|<=|>|<)\s*$/.exec(lastFragment)?.groups.field;
-        if (confirmField) {
-          const valueMap = this.dropdownData[confirmField];
-          if (valueMap) {
-            this.showWhichDropdown('Value');
-            this.valueList = this.getValueList(valueMap);
-          } else {
-            this.showWhichDropdown();
-            this.valueList.splice(0);
-          }
-          return;
-        }
-        // 正在输入值【age:1】注意后面没有空格，匹配字段对应值
-        const valueResult = /^\s*(?<field>[\w.]+)\s*(:|>=|<=|>|<)\s*(?<value>[\S]+)$/.exec(lastFragment);
-        if (valueResult) {
-          const confirmField = valueResult.groups.field;
-          const valueMap = this.dropdownData[confirmField];
-          if (valueMap) {
-            const inputValue = valueResult.groups.value;
-            this.valueList = this.getValueList(valueMap).filter(item => item.includes(inputValue));
-            this.showWhichDropdown(this.valueList.length ? 'Value' : undefined);
-          } else {
-            this.showWhichDropdown();
-            this.valueList.splice(0);
-          }
-          return;
-        }
-        // 一组条件输入完毕【age:18 】提示继续增加条件 AND OR
-        if (/^\s*(?<field>[\w.]+)\s*(:|>=|<=|>|<)\s*(?<value>[\S]+)\s+$/.test(lastFragment)) {
-          this.showWhichDropdown('Continue');
-          return;
-        }
-        this.showWhichDropdown();
-      },
-      /**
-       * 显示哪个下拉列表
-       * @param {String} [param]
-       */
-      showWhichDropdown(param) {
-        const types = ['Fields', 'Value', 'Colon', 'Continue'];
-        for (const type of types) {
-          const key = `show${type}`;
-          this[key] = type === param;
-        }
-        this.activeIndex = null;
-      },
-      /**
-       * 获取某个字段可选的值列表
-       * @param {Object} valueMap
-       * @return {string[]}
-       */
-      getValueList(valueMap) {
-        // if (valueMap.__fieldType === 'string') {
-        //   return Object.keys(valueMap).map(item => `"${item}"`);
-        // }
-        // return Object.keys(valueMap);
-        let valueMapList = Object.keys(valueMap);
-        if (valueMap.__fieldType === 'string') {
-          valueMapList = valueMapList // 清除mark标签
-            .map(item => `"${item.replace(/<mark>/g, '').replace(/<\/mark>/g, '')}"`);
-        }
-        return [...new Set(valueMapList)]; // 清除重复的字段
-      },
-      /**
-       * 选择某个可选字段
-       * @param {string} field
-       */
-      handleClickField(field) {
-        this.valueList = this.getValueList(this.dropdownData[field]);
-        const currentValue = this.value;
-        const trimValue = currentValue.trim();
-        if (!trimValue || trimValue === '*') {
-          this.$emit('change', `${field} `);
+      const dropdownList = dropdownEl.querySelectorAll('.list-item');
+      if (code === 'NumpadEnter' || code === 'Enter') {
+        e.preventDefault();
+        if (this.activeIndex !== null) {
+          // enter 选中下拉选项
+          dropdownList[this.activeIndex].click();
         } else {
-          const fragments = currentValue.split(this.separator);
-          if (!fragments[fragments.length - 1].trim()) {
-            // 可能的情况 【name:"arman" AND \s】
-            this.$emit('change', `${currentValue}${field} `);
+          // enter 检索
+          this.closeDropdown();
+        }
+      } else if (code === 'ArrowUp') {
+        if (this.activeIndex) {
+          this.activeIndex -= 1;
+        } else {
+          this.activeIndex = dropdownList.length - 1;
+        }
+        this.calculateScroll(true);
+      } else if (code === 'ArrowDown') {
+        if (this.activeIndex === null || this.activeIndex === dropdownList.length - 1) {
+          this.activeIndex = 0;
+        } else {
+          this.activeIndex += 1;
+        }
+        this.calculateScroll(false);
+      }
+      dropdownList.forEach((item, index) => {
+        if (index === this.activeIndex) {
+          item.classList.add('active');
+        } else {
+          item.classList.remove('active');
+        }
+      });
+    },
+    // 上下键选择项目时滚动到可视区域
+    calculateScroll(alignToTop) {
+      this.$nextTick(() => {
+        // 列表容器
+        const containerEl = this.$refs.dropdownRef;
+        const containerRect = containerEl.getBoundingClientRect();
+        const containerTop = containerRect.top;
+        const containerBottom = containerTop + containerRect.height;
+        // 激活的列表项
+        const itemEl = containerEl.querySelector('.list-item.active');
+        const itemRect = itemEl.getBoundingClientRect();
+        const itemTop = itemRect.top;
+        const itemBottom = itemTop + itemRect.height;
+        // 列表项不在容器可视范围
+        if (itemTop < containerTop || itemBottom > containerBottom) {
+          const currentScrollTop = containerEl.scrollTop;
+          if (alignToTop) {
+            containerEl.scrollTop = currentScrollTop + itemTop - containerTop;
           } else {
-            // 可能的情况【name:"arman" AND ag】【name】
-            this.$emit('change', currentValue.replace(/\s*[\w.]+$/, ` ${field} `));
+            containerEl.scrollTop = currentScrollTop + itemBottom - containerBottom;
           }
         }
-        this.showWhichDropdown('Colon');
-        this.showOperator = this.isNumTypeField(field);
-      },
-      /**
-       * 选择 : 或者 :*
-       * @param {string} type
-       */
-      handleClickColon(type) {
-        this.$emit('change', `${this.value + type} `);
-        this.$nextTick(() => {
-          this.calculateDropdown();
+      });
+    },
+    handleBlur(val) {
+      this.$emit('keywordBlurUpdate', this.value);
+      setTimeout(() => {
+        this.$emit('isCanSearch', true);
+      }, 100);
+      // 非自动搜索时 鼠标失焦后 判断语句是否出错
+      this.blurTimer && clearTimeout(this.blurTimer);
+      this.blurTimer = setTimeout(() => {
+        if (this.shouldHandleBlur || this.isKeywordsError) this.handleCheckKeywords(val.trim()); // 检查语句是否有错误;
+      }, 200);
+      // 如果当前有点击收藏且有选择表单模式的key时 监听新输入的检索语句判断
+      if (this.isShowUiType) this.$emit('inputBlur', val);
+
+      if (this.isSearchRecord || !this.isAutoQuery) return;
+      // blur 时检索
+      // 下拉菜单 click 时也会触发 blur 事件，但是不执行检索相关逻辑
+      // 下拉菜单 click 事件在 blur 事件触发后 100+ms 后触发
+      // 所以 blur 事件回调延迟 200ms 执行，让 click 事件执行后才确认如何执行
+      this.blurTimer && clearTimeout(this.blurTimer);
+      this.blurTimer = setTimeout(async () => {
+        if (this.shouldHandleBlur) {
+          // 非点击下拉触发的 blur 事件
+          this.showDropdown = false;
+          // 自动搜索时 先判断语句是否出错 如果出错 则提示出错原因 且不进行请求
+          if (this.retrievedKeyword !== val.trim() || this.isKeywordsError) {
+            const isCanSearch = await this.handleCheckKeywords(val.trim());
+            if (isCanSearch) this.handleRetrieve();
+          }
+        } else {
+          // 点击了下拉菜单，会再次聚焦
+        }
+      }, 200);
+    },
+    handleRefreshKeywords() {
+      // 替换语句
+      this.$emit('change', this.resetKeyword);
+      this.resetKeyword = '';
+      this.isKeywordsError = false;
+      this.keywordIsResolved = false;
+      this.keywordErrorMessage = '';
+      this.$emit('isCanSearch', true);
+      if (this.isAutoQuery) this.handleRetrieve();
+    },
+    async handleCheckKeywords(keyword) {
+      // 检查检索语句是否有误
+      if (keyword === '') keyword = '*';
+      try {
+        const { data } = await this.$http.request('favorite/checkKeywords', {
+          data: {
+            keyword,
+            fields: this.getCheckKeywordsFields,
+          },
         });
-      },
-      /**
-       * 选择某个字段可选值
-       * @param {string} value
-       */
-      handleClickValue(value) {
-        // 当前输入值可能的情况 【name:"a】【age:】
-        this.$emit(
-          'change',
-          this.value.replace(/(:|>=|<=|>|<)\s*[\S]*$/, (match1, matchOperator) => {
-            return `${matchOperator} ${value} `;
-          }),
-        );
-        this.showWhichDropdown('Continue');
-      },
-      /**
-       * 选择 AND 或者 OR
-       * @param {string} type
-       */
-      handleClickContinue(type) {
-        this.$emit('change', `${this.value + type} `);
+        this.isKeywordsError = !data.is_legal;
+        this.keywordIsResolved = data.is_resolved;
+        this.keywordErrorMessage = data.message;
+        this.resetKeyword = data.keyword;
+        this.$emit('isCanSearch', data.is_legal);
+        return data.is_legal || data.is_resolved;
+      } catch (error) {
+        return true;
+      }
+    },
+    closeDropdown() {
+      this.showDropdown = false;
+      this.handleBlur(this.$refs.editorElement.editor.getValue());
+    },
+
+    // 根据当前输入关键字计算提示内容
+    calculateDropdown() {
+      if (!this.originFieldList.length) {
+        return;
+      }
+      const { value } = this;
+      const trimValue = value.trim();
+      const lastFragments = value.split(this.separator);
+      const lastFragment = lastFragments[lastFragments.length - 1];
+      // 以 name:"arman" OR age:18 为例，还没开始输入字段
+      if (
+        !trimValue ||
+        trimValue === '*' ||
+        /\s+AND\s+$/.test(value) ||
+        /\s+OR\s+$/.test(value) ||
+        /\s+and\s+$/.test(value) ||
+        /\s+or\s+$/.test(value)
+      ) {
         this.showWhichDropdown('Fields');
         this.fieldList = [...this.originFieldList];
-      },
-      /**
-       * @desc: 当前是否是数字类型字段
-       * @param {string} fieldStr 字段名
-       * @returns {boolean}
-       */
-      isNumTypeField(fieldStr = '') {
-        return this.getNumTypeFieldList.includes(fieldStr);
-      },
+        return;
+      }
+      // 开始输入字段【nam】
+      const inputField = /^\s*(?<field>[\w.]+)$/.exec(lastFragment)?.groups.field;
+      if (inputField) {
+        this.fieldList = this.originFieldList.filter(item => {
+          if (item.includes(inputField)) {
+            if (item === inputField) {
+              // 完全匹配字段同时和 : :* 选项
+              this.showColon = true;
+              this.showOperator = this.isNumTypeField(inputField.trim());
+            }
+            return true;
+          }
+        });
+        this.showWhichDropdown(this.fieldList.length ? 'Fields' : undefined);
+        return;
+      }
+      // 字段输入完毕【name 】
+      if (/^\s*(?<field>[\w.]+)\s*$/.test(lastFragment)) {
+        this.showWhichDropdown('Colon');
+        this.showOperator = this.isNumTypeField(lastFragment.trim());
+        return;
+      }
+      // 准备输入值【name:】
+      const confirmField = /^\s*(?<field>[\w.]+)\s*(:|>=|<=|>|<)\s*$/.exec(lastFragment)?.groups.field;
+      if (confirmField) {
+        const valueMap = this.dropdownData[confirmField];
+        if (valueMap) {
+          this.showWhichDropdown('Value');
+          this.valueList = this.getValueList(valueMap);
+        } else {
+          this.showWhichDropdown();
+          this.valueList.splice(0);
+        }
+        return;
+      }
+      // 正在输入值【age:1】注意后面没有空格，匹配字段对应值
+      const valueResult = /^\s*(?<field>[\w.]+)\s*(:|>=|<=|>|<)\s*(?<value>[\S]+)$/.exec(lastFragment);
+      if (valueResult) {
+        const confirmField = valueResult.groups.field;
+        const valueMap = this.dropdownData[confirmField];
+        if (valueMap) {
+          const inputValue = valueResult.groups.value;
+          this.valueList = this.getValueList(valueMap).filter(item => item.includes(inputValue));
+          this.showWhichDropdown(this.valueList.length ? 'Value' : undefined);
+        } else {
+          this.showWhichDropdown();
+          this.valueList.splice(0);
+        }
+        return;
+      }
+      // 一组条件输入完毕【age:18 】提示继续增加条件 AND OR
+      if (/^\s*(?<field>[\w.]+)\s*(:|>=|<=|>|<)\s*(?<value>[\S]+)\s+$/.test(lastFragment)) {
+        this.showWhichDropdown('Continue');
+        return;
+      }
+      this.showWhichDropdown();
     },
-  };
+    /**
+     * 显示哪个下拉列表
+     * @param {String} [param]
+     */
+    showWhichDropdown(param) {
+      const types = ['Fields', 'Value', 'Colon', 'Continue'];
+      for (const type of types) {
+        const key = `show${type}`;
+        this[key] = type === param;
+      }
+      this.activeIndex = null;
+    },
+    /**
+     * 获取某个字段可选的值列表
+     * @param {Object} valueMap
+     * @return {string[]}
+     */
+    getValueList(valueMap) {
+      // if (valueMap.__fieldType === 'string') {
+      //   return Object.keys(valueMap).map(item => `"${item}"`);
+      // }
+      // return Object.keys(valueMap);
+      let valueMapList = Object.keys(valueMap);
+      if (valueMap.__fieldType === 'string') {
+        valueMapList = valueMapList // 清除mark标签
+          .map(item => `"${item.replace(/<mark>/g, '').replace(/<\/mark>/g, '')}"`);
+      }
+      return [...new Set(valueMapList)]; // 清除重复的字段
+    },
+    /**
+     * 选择某个可选字段
+     * @param {string} field
+     */
+    handleClickField(field) {
+      this.valueList = this.getValueList(this.dropdownData[field]);
+      const currentValue = this.value;
+      const trimValue = currentValue.trim();
+      if (!trimValue || trimValue === '*') {
+        this.$emit('change', `${field} `);
+      } else {
+        const fragments = currentValue.split(this.separator);
+        if (!fragments[fragments.length - 1].trim()) {
+          // 可能的情况 【name:"arman" AND \s】
+          this.$emit('change', `${currentValue}${field} `);
+        } else {
+          // 可能的情况【name:"arman" AND ag】【name】
+          this.$emit('change', currentValue.replace(/\s*[\w.]+$/, ` ${field} `));
+        }
+      }
+      this.showWhichDropdown('Colon');
+      this.showOperator = this.isNumTypeField(field);
+    },
+    /**
+     * 选择 : 或者 :*
+     * @param {string} type
+     */
+    handleClickColon(type) {
+      this.$emit('change', `${this.value + type} `);
+      this.$nextTick(() => {
+        this.calculateDropdown();
+      });
+    },
+    /**
+     * 选择某个字段可选值
+     * @param {string} value
+     */
+    handleClickValue(value) {
+      // 当前输入值可能的情况 【name:"a】【age:】
+      this.$emit(
+        'change',
+        this.value.replace(/(:|>=|<=|>|<)\s*[\S]*$/, (match1, matchOperator) => {
+          return `${matchOperator} ${value} `;
+        })
+      );
+      this.showWhichDropdown('Continue');
+    },
+    /**
+     * 选择 AND 或者 OR
+     * @param {string} type
+     */
+    handleClickContinue(type) {
+      this.$emit('change', `${this.value + type} `);
+      this.showWhichDropdown('Fields');
+      this.fieldList = [...this.originFieldList];
+    },
+    /**
+     * @desc: 当前是否是数字类型字段
+     * @param {string} fieldStr 字段名
+     * @returns {boolean}
+     */
+    isNumTypeField(fieldStr = '') {
+      return this.getNumTypeFieldList.includes(fieldStr);
+    },
+  },
+};
 </script>
 
 <style lang="scss" scoped>

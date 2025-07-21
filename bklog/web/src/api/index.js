@@ -76,7 +76,7 @@ axiosInstance.interceptors.request.use(
     // }
     return config;
   },
-  error => Promise.reject(error),
+  error => Promise.reject(error)
 );
 
 /**
@@ -121,7 +121,7 @@ axiosInstance.interceptors.response.use(
       }
 
       return Promise.reject(new Error(`${e}`));
-    }
+    };
     if (error?.response?.data instanceof Blob) {
       return readBlobRespToJson(error.response.data).then(resp => {
         return handleReject(
@@ -136,7 +136,7 @@ axiosInstance.interceptors.response.use(
     }
 
     return handleReject(error, { globalError: true, catchIsShowMessage: true, ...error.config }, reject);
-  },
+  }
 );
 
 const http = {

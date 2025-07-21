@@ -53,7 +53,7 @@ export default class UserConfigMixin extends Vue {
   //   return window.space_list.some(item => +item.id === +window.cc_biz_id);
   // }
   // if (!space.permission?.[authorityMap.VIEW_BUSINESS]) return;
-  
+
   /**1
    * @description: 获取用户个性化配置
    * @param {string} key key
@@ -61,7 +61,7 @@ export default class UserConfigMixin extends Vue {
    */
   public async handleGetUserConfig<T>(
     key: string,
-    config: Record<string, any> = { reject403: true },
+    config: Record<string, any> = { reject403: true }
   ): Promise<T | undefined> {
     // if (!this.hasBusinessAuth) return undefined;
     // 获取用户个性化配置项（默认bizId）

@@ -261,21 +261,14 @@
 </template>
 
 <script setup>
-import {
-  defineProps,
-  defineEmits,
-  computed,
-  ref,
-  nextTick,
-  watch,
-} from "vue";
-import { bkInfoBox } from "bk-magic-vue";
-import $http from "@/api";
-import useStore from "@/hooks/use-store";
-import useLocale from "@/hooks/use-locale";
-import BatchOperationMenu from "./batch-operation-menu";
-import FavoriteDetail from "./favorite-detail";
-import dayjs from "dayjs";
+import { defineProps, defineEmits, computed, ref, nextTick, watch } from 'vue';
+import { bkInfoBox } from 'bk-magic-vue';
+import $http from '@/api';
+import useStore from '@/hooks/use-store';
+import useLocale from '@/hooks/use-locale';
+import BatchOperationMenu from './batch-operation-menu';
+import FavoriteDetail from './favorite-detail';
+import dayjs from 'dayjs';
 const props = defineProps({
   modelValue: {
     type: Boolean,
@@ -283,18 +276,18 @@ const props = defineProps({
   },
 });
 
-const emit = defineEmits(["close"]);
+const emit = defineEmits(['close']);
 const store = useStore();
 const { $t } = useLocale();
 const spaceUid = computed(() => store.state.spaceUid);
 const groups = computed(() => {
-  return localFavoriteList.value.map((item) => ({
+  return localFavoriteList.value.map(item => ({
     id: item.id,
     name: item.name,
   }));
 });
 const searchResultGroupList = computed(() => {
-  return otherGroupList.value.filter((group) => {
+  return otherGroupList.value.filter(group => {
     return group.name.includes(groupSearchValue.value);
   });
 });
@@ -312,9 +305,9 @@ const tableFilters = computed(() => {
   }
 
   return {
-    names: Object.values(names).map((text) => ({ text, value: text })),
-    groups: Object.values(groups).map((value) => {
-      const group = localFavoriteList.value.find((g) => g.id === value);
+    names: Object.values(names).map(text => ({ text, value: text })),
+    groups: Object.values(groups).map(value => {
+      const group = localFavoriteList.value.find(g => g.id === value);
       return {
         text: group?.name,
         value: group?.name,
@@ -322,13 +315,13 @@ const tableFilters = computed(() => {
     }),
   };
 });
-const curSelectGroup = ref("all");
-const groupSearchValue = ref("");
-const favoriteSearchValue = ref("");
+const curSelectGroup = ref('all');
+const groupSearchValue = ref('');
+const favoriteSearchValue = ref('');
 const curClickRow = ref(null);
 const curHoverRowIndex = ref(-1);
 const selectFavoriteList = ref([]);
-const addGroupData = ref({ name: "" });
+const addGroupData = ref({ name: '' });
 const localFavoriteList = ref([]);
 const allGroupList = ref([]);
 const noGroupList = ref([]);
@@ -336,7 +329,7 @@ const otherGroupList = ref([]);
 
 const privateFavorite = ref([]);
 const searchResultFavorites = ref([]);
-const favoriteType = ref("event");
+const favoriteType = ref('event');
 
 const addGroupPopoverRef = ref(null);
 const checkInputFormRef = ref(null);
@@ -346,38 +339,48 @@ const editFavoriteNameSelectRef = ref(null);
 
 const rules = {
   name: [
-    { validator: () => /^[\u4e00-\u9fa5\w\s\-\+]+$/.test(addGroupData.value.name), message: $t("组名不规范"), trigger: "blur" },
-    { validator:  () => !localFavoriteList.value.some((item) => item.name === addGroupData.value.name), message: $t("名称冲突"), trigger: "blur" },
-    { required: true, message: $t("必填项"), trigger: "blur" },
-    { max: 30, message: $t("最大30字符"), trigger: "blur" },
+    {
+      validator: () => /^[\u4e00-\u9fa5\w\s\-\+]+$/.test(addGroupData.value.name),
+      message: $t('组名不规范'),
+      trigger: 'blur',
+    },
+    {
+      validator: () => !localFavoriteList.value.some(item => item.name === addGroupData.value.name),
+      message: $t('名称冲突'),
+      trigger: 'blur',
+    },
+    { required: true, message: $t('必填项'), trigger: 'blur' },
+    { max: 30, message: $t('最大30字符'), trigger: 'blur' },
   ],
 };
 
-
-watch(() => [props.modelValue], () => {
-  if (props.modelValue) {
-    window.addEventListener("keydown", handleKeydown);
-  } else {
-    nextTick(() => {
-      window.removeEventListener("keydown", handleKeydown);
-    })
+watch(
+  () => [props.modelValue],
+  () => {
+    if (props.modelValue) {
+      window.addEventListener('keydown', handleKeydown);
+    } else {
+      nextTick(() => {
+        window.removeEventListener('keydown', handleKeydown);
+      });
+    }
   }
-})
+);
 
 watch(
   allGroupList,
   (newValue, oldValue) => {
     const groupMap = new Map(
-      otherGroupList.value.map((group) => {
+      otherGroupList.value.map(group => {
         return [group.id, { ...group, favorites: [] }];
       })
     );
     const initialOtherGroups = Array.from(groupMap.values());
     const [noGroupItems, privateItems, otherGroupItems] = newValue.reduce(
       (acc, item) => {
-        if (item.group_name === "未分组") {
+        if (item.group_name === '未分组') {
           acc[0].push(item);
-        } else if (item.group_name === "个人收藏") {
+        } else if (item.group_name === '个人收藏') {
           acc[1].push(item);
         } else {
           const group = groupMap.get(item.group_id);
@@ -396,7 +399,7 @@ watch(
   },
   { deep: true }
 );
-const initData = async ( val=true ) => {
+const initData = async (val = true) => {
   if (val) {
     await getGroupList();
     await getFavoriteList();
@@ -404,19 +407,19 @@ const initData = async ( val=true ) => {
 };
 
 const handleShowChange = () => {
-  emit("close", false);
+  emit('close', false);
 };
 /** 获取组列表 */
 const getGroupList = async () => {
   try {
-    const res = await $http.request("favorite/getGroupList", {
+    const res = await $http.request('favorite/getGroupList', {
       query: {
         space_uid: spaceUid.value,
       },
     });
     otherGroupList.value = res.data
-      .filter((item) => item.name !== "未分组" && item.name !== "个人收藏")
-      .map((item) => {
+      .filter(item => item.name !== '未分组' && item.name !== '个人收藏')
+      .map(item => {
         return {
           ...item,
           favorites: [],
@@ -427,20 +430,20 @@ const getGroupList = async () => {
     handleGroupSearch();
   } catch (error) {
     console.warn(error);
-  } 
+  }
 };
 
 /** 获取收藏请求 */
 const getFavoriteList = async () => {
   try {
     // this.tableLoading = true;
-    const res = await $http.request("favorite/getFavoriteList", {
+    const res = await $http.request('favorite/getFavoriteList', {
       query: {
         space_uid: spaceUid.value,
-        order_type: "NAME_ASC",
+        order_type: 'NAME_ASC',
       },
     });
-    const data = res.data.map((item) => {
+    const data = res.data.map(item => {
       return {
         ...item,
         editName: false,
@@ -459,53 +462,51 @@ const getFavoriteList = async () => {
 };
 
 /** 切换分组，获取收藏列表 */
-const handleSelectGroupChange = (id) => {
+const handleSelectGroupChange = id => {
   curSelectGroup.value = id;
   selectFavoriteList.value = [];
   let curSelectGroupFavorites = [];
 
   switch (id) {
-    case "all":
+    case 'all':
       curSelectGroupFavorites = allGroupList.value;
       break;
-    case "noGroup":
+    case 'noGroup':
       curSelectGroupFavorites = noGroupList.value;
       break;
-    case "private":
+    case 'private':
       curSelectGroupFavorites = privateFavorite.value;
       break;
     default:
-      curSelectGroupFavorites =
-        otherGroupList.value.find((item) => item.id === id)?.favorites || [];
+      curSelectGroupFavorites = otherGroupList.value.find(item => item.id === id)?.favorites || [];
   }
 
-  searchResultFavorites.value = curSelectGroupFavorites.map((favorite) => ({
+  searchResultFavorites.value = curSelectGroupFavorites.map(favorite => ({
     ...favorite,
     editName: false,
     editGroup: false,
-    groupName: localFavoriteList.value.find((item) => item.id === favorite.group_id)
-      ?.name,
+    groupName: localFavoriteList.value.find(item => item.id === favorite.group_id)?.name,
   }));
 };
 /** 组搜索 */
 const handleGroupSearch = () => {};
 /** 收藏列表搜索 */
 const handleFavoriteSearch = () => {
-  searchResultFavorites.value = searchResultFavorites.value.filter((favorite) =>
+  searchResultFavorites.value = searchResultFavorites.value.filter(favorite =>
     favorite.name.includes(favoriteSearchValue.value)
   );
 };
 /** 删除单个收藏 */
-const handleDelete = (row) => {
+const handleDelete = row => {
   bkInfoBox({
-    subTitle: $t("当前收藏名为 {n}，确认是否删除？", { n: row.name }),
-    type: "warning",
+    subTitle: $t('当前收藏名为 {n}，确认是否删除？', { n: row.name }),
+    type: 'warning',
     confirmFn: async () => {
-      const res = await $http.request("favorite/deleteFavorite", {
+      const res = await $http.request('favorite/deleteFavorite', {
         params: { favorite_id: row.id },
       });
       if (res.result) {
-        allGroupList.value = allGroupList.value.filter((item) => item.id !== row.id);
+        allGroupList.value = allGroupList.value.filter(item => item.id !== row.id);
       }
     },
   });
@@ -513,12 +514,12 @@ const handleDelete = (row) => {
 /** 添加行类名 */
 const getRowClassName = ({ row, rowIndex }) => {
   const styles = [];
-  if (row.id === curClickRow.value?.id) styles.push("row-click");
-  if (rowIndex === curHoverRowIndex.value) styles.push("row-hover");
-  return styles.join(" ");
+  if (row.id === curClickRow.value?.id) styles.push('row-click');
+  if (rowIndex === curHoverRowIndex.value) styles.push('row-hover');
+  return styles.join(' ');
 };
 
-const handleTableSelectionChange = (selection) => {
+const handleTableSelectionChange = selection => {
   selectFavoriteList.value = selection;
 };
 /** 添加分组 */
@@ -526,10 +527,9 @@ const handleAddGroupConfirm = async () => {
   try {
     await checkInputFormRef.value.validate();
     const data = { name: addGroupData.value.name, space_uid: spaceUid.value };
-    await $http
-      .request(`favorite/createGroup`, {
-        data,
-      })
+    await $http.request(`favorite/createGroup`, {
+      data,
+    });
 
     handleAddGroupPopoverHidden();
     initData();
@@ -539,13 +539,13 @@ const handleAddGroupConfirm = async () => {
 };
 /** 隐藏添加分组popover */
 const handleAddGroupPopoverHidden = (close = true) => {
-  addGroupData.value.name = "";
+  addGroupData.value.name = '';
   checkInputFormRef.value?.clearError();
   if (close) {
     addGroupPopoverRef.value?.hideHandler();
   }
 };
-const handleEditGroup = (row) => {
+const handleEditGroup = row => {
   row.editGroup = true;
   for (const favorite of searchResultFavorites.value) {
     if (favorite.id !== row.id) {
@@ -556,18 +556,18 @@ const handleEditGroup = (row) => {
     editFavoriteNameSelectRef?.value.show();
   });
 };
-const handleEditName = (row) => {
+const handleEditName = row => {
   row.editName = true;
   row.editGroup = false;
   nextTick(() => {
     editFavoriteNameInputRef?.value.focus();
   });
 };
-const handleToggle = (val,row) => {
-  if(!val){
+const handleToggle = (val, row) => {
+  if (!val) {
     row.editGroup = false;
   }
-}
+};
 const handleEditFavoriteName = (val, row) => {
   if (val !== row.name) {
     const updatedRow = {
@@ -594,19 +594,17 @@ const handleEditFavoriteGroup = (val, row) => {
     handleUpdateFavorite(updatedRow).then(() => {
       row.editGroup = false;
       row.group_id = JSON.parse(val);
-      row.group_name = localFavoriteList.value.find(
-        (item) => item.id === JSON.parse(val)
-      )?.name;
+      row.group_name = localFavoriteList.value.find(item => item.id === JSON.parse(val))?.name;
       curClickRow.value = row;
     });
   }
 };
-const handleKeydown = (event) => {
-  if (event.key === "Escape" || event.key === "Esc") {
+const handleKeydown = event => {
+  if (event.key === 'Escape' || event.key === 'Esc') {
     handleShowChange(false);
   }
 };
-const handleUpdateFavorite = async (row) => {
+const handleUpdateFavorite = async row => {
   const params = [
     {
       id: row.id,
@@ -624,7 +622,7 @@ const handleUpdateFavorite = async (row) => {
   ];
 
   return $http
-    .request("favorite/batchFavoriteUpdate", {
+    .request('favorite/batchFavoriteUpdate', {
       data: {
         params,
       },
@@ -632,49 +630,47 @@ const handleUpdateFavorite = async (row) => {
     .then(() => {
       return Promise.resolve(true);
     })
-    .catch((error) => {
-      console.error("Batch update failed", error);
+    .catch(error => {
+      console.error('Batch update failed', error);
       return Promise.reject(error);
     });
 };
-const handleDetailUpdate = (params) => {
+const handleDetailUpdate = params => {
   curClickRow.value = params;
   handleOperateChange(params);
 };
 const handleDetailClose = () => {
   curClickRow.value = null;
-}
+};
 // 修改分组
-const handleOperateChange = (data) => {
+const handleOperateChange = data => {
   const updateDataInList = (list, data) => {
-    return list.map((item) => (item.id === data.id ? data : item));
+    return list.map(item => (item.id === data.id ? data : item));
   };
   allGroupList.value = updateDataInList(allGroupList.value, data);
   searchResultFavorites.value = updateDataInList(searchResultFavorites.value, data);
 };
 // 批量编辑分组
-const handleBatchUpdateGroup = async(groupId) => {
+const handleBatchUpdateGroup = async groupId => {
   await initData();
-  curSelectGroup.value = 'all'
-  const selectIds = selectFavoriteList.value.map((item) => item.id);
+  curSelectGroup.value = 'all';
+  const selectIds = selectFavoriteList.value.map(item => item.id);
   if (!groupId) {
-    const updateDataInList = (list) => {
-      return list.filter((item) => {
+    const updateDataInList = list => {
+      return list.filter(item => {
         return !selectIds.includes(item.id);
       });
     };
     allGroupList.value = updateDataInList(allGroupList.value);
     searchResultFavorites.value = updateDataInList(searchResultFavorites.value);
   } else {
-    const updateDataInList = (list) => {
-      return list.map((item) => {
+    const updateDataInList = list => {
+      return list.map(item => {
         if (selectIds.includes(item.id)) {
           return {
             ...item,
             group_id: JSON.parse(groupId),
-            group_name: localFavoriteList.value.find(
-              (item) => item.id === JSON.parse(groupId)
-            )?.name,
+            group_name: localFavoriteList.value.find(item => item.id === JSON.parse(groupId))?.name,
           };
         } else {
           return item;
