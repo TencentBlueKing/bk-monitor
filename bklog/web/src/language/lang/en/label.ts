@@ -249,6 +249,7 @@ export default {
   研发项目: 'BK-CI',
   容器项目: 'BCS',
   汇聚周期: 'Convergence cycle',
+  回退: 'Back',
   过滤条件: 'Filter conditions',
   字段过滤: 'Field filtering',
   可选字段: 'Available Fields',
