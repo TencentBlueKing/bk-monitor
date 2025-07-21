@@ -24,21 +24,20 @@
  * IN THE SOFTWARE.
  */
 
-import { computed, defineComponent, onMounted, PropType } from 'vue';
-
 import useLocale from '@/hooks/use-locale';
+import { computed, defineComponent, onMounted, PropType } from 'vue';
 import { useRoute } from 'vue-router/composables';
 
 import { BK_LOG_STORAGE } from '../../../../store/store.type';
+
 // #if MONITOR_APP !== 'apm' && MONITOR_APP !== 'trace'
 import CommonList from './common-list';
 // #else
 // #code const CommonList = () => null;
+import './content.scss';
 // #endif
 import IndexSetList from './index-set-list';
 import useChoice, { IndexSetType } from './use-choice';
-
-import './content.scss';
 
 export default defineComponent({
   props: {
@@ -77,17 +76,17 @@ export default defineComponent({
     const route = useRoute();
 
     const {
-      requestHistoryList,
-      requestFavoriteList,
-      handleHistoryItemClick,
-      handleValueChange,
-      handleDeleteHistory,
       cancelFavorite,
       favoriteIndexSet,
-      historyLoading,
-      favoriteLoading,
       favoriteList,
+      favoriteLoading,
+      handleDeleteHistory,
+      handleHistoryItemClick,
+      handleValueChange,
       historyList,
+      historyLoading,
+      requestFavoriteList,
+      requestHistoryList,
       unionListValue,
     } = useChoice(props, { emit });
 
@@ -117,14 +116,18 @@ export default defineComponent({
       return unionListValue.value;
     });
 
-    const handleFavoriteItemClick = item => {
+    const handleFavoriteItemClick = (item) => {
       if (item.index_set_type === 'single') {
-        handleValueChange([`${item.index_set_id}`], 'single', item.index_set_id);
+        handleValueChange(
+          [`${item.index_set_id}`],
+          'single',
+          item.index_set_id
+        );
         return;
       }
 
       handleValueChange(
-        item.index_set_ids.map(id => `${id}`),
+        item.index_set_ids.map((id) => `${id}`),
         'union',
         item.id
       );
@@ -151,13 +154,13 @@ export default defineComponent({
       return (
         <IndexSetList
           list={props.list}
+          on-auth-request={(item) => emit('auth-request', item)}
+          on-favorite-change={handleFavoriteChange}
+          on-value-change={handleValueChange}
           spaceUid={props.spaceUid}
           textDir={props.textDir}
           type={indexSetActiveId.value}
           value={currentValue.value}
-          on-auth-request={item => emit('auth-request', item)}
-          on-favorite-change={handleFavoriteChange}
-          on-value-change={handleValueChange}
         ></IndexSetList>
       );
     };
@@ -165,14 +168,18 @@ export default defineComponent({
     // #if MONITOR_APP !== 'apm' && MONITOR_APP !== 'trace'
     const renderHistoryList = () => (
       <CommonList
-        idField='id'
+        idField="id"
         isLoading={historyLoading.value}
         list={historyList.value}
-        nameField={item => (item.index_set_type === 'single' ? 'index_set_name' : 'index_set_names')}
-        type='history'
-        value={historyId.value}
+        nameField={(item) =>
+          item.index_set_type === 'single'
+            ? 'index_set_name'
+            : 'index_set_names'
+        }
         on-delete={handleDeleteHistory}
         on-value-click={handleHistoryItemClick}
+        type="history"
+        value={historyId.value}
       ></CommonList>
     );
 
@@ -182,6 +189,10 @@ export default defineComponent({
      */
     const renderFavoriteList = () => (
       <CommonList
+        idField={(item) =>
+          item.index_set_type === 'single' ? 'index_set_id' : 'id'
+        }
+        isLoading={favoriteLoading.value}
         itemIcon={{
           color: '#F8B64F',
           onClick: (e, item) => {
@@ -189,30 +200,35 @@ export default defineComponent({
             cancelFavorite(item, 'favorite');
           },
         }}
-        idField={item => (item.index_set_type === 'single' ? 'index_set_id' : 'id')}
-        isLoading={favoriteLoading.value}
         list={favoriteList.value}
-        nameField={item => (item.index_set_type === 'single' ? 'index_set_name' : 'name')}
-        showDelItem={false}
-        type='favorite'
-        value={favoriteId.value}
+        nameField={(item) =>
+          item.index_set_type === 'single' ? 'index_set_name' : 'name'
+        }
         on-delete={() => alert('API not support')}
         on-value-click={handleFavoriteItemClick}
+        showDelItem={false}
+        type="favorite"
+        value={favoriteId.value}
       ></CommonList>
     );
     // #endif
 
     const tabList = computed(() => [
-      { name: $t('单选'), id: 'single', render: renderIndexSetList },
-      { name: $t('多选'), id: 'union', render: renderIndexSetList },
+      { id: 'single', name: $t('单选'), render: renderIndexSetList },
+      { id: 'union', name: $t('多选'), render: renderIndexSetList },
       // #if MONITOR_APP !== 'apm' && MONITOR_APP !== 'trace'
-      { name: $t('历史记录'), id: 'history', render: renderHistoryList },
-      { name: $t('我的收藏'), id: 'favorite', render: renderFavoriteList },
+      { id: 'history', name: $t('历史记录'), render: renderHistoryList },
+      { id: 'favorite', name: $t('我的收藏'), render: renderFavoriteList },
       // #endif
     ]);
 
-    const activeTab = computed(() => tabList.value.find(item => item.id === props.activeId));
-    const handleTabItemClick = (e: MouseEvent, item: { name: string; id: string }) => {
+    const activeTab = computed(() =>
+      tabList.value.find((item) => item.id === props.activeId)
+    );
+    const handleTabItemClick = (
+      e: MouseEvent,
+      item: { name: string; id: string }
+    ) => {
       if (item.id === 'history') {
         requestHistoryList();
       }
@@ -239,23 +255,23 @@ export default defineComponent({
     });
 
     return () => (
-      <div
-        style={{ zIndex: props.zIndex }}
-        class='bklog-v3-content-root'
-      >
-        <div class='content-header'>
-          <div class='bklog-v3-tabs'>
-            {tabList.value.map(item => (
+      <div class="bklog-v3-content-root" style={{ zIndex: props.zIndex }}>
+        <div class="content-header">
+          <div class="bklog-v3-tabs">
+            {tabList.value.map((item) => (
               <span
+                class={[
+                  { 'is-active': props.activeId === item.id },
+                  'tab-item',
+                ]}
                 key={item.id}
-                class={[{ 'is-active': props.activeId === item.id }, 'tab-item']}
-                onClick={e => handleTabItemClick(e, item)}
+                onClick={(e) => handleTabItemClick(e, item)}
               >
                 {item.name}
               </span>
             ))}
           </div>
-          <div class='bklog-v3-keys'>
+          <div class="bklog-v3-keys">
             {/* <span class='key-item'>
               <span class='key-code text'>tab</span>
               <span class='key-name'>快速切换标签</span>

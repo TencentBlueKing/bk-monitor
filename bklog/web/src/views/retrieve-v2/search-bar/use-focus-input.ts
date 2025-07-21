@@ -23,30 +23,30 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { ref, watch, onMounted, getCurrentInstance, onUnmounted } from 'vue';
-
 // @ts-ignore
 import { getCharLength } from '@/common/util';
 import { isElement } from 'lodash';
+import { ref, watch, onMounted, getCurrentInstance, onUnmounted } from 'vue';
+
 import PopInstanceUtil from '../../../global/pop-instance-util';
 
 export default (
   props,
   {
+    addInputListener = true,
+    afterShowKeyEnter = undefined,
+    arrow = true,
     formatModelValueItem,
+    handleWrapperClick = undefined,
+    newInstance = true,
+    onHeightChange,
+    onHiddenFn,
+    onInputFocus = undefined,
+    onShowFn,
     refContent,
     refTarget,
     refWrapper,
-    onShowFn,
-    onHiddenFn,
-    arrow = true,
-    newInstance = true,
     tippyOptions = {},
-    onHeightChange,
-    addInputListener = true,
-    handleWrapperClick = undefined,
-    onInputFocus = undefined,
-    afterShowKeyEnter = undefined,
   }
 ) => {
   const modelValue = ref([]);
@@ -61,7 +61,14 @@ export default (
 
   let resizeObserver: ResizeObserver = null;
   const INPUT_MIN_WIDTH = 12;
-  const popInstanceUtil = new PopInstanceUtil({ refContent, onShowFn, onHiddenFn, arrow, newInstance, tippyOptions });
+  const popInstanceUtil = new PopInstanceUtil({
+    arrow,
+    newInstance,
+    onHiddenFn,
+    onShowFn,
+    refContent,
+    tippyOptions,
+  });
 
   const uninstallInstance = () => popInstanceUtil.uninstallInstance();
   const getTippyInstance = () => popInstanceUtil.getTippyInstance();
@@ -69,7 +76,7 @@ export default (
   /**
    * 处理多次点击触发多次请求的事件
    */
-  const delayShowInstance = target => {
+  const delayShowInstance = (target) => {
     popInstanceUtil?.cancelHide();
     popInstanceUtil?.show(target);
   };
@@ -78,7 +85,7 @@ export default (
     isInputTextFocus.value = val;
   };
 
-  const setModelValue = val => {
+  const setModelValue = (val) => {
     if (Array.isArray(val)) {
       modelValue.value = (val ?? []).map(formatModelValueItem);
       return;
@@ -122,7 +129,7 @@ export default (
     }
   };
 
-  const handleFulltextInput = e => {
+  const handleFulltextInput = (e) => {
     const input = getTargetInput();
     if (input !== undefined && e.target === input) {
       const value = input.value;
@@ -130,7 +137,10 @@ export default (
       const maxWidth = 500;
       const width = (charLen || 1) * INPUT_MIN_WIDTH;
 
-      input.style.setProperty('width', `${width > maxWidth ? maxWidth : width}px`);
+      input.style.setProperty(
+        'width',
+        `${width > maxWidth ? maxWidth : width}px`
+      );
     }
   };
 
@@ -151,13 +161,13 @@ export default (
     popInstanceUtil?.hide(180);
   };
 
-  const resizeHeightObserver = target => {
+  const resizeHeightObserver = (target) => {
     if (!target) {
       return;
     }
 
     // 创建一个 ResizeObserver 实例
-    resizeObserver = new ResizeObserver(entries => {
+    resizeObserver = new ResizeObserver((entries) => {
       for (let entry of entries) {
         // 获取元素的新高度
         const newHeight = entry.contentRect.height;
@@ -182,11 +192,12 @@ export default (
     { deep: true, immediate: true }
   );
 
-  const handleWrapperClickCapture = e => {
-    isDocumentMousedown.value = handleWrapperClick?.(e, { getTippyInstance }) ?? true;
+  const handleWrapperClickCapture = (e) => {
+    isDocumentMousedown.value =
+      handleWrapperClick?.(e, { getTippyInstance }) ?? true;
   };
 
-  const setIsDocumentMousedown = val => {
+  const setIsDocumentMousedown = (val) => {
     isDocumentMousedown.value = val;
   };
 
@@ -198,7 +209,7 @@ export default (
     return getRoot();
   };
 
-  const handleKeydown = event => {
+  const handleKeydown = (event) => {
     // 检查按下的键是否是斜杠 "/"（需兼容不同键盘布局）
     const isSlashKey = event.key === '/' || event.keyCode === 191;
     const isEscKey = event.key === 'Escape' || event.keyCode === 27;
@@ -231,7 +242,9 @@ export default (
 
   onMounted(() => {
     instance = getCurrentInstance();
-    document.addEventListener('mousedown', handleWrapperClickCapture, { capture: true });
+    document.addEventListener('mousedown', handleWrapperClickCapture, {
+      capture: true,
+    });
     document?.addEventListener('keydown', handleKeydown);
     document?.addEventListener('click', handleContainerClick);
 
@@ -257,17 +270,17 @@ export default (
   });
 
   return {
-    modelValue,
-    isDocumentMousedown,
-    isInputTextFocus,
-    setIsInputTextFocus,
-    setIsDocumentMousedown,
-    repositionTippyInstance,
-    hideTippyInstance,
+    delayShowInstance,
     getTippyInstance,
     handleContainerClick,
     handleInputBlur,
-    delayShowInstance,
+    hideTippyInstance,
+    isDocumentMousedown,
+    isInputTextFocus,
     isInstanceShown,
+    modelValue,
+    repositionTippyInstance,
+    setIsDocumentMousedown,
+    setIsInputTextFocus,
   };
 };

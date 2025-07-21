@@ -30,12 +30,7 @@
       <div class="text-chart-value">{{ series.value }}</div>
       <div class="text-chart-unit">{{ series.unit }}</div>
     </template>
-    <div
-      v-else
-      class="text-chart-empty"
-    >
-      --
-    </div>
+    <div v-else class="text-chart-empty">--</div>
   </div>
 </template>
 
@@ -58,34 +53,34 @@ export default class TextChart extends Vue {
 </script>
 
 <style lang="scss" scoped>
-  .text-chart {
-    display: flex;
-    flex-wrap: wrap;
-    width: 100%;
-    height: 30px;
-    padding: 0 16px;
-    margin: auto;
+.text-chart {
+  display: flex;
+  flex-wrap: wrap;
+  width: 100%;
+  height: 30px;
+  padding: 0 16px;
+  margin: auto;
 
-    &-value {
-      margin-right: 6px;
-      font-size: 32px;
-      font-weight: 500;
-      line-height: 30px;
-      color: #3a84ff;
-    }
-
-    &-unit {
-      align-self: flex-end;
-      font-size: 12px;
-      line-height: 20px;
-      color: #979ba5;
-    }
-
-    &-empty {
-      margin-left: -16px;
-      font-size: 50px;
-      line-height: 30px;
-      color: #dcdee5;
-    }
+  &-value {
+    margin-right: 6px;
+    font-size: 32px;
+    font-weight: 500;
+    line-height: 30px;
+    color: #3a84ff;
   }
+
+  &-unit {
+    align-self: flex-end;
+    font-size: 12px;
+    line-height: 20px;
+    color: #979ba5;
+  }
+
+  &-empty {
+    margin-left: -16px;
+    font-size: 50px;
+    line-height: 30px;
+    color: #dcdee5;
+  }
+}
 </style>

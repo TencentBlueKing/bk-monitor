@@ -34,18 +34,16 @@
       >
         <span class="bk-icon icon-angle-up-fill"></span>
         <p>{{ tableShowType ? $t('共享集群') : $t('业务独享集群') }}</p>
-        <p
-          v-if="!tableShowType"
-          class="title-tips"
-        >
-          {{ $t('您可以随时切换所选集群。切换集群后，不会造成数据丢失。原数据将在新集群存储时长到期后自动清除。') }}
+        <p v-if="!tableShowType" class="title-tips">
+          {{
+            $t(
+              '您可以随时切换所选集群。切换集群后，不会造成数据丢失。原数据将在新集群存储时长到期后自动清除。'
+            )
+          }}
         </p>
       </div>
     </div>
-    <div
-      class="cluster-main"
-      v-show="isShowTable"
-    >
+    <div class="cluster-main" v-show="isShowTable">
       <template v-if="tableList.length">
         <bk-table
           class="cluster-table"
@@ -60,10 +58,7 @@
           >
             <template #default="{ row }">
               <bk-radio :checked="clusterSelect === row.storage_cluster_id">
-                <div
-                  class="overflow-tips"
-                  v-bk-overflow-tips
-                >
+                <div class="overflow-tips" v-bk-overflow-tips>
                   <span @click.stop>{{ row.storage_cluster_name }}</span>
                 </div>
               </bk-radio>
@@ -109,15 +104,9 @@
           >
           </bk-table-column>
         </bk-table>
-        <div
-          class="cluster-illustrate"
-          v-show="!!activeItem"
-        >
+        <div class="cluster-illustrate" v-show="!!activeItem">
           <p class="illustrate-title">{{ $t('说明') }}</p>
-          <div
-            class="illustrate-container"
-            v-en-class="'en-container'"
-          >
+          <div class="illustrate-container" v-en-class="'en-container'">
             <div
               v-for="[key, value] of Object.entries(illustrateLabelData)"
               :key="key"
@@ -134,10 +123,7 @@
       <template v-else>
         <div class="noData-container">
           <div slot="empty">
-            <empty-status
-              :show-text="false"
-              empty-type="empty"
-            >
+            <empty-status :show-text="false" empty-type="empty">
               <div class="noData-message">
                 <p class="empty-message">
                   {{
@@ -217,13 +203,21 @@ export default {
     storageClusterId(val) {
       if (val === undefined) return;
       this.clusterSelect = val;
-      this.activeItem = this.tableList.find(item => item.storage_cluster_id === val);
+      this.activeItem = this.tableList.find(
+        (item) => item.storage_cluster_id === val
+      );
       if (!!this.activeItem) {
-        const { number_of_replicas_max: replicasMax, retention_days_max: daysMax } = this.activeItem.setup_config;
-        const { enable_hot_warm: hotWarm, enable_archive: archive } = this.activeItem;
+        const {
+          number_of_replicas_max: replicasMax,
+          retention_days_max: daysMax,
+        } = this.activeItem.setup_config;
+        const { enable_hot_warm: hotWarm, enable_archive: archive } =
+          this.activeItem;
         this.illustrateLabelData = {
-          [this.$t('副本数')]: `${this.$t('最大')} ${replicasMax} ${this.$t('个')}`,
-          [this.$t('过期时间')]: `${this.$t('最大')} ${daysMax} ${this.$t('天')}`,
+          [this.$t('副本数')]:
+            `${this.$t('最大')} ${replicasMax} ${this.$t('个')}`,
+          [this.$t('过期时间')]:
+            `${this.$t('最大')} ${daysMax} ${this.$t('天')}`,
           [this.$t('热冷数据')]: hotWarm ? this.$t('支持') : this.$t('不支持'),
           [this.$t('日志归档')]: archive ? this.$t('支持') : this.$t('不支持'),
         };
@@ -244,7 +238,8 @@ export default {
   },
   methods: {
     handleSelectCluster($row) {
-      if (this.throttle || this.storageClusterId === $row.storage_cluster_id) return;
+      if (this.throttle || this.storageClusterId === $row.storage_cluster_id)
+        return;
 
       this.throttle = true;
       setTimeout(() => {
@@ -274,158 +269,158 @@ export default {
 };
 </script>
 <style lang="scss" scoped>
-  @import '@/scss/mixins/flex.scss';
-  @import '@/scss/mixins/overflow-tips.scss';
+@import '@/scss/mixins/flex.scss';
+@import '@/scss/mixins/overflow-tips.scss';
 
-  .cluster-container {
-    min-width: 900px;
-    line-height: 14px;
+.cluster-container {
+  min-width: 900px;
+  line-height: 14px;
 
-    .overflow-tips {
-      display: inline-block;
-      transform: translateY(2px);
+  .overflow-tips {
+    display: inline-block;
+    transform: translateY(2px);
 
-      @include overflow-tips;
-    }
+    @include overflow-tips;
+  }
 
-    .cluster-title {
-      width: 100%;
-      height: 32px;
-      font-size: 12px;
-      color: #626369;
-      background: #eff1f5;
-      border: 1px solid #dcdee5;
-      border-bottom: none;
+  .cluster-title {
+    width: 100%;
+    height: 32px;
+    font-size: 12px;
+    color: #626369;
+    background: #eff1f5;
+    border: 1px solid #dcdee5;
+    border-bottom: none;
 
-      .cluster-title-container {
-        height: 100%;
-        cursor: pointer;
+    .cluster-title-container {
+      height: 100%;
+      cursor: pointer;
 
-        @include flex-align;
+      @include flex-align;
+
+      .icon-angle-up-fill {
+        margin: 0 10px;
+        font-size: 16px;
+      }
+
+      .title-tips {
+        margin-left: 12px;
+        color: #3a84ff;
+      }
+
+      &.is-active {
+        border-bottom: 1px solid #dcdee5;
 
         .icon-angle-up-fill {
-          margin: 0 10px;
-          font-size: 16px;
-        }
-
-        .title-tips {
-          margin-left: 12px;
-          color: #3a84ff;
-        }
-
-        &.is-active {
-          border-bottom: 1px solid #dcdee5;
-
-          .icon-angle-up-fill {
-            transform: rotateZ(-90deg);
-          }
+          transform: rotateZ(-90deg);
         }
       }
     }
+  }
 
-    .cluster-main {
-      display: flex;
-      min-height: 170px;
+  .cluster-main {
+    display: flex;
+    min-height: 170px;
 
-      .cluster-table {
-        width: 58%;
-        min-width: 420px;
+    .cluster-table {
+      width: 58%;
+      min-width: 420px;
+    }
+
+    .cluster-illustrate {
+      width: 42%;
+      min-width: 460px;
+      max-height: 254px;
+      padding: 16px;
+      overflow: hidden;
+      font-size: 12px;
+      border: 1px solid #dcdee5;
+      border-left: none;
+
+      .illustrate-title {
+        font-weight: 700;
+        color: #63656e;
       }
 
-      .cluster-illustrate {
-        width: 42%;
-        min-width: 460px;
-        max-height: 254px;
-        padding: 16px;
-        overflow: hidden;
+      .illustrate-container {
+        padding: 12px 0;
+        border-bottom: 1px solid #eee;
+
+        @include flex-justify(space-between);
+
+        &.en-container div {
+          display: flex;
+          flex-wrap: wrap;
+        }
+      }
+
+      .illustrate-label {
+        color: #979ba5;
+      }
+
+      .illustrate-value {
+        color: #313238;
+      }
+
+      .illustrate-list {
+        height: calc(100% - 46px);
+        overflow-y: auto;
+        color: #63656e;
+      }
+    }
+
+    .noData-container {
+      width: 100%;
+      border: 1px solid #dcdee5;
+
+      @include flex-center;
+
+      .noData-message {
+        flex-direction: column;
+        padding: 20px 0;
         font-size: 12px;
-        border: 1px solid #dcdee5;
-        border-left: none;
-
-        .illustrate-title {
-          font-weight: 700;
-          color: #63656e;
-        }
-
-        .illustrate-container {
-          padding: 12px 0;
-          border-bottom: 1px solid #eee;
-
-          @include flex-justify(space-between);
-
-          &.en-container div {
-            display: flex;
-            flex-wrap: wrap;
-          }
-        }
-
-        .illustrate-label {
-          color: #979ba5;
-        }
-
-        .illustrate-value {
-          color: #313238;
-        }
-
-        .illustrate-list {
-          height: calc(100% - 46px);
-          overflow-y: auto;
-          color: #63656e;
-        }
-      }
-
-      .noData-container {
-        width: 100%;
-        border: 1px solid #dcdee5;
 
         @include flex-center;
 
-        .noData-message {
-          flex-direction: column;
-          padding: 20px 0;
-          font-size: 12px;
-
-          @include flex-center;
-
-          .empty-message {
-            margin-bottom: 6px;
-            color: #63656e;
-          }
-        }
-
-        .icon-empty {
-          font-size: 65px;
-          color: #c3cdd7;
+        .empty-message {
+          margin-bottom: 6px;
+          color: #63656e;
         }
       }
 
-      .percent {
-        display: flex;
-        align-items: center;
+      .icon-empty {
+        font-size: 65px;
+        color: #c3cdd7;
+      }
+    }
 
-        .percent-progress {
-          width: 40px;
-          margin-right: 4px;
-        }
+    .percent {
+      display: flex;
+      align-items: center;
+
+      .percent-progress {
+        width: 40px;
+        margin-right: 4px;
       }
     }
   }
+}
 
-  :deep(.bk-form-radio) {
-    display: flex;
-    align-items: center;
-    white-space: nowrap;
+:deep(.bk-form-radio) {
+  display: flex;
+  align-items: center;
+  white-space: nowrap;
 
-    & > input[type='radio'] {
-      /* stylelint-disable-next-line declaration-no-important */
-      display: block !important;
-      min-width: 16px;
-    }
+  & > input[type='radio'] {
+    /* stylelint-disable-next-line declaration-no-important */
+    display: block !important;
+    min-width: 16px;
   }
+}
 
-  :deep(.bk-radio-text) {
-    display: inline;
-    width: 100%;
-    font-size: 12px;
-  }
+:deep(.bk-radio-text) {
+  display: inline;
+  width: 100%;
+  font-size: 12px;
+}
 </style>

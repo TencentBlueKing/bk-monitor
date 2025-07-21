@@ -23,9 +23,12 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, ref, onMounted, onUnmounted, watch, PropType } from 'vue';
-
-import { autocompletion, completionKeymap, closeBrackets, closeBracketsKeymap } from '@codemirror/autocomplete';
+import {
+  autocompletion,
+  completionKeymap,
+  closeBrackets,
+  closeBracketsKeymap,
+} from '@codemirror/autocomplete';
 import { history, defaultKeymap, historyKeymap } from '@codemirror/commands';
 import { bracketMatching, indentOnInput } from '@codemirror/language';
 import { searchKeymap, highlightSelectionMatches } from '@codemirror/search';
@@ -40,48 +43,55 @@ import {
   crosshairCursor,
 } from '@codemirror/view';
 import { EditorView } from 'codemirror';
-
-import { grepSyntaxHighlighting } from './grep-highlighter';
+import {
+  defineComponent,
+  ref,
+  onMounted,
+  onUnmounted,
+  watch,
+  PropType,
+} from 'vue';
 
 import './grep-cli-editor.scss';
+import { grepSyntaxHighlighting } from './grep-highlighter';
 
 export default defineComponent({
   name: 'GrepCliEditor',
+  emits: ['change', 'enter'],
   props: {
-    value: {
-      type: String as PropType<string>,
-      default: '',
-    },
-    placeholder: {
-      type: String as PropType<string>,
-      default: '-- INSERT --',
-    },
-    readOnly: {
-      type: Boolean,
-      default: false,
-    },
-    height: {
-      type: String,
-      default: '34px',
-    },
     autoHeight: {
-      type: Boolean,
       default: false,
-    },
-    minHeight: {
-      type: String,
-      default: '34px',
-    },
-    maxHeight: {
-      type: String,
-      default: '200px',
+      type: Boolean,
     },
     enableSyntaxHighlight: {
-      type: Boolean,
       default: true,
+      type: Boolean,
+    },
+    height: {
+      default: '34px',
+      type: String,
+    },
+    maxHeight: {
+      default: '200px',
+      type: String,
+    },
+    minHeight: {
+      default: '34px',
+      type: String,
+    },
+    placeholder: {
+      default: '-- INSERT --',
+      type: String as PropType<string>,
+    },
+    readOnly: {
+      default: false,
+      type: Boolean,
+    },
+    value: {
+      default: '',
+      type: String as PropType<string>,
     },
   },
-  emits: ['change', 'enter'],
   setup(props, { emit }) {
     const editorRef = ref<HTMLDivElement>();
     const currentHeight = ref(props.height);
@@ -89,7 +99,9 @@ export default defineComponent({
 
     // 创建编辑器状态
     const createState = (doc: string) => {
-      const initialHeight = props.autoHeight ? currentHeight.value : props.height;
+      const initialHeight = props.autoHeight
+        ? currentHeight.value
+        : props.height;
 
       // 计算8行的最大高度
       // 字体大小14px，行高1.4，8行 = 14 * 1.4 * 8 = 156.8px
@@ -106,7 +118,7 @@ export default defineComponent({
           {
             key: 'Enter',
             mac: 'Enter',
-            run: view => {
+            run: (view) => {
               emit('enter', view.state.doc.toString());
               return true;
             },
@@ -130,10 +142,16 @@ export default defineComponent({
         placeholder(props.placeholder),
 
         // 使用默认键盘映射，不做特殊处理
-        keymap.of([...closeBracketsKeymap, ...defaultKeymap, ...searchKeymap, ...historyKeymap, ...completionKeymap]),
+        keymap.of([
+          ...closeBracketsKeymap,
+          ...defaultKeymap,
+          ...searchKeymap,
+          ...historyKeymap,
+          ...completionKeymap,
+        ]),
 
         // 更新监听器
-        EditorView.updateListener.of(update => {
+        EditorView.updateListener.of((update) => {
           if (update.docChanged) {
             const newValue = update.state.doc.toString();
             emit('change', newValue);
@@ -151,7 +169,8 @@ export default defineComponent({
             padding: '6px 8px',
             minHeight: initialHeight,
             lineHeight: '1.4',
-            fontFamily: 'Monaco, Menlo, Ubuntu Mono, Consolas, source-code-pro, monospace',
+            fontFamily:
+              'Monaco, Menlo, Ubuntu Mono, Consolas, source-code-pro, monospace',
           },
           '.cm-focused': {
             outline: 'none',
@@ -175,7 +194,8 @@ export default defineComponent({
           '.cm-placeholder': {
             color: '#999',
             fontStyle: 'italic',
-            fontFamily: 'Monaco, Menlo, Ubuntu Mono, Consolas, source-code-pro, monospace',
+            fontFamily:
+              'Monaco, Menlo, Ubuntu Mono, Consolas, source-code-pro, monospace',
             fontSize: '12px',
           },
           // 自定义滚动条样式
@@ -230,7 +250,7 @@ export default defineComponent({
     // 监听 value 变化
     watch(
       () => props.value,
-      newValue => {
+      (newValue) => {
         if (editorView && editorView.state.doc.toString() !== newValue) {
           const transaction = editorView.state.update({
             changes: {
@@ -322,9 +342,12 @@ export default defineComponent({
   render() {
     return (
       <div
-        ref='editorRef'
+        ref="editorRef"
         style={{ height: this.autoHeight ? this.currentHeight : this.height }}
-        class={['grep-cli-codemirror-editor', { 'auto-height': this.autoHeight }]}
+        class={[
+          'grep-cli-codemirror-editor',
+          { 'auto-height': this.autoHeight },
+        ]}
       ></div>
     );
   },

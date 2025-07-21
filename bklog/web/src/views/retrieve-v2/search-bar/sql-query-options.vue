@@ -64,13 +64,17 @@ const { isRequesting, requestFieldEgges, isValidateEgges } = useFieldEgges();
 /** 获取数字类型的字段name */
 const getNumTypeFieldList = computed(() => {
   return totalFields.value
-    .filter((item: { field_type: string }) => ['long', 'integer', 'float'].includes(item.field_type))
+    .filter((item: { field_type: string }) =>
+      ['long', 'integer', 'float'].includes(item.field_type)
+    )
     .map((item: { field_name: any }) => item.field_name);
 });
 
 /** 所有字段的字段名 */
 const totalFieldsNameList = computed(() => {
-  const filterFn = field => field.field_type !== '__virtual__' && !excludesFields.includes(field.field_name);
+  const filterFn = (field) =>
+    field.field_type !== '__virtual__' &&
+    !excludesFields.includes(field.field_name);
   return getFieldNames(totalFields.value.filter(filterFn));
 });
 
@@ -110,7 +114,9 @@ const setOptionActive = () => {
   }
 
   const dropdownList = refDropdownEl?.value?.querySelectorAll('.list-item');
-  refDropdownEl?.value?.querySelector('.list-item.active')?.classList.remove('active');
+  refDropdownEl?.value
+    ?.querySelector('.list-item.active')
+    ?.classList.remove('active');
   dropdownList?.[activeIndex.value]?.classList.add('active');
 };
 
@@ -141,18 +147,24 @@ const getValueList = (valueMap: { __fieldType?: any }) => {
   let valueMapList = Object.keys(resolveValueMap);
   if (resolveValueMap.__fieldType === 'string') {
     valueMapList = valueMapList // 清除mark标签
-      .map(item => `"${item.replace(/<mark>/g, '').replace(/<\/mark>/g, '')}"`);
+      .map(
+        (item) => `"${item.replace(/<mark>/g, '').replace(/<\/mark>/g, '')}"`
+      );
   }
   return [...new Set(valueMapList)]; // 清除重复的字段
 };
 
 const setValueList = (fieldName: string, value: string) => {
-  const fieldInfo = store.state.indexFieldInfo.fields.find(item => item.field_name === fieldName);
+  const fieldInfo = store.state.indexFieldInfo.fields.find(
+    (item) => item.field_name === fieldName
+  );
   if (fieldInfo && isValidateEgges(fieldInfo)) {
     valueList.value = [];
-    requestFieldEgges(fieldInfo, value, resp => {
+    requestFieldEgges(fieldInfo, value, (resp) => {
       if (typeof resp === 'boolean') {
-        valueList.value = getValueList(retrieveDropdownData.value[fieldName] ?? {});
+        valueList.value = getValueList(
+          retrieveDropdownData.value[fieldName] ?? {}
+        );
         return;
       }
 
@@ -202,7 +214,12 @@ const getFocusRightValue = () => {
   return '';
 };
 
-const emitValueChange = (appendValue: string, retrieve = false, replace = false, focusPosition = undefined) => {
+const emitValueChange = (
+  appendValue: string,
+  retrieve = false,
+  replace = false,
+  focusPosition = undefined
+) => {
   emits('change', appendValue, retrieve, replace, focusPosition);
 };
 
@@ -250,7 +267,9 @@ const calculateDropdown = () => {
 
   // 如果是以 : 结尾，说明需要显示字段值列表
   if (regExpFieldValue.test(value)) {
-    const confirmField = /^\s*(?<field>[\w.]+)\s*(:|>=|<=|>|<)\s*$/.exec(lastFragment)?.groups?.field;
+    const confirmField = /^\s*(?<field>[\w.]+)\s*(:|>=|<=|>|<)\s*$/.exec(
+      lastFragment
+    )?.groups?.field;
 
     if (confirmField) {
       showWhichDropdown(OptionItemType.Value);
@@ -262,13 +281,20 @@ const calculateDropdown = () => {
     return;
   }
 
-  const lastValues = /(:|>=|<=|>|<)\s*(\d+|"((?:[^"\\]|\\.)*)"?)/.exec(lastFragment);
+  const lastValues = /(:|>=|<=|>|<)\s*(\d+|"((?:[^"\\]|\\.)*)"?)/.exec(
+    lastFragment
+  );
   const matchValue = lastValues?.[3] ?? lastValues?.[2];
   const matchValueWithQuotes = lastValues?.[2];
 
   if (matchValueWithQuotes && lastFragment.length >= matchValue.length) {
-    const lastValue = lastFragment.slice(0, lastFragment.length - matchValueWithQuotes.length);
-    const confirmField = /^\s*(?<field>[\w.]+)\s*(:|>=|<=|>|<)\s*$/.exec(lastValue)?.groups?.field;
+    const lastValue = lastFragment.slice(
+      0,
+      lastFragment.length - matchValueWithQuotes.length
+    );
+    const confirmField = /^\s*(?<field>[\w.]+)\s*(:|>=|<=|>|<)\s*$/.exec(
+      lastValue
+    )?.groups?.field;
 
     if (confirmField) {
       showWhichDropdown(OptionItemType.Value);
@@ -291,7 +317,9 @@ const calculateDropdown = () => {
   // 开始输入字段【nam】
   const inputField = /^\s*(?<field>[\w.]+)$/.exec(lastFragment)?.groups?.field;
   if (inputField) {
-    fieldList.value = originFieldList().filter(item => item.includes(inputField));
+    fieldList.value = originFieldList().filter((item) =>
+      item.includes(inputField)
+    );
     if (fieldList.value.length) {
       showWhichDropdown(OptionItemType.Fields);
       return;
@@ -316,7 +344,10 @@ const setNextActive = () => {
 const handleClickField = (field: string) => {
   const sqlValue = getFocusLeftValue();
   const lastFieldStr = sqlValue.split(/\s+(AND\s+NOT|OR|AND)\s+/i)?.pop() ?? '';
-  let leftValue = sqlValue.slice(0, sqlValue.length - lastFieldStr.replace(/^\s/, '').length);
+  let leftValue = sqlValue.slice(
+    0,
+    sqlValue.length - lastFieldStr.replace(/^\s/, '').length
+  );
 
   if (leftValue.length && !/\s$/.test(leftValue)) {
     leftValue = `${leftValue} `;
@@ -364,13 +395,20 @@ const handleClickValue = (value: string) => {
   const rightValue = getFocusRightValue();
   const lastFragment = sqlValue.split(/\s+(AND\s+NOT|OR|AND)\s+/i)?.pop() ?? '';
 
-  const lastValues = /(:|>=|<=|>|<)\s*(\d+|"((?:[^"\\]|\\.)*)"?)/.exec(lastFragment);
+  const lastValues = /(:|>=|<=|>|<)\s*(\d+|"((?:[^"\\]|\\.)*)"?)/.exec(
+    lastFragment
+  );
   const matchValueWithQuotes = lastValues?.[2] ?? '';
-  const matchLeft = sqlValue.slice(0, sqlValue.length - matchValueWithQuotes.length);
+  const matchLeft = sqlValue.slice(
+    0,
+    sqlValue.length - matchValueWithQuotes.length
+  );
   const targetValue = value.replace(/^"|"$/g, '').replace(/"/g, '\\"');
 
   const rightFirstValue =
-    matchValueWithQuotes.length >= 1 ? (rightValue.split(/\s+(AND\s+NOT|OR|AND)\s+/i)?.shift() ?? '') : '';
+    matchValueWithQuotes.length >= 1
+      ? (rightValue.split(/\s+(AND\s+NOT|OR|AND)\s+/i)?.shift() ?? '')
+      : '';
 
   const formatRightValue = `${rightValue.slice(rightFirstValue.length).replace(/\s+$/, '')}`;
   const appendSpace = formatRightValue === '' ? ' ' : '';
@@ -403,7 +441,7 @@ const scrollActiveItemIntoView = () => {
   }
 };
 
-const stopEventPreventDefault = e => {
+const stopEventPreventDefault = (e) => {
   e.stopPropagation();
   e.preventDefault();
   e.stopImmediatePropagation();
@@ -437,7 +475,10 @@ const handleKeydown = (e: {
         activeIndex.value = 0;
       }
 
-      if (activeIndex.value !== null && dropdownList[activeIndex.value] !== undefined) {
+      if (
+        activeIndex.value !== null &&
+        dropdownList[activeIndex.value] !== undefined
+      ) {
         // enter 选中下拉选项
         (dropdownList[activeIndex.value] as HTMLElement).click();
       } else {
@@ -467,7 +508,10 @@ const handleKeydown = (e: {
       activeIndex.value = 0;
       hasHover?.classList.remove('is-hover');
     }
-    if (activeIndex.value === null || activeIndex.value === dropdownList.length - 1) {
+    if (
+      activeIndex.value === null ||
+      activeIndex.value === dropdownList.length - 1
+    ) {
       activeIndex.value = 0;
     } else {
       activeIndex.value += 1;
@@ -535,7 +579,7 @@ const matchList = ref([
   },
 ]);
 
-const handleFavoriteClick = item => {
+const handleFavoriteClick = (item) => {
   emitValueChange(item.params?.keyword, true, true);
 };
 
@@ -665,10 +709,7 @@ watch(activeIndex, () => {
               </div>
             </li>
           </div>
-          <div
-            v-if="showOption.showOperator"
-            class="control-list"
-          >
+          <div v-if="showOption.showOperator" class="control-list">
             <li
               v-for="(item, key) in operatorSelectList"
               class="list-item continue-list-item"
@@ -773,10 +814,7 @@ watch(activeIndex, () => {
         <div>
           <div class="sql-query-fold-title">
             <div>{{ $t('如何查询') }}?</div>
-            <div
-              class="fold-title-right"
-              @click="handleSQLReadmeClick"
-            >
+            <div class="fold-title-right" @click="handleSQLReadmeClick">
               <span>{{ $t('查询语法') }}</span>
               <span class="fold-title-icon bklog-icon bklog-jump"></span>
             </div>
@@ -795,172 +833,172 @@ watch(activeIndex, () => {
   </div>
 </template>
 <style lang="scss" scoped>
-  @import './sql-query-options.scss';
+@import './sql-query-options.scss';
 
-  div.sql-query-container {
+div.sql-query-container {
+  position: relative;
+  display: flex;
+  line-height: 1;
+  border: 1px solid #dcdee5;
+  border-radius: 2px;
+
+  .sql-field-list {
     position: relative;
-    display: flex;
-    line-height: 1;
-    border: 1px solid #dcdee5;
-    border-radius: 2px;
+    width: 100%;
+    padding-bottom: 48px;
 
-    .sql-field-list {
-      position: relative;
+    /* 移动光标and确认结果提示 样式 */
+    .ui-shortcut-key {
+      position: absolute;
+      bottom: 0;
       width: 100%;
-      padding-bottom: 48px;
+      height: 48px;
+      padding: 0 16px;
+      line-height: 48px;
+      background-color: #fafbfd;
+      border: 1px solid #dcdee5;
+      border-radius: 0 0 0 2px;
 
-      /* 移动光标and确认结果提示 样式 */
-      .ui-shortcut-key {
-        position: absolute;
-        bottom: 0;
-        width: 100%;
-        height: 48px;
-        padding: 0 16px;
-        line-height: 48px;
-        background-color: #fafbfd;
-        border: 1px solid #dcdee5;
-        border-radius: 0 0 0 2px;
+      .ui-shortcut-item {
+        display: inline-flex;
+        align-items: center;
+        margin-right: 24px;
+        font-size: 12px;
+        line-height: 16px;
 
-        .ui-shortcut-item {
+        .label {
           display: inline-flex;
           align-items: center;
-          margin-right: 24px;
-          font-size: 12px;
-          line-height: 16px;
+          justify-content: center;
+          height: 16px;
+          padding: 0 4px;
+          font-size: 11px;
+          font-weight: 700;
+          color: #a3b1cc;
+          background-color: #a3b1cc29;
+          border: 1px solid #a3b1cc4d;
+          border-radius: 2px;
 
-          .label {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            height: 16px;
-            padding: 0 4px;
-            font-size: 11px;
-            font-weight: 700;
-            color: #a3b1cc;
-            background-color: #a3b1cc29;
-            border: 1px solid #a3b1cc4d;
-            border-radius: 2px;
-
-            &.bklog-arrow-down-filled {
-              padding: 0;
-              font-size: 14px;
-            }
-
-            &.up {
-              margin-right: 2px;
-              transform: rotate(-180deg);
-            }
+          &.bklog-arrow-down-filled {
+            padding: 0;
+            font-size: 14px;
           }
 
-          .value {
-            margin-left: 4px;
-            color: #7a8599;
-          }
-        }
-      }
-    }
-
-    .sql-syntax-tips {
-      position: relative;
-      width: 240px;
-      min-width: 240px;
-      background-color: #f5f7fa;
-      border-radius: 0 2px 2px 0;
-
-      .sql-query-retract {
-        position: absolute;
-        top: 50%;
-        left: 0;
-        display: inline-block;
-        width: 20px;
-        padding: 4px 2px;
-
-        font-size: 12px;
-        color: #63656e;
-        cursor: pointer;
-        background: #f0f1f5;
-        border: 1px solid #dcdee5;
-        border-radius: 4px 0 0 4px;
-        transform: translate(-100%, -50%);
-      }
-
-      /*   收起内容 样式*/
-      .sql-query-fold {
-        width: 100%;
-        height: 100%;
-        padding: 12px;
-        background: #f5f7fa;
-        border-radius: 0 2px 2px 0;
-        outline: 1px solid #dcdee5;
-
-        &-title {
-          display: flex;
-          justify-content: space-between;
-          margin-bottom: 16px;
-          font-size: 12px;
-          line-height: 20px;
-          color: #313238;
-
-          .fold-title-right {
-            display: flex;
-            align-items: center;
-            height: 100%;
-            color: #3a84ff;
-            cursor: pointer;
-
-            .fold-title-icon {
-              margin-left: 5px;
-              font-size: 16px;
-            }
+          &.up {
+            margin-right: 2px;
+            transform: rotate(-180deg);
           }
         }
 
-        .sql-query-list {
-          margin-bottom: 12px;
-          overflow-y: auto;
-          font-size: 12px;
-          white-space: pre-line;
-
-          .sql-query-name {
-            margin-bottom: 2px;
-            font-weight: 700;
-            line-height: 16px;
-            color: #313238;
-          }
-
-          .sql-query-value {
-            /* stylelint-disable-next-line font-family-no-missing-generic-family-keyword */
-            font-family: 'Roboto Mono', monospace;
-            line-height: 18px;
-            color: #4d4f56;
-            word-break: break-all;
-          }
-
-          &:first-child {
-            .sql-query-value {
-              line-height: 20px;
-            }
-          }
-        }
-      }
-
-      &:not(.is-show) {
-        width: 1px;
-        border: none;
-
-        .sql-query-fold {
-          display: none;
+        .value {
+          margin-left: 4px;
+          color: #7a8599;
         }
       }
     }
   }
+
+  .sql-syntax-tips {
+    position: relative;
+    width: 240px;
+    min-width: 240px;
+    background-color: #f5f7fa;
+    border-radius: 0 2px 2px 0;
+
+    .sql-query-retract {
+      position: absolute;
+      top: 50%;
+      left: 0;
+      display: inline-block;
+      width: 20px;
+      padding: 4px 2px;
+
+      font-size: 12px;
+      color: #63656e;
+      cursor: pointer;
+      background: #f0f1f5;
+      border: 1px solid #dcdee5;
+      border-radius: 4px 0 0 4px;
+      transform: translate(-100%, -50%);
+    }
+
+    /*   收起内容 样式*/
+    .sql-query-fold {
+      width: 100%;
+      height: 100%;
+      padding: 12px;
+      background: #f5f7fa;
+      border-radius: 0 2px 2px 0;
+      outline: 1px solid #dcdee5;
+
+      &-title {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 16px;
+        font-size: 12px;
+        line-height: 20px;
+        color: #313238;
+
+        .fold-title-right {
+          display: flex;
+          align-items: center;
+          height: 100%;
+          color: #3a84ff;
+          cursor: pointer;
+
+          .fold-title-icon {
+            margin-left: 5px;
+            font-size: 16px;
+          }
+        }
+      }
+
+      .sql-query-list {
+        margin-bottom: 12px;
+        overflow-y: auto;
+        font-size: 12px;
+        white-space: pre-line;
+
+        .sql-query-name {
+          margin-bottom: 2px;
+          font-weight: 700;
+          line-height: 16px;
+          color: #313238;
+        }
+
+        .sql-query-value {
+          /* stylelint-disable-next-line font-family-no-missing-generic-family-keyword */
+          font-family: 'Roboto Mono', monospace;
+          line-height: 18px;
+          color: #4d4f56;
+          word-break: break-all;
+        }
+
+        &:first-child {
+          .sql-query-value {
+            line-height: 20px;
+          }
+        }
+      }
+    }
+
+    &:not(.is-show) {
+      width: 1px;
+      border: none;
+
+      .sql-query-fold {
+        display: none;
+      }
+    }
+  }
+}
 </style>
 <style lang="scss">
-  .sql-query-options {
-    .bk-loading {
-      .bk-loading-wrapper {
-        left: 5%;
-      }
+.sql-query-options {
+  .bk-loading {
+    .bk-loading-wrapper {
+      left: 5%;
     }
   }
+}
 </style>

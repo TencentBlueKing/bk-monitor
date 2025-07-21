@@ -148,7 +148,11 @@ export default {
         });
       }
       list.push(
-        ...this.lightList.map(item => ({ str: item.heightKey, style: this.getLineColor(item), isUnique: false }))
+        ...this.lightList.map((item) => ({
+          str: item.heightKey,
+          style: this.getLineColor(item),
+          isUnique: false,
+        }))
       );
       return list;
     },
@@ -204,7 +208,10 @@ export default {
   methods: {
     checkLineShow(item, index, field) {
       if (this.isIncludeFilter) {
-        const list = field === 'reverse' ? this.reverseResRangeIndexs : this.resRangeIndexs;
+        const list =
+          field === 'reverse'
+            ? this.reverseResRangeIndexs
+            : this.resRangeIndexs;
         return this.handleMatch(item) || list.includes(index);
       }
       return this.filterKey.length ? !this.handleMatch(item) : true;
@@ -219,7 +226,9 @@ export default {
     },
     lineMatch(item) {
       if (!this.filterKey) return false;
-      return this.handleMatch(item) && Object.values(this.interval).some(Boolean);
+      return (
+        this.handleMatch(item) && Object.values(this.interval).some(Boolean)
+      );
     },
     escapeString(item) {
       const map = {
@@ -235,7 +244,10 @@ export default {
             [key],
             typeof val !== 'string'
               ? String(val ?? ' ')
-              : val.replace(RegExp(`(${Object.keys(map).join('|')})`, 'g'), match => map[match]),
+              : val.replace(
+                  RegExp(`(${Object.keys(map).join('|')})`, 'g'),
+                  (match) => map[match]
+                ),
           ];
         })
       );
@@ -306,94 +318,94 @@ export default {
 </script>
 
 <style lang="scss">
-  @import '../../scss/mixins/clearfix';
+@import '../../scss/mixins/clearfix';
 
-  .log-view {
-    min-height: 100%;
-    color: #c1c4ca;
-    background: #131313;
+.log-view {
+  min-height: 100%;
+  color: #c1c4ca;
+  background: #131313;
+
+  #log-content {
+    box-sizing: border-box;
+    margin: 0;
+    font-size: 0;
+
+    .line {
+      display: flex;
+      flex-direction: row;
+      min-height: 16px;
+      padding: 8px 15px 8px 55px;
+      margin: 0;
+      font-family: var(--table-fount-family);
+      font-size: var(--table-fount-size);
+      line-height: 24px;
+      border-top: 1px solid transparent;
+
+      &.log-init {
+        background: #1f2735;
+      }
+
+      &.new-log-line {
+        background: #1e3023;
+      }
+
+      &:hover {
+        background: #212121;
+      }
+
+      &.filter-line {
+        background: #392715;
+      }
+    }
+
+    .line-num {
+      display: inline-block;
+      min-width: 38px;
+      padding-right: 12px;
+      margin-left: -36px;
+      line-height: 24px;
+      color: #979ba5;
+      text-align: right;
+      user-select: none;
+    }
+
+    .line-text {
+      line-height: 24px;
+      word-break: break-all;
+      word-wrap: break-word;
+      white-space: pre-wrap;
+    }
+  }
+
+  &.light-view {
+    color: #313238;
+    background: #fff;
 
     #log-content {
-      box-sizing: border-box;
-      margin: 0;
-      font-size: 0;
-
       .line {
-        display: flex;
-        flex-direction: row;
-        min-height: 16px;
-        padding: 8px 15px 8px 55px;
-        margin: 0;
-        font-family: var(--table-fount-family);
-        font-size: var(--table-fount-size);
-        line-height: 24px;
-        border-top: 1px solid transparent;
+        border-top: 1px solid #dcdee5;
 
         &.log-init {
-          background: #1f2735;
+          background: #f0f5ff;
         }
 
         &.new-log-line {
-          background: #1e3023;
+          background: #f2fff4;
         }
 
         &:hover {
-          background: #212121;
+          background: #f5f7fa;
         }
 
         &.filter-line {
-          background: #392715;
+          background: #fff3e1;
         }
       }
 
       .line-num {
-        display: inline-block;
-        min-width: 38px;
-        padding-right: 12px;
-        margin-left: -36px;
-        line-height: 24px;
-        color: #979ba5;
-        text-align: right;
-        user-select: none;
-      }
-
-      .line-text {
-        line-height: 24px;
-        word-break: break-all;
-        word-wrap: break-word;
-        white-space: pre-wrap;
-      }
-    }
-
-    &.light-view {
-      color: #313238;
-      background: #fff;
-
-      #log-content {
-        .line {
-          border-top: 1px solid #dcdee5;
-
-          &.log-init {
-            background: #f0f5ff;
-          }
-
-          &.new-log-line {
-            background: #f2fff4;
-          }
-
-          &:hover {
-            background: #f5f7fa;
-          }
-
-          &.filter-line {
-            background: #fff3e1;
-          }
-        }
-
-        .line-num {
-          color: #313238;
-        }
+        color: #313238;
       }
     }
   }
+}
 </style>

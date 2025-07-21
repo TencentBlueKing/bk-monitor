@@ -26,10 +26,7 @@
 
 <template>
   <div class="data-storage-container">
-    <div
-      v-if="isShowEditBtn"
-      class="edit-btn-container"
-    >
+    <div v-if="isShowEditBtn" class="edit-btn-container">
       <bk-button
         style="min-width: 88px; color: #3a84ff"
         class="mr10"
@@ -56,47 +53,38 @@
           >
         </dd>
         <dt class="description-term">{{ $t('索引集名称') }}</dt>
-        <dd class="description-definition">{{ collectorData.table_id_prefix + collectorData.table_id || '--' }}</dd>
+        <dd class="description-definition">
+          {{ collectorData.table_id_prefix + collectorData.table_id || '--' }}
+        </dd>
         <dt class="description-term">{{ $t('过期时间') }}</dt>
-        <dd class="description-definition">{{ collectorData.retention || '--' }}</dd>
+        <dd class="description-definition">
+          {{ collectorData.retention || '--' }}
+        </dd>
         <dt class="description-term">{{ $t('分裂规则') }}</dt>
-        <dd class="description-definition">{{ collectorData.index_split_rule || '--' }}</dd>
+        <dd class="description-definition">
+          {{ collectorData.index_split_rule || '--' }}
+        </dd>
       </dl>
     </section>
-    <section
-      style="margin-bottom: 20px"
-      class="partial-content"
-    >
+    <section style="margin-bottom: 20px" class="partial-content">
       <div class="main-title">
         {{ $t('物理索引') }}
       </div>
-      <bk-table
-        v-bkloading="{ isLoading: tableLoading1 }"
-        :data="indexesData"
-      >
+      <bk-table v-bkloading="{ isLoading: tableLoading1 }" :data="indexesData">
         <bk-table-column
           :label="$t('索引')"
           min-width="180"
           prop="index"
         ></bk-table-column>
-        <bk-table-column
-          :label="$t('状态')"
-          prop="health"
-        >
+        <bk-table-column :label="$t('状态')" prop="health">
           <template #default="{ row }">
             <div :class="['status-text', row.health]">
               {{ healthMap[row.health] }}
             </div>
           </template>
         </bk-table-column>
-        <bk-table-column
-          :label="$t('主分片')"
-          prop="pri"
-        ></bk-table-column>
-        <bk-table-column
-          :label="$t('副本分片')"
-          prop="rep"
-        ></bk-table-column>
+        <bk-table-column :label="$t('主分片')" prop="pri"></bk-table-column>
+        <bk-table-column :label="$t('副本分片')" prop="rep"></bk-table-column>
         <bk-table-column :label="$t('文档计数')">
           <template #default="{ row }">
             {{ row['docs.count'] }}
@@ -205,52 +193,52 @@ export default {
 </script>
 
 <style lang="scss" scoped>
-  .data-storage-container {
-    .edit-btn-container {
-      display: flex;
-      align-items: center;
-      justify-content: end;
-      width: 100%;
-    }
-  }
-
-  .description-list {
+.data-storage-container {
+  .edit-btn-container {
     display: flex;
-    flex-flow: wrap;
-    font-size: 12px;
-    line-height: 16px;
-
-    .description-term {
-      width: 120px;
-      height: 40px;
-      padding-right: 20px;
-      color: #979ba5;
-      text-align: right;
-    }
-
-    .description-definition {
-      width: calc(100% - 200px);
-      height: 40px;
-      color: #63656e;
-    }
+    align-items: center;
+    justify-content: end;
+    width: 100%;
   }
+}
 
-  .status-text {
-    &.green {
-      color: #2dcb56;
-    }
+.description-list {
+  display: flex;
+  flex-flow: wrap;
+  font-size: 12px;
+  line-height: 16px;
 
-    &.yellow {
-      color: #ff9c01;
-    }
-
-    &.red {
-      color: #ea3636;
-    }
-  }
-
-  .icon-date-picker {
-    font-size: 16px;
+  .description-term {
+    width: 120px;
+    height: 40px;
+    padding-right: 20px;
     color: #979ba5;
+    text-align: right;
   }
+
+  .description-definition {
+    width: calc(100% - 200px);
+    height: 40px;
+    color: #63656e;
+  }
+}
+
+.status-text {
+  &.green {
+    color: #2dcb56;
+  }
+
+  &.yellow {
+    color: #ff9c01;
+  }
+
+  &.red {
+    color: #ea3636;
+  }
+}
+
+.icon-date-picker {
+  font-size: 16px;
+  color: #979ba5;
+}
 </style>

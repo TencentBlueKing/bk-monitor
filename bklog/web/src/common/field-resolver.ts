@@ -62,16 +62,19 @@ export const formatHierarchy = (fieldList: Partial<FieldItem>[]) => {
     for (const name of splitList) {
       leftName.push(name);
       const fieldName = leftName.join('.');
-      if (result.findIndex(item => item.field_name === fieldName) === -1) {
-        const fieldAlias = fieldName === field.field_name ? field.field_alias : fieldName;
-        const fieldType = fieldName === field.field_name ? field.field_type : 'object';
-        const queryAlias = fieldName === field.field_name ? field.query_alias : fieldName;
+      if (result.findIndex((item) => item.field_name === fieldName) === -1) {
+        const fieldAlias =
+          fieldName === field.field_name ? field.field_alias : fieldName;
+        const fieldType =
+          fieldName === field.field_name ? field.field_type : 'object';
+        const queryAlias =
+          fieldName === field.field_name ? field.query_alias : fieldName;
         result.push(
           Object.assign({}, field, {
-            field_name: fieldName,
             field_alias: fieldAlias,
-            is_virtual_obj_node: fieldName !== field.field_name,
+            field_name: fieldName,
             field_type: fieldType,
+            is_virtual_obj_node: fieldName !== field.field_name,
             query_alias: queryAlias,
           })
         );

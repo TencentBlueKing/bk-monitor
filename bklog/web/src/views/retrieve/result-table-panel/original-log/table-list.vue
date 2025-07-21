@@ -29,7 +29,10 @@
   <!-- :empty-text="$t('未查询到数据')" -->
   <bk-table
     ref="resultTable"
-    :class="['king-table', { 'is-wrap': isWrap, 'is-hidden-table-header': tableLoading }]"
+    :class="[
+      'king-table',
+      { 'is-wrap': isWrap, 'is-hidden-table-header': tableLoading },
+    ]"
     :data="tableList"
     :key="tableRandomKey"
     @header-dragend="handleHeaderDragend"
@@ -37,11 +40,7 @@
     @sort-change="handleSortTable"
   >
     <!-- 展开详情 -->
-    <bk-table-column
-      width="30"
-      align="center"
-      type="expand"
-    >
+    <bk-table-column width="30" align="center" type="expand">
       <template #default="{ $index }">
         <expand-view
           v-bind="$attrs"
@@ -74,14 +73,21 @@
           <keep-alive>
             <div
               :class="['str-content', { 'is-limit': getLimitState($index) }]"
-              :title="isWrap ? '' : tableRowDeepView(row, field.field_name, field.field_type)"
+              :title="
+                isWrap
+                  ? ''
+                  : tableRowDeepView(row, field.field_name, field.field_type)
+              "
             >
               <table-column
                 :content="getTableColumnContent(row, field)"
                 :field="field"
                 :is-wrap="isWrap"
                 @computed-height="handleOverColumn(field.field_name)"
-                @icon-click="(type, content, isLink) => handleIconClick(type, content, field, row, isLink)"
+                @icon-click="
+                  (type, content, isLink) =>
+                    handleIconClick(type, content, field, row, isLink)
+                "
               />
               <template v-if="!isLimitExpandView">
                 <p
@@ -115,7 +121,9 @@
       <!-- eslint-disable-next-line -->
       <template slot-scope="{ row, column, $index }">
         <operator-tools
-          :handle-click="event => handleClickTools(event, row, operatorConfig)"
+          :handle-click="
+            (event) => handleClickTools(event, row, operatorConfig)
+          "
           :index="$index"
           :operator-config="operatorConfig"
           :row-data="row"
@@ -123,10 +131,7 @@
       </template>
     </bk-table-column>
     <!-- 初次加载骨架屏loading -->
-    <template
-      v-if="tableLoading"
-      #empty
-    >
+    <template v-if="tableLoading" #empty>
       <bk-table-column>
         <retrieve-loader
           :is-original-field="false"
@@ -136,14 +141,8 @@
         </retrieve-loader>
       </bk-table-column>
     </template>
-    <template
-      v-else
-      #empty
-    >
-      <empty-view
-        v-bind="$attrs"
-        v-on="$listeners"
-      />
+    <template v-else #empty>
+      <empty-view v-bind="$attrs" v-on="$listeners" />
     </template>
     <!-- 下拉刷新骨架屏loading -->
     <template

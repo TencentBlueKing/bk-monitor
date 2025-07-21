@@ -36,10 +36,7 @@
       :info="authPageInfo"
     ></auth-container-page>
     <template v-if="!authPageInfo && !basicLoading && reportDetail">
-      <basic-tab
-        :active.sync="activePanel"
-        type="border-card"
-      >
+      <basic-tab :active.sync="activePanel" type="border-card">
         <bk-tab-panel
           v-for="panel in panels"
           v-bind="panel"
@@ -50,11 +47,9 @@
             <div class="search-text">
               <span class="bk-icon icon-info"></span>
               <i18n path="数据采集好了，去 {0}">
-                <span
-                  class="search-button"
-                  @click="handleGoSearch"
-                  >{{ $t('查看数据') }}</span
-                >
+                <span class="search-button" @click="handleGoSearch">{{
+                  $t('查看数据')
+                }}</span>
               </i18n>
             </div>
           </div>
@@ -81,10 +76,7 @@
         :style="`right: ${introWidth - 18}px`"
         :class="`drag-item ${!introWidth && 'hidden-drag'}`"
       >
-        <span
-          class="bk-icon icon-more"
-          @mousedown.left="dragBegin"
-        ></span>
+        <span class="bk-icon icon-more" @mousedown.left="dragBegin"></span>
       </div>
       <intro-panel
         :data="reportDetail"
@@ -179,11 +171,14 @@ export default {
           // 显示无权限页面
         } else {
           // 正常显示页面
-          const { data: reportDetail } = await this.$http.request('collect/details', {
-            params: {
-              collector_config_id: this.$route.params.collectorId,
-            },
-          });
+          const { data: reportDetail } = await this.$http.request(
+            'collect/details',
+            {
+              params: {
+                collector_config_id: this.$route.params.collectorId,
+              },
+            }
+          );
           this.reportDetail = reportDetail;
           this.$store.commit('collect/setCurCollect', reportDetail);
         }
@@ -235,40 +230,40 @@ export default {
 </script>
 
 <style lang="scss">
-  .intro-container {
-    position: fixed;
-    top: 99px;
-    right: 0;
-    z-index: 999;
-    height: calc(100vh - 99px);
-    overflow: hidden;
+.intro-container {
+  position: fixed;
+  top: 99px;
+  right: 0;
+  z-index: 999;
+  height: calc(100vh - 99px);
+  overflow: hidden;
 
-    .drag-item {
-      position: absolute;
-      top: 48%;
-      right: 304px;
-      z-index: 100;
-      display: inline-block;
-      width: 20px;
-      height: 40px;
-      color: #c4c6cc;
-      cursor: col-resize;
-      user-select: none;
+  .drag-item {
+    position: absolute;
+    top: 48%;
+    right: 304px;
+    z-index: 100;
+    display: inline-block;
+    width: 20px;
+    height: 40px;
+    color: #c4c6cc;
+    cursor: col-resize;
+    user-select: none;
 
-      &.hidden-drag {
-        display: none;
-      }
-
-      .icon-more::after {
-        position: absolute;
-        top: 12px;
-        left: 0;
-        content: '\e189';
-      }
+    &.hidden-drag {
+      display: none;
     }
 
-    &.draging-move {
-      border-left-color: #3a84ff;
+    .icon-more::after {
+      position: absolute;
+      top: 12px;
+      left: 0;
+      content: '\e189';
     }
   }
+
+  &.draging-move {
+    border-left-color: #3a84ff;
+  }
+}
 </style>

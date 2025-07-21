@@ -25,23 +25,23 @@
  */
 
 const getExistReports = {
-  url: '/report/get_reports/',
   method: 'get',
+  url: '/report/get_reports/',
 };
 
 const sendReport = {
-  url: '/report/send/',
   method: 'post',
+  url: '/report/send/',
 };
 
 const createOrUpdateReport = {
-  url: '/report/create_or_update/',
   method: 'post',
+  url: '/report/create_or_update/',
 };
 
 const getVariables = {
-  url: '/report/get_variables/',
   method: 'get',
+  url: '/report/get_variables/',
 };
 
 export { getExistReports, sendReport, createOrUpdateReport, getVariables };

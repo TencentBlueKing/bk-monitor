@@ -67,7 +67,12 @@ resolveQueryParams({ search_mode, addition, keyword });
  * 拉取索引集列表
  */
 const getIndexSetList = () => {
-  store.dispatch('retrieve/getIndexSetList', { spaceUid: spaceUid.value, bkBizId: bkBizId.value }).then(resp => {});
+  store
+    .dispatch('retrieve/getIndexSetList', {
+      spaceUid: spaceUid.value,
+      bkBizId: bkBizId.value,
+    })
+    .then((resp) => {});
 };
 
 const handleSpaceIdChange = () => {
@@ -105,12 +110,12 @@ const handleFavoritesClick = () => {
   showFavorites.value = true;
 };
 
-const handleFavoritesClose = e => {
+const handleFavoritesClose = (e) => {
   e.stopPropagation();
   showFavorites.value = false;
 };
 
-const handleEditFavoriteGroup = e => {
+const handleEditFavoriteGroup = (e) => {
   e.stopPropagation();
   favoriteRef.value.isShowManageDialog = true;
 };
@@ -118,14 +123,14 @@ const handleEditFavoriteGroup = e => {
 const isRefreshList = ref(false);
 const searchBarHeight = ref(0);
 /** 刷新收藏夹列表 */
-const handleRefresh = v => {
+const handleRefresh = (v) => {
   isRefreshList.value = v;
 };
-const handleHeightChange = height => {
+const handleHeightChange = (height) => {
   searchBarHeight.value = height;
 };
 
-const debounceUpdateTabValue = debounce(value => {
+const debounceUpdateTabValue = debounce((value) => {
   const isClustering = value === 'clustering';
   router.replace({
     params: { ...(route.params ?? {}) },
@@ -160,7 +165,7 @@ const contentStyle = computed(() => {
 
 const showAnalysisTab = computed(() => activeTab.value === 'graphAnalysis');
 const activeFavorite = ref();
-const updateActiveFavorite = value => {
+const updateActiveFavorite = (value) => {
   activeFavorite.value = value;
 };
 
@@ -172,14 +177,15 @@ const paddingTop = ref(0);
 // 滚动容器高度
 const scrollContainerHeight = ref(0);
 
-RetrieveHelper.on(RetrieveEvent.GLOBAL_SCROLL, event => {
+RetrieveHelper.on(RetrieveEvent.GLOBAL_SCROLL, (event) => {
   const scrollTop = event.target.scrollTop;
-  paddingTop.value = scrollTop > subBarHeight.value ? subBarHeight.value : scrollTop;
+  paddingTop.value =
+    scrollTop > subBarHeight.value ? subBarHeight.value : scrollTop;
 });
 
 useResizeObserve(
   GLOBAL_SCROLL_SELECTOR,
-  entry => {
+  (entry) => {
     scrollContainerHeight.value = entry.target.offsetHeight;
   },
   0
@@ -205,7 +211,14 @@ const isStickyTop = computed(() => {
 <template>
   <div
     :style="stickyStyle"
-    :class="['retrieve-v2-index', { 'show-favorites': showFavorites, 'scroll-y': true, 'is-sticky-top': isStickyTop }]"
+    :class="[
+      'retrieve-v2-index',
+      {
+        'show-favorites': showFavorites,
+        'scroll-y': true,
+        'is-sticky-top': isStickyTop,
+      },
+    ]"
   >
     <div class="sub-head">
       <div
@@ -213,13 +226,12 @@ const isStickyTop = computed(() => {
         class="box-favorites"
         @click="handleFavoritesClick"
       >
-        <div
-          v-if="showFavorites"
-          class="collet-label"
-        >
+        <div v-if="showFavorites" class="collet-label">
           <div class="left-info">
             <span class="collect-title">{{ $t('收藏夹') }}</span>
-            <span class="collect-count">{{ favoriteRef?.allFavoriteNumber }}</span>
+            <span class="collect-count">{{
+              favoriteRef?.allFavoriteNumber
+            }}</span>
             <span
               class="collect-edit bklog-icon bklog-wholesale-editor"
               @click="handleEditFavoriteGroup"
@@ -234,20 +246,22 @@ const isStickyTop = computed(() => {
           <div class="collection-box">
             <span
               style="font-size: 18px"
-              :class="['bklog-icon bklog-shoucangjia', { active: showFavorites }]"
+              :class="[
+                'bklog-icon bklog-shoucangjia',
+                { active: showFavorites },
+              ]"
             ></span>
           </div>
         </template>
       </div>
       <SubBar
-        :style="{ width: `calc(100% - ${showFavorites ? favoriteWidth : 42}px` }"
+        :style="{
+          width: `calc(100% - ${showFavorites ? favoriteWidth : 42}px`,
+        }"
         show-favorites
       />
     </div>
-    <div
-      :style="contentStyle"
-      :class="['retrieve-v2-body']"
-    >
+    <div :style="contentStyle" :class="['retrieve-v2-body']">
       <CollectFavorites
         ref="favoriteRef"
         :style="favoritesStlye"
@@ -277,20 +291,20 @@ const isStickyTop = computed(() => {
   </div>
 </template>
 <style lang="scss">
-  @import './index.scss';
+@import './index.scss';
 </style>
 <style lang="scss">
-  @import './segment-pop.scss';
+@import './segment-pop.scss';
 
-  .retrieve-v2-index {
-    .collection-box {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      width: 32px;
-      height: 32px;
-      background: #f0f1f5;
-      border-radius: 2px;
-    }
+.retrieve-v2-index {
+  .collection-box {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    background: #f0f1f5;
+    border-radius: 2px;
   }
+}
 </style>

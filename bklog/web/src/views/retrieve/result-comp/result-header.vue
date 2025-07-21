@@ -50,12 +50,12 @@
             <div>{{ iconFavoriteStr }}</div>
           </template>
         </bk-popover>
-        <bk-popover
-          ref="showSearchBtnRef"
-          :tippy-options="expandTips"
-        >
+        <bk-popover ref="showSearchBtnRef" :tippy-options="expandTips">
           <div
-            :class="['result-icon-box', { 'light-icon': !showRetrieveCondition }]"
+            :class="[
+              'result-icon-box',
+              { 'light-icon': !showRetrieveCondition },
+            ]"
             @click="handleClickResultIcon('search')"
           >
             <span class="bk-icon bklog-icon bklog-jiansuo"></span>
@@ -99,11 +99,16 @@
         <slot name="trigger">
           <div class="auto-refresh-trigger">
             <span
-              :class="['bklog-icon', isAutoRefresh ? 'icon-auto-refresh' : 'icon-no-refresh']"
+              :class="[
+                'bklog-icon',
+                isAutoRefresh ? 'icon-auto-refresh' : 'icon-no-refresh',
+              ]"
               data-test-id="retrieve_span_periodicRefresh"
               @click.stop="handleRefreshDebounce"
             ></span>
-            <span :class="isAutoRefresh && 'active-text'">{{ refreshTimeText }}</span>
+            <span :class="isAutoRefresh && 'active-text'">{{
+              refreshTimeText
+            }}</span>
             <span
               class="bk-icon icon-angle-down"
               :class="refreshActive && 'active'"
@@ -116,7 +121,10 @@
               <ul class="bk-options bk-options-single">
                 <li
                   v-for="item in refreshTimeList"
-                  :class="['bk-option', refreshTimeout === item.id && 'is-selected']"
+                  :class="[
+                    'bk-option',
+                    refreshTimeout === item.id && 'is-selected',
+                  ]"
                   :key="item.id"
                   @click="handleSelectRefreshTimeout(item.id)"
                 >
@@ -137,19 +145,13 @@
         trigger="click"
       >
         <slot name="trigger">
-          <div
-            class="more-operation"
-            id="more-operator"
-          >
+          <div class="more-operation" id="more-operator">
             <i class="bklog-icon bklog-ellipsis-more"></i>
           </div>
         </slot>
         <template #content>
           <div class="retrieve-setting-container">
-            <ul
-              ref="menu"
-              class="list-menu"
-            >
+            <ul ref="menu" class="list-menu">
               <li
                 v-for="menu in showSettingMenuList"
                 class="list-menu-item"
@@ -176,10 +178,7 @@
         <div>{{ $t('检索收藏功能支持分组和管理') }}</div>
       </template>
       <template #action>
-        <div
-          class="action-text"
-          @click="handleCloseGuide"
-        >
+        <div class="action-text" @click="handleCloseGuide">
           {{ $t('知道了') }}
         </div>
       </template>
@@ -327,10 +326,10 @@ export default {
   },
   computed: {
     ...mapState({
-      bkBizId: state => state.bkBizId,
-      userGuideData: state => state.userGuideData,
-      isExternal: state => state.isExternal,
-      storeIsShowClusterStep: state => state.storeIsShowClusterStep,
+      bkBizId: (state) => state.bkBizId,
+      userGuideData: (state) => state.userGuideData,
+      isExternal: (state) => state.isExternal,
+      storeIsShowClusterStep: (state) => state.storeIsShowClusterStep,
     }),
     ...mapGetters({
       isShowMaskingTemplate: 'isShowMaskingTemplate',
@@ -341,7 +340,9 @@ export default {
     },
     refreshTimeText() {
       if (!this.refreshTimeout) return 'off';
-      return this.refreshTimeList.find(item => item.id === this.refreshTimeout).name;
+      return this.refreshTimeList.find(
+        (item) => item.id === this.refreshTimeout
+      ).name;
     },
     isAutoRefresh() {
       return this.refreshTimeout !== 0;
@@ -349,7 +350,8 @@ export default {
     isAiopsToggle() {
       // 日志聚类总开关
       const { bkdata_aiops_toggle: bkdataAiopsToggle } = window.FEATURE_TOGGLE;
-      const aiopsBizList = window.FEATURE_TOGGLE_WHITE_LIST?.bkdata_aiops_toggle;
+      const aiopsBizList =
+        window.FEATURE_TOGGLE_WHITE_LIST?.bkdata_aiops_toggle;
 
       switch (bkdataAiopsToggle) {
         case 'on':
@@ -357,7 +359,9 @@ export default {
         case 'off':
           return false;
         default:
-          return aiopsBizList ? aiopsBizList.some(item => item.toString() === this.bkBizId) : false;
+          return aiopsBizList
+            ? aiopsBizList.some((item) => item.toString() === this.bkBizId)
+            : false;
       }
     },
     /** 日志聚类开关 */
@@ -397,7 +401,8 @@ export default {
     },
   },
   created() {
-    this.showCollectIntroGuide = this.userGuideData?.function_guide?.search_favorite ?? false;
+    this.showCollectIntroGuide =
+      this.userGuideData?.function_guide?.search_favorite ?? false;
     this.handleRefreshDebounce = debounce(300, this.handleRefresh);
   },
   mounted() {
@@ -405,7 +410,10 @@ export default {
     window.bus.$on('changeTimeByChart', this.handleChangeTimeByChart);
   },
   beforeUnmount() {
-    document.removeEventListener('visibilitychange', this.handleVisibilityChange);
+    document.removeEventListener(
+      'visibilitychange',
+      this.handleVisibilityChange
+    );
     window.bus.$off('changeTimeByChart', this.handleChangeTimeByChart);
   },
   methods: {
@@ -417,7 +425,7 @@ export default {
     // },
     // 日期变化
     handleTimeRangeChange(val) {
-      if (val.every(item => typeof item === 'string')) {
+      if (val.every((item) => typeof item === 'string')) {
         localStorage.setItem('SEARCH_DEFAULT_TIME', JSON.stringify(val));
       }
       this.$emit('update:date-picker-value', val);
@@ -488,8 +496,9 @@ export default {
       window.open(href, '_blank');
     },
     handleShowSettingMenuListChange() {
-      const isShowClusterSet = this.clusteringData?.is_active || this.storeIsShowClusterStep;
-      this.showSettingMenuList = this.catchSettingMenuList.filter(item => {
+      const isShowClusterSet =
+        this.clusteringData?.is_active || this.storeIsShowClusterStep;
+      this.showSettingMenuList = this.catchSettingMenuList.filter((item) => {
         return item.id === 'clustering' ? isShowClusterSet : true;
       });
     },
@@ -503,7 +512,9 @@ export default {
           return;
         }
         // 判断是否是自定义上报类型
-        this.initJumpRouteList(setItem.collector_scenario_id === 'custom' ? 'custom' : 'log');
+        this.initJumpRouteList(
+          setItem.collector_scenario_id === 'custom' ? 'custom' : 'log'
+        );
         return;
       }
       // 当scenario_id不为log（采集项，索引集，自定义上报）时，不显示字段设置
@@ -516,7 +527,9 @@ export default {
      */
     initJumpRouteList(detailStr, isFilterExtract = false) {
       if (!['log', 'es', 'bkdata', 'custom', 'setIndex'].includes(detailStr)) {
-        this.catchSettingMenuList = this.isAiopsToggle ? this.settingMenuList : [];
+        this.catchSettingMenuList = this.isAiopsToggle
+          ? this.settingMenuList
+          : [];
         return;
       }
       // 赋值详情路由的key
@@ -529,9 +542,13 @@ export default {
       this.maskingRouteKey = detailStr;
       // 判断是否展示字段设置
       const filterMenuList = this.isAiopsToggle
-        ? this.settingMenuList.filter(item => (isFilterExtract ? item.id !== 'extract' : true))
+        ? this.settingMenuList.filter((item) =>
+            isFilterExtract ? item.id !== 'extract' : true
+          )
         : [];
-      const accessList = this.accessList.filter(item => (this.isShowMaskingTemplate ? true : item.id !== 'logMasking'));
+      const accessList = this.accessList.filter((item) =>
+        this.isShowMaskingTemplate ? true : item.id !== 'logMasking'
+      );
       // 合并其他
       this.catchSettingMenuList = filterMenuList.concat(accessList);
     },
@@ -539,7 +556,9 @@ export default {
       if (type === 'collect') {
         this.$emit('update-collect-condition', !this.isShowCollect);
       } else {
-        this.showRetrieveCondition ? this.$emit('close-retrieve-condition') : this.$emit('open');
+        this.showRetrieveCondition
+          ? this.$emit('close-retrieve-condition')
+          : this.$emit('open');
       }
     },
     handleCloseGuide() {
@@ -551,13 +570,13 @@ export default {
           this.showCollectIntroGuide = false;
           this.updateUserGuide();
         })
-        .catch(e => {
+        .catch((e) => {
           console.warn(e);
         });
     },
     /** 更新用户指引 */
     updateUserGuide() {
-      this.$http.request('meta/getUserGuide').then(res => {
+      this.$http.request('meta/getUserGuide').then((res) => {
         this.$store.commit('setUserGuideData', res.data);
       });
     },
@@ -569,261 +588,261 @@ export default {
 </script>
 
 <style lang="scss">
-  .result-header {
-    position: relative;
-    display: flex;
-    justify-content: space-between;
-    // align-items: center;
+.result-header {
+  position: relative;
+  display: flex;
+  justify-content: space-between;
+  // align-items: center;
+  width: 100%;
+  height: 48px;
+  font-size: 12px;
+  color: #63656e;
+  background: #fff;
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.1);
+
+  &:after {
+    position: absolute;
+    bottom: 0;
+    z-index: 800;
     width: 100%;
-    height: 48px;
-    font-size: 12px;
-    color: #63656e;
-    background: #fff;
+    height: 4px;
+    content: '';
     box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.1);
+  }
 
-    &:after {
-      position: absolute;
-      bottom: 0;
-      z-index: 800;
-      width: 100%;
-      height: 4px;
-      content: '';
-      box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.1);
-    }
+  .result-left {
+    display: flex;
+    align-items: center;
 
-    .result-left {
+    .icon-container {
+      position: relative;
       display: flex;
-      align-items: center;
+      margin: 17px 25px 17px 14px;
+      background: #f0f1f5;
+      border-radius: 2px;
 
-      .icon-container {
-        position: relative;
-        display: flex;
-        margin: 17px 25px 17px 14px;
-        background: #f0f1f5;
+      > :first-child {
+        margin-right: 2px;
+      }
+
+      // &::after {
+      //   position: absolute;
+      //   top: 6px;
+      //   right: -25px;
+      //   width: 1px;
+      //   height: 14px;
+      //   content: '';
+      //   background-color: #dcdee5;
+      // }
+
+      .result-icon-box {
+        width: 32px;
+        height: 24px;
+        font-size: 14px;
+        line-height: 20px;
+        color: #fff;
+        text-align: center;
+        cursor: pointer;
+        background: #699df4;
         border-radius: 2px;
 
-        > :first-child {
-          margin-right: 2px;
+        &.light-icon {
+          color: #63656e;
+          background: #f0f1f5;
         }
 
-        // &::after {
-        //   position: absolute;
-        //   top: 6px;
-        //   right: -25px;
-        //   width: 1px;
-        //   height: 14px;
-        //   content: '';
-        //   background-color: #dcdee5;
-        // }
-
-        .result-icon-box {
-          width: 32px;
-          height: 24px;
-          font-size: 14px;
-          line-height: 20px;
-          color: #fff;
-          text-align: center;
-          cursor: pointer;
-          background: #699df4;
-          border-radius: 2px;
-
-          &.light-icon {
-            color: #63656e;
-            background: #f0f1f5;
-          }
-
-          .icon-jiansuo {
-            display: inline-block;
-            font-size: 18px;
-            transform: translateY(2px);
-          }
-
-          &.disabled {
-            /* stylelint-disable-next-line declaration-no-important */
-            pointer-events: none !important;
-            cursor: not-allowed;
-          }
-
-          &.light-icon:hover {
-            background: #dcdee5;
-          }
+        .icon-jiansuo {
+          display: inline-block;
+          font-size: 18px;
+          transform: translateY(2px);
         }
-      }
 
-      .biz-menu-box {
-        position: relative;
+        &.disabled {
+          /* stylelint-disable-next-line declaration-no-important */
+          pointer-events: none !important;
+          cursor: not-allowed;
+        }
+
+        &.light-icon:hover {
+          background: #dcdee5;
+        }
       }
     }
 
-    .result-right {
-      display: flex;
-      align-items: center;
+    .biz-menu-box {
+      position: relative;
+    }
+  }
+
+  .result-right {
+    display: flex;
+    align-items: center;
+  }
+
+  .open-condition {
+    display: flex;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: center;
+    width: 49px;
+    height: 100%;
+    font-size: 24px;
+    color: #979ba5;
+    cursor: pointer;
+    border-right: 1px solid #f0f1f5;
+
+    &:hover {
+      color: #3a84ff;
+    }
+  }
+
+  .result-text {
+    width: 100%;
+  }
+
+  .time-range-wrap {
+    position: relative;
+    display: flex;
+    align-items: center;
+
+    &::before {
+      position: absolute;
+      top: 8px;
+      left: 0;
+      width: 1px;
+      height: 14px;
+      content: '';
+      background-color: #dcdee5;
+    }
+  }
+
+  .auto-refresh-trigger {
+    display: flex;
+    align-items: center;
+    height: 52px;
+    line-height: 22px;
+    white-space: nowrap;
+    cursor: pointer;
+
+    .bklog-icon {
+      padding: 0 5px 0 17px;
+      font-size: 14px;
+      color: #63656e;
     }
 
-    .open-condition {
+    .active-text {
+      color: #3a84ff;
+    }
+
+    .icon-angle-down {
+      margin: 0 10px;
+      font-size: 22px;
+      color: #63656e;
+      transition: transform 0.3s;
+
+      &.active {
+        transition: transform 0.3s;
+        transform: rotate(-180deg);
+      }
+    }
+
+    &:hover > span {
+      color: #3a84ff;
+    }
+
+    &::before {
+      position: absolute;
+      top: 20px;
+      left: 0;
+      width: 1px;
+      height: 14px;
+      content: '';
+      background-color: #dcdee5;
+    }
+  }
+
+  .more-operation {
+    display: flex;
+    align-items: center;
+    height: 52px;
+    padding: 0 16px 0 12px;
+    line-height: 22px;
+    white-space: nowrap;
+    cursor: pointer;
+
+    .bklog-ellipsis-more {
       display: flex;
-      flex-shrink: 0;
       align-items: center;
       justify-content: center;
-      width: 49px;
-      height: 100%;
-      font-size: 24px;
-      color: #979ba5;
-      cursor: pointer;
-      border-right: 1px solid #f0f1f5;
+      width: 30px;
+      height: 30px;
+      overflow: hidden;
+      font-size: 18px;
+
+      &:hover {
+        color: #0083ff;
+        cursor: pointer;
+        background-color: #e1ecff;
+        border-radius: 2px;
+      }
+    }
+
+    &::before {
+      position: absolute;
+      top: 20px;
+      left: 0;
+      width: 1px;
+      height: 14px;
+      content: '';
+      background-color: #dcdee5;
+    }
+  }
+
+  .step-box {
+    z-index: 1001;
+    min-height: 60px;
+
+    .target-arrow {
+      /* stylelint-disable-next-line declaration-no-important */
+      top: -5px !important;
+
+      /* stylelint-disable-next-line declaration-no-important */
+      left: 10px !important;
+      border-top: 1px solid #dcdee5;
+      border-left: 1px solid #dcdee5;
+    }
+  }
+}
+
+.auto-refresh-content {
+  width: 84px;
+
+  .bk-options .bk-option-content {
+    padding: 0 13px;
+  }
+}
+
+.retrieve-setting-container {
+  .list-menu {
+    display: flex;
+    flex-direction: column;
+    padding: 6px 0;
+    color: #63656e;
+    background-color: white;
+
+    &-item {
+      display: flex;
+      align-items: center;
+      min-width: 150px;
+      height: 32px;
+      padding: 0 10px;
 
       &:hover {
         color: #3a84ff;
-      }
-    }
-
-    .result-text {
-      width: 100%;
-    }
-
-    .time-range-wrap {
-      position: relative;
-      display: flex;
-      align-items: center;
-
-      &::before {
-        position: absolute;
-        top: 8px;
-        left: 0;
-        width: 1px;
-        height: 14px;
-        content: '';
-        background-color: #dcdee5;
-      }
-    }
-
-    .auto-refresh-trigger {
-      display: flex;
-      align-items: center;
-      height: 52px;
-      line-height: 22px;
-      white-space: nowrap;
-      cursor: pointer;
-
-      .bklog-icon {
-        padding: 0 5px 0 17px;
-        font-size: 14px;
-        color: #63656e;
-      }
-
-      .active-text {
-        color: #3a84ff;
-      }
-
-      .icon-angle-down {
-        margin: 0 10px;
-        font-size: 22px;
-        color: #63656e;
-        transition: transform 0.3s;
-
-        &.active {
-          transition: transform 0.3s;
-          transform: rotate(-180deg);
-        }
-      }
-
-      &:hover > span {
-        color: #3a84ff;
-      }
-
-      &::before {
-        position: absolute;
-        top: 20px;
-        left: 0;
-        width: 1px;
-        height: 14px;
-        content: '';
-        background-color: #dcdee5;
-      }
-    }
-
-    .more-operation {
-      display: flex;
-      align-items: center;
-      height: 52px;
-      padding: 0 16px 0 12px;
-      line-height: 22px;
-      white-space: nowrap;
-      cursor: pointer;
-
-      .bklog-ellipsis-more {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        width: 30px;
-        height: 30px;
-        overflow: hidden;
-        font-size: 18px;
-
-        &:hover {
-          color: #0083ff;
-          cursor: pointer;
-          background-color: #e1ecff;
-          border-radius: 2px;
-        }
-      }
-
-      &::before {
-        position: absolute;
-        top: 20px;
-        left: 0;
-        width: 1px;
-        height: 14px;
-        content: '';
-        background-color: #dcdee5;
-      }
-    }
-
-    .step-box {
-      z-index: 1001;
-      min-height: 60px;
-
-      .target-arrow {
-        /* stylelint-disable-next-line declaration-no-important */
-        top: -5px !important;
-
-        /* stylelint-disable-next-line declaration-no-important */
-        left: 10px !important;
-        border-top: 1px solid #dcdee5;
-        border-left: 1px solid #dcdee5;
+        cursor: pointer;
+        background-color: #eaf3ff;
       }
     }
   }
-
-  .auto-refresh-content {
-    width: 84px;
-
-    .bk-options .bk-option-content {
-      padding: 0 13px;
-    }
-  }
-
-  .retrieve-setting-container {
-    .list-menu {
-      display: flex;
-      flex-direction: column;
-      padding: 6px 0;
-      color: #63656e;
-      background-color: white;
-
-      &-item {
-        display: flex;
-        align-items: center;
-        min-width: 150px;
-        height: 32px;
-        padding: 0 10px;
-
-        &:hover {
-          color: #3a84ff;
-          cursor: pointer;
-          background-color: #eaf3ff;
-        }
-      }
-    }
-  }
+}
 </style>

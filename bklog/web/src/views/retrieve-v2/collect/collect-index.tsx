@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/naming-convention */
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -25,22 +24,37 @@
  * IN THE SOFTWARE.
  */
 
-import { Component, Emit, Prop, PropSync, Watch, Ref } from 'vue-property-decorator';
-import { Component as tsc } from 'vue-tsx-support';
-
 import { RetrieveUrlResolver } from '@/store/url-resolver';
-import { Input, Popover, Radio, RadioGroup, Form, FormItem } from 'bk-magic-vue';
+import {
+  Input,
+  Popover,
+  Radio,
+  RadioGroup,
+  Form,
+  FormItem,
+} from 'bk-magic-vue';
+import {
+  Component,
+  Emit,
+  Prop,
+  PropSync,
+  Watch,
+  Ref,
+} from 'vue-property-decorator';
+import { Component as tsc } from 'vue-tsx-support';
 
 import $http from '../../../api';
 import { copyMessage, deepClone } from '../../../common/util';
 import RetrieveHelper from '../../retrieve-helper';
+
 import AddCollectDialog from './add-collect-dialog';
 import CollectContainer from './collect-container';
 import FavoriteManageDialog from './favorite-manage-dialog.vue';
 // import ManageGroupDialog from './manage-group-dialog';
 
-import './collect-index.scss';
 import { BK_LOG_STORAGE, SEARCH_MODE_DIC } from '../../../store/store.type';
+
+import './collect-index.scss';
 
 interface IProps {
   collectWidth: number;
@@ -79,7 +93,7 @@ export default class CollectIndex extends tsc<IProps> {
   @PropSync('isShow', { type: Boolean }) isShowCollect: boolean;
   @PropSync('isRefresh', { type: Boolean }) isRefreshCollect: boolean;
 
-  @Prop({ type: Array, default: () => [] }) visibleFields: Array<any>;
+  @Prop({ default: () => [], type: Array }) visibleFields: Array<any>;
 
   collectMinWidth = 160; // 收藏最小栏宽度
   collectMaxWidth = 400; // 收藏栏最大宽度
@@ -99,8 +113,8 @@ export default class CollectIndex extends tsc<IProps> {
   activeFavorite: IFavoriteItem = null;
   favoriteLoading = false;
   groupNameMap = {
-    unknown: window.mainComponent.$t('未分组'),
     private: window.mainComponent.$t('个人收藏'),
+    unknown: window.mainComponent.$t('未分组'),
   };
   verifyData = {
     groupName: '',
@@ -108,33 +122,35 @@ export default class CollectIndex extends tsc<IProps> {
   groupSortList = [
     // 排序展示列表
     {
-      name: window.mainComponent.$t('按名称 {n} 排序', { n: 'A - Z' }),
       id: 'NAME_ASC',
+      name: window.mainComponent.$t('按名称 {n} 排序', { n: 'A - Z' }),
     },
     {
-      name: window.mainComponent.$t('按名称 {n} 排序', { n: 'Z - A' }),
       id: 'NAME_DESC',
+      name: window.mainComponent.$t('按名称 {n} 排序', { n: 'Z - A' }),
     },
     {
-      name: window.mainComponent.$t('按更新时间排序'),
       id: 'UPDATED_AT_DESC',
+      name: window.mainComponent.$t('按更新时间排序'),
     },
   ];
   public rules = {
     groupName: [
       {
-        validator: this.checkName,
-        message: window.mainComponent.$t('{n}不规范, 包含特殊符号', { n: window.mainComponent.$t('组名') }),
+        message: window.mainComponent.$t('{n}不规范, 包含特殊符号', {
+          n: window.mainComponent.$t('组名'),
+        }),
         trigger: 'blur',
+        validator: this.checkName,
       },
       {
-        validator: this.checkExistName,
         message: window.mainComponent.$t('组名重复'),
         trigger: 'blur',
+        validator: this.checkExistName,
       },
       {
-        required: true,
         message: window.mainComponent.$t('必填项'),
+        required: true,
         trigger: 'blur',
       },
       {
@@ -145,9 +161,9 @@ export default class CollectIndex extends tsc<IProps> {
     ],
   };
   tippyOption = {
-    trigger: 'click',
     interactive: true,
     theme: 'light',
+    trigger: 'click',
   };
 
   // 收藏夹的二种类型选择
@@ -188,72 +204,97 @@ export default class CollectIndex extends tsc<IProps> {
   get favoriteList() {
     let data = this.$store.state.favoriteList ?? [];
     if (this.isShowCurrentIndexList) {
-      data = (this.$store.state.favoriteList ?? []).map(({ group_id, group_name, group_type, favorites }) => {
-        return {
-          group_id,
-          group_name,
-          group_type,
-          favorites: favorites.filter(item => {
-            // 当前索引集为联合索引
-            if (this.isUnionSearch) {
-              // 收藏为联合索引
-              return (
-                item.index_set_type === 'union' &&
-                (item.index_set_ids ?? []).every(id => this.unionIndexList.includes(`${id}`))
-              );
-            }
+      data = (this.$store.state.favoriteList ?? []).map(
+        ({ favorites, group_id, group_name, group_type }) => {
+          return {
+            favorites: favorites.filter((item) => {
+              // 当前索引集为联合索引
+              if (this.isUnionSearch) {
+                // 收藏为联合索引
+                return (
+                  item.index_set_type === 'union' &&
+                  (item.index_set_ids ?? []).every((id) =>
+                    this.unionIndexList.includes(`${id}`)
+                  )
+                );
+              }
 
-            return item.index_set_type === 'single' && `${item.index_set_id}` === this.indexSetId;
-          }),
-        };
-      });
+              return (
+                item.index_set_type === 'single' &&
+                `${item.index_set_id}` === this.indexSetId
+              );
+            }),
+            group_id,
+            group_name,
+            group_type,
+          };
+        }
+      );
     }
 
     const provideFavorite = data[0];
     const publicFavorite = data[data.length - 1];
-    const sortFavoriteList = data.slice(1, data.length - 1).sort((a, b) => a.group_name.localeCompare(b.group_name));
-    const sortAfterList = [provideFavorite, ...sortFavoriteList, publicFavorite];
-    return sortAfterList.filter(item => item !== undefined);
+    const sortFavoriteList = data
+      .slice(1, data.length - 1)
+      .sort((a, b) => a.group_name.localeCompare(b.group_name));
+    const sortAfterList = [
+      provideFavorite,
+      ...sortFavoriteList,
+      publicFavorite,
+    ];
+    return sortAfterList.filter((item) => item !== undefined);
   }
 
   get originFavoriteList() {
-    return this.favoriteList.map(({ group_id, group_name, group_type, favorites }) => {
-      return {
-        group_id,
-        group_name,
-        group_type,
-        favorites: favorites.filter(item => item.favorite_type !== 'chart'),
-      };
-    });
+    return this.favoriteList.map(
+      ({ favorites, group_id, group_name, group_type }) => {
+        return {
+          favorites: favorites.filter((item) => item.favorite_type !== 'chart'),
+          group_id,
+          group_name,
+          group_type,
+        };
+      }
+    );
   }
 
   get chartFavoriteList() {
-    return this.favoriteList.map(({ group_id, group_name, group_type, favorites }) => {
-      return {
-        group_id,
-        group_name,
-        group_type,
-        favorites: favorites.filter(item => item.favorite_type === 'chart'),
-      };
-    });
+    return this.favoriteList.map(
+      ({ favorites, group_id, group_name, group_type }) => {
+        return {
+          favorites: favorites.filter((item) => item.favorite_type === 'chart'),
+          group_id,
+          group_name,
+          group_type,
+        };
+      }
+    );
   }
 
   get filterCollectList() {
-    const mapFn = ({ group_id, group_name, group_type, favorites }) => {
+    const mapFn = ({ favorites, group_id, group_name, group_type }) => {
       return {
+        favorites: favorites.filter(
+          (fItem) =>
+            fItem.created_by.includes(this.searchVal) ||
+            fItem.name.includes(this.searchVal)
+        ),
         group_id,
         group_name,
         group_type,
-        favorites: favorites.filter(
-          fItem => fItem.created_by.includes(this.searchVal) || fItem.name.includes(this.searchVal)
-        ),
       };
     };
     if (this.currentCollectionType === 'origin') {
-      return this.originFavoriteList.map(mapFn).filter(item => !this.isShowCurrentIndexList || item.favorites.length);
+      return this.originFavoriteList
+        .map(mapFn)
+        .filter(
+          (item) => !this.isShowCurrentIndexList || item.favorites.length
+        );
     }
 
-    return this.chartFavoriteList.map(mapFn).filter(item => !this.isShowCurrentIndexList || item.favorites.length);
+    return this.chartFavoriteList
+      .map(mapFn)
+      .filter((item) => !this.isShowCurrentIndexList || item.favorites.length);
   }
 
   get groupList() {
@@ -261,15 +302,24 @@ export default class CollectIndex extends tsc<IProps> {
   }
 
   get originFavoriteCount() {
-    return this.originFavoriteList.reduce((pre: number, cur) => ((pre += cur.favorites.length), pre), 0);
+    return this.originFavoriteList.reduce(
+      (pre: number, cur) => ((pre += cur.favorites.length), pre),
+      0
+    );
   }
 
   get chartFavoriteCount() {
-    return this.chartFavoriteList.reduce((pre: number, cur) => ((pre += cur.favorites.length), pre), 0);
+    return this.chartFavoriteList.reduce(
+      (pre: number, cur) => ((pre += cur.favorites.length), pre),
+      0
+    );
   }
 
   get allFavoriteNumber() {
-    return this.favoriteList.reduce((pre: number, cur) => ((pre += cur.favorites.length), pre), 0);
+    return this.favoriteList.reduce(
+      (pre: number, cur) => ((pre += cur.favorites.length), pre),
+      0
+    );
   }
 
   get isUnionSearch() {
@@ -287,7 +337,8 @@ export default class CollectIndex extends tsc<IProps> {
   @Watch('isShowCollect')
   handleShowCollect(value) {
     if (value) {
-      this.baseSortType = localStorage.getItem('favoriteSortType') || 'NAME_ASC';
+      this.baseSortType =
+        localStorage.getItem('favoriteSortType') || 'NAME_ASC';
       this.sortType = this.baseSortType;
       this.getFavoriteList();
     } else {
@@ -333,7 +384,9 @@ export default class CollectIndex extends tsc<IProps> {
       if (this.activeFavoriteID !== -1) {
         let isFindCheckValue = false; // 是否从列表中找到匹配当前收藏的id
         for (const gItem of this.favoriteList) {
-          const findFavorites = gItem.favorites.find(item => item.id === this.activeFavoriteID);
+          const findFavorites = gItem.favorites.find(
+            (item) => item.id === this.activeFavoriteID
+          );
           if (!!findFavorites) {
             isFindCheckValue = true; // 找到 中断循环
             break;
@@ -348,36 +401,51 @@ export default class CollectIndex extends tsc<IProps> {
   setRouteParams(favoriteItem) {
     const getRouteQueryParams = () => {
       const { ids, isUnionIndex } = this.$store.state.indexItem;
-      const search_mode = SEARCH_MODE_DIC[this.$store.state.storage[BK_LOG_STORAGE.SEARCH_TYPE]] ?? 'ui';
+      const search_mode =
+        SEARCH_MODE_DIC[
+          this.$store.state.storage[BK_LOG_STORAGE.SEARCH_TYPE]
+        ] ?? 'ui';
 
       const unionList = this.$store.state.unionIndexList;
       const clusterParams = this.$store.state.clusterParams;
-      const { start_time, end_time, addition, begin, size, ip_chooser, host_scopes, interval, sort_list } =
-        this.$store.getters.retrieveParams;
+      const {
+        addition,
+        begin,
+        end_time,
+        host_scopes,
+        interval,
+        ip_chooser,
+        size,
+        sort_list,
+        start_time,
+      } = this.$store.getters.retrieveParams;
 
       return {
         addition,
-        start_time,
-        end_time,
         begin,
-        size,
-        ip_chooser,
-        host_scopes,
-        interval,
         bk_biz_id: this.$store.state.bkBizId,
-        search_mode,
-        sort_list,
-        ids,
-        isUnionIndex,
-        unionList,
         clusterParams,
+        end_time,
+        host_scopes,
+        ids,
+        interval,
+        ip_chooser,
+        isUnionIndex,
+        search_mode,
+        size,
+        sort_list,
+        start_time,
+        unionList,
       };
     };
     const routeParams = getRouteQueryParams();
     const { ids, isUnionIndex } = routeParams;
     const params = isUnionIndex
       ? { ...this.$route.params, indexId: undefined }
-      : { ...this.$route.params, indexId: ids?.[0] ? `${ids?.[0]}` : this.$route.params?.indexId };
+      : {
+          ...this.$route.params,
+          indexId: ids?.[0] ? `${ids?.[0]}` : this.$route.params?.indexId,
+        };
 
     const query = { ...this.$route.query };
     const resolver = new RetrieveUrlResolver({
@@ -401,7 +469,10 @@ export default class CollectIndex extends tsc<IProps> {
       this.activeFavorite = null;
       let clearSearchValueNum = this.$store.state.clearSearchValueNum;
       // 清空当前检索条件
-      this.$store.commit('updateClearSearchValueNum', (clearSearchValueNum += 1));
+      this.$store.commit(
+        'updateClearSearchValueNum',
+        (clearSearchValueNum += 1)
+      );
       this.setRouteParams(value);
       setTimeout(() => {
         RetrieveHelper.setFavoriteActive(this.activeFavorite);
@@ -438,7 +509,7 @@ export default class CollectIndex extends tsc<IProps> {
     if (isUnionIndex) {
       this.$store.commit(
         'updateUnionIndexList',
-        cloneValue.index_set_ids.map(item => String(item))
+        cloneValue.index_set_ids.map((item) => String(item))
       );
     }
     if (JSON.stringify(ip_chooser) !== '{}') {
@@ -448,24 +519,31 @@ export default class CollectIndex extends tsc<IProps> {
         value: [ip_chooser],
       });
     }
-    const ids = isUnionIndex ? cloneValue.index_set_ids : [cloneValue.index_set_id];
+    const ids = isUnionIndex
+      ? cloneValue.index_set_ids
+      : [cloneValue.index_set_id];
     this.$store.commit('updateIndexItem', {
-      keyword,
       addition,
-      ip_chooser,
-      index_set_id: cloneValue.index_set_id,
       ids,
-      items: ids.map(id => this.indexSetList.find(item => item.index_set_id === `${id}`)),
+      index_set_id: cloneValue.index_set_id,
+      ip_chooser,
       isUnionIndex,
+      items: ids.map((id) =>
+        this.indexSetList.find((item) => item.index_set_id === `${id}`)
+      ),
+      keyword,
       search_mode: search_mode,
     });
 
     this.setRouteParams(value);
-    this.$store.commit('updateChartParams', { ...cloneValue.params.chart_params, fromCollectionActiveTab: 'unused' });
+    this.$store.commit('updateChartParams', {
+      ...cloneValue.params.chart_params,
+      fromCollectionActiveTab: 'unused',
+    });
 
     this.$store.commit('updateIndexSetQueryResult', {
-      origin_log_list: [],
       list: [],
+      origin_log_list: [],
     });
     this.$store.dispatch('requestIndexSetFieldInfo').then(() => {
       RetrieveHelper.setFavoriteActive({ ...this.activeFavorite, search_mode });
@@ -484,7 +562,8 @@ export default class CollectIndex extends tsc<IProps> {
     const { ids, selectIsUnionSearch } = val;
     // 关闭下拉框 判断是否是多选 如果是多选并且非缓存的则执行联合查询
     if (!isFavoriteSearch) {
-      const favoriteIDs = this.activeFavorite.index_set_ids?.map(item => String(item)) ?? [];
+      const favoriteIDs =
+        this.activeFavorite.index_set_ids?.map((item) => String(item)) ?? [];
       if (this.compareArrays(ids, favoriteIDs)) return;
       // this.resetFavoriteValue();
     }
@@ -535,15 +614,16 @@ export default class CollectIndex extends tsc<IProps> {
         this.getFavoriteList();
         break;
       case 'move-favorite': // 移动收藏
-        const visible_type = value.group_id === this.privateGroupID ? 'private' : 'public';
+        const visible_type =
+          value.group_id === this.privateGroupID ? 'private' : 'public';
         Object.assign(value, { visible_type });
         await this.handleUpdateFavorite(value);
         this.getFavoriteList();
         break;
       case 'remove-group': // 从组中移除收藏（移动至未分组）
         Object.assign(value, {
-          visible_type: 'public',
           group_id: this.unknownGroupID,
+          visible_type: 'public',
         });
         await this.handleUpdateFavorite(value);
         this.getFavoriteList();
@@ -554,23 +634,27 @@ export default class CollectIndex extends tsc<IProps> {
         break;
       case 'delete-favorite': // 删除收藏
         this.$bkInfo({
-          subTitle: this.$t('当前收藏名为 {n}，确认是否删除？', { n: value.name }),
-          type: 'warning',
           confirmFn: async () => {
             await this.deleteFavorite(value.id);
             this.getFavoriteList();
           },
+          subTitle: this.$t('当前收藏名为 {n}，确认是否删除？', {
+            n: value.name,
+          }),
+          type: 'warning',
         });
         break;
       case 'dismiss-group': // 解散分组
         this.$bkInfo({
-          title: this.$t('当前分组名为 {n}，确认是否解散？', { n: value.group_name }),
-          subTitle: `${this.$t('解散分组后，原分组内的收藏将移至未分组中。')}`,
-          type: 'warning',
           confirmFn: async () => {
             await this.deleteGroup(value.group_id);
             this.getFavoriteList();
           },
+          subTitle: `${this.$t('解散分组后，原分组内的收藏将移至未分组中。')}`,
+          title: this.$t('当前分组名为 {n}，确认是否解散？', {
+            n: value.group_name,
+          }),
+          type: 'warning',
         });
         break;
       case 'share':
@@ -580,10 +664,10 @@ export default class CollectIndex extends tsc<IProps> {
           const resolver = new RetrieveUrlResolver({
             ...value.params,
             addition: value.params.addition,
+            isUnionIndex: value.index_set_type === 'union',
             search_mode: value.search_mode,
             spaceUid: value.space_uid,
             unionList: value.index_set_ids.map((item: number) => String(item)),
-            isUnionIndex: value.index_set_type === 'union',
           });
 
           const routeData = {
@@ -601,7 +685,10 @@ export default class CollectIndex extends tsc<IProps> {
             window.open(shareUrl, '_blank');
           } else {
             console.log('routeData', `${shareUrl}`);
-            copyMessage(shareUrl, this.$t('复制分享链接成功，通过链接，可直接查询对应收藏日志。'));
+            copyMessage(
+              shareUrl,
+              this.$t('复制分享链接成功，通过链接，可直接查询对应收藏日志。')
+            );
           }
         }
         break;
@@ -615,21 +702,28 @@ export default class CollectIndex extends tsc<IProps> {
         break;
       case 'create-copy':
         {
-          const { index_set_id, params, name, group_id, display_fields, visible_type, is_enable_display_fields } =
-            value;
-          const { host_scopes, addition, keyword, search_fields } = params;
-          const data = {
-            name: `${name} ${this.$t('副本')}`,
-            group_id,
+          const {
             display_fields,
-            visible_type,
-            host_scopes,
-            addition,
-            keyword,
-            search_fields,
-            is_enable_display_fields,
+            group_id,
             index_set_id,
+            is_enable_display_fields,
+            name,
+            params,
+            visible_type,
+          } = value;
+          const { addition, host_scopes, keyword, search_fields } = params;
+          const data = {
+            addition,
+            display_fields,
+            group_id,
+            host_scopes,
+            index_set_id,
+            is_enable_display_fields,
+            keyword,
+            name: `${name} ${this.$t('副本')}`,
+            search_fields,
             space_uid: this.spaceUid,
+            visible_type,
           };
           if (this.isUnionSearch) {
             Object.assign(data, {
@@ -653,14 +747,18 @@ export default class CollectIndex extends tsc<IProps> {
     );
   }
   checkExistName() {
-    return !this.groupList.some(item => item.group_name === this.verifyData.groupName);
+    return !this.groupList.some(
+      (item) => item.group_name === this.verifyData.groupName
+    );
   }
   /** 新增组 */
   handleClickGroupBtn(clickType: string) {
     if (clickType === 'add') {
       this.checkInputFormRef.validate().then(async () => {
         if (!this.verifyData.groupName.trim()) return;
-        await this.handleUpdateGroupName({ group_new_name: this.verifyData.groupName });
+        await this.handleUpdateGroupName({
+          group_new_name: this.verifyData.groupName,
+        });
         this.getFavoriteList();
         this.popoverGroupRef.hideHandler();
         setTimeout(() => {
@@ -696,8 +794,8 @@ export default class CollectIndex extends tsc<IProps> {
     const requestStr = isCreate ? 'createGroup' : 'updateGroupName';
     await $http
       .request(`favorite/${requestStr}`, {
-        params,
         data,
+        params,
       })
       .then(() => {
         this.showMessagePop(this.$t('操作成功'));
@@ -735,19 +833,28 @@ export default class CollectIndex extends tsc<IProps> {
 
   /** 更新收藏 */
   async handleUpdateFavorite(favoriteData) {
-    const { params, name, group_id, display_fields, visible_type, id, index_set_id, index_set_ids, index_set_type } =
-      favoriteData;
-    const { ip_chooser, addition, keyword, search_fields } = params;
-    const data = {
-      name,
-      group_id,
+    const {
       display_fields,
-      visible_type,
-      ip_chooser,
-      addition,
-      keyword,
-      search_fields,
+      group_id,
+      id,
+      index_set_id,
+      index_set_ids,
       index_set_type,
+      name,
+      params,
+      visible_type,
+    } = favoriteData;
+    const { addition, ip_chooser, keyword, search_fields } = params;
+    const data = {
+      addition,
+      display_fields,
+      group_id,
+      index_set_type,
+      ip_chooser,
+      keyword,
+      name,
+      search_fields,
+      visible_type,
     };
     if (index_set_type === 'union') {
       Object.assign(data, {
@@ -760,8 +867,8 @@ export default class CollectIndex extends tsc<IProps> {
     }
     await $http
       .request('favorite/updateFavorite', {
-        params: { id },
         data,
+        params: { id },
       })
       .then(() => {
         this.showMessagePop(this.$t('操作成功'));
@@ -789,7 +896,8 @@ export default class CollectIndex extends tsc<IProps> {
     window.addEventListener('mouseup', this.dragStop, { passive: true });
   }
   dragMoving(e) {
-    const newTreeBoxWidth = this.currentTreeBoxWidth + e.screenX - this.currentScreenX;
+    const newTreeBoxWidth =
+      this.currentTreeBoxWidth + e.screenX - this.currentScreenX;
     if (newTreeBoxWidth < this.collectMinWidth) {
       this.collectWidth = 240;
       this.isShowCollect = false;
@@ -835,106 +943,119 @@ export default class CollectIndex extends tsc<IProps> {
   render() {
     return (
       <div
+        class="retrieve-collect-index"
         style={{
-          width: this.isShowCollect ? `${this.collectWidth}px` : 0,
           display: this.isShowCollect ? 'block' : 'none',
+          width: this.isShowCollect ? `${this.collectWidth}px` : 0,
         }}
-        class='retrieve-collect-index'
       >
         <CollectContainer
-          ref='collectContainer'
           activeFavoriteID={this.activeFavoriteID}
           collectLoading={this.collectLoading || this.favoriteLoading}
           dataList={this.filterCollectList}
           groupList={this.groupList}
           isSearchFilter={this.isSearchFilter}
           on-change={this.handleUserOperate}
+          ref="collectContainer"
         >
-          <div class='search-container-new'>
-            <div class='search-container-new-title'>
+          <div class="search-container-new">
+            <div class="search-container-new-title">
               <div>
-                <span style={{ fontSize: '14px', color: '#313238' }}>{this.$t('收藏夹')}</span>
-                <span class='search-container-new-title-num'>{this.allFavoriteNumber}</span>
+                <span style={{ color: '#313238', fontSize: '14px' }}>
+                  {this.$t('收藏夹')}
+                </span>
+                <span class="search-container-new-title-num">
+                  {this.allFavoriteNumber}
+                </span>
               </div>
               <div
-                style={{ fontSize: '16px', cursor: 'pointer' }}
-                class='search-container-new-title-right'
+                class="search-container-new-title-right"
+                style={{ cursor: 'pointer', fontSize: '16px' }}
               >
                 <span
-                  class='bklog-icon bklog-shezhi'
+                  class="bklog-icon bklog-shezhi"
                   onClick={this.handleFavoriteSetttingClick}
                 ></span>
                 <span
-                  class='bklog-icon bklog-collapse'
+                  class="bklog-icon bklog-collapse"
                   onClick={this.handleCollapse}
                 ></span>
               </div>
             </div>
-            <div class='search-box fl-jcsb'>
+            <div class="search-box fl-jcsb">
               <Input
-                class='search-input'
-                vModel={this.searchVal}
-                behavior='normal'
+                behavior="normal"
+                class="search-input"
                 placeholder={this.$t('请输入')}
-                right-icon='bk-icon icon-search'
+                right-icon="bk-icon icon-search"
+                vModel={this.searchVal}
               ></Input>
             </div>
-            <div class='search-category'>
-              <div class='selector-container'>
-                {['origin', 'chart'].map(type => (
+            <div class="search-category">
+              <div class="selector-container">
+                {['origin', 'chart'].map((type) => (
                   <span
-                    key={type}
                     class={`option ${this.currentCollectionType === type ? 'selected' : ''}`}
+                    key={type}
                     onClick={() => this.handleRadioGroup(type)}
                   >
                     <span
-                      style={{ marginRight: '4px' }}
                       class={`bklog-icon ${type === 'origin' ? 'bklog-table-2' : 'bklog-chart-2'}`}
+                      style={{ marginRight: '4px' }}
                     ></span>
                     <span
-                      class='search-category-text'
+                      class="search-category-text"
                       style={{ marginRight: '4px' }}
                     >
-                      {type === 'origin' ? this.$t('原始日志') : this.$t('图表分析')}
+                      {type === 'origin'
+                        ? this.$t('原始日志')
+                        : this.$t('图表分析')}
                     </span>
-                    <span class='search-category-num'>
-                      {type === 'origin' ? this.originFavoriteCount : this.chartFavoriteCount}
+                    <span class="search-category-num">
+                      {type === 'origin'
+                        ? this.originFavoriteCount
+                        : this.chartFavoriteCount}
                     </span>
                   </span>
                 ))}
               </div>
             </div>
-            <div class='search-tool'>
+            <div class="search-tool">
               <span>
                 <bk-checkbox
-                  v-model={this.isShowCurrentIndexList}
                   false-value={false}
-                  true-value={true}
                   onChange={this.handleShowCurrentChange}
+                  true-value={true}
+                  v-model={this.isShowCurrentIndexList}
                 >
                   {this.$t('仅查看当前索引集')}
                 </bk-checkbox>
               </span>
               <div
-                style={{ marginTop: '1px', cursor: 'pointer', marginLeft: '0px', width: '72px' }}
-                class='fl-jcsb '
+                class="fl-jcsb "
+                style={{
+                  cursor: 'pointer',
+                  marginLeft: '0px',
+                  marginTop: '1px',
+                  width: '72px',
+                }}
               >
                 <Popover
-                  ref='popoverGroup'
-                  ext-cls='new-group-popover'
-                  placement='bottom-start'
+                  ext-cls="new-group-popover"
+                  placement="bottom-start"
+                  ref="popoverGroup"
                   tippy-options={this.tippyOption}
                 >
                   <span
+                    class="bklog-icon bklog-xinjianwenjianjia"
                     style={{ fontSize: '16px' }}
-                    class='bklog-icon bklog-xinjianwenjianjia'
                     v-bk-tooltips={this.$t('新建收藏分组')}
                   ></span>
-                  <div slot='content'>
+                  <div slot="content">
                     <Form
-                      ref='checkInputForm'
-                      style={{ width: '100%', padding: '0px 2px' }}
-                      form-type='vertical'
+                      form-type="vertical"
+                      ref="checkInputForm"
+                      style={{ padding: '0px 2px', width: '100%' }}
                       {...{
                         props: {
                           model: this.verifyData,
@@ -945,28 +1066,28 @@ export default class CollectIndex extends tsc<IProps> {
                       <FormItem
                         icon-offset={34}
                         label={this.$t('分组名称')}
-                        property='groupName'
+                        property="groupName"
                         required
                       >
                         <Input
-                          style={{ marginTop: '4px' }}
-                          vModel={this.verifyData.groupName}
-                          placeholder={this.$t('请输入')}
                           clearable
                           onEnter={() => this.handleClickGroupBtn('add')}
                           onKeydown={this.handleGroupKeyDown}
+                          placeholder={this.$t('请输入')}
+                          style={{ marginTop: '4px' }}
+                          vModel={this.verifyData.groupName}
                         ></Input>
                       </FormItem>
                     </Form>
-                    <div class='operate-button'>
+                    <div class="operate-button">
                       <span
-                        class='operate-button-custom button-first'
+                        class="operate-button-custom button-first"
                         onClick={() => this.handleClickGroupBtn('add')}
                       >
                         {this.$t('确定')}
                       </span>
                       <span
-                        class='operate-button-custom button-second'
+                        class="operate-button-custom button-second"
                         onClick={() => this.handleClickGroupBtn('cancel')}
                       >
                         {this.$t('取消')}
@@ -975,46 +1096,47 @@ export default class CollectIndex extends tsc<IProps> {
                   </div>
                 </Popover>
                 <span
-                  style={{ fontSize: '16px' }}
                   class={`bklog-icon ${!this.isHidden ? 'bklog-zhankai-2' : 'bklog-shouqi'}`}
-                  v-bk-tooltips={this.$t(`${!this.isHidden ? '全部收起' : '全部展开'}`)}
                   onClick={() => this.handleGroupIsHidden()}
+                  style={{ fontSize: '16px' }}
+                  v-bk-tooltips={this.$t(
+                    `${!this.isHidden ? '全部收起' : '全部展开'}`
+                  )}
                 ></span>
                 <Popover
-                  ref='popoverSort'
-                  ext-cls='sort-group-popover'
-                  placement='bottom-start'
+                  ext-cls="sort-group-popover"
+                  placement="bottom-start"
+                  ref="popoverSort"
                   tippy-options={this.tippyOption}
                 >
-                  <div
-                    class='icon-box'
-                    v-bk-tooltips={this.$t('调整排序')}
-                  >
+                  <div class="icon-box" v-bk-tooltips={this.$t('调整排序')}>
                     <span
+                      class="bklog-icon bklog-paixu"
                       style={{ fontSize: '16px' }}
-                      class='bklog-icon bklog-paixu'
                     ></span>
                   </div>
-                  <div slot='content'>
+                  <div slot="content">
                     <div style={{ padding: '0px 2px' }}>
-                      <span style={{ fontSize: '14px', marginTop: '8px' }}>{this.$t('收藏名排序')}</span>
+                      <span style={{ fontSize: '14px', marginTop: '8px' }}>
+                        {this.$t('收藏名排序')}
+                      </span>
                       <RadioGroup
-                        class='sort-group-container'
+                        class="sort-group-container"
                         vModel={this.sortType}
                       >
-                        {this.groupSortList.map(item => (
+                        {this.groupSortList.map((item) => (
                           <Radio value={item.id}>{item.name}</Radio>
                         ))}
                       </RadioGroup>
-                      <div class='operate-button'>
+                      <div class="operate-button">
                         <span
-                          class='operate-button-custom button-first'
+                          class="operate-button-custom button-first"
                           onClick={() => this.handleClickSortBtn('sort')}
                         >
                           {this.$t('确定')}
                         </span>
                         <span
-                          class='operate-button-custom button-second'
+                          class="operate-button-custom button-second"
                           onClick={() => this.handleClickSortBtn('cancel')}
                         >
                           {this.$t('取消')}
@@ -1047,15 +1169,15 @@ export default class CollectIndex extends tsc<IProps> {
           onClose={this.closeShowManageDialog}
         ></FavoriteManageDialog>
         <AddCollectDialog
-          vModel={this.isShowAddNewFavoriteDialog}
           activeFavoriteID={this.activeFavoriteID}
           favoriteID={this.editFavoriteID}
           favoriteList={this.favoriteList}
-          visibleFields={this.visibleFields}
-          on-change-favorite={async value => {
+          on-change-favorite={async (value) => {
             await this.getFavoriteList();
             this.handleClickFavoriteItem(value);
           }}
+          vModel={this.isShowAddNewFavoriteDialog}
+          visibleFields={this.visibleFields}
         />
       </div>
     );

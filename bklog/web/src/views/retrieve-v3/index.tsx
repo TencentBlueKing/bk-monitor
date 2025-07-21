@@ -24,28 +24,34 @@
  * IN THE SOFTWARE.
  */
 
+import useStore from '@/hooks/use-store';
 import { computed, defineComponent } from 'vue';
 
-import useStore from '@/hooks/use-store';
+import { BK_LOG_STORAGE } from '../../store/store.type';
 
 import V3Container from './container';
 import V3Collection from './favorite';
+import './global-en.scss';
+import './index.scss';
 import V3Searchbar from './search-bar';
 import V3SearchResult from './search-result';
 import V3Toolbar from './toolbar';
 import useAppInit from './use-app-init';
-import { BK_LOG_STORAGE } from '../../store/store.type';
-
-import './index.scss';
-import './global-en.scss';
 export default defineComponent({
   name: 'RetrieveV3',
   setup() {
     const store = useStore();
 
-    const { isSearchContextStickyTop, isSearchResultStickyTop, stickyStyle, contentStyle, isPreApiLoaded } =
-      useAppInit();
-    const isStartTextEllipsis = computed(() => store.state.storage[BK_LOG_STORAGE.TEXT_ELLIPSIS_DIR] === 'start');
+    const {
+      contentStyle,
+      isPreApiLoaded,
+      isSearchContextStickyTop,
+      isSearchResultStickyTop,
+      stickyStyle,
+    } = useAppInit();
+    const isStartTextEllipsis = computed(
+      () => store.state.storage[BK_LOG_STORAGE.TEXT_ELLIPSIS_DIR] === 'start'
+    );
     const renderResultContent = () => {
       if (isPreApiLoaded.value) {
         return [
@@ -67,19 +73,19 @@ export default defineComponent({
 
     return () => (
       <div
-        style={stickyStyle.value}
-        v-bkloading={{ isLoading: !isPreApiLoaded.value }}
         class={[
           'v3-bklog-root',
           { 'is-start-text-ellipsis': isStartTextEllipsis.value },
-          { 'is-sticky-top': isSearchContextStickyTop.value, 'is-sticky-top-result': isSearchResultStickyTop.value },
+          {
+            'is-sticky-top': isSearchContextStickyTop.value,
+            'is-sticky-top-result': isSearchResultStickyTop.value,
+          },
         ]}
+        style={stickyStyle.value}
+        v-bkloading={{ isLoading: !isPreApiLoaded.value }}
       >
         <V3Collection></V3Collection>
-        <div
-          style={contentStyle.value}
-          class='v3-bklog-content'
-        >
+        <div class="v3-bklog-content" style={contentStyle.value}>
           {renderResultContent()}
         </div>
       </div>

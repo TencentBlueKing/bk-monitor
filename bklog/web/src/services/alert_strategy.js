@@ -29,19 +29,19 @@
  */
 
 const alertList = {
-  url: '/alert_strategy/:index_set_id/alert_records/',
   method: 'post',
+  url: '/alert_strategy/:index_set_id/alert_records/',
 };
 const strategyList = {
-  url: '/alert_strategy/:index_set_id/strategy_records/',
   method: 'post',
+  url: '/alert_strategy/:index_set_id/strategy_records/',
 };
 
 /**
  * 获取日志查询条件
  */
 const getLogRelatedInfo = {
-  url: '/alert_strategy/:index_set_id/log_related_info/',
   method: 'get',
+  url: '/alert_strategy/:index_set_id/log_related_info/',
 };
 export { alertList, strategyList, getLogRelatedInfo };

@@ -23,9 +23,8 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { onMounted, Ref, onBeforeUnmount, ref } from 'vue';
-
 import { debounce, isElement } from 'lodash';
+import { onMounted, Ref, onBeforeUnmount, ref } from 'vue';
 
 export default (
   target: (() => HTMLElement | string) | Ref<HTMLElement> | string,
@@ -33,7 +32,7 @@ export default (
   delayCallback: boolean | number = 120,
   immediateStart = true
 ) => {
-  const debounceCallback = debounce(entry => {
+  const debounceCallback = debounce((entry) => {
     callbackFn?.(entry);
   }, delayCallback);
 
@@ -57,7 +56,7 @@ export default (
   const isStoped = ref(true);
 
   const observeElement = () => {
-    if (isStoped) {
+    if (isStoped.value) {
       isStoped.value = false;
       const cellElement = getTarget() as HTMLElement;
       resizeObserver?.observe(cellElement);
@@ -69,7 +68,7 @@ export default (
 
     if (isElement(cellElement)) {
       // 创建一个 ResizeObserver 实例
-      resizeObserver = new ResizeObserver(entries => {
+      resizeObserver = new ResizeObserver((entries) => {
         for (let entry of entries) {
           if (delayCallback === false) {
             callbackFn?.(entry);
@@ -113,5 +112,11 @@ export default (
 
   const getInstance = () => resizeObserver;
 
-  return { destoyResizeObserve, getInstance, observeElement, stopObserve, isStoped };
+  return {
+    destoyResizeObserve,
+    getInstance,
+    isStoped,
+    observeElement,
+    stopObserve,
+  };
 };

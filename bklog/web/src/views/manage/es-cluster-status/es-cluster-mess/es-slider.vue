@@ -68,11 +68,7 @@
             </bk-form-item>
             <!-- 来源 es地址 -->
             <div class="form-item-container">
-              <bk-form-item
-                :label="$t('来源')"
-                property="source_type"
-                required
-              >
+              <bk-form-item :label="$t('来源')" property="source_type" required>
                 <div class="source-item">
                   <bk-select
                     style="width: 154px; margin-right: 10px"
@@ -105,11 +101,7 @@
             </div>
             <!-- 端口  协议 -->
             <div class="form-item-container">
-              <bk-form-item
-                :label="$t('端口')"
-                property="port"
-                required
-              >
+              <bk-form-item :label="$t('端口')" property="port" required>
                 <bk-input
                   v-model="basicFormData.port"
                   :max="65535"
@@ -121,23 +113,14 @@
                 >
                 </bk-input>
               </bk-form-item>
-              <bk-form-item
-                :label="$t('协议')"
-                required
-              >
+              <bk-form-item :label="$t('协议')" required>
                 <bk-select
                   v-model="basicFormData.schema"
                   :clearable="false"
                   data-test-id="esAccessFromBox_select_selectProtocol"
                 >
-                  <bk-option
-                    id="http"
-                    name="http"
-                  ></bk-option>
-                  <bk-option
-                    id="https"
-                    name="https"
-                  ></bk-option>
+                  <bk-option id="http" name="http"></bk-option>
+                  <bk-option id="https" name="https"></bk-option>
                 </bk-select>
               </bk-form-item>
             </div>
@@ -169,17 +152,13 @@
                 >
                   {{ $t('连通性测试') }}
                 </bk-button>
-                <div
-                  v-if="connectResult === 'success'"
-                  class="success-text"
-                >
-                  <i class="bk-icon icon-check-circle-shape"></i>{{ $t('连通成功！') }}
+                <div v-if="connectResult === 'success'" class="success-text">
+                  <i class="bk-icon icon-check-circle-shape"></i
+                  >{{ $t('连通成功！') }}
                 </div>
-                <div
-                  v-else-if="connectResult === 'failed'"
-                  class="error-text"
-                >
-                  <i class="bk-icon icon-close-circle-shape"></i>{{ $t('连通失败！') }}
+                <div v-else-if="connectResult === 'failed'" class="error-text">
+                  <i class="bk-icon icon-close-circle-shape"></i
+                  >{{ $t('连通失败！') }}
                 </div>
               </div>
             </bk-form-item>
@@ -196,16 +175,18 @@
                 @click="isShowManagement = !isShowManagement"
               >
                 <span>{{ $t('ES集群管理') }}</span>
-                <span :class="['bk-icon icon-angle-double-down', isShowManagement && 'is-show']"></span>
+                <span
+                  :class="[
+                    'bk-icon icon-angle-double-down',
+                    isShowManagement && 'is-show',
+                  ]"
+                ></span>
               </div>
             </bk-form-item>
 
             <div v-if="isShowManagement && connectResult === 'success'">
               <!-- 可见范围 -->
-              <bk-form-item
-                style="margin-top: 4px"
-                :label="$t('可见范围')"
-              >
+              <bk-form-item style="margin-top: 4px" :label="$t('可见范围')">
                 <bk-radio-group v-model="formData.visible_config.visible_type">
                   <bk-radio
                     v-for="item of visibleScopeSelectList"
@@ -243,12 +224,16 @@
                           {{ tag.name }}
                         </bk-tag>
                       </div>
+                      <span v-if="!visibleList.length" class="please-select">{{
+                        $t('请选择')
+                      }}</span>
                       <span
-                        v-if="!visibleList.length"
-                        class="please-select"
-                        >{{ $t('请选择') }}</span
-                      >
-                      <span :class="['bk-icon', 'icon-angle-down', !visibleIsToggle ? '' : 'icon-rotate']"></span>
+                        :class="[
+                          'bk-icon',
+                          'icon-angle-down',
+                          !visibleIsToggle ? '' : 'icon-rotate',
+                        ]"
+                      ></span>
                     </div>
                   </template>
                 </bk-select>
@@ -270,10 +255,7 @@
                 </bk-search-select>
               </bk-form-item>
               <!-- 过期时间 -->
-              <bk-form-item
-                :label="$t('过期时间')"
-                required
-              >
+              <bk-form-item :label="$t('过期时间')" required>
                 <div class="flex-space">
                   <div class="flex-space-item">
                     <div class="space-item-label">{{ $t('默认') }}</div>
@@ -284,7 +266,10 @@
                     >
                       <template #trigger>
                         <div class="bk-select-name">
-                          {{ formData.setup_config.retention_days_default + $t('天') }}
+                          {{
+                            formData.setup_config.retention_days_default +
+                            $t('天')
+                          }}
                         </div>
                       </template>
                       <template>
@@ -320,7 +305,9 @@
                     >
                       <template #trigger>
                         <div class="bk-select-name">
-                          {{ formData.setup_config.retention_days_max + $t('天') }}
+                          {{
+                            formData.setup_config.retention_days_max + $t('天')
+                          }}
                         </div>
                       </template>
                       <template>
@@ -350,16 +337,15 @@
                 </div>
               </bk-form-item>
               <!-- 副本数 -->
-              <bk-form-item
-                :label="$t('副本数')"
-                required
-              >
+              <bk-form-item :label="$t('副本数')" required>
                 <div class="flex-space">
                   <div class="flex-space-item">
                     <div class="space-item-label">{{ $t('默认') }}</div>
                     <bk-input
                       v-model="formData.setup_config.number_of_replicas_default"
-                      :max="Number(formData.setup_config.number_of_replicas_max)"
+                      :max="
+                        Number(formData.setup_config.number_of_replicas_max)
+                      "
                       :min="0"
                       type="number"
                     >
@@ -369,7 +355,9 @@
                     <div class="space-item-label">{{ $t('最大') }}</div>
                     <bk-input
                       v-model="formData.setup_config.number_of_replicas_max"
-                      :min="Number(formData.setup_config.number_of_replicas_default)"
+                      :min="
+                        Number(formData.setup_config.number_of_replicas_default)
+                      "
                       type="number"
                     >
                     </bk-input>
@@ -377,10 +365,7 @@
                 </div>
               </bk-form-item>
               <!-- 分片数 -->
-              <bk-form-item
-                :label="$t('分片数')"
-                required
-              >
+              <bk-form-item :label="$t('分片数')" required>
                 <div class="flex-space">
                   <div class="flex-space-item">
                     <div class="space-item-label">{{ $t('默认') }}</div>
@@ -418,7 +403,9 @@
                   ></bk-switcher>
                   <template v-if="isDisableHotSetting && !connectLoading">
                     <span class="bk-icon icon-info"></span>
-                    <span style="font-size: 12px">{{ $t('没有获取到正确的标签，') }}</span>
+                    <span style="font-size: 12px">{{
+                      $t('没有获取到正确的标签，')
+                    }}</span>
                     <a
                       class="button-text"
                       :href="configDocUrl"
@@ -429,10 +416,7 @@
                 </div>
               </bk-form-item>
               <!-- 冷热数据标签 -->
-              <div
-                v-if="formData.enable_hot_warm"
-                class="form-item-container"
-              >
+              <div v-if="formData.enable_hot_warm" class="form-item-container">
                 <div class="bk-form-item">
                   <div class="form-item-label">
                     <p>{{ $t('热数据标签') }}</p>
@@ -441,7 +425,8 @@
                       class="button-text"
                       @click="handleViewInstanceList('hot')"
                     >
-                      <span class="bk-icon icon-eye"></span>{{ $t('查看实例列表') }}
+                      <span class="bk-icon icon-eye"></span
+                      >{{ $t('查看实例列表') }}
                     </div>
                   </div>
                   <bk-select
@@ -460,10 +445,7 @@
                     </template>
                   </bk-select>
                 </div>
-                <div
-                  v-if="formData.enable_hot_warm"
-                  class="bk-form-item"
-                >
+                <div v-if="formData.enable_hot_warm" class="bk-form-item">
                   <div class="form-item-label">
                     <p>{{ $t('冷数据标签') }}</p>
                     <div
@@ -471,7 +453,8 @@
                       class="button-text"
                       @click="handleViewInstanceList('cold')"
                     >
-                      <span class="bk-icon icon-eye"></span>{{ $t('查看实例列表') }}
+                      <span class="bk-icon icon-eye"></span
+                      >{{ $t('查看实例列表') }}
                     </div>
                   </div>
                   <bk-select
@@ -510,10 +493,7 @@
                     </div>
                   </div>
                 </bk-form-item>
-                <bk-form-item
-                  v-if="isItsm"
-                  :label="$t('容量评估')"
-                >
+                <bk-form-item v-if="isItsm" :label="$t('容量评估')">
                   <bk-switcher
                     v-model="formData.enable_assessment"
                     size="large"
@@ -541,10 +521,7 @@
                 </div>
               </bk-form-item>
               <!-- 集群说明 -->
-              <bk-form-item
-                class="illustrate"
-                :label="$t('说明')"
-              >
+              <bk-form-item class="illustrate" :label="$t('说明')">
                 <bk-input
                   v-model="formData.description"
                   :maxlength="100"
@@ -732,8 +709,8 @@ export default {
   },
   computed: {
     ...mapState({
-      mySpaceList: state => state.mySpaceList,
-      userMeta: state => state.userMeta,
+      mySpaceList: (state) => state.mySpaceList,
+      userMeta: (state) => state.userMeta,
     }),
     ...mapGetters({
       bkBizId: 'bkBizId',
@@ -744,7 +721,10 @@ export default {
     },
     // 冷热设置不对，禁用提交
     invalidHotSetting() {
-      return this.formData.enable_hot_warm && !(this.formData.hot_attr_value && this.formData.warm_attr_value);
+      return (
+        this.formData.enable_hot_warm &&
+        !(this.formData.hot_attr_value && this.formData.warm_attr_value)
+      );
     },
     isRulesCheckSubmit() {
       return !this.formData.admin.length;
@@ -768,7 +748,11 @@ export default {
     },
     // 提交按钮是否禁用
     isDisableClickSubmit() {
-      return this.connectResult !== 'success' || this.invalidHotSetting || this.isRulesCheckSubmit;
+      return (
+        this.connectResult !== 'success' ||
+        this.invalidHotSetting ||
+        this.isRulesCheckSubmit
+      );
     },
     // 侧边栏需要对比的formData
     _watchFormData_({ formData, basicFormData }) {
@@ -866,12 +850,14 @@ export default {
         if (val !== 'biz_attr') {
           this.bkBizLabelsList = [];
         } else {
-          this.bkBizLabelsList = JSON.parse(JSON.stringify(this.cacheBkBizLabelsList));
+          this.bkBizLabelsList = JSON.parse(
+            JSON.stringify(this.cacheBkBizLabelsList)
+          );
         }
       },
     },
     visibleList(val) {
-      this.visibleBkBiz = val.map(item => item.id);
+      this.visibleBkBiz = val.map((item) => item.id);
     },
   },
   methods: {
@@ -901,9 +887,11 @@ export default {
       this.visibleIsToggle = data;
       if (!data) {
         this.visibleList.splice(0, this.visibleList.length);
-        this.visibleBkBiz.forEach(val => {
-          if (!this.visibleList.some(item => String(item.id) === val)) {
-            const target = this.mySpaceList.find(project => project.bk_biz_id === val);
+        this.visibleBkBiz.forEach((val) => {
+          if (!this.visibleList.some((item) => String(item.id) === val)) {
+            const target = this.mySpaceList.find(
+              (project) => project.bk_biz_id === val
+            );
             this.visibleList.push({
               id: val,
               name: target.space_full_code_name,
@@ -940,21 +928,38 @@ export default {
         };
         this.formData = {
           enable_hot_warm: res.data.cluster_config.enable_hot_warm, // 是否开启冷热数据
-          hot_attr_name: res.data.cluster_config.custom_option?.hot_warm_config?.hot_attr_name || '', // 热节点属性名称
-          hot_attr_value: res.data.cluster_config.custom_option?.hot_warm_config?.hot_attr_value || '', // 热节点属性值
-          warm_attr_name: res.data.cluster_config.custom_option?.hot_warm_config?.warm_attr_name || '', // 冷节点属性名称
-          warm_attr_value: res.data.cluster_config.custom_option?.hot_warm_config?.warm_attr_value || '', // 冷节点属性值
-          setup_config: res.data.cluster_config.custom_option?.setup_config || {},
+          hot_attr_name:
+            res.data.cluster_config.custom_option?.hot_warm_config
+              ?.hot_attr_name || '', // 热节点属性名称
+          hot_attr_value:
+            res.data.cluster_config.custom_option?.hot_warm_config
+              ?.hot_attr_value || '', // 热节点属性值
+          warm_attr_name:
+            res.data.cluster_config.custom_option?.hot_warm_config
+              ?.warm_attr_name || '', // 冷节点属性名称
+          warm_attr_value:
+            res.data.cluster_config.custom_option?.hot_warm_config
+              ?.warm_attr_value || '', // 冷节点属性值
+          setup_config:
+            res.data.cluster_config.custom_option?.setup_config || {},
           admin: res.data.cluster_config.custom_option?.admin || [],
           description: res.data.cluster_config.custom_option?.description || '',
-          enable_archive: res.data.cluster_config.custom_option?.enable_archive || false,
-          enable_assessment: res.data.cluster_config.custom_option?.enable_assessment || false,
-          visible_config: res.data.cluster_config.custom_option?.visible_config || {},
+          enable_archive:
+            res.data.cluster_config.custom_option?.enable_archive || false,
+          enable_assessment:
+            res.data.cluster_config.custom_option?.enable_assessment || false,
+          visible_config:
+            res.data.cluster_config.custom_option?.visible_config || {},
         };
         Object.assign(this.formData, this.basicFormData);
         this.initSidebarFormData();
-        (res.data.cluster_config.custom_option.visible_config?.visible_bk_biz ?? []).forEach(val => {
-          const target = this.mySpaceList.find(project => project.bk_biz_id === String(val.bk_biz_id));
+        (
+          res.data.cluster_config.custom_option.visible_config
+            ?.visible_bk_biz ?? []
+        ).forEach((val) => {
+          const target = this.mySpaceList.find(
+            (project) => project.bk_biz_id === String(val.bk_biz_id)
+          );
           if (target) {
             target.is_use = val.is_use;
             const targetObj = {
@@ -968,18 +973,23 @@ export default {
         });
 
         this.bkBizLabelsList = Object.entries(
-          res.data.cluster_config.custom_option.visible_config?.bk_biz_labels || {}
+          res.data.cluster_config.custom_option.visible_config?.bk_biz_labels ||
+            {}
         ).reduce((pre, cur) => {
-          const propertyName = this.bizParentList.find(item => item.id === cur[0]);
+          const propertyName = this.bizParentList.find(
+            (item) => item.id === cur[0]
+          );
           const obj = {
             name: `${propertyName?.name}`,
             id: cur[0],
-            values: cur[1].map(item => ({ id: item, name: item })),
+            values: cur[1].map((item) => ({ id: item, name: item })),
           };
           pre.push(obj);
           return pre;
         }, []);
-        this.cacheBkBizLabelsList = JSON.parse(JSON.stringify(this.bkBizLabelsList));
+        this.cacheBkBizLabelsList = JSON.parse(
+          JSON.stringify(this.bkBizLabelsList)
+        );
         this.$nextTick(() => {
           // 编辑的时候直接联通测试 通过则展开ES集群管理
           this.handleTestConnect();
@@ -1013,14 +1023,22 @@ export default {
           postData.es_auth_info.password = '';
         }
         this.connectLoading = true;
-        await this.$http.request('/source/connectivityDetect', { data: postData }, { catchIsShowMessage: false });
+        await this.$http.request(
+          '/source/connectivityDetect',
+          { data: postData },
+          { catchIsShowMessage: false }
+        );
         this.connectResult = 'success';
         // 连通性测试通过之后获取冷热数据
-        const attrsRes = await this.$http.request('/source/getNodeAttrs', { data: postData });
+        const attrsRes = await this.$http.request('/source/getNodeAttrs', {
+          data: postData,
+        });
         this.hotColdOriginList = attrsRes.data;
         if (!this.isEdit) {
-          this.formData.setup_config.es_shards_default = this.hotColdOriginList.length;
-          this.formData.setup_config.es_shards_max = this.hotColdOriginList.length;
+          this.formData.setup_config.es_shards_default =
+            this.hotColdOriginList.length;
+          this.formData.setup_config.es_shards_max =
+            this.hotColdOriginList.length;
         }
       } catch (e) {
         console.warn(e);
@@ -1034,19 +1052,22 @@ export default {
     },
     handleChangeHotWarm(v) {
       if (!this.isEdit && v) {
-        this.formData.setup_config.es_shards_default = this.hotColdAttrSet.length;
+        this.formData.setup_config.es_shards_default =
+          this.hotColdAttrSet.length;
         this.formData.setup_config.es_shards_max = this.hotColdAttrSet.length;
       }
     },
     dealWithHotColdData() {
       const hotColdAttrSet = [];
-      this.hotColdOriginList.forEach(item => {
+      this.hotColdOriginList.forEach((item) => {
         const newItem = { ...item };
         newItem.computedId = `${item.attr}:${item.value}`;
         newItem.computedName = `${item.attr}:${item.value}`;
         newItem.computedCounts = 1;
         newItem.isSelected = false;
-        const existItem = hotColdAttrSet.find(item => item.computedId === newItem.computedId);
+        const existItem = hotColdAttrSet.find(
+          (item) => item.computedId === newItem.computedId
+        );
         if (existItem) {
           existItem.computedCounts += 1;
         } else {
@@ -1062,20 +1083,26 @@ export default {
         : '';
     },
     handleHotSelected(value) {
-      const item = this.hotColdAttrSet.find(item => item.computedId === value);
+      const item = this.hotColdAttrSet.find(
+        (item) => item.computedId === value
+      );
       this.formData.hot_attr_name = item?.attr || '';
       this.formData.hot_attr_value = item?.value || '';
       this.computeIsSelected();
     },
     handleColdSelected(value) {
-      const item = this.hotColdAttrSet.find(item => item.computedId === value);
+      const item = this.hotColdAttrSet.find(
+        (item) => item.computedId === value
+      );
       this.formData.warm_attr_name = item?.attr || '';
       this.formData.warm_attr_value = item?.value || '';
       this.computeIsSelected();
     },
     computeIsSelected() {
       for (const item of this.hotColdAttrSet) {
-        item.isSelected = this.selectedColdId === item.computedId || this.selectedHotId === item.computedId;
+        item.isSelected =
+          this.selectedColdId === item.computedId ||
+          this.selectedHotId === item.computedId;
       }
     },
     handleViewInstanceList(type) {
@@ -1109,7 +1136,9 @@ export default {
           delete postData.source_name;
         }
         if (this.visibleList.length) {
-          postData.visible_config.visible_bk_biz = this.visibleList.map(item => item.id);
+          postData.visible_config.visible_bk_biz = this.visibleList.map(
+            (item) => item.id
+          );
         } else {
           postData.visible_config.visible_bk_biz = [];
         }
@@ -1146,7 +1175,9 @@ export default {
       this.$emit('update:show-slider', false);
     },
     updateDaysList() {
-      const retentionDaysList = [...this.globalsData.storage_duration_time].filter(item => {
+      const retentionDaysList = [
+        ...this.globalsData.storage_duration_time,
+      ].filter((item) => {
         return item.id;
       });
       this.retentionDaysList = retentionDaysList;
@@ -1171,7 +1202,7 @@ export default {
           return;
         }
         if (isRetention) {
-          if (!this.retentionDaysList.some(item => item.id === stringVal)) {
+          if (!this.retentionDaysList.some((item) => item.id === stringVal)) {
             this.retentionDaysList.push({
               id: stringVal,
               name: stringVal + this.$t('天'),
@@ -1180,7 +1211,7 @@ export default {
           this.formData.setup_config.retention_days_default = stringVal;
           this.customRetentionDay = '';
         } else {
-          if (!this.maxDaysList.some(item => item.id === stringVal)) {
+          if (!this.maxDaysList.some((item) => item.id === stringVal)) {
             this.maxDaysList.push({
               id: stringVal,
               name: stringVal + this.$t('天'),
@@ -1199,13 +1230,20 @@ export default {
      * @desc: 更新过期时间列表里禁止选中的情况
      */
     daySelectAddToDisable() {
-      const { retention_days_default: defaultDays, retention_days_max: maxDays } = this.formData.setup_config;
-      this.retentionDaysList.forEach(el => (el.disabled = Number(maxDays) < Number(el.id)));
-      this.maxDaysList.forEach(el => (el.disabled = Number(defaultDays) > Number(el.id)));
+      const {
+        retention_days_default: defaultDays,
+        retention_days_max: maxDays,
+      } = this.formData.setup_config;
+      this.retentionDaysList.forEach(
+        (el) => (el.disabled = Number(maxDays) < Number(el.id))
+      );
+      this.maxDaysList.forEach(
+        (el) => (el.disabled = Number(defaultDays) > Number(el.id))
+      );
     },
     handleChangePrincipal(val) {
       // 集群负责人为空时报错警告
-      const realVal = val.filter(item => item !== undefined);
+      const realVal = val.filter((item) => item !== undefined);
       this.isAdminError = !realVal.length;
       this.formData.admin = realVal;
     },
@@ -1214,9 +1252,9 @@ export default {
     },
     getBizPropertyId() {
       // 因搜索框如果直接搜索子级元素则返回值不带父级元素 传参需要父级元素则分开展示
-      this.$http.request('/source/getProperty').then(res => {
+      this.$http.request('/source/getProperty').then((res) => {
         // 父级键名
-        this.bizParentList = res.data.map(item => {
+        this.bizParentList = res.data.map((item) => {
           return {
             name: item.biz_property_name,
             id: item.biz_property_id,
@@ -1225,22 +1263,27 @@ export default {
           };
         });
         // 生成子级数组
-        res.data.forEach(item => {
-          this.bizChildrenList[item.biz_property_id] = item.biz_property_value.map(item => {
-            return {
-              id: item,
-              name: item,
-            };
-          });
+        res.data.forEach((item) => {
+          this.bizChildrenList[item.biz_property_id] =
+            item.biz_property_value.map((item) => {
+              return {
+                id: item,
+                name: item,
+              };
+            });
         });
       });
     },
     handleRemoteMethod() {
-      return new Promise(resolve => {
+      return new Promise((resolve) => {
         setTimeout(() => {
           // 空值返回全部，搜索返回部分
           if (!!this.bizInputStr) {
-            resolve(this.bizChildrenList[this.bizSelectID].filter(item => item.name.includes(this.bizInputStr)));
+            resolve(
+              this.bizChildrenList[this.bizSelectID].filter((item) =>
+                item.name.includes(this.bizInputStr)
+              )
+            );
           } else {
             resolve(this.bizChildrenList[this.bizSelectID]);
           }
@@ -1266,7 +1309,8 @@ export default {
         this.$refs.searchSelectRef.updateInput();
         this.$refs.searchSelectRef.clearInput();
         this.$refs.searchSelectRef.menu.checked = {};
-        this.$refs.searchSelectRef.menuChildInstance && (this.$refs.searchSelectRef.menuChildInstance.checked = {});
+        this.$refs.searchSelectRef.menuChildInstance &&
+          (this.$refs.searchSelectRef.menuChildInstance.checked = {});
         this.$refs.searchSelectRef.menuInstance = null;
       }
     },
@@ -1280,16 +1324,16 @@ export default {
     filterBzID() {
       const parentSet = new Set();
       const list = {};
-      this.bkBizLabelsList.forEach(item => {
+      this.bkBizLabelsList.forEach((item) => {
         // 若当前元素父级未重复则生成新键名并赋值
         if (!parentSet.has(item.id)) {
           parentSet.add(item.id);
           list[item.id] = [];
-          const valuesList = item.values.map(item => item.id);
+          const valuesList = item.values.map((item) => item.id);
           list[item.id] = list[item.id].concat(valuesList);
         } else {
           // 若当前元素父级重复则去重过滤
-          const valuesList = item.values.map(item => item.id);
+          const valuesList = item.values.map((item) => item.id);
           const concatList = valuesList.concat(list[item.id]);
           const childSet = new Set([...concatList]);
           list[item.id] = [...childSet];
@@ -1323,282 +1367,281 @@ export default {
 </script>
 
 <style lang="scss" scoped>
-  @import '@/scss/mixins/flex.scss';
-  @import '@/scss/mixins/scroller.scss';
+@import '@/scss/mixins/flex.scss';
+@import '@/scss/mixins/scroller.scss';
 
-  .king-slider-content {
-    min-height: 394px;
-    overflow-y: auto;
+.king-slider-content {
+  min-height: 394px;
+  overflow-y: auto;
 
-    .add-collection-title {
-      width: 100%;
-      padding-top: 18px;
-      font-size: 14px;
-      font-weight: 600;
+  .add-collection-title {
+    width: 100%;
+    padding-top: 18px;
+    font-size: 14px;
+    font-weight: 600;
+    color: #63656e;
+  }
+
+  .king-form {
+    padding: 16px 36px 36px;
+
+    .form-flex-container {
+      display: flex;
+      align-items: center;
+      // height: 32px;
+      font-size: 12px;
       color: #63656e;
+
+      .icon-info {
+        margin: 0 8px 0 24px;
+        font-size: 14px;
+        color: #3a84ff;
+      }
     }
 
-    .king-form {
-      padding: 16px 36px 36px;
+    .bk-form-item {
+      margin-top: 18px;
+    }
 
-      .form-flex-container {
-        display: flex;
-        align-items: center;
-        // height: 32px;
-        font-size: 12px;
-        color: #63656e;
+    .source-item {
+      display: flex;
+    }
 
-        .icon-info {
-          margin: 0 8px 0 24px;
-          font-size: 14px;
-          color: #3a84ff;
-        }
+    .selected-tag {
+      max-width: 94%;
+
+      .bk-tag {
+        position: relative;
+        padding-left: 18px;
+        margin-left: 10px;
       }
+
+      .tag-icon::before {
+        position: absolute;
+        top: 9px;
+        left: 8px;
+        width: 4px;
+        height: 4px;
+        content: '';
+        border-radius: 50%;
+      }
+
+      .is-active::before {
+        background-color: #45e35f;
+      }
+
+      .is-normal::before {
+        background-color: #699df4;
+      }
+    }
+
+    .source-name-input.is-error {
+      color: #f56c6c;
+      background-color: #ffeded;
+      border-color: #fde2e2;
+      transition: all 0.2s;
+
+      &:hover {
+        color: #fff;
+        background: #fbb8ac;
+        transition: all 0.2s;
+      }
+    }
+
+    .form-item-container {
+      @include flex-justify(space-between);
 
       .bk-form-item {
-        margin-top: 18px;
-      }
-
-      .source-item {
-        display: flex;
-      }
-
-      .selected-tag {
-        max-width: 94%;
-
-        .bk-tag {
-          position: relative;
-          padding-left: 18px;
-          margin-left: 10px;
-        }
-
-        .tag-icon::before {
-          position: absolute;
-          top: 9px;
-          left: 8px;
-          width: 4px;
-          height: 4px;
-          content: '';
-          border-radius: 50%;
-        }
-
-        .is-active::before {
-          background-color: #45e35f;
-        }
-
-        .is-normal::before {
-          background-color: #699df4;
-        }
-      }
-
-      .source-name-input.is-error {
-        color: #f56c6c;
-        background-color: #ffeded;
-        border-color: #fde2e2;
-        transition: all 0.2s;
-
-        &:hover {
-          color: #fff;
-          background: #fbb8ac;
-          transition: all 0.2s;
-        }
-      }
-
-      .form-item-container {
-        @include flex-justify(space-between);
-
-        .bk-form-item {
-          position: relative;
-          width: 48%;
-        }
-
-        .es-address {
-          width: 108%;
-        }
-
-        .form-item-label {
-          margin-bottom: 8px;
-          font-size: 14px;
-          color: #63656e;
-
-          @include flex-align;
-        }
-
-        .button-text {
-          font-size: 12px;
-
-          .icon-eye {
-            margin: 0 6px 0 8px;
-          }
-        }
-
-        .document-container {
-          transform: translateY(2px);
-
-          @include flex-align;
-
-          .check-document {
-            margin: 0 6px 0 20px;
-            font-size: 12px;
-          }
-
-          .icon-text-file {
-            display: inline-block;
-            transform: rotateX(180deg) translateY(2px);
-          }
-        }
-      }
-
-      .es-cluster-management {
-        display: flex;
-        align-items: center;
-        font-size: 14px;
-
-        .icon-angle-double-down {
-          font-size: 24px;
-
-          &.is-show {
-            transform: rotateZ(180deg);
-          }
-        }
-      }
-
-      .scope-radio {
-        &:not(:last-child) {
-          margin: 0 26px 14px 0;
-        }
-      }
-
-      .visible-scope-box {
         position: relative;
-        display: flex;
-        min-height: 30px;
+        width: 48%;
+      }
 
-        .please-select {
-          margin-left: 10px;
-          color: #c3cdd7;
-        }
+      .es-address {
+        width: 108%;
+      }
 
-        .icon-angle-down {
-          position: absolute;
-          top: 4px;
-          right: 0;
-          font-size: 20px;
-          transition: all 0.3s;
-          transform: rotateZ(0deg);
-        }
+      .form-item-label {
+        margin-bottom: 8px;
+        font-size: 14px;
+        color: #63656e;
 
-        .icon-rotate {
-          transform: rotateZ(-180deg);
+        @include flex-align;
+      }
+
+      .button-text {
+        font-size: 12px;
+
+        .icon-eye {
+          margin: 0 6px 0 8px;
         }
       }
 
-      .principal .user-selector {
-        width: 100%;
+      .document-container {
+        transform: translateY(2px);
+
+        @include flex-align;
+
+        .check-document {
+          margin: 0 6px 0 20px;
+          font-size: 12px;
+        }
+
+        .icon-text-file {
+          display: inline-block;
+          transform: rotateX(180deg) translateY(2px);
+        }
+      }
+    }
+
+    .es-cluster-management {
+      display: flex;
+      align-items: center;
+      font-size: 14px;
+
+      .icon-angle-double-down {
+        font-size: 24px;
+
+        &.is-show {
+          transform: rotateZ(180deg);
+        }
+      }
+    }
+
+    .scope-radio {
+      &:not(:last-child) {
+        margin: 0 26px 14px 0;
+      }
+    }
+
+    .visible-scope-box {
+      position: relative;
+      display: flex;
+      min-height: 30px;
+
+      .please-select {
+        margin-left: 10px;
+        color: #c3cdd7;
       }
 
-      :deep(.is-error .user-selector-container) {
-        border-color: #ff5656;
+      .icon-angle-down {
+        position: absolute;
+        top: 4px;
+        right: 0;
+        font-size: 20px;
+        transition: all 0.3s;
+        transform: rotateZ(0deg);
+      }
+
+      .icon-rotate {
+        transform: rotateZ(-180deg);
       }
     }
-  }
 
-  .king-slider-footer {
-    display: flex;
-    align-items: center;
-    justify-content: flex-end;
-    width: 100%;
-    height: 100%;
-    padding-right: 36px;
-    background-color: #fff;
-    border-top: 1px solid #dcdee5;
-
-    .king-button {
-      min-width: 86px;
-    }
-  }
-
-  .submit-container {
-    position: fixed;
-    bottom: 0;
-    width: 100%;
-    padding: 8px 0 8px 20px;
-    background: #fafbfd;
-    border-top: 1px solid #dcdee5;
-  }
-
-  .illustrate {
-    margin-bottom: 80px;
-  }
-
-  :deep(.bk-form-textarea) {
-    @include scroller;
-  }
-
-  .test-container {
-    display: flex;
-    align-items: center;
-    margin-top: 10px;
-    font-size: 14px;
-    color: #63656e;
-
-    .success-text .bk-icon {
-      margin: 0 6px 0 10px;
-      color: rgb(45, 203, 86);
+    .principal .user-selector {
+      width: 100%;
     }
 
-    .error-text .bk-icon {
-      margin: 0 6px 0 10px;
-      color: rgb(234, 54, 54);
+    :deep(.is-error .user-selector-container) {
+      border-color: #ff5656;
     }
   }
+}
 
-  .connect-message {
-    font-size: 14px;
-    line-height: 18px;
-    color: #63656e;
+.king-slider-footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  width: 100%;
+  height: 100%;
+  padding-right: 36px;
+  background-color: #fff;
+  border-top: 1px solid #dcdee5;
+
+  .king-button {
+    min-width: 86px;
+  }
+}
+
+.submit-container {
+  position: fixed;
+  bottom: 0;
+  width: 100%;
+  padding: 8px 0 8px 20px;
+  background: #fafbfd;
+  border-top: 1px solid #dcdee5;
+}
+
+.illustrate {
+  margin-bottom: 80px;
+}
+
+:deep(.bk-form-textarea) {
+  @include scroller;
+}
+
+.test-container {
+  display: flex;
+  align-items: center;
+  margin-top: 10px;
+  font-size: 14px;
+  color: #63656e;
+
+  .success-text .bk-icon {
+    margin: 0 6px 0 10px;
+    color: rgb(45, 203, 86);
   }
 
-  .flex-space {
-    display: flex;
+  .error-text .bk-icon {
+    margin: 0 6px 0 10px;
+    color: rgb(234, 54, 54);
+  }
+}
+
+.connect-message {
+  font-size: 14px;
+  line-height: 18px;
+  color: #63656e;
+}
+
+.flex-space {
+  display: flex;
+
+  @include flex-justify(space-between);
+
+  .flex-space-item {
+    width: 48%;
 
     @include flex-justify(space-between);
 
-    .flex-space-item {
-      width: 48%;
-
-      @include flex-justify(space-between);
-
-      .bk-select,
-      .bk-form-control {
-        flex: 1;
-      }
-
-      :deep(.bk-form-input) {
-        height: 34px;
-      }
+    .bk-select,
+    .bk-form-control {
+      flex: 1;
     }
 
-    .space-item-label {
-      min-width: 48px;
-      padding: 0 4px;
-      font-size: 12px;
-      color: #63656e;
-      background: #fafbfd;
-      border: 1px solid #c4c6cc;
-      border-radius: 2px 0 0 2px;
-      transform: translateX(1px);
-
-      @include flex-center;
+    :deep(.bk-form-input) {
+      height: 34px;
     }
   }
 
+  .space-item-label {
+    min-width: 48px;
+    padding: 0 4px;
+    font-size: 12px;
+    color: #63656e;
+    background: #fafbfd;
+    border: 1px solid #c4c6cc;
+    border-radius: 2px 0 0 2px;
+    transform: translateX(1px);
+
+    @include flex-center;
+  }
+}
 </style>
 
 <style lang="scss">
-  @import '@/scss/space-tag-option';
+@import '@/scss/space-tag-option';
 
-  .tippy-tooltip{
-    padding: .3rem .6rem;
-  }
+.tippy-tooltip {
+  padding: 0.3rem 0.6rem;
+}
 </style>

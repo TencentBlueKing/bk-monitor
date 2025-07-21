@@ -25,9 +25,14 @@
  */
 
 import { DecimalCount } from '../types/display-value';
+
 import getCategories from './categories';
 import { toDateTimeValueFormatter } from './date-time-formatters';
-import { getOffsetFromSIPrefix, decimalSIPrefix, currency } from './symbol-formatters';
+import {
+  getOffsetFromSIPrefix,
+  decimalSIPrefix,
+  currency,
+} from './symbol-formatters';
 
 export interface FormattedValue {
   text: string;
@@ -70,7 +75,10 @@ export function toFixed(value: number, decimals?: DecimalCount): string {
   if (value === null) {
     return '';
   }
-  if (value === Number.NEGATIVE_INFINITY || value === Number.POSITIVE_INFINITY) {
+  if (
+    value === Number.NEGATIVE_INFINITY ||
+    value === Number.POSITIVE_INFINITY
+  ) {
     return value.toLocaleString();
   }
 
@@ -88,7 +96,10 @@ export function toFixed(value: number, decimals?: DecimalCount): string {
     const decimalPos = formatted.indexOf('.');
     const precision = decimalPos === -1 ? 0 : formatted.length - decimalPos - 1;
     if (precision < decimals) {
-      return (precision ? formatted : `${formatted}.`) + String(factor).substr(1, decimals - precision);
+      return (
+        (precision ? formatted : `${formatted}.`) +
+        String(factor).substr(1, decimals - precision)
+      );
     }
   }
 
@@ -103,11 +114,11 @@ export function toFixedScaled(
   ext?: string
 ): FormattedValue {
   if (scaledDecimals === null || scaledDecimals === undefined) {
-    return { text: toFixed(value, decimals), suffix: ext };
+    return { suffix: ext, text: toFixed(value, decimals) };
   }
   return {
-    text: toFixed(value, scaledDecimals + additionalDecimals),
     suffix: ext,
+    text: toFixed(value, scaledDecimals + additionalDecimals),
   };
 }
 
@@ -119,9 +130,9 @@ export function toFixedUnit(unit: string, asPrefix?: boolean): ValueFormatter {
     const text = toFixed(size, decimals);
     if (unit) {
       if (asPrefix) {
-        return { text, prefix: unit };
+        return { prefix: unit, text };
       }
-      return { text, suffix: ` ${unit}` };
+      return { suffix: ` ${unit}`, text };
     }
     return { text };
   };
@@ -130,12 +141,23 @@ export function toFixedUnit(unit: string, asPrefix?: boolean): ValueFormatter {
 // Formatter which scales the unit string geometrically according to the given
 // numeric factor. Repeatedly scales the value down by the factor until it is
 // less than the factor in magnitude, or the end of the array is reached.
-export function scaledUnits(factor: number, extArray: string[]): ValueFormatter {
-  return (size: number, decimals: DecimalCount = 2, scaledDecimals?: DecimalCount) => {
+export function scaledUnits(
+  factor: number,
+  extArray: string[]
+): ValueFormatter {
+  return (
+    size: number,
+    decimals: DecimalCount = 2,
+    scaledDecimals?: DecimalCount
+  ) => {
     if (size === null) {
       return { text: '' };
     }
-    if (size === Number.NEGATIVE_INFINITY || size === Number.POSITIVE_INFINITY || isNaN(size)) {
+    if (
+      size === Number.NEGATIVE_INFINITY ||
+      size === Number.POSITIVE_INFINITY ||
+      isNaN(size)
+    ) {
       return { text: size.toLocaleString() };
     }
 
@@ -155,7 +177,7 @@ export function scaledUnits(factor: number, extArray: string[]): ValueFormatter 
       decimals = scaledDecimals + 3 * steps;
     }
 
-    return { text: toFixed(size, decimals), suffix: extArray[steps] };
+    return { suffix: extArray[steps], text: toFixed(size, decimals) };
   };
 }
 
@@ -164,14 +186,20 @@ export function locale(value: number, decimals: DecimalCount): FormattedValue {
     return { text: '' };
   }
   return {
-    text: value.toLocaleString(undefined, { maximumFractionDigits: decimals as number }),
+    text: value.toLocaleString(undefined, {
+      maximumFractionDigits: decimals as number,
+    }),
   };
 }
 
 export function simpleCountUnit(symbol: string): ValueFormatter {
   const units = ['', 'K', 'M', 'B', 'T'];
   const scaler = scaledUnits(1000, units);
-  return (size: number, decimals?: DecimalCount, scaledDecimals?: DecimalCount) => {
+  return (
+    size: number,
+    decimals?: DecimalCount,
+    scaledDecimals?: DecimalCount
+  ) => {
     if (size === null) {
       return { text: '' };
     }
@@ -191,7 +219,7 @@ function buildFormats() {
   }
 
   // Resolve units pointing to old IDs
-  [{ from: 'farenheit', to: 'fahrenheit' }].forEach(alias => {
+  [{ from: 'farenheit', to: 'fahrenheit' }].forEach((alias) => {
     const f = index[alias.to];
     if (f) {
       index[alias.from] = f;
@@ -259,20 +287,25 @@ export function getValueFormats() {
     buildFormats();
   }
 
-  return categories.map(cat => ({
-    text: cat.name,
-    submenu: cat.formats.map(format => ({
+  return categories.map((cat) => ({
+    submenu: cat.formats.map((format) => ({
       text: format.name,
       value: format.id,
     })),
+    text: cat.name,
   }));
 }
 
-export function getCategoryListById(id: string): { id: string; name: string }[] {
+export function getCategoryListById(
+  id: string
+): { id: string; name: string }[] {
   if (!hasBuiltIndex) {
     buildFormats();
   }
-  const category = categories.find(item => item.formats.some(child => child.id === id));
-  if (!category) return categories[0].formats.map(({ id, name }) => ({ id, name }));
+  const category = categories.find((item) =>
+    item.formats.some((child) => child.id === id)
+  );
+  if (!category)
+    return categories[0].formats.map(({ id, name }) => ({ id, name }));
   return category.formats.map(({ id, name }) => ({ id, name }));
 }

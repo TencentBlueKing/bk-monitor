@@ -27,9 +27,9 @@
 import { BK_LOG_STORAGE } from './store/store.type';
 
 /** 外部版根据空间授权权限显示菜单 */
-export const getExternalMenuListBySpace = space => {
+export const getExternalMenuListBySpace = (space) => {
   const list = [];
-  (space.external_permission || []).forEach(permission => {
+  (space.external_permission || []).forEach((permission) => {
     if (permission === 'log_search') {
       list.push('retrieve');
     } else if (permission === 'log_extract') {
@@ -51,9 +51,9 @@ export default ({
    * 获取空间列表
    * return
    */
-  const spaceRequest = http.request('space/getMySpaceList').then(resp => {
+  const spaceRequest = http.request('space/getMySpaceList').then((resp) => {
     const spaceList = resp.data;
-    spaceList.forEach(item => {
+    spaceList.forEach((item) => {
       item.bk_biz_id = `${item.bk_biz_id}`;
       item.space_uid = `${item.space_uid}`;
       item.space_full_code_name = `${item.space_name}(#${item.space_id})`;
@@ -66,11 +66,11 @@ export default ({
     let space = null;
 
     if (space_uid) {
-      space = (spaceList ?? []).find(item => item.space_uid === space_uid);
+      space = (spaceList ?? []).find((item) => item.space_uid === space_uid);
     }
 
     if (!space && bkBizId) {
-      space = (spaceList ?? []).find(item => item.bk_biz_id === bkBizId);
+      space = (spaceList ?? []).find((item) => item.bk_biz_id === bkBizId);
     }
 
     if (!space) {
@@ -79,7 +79,10 @@ export default ({
 
     store.commit('updateSpace', space?.space_uid);
 
-    if (space && (space_uid !== space.space_uid || bkBizId !== space.bk_biz_id)) {
+    if (
+      space &&
+      (space_uid !== space.space_uid || bkBizId !== space.bk_biz_id)
+    ) {
       store.commit('updateStorage', {
         [BK_LOG_STORAGE.BK_BIZ_ID]: space.bk_biz_id,
         [BK_LOG_STORAGE.BK_SPACE_UID]: space.space_uid,
@@ -89,12 +92,12 @@ export default ({
     return space;
   });
 
-  const userInfoRequest = http.request('userInfo/getUsername').then(resp => {
+  const userInfoRequest = http.request('userInfo/getUsername').then((resp) => {
     store.commit('updateUserMeta', resp.data);
     return resp.data;
   });
 
-  const globalsRequest = http.request('collect/globals').then(res => {
+  const globalsRequest = http.request('collect/globals').then((res) => {
     store.commit('globals/setGlobalsData', res.data);
     return res.data;
   });

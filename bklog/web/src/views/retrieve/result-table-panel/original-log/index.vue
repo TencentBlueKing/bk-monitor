@@ -91,10 +91,7 @@
         </div>
         <div>
           <span class="switch-label">{{ $t('换行') }}</span>
-          <bk-switcher
-            v-model="isWrap"
-            theme="primary"
-          ></bk-switcher>
+          <bk-switcher v-model="isWrap" theme="primary"></bk-switcher>
         </div>
         <!-- <time-formatter v-show="!showOriginalLog" /> -->
         <div class="operation-icons">
@@ -235,7 +232,10 @@ export default {
   watch: {
     watchQueryIndexValue: {
       handler() {
-        if ((!this.isUnionSearch && this.routeIndexSet) || (this.isUnionSearch && this.unionIndexList?.length)) {
+        if (
+          (!this.isUnionSearch && this.routeIndexSet) ||
+          (this.isUnionSearch && this.unionIndexList?.length)
+        ) {
           this.requestFiledConfig();
         }
       },
@@ -243,7 +243,8 @@ export default {
     isThollteField(v) {
       if (!v && !this.isFirstInitFiled) {
         this.isFirstInitFiled = true;
-        this.contentType = localStorage.getItem('SEARCH_STORAGE_ACTIVE_TAB') || 'table';
+        this.contentType =
+          localStorage.getItem('SEARCH_STORAGE_ACTIVE_TAB') || 'table';
       }
     },
     showFieldsConfigPopoverNum() {
@@ -290,13 +291,15 @@ export default {
           'retrieve/getFieldsListConfig',
           {
             data: {
-              ...(this.isUnionSearch ? { index_set_ids: this.unionIndexList } : { index_set_id: this.routeIndexSet }),
+              ...(this.isUnionSearch
+                ? { index_set_ids: this.unionIndexList }
+                : { index_set_id: this.routeIndexSet }),
               scope: 'default',
               index_set_type: this.isUnionSearch ? 'union' : 'single',
             },
           },
           {
-            cancelToken: new CancelToken(c => {
+            cancelToken: new CancelToken((c) => {
               this.getFieldsConfigCancelFn = c;
             }),
           }
@@ -322,7 +325,7 @@ export default {
             config_id: configID,
           },
         })
-        .catch(e => {
+        .catch((e) => {
           console.warn(e);
         });
       this.confirmModifyFields(displayFields, sortList);
@@ -343,117 +346,117 @@ export default {
 </script>
 
 <style lang="scss" scoped>
-  @import '@/scss/mixins/flex.scss';
+@import '@/scss/mixins/flex.scss';
 
-  .original-log-panel {
-    .original-log-panel-tools {
-      display: flex;
-      justify-content: space-between;
-    }
-
-    .tools-more {
-      @include flex-center;
-
-      .switch-label {
-        margin-right: 2px;
-        font-size: 12px;
-        color: #63656e;
-      }
-    }
-
-    .operation-icons {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      margin-left: 16px;
-
-      .operation-icon {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        width: 32px;
-        height: 32px;
-        margin-left: 10px;
-        cursor: pointer;
-        border: 1px solid #c4c6cc;
-        border-radius: 2px;
-        outline: none;
-        transition: boder-color 0.2s;
-
-        &:hover {
-          border-color: #979ba5;
-          transition: boder-color 0.2s;
-        }
-
-        &:active {
-          border-color: #3a84ff;
-          transition: boder-color 0.2s;
-        }
-
-        .bklog-icon {
-          width: 16px;
-          font-size: 16px;
-          color: #979ba5;
-        }
-      }
-
-      .disabled-icon {
-        cursor: not-allowed;
-        background-color: #fff;
-        border-color: #dcdee5;
-
-        &:hover,
-        .bklog-icon {
-          color: #c4c6cc;
-          border-color: #dcdee5;
-        }
-      }
-    }
-
-    .left-operate {
-      flex-wrap: nowrap;
-      align-items: center;
-
-      @include flex-justify(space-between);
-
-      > div {
-        flex-shrink: 0;
-      }
-    }
-
-    .field-select {
-      position: relative;
-      width: 120px;
-      margin-left: 16px;
-
-      .icon-field-config {
-        position: absolute;
-        top: 4px;
-        left: 4px;
-        width: 18px;
-      }
-
-      :deep(.bk-select .bk-select-name) {
-        padding: 0px 36px 0 30px;
-      }
-    }
+.original-log-panel {
+  .original-log-panel-tools {
+    display: flex;
+    justify-content: space-between;
   }
 
-  .extension-add-new-config {
-    cursor: pointer;
+  .tools-more {
+    @include flex-center;
 
-    @include flex-center();
-
-    :last-child {
-      margin-left: 4px;
+    .switch-label {
+      margin-right: 2px;
+      font-size: 12px;
       color: #63656e;
     }
+  }
 
-    .icon-close-circle {
-      margin-left: 4px;
-      font-size: 14px;
-      color: #979ba5;
-      transform: rotateZ(45deg);
+  .operation-icons {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-left: 16px;
+
+    .operation-icon {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 32px;
+      height: 32px;
+      margin-left: 10px;
+      cursor: pointer;
+      border: 1px solid #c4c6cc;
+      border-radius: 2px;
+      outline: none;
+      transition: boder-color 0.2s;
+
+      &:hover {
+        border-color: #979ba5;
+        transition: boder-color 0.2s;
+      }
+
+      &:active {
+        border-color: #3a84ff;
+        transition: boder-color 0.2s;
+      }
+
+      .bklog-icon {
+        width: 16px;
+        font-size: 16px;
+        color: #979ba5;
+      }
+    }
+
+    .disabled-icon {
+      cursor: not-allowed;
+      background-color: #fff;
+      border-color: #dcdee5;
+
+      &:hover,
+      .bklog-icon {
+        color: #c4c6cc;
+        border-color: #dcdee5;
+      }
     }
   }
+
+  .left-operate {
+    flex-wrap: nowrap;
+    align-items: center;
+
+    @include flex-justify(space-between);
+
+    > div {
+      flex-shrink: 0;
+    }
+  }
+
+  .field-select {
+    position: relative;
+    width: 120px;
+    margin-left: 16px;
+
+    .icon-field-config {
+      position: absolute;
+      top: 4px;
+      left: 4px;
+      width: 18px;
+    }
+
+    :deep(.bk-select .bk-select-name) {
+      padding: 0px 36px 0 30px;
+    }
+  }
+}
+
+.extension-add-new-config {
+  cursor: pointer;
+
+  @include flex-center();
+
+  :last-child {
+    margin-left: 4px;
+    color: #63656e;
+  }
+
+  .icon-close-circle {
+    margin-left: 4px;
+    font-size: 14px;
+    color: #979ba5;
+    transform: rotateZ(45deg);
+  }
+}
 </style>

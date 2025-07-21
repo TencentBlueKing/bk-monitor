@@ -25,10 +25,7 @@
 -->
 
 <template>
-  <section
-    class="log-button"
-    v-bk-tooltips="tooltips"
-  >
+  <section class="log-button" v-bk-tooltips="tooltips">
     <bk-button
       v-cursor="{ active: cursorActive }"
       :disabled="disabled"
@@ -77,7 +74,10 @@ export default {
   },
   computed: {
     tooltips() {
-      const conf = typeof this.tipsConf === 'string' ? { content: this.tipsConf } : this.tipsConf;
+      const conf =
+        typeof this.tipsConf === 'string'
+          ? { content: this.tipsConf }
+          : this.tipsConf;
       return {
         ...conf,
         delay: 100,
@@ -94,7 +94,7 @@ export default {
 </script>
 
 <style lang="scss" scoped>
-  .log-button {
-    display: inline-block;
-  }
+.log-button {
+  display: inline-block;
+}
 </style>

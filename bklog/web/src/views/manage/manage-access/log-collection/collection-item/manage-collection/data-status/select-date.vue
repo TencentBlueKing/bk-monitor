@@ -40,11 +40,10 @@
     @shortcut-change="handleShortcutChange"
   >
     <template #trigger>
-      <div
-        v-if="shortText"
-        @click.stop="togglePicker"
-      >
-        <div :class="['bk-date-picker-editor', { 'is-focus': isShowDatePicker }]">
+      <div v-if="shortText" @click.stop="togglePicker">
+        <div
+          :class="['bk-date-picker-editor', { 'is-focus': isShowDatePicker }]"
+        >
           {{ shortText }}
         </div>
         <div class="icon-wrapper">
@@ -273,27 +272,27 @@ export default {
 </script>
 
 <style lang="scss" scoped>
-  .king-date-picker {
-    width: 320px;
+.king-date-picker {
+  width: 320px;
 
-    &.daily {
-      width: 220px;
-    }
+  &.daily {
+    width: 220px;
+  }
 
-    :deep(.bk-date-picker-editor) {
-      line-height: 30px;
-      background: #fff;
+  :deep(.bk-date-picker-editor) {
+    line-height: 30px;
+    background: #fff;
 
-      &.is-focus {
-        border-color: #3a84ff;
-      }
-    }
-
-    :deep(.icon-date-picker) {
-      position: absolute;
-      top: 7px;
-      left: 7px;
-      font-size: 18px;
+    &.is-focus {
+      border-color: #3a84ff;
     }
   }
+
+  :deep(.icon-date-picker) {
+    position: absolute;
+    top: 7px;
+    left: 7px;
+    font-size: 18px;
+  }
+}
 </style>

@@ -47,10 +47,7 @@
         @update:date-picker-value="handleDateChange"
         @update-collect-condition="updateCollectCondition"
       />
-      <div
-        v-if="basicLoading || tableLoading"
-        class="page-loading-wrap"
-      >
+      <div v-if="basicLoading || tableLoading" class="page-loading-wrap">
         <div class="page-loading-bar"></div>
       </div>
       <div class="result-content">
@@ -82,13 +79,12 @@
             <bk-button @click="handleCheckEvent">{{ $t('事件检索') }}</bk-button>
           </div> -->
 
-          <div
-            class="king-tab"
-            :class="isAsIframe && 'as-iframe'"
-          >
+          <div class="king-tab" :class="isAsIframe && 'as-iframe'">
             <div class="tab-header">
               <span class="tab-title">
-                <span>{{ isFavoriteNewSearch ? $t('新检索') : getFavoriteName }}</span>
+                <span>{{
+                  isFavoriteNewSearch ? $t('新检索') : getFavoriteName
+                }}</span>
                 <span
                   class="bk-icon icon-edit-line"
                   v-show="!isFavoriteNewSearch"
@@ -139,7 +135,10 @@
                   :visible-fields="visibleFields"
                   @clear-condition="clearCondition"
                   @emit-change-value="emitChangeValue"
-                  @ip-selector-value-clear="({ v, isChangeCatch }) => handleIpSelectorValueChange(v, isChangeCatch)"
+                  @ip-selector-value-clear="
+                    ({ v, isChangeCatch }) =>
+                      handleIpSelectorValueChange(v, isChangeCatch)
+                  "
                   @open-ip-quick="openIpQuick"
                   @retrieve-log="retrieveLog"
                   @search-add-change="searchAddChange"
@@ -181,10 +180,7 @@
           class="retrieve-result"
         >
           <!-- 无权限页面 -->
-          <auth-container-page
-            v-if="showAuthInfo"
-            :info="showAuthInfo"
-          />
+          <auth-container-page v-if="showAuthInfo" :info="showAuthInfo" />
           <template v-else>
             <!-- 初始化加载时显示这个空的盒子 避免先显示内容 再显示无权限页面 -->
             <div
@@ -397,7 +393,8 @@ export default {
       sortList: [], // 排序字段
       notTextTypeFields: [], // 字段类型不为 text 的字段
       fieldAliasMap: {},
-      showFieldAlias: this.$store.state.storage[BK_LOG_STORAGE.SHOW_FIELD_ALIAS],
+      showFieldAlias:
+        this.$store.state.storage[BK_LOG_STORAGE.SHOW_FIELD_ALIAS],
       tookTime: 0, // 耗时
       tableData: {}, // 表格结果
       bkmonitorUrl: false, // 监控主机详情地址
@@ -435,7 +432,8 @@ export default {
       }, // 当前table item操作的值
       authPageInfo: null,
       isShowAddNewCollectDialog: false, // 是否展示新建收藏弹窗
-      collectWidth: localStorage.getItem('isAutoShowCollect') === 'true' ? 240 : 0, // 收藏默认栏宽度
+      collectWidth:
+        localStorage.getItem('isAutoShowCollect') === 'true' ? 240 : 0, // 收藏默认栏宽度
       isShowCollect: localStorage.getItem('isAutoShowCollect') === 'true',
       isSqlSearchType: true, // 是否是sql模式
       activeFavorite: {}, // 当前点击的收藏参数
@@ -501,12 +499,12 @@ export default {
   },
   computed: {
     ...mapState({
-      bkBizId: state => state.bkBizId,
-      spaceUid: state => state.spaceUid,
-      currentMenu: state => state.currentMenu,
-      storedIndexID: state => state.indexId, // 路由切换时缓存当前选择的索引
-      isExternal: state => state.isExternal,
-      externalMenu: state => state.externalMenu,
+      bkBizId: (state) => state.bkBizId,
+      spaceUid: (state) => state.spaceUid,
+      currentMenu: (state) => state.currentMenu,
+      storedIndexID: (state) => state.indexId, // 路由切换时缓存当前选择的索引
+      isExternal: (state) => state.isExternal,
+      externalMenu: (state) => state.externalMenu,
     }),
     ...mapGetters(['asIframe', 'iframeQuery', 'isNewRetrieveRoute']),
     ...mapGetters({
@@ -571,7 +569,10 @@ export default {
         this.retrieveParams.bk_biz_id = this.bkBizId;
 
         // 外部版 无检索权限跳转后不更新页面数据
-        if (!this.isExternal || (this.isExternal && this.externalMenu.includes('retrieve'))) {
+        if (
+          !this.isExternal ||
+          (this.isExternal && this.externalMenu.includes('retrieve'))
+        ) {
           this.fetchPageData();
         }
         this.resetFavoriteValue();
@@ -596,7 +597,9 @@ export default {
       deep: true,
       immediate: true,
       handler(val) {
-        const filterIndexSetList = this.indexSetList.filter(item => val.includes(String(item.index_set_id)));
+        const filterIndexSetList = this.indexSetList.filter((item) =>
+          val.includes(String(item.index_set_id))
+        );
         this.$store.commit('updateUnionIndexItemList', filterIndexSetList);
       },
     },
@@ -630,7 +633,9 @@ export default {
 
       // 在路由不带indexId的情况下 检查 unionList 和 tags 参数 是否存在联合查询索引集参数
       if (!params?.indexId) {
-        const unionArr = query?.unionList ? JSON.parse(decodeURIComponent(query.unionList)) : [];
+        const unionArr = query?.unionList
+          ? JSON.parse(decodeURIComponent(query.unionList))
+          : [];
         if (unionArr.length) {
           this.$store.commit('updateUnionIndexList', unionArr);
           return true;
@@ -638,8 +643,8 @@ export default {
 
         const tagArr = query?.tags?.split(',') ?? [];
         const indexSetMatch = this.indexSetList
-          .filter(item => item.tags.some(tag => tagArr.includes(tag.name)))
-          .map(val => val.index_set_id);
+          .filter((item) => item.tags.some((tag) => tagArr.includes(tag.name)))
+          .map((val) => val.index_set_id);
         if (indexSetMatch.length) {
           this.$store.commit('updateUnionIndexList', indexSetMatch);
           return true;
@@ -653,15 +658,22 @@ export default {
     /** 索引集更变时的数据初始化 */
     initIndexSetChangeFn(val, isUnionSearch = false) {
       if (!isUnionSearch) {
-        const aloneSetItem = this.indexSetList.find(item => item.index_set_id === val);
-        this.indexSetItem = aloneSetItem ?? { index_set_name: '', indexName: '', scenario_name: '', scenario_id: '' };
-        this.isSearchAllowed = !!aloneSetItem?.permission?.[authorityMap.SEARCH_LOG_AUTH];
+        const aloneSetItem = this.indexSetList.find(
+          (item) => item.index_set_id === val
+        );
+        this.indexSetItem = aloneSetItem ?? {
+          index_set_name: '',
+          indexName: '',
+          scenario_name: '',
+          scenario_id: '',
+        };
+        this.isSearchAllowed =
+          !!aloneSetItem?.permission?.[authorityMap.SEARCH_LOG_AUTH];
       } else {
         this.isSearchAllowed = val?.every(
-          item =>
-            this.indexSetList.find(indexSet => indexSet.index_set_id === item)?.permission?.[
-              authorityMap.SEARCH_LOG_AUTH
-            ]
+          (item) =>
+            this.indexSetList.find((indexSet) => indexSet.index_set_id === item)
+              ?.permission?.[authorityMap.SEARCH_LOG_AUTH]
         );
       }
       if (this.isSearchAllowed) this.authPageInfo = null;
@@ -709,7 +721,7 @@ export default {
             space_uid: this.spaceUid,
           },
         })
-        .then(res => {
+        .then((res) => {
           if (res.data.length) {
             // 有索引集
             // 根据权限排序
@@ -725,10 +737,10 @@ export default {
             const indexSetList = s1.concat(s2);
 
             // 索引集数据加工
-            indexSetList.forEach(item => {
+            indexSetList.forEach((item) => {
               item.index_set_id = `${item.index_set_id}`;
               item.indexName = item.index_set_name;
-              item.lightenName = ` (${item.indices.map(item => item.result_table_id).join(';')})`;
+              item.lightenName = ` (${item.indices.map((item) => item.result_table_id).join(';')})`;
             });
             this.indexSetList = indexSetList;
           }
@@ -744,7 +756,7 @@ export default {
             space_uid: spaceUid,
           },
         })
-        .then(res => {
+        .then((res) => {
           if (res.data.length) {
             // 有索引集
             // 根据权限排序
@@ -760,21 +772,29 @@ export default {
             const indexSetList = s1.concat(s2);
 
             // 索引集数据加工
-            indexSetList.forEach(item => {
+            indexSetList.forEach((item) => {
               item.index_set_id = `${item.index_set_id}`;
               item.indexName = item.index_set_name;
-              item.lightenName = ` (${item.indices.map(item => item.result_table_id).join(';')})`;
+              item.lightenName = ` (${item.indices.map((item) => item.result_table_id).join(';')})`;
             });
             this.indexSetList = indexSetList;
 
             const indexId = this.$route.params.indexId?.toString();
-            const routeIndexSet = indexSetList.find(item => item.index_set_id === indexId);
-            const isRouteIndex = !!routeIndexSet && !routeIndexSet?.permission?.[authorityMap.SEARCH_LOG_AUTH];
+            const routeIndexSet = indexSetList.find(
+              (item) => item.index_set_id === indexId
+            );
+            const isRouteIndex =
+              !!routeIndexSet &&
+              !routeIndexSet?.permission?.[authorityMap.SEARCH_LOG_AUTH];
 
             // 如果都没有权限或者路由带过来的索引集无权限则显示索引集无权限
 
-            if (!indexSetList[0]?.permission?.[authorityMap.SEARCH_LOG_AUTH] || isRouteIndex) {
-              const authIndexID = indexId || getHaveValueIndexItem(indexSetList);
+            if (
+              !indexSetList[0]?.permission?.[authorityMap.SEARCH_LOG_AUTH] ||
+              isRouteIndex
+            ) {
+              const authIndexID =
+                indexId || getHaveValueIndexItem(indexSetList);
               this.$store
                 .dispatch('getApplyData', {
                   action_ids: [authorityMap.SEARCH_LOG_AUTH],
@@ -785,7 +805,7 @@ export default {
                     },
                   ],
                 })
-                .then(res => {
+                .then((res) => {
                   this.authPageInfo = res.data;
                   this.setRouteParams(
                     'retrieve',
@@ -798,7 +818,7 @@ export default {
                     }
                   );
                 })
-                .catch(err => {
+                .catch((err) => {
                   console.warn(err);
                 })
                 .finally(() => {
@@ -809,21 +829,32 @@ export default {
             this.hasAuth = true;
             if (indexId) {
               // 1、初始进入页面带ID；2、检索ID时切换业务；
-              const indexItem = indexSetList.find(item => item.index_set_id === indexId);
-              this.indexId = indexItem ? indexItem.index_set_id : getHaveValueIndexItem(indexSetList);
+              const indexItem = indexSetList.find(
+                (item) => item.index_set_id === indexId
+              );
+              this.indexId = indexItem
+                ? indexItem.index_set_id
+                : getHaveValueIndexItem(indexSetList);
               this.retrieveLog();
             } else if (this.isInitPage && this.checkIsUnionSearch()) {
               // 初始化联合查询
               this.retrieveLog();
             } else {
               // 直接进入检索页
-              this.indexId = indexSetList.some(item => item.index_set_id === this.storedIndexID)
+              this.indexId = indexSetList.some(
+                (item) => item.index_set_id === this.storedIndexID
+              )
                 ? this.storedIndexID
                 : getStorageIndexItem(indexSetList);
               if (this.isAsIframe) {
                 // 监控 iframe
                 if (this.localIframeQuery.indexId) {
-                  if (this.indexSetList.some(item => item.index_set_id === this.localIframeQuery.indexId)) {
+                  if (
+                    this.indexSetList.some(
+                      (item) =>
+                        item.index_set_id === this.localIframeQuery.indexId
+                    )
+                  ) {
                     this.indexId = this.localIframeQuery.indexId;
                   }
                 }
@@ -868,7 +899,7 @@ export default {
             this.indexSetList.splice(0);
           }
         })
-        .catch(e => {
+        .catch((e) => {
           console.warn(e);
           this.isNoIndexSet = false;
           this.indexId = '';
@@ -881,7 +912,9 @@ export default {
     },
     // 获取检索历史
     requestSearchHistory(indexId) {
-      const queryUrl = this.isUnionSearch ? 'unionSearch/unionSearchHistory' : 'retrieve/getSearchHistory';
+      const queryUrl = this.isUnionSearch
+        ? 'unionSearch/unionSearchHistory'
+        : 'retrieve/getSearchHistory';
       const params = this.isUnionSearch
         ? {
             index_set_ids: this.unionIndexList,
@@ -893,7 +926,7 @@ export default {
         .request(queryUrl, {
           params,
         })
-        .then(res => {
+        .then((res) => {
           this.statementSearchrecords = res.data;
         });
     },
@@ -908,7 +941,8 @@ export default {
       const { ids, selectIsUnionSearch } = val;
       // 关闭下拉框 判断是否是多选 如果是多选并且非缓存的则执行联合查询
       if (!isFavoriteSearch) {
-        const favoriteIDs = this.activeFavorite.index_set_ids?.map(item => String(item)) ?? [];
+        const favoriteIDs =
+          this.activeFavorite.index_set_ids?.map((item) => String(item)) ?? [];
         if (this.compareArrays(ids, favoriteIDs)) return;
         this.resetFavoriteValue();
       }
@@ -966,7 +1000,10 @@ export default {
       //     addition: []
       // })
       // 过滤相关
-      const tempList = handleTransformToTimestamp(this.datePickerValue, this.$store.getters.retrieveParams.format);
+      const tempList = handleTransformToTimestamp(
+        this.datePickerValue,
+        this.$store.getters.retrieveParams.format
+      );
       this.retrieveParams = {
         bk_biz_id: this.$store.state.bkBizId,
         ...DEFAULT_RETRIEVE_PARAMS,
@@ -994,7 +1031,10 @@ export default {
      * @desc 时间选择组件返回时间戳格式转换
      */
     formatTimeRange() {
-      const tempList = handleTransformToTimestamp(this.datePickerValue, this.$store.getters.retrieveParams.format);
+      const tempList = handleTransformToTimestamp(
+        this.datePickerValue,
+        this.$store.getters.retrieveParams.format
+      );
       Object.assign(this.retrieveParams, {
         start_time: tempList[0],
         end_time: tempList[1],
@@ -1027,7 +1067,7 @@ export default {
       if ((isQuery && this.isAutoQuery) || isForceQuery) this.retrieveLog();
     },
     getFieldType(field) {
-      const target = this.totalFields.find(item => item.field_name === field);
+      const target = this.totalFields.find((item) => item.field_name === field);
       return target ? target.field_type : '';
     },
     // 添加过滤条件
@@ -1053,21 +1093,30 @@ export default {
 
     /** 条件新开页 */
     additionLinkOpen(newAdditionList = [], routerParams = {}) {
-      const openUrl = this.$refs.searchCompRef.setRouteParams(routerParams, false, newAdditionList);
+      const openUrl = this.$refs.searchCompRef.setRouteParams(
+        routerParams,
+        false,
+        newAdditionList
+      );
       window.open(openUrl, '_blank');
     },
 
     /** 批量添加条件 */
     batchAddCondition(additionList, isLink) {
       if (isLink) {
-        const notExistAddition = additionList.filter(item => !this.additionIsExist(item));
-        const changeOperatorAddition = notExistAddition.map(item => ({
+        const notExistAddition = additionList.filter(
+          (item) => !this.additionIsExist(item)
+        );
+        const changeOperatorAddition = notExistAddition.map((item) => ({
           ...item,
           operator: this.getAdditionMappingOperator(item),
         }));
-        this.additionLinkOpen(changeOperatorAddition, { activeTableTab: 'origin', clusterRouteParams: '{}' });
+        this.additionLinkOpen(changeOperatorAddition, {
+          activeTableTab: 'origin',
+          clusterRouteParams: '{}',
+        });
       } else {
-        additionList.forEach(item => {
+        additionList.forEach((item) => {
           const { field, operator, value } = item;
           const isExist = this.additionIsExist({ field, operator, value });
           if (isExist) return;
@@ -1086,7 +1135,7 @@ export default {
     additionIsExist(additionItem) {
       const { field, value } = additionItem;
       const mapOperator = this.getAdditionMappingOperator(additionItem);
-      const isExist = this.retrieveParams.addition.some(addition => {
+      const isExist = this.retrieveParams.addition.some((addition) => {
         return (
           addition.field === field &&
           addition.operator === mapOperator &&
@@ -1112,14 +1161,17 @@ export default {
     },
     /** 改变是否展示联合查询日志来源 */
     changeShowUnionSource() {
-      this.operatorConfig.isShowSourceField = !this.operatorConfig.isShowSourceField;
+      this.operatorConfig.isShowSourceField =
+        !this.operatorConfig.isShowSourceField;
       this.showShowUnionSource();
     },
     /** 日志来源显隐操作 */
     showShowUnionSource(keepLastTime = false) {
       // 非联合查询 或者清空了所有字段 不走逻辑
       if (!this.isUnionSearch || !this.visibleFields.length) return;
-      const isExist = this.visibleFields.some(item => item.tag === 'union-source');
+      const isExist = this.visibleFields.some(
+        (item) => item.tag === 'union-source'
+      );
       // 保持之前的逻辑
       if (keepLastTime) {
         const isShowSourceField = this.operatorConfig.isShowSourceField;
@@ -1130,7 +1182,9 @@ export default {
         }
         return;
       }
-      isExist ? this.visibleFields.shift() : this.visibleFields.unshift(this.logSourceField);
+      isExist
+        ? this.visibleFields.shift()
+        : this.visibleFields.unshift(this.logSourceField);
     },
     // 打开 ip 选择弹窗
     openIpQuick() {
@@ -1164,7 +1218,7 @@ export default {
      */
     handleIpSelectorValueChange(value, isChangeCatch = true) {
       const ipChooserValue = {}; // 新的ip选择的值
-      const nodeType = Object.keys(value).find(item => value[item].length);
+      const nodeType = Object.keys(value).find((item) => value[item].length);
       if (nodeType) {
         ipChooserValue[nodeType] = value[nodeType];
       }
@@ -1195,7 +1249,8 @@ export default {
       });
       this.catchIpChooser = {};
       this.$refs.searchCompRef.clearValue();
-      if (this.isSqlSearchType) this.$refs.searchCompRef.handleBlurSearchInput('*');
+      if (this.isSqlSearchType)
+        this.$refs.searchCompRef.handleBlurSearchInput('*');
       if (isRetrieveLog) this.retrieveLog();
     },
     /**
@@ -1204,7 +1259,11 @@ export default {
      * @param {Boolean} isRequestChartsAndHistory 检索时是否请求历史记录和图表
      */
     async retrieveLog(historyParams, isRequestChartsAndHistory = true) {
-      if ((!this.isUnionSearch && !this.indexId) || (this.isUnionSearch && !this.unionIndexList.length)) return;
+      if (
+        (!this.isUnionSearch && !this.indexId) ||
+        (this.isUnionSearch && !this.unionIndexList.length)
+      )
+        return;
       await this.$nextTick();
       this.basicLoading = true;
       this.$refs.resultHeader?.pauseRefresh();
@@ -1213,7 +1272,10 @@ export default {
       const paramData = {
         action_ids: [authorityMap.SEARCH_LOG_AUTH],
         resources: this.isUnionSearch
-          ? this.unionIndexList.map(indexSet => ({ type: 'indices', id: indexSet }))
+          ? this.unionIndexList.map((indexSet) => ({
+              type: 'indices',
+              id: indexSet,
+            }))
           : [
               {
                 type: 'indices',
@@ -1270,7 +1332,10 @@ export default {
           queryParams = JSON.parse(decodeURIComponent(urlRetrieveParams));
           queryParamsStr = JSON.parse(decodeURIComponent(urlRetrieveParams));
           if (queryParams.start_time && queryParams.end_time) {
-            this.datePickerValue = [queryParams.start_time, queryParams.end_time];
+            this.datePickerValue = [
+              queryParams.start_time,
+              queryParams.end_time,
+            ];
           }
         } catch (e) {
           console.warn('url 查询参数解析失败', e);
@@ -1303,25 +1368,32 @@ export default {
                 case 'activeTableTab':
                 case 'clusterRouteParams':
                   queryParamsStr[field] = param;
-                  clusteringParams[field] = field === 'activeTableTab' ? param : JSON.parse(param);
+                  clusteringParams[field] =
+                    field === 'activeTableTab' ? param : JSON.parse(param);
                   break;
                 case 'addition':
                   {
-                    const additionParamsList = JSON.parse(decodeURIComponent(param));
+                    const additionParamsList = JSON.parse(
+                      decodeURIComponent(param)
+                    );
                     queryParams[field] = additionParamsList
-                      .filter(item => item.isInclude ?? true)
-                      .map(item => {
+                      .filter((item) => item.isInclude ?? true)
+                      .map((item) => {
                         const { field, operator, value } = item;
                         return {
                           field,
-                          operator: this.monitorOperatorMappingKey[operator] ?? operator, // 监控跳转过来时的操作符映射
+                          operator:
+                            this.monitorOperatorMappingKey[operator] ??
+                            operator, // 监控跳转过来时的操作符映射
                           value,
                         };
                       });
                     queryParamsStr.addition = JSON.stringify(
-                      additionParamsList.map(item => ({
+                      additionParamsList.map((item) => ({
                         ...item,
-                        operator: this.monitorOperatorMappingKey[item.operator] ?? item.operator, // 监控跳转过来时的操作符映射
+                        operator:
+                          this.monitorOperatorMappingKey[item.operator] ??
+                          item.operator, // 监控跳转过来时的操作符映射
                         isInclude: item?.isInclude ?? true,
                       })) // 若没有启动开关参数则直接显示为开
                     );
@@ -1330,8 +1402,12 @@ export default {
                 case 'unionList':
                   {
                     this.catchUnionBeginList = [];
-                    const unionParamsList = JSON.parse(decodeURIComponent(param));
-                    const resetUnionList = this.isUnionSearch ? this.unionIndexList : unionParamsList;
+                    const unionParamsList = JSON.parse(
+                      decodeURIComponent(param)
+                    );
+                    const resetUnionList = this.isUnionSearch
+                      ? this.unionIndexList
+                      : unionParamsList;
                     this.$store.commit('updateUnionIndexList', resetUnionList);
                   }
                   break;
@@ -1339,11 +1415,15 @@ export default {
                   {
                     const tagList = param.split(',');
                     const indexSetMatch = this.indexSetList
-                      .filter(item => item.tags.some(tag => tagList.includes(tag.name)))
-                      .map(val => val.index_set_id);
+                      .filter((item) =>
+                        item.tags.some((tag) => tagList.includes(tag.name))
+                      )
+                      .map((val) => val.index_set_id);
                     if (indexSetMatch?.length) {
                       this.$store.commit('updateUnionIndexList', indexSetMatch);
-                      queryParamsStr.unionList = encodeURIComponent(JSON.stringify(indexSetMatch));
+                      queryParamsStr.unionList = encodeURIComponent(
+                        JSON.stringify(indexSetMatch)
+                      );
                     }
                   }
                   break;
@@ -1351,15 +1431,20 @@ export default {
                   {
                     if (Object.keys(param).length) {
                       this.catchIpChooser = JSON.parse(param);
-                      if (this.$route.query?.isIPChooserOpen !== 'false') queryParams.ip_chooser = JSON.parse(param);
+                      if (this.$route.query?.isIPChooserOpen !== 'false')
+                        queryParams.ip_chooser = JSON.parse(param);
                     }
                     queryParamsStr.ip_chooser = param;
                   }
                   break;
                 default:
-                  queryParams[field] = ['keyword', 'start_time', 'end_time', 'timezone', 'activeTableTab'].includes(
-                    field
-                  )
+                  queryParams[field] = [
+                    'keyword',
+                    'start_time',
+                    'end_time',
+                    'timezone',
+                    'activeTableTab',
+                  ].includes(field)
                     ? decodeURIComponent(param)
                     : decodeURIComponent(param)
                       ? JSON.parse(decodeURIComponent(param))
@@ -1370,7 +1455,10 @@ export default {
             }
             const defaultTime = localStorage.getItem('SEARCH_DEFAULT_TIME');
             if (queryParams.start_time && queryParams.end_time) {
-              this.datePickerValue = [queryParams.start_time, queryParams.end_time];
+              this.datePickerValue = [
+                queryParams.start_time,
+                queryParams.end_time,
+              ];
             } else if (defaultTime) {
               this.datePickerValue = JSON.parse(defaultTime);
             }
@@ -1381,7 +1469,9 @@ export default {
                 // case 'end_time':
                 // case 'time_range':
                 queryParamsStr[field] =
-                  this.retrieveParams[field] === '' ? '*' : encodeURIComponent(this.retrieveParams[field]);
+                  this.retrieveParams[field] === ''
+                    ? '*'
+                    : encodeURIComponent(this.retrieveParams[field]);
                 break;
               case 'host_scopes':
                 if (
@@ -1389,7 +1479,9 @@ export default {
                   this.retrieveParams[field].modules.length ||
                   this.retrieveParams[field].target_nodes.length
                 ) {
-                  queryParamsStr[field] = JSON.stringify(this.retrieveParams[field]);
+                  queryParamsStr[field] = JSON.stringify(
+                    this.retrieveParams[field]
+                  );
                 }
                 break;
               case 'start_time':
@@ -1406,7 +1498,10 @@ export default {
               case 'activeTableTab':
               case 'clusterRouteParams':
                 if (param) {
-                  queryParamsStr[field] = field === 'activeTableTab' ? this[field] : JSON.stringify(this[field]);
+                  queryParamsStr[field] =
+                    field === 'activeTableTab'
+                      ? this[field]
+                      : JSON.stringify(this[field]);
                 }
                 break;
               case 'timezone':
@@ -1467,7 +1562,10 @@ export default {
         if (this.isInitPage) {
           Object.assign(this.retrieveParams, queryParams); // 回填查询参数中的检索条件
           if (queryParams.start_time && queryParams.end_time) {
-            this.handleDateChange([queryParams.start_time, queryParams.end_time]);
+            this.handleDateChange([
+              queryParams.start_time,
+              queryParams.end_time,
+            ]);
           }
           if (queryParams.timezone) {
             this.timezone = queryParams.timezone;
@@ -1491,7 +1589,8 @@ export default {
         if (this.isAfterRequestFavoriteList) await this.getFavoriteList();
 
         // 已检索 判断当前检索是否是初始化的收藏检索 添检索次数
-        const beAddedNumber = !this.retrieveSearchNumber && this.isFavoriteSearch ? 2 : 1;
+        const beAddedNumber =
+          !this.retrieveSearchNumber && this.isFavoriteSearch ? 2 : 1;
         this.retrieveSearchNumber += beAddedNumber;
       } catch (e) {
         console.warn(e);
@@ -1502,10 +1601,16 @@ export default {
       } finally {
         // 如果是收藏检索并且开启检索显示, 合并当前字段和收藏字段 更新显示字段
 
-        if (this.isFavoriteSearch && this.activeFavorite?.is_enable_display_fields) {
+        if (
+          this.isFavoriteSearch &&
+          this.activeFavorite?.is_enable_display_fields
+        ) {
           const { display_fields: favoriteDisplayFields } = this.activeFavorite;
-          const sessionShownFieldList = this.$store.state.retrieve.catchFieldCustomConfig.displayFields;
-          const displayFields = [...new Set([...sessionShownFieldList, ...favoriteDisplayFields])];
+          const sessionShownFieldList =
+            this.$store.state.retrieve.catchFieldCustomConfig.displayFields;
+          const displayFields = [
+            ...new Set([...sessionShownFieldList, ...favoriteDisplayFields]),
+          ];
           this.handleFieldsUpdated(displayFields, undefined, false);
         }
         if (this.isFavoriteSearch) {
@@ -1541,7 +1646,9 @@ export default {
       if (this.isThollteField) return;
       this.isThollteField = true;
       try {
-        const urlStr = this.isUnionSearch ? 'unionSearch/unionMapping' : 'retrieve/getLogTableHead';
+        const urlStr = this.isUnionSearch
+          ? 'unionSearch/unionMapping'
+          : 'retrieve/getLogTableHead';
         const queryData = {
           start_time: this.retrieveParams.start_time,
           end_time: this.retrieveParams.end_time,
@@ -1560,7 +1667,7 @@ export default {
             data: this.isUnionSearch ? queryData : undefined,
           },
           {
-            cancelToken: new CancelToken(c => {
+            cancelToken: new CancelToken((c) => {
               this.getFieldsCancelFn = c;
             }),
           }
@@ -1576,7 +1683,7 @@ export default {
           config_id,
         } = data;
         const localConfig = {};
-        config.forEach(item => {
+        config.forEach((item) => {
           localConfig[item.name] = { ...item };
         });
         const {
@@ -1605,12 +1712,14 @@ export default {
           indexSetValue,
         });
         // 初始化操作按钮消息
-        this.operatorConfig.toolMessage = this.initToolTipsMessage(this.operatorConfig);
+        this.operatorConfig.toolMessage = this.initToolTipsMessage(
+          this.operatorConfig
+        );
         this.cleanConfig = cleanConfig;
         this.clusteringData = clusteringConfig;
         this.apmRelationData = apmRelation;
 
-        fields.forEach(item => {
+        fields.forEach((item) => {
           item.minWidth = 0;
           item.filterExpand = false; // 字段过滤展开
           item.filterVisible = true; // 字段过滤搜索字段名是否显示
@@ -1622,18 +1731,26 @@ export default {
         this.ipTopoSwitch = ipTopoSwitch.is_active;
         this.bkmonitorUrl = bkmonitor.is_active;
         this.asyncExportUsable = asyncExport.is_active;
-        this.asyncExportUsableReason = !asyncExport.is_active ? asyncExport.extra?.usable_reason || '' : '';
+        this.asyncExportUsableReason = !asyncExport.is_active
+          ? asyncExport.extra?.usable_reason || ''
+          : '';
         this.timeField = timeField;
         this.totalFields = fields;
-        this.$store.commit('retrieve/updateCatchFieldCustomConfig', data.user_custom_config); // 更新用户个人配置
-        const catchDisplayFields = this.$store.state.retrieve.catchFieldCustomConfig.displayFields;
-        const sessionShownFieldList = catchDisplayFields.length ? catchDisplayFields : null;
+        this.$store.commit(
+          'retrieve/updateCatchFieldCustomConfig',
+          data.user_custom_config
+        ); // 更新用户个人配置
+        const catchDisplayFields =
+          this.$store.state.retrieve.catchFieldCustomConfig.displayFields;
+        const sessionShownFieldList = catchDisplayFields.length
+          ? catchDisplayFields
+          : null;
         // 后台给的 display_fields 可能有无效字段 所以进行过滤，获得排序后的字段
         this.initVisibleFields(sessionShownFieldList ?? displayFields);
         this.sortList = sortList;
 
         const fieldAliasMap = {};
-        fields.forEach(item => {
+        fields.forEach((item) => {
           fieldAliasMap[item.field_name] = item.field_alias || item.field_name;
         });
         this.fieldAliasMap = fieldAliasMap;
@@ -1645,7 +1762,11 @@ export default {
             // 初始化 回填添加条件
             const chooserSwitch = Boolean(queryParams.ip_chooser);
             // 初始化 更新当前添加条件列表
-            this.$refs.searchCompRef.initConditionList(initAddition, this.catchIpChooser, chooserSwitch);
+            this.$refs.searchCompRef.initConditionList(
+              initAddition,
+              this.catchIpChooser,
+              chooserSwitch
+            );
             this.initFilterParams = null;
             this.isFilterInitPage = false;
           } else {
@@ -1673,7 +1794,7 @@ export default {
      */
     initVisibleFields(displayFieldNames) {
       this.visibleFields = displayFieldNames
-        .map(displayName => {
+        .map((displayName) => {
           for (const field of this.totalFields) {
             if (field.field_name === displayName) {
               return field;
@@ -1682,7 +1803,10 @@ export default {
         })
         .filter(Boolean);
       this.showShowUnionSource(true);
-      this.$store.commit('updateIsNotVisibleFieldsShow', !this.visibleFields.length);
+      this.$store.commit(
+        'updateIsNotVisibleFieldsShow',
+        !this.visibleFields.length
+      );
       // 初始化的时候不进行设置自适应宽度 当前dom还没挂在在页面 导致在第一次检索时isSetDefaultTableColumn参数为true 无法更新自适应宽度
       if (this.isSetDefaultTableColumn && !this.shouldUpdateFields) {
         this.setDefaultTableColumn();
@@ -1694,7 +1818,11 @@ export default {
      * @param {Boolean} showFieldAlias 是否别名
      * @param {Boolean} isRequestFields 是否请求字段
      */
-    async handleFieldsUpdated(displayFieldNames, showFieldAlias, isRequestFields = true) {
+    async handleFieldsUpdated(
+      displayFieldNames,
+      showFieldAlias,
+      isRequestFields = true
+    ) {
       if (showFieldAlias !== undefined) {
         // bklog\web\src\views\retrieve\result-comp\fields-setting.vue 中修改别名配置
         this[BK_LOG_STORAGE.SHOW_FIELD_ALIAS] = showFieldAlias;
@@ -1712,7 +1840,8 @@ export default {
       }
     },
     handleSelectFieldsConfig() {
-      const displayFields = this.$store.state.retrieve.catchFieldCustomConfig.displayFields;
+      const displayFields =
+        this.$store.state.retrieve.catchFieldCustomConfig.displayFields;
       this.initVisibleFields(displayFields);
       this.setDefaultTableColumn();
     },
@@ -1737,7 +1866,10 @@ export default {
       const { currentPage, pageSize } = this.$refs.resultMainRef;
       this.formatTimeRange();
       try {
-        const baseUrl = process.env.NODE_ENV === 'development' ? 'api/v1' : window.AJAX_URL_PREFIX;
+        const baseUrl =
+          process.env.NODE_ENV === 'development'
+            ? 'api/v1'
+            : window.AJAX_URL_PREFIX;
         // 区分联合查询和单选查询
         const searchUrl = !this.isUnionSearch
           ? `/search/index_set/${this.indexId}/search/`
@@ -1748,9 +1880,11 @@ export default {
           interval: this.interval,
         };
         // 更新联合查询的begin
-        const unionConfigs = this.unionIndexList.map(item => ({
+        const unionConfigs = this.unionIndexList.map((item) => ({
           begin: this.isTablePagination
-            ? (this.catchUnionBeginList.find(cItem => String(cItem?.index_set_id) === item)?.begin ?? 0)
+            ? (this.catchUnionBeginList.find(
+                (cItem) => String(cItem?.index_set_id) === item
+              )?.begin ?? 0)
             : 0,
           index_set_id: item,
         }));
@@ -1768,7 +1902,7 @@ export default {
         const params = {
           method: 'post',
           url: searchUrl,
-          cancelToken: new CancelToken(c => {
+          cancelToken: new CancelToken((c) => {
             this.searchCancelFn = c;
           }),
           withCredentials: true,
@@ -1781,7 +1915,7 @@ export default {
             'X-Bk-Space-Uid': this.spaceUid,
           };
         }
-        const res = await axios(params).then(res => {
+        const res = await axios(params).then((res) => {
           return readBlobRespToJson(res.data);
         });
 
@@ -1791,16 +1925,25 @@ export default {
         }
         // 判断分页
         this.finishPolling = res.data?.list?.length < pageSize;
-        this.catchUnionBeginList = parseBigNumberList(res.data?.union_configs || []);
+        this.catchUnionBeginList = parseBigNumberList(
+          res.data?.union_configs || []
+        );
 
         this.retrievedKeyword = this.retrieveParams.keyword;
         this.tookTime = this.tookTime + Number(res.data?.took) || 0;
-        this.tableData = { ...(res.data || {}), finishPolling: this.finishPolling };
+        this.tableData = {
+          ...(res.data || {}),
+          finishPolling: this.finishPolling,
+        };
         if (!this.isSetDefaultTableColumn || this.shouldUpdateFields) {
           this.setDefaultTableColumn();
         }
-        this.logList = this.logList.concat(parseBigNumberList(res.data?.list ?? []));
-        this.statisticalFieldsData = this.getStatisticalFieldsData(this.logList);
+        this.logList = this.logList.concat(
+          parseBigNumberList(res.data?.list ?? [])
+        );
+        this.statisticalFieldsData = this.getStatisticalFieldsData(
+          this.logList
+        );
         this.computeRetrieveDropdownData(this.logList);
       } catch (err) {
         this.$refs.resultMainRef.isPageOver = false;
@@ -1814,14 +1957,19 @@ export default {
     },
     // 首次加载设置表格默认宽度自适应
     setDefaultTableColumn() {
-      const catchFieldsWidthObj = this.$store.state.retrieve.catchFieldCustomConfig.fieldsWidth;
+      const catchFieldsWidthObj =
+        this.$store.state.retrieve.catchFieldCustomConfig.fieldsWidth;
       const tableList = this.tableData?.list ?? [];
-      this.isSetDefaultTableColumn = setDefaultTableWidth(this.visibleFields, tableList, catchFieldsWidthObj);
+      this.isSetDefaultTableColumn = setDefaultTableWidth(
+        this.visibleFields,
+        tableList,
+        catchFieldsWidthObj
+      );
     },
     // 根据表格数据统计字段值及出现次数
     getStatisticalFieldsData(listData) {
       const result = {};
-      listData.forEach(dataItem => {
+      listData.forEach((dataItem) => {
         this.recursiveObjectData(result, dataItem);
       });
       return result;
@@ -1830,9 +1978,15 @@ export default {
       dataItem &&
         Object.entries(dataItem).forEach(([field, value]) => {
           if (typeof value === 'object') {
-            this.recursiveObjectData(result, value, `${prefixFieldKey + field}.`);
+            this.recursiveObjectData(
+              result,
+              value,
+              `${prefixFieldKey + field}.`
+            );
           } else {
-            const fullFieldKey = prefixFieldKey ? prefixFieldKey + field : field;
+            const fullFieldKey = prefixFieldKey
+              ? prefixFieldKey + field
+              : field;
             const fieldData =
               result[fullFieldKey] ||
               (result[fullFieldKey] = Object.defineProperties(
@@ -1864,7 +2018,7 @@ export default {
     },
     // 更新下拉字段可选值信息
     computeRetrieveDropdownData(listData) {
-      listData.forEach(dataItem => {
+      listData.forEach((dataItem) => {
         this.recursiveIncreaseData(dataItem);
       });
     },
@@ -1874,7 +2028,9 @@ export default {
           if (typeof value === 'object') {
             this.recursiveIncreaseData(value, `${prefixFieldKey + field}.`);
           } else {
-            const fullFieldKey = prefixFieldKey ? prefixFieldKey + field : field;
+            const fullFieldKey = prefixFieldKey
+              ? prefixFieldKey + field
+              : field;
             if (value || value === 0) {
               let fieldData = this.retrieveDropdownData[fullFieldKey];
               if (!fieldData) {
@@ -1918,7 +2074,7 @@ export default {
       this.tookTime = 0;
       this.tableData = {};
       // 字段过滤展开
-      this.totalFields.forEach(item => {
+      this.totalFields.forEach((item) => {
         item.filterExpand = false;
       });
       // 字段值统计数据
@@ -1934,7 +2090,8 @@ export default {
       window.addEventListener('mouseup', this.dragStop, { passive: true });
     },
     dragMoving(e) {
-      const newTreeBoxWidth = this.currentTreeBoxWidth + e.screenX - this.currentScreenX;
+      const newTreeBoxWidth =
+        this.currentTreeBoxWidth + e.screenX - this.currentScreenX;
       if (newTreeBoxWidth < this.leftPanelMinWidth) {
         this.leftPanelWidth = 0;
         this.showRetrieveCondition = false;
@@ -1975,9 +2132,15 @@ export default {
     initToolTipsMessage(config) {
       const { contextAndRealtime, bcsWebConsole } = config;
       return {
-        webConsole: bcsWebConsole.is_active ? 'WebConsole' : bcsWebConsole?.extra?.reason,
-        realTimeLog: contextAndRealtime.is_active ? this.$t('实时日志') : contextAndRealtime?.extra?.reason,
-        contextLog: contextAndRealtime.is_active ? this.$t('上下文') : contextAndRealtime?.extra?.reason,
+        webConsole: bcsWebConsole.is_active
+          ? 'WebConsole'
+          : bcsWebConsole?.extra?.reason,
+        realTimeLog: contextAndRealtime.is_active
+          ? this.$t('实时日志')
+          : contextAndRealtime?.extra?.reason,
+        contextLog: contextAndRealtime.is_active
+          ? this.$t('上下文')
+          : contextAndRealtime?.extra?.reason,
       };
     },
     // 检索头部点击编辑收藏
@@ -1995,7 +2158,7 @@ export default {
           addition: this.retrieveParams.addition,
           keyword: this.retrieveParams.keyword,
         },
-        display_fields: this.visibleFields.map(item => item?.field_name),
+        display_fields: this.visibleFields.map((item) => item?.field_name),
       };
     },
 
@@ -2004,18 +2167,26 @@ export default {
       // 第一次显示收藏列表时因路由更变原因 在本页面第一次请求
       try {
         this.favoriteLoading = true;
-        const { data } = await this.$http.request('favorite/getFavoriteByGroupList', {
-          query: {
-            space_uid: this.spaceUid,
-            order_type: localStorage.getItem('favoriteSortType') || 'NAME_ASC',
-          },
-        });
+        const { data } = await this.$http.request(
+          'favorite/getFavoriteByGroupList',
+          {
+            query: {
+              space_uid: this.spaceUid,
+              order_type:
+                localStorage.getItem('favoriteSortType') || 'NAME_ASC',
+            },
+          }
+        );
         const provideFavorite = data[0];
         const publicFavorite = data[data.length - 1];
         const sortFavoriteList = data
           .slice(1, data.length - 1)
           .sort((a, b) => a.group_name.localeCompare(b.group_name));
-        const sortAfterList = [provideFavorite, ...sortFavoriteList, publicFavorite];
+        const sortAfterList = [
+          provideFavorite,
+          ...sortFavoriteList,
+          publicFavorite,
+        ];
         this.favoriteList = sortAfterList;
       } catch (err) {
         this.favoriteLoading = false;
@@ -2025,7 +2196,9 @@ export default {
         if (this.activeFavoriteID !== -1) {
           let isFindCheckValue = false; // 是否从列表中找到匹配当前收藏的id
           for (const gItem of this.favoriteList) {
-            const findFavorites = gItem.favorites.find(item => item.id === this.activeFavoriteID);
+            const findFavorites = gItem.favorites.find(
+              (item) => item.id === this.activeFavoriteID
+            );
             if (!!findFavorites) {
               isFindCheckValue = true; // 找到 中断循环
               break;
@@ -2076,16 +2249,21 @@ export default {
       this.activeFavoriteID = data.id;
       const { index_set_id: indexSetID, params } = data;
       const selectIsUnionSearch = value.index_set_type === 'union';
-      const ids = selectIsUnionSearch ? value.index_set_ids.map(item => String(item)) : [String(indexSetID)];
+      const ids = selectIsUnionSearch
+        ? value.index_set_ids.map((item) => String(item))
+        : [String(indexSetID)];
       const filterIDs = this.indexSetList
-        .filter(item => ids.includes(item.index_set_id))
-        .map(item => item.index_set_id);
+        .filter((item) => ids.includes(item.index_set_id))
+        .map((item) => item.index_set_id);
       if (filterIDs.length) {
         const setChangeValue = {
           ids: filterIDs,
           selectIsUnionSearch,
         };
-        const favoriteParams = { ...params, from_favorite_id: this.activeFavoriteID };
+        const favoriteParams = {
+          ...params,
+          from_favorite_id: this.activeFavoriteID,
+        };
         this.handleSelectIndex(setChangeValue, favoriteParams, true);
       } else {
         this.messageError(this.$t('没有找到该记录下相关索引集'));
@@ -2101,7 +2279,9 @@ export default {
     initSearchList() {
       if (this.isShowUiType) {
         this.favSearchList = this.activeFavorite.params?.search_fields || [];
-        this.$refs.searchCompRef.handleBlurSearchInput(this.activeFavorite.params?.keyword || '*');
+        this.$refs.searchCompRef.handleBlurSearchInput(
+          this.activeFavorite.params?.keyword || '*'
+        );
       }
     },
     // 表格tab切换或聚类参数回填
@@ -2129,278 +2309,278 @@ export default {
 </script>
 
 <style lang="scss" scoped>
-  @import '../../scss/mixins/scroller.scss';
+@import '../../scss/mixins/scroller.scss';
 
-  .retrieve-container {
-    min-width: 1280px;
-    height: 100%;
+.retrieve-container {
+  min-width: 1280px;
+  height: 100%;
 
-    .page-loading-wrap {
-      position: absolute;
-      top: 0;
-      z-index: 2400;
-      width: 100%;
-      height: 4px;
-      overflow: hidden;
-      background: pink;
+  .page-loading-wrap {
+    position: absolute;
+    top: 0;
+    z-index: 2400;
+    width: 100%;
+    height: 4px;
+    overflow: hidden;
+    background: pink;
 
-      @keyframes animate-loading-bar {
-        0% {
-          transform: translateX(0);
-        }
-
-        to {
-          transform: translateX(-50%);
-        }
+    @keyframes animate-loading-bar {
+      0% {
+        transform: translateX(0);
       }
 
-      .page-loading-bar {
-        position: absolute;
-        top: 0;
-        right: 0;
-        bottom: 0;
-        left: 0;
-        z-index: 10;
-        display: block;
-        width: 200%;
-        visibility: visible;
-        background-color: transparent;
-        background-image: linear-gradient(
-          to right,
-          #ff5656 0,
-          #ff5656 50%,
-          #ff9c01 50%,
-          #ff9c01 85%,
-          #2dcb56 85%,
-          #2dcb56 100%
-        );
-        background-repeat: repeat-x;
-        background-size: 50%;
-        animation: animate-loading-bar 2s linear infinite;
+      to {
+        transform: translateX(-50%);
       }
     }
 
-    /*详情页*/
-    .retrieve-detail-container {
-      position: relative;
-      // display: flex;
-      height: 100%;
+    .page-loading-bar {
+      position: absolute;
+      top: 0;
+      right: 0;
+      bottom: 0;
+      left: 0;
+      z-index: 10;
+      display: block;
+      width: 200%;
+      visibility: visible;
+      background-color: transparent;
+      background-image: linear-gradient(
+        to right,
+        #ff5656 0,
+        #ff5656 50%,
+        #ff9c01 50%,
+        #ff9c01 85%,
+        #2dcb56 85%,
+        #2dcb56 100%
+      );
+      background-repeat: repeat-x;
+      background-size: 50%;
+      animation: animate-loading-bar 2s linear infinite;
+    }
+  }
 
-      .result-content {
+  /*详情页*/
+  .retrieve-detail-container {
+    position: relative;
+    // display: flex;
+    height: 100%;
+
+    .result-content {
+      display: flex;
+      height: calc(100% - 52px);
+    }
+
+    .retrieve-condition {
+      display: flow-root;
+      width: 450px;
+      background: #fff;
+      box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.1);
+
+      .bk-button-group {
         display: flex;
-        height: calc(100% - 52px);
-      }
+        width: 100%;
+        height: 52px;
 
-      .retrieve-condition {
-        display: flow-root;
-        width: 450px;
-        background: #fff;
-        box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.1);
-
-        .bk-button-group {
-          display: flex;
-          width: 100%;
-          height: 52px;
-
-          .bk-button {
-            box-sizing: content-box;
-            flex: 1;
-            height: 100%;
-            background: #fafbfd;
-            border-color: #dcdee5;
-            border-top: 0;
-
-            &.is-selected {
-              color: #3a84ff;
-              background: #fff;
-              border-color: #dcdee5;
-              border-top: none;
-              border-bottom: none;
-            }
-
-            &:hover {
-              border-color: #dcdee5;
-            }
-          }
-        }
-
-        .biz-menu-box {
-          position: relative;
-          margin: 16px 16px 0;
-        }
-
-        .king-tab {
+        .bk-button {
+          box-sizing: content-box;
+          flex: 1;
           height: 100%;
-          padding-top: 10px;
+          background: #fafbfd;
+          border-color: #dcdee5;
+          border-top: 0;
 
-          .tab-content {
-            /* stylelint-disable-next-line declaration-no-important */
-            height: calc(100% - 52px) !important;
-            overflow-y: auto;
-            background-color: #fbfbfb;
-
-            @include scroller;
+          &.is-selected {
+            color: #3a84ff;
+            background: #fff;
+            border-color: #dcdee5;
+            border-top: none;
+            border-bottom: none;
           }
 
-          .tab-content-item {
-            padding: 0 24px;
-
-            &:first-child {
-              padding-bottom: 4px;
-              background-color: #fff;
-            }
-
-            &:last-child {
-              padding-top: 6px;
-              padding-bottom: 26px;
-            }
-          }
-
-          &.as-iframe {
-            height: calc(100% + 10px);
-          }
-
-          .tab-header {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 10px 24px 18px;
-            font-size: 16px;
-            color: #313238;
-
-            .tab-title {
-              font-size: 14px;
-            }
-
-            .icon-edit-line {
-              color: #979ba5;
-              cursor: pointer;
-            }
-
-            .icon-cog {
-              font-size: 18px;
-              color: #979ba5;
-              cursor: pointer;
-            }
-
-            .icon-angle-double-left-line {
-              margin-left: 8px;
-              font-size: 16px;
-              color: #979ba5;
-              cursor: pointer;
-            }
-          }
-
-          .tab-item-title {
-            display: flex;
-            align-items: center;
-            margin: 16px 0 6px;
-            font-size: 12px;
-            line-height: 20px;
-            color: #63656e;
-
-            &.ip-quick-title {
-              margin-top: 13px;
-            }
-
-            &:first-child {
-              margin-top: 0;
-            }
-          }
-
-          .field-filter-title {
-            padding-top: 18px;
-            margin-bottom: 0;
-            font-size: 14px;
-            font-weight: 500;
-            color: #313238;
-          }
-
-          .flex-item-title {
-            display: flex;
-            justify-content: space-between;
-
-            .filter-item {
-              display: flex;
-
-              span {
-                margin-left: 24px;
-                color: #3a84ff;
-                cursor: pointer;
-              }
-            }
-          }
-
-          .add-filter-condition-container {
-            display: flex;
-            flex-wrap: wrap;
-          }
-
-          .cut-line {
-            width: 1px;
-            height: 32px;
-            margin: 0 8px 0 4px;
-            background: #eceef5;
-            opacity: 1;
+          &:hover {
+            border-color: #dcdee5;
           }
         }
       }
 
-      .retrieve-result {
+      .biz-menu-box {
         position: relative;
-        z-index: 1;
-        width: calc(100% - 450px);
-        height: 100%;
-        background: #f5f6fa;
+        margin: 16px 16px 0;
       }
 
-      .drag-bar {
-        position: absolute;
-        top: 52px;
-        left: 449px;
-        width: 1px;
+      .king-tab {
         height: 100%;
-        background: #dcdee5;
+        padding-top: 10px;
 
-        .drag-icon {
-          position: absolute;
-          top: 50%;
-          left: -3px;
-          z-index: 50;
-          width: 7px;
-          cursor: col-resize;
-          transform: translateY(-50%);
+        .tab-content {
+          /* stylelint-disable-next-line declaration-no-important */
+          height: calc(100% - 52px) !important;
+          overflow-y: auto;
+          background-color: #fbfbfb;
+
+          @include scroller;
         }
 
-        &.dragging {
-          z-index: 100;
+        .tab-content-item {
+          padding: 0 24px;
+
+          &:first-child {
+            padding-bottom: 4px;
+            background-color: #fff;
+          }
+
+          &:last-child {
+            padding-top: 6px;
+            padding-bottom: 26px;
+          }
         }
+
+        &.as-iframe {
+          height: calc(100% + 10px);
+        }
+
+        .tab-header {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          padding: 10px 24px 18px;
+          font-size: 16px;
+          color: #313238;
+
+          .tab-title {
+            font-size: 14px;
+          }
+
+          .icon-edit-line {
+            color: #979ba5;
+            cursor: pointer;
+          }
+
+          .icon-cog {
+            font-size: 18px;
+            color: #979ba5;
+            cursor: pointer;
+          }
+
+          .icon-angle-double-left-line {
+            margin-left: 8px;
+            font-size: 16px;
+            color: #979ba5;
+            cursor: pointer;
+          }
+        }
+
+        .tab-item-title {
+          display: flex;
+          align-items: center;
+          margin: 16px 0 6px;
+          font-size: 12px;
+          line-height: 20px;
+          color: #63656e;
+
+          &.ip-quick-title {
+            margin-top: 13px;
+          }
+
+          &:first-child {
+            margin-top: 0;
+          }
+        }
+
+        .field-filter-title {
+          padding-top: 18px;
+          margin-bottom: 0;
+          font-size: 14px;
+          font-weight: 500;
+          color: #313238;
+        }
+
+        .flex-item-title {
+          display: flex;
+          justify-content: space-between;
+
+          .filter-item {
+            display: flex;
+
+            span {
+              margin-left: 24px;
+              color: #3a84ff;
+              cursor: pointer;
+            }
+          }
+        }
+
+        .add-filter-condition-container {
+          display: flex;
+          flex-wrap: wrap;
+        }
+
+        .cut-line {
+          width: 1px;
+          height: 32px;
+          margin: 0 8px 0 4px;
+          background: #eceef5;
+          opacity: 1;
+        }
+      }
+    }
+
+    .retrieve-result {
+      position: relative;
+      z-index: 1;
+      width: calc(100% - 450px);
+      height: 100%;
+      background: #f5f6fa;
+    }
+
+    .drag-bar {
+      position: absolute;
+      top: 52px;
+      left: 449px;
+      width: 1px;
+      height: 100%;
+      background: #dcdee5;
+
+      .drag-icon {
+        position: absolute;
+        top: 50%;
+        left: -3px;
+        z-index: 50;
+        width: 7px;
+        cursor: col-resize;
+        transform: translateY(-50%);
+      }
+
+      &.dragging {
+        z-index: 100;
       }
     }
   }
+}
 </style>
 
 <style lang="scss">
-  .auto-query-popover-content {
-    display: flex;
-    align-items: center;
-    padding: 6px 0;
-    color: #63656e;
+.auto-query-popover-content {
+  display: flex;
+  align-items: center;
+  padding: 6px 0;
+  color: #63656e;
 
-    > span {
-      margin: 0 12px 0 4px;
-    }
-
-    .confirm-btn {
-      margin-left: 12px;
-      color: #3a84ff;
-      cursor: pointer;
-    }
+  > span {
+    margin: 0 12px 0 4px;
   }
 
-  .condition-filter-popper {
-    .tippy-tooltip {
-      padding: 0;
-    }
+  .confirm-btn {
+    margin-left: 12px;
+    color: #3a84ff;
+    cursor: pointer;
   }
+}
+
+.condition-filter-popper {
+  .tippy-tooltip {
+    padding: 0;
+  }
+}
 </style>

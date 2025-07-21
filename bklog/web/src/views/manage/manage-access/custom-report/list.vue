@@ -26,10 +26,7 @@
 
 <template>
   <!-- 自定义上报列表页面 -->
-  <div
-    class="custom-item-container"
-    data-test-id="custom_div_customContainer"
-  >
+  <div class="custom-item-container" data-test-id="custom_div_customContainer">
     <section class="operation">
       <div class="top-operation">
         <bk-button
@@ -158,7 +155,11 @@
           >
             <template #default="props">
               <span>
-                {{ props.row.retention ? `${props.row.retention} ${$t('天')}` : '--' }}
+                {{
+                  props.row.retention
+                    ? `${props.row.retention} ${$t('天')}`
+                    : '--'
+                }}
               </span>
             </template>
           </bk-table-column>
@@ -195,9 +196,16 @@
               <div class="collect-table-operate">
                 <bk-button
                   class="king-button"
-                  v-cursor="{ active: !(props.row.permission && props.row.permission[authorityMap.SEARCH_LOG_AUTH]) }"
+                  v-cursor="{
+                    active: !(
+                      props.row.permission &&
+                      props.row.permission[authorityMap.SEARCH_LOG_AUTH]
+                    ),
+                  }"
                   :disabled="
-                    !props.row.is_active || (!props.row.index_set_id && !props.row.bkdata_index_set_ids.length)
+                    !props.row.is_active ||
+                    (!props.row.index_set_id &&
+                      !props.row.bkdata_index_set_ids.length)
                   "
                   theme="primary"
                   text
@@ -208,7 +216,10 @@
                 <bk-button
                   class="king-button"
                   v-cursor="{
-                    active: !(props.row.permission && props.row.permission[authorityMap.MANAGE_COLLECTION_AUTH]),
+                    active: !(
+                      props.row.permission &&
+                      props.row.permission[authorityMap.MANAGE_COLLECTION_AUTH]
+                    ),
                   }"
                   theme="primary"
                   text
@@ -218,7 +229,10 @@
                 >
                 <bk-button
                   v-cursor="{
-                    active: !(props.row.permission && props.row.permission[authorityMap.MANAGE_COLLECTION_AUTH]),
+                    active: !(
+                      props.row.permission &&
+                      props.row.permission[authorityMap.MANAGE_COLLECTION_AUTH]
+                    ),
                   }"
                   :disabled="!props.row.table_id"
                   theme="primary"
@@ -246,7 +260,12 @@
                       <li>
                         <a
                           v-cursor="{
-                            active: !(props.row.permission && props.row.permission[authorityMap.VIEW_COLLECTION_AUTH]),
+                            active: !(
+                              props.row.permission &&
+                              props.row.permission[
+                                authorityMap.VIEW_COLLECTION_AUTH
+                              ]
+                            ),
                           }"
                           href="javascript:;"
                           @click="operateHandler(props.row, 'view')"
@@ -257,7 +276,12 @@
                       <li v-if="isShowMaskingTemplate">
                         <a
                           v-cursor="{
-                            active: !(props.row.permission && props.row.permission[authorityMap.VIEW_COLLECTION_AUTH]),
+                            active: !(
+                              props.row.permission &&
+                              props.row.permission[
+                                authorityMap.VIEW_COLLECTION_AUTH
+                              ]
+                            ),
                           }"
                           href="javascript:;"
                           @click="operateHandler(props.row, 'masking')"
@@ -277,7 +301,10 @@
                           v-else
                           v-cursor="{
                             active: !(
-                              props.row.permission && props.row.permission[authorityMap.MANAGE_COLLECTION_AUTH]
+                              props.row.permission &&
+                              props.row.permission[
+                                authorityMap.MANAGE_COLLECTION_AUTH
+                              ]
                             ),
                           }"
                           href="javascript:;"
@@ -298,7 +325,10 @@
                           v-else
                           v-cursor="{
                             active: !(
-                              props.row.permission && props.row.permission[authorityMap.MANAGE_COLLECTION_AUTH]
+                              props.row.permission &&
+                              props.row.permission[
+                                authorityMap.MANAGE_COLLECTION_AUTH
+                              ]
                             ),
                           }"
                           href="javascript:;"
@@ -319,7 +349,10 @@
                           v-else
                           v-cursor="{
                             active: !(
-                              props.row.permission && props.row.permission[authorityMap.MANAGE_COLLECTION_AUTH]
+                              props.row.permission &&
+                              props.row.permission[
+                                authorityMap.MANAGE_COLLECTION_AUTH
+                              ]
                             ),
                           }"
                           href="javascript:;"
@@ -370,7 +403,10 @@ export default {
       collectList: [],
       selectLabelList: [],
       isAllowedCreate: null,
-      collectProject: projectManages(this.$store.state.topMenu, 'collection-item'), // 权限
+      collectProject: projectManages(
+        this.$store.state.topMenu,
+        'collection-item'
+      ), // 权限
       isRequest: false,
       params: {
         collector_config_id: '',
@@ -410,7 +446,7 @@ export default {
             this.$set(item, key, value[key]);
           };
           requestStorageUsage(this.bkBizId, val, true, callbackFn)
-            .catch(error => {
+            .catch((error) => {
               console.error('Error loading data:', error);
             })
             .finally(() => {
@@ -458,12 +494,16 @@ export default {
 
       if (operateType === 'search') {
         if (!row.index_set_id && !row.bkdata_index_set_ids.length) return;
-        params.indexId = row.index_set_id ? row.index_set_id : row.bkdata_index_set_ids[0];
+        params.indexId = row.index_set_id
+          ? row.index_set_id
+          : row.bkdata_index_set_ids[0];
       }
 
       if (operateType === 'masking') {
         if (!row.index_set_id && !row.bkdata_index_set_ids.length) return;
-        params.indexSetId = row.index_set_id ? row.index_set_id : row.bkdata_index_set_ids[0];
+        params.indexSetId = row.index_set_id
+          ? row.index_set_id
+          : row.bkdata_index_set_ids[0];
         editName = row.collector_config_name;
       }
 
@@ -496,12 +536,15 @@ export default {
     toggleCollect(row, type) {
       const { isActive } = row;
       this.$http
-        .request(`collect/${type === 'start' ? 'startCollect' : 'stopCollect'}`, {
-          params: {
-            collector_config_id: row.collector_config_id,
-          },
-        })
-        .then(res => {
+        .request(
+          `collect/${type === 'start' ? 'startCollect' : 'stopCollect'}`,
+          {
+            params: {
+              collector_config_id: row.collector_config_id,
+            },
+          }
+        )
+        .then((res) => {
           if (res.result) {
             row.is_active = !row.is_active;
             res.result && this.messageSuccess(this.$t('修改成功'));
@@ -516,7 +559,9 @@ export default {
     deleteCollect(row) {
       this.$bkInfo({
         type: 'warning',
-        subTitle: this.$t('当前上报名称为{n}，确认要删除？', { n: row.collector_config_name }),
+        subTitle: this.$t('当前上报名称为{n}，确认要删除？', {
+          n: row.collector_config_name,
+        }),
         confirmFn: () => {
           this.requestDeleteCollect(row);
         },
@@ -538,17 +583,25 @@ export default {
             collector_id_list: collectorIdList,
           },
         })
-        .then(async res => {
+        .then(async (res) => {
           const { data } = res;
           if (data?.list) {
             const resList = data.list;
-            const indexIdList = resList.filter(item => !!item.index_set_id).map(item => item.index_set_id);
-            const { data: desensitizeStatus } = await this.getDesensitizeStatus(indexIdList);
-            const newCollectList = resList.map(item => ({
+            const indexIdList = resList
+              .filter((item) => !!item.index_set_id)
+              .map((item) => item.index_set_id);
+            const { data: desensitizeStatus } =
+              await this.getDesensitizeStatus(indexIdList);
+            const newCollectList = resList.map((item) => ({
               ...item,
-              is_desensitize: desensitizeStatus[item.index_set_id]?.is_desensitize ?? false,
+              is_desensitize:
+                desensitizeStatus[item.index_set_id]?.is_desensitize ?? false,
             }));
-            this.collectList.splice(0, this.collectList.length, ...newCollectList);
+            this.collectList.splice(
+              0,
+              this.collectList.length,
+              ...newCollectList
+            );
             this.pagination.count = data.total;
           }
         })
@@ -612,127 +665,127 @@ export default {
 </script>
 
 <style lang="scss">
-  @import '@/scss/mixins/clearfix';
-  @import '@/scss/conf';
-  @import '@/scss/devops-common.scss';
-  @import '@/scss/mixins/cursor.scss';
+@import '@/scss/mixins/clearfix';
+@import '@/scss/conf';
+@import '@/scss/devops-common.scss';
+@import '@/scss/mixins/cursor.scss';
 
-  .custom-item-container {
-    padding: 20px 24px;
+.custom-item-container {
+  padding: 20px 24px;
 
-    .top-operation {
-      margin-bottom: 20px;
+  .top-operation {
+    margin-bottom: 20px;
 
-      @include clearfix;
+    @include clearfix;
 
-      .bk-button {
-        width: 150px;
-      }
-
-      .collect-search {
-        width: 360px;
-      }
+    .bk-button {
+      width: 150px;
     }
 
-    .table-operation {
-      .custom-table {
+    .collect-search {
+      width: 360px;
+    }
+  }
+
+  .table-operation {
+    .custom-table {
+      overflow: visible;
+
+      .bk-table-pagination-wrapper {
+        background-color: #fafbfd;
+      }
+
+      .operate-column .cell {
         overflow: visible;
+      }
 
-        .bk-table-pagination-wrapper {
-          background-color: #fafbfd;
-        }
+      .bk-table-body-wrapper {
+        overflow: auto;
+      }
 
-        .operate-column .cell {
-          overflow: visible;
-        }
+      .collect-table-operate {
+        display: flex;
+        align-items: center;
 
-        .bk-table-body-wrapper {
-          overflow: auto;
-        }
-
-        .collect-table-operate {
-          display: flex;
-          align-items: center;
-
-          .king-button {
-            margin-right: 14px;
-          }
-        }
-
-        .bk-dropdown-list a.text-disabled:hover {
-          color: #c4c6cc;
-          cursor: not-allowed;
+        .king-button {
+          margin-right: 14px;
         }
       }
 
-      .collector-config-name {
-        @include cursor;
-      }
-
-      .icon-masking {
-        margin-left: 8px;
-        color: #ff9c01;
-      }
-    }
-
-    .custom-name-box {
-      display: flex;
-      align-items: center;
-
-      .icon-masking {
-        flex-shrink: 0;
-      }
-    }
-  }
-
-  .dot-menu {
-    display: inline-block;
-    vertical-align: middle;
-  }
-
-  .dot-menu-theme {
-    /* stylelint-disable-next-line declaration-no-important */
-    padding: 0 !important;
-
-    &::before {
-      /* stylelint-disable-next-line declaration-no-important */
-      background: #fff !important;
-    }
-  }
-
-  .collection-operation-list {
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    min-width: 50px;
-    margin: 0;
-    list-style: none;
-
-    li {
-      padding: 4px 16px;
-      font-size: 12px;
-      line-height: 26px;
-      cursor: pointer;
-
-      &:hover {
-        color: #3a84ff;
-        background-color: #eaf3ff;
-      }
-    }
-
-    a {
-      display: inline-block;
-      width: 100%;
-      height: 100%;
-      color: #63656e;
-    }
-
-    .text-disabled {
-      color: #c4c6cc;
-
-      &:hover {
+      .bk-dropdown-list a.text-disabled:hover {
+        color: #c4c6cc;
         cursor: not-allowed;
       }
     }
+
+    .collector-config-name {
+      @include cursor;
+    }
+
+    .icon-masking {
+      margin-left: 8px;
+      color: #ff9c01;
+    }
   }
+
+  .custom-name-box {
+    display: flex;
+    align-items: center;
+
+    .icon-masking {
+      flex-shrink: 0;
+    }
+  }
+}
+
+.dot-menu {
+  display: inline-block;
+  vertical-align: middle;
+}
+
+.dot-menu-theme {
+  /* stylelint-disable-next-line declaration-no-important */
+  padding: 0 !important;
+
+  &::before {
+    /* stylelint-disable-next-line declaration-no-important */
+    background: #fff !important;
+  }
+}
+
+.collection-operation-list {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-width: 50px;
+  margin: 0;
+  list-style: none;
+
+  li {
+    padding: 4px 16px;
+    font-size: 12px;
+    line-height: 26px;
+    cursor: pointer;
+
+    &:hover {
+      color: #3a84ff;
+      background-color: #eaf3ff;
+    }
+  }
+
+  a {
+    display: inline-block;
+    width: 100%;
+    height: 100%;
+    color: #63656e;
+  }
+
+  .text-disabled {
+    color: #c4c6cc;
+
+    &:hover {
+      cursor: not-allowed;
+    }
+  }
+}
 </style>

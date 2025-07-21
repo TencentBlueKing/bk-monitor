@@ -38,27 +38,34 @@ export default ({ store }) => {
   // 用于筛选并展示别名的情况
   const getFieldName = (name: string) => {
     if (store.state.storage[BK_LOG_STORAGE.SHOW_FIELD_ALIAS]) {
-      const field = store.state.indexFieldInfo.fields.filter(item => item.field_name === name);
+      const field = store.state.indexFieldInfo.fields.filter(
+        (item) => item.field_name === name
+      );
       return field[0]?.query_alias || name;
     }
     return name;
   };
 
-  const mGetFieldNameByField = (field: { field_name: string; query_alias: string }) => {
+  const mGetFieldNameByField = (field: {
+    field_name: string;
+    query_alias: string;
+  }) => {
     return getFieldNameByField(field, store);
   };
 
   // 用于只返回字段名数组的情况
   const getFieldNames = (fields: any) => {
     if (store.state.storage[BK_LOG_STORAGE.SHOW_FIELD_ALIAS]) {
-      return fields.map(fieldInfo => fieldInfo.query_alias || fieldInfo.field_name);
+      return fields.map(
+        (fieldInfo) => fieldInfo.query_alias || fieldInfo.field_name
+      );
     } else {
-      return fields.map(fieldInfo => fieldInfo.field_name);
+      return fields.map((fieldInfo) => fieldInfo.field_name);
     }
   };
   // 用于返回拼接字段名的情况
   const getConcatenatedFieldName = (fields: any) => {
-    const { field_name: id, field_alias: alias, query_alias: query } = fields;
+    const { field_alias: alias, field_name: id, query_alias: query } = fields;
     if (store.state.storage[BK_LOG_STORAGE.SHOW_FIELD_ALIAS] && query) {
       return { id, name: `${query}(${alias || id})` };
     }
@@ -72,15 +79,17 @@ export default ({ store }) => {
   };
   // 用于返回query_alias对应的field_name的情况
   const changeFieldName = (name: string) => {
-    const field = store.state.indexFieldInfo.fields.filter(item => item.query_alias === name);
+    const field = store.state.indexFieldInfo.fields.filter(
+      (item) => item.query_alias === name
+    );
     return field[0]?.field_name || name;
   };
   return {
-    getFieldName,
-    getFieldNames,
-    getConcatenatedFieldName,
-    getQueryAlias,
     changeFieldName,
+    getConcatenatedFieldName,
+    getFieldName,
     getFieldNameByField: mGetFieldNameByField,
+    getFieldNames,
+    getQueryAlias,
   };
 };

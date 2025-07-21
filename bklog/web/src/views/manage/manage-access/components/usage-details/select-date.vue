@@ -92,17 +92,17 @@ export default {
 </script>
 
 <style lang="scss" scoped>
-  .king-date-picker {
-    width: 320px;
-    font-weight: normal;
+.king-date-picker {
+  width: 320px;
+  font-weight: normal;
 
-    :deep(.bk-date-picker-editor) {
-      line-height: 30px;
-      background: #fff;
+  :deep(.bk-date-picker-editor) {
+    line-height: 30px;
+    background: #fff;
 
-      &.is-focus {
-        border-color: #3a84ff;
-      }
+    &.is-focus {
+      border-color: #3a84ff;
     }
   }
+}
 </style>

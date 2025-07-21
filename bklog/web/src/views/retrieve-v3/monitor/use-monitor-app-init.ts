@@ -23,19 +23,21 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, nextTick, onUnmounted, ref, watch } from 'vue';
-
 import * as authorityMap from '@/common/authority-map';
 import useStore from '@/hooks/use-store';
 import { RetrieveUrlResolver } from '@/store/url-resolver';
+import { computed, nextTick, onUnmounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router/composables';
 
 import useResizeObserve from '../../../hooks/use-resize-observe';
-import { getDefaultRetrieveParams, update_URL_ARGS } from '../../../store/default-values';
+import {
+  getDefaultRetrieveParams,
+  update_URL_ARGS,
+} from '../../../store/default-values';
 import { BK_LOG_STORAGE, SEARCH_MODE_DIC } from '../../../store/store.type';
 import RetrieveHelper, { RetrieveEvent } from '../../retrieve-helper';
 
-export default indexSetApi => {
+export default (indexSetApi) => {
   const store = useStore();
   const router = useRouter();
   const route = useRoute();
@@ -48,29 +50,34 @@ export default indexSetApi => {
 
   RetrieveHelper.setScrollSelector('.v3-bklog-content');
 
-  RetrieveHelper.on(RetrieveEvent.LEFT_FIELD_SETTING_SHOWN_CHANGE, isShown => {
-    leftFieldSettingShown.value = isShown;
-  })
-    .on(RetrieveEvent.SEARCHBAR_HEIGHT_CHANGE, height => {
+  RetrieveHelper.on(
+    RetrieveEvent.LEFT_FIELD_SETTING_SHOWN_CHANGE,
+    (isShown) => {
+      leftFieldSettingShown.value = isShown;
+    }
+  )
+    .on(RetrieveEvent.SEARCHBAR_HEIGHT_CHANGE, (height) => {
       searchBarHeight.value = height;
     })
-    .on(RetrieveEvent.LEFT_FIELD_SETTING_WIDTH_CHANGE, width => {
+    .on(RetrieveEvent.LEFT_FIELD_SETTING_WIDTH_CHANGE, (width) => {
       leftFieldSettingWidth.value = width;
     })
-    .on(RetrieveEvent.TREND_GRAPH_HEIGHT_CHANGE, height => {
+    .on(RetrieveEvent.TREND_GRAPH_HEIGHT_CHANGE, (height) => {
       trendGraphHeight.value = height;
     });
 
-  const indexSetIdList = computed(() => store.state.indexItem.ids.filter(id => id?.length ?? false));
+  const indexSetIdList = computed(() =>
+    store.state.indexItem.ids.filter((id) => id?.length ?? false)
+  );
   const fromMonitor = computed(() => route.query.from === 'monitor');
 
   const stickyStyle = computed(() => {
     return {
-      '--top-searchbar-height': `${searchBarHeight.value}px`,
-      '--left-field-setting-width': `${leftFieldSettingShown.value ? leftFieldSettingWidth.value : 0}px`,
-      '--left-collection-width': '0px',
-      '--trend-graph-height': `${trendGraphHeight.value}px`,
       '--header-height': fromMonitor.value ? '0px' : '52px',
+      '--left-collection-width': '0px',
+      '--left-field-setting-width': `${leftFieldSettingShown.value ? leftFieldSettingWidth.value : 0}px`,
+      '--top-searchbar-height': `${searchBarHeight.value}px`,
+      '--trend-graph-height': `${trendGraphHeight.value}px`,
     };
   });
 
@@ -82,32 +89,44 @@ export default indexSetApi => {
   const reoverRouteParams = () => {
     update_URL_ARGS(route);
     const routeParams = getDefaultRetrieveParams({
-      spaceUid: store.state.storage[BK_LOG_STORAGE.BK_SPACE_UID],
       bkBizId: store.state.storage[BK_LOG_STORAGE.BK_BIZ_ID],
-      search_mode: SEARCH_MODE_DIC[store.state.storage[BK_LOG_STORAGE.SEARCH_TYPE]] ?? 'ui',
+      search_mode:
+        SEARCH_MODE_DIC[store.state.storage[BK_LOG_STORAGE.SEARCH_TYPE]] ??
+        'ui',
+      spaceUid: store.state.storage[BK_LOG_STORAGE.BK_SPACE_UID],
     });
     let activeTab = 'single';
     Object.assign(routeParams, { ids: [] });
 
     if (/^-?\d+$/.test(routeParams.index_id)) {
-      Object.assign(routeParams, { ids: [`${routeParams.index_id}`], isUnionIndex: false, selectIsUnionSearch: false });
+      Object.assign(routeParams, {
+        ids: [`${routeParams.index_id}`],
+        isUnionIndex: false,
+        selectIsUnionSearch: false,
+      });
       activeTab = 'single';
     }
 
     if (routeParams.unionList?.length) {
-      Object.assign(routeParams, { ids: [...routeParams.unionList], isUnionIndex: true, selectIsUnionSearch: true });
+      Object.assign(routeParams, {
+        ids: [...routeParams.unionList],
+        isUnionIndex: true,
+        selectIsUnionSearch: true,
+      });
       activeTab = 'union';
     }
 
     store.commit('updateIndexItem', routeParams);
-    store.commit('updateStorage', { [BK_LOG_STORAGE.INDEX_SET_ACTIVE_TAB]: activeTab });
+    store.commit('updateStorage', {
+      [BK_LOG_STORAGE.INDEX_SET_ACTIVE_TAB]: activeTab,
+    });
   };
 
   const getApmIndexSetList = async () => {
     store.commit('retrieve/updateIndexSetLoading', true);
     store.commit('retrieve/updateIndexSetList', []);
     return indexSetApi()
-      .then(res => {
+      .then((res) => {
         let indexSetList = [];
         if (res.length) {
           // 有索引集
@@ -123,10 +142,10 @@ export default indexSetApi => {
           }
           indexSetList = s1.concat(s2);
           // 索引集数据加工
-          indexSetList.forEach(item => {
+          indexSetList.forEach((item) => {
             item.index_set_id = `${item.index_set_id}`;
             item.indexName = item.index_set_name;
-            item.lightenName = ` (${item.indices.map(item => item.result_table_id).join(';')})`;
+            item.lightenName = ` (${item.indices.map((item) => item.result_table_id).join(';')})`;
           });
           store.commit('retrieve/updateIndexSetList', indexSetList);
           return indexSetList;
@@ -142,7 +161,7 @@ export default indexSetApi => {
    */
   const getIndexSetList = () => {
     if (!indexSetApi) return;
-    return getApmIndexSetList().then(resp => {
+    return getApmIndexSetList().then((resp) => {
       isPreApiLoaded.value = true;
 
       if (!resp?.length) return;
@@ -165,8 +184,8 @@ export default indexSetApi => {
       const indexSetIds = [];
 
       if (indexSetIdList.value.length) {
-        indexSetIdList.value.forEach(id => {
-          const item = resp.find(item => `${item.index_set_id}` === `${id}`);
+        indexSetIdList.value.forEach((id) => {
+          const item = resp.find((item) => `${item.index_set_id}` === `${id}`);
           if (!item) {
             emptyIndexSetList.push(id);
           }
@@ -181,17 +200,20 @@ export default indexSetApi => {
           store.commit('updateIndexItem', { ids: [], items: [] });
           store.commit('updateIndexId', '');
           store.commit('updateIndexSetQueryResult', {
-            is_error: true,
             exception_msg: `index-set-not-found:(${emptyIndexSetList.join(',')})`,
+            is_error: true,
           });
         }
 
         if (indexSetItems.length) {
-          store.commit('updateIndexItem', { ids: [...indexSetIds], items: [...indexSetItems] });
+          store.commit('updateIndexItem', {
+            ids: [...indexSetIds],
+            items: [...indexSetItems],
+          });
         }
       }
 
-      const { addition, keyword, items } = store.state.indexItem;
+      const { addition, items, keyword } = store.state.indexItem;
       // 初始化时，判断当前单选索引集是否有默认条件
       if (items.length === 1 && !addition.length && !keyword) {
         let searchMode = 'ui';
@@ -204,7 +226,11 @@ export default indexSetApi => {
           defaultAddition = [...items[0].addition];
           searchMode = 'ui';
         }
-        store.commit('updateStorage', { [BK_LOG_STORAGE.SEARCH_TYPE]: ['ui', 'sql'].indexOf(searchMode ?? 'ui') });
+        store.commit('updateStorage', {
+          [BK_LOG_STORAGE.SEARCH_TYPE]: ['ui', 'sql'].indexOf(
+            searchMode ?? 'ui'
+          ),
+        });
         store.commit('updateIndexItem', {
           addition: defaultAddition,
           keyword: defaultKeyword,
@@ -244,7 +270,9 @@ export default indexSetApi => {
       ...routeParams,
       datePickerValue: store.state.indexItem.datePickerValue,
     });
-    router.replace({ query: { ...route.query, ...resolver.resolveParamsToUrl() } });
+    router.replace({
+      query: { ...route.query, ...resolver.resolveParamsToUrl() },
+    });
   };
 
   reoverRouteParams();
@@ -267,9 +295,10 @@ export default indexSetApi => {
   // 滚动时，检索结果距离顶部高度
   const searchResultTop = ref(0);
 
-  RetrieveHelper.on(RetrieveEvent.GLOBAL_SCROLL, event => {
+  RetrieveHelper.on(RetrieveEvent.GLOBAL_SCROLL, (event) => {
     const scrollTop = (event.target as HTMLElement).scrollTop;
-    paddingTop.value = scrollTop > subBarHeight.value ? subBarHeight.value : scrollTop;
+    paddingTop.value =
+      scrollTop > subBarHeight.value ? subBarHeight.value : scrollTop;
 
     const diff = subBarHeight.value + trendGraphHeight.value;
     searchResultTop.value = scrollTop > diff ? diff : scrollTop;
@@ -277,7 +306,7 @@ export default indexSetApi => {
 
   useResizeObserve(
     RetrieveHelper.getScrollSelector(),
-    entry => {
+    (entry) => {
       scrollContainerHeight.value = (entry.target as HTMLElement).offsetHeight;
     },
     0
@@ -294,12 +323,14 @@ export default indexSetApi => {
    * 计算检索结果列表的滚动位置，监听是否滚动到顶部
    */
   const isSearchResultStickyTop = computed(() => {
-    return searchResultTop.value === subBarHeight.value + trendGraphHeight.value;
+    return (
+      searchResultTop.value === subBarHeight.value + trendGraphHeight.value
+    );
   });
 
   watch(
     () => isPreApiLoaded.value,
-    val => {
+    (val) => {
       if (val) {
         nextTick(() => {
           RetrieveHelper.onMounted();
@@ -314,11 +345,11 @@ export default indexSetApi => {
   });
 
   return {
+    getIndexSetList,
+    isPreApiLoaded,
     isSearchContextStickyTop,
     isSearchResultStickyTop,
-    stickyStyle,
-    isPreApiLoaded,
-    getIndexSetList,
     setDefaultRouteUrl,
+    stickyStyle,
   };
 };

@@ -54,10 +54,7 @@
       </bk-tag-input>
     </div>
     <div class="filter-item">
-      <bk-checkbox
-        v-model="ignoreCase"
-        style="margin-right: 4px"
-      >
+      <bk-checkbox v-model="ignoreCase" style="margin-right: 4px">
       </bk-checkbox>
       <span>{{ $t('大小写敏感') }}</span>
       <div
@@ -139,13 +136,17 @@ export default {
     interval: {
       deep: true,
       handler(val) {
-        this.$emit('handle-filter', 'interval', this.intervalSwitcher ? val : this.baseInterval);
+        this.$emit(
+          'handle-filter',
+          'interval',
+          this.intervalSwitcher ? val : this.baseInterval
+        );
       },
     },
   },
   computed: {
     catchColorIndexList() {
-      return this.colorHighlightList.map(item => item.colorIndex);
+      return this.colorHighlightList.map((item) => item.colorIndex);
     },
   },
   methods: {
@@ -159,11 +160,15 @@ export default {
     },
     changeLightList() {
       // 找出未显示的颜色
-      const colorIndex = contextHighlightColor.findIndex((item, index) => !this.catchColorIndexList.includes(index));
+      const colorIndex = contextHighlightColor.findIndex(
+        (item, index) => !this.catchColorIndexList.includes(index)
+      );
       const catchCloneColorList = deepClone(this.colorHighlightList);
       // 给高亮颜色重新赋值
-      this.colorHighlightList = this.highlightList.map(item => {
-        const notChangeItem = catchCloneColorList.find(cItem => cItem.heightKey === item);
+      this.colorHighlightList = this.highlightList.map((item) => {
+        const notChangeItem = catchCloneColorList.find(
+          (cItem) => cItem.heightKey === item
+        );
         if (notChangeItem) return notChangeItem;
         return {
           heightKey: item,
@@ -185,12 +190,19 @@ export default {
       this.$emit('handle-filter', 'showType', type);
     },
     handleChangeIntervalShow(state) {
-      this.$emit('handle-filter', 'interval', state ? this.interval : this.baseInterval);
+      this.$emit(
+        'handle-filter',
+        'interval',
+        state ? this.interval : this.baseInterval
+      );
     },
     // 粘贴过滤条件
     pasteFn(pasteValue) {
       const trimPasteValue = pasteValue.trim();
-      if (!this.highlightList.includes(trimPasteValue) && this.highlightList.length < 5) {
+      if (
+        !this.highlightList.includes(trimPasteValue) &&
+        this.highlightList.length < 5
+      ) {
         this.highlightList.push(trimPasteValue);
         this.changeLightList();
       }
@@ -199,10 +211,12 @@ export default {
     /** 更新taginput组件中的颜色 */
     initTagInputColor() {
       const childEl = this.$refs.tagInput.$el.querySelectorAll('.key-node');
-      childEl.forEach(child => {
+      childEl.forEach((child) => {
         const tag = child.querySelectorAll('.tag')[0];
-        const colorObj = this.colorHighlightList.find(item => item.heightKey === tag.innerText);
-        [child, tag].forEach(item => {
+        const colorObj = this.colorHighlightList.find(
+          (item) => item.heightKey === tag.innerText
+        );
+        [child, tag].forEach((item) => {
           Object.assign(item.style, {
             backgroundColor: colorObj.color.light,
           });
@@ -214,35 +228,35 @@ export default {
 </script>
 
 <style lang="scss" scoped>
-  .filter-bar {
+.filter-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+
+  span {
+    margin-right: 10px;
+    color: #2d3542;
+  }
+
+  .filter-item {
     display: flex;
-    flex-wrap: wrap;
     align-items: center;
+    margin-bottom: 14px;
 
-    span {
-      margin-right: 10px;
-      color: #2d3542;
+    .type-switcher {
+      min-width: 126px;
+      margin-right: 24px;
     }
 
-    .filter-item {
-      display: flex;
-      align-items: center;
-      margin-bottom: 14px;
-
-      .type-switcher {
-        min-width: 126px;
-        margin-right: 24px;
-      }
-
-      > span {
-        display: block;
-        min-width: 56px;
-        text-align: right;
-      }
-    }
-
-    .hot-key {
-      color: #979ba5;
+    > span {
+      display: block;
+      min-width: 56px;
+      text-align: right;
     }
   }
+
+  .hot-key {
+    color: #979ba5;
+  }
+}
 </style>

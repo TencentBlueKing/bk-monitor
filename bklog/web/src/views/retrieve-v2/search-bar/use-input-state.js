@@ -1,30 +1,55 @@
+/*
+ * Tencent is pleased to support the open source community by making
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
+ *
+ * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+ *
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
+ *
+ * License for 蓝鲸智云PaaS平台 (BlueKing PaaS):
+ *
+ * ---------------------------------------------------
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
+ * documentation files (the "Software"), to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and
+ * to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all copies or substantial portions of
+ * the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
+ * THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
+ * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+ * IN THE SOFTWARE.
+ */
 import { ref } from 'vue';
 
 export default function useInputState() {
   // 记录输入状态
   const inputState = ref({
     focusPos: null, // focus时的光标位置
-    newContent: '', // focus后新增的内容
     hasNewInput: false, // 是否有新增输入
     hasSpace: false, // 是否包含空格
-    lastSpacePos: null, // 最后一个空格的位置
     isSelecting: false, // 是否正在选择填充
+    lastSpacePos: null, // 最后一个空格的位置
+    newContent: '', // focus后新增的内容
   });
 
   // 重置输入状态
   const resetInputState = () => {
     inputState.value = {
       focusPos: null,
-      newContent: '',
       hasNewInput: false,
       hasSpace: false,
-      lastSpacePos: null,
       isSelecting: false,
+      lastSpacePos: null,
+      newContent: '',
     };
   };
 
   // 更新输入状态
-  const updateInputState = state => {
+  const updateInputState = (state) => {
     const currentPos = state.selection.main.to;
     const currentValue = state.doc.toString();
 
@@ -45,7 +70,10 @@ export default function useInputState() {
 
     // 如果光标位置在focus位置之后，说明有新增内容
     if (currentPos > inputState.value.focusPos) {
-      const newContent = currentValue.slice(inputState.value.focusPos, currentPos);
+      const newContent = currentValue.slice(
+        inputState.value.focusPos,
+        currentPos
+      );
       // 检查是否包含空格
       const hasSpace = /\s/.test(newContent);
 
@@ -58,7 +86,8 @@ export default function useInputState() {
         const spaceMatch = newContent.match(/\s+$/);
         if (spaceMatch) {
           // 计算最后一个空格在文档中的位置
-          inputState.value.lastSpacePos = inputState.value.focusPos + spaceMatch.index;
+          inputState.value.lastSpacePos =
+            inputState.value.focusPos + spaceMatch.index;
         }
       }
     } else if (currentPos < inputState.value.focusPos) {
@@ -93,8 +122,8 @@ export default function useInputState() {
         // 在最后一个空格的位置插入，保留空格
         return {
           from: inputState.value.lastSpacePos + 1, // 在空格后插入
-          to: inputState.value.focusPos + inputState.value.newContent.length,
           insertSpace: false,
+          to: inputState.value.focusPos + inputState.value.newContent.length,
         };
       }
 
@@ -123,11 +152,11 @@ export default function useInputState() {
   };
 
   return {
+    endSelecting,
+    getSelectionRange,
     inputState,
     resetInputState,
-    updateInputState,
-    getSelectionRange,
     startSelecting,
-    endSelecting,
+    updateInputState,
   };
 }

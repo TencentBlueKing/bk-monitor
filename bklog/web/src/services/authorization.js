@@ -30,56 +30,56 @@
 
 // 获取运维人员列表呢
 const getAuthorizerList = {
-  url: '/external_permission/get_maintainer/',
   method: 'get',
+  url: '/external_permission/get_maintainer/',
 };
 
 // 修改授权人
 const createOrUpdateAuthorizer = {
-  url: '/external_permission/maintainer/',
   method: 'post',
+  url: '/external_permission/maintainer/',
 };
 
 // 获取授权人
 const getAuthorizer = {
-  url: '/external_permission/authorizer/',
   method: 'get',
+  url: '/external_permission/authorizer/',
 };
 
 // 获取审批记录
 const getApplyRecordList = {
-  url: '/external_permission/apply_record/',
   method: 'get',
+  url: '/external_permission/apply_record/',
 };
 
 // 获取授权列表
 const getExternalPermissionList = {
-  url: '/external_permission/',
   method: 'get',
+  url: '/external_permission/',
 };
 
 // 删除外部权限
 const deleteExternalPermission = {
-  url: '/external_permission/drop/',
   method: 'post',
+  url: '/external_permission/drop/',
 };
 
 // 创建或更新外部权限
 const createOrUpdateExternalPermission = {
-  url: '/external_permission/create_or_update/',
   method: 'post',
+  url: '/external_permission/create_or_update/',
 };
 
 // 获取操作类型对应的资源列表
 const getByAction = {
-  url: '/external_permission/resource_by_action/',
   method: 'get',
+  url: '/external_permission/resource_by_action/',
 };
 
 // 获取操作类型
 const getActionList = {
-  url: '/external_permission/action/',
   method: 'get',
+  url: '/external_permission/action/',
 };
 
 export {

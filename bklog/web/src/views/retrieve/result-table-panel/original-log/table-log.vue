@@ -26,10 +26,7 @@
 
 <template>
   <div>
-    <div
-      class="result-table-container"
-      data-test-id="retrieve_from_fieldForm"
-    >
+    <div class="result-table-container" data-test-id="retrieve_from_fieldForm">
       <keep-alive>
         <component
           :is="`${showOriginal ? 'OriginalList' : 'TableList'}`"
@@ -42,16 +39,11 @@
       </keep-alive>
 
       <!-- 表格底部内容 -->
-      <p
-        v-if="tableList.length === limitCount"
-        class="more-desc"
-      >
+      <p v-if="tableList.length === limitCount" class="more-desc">
         {{ $t('仅展示检索结果的前2000条，如果要查看更多请优化查询条件') }}
-        <a
-          href="javascript: void(0);"
-          @click="scrollToTop"
-          >{{ $t('返回顶部') }}</a
-        >
+        <a href="javascript: void(0);" @click="scrollToTop">{{
+          $t('返回顶部')
+        }}</a>
       </p>
     </div>
 
@@ -60,7 +52,9 @@
       v-model="logDialog.visible"
       :draggable="false"
       :esc-close="false"
-      :ext-cls="logDialog.fullscreen ? 'log-dialog log-full-dialog' : 'log-dialog'"
+      :ext-cls="
+        logDialog.fullscreen ? 'log-dialog log-full-dialog' : 'log-dialog'
+      "
       :fullscreen="logDialog.fullscreen"
       :header-position="logDialog.headerPosition"
       :mask-close="false"
@@ -139,7 +133,7 @@ export default {
   },
   computed: {
     ...mapState({
-      bkBizId: state => state.bkBizId,
+      bkBizId: (state) => state.bkBizId,
     }),
     ...mapState('globals', ['fieldTypeMap']),
   },
@@ -147,13 +141,18 @@ export default {
   methods: {
     // 滚动到顶部
     scrollToTop() {
-      this.$easeScroll(0, 300, this.$parent.$parent.$parent.$refs.scrollContainer);
+      this.$easeScroll(
+        0,
+        300,
+        this.$parent.$parent.$parent.$refs.scrollContainer
+      );
     },
     // 打开实时日志或上下文弹窗
     openLogDialog(row, type) {
       this.logDialog.data = row;
       this.logDialog.type = type;
-      this.logDialog.title = type === 'realTimeLog' ? this.$t('实时滚动日志') : this.$t('上下文');
+      this.logDialog.title =
+        type === 'realTimeLog' ? this.$t('实时滚动日志') : this.$t('上下文');
       this.logDialog.visible = true;
       this.logDialog.fullscreen = true;
     },
@@ -191,10 +190,10 @@ export default {
           },
           query: queryData,
         })
-        .then(res => {
+        .then((res) => {
           window.open(res.data);
         })
-        .catch(e => {
+        .catch((e) => {
           console.warn(e);
         })
         .finally(() => {
@@ -205,23 +204,40 @@ export default {
       if (['realTimeLog', 'contextLog'].includes(event)) {
         const contextFields = config.contextAndRealtime.extra?.context_fields;
         const dialogNewParams = {};
-        Object.assign(dialogNewParams, { dtEventTimeStamp: row.dtEventTimeStamp });
+        Object.assign(dialogNewParams, {
+          dtEventTimeStamp: row.dtEventTimeStamp,
+        });
         const { targetFields, sortFields } = config.indexSetValue;
         const fieldParamsKey = [...new Set([...targetFields, ...sortFields])];
         this.targetFields = targetFields ?? [];
         // 非日志采集的情况下判断是否设置过字段设置 设置了的话传已设置过的参数
-        if (config.indexSetValue.scenarioID !== 'log' && fieldParamsKey.length) {
-          fieldParamsKey.forEach(field => {
-            dialogNewParams[field] = this.tableRowDeepView(row, field, '', this.$store.state.isFormatDate, '');
+        if (
+          config.indexSetValue.scenarioID !== 'log' &&
+          fieldParamsKey.length
+        ) {
+          fieldParamsKey.forEach((field) => {
+            dialogNewParams[field] = this.tableRowDeepView(
+              row,
+              field,
+              '',
+              this.$store.state.isFormatDate,
+              ''
+            );
           });
         } else if (Array.isArray(contextFields) && contextFields.length) {
           // 传参配置指定字段
           contextFields.push(config.timeField);
-          contextFields.forEach(field => {
+          contextFields.forEach((field) => {
             if (field === 'bk_host_id') {
               if (row[field]) dialogNewParams[field] = row[field];
             } else {
-              dialogNewParams[field] = this.tableRowDeepView(row, field, '', this.$store.state.isFormatDate, '');
+              dialogNewParams[field] = this.tableRowDeepView(
+                row,
+                field,
+                '',
+                this.$store.state.isFormatDate,
+                ''
+              );
             }
           });
         } else {
@@ -248,274 +264,274 @@ export default {
 </script>
 
 <style lang="scss">
-  /* stylelint-disable no-descending-specificity */
-  .tippy-tooltip.light-theme.bk-table-setting-popover-content-theme {
-    padding: 0;
+/* stylelint-disable no-descending-specificity */
+.tippy-tooltip.light-theme.bk-table-setting-popover-content-theme {
+  padding: 0;
+}
+
+.result-table-container {
+  position: relative;
+  background: #fff;
+
+  .is-hidden-table-header {
+    & .bk-table-header-wrapper,
+    .is-right {
+      display: none;
+    }
   }
 
-  .result-table-container {
-    position: relative;
-    background: #fff;
+  .king-table {
+    margin-top: 12px;
 
-    .is-hidden-table-header {
-      & .bk-table-header-wrapper,
-      .is-right {
-        display: none;
+    td {
+      vertical-align: top;
+    }
+
+    .bk-table-body-wrapper {
+      min-height: calc(100vh - 550px);
+      color: #313238;
+
+      .bk-table-empty-block {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-height: calc(100vh - 600px);
       }
     }
 
-    .king-table {
-      margin-top: 12px;
+    .cell {
+      .operation-button:not(:last-child) {
+        padding-right: 8px;
+      }
+    }
 
-      td {
-        vertical-align: top;
+    td mark {
+      color: #313238;
+      background: #f3e186;
+    }
+
+    :deep(.result-table-loading) {
+      width: calc(100% - 2px);
+      height: calc(100% - 2px);
+    }
+
+    .handle-card {
+      display: inline-block;
+      width: 14px;
+      height: 14px;
+      margin-left: 10px;
+
+      &:first-child {
+        margin-left: 0;
+      }
+    }
+
+    .icon-handle {
+      font-size: 14px;
+      color: #979ba5;
+      cursor: pointer;
+
+      &:hover {
+        color: #3a84ff;
+      }
+    }
+
+    .time-field {
+      font-family: var(--table-fount-family);
+      font-size: var(--table-fount-size);
+      font-weight: 700;
+      color: var(--table-fount-color);
+      white-space: nowrap;
+    }
+
+    .original-str,
+    .visiable-field {
+      .str-content {
+        position: relative;
+        line-height: 20px;
+
+        &.is-limit {
+          max-height: 106px;
+        }
       }
 
-      .bk-table-body-wrapper {
-        min-height: calc(100vh - 550px);
-        color: #313238;
+      &.is-wrap {
+        .str-content {
+          display: block;
+          overflow: hidden;
+        }
+      }
 
-        .bk-table-empty-block {
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          min-height: calc(100vh - 600px);
+      .origin-str {
+        line-height: 20px;
+        color: #313238;
+      }
+
+      .show-whole-btn {
+        position: absolute;
+        top: 82px;
+        width: 100%;
+        height: 24px;
+        font-size: 12px;
+        color: #3a84ff;
+        cursor: pointer;
+        background: #fff;
+        transition: background-color 0.25s ease;
+      }
+
+      .hide-whole-btn {
+        margin-top: -2px;
+        line-height: 14px;
+        color: #3a84ff;
+        cursor: pointer;
+      }
+    }
+
+    .original-time {
+      padding-top: 12px;
+
+      .cell {
+        padding-left: 2px;
+      }
+    }
+
+    .hover-row {
+      .show-whole-btn {
+        background-color: #f5f7fa;
+      }
+    }
+
+    .original-str {
+      .hide-whole-btn {
+        margin-top: 4px;
+      }
+
+      .cell {
+        padding: 10px 14px 0 2px;
+      }
+
+      &.is-wrap .cell {
+        padding: 10px 14px 8px 2px;
+      }
+    }
+
+    td.bk-table-expanded-cell {
+      padding: 0;
+    }
+
+    .bk-table-column-expand .bk-icon {
+      top: 21px;
+    }
+
+    .bk-table-empty-text {
+      width: 100%;
+      padding: 0;
+    }
+
+    .visiable-field {
+      .str-content {
+        &.is-limit {
+          max-height: 106px;
         }
       }
 
       .cell {
-        .operation-button:not(:last-child) {
-          padding-right: 8px;
-        }
+        padding: 12px 14px 0 14px;
       }
 
-      td mark {
-        color: #313238;
-        background: #f3e186;
+      &.is-wrap .cell {
+        padding: 12px 14px 8px;
       }
 
-      :deep(.result-table-loading) {
-        width: calc(100% - 2px);
-        height: calc(100% - 2px);
-      }
-
-      .handle-card {
-        display: inline-block;
-        width: 14px;
-        height: 14px;
-        margin-left: 10px;
-
-        &:first-child {
-          margin-left: 0;
-        }
-      }
-
-      .icon-handle {
-        font-size: 14px;
-        color: #979ba5;
-        cursor: pointer;
-
-        &:hover {
-          color: #3a84ff;
-        }
-      }
-
-      .time-field {
-        font-family: var(--table-fount-family);
-        font-size: var(--table-fount-size);
-        font-weight: 700;
-        color: var(--table-fount-color);
-        white-space: nowrap;
-      }
-
-      .original-str,
-      .visiable-field {
-        .str-content {
-          position: relative;
-          line-height: 20px;
-
-          &.is-limit {
-            max-height: 106px;
-          }
-        }
-
-        &.is-wrap {
-          .str-content {
-            display: block;
-            overflow: hidden;
-          }
-        }
-
-        .origin-str {
-          line-height: 20px;
-          color: #313238;
-        }
-
-        .show-whole-btn {
-          position: absolute;
-          top: 82px;
-          width: 100%;
-          height: 24px;
-          font-size: 12px;
-          color: #3a84ff;
-          cursor: pointer;
-          background: #fff;
-          transition: background-color 0.25s ease;
-        }
-
-        .hide-whole-btn {
-          margin-top: -2px;
-          line-height: 14px;
-          color: #3a84ff;
-          cursor: pointer;
-        }
-      }
-
-      .original-time {
-        padding-top: 12px;
-
-        .cell {
-          padding-left: 2px;
-        }
-      }
-
-      .hover-row {
-        .show-whole-btn {
-          background-color: #f5f7fa;
-        }
-      }
-
-      .original-str {
-        .hide-whole-btn {
-          margin-top: 4px;
-        }
-
-        .cell {
-          padding: 10px 14px 0 2px;
-        }
-
-        &.is-wrap .cell {
-          padding: 10px 14px 8px 2px;
-        }
-      }
-
-      td.bk-table-expanded-cell {
-        padding: 0;
-      }
-
-      .bk-table-column-expand .bk-icon {
-        top: 21px;
-      }
-
-      .bk-table-empty-text {
-        width: 100%;
-        padding: 0;
-      }
-
-      .visiable-field {
-        .str-content {
-          &.is-limit {
-            max-height: 106px;
-          }
-        }
-
-        .cell {
-          padding: 12px 14px 0 14px;
-        }
-
-        &.is-wrap .cell {
-          padding: 12px 14px 8px;
-        }
-
-        .show-whole-btn {
-          top: 82px;
-        }
-      }
-
-      .row-hover {
-        background: #fff;
-      }
-
-      th .cell {
-        /* stylelint-disable-next-line declaration-no-important */
-        padding: 0 15px !important;
-      }
-
-      &.original-table .bk-table-column-expand .bk-icon {
-        top: 19px;
+      .show-whole-btn {
+        top: 82px;
       }
     }
 
-    .render-header {
-      display: inline;
-
-      .field-type-icon {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        min-width: 16px;
-        height: 16px;
-        margin: 0 5px 0 0;
-        font-size: 12px;
-        color: #63656e;
-        background: #dcdee5;
-        border-radius: 2px;
-      }
-
-      .bklog-ext {
-        min-width: 22px;
-        height: 22px;
-        transform: translateX(-3px) scale(0.7);
-      }
-
-      .toggle-display {
-        position: absolute;
-        top: 16px;
-        right: 12px;
-        display: none;
-        color: #c4c6cc;
-        cursor: pointer;
-
-        &:hover {
-          color: #ea3636;
-        }
-
-        &.is-hidden {
-          visibility: hidden;
-        }
-      }
-
-      .timer-formatter {
-        transform: translateY(-1px);
-      }
-
-      .lack-index-filed {
-        padding-bottom: 2px;
-        border-bottom: 1px dashed #63656e;
-      }
+    .row-hover {
+      background: #fff;
     }
 
-    th .cell:hover {
-      .toggle-display {
-        display: inline-block;
-      }
-    }
-  }
-  // 日志全屏状态下的样式
-  .log-full-dialog {
-    :deep(.bk-dialog-content) {
+    th .cell {
       /* stylelint-disable-next-line declaration-no-important */
-      margin-bottom: 0 !important;
+      padding: 0 15px !important;
+    }
+
+    &.original-table .bk-table-column-expand .bk-icon {
+      top: 19px;
     }
   }
 
-  .more-desc {
-    font-size: 12px;
-    color: #979ba5;
-    text-align: center;
+  .render-header {
+    display: inline;
 
-    a {
-      color: #3a84ff;
+    .field-type-icon {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 16px;
+      height: 16px;
+      margin: 0 5px 0 0;
+      font-size: 12px;
+      color: #63656e;
+      background: #dcdee5;
+      border-radius: 2px;
+    }
+
+    .bklog-ext {
+      min-width: 22px;
+      height: 22px;
+      transform: translateX(-3px) scale(0.7);
+    }
+
+    .toggle-display {
+      position: absolute;
+      top: 16px;
+      right: 12px;
+      display: none;
+      color: #c4c6cc;
+      cursor: pointer;
+
+      &:hover {
+        color: #ea3636;
+      }
+
+      &.is-hidden {
+        visibility: hidden;
+      }
+    }
+
+    .timer-formatter {
+      transform: translateY(-1px);
+    }
+
+    .lack-index-filed {
+      padding-bottom: 2px;
+      border-bottom: 1px dashed #63656e;
     }
   }
+
+  th .cell:hover {
+    .toggle-display {
+      display: inline-block;
+    }
+  }
+}
+// 日志全屏状态下的样式
+.log-full-dialog {
+  :deep(.bk-dialog-content) {
+    /* stylelint-disable-next-line declaration-no-important */
+    margin-bottom: 0 !important;
+  }
+}
+
+.more-desc {
+  font-size: 12px;
+  color: #979ba5;
+  text-align: center;
+
+  a {
+    color: #3a84ff;
+  }
+}
 </style>

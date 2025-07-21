@@ -7,7 +7,11 @@ const store = useStore();
 const isShowFieldsSetting = ref(false);
 const retrieveParams = computed(() => store.getters.retrieveParams);
 
-const emit = defineEmits(['update-log-fields', 'fields-updated', 'should-retrieve']);
+const emit = defineEmits([
+  'update-log-fields',
+  'fields-updated',
+  'should-retrieve',
+]);
 
 const handleDropdownHide = () => {
   isShowFieldsSetting.value = false;

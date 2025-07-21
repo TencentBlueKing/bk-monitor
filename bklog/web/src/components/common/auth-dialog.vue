@@ -36,11 +36,7 @@
       @confirm="confirmSourceApply"
     >
       <div class="apply-authority-dialog-container">
-        <img
-          class="lock-icon"
-          alt="lock"
-          src="../../images/lock-radius.svg"
-        />
+        <img class="lock-icon" alt="lock" src="../../images/lock-radius.svg" />
         <div class="title">{{ $t('该操作需要以下权限') }}</div>
         <bk-table
           v-if="tableData.length"
@@ -56,10 +52,7 @@
           <bk-table-column :label="$t('关联的资源实例')">
             <template #default="{ row }">
               <div class="related-resources-container">
-                <span
-                  v-for="(source, index) in row.sources"
-                  :key="index"
-                >
+                <span v-for="(source, index) in row.sources" :key="index">
                   {{ source }}
                 </span>
                 <span v-if="!row.sources.length">--</span>
@@ -118,14 +111,14 @@ export default {
     updateData(authData) {
       try {
         const tableData = [];
-        authData.apply_data.actions.forEach(action => {
+        authData.apply_data.actions.forEach((action) => {
           const item = {
             system: authData.apply_data.system_name, // 系统
             sources: [], // 资源
             permission: action.name, // 需要申请的权限
           };
-          action.related_resource_types.forEach(resource => {
-            resource.instances.flat().forEach(instance => {
+          action.related_resource_types.forEach((resource) => {
+            resource.instances.flat().forEach((instance) => {
               item.sources.push(`${instance.type_name}：${instance.name}`);
             });
           });
@@ -158,41 +151,41 @@ export default {
 </script>
 
 <style lang="scss" scoped>
-  .no-authority {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 0;
-    height: 0;
+.no-authority {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 0;
+  height: 0;
+}
+
+.apply-authority-dialog-container {
+  display: flex;
+  flex-flow: column;
+  align-items: center;
+
+  .lock-icon {
+    margin-bottom: 10px;
   }
 
-  .apply-authority-dialog-container {
-    display: flex;
-    flex-flow: column;
-    align-items: center;
+  .title {
+    margin-bottom: 30px;
+    font-size: 20px;
+    color: #63656e;
+  }
 
-    .lock-icon {
-      margin-bottom: 10px;
+  :deep(.king-table) {
+    margin-bottom: 12px;
+
+    .bk-table-body-wrapper {
+      height: 128px;
+      overflow-y: auto;
     }
 
-    .title {
-      margin-bottom: 30px;
-      font-size: 20px;
-      color: #63656e;
-    }
-
-    :deep(.king-table) {
-      margin-bottom: 12px;
-
-      .bk-table-body-wrapper {
-        height: 128px;
-        overflow-y: auto;
-      }
-
-      .related-resources-container {
-        display: flex;
-        flex-flow: column;
-      }
+    .related-resources-container {
+      display: flex;
+      flex-flow: column;
     }
   }
+}
 </style>

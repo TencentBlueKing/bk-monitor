@@ -22,7 +22,8 @@ const formatValue = computed(() => store.getters.retrieveParams.format);
 
 const setRouteParams = () => {
   const query = { ...route.query };
-  const { start_time, end_time, interval, begin, size, format } = store.getters.retrieveParams;
+  const { start_time, end_time, interval, begin, size, format } =
+    store.getters.retrieveParams;
   const timezone = store.state.indexItem.timezone;
 
   const resolver = new RetrieveUrlResolver({
@@ -47,7 +48,7 @@ const timezone = computed(() => {
   return timezone;
 });
 
-const handleTimezoneChange = timezone => {
+const handleTimezoneChange = (timezone) => {
   store.commit('updateIndexItemParams', { timezone });
   updateTimezone(timezone);
   store.dispatch('requestIndexSetQuery');
@@ -55,17 +56,21 @@ const handleTimezoneChange = timezone => {
 };
 
 // 日期变化
-const handleTimeRangeChange = async val => {
+const handleTimeRangeChange = async (val) => {
   store.commit('updateIsSetDefaultTableColumn', false);
   const result = handleTransformToTimestamp(val, formatValue.value);
-  store.commit('updateIndexItemParams', { start_time: result[0], end_time: result[1], datePickerValue: val });
+  store.commit('updateIndexItemParams', {
+    start_time: result[0],
+    end_time: result[1],
+    datePickerValue: val,
+  });
   await store.dispatch('requestIndexSetFieldInfo');
   store.dispatch('requestIndexSetQuery');
   setRouteParams();
   RetrieveHelper.fire(RetrieveEvent.SEARCH_TIME_CHANGE, val);
 };
 
-const handleFormatChange = value => {
+const handleFormatChange = (value) => {
   store.commit('updateIndexItemParams', { format: value });
 };
 </script>

@@ -41,9 +41,7 @@
         </div>
         <ResultStorage></ResultStorage>
       </div>
-      <div
-        class="tools-more"
-      >
+      <div class="tools-more">
         <div class="operation-icons">
           <div class="group-text light-search">
             <label class="light-search-label">{{ $t('高亮') }}</label>
@@ -102,10 +100,7 @@
       </div>
     </div>
 
-    <table-log
-      :content-type="contentType"
-      :retrieve-params="retrieveParams"
-    />
+    <table-log :content-type="contentType" :retrieve-params="retrieveParams" />
   </div>
 </template>
 
@@ -188,7 +183,7 @@ export default {
       isUnionSearch: 'isUnionSearch',
     }),
     ...mapState({
-      indexSetList: state => state.retrieve?.indexSetList ?? [],
+      indexSetList: (state) => state.retrieve?.indexSetList ?? [],
       indexSetQueryResult: 'indexSetQueryResult',
       indexFieldInfo: 'indexFieldInfo',
     }),
@@ -203,7 +198,10 @@ export default {
 
     fieldAliasMap() {
       return (this.indexFieldInfo.fields ?? []).reduce(
-        (out, field) => ({ ...out, [field.field_name]: field.field_alias || field.field_name }),
+        (out, field) => ({
+          ...out,
+          [field.field_name]: field.field_alias || field.field_name,
+        }),
         {}
       );
     },
@@ -228,12 +226,15 @@ export default {
     },
   },
   mounted() {
-    this.contentType = localStorage.getItem('SEARCH_STORAGE_ACTIVE_TAB') || 'table';
+    this.contentType =
+      localStorage.getItem('SEARCH_STORAGE_ACTIVE_TAB') || 'table';
     RetrieveHelper.setMarkInstance();
     RetrieveHelper.on(RetrieveEvent.HILIGHT_TRIGGER, ({ event, value }) => {
       if (event === 'mark' && !this.highlightValue.includes(value)) {
         this.highlightValue.push(...value.split(/\s+/));
-        RetrieveHelper.highLightKeywords(this.highlightValue.filter(w => w.length > 0));
+        RetrieveHelper.highLightKeywords(
+          this.highlightValue.filter((w) => w.length > 0)
+        );
       }
     });
 
@@ -257,7 +258,8 @@ export default {
   methods: {
     calcHighlightWidth() {
       const { offsetWidth } = this.$el;
-      const leftWidth = this.$el.querySelector('.left-operate')?.offsetWidth ?? 0;
+      const leftWidth =
+        this.$el.querySelector('.left-operate')?.offsetWidth ?? 0;
       const rightWidth = 200;
       const calcWidth = offsetWidth - leftWidth - rightWidth;
       if (calcWidth > 400) {
@@ -284,9 +286,9 @@ export default {
     },
     handleHighlightEnter(valList) {
       this.highlightValue = valList
-        .map(v => v.split(/\s+/))
+        .map((v) => v.split(/\s+/))
         .flat()
-        .filter(w => w.length > 0);
+        .filter((w) => w.length > 0);
       RetrieveHelper.highLightKeywords(this.highlightValue);
     },
 
@@ -312,198 +314,198 @@ export default {
 </script>
 
 <style lang="scss" scoped>
-  @import '@/scss/mixins/flex.scss';
+@import '@/scss/mixins/flex.scss';
 
-  .original-log-panel {
-    .original-log-panel-tools {
-      display: flex;
-      justify-content: space-between;
-      padding: 0 6px 0 6px;
-    }
-
-    .tools-more {
-      @include flex-center;
-
-      .switch-label {
-        margin-right: 2px;
-        font-size: 12px;
-        color: #63656e;
-      }
-    }
-
-    .operation-icons {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      margin-left: 16px;
-
-      .operation-icon {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        width: 32px;
-        height: 32px;
-        margin-left: 10px;
-        cursor: pointer;
-        background-color: #f0f1f5;
-        border-radius: 2px;
-        outline: none;
-        transition: boder-color 0.2s;
-
-        &:hover {
-          border-color: #4d4f56;
-          transition: boder-color 0.2s;
-        }
-
-        &:active {
-          border-color: #3a84ff;
-          transition: boder-color 0.2s;
-        }
-
-        .bklog-icon {
-          width: 16px;
-          font-size: 16px;
-          color: #4d4f56;
-        }
-      }
-
-      .light-search {
-        display: flex;
-        align-items: center;
-        background: #ffffff;
-        font-size: 12px;
-        color: #4d4f56;
-
-        label {
-          border-left: 1px solid #c4c6cc;
-          border-top: 1px solid #c4c6cc;
-          border-bottom: 1px solid #c4c6cc;
-          border-top-left-radius: 2px;
-          border-bottom-left-radius: 2px;
-          border-right: none;
-          width: 40px;
-          padding: 0px 0px;
-          color: #4d4f56;
-          text-align: center;
-          background: #fafbfd;
-          height: 32px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-        }
-      }
-
-      .disabled-icon {
-        cursor: not-allowed;
-        background-color: #fff;
-        border-color: #dcdee5;
-
-        &:hover,
-        .bklog-icon {
-          color: #c4c6cc;
-          border-color: #dcdee5;
-        }
-      }
-    }
-
-    .left-operate {
-      flex-wrap: nowrap;
-      align-items: center;
-
-      @include flex-justify(space-between);
-
-      > div {
-        flex-shrink: 0;
-      }
-
-      .bk-button-group {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        width: 104px;
-        height: 32px;
-        padding: 4px 4px;
-        font-size: 12px;
-        background-color: #f0f1f5;
-        border-radius: 2px;
-      }
-
-      .option {
-        display: flex; /* 使用 flex 布局 */
-        flex: 1;
-        align-items: center; /* 垂直居中 */
-        justify-content: center; /* 水平居中 */
-        width: 100%;
-        height: 100%;
-        color: #4d4f56;
-        cursor: pointer;
-        transition: background-color 0.3s;
-      }
-
-      .option.option-selected {
-        color: #3a84ff; /* 蓝色 */
-        background-color: #ffffff;
-      }
-
-      .bklog-option-item {
-        font-size: 12px;
-        line-height: 20px;
-        color: #63656e;
-      }
-    }
-
-    .field-select {
-      position: relative;
-      width: 120px;
-      margin-left: 16px;
-
-      .icon-field-config {
-        position: absolute;
-        top: 4px;
-        left: 4px;
-        width: 18px;
-      }
-
-      :deep(.bk-select .bk-select-name) {
-        padding: 0px 36px 0 30px;
-      }
-    }
+.original-log-panel {
+  .original-log-panel-tools {
+    display: flex;
+    justify-content: space-between;
+    padding: 0 6px 0 6px;
   }
 
-  .extension-add-new-config {
-    cursor: pointer;
+  .tools-more {
+    @include flex-center;
 
-    @include flex-center();
-
-    :last-child {
-      margin-left: 4px;
+    .switch-label {
+      margin-right: 2px;
+      font-size: 12px;
       color: #63656e;
     }
-
-    .icon-close-circle {
-      margin-left: 4px;
-      font-size: 14px;
-      color: #979ba5;
-      transform: rotateZ(45deg);
-    }
   }
-</style>
-<style lang="scss">
-  .json-depth-num.json-depth-num-input {
-    &.bk-form-control {
-      width: 96px;
 
-      .bk-input-number {
-        input {
-          &.bk-form-input {
-            height: 26px;
-          }
-        }
+  .operation-icons {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-left: 16px;
+
+    .operation-icon {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 32px;
+      height: 32px;
+      margin-left: 10px;
+      cursor: pointer;
+      background-color: #f0f1f5;
+      border-radius: 2px;
+      outline: none;
+      transition: boder-color 0.2s;
+
+      &:hover {
+        border-color: #4d4f56;
+        transition: boder-color 0.2s;
+      }
+
+      &:active {
+        border-color: #3a84ff;
+        transition: boder-color 0.2s;
+      }
+
+      .bklog-icon {
+        width: 16px;
+        font-size: 16px;
+        color: #4d4f56;
+      }
+    }
+
+    .light-search {
+      display: flex;
+      align-items: center;
+      background: #ffffff;
+      font-size: 12px;
+      color: #4d4f56;
+
+      label {
+        border-left: 1px solid #c4c6cc;
+        border-top: 1px solid #c4c6cc;
+        border-bottom: 1px solid #c4c6cc;
+        border-top-left-radius: 2px;
+        border-bottom-left-radius: 2px;
+        border-right: none;
+        width: 40px;
+        padding: 0px 0px;
+        color: #4d4f56;
+        text-align: center;
+        background: #fafbfd;
+        height: 32px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+    }
+
+    .disabled-icon {
+      cursor: not-allowed;
+      background-color: #fff;
+      border-color: #dcdee5;
+
+      &:hover,
+      .bklog-icon {
+        color: #c4c6cc;
+        border-color: #dcdee5;
       }
     }
   }
 
-  body.no-user-select {
-    user-select: none;
+  .left-operate {
+    flex-wrap: nowrap;
+    align-items: center;
+
+    @include flex-justify(space-between);
+
+    > div {
+      flex-shrink: 0;
+    }
+
+    .bk-button-group {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 104px;
+      height: 32px;
+      padding: 4px 4px;
+      font-size: 12px;
+      background-color: #f0f1f5;
+      border-radius: 2px;
+    }
+
+    .option {
+      display: flex; /* 使用 flex 布局 */
+      flex: 1;
+      align-items: center; /* 垂直居中 */
+      justify-content: center; /* 水平居中 */
+      width: 100%;
+      height: 100%;
+      color: #4d4f56;
+      cursor: pointer;
+      transition: background-color 0.3s;
+    }
+
+    .option.option-selected {
+      color: #3a84ff; /* 蓝色 */
+      background-color: #ffffff;
+    }
+
+    .bklog-option-item {
+      font-size: 12px;
+      line-height: 20px;
+      color: #63656e;
+    }
   }
+
+  .field-select {
+    position: relative;
+    width: 120px;
+    margin-left: 16px;
+
+    .icon-field-config {
+      position: absolute;
+      top: 4px;
+      left: 4px;
+      width: 18px;
+    }
+
+    :deep(.bk-select .bk-select-name) {
+      padding: 0px 36px 0 30px;
+    }
+  }
+}
+
+.extension-add-new-config {
+  cursor: pointer;
+
+  @include flex-center();
+
+  :last-child {
+    margin-left: 4px;
+    color: #63656e;
+  }
+
+  .icon-close-circle {
+    margin-left: 4px;
+    font-size: 14px;
+    color: #979ba5;
+    transform: rotateZ(45deg);
+  }
+}
+</style>
+<style lang="scss">
+.json-depth-num.json-depth-num-input {
+  &.bk-form-control {
+    width: 96px;
+
+    .bk-input-number {
+      input {
+        &.bk-form-input {
+          height: 26px;
+        }
+      }
+    }
+  }
+}
+
+body.no-user-select {
+  user-select: none;
+}
 </style>

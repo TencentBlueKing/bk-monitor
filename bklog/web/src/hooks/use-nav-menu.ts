@@ -24,13 +24,13 @@
  * IN THE SOFTWARE.
  */
 
-import { ref, computed, watch } from 'vue';
-import useStore from '@/hooks/use-store';
+import * as authorityMap from '@/common/authority-map';
 import useRoute from '@/hooks/use-route';
 import useRouter from '@/hooks/use-router';
+import useStore from '@/hooks/use-store';
 import reportLogStore from '@/store/modules/report-log';
-import * as authorityMap from '@/common/authority-map';
 import { BK_LOG_STORAGE } from '@/store/store.type';
+import { ref, computed, watch } from 'vue';
 
 export function useNavMenu(options: {
   t: (msg: string) => string;
@@ -38,7 +38,7 @@ export function useNavMenu(options: {
   http: any;
   emit?: (event: string, ...args: any[]) => void;
 }) {
-  const { t, bkInfo, http, emit } = options;
+  const { bkInfo, emit, http, t } = options;
   const store = useStore();
   const route = useRoute();
   const router = useRouter();
@@ -59,13 +59,13 @@ export function useNavMenu(options: {
   // watch query.from
   watch(
     () => route.query.from,
-    fromValue => {
+    (fromValue) => {
       if (fromValue) {
         store.commit('updateAsIframe', fromValue);
         store.commit('updateIframeQuery', { from: fromValue });
       }
     },
-    { immediate: true, deep: true }
+    { deep: true, immediate: true }
   );
 
   // methods
@@ -87,8 +87,8 @@ export function useNavMenu(options: {
         action_ids: [authorityMap.VIEW_BUSINESS],
         resources: [
           {
-            type: 'space',
             id: space.space_uid,
+            type: 'space',
           },
         ],
       });
@@ -100,7 +100,9 @@ export function useNavMenu(options: {
 
   const updateExternalMenuBySpace = (spaceUid: string) => {
     const list: string[] = [];
-    const curSpace = (mySpaceList.value || []).find((item: any) => item.space_uid === spaceUid);
+    const curSpace = (mySpaceList.value || []).find(
+      (item: any) => item.space_uid === spaceUid
+    );
     (curSpace?.external_permission || []).forEach((permission: string) => {
       if (permission === 'log_search') {
         list.push('retrieve');
@@ -118,12 +120,15 @@ export function useNavMenu(options: {
     try {
       const menuListData = await store.dispatch('requestMenuList', spaceUid);
 
-      const manageGroupNavList = menuListData.find((item: any) => item.id === 'manage')?.children || [];
+      const manageGroupNavList =
+        menuListData.find((item: any) => item.id === 'manage')?.children || [];
       const manageNavList: any[] = [];
       manageGroupNavList.forEach((group: any) => {
         manageNavList.push(...group.children);
       });
-      const logCollectionNav = manageNavList.find((nav: any) => nav.id === 'log-collection');
+      const logCollectionNav = manageNavList.find(
+        (nav: any) => nav.id === 'log-collection'
+      );
 
       if (logCollectionNav) {
         logCollectionNav.children = [
@@ -151,7 +156,9 @@ export function useNavMenu(options: {
             }) || {};
           store.commit('updateActiveTopMenu', activeTopMenu);
 
-          const topMenuList = activeTopMenu.children?.length ? activeTopMenu.children : [];
+          const topMenuList = activeTopMenu.children?.length
+            ? activeTopMenu.children
+            : [];
           const topMenuChildren = topMenuList.reduce((pre: any[], cur: any) => {
             if (cur.children?.length) {
               pre.push(...cur.children);
@@ -166,7 +173,9 @@ export function useNavMenu(options: {
 
           const activeManageSubNav = activeManageNav.children
             ? activeManageNav.children.find((item: any) => {
-                return matchedList.some((record: any) => record.name === item.id);
+                return matchedList.some(
+                  (record: any) => record.name === item.id
+                );
               })
             : {};
           store.commit('updateActiveManageSubNav', activeManageSubNav);
@@ -178,17 +187,28 @@ export function useNavMenu(options: {
     } catch (e) {
       console.warn(e);
     } finally {
-      if (isExternal.value && route.name === 'retrieve' && !externalMenu.value.includes('retrieve')) {
+      if (
+        isExternal.value &&
+        route.name === 'retrieve' &&
+        !externalMenu.value.includes('retrieve')
+      ) {
         router.push({ name: 'extract-home' });
       } else if (
         isExternal.value &&
-        ['extract-home', 'extract-create', 'extract-clone'].includes(route.name as string) &&
+        ['extract-home', 'extract-create', 'extract-clone'].includes(
+          route.name as string
+        ) &&
         !externalMenu.value.includes('manage')
       ) {
         router.push({ name: 'retrieve' });
       } else if (route.name !== 'retrieve' && !isFirstLoad.value) {
-        const { name, meta, params, query } = route as any;
-        const RoutingHop = meta.needBack && !isFirstLoad.value ? meta.backName : name ? name : 'retrieve';
+        const { meta, name, params, query } = route as any;
+        const RoutingHop =
+          meta.needBack && !isFirstLoad.value
+            ? meta.backName
+            : name
+              ? name
+              : 'retrieve';
         const newQuery = {
           ...query,
           spaceUid,
@@ -218,13 +238,17 @@ export function useNavMenu(options: {
   const spaceChange = async (spaceUid = '') => {
     store.commit('updateSpace', spaceUid);
     if (spaceUid) {
-      const space = mySpaceList.value.find((item: any) => item.space_uid === spaceUid);
+      const space = mySpaceList.value.find(
+        (item: any) => item.space_uid === spaceUid
+      );
       await checkSpaceAuth(space);
     }
     store.commit('updateStorage', { [BK_LOG_STORAGE.BK_SPACE_UID]: spaceUid });
     for (const item of mySpaceList.value) {
       if (item.space_uid === spaceUid) {
-        store.commit('updateStorage', { [BK_LOG_STORAGE.BK_BIZ_ID]: item.bk_biz_id });
+        store.commit('updateStorage', {
+          [BK_LOG_STORAGE.BK_BIZ_ID]: item.bk_biz_id,
+        });
         break;
       }
     }
@@ -233,11 +257,11 @@ export function useNavMenu(options: {
     // 首次加载应用路由触发上报还未获取到 spaceUid ，需手动执行上报
     if (store.state.isAppFirstLoad && spaceUid) {
       store.state.isAppFirstLoad = false;
-      const { name, meta } = route as any;
+      const { meta, name } = route as any;
       reportLogStore.reportRouteLog({
-        route_id: name,
-        nav_id: meta.navId,
         external_menu: externalMenu.value,
+        nav_id: meta.navId,
+        route_id: name,
       });
     }
   };
@@ -247,13 +271,13 @@ export function useNavMenu(options: {
       store.commit('updateRouterLeaveTip', true);
 
       bkInfo({
-        title: t('是否放弃本次操作？'),
-        confirmFn: () => {
-          spaceChange(spaceUid);
-        },
         cancelFn: () => {
           store.commit('updateRouterLeaveTip', false);
         },
+        confirmFn: () => {
+          spaceChange(spaceUid);
+        },
+        title: t('是否放弃本次操作？'),
       });
       return;
     }
@@ -280,17 +304,24 @@ export function useNavMenu(options: {
 
       const { bizId, spaceUid } = queryObj;
       const demoId = String((window as any).DEMO_BIZ_ID);
-      const demoProject = spaceList.find((item: any) => item.bk_biz_id === demoId);
-      const demoProjectUrl = demoProject ? getDemoProjectUrl(demoProject.space_uid) : '';
+      const demoProject = spaceList.find(
+        (item: any) => item.bk_biz_id === demoId
+      );
+      const demoProjectUrl = demoProject
+        ? getDemoProjectUrl(demoProject.space_uid)
+        : '';
       store.commit('setDemoUid', demoProject ? demoProject.space_uid : '');
       const isOnlyDemo = demoProject && spaceList.length === 1;
       if (!isHaveViewBusiness || isOnlyDemo) {
         const args: any = {
-          newBusiness: { url: (window as any).BIZ_ACCESS_URL },
           getAccess: {},
+          newBusiness: { url: (window as any).BIZ_ACCESS_URL },
         };
         if (isOnlyDemo) {
-          if (bizId === demoProject.bk_biz_id || spaceUid === demoProject.space_uid) {
+          if (
+            bizId === demoProject.bk_biz_id ||
+            spaceUid === demoProject.space_uid
+          ) {
             return checkSpaceChange(demoProject.space_uid);
           }
           args.demoBusiness = {
@@ -298,7 +329,9 @@ export function useNavMenu(options: {
           };
         }
         if (spaceUid || bizId) {
-          const query = spaceUid ? { space_uid: spaceUid } : { bk_biz_id: bizId };
+          const query = spaceUid
+            ? { space_uid: spaceUid }
+            : { bk_biz_id: bizId };
           const [betaRes, authRes] = await Promise.all([
             http.request('/meta/getMaintainerApi', { query }),
             store.dispatch('getApplyData', {
@@ -319,13 +352,23 @@ export function useNavMenu(options: {
         checkSpaceChange();
         emit && emit('welcome', args);
       } else {
-        const firstRealSpaceUid = spaceList.find((item: any) => item.bk_biz_id !== demoId).space_uid;
+        const firstRealSpaceUid = spaceList.find(
+          (item: any) => item.bk_biz_id !== demoId
+        ).space_uid;
         if (spaceUid || bizId) {
-          const matchProject = spaceList.find((item: any) => item.space_uid === spaceUid || item.bk_biz_id === bizId);
-          checkSpaceChange(matchProject ? matchProject.space_uid : firstRealSpaceUid);
+          const matchProject = spaceList.find(
+            (item: any) =>
+              item.space_uid === spaceUid || item.bk_biz_id === bizId
+          );
+          checkSpaceChange(
+            matchProject ? matchProject.space_uid : firstRealSpaceUid
+          );
         } else {
-          const storageSpaceUid = store.state.storage[BK_LOG_STORAGE.BK_SPACE_UID];
-          const hasSpace = storageSpaceUid ? spaceList.some((item: any) => item.space_uid === storageSpaceUid) : false;
+          const storageSpaceUid =
+            store.state.storage[BK_LOG_STORAGE.BK_SPACE_UID];
+          const hasSpace = storageSpaceUid
+            ? spaceList.some((item: any) => item.space_uid === storageSpaceUid)
+            : false;
           checkSpaceChange(hasSpace ? storageSpaceUid : firstRealSpaceUid);
         }
       }
@@ -336,23 +379,23 @@ export function useNavMenu(options: {
   };
 
   return {
-    // state
-    topMenu,
-    menuList,
     activeTopMenu,
-    spaceUid,
     bkBizId,
-    mySpaceList,
-    isExternal,
+    checkSpaceAuth,
+    checkSpaceChange,
     externalMenu,
+    getDemoProjectUrl,
+    isExternal,
+    isFirstLoad,
+    menuList,
+    mySpaceList,
     // methods
     requestMySpaceList,
-    getDemoProjectUrl,
-    checkSpaceChange,
-    spaceChange,
-    checkSpaceAuth,
-    updateExternalMenuBySpace,
     setRouter,
-    isFirstLoad,
+    spaceChange,
+    spaceUid,
+    // state
+    topMenu,
+    updateExternalMenuBySpace,
   };
 }

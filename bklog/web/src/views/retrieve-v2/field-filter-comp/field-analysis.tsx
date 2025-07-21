@@ -24,36 +24,38 @@
  * IN THE SOFTWARE.
  */
 
-import { Component, Prop, Ref, Vue, Emit, Watch } from 'vue-property-decorator';
-
+import store from '@/store';
 import axios from 'axios';
 import dayjs from 'dayjs';
+import { Component, Prop, Ref, Vue, Emit, Watch } from 'vue-property-decorator';
 
 import $http from '../../../api';
 import { deepClone, formatNumberWithRegex } from '../../../common/util';
-import { lineOrBarOptions, pillarChartOption } from '../../../components/monitor-echarts/options/echart-options-config';
+import {
+  lineOrBarOptions,
+  pillarChartOption,
+} from '../../../components/monitor-echarts/options/echart-options-config';
 import { lineColor } from '../../../store/constant';
-import AggChart from './agg-chart';
-import store from '@/store';
 
+import AggChart from './agg-chart';
 import './field-analysis.scss';
 
 const CancelToken = axios.CancelToken;
 
 const timeSeriesBase = {
-  lineStyle: {
-    width: 1,
-  },
-  transitionDuration: 750, // 动画响应毫秒数
-  type: 'line',
-  symbol: 'circle', // 设置数据点的形状
-  symbolSize: 1, // 设置数据点的初始大小
   itemStyle: {
     borderWidth: 2,
     enabled: true,
-    shadowBlur: 0,
     opacity: 1,
+    shadowBlur: 0,
   },
+  lineStyle: {
+    width: 1,
+  },
+  symbol: 'circle', // 设置数据点的形状
+  symbolSize: 1, // 设置数据点的初始大小
+  transitionDuration: 750, // 动画响应毫秒数
+  type: 'line',
 };
 
 /** 柱状图基础高度 */
@@ -73,7 +75,7 @@ type LegendActionType = 'click' | 'shift-click';
 
 @Component
 export default class FieldAnalysis extends Vue {
-  @Prop({ type: Object, default: () => ({}) }) readonly queryParams: any;
+  @Prop({ default: () => ({}), type: Object }) readonly queryParams: any;
   @Ref('fieldChart') readonly chartRef!: HTMLDivElement;
   @Ref('commonLegend') readonly commonLegendRef!: HTMLDivElement;
 
@@ -102,10 +104,10 @@ export default class FieldAnalysis extends Vue {
 
   /** 基础信息数据 */
   fieldData = {
-    total_count: 0,
-    field_count: 0,
     distinct_count: 0,
+    field_count: 0,
     field_percent: 0,
+    total_count: 0,
     value_analysis: {
       avg: 0,
       max: 0,
@@ -121,7 +123,7 @@ export default class FieldAnalysis extends Vue {
   ifShowMore = false;
   /** 获取数值类型查询时间段 */
   get getPillarQueryTime() {
-    const { start_time: startTime, end_time: endTime } = this.queryParams;
+    const { end_time: endTime, start_time: startTime } = this.queryParams;
     if (startTime && endTime && this.isPillarChart) {
       const pillarFormatStr = 'YYYY-MM-DD HH:mm:ss';
       return `${window.mainComponent.$t('查询时段')}: ${dayjs(startTime).format(pillarFormatStr)} - ${dayjs(endTime).format(pillarFormatStr)}`;
@@ -130,7 +132,9 @@ export default class FieldAnalysis extends Vue {
   }
 
   get pillarChartHeight() {
-    return store.getters.isEnLanguage ? PILLAR_CHART_EN_BASE_HEIGHT : PILLAR_CHART_BASE_HEIGHT;
+    return store.getters.isEnLanguage
+      ? PILLAR_CHART_EN_BASE_HEIGHT
+      : PILLAR_CHART_BASE_HEIGHT;
   }
 
   @Watch('currentPageNum')
@@ -152,7 +156,7 @@ export default class FieldAnalysis extends Vue {
   mounted() {
     this.$nextTick(async () => {
       if (!this.isPillarChart) {
-        const { start_time: startTime, end_time: endTime } = this.queryParams;
+        const { end_time: endTime, start_time: startTime } = this.queryParams;
         this.setFormatStr(startTime, endTime);
       }
       await this.queryStatisticsInfo();
@@ -180,7 +184,7 @@ export default class FieldAnalysis extends Vue {
           },
         },
         {
-          cancelToken: new CancelToken(c => {
+          cancelToken: new CancelToken((c) => {
             this.getInfoCancelFn = c;
           }),
         }
@@ -210,10 +214,10 @@ export default class FieldAnalysis extends Vue {
           data,
         },
         {
-          catchIsShowMessage: false,
-          cancelToken: new CancelToken(c => {
+          cancelToken: new CancelToken((c) => {
             this.getChartsCancelFn = c;
           }),
+          catchIsShowMessage: false,
         }
       );
       this.isShowEmpty = false;
@@ -240,42 +244,42 @@ export default class FieldAnalysis extends Vue {
         this.pillarOption = deepClone(pillarChartOption);
         // 柱状图初始化
         Object.assign(this.pillarOption, {
+          series: [
+            {
+              data: res.data.map((item) => item[1]),
+              itemStyle: {
+                color: '#689DF3',
+              },
+              type: 'bar',
+            },
+          ],
           tooltip: {
-            trigger: 'axis',
             appendToBody: true,
-            transitionDuration: 0,
             axisPointer: {
-              type: 'line',
               lineStyle: {
                 type: 'dashed',
               },
+              type: 'line',
             },
             backgroundColor: 'rgba(0,0,0,0.8)',
-            formatter: p => this.handleSetPillarTooltip(p),
+            formatter: (p) => this.handleSetPillarTooltip(p),
             position: this.handleSetPosition,
+            transitionDuration: 0,
+            trigger: 'axis',
           },
           xAxis: {
             ...pillarChartOption.xAxis,
             axisLabel: {
               color: '#979BA5',
-              interval: pillarInterval,
-              showMaxLabel: true,
-              formatter: value => {
+              formatter: (value) => {
                 if (value.length > 18) return `${value.slice(0, 18)}...`; // 只显示前18个字符
                 return value;
               },
+              interval: pillarInterval,
+              showMaxLabel: true,
             },
             data: xAxisData,
           },
-          series: [
-            {
-              data: res.data.map(item => item[1]),
-              type: 'bar',
-              itemStyle: {
-                color: '#689DF3',
-              },
-            },
-          ],
         });
       } else {
         const seriesData = res.data.series;
@@ -289,16 +293,16 @@ export default class FieldAnalysis extends Vue {
         seriesData.forEach((el, index) => {
           series.push({
             ...timeSeriesBase,
-            smooth: true,
             areaStyle: {
               // 透明度 80是0.5  00是0
               color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-                { offset: 0, color: `${lineColor[index]}80` }, // 顶部颜色
-                { offset: 1, color: `${lineColor[index]}00` }, // 底部颜色
+                { color: `${lineColor[index]}80`, offset: 0 }, // 顶部颜色
+                { color: `${lineColor[index]}00`, offset: 1 }, // 底部颜色
               ]),
             },
-            name: el.group_values[0],
             data: el.values,
+            name: el.group_values[0],
+            smooth: true,
             z: 999,
           });
         });
@@ -310,7 +314,7 @@ export default class FieldAnalysis extends Vue {
         }));
         // 收集所有时间戳
         const allTimestamps = series.reduce((acc, series) => {
-          return acc.concat(series.data.map(item => item[0]));
+          return acc.concat(series.data.map((item) => item[0]));
         }, []);
 
         // 找到最小和最大时间戳
@@ -321,42 +325,44 @@ export default class FieldAnalysis extends Vue {
         } = lineOrBarOptions;
         this.lineOptions = deepClone(lineOrBarOptions);
         Object.assign(this.lineOptions, {
-          useUTC: false,
+          color: lineColor,
+          legend: [],
+          series,
           tooltip: {
-            trigger: 'axis',
+            appendTo: () => document.body,
             appendToBody: true,
             axisPointer: {
-              type: 'line',
               lineStyle: {
                 type: 'dashed',
               },
+              type: 'line',
             },
             backgroundColor: 'rgba(0,0,0,0.8)',
-            transitionDuration: 0,
-            appendTo: () => document.body,
-            formatter: p => this.handleSetTimeTooltip(p),
+            formatter: (p) => this.handleSetTimeTooltip(p),
             position: this.handleSetPosition,
+            transitionDuration: 0,
+            trigger: 'axis',
           },
-          color: lineColor,
+          useUTC: false,
           xAxis: {
             ...resetxAxis,
             axisLabel: {
-              color: '#979BA5',
               boundaryGap: false,
+              color: '#979BA5',
               // showMinLabel: false,
               // showMaxLabel: false,
               fontSize: 12,
-              formatter: value => {
+              formatter: (value) => {
                 return dayjs.tz(value).format(formatStr);
               },
-              interval: index => {
+              interval: (index) => {
                 // 控制显示的刻度数量
                 return index % 2 === 0; // 每两个刻度点显示一个
               },
             },
-            scale: false,
-            min: minTimestamp,
             max: maxTimestamp,
+            min: minTimestamp,
+            scale: false,
           },
           yAxis: {
             ...lineOrBarOptions.yAxis,
@@ -364,8 +370,6 @@ export default class FieldAnalysis extends Vue {
               show: false,
             },
           },
-          legend: [],
-          series,
         });
 
         this.$nextTick(() => {
@@ -373,7 +377,9 @@ export default class FieldAnalysis extends Vue {
           this.isShowPageIcon = comLegRef.scrollHeight > comLegRef.clientHeight;
           if (this.isShowPageIcon) {
             comLegRef.addEventListener('wheel', this.legendWheel);
-            this.legendMaxPageNum = Math.ceil(comLegRef.scrollHeight / LEGEND_BOX_HEIGHT);
+            this.legendMaxPageNum = Math.ceil(
+              comLegRef.scrollHeight / LEGEND_BOX_HEIGHT
+            );
           }
         });
       }
@@ -406,7 +412,9 @@ export default class FieldAnalysis extends Vue {
     const chart: any = echarts.init(this.chartRef, null, {
       height: `${this.height}px`,
     });
-    const getInitChartOption = this.isPillarChart ? this.pillarOption : this.lineOptions;
+    const getInitChartOption = this.isPillarChart
+      ? this.pillarOption
+      : this.lineOptions;
     chart?.setOption(getInitChartOption);
     this.chart = chart;
     this.chart.resize();
@@ -416,7 +424,7 @@ export default class FieldAnalysis extends Vue {
   handleSetTimeTooltip(params) {
     const liHtmls = params
       .sort((a, b) => b.value[1] - a.value[1])
-      .map(item => {
+      .map((item) => {
         /** 折线图tooltips不能使用纯CSS来处理换行 会有宽度贴图表边缘变小问题 字符串添加换行倍数为85 */
         return `<li class="tooltips-content-item">
                   <span class="item-series" style="background-color:${item.color};"></span>
@@ -426,7 +434,9 @@ export default class FieldAnalysis extends Vue {
                   </div>
                 </li>`;
       });
-    const pointTime = dayjs.tz(params[0].axisValue).format('YYYY-MM-DD HH:mm:ss');
+    const pointTime = dayjs
+      .tz(params[0].axisValue)
+      .format('YYYY-MM-DD HH:mm:ss');
     return `<div id="monitor-chart-tooltips">
         <p class="tooltips-header">
             ${pointTime}
@@ -451,7 +461,13 @@ export default class FieldAnalysis extends Vue {
     </div>`;
   }
   /** 设置定位 */
-  handleSetPosition(pos: number[], params: any, dom: any, rect: any, size: any) {
+  handleSetPosition(
+    pos: number[],
+    params: any,
+    dom: any,
+    rect: any,
+    size: any
+  ) {
     const { contentSize } = size;
     const chartRect = this.chartRef.getBoundingClientRect();
     const posRect = {
@@ -487,15 +503,23 @@ export default class FieldAnalysis extends Vue {
     if (eventType === 'shift-click') {
       item.show = !item.show;
     } else if (eventType === 'click') {
-      const hasOtherShow = this.legendData.some(set => set.name !== item.name && set.show);
-      this.legendData.forEach(legend => {
+      const hasOtherShow = this.legendData.some(
+        (set) => set.name !== item.name && set.show
+      );
+      this.legendData.forEach((legend) => {
         legend.show = legend.name === item.name || !hasOtherShow;
       });
     }
-    const showSeriesName = this.legendData.filter(legend => legend.show).map(item => item.name);
-    const showSeries = this.seriesData.filter(item => showSeriesName.includes(item.name));
+    const showSeriesName = this.legendData
+      .filter((legend) => legend.show)
+      .map((item) => item.name);
+    const showSeries = this.seriesData.filter((item) =>
+      showSeriesName.includes(item.name)
+    );
     const options = this.chart.getOption();
-    const showColor = this.legendData.filter(legend => legend.show).map(item => item.color);
+    const showColor = this.legendData
+      .filter((legend) => legend.show)
+      .map((item) => item.color);
 
     this.chart.setOption(
       {
@@ -504,8 +528,8 @@ export default class FieldAnalysis extends Vue {
         series: showSeries,
       },
       {
-        notMerge: true,
         lazyUpdate: false,
+        notMerge: true,
         silent: true,
       }
     );
@@ -535,24 +559,33 @@ export default class FieldAnalysis extends Vue {
   }
   render() {
     return (
-      <div class='retrieve-v2 field-analysis-container'>
+      <div class="retrieve-v2 field-analysis-container">
         <div v-bkloading={{ isLoading: this.infoLoading }}>
-          <div class='total-num-container'>
-            <span class='total-num'>
-              {window.mainComponent.$t('总行数')} : {formatNumberWithRegex(this.fieldData.total_count)}
+          <div class="total-num-container">
+            <span class="total-num">
+              {window.mainComponent.$t('总行数')} :{' '}
+              {formatNumberWithRegex(this.fieldData.total_count)}
             </span>
             <span
-              class='appear-num'
-              v-bk-tooltips={{ content: window.mainComponent.$t('字段在该事件范围内有数据的日志条数') }}
+              class="appear-num"
+              v-bk-tooltips={{
+                content:
+                  window.mainComponent.$t('字段在该事件范围内有数据的日志条数'),
+              }}
             >
-              {window.mainComponent.$t('出现行数')} : {formatNumberWithRegex(this.fieldData.field_count)}
+              {window.mainComponent.$t('出现行数')} :{' '}
+              {formatNumberWithRegex(this.fieldData.field_count)}
             </span>
             <span
-              class='appear-num'
-              v-bk-tooltips={{ content: window.mainComponent.$t('字段在该事件范围内有数据的日志条数') }}
+              class="appear-num"
+              v-bk-tooltips={{
+                content:
+                  window.mainComponent.$t('字段在该事件范围内有数据的日志条数'),
+              }}
             >
-              {window.mainComponent.$t('日志条数')} : {this.fieldData.field_percent * 100}
-              <span class='log-unit'>%</span>
+              {window.mainComponent.$t('日志条数')} :{' '}
+              {this.fieldData.field_percent * 100}
+              <span class="log-unit">%</span>
             </span>
           </div>
           {/* <div class='log-num-container'>
@@ -577,36 +610,46 @@ export default class FieldAnalysis extends Vue {
             </div>
           </div> */}
           {this.isPillarChart && (
-            <div class='number-num-container'>
-              <div class='num-box'>
-                <span class='num-key'>{window.mainComponent.$t('最大值')}</span>
-                <span class='num-val'>{formatNumberWithRegex(this.fieldData.value_analysis.max)}</span>
+            <div class="number-num-container">
+              <div class="num-box">
+                <span class="num-key">{window.mainComponent.$t('最大值')}</span>
+                <span class="num-val">
+                  {formatNumberWithRegex(this.fieldData.value_analysis.max)}
+                </span>
               </div>
-              <div class='num-box'>
-                <span class='num-key'>{window.mainComponent.$t('最小值')}</span>
-                <span class='num-val'>{formatNumberWithRegex(this.fieldData.value_analysis.min)}</span>
+              <div class="num-box">
+                <span class="num-key">{window.mainComponent.$t('最小值')}</span>
+                <span class="num-val">
+                  {formatNumberWithRegex(this.fieldData.value_analysis.min)}
+                </span>
               </div>
-              <div class='num-box'>
-                <span class='num-key'>{window.mainComponent.$t('平均值')}</span>
-                <span class='num-val'>{formatNumberWithRegex(this.fieldData.value_analysis.avg)}</span>
+              <div class="num-box">
+                <span class="num-key">{window.mainComponent.$t('平均值')}</span>
+                <span class="num-val">
+                  {formatNumberWithRegex(this.fieldData.value_analysis.avg)}
+                </span>
               </div>
-              <div class='num-box'>
-                <span class='num-key'>{window.mainComponent.$t('中位数')}</span>
-                <span class='num-val'>{formatNumberWithRegex(this.fieldData.value_analysis.median)}</span>
+              <div class="num-box">
+                <span class="num-key">{window.mainComponent.$t('中位数')}</span>
+                <span class="num-val">
+                  {formatNumberWithRegex(this.fieldData.value_analysis.median)}
+                </span>
               </div>
             </div>
           )}
         </div>
         <div
           style={{
-            'max-height': this.isPillarChart ? `${PILLAR_CHART_BOX_HEIGHT}px` : `${LINE_CHART_BOX_HEIGHT}px`,
             alignItems: 'center',
+            'max-height': this.isPillarChart
+              ? `${PILLAR_CHART_BOX_HEIGHT}px`
+              : `${LINE_CHART_BOX_HEIGHT}px`,
           }}
           v-bkloading={{ isLoading: this.chartLoading }}
         >
           {!this.isShowEmpty ? (
             <div>
-              <div class='chart-title'>
+              <div class="chart-title">
                 <span>
                   {!this.isPillarChart
                     ? `TOP 5 ${window.mainComponent.$t('时序图')}`
@@ -615,33 +658,36 @@ export default class FieldAnalysis extends Vue {
                 <span>{this.getPillarQueryTime}</span>
               </div>
               <div
-                ref='fieldChart'
-                style={{ width: '100%', height: `${this.height}px` }}
+                ref="fieldChart"
+                style={{ height: `${this.height}px`, width: '100%' }}
               ></div>
               {!this.isPillarChart && (
                 <div
+                  class="legend-box"
                   style={{ height: `${LEGEND_BOX_HEIGHT}px` }}
-                  class='legend-box'
                 >
-                  <div
-                    ref='commonLegend'
-                    class='common-legend'
-                  >
+                  <div class="common-legend" ref="commonLegend">
                     {this.legendData.map((legend, index) => {
                       return (
                         <div
+                          class="common-legend-item"
                           key={index}
-                          class='common-legend-item'
+                          onClick={(e) =>
+                            this.handleLegendEvent(e, 'click', legend)
+                          }
                           title={legend.name}
-                          onClick={e => this.handleLegendEvent(e, 'click', legend)}
                         >
                           <span
-                            style={{ backgroundColor: legend.show ? legend.color : '#ccc' }}
-                            class='legend-icon'
+                            class="legend-icon"
+                            style={{
+                              backgroundColor: legend.show
+                                ? legend.color
+                                : '#ccc',
+                            }}
                           ></span>
                           <div
+                            class="legend-name title-overflow"
                             style={{ color: legend.show ? '#63656e' : '#ccc' }}
-                            class='legend-name title-overflow'
                           >
                             {legend.name}
                           </div>
@@ -650,7 +696,7 @@ export default class FieldAnalysis extends Vue {
                     })}
                   </div>
                   {this.isShowPageIcon && (
-                    <div class='legend-icon-box'>
+                    <div class="legend-icon-box">
                       <i
                         class={{
                           'bk-select-angle bk-icon icon-angle-up-fill last-page-up': true,
@@ -663,26 +709,32 @@ export default class FieldAnalysis extends Vue {
                       <i
                         class={{
                           'bk-select-angle bk-icon icon-angle-up-fill': true,
-                          disabled: this.currentPageNum === this.legendMaxPageNum,
+                          disabled:
+                            this.currentPageNum === this.legendMaxPageNum,
                         }}
                         onClick={() => {
-                          if (this.currentPageNum < this.legendMaxPageNum) this.currentPageNum += 1;
+                          if (this.currentPageNum < this.legendMaxPageNum)
+                            this.currentPageNum += 1;
                         }}
                       ></i>
                     </div>
                   )}
                 </div>
               )}
-              <div class='distinct-count-num-box'>
-                <div class='count-num'>
-                  <span class='count-num-title'>{window.mainComponent.$t('去重后字段统计')}</span>
-                  <span class='distinct-count-num'>{formatNumberWithRegex(this.fieldData.distinct_count)}</span>
+              <div class="distinct-count-num-box">
+                <div class="count-num">
+                  <span class="count-num-title">
+                    {window.mainComponent.$t('去重后字段统计')}
+                  </span>
+                  <span class="distinct-count-num">
+                    {formatNumberWithRegex(this.fieldData.distinct_count)}
+                  </span>
                 </div>
-                <div class='moreFn'>
+                <div class="moreFn">
                   <span
-                    class='fnBtn bk-icon icon-download'
-                    v-bk-tooltips={window.mainComponent.$t('下载')}
+                    class="fnBtn bk-icon icon-download"
                     onClick={this.downloadFieldStatistics.bind(this)}
+                    v-bk-tooltips={window.mainComponent.$t('下载')}
                   ></span>
 
                   {/* <span
@@ -703,25 +755,22 @@ export default class FieldAnalysis extends Vue {
                 />
               )}
               {this.fieldData.distinct_count > 5 ? (
-                <span
-                  class='moreDistinct'
-                  onClick={this.showMore.bind(this)}
-                >
+                <span class="moreDistinct" onClick={this.showMore.bind(this)}>
                   {window.mainComponent.$t('更多')}
                 </span>
               ) : null}
             </div>
           ) : (
-            <div class='not-data-empty'>
+            <div class="not-data-empty">
               <bk-exception
-                scene='part'
+                scene="part"
                 type={!!this.emptyTipsStr ? '500' : 'empty'}
               >
                 <div style={{ marginTop: '10px' }}>
                   <span>{this.emptyStr}</span>
                   {!!this.emptyTipsStr && (
                     <i
-                      class='bk-icon icon-exclamation-circle'
+                      class="bk-icon icon-exclamation-circle"
                       v-bk-tooltips={{
                         content: this.emptyTipsStr,
                       }}

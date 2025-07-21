@@ -27,10 +27,7 @@
 <template>
   <div class="intro-panel">
     <div :class="`right-window ${isOpenWindow ? 'window-active' : ''}`">
-      <div
-        class="create-btn details"
-        @click="handleActiveDetails(null)"
-      >
+      <div class="create-btn details" @click="handleActiveDetails(null)">
         <span
           :style="`color:${isOpenWindow ? '#3A84FF;' : ''}`"
           class="bk-icon icon-text-file"
@@ -38,10 +35,7 @@
       </div>
       <div class="top-title">
         <p>{{ $t('帮助文档') }}</p>
-        <div
-          class="create-btn close"
-          @click="handleActiveDetails(false)"
-        >
+        <div class="create-btn close" @click="handleActiveDetails(false)">
           <span class="bk-icon icon-minus-line"></span>
         </div>
       </div>
@@ -81,7 +75,9 @@ export default {
       return databusCustom || [];
     },
     customTypeIntro() {
-      const curType = this.dataTypeList.find(type => type.id === this.data.custom_type);
+      const curType = this.dataTypeList.find(
+        (type) => type.id === this.data.custom_type
+      );
       return curType ? this.replaceVaribles(curType.introduction) : '';
     },
   },
@@ -92,7 +88,7 @@ export default {
     replaceVaribles(intro) {
       let str = this.updateStringWithNewData(intro);
       const varibleList = intro.match(/\{\{([^)]*)\}\}/g);
-      varibleList?.forEach(item => {
+      varibleList?.forEach((item) => {
         const val = item.match(/\{\{([^)]*)\}\}/)[1];
         str = this.data[val] ? str.replace(item, this.data[val]) : str;
       });
@@ -116,15 +112,21 @@ export default {
 
       // 格式化新的数据以便插入到 <code> 标签中
       const newDataContent = this.proxyHost
-        .map(dataGroup =>
+        .map((dataGroup) =>
           dataGroup.urls
-            .map(data => `云区域ID ${dataGroup.bk_cloud_id} ${data.protocol}: ${data.report_url}`)
+            .map(
+              (data) =>
+                `云区域ID ${dataGroup.bk_cloud_id} ${data.protocol}: ${data.report_url}`
+            )
             .join('\n')
         )
         .join('\n');
       console.log(newDataContent);
 
-      const updatedString = originalString.replace(regex, `<code>${newDataContent}</code>`);
+      const updatedString = originalString.replace(
+        regex,
+        `<code>${newDataContent}</code>`
+      );
       return updatedString;
     },
   },
@@ -132,107 +134,107 @@ export default {
 </script>
 
 <style lang="scss">
-  @import '@/scss/mixins/flex';
-  @import '@/scss/mixins/scroller';
+@import '@/scss/mixins/flex';
+@import '@/scss/mixins/scroller';
 
-  .intro-panel {
-    position: relative;
+.intro-panel {
+  position: relative;
+  width: 100%;
+  height: 100%;
+
+  .right-window {
+    position: absolute;
+    z-index: 99;
     width: 100%;
     height: 100%;
+    padding: 16px 0 0 24px;
+    color: #63656e;
+    background: #fff;
+    border: 1px solid #dcdee5;
 
-    .right-window {
-      position: absolute;
-      z-index: 99;
-      width: 100%;
-      height: 100%;
-      padding: 16px 0 0 24px;
-      color: #63656e;
-      background: #fff;
-      border: 1px solid #dcdee5;
+    .html-container {
+      max-height: calc(100vh - 200px);
+      padding-right: 24px;
+      overflow-y: auto;
+    }
 
-      .html-container {
-        max-height: calc(100vh - 200px);
-        padding-right: 24px;
-        overflow-y: auto;
-      }
+    .top-title {
+      height: 48px;
+    }
 
-      .top-title {
-        height: 48px;
-      }
+    &.window-active {
+      right: 0;
+    }
 
-      &.window-active {
-        right: 0;
-      }
+    h1 {
+      margin: 26px 0 10px;
+      font-size: 12px;
+      font-weight: 700;
 
-      h1 {
-        margin: 26px 0 10px;
-        font-size: 12px;
-        font-weight: 700;
-
-        &:first-child {
-          margin-top: 0;
-        }
-      }
-
-      ul {
-        margin-left: 10px;
-
-        li {
-          margin-top: 8px;
-          font-size: 12px;
-          list-style: inside;
-        }
-      }
-
-      p {
-        font-size: 12px;
-      }
-
-      pre {
-        padding: 10px 14px;
-        margin: 0;
-        margin-top: 6px;
-        overflow-x: auto;
-        background: #f4f4f7;
-
-        @include scroller;
-      }
-
-      a {
-        display: inline-block;
-        margin: 10px 0;
-        color: #3a84ff;
+      &:first-child {
+        margin-top: 0;
       }
     }
 
-    .create-btn {
-      position: absolute;
-      z-index: 999;
-      width: 24px;
-      height: 24px;
+    ul {
+      margin-left: 10px;
 
-      @include flex-center;
-
-      &.details {
-        position: fixed;
-        top: 64px;
-        right: 16px;
-        transform: rotateZ(360deg) rotateX(180deg);
-
-        @include flex-center;
+      li {
+        margin-top: 8px;
+        font-size: 12px;
+        list-style: inside;
       }
+    }
 
-      &.close {
-        top: 10px;
-        right: 16px;
-      }
+    p {
+      font-size: 12px;
+    }
 
-      &:hover {
-        color: #3a84ff;
-        cursor: pointer;
-        background: #f0f1f5;
-        border-radius: 2px;
-      }
+    pre {
+      padding: 10px 14px;
+      margin: 0;
+      margin-top: 6px;
+      overflow-x: auto;
+      background: #f4f4f7;
+
+      @include scroller;
+    }
+
+    a {
+      display: inline-block;
+      margin: 10px 0;
+      color: #3a84ff;
     }
   }
+
+  .create-btn {
+    position: absolute;
+    z-index: 999;
+    width: 24px;
+    height: 24px;
+
+    @include flex-center;
+
+    &.details {
+      position: fixed;
+      top: 64px;
+      right: 16px;
+      transform: rotateZ(360deg) rotateX(180deg);
+
+      @include flex-center;
+    }
+
+    &.close {
+      top: 10px;
+      right: 16px;
+    }
+
+    &:hover {
+      color: #3a84ff;
+      cursor: pointer;
+      background: #f0f1f5;
+      border-radius: 2px;
+    }
+  }
+}
 </style>

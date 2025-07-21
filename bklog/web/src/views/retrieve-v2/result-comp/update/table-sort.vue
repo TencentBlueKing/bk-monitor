@@ -36,17 +36,28 @@
                 <div class="custom-option-item bklog-v3-popover-tag">
                   <span
                     :style="{
-                      backgroundColor: option.is_full_text ? false : getFieldIconColor(option.field_type),
-                      color: option.is_full_text ? false : getFieldIconTextColor(option.field_type),
+                      backgroundColor: option.is_full_text
+                        ? false
+                        : getFieldIconColor(option.field_type),
+                      color: option.is_full_text
+                        ? false
+                        : getFieldIconTextColor(option.field_type),
                     }"
-                    :class="[option.is_full_text ? 'full-text' : getFieldIcon(option.field_type), 'field-type-icon']"
+                    :class="[
+                      option.is_full_text
+                        ? 'full-text'
+                        : getFieldIcon(option.field_type),
+                      'field-type-icon',
+                    ]"
                   >
                   </span>
                   <div
                     class="display-container rtl-text"
                     v-bk-overflow-tips="{ placement: 'right' }"
                   >
-                    <span class="field-alias">{{ option.query_alias || option.field_name }}</span>
+                    <span class="field-alias">{{
+                      option.query_alias || option.field_name
+                    }}</span>
                     <span class="field-name">({{ option.field_name }})</span>
                   </div>
                 </div>
@@ -80,7 +91,9 @@
       style="margin-left: 20px; font-size: 14px; color: #3a84ff"
       class="bklog-icon bklog-log-plus-circle-shape"
       @click="addTableItem()"
-      ><span style="margin-left: 4px; font-size: 12px">{{ $t('添加排序字段') }}</span></span
+      ><span style="margin-left: 4px; font-size: 12px">{{
+        $t('添加排序字段')
+      }}</span></span
     >
   </div>
 </template>
@@ -103,7 +116,9 @@ const props = defineProps({
   },
 });
 const { $t } = useLocale();
-const isStartTextEllipsis = computed(() => store.state.storage[BK_LOG_STORAGE.TEXT_ELLIPSIS_DIR] === 'start');
+const isStartTextEllipsis = computed(
+  () => store.state.storage[BK_LOG_STORAGE.TEXT_ELLIPSIS_DIR] === 'start'
+);
 const fieldTypeMap = computed(() => store.state.globals.fieldTypeMap);
 const dragOptions = {
   animation: 150,
@@ -120,36 +135,47 @@ const store = useStore();
 /** 新增变量处理v-for时需要使用的 key 字段，避免重复新建 VNode */
 const sortList = ref<{ key: string; sorts: string[] }[]>([]);
 
-const shadowSort = computed(() => sortList.value.map(e => e.sorts));
+const shadowSort = computed(() => sortList.value.map((e) => e.sorts));
 const selectList = computed(() => {
   const data = store.state.indexFieldInfo.fields;
-  const filterFn = field => field.field_type !== '__virtual__';
-  return data.filter(filterFn).map(field => {
-    return Object.assign({}, field, { disabled: shadowSort.value.some(item => item[0] === field.field_name) });
+  const filterFn = (field) => field.field_type !== '__virtual__';
+  return data.filter(filterFn).map((field) => {
+    return Object.assign({}, field, {
+      disabled: shadowSort.value.some((item) => item[0] === field.field_name),
+    });
   });
 });
 
 const deleteTableItem = (val: number) => {
-  sortList.value = sortList.value.slice(0, val).concat(sortList.value.slice(val + 1));
+  sortList.value = sortList.value
+    .slice(0, val)
+    .concat(sortList.value.slice(val + 1));
 };
 const addTableItem = () => {
   sortList.value.push({ key: random(8), sorts: ['', ''] });
 };
-const getFieldIconColor = type => {
-  return fieldTypeMap.value?.[type] ? fieldTypeMap.value?.[type]?.color : '#EAEBF0';
+const getFieldIconColor = (type) => {
+  return fieldTypeMap.value?.[type]
+    ? fieldTypeMap.value?.[type]?.color
+    : '#EAEBF0';
 };
-const getFieldIconTextColor = type => {
+const getFieldIconTextColor = (type) => {
   return fieldTypeMap.value?.[type]?.textColor;
 };
-const getFieldIcon = fieldType => {
-  return fieldTypeMap.value?.[fieldType] ? fieldTypeMap.value?.[fieldType]?.icon : 'bklog-icon bklog-unkown';
+const getFieldIcon = (fieldType) => {
+  return fieldTypeMap.value?.[fieldType]
+    ? fieldTypeMap.value?.[fieldType]?.icon
+    : 'bklog-icon bklog-unkown';
 };
 watch(
   () => [props.initData, props.shouldRefresh],
   ([newInitData, newShouldRefresh]) => {
     // 当有初始数据时，直接更新
     if (Array.isArray(newInitData) && newInitData.length) {
-      sortList.value = deepClone(newInitData).map(sorts => ({ key: random(8), sorts }));
+      sortList.value = deepClone(newInitData).map((sorts) => ({
+        key: random(8),
+        sorts,
+      }));
     } else {
       sortList.value = [];
     }
@@ -159,36 +185,36 @@ watch(
 defineExpose({ shadowSort });
 </script>
 <style lang="scss" scoped>
-  .custom-select-list {
-    .custom-select-item {
-      display: flex;
-      column-gap: 8px;
-      align-items: center;
-      justify-content: center;
-      margin-bottom: 8px;
+.custom-select-list {
+  .custom-select-item {
+    display: flex;
+    column-gap: 8px;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 8px;
 
-      .bklog-ketuodong {
-        width: 18px;
-        font-size: 18px;
-        color: hsl(223, 7%, 62%);
-        text-align: left;
-        cursor: move;
-      }
+    .bklog-ketuodong {
+      width: 18px;
+      font-size: 18px;
+      color: hsl(223, 7%, 62%);
+      text-align: left;
+      cursor: move;
     }
   }
+}
 
-  .table-sort-option-container {
-    .custom-option-item {
-      display: flex;
-      align-items: center;
+.table-sort-option-container {
+  .custom-option-item {
+    display: flex;
+    align-items: center;
 
-      .display-container {
-        padding: 0 4px;
-        width: calc(100% - 12px);
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-      }
+    .display-container {
+      padding: 0 4px;
+      width: calc(100% - 12px);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
     }
   }
+}
 </style>

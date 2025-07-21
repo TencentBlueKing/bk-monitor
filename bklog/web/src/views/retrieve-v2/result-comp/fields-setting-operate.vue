@@ -33,15 +33,13 @@
       @mouseenter="isHoverItem = true"
       @mouseleave="isHoverItem = false"
     >
-      <span
-        class="panel-name"
-        :title="configItem.name"
-        >{{ configItem.name }}</span
-      >
+      <span class="panel-name" :title="configItem.name">{{
+        configItem.name
+      }}</span>
       <div
         class="panel-operate"
         v-show="isShowEditIcon || isClickDelete"
-        @click="e => e.stopPropagation()"
+        @click="(e) => e.stopPropagation()"
       >
         <i
           class="bk-icon edit-icon icon-edit-line"
@@ -62,17 +60,12 @@
               <div class="popover-slot">
                 <span>{{ $t('确定要删除当前字段配置') }}?</span>
                 <div class="popover-btn">
-                  <bk-button
-                    text
-                    @click="emitOperate('delete')"
-                    >{{ $t('确定') }}</bk-button
-                  >
-                  <bk-button
-                    theme="danger"
-                    text
-                    @click="handleCancelDelete"
-                    >{{ $t('取消') }}</bk-button
-                  >
+                  <bk-button text @click="emitOperate('delete')">{{
+                    $t('确定')
+                  }}</bk-button>
+                  <bk-button theme="danger" text @click="handleCancelDelete">{{
+                    $t('取消')
+                  }}</bk-button>
                 </div>
               </div>
             </div>
@@ -83,7 +76,7 @@
     <div
       class="config-tab-item"
       v-show="configItem.isShowEdit"
-      @click="e => e.stopPropagation()"
+      @click="(e) => e.stopPropagation()"
     >
       <bk-input
         v-model="nameStr"
@@ -92,14 +85,8 @@
         :placeholder="$t('请输入配置名')"
       ></bk-input>
       <div class="panel-operate">
-        <i
-          class="bk-icon icon-check-line"
-          @click="emitOperate('update')"
-        ></i>
-        <i
-          class="bk-icon icon-close-line-2"
-          @click="emitOperate('cancel')"
-        ></i>
+        <i class="bk-icon icon-check-line" @click="emitOperate('update')"></i>
+        <i class="bk-icon icon-close-line-2" @click="emitOperate('cancel')"></i>
       </div>
     </div>
   </div>
@@ -171,70 +158,70 @@ export default {
 </script>
 
 <style lang="scss" scoped>
-  .config-tab-item {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    width: 100%;
-    height: 40px;
-    padding: 0 12px 0 4px;
+.config-tab-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  height: 40px;
+  padding: 0 12px 0 4px;
 
-    .config-input {
-      width: 100px;
+  .config-input {
+    width: 100px;
 
-      :deep(.bk-form-input) {
-        transform: translateY(-2px);
-      }
+    :deep(.bk-form-input) {
+      transform: translateY(-2px);
+    }
+  }
+
+  .panel-name {
+    max-width: 100px;
+    padding-left: 20px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .panel-operate {
+    margin-left: 10px;
+    font-size: 14px;
+    color: #979ba5;
+    cursor: pointer;
+
+    .edit-icon:hover {
+      color: #3a84ff;
     }
 
-    .panel-name {
-      max-width: 100px;
-      padding-left: 20px;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
+    .icon-check-line {
+      color: #3a84ff;
     }
 
-    .panel-operate {
-      margin-left: 10px;
-      font-size: 14px;
-      color: #979ba5;
-      cursor: pointer;
-
-      .edit-icon:hover {
-        color: #3a84ff;
-      }
-
-      .icon-check-line {
-        color: #3a84ff;
-      }
-
-      .icon-close-line-2 {
-        color: #d7473f;
-      }
+    .icon-close-line-2 {
+      color: #d7473f;
     }
+  }
 
-    .input-error {
-      :deep(.bk-form-input) {
-        border: 1px solid #d7473f;
-      }
+  .input-error {
+    :deep(.bk-form-input) {
+      border: 1px solid #d7473f;
     }
+  }
 
-    .popover-slot {
-      padding: 8px 8px 4px;
+  .popover-slot {
+    padding: 8px 8px 4px;
 
-      .popover-btn {
-        margin-top: 6px;
-        text-align: right;
+    .popover-btn {
+      margin-top: 6px;
+      text-align: right;
 
-        > :first-child {
-          margin-right: 4px;
-        }
+      > :first-child {
+        margin-right: 4px;
+      }
 
-        .bk-button-text {
-          font-size: 12px;
-        }
+      .bk-button-text {
+        font-size: 12px;
       }
     }
   }
+}
 </style>

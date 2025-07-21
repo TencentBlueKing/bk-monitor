@@ -28,113 +28,113 @@
  * 收藏详情
  */
 const getFavorite = {
-  url: '/search/favorite/:id/',
   method: 'get',
+  url: '/search/favorite/:id/',
 };
 /**
  * 收藏列表
  */
 const getFavoriteList = {
-  url: '/search/favorite/',
   method: 'get',
+  url: '/search/favorite/',
 };
 /**
  * 分组收藏列表
  */
 const getFavoriteByGroupList = {
-  url: '/search/favorite/list_by_group/',
   method: 'get',
+  url: '/search/favorite/list_by_group/',
 };
 /**
  * 新建收藏
  */
 const createFavorite = {
-  url: '/search/favorite/',
   method: 'post',
+  url: '/search/favorite/',
 };
 /**
  * 更新收藏
  */
 const updateFavorite = {
-  url: '/search/favorite/:id/',
   method: 'put',
+  url: '/search/favorite/:id/',
 };
 /**
  * 删除收藏
  */
 const deleteFavorite = {
-  url: '/search/favorite/:favorite_id/',
   method: 'delete',
+  url: '/search/favorite/:favorite_id/',
 };
 /**
  * 组列表
  */
 const getGroupList = {
-  url: '/search/favorite_group/',
   method: 'get',
+  url: '/search/favorite_group/',
 };
 /**
  * 新建组
  */
 const createGroup = {
-  url: '/search/favorite_group/',
   method: 'post',
+  url: '/search/favorite_group/',
 };
 /**
  * 更新组名
  */
 const updateGroupName = {
-  url: '/search/favorite_group/:group_id/',
   method: 'put',
+  url: '/search/favorite_group/:group_id/',
 };
 /**
  * 解散组
  */
 const deleteGroup = {
-  url: '/search/favorite_group/:group_id/',
   method: 'delete',
+  url: '/search/favorite_group/:group_id/',
 };
 /**
  * 获取检索语句字段
  */
 const getSearchFields = {
-  url: '/search/favorite/get_search_fields/',
   method: 'post',
+  url: '/search/favorite/get_search_fields/',
 };
 /**
  * 检索语句字段换成keyword
  */
 const getGenerateQuery = {
-  url: '/search/favorite/generate_query/',
   method: 'post',
+  url: '/search/favorite/generate_query/',
 };
 /**
  * 批量修改收藏
  */
 const batchFavoriteUpdate = {
-  url: '/search/favorite/batch_update/',
   method: 'post',
+  url: '/search/favorite/batch_update/',
 };
 /**
  * 批量删除收藏
  */
 const batchFavoriteDelete = {
-  url: '/search/favorite/batch_delete/',
   method: 'post',
+  url: '/search/favorite/batch_delete/',
 };
 /**
  * 组排序
  */
 const groupUpdateOrder = {
-  url: '/search/favorite_group/update_order/',
   method: 'post',
+  url: '/search/favorite_group/update_order/',
 };
 /**
  * 检索语句语法检测
  */
 const checkKeywords = {
-  url: '/search/favorite/inspect/',
   method: 'post',
+  url: '/search/favorite/inspect/',
 };
 
 export {

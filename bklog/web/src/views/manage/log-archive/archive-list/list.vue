@@ -25,10 +25,7 @@
 -->
 
 <template>
-  <section
-    class="log-archive-list"
-    data-test-id="archive_section_archiveList"
-  >
+  <section class="log-archive-list" data-test-id="archive_section_archiveList">
     <section class="top-operation">
       <bk-button
         class="fl"
@@ -62,54 +59,35 @@
         @page-change="handlePageChange"
         @page-limit-change="handleLimitChange"
       >
-        <bk-table-column
-          width="30"
-          align="center"
-          type="expand"
-        >
+        <bk-table-column width="30" align="center" type="expand">
           <template #default="props">
             <div class="state-table-wrapper">
               <state-table :archive-config-id="props.row.archive_config_id" />
             </div>
           </template>
         </bk-table-column>
-        <bk-table-column
-          width="100"
-          label="ID"
-        >
+        <bk-table-column width="100" label="ID">
           <template #default="props">
             {{ props.row.archive_config_id }}
           </template>
         </bk-table-column>
-        <bk-table-column
-          :label="$t('名称')"
-          :render-header="$renderHeader"
-        >
+        <bk-table-column :label="$t('名称')" :render-header="$renderHeader">
           <template #default="props">
             {{ props.row.instance_name }}
           </template>
         </bk-table-column>
-        <bk-table-column
-          :label="$t('过期设置')"
-          :render-header="$renderHeader"
-        >
+        <bk-table-column :label="$t('过期设置')" :render-header="$renderHeader">
           <template #default="props">
             <!-- `${props.row.snapshot_days}天` -->
             {{ getExpiredDays(props) }}
           </template>
         </bk-table-column>
-        <bk-table-column
-          :label="$t('总大小')"
-          :render-header="$renderHeader"
-        >
+        <bk-table-column :label="$t('总大小')" :render-header="$renderHeader">
           <template #default="props">
             {{ getFileSize(props.row.store_size) }}
           </template>
         </bk-table-column>
-        <bk-table-column
-          :label="$t('索引数量')"
-          :render-header="$renderHeader"
-        >
+        <bk-table-column :label="$t('索引数量')" :render-header="$renderHeader">
           <template #default="props">
             {{ props.row.index_count }}
           </template>
@@ -134,7 +112,10 @@
               <bk-button
                 class="mr10 king-button"
                 v-cursor="{
-                  active: !(props.row.permission && props.row.permission[authorityMap.MANAGE_COLLECTION_AUTH]),
+                  active: !(
+                    props.row.permission &&
+                    props.row.permission[authorityMap.MANAGE_COLLECTION_AUTH]
+                  ),
                 }"
                 theme="primary"
                 text
@@ -146,7 +127,10 @@
               <bk-button
                 class="mr10 king-button"
                 v-cursor="{
-                  active: !(props.row.permission && props.row.permission[authorityMap.MANAGE_COLLECTION_AUTH]),
+                  active: !(
+                    props.row.permission &&
+                    props.row.permission[authorityMap.MANAGE_COLLECTION_AUTH]
+                  ),
                 }"
                 theme="primary"
                 text
@@ -158,7 +142,10 @@
               <bk-button
                 class="mr10 king-button"
                 v-cursor="{
-                  active: !(props.row.permission && props.row.permission[authorityMap.MANAGE_COLLECTION_AUTH]),
+                  active: !(
+                    props.row.permission &&
+                    props.row.permission[authorityMap.MANAGE_COLLECTION_AUTH]
+                  ),
                 }"
                 theme="primary"
                 text
@@ -293,12 +280,12 @@ export default {
             pagesize: this.pagination.limit,
           },
         })
-        .then(res => {
+        .then((res) => {
           const { data } = res;
           this.pagination.count = data.total;
           this.dataList = data.list;
         })
-        .catch(err => {
+        .catch((err) => {
           console.warn(err);
         })
         .finally(() => {
@@ -340,7 +327,9 @@ export default {
       if (operateType === 'delete') {
         this.$bkInfo({
           type: 'warning',
-          subTitle: this.$t('当前归档ID为{n}，确认要删除？', { n: row.archive_config_id }),
+          subTitle: this.$t('当前归档ID为{n}，确认要删除？', {
+            n: row.archive_config_id,
+          }),
           confirmFn: () => {
             this.requestDelete(row);
           },
@@ -354,7 +343,7 @@ export default {
             archive_config_id: row.archive_config_id,
           },
         })
-        .then(res => {
+        .then((res) => {
           if (res.result) {
             const page =
               this.dataList.length <= 1
@@ -387,7 +376,9 @@ export default {
       return formatFileSize(size);
     },
     getExpiredDays(props) {
-      return props.row.snapshot_days ? `${props.row.snapshot_days} ${this.$t('天')}` : this.$t('永久');
+      return props.row.snapshot_days
+        ? `${props.row.snapshot_days} ${this.$t('天')}`
+        : this.$t('永久');
     },
     handleSearchChange(val) {
       if (val === '' && !this.isTableLoading) {
@@ -413,37 +404,37 @@ export default {
 </script>
 
 <style lang="scss">
-  @import '@/scss/mixins/clearfix';
-  @import '@/scss/conf';
-  @import '@/scss/devops-common.scss';
+@import '@/scss/mixins/clearfix';
+@import '@/scss/conf';
+@import '@/scss/devops-common.scss';
 
-  .log-archive-list {
-    padding: 20px 24px;
+.log-archive-list {
+  padding: 20px 24px;
 
-    .top-operation {
-      margin-bottom: 20px;
+  .top-operation {
+    margin-bottom: 20px;
 
-      @include clearfix;
+    @include clearfix;
 
-      .bk-button {
-        width: 120px;
-      }
-    }
-
-    .list-search {
-      width: 320px;
-    }
-
-    .archive-table {
-      .filter-column {
-        .cell {
-          display: flex;
-        }
-      }
-    }
-
-    .bk-table-body td.bk-table-expanded-cell {
-      padding: 0;
+    .bk-button {
+      width: 120px;
     }
   }
+
+  .list-search {
+    width: 320px;
+  }
+
+  .archive-table {
+    .filter-column {
+      .cell {
+        display: flex;
+      }
+    }
+  }
+
+  .bk-table-body td.bk-table-expanded-cell {
+    padding: 0;
+  }
+}
 </style>

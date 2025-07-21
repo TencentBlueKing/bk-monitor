@@ -24,26 +24,39 @@
  * IN THE SOFTWARE.
  */
 import { monitorLink } from '../../retrieve-v2/monitor/utils';
-export function getConditionRouterParams(searchList, searchMode, isNewLink, append = {}) {
+export function getConditionRouterParams(
+  searchList,
+  searchMode,
+  isNewLink,
+  append = {}
+) {
   const indexItem = window.mainComponent.$store.state.indexItem;
-  const getIPChooserStr = ipChooser => {
+  const getIPChooserStr = (ipChooser) => {
     if (typeof ipChooser === 'object') return JSON.stringify(ipChooser);
     return ipChooser;
   };
   // 获取有效的字段条件字符串
   const getFiledAdditionStr = (linkAdditionList = null) => {
-    const filterAddition = indexItem.addition.filter(item => item.field !== '_ip-select_');
+    const filterAddition = indexItem.addition.filter(
+      (item) => item.field !== '_ip-select_'
+    );
     if (!filterAddition.length && !linkAdditionList) return undefined;
-    return JSON.stringify(linkAdditionList?.length ? filterAddition.concat(...linkAdditionList) : filterAddition);
+    return JSON.stringify(
+      linkAdditionList?.length
+        ? filterAddition.concat(...linkAdditionList)
+        : filterAddition
+    );
   };
   const { params, query } = window.mainComponent.$route;
-  // eslint-disable-next-line @typescript-eslint/naming-convention
-  const { ip_chooser, addition, keyword, ...reset } = query;
+
+  const { addition, ip_chooser, keyword, ...reset } = query;
   const filterQuery = reset; // 给query排序 让addition和ip_chooser排前面
   let newAddition;
   let newKeyWord;
   if (searchMode === 'ui') {
-    newAddition = isNewLink ? JSON.stringify(searchList) : getFiledAdditionStr(searchList);
+    newAddition = isNewLink
+      ? JSON.stringify(searchList)
+      : getFiledAdditionStr(searchList);
     newKeyWord = undefined;
   } else {
     newAddition = undefined;
@@ -52,13 +65,15 @@ export function getConditionRouterParams(searchList, searchMode, isNewLink, appe
     } else {
       const keyword = indexItem.keyword.replace(/^\s*\*\s*$/, '');
       const keywords = keyword.length > 0 ? [keyword] : [];
-      const newSearchKeywords = searchList.filter(item => keyword.indexOf(item) === -1);
+      const newSearchKeywords = searchList.filter(
+        (item) => keyword.indexOf(item) === -1
+      );
       newKeyWord = keywords.concat(newSearchKeywords).join(' AND ');
     }
   }
   const newQueryObj = {
-    keyword: newKeyWord,
     addition: newAddition,
+    keyword: newKeyWord,
     search_mode: searchMode,
   }; // 新的query对象
   const newIPChooser = ip_chooser;

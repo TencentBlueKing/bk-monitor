@@ -91,23 +91,14 @@
               {{ $t('导入') }}
             </bk-button>
           </template>
-          <ul
-            class="bk-dropdown-list"
-            slot="dropdown-content"
-          >
+          <ul class="bk-dropdown-list" slot="dropdown-content">
             <li>
-              <a
-                href="javascript:;"
-                @click="handleFastAddRule"
-              >
+              <a href="javascript:;" @click="handleFastAddRule">
                 {{ $t('本地导入') }}
               </a>
             </li>
             <li>
-              <a
-                href="javascript:;"
-                @click="handleAddRuleToIndex"
-              >
+              <a href="javascript:;" @click="handleAddRuleToIndex">
                 {{ $t('其他索引集导入') }}
               </a>
             </li>
@@ -176,20 +167,18 @@
       <template #footer>
         <div class="flbc">
           <div class="inspection-status">
-            <div
-              v-if="isClickSubmit"
-              class="inspection-status"
-            >
+            <div v-if="isClickSubmit" class="inspection-status">
               <div>
-                <bk-spin
-                  v-if="isDetection"
-                  class="spin"
-                  size="mini"
-                ></bk-spin>
+                <bk-spin v-if="isDetection" class="spin" size="mini"></bk-spin>
                 <span
                   v-else
                   :style="`color:${isRuleCorrect ? '#45E35F' : '#FE5376'}`"
-                  :class="['bk-icon spin', isRuleCorrect ? 'icon-check-circle-shape' : 'icon-close-circle-shape']"
+                  :class="[
+                    'bk-icon spin',
+                    isRuleCorrect
+                      ? 'icon-check-circle-shape'
+                      : 'icon-close-circle-shape',
+                  ]"
                 ></span>
               </div>
               <span style="margin-left: 24px">{{ detectionStr }}</span>
@@ -204,7 +193,9 @@
             >
               {{ isRuleCorrect ? $t('保存') : $t('检测语法') }}</bk-button
             >
-            <bk-button @click="isShowAddRule = false">{{ $t('取消') }}</bk-button>
+            <bk-button @click="isShowAddRule = false">{{
+              $t('取消')
+            }}</bk-button>
           </div>
         </div>
       </template>
@@ -223,11 +214,7 @@
       @value-change="otherExportChange"
       @confirm="otherExportConfirm"
     >
-      <bk-form
-        ref="exportRef"
-        :label-width="90"
-        :model="indexSetData"
-      >
+      <bk-form ref="exportRef" :label-width="90" :model="indexSetData">
         <bk-form-item
           :label="$t('选择索引集')"
           :property="'index_set_id'"
@@ -403,9 +390,13 @@ export default {
           this.confirmLoading = true;
           const { index_set_id, export_type } = this.indexSetData;
           const res = await this.getClusterConfig(index_set_id);
-          const importRuleArr = this.base64ToRuleArr(res.data.predefined_varibles);
+          const importRuleArr = this.base64ToRuleArr(
+            res.data.predefined_varibles
+          );
           this.rulesList =
-            export_type === 'replace' ? importRuleArr : this.mergeAndDeduplicate(importRuleArr, this.rulesList);
+            export_type === 'replace'
+              ? importRuleArr
+              : this.mergeAndDeduplicate(importRuleArr, this.rulesList);
           this.isShowOtherExport = false;
           this.$emit('show-table-loading');
         })
@@ -429,7 +420,7 @@ export default {
       const uniqueSet = new Set();
       // 结果数组
       const resultArray = [];
-      combinedArray.forEach(item => {
+      combinedArray.forEach((item) => {
         // 将对象转换为字符串进行比较，忽略 __Index__
         const key = Object.entries(item)
           .filter(([k, _]) => k !== '__Index__')
@@ -493,15 +484,18 @@ export default {
       const file = this.inputDocument.files[0];
       // 读取文件:
       const reader = new FileReader();
-      reader.onload = e => {
+      reader.onload = (e) => {
         try {
-          const list = Object.values(JSON.parse(e.target.result)).map((item, index) => {
-            if (!item.placeholder || !String(item.rule)) throw new Error('无效的json');
-            return {
-              [item.placeholder]: String([item.rule]),
-              __Index__: index,
-            };
-          });
+          const list = Object.values(JSON.parse(e.target.result)).map(
+            (item, index) => {
+              if (!item.placeholder || !String(item.rule))
+                throw new Error('无效的json');
+              return {
+                [item.placeholder]: String([item.rule]),
+                __Index__: index,
+              };
+            }
+          );
           this.rulesList = list;
         } catch (err) {
           this.$bkMessage({
@@ -595,7 +589,7 @@ export default {
      * @returns { Boolean }
      */
     isRulesRepeat(newRules = {}) {
-      return this.rulesList.some(listItem => {
+      return this.rulesList.some((listItem) => {
         const [regexKey, regexVal] = Object.entries(newRules)[0];
         const [listKey, listVal] = Object.entries(listItem)[0];
         return regexKey === listKey && regexVal === listVal;
@@ -638,12 +632,12 @@ export default {
             template_name: name,
           },
         })
-        .then(res => {
+        .then((res) => {
           if (res.code === 0) {
             this.initTemplateList();
           }
         })
-        .catch(err => {
+        .catch((err) => {
           console.error(err);
         });
     },
@@ -680,11 +674,14 @@ export default {
             space_uid: this.spaceUid,
           },
         })
-        .then(res => {
+        .then((res) => {
           if (res.data.length) {
             const indexSetList = [];
             for (const item of res.data) {
-              if (item.permission?.[authorityMap.SEARCH_LOG_AUTH] && item.tags.map(item => item.tag_id).includes(8)) {
+              if (
+                item.permission?.[authorityMap.SEARCH_LOG_AUTH] &&
+                item.tags.map((item) => item.tag_id).includes(8)
+              ) {
                 indexSetList.push({
                   name: item.index_set_name,
                   id: item.index_set_id,
@@ -694,7 +691,7 @@ export default {
             this.indexSetList = indexSetList;
           }
         })
-        .catch(e => {
+        .catch((e) => {
           console.warn(e);
         })
         .finally(() => {
@@ -722,12 +719,14 @@ export default {
     },
     handleSelectTemplate(value) {
       this.templateRule = value;
-      const selectTemplateStr = this.templateList.find(item => item.id === value).predefined_varibles;
+      const selectTemplateStr = this.templateList.find(
+        (item) => item.id === value
+      ).predefined_varibles;
       this.rulesList = this.base64ToRuleArr(selectTemplateStr);
       this.$emit('show-table-loading');
     },
     handleEditTemplateName(index) {
-      this.templateList.forEach(item => (item.isShowEdit = false));
+      this.templateList.forEach((item) => (item.isShowEdit = false));
       this.templateList[index].isShowEdit = true;
     },
     /** 编辑配置 */
@@ -741,7 +740,7 @@ export default {
             template_name: configItem.editStr,
           },
         })
-        .then(res => {
+        .then((res) => {
           if (res.code === 0) {
             this.templateList[configItem.index].name = configItem.editStr;
             this.templateList[configItem.index].isShowEdit = false;
@@ -751,7 +750,7 @@ export default {
             });
           }
         })
-        .catch(err => {
+        .catch((err) => {
           console.error(err);
         });
     },
@@ -766,7 +765,7 @@ export default {
             regex_template_id: configItem.id,
           },
         })
-        .then(res => {
+        .then((res) => {
           if (res.code === 0) {
             this.initTemplateList().then(() => {
               this.$refs.templateListRef.show();
@@ -777,13 +776,16 @@ export default {
             });
           }
         })
-        .catch(err => {
+        .catch((err) => {
           console.error(err);
         });
     },
     handleClickTemplateBtn(val) {
       this.ruleType = val;
-      const btnShowID = this.initTemplateID === 0 ? this.templateList[0].id : this.initTemplateID;
+      const btnShowID =
+        this.initTemplateID === 0
+          ? this.templateList[0].id
+          : this.initTemplateID;
       this.templateRule = val === 'customize' ? 0 : btnShowID;
       if (val !== 'customize') this.handleSelectTemplate(btnShowID);
     },
@@ -800,101 +802,101 @@ export default {
 };
 </script>
 <style lang="scss" scoped>
-  /* stylelint-disable no-descending-specificity */
-  .container-item {
-    margin-bottom: 10px;
+/* stylelint-disable no-descending-specificity */
+.container-item {
+  margin-bottom: 10px;
 
-    .add-box {
-      min-width: 48px;
-
-      .bk-icon {
-        left: -3px;
-        width: 10px;
-      }
-    }
-
-    &.table-container {
-      position: relative;
-      height: 32px;
-
-      p {
-        font-size: 12px;
-      }
-
-      .table-operate {
-        position: absolute;
-        top: 0;
-        right: 0;
-
-        .bk-button {
-          margin-left: 2px;
-          border-radius: 3px;
-        }
-
-        .btn-hover {
-          &:hover {
-            color: #3a84ff;
-            border: 1px solid #3a84ff;
-          }
-        }
-      }
-    }
-
-    .template-check-content {
-      margin-left: 20px;
-    }
-
-    .cluster-table {
-      border: 1px solid #dcdee5;
-      border-bottom: none;
-      border-radius: 2px;
-    }
-  }
-
-  .template-select {
-    min-width: 200px;
-  }
-
-  .add-rule {
-    .bk-form {
-      width: 560px;
-      padding-top: 8px;
-      font-size: 12px;
-
-      .bk-label {
-        text-align: left;
-      }
-    }
-
-    .bk-form-control {
-      display: flex;
-      align-items: center;
-      height: 32px;
-
-      .bk-form-radio {
-        margin-right: 20px;
-      }
-    }
-  }
-
-  .flbc {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-  }
-
-  .inspection-status {
-    position: relative;
-    display: flex;
-    font-size: 14px;
+  .add-box {
+    min-width: 48px;
 
     .bk-icon {
-      font-size: 18px;
-    }
-
-    .spin {
-      position: absolute;
-      top: 2px;
+      left: -3px;
+      width: 10px;
     }
   }
+
+  &.table-container {
+    position: relative;
+    height: 32px;
+
+    p {
+      font-size: 12px;
+    }
+
+    .table-operate {
+      position: absolute;
+      top: 0;
+      right: 0;
+
+      .bk-button {
+        margin-left: 2px;
+        border-radius: 3px;
+      }
+
+      .btn-hover {
+        &:hover {
+          color: #3a84ff;
+          border: 1px solid #3a84ff;
+        }
+      }
+    }
+  }
+
+  .template-check-content {
+    margin-left: 20px;
+  }
+
+  .cluster-table {
+    border: 1px solid #dcdee5;
+    border-bottom: none;
+    border-radius: 2px;
+  }
+}
+
+.template-select {
+  min-width: 200px;
+}
+
+.add-rule {
+  .bk-form {
+    width: 560px;
+    padding-top: 8px;
+    font-size: 12px;
+
+    .bk-label {
+      text-align: left;
+    }
+  }
+
+  .bk-form-control {
+    display: flex;
+    align-items: center;
+    height: 32px;
+
+    .bk-form-radio {
+      margin-right: 20px;
+    }
+  }
+}
+
+.flbc {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.inspection-status {
+  position: relative;
+  display: flex;
+  font-size: 14px;
+
+  .bk-icon {
+    font-size: 18px;
+  }
+
+  .spin {
+    position: absolute;
+    top: 2px;
+  }
+}
 </style>

@@ -25,9 +25,6 @@
  * IN THE SOFTWARE.
  */
 
-import { Component, Emit, Watch, Model } from 'vue-property-decorator';
-import { Component as tsc } from 'vue-tsx-support';
-
 import {
   Dialog,
   Switcher,
@@ -42,13 +39,15 @@ import {
   Tag,
 } from 'bk-magic-vue';
 import jsCookie from 'js-cookie';
+import { Component, Emit, Watch, Model } from 'vue-property-decorator';
+import { Component as tsc } from 'vue-tsx-support';
 
 import $http from '../../../api';
 import { deepClone, random, utcFormatDate } from '../../../common/util';
 import EmptyStatus from '../../../components/empty-status/index.vue';
 import FingerSelectColumn from '../result-table-panel/log-clustering/components/finger-select-column.vue';
-import ManageInput from './component/manage-input';
 
+import ManageInput from './component/manage-input';
 import './manage-group-dialog.scss';
 
 interface IProps {
@@ -80,14 +79,14 @@ interface IFavoriteItem {
 const settingFields = [
   // 设置显示的字段
   {
+    disabled: true,
     id: 'name',
     label: window.mainComponent.$t('收藏名'),
-    disabled: true,
   },
   {
+    disabled: true,
     id: 'group_name',
     label: window.mainComponent.$t('所属组'),
-    disabled: true,
   },
   {
     id: 'visible_type',
@@ -113,7 +112,7 @@ const settingFields = [
 
 @Component
 export default class GroupDialog extends tsc<IProps> {
-  @Model('change', { type: Boolean, default: false }) value: IProps['value'];
+  @Model('change', { default: false, type: Boolean }) value: IProps['value'];
   searchValue = ''; // 搜索字段
   tableLoading = false;
   isShowDeleteDialog = false;
@@ -136,9 +135,9 @@ export default class GroupDialog extends tsc<IProps> {
   maxHeight = 300;
   emptyType = 'empty';
   tippyOption = {
-    trigger: 'click',
     interactive: true,
     theme: 'light',
+    trigger: 'click',
   };
   isShowAddGroup = true;
   cannotComparedData = [
@@ -150,8 +149,8 @@ export default class GroupDialog extends tsc<IProps> {
     'is_group_disabled',
   ];
   groupNameMap = {
-    unknown: window.mainComponent.$t('未分组'),
     private: window.mainComponent.$t('个人收藏'),
+    unknown: window.mainComponent.$t('未分组'),
   };
   sourceFilters = []; // 所属组数组
   updateSourceFilters = []; // 更变人过滤数组
@@ -160,12 +159,12 @@ export default class GroupDialog extends tsc<IProps> {
 
   unPrivateOptionList = [
     // 非本人创建的收藏的可见范围数组
-    { name: window.mainComponent.$t('公开'), id: 'public' },
+    { id: 'public', name: window.mainComponent.$t('公开') },
   ];
   allOptionList = [
     // 本人创建的收藏的可见范围数组
-    { name: window.mainComponent.$t('公开'), id: 'public' },
-    { name: window.mainComponent.$t('私有'), id: 'private' },
+    { id: 'public', name: window.mainComponent.$t('公开') },
+    { id: 'private', name: window.mainComponent.$t('私有') },
   ];
 
   tableSetting = {
@@ -226,7 +225,8 @@ export default class GroupDialog extends tsc<IProps> {
 
   mounted() {
     const initTableHeight = Math.floor(document.body.clientHeight * 0.8) - 240;
-    this.maxHeight = initTableHeight > this.maxHeight ? initTableHeight : this.maxHeight;
+    this.maxHeight =
+      initTableHeight > this.maxHeight ? initTableHeight : this.maxHeight;
     this.positionTop = Math.floor(document.body.clientHeight * 0.1);
   }
 
@@ -258,7 +258,9 @@ export default class GroupDialog extends tsc<IProps> {
     if (status) {
       this.selectFavoriteList.push(row.id);
     } else {
-      const index = this.selectFavoriteList.findIndex(item => item === row.id);
+      const index = this.selectFavoriteList.findIndex(
+        (item) => item === row.id
+      );
       this.selectFavoriteList.splice(index, 1);
     }
   }
@@ -268,7 +270,9 @@ export default class GroupDialog extends tsc<IProps> {
     this.tableLoading = true;
     let searchList;
     if (this.searchValue !== '') {
-      searchList = this.operateTableList.filter(item => item.name.includes(this.searchValue));
+      searchList = this.operateTableList.filter((item) =>
+        item.name.includes(this.searchValue)
+      );
       this.emptyType = 'search-empty';
     } else {
       searchList = this.operateTableList;
@@ -299,12 +303,17 @@ export default class GroupDialog extends tsc<IProps> {
   }
   /** 全选操作 */
   handleSelectionChange(value) {
-    this.selectFavoriteList = value ? this.searchAfterList.map(item => item.id) : [];
+    this.selectFavoriteList = value
+      ? this.searchAfterList.map((item) => item.id)
+      : [];
   }
   /** 多选移动至分组操作 */
   handleClickMoveGroup(value) {
-    this.selectFavoriteList.forEach(item => {
-      this.operateListChange({ id: item }, { group_id: value.group_id, is_group_disabled: false });
+    this.selectFavoriteList.forEach((item) => {
+      this.operateListChange(
+        { id: item },
+        { group_id: value.group_id, is_group_disabled: false }
+      );
     });
   }
   /** 获取字段下拉框列表请求 */
@@ -319,36 +328,40 @@ export default class GroupDialog extends tsc<IProps> {
       this.tableLoading = true;
       const res = await $http.request('favorite/getFavoriteList', {
         query: {
-          space_uid: this.spaceUid,
           order_type: 'NAME_ASC',
+          space_uid: this.spaceUid,
         },
       });
       const updateSourceFiltersSet = new Set();
       const localLanguage = jsCookie.get('blueking_language') || 'zh-cn';
-      const initList = res.data.map(item => {
-        const visible_option = item.created_by === this.getUserName ? this.allOptionList : this.unPrivateOptionList;
-        const search_fields_select_list = item.search_fields.map(item => ({
+      const initList = res.data.map((item) => {
+        const visible_option =
+          item.created_by === this.getUserName
+            ? this.allOptionList
+            : this.unPrivateOptionList;
+        const search_fields_select_list = item.search_fields.map((item) => ({
+          chName: item,
           name:
             localLanguage === 'en'
               ? item.replace(/^全文检索(\(\d\))?$/, (item, p1) => {
                   return `${this.$t('全文检索')}${!!p1 ? p1 : ''}`;
                 })
               : item,
-          chName: item,
         })); // 初始化表单字段
 
         const is_group_disabled = item.visible_type === 'private';
-        if (!updateSourceFiltersSet.has(item.updated_by)) updateSourceFiltersSet.add(item.updated_by);
+        if (!updateSourceFiltersSet.has(item.updated_by))
+          updateSourceFiltersSet.add(item.updated_by);
         return {
           ...item,
-          search_fields_select_list,
           group_option: this.unPrivateList,
           group_option_private: this.privateList,
-          visible_option,
           is_group_disabled,
+          search_fields_select_list,
+          visible_option,
         };
       });
-      this.updateSourceFilters = [...updateSourceFiltersSet].map(item => ({
+      this.updateSourceFilters = [...updateSourceFiltersSet].map((item) => ({
         text: item,
         value: item,
       }));
@@ -370,14 +383,14 @@ export default class GroupDialog extends tsc<IProps> {
           space_uid: this.spaceUid,
         },
       });
-      this.groupList = res.data.map(item => ({
+      this.groupList = res.data.map((item) => ({
         group_id: item.id,
         group_name: this.groupNameMap[item.group_type] ?? item.name,
         group_type: item.group_type,
       }));
       this.unPrivateList = this.groupList.slice(1); // 去除个人收藏的列表
       this.privateList = this.groupList.slice(0, 1); // 个人收藏列表
-      this.sourceFilters = res.data.map(item => ({
+      this.sourceFilters = res.data.map((item) => ({
         text: this.groupNameMap[item.group_type] ?? item.name,
         value: item.name,
       }));
@@ -388,7 +401,7 @@ export default class GroupDialog extends tsc<IProps> {
     } finally {
       if (isAddGroup) {
         // 如果是新增组 则刷新操作表格的组列表
-        this.operateTableList = this.operateTableList.map(item => ({
+        this.operateTableList = this.operateTableList.map((item) => ({
           ...item,
           group_option: this.unPrivateList,
           group_option_private: this.privateList,
@@ -416,8 +429,8 @@ export default class GroupDialog extends tsc<IProps> {
       const res = await $http.request('favorite/createGroup', { data });
       if (res.result) {
         this.$bkMessage({
-          theme: 'success',
           message: this.$t('新建成功'),
+          theme: 'success',
         });
         this.getGroupList(true);
       }
@@ -432,12 +445,12 @@ export default class GroupDialog extends tsc<IProps> {
     if (status) {
       try {
         const res = await this.getSearchFieldsList(row.keyword);
-        const list = res.data.map(item => ({
+        const list = res.data.map((item) => ({
           ...item,
+          chName: item.name,
           name: item.is_full_text_field
             ? `${this.$t('全文检索')}${!!item.repeat_count ? `(${item.repeat_count})` : ''}`
             : item.name,
-          chName: item.name,
         }));
         this.operateListChange(row, { search_fields_select_list: list });
       } catch (error) {
@@ -447,20 +460,26 @@ export default class GroupDialog extends tsc<IProps> {
   }
   /** 修改可选范围 */
   handleSelectVisible(row, nVal: string) {
-    const group_id = nVal !== 'public' ? this.privateGroupID : this.unknownGroupID;
-    const group_name = this.groupList.find(item => item.group_id === group_id).group_name;
+    const group_id =
+      nVal !== 'public' ? this.privateGroupID : this.unknownGroupID;
+    const group_name = this.groupList.find(
+      (item) => item.group_id === group_id
+    ).group_name;
     this.operateListChange(row, {
-      visible_type: nVal,
-      is_group_disabled: nVal === 'private',
-      group_name,
       group_id,
+      group_name,
+      is_group_disabled: nVal === 'private',
+      visible_type: nVal,
     });
   }
   /** 单独修改组 */
   handleChangeGroup(row) {
-    const visible_type = row.group_id === this.privateGroupID ? 'private' : 'public';
-    const groupName = this.groupList.find(item => item.group_id === row.group_id).group_name;
-    this.operateListChange(row, { visible_type, group_name: groupName });
+    const visible_type =
+      row.group_id === this.privateGroupID ? 'private' : 'public';
+    const groupName = this.groupList.find(
+      (item) => item.group_id === row.group_id
+    ).group_name;
+    this.operateListChange(row, { group_name: groupName, visible_type });
   }
   /** 用户操作 */
   operateListChange(row, operateObj = {}) {
@@ -468,14 +487,17 @@ export default class GroupDialog extends tsc<IProps> {
 
     // 搜索展示用的列表和操作缓存的列表同时更新数据
     for (const listName of ['searchAfterList', 'operateTableList']) {
-      const index = this[listName].findIndex(item => item.id === row.id);
+      const index = this[listName].findIndex((item) => item.id === row.id);
       if (index >= 0) Object.assign(this[listName][index], row, operateObj);
-      if (listName === 'operateTableList') this.submitDataCompared(row, index, operateObj);
+      if (listName === 'operateTableList')
+        this.submitDataCompared(row, index, operateObj);
     }
   }
   /** 提交数据对比 */
   submitDataCompared(row, operateIndex, operateObj) {
-    const submitIndex = this.submitTableList.findIndex(item => item.id === row.id);
+    const submitIndex = this.submitTableList.findIndex(
+      (item) => item.id === row.id
+    );
     if (submitIndex >= 0) {
       // 操作已添加到更新列表的值 进行数据对比
       Object.assign(this.submitTableList[submitIndex], row, operateObj);
@@ -498,27 +520,34 @@ export default class GroupDialog extends tsc<IProps> {
   }
   /** 删除不做对比的参数 */
   deleteSubmitData(data: object, list: string[]) {
-    list.forEach(item => delete data[item]);
+    list.forEach((item) => delete data[item]);
   }
 
   handleDeleteFavorite(row) {
     this.$bkInfo({
-      subTitle: this.$t('当前收藏名为 {n}，确认是否删除？', { n: row.name }),
-      type: 'warning',
       confirmFn: () => {
         this.deleteTableIDList.push(row.id);
         // 删除收藏 把展示的表格, 操作表格, 提交表格, 以及基础表格统一删除
-        for (const listName of ['searchAfterList', 'operateTableList', 'submitTableList', 'tableList']) {
-          const index = this[listName].findIndex(item => item.id === row.id);
+        for (const listName of [
+          'searchAfterList',
+          'operateTableList',
+          'submitTableList',
+          'tableList',
+        ]) {
+          const index = this[listName].findIndex((item) => item.id === row.id);
           if (index >= 0) this[listName].splice(index, 1);
         }
         // 当前选中选择删除
-        const index = this.selectFavoriteList.findIndex(item => item === row.id);
+        const index = this.selectFavoriteList.findIndex(
+          (item) => item === row.id
+        );
         if (index >= 0) this.selectFavoriteList.splice(index, 1);
         $http.request('favorite/deleteFavorite', {
           params: { favorite_id: row.id },
         });
       },
+      subTitle: this.$t('当前收藏名为 {n}，确认是否删除？', { n: row.name }),
+      type: 'warning',
     });
   }
   /** 点击确定提交管理弹窗数据 */
@@ -550,19 +579,19 @@ export default class GroupDialog extends tsc<IProps> {
     // 更新收藏接口
     // 若没有更新收藏则不请求
     if (!this.submitTableList.length) return;
-    const params = this.submitTableList.map(item => ({
-      id: item.id,
-      name: item.name,
-      keyword: item.keyword,
-      group_id: item.group_id,
-      search_fields: item.search_fields,
-      visible_type: item.visible_type,
+    const params = this.submitTableList.map((item) => ({
+      addition: item.params.addition,
       display_fields: item.display_fields,
-      is_enable_display_fields: item.is_enable_display_fields,
+      group_id: item.group_id,
+      id: item.id,
       // host_scopes: item.params.host_scopes,
       ip_chooser: item.params.ip_chooser,
-      addition: item.params.addition,
+      is_enable_display_fields: item.is_enable_display_fields,
+      keyword: item.keyword,
+      name: item.name,
+      search_fields: item.search_fields,
       search_mode: item.search_mode,
+      visible_type: item.visible_type,
     }));
     try {
       await $http.request('favorite/batchFavoriteUpdate', {
@@ -589,7 +618,7 @@ export default class GroupDialog extends tsc<IProps> {
   }
 
   checkFields(field) {
-    return this.tableSetting.selectedFields.some(item => item.id === field);
+    return this.tableSetting.selectedFields.some((item) => item.id === field);
   }
 
   getGroupName(row) {
@@ -602,12 +631,12 @@ export default class GroupDialog extends tsc<IProps> {
       class: {
         'header-checkbox': true,
       },
-      props: {
-        value: this.checkValue,
-        disabled: !this.searchAfterList.length,
-      },
       on: {
         change: this.handleSelectionChange,
+      },
+      props: {
+        disabled: !this.searchAfterList.length,
+        value: this.checkValue,
       },
     });
   }
@@ -627,10 +656,10 @@ export default class GroupDialog extends tsc<IProps> {
               {
                 name: 'bk-tooltips',
                 value: {
-                  width: 400,
                   content: this.$t(
                     '该功能指从查询语句中获取相应的字段，当勾选对应的字段时，将以表单的填写方式显示给收藏的使用者。（字段说明：没有字段时，为全文检索；重复的字段增加显示序号(N) ，默认不勾选任何字段)'
                   ),
+                  width: 400,
                 },
               },
             ],
@@ -656,8 +685,10 @@ export default class GroupDialog extends tsc<IProps> {
               {
                 name: 'bk-tooltips',
                 value: {
+                  content: this.$t(
+                    '当打开时，使用该收藏将同时显示如下字段，不影响用户字段显示设置。'
+                  ),
                   width: 400,
-                  content: this.$t('当打开时，使用该收藏将同时显示如下字段，不影响用户字段显示设置。'),
                 },
               },
             ],
@@ -669,25 +700,28 @@ export default class GroupDialog extends tsc<IProps> {
   }
 
   render() {
-    const indexSetName = row => {
-      const { index_set_name: indexSetName, index_set_names: indexSetNames } = row;
-      return !this.isUnionSearch ? indexSetName : indexSetNames?.map(item => <Tag>{item}</Tag>) || '';
+    const indexSetName = (row) => {
+      const { index_set_name: indexSetName, index_set_names: indexSetNames } =
+        row;
+      return !this.isUnionSearch
+        ? indexSetName
+        : indexSetNames?.map((item) => <Tag>{item}</Tag>) || '';
     };
     const expandSlot = {
       default: ({ row }) => (
-        <div class='expand-container'>
-          <div class='expand-information'>
+        <div class="expand-container">
+          <div class="expand-information">
             <span>{this.$t('索引集')}</span>
             <span>{indexSetName(row)}</span>
             <span>{row.index_set_name}</span>
           </div>
-          <div class='expand-information'>
+          <div class="expand-information">
             <span>{this.$t('查询语句')}</span>
             <span>{row.keyword}</span>
           </div>
-          <div class='expand-information'>
+          <div class="expand-information">
             <span>{this.$t('查询显示字段')}:</span>
-            {row.display_fields.map(item => (
+            {row.display_fields.map((item) => (
               <Tag>{item}</Tag>
             ))}
           </div>
@@ -696,15 +730,15 @@ export default class GroupDialog extends tsc<IProps> {
     };
     const nameSlot = {
       default: ({ row }) => [
-        <div class='group-container'>
+        <div class="group-container">
           <Checkbox
-            class='group-check-box'
             checked={this.getCheckedStatus(row)}
-            on-change={status => this.handleRowCheckChange(row, status)}
+            class="group-check-box"
+            on-change={(status) => this.handleRowCheckChange(row, status)}
           ></Checkbox>
           <ManageInput
             favorite-data={row}
-            on-change={val => this.handleChangeFavoriteName(row, val)}
+            on-change={(val) => this.handleChangeFavoriteName(row, val)}
           ></ManageInput>
         </div>,
       ],
@@ -712,55 +746,59 @@ export default class GroupDialog extends tsc<IProps> {
     const groupSlot = {
       default: ({ row }) => [
         <Select
-          vModel={row.group_id}
           clearable={false}
           disabled={row.is_group_disabled}
-          ext-popover-cls='add-new-page-container'
+          ext-popover-cls="add-new-page-container"
+          on-change={() => this.handleChangeGroup(row)}
           popover-min-width={200}
           searchable
-          on-change={() => this.handleChangeGroup(row)}
+          vModel={row.group_id}
         >
-          <div slot='trigger'>
+          <div slot="trigger">
             <span
-              style='padding: 0 10px;'
-              class='overflow-tips'
+              class="overflow-tips"
+              style="padding: 0 10px;"
               v-bk-overflow-tips
             >
               {this.getGroupName(row)}
             </span>
           </div>
-          {row[row.visible_type === 'private' ? 'group_option_private' : 'group_option'].map(item => (
+          {row[
+            row.visible_type === 'private'
+              ? 'group_option_private'
+              : 'group_option'
+          ].map((item) => (
             <Option
               id={item.group_id}
               key={item.group_id}
               name={item.group_name}
             ></Option>
           ))}
-          <div slot='extension'>
+          <div slot="extension">
             {this.isShowAddGroup ? (
               <div
-                class='select-add-new-group'
+                class="select-add-new-group"
                 onClick={() => (this.isShowAddGroup = false)}
               >
                 <div>
-                  <i class='bk-icon icon-plus-circle'></i>
+                  <i class="bk-icon icon-plus-circle"></i>
                   {this.$t('新增')}
                 </div>
               </div>
             ) : (
-              <li class='add-new-page-input'>
+              <li class="add-new-page-input">
                 <Input
-                  vModel={this.groupName}
                   behavior={'simplicity'}
                   maxlength={30}
+                  vModel={this.groupName}
                 ></Input>
-                <div class='operate-button'>
+                <div class="operate-button">
                   <span
-                    class='bk-icon icon-check-line'
+                    class="bk-icon icon-check-line"
                     onClick={() => this.handleAddGroupName()}
                   ></span>
                   <span
-                    class='bk-icon icon-close-line-2'
+                    class="bk-icon icon-close-line-2"
                     onClick={() => {
                       this.isShowAddGroup = true;
                       this.groupName = '';
@@ -776,16 +814,12 @@ export default class GroupDialog extends tsc<IProps> {
     const visibleSlot = {
       default: ({ row }) => [
         <Select
-          vModel={row.visible_type}
           clearable={false}
-          on-selected={nVal => this.handleSelectVisible(row, nVal)}
+          on-selected={(nVal) => this.handleSelectVisible(row, nVal)}
+          vModel={row.visible_type}
         >
-          {row.visible_option.map(item => (
-            <Option
-              id={item.id}
-              key={item.id}
-              name={item.name}
-            ></Option>
+          {row.visible_option.map((item) => (
+            <Option id={item.id} key={item.id} name={item.name}></Option>
           ))}
         </Select>,
       ],
@@ -793,99 +827,88 @@ export default class GroupDialog extends tsc<IProps> {
     const selectTagSlot = {
       default: ({ row }) => [
         <Select
-          vModel={row.search_fields}
           clearable={false}
-          placeholder={this.$t('未设置')}
           display-tag
           multiple
+          on-change={(nVal) => this.handleChangeSearchList(row, nVal)}
+          on-toggle={(status) => this.handleClickFieldsList(row, status)}
+          placeholder={this.$t('未设置')}
           searchable
-          on-change={nVal => this.handleChangeSearchList(row, nVal)}
-          on-toggle={status => this.handleClickFieldsList(row, status)}
+          vModel={row.search_fields}
         >
-          {row.search_fields_select_list.map(item => (
-            <Option
-              id={item.chName}
-              key={item.name}
-              name={item.name}
-            ></Option>
+          {row.search_fields_select_list.map((item) => (
+            <Option id={item.chName} key={item.name} name={item.name}></Option>
           ))}
         </Select>,
       ],
     };
     const switchSlot = {
       default: ({ row }) => [
-        <div class='switch-container'>
+        <div class="switch-container">
           <Switcher
+            on-change={(value) => this.handleSwitchChange(row, value)}
+            theme="primary"
             vModel={row.is_enable_display_fields}
-            theme='primary'
-            on-change={value => this.handleSwitchChange(row, value)}
           ></Switcher>
         </div>,
       ],
     };
     const deleteSlot = {
       default: ({ row }) => [
-        <div class='switcher-box'>
-          <div
-            class='delete'
-            onClick={() => this.handleDeleteFavorite(row)}
-          >
-            <span class='bk-icon icon-delete'></span>
+        <div class="switcher-box">
+          <div class="delete" onClick={() => this.handleDeleteFavorite(row)}>
+            <span class="bk-icon icon-delete"></span>
           </div>
         </div>,
       ],
     };
     return (
       <Dialog
-        width={960}
-        ext-cls='manage-group'
         confirm-fn={this.handleSubmitTableData}
-        header-position='left'
+        ext-cls="manage-group"
+        header-position="left"
+        on-value-change={this.handleValueChange}
         position={{ top: this.positionTop }}
-        render-directive='if'
+        render-directive="if"
         title={this.$t('管理')}
         value={this.value}
-        on-value-change={this.handleValueChange}
+        width={960}
       >
         <div class={`top-operate ${!this.selectCount && 'is-not-select'}`}>
-          <div class='favorite-size'>
-            <i18n path='共 {0} 个收藏'>
-              <span class='size-weight'>{this.showFavoriteCount}</span>
+          <div class="favorite-size">
+            <i18n path="共 {0} 个收藏">
+              <span class="size-weight">{this.showFavoriteCount}</span>
             </i18n>
           </div>
           <Input
-            class='operate-input'
-            vModel={this.searchValue}
-            right-icon='bk-icon icon-search'
+            class="operate-input"
             on-enter={this.handleSearchFilter}
             on-right-icon-click={this.handleSearchFilter}
             onKeyup={this.handleInputSearchFavorite}
+            right-icon="bk-icon icon-search"
+            vModel={this.searchValue}
           ></Input>
         </div>
         {this.selectCount ? (
-          <div class='table-top-operate'>
+          <div class="table-top-operate">
             <span>
-              <i18n path='当前已选择 {0} 条数据'>
-                <span class='operate-message'>{this.selectCount}</span>
+              <i18n path="当前已选择 {0} 条数据">
+                <span class="operate-message">{this.selectCount}</span>
               </i18n>
             </span>
-            <DropdownMenu trigger='click'>
-              <div
-                class='dropdown-trigger-text'
-                slot='dropdown-trigger'
-              >
-                <span class='operate-click'>
+            <DropdownMenu trigger="click">
+              <div class="dropdown-trigger-text" slot="dropdown-trigger">
+                <span class="operate-click">
                   ，&nbsp;{this.$t('移至分组')}
-                  <span class='bk-icon icon-down-shape'></span>
+                  <span class="bk-icon icon-down-shape"></span>
                 </span>
               </div>
-              <div
-                class='dropdown-list'
-                slot='dropdown-content'
-              >
-                <ul class='search-li'>
-                  {this.unPrivateList.map(item => (
-                    <li onClick={() => this.handleClickMoveGroup(item)}>{item.group_name}</li>
+              <div class="dropdown-list" slot="dropdown-content">
+                <ul class="search-li">
+                  {this.unPrivateList.map((item) => (
+                    <li onClick={() => this.handleClickMoveGroup(item)}>
+                      {item.group_name}
+                    </li>
                   ))}
                 </ul>
               </div>
@@ -893,69 +916,69 @@ export default class GroupDialog extends tsc<IProps> {
           </div>
         ) : undefined}
         <Table
-          ext-cls={`${!this.selectCount && 'is-not-select'}`}
-          v-bkloading={{ isLoading: this.tableLoading }}
           border={true}
           data={this.searchAfterList}
           empty-text={this.$t('暂无数据')}
+          ext-cls={`${!this.selectCount && 'is-not-select'}`}
           header-border={true}
           max-height={this.maxHeight}
-          render-directive='if'
-          size='small'
+          render-directive="if"
+          size="small"
+          v-bkloading={{ isLoading: this.tableLoading }}
         >
           <TableColumn
-            width='64'
             render-header={this.renderHeader}
             scopedSlots={expandSlot}
-            type='expand'
+            type="expand"
+            width="64"
           ></TableColumn>
 
           <TableColumn
+            class-name="group-input"
             key={'column_name'}
-            width='160'
-            class-name='group-input'
             label={this.$t('收藏名')}
-            label-class-name='group-title'
+            label-class-name="group-title"
             prop={'name'}
             render-header={this.$renderHeader}
             scopedSlots={nameSlot}
+            width="160"
           ></TableColumn>
 
           {this.checkFields('group_name') ? (
             <TableColumn
-              key={'column_group_name'}
-              width={this.getGroupLabelWidth}
-              class-name='group-select'
+              class-name="group-select"
               filter-method={this.sourceFilterMethod}
               filter-multiple={false}
               filters={this.sourceFilters}
+              key={'column_group_name'}
               label={this.$t('所属组')}
-              label-class-name='group-title'
+              label-class-name="group-title"
               prop={'group_name'}
               render-header={this.$renderHeader}
               scopedSlots={groupSlot}
+              width={this.getGroupLabelWidth}
             ></TableColumn>
           ) : undefined}
 
           {this.checkFields('visible_type') ? (
             <TableColumn
+              class-name="group-select"
               key={'column_visible_type'}
-              width='112'
-              class-name='group-select'
               label={this.$t('可见范围')}
-              label-class-name='group-title'
+              label-class-name="group-title"
               prop={'visible_type'}
               render-header={this.$renderHeader}
               scopedSlots={visibleSlot}
+              width="112"
             ></TableColumn>
           ) : undefined}
 
           {this.checkFields('display_fields') ? (
             <TableColumn
+              class-name="group-select"
               key={'column_search_fields'}
-              class-name='group-select'
               label={this.$t('表单模式')}
-              label-class-name='group-title'
+              label-class-name="group-title"
               prop={'search_fields'}
               render-header={this.renderHeaderTable}
               scopedSlots={selectTagSlot}
@@ -964,52 +987,46 @@ export default class GroupDialog extends tsc<IProps> {
 
           {this.checkFields('updated_by') ? (
             <TableColumn
+              filter-method={this.sourceFilterMethod}
+              filter-multiple={false}
+              filters={this.updateSourceFilters}
               key={'column_update_by'}
+              label={this.$t('变更人')}
+              prop={'updated_by'}
+              render-header={this.$renderHeader}
               scopedSlots={{
                 default: ({ row }) => [
-                  <span
-                    class='overflow-tips'
-                    v-bk-overflow-tips
-                  >
+                  <span class="overflow-tips" v-bk-overflow-tips>
                     {row.updated_by}
                   </span>,
                 ],
               }}
-              filter-method={this.sourceFilterMethod}
-              filter-multiple={false}
-              filters={this.updateSourceFilters}
-              label={this.$t('变更人')}
-              prop={'updated_by'}
-              render-header={this.$renderHeader}
             ></TableColumn>
           ) : undefined}
 
           {this.checkFields('updated_at') ? (
             <TableColumn
               key={'column_update_time'}
+              label={this.$t('变更时间')}
+              prop={'updated_at'}
+              render-header={this.$renderHeader}
               scopedSlots={{
                 default: ({ row }) => [
-                  <span
-                    class='overflow-tips'
-                    v-bk-overflow-tips
-                  >
+                  <span class="overflow-tips" v-bk-overflow-tips>
                     {utcFormatDate(row.updated_at)}
                   </span>,
                 ],
               }}
-              label={this.$t('变更时间')}
-              prop={'updated_at'}
-              render-header={this.$renderHeader}
             ></TableColumn>
           ) : undefined}
 
           {this.checkFields('is_show_switch') ? (
             <TableColumn
+              class-name="group-input"
               key={'column_switch'}
-              class-name='group-input'
               label={this.$t('显示字段')}
-              label-class-name='group-title'
-              max-width='120'
+              label-class-name="group-title"
+              max-width="120"
               render-header={this.renderHeaderFields}
               scopedSlots={switchSlot}
             ></TableColumn>
@@ -1017,22 +1034,22 @@ export default class GroupDialog extends tsc<IProps> {
 
           <TableColumn
             key={'column_delete'}
-            width='0'
             scopedSlots={deleteSlot}
+            width="0"
           ></TableColumn>
 
-          <TableColumn type='setting'>
+          <TableColumn type="setting">
             <TableSettingContent
-              key={`${this.tableKey}__settings`}
-              v-en-style='width: 510px;'
               fields={this.tableSetting.fields}
+              key={`${this.tableKey}__settings`}
+              on-setting-change={this.handleSettingChange}
               selected={this.tableSetting.selectedFields}
               size={this.tableSetting.size}
-              on-setting-change={this.handleSettingChange}
+              v-en-style="width: 510px;"
             ></TableSettingContent>
           </TableColumn>
 
-          <div slot='empty'>
+          <div slot="empty">
             <EmptyStatus
               emptyType={this.emptyType}
               onOperation={this.handleOperation}

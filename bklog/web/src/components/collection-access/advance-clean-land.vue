@@ -25,28 +25,27 @@
 -->
 
 <template>
-  <div
-    class="advance-clean-land"
-    v-bkloading="{ isLoading: loading }"
-  >
+  <div class="advance-clean-land" v-bkloading="{ isLoading: loading }">
     <span class="bklog-icon bklog-shijian"></span>
     <p class="title">{{ $t('高级清洗中') }}</p>
     <p class="remark">
       <span v-if="isInit">
-        <span v-if="resultList.length">{{ `${resultList.join('、')}${$t('清洗已完成')}` }}</span>
+        <span v-if="resultList.length">{{
+          `${resultList.join('、')}${$t('清洗已完成')}`
+        }}</span>
         <span v-else>{{ $t('高级清洗仍在进行中') }}</span>
       </span>
-      <span v-else>{{ $t('当前流程已跳转至计算平台进行清洗，若清洗完成可及时刷新页面更新状态') }}</span>
+      <span v-else>{{
+        $t('当前流程已跳转至计算平台进行清洗，若清洗完成可及时刷新页面更新状态')
+      }}</span>
     </p>
     <div class="refresh-button">
       <span class="bk-icon icon-refresh-line"></span>
       <span @click="handleRefresh">{{ $t('刷新') }}</span>
     </div>
-    <bk-button
-      class="back-list"
-      @click="backToList"
-      >{{ $t('返回列表') }}</bk-button
-    >
+    <bk-button class="back-list" @click="backToList">{{
+      $t('返回列表')
+    }}</bk-button>
   </div>
 </template>
 
@@ -87,7 +86,8 @@ export default {
       });
     },
     handleRefresh() {
-      const { collector_config_id, bkdata_data_id: bkdataDataId } = this.curCollect;
+      const { collector_config_id, bkdata_data_id: bkdataDataId } =
+        this.curCollect;
       this.loading = true;
       this.$http
         .request('clean/refreshClean', {
@@ -99,7 +99,7 @@ export default {
             bk_data_id: bkdataDataId,
           },
         })
-        .then(res => {
+        .then((res) => {
           this.isInit = true;
           this.resultList = res.data;
         })
@@ -112,35 +112,35 @@ export default {
 </script>
 
 <style lang="scss">
-  .advance-clean-land {
-    height: 100%;
-    padding-top: 210px;
-    text-align: center;
-    background: #fff;
-    border: 1px solid #dcdee5;
+.advance-clean-land {
+  height: 100%;
+  padding-top: 210px;
+  text-align: center;
+  background: #fff;
+  border: 1px solid #dcdee5;
 
-    .icon-shijian {
-      font-size: 64px;
-      color: #c4c6cc;
-    }
-
-    .title {
-      margin-top: 18px;
-      font-size: 16px;
-      color: #000;
-    }
-
-    .remark {
-      margin-top: 10px;
-      font-size: 12px;
-      color: #63656e;
-    }
-
-    .refresh-button {
-      margin: 18px 0 20px;
-      font-size: 12px;
-      color: #3a84ff;
-      cursor: pointer;
-    }
+  .icon-shijian {
+    font-size: 64px;
+    color: #c4c6cc;
   }
+
+  .title {
+    margin-top: 18px;
+    font-size: 16px;
+    color: #000;
+  }
+
+  .remark {
+    margin-top: 10px;
+    font-size: 12px;
+    color: #63656e;
+  }
+
+  .refresh-button {
+    margin: 18px 0 20px;
+    font-size: 12px;
+    color: #3a84ff;
+    cursor: pointer;
+  }
+}
 </style>

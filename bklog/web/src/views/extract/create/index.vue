@@ -26,10 +26,7 @@
 -->
 
 <template>
-  <div
-    class="main-container create-task-container"
-    v-en-class="'en-title'"
-  >
+  <div class="main-container create-task-container" v-en-class="'en-title'">
     <div class="row-container">
       <div class="title">
         {{ $t('文件来源主机') }}
@@ -46,16 +43,10 @@
           >
           <div class="select-text">
             <i18n path="已选择{0}个节点">
-              <span
-                v-if="ipList.length"
-                class="primary"
-                >{{ ipList.length }}</span
-              >
-              <span
-                v-else
-                class="error"
-                >{{ ipList.length }}</span
-              >
+              <span v-if="ipList.length" class="primary">{{
+                ipList.length
+              }}</span>
+              <span v-else class="error">{{ ipList.length }}</span>
             </i18n>
           </div>
         </div>
@@ -82,7 +73,9 @@
         <span class="required">*</span>
         <span
           class="bklog-icon bklog-info-fill"
-          v-bk-tooltips="`${$t('以')}/${$t('结尾查询指定目录下内容，否则默认查询该目录及其子目录下所有文件')}`"
+          v-bk-tooltips="
+            `${$t('以')}/${$t('结尾查询指定目录下内容，否则默认查询该目录及其子目录下所有文件')}`
+          "
         >
         </span>
       </div>
@@ -117,10 +110,7 @@
     <div class="row-container">
       <div class="title">{{ $t('备注') }}</div>
       <div class="content">
-        <bk-input
-          style="width: 261px"
-          v-model="remark"
-        ></bk-input>
+        <bk-input style="width: 261px" v-model="remark"></bk-input>
       </div>
     </div>
     <div class="row-container">
@@ -166,7 +156,10 @@
 
 <script>
 // #if MONITOR_APP !== 'apm' && MONITOR_APP !== 'trace'
-import LogIpSelector, { toSelectorNode, toTransformNode } from '@/components/log-ip-selector/log-ip-selector';
+import LogIpSelector, {
+  toSelectorNode,
+  toTransformNode,
+} from '@/components/log-ip-selector/log-ip-selector';
 // #else
 // #code const LogIpSelector = () => null;
 // #endif
@@ -205,10 +198,16 @@ export default {
       globalsData: 'globals/globalsData',
     }),
     canSubmit() {
-      return (!this.ipList.length || !this.downloadFiles.length) && this.link_id != null;
+      return (
+        (!this.ipList.length || !this.downloadFiles.length) &&
+        this.link_id != null
+      );
     },
     isClone() {
-      return this.$route.name === 'extract-clone' && !!sessionStorage.getItem('cloneData');
+      return (
+        this.$route.name === 'extract-clone' &&
+        !!sessionStorage.getItem('cloneData')
+      );
     },
     // ip选择器选中节点
     selectorNodes() {
@@ -234,11 +233,13 @@ export default {
         this.$nextTick(() => {
           this.$refs.preview.handleClone(cloneData);
         });
-        this.ipSelectorOriginalValue = { host_list: toSelectorNode(this.ipList, 'INSTANCE') };
+        this.ipSelectorOriginalValue = {
+          host_list: toSelectorNode(this.ipList, 'INSTANCE'),
+        };
       }
     },
     initCloneDisplayName() {
-      const requestIpList = this.ipList.map(item => {
+      const requestIpList = this.ipList.map((item) => {
         if (item?.bk_host_id) {
           return {
             host_id: item.bk_host_id,
@@ -258,10 +259,10 @@ export default {
             bk_biz_id: this.$store.state.bkBizId,
           },
         })
-        .then(res => {
+        .then((res) => {
           this.initSelectNewNameList(res.data, true);
         })
-        .catch(err => {
+        .catch((err) => {
           console.warn(err);
           this.ipSelectNewNameList = [];
         });
@@ -271,11 +272,11 @@ export default {
         .request('extract/getExtractLinkList', {
           data: { bk_biz_id: this.$store.state.bkBizId },
         })
-        .then(res => {
+        .then((res) => {
           this.extractLinks = res.data;
           this.link_id = this.extractLinks[0].link_id;
         })
-        .catch(e => {
+        .catch((e) => {
           console.warn(e);
         });
     },
@@ -287,10 +288,10 @@ export default {
             ip_list: cloneData.ip_list,
           },
         })
-        .then(res => {
-          this.availablePaths = res.data.map(item => item.file_path);
+        .then((res) => {
+          this.availablePaths = res.data.map((item) => item.file_path);
         })
-        .catch(e => {
+        .catch((e) => {
           console.warn(e);
         });
     },
@@ -305,13 +306,16 @@ export default {
       this.initSelectNewNameList(hostList);
       const ipList = toTransformNode(hostList, 'INSTANCE', true);
       // 选择服务器后，获取可预览的路径
-      const strategies = await this.$http.request('extract/getAvailableExplorerPath', {
-        data: {
-          bk_biz_id: this.$store.state.bkBizId,
-          ip_list: ipList,
-        },
-      });
-      const availablePaths = strategies.data.map(item => item.file_path);
+      const strategies = await this.$http.request(
+        'extract/getAvailableExplorerPath',
+        {
+          data: {
+            bk_biz_id: this.$store.state.bkBizId,
+            ip_list: ipList,
+          },
+        }
+      );
+      const availablePaths = strategies.data.map((item) => item.file_path);
       this.ipList = ipList;
       this.availablePaths = availablePaths;
     },
@@ -323,17 +327,21 @@ export default {
     initSelectNewNameList(hostList, isClone = false) {
       if (!isClone) {
         // 新增 使用ip选择器里的值展示
-        const priorityList = this.globalsData.host_identifier_priority ?? ['ip', 'host_name', 'ipv6'];
-        this.ipSelectNewNameList = hostList.map(item => ({
+        const priorityList = this.globalsData.host_identifier_priority ?? [
+          'ip',
+          'host_name',
+          'ipv6',
+        ];
+        this.ipSelectNewNameList = hostList.map((item) => ({
           bk_host_id: item.host_id,
           ip: item.ip,
           bk_cloud_id: item.cloud_area.id,
           selectID: `${item.host_id ?? ''}_${item.ip ?? ''}_${item.cloud_area.id ?? ''}`, // select唯一key
-          name: item[priorityList.find(pItem => Boolean(item[pItem]))] ?? '',
+          name: item[priorityList.find((pItem) => Boolean(item[pItem]))] ?? '',
         }));
       } else {
         // 克隆 通过接口请求返回的display_name展示值
-        this.ipSelectNewNameList = hostList.map(item => ({
+        this.ipSelectNewNameList = hostList.map((item) => ({
           bk_host_id: item.bk_host_id,
           ip: item.bk_host_innerip,
           bk_cloud_id: item.bk_cloud_id,
@@ -370,7 +378,7 @@ export default {
         .then(() => {
           this.goToHome();
         })
-        .catch(err => {
+        .catch((err) => {
           console.warn(err);
           this.$emit('loading', false);
         });
@@ -388,74 +396,74 @@ export default {
 </script>
 
 <style lang="scss" scoped>
-  .create-task-container {
-    min-width: 1260px;
-    padding: 20px 24px;
-    margin-top: 20px;
-    color: #63656e;
-    background-color: #fff;
-    border: 1px solid #dcdee5;
+.create-task-container {
+  min-width: 1260px;
+  padding: 20px 24px;
+  margin-top: 20px;
+  color: #63656e;
+  background-color: #fff;
+  border: 1px solid #dcdee5;
 
-    .row-container {
-      display: flex;
-      min-height: 40px;
-      margin: 20px 0 24px;
+  .row-container {
+    display: flex;
+    min-height: 40px;
+    margin: 20px 0 24px;
 
-      .title {
-        width: 128px;
-        margin-right: 16px;
-        font-size: 12px;
-        line-height: 40px;
-        text-align: right;
+    .title {
+      width: 128px;
+      margin-right: 16px;
+      font-size: 12px;
+      line-height: 40px;
+      text-align: right;
 
-        .required {
-          font-size: 16px;
-          color: #ea3636;
-        }
-
-        .bklog-info-fill {
-          color: #979ba5;
-          cursor: pointer;
-        }
+      .required {
+        font-size: 16px;
+        color: #ea3636;
       }
 
-      .content {
+      .bklog-info-fill {
+        color: #979ba5;
+        cursor: pointer;
+      }
+    }
+
+    .content {
+      display: flex;
+      flex-flow: column;
+      justify-content: center;
+      min-height: 40px;
+      font-size: 12px;
+
+      .flex-box {
         display: flex;
-        flex-flow: column;
-        justify-content: center;
-        min-height: 40px;
-        font-size: 12px;
+        align-items: center;
 
-        .flex-box {
-          display: flex;
-          align-items: center;
+        .select-text {
+          margin-left: 12px;
+          font-size: 12px;
+          line-height: 16px;
 
-          .select-text {
-            margin-left: 12px;
-            font-size: 12px;
-            line-height: 16px;
+          .primary {
+            color: #3a84ff;
+          }
 
-            .primary {
-              color: #3a84ff;
-            }
-
-            .error {
-              color: #ea3636;
-            }
+          .error {
+            color: #ea3636;
           }
         }
       }
     }
-
-    .button-container {
-      margin: 32px 0 0 144px;
-    }
   }
 
-  .en-title {
-    .row-container .title {
-      /* stylelint-disable-next-line declaration-no-important */
-      width: 180px !important;
-    }
+  .button-container {
+    margin: 32px 0 0 144px;
   }
+}
+
+.en-title {
+  .row-container .title {
+    /* stylelint-disable-next-line declaration-no-important */
+    width: 180px !important;
+  }
+}
 </style>

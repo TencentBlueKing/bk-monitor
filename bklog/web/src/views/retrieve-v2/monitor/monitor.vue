@@ -90,7 +90,9 @@ const setDefaultIndexsetId = () => {
       datePickerValue: store.state.indexItem.datePickerValue,
     });
     if (store.getters.isUnionSearch) {
-      router.replace({ query: { ...route.query, ...resolver.resolveParamsToUrl() } });
+      router.replace({
+        query: { ...route.query, ...resolver.resolveParamsToUrl() },
+      });
       return;
     }
     if (store.state.indexId) {
@@ -110,7 +112,7 @@ const getApmIndexSetList = async () => {
   store.commit('retrieve/updateIndexSetList', []);
   return props
     .indexSetApi()
-    .then(res => {
+    .then((res) => {
       let indexSetList = [];
       if (res.length) {
         // 有索引集
@@ -126,10 +128,10 @@ const getApmIndexSetList = async () => {
         }
         indexSetList = s1.concat(s2);
         // 索引集数据加工
-        indexSetList.forEach(item => {
+        indexSetList.forEach((item) => {
           item.index_set_id = `${item.index_set_id}`;
           item.indexName = item.index_set_name;
-          item.lightenName = ` (${item.indices.map(item => item.result_table_id).join(';')})`;
+          item.lightenName = ` (${item.indices.map((item) => item.result_table_id).join(';')})`;
         });
         store.commit('retrieve/updateIndexSetList', indexSetList);
         return indexSetList;
@@ -146,7 +148,7 @@ const getApmIndexSetList = async () => {
  */
 const getIndexSetList = () => {
   if (!props.indexSetApi) return;
-  getApmIndexSetList().then(res => {
+  getApmIndexSetList().then((res) => {
     if (!res?.length) return;
     // 拉取完毕根据当前路由参数回填默认选中索引集
     // store.dispatch('updateIndexItemByRoute', { route, list: res }).then(() => {
@@ -158,7 +160,7 @@ const getIndexSetList = () => {
   });
 };
 
-const setRouteQuery = query => {
+const setRouteQuery = (query) => {
   if (query) {
     router.replace({
       query,
@@ -166,7 +168,8 @@ const setRouteQuery = query => {
     return;
   }
   const routeQuery = { ...route.query };
-  const { keyword, addition, ip_chooser, search_mode, begin, size } = store.getters.retrieveParams;
+  const { keyword, addition, ip_chooser, search_mode, begin, size } =
+    store.getters.retrieveParams;
   const resolver = new RetrieveUrlResolver({
     keyword,
     addition,
@@ -181,8 +184,11 @@ const setRouteQuery = query => {
   });
 };
 
-const handleIndexSetSelected = payload => {
-  if (!isEqual(indexSetParams.value.ids, payload.ids) || indexSetParams.value.isUnionIndex !== payload.isUnionIndex) {
+const handleIndexSetSelected = (payload) => {
+  if (
+    !isEqual(indexSetParams.value.ids, payload.ids) ||
+    indexSetParams.value.isUnionIndex !== payload.isUnionIndex
+  ) {
     if (payload.isUnionIndex) {
       setRouteQuery({
         ...route.query,
@@ -192,8 +198,16 @@ const handleIndexSetSelected = payload => {
       });
       return;
     }
-    setRouteQuery({ ...route.query, indexId: payload.ids[0], unionList: undefined, clusterParams: undefined });
-    store.commit('updateUnionIndexList', payload.isUnionIndex ? (payload.ids ?? []) : []);
+    setRouteQuery({
+      ...route.query,
+      indexId: payload.ids[0],
+      unionList: undefined,
+      clusterParams: undefined,
+    });
+    store.commit(
+      'updateUnionIndexList',
+      payload.isUnionIndex ? (payload.ids ?? []) : []
+    );
     store.dispatch('requestIndexSetItemChanged', payload ?? {}).then(() => {
       store.commit('retrieve/updateChartKey');
       store.dispatch('requestIndexSetQuery');
@@ -201,9 +215,9 @@ const handleIndexSetSelected = payload => {
   }
 };
 
-const updateSearchParam = payload => {
+const updateSearchParam = (payload) => {
   const { keyword, addition, ip_chooser, search_mode } = payload;
-  const foramtAddition = (addition ?? []).map(item => {
+  const foramtAddition = (addition ?? []).map((item) => {
     const instance = new ConditionOperator(item);
     return instance.formatApiOperatorToFront();
   });
@@ -228,7 +242,10 @@ const updateSearchParam = payload => {
 };
 
 const init = () => {
-  const result = handleTransformToTimestamp(props.timeRange, store.getters.retrieveParams.format);
+  const result = handleTransformToTimestamp(
+    props.timeRange,
+    store.getters.retrieveParams.format
+  );
   const resolver = new RouteUrlResolver({ route });
   store.commit('updateIndexItem', {
     ...resolver.convertQueryToStore(),
@@ -242,12 +259,19 @@ init();
 
 watch(
   () => props.timeRange,
-  async val => {
+  async (val) => {
     if (!val) return;
     getIndexSetList();
     store.commit('updateIsSetDefaultTableColumn', false);
-    const result = handleTransformToTimestamp(val, store.getters.retrieveParams.format);
-    store.commit('updateIndexItemParams', { start_time: result[0], end_time: result[1], datePickerValue: val });
+    const result = handleTransformToTimestamp(
+      val,
+      store.getters.retrieveParams.format
+    );
+    store.commit('updateIndexItemParams', {
+      start_time: result[0],
+      end_time: result[1],
+      datePickerValue: val,
+    });
     await store.dispatch('requestIndexSetFieldInfo');
     store.dispatch('requestIndexSetQuery');
   }
@@ -255,7 +279,7 @@ watch(
 
 watch(
   () => props.timezone,
-  val => {
+  (val) => {
     if (!val) return;
     store.commit('updateIndexItemParams', { timezone });
     updateTimezone(timezone);
@@ -273,7 +297,7 @@ watch(
 const activeTab = ref('origin');
 const searchBarHeight = ref(0);
 const resultRow = ref();
-const handleHeightChange = height => {
+const handleHeightChange = (height) => {
   searchBarHeight.value = height;
 };
 
@@ -291,7 +315,10 @@ const initIsShowClusterWatch = watch(
 watch(
   () => store.state.indexItem.isUnionIndex,
   () => {
-    if (store.state.indexItem.isUnionIndex && activeTab.value === 'clustering') {
+    if (
+      store.state.indexItem.isUnionIndex &&
+      activeTab.value === 'clustering'
+    ) {
       activeTab.value = 'origin';
     }
   }
@@ -317,16 +344,17 @@ const paddingTop = ref(0);
 // 滚动容器高度
 const scrollContainerHeight = ref(0);
 
-useScroll(GLOBAL_SCROLL_SELECTOR, event => {
+useScroll(GLOBAL_SCROLL_SELECTOR, (event) => {
   if (event.target) {
     const scrollTop = event.target.scrollTop;
-    paddingTop.value = scrollTop > subBarHeight.value ? subBarHeight.value : scrollTop;
+    paddingTop.value =
+      scrollTop > subBarHeight.value ? subBarHeight.value : scrollTop;
   }
 });
 
 useResizeObserve(
   GLOBAL_SCROLL_SELECTOR,
-  entry => {
+  (entry) => {
     scrollContainerHeight.value = entry.target.offsetHeight;
   },
   0
@@ -348,13 +376,13 @@ const isStickyTop = computed(() => {
 <template>
   <div
     :style="stickyStyle"
-    :class="['retrieve-v2-index', { 'scroll-y': true, 'is-sticky-top': isStickyTop }]"
+    :class="[
+      'retrieve-v2-index',
+      { 'scroll-y': true, 'is-sticky-top': isStickyTop },
+    ]"
     v-bkloading="{ isLoading: initLoading }"
   >
-    <div
-      class="sub-head"
-      v-show="!initLoading"
-    >
+    <div class="sub-head" v-show="!initLoading">
       <SelectIndexSet
         :popover-options="{ offset: '-6,10' }"
         @collection="getIndexSetList"
@@ -383,6 +411,6 @@ const isStickyTop = computed(() => {
   </div>
 </template>
 <style lang="scss">
-  @import './monitor.scss';
-  @import '../segment-pop.scss';
+@import './monitor.scss';
+@import '../segment-pop.scss';
 </style>

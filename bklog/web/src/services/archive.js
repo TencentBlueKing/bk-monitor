@@ -26,86 +26,86 @@
 
 // 获取集群快照仓库列表
 const getRepositoryList = {
-  url: '/databus/storage/list_repository/',
   method: 'get',
+  url: '/databus/storage/list_repository/',
 };
 
 // 新增归档仓库
 const createRepository = {
-  url: '/meta/esb/create_es_snapshot_repository/',
   method: 'post',
+  url: '/meta/esb/create_es_snapshot_repository/',
 };
 
 // 删除归档仓库
 const deleteRepository = {
-  url: '/meta/esb/delete_es_snapshot_repository/',
   method: 'post',
+  url: '/meta/esb/delete_es_snapshot_repository/',
 };
 
 // 归档列表
 const getArchiveList = {
-  url: '/databus/archive/',
   method: 'get',
+  url: '/databus/archive/',
 };
 
 // 新建归档
 const createArchive = {
-  url: '/databus/archive/',
   method: 'post',
+  url: '/databus/archive/',
 };
 
 // 编辑归档
 const editArchive = {
-  url: '/databus/archive/:archive_config_id',
   method: 'put',
+  url: '/databus/archive/:archive_config_id',
 };
 
 // 删除归档
 const deleteArchive = {
-  url: '/databus/archive/:archive_config_id/',
   method: 'delete',
+  url: '/databus/archive/:archive_config_id/',
 };
 
 // 归档配置详情
 const archiveConfig = {
-  url: '/databus/archive/:archive_config_id/',
   method: 'get',
+  url: '/databus/archive/:archive_config_id/',
 };
 
 // 回溯列表
 const restoreList = {
-  url: '/databus/restore/',
   method: 'get',
+  url: '/databus/restore/',
 };
 
 // 全量获取归档列表
 const getAllArchives = {
-  url: '/databus/archive/list_archive/',
   method: 'get',
+  url: '/databus/archive/list_archive/',
 };
 
 // 新建回溯
 const createRestore = {
-  url: '/databus/restore/',
   method: 'post',
+  url: '/databus/restore/',
 };
 
 // 编辑回溯
 const editRestore = {
-  url: '/databus/restore/:restore_config_id/',
   method: 'put',
+  url: '/databus/restore/:restore_config_id/',
 };
 
 // 删除回溯
 const deleteRestore = {
-  url: '/databus/restore/:restore_config_id/',
   method: 'delete',
+  url: '/databus/restore/:restore_config_id/',
 };
 
 // 异步获取回溯状态
 const getRestoreStatus = {
-  url: '/databus/restore/batch_get_state/',
   method: 'post',
+  url: '/databus/restore/batch_get_state/',
 };
 
 export {

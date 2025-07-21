@@ -52,17 +52,33 @@ class HttpRequst {
   __resolveSericeRequset(service, options, config) {
     if (typeof service.url === 'string') {
       let _service = this.__formatService(service, options);
-      _service = Object.assign({}, { method: options.method || 'get' }, _service);
+      _service = Object.assign(
+        {},
+        { method: options.method || 'get' },
+        _service
+      );
       if (service.callback && typeof service.callback === 'function') {
-        return this.__axios(_service.url, _service.method, options.data, options.query, options.ext, config).then(res =>
-          service.callback(res, options)
-        );
+        return this.__axios(
+          _service.url,
+          _service.method,
+          options.data,
+          options.query,
+          options.ext,
+          config
+        ).then((res) => service.callback(res, options));
       }
-      return this.__axios(_service.url, _service.method, options.data, options.query, options.ext, config);
+      return this.__axios(
+        _service.url,
+        _service.method,
+        options.data,
+        options.query,
+        options.ext,
+        config
+      );
     }
     if (Array.isArray(service.url)) {
       const requests = [];
-      service.url.forEach(url => {
+      service.url.forEach((url) => {
         if (typeof url === 'string') {
           const _url = this.__formatUrl(url, options);
           requests.push(
@@ -77,12 +93,27 @@ class HttpRequst {
           );
         } else {
           let _service = this.__formatService(url, options);
-          _service = Object.assign({}, { method: options.method || 'get' }, _service);
-          requests.push(this.__axios(_service.url, _service.method, options.data, options.query, options.ext, config));
+          _service = Object.assign(
+            {},
+            { method: options.method || 'get' },
+            _service
+          );
+          requests.push(
+            this.__axios(
+              _service.url,
+              _service.method,
+              options.data,
+              options.query,
+              options.ext,
+              config
+            )
+          );
         }
       });
       if (service.callback && typeof service.callback === 'function') {
-        return Promise.all(requests).then(res => service.callback(res, options));
+        return Promise.all(requests).then((res) =>
+          service.callback(res, options)
+        );
       }
       return Promise.all(requests);
     }
@@ -91,7 +122,9 @@ class HttpRequst {
 
   __getHttpService(service, options) {
     const splitor = this.__getSericeSplitor(service);
-    let _service = splitor[1] ? this.services[splitor[0]][splitor[1]] : this.services[splitor[0]];
+    let _service = splitor[1]
+      ? this.services[splitor[0]][splitor[1]]
+      : this.services[splitor[0]];
     if (typeof _service === 'function') {
       _service = _service(service, options);
     }
@@ -99,7 +132,7 @@ class HttpRequst {
   }
 
   __getSericeSplitor(service) {
-    return service.split('/').filter(f => f);
+    return service.split('/').filter((f) => f);
   }
 
   __getMockResult(service, options) {
@@ -114,10 +147,12 @@ class HttpRequst {
         mock = mock(service, options);
       }
 
-      const res = options.manualSchema ? mock : { data: mock, result: true, code: 0 };
+      const res = options.manualSchema
+        ? mock
+        : { code: 0, data: mock, result: true };
 
       if (options.timeout) {
-        return new Promise(resolve => {
+        return new Promise((resolve) => {
           setTimeout(() => {
             resolve(res);
           }, options.timeout);
@@ -140,7 +175,7 @@ class HttpRequst {
     if (option?.params) {
       const matchs = url.match(/:(_|\d|_|[a-z])+/gi);
       if (matchs?.length) {
-        matchs.forEach(match => {
+        matchs.forEach((match) => {
           const key = match.replace(/^:/, '');
           const param = option.params[key];
           url = url.replace(match, param);
@@ -183,13 +218,13 @@ class HttpRequst {
     const param = Object.assign(
       {},
       {
-        url,
-        method,
         data,
+        method,
         params: query,
         paramsSerializer(params) {
           return qs.stringify(params, { arrayFormat: 'repeat' });
         },
+        url,
       },
       ext || {},
       config

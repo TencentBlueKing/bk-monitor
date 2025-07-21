@@ -23,27 +23,33 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, defineComponent, onMounted, ref, nextTick, onBeforeUnmount } from 'vue';
-
 import interactjs from 'interactjs';
+import {
+  computed,
+  defineComponent,
+  onMounted,
+  ref,
+  nextTick,
+  onBeforeUnmount,
+} from 'vue';
 
 export default defineComponent({
   props: {
-    width: {
-      type: [String, Number],
-      default: 120,
+    customStyle: {
+      default: () => ({}),
+      type: Object,
     },
     minWidth: {
-      type: [String, Number],
       default: 'atuo',
+      type: [String, Number],
     },
     resize: {
-      type: Boolean,
       default: false,
+      type: Boolean,
     },
-    customStyle: {
-      type: Object,
-      default: () => ({}),
+    width: {
+      default: 120,
+      type: [String, Number],
     },
   },
   setup(props, { slots, emit }) {
@@ -70,10 +76,7 @@ export default defineComponent({
 
     const renderVNode = () => {
       return (
-        <div
-          ref={refRoot}
-          style={{ ...cellStyle.value, ...props.customStyle }}
-        >
+        <div ref={refRoot} style={{ ...cellStyle.value, ...props.customStyle }}>
           {slots.default?.()}
         </div>
       );
@@ -82,10 +85,14 @@ export default defineComponent({
     onMounted(() => {
       if (props.resize) {
         nextTick(() => {
-          const container = refRoot.value?.closest('.bklog-result-container') as HTMLElement;
-          const guideLineElement = container?.querySelector('.resize-guide-line') as HTMLElement;
+          const container = refRoot.value?.closest(
+            '.bklog-result-container'
+          ) as HTMLElement;
+          const guideLineElement = container?.querySelector(
+            '.resize-guide-line'
+          ) as HTMLElement;
 
-          const setGuidLeft = event => {
+          const setGuidLeft = (event) => {
             const client = event.client;
             const containerRect = container?.getBoundingClientRect();
 

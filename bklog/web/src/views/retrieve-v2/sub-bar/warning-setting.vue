@@ -1,8 +1,5 @@
 <template>
-  <div
-    class="warn-table-wrap"
-    @click="isShowList"
-  >
+  <div class="warn-table-wrap" @click="isShowList">
     <span
       :style="{ color: badgeCount !== 0 ? 'red' : '' }"
       :class="`bklog-icon bklog-${badgeCount !== 0 ? 'gaojing-filled' : 'gaojing-line'}`"
@@ -16,10 +13,7 @@
     />
 
     <div v-show="false">
-      <div
-        ref="refWarningSettingElement"
-        class="bklog-warning-wrapper"
-      >
+      <div ref="refWarningSettingElement" class="bklog-warning-wrapper">
         <bk-tab
           style="width: 580px; background-color: #fff"
           :active.sync="active"
@@ -28,11 +22,15 @@
           @tab-change="handleTabChange"
         >
           <template #setting>
-            <div style="display: flex; align-items: center; justify-content: center; background-color: #f0f1f5">
-              <div
-                class="selector-owner"
-                v-if="active === 'mission'"
-              >
+            <div
+              style="
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                background-color: #f0f1f5;
+              "
+            >
+              <div class="selector-owner" v-if="active === 'mission'">
                 {{ $t('我的') }}
                 <bk-switcher
                   class="selector-owner-switch"
@@ -40,10 +38,7 @@
                   v-model="filterOwner"
                 ></bk-switcher>
               </div>
-              <div
-                v-if="active === 'mission'"
-                class="selector-container"
-              >
+              <div v-if="active === 'mission'" class="selector-container">
                 <span
                   v-for="type in ['all', 'unHandle']"
                   class="option"
@@ -75,11 +70,10 @@
             :name="item.name"
           >
             <template #label>
-              <span class="panel-name">{{ $t(item.label) }}（{{ item.count }}）</span>
-              <div
-                v-if="item.name === active"
-                class="active-box"
-              ></div>
+              <span class="panel-name"
+                >{{ $t(item.label) }}（{{ item.count }}）</span
+              >
+              <div v-if="item.name === active" class="active-box"></div>
             </template>
             <!-- <bk-alert type="info">
               <span
@@ -102,10 +96,7 @@
               @sort-change="handleSortChange"
               :stripe="true"
             >
-              <bk-table-column
-                :label="$t('告警名称')"
-                :min-width="120"
-              >
+              <bk-table-column :label="$t('告警名称')" :min-width="120">
                 <template #default="{ row }">
                   <div
                     class="bklog-table-col-alert-name"
@@ -138,10 +129,7 @@
                 prop="duration"
               >
               </bk-table-column>
-              <bk-table-column
-                :label="$t('状态')"
-                min-width="90"
-              >
+              <bk-table-column :label="$t('状态')" min-width="90">
                 <template #default="{ row }">
                   <div>
                     <span
@@ -291,8 +279,12 @@ const recordListshow = computed(() => {
   if (filterOwner.value) {
     return recordList.value.filter(
       (item: any) =>
-        item.assignee?.some(assignee => assignee === userMeta.value.username) ||
-        item.appointee?.some(appointee => appointee === userMeta.value.username)
+        item.assignee?.some(
+          (assignee) => assignee === userMeta.value.username
+        ) ||
+        item.appointee?.some(
+          (appointee) => appointee === userMeta.value.username
+        )
     );
   } else {
     return recordList.value;
@@ -344,9 +336,12 @@ const LEVEL_COLOR_MAP = {
 //   3: t('提醒'),
 // };
 // 函数优化
-const getColor = (status: string) => STATUS_COLOR_MAP[status] || STATUS_COLOR_MAP.DEFAULT;
-const getClass = (status: string) => STATUS_CLASS_MAP[status] || STATUS_CLASS_MAP.DEFAULT;
-const getLevelColor = (severity: number) => LEVEL_COLOR_MAP[severity] || LEVEL_COLOR_MAP.DEFAULT;
+const getColor = (status: string) =>
+  STATUS_COLOR_MAP[status] || STATUS_COLOR_MAP.DEFAULT;
+const getClass = (status: string) =>
+  STATUS_CLASS_MAP[status] || STATUS_CLASS_MAP.DEFAULT;
+const getLevelColor = (severity: number) =>
+  LEVEL_COLOR_MAP[severity] || LEVEL_COLOR_MAP.DEFAULT;
 // const getLevelClass = (severity: number) => LEVEL_CLASS_MAP[severity] || LEVEL_CLASS_MAP.DEFAULT;
 
 const handleTabChange = () => {
@@ -366,7 +361,7 @@ const handleSortChange = ({ column }: { column }) => {
       : b.first_anomaly_time - a.first_anomaly_time;
   });
 };
-const isShowList = e => {
+const isShowList = (e) => {
   if (!PopInstanceUtilInstance.isShown()) {
     PopInstanceUtilInstance.show(e.target);
   }
@@ -386,7 +381,10 @@ const handleJumpMonitor = () => {
   };
   if (active.value === 'mission') {
     const res = getQueryString();
-    window.open(`${window.MONITOR_URL}/?bizId=${store.state.bkBizId}#/${addressMap[active.value]}?${res}`, '_blank');
+    window.open(
+      `${window.MONITOR_URL}/?bizId=${store.state.bkBizId}#/${addressMap[active.value]}?${res}`,
+      '_blank'
+    );
     return;
   }
 
@@ -396,11 +394,14 @@ const handleJumpMonitor = () => {
   );
 };
 
-const handleViewWarningDetail = row => {
-  window.open(`${window.MONITOR_URL}/?bizId=${store.state.bkBizId}#/event-center/detail/${row.id}`, '_blank');
+const handleViewWarningDetail = (row) => {
+  window.open(
+    `${window.MONITOR_URL}/?bizId=${store.state.bkBizId}#/event-center/detail/${row.id}`,
+    '_blank'
+  );
 };
 
-const handleStrategyInfoClick = row => {
+const handleStrategyInfoClick = (row) => {
   window.open(
     `${window.MONITOR_URL}/?bizId=${store.state.bkBizId}#/strategy-config/detail/${row.strategy_id}`,
     '_blank'
@@ -434,10 +435,14 @@ const getAlertListData = async (val: string) => {
 
     if (val === 'NOT_SHIELDED_ABNORMAL') {
       badgeCount.value = res?.data.length;
-      ownPendingCount.value = res?.data.filter(item => {
+      ownPendingCount.value = res?.data.filter((item) => {
         return (
-          item.assignee?.some(assignee => assignee === userMeta.value.username) ||
-          item.appointee?.some(appointee => appointee === userMeta.value.username)
+          item.assignee?.some(
+            (assignee) => assignee === userMeta.value.username
+          ) ||
+          item.appointee?.some(
+            (appointee) => appointee === userMeta.value.username
+          )
         );
       }).length;
     }
@@ -476,10 +481,12 @@ const getStrategyDate = async () => {
       },
     });
 
-    (res?.data || []).forEach(element => {
+    (res?.data || []).forEach((element) => {
       strategyList.value.push(
         Object.assign({}, element, {
-          latest_time_format: element.latest_time ? formatDate(element.latest_time) : '--',
+          latest_time_format: element.latest_time
+            ? formatDate(element.latest_time)
+            : '--',
         })
       );
     });
@@ -493,7 +500,7 @@ const getStrategyDate = async () => {
   }
 };
 
-const handleViewLogInfo = row => {
+const handleViewLogInfo = (row) => {
   const startTime = row.first_anomaly_time * 1000;
   const endTime = row.end_time * 1000 || Date.now();
 
@@ -507,13 +514,13 @@ const handleViewLogInfo = row => {
         alert_id: row.id,
       },
     })
-    .then(resp => {
+    .then((resp) => {
       if (resp.result) {
         const { query_string, agg_condition } = resp.data;
 
         const params = {
           search_mode: null,
-          addition: agg_condition.map(item => {
+          addition: agg_condition.map((item) => {
             const instance = new ConditionOperator({
               field: item.key,
               operator: item.method,
@@ -525,9 +532,11 @@ const handleViewLogInfo = row => {
           keyword: query_string,
         };
         resolveCommonParams(params).then(() => {
-          resolveQueryParams(params, true).then(res => {
+          resolveQueryParams(params, true).then((res) => {
             if (res) {
-              store.commit('updateStorage', { [BK_LOG_STORAGE.SEARCH_TYPE]: 1 });
+              store.commit('updateStorage', {
+                [BK_LOG_STORAGE.SEARCH_TYPE]: 1,
+              });
               store.commit('updateIndexItemParams', {
                 start_time: startTime,
                 end_time: endTime,
@@ -548,7 +557,7 @@ const handleViewLogInfo = row => {
         message: resp.message,
       });
     })
-    .catch(err => {
+    .catch((err) => {
       bkMessage({
         theme: 'error',
         message: err.message,
@@ -586,159 +595,159 @@ watch(
 );
 watch(
   () => recordListshow.value.length,
-  newLength => {
+  (newLength) => {
     panels.value[0].count = newLength;
   }
 );
 </script>
 <style lang="scss">
-  .warn-table-wrap {
-    position: relative;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 70px;
-    height: 32px;
-    font-size: 12px;
-    cursor: pointer;
+.warn-table-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 70px;
+  height: 32px;
+  font-size: 12px;
+  cursor: pointer;
 
-    .bklog-icon {
-      margin: 0 6px 0 0;
-      font-size: 16px;
-    }
+  .bklog-icon {
+    margin: 0 6px 0 0;
+    font-size: 16px;
   }
+}
 
-  .bklog-warning-wrapper {
-    .bk-tab-card {
-      background-color: #fafbfd;
+.bklog-warning-wrapper {
+  .bk-tab-card {
+    background-color: #fafbfd;
 
-      .bk-tab-section {
-        padding: 0px;
-        border: none;
-      }
+    .bk-tab-section {
+      padding: 0px;
+      border: none;
+    }
 
-      .bk-tab-header {
+    .bk-tab-header {
+      /* stylelint-disable-next-line declaration-no-important */
+      height: 42px !important;
+
+      .bk-tab-header-setting {
         /* stylelint-disable-next-line declaration-no-important */
         height: 42px !important;
 
-        .bk-tab-header-setting {
+        /* stylelint-disable-next-line declaration-no-important */
+        line-height: 42px !important;
+      }
+
+      .bk-tab-label-wrapper {
+        color: #313238;
+        background-color: #f0f1f5;
+
+        .bk-tab-label-list {
           /* stylelint-disable-next-line declaration-no-important */
           height: 42px !important;
+        }
 
+        .bk-tab-label-item {
           /* stylelint-disable-next-line declaration-no-important */
           line-height: 42px !important;
-        }
 
-        .bk-tab-label-wrapper {
-          color: #313238;
-          background-color: #f0f1f5;
-
-          .bk-tab-label-list {
-            /* stylelint-disable-next-line declaration-no-important */
-            height: 42px !important;
-          }
-
-          .bk-tab-label-item {
-            /* stylelint-disable-next-line declaration-no-important */
-            line-height: 42px !important;
-
-            .panel-name {
-              font-size: 13px;
-            }
-          }
-
-          .active-box {
-            position: absolute;
-            top: 0px;
-            left: 0px;
-            width: 100%;
-            height: 5px;
-            background-color: #3a84ff;
+          .panel-name {
+            font-size: 13px;
           }
         }
-      }
 
-      .bk-table-header-wrapper {
-        th,
-        .cell {
-          height: 32px;
-        }
-      }
-
-      .bk-table-body-wrapper {
-        td {
-          height: 32px;
-          border-bottom: none;
-        }
-
-        .bk-table-empty-text {
-          padding: 20px 0;
-        }
-
-        .bk-table-row-striped td {
-          background-color: #fafbfd;
+        .active-box {
+          position: absolute;
+          top: 0px;
+          left: 0px;
+          width: 100%;
+          height: 5px;
+          background-color: #3a84ff;
         }
       }
     }
 
-    .bklog-table-col-alert-name {
-      position: relative;
-      padding-left: 4px;
+    .bk-table-header-wrapper {
+      th,
+      .cell {
+        height: 32px;
+      }
+    }
 
-      .severity-level {
-        position: absolute;
-        top: 2px;
-        left: 0;
-        display: inline-block;
-        min-width: 2px;
-        min-height: 14px;
-        margin-right: 2px;
-        background-color: var(--severity-color);
+    .bk-table-body-wrapper {
+      td {
+        height: 32px;
+        border-bottom: none;
+      }
+
+      .bk-table-empty-text {
+        padding: 20px 0;
+      }
+
+      .bk-table-row-striped td {
+        background-color: #fafbfd;
       }
     }
   }
 
-  .selector-owner {
-    display: flex;
-    align-items: center;
-    margin-right: 10px;
+  .bklog-table-col-alert-name {
+    position: relative;
+    padding-left: 4px;
 
-    .selector-owner-switch {
-      margin-left: 5px;
+    .severity-level {
+      position: absolute;
+      top: 2px;
+      left: 0;
+      display: inline-block;
+      min-width: 2px;
+      min-height: 14px;
+      margin-right: 2px;
+      background-color: var(--severity-color);
     }
   }
+}
 
-  .selector-container {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 112px;
-    height: 32px;
-    padding: 4px 4px;
-    font-size: 12px;
-    background-color: #dcdee5;
-    border-radius: 4px;
-  }
+.selector-owner {
+  display: flex;
+  align-items: center;
+  margin-right: 10px;
 
-  .selector-more {
-    font-size: 12px;
+  .selector-owner-switch {
+    margin-left: 5px;
   }
+}
 
-  .option {
-    display: flex; /* 使用 flex 布局 */
-    flex: 1;
-    align-items: center; /* 垂直居中 */
-    justify-content: center; /* 水平居中 */
-    width: 100%;
-    height: 100%;
-    color: #4d4f56;
-    cursor: pointer;
-    border-radius: 2px;
-    transition: background-color 0.3s;
-  }
+.selector-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 112px;
+  height: 32px;
+  padding: 4px 4px;
+  font-size: 12px;
+  background-color: #dcdee5;
+  border-radius: 4px;
+}
 
-  .option.selected {
-    color: #3a84ff; /* 蓝色 */
-    background-color: #ffffff;
-  }
+.selector-more {
+  font-size: 12px;
+}
+
+.option {
+  display: flex; /* 使用 flex 布局 */
+  flex: 1;
+  align-items: center; /* 垂直居中 */
+  justify-content: center; /* 水平居中 */
+  width: 100%;
+  height: 100%;
+  color: #4d4f56;
+  cursor: pointer;
+  border-radius: 2px;
+  transition: background-color 0.3s;
+}
+
+.option.selected {
+  color: #3a84ff; /* 蓝色 */
+  background-color: #ffffff;
+}
 </style>

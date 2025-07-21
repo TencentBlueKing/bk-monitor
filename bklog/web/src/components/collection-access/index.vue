@@ -34,10 +34,7 @@
       v-if="authPageInfo"
       :info="authPageInfo"
     ></auth-container-page>
-    <div
-      v-else-if="!basicLoading && !isCleaning"
-      class="access-container"
-    >
+    <div v-else-if="!basicLoading && !isCleaning" class="access-container">
       <section class="access-step-wrapper">
         <div
           :style="{ height: `${getShowStepsConfHeightNum}px` }"
@@ -75,15 +72,18 @@
           :is-update.sync="isUpdate"
           :operate-type="operateType"
           @change-clean="isCleaning = true"
-          @change-index-set-id="v => (indexSetId = v)"
-          @change-submit="v => (isSubmit = v)"
+          @change-index-set-id="(v) => (indexSetId = v)"
+          @change-submit="(v) => (isSubmit = v)"
           @reset-cur-collect-val="() => getDetail()"
-          @set-assessment-item="v => (applyData = v)"
+          @set-assessment-item="(v) => (applyData = v)"
           @step-change="stepChange"
         ></component>
       </section>
       <issuedSlider
-        v-if="getCurrentComponent !== 'stepResult' && getCurrentComponent !== 'stepAdd'"
+        v-if="
+          getCurrentComponent !== 'stepResult' &&
+          getCurrentComponent !== 'stepAdd'
+        "
         :is-finish-create-step="isFinishCreateStep"
         :is-switch="isSwitch"
         :operate-type="operateType"
@@ -168,7 +168,7 @@ export default {
   },
   computed: {
     ...mapState({
-      showRouterLeaveTip: state => state.showRouterLeaveTip,
+      showRouterLeaveTip: (state) => state.showRouterLeaveTip,
     }),
     ...mapGetters('collect', ['curCollect']),
     ...mapGetters(['bkBizId']),
@@ -176,18 +176,22 @@ export default {
     ...mapGetters(['isShowMaskingTemplate']),
     /** 是否是启停状态 */
     isSwitch() {
-      return ['start', 'stop'].some(item => item === this.operateType);
+      return ['start', 'stop'].some((item) => item === this.operateType);
     },
     /** 左侧展示的步骤 */
     showStepsConf() {
       let finishShowConf = this.stepsConf;
       // 判断当前业务是否展示脱敏 若不展示 隐藏脱敏步骤
       if (!this.isShowMaskingTemplate) {
-        finishShowConf = finishShowConf.filter(item => item.stepStr !== 'stepMasking');
+        finishShowConf = finishShowConf.filter(
+          (item) => item.stepStr !== 'stepMasking'
+        );
       }
       // 判断是否以及完成过一次步骤 有table_id的情况视为完成过一次完整的步骤  隐藏完成步骤
       if (this.isFinishCreateStep && !this.isSwitch) {
-        finishShowConf = finishShowConf.filter(item => !['stepResult'].includes(item.stepStr));
+        finishShowConf = finishShowConf.filter(
+          (item) => !['stepResult'].includes(item.stepStr)
+        );
       }
       return finishShowConf;
     },
@@ -208,7 +212,7 @@ export default {
       if (this.forceShowComponent) return this.forceShowComponent;
       const showComponent = {};
       // 根据展示的组件重置步骤 让curStep与组件对应
-      this.getShowStepsConf.forEach(item => {
+      this.getShowStepsConf.forEach((item) => {
         showComponent[item.icon] = item.stepStr;
       });
       return showComponent[this.curStep];
@@ -283,7 +287,10 @@ export default {
         name: routeName,
       } = this.$route;
       this.isUpdate = routeName !== 'collectAdd'; // 判断是否是更新
-      if ((routeType !== 'add' && !this.$route.params.notAdd) || type === 'clone') {
+      if (
+        (routeType !== 'add' && !this.$route.params.notAdd) ||
+        type === 'clone'
+      ) {
         // 克隆时 请求初始数据
         try {
           const detailRes = await this.getDetail();
@@ -295,16 +302,20 @@ export default {
           this.operateType = routeType;
         }
         try {
-          const statusRes = await this.$http.request('collect/getCollectStatus', {
-            query: {
-              collector_id_list: this.$route.params.collectorId,
-            },
-          });
+          const statusRes = await this.$http.request(
+            'collect/getCollectStatus',
+            {
+              query: {
+                collector_id_list: this.$route.params.collectorId,
+              },
+            }
+          );
           if (statusRes.data[0].status === 'PREPARE') {
             // 准备中编辑时跳到第一步，所以不用修改步骤
           } else {
             // 容器环境  非启用停用 非克隆状态则展示容器日志步骤
-            if (!this.isPhysics && !this.isSwitch && type !== 'clone') this.isContainerStep = true;
+            if (!this.isPhysics && !this.isSwitch && type !== 'clone')
+              this.isContainerStep = true;
             let jumpComponentStr = 'stepAdd';
             switch (this.operateType) {
               case 'edit': // 完成或者未完成编辑都从第一步走
@@ -322,7 +333,9 @@ export default {
               default:
                 break;
             }
-            this.curStep = this.getShowStepsConf.find(item => item.stepStr === jumpComponentStr).icon;
+            this.curStep = this.getShowStepsConf.find(
+              (item) => item.stepStr === jumpComponentStr
+            ).icon;
           }
         } catch (e) {
           console.warn(e);
@@ -334,7 +347,8 @@ export default {
     },
     setSteps() {
       // 新增  并且为容器环境则步骤变为容器步骤 步骤为第一步时不判断
-      if (this.operateType === 'add' && !this.isPhysics && this.curStep !== 1) this.isContainerStep = true;
+      if (this.operateType === 'add' && !this.isPhysics && this.curStep !== 1)
+        this.isContainerStep = true;
     },
     stepChange(num) {
       if (num === 'back') {
@@ -358,19 +372,25 @@ export default {
               collector_config_id: this.$route.params.collectorId,
             },
           })
-          .then(async res => {
+          .then(async (res) => {
             if (res.data) {
               const collect = res.data;
               this.isPhysics = collect.environment !== 'container';
-              if (collect.collector_scenario_id !== 'wineventlog' && this.isPhysics && collect?.params.paths) {
-                collect.params.paths = collect.params.paths.map(item => ({ value: item }));
+              if (
+                collect.collector_scenario_id !== 'wineventlog' &&
+                this.isPhysics &&
+                collect?.params.paths
+              ) {
+                collect.params.paths = collect.params.paths.map((item) => ({
+                  value: item,
+                }));
               }
               this.itsmTicketIsApplying = false;
               this.$store.commit('collect/setCurCollect', collect);
               resolve(res.data);
             }
           })
-          .catch(err => {
+          .catch((err) => {
             reject(err);
           });
       });
@@ -386,22 +406,23 @@ export default {
     /** 步骤切换时触发该函数 */
     stepChangeBeforeFn() {
       /** 编辑状态切换步骤时 判断下是否修改过当前的值 */
-      const isUpdateSubmitValue = this.$refs.currentRef?.getIsUpdateSubmitValue?.() || false;
+      const isUpdateSubmitValue =
+        this.$refs.currentRef?.getIsUpdateSubmitValue?.() || false;
       if (!isUpdateSubmitValue) {
         this.forceShowComponent = '';
         return true;
       }
-      return new Promise(resolve => {
+      return new Promise((resolve) => {
         this.$bkInfo({
           title: this.$t('是否保存本次操作？'),
           confirmLoading: true,
           confirmFn: async () => {
-            await new Promise(infoResolve => {
+            await new Promise((infoResolve) => {
               if (this.$refs.currentRef?.stepSubmitFun) {
                 if (this.isChangeStepLoading) return;
                 // 正在请求中
                 this.isChangeStepLoading = true;
-                this.$refs.currentRef.stepSubmitFun(isCanChangeStep => {
+                this.$refs.currentRef.stepSubmitFun((isCanChangeStep) => {
                   resolve(isCanChangeStep);
                   infoResolve(isCanChangeStep);
                   this.isChangeStepLoading = false;
@@ -425,159 +446,159 @@ export default {
 </script>
 
 <style lang="scss">
-  @import '@/scss/mixins/clearfix';
-  @import '@/scss/conf';
+@import '@/scss/mixins/clearfix';
+@import '@/scss/conf';
 
-  .access-wrapper {
-    padding: 20px 24px;
-  }
+.access-wrapper {
+  padding: 20px 24px;
+}
 
-  .iframe-container {
-    padding: 0;
-  }
+.iframe-container {
+  padding: 0;
+}
 
-  .access-container {
+.access-container {
+  position: relative;
+  display: flex;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  border: 1px solid $borderWeightColor;
+}
+
+.access-step-wrapper {
+  width: 200px;
+  padding-left: 30px;
+  background: $bgHoverColor;
+  border-right: 1px solid $borderWeightColor;
+
+  .fixed-steps {
     position: relative;
-    display: flex;
-    width: 100%;
-    height: 100%;
-    overflow: hidden;
-    border: 1px solid $borderWeightColor;
-  }
+    max-height: 100%;
+    margin-top: 40px;
 
-  .access-step-wrapper {
-    width: 200px;
-    padding-left: 30px;
-    background: $bgHoverColor;
-    border-right: 1px solid $borderWeightColor;
-
-    .fixed-steps {
-      position: relative;
-      max-height: 100%;
-      margin-top: 40px;
-
-      .bk-steps {
-        :last-child {
-          &::after {
-            display: none;
-          }
-        }
-      }
-
-      .bk-step {
-        display: flex;
-        height: 70px;
-        color: #7a7c85;
-        white-space: normal;
-
+    .bk-steps {
+      :last-child {
         &::after {
-          left: 14px;
-          width: 1px;
-          background: none;
-          border-left: 1px dashed #e5e6ec;
+          display: none;
         }
+      }
+    }
 
-        .bk-step-number {
-          display: inline-block;
-          width: 28px;
-          height: 28px;
-          margin-right: 10px;
-          font-size: 12px;
-          line-height: 28px;
-          color: #858790;
-          text-align: center;
-          border: 1px solid #c4c6cc;
+    .bk-step {
+      display: flex;
+      height: 70px;
+      color: #7a7c85;
+      white-space: normal;
+
+      &::after {
+        left: 14px;
+        width: 1px;
+        background: none;
+        border-left: 1px dashed #e5e6ec;
+      }
+
+      .bk-step-number {
+        display: inline-block;
+        width: 28px;
+        height: 28px;
+        margin-right: 10px;
+        font-size: 12px;
+        line-height: 28px;
+        color: #858790;
+        text-align: center;
+        border: 1px solid #c4c6cc;
+        border-radius: 50%;
+        box-shadow: 0px 2px 4px 0px rgba(0, 130, 255, 0.15);
+      }
+
+      .bk-step-content {
+        display: inline-block;
+        width: 78%;
+        overflow: hidden;
+        hyphens: auto;
+      }
+
+      .bk-step-title {
+        display: inline;
+        color: #6e7079;
+      }
+
+      .bk-step-indicator {
+        width: 28px;
+        height: 28px;
+        line-height: 26px;
+      }
+    }
+
+    .current {
+      .bk-step-number {
+        color: #fff;
+        background: #3a84ff;
+        border: 1px solid #3a84ff;
+        box-shadow: 0px 2px 4px 0px rgba(0, 130, 255, 0.15);
+      }
+
+      .bk-step-title {
+        color: #448fff;
+      }
+    }
+
+    .done {
+      .bk-step-icon {
+        color: #fff;
+        border: 1px solid #dcdee5;
+      }
+
+      .bk-step-number {
+        position: relative;
+        color: #fafbfd;
+        background: #fafbfd;
+        box-shadow: 0px 2px 4px 0px rgba(0, 130, 255, 0.15);
+
+        &::before {
+          position: absolute;
+          top: 50%;
+          left: 50%;
+          width: 16px;
+          height: 16px;
+          content: '';
+          background-color: #fafbfd;
+          background-image: url('../../images/icons/finish.svg');
+          background-size: 100% 100%;
           border-radius: 50%;
-          box-shadow: 0px 2px 4px 0px rgba(0, 130, 255, 0.15);
-        }
-
-        .bk-step-content {
-          display: inline-block;
-          width: 78%;
-          overflow: hidden;
-          hyphens: auto;
-        }
-
-        .bk-step-title {
-          display: inline;
-          color: #6e7079;
-        }
-
-        .bk-step-indicator {
-          width: 28px;
-          height: 28px;
-          line-height: 26px;
+          transform: translate(-50%, -50%);
         }
       }
 
-      .current {
-        .bk-step-number {
-          color: #fff;
-          background: #3a84ff;
-          border: 1px solid #3a84ff;
-          box-shadow: 0px 2px 4px 0px rgba(0, 130, 255, 0.15);
-        }
+      // .bk-step-indicator {
+      //   background-color: #dcdee5;
+      // }
 
-        .bk-step-title {
-          color: #448fff;
-        }
+      .bk-step-title {
+        color: #63656e;
       }
-
-      .done {
-        .bk-step-icon {
-          color: #fff;
-          border: 1px solid #dcdee5;
-        }
-
-        .bk-step-number {
-          position: relative;
-          color: #fafbfd;
-          background: #fafbfd;
-          box-shadow: 0px 2px 4px 0px rgba(0, 130, 255, 0.15);
-
-          &::before {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            width: 16px;
-            height: 16px;
-            content: '';
-            background-color: #fafbfd;
-            background-image: url('../../images/icons/finish.svg');
-            background-size: 100% 100%;
-            border-radius: 50%;
-            transform: translate(-50%, -50%);
-          }
-        }
-
-        // .bk-step-indicator {
-        //   background-color: #dcdee5;
-        // }
-
-        .bk-step-title {
-          color: #63656e;
-        }
-      }
-    }
-
-    .step-arrow {
-      position: absolute;
-      top: 38px;
-      right: -1px;
-      width: 10px;
-      height: 10px;
-      background: #fff;
-      border-top: 1px solid $borderWeightColor;
-      border-right: 1px solid $borderWeightColor;
-      border-left: 1px solid transparent;
-      transform: rotate(-135deg);
-      transform-origin: 62% 0;
     }
   }
 
-  .access-step-container {
-    flex: 1;
-    width: calc(100% - 200px);
+  .step-arrow {
+    position: absolute;
+    top: 38px;
+    right: -1px;
+    width: 10px;
+    height: 10px;
     background: #fff;
+    border-top: 1px solid $borderWeightColor;
+    border-right: 1px solid $borderWeightColor;
+    border-left: 1px solid transparent;
+    transform: rotate(-135deg);
+    transform-origin: 62% 0;
   }
+}
+
+.access-step-container {
+  flex: 1;
+  width: calc(100% - 200px);
+  background: #fff;
+}
 </style>

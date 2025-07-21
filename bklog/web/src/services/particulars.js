@@ -29,28 +29,28 @@
  */
 
 const detailsList = {
-  url: '/databus/collectors/:collector_config_id/',
   method: 'get',
+  url: '/databus/collectors/:collector_config_id/',
 };
 
 const collectList = {
-  url: '/databus/collectors/:collector_config_id/subscription_status/',
   method: 'get',
+  url: '/databus/collectors/:collector_config_id/subscription_status/',
 };
 
 const retryList = {
-  url: '/databus/collectors/:collector_config_id/subscription_run/',
   method: 'post',
+  url: '/databus/collectors/:collector_config_id/subscription_run/',
 };
 
 const dataList = {
-  url: '/esb/databus/collectors/:collector_config_id/tail/',
   method: 'get',
+  url: '/esb/databus/collectors/:collector_config_id/tail/',
 };
 
 export default {
-  detailsList,
   collectList,
-  retryList,
   dataList,
+  detailsList,
+  retryList,
 };

@@ -29,26 +29,26 @@ import vue from 'vue';
 import { fieldTypeMap } from './constant';
 
 export default {
-  namespaced: true,
-  state: {
-    globalsData: {},
-    fieldTypeMap,
-    authContainerInfo: null, // 检索页或有侧边栏菜单父级路由展示的业务无权限页面信息
-  },
+  actions: {},
   getters: {
-    globalsData: state => state.globalsData,
-    authContainerInfo: state => state.authContainerInfo,
+    authContainerInfo: (state) => state.authContainerInfo,
+    globalsData: (state) => state.globalsData,
   },
   mutations: {
     setGlobalsData(state, globalsData) {
       vue.set(state, 'globalsData', globalsData);
     },
-    updateGlobalsData(state, globalsData) {
-      vue.set(state, 'globalsData', globalsData);
-    },
     updateAuthContainerInfo(state, info) {
       vue.set(state, 'authContainerInfo', info);
     },
+    updateGlobalsData(state, globalsData) {
+      vue.set(state, 'globalsData', globalsData);
+    },
   },
-  actions: {},
+  namespaced: true,
+  state: {
+    authContainerInfo: null, // 检索页或有侧边栏菜单父级路由展示的业务无权限页面信息
+    fieldTypeMap,
+    globalsData: {},
+  },
 };

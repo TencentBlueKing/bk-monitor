@@ -33,7 +33,13 @@ export default class EchartsSeries {
   public colors: string[] = [];
   public showExtremum = false;
   public chartOption = {};
-  public constructor({ chartType, colors, showExtremum, chartOption, lineWidth }: IChartOptionPorps) {
+  public constructor({
+    chartOption,
+    chartType,
+    colors,
+    lineWidth,
+    showExtremum,
+  }: IChartOptionPorps) {
     this.chartType = chartType;
     this.colors = colors;
     this.showExtremum = showExtremum;
@@ -43,17 +49,23 @@ export default class EchartsSeries {
   // 设置x轴label formatter方法
   public handleSetFormatterFunc(seriesData: any, map?: Map<number, string[]>) {
     let formatterFunc = null;
-    const minX = Array.isArray(seriesData[0]) ? seriesData[0][0] : seriesData[0].x;
+    const minX = Array.isArray(seriesData[0])
+      ? seriesData[0][0]
+      : seriesData[0].x;
     const [maxX] = seriesData[seriesData.length - 1];
     minX &&
       maxX &&
       (formatterFunc = (v: any) => {
         // 用绝对值兼容倒叙的情况
-        const duration = Math.abs(dayjs.duration(dayjs(maxX).diff(dayjs(minX))).asSeconds());
+        const duration = Math.abs(
+          dayjs.duration(dayjs(maxX).diff(dayjs(minX))).asSeconds()
+        );
         const stringValue = map?.get(v)?.[1];
         if (duration < 60 * 60 * 24) {
           if (duration < 60 * 5) {
-            return stringValue ?? dayjs.tz(v).format('HH:mm:ss').replace(/:00$/, '');
+            return (
+              stringValue ?? dayjs.tz(v).format('HH:mm:ss').replace(/:00$/, '')
+            );
           }
 
           return dayjs.tz(v).format('HH:mm:ss').replace(/:00$/, '');
@@ -76,13 +88,13 @@ export default class EchartsSeries {
   }
   public handleYxisLabelFormatter(num: number): string {
     const si = [
-      { value: 1, symbol: '' },
-      { value: 1e3, symbol: 'K' },
-      { value: 1e6, symbol: 'M' },
-      { value: 1e9, symbol: 'G' },
-      { value: 1e12, symbol: 'T' },
-      { value: 1e15, symbol: 'P' },
-      { value: 1e18, symbol: 'E' },
+      { symbol: '', value: 1 },
+      { symbol: 'K', value: 1e3 },
+      { symbol: 'M', value: 1e6 },
+      { symbol: 'G', value: 1e9 },
+      { symbol: 'T', value: 1e12 },
+      { symbol: 'P', value: 1e15 },
+      { symbol: 'E', value: 1e18 },
     ];
     const rx = /\.0+$|(\.[0-9]*[1-9])0+$/;
     let i;

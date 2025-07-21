@@ -28,10 +28,12 @@ import { DateRange } from '@blueking/date-picker/vue2';
 import dayjs from 'dayjs';
 
 import i18n from '../../language/i18n';
+
 import { TimeRangeType } from './time-range';
 
 /** 相对时间范围格式正则 */
-export const CUSTOM_TIME_RANGE_REG = /^now(([-+])(\d+)([m|h|d|w|M|y|Y]))?(\/[m|h|d|w|M|y|Y|fy])?/;
+export const CUSTOM_TIME_RANGE_REG =
+  /^now(([-+])(\d+)([m|h|d|w|M|y|Y]))?(\/[m|h|d|w|M|y|Y|fy])?/;
 type TimestampsType = [number, number];
 
 /** 处理时间范围的对象 */
@@ -53,11 +55,13 @@ export class TimeRange {
 
   /** 格式化时间范围 */
   format(str = 'YYYY-MM-DD HH:mm:ss'): TimeRangeType {
-    return this.value.map(item => item?.format?.(str) || null) as TimeRangeType;
+    return this.value.map(
+      (item) => item?.format?.(str) || null
+    ) as TimeRangeType;
   }
   /** 格式化成秒 */
   unix(): TimestampsType {
-    return this.value.map(item => {
+    return this.value.map((item) => {
       const val = item?.valueOf?.() || null;
       if (`${val}`.length === 10) {
         return val * 1000;
@@ -75,21 +79,30 @@ export const intTimestampStr = (str): null | number => {
 };
 
 /** 将格式为 ['now-1d', 'now'] 转换为 ['YYYY-MM-DD HH:mm:ss', 'YYYY-MM-DD HH:mm:ss'] */
-export const handleTransformTime = (value: TimeRangeType, format = 'YYYY-MM-DD HH:mm:ss'): TimeRangeType => {
+export const handleTransformTime = (
+  value: TimeRangeType,
+  format = 'YYYY-MM-DD HH:mm:ss'
+): TimeRangeType => {
   const timeRange = new TimeRange(value, format);
   return timeRange.format(format);
 };
 
 /** 转换成秒 */
 
-export const handleTransformToTimestamp = (value: TimeRangeType, format = 'YYYY-MM-DD HH:mm:ss'): TimestampsType => {
+export const handleTransformToTimestamp = (
+  value: TimeRangeType,
+  format = 'YYYY-MM-DD HH:mm:ss'
+): TimestampsType => {
   const timeRange = new TimeRange(value, format);
   return timeRange.unix();
 };
 
 /* 秒转换为字符串时间 */
-export function timestampTransformStr(value: number[], format = 'YYYY-MM-DD HH:mm:ss'): TimeRangeType {
-  return value.map(v => {
+export function timestampTransformStr(
+  value: number[],
+  format = 'YYYY-MM-DD HH:mm:ss'
+): TimeRangeType {
+  return value.map((v) => {
     if (String(v).length > 10) {
       return dayjs(Number(v)).format(format);
     }
@@ -165,6 +178,10 @@ export const shortcuts = [
 export const DEFAULT_TIME_RANGE: TimeRangeType = ['now-1h', 'now'];
 
 /*  */
-export const getTimeDisplay = timeRange => {
-  return new DateRange(timeRange, 'YYYY-MM-DD HH:mm:ss', window.timezone).toDisplayString();
+export const getTimeDisplay = (timeRange) => {
+  return new DateRange(
+    timeRange,
+    'YYYY-MM-DD HH:mm:ss',
+    window.timezone
+  ).toDisplayString();
 };

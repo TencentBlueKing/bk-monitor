@@ -32,11 +32,7 @@
     v-bkloading="{ isLoading: containerLoading }"
     data-test-id="custom_div_addNewCustomBox"
   >
-    <bk-form
-      ref="validateForm"
-      :label-width="getLabelWidth"
-      :model="formData"
-    >
+    <bk-form ref="validateForm" :label-width="getLabelWidth" :model="formData">
       <div class="create-form">
         <div class="form-title">{{ $t('基础信息') }}</div>
         <!-- 数据ID -->
@@ -46,11 +42,7 @@
           :property="'bk_data_id'"
           required
         >
-          <bk-input
-            class="form-input"
-            v-model="formData.bk_data_id"
-            disabled
-          >
+          <bk-input class="form-input" v-model="formData.bk_data_id" disabled>
           </bk-input>
         </bk-form-item>
         <!-- <bk-form-item :label="$t('数据token')" required :property="'name'">
@@ -73,11 +65,7 @@
           ></bk-input>
         </bk-form-item>
         <!-- 数据类型 -->
-        <bk-form-item
-          :label="$t('数据类型')"
-          :property="'name'"
-          required
-        >
+        <bk-form-item :label="$t('数据类型')" :property="'name'" required>
           <div style="min-width: 500px; margin-top: -4px">
             <div class="bk-button-group">
               <bk-button
@@ -92,13 +80,10 @@
                 {{ item.name }}
               </bk-button>
             </div>
-            <p
-              class="group-tip"
-              slot="tip"
-            >
+            <p class="group-tip" slot="tip">
               {{
                 $t(
-                  '自定义上报数据，可以通过采集器，或者指定协议例如otlp等方式进行上报，自定义上报有一定的使用要求，具体可以查看使用说明',
+                  '自定义上报数据，可以通过采集器，或者指定协议例如otlp等方式进行上报，自定义上报有一定的使用要求，具体可以查看使用说明'
                 )
               }}
             </p>
@@ -123,19 +108,14 @@
                 maxlength="50"
                 show-word-limit
               ></bk-input>
-              <span
-                v-if="!isTextValid"
-                class="text-error"
-                >{{ formData.collector_config_name_en }}</span
-              >
+              <span v-if="!isTextValid" class="text-error">{{
+                formData.collector_config_name_en
+              }}</span>
             </div>
             <span v-bk-tooltips.top="$t('自动转换成正确的数据名格式')">
-              <bk-button
-                v-if="!isTextValid"
-                text
-                @click="handleEnConvert"
-                >{{ $t('自动转换') }}</bk-button
-              >
+              <bk-button v-if="!isTextValid" text @click="handleEnConvert">{{
+                $t('自动转换')
+              }}</bk-button>
             </span>
           </div>
         </bk-form-item>
@@ -357,11 +337,9 @@
             class="disable-tips"
           >
             {{ $t('该集群未开启热数据设置') }}
-            <a
-              href="javascript:void(0);"
-              @click="jumpToEsAccess"
-              >{{ $t('前往ES源进行设置') }}</a
-            >
+            <a href="javascript:void(0);" @click="jumpToEsAccess">{{
+              $t('前往ES源进行设置')
+            }}</a>
           </span>
         </bk-form-item>
       </div>
@@ -379,10 +357,7 @@
         :style="`right: ${introWidth - 18}px`"
         :class="`drag-item ${!introWidth && 'hidden-drag'}`"
       >
-        <span
-          class="bk-icon icon-more"
-          @mousedown.left="dragBegin"
-        ></span>
+        <span class="bk-icon icon-more" @mousedown.left="dragBegin"></span>
       </div>
       <intro-panel
         :data="formData"
@@ -400,10 +375,7 @@
       >
         {{ $t('提交') }}
       </bk-button>
-      <bk-button
-        theme="default"
-        @click="cancel"
-      >
+      <bk-button theme="default" @click="cancel">
         {{ $t('取消') }}
       </bk-button>
     </div>
@@ -554,14 +526,20 @@ export default {
     defaultRetention() {
       const { storage_duration_time } = this.globalsData;
 
-      return storage_duration_time?.filter(item => item.default === true)[0].id;
+      return storage_duration_time?.filter((item) => item.default === true)[0]
+        .id;
     },
     isCloseDataLink() {
       // 没有可上报的链路时，编辑采集配置链路ID为0或null时，隐藏链路配置框，并且不做空值校验。
-      return !this.linkConfigurationList.length || (this.isEdit && !this.formData.data_link_id);
+      return (
+        !this.linkConfigurationList.length ||
+        (this.isEdit && !this.formData.data_link_id)
+      );
     },
     showGroupText() {
-      return Number(this.bkBizId) > 0 ? `${this.bkBizId}_bklog_` : `space_${Math.abs(Number(this.bkBizId))}_bklog_`;
+      return Number(this.bkBizId) > 0
+        ? `${this.bkBizId}_bklog_`
+        : `space_${Math.abs(Number(this.bkBizId))}_bklog_`;
     },
     getLabelWidth() {
       return this.$store.getters.isEnLanguage ? 133 : 103;
@@ -634,7 +612,7 @@ export default {
                 target_fields: this.fieldSettingData.targetFields || [],
               },
             })
-            .then(res => {
+            .then((res) => {
               res.result && this.messageSuccess(this.$t('保存成功'));
               this.isSubmit = true;
               this.cancel();
@@ -655,7 +633,7 @@ export default {
             bk_biz_id: this.bkBizId,
           },
         });
-        this.linkConfigurationList = res.data.filter(item => item.is_active);
+        this.linkConfigurationList = res.data.filter((item) => item.is_active);
       } catch (e) {
         console.warn(e);
       } finally {
@@ -761,101 +739,101 @@ export default {
 </script>
 
 <style lang="scss">
-  @import '@/scss/mixins/clearfix';
-  @import '@/scss/mixins/flex';
-  @import '@/scss/mixins/scroller';
-  @import '@/scss/storage';
+@import '@/scss/mixins/clearfix';
+@import '@/scss/mixins/flex';
+@import '@/scss/mixins/scroller';
+@import '@/scss/storage';
 
-  .custom-create-container {
-    padding: 0 24px;
+.custom-create-container {
+  padding: 0 24px;
 
-    .en-bk-form {
-      width: 680px;
+  .en-bk-form {
+    width: 680px;
 
-      .en-name-box {
-        align-items: center;
+    .en-name-box {
+      align-items: center;
 
-        @include flex-justify(space-between);
-      }
-
-      .text-error {
-        position: absolute;
-        top: 6px;
-        left: 12px;
-        display: inline-block;
-        font-size: 12px;
-        color: transparent;
-
-        /* stylelint-disable-next-line declaration-no-important */
-        text-decoration: red wavy underline !important;
-        pointer-events: none;
-      }
+      @include flex-justify(space-between);
     }
 
-    .create-form {
-      padding: 24px 37px;
-      margin-top: 20px;
-      overflow-x: hidden;
-      background: #fff;
-      border: 1px solid #dcdee5;
-      border-radius: 2px;
+    .text-error {
+      position: absolute;
+      top: 6px;
+      left: 12px;
+      display: inline-block;
+      font-size: 12px;
+      color: transparent;
 
-      .form-title {
-        margin-bottom: 24px;
-        font-size: 14px;
-        font-weight: 700;
-        color: #63656e;
-      }
-
-      .form-input {
-        width: 500px;
-      }
-
-      .group-tip {
-        font-size: 12px;
-        color: #979ba5;
-      }
-    }
-
-    .submit-btn {
-      margin: 20px 20px 100px;
-    }
-
-    .intro-container {
-      position: fixed;
-      top: 99px;
-      right: 0;
-      z-index: 999;
-      height: calc(100vh - 99px);
-      overflow: hidden;
-
-      .drag-item {
-        position: absolute;
-        top: 48%;
-        right: 304px;
-        z-index: 100;
-        display: inline-block;
-        width: 20px;
-        height: 40px;
-        color: #c4c6cc;
-        cursor: col-resize;
-        user-select: none;
-
-        &.hidden-drag {
-          display: none;
-        }
-
-        .icon-more::after {
-          position: absolute;
-          top: 12px;
-          left: 0;
-          content: '\e189';
-        }
-      }
-
-      &.draging-move {
-        border-left-color: #3a84ff;
-      }
+      /* stylelint-disable-next-line declaration-no-important */
+      text-decoration: red wavy underline !important;
+      pointer-events: none;
     }
   }
+
+  .create-form {
+    padding: 24px 37px;
+    margin-top: 20px;
+    overflow-x: hidden;
+    background: #fff;
+    border: 1px solid #dcdee5;
+    border-radius: 2px;
+
+    .form-title {
+      margin-bottom: 24px;
+      font-size: 14px;
+      font-weight: 700;
+      color: #63656e;
+    }
+
+    .form-input {
+      width: 500px;
+    }
+
+    .group-tip {
+      font-size: 12px;
+      color: #979ba5;
+    }
+  }
+
+  .submit-btn {
+    margin: 20px 20px 100px;
+  }
+
+  .intro-container {
+    position: fixed;
+    top: 99px;
+    right: 0;
+    z-index: 999;
+    height: calc(100vh - 99px);
+    overflow: hidden;
+
+    .drag-item {
+      position: absolute;
+      top: 48%;
+      right: 304px;
+      z-index: 100;
+      display: inline-block;
+      width: 20px;
+      height: 40px;
+      color: #c4c6cc;
+      cursor: col-resize;
+      user-select: none;
+
+      &.hidden-drag {
+        display: none;
+      }
+
+      .icon-more::after {
+        position: absolute;
+        top: 12px;
+        left: 0;
+        content: '\e189';
+      }
+    }
+
+    &.draging-move {
+      border-left-color: #3a84ff;
+    }
+  }
+}
 </style>

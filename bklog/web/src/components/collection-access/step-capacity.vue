@@ -330,7 +330,11 @@ export default {
   computed: {
     ...mapGetters('collect', ['curCollect']),
     showComputedCapacity() {
-      return this.formData.single_host_log_volume && this.formData.expect_host_size && this.formData.log_keep_days;
+      return (
+        this.formData.single_host_log_volume &&
+        this.formData.expect_host_size &&
+        this.formData.log_keep_days
+      );
     },
     computedCapacity() {
       const logVolume = Number(this.formData.single_host_log_volume) || 0;
@@ -406,7 +410,9 @@ export default {
           },
           data: {
             ...this.formData,
-            expect_access_data: this.formatDate(this.formData.expect_access_data),
+            expect_access_data: this.formatDate(
+              this.formData.expect_access_data
+            ),
           },
         });
         this.applyData = res.data;
@@ -473,85 +479,85 @@ export default {
 </script>
 
 <style lang="scss" scoped>
-  .step-capacity-container {
-    height: 100%;
+.step-capacity-container {
+  height: 100%;
 
-    .king-form {
-      padding: 24px 60px;
+  .king-form {
+    padding: 24px 60px;
 
-      .form-double-container {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        width: 800px;
-
-        .bk-form-item {
-          width: 350px;
-          margin: 0;
-        }
-
-        :deep(.bk-date-picker) {
-          width: 100%;
-        }
-      }
-
-      .text-form-item {
-        width: 800px;
-
-        .capacity-description-container {
-          padding: 5px 10px;
-          font-size: 12px;
-          line-height: 18px;
-          color: #63656e;
-          background-color: #fafbfd;
-          border: 1px solid #c4c6cc;
-          border-radius: 2px;
-
-          .content {
-            margin-left: 24px;
-          }
-
-          .red {
-            color: #ea3636;
-          }
-
-          .formula {
-            display: flex;
-
-            .column {
-              display: flex;
-              flex-flow: column;
-              text-align: center;
-              white-space: pre-wrap;
-            }
-          }
-        }
-      }
-    }
-
-    .button-container {
-      padding: 0 60px 100px;
-
-      .king-submit-button {
-        min-width: 86px;
-        margin-right: 10px;
-      }
-    }
-  }
-
-  .approval-detail-container {
-    height: 100%;
-    padding-top: 100px;
-    font-size: 14px;
-
-    .approval-text {
+    .form-double-container {
       display: flex;
-      flex-flow: column;
-      font-size: 16px;
+      align-items: center;
+      justify-content: space-between;
+      width: 800px;
 
-      .button-text {
-        margin-top: 16px;
+      .bk-form-item {
+        width: 350px;
+        margin: 0;
+      }
+
+      :deep(.bk-date-picker) {
+        width: 100%;
+      }
+    }
+
+    .text-form-item {
+      width: 800px;
+
+      .capacity-description-container {
+        padding: 5px 10px;
+        font-size: 12px;
+        line-height: 18px;
+        color: #63656e;
+        background-color: #fafbfd;
+        border: 1px solid #c4c6cc;
+        border-radius: 2px;
+
+        .content {
+          margin-left: 24px;
+        }
+
+        .red {
+          color: #ea3636;
+        }
+
+        .formula {
+          display: flex;
+
+          .column {
+            display: flex;
+            flex-flow: column;
+            text-align: center;
+            white-space: pre-wrap;
+          }
+        }
       }
     }
   }
+
+  .button-container {
+    padding: 0 60px 100px;
+
+    .king-submit-button {
+      min-width: 86px;
+      margin-right: 10px;
+    }
+  }
+}
+
+.approval-detail-container {
+  height: 100%;
+  padding-top: 100px;
+  font-size: 14px;
+
+  .approval-text {
+    display: flex;
+    flex-flow: column;
+    font-size: 16px;
+
+    .button-text {
+      margin-top: 16px;
+    }
+  }
+}
 </style>

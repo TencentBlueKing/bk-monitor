@@ -50,10 +50,7 @@
               colorClass[item.id],
             ]"
           ></span>
-          <span
-            v-if="isHaveRunning(item)"
-            class="running-circle"
-          ></span>
+          <span v-if="isHaveRunning(item)" class="running-circle"></span>
           <span>{{ statusNameList[item.id] }} {{ item.listNum }}</span>
         </div>
       </div>
@@ -74,20 +71,16 @@
           <span class="bk-icon icon-down-shape"></span>
           <span>{{ renderItem.collector_config_name }}</span>
         </div>
-        <div :class="['table-main', renderItem.isShowTable ? 'show' : 'hidden']">
-          <bk-table
-            :data="renderItem[navActive]"
-            size="small"
-          >
+        <div
+          :class="['table-main', renderItem.isShowTable ? 'show' : 'hidden']"
+        >
+          <bk-table :data="renderItem[navActive]" size="small">
             <bk-table-column
               width="80"
               label="id"
               prop="container_collector_config_id"
             ></bk-table-column>
-            <bk-table-column
-              :label="$t('名称')"
-              prop="name"
-            ></bk-table-column>
+            <bk-table-column :label="$t('名称')" prop="name"></bk-table-column>
             <bk-table-column :label="$t('状态')">
               <template #default="{ row }">
                 <div :class="row.status === 'running' ? 'rotate-div' : ''">
@@ -100,7 +93,11 @@
                       mode: 'spin',
                       size: 'small',
                     }"
-                    :class="['circle', row.status === 'running' ? 'rotate-icon' : 'nav-icon', colorClass[row.status]]"
+                    :class="[
+                      'circle',
+                      row.status === 'running' ? 'rotate-icon' : 'nav-icon',
+                      colorClass[row.status],
+                    ]"
                   ></span>
                   <span>{{ statusNameList[row.status] }}</span>
                 </div>
@@ -186,7 +183,9 @@ export default {
     },
   },
   created() {
-    this.curTaskIdStr = [...new Set([...this.curCollect.task_id_list])].join(',');
+    this.curTaskIdStr = [...new Set([...this.curCollect.task_id_list])].join(
+      ','
+    );
   },
   mounted() {
     this.getContainerList();
@@ -217,62 +216,80 @@ export default {
      */
     getContainerList(isPolling = '') {
       if (isPolling !== 'polling') this.$emit('update:is-loading', true);
-      const params = { collector_config_id: this.curCollect.collector_config_id };
+      const params = {
+        collector_config_id: this.curCollect.collector_config_id,
+      };
       this.$http
         .request('collect/getIssuedClusterList', {
           params,
           query: { task_id_list: this.curTaskIdStr },
         })
-        .then(res => {
+        .then((res) => {
           const data = JSON.parse(JSON.stringify(res.data.contents)) || [];
           this.allFailedIDList = [];
-          this.navBtnList.forEach(item => (item.listNum = 0));
+          this.navBtnList.forEach((item) => (item.listNum = 0));
           this.renderTitleList = data.reduce((pre, cur) => {
             cur.isShowTable = true;
-            this.navBtnList.forEach(item => (cur[item.id] = []));
+            this.navBtnList.forEach((item) => (cur[item.id] = []));
             if (cur.child.length) {
               cur.all = cur.child;
               for (const childItem of cur.child) {
-                childItem.status = childItem.status === 'PENDING' ? 'running' : childItem.status.toLowerCase();
-                childItem.status === 'failed' && this.allFailedIDList.push(childItem.container_collector_config_id);
+                childItem.status =
+                  childItem.status === 'PENDING'
+                    ? 'running'
+                    : childItem.status.toLowerCase();
+                childItem.status === 'failed' &&
+                  this.allFailedIDList.push(
+                    childItem.container_collector_config_id
+                  );
                 cur[childItem.status].push(childItem);
               }
               delete cur.child;
             }
-            this.navBtnList.forEach(item => (item.listNum += cur[item.id].length));
+            this.navBtnList.forEach(
+              (item) => (item.listNum += cur[item.id].length)
+            );
             pre.push(cur);
             return pre;
           }, []);
         })
-        .catch(err => {
+        .catch((err) => {
           console.warn(err);
         })
         .finally(() => {
           this.$emit('update:is-loading', false);
-          if (isPolling === 'polling' && !this.hasRunning) clearInterval(this.timer);
+          if (isPolling === 'polling' && !this.hasRunning)
+            clearInterval(this.timer);
         });
     },
     issuedRetry(alone = '', renderItem, row) {
-      const retrySubmitList = alone ? [row.container_collector_config_id] : this.allFailedIDList;
+      const retrySubmitList = alone
+        ? [row.container_collector_config_id]
+        : this.allFailedIDList;
       // ID列表为空或者全局失败数为0时不请求
       if (!retrySubmitList.length || !this.navBtnList[2].listNum) return;
       if (row) {
         row.status = 'running'; // 单选 单独变成running状态
         // 失败-1 执行中+1
         renderItem.running.push(row);
-        const renderIndex = renderItem.failed.findIndex(item => item.name === row.name);
+        const renderIndex = renderItem.failed.findIndex(
+          (item) => item.name === row.name
+        );
         renderItem.failed.splice(renderIndex, 1);
         this.navBtnList[3].listNum += 1;
         this.navBtnList[2].listNum -= 1;
       } else {
         // 批量重试 清空失败 将所有的失败添加到执行中
-        this.renderTitleList.forEach(tableItem => {
-          tableItem.all.forEach(item => item.status === 'failed' && (item.status = 'running'));
-          tableItem.failed.forEach(item => (item.status = 'running'));
+        this.renderTitleList.forEach((tableItem) => {
+          tableItem.all.forEach(
+            (item) => item.status === 'failed' && (item.status = 'running')
+          );
+          tableItem.failed.forEach((item) => (item.status = 'running'));
           tableItem.running.push(...tableItem.failed);
           tableItem.failed = [];
         });
-        this.navBtnList[3].listNum = this.navBtnList[3].listNum + this.navBtnList[2].listNum;
+        this.navBtnList[3].listNum =
+          this.navBtnList[3].listNum + this.navBtnList[2].listNum;
         this.navBtnList[2].listNum = 0;
       }
       this.$http
@@ -287,7 +304,7 @@ export default {
         .then(() => {
           this.pollingStatus();
         })
-        .catch(e => {
+        .catch((e) => {
           console.warn(e);
         });
     },
@@ -302,157 +319,157 @@ export default {
 };
 </script>
 <style lang="scss">
-  @import '@/scss/mixins/flex.scss';
+@import '@/scss/mixins/flex.scss';
 
-  .container-status-container {
-    .nav-section {
+.container-status-container {
+  .nav-section {
+    @include flex-justify(space-between);
+
+    .nav-btn-box {
+      align-items: center;
+      min-width: 327px;
+      height: 36px;
+      padding: 5px 4px;
+      font-size: 14px;
+      background: #f0f1f5;
+      border-radius: 4px;
+
       @include flex-justify(space-between);
 
-      .nav-btn-box {
-        align-items: center;
-        min-width: 327px;
-        height: 36px;
-        padding: 5px 4px;
-        font-size: 14px;
-        background: #f0f1f5;
+      .nav-btn {
+        position: relative;
+        padding: 4px 15px;
+        color: #63656e;
         border-radius: 4px;
 
-        @include flex-justify(space-between);
-
-        .nav-btn {
-          position: relative;
-          padding: 4px 15px;
-          color: #63656e;
-          border-radius: 4px;
-
-          &:not(:last-child)::after {
-            position: absolute;
-            top: 3px;
-            right: -8px;
-            color: #dcdee5;
-            content: '|';
-          }
-
-          &:not(:first-child) {
-            margin-left: 12px;
-          }
-
-          &:hover {
-            cursor: pointer;
-            background: #fff;
-          }
-
-          &.active {
-            color: #3a84ff;
-            background: #fff;
-          }
-        }
-      }
-    }
-
-    .nav-icon {
-      display: inline-block;
-      width: 10px;
-      height: 10px;
-      border-radius: 50%;
-
-      &.circle {
-        &::after {
+        &:not(:last-child)::after {
           position: absolute;
-          top: -3px;
-          left: -3px;
-          display: inline-block;
-          width: 16px;
-          height: 16px;
-          content: ' ';
-          border-radius: 50%;
+          top: 3px;
+          right: -8px;
+          color: #dcdee5;
+          content: '|';
         }
-      }
 
-      &.circle-green {
-        background: #3fc06d;
-
-        &::after {
-          background: rgba(63, 192, 109, 0.16);
+        &:not(:first-child) {
+          margin-left: 12px;
         }
-      }
 
-      &.circle-red {
-        background: #ea3636;
-
-        &::after {
-          background: rgba(234, 54, 54, 0.16);
-        }
-      }
-    }
-
-    .rotate-div {
-      transform: translateX(12px);
-    }
-
-    .rotate-icon {
-      position: absolute;
-      top: -4px;
-      left: 8px;
-      display: inline-block;
-      transform: scale(0.6);
-    }
-
-    .running-circle {
-      display: inline-block;
-      width: 10px;
-      height: 10px;
-    }
-
-    .table-section {
-      .table-item {
-        margin-top: 20px;
-
-        .table-title {
-          padding: 10px 23px;
-          font-size: 12px;
+        &:hover {
           cursor: pointer;
-          background: #f0f1f5;
-          border: 1px solid #dcdee5;
-          border-bottom: none;
-
-          > span {
-            &:first-child {
-              font-size: 14px;
-            }
-
-            &:nth-child(2) {
-              font-weight: 700;
-              color: #63656e;
-            }
-          }
-
-          .icon-down-shape {
-            display: inline-block;
-            transform: translateY(-1px);
-          }
-
-          &.close-table {
-            border-bottom: 1px solid #dcdee5;
-
-            .icon-down-shape {
-              transform: rotateZ(-90deg) translateX(1px);
-            }
-          }
+          background: #fff;
         }
 
-        .retry {
+        &.active {
           color: #3a84ff;
+          background: #fff;
         }
-      }
-
-      .hidden {
-        height: 0px;
-      }
-
-      .show {
-        height: auto;
       }
     }
   }
+
+  .nav-icon {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+
+    &.circle {
+      &::after {
+        position: absolute;
+        top: -3px;
+        left: -3px;
+        display: inline-block;
+        width: 16px;
+        height: 16px;
+        content: ' ';
+        border-radius: 50%;
+      }
+    }
+
+    &.circle-green {
+      background: #3fc06d;
+
+      &::after {
+        background: rgba(63, 192, 109, 0.16);
+      }
+    }
+
+    &.circle-red {
+      background: #ea3636;
+
+      &::after {
+        background: rgba(234, 54, 54, 0.16);
+      }
+    }
+  }
+
+  .rotate-div {
+    transform: translateX(12px);
+  }
+
+  .rotate-icon {
+    position: absolute;
+    top: -4px;
+    left: 8px;
+    display: inline-block;
+    transform: scale(0.6);
+  }
+
+  .running-circle {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+  }
+
+  .table-section {
+    .table-item {
+      margin-top: 20px;
+
+      .table-title {
+        padding: 10px 23px;
+        font-size: 12px;
+        cursor: pointer;
+        background: #f0f1f5;
+        border: 1px solid #dcdee5;
+        border-bottom: none;
+
+        > span {
+          &:first-child {
+            font-size: 14px;
+          }
+
+          &:nth-child(2) {
+            font-weight: 700;
+            color: #63656e;
+          }
+        }
+
+        .icon-down-shape {
+          display: inline-block;
+          transform: translateY(-1px);
+        }
+
+        &.close-table {
+          border-bottom: 1px solid #dcdee5;
+
+          .icon-down-shape {
+            transform: rotateZ(-90deg) translateX(1px);
+          }
+        }
+      }
+
+      .retry {
+        color: #3a84ff;
+      }
+    }
+
+    .hidden {
+      height: 0px;
+    }
+
+    .show {
+      height: auto;
+    }
+  }
+}
 </style>

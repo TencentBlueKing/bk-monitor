@@ -162,7 +162,7 @@ export default {
     formatFilters() {
       const { etl_config: etlConfig } = this.globalsData;
       const target = [];
-      etlConfig?.forEach(data => {
+      etlConfig?.forEach((data) => {
         target.push({
           text: data.name,
           value: data.id,
@@ -189,10 +189,13 @@ export default {
       });
     },
     handleFilterChange(data) {
-      Object.keys(data).forEach(item => {
+      Object.keys(data).forEach((item) => {
         this.params[item] = data[item].join('');
       });
-      this.isFilterSearch = Object.values(data).reduce((pre, cur) => ((pre += cur.length), pre), 0);
+      this.isFilterSearch = Object.values(data).reduce(
+        (pre, cur) => ((pre += cur.length), pre),
+        0
+      );
       this.search();
     },
     /**
@@ -220,7 +223,8 @@ export default {
     },
     requestData() {
       this.isTableLoading = true;
-      this.emptyType = this.params.keyword || this.isFilterSearch ? 'search-empty' : 'empty';
+      this.emptyType =
+        this.params.keyword || this.isFilterSearch ? 'search-empty' : 'empty';
       this.$http
         .request('clean/cleanTemplate', {
           query: {
@@ -230,12 +234,12 @@ export default {
             pagesize: this.pagination.limit,
           },
         })
-        .then(res => {
+        .then((res) => {
           const { data } = res;
           this.pagination.count = data.total;
           this.templateList = data.list;
         })
-        .catch(err => {
+        .catch((err) => {
           console.warn(err);
         })
         .finally(() => {
@@ -277,7 +281,7 @@ export default {
             bk_biz_id: this.bkBizId,
           },
         })
-        .then(res => {
+        .then((res) => {
           if (res.result) {
             const page =
               this.templateList.length <= 1
@@ -297,7 +301,7 @@ export default {
     },
     getFormatName(row) {
       const cleantype = row.clean_type;
-      const matchItem = this.globalsData.etl_config.find(conf => {
+      const matchItem = this.globalsData.etl_config.find((conf) => {
         return conf.id === cleantype;
       });
       return matchItem ? matchItem.name : '';
@@ -326,44 +330,44 @@ export default {
 </script>
 
 <style lang="scss">
-  @import '@/scss/mixins/clearfix';
-  @import '@/scss/conf';
-  @import '@/scss/devops-common.scss';
+@import '@/scss/mixins/clearfix';
+@import '@/scss/conf';
+@import '@/scss/devops-common.scss';
 
-  .clean-template-container {
-    padding: 20px 24px;
+.clean-template-container {
+  padding: 20px 24px;
 
-    .top-operation {
-      margin-bottom: 20px;
+  .top-operation {
+    margin-bottom: 20px;
 
-      @include clearfix;
+    @include clearfix;
 
-      .bk-button {
-        width: 120px;
-      }
+    .bk-button {
+      width: 120px;
+    }
+  }
+
+  .clean-search {
+    width: 360px;
+  }
+
+  .clean-table {
+    overflow: visible;
+
+    .text-disabled {
+      color: #c4c6cc;
     }
 
-    .clean-search {
-      width: 360px;
+    .text-active {
+      color: #3a84ff;
+      cursor: pointer;
     }
 
-    .clean-table {
-      overflow: visible;
-
-      .text-disabled {
-        color: #c4c6cc;
-      }
-
-      .text-active {
-        color: #3a84ff;
-        cursor: pointer;
-      }
-
-      .filter-column {
-        .cell {
-          display: flex;
-        }
+    .filter-column {
+      .cell {
+        display: flex;
       }
     }
   }
+}
 </style>

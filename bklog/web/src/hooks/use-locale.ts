@@ -30,7 +30,7 @@ export const t = i18n.t.bind(i18n);
 export default () => {
   const t = i18n.t.bind(i18n);
   return {
-    t,
     $t: t,
+    t,
   };
 };

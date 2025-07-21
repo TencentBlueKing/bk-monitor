@@ -1,16 +1,7 @@
 <template>
-  <div
-    class="field-table-container"
-    v-bkloading="{ isLoading: isExtracting }"
-  >
-    <div
-      v-if="tableType === 'indexLog'"
-      class="field-header"
-    >
-      <div
-        class="field-add-btn"
-        @click="batchAddField"
-      >
+  <div class="field-table-container" v-bkloading="{ isLoading: isExtracting }">
+    <div v-if="tableType === 'indexLog'" class="field-header">
+      <div class="field-add-btn" @click="batchAddField">
         {{ $t('前往清洗') }}<span class="bklog-icon bklog-jump"></span>
       </div>
       <div style="display: flex; align-items: center">
@@ -35,11 +26,7 @@
       </div>
     </div>
     <div>
-      <bk-form
-        ref="fieldsForm"
-        :label-width="0"
-        :model="formData"
-      >
+      <bk-form ref="fieldsForm" :label-width="0" :model="formData">
         <bk-table
           class="field-table add-field-table"
           :data="changeTableList"
@@ -63,47 +50,73 @@
                   class="field-name-overflow-tips"
                   v-bk-overflow-tips
                 >
-                  <span 
-                    v-if="props.row.children?.length && !props.row.expand" 
-                    @click="expandObject(props.row,true)" 
-                    class="ext-btn rotate bklog-icon bklog-arrow-down-filled">
+                  <span
+                    v-if="props.row.children?.length && !props.row.expand"
+                    @click="expandObject(props.row, true)"
+                    class="ext-btn rotate bklog-icon bklog-arrow-down-filled"
+                  >
                   </span>
-                  <span 
-                    v-if="props.row.children?.length && props.row.expand" 
-                    @click="expandObject(props.row,false)" 
-                    class="ext-btn bklog-icon bklog-arrow-down-filled">
+                  <span
+                    v-if="props.row.children?.length && props.row.expand"
+                    @click="expandObject(props.row, false)"
+                    class="ext-btn bklog-icon bklog-arrow-down-filled"
+                  >
                   </span>
-                 
+
                   <!-- 如果为内置字段且有alias_name则优先展示alias_name -->
-                  <div 
-                    v-if="aliasShow(props.row)" 
+                  <div
+                    v-if="aliasShow(props.row)"
                     v-bk-tooltips.top="$t('字段名不支持快速修改')"
-                    class="field-name">
-                    <span v-if="props.row.is_objectKey" class="bklog-icon bklog-subnode"></span>
-                    {{ props.row.field_name }} 
+                    class="field-name"
+                  >
+                    <span
+                      v-if="props.row.is_objectKey"
+                      class="bklog-icon bklog-subnode"
+                    ></span>
+                    {{ props.row.field_name }}
                   </div>
-                  <div v-else-if="props.row.is_built_in && props.row.alias_name" v-bk-tooltips.top="$t('字段名不支持快速修改')" class="field-name">{{ props.row.alias_name }} </div>
+                  <div
+                    v-else-if="props.row.is_built_in && props.row.alias_name"
+                    v-bk-tooltips.top="$t('字段名不支持快速修改')"
+                    class="field-name"
+                  >
+                    {{ props.row.alias_name }}
+                  </div>
                   <div v-else class="field-name-box">
                     <div class="alias-name">{{ props.row.field_name }}</div>
-                    <div 
+                    <div
                       class="participle-icon"
-                      :class="getFieldEditDisabled(props.row)?'participle-icon-color':''"
+                      :class="
+                        getFieldEditDisabled(props.row)
+                          ? 'participle-icon-color'
+                          : ''
+                      "
                     >
                       <i
-                      style ='color: #3A84FF;margin: 0 10px;'
-                      class="bk-icon bklog-icon bklog-yingshe"
-                    ></i>
+                        style="color: #3a84ff; margin: 0 10px"
+                        class="bk-icon bklog-icon bklog-yingshe"
+                      ></i>
                     </div>
-                    <div class="alias-name" v-if="isPreviewMode || props.row.is_built_in">{{ props.row.alias_name}}</div>
-                    <bk-input class="alias-name" v-else v-model.trim="props.row.alias_name" @blur="checkAliasNameItem(props.row)"></bk-input>
-                    <template v-if="props.row.fieldErr">
-                    <i
-                      style="right: 8px"
-                      class="bk-icon icon-exclamation-circle-shape tooltips-icon"
-                      v-bk-tooltips.top="props.row.fieldErr"
+                    <div
+                      class="alias-name"
+                      v-if="isPreviewMode || props.row.is_built_in"
                     >
-                    </i>
-                  </template>
+                      {{ props.row.alias_name }}
+                    </div>
+                    <bk-input
+                      class="alias-name"
+                      v-else
+                      v-model.trim="props.row.alias_name"
+                      @blur="checkAliasNameItem(props.row)"
+                    ></bk-input>
+                    <template v-if="props.row.fieldErr">
+                      <i
+                        style="right: 8px"
+                        class="bk-icon icon-exclamation-circle-shape tooltips-icon"
+                        v-bk-tooltips.top="props.row.fieldErr"
+                      >
+                      </i>
+                    </template>
                   </div>
                 </div>
                 <bk-form-item
@@ -135,7 +148,11 @@
             >
               <template #default="props">
                 <div
-                  v-if="(!props.row.is_edit && isPreviewMode) || tableType === 'originLog' || props.row.field_type === 'object'"
+                  v-if="
+                    (!props.row.is_edit && isPreviewMode) ||
+                    tableType === 'originLog' ||
+                    props.row.field_type === 'object'
+                  "
                   class="overflow-tips"
                   v-bk-overflow-tips
                 >
@@ -147,7 +164,7 @@
                 >
                   <bk-input
                     v-model.trim="props.row.query_alias"
-                    :disabled="props.row.is_delete || isSetDisabled "
+                    :disabled="props.row.is_delete || isSetDisabled"
                     @blur="checkQueryAliasItem(props.row)"
                   >
                   </bk-input>
@@ -174,7 +191,9 @@
                   class="overflow-tips"
                   v-bk-overflow-tips
                 >
-                  <span v-bk-tooltips.top="$t('字段类型不支持快速修改')">{{ props.row.field_type }}</span>
+                  <span v-bk-tooltips.top="$t('字段类型不支持快速修改')">{{
+                    props.row.field_type
+                  }}</span>
                 </div>
                 <bk-form-item
                   v-else
@@ -185,7 +204,7 @@
                     :clearable="false"
                     :disabled="props.row.is_delete || isSetDisabled"
                     @selected="
-                      value => {
+                      (value) => {
                         fieldTypeSelect(value, props.row, props.$index);
                       }
                     "
@@ -219,16 +238,26 @@
               <template #default="props">
                 <!-- 预览模式-->
                 <template
-                  v-if="(isPreviewMode && !props.row.is_edit) || (tableType === 'indexLog' && props.row.is_built_in)"
+                  v-if="
+                    (isPreviewMode && !props.row.is_edit) ||
+                    (tableType === 'indexLog' && props.row.is_built_in)
+                  "
                 >
                   <div
                     v-if="props.row.is_analyzed"
                     style="width: 85%; margin-left: 15px"
                   >
                     <div>
-                      {{ props.row.participleState === 'custom' ? props.row.tokenize_on_chars :  $t('自然语言分词') }}
+                      {{
+                        props.row.participleState === 'custom'
+                          ? props.row.tokenize_on_chars
+                          : $t('自然语言分词')
+                      }}
                     </div>
-                    <div>{{ $t('大小写敏感') }}: {{ props.row.is_case_sensitive ? $t('是') : $t('否') }}</div>
+                    <div>
+                      {{ $t('大小写敏感') }}:
+                      {{ props.row.is_case_sensitive ? $t('是') : $t('否') }}
+                    </div>
                   </div>
                   <div
                     v-else-if="props.row.is_built_in"
@@ -237,10 +266,7 @@
                   >
                     {{ $t('不分词') }}
                   </div>
-                  <div
-                    v-else
-                    style="width: 85%; margin-left: 15px"
-                  >
+                  <div v-else style="width: 85%; margin-left: 15px">
                     {{ $t('不分词') }}
                   </div>
                 </template>
@@ -250,7 +276,9 @@
                       class="participle-popconfirm"
                       :is-show="isShowParticiple"
                       trigger="click"
-                      @confirm="handleConfirmParticiple(props.row, props.$index)"
+                      @confirm="
+                        handleConfirmParticiple(props.row, props.$index)
+                      "
                     >
                       <template #content>
                         <div>
@@ -266,7 +294,9 @@
                               >
                                 <bk-switcher
                                   v-model="currentIsAnalyzed"
-                                  :disabled="getCustomizeDisabled(props.row, 'analyzed')"
+                                  :disabled="
+                                    getCustomizeDisabled(props.row, 'analyzed')
+                                  "
                                   theme="primary"
                                   @change="() => handelChangeAnalyzed()"
                                 ></bk-switcher>
@@ -279,11 +309,20 @@
                                   <bk-button
                                     v-for="option in participleList"
                                     class="participle-btn"
-                                    :class="currentParticipleState === option.id ? 'is-selected' : ''"
+                                    :class="
+                                      currentParticipleState === option.id
+                                        ? 'is-selected'
+                                        : ''
+                                    "
                                     :data-test-id="`fieldExtractionBox_button_filterMethod${option.id}`"
                                     :disabled="getCustomizeDisabled(props.row)"
                                     :key="option.id"
-                                    @click="handleChangeParticipleState(option.id, props.$index)"
+                                    @click="
+                                      handleChangeParticipleState(
+                                        option.id,
+                                        props.$index
+                                      )
+                                    "
                                   >
                                     {{ option.name }}
                                   </bk-button>
@@ -314,22 +353,27 @@
                         class="participle-cell-wrap"
                         @click="handlePopover(props.row, props.$index)"
                       >
-                        <div
-                          v-if="props.row.is_analyzed"
-                          style="width: 85%"
-                        >
+                        <div v-if="props.row.is_analyzed" style="width: 85%">
                           <div>
-                            {{ props.row.participleState === 'custom' ? props.row.tokenize_on_chars : $t('自然语言分词') }}
+                            {{
+                              props.row.participleState === 'custom'
+                                ? props.row.tokenize_on_chars
+                                : $t('自然语言分词')
+                            }}
                           </div>
-                          <div>{{ $t('大小写敏感') }}: {{ props.row.is_case_sensitive ? $t('是') : $t('否') }}</div>
+                          <div>
+                            {{ $t('大小写敏感') }}:
+                            {{
+                              props.row.is_case_sensitive ? $t('是') : $t('否')
+                            }}
+                          </div>
                         </div>
-                        <div
-                          v-else
-                          style="width: 85%"
-                        >
+                        <div v-else style="width: 85%">
                           {{ $t('不分词') }}
                         </div>
-                        <div class="participle-select-icon bk-icon icon-angle-down"></div>
+                        <div
+                          class="participle-select-icon bk-icon icon-angle-down"
+                        ></div>
                       </div>
                     </bk-popconfirm>
                   </div>
@@ -344,10 +388,7 @@
                 </template>
               </template>
             </bk-table-column>
-            <div
-              class="empty-text"
-              slot="empty"
-            >
+            <div class="empty-text" slot="empty">
               {{ $t('暂无数据') }}
             </div>
           </template>
@@ -514,12 +555,15 @@ export default {
       return [...this.tableList, ...this.builtFields];
     },
     changeTableList() {
-      const currentTableList = this.builtFieldVisible ? this.tableAllList : this.tableList;
+      const currentTableList = this.builtFieldVisible
+        ? this.tableAllList
+        : this.tableList;
       if (this.keyword) {
         const query = this.keyword.toLowerCase();
         return currentTableList.filter(
-          item =>
-            item.field_name.toLowerCase().includes(query) || (item.query_alias?.toLowerCase().includes(query) ?? false)
+          (item) =>
+            item.field_name.toLowerCase().includes(query) ||
+            (item.query_alias?.toLowerCase().includes(query) ?? false)
         );
       } else {
         return currentTableList;
@@ -561,11 +605,11 @@ export default {
         }
         return list;
       }, arr);
-      arr.forEach(item => (item.previous_type = item.field_type));
+      arr.forEach((item) => (item.previous_type = item.field_type));
 
       if (this.isEditJson === false && !this.isTempField) {
         // 新建JSON时，类型如果不是数字，则默认为字符串
-        arr.forEach(item => {
+        arr.forEach((item) => {
           if (typeof item.value !== 'number') {
             item.field_type = 'string';
             item.previous_type = 'string';
@@ -574,7 +618,7 @@ export default {
       }
 
       // 根据预览值 value 判断不是数字，则默认为字符串
-      arr.forEach(item => {
+      arr.forEach((item) => {
         const { value, field_type } = item;
         item.participleState = item.tokenize_on_chars ? 'custom' : 'default';
 
@@ -592,7 +636,9 @@ export default {
     batchAddField() {
       const indexSetList = this.$store.state.retrieve.indexSetList;
       const indexSetId = this.$route.params?.indexId;
-      const currentIndexSet = indexSetList.find(item => `${item.index_set_id}` == indexSetId);
+      const currentIndexSet = indexSetList.find(
+        (item) => `${item.index_set_id}` == indexSetId
+      );
 
       if (!this.collectorConfigId) return;
       const newURL = this.$router.resolve({
@@ -633,7 +679,7 @@ export default {
         Object.assign(this.changeTableList[$index], assignObj);
       }
       if (fieldType && this.curCollect.table_id) {
-        const row = this.fields.find(item => item.field_name === fieldName);
+        const row = this.fields.find((item) => item.field_name === fieldName);
         if (row?.field_type && row.field_type !== val) {
           const h = this.$createElement;
           this.$bkInfo({
@@ -646,7 +692,9 @@ export default {
                   whiteSpace: 'normal',
                 },
               },
-              this.$t('更改字段类型后在同时检索新老数据时可能会出现异常，确认请继续')
+              this.$t(
+                '更改字段类型后在同时检索新老数据时可能会出现异常，确认请继续'
+              )
             ),
             type: 'warning',
             confirmFn: () => {
@@ -694,7 +742,8 @@ export default {
     },
     handleChangeParticipleState(state) {
       this.currentParticipleState = state;
-      this.currentTokenizeOnChars = state === 'custom' ? this.originalTextTokenizeOnChars : '';
+      this.currentTokenizeOnChars =
+        state === 'custom' ? this.originalTextTokenizeOnChars : '';
     },
     judgeNumber(value) {
       if (value === 0) return false;
@@ -704,7 +753,7 @@ export default {
     getData() {
       const data = cloneDeep(this.changeTableList);
 
-      data.forEach(item => {
+      data.forEach((item) => {
         if (item.hasOwnProperty('fieldErr')) {
           delete item.fieldErr;
         }
@@ -720,14 +769,14 @@ export default {
     },
     getAllData() {
       const data = cloneDeep(this.tableAllList);
-      data.forEach(field => {
+      data.forEach((field) => {
         if (field.hasOwnProperty('expand')) {
           if (field.expand === false) {
             data.push(...field.children);
           }
         }
       });
-      data.forEach(item => {
+      data.forEach((item) => {
         if (item.hasOwnProperty('fieldErr')) {
           delete item.fieldErr;
         }
@@ -757,7 +806,7 @@ export default {
       return new Promise((resolve, reject) => {
         try {
           let result = true;
-          this.formData.tableList.forEach(row => {
+          this.formData.tableList.forEach((row) => {
             if (!this.checkTypeItem(row)) {
               result = false;
             }
@@ -775,23 +824,34 @@ export default {
       });
     },
     checkFieldNameItem(row) {
-      const { field_name, is_delete, field_index, is_built_in, alias_name } = row;
+      const { field_name, is_delete, field_index, is_built_in, alias_name } =
+        row;
       let result = '';
       if (!is_delete && !is_built_in && !alias_name) {
         if (!field_name) {
           result = this.$t('必填项');
-        } else if (this.extractMethod !== 'bk_log_json' && !/^(?!_)(?!.*?_$)^[A-Za-z0-9_]+$/gi.test(field_name)) {
+        } else if (
+          this.extractMethod !== 'bk_log_json' &&
+          !/^(?!_)(?!.*?_$)^[A-Za-z0-9_]+$/gi.test(field_name)
+        ) {
           result = this.$t('只能包含a-z、A-Z、0-9和_，且不能以_开头和结尾');
         } else if (
           this.extractMethod !== 'bk_log_json' &&
-          this.globalsData.field_built_in.find(item => item.id === field_name.toLocaleLowerCase())
+          this.globalsData.field_built_in.find(
+            (item) => item.id === field_name.toLocaleLowerCase()
+          )
         ) {
           result =
             this.extractMethod === 'bk_log_regexp'
               ? this.$t('字段名与系统字段重复，必须修改正则表达式')
               : this.$t('字段名与系统内置字段重复');
-        } else if (this.extractMethod === 'bk_log_delimiter' || this.selectEtlConfig === 'bk_log_json') {
-          result = this.filedNameIsConflict(field_index, field_name) ? this.$t('字段名称冲突, 请调整') : '';
+        } else if (
+          this.extractMethod === 'bk_log_delimiter' ||
+          this.selectEtlConfig === 'bk_log_json'
+        ) {
+          result = this.filedNameIsConflict(field_index, field_name)
+            ? this.$t('字段名称冲突, 请调整')
+            : '';
         } else {
           result = '';
         }
@@ -806,10 +866,11 @@ export default {
       return new Promise((resolve, reject) => {
         try {
           let result = true;
-          this.formData.tableList.forEach(row => {
+          this.formData.tableList.forEach((row) => {
             // 如果有重命名，不判断字段名，判断重命名，如果为内置字段不判断
             if (!row.is_built_in) {
-              const hasAliasNameIssue = row.alias_name && !this.checkAliasNameItem(row);
+              const hasAliasNameIssue =
+                row.alias_name && !this.checkAliasNameItem(row);
               const hasFieldNameIssue = this.checkFieldNameItem(row);
               if (hasAliasNameIssue || hasFieldNameIssue) {
                 result = false;
@@ -829,7 +890,11 @@ export default {
       });
     },
     checkAliasNameItem(row) {
-      const { field_name: fieldName, alias_name: aliasName, is_delete: isDelete } = row;
+      const {
+        field_name: fieldName,
+        alias_name: aliasName,
+        is_delete: isDelete,
+      } = row;
       if (isDelete) {
         return true;
       }
@@ -842,7 +907,9 @@ export default {
           row.fieldErr = this.$t('重命名与字段名重复');
         }
         if (
-          this.globalsData.field_built_in.find(item => item.id === aliasName.toLocaleLowerCase()) &&
+          this.globalsData.field_built_in.find(
+            (item) => item.id === aliasName.toLocaleLowerCase()
+          ) &&
           this.tableType !== 'originLog'
         ) {
           row.fieldErr = this.$t('重命名不能与内置字段名相同');
@@ -857,7 +924,7 @@ export default {
       return new Promise((resolve, reject) => {
         try {
           let result = true;
-          this.formData.tableList.forEach(row => {
+          this.formData.tableList.forEach((row) => {
             if (!row.is_built_in && !this.checkAliasNameItem(row)) {
               result = false;
             }
@@ -875,7 +942,12 @@ export default {
       });
     },
     checkQueryAliasItem(row) {
-      const { field_name: fieldName, query_alias: queryAlias, alias_name: aliasName, is_delete: isDelete } = row;
+      const {
+        field_name: fieldName,
+        query_alias: queryAlias,
+        alias_name: aliasName,
+        is_delete: isDelete,
+      } = row;
       if (isDelete) {
         return true;
       }
@@ -883,7 +955,9 @@ export default {
       if (queryAlias) {
         // 设置了别名
         if (!/^(?!^\d)[\w]+$/gi.test(queryAlias)) {
-          row.aliasErr = this.$t('别名只支持【英文、数字、下划线】，并且不能以数字开头');
+          row.aliasErr = this.$t(
+            '别名只支持【英文、数字、下划线】，并且不能以数字开头'
+          );
           return false;
         } else if (queryAlias === fieldName) {
           row.aliasErr = this.$t('别名与字段名重复');
@@ -892,11 +966,19 @@ export default {
           row.aliasErr = this.$t('别名与重命名重复');
           return false;
         }
-        if (this.globalsData.field_built_in.find(item => item.id === queryAlias.toLocaleLowerCase())) {
+        if (
+          this.globalsData.field_built_in.find(
+            (item) => item.id === queryAlias.toLocaleLowerCase()
+          )
+        ) {
           row.aliasErr = this.$t('别名不能与内置字段名相同');
           return false;
         }
-      } else if (this.globalsData.field_built_in.find(item => item.id === fieldName.toLocaleLowerCase())) {
+      } else if (
+        this.globalsData.field_built_in.find(
+          (item) => item.id === fieldName.toLocaleLowerCase()
+        )
+      ) {
         if (row.alias_name || row.is_built_in) {
           row.aliasErr = '';
           return true;
@@ -912,7 +994,7 @@ export default {
         try {
           let result = true;
           const data = this.getAllData();
-          data.forEach(row => {
+          data.forEach((row) => {
             if (!this.checkQueryAliasItem(row)) {
               result = false;
             }
@@ -953,7 +1035,16 @@ export default {
         {
           class: 'render-header',
         },
-        [h('span', { directives: [{ name: 'bk-overflow-tips' }], class: 'title-overflow' }, [this.$t('字段名')])]
+        [
+          h(
+            'span',
+            {
+              directives: [{ name: 'bk-overflow-tips' }],
+              class: 'title-overflow',
+            },
+            [this.$t('字段名')]
+          ),
+        ]
       );
     },
     renderHeaderAliasName(h) {
@@ -986,7 +1077,16 @@ export default {
         {
           class: 'render-header',
         },
-        [h('span', { directives: [{ name: 'bk-overflow-tips' }], class: 'title-overflow' }, [this.$t('数据类型')])]
+        [
+          h(
+            'span',
+            {
+              directives: [{ name: 'bk-overflow-tips' }],
+              class: 'title-overflow',
+            },
+            [this.$t('数据类型')]
+          ),
+        ]
       );
     },
     renderHeaderParticipleName(h) {
@@ -1014,8 +1114,10 @@ export default {
       );
     },
     filedNameIsConflict(fieldIndex, fieldName) {
-      const otherFieldNameList = this.formData.tableList.filter(item => item.field_index !== fieldIndex);
-      return otherFieldNameList.some(item => item.field_name === fieldName);
+      const otherFieldNameList = this.formData.tableList.filter(
+        (item) => item.field_index !== fieldIndex
+      );
+      return otherFieldNameList.some((item) => item.field_name === fieldName);
     },
     /** 当前字段是否禁用 */
     getFieldEditDisabled(row) {
@@ -1053,7 +1155,9 @@ export default {
     // },
     expandObject(row, show) {
       row.expand = show;
-      const index = this.changeTableList.findIndex(item => item.field_name === row.field_name);
+      const index = this.changeTableList.findIndex(
+        (item) => item.field_name === row.field_name
+      );
       if (show) {
         if (index !== -1) {
           this.changeTableList.splice(index + 1, 0, ...row.children);
@@ -1067,13 +1171,18 @@ export default {
     },
     addObject() {
       const fieldsObjectData = cloneDeep(
-        this.$store.state.indexFieldInfo.fields.filter(item => item.field_name.includes('.'))
+        this.$store.state.indexFieldInfo.fields.filter((item) =>
+          item.field_name.includes('.')
+        )
       );
-      fieldsObjectData.forEach(item => {
+      fieldsObjectData.forEach((item) => {
         let name = item.field_name?.split('.')[0].replace(/^_+|_+$/g, '');
         item.is_objectKey = true;
-        this.tableAllList.forEach(builtField => {
-          if (builtField.field_type === 'object' && name === builtField.field_name?.split('.')[0]) {
+        this.tableAllList.forEach((builtField) => {
+          if (
+            builtField.field_type === 'object' &&
+            name === builtField.field_name?.split('.')[0]
+          ) {
             if (!Array.isArray(builtField.children)) {
               builtField.children = [];
               this.$set(builtField, 'expand', false);
@@ -1109,269 +1218,269 @@ export default {
 };
 </script>
 <style lang="scss" scoped>
-  @import '@/scss/mixins/clearfix';
-  @import '@/scss/mixins/overflow-tips.scss';
+@import '@/scss/mixins/clearfix';
+@import '@/scss/mixins/overflow-tips.scss';
 
-  /* stylelint-disable no-descending-specificity */
-  .field-table-container {
-    position: relative;
-    margin-top: 10px;
+/* stylelint-disable no-descending-specificity */
+.field-table-container {
+  position: relative;
+  margin-top: 10px;
 
-    .field-header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      margin-bottom: 10px;
+  .field-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 10px;
 
-      .field-add-btn {
-        font-size: 12px;
-        color: #3a84ff;
-        cursor: pointer;
-      }
-
-      .visible-built-btn {
-        margin-right: 20px;
-      }
+    .field-add-btn {
+      font-size: 12px;
+      color: #3a84ff;
+      cursor: pointer;
     }
 
-    .field-table.add-field-table {
-      :deep(.bk-table-body) {
-        .cell {
-          display: contents;
-          height: 100%;
-
-          /* stylelint-disable-next-line declaration-no-important */
-          padding: 0 !important;
-
-          .tooltips-icon {
-            top: 24px;
-          }
-
-          .overflow-tips {
-            padding: 10px 15px;
-          }
-          .field-name-overflow-tips{
-            .ext-btn{
-              cursor: pointer;
-              font-size: 18px;
-              position: absolute;
-              left: 0;
-            }
-            .bklog-subnode{
-              font-size: 16px;
-            }
-            .rotate{
-              transform: rotate(-90deg);
-            }
-            .field-name{
-                margin: 15px 10px 15px 15px;
-            }
-            .field-name-box{
-              display: flex;
-              height: 100%;
-              align-items: center;
-              .alias-name{
-                padding-left: 15px;
-                width: 50%
-              }
-              .participle-icon{
-                font-size: 18px;
-                left: 40%;
-                width: 10%;
-                position: absolute;
-                z-index: 999
-              }
-              .participle-icon-color{
-                background-color: rgb(250, 251, 253) !important;
-              }
-              .tooltips-icon{
-                position: absolute;
-                z-index: 10;
-                color: #ea3636;
-                cursor: pointer;
-                font-size: 16px;
-              }
-            }
-          }
-        }
-      }
-
-      :deep(.bk-form-input) {
-        height: 60px;
-        border: 1px solid transparent;
-      }
-
-      :deep(.participle-disabled-input) {
-        .bk-form-input[disabled] {
-          /* stylelint-disable-next-line declaration-no-important */
-          border-color: transparent !important;
-        }
-      }
-
-      :deep(.bk-select) {
-        height: 50px;
-        border: 1px solid transparent;
-
-        .bk-select-name {
-          height: 50px;
-          padding: 7px 38px 0 13px;
-        }
-
-        .bk-select-angle {
-          top: 12px;
-        }
-
-        &.is-default-trigger.is-unselected:before {
-          top: 8px;
-          left: 30px
-        }
-      }
-
-      :deep(.is-center) {
-        .bk-select {
-          .bk-select-name {
-            height: 50px;
-            padding: 7px 24px 0 24px;
-          }
-        }
-      }
-
-      .participle-select-icon {
-        font-size: 20px;
-        font-weight: 500;
-        color: #979ba5;
-      }
+    .visible-built-btn {
+      margin-right: 20px;
     }
+  }
 
-    .field-table {
-      .bk-table-body {
-        .cell {
-          padding-right: 15px;
-          padding-left: 15px;
-        }
-      }
-
-      .render-header {
-        display: flex;
-        align-items: center;
+  .field-table.add-field-table {
+    :deep(.bk-table-body) {
+      .cell {
+        display: contents;
         height: 100%;
 
-        span:nth-child(2) {
-          color: #979ba5;
+        /* stylelint-disable-next-line declaration-no-important */
+        padding: 0 !important;
+
+        .tooltips-icon {
+          top: 24px;
         }
 
-        .render-Participle {
-          display: inline-block;
-          width: 100%;
-          text-align: center;
+        .overflow-tips {
+          padding: 10px 15px;
         }
-
-        span:nth-child(3) {
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          width: 14px;
-          height: 14px;
-          margin-top: 2px;
-          font-size: 14px;
-          outline: none;
-        }
-
-        &.decoration-header-cell {
-          color: inherit;
-          text-decoration: underline;
-          text-decoration-style: dashed;
-          text-underline-position: under;
+        .field-name-overflow-tips {
+          .ext-btn {
+            cursor: pointer;
+            font-size: 18px;
+            position: absolute;
+            left: 0;
+          }
+          .bklog-subnode {
+            font-size: 16px;
+          }
+          .rotate {
+            transform: rotate(-90deg);
+          }
+          .field-name {
+            margin: 15px 10px 15px 15px;
+          }
+          .field-name-box {
+            display: flex;
+            height: 100%;
+            align-items: center;
+            .alias-name {
+              padding-left: 15px;
+              width: 50%;
+            }
+            .participle-icon {
+              font-size: 18px;
+              left: 40%;
+              width: 10%;
+              position: absolute;
+              z-index: 999;
+            }
+            .participle-icon-color {
+              background-color: rgb(250, 251, 253) !important;
+            }
+            .tooltips-icon {
+              position: absolute;
+              z-index: 10;
+              color: #ea3636;
+              cursor: pointer;
+              font-size: 16px;
+            }
+          }
         }
       }
+    }
 
-      .bk-table-empty-text {
-        padding: 12px 0;
+    :deep(.bk-form-input) {
+      height: 60px;
+      border: 1px solid transparent;
+    }
+
+    :deep(.participle-disabled-input) {
+      .bk-form-input[disabled] {
+        /* stylelint-disable-next-line declaration-no-important */
+        border-color: transparent !important;
+      }
+    }
+
+    :deep(.bk-select) {
+      height: 50px;
+      border: 1px solid transparent;
+
+      .bk-select-name {
+        height: 50px;
+        padding: 7px 38px 0 13px;
       }
 
-      .bk-table-empty-block {
-        min-height: 32px;
+      .bk-select-angle {
+        top: 12px;
       }
 
-      .empty-text {
+      &.is-default-trigger.is-unselected:before {
+        top: 8px;
+        left: 30px;
+      }
+    }
+
+    :deep(.is-center) {
+      .bk-select {
+        .bk-select-name {
+          height: 50px;
+          padding: 7px 24px 0 24px;
+        }
+      }
+    }
+
+    .participle-select-icon {
+      font-size: 20px;
+      font-weight: 500;
+      color: #979ba5;
+    }
+  }
+
+  .field-table {
+    .bk-table-body {
+      .cell {
+        padding-right: 15px;
+        padding-left: 15px;
+      }
+    }
+
+    .render-header {
+      display: flex;
+      align-items: center;
+      height: 100%;
+
+      span:nth-child(2) {
         color: #979ba5;
       }
 
-      .participle-popconfirm {
+      .render-Participle {
+        display: inline-block;
         width: 100%;
-
-        .bk-tooltip-ref {
-          width: 100%;
-        }
-
-        .participle-cell-wrap {
-          display: flex;
-          align-items: center;
-          margin-left: 10px;
-        }
+        text-align: center;
       }
 
-      &.bk-table-border th:first-child {
-        .cell {
-          padding: 0 15px;
-        }
+      span:nth-child(3) {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 14px;
+        height: 14px;
+        margin-top: 2px;
+        font-size: 14px;
+        outline: none;
+      }
+
+      &.decoration-header-cell {
+        color: inherit;
+        text-decoration: underline;
+        text-decoration-style: dashed;
+        text-underline-position: under;
       }
     }
 
-    .bk-table .table-link {
-      cursor: pointer;
+    .bk-table-empty-text {
+      padding: 12px 0;
     }
 
-    .icon-date-picker {
+    .bk-table-empty-block {
+      min-height: 32px;
+    }
+
+    .empty-text {
       color: #979ba5;
+    }
 
-      &.active {
-        color: #3a84ff;
+    .participle-popconfirm {
+      width: 100%;
+
+      .bk-tooltip-ref {
+        width: 100%;
+      }
+
+      .participle-cell-wrap {
+        display: flex;
+        align-items: center;
+        margin-left: 10px;
+      }
+    }
+
+    &.bk-table-border th:first-child {
+      .cell {
+        padding: 0 15px;
       }
     }
   }
 
-  .field-dropdown-list {
-    padding: 7px 0;
-    margin: -7px -14px;
+  .bk-table .table-link {
+    cursor: pointer;
+  }
 
-    .dropdown-item {
-      padding: 0 10px;
-      font-size: 12px;
-      line-height: 32px;
-      color: #63656e;
-      cursor: pointer;
+  .icon-date-picker {
+    color: #979ba5;
 
-      &:hover {
-        color: #3a84ff;
-        background: #e1ecff;
-      }
+    &.active {
+      color: #3a84ff;
+    }
+  }
+}
+
+.field-dropdown-list {
+  padding: 7px 0;
+  margin: -7px -14px;
+
+  .dropdown-item {
+    padding: 0 10px;
+    font-size: 12px;
+    line-height: 32px;
+    color: #63656e;
+    cursor: pointer;
+
+    &:hover {
+      color: #3a84ff;
+      background: #e1ecff;
+    }
+  }
+}
+
+.header {
+  /* stylelint-disable-next-line declaration-no-important */
+  white-space: normal !important;
+}
+
+.participle-form {
+  margin-right: 10px;
+
+  .bk-form-control {
+    width: 200px;
+  }
+
+  .bk-form-item {
+    margin-top: 5px;
+
+    .bk-label {
+      padding: 0 13px 0 0;
     }
   }
 
-  .header {
-    /* stylelint-disable-next-line declaration-no-important */
-    white-space: normal !important;
+  .participle-btn {
+    padding: 0 8px;
+    font-size: 12px;
   }
-
-  .participle-form {
-    margin-right: 10px;
-
-    .bk-form-control {
-      width: 200px;
-    }
-
-    .bk-form-item {
-      margin-top: 5px;
-
-      .bk-label {
-        padding: 0 13px 0 0;
-      }
-    }
-
-    .participle-btn {
-      padding: 0 8px;
-      font-size: 12px;
-    }
-  }
+}
 </style>

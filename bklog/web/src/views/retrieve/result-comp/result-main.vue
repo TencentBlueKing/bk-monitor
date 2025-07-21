@@ -89,7 +89,11 @@
 </template>
 
 <script>
-import { setFieldsWidth, parseBigNumberList, formatNumberWithRegex } from '@/common/util';
+import {
+  setFieldsWidth,
+  parseBigNumberList,
+  formatNumberWithRegex,
+} from '@/common/util';
 import tableRowDeepViewMixin from '@/mixins/table-row-deep-view-mixin';
 import { mapState, mapGetters } from 'vuex';
 
@@ -150,8 +154,8 @@ export default {
   },
   computed: {
     ...mapState({
-      bkBizId: state => state.bkBizId,
-      isExternal: state => state.isExternal,
+      bkBizId: (state) => state.bkBizId,
+      isExternal: (state) => state.isExternal,
     }),
     ...mapGetters({
       isUnionSearch: 'isUnionSearch',
@@ -159,7 +163,10 @@ export default {
     showAddMonitor() {
       return (
         !this.isExternal &&
-        Boolean(window.MONITOR_URL && this.$store.state.topMenu.some(item => item.id === 'monitor')) &&
+        Boolean(
+          window.MONITOR_URL &&
+            this.$store.state.topMenu.some((item) => item.id === 'monitor')
+        ) &&
         !this.isUnionSearch
       );
     },
@@ -198,11 +205,13 @@ export default {
         dimension: [], // 监控维度
         condition: [], // 监控条件
       };
-      const indexSet = this.indexSetList.find(item => item.index_set_id === indexSetId);
+      const indexSet = this.indexSetList.find(
+        (item) => item.index_set_id === indexSetId
+      );
       if (indexSet) {
         params.scenarioId = indexSet.category_id;
       }
-      this.retrieveParams.addition.forEach(item => {
+      this.retrieveParams.addition.forEach((item) => {
         params.condition.push({
           condition: 'and',
           key: item.field,
@@ -218,7 +227,10 @@ export default {
           urlArr.push(`${key}=${params[key]}`);
         }
       }
-      window.open(`${window.MONITOR_URL}/?${urlArr.join('&')}#/strategy-config/add`, '_blank');
+      window.open(
+        `${window.MONITOR_URL}/?${urlArr.join('&')}#/strategy-config/add`,
+        '_blank'
+      );
     },
     reset() {
       this.newScrollHeight = 0;
@@ -236,7 +248,10 @@ export default {
       this.$easeScroll(0, 300, this.$refs.scrollContainer);
     },
     handleScroll() {
-      if (this.isPageOver || this.$refs.resultTablePanel.active === 'clustering') {
+      if (
+        this.isPageOver ||
+        this.$refs.resultTablePanel.active === 'clustering'
+      ) {
         return;
       }
       clearTimeout(this.timer);
@@ -267,84 +282,84 @@ export default {
 </script>
 
 <style lang="scss" scoped>
-  // @import '../../../scss/mixins/scroller.scss';
+// @import '../../../scss/mixins/scroller.scss';
 
-  .result-scroll-container {
-    height: 100%;
-    overflow: auto;
+.result-scroll-container {
+  height: 100%;
+  overflow: auto;
 
-    &::-webkit-scrollbar {
-      width: 10px;
-      height: 4px;
-      background: transparent;
-    }
-
-    &::-webkit-scrollbar-thumb {
-      background-color: #ddd;
-      background-clip: padding-box;
-      border-color: transparent;
-      border-style: dashed;
-      border-left-width: 3px;
-      border-radius: 5px;
-    }
-
-    &::-webkit-scrollbar-thumb:hover {
-      background: #ddd;
-    }
+  &::-webkit-scrollbar {
+    width: 10px;
+    height: 4px;
+    background: transparent;
   }
 
-  .result-text {
-    padding: 10px 20px;
-    font-size: 12px;
-    color: #63656e;
-
-    .monitor-link {
-      color: #3a84ff;
-    }
-
-    .total-count {
-      color: #f00;
-    }
+  &::-webkit-scrollbar-thumb {
+    background-color: #ddd;
+    background-clip: padding-box;
+    border-color: transparent;
+    border-style: dashed;
+    border-left-width: 3px;
+    border-radius: 5px;
   }
 
-  .result-main {
-    min-height: calc(100% - 54px);
-    margin: 0 16px 16px;
-    background-color: #fff;
+  &::-webkit-scrollbar-thumb:hover {
+    background: #ddd;
+  }
+}
+
+.result-text {
+  padding: 10px 20px;
+  font-size: 12px;
+  color: #63656e;
+
+  .monitor-link {
+    color: #3a84ff;
   }
 
-  .divider-line {
-    /* stylelint-disable-next-line declaration-no-important */
-    margin: 0 !important;
+  .total-count {
+    color: #f00;
   }
+}
 
-  .fixed-scroll-top-btn {
-    position: fixed;
-    right: 14px;
-    bottom: 24px;
-    z-index: 2100;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 36px;
-    height: 36px;
-    color: #63656e;
-    cursor: pointer;
-    background: #f0f1f5;
-    border: 1px solid #dde4eb;
-    border-radius: 4px;
-    box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.2);
+.result-main {
+  min-height: calc(100% - 54px);
+  margin: 0 16px 16px;
+  background-color: #fff;
+}
+
+.divider-line {
+  /* stylelint-disable-next-line declaration-no-important */
+  margin: 0 !important;
+}
+
+.fixed-scroll-top-btn {
+  position: fixed;
+  right: 14px;
+  bottom: 24px;
+  z-index: 2100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  color: #63656e;
+  cursor: pointer;
+  background: #f0f1f5;
+  border: 1px solid #dde4eb;
+  border-radius: 4px;
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.2);
+  transition: all 0.2s;
+
+  &:hover {
+    color: #fff;
+    background: #979ba5;
     transition: all 0.2s;
-
-    &:hover {
-      color: #fff;
-      background: #979ba5;
-      transition: all 0.2s;
-    }
-
-    .bk-icon {
-      font-size: 20px;
-      font-weight: bold;
-    }
   }
+
+  .bk-icon {
+    font-size: 20px;
+    font-weight: bold;
+  }
+}
 </style>

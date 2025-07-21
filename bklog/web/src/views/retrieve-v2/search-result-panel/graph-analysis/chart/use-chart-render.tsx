@@ -23,11 +23,10 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { onMounted, Ref } from 'vue';
-
 import { formatDate } from '@/common/util';
 import * as Echarts from 'echarts';
 import { cloneDeep } from 'lodash';
+import { onMounted, Ref } from 'vue';
 
 import { lineOrBarOptions, pieOptions } from './chart-config-def';
 export default ({ target, type }: { target: Ref<any>; type: string }) => {
@@ -36,12 +35,16 @@ export default ({ target, type }: { target: Ref<any>; type: string }) => {
 
   type DataItem = Record<string, any>;
 
-  const aggregateDataByDimensions = (data: DataItem[], dimensionFields: string[], metricFields: string[]) => {
+  const aggregateDataByDimensions = (
+    data: DataItem[],
+    dimensionFields: string[],
+    metricFields: string[]
+  ) => {
     const groupedData = {};
     let reservedFields = dimensionFields;
 
-    data.forEach(item => {
-      reservedFields.forEach(field => {
+    data.forEach((item) => {
+      reservedFields.forEach((field) => {
         if (groupedData[field] === undefined) {
           groupedData[field] = {};
         }
@@ -50,7 +53,7 @@ export default ({ target, type }: { target: Ref<any>; type: string }) => {
           groupedData[field][item[field]] = {};
         }
 
-        metricFields.forEach(m => {
+        metricFields.forEach((m) => {
           if (groupedData[field][item[field]][m] === undefined) {
             groupedData[field][item[field]][m] = 0;
           }
@@ -73,9 +76,9 @@ export default ({ target, type }: { target: Ref<any>; type: string }) => {
         }
 
         const newGroup = {};
-        group1Keys.forEach(k1 => {
-          group2Keys.forEach(k2 => {
-            metricFields.forEach(m => {
+        group1Keys.forEach((k1) => {
+          group2Keys.forEach((k2) => {
+            metricFields.forEach((m) => {
               const key3 = `${k1},${k2}`;
               if (newGroup[key3] === undefined) {
                 newGroup[key3] = {};
@@ -95,7 +98,7 @@ export default ({ target, type }: { target: Ref<any>; type: string }) => {
     return getNewGroup(0, {});
   };
 
-  const getDateTimeFormatValue = value => {
+  const getDateTimeFormatValue = (value) => {
     // 如果是12位长度的格式，是后端返回的一个特殊格式 yyyyMMddHHmm
     if (`${value}`.length === 12 && /^\d+$/.test(value)) {
       return `${value.substring(0, 4)}-${value.substring(4, 6)}-${value.substring(6, 8)} ${value.substring(8, 10)}:${value.substring(10, 12)}`;
@@ -110,7 +113,7 @@ export default ({ target, type }: { target: Ref<any>; type: string }) => {
     const dimFields = dimensions.length > 0 ? dimensions : [timeField];
     if (timeField && dimensions.length > 0) {
       const timeGroup = {};
-      data.forEach(item => {
+      data.forEach((item) => {
         if (timeGroup[item[timeField]] === undefined) {
           timeGroup[item[timeField]] = [];
         }
@@ -120,21 +123,29 @@ export default ({ target, type }: { target: Ref<any>; type: string }) => {
 
       const categories = Object.keys(timeGroup)
         .sort()
-        .map(key => [key, getDateTimeFormatValue(key)]);
+        .map((key) => [key, getDateTimeFormatValue(key)]);
 
       const seriesData = categories
         .map(([key, timeValue]) => {
-          const aggregatedData = aggregateDataByDimensions(timeGroup[key] ?? [], dimFields, metrics);
-          return metrics.map(metric => ({
+          const aggregatedData = aggregateDataByDimensions(
+            timeGroup[key] ?? [],
+            dimFields,
+            metrics
+          );
+          return metrics.map((metric) => ({
+            data: Object.keys(aggregatedData).map((item) => [
+              timeValue,
+              aggregatedData[item][metric],
+              item,
+            ]),
             name: metric,
             type,
-            data: Object.keys(aggregatedData).map(item => [timeValue, aggregatedData[item][metric], item]),
           }));
         })
         .flat(2);
 
       const seriesDataMap = new Map();
-      seriesData.forEach(d => {
+      seriesData.forEach((d) => {
         if (!seriesDataMap.has(d.name)) {
           seriesDataMap.set(d.name, {});
         }
@@ -150,14 +161,14 @@ export default ({ target, type }: { target: Ref<any>; type: string }) => {
       });
 
       return {
-        categories: categories.map(c => c[1]),
+        categories: categories.map((c) => c[1]),
         seriesData: Array.from(
           seriesDataMap.entries().map(([name, mapValue]) => {
-            return Object.keys(mapValue).map(k => {
+            return Object.keys(mapValue).map((k) => {
               return {
+                data: mapValue[k],
                 name: `${name}-${k}`,
                 type,
-                data: mapValue[k],
               };
             });
           })
@@ -170,10 +181,10 @@ export default ({ target, type }: { target: Ref<any>; type: string }) => {
     // 提取用于 ECharts 的数据
     const categories = Object.keys(aggregatedData).sort();
 
-    const seriesData = metrics.map(metric => ({
+    const seriesData = metrics.map((metric) => ({
+      data: categories.map((item) => [item, aggregatedData[item][metric]]),
       name: metric,
       type,
-      data: categories.map(item => [item, aggregatedData[item][metric]]),
     }));
 
     return {
@@ -183,7 +194,12 @@ export default ({ target, type }: { target: Ref<any>; type: string }) => {
   };
 
   const aggregatePieData = (dataList, dimensions, valueField) => {
-    const { categories, seriesData } = aggregateData(dataList, dimensions, [valueField], 'pie');
+    const { categories, seriesData } = aggregateData(
+      dataList,
+      dimensions,
+      [valueField],
+      'pie'
+    );
     // 转换为饼图数据格式
     const pieChartData = categories.map((key, index) => ({
       name: key,
@@ -220,20 +236,23 @@ export default ({ target, type }: { target: Ref<any>; type: string }) => {
 
   const getYAxisLabel = () => {
     return {
-      fontSize: 12,
-      padding: [0, 5, 0, 0],
       color: '#979BA5',
+      fontSize: 12,
       formatter: (value: number) => abbreviateNumber(value),
+      padding: [0, 5, 0, 0],
     };
   };
 
   const getTooltipFormatter = () => {
     return {
-      formatter: params => {
+      formatter: (params) => {
         const args = Array.isArray(params) ? params : [params];
-        const label = new Set(args.map(p => p.name));
+        const label = new Set(args.map((p) => p.name));
         const content = `<div>${label ? `<span>${[...label].join(',')}</span></br>` : ''}${args
-          .map(({ value, seriesName }) => `<span>${value[2] ?? seriesName}: ${abbreviateNumber(value[1])}</span>`)
+          .map(
+            ({ seriesName, value }) =>
+              `<span>${value[2] ?? seriesName}: ${abbreviateNumber(value[1])}</span>`
+          )
           .join('</br>')}</div>`;
         return content;
       },
@@ -257,10 +276,10 @@ export default ({ target, type }: { target: Ref<any>; type: string }) => {
     return option;
   };
 
-  const setDefaultOption = t => {
+  const setDefaultOption = (t) => {
     const optionMap = {
-      line: getLineDefaultOption,
       bar: getLineBarChartOption,
+      line: getLineDefaultOption,
       pie: getPieChartOption,
     };
 
@@ -274,15 +293,18 @@ export default ({ target, type }: { target: Ref<any>; type: string }) => {
     }
   };
 
-  const formatTimeDimensionResultData = ({ categories, seriesData }, formatDateField = false) => {
+  const formatTimeDimensionResultData = (
+    { categories, seriesData },
+    formatDateField = false
+  ) => {
     if (formatDateField) {
       return {
-        categories: categories.map(value => getDateTimeFormatValue(value)),
-        seriesData: seriesData.map(item => {
+        categories: categories.map((value) => getDateTimeFormatValue(value)),
+        seriesData: seriesData.map((item) => {
           const data = item.data;
           return {
             ...item,
-            data: data.map(d => {
+            data: data.map((d) => {
               d[0] = getDateTimeFormatValue(d[0]);
               return d;
             }),
@@ -314,7 +336,12 @@ export default ({ target, type }: { target: Ref<any>; type: string }) => {
     chartInstance.setOption(options);
   };
 
-  const updatePieOption = (dimensions?: string[], yFields?: string[], _?: string[], data?: any) => {
+  const updatePieOption = (
+    dimensions?: string[],
+    yFields?: string[],
+    _?: string[],
+    data?: any
+  ) => {
     const pieChartData = aggregatePieData(data.list, dimensions, yFields[0]);
     options.series.data = pieChartData;
     chartInstance.setOption(options);
@@ -328,9 +355,9 @@ export default ({ target, type }: { target: Ref<any>; type: string }) => {
     type?: string
   ) => {
     const actionMap = {
-      pie: updatePieOption,
-      line: updateLineBarOption,
       bar: updateLineBarOption,
+      line: updateLineBarOption,
+      pie: updatePieOption,
     };
 
     actionMap[type]?.(xFields, yFields, dimensions, data, type);
@@ -368,8 +395,8 @@ export default ({ target, type }: { target: Ref<any>; type: string }) => {
   };
 
   return {
-    setChartOptions,
     destroyInstance,
     getChartInstance,
+    setChartOptions,
   };
 };

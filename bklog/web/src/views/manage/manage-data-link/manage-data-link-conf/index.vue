@@ -95,11 +95,7 @@
         min-width="10"
       >
         <template #default="props">
-          <bk-button
-            theme="primary"
-            text
-            @click="editConfig(props.row)"
-          >
+          <bk-button theme="primary" text @click="editConfig(props.row)">
             {{ $t('编辑') }}
           </bk-button>
           <!--<bk-button theme="primary" text @click="deleteConfig(props.row)">{{ $t('删除') }}</bk-button>-->
@@ -107,10 +103,7 @@
       </bk-table-column>
       <template #empty>
         <div>
-          <empty-status
-            :empty-type="emptyType"
-            @operation="handleOperation"
-          />
+          <empty-status :empty-type="emptyType" @operation="handleOperation" />
         </div>
       </template>
     </bk-table>
@@ -155,7 +148,10 @@ export default {
   },
   computed: {
     projectList() {
-      return [{ bk_biz_id: '0', space_full_code_name: this.$t('全部空间') }, ...this.$store.state.mySpaceList];
+      return [
+        { bk_biz_id: '0', space_full_code_name: this.$t('全部空间') },
+        ...this.$store.state.mySpaceList,
+      ];
     },
   },
   created() {
@@ -167,12 +163,18 @@ export default {
         this.tableLoading = true;
         const [listRes, kafkaRes, transferRes, esRes] = await Promise.all([
           this.$http.request('linkConfiguration/getLinkList'),
-          this.$http.request('linkConfiguration/getClusterList', { query: { cluster_type: 'kafka' } }),
-          this.$http.request('linkConfiguration/getClusterList', { query: { cluster_type: 'transfer' } }),
-          this.$http.request('linkConfiguration/getClusterList', { query: { cluster_type: 'es' } }),
+          this.$http.request('linkConfiguration/getClusterList', {
+            query: { cluster_type: 'kafka' },
+          }),
+          this.$http.request('linkConfiguration/getClusterList', {
+            query: { cluster_type: 'transfer' },
+          }),
+          this.$http.request('linkConfiguration/getClusterList', {
+            query: { cluster_type: 'es' },
+          }),
         ]);
 
-        listRes.data.forEach(item => {
+        listRes.data.forEach((item) => {
           item.bk_biz_id += '';
         });
         this.tableData = listRes.data;
@@ -192,7 +194,7 @@ export default {
       try {
         this.tableLoading = true;
         const res = await this.$http.request('linkConfiguration/getLinkList');
-        res.data.forEach(item => {
+        res.data.forEach((item) => {
           item.bk_biz_id += '';
         });
         this.tableData = res.data;
@@ -204,24 +206,25 @@ export default {
       }
     },
     filterProjectName(row) {
-      return this.projectList.find(item => item.bk_biz_id === row.bk_biz_id)?.space_name;
+      return this.projectList.find((item) => item.bk_biz_id === row.bk_biz_id)
+        ?.space_name;
     },
     filterLinkInformation(row) {
-      const kafkaName = this.selectData.kafka.find(item => {
+      const kafkaName = this.selectData.kafka.find((item) => {
         return item.cluster_id === row.kafka_cluster_id;
       })?.cluster_name;
       if (!kafkaName) {
         return '';
       }
-      const transferName = this.selectData.transfer.find(item => {
+      const transferName = this.selectData.transfer.find((item) => {
         return item.cluster_id === row.transfer_cluster_id;
       })?.cluster_name;
       if (!transferName) {
         return '';
       }
       const esNameList = row.es_cluster_ids.map(
-        id =>
-          this.selectData.es.find(item => {
+        (id) =>
+          this.selectData.es.find((item) => {
             return item.cluster_id === id;
           })?.cluster_name
       );
@@ -281,11 +284,11 @@ export default {
 </script>
 
 <style lang="scss" scoped>
-  .link-configuration-container {
-    padding: 20px 24px;
+.link-configuration-container {
+  padding: 20px 24px;
 
-    .header {
-      margin-bottom: 20px;
-    }
+  .header {
+    margin-bottom: 20px;
   }
+}
 </style>

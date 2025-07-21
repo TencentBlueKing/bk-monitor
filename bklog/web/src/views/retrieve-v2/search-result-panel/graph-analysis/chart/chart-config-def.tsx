@@ -84,186 +84,147 @@ const color = [
 ];
 
 export const lineOrBarOptions = {
-  useUTC: true,
-  title: {
-    text: '',
-    show: false,
-    textAlign: 'auto',
-    textVerticalAlign: 'auto',
-    left: 'left',
-    top: 12,
-    padding: [0, 0, 0, 16],
+  animation: true,
+  color,
+  grid: {
+    backgroundColor: 'transparent',
+    bottom: 40,
+    containLabel: true,
+    left: 80,
+    right: 40,
+    top: 28,
+  },
+  legend: {
+    icon: 'rect',
+    itemGap: 12,
+    itemHeight: 8,
+    itemWidth: 12,
+    left: 120,
+    padding: [5, 5, 0, 0],
+    selectedMode: 'multiple',
+    show: true,
     textStyle: {
       color: '#63656E',
       fontSize: 12,
-      fontWeight: 'bold',
     },
+    top: 'bottom',
+    type: 'scroll',
+  },
+  series: [],
+  title: {
+    left: 'left',
+    padding: [0, 0, 0, 16],
+    show: false,
     subtext: null,
     subtextStyle: {
+      align: 'left',
       color: '#979BA5',
       fontSize: 12,
       fontWeight: 'bold',
-      align: 'left',
     },
-  },
-  color,
-  legend: {
-    type: 'scroll',
-    top: 'bottom',
-    left: 120,
-    show: true,
-    itemGap: 12,
-    itemWidth: 12,
-    itemHeight: 8,
-    padding: [5, 5, 0, 0],
-    selectedMode: 'multiple',
+    text: '',
+    textAlign: 'auto',
     textStyle: {
       color: '#63656E',
       fontSize: 12,
+      fontWeight: 'bold',
     },
-    icon: 'rect',
-  },
-  tooltip: {
-    show: true,
-    trigger: 'item',
-    axisPointer: {
-      type: 'cross',
-      snap: true,
-      label: {
-        backgroundColor: '#6a7985',
-      },
-    },
-    transitionDuration: 0,
-    alwaysShowContent: false,
-    backgroundColor: 'rgba(0,0,0,0.8)',
-    borderWidth: 0,
-    textStyle: {
-      fontSize: 12,
-      color: '#fff',
-    },
-    extraCssText: 'border-radius: 0',
+    textVerticalAlign: 'auto',
+    top: 12,
   },
   toolbox: {
-    showTitle: false,
-    itemSize: 0,
+    feature: {},
     iconStyle: {
+      borderWidth: 0,
       color: '#979ba5',
       fontSize: 14,
-      borderWidth: 0,
       shadowColor: '#979ba5',
       shadowOffsetX: 0,
       shadowOffsetY: 0,
     },
-    feature: {},
+    itemSize: 0,
+    showTitle: false,
   },
-  grid: {
-    containLabel: true,
-    top: 28,
-    left: 80,
-    right: 40,
-    bottom: 40,
-    backgroundColor: 'transparent',
+  tooltip: {
+    alwaysShowContent: false,
+    axisPointer: {
+      label: {
+        backgroundColor: '#6a7985',
+      },
+      snap: true,
+      type: 'cross',
+    },
+    backgroundColor: 'rgba(0,0,0,0.8)',
+    borderWidth: 0,
+    extraCssText: 'border-radius: 0',
+    show: true,
+    textStyle: {
+      color: '#fff',
+      fontSize: 12,
+    },
+    transitionDuration: 0,
+    trigger: 'item',
   },
+  useUTC: true,
   xAxis: {
-    type: 'category',
-    boundaryGap: true,
+    axisLabel: {
+      align: 'center',
+      color: '#979BA5',
+      fontSize: 12,
+      showMaxLabel: true,
+      showMinLabel: true,
+    },
+    axisLine: {
+      lineStyle: {
+        color: '#ccd6eb',
+        type: 'solid',
+        width: 1,
+      },
+      show: false,
+    },
     axisTick: {
       show: false,
     },
-    axisLine: {
-      show: false,
-      lineStyle: {
-        color: '#ccd6eb',
-        width: 1,
-        type: 'solid',
-      },
-    },
-    axisLabel: {
-      fontSize: 12,
-      color: '#979BA5',
-      showMinLabel: true,
-      showMaxLabel: true,
-      align: 'center',
-    },
+    boundaryGap: true,
+    minInterval: 60 * 1000,
+    scale: true,
     splitLine: {
       show: false,
     },
-    minInterval: 60 * 1000,
     splitNumber: 10,
-    scale: true,
+    type: 'category',
   },
   yAxis: {
-    type: 'value',
+    axisLabel: {
+      color: '#979BA5',
+    },
     axisLine: {
-      show: false,
-      snap: true,
       lineStyle: {
         color: '#ccd6eb',
-        width: 1,
         type: 'solid',
+        width: 1,
       },
+      show: false,
+      snap: true,
     },
     axisTick: {
       show: false,
     },
-    axisLabel: {
-      color: '#979BA5',
-    },
+    scale: false,
     splitLine: {
-      show: true,
       lineStyle: {
         color: '#F0F1F5',
         type: 'dashed',
       },
+      show: true,
     },
-    scale: false,
+    type: 'value',
     // splitNumber: 3,
     z: 3,
   },
-  series: [],
-  animation: true,
 };
 
 export const pieOptions: any = {
-  padding: [0, 0],
-  series: {
-    type: 'pie',
-    radius: '60%',
-    center: ['50%', '50%'],
-    label: {
-      show: true,
-      alignTo: 'none',
-      fontSize: 12,
-      lineHeight: 18,
-      color: '#666666',
-    },
-    emphasis: {
-      labelLine: {
-        show: true,
-      },
-    },
-    data: [],
-  },
-  tooltip: {
-    show: true,
-    trigger: 'item',
-    confine: true,
-    backgroundColor: 'rgba(50, 50, 50, 0.7)', // 半透明背景
-    borderColor: '#333', // 边框颜色
-    borderWidth: 1,
-    textStyle: {
-      fontSize: 12,
-      lineHeight: 18,
-      fontWeight: 'normal',
-      fontFamily: 'MicrosoftYaHei, PingFang SC',
-      color: '#fff',
-    },
-    order: 'seriesAsc',
-    appendToBody: true,
-    renderMode: 'html',
-    extraCssText: 'box-shadow: 0 0 5px rgba(0, 0, 0, 0.3); padding: 5px', // 添加阴影
-  },
-  icon: 'pin',
   color: [
     '#5BCCD8',
     '#F77FA8',
@@ -286,4 +247,43 @@ export const pieOptions: any = {
     '#C0ABCC',
     '#CFA5A5',
   ],
+  icon: 'pin',
+  padding: [0, 0],
+  series: {
+    center: ['50%', '50%'],
+    data: [],
+    emphasis: {
+      labelLine: {
+        show: true,
+      },
+    },
+    label: {
+      alignTo: 'none',
+      color: '#666666',
+      fontSize: 12,
+      lineHeight: 18,
+      show: true,
+    },
+    radius: '60%',
+    type: 'pie',
+  },
+  tooltip: {
+    appendToBody: true,
+    backgroundColor: 'rgba(50, 50, 50, 0.7)', // 半透明背景
+    borderColor: '#333', // 边框颜色
+    borderWidth: 1,
+    confine: true,
+    extraCssText: 'box-shadow: 0 0 5px rgba(0, 0, 0, 0.3); padding: 5px', // 添加阴影
+    order: 'seriesAsc',
+    renderMode: 'html',
+    show: true,
+    textStyle: {
+      color: '#fff',
+      fontFamily: 'MicrosoftYaHei, PingFang SC',
+      fontSize: 12,
+      fontWeight: 'normal',
+      lineHeight: 18,
+    },
+    trigger: 'item',
+  },
 };

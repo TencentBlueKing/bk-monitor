@@ -23,16 +23,16 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, onMounted, ref } from 'vue';
-
 import useStore from '@/hooks/use-store';
 import { debounce } from 'lodash';
 import * as monaco from 'monaco-editor';
+import { computed, onMounted, ref } from 'vue';
 
-import { setDorisFields } from './lang';
 import useResizeObserve from '../../../../../hooks/use-resize-observe';
 
-export default ({ refRootElement, sqlContent, onValueChange }) => {
+import { setDorisFields } from './lang';
+
+export default ({ onValueChange, refRootElement, sqlContent }) => {
   const editorInstance = ref<monaco.editor.IStandaloneCodeEditor>();
   const store = useStore();
   const fieldList = computed(() => store.state.indexFieldInfo.fields);
@@ -49,18 +49,18 @@ export default ({ refRootElement, sqlContent, onValueChange }) => {
   const initEditorInstance = () => {
     // 初始化编辑器
     editorInstance.value = monaco.editor.create(refRootElement.value, {
-      value: sqlContent.value,
-      language: 'dorisSQL',
-      theme: 'vs-dark',
-      padding: { top: 10, bottom: 40 },
       automaticLayout: false,
-      minimap: { enabled: false },
-      scrollBeyondLastLine: false, // 避免空白行
       contextmenu: false, // 禁用右键菜单
+      language: 'dorisSQL',
+      minimap: { enabled: false },
+      padding: { bottom: 40, top: 10 },
+      scrollBeyondLastLine: false, // 避免空白行
+      theme: 'vs-dark',
+      value: sqlContent.value,
     });
 
     // 监听编辑器的键盘事件
-    editorInstance.value.onKeyDown(e => {
+    editorInstance.value.onKeyDown((e) => {
       if (e.keyCode === monaco.KeyCode.Space) {
         // 阻止默认空格行为，使得我们可以手动处理
         e.preventDefault();
@@ -71,14 +71,23 @@ export default ({ refRootElement, sqlContent, onValueChange }) => {
         // 手动插入空格
         editorInstance.value.executeEdits(null, [
           {
-            range: new monaco.Range(position.lineNumber, position.column, position.lineNumber, position.column),
-            text: ' ',
             forceMoveMarkers: true,
+            range: new monaco.Range(
+              position.lineNumber,
+              position.column,
+              position.lineNumber,
+              position.column
+            ),
+            text: ' ',
           },
         ]);
 
         // 触发自动补全
-        editorInstance.value.trigger('keyboard', 'editor.action.triggerSuggest', {});
+        editorInstance.value.trigger(
+          'keyboard',
+          'editor.action.triggerSuggest',
+          {}
+        );
       }
       if (e.keyCode === monaco.KeyCode.Enter) {
         // 阻止默认回车行为
@@ -89,11 +98,17 @@ export default ({ refRootElement, sqlContent, onValueChange }) => {
         const suggestWidget = editorInstance.value.getContribution(
           'editor.contrib.suggestController'
         ) as SuggestController;
-        const isSuggestVisible = suggestWidget?.model?.state === 2 || suggestWidget?.model?.state === 1;
+        const isSuggestVisible =
+          suggestWidget?.model?.state === 2 ||
+          suggestWidget?.model?.state === 1;
 
         if (isSuggestVisible) {
           // 如果建议列表可见，则接受当前的建议
-          editorInstance.value.trigger('keyboard', 'acceptSelectedSuggestion', {});
+          editorInstance.value.trigger(
+            'keyboard',
+            'acceptSelectedSuggestion',
+            {}
+          );
           return;
         }
         const position = editorInstance.value.getPosition();
@@ -107,28 +122,39 @@ export default ({ refRootElement, sqlContent, onValueChange }) => {
         // 执行插入操作
         editorInstance.value.executeEdits(null, [
           {
-            range: new monaco.Range(position.lineNumber, position.column, position.lineNumber, position.column),
-            text: newText,
             forceMoveMarkers: true,
+            range: new monaco.Range(
+              position.lineNumber,
+              position.column,
+              position.lineNumber,
+              position.column
+            ),
+            text: newText,
           },
         ]);
 
         // 移动光标到新行
         const newPosition = {
-          lineNumber: position.lineNumber + 1,
           column: indentLevel.length + 1,
+          lineNumber: position.lineNumber + 1,
         };
         editorInstance.value.setPosition(newPosition);
       }
     });
 
-    editorInstance.value.onDidChangeModelContent(() => debounceUpdateSqlValue());
+    editorInstance.value.onDidChangeModelContent(() =>
+      debounceUpdateSqlValue()
+    );
   };
 
   const setSuggestFields = () => {
     setDorisFields(() =>
-      fieldList.value.map(field => {
-        return { name: field.field_name, type: field.field_type, description: field.description };
+      fieldList.value.map((field) => {
+        return {
+          description: field.description,
+          name: field.field_name,
+          type: field.field_type,
+        };
       })
     );
   };
@@ -139,8 +165,8 @@ export default ({ refRootElement, sqlContent, onValueChange }) => {
       isResizeLayout = true;
       const rect = refRootElement.value?.getBoundingClientRect();
       editorInstance.value?.layout({
-        width: rect.width,
         height: rect.height,
+        width: rect.width,
       });
 
       setTimeout(() => {

@@ -70,10 +70,7 @@
             {{ props.row.index_set_name }}
           </template>
         </bk-table-column>
-        <bk-table-column
-          :label="$t('归档项')"
-          :render-header="$renderHeader"
-        >
+        <bk-table-column :label="$t('归档项')" :render-header="$renderHeader">
           <template #default="props">
             {{ props.row.instance_name }}
           </template>
@@ -105,10 +102,7 @@
             {{ props.row.expired_time }}
           </template>
         </bk-table-column>
-        <bk-table-column
-          :label="$t('回溯状态')"
-          :render-header="$renderHeader"
-        >
+        <bk-table-column :label="$t('回溯状态')" :render-header="$renderHeader">
           <template #default="props">
             <div class="restore-status">
               <span :class="`status-icon is-${props.row.status}`"></span>
@@ -116,10 +110,7 @@
             </div>
           </template>
         </bk-table-column>
-        <bk-table-column
-          :label="$t('是否过期')"
-          :render-header="$renderHeader"
-        >
+        <bk-table-column :label="$t('是否过期')" :render-header="$renderHeader">
           <template #default="props">
             {{ props.row.is_expired ? $t('是') : $t('否') }}
           </template>
@@ -135,7 +126,12 @@
               <log-button
                 ext-cls="mr10 king-button"
                 :button-text="$t('检索')"
-                :cursor-active="!(props.row.permission && props.row.permission[authorityMap.SEARCH_LOG_AUTH])"
+                :cursor-active="
+                  !(
+                    props.row.permission &&
+                    props.row.permission[authorityMap.SEARCH_LOG_AUTH]
+                  )
+                "
                 :disabled="props.row.is_expired"
                 theme="primary"
                 text
@@ -146,7 +142,10 @@
               <bk-button
                 class="mr10 king-button"
                 v-cursor="{
-                  active: !(props.row.permission && props.row.permission[authorityMap.MANAGE_COLLECTION_AUTH]),
+                  active: !(
+                    props.row.permission &&
+                    props.row.permission[authorityMap.MANAGE_COLLECTION_AUTH]
+                  ),
                 }"
                 :disabled="props.row.is_expired"
                 theme="primary"
@@ -159,7 +158,10 @@
               <bk-button
                 class="mr10 king-button"
                 v-cursor="{
-                  active: !(props.row.permission && props.row.permission[authorityMap.MANAGE_COLLECTION_AUTH]),
+                  active: !(
+                    props.row.permission &&
+                    props.row.permission[authorityMap.MANAGE_COLLECTION_AUTH]
+                  ),
                 }"
                 :disabled="props.row.is_expired"
                 theme="primary"
@@ -250,7 +252,7 @@ export default {
       this.requestData();
     },
     handleFilterChange(data) {
-      Object.keys(data).forEach(item => {
+      Object.keys(data).forEach((item) => {
         this.params[item] = data[item].join('');
       });
       this.pagination.current = 1;
@@ -291,7 +293,9 @@ export default {
       const { timerNum } = this;
       this.stopStatusPolling();
       this.timer = setTimeout(() => {
-        timerNum === this.timerNum && this.restoreIds && this.requestRestoreStatus(true);
+        timerNum === this.timerNum &&
+          this.restoreIds &&
+          this.requestRestoreStatus(true);
       }, 10000);
     },
     stopStatusPolling() {
@@ -308,12 +312,12 @@ export default {
               pagesize: this.pagination.limit,
             },
           })
-          .then(res => {
+          .then((res) => {
             const { data } = res;
             this.restoreIds = [];
             this.pagination.count = data.total;
             this.restoreIds = [];
-            data.list.forEach(row => {
+            data.list.forEach((row) => {
               row.status = '';
               row.status_name = '';
               this.restoreIds.push(row.restore_config_id);
@@ -321,7 +325,7 @@ export default {
             this.dataList.splice(0, this.dataList.length, ...data.list);
             resolve(res);
           })
-          .catch(err => {
+          .catch((err) => {
             reject(err);
           })
           .finally(() => {
@@ -353,7 +357,7 @@ export default {
             restore_config_ids: this.restoreIds,
           },
         })
-        .then(res => {
+        .then((res) => {
           if (timerNum === this.timerNum) {
             this.statusHandler(res.data || []);
             this.startStatusPolling();
@@ -369,8 +373,8 @@ export default {
         });
     },
     statusHandler(data) {
-      data.forEach(item => {
-        this.dataList.forEach(row => {
+      data.forEach((item) => {
+        this.dataList.forEach((row) => {
           if (row.restore_config_id === item.restore_config_id) {
             const completeCount = item.complete_doc_count;
             const totalCount = item.total_doc_count;
@@ -458,7 +462,7 @@ export default {
             restore_config_id: row.restore_config_id,
           },
         })
-        .then(res => {
+        .then((res) => {
           if (res.result) {
             const page =
               this.dataList.length <= 1
@@ -513,58 +517,58 @@ export default {
 </script>
 
 <style lang="scss">
-  @import '@/scss/mixins/clearfix';
-  @import '@/scss/conf';
-  @import '@/scss/devops-common.scss';
+@import '@/scss/mixins/clearfix';
+@import '@/scss/conf';
+@import '@/scss/devops-common.scss';
 
-  .log-archive-restore {
-    padding: 20px 24px;
+.log-archive-restore {
+  padding: 20px 24px;
 
-    .top-operation {
-      margin-bottom: 20px;
+  .top-operation {
+    margin-bottom: 20px;
 
-      @include clearfix;
+    @include clearfix;
 
-      .bk-button {
-        width: 120px;
-      }
+    .bk-button {
+      width: 120px;
     }
+  }
 
-    .restore-search {
-      width: 320px;
-    }
+  .restore-search {
+    width: 320px;
+  }
 
-    .restore-table {
-      .filter-column {
-        .cell {
-          display: flex;
-        }
-      }
-
-      .restore-status {
+  .restore-table {
+    .filter-column {
+      .cell {
         display: flex;
-        align-items: center;
+      }
+    }
+
+    .restore-status {
+      display: flex;
+      align-items: center;
+    }
+
+    .status-icon {
+      display: inline-block;
+      width: 4px;
+      height: 4px;
+      margin-right: 6px;
+      border-radius: 50%;
+
+      &.is-finish {
+        background: #6dd400;
       }
 
-      .status-icon {
-        display: inline-block;
-        width: 4px;
-        height: 4px;
-        margin-right: 6px;
-        border-radius: 50%;
+      &.is-unStart {
+        background: #e02020;
+      }
 
-        &.is-finish {
-          background: #6dd400;
-        }
-
-        &.is-unStart {
-          background: #e02020;
-        }
-
-        &.is-restoring {
-          background: #fe9c00;
-        }
+      &.is-restoring {
+        background: #fe9c00;
       }
     }
   }
+}
 </style>

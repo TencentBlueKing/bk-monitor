@@ -24,23 +24,24 @@
  * IN THE SOFTWARE.
  */
 
+import create from '@blueking/ip-selector/dist/index.esm';
+import '@blueking/ip-selector/dist/styles/vue2.6.x.css';
 import { VNode } from 'vue';
-
 import { Component, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import create from '@blueking/ip-selector/dist/index.esm';
-
 import $http from '../../api';
-
-import '@blueking/ip-selector/dist/styles/vue2.6.x.css';
 const BkIpSelector = create({
-  version: '3',
   serviceConfigError: false,
+  version: '3',
 });
 export type CommomParams = Record<string, any>;
 export type IObjectType = 'HOST' | 'SERVICE';
-export type INodeType = 'INSTANCE' | 'SERVICE_TEMPLATE' | 'SET_TEMPLATE' | 'TOPO';
+export type INodeType =
+  | 'INSTANCE'
+  | 'SERVICE_TEMPLATE'
+  | 'SET_TEMPLATE'
+  | 'TOPO';
 
 export interface IScopeItme {
   scope_type: string;
@@ -180,20 +181,24 @@ export function toSelectorNode(nodes: ITarget[], nodeType: INodeType) {
 
   switch (nodeType) {
     case 'INSTANCE':
-      return nodes.map(item => {
+      return nodes.map((item) => {
         // 增量数据只需使用host_id
         if (item.bk_host_id) return { host_id: item.bk_host_id };
         // 兼容旧数据 没有bk_host_id的情况下 把ip和cloud_id传给组件 提供组件内部定位host_id
-        return { host_id: undefined, ip: item.ip, cloud_area: { id: item.bk_cloud_id } };
+        return {
+          cloud_area: { id: item.bk_cloud_id },
+          host_id: undefined,
+          ip: item.ip,
+        };
       });
     case 'TOPO':
-      return nodes.map(item => ({
-        object_id: item.bk_obj_id,
+      return nodes.map((item) => ({
         instance_id: item.bk_inst_id,
+        object_id: item.bk_obj_id,
       }));
     case 'SERVICE_TEMPLATE':
     case 'SET_TEMPLATE':
-      return nodes.map(item => ({
+      return nodes.map((item) => ({
         id: item.bk_inst_id,
       }));
     default:
@@ -205,7 +210,11 @@ export function toSelectorNode(nodes: ITarget[], nodeType: INodeType) {
  * 转换为具体场景需要的选中数据
  * needIpAndCloudArea 需要同时返回ip和cloud_id
  */
-export function toTransformNode(nodes: Array<IHost | INode>, nodeType: INodeType, needIpAndCloudArea = false) {
+export function toTransformNode(
+  nodes: Array<IHost | INode>,
+  nodeType: INodeType,
+  needIpAndCloudArea = false
+) {
   if (!nodeType) return [];
 
   switch (nodeType) {
@@ -214,23 +223,23 @@ export function toTransformNode(nodes: Array<IHost | INode>, nodeType: INodeType
         if (needIpAndCloudArea) {
           // 部分场景 需要同时返回host_id、ip、cloud_id 其中ip、cloud_id用于展示
           return {
+            bk_cloud_id: item.cloud_area.id,
             bk_host_id: item.host_id,
             ip: item.ip,
-            bk_cloud_id: item.cloud_area.id,
           };
         }
         return { bk_host_id: item.host_id };
       });
     case 'TOPO':
       return nodes.map((item: INode) => ({
-        bk_obj_id: item.object_id,
         bk_inst_id: item.instance_id,
+        bk_obj_id: item.object_id,
       }));
     case 'SERVICE_TEMPLATE':
     case 'SET_TEMPLATE':
       return nodes.map((item: INode) => ({
-        bk_obj_id: nodeType,
         bk_inst_id: item.id,
+        bk_obj_id: nodeType,
       }));
     default:
       return [];
@@ -249,11 +258,15 @@ export type IpSelectorService = {
   fetchHostAgentStatisticsNodes?: (params: CommomParams) => Promise<any>;
   fetchDynamicGroups?: (params: CommomParams) => Promise<any>;
   fetchHostsDynamicGroup?: (params: CommomParams) => Promise<any>;
-  fetchHostAgentStatisticsDynamicGroups?: (params: CommomParams) => Promise<any>;
+  fetchHostAgentStatisticsDynamicGroups?: (
+    params: CommomParams
+  ) => Promise<any>;
   fetchServiceTemplates?: (params: CommomParams) => Promise<any>;
   fetchNodesServiceTemplate?: (params: CommomParams) => Promise<any>;
   fetchHostServiceTemplate?: (params: CommomParams) => Promise<any>;
-  fetchHostAgentStatisticsServiceTemplate?: (params: CommomParams) => Promise<any>;
+  fetchHostAgentStatisticsServiceTemplate?: (
+    params: CommomParams
+  ) => Promise<any>;
   fetchSetTemplates?: (params: CommomParams) => Promise<any>;
   fetchNodesSetTemplate?: (params: CommomParams) => Promise<any>;
   fetchHostSetTemplate?: (params: CommomParams) => Promise<any>;
@@ -321,13 +334,21 @@ export interface IMonitorIpSelectorEvents {
 export default class MonitorIpSelector extends tsc<IMonitorIpSelectorProps> {
   // 需要支持的面板（'staticTopo', 'dynamicTopo', 'dynamicGroup', 'serviceTemplate', 'setTemplate', 'manualInput'）
   @Prop({
-    default: () => ['staticTopo', 'dynamicTopo', 'dynamicGroup', 'serviceTemplate', 'setTemplate', 'manualInput'],
+    default: () => [
+      'staticTopo',
+      'dynamicTopo',
+      'dynamicGroup',
+      'serviceTemplate',
+      'setTemplate',
+      'manualInput',
+    ],
     type: Array,
   })
   panelList: string[];
   @Prop({ default: () => ({}), type: Object }) value: Record<string, any>;
   // 自定义主机列表列
-  @Prop({ type: Array }) hostTableCustomColumnList: IpSelectorHostTableCustomColumn[];
+  @Prop({ type: Array })
+  hostTableCustomColumnList: IpSelectorHostTableCustomColumn[];
   // 自定义menu
   @Prop({ type: Array }) hostMemuExtends: IpSelectorHostMemuExtend[];
   // 主机列表显示列（默认值：['ip', 'ipv6', 'alive', 'osName']），按配置顺序显示列
@@ -360,11 +381,11 @@ export default class MonitorIpSelector extends tsc<IMonitorIpSelectorProps> {
   // 高度
   @Prop({ type: Number }) height: number;
   // 字段提取场景 拓扑树与节点主机需要通过定制接口获取
-  @Prop({ type: Boolean, default: false }) extractScene: boolean;
+  @Prop({ default: false, type: Boolean }) extractScene: boolean;
   // 允许 hostList 中缺少 hostId，通过 ip + cloudArea.id 回填选中主机
-  @Prop({ type: Boolean, default: false }) allowHostListMissHostId: boolean;
+  @Prop({ default: false, type: Boolean }) allowHostListMissHostId: boolean;
   // 是否全部返回主机字段
-  @Prop({ type: Boolean, default: false }) keepHostFieldOutput: boolean;
+  @Prop({ default: false, type: Boolean }) keepHostFieldOutput: boolean;
   // 渲染预览结果的拓展字段
   @Prop({ type: Function }) hostViewFieldRender: () => void;
 
@@ -374,38 +395,48 @@ export default class MonitorIpSelector extends tsc<IMonitorIpSelectorProps> {
   get scopeList() {
     return [
       {
-        scope_type: 'space',
         scope_id: this.$store.state.spaceUid,
+        scope_type: 'space',
       },
     ];
   }
 
   created() {
     this.ipSelectorServices = {
-      fetchTopologyHostCount: this.fetchTopologyHostCount, // 拉取topology
-      fetchTopologyHostsNodes: this.fetchTopologyHostsNodes, // 静态拓扑 - 选中节点
-      fetchNodesQueryPath: this.fetchNodesQueryPath, // 动态拓扑 - 勾选节点
-      fetchHostAgentStatisticsNodes: this.fetchHostAgentStatisticsNodes, // 动态拓扑 - 勾选节点
-      fetchTopologyHostIdsNodes: this.fetchTopologyHostIdsNodes, // 根据多个拓扑节点与搜索条件批量分页查询所包含的主机
-      fetchHostsDetails: this.fetchHostsDetails, // 静态 - IP选择回显(host_id查不到时显示失效)
-      fetchHostCheck: this.fetchHostCheck, // 手动输入 - 根据用户手动输入的`IP`/`IPv6`/`主机名`/`host_id`等关键字信息获取真实存在的机器信息
-      fetchDynamicGroups: this.fetchDynamicGroup, // 动态分组列表
-      fetchHostsDynamicGroup: this.fetchDynamicGroupHost, // 动态分组下的节点
-      fetchHostAgentStatisticsDynamicGroups: this.fetchBatchGroupAgentStatistics,
-      fetchServiceTemplates: this.fetchServiceTemplates,
-      fetchNodesServiceTemplate: this.fetchNodesServiceTemplate,
-      fetchHostServiceTemplate: this.fetchHostServiceTemplate,
-      fetchHostAgentStatisticsServiceTemplate: this.fetchHostAgentStatisticsServiceTemplate,
-      fetchSetTemplates: this.fetchSetTemplates,
-      fetchNodesSetTemplate: this.fetchNodesSetTemplate,
-      fetchHostSetTemplate: this.fetchHostSetTemplate,
-      fetchHostAgentStatisticsSetTemplate: this.fetchHostAgentStatisticsSetTemplate,
-      fetchCustomSettings: this.fetchCustomSettings,
-      updateCustomSettings: this.updateCustomSettings,
       fetchConfig: this.fetchConfig,
+      fetchCustomSettings: this.fetchCustomSettings,
+      fetchDynamicGroups: this.fetchDynamicGroup, // 动态分组列表
+      fetchHostAgentStatisticsDynamicGroups:
+        this.fetchBatchGroupAgentStatistics,
+      fetchHostAgentStatisticsNodes: this.fetchHostAgentStatisticsNodes, // 动态拓扑 - 勾选节点
+      fetchHostAgentStatisticsServiceTemplate:
+        this.fetchHostAgentStatisticsServiceTemplate,
+      fetchHostAgentStatisticsSetTemplate:
+        this.fetchHostAgentStatisticsSetTemplate,
+      fetchHostCheck: this.fetchHostCheck, // 手动输入 - 根据用户手动输入的`IP`/`IPv6`/`主机名`/`host_id`等关键字信息获取真实存在的机器信息
+      fetchHostServiceTemplate: this.fetchHostServiceTemplate,
+      fetchHostSetTemplate: this.fetchHostSetTemplate,
+      fetchHostsDetails: this.fetchHostsDetails, // 静态 - IP选择回显(host_id查不到时显示失效)
+      fetchHostsDynamicGroup: this.fetchDynamicGroupHost, // 动态分组下的节点
+      fetchNodesQueryPath: this.fetchNodesQueryPath, // 动态拓扑 - 勾选节点
+      fetchNodesServiceTemplate: this.fetchNodesServiceTemplate,
+      fetchNodesSetTemplate: this.fetchNodesSetTemplate,
+      fetchServiceTemplates: this.fetchServiceTemplates,
+      fetchSetTemplates: this.fetchSetTemplates,
+      fetchTopologyHostCount: this.fetchTopologyHostCount, // 拉取topology
+      fetchTopologyHostIdsNodes: this.fetchTopologyHostIdsNodes, // 根据多个拓扑节点与搜索条件批量分页查询所包含的主机
+      fetchTopologyHostsNodes: this.fetchTopologyHostsNodes, // 静态拓扑 - 选中节点
+      updateCustomSettings: this.updateCustomSettings,
       ...this.service,
     };
     this.ipSelectorConfig = {
+      hostMemuExtends: this.hostMemuExtends ?? [],
+      // 自定义主机列表列
+      hostTableCustomColumnList: this.hostTableCustomColumnList ?? [],
+      //  'osName', 'coludVerdor', 'osType', 'hostId', 'agentId']
+      hostTableRenderColumnList: this.hostTableRenderColumnList ?? [],
+      // 字段命名风格（'camelCase', 'kebabCase'）
+      nameStyle: this.nameStyle,
       // 需要支持的面板（'staticTopo', 'dynamicTopo', 'dynamicGroup', 'serviceTemplate', 'setTemplate', 'manualInput'）
       panelList: this.panelList ?? [
         'staticTopo',
@@ -415,17 +446,10 @@ export default class MonitorIpSelector extends tsc<IMonitorIpSelectorProps> {
         'setTemplate',
         'manualInput',
       ],
-      // 面板选项的值是否唯一
-      unqiuePanelValue: this.unqiuePanelValue,
-      // 字段命名风格（'camelCase', 'kebabCase'）
-      nameStyle: this.nameStyle,
-      // 自定义主机列表列
-      hostTableCustomColumnList: this.hostTableCustomColumnList ?? [],
-      hostMemuExtends: this.hostMemuExtends ?? [],
       // 主机列表显示列（默认值：['ip', 'ipv6', 'alive', 'osName']），按配置顺序显示列
       // 内置所有列的 key ['ip', 'ipv6', 'cloudArea', 'alive', 'hostName',
-      //  'osName', 'coludVerdor', 'osType', 'hostId', 'agentId']
-      hostTableRenderColumnList: this.hostTableRenderColumnList ?? [],
+      // 面板选项的值是否唯一
+      unqiuePanelValue: this.unqiuePanelValue,
       // hostViewFieldRender: this.hostViewFieldRender ?? ((host: IHost) => {
       //   if (host.ip) return undefined;
       //   return host[this.priorityList.find(pItem => Boolean(host[pItem]))];
@@ -434,13 +458,21 @@ export default class MonitorIpSelector extends tsc<IMonitorIpSelectorProps> {
   }
 
   get priorityList() {
-    return this.$store.getters['globals/globalsData']?.host_identifier_priority ?? ['ip', 'host_name', 'ipv6'];
+    return (
+      this.$store.getters['globals/globalsData']?.host_identifier_priority ?? [
+        'ip',
+        'host_name',
+        'ipv6',
+      ]
+    );
   }
 
   // 拉取topology
   async fetchTopologyHostCount(_node?: INode): Promise<ITreeItem[]> {
     const serviceModule = this.extractScene ? 'extract' : 'ipChooser';
-    const res = await $http.request(`${serviceModule}/trees`, { data: { scope_list: this.scopeList } });
+    const res = await $http.request(`${serviceModule}/trees`, {
+      data: { scope_list: this.scopeList },
+    });
     return res?.data || [];
   }
 
@@ -463,32 +495,36 @@ export default class MonitorIpSelector extends tsc<IMonitorIpSelectorProps> {
       ...(search_content ? params : p),
     };
     const serviceModule = this.extractScene ? 'extract' : 'ipChooser';
-    const res = await $http.request(`${serviceModule}/queryHostIdInfos`, { data });
+    const res = await $http.request(`${serviceModule}/queryHostIdInfos`, {
+      data,
+    });
     return res?.data || [];
   }
 
   // 动态拓扑 - 勾选节点(查询多个节点拓扑路径)
   async fetchNodesQueryPath(node: IFetchNode): Promise<Array<INode>[]> {
     const data = {
-      scope_list: this.scopeList,
       node_list: node.node_list,
+      scope_list: this.scopeList,
     };
     const res = await $http.request('ipChooser/queryPath', { data });
     return res?.data || [];
   }
   // 动态拓扑 - 勾选节点(获取多个拓扑节点的主机 Agent 状态统计信息)
-  async fetchHostAgentStatisticsNodes(node: IFetchNode): Promise<{ agent_statistics: IStatistics; node: INode }[]> {
+  async fetchHostAgentStatisticsNodes(
+    node: IFetchNode
+  ): Promise<{ agent_statistics: IStatistics; node: INode }[]> {
     const data = {
-      scope_list: this.scopeList,
       node_list: node.node_list,
+      scope_list: this.scopeList,
     };
     const res = await $http.request('ipChooser/agentStatistics', { data });
     return res?.data || [];
   }
   async fetchHostsDetails(node) {
     const data = {
-      scope_list: this.scopeList,
       host_list: node.host_list,
+      scope_list: this.scopeList,
     };
     const res = await $http.request('ipChooser/details', { data });
     return res?.data || [];
@@ -504,11 +540,15 @@ export default class MonitorIpSelector extends tsc<IMonitorIpSelectorProps> {
   }
   // 获取动态分组列表
   async fetchDynamicGroup(): Promise<Array<IGroupItem>[]> {
-    const res = await $http.request('ipChooser/dynamicGroups', { data: { scope_list: this.scopeList } });
+    const res = await $http.request('ipChooser/dynamicGroups', {
+      data: { scope_list: this.scopeList },
+    });
     return res?.data || [];
   }
   // 获取动态分组下的主机列表
-  async fetchDynamicGroupHost(query: IGroupHostQuery): Promise<Array<IGroupHost>[]> {
+  async fetchDynamicGroupHost(
+    query: IGroupHostQuery
+  ): Promise<Array<IGroupHost>[]> {
     const data = {
       scope_list: this.scopeList,
       ...query,
@@ -542,7 +582,9 @@ export default class MonitorIpSelector extends tsc<IMonitorIpSelectorProps> {
     return res?.data || [];
   }
   // 获取服务模板下各个节点
-  async fetchNodesServiceTemplate(query: IQuery): Promise<Array<ITemplateNode>[]> {
+  async fetchNodesServiceTemplate(
+    query: IQuery
+  ): Promise<Array<ITemplateNode>[]> {
     const data = {
       scope_list: this.scopeList,
       template_type: 'SERVICE_TEMPLATE',
@@ -552,11 +594,13 @@ export default class MonitorIpSelector extends tsc<IMonitorIpSelectorProps> {
     return res?.data || [];
   }
   // 获取服务模板下各个主机
-  async fetchHostServiceTemplate(query: IQuery): Promise<Array<ITemplateHost>[]> {
+  async fetchHostServiceTemplate(
+    query: IQuery
+  ): Promise<Array<ITemplateHost>[]> {
     const data = {
       scope_list: this.scopeList,
-      template_type: 'SERVICE_TEMPLATE',
       template_id: query.id,
+      template_type: 'SERVICE_TEMPLATE',
       ...query,
     };
     const res = await $http.request('ipChooser/templateHosts', { data });
@@ -569,7 +613,9 @@ export default class MonitorIpSelector extends tsc<IMonitorIpSelectorProps> {
       template_type: 'SERVICE_TEMPLATE',
       ...query,
     };
-    const res = await $http.request('ipChooser/templateAgentStatistics', { data });
+    const res = await $http.request('ipChooser/templateAgentStatistics', {
+      data,
+    });
     return res?.data || [];
   }
   // 获取集群模板列表
@@ -597,8 +643,8 @@ export default class MonitorIpSelector extends tsc<IMonitorIpSelectorProps> {
   async fetchHostSetTemplate(query: IQuery): Promise<Array<ITemplateHost>[]> {
     const data = {
       scope_list: this.scopeList,
-      template_type: 'SET_TEMPLATE',
       template_id: query.id,
+      template_type: 'SET_TEMPLATE',
       ...query,
     };
     const res = await $http.request('ipChooser/templateHosts', { data });
@@ -611,7 +657,9 @@ export default class MonitorIpSelector extends tsc<IMonitorIpSelectorProps> {
       template_type: 'SET_TEMPLATE',
       ...query,
     };
-    const res = await $http.request('ipChooser/templateAgentStatistics', { data });
+    const res = await $http.request('ipChooser/templateAgentStatistics', {
+      data,
+    });
     return res?.data || [];
   }
   async fetchCustomSettings(params: CommomParams) {
@@ -642,13 +690,15 @@ export default class MonitorIpSelector extends tsc<IMonitorIpSelectorProps> {
   render() {
     return (
       <BkIpSelector
-        height={this.height ?? '100%'}
         allowHostListMissHostId={this.allowHostListMissHostId}
         config={this.ipSelectorConfig}
         disableDialogSubmitMethod={this.disableDialogSubmitMethod}
         disableHostMethod={this.disableHostMethod}
+        height={this.height ?? '100%'}
         keepHostFieldOutput={this.keepHostFieldOutput}
         mode={this.mode}
+        on-change={this.change}
+        on-close-dialog={this.closeDialog}
         originalValue={this.originalValue}
         readonly={this.readonly}
         service={this.ipSelectorServices}
@@ -657,8 +707,6 @@ export default class MonitorIpSelector extends tsc<IMonitorIpSelectorProps> {
         showViewDiff={this.showViewDiff}
         value={this.value}
         viewSearchKey={this.viewSearchKey}
-        on-change={this.change}
-        on-close-dialog={this.closeDialog}
       />
     );
   }

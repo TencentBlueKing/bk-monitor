@@ -25,53 +25,53 @@
  */
 
 const getStrategyList = {
-  url: '/log_extract/strategies/',
   method: 'get',
+  url: '/log_extract/strategies/',
 };
 
 const createStrategy = {
-  url: '/log_extract/strategies/',
   method: 'post',
+  url: '/log_extract/strategies/',
 };
 
 const updateStrategy = {
-  url: '/log_extract/strategies/:strategy_id/',
   method: 'put',
+  url: '/log_extract/strategies/:strategy_id/',
 };
 
 const deleteStrategy = {
-  url: '/log_extract/strategies/:strategy_id/',
   method: 'delete',
+  url: '/log_extract/strategies/:strategy_id/',
 };
 
 // 日志提取链路列表
 const getLogExtractLinks = {
-  url: '/log_extract/links/',
   method: 'get',
+  url: '/log_extract/links/',
 };
 
 // 日志提取链路详情
 const getLogExtractLinkDetail = {
-  url: '/log_extract/links/:link_id/',
   method: 'get',
+  url: '/log_extract/links/:link_id/',
 };
 
 // 新增日志提取链路
 const createLogExtractLink = {
-  url: '/log_extract/links/',
   method: 'post',
+  url: '/log_extract/links/',
 };
 
 // 更新日志提取链路
 const updateLogExtractLink = {
-  url: '/log_extract/links/:link_id/',
   method: 'put',
+  url: '/log_extract/links/:link_id/',
 };
 
 // 删除日志提取链路
 const deleteLogExtractLink = {
-  url: '/log_extract/links/:link_id/',
   method: 'delete',
+  url: '/log_extract/links/:link_id/',
 };
 
 export {

@@ -41,17 +41,11 @@
       >
         <!-- eslint-disable-next-line vue/no-unused-vars -->
         <template #default="props">
-          <div
-            :style="`width:${getRandom()}%`"
-            class="cell-bar"
-          ></div>
+          <div :style="`width:${getRandom()}%`" class="cell-bar"></div>
         </template>
       </bk-table-column>
     </template>
-    <bk-table-column
-      v-if="!isLoading"
-      width="84"
-    ></bk-table-column>
+    <bk-table-column v-if="!isLoading" width="84"></bk-table-column>
   </bk-table>
 </template>
 
@@ -99,7 +93,9 @@ export default {
       return new Array(this.maxLength ?? this.loaderLen).fill('');
     },
     columnField() {
-      const visibleTable = !this.visibleFields.length ? Array(3).fill({ width: '', minWidth: 0 }) : this.visibleFields;
+      const visibleTable = !this.visibleFields.length
+        ? Array(3).fill({ width: '', minWidth: 0 })
+        : this.visibleFields;
       return this.isOriginalField
         ? [
             { width: 160, minWidth: 0, field_name: 'time' },
@@ -108,7 +104,9 @@ export default {
         : visibleTable;
     },
     loaderClassName() {
-      return this.isNewSearch ? '.result-table-container' : '.result-scroll-container';
+      return this.isNewSearch
+        ? '.result-table-container'
+        : '.result-scroll-container';
     },
   },
   mounted() {
@@ -149,25 +147,25 @@ export default {
 </script>
 
 <style lang="scss">
-  .skeleton-table {
-    &:before {
-      z-index: -1;
-    }
-
-    .cell {
-      width: 100%;
-      padding-top: 14px;
-    }
-
-    .cell-bar {
-      position: relative;
-      height: 12px;
-      background-color: #e9e9e9;
-    }
-
-    :deep(.bk-table-empty-text) {
-      width: 100%;
-      padding: 0;
-    }
+.skeleton-table {
+  &:before {
+    z-index: -1;
   }
+
+  .cell {
+    width: 100%;
+    padding-top: 14px;
+  }
+
+  .cell-bar {
+    position: relative;
+    height: 12px;
+    background-color: #e9e9e9;
+  }
+
+  :deep(.bk-table-empty-text) {
+    width: 100%;
+    padding: 0;
+  }
+}
 </style>

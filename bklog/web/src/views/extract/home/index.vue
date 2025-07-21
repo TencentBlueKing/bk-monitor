@@ -116,8 +116,12 @@
           <div
             :class="{
               'task-status-warning': true,
-              'task-status-success': row.download_status === 'downloadable' || row.download_status === 'redownloadable',
-              'task-status-error': row.download_status === 'expired' || row.download_status === 'failed',
+              'task-status-success':
+                row.download_status === 'downloadable' ||
+                row.download_status === 'redownloadable',
+              'task-status-error':
+                row.download_status === 'expired' ||
+                row.download_status === 'failed',
             }"
           >
             <span
@@ -143,11 +147,9 @@
       >
         <template #default="{ row }">
           <div class="task-operation-container">
-            <span
-              class="task-operation"
-              @click="viewDetail(row)"
-              >{{ $t('详情') }}</span
-            >
+            <span class="task-operation" @click="viewDetail(row)">{{
+              $t('详情')
+            }}</span>
             <span
               v-bk-tooltips.top="{
                 content: row.message,
@@ -179,10 +181,7 @@
       </bk-table-column>
       <template #empty>
         <div>
-          <empty-status
-            :empty-type="emptyType"
-            @operation="handleOperation"
-          />
+          <empty-status :empty-type="emptyType" @operation="handleOperation" />
         </div>
       </template>
     </bk-table>
@@ -284,7 +283,9 @@ export default {
   computed: {
     pollingList() {
       // 需要轮询状态的下载项
-      return this.taskList.filter(item => !this.doneStatus.includes(item.download_status));
+      return this.taskList.filter(
+        (item) => !this.doneStatus.includes(item.download_status)
+      );
     },
   },
   created() {
@@ -295,7 +296,10 @@ export default {
   },
   beforeUnmount() {
     clearTimeout(this.timeoutID);
-    document.removeEventListener('visibilitychange', this.handleVisibilityChange);
+    document.removeEventListener(
+      'visibilitychange',
+      this.handleVisibilityChange
+    );
   },
   methods: {
     async initTaskList() {
@@ -319,7 +323,7 @@ export default {
         const allIpList = res.data.list.reduce((pre, cur) => {
           if (!cur.enable_clone) return pre;
           pre.push(
-            ...cur.ip_list.map(item => {
+            ...cur.ip_list.map((item) => {
               if (item?.bk_host_id) {
                 return {
                   host_id: item.bk_host_id,
@@ -375,16 +379,19 @@ export default {
         try {
           const res = await this.$http.request('extract/pollingTaskStatus', {
             query: {
-              task_list: this.pollingList.map(item => item.task_id).join(','),
+              task_list: this.pollingList.map((item) => item.task_id).join(','),
             },
           });
 
-          res.data.forEach(newItem => {
-            const taskItem = this.taskList.find(item => item.task_id === newItem.task_id);
+          res.data.forEach((newItem) => {
+            const taskItem = this.taskList.find(
+              (item) => item.task_id === newItem.task_id
+            );
             if (taskItem) {
               taskItem.task_process_info = newItem.task_process_info;
               taskItem.download_status = newItem.download_status;
-              taskItem.download_status_display = newItem.download_status_display;
+              taskItem.download_status_display =
+                newItem.download_status_display;
             }
           });
         } catch (err) {
@@ -487,11 +494,13 @@ export default {
     getIPDisplayNameList(ipList) {
       // 获取displayName字符串列表
       if (ipList?.length) {
-        return ipList.map(item => {
+        return ipList.map((item) => {
           return (
-            this.displayNameList.find(dItem => {
+            this.displayNameList.find((dItem) => {
               const hostMatch = item.bk_host_id === dItem.bk_host_id;
-              const ipMatch = `${item.ip}_${item.bk_cloud_id}` === `${dItem.bk_host_innerip}_${dItem.bk_cloud_id}`;
+              const ipMatch =
+                `${item.ip}_${item.bk_cloud_id}` ===
+                `${dItem.bk_host_innerip}_${dItem.bk_cloud_id}`;
               if (item?.bk_host_id) return hostMatch || ipMatch;
               return ipMatch;
             })?.display_name || ''
@@ -525,146 +534,146 @@ export default {
 </script>
 
 <style lang="scss" scoped>
-  .main-container {
-    /*新增任务样式*/
-    .option-container {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 20px 0;
+.main-container {
+  /*新增任务样式*/
+  .option-container {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 20px 0;
 
-      .king-input-search {
-        width: 486px;
+    .king-input-search {
+      width: 486px;
 
-        :deep(.icon-search) {
-          &:hover {
-            color: #3b84ff;
-            cursor: pointer;
-          }
-        }
-      }
-    }
-
-    /*表格内容样式*/
-    :deep(.king-table) {
-      background-color: #fff;
-
-      /*分页下拉*/
-      .bk-select-name {
-        /* stylelint-disable-next-line declaration-no-important */
-        width: 76px !important;
-      }
-
-      .task-operation-container {
-        display: flex;
-        align-items: center;
-
-        .task-operation {
-          margin-right: 12px;
-          color: #3a84ff;
+      :deep(.icon-search) {
+        &:hover {
+          color: #3b84ff;
           cursor: pointer;
         }
-
-        .cannot-click {
-          color: #989dab;
-          cursor: no-drop;
-        }
-      }
-
-      .task-status-warning {
-        display: flex;
-        align-items: center;
-        color: #ff9c01;
-
-        .icon-info-fill {
-          margin-left: 2px;
-          cursor: pointer;
-        }
-
-        .icon-refresh {
-          margin-right: 2px;
-          animation: refresh-rotate 1s linear infinite;
-
-          @keyframes refresh-rotate {
-            0% {
-              transform: rotate(0deg);
-            }
-
-            100% {
-              transform: rotate(360deg);
-            }
-          }
-        }
-      }
-
-      .task-status-success {
-        color: #2dcb56;
-      }
-
-      .task-status-error {
-        color: #ea3636;
       }
     }
   }
 
-  /*侧边栏插槽*/
-  .task-detail-content {
-    height: calc(100vh - 60px);
-    padding-bottom: 20px;
-    overflow: auto;
+  /*表格内容样式*/
+  :deep(.king-table) {
+    background-color: #fff;
 
-    :deep(.list-box-container) {
-      padding: 14px 20px 10px;
-      font-size: 15px;
-      line-height: 40px;
-      color: #63656e;
+    /*分页下拉*/
+    .bk-select-name {
+      /* stylelint-disable-next-line declaration-no-important */
+      width: 76px !important;
+    }
 
-      .list-title {
-        display: flex;
-        align-items: center;
+    .task-operation-container {
+      display: flex;
+      align-items: center;
 
-        .bk-icon {
-          margin-right: 6px;
-          font-size: 14px;
+      .task-operation {
+        margin-right: 12px;
+        color: #3a84ff;
+        cursor: pointer;
+      }
+
+      .cannot-click {
+        color: #989dab;
+        cursor: no-drop;
+      }
+    }
+
+    .task-status-warning {
+      display: flex;
+      align-items: center;
+      color: #ff9c01;
+
+      .icon-info-fill {
+        margin-left: 2px;
+        cursor: pointer;
+      }
+
+      .icon-refresh {
+        margin-right: 2px;
+        animation: refresh-rotate 1s linear infinite;
+
+        @keyframes refresh-rotate {
+          0% {
+            transform: rotate(0deg);
+          }
+
+          100% {
+            transform: rotate(360deg);
+          }
+        }
+      }
+    }
+
+    .task-status-success {
+      color: #2dcb56;
+    }
+
+    .task-status-error {
+      color: #ea3636;
+    }
+  }
+}
+
+/*侧边栏插槽*/
+.task-detail-content {
+  height: calc(100vh - 60px);
+  padding-bottom: 20px;
+  overflow: auto;
+
+  :deep(.list-box-container) {
+    padding: 14px 20px 10px;
+    font-size: 15px;
+    line-height: 40px;
+    color: #63656e;
+
+    .list-title {
+      display: flex;
+      align-items: center;
+
+      .bk-icon {
+        margin-right: 6px;
+        font-size: 14px;
+      }
+
+      .text {
+        padding: 10px 0;
+        margin: 0;
+        font-size: 16px;
+        font-weight: 500;
+        line-height: 20px;
+        color: #313238;
+        word-break: break-all;
+      }
+
+      &.mark {
+        .bklog-icon {
+          margin-right: 4px;
+          font-size: 16px;
+          color: #ea3636;
         }
 
         .text {
-          padding: 10px 0;
-          margin: 0;
-          font-size: 16px;
-          font-weight: 500;
-          line-height: 20px;
-          color: #313238;
-          word-break: break-all;
-        }
-
-        &.mark {
-          .bklog-icon {
-            margin-right: 4px;
-            font-size: 16px;
-            color: #ea3636;
-          }
-
-          .text {
-            color: #ea3636;
-          }
+          color: #ea3636;
         }
       }
+    }
 
-      .list-box {
-        border-top: 1px solid #dcdee5;
+    .list-box {
+      border-top: 1px solid #dcdee5;
 
-        .list-item {
-          padding: 10px 0;
-          line-height: 20px;
-          word-break: break-all;
-          border-bottom: 1px solid #dcdee5;
+      .list-item {
+        padding: 10px 0;
+        line-height: 20px;
+        word-break: break-all;
+        border-bottom: 1px solid #dcdee5;
 
-          &:hover {
-            background-color: #f0f1f5;
-          }
+        &:hover {
+          background-color: #f0f1f5;
         }
       }
     }
   }
+}
 </style>

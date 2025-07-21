@@ -33,11 +33,7 @@
       v-if="isCleanField && authPageInfo"
       :info="authPageInfo"
     ></auth-container-page>
-    <div
-      v-else
-      class="step-field"
-      v-bkloading="{ isLoading: basicLoading }"
-    >
+    <div v-else class="step-field" v-bkloading="{ isLoading: basicLoading }">
       <bk-alert
         v-if="!isCleanField && !isTempField && !isSetEdit"
         class="king-alert"
@@ -49,14 +45,14 @@
           </div>
         </template>
       </bk-alert>
-      <bk-alert
-        v-if="isSetEdit"
-        class="king-alert"
-        type="info"
-      >
+      <bk-alert v-if="isSetEdit" class="king-alert" type="info">
         <template #title>
           <div class="slot-title-container">
-            {{ $t('将过滤后的日志采集上来后，日志检索模块可进行日志内容格式化，方便检索和分析。') }}
+            {{
+              $t(
+                '将过滤后的日志采集上来后，日志检索模块可进行日志内容格式化，方便检索和分析。'
+              )
+            }}
           </div>
         </template>
       </bk-alert>
@@ -89,13 +85,20 @@
                 :name="option.collector_config_name"
               >
                 <div
-                  v-if="!(option.permission && option.permission[authorityMap.MANAGE_COLLECTION_AUTH])"
+                  v-if="
+                    !(
+                      option.permission &&
+                      option.permission[authorityMap.MANAGE_COLLECTION_AUTH]
+                    )
+                  "
                   class="option-slot-container no-authority"
                   @click.stop
                 >
                   <span class="text">
                     <span>{{ option.collector_config_name }}</span>
-                    <span style="color: #979ba5">（{{ `#${option.collector_config_id}` }}）</span>
+                    <span style="color: #979ba5"
+                      >（{{ `#${option.collector_config_id}` }}）</span
+                    >
                   </span>
                   <span
                     class="apply-text"
@@ -103,32 +106,36 @@
                     >{{ $t('申请权限') }}</span
                   >
                 </div>
-                <div
-                  v-else
-                  class="option-slot-container"
-                  v-bk-overflow-tips
-                >
+                <div v-else class="option-slot-container" v-bk-overflow-tips>
                   <span>{{ option.collector_config_name }}</span>
-                  <span style="color: #979ba5">（{{ `#${option.collector_config_id}` }}）</span>
+                  <span style="color: #979ba5"
+                    >（{{ `#${option.collector_config_id}` }}）</span
+                  >
                 </div>
               </bk-option>
             </bk-select>
           </bk-form-item>
-          <bk-form-item
-            ext-cls="en-bk-form"
-            :label="$t('原始日志')"
-          >
+          <bk-form-item ext-cls="en-bk-form" :label="$t('原始日志')">
             <div class="origin-log-config">
-              <bk-radio-group v-model="formData.etl_params.retain_original_text">
+              <bk-radio-group
+                v-model="formData.etl_params.retain_original_text"
+              >
                 <bk-radio :value="true">
-                  <span v-bk-tooltips="$t('确认保留原始日志,会存储在log字段. 其他字段提取内容会进行追加')">{{
-                    $t('保留')
-                  }}</span>
+                  <span
+                    v-bk-tooltips="
+                      $t(
+                        '确认保留原始日志,会存储在log字段. 其他字段提取内容会进行追加'
+                      )
+                    "
+                    >{{ $t('保留') }}</span
+                  >
                 </bk-radio>
                 <bk-radio :value="false">
                   <span
                     v-bk-tooltips="
-                      $t('不保留将丢弃原始日志，仅展示清洗后日志。请通过字段清洗，调试并输出您关心的日志。')
+                      $t(
+                        '不保留将丢弃原始日志，仅展示清洗后日志。请通过字段清洗，调试并输出您关心的日志。'
+                      )
                     "
                   >
                     {{ $t('丢弃') }}
@@ -172,10 +179,7 @@
               </div>
             </div>
           </bk-form-item>
-          <bk-form-item
-            ext-cls="en-bk-form"
-            :label="$t('模式选择')"
-          >
+          <bk-form-item ext-cls="en-bk-form" :label="$t('模式选择')">
             <!-- 模式选择 -->
             <div class="field-step field-method-step">
               <div style="display: flex">
@@ -183,7 +187,8 @@
                   v-if="!isTempField"
                   :class="{
                     'template-text': true,
-                    'template-disabled': (isCleanField && !cleanCollector) || isSetDisabled,
+                    'template-disabled':
+                      (isCleanField && !cleanCollector) || isSetDisabled,
                   }"
                   data-test-id="fieldExtractionBox_span_applyTemp"
                   @click="openTemplateDialog(false)"
@@ -212,9 +217,13 @@
                 <div class="bk-button-group">
                   <bk-button
                     v-for="option in globalsData.etl_config"
-                    :class="params.etl_config === option.id ? 'is-selected' : ''"
+                    :class="
+                      params.etl_config === option.id ? 'is-selected' : ''
+                    "
                     :data-test-id="`fieldExtractionBox_button_filterMethod${option.id}`"
-                    :disabled="(isCleanField && !cleanCollector) || isSetDisabled"
+                    :disabled="
+                      (isCleanField && !cleanCollector) || isSetDisabled
+                    "
                     :key="option.id"
                     class="bklog-button"
                     @click="handleSelectConfig(option.id)"
@@ -226,12 +235,27 @@
                   <span
                     style="margin-left: 10px; color: #979ba5; cursor: pointer"
                     class="bklog-icon bklog-info-fill fl"
-                    v-bk-tooltips="{ allowHtml: true, placement: 'right', content: '#reg-tip' }"
+                    v-bk-tooltips="{
+                      allowHtml: true,
+                      placement: 'right',
+                      content: '#reg-tip',
+                    }"
                   ></span>
                   <div id="reg-tip">
-                    <p>{{ $t('正则表达式(golang语法)需要匹配日志全文，如以下DEMO将从日志内容提取请求时间与内容') }}</p>
-                    <p>{{ $t(' - 日志内容：[2006-01-02 15:04:05] content') }}</p>
-                    <p>{{ $t(' - 表达式：') }}\[(?P&lt;request_time>[^]]+)\] (?P&lt;content>.+)</p>
+                    <p>
+                      {{
+                        $t(
+                          '正则表达式(golang语法)需要匹配日志全文，如以下DEMO将从日志内容提取请求时间与内容'
+                        )
+                      }}
+                    </p>
+                    <p>
+                      {{ $t(' - 日志内容：[2006-01-02 15:04:05] content') }}
+                    </p>
+                    <p>
+                      {{ $t(' - 表达式：') }}\[(?P&lt;request_time>[^]]+)\]
+                      (?P&lt;content>.+)
+                    </p>
                   </div>
                 </template>
                 <!-- 分隔符选择 -->
@@ -254,7 +278,12 @@
 
                 <bk-button
                   class="fl debug-btn"
-                  :disabled="!logOriginal || isExtracting || !showDebugBtn || isSetDisabled"
+                  :disabled="
+                    !logOriginal ||
+                    isExtracting ||
+                    !showDebugBtn ||
+                    isSetDisabled
+                  "
                   data-test-id="fieldExtractionBox_button_debugging"
                   theme="primary"
                   @click="debugHandler"
@@ -318,18 +347,12 @@
                 >
                 </bk-input>
               </div>
-              <p
-                v-if="!isJsonOrOperator && !formatResult"
-                class="format-error"
-              >
+              <p v-if="!isJsonOrOperator && !formatResult" class="format-error">
                 {{ $t('格式解析失败，可以尝试其他提取方法') }}
               </p>
             </div>
           </bk-form-item>
-          <bk-form-item
-            ext-cls="en-bk-form"
-            :label="$t('字段列表')"
-          >
+          <bk-form-item ext-cls="en-bk-form" :label="$t('字段列表')">
             <!-- <div
               v-if="!isTempField"
               :class="{ 'view-log-btn': true, disabled: !hasFields }"
@@ -362,14 +385,8 @@
                 @standard="dialogVisible = true"
               >
               </field-table>
-              <div
-                v-if="isShowAddFields"
-                class="add-field-container"
-              >
-                <div
-                  class="text-btn"
-                  @click="addNewField"
-                >
+              <div v-if="isShowAddFields" class="add-field-container">
+                <div class="text-btn" @click="addNewField">
                   <i class="icon bk-icon icon-plus push"></i>
                   <span class="text">{{ $t('新增字段') }}</span>
                 </div>
@@ -388,12 +405,18 @@
             <div class="origin-log-config">
               <bk-radio-group v-model="formData.log_reporting_time">
                 <bk-radio :value="true">
-                  <span v-bk-tooltips="$t('平台上报日志的时间，默认选择该设置')">{{ $t('日志上报时间') }}</span>
+                  <span
+                    v-bk-tooltips="$t('平台上报日志的时间，默认选择该设置')"
+                    >{{ $t('日志上报时间') }}</span
+                  >
                 </bk-radio>
                 <bk-radio :value="false">
-                  <span v-bk-tooltips="$t('你可以自行指定日志展示时间，勾选前请提前清洗日志时间')">{{
-                    $t('指定字段为日志时间')
-                  }}</span>
+                  <span
+                    v-bk-tooltips="
+                      $t('你可以自行指定日志展示时间，勾选前请提前清洗日志时间')
+                    "
+                    >{{ $t('指定字段为日志时间') }}</span
+                  >
                 </bk-radio>
               </bk-radio-group>
             </div>
@@ -499,12 +522,14 @@
             :label="$t('保留失败日志')"
           >
             <div class="origin-log-config">
-              <bk-radio-group v-model="formData.etl_params.enable_retain_content">
+              <bk-radio-group
+                v-model="formData.etl_params.enable_retain_content"
+              >
                 <bk-radio :value="true">
                   <span
                     v-bk-tooltips="
                       $t(
-                        '日志存在多种格式时，可以保留不符合解析规则的日志，避免遗漏；未解析的日志可以通过 _prase.failure 进行过滤，为 true 时表示解析失败',
+                        '日志存在多种格式时，可以保留不符合解析规则的日志，避免遗漏；未解析的日志可以通过 _prase.failure 进行过滤，为 true 时表示解析失败'
                       )
                     "
                     >{{ $t('保留') }}</span
@@ -532,7 +557,7 @@
                 <span>
                   {{
                     this.$t(
-                      '在日志采集中，若您的日志中产生新的JSON字段，我们会自动采集并合入 __ext_json 字段中，您可以通过 __ext_json.xxx 检索该数据',
+                      '在日志采集中，若您的日志中产生新的JSON字段，我们会自动采集并合入 __ext_json 字段中，您可以通过 __ext_json.xxx 检索该数据'
                     )
                   }}
                 </span>
@@ -559,11 +584,7 @@
             :label="$t('路径样例')"
           >
             <div class="origin-log-config">
-              <bk-input
-                style="width: 520px"
-                v-model="pathExample"
-              >
-              </bk-input>
+              <bk-input style="width: 520px" v-model="pathExample"> </bk-input>
               <i
                 class="path-refresh-icon bk-icon bk-icon icon-refresh"
                 @click="pathRefreshClick"
@@ -631,10 +652,7 @@
           data-test-id="acquisitionConfig_div_visiableMessageBox"
         >
           <div class="step-field-title">{{ $t('可见范围设置') }}</div>
-          <bk-form-item
-            ext-cls="en-bk-form"
-            :label="$t('可见范围')"
-          >
+          <bk-form-item ext-cls="en-bk-form" :label="$t('可见范围')">
             <div class="origin-log-config">
               <bk-radio-group v-model="formData.visible_type">
                 <bk-radio
@@ -670,25 +688,21 @@
         <div class="advance-clean-step-container">
           <div class="step-item">
             <div class="image-content">
-              <img
-                alt=""
-                src="../../images/clean-image1.png"
-              />
+              <img alt="" src="../../images/clean-image1.png" />
             </div>
             <div class="step-description">
               <span class="step-num">1</span>
               <span class="description-text">{{
-                $t('高级清洗只能应用于日志平台采集的日志，会在链路上分发给计算平台进行更复杂的数据处理。')
+                $t(
+                  '高级清洗只能应用于日志平台采集的日志，会在链路上分发给计算平台进行更复杂的数据处理。'
+                )
               }}</span>
             </div>
           </div>
           <span class="bk-icon icon-angle-double-right-line"></span>
           <div class="step-item">
             <div class="image-content">
-              <img
-                alt=""
-                src="../../images/clean-image2.png"
-              />
+              <img alt="" src="../../images/clean-image2.png" />
             </div>
             <div class="step-description">
               <span class="step-num">2</span>
@@ -696,34 +710,32 @@
                 <i18n
                   path="选择了高级字段提取能力后，会跳转到计算平台进行更多的字段处理，计算平台提供13种清洗算法。具体的使用方法可查看{0}"
                 >
-                  <a
-                    class="link"
-                    @click="handleGotoLink('bkBase')"
-                  >
+                  <a class="link" @click="handleGotoLink('bkBase')">
                     {{ $t('计算平台文档') }}
                     <span class="bklog-icon bklog-lianjie"></span>
                   </a>
                 </i18n>
               </span>
-              <p class="remark">{{ $t('注： 同一个日志可以进行多次清洗。') }}</p>
+              <p class="remark">
+                {{ $t('注： 同一个日志可以进行多次清洗。') }}
+              </p>
             </div>
           </div>
           <span class="bk-icon icon-angle-double-right-line"></span>
           <div class="step-item">
             <div class="image-content">
-              <img
-                alt=""
-                src="../../images/clean-image3.png"
-              />
+              <img alt="" src="../../images/clean-image3.png" />
             </div>
             <div class="step-description">
               <span class="step-num">3</span>
               <span class="description-text">{{
                 $t(
-                  '清洗完并且存储到ES后，日志平台会识别到对应的索引创建日志平台的索引集，后续可以直接在检索和监控中使用。',
+                  '清洗完并且存储到ES后，日志平台会识别到对应的索引创建日志平台的索引集，后续可以直接在检索和监控中使用。'
                 )
               }}</span>
-              <p class="remark">{{ $t('注：如果清洗后存储成其他类型，将无法关联上。') }}</p>
+              <p class="remark">
+                {{ $t('注：如果清洗后存储成其他类型，将无法关联上。') }}
+              </p>
             </div>
           </div>
         </div>
@@ -791,7 +803,9 @@
           <bk-button
             v-if="isSetEdit"
             class="ml10"
-            :disabled="!collectProject || !showDebugBtn || !hasFields || isSetDisabled"
+            :disabled="
+              !collectProject || !showDebugBtn || !hasFields || isSetDisabled
+            "
             data-test-id="fieldExtractionBox_button_cancelSaveTemplate"
             theme="default"
             @click="setDetail(setId)"
@@ -808,11 +822,7 @@
           >
             {{ $t('保存') }}
           </bk-button>
-          <bk-button
-            class="ml10"
-            theme="default"
-            @click="handleCancel()"
-          >
+          <bk-button class="ml10" theme="default" @click="handleCancel()">
             {{ $t('取消') }}
           </bk-button>
           <!-- 保存模板 -->
@@ -841,15 +851,14 @@
         <template #header>
           <div>
             {{ $t('上报日志详情') }}
-            <span @click="copyText(JSON.stringify(jsonText))">{{ $t('复制') }}</span>
+            <span @click="copyText(JSON.stringify(jsonText))">{{
+              $t('复制')
+            }}</span>
           </div>
         </template>
         <template #content>
           <div class="p20 json-text-style">
-            <JsonFormatWrapper
-              :data="jsonText"
-              :deep="5"
-            />
+            <JsonFormatWrapper :data="jsonText" :deep="5" />
           </div>
         </template>
       </bk-sideslider>
@@ -888,10 +897,7 @@
         <div class="template-content">
           <div v-if="isSaveTempDialog">
             <label style="color: #63656e">{{ $t('模板名称') }}</label>
-            <bk-input
-              style="margin-top: 8px"
-              v-model="saveTempName"
-            ></bk-input>
+            <bk-input style="margin-top: 8px" v-model="saveTempName"></bk-input>
           </div>
           <div v-else>
             <bk-input
@@ -905,10 +911,15 @@
             <div class="template-list-wrap">
               <div
                 v-for="option in currentTemplateList"
-                :class="{ 'template-item': true, active: option.clean_template_id === selectTemplate }"
+                :class="{
+                  'template-item': true,
+                  active: option.clean_template_id === selectTemplate,
+                }"
                 :key="option.clean_template_id"
                 :title="option.name"
-                @click="handleSelectTemplate(option.clean_template_id, option.name)"
+                @click="
+                  handleSelectTemplate(option.clean_template_id, option.name)
+                "
               >
                 {{ option.name }}
               </div>
@@ -1154,7 +1165,7 @@ export default {
   },
   computed: {
     ...mapState({
-      mySpaceList: state => state.mySpaceList,
+      mySpaceList: (state) => state.mySpaceList,
     }),
     ...mapGetters({
       bkBizId: 'bkBizId',
@@ -1170,7 +1181,10 @@ export default {
       return (this.globalsData?.time_zone ?? []).toReversed();
     },
     isJsonOrOperator() {
-      return this.params.etl_config === 'bk_log_json' || this.params.etl_config === 'bk_log_delimiter';
+      return (
+        this.params.etl_config === 'bk_log_json' ||
+        this.params.etl_config === 'bk_log_delimiter'
+      );
     },
     showDebugBtn() {
       const methods = this.params.etl_config;
@@ -1229,13 +1243,15 @@ export default {
     },
     // 入口是否是清洗模板
     isClearTemplate() {
-      return ['clean-template-create', 'clean-template-edit'].includes(this.$route.name);
+      return ['clean-template-create', 'clean-template-edit'].includes(
+        this.$route.name
+      );
     },
     labelWidth() {
       return this.$store.state.isEnLanguage ? this.enLabelWidth : 130;
     },
     renderFieldNameList() {
-      return this.fieldNameList.filter(item => {
+      return this.fieldNameList.filter((item) => {
         return item.field_name && !item.is_built_in;
       });
     },
@@ -1250,7 +1266,10 @@ export default {
     // 切换可见范围时 恢复缓存或清空业务选择
     'formData.visible_type': {
       handler(val) {
-        this.visibleBkBiz = val !== 'multi_biz' ? [] : JSON.parse(JSON.stringify(this.cacheVisibleList));
+        this.visibleBkBiz =
+          val !== 'multi_biz'
+            ? []
+            : JSON.parse(JSON.stringify(this.cacheVisibleList));
       },
     },
     'formData.etl_params.retain_original_text': {
@@ -1279,7 +1298,7 @@ export default {
     if (this.unAuthBkdata) {
       // 未授权计算平台则禁用高级清洗
       this.panels[1].disabled = true;
-      this.panels[1].renderLabel = h => {
+      this.panels[1].renderLabel = (h) => {
         return h(
           'div',
           {
@@ -1346,7 +1365,9 @@ export default {
   methods: {
     handlerSearchTemplate() {
       const query = this.templateKeyWord.toLowerCase();
-      this.currentTemplateList = this.templateList.filter(item => item.name.toLowerCase().includes(query));
+      this.currentTemplateList = this.templateList.filter((item) =>
+        item.name.toLowerCase().includes(query)
+      );
     },
     handleSelectTemplate(templateId, name) {
       this.selectTemplate = templateId;
@@ -1364,8 +1385,10 @@ export default {
         this.savaFormData();
       } else {
         const allFields = this.$refs.fieldTable.getData();
-        const builtFields = allFields.filter(item => item.is_built_in);
-        this.formData.fields = allFields.filter(item => !item.is_built_in && !item.is_objectKey);
+        const builtFields = allFields.filter((item) => item.is_built_in);
+        this.formData.fields = allFields.filter(
+          (item) => !item.is_built_in && !item.is_objectKey
+        );
         if (builtFields.length) {
           this.copyBuiltField = builtFields;
         }
@@ -1384,7 +1407,7 @@ export default {
       // 获取采集项列表
       this.$http
         .request('collect/getAllCollectors', { query })
-        .then(res => {
+        .then((res) => {
           const { data } = res;
           if (data.length) {
             this.cleanCollectorList = data;
@@ -1416,7 +1439,7 @@ export default {
               bk_biz_id: this.bkBizId,
             },
           })
-          .then(res => {
+          .then((res) => {
             if (res.data) {
               this.setTempDetail(res.data);
             }
@@ -1450,7 +1473,7 @@ export default {
       });
 
       const logTimeOption = {};
-      etlFields.forEach(row => {
+      etlFields.forEach((row) => {
         if (row.is_time) {
           Object.assign(logTimeOption, {
             log_reporting_time: false,
@@ -1490,7 +1513,7 @@ export default {
       if (isAdvance) {
         this.activePanel = 'advance';
         this.panels[0].disabled = true;
-        this.panels[0].renderLabel = h => {
+        this.panels[0].renderLabel = (h) => {
           return h(
             'div',
             {
@@ -1534,11 +1557,14 @@ export default {
       urlParams.collector_config_id = this.curCollect.collector_config_id;
       const updateData = { params: urlParams, data };
       // 先置空防止接口失败显示旧数据
-      this.formData.etl_params.metadata_fields?.splice(0, this.formData.etl_params.metadata_fields?.length);
+      this.formData.etl_params.metadata_fields?.splice(
+        0,
+        this.formData.etl_params.metadata_fields?.length
+      );
       this.metaDataList.splice(0, this.metaDataList.length);
       this.$http
         .request('collect/getEtlPreview', updateData)
-        .then(res => {
+        .then((res) => {
           const fields = res.data?.fields || [];
           this.formData.etl_params?.metadata_fields.push(...fields);
         })
@@ -1573,7 +1599,7 @@ export default {
         // 添加内置字段
         if (!this.builtFieldShow) {
           const copyBuiltField = deepClone(this.copyBuiltField);
-          copyBuiltField.forEach(field => {
+          copyBuiltField.forEach((field) => {
             if (field.hasOwnProperty('expand')) {
               if (field.expand === false) {
                 copyBuiltField.push(...field.children);
@@ -1587,15 +1613,17 @@ export default {
         }
       }
       data.alias_settings = fieldTableData
-        .filter(item => item.query_alias)
-        .map(item => {
+        .filter((item) => item.query_alias)
+        .map((item) => {
           return {
             field_name: item.alias_name || item.field_name,
             query_alias: item.query_alias,
             path_type: item.field_type,
           };
         });
-      data.etl_fields = data.etl_fields.filter(item => !item.is_built_in && !item.is_objectKey);
+      data.etl_fields = data.etl_fields.filter(
+        (item) => !item.is_built_in && !item.is_objectKey
+      );
       let requestUrl;
       const urlParams = {};
       if (this.isSetEdit) {
@@ -1621,13 +1649,16 @@ export default {
         // 可见范围非多业务选择时删除visible_bk_biz_id
         data.visible_bk_biz_id = this.visibleBkBiz;
         data.visible_type !== 'multi_biz' && delete data.visible_bk_biz_id;
-        if (this.isEditTemp) urlParams.clean_template_id = this.$route.params.templateId;
-        requestUrl = this.isEditTemp ? 'clean/updateTemplate' : 'clean/createTemplate';
+        if (this.isEditTemp)
+          urlParams.clean_template_id = this.$route.params.templateId;
+        requestUrl = this.isEditTemp
+          ? 'clean/updateTemplate'
+          : 'clean/createTemplate';
       }
       const updateData = { params: urlParams, data };
       this.$http
         .request(requestUrl, updateData)
-        .then(res => {
+        .then((res) => {
           if (res.code === 0) {
             // 检索页弹窗的字段清洗
             if (this.isSetEdit) {
@@ -1680,7 +1711,12 @@ export default {
     },
     /** 入库请求 */
     async fieldCollectionRequest(atLastFormData, callback) {
-      const { clean_type: etlConfig, etl_params: etlParams, etl_fields: etlFields, alias_settings } = atLastFormData;
+      const {
+        clean_type: etlConfig,
+        etl_params: etlParams,
+        etl_fields: etlFields,
+        alias_settings,
+      } = atLastFormData;
       // 检索设置 直接入库
       const {
         table_id,
@@ -1692,7 +1728,9 @@ export default {
         storage_shards_nums: storageShardsNums,
       } = this.curCollect;
       const storageList = await this.getStorage();
-      const isOpenHotWarm = storageList.find(item => item.storage_cluster_id === storage_cluster_id)?.enable_hot_warm;
+      const isOpenHotWarm = storageList.find(
+        (item) => item.storage_cluster_id === storage_cluster_id
+      )?.enable_hot_warm;
       const data = {
         table_id,
         storage_cluster_id,
@@ -1715,7 +1753,7 @@ export default {
       };
       this.$http
         .request('collect/fieldCollection', updateData)
-        .then(res => {
+        .then((res) => {
           if (res.code === 0) {
             // 检索页弹窗的字段清洗
             if (this.isSetEdit) {
@@ -1750,7 +1788,8 @@ export default {
           const etlParams = this.params.etl_params;
           const etlParamsForm = this.formData.etl_params;
           if (etlConfigParam === 'bk_log_regexp') {
-            isConfigChange = etlParams.separator_regexp !== etlParamsForm.separator_regexp;
+            isConfigChange =
+              etlParams.separator_regexp !== etlParamsForm.separator_regexp;
           }
           if (etlConfigParam === 'bk_log_delimiter') {
             isConfigChange = etlParams.separator !== etlParamsForm.separator;
@@ -1769,10 +1808,14 @@ export default {
                 whiteSpace: 'normal',
               },
             },
-            this.$t('字段提取方法或条件已发生变更，需【调试&设置】按钮点击操作成功才会生效')
+            this.$t(
+              '字段提取方法或条件已发生变更，需【调试&设置】按钮点击操作成功才会生效'
+            )
           ),
           confirmFn: () => {
-            isCollect ? this.fieldCollection(true, callback) : this.handleSaveTemp();
+            isCollect
+              ? this.fieldCollection(true, callback)
+              : this.handleSaveTemp();
           },
         });
         return;
@@ -1787,7 +1830,9 @@ export default {
     async requestCheckTime() {
       const { time_format, time_zone, field_name } = this.formData;
       let fieldsData = this.$refs.fieldTable.getData() || [];
-      const timeValueItem = fieldsData.find(item => field_name === item.field_name);
+      const timeValueItem = fieldsData.find(
+        (item) => field_name === item.field_name
+      );
       let result = '';
       await this.$http
         .request('collect/getCheckTime', {
@@ -1800,11 +1845,11 @@ export default {
             data: timeValueItem?.value || '',
           },
         })
-        .then(res => {
+        .then((res) => {
           this.timeCheckContent = '';
           result = true;
         })
-        .catch(err => {
+        .catch((err) => {
           this.timeCheckContent = err;
           result = false;
         });
@@ -1812,22 +1857,36 @@ export default {
     },
     // 完成按钮
     finish(isCollect = false, callback) {
-      this.$refs.validateForm.validate().then(async res => {
+      this.$refs.validateForm.validate().then(async (res) => {
         if (res) {
           // 当选择的是指定字段为日志时间时，对时间格式做校验
           if (!this.formData.log_reporting_time) {
             const isValid = await this.requestCheckTime();
             if (!isValid) return;
           }
-          const hideDeletedTable = this.$refs.fieldTable.hideDeletedTable.length;
-          if (!this.formData.etl_params.retain_original_text && !hideDeletedTable) {
-            this.messageError(this.$t('请完成字段清洗或者勾选“保留原始日志”, 否则接入日志内容将无法展示。'));
+          const hideDeletedTable =
+            this.$refs.fieldTable.hideDeletedTable.length;
+          if (
+            !this.formData.etl_params.retain_original_text &&
+            !hideDeletedTable
+          ) {
+            this.messageError(
+              this.$t(
+                '请完成字段清洗或者勾选“保留原始日志”, 否则接入日志内容将无法展示。'
+              )
+            );
             callback?.(false);
             return;
           }
           // 清洗模板选择多业务时不能为空
-          if (this.formData.visible_type === 'multi_biz' && !this.visibleBkBiz.length && this.isClearTemplate) {
-            this.messageError(this.$t('可见类型为业务属性时，业务标签不能为空'));
+          if (
+            this.formData.visible_type === 'multi_biz' &&
+            !this.visibleBkBiz.length &&
+            this.isClearTemplate
+          ) {
+            this.messageError(
+              this.$t('可见类型为业务属性时，业务标签不能为空')
+            );
             callback?.(false);
             return;
           }
@@ -1840,7 +1899,7 @@ export default {
             () => {
               this.checkEtlConfChnage(isCollect, callback);
             },
-            validator => {
+            (validator) => {
               callback?.(false);
               console.warn('保存失败', validator);
             }
@@ -1869,7 +1928,9 @@ export default {
       } else if (['edit', 'storage', 'masking'].includes(this.operateType)) {
         routeName = 'collection-item';
       } else {
-        routeName = this.isCleanField ? 'log-clean-list' : 'log-clean-templates';
+        routeName = this.isCleanField
+          ? 'log-clean-list'
+          : 'log-clean-templates';
       }
       this.$router.push({
         name: routeName,
@@ -1898,7 +1959,9 @@ export default {
               color: '#63656e',
             },
           },
-          this.$t('高级清洗需要跳转到计算平台并终止当前流程，请确认是否继续跳转')
+          this.$t(
+            '高级清洗需要跳转到计算平台并终止当前流程，请确认是否继续跳转'
+          )
         ),
         // okText: this.$t('直接下载'),
         confirmFn: () => {
@@ -1928,10 +1991,13 @@ export default {
       const copyFields = fields ? JSON.parse(JSON.stringify(fields)) : [];
       this.alias_settings = this.changeAliasSettings(alias_settings);
       this.concatenationQueryAlias(copyFields);
-      copyFields.forEach(row => {
+      copyFields.forEach((row) => {
         row.value = '';
         if (row.is_delete) {
-          const copyRow = Object.assign(JSON.parse(JSON.stringify(this.rowTemplate)), JSON.parse(JSON.stringify(row)));
+          const copyRow = Object.assign(
+            JSON.parse(JSON.stringify(this.rowTemplate)),
+            JSON.parse(JSON.stringify(row))
+          );
           Object.assign(row, copyRow);
         }
         if (row.option) {
@@ -1972,13 +2038,16 @@ export default {
               }
             : {}
         ),
-        fields: copyFields.filter(item => !item.is_built_in),
+        fields: copyFields.filter((item) => !item.is_built_in),
       });
 
       if (!this.copyBuiltField.length) {
-        this.copyBuiltField = copyFields.filter(item => item.is_built_in);
+        this.copyBuiltField = copyFields.filter((item) => item.is_built_in);
       }
-      if (this.curCollect.etl_config && this.curCollect.etl_config !== 'bk_log_text') {
+      if (
+        this.curCollect.etl_config &&
+        this.curCollect.etl_config !== 'bk_log_text'
+      ) {
         this.formatResult = true;
       }
       this.requestFields(index_set_id);
@@ -2026,10 +2095,14 @@ export default {
     requestEtlPreview(type) {
       const { etl_config, etl_params } = this.params;
       /* eslint-disable */
-      if (!this.logOriginal || !etl_config || etl_config === 'bk_log_text') return;
-      if (etl_config === 'bk_log_regexp' && !etl_params.separator_regexp) return;
+      if (!this.logOriginal || !etl_config || etl_config === 'bk_log_text')
+        return;
+      if (etl_config === 'bk_log_regexp' && !etl_params.separator_regexp)
+        return;
       if (etl_config === 'bk_log_delimiter' && !etl_params.separator) return;
-      const newFields = this.$refs.fieldTable ? this.$refs.fieldTable.getData() : []; // 不能取原fileds，因字段修改后的信息保留在table组件里
+      const newFields = this.$refs.fieldTable
+        ? this.$refs.fieldTable.getData()
+        : []; // 不能取原fileds，因字段修改后的信息保留在table组件里
       this.isExtracting = type === 'init' ? !type : true;
       const etlParams = {};
       if (etl_config === 'bk_log_delimiter') {
@@ -2050,12 +2123,13 @@ export default {
       if (this.isTempField) {
         requestUrl = 'clean/getEtlPreview';
       } else {
-        (urlParams.collector_config_id = this.curCollect.collector_config_id), (requestUrl = 'collect/getEtlPreview');
+        ((urlParams.collector_config_id = this.curCollect.collector_config_id),
+          (requestUrl = 'collect/getEtlPreview'));
       }
       const updateData = { params: urlParams, data };
       this.$http
         .request(requestUrl, updateData)
-        .then(res => {
+        .then((res) => {
           // 以下为整个页面关键逻辑
           /**
            * 只有点击调试按钮，并且成功了，才会改变原有的fields列表，否则只是结果失败，不做任何操作
@@ -2064,7 +2138,7 @@ export default {
           if (res.data && res.data.fields) {
             const dataFields = res.data.fields;
             const validFieldPattern = /^[A-Za-z_][0-9A-Za-z_]*$/;
-            dataFields.forEach(item => {
+            dataFields.forEach((item) => {
               if (item.field_name && !validFieldPattern.test(item.field_name)) {
                 item.field_name = JSON.stringify(item.field_name);
               }
@@ -2073,32 +2147,54 @@ export default {
             const fields = this.formData.fields;
             if (!type) {
               // 只有点击了调试按钮，才能修改fields列表  // 原始日志更新值改边预览值
-              if (!this.formData.etl_config || this.formData.etl_config !== etl_config || !newFields.length) {
+              if (
+                !this.formData.etl_config ||
+                this.formData.etl_config !== etl_config ||
+                !newFields.length
+              ) {
                 // 如果没有提取方式 || 提取方式发生变化 || 不存在任何字段
                 const list = dataFields.reduce((arr, item) => {
-                  const field = Object.assign({}, JSON.parse(JSON.stringify(this.rowTemplate)), item);
+                  const field = Object.assign(
+                    {},
+                    JSON.parse(JSON.stringify(this.rowTemplate)),
+                    item
+                  );
                   arr.push(field);
                   return arr;
                 }, []);
                 this.formData.fields.splice(0, fields.length, ...list);
               } else {
                 // 否则 - 将对table已修改值-> newFields进行操作
-                if (etl_config === 'bk_log_json' || etl_config === 'bk_log_regexp') {
+                if (
+                  etl_config === 'bk_log_json' ||
+                  etl_config === 'bk_log_regexp'
+                ) {
                   const list = dataFields.reduce((arr, item) => {
-                    const child = newFields.find(field => {
+                    const child = newFields.find((field) => {
                       // return  !field.is_built_in && (field.field_name === item.field_name || field.alias_name === item.field_name)
-                      return !field.is_built_in && field.field_name === item.field_name;
+                      return (
+                        !field.is_built_in &&
+                        field.field_name === item.field_name
+                      );
                     });
                     item = child
                       ? Object.assign({}, child, item)
-                      : Object.assign(JSON.parse(JSON.stringify(this.rowTemplate)), item);
+                      : Object.assign(
+                          JSON.parse(JSON.stringify(this.rowTemplate)),
+                          item
+                        );
                     arr.push(item);
                     return arr;
                   }, []);
                   if (etl_config === 'bk_log_json') {
                     // json方式下已删除操作的需要拿出来合并到新的field列表里
                     const deletedFileds = newFields.reduce((arr, field) => {
-                      if (field.is_delete && !dataFields.find(item => item.field_name === field.field_name)) {
+                      if (
+                        field.is_delete &&
+                        !dataFields.find(
+                          (item) => item.field_name === field.field_name
+                        )
+                      ) {
                         arr.push(field);
                       }
                       return arr;
@@ -2124,7 +2220,9 @@ export default {
 
                   const list = [];
                   // 将标记为删除的字段过滤出来，并添加到 list 中
-                  const deletedFileds = newFields.filter(item => item.is_delete);
+                  const deletedFileds = newFields.filter(
+                    (item) => item.is_delete
+                  );
                   list.splice(list.length, 0, ...deletedFileds); // 将已删除的字段存进数组
                   // 因为已过滤掉 is_delete 字段，故 field_index 和 dataFields 的对应关系并不严格
                   if (index.length) {
@@ -2135,15 +2233,21 @@ export default {
                     });
                     // 处理 dataFields 中超出 index 范围的部分
                     if (dataFields.length > index.length) {
-                      dataFields.slice(index.length).forEach(item => {
-                        const newItem = Object.assign(JSON.parse(JSON.stringify(this.rowTemplate)), item);
+                      dataFields.slice(index.length).forEach((item) => {
+                        const newItem = Object.assign(
+                          JSON.parse(JSON.stringify(this.rowTemplate)),
+                          item
+                        );
                         list.push(newItem);
                       });
                     }
                   } else {
                     dataFields.reduce((arr, item) => {
                       item.field_index = arr.length;
-                      const field = Object.assign(JSON.parse(JSON.stringify(this.rowTemplate)), item);
+                      const field = Object.assign(
+                        JSON.parse(JSON.stringify(this.rowTemplate)),
+                        item
+                      );
                       arr.push(field);
                       return arr;
                     }, list);
@@ -2156,8 +2260,8 @@ export default {
               this.savaFormData();
             } else {
               // 仅做预览赋值操作，不改变结果
-              newFields.forEach(field => {
-                const child = dataFields.find(item => {
+              newFields.forEach((field) => {
+                const child = dataFields.find((item) => {
                   if (etl_config === 'bk_log_json') {
                     return field.field_name === item.field_name;
                     // return  field.field_name === item.field_name || field.alias_name === item.field_name // 同上
@@ -2188,7 +2292,10 @@ export default {
           this.isExtracting = false;
           this.catchEtlConfig = this.params.etl_config;
           this.$nextTick(() => {
-            if (!this.editComparedData.isLogOriginLast && this.isFinishCreateStep) {
+            if (
+              !this.editComparedData.isLogOriginLast &&
+              this.isFinishCreateStep
+            ) {
               this.editComparedData.isLogOriginLast = true;
               this.editComparedData.comparedVal = this.getSubmitParams();
             }
@@ -2215,9 +2322,10 @@ export default {
             collector_config_id: this.curCollect.collector_config_id,
           },
         })
-        .then(res => {
+        .then((res) => {
           if (res.data?.length) {
-            this.copysText = Object.assign(res.data[0].etl, res.data[0].etl.items[0]) || {};
+            this.copysText =
+              Object.assign(res.data[0].etl, res.data[0].etl.items[0]) || {};
             const data = res.data[0];
             this.jsonText = data.origin || {};
             this.pathExample = this.jsonText.filename;
@@ -2225,7 +2333,7 @@ export default {
             if (this.logOriginal) {
               this.requestEtlPreview(isInit);
             }
-            this.copyBuiltField.forEach(item => {
+            this.copyBuiltField.forEach((item) => {
               const fieldName = item.field_name;
               if (fieldName) {
                 if (item.hasOwnProperty('value')) {
@@ -2280,7 +2388,9 @@ export default {
         }
 
         // 应用模板设置
-        const curTemp = this.templateList.find(temp => temp.clean_template_id === this.selectTemplate);
+        const curTemp = this.templateList.find(
+          (temp) => temp.clean_template_id === this.selectTemplate
+        );
         this.formData.fields.splice(0, this.formData.fields.length);
         this.setTempDetail(curTemp);
         this.templateDialogVisible = false;
@@ -2295,7 +2405,8 @@ export default {
       }
 
       // 新增清洗未选择采集项
-      if ((this.isCleanField && !this.cleanCollector) || this.isSetDisabled) return;
+      if ((this.isCleanField && !this.cleanCollector) || this.isSetDisabled)
+        return;
       // 选择应用模板
       this.isSaveTempDialog = isSave;
       this.templateDialogVisible = true;
@@ -2305,7 +2416,7 @@ export default {
             bk_biz_id: this.bkBizId,
           },
         })
-        .then(res => {
+        .then((res) => {
           if (res.data) {
             this.templateList = res.data;
             this.currentTemplateList = res.data;
@@ -2325,15 +2436,19 @@ export default {
             collector_config_id: id,
           },
         })
-        .then(res => {
+        .then((res) => {
           if (res.data) {
-            const { clean_type, etl_params: etlParams, etl_fields: etlFields } = res.data;
+            const {
+              clean_type,
+              etl_params: etlParams,
+              etl_fields: etlFields,
+            } = res.data;
             this.concatenationQueryAlias(etlFields);
             this.formData.fields.splice(0, this.formData.fields.length);
 
             this.params.etl_config = clean_type;
             const logTimeOption = {};
-            const previousStateFields = etlFields.map(item => {
+            const previousStateFields = etlFields.map((item) => {
               if (item.is_time) {
                 Object.assign(logTimeOption, {
                   log_reporting_time: false,
@@ -2376,7 +2491,8 @@ export default {
             });
             if (etlParams.original_text_tokenize_on_chars) {
               this.originParticipleState = 'custom';
-              this.defaultParticipleStr = etlParams.original_text_tokenize_on_chars;
+              this.defaultParticipleStr =
+                etlParams.original_text_tokenize_on_chars;
             }
           }
           // 暂存信息可能为空 对比项仍需赋值
@@ -2396,9 +2512,11 @@ export default {
         .request('collect/details', {
           params: { collector_config_id: id },
         })
-        .then(async res => {
+        .then(async (res) => {
           if (res.data) {
-            this.alias_settings = this.changeAliasSettings(res.data.alias_settings);
+            this.alias_settings = this.changeAliasSettings(
+              res.data.alias_settings
+            );
             this.concatenationQueryAlias(res.data.fields);
             this.$store.commit('collect/setCurCollect', res.data);
             this.getDetail();
@@ -2412,9 +2530,12 @@ export default {
     },
     // 拼接query_alias
     concatenationQueryAlias(fields) {
-      fields.forEach(item => {
-        this.alias_settings.forEach(item2 => {
-          if (item.field_name === item2.field_name || item.alias_name === item2.field_name) {
+      fields.forEach((item) => {
+        this.alias_settings.forEach((item2) => {
+          if (
+            item.field_name === item2.field_name ||
+            item.alias_name === item2.field_name
+          ) {
             item.query_alias = item2.query_alias;
           }
         });
@@ -2439,7 +2560,7 @@ export default {
         this.basicLoading = false;
         return;
       }
-      const curCollect = this.cleanCollectorList.find(item => {
+      const curCollect = this.cleanCollectorList.find((item) => {
         return item.collector_config_id.toString() === id.toString();
       });
       if (curCollect.create_clean_able || this.isEditCleanItem) {
@@ -2504,31 +2625,42 @@ export default {
         field_index: this.formData.fields.length,
       };
       // 获取table表格编辑的数据 新增新的字段对象
-      this.formData.fields.splice(0, fields.length, ...[...this.$refs.fieldTable.getData(), newBaseFieldObj]);
+      this.formData.fields.splice(
+        0,
+        fields.length,
+        ...[...this.$refs.fieldTable.getData(), newBaseFieldObj]
+      );
       this.deletedVisible = true;
       this.savaFormData();
     },
     handleChangeParticipleState(val) {
-      this.formData.etl_params.original_text_tokenize_on_chars = val === 'custom' ? this.defaultParticipleStr : '';
+      this.formData.etl_params.original_text_tokenize_on_chars =
+        val === 'custom' ? this.defaultParticipleStr : '';
     },
     /** 传参需要的data */
     getSubmitParams(fieldsData = null) {
-      const { etl_config: etlConfig, etl_params: etlParams, visible_type } = this.formData;
+      const {
+        etl_config: etlConfig,
+        etl_params: etlParams,
+        visible_type,
+      } = this.formData;
       if (!fieldsData) {
-        fieldsData = this.formData.fields.map(item => {
+        fieldsData = this.formData.fields.map((item) => {
           const { participleState, ...otherValue } = item;
           return otherValue;
         });
       }
       etlParams.metadata_fields =
-        etlParams?.metadata_fields?.map(item => {
+        etlParams?.metadata_fields?.map((item) => {
           item.metadata_type = 'path';
           return item;
         }) ?? [];
       const payload = {
         retain_original_text: etlParams.retain_original_text,
-        original_text_is_case_sensitive: etlParams.original_text_is_case_sensitive ?? false,
-        original_text_tokenize_on_chars: etlParams.original_text_tokenize_on_chars ?? '',
+        original_text_is_case_sensitive:
+          etlParams.original_text_is_case_sensitive ?? false,
+        original_text_tokenize_on_chars:
+          etlParams.original_text_tokenize_on_chars ?? '',
         retain_extra_json: etlParams.retain_extra_json ?? false,
         path_regexp: this.enableMetaData ? etlParams.path_regexp : null,
         enable_retain_content: etlParams.enable_retain_content,
@@ -2538,7 +2670,10 @@ export default {
       const data = {
         clean_type: etlConfig,
         etl_params: {
-          separator_regexp: etlParams.separator === 'bk_log_regexp' ? etlParams.separator_regexp : '',
+          separator_regexp:
+            etlParams.separator === 'bk_log_regexp'
+              ? etlParams.separator_regexp
+              : '',
           separator: etlParams.separator,
           ...payload,
         },
@@ -2563,7 +2698,7 @@ export default {
 
       const { field_name, time_zone, time_format } = this.formData;
       const isReportingTime = this.formData.log_reporting_time;
-      const result = fieldsData.map(item => {
+      const result = fieldsData.map((item) => {
         // 通用的删除操作
         delete item.participleState;
 
@@ -2599,7 +2734,7 @@ export default {
         'is_delete',
         'option',
       ];
-      return fields.map(item =>
+      return fields.map((item) =>
         Object.entries(item).reduce((acc, [fKey, fVal]) => {
           if (fieldComparedKeys.includes(fKey)) {
             acc[fKey] = fVal;
@@ -2629,8 +2764,10 @@ export default {
             index_set_id: indexSetId,
           },
         });
-        this.fieldsObjectData = res.data.fields.filter(item => item.field_name.includes('.'));
-        this.fieldsObjectData.forEach(item => {
+        this.fieldsObjectData = res.data.fields.filter((item) =>
+          item.field_name.includes('.')
+        );
+        this.fieldsObjectData.forEach((item) => {
           let name = item.field_name.split('.')[0];
           item.field_type = typeConversion[item.field_type];
           item.is_objectKey = true;
@@ -2644,12 +2781,14 @@ export default {
       }
     },
     deleteField(field) {
-      this.formData.fields = this.formData.fields.filter(item => item.field_index !== field.field_index);
+      this.formData.fields = this.formData.fields.filter(
+        (item) => item.field_index !== field.field_index
+      );
     },
     // 转换alias_settings格式
     changeAliasSettings(alias_settings) {
       const keys = Object.keys(alias_settings || {});
-      return keys.map(key => {
+      return keys.map((key) => {
         return {
           query_alias: key,
           field_name: alias_settings[key].path,
@@ -2658,8 +2797,11 @@ export default {
     },
     addChildrenToBuiltField(builtFieldList, item, name) {
       const field_name = name.split('.')[0].replace(/^_+|_+$/g, '');
-      builtFieldList.forEach(builtField => {
-        if (builtField.field_type === 'object' && field_name === builtField.field_name?.split('.')[0]) {
+      builtFieldList.forEach((builtField) => {
+        if (
+          builtField.field_type === 'object' &&
+          field_name === builtField.field_name?.split('.')[0]
+        ) {
           if (!Array.isArray(builtField.children)) {
             builtField.children = [];
             this.$set(builtField, 'expand', false);
@@ -2670,7 +2812,7 @@ export default {
     },
     // 切换后time_unix字段后，取消上次time_unix标识
     changeFieldName(val, oldVal) {
-      this.fieldNameList.forEach(item => {
+      this.fieldNameList.forEach((item) => {
         if (item.field_name === oldVal) {
           item.is_time = false;
         }
@@ -2681,594 +2823,594 @@ export default {
 </script>
 
 <style lang="scss">
-  @import '@/scss/mixins/clearfix';
-  @import '@/scss/space-tag-option';
+@import '@/scss/mixins/clearfix';
+@import '@/scss/space-tag-option';
 
-  /* stylelint-disable no-descending-specificity */
-  .step-field-container {
-    min-width: 950px;
-    max-height: 100%;
-    padding: 0 42px 42px;
-    overflow: auto;
+/* stylelint-disable no-descending-specificity */
+.step-field-container {
+  min-width: 950px;
+  max-height: 100%;
+  padding: 0 42px 42px;
+  overflow: auto;
+}
+
+.step-field {
+  .king-alert {
+    margin: 30px auto -28px;
   }
 
-  .step-field {
-    .king-alert {
-      margin: 30px auto -28px;
-    }
+  .collector-select {
+    display: flex;
+    align-items: center;
+    margin: 50px 0 -26px;
 
-    .collector-select {
-      display: flex;
-      align-items: center;
-      margin: 50px 0 -26px;
-
-      label {
-        margin-right: 16px;
-        font-size: 12px;
-        color: #63656e;
-      }
-    }
-
-    .origin-log-config {
+    label {
+      margin-right: 16px;
       font-size: 12px;
       color: #63656e;
+    }
+  }
 
-      .title {
-        display: inline-block;
-        margin: 24px 0 8px 0;
-      }
+  .origin-log-config {
+    font-size: 12px;
+    color: #63656e;
 
-      label {
-        margin-right: 24px;
-        font-size: 12px;
-      }
+    .title {
+      display: inline-block;
+      margin: 24px 0 8px 0;
+    }
 
-      .select-container {
-        margin-top: 15px;
-      }
+    label {
+      margin-right: 24px;
+      font-size: 12px;
+    }
 
-      .flex-box,
-      %flex-box {
+    .select-container {
+      margin-top: 15px;
+    }
+
+    .flex-box,
+    %flex-box {
+      display: flex;
+      align-items: center;
+      justify-content: start;
+    }
+
+    .select-title {
+      justify-content: center;
+      // width: 52px;
+      height: 32px;
+      padding: 0 8px;
+      background: #fafbfd;
+      border: 1px solid #c4c6cc;
+      border-radius: 2px 0 0 2px;
+      transform: translateX(1px);
+
+      @extend %flex-box;
+    }
+
+    .origin-select-custom {
+      width: 110px;
+    }
+
+    .log-time-select {
+      width: 200px;
+      margin-right: 10px;
+    }
+
+    .bk-select-name {
+      padding: 0 22px 0 10px;
+    }
+
+    .bk-form-control {
+      display: inline-block;
+    }
+  }
+
+  .path-refresh-icon {
+    margin-left: 12px;
+    font-size: 17px;
+    cursor: pointer;
+  }
+
+  .step-field-title {
+    width: 100%;
+    padding-top: 36px;
+    padding-bottom: 10px;
+    margin-bottom: 20px;
+    font-size: 14px;
+    font-weight: 600;
+    color: #63656e;
+    border-bottom: 1px solid #dcdee5;
+  }
+
+  .switcher-tips {
+    position: absolute;
+    top: 20px;
+    font-size: 12px;
+    color: #979ba5;
+  }
+
+  .text-nav {
+    display: inline-block;
+    font-size: 12px;
+    font-weight: normal;
+    color: #3a84ff;
+
+    span {
+      margin-left: 10px;
+      cursor: pointer;
+    }
+  }
+
+  .bk-form-control .control-icon {
+    top: 18px;
+  }
+
+  .bk-switcher-small {
+    width: 36px;
+    height: 20px;
+
+    &::after {
+      width: 16px;
+      height: 16px;
+    }
+
+    &.is-checked:after {
+      margin-left: -18px;
+    }
+  }
+
+  .tips {
+    margin-left: 8px;
+    font-size: 12px;
+    line-height: 32px;
+    color: #aeb0b7;
+  }
+
+  .form-div {
+    display: flex;
+    margin: 20px 0;
+
+    .form-inline-div {
+      white-space: nowrap;
+
+      .bk-form-content {
         display: flex;
-        align-items: center;
-        justify-content: start;
-      }
-
-      .select-title {
-        justify-content: center;
-        // width: 52px;
-        height: 32px;
-        padding: 0 8px;
-        background: #fafbfd;
-        border: 1px solid #c4c6cc;
-        border-radius: 2px 0 0 2px;
-        transform: translateX(1px);
-
-        @extend %flex-box;
-      }
-
-      .origin-select-custom {
-        width: 110px;
-      }
-
-      .log-time-select {
-        width: 200px;
-        margin-right: 10px;
-      }
-
-      .bk-select-name {
-        padding: 0 22px 0 10px;
-      }
-
-      .bk-form-control {
-        display: inline-block;
+        flex-wrap: nowrap;
       }
     }
 
-    .path-refresh-icon {
-      margin-left: 12px;
-      font-size: 17px;
+    .prefix {
+      min-width: 80px;
+      margin-right: 8px;
+      font-size: 14px;
+      line-height: 32px;
+      color: #858790;
+      text-align: right;
+    }
+  }
+
+  .field-method-head {
+    top: -34px;
+    margin: 0 0 10px 0;
+
+    @include clearfix;
+
+    .field-method-link {
+      margin-left: 16px;
+    }
+
+    .toggle-icon {
+      margin-right: 4px;
+      color: #3a84ff;
       cursor: pointer;
     }
 
-    .step-field-title {
-      width: 100%;
-      padding-top: 36px;
-      padding-bottom: 10px;
-      margin-bottom: 20px;
-      font-size: 14px;
-      font-weight: 600;
-      color: #63656e;
-      border-bottom: 1px solid #dcdee5;
+    .table-setting {
+      display: flex;
+      align-items: center;
+      line-height: 18px;
     }
 
-    .switcher-tips {
+    .disabled-setting {
+      .bk-label,
+      .toggle-icon,
+      .visible-deleted-text,
+      .field-method-link {
+        color: #c4c6cc;
+      }
+
+      .toggle-icon,
+      .field-method-link {
+        cursor: not-allowed;
+      }
+    }
+  }
+
+  .field-template-head {
+    padding-bottom: 20px;
+    border-bottom: 1px solid #dcdee5;
+  }
+
+  .field-method-title {
+    margin: 0;
+    font-size: 14px;
+    font-weight: normal;
+    line-height: 20px;
+    color: #7a7c85;
+  }
+
+  .field-text {
+    position: relative;
+    top: 10px;
+    margin-right: 22px;
+    font-size: 14px;
+    font-weight: 600;
+    color: #63656e;
+  }
+
+  .bk-tab-label-wrapper .bk-tab-label-item .bk-tab-label {
+    font-size: 12px;
+  }
+
+  .field-method-tab.bk-tab-unborder-card {
+    .bk-tab-label-list .bk-tab-label-item {
+      min-width: 80px;
+    }
+
+    .bk-tab-section {
+      display: none;
+    }
+  }
+
+  .field-step {
+    .step-text {
+      font-size: 14px;
+      color: #63656e;
+    }
+
+    .template-text {
+      font-size: 12px;
+      color: #3a84ff;
+      cursor: pointer;
+    }
+
+    .template-disabled {
+      color: #c4c6cc;
+      cursor: not-allowed;
+    }
+
+    .field-button-group {
+      display: flex;
+      align-items: center;
+      margin: 10px 0 0;
+
+      .bklog-button {
+        font-size: 12px;
+      }
+    }
+
+    .bklog-icon {
+      font-size: 16px;
+    }
+
+    .documentation {
+      margin-left: 15px;
+    }
+  }
+
+  .view-log-btn {
+    position: relative;
+    top: 20px;
+    left: -94px;
+    font-size: 12px;
+    color: #3a84ff;
+    cursor: pointer;
+
+    &.disabled {
+      color: #c4c6cc;
+      cursor: not-allowed;
+    }
+  }
+
+  .log-textarea {
+    .right-icon {
+      /* stylelint-disable-next-line declaration-no-important */
+      right: 20px !important;
+    }
+  }
+
+  .field-method-result {
+    margin-top: 10px;
+  }
+
+  .add-field-container {
+    display: flex;
+    align-items: center;
+    height: 40px;
+    padding-left: 4px;
+    border: 1px solid #dcdee5;
+    border-top: none;
+    border-bottom: 1.5px solid #dcdee5;
+    border-radius: 0 0 2px 2px;
+    transform: translateY(-1px);
+
+    .text-btn {
+      display: flex;
+      align-items: center;
+      cursor: pointer;
+
+      .text,
+      .icon {
+        font-size: 22px;
+        color: #3a84ff;
+      }
+
+      .text {
+        font-size: 12px;
+      }
+    }
+  }
+
+  .field-method-cause {
+    margin-bottom: 20px;
+
+    @include clearfix;
+  }
+
+  .debug-btn {
+    margin-left: 12px;
+    color: #3a84ff;
+    background: #fff;
+
+    &:hover {
+      color: #fff;
+    }
+  }
+
+  .field-method-regex {
+    margin-top: 10px;
+
+    .regex-btn {
       position: absolute;
-      top: 20px;
+      top: 0;
+      right: 0;
+    }
+  }
+
+  .textarea-wrapper {
+    position: relative;
+    width: 100%;
+  }
+
+  .mimic-textarea {
+    width: 100%;
+    min-height: 72px;
+    padding: 6px 10px;
+    margin: 0;
+    font-size: 12px;
+    line-height: 1.5;
+    color: transparent;
+    white-space: pre-wrap;
+    outline: none;
+  }
+
+  .regex-textarea {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+
+    .bk-textarea-wrapper {
+      height: 100%;
+    }
+
+    textarea {
+      height: 100%;
+      overflow: hidden;
+    }
+  }
+
+  .hot-data-form-item {
+    .bk-form-content {
+      display: flex;
+      align-items: center;
+
+      .disable-tips {
+        margin-left: 10px;
+        font-size: 12px;
+        color: #63656e;
+
+        a {
+          color: #3a84ff;
+        }
+      }
+    }
+  }
+
+  .form-item-flex {
+    display: flex;
+
+    .bk-label {
+      width: auto;
+      padding: 0;
+      font-size: 12px;
+      line-height: 20px;
+      color: #63656e;
+
+      &.has-desc > span {
+        margin-right: 20px;
+        cursor: pointer;
+        border-bottom: 1px dashed #d8d8d8;
+      }
+    }
+
+    .bk-form-content {
+      flex: 1;
+      margin: 0 0 0 10px;
+      font-size: 0;
+    }
+  }
+
+  .visible-deleted-text {
+    font-size: 12px;
+    color: #63656e;
+  }
+
+  .format-error {
+    font-size: 12px;
+    color: #ea3636;
+  }
+
+  .log-style {
+    height: 82px;
+
+    .bk-form-textarea:focus {
+      /* stylelint-disable-next-line declaration-no-important */
+      background-color: #313238 !important;
+      border-radius: 2px;
+    }
+
+    .bk-textarea-wrapper {
+      border: none;
+    }
+  }
+
+  .advance-clean-step-container {
+    display: flex;
+    margin-top: 40px;
+
+    .image-content {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 200px;
+    }
+
+    .icon-angle-double-right-line {
+      margin: 110px 30px 0;
+      color: rgba(105, 157, 244, 0.9);
+      opacity: 0.9;
+    }
+
+    .step-num {
+      margin-right: 8px;
+
+      /* stylelint-disable-next-line font-family-no-missing-generic-family-keyword */
+      font-family: Impact, Impact-Regular;
+      font-size: 24px;
+      line-height: 29px;
+      color: #a3c5fd;
+    }
+
+    .step-description {
+      width: 320px;
+      margin-top: 26px;
+      font-size: 14px;
+      line-height: 20px;
+      color: #63656e;
+    }
+
+    .remark {
+      margin-top: 20px;
       font-size: 12px;
       color: #979ba5;
     }
 
-    .text-nav {
-      display: inline-block;
-      font-size: 12px;
-      font-weight: normal;
+    .link {
       color: #3a84ff;
+      cursor: pointer;
 
       span {
-        margin-left: 10px;
-        cursor: pointer;
+        margin-left: 4px;
       }
-    }
-
-    .bk-form-control .control-icon {
-      top: 18px;
-    }
-
-    .bk-switcher-small {
-      width: 36px;
-      height: 20px;
-
-      &::after {
-        width: 16px;
-        height: 16px;
-      }
-
-      &.is-checked:after {
-        margin-left: -18px;
-      }
-    }
-
-    .tips {
-      margin-left: 8px;
-      font-size: 12px;
-      line-height: 32px;
-      color: #aeb0b7;
-    }
-
-    .form-div {
-      display: flex;
-      margin: 20px 0;
-
-      .form-inline-div {
-        white-space: nowrap;
-
-        .bk-form-content {
-          display: flex;
-          flex-wrap: nowrap;
-        }
-      }
-
-      .prefix {
-        min-width: 80px;
-        margin-right: 8px;
-        font-size: 14px;
-        line-height: 32px;
-        color: #858790;
-        text-align: right;
-      }
-    }
-
-    .field-method-head {
-      top: -34px;
-      margin: 0 0 10px 0;
-
-      @include clearfix;
-
-      .field-method-link {
-        margin-left: 16px;
-      }
-
-      .toggle-icon {
-        margin-right: 4px;
-        color: #3a84ff;
-        cursor: pointer;
-      }
-
-      .table-setting {
-        display: flex;
-        align-items: center;
-        line-height: 18px;
-      }
-
-      .disabled-setting {
-        .bk-label,
-        .toggle-icon,
-        .visible-deleted-text,
-        .field-method-link {
-          color: #c4c6cc;
-        }
-
-        .toggle-icon,
-        .field-method-link {
-          cursor: not-allowed;
-        }
-      }
-    }
-
-    .field-template-head {
-      padding-bottom: 20px;
-      border-bottom: 1px solid #dcdee5;
-    }
-
-    .field-method-title {
-      margin: 0;
-      font-size: 14px;
-      font-weight: normal;
-      line-height: 20px;
-      color: #7a7c85;
-    }
-
-    .field-text {
-      position: relative;
-      top: 10px;
-      margin-right: 22px;
-      font-size: 14px;
-      font-weight: 600;
-      color: #63656e;
-    }
-
-    .bk-tab-label-wrapper .bk-tab-label-item .bk-tab-label {
-      font-size: 12px;
-    }
-
-    .field-method-tab.bk-tab-unborder-card {
-      .bk-tab-label-list .bk-tab-label-item {
-        min-width: 80px;
-      }
-
-      .bk-tab-section {
-        display: none;
-      }
-    }
-
-    .field-step {
-      .step-text {
-        font-size: 14px;
-        color: #63656e;
-      }
-
-      .template-text {
-        font-size: 12px;
-        color: #3a84ff;
-        cursor: pointer;
-      }
-
-      .template-disabled {
-        color: #c4c6cc;
-        cursor: not-allowed;
-      }
-
-      .field-button-group {
-        display: flex;
-        align-items: center;
-        margin: 10px 0 0;
-
-        .bklog-button {
-          font-size: 12px;
-        }
-      }
-
-      .bklog-icon {
-        font-size: 16px;
-      }
-
-      .documentation {
-        margin-left: 15px;
-      }
-    }
-
-    .view-log-btn {
-      position: relative;
-      top: 20px;
-      left: -94px;
-      font-size: 12px;
-      color: #3a84ff;
-      cursor: pointer;
-
-      &.disabled {
-        color: #c4c6cc;
-        cursor: not-allowed;
-      }
-    }
-
-    .log-textarea {
-      .right-icon {
-        /* stylelint-disable-next-line declaration-no-important */
-        right: 20px !important;
-      }
-    }
-
-    .field-method-result {
-      margin-top: 10px;
-    }
-
-    .add-field-container {
-      display: flex;
-      align-items: center;
-      height: 40px;
-      padding-left: 4px;
-      border: 1px solid #dcdee5;
-      border-top: none;
-      border-bottom: 1.5px solid #dcdee5;
-      border-radius: 0 0 2px 2px;
-      transform: translateY(-1px);
-
-      .text-btn {
-        display: flex;
-        align-items: center;
-        cursor: pointer;
-
-        .text,
-        .icon {
-          font-size: 22px;
-          color: #3a84ff;
-        }
-
-        .text {
-          font-size: 12px;
-        }
-      }
-    }
-
-    .field-method-cause {
-      margin-bottom: 20px;
-
-      @include clearfix;
-    }
-
-    .debug-btn {
-      margin-left: 12px;
-      color: #3a84ff;
-      background: #fff;
-
-      &:hover {
-        color: #fff;
-      }
-    }
-
-    .field-method-regex {
-      margin-top: 10px;
-
-      .regex-btn {
-        position: absolute;
-        top: 0;
-        right: 0;
-      }
-    }
-
-    .textarea-wrapper {
-      position: relative;
-      width: 100%;
-    }
-
-    .mimic-textarea {
-      width: 100%;
-      min-height: 72px;
-      padding: 6px 10px;
-      margin: 0;
-      font-size: 12px;
-      line-height: 1.5;
-      color: transparent;
-      white-space: pre-wrap;
-      outline: none;
-    }
-
-    .regex-textarea {
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-
-      .bk-textarea-wrapper {
-        height: 100%;
-      }
-
-      textarea {
-        height: 100%;
-        overflow: hidden;
-      }
-    }
-
-    .hot-data-form-item {
-      .bk-form-content {
-        display: flex;
-        align-items: center;
-
-        .disable-tips {
-          margin-left: 10px;
-          font-size: 12px;
-          color: #63656e;
-
-          a {
-            color: #3a84ff;
-          }
-        }
-      }
-    }
-
-    .form-item-flex {
-      display: flex;
-
-      .bk-label {
-        width: auto;
-        padding: 0;
-        font-size: 12px;
-        line-height: 20px;
-        color: #63656e;
-
-        &.has-desc > span {
-          margin-right: 20px;
-          cursor: pointer;
-          border-bottom: 1px dashed #d8d8d8;
-        }
-      }
-
-      .bk-form-content {
-        flex: 1;
-        margin: 0 0 0 10px;
-        font-size: 0;
-      }
-    }
-
-    .visible-deleted-text {
-      font-size: 12px;
-      color: #63656e;
-    }
-
-    .format-error {
-      font-size: 12px;
-      color: #ea3636;
-    }
-
-    .log-style {
-      height: 82px;
-
-      .bk-form-textarea:focus {
-        /* stylelint-disable-next-line declaration-no-important */
-        background-color: #313238 !important;
-        border-radius: 2px;
-      }
-
-      .bk-textarea-wrapper {
-        border: none;
-      }
-    }
-
-    .advance-clean-step-container {
-      display: flex;
-      margin-top: 40px;
-
-      .image-content {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        height: 200px;
-      }
-
-      .icon-angle-double-right-line {
-        margin: 110px 30px 0;
-        color: rgba(105, 157, 244, 0.9);
-        opacity: 0.9;
-      }
-
-      .step-num {
-        margin-right: 8px;
-
-        /* stylelint-disable-next-line font-family-no-missing-generic-family-keyword */
-        font-family: Impact, Impact-Regular;
-        font-size: 24px;
-        line-height: 29px;
-        color: #a3c5fd;
-      }
-
-      .step-description {
-        width: 320px;
-        margin-top: 26px;
-        font-size: 14px;
-        line-height: 20px;
-        color: #63656e;
-      }
-
-      .remark {
-        margin-top: 20px;
-        font-size: 12px;
-        color: #979ba5;
-      }
-
-      .link {
-        color: #3a84ff;
-        cursor: pointer;
-
-        span {
-          margin-left: 4px;
-        }
-      }
-    }
-
-    .form-button {
-      margin-top: 28px;
     }
   }
 
-  .log-time-field {
+  .form-button {
+    margin-top: 28px;
+  }
+}
+
+.log-time-field {
+  /* stylelint-disable-next-line declaration-no-important */
+  margin-top: 0px !important;
+
+  .bk-form-content {
     /* stylelint-disable-next-line declaration-no-important */
-    margin-top: 0px !important;
-
-    .bk-form-content {
-      /* stylelint-disable-next-line declaration-no-important */
-      margin-left: 0 !important;
-    }
+    margin-left: 0 !important;
   }
+}
 
-  .standard-field-table {
-    max-height: 464px;
-    padding-bottom: 14px;
-    overflow-x: hidden;
-    overflow-y: auto;
+.standard-field-table {
+  max-height: 464px;
+  padding-bottom: 14px;
+  overflow-x: hidden;
+  overflow-y: auto;
 
-    .preview-panel-right {
-      width: 350px;
-    }
+  .preview-panel-right {
+    width: 350px;
   }
+}
 
-  .json-text-style {
-    color: #c4c6cc;
-    background-color: #313238;
-  }
+.json-text-style {
+  color: #c4c6cc;
+  background-color: #313238;
+}
 
-  .option-slot-container {
-    min-height: 32px;
-    padding: 8px 0;
-    line-height: 14px;
+.option-slot-container {
+  min-height: 32px;
+  padding: 8px 0;
+  line-height: 14px;
 
-    &.no-authority {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      color: #c4c6cc;
-      cursor: not-allowed;
-
-      .text {
-        width: calc(100% - 56px);
-      }
-
-      .apply-text {
-        display: none;
-        flex-shrink: 0;
-        color: #3a84ff;
-        cursor: pointer;
-      }
-
-      &:hover .apply-text {
-        display: flex;
-      }
-    }
-  }
-
-  .template-list-wrap {
+  &.no-authority {
     display: flex;
-    flex-wrap: wrap;
-    margin-top: 10px;
+    align-items: center;
+    justify-content: space-between;
+    color: #c4c6cc;
+    cursor: not-allowed;
 
-    .template-item {
-      max-width: 430px;
-      padding: 7px 15px;
-      margin: 0 10px 10px 0;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
+    .text {
+      width: calc(100% - 56px);
+    }
+
+    .apply-text {
+      display: none;
+      flex-shrink: 0;
+      color: #3a84ff;
       cursor: pointer;
-      background-color: #f0f1f5;
-      border: 1px solid transparent;
+    }
 
-      &:hover,
-      &:focus,
-      &.active {
-        color: #3a84ff;
-        border: 1px solid #3a84ff;
-      }
+    &:hover .apply-text {
+      display: flex;
     }
   }
+}
+
+.template-list-wrap {
+  display: flex;
+  flex-wrap: wrap;
+  margin-top: 10px;
+
+  .template-item {
+    max-width: 430px;
+    padding: 7px 15px;
+    margin: 0 10px 10px 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    cursor: pointer;
+    background-color: #f0f1f5;
+    border: 1px solid transparent;
+
+    &:hover,
+    &:focus,
+    &.active {
+      color: #3a84ff;
+      border: 1px solid #3a84ff;
+    }
+  }
+}
 </style>

@@ -24,14 +24,13 @@
  * IN THE SOFTWARE.
  */
 
-import { Component, Prop } from 'vue-property-decorator';
-import { Component as tsc } from 'vue-tsx-support';
-
 import clusterImg1 from '@/images/clean-image1.png';
 import clusterImg2 from '@/images/clean-image2.png';
 import clusterImg3 from '@/images/clean-image3.png';
 import clusterImgGrayed1 from '@/images/cluster-img/clean-image-grayed1.png';
 import clusterImgGrayed2 from '@/images/cluster-img/clean-image-grayed2.png';
+import { Component, Prop } from 'vue-property-decorator';
+import { Component as tsc } from 'vue-tsx-support';
 
 import './quick-cluster-step.scss';
 
@@ -43,7 +42,7 @@ interface IProps {
 
 @Component
 export default class QuickClusterStep extends tsc<IProps> {
-  @Prop({ type: Object, required: true }) clusterStepData: object;
+  @Prop({ required: true, type: Object }) clusterStepData: object;
 
   stepIndexKeyMappingList = {
     1: 'flow_create',
@@ -62,22 +61,31 @@ export default class QuickClusterStep extends tsc<IProps> {
   };
 
   get errorMessage() {
-    const clusterDataList = Object.entries(this.clusterStepData).reduce((acc, [key, val]) => {
-      if (Object.values(this.stepIndexKeyMappingList).includes(key)) acc.push(val);
-      return acc;
-    }, []);
-    const failedObj = clusterDataList.find(item => item.status === 'FAILED');
+    const clusterDataList = Object.entries(this.clusterStepData).reduce(
+      (acc, [key, val]) => {
+        if (Object.values(this.stepIndexKeyMappingList).includes(key))
+          acc.push(val);
+        return acc;
+      },
+      []
+    );
+    const failedObj = clusterDataList.find((item) => item.status === 'FAILED');
     return failedObj?.message || '';
   }
 
   getStatus(step) {
-    return this.clusterStepData?.[this.stepIndexKeyMappingList[step]]?.status || 'SUCCESS';
+    return (
+      this.clusterStepData?.[this.stepIndexKeyMappingList[step]]?.status ||
+      'SUCCESS'
+    );
   }
   getNumHTMLShow(step) {
     const status = this.getStatus(step);
-    if (status === 'SUCCESS') return <i class='bk-icon icon-check-circle-shape'></i>;
-    if (status === 'FAILED') return <i class='bk-icon icon-close-circle-shape'></i>;
-    return <span class='step-num'>{step}</span>;
+    if (status === 'SUCCESS')
+      return <i class="bk-icon icon-check-circle-shape"></i>;
+    if (status === 'FAILED')
+      return <i class="bk-icon icon-close-circle-shape"></i>;
+    return <span class="step-num">{step}</span>;
   }
   getImageSrc(step) {
     const status = this.getStatus(step);
@@ -92,32 +100,32 @@ export default class QuickClusterStep extends tsc<IProps> {
 
   render() {
     return (
-      <div class='cluster-step-container'>
+      <div class="cluster-step-container">
         <div>
-          <div class='top-time'>
+          <div class="top-time">
             {this.errorMessage ? (
-              <div class='time-str'>
-                <i class='bk-icon icon-close icon-error'></i>
-                <span class='time-tips'>{$i18n.t('聚类启动失败')}</span>
+              <div class="time-str">
+                <i class="bk-icon icon-close icon-error"></i>
+                <span class="time-tips">{$i18n.t('聚类启动失败')}</span>
               </div>
             ) : (
-              <div class='time-str'>
+              <div class="time-str">
                 <i
-                  class='rotate-icon'
+                  class="rotate-icon"
                   v-bkloading={{
                     isLoading: true,
-                    opacity: 1,
-                    zIndex: 10,
-                    theme: 'primary',
                     mode: 'spin',
+                    opacity: 1,
                     size: 'small',
+                    theme: 'primary',
+                    zIndex: 10,
                   }}
                 ></i>
                 <i18n
-                  class='time-tips'
-                  path='任务启动中，预计等待时长 {0} 分钟'
+                  class="time-tips"
+                  path="任务启动中，预计等待时长 {0} 分钟"
                 >
-                  <span class='time'>10 - 30</span>
+                  <span class="time">10 - 30</span>
                 </i18n>
               </div>
             )}
@@ -131,57 +139,70 @@ export default class QuickClusterStep extends tsc<IProps> {
               </bk-button>
             )} */}
             {this.errorMessage && (
-              <span class='error-message'>
-                <span class='error-reason'>{$i18n.t('失败原因')}: </span>
-                <span class='error'>{this.errorMessage}</span>
+              <span class="error-message">
+                <span class="error-reason">{$i18n.t('失败原因')}: </span>
+                <span class="error">{this.errorMessage}</span>
               </span>
             )}
           </div>
-          <div class='step-container'>
-            <div class='step-item'>
-              <div class='image-content'>
+          <div class="step-container">
+            <div class="step-item">
+              <div class="image-content">
                 <img src={this.getImageSrc(1)} />
               </div>
-              <div class='step-description'>
-                <div class='title-box'>
-                  <div class='num-div'>{this.getNumHTMLShow(1)}</div>
-                  <span class={this.getStepStyleClass(1, 'title')}>{$i18n.t('模型创建')}</span>
+              <div class="step-description">
+                <div class="title-box">
+                  <div class="num-div">{this.getNumHTMLShow(1)}</div>
+                  <span class={this.getStepStyleClass(1, 'title')}>
+                    {$i18n.t('模型创建')}
+                  </span>
                 </div>
                 <span class={this.getStepStyleClass(1, 'description-text')}>
                   {$i18n.t('系统将创建模型，并将该日志历史数据投入模型中。')}
                 </span>
               </div>
             </div>
-            <span class={this.getStepStyleClass(1, 'bk-icon icon-angle-double-right-line')}></span>
-            <div class='step-item'>
-              <div class='image-content'>
+            <span
+              class={this.getStepStyleClass(
+                1,
+                'bk-icon icon-angle-double-right-line'
+              )}
+            ></span>
+            <div class="step-item">
+              <div class="image-content">
                 <img src={this.getImageSrc(2)} />
               </div>
-              <div class='step-description'>
-                <div class='title-box'>
-                  <div class='num-div'>{this.getNumHTMLShow(2)}</div>
-                  <span class={this.getStepStyleClass(2, 'title')}>{$i18n.t('模型启动')}</span>
+              <div class="step-description">
+                <div class="title-box">
+                  <div class="num-div">{this.getNumHTMLShow(2)}</div>
+                  <span class={this.getStepStyleClass(2, 'title')}>
+                    {$i18n.t('模型启动')}
+                  </span>
                 </div>
                 <span class={this.getStepStyleClass(2, 'description-text')}>
                   {$i18n.t('模型首次启动准备，该过程应该会持续5-10分钟。')}
                 </span>
               </div>
             </div>
-            <span class={this.getStepStyleClass(2, 'bk-icon icon-angle-double-right-line')}></span>
-            <div class='step-item'>
-              <div class='image-content'>
-                <img
-                  alt=''
-                  src={this.getImageSrc(3)}
-                />
+            <span
+              class={this.getStepStyleClass(
+                2,
+                'bk-icon icon-angle-double-right-line'
+              )}
+            ></span>
+            <div class="step-item">
+              <div class="image-content">
+                <img alt="" src={this.getImageSrc(3)} />
               </div>
-              <div class='step-description'>
-                <div class='title-box'>
-                  <div class='num-div'>{this.getNumHTMLShow(3)}</div>
-                  <span class='title'>{$i18n.t('预测准备')}</span>
+              <div class="step-description">
+                <div class="title-box">
+                  <div class="num-div">{this.getNumHTMLShow(3)}</div>
+                  <span class="title">{$i18n.t('预测准备')}</span>
                 </div>
                 <span class={this.getStepStyleClass(3, 'description-text')}>
-                  {$i18n.t('针对已投入数据进行在线与离线分析，分析结束后，页面将展示聚类结果。')}
+                  {$i18n.t(
+                    '针对已投入数据进行在线与离线分析，分析结束后，页面将展示聚类结果。'
+                  )}
                 </span>
               </div>
             </div>

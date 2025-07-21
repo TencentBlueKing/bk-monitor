@@ -24,9 +24,14 @@
  * IN THE SOFTWARE.
  */
 
-import { computed, defineComponent, onBeforeUnmount, onMounted, ref } from 'vue';
-
 import { throttle } from 'lodash';
+import {
+  computed,
+  defineComponent,
+  onBeforeUnmount,
+  onMounted,
+  ref,
+} from 'vue';
 
 import RetrieveHelper, { RetrieveEvent } from '../../retrieve-helper';
 import V2Collection from '../../retrieve-v2/collect/collect-index';
@@ -35,7 +40,6 @@ import './index.scss';
 
 export default defineComponent({
   name: 'V3Collection',
-
   emits: ['width-change'],
   setup(_, { emit }) {
     const isShow = ref(RetrieveHelper.isFavoriteShown);
@@ -63,7 +67,10 @@ export default defineComponent({
     });
 
     onBeforeUnmount(() => {
-      RetrieveHelper.off(RetrieveEvent.FAVORITE_SHOWN_CHANGE, handleShownChange);
+      RetrieveHelper.off(
+        RetrieveEvent.FAVORITE_SHOWN_CHANGE,
+        handleShownChange
+      );
     });
 
     const favoriteStyle = computed(() => {
@@ -76,14 +83,14 @@ export default defineComponent({
       return (
         <keep-alive>
           <V2Collection
-            style={favoriteStyle.value}
-            width={collectWidth.value}
-            class='v3-bklog-collection'
+            class="v3-bklog-collection"
             is-show={isShow.value}
             on={{
               'update:isShow': handleUpdateIsShow,
               'update:width': handleWidthChange,
             }}
+            style={favoriteStyle.value}
+            width={collectWidth.value}
           ></V2Collection>
         </keep-alive>
       );

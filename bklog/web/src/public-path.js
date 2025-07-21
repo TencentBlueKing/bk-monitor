@@ -29,4 +29,5 @@
  * @author <>
  */
 
-__webpack_public_path__ = process.env.NODE_ENV === 'production' ? `${window.BK_STATIC_URL}/` : '/';
+__webpack_public_path__ =
+  process.env.NODE_ENV === 'production' ? `${window.BK_STATIC_URL}/` : '/';

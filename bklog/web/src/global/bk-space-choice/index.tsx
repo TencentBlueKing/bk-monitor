@@ -23,21 +23,28 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, ref, computed, watch, onMounted, nextTick, onUnmounted } from 'vue';
-
 import useLocale from '@/hooks/use-locale';
 import { useNavMenu } from '@/hooks/use-nav-menu';
 import { SPACE_TYPE_MAP } from '@/store/constant';
 import { BK_LOG_STORAGE } from '@/store/store.type';
 import { debounce } from 'throttle-debounce';
+import {
+  defineComponent,
+  ref,
+  computed,
+  watch,
+  onMounted,
+  nextTick,
+  onUnmounted,
+} from 'vue';
 import { useRouter, useRoute } from 'vue-router/composables';
 
 import * as authorityMap from '../../common/authority-map';
 import useStore from '../../hooks/use-store';
 import UserConfigMixin from '../../mixins/userStoreConfig';
-import List from './list';
 
 import './index.scss';
+import List from './list';
 
 const userConfigMixin = new UserConfigMixin();
 
@@ -46,10 +53,10 @@ export type ThemeType = 'dark' | 'light';
 export default defineComponent({
   name: 'BkSpaceChoice',
   props: {
-    isExpand: { type: Boolean, default: true },
-    theme: { type: String, default: 'dark' },
-    isExternalAuth: { type: Boolean, default: false },
-    canSetDefaultSpace: { type: Boolean, default: false },
+    canSetDefaultSpace: { default: false, type: Boolean },
+    isExpand: { default: true, type: Boolean },
+    isExternalAuth: { default: false, type: Boolean },
+    theme: { default: 'dark', type: String },
   },
   setup(props, { emit }) {
     const { t } = useLocale();
@@ -58,7 +65,12 @@ export default defineComponent({
     const store = useStore();
     const route = useRoute();
     const router = useRouter();
-    const navMenu = useNavMenu({ t, bkInfo: (window as any).bkInfo, http: (window as any).$http, emit });
+    const navMenu = useNavMenu({
+      bkInfo: (window as any).bkInfo,
+      emit,
+      http: (window as any).$http,
+      t,
+    });
 
     const mySpaceList = navMenu.mySpaceList;
     const checkSpaceChange = navMenu.checkSpaceChange;
@@ -83,32 +95,50 @@ export default defineComponent({
     const bizListRef = ref();
     const bizBoxWidth = ref(418);
 
-    const commonListIdsLog = computed(() => store.state.storage[BK_LOG_STORAGE.COMMON_SPACE_ID_LIST] ?? []);
-    const spaceUid = computed(() => store.state.storage[BK_LOG_STORAGE.BK_SPACE_UID]);
+    const commonListIdsLog = computed(
+      () => store.state.storage[BK_LOG_STORAGE.COMMON_SPACE_ID_LIST] ?? []
+    );
+    const spaceUid = computed(
+      () => store.state.storage[BK_LOG_STORAGE.BK_SPACE_UID]
+    );
 
     // 业务名称和首字母
     const bizName = computed(() => {
-      if (props.isExternalAuth && !!exterlAuthSpaceName.value) return exterlAuthSpaceName.value;
-      return mySpaceList.value.find(item => item.space_uid === spaceUid.value)?.space_name ?? '';
+      if (props.isExternalAuth && !!exterlAuthSpaceName.value)
+        return exterlAuthSpaceName.value;
+      return (
+        mySpaceList.value.find((item) => item.space_uid === spaceUid.value)
+          ?.space_name ?? ''
+      );
     });
-    const bizNameIcon = computed(() => bizName.value?.[0]?.toLocaleUpperCase() ?? '');
+    const bizNameIcon = computed(
+      () => bizName.value?.[0]?.toLocaleUpperCase() ?? ''
+    );
 
     // 是否展示空间类型列表
-    const showSpaceTypeIdList = computed(() => !isExternal.value && spaceTypeIdList.value.length > 1);
+    const showSpaceTypeIdList = computed(
+      () => !isExternal.value && spaceTypeIdList.value.length > 1
+    );
 
     // 初始化空间类型列表
     onMounted(() => {
       const spaceTypeMap: Record<string, 1> = {};
-      mySpaceList.value.forEach(item => {
+      mySpaceList.value.forEach((item) => {
         spaceTypeMap[item.space_type_id] = 1;
-        if (item.space_type_id === 'bkci' && item.space_code) spaceTypeMap.bcs = 1;
+        if (item.space_type_id === 'bkci' && item.space_code)
+          spaceTypeMap.bcs = 1;
       });
-      spaceTypeIdList.value = Object.keys(spaceTypeMap).map(key => ({
+      spaceTypeIdList.value = Object.keys(spaceTypeMap).map((key) => ({
         id: key,
         name: SPACE_TYPE_MAP[key]?.name || t('未知'),
-        styles: (props.theme === 'dark' ? SPACE_TYPE_MAP[key]?.dark : SPACE_TYPE_MAP[key]?.light) || {},
+        styles:
+          (props.theme === 'dark'
+            ? SPACE_TYPE_MAP[key]?.dark
+            : SPACE_TYPE_MAP[key]?.light) || {},
       }));
-      demoId.value = mySpaceList.value.find(item => item.space_uid === demoUid.value)?.id || '';
+      demoId.value =
+        mySpaceList.value.find((item) => item.space_uid === demoUid.value)
+          ?.id || '';
     });
 
     // 点击下拉框外内容，收起下拉框
@@ -121,7 +151,7 @@ export default defineComponent({
     };
 
     // 监听showBizList
-    watch(showBizList, async val => {
+    watch(showBizList, async (val) => {
       if (val) {
         document.addEventListener('click', handleGlobalClick);
         await nextTick();
@@ -138,10 +168,12 @@ export default defineComponent({
       document.removeEventListener('click', handleGlobalClick);
     });
 
-    const lowerCaseKeyword = computed(() => keyword.value.trim().toLocaleLowerCase());
+    const lowerCaseKeyword = computed(() =>
+      keyword.value.trim().toLocaleLowerCase()
+    );
 
     const authorizedList = computed(() =>
-      mySpaceList.value.filter(item => {
+      mySpaceList.value.filter((item) => {
         let show = false;
         if (searchTypeId.value) {
           show =
@@ -149,11 +181,18 @@ export default defineComponent({
               ? item.space_type_id === 'bkci' && !!item.space_code
               : item.space_type_id === searchTypeId.value;
         }
-        if ((show && lowerCaseKeyword.value) || (!searchTypeId.value && !show)) {
+        if (
+          (show && lowerCaseKeyword.value) ||
+          (!searchTypeId.value && !show)
+        ) {
           show =
-            item.space_name.toLocaleLowerCase().indexOf(lowerCaseKeyword.value) > -1 ||
-            item.py_text.toLocaleLowerCase().indexOf(lowerCaseKeyword.value) > -1 ||
-            item.space_uid.toLocaleLowerCase().indexOf(lowerCaseKeyword.value) > -1 ||
+            item.space_name
+              .toLocaleLowerCase()
+              .indexOf(lowerCaseKeyword.value) > -1 ||
+            item.py_text.toLocaleLowerCase().indexOf(lowerCaseKeyword.value) >
+              -1 ||
+            item.space_uid.toLocaleLowerCase().indexOf(lowerCaseKeyword.value) >
+              -1 ||
             `${item.bk_biz_id}`.includes(lowerCaseKeyword.value) ||
             `${item.space_code}`.includes(lowerCaseKeyword.value);
         }
@@ -165,14 +204,20 @@ export default defineComponent({
 
     const commonList = computed(
       () =>
-        commonListIdsLog.value.map(id => authorizedList.value.find(item => Number(item.id) === id)).filter(Boolean) ||
-        []
+        commonListIdsLog.value
+          .map((id) =>
+            authorizedList.value.find((item) => Number(item.id) === id)
+          )
+          .filter(Boolean) || []
     );
 
     // 初始化业务列表
     const groupList = computed(() => {
       // 有权限业务
-      const generalList = authorizedList.value.filter(item => !commonListIdsLog.value.includes(Number(item.id))) || [];
+      const generalList =
+        authorizedList.value.filter(
+          (item) => !commonListIdsLog.value.includes(Number(item.id))
+        ) || [];
 
       if (commonList.value.length > 0) {
         return [
@@ -221,17 +266,19 @@ export default defineComponent({
     const handleDefaultId = async () => {
       setDefaultBizIdLoading.value = true;
       // 如果是设置默认，取当前选中的业务ID，否则传 'undefined'
-      const bizId = isSetBizIdDefault.value ? Number(defaultSpace.value?.id) : 'undefined';
+      const bizId = isSetBizIdDefault.value
+        ? Number(defaultSpace.value?.id)
+        : 'undefined';
       userConfigMixin
         .handleSetUserConfig(DEFAULT_BIZ_ID, `${bizId}`, '')
-        .then(result => {
+        .then((result) => {
           if (result) {
             store.commit('SET_APP_STATE', {
               defaultBizId: bizId,
             });
           }
         })
-        .catch(e => {
+        .catch((e) => {
           console.log(e);
         })
         .finally(() => {
@@ -244,9 +291,14 @@ export default defineComponent({
     // 更新路由
     const debounceUpdateRouter = () => {
       return debounce(60, (space: any) => {
-        if (`${space.bk_biz_id}` !== route.query.bizId || space.space_uid !== route.query.spaceUid) {
+        if (
+          `${space.bk_biz_id}` !== route.query.bizId ||
+          space.space_uid !== route.query.spaceUid
+        ) {
           store.commit('updateSpace', space.space_uid);
-          store.commit('updateStorage', { [BK_LOG_STORAGE.BK_SPACE_UID]: space.space_uid });
+          store.commit('updateStorage', {
+            [BK_LOG_STORAGE.BK_SPACE_UID]: space.space_uid,
+          });
           router.push({
             params: {
               ...(route.params ?? {}),
@@ -293,11 +345,13 @@ export default defineComponent({
     const updateCacheBizId = (id: number) => {
       const maxLen = BIZ_SELECTOR_COMMON_MAX;
       // 移除已存在的 id
-      const cacheIds = commonListIdsLog.value.filter(item => item != id);
+      const cacheIds = commonListIdsLog.value.filter((item) => item != id);
       // 将当前 id 插入第一位
       cacheIds.unshift(id);
 
-      store.commit('updateStorage', { [BK_LOG_STORAGE.COMMON_SPACE_ID_LIST]: cacheIds.slice(0, maxLen) });
+      store.commit('updateStorage', {
+        [BK_LOG_STORAGE.COMMON_SPACE_ID_LIST]: cacheIds.slice(0, maxLen),
+      });
     };
 
     // 点击体验demo按钮
@@ -312,35 +366,35 @@ export default defineComponent({
       return (
         props.isExpand && (
           <div
+            class="menu-select-list"
             style={{ display: showBizList.value ? 'flex' : 'none' }}
-            class='menu-select-list'
           >
             {/* 搜索框 */}
             <bk-input
-              ref={menuSearchInput}
-              class='menu-select-search'
+              class="menu-select-search"
               clearable={false}
-              left-icon='bk-icon icon-search'
-              placeholder={t('输入关键字')}
-              value={keyword.value}
+              left-icon="bk-icon icon-search"
               onChange={handleBizSearchDebounce}
               onClear={() => handleBizSearchDebounce('')}
+              placeholder={t('输入关键字')}
+              ref={menuSearchInput}
+              value={keyword.value}
             />
             {/* 空间列表 */}
             {showSpaceTypeIdList.value && (
-              <ul
-                id='space-type-ul'
-                class='space-type-list'
-              >
+              <ul class="space-type-list" id="space-type-ul">
                 {spaceTypeIdList.value.map((item: any) => (
                   <li
+                    class="space-type-item"
                     key={item.id}
+                    onClick={() => handleSearchType(item.id)}
                     style={{
                       ...item.styles,
-                      borderColor: item.id === searchTypeId.value ? item.styles.color : 'transparent',
+                      borderColor:
+                        item.id === searchTypeId.value
+                          ? item.styles.color
+                          : 'transparent',
                     }}
-                    class='space-type-item'
-                    onClick={() => handleSearchType(item.id)}
                   >
                     {item.name}
                   </li>
@@ -349,32 +403,32 @@ export default defineComponent({
             )}
             {/* 业务列表 */}
             <div
+              class="biz-list"
               ref={bizListRef}
               style={{ width: `${bizBoxWidth.value}px` }}
-              class='biz-list'
             >
               <List
                 canSetDefaultSpace={props.canSetDefaultSpace as boolean}
                 checked={spaceUid.value}
                 commonList={commonList.value}
                 list={groupList.value}
-                theme={props.theme as ThemeType}
                 on-HandleClickMenuItem={handleClickMenuItem}
                 on-HandleClickOutSide={handleClickOutSide}
                 on-OpenDialog={openDialog}
+                theme={props.theme as ThemeType}
               ></List>
             </div>
             {/* 体验DEMO按钮 */}
-            <div class='menu-select-extension'>
+            <div class="menu-select-extension">
               {!isExternal.value && demoUid.value && (
                 <div
-                  class='menu-select-extension-item'
-                  onMousedown={e => {
+                  class="menu-select-extension-item"
+                  onMousedown={(e) => {
                     e.stopPropagation();
                     experienceDemo();
                   }}
                 >
-                  <span class='icon bklog-icon bklog-app-store'></span>
+                  <span class="icon bklog-icon bklog-app-store"></span>
                   {t('体验DEMO')}
                 </div>
               )}
@@ -387,65 +441,70 @@ export default defineComponent({
     // 渲染主入口
     return () => (
       <div
-        ref={refRootElement}
         class={['biz-menu-select', { 'light-theme': props.theme === 'light' }]}
+        ref={refRootElement}
       >
         {/* 图标+业务名称 */}
-        <div class='menu-select'>
+        <div class="menu-select">
           {/* 图标 */}
           <span
+            class="menu-title"
             style={{ backgroundColor: spaceBgColor.value }}
-            class='menu-title'
           >
             {bizNameIcon.value}
           </span>
           {/* 业务名称 */}
           {props.isExpand && (
             <span
-              class='menu-select-name'
-              tabindex={0}
+              class="menu-select-name"
               onMousedown={handleClickBizSelect}
+              tabindex={0}
             >
               {bizName.value}
               <i
+                class="bk-select-angle bk-icon icon-angle-up-fill select-icon"
                 style={{
                   transform: `rotate(${!showBizList.value ? '0deg' : '-180deg'})`,
                 }}
-                class='bk-select-angle bk-icon icon-angle-up-fill select-icon'
               />
             </span>
           )}
           {/* 设置默认弹窗内容 */}
           <bk-dialog
-            width={480}
-            ext-cls='confirm-dialog__set-default'
-            footer-position='center'
+            ext-cls="confirm-dialog__set-default"
+            footer-position="center"
             mask-close={false}
             transfer={true}
             value={showDialog.value}
+            width={480}
           >
-            <div class='confirm-dialog__hd'>
-              {isSetBizIdDefault.value ? '是否将该业务设为默认业务？' : '是否取消默认业务？'}
+            <div class="confirm-dialog__hd">
+              {isSetBizIdDefault.value
+                ? '是否将该业务设为默认业务？'
+                : '是否取消默认业务？'}
             </div>
-            <div class='confirm-dialog__bd'>
-              业务名称：<span class='confirm-dialog__bd-name'>{defaultSpace.value?.name || ''}</span>
+            <div class="confirm-dialog__bd">
+              业务名称：
+              <span class="confirm-dialog__bd-name">
+                {defaultSpace.value?.name || ''}
+              </span>
             </div>
-            <div class='confirm-dialog__ft'>
+            <div class="confirm-dialog__ft">
               {isSetBizIdDefault.value
                 ? '设为默认后，每次进入日志平台将会默认选中该业务'
                 : '取消默认业务后，每次进入日志平台将会默认选中最近使用的业务而非当前默认业务'}
             </div>
-            <div slot='footer'>
+            <div slot="footer">
               <bk-button
-                class='btn-confirm'
+                class="btn-confirm"
                 loading={setDefaultBizIdLoading.value}
-                theme='primary'
                 onClick={handleDefaultId}
+                theme="primary"
               >
                 确认
               </bk-button>
               <bk-button
-                class='btn-cancel'
+                class="btn-cancel"
                 onClick={() => {
                   defaultSpace.value = null;
                   showDialog.value = false;

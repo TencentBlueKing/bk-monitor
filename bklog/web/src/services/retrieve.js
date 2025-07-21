@@ -25,232 +25,232 @@
  */
 
 const getIndexSetList = {
-  url: '/search/index_set/',
   method: 'get',
+  url: '/search/index_set/',
 };
 
 const getLogTableHead = {
-  url: '/search/index_set/:index_set_id/fields/',
   method: 'get',
+  url: '/search/index_set/:index_set_id/fields/',
 };
 const getLogTableList = {
-  url: '/search/index_set/:index_set_id/search/',
   method: 'post',
+  url: '/search/index_set/:index_set_id/search/',
 };
 const getLogChartList = {
-  url: '/search/index_set/:index_set_id/aggs/date_histogram/',
   method: 'post',
+  url: '/search/index_set/:index_set_id/aggs/date_histogram/',
 };
 
 const getFilterBiz = {
-  url: '/bizs/',
   method: 'get',
+  url: '/bizs/',
 };
 // IP快选 选择业务接口调整
 const getIpBusinessList = {
-  url: '/search/index_set/:index_set_id/bizs/',
   method: 'get',
+  url: '/search/index_set/:index_set_id/bizs/',
 };
 const getIpTree = {
-  url: '/bizs/:bk_biz_id/topo/',
   method: 'get',
+  url: '/bizs/:bk_biz_id/topo/',
 };
 const getOperators = {
-  url: '/search/index_set/operators/',
   method: 'get',
+  url: '/search/index_set/operators/',
 };
 const getCloudAreaList = {
-  url: '/search/index_set/$index_set_id/:tailf/',
   method: 'post',
+  url: '/search/index_set/$index_set_id/:tailf/',
 };
 
 const downloadLog = {
-  url: '/search/index_set/:index_set_id/export/',
   method: 'post',
+  url: '/search/index_set/:index_set_id/export/',
 };
 const quickDownload = {
-  url: '/search/index_set/:index_set_id/quick_export/',
   method: 'post',
+  url: '/search/index_set/:index_set_id/quick_export/',
 };
 const unionDownloadLog = {
-  url: '/search/index_set/union_search/export/',
   method: 'post',
+  url: '/search/index_set/union_search/export/',
 };
 const exportAsync = {
-  url: '/search/index_set/:index_set_id/async_export/',
   method: 'post',
+  url: '/search/index_set/:index_set_id/async_export/',
 };
 const unionExportAsync = {
-  url: '/search/index_set/union_async_export/',
   method: 'post',
+  url: '/search/index_set/union_async_export/',
 };
 const getRealTimeLog = {
-  url: '/search/index_set/:index_set_id/tail_f/',
   method: 'post',
+  url: '/search/index_set/:index_set_id/tail_f/',
 };
 const getContentLog = {
-  url: '/search/index_set/:index_set_id/context/',
   method: 'post',
+  url: '/search/index_set/:index_set_id/context/',
 };
 const saveTitleInfo = {
-  url: '/search/index_set/:index_set_id/config/',
   method: 'post',
+  url: '/search/index_set/:index_set_id/config/',
 };
 const getRetrieveFavorite = {
-  url: '/search/favorite/',
   method: 'get',
+  url: '/search/favorite/',
 };
 const postRetrieveFavorite = {
-  url: '/search/favorite/',
   method: 'post',
+  url: '/search/favorite/',
 };
 const deleteRetrieveFavorite = {
-  url: '/search/favorite/:id/',
   method: 'delete',
+  url: '/search/favorite/:id/',
 };
 const postFieldsConfig = {
-  url: '/search/index_set/config/',
   method: 'post',
+  url: '/search/index_set/config/',
 };
 const getWebConsoleUrl = {
-  url: '/search/index_set/:index_set_id/bcs_web_console/',
   method: 'get',
+  url: '/search/index_set/:index_set_id/bcs_web_console/',
 };
 const getSearchHistory = {
-  url: '/search/index_set/:index_set_id/history/',
   method: 'get',
+  url: '/search/index_set/:index_set_id/history/',
 };
 const getExportHistoryList = {
-  url: '/search/index_set/:index_set_id/export_history/?bk_biz_id=:bk_biz_id&page=:page&pagesize=:pagesize&show_all=:show_all',
   method: 'get',
+  url: '/search/index_set/:index_set_id/export_history/?bk_biz_id=:bk_biz_id&page=:page&pagesize=:pagesize&show_all=:show_all',
 };
 const getFieldsListConfig = {
-  url: '/search/index_set/list_config/',
   method: 'post',
+  url: '/search/index_set/list_config/',
 };
 const createFieldsConfig = {
-  url: '/search/index_set/create_config/',
   method: 'post',
+  url: '/search/index_set/create_config/',
 };
 const updateFieldsConfig = {
-  url: '/search/index_set/update_config/',
   method: 'post',
+  url: '/search/index_set/update_config/',
 };
 const deleteFieldsConfig = {
-  url: '/search/index_set/delete_config/',
   method: 'post',
+  url: '/search/index_set/delete_config/',
 };
 const getFieldsConfigByContextLog = {
-  url: '/search/index_set/:index_set_id/retrieve_config/?config_id=:config_id',
   method: 'get',
+  url: '/search/index_set/:index_set_id/retrieve_config/?config_id=:config_id',
 };
 const getAggsTerms = {
-  url: '/search/index_set/:index_set_id/aggs/terms/',
   method: 'post',
+  url: '/search/index_set/:index_set_id/aggs/terms/',
 };
 /** 获取字段top列表信息 */
 const fieldFetchTopList = {
-  url: '/field/index_set/fetch_topk_list/',
   method: 'post',
+  url: '/field/index_set/fetch_topk_list/',
 };
 /** 获取图表分析信息 */
 const fieldStatisticsInfo = {
-  url: '/field/index_set/statistics/info/',
   method: 'post',
+  url: '/field/index_set/statistics/info/',
 };
 /** 获取趋势图总数的信息 */
 const fieldStatisticsTotal = {
-  url: '/field/index_set/statistics/total/',
   method: 'post',
+  url: '/field/index_set/statistics/total/',
 };
 /** 获取图表分析图表 */
 const fieldStatisticsGraph = {
-  url: '/field/index_set/statistics/graph/',
   method: 'post',
+  url: '/field/index_set/statistics/graph/',
 };
 /** 获取字段去重数量 */
 const fieldDistinctCount = {
-  url: '/field/index_set/fetch_distinct_count_list/',
   method: 'post',
+  url: '/field/index_set/fetch_distinct_count_list/',
 };
 /** 聚类告警列表 */
 const userGroup = {
-  url: '/clustering_monitor/search_user_groups/',
   method: 'post',
+  url: '/clustering_monitor/search_user_groups/',
 };
 /** 创建/更新数量突增告警 */
 const normalStrategy = {
-  url: '/clustering_monitor/:index_set_id/normal_strategy/',
   method: 'post',
+  url: '/clustering_monitor/:index_set_id/normal_strategy/',
 };
 /** 创建/更新新类告警 */
 const newClsStrategy = {
-  url: '/clustering_monitor/:index_set_id/new_cls_strategy/',
   method: 'post',
+  url: '/clustering_monitor/:index_set_id/new_cls_strategy/',
 };
 /** 获取策略详情 */
 const getClusteringInfo = {
-  url: '/clustering_monitor/:index_set_id/get_strategy/?strategy_type=:strategy_type',
   method: 'get',
+  url: '/clustering_monitor/:index_set_id/get_strategy/?strategy_type=:strategy_type',
 };
 /** 删除策略详情 */
 const deleteClusteringInfo = {
-  url: '/clustering_monitor/:index_set_id/',
   method: 'delete',
+  url: '/clustering_monitor/:index_set_id/',
 };
 /** 新建聚类接入*/
 const createClusteringConfig = {
-  url: '/clustering_config/:index_set_id/access/create/',
   method: 'post',
+  url: '/clustering_config/:index_set_id/access/create/',
 };
 /** 更新聚类接入*/
 const updateClusteringConfig = {
-  url: '/clustering_config/:index_set_id/access/update/',
   method: 'post',
+  url: '/clustering_config/:index_set_id/access/update/',
 };
 /** 查询聚类接入状态*/
 const getClusteringConfigStatus = {
-  url: '/clustering_config/:index_set_id/access/status/',
   method: 'get',
+  url: '/clustering_config/:index_set_id/access/status/',
 };
 /** 查询聚类接入状态*/
 const updateUserFiledTableConfig = {
-  url: '/search/index_set/user_custom_config/',
   method: 'post',
+  url: '/search/index_set/user_custom_config/',
 };
 
 /** 输出UI查询转为querystring语法*/
 const generateQueryString = {
-  url: '/search/index_set/generate_querystring/',
   method: 'post',
+  url: '/search/index_set/generate_querystring/',
 };
 
 const setIndexSetCustomConfig = {
-  url: '/search/index_set/custom_config/',
   method: 'post',
+  url: '/search/index_set/custom_config/',
 };
 /** 自定义上报地址改成动态展示*/
 const getProxyHost = {
-  url: '/databus/collectors/proxy_host_info/',
   method: 'get',
+  url: '/databus/collectors/proxy_host_info/',
 };
 
 /**
  * 请求grep结果
  */
 const requestGrepResult = {
-  url: '/search/index_set/$index_set_id/grep_query/',
   method: 'post',
+  url: '/search/index_set/$index_set_id/grep_query/',
 };
 
 const createOrUpdateToken = {
-  url: '/share/create_or_update_token/',
   method: 'post',
+  url: '/share/create_or_update_token/',
 };
 
 const getShareParams = {
-  url: 'share/get_share_params/',
   method: 'get',
+  url: 'share/get_share_params/',
 };
 
 /**
@@ -260,8 +260,8 @@ const getShareParams = {
  * @apiSuccessExample {json} 成功返回:
  */
 const getIndexSetDataByDataId = {
-  url: '/index_set/query_by_dataid/',
   method: 'get',
+  url: '/index_set/query_by_dataid/',
 };
 
 export {

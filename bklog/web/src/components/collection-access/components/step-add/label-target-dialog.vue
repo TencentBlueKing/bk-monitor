@@ -41,7 +41,10 @@
     >
       <div
         :style="`width : ${leftPreWidth}px`"
-        :class="['label-tree', activeStretchBtn === 'left' && 'right-border-light']"
+        :class="[
+          'label-tree',
+          activeStretchBtn === 'left' && 'right-border-light',
+        ]"
       >
         <bk-input
           class="tree-search"
@@ -66,16 +69,12 @@
           <template #default="{ data }">
             <div>
               <div class="item-slot">
-                <span
-                  class="item-name"
-                  v-bk-overflow-tips
-                  >{{ data.name }}</span
-                >
-                <span
-                  v-if="data.children"
-                  class="item-number"
-                  >{{ data.children.length }}</span
-                >
+                <span class="item-name" v-bk-overflow-tips>{{
+                  data.name
+                }}</span>
+                <span v-if="data.children" class="item-number">{{
+                  data.children.length
+                }}</span>
               </div>
             </div>
           </template>
@@ -89,21 +88,15 @@
         </div>
         <div
           class="left-drag bk-log-drag-simple"
-          @mousedown="e => handleMouseDown(e, 'left')"
+          @mousedown="(e) => handleMouseDown(e, 'left')"
         ></div>
       </div>
       <div
         class="label-operate"
         v-bkloading="{ isLoading: labelLoading, zIndex: 10 }"
       >
-        <div
-          v-if="!isEmpty"
-          class="label-config"
-        >
-          <div
-            v-if="matchCheckedItemList.length"
-            class="select-container"
-          >
+        <div v-if="!isEmpty" class="label-config">
+          <div v-if="matchCheckedItemList.length" class="select-container">
             <div class="select-title">{{ $t('已选择') }}</div>
             <!-- 标签生成已选择里挑选的 -->
             <div class="select-list">
@@ -115,7 +108,12 @@
                   :value="labItem.id"
                 >
                   <match-label-item
-                    :class="{ 'is-checked': isSelectItem('matchCheckedList', labItem.id) }"
+                    :class="{
+                      'is-checked': isSelectItem(
+                        'matchCheckedList',
+                        labItem.id
+                      ),
+                    }"
                     :match-item="labItem"
                     is-dialog-item
                   />
@@ -136,7 +134,9 @@
                 :value="labItem.id"
               >
                 <match-label-item
-                  :class="{ 'is-checked': isSelectItem('matchSelectList', labItem.id) }"
+                  :class="{
+                    'is-checked': isSelectItem('matchSelectList', labItem.id),
+                  }"
                   :match-item="labItem"
                   is-dialog-item
                 />
@@ -144,14 +144,8 @@
             </bk-checkbox-group>
           </div>
         </div>
-        <div
-          v-else
-          class="match-empty"
-        >
-          <empty-status
-            :show-text="false"
-            empty-type="empty"
-          >
+        <div v-else class="match-empty">
+          <empty-status :show-text="false" empty-type="empty">
             <p>{{ $t('暂无标签') }}</p>
             <span>{{ $t('请先在左侧列表进行选择') }}</span>
           </empty-status>
@@ -233,11 +227,14 @@ export default {
       return 544 - (78 + Math.min(this.matchCheckedItemList.length, 6) * 42);
     },
     isEmpty() {
-      const allList = [...this.matchCheckedItemList, ...this.matchSelectItemList];
+      const allList = [
+        ...this.matchCheckedItemList,
+        ...this.matchSelectItemList,
+      ];
       return !allList.length;
     },
     labelKeyStrList() {
-      return this.labelParams.labelSelector.map(item => item.key);
+      return this.labelParams.labelSelector.map((item) => item.key);
     },
     isHaveSelectItem() {
       return !!(this.matchSelectList.length + this.matchCheckedList.length);
@@ -246,18 +243,28 @@ export default {
   watch: {
     isShowDialog(val) {
       if (val) {
-        const { bk_biz_id, bcs_cluster_id, type, namespaceStr } = this.labelParams;
-        const requestParams = { bk_biz_id, bcs_cluster_id, type, namespace: namespaceStr };
+        const { bk_biz_id, bcs_cluster_id, type, namespaceStr } =
+          this.labelParams;
+        const requestParams = {
+          bk_biz_id,
+          bcs_cluster_id,
+          type,
+          namespace: namespaceStr,
+        };
         this.treeList = [];
         this.defaultExpandList = [];
         this.cacheRequestParams = requestParams;
         this.getTreeList();
         if (this.labelParams.labelSelector.length) {
-          this.matchCheckedItemList = this.labelParams.labelSelector.map(item => ({
-            ...item,
-            id: random(10),
-          }));
-          this.matchCheckedList = this.matchCheckedItemList.map(item => item.id);
+          this.matchCheckedItemList = this.labelParams.labelSelector.map(
+            (item) => ({
+              ...item,
+              id: random(10),
+            })
+          );
+          this.matchCheckedList = this.matchCheckedItemList.map(
+            (item) => item.id
+          );
         }
       } else {
         this.resetSelect();
@@ -276,28 +283,40 @@ export default {
 
       const [nameSpaceStr, nameStr] = this.getNameStrAndNameSpace(treeItem); // 获取当前树节点标签请求name字符串
       const { bk_biz_id, bcs_cluster_id, type } = this.labelParams;
-      const query = { namespace: nameSpaceStr, bcs_cluster_id, type, bk_biz_id, name: nameStr };
+      const query = {
+        namespace: nameSpaceStr,
+        bcs_cluster_id,
+        type,
+        bk_biz_id,
+        name: nameStr,
+      };
       if (type === 'node') delete query.namespace;
       this.labelLoading = true;
       this.catchCheckedItemList();
       this.$http
         .request('container/getNodeLabelList', { query })
-        .then(res => {
+        .then((res) => {
           if (res.code === 0) {
             this.matchSelectItemList = res.data
-              .filter(item => {
+              .filter((item) => {
                 // 先生成已选列表和主页已选列表 若为没有 则全返回
-                const allCheckedItemList = [...this.matchCheckedItemList, ...this.labelParams.labelSelector];
+                const allCheckedItemList = [
+                  ...this.matchCheckedItemList,
+                  ...this.labelParams.labelSelector,
+                ];
                 if (!allCheckedItemList.length) return true;
                 // 判断当前备选是否在已选和主页已选有重复 若有重复则不返回
                 return !allCheckedItemList.some(
-                  mItem => item.key === mItem.key && item.value === mItem.value && mItem.operator === '='
+                  (mItem) =>
+                    item.key === mItem.key &&
+                    item.value === mItem.value &&
+                    mItem.operator === '='
                 );
               })
-              .map(item => ({ ...item, operator: '=', id: random(10) }));
+              .map((item) => ({ ...item, operator: '=', id: random(10) }));
           }
         })
-        .catch(err => {
+        .catch((err) => {
           console.warn(err);
         })
         .finally(() => {
@@ -307,17 +326,26 @@ export default {
     // 切换树选项时缓存备选列表里的值
     catchCheckedItemList() {
       if (!this.matchSelectList.length) return; // 备选没有选择
-      const checkedItemList = this.matchSelectItemList.filter(item => {
+      const checkedItemList = this.matchSelectItemList.filter((item) => {
         if (this.matchSelectList.includes(item.id)) {
           // 包含了id 过滤已选择里有过的值
           return !this.matchCheckedItemList.some(
-            mItem => item.key === mItem.key && item.value === mItem.value && item.operator === mItem.operator
+            (mItem) =>
+              item.key === mItem.key &&
+              item.value === mItem.value &&
+              item.operator === mItem.operator
           );
         }
         return false;
       });
-      this.matchCheckedItemList = [...this.matchCheckedItemList, ...checkedItemList];
-      this.matchCheckedList = [...this.matchSelectList, ...this.matchCheckedList];
+      this.matchCheckedItemList = [
+        ...this.matchCheckedItemList,
+        ...checkedItemList,
+      ];
+      this.matchCheckedList = [
+        ...this.matchSelectList,
+        ...this.matchCheckedList,
+      ];
       this.matchSelectList = [];
     },
     // 关闭弹窗 重置备选 已选数组
@@ -329,11 +357,16 @@ export default {
     },
     handelConfirmLabel() {
       const allCheckedKey = [...this.matchSelectList, ...this.matchCheckedList];
-      const allCheckedValue = [...this.matchSelectItemList, ...this.matchCheckedItemList].map(item => ({
+      const allCheckedValue = [
+        ...this.matchSelectItemList,
+        ...this.matchCheckedItemList,
+      ].map((item) => ({
         ...item,
         type: item.operator === '=' ? 'match_labels' : 'match_expressions',
       }));
-      const matchLabels = allCheckedValue.filter(item => allCheckedKey.includes(item.id));
+      const matchLabels = allCheckedValue.filter((item) =>
+        allCheckedKey.includes(item.id)
+      );
       const labelObj = { labelSelector: [...matchLabels] };
       this.resetSelect();
       this.$emit('config-label-change', labelObj);
@@ -343,22 +376,30 @@ export default {
      * @desc: 根据请求类型获取树列表
      */
     getTreeList() {
-      const { bk_biz_id, bcs_cluster_id, type, namespaceStr } = this.labelParams;
-      const query = { namespace: namespaceStr, bcs_cluster_id, type, bk_biz_id };
+      const { bk_biz_id, bcs_cluster_id, type, namespaceStr } =
+        this.labelParams;
+      const query = {
+        namespace: namespaceStr,
+        bcs_cluster_id,
+        type,
+        bk_biz_id,
+      };
       if (type === 'node') delete query.namespace;
       this.treeLoading = true;
       this.$http
         .request('container/getPodTree', { query })
-        .then(res => {
+        .then((res) => {
           if (res.code === 0) {
             // 树列表
-            this.treeList = this.initTreeList(typeof res.data === 'object' ? [res.data] : res.data);
+            this.treeList = this.initTreeList(
+              typeof res.data === 'object' ? [res.data] : res.data
+            );
             const expandList = this.getResultStrList(this.treeList);
             // 默认展开列表
             this.defaultExpandList = expandList;
           }
         })
-        .catch(err => {
+        .catch((err) => {
           console.warn(err);
         })
         .finally(() => {
@@ -378,8 +419,9 @@ export default {
         (function recurse(currentItem, fatherItem) {
           if (currentItem.children) {
             // 还有子数组则先判断name列表里当前对象是否有缓存name
-            if (absoluteNameList.find(aItem => aItem.index === index)) {
-              absoluteNameList[index].name = `${fatherItem.name}/${currentItem.name}`;
+            if (absoluteNameList.find((aItem) => aItem.index === index)) {
+              absoluteNameList[index].name =
+                `${fatherItem.name}/${currentItem.name}`;
             } else {
               absoluteNameList.push({
                 index,
@@ -397,9 +439,11 @@ export default {
     },
     // 给集群赋值名字
     initTreeList(treeList) {
-      return treeList.map(item => {
+      return treeList.map((item) => {
         if (item.type === 'cluster') {
-          const cluster = this.clusterList.find(cItem => cItem.id === item.id);
+          const cluster = this.clusterList.find(
+            (cItem) => cItem.id === item.id
+          );
           if (!!cluster) item.name = `${cluster.name} (${item.id})`;
         }
         return item;
@@ -439,7 +483,7 @@ export default {
       const nodeRect = node.getBoundingClientRect();
       const rect = parentNode.getBoundingClientRect();
       this.activeStretchBtn = direction;
-      const handleMouseMove = event => {
+      const handleMouseMove = (event) => {
         const [min, max] = this.leftRange;
         const newWidth = event.clientX - rect.left - nodeRect.width;
         this.leftPreWidth = newWidth < min ? min : Math.min(newWidth, max);
@@ -473,190 +517,190 @@ export default {
 };
 </script>
 <style lang="scss">
-  @import '@/scss/mixins/flex.scss';
+@import '@/scss/mixins/flex.scss';
 
-  /* stylelint-disable no-descending-specificity */
-  .log-target-container {
-    display: flex;
-    width: 100%;
-    height: 585px;
-    overflow: hidden;
+/* stylelint-disable no-descending-specificity */
+.log-target-container {
+  display: flex;
+  width: 100%;
+  height: 585px;
+  overflow: hidden;
+  background: #fff;
+  border: 1px solid #dcdee5;
+  border-radius: 2px;
+
+  .label-tree {
+    position: relative;
+    z-index: 99;
+    min-width: 290px;
+    padding: 14px 24px;
     background: #fff;
-    border: 1px solid #dcdee5;
-    border-radius: 2px;
+    border-right: 1px solid #dcdee5;
 
-    .label-tree {
-      position: relative;
-      z-index: 99;
-      min-width: 290px;
-      padding: 14px 24px;
-      background: #fff;
-      border-right: 1px solid #dcdee5;
-
-      .tree-search {
-        width: 100%;
-      }
-
-      .big-tree {
-        margin-top: 12px;
-        overflow-y: auto;
-      }
-
-      .empty-box {
-        height: 84%;
-
-        @include flex-center();
-      }
-
-      .item-slot {
-        align-items: center;
-        color: #63656e;
-
-        @include flex-justify(space-between);
-
-        .item-name {
-          overflow: hidden;
-          text-overflow: ellipsis;
-          white-space: nowrap;
-        }
-
-        .item-number {
-          display: inline-block;
-          min-width: 20px;
-          height: 16px;
-          padding: 2px 0;
-          margin: 0 6px;
-          font-size: 12px;
-          line-height: 12px;
-          color: #979ba5;
-          text-align: center;
-          background: #f0f1f5;
-          border-radius: 2px;
-        }
-      }
-
-      :deep(.bk-big-tree-node) {
-        &:hover {
-          background: #f0f1f5;
-        }
-
-        &.is-selected {
-          .item-number {
-            color: #fff;
-            background: #a3c5fd;
-          }
-        }
-      }
+    .tree-search {
+      width: 100%;
     }
 
-    .label-operate {
-      width: calc(100% - 300px);
-
-      .label-config {
-        width: 100%;
-        min-width: 600px;
-        height: 100%;
-        padding: 14px 24px;
-      }
-
-      .select-title {
-        margin-bottom: 12px;
-        font-size: 14px;
-        color: #313238;
-      }
-
-      .select-container {
-        padding-bottom: 22px;
-        border-bottom: 1px solid #dcdee5;
-
-        & + .no-choice-container {
-          margin-top: 22px;
-        }
-      }
-
-      .select-list {
-        max-height: 252px;
-        overflow-y: auto;
-
-        .is-checked {
-          .specify-box {
-            background: #e1ecff;
-          }
-        }
-      }
-
-      .no-choice-container {
-        overflow-y: auto;
-      }
-
-      .disabled {
-        cursor: no-drop;
-        opacity: 0.6;
-
-        .operator {
-          color: #979ba5;
-        }
-      }
-
-      .select-item {
-        align-items: center;
-        padding: 4px 0;
-
-        @include flex-justify(space-between);
-
-        .bk-checkbox-text {
-          flex: 1;
-          margin-left: 14px;
-        }
-      }
+    .big-tree {
+      margin-top: 12px;
+      overflow-y: auto;
     }
 
-    .left-drag {
-      right: -5px;
-    }
-
-    .bk-log-drag-simple {
-      position: absolute;
-      top: 50%;
-      z-index: 100;
-      display: flex;
-      align-items: center;
-      justify-items: center;
-      width: 10px;
-      height: 100%;
-      border-radius: 3px;
-      transform: translateY(-50%);
-
-      &:hover {
-        cursor: col-resize;
-        user-select: none;
-      }
-    }
-
-    .right-border-light {
-      border-right-color: #3a84ff;
-    }
-
-    .match-empty {
-      flex-direction: column;
-      height: 585px;
+    .empty-box {
+      height: 84%;
 
       @include flex-center();
+    }
 
-      p {
-        margin-bottom: 12px;
-        font-size: 14px;
+    .item-slot {
+      align-items: center;
+      color: #63656e;
+
+      @include flex-justify(space-between);
+
+      .item-name {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
       }
 
-      span {
+      .item-number {
+        display: inline-block;
+        min-width: 20px;
+        height: 16px;
+        padding: 2px 0;
+        margin: 0 6px;
         font-size: 12px;
+        line-height: 12px;
         color: #979ba5;
+        text-align: center;
+        background: #f0f1f5;
+        border-radius: 2px;
+      }
+    }
+
+    :deep(.bk-big-tree-node) {
+      &:hover {
+        background: #f0f1f5;
       }
 
-      .icon-empty {
-        font-size: 50px;
-        color: #c3cdd7;
+      &.is-selected {
+        .item-number {
+          color: #fff;
+          background: #a3c5fd;
+        }
       }
     }
   }
+
+  .label-operate {
+    width: calc(100% - 300px);
+
+    .label-config {
+      width: 100%;
+      min-width: 600px;
+      height: 100%;
+      padding: 14px 24px;
+    }
+
+    .select-title {
+      margin-bottom: 12px;
+      font-size: 14px;
+      color: #313238;
+    }
+
+    .select-container {
+      padding-bottom: 22px;
+      border-bottom: 1px solid #dcdee5;
+
+      & + .no-choice-container {
+        margin-top: 22px;
+      }
+    }
+
+    .select-list {
+      max-height: 252px;
+      overflow-y: auto;
+
+      .is-checked {
+        .specify-box {
+          background: #e1ecff;
+        }
+      }
+    }
+
+    .no-choice-container {
+      overflow-y: auto;
+    }
+
+    .disabled {
+      cursor: no-drop;
+      opacity: 0.6;
+
+      .operator {
+        color: #979ba5;
+      }
+    }
+
+    .select-item {
+      align-items: center;
+      padding: 4px 0;
+
+      @include flex-justify(space-between);
+
+      .bk-checkbox-text {
+        flex: 1;
+        margin-left: 14px;
+      }
+    }
+  }
+
+  .left-drag {
+    right: -5px;
+  }
+
+  .bk-log-drag-simple {
+    position: absolute;
+    top: 50%;
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    justify-items: center;
+    width: 10px;
+    height: 100%;
+    border-radius: 3px;
+    transform: translateY(-50%);
+
+    &:hover {
+      cursor: col-resize;
+      user-select: none;
+    }
+  }
+
+  .right-border-light {
+    border-right-color: #3a84ff;
+  }
+
+  .match-empty {
+    flex-direction: column;
+    height: 585px;
+
+    @include flex-center();
+
+    p {
+      margin-bottom: 12px;
+      font-size: 14px;
+    }
+
+    span {
+      font-size: 12px;
+      color: #979ba5;
+    }
+
+    .icon-empty {
+      font-size: 50px;
+      color: #c3cdd7;
+    }
+  }
+}
 </style>

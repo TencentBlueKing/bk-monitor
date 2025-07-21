@@ -24,10 +24,9 @@
  * IN THE SOFTWARE.
  */
 
+import { Button } from 'bk-magic-vue';
 import { Component, Emit, Inject, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-
-import { Button } from 'bk-magic-vue';
 
 import $http from '../../../api';
 import { deepEqual, Debounce } from '../../../common/util';
@@ -36,24 +35,24 @@ import { deepEqual, Debounce } from '../../../common/util';
 import './handle-btn.scss';
 
 const searchMap = {
-  // 检索按钮
-  search: {
-    // 查询
-    icon: 'bk-icon bklog-icon bklog-bofang',
-    text: window.mainComponent.$t('查询'),
-    changeBtnTips: window.mainComponent.$t('切换自动查询'),
-  },
-  searchIng: {
-    // 查询中
-    icon: 'loading',
-    text: `${window.mainComponent.$t('查询中')}...`,
-    changeBtnTips: '',
-  },
   autoSearch: {
+    changeBtnTips: window.mainComponent.$t('切换手动查询'),
     // 自动查询
     icon: 'bk-icon bklog-icon bklog-zanting',
     text: window.mainComponent.$t('自动查询'),
-    changeBtnTips: window.mainComponent.$t('切换手动查询'),
+  },
+  // 检索按钮
+  search: {
+    changeBtnTips: window.mainComponent.$t('切换自动查询'),
+    // 查询
+    icon: 'bk-icon bklog-icon bklog-bofang',
+    text: window.mainComponent.$t('查询'),
+  },
+  searchIng: {
+    changeBtnTips: '',
+    // 查询中
+    icon: 'loading',
+    text: `${window.mainComponent.$t('查询中')}...`,
   },
 };
 
@@ -61,19 +60,19 @@ const searchMap = {
 export default class HandleBtn extends tsc<object> {
   @Inject('handleUserOperate') handleUserOperate;
 
-  @Prop({ type: Boolean, default: false }) tableLoading: boolean;
-  @Prop({ type: Boolean, default: false }) isAutoQuery: boolean; // 是否是自动检索
+  @Prop({ default: false, type: Boolean }) tableLoading: boolean;
+  @Prop({ default: false, type: Boolean }) isAutoQuery: boolean; // 是否是自动检索
   @Prop({ required: true }) isSearchAllowed;
-  @Prop({ type: Number, required: true }) activeFavoriteID: number; // 当前的收藏id
-  @Prop({ type: Boolean, required: true }) isCanStorageFavorite: boolean; // 是否可以点击收藏
-  @Prop({ type: Object, required: true }) retrieveParams; // 检索参数
-  @Prop({ type: String, required: true }) indexId: string; // 索引集id
-  @Prop({ type: Object, required: true }) activeFavorite; // 收藏参数
-  @Prop({ type: Array, required: true }) visibleFields; // 显示字段
-  @Prop({ type: Array, required: true }) indexSetList; // 索引集列表
-  @Prop({ type: Boolean, required: true }) isSqlSearchType: boolean; // 当前是否是sql模式
-  @Prop({ type: Array, required: true }) conditionList; // 条件列表
-  @Prop({ type: Object, required: true }) catchIpChooser; // ip选择器的值
+  @Prop({ required: true, type: Number }) activeFavoriteID: number; // 当前的收藏id
+  @Prop({ required: true, type: Boolean }) isCanStorageFavorite: boolean; // 是否可以点击收藏
+  @Prop({ required: true, type: Object }) retrieveParams; // 检索参数
+  @Prop({ required: true, type: String }) indexId: string; // 索引集id
+  @Prop({ required: true, type: Object }) activeFavorite; // 收藏参数
+  @Prop({ required: true, type: Array }) visibleFields; // 显示字段
+  @Prop({ required: true, type: Array }) indexSetList; // 索引集列表
+  @Prop({ required: true, type: Boolean }) isSqlSearchType: boolean; // 当前是否是sql模式
+  @Prop({ required: true, type: Array }) conditionList; // 条件列表
+  @Prop({ required: true, type: Object }) catchIpChooser; // ip选择器的值
 
   favoriteUpdateLoading = false;
 
@@ -102,10 +101,13 @@ export default class HandleBtn extends tsc<object> {
     const { params: retrieveParams } = this.getRetrieveFavoriteData();
     const { params } = this.activeFavorite;
     const additions = params?.addition || [];
-    const favAddition = additions.map(item => ({ ...item, value: this.getAdditionValue(item.value) }));
+    const favAddition = additions.map((item) => ({
+      ...item,
+      value: this.getAdditionValue(item.value),
+    }));
     const favoriteParams = {
-      ip_chooser: params?.ip_chooser ?? {},
       addition: favAddition,
+      ip_chooser: params?.ip_chooser ?? {},
       keyword: params?.keyword ?? '*',
     };
     return !deepEqual(favoriteParams, retrieveParams, ['meta']);
@@ -114,8 +116,8 @@ export default class HandleBtn extends tsc<object> {
   get conditionListAddition() {
     // 获取添加条件里的值
     return this.conditionList
-      .filter(item => item.conditionType === 'filed' && item.value.length)
-      .map(item => ({
+      .filter((item) => item.conditionType === 'filed' && item.value.length)
+      .map((item) => ({
         field: item.id,
         operator: item.operator,
         value: this.getAdditionValue(item.value),
@@ -124,7 +126,12 @@ export default class HandleBtn extends tsc<object> {
 
   get isCanClickFavorite() {
     // 是否可点击收藏
-    return !this.isFavoriteUpdate || this.favoriteUpdateLoading || !this.isCanStorageFavorite || this.tableLoading;
+    return (
+      !this.isFavoriteUpdate ||
+      this.favoriteUpdateLoading ||
+      !this.isCanStorageFavorite ||
+      this.tableLoading
+    );
   }
 
   // 检索
@@ -149,8 +156,8 @@ export default class HandleBtn extends tsc<object> {
   getRetrieveFavoriteData() {
     return {
       params: {
-        ip_chooser: this.catchIpChooser,
         addition: this.conditionListAddition,
+        ip_chooser: this.catchIpChooser,
         keyword: this.retrieveParams.keyword,
       },
     };
@@ -166,28 +173,32 @@ export default class HandleBtn extends tsc<object> {
   // 点击新建收藏
   handleClickFavorite() {
     // 如果点击过收藏，进行参数判断
-    const displayFields = this.visibleFields.map(item => item.field_name);
-    const indexItem = this.indexSetList.find(item => item.index_set_id === String(this.indexId));
+    const displayFields = this.visibleFields.map((item) => item.field_name);
+    const indexItem = this.indexSetList.find(
+      (item) => item.index_set_id === String(this.indexId)
+    );
     const {
-      params: { ip_chooser, addition, keyword },
+      params: { addition, ip_chooser, keyword },
     } = this.getRetrieveFavoriteData();
     const favoriteData = {
+      display_fields: displayFields,
       // 新建收藏参数
       index_set_id: this.indexId,
-      space_uid: this.spaceUid,
+      index_set_ids:
+        this.unionIndexItemList?.map((item) => item.index_set_id) || [],
       index_set_name: indexItem.index_set_name,
-      index_set_ids: this.unionIndexItemList?.map(item => item.index_set_id) || [],
-      index_set_names: this.unionIndexItemList?.map(item => item.index_set_name) || [],
-      display_fields: displayFields,
-      visible_type: 'public',
-      name: '',
+      index_set_names:
+        this.unionIndexItemList?.map((item) => item.index_set_name) || [],
       is_enable_display_fields: false,
+      name: '',
       params: {
+        addition,
         ip_chooser,
         keyword: Boolean(keyword) ? keyword : '*',
-        addition,
         search_fields: [],
       },
+      space_uid: this.spaceUid,
+      visible_type: 'public',
     };
     this.handleUserOperate('addFavoriteData', favoriteData); // 新增收藏
     this.handleUserOperate('isShowAddNewCollectDialog', true); // 展示新增弹窗
@@ -197,29 +208,33 @@ export default class HandleBtn extends tsc<object> {
   async handleUpdateFavorite() {
     try {
       this.favoriteUpdateLoading = true;
-      const { params, name, group_id, display_fields, visible_type, id } = this.activeFavorite;
+      const { display_fields, group_id, id, name, params, visible_type } =
+        this.activeFavorite;
       const { search_fields: searchFields } = params;
       const {
-        params: { ip_chooser, addition, keyword },
+        params: { addition, ip_chooser, keyword },
       } = this.getRetrieveFavoriteData();
       const fRes = await $http.request('favorite/getSearchFields', {
         data: { keyword },
       });
-      const searchFilterList = fRes.data.filter(v => searchFields.includes(v.name)).map(item => item.name);
+      const searchFilterList = fRes.data
+        .filter((v) => searchFields.includes(v.name))
+        .map((item) => item.name);
       const data = {
-        name,
-        group_id,
-        display_fields,
-        visible_type,
-        ip_chooser,
         addition,
+        display_fields,
+        group_id,
+        ip_chooser,
         keyword,
+        name,
         search_fields: searchFilterList,
+        visible_type,
       };
-      if (!data.search_fields.length) this.handleUserOperate('isSqlSearchType', true);
+      if (!data.search_fields.length)
+        this.handleUserOperate('isSqlSearchType', true);
       const res = await $http.request('favorite/updateFavorite', {
-        params: { id },
         data,
+        params: { id },
       });
       if (res.result) {
         this.$bkMessage({
@@ -243,74 +258,83 @@ export default class HandleBtn extends tsc<object> {
   render() {
     return (
       // 查询收藏清空按钮
-      <div class='retrieve-button-group'>
+      <div class="retrieve-button-group">
         {this.tableLoading ? (
-          <div class='loading-box'>
+          <div class="loading-box">
             <div
-              class='loading'
-              v-bkloading={{ isLoading: true, theme: 'primary', mode: 'spin' }}
+              class="loading"
+              v-bkloading={{ isLoading: true, mode: 'spin', theme: 'primary' }}
             ></div>
           </div>
         ) : (
           <Button
-            class='query-btn'
-            v-bk-tooltips={{ content: this.getSearchType.changeBtnTips }}
+            class="query-btn"
             icon={this.getSearchType.icon}
             onClick={this.handleChangeSearchType}
+            v-bk-tooltips={{ content: this.getSearchType.changeBtnTips }}
           ></Button>
         )}
 
         <Button
-          class={{ 'query-search': true, loading: this.tableLoading }}
-          v-cursor={{ active: (this.isSearchAllowed as boolean) === false }}
-          data-test-id='dataQuery_button_filterSearch'
-          theme='primary'
+          class={{ loading: this.tableLoading, 'query-search': true }}
+          data-test-id="dataQuery_button_filterSearch"
           onClick={this.handleQuery}
+          theme="primary"
+          v-cursor={{ active: (this.isSearchAllowed as boolean) === false }}
         >
           {this.getSearchType.text}
         </Button>
-        <div class='favorite-btn-container'>
+        <div class="favorite-btn-container">
           <Button
-            ext-cls='favorite-btn'
-            v-show={this.isFavoriteNewSearch}
-            data-test-id='dataQuery_button_collection'
+            data-test-id="dataQuery_button_collection"
             disabled={!this.isCanStorageFavorite}
+            ext-cls="favorite-btn"
             onClick={this.handleClickFavorite}
+            v-show={this.isFavoriteNewSearch}
           >
-            <span class='favorite-btn-text'>
-              <span class='icon bk-icon icon-star'></span>
-              <span>{(this.$t('button-收藏') as string).replace('button-', '')}</span>
+            <span class="favorite-btn-text">
+              <span class="icon bk-icon icon-star"></span>
+              <span>
+                {(this.$t('button-收藏') as string).replace('button-', '')}
+              </span>
             </span>
           </Button>
           <span
-            class='catching-ball'
+            class="catching-ball"
             v-show={!this.isFavoriteNewSearch && this.isFavoriteUpdate}
           ></span>
           <Button
-            ext-cls='favorite-btn'
-            v-show={!this.isFavoriteNewSearch}
             disabled={this.isCanClickFavorite}
+            ext-cls="favorite-btn"
             onClick={this.handleUpdateFavorite}
+            v-show={!this.isFavoriteNewSearch}
           >
             <span
-              v-bk-tooltips={{ content: this.$t('当前收藏有更新，点击保存当前修改'), disabled: !this.isFavoriteUpdate }}
+              v-bk-tooltips={{
+                content: this.$t('当前收藏有更新，点击保存当前修改'),
+                disabled: !this.isFavoriteUpdate,
+              }}
             >
-              <span class='favorite-btn-text'>
+              <span class="favorite-btn-text">
                 <span
-                  class={['icon', !this.isFavoriteUpdate ? 'bklog-icon bklog-lc-star-shape' : 'bk-icon icon-save']}
+                  class={[
+                    'icon',
+                    !this.isFavoriteUpdate
+                      ? 'bklog-icon bklog-lc-star-shape'
+                      : 'bk-icon icon-save',
+                  ]}
                 ></span>
-                <span>{!this.isFavoriteUpdate ? this.$t('已收藏') : this.$t('保存')}</span>
+                <span>
+                  {!this.isFavoriteUpdate ? this.$t('已收藏') : this.$t('保存')}
+                </span>
               </span>
             </span>
           </Button>
         </div>
         <span v-bk-tooltips={{ content: this.$t('清空'), delay: 200 }}>
-          <div
-            class='clear-params-btn'
-            onClick={() => this.handleClear()}
-          >
-            <Button data-test-id='dataQuery_button_phrasesClear'></Button>
-            <span class='bklog-icon bklog-brush'></span>
+          <div class="clear-params-btn" onClick={() => this.handleClear()}>
+            <Button data-test-id="dataQuery_button_phrasesClear"></Button>
+            <span class="bklog-icon bklog-brush"></span>
           </div>
         </span>
       </div>

@@ -23,17 +23,16 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, ref, computed } from 'vue';
-
 import BklogPopover from '@/components/bklog-popover';
 import useLocale from '@/hooks/use-locale';
 import { debounce } from 'lodash';
+import { defineComponent, ref, computed } from 'vue';
 import { useRoute } from 'vue-router/composables';
 
 import useStore from '../../../hooks/use-store';
-import GrepCliEditor from './grep-cli-editor';
 
 import './grep-cli.scss';
+import GrepCliEditor from './grep-cli-editor';
 
 export default defineComponent({
   name: 'GrepCli',
@@ -41,21 +40,21 @@ export default defineComponent({
     GrepCliEditor,
     BklogPopover,
   },
+  emits: ['search-change', 'match-mode', 'grep-enter', 'field-change'],
   props: {
+    fieldValue: {
+      default: '',
+      type: String,
+    },
     searchCount: {
-      type: Number,
       default: null,
+      type: Number,
     },
     searchValue: {
-      type: String,
       default: '',
-    },
-    fieldValue: {
       type: String,
-      default: '',
     },
   },
-  emits: ['search-change', 'match-mode', 'grep-enter', 'field-change'],
   setup(props, { emit }) {
     const route = useRoute();
     const { t } = useLocale();
@@ -68,7 +67,9 @@ export default defineComponent({
 
     const store = useStore();
     const fieldList = computed(() =>
-      (store.state.indexFieldInfo.fields ?? []).filter(field => field.field_type === 'text')
+      (store.state.indexFieldInfo.fields ?? []).filter(
+        (field) => field.field_type === 'text'
+      )
     );
 
     // 计算是否有搜索结果
@@ -106,12 +107,12 @@ export default defineComponent({
     const handleSearchInput = debounce((value: string) => {
       emit('search-change', {
         content: value,
-        searchValue: value,
         matchMode: {
           caseSensitive: isCaseSensitive.value,
           regexMode: isRegexMode.value,
           wordMatch: isWordMatch.value,
         },
+        searchValue: value,
       });
     }, 300);
 
@@ -193,19 +194,19 @@ export default defineComponent({
     // };
 
     return () => (
-      <div class='grep-cli-container grep-cli-flex'>
-        <div class='grep-cli-left'>
+      <div class="grep-cli-container grep-cli-flex">
+        <div class="grep-cli-left">
           <div style={{ display: 'flex', width: '128px' }}>
-            <span class='grep-cli-label'>{t('字段')}:</span>
+            <span class="grep-cli-label">{t('字段')}:</span>
             <bk-select
-              style='min-width: 80px; border: none;'
-              class='grep-cli-select'
-              popover-min-width={200}
-              size='small'
-              value={props.fieldValue}
+              class="grep-cli-select"
               on-change={handleFieldChange}
+              popover-min-width={200}
+              size="small"
+              style="min-width: 80px; border: none;"
+              value={props.fieldValue}
             >
-              {fieldList.value.map(option => (
+              {fieldList.value.map((option) => (
                 <bk-option
                   id={option.field_name}
                   key={option.field_name}
@@ -214,62 +215,95 @@ export default defineComponent({
               ))}
             </bk-select>
           </div>
-          <div class='grep-cli-editor'>
+          <div class="grep-cli-editor">
             <GrepCliEditor
+              autoHeight={true}
+              maxHeight="160px"
+              minHeight="34px"
+              on-change={handleEditorChange}
+              on-enter={handleEditorEnter}
               placeholder={
                 '"Common Text" | -i "ignore-case text" | -v "excluded text" | -E "regex match like [0-9]+" | -iv -E "multiple options"'
               }
-              autoHeight={true}
-              maxHeight='160px'
-              minHeight='34px'
               value={grepValue.value}
-              on-change={handleEditorChange}
-              on-enter={handleEditorEnter}
             />
           </div>
         </div>
 
         {/* 右侧匹配栏 */}
-        <div class='grep-cli-right'>
-          <div class='grep-cli-search-section'>
+        <div class="grep-cli-right">
+          <div class="grep-cli-search-section">
             <bk-input
-              class='grep-cli-search-input'
+              class="grep-cli-search-input"
               clearable={true}
-              placeholder={t('搜索')}
-              size='small'
-              value={props.searchValue}
               on-change={handleSearchInput}
+              placeholder={t('搜索')}
+              size="small"
+              value={props.searchValue}
             />
-            <div class='grep-cli-tools'>
+            <div class="grep-cli-tools">
               <BklogPopover
                 content={t('大小写匹配')}
-                options={{ placement: 'top', theme: 'dark', appendTo: document.body } as any}
-                trigger='hover'
+                options={
+                  {
+                    appendTo: document.body,
+                    placement: 'top',
+                    theme: 'dark',
+                  } as any
+                }
+                trigger="hover"
               >
                 <span
-                  class={['grep-cli-tool-icon', 'bklog-icon', 'bklog-daxiaoxie', { active: isCaseSensitive.value }]}
+                  class={[
+                    'grep-cli-tool-icon',
+                    'bklog-icon',
+                    'bklog-daxiaoxie',
+                    { active: isCaseSensitive.value },
+                  ]}
                   onClick={toggleCaseSensitive}
                 />
               </BklogPopover>
 
               <BklogPopover
                 content={t('精确匹配')}
-                options={{ placement: 'top', theme: 'dark', appendTo: document.body } as any}
-                trigger='hover'
+                options={
+                  {
+                    appendTo: document.body,
+                    placement: 'top',
+                    theme: 'dark',
+                  } as any
+                }
+                trigger="hover"
               >
                 <span
-                  class={['grep-cli-tool-icon', 'bklog-icon', 'bklog-ab', { active: isWordMatch.value }]}
+                  class={[
+                    'grep-cli-tool-icon',
+                    'bklog-icon',
+                    'bklog-ab',
+                    { active: isWordMatch.value },
+                  ]}
                   onClick={toggleWordMatch}
                 />
               </BklogPopover>
 
               <BklogPopover
                 content={t('正则匹配')}
-                options={{ placement: 'top', theme: 'dark', appendTo: document.body } as any}
-                trigger='hover'
+                options={
+                  {
+                    appendTo: document.body,
+                    placement: 'top',
+                    theme: 'dark',
+                  } as any
+                }
+                trigger="hover"
               >
                 <span
-                  class={['grep-cli-tool-icon', 'bklog-icon', 'bklog-tongpeifu', { active: isRegexMode.value }]}
+                  class={[
+                    'grep-cli-tool-icon',
+                    'bklog-icon',
+                    'bklog-tongpeifu',
+                    { active: isRegexMode.value },
+                  ]}
                   onClick={toggleRegexMode}
                 />
               </BklogPopover>

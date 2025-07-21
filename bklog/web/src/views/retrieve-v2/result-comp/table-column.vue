@@ -79,8 +79,9 @@ export default {
   },
   computed: {
     ...mapState({
-      formatJson: state => state.storage[BK_LOG_STORAGE.TABLE_JSON_FORMAT],
-      tableLineIsWrap: state => state.storage[BK_LOG_STORAGE.TABLE_LINE_IS_WRAP],
+      formatJson: (state) => state.storage[BK_LOG_STORAGE.TABLE_JSON_FORMAT],
+      tableLineIsWrap: (state) =>
+        state.storage[BK_LOG_STORAGE.TABLE_LINE_IS_WRAP],
     }),
 
     isJsonFormat() {
@@ -113,10 +114,11 @@ export default {
       if (this.intersectionObserver) {
         this.unregisterOberver();
       }
-      this.intersectionObserver = new IntersectionObserver(entries => {
-        entries.forEach(entry => {
+      this.intersectionObserver = new IntersectionObserver((entries) => {
+        entries.forEach((entry) => {
           if (this.intersectionObserver) {
-            if (entry.boundingClientRect.height > 72) this.$emit('computed-height');
+            if (entry.boundingClientRect.height > 72)
+              this.$emit('computed-height');
           }
         });
       });
@@ -127,7 +129,7 @@ export default {
 </script>
 
 <style lang="scss" scoped>
-  .bklog-column-container {
-    padding: 8px 0;
-  }
+.bklog-column-container {
+  padding: 8px 0;
+}
 </style>

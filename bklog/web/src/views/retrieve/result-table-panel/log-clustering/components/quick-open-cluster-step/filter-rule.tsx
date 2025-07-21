@@ -24,10 +24,16 @@
  * IN THE SOFTWARE.
  */
 
-import { Component, Prop, Emit, Ref, ModelSync, Watch } from 'vue-property-decorator';
-import { Component as tsc } from 'vue-tsx-support';
-
 import { From } from 'bk-magic-vue';
+import {
+  Component,
+  Prop,
+  Emit,
+  Ref,
+  ModelSync,
+  Watch,
+} from 'vue-property-decorator';
+import { Component as tsc } from 'vue-tsx-support';
 
 import $http from '../../../../../../api';
 import { formatDate } from '../../../../../../common/util';
@@ -44,9 +50,9 @@ const { $i18n } = window.mainComponent;
 @Component
 export default class QuickOpenCluster extends tsc<IProps> {
   @ModelSync('value', 'change', { type: Array }) localFilterRule!: Array<any>;
-  @Prop({ type: Array, required: true }) totalFields: Array<any>;
-  @Prop({ type: Array, required: true }) datePickerValue: Array<any>;
-  @Prop({ type: Object, required: true }) retrieveParams: object;
+  @Prop({ required: true, type: Array }) totalFields: Array<any>;
+  @Prop({ required: true, type: Array }) datePickerValue: Array<any>;
+  @Prop({ required: true, type: Object }) retrieveParams: object;
   @Ref('quickClusterFrom') quickClusterFromRef: From;
 
   conditionList = [
@@ -74,12 +80,12 @@ export default class QuickOpenCluster extends tsc<IProps> {
     ],
     filter_rules: [
       {
-        validator: this.checkFilterRules,
         trigger: 'blur',
+        validator: this.checkFilterRules,
       },
       {
-        validator: this.checkLIKERules,
         trigger: 'change',
+        validator: this.checkLIKERules,
       },
     ],
   };
@@ -97,9 +103,12 @@ export default class QuickOpenCluster extends tsc<IProps> {
 
   get filterSelectList() {
     return this.totalFields
-      .filter(item => !/^__dist/.test(item.field_name) && item.field_type !== '__virtual__')
-      .map(el => {
-        const { field_name: id, field_alias: alias } = el;
+      .filter(
+        (item) =>
+          !/^__dist/.test(item.field_name) && item.field_type !== '__virtual__'
+      )
+      .map((el) => {
+        const { field_alias: alias, field_name: id } = el;
         return { id, name: alias ? `${id}(${alias})` : id };
       });
   }
@@ -124,7 +133,8 @@ export default class QuickOpenCluster extends tsc<IProps> {
   }
 
   handleFieldChange(fieldName: string, index: number) {
-    const field = this.totalFields.find(item => item.field_name === fieldName) ?? {};
+    const field =
+      this.totalFields.find((item) => item.field_name === fieldName) ?? {};
     Object.assign(this.formData.filter_rules[index], {
       ...field,
       value: [],
@@ -134,46 +144,56 @@ export default class QuickOpenCluster extends tsc<IProps> {
   }
   async queryValueList(fields = []) {
     if (!fields.length) return;
-    const tempList = handleTransformToTimestamp(this.datePickerValue, this.$store.getters.retrieveParams.format);
+    const tempList = handleTransformToTimestamp(
+      this.datePickerValue,
+      this.$store.getters.retrieveParams.format
+    );
     try {
       const res = await $http.request('retrieve/getAggsTerms', {
+        data: {
+          end_time: formatDate(tempList[1]),
+          fields,
+          keyword: this.retrieveParams?.keyword ?? '*',
+          start_time: formatDate(tempList[0]),
+        },
         params: {
           index_set_id: this.$route.params.indexId,
         },
-        data: {
-          keyword: this.retrieveParams?.keyword ?? '*',
-          fields,
-          start_time: formatDate(tempList[0]),
-          end_time: formatDate(tempList[1]),
-        },
       });
-      this.formData.filter_rules.forEach(item => {
+      this.formData.filter_rules.forEach((item) => {
         item.valueList =
-          res.data.aggs_items[item.fields_name]?.map(item => ({
+          res.data.aggs_items[item.fields_name]?.map((item) => ({
             id: item.toString(),
             name: item.toString(),
           })) ?? [];
       });
     } catch (err) {
-      this.formData.filter_rules.forEach(item => (item.valueList = []));
+      this.formData.filter_rules.forEach((item) => (item.valueList = []));
     }
   }
   fieldsKeyStrList() {
     const fieldsStrList = this.formData.filter_rules
-      .filter(item => item.field_type !== 'text' && item.es_doc_values)
-      .map(item => item.fields_name);
+      .filter((item) => item.field_type !== 'text' && item.es_doc_values)
+      .map((item) => item.fields_name);
     return Array.from(new Set(fieldsStrList));
   }
   handleValueBlur(operateItem, val: string) {
     if (!operateItem.value.length && !!val) operateItem.value.push(val);
   }
   checkFilterRules() {
-    if (this.formData.filter_rules.length === 1 && !this.formData.filter_rules[0].fields_name) return true;
-    return this.formData.filter_rules.every(item => !!item.value.length && item.fields_name);
+    if (
+      this.formData.filter_rules.length === 1 &&
+      !this.formData.filter_rules[0].fields_name
+    )
+      return true;
+    return this.formData.filter_rules.every(
+      (item) => !!item.value.length && item.fields_name
+    );
   }
   checkLIKERules() {
-    this.isLikeCorrect = this.formData.filter_rules.every(item => {
-      if (['NOT LIKE', 'LIKE'].includes(item.op) && !!item.value.length) return /%/.test(item.value[0]);
+    this.isLikeCorrect = this.formData.filter_rules.every((item) => {
+      if (['NOT LIKE', 'LIKE'].includes(item.op) && !!item.value.length)
+        return /%/.test(item.value[0]);
       return true;
     });
     return this.isLikeCorrect;
@@ -185,9 +205,9 @@ export default class QuickOpenCluster extends tsc<IProps> {
   handleAddFilterRule() {
     this.formData.filter_rules.push({
       fields_name: '', // 过滤规则字段名
+      logic_operator: 'and',
       op: '=', // 过滤规则操作符号
       value: [], // 过滤规则字段值
-      logic_operator: 'and',
       valueList: [],
     });
     this.$nextTick(() => {
@@ -206,9 +226,9 @@ export default class QuickOpenCluster extends tsc<IProps> {
   render() {
     return (
       <bk-form
-        ref='quickClusterFrom'
-        ext-cls='filter-container'
-        form-type='vertical'
+        ext-cls="filter-container"
+        form-type="vertical"
+        ref="quickClusterFrom"
         {...{
           props: {
             model: this.formData,
@@ -216,96 +236,96 @@ export default class QuickOpenCluster extends tsc<IProps> {
           },
         }}
       >
-        <bk-form-item
-          label=''
-          property='filter_rules'
-        >
+        <bk-form-item label="" property="filter_rules">
           {!this.isLikeCorrect && (
-            <div class='like-error-message'>
-              <i class='bk-icon icon-exclamation-circle-shape error-icon'></i>
-              <span>{$i18n.t('使用LIKE、NOT LINK操作符时请在过滤值前后增加%')}</span>
+            <div class="like-error-message">
+              <i class="bk-icon icon-exclamation-circle-shape error-icon"></i>
+              <span>
+                {$i18n.t('使用LIKE、NOT LINK操作符时请在过滤值前后增加%')}
+              </span>
             </div>
           )}
-          <div class='filter-rule'>
+          <div class="filter-rule">
             {this.formData.filter_rules.map((item, index) => (
-              <div class='filter-rule filter-rule-item'>
-                {!!this.formData.filter_rules.length && !!index && !!item.fields_name && (
-                  <bk-select
-                    class='icon-box and-or mr-neg1'
-                    v-model={item.logic_operator}
-                    clearable={false}
-                  >
-                    {this.comparedList.map(option => (
-                      <bk-option
-                        id={option.id}
-                        name={option.name}
-                      ></bk-option>
-                    ))}
-                  </bk-select>
-                )}
+              <div class="filter-rule filter-rule-item">
+                {!!this.formData.filter_rules.length &&
+                  !!index &&
+                  !!item.fields_name && (
+                    <bk-select
+                      class="icon-box and-or mr-neg1"
+                      clearable={false}
+                      v-model={item.logic_operator}
+                    >
+                      {this.comparedList.map((option) => (
+                        <bk-option
+                          id={option.id}
+                          name={option.name}
+                        ></bk-option>
+                      ))}
+                    </bk-select>
+                  )}
                 <bk-select
-                  ref={`fieldSelectRef-${index}`}
-                  class={['min-100 mr-neg1 above', { 'is-not-error': !!item.fields_name }]}
-                  v-model={item.fields_name}
+                  class={[
+                    'min-100 mr-neg1 above',
+                    { 'is-not-error': !!item.fields_name },
+                  ]}
                   clearable={false}
+                  on-selected={(fieldsName) =>
+                    this.handleFieldChange(fieldsName, index)
+                  }
                   popover-min-width={150}
+                  ref={`fieldSelectRef-${index}`}
                   searchable
-                  on-selected={fieldsName => this.handleFieldChange(fieldsName, index)}
+                  v-model={item.fields_name}
                 >
-                  {this.filterSelectList.map(option => (
-                    <bk-option
-                      id={option.id}
-                      name={option.name}
-                    ></bk-option>
+                  {this.filterSelectList.map((option) => (
+                    <bk-option id={option.id} name={option.name}></bk-option>
                   ))}
                   <div
-                    style='cursor: pointer'
-                    slot='extension'
                     onClick={() => this.handleDeleteSelect(index)}
+                    slot="extension"
+                    style="cursor: pointer"
                   >
-                    <i class='bk-icon icon-close-circle'></i>
-                    <span style='margin-left: 4px;'>{$i18n.t('删除')}</span>
+                    <i class="bk-icon icon-close-circle"></i>
+                    <span style="margin-left: 4px;">{$i18n.t('删除')}</span>
                   </div>
                 </bk-select>
                 {!!item.fields_name && (
                   <bk-select
-                    class='icon-box mr-neg1 condition'
-                    v-model={item.op}
+                    class="icon-box mr-neg1 condition"
                     clearable={false}
                     popover-min-width={100}
+                    v-model={item.op}
                   >
-                    {this.conditionList.map(option => (
-                      <bk-option
-                        id={option.id}
-                        name={option.name}
-                      ></bk-option>
+                    {this.conditionList.map((option) => (
+                      <bk-option id={option.id} name={option.name}></bk-option>
                     ))}
                   </bk-select>
                 )}
                 {!!item.fields_name && (
                   <div onClick={() => (this.operateIndex = index)}>
                     <bk-tag-input
-                      class={['mr-neg1 min-100 above', { 'is-not-error': !!item.value.length }]}
-                      v-model={item.value}
+                      allow-auto-match
+                      allow-create
+                      class={[
+                        'mr-neg1 min-100 above',
+                        { 'is-not-error': !!item.value.length },
+                      ]}
                       content-width={232}
                       list={item.valueList}
                       max-data={1}
+                      on-blur={(v) => this.handleValueBlur(item, v)}
                       placeholder={$i18n.t('请输入')}
-                      trigger='focus'
-                      allow-auto-match
-                      allow-create
-                      on-blur={v => this.handleValueBlur(item, v)}
+                      trigger="focus"
+                      v-model={item.value}
                     ></bk-tag-input>
                   </div>
                 )}
               </div>
             ))}
             {this.isShowAddFilterIcon && (
-              <button
-                class='icon-box'
-                onClick={this.handleAddFilterRule}
-              >
-                <i class='bk-icon icon-plus-line'></i>
+              <button class="icon-box" onClick={this.handleAddFilterRule}>
+                <i class="bk-icon icon-plus-line"></i>
               </button>
             )}
           </div>

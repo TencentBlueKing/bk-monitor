@@ -41,13 +41,13 @@ export default class EchartsSeries {
     const series = this.series.map((item: any, index) => {
       let showSymbol = hasPlotBand;
       const legendItem: ILegendItem = {
-        name: String(item.name),
+        avg: 0,
+        color: this.colors[index % this.colors.length],
         max: 0,
         min: 0,
-        avg: 0,
-        total: 0,
-        color: this.colors[index % this.colors.length],
+        name: String(item.name),
         show: true,
+        total: 0,
       };
       item.data.forEach((seriesItem: any, seriesIndex: number) => {
         if (seriesItem?.length && seriesItem[1]) {
@@ -57,31 +57,35 @@ export default class EchartsSeries {
           legendItem.max = Math.max(legendItem.max, curValue);
           legendItem.min = Math.min(+legendItem.min, curValue);
           legendItem.total = legendItem.total + curValue;
-          if (hasPlotBand && plotBands.some((set: any) => set.from === seriesItem[0])) {
+          if (
+            hasPlotBand &&
+            plotBands.some((set: any) => set.from === seriesItem[0])
+          ) {
             item.data[seriesIndex] = {
-              symbolSize: 12,
-              value: [seriesItem[0], seriesItem[1]],
               itemStyle: {
                 borderWidth: 6,
                 enabled: true,
-                shadowBlur: 0,
                 opacity: 1,
+                shadowBlur: 0,
               },
               label: {
                 show: false,
               },
+              symbolSize: 12,
+              value: [seriesItem[0], seriesItem[1]],
             };
           } else {
-            const hasBrother = pre && next && pre.length && next.length && !pre[1] && !next[1];
+            const hasBrother =
+              pre && next && pre.length && next.length && !pre[1] && !next[1];
             item.data[seriesIndex] = {
-              symbolSize: hasBrother ? 4 : 1,
-              value: [seriesItem[0], seriesItem[1]],
               itemStyle: {
                 borderWidth: hasBrother ? 4 : 1,
                 enabled: true,
-                shadowBlur: 0,
                 opacity: 1,
+                shadowBlur: 0,
               },
+              symbolSize: hasBrother ? 4 : 1,
+              value: [seriesItem[0], seriesItem[1]],
             };
           }
         } else if (seriesItem.symbolSize) {
@@ -92,11 +96,11 @@ export default class EchartsSeries {
       legendItem.total = +legendItem.total.toFixed(2);
       const seriesItem = {
         ...item,
-        type: this.chartType,
         showSymbol,
-        symbol: 'circle',
-        z: 4,
         smooth: 0.2,
+        symbol: 'circle',
+        type: this.chartType,
+        z: 4,
       };
       if (thresholdLine?.length) {
         seriesItem.markLine = this.handleSetThresholdLine(thresholdLine);
@@ -110,38 +114,31 @@ export default class EchartsSeries {
     return { legendData, series };
   }
   // 设置阈值线
-  public handleSetThresholdLine(thresholdLine: { value: number; name: string }[]) {
+  public handleSetThresholdLine(
+    thresholdLine: { value: number; name: string }[]
+  ) {
     return {
-      symbol: [],
-      label: {
-        show: true,
-        position: 'insideStartTop',
-      },
-      lineStyle: {
-        color: '#FD9C9C',
-        type: 'dashed',
-        distance: 3,
-        width: 1,
-      },
-      data: thresholdLine.map(item => ({
+      data: thresholdLine.map((item) => ({
         name: item.name,
         yAxis: item.value,
       })),
+      label: {
+        position: 'insideStartTop',
+        show: true,
+      },
+      lineStyle: {
+        color: '#FD9C9C',
+        distance: 3,
+        type: 'dashed',
+        width: 1,
+      },
+      symbol: [],
     };
   }
   // 设置阈值面板
   public handleSetThresholdBand(plotBands: { to: number; from: number }[]) {
     return {
-      silent: true,
-      show: true,
-      itemStyle: {
-        color: '#FFF5EC',
-        borderWidth: 1,
-        borderColor: '#FFE9D5',
-        shadowColor: '#FFF5EC',
-        shadowBlur: 0,
-      },
-      data: plotBands.map(item => [
+      data: plotBands.map((item) => [
         {
           xAxis: item.from,
           yAxis: 0,
@@ -151,7 +148,16 @@ export default class EchartsSeries {
           yAxis: 'max', // this.delegateGet('getModel').getComponent('yAxis').axis.scale._extent[1]
         },
       ]),
+      itemStyle: {
+        borderColor: '#FFE9D5',
+        borderWidth: 1,
+        color: '#FFF5EC',
+        shadowBlur: 0,
+        shadowColor: '#FFF5EC',
+      },
       opacity: 0.1,
+      show: true,
+      silent: true,
     };
   }
 }

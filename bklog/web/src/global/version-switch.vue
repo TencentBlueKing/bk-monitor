@@ -26,28 +26,25 @@ const handleVersionChanged = () => {
 };
 </script>
 <template>
-  <div
-    @click="handleVersionChanged"
-    class="bklog-version-switch"
-  >
+  <div @click="handleVersionChanged" class="bklog-version-switch">
     <span class="bklog-icon bklog-qiehuanbanben"></span>{{ showText }}
   </div>
 </template>
 <style lang="scss" scoped>
-  .bklog-version-switch {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 90px;
-    height: 100%;
-    font-size: 12px;
-    color: #3a84ff;
-    cursor: pointer;
-    background: #ffffff;
+.bklog-version-switch {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 90px;
+  height: 100%;
+  font-size: 12px;
+  color: #3a84ff;
+  cursor: pointer;
+  background: #ffffff;
 
-    span {
-      margin-right: 6px;
-      font-size: 16px;
-    }
+  span {
+    margin-right: 6px;
+    font-size: 16px;
   }
+}
 </style>

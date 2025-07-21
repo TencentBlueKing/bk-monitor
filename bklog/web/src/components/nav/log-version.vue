@@ -32,10 +32,7 @@
     @value-change="handleValueChange"
   >
     <template>
-      <div
-        class="log-version"
-        v-bkloading="{ isLoading: loading }"
-      >
+      <div class="log-version" v-bkloading="{ isLoading: loading }">
         <div class="log-version-left">
           <ul class="left-list">
             <li
@@ -47,20 +44,15 @@
             >
               <span class="item-title">{{ item.title }}</span>
               <span class="item-date">{{ item.date }}</span>
-              <span
-                v-if="index === current"
-                class="item-current"
-                >{{ $t('当前版本') }}</span
-              >
+              <span v-if="index === current" class="item-current">{{
+                $t('当前版本')
+              }}</span>
             </li>
           </ul>
         </div>
         <div class="log-version-right">
           <!-- eslint-disable vue/no-v-html -->
-          <div
-            class="detail-container"
-            v-html="currentLog.detail"
-          ></div>
+          <div class="detail-container" v-html="currentLog.detail"></div>
           <!--eslint-enable-->
         </div>
       </div>
@@ -89,8 +81,8 @@ export default {
   },
   computed: {
     ...mapState({
-      spaceUid: state => state.spaceUid,
-      isExternal: state => state.isExternal,
+      spaceUid: (state) => state.spaceUid,
+      isExternal: (state) => state.isExternal,
     }),
     currentLog() {
       return this.logList[this.active] || {};
@@ -142,11 +134,15 @@ export default {
           'X-Bk-Space-Uid': this.spaceUid,
         };
       }
-      const { data } = await axiosInstance(params).catch(_ => {
+      const { data } = await axiosInstance(params).catch((_) => {
         console.warn(_);
         return { data: { data: [] } };
       });
-      return data.data.map(item => ({ title: item[0], date: item[1], detail: '' }));
+      return data.data.map((item) => ({
+        title: item[0],
+        date: item[1],
+        detail: '',
+      }));
     },
     // 获取右侧对应的版本详情
     async getVersionLogsDetail() {
@@ -162,7 +158,7 @@ export default {
           'X-Bk-Space-Uid': this.spaceUid,
         };
       }
-      const { data } = await axiosInstance(params).catch(_ => {
+      const { data } = await axiosInstance(params).catch((_) => {
         console.warn(_);
         return { data: '' };
       });
@@ -173,89 +169,89 @@ export default {
 </script>
 
 <style lang="scss" scoped>
-  .log-version {
+.log-version {
+  display: flex;
+  margin: -33px -24px -26px;
+
+  &-left {
     display: flex;
-    margin: -33px -24px -26px;
+    flex: 0 0 180px;
+    padding: 40px 0;
+    font-size: 12px;
+    background-color: #fafbfd;
+    border-right: 1px solid #dcdee5;
 
-    &-left {
+    .left-list {
       display: flex;
-      flex: 0 0 180px;
-      padding: 40px 0;
-      font-size: 12px;
-      background-color: #fafbfd;
-      border-right: 1px solid #dcdee5;
+      flex-direction: column;
+      width: 100%;
+      height: 520px;
+      overflow: auto;
+      border-top: 1px solid #dcdee5;
+      border-bottom: 1px solid #dcdee5;
 
-      .left-list {
+      &-item {
+        position: relative;
         display: flex;
+        flex: 0 0 54px;
         flex-direction: column;
-        width: 100%;
-        height: 520px;
-        overflow: auto;
-        border-top: 1px solid #dcdee5;
+        justify-content: center;
+        padding-left: 30px;
         border-bottom: 1px solid #dcdee5;
 
-        &-item {
-          position: relative;
+        &:hover {
+          cursor: pointer;
+          background-color: #fff;
+        }
+
+        .item-title {
+          font-size: 16px;
+          color: #313238;
+        }
+
+        .item-date {
+          color: #979ba5;
+        }
+
+        .item-current {
+          position: absolute;
+          top: 8px;
+          right: 20px;
           display: flex;
-          flex: 0 0 54px;
-          flex-direction: column;
+          align-items: center;
           justify-content: center;
-          padding-left: 30px;
-          border-bottom: 1px solid #dcdee5;
+          width: 58px;
+          height: 20px;
+          color: #fff;
+          background-color: #699df4;
+          border-radius: 2px;
+        }
 
-          &:hover {
-            cursor: pointer;
-            background-color: #fff;
-          }
+        &.item-active {
+          background-color: #fff;
 
-          .item-title {
-            font-size: 16px;
-            color: #313238;
-          }
-
-          .item-date {
-            color: #979ba5;
-          }
-
-          .item-current {
+          &::before {
             position: absolute;
-            top: 8px;
-            right: 20px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            width: 58px;
-            height: 20px;
-            color: #fff;
-            background-color: #699df4;
-            border-radius: 2px;
-          }
-
-          &.item-active {
-            background-color: #fff;
-
-            &::before {
-              position: absolute;
-              top: 0px;
-              bottom: 0px;
-              left: 0;
-              width: 6px;
-              content: ' ';
-              background-color: #3a84ff;
-            }
+            top: 0px;
+            bottom: 0px;
+            left: 0;
+            width: 6px;
+            content: ' ';
+            background-color: #3a84ff;
           }
         }
       }
     }
+  }
 
-    &-right {
-      flex: 1;
-      padding: 25px 30px 50px 45px;
+  &-right {
+    flex: 1;
+    padding: 25px 30px 50px 45px;
 
-      .detail-container {
-        max-height: 525px;
-        overflow: auto;
-      }
+    .detail-container {
+      max-height: 525px;
+      overflow: auto;
     }
   }
+}
 </style>

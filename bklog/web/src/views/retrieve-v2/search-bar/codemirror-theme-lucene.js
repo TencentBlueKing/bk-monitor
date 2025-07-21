@@ -29,9 +29,9 @@ import { tags as t } from '@lezer/highlight';
 
 // 定义高亮样式
 const luceneHighlightStyle = HighlightStyle.define([
-  { tag: t.keyword, color: 'blue' },
-  { tag: t.variableName, color: 'black' },
-  { tag: t.whitespace, color: 'gray' },
+  { color: 'blue', tag: t.keyword },
+  { color: 'black', tag: t.variableName },
+  { color: 'gray', tag: t.whitespace },
 ]);
 
 // 将高亮样式应用到编辑器视图中

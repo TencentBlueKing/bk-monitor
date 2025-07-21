@@ -24,10 +24,16 @@
  * IN THE SOFTWARE.
  */
 
+import {
+  Select,
+  Option,
+  DropdownMenu,
+  TagInput,
+  Button,
+  Checkbox,
+} from 'bk-magic-vue';
 import { Component, Emit, Prop, Watch, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-
-import { Select, Option, DropdownMenu, TagInput, Button, Checkbox } from 'bk-magic-vue';
 
 import { Debounce } from '../../../common/util';
 
@@ -48,19 +54,19 @@ interface ITextTypeOperatorData {
 
 @Component
 export default class Condition extends tsc<object> {
-  @Prop({ type: Array, required: true }) operatorList; // 操作列表
-  @Prop({ type: Object, required: true }) operatorItem; // 当前操作元素
-  @Prop({ type: Boolean, required: true }) isInclude: boolean; // 是否包含
-  @Prop({ type: String, required: true }) name: string; // 字段名
-  @Prop({ type: String, required: true }) filed: string; // 字段id
-  @Prop({ type: String, required: true }) fieldType: string; // 字段的类型
-  @Prop({ type: String, required: true }) operatorValue: string; // 操作
+  @Prop({ required: true, type: Array }) operatorList; // 操作列表
+  @Prop({ required: true, type: Object }) operatorItem; // 当前操作元素
+  @Prop({ required: true, type: Boolean }) isInclude: boolean; // 是否包含
+  @Prop({ required: true, type: String }) name: string; // 字段名
+  @Prop({ required: true, type: String }) filed: string; // 字段id
+  @Prop({ required: true, type: String }) fieldType: string; // 字段的类型
+  @Prop({ required: true, type: String }) operatorValue: string; // 操作
   @Prop({ required: true }) inputValue: any; // 搜索框的值
-  @Prop({ type: Array, required: true }) filterFields; // 字段下拉列表
-  @Prop({ type: String, required: true }) conditionType: string; // 条件类型
-  @Prop({ type: Object, required: true }) catchIpChooser: object; // ip 选择器的值
-  @Prop({ type: Array, required: true }) valueList; // 输入框的可选数据
-  @Prop({ type: Boolean, default: true }) isClearCatchInputStr: boolean; // 输入框的可选数据
+  @Prop({ required: true, type: Array }) filterFields; // 字段下拉列表
+  @Prop({ required: true, type: String }) conditionType: string; // 条件类型
+  @Prop({ required: true, type: Object }) catchIpChooser: object; // ip 选择器的值
+  @Prop({ required: true, type: Array }) valueList; // 输入框的可选数据
+  @Prop({ default: true, type: Boolean }) isClearCatchInputStr: boolean; // 输入框的可选数据
   @Ref('tagInput') tagInputRef: TagInput;
 
   labelHoverStatus = false;
@@ -78,23 +84,23 @@ export default class Condition extends tsc<object> {
   /** 且/或样式激活状态 */
   andOrTypeActiveStatus = false;
   valueScopeMap = {
+    integer: {
+      max: INTEGER_MAX_NUMBER,
+      min: INTEGER_MIN_NUMBER,
+    },
     // number类型最大值
     long: {
       max: LONG_MAX_NUMBER,
       min: LONG_MIN_NUMBER,
     },
-    integer: {
-      max: INTEGER_MAX_NUMBER,
-      min: INTEGER_MIN_NUMBER,
-    },
   };
   tips = {
-    trigger: 'mouseenter',
-    theme: 'light',
     allowHtml: true,
     content: '#match-tips-content',
-    placement: 'top',
     distance: 9,
+    placement: 'top',
+    theme: 'light',
+    trigger: 'mouseenter',
   };
 
   /** 或和且下拉选择列表 */
@@ -127,11 +133,11 @@ export default class Condition extends tsc<object> {
   get nodeUnit() {
     // ip单位
     const nodeTypeTextMap = {
-      node_list: window.mainComponent.$t('节点'),
+      dynamic_group_list: window.mainComponent.$t('动态分组'),
       host_list: window.mainComponent.$t('IP'),
+      node_list: window.mainComponent.$t('节点'),
       service_template_list: window.mainComponent.$t('服务模板'),
       set_template_list: window.mainComponent.$t('集群模板'),
-      dynamic_group_list: window.mainComponent.$t('动态分组'),
     };
     return nodeTypeTextMap[this.nodeType] || '';
   }
@@ -167,12 +173,23 @@ export default class Condition extends tsc<object> {
 
   /** 是否展示且/或下拉框 */
   get isShowAndOrSelect() {
-    return this.isTextField && !['exists', 'does not exists'].includes(this.operatorValue);
+    return (
+      this.isTextField &&
+      !['exists', 'does not exists'].includes(this.operatorValue)
+    );
   }
 
   /** 当前text字段类型操作符对应且/或的值 */
   get getAndOrValue() {
-    if (['contains match phrase', '=~', 'not contains match phrase', '!=~'].includes(this.operatorValue)) return 'or';
+    if (
+      [
+        'contains match phrase',
+        '=~',
+        'not contains match phrase',
+        '!=~',
+      ].includes(this.operatorValue)
+    )
+      return 'or';
     return 'and';
   }
 
@@ -186,7 +203,12 @@ export default class Condition extends tsc<object> {
         this.localOperatorValue = val;
       } else {
         // 区分包含，不包含情况下的 且/或 通配符
-        this.localOperatorValue = ['contains match phrase', '=~', 'all contains match phrase', '&=~'].includes(val)
+        this.localOperatorValue = [
+          'contains match phrase',
+          '=~',
+          'all contains match phrase',
+          '&=~',
+        ].includes(val)
           ? 'contains match phrase'
           : 'not contains match phrase';
       }
@@ -209,7 +231,7 @@ export default class Condition extends tsc<object> {
       return;
     }
 
-    this.tagInputValueList = val.map(item => ({
+    this.tagInputValueList = val.map((item) => ({
       id: item.toString(),
       name: item.toString(),
     }));
@@ -246,7 +268,7 @@ export default class Condition extends tsc<object> {
   @Debounce(300)
   @Emit('additionValueChange')
   handleAdditionChange(newReplaceObj: object, isQuery = true) {
-    return { newReplaceObj, isQuery };
+    return { isQuery, newReplaceObj };
   }
 
   @Emit('ipChange')
@@ -256,7 +278,7 @@ export default class Condition extends tsc<object> {
     // tagInput组件没有监听input keydown的事件只能从ref里监听
     // enter时 如果有输入的值 则不进行检索 如果无改变值 enter则进行检索
     !!this.tagInputRef &&
-      (this.tagInputRef.$refs.input.onkeyup = v => {
+      (this.tagInputRef.$refs.input.onkeyup = (v) => {
         if (v.code === 'Enter' || v.code === 'NumpadEnter') {
           if (this.localValue.length && !this.isValueChange) {
             this.handleAdditionChange({ value: this.localValue });
@@ -302,8 +324,14 @@ export default class Condition extends tsc<object> {
         return;
       }
       // 注意这里取决于是否需要处理BigInt，如果值可能会很大，使用BigInt，否则使用Number
-      const matchVal = this.fieldType === 'long' ? BigInt(matchList.join('')) : Number(matchList.join(''));
-      this.localValue[this.localValue.length - 1] = this.getResetValue(matchVal, this.fieldType); // 判断数字最大值 超出则使用最大值
+      const matchVal =
+        this.fieldType === 'long'
+          ? BigInt(matchList.join(''))
+          : Number(matchList.join(''));
+      this.localValue[this.localValue.length - 1] = this.getResetValue(
+        matchVal,
+        this.fieldType
+      ); // 判断数字最大值 超出则使用最大值
     }
 
     this.handleAdditionChange({ value: this.localValue });
@@ -354,7 +382,9 @@ export default class Condition extends tsc<object> {
     if (operatorItem.operator === this.localOperatorValue) return; // 选择相同 不请求
     let queryValue = this.localValue;
     const isExists = this.getIsExists(operatorItem.operator); // 是否有存在
-    const isContinuousExists = this.getIsContinuousExists(operatorItem.operator); // 连续点击两次存在或不存在时 不用改变缓存的值;
+    const isContinuousExists = this.getIsContinuousExists(
+      operatorItem.operator
+    ); // 连续点击两次存在或不存在时 不用改变缓存的值;
     const oldOperatorIsExists = this.getIsExists(this.localOperatorValue); // 旧操作符是否是包含和不包含
     const isCompared = ['<', '<=', '>', '>='].includes(operatorItem.operator);
     if (isExists && !isContinuousExists) {
@@ -362,15 +392,19 @@ export default class Condition extends tsc<object> {
     } else if (oldOperatorIsExists) {
       queryValue = this.catchValue;
     }
-    if (isCompared) this.localValue = this.localValue[0] ? [this.localValue[0]] : []; // 多输入的值变为单填时 拿下标为0的值
+    if (isCompared)
+      this.localValue = this.localValue[0] ? [this.localValue[0]] : []; // 多输入的值变为单填时 拿下标为0的值
     const isQuery = !!this.localValue.length || isExists; // 值不为空 或 存在与不存在 的情况下才自动检索请求
     let newOperator = operatorItem.operator;
-    if (this.isTextField && !isExists) newOperator = this.getTextOperator({ operatorVal: operatorItem.operator });
+    if (this.isTextField && !isExists)
+      newOperator = this.getTextOperator({
+        operatorVal: operatorItem.operator,
+      });
     this.handleAdditionChange(
       {
-        value: isExists ? [''] : queryValue, // 更新值
-        operatorItem, // 更新操作元素
         operator: newOperator, // 更新操作符
+        operatorItem, // 更新操作元素
+        value: isExists ? [''] : queryValue, // 更新值
       },
       isQuery
     );
@@ -390,7 +424,7 @@ export default class Condition extends tsc<object> {
    * @param {boolean} matchStatus 模糊匹配开关值
    */
   handleMatchChange(matchStatus: boolean) {
-    const { wildcard_operator: wildcardOperator, operator } = this.operatorItem;
+    const { operator, wildcard_operator: wildcardOperator } = this.operatorItem;
     let newOperator = '';
     if (this.isTextField) {
       newOperator = this.getTextOperator({ matchVal: matchStatus });
@@ -401,20 +435,25 @@ export default class Condition extends tsc<object> {
   }
 
   getIsExists(operator: string) {
-    return ['exists', 'does not exists', 'is true', 'is false'].includes(operator);
+    return ['exists', 'does not exists', 'is true', 'is false'].includes(
+      operator
+    );
   }
 
   /** 获取text类型操作符所需的值 */
   getTextOperator(textTypeOperatorData: ITextTypeOperatorData) {
-    const { andOrVal, operatorVal, matchVal } = textTypeOperatorData;
+    const { andOrVal, matchVal, operatorVal } = textTypeOperatorData;
     const andORor = !!andOrVal ? andOrVal : this.getAndOrValue;
-    const operatorValue = !!operatorVal ? operatorVal : this.operatorItem.operator;
+    const operatorValue = !!operatorVal
+      ? operatorVal
+      : this.operatorItem.operator;
     const isMatch = typeof matchVal === 'boolean' ? matchVal : this.matchSwitch;
     let filterOperatorValueStr = '';
     // 首先判断是且还是或 如果是且则先加一个and
     filterOperatorValueStr = andORor === 'and' ? 'and ' : '';
     // 然后判断是包含还是不包含操作符
-    filterOperatorValueStr += operatorValue === 'contains match phrase' ? 'is ' : 'is not ';
+    filterOperatorValueStr +=
+      operatorValue === 'contains match phrase' ? 'is ' : 'is not ';
     // 最后判断是否有开打开通配符
     filterOperatorValueStr += isMatch ? 'match' : '';
     return filterOperatorValueStr.trim();
@@ -426,7 +465,9 @@ export default class Condition extends tsc<object> {
    * @returns {Boolean} 是否两次都是存在或不存在
    */
   getIsContinuousExists(newOperator) {
-    return this.getIsExists(newOperator) && this.getIsExists(this.localOperatorValue);
+    return (
+      this.getIsExists(newOperator) && this.getIsExists(this.localOperatorValue)
+    );
   }
 
   tpl(node, ctx, highlightKeyword) {
@@ -434,14 +475,8 @@ export default class Condition extends tsc<object> {
     const textClass = 'text';
     const innerHtml = `${highlightKeyword(node.id)}`;
     return (
-      <div
-        class={parentClass}
-        title={node.id}
-      >
-        <span
-          class={textClass}
-          domPropsInnerHTML={innerHtml}
-        ></span>
+      <div class={parentClass} title={node.id}>
+        <span class={textClass} domPropsInnerHTML={innerHtml}></span>
       </div>
     );
   }
@@ -450,14 +485,14 @@ export default class Condition extends tsc<object> {
     return (
       <div>
         {/* 字段名称、条件、删除、是否参与 */}
-        <div class='head-row'>
-          <div class='cascader'>
+        <div class="head-row">
+          <div class="cascader">
             <span
               class={{
                 label: true,
-                'label-hover': this.labelHoverStatus,
                 'label-active': this.labelActiveStatus,
                 'label-disabled': !this.isInclude,
+                'label-hover': this.labelHoverStatus,
               }}
             >
               {this.name}
@@ -468,24 +503,24 @@ export default class Condition extends tsc<object> {
                 onMouseover={() => this.setLabelHoverStatus(true)}
               >
                 <Select
-                  class='inquire-cascader'
-                  v-model={this.localFiledID}
+                  class="inquire-cascader"
                   disabled={!this.isInclude}
+                  onToggle={this.handleFiledSelectChange}
                   popover-min-width={400}
                   searchable
-                  onToggle={this.handleFiledSelectChange}
+                  v-model={this.localFiledID}
                 >
-                  {this.filterFields.map(option => (
+                  {this.filterFields.map((option) => (
                     <Option
+                      disabled={option.disabled}
                       id={option.id}
                       key={option.id}
+                      name={option.fullName}
                       v-bk-tooltips={{
                         content: option.disabledContent,
-                        placement: 'right',
                         disabled: !option.disabled,
+                        placement: 'right',
                       }}
-                      disabled={option.disabled}
-                      name={option.fullName}
                     ></Option>
                   ))}
                 </Select>
@@ -493,14 +528,14 @@ export default class Condition extends tsc<object> {
             }
           </div>
           <DropdownMenu
-            style='margin-right: 4px;'
             disabled={!this.isInclude}
-            placement='bottom-start'
-            trigger='click'
             onHide={() => (this.conditionTypeActiveStatus = false)}
             onShow={() => (this.conditionTypeActiveStatus = true)}
+            placement="bottom-start"
+            style="margin-right: 4px;"
+            trigger="click"
           >
-            <div slot='dropdown-trigger'>
+            <div slot="dropdown-trigger">
               {/* 这里是 操作符 选择器 */}
               {this.conditionType === 'filed' && (
                 <span
@@ -514,45 +549,45 @@ export default class Condition extends tsc<object> {
                 </span>
               )}
             </div>
-            <ul
-              class='bk-dropdown-list'
-              slot='dropdown-content'
-            >
-              {this.operatorList.map(item => (
-                <li onClick={() => this.handleOperateChange(item)}>{item.label}</li>
+            <ul class="bk-dropdown-list" slot="dropdown-content">
+              {this.operatorList.map((item) => (
+                <li onClick={() => this.handleOperateChange(item)}>
+                  {item.label}
+                </li>
               ))}
             </ul>
           </DropdownMenu>
           {this.isShowAndOrSelect && (
             <DropdownMenu
-              style='margin-right: 4px;'
               disabled={!this.isInclude}
-              placement='bottom-start'
-              trigger='click'
               onHide={() => (this.andOrTypeActiveStatus = false)}
               onShow={() => (this.andOrTypeActiveStatus = true)}
+              placement="bottom-start"
+              style="margin-right: 4px;"
+              trigger="click"
             >
-              <div slot='dropdown-trigger'>
+              <div slot="dropdown-trigger">
                 {/* 这里是 操作符 选择器 */}
                 {this.conditionType === 'filed' && (
                   <span
                     class={{
-                      'condition-type': true,
                       'and-or-type': true,
+                      'condition-type': true,
                       'condition-type-active': this.andOrTypeActiveStatus,
                       'condition-type-disabled': !this.isInclude,
                     }}
                   >
-                    {this.getAndOrValue === 'or' ? this.$t('或') : this.$t('且')}
+                    {this.getAndOrValue === 'or'
+                      ? this.$t('或')
+                      : this.$t('且')}
                   </span>
                 )}
               </div>
-              <ul
-                class='bk-dropdown-list'
-                slot='dropdown-content'
-              >
-                {this.andOrList.map(item => (
-                  <li onClick={() => this.handleAndOrChange(item.id)}>{item.name}</li>
+              <ul class="bk-dropdown-list" slot="dropdown-content">
+                {this.andOrList.map((item) => (
+                  <li onClick={() => this.handleAndOrChange(item.id)}>
+                    {item.name}
+                  </li>
                 ))}
               </ul>
             </DropdownMenu>
@@ -560,79 +595,81 @@ export default class Condition extends tsc<object> {
           {
             <span
               class={{
-                'vague-match': true,
                 'show-checkbox': this.isShowMatchSwitcher,
+                'vague-match': true,
               }}
             >
               <Checkbox
                 disabled={!this.isInclude}
-                size='small'
-                theme='primary'
-                value={this.matchSwitch}
                 onChange={() => this.handleMatchChange(!this.matchSwitch)}
+                size="small"
+                theme="primary"
+                value={this.matchSwitch}
               >
-                <span
-                  class='match-title'
-                  v-bk-tooltips={this.tips}
-                >
+                <span class="match-title" v-bk-tooltips={this.tips}>
                   {this.$t('使用通配符')}
                 </span>
               </Checkbox>
             </span>
           }
           <i
-            class='bk-icon icon-delete'
+            class="bk-icon icon-delete"
             onClick={() => this.handleDelete(this.conditionType)}
           ></i>
           <i
-            class={['bk-icon include-icon', `${this.isInclude ? 'icon-eye' : 'icon-eye-slash'}`]}
+            class={[
+              'bk-icon include-icon',
+              `${this.isInclude ? 'icon-eye' : 'icon-eye-slash'}`,
+            ]}
+            onClick={() => this.handleIsIncludeChange(!this.isInclude)}
             v-bk-tooltips={{
-              content: this.isInclude ? this.$t('参与查询') : this.$t('不参与查询'),
+              content: this.isInclude
+                ? this.$t('参与查询')
+                : this.$t('不参与查询'),
               delay: 200,
             }}
-            onClick={() => this.handleIsIncludeChange(!this.isInclude)}
           ></i>
         </div>
         {this.conditionType === 'filed' && !this.isHiddenInput && (
           <TagInput
-            ref='tagInput'
-            style='margin-top: 4px;'
-            v-model={this.localValue}
-            content-width={340}
-            data-test-id='addConditions_input_valueFilter'
-            list={this.tagInputValueList}
-            max-data={this.getInputLength}
-            placeholder={this.inputPlaceholder}
-            tpl={this.tpl}
-            trigger='focus'
             allow-auto-match
             allow-create
+            content-width={340}
+            data-test-id="addConditions_input_valueFilter"
             free-paste
+            list={this.tagInputValueList}
+            max-data={this.getInputLength}
             onBlur={this.handleValueBlur}
             onChange={this.handleValueChange}
-            onInputchange={v => (this.catchTagInputStr = v)}
+            onInputchange={(v) => (this.catchTagInputStr = v)}
             onRemoveAll={this.handleValueRemoveAll}
             onSelect={this.handleValueSelect}
+            placeholder={this.inputPlaceholder}
+            ref="tagInput"
+            style="margin-top: 4px;"
+            tpl={this.tpl}
+            trigger="focus"
+            v-model={this.localValue}
           ></TagInput>
         )}
         {this.conditionType === 'ip-select' && (
-          <div id='ip-filter-container'>
+          <div id="ip-filter-container">
             {!this.ipSelectLength ? (
               <Button
-                class='add-ip-button'
-                text
+                class="add-ip-button"
                 onClick={() => this.handleIpChange()}
+                text
               >
-                <i class='bk-icon icon-plus'></i>
+                <i class="bk-icon icon-plus"></i>
                 <span>{this.$t('添加目标')}</span>
               </Button>
             ) : (
               <Button
-                class='add-ip-button'
-                text
+                class="add-ip-button"
                 onClick={() => this.handleIpChange()}
+                text
               >
-                <i18n path='已选择 {0} 个{1}'>
+                <i18n path="已选择 {0} 个{1}">
                   <span>{this.nodeCount}</span>
                   <span>{this.nodeUnit}</span>
                 </i18n>
@@ -641,12 +678,18 @@ export default class Condition extends tsc<object> {
           </div>
         )}
         <div v-show={false}>
-          <div id='match-tips-content'>
-            <div class='detail'>{this.$t('支持使用通配符 * 和 ? 进行匹配：')}</div>
-            <div class='title'>{this.$t('* 表示匹配多个（包括 0 个）任意字符')}</div>
-            <div class='detail'>{this.$t('例：a*d 可匹配 ad、abcd、a123d')}</div>
-            <div class='title'>{this.$t('? 表示匹配单个任意字符')}</div>
-            <div class='detail'>{this.$t('例：a?d 可匹配 abd、a1d')}</div>
+          <div id="match-tips-content">
+            <div class="detail">
+              {this.$t('支持使用通配符 * 和 ? 进行匹配：')}
+            </div>
+            <div class="title">
+              {this.$t('* 表示匹配多个（包括 0 个）任意字符')}
+            </div>
+            <div class="detail">
+              {this.$t('例：a*d 可匹配 ad、abcd、a123d')}
+            </div>
+            <div class="title">{this.$t('? 表示匹配单个任意字符')}</div>
+            <div class="detail">{this.$t('例：a?d 可匹配 abd、a1d')}</div>
           </div>
         </div>
       </div>

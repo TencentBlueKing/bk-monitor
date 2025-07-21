@@ -39,7 +39,9 @@
       <bk-button
         style="min-width: 120px"
         v-cursor="{ active: isAllowedCreate === false }"
-        :disabled="!collectProject || isTableLoading || isAllowedCreate === null"
+        :disabled="
+          !collectProject || isTableLoading || isAllowedCreate === null
+        "
         :loading="isCreateLoading"
         data-test-id="logIndexSetBox_button_newIndexSet"
         theme="primary"
@@ -79,7 +81,12 @@
             <span
               class="indexSet-name"
               v-bk-overflow-tips
-              v-cursor="{ active: !(row.permission && row.permission[authorityMap.MANAGE_INDICES_AUTH]) }"
+              v-cursor="{
+                active: !(
+                  row.permission &&
+                  row.permission[authorityMap.MANAGE_INDICES_AUTH]
+                ),
+              }"
               @click="manageIndexSet('manage', row)"
             >
               {{ row.index_set_name }}
@@ -100,24 +107,23 @@
         prop="index_set_id"
       >
         <template #default="props">
-          <span>{{ props.row.indexes.map(item => item.result_table_id).join('; ') }}</span>
+          <span>{{
+            props.row.indexes.map((item) => item.result_table_id).join('; ')
+          }}</span>
         </template>
       </bk-table-column>
-          <bk-table-column
+      <bk-table-column
         :label="$t('日用量/总用量')"
         :render-header="$renderHeader"
         min-width="80"
       >
         <template #default="props">
           <span :class="{ 'text-disabled': props.row.status === 'stop' }">
-            {{ formatUsage(props.row.daily_usage, props.row.total_usage)  }}
+            {{ formatUsage(props.row.daily_usage, props.row.total_usage) }}
           </span>
         </template>
       </bk-table-column>
-      <bk-table-column
-        :label="$t('集群名')"
-        :render-header="$renderHeader"
-      >
+      <bk-table-column :label="$t('集群名')" :render-header="$renderHeader">
         <template #default="props">
           <div>{{ props.row.storage_cluster_name || '--' }}</div>
         </template>
@@ -128,7 +134,12 @@
         prop="apply_status_name"
       >
         <template #default="{ row }">
-          <div :class="['status-text', row.apply_status === 'normal' && 'success-status']">
+          <div
+            :class="[
+              'status-text',
+              row.apply_status === 'normal' && 'success-status',
+            ]"
+          >
             {{ row.apply_status_name || '--' }}
           </div>
         </template>
@@ -148,10 +159,7 @@
           />
         </template>
       </bk-table-column>
-      <bk-table-column
-        :label="$t('创建时间')"
-        :render-header="$renderHeader"
-      >
+      <bk-table-column :label="$t('创建时间')" :render-header="$renderHeader">
         <template #default="props">
           <div>{{ props.row.created_at.slice(0, 19) || '--' }}</div>
         </template>
@@ -169,7 +177,12 @@
         <template #default="props">
           <bk-button
             style="margin-right: 4px"
-            v-cursor="{ active: !(props.row.permission && props.row.permission[authorityMap.MANAGE_INDICES_AUTH]) }"
+            v-cursor="{
+              active: !(
+                props.row.permission &&
+                props.row.permission[authorityMap.MANAGE_INDICES_AUTH]
+              ),
+            }"
             theme="primary"
             text
             @click="manageIndexSet('search', props.row)"
@@ -186,7 +199,11 @@
           </bk-button>
           <bk-button
             style="margin-right: 4px"
-            v-cursor="{ active: !(props.row.permission && props.row.permission.manage_indices_v2) }"
+            v-cursor="{
+              active: !(
+                props.row.permission && props.row.permission.manage_indices_v2
+              ),
+            }"
             :disabled="!props.row.is_editable"
             theme="primary"
             text
@@ -201,7 +218,11 @@
             >
           </bk-button>
           <bk-button
-            v-cursor="{ active: !(props.row.permission && props.row.permission.manage_indices_v2) }"
+            v-cursor="{
+              active: !(
+                props.row.permission && props.row.permission.manage_indices_v2
+              ),
+            }"
             theme="primary"
             text
             @click="manageIndexSet('delete', props.row)"
@@ -212,10 +233,7 @@
       </bk-table-column>
       <template #empty>
         <div>
-          <empty-status
-            :empty-type="emptyType"
-            @operation="handleOperation"
-          />
+          <empty-status :empty-type="emptyType" @operation="handleOperation" />
         </div>
       </template>
     </bk-table>
@@ -328,13 +346,17 @@ export default {
         .request('/indexSet/list', {
           query,
         })
-        .then(async res => {
+        .then(async (res) => {
           const resList = res.data.list;
-          const indexIdList = resList.filter(item => !!item.index_set_id).map(item => item.index_set_id);
-          const { data: desensitizeStatus } = await this.getDesensitizeStatus(indexIdList);
-          this.indexSetList = resList.map(item => ({
+          const indexIdList = resList
+            .filter((item) => !!item.index_set_id)
+            .map((item) => item.index_set_id);
+          const { data: desensitizeStatus } =
+            await this.getDesensitizeStatus(indexIdList);
+          this.indexSetList = resList.map((item) => ({
             ...item,
-            is_desensitize: desensitizeStatus[item.index_set_id]?.is_desensitize ?? false,
+            is_desensitize:
+              desensitizeStatus[item.index_set_id]?.is_desensitize ?? false,
           }));
           this.pagination.count = res.data.total;
           this.loadData();
@@ -358,7 +380,7 @@ export default {
         this.$set(item, key, value[key]);
       };
       requestStorageUsage(this.bkBizId, this.indexSetList, false, callbackFn)
-        .catch(error => {
+        .catch((error) => {
           console.error('Error loading data:', error);
         })
         .finally(() => {
@@ -466,7 +488,9 @@ export default {
         this.$router.push({
           name: 'retrieve',
           params: {
-            indexId: row.index_set_id ? row.index_set_id : row.bkdata_index_set_ids[0],
+            indexId: row.index_set_id
+              ? row.index_set_id
+              : row.bkdata_index_set_ids[0],
           },
           query: {
             spaceUid: this.$store.state.spaceUid,
@@ -488,7 +512,9 @@ export default {
       } else if (type === 'delete') {
         // 删除索引集
         this.$bkInfo({
-          subTitle: this.$t('当前索引集为{n}，确认要删除？', { n: row.index_set_name }),
+          subTitle: this.$t('当前索引集为{n}，确认要删除？', {
+            n: row.index_set_name,
+          }),
           maskClose: true,
           confirmFn: () => {
             this.$bkLoading({
@@ -513,7 +539,9 @@ export default {
         this.$router.push({
           name: this.$route.name.replace('list', 'masking'),
           params: {
-            indexSetId: row.index_set_id ? row.index_set_id : row.bkdata_index_set_ids[0],
+            indexSetId: row.index_set_id
+              ? row.index_set_id
+              : row.bkdata_index_set_ids[0],
           },
           query: {
             spaceUid: this.$store.state.spaceUid,
@@ -570,54 +598,54 @@ export default {
 </script>
 
 <style lang="scss" scoped>
-  @import '../../../../../../scss/mixins/clearfix';
-  @import '../../../../../../scss/conf';
+@import '../../../../../../scss/mixins/clearfix';
+@import '../../../../../../scss/conf';
 
-  /* stylelint-disable no-descending-specificity */
-  .index-set-container {
-    padding: 20px 24px;
+/* stylelint-disable no-descending-specificity */
+.index-set-container {
+  padding: 20px 24px;
 
-    .alert-info {
-      margin-bottom: 20px;
-    }
+  .alert-info {
+    margin-bottom: 20px;
+  }
 
-    .operate-box {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      margin-bottom: 20px;
-    }
+  .operate-box {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 20px;
+  }
 
-    .status-text {
-      color: #ea3636;
+  .status-text {
+    color: #ea3636;
 
-      &.success-status {
-        color: #2dcb56;
-      }
-    }
-
-    .index-set-name-box {
-      display: flex;
-      align-items: center;
-
-      .icon-masking {
-        flex-shrink: 0;
-      }
-    }
-
-    .indexSet-name {
-      display: inline-block;
-      overflow: hidden;
-      color: #3a84ff;
-      // width: 100%;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-      cursor: pointer;
-    }
-
-    .icon-masking {
-      margin-left: 8px;
-      color: #ff9c01;
+    &.success-status {
+      color: #2dcb56;
     }
   }
+
+  .index-set-name-box {
+    display: flex;
+    align-items: center;
+
+    .icon-masking {
+      flex-shrink: 0;
+    }
+  }
+
+  .indexSet-name {
+    display: inline-block;
+    overflow: hidden;
+    color: #3a84ff;
+    // width: 100%;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    cursor: pointer;
+  }
+
+  .icon-masking {
+    margin-left: 8px;
+    color: #ff9c01;
+  }
+}
 </style>

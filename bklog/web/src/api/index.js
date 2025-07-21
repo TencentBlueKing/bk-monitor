@@ -30,43 +30,47 @@
  * @author  <>
  */
 
-import Vue from 'vue';
-
 import { messageError } from '@/common/bkmagic';
 import { bus } from '@/common/bus';
 import { makeMessage, readBlobRespToJson } from '@/common/util';
 import i18n from '@/language/i18n';
 import serviceList from '@/services/index.js';
+import store from '@/store';
 import { showLoginModal } from '@blueking/login-modal';
 import axios from 'axios';
+import Vue from 'vue';
 
 import { random } from '../common/util';
+
 import HttpRequst from './_httpRequest';
 import CachedPromise from './cached-promise';
 import RequestQueue from './request-queue';
-import store from '@/store';
 
 const baseURL = window.AJAX_URL_PREFIX || '/api/v1';
 // axios 实例
 export const axiosInstance = axios.create({
+  baseURL,
   headers: { 'X-Requested-With': 'XMLHttpRequest' },
+  withCredentials: true,
   xsrfCookieName: 'bklog_csrftoken',
   xsrfHeaderName: 'X-CSRFToken',
-  withCredentials: true,
-  baseURL,
 });
 
 /**
  * request interceptor
  */
 axiosInstance.interceptors.request.use(
-  config => {
+  (config) => {
     if (!/^(https|http)?:\/\//.test(config.url)) {
       // const prefix = config.url.indexOf('?') === -1 ? '?' : '&';
       config.url = config.url;
     }
     // 外部版后端需要读取header里的 spaceUid
-    if (window.IS_EXTERNAL && JSON.parse(window.IS_EXTERNAL) && store.state.spaceUid) {
+    if (
+      window.IS_EXTERNAL &&
+      JSON.parse(window.IS_EXTERNAL) &&
+      store.state.spaceUid
+    ) {
       config.headers['X-Bk-Space-Uid'] = store.state.spaceUid;
     }
     // if (window.__IS_MONITOR_COMPONENT__) {
@@ -76,7 +80,7 @@ axiosInstance.interceptors.request.use(
     // }
     return config;
   },
-  error => Promise.reject(error)
+  (error) => Promise.reject(error)
 );
 
 /**
@@ -85,16 +89,16 @@ axiosInstance.interceptors.request.use(
  * @returns {Object|Promise} - 如果数据是 Blob 类型，则直接返回响应对象；否则返回处理后的响应数据。
  */
 axiosInstance.interceptors.response.use(
-  async response => {
+  async (response) => {
     const responsePromise = (respData = undefined, cfg = undefined) => {
       const config = response.config;
       return new Promise(async (resolve, reject) => {
         try {
           handleResponse({
             config: { ...config, ...(cfg ?? {}) },
-            response: respData ?? response.data,
-            resolve,
             reject,
+            resolve,
+            response: respData ?? response.data,
             status: response.status,
           });
         } catch (error) {
@@ -104,7 +108,7 @@ axiosInstance.interceptors.response.use(
     };
     if (response.data instanceof Blob) {
       if (response.status !== 200) {
-        return readBlobRespToJson(response.data).then(resp => {
+        return readBlobRespToJson(response.data).then((resp) => {
           return responsePromise(resp, { globalError: true });
         });
       }
@@ -114,8 +118,8 @@ axiosInstance.interceptors.response.use(
 
     return responsePromise();
   },
-  error => {
-    const reject = e => {
+  (error) => {
+    const reject = (e) => {
       if (typeof e === 'object' && e !== null) {
         return Promise.reject(e);
       }
@@ -123,29 +127,34 @@ axiosInstance.interceptors.response.use(
       return Promise.reject(new Error(`${e}`));
     };
     if (error?.response?.data instanceof Blob) {
-      return readBlobRespToJson(error.response.data).then(resp => {
+      return readBlobRespToJson(error.response.data).then((resp) => {
         return handleReject(
           {
             ...(error ?? {}),
             response: resp,
           },
-          { globalError: true, catchIsShowMessage: true, ...error.config },
+          { catchIsShowMessage: true, globalError: true, ...error.config },
           reject
         );
       });
     }
 
-    return handleReject(error, { globalError: true, catchIsShowMessage: true, ...error.config }, reject);
+    return handleReject(
+      error,
+      { catchIsShowMessage: true, globalError: true, ...error.config },
+      reject
+    );
   }
 );
 
 const http = {
   $request: new HttpRequst(axiosInstance, { serviceList }),
-  queue: new RequestQueue(),
   cache: new CachedPromise(),
-  cancelRequest: requestId => http.queue.cancel(requestId),
-  cancelCache: requestId => http.cache.delete(requestId),
-  cancel: requestId => Promise.all([http.cancelRequest(requestId), http.cancelCache(requestId)]),
+  cancel: (requestId) =>
+    Promise.all([http.cancelRequest(requestId), http.cancelCache(requestId)]),
+  cancelCache: (requestId) => http.cache.delete(requestId),
+  cancelRequest: (requestId) => http.queue.cancel(requestId),
+  queue: new RequestQueue(),
 };
 
 Object.defineProperty(http, 'request', {
@@ -197,7 +206,7 @@ async function getPromise(method, url, data, userConfig = {}) {
       const axiosRequest = http.$request.request(url, data, config);
       const response = await axiosRequest;
       Object.assign(config, response.config || {});
-      handleResponse({ config, response, resolve, reject });
+      handleResponse({ config, reject, resolve, response });
     } catch (error) {
       Object.assign(config, error.config);
       reject(error);
@@ -220,23 +229,27 @@ async function getPromise(method, url, data, userConfig = {}) {
  * @param {Function} promise 完成函数
  * @param {Function} promise 拒绝函数
  */
-function handleResponse({ config, response, resolve, reject, status }) {
+function handleResponse({ config, reject, resolve, response, status }) {
   const { code } = response;
   if (code === undefined) {
     if (status === 200) {
       resolve(response, config);
     } else {
-      reject({ message: response.message, code, data: response.data || {} });
+      reject({ code, data: response.data || {}, message: response.message });
     }
   } else {
     if (code === '9900403') {
-      reject({ message: response.message, code, data: response.data || {} });
+      reject({ code, data: response.data || {}, message: response.message });
       store.commit('updateAuthDialogData', {
-        apply_url: response.data.apply_url,
         apply_data: response.permission,
+        apply_url: response.data.apply_url,
       });
     } else if (code !== 0 && config.globalError) {
-      handleReject({ message: response.message, code, data: response.data || {} }, config, reject);
+      handleReject(
+        { code, data: response.data || {}, message: response.message },
+        config,
+        reject
+      );
     } else {
       resolve(config.originalResponse ? response : response.data, config);
     }
@@ -264,8 +277,12 @@ function handleReject(error, config, reject) {
   // 捕获 http status 错误
   if (config.globalError && error.response) {
     // status 是 httpStatus
-    const { status, data } = error.response;
-    const nextError = { message: error.message ?? '401 Authorization Required', response: error.response, status };
+    const { data, status } = error.response;
+    const nextError = {
+      message: error.message ?? '401 Authorization Required',
+      response: error.response,
+      status,
+    };
     // 弹出登录框不需要出 bkMessage 提示
     if (status === 401) {
       // 窗口登录，页面跳转交给平台返回302
@@ -342,22 +359,22 @@ function initConfig(method, url, userConfig) {
   // };
   const defaultConfig = {
     ...getCancelToken(),
-    // http 请求默认 id
-    requestId: `${method}_${url}`,
-    // 是否全局捕获异常
-    globalError: true,
-    // 是否直接复用缓存的请求
-    fromCache: false,
-    // 是否在请求发起前清楚缓存
-    clearCache: false,
-    // 响应结果是否返回原始数据
-    originalResponse: true,
-    // 当路由变更时取消请求
-    cancelWhenRouteChange: true,
     // 取消上次请求
     cancelPrevious: true,
+    // 当路由变更时取消请求
+    cancelWhenRouteChange: true,
     // 接口报错是否弹bkMessage弹窗
     catchIsShowMessage: true,
+    // 是否在请求发起前清楚缓存
+    clearCache: false,
+    // 是否直接复用缓存的请求
+    fromCache: false,
+    // 是否全局捕获异常
+    globalError: true,
+    // 响应结果是否返回原始数据
+    originalResponse: true,
+    // http 请求默认 id
+    requestId: `${method}_${url}`,
   };
   return Object.assign(defaultConfig, copyUserConfig);
 }
@@ -369,12 +386,12 @@ function initConfig(method, url, userConfig) {
  */
 function getCancelToken() {
   let cancelExcutor;
-  const cancelToken = new axios.CancelToken(excutor => {
+  const cancelToken = new axios.CancelToken((excutor) => {
     cancelExcutor = excutor;
   });
   return {
-    cancelToken,
     cancelExcutor,
+    cancelToken,
   };
 }
 

@@ -55,25 +55,25 @@ export default {
 </script>
 
 <style lang="scss" scoped>
-  .bk-login-dialog {
-    position: fixed;
-    top: 0;
-    left: 0;
-    z-index: 999999999;
+.bk-login-dialog {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 999999999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.7);
+
+  .bk-login-wrapper {
     display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 100%;
-    height: 100%;
-    background: rgba(0, 0, 0, 0.7);
+    background-color: #fff;
 
-    .bk-login-wrapper {
-      display: flex;
-      background-color: #fff;
-
-      iframe {
-        border: none;
-      }
+    iframe {
+      border: none;
     }
   }
+}
 </style>

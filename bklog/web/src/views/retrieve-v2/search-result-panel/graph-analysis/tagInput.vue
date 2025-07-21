@@ -70,14 +70,22 @@ const verifyRelation = (rule, currentLength, targetLength, isAdd = false) => {
     if (!isAdd) {
       result = asRule.relation.some(({ condition, count }) => {
         const currResult = evaluateCondition(count, currentLength, false);
-        const conditionResult = evaluateCondition(condition, targetLength, false);
+        const conditionResult = evaluateCondition(
+          condition,
+          targetLength,
+          false
+        );
         return conditionResult && currResult;
       });
     } else {
       result = asRule.relation.every(({ condition, count }) => {
         /** 这里注意evaluateCondition isAdd添加模式下 可添加返回结果是false  */
         const currResult = evaluateCondition(count, currentLength, isAdd);
-        const conditionResult = evaluateCondition(condition, targetLength, false);
+        const conditionResult = evaluateCondition(
+          condition,
+          targetLength,
+          false
+        );
         if (!conditionResult) return true;
         // 添加验证情况下，如果依赖条件不符合则直接返回true 由后续取反返回结果即可
         return conditionResult && !currResult;
@@ -100,7 +108,9 @@ function addFormField(data) {
   const name = item?.name;
   const exitActiveItem = namesMap.value?.names?.get(name);
   const aggregationOptions = getFileTypeAggregation(data.type);
-  const tempArr = aggregationOptions?.filter(option => !exitActiveItem?.has(option.id));
+  const tempArr = aggregationOptions?.filter(
+    (option) => !exitActiveItem?.has(option.id)
+  );
 
   if (!tempArr?.length) {
     Message({
@@ -121,7 +131,10 @@ function addFormField(data) {
 
   item.aggregate = temp?.id ?? null;
 
-  if (namesMap.value.names.has(item.name) && namesMap.value.names.get(item.name).has(item.aggregate)) {
+  if (
+    namesMap.value.names.has(item.name) &&
+    namesMap.value.names.get(item.name).has(item.aggregate)
+  ) {
     Message({
       theme: 'error',
       message: `${item.aggregate ? `[${item.aggregate}]` : ''}${item.name}，${$t(

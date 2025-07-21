@@ -23,14 +23,17 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+import '@blueking/ai-blueking/dist/vue2/style.css';
+import AIBlueking, {
+  ChatHelper,
+  MessageStatus,
+  RoleType,
+} from '@blueking/ai-blueking/vue2';
 import { computed, defineComponent, ref } from 'vue';
-
-import AIBlueking, { ChatHelper, MessageStatus, RoleType } from '@blueking/ai-blueking/vue2';
 
 import { random } from '../common/util';
 
 import './ai-assistant.scss';
-import '@blueking/ai-blueking/dist/vue2/style.css';
 
 interface ISendData {
   content: string; // 用户输入的内容
@@ -50,7 +53,7 @@ interface IRowSendData {
   'chat_context.content': string;
 }
 export default defineComponent({
-  setup(props, { expose, emit }) {
+  setup(props, { emit, expose }) {
     const loading = ref(false);
     const messages = ref([]);
     const storeMsg = ref([]);
@@ -61,9 +64,14 @@ export default defineComponent({
     const top = 2;
     const left = window.innerWidth - 900;
 
-    const startPosition = ref({ top, bottom: 4, left: left > 0 ? left : 100, right: 4 });
+    const startPosition = ref({
+      bottom: 4,
+      left: left > 0 ? left : 100,
+      right: 4,
+      top,
+    });
     const isShow = ref(false);
-    const aiFixedLinkArgs = { index: null, id: null };
+    const aiFixedLinkArgs = { id: null, index: null };
     const cachedArgs: Partial<IRowSendData> = {};
 
     const concatMsg = computed(() => [...storeMsg.value, ...messages.value]);
@@ -71,8 +79,8 @@ export default defineComponent({
     const handleStart = () => {
       loading.value = true;
       const msg = {
-        role: RoleType.Assistant,
         content: '正在分析...',
+        role: RoleType.Assistant,
         status: MessageStatus.Loading,
       };
       messages.value.push(msg);
@@ -116,7 +124,11 @@ export default defineComponent({
     };
 
     // 错误处理
-    const handleError = (message: string, code: number | string, id: number | string) => {
+    const handleError = (
+      message: string,
+      code: number | string,
+      id: number | string
+    ) => {
       if (id !== chatid) {
         return;
       }
@@ -152,7 +164,7 @@ export default defineComponent({
           <div class="bklog-ai-row-content">
             ${Object.keys(cachedArgs.log_data ?? {})
               .slice(0, 100)
-              .map(key => {
+              .map((key) => {
                 return `<span class="bklog-ai-cell-label">${key}:</span><span class="bklog-ai-cell-text">${JSON.stringify(cachedArgs.log_data[key])}</span>`;
               })
               .join('')}
@@ -170,16 +182,16 @@ export default defineComponent({
       }
 
       messages.value.unshift({
-        role: RoleType.User,
         content: getFixedRow(),
-        status: MessageStatus.Success,
         isFixedMsg: true,
+        role: RoleType.User,
+        status: MessageStatus.Success,
       });
 
       if (messages.value.length % 2 === 1) {
         messages.value.push({
-          role: RoleType.Assistant,
           content: '您已清空历史会话，系统将继续按照上方初始日志响应问答...',
+          role: RoleType.Assistant,
           status: MessageStatus.Success,
         });
       }
@@ -191,9 +203,9 @@ export default defineComponent({
       const chatHistory = [...messages.value];
       // 添加一条消息
       messages.value.push({
-        role: 'user',
-        content: args.content,
         cite: args.cite,
+        content: args.content,
+        role: 'user',
       });
 
       // 根据参数构造输入内容
@@ -203,19 +215,21 @@ export default defineComponent({
           ? `${args.content}: ${args.cite}` // 如果有 cite，拼接 content 和 cite
           : args.content; // 否则只使用 content
 
-      const { space_uid, index_set_id, log_data, type } = cachedArgs;
+      const { index_set_id, log_data, space_uid, type } = cachedArgs;
       const streamArgs = {
-        query: input,
         chat_context: chatHistory,
-        space_uid,
+        'chat_context.role': RoleType.User,
         index_set_id,
         log_data,
+        query: input,
+        space_uid,
         type,
-        'chat_context.role': RoleType.User,
       };
 
       // ai 消息，id是唯一标识当前流，调用 chatHelper.stop 的时候需要传入
-      chatHelper.stream(streamArgs, chatid, { 'X-Requested-With': 'XMLHttpRequest' });
+      chatHelper.stream(streamArgs, chatid, {
+        'X-Requested-With': 'XMLHttpRequest',
+      });
     };
 
     // 外部调用启动首次聊天
@@ -231,10 +245,10 @@ export default defineComponent({
       args.query = '帮我分析这条日志';
 
       messages.value.push({
-        role: RoleType.User,
         content: getFixedRow(),
-        status: MessageStatus.Loading,
         isFixedMsg: true,
+        role: RoleType.User,
+        status: MessageStatus.Loading,
       });
 
       // ai 消息，id是唯一标识当前流，调用 chatHelper.stop 的时候需要传入
@@ -261,7 +275,7 @@ export default defineComponent({
       if (sendMsg) {
         args.type = 'log_interpretation';
         Object.assign(cachedArgs, args);
-        Object.assign(aiFixedLinkArgs, { index: args.index, id: chatid });
+        Object.assign(aiFixedLinkArgs, { id: chatid, index: args.index });
         handleSendRowAi(args);
       }
     };
@@ -285,25 +299,23 @@ export default defineComponent({
       isShow.value = false;
     };
 
-    const handleAiClick = args => {
+    const handleAiClick = (args) => {
       console.log('handleAiClick', args);
     };
 
     expose({
-      open: showAiAssistant,
       close: hiddenAiAssistant,
+      open: showAiAssistant,
     });
 
     return () => (
       <AIBlueking
-        background='#f5f7fa'
+        background="#f5f7fa"
         enable-popup={false}
-        head-background='linear-gradient(267deg, #2dd1f4 0%, #1482ff 95%)'
+        head-background="linear-gradient(267deg, #2dd1f4 0%, #1482ff 95%)"
         is-show={isShow.value}
         loading={loading.value}
         messages={concatMsg.value}
-        prompts={prompts.value}
-        startPosition={startPosition.value}
         on-ai-click={handleAiClick}
         on-choose-prompt={handleChoosePrompt}
         on-clear={handleClear}
@@ -311,6 +323,8 @@ export default defineComponent({
         on-scroll={handleScroll}
         on-send={handleSend}
         on-stop={handleStop}
+        prompts={prompts.value}
+        startPosition={startPosition.value}
       />
     );
   },

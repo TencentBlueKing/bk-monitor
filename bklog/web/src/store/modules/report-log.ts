@@ -23,20 +23,25 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+import store from '@/store';
 import { Action, getModule, Module, VuexModule } from 'vuex-module-decorators';
 
 import $http from '../../api';
 import { getRouteConfigById } from '../../router';
-import store from '@/store';
 
 let oldRouteId = '';
 let oldNavId = '';
 let oldspaceUid = '';
-@Module({ name: 'report-log', dynamic: true, namespaced: true, store })
+@Module({ dynamic: true, name: 'report-log', namespaced: true, store })
 class ReportLogStore extends VuexModule {
   @Action
   reportRouteLog(params: Record<string, any>) {
-    const { isAppFirstLoad, bkBizId, spaceUid, mySpaceList: spaceList } = store.state;
+    const {
+      bkBizId,
+      isAppFirstLoad,
+      mySpaceList: spaceList,
+      spaceUid,
+    } = store.state;
 
     if (!bkBizId && !spaceUid) return;
 
@@ -53,26 +58,31 @@ class ReportLogStore extends VuexModule {
     oldspaceUid = spaceUid;
 
     const username = store.state.userMeta?.username;
-    const space = spaceList?.find(item => item.space_uid === spaceUid);
-    const routeConfig = getRouteConfigById(params.nav_id, spaceUid, bkBizId, params.externalMenu);
+    const space = spaceList?.find((item) => item.space_uid === spaceUid);
+    const routeConfig = getRouteConfigById(
+      params.nav_id,
+      spaceUid,
+      bkBizId,
+      params.externalMenu
+    );
 
     $http
       .request(
         'report/frontendEventReport',
         {
           data: {
-            event_name: '用户运营数据',
-            event_content: '基于前端路由的运营数据上报',
-            target: 'bk_log',
-            timestamp: Date.now(),
             dimensions: {
+              nav_name: params.nav_name || routeConfig?.meta?.title,
               space_id: space?.space_uid || bkBizId,
               space_name: space?.space_name || bkBizId,
               user_name: username,
-              nav_name: params.nav_name || routeConfig?.meta?.title,
               version: localStorage.getItem('retrieve_version') || 'v2',
               ...params,
             },
+            event_content: '基于前端路由的运营数据上报',
+            event_name: '用户运营数据',
+            target: 'bk_log',
+            timestamp: Date.now(),
           },
         },
         {

@@ -35,7 +35,9 @@
       v-model="logDialog.visible"
       :draggable="false"
       :esc-close="false"
-      :ext-cls="logDialog.fullscreen ? 'log-dialog log-full-dialog' : 'log-dialog'"
+      :ext-cls="
+        logDialog.fullscreen ? 'log-dialog log-full-dialog' : 'log-dialog'
+      "
       :fullscreen="logDialog.fullscreen"
       :header-position="logDialog.headerPosition"
       :mask-close="false"
@@ -64,10 +66,7 @@
       />
     </bk-dialog>
 
-    <AiAssitant
-      ref="refAiAssitant"
-      @close="handleAiClose"
-    ></AiAssitant>
+    <AiAssitant ref="refAiAssitant" @close="handleAiClose"></AiAssitant>
   </div>
 </template>
 
@@ -125,7 +124,8 @@ export default {
     openLogDialog(row, type, indexSetId) {
       this.logDialog.data = row;
       this.logDialog.type = type;
-      this.logDialog.title = type === 'realTimeLog' ? this.$t('实时滚动日志') : this.$t('上下文');
+      this.logDialog.title =
+        type === 'realTimeLog' ? this.$t('实时滚动日志') : this.$t('上下文');
       this.logDialog.visible = true;
       this.logDialog.fullscreen = true;
       this.logDialog.indexSetId = indexSetId;
@@ -163,10 +163,10 @@ export default {
           },
           query: queryData,
         })
-        .then(res => {
+        .then((res) => {
           window.open(res.data);
         })
-        .catch(e => {
+        .catch((e) => {
           console.warn(e);
         });
     },
@@ -189,7 +189,9 @@ export default {
         // const fieldParamsKey = [...new Set([...targetFields, ...sortFields])];
         this.targetFields = targetFields ?? [];
 
-        Object.assign(dialogNewParams, { dtEventTimeStamp: row.dtEventTimeStamp });
+        Object.assign(dialogNewParams, {
+          dtEventTimeStamp: row.dtEventTimeStamp,
+        });
         // 非日志采集的情况下判断是否设置过字段设置 设置了的话传已设置过的参数
         // if (config.indexSetValue.scenarioID !== 'log' && fieldParamsKey.length) {
         //   fieldParamsKey.forEach(field => {
@@ -199,11 +201,17 @@ export default {
         if (Array.isArray(contextFields) && contextFields.length) {
           // 传参配置指定字段
           contextFields.push(timeField);
-          contextFields.forEach(field => {
+          contextFields.forEach((field) => {
             if (field === 'bk_host_id') {
               if (row[field]) dialogNewParams[field] = row[field];
             } else {
-              dialogNewParams[field] = parseTableRowData(row, field, '', this.$store.state.isFormatDate, '');
+              dialogNewParams[field] = parseTableRowData(
+                row,
+                field,
+                '',
+                this.$store.state.isFormatDate,
+                ''
+              );
             }
           });
         } else {
@@ -211,7 +219,8 @@ export default {
         }
         this.openLogDialog(dialogNewParams, event, row.__index_set_id__);
       } else if (event === 'webConsole') this.openWebConsole(row);
-      else if (event === 'logSource') this.$store.dispatch('changeShowUnionSource');
+      else if (event === 'logSource')
+        this.$store.dispatch('changeShowUnionSource');
     },
     // 关闭实时日志或上下文弹窗后的回调
     hideDialog() {
@@ -229,13 +238,13 @@ export default {
 };
 </script>
 <style lang="scss">
-  .bklog-result-box {
-    position: relative;
+.bklog-result-box {
+  position: relative;
 
-    .bklog-skeleton-loading {
-      position: absolute;
-      top: 0;
-      z-index: 10;
-    }
+  .bklog-skeleton-loading {
+    position: absolute;
+    top: 0;
+    z-index: 10;
   }
+}
 </style>

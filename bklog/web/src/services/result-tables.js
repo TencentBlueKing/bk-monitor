@@ -30,23 +30,23 @@
 
 // 索引列表
 const list = {
-  url: '/result_table/',
   method: 'get',
+  url: '/result_table/',
 };
 // trace 匹配的字段情况
 const traceMatchList = {
-  url: '/result_table/trace_fields_match/',
   method: 'post',
+  url: '/result_table/trace_fields_match/',
 };
 // 索引详情
 const info = {
-  url: '/result_table/:result_table_id/',
   method: 'get',
+  url: '/result_table/:result_table_id/',
 };
 
 const adapt = {
-  url: '/result_table/adapt/',
   method: 'post',
+  url: '/result_table/adapt/',
 };
 
 export { list, traceMatchList, info, adapt };

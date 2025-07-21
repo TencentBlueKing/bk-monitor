@@ -25,18 +25,27 @@
  * IN THE SOFTWARE.
  */
 
+import {
+  Alert,
+  Button,
+  Input,
+  Table,
+  TableColumn,
+  Tag,
+  Switcher,
+  TableSettingContent,
+  Dialog,
+} from 'bk-magic-vue';
 import { Component, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-
-import { Alert, Button, Input, Table, TableColumn, Tag, Switcher, TableSettingContent, Dialog } from 'bk-magic-vue';
 
 import $http from '../../api';
 import * as authorityMap from '../../common/authority-map';
 import { deepClone, utcFormatDate } from '../../common/util';
 import i18n from '../../language/i18n';
 import EmptyStatus from '../empty-status/index.vue';
-import MaskingAddRule from './masking-add-rule';
 
+import MaskingAddRule from './masking-add-rule';
 import './masking-setting.scss';
 
 interface IProps {
@@ -51,9 +60,9 @@ interface IEditAccessValue {
 const settingFields = [
   // 设置显示的字段
   {
+    disabled: true,
     id: 'ruleName',
     label: i18n.t('规则名称'),
-    disabled: true,
   },
   {
     id: 'matchFields',
@@ -88,7 +97,7 @@ const settingFields = [
 
 @Component
 export default class MaskingSetting extends tsc<IProps> {
-  @Prop({ type: Boolean, default: true }) isPublicList: boolean;
+  @Prop({ default: true, type: Boolean }) isPublicList: boolean;
 
   /** 规则搜索字符串 */
   searchStr = '';
@@ -124,30 +133,30 @@ export default class MaskingSetting extends tsc<IProps> {
 
   /** 接入项表格列表 */
   stopOrStartAccessValue: IEditAccessValue = {
-    accessNum: 0,
     accessInfo: [
       {
+        /** 接入文本 */
+        ids: '',
         scenario_id: '',
         /** 来源 */
         scenario_name: '',
-        /** 接入文本 */
-        ids: '',
       },
     ],
+    accessNum: 0,
   };
 
   /** 编辑项的接入项表格列表 */
   editAccessValue: IEditAccessValue = {
-    accessNum: 0,
     accessInfo: [
       {
+        /** 接入文本 */
+        ids: '',
         scenario_id: '',
         /** 来源 */
         scenario_name: '',
-        /** 接入文本 */
-        ids: '',
       },
     ],
+    accessNum: 0,
   };
 
   operatorMap = {
@@ -161,10 +170,10 @@ export default class MaskingSetting extends tsc<IProps> {
   ];
 
   scenarioRouteMap = {
-    log: 'collection-item',
     bkdata: 'bkdata-index-set-list',
     es: 'es-index-set-list',
     index_set: 'log-index-set-list',
+    log: 'collection-item',
     log_custom: 'custom-report',
   };
 
@@ -179,26 +188,26 @@ export default class MaskingSetting extends tsc<IProps> {
   /** 规则表格列表 */
   tableList = [
     {
+      accessInfo: [],
+      /** 接入文本 */
+      accessNum: '0',
       /** ID */
       id: 1,
-      /** 名称 */
-      ruleName: '',
+      /** 开关状态 */
+      isActive: true,
+      isPublic: false,
       /** 字段名称 */
       matchFields: [],
       /** 表达式 */
       matchPattern: '',
-      /** 接入文本 */
-      accessNum: '0',
-      accessInfo: [],
       operator: 'text_replace',
       operatorParams: {
         preserve_head: 0,
         preserve_tail: 0,
         replace_mark: '*',
       },
-      /** 开关状态 */
-      isActive: true,
-      isPublic: false,
+      /** 名称 */
+      ruleName: '',
     },
   ];
 
@@ -210,10 +219,10 @@ export default class MaskingSetting extends tsc<IProps> {
 
   /** 分页信息 */
   pagination = {
-    /** 当前页数 */
-    current: 1,
     /** 总数 */
     count: 0,
+    /** 当前页数 */
+    current: 1,
     /** 每页显示数量 */
     limit: 10,
     /** 每页显示数量列表 */
@@ -224,21 +233,21 @@ export default class MaskingSetting extends tsc<IProps> {
   isAllowed = false;
 
   enTableWidth = {
-    ruleName: '166',
-    matchFields: '240',
-    maskingRules: '210',
     accessNum: '125',
     isActive: '95',
+    maskingRules: '210',
+    matchFields: '240',
     operate: '80',
+    ruleName: '166',
   };
 
   cnTableWidth = {
-    ruleName: '166',
-    matchFields: '240',
-    maskingRules: '210',
     accessNum: '95',
     isActive: '75',
+    maskingRules: '210',
+    matchFields: '240',
     operate: '68',
+    ruleName: '166',
   };
 
   get spaceUid() {
@@ -246,7 +255,9 @@ export default class MaskingSetting extends tsc<IProps> {
   }
 
   get getTableWidth() {
-    return this.$store.getters.isEnLanguage ? this.enTableWidth : this.cnTableWidth;
+    return this.$store.getters.isEnLanguage
+      ? this.enTableWidth
+      : this.cnTableWidth;
   }
 
   get authorityData() {
@@ -258,8 +269,8 @@ export default class MaskingSetting extends tsc<IProps> {
           action_ids: [authorityMap.MANAGE_DESENSITIZE_RULE],
           resources: [
             {
-              type: 'space',
               id: this.spaceUid,
+              type: 'space',
             },
           ],
         };
@@ -272,41 +283,48 @@ export default class MaskingSetting extends tsc<IProps> {
   async initTableList() {
     try {
       this.tableLoading = true;
-      const params = { space_uid: this.spaceUid, rule_type: this.isPublicList ? 'public' : 'all' }; // 非全局列表 传业务id
-      const authorityRes = await this.$store.dispatch('checkAndGetData', this.authorityData);
+      const params = {
+        rule_type: this.isPublicList ? 'public' : 'all',
+        space_uid: this.spaceUid,
+      }; // 非全局列表 传业务id
+      const authorityRes = await this.$store.dispatch(
+        'checkAndGetData',
+        this.authorityData
+      );
       this.isAllowed = authorityRes.isAllowed;
       const res = await $http.request('masking/getMaskingRuleList', {
         params,
       });
       const updateSourceFiltersSet = new Set();
       this.tableList = res.data
-        .map(item => {
-          if (!updateSourceFiltersSet.has(item.updated_by)) updateSourceFiltersSet.add(item.updated_by);
+        .map((item) => {
+          if (!updateSourceFiltersSet.has(item.updated_by))
+            updateSourceFiltersSet.add(item.updated_by);
           return {
-            id: item.id,
-            ruleName: item.rule_name,
-            matchFields: item.match_fields,
-            matchPattern: item.match_pattern,
-            accessNum: item.access_num,
             accessInfo: item.access_info,
-            operator: item.operator,
-            params: item.params,
+            accessNum: item.access_num,
+            id: item.id,
             isActive: item.is_active,
             isPublic: item.is_public,
-            updatedBy: item.updated_by,
+            matchFields: item.match_fields,
+            matchPattern: item.match_pattern,
+            operator: item.operator,
+            params: item.params,
+            ruleName: item.rule_name,
             updatedAt: item.updated_at,
+            updatedBy: item.updated_by,
           };
         })
         .sort((a, b) => (b.isPublic ? 1 : -1));
-      this.tableStrList = this.tableList.map(item => item.ruleName);
+      this.tableStrList = this.tableList.map((item) => item.ruleName);
       this.tableSearchList = deepClone(this.tableList);
       this.tableShowList = this.tableSearchList.slice(0, this.pagination.limit);
       this.changePagination({
-        current: 1,
         count: this.tableSearchList.length,
+        current: 1,
       });
 
-      this.updateSourceFilters = [...updateSourceFiltersSet].map(item => ({
+      this.updateSourceFilters = [...updateSourceFiltersSet].map((item) => ({
         text: item,
         value: item,
       }));
@@ -339,8 +357,8 @@ export default class MaskingSetting extends tsc<IProps> {
     this.editRuleID = row.id;
     this.isEdit = true;
     this.editAccessValue = {
-      accessNum: row.accessNum,
       accessInfo: row.accessInfo,
+      accessNum: row.accessNum,
     };
     this.isShowMaskingAddRule = true;
   }
@@ -357,8 +375,8 @@ export default class MaskingSetting extends tsc<IProps> {
     this.isDeleteRule = true;
     this.changeRuleID = row.id;
     this.stopOrStartAccessValue = {
-      accessNum: row.accessNum,
       accessInfo: row.accessInfo,
+      accessNum: row.accessNum,
     };
     if (row.accessNum) {
       // 当前是启用状态  并且接入项不为0的时候  执行展示删除弹窗
@@ -387,8 +405,8 @@ export default class MaskingSetting extends tsc<IProps> {
       // 当前是启用状态
       this.isDeleteRule = false;
       this.stopOrStartAccessValue = {
-        accessNum: row.accessNum,
         accessInfo: row.accessInfo,
+        accessNum: row.accessNum,
       };
       if (row.accessNum) {
         // 当前是启用状态  并且接入项不为0的时候  执行展示删除弹窗
@@ -398,7 +416,10 @@ export default class MaskingSetting extends tsc<IProps> {
         const res = await this.requestStopOrStartRule(row.id, 'stop');
         // 这里如果直接请求新的接口会 后端会返回不同
         if (res.result) {
-          this.handleChangeTableListValue(row.id, tItem => (tItem.isActive = false));
+          this.handleChangeTableListValue(
+            row.id,
+            (tItem) => (tItem.isActive = false)
+          );
           this.$bkMessage({
             message: this.$t('操作成功'),
             theme: 'success',
@@ -409,7 +430,10 @@ export default class MaskingSetting extends tsc<IProps> {
     }
     const res = await this.requestStopOrStartRule(row.id, 'start');
     if (res.result) {
-      this.handleChangeTableListValue(row.id, tItem => (tItem.isActive = true));
+      this.handleChangeTableListValue(
+        row.id,
+        (tItem) => (tItem.isActive = true)
+      );
       this.$bkMessage({
         message: this.$t('操作成功'),
         theme: 'success',
@@ -421,8 +445,8 @@ export default class MaskingSetting extends tsc<IProps> {
     callback: (any) => void,
     list = [this.tableSearchList, this.tableList]
   ) {
-    list.forEach(lItem => {
-      lItem.forEach(item => {
+    list.forEach((lItem) => {
+      lItem.forEach((item) => {
         if (item.id === changeTableID) {
           callback(item);
         }
@@ -441,7 +465,10 @@ export default class MaskingSetting extends tsc<IProps> {
         });
         if (res.result) this.initTableList();
       } else {
-        const res = await this.requestStopOrStartRule(this.changeRuleID, 'stop');
+        const res = await this.requestStopOrStartRule(
+          this.changeRuleID,
+          'stop'
+        );
         if (res.result) this.initTableList();
       }
     } catch (error) {
@@ -493,8 +520,11 @@ export default class MaskingSetting extends tsc<IProps> {
   }
 
   searchRule() {
-    this.tableSearchList = this.tableList.filter(item =>
-      item.ruleName.toString().toLowerCase().includes(this.searchStr.toLowerCase())
+    this.tableSearchList = this.tableList.filter((item) =>
+      item.ruleName
+        .toString()
+        .toLowerCase()
+        .includes(this.searchStr.toLowerCase())
     );
     this.pageLimitChange(10);
     this.emptyType = 'search-empty';
@@ -513,14 +543,15 @@ export default class MaskingSetting extends tsc<IProps> {
   pageLimitChange(limit: number) {
     this.tableShowList = this.tableSearchList.slice(0, limit);
     this.changePagination({
-      limit,
-      current: 1,
       count: this.tableSearchList.length,
+      current: 1,
+      limit,
     });
   }
 
   async requestStopOrStartRule(ruleID: number, status: string) {
-    const requestStr = status === 'start' ? 'startDesensitize' : 'stopDesensitize';
+    const requestStr =
+      status === 'start' ? 'startDesensitize' : 'stopDesensitize';
     return await $http.request(`masking/${requestStr}`, {
       params: { rule_id: ruleID },
     });
@@ -550,7 +581,7 @@ export default class MaskingSetting extends tsc<IProps> {
   }
 
   checkFields(field) {
-    return this.tableSetting.selectedFields.some(item => item.id === field);
+    return this.tableSetting.selectedFields.some((item) => item.id === field);
   }
 
   /** 所属组和变更人分组操作 */
@@ -562,7 +593,10 @@ export default class MaskingSetting extends tsc<IProps> {
   /** 申请权限 */
   async getOptionApplyData() {
     try {
-      const res = await this.$store.dispatch('getApplyData', this.authorityData);
+      const res = await this.$store.dispatch(
+        'getApplyData',
+        this.authorityData
+      );
       this.$store.commit('updateAuthDialogData', res.data);
     } catch (err) {
       console.warn(err);
@@ -572,14 +606,13 @@ export default class MaskingSetting extends tsc<IProps> {
   render() {
     const ruleNameSlot = {
       default: ({ row }) => (
-        <div class='rule-name-box'>
-          <span
-            class='title-overflow'
-            v-bk-overflow-tips
-          >
+        <div class="rule-name-box">
+          <span class="title-overflow" v-bk-overflow-tips>
             {row.ruleName}
           </span>
-          {row.isPublic && !this.isPublicList && <span class='tag global'>{this.$t('全局')}</span>}
+          {row.isPublic && !this.isPublicList && (
+            <span class="tag global">{this.$t('全局')}</span>
+          )}
         </div>
       ),
     };
@@ -588,15 +621,15 @@ export default class MaskingSetting extends tsc<IProps> {
     const matchFieldNameSlot = {
       default: ({ row }) => (
         <div
-          class='title-overflow'
+          class="title-overflow"
           v-bk-overflow-tips={{
             content: row.matchFields.join(' , '),
           }}
         >
           {row.matchFields.length ? (
-            row.matchFields.map(item => <Tag>{item}</Tag>)
+            row.matchFields.map((item) => <Tag>{item}</Tag>)
           ) : (
-            <span style='padding-left: 10px;'>{'-'}</span>
+            <span style="padding-left: 10px;">{'-'}</span>
           )}
         </div>
       ),
@@ -604,10 +637,7 @@ export default class MaskingSetting extends tsc<IProps> {
 
     const matchExpressionSlot = {
       default: ({ row }) => (
-        <div
-          class='title-overflow'
-          v-bk-overflow-tips
-        >
+        <div class="title-overflow" v-bk-overflow-tips>
           <span>{row.matchPattern || '-'}</span>
         </div>
       ),
@@ -615,10 +645,7 @@ export default class MaskingSetting extends tsc<IProps> {
 
     const maskingRuleSlot = {
       default: ({ row }) => (
-        <div
-          class='title-overflow'
-          v-bk-overflow-tips
-        >
+        <div class="title-overflow" v-bk-overflow-tips>
           <span>{`${this.operatorMap[row.operator]} | `}</span>
           {row.operator === 'text_replace' ? (
             <span>
@@ -641,10 +668,7 @@ export default class MaskingSetting extends tsc<IProps> {
     /** 接入项插槽 */
     const accessItemSlot = {
       default: ({ row }) => (
-        <Button
-          text
-          onClick={() => this.handleClickAccess(row)}
-        >
+        <Button onClick={() => this.handleClickAccess(row)} text>
           {row.accessNum}
         </Button>
       ),
@@ -653,15 +677,15 @@ export default class MaskingSetting extends tsc<IProps> {
     const switcherSlot = {
       default: ({ row }) => (
         <div
-          v-cursor={{ active: !this.isAllowed }}
           onClick={() => this.handleChangeRuleSwitch(row)}
+          v-cursor={{ active: !this.isAllowed }}
         >
           <Switcher
-            v-model={row.isActive}
             disabled={this.isDisabledClick(row)}
             pre-check={() => false}
-            size='small'
-            theme='primary'
+            size="small"
+            theme="primary"
+            v-model={row.isActive}
           />
         </div>
       ),
@@ -669,20 +693,20 @@ export default class MaskingSetting extends tsc<IProps> {
 
     const operatorSlot = {
       default: ({ row }) => (
-        <div class='operator-slot'>
+        <div class="operator-slot">
           <Button
-            v-cursor={{ active: !this.isAllowed }}
             disabled={this.isDisabledClick(row)}
-            text
             onClick={() => this.handleEditRule(row)}
+            text
+            v-cursor={{ active: !this.isAllowed }}
           >
             {this.$t('编辑')}
           </Button>
           <Button
-            v-cursor={{ active: !this.isAllowed }}
             disabled={this.isDisabledClick(row)}
-            text
             onClick={() => this.handleDeleteRule(row)}
+            text
+            v-cursor={{ active: !this.isAllowed }}
           >
             {this.$t('删除')}
           </Button>
@@ -692,15 +716,15 @@ export default class MaskingSetting extends tsc<IProps> {
 
     const accessTableSlot = () => (
       <Table
-        row-style={this.getShowRowStyle}
-        ext-cls='access-table'
-        v-bkloading={{ isLoading: this.accessTableLoading }}
         border={false}
         col-border={false}
         data={this.stopOrStartAccessValue.accessInfo}
+        ext-cls="access-table"
         header-border={false}
         outer-border={false}
         row-border={false}
+        row-style={this.getShowRowStyle}
+        v-bkloading={{ isLoading: this.accessTableLoading }}
       >
         <TableColumn
           key={'scenario_name'}
@@ -709,78 +733,75 @@ export default class MaskingSetting extends tsc<IProps> {
         ></TableColumn>
 
         <TableColumn
+          align="center"
           key={'ids'}
-          width='125'
+          label={this.$t('接入项')}
+          prop={'ids'}
           scopedSlots={{
             default: ({ row }) => (
-              <Button
-                text
-                onClick={() => this.handleJumpAccess(row)}
-              >
+              <Button onClick={() => this.handleJumpAccess(row)} text>
                 {row.ids.length}
               </Button>
             ),
           }}
-          align='center'
-          label={this.$t('接入项')}
-          prop={'ids'}
           sortable
+          width="125"
         ></TableColumn>
       </Table>
     );
 
     return (
-      <div class='masking-table-container'>
+      <div class="masking-table-container">
         <Alert
-          class='top-alert'
+          class="top-alert"
+          closable
           title={this.$t(
             '脱敏规则会应用到本业务全部索引集。为保证脱敏规则效力，配置规则后，需针对计算平台索引集、第三方ES索引集进行手动校准指定，校准后索引集恢复可用状态。'
           )}
-          type='info'
-          closable
+          type="info"
         />
 
-        <div class='search-box'>
+        <div class="search-box">
           <Button
-            v-cursor={{ active: !this.isAllowed }}
-            theme='primary'
             onClick={this.handleCreateRule}
+            theme="primary"
+            v-cursor={{ active: !this.isAllowed }}
           >
             {this.$t('新建规则')}
           </Button>
           <Input
-            v-model={this.searchStr}
-            placeholder={this.$t('请输入脱敏规则')}
-            right-icon='bk-icon icon-search'
             onChange={this.handleSearchChange}
             onEnter={this.searchRule}
+            placeholder={this.$t('请输入脱敏规则')}
+            right-icon="bk-icon icon-search"
+            v-model={this.searchStr}
           />
         </div>
 
         <Table
-          v-bkloading={{ isLoading: this.tableLoading }}
           data={this.tableShowList}
-          pagination={this.pagination}
-          render-directive='if'
-          size='small'
           on-page-change={this.pageChange}
           on-page-limit-change={this.pageLimitChange}
+          pagination={this.pagination}
+          render-directive="if"
+          size="small"
+          v-bkloading={{ isLoading: this.tableLoading }}
         >
           <TableColumn
             key={'ruleName'}
-            width={this.getTableWidth.ruleName}
             label={this.$t('规则名称')}
             render-header={this.$renderHeader}
             scopedSlots={ruleNameSlot}
+            width={this.getTableWidth.ruleName}
           ></TableColumn>
 
           {this.checkFields('matchFields') ? (
             <TableColumn
               key={'matchFields'}
-              width={this.getTableWidth.matchFields}
               label={this.$t('匹配字段名')}
               render-header={this.$renderHeader}
               scopedSlots={matchFieldNameSlot}
+              width={this.getTableWidth.matchFields}
             ></TableColumn>
           ) : undefined}
 
@@ -794,100 +815,97 @@ export default class MaskingSetting extends tsc<IProps> {
 
           {this.checkFields('maskingRules') ? (
             <TableColumn
-              key={'maskingRules'}
-              width={this.getTableWidth.maskingRules}
               filter-method={this.operatorFilterMethod}
               filter-multiple={false}
               filters={this.operatorFilters}
-              label={(this.$t('label-脱敏算子') as string).replace('label-', '')}
-              prop='operator'
+              key={'maskingRules'}
+              label={(this.$t('label-脱敏算子') as string).replace(
+                'label-',
+                ''
+              )}
+              prop="operator"
               render-header={this.$renderHeader}
               scopedSlots={maskingRuleSlot}
+              width={this.getTableWidth.maskingRules}
             ></TableColumn>
           ) : undefined}
 
           {this.checkFields('accessNum') ? (
             <TableColumn
+              align="center"
               key={'accessNum'}
-              width={this.getTableWidth.accessNum}
-              align='center'
               label={this.$t('接入项')}
-              prop='accessNum'
+              prop="accessNum"
               render-header={this.$renderHeader}
               scopedSlots={accessItemSlot}
               sortable
+              width={this.getTableWidth.accessNum}
             ></TableColumn>
           ) : undefined}
 
           {this.checkFields('updatedBy') ? (
             <TableColumn
+              filter-method={this.sourceFilterMethod}
+              filter-multiple={false}
+              filters={this.updateSourceFilters}
               key={'updatedBy'}
+              label={this.$t('变更人')}
+              prop={'updatedBy'}
+              render-header={this.$renderHeader}
               scopedSlots={{
                 default: ({ row }) => [
-                  <span
-                    class='overflow-tips'
-                    v-bk-overflow-tips
-                  >
+                  <span class="overflow-tips" v-bk-overflow-tips>
                     {row.updatedBy}
                   </span>,
                 ],
               }}
-              filter-method={this.sourceFilterMethod}
-              filter-multiple={false}
-              filters={this.updateSourceFilters}
-              label={this.$t('变更人')}
-              prop={'updatedBy'}
-              render-header={this.$renderHeader}
             ></TableColumn>
           ) : undefined}
 
           {this.checkFields('updatedAt') ? (
             <TableColumn
               key={'updatedAt'}
+              label={this.$t('变更时间')}
+              prop={'updatedAt'}
+              render-header={this.$renderHeader}
               scopedSlots={{
                 default: ({ row }) => [
-                  <span
-                    class='overflow-tips'
-                    v-bk-overflow-tips
-                  >
+                  <span class="overflow-tips" v-bk-overflow-tips>
                     {utcFormatDate(row.updatedAt)}
                   </span>,
                 ],
               }}
-              label={this.$t('变更时间')}
-              prop={'updatedAt'}
-              render-header={this.$renderHeader}
             ></TableColumn>
           ) : undefined}
 
           {this.checkFields('isActive') ? (
             <TableColumn
+              align="center"
               key={'isActive'}
-              width={this.getTableWidth.isActive}
-              align='center'
               label={this.$t('启/停')}
               scopedSlots={switcherSlot}
+              width={this.getTableWidth.isActive}
             ></TableColumn>
           ) : undefined}
 
           <TableColumn
             key={'operate'}
-            width={this.getTableWidth.operate}
             label={this.$t('操作')}
             scopedSlots={operatorSlot}
+            width={this.getTableWidth.operate}
           ></TableColumn>
 
-          <TableColumn type='setting'>
+          <TableColumn type="setting">
             <TableSettingContent
-              v-en-style='width: 580px;'
               // key={`${this.tableKey}__settings`}
               fields={this.tableSetting.fields}
-              selected={this.tableSetting.selectedFields}
               on-setting-change={this.handleSettingChange}
+              selected={this.tableSetting.selectedFields}
+              v-en-style="width: 580px;"
             ></TableSettingContent>
           </TableColumn>
 
-          <div slot='empty'>
+          <div slot="empty">
             <EmptyStatus
               emptyType={this.emptyType}
               onOperation={this.handleOperation}
@@ -896,43 +914,48 @@ export default class MaskingSetting extends tsc<IProps> {
         </Table>
 
         <Dialog
-          width='480'
-          v-model={this.isShowAccessDialog}
-          header-position='left'
-          render-directive='if'
+          header-position="left"
+          render-directive="if"
           show-footer={false}
           title={this.$t('接入项详情')}
+          v-model={this.isShowAccessDialog}
+          width="480"
         >
           {accessTableSlot()}
         </Dialog>
 
         <Dialog
-          width='400'
-          v-model={this.isShowStopOrDeleteAccessDialog}
-          render-directive='if'
+          render-directive="if"
           show-footer={false}
+          v-model={this.isShowStopOrDeleteAccessDialog}
+          width="400"
         >
-          <div class='delete-dialog-container'>
-            <span class='delete-title'>
-              {this.$t('确认{n}该规则？', { n: this.isDeleteRule ? this.$t('删除') : this.$t('停用') })}
-            </span>
-            <span class='delete-text'>
-              {this.$t('当前脱敏规则被应用{n}次，如停用/删除，将无法选用该规则，请确认是否{v}。', {
-                v: this.isDeleteRule ? this.$t('删除') : this.$t('停用'),
-                n: this.stopOrStartAccessValue.accessNum,
+          <div class="delete-dialog-container">
+            <span class="delete-title">
+              {this.$t('确认{n}该规则？', {
+                n: this.isDeleteRule ? this.$t('删除') : this.$t('停用'),
               })}
             </span>
+            <span class="delete-text">
+              {this.$t(
+                '当前脱敏规则被应用{n}次，如停用/删除，将无法选用该规则，请确认是否{v}。',
+                {
+                  n: this.stopOrStartAccessValue.accessNum,
+                  v: this.isDeleteRule ? this.$t('删除') : this.$t('停用'),
+                }
+              )}
+            </span>
             {accessTableSlot()}
-            <div class='delete-button'>
+            <div class="delete-button">
               <Button
-                theme='danger'
                 onClick={() => this.handleStopOrDeleteRule()}
+                theme="danger"
               >
                 {this.isDeleteRule ? this.$t('删除') : this.$t('停用')}
               </Button>
               <Button
-                theme='default'
                 onClick={() => (this.isShowStopOrDeleteAccessDialog = false)}
+                theme="default"
               >
                 {this.$t('取消')}
               </Button>
@@ -941,13 +964,13 @@ export default class MaskingSetting extends tsc<IProps> {
         </Dialog>
 
         <MaskingAddRule
-          v-model={this.isShowMaskingAddRule}
           edit-access-value={this.editAccessValue}
           is-edit={this.isEdit}
           is-public-rule={this.isPublicList}
+          on-submit-rule={(value: object) => value && this.initTableList()}
           ruleID={this.editRuleID}
           table-str-list={this.tableStrList}
-          on-submit-rule={(value: object) => value && this.initTableList()}
+          v-model={this.isShowMaskingAddRule}
         />
       </div>
     );

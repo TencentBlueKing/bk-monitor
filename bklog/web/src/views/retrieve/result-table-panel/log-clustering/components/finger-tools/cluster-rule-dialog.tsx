@@ -24,11 +24,10 @@
  * IN THE SOFTWARE.
  */
 
-import { Component, Emit, Ref, Watch, Model } from 'vue-property-decorator';
-import { Component as tsc } from 'vue-tsx-support';
-
 import { xssFilter } from '@/common/util';
 import { Popover, Form } from 'bk-magic-vue';
+import { Component, Emit, Ref, Watch, Model } from 'vue-property-decorator';
+import { Component as tsc } from 'vue-tsx-support';
 
 import xiaojingAI from '../../../../../../images/xiaojingAI.svg';
 
@@ -41,7 +40,7 @@ interface IProps {
 
 @Component
 export default class ClusterPopover extends tsc<IProps> {
-  @Model('change', { type: Boolean, default: false }) value: IProps['value'];
+  @Model('change', { default: false, type: Boolean }) value: IProps['value'];
   @Ref('occupy') occupyRef: Popover;
   @Ref('occupyForm') occupyFormRef: Form;
   @Ref('sample') sampleRef: HTMLElement;
@@ -49,7 +48,7 @@ export default class ClusterPopover extends tsc<IProps> {
   popoverInstance: Popover = null;
   isShowRuleDialog = false;
 
-  ruleList = [{ ruleStr: '', originStr: '', occupy: '', isChecked: false }];
+  ruleList = [{ isChecked: false, occupy: '', originStr: '', ruleStr: '' }];
   checkedRuleList: Array<string> = [];
   occupyData = {
     textInputStr: '',
@@ -58,13 +57,13 @@ export default class ClusterPopover extends tsc<IProps> {
   occupyRules = {
     specification: [
       {
-        validator: this.checkName,
         message: $i18n.t('{n}不规范, 包含特殊符号.', { n: $i18n.t('占位符') }),
         trigger: 'blur',
+        validator: this.checkName,
       },
       {
-        required: true,
         message: $i18n.t('必填项'),
+        required: true,
         trigger: 'blur',
       },
     ],
@@ -128,7 +127,9 @@ export default class ClusterPopover extends tsc<IProps> {
       range.insertNode(wrapper);
       selection.removeAllRanges();
       this.$nextTick(() => {
-        wrapper.addEventListener('popoverShowEvent', e => this.occupyTargetEvent(e, wrapper));
+        wrapper.addEventListener('popoverShowEvent', (e) =>
+          this.occupyTargetEvent(e, wrapper)
+        );
         wrapper.dispatchEvent(new Event('popoverShowEvent'));
       });
     }
@@ -143,16 +144,16 @@ export default class ClusterPopover extends tsc<IProps> {
   occupyTargetEvent(e: Event, wrapper: HTMLSpanElement) {
     this.destroyPopover();
     this.popoverInstance = this.$bkPopover(e.target, {
-      content: this.occupyRef,
+      allowHTML: true,
       arrow: true,
-      trigger: 'manual',
-      theme: 'light',
-      placement: 'bottom-start',
+      boundary: 'window',
+      content: this.occupyRef,
       hideOnClick: false,
       interactive: true,
-      allowHTML: true,
-      boundary: 'window',
       onHidden: () => this.removeWrapper(wrapper),
+      placement: 'bottom-start',
+      theme: 'light',
+      trigger: 'manual',
     });
     this.occupyOriginStr = wrapper.innerText;
     this.popoverInstance.show();
@@ -171,7 +172,7 @@ export default class ClusterPopover extends tsc<IProps> {
     let matches = [];
 
     // 对所有正则表达式进行匹配
-    regexArray.forEach(regexStr => {
+    regexArray.forEach((regexStr) => {
       let regex;
       try {
         regex = new RegExp(regexStr, 'g');
@@ -183,26 +184,31 @@ export default class ClusterPopover extends tsc<IProps> {
       let match;
       while ((match = regex.exec(text)) !== null) {
         matches.push({
-          start: match.index,
           end: match.index + match[0].length,
-          text: match[0],
           regex: regexStr,
+          start: match.index,
+          text: match[0],
         });
       }
     });
 
     // 按起始位置和长度排序，以便于检测冲突
-    matches.sort((a, b) => a.start - b.start || b.end - b.start - (a.end - a.start));
+    matches.sort(
+      (a, b) => a.start - b.start || b.end - b.start - (a.end - a.start)
+    );
 
     let finalMatches = [];
     let conflicts = [];
 
-    matches.forEach(match => {
+    matches.forEach((match) => {
       let conflict = false;
       let conflictRegexes = [];
 
       for (let existingMatch of finalMatches) {
-        if (match.start < existingMatch.end && match.end > existingMatch.start) {
+        if (
+          match.start < existingMatch.end &&
+          match.end > existingMatch.start
+        ) {
           conflict = true;
           if (!conflictRegexes.includes(existingMatch.regex)) {
             conflictRegexes.push(existingMatch.regex);
@@ -229,7 +235,7 @@ export default class ClusterPopover extends tsc<IProps> {
     finalMatches.sort((a, b) => a.start - b.start);
     conflicts.sort((a, b) => a.start - b.start);
 
-    return { matches: finalMatches, conflicts };
+    return { conflicts, matches: finalMatches };
   }
 
   async addLightTags(matches, conflicts) {
@@ -242,14 +248,16 @@ export default class ClusterPopover extends tsc<IProps> {
     let result = '';
     let lastIndex = 0;
 
-    allMatches.forEach(match => {
+    allMatches.forEach((match) => {
       let start = match.start;
       let end = match.end;
-      let conflict = conflicts.find(conflict => conflict.start === start && conflict.end === end);
+      let conflict = conflicts.find(
+        (conflict) => conflict.start === start && conflict.end === end
+      );
       const className = `${conflict ? 'conflict' : ''} ${this.checkedRuleList.includes(match.regex) ? 'hit' : ''}`;
       const showTitleRegexes = conflict?.conflictRegexes
         .concat(match.regex)
-        .map(item => item.replace(/'/g, '&apos;').replace(/"/g, '&quot;')); // 把单引号双引号换成转义字符
+        .map((item) => item.replace(/'/g, '&apos;').replace(/"/g, '&quot;')); // 把单引号双引号换成转义字符
       let conflictRegexesStr = conflict
         ? `${showTitleRegexes.join(` ${$i18n.t('与')} `)} ${$i18n.t('存在冲突匹配结果')}`
         : '';
@@ -277,17 +285,17 @@ export default class ClusterPopover extends tsc<IProps> {
 
     this.sampleRef.innerHTML = xssFilter(result);
     await this.$nextTick();
-    document.querySelectorAll('span.conflict').forEach(el => {
-      el.addEventListener('mouseenter', e => {
+    document.querySelectorAll('span.conflict').forEach((el) => {
+      el.addEventListener('mouseenter', (e) => {
         const instance = this.$bkPopover(e.target, {
-          content: el.getAttribute('data-index'),
           arrow: true,
           boundary: 'window',
-          placement: 'top',
+          content: el.getAttribute('data-index'),
           onHidden: () => {
             instance?.hide();
             instance?.destroy(true);
           },
+          placement: 'top',
         }) as Popover;
         instance?.show();
       });
@@ -298,22 +306,22 @@ export default class ClusterPopover extends tsc<IProps> {
     const ruleStrList: Array<string> = [];
     this.checkedRuleList = [];
     this.ruleList
-      .filter(item => !!item.ruleStr)
-      .forEach(item => {
+      .filter((item) => !!item.ruleStr)
+      .forEach((item) => {
         ruleStrList.push(item.ruleStr);
         if (item.isChecked) this.checkedRuleList.push(item.ruleStr);
       });
-    const { matches, conflicts } = this.findMatches(ruleStrList);
+    const { conflicts, matches } = this.findMatches(ruleStrList);
     this.addLightTags(matches, conflicts);
   }
 
   handleSubmitOccupy() {
     this.occupyFormRef.validate().then(() => {
       this.ruleList.push({
-        ruleStr: '',
-        originStr: this.occupyOriginStr,
-        occupy: this.occupyData.textInputStr,
         isChecked: false,
+        occupy: this.occupyData.textInputStr,
+        originStr: this.occupyOriginStr,
+        ruleStr: '',
       });
       this.destroyPopover();
     });
@@ -329,13 +337,10 @@ export default class ClusterPopover extends tsc<IProps> {
   render() {
     const popoverSlot = () => (
       <div style={{ display: 'none' }}>
-        <div
-          ref='occupy'
-          class='occupy-popover'
-        >
+        <div class="occupy-popover" ref="occupy">
           <bk-form
-            ref='occupyForm'
-            form-type='vertical'
+            form-type="vertical"
+            ref="occupyForm"
             {...{
               props: {
                 model: this.occupyData,
@@ -345,27 +350,24 @@ export default class ClusterPopover extends tsc<IProps> {
           >
             <bk-form-item
               label={$i18n.t('占位符')}
-              property='specification'
+              property="specification"
               required
             >
               <bk-input
-                v-model={this.occupyData.textInputStr}
-                placeholder={$i18n.t('请输入')}
                 onEnter={this.handleSubmitOccupy}
+                placeholder={$i18n.t('请输入')}
+                v-model={this.occupyData.textInputStr}
               ></bk-input>
             </bk-form-item>
-            <div class='btn-box'>
+            <div class="btn-box">
               <bk-button
-                size='small'
-                theme='primary'
                 onClick={this.handleSubmitOccupy}
+                size="small"
+                theme="primary"
               >
                 {$i18n.t('确认提取')}
               </bk-button>
-              <bk-button
-                size='small'
-                onClick={this.handleCancelOccupy}
-              >
+              <bk-button onClick={this.handleCancelOccupy} size="small">
                 {$i18n.t('取消')}
               </bk-button>
             </div>
@@ -376,58 +378,55 @@ export default class ClusterPopover extends tsc<IProps> {
     return (
       <div>
         <bk-dialog
-          width='960'
-          ext-cls='cluster-rule-dialog'
-          v-model={this.isShowRuleDialog}
           confirm-fn={this.confirmRuleSubmit}
-          header-position='left'
+          ext-cls="cluster-rule-dialog"
+          header-position="left"
           title={$i18n.t('添加正则')}
+          v-model={this.isShowRuleDialog}
+          width="960"
         >
-          <div class='sample-box'>
-            <span class='title'>{$i18n.t('日志样例')}</span>
+          <div class="sample-box">
+            <span class="title">{$i18n.t('日志样例')}</span>
             <div
-              ref='sample'
-              class='sample-content'
+              class="sample-content"
               onMouseup={this.handleMouseUpSample}
+              ref="sample"
             ></div>
-            <div class='tips'>
-              <i class='log-icon icon-info-fill'></i>
+            <div class="tips">
+              <i class="log-icon icon-info-fill"></i>
               <span>{$i18n.t('左键框选字段，可提取并生成正则表达式')}</span>
             </div>
           </div>
-          <div class='rule-box'>
+          <div class="rule-box">
             {!!this.ruleList.length && (
-              <div class='rule-item title'>
-                <span class='left'>{$i18n.t('正则表达式')}</span>
+              <div class="rule-item title">
+                <span class="left">{$i18n.t('正则表达式')}</span>
                 <span>{$i18n.t('占位符')}</span>
               </div>
             )}
             {this.ruleList.map((item, index) => (
-              <div class='rule-item'>
-                <div class='left'>
-                  <div class='input-content'>
+              <div class="rule-item">
+                <div class="left">
+                  <div class="input-content">
                     <bk-checkbox
-                      v-model={item.isChecked}
                       onChange={this.handleChangeRuleHighlight}
+                      v-model={item.isChecked}
                     ></bk-checkbox>
                     <bk-input
-                      v-model={item.ruleStr}
                       onBlur={this.handleChangeRuleHighlight}
                       onEnter={this.handleChangeRuleHighlight}
+                      v-model={item.ruleStr}
                     ></bk-input>
                   </div>
-                  <div class='btn-content'>
-                    <i class='icon bk-icon icon-right-turn-line'></i>
-                    <img
-                      class='xiaojing-AI'
-                      src={xiaojingAI}
-                    />
+                  <div class="btn-content">
+                    <i class="icon bk-icon icon-right-turn-line"></i>
+                    <img class="xiaojing-AI" src={xiaojingAI} />
                   </div>
                 </div>
-                <div class='right'>
+                <div class="right">
                   <bk-input v-model={item.occupy}></bk-input>
                   <i
-                    class='bk-icon icon-minus-circle-shape icon'
+                    class="bk-icon icon-minus-circle-shape icon"
                     onClick={() => this.handleDeleteRuleItem(index)}
                   ></i>
                 </div>

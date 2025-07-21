@@ -28,32 +28,32 @@
  * 创建用户组
  */
 const create = {
-  url: '/auth/groups/',
   method: 'post',
+  url: '/auth/groups/',
 };
 /**
  * 删除用户组
  */
 const remove = {
-  url: '/auth/groups/:group_id/',
   method: 'delete',
+  url: '/auth/groups/:group_id/',
 };
 /**
  * 删除用户组
  */
 const update = {
-  url: '/auth/groups/:group_id/',
   method: 'put',
+  url: '/auth/groups/:group_id/',
 };
 
 const checkAllowed = {
-  url: '/iam/meta/check_allowed/',
   method: 'post',
+  url: '/iam/meta/check_allowed/',
 };
 
 const getApplyData = {
-  url: '/iam/meta/get_apply_data/',
   method: 'post',
+  url: '/iam/meta/get_apply_data/',
 };
 
 export { create, remove, update, checkAllowed, getApplyData };

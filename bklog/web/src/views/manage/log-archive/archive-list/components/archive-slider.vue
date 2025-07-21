@@ -72,7 +72,9 @@
                 >
                   <bk-option
                     v-for="option in item.list"
-                    :disabled="!option.permission[authorityMap.MANAGE_COLLECTION_AUTH]"
+                    :disabled="
+                      !option.permission[authorityMap.MANAGE_COLLECTION_AUTH]
+                    "
                     :id="option.id"
                     :key="option.id"
                     :name="option.name"
@@ -94,7 +96,9 @@
               >
                 <bk-option
                   v-for="option in repositoryRenderList"
-                  :disabled="!option.permission[authorityMap.MANAGE_ES_SOURCE_AUTH]"
+                  :disabled="
+                    !option.permission[authorityMap.MANAGE_ES_SOURCE_AUTH]
+                  "
                   :id="option.repository_name"
                   :key="option.repository_name"
                   :name="option.repository_name"
@@ -219,11 +223,21 @@ export default {
     repositoryRenderList() {
       let list = [];
       const collectorId = this.formData.instance_id;
-      if (collectorId && this.collectorList.length && this.repositoryOriginList.length) {
-        const targetList = this.collectorList.find(item => item.id === this.collectorType)?.list || [];
-        const curCollector = targetList.find(collect => collect.id === collectorId);
+      if (
+        collectorId &&
+        this.collectorList.length &&
+        this.repositoryOriginList.length
+      ) {
+        const targetList =
+          this.collectorList.find((item) => item.id === this.collectorType)
+            ?.list || [];
+        const curCollector = targetList.find(
+          (collect) => collect.id === collectorId
+        );
         const clusterId = curCollector.storage_cluster_id;
-        list = this.repositoryOriginList.filter(item => item.cluster_id === clusterId);
+        list = this.repositoryOriginList.filter(
+          (item) => item.cluster_id === clusterId
+        );
       }
 
       return list;
@@ -232,7 +246,9 @@ export default {
       if (String(this.formData.snapshot_days) === '0') {
         return this.$t('永久');
       }
-      return !!this.formData.snapshot_days ? this.formData.snapshot_days + this.$t('天') : '';
+      return !!this.formData.snapshot_days
+        ? this.formData.snapshot_days + this.$t('天')
+        : '';
     },
   },
   watch: {
@@ -282,9 +298,9 @@ export default {
         bk_biz_id: this.bkBizId,
         have_data_id: 1,
       };
-      this.$http.request('collect/getAllCollectors', { query }).then(res => {
+      this.$http.request('collect/getAllCollectors', { query }).then((res) => {
         this.collectorList[0].list =
-          res.data.map(item => {
+          res.data.map((item) => {
             return {
               id: item.collector_config_id,
               name: item.collector_config_name,
@@ -292,16 +308,18 @@ export default {
             };
           }) || [];
       });
-      this.$http.request('collect/getCollectorPlugins', { query }).then(res => {
-        this.collectorList[1].list =
-          res.data.map(item => {
-            return {
-              id: item.collector_plugin_id,
-              name: item.collector_plugin_name,
-              ...item,
-            };
-          }) || [];
-      });
+      this.$http
+        .request('collect/getCollectorPlugins', { query })
+        .then((res) => {
+          this.collectorList[1].list =
+            res.data.map((item) => {
+              return {
+                id: item.collector_plugin_id,
+                name: item.collector_plugin_name,
+                ...item,
+              };
+            }) || [];
+        });
     },
     // 获取归档仓库列表
     getRepoList() {
@@ -311,7 +329,7 @@ export default {
             bk_biz_id: this.bkBizId,
           },
         })
-        .then(res => {
+        .then((res) => {
           const { data } = res;
           this.repositoryOriginList = data || [];
         })
@@ -320,7 +338,10 @@ export default {
         });
     },
     handleCollectorChange(value) {
-      this.collectorType = this.collectorList.find(item => item.list.some(val => val.id === value))?.id || '';
+      this.collectorType =
+        this.collectorList.find((item) =>
+          item.list.some((val) => val.id === value)
+        )?.id || '';
       this.formData.target_snapshot_repository_name = '';
     },
     updateIsShow() {
@@ -331,7 +352,9 @@ export default {
       this.$emit('update:show-slider', false);
     },
     updateDaysList() {
-      const retentionDaysList = [...this.globalsData.storage_duration_time].filter(item => {
+      const retentionDaysList = [
+        ...this.globalsData.storage_duration_time,
+      ].filter((item) => {
         return item.id;
       });
       retentionDaysList.push({
@@ -346,7 +369,7 @@ export default {
       const numberVal = parseInt(val.trim(), 10);
       const stringVal = numberVal.toString();
       if (numberVal) {
-        if (!this.retentionDaysList.some(item => item.id === stringVal)) {
+        if (!this.retentionDaysList.some((item) => item.id === stringVal)) {
           this.retentionDaysList.push({
             id: stringVal,
             name: stringVal + this.$t('天'),
@@ -425,20 +448,20 @@ export default {
 </script>
 
 <style lang="scss" scoped>
-  .archive-slider-content {
-    height: calc(100vh - 60px);
-    min-height: 394px;
+.archive-slider-content {
+  height: calc(100vh - 60px);
+  min-height: 394px;
 
-    .king-form {
-      padding: 10px 0 36px 36px;
+  .king-form {
+    padding: 10px 0 36px 36px;
 
-      .bk-form-item {
-        margin-top: 18px;
-      }
+    .bk-form-item {
+      margin-top: 18px;
+    }
 
-      .bk-select {
-        width: 300px;
-      }
+    .bk-select {
+      width: 300px;
     }
   }
+}
 </style>

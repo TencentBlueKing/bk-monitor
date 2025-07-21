@@ -46,9 +46,13 @@ const selectedXAxis = ref(props.xAxis);
 const selectedYAxis = ref(props.yAxis);
 const timeAxis = ref('');
 const hiddenField = ref([]);
-const list = computed(() => props.result_schema.map(item => item.field_alias));
+const list = computed(() =>
+  props.result_schema.map((item) => item.field_alias)
+);
 const filterFields = (typeCheck, excludeList) => {
-  return props.result_schema.filter(item => typeCheck(item)).filter(item => !excludeList.includes(item.field_alias));
+  return props.result_schema
+    .filter((item) => typeCheck(item))
+    .filter((item) => !excludeList.includes(item.field_alias));
 };
 
 const xAxisFilterList = computed(() => {
@@ -56,20 +60,26 @@ const xAxisFilterList = computed(() => {
   if (props.activeGraphCategory !== 'pie') {
     fields.push(timeAxis.value);
   }
-  return filterFields(item => true, fields);
+  return filterFields((item) => true, fields);
 });
 
 const yAxisFilterList = computed(() => {
-  return filterFields(item => item.field_type !== 'string', [...selectedXAxis.value, timeAxis.value]);
+  return filterFields(
+    (item) => item.field_type !== 'string',
+    [...selectedXAxis.value, timeAxis.value]
+  );
 });
 
 const timeFilterList = computed(() => {
-  return filterFields(item => item.field_type == 'long', [...selectedYAxis.value, ...selectedXAxis.value]);
+  return filterFields(
+    (item) => item.field_type == 'long',
+    [...selectedYAxis.value, ...selectedXAxis.value]
+  );
 });
 // 监听 props.xAxis 的变化并更新 selectedXAxis
 watch(
   () => props.xAxis,
-  newValue => {
+  (newValue) => {
     selectedXAxis.value = newValue;
   }
 );
@@ -77,15 +87,17 @@ watch(
 // 同样操作 yAxis，如果需要的话
 watch(
   () => props.yAxis,
-  newValue => {
+  (newValue) => {
     selectedYAxis.value = newValue;
   }
 );
 watch(
   () => props.activeGraphCategory,
-  newValue => {
+  (newValue) => {
     if (newValue !== 'pie') {
-      selectedXAxis.value = selectedXAxis.value.filter(item => item !== timeAxis.value);
+      selectedXAxis.value = selectedXAxis.value.filter(
+        (item) => item !== timeAxis.value
+      );
     }
   }
 );
@@ -169,11 +181,11 @@ function change(axis, newValue) {
 </template>
 
 <style lang="scss" scoped>
-  .bklog-chart-field {
-    .title {
-      margin: 10px 0;
-      font-size: 12px;
-      color: #63656e;
-    }
+.bklog-chart-field {
+  .title {
+    margin: 10px 0;
+    font-size: 12px;
+    color: #63656e;
   }
+}
 </style>

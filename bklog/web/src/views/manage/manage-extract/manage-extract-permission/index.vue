@@ -44,11 +44,7 @@
         {{ $t('新增') }}
       </bk-button>
     </div>
-    <bk-table
-      class="king-table"
-      :data="strategyList"
-      row-key="strategy_id"
-    >
+    <bk-table class="king-table" :data="strategyList" row-key="strategy_id">
       <bk-table-column
         :label="$t('名称')"
         :render-header="$renderHeader"
@@ -67,7 +63,9 @@
       >
         <template #default="{ row }">
           <div class="table-ceil-container">
-            <span v-bk-overflow-tips>{{ row.modules.map(item => item.bk_inst_name).join('; ') }}</span>
+            <span v-bk-overflow-tips>{{
+              row.modules.map((item) => item.bk_inst_name).join('; ')
+            }}</span>
           </div>
         </template>
       </bk-table-column>
@@ -125,25 +123,18 @@
       >
         <template #default="{ row }">
           <div class="task-operation-container">
-            <span
-              class="task-operation"
-              @click="handleEditStrategy(row)"
-              >{{ $t('编辑') }}</span
-            >
-            <span
-              class="task-operation"
-              @click="handleDeleteStrategy(row)"
-              >{{ $t('删除') }}</span
-            >
+            <span class="task-operation" @click="handleEditStrategy(row)">{{
+              $t('编辑')
+            }}</span>
+            <span class="task-operation" @click="handleDeleteStrategy(row)">{{
+              $t('删除')
+            }}</span>
           </div>
         </template>
       </bk-table-column>
       <template #empty>
         <div>
-          <empty-status
-            :empty-type="emptyType"
-            @operation="handleOperation"
-          />
+          <empty-status :empty-type="emptyType" @operation="handleOperation" />
         </div>
       </template>
     </bk-table>
@@ -369,21 +360,21 @@ export default {
 </script>
 
 <style lang="scss" scoped>
-  .extract-auth-manage {
-    padding: 0 24px 20px;
+.extract-auth-manage {
+  padding: 0 24px 20px;
 
-    /*表格内容样式*/
-    :deep(.king-table) {
-      .task-operation-container {
-        display: flex;
-        align-items: center;
+  /*表格内容样式*/
+  :deep(.king-table) {
+    .task-operation-container {
+      display: flex;
+      align-items: center;
 
-        .task-operation {
-          margin-right: 12px;
-          color: #3a84ff;
-          cursor: pointer;
-        }
+      .task-operation {
+        margin-right: 12px;
+        color: #3a84ff;
+        cursor: pointer;
       }
     }
   }
+}
 </style>

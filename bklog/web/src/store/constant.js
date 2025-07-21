@@ -27,151 +27,151 @@
 import i18n from '@/language/i18n';
 
 export const fieldTypeMap = {
+  __virtual__: {
+    color: '#EAE4EB',
+    icon: 'bklog-icon bklog-ext-2',
+    name: i18n.t('内置字段'),
+    textColor: '#B68ABB',
+  },
   any: {
-    name: i18n.t('不限'),
-    icon: 'bk-icon icon-check-line',
     color: '#DCDEE5',
-  },
-  number: {
-    name: i18n.t('数字'),
-    icon: 'bklog-icon bklog-number-2',
-    color: '#DDEBE6',
-    textColor: '#60A087',
-  },
-  integer: {
-    name: i18n.t('数字'),
-    icon: 'bklog-icon bklog-number-2',
-    color: '#DDEBE6',
-    textColor: '#60A087',
-  },
-  double: {
-    name: i18n.t('数字'),
-    icon: 'bklog-icon bklog-number-2',
-    color: '#DDEBE6',
-    textColor: '#60A087',
-  },
-  keyword: {
-    name: i18n.t('字符串'),
-    icon: 'bklog-icon bklog-str-2',
-    color: '#D9E5EB',
-    textColor: '#6498B3',
-  },
-  long: {
-    name: i18n.t('数字'),
-    icon: 'bklog-icon bklog-number-2',
-    color: '#DDEBE6',
-    textColor: '#60A087',
-  },
-  text: {
-    name: i18n.t('文本'),
-    icon: 'bklog-icon bklog-text-2',
-    color: '#E1E7F2',
-    textColor: '#508CC8',
-  },
-  date: {
-    name: i18n.t('时间'),
-    icon: 'bklog-icon bklog-time-2',
-    color: '#EDE7DB',
-    textColor: '#CDAE71',
-  },
-  date_nanos: {
-    name: i18n.t('时间'),
-    icon: 'bklog-icon bklog-time-2',
-    color: '#EDE7DB',
-    textColor: '#CDAE71',
+    icon: 'bk-icon icon-check-line',
+    name: i18n.t('不限'),
   },
   boolean: {
-    name: i18n.t('布尔'),
-    icon: 'bklog-icon bklog-buer-2',
     color: '#F0DFDF',
+    icon: 'bklog-icon bklog-buer-2',
+    name: i18n.t('布尔'),
     textColor: '#CB7979',
   },
   conflict: {
-    name: i18n.t('冲突字段'),
-    icon: 'bk-icon icon-clock',
     color: '#EDE7DB',
+    icon: 'bk-icon icon-clock',
+    name: i18n.t('冲突字段'),
     textColor: '#CDAE71',
   },
-  __virtual__: {
-    name: i18n.t('内置字段'),
-    icon: 'bklog-icon bklog-ext-2',
-    color: '#EAE4EB',
-    textColor: '#B68ABB',
+  date: {
+    color: '#EDE7DB',
+    icon: 'bklog-icon bklog-time-2',
+    name: i18n.t('时间'),
+    textColor: '#CDAE71',
+  },
+  date_nanos: {
+    color: '#EDE7DB',
+    icon: 'bklog-icon bklog-time-2',
+    name: i18n.t('时间'),
+    textColor: '#CDAE71',
+  },
+  double: {
+    color: '#DDEBE6',
+    icon: 'bklog-icon bklog-number-2',
+    name: i18n.t('数字'),
+    textColor: '#60A087',
+  },
+  integer: {
+    color: '#DDEBE6',
+    icon: 'bklog-icon bklog-number-2',
+    name: i18n.t('数字'),
+    textColor: '#60A087',
+  },
+  keyword: {
+    color: '#D9E5EB',
+    icon: 'bklog-icon bklog-str-2',
+    name: i18n.t('字符串'),
+    textColor: '#6498B3',
+  },
+  long: {
+    color: '#DDEBE6',
+    icon: 'bklog-icon bklog-number-2',
+    name: i18n.t('数字'),
+    textColor: '#60A087',
+  },
+  number: {
+    color: '#DDEBE6',
+    icon: 'bklog-icon bklog-number-2',
+    name: i18n.t('数字'),
+    textColor: '#60A087',
   },
   object: {
-    name: i18n.t('对象'),
-    icon: 'bklog-icon bklog-object-2',
     color: '#E8EAF0',
+    icon: 'bklog-icon bklog-object-2',
+    name: i18n.t('对象'),
     textColor: '#979BA5',
+  },
+  text: {
+    color: '#E1E7F2',
+    icon: 'bklog-icon bklog-text-2',
+    name: i18n.t('文本'),
+    textColor: '#508CC8',
   },
 };
 
 export const SPACE_TYPE_MAP = {
-  bkcc: {
-    name: i18n.t('业务'),
+  bcs: {
     dark: {
-      color: '#478EFC',
-      backgroundColor: '#2B354D',
+      backgroundColor: '#453921',
+      color: '#FC943B',
     },
     light: {
+      backgroundColor: '#FFF2C9',
       color: '#63656E',
-      backgroundColor: '#CDE8FB',
     },
+    name: i18n.t('容器项目'),
   },
-  default: {
-    name: i18n.t('监控空间'),
+  bkcc: {
     dark: {
-      color: '#B3B3B3',
-      backgroundColor: '#333333',
+      backgroundColor: '#2B354D',
+      color: '#478EFC',
     },
     light: {
+      backgroundColor: '#CDE8FB',
       color: '#63656E',
-      backgroundColor: '#DEDEDE',
     },
+    name: i18n.t('业务'),
   },
   bkci: {
-    name: i18n.t('研发项目'),
     dark: {
-      color: '#F85959',
       backgroundColor: '#4C3232',
+      color: '#F85959',
     },
     light: {
-      color: '#63656E',
       backgroundColor: '#F8D8D4',
-    },
-  },
-  bcs: {
-    name: i18n.t('容器项目'),
-    dark: {
-      color: '#FC943B',
-      backgroundColor: '#453921',
-    },
-    light: {
       color: '#63656E',
-      backgroundColor: '#FFF2C9',
     },
-  },
-  paas: {
-    name: i18n.t('蓝鲸应用'),
-    dark: {
-      color: '#2BB950',
-      backgroundColor: '#223B2B',
-    },
-    light: {
-      color: '#63656E',
-      backgroundColor: '#D8EDD9',
-    },
+    name: i18n.t('研发项目'),
   },
   bksaas: {
-    name: i18n.tc('蓝鲸应用'),
     dark: {
-      color: '#2BB950',
       backgroundColor: '#223B2B',
+      color: '#2BB950',
     },
     light: {
-      color: '#63656E',
       backgroundColor: '#D8EDD9',
+      color: '#63656E',
     },
+    name: i18n.tc('蓝鲸应用'),
+  },
+  default: {
+    dark: {
+      backgroundColor: '#333333',
+      color: '#B3B3B3',
+    },
+    light: {
+      backgroundColor: '#DEDEDE',
+      color: '#63656E',
+    },
+    name: i18n.t('监控空间'),
+  },
+  paas: {
+    dark: {
+      backgroundColor: '#223B2B',
+      color: '#2BB950',
+    },
+    light: {
+      backgroundColor: '#D8EDD9',
+      color: '#63656E',
+    },
+    name: i18n.t('蓝鲸应用'),
   },
 };
 

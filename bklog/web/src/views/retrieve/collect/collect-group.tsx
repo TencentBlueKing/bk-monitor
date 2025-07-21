@@ -24,16 +24,15 @@
  * IN THE SOFTWARE.
  */
 
+import { Popover } from 'bk-magic-vue';
 import { Component, Prop, Inject } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { Popover } from 'bk-magic-vue';
-
 import { utcFormatDate } from '../../../common/util';
-import { IGroupItem, IFavoriteItem } from './collect-index';
-import GroupDropdown from './component/group-dropdown';
 
 import './collect-group.scss';
+import { IGroupItem, IFavoriteItem } from './collect-index';
+import GroupDropdown from './component/group-dropdown';
 
 interface ICollectProps {
   collectItem: IGroupItem;
@@ -44,10 +43,10 @@ interface ICollectProps {
 
 @Component
 export default class CollectGroup extends tsc<ICollectProps> {
-  @Prop({ type: Object, required: true }) collectItem: IGroupItem; // 组的收藏列表
-  @Prop({ type: Number, required: true }) activeFavoriteID: number; // 点击的活跃ID
-  @Prop({ type: Boolean, default: false }) isSearchFilter: boolean; // 是否搜索过
-  @Prop({ type: Array, default: () => [] }) groupList: IGroupItem[]; // 组列表
+  @Prop({ required: true, type: Object }) collectItem: IGroupItem; // 组的收藏列表
+  @Prop({ required: true, type: Number }) activeFavoriteID: number; // 点击的活跃ID
+  @Prop({ default: false, type: Boolean }) isSearchFilter: boolean; // 是否搜索过
+  @Prop({ default: () => [], type: Array }) groupList: IGroupItem[]; // 组列表
   @Inject('handleUserOperate') handleUserOperate;
   isHiddenList = false; // 是否不显示列表
   isHoverTitle = false;
@@ -77,17 +76,17 @@ export default class CollectGroup extends tsc<ICollectProps> {
   handleHoverFavoriteName(e, item) {
     if (!this.favoriteMessageInstance) {
       this.favoriteMessageInstance = this.$bkPopover(e.target, {
+        arrow: true,
         content: `<div style="font-size: 12px;">
                   <p>${this.$t('创建人')}: ${item.created_by || '--'}</p>
                   <p>${this.$t('修改人')}: ${item.updated_by || '--'}</p>
                   <p>${this.$t('更新时间')}: ${utcFormatDate(item.updated_at)}</p>
                 </div>`,
-        arrow: true,
-        placement: 'top',
         onHidden: () => {
           this.favoriteMessageInstance?.destroy();
           this.favoriteMessageInstance = null;
         },
+        placement: 'top',
       });
       this.favoriteMessageInstance.show(500);
     }
@@ -100,16 +99,20 @@ export default class CollectGroup extends tsc<ICollectProps> {
 
   /** 是否展示失效 */
   isFailFavorite(item) {
-    return item.index_set_type === 'single' ? !item.is_active : !item.is_actives.every(Boolean);
+    return item.index_set_type === 'single'
+      ? !item.is_active
+      : !item.is_actives.every(Boolean);
   }
 
   /** 判断是否不能点击收藏 */
   isCannotClickFavorite(item) {
-    return item.index_set_type === 'single' ? !item.is_active : item.is_actives.some(active => !active);
+    return item.index_set_type === 'single'
+      ? !item.is_active
+      : item.is_actives.some((active) => !active);
   }
 
   render() {
-    const groupDropdownSlot = groupName => {
+    const groupDropdownSlot = (groupName) => {
       return !this.isCannotChange ? (
         <GroupDropdown
           data={this.collectItem}
@@ -118,10 +121,10 @@ export default class CollectGroup extends tsc<ICollectProps> {
           is-hover-title={this.isHoverTitle}
         />
       ) : (
-        <span class='title-number'>{this.collectItem.favorites.length}</span>
+        <span class="title-number">{this.collectItem.favorites.length}</span>
       );
     };
-    const collectDropdownSlot = item => (
+    const collectDropdownSlot = (item) => (
       <div onClick={() => (this.clickDrop = true)}>
         <GroupDropdown
           data={item}
@@ -131,7 +134,7 @@ export default class CollectGroup extends tsc<ICollectProps> {
       </div>
     );
     return (
-      <div class='retrieve-collect-group'>
+      <div class="retrieve-collect-group">
         <div
           class={[
             'group-title fl-jcsb',
@@ -144,44 +147,49 @@ export default class CollectGroup extends tsc<ICollectProps> {
           onMouseleave={() => this.handleHoverTitle(false)}
         >
           <span
-            class='group-cur'
+            class="group-cur"
             onClick={() => (this.isHiddenList = !this.isHiddenList)}
           >
-            <span class={['bk-icon icon-play-shape', { 'is-active': !this.isHiddenList }]}></span>
-            <span class='group-str'>{this.collectItem.group_name}</span>
+            <span
+              class={[
+                'bk-icon icon-play-shape',
+                { 'is-active': !this.isHiddenList },
+              ]}
+            ></span>
+            <span class="group-str">{this.collectItem.group_name}</span>
           </span>
           {groupDropdownSlot(this.collectItem.group_name)}
         </div>
         <div class={['group-list', { 'list-hidden': this.isHiddenList }]}>
           {this.collectItem.favorites.map((item, index) => (
             <div
-              key={index}
               class={{
+                active: item.id === this.activeFavoriteID,
                 'group-item': true,
                 'is-disabled': this.isFailFavorite(item),
-                active: item.id === this.activeFavoriteID,
               }}
+              key={index}
               onClick={() => this.handleClickCollect(item)}
             >
               <div
                 class={{
-                  'group-item-left': true,
                   'active-name': item.id === this.activeFavoriteID,
+                  'group-item-left': true,
                 }}
               >
                 <div
-                  class='fav-name'
-                  onMouseenter={e => this.handleHoverFavoriteName(e, item)}
+                  class="fav-name"
+                  onMouseenter={(e) => this.handleHoverFavoriteName(e, item)}
                 >
                   <span>{item.name}</span>
                   {this.isFailFavorite(item) ? (
                     <Popover
-                      ext-cls='favorite-data-source'
-                      placement='bottom'
-                      theme='light'
+                      ext-cls="favorite-data-source"
+                      placement="bottom"
+                      theme="light"
                     >
-                      <span class='bk-icon bklog-icon bklog-shixiao'></span>
-                      <div slot='content'>
+                      <span class="bk-icon bklog-icon bklog-shixiao"></span>
+                      <div slot="content">
                         {this.isMultiIndex(item) ? (
                           <ul>
                             {item.index_set_names.map((setItem, setIndex) => (
@@ -192,7 +200,9 @@ export default class CollectGroup extends tsc<ICollectProps> {
                               >
                                 <span>
                                   <span>{setItem}</span>
-                                  {!item.is_actives[setIndex] ? <span>({this.$t('已失效')})</span> : undefined}
+                                  {!item.is_actives[setIndex] ? (
+                                    <span>({this.$t('已失效')})</span>
+                                  ) : undefined}
                                 </span>
                               </li>
                             ))}
@@ -210,7 +220,7 @@ export default class CollectGroup extends tsc<ICollectProps> {
                         placement: 'right',
                       }}
                     >
-                      <span class='bk-icon icon-panels'></span>
+                      <span class="bk-icon icon-panels"></span>
                     </span>
                   ) : undefined}
                 </div>

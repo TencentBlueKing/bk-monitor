@@ -25,10 +25,7 @@
 -->
 
 <template>
-  <div
-    class="retrieve-detail-input"
-    v-bk-clickoutside="handleClickOutside"
-  >
+  <div class="retrieve-detail-input" v-bk-clickoutside="handleClickOutside">
     <monaco-detail-input
       ref="editorElement"
       class="king-input-retrieve"
@@ -39,24 +36,15 @@
       @input="handleInput"
       @keydown="handleKeydown"
     />
-    <div
-      v-if="isKeywordsError"
-      class="refresh-keywords"
-    >
+    <div v-if="isKeywordsError" class="refresh-keywords">
       <div v-if="!!keywordErrorMessage">
         <span>
           <span class="error-title">{{ $t('语法错误') }}: </span>
           <span class="error-message">{{ keywordErrorMessage }}</span>
         </span>
         <br />
-        <span
-          v-if="keywordIsResolved"
-          @click="handleRefreshKeywords"
-        >
-          <i18n
-            class="error-title"
-            path="你可能想输入：{0} 点击 {1}"
-          >
+        <span v-if="keywordIsResolved" @click="handleRefreshKeywords">
+          <i18n class="error-title" path="你可能想输入：{0} 点击 {1}">
             <span class="error-message">{{ resetKeyword }}</span>
             <span class="flex-align-center">
               <span class="refresh-btn">{{ $t('替换') }}</span>
@@ -117,10 +105,7 @@
       </template>
       <!-- : :* -->
       <template v-if="showColon">
-        <li
-          class="list-item colon-list-item"
-          @click="handleClickColon(':')"
-        >
+        <li class="list-item colon-list-item" @click="handleClickColon(':')">
           <div class="item-type-icon">
             <span class="bklog-icon bklog-equal"></span>
           </div>
@@ -134,10 +119,7 @@
             </i18n>
           </div>
         </li>
-        <li
-          class="list-item colon-list-item"
-          @click="handleClickColon(': *')"
-        >
+        <li class="list-item colon-list-item" @click="handleClickColon(': *')">
           <div class="item-type-icon">
             <span class="bklog-icon bklog-equal"></span>
           </div>
@@ -295,18 +277,27 @@ export default {
   },
   computed: {
     renderDropdown() {
-      if (this.showValue && this.showDropdown && !this.valueList.length) return false;
-      return this.showDropdown && (this.showFields || this.showValue || this.showColon || this.showContinue);
+      if (this.showValue && this.showDropdown && !this.valueList.length)
+        return false;
+      return (
+        this.showDropdown &&
+        (this.showFields ||
+          this.showValue ||
+          this.showColon ||
+          this.showContinue)
+      );
     },
     /** 获取数字类型的字段name */
     getNumTypeFieldList() {
       return this.totalFields
-        .filter(item => ['long', 'integer', 'float'].includes(item.field_type))
-        .map(item => item.field_name);
+        .filter((item) =>
+          ['long', 'integer', 'float'].includes(item.field_type)
+        )
+        .map((item) => item.field_name);
     },
     /** 语法检查需要的字段信息 */
     getCheckKeywordsFields() {
-      return this.totalFields.map(item => ({
+      return this.totalFields.map((item) => ({
         field_name: item.field_name,
         is_analyzed: item.is_analyzed,
         field_type: item.field_type,
@@ -314,7 +305,7 @@ export default {
     },
     /** 所有字段的字段名 */
     totalFieldsNameList() {
-      return this.totalFields.map(item => item.field_name);
+      return this.totalFields.map((item) => item.field_name);
     },
   },
   watch: {
@@ -333,7 +324,9 @@ export default {
     dropdownData: {
       handler(val) {
         // 检索后的日志数据如果字段在字段接口找不到则不展示联想的key
-        this.originFieldList = Object.keys(val).filter(v => this.totalFieldsNameList.includes(v));
+        this.originFieldList = Object.keys(val).filter((v) =>
+          this.totalFieldsNameList.includes(v)
+        );
         if (this.originFieldList.length && this.showDropdown) {
           // 可能字段接口还没返回用户就 focus 了输入框
           this.calculateDropdown();
@@ -411,7 +404,10 @@ export default {
         }
         this.calculateScroll(true);
       } else if (code === 'ArrowDown') {
-        if (this.activeIndex === null || this.activeIndex === dropdownList.length - 1) {
+        if (
+          this.activeIndex === null ||
+          this.activeIndex === dropdownList.length - 1
+        ) {
           this.activeIndex = 0;
         } else {
           this.activeIndex += 1;
@@ -445,7 +441,8 @@ export default {
           if (alignToTop) {
             containerEl.scrollTop = currentScrollTop + itemTop - containerTop;
           } else {
-            containerEl.scrollTop = currentScrollTop + itemBottom - containerBottom;
+            containerEl.scrollTop =
+              currentScrollTop + itemBottom - containerBottom;
           }
         }
       });
@@ -458,7 +455,8 @@ export default {
       // 非自动搜索时 鼠标失焦后 判断语句是否出错
       this.blurTimer && clearTimeout(this.blurTimer);
       this.blurTimer = setTimeout(() => {
-        if (this.shouldHandleBlur || this.isKeywordsError) this.handleCheckKeywords(val.trim()); // 检查语句是否有错误;
+        if (this.shouldHandleBlur || this.isKeywordsError)
+          this.handleCheckKeywords(val.trim()); // 检查语句是否有错误;
       }, 200);
       // 如果当前有点击收藏且有选择表单模式的key时 监听新输入的检索语句判断
       if (this.isShowUiType) this.$emit('inputBlur', val);
@@ -541,9 +539,10 @@ export default {
         return;
       }
       // 开始输入字段【nam】
-      const inputField = /^\s*(?<field>[\w.]+)$/.exec(lastFragment)?.groups.field;
+      const inputField = /^\s*(?<field>[\w.]+)$/.exec(lastFragment)?.groups
+        .field;
       if (inputField) {
-        this.fieldList = this.originFieldList.filter(item => {
+        this.fieldList = this.originFieldList.filter((item) => {
           if (item.includes(inputField)) {
             if (item === inputField) {
               // 完全匹配字段同时和 : :* 选项
@@ -563,7 +562,9 @@ export default {
         return;
       }
       // 准备输入值【name:】
-      const confirmField = /^\s*(?<field>[\w.]+)\s*(:|>=|<=|>|<)\s*$/.exec(lastFragment)?.groups.field;
+      const confirmField = /^\s*(?<field>[\w.]+)\s*(:|>=|<=|>|<)\s*$/.exec(
+        lastFragment
+      )?.groups.field;
       if (confirmField) {
         const valueMap = this.dropdownData[confirmField];
         if (valueMap) {
@@ -576,13 +577,18 @@ export default {
         return;
       }
       // 正在输入值【age:1】注意后面没有空格，匹配字段对应值
-      const valueResult = /^\s*(?<field>[\w.]+)\s*(:|>=|<=|>|<)\s*(?<value>[\S]+)$/.exec(lastFragment);
+      const valueResult =
+        /^\s*(?<field>[\w.]+)\s*(:|>=|<=|>|<)\s*(?<value>[\S]+)$/.exec(
+          lastFragment
+        );
       if (valueResult) {
         const confirmField = valueResult.groups.field;
         const valueMap = this.dropdownData[confirmField];
         if (valueMap) {
           const inputValue = valueResult.groups.value;
-          this.valueList = this.getValueList(valueMap).filter(item => item.includes(inputValue));
+          this.valueList = this.getValueList(valueMap).filter((item) =>
+            item.includes(inputValue)
+          );
           this.showWhichDropdown(this.valueList.length ? 'Value' : undefined);
         } else {
           this.showWhichDropdown();
@@ -591,7 +597,11 @@ export default {
         return;
       }
       // 一组条件输入完毕【age:18 】提示继续增加条件 AND OR
-      if (/^\s*(?<field>[\w.]+)\s*(:|>=|<=|>|<)\s*(?<value>[\S]+)\s+$/.test(lastFragment)) {
+      if (
+        /^\s*(?<field>[\w.]+)\s*(:|>=|<=|>|<)\s*(?<value>[\S]+)\s+$/.test(
+          lastFragment
+        )
+      ) {
         this.showWhichDropdown('Continue');
         return;
       }
@@ -622,7 +632,10 @@ export default {
       let valueMapList = Object.keys(valueMap);
       if (valueMap.__fieldType === 'string') {
         valueMapList = valueMapList // 清除mark标签
-          .map(item => `"${item.replace(/<mark>/g, '').replace(/<\/mark>/g, '')}"`);
+          .map(
+            (item) =>
+              `"${item.replace(/<mark>/g, '').replace(/<\/mark>/g, '')}"`
+          );
       }
       return [...new Set(valueMapList)]; // 清除重复的字段
     },
@@ -643,7 +656,10 @@ export default {
           this.$emit('change', `${currentValue}${field} `);
         } else {
           // 可能的情况【name:"arman" AND ag】【name】
-          this.$emit('change', currentValue.replace(/\s*[\w.]+$/, ` ${field} `));
+          this.$emit(
+            'change',
+            currentValue.replace(/\s*[\w.]+$/, ` ${field} `)
+          );
         }
       }
       this.showWhichDropdown('Colon');
@@ -667,9 +683,12 @@ export default {
       // 当前输入值可能的情况 【name:"a】【age:】
       this.$emit(
         'change',
-        this.value.replace(/(:|>=|<=|>|<)\s*[\S]*$/, (match1, matchOperator) => {
-          return `${matchOperator} ${value} `;
-        })
+        this.value.replace(
+          /(:|>=|<=|>|<)\s*[\S]*$/,
+          (match1, matchOperator) => {
+            return `${matchOperator} ${value} `;
+          }
+        )
       );
       this.showWhichDropdown('Continue');
     },
@@ -695,184 +714,184 @@ export default {
 </script>
 
 <style lang="scss" scoped>
-  @import '../../../scss/mixins/scroller';
+@import '../../../scss/mixins/scroller';
 
-  .retrieve-detail-input {
-    position: relative;
+.retrieve-detail-input {
+  position: relative;
 
-    .refresh-keywords {
-      margin-top: 4px;
+  .refresh-keywords {
+    margin-top: 4px;
+    font-size: 12px;
+
+    .error-message {
+      color: #ea3636;
+    }
+
+    .error-title {
+      color: #63656e;
+    }
+
+    .refresh-btn {
+      color: #3a84ff;
+      cursor: pointer;
+    }
+  }
+
+  .retrieve-dropdown {
+    position: absolute;
+    z-index: 99;
+    width: 100%;
+    max-height: 360px;
+    margin-top: 4px;
+    overflow: auto;
+    background: #fff;
+    border: 1px solid #dcdee5;
+    border-radius: 2px;
+    box-shadow: 0 2px 6px 0 rgba(0, 0, 0, 0.1);
+
+    @include scroller(#ccc);
+
+    .list-item {
+      display: flex;
+      align-items: center;
       font-size: 12px;
+      line-height: 32px;
+      background-color: #fff;
 
-      .error-message {
-        color: #ea3636;
+      .item-type-icon {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 32px;
+        height: 32px;
+
+        .bklog-icon {
+          font-size: 16px;
+        }
       }
 
-      .error-title {
+      .item-text {
+        flex: 1;
+        min-width: 150px;
+        padding: 0 8px;
+        font-family: 'Roboto Mono', Consolas, Menlo, Courier, monospace;
         color: #63656e;
       }
 
-      .refresh-btn {
-        color: #3a84ff;
-        cursor: pointer;
-      }
-    }
+      .item-description {
+        flex: 2;
+        margin-left: 24px;
+        color: #979ba5;
 
-    .retrieve-dropdown {
-      position: absolute;
-      z-index: 99;
-      width: 100%;
-      max-height: 360px;
-      margin-top: 4px;
-      overflow: auto;
-      background: #fff;
-      border: 1px solid #dcdee5;
-      border-radius: 2px;
-      box-shadow: 0 2px 6px 0 rgba(0, 0, 0, 0.1);
-
-      @include scroller(#ccc);
-
-      .list-item {
-        display: flex;
-        align-items: center;
-        font-size: 12px;
-        line-height: 32px;
-        background-color: #fff;
-
-        .item-type-icon {
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          width: 32px;
-          height: 32px;
-
-          .bklog-icon {
-            font-size: 16px;
-          }
-        }
-
-        .item-text {
-          flex: 1;
-          min-width: 150px;
-          padding: 0 8px;
+        .item-callout {
+          padding: 0 4px;
           font-family: 'Roboto Mono', Consolas, Menlo, Courier, monospace;
-          color: #63656e;
-        }
-
-        .item-description {
-          flex: 2;
-          margin-left: 24px;
-          color: #979ba5;
-
-          .item-callout {
-            padding: 0 4px;
-            font-family: 'Roboto Mono', Consolas, Menlo, Courier, monospace;
-            color: #313238;
-            background-color: #f4f6fa;
-          }
-        }
-
-        &:hover,
-        &.active {
+          color: #313238;
           background-color: #f4f6fa;
-
-          .item-text {
-            color: #313238;
-          }
-
-          .item-callout {
-            background-color: #fff;
-          }
-        }
-
-        &:hover {
-          cursor: pointer;
-          background-color: #eaf3ff;
         }
       }
 
-      /* 字段 icon 样式 */
-      .field-list-item.list-item {
-        .item-type-icon {
-          color: #936501;
-          background-color: #fef6e6;
-        }
-
-        &:hover,
-        &.active {
-          .item-type-icon {
-            color: #010101;
-            background-color: #fdedcc;
-          }
-        }
-      }
-
-      /* 值 icon 样式 */
-      .value-list-item.list-item {
-        /* stylelint-disable-next-line no-descending-specificity */
-        .item-type-icon {
-          color: #02776e;
-          background-color: #e6f2f1;
-        }
-
-        &:hover,
-        &.active {
-          .item-type-icon {
-            color: #010101;
-            background-color: #cce5e3;
-          }
-        }
-      }
-
-      /* AND OR icon 样式 */
-      .continue-list-item.list-item {
-        /* stylelint-disable-next-line no-descending-specificity */
-        .item-type-icon {
-          color: #7c609e;
-          background-color: #f2e6f6;
-        }
-
-        &:hover,
-        &.active {
-          .item-type-icon {
-            color: #000;
-            background-color: #e4cced;
-          }
-        }
-      }
-
-      /* : :* icon 样式 */
-      .colon-list-item.list-item {
-        /* stylelint-disable-next-line no-descending-specificity */
-        .item-type-icon {
-          color: #006bb4;
-          background-color: #e6f0f8;
-        }
-
-        &:hover,
-        &.active {
-          .item-type-icon {
-            color: #000;
-            background-color: #cce1f0;
-          }
-        }
-      }
-
-      .history-title-item.list-item {
-        cursor: default;
-        background-color: #fff;
-        border-top: 1px solid #dcdee5;
+      &:hover,
+      &.active {
+        background-color: #f4f6fa;
 
         .item-text {
-          color: #979ba5;
+          color: #313238;
+        }
+
+        .item-callout {
+          background-color: #fff;
+        }
+      }
+
+      &:hover {
+        cursor: pointer;
+        background-color: #eaf3ff;
+      }
+    }
+
+    /* 字段 icon 样式 */
+    .field-list-item.list-item {
+      .item-type-icon {
+        color: #936501;
+        background-color: #fef6e6;
+      }
+
+      &:hover,
+      &.active {
+        .item-type-icon {
+          color: #010101;
+          background-color: #fdedcc;
         }
       }
     }
 
-    .flex-align-center {
-      display: inline-flex;
-      align-items: center;
+    /* 值 icon 样式 */
+    .value-list-item.list-item {
+      /* stylelint-disable-next-line no-descending-specificity */
+      .item-type-icon {
+        color: #02776e;
+        background-color: #e6f2f1;
+      }
+
+      &:hover,
+      &.active {
+        .item-type-icon {
+          color: #010101;
+          background-color: #cce5e3;
+        }
+      }
+    }
+
+    /* AND OR icon 样式 */
+    .continue-list-item.list-item {
+      /* stylelint-disable-next-line no-descending-specificity */
+      .item-type-icon {
+        color: #7c609e;
+        background-color: #f2e6f6;
+      }
+
+      &:hover,
+      &.active {
+        .item-type-icon {
+          color: #000;
+          background-color: #e4cced;
+        }
+      }
+    }
+
+    /* : :* icon 样式 */
+    .colon-list-item.list-item {
+      /* stylelint-disable-next-line no-descending-specificity */
+      .item-type-icon {
+        color: #006bb4;
+        background-color: #e6f0f8;
+      }
+
+      &:hover,
+      &.active {
+        .item-type-icon {
+          color: #000;
+          background-color: #cce1f0;
+        }
+      }
+    }
+
+    .history-title-item.list-item {
+      cursor: default;
+      background-color: #fff;
+      border-top: 1px solid #dcdee5;
+
+      .item-text {
+        color: #979ba5;
+      }
     }
   }
+
+  .flex-align-center {
+    display: inline-flex;
+    align-items: center;
+  }
+}
 </style>
 ../search-comp/retrieve-detail-input-editor.jsx

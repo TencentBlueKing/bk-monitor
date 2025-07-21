@@ -24,14 +24,13 @@
  * IN THE SOFTWARE.
  */
 
+import { Table, TableColumn, Popover, Button } from 'bk-magic-vue';
 import { Component, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { Table, TableColumn, Popover, Button } from 'bk-magic-vue';
-
 import $http from '../../../../../../api';
-import { getFlatObjValues } from './../../../../../../common/util';
 
+import { getFlatObjValues } from './../../../../../../common/util';
 import './field-info.scss';
 
 interface IProps {
@@ -40,16 +39,16 @@ interface IProps {
 
 @Component
 export default class FieldInfo extends tsc<IProps> {
-  @Prop({ type: Object, default: () => ({}) }) collectorData: object;
-  @Prop({ type: Object, default: () => ({}) }) editAuthData: object;
-  @Prop({ type: Boolean, default: false }) editAuth: boolean;
-  @Prop({ type: Boolean, default: false }) isShowEditBtn: boolean;
+  @Prop({ default: () => ({}), type: Object }) collectorData: object;
+  @Prop({ default: () => ({}), type: Object }) editAuthData: object;
+  @Prop({ default: false, type: Boolean }) editAuth: boolean;
+  @Prop({ default: false, type: Boolean }) isShowEditBtn: boolean;
 
   pagination = {
-    /** 当前页数 */
-    current: 1,
     /** 总数 */
     count: 1,
+    /** 当前页数 */
+    current: 1,
     /** 每页显示数量 */
     limit: 10,
   };
@@ -82,7 +81,9 @@ export default class FieldInfo extends tsc<IProps> {
 
   // cmdb元数据
   get extra_labels() {
-    return (this.collectorData as any).extra_labels?.map(item => '__ext.' + item.key);
+    return (this.collectorData as any).extra_labels?.map(
+      (item) => '__ext.' + item.key
+    );
   }
 
   operatorMap = {
@@ -132,8 +133,10 @@ export default class FieldInfo extends tsc<IProps> {
         query: { is_realtime: 'True' },
       });
       this.timeField = res.data.time_field;
-      this.tableList = res.data.fields.map(item => {
-        const findRules = maskingRule?.find(mItem => mItem.field_name === item.field_name) ?? {};
+      this.tableList = res.data.fields.map((item) => {
+        const findRules =
+          maskingRule?.find((mItem) => mItem.field_name === item.field_name) ??
+          {};
         return {
           ...item,
           desensitize_config: findRules.rules ?? [],
@@ -142,8 +145,8 @@ export default class FieldInfo extends tsc<IProps> {
       });
       this.tableShowList = this.tableList.slice(0, this.pagination.limit);
       this.changePagination({
-        current: 1,
         count: this.tableList.length,
+        current: 1,
       });
     } catch (e) {
       console.warn(e);
@@ -184,9 +187,9 @@ export default class FieldInfo extends tsc<IProps> {
   pageLimitChange(limit: number) {
     this.tableShowList = this.tableList.slice(0, limit);
     this.changePagination({
-      limit,
-      current: 1,
       count: this.tableList.length,
+      current: 1,
+      limit,
     });
   }
 
@@ -204,17 +207,20 @@ export default class FieldInfo extends tsc<IProps> {
       });
       if (res.data.list.length) {
         this.jsonParseList = res.data.list.slice(0, 1);
-        const flatJsonParseList = this.jsonParseList.map(item => {
+        const flatJsonParseList = this.jsonParseList.map((item) => {
           const { newObject } = getFlatObjValues(item);
           return newObject;
         });
-        this.fieldOriginValueList = (flatJsonParseList as any).reduce((pre, cur) => {
-          Object.entries(cur).forEach(([fieldKey, fieldVal]) => {
-            if (!pre[fieldKey]) pre[fieldKey] = [];
-            pre[fieldKey].push(fieldVal ?? '');
-          });
-          return pre;
-        }, {});
+        this.fieldOriginValueList = (flatJsonParseList as any).reduce(
+          (pre, cur) => {
+            Object.entries(cur).forEach(([fieldKey, fieldVal]) => {
+              if (!pre[fieldKey]) pre[fieldKey] = [];
+              pre[fieldKey].push(fieldVal ?? '');
+            });
+            return pre;
+          },
+          {}
+        );
       }
     } catch (err) {
       return '';
@@ -230,10 +236,10 @@ export default class FieldInfo extends tsc<IProps> {
   async getConfigPreview(fieldList = []) {
     if (!this.jsonParseList.length) return fieldList;
     const fieldConfigs = fieldList
-      .filter(item => item.previewRules.length)
-      .map(item => ({
+      .filter((item) => item.previewRules.length)
+      .map((item) => ({
         field_name: item.field_name,
-        rules: item.previewRules.map(rItem => {
+        rules: item.previewRules.map((rItem) => {
           if (rItem.state === 'update') {
             // 更新同步后的预览 拿new_rule里的数据进行更新预览
             return {
@@ -249,12 +255,12 @@ export default class FieldInfo extends tsc<IProps> {
     try {
       const res = await $http.request('masking/getConfigPreview', {
         data: {
-          logs: this.jsonParseList,
           field_configs: fieldConfigs,
+          logs: this.jsonParseList,
         },
       });
       const previewResult = res.data;
-      return fieldList.map(field => {
+      return fieldList.map((field) => {
         const fieldPreview = previewResult[field.field_name];
         return {
           ...field,
@@ -277,13 +283,14 @@ export default class FieldInfo extends tsc<IProps> {
     if (!this.jsonParseList.length || !fieldName) return [];
     if (!this.fieldOriginValueList[fieldName]) return [];
     const previewList = [];
-    const filterResult = previewResult.filter(item => item !== null);
+    const filterResult = previewResult.filter((item) => item !== null);
     this.fieldOriginValueList[fieldName].forEach((item, index) => {
       const maskingValue = filterResult[index] ?? '';
-      const origin = typeof item === 'object' ? JSON.stringify(item) : String(item);
+      const origin =
+        typeof item === 'object' ? JSON.stringify(item) : String(item);
       previewList[index] = {
-        origin,
         afterMasking: maskingValue,
+        origin,
       };
     });
     return previewList;
@@ -308,17 +315,19 @@ export default class FieldInfo extends tsc<IProps> {
     try {
       const res = await $http.request('masking/matchMaskingRule', {
         data: {
-          space_uid: this.spaceUid,
-          logs: this.jsonParseList,
           fields,
+          logs: this.jsonParseList,
+          space_uid: this.spaceUid,
         },
       });
       const matchRuleObj = res.data;
-      return maskingConfigs.map(item => ({
+      return maskingConfigs.map((item) => ({
         ...item,
-        previewRules: item.rules.filter(rItem => {
+        previewRules: item.rules.filter((rItem) => {
           if (!matchRuleObj[rItem.field_name]) return false;
-          const ruleIdList = matchRuleObj[rItem.field_name].map(item => item.rule_id);
+          const ruleIdList = matchRuleObj[rItem.field_name].map(
+            (item) => item.rule_id
+          );
           return ruleIdList.includes(rItem.rule_id);
         }),
       }));
@@ -339,21 +348,25 @@ export default class FieldInfo extends tsc<IProps> {
       name: 'collectField',
       params,
       query: {
-        spaceUid: this.$store.state.spaceUid,
         backRoute: 'manage-collection',
+        spaceUid: this.$store.state.spaceUid,
         type: 'fieldInfo',
       },
     });
   }
 
   getTimeZoneName(timeZone: string) {
-    const foundItem = this.globalsData.time_zone.find(item => item.id === timeZone);
+    const foundItem = this.globalsData.time_zone.find(
+      (item) => item.id === timeZone
+    );
     return foundItem ? foundItem.name : '';
   }
 
   render() {
     const nickNameSlot = {
-      default: ({ row }) => <span>{row.query_alias || row.field_alias || '--'}</span>,
+      default: ({ row }) => (
+        <span>{row.query_alias || row.field_alias || '--'}</span>
+      ),
     };
 
     const fieldNameSlot = {
@@ -361,11 +374,9 @@ export default class FieldInfo extends tsc<IProps> {
         return (
           <div>
             {row.field_name}
-            {row.metadata_type === 'path' || this.extra_labels?.includes(row.field_name) ? (
-              <bk-tag
-                radius='6px'
-                theme='info'
-              >
+            {row.metadata_type === 'path' ||
+            this.extra_labels?.includes(row.field_name) ? (
+              <bk-tag radius="6px" theme="info">
                 {this.$t('元数据')}
               </bk-tag>
             ) : (
@@ -373,9 +384,9 @@ export default class FieldInfo extends tsc<IProps> {
             )}
             {row.field_time_format ? (
               <bk-tag
+                radius="6px"
+                theme="success"
                 v-bk-tooltips={this.getTimeZoneName(row.field_time_zone)}
-                radius='6px'
-                theme='success'
               >
                 {this.$t('指定日志时间')}
               </bk-tag>
@@ -387,42 +398,36 @@ export default class FieldInfo extends tsc<IProps> {
       },
     };
 
-    const getMaskingPopover = row => {
+    const getMaskingPopover = (row) => {
       if (!row.desensitize_config?.length) return;
       return (
         <Popover
-          ext-cls='masking-tag'
+          ext-cls="masking-tag"
           tippy-options={{
             placement: 'top',
             theme: 'light',
           }}
         >
-          <span class='masking-tag-box'>{this.$t('已脱敏')}</span>
-          <div
-            class='masking-popover'
-            slot='content'
-          >
-            <div class='label-box'>
-              <div class='label'>{this.$t('脱敏算子')}:&nbsp;</div>
-              <div class='rule'>
-                {row.desensitize_config.map(item => (
+          <span class="masking-tag-box">{this.$t('已脱敏')}</span>
+          <div class="masking-popover" slot="content">
+            <div class="label-box">
+              <div class="label">{this.$t('脱敏算子')}:&nbsp;</div>
+              <div class="rule">
+                {row.desensitize_config.map((item) => (
                   <span>{this.getMaskingRuleStr(item)}</span>
                 ))}
               </div>
             </div>
-            <div class='label-box'>
-              <div class='label'>{this.$t('结果预览')}:&nbsp;</div>
-              <div class='rule'>
+            <div class="label-box">
+              <div class="label">{this.$t('结果预览')}:&nbsp;</div>
+              <div class="rule">
                 {row.preview.length
-                  ? row.preview.map(item => (
-                      <div class='preview-result'>
+                  ? row.preview.map((item) => (
+                      <div class="preview-result">
                         {/* 脱敏权限未实现 先不展示脱敏前的结果 */}
                         {/* <span class="old title-overflow" v-bk-overflow-tips>{item.origin}</span>
                       <i class="bk-icon icon-arrows-right"></i> */}
-                        <span
-                          class='result title-overflow'
-                          v-bk-overflow-tips
-                        >
+                        <span class="result title-overflow" v-bk-overflow-tips>
                           {item.afterMasking}
                         </span>
                       </div>
@@ -445,9 +450,14 @@ export default class FieldInfo extends tsc<IProps> {
           <div>
             {row.is_analyzed ? (
               <div>
-                <div>{row.tokenize_on_chars ? row.tokenize_on_chars : this.$t('默认分词符')}</div>
                 <div>
-                  {this.$t('大小写敏感')}: {row.is_case_sensitive ? this.$t('是') : this.$t('否')}
+                  {row.tokenize_on_chars
+                    ? row.tokenize_on_chars
+                    : this.$t('默认分词符')}
+                </div>
+                <div>
+                  {this.$t('大小写敏感')}:{' '}
+                  {row.is_case_sensitive ? this.$t('是') : this.$t('否')}
                 </div>
               </div>
             ) : (
@@ -459,14 +469,14 @@ export default class FieldInfo extends tsc<IProps> {
     };
 
     return (
-      <div class='field-info-table'>
+      <div class="field-info-table">
         {this.isShowEditBtn && (
-          <div class='edit-btn-container'>
+          <div class="edit-btn-container">
             <Button
-              style='min-width: 88px; color: #3a84ff'
-              v-cursor={{ active: !this.editAuth }}
-              theme='default'
               onClick={() => this.handleClickEdit()}
+              style="min-width: 88px; color: #3a84ff"
+              theme="default"
+              v-cursor={{ active: !this.editAuth }}
             >
               {this.$t('编辑')}
             </Button>
@@ -474,12 +484,12 @@ export default class FieldInfo extends tsc<IProps> {
         )}
 
         <Table
-          v-bkloading={{ isLoading: this.tableLoading }}
           data={this.tableShowList}
-          pagination={this.pagination}
-          size='small'
           on-page-change={this.pageChange}
           on-page-limit-change={this.pageLimitChange}
+          pagination={this.pagination}
+          size="small"
+          v-bkloading={{ isLoading: this.tableLoading }}
         >
           <TableColumn
             key={'field_name'}

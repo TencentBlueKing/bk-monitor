@@ -23,32 +23,31 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, defineComponent, PropType, ref } from 'vue';
-
 import useIntersectionObserver from '@/hooks/use-intersection-observer';
 import useLocale from '@/hooks/use-locale';
+import { computed, defineComponent, PropType, ref } from 'vue';
 
 import RetrieveHelper from '../../retrieve-helper';
 import ScrollTop from '../../retrieve-v2/components/scroll-top/index';
 import TextSegmentation from '../../retrieve-v2/components/text-segmentation/index';
 import useTextAction from '../../retrieve-v2/hooks/use-text-action';
-import { GrepRequestResult } from './types';
 
 import './grep-cli-result.scss';
+import { GrepRequestResult } from './types';
 
 export default defineComponent({
   name: 'CliResult',
+  emits: ['load-more', 'params-change'],
   props: {
-    grepRequestResult: {
-      type: Object as PropType<GrepRequestResult>,
-      default: () => ({}),
-    },
     fieldName: {
-      type: String,
       default: '',
+      type: String,
+    },
+    grepRequestResult: {
+      default: () => ({}),
+      type: Object as PropType<GrepRequestResult>,
     },
   },
-  emits: ['load-more', 'params-change'],
   setup(props, { emit }) {
     const refRootElement = ref<HTMLDivElement>();
     const refLoadMoreElement = ref<HTMLDivElement>();
@@ -60,7 +59,11 @@ export default defineComponent({
     useIntersectionObserver(
       () => refLoadMoreElement.value,
       (entry: IntersectionObserverEntry) => {
-        if (entry.isIntersecting && props.grepRequestResult?.list?.length && props.grepRequestResult?.has_more) {
+        if (
+          entry.isIntersecting &&
+          props.grepRequestResult?.list?.length &&
+          props.grepRequestResult?.has_more
+        ) {
           emit('load-more');
         }
       },
@@ -69,15 +72,15 @@ export default defineComponent({
       }
     );
 
-    const handleMenuClick = event => {
-      const { option, isLink } = event;
+    const handleMenuClick = (event) => {
+      const { isLink, option } = event;
       const isParamsChange = handleOperation(option.operation, {
-        value: option.value,
-        fieldName: option.fieldName,
-        operation: option.operation,
-        isLink,
         depth: option.depth,
         displayFieldNames: option.displayFieldNames,
+        fieldName: option.fieldName,
+        isLink,
+        operation: option.operation,
+        value: option.value,
       });
 
       emit('params-change', { isParamsChange, option });
@@ -88,30 +91,29 @@ export default defineComponent({
         return t('loading...'); // Loading message
       }
 
-      return props.fieldName ? props.grepRequestResult.exception_msg || t('检索结果为空') : '请选择字段';
+      return props.fieldName
+        ? props.grepRequestResult.exception_msg || t('检索结果为空')
+        : '请选择字段';
     };
 
     const getResultRender = () => {
       if (props.grepRequestResult.list.length === 0 || !props.fieldName) {
         return (
           <bk-exception
+            class="exception-wrap-item exception-part"
+            scene="part"
             style={{ minHeight: '300px', paddingTop: '100px' }}
-            class='exception-wrap-item exception-part'
-            scene='part'
-            type='search-empty'
+            type="search-empty"
           >
-            <span style='font-size: 12px;'>{getExceptionMessage()}</span>
+            <span style="font-size: 12px;">{getExceptionMessage()}</span>
           </bk-exception>
         );
       }
 
       return props.grepRequestResult.list.map((row, index) => (
-        <div
-          key={index}
-          class='cli-result-line'
-        >
-          <span class='cli-result-line-number'>{index + 1}</span>
-          <div class='cli-result-line-content-wrapper'>
+        <div class="cli-result-line" key={index}>
+          <span class="cli-result-line-number">{index + 1}</span>
+          <div class="cli-result-line-content-wrapper">
             <TextSegmentation
               content={row[props.fieldName] ?? ''}
               data={row}
@@ -125,19 +127,23 @@ export default defineComponent({
 
     return () => (
       <div
+        class="cli-result-container"
         id={RetrieveHelper.logRowsContainerId}
         ref={refRootElement}
-        class='cli-result-container'
       >
         {getResultRender()}
         <div
-          id='load_more_element'
+          class="cli-result-line"
+          id="load_more_element"
           ref={refLoadMoreElement}
-          style={{ minHeight: '32px', width: '100%', justifyContent: 'center' }}
-          class='cli-result-line'
+          style={{ justifyContent: 'center', minHeight: '32px', width: '100%' }}
         >
           {isLoadingValue.value && props.grepRequestResult.list.length > 0 && (
-            <div style={{ minHeight: '64px', fontSize: '12px', padding: '20px' }}>loading...</div>
+            <div
+              style={{ fontSize: '12px', minHeight: '64px', padding: '20px' }}
+            >
+              loading...
+            </div>
           )}
         </div>
         <ScrollTop></ScrollTop>

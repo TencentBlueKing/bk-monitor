@@ -26,11 +26,7 @@
 
 <template>
   <transition name="guide-fade">
-    <div
-      v-if="!isDone && stepList.length"
-      ref="wraper"
-      class="novice-guide"
-    >
+    <div v-if="!isDone && stepList.length" ref="wraper" class="novice-guide">
       <StepBox
         v-if="!isShowFinisheDialog && !isShowStopDialog"
         ref="tip"
@@ -38,31 +34,25 @@
         :tip-styles="tipStyles"
       >
         <template #title>
-          <div>{{ currentStep.title }}（{{ currentStepNum }}/{{ stepList.length }}）</div>
+          <div>
+            {{ currentStep.title }}（{{ currentStepNum }}/{{
+              stepList.length
+            }}）
+          </div>
         </template>
         <template #content>
           <div>{{ currentStep.content }}</div>
         </template>
         <template #action>
           <template v-if="!isLast">
-            <div
-              class="action-text"
-              @click="handleStepChange('stop')"
-            >
+            <div class="action-text" @click="handleStepChange('stop')">
               {{ $t('跳过') }}
             </div>
-            <div
-              class="action-btn"
-              @click="handleStepChange('next')"
-            >
+            <div class="action-btn" @click="handleStepChange('next')">
               {{ $t('下一步') }}
             </div>
           </template>
-          <div
-            v-else
-            class="action-btn"
-            @click="handleStepChange('finish')"
-          >
+          <div v-else class="action-btn" @click="handleStepChange('finish')">
             {{ $t('完成') }}
           </div>
         </template>
@@ -264,7 +254,7 @@ export default {
      * 清空所有步骤的激活状态
      */
     clearActive() {
-      document.body.querySelectorAll('.guide-highlight').forEach(el => {
+      document.body.querySelectorAll('.guide-highlight').forEach((el) => {
         el.classList.remove('guide-highlight');
       });
     },
@@ -344,14 +334,22 @@ export default {
      * 完成指引
      */
     handleStepChange(step) {
-      const curStep = ['stop', 'finish'].includes(step) ? this.stepList.length : this.currentStepIndex + 1;
+      const curStep = ['stop', 'finish'].includes(step)
+        ? this.stepList.length
+        : this.currentStepIndex + 1;
 
       this.$http
-        .request('meta/updateUserGuide', { data: { [this.guidePage]: curStep } })
-        .then(() => {
-          step === 'next' ? this.handleNext() : step === 'finish' ? this.handleFinish() : this.handleStop();
+        .request('meta/updateUserGuide', {
+          data: { [this.guidePage]: curStep },
         })
-        .catch(e => {
+        .then(() => {
+          step === 'next'
+            ? this.handleNext()
+            : step === 'finish'
+              ? this.handleFinish()
+              : this.handleStop();
+        })
+        .catch((e) => {
           console.warn(e);
         });
     },
@@ -360,111 +358,111 @@ export default {
 </script>
 
 <style lang="scss">
-  body {
-    *.guide-highlight {
-      /* stylelint-disable-next-line declaration-no-important */
-      z-index: 100001 !important;
+body {
+  *.guide-highlight {
+    /* stylelint-disable-next-line declaration-no-important */
+    z-index: 100001 !important;
 
-      /* stylelint-disable-next-line declaration-no-important */
-      pointer-events: none !important;
+    /* stylelint-disable-next-line declaration-no-important */
+    pointer-events: none !important;
+    background: #fff;
+
+    /* stylelint-disable-next-line declaration-no-important */
+    opacity: 1 !important;
+  }
+}
+
+.novice-guide {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 100000;
+  background: rgba(0, 0, 0, 0.6);
+
+  .guide-finished-box {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+
+    .wraper {
+      width: 400px;
+      height: 210px;
+      padding-top: 74px;
+      text-align: center;
       background: #fff;
+      border-radius: 2px;
 
-      /* stylelint-disable-next-line declaration-no-important */
-      opacity: 1 !important;
-    }
-  }
+      .flag {
+        position: absolute;
+        top: 0;
+        left: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 86px;
+        height: 86px;
+        font-size: 55px;
+        color: #fff;
+        background: #2dcb56;
+        border: 13px solid #dcffe2;
+        border-radius: 50%;
+        transform: translate(-50%, -27px);
 
-  .novice-guide {
-    position: fixed;
-    top: 0;
-    right: 0;
-    bottom: 0;
-    left: 0;
-    z-index: 100000;
-    background: rgba(0, 0, 0, 0.6);
-
-    .guide-finished-box {
-      position: absolute;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-
-      .wraper {
-        width: 400px;
-        height: 210px;
-        padding-top: 74px;
-        text-align: center;
-        background: #fff;
-        border-radius: 2px;
-
-        .flag {
+        &:after {
           position: absolute;
-          top: 0;
-          left: 50%;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          width: 86px;
-          height: 86px;
-          font-size: 55px;
-          color: #fff;
-          background: #2dcb56;
-          border: 13px solid #dcffe2;
-          border-radius: 50%;
-          transform: translate(-50%, -27px);
-
-          &:after {
-            position: absolute;
-            content: '';
-          }
-        }
-      }
-    }
-
-    .guide-stop-box {
-      position: absolute;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-
-      .wraper {
-        width: 500px;
-        height: 370px;
-        padding-top: 25px;
-        text-align: center;
-        background: #fff;
-        border-radius: 2px;
-
-        .cancal-btn {
-          position: absolute;
-          top: 5px;
-          right: 5px;
-          width: 26px;
-          height: 26px;
-          font-size: 22px;
-          font-weight: 700;
-          line-height: 26px;
-          color: #979ba5;
-          text-align: center;
-          cursor: pointer;
-          border-radius: 50%;
-
-          &:hover {
-            background-color: #f0f1f5;
-          }
+          content: '';
         }
       }
     }
   }
 
-  .guide-fade-leave-active {
-    transition:
-      visibility 0.15s linear,
-      opacity 0.1s linear;
-  }
+  .guide-stop-box {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
 
-  .guide-fade-leave-to {
-    visibility: hidden;
-    opacity: 0;
+    .wraper {
+      width: 500px;
+      height: 370px;
+      padding-top: 25px;
+      text-align: center;
+      background: #fff;
+      border-radius: 2px;
+
+      .cancal-btn {
+        position: absolute;
+        top: 5px;
+        right: 5px;
+        width: 26px;
+        height: 26px;
+        font-size: 22px;
+        font-weight: 700;
+        line-height: 26px;
+        color: #979ba5;
+        text-align: center;
+        cursor: pointer;
+        border-radius: 50%;
+
+        &:hover {
+          background-color: #f0f1f5;
+        }
+      }
+    }
   }
+}
+
+.guide-fade-leave-active {
+  transition:
+    visibility 0.15s linear,
+    opacity 0.1s linear;
+}
+
+.guide-fade-leave-to {
+  visibility: hidden;
+  opacity: 0;
+}
 </style>

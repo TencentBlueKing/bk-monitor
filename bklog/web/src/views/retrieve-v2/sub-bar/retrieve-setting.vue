@@ -19,20 +19,32 @@ const isExternal = computed(() => store.state.isExternal);
 // const spaceUid = computed(() => store.state.spaceUid);
 const indexSetId = computed(() => store.state.indexId);
 const indexSetItem = computed(() =>
-  store.state.retrieve.indexSetList.find(item => item.index_set_id === `${indexSetId.value}`)
+  store.state.retrieve.indexSetList.find(
+    (item) => item.index_set_id === `${indexSetId.value}`
+  )
 );
 const isPopoverShow = ref(false);
 const spaceUid = computed(() => {
   const indexSetList = store.state.retrieve.indexSetList;
   const indexSetId = route.params?.indexId;
-  const currentIndexSet = indexSetList.find(item => `${item.index_set_id}` == indexSetId);
+  const currentIndexSet = indexSetList.find(
+    (item) => `${item.index_set_id}` == indexSetId
+  );
   return currentIndexSet?.space_uid;
 });
 const isUnionSearch = computed(() => store.isUnionSearch);
-const isShowRetrieveSetting = computed(() => !isExternal.value && !isUnionSearch.value);
-const isShowMaskingTemplate = computed(() => store.getters.isShowMaskingTemplate);
-const clusterIsActive = computed(() => store.state.indexSetFieldConfig.clustering_config.is_active);
-const storeIsShowClusterStep = computed(() => store.state.storeIsShowClusterStep);
+const isShowRetrieveSetting = computed(
+  () => !isExternal.value && !isUnionSearch.value
+);
+const isShowMaskingTemplate = computed(
+  () => store.getters.isShowMaskingTemplate
+);
+const clusterIsActive = computed(
+  () => store.state.indexSetFieldConfig.clustering_config.is_active
+);
+const storeIsShowClusterStep = computed(
+  () => store.state.storeIsShowClusterStep
+);
 const bkBizId = computed(() => store.state.bkBizId);
 
 const isAiopsToggle = computed(() => {
@@ -46,7 +58,9 @@ const isAiopsToggle = computed(() => {
     case 'off':
       return false;
     default:
-      return aiopsBizList ? aiopsBizList.some(item => item.toString() === bkBizId.value) : false;
+      return aiopsBizList
+        ? aiopsBizList.some((item) => item.toString() === bkBizId.value)
+        : false;
   }
 });
 
@@ -84,10 +98,12 @@ const accessList = ref([
  * @desc: 初始化选择列表
  * @param {String} detailStr 当前索引集类型
  */
-const initJumpRouteList = detailStr => {
+const initJumpRouteList = (detailStr) => {
   if (!detailStr) return;
   if (!['log', 'es', 'bkdata', 'custom', 'setIndex'].includes(detailStr)) {
-    showSettingMenuList.value = isAiopsToggle.value ? settingMenuList.value : [];
+    showSettingMenuList.value = isAiopsToggle.value
+      ? settingMenuList.value
+      : [];
     return;
   }
   // 赋值详情路由的key
@@ -98,17 +114,22 @@ const initJumpRouteList = detailStr => {
   }
   // 日志脱敏的路由key
   maskingRouteKey.value = detailStr;
-  const isShowClusterSet = clusterIsActive.value || storeIsShowClusterStep.value;
+  const isShowClusterSet =
+    clusterIsActive.value || storeIsShowClusterStep.value;
   // 判断是否展示字段设置
   const filterMenuList = isAiopsToggle.value
-    ? settingMenuList.value.filter(item => (isShowClusterSet ? true : item.id !== 'clustering'))
+    ? settingMenuList.value.filter((item) =>
+        isShowClusterSet ? true : item.id !== 'clustering'
+      )
     : [];
-  const filterList = accessList.value.filter(item => (isShowMaskingTemplate.value ? true : item.id !== 'logMasking'));
+  const filterList = accessList.value.filter((item) =>
+    isShowMaskingTemplate.value ? true : item.id !== 'logMasking'
+  );
   // 合并其他
   showSettingMenuList.value = [...filterMenuList.concat(filterList)];
 };
 
-const setShowLiList = setItem => {
+const setShowLiList = (setItem) => {
   if (setItem?.scenario_id === 'log') {
     // 索引集类型为采集项或自定义上报
     if (setItem.collector_scenario_id === null) {
@@ -117,14 +138,16 @@ const setShowLiList = setItem => {
       return;
     }
     // 判断是否是自定义上报类型
-    initJumpRouteList(setItem.collector_scenario_id === 'custom' ? 'custom' : 'log');
+    initJumpRouteList(
+      setItem.collector_scenario_id === 'custom' ? 'custom' : 'log'
+    );
     return;
   }
   // 当scenario_id不为log（采集项，索引集，自定义上报）时，不显示字段设置
   initJumpRouteList(setItem?.scenario_id);
 };
 
-const handleMenuClick = val => {
+const handleMenuClick = (val) => {
   // 不属于新开页面的操作
   if (['index', 'extract', 'clustering'].includes(val)) {
     emit('update:is-show-cluster-setting', true);
@@ -152,7 +175,7 @@ const handleMenuClick = val => {
   window.open(href, '_blank');
 };
 
-const handlePopShow = val => {
+const handlePopShow = (val) => {
   isPopoverShow.value = val;
   return true;
 };
@@ -181,19 +204,13 @@ watch(
     trigger="click"
   >
     <slot name="trigger">
-      <div
-        ref="refTrigger"
-        class="more-operation"
-      >
+      <div ref="refTrigger" class="more-operation">
         <span class="bklog-icon bklog-setting-line"></span>{{ $t('全局设置') }}
       </div>
     </slot>
     <template #content>
       <div class="retrieve-setting-container">
-        <ul
-          ref="menu"
-          class="list-menu"
-        >
+        <ul ref="menu" class="list-menu">
           <li
             v-for="menu in showSettingMenuList"
             class="list-menu-item"
@@ -209,14 +226,14 @@ watch(
 </template>
 
 <style lang="scss">
-  .more-operation {
-    display: flex;
-    align-items: center;
-    justify-content: center;
+.more-operation {
+  display: flex;
+  align-items: center;
+  justify-content: center;
 
-    span {
-      margin: 0 6px 0 0;
-      font-size: 14px;
-    }
+  span {
+    margin: 0 6px 0 0;
+    font-size: 14px;
   }
+}
 </style>

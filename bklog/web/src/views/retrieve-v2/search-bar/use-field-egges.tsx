@@ -23,10 +23,9 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { ref } from 'vue';
-
 import useStore from '@/hooks/use-store';
 import { ConditionOperator } from '@/store/condition-operator';
+import { ref } from 'vue';
 
 export default () => {
   const store = useStore();
@@ -35,18 +34,20 @@ export default () => {
   const isRequesting = ref(false);
   const taskPool = [];
 
-  const setIsRequesting = val => {
+  const setIsRequesting = (val) => {
     isRequesting.value = val;
   };
 
-  const isValidateEgges = field => {
+  const isValidateEgges = (field) => {
     return ['keyword'].includes(field.field_type);
   };
 
   const requestFieldEgges = (field, value?, callback?, finallyFn?) => {
     if (
-      taskPool.some(task => {
-        return task.fields[0] === field && task.query_value === value && task.pending;
+      taskPool.some((task) => {
+        return (
+          task.fields[0] === field && task.query_value === value && task.pending
+        );
       })
     ) {
       setIsRequesting(false);
@@ -72,38 +73,47 @@ export default () => {
       setIsRequesting(true);
 
       const addition = value
-        ? [{ field: field.field_name, operator: '=~', value: getConditionValue() }].map(val => {
+        ? [
+            {
+              field: field.field_name,
+              operator: '=~',
+              value: getConditionValue(),
+            },
+          ].map((val) => {
             const instance = new ConditionOperator(val);
             return instance.getRequestParam();
           })
         : [];
 
       const taskArgs = {
-        fields: [field],
         addition,
-        force: true,
-        size,
-        pending: true,
-        index: taskPool.length,
-        commit: false,
         cancelToken: true,
+        commit: false,
+        fields: [field],
+        force: true,
+        index: taskPool.length,
+        pending: true,
         query_value: value,
+        size,
       };
 
-      taskPool.forEach(task => {
+      taskPool.forEach((task) => {
         task.pending = false;
       });
 
       taskPool.push(taskArgs);
       store
         .dispatch('requestIndexSetValueList', taskArgs)
-        .then(resp => {
+        .then((resp) => {
           if (taskArgs.pending) {
-            store.commit('updateIndexFieldEggsItems', resp.data?.aggs_items ?? {});
+            store.commit(
+              'updateIndexFieldEggsItems',
+              resp.data?.aggs_items ?? {}
+            );
             callback?.(resp);
           }
         })
-        .catch(err => {
+        .catch((err) => {
           if (err.code === 'ERR_CANCELED') {
             console.log('取消请求');
           }
@@ -112,12 +122,12 @@ export default () => {
           if (taskArgs.pending) {
             setIsRequesting(false);
           }
-          const index = taskPool.findIndex(t => t === taskArgs);
+          const index = taskPool.findIndex((t) => t === taskArgs);
           taskPool.splice(index, 1);
           finallyFn?.();
         });
     }, 300);
   };
 
-  return { requestFieldEgges, isValidateEgges, isRequesting, setIsRequesting };
+  return { isRequesting, isValidateEgges, requestFieldEgges, setIsRequesting };
 };

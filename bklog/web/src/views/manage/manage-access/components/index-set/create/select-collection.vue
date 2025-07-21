@@ -34,54 +34,51 @@
     :width="680"
     header-position="left"
   >
-    <div
-      class="slot-container"
-      v-bkloading="{ isLoading: basicLoading }"
-    >
+    <div class="slot-container" v-bkloading="{ isLoading: basicLoading }">
       <bk-form
         ref="formRef"
         :label-width="100"
         :model="formData"
         :rules="formRules"
       >
-        <bk-form-item
-          :label="$t('索引')"
-          property="resultTableId"
-          required
-        >
+        <bk-form-item :label="$t('索引')" property="resultTableId" required>
           <bk-select
             v-model="formData.resultTableId"
             :clearable="false"
             data-test-id="addIndex_select_selectIndex"
             searchable
-            @selected="val => handleCollectionSelected(val)"
+            @selected="(val) => handleCollectionSelected(val)"
           >
             <bk-option
               v-for="item in getShowCollectionList"
               class="custom-no-padding-option"
-              :disabled="parentData.indexes.some(selectedItem => item.result_table_id === selectedItem.result_table_id)"
+              :disabled="
+                parentData.indexes.some(
+                  (selectedItem) =>
+                    item.result_table_id === selectedItem.result_table_id
+                )
+              "
               :id="item.result_table_id"
               :key="item.result_table_id"
               :name="`${item.result_table_name_alias}(${item.result_table_id})`"
             >
               <div
                 v-if="
-                  scenarioId === 'log' && !(item.permission && item.permission[authorityMap.MANAGE_COLLECTION_AUTH])
+                  scenarioId === 'log' &&
+                  !(
+                    item.permission &&
+                    item.permission[authorityMap.MANAGE_COLLECTION_AUTH]
+                  )
                 "
                 class="option-slot-container no-authority"
                 @click.stop
               >
                 <span class="text">{{ item.result_table_name_alias }}</span>
-                <span
-                  class="apply-text"
-                  @click="applyCollectorAccess(item)"
-                  >{{ $t('申请权限') }}</span
-                >
+                <span class="apply-text" @click="applyCollectorAccess(item)">{{
+                  $t('申请权限')
+                }}</span>
               </div>
-              <div
-                v-else
-                class="option-slot-container"
-              >
+              <div v-else class="option-slot-container">
                 {{ item.result_table_name_alias }}
               </div>
             </bk-option>
@@ -99,11 +96,9 @@
               prop="field_name"
             >
               <template #default="props">
-                <span
-                  class="overflow-tips"
-                  v-bk-overflow-tips
-                  >{{ props.row.field_name }}</span
-                >
+                <span class="overflow-tips" v-bk-overflow-tips>{{
+                  props.row.field_name
+                }}</span>
               </template>
             </bk-table-column>
             <bk-table-column
@@ -112,11 +107,9 @@
               prop="field_type"
             >
               <template #default="props">
-                <span
-                  class="overflow-tips"
-                  v-bk-overflow-tips
-                  >{{ props.row.field_type }}</span
-                >
+                <span class="overflow-tips" v-bk-overflow-tips>{{
+                  props.row.field_type
+                }}</span>
               </template>
             </bk-table-column>
             <template #empty>
@@ -127,10 +120,7 @@
           </bk-table>
         </bk-form-item>
       </bk-form>
-      <div
-        class="button-footer"
-        slot="footer"
-      >
+      <div class="button-footer" slot="footer">
         <bk-button
           class="king-button"
           :loading="confirmLoading"
@@ -140,11 +130,9 @@
         >
           {{ $t('添加') }}
         </bk-button>
-        <bk-button
-          class="king-button"
-          @click="handleCancel"
-          >{{ $t('取消') }}</bk-button
-        >
+        <bk-button class="king-button" @click="handleCancel">{{
+          $t('取消')
+        }}</bk-button>
       </div>
     </div>
   </bk-dialog>
@@ -196,7 +184,10 @@ export default {
     },
     getShowCollectionList() {
       if (this.parentData.storage_cluster_id && this.scenarioId === 'log') {
-        return this.collectionList.filter(item => item.storage_cluster_id === this.parentData.storage_cluster_id);
+        return this.collectionList.filter(
+          (item) =>
+            item.storage_cluster_id === this.parentData.storage_cluster_id
+        );
       }
       return this.collectionList;
     },
@@ -228,7 +219,7 @@ export default {
             bk_biz_id: this.bkBizId,
           },
         });
-        this.collectionList = res.data.map(item => {
+        this.collectionList = res.data.map((item) => {
           // 后端要传这个值，虽然不太合理
           item.bk_biz_id = this.bkBizId;
           return item;
@@ -292,7 +283,7 @@ export default {
         this.confirmLoading = true;
         const data = {
           scenario_id: this.scenarioId,
-          basic_indices: this.parentData.indexes.map(item => ({
+          basic_indices: this.parentData.indexes.map((item) => ({
             index: item.result_table_id,
           })),
           append_index: {
@@ -302,7 +293,9 @@ export default {
         await this.$http.request('/resultTables/adapt', { data });
         this.$emit(
           'selected',
-          this.collectionList.find(item => item.result_table_id === this.formData.resultTableId)
+          this.collectionList.find(
+            (item) => item.result_table_id === this.formData.resultTableId
+          )
         );
         this.showDialog = false;
       } catch (e) {
@@ -319,33 +312,33 @@ export default {
 </script>
 
 <style scoped lang="scss">
-  @import '@/scss/mixins/overflow-tips.scss';
+@import '@/scss/mixins/overflow-tips.scss';
 
-  .slot-container {
-    min-height: 363px;
-    padding-right: 40px;
+.slot-container {
+  min-height: 363px;
+  padding-right: 40px;
 
-    :deep(.bk-form) {
-      .bk-label {
-        text-align: left;
-      }
+  :deep(.bk-form) {
+    .bk-label {
+      text-align: left;
     }
   }
+}
 
-  .button-footer {
-    margin-top: 20px;
-    text-align: right;
+.button-footer {
+  margin-top: 20px;
+  text-align: right;
 
-    .king-button {
-      width: 86px;
+  .king-button {
+    width: 86px;
 
-      &:first-child {
-        margin-right: 8px;
-      }
+    &:first-child {
+      margin-right: 8px;
     }
   }
+}
 
-  .overflow-tips {
-    @include overflow-tips;
-  }
+.overflow-tips {
+  @include overflow-tips;
+}
 </style>

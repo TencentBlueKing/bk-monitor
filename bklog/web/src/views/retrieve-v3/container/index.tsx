@@ -25,11 +25,12 @@
  */
 
 import { defineComponent } from 'vue';
+
 import './index.scss';
 
 export default defineComponent({
-  name: 'v3-container',
+  name: 'V3Container',
   setup(_, { slots }) {
-    return () => <div class='v3-bklog-container'>{slots.default?.()}</div>;
+    return () => <div class="v3-bklog-container">{slots.default?.()}</div>;
   },
 });

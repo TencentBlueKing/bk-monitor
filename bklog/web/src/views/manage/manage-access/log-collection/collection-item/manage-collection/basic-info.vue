@@ -25,16 +25,9 @@
 -->
 
 <template>
-  <div
-    class="basic-info-container"
-    v-bkloading="{ isLoading: basicLoading }"
-  >
+  <div class="basic-info-container" v-bkloading="{ isLoading: basicLoading }">
     <div>
-      <div
-        v-if="!isContainer"
-        class="deploy-sub"
-        v-en-class="'en-deploy'"
-      >
+      <div v-if="!isContainer" class="deploy-sub" v-en-class="'en-deploy'">
         <!-- 数据ID -->
         <div>
           <span>{{ $t('数据ID') }}</span>
@@ -49,10 +42,7 @@
               :class="['mask-content', { 'btn-loading': tokenLoading }]"
             >
               <span class="placeholder">●●●●●●●●●●</span>
-              <span
-                v-if="tokenLoading"
-                class="loading"
-              ></span>
+              <span v-if="tokenLoading" class="loading"></span>
               <bk-button
                 class="view-btn"
                 v-cursor="{ active: !editAuth }"
@@ -62,11 +52,10 @@
                 >{{ tokenLoading ? '' : $t('点击查看') }}</bk-button
               >
             </span>
-            <span
-              v-else
-              class="password-content"
-            >
-              <span :class="{ placeholder: true, 'password-value': !showPassword }">
+            <span v-else class="password-content">
+              <span
+                :class="{ placeholder: true, 'password-value': !showPassword }"
+              >
                 {{ showPassword ? tokenStr || '-' : '********' }}
               </span>
               <span class="operate-box">
@@ -123,21 +112,12 @@
             <span>
               {{ isWinEventLog ? $t('日志种类') : $t('日志路径') }}
             </span>
-            <div
-              v-if="params.paths"
-              class="deploy-path"
-            >
-              <p
-                v-for="(val, key) in params.paths"
-                :key="key"
-              >
+            <div v-if="params.paths" class="deploy-path">
+              <p v-for="(val, key) in params.paths" :key="key">
                 {{ val }}
               </p>
             </div>
-            <div
-              v-else
-              class="deploy-path"
-            >
+            <div v-else class="deploy-path">
               <p>{{ getLogSpeciesStr }}</p>
             </div>
           </div>
@@ -151,20 +131,24 @@
             <span>{{ $t('采集目标') }}</span>
             <span>
               <i18n path="已选择 {0} 个{1}">
-                <p
-                  class="num-color"
-                  @click="handleClickTarget"
-                >
+                <p class="num-color" @click="handleClickTarget">
                   {{ collectorData.target_nodes.length || '-' }}
                 </p>
-                {{ collectorData.target_node_type !== 'INSTANCE' ? $t('节点') : $t('静态主机') }}
+                {{
+                  collectorData.target_node_type !== 'INSTANCE'
+                    ? $t('节点')
+                    : $t('静态主机')
+                }}
               </i18n>
             </span>
           </div>
           <!-- 存储索引名 -->
           <div>
             <span>{{ $t('索引名') }}</span>
-            <span v-if="collectorData.table_id">{{ collectorData.table_id_prefix }}{{ collectorData.table_id }}</span>
+            <span v-if="collectorData.table_id"
+              >{{ collectorData.table_id_prefix
+              }}{{ collectorData.table_id }}</span
+            >
             <span v-else>-</span>
           </div>
           <!-- 备注说明 -->
@@ -178,7 +162,8 @@
               <span>{{ $t('段日志参数') }}</span>
               <div class="section-box">
                 <p>
-                  {{ $t('行首正则') }}: <span>{{ params.multiline_pattern }}</span>
+                  {{ $t('行首正则') }}:
+                  <span>{{ params.multiline_pattern }}</span>
                 </p>
                 <br />
                 <p>
@@ -197,20 +182,18 @@
             <span>{{ $t('过滤内容') }}</span>
             <div>--</div>
           </div>
-          <div
-            v-else-if="isNotWinAndHaveFilter"
-            class="content-style"
-          >
+          <div v-else-if="isNotWinAndHaveFilter" class="content-style">
             <span>{{ $t('过滤内容') }}</span>
             <div>
               <p>{{ isMatchType ? $t('字符串过滤') : $t('分隔符匹配') }}</p>
-              <p v-if="!isMatchType && conditions.separator">{{ conditions.separator }}</p>
+              <p v-if="!isMatchType && conditions.separator">
+                {{ conditions.separator }}
+              </p>
               <div class="condition-stylex">
-                <div
-                  v-for="(fItem, fIndex) in filterGroup"
-                  :key="fIndex"
-                >
-                  <span class="title">{{ $t('第{n}组', { n: fIndex + 1 }) }}</span>
+                <div v-for="(fItem, fIndex) in filterGroup" :key="fIndex">
+                  <span class="title">{{
+                    $t('第{n}组', { n: fIndex + 1 })
+                  }}</span>
                   <div class="column-box">
                     <div class="item-box">
                       <div
@@ -226,13 +209,12 @@
                       :key="index"
                       class="item-box"
                     >
-                      <div
-                        v-if="!isMatchType"
-                        class="item the-column"
-                      >
+                      <div v-if="!isMatchType" class="item the-column">
                         {{ $t('第{n}列', { n: item.fieldindex }) }}
                       </div>
-                      <div class="item the-column">{{ showOperatorObj[item.op] }}</div>
+                      <div class="item the-column">
+                        {{ showOperatorObj[item.op] }}
+                      </div>
                       <p
                         class="value the-column"
                         @mouseenter="handleEnter"
@@ -275,7 +257,9 @@
         <!-- 存储索引名 -->
         <div>
           <span>{{ $t('索引名') }}</span>
-          <span>{{ collectorData.table_id_prefix + collectorData.table_id || '-' }}</span>
+          <span>{{
+            collectorData.table_id_prefix + collectorData.table_id || '-'
+          }}</span>
         </div>
         <!-- 过期时间 -->
         <div>
@@ -303,10 +287,7 @@
         <bk-button class="bklog-icon bklog-lishijilu"></bk-button>
         <template #content>
           <div class="create-name-and-time">
-            <div
-              v-for="item in createAndTimeData"
-              :key="item.key"
-            >
+            <div v-for="item in createAndTimeData" :key="item.key">
               <span>{{ item.label }}</span>
               <span>{{ item.value }}</span>
             </div>
@@ -319,7 +300,10 @@
 
 <script>
 import { utcFormatDate, copyMessage } from '@/common/util';
-import { operatorMappingObj, operatorMapping } from '@/components/collection-access/components/log-filter/type';
+import {
+  operatorMappingObj,
+  operatorMapping,
+} from '@/components/collection-access/components/log-filter/type';
 import { mapState } from 'vuex';
 
 import containerBase from './components/container-base';
@@ -370,7 +354,9 @@ export default {
       return this.params.winlog_name?.join(',') || '';
     },
     isHaveEventValue() {
-      return this.params.winlog_event_id.length || this.params.winlog_level.length;
+      return (
+        this.params.winlog_event_id.length || this.params.winlog_level.length
+      );
     },
     isContainer() {
       return this.collectorData.environment === 'container';
@@ -402,7 +388,11 @@ export default {
     showOperatorObj() {
       return Object.keys(operatorMappingObj).reduce((pre, acc) => {
         let newKey = acc;
-        if ((this.isMatchType && acc === 'include') || (!this.isMatchType && acc === 'eq')) newKey = '=';
+        if (
+          (this.isMatchType && acc === 'include') ||
+          (!this.isMatchType && acc === 'eq')
+        )
+          newKey = '=';
         pre[newKey] = operatorMappingObj[acc];
         return pre;
       }, {});
@@ -436,7 +426,7 @@ export default {
             label: this.$t('创建时间'),
           },
         ];
-        this.createAndTimeData = createAndTimeData.map(item => {
+        this.createAndTimeData = createAndTimeData.map((item) => {
           if (item.key === 'created_at' || item.key === 'updated_at') {
             item.value = utcFormatDate(collectorData[item.key]);
           } else {
@@ -474,7 +464,9 @@ export default {
       }
       const params = {};
       params.collectorId = this.$route.params.collectorId;
-      const routeName = this.isCustomReport ? 'custom-report-edit' : 'collectEdit';
+      const routeName = this.isCustomReport
+        ? 'custom-report-edit'
+        : 'collectEdit';
       this.$router.push({
         name: routeName,
         params,
@@ -520,7 +512,10 @@ export default {
         };
         currentGroup.push(mappingFilter);
         // 检查下一个 filter
-        if (filters[index + 1]?.logic_op === 'or' || index === filters.length - 1) {
+        if (
+          filters[index + 1]?.logic_op === 'or' ||
+          index === filters.length - 1
+        ) {
           groups.push(currentGroup);
           currentGroup = [];
         }
@@ -535,183 +530,183 @@ export default {
 </script>
 
 <style lang="scss" scoped>
-  @import '@/scss/basic.scss';
-  @import '@/scss/mixins/flex.scss';
+@import '@/scss/basic.scss';
+@import '@/scss/mixins/flex.scss';
 
-  /* stylelint-disable no-descending-specificity */
-  .basic-info-container {
+/* stylelint-disable no-descending-specificity */
+.basic-info-container {
+  display: flex;
+  justify-content: space-between;
+
+  .en-deploy > div {
+    > span:nth-child(1) {
+      /* stylelint-disable-next-line declaration-no-important */
+      width: 110px !important;
+    }
+  }
+
+  .deploy-sub > div {
     display: flex;
-    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 33px;
 
-    .en-deploy > div {
-      > span:nth-child(1) {
-        /* stylelint-disable-next-line declaration-no-important */
-        width: 110px !important;
-      }
+    > span:nth-child(1) {
+      display: block;
+      width: 98px;
+      font-size: 14px;
+      color: #979ba5;
+      text-align: right;
     }
 
-    .deploy-sub > div {
-      display: flex;
-      align-items: center;
-      margin-bottom: 33px;
-
-      > span:nth-child(1) {
-        display: block;
-        width: 98px;
-        font-size: 14px;
-        color: #979ba5;
-        text-align: right;
-      }
-
-      > span:nth-child(2) {
-        margin-left: 24px;
-        font-size: 14px;
-        color: #63656e;
-      }
-
-      .deploy-path {
-        margin-left: 24px;
-        font-size: 14px;
-        line-height: 22px;
-        color: #63656e;
-      }
-
-      .num-color {
-        display: inline-block;
-        padding: 0;
-        font-weight: bold;
-
-        /* stylelint-disable-next-line declaration-no-important */
-        color: #4e99ff !important;
-        cursor: pointer;
-      }
-    }
-
-    .content-style {
-      display: flex;
-      align-items: flex-start;
-
-      .win-log {
-        display: flex;
-        flex-direction: column;
-        justify-content: space-between;
-        height: 60px;
-      }
-
-      .section-box {
-        > :last-child {
-          margin-top: 4px;
-        }
-
-        span {
-          /* stylelint-disable-next-line declaration-no-important */
-          display: inline !important;
-        }
-      }
-
-      > div {
-        margin-left: 24px;
-        font-size: 14px;
-
-        p {
-          display: inline-block;
-          height: 20px;
-          padding: 0 5px;
-          margin-right: 2px;
-          line-height: 20px;
-          color: #63656e;
-          text-align: center;
-          background-color: #f0f1f5;
-          border-radius: 2px;
-        }
-      }
-    }
-
-    .create-name-and-time {
-      border-top: 1px solid #dcdee5;
-      border-radius: 2px;
-
-      div {
-        width: 260px;
-        height: 40px;
-        line-height: 40px;
-        border-right: 1px solid #dcdee5;
-        border-bottom: 1px solid #dcdee5;
-        border-left: 1px solid #dcdee5;
-
-        span:nth-child(1) {
-          display: inline-block;
-          width: 48px;
-          margin-left: 14px;
-          font-size: 12px;
-          color: #313238;
-        }
-
-        span:nth-child(2) {
-          margin-left: 22px;
-          font-size: 12px;
-          color: #63656e;
-        }
-      }
-    }
-
-    .token-view {
-      margin: -2px 0 0 24px;
+    > span:nth-child(2) {
+      margin-left: 24px;
+      font-size: 14px;
       color: #63656e;
+    }
 
-      .mask-content {
-        .view-btn {
-          margin-left: 8px;
-          font-size: 12px;
-          color: #3a84ff;
-          cursor: pointer;
-        }
+    .deploy-path {
+      margin-left: 24px;
+      font-size: 14px;
+      line-height: 22px;
+      color: #63656e;
+    }
 
-        &.btn-loading {
-          color: #c4c6cc;
-          cursor: not-allowed;
+    .num-color {
+      display: inline-block;
+      padding: 0;
+      font-weight: bold;
 
-          .view-btn {
-            color: #c4c6cc;
-          }
-        }
+      /* stylelint-disable-next-line declaration-no-important */
+      color: #4e99ff !important;
+      cursor: pointer;
+    }
+  }
+
+  .content-style {
+    display: flex;
+    align-items: flex-start;
+
+    .win-log {
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      height: 60px;
+    }
+
+    .section-box {
+      > :last-child {
+        margin-top: 4px;
       }
 
-      .password-content {
-        height: 24px;
-        font-size: 14px;
+      span {
+        /* stylelint-disable-next-line declaration-no-important */
+        display: inline !important;
+      }
+    }
 
-        @include flex-align;
+    > div {
+      margin-left: 24px;
+      font-size: 14px;
 
-        .toggle-icon {
-          margin-left: 8px;
-          cursor: pointer;
-        }
-
-        .operate-box {
-          position: relative;
-          top: -2px;
-          display: inline-block;
-          margin-left: 36px;
-
-          .bklog-copy-2,
-          .icon-eye-slash {
-            cursor: pointer;
-
-            &:hover {
-              color: #3a84ff;
-            }
-          }
-        }
-
-        // .icon-eye-slash {
-        //   margin-left: 36px;
-        // }
-
-        .password-value {
-          padding-top: 6px;
-        }
+      p {
+        display: inline-block;
+        height: 20px;
+        padding: 0 5px;
+        margin-right: 2px;
+        line-height: 20px;
+        color: #63656e;
+        text-align: center;
+        background-color: #f0f1f5;
+        border-radius: 2px;
       }
     }
   }
+
+  .create-name-and-time {
+    border-top: 1px solid #dcdee5;
+    border-radius: 2px;
+
+    div {
+      width: 260px;
+      height: 40px;
+      line-height: 40px;
+      border-right: 1px solid #dcdee5;
+      border-bottom: 1px solid #dcdee5;
+      border-left: 1px solid #dcdee5;
+
+      span:nth-child(1) {
+        display: inline-block;
+        width: 48px;
+        margin-left: 14px;
+        font-size: 12px;
+        color: #313238;
+      }
+
+      span:nth-child(2) {
+        margin-left: 22px;
+        font-size: 12px;
+        color: #63656e;
+      }
+    }
+  }
+
+  .token-view {
+    margin: -2px 0 0 24px;
+    color: #63656e;
+
+    .mask-content {
+      .view-btn {
+        margin-left: 8px;
+        font-size: 12px;
+        color: #3a84ff;
+        cursor: pointer;
+      }
+
+      &.btn-loading {
+        color: #c4c6cc;
+        cursor: not-allowed;
+
+        .view-btn {
+          color: #c4c6cc;
+        }
+      }
+    }
+
+    .password-content {
+      height: 24px;
+      font-size: 14px;
+
+      @include flex-align;
+
+      .toggle-icon {
+        margin-left: 8px;
+        cursor: pointer;
+      }
+
+      .operate-box {
+        position: relative;
+        top: -2px;
+        display: inline-block;
+        margin-left: 36px;
+
+        .bklog-copy-2,
+        .icon-eye-slash {
+          cursor: pointer;
+
+          &:hover {
+            color: #3a84ff;
+          }
+        }
+      }
+
+      // .icon-eye-slash {
+      //   margin-left: 36px;
+      // }
+
+      .password-value {
+        padding-top: 6px;
+      }
+    }
+  }
+}
 </style>

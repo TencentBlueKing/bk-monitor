@@ -26,10 +26,7 @@
 
 <template>
   <!-- 设置-日志聚类 -->
-  <div
-    class="setting-log-cluster"
-    v-bkloading="{ isLoading: globalLoading }"
-  >
+  <div class="setting-log-cluster" v-bkloading="{ isLoading: globalLoading }">
     <bk-form
       ref="validateForm"
       :label-width="200"
@@ -61,7 +58,9 @@
           </bk-select>
           <span
             v-bk-tooltips="{
-              content: $t('只能基于一个字段进行聚类，并且字段是为text的分词类型，默认为log字段'),
+              content: $t(
+                '只能基于一个字段进行聚类，并且字段是为text的分词类型，默认为log字段'
+              ),
               placements: ['right'],
               delay: 300,
             }"
@@ -75,7 +74,9 @@
           <div @click="handleChangeFinger">
             <span
               class="top-middle"
-              v-bk-tooltips="$t('暂时未开放聚类关闭功能，如有关闭需求，可联系平台管理员')"
+              v-bk-tooltips="
+                $t('暂时未开放聚类关闭功能，如有关闭需求，可联系平台管理员')
+              "
               :disabled="!isShowFingerTips"
             >
               <bk-switcher
@@ -115,7 +116,9 @@
             <span style="margin-left: 8px">{{ $t('字节') }}</span>
             <span
               v-bk-tooltips="{
-                content: $t('聚类字段的最大长度，如果超过这个长度将直接丢弃，设置越大将消耗更多的资源'),
+                content: $t(
+                  '聚类字段的最大长度，如果超过这个长度将直接丢弃，设置越大将消耗更多的资源'
+                ),
                 placements: ['right'],
                 delay: 300,
               }"
@@ -180,7 +183,9 @@
     >
       <div class="submit-dialog-container">
         <p class="submit-dialog-title">{{ $t('保存待生效') }}</p>
-        <p class="submit-dialog-text">{{ $t('该保存需要10分钟生效, 请耐心等待') }}</p>
+        <p class="submit-dialog-text">
+          {{ $t('该保存需要10分钟生效, 请耐心等待') }}
+        </p>
         <bk-button
           class="submit-dialog-btn"
           theme="primary"
@@ -284,13 +289,18 @@ export default {
       this.globalLoading = true;
       try {
         const params = {
-          index_set_id: window.__IS_MONITOR_COMPONENT__ ? this.$route.query.indexId : this.$route.params.indexId,
+          index_set_id: window.__IS_MONITOR_COMPONENT__
+            ? this.$route.query.indexId
+            : this.$route.params.indexId,
         };
         const data = { collector_config_id: this.configID };
         const baseUrl = '/logClustering';
         const requestBehindUrl = isDefault ? '/getDefaultConfig' : '/getConfig';
         const requestUrl = `${baseUrl}${requestBehindUrl}`;
-        const res = await this.$http.request(requestUrl, !isDefault && { params, data });
+        const res = await this.$http.request(
+          requestUrl,
+          !isDefault && { params, data }
+        );
         const {
           max_dist_list,
           predefined_varibles,
@@ -300,8 +310,10 @@ export default {
           regex_rule_type,
           regex_template_id,
         } = res.data;
-        const newFilterRules = filterRules.map(item => ({
-          ...(this.totalFields.find(tItem => tItem.field_name === item.fields_name) ?? {}),
+        const newFilterRules = filterRules.map((item) => ({
+          ...(this.totalFields.find(
+            (tItem) => tItem.field_name === item.fields_name
+          ) ?? {}),
           ...item,
           value: Array.isArray(item.value) ? [...item.value] : [item.value],
         }));
@@ -319,7 +331,9 @@ export default {
         Object.assign(this.defaultData, assignObj);
         if (isInit) this.$refs.ruleTableRef.initSelect(assignObj);
         // 当前回填的字段如果在聚类字段列表里找不到则赋值为空需要用户重新赋值
-        const isHaveFieldsItem = this.clusterField.find(item => item.id === res.data.clustering_fields);
+        const isHaveFieldsItem = this.clusterField.find(
+          (item) => item.id === res.data.clustering_fields
+        );
         if (!isHaveFieldsItem) this.formData.clustering_fields = '';
       } catch (e) {
         console.warn(e);
@@ -331,11 +345,13 @@ export default {
       this.fingerSwitch = true;
       this.isShowFingerTips = true;
       this.isActive = this.configData.is_active;
-      this.configID = this.$store.state.indexSetFieldConfig.clean_config?.extra.collector_config_id;
-      this.formData.clustering_fields = this.configData?.extra.clustering_fields;
+      this.configID =
+        this.$store.state.indexSetFieldConfig.clean_config?.extra.collector_config_id;
+      this.formData.clustering_fields =
+        this.configData?.extra.clustering_fields;
       this.clusterField = this.totalFields
-        .filter(item => item.is_analyzed)
-        .map(el => {
+        .filter((item) => item.is_analyzed)
+        .map((el) => {
           const { field_name: id, field_alias: alias } = el;
           return { id, name: alias ? `${id}(${alias})` : id };
         });
@@ -378,11 +394,13 @@ export default {
       return this.$refs.ruleTableRef.ruleArrToBase64() !== this.defaultVaribles;
     },
     async handleSubmit() {
-      const isRulePass = await this.$refs.filterRuleRef.handleCheckRuleValidate();
+      const isRulePass =
+        await this.$refs.filterRuleRef.handleCheckRuleValidate();
       if (!isRulePass) return;
       this.$refs.validateForm.validate().then(
         () => {
-          const newPredefinedVaribles = this.$refs.ruleTableRef.ruleArrToBase64();
+          const newPredefinedVaribles =
+            this.$refs.ruleTableRef.ruleArrToBase64();
           if (newPredefinedVaribles !== this.defaultVaribles) {
             this.$refs.ruleTableRef.isClickAlertIcon = true;
             this.$refs.ruleTableRef.isChangeRule = true;
@@ -398,8 +416,14 @@ export default {
     handleSubmitClusterChange() {
       this.isHandle = true;
       const { index_set_id, bk_biz_id } = this.indexSetItem;
-      const { max_dist_list, delimeter, max_log_length, is_case_sensitive, clustering_fields, filter_rules } =
-        this.formData;
+      const {
+        max_dist_list,
+        delimeter,
+        max_log_length,
+        is_case_sensitive,
+        clustering_fields,
+        filter_rules,
+      } = this.formData;
       const paramsData = {
         max_dist_list,
         predefined_varibles: this.$refs.ruleTableRef.ruleArrToBase64(),
@@ -408,8 +432,8 @@ export default {
         is_case_sensitive,
         clustering_fields,
         filter_rules: filter_rules
-          .filter(item => item.value.length)
-          .map(item => ({
+          .filter((item) => item.value.length)
+          .map((item) => ({
             fields_name: item.fields_name,
             logic_operator: item.logic_operator,
             op: item.op,
@@ -451,58 +475,58 @@ export default {
 </script>
 
 <style lang="scss" scoped>
-  .setting-log-cluster {
-    position: relative;
-    padding: 0 20px;
-    padding-bottom: 40px;
+.setting-log-cluster {
+  position: relative;
+  padding: 0 20px;
+  padding-bottom: 40px;
 
-    .rule-container {
-      margin-top: 16px;
-    }
+  .rule-container {
+    margin-top: 16px;
+  }
 
-    .setting-item {
-      display: flex;
-      align-items: center;
-      margin-bottom: 25px;
+  .setting-item {
+    display: flex;
+    align-items: center;
+    margin-bottom: 25px;
 
-      .bk-icon {
-        margin-left: 8px;
-        font-size: 18px;
-        color: #979ba5;
-      }
-    }
-
-    .submit-div {
-      position: sticky;
-      bottom: 40px;
-      padding: 10px 0;
-      background: #fff;
+    .bk-icon {
+      margin-left: 8px;
+      font-size: 18px;
+      color: #979ba5;
     }
   }
 
-  .submit-dialog {
-    :deep(.bk-dialog-tool) {
-      display: none;
+  .submit-div {
+    position: sticky;
+    bottom: 40px;
+    padding: 10px 0;
+    background: #fff;
+  }
+}
+
+.submit-dialog {
+  :deep(.bk-dialog-tool) {
+    display: none;
+  }
+
+  .submit-dialog-container {
+    :deep(.bk-button) {
+      margin-left: 100px;
     }
 
-    .submit-dialog-container {
-      :deep(.bk-button) {
-        margin-left: 100px;
-      }
+    .submit-dialog-title {
+      margin-bottom: 7px;
+      font-size: 16px;
+      font-weight: 700;
+    }
 
-      .submit-dialog-title {
-        margin-bottom: 7px;
-        font-size: 16px;
-        font-weight: 700;
-      }
+    .submit-dialog-text {
+      margin-bottom: 22px;
+    }
 
-      .submit-dialog-text {
-        margin-bottom: 22px;
-      }
-
-      :deep(.submit-dialog-btn) {
-        margin-left: 224px;
-      }
+    :deep(.submit-dialog-btn) {
+      margin-left: 224px;
     }
   }
+}
 </style>

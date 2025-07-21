@@ -24,9 +24,8 @@
  * IN THE SOFTWARE.
  */
 
-import { formatFileSize } from '@/common/util';
-
 import $http from '@/api';
+import { formatFileSize } from '@/common/util';
 /**
  * 格式化字节大小为可读字符串。
  *
@@ -57,16 +56,18 @@ export function requestStorageUsage(bkBizId, arr, type = false, callbackFn) {
 
   if (type) {
     index_set_ids = arr
-      .filter(item => {
+      .filter((item) => {
         return item.index_set_id && item.is_active && !('total_usage' in item);
       })
-      .map(item => item.index_set_id);
+      .map((item) => item.index_set_id);
   } else {
     index_set_ids = arr
-      .filter(item => {
-        return item.index_set_id && item.is_active && item.apply_status == 'normal';
+      .filter((item) => {
+        return (
+          item.index_set_id && item.is_active && item.apply_status == 'normal'
+        );
       })
-      .map(item => item.index_set_id);
+      .map((item) => item.index_set_id);
   }
 
   if (!index_set_ids.length) {
@@ -80,18 +81,22 @@ export function requestStorageUsage(bkBizId, arr, type = false, callbackFn) {
         index_set_ids,
       },
     })
-    .then(resp => {
+    .then((resp) => {
       const { data } = resp;
-      arr.forEach(item => {
-        ['daily_usage', 'total_usage'].forEach(key => {
-          const matchedItem = data.find(dataItem => Number(dataItem.index_set_id) === Number(item.index_set_id)) || {};
+      arr.forEach((item) => {
+        ['daily_usage', 'total_usage'].forEach((key) => {
+          const matchedItem =
+            data.find(
+              (dataItem) =>
+                Number(dataItem.index_set_id) === Number(item.index_set_id)
+            ) || {};
           if (matchedItem?.[key] !== undefined) {
             callbackFn(item, key, matchedItem);
           }
         });
       });
     })
-    .catch(error => {
+    .catch((error) => {
       throw error;
     });
 }

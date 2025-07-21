@@ -14,18 +14,13 @@
     :style="rootElementStyle"
   >
     <template v-for="item in rootList">
-      <span
-        class="bklog-root-field"
-        :key="item.name"
-      >
+      <span class="bklog-root-field" :key="item.name">
         <span
           class="field-name"
           :data-is-virtual-root="item.__is_virtual_root__"
-          ><span
-            class="black-mark"
-            :data-field-name="item.name"
-            >{{ getFieldName(item.name) }}</span
-          ></span
+          ><span class="black-mark" :data-field-name="item.name">{{
+            getFieldName(item.name)
+          }}</span></span
         >
         <span
           class="field-value"
@@ -37,10 +32,7 @@
       </span>
     </template>
     <template v-if="showMoreTextAction && hasScrollY">
-      <span
-        class="btn-more-action"
-        @click="handleClickMore"
-      >
+      <span class="btn-more-action" @click="handleClickMore">
         {{ btnText }}
       </span>
     </template>
@@ -90,9 +82,15 @@ const isRowIntersecting = inject('isRowIntersecting', ref(false));
 const isResolved = ref(isRowIntersecting.value);
 
 const isFormatDateField = computed(() => store.state.isFormatDate);
-const isWrap = computed(() => store.state.storage[BK_LOG_STORAGE.TABLE_LINE_IS_WRAP]);
-const isLimitExpandText = computed(() => store.state.storage[BK_LOG_STORAGE.IS_LIMIT_EXPAND_VIEW]);
-const formatJson = computed(() => store.state.storage[BK_LOG_STORAGE.TABLE_JSON_FORMAT]);
+const isWrap = computed(
+  () => store.state.storage[BK_LOG_STORAGE.TABLE_LINE_IS_WRAP]
+);
+const isLimitExpandText = computed(
+  () => store.state.storage[BK_LOG_STORAGE.IS_LIMIT_EXPAND_VIEW]
+);
+const formatJson = computed(
+  () => store.state.storage[BK_LOG_STORAGE.TABLE_JSON_FORMAT]
+);
 
 const isCurrentCellExpandText = computed(() => {
   if (isLimitExpandText.value) {
@@ -135,7 +133,11 @@ const fieldList = computed(() => {
 });
 
 const showMoreTextAction = computed(() => {
-  if (typeof props.limitRow === 'number' && !formatJson.value && !isLimitExpandText.value) {
+  if (
+    typeof props.limitRow === 'number' &&
+    !formatJson.value &&
+    !isLimitExpandText.value
+  ) {
     return true;
   }
 
@@ -154,13 +156,13 @@ const btnText = computed(() => {
   return ` ...${$t('更多')}`;
 });
 
-const handleClickMore = e => {
+const handleClickMore = (e) => {
   e.stopPropagation();
   e.preventDefault();
   showAllText.value = !showAllText.value;
 };
 
-const onSegmentClick = args => {
+const onSegmentClick = (args) => {
   emit('menu-click', args);
 };
 const { updateRootFieldOperator, setExpand, setEditor, destroy } = useJsonRoot({
@@ -168,7 +170,7 @@ const { updateRootFieldOperator, setExpand, setEditor, destroy } = useJsonRoot({
   onSegmentClick,
 });
 
-const convertToObject = val => {
+const convertToObject = (val) => {
   if (typeof val === 'string' && formatJson.value) {
     if (/^(\{|\[)/.test(val)) {
       try {
@@ -177,7 +179,9 @@ const convertToObject = val => {
         if (/<mark>(-?\d+\.?\d*)<\/mark>/.test(val)) {
           console.warn(`${e.name}: ${e.message}; `, e);
 
-          return convertToObject(val.replace(/<mark>(-?\d+\.?\d*)<\/mark>/gim, '$1'));
+          return convertToObject(
+            val.replace(/<mark>(-?\d+\.?\d*)<\/mark>/gim, '$1')
+          );
         }
         return val;
       }
@@ -195,7 +199,7 @@ const getDateFieldValue = (field, content, formatDate) => {
   return content;
 };
 
-const getFieldValue = field => {
+const getFieldValue = (field) => {
   if (formatJson.value) {
     if (typeof props.jsonValue === 'string') {
       return [convertToObject(props.jsonValue), props.jsonValue];
@@ -242,7 +246,7 @@ const getFieldFormatter = (field, formatDate) => {
   };
 };
 
-const getFieldName = field => {
+const getFieldName = (field) => {
   const { getFieldName } = useFieldNameHook({ store });
   return getFieldName(field);
 };
@@ -252,12 +256,17 @@ const rootList = computed(() => {
   return fieldList.value.map((f: any) => ({
     name: f.field_name,
     type: f.field_type,
-    formatter: getFieldFormatter(f, isFormatDateField.value && !!f.__is_virtual_root__),
+    formatter: getFieldFormatter(
+      f,
+      isFormatDateField.value && !!f.__is_virtual_root__
+    ),
     __is_virtual_root__: !!f.__is_virtual_root__,
   }));
 });
 
-const depth = computed(() => store.state.storage[BK_LOG_STORAGE.TABLE_JSON_FORMAT_DEPTH]);
+const depth = computed(
+  () => store.state.storage[BK_LOG_STORAGE.TABLE_JSON_FORMAT_DEPTH]
+);
 const debounceUpdate = debounce(() => {
   updateRootFieldOperator(rootList.value, depth.value);
   setEditor(depth.value);
@@ -315,223 +324,223 @@ onBeforeUnmount(() => {
 });
 </script>
 <style lang="scss">
-  @import '../global/json-view/index.scss';
+@import '../global/json-view/index.scss';
 
-  .bklog-json-formatter-root {
-    position: relative;
-    width: 100%;
-    font-family: var(--table-fount-family);
-    font-size: var(--table-fount-size);
+.bklog-json-formatter-root {
+  position: relative;
+  width: 100%;
+  font-family: var(--table-fount-family);
+  font-size: var(--table-fount-size);
+  line-height: 20px;
+  color: var(--table-fount-color);
+  text-align: left;
+
+  .bklog-scroll-box {
+    max-height: 50vh;
+    overflow: auto;
+    transform: translateZ(0); /* 强制开启GPU加速 */
+    will-change: transform;
+  }
+
+  .bklog-scroll-cell {
+    word-break: break-all;
+
+    span {
+      content-visibility: auto;
+      contain-intrinsic-size: 0 60px; /* 预估初始高度 */
+    }
+  }
+
+  mark {
+    border-radius: 2px;
+  }
+
+  .btn-more-action {
+    position: absolute;
+    right: 4px;
+    bottom: 0px;
+    color: #3a84ff;
+    cursor: pointer;
+    background-color: #fff;
+  }
+
+  .bklog-root-field {
+    margin-right: 4px;
     line-height: 20px;
-    color: var(--table-fount-color);
-    text-align: left;
 
-    .bklog-scroll-box {
-      max-height: 50vh;
-      overflow: auto;
-      transform: translateZ(0); /* 强制开启GPU加速 */
-      will-change: transform;
+    .bklog-json-view-row {
+      word-break: break-all;
     }
 
-    .bklog-scroll-cell {
-      word-break: break-all;
+    [data-with-intersection] {
+      font-family: var(--bklog-v3-row-ctx-font);
+      font-size: var(--table-fount-size);
+      color: var(--table-fount-color);
+      white-space: pre-wrap;
+    }
 
-      span {
-        content-visibility: auto;
-        contain-intrinsic-size: 0 60px; /* 预估初始高度 */
+    &:not(:first-child) {
+      margin-top: 1px;
+    }
+
+    .field-name {
+      min-width: max-content;
+
+      .black-mark {
+        width: max-content;
+        padding: 2px 2px;
+        font-family: var(--bklog-v3-row-tag-font);
+        font-weight: 500;
+        color: #16171a;
+        background-color: #ebeef5;
+        border-radius: 2px;
+      }
+
+      &::after {
+        content: ':';
+      }
+
+      &[data-is-virtual-root='true'] {
+        display: none;
       }
     }
 
     mark {
-      border-radius: 2px;
-    }
+      background-color: rgb(250, 238, 177);
 
-    .btn-more-action {
-      position: absolute;
-      right: 4px;
-      bottom: 0px;
-      color: #3a84ff;
-      cursor: pointer;
-      background-color: #fff;
-    }
-
-    .bklog-root-field {
-      margin-right: 4px;
-      line-height: 20px;
-
-      .bklog-json-view-row {
-        word-break: break-all;
-      }
-
-      [data-with-intersection] {
-        font-family: var(--bklog-v3-row-ctx-font);
-        font-size: var(--table-fount-size);
-        color: var(--table-fount-color);
+      &.valid-text {
         white-space: pre-wrap;
       }
+    }
 
-      &:not(:first-child) {
-        margin-top: 1px;
+    .valid-text {
+      :hover {
+        color: #3a84ff;
+        cursor: pointer;
       }
+    }
+  }
 
-      .field-name {
-        min-width: max-content;
+  &:not(.is-json) {
+    .bklog-root-field {
+      .field-value {
+        max-height: 50vh;
+        overflow: hidden;
+      }
+    }
+  }
 
-        .black-mark {
-          width: max-content;
-          padding: 2px 2px;
-          font-family: var(--bklog-v3-row-tag-font);
-          font-weight: 500;
-          color: #16171a;
-          background-color: #ebeef5;
+  &.show-all-word {
+    .bklog-root-field {
+      .field-value {
+        max-height: 50vh;
+        overflow: auto;
+
+        &::-webkit-scrollbar {
+          width: 6px;
+          background: #fff;
+        }
+
+        &::-webkit-scrollbar-thumb {
+          background: #dcdee5;
           border-radius: 2px;
         }
-
-        &::after {
-          content: ':';
-        }
-
-        &[data-is-virtual-root='true'] {
-          display: none;
-        }
-      }
-
-      mark {
-        background-color: rgb(250, 238, 177);
-
-        &.valid-text {
-          white-space: pre-wrap;
-        }
-      }
-
-      .valid-text {
-        :hover {
-          color: #3a84ff;
-          cursor: pointer;
-        }
-      }
-    }
-
-    &:not(.is-json) {
-      .bklog-root-field {
-        .field-value {
-          max-height: 50vh;
-          overflow: hidden;
-        }
-      }
-    }
-
-    &.show-all-word {
-      .bklog-root-field {
-        .field-value {
-          max-height: 50vh;
-          overflow: auto;
-
-          &::-webkit-scrollbar {
-            width: 6px;
-            background: #fff;
-          }
-
-          &::-webkit-scrollbar-thumb {
-            background: #dcdee5;
-            border-radius: 2px;
-          }
-        }
-      }
-    }
-
-    &.is-hidden {
-      visibility: hidden;
-    }
-
-    .segment-content {
-      font-family: var(--bklog-v3-row-ctx-font);
-      font-size: var(--table-fount-size);
-      line-height: 20px;
-      white-space: pre-wrap;
-
-      span {
-        width: max-content;
-        min-width: 4px;
-        font-family: var(--bklog-v3-row-ctx-font);
-        font-size: var(--table-fount-size);
-        color: var(--table-fount-color);
-        white-space: pre-wrap;
-      }
-
-      .menu-list {
-        position: absolute;
-        display: none;
-      }
-
-      .valid-text {
-        cursor: pointer;
-
-        &.focus-text,
-        &:hover {
-          color: #3a84ff;
-        }
-      }
-
-      .null-item {
-        display: inline-block;
-        min-width: 6px;
-      }
-    }
-
-    &.is-inline {
-      .bklog-root-field {
-        display: inline-flex;
-        word-break: break-all;
-
-        .segment-content {
-          word-break: break-all;
-        }
-      }
-    }
-
-    &.is-json {
-      // display: inline-flex;
-      width: 100%;
-    }
-
-    &.is-wrap-line {
-      display: flex;
-      flex-direction: column;
-
-      .bklog-root-field {
-        display: flex;
-
-        .field-value {
-          word-break: break-all;
-        }
       }
     }
   }
+
+  &.is-hidden {
+    visibility: hidden;
+  }
+
+  .segment-content {
+    font-family: var(--bklog-v3-row-ctx-font);
+    font-size: var(--table-fount-size);
+    line-height: 20px;
+    white-space: pre-wrap;
+
+    span {
+      width: max-content;
+      min-width: 4px;
+      font-family: var(--bklog-v3-row-ctx-font);
+      font-size: var(--table-fount-size);
+      color: var(--table-fount-color);
+      white-space: pre-wrap;
+    }
+
+    .menu-list {
+      position: absolute;
+      display: none;
+    }
+
+    .valid-text {
+      cursor: pointer;
+
+      &.focus-text,
+      &:hover {
+        color: #3a84ff;
+      }
+    }
+
+    .null-item {
+      display: inline-block;
+      min-width: 6px;
+    }
+  }
+
+  &.is-inline {
+    .bklog-root-field {
+      display: inline-flex;
+      word-break: break-all;
+
+      .segment-content {
+        word-break: break-all;
+      }
+    }
+  }
+
+  &.is-json {
+    // display: inline-flex;
+    width: 100%;
+  }
+
+  &.is-wrap-line {
+    display: flex;
+    flex-direction: column;
+
+    .bklog-root-field {
+      display: flex;
+
+      .field-value {
+        word-break: break-all;
+      }
+    }
+  }
+}
 </style>
 <style lang="scss">
-  .bklog-text-segment {
-    .segment-content {
-      font-family: var(--bklog-v3-row-ctx-font);
-      font-size: var(--table-fount-size);
-      line-height: 20px;
-      white-space: pre-wrap;
+.bklog-text-segment {
+  .segment-content {
+    font-family: var(--bklog-v3-row-ctx-font);
+    font-size: var(--table-fount-size);
+    line-height: 20px;
+    white-space: pre-wrap;
 
-      mark {
-        &.valid-text {
-          white-space: pre-wrap;
-        }
-      }
-
-      .valid-text {
+    mark {
+      &.valid-text {
         white-space: pre-wrap;
-        cursor: pointer;
+      }
+    }
 
-        &.focus-text,
-        &:hover {
-          color: #3a84ff;
-        }
+    .valid-text {
+      white-space: pre-wrap;
+      cursor: pointer;
+
+      &.focus-text,
+      &:hover {
+        color: #3a84ff;
       }
     }
   }
+}
 </style>

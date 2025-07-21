@@ -54,7 +54,7 @@ export default class UserConfigMixin extends Vue {
   // }
   // if (!space.permission?.[authorityMap.VIEW_BUSINESS]) return;
 
-  /**1
+  /** 1
    * @description: 获取用户个性化配置
    * @param {string} key key
    * @return {*}
@@ -87,10 +87,18 @@ export default class UserConfigMixin extends Vue {
    * @param {string} value
    * @return {*}
    */
-  public async handleSetUserConfig(key: string, value: string, configId?: string): Promise<boolean> {
+  public async handleSetUserConfig(
+    key: string,
+    value: string,
+    configId?: string
+  ): Promise<boolean> {
     // console.log('handleSetUserConfig:', key, value);
     // if (!this.hasBusinessAuth) return false;
-    return await partialUpdateUserConfig(this.storeId || configId, { value }, { reject403: true })
+    return await partialUpdateUserConfig(
+      this.storeId || configId,
+      { value },
+      { reject403: true }
+    )
       .then(() => true)
       .catch(() => false);
   }

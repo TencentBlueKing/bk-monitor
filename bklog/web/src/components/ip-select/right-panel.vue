@@ -25,10 +25,7 @@
 -->
 
 <template>
-  <div
-    class="right-panel"
-    :class="{ 'need-border': needBorder }"
-  >
+  <div class="right-panel" :class="{ 'need-border': needBorder }">
     <div
       :style="{ backgroundColor: titleBgColor }"
       class="right-panel-title"
@@ -63,10 +60,7 @@
       @leave="leave"
       @leave-cancelled="afterLeave"
     >
-      <div
-        class="right-panel-content"
-        v-show="collapse"
-      >
+      <div class="right-panel-content" v-show="collapse">
         <slot> </slot>
       </div>
     </transition>
@@ -160,64 +154,64 @@ export default {
 </script>
 
 <style lang="scss" scoped>
-  .right-panel {
-    &.need-border {
-      border: 1px solid #dcdee5;
-      border-radius: 2px;
+.right-panel {
+  &.need-border {
+    border: 1px solid #dcdee5;
+    border-radius: 2px;
+  }
+
+  &-title {
+    display: flex;
+    align-items: center;
+    height: 40px;
+    padding: 0 16px;
+    font-weight: bold;
+    color: #63656e;
+    cursor: pointer;
+    background: #fafbfd;
+
+    &.is-collapse {
+      height: 41px;
+      border-bottom: 1px solid #dcdee5;
     }
 
-    &-title {
-      display: flex;
-      align-items: center;
-      height: 40px;
-      padding: 0 16px;
-      font-weight: bold;
-      color: #63656e;
-      cursor: pointer;
-      background: #fafbfd;
+    .title-icon {
+      margin-right: 5px;
+      font-size: 14px;
 
-      &.is-collapse {
-        height: 41px;
-        border-bottom: 1px solid #dcdee5;
-      }
-
-      .title-icon {
-        margin-right: 5px;
-        font-size: 14px;
-
-        &:hover {
-          cursor: pointer;
-        }
-      }
-
-      .title-desc {
-        color: #979ba5;
-
-        &-num {
-          margin: 0 3px;
-          color: #3a84ff;
-        }
+      &:hover {
+        cursor: pointer;
       }
     }
 
-    &-content {
-      :deep(.bk-table) {
-        border: 0;
+    .title-desc {
+      color: #979ba5;
 
-        .bk-table-header {
-          th {
-            background: #fff;
-          }
-        }
-
-        &::after {
-          width: 0;
-        }
+      &-num {
+        margin: 0 3px;
+        color: #3a84ff;
       }
-    }
-
-    .collapse-transition {
-      transition: 0.3s height ease-in-out;
     }
   }
+
+  &-content {
+    :deep(.bk-table) {
+      border: 0;
+
+      .bk-table-header {
+        th {
+          background: #fff;
+        }
+      }
+
+      &::after {
+        width: 0;
+      }
+    }
+  }
+
+  .collapse-transition {
+    transition: 0.3s height ease-in-out;
+  }
+}
 </style>

@@ -37,11 +37,7 @@
     @value-change="handleValueChange"
   >
     <div class="multiline-reg-dialog-content">
-      <bk-form
-        ref="formRef"
-        :label-width="getLabelWidth"
-        :model="formData"
-      >
+      <bk-form ref="formRef" :label-width="getLabelWidth" :model="formData">
         <bk-form-item
           style="margin-bottom: 20px"
           :label="$t('日志样例')"
@@ -65,10 +61,7 @@
           <bk-input v-model.trim="formData.multiline_pattern"></bk-input>
         </bk-form-item>
       </bk-form>
-      <div
-        :style="`padding-left: ${getLabelWidth}px;`"
-        class="test-container"
-      >
+      <div :style="`padding-left: ${getLabelWidth}px;`" class="test-container">
         <bk-button
           class="mr15"
           :loading="isMatchLoading"
@@ -77,11 +70,14 @@
         >
           {{ $t('匹配验证') }}
         </bk-button>
-        <div
-          v-if="matchLines !== null"
-          class="test-result"
-        >
-          <span :class="matchLines ? 'bk-icon icon-check-circle-shape' : 'bk-icon icon-close-circle-shape'"></span>
+        <div v-if="matchLines !== null" class="test-result">
+          <span
+            :class="
+              matchLines
+                ? 'bk-icon icon-check-circle-shape'
+                : 'bk-icon icon-close-circle-shape'
+            "
+          ></span>
           <template v-if="matchLines">
             <i18n path="成功匹配 {0} 条日志">
               <span class="match-counts">{{ matchLines }}</span>
@@ -174,49 +170,49 @@ export default {
 </script>
 
 <style lang="scss" scoped>
-  @import '@/scss/mixins/scroller';
+@import '@/scss/mixins/scroller';
 
-  .multiline-reg-dialog-content {
-    .test-container {
+.multiline-reg-dialog-content {
+  .test-container {
+    display: flex;
+    align-items: center;
+
+    .test-result {
       display: flex;
       align-items: center;
+      line-height: 20px;
 
-      .test-result {
-        display: flex;
-        align-items: center;
-        line-height: 20px;
+      .bk-icon {
+        margin-right: 6px;
+        font-size: 12px;
+      }
 
-        .bk-icon {
-          margin-right: 6px;
-          font-size: 12px;
-        }
+      .icon-check-circle-shape {
+        color: #2dcb56;
+      }
 
-        .icon-check-circle-shape {
-          color: #2dcb56;
-        }
+      .icon-close-circle-shape {
+        color: #ea3636;
+      }
 
-        .icon-close-circle-shape {
-          color: #ea3636;
-        }
-
-        .match-counts {
-          margin: 0 4px;
-          font-weight: bold;
-          color: #3a84ff;
-        }
+      .match-counts {
+        margin: 0 4px;
+        font-weight: bold;
+        color: #3a84ff;
       }
     }
-
-    :deep(.bk-label-text) {
-      color: #313238;
-    }
-
-    :deep(.bk-form-textarea) {
-      @include scroller($backgroundColor: #c4c6cc, $width: 4px);
-    }
   }
 
-  :deep(.bk-dialog-wrapper .bk-dialog-header) {
-    line-height: 1.3;
+  :deep(.bk-label-text) {
+    color: #313238;
   }
+
+  :deep(.bk-form-textarea) {
+    @include scroller($backgroundColor: #c4c6cc, $width: 4px);
+  }
+}
+
+:deep(.bk-dialog-wrapper .bk-dialog-header) {
+  line-height: 1.3;
+}
 </style>

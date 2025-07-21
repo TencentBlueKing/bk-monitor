@@ -26,10 +26,7 @@
 
 <template>
   <div :class="{ 'log-date-picker': true, 'is-custom-picker': isShowCustom }">
-    <span
-      v-if="isShowCustom"
-      class="bk-icon icon-clock custom-clock"
-    ></span>
+    <span v-if="isShowCustom" class="bk-icon icon-clock custom-clock"></span>
     <bk-date-picker
       :class="[
         'king-date-picker',
@@ -56,7 +53,9 @@
           @click.stop="togglePicker"
         >
           <span class="bk-icon icon-clock"></span>
-          <span>{{ shortText || `${datePickerValue[0]} - ${datePickerValue[1]}` }}</span>
+          <span>{{
+            shortText || `${datePickerValue[0]} - ${datePickerValue[1]}`
+          }}</span>
           <span
             class="bk-icon icon-angle-down"
             :class="isShowDatePicker && 'active'"
@@ -64,11 +63,10 @@
         </div>
       </template>
       <template #trigger>
-        <div
-          v-else-if="shortText && !customTime"
-          @click.stop="togglePicker"
-        >
-          <div :class="['bk-date-picker-editor', { 'is-focus': isShowDatePicker }]">
+        <div v-else-if="shortText && !customTime" @click.stop="togglePicker">
+          <div
+            :class="['bk-date-picker-editor', { 'is-focus': isShowDatePicker }]"
+          >
             {{ shortText }}
           </div>
           <div class="icon-wrapper">
@@ -214,7 +212,9 @@ export default {
     },
   },
   mounted() {
-    this.$store.commit('retrieve/updateCachePickerValue', [...this.datePickerValue]);
+    this.$store.commit('retrieve/updateCachePickerValue', [
+      ...this.datePickerValue,
+    ]);
     this.$store.commit('retrieve/updateCacheTimeRange', this.timeRange);
     window.bus.$on('changeTimeByChart', this.handleChangeTimeByChart);
   },
@@ -282,127 +282,127 @@ export default {
 </script>
 
 <style lang="scss" scoped>
-  /* stylelint-disable no-descending-specificity */
-  .log-date-picker {
-    display: flex;
-    align-items: center;
+/* stylelint-disable no-descending-specificity */
+.log-date-picker {
+  display: flex;
+  align-items: center;
 
-    &.is-custom-picker {
-      height: 52px;
-      padding-left: 17px;
-      border-left: 1px solid #f0f1f5;
-    }
+  &.is-custom-picker {
+    height: 52px;
+    padding-left: 17px;
+    border-left: 1px solid #f0f1f5;
+  }
 
-    .king-date-picker {
-      &.is-retrieve-home {
-        width: 320px;
+  .king-date-picker {
+    &.is-retrieve-home {
+      width: 320px;
 
-        :deep(.bk-date-picker-editor) {
-          line-height: 30px;
-          background: #fff;
-          border-color: #fff;
+      :deep(.bk-date-picker-editor) {
+        line-height: 30px;
+        background: #fff;
+        border-color: #fff;
 
-          &.is-focus {
-            border-color: #3a84ff;
-          }
-        }
-
-        :deep(.icon-date-picker) {
-          position: absolute;
-          top: 7px;
-          left: 7px;
-          font-size: 18px;
+        &.is-focus {
+          border-color: #3a84ff;
         }
       }
 
-      &.is-retrieve-detail {
-        width: auto;
+      :deep(.icon-date-picker) {
+        position: absolute;
+        top: 7px;
+        left: 7px;
+        font-size: 18px;
+      }
+    }
 
-        .trigger {
-          display: flex;
-          align-items: center;
-          height: 52px;
-          line-height: 22px;
-          white-space: nowrap;
-          cursor: pointer;
+    &.is-retrieve-detail {
+      width: auto;
 
-          .icon-clock {
-            padding: 0 5px 0 17px;
-            font-size: 14px;
-            color: #63656e;
-          }
+      .trigger {
+        display: flex;
+        align-items: center;
+        height: 52px;
+        line-height: 22px;
+        white-space: nowrap;
+        cursor: pointer;
 
-          .icon-angle-down {
-            margin: 0 10px;
-            font-size: 22px;
-            color: #63656e;
+        .icon-clock {
+          padding: 0 5px 0 17px;
+          font-size: 14px;
+          color: #63656e;
+        }
+
+        .icon-angle-down {
+          margin: 0 10px;
+          font-size: 22px;
+          color: #63656e;
+          transition: transform 0.3s;
+
+          &.active {
             transition: transform 0.3s;
-
-            &.active {
-              transition: transform 0.3s;
-              transform: rotate(-180deg);
-            }
+            transform: rotate(-180deg);
           }
+        }
 
-          &::before {
-            position: absolute;
-            top: 20px;
-            left: 0;
-            width: 1px;
-            height: 14px;
-            content: '';
-            background-color: #dcdee5;
-          }
+        &::before {
+          position: absolute;
+          top: 20px;
+          left: 0;
+          width: 1px;
+          height: 14px;
+          content: '';
+          background-color: #dcdee5;
+        }
 
-          &:hover {
+        &:hover {
+          color: #3a84ff;
+
+          .icon-clock,
+          .icon-angle-down {
             color: #3a84ff;
-
-            .icon-clock,
-            .icon-angle-down {
-              color: #3a84ff;
-            }
           }
         }
       }
+    }
 
-      &.is-defalut-picker {
-        min-width: 268px;
+    &.is-defalut-picker {
+      min-width: 268px;
 
-        :deep(.bk-date-picker-editor) {
-          padding-right: 0;
-          padding-left: 5px;
-          border: none;
-        }
-
-        :deep(.icon-wrapper) {
-          display: none;
-        }
+      :deep(.bk-date-picker-editor) {
+        padding-right: 0;
+        padding-left: 5px;
+        border: none;
       }
-    }
 
-    .custom-clock {
-      font-size: 14px;
-      color: #63656e;
-    }
-
-    .icon-angle-down {
-      margin: 0 10px 0 0;
-      font-size: 22px;
-      color: #63656e;
-      transition: transform 0.3s;
-
-      &.active {
-        transition: transform 0.3s;
-        transform: rotate(-180deg);
-      }
-    }
-
-    &.is-custom-picker:hover {
-      .custom-clock,
-      .icon-angle-down,
-      :deep(.bk-date-picker-rel .bk-date-picker-editor) {
-        color: #3a84ff;
+      :deep(.icon-wrapper) {
+        display: none;
       }
     }
   }
+
+  .custom-clock {
+    font-size: 14px;
+    color: #63656e;
+  }
+
+  .icon-angle-down {
+    margin: 0 10px 0 0;
+    font-size: 22px;
+    color: #63656e;
+    transition: transform 0.3s;
+
+    &.active {
+      transition: transform 0.3s;
+      transform: rotate(-180deg);
+    }
+  }
+
+  &.is-custom-picker:hover {
+    .custom-clock,
+    .icon-angle-down,
+    :deep(.bk-date-picker-rel .bk-date-picker-editor) {
+      color: #3a84ff;
+    }
+  }
+}
 </style>

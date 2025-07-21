@@ -26,8 +26,8 @@
 
 // 获取监控模型
 const models = {
-  url: '/api/plugins/smart_monitor/models/',
   method: 'get',
+  url: '/api/plugins/smart_monitor/models/',
 };
 
 export { models };

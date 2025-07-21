@@ -31,20 +31,16 @@
     v-bkloading="{ isLoading: basicLoading }"
   >
     <!-- 容器日志状态页 -->
-    <container-status
-      v-if="isContainer"
-      :is-loading.sync="basicLoading"
-    />
+    <container-status v-if="isContainer" :is-loading.sync="basicLoading" />
     <template v-else>
-      <div
-        v-if="dataFir"
-        class="collect"
-      >
+      <div v-if="dataFir" class="collect">
         <div class="mb15 nav-section">
           <div class="button-group">
             <span
               v-for="(val, x) in dataButton"
-              :class="clickSec.selected === val.key ? 'button-bul' : 'button-wit'"
+              :class="
+                clickSec.selected === val.key ? 'button-bul' : 'button-wit'
+              "
               :key="x"
               @click="handleChangeGroup(val)"
               >{{ val.content }}({{ val.dataList.totalLenght }})</span
@@ -80,10 +76,7 @@
           style="margin-bottom: 10px; overflow: hidden"
           :key="i"
         >
-          <div
-            class="table-detail"
-            @click="closeTable(i)"
-          >
+          <div class="table-detail" @click="closeTable(i)">
             <div>
               <i
                 ref="icon"
@@ -113,14 +106,17 @@
                 <template #default="props">
                   <span @click="reset(props.row)">
                     <i
-                      v-if="props.row.status !== 'SUCCESS' && props.row.status !== 'FAILED'"
-                      style="display: inline-block; animation: button-icon-loading 1s linear infinite"
+                      v-if="
+                        props.row.status !== 'SUCCESS' &&
+                        props.row.status !== 'FAILED'
+                      "
+                      style="
+                        display: inline-block;
+                        animation: button-icon-loading 1s linear infinite;
+                      "
                       class="bk-icon icon-refresh"
                     ></i>
-                    <span
-                      v-if="props.row.status === 'SUCCESS'"
-                      class="SUCCESS"
-                    >
+                    <span v-if="props.row.status === 'SUCCESS'" class="SUCCESS">
                       {{ $t('成功') }}
                     </span>
                     <span
@@ -129,11 +125,7 @@
                     >
                       {{ $t('失败') }}
                     </span>
-                    <span
-                      v-else
-                      class="PENDING"
-                      >{{ $t('执行中') }}</span
-                    >
+                    <span v-else class="PENDING">{{ $t('执行中') }}</span>
                   </span>
                 </template>
               </bk-table-column>
@@ -145,15 +137,17 @@
                 :label="$t('插件版本')"
                 prop="plugin_version"
               ></bk-table-column>
-              <bk-table-column
-                width="280"
-                :label="$t('详情')"
-              >
+              <bk-table-column width="280" :label="$t('详情')">
                 <template #default="props">
                   <div class="text-style">
-                    <span @click.stop="viewDetail(props.row)">{{ $t('部署详情') }}</span>
+                    <span @click.stop="viewDetail(props.row)">{{
+                      $t('部署详情')
+                    }}</span>
                     <span
-                      v-if="enableCheckCollector && collectorData.environment === 'linux'"
+                      v-if="
+                        enableCheckCollector &&
+                        collectorData.environment === 'linux'
+                      "
                       @click.stop="viewReport(props.row)"
                     >
                       {{ $t('一键检测') }}
@@ -161,10 +155,7 @@
                   </div>
                 </template>
               </bk-table-column>
-              <bk-table-column
-                width="120"
-                label=""
-              >
+              <bk-table-column width="120" label="">
                 <template #default="props">
                   <bk-button
                     v-if="props.row.status === 'FAILED'"
@@ -178,10 +169,7 @@
               </bk-table-column>
               <template #empty>
                 <div>
-                  <empty-status
-                    :show-text="false"
-                    empty-type="empty"
-                  >
+                  <empty-status :show-text="false" empty-type="empty">
                     <span>{{ $t('暂无内容') }}</span>
                   </empty-status>
                 </div>
@@ -328,7 +316,10 @@ export default {
       return this.collectorData.environment === 'container';
     },
     hostIdentifierPriority() {
-      return this.$store.getters['globals/globalsData']?.host_identifier_priority ?? ['ip', 'host_name', 'ipv6'];
+      return (
+        this.$store.getters['globals/globalsData']
+          ?.host_identifier_priority ?? ['ip', 'host_name', 'ipv6']
+      );
     },
   },
   created() {
@@ -347,7 +338,8 @@ export default {
   },
   methods: {
     closeTable(val) {
-      this.$refs.unfold[val].style.height = this.$refs.unfold[val].style.height === '' ? '43px' : '';
+      this.$refs.unfold[val].style.height =
+        this.$refs.unfold[val].style.height === '' ? '43px' : '';
       this.$refs.icon[val].classList.value =
         this.$refs.unfold[val].style.height === ''
           ? 'bk-icon title-icon icon-down-shape'
@@ -357,7 +349,9 @@ export default {
       this.scrollontentEl = document.querySelector('.allocation');
       if (!this.scrollontentEl) return;
 
-      this.scrollontentEl.addEventListener('scroll', this.handleScroll, { passive: true });
+      this.scrollontentEl.addEventListener('scroll', this.handleScroll, {
+        passive: true,
+      });
     },
     // 获取采集状态
     getCollectList(isLoading = true) {
@@ -376,11 +370,13 @@ export default {
           },
           manualSchema: true,
         })
-        .then(res => {
+        .then((res) => {
           this.dataFir = res.data;
           if (this.dataFir.contents.length !== 0) {
             // 过滤child为空的节点
-            this.dataFir.contents = this.dataFir.contents.filter(data => data.child.length);
+            this.dataFir.contents = this.dataFir.contents.filter(
+              (data) => data.child.length
+            );
 
             for (let x = 0; x < this.dataFir.contents.length; x++) {
               let allSet = [];
@@ -407,7 +403,7 @@ export default {
               this.dataPen.totalLenght += penSet.length;
               this.reloadTable = false;
             }
-            this.dataButton.forEach(item => {
+            this.dataButton.forEach((item) => {
               item.dataList =
                 item.key === 'pen'
                   ? this.dataPen
@@ -419,7 +415,13 @@ export default {
             });
             const sel = this.clickSec.selected;
             this.clickSec.data =
-              sel === 'pen' ? this.dataPen : sel === 'sec' ? this.dataSec : sel === 'fal' ? this.dataFal : this.dataAll;
+              sel === 'pen'
+                ? this.dataPen
+                : sel === 'sec'
+                  ? this.dataSec
+                  : sel === 'fal'
+                    ? this.dataFal
+                    : this.dataAll;
 
             if (!this.timer) {
               this.dataListPaged = [];
@@ -443,7 +445,7 @@ export default {
             }
           }
         })
-        .catch(e => {
+        .catch((e) => {
           console.warn(e);
           this.reloadTable = false;
         })
@@ -471,7 +473,9 @@ export default {
       this.dataListShadow = list;
       this.dataListPaged = [];
       for (let i = 0; i < this.count; i += this.pageSize) {
-        this.dataListPaged.push(this.dataListShadow.slice(i, i + this.pageSize));
+        this.dataListPaged.push(
+          this.dataListShadow.slice(i, i + this.pageSize)
+        );
       }
     },
     loadPage() {
@@ -479,7 +483,11 @@ export default {
       this.isPageOver = this.currentPage === this.totalPage;
 
       if (this.dataListPaged[this.currentPage - 1]) {
-        this.renderTableList.splice(this.renderTableList.length, 0, ...this.dataListPaged[this.currentPage - 1]);
+        this.renderTableList.splice(
+          this.renderTableList.length,
+          0,
+          ...this.dataListPaged[this.currentPage - 1]
+        );
         top &&
           this.$nextTick(() => {
             // this.scrollontentEl.scrollTop = top
@@ -535,7 +543,7 @@ export default {
         .then(() => {
           this.getCollectList();
         })
-        .catch(e => {
+        .catch((e) => {
           console.warn(e);
           this.reloadTable = false;
         });
@@ -556,13 +564,13 @@ export default {
             task_id: row.task_id,
           },
         })
-        .then(res => {
+        .then((res) => {
           if (res.result) {
             this.detail.log = res.data.log_detail;
             this.detail.content = res.data.log_detail;
           }
         })
-        .catch(err => {
+        .catch((err) => {
           this.$bkMessage({
             theme: 'error',
             message: err.message || err,
@@ -602,7 +610,7 @@ export default {
             ],
           },
         })
-        .then(res => {
+        .then((res) => {
           if (res.data?.check_record_id) {
             this.reportDetailShow = true;
             this.checkRecordId = res.data.check_record_id;
@@ -610,193 +618,196 @@ export default {
         });
     },
     getShowIp(row) {
-      return row[this.hostIdentifierPriority.find(pItem => Boolean(row[pItem]))] ?? row.ip;
+      return (
+        row[this.hostIdentifierPriority.find((pItem) => Boolean(row[pItem]))] ??
+        row.ip
+      );
     },
   },
 };
 </script>
 
 <style lang="scss" scoped>
-  @import '../../../../../../scss/mixins/clearfix';
-  @import '../../../../../../scss/conf';
+@import '../../../../../../scss/mixins/clearfix';
+@import '../../../../../../scss/conf';
 
-  /* stylelint-disable no-descending-specificity */
-  .collection-status-container {
-    .collect {
-      min-width: 1040px;
+/* stylelint-disable no-descending-specificity */
+.collection-status-container {
+  .collect {
+    min-width: 1040px;
+  }
+
+  .nav-section {
+    display: flex;
+    justify-content: space-between;
+
+    span {
+      display: inline-block;
+      margin-right: 10px;
+      font-size: 12px;
+      color: #bfc0c6;
     }
 
-    .nav-section {
-      display: flex;
-      justify-content: space-between;
+    .icon-question-circle {
+      margin-right: 10px;
+      font-size: 16px;
+      color: #979ba5;
+    }
 
-      span {
-        display: inline-block;
-        margin-right: 10px;
+    :deep(.bk-button) {
+      padding: 0 10px;
+      font-size: 12px;
+
+      .icon-right-turn-line {
+        margin-right: 4px;
+        font-size: 18px;
+      }
+    }
+  }
+
+  .table-detail {
+    width: 100%;
+
+    div {
+      width: 100%;
+      height: 42px;
+      line-height: 42px;
+      user-select: none;
+      background-color: #f0f1f5;
+      border: 1px solid #dcdee5;
+      border-bottom: none;
+      border-radius: 2px 2px 0 0;
+
+      :nth-child(2) {
         font-size: 12px;
-        color: #bfc0c6;
+        font-weight: Bold;
+        color: #63656e;
       }
 
-      .icon-question-circle {
-        margin-right: 10px;
-        font-size: 16px;
+      span {
+        font-size: 12px;
         color: #979ba5;
       }
 
-      :deep(.bk-button) {
-        padding: 0 10px;
-        font-size: 12px;
+      :nth-child(3) {
+        margin-left: 20px;
+        color: #2dcb56;
+      }
 
-        .icon-right-turn-line {
-          margin-right: 4px;
-          font-size: 18px;
-        }
+      :nth-child(5) {
+        color: #ea3636;
       }
     }
+  }
 
-    .table-detail {
-      width: 100%;
+  .text-style {
+    display: flex;
 
-      div {
-        width: 100%;
-        height: 42px;
-        line-height: 42px;
-        user-select: none;
-        background-color: #f0f1f5;
-        border: 1px solid #dcdee5;
-        border-bottom: none;
-        border-radius: 2px 2px 0 0;
+    span {
+      margin-right: 12px;
+      color: #3a84ff;
+      cursor: pointer;
+    }
+  }
 
-        :nth-child(2) {
-          font-size: 12px;
-          font-weight: Bold;
-          color: #63656e;
-        }
+  .SUCCESS {
+    color: #2dcb56;
+  }
 
-        span {
-          font-size: 12px;
-          color: #979ba5;
-        }
+  .FAILED {
+    color: #ea3636;
+  }
 
-        :nth-child(3) {
-          margin-left: 20px;
-          color: #2dcb56;
-        }
+  .PENDING {
+    color: $primaryColor;
+  }
 
-        :nth-child(5) {
-          color: #ea3636;
-        }
-      }
+  .button-group {
+    font-size: 0;
+    border-radius: 3px;
+
+    span {
+      display: inline-block;
+      height: 32px;
+      padding: 0 15px;
+      margin: 0;
+      font-size: 12px;
+      line-height: 30px;
+      cursor: pointer;
+      border: 1px #c4c6cc solid;
+      border-right: none;
     }
 
-    .text-style {
-      display: flex;
-
-      span {
-        margin-right: 12px;
-        color: #3a84ff;
-        cursor: pointer;
-      }
+    :nth-child(1) {
+      border-top-left-radius: 3px;
+      border-bottom-left-radius: 3px;
     }
 
-    .SUCCESS {
-      color: #2dcb56;
+    :nth-child(4) {
+      border-right: 1px #c4c6cc solid;
     }
 
-    .FAILED {
-      color: #ea3636;
+    .button-wit {
+      /* stylelint-disable-next-line declaration-no-important */
+      color: #63656e !important;
+      background-color: white;
     }
 
-    .PENDING {
-      color: $primaryColor;
+    .button-bul {
+      /* stylelint-disable-next-line declaration-no-important */
+      color: whitesmoke !important;
+      background-color: #3a84ff;
     }
+  }
 
-    .button-group {
-      font-size: 0;
-      border-radius: 3px;
+  .content-style {
+    display: flex;
 
-      span {
-        display: inline-block;
-        height: 32px;
-        padding: 0 15px;
-        margin: 0;
-        font-size: 12px;
-        line-height: 30px;
-        cursor: pointer;
-        border: 1px #c4c6cc solid;
-        border-right: none;
-      }
-
-      :nth-child(1) {
-        border-top-left-radius: 3px;
-        border-bottom-left-radius: 3px;
-      }
-
-      :nth-child(4) {
-        border-right: 1px #c4c6cc solid;
-      }
-
-      .button-wit {
-        /* stylelint-disable-next-line declaration-no-important */
-        color: #63656e !important;
-        background-color: white;
-      }
-
-      .button-bul {
-        /* stylelint-disable-next-line declaration-no-important */
-        color: whitesmoke !important;
-        background-color: #3a84ff;
-      }
-    }
-
-    .content-style {
-      display: flex;
-
-      > div {
-        margin-left: 24px;
-        font-size: 14px;
-
-        p {
-          display: inline-block;
-          height: 20px;
-          padding: 0 5px;
-          margin-right: 2px;
-          line-height: 20px;
-          color: #63656e;
-          text-align: center;
-          background-color: #f0f1f5;
-          border-radius: 2px;
-        }
-      }
-    }
-
-    .title-icon {
-      margin-left: 23px;
+    > div {
+      margin-left: 24px;
       font-size: 14px;
 
-      &:hover {
-        cursor: pointer;
+      p {
+        display: inline-block;
+        height: 20px;
+        padding: 0 5px;
+        margin-right: 2px;
+        line-height: 20px;
+        color: #63656e;
+        text-align: center;
+        background-color: #f0f1f5;
+        border-radius: 2px;
       }
     }
   }
 
-  .issued-detail {
-    .detail-content {
-      min-height: calc(100vh - 60px);
-      white-space: pre-wrap;
+  .title-icon {
+    margin-left: 23px;
+    font-size: 14px;
+
+    &:hover {
+      cursor: pointer;
     }
+  }
+}
 
-    :deep(.bk-sideslider-wrapper) {
-      padding-bottom: 0;
+.issued-detail {
+  .detail-content {
+    min-height: calc(100vh - 60px);
+    white-space: pre-wrap;
+  }
 
-      .bk-sideslider-content {
-        color: #c4c6cc;
-        background-color: #313238;
+  :deep(.bk-sideslider-wrapper) {
+    padding-bottom: 0;
 
-        a {
-          color: #3a84ff;
-        }
+    .bk-sideslider-content {
+      color: #c4c6cc;
+      background-color: #313238;
+
+      a {
+        color: #3a84ff;
       }
     }
   }
+}
 </style>

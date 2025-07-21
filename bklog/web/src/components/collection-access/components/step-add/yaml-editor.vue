@@ -79,7 +79,7 @@ export default {
     valueType: {
       type: String,
       default: 'default',
-      validator: value => ['default', 'base64'].includes(value),
+      validator: (value) => ['default', 'base64'].includes(value),
     },
     yamlFormData: {
       type: Object,
@@ -103,7 +103,9 @@ export default {
   },
   computed: {
     isHaveCannotSubmitWaring() {
-      return this.warningList.some(item => item.startLineNumber === 0 && item.endLineNumber === 0);
+      return this.warningList.some(
+        (item) => item.startLineNumber === 0 && item.endLineNumber === 0
+      );
     },
     getSubmitState() {
       return !(this.isHaveErrorProblem || this.isHaveCannotSubmitWaring);
@@ -184,7 +186,7 @@ export default {
       }
       // 读取文件:
       const reader = new FileReader();
-      reader.onload = e => {
+      reader.onload = (e) => {
         const data = e.target.result;
         this.editorValue = data;
       };
@@ -204,11 +206,12 @@ export default {
             yaml_config: yaml,
           },
         })
-        .then(res => {
+        .then((res) => {
           if (res.code === 0) {
-            const { parse_result: parseResult, parse_status: parseStatus } = res.data;
+            const { parse_result: parseResult, parse_status: parseStatus } =
+              res.data;
             if (Array.isArray(parseResult) && !parseStatus) {
-              this.warningList = parseResult.map(item => ({
+              this.warningList = parseResult.map((item) => ({
                 startLineNumber: item.start_line_number,
                 endLineNumber: item.end_line_number,
                 message: item.message,
@@ -219,14 +222,14 @@ export default {
             if (parseStatus) {
               this.warningList = [];
               const yamlFormData = parseResult;
-              yamlFormData.configs.forEach(item => {
+              yamlFormData.configs.forEach((item) => {
                 delete item.raw_config;
               });
               this.$emit('update:yaml-form-data', yamlFormData);
             }
           }
         })
-        .catch(err => {
+        .catch((err) => {
           console.warn(err);
         });
     },
@@ -237,31 +240,31 @@ export default {
 };
 </script>
 <style lang="scss" scoped>
-  .yaml-container {
-    width: 74%;
-    min-width: 800px;
-    margin: 20px 0 0 115px;
-  }
+.yaml-container {
+  width: 74%;
+  min-width: 800px;
+  margin: 20px 0 0 115px;
+}
 
-  .load {
-    display: flex;
-    align-items: center;
-  }
+.load {
+  display: flex;
+  align-items: center;
+}
 
-  .icon-upload-cloud {
-    font-size: 20px;
-  }
+.icon-upload-cloud {
+  font-size: 20px;
+}
 
-  :deep(.bk-icon) {
-    margin-right: 0px;
-  }
+:deep(.bk-icon) {
+  margin-right: 0px;
+}
 
-  .load-tips {
-    margin-right: 20px;
-  }
+.load-tips {
+  margin-right: 20px;
+}
 
-  .icon-download {
-    display: inline-block;
-    transform: translateY(-2px);
-  }
+.icon-download {
+  display: inline-block;
+  transform: translateY(-2px);
+}
 </style>

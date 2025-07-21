@@ -26,15 +26,9 @@
 
 <template>
   <div class="empty-status-container">
-    <bk-exception
-      :scene="scene"
-      :type="emptyType"
-    >
+    <bk-exception :scene="scene" :type="emptyType">
       <div class="empty-text-content">
-        <p
-          v-if="showText"
-          class="empty-text"
-        >
+        <p v-if="showText" class="empty-text">
           {{ typeText }}
         </p>
         <template v-if="$slots.default">
@@ -114,37 +108,37 @@ export default {
 </script>
 
 <style lang="scss">
-  .empty-status-container {
-    padding: 20px 0;
+.empty-status-container {
+  padding: 20px 0;
 
-    .exception-image {
-      height: 180px;
-      user-select: none;
+  .exception-image {
+    height: 180px;
+    user-select: none;
 
-      /* stylelint-disable-next-line property-no-unknown */
-      onselectstart: none;
-    }
-
-    .empty-text-content {
-      margin-top: 20px;
-    }
-
-    .empty-text {
-      margin: 8px 0;
-      font-size: 14px;
-      line-height: 22px;
-      color: #63656e;
-    }
-
-    .operation-text {
-      font-size: 12px;
-      line-height: 20px;
-      color: #63656e;
-    }
-
-    .operation-btn {
-      color: #3a84ff;
-      cursor: pointer;
-    }
+    /* stylelint-disable-next-line property-no-unknown */
+    onselectstart: none;
   }
+
+  .empty-text-content {
+    margin-top: 20px;
+  }
+
+  .empty-text {
+    margin: 8px 0;
+    font-size: 14px;
+    line-height: 22px;
+    color: #63656e;
+  }
+
+  .operation-text {
+    font-size: 12px;
+    line-height: 20px;
+    color: #63656e;
+  }
+
+  .operation-btn {
+    color: #3a84ff;
+    cursor: pointer;
+  }
+}
 </style>

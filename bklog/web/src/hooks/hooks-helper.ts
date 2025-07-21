@@ -23,9 +23,8 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Ref } from 'vue';
-
 import { isElement, debounce } from 'lodash';
+import { Ref } from 'vue';
 
 function deepQueryShadowSelector(selector) {
   // 搜索当前根下的元素
@@ -34,7 +33,9 @@ function deepQueryShadowSelector(selector) {
     const el = root.querySelector(selector);
     if (el) return el;
     // 查找当前根下所有可能的 Shadow Host
-    const shadowHosts = Array.from(root.querySelectorAll('*')).filter(el => el.shadowRoot);
+    const shadowHosts = Array.from(root.querySelectorAll('*')).filter(
+      (el) => el.shadowRoot
+    );
     // 递归穿透每个 Shadow Host
     for (const host of shadowHosts) {
       const result = searchInRoot(host.shadowRoot);
@@ -75,7 +76,11 @@ export const getTargetElement = (
  * @param wordsplit 是否分词
  * @returns
  */
-export const optimizedSplit = (str: string, delimiterPattern: string, wordsplit = true) => {
+export const optimizedSplit = (
+  str: string,
+  delimiterPattern: string,
+  wordsplit = true
+) => {
   if (!str) return [];
 
   let tokens = [];
@@ -87,7 +92,7 @@ export const optimizedSplit = (str: string, delimiterPattern: string, wordsplit 
     // 转义特殊字符，并构建用于分割的正则表达式
     const regexPattern = delimiterPattern
       .split('')
-      .map(delimiter => `\\${delimiter}`)
+      .map((delimiter) => `\\${delimiter}`)
       .join('|');
 
     const DELIMITER_REGEX = new RegExp(`(${regexPattern})`);
@@ -99,8 +104,14 @@ export const optimizedSplit = (str: string, delimiterPattern: string, wordsplit 
       if (tokens.length >= MAX_TOKENS) break;
       const isMark = MARK_REGEX.test(segment);
 
-      const segmengtSplitList = segment.replace(MARK_REGEX, '$1').split(DELIMITER_REGEX).filter(Boolean);
-      const normalTokens = segmengtSplitList.slice(0, MAX_TOKENS - tokens.length);
+      const segmengtSplitList = segment
+        .replace(MARK_REGEX, '$1')
+        .split(DELIMITER_REGEX)
+        .filter(Boolean);
+      const normalTokens = segmengtSplitList.slice(
+        0,
+        MAX_TOKENS - tokens.length
+      );
 
       if (isMark) {
         processedLength += '<mark>'.length;
@@ -110,12 +121,12 @@ export const optimizedSplit = (str: string, delimiterPattern: string, wordsplit 
         }
       }
 
-      normalTokens.forEach(t => {
+      normalTokens.forEach((t) => {
         processedLength += t.length;
         tokens.push({
-          text: t,
-          isMark,
           isCursorText: !DELIMITER_REGEX.test(t),
+          isMark,
+          text: t,
         });
       });
     }
@@ -132,18 +143,18 @@ export const optimizedSplit = (str: string, delimiterPattern: string, wordsplit 
 
       if (isMark) {
         tokens.push({
-          text: segment.replace(MARK_REGEX, '$1'),
-          isMark: true,
-          isCursorText: false,
           isBlobWord: false,
+          isCursorText: false,
+          isMark: true,
+          text: segment.replace(MARK_REGEX, '$1'),
         });
       } else {
         for (let i = 0; i < chunkCount; i++) {
           tokens.push({
-            text: segment.slice(i * CHUNK_SIZE, (i + 1) * CHUNK_SIZE),
-            isMark: false,
-            isCursorText: false,
             isBlobWord: false,
+            isCursorText: false,
+            isMark: false,
+            text: segment.slice(i * CHUNK_SIZE, (i + 1) * CHUNK_SIZE),
           });
         }
       }
@@ -182,8 +193,10 @@ export const setScrollLoadCell = (
    * 渲染一个占位符，避免正好满一行，点击展开收起遮挡文本
    */
   const appendLastTag = () => {
-    if (!contentElement?.lastElementChild?.classList?.contains('last-placeholder')) {
-      const { scrollHeight = 0, offsetHeight = 0 } = contentElement ?? {};
+    if (
+      !contentElement?.lastElementChild?.classList?.contains('last-placeholder')
+    ) {
+      const { offsetHeight = 0, scrollHeight = 0 } = contentElement ?? {};
       if (scrollHeight > offsetHeight) {
         const child = document.createElement('span');
         child.classList.add('last-placeholder');
@@ -200,8 +213,11 @@ export const setScrollLoadCell = (
     }
 
     const fragment = document.createDocumentFragment();
-    const pageItems = wordList.slice(startIndex, startIndex + (size ?? pageSize));
-    pageItems.forEach(item => {
+    const pageItems = wordList.slice(
+      startIndex,
+      startIndex + (size ?? pageSize)
+    );
+    pageItems.forEach((item) => {
       const child = renderFn?.(item) ?? defaultRenderFn(item);
 
       fragment.appendChild(child);
@@ -212,7 +228,7 @@ export const setScrollLoadCell = (
     return true;
   };
 
-  const handleScrollEvent = next =>
+  const handleScrollEvent = (next) =>
     debounce(() => {
       if (rootElement) {
         const { offsetHeight, scrollHeight } = rootElement;
@@ -256,7 +272,7 @@ export const setScrollLoadCell = (
     }
   };
 
-  const reset = list => {
+  const reset = (list) => {
     wordList = list;
     startIndex = 0;
     contentElement.innerHTML = '';
@@ -264,10 +280,10 @@ export const setScrollLoadCell = (
   };
 
   return {
-    reset,
-    setListItem,
     addScrollEvent,
     removeScrollEvent,
+    reset,
+    setListItem,
   };
 };
 
@@ -286,20 +302,33 @@ export const getClickTargetElement = (pointer: MouseEvent) => {
   let targetLineIndex = -1;
   for (let i = 0; i < lineRects.length; i++) {
     const rect = lineRects[i];
-    if (clientY >= rect.top && clientY <= rect.bottom && clientX >= rect.left && clientX <= rect.right) {
+    if (
+      clientY >= rect.top &&
+      clientY <= rect.bottom &&
+      clientX >= rect.left &&
+      clientX <= rect.right
+    ) {
       targetLineIndex = i;
       break;
     }
   }
 
   const target = lineRects?.[targetLineIndex];
-  return { offsetX: 0, offsetY: (target?.bottom ?? pointer.clientY) - pointer.clientY };
+  return {
+    offsetX: 0,
+    offsetY: (target?.bottom ?? pointer.clientY) - pointer.clientY,
+  };
 };
 
-export const setPointerCellClickTargetHandler = (e: MouseEvent, { offsetY = 0, offsetX = 0 }) => {
+export const setPointerCellClickTargetHandler = (
+  e: MouseEvent,
+  { offsetX = 0, offsetY = 0 }
+) => {
   const x = e.clientX;
   const y = e.clientY;
-  let virtualTarget = document.body.querySelector('.bklog-virtual-target') as HTMLElement;
+  let virtualTarget = document.body.querySelector(
+    '.bklog-virtual-target'
+  ) as HTMLElement;
   if (!virtualTarget) {
     virtualTarget = document.createElement('span') as HTMLElement;
     virtualTarget.className = 'bklog-virtual-target';

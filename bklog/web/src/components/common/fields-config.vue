@@ -25,11 +25,7 @@
 -->
 
 <template>
-  <div
-    class="fields-config-tippy"
-    v-bkloading="{ isLoading }"
-    :id="id"
-  >
+  <div class="fields-config-tippy" v-bkloading="{ isLoading }" :id="id">
     <!-- 字段显示设置 -->
     <div class="config-title">{{ $t('设置显示与排序') }}</div>
     <div class="field-list-container">
@@ -40,10 +36,7 @@
             <span>{{ displayFieldNames.length }}</span>
           </i18n>
         </div>
-        <vue-draggable
-          v-bind="dragOptions"
-          v-model="displayFieldNames"
-        >
+        <vue-draggable v-bind="dragOptions" v-model="displayFieldNames">
           <transition-group>
             <li
               v-for="(field, index) in displayFieldNames"
@@ -72,10 +65,7 @@
             :key="field"
           >
             <div class="field_name">{{ field }}</div>
-            <div
-              class='operate-button'
-              @click="addItem(field)"
-            >
+            <div class="operate-button" @click="addItem(field)">
               {{ $t('添加') }}
             </div>
           </li>
@@ -141,7 +131,9 @@ export default {
   },
   computed: {
     restFieldNames() {
-      return this.totalFieldNames.filter(field => !this.displayFieldNames.includes(field));
+      return this.totalFieldNames.filter(
+        (field) => !this.displayFieldNames.includes(field)
+      );
     },
     // 最少显示一个字段
     disabledRemove() {
@@ -180,80 +172,80 @@ export default {
 </script>
 
 <style lang="scss">
-  .fields-config-tippy > .tippy-tooltip {
-    padding: 0;
-    border: 1px solid #dcdee5;
+.fields-config-tippy > .tippy-tooltip {
+  padding: 0;
+  border: 1px solid #dcdee5;
 
-    .fields-config-tippy {
-      .config-title {
-        padding: 20px 24px 0;
-        font-size: 20px;
-        font-weight: normal;
-        line-height: 28px;
-        color: #313238;
-      }
+  .fields-config-tippy {
+    .config-title {
+      padding: 20px 24px 0;
+      font-size: 20px;
+      font-weight: normal;
+      line-height: 28px;
+      color: #313238;
+    }
 
-      .field-list-container {
-        max-height: 400px;
-        padding: 10px 24px;
-        overflow: auto;
-        color: #63656e;
+    .field-list-container {
+      max-height: 400px;
+      padding: 10px 24px;
+      overflow: auto;
+      color: #63656e;
 
-        .field-list {
-          .list-title,
-          .list-item,
-          .operate-button {
-            line-height: 32px;
+      .field-list {
+        .list-title,
+        .list-item,
+        .operate-button {
+          line-height: 32px;
+        }
+
+        .list-item {
+          position: relative;
+          display: flex;
+          align-items: center;
+          padding-left: 12px;
+          margin-bottom: 2px;
+          background-color: #f5f6fa;
+
+          &.display-item {
+            .bklog-drag-dots {
+              width: 16px;
+              font-size: 14px;
+              color: #979ba5;
+              text-align: left;
+              cursor: move;
+              transition: opacity 0.2s linear;
+            }
           }
 
-          .list-item {
-            position: relative;
-            display: flex;
-            align-items: center;
-            padding-left: 12px;
-            margin-bottom: 2px;
-            background-color: #f5f6fa;
+          .operate-button {
+            position: absolute;
+            top: 0;
+            right: 0;
+            width: 40px;
+            text-align: center;
+            cursor: pointer;
 
-            &.display-item {
-              .bklog-drag-dots {
-                width: 16px;
-                font-size: 14px;
-                color: #979ba5;
-                text-align: left;
-                cursor: move;
-                transition: opacity 0.2s linear;
-              }
+            &:hover {
+              color: #3a84ff;
             }
 
-            .operate-button {
-              position: absolute;
-              top: 0;
-              right: 0;
-              width: 40px;
-              text-align: center;
-              cursor: pointer;
-
-              &:hover {
-                color: #3a84ff;
-              }
-
-              &.disabled {
-                color: #dcdee5;
-                cursor: not-allowed;
-              }
+            &.disabled {
+              color: #dcdee5;
+              cursor: not-allowed;
             }
           }
         }
       }
+    }
 
-      .config-buttons {
-        display: flex;
-        align-items: center;
-        justify-content: flex-end;
-        height: 50px;
-        background: #fafbfd;
-        border-top: 1px solid #dcdee5;
-      }
+    .config-buttons {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      height: 50px;
+      background: #fafbfd;
+      border-top: 1px solid #dcdee5;
     }
   }
+}
 </style>

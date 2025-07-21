@@ -56,28 +56,26 @@
           ></bk-input>
           <bk-button
             class="king-button"
-            :disabled="!formData.resultTableId || formData.resultTableId === '*'"
+            :disabled="
+              !formData.resultTableId || formData.resultTableId === '*'
+            "
             :loading="searchLoading"
             @click="handleSearch"
           >
             {{ $t('搜索') }}
           </bk-button>
-          <div
-            v-if="indexErrorText"
-            class="error-tips-container"
-          >
+          <div v-if="indexErrorText" class="error-tips-container">
             <span
               class="bklog-icon bklog-info-fill"
               v-bk-tooltips="{ width: 440, content: indexErrorText }"
             ></span>
           </div>
-          <div class="input-tips">{{ $t('支持“*”匹配，不支持其他特殊符号') }}</div>
+          <div class="input-tips">
+            {{ $t('支持“*”匹配，不支持其他特殊符号') }}
+          </div>
         </bk-form-item>
         <bk-form-item label="">
-          <div
-            v-if="matchedTableIds.length"
-            class="result-tips"
-          >
+          <div v-if="matchedTableIds.length" class="result-tips">
             <i class="bk-icon icon-check-circle-shape"></i>
             {{ $t('成功匹配 {x} 条索引', { x: matchedTableIds.length }) }}
           </div>
@@ -102,11 +100,7 @@
             </template>
           </bk-table>
         </bk-form-item>
-        <bk-form-item
-          :label="$t('时间字段')"
-          property="time_field"
-          required
-        >
+        <bk-form-item :label="$t('时间字段')" property="time_field" required>
           <bk-select
             :clearable="false"
             :value="formData.time_field"
@@ -151,10 +145,7 @@
           </div>
         </template>
       </bk-form>
-      <div
-        class="button-footer"
-        slot="footer"
-      >
+      <div class="button-footer" slot="footer">
         <bk-button
           class="king-button"
           :loading="confirmLoading"
@@ -163,11 +154,9 @@
         >
           {{ $t('添加') }}
         </bk-button>
-        <bk-button
-          class="king-button"
-          @click="handleCancel"
-          >{{ $t('取消') }}</bk-button
-        >
+        <bk-button class="king-button" @click="handleCancel">{{
+          $t('取消')
+        }}</bk-button>
       </div>
     </div>
   </bk-dialog>
@@ -221,7 +210,7 @@ export default {
             trigger: 'blur',
           },
           {
-            validator: val => val && val !== '*',
+            validator: (val) => val && val !== '*',
             trigger: 'blur',
           },
         ],
@@ -231,7 +220,7 @@ export default {
             trigger: 'change',
           },
           {
-            validator: val => {
+            validator: (val) => {
               if (!this.timeIndex) return true;
               return this.timeIndex.time_field === val;
             },
@@ -307,7 +296,10 @@ export default {
       this.formData.time_field_unit = 'microsecond';
       this.searchLoading = true;
       this.tableLoading = true;
-      const [idRes, fieldRes] = await Promise.all([this.fetchList(), this.fetchInfo()]);
+      const [idRes, fieldRes] = await Promise.all([
+        this.fetchList(),
+        this.fetchInfo(),
+      ]);
       this.matchedTableIds = idRes;
       this.timeFields = fieldRes;
       this.searchLoading = false;
@@ -349,10 +341,14 @@ export default {
               }
         );
         if (foreignParams) return res;
-        const timeFields = res.data.fields.filter(item => item.field_type === 'date' || item.field_type === 'long');
+        const timeFields = res.data.fields.filter(
+          (item) => item.field_type === 'date' || item.field_type === 'long'
+        );
         // 如果已经添加了索引，回填三个字段（禁止更改字段名）
         if (this.timeIndex) {
-          const find = timeFields.find(item => item.field_name === this.timeIndex.time_field);
+          const find = timeFields.find(
+            (item) => item.field_name === this.timeIndex.time_field
+          );
           if (find) {
             Object.assign(this.formData, this.timeIndex);
           }
@@ -368,7 +364,9 @@ export default {
     // 选择时间字段
     handleSelectedTimeField(fieldName) {
       this.formData.time_field = fieldName;
-      this.formData.time_field_type = this.timeFields.find(item => item.field_name === fieldName).field_type;
+      this.formData.time_field_type = this.timeFields.find(
+        (item) => item.field_name === fieldName
+      ).field_type;
     },
     // 确认添加
     async handleConfirm() {
@@ -378,7 +376,7 @@ export default {
         const data = {
           scenario_id: this.scenarioId,
           storage_cluster_id: this.parentData.storage_cluster_id,
-          basic_indices: this.parentData.indexes.map(item => ({
+          basic_indices: this.parentData.indexes.map((item) => ({
             index: item.result_table_id,
             time_field: this.formData.time_field,
             time_field_type: this.formData.time_field_type,
@@ -414,73 +412,73 @@ export default {
 </script>
 
 <style scoped lang="scss">
-  .slot-container {
-    padding-right: 40px;
+.slot-container {
+  padding-right: 40px;
 
-    :deep(.bk-form) {
-      .bk-label {
-        text-align: left;
-      }
-
-      .bk-form-content {
-        position: relative;
-      }
+  :deep(.bk-form) {
+    .bk-label {
+      text-align: left;
     }
 
-    .add-index-input-container {
+    .bk-form-content {
       position: relative;
+    }
+  }
 
-      .king-input {
-        width: calc(100% - 90px);
-      }
+  .add-index-input-container {
+    position: relative;
 
-      .king-button {
-        position: absolute;
-        top: 0;
-        right: 0;
-      }
-
-      .error-tips-container {
-        position: absolute;
-        top: 0;
-        right: -32px;
-      }
-
-      .bklog-icon {
-        font-size: 18px;
-        color: #ea3636;
-        cursor: pointer;
-      }
-
-      .input-tips {
-        margin-top: 2px;
-        font-size: 12px;
-        line-height: 14px;
-        color: #979ba5;
-      }
+    .king-input {
+      width: calc(100% - 90px);
     }
 
-    .result-tips {
+    .king-button {
       position: absolute;
-      top: 7px;
-      right: 14px;
-      z-index: 10;
-      padding-left: 12px;
-      font-size: 12px;
-      color: #2dcb56;
+      top: 0;
+      right: 0;
     }
 
-    .button-footer {
-      margin-top: 20px;
-      text-align: right;
+    .error-tips-container {
+      position: absolute;
+      top: 0;
+      right: -32px;
+    }
 
-      .king-button {
-        width: 86px;
+    .bklog-icon {
+      font-size: 18px;
+      color: #ea3636;
+      cursor: pointer;
+    }
 
-        &:first-child {
-          margin-right: 8px;
-        }
+    .input-tips {
+      margin-top: 2px;
+      font-size: 12px;
+      line-height: 14px;
+      color: #979ba5;
+    }
+  }
+
+  .result-tips {
+    position: absolute;
+    top: 7px;
+    right: 14px;
+    z-index: 10;
+    padding-left: 12px;
+    font-size: 12px;
+    color: #2dcb56;
+  }
+
+  .button-footer {
+    margin-top: 20px;
+    text-align: right;
+
+    .king-button {
+      width: 86px;
+
+      &:first-child {
+        margin-right: 8px;
       }
     }
   }
+}
 </style>

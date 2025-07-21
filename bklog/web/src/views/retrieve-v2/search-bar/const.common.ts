@@ -37,23 +37,23 @@ export const FulltextOperator = 'contains match phrase';
  */
 export const getInputQueryDefaultItem = (value: string[] = []) => {
   return {
-    field: '*',
-    operator: FulltextOperator,
-    isInclude: false,
-    value: [...(Array.isArray(value) ? value : [value])],
-    relation: 'OR',
     disabled: false,
+    field: '*',
+    isInclude: false,
+    operator: FulltextOperator,
+    relation: 'OR',
+    value: [...(Array.isArray(value) ? value : [value])],
   };
 };
 
-export const getInputQueryIpSelectItem = value => {
+export const getInputQueryIpSelectItem = (value) => {
   return {
-    field: '_ip-select_',
-    operator: '',
-    isInclude: false,
-    value: [value ?? {}],
-    relation: '',
     disabled: false,
+    field: '_ip-select_',
+    isInclude: false,
+    operator: '',
+    relation: '',
+    value: [value ?? {}],
   };
 };
 /**
@@ -62,11 +62,11 @@ export const getInputQueryIpSelectItem = value => {
  */
 export const getFieldConditonItem = () => {
   return {
-    field_name: '*',
-    field_type: null,
     field_alias: null,
     field_id: null,
+    field_name: '*',
     field_operator: [],
+    field_type: null,
   };
 };
 
@@ -79,4 +79,9 @@ export const FulltextOperatorKey = '*contains match phrase';
 export const excludesFields = ['__ext', '__module__', ' __set__', '__ipv6__'];
 
 // 无需配置值（Value）的条件列表
-export const withoutValueConditionList = ['does not exists', 'exists', 'is false', 'is true'];
+export const withoutValueConditionList = [
+  'does not exists',
+  'exists',
+  'is false',
+  'is true',
+];

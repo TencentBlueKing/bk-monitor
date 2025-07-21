@@ -33,10 +33,7 @@
       <dl class="description-list">
         <div class="description-row">
           <dt class="description-term">{{ $t('索引集名称') }}</dt>
-          <dd
-            class="description-definition"
-            v-bk-overflow-tips
-          >
+          <dd class="description-definition" v-bk-overflow-tips>
             {{ indexSetData.index_set_name || '--' }}
           </dd>
           <dt class="description-term">{{ $t('所属集群') }}</dt>
@@ -52,32 +49,27 @@
         </div>
         <div class="description-row">
           <dt class="description-term">{{ $t('数据分类') }}</dt>
-          <dd
-            class="description-definition"
-            v-bk-overflow-tips
-          >
+          <dd class="description-definition" v-bk-overflow-tips>
             {{ categoryMap[indexSetData.category_id] || '--' }}
           </dd>
           <dt class="description-term">{{ $t('创建人') }}</dt>
-          <dd class="description-definition">{{ indexSetData.created_by || '--' }}</dd>
+          <dd class="description-definition">
+            {{ indexSetData.created_by || '--' }}
+          </dd>
         </div>
         <div class="description-row">
           <dt class="description-term">{{ $t('数据源') }}</dt>
-          <dd
-            class="description-definition"
-            v-bk-overflow-tips
-          >
+          <dd class="description-definition" v-bk-overflow-tips>
             {{ scenarioMap[indexSetData.scenario_id] || '--' }}
           </dd>
           <dt class="description-term">{{ $t('创建时间') }}</dt>
-          <dd class="description-definition">{{ indexSetData.created_at.slice(0, 19) || '--' }}</dd>
+          <dd class="description-definition">
+            {{ indexSetData.created_at.slice(0, 19) || '--' }}
+          </dd>
         </div>
       </dl>
     </section>
-    <section
-      style="margin-bottom: 20px"
-      class="partial-content"
-    >
+    <section style="margin-bottom: 20px" class="partial-content">
       <div class="main-title">
         {{ $t('采集项') }}
       </div>
@@ -121,10 +113,7 @@
             {{ getFileSize(row.stat['store.size']) }}
           </template>
         </bk-table-column>
-        <bk-table-column
-          width="150"
-          :label="$t('操作')"
-        >
+        <bk-table-column width="150" :label="$t('操作')">
           <template #default="{ row }">
             <bk-button
               :disabled="pagedIndexesList.length === 1"
@@ -152,10 +141,7 @@
         @page-change="handleRecordsPageChange"
         @page-limit-change="handleRecordsLimitChange"
       >
-        <bk-table-column
-          width="200"
-          :label="$t('操作日期')"
-        >
+        <bk-table-column width="200" :label="$t('操作日期')">
           <template #default="{ row }">
             {{ row.created_at.slice(0, 19) }}
           </template>
@@ -169,10 +155,7 @@
           :label="$t('操作人')"
           prop="created_by"
         ></bk-table-column>
-        <bk-table-column
-          width="140"
-          :label="$t('操作结果')"
-        >
+        <bk-table-column width="140" :label="$t('操作结果')">
           <template #default="{ row }">
             <div :class="['status-text', row.result && 'success-status']">
               {{ row.result ? $t('成功') : $t('失败') }}
@@ -223,14 +206,15 @@ export default {
     ...mapState(['spaceUid', 'bkBizId']),
     ...mapState('collect', ['scenarioMap']),
     pagedIndexesList() {
-      const start = (this.indexesPagination.current - 1) * this.indexesPagination.limit;
+      const start =
+        (this.indexesPagination.current - 1) * this.indexesPagination.limit;
       const end = start + this.indexesPagination.limit;
       return this.indexesData.slice(start, end);
     },
     categoryMap() {
       const map = {};
-      this.$store.state.globals.globalsData.category.forEach(child => {
-        child.children.forEach(item => {
+      this.$store.state.globals.globalsData.category.forEach((child) => {
+        child.children.forEach((item) => {
           map[item.id] = item.name;
         });
       });
@@ -279,7 +263,9 @@ export default {
               scenario_id: scenarioId,
               index_set_name: this.indexSetData.index_set_name,
               category_id: this.indexSetData.category_id,
-              indexes: this.indexSetData.indexes.filter(item => item.result_table_id !== row.result_table_id),
+              indexes: this.indexSetData.indexes.filter(
+                (item) => item.result_table_id !== row.result_table_id
+              ),
               view_roles: [], // 兼容后端历史遗留代码
               space_uid: this.spaceUid,
             };
@@ -302,7 +288,7 @@ export default {
               data: requestBody,
             });
             this.indexesData.splice(
-              this.indexesData.findIndex(item => item === row),
+              this.indexesData.findIndex((item) => item === row),
               1
             );
             this.indexesPagination.count -= 1;
@@ -352,60 +338,60 @@ export default {
 </script>
 
 <style lang="scss" scoped>
-  .description-list {
-    font-size: 12px;
-    line-height: 16px;
+.description-list {
+  font-size: 12px;
+  line-height: 16px;
 
-    .description-row {
-      display: flex;
-      align-items: center;
-    }
-
-    .description-term {
-      min-width: 120px;
-      height: 40px;
-      padding-right: 20px;
-      color: #63656e;
-      text-align: right;
-    }
-
-    .description-definition {
-      width: 200px;
-      height: 40px;
-      margin-right: 10px;
-      overflow: hidden;
-      color: #313238;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
+  .description-row {
+    display: flex;
+    align-items: center;
   }
 
-  .king-table {
-    :deep(.bk-table-body) {
-      .cell {
-        padding-top: 8px;
-        padding-bottom: 8px;
-      }
-    }
+  .description-term {
+    min-width: 120px;
+    height: 40px;
+    padding-right: 20px;
+    color: #63656e;
+    text-align: right;
   }
 
-  .status-text {
+  .description-definition {
+    width: 200px;
+    height: 40px;
+    margin-right: 10px;
+    overflow: hidden;
+    color: #313238;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
+.king-table {
+  :deep(.bk-table-body) {
+    .cell {
+      padding-top: 8px;
+      padding-bottom: 8px;
+    }
+  }
+}
+
+.status-text {
+  color: #ea3636;
+
+  &.success-status {
+    color: #2dcb56;
+  }
+
+  &.green {
+    color: #2dcb56;
+  }
+
+  &.yellow {
+    color: #ff9c01;
+  }
+
+  &.red {
     color: #ea3636;
-
-    &.success-status {
-      color: #2dcb56;
-    }
-
-    &.green {
-      color: #2dcb56;
-    }
-
-    &.yellow {
-      color: #ff9c01;
-    }
-
-    &.red {
-      color: #ea3636;
-    }
   }
+}
 </style>

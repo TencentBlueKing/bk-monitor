@@ -26,15 +26,9 @@
 
 <template>
   <div class="manage-container">
-    <div
-      v-if="!pageLoading"
-      class="manage-main"
-    >
+    <div v-if="!pageLoading" class="manage-main">
       <sub-nav></sub-nav>
-      <router-view
-        class="manage-content"
-        :key="routerKey"
-      ></router-view>
+      <router-view class="manage-content" :key="routerKey"></router-view>
     </div>
   </div>
 </template>
@@ -63,7 +57,7 @@ export default {
       pageLoading: 'pageLoading',
     }),
     manageNavList() {
-      return this.topMenu.find(item => item.id === 'manage')?.children || [];
+      return this.topMenu.find((item) => item.id === 'manage')?.children || [];
     },
   },
   methods: {
@@ -105,35 +99,35 @@ export default {
 </script>
 
 <style lang="scss" scoped>
-  @import '../../scss/mixins/scroller.scss';
+@import '../../scss/mixins/scroller.scss';
 
-  .manage-container {
+.manage-container {
+  height: 100%;
+
+  .manage-content {
+    // height: 100%;
+    position: relative;
+    top: 48px;
+    height: calc(100% - 52px);
+    overflow: auto;
+
+    @include scroller($backgroundColor: #c4c6cc, $width: 4px);
+  }
+
+  .manage-main {
     height: 100%;
+  }
 
-    .manage-content {
-      // height: 100%;
-      position: relative;
-      top: 48px;
-      height: calc(100% - 52px);
-      overflow: auto;
+  :deep(.bk-table) {
+    background: #fff;
 
-      @include scroller($backgroundColor: #c4c6cc, $width: 4px);
+    .cell {
+      display: block;
     }
 
-    .manage-main {
-      height: 100%;
-    }
-
-    :deep(.bk-table) {
-      background: #fff;
-
-      .cell {
-        display: block;
-      }
-
-      .bk-table-pagination-wrapper {
-        background: #fafbfd;
-      }
+    .bk-table-pagination-wrapper {
+      background: #fafbfd;
     }
   }
+}
 </style>

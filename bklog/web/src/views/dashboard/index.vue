@@ -25,14 +25,8 @@
 -->
 
 <template>
-  <div
-    class="dashboard-container"
-    v-bkloading="{ isLoading }"
-  >
-    <auth-container-page
-      v-if="authPageInfo"
-      :info="authPageInfo"
-    />
+  <div class="dashboard-container" v-bkloading="{ isLoading }">
+    <auth-container-page v-if="authPageInfo" :info="authPageInfo" />
     <iframe
       v-if="src"
       ref="iframeRef"
@@ -109,7 +103,10 @@ export default {
           dashboardData = JSON.parse(existData);
         }
         dashboardData[this.bkBizId] = dashboardId;
-        localStorage.setItem('___grafana_dashboard_data___', JSON.stringify(dashboardData));
+        localStorage.setItem(
+          '___grafana_dashboard_data___',
+          JSON.stringify(dashboardData)
+        );
       }
     },
     async handleBizChange() {
@@ -154,8 +151,13 @@ export default {
       const prefixUrl = window.origin + siteUrl;
       // ?develop=2 开放导航栏
       let dashboardId = '';
-      const dashboardData = localStorage.getItem('___grafana_dashboard_data___');
-      if (dashboardData && (dashboardId = JSON.parse(dashboardData)[this.bkBizId])) {
+      const dashboardData = localStorage.getItem(
+        '___grafana_dashboard_data___'
+      );
+      if (
+        dashboardData &&
+        (dashboardId = JSON.parse(dashboardData)[this.bkBizId])
+      ) {
         this.src = `${prefixUrl}grafana/d/${dashboardId}/?orgName=${this.bkBizId}`;
       } else {
         this.src = `${prefixUrl}grafana/?orgName=${this.bkBizId}`;
@@ -199,7 +201,10 @@ export default {
         'import-dashboard': 'import',
       };
       if (idMap[manageAction]) {
-        this.$refs.iframeRef.contentWindow.postMessage(idMap[manageAction], '*');
+        this.$refs.iframeRef.contentWindow.postMessage(
+          idMap[manageAction],
+          '*'
+        );
       } else {
         this.$refs.iframeRef.contentWindow.postMessage('home', '*');
       }
@@ -233,13 +238,13 @@ export default {
 </script>
 
 <style scoped lang="scss">
-  .dashboard-container {
-    height: 100%;
+.dashboard-container {
+  height: 100%;
 
-    .dashboard-iframe {
-      width: 100%;
-      height: 100%;
-      border: none;
-    }
+  .dashboard-iframe {
+    width: 100%;
+    height: 100%;
+    border: none;
   }
+}
 </style>

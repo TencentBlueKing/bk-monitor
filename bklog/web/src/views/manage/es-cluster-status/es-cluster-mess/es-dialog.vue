@@ -34,23 +34,10 @@
     @value-change="handleVisibilityChange"
   >
     <div style="min-height: 200px; padding-bottom: 20px">
-      <bk-table
-        v-if="value"
-        :data="filterList"
-        :max-height="320"
-      >
-        <bk-table-column
-          label="ID"
-          prop="id"
-        ></bk-table-column>
-        <bk-table-column
-          label="Name"
-          prop="name"
-        ></bk-table-column>
-        <bk-table-column
-          label="Host"
-          prop="host"
-        ></bk-table-column>
+      <bk-table v-if="value" :data="filterList" :max-height="320">
+        <bk-table-column label="ID" prop="id"></bk-table-column>
+        <bk-table-column label="Name" prop="name"></bk-table-column>
+        <bk-table-column label="Host" prop="host"></bk-table-column>
       </bk-table>
     </div>
   </bk-dialog>
@@ -85,11 +72,17 @@ export default {
   },
   computed: {
     filterList() {
-      return this.list.filter(item => {
+      return this.list.filter((item) => {
         if (this.type === 'hot') {
-          return item.attr === this.formData.hot_attr_name && item.value === this.formData.hot_attr_value;
+          return (
+            item.attr === this.formData.hot_attr_name &&
+            item.value === this.formData.hot_attr_value
+          );
         }
-        return item.attr === this.formData.warm_attr_name && item.value === this.formData.warm_attr_value;
+        return (
+          item.attr === this.formData.warm_attr_name &&
+          item.value === this.formData.warm_attr_value
+        );
       });
     },
   },
@@ -97,9 +90,15 @@ export default {
     value(val) {
       if (val) {
         const isHot = this.type === 'hot';
-        const name = isHot ? this.formData.hot_attr_name : this.formData.warm_attr_name;
-        const value = isHot ? this.formData.hot_attr_value : this.formData.warm_attr_value;
-        this.title = this.$t('包含属性 {n} 的节点列表', { n: `${name}:${value}` });
+        const name = isHot
+          ? this.formData.hot_attr_name
+          : this.formData.warm_attr_name;
+        const value = isHot
+          ? this.formData.hot_attr_value
+          : this.formData.warm_attr_value;
+        this.title = this.$t('包含属性 {n} 的节点列表', {
+          n: `${name}:${value}`,
+        });
       }
     },
   },

@@ -43,31 +43,26 @@
       <bk-table-column :label="$t('原始日志')">
         <template #default="props">
           <div
-            :class="{ 'text-style': true, 'expand-style': expandIndex === props.$index }"
+            :class="{
+              'text-style': true,
+              'expand-style': expandIndex === props.$index,
+            }"
             @click="showClick($event, props.$index)"
             @mouseenter="handleEnter($event, props.row.etl.batch)"
             @mouseleave="handleLeave"
           >
-            <span
-              v-for="(val, index) in props.row.etl.batch"
-              :key="index"
-              >{{ val }}</span
-            >
+            <span v-for="(val, index) in props.row.etl.batch" :key="index">{{
+              val
+            }}</span>
           </div>
         </template>
       </bk-table-column>
-      <bk-table-column
-        width="200"
-        :label="$t('采集时间')"
-      >
+      <bk-table-column width="200" :label="$t('采集时间')">
         <template #default="props">
           <div>{{ props.row.etl.datetime }}</div>
         </template>
       </bk-table-column>
-      <bk-table-column
-        width="210"
-        :label="$t('操作')"
-      >
+      <bk-table-column width="210" :label="$t('操作')">
         <template #default="props">
           <div>
             <span
@@ -75,20 +70,15 @@
               @click="copyText(props.row.etl.batch, 'log')"
               >{{ $t('复制') }}</span
             >
-            <span
-              class="option-text"
-              @click="chickFile(props.row)"
-              >{{ $t('查看上报日志') }}</span
-            >
+            <span class="option-text" @click="chickFile(props.row)">{{
+              $t('查看上报日志')
+            }}</span>
           </div>
         </template>
       </bk-table-column>
       <template #empty>
         <div>
-          <empty-status
-            :show-text="false"
-            empty-type="empty"
-          >
+          <empty-status :show-text="false" empty-type="empty">
             <span>{{ $t('暂无内容') }}</span>
           </empty-status>
         </div>
@@ -104,15 +94,15 @@
     >
       <template #header>
         <div>
-          {{ customSettings.title }} <span @click="copyText(JSON.stringify(jsonText))">{{ $t('复制') }}</span>
+          {{ customSettings.title }}
+          <span @click="copyText(JSON.stringify(jsonText))">{{
+            $t('复制')
+          }}</span>
         </div>
       </template>
       <template #content>
         <div class="p20 json-text-style">
-          <JsonFormatWrapper
-            :data="jsonText"
-            :deep="5"
-          />
+          <JsonFormatWrapper :data="jsonText" :deep="5" />
         </div>
       </template>
     </bk-sideslider>
@@ -184,7 +174,7 @@ export default {
     copyText(data, val) {
       let sta = '';
       if (val === 'log') {
-        data.forEach(item => {
+        data.forEach((item) => {
           sta = `${sta + item}\n`;
         });
       }
@@ -213,109 +203,109 @@ export default {
 </script>
 
 <style scoped lang="scss">
-  @import '../../../../../../../scss/mixins/clearfix';
-  @import '../../../../../../../scss/conf';
+@import '../../../../../../../scss/mixins/clearfix';
+@import '../../../../../../../scss/conf';
 
-  #json-format {
-    .option-text {
-      margin-right: 6px;
-      color: #3a84ff;
-      cursor: pointer;
-    }
+#json-format {
+  .option-text {
+    margin-right: 6px;
+    color: #3a84ff;
+    cursor: pointer;
+  }
+}
+
+.nav-head {
+  position: relative;
+  height: 20px;
+  font-size: 14px;
+  line-height: 20px;
+
+  i {
+    position: absolute;
+    top: 1px;
+    font-size: 18px;
+    font-weight: 900;
+    color: #3a84ff;
+    cursor: pointer;
   }
 
-  .nav-head {
-    position: relative;
-    height: 20px;
+  span {
+    margin-left: 30px;
     font-size: 14px;
-    line-height: 20px;
-
-    i {
-      position: absolute;
-      top: 1px;
-      font-size: 18px;
-      font-weight: 900;
-      color: #3a84ff;
-      cursor: pointer;
-    }
-
-    span {
-      margin-left: 30px;
-      font-size: 14px;
-    }
   }
+}
 
-  .json-view-wrapper {
-    padding: 10px 0;
-  }
+.json-view-wrapper {
+  padding: 10px 0;
+}
 
-  .text-style {
-    display: flex;
-    flex-flow: column;
-    max-height: 54px;
+.text-style {
+  display: flex;
+  flex-flow: column;
+  max-height: 54px;
+  overflow: hidden;
+  line-height: 18px;
+
+  span {
+    flex-shrink: 0;
     overflow: hidden;
-    line-height: 18px;
-
-    span {
-      flex-shrink: 0;
-      overflow: hidden;
-      font-size: 12px;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
+    font-size: 12px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
+}
 
-  .expand-style {
-    max-height: fit-content;
+.expand-style {
+  max-height: fit-content;
 
-    span {
-      white-space: normal;
-    }
+  span {
+    white-space: normal;
   }
+}
 
-  .json-text-style {
-    color: #c4c6cc;
-    background-color: #313238;
-  }
+.json-text-style {
+  color: #c4c6cc;
+  background-color: #313238;
+}
 
-  .locker-style {
-    :deep(section) {
-      /* stylelint-disable-next-line declaration-no-important */
-      background-color: #313238 !important;
+.locker-style {
+  :deep(section) {
+    /* stylelint-disable-next-line declaration-no-important */
+    background-color: #313238 !important;
+
+    > div:nth-child(1) {
+      height: 50px;
 
       > div:nth-child(1) {
         height: 50px;
+        line-height: 50px;
+      }
 
-        > div:nth-child(1) {
-          height: 50px;
-          line-height: 50px;
-        }
+      > div:nth-child(2) {
+        height: 50px;
+        font-size: 14px;
+        line-height: 50px;
+        color: #737987;
 
-        > div:nth-child(2) {
-          height: 50px;
-          font-size: 14px;
-          line-height: 50px;
-          color: #737987;
+        > div {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
 
-          > div {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-
-            span {
-              display: inline-block;
-              width: 68px;
-              height: 32px;
-              margin-right: 20px;
-              line-height: 32px;
-              color: #737987;
-              text-align: center;
-              cursor: pointer;
-              border: 1px solid #c4c6cc;
-            }
+          span {
+            display: inline-block;
+            width: 68px;
+            height: 32px;
+            margin-right: 20px;
+            line-height: 32px;
+            color: #737987;
+            text-align: center;
+            cursor: pointer;
+            border: 1px solid #c4c6cc;
           }
         }
       }
     }
   }
+}
 </style>

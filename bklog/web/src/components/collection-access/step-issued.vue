@@ -41,7 +41,9 @@
         class="step-issued-notice notice-primary"
       >
         <i class="bk-icon icon-info-circle-shape notice-icon"></i>
-        <span class="notice-text">{{ $t('采集完成后24小时内，没有配置第4步“存储”，任务会被强制停用。') }}</span>
+        <span class="notice-text">{{
+          $t('采集完成后24小时内，没有配置第4步“存储”，任务会被强制停用。')
+        }}</span>
       </div>
       <template v-if="!isShowStepInfo">
         <div class="step-issued-header">
@@ -73,14 +75,14 @@
             >{{ $t('失败批量重试') }}
           </bk-button>
         </div>
-        <section
-          v-if="tableList.length"
-          class="cluster-collaspse"
-        >
+        <section v-if="tableList.length" class="cluster-collaspse">
           <template v-for="cluster in tableList">
             <right-panel
               v-if="cluster.child.length"
-              :class="['cluster-menu', { 'has-title-sign': cluster.is_label && isEdit }]"
+              :class="[
+                'cluster-menu',
+                { 'has-title-sign': cluster.is_label && isEdit },
+              ]"
               :collapse.sync="cluster.collapse"
               :collapse-color="'#313238'"
               :key="cluster.id"
@@ -107,10 +109,7 @@
                 <div class="header-info">
                   <div class="header-title fl">{{ cluster.node_path }}</div>
                   <!-- eslint-disable-next-line vue/no-v-html -->
-                  <p
-                    class="fl"
-                    v-html="collaspseHeadInfo(cluster)"
-                  ></p>
+                  <p class="fl" v-html="collaspseHeadInfo(cluster)"></p>
                   <!-- <span class="success">{{ cluster.success }}</span> 个成功
                 <span v-if="cluster.failed" class="failed">，{{ cluster.failed }}</span> 个失败 -->
                 </div>
@@ -126,23 +125,23 @@
                     :resizable="true"
                     :size="size"
                   >
-                    <bk-table-column
-                      width="180"
-                      :label="$t('目标')"
-                    >
+                    <bk-table-column width="180" :label="$t('目标')">
                       <template #default="props">
                         <span>{{ getShowIp(props.row) }}</span>
                       </template>
                     </bk-table-column>
-                    <bk-table-column
-                      width="140"
-                      :label="$t('运行状态')"
-                    >
+                    <bk-table-column width="140" :label="$t('运行状态')">
                       <template #default="props">
                         <span :class="['status', 'status-' + props.row.status]">
                           <i
-                            v-if="props.row.status !== 'success' && props.row.status !== 'failed'"
-                            style="display: inline-block; animation: button-icon-loading 1s linear infinite"
+                            v-if="
+                              props.row.status !== 'success' &&
+                              props.row.status !== 'failed'
+                            "
+                            style="
+                              display: inline-block;
+                              animation: button-icon-loading 1s linear infinite;
+                            "
                             class="bk-icon icon-refresh"
                           >
                           </i>
@@ -162,11 +161,9 @@
                     >
                       <template #default="props">
                         <p>
-                          <span
-                            class="overflow-tips"
-                            v-bk-overflow-tips
-                            >{{ props.row.log }}</span
-                          >
+                          <span class="overflow-tips" v-bk-overflow-tips>{{
+                            props.row.log
+                          }}</span>
                           <a
                             class="more"
                             href="javascript: ;"
@@ -361,7 +358,10 @@ export default {
       return this.$t('完成');
     },
     hostIdentifierPriority() {
-      return this.$store.getters['globals/globalsData']?.host_identifier_priority ?? ['ip', 'host_name', 'ipv6'];
+      return (
+        this.$store.getters['globals/globalsData']
+          ?.host_identifier_priority ?? ['ip', 'host_name', 'ipv6']
+      );
     },
   },
   watch: {
@@ -376,13 +376,15 @@ export default {
     notReady(val) {
       if (!val) {
         const len = this.tableList.length;
-        this.isShowStepInfo = this.tableList.filter(item => item.child.length === 0).length === len;
+        this.isShowStepInfo =
+          this.tableList.filter((item) => item.child.length === 0).length ===
+          len;
       }
     },
   },
   created() {
     if (this.isContainer) return; // 容器日志展示容器日志的内容
-    this.curCollect.task_id_list.forEach(id => this.curTaskIdList.add(id));
+    this.curCollect.task_id_list.forEach((id) => this.curTaskIdList.add(id));
   },
   mounted() {
     if (this.isContainer) return; // 容器日志展示容器日志的内容
@@ -410,9 +412,11 @@ export default {
         this.tableList = JSON.parse(JSON.stringify(this.tableListAll));
       } else {
         const child = [];
-        this.tableListAll.forEach(item => {
+        this.tableListAll.forEach((item) => {
           const copyItem = JSON.parse(JSON.stringify(item));
-          copyItem.child = copyItem.child.filter(row => row.status === this.curTab);
+          copyItem.child = copyItem.child.filter(
+            (row) => row.status === this.curTab
+          );
           if (copyItem.child.length) {
             child.push(copyItem);
           }
@@ -452,12 +456,12 @@ export default {
               collector_config_id: this.curCollect.collector_config_id,
             },
           })
-          .then(res => {
+          .then((res) => {
             if (res.result) {
               this.$emit('step-change');
             }
           })
-          .catch(error => {
+          .catch((error) => {
             console.warn(error);
           })
           .finally(() => {
@@ -497,14 +501,14 @@ export default {
         failed: 0,
         running: 0,
       };
-      this.tableListAll.forEach(cluster => {
+      this.tableListAll.forEach((cluster) => {
         num.all += cluster.child.length;
         cluster.child.length &&
-          cluster.child.forEach(row => {
+          cluster.child.forEach((row) => {
             num[row.status] = num[row.status] + 1;
           });
       });
-      this.tabList.forEach(tab => {
+      this.tabList.forEach((tab) => {
         tab.num = num[tab.type];
       });
     },
@@ -512,7 +516,7 @@ export default {
       const list = cluster.child;
       let success = 0;
       let failed = 0;
-      list.forEach(row => {
+      list.forEach((row) => {
         if (row.status === 'success') {
           success = success + 1;
         }
@@ -555,7 +559,7 @@ export default {
           params,
           query: { task_id_list: [...this.curTaskIdList.keys()].join(',') },
         })
-        .then(res => {
+        .then((res) => {
           const data = res.data.contents || [];
           this.notReady = res.data.task_ready === false; // 如果没有该字段，默认准备好了
           if (isPolling === 'polling') {
@@ -563,11 +567,14 @@ export default {
               // 之前返回的 contents 为空
               if (!this.tableListAll.length) {
                 let collapseCount = 0; // 展开前5个状态表格信息
-                data.forEach(cluster => {
+                data.forEach((cluster) => {
                   cluster.collapse = cluster.child.length && collapseCount < 5;
                   if (cluster.child.length) collapseCount += 1;
-                  cluster.child.forEach(host => {
-                    host.status = host.status === 'PENDING' ? 'running' : host.status.toLowerCase(); // pending-等待状态，与running不做区分
+                  cluster.child.forEach((host) => {
+                    host.status =
+                      host.status === 'PENDING'
+                        ? 'running'
+                        : host.status.toLowerCase(); // pending-等待状态，与running不做区分
                   });
                 });
                 this.tableListAll.splice(0, 0, ...data);
@@ -582,11 +589,14 @@ export default {
             }
           } else {
             let collapseCount = 0; // 展开前5个状态表格信息
-            data.forEach(cluster => {
+            data.forEach((cluster) => {
               cluster.collapse = cluster.child.length && collapseCount < 5;
               if (cluster.child.length) collapseCount += 1;
-              cluster.child.forEach(host => {
-                host.status = host.status === 'PENDING' ? 'running' : host.status.toLowerCase(); // pending-等待状态，与running不做区分
+              cluster.child.forEach((host) => {
+                host.status =
+                  host.status === 'PENDING'
+                    ? 'running'
+                    : host.status.toLowerCase(); // pending-等待状态，与running不做区分
               });
             });
             this.tableListAll.splice(0, 0, ...data);
@@ -594,7 +604,7 @@ export default {
             this.calcTabNum();
           }
         })
-        .catch(err => {
+        .catch((err) => {
           this.$bkMessage({
             theme: 'error',
             message: err.message,
@@ -614,10 +624,16 @@ export default {
       if (cluster) {
         // 单条重试
         row.status = 'running';
-        this.tableListAll.forEach(item => {
-          if (cluster.bk_inst_id === item.bk_inst_id && cluster.bk_obj_name === item.bk_obj_name) {
-            item.child?.forEach(itemRow => {
-              if (itemRow.ip === row.ip && itemRow.bk_cloud_id === row.bk_cloud_id) {
+        this.tableListAll.forEach((item) => {
+          if (
+            cluster.bk_inst_id === item.bk_inst_id &&
+            cluster.bk_obj_name === item.bk_obj_name
+          ) {
+            item.child?.forEach((itemRow) => {
+              if (
+                itemRow.ip === row.ip &&
+                itemRow.bk_cloud_id === row.bk_cloud_id
+              ) {
                 itemRow.status = 'running';
               }
             });
@@ -626,8 +642,8 @@ export default {
         instanceIDList.push(row.instance_id);
       } else {
         // 失败批量重试
-        this.tableListAll.forEach(item => {
-          item.child?.forEach(itemRow => {
+        this.tableListAll.forEach((item) => {
+          item.child?.forEach((itemRow) => {
             if (itemRow.status === 'failed') {
               itemRow.status = 'running';
               instanceIDList.push(itemRow.instance_id);
@@ -645,13 +661,13 @@ export default {
             instance_id_list: instanceIDList,
           },
         })
-        .then(res => {
+        .then((res) => {
           if (res.data) {
-            res.data.forEach(item => this.curTaskIdList.add(item));
+            res.data.forEach((item) => this.curTaskIdList.add(item));
             this.startStatusPolling();
           }
         })
-        .catch(err => {
+        .catch((err) => {
           this.$bkMessage({
             theme: 'error',
             message: err.message,
@@ -660,21 +676,30 @@ export default {
     },
     // 同步机器状态信息
     syncHostStatus(data) {
-      this.tableListAll.forEach(table => {
-        const cluster = data.find(item => {
-          return item.bk_inst_id === table.bk_inst_id && item.bk_obj_name === table.bk_obj_name;
+      this.tableListAll.forEach((table) => {
+        const cluster = data.find((item) => {
+          return (
+            item.bk_inst_id === table.bk_inst_id &&
+            item.bk_obj_name === table.bk_obj_name
+          );
         });
         if (cluster?.child?.length && table.child?.length) {
-          table.child.forEach(row => {
-            const tarHost = cluster.child.find(item => {
+          table.child.forEach((row) => {
+            const tarHost = cluster.child.find((item) => {
               // 优先判断host_id 若没找到对应的host_id则对比ip_host_name_ipv6的组成的字符串
               const tableStrKey = `${item.ip}_${item.host_name}_${item.ipv6}`;
               const childStrKey = `${row.ip}_${row.host_name}_${row.ipv6}`;
-              if (item?.host_id) return item.host_id === row.host_id || tableStrKey === childStrKey;
+              if (item?.host_id)
+                return (
+                  item.host_id === row.host_id || tableStrKey === childStrKey
+                );
               return tableStrKey === childStrKey;
             });
             if (tarHost) {
-              row.status = tarHost.status === 'PENDING' ? 'running' : tarHost.status.toLowerCase(); // pending-等待状态，与running不做区分
+              row.status =
+                tarHost.status === 'PENDING'
+                  ? 'running'
+                  : tarHost.status.toLowerCase(); // pending-等待状态，与running不做区分
               row.task_id = tarHost.task_id;
             }
           });
@@ -693,13 +718,13 @@ export default {
             task_id: row.task_id,
           },
         })
-        .then(res => {
+        .then((res) => {
           if (res.result) {
             this.detail.log = res.data.log_detail;
             this.detail.content = res.data.log_detail;
           }
         })
-        .catch(err => {
+        .catch((err) => {
           this.$bkMessage({
             theme: 'error',
             message: err.message || err,
@@ -710,283 +735,286 @@ export default {
         });
     },
     getShowIp(row) {
-      return row[this.hostIdentifierPriority.find(pItem => Boolean(row[pItem]))] ?? row.ip;
+      return (
+        row[this.hostIdentifierPriority.find((pItem) => Boolean(row[pItem]))] ??
+        row.ip
+      );
     },
   },
 };
 </script>
 
 <style scoped lang="scss">
-  @import '@/scss/mixins/scroller.scss';
-  @import '@/scss/mixins/clearfix';
-  @import '@/scss/conf';
-  @import '@/scss/mixins/overflow-tips.scss';
+@import '@/scss/mixins/scroller.scss';
+@import '@/scss/mixins/clearfix';
+@import '@/scss/conf';
+@import '@/scss/mixins/overflow-tips.scss';
 
-  /* stylelint-disable no-descending-specificity */
-  .step-issued-wrapper {
-    position: relative;
-    max-height: 100%;
-    padding: 30px 60px;
-    overflow-x: hidden;
-    overflow-y: auto;
+/* stylelint-disable no-descending-specificity */
+.step-issued-wrapper {
+  position: relative;
+  max-height: 100%;
+  padding: 30px 60px;
+  overflow-x: hidden;
+  overflow-y: auto;
 
-    .step-issued-notice {
-      height: 36px;
-      padding: 9px 12px;
-      margin-bottom: 20px;
-      font-size: 12px;
-      line-height: 16px;
-      color: #63656e;
-      border-radius: 2px;
+  .step-issued-notice {
+    height: 36px;
+    padding: 9px 12px;
+    margin-bottom: 20px;
+    font-size: 12px;
+    line-height: 16px;
+    color: #63656e;
+    border-radius: 2px;
 
-      .notice-text {
-        margin-left: 10px;
-      }
+    .notice-text {
+      margin-left: 10px;
+    }
+
+    .notice-icon {
+      font-size: 14px;
+      vertical-align: text-bottom;
+    }
+
+    &.notice-primary {
+      background: #f0f8ff;
+      border: 1px solid #a3c5fd;
 
       .notice-icon {
-        font-size: 14px;
-        vertical-align: text-bottom;
-      }
-
-      &.notice-primary {
-        background: #f0f8ff;
-        border: 1px solid #a3c5fd;
-
-        .notice-icon {
-          color: #3a84ff;
-        }
-      }
-    }
-
-    .step-issued-header {
-      margin-bottom: 20px;
-
-      @include clearfix;
-    }
-
-    .cur-tab {
-      background: #3a84ff;
-    }
-
-    .cluster-collaspse {
-      max-width: 100%;
-    }
-
-    .cluster-menu {
-      max-width: 100%;
-      margin-bottom: 10px;
-
-      &.has-title-sign .right-panel-title {
-        padding-left: 0;
-      }
-    }
-
-    .header-title {
-      margin-right: 20px;
-      font-weight: bold;
-      color: #63656e;
-    }
-
-    .heder-title-sign {
-      position: relative;
-      height: 24px;
-      padding: 0 12px 0 7px;
-      margin-right: 16px;
-      margin-left: -1px;
-      font-size: 12px;
-      line-height: 23px;
-      color: #fff;
-      background: #3a84ff;
-
-      &.sign-add {
-        background: #3a84ff;
-      }
-
-      &.sign-modify {
-        background: #414871;
-      }
-
-      &.sign-delete {
-        background: #6c3aff;
-      }
-
-      &:after {
-        position: absolute;
-        top: 0;
-        right: 0;
-        display: block;
-        content: '';
-        border-top: 12px solid transparent;
-        border-right: 6px solid #f0f1f5;
-        border-bottom: 12px solid transparent;
-        border-left: 6px solid transparent;
-      }
-    }
-
-    .header-info {
-      font-size: 12px;
-      color: #979ba5;
-
-      .success {
-        color: $successColor;
-      }
-
-      .failed {
-        color: $failColor;
-      }
-    }
-
-    .cluster-table {
-      &.bk-table th :hover {
-        background: #fff;
-      }
-
-      &::before {
-        display: none;
-      }
-
-      tr:last-child td {
-        border-bottom: none;
-      }
-
-      .status-running {
-        color: $primaryColor;
-      }
-
-      .status-success {
-        color: $successColor;
-      }
-
-      .status-failed {
-        color: $failColor;
-      }
-
-      .retry {
         color: #3a84ff;
       }
+    }
+  }
 
-      .row-detail {
-        .more {
-          display: inline;
-        }
+  .step-issued-header {
+    margin-bottom: 20px;
 
-        p {
-          position: relative;
+    @include clearfix;
+  }
+
+  .cur-tab {
+    background: #3a84ff;
+  }
+
+  .cluster-collaspse {
+    max-width: 100%;
+  }
+
+  .cluster-menu {
+    max-width: 100%;
+    margin-bottom: 10px;
+
+    &.has-title-sign .right-panel-title {
+      padding-left: 0;
+    }
+  }
+
+  .header-title {
+    margin-right: 20px;
+    font-weight: bold;
+    color: #63656e;
+  }
+
+  .heder-title-sign {
+    position: relative;
+    height: 24px;
+    padding: 0 12px 0 7px;
+    margin-right: 16px;
+    margin-left: -1px;
+    font-size: 12px;
+    line-height: 23px;
+    color: #fff;
+    background: #3a84ff;
+
+    &.sign-add {
+      background: #3a84ff;
+    }
+
+    &.sign-modify {
+      background: #414871;
+    }
+
+    &.sign-delete {
+      background: #6c3aff;
+    }
+
+    &:after {
+      position: absolute;
+      top: 0;
+      right: 0;
+      display: block;
+      content: '';
+      border-top: 12px solid transparent;
+      border-right: 6px solid #f0f1f5;
+      border-bottom: 12px solid transparent;
+      border-left: 6px solid transparent;
+    }
+  }
+
+  .header-info {
+    font-size: 12px;
+    color: #979ba5;
+
+    .success {
+      color: $successColor;
+    }
+
+    .failed {
+      color: $failColor;
+    }
+  }
+
+  .cluster-table {
+    &.bk-table th :hover {
+      background: #fff;
+    }
+
+    &::before {
+      display: none;
+    }
+
+    tr:last-child td {
+      border-bottom: none;
+    }
+
+    .status-running {
+      color: $primaryColor;
+    }
+
+    .status-success {
+      color: $successColor;
+    }
+
+    .status-failed {
+      color: $failColor;
+    }
+
+    .retry {
+      color: #3a84ff;
+    }
+
+    .row-detail {
+      .more {
+        display: inline;
+      }
+
+      p {
+        position: relative;
+        display: inline-block;
+        max-width: 100%;
+        padding-right: 30px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+
+        .detail-text {
           display: inline-block;
-          max-width: 100%;
-          padding-right: 30px;
+          width: 100%;
           overflow: hidden;
           text-overflow: ellipsis;
-          white-space: nowrap;
-
-          .detail-text {
-            display: inline-block;
-            width: 100%;
-            overflow: hidden;
-            text-overflow: ellipsis;
-          }
         }
-      }
-
-      .more {
-        position: absolute;
-        top: 0;
-        right: 0;
-        display: none;
-        color: #3a84ff;
       }
     }
 
-    .tab-only-compact {
-      overflow: visible;
+    .more {
+      position: absolute;
+      top: 0;
+      right: 0;
+      display: none;
+      color: #3a84ff;
+    }
+  }
 
-      @include clearfix;
+  .tab-only-compact {
+    overflow: visible;
 
-      .tab-item {
+    @include clearfix;
+
+    .tab-item {
+      .tab-button {
+        height: 32px;
+        line-height: 30px;
+      }
+
+      &.cur-tab {
         .tab-button {
-          height: 32px;
-          line-height: 30px;
+          color: #fff;
+          background: #3a84ff;
         }
-
-        &.cur-tab {
-          .tab-button {
-            color: #fff;
-            background: #3a84ff;
-          }
-        }
-      }
-    }
-
-    .step-issued-footer {
-      margin-top: 20px;
-
-      button {
-        margin-right: 10px;
-      }
-    }
-
-    .empty-view {
-      position: relative;
-      display: flexbox;
-      display: flex;
-      justify-content: center;
-      height: 452px;
-      background: #fff;
-      border: 1px dashed #dcdee5;
-      border-radius: 2px;
-
-      /* stylelint-disable-next-line property-no-unknown */
-      box-pack: center;
-
-      /* stylelint-disable-next-line property-no-unknown */
-      flex-pack: center;
-
-      .hint-text {
-        position: absolute;
-        top: 186px;
-        min-width: 144px;
-        height: 16px;
-        font-size: 12px;
-        line-height: 16px;
-        color: #979ba5;
-      }
-
-      .icon-info-circle-shape {
-        position: absolute;
-        top: 142px;
-        left: calc(50% - 16px);
-        font-size: 32px;
-        color: #dcdee5;
       }
     }
   }
 
-  :deep(.bk-sideslider-wrapper) {
-    padding-bottom: 0;
+  .step-issued-footer {
+    margin-top: 20px;
 
-    .bk-sideslider-content {
-      color: #c4c6cc;
-      background-color: #313238;
+    button {
+      margin-right: 10px;
     }
+  }
 
-    .header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-    }
+  .empty-view {
+    position: relative;
+    display: flexbox;
+    display: flex;
+    justify-content: center;
+    height: 452px;
+    background: #fff;
+    border: 1px dashed #dcdee5;
+    border-radius: 2px;
 
-    .header-refresh {
-      margin-right: 8px;
-    }
+    /* stylelint-disable-next-line property-no-unknown */
+    box-pack: center;
 
-    .detail-content {
-      min-height: calc(100vh - 60px);
+    /* stylelint-disable-next-line property-no-unknown */
+    flex-pack: center;
+
+    .hint-text {
+      position: absolute;
+      top: 186px;
+      min-width: 144px;
+      height: 16px;
       font-size: 12px;
-      white-space: pre-wrap;
+      line-height: 16px;
+      color: #979ba5;
+    }
 
-      a {
-        color: #3a84ff;
-      }
+    .icon-info-circle-shape {
+      position: absolute;
+      top: 142px;
+      left: calc(50% - 16px);
+      font-size: 32px;
+      color: #dcdee5;
     }
   }
+}
+
+:deep(.bk-sideslider-wrapper) {
+  padding-bottom: 0;
+
+  .bk-sideslider-content {
+    color: #c4c6cc;
+    background-color: #313238;
+  }
+
+  .header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .header-refresh {
+    margin-right: 8px;
+  }
+
+  .detail-content {
+    min-height: calc(100vh - 60px);
+    font-size: 12px;
+    white-space: pre-wrap;
+
+    a {
+      color: #3a84ff;
+    }
+  }
+}
 </style>

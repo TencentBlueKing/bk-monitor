@@ -28,57 +28,81 @@ module.exports = [
   {
     plugins: {
       security: require('eslint-plugin-security'),
-      sonarjs: require('eslint-plugin-sonarjs')
     },
     rules: {
-      // 基础规则
-      'vue/multi-word-component-names': 'off',
-      'vue/no-reserved-component-names': 'off',
-      'vue/no-deprecated-v-bind-sync': 'off',
-      'vue/require-explicit-emits': 'off',
-      '@typescript-eslint/no-require-imports': 'off',
-      '@typescript-eslint/no-explicit-any': 'off',
-      '@typescript-eslint/no-var-requires': 'off',
       '@typescript-eslint/dot-notation': [
         'error',
         {
           allowKeywords: true,
         },
       ],
-      'perfectionist/sort-classes': 'off',
+      '@typescript-eslint/naming-convention': 'off',
+      '@typescript-eslint/no-explicit-any': 'off',
+      '@typescript-eslint/no-require-imports': 'off',
+      '@typescript-eslint/no-var-requires': 'off',
       'declaration-no-important': 'off',
-      
-      // 安全检测规则
-      'security/detect-object-injection': 'warn',
-      'security/detect-non-literal-regexp': 'warn',
-      'security/detect-unsafe-regex': 'warn',
-      'security/detect-buffer-noassert': 'warn',
-      'security/detect-child-process': 'warn',
-      'security/detect-disable-mustache-escape': 'warn',
+      'perfectionist/sort-classes': 'off',
+      'perfectionist/sort-enums': [
+        'error',
+        {
+          order: 'asc',
+          type: 'natural',
+        },
+      ],
+      // 排序规则
+      'perfectionist/sort-imports': [
+        'error',
+        {
+          groups: [
+            'type',
+            'react',
+            'builtin',
+            'external',
+            'internal',
+            'parent',
+            'sibling',
+            'index',
+            'object',
+            'unknown',
+          ],
+          order: 'asc',
+          type: 'natural',
+        },
+      ],
+      'perfectionist/sort-jsx-props': [
+        'error',
+        {
+          order: 'asc',
+          type: 'natural',
+        },
+      ],
+      'perfectionist/sort-objects': [
+        'error',
+        {
+          order: 'asc',
+          type: 'natural',
+        },
+      ],
+
+      // 'security/detect-disable-mustache-escape': 'warn',
       'security/detect-eval-with-expression': 'error',
-      'security/detect-no-csrf-before-method-override': 'warn',
-      'security/detect-non-literal-fs-filename': 'warn',
-      'security/detect-non-literal-require': 'warn',
-      'security/detect-possible-timing-attacks': 'warn',
-      'security/detect-pseudoRandomBytes': 'warn',
-      
-      // SonarJS 安全规则
-      'sonarjs/no-script-url': 'error',
-      'sonarjs/no-extra-arguments': 'warn',
-      'sonarjs/no-duplicate-string': 'warn',
-      'sonarjs/no-inverted-boolean-check': 'warn',
-      'sonarjs/no-one-iteration-loop': 'warn',
-      'sonarjs/prefer-immediate-return': 'warn',
-      'sonarjs/no-identical-expressions': 'error',
-      'sonarjs/no-identical-functions': 'warn',
-      'sonarjs/no-redundant-boolean': 'warn',
-      'sonarjs/no-redundant-jump': 'warn',
-      'sonarjs/no-unused-collection': 'warn',
-      'sonarjs/no-use-of-empty-return-value': 'warn',
-      'sonarjs/non-existent-operator': 'error',
-      'sonarjs/prefer-object-literal': 'warn',
-      'sonarjs/prefer-single-boolean-return': 'warn',
-      'sonarjs/prefer-while': 'warn'
+      // 基础规则
+      'vue/multi-word-component-names': 'off',
+      'vue/no-deprecated-v-bind-sync': 'off',
+      'vue/no-reserved-component-names': 'off',
+
+      // 安全检测规则
+      // 'security/detect-object-injection': 'warn',
+      // 'security/detect-non-literal-regexp': 'warn',
+      // 'security/detect-unsafe-regex': 'warn',
+      // 'security/detect-buffer-noassert': 'warn',
+      // 'security/detect-child-process': 'warn',
+      'vue/require-explicit-emits': 'off',
+      // 'security/detect-no-csrf-before-method-override': 'warn',
+      // 'security/detect-non-literal-fs-filename': 'warn',
+      // 'security/detect-non-literal-require': 'warn',
+      // 'security/detect-possible-timing-attacks': 'warn',
+      // 'security/detect-pseudoRandomBytes': 'warn',
     },
   },
   {

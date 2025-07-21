@@ -37,11 +37,7 @@
       @row-click="tableRowClick"
     >
       <!-- 展开详情 -->
-      <bk-table-column
-        width="30"
-        align="center"
-        type="expand"
-      >
+      <bk-table-column width="30" align="center" type="expand">
         <template #default="{ $index }">
           <expand-view
             v-bind="$attrs"
@@ -57,10 +53,7 @@
       </bk-table-column>
       <!-- 显示字段 -->
       <template>
-        <bk-table-column
-          :width="originFieldWidth"
-          class-name="original-time"
-        >
+        <bk-table-column :width="originFieldWidth" class-name="original-time">
           <template #default="{ row }">
             <span
               class="time-field"
@@ -70,10 +63,18 @@
             </span>
           </template>
         </bk-table-column>
-        <bk-table-column :class-name="`original-str${isWrap ? ' is-wrap' : ''}`">
+        <bk-table-column
+          :class-name="`original-str${isWrap ? ' is-wrap' : ''}`"
+        >
           <!-- eslint-disable-next-line -->
           <template slot-scope="{ row, column, $index }">
-            <div :class="['str-content', 'origin-str', { 'is-limit': getLimitState($index) }]">
+            <div
+              :class="[
+                'str-content',
+                'origin-str',
+                { 'is-limit': getLimitState($index) },
+              ]"
+            >
               <!-- eslint-disable-next-line vue/no-v-html -->
               <!-- <span>{{ JSON.stringify(row) }}</span> -->
               <original-light-height
@@ -81,7 +82,9 @@
                 :operator-config="operatorConfig"
                 :origin-json="row"
                 :visible-fields="getShowTableVisibleFields"
-                @menu-click="({ option, isLink }) => handleMenuClick(option, isLink)"
+                @menu-click="
+                  ({ option, isLink }) => handleMenuClick(option, isLink)
+                "
               />
               <template v-if="!isLimitExpandView">
                 <p
@@ -115,7 +118,9 @@
         <!-- eslint-disable-next-line -->
         <template slot-scope="{ row, column, $index }">
           <operator-tools
-            :handle-click="event => handleClickTools(event, row, operatorConfig)"
+            :handle-click="
+              (event) => handleClickTools(event, row, operatorConfig)
+            "
             :index="$index"
             :operator-config="operatorConfig"
             :row-data="row"
@@ -124,10 +129,7 @@
         </template>
       </bk-table-column>
       <!-- 初次加载骨架屏loading -->
-      <template
-        v-if="tableLoading"
-        #empty
-      >
+      <template v-if="tableLoading" #empty>
         <bk-table-column>
           <retrieve-loader
             :is-original-field="true"
@@ -137,18 +139,14 @@
           </retrieve-loader>
         </bk-table-column>
       </template>
-      <template
-        v-else
-        #empty
-      >
-        <empty-view
-          v-bind="$attrs"
-          v-on="$listeners"
-        />
+      <template v-else #empty>
+        <empty-view v-bind="$attrs" v-on="$listeners" />
       </template>
       <!-- 下拉刷新骨架屏loading -->
       <template
-        v-if="tableList.length && getShowTableVisibleFields.length && isPageOver"
+        v-if="
+          tableList.length && getShowTableVisibleFields.length && isPageOver
+        "
         #append
       >
         <retrieve-loader
@@ -187,31 +185,31 @@ td {
       display: flex;
       text-overflow: unset;
 
-        .str-content {
-          &.origin-str {
-            width: 100%;
+      .str-content {
+        &.origin-str {
+          width: 100%;
 
-            .origin-content {
-              word-break: break-all;
-              white-space: pre-line;
-            }
+          .origin-content {
+            word-break: break-all;
+            white-space: pre-line;
           }
         }
       }
     }
+  }
 
-    &.is-wrap {
-      .cell {
-        .str-content {
-          &.origin-str {
-            .origin-content {
-              display: flex;
-              flex-direction: column;
-              flex-wrap: wrap;
-            }
+  &.is-wrap {
+    .cell {
+      .str-content {
+        &.origin-str {
+          .origin-content {
+            display: flex;
+            flex-direction: column;
+            flex-wrap: wrap;
           }
         }
       }
     }
+  }
 }
 </style>

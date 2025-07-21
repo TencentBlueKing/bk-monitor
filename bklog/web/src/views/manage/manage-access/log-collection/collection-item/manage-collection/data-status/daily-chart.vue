@@ -40,19 +40,13 @@
           @date-picker-change="fetchChartData"
           @update:date-picker-value="handleDateChange"
         />
-        <div
-          class="refresh-button"
-          @click="fetchChartData"
-        >
+        <div class="refresh-button" @click="fetchChartData">
           <span class="bk-icon icon-refresh"></span>
           <span>{{ $t('刷新') }}</span>
         </div>
       </div>
     </div>
-    <div
-      ref="chartRef"
-      class="chart-canvas-container big-chart"
-    ></div>
+    <div ref="chartRef" class="chart-canvas-container big-chart"></div>
     <bk-exception
       v-if="isEmpty"
       class="king-exception"
@@ -144,12 +138,13 @@ export default {
             addition: this.retrieveParams.addition,
           }),
         });
-        const originChartData = res.data.aggs?.group_by_histogram?.buckets || [];
+        const originChartData =
+          res.data.aggs?.group_by_histogram?.buckets || [];
         const chartData = {
           labels: [],
           values: [],
         };
-        originChartData.forEach(item => {
+        originChartData.forEach((item) => {
           chartData.labels.push(item.key_as_string);
           chartData.values.push(item.doc_count);
         });

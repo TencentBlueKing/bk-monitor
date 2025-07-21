@@ -1,15 +1,46 @@
+/*
+ * Tencent is pleased to support the open source community by making
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
+ *
+ * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+ *
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
+ *
+ * License for 蓝鲸智云PaaS平台 (BlueKing PaaS):
+ *
+ * ---------------------------------------------------
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
+ * documentation files (the "Software"), to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and
+ * to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all copies or substantial portions of
+ * the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
+ * THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
+ * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+ * IN THE SOFTWARE.
+ */
 import { Extension } from '@codemirror/state';
-import { Decoration, DecorationSet, EditorView, ViewPlugin, ViewUpdate } from '@codemirror/view';
 import { RangeSetBuilder } from '@codemirror/state';
+import {
+  Decoration,
+  DecorationSet,
+  EditorView,
+  ViewPlugin,
+  ViewUpdate,
+} from '@codemirror/view';
 
 // 语法高亮样式类
 const grepStyles = {
-  command: 'grep-command',
   argument: 'grep-argument',
-  string: 'grep-string',
+  command: 'grep-command',
+  escape: 'grep-escape',
   pattern: 'grep-pattern',
   pipe: 'grep-pipe',
-  escape: 'grep-escape',
+  string: 'grep-string',
 };
 
 // 创建装饰器
@@ -120,7 +151,11 @@ const grepHighlighter = ViewPlugin.fromClass(
       }
     }
 
-    private parseQuotedString(text: string, start: number, quote: string): { end: number } | null {
+    private parseQuotedString(
+      text: string,
+      start: number,
+      quote: string
+    ): { end: number } | null {
       let pos = start + 1;
       while (pos < text.length) {
         if (text[pos] === quote) {
@@ -135,7 +170,12 @@ const grepHighlighter = ViewPlugin.fromClass(
       return { end: text.length }; // 未闭合的字符串
     }
 
-    private highlightEscapes(text: string, start: number, end: number, builder: RangeSetBuilder<Decoration>) {
+    private highlightEscapes(
+      text: string,
+      start: number,
+      end: number,
+      builder: RangeSetBuilder<Decoration>
+    ) {
       for (let i = start; i < end - 1; i++) {
         if (text[i] === '\\') {
           // 匹配常见转义序列
@@ -156,22 +196,23 @@ const grepHighlighter = ViewPlugin.fromClass(
     }
   },
   {
-    decorations: v => v.decorations,
+    decorations: (v) => v.decorations,
   }
 );
 
 // CSS 样式
 export const grepHighlightTheme = EditorView.theme({
-  '.grep-command': {
-    color: '#0066cc',
-    fontWeight: 'bold',
-  },
   '.grep-argument': {
     color: '#cc6600',
     fontWeight: 'bold',
   },
-  '.grep-string': {
-    color: '#009900',
+  '.grep-command': {
+    color: '#0066cc',
+    fontWeight: 'bold',
+  },
+  '.grep-escape': {
+    color: '#ff6600',
+    fontWeight: 'bold',
   },
   '.grep-pattern': {
     color: '#cc0066',
@@ -180,9 +221,8 @@ export const grepHighlightTheme = EditorView.theme({
     color: '#666666',
     fontWeight: 'bold',
   },
-  '.grep-escape': {
-    color: '#ff6600',
-    fontWeight: 'bold',
+  '.grep-string': {
+    color: '#009900',
   },
 });
 

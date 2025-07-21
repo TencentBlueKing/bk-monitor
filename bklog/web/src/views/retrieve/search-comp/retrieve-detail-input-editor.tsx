@@ -24,9 +24,8 @@
  * IN THE SOFTWARE.
  */
 
-import { Component, PropSync, Emit, Mixins } from 'vue-property-decorator';
-
 import * as monaco from 'monaco-editor';
+import { Component, PropSync, Emit, Mixins } from 'vue-property-decorator';
 
 import MonacoEditor from '../../../components/collection-access/components/step-add/monaco-editor.vue';
 import classDragMixin from '../../../mixins/class-drag-mixin';
@@ -35,7 +34,7 @@ import './retrieve-detail-input-editor.scss';
 
 @Component
 export default class UiQuery extends Mixins(classDragMixin) {
-  @PropSync('value', { type: String, default: '*' }) propsValue: string;
+  @PropSync('value', { default: '*', type: String }) propsValue: string;
   /** monaco-editor实例 */
   editor = null;
   /** 输入框最小高度 */
@@ -44,69 +43,69 @@ export default class UiQuery extends Mixins(classDragMixin) {
   collectHeight = 100;
   /** monaco输入框配置 */
   monacoConfig = {
-    cursorBlinking: 'blink',
-    acceptSuggestionOnEnter: 'off',
     acceptSuggestionOnCommitCharacter: false, // 是否提示输入
-    overviewRulerBorder: false, // 是否应围绕概览标尺绘制边框
-    selectOnLineNumbers: false, //
-    renderLineHighlight: 'none', // 当前行高亮方式
-    lineNumbers: 'off', // 左侧是否展示行
-    minimap: {
-      enabled: false, // 是否启用预览图
-    },
-    find: {
-      cursorMoveOnType: false,
-      seedSearchStringFromSelection: 'never',
-      addExtraSpaceOnTop: false,
-    },
-    // 折叠
-    folding: false,
-    // 自动换行
-    wordWrap: true,
-    wrappingStrategy: 'advanced',
-    fixedOverflowWidgets: false,
-    scrollbar: {
-      // 滚动条设置
-      verticalScrollbarSize: 6, // 竖滚动条
-      useShadows: true, // 失焦阴影动画
-    },
-    // 隐藏右上角光标的小黑点
-    hideCursorInOverviewRuler: true,
-    // 隐藏小尺子
-    overviewRulerLanes: 0,
-    renderLineHighlightOnlyWhenFocus: false,
+    acceptSuggestionOnEnter: 'off',
     autoClosingBrackets: 'never',
     autoClosingDelete: 'never',
     autoClosingOvertype: 'never',
     autoClosingQuotes: 'never',
-    autoSurround: 'never',
+    autoDetectHighContrast: false,
     autoIndent: 'None',
+    autoSurround: 'never',
     copyWithSyntaxHighlighting: false,
-    selectionHighlight: false,
-    occurrencesHighlight: false,
+    cursorBlinking: 'blink',
+    find: {
+      addExtraSpaceOnTop: false,
+      cursorMoveOnType: false,
+      seedSearchStringFromSelection: 'never',
+    },
+    fixedOverflowWidgets: false,
+    // 折叠
+    folding: false,
     foldingHighlight: false,
+    // 隐藏右上角光标的小黑点
+    hideCursorInOverviewRuler: true,
     highlightActiveBracketPair: false,
     highlightActiveIndentation: false,
+    insertSpaces: false,
+    lineNumbers: 'off', // 左侧是否展示行
+    minimap: {
+      enabled: false, // 是否启用预览图
+    },
+    occurrencesHighlight: false,
+    overviewRulerBorder: false, // 是否应围绕概览标尺绘制边框
+    // 隐藏小尺子
+    overviewRulerLanes: 0,
     quickSuggestions: true,
+    renderControlCharacters: true,
+    renderIndentGuides: false,
+    renderLineHighlight: 'none', // 当前行高亮方式
+    renderLineHighlightOnlyWhenFocus: false,
+    renderWhitespace: 'none',
+    roundedSelection: false,
+    scrollbar: {
+      useShadows: true, // 失焦阴影动画
+      // 滚动条设置
+      verticalScrollbarSize: 6, // 竖滚动条
+    },
+    selectOnLineNumbers: false, //
+    selectionHighlight: false,
     suggestions: false,
-    wordBasedSuggestions: false,
-    wordBasedSuggestionsOnlySameLanguage: false,
+    trimAutoWhitespace: false,
     unicodeHighlight: {
       ambiguousCharacters: false,
     },
-    autoDetectHighContrast: false,
-    roundedSelection: false,
-    renderWhitespace: 'none',
-    renderIndentGuides: false,
-    trimAutoWhitespace: false,
-    renderControlCharacters: true,
-    insertSpaces: false,
+    wordBasedSuggestions: false,
+    wordBasedSuggestionsOnlySameLanguage: false,
+    // 自动换行
+    wordWrap: true,
+    wrappingStrategy: 'advanced',
   };
   /** 提示样式 */
   placeholderStyle = {
-    top: '1px',
-    left: '10px',
     fontSize: '12px',
+    left: '10px',
+    top: '1px',
   };
 
   @Emit('focus')
@@ -121,10 +120,10 @@ export default class UiQuery extends Mixins(classDragMixin) {
   emitBlur(value) {
     // 清空选中的文本高亮背景
     this.editor.setSelection({
-      startLineNumber: 0,
-      startColumn: 0,
-      endLineNumber: 0,
       endColumn: 0,
+      endLineNumber: 0,
+      startColumn: 0,
+      startLineNumber: 0,
     });
     return value;
   }
@@ -147,14 +146,14 @@ export default class UiQuery extends Mixins(classDragMixin) {
   initMonacoBeforeFun(monaco) {
     monaco.editor.defineTheme('myTheme', {
       base: 'vs',
-      inherit: true,
-      rules: [
-        { token: 'AND-OR-color', foreground: 'FF9C01' },
-        { token: 'NOT-color', foreground: 'CB2427' },
-      ],
       colors: {
         'editor.foreground': '63656E', // 用户输入的基础颜色
       },
+      inherit: true,
+      rules: [
+        { foreground: 'FF9C01', token: 'AND-OR-color' },
+        { foreground: 'CB2427', token: 'NOT-color' },
+      ],
     });
     monaco.languages.register({ id: 'mySpecialLanguage' });
     monaco.languages.setMonarchTokensProvider('mySpecialLanguage', {
@@ -174,7 +173,7 @@ export default class UiQuery extends Mixins(classDragMixin) {
     const model = this.editor.getModel();
     const lastLineNumber = model.getLineCount();
     const lastColumn = model.getLineMaxColumn(lastLineNumber);
-    this.editor.setPosition({ lineNumber: lastLineNumber, column: lastColumn });
+    this.editor.setPosition({ column: lastColumn, lineNumber: lastLineNumber });
     this.editor.revealLine(lastLineNumber);
   }
 
@@ -184,7 +183,7 @@ export default class UiQuery extends Mixins(classDragMixin) {
     // 方向键的键绑定
     const arrowKeys = [monaco.KeyCode.UpArrow, monaco.KeyCode.DownArrow];
     // 禁止方向键的默认行为
-    arrowKeys.forEach(keyCode => {
+    arrowKeys.forEach((keyCode) => {
       this.editor.addCommand(keyCode, () => {
         // 当方向键被按下时，此函数会被调用。
         // 在这里不做任何操作，从而忽略键盘事件。
@@ -197,28 +196,28 @@ export default class UiQuery extends Mixins(classDragMixin) {
 
   render() {
     return (
-      <div class='retrieve-input-editor'>
+      <div class="retrieve-input-editor">
         <MonacoEditor
-          placeholder-style={this.placeholderStyle}
-          height={this.collectHeight}
-          v-model={this.propsValue}
           font-size={12}
+          height={this.collectHeight}
           init-monaco-before-fun={this.initMonacoBeforeFun}
           is-show-problem-drag={false}
           is-show-top-label={false}
-          language='mySpecialLanguage'
+          language="mySpecialLanguage"
           monaco-config={this.monacoConfig}
-          placeholder={this.$t('请输入') as string}
-          theme='myTheme'
           onBlur={this.emitBlur}
           onChange={this.emitInput}
-          onEditorDidMount={editor => this.getEditorInstance(editor)}
+          onEditorDidMount={(editor) => this.getEditorInstance(editor)}
           onFocus={this.emitFocus}
           onKeydown={this.emitKeyDown}
+          placeholder={this.$t('请输入') as string}
+          placeholder-style={this.placeholderStyle}
+          theme="myTheme"
+          v-model={this.propsValue}
         />
         <div
           class={['drag-bottom', { 'drag-ing': this.isChanging }]}
-          onMousedown={e => this.dragBegin(e, 'dragY')}
+          onMousedown={(e) => this.dragBegin(e, 'dragY')}
         ></div>
       </div>
     );

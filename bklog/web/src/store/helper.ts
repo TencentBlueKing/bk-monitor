@@ -26,10 +26,12 @@
 export const isFeatureToggleOn = (key: string, value: string | string[]) => {
   const featureToggle = window.FEATURE_TOGGLE?.[key];
   if (featureToggle === 'debug') {
-    const whiteList = (window.FEATURE_TOGGLE_WHITE_LIST?.[key] ?? []).map(id => `${id}`);
+    const whiteList = (window.FEATURE_TOGGLE_WHITE_LIST?.[key] ?? []).map(
+      (id) => `${id}`
+    );
 
     if (Array.isArray(value)) {
-      return value.some(v => whiteList.includes(v));
+      return value.some((v) => whiteList.includes(v));
     }
 
     return whiteList.includes(value);
@@ -57,12 +59,23 @@ export const isAiAssistantActive = (val: string[]) => {
 
 export const getStorageCommonFilterAddition = () => {
   const value = sessionStorage.getItem(SESSION_STORAGE_KEY);
-  let jsonValue: FilterAdditionStorageItem[] | OldFilterAdditionStorageItem = [];
+  let jsonValue: FilterAdditionStorageItem[] | OldFilterAdditionStorageItem =
+    [];
   try {
     jsonValue = JSON.parse(value || '[]');
 
-    if (!Array.isArray(jsonValue) && 'indexId' in jsonValue && 'value' in jsonValue) {
-      jsonValue = [{ indexSetIdList: [jsonValue.indexId], filterAddition: [jsonValue.value], t: new Date().getTime() }];
+    if (
+      !Array.isArray(jsonValue) &&
+      'indexId' in jsonValue &&
+      'value' in jsonValue
+    ) {
+      jsonValue = [
+        {
+          filterAddition: [jsonValue.value],
+          indexSetIdList: [jsonValue.indexId],
+          t: new Date().getTime(),
+        },
+      ];
     }
   } catch (e) {
     console.error('Failed to parse common filter addition:', e);
@@ -71,12 +84,17 @@ export const getStorageCommonFilterAddition = () => {
   return jsonValue as FilterAdditionStorageItem[];
 };
 
-export const filterCommontAdditionByIndexSetId = (indexSetIdList: string[], list?: FilterAdditionStorageItem[]) => {
-  let jsonValue: FilterAdditionStorageItem[] = list ?? getStorageCommonFilterAddition();
-  const formatList = indexSetIdList.map(id => `${id}`);
+export const filterCommontAdditionByIndexSetId = (
+  indexSetIdList: string[],
+  list?: FilterAdditionStorageItem[]
+) => {
+  let jsonValue: FilterAdditionStorageItem[] =
+    list ?? getStorageCommonFilterAddition();
+  const formatList = indexSetIdList.map((id) => `${id}`);
   return jsonValue?.find(
-    item =>
-      item.indexSetIdList.length === formatList.length && item.indexSetIdList.every(id => formatList.includes(`${id}`))
+    (item) =>
+      item.indexSetIdList.length === formatList.length &&
+      item.indexSetIdList.every((id) => formatList.includes(`${id}`))
   );
 };
 
@@ -85,7 +103,7 @@ export const filterCommontAdditionByIndexSetId = (indexSetIdList: string[], list
  * @param store
  * @returns
  */
-export const getCommonFilterFieldsList = state => {
+export const getCommonFilterFieldsList = (state) => {
   if (Array.isArray(state.retrieve.catchFieldCustomConfig?.filterSetting)) {
     return state.retrieve.catchFieldCustomConfig?.filterSetting ?? [];
   }
@@ -93,45 +111,55 @@ export const getCommonFilterFieldsList = state => {
   return [];
 };
 
-export const getCommonFilterAddition = state => {
+export const getCommonFilterAddition = (state) => {
   const additionValue = filterCommontAdditionByIndexSetId(state.indexItem.ids);
   const storedValue = additionValue?.filterAddition ?? [];
 
   const storedCommonAddition =
-    (state.retrieve.catchFieldCustomConfig.filterAddition ?? []).map(({ field, operator, value }) => ({
-      field,
-      operator,
-      value,
-    })) ?? [];
+    (state.retrieve.catchFieldCustomConfig.filterAddition ?? []).map(
+      ({ field, operator, value }) => ({
+        field,
+        operator,
+        value,
+      })
+    ) ?? [];
 
   // 合并策略优化
-  return getCommonFilterFieldsList(state).map(item => {
-    const storedItem = storedValue?.find(v => v.field === item.field_name);
-    const storeItem = storedCommonAddition?.find(addition => addition.field === item.field_name);
+  return getCommonFilterFieldsList(state).map((item) => {
+    const storedItem = storedValue?.find((v) => v.field === item.field_name);
+    const storeItem = storedCommonAddition?.find(
+      (addition) => addition.field === item.field_name
+    );
 
     // 优先级：本地存储 > store > 默认值
     return (
       storedItem ||
       storeItem || {
         field: item.field_name || '',
+        list: [],
         operator: item.field_operator[0]?.operator ?? '=',
         value: [],
-        list: [],
       }
     );
   });
 };
 
-export const getCommonFilterAdditionWithValues = state =>
-  (getCommonFilterAddition(state).filter(item => item.value?.length) ?? []).map(({ field, value, operator }) => ({
+export const getCommonFilterAdditionWithValues = (state) =>
+  (
+    getCommonFilterAddition(state).filter((item) => item.value?.length) ?? []
+  ).map(({ field, operator, value }) => ({
     field,
-    value,
     operator,
+    value,
   }));
 
-export const setStorageCommonFilterAddition = (state, filterAddition: Record<string, any>[]) => {
+export const setStorageCommonFilterAddition = (
+  state,
+  filterAddition: Record<string, any>[]
+) => {
   const allStorage = getStorageCommonFilterAddition();
-  const currentItem: FilterAdditionStorageItem = filterCommontAdditionByIndexSetId(state.indexItem.ids, allStorage);
+  const currentItem: FilterAdditionStorageItem =
+    filterCommontAdditionByIndexSetId(state.indexItem.ids, allStorage);
 
   if (currentItem) {
     currentItem.filterAddition = filterAddition;
@@ -141,8 +169,8 @@ export const setStorageCommonFilterAddition = (state, filterAddition: Record<str
   }
 
   allStorage.push({
-    indexSetIdList: state.indexItem.ids.map(id => `${id}`),
     filterAddition,
+    indexSetIdList: state.indexItem.ids.map((id) => `${id}`),
     t: new Date().getTime(),
   });
 
@@ -157,9 +185,10 @@ export const setStorageCommonFilterAddition = (state, filterAddition: Record<str
   sessionStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(allStorage));
 };
 
-export const clearStorageCommonFilterAddition = state => {
+export const clearStorageCommonFilterAddition = (state) => {
   const allStorage = getStorageCommonFilterAddition();
-  const currentItem: FilterAdditionStorageItem = filterCommontAdditionByIndexSetId(state.indexItem.ids, allStorage);
+  const currentItem: FilterAdditionStorageItem =
+    filterCommontAdditionByIndexSetId(state.indexItem.ids, allStorage);
   if (currentItem) {
     const index = allStorage.indexOf(currentItem);
     if (index > -1) {

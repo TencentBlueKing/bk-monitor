@@ -33,7 +33,9 @@
       <bk-button
         class="fl"
         v-cursor="{ active: isAllowedCreate === false }"
-        :disabled="!collectProject || isAllowedCreate === null || isTableLoading"
+        :disabled="
+          !collectProject || isAllowedCreate === null || isTableLoading
+        "
         data-test-id="logCollectionBox_button_addNewCollectionItem"
         theme="primary"
         @click="operateHandler({}, 'add')"
@@ -91,7 +93,12 @@
           <template #default="props">
             <span
               class="text-active"
-              v-cursor="{ active: !(props.row.permission && props.row.permission[authorityMap.VIEW_COLLECTION_AUTH]) }"
+              v-cursor="{
+                active: !(
+                  props.row.permission &&
+                  props.row.permission[authorityMap.VIEW_COLLECTION_AUTH]
+                ),
+              }"
               @click="operateHandler(props.row, 'view')"
             >
               {{ props.row.collector_config_name }}
@@ -118,7 +125,11 @@
         >
           <template #default="props">
             <span :class="{ 'text-disabled': props.row.status === 'stop' }">
-              {{ props.row.table_id ? formatUsage(props.row.daily_usage, props.row.total_usage) : '--' }}
+              {{
+                props.row.table_id
+                  ? formatUsage(props.row.daily_usage, props.row.total_usage)
+                  : '--'
+              }}
             </span>
           </template>
         </bk-table-column>
@@ -130,7 +141,11 @@
         >
           <template #default="props">
             <span :class="{ 'text-disabled': props.row.status === 'stop' }">
-              {{ props.row.table_id ? props.row.table_id_prefix + props.row.table_id : '--' }}
+              {{
+                props.row.table_id
+                  ? props.row.table_id_prefix + props.row.table_id
+                  : '--'
+              }}
             </span>
           </template>
         </bk-table-column>
@@ -138,7 +153,9 @@
           v-if="checkcFields('storage_cluster_name')"
           :label="$t('存储集群')"
           :render-header="$renderHeader"
-          :filters="checkcFields('storage_cluster_name') ? filterStorageLabelList : []"
+          :filters="
+            checkcFields('storage_cluster_name') ? filterStorageLabelList : []
+          "
           :filter-multiple="false"
           class-name="filter-column"
           column-key="storage_cluster_name"
@@ -154,7 +171,9 @@
         <bk-table-column
           v-if="checkcFields('collector_scenario_name')"
           :filter-multiple="false"
-          :filters="checkcFields('collector_scenario_name') ? scenarioFilters : []"
+          :filters="
+            checkcFields('collector_scenario_name') ? scenarioFilters : []
+          "
           :label="$t('日志类型')"
           :render-header="$renderHeader"
           class-name="filter-column"
@@ -193,7 +212,11 @@
         >
           <template #default="props">
             <span :class="{ 'text-disabled': props.row.status === 'stop' }">
-              {{ props.row.retention ? `${props.row.retention} ${$t('天')}` : '--' }}
+              {{
+                props.row.retention
+                  ? `${props.row.retention} ${$t('天')}`
+                  : '--'
+              }}
             </span>
           </template>
         </bk-table-column>
@@ -234,7 +257,11 @@
             >
               <div @click.stop="operateHandler(props.row, 'status')">
                 <span
-                  v-if="['prepare', 'pending', 'unknown', 'running'].includes(props.row.status)"
+                  v-if="
+                    ['prepare', 'pending', 'unknown', 'running'].includes(
+                      props.row.status
+                    )
+                  "
                   class="status status-running"
                 >
                   <i class="bk-icon icon-refresh"></i>
@@ -254,7 +281,11 @@
                 </span>
                 <span
                   v-else
-                  :class="['status', 'status-' + props.row.status, { 'cursor-disabled': !loadingStatus }]"
+                  :class="[
+                    'status',
+                    'status-' + props.row.status,
+                    { 'cursor-disabled': !loadingStatus },
+                  ]"
                 >
                   <span v-if="props.row.status">
                     <i class="icon-circle"></i>
@@ -270,7 +301,8 @@
               </div>
               <template #content>
                 <div style="padding: 7px 6px">
-                  <span style="color: #d2d5dd"> {{ $t('点击查看') }} </span>{{ $t('采集状态') }}
+                  <span style="color: #d2d5dd"> {{ $t('点击查看') }} </span
+                  >{{ $t('采集状态') }}
                 </div>
               </template>
             </bk-popover>
@@ -278,13 +310,19 @@
               v-else
               v-cursor="{
                 active:
-                  !(props.row.permission && props.row.permission[authorityMap.VIEW_COLLECTION_AUTH]) &&
-                  props.row.status !== 'terminated',
+                  !(
+                    props.row.permission &&
+                    props.row.permission[authorityMap.VIEW_COLLECTION_AUTH]
+                  ) && props.row.status !== 'terminated',
               }"
               @click.stop="operateHandler(props.row, 'status')"
             >
               <span
-                v-if="['prepare', 'pending', 'unknown', 'running'].includes(props.row.status)"
+                v-if="
+                  ['prepare', 'pending', 'unknown', 'running'].includes(
+                    props.row.status
+                  )
+                "
                 class="status status-running"
               >
                 <i class="bk-icon icon-refresh"></i>
@@ -304,7 +342,11 @@
               </span>
               <span
                 v-else
-                :class="['status', 'status-' + props.row.status, { 'cursor-disabled': !loadingStatus }]"
+                :class="[
+                  'status',
+                  'status-' + props.row.status,
+                  { 'cursor-disabled': !loadingStatus },
+                ]"
               >
                 <span v-if="props.row.status">
                   <i class="icon-circle"></i>
@@ -327,7 +369,9 @@
           min-width="55"
         >
           <template #default="props">
-            <span :class="{ 'text-disabled': props.row.status === 'stop' }">{{ props.row.updated_by }}</span>
+            <span :class="{ 'text-disabled': props.row.status === 'stop' }">{{
+              props.row.updated_by
+            }}</span>
           </template>
         </bk-table-column>
         <bk-table-column
@@ -337,7 +381,9 @@
           :render-header="$renderHeader"
         >
           <template #default="props">
-            <span :class="{ 'text-disabled': props.row.status === 'stop' }">{{ props.row.updated_at }}</span>
+            <span :class="{ 'text-disabled': props.row.status === 'stop' }">{{
+              props.row.updated_at
+            }}</span>
           </template>
         </bk-table-column>
         <bk-table-column
@@ -359,7 +405,12 @@
                 }"
               >
                 <bk-button
-                  v-cursor="{ active: !(props.row.permission && props.row.permission[authorityMap.SEARCH_LOG_AUTH]) }"
+                  v-cursor="{
+                    active: !(
+                      props.row.permission &&
+                      props.row.permission[authorityMap.SEARCH_LOG_AUTH]
+                    ),
+                  }"
                   :disabled="!getOperatorCanClick(props.row, 'search')"
                   theme="primary"
                   text
@@ -379,7 +430,10 @@
               >
                 <bk-button
                   v-cursor="{
-                    active: !(props.row.permission && props.row.permission[authorityMap.MANAGE_COLLECTION_AUTH]),
+                    active: !(
+                      props.row.permission &&
+                      props.row.permission[authorityMap.MANAGE_COLLECTION_AUTH]
+                    ),
                   }"
                   :disabled="!getOperatorCanClick(props.row, 'edit')"
                   theme="primary"
@@ -401,7 +455,10 @@
               >
                 <bk-button
                   v-cursor="{
-                    active: !(props.row.permission && props.row.permission[authorityMap.MANAGE_COLLECTION_AUTH]),
+                    active: !(
+                      props.row.permission &&
+                      props.row.permission[authorityMap.MANAGE_COLLECTION_AUTH]
+                    ),
                   }"
                   :disabled="!getOperatorCanClick(props.row, 'clean')"
                   theme="primary"
@@ -436,9 +493,19 @@
                           delay: 500,
                         }"
                         v-cursor="{
-                          active: !(props.row.permission && props.row.permission[authorityMap.VIEW_COLLECTION_AUTH]),
+                          active: !(
+                            props.row.permission &&
+                            props.row.permission[
+                              authorityMap.VIEW_COLLECTION_AUTH
+                            ]
+                          ),
                         }"
-                        :class="{ 'text-disabled': !getOperatorCanClick(props.row, 'view') }"
+                        :class="{
+                          'text-disabled': !getOperatorCanClick(
+                            props.row,
+                            'view'
+                          ),
+                        }"
                         href="javascript:;"
                         @click="operateHandler(props.row, 'view')"
                       >
@@ -452,7 +519,12 @@
                           disabled: getOperatorCanClick(props.row, 'masking'),
                           delay: 500,
                         }"
-                        :class="{ 'text-disabled': !getOperatorCanClick(props.row, 'masking') }"
+                        :class="{
+                          'text-disabled': !getOperatorCanClick(
+                            props.row,
+                            'masking'
+                          ),
+                        }"
                         href="javascript:;"
                         @click.stop="operateHandler(props.row, 'masking')"
                       >
@@ -468,9 +540,19 @@
                           delay: 500,
                         }"
                         v-cursor="{
-                          active: !(props.row.permission && props.row.permission[authorityMap.MANAGE_COLLECTION_AUTH]),
+                          active: !(
+                            props.row.permission &&
+                            props.row.permission[
+                              authorityMap.MANAGE_COLLECTION_AUTH
+                            ]
+                          ),
                         }"
-                        :class="{ 'text-disabled': !getOperatorCanClick(props.row, 'storage') }"
+                        :class="{
+                          'text-disabled': !getOperatorCanClick(
+                            props.row,
+                            'storage'
+                          ),
+                        }"
                         href="javascript:;"
                         @click.stop="operateHandler(props.row, 'storage')"
                         >{{ $t('存储设置') }}</a
@@ -485,9 +567,19 @@
                           delay: 500,
                         }"
                         v-cursor="{
-                          active: !(props.row.permission && props.row.permission[authorityMap.MANAGE_COLLECTION_AUTH]),
+                          active: !(
+                            props.row.permission &&
+                            props.row.permission[
+                              authorityMap.MANAGE_COLLECTION_AUTH
+                            ]
+                          ),
                         }"
-                        :class="{ 'text-disabled': !getOperatorCanClick(props.row, 'clone') }"
+                        :class="{
+                          'text-disabled': !getOperatorCanClick(
+                            props.row,
+                            'clone'
+                          ),
+                        }"
                         href="javascript:;"
                         @click.stop="operateHandler(props.row, 'clone')"
                       >
@@ -502,9 +594,19 @@
                           delay: 500,
                         }"
                         v-cursor="{
-                          active: !(props.row.permission && props.row.permission[authorityMap.MANAGE_COLLECTION_AUTH]),
+                          active: !(
+                            props.row.permission &&
+                            props.row.permission[
+                              authorityMap.MANAGE_COLLECTION_AUTH
+                            ]
+                          ),
                         }"
-                        :class="{ 'text-disabled': !getOperatorCanClick(props.row, 'stop') }"
+                        :class="{
+                          'text-disabled': !getOperatorCanClick(
+                            props.row,
+                            'stop'
+                          ),
+                        }"
                         href="javascript:;"
                         @click.stop="stopCollectHandler(props.row)"
                       >
@@ -519,9 +621,19 @@
                           delay: 500,
                         }"
                         v-cursor="{
-                          active: !(props.row.permission && props.row.permission[authorityMap.MANAGE_COLLECTION_AUTH]),
+                          active: !(
+                            props.row.permission &&
+                            props.row.permission[
+                              authorityMap.MANAGE_COLLECTION_AUTH
+                            ]
+                          ),
                         }"
-                        :class="{ 'text-disabled': !getOperatorCanClick(props.row, 'start') }"
+                        :class="{
+                          'text-disabled': !getOperatorCanClick(
+                            props.row,
+                            'start'
+                          ),
+                        }"
                         href="javascript:;"
                         @click.stop="operateHandler(props.row, 'start')"
                       >
@@ -536,9 +648,19 @@
                           delay: 500,
                         }"
                         v-cursor="{
-                          active: !(props.row.permission && props.row.permission[authorityMap.MANAGE_COLLECTION_AUTH]),
+                          active: !(
+                            props.row.permission &&
+                            props.row.permission[
+                              authorityMap.MANAGE_COLLECTION_AUTH
+                            ]
+                          ),
                         }"
-                        :class="{ 'text-disabled': !getOperatorCanClick(props.row, 'delete') }"
+                        :class="{
+                          'text-disabled': !getOperatorCanClick(
+                            props.row,
+                            'delete'
+                          ),
+                        }"
                         href="javascript:;"
                         @click.stop="operateHandler(props.row, 'delete')"
                       >
@@ -552,7 +674,12 @@
                           disabled: getOperatorCanClick(props.row, 'report'),
                           delay: 500,
                         }"
-                        :class="{ 'text-disabled': !getOperatorCanClick(props.row, 'report') }"
+                        :class="{
+                          'text-disabled': !getOperatorCanClick(
+                            props.row,
+                            'report'
+                          ),
+                        }"
                         href="javascript:;"
                         @click.stop="handleShowReport(props.row)"
                       >
@@ -742,7 +869,10 @@ export default {
       },
       collectList: [],
       collectorIdStr: '',
-      collectProject: projectManages(this.$store.state.topMenu, 'collection-item'),
+      collectProject: projectManages(
+        this.$store.state.topMenu,
+        'collection-item'
+      ),
       filterParams: {
         status: '',
         collector_scenario_id: '',
@@ -797,7 +927,7 @@ export default {
       const { collector_scenario: collectorScenario } = this.globalsData;
       const target = [];
 
-      collectorScenario?.forEach(data => {
+      collectorScenario?.forEach((data) => {
         if (data.is_active) {
           target.push({
             text: data.name,
@@ -810,8 +940,8 @@ export default {
     categoryFilters() {
       const { category } = this.globalsData;
       const target = [];
-      category?.forEach(data => {
-        data.children.forEach(val => {
+      category?.forEach((data) => {
+        data.children.forEach((val) => {
           target.push({
             text: val.name,
             value: val.id,
@@ -824,18 +954,24 @@ export default {
       let collect = this.collectList;
       if (this.isFilterSearch) {
         const fParams = this.filterParams;
-        collect = collect.filter(item =>
-          Object.keys(fParams).every(key =>
-            this.filterIsNotCompared(fParams[key]) ? true : this.compareFilter(item[key], fParams[key], key)
+        collect = collect.filter((item) =>
+          Object.keys(fParams).every((key) =>
+            this.filterIsNotCompared(fParams[key])
+              ? true
+              : this.compareFilter(item[key], fParams[key], key)
           )
         );
       }
       if (this.keyword) {
-        collect = collect.filter(item =>
-          item.collector_config_name.toString().toLowerCase().includes(this.keyword.toLowerCase())
+        collect = collect.filter((item) =>
+          item.collector_config_name
+            .toString()
+            .toLowerCase()
+            .includes(this.keyword.toLowerCase())
         );
       }
-      this.emptyType = this.keyword || this.isFilterSearch ? 'search-empty' : 'empty';
+      this.emptyType =
+        this.keyword || this.isFilterSearch ? 'search-empty' : 'empty';
       this.changePagination({ count: collect.length });
       const { current, limit } = this.pagination;
       const startIndex = (current - 1) * limit;
@@ -843,13 +979,18 @@ export default {
       return collect.slice(startIndex, endIndex);
     },
     isFilterSearch() {
-      return !!Object.values(this.filterParams).some(item => !this.filterIsNotCompared(item));
+      return !!Object.values(this.filterParams).some(
+        (item) => !this.filterIsNotCompared(item)
+      );
     },
   },
   created() {
     !this.authGlobalInfo && this.checkCreateAuth();
     const { selectedFields } = this.columnSetting;
-    this.columnSetting.selectedFields = getDefaultSettingSelectFiled(this.settingCacheKey, selectedFields);
+    this.columnSetting.selectedFields = getDefaultSettingSelectFiled(
+      this.settingCacheKey,
+      selectedFields
+    );
   },
   async mounted() {
     this.needGuide = !localStorage.getItem('needGuide');
@@ -868,7 +1009,7 @@ export default {
             this.$set(item, key, value[key]);
           };
           requestStorageUsage(this.bkBizId, val, true, callbackFn)
-            .catch(error => {
+            .catch((error) => {
               console.error('Error loading data:', error);
             })
             .finally(() => {
@@ -896,20 +1037,36 @@ export default {
     },
     search() {
       this.keyword = this.searchKeyword;
-      this.emptyType = this.keyword || this.isFilterSearch ? 'search-empty' : 'empty';
+      this.emptyType =
+        this.keyword || this.isFilterSearch ? 'search-empty' : 'empty';
     },
     checkcFields(field) {
-      return this.columnSetting.selectedFields.some(item => item.id === field);
+      return this.columnSetting.selectedFields.some(
+        (item) => item.id === field
+      );
     },
     // 离开当前页路由操作
     leaveCurrentPage(row, operateType) {
-      if (operateType === 'status' && (!this.loadingStatus || row.status === 'terminated')) return; // 已停用禁止操作
-      if (operateType === 'status' && (!row.status || row.status === 'prepare')) {
+      if (
+        operateType === 'status' &&
+        (!this.loadingStatus || row.status === 'terminated')
+      )
+        return; // 已停用禁止操作
+      if (
+        operateType === 'status' &&
+        (!row.status || row.status === 'prepare')
+      ) {
         return this.operateHandler(row, 'edit');
       }
       // running、prepare 状态不能启用、停用
       if (operateType === 'start' || operateType === 'stop') {
-        if (!this.loadingStatus || row.status === 'running' || row.status === 'prepare' || !this.collectProject) return;
+        if (
+          !this.loadingStatus ||
+          row.status === 'running' ||
+          row.status === 'prepare' ||
+          !this.collectProject
+        )
+          return;
         if (operateType === 'start') {
           // 启用
           this.toggleCollect(row);
@@ -933,7 +1090,9 @@ export default {
         if (!row.is_active && row.status !== 'running') {
           this.$bkInfo({
             type: 'warning',
-            subTitle: this.$t('当前采集项名称为{n}，确认要删除？', { n: row.collector_config_name }),
+            subTitle: this.$t('当前采集项名称为{n}，确认要删除？', {
+              n: row.collector_config_name,
+            }),
             confirmFn: () => {
               this.requestDeleteCollect(row);
             },
@@ -965,7 +1124,13 @@ export default {
         }
       }
       if (
-        ['manage-collection', 'collectEdit', 'collectField', 'collectStorage', 'collectMasking'].includes(targetRoute)
+        [
+          'manage-collection',
+          'collectEdit',
+          'collectField',
+          'collectStorage',
+          'collectMasking',
+        ].includes(targetRoute)
       ) {
         params.collectorId = row.collector_config_id;
       }
@@ -974,7 +1139,9 @@ export default {
       }
       if (operateType === 'search') {
         if (!row.index_set_id && !row.bkdata_index_set_ids.length) return;
-        params.indexId = row.index_set_id ? row.index_set_id : row.bkdata_index_set_ids[0];
+        params.indexId = row.index_set_id
+          ? row.index_set_id
+          : row.bkdata_index_set_ids[0];
       }
       if (operateType === 'clean') {
         params.collectorId = row.collector_config_id;
@@ -1008,8 +1175,9 @@ export default {
     // 表头过滤
     handleFilterChange(data) {
       this.changePagination({ current: 1 });
-      Object.keys(data).forEach(item => {
-        this.filterParams[item] = item !== 'tags' ? data[item].join('') : data[item];
+      Object.keys(data).forEach((item) => {
+        this.filterParams[item] =
+          item !== 'tags' ? data[item].join('') : data[item];
       });
     },
     handleSettingChange({ fields }) {
@@ -1020,7 +1188,9 @@ export default {
     startStatusPolling() {
       this.stopStatusPolling();
       this.timer = setTimeout(() => {
-        this.isShouldPollCollect && this.collectorIdStr && this.requestCollectStatus(true);
+        this.isShouldPollCollect &&
+          this.collectorIdStr &&
+          this.requestCollectStatus(true);
       }, 10000);
     },
     stopStatusPolling() {
@@ -1039,24 +1209,31 @@ export default {
             not_custom: 1,
           },
         })
-        .then(async res => {
+        .then(async (res) => {
           const { data } = res;
           if (data && data.length) {
             const idList = [];
-            const indexIdList = data.filter(item => !!item.index_set_id).map(item => item.index_set_id);
-            const { data: desensitizeStatus } = await this.getDesensitizeStatus(indexIdList);
+            const indexIdList = data
+              .filter((item) => !!item.index_set_id)
+              .map((item) => item.index_set_id);
+            const { data: desensitizeStatus } =
+              await this.getDesensitizeStatus(indexIdList);
             const setStorageClusterName = new Set();
-            data.forEach(row => {
+            data.forEach((row) => {
               row.status = '';
               row.status_name = '';
               idList.push(row.collector_config_id);
-              row.is_desensitize = desensitizeStatus[row.index_set_id]?.is_desensitize ?? false;
-              if (!!row.storage_cluster_name) setStorageClusterName.add(row.storage_cluster_name);
+              row.is_desensitize =
+                desensitizeStatus[row.index_set_id]?.is_desensitize ?? false;
+              if (!!row.storage_cluster_name)
+                setStorageClusterName.add(row.storage_cluster_name);
             });
-            this.filterStorageLabelList = Array.from(setStorageClusterName).map(item => ({
-              text: item,
-              value: item,
-            }));
+            this.filterStorageLabelList = Array.from(setStorageClusterName).map(
+              (item) => ({
+                text: item,
+                value: item,
+              })
+            );
             this.collectList = data;
             this.changePagination({ count: data.length });
             this.collectorIdStr = idList.join(',');
@@ -1108,7 +1285,7 @@ export default {
             collector_id_list: this.collectorIdStr,
           },
         })
-        .then(res => {
+        .then((res) => {
           this.statusHandler(res.data || []);
           if (this.isShouldPollCollect) this.startStatusPolling();
           if (!isPrivate) this.loadingStatus = true;
@@ -1128,7 +1305,7 @@ export default {
             collector_config_id: row.collector_config_id,
           },
         })
-        .then(res => {
+        .then((res) => {
           if (res.result) {
             row.is_active = !row.is_active;
             this.startStatusPolling();
@@ -1143,9 +1320,12 @@ export default {
     // PREPARE  RUNNING  UNKNOWN
     statusHandler(data) {
       this.isShouldPollCollect = false;
-      data.forEach(item => {
-        if (['prepare', 'running', 'unknown'].includes(item.status.toLowerCase())) this.isShouldPollCollect = true;
-        this.collectList.forEach(row => {
+      data.forEach((item) => {
+        if (
+          ['prepare', 'running', 'unknown'].includes(item.status.toLowerCase())
+        )
+          this.isShouldPollCollect = true;
+        this.collectList.forEach((row) => {
           if (row.collector_config_id === item.collector_id) {
             row.status = item.status.toLowerCase();
             row.status_name = item.status_name;
@@ -1160,7 +1340,7 @@ export default {
             collector_config_id: row.collector_config_id,
           },
         })
-        .then(res => {
+        .then((res) => {
           if (res.data?.check_record_id) {
             this.reportDetailShow = true;
             this.checkRecordId = res.data.check_record_id;
@@ -1183,8 +1363,8 @@ export default {
         this.selectLabelList = res.data;
         const cloneTagBase = deepClone(this.tagBaseList);
         const notBuiltInList = res.data
-          .filter(item => !item.is_built_in)
-          .map(item => ({
+          .filter((item) => !item.is_built_in)
+          .map((item) => ({
             id: item.name,
             name: item.name,
           }));
@@ -1238,7 +1418,8 @@ export default {
       return false;
     },
     compareFilter(compare, fCompare, key) {
-      if (key === 'tags') return compare.some(item => fCompare.includes(item.name));
+      if (key === 'tags')
+        return compare.some((item) => fCompare.includes(item.name));
       return compare === fCompare;
     },
     handleTagSelectChange(v) {
@@ -1250,7 +1431,7 @@ export default {
       if (lastSelect === 'all') {
         this.tagSelect = [lastSelect];
       } else {
-        this.tagSelect = v.filter(item => !(item === 'all'));
+        this.tagSelect = v.filter((item) => !(item === 'all'));
       }
     },
     handleTagSubmit(v) {
@@ -1258,10 +1439,13 @@ export default {
       this.handleFilterChange(this.tagsData);
     },
     handleToggleTagSelect() {
-      this.tagSelect = !!this.tagsData.tags.length ? deepClone(this.tagsData.tags) : ['all'];
+      this.tagSelect = !!this.tagsData.tags.length
+        ? deepClone(this.tagsData.tags)
+        : ['all'];
     },
     renderTagsHeader(h, { column }) {
-      const isActive = !!this.filterLabelList.length && !this.tagSelect.includes('all');
+      const isActive =
+        !!this.filterLabelList.length && !this.tagSelect.includes('all');
       return h(ClusterFilter, {
         props: {
           title: column.label,
@@ -1285,188 +1469,188 @@ export default {
 </script>
 
 <style lang="scss">
-  @import '../../../../../scss/mixins/clearfix';
-  @import '../../../../../scss/conf';
-  @import '../../../../../scss/devops-common.scss';
+@import '../../../../../scss/mixins/clearfix';
+@import '../../../../../scss/conf';
+@import '../../../../../scss/devops-common.scss';
 
-  .collection-item-container {
-    padding: 20px 24px;
+.collection-item-container {
+  padding: 20px 24px;
 
-    .top-operation {
-      margin-bottom: 20px;
+  .top-operation {
+    margin-bottom: 20px;
 
-      @include clearfix;
+    @include clearfix;
 
-      .bk-button {
-        width: 120px;
-      }
-    }
-
-    .collect-search {
-      width: 360px;
-    }
-
-    .collect-table {
-      overflow: visible;
-
-      .text-disabled {
-        color: #c4c6cc;
-      }
-
-      .text-active {
-        color: #3a84ff;
-        cursor: pointer;
-      }
-
-      .filter-column {
-        .cell {
-          /* stylelint-disable-next-line declaration-no-important */
-          display: flex !important;
-        }
-      }
-
-      .itsm-ticket-applying {
-        .cell {
-          pointer-events: none;
-        }
-      }
-    }
-
-    .bk-table-body-wrapper {
-      overflow-x: auto;
-    }
-
-    /* stylelint-disable-next-line no-descending-specificity */
-    .operate-column .cell {
-      overflow: visible;
-    }
-
-    .td-status .cursor-disabled {
-      cursor: not-allowed;
-    }
-
-    .table-mark {
-      display: inline-block;
-      height: 17px;
-      padding: 0 2px;
-      margin-left: 4px;
-      font-size: 10px;
-      line-height: 17px;
-      color: #fff;
-      background: #979ba5;
-      border-radius: 2px;
-    }
-
-    .icon-masking {
-      color: #ff9c01;
-    }
-
-    .status {
-      cursor: pointer;
-
-      .icon-circle {
-        display: inline-block;
-        width: 5px;
-        height: 5px;
-        border-radius: 50%;
-        transform: translateY(-2px);
-
-        &::before {
-          content: '';
-        }
-      }
-
-      &.status-running i {
-        display: inline-block;
-        animation: button-icon-loading 1s linear infinite;
-      }
-
-      &.status-success i {
-        background: $iconSuccessColor;
-      }
-
-      &.status-failed i {
-        background: $iconFailColor;
-      }
-    }
-
-    .collect-table-operate {
-      display: flex;
-      align-items: center;
-
-      .king-button {
-        margin-right: 14px;
-
-        &:last-child {
-          margin-right: 0;
-        }
-      }
+    .bk-button {
+      width: 120px;
     }
   }
 
-  .dot-menu {
-    display: inline-block;
-    vertical-align: middle;
+  .collect-search {
+    width: 360px;
   }
 
-  .dot-menu-theme {
-    /* stylelint-disable-next-line declaration-no-important */
-    padding: 0 !important;
+  .collect-table {
+    overflow: visible;
 
-    &::before {
-      /* stylelint-disable-next-line declaration-no-important */
-      background: #fff !important;
-    }
-  }
-
-  .collection-operation-list {
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    min-width: 50px;
-    margin: 0;
-    list-style: none;
-
-    li {
-      padding: 4px 16px;
-      font-size: 12px;
-      line-height: 26px;
-      cursor: pointer;
-
-      &:hover {
-        color: #3a84ff;
-        background-color: #eaf3ff;
-      }
-    }
-
-    a {
-      display: inline-block;
-      width: 100%;
-      height: 100%;
-      color: #63656e;
-    }
-
-    /* stylelint-disable-next-line no-descending-specificity */
     .text-disabled {
       color: #c4c6cc;
+    }
 
-      &:hover {
-        cursor: not-allowed;
+    .text-active {
+      color: #3a84ff;
+      cursor: pointer;
+    }
+
+    .filter-column {
+      .cell {
+        /* stylelint-disable-next-line declaration-no-important */
+        display: flex !important;
+      }
+    }
+
+    .itsm-ticket-applying {
+      .cell {
+        pointer-events: none;
       }
     }
   }
 
-  .bk-table-setting-popover-content-theme.tippy-tooltip {
-    padding: 15px 0 0;
+  .bk-table-body-wrapper {
+    overflow-x: auto;
+  }
 
-    .bk-table-setting-content .content-line-height {
-      display: none;
+  /* stylelint-disable-next-line no-descending-specificity */
+  .operate-column .cell {
+    overflow: visible;
+  }
+
+  .td-status .cursor-disabled {
+    cursor: not-allowed;
+  }
+
+  .table-mark {
+    display: inline-block;
+    height: 17px;
+    padding: 0 2px;
+    margin-left: 4px;
+    font-size: 10px;
+    line-height: 17px;
+    color: #fff;
+    background: #979ba5;
+    border-radius: 2px;
+  }
+
+  .icon-masking {
+    color: #ff9c01;
+  }
+
+  .status {
+    cursor: pointer;
+
+    .icon-circle {
+      display: inline-block;
+      width: 5px;
+      height: 5px;
+      border-radius: 50%;
+      transform: translateY(-2px);
+
+      &::before {
+        content: '';
+      }
+    }
+
+    &.status-running i {
+      display: inline-block;
+      animation: button-icon-loading 1s linear infinite;
+    }
+
+    &.status-success i {
+      background: $iconSuccessColor;
+    }
+
+    &.status-failed i {
+      background: $iconFailColor;
     }
   }
 
-  .itsm-applying-popover {
-    .tippy-content {
-      font-size: 12px;
+  .collect-table-operate {
+    display: flex;
+    align-items: center;
+
+    .king-button {
+      margin-right: 14px;
+
+      &:last-child {
+        margin-right: 0;
+      }
     }
   }
+}
+
+.dot-menu {
+  display: inline-block;
+  vertical-align: middle;
+}
+
+.dot-menu-theme {
+  /* stylelint-disable-next-line declaration-no-important */
+  padding: 0 !important;
+
+  &::before {
+    /* stylelint-disable-next-line declaration-no-important */
+    background: #fff !important;
+  }
+}
+
+.collection-operation-list {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-width: 50px;
+  margin: 0;
+  list-style: none;
+
+  li {
+    padding: 4px 16px;
+    font-size: 12px;
+    line-height: 26px;
+    cursor: pointer;
+
+    &:hover {
+      color: #3a84ff;
+      background-color: #eaf3ff;
+    }
+  }
+
+  a {
+    display: inline-block;
+    width: 100%;
+    height: 100%;
+    color: #63656e;
+  }
+
+  /* stylelint-disable-next-line no-descending-specificity */
+  .text-disabled {
+    color: #c4c6cc;
+
+    &:hover {
+      cursor: not-allowed;
+    }
+  }
+}
+
+.bk-table-setting-popover-content-theme.tippy-tooltip {
+  padding: 15px 0 0;
+
+  .bk-table-setting-content .content-line-height {
+    display: none;
+  }
+}
+
+.itsm-applying-popover {
+  .tippy-content {
+    font-size: 12px;
+  }
+}
 </style>

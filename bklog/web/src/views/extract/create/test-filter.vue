@@ -39,10 +39,7 @@
       </bk-option>
     </bk-select>
     <!-- 关键字过滤 -->
-    <div
-      class="filter-content"
-      v-show="filterType === 'match_word'"
-    >
+    <div class="filter-content" v-show="filterType === 'match_word'">
       <bk-input
         style="width: 300px"
         v-model="filterContent.keyword"
@@ -69,10 +66,7 @@
     </div>
     <!-- 关键字范围 -->
     <div v-show="filterType === 'match_range'">
-      <i18n
-        class="filter-content"
-        path="从匹配{0}开始到匹配{1}之间的所有行"
-      >
+      <i18n class="filter-content" path="从匹配{0}开始到匹配{1}之间的所有行">
         <bk-input
           style="width: 180px; margin: 0 6px"
           v-model="filterContent.start"
@@ -88,10 +82,7 @@
       </i18n>
     </div>
     <!-- 最新行数 -->
-    <div
-      class="filter-content"
-      v-show="filterType === 'tail_line'"
-    >
+    <div class="filter-content" v-show="filterType === 'tail_line'">
       <bk-input
         style="width: 120px"
         :placeholder="$t('请输入整数')"
@@ -104,10 +95,7 @@
     </div>
     <!-- 按行过滤 -->
     <div v-show="filterType === 'line_range'">
-      <i18n
-        class="filter-content"
-        path="从第{0}行到第{1}行"
-      >
+      <i18n class="filter-content" path="从第{0}行到第{1}行">
         <bk-input
           style="width: 120px; margin: 0 6px"
           :placeholder="$t('请输入整数')"
@@ -204,13 +192,13 @@ export default {
 </script>
 
 <style lang="scss" scoped>
-  .text-filter-container {
+.text-filter-container {
+  display: flex;
+  align-items: center;
+
+  .filter-content {
     display: flex;
     align-items: center;
-
-    .filter-content {
-      display: flex;
-      align-items: center;
-    }
   }
+}
 </style>

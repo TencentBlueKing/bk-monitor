@@ -91,7 +91,7 @@ export default {
             bk_biz_id: this.bkBizId,
           },
         });
-        this.collectionList = res.data.map(item => {
+        this.collectionList = res.data.map((item) => {
           item.bk_biz_id = this.bkBizId;
           return item;
         });
@@ -103,7 +103,9 @@ export default {
     },
     handleSelected(id) {
       this.selectedId = id;
-      this.$emit('update:value', [this.collectionList.find(item => item.result_table_id === id)]);
+      this.$emit('update:value', [
+        this.collectionList.find((item) => item.result_table_id === id),
+      ]);
     },
   },
 };

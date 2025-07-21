@@ -23,9 +23,8 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import Vue, { h, ref, Ref } from 'vue';
-
 import useLocale from '@/hooks/use-locale';
+import Vue, { h, ref, Ref } from 'vue';
 
 import TaskRunning from '../global/utils/task-pool';
 
@@ -73,67 +72,67 @@ class UseSegmentProp {
   createSegmentContent(refName: Ref) {
     const eventBoxList = [
       {
-        onClick: () => taskEventManager.executeFn('copy'),
         iconName: 'icon bklog-icon bklog-copy-3',
+        onClick: () => taskEventManager.executeFn('copy'),
         text: this.$t('复制'),
       },
       {
-        onClick: () => taskEventManager.executeFn('highlight'),
         iconName: 'icon bklog-icon bklog-highlight',
+        onClick: () => taskEventManager.executeFn('highlight'),
         text: this.$t('高亮'),
       },
       {
-        onClick: () => {
-          taskEventManager.executeFn('is');
-        },
         iconName: 'icon bk-icon icon-plus-circle',
-        text: this.$t('添加到本次检索'),
         link: {
-          tooltip: this.$t('新开标签页'),
           iconName: 'bklog-icon bklog-jump',
-          onClick: e => {
+          onClick: (e) => {
             e.stopPropagation();
             taskEventManager.executeFn('is', true);
           },
+          tooltip: this.$t('新开标签页'),
         },
+        onClick: () => {
+          taskEventManager.executeFn('is');
+        },
+        text: this.$t('添加到本次检索'),
       },
       {
-        onClick: () => taskEventManager.executeFn('not'),
         iconName: 'icon bk-icon icon-minus-circle',
-        text: this.$t('从本次检索中排除'),
         link: {
-          tooltip: this.$t('新开标签页'),
           iconName: 'bklog-icon bklog-jump',
-          onClick: e => {
+          onClick: (e) => {
             e.stopPropagation();
             taskEventManager.executeFn('not', true);
           },
+          tooltip: this.$t('新开标签页'),
         },
+        onClick: () => taskEventManager.executeFn('not'),
+        text: this.$t('从本次检索中排除'),
       },
       {
-        onClick: () => taskEventManager.executeFn('new-search-page-is', true),
         iconName: 'icon bk-icon icon-plus-circle',
-        text: this.$t('新建检索'),
         link: {
           iconName: 'bklog-icon bklog-jump',
         },
+        onClick: () => taskEventManager.executeFn('new-search-page-is', true),
+        text: this.$t('新建检索'),
       },
       {
-        onClick: () => taskEventManager.executeFn('trace-view', true),
         iconName: 'bklog-icon bklog-jincheng bklog-trace-view',
-        text: this.$t('关联Trace检索'),
         link: {
           iconName: 'bklog-icon bklog-jump',
         },
+        onClick: () => taskEventManager.executeFn('trace-view', true),
+        text: this.$t('关联Trace检索'),
       },
     ]
-      .filter(item => {
+      .filter((item) => {
         if (window?.__IS_MONITOR_TRACE__) {
           return item.text !== this.$t('新建检索');
         }
         return true;
       })
-      .map(item => {
+      .map((item) => {
         if (window?.__IS_MONITOR_TRACE__) {
           return {
             ...item,
@@ -143,51 +142,59 @@ class UseSegmentProp {
         return item;
       });
 
-    return h('div', { class: 'segment-event-icons event-tippy-content', ref: refName }, [
-      eventBoxList.map(item =>
-        h(
-          'div',
-          {
-            class: 'segment-event-box',
-          },
-          [
-            h(
-              'span',
-              {
-                class: 'segment-event-btn',
-                on: {
-                  click: item.onClick,
+    return h(
+      'div',
+      { class: 'segment-event-icons event-tippy-content', ref: refName },
+      [
+        eventBoxList.map((item) =>
+          h(
+            'div',
+            {
+              class: 'segment-event-box',
+            },
+            [
+              h(
+                'span',
+                {
+                  class: 'segment-event-btn',
+                  on: {
+                    click: item.onClick,
+                  },
                 },
-              },
-              [
-                h('span', { class: 'segment-btn-left' }, [
-                  h('i', { class: item.iconName }),
-                  h('span', {}, [item.text]),
-                ]),
-                item.link
-                  ? h(
-                      'div',
-                      {
-                        class: 'segment-new-link',
-                        on: { ...(item.link.onClick ? { click: item.link.onClick } : {}) },
-                        directives: item.link.tooltip
-                          ? [
-                              {
-                                name: 'bk-tooltips',
-                                value: item.link.tooltip,
-                              },
-                            ]
-                          : [],
-                      },
-                      [h('i', { class: item.link.iconName })]
-                    )
-                  : null,
-              ]
-            ),
-          ]
-        )
-      ),
-    ]);
+                [
+                  h('span', { class: 'segment-btn-left' }, [
+                    h('i', { class: item.iconName }),
+                    h('span', {}, [item.text]),
+                  ]),
+                  item.link
+                    ? h(
+                        'div',
+                        {
+                          class: 'segment-new-link',
+                          directives: item.link.tooltip
+                            ? [
+                                {
+                                  name: 'bk-tooltips',
+                                  value: item.link.tooltip,
+                                },
+                              ]
+                            : [],
+                          on: {
+                            ...(item.link.onClick
+                              ? { click: item.link.onClick }
+                              : {}),
+                          },
+                        },
+                        [h('i', { class: item.link.iconName })]
+                      )
+                    : null,
+                ]
+              ),
+            ]
+          )
+        ),
+      ]
+    );
   }
 
   mountedToBody = () => {
@@ -213,11 +220,16 @@ class UseSegmentProp {
     }
 
     if (!this.refContent.value) {
-      this.refContent.value = target.querySelector(`.${this.className} .event-tippy-content`);
+      this.refContent.value = target.querySelector(
+        `.${this.className} .event-tippy-content`
+      );
     }
   };
 
-  getSegmentContent(keyRef: Ref<HTMLElement | null>, onSegmentEnumClick: (...args) => void) {
+  getSegmentContent(
+    keyRef: Ref<HTMLElement | null>,
+    onSegmentEnumClick: (...args) => void
+  ) {
     taskEventManager.appendEvent(keyRef, onSegmentEnumClick);
     taskEventManager.setActiveKey(keyRef);
     return this.refContent;

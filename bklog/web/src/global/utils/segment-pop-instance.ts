@@ -27,22 +27,22 @@ import PopInstanceUtil from '../pop-instance-util';
 const instance = new PopInstanceUtil({
   onHiddenFn: () => true,
   tippyOptions: {
-    hideOnClick: true,
-    theme: 'segment-light',
-    placement: 'bottom',
     appendTo: document.body,
+    hideOnClick: true,
+    placement: 'bottom',
+    theme: 'segment-light',
   },
 });
 
 export default {
+  getInstance: () => instance.getTippyInstance(),
+  hide: () => {
+    instance.hide();
+  },
   show: (target, content) => {
     if (content) {
       instance.setContent(content);
     }
     instance.show(target);
   },
-  hide: () => {
-    instance.hide();
-  },
-  getInstance: () => instance.getTippyInstance(),
 };

@@ -24,15 +24,13 @@
  * IN THE SOFTWARE.
  */
 
-import './public-path';
-
-import Vue from 'vue';
-
 import LogButton from '@/components/log-button';
 import i18n from '@/language/i18n';
 import docsLinkMixin from '@/mixins/docs-link-mixin';
-
 import { debounce } from 'lodash';
+import Vue from 'vue';
+import VueVirtualScroller from 'vue-virtual-scroller';
+import 'vue-virtual-scroller/dist/vue-virtual-scroller.css';
 
 import App from './App';
 import http from './api';
@@ -41,23 +39,20 @@ import { renderHeader } from './common/util';
 import './directives/index';
 import JsonFormatWrapper from './global/json-format-wrapper.vue';
 import methods from './plugins/methods';
-import getRouter from './router';
-import store from './store';
 import preload, { getExternalMenuListBySpace } from './preload';
-
-import './static/style.css';
-import './static/font-face/index.css';
+import './public-path';
+import getRouter from './router';
 import './scss/theme/theme-dark.scss';
 import './scss/theme/theme-light.scss';
+import './static/font-face/index.css';
+import './static/style.css';
+import store from './store';
 import { BK_LOG_STORAGE } from './store/store.type';
-
-import VueVirtualScroller from 'vue-virtual-scroller';
-import 'vue-virtual-scroller/dist/vue-virtual-scroller.css';
 
 Vue.prototype.$renderHeader = renderHeader;
 
-const setRouterErrorHandle = router => {
-  router.onError(err => {
+const setRouterErrorHandle = (router) => {
+  router.onError((err) => {
     const pattern = /Loading (CSS chunk|chunk) (\d)+ failed/g;
     const isChunkLoadFailed = err.message.match(pattern);
     const targetPath = router.history?.pending?.fullPath;
@@ -95,12 +90,12 @@ const mountedVueInstance = () => {
 
     window.mainComponent = new Vue({
       el: '#app',
-      router,
-      store,
-      i18n,
       components: {
         App,
       },
+      i18n,
+      router,
+      store,
       template: '<App/>',
     });
   });
@@ -108,13 +103,15 @@ const mountedVueInstance = () => {
 window.bus = bus;
 
 if (process.env.NODE_ENV === 'development') {
-  http.request('meta/getEnvConstant').then(res => {
+  http.request('meta/getEnvConstant').then((res) => {
     const { data } = res;
-    Object.keys(data).forEach(key => {
+    Object.keys(data).forEach((key) => {
       window[key] = data[key];
     });
     window.FEATURE_TOGGLE = JSON.parse(data.FEATURE_TOGGLE);
-    window.FEATURE_TOGGLE_WHITE_LIST = JSON.parse(data.FEATURE_TOGGLE_WHITE_LIST);
+    window.FEATURE_TOGGLE_WHITE_LIST = JSON.parse(
+      data.FEATURE_TOGGLE_WHITE_LIST
+    );
     window.SPACE_UID_WHITE_LIST = JSON.parse(data.SPACE_UID_WHITE_LIST);
     window.FIELD_ANALYSIS_CONFIG = JSON.parse(data.FIELD_ANALYSIS_CONFIG);
     mountedVueInstance();

@@ -24,19 +24,23 @@
  * IN THE SOFTWARE.
  */
 
+import { parseTableRowData } from '@/common/util';
 import { Ref } from 'vue';
 
+import RetrieveBase from './retrieve-core/base';
+import {
+  type GradeSetting,
+  type GradeConfiguration,
+  GradeFieldValueType,
+} from './retrieve-core/interface';
 import OptimizedHighlighter from './retrieve-core/optimized-highlighter';
 import RetrieveEvent from './retrieve-core/retrieve-events';
-import { type GradeSetting, type GradeConfiguration, GradeFieldValueType } from './retrieve-core/interface';
-import RetrieveBase from './retrieve-core/base';
 import { RouteQueryTab } from './retrieve-v3/index.type';
-import { parseTableRowData } from '@/common/util';
 
 export enum STORAGE_KEY {
   STORAGE_KEY_FAVORITE_SHOW = 'STORAGE_KEY_FAVORITE_SHOW',
-  STORAGE_KEY_FAVORITE_WIDTH = 'STORAGE_KEY_FAVORITE_WIDTH',
   STORAGE_KEY_FAVORITE_VIEW_CURRENT_CHANGE = 'STORAGE_KEY_FAVORITE_VIEW_CURRENT_CHANGE',
+  STORAGE_KEY_FAVORITE_WIDTH = 'STORAGE_KEY_FAVORITE_WIDTH',
 }
 
 export { RetrieveEvent, GradeSetting, GradeConfiguration };
@@ -44,25 +48,16 @@ export { RetrieveEvent, GradeSetting, GradeConfiguration };
 const GLOBAL_SCROLL_SELECTOR = '.retrieve-v2-index.scroll-y';
 class RetrieveHelper extends RetrieveBase {
   scrollEventAdded = false;
-  constructor({ isFavoriteShow = false, isViewCurrentIndex = true, favoriteWidth = 0 }) {
+  constructor({
+    favoriteWidth = 0,
+    isFavoriteShow = false,
+    isViewCurrentIndex = true,
+  }) {
     super({});
     this.globalScrollSelector = GLOBAL_SCROLL_SELECTOR;
     this.isFavoriteShown = isFavoriteShow;
     this.isViewCurrentIndex = isViewCurrentIndex;
     this.favoriteWidth = favoriteWidth;
-  }
-
-  /**
-   * 添加滚动监听
-   */
-  private setContentScroll() {
-    if (!this.scrollEventAdded) {
-      const target = document.querySelector(this.globalScrollSelector);
-      if (target) {
-        target.addEventListener('scroll', this.handleScroll);
-        this.scrollEventAdded = true;
-      }
-    }
   }
 
   /**
@@ -90,10 +85,13 @@ class RetrieveHelper extends RetrieveBase {
    * // 初始化 Mark.js 实例
    * @param target
    */
-  setMarkInstance(target?: (() => HTMLElement) | HTMLElement | Ref<HTMLElement> | string) {
+  setMarkInstance(
+    target?: (() => HTMLElement) | HTMLElement | Ref<HTMLElement> | string
+  ) {
     this.markInstance = new OptimizedHighlighter({
-      target: target ?? (() => document.getElementById(this.logRowsContainerId)),
       chunkStrategy: 'fixed',
+      target:
+        target ?? (() => document.getElementById(this.logRowsContainerId)),
     });
   }
 
@@ -109,22 +107,28 @@ class RetrieveHelper extends RetrieveBase {
    * 高亮关键词
    * @param keywords 关键词
    * @param reset 是否重置
-   * @param afterMarkFn 高亮后回调
+   * @param _afterMarkFn 高亮后回调
    */
-  highLightKeywords(keywords?: string[], reset = true, afterMarkFn?: () => void) {
+  highLightKeywords(
+    keywords?: string[],
+    reset = true,
+    _afterMarkFn?: () => void
+  ) {
     if (!this.markInstance) {
       return;
     }
 
     const { caseSensitive } = this.markInstance.getMarkOptions();
-    this.markInstance.setObserverConfig({ root: document.getElementById(this.logRowsContainerId) });
+    this.markInstance.setObserverConfig({
+      root: document.getElementById(this.logRowsContainerId),
+    });
     this.markInstance.unmark();
     this.markInstance.highlight(
       (keywords ?? []).map((keyword, index) => {
         return {
-          text: keyword,
-          className: `highlight-${index}`,
           backgroundColor: this.RGBA_LIST[index % this.RGBA_LIST.length],
+          className: `highlight-${index}`,
+          text: keyword,
           textReg: new RegExp(`^${keyword}$`, caseSensitive ? '' : 'i'),
         };
       }),
@@ -146,31 +150,6 @@ class RetrieveHelper extends RetrieveBase {
   }
 
   /**
-   * 将值转换为可匹配的字符串
-   * @param value 待转换的值
-   * @returns 转换后的字符串或null
-   */
-  private convertToMatchableString(value: any): string | null {
-    // 如果值为 null 或 undefined，返回 null
-    if (value == null) {
-      return null;
-    }
-
-    // 如果值为 Object（但不是 null），返回 null
-    if (typeof value === 'object') {
-      return null;
-    }
-
-    // 如果是 string, number, boolean，转换为 string
-    if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
-      return String(value);
-    }
-
-    // 其他情况返回 null
-    return null;
-  }
-
-  /**
    * 解析日志级别
    * @param field
    * @param options
@@ -189,12 +168,12 @@ class RetrieveHelper extends RetrieveBase {
       const levelRegExpList = [];
       (
         options?.settings ?? [
-          { id: 'level_1', enable: true },
-          { id: 'level_2', enable: true },
-          { id: 'level_3', enable: true },
-          { id: 'level_4', enable: true },
-          { id: 'level_5', enable: true },
-          { id: 'level_6', enable: true },
+          { enable: true, id: 'level_1' },
+          { enable: true, id: 'level_2' },
+          { enable: true, id: 'level_3' },
+          { enable: true, id: 'level_4' },
+          { enable: true, id: 'level_5' },
+          { enable: true, id: 'level_6' },
         ]
       ).forEach((item: GradeSetting) => {
         if (item.enable && this.logLevelRegex[item.id]) {
@@ -213,17 +192,28 @@ class RetrieveHelper extends RetrieveBase {
       // 收集所有匹配的日志级别
       for (const match of matches) {
         const groups = match.groups || {};
-        Object.keys(groups).forEach(level => {
+        Object.keys(groups).forEach((level) => {
           if (groups[level]) levelSet.add(level.toUpperCase());
         });
       }
 
       // 按优先级顺序查找最高级别
-      const PRIORITY_ORDER = ['FATAL', 'ERROR', 'WARNING', 'INFO', 'DEBUG', 'TRACE'];
-      return PRIORITY_ORDER.find(level => levelSet.has(level)) || 'others';
+      const PRIORITY_ORDER = [
+        'FATAL',
+        'ERROR',
+        'WARNING',
+        'INFO',
+        'DEBUG',
+        'TRACE',
+      ];
+      return PRIORITY_ORDER.find((level) => levelSet.has(level)) || 'others';
     }
 
-    const fieldValue = parseTableRowData(field, options.field, options.fieldType);
+    const fieldValue = parseTableRowData(
+      field,
+      options.field,
+      options.fieldType
+    );
 
     if (options.type === 'custom' && fieldValue) {
       const target = this.convertToMatchableString(fieldValue);
@@ -237,8 +227,11 @@ class RetrieveHelper extends RetrieveBase {
       const logSegment = target.slice(0, 1000);
       options.settings.forEach((item: GradeSetting) => {
         if (item.enable && item.id !== 'others') {
-          this.isMatchedGroup(item, logSegment, options.valueType === GradeFieldValueType.VALUE) &&
-            levels.push(item.id);
+          this.isMatchedGroup(
+            item,
+            logSegment,
+            options.valueType === GradeFieldValueType.VALUE
+          ) && levels.push(item.id);
         }
       });
 
@@ -255,7 +248,9 @@ class RetrieveHelper extends RetrieveBase {
    */
   setTrendGraphHeight(height?: number) {
     if (!height) {
-      const trendGraph = document.querySelector(`.${this.randomTrendGraphClassName}`) as HTMLElement;
+      const trendGraph = document.querySelector(
+        `.${this.randomTrendGraphClassName}`
+      ) as HTMLElement;
       if (trendGraph) {
         height = trendGraph.offsetHeight;
       }
@@ -297,7 +292,7 @@ class RetrieveHelper extends RetrieveBase {
    * @param type 检索类型：ui/sql/filter
    * @param value
    */
-  searchValueChange(type: 'ui' | 'sql' | 'filter', value: string | Array<any>) {
+  searchValueChange(type: 'filter' | 'sql' | 'ui', value: Array<any> | string) {
     this.runEvent(RetrieveEvent.SEARCH_VALUE_CHANGE, { type, value });
   }
 
@@ -339,7 +334,10 @@ class RetrieveHelper extends RetrieveBase {
    */
   setViewCurrentIndexn(show: boolean) {
     this.isViewCurrentIndex = show;
-    localStorage.setItem(STORAGE_KEY.STORAGE_KEY_FAVORITE_VIEW_CURRENT_CHANGE, `${show}`);
+    localStorage.setItem(
+      STORAGE_KEY.STORAGE_KEY_FAVORITE_VIEW_CURRENT_CHANGE,
+      `${show}`
+    );
     this.runEvent(RetrieveEvent.FAVORITE_VIEW_CURRENT_CHANGE, show);
   }
 
@@ -387,10 +385,15 @@ class RetrieveHelper extends RetrieveBase {
    * @param tabValue
    * @returns
    */
-  routeQueryTabValueFix(indexSetItem, tabValue?: string | string[], isUnionSearch = false) {
+  routeQueryTabValueFix(
+    indexSetItem,
+    tabValue?: string | string[],
+    isUnionSearch = false
+  ) {
     const isclusteringEnable = () => {
       return (
-        (indexSetItem?.scenario_id === 'log' && indexSetItem.collector_config_id !== null) ||
+        (indexSetItem?.scenario_id === 'log' &&
+          indexSetItem.collector_config_id !== null) ||
         indexSetItem?.scenario_id === 'bkdata'
       );
     };
@@ -418,23 +421,76 @@ class RetrieveHelper extends RetrieveBase {
     return {};
   }
 
-  private handleScroll = (e: MouseEvent) => {
-    this.fire(RetrieveEvent.GLOBAL_SCROLL, e);
-  };
-
   onMounted() {
     this.setContentScroll();
   }
 
   destroy() {
     this.events.clear();
-    document.querySelector(this.globalScrollSelector)?.removeEventListener('scroll', this.handleScroll);
+    document
+      .querySelector(this.globalScrollSelector)
+      ?.removeEventListener('scroll', this.handleScroll);
     this.scrollEventAdded = false;
   }
+
+  /**
+   * 添加滚动监听
+   */
+  private setContentScroll() {
+    if (!this.scrollEventAdded) {
+      const target = document.querySelector(this.globalScrollSelector);
+      if (target) {
+        target.addEventListener('scroll', this.handleScroll);
+        this.scrollEventAdded = true;
+      }
+    }
+  }
+
+  /**
+   * 将值转换为可匹配的字符串
+   * @param value 待转换的值
+   * @returns 转换后的字符串或null
+   */
+  private convertToMatchableString(value: any): null | string {
+    // 如果值为 null 或 undefined，返回 null
+    if (value == null) {
+      return null;
+    }
+
+    // 如果值为 Object（但不是 null），返回 null
+    if (typeof value === 'object') {
+      return null;
+    }
+
+    // 如果是 string, number, boolean，转换为 string
+    if (
+      typeof value === 'string' ||
+      typeof value === 'number' ||
+      typeof value === 'boolean'
+    ) {
+      return String(value);
+    }
+
+    // 其他情况返回 null
+    return null;
+  }
+
+  private handleScroll = (e: MouseEvent) => {
+    this.fire(RetrieveEvent.GLOBAL_SCROLL, e);
+  };
 }
 
-const isFavoriteShow = localStorage.getItem(STORAGE_KEY.STORAGE_KEY_FAVORITE_SHOW) === 'true';
-const isViewCurrentIndex = localStorage.getItem(STORAGE_KEY.STORAGE_KEY_FAVORITE_VIEW_CURRENT_CHANGE) !== 'false';
-const favoriteWidth = Number(localStorage.getItem(STORAGE_KEY.STORAGE_KEY_FAVORITE_WIDTH) ?? 240);
+const isFavoriteShow =
+  localStorage.getItem(STORAGE_KEY.STORAGE_KEY_FAVORITE_SHOW) === 'true';
+const isViewCurrentIndex =
+  localStorage.getItem(STORAGE_KEY.STORAGE_KEY_FAVORITE_VIEW_CURRENT_CHANGE) !==
+  'false';
+const favoriteWidth = Number(
+  localStorage.getItem(STORAGE_KEY.STORAGE_KEY_FAVORITE_WIDTH) ?? 240
+);
 
-export default new RetrieveHelper({ isFavoriteShow, favoriteWidth, isViewCurrentIndex });
+export default new RetrieveHelper({
+  favoriteWidth,
+  isFavoriteShow,
+  isViewCurrentIndex,
+});

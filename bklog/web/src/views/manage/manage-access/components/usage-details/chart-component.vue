@@ -25,10 +25,7 @@
 -->
 
 <template>
-  <div
-    class="chart-container"
-    v-bkloading="{ isLoading: loading, zIndex: 0 }"
-  >
+  <div class="chart-container" v-bkloading="{ isLoading: loading, zIndex: 0 }">
     <div class="chart-header">
       <div class="title">{{ type }}</div>
       <bk-button
@@ -40,10 +37,7 @@
         {{ $t('耗时优化指引 >') }}
       </bk-button>
     </div>
-    <div
-      ref="chartRef"
-      class="chart-canvas-container"
-    ></div>
+    <div ref="chartRef" class="chart-canvas-container"></div>
     <bk-exception
       v-if="isEmpty"
       class="king-exception"
@@ -77,8 +71,12 @@ export default {
     type: {
       type: String,
       required: true,
-      validator: val => {
-        return [i18n.t('使用次数趋势'), i18n.t('用户使用频次'), i18n.t('检索耗时统计')].includes(val);
+      validator: (val) => {
+        return [
+          i18n.t('使用次数趋势'),
+          i18n.t('用户使用频次'),
+          i18n.t('检索耗时统计'),
+        ].includes(val);
       },
     },
     loading: {
@@ -125,7 +123,10 @@ export default {
   },
   methods: {
     updateChart(chartData) {
-      if (!chartData.values.length || chartData.values.every(item => item === 0)) {
+      if (
+        !chartData.values.length ||
+        chartData.values.every((item) => item === 0)
+      ) {
         if (this.instance && !this.instance.isDisposed()) {
           this.instance.dispose();
         }
@@ -140,7 +141,7 @@ export default {
       switch (this.type) {
         case this.$t('使用次数趋势'):
           this.setLineChart({
-            labels: chartData.labels.map(item => {
+            labels: chartData.labels.map((item) => {
               const date = new Date(item);
               const mm = `0${date.getMonth() + 1}`.slice(-2);
               const dd = `0${date.getDate()}`.slice(-2);
@@ -270,7 +271,7 @@ export default {
             color: colors[index],
           },
         }))
-        .filter(item => Boolean(item.value));
+        .filter((item) => Boolean(item.value));
       this.instance.setOption(
         Object.assign({}, defaultOption, {
           tooltip: {

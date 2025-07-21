@@ -23,9 +23,8 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import Vue, { defineComponent, nextTick, onMounted, ref } from 'vue';
-
 import { Instance } from 'tippy.js';
+import Vue, { defineComponent, nextTick, onMounted, ref } from 'vue';
 
 import useLocale from '../../../hooks/use-locale';
 import useStore from '../../../hooks/use-store';
@@ -43,18 +42,18 @@ const GLOBAL_SETTING_OPTIONS: Record<string, IOption[]> = {
   /** 显示 */
   showFieldAlias: [
     {
-      value: false,
       name: window.$t('名称'),
+      value: false,
     },
     {
-      value: true,
       name: window.$t('别名'),
+      value: true,
     },
   ],
   /** 文本省略方向 */
   textEllipsisDirs: [
-    { value: 'end', name: 'ab...' },
-    { value: 'start', name: '...yz' },
+    { name: 'ab...', value: 'end' },
+    { name: '...yz', value: 'start' },
   ],
 };
 
@@ -62,6 +61,27 @@ export default defineComponent({
   name: 'BarGlobalSetting',
   emits: {
     'show-index-config-slider': () => true,
+  },
+  render() {
+    const {
+      handleSettingPopoverShow,
+      popoverInstance,
+      settingContainerRender,
+      t,
+    } = this;
+
+    return (
+      <div class="bar-global-setting">
+        <div
+          class={`popover-trigger ${popoverInstance ? 'is-active' : ''}`}
+          onClick={handleSettingPopoverShow}
+        >
+          <i class="bklog-icon bklog-setting-line" />
+          <span class="trigger-label">{t('全局设置')}</span>
+        </div>
+        <div style="display: none">{settingContainerRender()}</div>
+      </div>
+    );
   },
   setup(_, ctx) {
     const { emit } = ctx;
@@ -80,8 +100,10 @@ export default defineComponent({
     const textEllipsisDir = ref('end');
 
     const initDefaultSettings = () => {
-      showFieldAlias.value = store.state.storage[BK_LOG_STORAGE.SHOW_FIELD_ALIAS];
-      textEllipsisDir.value = store.state.storage[BK_LOG_STORAGE.TEXT_ELLIPSIS_DIR];
+      showFieldAlias.value =
+        store.state.storage[BK_LOG_STORAGE.SHOW_FIELD_ALIAS];
+      textEllipsisDir.value =
+        store.state.storage[BK_LOG_STORAGE.TEXT_ELLIPSIS_DIR];
     };
 
     onMounted(() => {
@@ -114,21 +136,22 @@ export default defineComponent({
         return;
       }
       popoverInstance.value = $bkPopover(e.currentTarget, {
-        content: containerRef.value,
         animateFill: false,
-        trigger: 'click',
-        placement: 'bottom',
-        theme: 'light bk-select-dropdown bk-select-dropdown-expand bar-global-setting-popover',
         arrow: false,
-        followCursor: false,
         boundary: 'viewport',
-        interactive: true,
+        content: containerRef.value,
         distance: -4,
+        followCursor: false,
+        interactive: true,
         onHidden: () => {
           popoverInstance.value?.destroy?.();
           popoverInstance.value = null;
           initDefaultSettings();
         },
+        placement: 'bottom',
+        theme:
+          'light bk-select-dropdown bk-select-dropdown-expand bar-global-setting-popover',
+        trigger: 'click',
       });
       nextTick(() => {
         popoverInstance.value?.show();
@@ -173,15 +196,19 @@ export default defineComponent({
      * @param clickCallback 点击回调
      *
      */
-    function checkboxRender(activeValue: boolean | number | string, options: IOption[], clickCallback) {
+    function checkboxRender(
+      activeValue: boolean | number | string,
+      options: IOption[],
+      clickCallback
+    ) {
       return (
-        <div class='bk-button-group'>
-          {options.map(item => (
+        <div class="bk-button-group">
+          {options.map((item) => (
             <bk-button
-              key={item.value}
               class={`setting-checkbox ${item.value === activeValue ? 'is-selected' : ''}`}
-              size='small'
+              key={item.value}
               onClick={() => clickCallback(item.value)}
+              size="small"
             >
               {item.name}
             </bk-button>
@@ -197,42 +224,42 @@ export default defineComponent({
     function settingContainerRender() {
       return (
         <div
-          ref={vm => (containerRef.value = vm as Element)}
-          class='setting-container'
+          class="setting-container"
+          ref={(vm) => (containerRef.value = vm as Element)}
         >
-          <div class='setting-content'>
-            <div class='setting-item'>
-              <div class='item-label'>{$t('字段名称设置')}</div>
-              <div class='item-main'>
-                {checkboxRender(showFieldAlias.value, GLOBAL_SETTING_OPTIONS.showFieldAlias, setShowFieldAlias)}
-                <div
-                  class='link'
-                  onClick={handleIndexConfigSliderShow}
-                >
-                  <span class='link-text'>{$t('前往 "索引配置" 批量修改别名')}</span>
-                  <i class='bklog-icon bklog-jump' />
+          <div class="setting-content">
+            <div class="setting-item">
+              <div class="item-label">{$t('字段名称设置')}</div>
+              <div class="item-main">
+                {checkboxRender(
+                  showFieldAlias.value,
+                  GLOBAL_SETTING_OPTIONS.showFieldAlias,
+                  setShowFieldAlias
+                )}
+                <div class="link" onClick={handleIndexConfigSliderShow}>
+                  <span class="link-text">
+                    {$t('前往 "索引配置" 批量修改别名')}
+                  </span>
+                  <i class="bklog-icon bklog-jump" />
                 </div>
               </div>
             </div>
-            <div class='setting-item'>
-              <div class='item-label'>{$t('文本溢出（省略设置）')}</div>
-              <div class='item-main'>
-                {checkboxRender(textEllipsisDir.value, GLOBAL_SETTING_OPTIONS.textEllipsisDirs, setTextEllipsisDir)}
+            <div class="setting-item">
+              <div class="item-label">{$t('文本溢出（省略设置）')}</div>
+              <div class="item-main">
+                {checkboxRender(
+                  textEllipsisDir.value,
+                  GLOBAL_SETTING_OPTIONS.textEllipsisDirs,
+                  setTextEllipsisDir
+                )}
               </div>
             </div>
           </div>
-          <div class='setting-operation'>
-            <bk-button
-              size='small'
-              theme='primary'
-              onclick={handleConfirm}
-            >
+          <div class="setting-operation">
+            <bk-button onclick={handleConfirm} size="small" theme="primary">
               {$t('确认')}
             </bk-button>
-            <bk-button
-              size='small'
-              onclick={handlePopoverHide}
-            >
+            <bk-button onclick={handlePopoverHide} size="small">
               {$t('取消')}
             </bk-button>
           </div>
@@ -240,22 +267,11 @@ export default defineComponent({
       );
     }
 
-    return { popoverInstance, settingContainerRender, handleSettingPopoverShow, t: $t };
-  },
-  render() {
-    const { popoverInstance, settingContainerRender, handleSettingPopoverShow, t } = this;
-
-    return (
-      <div class='bar-global-setting'>
-        <div
-          class={`popover-trigger ${popoverInstance ? 'is-active' : ''}`}
-          onClick={handleSettingPopoverShow}
-        >
-          <i class='bklog-icon bklog-setting-line' />
-          <span class='trigger-label'>{t('全局设置')}</span>
-        </div>
-        <div style='display: none'>{settingContainerRender()}</div>
-      </div>
-    );
+    return {
+      handleSettingPopoverShow,
+      popoverInstance,
+      settingContainerRender,
+      t: $t,
+    };
   },
 });

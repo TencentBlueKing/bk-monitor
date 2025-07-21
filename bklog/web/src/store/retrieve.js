@@ -24,104 +24,25 @@
  * IN THE SOFTWARE.
  */
 
+import http from '@/api';
 import * as authorityMap from '@/common/authority-map';
 import { random } from '@/components/monitor-echarts/utils';
 
-import http from '@/api';
-
 export default {
-  namespaced: true,
-  state: {
-    chartKey: random(10), // 复用监控的图表，改变key重新请求图表
-    cacheDatePickerValue: [],
-    cacheTimeRange: '',
-    filedSettingConfigID: 1,
-    indexSetList: [],
-    isIndexSetLoading: false,
-    isTrendDataLoading: false,
-    trendDataCount: 0,
-    catchFieldCustomConfig: {
-      fieldsWidth: {},
-      displayFields: [],
-      filterSetting: [],
-      filterAddition: [],
-      fixedFilterAddition: false,
-      sortList: [],
-    },
-    activeVersion: 'v2',
-  },
-  mutations: {
-    updateActiveVersion(state, version) {
-      state.activeVersion = version ?? 'v2';
-    },
-    updateTrendDataLoading(state, payload) {
-      state.isTrendDataLoading = payload;
-    },
-    updateTrendDataCount(state, payload) {
-      state.trendDataCount = payload;
-    },
-    updateChartKey(state, payload) {
-      state.chartKey = (payload?.prefix ?? '') + random(10);
-    },
-    updateCachePickerValue(state, payload) {
-      state.cacheDatePickerValue = payload;
-    },
-    updateCacheTimeRange(state, payload) {
-      state.cacheTimeRange = payload;
-    },
-    updateFiledSettingConfigID(state, payload) {
-      state.filedSettingConfigID = payload;
-    },
-    updateIndexSetList(state, payload) {
-      state.indexSetList.length = 0;
-      state.indexSetList = [];
-      state.indexSetList.push(...payload);
-    },
-    updateIndexSetItem(state, item) {
-      const index = state.indexSetList.findIndex(item => item.index_set_id === item.index_set_id);
-      if (index > -1) {
-        state.indexSetList.splice(index, 1, item);
-      }
-    },
-    updateIndexSetLoading(state, payload) {
-      state.isIndexSetLoading = payload;
-    },
-    updateCatchFieldCustomConfig(state, payload) {
-      Object.assign(
-        state.catchFieldCustomConfig,
-        {
-          fieldsWidth: {},
-          displayFields: [],
-          filterSetting: [],
-          filterAddition: [],
-          sortList: [],
-        },
-        payload ?? {}
-      );
-    },
-
-    updateCatchFilterAddition(state, { addition }) {
-      if (addition?.length) {
-        state.catchFieldCustomConfig.filterAddition.length = 0;
-        state.catchFieldCustomConfig.filterAddition = [];
-        state.catchFieldCustomConfig.filterAddition.push(...addition);
-      }
-    },
-  },
   actions: {
     getIndexSetList(ctx, payload) {
-      const { spaceUid, isLoading = true, is_group } = payload;
+      const { is_group, isLoading = true, spaceUid } = payload;
       if (isLoading) ctx.commit('updateIndexSetLoading', true);
 
       ctx.commit('updateIndexSetList', []);
       return http
         .request('retrieve/getIndexSetList', {
           query: {
-            space_uid: spaceUid,
             is_group,
+            space_uid: spaceUid,
           },
         })
-        .then(res => {
+        .then((res) => {
           let indexSetList = [];
           if (res.data.length) {
             // 有索引集
@@ -129,7 +50,11 @@ export default {
             const s1 = [];
             const s2 = [];
 
-            const authEachPush = (list, is_child_node = false, parent_node = null) => {
+            const authEachPush = (
+              list,
+              is_child_node = false,
+              parent_node = null
+            ) => {
               for (const item of list) {
                 Object.assign(item, { is_child_node, parent_node });
                 if (item.permission?.[authorityMap.SEARCH_LOG_AUTH]) {
@@ -148,10 +73,10 @@ export default {
 
             indexSetList = s1.concat(s2);
             // 索引集数据加工
-            indexSetList.forEach(item => {
+            indexSetList.forEach((item) => {
               item.index_set_id = `${item.index_set_id}`;
               item.indexName = item.index_set_name;
-              item.lightenName = ` (${item.indices.map(item => item.result_table_id).join(';')})`;
+              item.lightenName = ` (${item.indices.map((item) => item.result_table_id).join(';')})`;
             });
             ctx.commit('updateIndexSetList', indexSetList);
           }
@@ -161,5 +86,85 @@ export default {
           ctx.commit('updateIndexSetLoading', false);
         });
     },
+  },
+  mutations: {
+    updateActiveVersion(state, version) {
+      state.activeVersion = version ?? 'v2';
+    },
+    updateCachePickerValue(state, payload) {
+      state.cacheDatePickerValue = payload;
+    },
+    updateCacheTimeRange(state, payload) {
+      state.cacheTimeRange = payload;
+    },
+    updateCatchFieldCustomConfig(state, payload) {
+      Object.assign(
+        state.catchFieldCustomConfig,
+        {
+          displayFields: [],
+          fieldsWidth: {},
+          filterAddition: [],
+          filterSetting: [],
+          sortList: [],
+        },
+        payload ?? {}
+      );
+    },
+    updateCatchFilterAddition(state, { addition }) {
+      if (addition?.length) {
+        state.catchFieldCustomConfig.filterAddition.length = 0;
+        state.catchFieldCustomConfig.filterAddition = [];
+        state.catchFieldCustomConfig.filterAddition.push(...addition);
+      }
+    },
+    updateChartKey(state, payload) {
+      state.chartKey = (payload?.prefix ?? '') + random(10);
+    },
+    updateFiledSettingConfigID(state, payload) {
+      state.filedSettingConfigID = payload;
+    },
+    updateIndexSetItem(state, item) {
+      const index = state.indexSetList.findIndex(
+        (item) => item.index_set_id === item.index_set_id
+      );
+      if (index > -1) {
+        state.indexSetList.splice(index, 1, item);
+      }
+    },
+    updateIndexSetList(state, payload) {
+      state.indexSetList.length = 0;
+      state.indexSetList = [];
+      state.indexSetList.push(...payload);
+    },
+    updateIndexSetLoading(state, payload) {
+      state.isIndexSetLoading = payload;
+    },
+    updateTrendDataCount(state, payload) {
+      state.trendDataCount = payload;
+    },
+
+    updateTrendDataLoading(state, payload) {
+      state.isTrendDataLoading = payload;
+    },
+  },
+  namespaced: true,
+  state: {
+    activeVersion: 'v2',
+    cacheDatePickerValue: [],
+    cacheTimeRange: '',
+    catchFieldCustomConfig: {
+      displayFields: [],
+      fieldsWidth: {},
+      filterAddition: [],
+      filterSetting: [],
+      fixedFilterAddition: false,
+      sortList: [],
+    },
+    chartKey: random(10), // 复用监控的图表，改变key重新请求图表
+    filedSettingConfigID: 1,
+    indexSetList: [],
+    isIndexSetLoading: false,
+    isTrendDataLoading: false,
+    trendDataCount: 0,
   },
 };

@@ -24,66 +24,70 @@
  * IN THE SOFTWARE.
  */
 
-import { computed, defineComponent, provide, watch } from 'vue';
-
 import useStore from '@/hooks/use-store';
+import { computed, defineComponent, provide, watch } from 'vue';
 
 import { TimeRangeType } from '../../../components/time-range/time-range';
 import { handleTransformToTimestamp } from '../../../components/time-range/utils';
 import { updateTimezone } from '../../../language/dayjs';
+import '../../../static/font-face/index.css';
+import '../../../static/style.css';
 import { BK_LOG_STORAGE } from '../../../store/store.type';
 import V3Container from '../container';
 import V3Collection from '../favorite';
 import V3Searchbar from '../search-bar';
 import V3SearchResult from '../search-result';
 import V3Toolbar from '../toolbar';
-import useMonitorAppInit from './use-monitor-app-init';
 
-import '../../../static/font-face/index.css';
-import '../../../static/style.css';
 import './monitor.scss';
+import useMonitorAppInit from './use-monitor-app-init';
 export default defineComponent({
   name: 'RetrieveV3',
   props: {
-    indexSetApi: {
-      type: Function,
+    handleChartDataZoom: {
       default: null,
+      type: Function,
     },
-    timeRange: {
-      type: Array,
-      default: () => ['now-15m', 'now'],
-    },
-    timezone: {
-      type: String,
-      default: '',
+    indexSetApi: {
+      default: null,
+      type: Function,
     },
     refreshImmediate: {
-      type: String,
       default: '',
+      type: String,
     },
-    handleChartDataZoom: {
-      type: Function,
-      default: null,
+    timeRange: {
+      default: () => ['now-15m', 'now'],
+      type: Array,
+    },
+    timezone: {
+      default: '',
+      type: String,
     },
   },
   setup(props) {
     const store = useStore();
     provide('handleChartDataZoom', props.handleChartDataZoom);
     const {
+      getIndexSetList,
+      isPreApiLoaded,
       isSearchContextStickyTop,
       isSearchResultStickyTop,
-      stickyStyle,
-      isPreApiLoaded,
-      getIndexSetList,
       setDefaultRouteUrl,
+      stickyStyle,
     } = useMonitorAppInit(props.indexSetApi);
-    const isStartTextEllipsis = computed(() => store.state.storage[BK_LOG_STORAGE.TEXT_ELLIPSIS_DIR] === 'start');
+    const isStartTextEllipsis = computed(
+      () => store.state.storage[BK_LOG_STORAGE.TEXT_ELLIPSIS_DIR] === 'start'
+    );
     const init = () => {
-      const result = handleTransformToTimestamp(props.timeRange as TimeRangeType, store.getters.retrieveParams.format);
+      const result = handleTransformToTimestamp(
+        props.timeRange as TimeRangeType,
+        store.getters.retrieveParams.format
+      );
       store.commit('updateIndexItem', {
-        start_time: result[0],
-        end_time: result[1],
         datePickerValue: props.timeRange,
+        end_time: result[1],
+        start_time: result[0],
       });
       setDefaultRouteUrl();
     };
@@ -93,12 +97,19 @@ export default defineComponent({
 
     watch(
       () => props.timeRange,
-      async val => {
+      async (val) => {
         if (!val) return;
         getIndexSetList();
         store.commit('updateIsSetDefaultTableColumn', false);
-        const result = handleTransformToTimestamp(val as TimeRangeType, store.getters.retrieveParams.format);
-        store.commit('updateIndexItemParams', { start_time: result[0], end_time: result[1], datePickerValue: val });
+        const result = handleTransformToTimestamp(
+          val as TimeRangeType,
+          store.getters.retrieveParams.format
+        );
+        store.commit('updateIndexItemParams', {
+          datePickerValue: val,
+          end_time: result[1],
+          start_time: result[0],
+        });
         await store.dispatch('requestIndexSetFieldInfo');
         store.dispatch('requestIndexSetQuery');
       }
@@ -106,7 +117,7 @@ export default defineComponent({
 
     watch(
       () => props.timezone,
-      val => {
+      (val) => {
         if (!val) return;
         store.commit('updateIndexItemParams', { timezone: val });
         updateTimezone(val);
@@ -124,10 +135,7 @@ export default defineComponent({
     const renderResultContent = () => {
       if (isPreApiLoaded.value) {
         return (
-          <div
-            style='width: 100%'
-            class='v3-bklog-content'
-          >
+          <div class="v3-bklog-content" style="width: 100%">
             <V3Toolbar></V3Toolbar>
             <V3Container>
               <V3Searchbar
@@ -147,7 +155,6 @@ export default defineComponent({
 
     return () => (
       <div
-        style={stickyStyle.value}
         class={[
           'v3-bklog-root',
           { 'is-start-text-ellipsis': isStartTextEllipsis.value },
@@ -157,6 +164,7 @@ export default defineComponent({
             'is-trace': isMonitorTraceComponent,
           },
         ]}
+        style={stickyStyle.value}
         v-bkloading={{ isLoading: !isPreApiLoaded.value }}
       >
         <V3Collection></V3Collection>

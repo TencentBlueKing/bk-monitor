@@ -24,33 +24,32 @@
  * IN THE SOFTWARE.
  */
 
+import $http from '@/api';
+import { TABLE_LOG_FIELDS_SORT_REGULAR } from '@/common/util';
 import { Component, Prop, Watch, Ref, Emit } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-
-import { TABLE_LOG_FIELDS_SORT_REGULAR } from '@/common/util';
 import VueDraggable from 'vuedraggable';
 
 import { BK_LOG_STORAGE } from '../../../store/store.type';
 import FieldSelectConfig from '../../retrieve-v2/field-filter-comp/components/field-select-config.vue';
+
 import FieldFilterPopover from './field-filter-popover';
 import FieldItem from './field-item';
-import $http from '@/api';
-
 import './index.scss';
 
 @Component
 export default class FieldFilterComp extends tsc<object> {
-  @Prop({ type: Array, default: () => [] }) totalFields: Array<any>;
-  @Prop({ type: Array, default: () => [] }) visibleFields: Array<any>;
-  @Prop({ type: Array, default: () => [] }) sortList: Array<any>;
-  @Prop({ type: Object, default: () => ({}) }) fieldAliasMap: object;
-  @Prop({ type: Boolean, default: false }) showFieldAlias: object;
-  @Prop({ type: Boolean, default: false }) parentLoading: boolean;
-  @Prop({ type: Object, default: () => ({}) }) retrieveParams: object;
-  @Prop({ type: Array, default: () => [] }) datePickerValue: Array<any>;
-  @Prop({ type: Number, default: 0 }) retrieveSearchNumber: number;
-  @Prop({ type: Object, default: () => ({}) }) statisticalFieldsData: object;
-  @Prop({ type: Object, default: () => ({}) }) indexSetItem: any;
+  @Prop({ default: () => [], type: Array }) totalFields: Array<any>;
+  @Prop({ default: () => [], type: Array }) visibleFields: Array<any>;
+  @Prop({ default: () => [], type: Array }) sortList: Array<any>;
+  @Prop({ default: () => ({}), type: Object }) fieldAliasMap: object;
+  @Prop({ default: false, type: Boolean }) showFieldAlias: object;
+  @Prop({ default: false, type: Boolean }) parentLoading: boolean;
+  @Prop({ default: () => ({}), type: Object }) retrieveParams: object;
+  @Prop({ default: () => [], type: Array }) datePickerValue: Array<any>;
+  @Prop({ default: 0, type: Number }) retrieveSearchNumber: number;
+  @Prop({ default: () => ({}), type: Object }) statisticalFieldsData: object;
+  @Prop({ default: () => ({}), type: Object }) indexSetItem: any;
   @Ref('filterPopover') readonly filterPopoverRef!: HTMLDivElement;
 
   showFilterPopover = false; // 字段类型过滤 popover 显示状态
@@ -60,9 +59,9 @@ export default class FieldFilterComp extends tsc<object> {
   fieldType = 'any'; // 字段类型
   dragOptions = {
     animation: 150,
-    tag: 'ul',
-    handle: '.bklog-drag-dots',
     'ghost-class': 'sortable-ghost-class',
+    handle: '.bklog-drag-dots',
+    tag: 'ul',
   };
   dragVisibleFields = [];
   builtInHeaderList = ['log', 'ip', 'utctime', 'path'];
@@ -82,7 +81,9 @@ export default class FieldFilterComp extends tsc<object> {
 
   /** 可选字段 */
   get hiddenFields() {
-    return this.totalFields.filter(item => !this.visibleFields.some(visibleItem => item === visibleItem));
+    return this.totalFields.filter(
+      (item) => !this.visibleFields.some((visibleItem) => item === visibleItem)
+    );
   }
   /** 内置字段 */
   get indexSetFields() {
@@ -90,7 +91,7 @@ export default class FieldFilterComp extends tsc<object> {
     const otherList = []; // 其他字段
     const { indexHiddenFields } = this.hiddenFilterFields;
     // 类似__xxx__的字段放最后展示
-    indexHiddenFields.forEach(fieldItem => {
+    indexHiddenFields.forEach((fieldItem) => {
       if (/^[_]{1,2}/g.test(fieldItem.field_name)) {
         underlineFieldList.push(fieldItem);
         return;
@@ -103,7 +104,7 @@ export default class FieldFilterComp extends tsc<object> {
   get hiddenFilterFields() {
     const builtInHiddenFields = [];
     const indexHiddenFields = [];
-    this.hiddenFields.forEach(item => {
+    this.hiddenFields.forEach((item) => {
       if (item.field_type === '__virtual__' || item.is_built_in) {
         builtInHiddenFields.push(item);
         return;
@@ -118,7 +119,7 @@ export default class FieldFilterComp extends tsc<object> {
   /** 排序后的内置字段 */
   get builtInFields() {
     const { builtInHiddenFields } = this.hiddenFilterFields;
-    const { headerList, filterHeaderBuiltFields } = builtInHiddenFields.reduce(
+    const { filterHeaderBuiltFields, headerList } = builtInHiddenFields.reduce(
       (acc, cur) => {
         // 判断内置字段需要排在前面几个字段
         let isHeaderItem = false;
@@ -133,8 +134,8 @@ export default class FieldFilterComp extends tsc<object> {
         return acc;
       },
       {
-        headerList: [],
         filterHeaderBuiltFields: [],
+        headerList: [],
       }
     );
     return [...headerList, ...this.sortHiddenList([filterHeaderBuiltFields])];
@@ -155,21 +156,29 @@ export default class FieldFilterComp extends tsc<object> {
         otherList: [],
       }
     );
-    const visibleBuiltLength = this.builtInFields.filter(item => item.filterVisible).length;
-    const hiddenFieldVisible = !!initHiddenList.filter(item => item.filterVisible).length;
+    const visibleBuiltLength = this.builtInFields.filter(
+      (item) => item.filterVisible
+    ).length;
+    const hiddenFieldVisible = !!initHiddenList.filter(
+      (item) => item.filterVisible
+    ).length;
     return {
+      // 非初始隐藏的字段展示小于10条的 并且不把初始隐藏的字段带上
+      builtInShowFields: this.isShowAllBuiltIn
+        ? [...otherList, ...initHiddenList]
+        : otherList.slice(0, 9),
       // 若没找到初始隐藏的内置字段且内置字段不足10条则不展示展开按钮
       isShowBuiltExpandBtn: visibleBuiltLength > 10 || hiddenFieldVisible,
-      // 非初始隐藏的字段展示小于10条的 并且不把初始隐藏的字段带上
-      builtInShowFields: this.isShowAllBuiltIn ? [...otherList, ...initHiddenList] : otherList.slice(0, 9),
     };
   }
   get getIsShowIndexSetExpand() {
-    return this.indexSetFields.filter(item => item.filterVisible).length > 10;
+    return this.indexSetFields.filter((item) => item.filterVisible).length > 10;
   }
   /** 展示的内置字段 */
   get showIndexSetFields() {
-    return this.isShowAllIndexSet ? this.indexSetFields : this.indexSetFields.slice(0, 9);
+    return this.isShowAllIndexSet
+      ? this.indexSetFields
+      : this.indexSetFields.slice(0, 9);
   }
   get filterTypeCount() {
     // 过滤的条件数量
@@ -198,7 +207,8 @@ export default class FieldFilterComp extends tsc<object> {
   /** 未开启白名单时 是否由前端来统计总数 */
   get isFrontStatistics() {
     let isFront = true;
-    const { field_analysis_config: fieldAnalysisToggle } = (window as any).FEATURE_TOGGLE;
+    const { field_analysis_config: fieldAnalysisToggle } = (window as any)
+      .FEATURE_TOGGLE;
     switch (fieldAnalysisToggle) {
       case 'on':
         isFront = false;
@@ -207,10 +217,15 @@ export default class FieldFilterComp extends tsc<object> {
         isFront = true;
         break;
       default:
-        const { scenario_id_white_list: scenarioIdWhiteList } = (window as any).FIELD_ANALYSIS_CONFIG;
-        const { field_analysis_config: fieldAnalysisConfig } = (window as any).FEATURE_TOGGLE_WHITE_LIST;
+        const { scenario_id_white_list: scenarioIdWhiteList } = (window as any)
+          .FIELD_ANALYSIS_CONFIG;
+        const { field_analysis_config: fieldAnalysisConfig } = (window as any)
+          .FEATURE_TOGGLE_WHITE_LIST;
         const scenarioID = this.indexSetItem?.scenario_id;
-        isFront = !(scenarioIdWhiteList?.includes(scenarioID) && fieldAnalysisConfig?.includes(Number(this.bkBizId)));
+        isFront = !(
+          scenarioIdWhiteList?.includes(scenarioID) &&
+          fieldAnalysisConfig?.includes(Number(this.bkBizId))
+        );
         break;
     }
     return isFront;
@@ -227,7 +242,7 @@ export default class FieldFilterComp extends tsc<object> {
 
   @Watch('visibleFields.length')
   watchVisibleFields() {
-    this.dragVisibleFields = this.visibleFields.map(item => item.field_name);
+    this.dragVisibleFields = this.visibleFields.map((item) => item.field_name);
   }
 
   @Emit('select-fields-config')
@@ -236,11 +251,15 @@ export default class FieldFilterComp extends tsc<object> {
   }
 
   mounted() {
-    document.getElementById('app').addEventListener('click', this.closePopoverIfOpened);
+    document
+      .getElementById('app')
+      .addEventListener('click', this.closePopoverIfOpened);
   }
 
   beforeDestroy() {
-    document.getElementById('app').removeEventListener('click', this.closePopoverIfOpened);
+    document
+      .getElementById('app')
+      .removeEventListener('click', this.closePopoverIfOpened);
   }
 
   handleSearch() {
@@ -248,7 +267,7 @@ export default class FieldFilterComp extends tsc<object> {
     this.searchTimer = setTimeout(this.filterListByCondition, 300);
   }
   // 字段类型过滤：可聚合、字段类型
-  handleFilter({ polymerizable, fieldType }) {
+  handleFilter({ fieldType, polymerizable }) {
     this.polymerizable = polymerizable;
     this.fieldType = fieldType;
     this.filterListByCondition();
@@ -257,17 +276,20 @@ export default class FieldFilterComp extends tsc<object> {
   }
   // 按过滤条件对字段进行过滤
   filterListByCondition() {
-    const { polymerizable, fieldType, searchKeyword } = this;
-    [this.visibleFields, this.hiddenFields].forEach(fieldList => {
-      fieldList.forEach(fieldItem => {
+    const { fieldType, polymerizable, searchKeyword } = this;
+    [this.visibleFields, this.hiddenFields].forEach((fieldList) => {
+      fieldList.forEach((fieldItem) => {
         fieldItem.filterVisible =
           fieldItem.field_name.includes(searchKeyword) &&
           !(
             (polymerizable === '1' && !fieldItem.es_doc_values) ||
             (polymerizable === '2' && fieldItem.es_doc_values) ||
-            (fieldType === 'number' && !['long', 'integer'].includes(fieldItem.field_type)) ||
-            (fieldType === 'date' && !['date', 'date_nanos'].includes(fieldItem.field_type)) ||
-            (!['any', 'number', 'date'].includes(fieldType) && fieldItem.field_type !== fieldType)
+            (fieldType === 'number' &&
+              !['long', 'integer'].includes(fieldItem.field_type)) ||
+            (fieldType === 'date' &&
+              !['date', 'date_nanos'].includes(fieldItem.field_type)) ||
+            (!['any', 'number', 'date'].includes(fieldType) &&
+              fieldItem.field_type !== fieldType)
           );
       });
     });
@@ -290,10 +312,12 @@ export default class FieldFilterComp extends tsc<object> {
   }
   // 字段显示或隐藏
   async handleToggleItem(type: string, fieldItem) {
-    const displayFieldNames = this.visibleFields.map(item => item.field_name);
+    const displayFieldNames = this.visibleFields.map((item) => item.field_name);
     if (type === 'visible') {
       // 需要隐藏字段
-      const index = this.visibleFields.findIndex(item => fieldItem.field_name === item.field_name);
+      const index = this.visibleFields.findIndex(
+        (item) => fieldItem.field_name === item.field_name
+      );
       displayFieldNames.splice(index, 1);
     } else {
       // 需要显示字段
@@ -303,17 +327,17 @@ export default class FieldFilterComp extends tsc<object> {
     if (!displayFieldNames.length) return; // 可以设置为全部隐藏，但是不请求接口
     $http
       .request('retrieve/postFieldsConfig', {
-        params: { index_set_id: this.$route.params.indexId },
         data: {
-          display_fields: displayFieldNames,
-          sort_list: this.sortList,
           config_id: this.filedSettingConfigID,
+          display_fields: displayFieldNames,
           index_set_id: this.$route.params.indexId,
           index_set_ids: this.unionIndexList,
           index_set_type: this.isUnionSearch ? 'union' : 'single',
+          sort_list: this.sortList,
         },
+        params: { index_set_id: this.$route.params.indexId },
       })
-      .catch(e => {
+      .catch((e) => {
         console.warn(e);
       });
   }
@@ -324,7 +348,7 @@ export default class FieldFilterComp extends tsc<object> {
    */
   sortHiddenList(list) {
     const sortList = [];
-    list.forEach(item => {
+    list.forEach((item) => {
       const sortItem = item.sort((a, b) => {
         const sortA = a.field_name.replace(TABLE_LOG_FIELDS_SORT_REGULAR, 'z');
         const sortB = b.field_name.replace(TABLE_LOG_FIELDS_SORT_REGULAR, 'z');
@@ -337,115 +361,131 @@ export default class FieldFilterComp extends tsc<object> {
 
   render() {
     return (
-      <div class='field-filter-container'>
-        <div class='form-container'>
+      <div class="field-filter-container">
+        <div class="form-container">
           <bk-input
-            class='king-input'
-            v-model={this.searchKeyword}
-            data-test-id='fieldFilter_input_searchFieldName'
-            placeholder={this.$t('搜索字段名')}
-            right-icon='icon-search'
+            class="king-input"
             clearable
+            data-test-id="fieldFilter_input_searchFieldName"
             onChange={this.filterListByCondition}
+            placeholder={this.$t('搜索字段名')}
+            right-icon="icon-search"
+            v-model={this.searchKeyword}
           ></bk-input>
           <bk-popover
-            ref='filterPopover'
-            animation='slide-toggle'
+            animation="slide-toggle"
             distance={15}
             offset={0}
-            placement='bottom-start'
-            theme='light'
-            tippy-options={{ hideOnClick: false }}
-            trigger='click'
             onHide={() => this.handlePopoverHide()}
             onShow={() => this.handlePopoverShow()}
+            placement="bottom-start"
+            ref="filterPopover"
+            theme="light"
+            tippy-options={{ hideOnClick: false }}
+            trigger="click"
           >
-            <slot name='trigger'>
+            <slot name="trigger">
               <div
-                class='filter-popover-trigger'
-                data-test-id='fieldFilter_div_phrasesSearch'
+                class="filter-popover-trigger"
+                data-test-id="fieldFilter_div_phrasesSearch"
                 onClick={() => this.closePopoverIfOpened()}
               >
-                <span class='bk-icon icon-funnel'></span>
-                <span class='text'>{this.$t('字段类型')}</span>
-                {!!this.filterTypeCount && <span class='count'>{this.filterTypeCount}</span>}
+                <span class="bk-icon icon-funnel"></span>
+                <span class="text">{this.$t('字段类型')}</span>
+                {!!this.filterTypeCount && (
+                  <span class="count">{this.filterTypeCount}</span>
+                )}
               </div>
             </slot>
             <FieldFilterPopover
-              slot='content'
-              value={this.showFilterPopover}
               onClosePopover={() => this.closePopoverIfOpened()}
-              onConfirm={v => this.handleFilter(v)}
+              onConfirm={(v) => this.handleFilter(v)}
+              slot="content"
+              value={this.showFilterPopover}
             />
           </bk-popover>
         </div>
 
         {!!this.totalFields.length && (
-          <div class='fields-container is-selected'>
-            <div class='title'>
+          <div class="fields-container is-selected">
+            <div class="title">
               <span>{this.$t('已添加字段')}</span>
-              <FieldSelectConfig on-select-fields-config={this.selectFieldsConfig} />
+              <FieldSelectConfig
+                on-select-fields-config={this.selectFieldsConfig}
+              />
             </div>
             {!!this.visibleFields.length ? (
               <VueDraggable
-                class='filed-list'
-                v-model={this.dragVisibleFields}
-                v-bind={this.dragOptions}
-                animation='150'
-                handle='.bklog-drag-dots'
+                animation="150"
+                class="filed-list"
+                handle=".bklog-drag-dots"
                 on-end={this.handleVisibleMoveEnd}
+                v-bind={this.dragOptions}
+                v-model={this.dragVisibleFields}
               >
                 <transition-group>
-                  {this.visibleFields.map(item => (
+                  {this.visibleFields.map((item) => (
                     <FieldItem
-                      key={item.field_name}
-                      v-show={item.filterVisible}
                       date-picker-value={this.datePickerValue}
                       field-alias-map={this.fieldAliasMap}
                       field-item={item}
                       is-front-statistics={this.isFrontStatistics}
+                      key={item.field_name}
+                      onToggleItem={({ fieldItem, type }) =>
+                        this.handleToggleItem(type, fieldItem)
+                      }
                       retrieve-params={this.retrieveParams}
                       retrieve-search-number={this.retrieveSearchNumber}
                       show-field-alias={this[BK_LOG_STORAGE.SHOW_FIELD_ALIAS]}
-                      statistical-field-data={this.statisticalFieldsData[item.field_name]}
-                      type='visible'
+                      statistical-field-data={
+                        this.statisticalFieldsData[item.field_name]
+                      }
+                      type="visible"
+                      v-show={item.filterVisible}
                       visible-fields={this.visibleFields}
-                      onToggleItem={({ type, fieldItem }) => this.handleToggleItem(type, fieldItem)}
                     />
                   ))}
                 </transition-group>
               </VueDraggable>
             ) : (
-              <span class='all-field-item'>{this.$t('当前显示全部字段')}</span>
+              <span class="all-field-item">{this.$t('当前显示全部字段')}</span>
             )}
           </div>
         )}
 
         {!!this.indexSetFields.length && (
-          <div class='fields-container not-selected'>
-            <div class='title'>{this.$t('索引字段')}</div>
-            <ul class='filed-list'>
-              {this.showIndexSetFields.map(item => (
+          <div class="fields-container not-selected">
+            <div class="title">{this.$t('索引字段')}</div>
+            <ul class="filed-list">
+              {this.showIndexSetFields.map((item) => (
                 <FieldItem
-                  v-show={item.filterVisible}
                   date-picker-value={this.datePickerValue}
                   field-alias-map={this.fieldAliasMap}
                   field-item={item}
                   is-front-statistics={this.isFrontStatistics}
+                  onToggleItem={({ fieldItem, type }) =>
+                    this.handleToggleItem(type, fieldItem)
+                  }
                   retrieve-params={this.retrieveParams}
                   retrieve-search-number={this.retrieveSearchNumber}
                   show-field-alias={this[BK_LOG_STORAGE.SHOW_FIELD_ALIAS]}
-                  statistical-field-data={this.statisticalFieldsData[item.field_name]}
-                  type='hidden'
-                  onToggleItem={({ type, fieldItem }) => this.handleToggleItem(type, fieldItem)}
+                  statistical-field-data={
+                    this.statisticalFieldsData[item.field_name]
+                  }
+                  type="hidden"
+                  v-show={item.filterVisible}
                 />
               ))}
               {this.getIsShowIndexSetExpand && (
                 <div
-                  class='expand-all'
-                  onClick={() => (this.isShowAllIndexSet = !this.isShowAllIndexSet)}
+                  class="expand-all"
+                  onClick={() =>
+                    (this.isShowAllIndexSet = !this.isShowAllIndexSet)
+                  }
                 >
-                  {!this.isShowAllIndexSet ? this.$t('展开全部') : this.$t('收起')}
+                  {!this.isShowAllIndexSet
+                    ? this.$t('展开全部')
+                    : this.$t('收起')}
                 </div>
               )}
             </ul>
@@ -453,30 +493,40 @@ export default class FieldFilterComp extends tsc<object> {
         )}
 
         {!!this.builtInFields.length && (
-          <div class='fields-container not-selected'>
-            <div class='title'>{(this.$t('label-内置字段') as string).replace('label-', '')}</div>
-            <ul class='filed-list'>
-              {this.builtInFieldsShowObj.builtInShowFields.map(item => (
+          <div class="fields-container not-selected">
+            <div class="title">
+              {(this.$t('label-内置字段') as string).replace('label-', '')}
+            </div>
+            <ul class="filed-list">
+              {this.builtInFieldsShowObj.builtInShowFields.map((item) => (
                 <FieldItem
-                  v-show={item.filterVisible}
                   date-picker-value={this.datePickerValue}
                   field-alias-map={this.fieldAliasMap}
                   field-item={item}
                   is-front-statistics={this.isFrontStatistics}
+                  onToggleItem={({ fieldItem, type }) =>
+                    this.handleToggleItem(type, fieldItem)
+                  }
                   retrieve-params={this.retrieveParams}
                   retrieve-search-number={this.retrieveSearchNumber}
                   show-field-alias={this[BK_LOG_STORAGE.SHOW_FIELD_ALIAS]}
-                  statistical-field-data={this.statisticalFieldsData[item.field_name]}
-                  type='hidden'
-                  onToggleItem={({ type, fieldItem }) => this.handleToggleItem(type, fieldItem)}
+                  statistical-field-data={
+                    this.statisticalFieldsData[item.field_name]
+                  }
+                  type="hidden"
+                  v-show={item.filterVisible}
                 />
               ))}
               {this.builtInFieldsShowObj.isShowBuiltExpandBtn && (
                 <div
-                  class='expand-all'
-                  onClick={() => (this.isShowAllBuiltIn = !this.isShowAllBuiltIn)}
+                  class="expand-all"
+                  onClick={() =>
+                    (this.isShowAllBuiltIn = !this.isShowAllBuiltIn)
+                  }
                 >
-                  {!this.isShowAllBuiltIn ? this.$t('展开全部') : this.$t('收起')}
+                  {!this.isShowAllBuiltIn
+                    ? this.$t('展开全部')
+                    : this.$t('收起')}
                 </div>
               )}
             </ul>

@@ -61,11 +61,16 @@ const indexSetList = computed(() => store.state.retrieve.indexSetList);
 const indexSetValue = computed(() => store.state.indexItem.ids);
 
 // 索引集类型
-const indexSetType = computed(() => (store.state.indexItem.isUnionIndex ? 'union' : 'single'));
+const indexSetType = computed(() =>
+  store.state.indexItem.isUnionIndex ? 'union' : 'single'
+);
 
 // 索引集当前激活Tab
 const indexSetTab = computed(() => {
-  return store.state.storage[BK_LOG_STORAGE.INDEX_SET_ACTIVE_TAB] ?? indexSetType.value;
+  return (
+    store.state.storage[BK_LOG_STORAGE.INDEX_SET_ACTIVE_TAB] ??
+    indexSetType.value
+  );
 });
 
 const spaceUid = computed(() => store.state.spaceUid);
@@ -82,7 +87,9 @@ const isMonitorTraceComponent = window.__IS_MONITOR_TRACE__;
 // 如果不是采集下发和自定义上报则不展示
 const hasCollectorConfigId = computed(() => {
   const indexSetId = route.params?.indexId;
-  const currentIndexSet = indexSetList.value.find(item => item.index_set_id == indexSetId);
+  const currentIndexSet = indexSetList.value.find(
+    (item) => item.index_set_id == indexSetId
+  );
   return currentIndexSet?.collector_config_id;
 });
 
@@ -93,7 +100,11 @@ const isFieldSettingShow = computed(() => {
 });
 
 const setRouteParams = (ids, isUnionIndex) => {
-  const queryTab = RetrieveHelper.routeQueryTabValueFix(indexSetParams.value.items[0], route.query.tab, isUnionIndex);
+  const queryTab = RetrieveHelper.routeQueryTabValueFix(
+    indexSetParams.value.items[0],
+    route.query.tab,
+    isUnionIndex
+  );
   const { search_mode, keyword, addition } = indexSetParams.value;
   if (isUnionIndex) {
     router.replace({
@@ -114,8 +125,10 @@ const setRouteParams = (ids, isUnionIndex) => {
         addition: JSON.stringify(addition),
         unionList: JSON.stringify(ids),
         clusterParams: undefined,
-        [BK_LOG_STORAGE.HISTORY_ID]: store.state.storage[BK_LOG_STORAGE.HISTORY_ID],
-        [BK_LOG_STORAGE.FAVORITE_ID]: store.state.storage[BK_LOG_STORAGE.FAVORITE_ID],
+        [BK_LOG_STORAGE.HISTORY_ID]:
+          store.state.storage[BK_LOG_STORAGE.HISTORY_ID],
+        [BK_LOG_STORAGE.FAVORITE_ID]:
+          store.state.storage[BK_LOG_STORAGE.FAVORITE_ID],
       },
     });
 
@@ -140,15 +153,18 @@ const setRouteParams = (ids, isUnionIndex) => {
       addition: JSON.stringify(addition),
       unionList: undefined,
       clusterParams: undefined,
-      [BK_LOG_STORAGE.HISTORY_ID]: store.state.storage[BK_LOG_STORAGE.HISTORY_ID],
-      [BK_LOG_STORAGE.FAVORITE_ID]: store.state.storage[BK_LOG_STORAGE.FAVORITE_ID],
+      [BK_LOG_STORAGE.HISTORY_ID]:
+        store.state.storage[BK_LOG_STORAGE.HISTORY_ID],
+      [BK_LOG_STORAGE.FAVORITE_ID]:
+        store.state.storage[BK_LOG_STORAGE.FAVORITE_ID],
     },
   });
 };
 
 const setRouteQuery = () => {
   const query = { ...route.query };
-  const { keyword, addition, ip_chooser, search_mode, begin, size } = store.getters.retrieveParams;
+  const { keyword, addition, ip_chooser, search_mode, begin, size } =
+    store.getters.retrieveParams;
 
   const resolver = new RetrieveUrlResolver({
     keyword,
@@ -158,7 +174,8 @@ const setRouteQuery = () => {
     begin,
     size,
     [BK_LOG_STORAGE.HISTORY_ID]: store.state.storage[BK_LOG_STORAGE.HISTORY_ID],
-    [BK_LOG_STORAGE.FAVORITE_ID]: store.state.storage[BK_LOG_STORAGE.FAVORITE_ID],
+    [BK_LOG_STORAGE.FAVORITE_ID]:
+      store.state.storage[BK_LOG_STORAGE.FAVORITE_ID],
   });
 
   Object.assign(query, resolver.resolveParamsToUrl());
@@ -168,12 +185,19 @@ const setRouteQuery = () => {
   });
 };
 
-const handleIndexSetSelected = async payload => {
-  if (!isEqual(indexSetParams.value.ids, payload.ids) || indexSetParams.value.isUnionIndex !== payload.isUnionIndex) {
+const handleIndexSetSelected = async (payload) => {
+  if (
+    !isEqual(indexSetParams.value.ids, payload.ids) ||
+    indexSetParams.value.isUnionIndex !== payload.isUnionIndex
+  ) {
     /** 索引集默认条件 */
     let indexSetDefaultCondition = {};
     /** 只选择一个索引集且ui模式和sql模式都没有值, 取索引集默认条件 */
-    if (payload.items.length === 1 && !indexSetParams.value.addition.length && !indexSetParams.value.keyword) {
+    if (
+      payload.items.length === 1 &&
+      !indexSetParams.value.addition.length &&
+      !indexSetParams.value.keyword
+    ) {
       if (payload.items[0]?.query_string) {
         indexSetDefaultCondition = {
           keyword: payload.items[0].query_string,
@@ -189,14 +213,26 @@ const handleIndexSetSelected = async payload => {
       }
       if (indexSetDefaultCondition.search_mode) {
         store.commit('updateStorage', {
-          [BK_LOG_STORAGE.SEARCH_TYPE]: ['ui', 'sql'].indexOf(indexSetDefaultCondition.search_mode),
+          [BK_LOG_STORAGE.SEARCH_TYPE]: ['ui', 'sql'].indexOf(
+            indexSetDefaultCondition.search_mode
+          ),
         });
       }
     }
 
-    RetrieveHelper.setIndexsetId(payload.ids, payload.isUnionIndex ? 'union' : 'single', false);
-    store.commit('updateUnionIndexList', payload.isUnionIndex ? (payload.ids ?? []) : []);
-    store.commit('updateIndexItem', { ...payload, ...indexSetDefaultCondition });
+    RetrieveHelper.setIndexsetId(
+      payload.ids,
+      payload.isUnionIndex ? 'union' : 'single',
+      false
+    );
+    store.commit(
+      'updateUnionIndexList',
+      payload.isUnionIndex ? (payload.ids ?? []) : []
+    );
+    store.commit('updateIndexItem', {
+      ...payload,
+      ...indexSetDefaultCondition,
+    });
 
     if (!payload.isUnionIndex) {
       store.commit('updateIndexId', payload.ids[0]);
@@ -210,7 +246,7 @@ const handleIndexSetSelected = async payload => {
       is_error: false,
     });
 
-    store.dispatch('requestIndexSetFieldInfo').then(resp => {
+    store.dispatch('requestIndexSetFieldInfo').then((resp) => {
       RetrieveHelper.fire(RetrieveEvent.TREND_GRAPH_SEARCH);
 
       if (resp?.data?.fields?.length) {
@@ -229,9 +265,9 @@ const handleIndexSetSelected = async payload => {
   }
 };
 
-const updateSearchParam = payload => {
+const updateSearchParam = (payload) => {
   const { keyword, addition, ip_chooser, search_mode } = payload;
-  const foramtAddition = (addition ?? []).map(item => {
+  const foramtAddition = (addition ?? []).map((item) => {
     const instance = new ConditionOperator(item);
     return instance.formatApiOperatorToFront();
   });
@@ -250,7 +286,9 @@ const updateSearchParam = payload => {
     search_mode: mode,
   });
 
-  store.commit('updateStorage', { [BK_LOG_STORAGE.SEARCH_TYPE]: ['ui', 'sql'].indexOf(mode) });
+  store.commit('updateStorage', {
+    [BK_LOG_STORAGE.SEARCH_TYPE]: ['ui', 'sql'].indexOf(mode),
+  });
 
   setRouteQuery();
   setTimeout(() => {
@@ -259,10 +297,13 @@ const updateSearchParam = payload => {
   });
 };
 
-const handleActiveTypeChange = type => {
+const handleActiveTypeChange = (type) => {
   const storage = { [BK_LOG_STORAGE.INDEX_SET_ACTIVE_TAB]: type };
   if (['union', 'single'].includes(type)) {
-    Object.assign(storage, { [BK_LOG_STORAGE.FAVORITE_ID]: undefined, [BK_LOG_STORAGE.HISTORY_ID]: undefined });
+    Object.assign(storage, {
+      [BK_LOG_STORAGE.FAVORITE_ID]: undefined,
+      [BK_LOG_STORAGE.HISTORY_ID]: undefined,
+    });
     store.commit('updateIndexItem', {
       isUnionIndex: type === 'union',
     });
@@ -284,7 +325,10 @@ const handleIndexSetValueChange = (values, type, id) => {
     });
 
     if (type === 'union') {
-      store.commit('updateUnionIndexList', { updateIndexItem: false, list: store.state.indexItem.ids });
+      store.commit('updateUnionIndexList', {
+        updateIndexItem: false,
+        list: store.state.indexItem.ids,
+      });
     }
 
     Object.assign(storage, {
@@ -294,19 +338,31 @@ const handleIndexSetValueChange = (values, type, id) => {
   }
 
   if ('favorite' === indexSetTab.value) {
-    Object.assign(storage, { [BK_LOG_STORAGE.FAVORITE_ID]: id, [BK_LOG_STORAGE.HISTORY_ID]: undefined });
+    Object.assign(storage, {
+      [BK_LOG_STORAGE.FAVORITE_ID]: id,
+      [BK_LOG_STORAGE.HISTORY_ID]: undefined,
+    });
   }
 
   if ('history' === indexSetTab.value) {
-    Object.assign(storage, { [BK_LOG_STORAGE.FAVORITE_ID]: undefined, [BK_LOG_STORAGE.HISTORY_ID]: id });
+    Object.assign(storage, {
+      [BK_LOG_STORAGE.FAVORITE_ID]: undefined,
+      [BK_LOG_STORAGE.HISTORY_ID]: id,
+    });
   }
 
   store.commit('updateStorage', storage);
-  const items = indexSetList.value.filter(item => (values ?? []).includes(item.index_set_id));
-  handleIndexSetSelected({ ids: values, isUnionIndex: indexSetType.value === 'union', items });
+  const items = indexSetList.value.filter((item) =>
+    (values ?? []).includes(item.index_set_id)
+  );
+  handleIndexSetSelected({
+    ids: values,
+    isUnionIndex: indexSetType.value === 'union',
+    items,
+  });
 };
 
-const handleAuthRequest = item => {
+const handleAuthRequest = (item) => {
   try {
     store
       .dispatch('getApplyData', {
@@ -318,7 +374,7 @@ const handleAuthRequest = item => {
           },
         ],
       })
-      .then(res => {
+      .then((res) => {
         window.open(res.data.apply_url);
       });
   } catch (err) {
@@ -330,7 +386,11 @@ const handleAuthRequest = item => {
  * @description: 打开 索引集配置 抽屉页
  */
 function handleIndexConfigSliderOpen() {
-  if (isFieldSettingShow.value && store.state.spaceUid && hasCollectorConfigId.value) {
+  if (
+    isFieldSettingShow.value &&
+    store.state.spaceUid &&
+    hasCollectorConfigId.value
+  ) {
     fieldSettingRef.value?.handleShowSlider?.();
   } else {
     bkMessage({
@@ -365,14 +425,13 @@ function handleIndexConfigSliderOpen() {
       ></QueryHistory>
     </div>
 
-    <div
-      v-if="!isMonitorComponent"
-      class="box-right-option"
-    >
+    <div v-if="!isMonitorComponent" class="box-right-option">
       <TimeSetting class="custom-border-right"></TimeSetting>
       <ShareLink v-if="!isExternal"></ShareLink>
       <FieldSetting
-        v-if="isFieldSettingShow && store.state.spaceUid && hasCollectorConfigId"
+        v-if="
+          isFieldSettingShow && store.state.spaceUid && hasCollectorConfigId
+        "
         ref="fieldSettingRef"
         class="custom-border-right"
       />
@@ -393,59 +452,55 @@ function handleIndexConfigSliderOpen() {
         class="custom-border-right"
         @show-index-config-slider="handleIndexConfigSliderOpen"
       ></BarGlobalSetting>
-      <div
-        v-if="!isExternal"
-        class="more-setting"
-      >
-        <MoreSetting :is-show-cluster-setting.sync="isShowClusterSetting"></MoreSetting>
+      <div v-if="!isExternal" class="more-setting">
+        <MoreSetting
+          :is-show-cluster-setting.sync="isShowClusterSetting"
+        ></MoreSetting>
       </div>
-      <VersionSwitch
-        style="border-left: 1px solid #eaebf0"
-        version="v2"
-      />
+      <VersionSwitch style="border-left: 1px solid #eaebf0" version="v2" />
     </div>
   </div>
 </template>
 <style lang="scss">
-  @import './index.scss';
+@import './index.scss';
 
-  .box-right-option {
-    .more-setting {
-      height: 100%;
+.box-right-option {
+  .more-setting {
+    height: 100%;
 
-      &:hover {
-        background: #f5f7fa;
-      }
+    &:hover {
+      background: #f5f7fa;
+    }
+  }
+
+  .custom-border-right {
+    display: flex;
+    align-items: center;
+    height: 100%;
+    line-height: 20px;
+    border-right: 1px solid #eaebf0;
+
+    &:hover {
+      background: #f5f7fa;
     }
 
-    .custom-border-right {
-      display: flex;
-      align-items: center;
-      height: 100%;
-      line-height: 20px;
-      border-right: 1px solid #eaebf0;
+    &.query-params-wrap {
+      .__bk_date_picker__ {
+        color: #4d4f56;
 
-      &:hover {
-        background: #f5f7fa;
-      }
-
-      &.query-params-wrap {
-        .__bk_date_picker__ {
+        .date-icon {
           color: #4d4f56;
+        }
 
-          .date-icon {
-            color: #4d4f56;
-          }
+        .date-content {
+          padding: 0;
 
-          .date-content {
-            padding: 0;
-
-            & > svg {
-              fill: #4d4f56;
-            }
+          & > svg {
+            fill: #4d4f56;
           }
         }
       }
     }
   }
+}
 </style>

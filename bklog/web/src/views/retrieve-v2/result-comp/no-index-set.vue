@@ -29,10 +29,7 @@
     <span class="icon bklog-icon bklog-index-set"></span>
     <h2 class="main-tip">{{ $t('当前业务无数据可检索') }}</h2>
     <!-- 要使用检索功能，请先创建索引集 -->
-    <div
-      v-if="space.project_manage"
-      class="index-manage-container"
-    >
+    <div v-if="space.project_manage" class="index-manage-container">
       <!-- 日志数据已进入数据平台或ES 关联已入库的数据 -->
       <div class="index-manage">
         <div class="index-manage-tips">
@@ -65,10 +62,7 @@
       </div>
     </div>
     <!-- 请联系业务运维配索引集 -->
-    <p
-      v-else
-      class="side-tip"
-    >
+    <p v-else class="side-tip">
       {{ $t('请联系业务运维配索引集') }}
     </p>
   </div>
@@ -109,64 +103,64 @@ export default {
 </script>
 
 <style scoped lang="scss">
-  .no-index-set-container {
-    width: 100%;
-    height: calc(100% - 142px);
-    margin-top: 142px;
-    text-align: center;
+.no-index-set-container {
+  width: 100%;
+  height: calc(100% - 142px);
+  margin-top: 142px;
+  text-align: center;
 
-    .icon-index-set {
-      margin-bottom: 25px;
-      font-size: 52px;
-      color: #d4d6dd;
-    }
+  .icon-index-set {
+    margin-bottom: 25px;
+    font-size: 52px;
+    color: #d4d6dd;
+  }
 
-    .main-tip {
-      margin-bottom: 30px;
-      font-size: 18px;
-      color: #313238;
-    }
+  .main-tip {
+    margin-bottom: 30px;
+    font-size: 18px;
+    color: #313238;
+  }
 
-    .index-manage-container {
+  .index-manage-container {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 732px;
+    margin: 80px auto 0;
+
+    .index-manage {
       display: flex;
+      flex-flow: column;
       align-items: center;
-      justify-content: space-between;
-      width: 732px;
-      margin: 80px auto 0;
+      width: 346px;
+      height: 200px;
+      background: #fff;
+      border-radius: 2px;
 
-      .index-manage {
-        display: flex;
-        flex-flow: column;
-        align-items: center;
-        width: 346px;
-        height: 200px;
-        background: #fff;
-        border-radius: 2px;
+      .index-manage-tips {
+        height: 88px;
+        margin: 40px 0 0;
+        font-size: 14px;
+        font-weight: 600;
+        line-height: 24px;
+        color: #63656e;
 
-        .index-manage-tips {
-          height: 88px;
-          margin: 40px 0 0;
-          font-size: 14px;
-          font-weight: 600;
-          line-height: 24px;
-          color: #63656e;
-
-          p:last-child {
-            font-weight: normal;
-            color: #979ba5;
-          }
-        }
-
-        .king-button {
-          border-radius: 16px;
+        p:last-child {
+          font-weight: normal;
+          color: #979ba5;
         }
       }
-    }
 
-    .side-tip {
-      margin-bottom: 30px;
-      font-size: 14px;
-      color: #979ba5;
+      .king-button {
+        border-radius: 16px;
+      }
     }
   }
+
+  .side-tip {
+    margin-bottom: 30px;
+    font-size: 14px;
+    color: #979ba5;
+  }
+}
 </style>

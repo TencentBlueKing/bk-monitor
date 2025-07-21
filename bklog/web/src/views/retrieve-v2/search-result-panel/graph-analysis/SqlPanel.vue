@@ -42,7 +42,9 @@ window.MonacoEnvironment = {
   // 根据提供的worker类别标签（label）返回一个新的Worker实例, Worker负责处理与该标签相关的任务
   // 当label是’json’时，将初始化并返回一个专门处理JSON文件的Worker。如果label不是’json’，则返回一个通用的编辑器Worker
   getWorker: () => {
-    return process.env.NODE_ENV === 'production' ? `${window.BK_STATIC_URL}/editor.worker.js` : './editor.worker.js';
+    return process.env.NODE_ENV === 'production'
+      ? `${window.BK_STATIC_URL}/editor.worker.js`
+      : './editor.worker.js';
   },
 };
 
@@ -108,10 +110,7 @@ defineExpose({
 </script>
 <template>
   <div class="sql-editor">
-    <div
-      ref="editorContainer"
-      class="editorContainer"
-    ></div>
+    <div ref="editorContainer" class="editorContainer"></div>
     <div class="sql-editor-tools">
       <bk-button
         @click="emitQuery"
@@ -120,11 +119,7 @@ defineExpose({
         size="small"
       >
         <i class="bklog-icon bklog-bofang"></i>
-        <span
-          class="ml-min"
-          @click="sqlSearch"
-          >{{ $t('查询') }}</span
-        >
+        <span class="ml-min" @click="sqlSearch">{{ $t('查询') }}</span>
       </bk-button>
       <bk-button
         @click="emitStop"
@@ -144,43 +139,43 @@ defineExpose({
       <PreviewSql
         :isShow="showDialog"
         :sqlContent="sqlContent"
-        @update:isShow="newValue => (showDialog = newValue)"
+        @update:isShow="(newValue) => (showDialog = newValue)"
       />
     </div>
   </div>
 </template>
 
 <style lang="scss" scoped>
-  .sql-editor {
-    display: flex;
-    flex-direction: column;
+.sql-editor {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background-color: #1e1e1e;
+
+  .editorContainer {
     height: 100%;
-    background-color: #1e1e1e;
 
-    .editorContainer {
+    .monaco-edito {
       height: 100%;
-
-      .monaco-edito {
-        height: 100%;
-      }
     }
+  }
 
-    .sql-editor-tools {
-      margin: 16px;
+  .sql-editor-tools {
+    margin: 16px;
 
-      .sql-editor-view-button {
-        height: 28px;
-        line-height: 26px;
-        color: #c4c6cc;
-        background-color: #313238;
-        border: 1px solid #63656e;
-        border-radius: 2px;
-        transition: border-color 0.3s ease-in-out;
+    .sql-editor-view-button {
+      height: 28px;
+      line-height: 26px;
+      color: #c4c6cc;
+      background-color: #313238;
+      border: 1px solid #63656e;
+      border-radius: 2px;
+      transition: border-color 0.3s ease-in-out;
 
-        &:hover {
-          border-color: #979ba5;
-        }
+      &:hover {
+        border-color: #979ba5;
       }
     }
   }
+}
 </style>

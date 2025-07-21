@@ -61,7 +61,8 @@
         :total-fields="totalFields"
         :visible-fields="visibleFields"
         @value-click="
-          (type, content, isLink, field, depth) => $emit('value-click', type, content, isLink, field, depth)
+          (type, content, isLink, field, depth) =>
+            $emit('value-click', type, content, isLink, field, depth)
         "
       />
     </div>
@@ -70,10 +71,7 @@
       class="view-content json-view-content"
       v-show="activeExpandView === 'json'"
     >
-      <JsonFormatWrapper
-        :data="jsonShowData"
-        :deep="5"
-      />
+      <JsonFormatWrapper :data="jsonShowData" :deep="5" />
     </div>
   </div>
 </template>
@@ -122,10 +120,16 @@ export default {
     },
     kvListData() {
       return this.totalFields
-        .filter(item => this.kvShowFieldsList.includes(item.field_name))
+        .filter((item) => this.kvShowFieldsList.includes(item.field_name))
         .sort((a, b) => {
-          const sortA = getFieldNameByField(a, this.$store).replace(TABLE_LOG_FIELDS_SORT_REGULAR, 'z');
-          const sortB = getFieldNameByField(b, this.$store).replace(TABLE_LOG_FIELDS_SORT_REGULAR, 'z');
+          const sortA = getFieldNameByField(a, this.$store).replace(
+            TABLE_LOG_FIELDS_SORT_REGULAR,
+            'z'
+          );
+          const sortB = getFieldNameByField(b, this.$store).replace(
+            TABLE_LOG_FIELDS_SORT_REGULAR,
+            'z'
+          );
           return sortA.localeCompare(sortB);
         });
     },
@@ -134,12 +138,23 @@ export default {
         return this.listData ?? this.data;
       }
 
-      return this.$store.state.indexSetQueryResult?.origin_log_list?.[this.rowIndex] ?? this.listData ?? this.data;
+      return (
+        this.$store.state.indexSetQueryResult?.origin_log_list?.[
+          this.rowIndex
+        ] ??
+        this.listData ??
+        this.data
+      );
     },
     jsonShowData() {
       return this.kvListData.reduce((pre, cur) => {
         const fieldName = getFieldNameByField(cur, this.$store);
-        pre[fieldName] = this.tableRowDeepView(this.jsonList, cur.field_name, cur.field_type) ?? '';
+        pre[fieldName] =
+          this.tableRowDeepView(
+            this.jsonList,
+            cur.field_name,
+            cur.field_type
+          ) ?? '';
         return pre;
       }, {});
     },
@@ -153,128 +168,128 @@ export default {
 </script>
 
 <style lang="scss" scoped>
-  .expand-view-wrapper {
-    width: 100%;
-    color: #313238;
+.expand-view-wrapper {
+  width: 100%;
+  color: #313238;
+  background-color: #f5f7fa;
+
+  .view-tab {
+    display: flex;
+    justify-content: space-between;
+    padding-right: 15px;
+    font-size: 0;
     background-color: #f5f7fa;
 
-    .view-tab {
-      display: flex;
-      justify-content: space-between;
-      padding-right: 15px;
-      font-size: 0;
-      background-color: #f5f7fa;
+    .tab-left {
+      span {
+        display: inline-block;
+        width: 46px;
+        height: 23px;
+        font-size: 12px;
+        line-height: 23px;
+        color: #313238;
+        text-align: center;
+        cursor: pointer;
 
-      .tab-left {
-        span {
-          display: inline-block;
-          width: 46px;
-          height: 23px;
-          font-size: 12px;
-          line-height: 23px;
-          color: #313238;
-          text-align: center;
-          cursor: pointer;
+        border-top: 0;
 
-          border-top: 0;
-
-          &:first-child {
-            border-left: 0;
-          }
-
-          &.activeKv,
-          &.activeJson {
-            position: relative;
-            font-size: 12px;
-            font-weight: 700;
-          }
-
-          &.activeKv::after {
-            position: absolute;
-            top: -2px; /* 确保线条在元素的上方 */
-            left: 14px;
-            width: 17px;
-            height: 2px;
-            content: ''; /* 必须有content属性，即使为空 */
-            background-color: #313238; /* 红色横线 */
-          }
-
-          &.activeJson::after {
-            position: absolute;
-            top: -2px; /* 确保线条在元素的上方 */
-            left: 10px;
-            width: 30px;
-            height: 2px;
-            content: ''; /* 必须有content属性，即使为空 */
-            background-color: #313238; /* 红色横线 */
-          }
+        &:first-child {
+          border-left: 0;
         }
-      }
 
-      .tab-right {
-        position: sticky;
-        right: 20px;
-        display: flex;
-        align-items: center;
+        &.activeKv,
+        &.activeJson {
+          position: relative;
+          font-size: 12px;
+          font-weight: 700;
+        }
 
-        .bklog-icon {
-          font-size: 16px;
-          color: #63656e;
-          cursor: pointer;
+        &.activeKv::after {
+          position: absolute;
+          top: -2px; /* 确保线条在元素的上方 */
+          left: 14px;
+          width: 17px;
+          height: 2px;
+          content: ''; /* 必须有content属性，即使为空 */
+          background-color: #313238; /* 红色横线 */
+        }
 
-          &:hover {
-            color: #3a84ff;
-          }
+        &.activeJson::after {
+          position: absolute;
+          top: -2px; /* 确保线条在元素的上方 */
+          left: 10px;
+          width: 30px;
+          height: 2px;
+          content: ''; /* 必须有content属性，即使为空 */
+          background-color: #313238; /* 红色横线 */
         }
       }
     }
 
-    .view-content {
-      padding: 2px 15px 14px 15px;
-      background-color: #f5f7fa;
+    .tab-right {
+      position: sticky;
+      right: 20px;
+      display: flex;
+      align-items: center;
 
-      :deep(.vjs-tree) {
-        /* stylelint-disable-next-line declaration-no-important */
-        font-size: var(--table-fount-size) !important;
+      .bklog-icon {
+        font-size: 16px;
+        color: #63656e;
+        cursor: pointer;
 
-        .vjs-tree-node {
-          line-height: 22px;
-          .vjs-value {
-            &.vjs-value-string {
-              white-space: pre-wrap;
-            }
-          }
-        }
-      }
-
-      :deep(.kv-content) {
-        .bklog-text-segment {
-          &.bklog-root-field {
-            max-height: fit-content;
-          }
+        &:hover {
+          color: #3a84ff;
         }
       }
     }
   }
+
+  .view-content {
+    padding: 2px 15px 14px 15px;
+    background-color: #f5f7fa;
+
+    :deep(.vjs-tree) {
+      /* stylelint-disable-next-line declaration-no-important */
+      font-size: var(--table-fount-size) !important;
+
+      .vjs-tree-node {
+        line-height: 22px;
+        .vjs-value {
+          &.vjs-value-string {
+            white-space: pre-wrap;
+          }
+        }
+      }
+    }
+
+    :deep(.kv-content) {
+      .bklog-text-segment {
+        &.bklog-root-field {
+          max-height: fit-content;
+        }
+      }
+    }
+  }
+}
 </style>
 <style lang="scss">
-  .json-view-content {
-    .vjs-tree-brackets,
-    .vjs-key {
-      /* stylelint-disable-next-line declaration-no-important */
-      color: #9d694c !important;
-    }
-
-    .vjs-value-string {
-      color: #357a94;
-    }
-
-    .vjs-value-number {
-      color: #2caf5e;
-    }
-
-    .vjs-indent-unit.has-line {
-      border-left: 1px solid #bfcbd9;
-    }
+.json-view-content {
+  .vjs-tree-brackets,
+  .vjs-key {
+    /* stylelint-disable-next-line declaration-no-important */
+    color: #9d694c !important;
   }
+
+  .vjs-value-string {
+    color: #357a94;
+  }
+
+  .vjs-value-number {
+    color: #2caf5e;
+  }
+
+  .vjs-indent-unit.has-line {
+    border-left: 1px solid #bfcbd9;
+  }
+}
 </style>

@@ -38,19 +38,13 @@
           @change="handleDateChange"
           @timezone-change="handleTimezoneChange"
         />
-        <div
-          class="refresh-button"
-          @click="handleRefreshChange"
-        >
+        <div class="refresh-button" @click="handleRefreshChange">
           <span class="bk-icon icon-refresh"></span>
           <span>{{ $t('刷新') }}</span>
         </div>
       </div>
     </div>
-    <div
-      ref="chartRef"
-      class="chart-canvas-container big-chart"
-    ></div>
+    <div ref="chartRef" class="chart-canvas-container big-chart"></div>
     <bk-exception
       v-if="isEmpty"
       class="king-exception"
@@ -142,8 +136,11 @@ export default {
             addition: this.retrieveParams.addition,
           }),
         });
-        const originChartData = res.data.aggs?.group_by_histogram?.buckets || [];
-        this.updateChart(originChartData.map(item => [item.key, item.doc_count]));
+        const originChartData =
+          res.data.aggs?.group_by_histogram?.buckets || [];
+        this.updateChart(
+          originChartData.map((item) => [item.key, item.doc_count])
+        );
       } catch (e) {
         console.warn(e);
         this.updateChart([]);
@@ -210,7 +207,7 @@ export default {
         tooltip: {
           trigger: 'axis',
           show: true,
-          formatter: params => {
+          formatter: (params) => {
             if (params[0].value) {
               const time = dayjs.tz(params[0].value[0]).format('MM-DD HH:mm');
               const val = params[0].value[1];
@@ -246,7 +243,10 @@ export default {
       this.handleRefreshChange();
     },
     handleRefreshChange() {
-      const tempList = handleTransformToTimestamp(this.datePickerValue, this.$store.getters.retrieveParams.format);
+      const tempList = handleTransformToTimestamp(
+        this.datePickerValue,
+        this.$store.getters.retrieveParams.format
+      );
       Object.assign(this.retrieveParams, {
         start_time: tempList[0],
         end_time: tempList[1],
@@ -258,10 +258,10 @@ export default {
 </script>
 
 <style lang="scss" scoped>
-  .chart-container {
-    .time-range-wrap {
-      font-size: 12px;
-      font-weight: normal;
-    }
+.chart-container {
+  .time-range-wrap {
+    font-size: 12px;
+    font-weight: normal;
   }
+}
 </style>

@@ -152,32 +152,32 @@ export default {
 </script>
 
 <style lang="scss" scoped>
-  .king-date-picker {
-    width: 300px;
-    margin-right: 20px;
-    background-color: #fff;
+.king-date-picker {
+  width: 300px;
+  margin-right: 20px;
+  background-color: #fff;
 
-    .king-date-trigger {
-      .icon-wrapper {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        width: 32px;
-        height: 32px;
+  .king-date-trigger {
+    .icon-wrapper {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 32px;
+      height: 32px;
 
-        .icon-date-picker {
-          font-size: 18px;
-        }
+      .icon-date-picker {
+        font-size: 18px;
       }
+    }
 
-      .bk-date-picker-editor {
+    .bk-date-picker-editor {
+      transition: border-color 0.3s;
+
+      &.is-focus {
+        border-color: #3a84ff;
         transition: border-color 0.3s;
-
-        &.is-focus {
-          border-color: #3a84ff;
-          transition: border-color 0.3s;
-        }
       }
     }
   }
+}
 </style>

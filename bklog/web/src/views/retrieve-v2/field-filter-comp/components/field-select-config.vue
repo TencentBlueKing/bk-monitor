@@ -60,7 +60,11 @@ const getFiledConfigList = async () => {
       data: {
         ...(isUnionSearch.value
           ? { index_set_ids: unionIndexList.value }
-          : { index_set_id: window.__IS_MONITOR_COMPONENT__ ? route.query.indexId : route.params.indexId }),
+          : {
+              index_set_id: window.__IS_MONITOR_COMPONENT__
+                ? route.query.indexId
+                : route.params.indexId,
+            }),
         scope: 'default',
         index_set_type: isUnionSearch.value ? 'union' : 'single',
       },
@@ -75,7 +79,7 @@ const handleClickManagementConfig = () => {
   store.commit('updateShowFieldsConfigPopoverNum', 1);
 };
 
-const handleClickSelectConfig = item => {
+const handleClickSelectConfig = (item) => {
   store.commit('updateIsSetDefaultTableColumn', false);
   store
     .dispatch('userFieldConfigChange', {
@@ -109,14 +113,8 @@ const handleClickSelectConfig = item => {
           class="bk-dropdown-list"
           v-bkloading="{ isLoading: isLoading, size: 'small' }"
         >
-          <li
-            v-for="(item, index) in configList"
-            :key="index"
-          >
-            <a
-              href="javascript:;"
-              @click="() => handleClickSelectConfig(item)"
-            >
+          <li v-for="(item, index) in configList" :key="index">
+            <a href="javascript:;" @click="() => handleClickSelectConfig(item)">
               {{ item.name }}
             </a>
           </li>
@@ -135,5 +133,5 @@ const handleClickSelectConfig = item => {
   </div>
 </template>
 <style lang="scss">
-  @import './field-select-config.scss';
+@import './field-select-config.scss';
 </style>

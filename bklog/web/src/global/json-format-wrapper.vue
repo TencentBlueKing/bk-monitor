@@ -25,10 +25,7 @@
 -->
 <template>
   <ShadowWrapper :shadow-content="false">
-    <VueJsonPretty
-      :data="jsonShowData"
-      :deep="deep"
-    >
+    <VueJsonPretty :data="jsonShowData" :deep="deep">
       <template #nodeValue="{ defaultValue }">
         <span v-text="defaultValue"></span>
       </template>

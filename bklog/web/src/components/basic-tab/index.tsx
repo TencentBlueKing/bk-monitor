@@ -25,7 +25,6 @@
  */
 
 import Component from 'vue-class-component';
-
 import { Component as tsc } from 'vue-tsx-support';
 
 import './log-basic-tab.scss';
@@ -34,16 +33,20 @@ export default class LogTab extends tsc<object> {
   render() {
     return (
       <bk-tab
-        class='custom-tab'
-        props={this.$attrs}
-        tab-position='top'
-        type='unborder-card'
+        class="custom-tab"
         on={this.$listeners}
+        props={this.$attrs}
+        tab-position="top"
+        type="unborder-card"
       >
         {this.$slots.default}
-        {this.$slots.setting && <template slot='setting'>{this.$slots.setting}</template>}
-        {this.$slots.add && <template slot='add'>{this.$slots.add}</template>}
-        {this.$slots.extension && <template slot='extension'>{this.$slots.extension}</template>}
+        {this.$slots.setting && (
+          <template slot="setting">{this.$slots.setting}</template>
+        )}
+        {this.$slots.add && <template slot="add">{this.$slots.add}</template>}
+        {this.$slots.extension && (
+          <template slot="extension">{this.$slots.extension}</template>
+        )}
       </bk-tab>
     );
   }

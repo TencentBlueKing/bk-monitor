@@ -35,24 +35,15 @@
         <daily-chart />
       </div>
     </section>
-    <section
-      v-if="!isMasking"
-      class="partial-content"
-    >
+    <section v-if="!isMasking" class="partial-content">
       <div class="main-title">
         {{ $t('数据采样') }}
-        <div
-          class="refresh-button"
-          @click="fetchDataSampling"
-        >
+        <div class="refresh-button" @click="fetchDataSampling">
           <span class="bk-icon icon-refresh"></span>
           <span>{{ $t('刷新') }}</span>
         </div>
       </div>
-      <data-sampling
-        :data="dataSamplingList"
-        :loading="dataSamplingLoading"
-      />
+      <data-sampling :data="dataSamplingList" :loading="dataSamplingLoading" />
     </section>
   </div>
 </template>

@@ -24,10 +24,9 @@
  * IN THE SOFTWARE.
  */
 
+import { Button } from 'bk-magic-vue';
 import { Component, Emit, Prop, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-
-import { Button } from 'bk-magic-vue';
 
 import $http from '../../api';
 import { deepEqual } from '../../common/util';
@@ -41,8 +40,8 @@ interface IProps {
 
 @Component
 export default class StepMasking extends tsc<IProps> {
-  @Prop({ type: String, required: true }) operateType: string;
-  @Prop({ type: Boolean, default: false }) isFinishCreateStep: boolean;
+  @Prop({ required: true, type: String }) operateType: string;
+  @Prop({ default: false, type: Boolean }) isFinishCreateStep: boolean;
 
   submitLoading = false;
   /** 应用模式下 是否请求了接口 */
@@ -62,7 +61,8 @@ export default class StepMasking extends tsc<IProps> {
 
   @Emit('step-change')
   emitStepChange() {
-    if (this.isApplicationSubmit && !this.isShowJump) (this as any).messageSuccess(this.$t('保存成功'));
+    if (this.isApplicationSubmit && !this.isShowJump)
+      (this as any).messageSuccess(this.$t('保存成功'));
     return this.isShowJump ? '' : 'back';
   }
 
@@ -73,7 +73,9 @@ export default class StepMasking extends tsc<IProps> {
 
   initEditCompared() {
     if (this.isFinishCreateStep) {
-      this.editComparedData = (this.maskingFieldRef as any).getQueryConfigParams();
+      this.editComparedData = (
+        this.maskingFieldRef as any
+      ).getQueryConfigParams();
     }
   }
 
@@ -102,13 +104,16 @@ export default class StepMasking extends tsc<IProps> {
       }
       return;
     } // 非更新状态且没有任何字段选择规则 直接下一步
-    let requestStr = isUpdate ? 'updateDesensitizeConfig' : 'createDesensitizeConfig';
-    if (!data.field_configs.length && isUpdate) requestStr = 'deleteDesensitizeConfig'; // 无任何字段且是更新时 则删除当前索引集配置
+    let requestStr = isUpdate
+      ? 'updateDesensitizeConfig'
+      : 'createDesensitizeConfig';
+    if (!data.field_configs.length && isUpdate)
+      requestStr = 'deleteDesensitizeConfig'; // 无任何字段且是更新时 则删除当前索引集配置
     try {
       this.submitLoading = true;
       const res = await $http.request(`masking/${requestStr}`, {
-        params: { index_set_id: this.curCollect?.index_set_id },
         data,
+        params: { index_set_id: this.curCollect?.index_set_id },
       });
       this.$emit('change-index-set-id', this.curCollect?.index_set_id || '');
       if (callback) {
@@ -151,22 +156,22 @@ export default class StepMasking extends tsc<IProps> {
 
   render() {
     return (
-      <div class='filed-masking-container'>
-        <div class='masking-field-box'>
+      <div class="filed-masking-container">
+        <div class="masking-field-box">
           <MaskingField
-            ref='maskingField'
             collect-data={this.curCollect}
-            operate-type={this.operateType}
             onChangeData={() => this.submitSelectRule()}
             onInitEditComparedData={() => this.initEditCompared()}
+            operate-type={this.operateType}
+            ref="maskingField"
           />
         </div>
-        <div class='submit-content'>
+        <div class="submit-content">
           {this.isFinishCreateStep ? (
             <Button
               loading={this.submitLoading}
-              theme='primary'
               onClick={() => this.submitSelectRule()}
+              theme="primary"
             >
               {this.$t('应用')}
             </Button>
@@ -174,26 +179,23 @@ export default class StepMasking extends tsc<IProps> {
             <div>
               <Button
                 loading={this.submitLoading}
-                theme='primary'
                 onClick={() => this.submitSelectRule(true)}
+                theme="primary"
               >
                 {this.isShowJump ? this.$t('下一步') : this.$t('应用')}
               </Button>
               {this.isShowJump && (
                 <Button
                   loading={this.submitLoading}
-                  theme='default'
                   onClick={() => this.handleNextPage()}
+                  theme="default"
                 >
                   {this.$t('跳过')}
                 </Button>
               )}
             </div>
           )}
-          <Button
-            theme='default'
-            onClick={() => this.cancelSelectRule()}
-          >
+          <Button onClick={() => this.cancelSelectRule()} theme="default">
             {this.$t('取消')}
           </Button>
         </div>

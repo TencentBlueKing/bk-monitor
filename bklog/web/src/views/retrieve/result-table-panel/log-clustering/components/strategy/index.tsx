@@ -24,10 +24,9 @@
  * IN THE SOFTWARE.
  */
 
+import { From } from 'bk-magic-vue';
 import { Component, Ref, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-
-import { From } from 'bk-magic-vue';
 
 import './index.scss';
 
@@ -44,7 +43,7 @@ export default class Strategy extends tsc<object> {
   /** 策略状态更新函数 */
   @Prop({ type: Function }) strategySubmitStatus: (v: boolean) => boolean;
   /** 日志聚类总开关 */
-  @Prop({ type: Boolean, default: false }) clusterSwitch: boolean;
+  @Prop({ default: false, type: Boolean }) clusterSwitch: boolean;
 
   isShowDialog = false;
   formLoading = false;
@@ -66,28 +65,28 @@ export default class Strategy extends tsc<object> {
   /** 聚类消息初始化对应的key */
   infoKeyData = {
     alarm: {
-      submit: 'alarmIsSubmit',
       data: 'alarmFormData',
+      submit: 'alarmIsSubmit',
     },
     increase: {
-      submit: 'increaseIsSubmit',
       data: 'increaseFormData',
+      submit: 'increaseIsSubmit',
     },
   };
   /** 新类提交数据 */
   alarmFormData = {
     interval: '30',
-    threshold: '1',
-    level: 2,
-    user_groups: [],
     label_name: [],
+    level: 2,
+    threshold: '1',
+    user_groups: [],
   };
   /** 数据提交表单数据 */
   increaseFormData = {
+    label_name: [],
     level: 2,
     sensitivity: 5,
     user_groups: [],
-    label_name: [],
   };
   /** 告警级别下拉框 */
   levelSelectList = [
@@ -104,29 +103,29 @@ export default class Strategy extends tsc<object> {
   rules = {
     interval: [
       {
-        required: true,
         message: $i18n.t('必填项'),
-        trigger: 'blur',
-      },
-    ],
-    threshold: [
-      {
         required: true,
-        message: $i18n.t('必填项'),
         trigger: 'blur',
       },
     ],
     level: [
       {
-        required: true,
         message: $i18n.t('必填项'),
+        required: true,
+        trigger: 'blur',
+      },
+    ],
+    threshold: [
+      {
+        message: $i18n.t('必填项'),
+        required: true,
         trigger: 'blur',
       },
     ],
     user_groups: [
       {
-        required: true,
         message: $i18n.t('必填项'),
+        required: true,
         trigger: 'blur',
       },
     ],
@@ -170,8 +169,8 @@ export default class Strategy extends tsc<object> {
           bk_biz_id: this.bkBizId,
         },
       })
-      .then(res => {
-        this.groupSelectList = res.data.map(item => ({
+      .then((res) => {
+        this.groupSelectList = res.data.map((item) => ({
           id: item.id,
           name: item.name,
         }));
@@ -189,7 +188,10 @@ export default class Strategy extends tsc<object> {
           strategy_type: strategyType,
         },
       });
-      return { data: res.data, type: this.typeMapping[strategyType] ?? strategyType };
+      return {
+        data: res.data,
+        type: this.typeMapping[strategyType] ?? strategyType,
+      };
     } catch (error) {
       return { type: strategyType };
     }
@@ -200,19 +202,23 @@ export default class Strategy extends tsc<object> {
   }
   handleConfirmSubmit() {
     this.strategyFromRef.validate().then(() => {
-      const submitPostStr = this.isAlarmType ? 'retrieve/newClsStrategy' : 'retrieve/normalStrategy';
-      const data = this.isAlarmType ? this.alarmFormData : this.increaseFormData;
+      const submitPostStr = this.isAlarmType
+        ? 'retrieve/newClsStrategy'
+        : 'retrieve/normalStrategy';
+      const data = this.isAlarmType
+        ? this.alarmFormData
+        : this.increaseFormData;
       const { label_name, ...otherData } = data;
       $http
         .request(submitPostStr, {
-          params: { index_set_id: this.$route.params.indexId },
           data: otherData,
+          params: { index_set_id: this.$route.params.indexId },
         })
-        .then(res => {
+        .then((res) => {
           if (res.code === 0) {
             this.$bkMessage({
-              theme: 'success',
               message: this.$t('操作成功'),
+              theme: 'success',
             });
             this.isShowDialog = false;
           }
@@ -238,9 +244,27 @@ export default class Strategy extends tsc<object> {
     const strategyType = this.strategyMapping[type] ?? type;
     const h = this.$createElement;
     this.$bkInfo({
-      title: this.$t('是否删除该策略？'),
+      confirmFn: async () => {
+        try {
+          const res = await $http.request('retrieve/deleteClusteringInfo', {
+            data: { strategy_type: strategyType },
+            params: { index_set_id: this.$route.params.indexId },
+          });
+          if (res.code === 0) {
+            this.isShowDialog = false;
+            this.$bkMessage({
+              message: this.$t('操作成功'),
+              theme: 'success',
+            });
+            this.initStrategyInfo();
+          }
+          return true;
+        } catch (e) {
+          console.warn(e);
+          return false;
+        }
+      },
       confirmLoading: true,
-      theme: 'danger',
       okText: this.$t('删除'),
       subHeader: h(
         'div',
@@ -260,35 +284,25 @@ export default class Strategy extends tsc<object> {
             },
             [this.$t('策略：') as string]
           ),
-          h('span', this.$t(type === 'alarm' ? '新类告警策略' : '数量突增告警策略') as string),
+          h(
+            'span',
+            this.$t(
+              type === 'alarm' ? '新类告警策略' : '数量突增告警策略'
+            ) as string
+          ),
         ]
       ),
-      confirmFn: async () => {
-        try {
-          const res = await $http.request('retrieve/deleteClusteringInfo', {
-            params: { index_set_id: this.$route.params.indexId },
-            data: { strategy_type: strategyType },
-          });
-          if (res.code === 0) {
-            this.isShowDialog = false;
-            this.$bkMessage({
-              theme: 'success',
-              message: this.$t('操作成功'),
-            });
-            this.initStrategyInfo();
-          }
-          return true;
-        } catch (e) {
-          console.warn(e);
-          return false;
-        }
-      },
+      theme: 'danger',
+      title: this.$t('是否删除该策略？'),
     });
   }
   initStrategyInfo() {
-    Promise.all([this.requestStrategyInfo('new_cls_strategy'), this.requestStrategyInfo('normal_strategy')])
-      .then(values => {
-        values.forEach(vItem => {
+    Promise.all([
+      this.requestStrategyInfo('new_cls_strategy'),
+      this.requestStrategyInfo('normal_strategy'),
+    ])
+      .then((values) => {
+        values.forEach((vItem) => {
           const isSubmit = JSON.stringify(vItem.data) !== '{}';
           this[this.infoKeyData[vItem.type].submit] = isSubmit;
           if (isSubmit) {
@@ -298,12 +312,22 @@ export default class Strategy extends tsc<object> {
           }
         });
       })
-      .catch(error => {
+      .catch((error) => {
         this.resetFormData(error.type);
-        this.labelName = [...new Set([...this.alarmFormData?.label_name, ...this.increaseFormData?.label_name])];
+        this.labelName = [
+          ...new Set([
+            ...this.alarmFormData?.label_name,
+            ...this.increaseFormData?.label_name,
+          ]),
+        ];
       })
       .finally(() => {
-        this.labelName = [...new Set([...this.alarmFormData?.label_name, ...this.increaseFormData?.label_name])];
+        this.labelName = [
+          ...new Set([
+            ...this.alarmFormData?.label_name,
+            ...this.increaseFormData?.label_name,
+          ]),
+        ];
       });
   }
   /** 重置表单参数 */
@@ -326,7 +350,10 @@ export default class Strategy extends tsc<object> {
     );
   }
   handleCreateUserGroups() {
-    window.open(`${window.MONITOR_URL}/?bizId=${this.bkBizId}#/alarm-group/add`, '_blank');
+    window.open(
+      `${window.MONITOR_URL}/?bizId=${this.bkBizId}#/alarm-group/add`,
+      '_blank'
+    );
   }
   render() {
     if (this.isExternal) {
@@ -335,15 +362,15 @@ export default class Strategy extends tsc<object> {
 
     const strategyDialog = () => (
       <bk-dialog
-        width='480'
-        ext-cls='strategy-dialog'
-        v-model={this.isShowDialog}
         confirm-fn={this.handleConfirmSubmit}
-        header-position='left'
+        ext-cls="strategy-dialog"
+        header-position="left"
         mask-close={false}
-        theme='primary'
-        title={$i18n.t(this.isEdit ? '编辑策略' : '新建策略')}
         on-value-change={this.handleOpenDialog}
+        theme="primary"
+        title={$i18n.t(this.isEdit ? '编辑策略' : '新建策略')}
+        v-model={this.isShowDialog}
+        width="480"
       >
         {/* <bk-alert type='info'>
         <div slot='title'>
@@ -354,7 +381,12 @@ export default class Strategy extends tsc<object> {
           </i18n>
         </div>
       </bk-alert> */}
-        <div class={['select-group bk-button-group', { 'increase-group': !this.isAlarmType }]}>
+        <div
+          class={[
+            'select-group bk-button-group',
+            { 'increase-group': !this.isAlarmType },
+          ]}
+        >
           <bk-button
             class={{ 'is-selected': this.isAlarmType }}
             disabled={this.alarmIsSubmit && !this.isEdit}
@@ -371,9 +403,9 @@ export default class Strategy extends tsc<object> {
           </bk-button>
         </div>
         <bk-form
-          ref='strategyFrom'
+          form-type="vertical"
+          ref="strategyFrom"
           v-bkloading={{ isLoading: this.formLoading }}
-          form-type='vertical'
           {...{
             props: {
               model: this.formData,
@@ -382,74 +414,64 @@ export default class Strategy extends tsc<object> {
           }}
         >
           <bk-form-item
-            v-show={this.isAlarmType}
-            desc={$i18n.t('表示近一段时间内新增日志模式。可自定义新类判定的时间区间。如：近30天内新增')}
+            desc={$i18n.t(
+              '表示近一段时间内新增日志模式。可自定义新类判定的时间区间。如：近30天内新增'
+            )}
             desc-type={'icon'}
             label={$i18n.t('新类告警间隔（天）')}
-            property='interval'
+            property="interval"
             required
+            v-show={this.isAlarmType}
           >
             <bk-input
-              v-model={this.formData.interval}
-              placeholder={$i18n.t('每隔 n（整数）天数，再次产生的日志模式将视为新类')}
+              placeholder={$i18n.t(
+                '每隔 n（整数）天数，再次产生的日志模式将视为新类'
+              )}
               show-controls={false}
-              type='number'
+              type="number"
+              v-model={this.formData.interval}
             ></bk-input>
           </bk-form-item>
           <bk-form-item
-            v-show={this.isAlarmType}
-            desc={$i18n.t('表示某日志模式数量突然异常增长，可能某些模块突发风险')}
+            desc={$i18n.t(
+              '表示某日志模式数量突然异常增长，可能某些模块突发风险'
+            )}
             desc-type={'icon'}
             label={$i18n.t('新类告警阈值')}
-            property='threshold'
+            property="threshold"
             required
+            v-show={this.isAlarmType}
           >
             <bk-input
-              v-model={this.formData.threshold}
               placeholder={$i18n.t('新类对应日志触发告警的条数')}
               show-controls={false}
-              type='number'
+              type="number"
+              v-model={this.formData.threshold}
             ></bk-input>
           </bk-form-item>
-          <bk-form-item
-            label={$i18n.t('告警级别')}
-            property='level'
-            required
-          >
-            <bk-select
-              v-model={this.formData.level}
-              searchable
-            >
-              {this.levelSelectList.map(item => (
-                <bk-option
-                  id={item.id}
-                  name={item.name}
-                ></bk-option>
+          <bk-form-item label={$i18n.t('告警级别')} property="level" required>
+            <bk-select searchable v-model={this.formData.level}>
+              {this.levelSelectList.map((item) => (
+                <bk-option id={item.id} name={item.name}></bk-option>
               ))}
             </bk-select>
           </bk-form-item>
           <bk-form-item
-            v-show={!this.isAlarmType}
             label={$i18n.t('变化敏感度')}
-            property='sensitivity'
+            property="sensitivity"
             required
+            v-show={!this.isAlarmType}
           >
-            <div class='level-box'>
+            <div class="level-box">
               <bk-slider
-                v-model={this.formData.sensitivity}
                 max-value={10}
                 min-value={0}
+                v-model={this.formData.sensitivity}
               >
-                <span
-                  style='margin-right: 10px;'
-                  slot='start'
-                >
+                <span slot="start" style="margin-right: 10px;">
                   {$i18n.t('低')}
                 </span>
-                <span
-                  style='margin-left: 10px;'
-                  slot='end'
-                >
+                <span slot="end" style="margin-left: 10px;">
                   {$i18n.t('高')}
                 </span>
               </bk-slider>
@@ -457,28 +479,25 @@ export default class Strategy extends tsc<object> {
           </bk-form-item>
           <bk-form-item
             label={$i18n.t('告警组')}
-            property='user_groups'
+            property="user_groups"
             required
           >
             <bk-select
-              v-model={this.formData.user_groups}
-              ext-popover-cls='strategy-create-groups'
               display-tag
+              ext-popover-cls="strategy-create-groups"
               multiple
               searchable
+              v-model={this.formData.user_groups}
             >
-              {this.groupSelectList.map(item => (
-                <bk-option
-                  id={item.id}
-                  name={item.name}
-                ></bk-option>
+              {this.groupSelectList.map((item) => (
+                <bk-option id={item.id} name={item.name}></bk-option>
               ))}
               <div
-                class='groups-btn'
-                slot='extension'
+                class="groups-btn"
                 onClick={() => this.handleCreateUserGroups()}
+                slot="extension"
               >
-                <i class='bk-icon icon-plus-circle'></i>
+                <i class="bk-icon icon-plus-circle"></i>
                 {$i18n.t('新增告警组')}
               </div>
             </bk-select>
@@ -488,39 +507,40 @@ export default class Strategy extends tsc<object> {
     );
     const popoverSlot = (type: FormType = 'alarm') => (
       <bk-popover
-        ext-cls='strategy-popover'
         disabled={!this.clusterSwitch}
-        placement='top'
-        theme='light'
+        ext-cls="strategy-popover"
+        placement="top"
+        theme="light"
       >
         <div
           class={['edit-strategy-box', type]}
           onClick={() => this.editStrategy(type)}
         >
-          <i class={['bklog-icon log-icon', type === 'alarm' ? 'bklog-new-alarm' : 'bklog-sudden-increase']}></i>
+          <i
+            class={[
+              'bklog-icon log-icon',
+              type === 'alarm' ? 'bklog-new-alarm' : 'bklog-sudden-increase',
+            ]}
+          ></i>
           {/* <span class='num'>1</span> */}
         </div>
-        <div slot='content'>
-          <span>{$i18n.t(type === 'alarm' ? '新类告警策略' : '数量突增告警策略')}</span>
-          <span
-            class='operator'
-            onClick={() => this.editStrategy(type)}
-          >
+        <div slot="content">
+          <span>
+            {$i18n.t(type === 'alarm' ? '新类告警策略' : '数量突增告警策略')}
+          </span>
+          <span class="operator" onClick={() => this.editStrategy(type)}>
             {$i18n.t('编辑')}
           </span>
-          <span
-            class='operator'
-            onClick={() => this.deleteStrategy(type)}
-          >
+          <span class="operator" onClick={() => this.deleteStrategy(type)}>
             {$i18n.t('删除')}
           </span>
         </div>
       </bk-popover>
     );
     return (
-      <div class='strategy-container'>
+      <div class="strategy-container">
         {strategyDialog()}
-        <div class='new-built-container'>
+        <div class="new-built-container">
           <div
             v-bk-tooltips={{
               content: this.$t('聚类告警已开启，请点击右侧入口编辑策略'),
@@ -529,9 +549,9 @@ export default class Strategy extends tsc<object> {
           >
             <bk-button
               disabled={this.addBtnIsDisabled || !this.clusterSwitch}
-              icon='plus'
-              size='small'
+              icon="plus"
               onClick={this.handleAddNewStrategy}
+              size="small"
             >
               {$i18n.t('新建策略')}
             </bk-button>
@@ -540,15 +560,11 @@ export default class Strategy extends tsc<object> {
           {this.increaseIsSubmit && popoverSlot('increase')}
         </div>
         {!!this.labelName.length && (
-          <bk-button
-            size='small'
-            text
-            onClick={this.handleJumpStrategyList}
-          >
+          <bk-button onClick={this.handleJumpStrategyList} size="small" text>
             <span>{$i18n.t('查看策略')}</span>
             <i
+              class="bklog-icon bklog-jump"
               style={{ 'margin-left': '4px' }}
-              class='bklog-icon bklog-jump'
             ></i>
           </bk-button>
         )}

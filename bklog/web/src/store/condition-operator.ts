@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/naming-convention */
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -41,19 +40,24 @@ class ConditionOperator {
   constructor(item: ConsitionItem) {
     this.item = item;
     this.relationList = ['AND', 'OR', 'and', 'or'];
-    this.containOperatorList = ['contains match phrase', '=~', 'not contains match phrase', '!=~'];
+    this.containOperatorList = [
+      'contains match phrase',
+      '=~',
+      'not contains match phrase',
+      '!=~',
+    ];
     this.wildcardList = ['&!=~', '!=~', '&=~', '=~'];
 
     /** text类型字段类型给到检索参数时的映射 */
     this.textMappingKey = {
-      is: 'contains match phrase',
-      'is not': 'not contains match phrase',
       'and is': 'all contains match phrase',
-      'and is not': 'all not contains match phrase',
-      'is match': '=~',
-      'is not match': '!=~',
       'and is match': '&=~',
+      'and is not': 'all not contains match phrase',
       'and is not match': '&!=~',
+      is: 'contains match phrase',
+      'is match': '=~',
+      'is not': 'not contains match phrase',
+      'is not match': '!=~',
     };
 
     /** 所有的包含,非包含情况下的类型操作符字符串 */
@@ -63,7 +67,12 @@ class ConditionOperator {
      * 包含情况下的text类型操作符
      * operator: contains
      */
-    this.containsStrList = ['contains match phrase', '=~', 'all contains match phrase', '&=~'];
+    this.containsStrList = [
+      'contains match phrase',
+      '=~',
+      'all contains match phrase',
+      '&=~',
+    ];
   }
 
   /** 当前text字段类型操作符对应且/或的值 */
@@ -103,14 +112,16 @@ class ConditionOperator {
     // 在前端的逻辑中，只有Text String类型的字段才支持配置是否启用通配符
     if (
       this.containOperatorList.includes(this.item.operator) &&
-      (['text', 'string'].includes(this.item.field_type) || /^and$/i.test(this.operatorRelationVlaue))
+      (['text', 'string'].includes(this.item.field_type) ||
+        /^and$/i.test(this.operatorRelationVlaue))
     ) {
       let value = '';
       // 首先判断是且还是或 如果是且则先加一个and
       value = this.operatorRelationVlaue === 'AND' ? 'and ' : '';
 
       // 然后判断是包含还是不包含操作符
-      value += this.item.operator === 'contains match phrase' ? 'is ' : 'is not ';
+      value +=
+        this.item.operator === 'contains match phrase' ? 'is ' : 'is not ';
 
       // 最后判断是否有开打开通配符
       value += this.isWildcardMatch ? 'match' : '';
@@ -125,25 +136,36 @@ class ConditionOperator {
   getShowCondition() {
     // allContainsStrList 列表中包含的操作关系说明是 string | text 字段类型
     // 这些类型需要反向解析 FormatOpetatorFrontToApi 方法生成的语法
-    if (!this.isFulltextField && this.allContainsStrList.includes(this.item.operator)) {
-      const value = this.allContainsStrList.find(value => value === this.item.operator);
+    if (
+      !this.isFulltextField &&
+      this.allContainsStrList.includes(this.item.operator)
+    ) {
+      const value = this.allContainsStrList.find(
+        (value) => value === this.item.operator
+      );
       // this.containOperatorList 列表中所包含的操作关系说明是 OR 操作
       // OR 操作才支持这些查询,已有组间关系则不通过操作符判断
-      const relation = ['AND', 'OR'].includes(this.item.relation?.toLocaleUpperCase())
+      const relation = ['AND', 'OR'].includes(
+        this.item.relation?.toLocaleUpperCase()
+      )
         ? this.item.relation
         : this.containOperatorList.includes(value)
           ? 'OR'
           : 'AND';
 
       // 包含和不包含操作符只有这两种，其他逻辑不走这个分支
-      const operator = this.containsStrList.includes(value) ? 'contains match phrase' : 'not contains match phrase';
+      const operator = this.containsStrList.includes(value)
+        ? 'contains match phrase'
+        : 'not contains match phrase';
 
       return {
-        operator,
-        relation,
         field: this.item.field,
         isInclude: this.isWildcardMatch,
-        value: Array.isArray(this.item.value) ? this.item.value : [this.item.value],
+        operator,
+        relation,
+        value: Array.isArray(this.item.value)
+          ? this.item.value
+          : [this.item.value],
       };
     }
   }
@@ -156,12 +178,19 @@ class ConditionOperator {
   formatApiOperatorToFront(isInitializing = false) {
     // allContainsStrList 列表中包含的操作关系说明是 string | text 字段类型
     // 这些类型需要反向解析 FormatOpetatorFrontToApi 方法生成的语法
-    if (!this.isFulltextField && this.allContainsStrList.includes(this.item.operator)) {
-      const value = this.allContainsStrList.find(value => value === this.item.operator);
+    if (
+      !this.isFulltextField &&
+      this.allContainsStrList.includes(this.item.operator)
+    ) {
+      const value = this.allContainsStrList.find(
+        (value) => value === this.item.operator
+      );
 
       // this.containOperatorList 列表中所包含的操作关系说明是 OR 操作
       // OR 操作才支持这些查询
-      const relation = ['AND', 'OR'].includes(this.item.relation?.toLocaleUpperCase())
+      const relation = ['AND', 'OR'].includes(
+        this.item.relation?.toLocaleUpperCase()
+      )
         ? this.item.relation
         : this.containOperatorList.includes(value)
           ? 'OR'
@@ -170,33 +199,45 @@ class ConditionOperator {
       // 如果是通配符这里不做转换
       if (this.wildcardList.includes(value) || isInitializing) {
         return {
-          operator: value,
-          relation,
           field: this.item.field,
           isInclude: this.isWildcardMatch,
-          value: Array.isArray(this.item.value) ? this.item.value : [this.item.value],
+          operator: value,
+          relation,
+          value: Array.isArray(this.item.value)
+            ? this.item.value
+            : [this.item.value],
         };
       }
 
       // 包含和不包含操作符只有这两种，其他逻辑不走这个分支
-      const operator = this.containsStrList.includes(value) ? 'contains match phrase' : 'not contains match phrase';
+      const operator = this.containsStrList.includes(value)
+        ? 'contains match phrase'
+        : 'not contains match phrase';
 
       return {
-        operator,
-        relation,
         field: this.item.field,
         isInclude: this.isWildcardMatch,
-        value: Array.isArray(this.item.value) ? this.item.value : [this.item.value],
+        operator,
+        relation,
+        value: Array.isArray(this.item.value)
+          ? this.item.value
+          : [this.item.value],
       };
     }
 
-    const { operator, field, value, isInclude = null, relation = 'OR' } = this.item;
-    return {
-      relation,
-      operator,
+    const {
       field,
-      value: Array.isArray(value) ? value : [value],
+      isInclude = null,
+      operator,
+      relation = 'OR',
+      value,
+    } = this.item;
+    return {
+      field,
       isInclude,
+      operator,
+      relation,
+      value: Array.isArray(value) ? value : [value],
     };
   }
 
@@ -207,7 +248,9 @@ class ConditionOperator {
     return {
       field: this.item.field,
       operator: this.FormatOpetatorFrontToApi(),
-      value: Array.isArray(this.item.value) ? this.item.value : [this.item.value],
+      value: Array.isArray(this.item.value)
+        ? this.item.value
+        : [this.item.value],
     };
   }
 }

@@ -29,10 +29,10 @@
  * @author  <>
  */
 
-import { set } from 'vue';
-
 import dayjs from 'dayjs';
+import DOMPurify from 'dompurify';
 import JSONBigNumber from 'json-bignumber';
+import { set } from 'vue';
 
 import store from '../store';
 /**
@@ -47,7 +47,8 @@ import store from '../store';
  * @return {Function} 柯里化后的函数
  */
 export function curry(fn) {
-  const judge = (...args) => (args.length === fn.length ? fn(...args) : arg => judge(...args, arg));
+  const judge = (...args) =>
+    args.length === fn.length ? fn(...args) : (arg) => judge(...args, arg);
   return judge;
 }
 
@@ -84,7 +85,7 @@ export function unifyObjectStyle(type, payload, options) {
     }
   }
 
-  return { type, payload, options };
+  return { options, payload, type };
 }
 
 /**
@@ -104,9 +105,11 @@ export function randomColor(baseColor, count) {
   const ret = [];
   // 生成 count 组颜色，色差 20 * Math.random
   for (let i = 0; i < count; i++) {
-    ret[i] = `#${Math.floor(segments[0] + (Math.random() < 0.5 ? -1 : 1) * Math.random() * 20).toString(
-      16
-    )}${Math.floor(segments[1] + (Math.random() < 0.5 ? -1 : 1) * Math.random() * 20).toString(
+    ret[i] = `#${Math.floor(
+      segments[0] + (Math.random() < 0.5 ? -1 : 1) * Math.random() * 20
+    ).toString(16)}${Math.floor(
+      segments[1] + (Math.random() < 0.5 ? -1 : 1) * Math.random() * 20
+    ).toString(
       16
     )}${Math.floor(segments[2] + (Math.random() < 0.5 ? -1 : 1) * Math.random() * 20).toString(16)}`;
   }
@@ -147,15 +150,15 @@ export function catchErrorHandler(err, ctx) {
     } else {
       console.error(err);
       ctx.bkMessageInstance = ctx.$bkMessage({
-        theme: 'error',
         message: err.message || err.data.msg || err.statusText,
+        theme: 'error',
       });
     }
   } else {
     console.error(err);
     ctx.bkMessageInstance = ctx.$bkMessage({
-      theme: 'error',
       message: err.message || err.data.msg || err.statusText,
+      theme: 'error',
     });
   }
 }
@@ -186,7 +189,8 @@ export function getStringLen(str) {
  *
  * @return {string} 结果
  */
-export const escape = str => String(str).replace(/([.*+?^=!:${}()|[\]/\\])/g, '\\$1');
+export const escape = (str) =>
+  String(str).replace(/([.*+?^=!:${}()|[\]/\\])/g, '\\$1');
 
 /**
  * 对象转为 url query 字符串
@@ -211,10 +215,12 @@ export function json2Query(param, key) {
   ) {
     paramStr += separator + key + mappingOperator + encodeURIComponent(param);
   } else {
-    Object.keys(param).forEach(p => {
+    Object.keys(param).forEach((p) => {
       const value = param[p];
       const k =
-        key === null || key === '' || key === undefined ? p : key + (param instanceof Array ? `[${p}]` : `.${p}`);
+        key === null || key === '' || key === undefined
+          ? p
+          : key + (param instanceof Array ? `[${p}]` : `.${p}`);
       paramStr += separator + json2Query(value, k);
     });
   }
@@ -312,7 +318,10 @@ export function getScrollHeight() {
     documentScrollHeight = document.documentElement.scrollHeight;
   }
 
-  scrollHeight = bodyScrollHeight - documentScrollHeight > 0 ? bodyScrollHeight : documentScrollHeight;
+  scrollHeight =
+    bodyScrollHeight - documentScrollHeight > 0
+      ? bodyScrollHeight
+      : documentScrollHeight;
 
   return scrollHeight;
 }
@@ -335,7 +344,8 @@ export function getScrollTop() {
     documentScrollTop = document.documentElement.scrollTop;
   }
 
-  scrollTop = bodyScrollTop - documentScrollTop > 0 ? bodyScrollTop : documentScrollTop;
+  scrollTop =
+    bodyScrollTop - documentScrollTop > 0 ? bodyScrollTop : documentScrollTop;
 
   return scrollTop;
 }
@@ -347,7 +357,9 @@ export function getScrollTop() {
  */
 export function getWindowHeight() {
   const windowHeight =
-    document.compatMode === 'CSS1Compat' ? document.documentElement.clientHeight : document.body.clientHeight;
+    document.compatMode === 'CSS1Compat'
+      ? document.documentElement.clientHeight
+      : document.body.clientHeight;
 
   return windowHeight;
 }
@@ -355,9 +367,9 @@ export function getWindowHeight() {
 export function projectManage(menuProject, projectName, childName) {
   let project = '';
   try {
-    menuProject.forEach(res => {
+    menuProject.forEach((res) => {
       if (res.id === projectName && res.children) {
-        res.children.forEach(item => {
+        res.children.forEach((item) => {
           if (item.id === childName) {
             project = item.project_manage;
           }
@@ -391,7 +403,11 @@ export function projectManages(menuList, id) {
  * @param {Object} fieldsWidthInfo
  * @param {Number} minWidth 固定最小宽度
  */
-export function setFieldsWidth(visibleFieldsList, fieldsWidthInfo, minWidth = 1000) {
+export function setFieldsWidth(
+  visibleFieldsList,
+  fieldsWidthInfo,
+  minWidth = 1000
+) {
   // const totalUnit = visibleFieldsList.forEach(item => {
   //     const key = item.field_name
   //     const maxLength = fieldsWidthInfo[key].max_length || 0
@@ -400,7 +416,7 @@ export function setFieldsWidth(visibleFieldsList, fieldsWidthInfo, minWidth = 10
   // })
   const rowObj = {};
   const rowWidth = [];
-  visibleFieldsList.forEach(item => {
+  visibleFieldsList.forEach((item) => {
     const key = item.field_name;
 
     const mlength = fieldsWidthInfo[key]?.max_length || 0;
@@ -412,9 +428,12 @@ export function setFieldsWidth(visibleFieldsList, fieldsWidthInfo, minWidth = 10
     rowWidth.push(maxLength);
   });
   const rowNum = rowWidth.length;
-  const allWidth = rowWidth.reduce((accumulator, currentValue) => accumulator + currentValue, 0);
+  const allWidth = rowWidth.reduce(
+    (accumulator, currentValue) => accumulator + currentValue,
+    0
+  );
   if (Math.ceil(allWidth * 6.5) <= minWidth - rowNum * 20) {
-    visibleFieldsList.forEach(fieldInfo => {
+    visibleFieldsList.forEach((fieldInfo) => {
       const key = fieldInfo.field_name;
       rowObj[key] = rowObj[key] < 9 ? 9 : rowObj[key];
       rowObj[key] = rowObj[key] > 30 ? rowObj[key] / 1.5 : rowObj[key];
@@ -433,7 +452,10 @@ export function setFieldsWidth(visibleFieldsList, fieldsWidthInfo, minWidth = 10
         proportion.push(Math.floor((width * rowNum) / minWidth));
       }
     }
-    const proportionNum = proportion.reduce((accumulator, currentValue) => accumulator + currentValue, 0);
+    const proportionNum = proportion.reduce(
+      (accumulator, currentValue) => accumulator + currentValue,
+      0
+    );
     visibleFieldsList.forEach((fieldInfo, index) => {
       fieldInfo.minWidth = minWidth * (proportion[index] / proportionNum);
     });
@@ -462,7 +484,10 @@ export function formatDate(val, isTimzone = true, formatMilliseconds = false) {
     const date = dayjs.tz(Number(val));
 
     // 如果毫秒部分不为 000，展示毫秒精度的时间
-    const formatStr = formatMilliseconds && milliseconds !== 0 ? 'YYYY-MM-DD HH:mm:ss.SSS' : 'YYYY-MM-DD HH:mm:ss';
+    const formatStr =
+      formatMilliseconds && milliseconds !== 0
+        ? 'YYYY-MM-DD HH:mm:ss.SSS'
+        : 'YYYY-MM-DD HH:mm:ss';
     return date.format(formatStr);
   }
 
@@ -485,10 +510,13 @@ export function formatDateNanos(val) {
   const nanoseconds = `${val}`.slice(23, -1);
 
   // 使用dayjs解析字符串到毫秒 包含时区处理
-  const dateTimeToMilliseconds = dayjs(val).tz(window.timezone).format('YYYY-MM-DD HH:mm:ss.SSS');
+  const dateTimeToMilliseconds = dayjs(val)
+    .tz(window.timezone)
+    .format('YYYY-MM-DD HH:mm:ss.SSS');
   // 获取微秒并且判断是否是000，也就是纳秒部分的最后三位
   const microseconds = nanoseconds % 1000;
-  const newNanoseconds = microseconds !== 0 ? nanoseconds : nanoseconds.slice(0, 3);
+  const newNanoseconds =
+    microseconds !== 0 ? nanoseconds : nanoseconds.slice(0, 3);
 
   // 组合dayjs格式化的日期时间到毫秒和独立处理的纳秒部分
   const formattedDateTimeWithNanoseconds = `${dateTimeToMilliseconds}${newNanoseconds}`;
@@ -514,7 +542,8 @@ export function formatFileSize(size, dropFractionIfInteger = false) {
         index = index + 1;
       }
     }
-    const formattedSize = dropFractionIfInteger && k % 1 === 0 ? k.toFixed(0) : k.toFixed(2);
+    const formattedSize =
+      dropFractionIfInteger && k % 1 === 0 ? k.toFixed(0) : k.toFixed(2);
     return `${formattedSize}${units[index]}`;
   }
   return '0';
@@ -544,22 +573,34 @@ export function readBlobResponse(response) {
  * @param {*} resp
  */
 export function readBlobRespToJson(resp) {
-  return readBlobResponse(resp).then(resText => Promise.resolve(JSONBigNumber.parse(resText)));
+  return readBlobResponse(resp).then((resText) =>
+    Promise.resolve(JSONBigNumber.parse(resText))
+  );
 }
 export function bigNumberToString(value) {
   // eslint-disable-next-line @typescript-eslint/prefer-optional-chain
-  return (value || {})._isBigNumber ? (value.toString().length < 16 ? Number(value) : value.toString()) : value;
+  return (value || {})._isBigNumber
+    ? value.toString().length < 16
+      ? Number(value)
+      : value.toString()
+    : value;
 }
 
 export function formatBigNumListValue(value) {
-  if (Object.prototype.toString.call(value) === '[object Object]' && value !== null && !value._isBigNumber) {
+  if (
+    Object.prototype.toString.call(value) === '[object Object]' &&
+    value !== null &&
+    !value._isBigNumber
+  ) {
     const obj = {};
     if (value instanceof Array) {
       return (obj[value] = parseBigNumberList(value));
     }
-    Object.keys(value).forEach(opt => {
+    Object.keys(value).forEach((opt) => {
       obj[opt] =
-        Object.prototype.toString.call(obj[opt]) === '[object Object]' && obj[opt] !== null && !obj[opt]._isBigNumber
+        Object.prototype.toString.call(obj[opt]) === '[object Object]' &&
+        obj[opt] !== null &&
+        !obj[opt]._isBigNumber
           ? formatBigNumListValue(obj[opt])
           : bigNumberToString(value[opt] ?? '');
     });
@@ -569,7 +610,7 @@ export function formatBigNumListValue(value) {
 }
 
 export function parseBigNumberList(lsit) {
-  return (lsit || []).map(item =>
+  return (lsit || []).map((item) =>
     Object.keys(item || {}).reduce((output, key) => {
       return {
         ...output,
@@ -608,7 +649,9 @@ export const copyMessage = (val, alertMsg = undefined) => {
     document.execCommand('copy');
     document.body.removeChild(input);
     window.mainComponent.messageSuccess(
-      alertMsg ? (alertMsg ?? window.mainComponent.$t('复制失败')) : window.mainComponent.$t('复制成功')
+      alertMsg
+        ? (alertMsg ?? window.mainComponent.$t('复制失败'))
+        : window.mainComponent.$t('复制成功')
     );
   } catch (e) {
     console.warn(e);
@@ -619,19 +662,23 @@ export const copyMessage = (val, alertMsg = undefined) => {
  * @desc: 字符串转base64
  * @param { String } str
  */
-export const base64Encode = str => {
-  return btoa(encodeURIComponent(str).replace(/%([0-9A-F]{2})/g, (match, p1) => String.fromCharCode(`0x${p1}`)));
+export const base64Encode = (str) => {
+  return btoa(
+    encodeURIComponent(str).replace(/%([0-9A-F]{2})/g, (match, p1) =>
+      String.fromCharCode(`0x${p1}`)
+    )
+  );
 };
 
 /**
  * @desc: base64转字符串
  * @param { String } str
  */
-export const base64Decode = str => {
+export const base64Decode = (str) => {
   return decodeURIComponent(
     atob(str)
       .split('')
-      .map(c => `%${`00${c.charCodeAt(0).toString(16)}`.slice(-2)}`)
+      .map((c) => `%${`00${c.charCodeAt(0).toString(16)}`.slice(-2)}`)
       .join('')
   );
 };
@@ -662,9 +709,9 @@ export class Storage {
   /** 设置缓存 */
   set(key, value, express = this.express) {
     const data = {
-      value,
-      updateTime: Date.now(),
       express,
+      updateTime: Date.now(),
+      value,
     };
     localStorage.setItem(key, JSON.stringify(data));
   }
@@ -707,14 +754,17 @@ export const deepClone = (obj, hash = new WeakMap()) => {
   if (obj instanceof Map) {
     Array.from(obj, ([key, val]) => result.set(key, deepClone(val, hash)));
   }
-  return Object.assign(result, ...Object.keys(obj).map(key => ({ [key]: deepClone(obj[key], hash) })));
+  return Object.assign(
+    result,
+    ...Object.keys(obj).map((key) => ({ [key]: deepClone(obj[key], hash) }))
+  );
 };
 
 /**
  * @desc: 清空bk-table表头的过滤条件
  * @param {HTMLElement} refInstance ref实例
  */
-export const clearTableFilter = refInstance => {
+export const clearTableFilter = (refInstance) => {
   if (refInstance.$refs.tableHeader.filterPanels) {
     const { filterPanels } = refInstance.$refs.tableHeader;
     for (const key in filterPanels) {
@@ -727,7 +777,11 @@ export const clearTableFilter = refInstance => {
  * @desc: 适合未作处理的bk-table表头添加tips
  */
 export const renderHeader = (h, { column }) => {
-  return h('p', { directives: [{ name: 'bk-overflow-tips' }], class: 'title-overflow' }, [column.label]);
+  return h(
+    'p',
+    { class: 'title-overflow', directives: [{ name: 'bk-overflow-tips' }] },
+    [column.label]
+  );
 };
 
 /**
@@ -753,7 +807,11 @@ export const deepEqual = (object1, object2, ignoreArr = []) => {
       return false;
     }
     const areObjects = isObject(val1) && isObject(val2);
-    if ((areObjects && !deepEqual(val1, val2, ignoreArr)) || (!areObjects && val1 !== val2)) return false;
+    if (
+      (areObjects && !deepEqual(val1, val2, ignoreArr)) ||
+      (!areObjects && val1 !== val2)
+    )
+      return false;
   }
   return true;
 };
@@ -866,10 +924,16 @@ export const parseTableRowData = (
         // 这里用于处理nested field
         if (Array.isArray(data)) {
           data = data
-            .map(item =>
-              parseTableRowData(item, keyArr.slice(index).join('.'), fieldType, isFormatDate, emptyCharacter)
+            .map((item) =>
+              parseTableRowData(
+                item,
+                keyArr.slice(index).join('.'),
+                fieldType,
+                isFormatDate,
+                emptyCharacter
+              )
             )
-            .filter(item => item !== emptyCharacter);
+            .filter((item) => item !== emptyCharacter);
           break;
         }
 
@@ -877,7 +941,9 @@ export const parseTableRowData = (
           data = data[item];
         } else {
           // 如果 x.y 不存在 返回 x['y.z'] x['y.z.z.z'] ...
-          const validKey = keyArr.splice(index, keyArr.length - index).join('.');
+          const validKey = keyArr
+            .splice(index, keyArr.length - index)
+            .join('.');
           data = data[validKey];
           break;
         }
@@ -922,11 +988,14 @@ export const parseTableRowData = (
     return JSON.stringify(data);
   }
 
-  return data === null || data === undefined || data === '' ? emptyCharacter : data;
+  return data === null || data === undefined || data === ''
+    ? emptyCharacter
+    : data;
 };
 
 /** 表格内字体样式 */
-export const TABLE_FOUNT_FAMILY = 'Menlo, Monaco, Consolas, Courier, PingFang SC, Microsoft Yahei, monospace';
+export const TABLE_FOUNT_FAMILY =
+  'Menlo, Monaco, Consolas, Courier, PingFang SC, Microsoft Yahei, monospace';
 
 /**
  * @desc: 计算字符串像素长度
@@ -970,19 +1039,29 @@ export const calculateTableColsWidth = (field, list) => {
   });
 
   // 字段名长度 需保证字段名完全显示
-  const fieldNameLen = getTextPxWidth(field.field_name, '12px', TABLE_FOUNT_FAMILY);
+  const fieldNameLen = getTextPxWidth(
+    field.field_name,
+    '12px',
+    TABLE_FOUNT_FAMILY
+  );
   const minWidth = fieldNameLen + 80;
   if (firstLoadList[0]) {
     if (['ip', 'serverIp'].includes(field.field_name)) return [124, minWidth];
     if (field.field_name === 'dtEventTimeStamp') return [256, minWidth];
     if (/time/i.test(field.field_name)) return [256, minWidth];
     // 去掉高亮标签 保证不影响实际展示长度计算
-    const fieldValue = String(parseTableRowData(firstLoadList[0], field.field_name, field.field_type))
+    const fieldValue = String(
+      parseTableRowData(firstLoadList[0], field.field_name, field.field_type)
+    )
       .replace(/<mark>/g, '')
       .replace(/<\/mark>/g, '');
     // 表格内字体如果用12px在windows系统下表格字体会显得很细，所以用13px来加粗
     // 实际字段值长度
-    const fieldValueLen = getTextPxWidth(fieldValue, '12px', TABLE_FOUNT_FAMILY);
+    const fieldValueLen = getTextPxWidth(
+      fieldValue,
+      '12px',
+      TABLE_FOUNT_FAMILY
+    );
 
     if (field.field_type === 'text') {
       // 800为默认自适应最大宽度
@@ -1011,8 +1090,8 @@ export const calculateTableColsWidth = (field, list) => {
 export const getFlatObjValues = (currentObject, previousKeyName = '') => {
   const newFlatObj = {
     newKeyStrList: [],
-    newValueList: [],
     newObject: {},
+    newValueList: [],
   };
   flatObjTypeFiledKeys(currentObject, newFlatObj, previousKeyName);
   return newFlatObj;
@@ -1024,7 +1103,11 @@ export const getFlatObjValues = (currentObject, previousKeyName = '') => {
  * @param {Object} newFlatObj 手机对象扁平化key的列表
  * @param {String} previousKeyName 递归的初始名字
  */
-export const flatObjTypeFiledKeys = (currentObject = {}, newFlatObj, previousKeyName = '') => {
+export const flatObjTypeFiledKeys = (
+  currentObject = {},
+  newFlatObj,
+  previousKeyName = ''
+) => {
   for (const key in currentObject) {
     const value = currentObject[key];
     if (value === null) {
@@ -1061,7 +1144,7 @@ export const flatObjTypeFiledKeys = (currentObject = {}, newFlatObj, previousKey
 
 export const TABLE_LOG_FIELDS_SORT_REGULAR = /^[_]{1,2}|[_]{1,2}/g;
 
-export const utcFormatDate = val => {
+export const utcFormatDate = (val) => {
   const date = new Date(val);
 
   if (isNaN(date.getTime())) {
@@ -1073,11 +1156,19 @@ export const utcFormatDate = val => {
 };
 
 // 首次加载设置表格默认宽度自适应
-export const setDefaultTableWidth = (visibleFields, tableData, catchFieldsWidthObj = null, staticWidth = 50) => {
+export const setDefaultTableWidth = (
+  visibleFields,
+  tableData,
+  catchFieldsWidthObj = null,
+  staticWidth = 50
+) => {
   try {
     if (tableData.length && visibleFields.length) {
-      visibleFields.forEach(field => {
-        const [fieldWidth, minWidth] = calculateTableColsWidth(field, tableData);
+      visibleFields.forEach((field) => {
+        const [fieldWidth, minWidth] = calculateTableColsWidth(
+          field,
+          tableData
+        );
         let width = fieldWidth < minWidth ? minWidth : fieldWidth;
         if (catchFieldsWidthObj) {
           const catchWidth = catchFieldsWidthObj[field.field_name];
@@ -1087,20 +1178,24 @@ export const setDefaultTableWidth = (visibleFields, tableData, catchFieldsWidthO
         set(field, 'width', width);
         set(field, 'minWidth', minWidth);
       });
-      const columnsWidth = visibleFields.reduce((prev, next) => prev + next.width, 0);
+      const columnsWidth = visibleFields.reduce(
+        (prev, next) => prev + next.width,
+        0
+      );
       const tableElem = document.querySelector('.original-log-panel');
       // 如果当前表格所有列总和小于表格实际宽度 则对小于800（最大宽度）的列赋值 defalut 使其自适应
       const availableWidth = tableElem.clientWidth - staticWidth;
       if (tableElem && columnsWidth && columnsWidth < availableWidth) {
-        const longFiels = visibleFields.filter(item => item.width >= 800);
+        const longFiels = visibleFields.filter((item) => item.width >= 800);
         if (longFiels.length) {
           const addWidth = (availableWidth - columnsWidth) / longFiels.length;
-          longFiels.forEach(item => {
+          longFiels.forEach((item) => {
             set(item, 'width', item.width + Math.ceil(addWidth));
           });
         } else {
-          const addWidth = (availableWidth - columnsWidth) / visibleFields.length;
-          visibleFields.forEach(field => {
+          const addWidth =
+            (availableWidth - columnsWidth) / visibleFields.length;
+          visibleFields.forEach((field) => {
             set(field, 'width', field.width + Math.ceil(addWidth));
           });
         }
@@ -1119,7 +1214,11 @@ export const setDefaultTableWidth = (visibleFields, tableData, catchFieldsWidthO
  * @param {String} fileName 文件名
  * @param {String} type 文件类型
  */
-export const blobDownload = (data, fileName = 'default', type = 'text/plain') => {
+export const blobDownload = (
+  data,
+  fileName = 'default',
+  type = 'text/plain'
+) => {
   const blob = new Blob([data], { type });
   const downloadElement = document.createElement('a');
   const href = window.URL.createObjectURL(blob); // 创建下载的链接
@@ -1131,30 +1230,15 @@ export const blobDownload = (data, fileName = 'default', type = 'text/plain') =>
   window.URL.revokeObjectURL(href); // 释放掉blob对象
 };
 
-export const xssFilter = str => {
-  return (
-    str?.replace?.(/[&<>"]/gi, function (match) {
-      switch (match) {
-        case '&':
-          return '&amp;';
-        case '<':
-          return '&lt;';
-        case '>':
-          return '&gt;';
-        case '"':
-          return '&quot;';
-      }
-    }) || str
-  );
-};
+export const xssFilter = (str) => DOMPurify.sanitize(str);
 /** 数字千分位处理 */
-export const formatNumberWithRegex = number => {
+export const formatNumberWithRegex = (number) => {
   var parts = number.toString().split('.');
   parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ',');
   return parts.join('.');
 };
 /** 上下文，实时日志高亮颜色 */
-// eslint-disable-next-line @typescript-eslint/naming-convention
+
 export const contextHighlightColor = [
   {
     dark: '#FFB401',
@@ -1178,14 +1262,14 @@ export const contextHighlightColor = [
   },
 ];
 
-export const getOperatorKey = operator => `operator:${operator}`;
+export const getOperatorKey = (operator) => `operator:${operator}`;
 
 /**
  * 获取字符长度，汉字两个字节
  * @param str 需要计算长度的字符
  * @returns 字符长度
  */
-export const getCharLength = str => {
+export const getCharLength = (str) => {
   const len = str.length;
   let bitLen = 0;
 
@@ -1200,16 +1284,24 @@ export const getCharLength = str => {
 };
 
 export const getRegExp = (searchValue, flags = 'ig') => {
-  return new RegExp(`${searchValue}`.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&'), flags);
+  return new RegExp(
+    `${searchValue}`.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&'),
+    flags
+  );
 };
 
 /** url中没有索引集indexID时候，拿浏览器存储的最后一次选中的索引集进行初始化 */
-export const getStorageIndexItem = indexList => {
+export const getStorageIndexItem = (indexList) => {
   const catchIndexSetStr = localStorage.getItem('CATCH_INDEX_SET_ID_LIST');
   if (catchIndexSetStr) {
     const catchIndexSetList = JSON.parse(catchIndexSetStr);
     const spaceUid = store.state.spaceUid;
-    if (catchIndexSetList[spaceUid] && indexList.some(item => item.index_set_id === catchIndexSetList[spaceUid])) {
+    if (
+      catchIndexSetList[spaceUid] &&
+      indexList.some(
+        (item) => item.index_set_id === catchIndexSetList[spaceUid]
+      )
+    ) {
       return catchIndexSetList[spaceUid];
     }
   }
@@ -1217,9 +1309,10 @@ export const getStorageIndexItem = indexList => {
 };
 
 /** 获取非无数据的索引集 */
-export const getHaveValueIndexItem = indexList => {
+export const getHaveValueIndexItem = (indexList) => {
   return (
-    indexList.find(item => !item.tags.map(item => item.tag_id).includes(4))?.index_set_id || indexList[0].index_set_id
+    indexList.find((item) => !item.tags.map((item) => item.tag_id).includes(4))
+      ?.index_set_id || indexList[0].index_set_id
   );
 };
 
@@ -1242,7 +1335,10 @@ export const isNestedField = (fieldKeys, obj) => {
     }
 
     if (obj[fieldKeys[0]] === undefined) {
-      return isNestedField([`${fieldKeys[0]}.${fieldKeys[1]}`, ...fieldKeys.slice(2)], obj);
+      return isNestedField(
+        [`${fieldKeys[0]}.${fieldKeys[1]}`, ...fieldKeys.slice(2)],
+        obj
+      );
     }
   }
 

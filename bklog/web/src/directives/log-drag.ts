@@ -23,11 +23,11 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { random } from '@/common/util';
-import { throttle } from 'lodash';
-
 import type { VueConstructor } from 'vue';
 import type { DirectiveBinding, DirectiveOptions } from 'vue/types/options';
+
+import { random } from '@/common/util';
+import { throttle } from 'lodash';
 
 let insertedEl: IDragHtmlElement = null;
 
@@ -57,23 +57,25 @@ interface IDragHtmlElement extends HTMLElement {
 
 /** 处理配置默认值 */
 const getBindValue = (data: IBindValue): IBindValue => {
-  const { style = {}, theme = 'normal', placement = 'left' } = data;
+  const { placement = 'left', style = {}, theme = 'normal' } = data;
 
   return {
     ...data,
+    placement,
     style,
     theme,
-    placement,
   };
 };
 
 const handleMouseMove = throttle((event: MouseEvent) => {
   if (!insertedEl) return;
-  const { maxWidth, minWidth, placement, autoHidden, onHidden, onWidthChange } = getBindValue(
-    insertedEl._bk_log_drag.value as IBindValue
-  );
+  const { autoHidden, maxWidth, minWidth, onHidden, onWidthChange, placement } =
+    getBindValue(insertedEl._bk_log_drag.value as IBindValue);
   const rect = insertedEl.getBoundingClientRect();
-  let width = placement === 'left' ? event.clientX - rect.left : rect.right - event.clientX;
+  let width =
+    placement === 'left'
+      ? event.clientX - rect.left
+      : rect.right - event.clientX;
   // 最大最小值限制
   if (maxWidth && width > maxWidth) {
     width = maxWidth;
@@ -133,7 +135,8 @@ const logDrag: DirectiveOptions = {
     // 创建拖拽DOM
     const dragEle = document.createElement('div');
     dragEle.dataset.dragKey = key;
-    dragEle.className = theme === 'simple' ? 'bk-log-drag-simple' : 'bk-log-drag';
+    dragEle.className =
+      theme === 'simple' ? 'bk-log-drag-simple' : 'bk-log-drag';
     dragEle.style.cssText = Object.keys(style).reduce((pre, key) => {
       pre += `${key}: ${style[key]};`;
       return pre;
@@ -145,28 +148,10 @@ const logDrag: DirectiveOptions = {
     dragEle.addEventListener('mousedown', dragMouseDown);
 
     el._bk_log_drag = {
+      dragKey: key,
       el: dragEle,
       value: bind.value,
-      dragKey: key,
     };
-  },
-
-  update(el: IDragHtmlElement, bind: DirectiveBinding) {
-    el._bk_log_drag.value = bind.value;
-    const { defaultWidth, maxWidth, minWidth, isShow, onWidthChange } = getBindValue(bind.value as IBindValue);
-    const curInsertedEl = insertedElMap[el._bk_log_drag.dragKey];
-    const isHidden = curInsertedEl.getAttribute('is-hidden');
-    // 展开默认宽度
-    if (defaultWidth <= maxWidth && defaultWidth >= minWidth && isShow && isHidden === 'true') {
-      curInsertedEl.style.width = `${defaultWidth}px`;
-      curInsertedEl.setAttribute('is-hidden', 'false');
-      el._bk_log_drag.el.style.left = `${insertedEl.getBoundingClientRect().width - 10}px`;
-      onWidthChange?.(defaultWidth);
-    }
-    if (!isShow) {
-      curInsertedEl.setAttribute('is-hidden', 'true');
-      onWidthChange?.(defaultWidth);
-    }
   },
 
   unbind(el: IDragHtmlElement) {
@@ -178,9 +163,33 @@ const logDrag: DirectiveOptions = {
     delete insertedElMap[dragKey];
     delete el._bk_log_drag;
   },
+
+  update(el: IDragHtmlElement, bind: DirectiveBinding) {
+    el._bk_log_drag.value = bind.value;
+    const { defaultWidth, isShow, maxWidth, minWidth, onWidthChange } =
+      getBindValue(bind.value as IBindValue);
+    const curInsertedEl = insertedElMap[el._bk_log_drag.dragKey];
+    const isHidden = curInsertedEl.getAttribute('is-hidden');
+    // 展开默认宽度
+    if (
+      defaultWidth <= maxWidth &&
+      defaultWidth >= minWidth &&
+      isShow &&
+      isHidden === 'true'
+    ) {
+      curInsertedEl.style.width = `${defaultWidth}px`;
+      curInsertedEl.setAttribute('is-hidden', 'false');
+      el._bk_log_drag.el.style.left = `${insertedEl.getBoundingClientRect().width - 10}px`;
+      onWidthChange?.(defaultWidth);
+    }
+    if (!isShow) {
+      curInsertedEl.setAttribute('is-hidden', 'true');
+      onWidthChange?.(defaultWidth);
+    }
+  },
 };
 
 export default {
-  install: (Vue: VueConstructor) => Vue.directive('log-drag', logDrag),
   directive: logDrag,
+  install: (Vue: VueConstructor) => Vue.directive('log-drag', logDrag),
 };

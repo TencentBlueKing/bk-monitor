@@ -23,9 +23,9 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+import useStore from '@/hooks/use-store';
 import { computed, defineComponent } from 'vue';
 
-import useStore from '@/hooks/use-store';
 import { BK_LOG_STORAGE } from '../../../../store/store.type';
 import TextSegmentation from '../../components/text-segmentation/index';
 
@@ -46,24 +46,28 @@ export default defineComponent({
   emits: ['menu-click'],
   setup(props, { emit }) {
     const store = useStore();
-    const isWrap = computed(() => store.state.storage[BK_LOG_STORAGE.TABLE_LINE_IS_WRAP]);
+    const isWrap = computed(
+      () => store.state.storage[BK_LOG_STORAGE.TABLE_LINE_IS_WRAP]
+    );
     const isLimitExpandView = computed(
-      () => store.state.storage[BK_LOG_STORAGE.IS_LIMIT_EXPAND_VIEW] || props.forceAll
+      () =>
+        store.state.storage[BK_LOG_STORAGE.IS_LIMIT_EXPAND_VIEW] ||
+        props.forceAll
     );
 
-    const handleMenuClick = event => {
+    const handleMenuClick = (event) => {
       emit('menu-click', event);
     };
 
     return () => (
       <TextSegmentation
-        field={props.field}
-        data={props.data}
-        content={props.content}
-        forceAll={props.forceAll}
         autoWidth={props.autoWidth}
-        isWrap={isWrap.value}
+        content={props.content}
+        data={props.data}
+        field={props.field}
+        forceAll={props.forceAll}
         isLimitExpandView={isLimitExpandView.value}
+        isWrap={isWrap.value}
         on-menu-click={handleMenuClick}
       />
     );

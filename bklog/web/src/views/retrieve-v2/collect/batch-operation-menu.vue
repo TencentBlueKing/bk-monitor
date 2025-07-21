@@ -37,7 +37,7 @@
       :interactive="true"
     >
       <bk-button :disabled="selectFavoriteList.length === 0">
-        {{ $t("批量操作") }} <i class="bk-icon icon-angle-down" />
+        {{ $t('批量操作') }} <i class="bk-icon icon-angle-down" />
       </bk-button>
       <div slot="content">
         <div>
@@ -49,15 +49,18 @@
               theme="light"
               boundary="viewport"
               extCls="batch-operation-menu"
-              @show="()=>handleShowOperationMenuRef(false)"
-              @hide="()=>handleShowOperationMenuRef(true)"
+              @show="() => handleShowOperationMenuRef(false)"
+              @hide="() => handleShowOperationMenuRef(true)"
             >
               <div class="operation-item">
-                {{ $t("移动至分组") }}
+                {{ $t('移动至分组') }}
                 <i class="bk-icon icon-angle-right" />
               </div>
               <div slot="content">
-                <div ref="batchMoveToGroupMenuRef" class="batch-move-to-group-menu-content">
+                <div
+                  ref="batchMoveToGroupMenuRef"
+                  class="batch-move-to-group-menu-content"
+                >
                   <div class="group-list">
                     <div
                       v-for="group in favoriteGroupList"
@@ -101,7 +104,7 @@
                         @click="() => (moveToGroupAddGroup = true)"
                       >
                         <i class="bklog-icon icon-jia" />
-                        <span>{{ $t("新建分组") }}</span>
+                        <span>{{ $t('新建分组') }}</span>
                       </div>
                     </template>
                   </div>
@@ -109,7 +112,7 @@
               </div>
             </bk-popover>
             <div class="operation-item" @click="handleShowBatchDeleteDialog">
-              {{ $t("删除") }}
+              {{ $t('删除') }}
             </div>
           </div>
 
@@ -126,8 +129,8 @@
     >
       <template #header>
         <div class="dialog-content">
-          <div class="title">{{ $t("确定删除选中的收藏项?") }}</div>
-          <div class="tips">{{ $t("删除后，无法恢复，请谨慎操作!") }}</div>
+          <div class="title">{{ $t('确定删除选中的收藏项?') }}</div>
+          <div class="tips">{{ $t('删除后，无法恢复，请谨慎操作!') }}</div>
           <div class="favorite-list">
             <div class="list-title">
               <i18n path="已选择以下{0}个收藏对象">
@@ -150,11 +153,15 @@
 
       <template #footer>
         <div class="footer-wrap">
-          <bk-button class="del-btn" theme="danger" @click="handleBatchDeleteFavorite">
-            {{ $t("删除") }}
+          <bk-button
+            class="del-btn"
+            theme="danger"
+            @click="handleBatchDeleteFavorite"
+          >
+            {{ $t('删除') }}
           </bk-button>
           <bk-button @click="() => (batchDeleteDialogVisible = false)">
-            {{ $t("取消") }}
+            {{ $t('取消') }}
           </bk-button>
         </div>
       </template>
@@ -200,8 +207,16 @@ const addGroupData = ref({
 
 const rules = {
   name: [
-    { validator: checkName, message: $t('组名不规范, 包含了特殊符号.'), trigger: 'blur' },
-    { validator: checkExistName, message: $t('注意: 名字冲突'), trigger: 'blur' },
+    {
+      validator: checkName,
+      message: $t('组名不规范, 包含了特殊符号.'),
+      trigger: 'blur',
+    },
+    {
+      validator: checkExistName,
+      message: $t('注意: 名字冲突'),
+      trigger: 'blur',
+    },
     { required: true, message: $t('必填项'), trigger: 'blur' },
     { max: 30, message: $t('注意：最大值为30个字符'), trigger: 'blur' },
   ],
@@ -215,7 +230,9 @@ function checkName() {
 }
 
 function checkExistName() {
-  return !props.favoriteGroupList.some(item => item.name === addGroupData.value.name);
+  return !props.favoriteGroupList.some(
+    (item) => item.name === addGroupData.value.name
+  );
 }
 
 // 显示批量删除对话框
@@ -229,7 +246,7 @@ async function handleBatchDeleteFavorite() {
   try {
     const res = await $http.request('favorite/batchFavoriteDelete', {
       data: {
-        id_list: props.selectFavoriteList.map(item => item.id),
+        id_list: props.selectFavoriteList.map((item) => item.id),
       },
     });
     if (res.result) {
@@ -244,7 +261,7 @@ async function handleBatchDeleteFavorite() {
 
 // 批量移动分组
 async function handleBatchMoveToGroup(id) {
-  const params = props.selectFavoriteList.map(row => {
+  const params = props.selectFavoriteList.map((row) => {
     return {
       id: row.id,
       name: row.name,
@@ -269,7 +286,7 @@ async function handleBatchMoveToGroup(id) {
       emit('operateChange', id);
       batchOperatePopoverRef.value?.hideHandler();
     })
-    .catch(error => {
+    .catch((error) => {
       console.error('Batch update failed', error);
     });
 }
@@ -296,7 +313,7 @@ function handleShowOperationMenuRef(val) {
 }
 
 // 表单输入焦点处理
-watch(moveToGroupAddGroup, val => {
+watch(moveToGroupAddGroup, (val) => {
   if (val) {
     nextTick(() => {
       moveToGroupInputRef.value?.focus();

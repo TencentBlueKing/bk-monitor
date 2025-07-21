@@ -49,10 +49,7 @@
     >
     </i>
     <div v-show="false">
-      <ul
-        ref="moreTools"
-        class="tool-list"
-      >
+      <ul ref="moreTools" class="tool-list">
         <template>
           <li
             v-for="item in moreToolsList"
@@ -157,45 +154,45 @@ export default class ChartTools extends Vue {
 </script>
 
 <style lang="scss" scoped>
-  .chart-tools {
-    display: flex;
+.chart-tools {
+  display: flex;
 
-    .tools-icon {
-      margin-right: 8px;
+  .tools-icon {
+    margin-right: 8px;
+
+    &:hover {
+      color: #3a84ff;
+      cursor: pointer;
+    }
+  }
+}
+
+.monitor-chart-theme {
+  z-index: 999;
+
+  /* stylelint-disable-next-line declaration-no-important */
+  background: white !important;
+
+  .tool-list {
+    display: flex;
+    flex-direction: column;
+    padding: 6px 0;
+    overflow: auto;
+    background-color: white;
+
+    &-item {
+      display: flex;
+      flex: 0 0 32px;
+      align-items: center;
+      padding: 0 10px 0 15px;
+      color: #63656e;
 
       &:hover {
         color: #3a84ff;
         cursor: pointer;
+        background-color: #eaf3ff;
       }
     }
   }
-
-  .monitor-chart-theme {
-    z-index: 999;
-
-    /* stylelint-disable-next-line declaration-no-important */
-    background: white !important;
-
-    .tool-list {
-      display: flex;
-      flex-direction: column;
-      padding: 6px 0;
-      overflow: auto;
-      background-color: white;
-
-      &-item {
-        display: flex;
-        flex: 0 0 32px;
-        align-items: center;
-        padding: 0 10px 0 15px;
-        color: #63656e;
-
-        &:hover {
-          color: #3a84ff;
-          cursor: pointer;
-          background-color: #eaf3ff;
-        }
-      }
-    }
-  }
+}
 </style>

@@ -35,7 +35,9 @@
         <div class="empty-card">
           <div class="empty-message">{{ $t('暂未进行检索') }}</div>
           <div class="empty-main">
-            <div class="suggest-title">{{ $t('您可以按照以下方式进行检索') }}</div>
+            <div class="suggest-title">
+              {{ $t('您可以按照以下方式进行检索') }}
+            </div>
             <div class="suggest-list">
               <span>
                 1.
@@ -72,7 +74,9 @@
         <div class="empty-card">
           <div class="empty-message">{{ $t('查询无数据') }}</div>
           <div class="empty-main">
-            <div class="suggest-title">{{ $t('您可以按照以下方式优化检索结果') }}</div>
+            <div class="suggest-title">
+              {{ $t('您可以按照以下方式优化检索结果') }}
+            </div>
             <div class="suggest-list">
               <span>
                 1.
@@ -87,19 +91,13 @@
               <span>2. {{ $t('检查右上角的索时间范围') }}</span>
               <span>3. {{ $t('优化查询语句') }}</span>
               <div class="grammar-list">
-                <span
-                  v-for="(item, index) in grammarMap"
-                  :key="index"
-                >
+                <span v-for="(item, index) in grammarMap" :key="index">
                   <span>{{ item.key }}</span> : <span>{{ item.value }}</span>
                 </span>
               </div>
             </div>
           </div>
-          <div
-            class="more-rule"
-            @click="handleBtnClick('queryString')"
-          >
+          <div class="more-rule" @click="handleBtnClick('queryString')">
             {{ $t('查看更多语法规则') }}
             <span class="bklog-icon bklog-tiaozhuan"></span>
           </div>
@@ -164,8 +162,11 @@ export default {
       indexSetQueryResult: 'indexSetQueryResult',
     }),
     indexParams() {
-      const { scenario_id, collector_scenario_id, index_set_id } = this.indexSetItem;
-      return this.indexSetItem ? { scenario_id, collector_scenario_id, index_set_id } : {};
+      const { scenario_id, collector_scenario_id, index_set_id } =
+        this.indexSetItem;
+      return this.indexSetItem
+        ? { scenario_id, collector_scenario_id, index_set_id }
+        : {};
     },
     retrieveSearchNumber() {
       return this.indexSetQueryResult.search_count;
@@ -186,7 +187,9 @@ export default {
             return;
           }
           // 判断是否是自定义上报类型
-          this.getDetailJumpRouteKey(nVal.collector_scenario_id === 'custom' ? 'custom' : 'log');
+          this.getDetailJumpRouteKey(
+            nVal.collector_scenario_id === 'custom' ? 'custom' : 'log'
+          );
           return;
         }
         // 当scenario_id不为log（采集项，索引集，自定义上报）时
@@ -201,10 +204,14 @@ export default {
   },
   methods: {
     handleBtnClick(clickType) {
-      let baseUrl = window.__IS_MONITOR_COMPONENT__ ? window.site_url : window.SITE_URL;
+      let baseUrl = window.__IS_MONITOR_COMPONENT__
+        ? window.site_url
+        : window.SITE_URL;
       if (!baseUrl.startsWith('/')) baseUrl = `/${baseUrl}`;
       if (!baseUrl.endsWith('/')) baseUrl += '/';
-      baseUrl = `${window.__IS_MONITOR_COMPONENT__ ? window.bk_log_search_url : window.location.origin}` + baseUrl;
+      baseUrl =
+        `${window.__IS_MONITOR_COMPONENT__ ? window.bk_log_search_url : window.location.origin}` +
+        baseUrl;
       switch (clickType) {
         case 'queryString': // 查询更多语法
           this.handleGotoLink('queryString');
@@ -261,63 +268,63 @@ export default {
 </script>
 
 <style lang="scss" scoped>
-  .empty-container {
-    margin: 20px 0;
+.empty-container {
+  margin: 20px 0;
 
-    .empty-card {
-      margin-top: 24px;
-      color: #63656e;
+  .empty-card {
+    margin-top: 24px;
+    color: #63656e;
 
-      .empty-main {
-        min-width: 230px;
-        font-size: 12px;
-        text-align: left;
+    .empty-main {
+      min-width: 230px;
+      font-size: 12px;
+      text-align: left;
 
-        .suggest-title {
-          padding: 8px 0;
-          color: #979ba5;
-        }
+      .suggest-title {
+        padding: 8px 0;
+        color: #979ba5;
+      }
 
-        .suggest-list {
+      .suggest-list {
+        display: flex;
+        flex-direction: column;
+        line-height: 18px;
+
+        .grammar-list {
           display: flex;
           flex-direction: column;
-          line-height: 18px;
-
-          .grammar-list {
-            display: flex;
-            flex-direction: column;
-            margin-left: 14px;
-          }
-        }
-      }
-
-      .more-rule {
-        margin-top: 8px;
-        font-size: 12px;
-        color: #3a84ff;
-        cursor: pointer;
-
-        .bklog-icon {
-          display: inline-block;
-          transform: scale(0.8) translate3d(-2px, -1px, 0);
+          margin-left: 14px;
         }
       }
     }
 
-    .blue-btn {
+    .more-rule {
+      margin-top: 8px;
+      font-size: 12px;
       color: #3a84ff;
       cursor: pointer;
-    }
 
-    :deep(.exception-image) {
-      height: 180px;
+      .bklog-icon {
+        display: inline-block;
+        transform: scale(0.8) translate3d(-2px, -1px, 0);
+      }
     }
   }
+
+  .blue-btn {
+    color: #3a84ff;
+    cursor: pointer;
+  }
+
+  :deep(.exception-image) {
+    height: 180px;
+  }
+}
 </style>
 
 <style lang="scss">
-  .empty-clear-width {
-    /* stylelint-disable-next-line declaration-no-important */
-    width: auto !important;
-  }
+.empty-clear-width {
+  /* stylelint-disable-next-line declaration-no-important */
+  width: auto !important;
+}
 </style>

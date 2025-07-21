@@ -24,10 +24,9 @@
  * IN THE SOFTWARE.
  */
 
+import { Button } from 'bk-magic-vue';
 import { Component, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-
-import { Button } from 'bk-magic-vue';
 
 import $http from '../../../api';
 import MaskingField from '../../../components/log-masking/masking-field';
@@ -57,13 +56,15 @@ export default class FieldMaskingSeparate extends tsc<IProps> {
 
   /** 是否不显示 已同步 X 个脱敏结果 */
   get isHiddenSyncNum() {
-    return ['bkdata-index-set-masking', 'es-index-set-masking'].includes(this.$route.name);
+    return ['bkdata-index-set-masking', 'es-index-set-masking'].includes(
+      this.$route.name
+    );
   }
 
   /** 进入路由前判断是否是灰度业务 */
   beforeRouteEnter(from, to, next) {
-    next(vm => {
-      const { $store, $router } = vm;
+    next((vm) => {
+      const { $router, $store } = vm;
       if (!$store.getters.isShowMaskingTemplate) {
         $router.push({
           name: 'retrieve',
@@ -79,18 +80,21 @@ export default class FieldMaskingSeparate extends tsc<IProps> {
       this.$router.go(-1);
       return;
     } // 非更新状态且没有任何字段选择规则 直接下一步
-    let requestStr = isUpdate ? 'updateDesensitizeConfig' : 'createDesensitizeConfig';
-    if (!data.field_configs.length && isUpdate) requestStr = 'deleteDesensitizeConfig'; // 无任何字段且是更新时 则删除当前索引集配置
+    let requestStr = isUpdate
+      ? 'updateDesensitizeConfig'
+      : 'createDesensitizeConfig';
+    if (!data.field_configs.length && isUpdate)
+      requestStr = 'deleteDesensitizeConfig'; // 无任何字段且是更新时 则删除当前索引集配置
     try {
       this.submitLoading = true;
       const res = await $http.request(`masking/${requestStr}`, {
-        params: { index_set_id: this.curCollect?.index_set_id },
         data,
+        params: { index_set_id: this.curCollect?.index_set_id },
       });
       if (res.result && stepChange) {
         this.$bkMessage({
-          theme: 'success',
           message: this.$t('操作成功'),
+          theme: 'success',
         });
         this.$router.go(-1);
       }
@@ -106,28 +110,25 @@ export default class FieldMaskingSeparate extends tsc<IProps> {
 
   render() {
     return (
-      <div class='filed-masking-container'>
-        <div class='masking-field-box'>
+      <div class="filed-masking-container">
+        <div class="masking-field-box">
           <MaskingField
-            ref='maskingField'
             collect-data={this.curCollect}
             is-hidden-sync-num={this.isHiddenSyncNum}
             is-index-set-masking={false}
             onChangeData={() => this.submitSelectRule()}
+            ref="maskingField"
           />
         </div>
-        <div class='submit-content'>
+        <div class="submit-content">
           <Button
             loading={this.submitLoading}
-            theme='primary'
             onClick={() => this.submitSelectRule(true)}
+            theme="primary"
           >
             {this.$t('应用')}
           </Button>
-          <Button
-            theme='default'
-            onClick={() => this.cancelSelectRule()}
-          >
+          <Button onClick={() => this.cancelSelectRule()} theme="default">
             {this.$t('取消')}
           </Button>
         </div>

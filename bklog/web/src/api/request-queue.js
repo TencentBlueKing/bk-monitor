@@ -45,7 +45,7 @@ export default class RequestQueue {
     if (typeof id === 'undefined') {
       return this.queue;
     }
-    return this.queue.filter(request => request.requestId === id);
+    return this.queue.filter((request) => request.requestId === id);
   }
 
   /**
@@ -71,7 +71,7 @@ export default class RequestQueue {
     //     const index = this.queue.indexOf(target)
     //     this.queue.splice(index, 1)
     // }
-    this.queue = [...this.queue.filter(request => request.requestId !== id)];
+    this.queue = [...this.queue.filter((request) => request.requestId !== id)];
   }
 
   /**
@@ -87,7 +87,7 @@ export default class RequestQueue {
     if (typeof requestIds === 'undefined') {
       cancelQueue = [...this.queue];
     } else if (requestIds instanceof Array) {
-      requestIds.forEach(requestId => {
+      requestIds.forEach((requestId) => {
         const cancelRequest = this.get(requestId);
         if (cancelRequest) {
           cancelQueue = [...cancelQueue, ...cancelRequest];
@@ -101,12 +101,14 @@ export default class RequestQueue {
     }
 
     try {
-      cancelQueue.forEach(request => {
+      cancelQueue.forEach((request) => {
         const { requestId } = request;
         this.delete(requestId);
         // request.cancelExcutor(`${msg}: ${requestId}`);
       });
-      return Promise.resolve(requestIds || cancelQueue.map(request => request.requestId));
+      return Promise.resolve(
+        requestIds || cancelQueue.map((request) => request.requestId)
+      );
     } catch (error) {
       return Promise.reject(error);
     }

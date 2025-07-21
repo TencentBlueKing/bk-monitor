@@ -32,7 +32,7 @@ class RequestPool {
   }
 
   getCancelToken(key: string) {
-    return new axios.CancelToken(c => {
+    return new axios.CancelToken((c) => {
       this.setCancelToken(key, c);
     });
   }

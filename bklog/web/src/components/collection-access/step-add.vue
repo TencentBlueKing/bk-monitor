@@ -26,18 +26,13 @@
 
 <template>
   <div class="add-collection-container">
-    <bk-alert
-      class="king-alert"
-      type="info"
-      closable
-    >
+    <bk-alert class="king-alert" type="info" closable>
       <template #title>
         <div class="slot-title-container">
-          <i18n path="接入前请查看 {0} ，尤其是在日志量大的情况下请务必提前沟通。">
-            <a
-              class="link"
-              @click="handleGotoLink('logCollection')"
-            >
+          <i18n
+            path="接入前请查看 {0} ，尤其是在日志量大的情况下请务必提前沟通。"
+          >
+            <a class="link" @click="handleGotoLink('logCollection')">
               {{ $t('接入指引') }}</a
             >
           </i18n>
@@ -90,19 +85,14 @@
                 show-word-limit
               >
               </bk-input>
-              <span
-                v-if="!isTextValid"
-                class="text-error"
-                >{{ formData.collector_config_name_en }}</span
-              >
+              <span v-if="!isTextValid" class="text-error">{{
+                formData.collector_config_name_en
+              }}</span>
             </div>
             <span v-bk-tooltips.top="$t('自动转换成正确的数据名格式')">
-              <bk-button
-                v-if="!isTextValid"
-                text
-                @click="handleEnConvert"
-                >{{ $t('自动转换') }}</bk-button
-              >
+              <bk-button v-if="!isTextValid" text @click="handleEnConvert">{{
+                $t('自动转换')
+              }}</bk-button>
             </span>
           </div>
           <template #tip>
@@ -127,10 +117,7 @@
       <div data-test-id="acquisitionConfig_div_sourceLogBox">
         <div class="add-collection-title original-title">
           <span>{{ $t('源日志信息') }}</span>
-          <div
-            class="flex-ac"
-            v-show="!isPhysicsEnvironment"
-          >
+          <div class="flex-ac" v-show="!isPhysicsEnvironment">
             <span>{{ $t('Yaml模式') }}</span>
             <div
               v-bk-tooltips.top="{ content: $t('请先选择集群'), delay: 500 }"
@@ -147,10 +134,7 @@
             </div>
           </div>
         </div>
-        <div
-          v-if="!isFinishCreateStep"
-          class="add-collection-import"
-        >
+        <div v-if="!isFinishCreateStep" class="add-collection-import">
           <span @click="handleIndexImportClick">{{ $t('索引配置导入') }}</span>
           <IndexImportModal
             v-model="isIndexImportShow"
@@ -158,10 +142,7 @@
           ></IndexImportModal>
         </div>
         <!-- 环境选择 -->
-        <bk-form-item
-          :label="$t('环境选择')"
-          required
-        >
+        <bk-form-item :label="$t('环境选择')" required>
           <div class="environment-box">
             <div
               v-for="(fItem, fIndex) of environmentList"
@@ -263,7 +244,9 @@
                 'is-selected': item.id === formData.collector_scenario_id,
               }"
               :data-test-id="`sourceLogBox_button_checkoutType${item.id}`"
-              :disabled="isUpdate && isUpdateAndSelectedWinEvent && isWinEventLog"
+              :disabled="
+                isUpdate && isUpdateAndSelectedWinEvent && isWinEventLog
+              "
               :key="index"
               @click="chooseLogType(item)"
               >{{ item.name }}
@@ -291,10 +274,7 @@
         </bk-form-item>
 
         <!-- 采集目标 -->
-        <div
-          v-if="isPhysicsEnvironment"
-          class="form-div mt"
-        >
+        <div v-if="isPhysicsEnvironment" class="form-div mt">
           <bk-form-item
             ref="formItemTarget"
             class="item-target"
@@ -321,10 +301,7 @@
               type="text"
             />
           </bk-form-item>
-          <div
-            v-if="formData.target_nodes.length"
-            class="count"
-          >
+          <div v-if="formData.target_nodes.length" class="count">
             <i18n :path="collectTargetTarget[formData.target_node_type]">
               <span class="font-blue">{{ formData.target_nodes.length }}</span>
             </i18n>
@@ -355,7 +332,7 @@
           :en-label-width="enLabelWidth"
           :is-clone-or-update="isCloneOrUpdate"
           :scenario-id="formData.collector_scenario_id"
-          @config-change="val => handelFormChange(val, 'formConfig')"
+          @config-change="(val) => handelFormChange(val, 'formConfig')"
         >
         </config-log-set-item>
 
@@ -402,7 +379,9 @@
               class="add-config-item"
               @click="handleAddNewContainerConfig"
             >
-              <div><span class="bk-icon icon-plus"></span> {{ $t('添加配置项') }}</div>
+              <div>
+                <span class="bk-icon icon-plus"></span> {{ $t('添加配置项') }}
+              </div>
             </div>
             <bk-form-item :label="$t('附加日志标签')">
               <div
@@ -437,10 +416,7 @@
                   ></i>
                 </div>
               </div>
-              <bk-checkbox
-                class="mt8"
-                v-model="formData.add_pod_label"
-              >
+              <bk-checkbox class="mt8" v-model="formData.add_pod_label">
                 {{ $t('自动添加Pod中的{n}', { n: 'label' }) }}
               </bk-checkbox>
               <bk-checkbox
@@ -516,7 +492,10 @@
 
 <script>
 import { projectManages, random, deepEqual, deepClone } from '@/common/util';
-import LogIpSelector, { toTransformNode, toSelectorNode } from '@/components/log-ip-selector/log-ip-selector';
+import LogIpSelector, {
+  toTransformNode,
+  toSelectorNode,
+} from '@/components/log-ip-selector/log-ip-selector';
 import ContainerSvg from '@/images/container-icons/Container.svg';
 import LinuxSvg from '@/images/container-icons/Linux.svg';
 import NodeSvg from '@/images/container-icons/Node.svg';
@@ -755,15 +734,35 @@ export default {
           category: this.$t('物理环境'),
           btnList: [
             { id: 'linux', img: LinuxSvg, name: 'Linux', isDisable: false },
-            { id: 'windows', img: WindowsSvg, name: 'Windows', isDisable: false },
+            {
+              id: 'windows',
+              img: WindowsSvg,
+              name: 'Windows',
+              isDisable: false,
+            },
           ],
         },
         {
           category: this.$t('容器环境'),
           btnList: [
-            { id: 'container_log_config', img: ContainerSvg, name: 'Container', isDisable: false },
-            { id: 'node_log_config', img: NodeSvg, name: 'Node', isDisable: false },
-            { id: 'std_log_config', img: StdoutSvg, name: this.$t('标准输出'), isDisable: false },
+            {
+              id: 'container_log_config',
+              img: ContainerSvg,
+              name: 'Container',
+              isDisable: false,
+            },
+            {
+              id: 'node_log_config',
+              img: NodeSvg,
+              name: 'Node',
+              isDisable: false,
+            },
+            {
+              id: 'std_log_config',
+              img: StdoutSvg,
+              name: this.$t('标准输出'),
+              isDisable: false,
+            },
           ],
         },
       ],
@@ -786,7 +785,13 @@ export default {
       isExtraError: false, // 附加标签是否有出错
       uiconfigToYamlData: {}, // 切换成yaml时当前保存的ui配置
       // ip选择器面板
-      ipSelectorPanelList: ['staticTopo', 'dynamicTopo', 'serviceTemplate', 'setTemplate', 'manualInput'],
+      ipSelectorPanelList: [
+        'staticTopo',
+        'dynamicTopo',
+        'serviceTemplate',
+        'setTemplate',
+        'manualInput',
+      ],
       // 编辑态ip选择器初始值
       ipSelectorOriginalValue: null,
       enLabelWidth: 180,
@@ -809,7 +814,10 @@ export default {
     },
     isCloseDataLink() {
       // 没有可上报的链路时，编辑采集配置链路ID为0或null时，隐藏链路配置框，并且不做空值校验。
-      return !this.linkConfigurationList.length || (this.isUpdate && !this.curCollect.data_link_id);
+      return (
+        !this.linkConfigurationList.length ||
+        (this.isUpdate && !this.curCollect.data_link_id)
+      );
     },
     // 是否打开行首正则功能
     hasMultilineReg() {
@@ -832,7 +840,7 @@ export default {
       },
       set(newVal) {
         if (newVal) {
-          this.formData.configs.forEach(item => {
+          this.formData.configs.forEach((item) => {
             item.container = this.allContainer;
             item.namespaces = [];
           });
@@ -842,9 +850,13 @@ export default {
     // 获取日志类型列表
     getCollectorScenario() {
       try {
-        const activeScenario = this.globalsData.collector_scenario.filter(item => item.is_active);
+        const activeScenario = this.globalsData.collector_scenario.filter(
+          (item) => item.is_active
+        );
         if (this.currentEnvironment === 'windows') return activeScenario;
-        const winIndex = activeScenario.findIndex(item => item.id === 'wineventlog');
+        const winIndex = activeScenario.findIndex(
+          (item) => item.id === 'wineventlog'
+        );
         activeScenario.splice(winIndex, 1);
         return activeScenario;
       } catch (error) {
@@ -856,7 +868,9 @@ export default {
       return this.isUpdate || this.isClone;
     },
     localClusterList() {
-      return this.clusterList.filter(val => (this.isNode ? !val.is_shared : true));
+      return this.clusterList.filter((val) =>
+        this.isNode ? !val.is_shared : true
+      );
     },
     // ip选择器选中节点
     selectorNodes() {
@@ -865,7 +879,9 @@ export default {
     updateCollectorConfigID() {
       // 若是新增容器日志 返回上一步 则使用curCollect缓存的collector_config_id更新;
       const { collectorId } = this.$route.params;
-      return !!collectorId ? Number(collectorId) : Number(this.curCollect.collector_config_id);
+      return !!collectorId
+        ? Number(collectorId)
+        : Number(this.curCollect.collector_config_id);
     },
     labelWidth() {
       return this.$store.state.isEnLanguage ? this.enLabelWidth : 115;
@@ -874,9 +890,14 @@ export default {
   watch: {
     currentEnvironment(nVal, oVal) {
       if (oVal === 'windows' && this.isWinEventLog) {
-        this.formData.collector_scenario_id = this.globalsData.collector_scenario[0].id;
+        this.formData.collector_scenario_id =
+          this.globalsData.collector_scenario[0].id;
       }
-      if (['std_log_config', 'container_log_config', 'node_log_config'].includes(nVal)) {
+      if (
+        ['std_log_config', 'container_log_config', 'node_log_config'].includes(
+          nVal
+        )
+      ) {
         this.formData.environment = 'container';
         this.isNode = nVal === 'node_log_config';
         !this.clusterList.length && this.getBcsClusterList();
@@ -940,7 +961,8 @@ export default {
           // 克隆时不缓存初始数据
           // 编辑采集项时缓存初始数据 用于对比提交时是否发生变化 未修改则不重新提交 update 接口
           this.localParams = this.handleParams();
-          const { description, collector_config_name, ...otherVal } = this.localParams;
+          const { description, collector_config_name, ...otherVal } =
+            this.localParams;
           this.editComparedData = otherVal;
         }
       });
@@ -958,9 +980,10 @@ export default {
             bk_biz_id: this.$store.state.bkBizId,
           },
         });
-        this.linkConfigurationList = res.data.filter(item => item.is_active);
+        this.linkConfigurationList = res.data.filter((item) => item.is_active);
         if (this.linkConfigurationList.length && !this.isCloneOrUpdate) {
-          this.formData.data_link_id = this.linkConfigurationList[0].data_link_id;
+          this.formData.data_link_id =
+            this.linkConfigurationList[0].data_link_id;
         }
       } catch (e) {
         console.warn(e);
@@ -1011,7 +1034,9 @@ export default {
           annotation_selector: yamlAnnoSelector,
           collector_type,
         } = item;
-        const showNameSpace = itemNamespacesExclude?.length ? itemNamespacesExclude : itemNamespace;
+        const showNameSpace = itemNamespacesExclude?.length
+          ? itemNamespacesExclude
+          : itemNamespace;
         const namespaces = item.any_namespace ? ['*'] : showNameSpace;
         const container = {
           workload_type,
@@ -1022,16 +1047,25 @@ export default {
 
         let labelSelector = [];
         let annotationSelector = [];
-        let containerNameList = this.getContainerNameList(containerName || containerNameExclude);
+        let containerNameList = this.getContainerNameList(
+          containerName || containerNameExclude
+        );
         if (isYamlData) {
           Object.assign(container, yamlContainer);
           labelSelector = this.getLabelSelectorArray(yamlSelector);
           annotationSelector = this.getLabelSelectorArray(yamlAnnoSelector);
-          const { container_name: yamlContainerName, container_name_exclude: yamlContainerNameExclude } = yamlContainer;
-          containerNameList = this.getContainerNameList(yamlContainerName || yamlContainerNameExclude);
-          params.paths = params.paths.length ? params.paths.map(item => ({ value: item })) : [{ value: '' }];
+          const {
+            container_name: yamlContainerName,
+            container_name_exclude: yamlContainerNameExclude,
+          } = yamlContainer;
+          containerNameList = this.getContainerNameList(
+            yamlContainerName || yamlContainerNameExclude
+          );
+          params.paths = params.paths.length
+            ? params.paths.map((item) => ({ value: item }))
+            : [{ value: '' }];
           params.exclude_files = params.exclude_files.length
-            ? params.exclude_files.map(item => ({ value: item }))
+            ? params.exclude_files.map((item) => ({ value: item }))
             : [{ value: '' }];
         } else {
           labelSelector = this.getLabelSelectorArray({
@@ -1042,7 +1076,9 @@ export default {
             match_annotations: matchAnnotations || [],
           });
           if (!params.conditions?.separator_filters) {
-            params.conditions.separator_filters = [{ fieldindex: '', word: '', op: '=', logic_op: 'and' }];
+            params.conditions.separator_filters = [
+              { fieldindex: '', word: '', op: '=', logic_op: 'and' },
+            ];
           }
         }
         const containerExclude = !!containerNameExclude ? '!=' : '=';
@@ -1055,7 +1091,10 @@ export default {
             scopeSelectShow: {
               namespace: !Boolean(namespaces.length),
               label: !Boolean(labelSelector.length),
-              load: !(Boolean(container.workload_type) || Boolean(container.workload_name)),
+              load: !(
+                Boolean(container.workload_type) ||
+                Boolean(container.workload_name)
+              ),
               containerName: !Boolean(containerNameList.length),
               annotation: !Boolean(annotationSelector.length),
             },
@@ -1078,7 +1117,13 @@ export default {
     /** 获取label页面所需的数组 */
     getLabelSelectorArray(selector) {
       return Object.entries(selector).reduce((pre, [labelKey, labelVal]) => {
-        pre.push(...labelVal.map(item => ({ ...item, id: random(10), type: labelKey })));
+        pre.push(
+          ...labelVal.map((item) => ({
+            ...item,
+            id: random(10),
+            type: labelKey,
+          }))
+        );
         return pre;
       }, []);
     },
@@ -1090,8 +1135,13 @@ export default {
     getInitFormData(formData) {
       const curFormData = deepClone(formData);
       // win_event类型不需要初始化分隔符的过滤条件
-      if (!curFormData.params.conditions?.separator_filters && curFormData.collector_scenario_id !== 'wineventlog') {
-        curFormData.params.conditions.separator_filters = [{ fieldindex: '', word: '', op: '=', logic_op: 'and' }];
+      if (
+        !curFormData.params.conditions?.separator_filters &&
+        curFormData.collector_scenario_id !== 'wineventlog'
+      ) {
+        curFormData.params.conditions.separator_filters = [
+          { fieldindex: '', word: '', op: '=', logic_op: 'and' },
+        ];
       }
       return curFormData;
     },
@@ -1151,20 +1201,26 @@ export default {
         await this.$refs.validateForm.validate();
       } catch (error) {}
       // win日志类型验证
-      if (this.$refs.formConfigRef?.winCannotPass && this.isWinEventLog) return false;
+      if (this.$refs.formConfigRef?.winCannotPass && this.isWinEventLog)
+        return false;
       // 物理环境验证
       if (this.isPhysicsEnvironment) {
         return (
-          (await this.$refs.formConfigRef.logFilterValidate()) && (await this.$refs.formConfigRef.extraLabelsValidate())
+          (await this.$refs.formConfigRef.logFilterValidate()) &&
+          (await this.$refs.formConfigRef.extraLabelsValidate())
         );
       }
       // 容器环境并且打开yaml模式时进行yaml语法检测
       if (this.isYaml && !this.isPhysicsEnvironment) {
-        if (!this.$refs.yamlEditorRef.getSubmitState || this.formData.yaml_config === '') {
+        if (
+          !this.$refs.yamlEditorRef.getSubmitState ||
+          this.formData.yaml_config === ''
+        ) {
           let message = this.$refs.yamlEditorRef.isHaveCannotSubmitWaring
             ? this.$t('yaml缺少必要的字段')
             : this.$t('yaml语法出错');
-          this.formData.yaml_config === '' && (message = this.$t('yaml不能为空'));
+          this.formData.yaml_config === '' &&
+            (message = this.$t('yaml不能为空'));
           this.$bkMessage({ theme: 'error', message });
           return false;
         }
@@ -1176,18 +1232,23 @@ export default {
         const configList = this.$refs.configsSelectRef.$refs.containerConfigRef;
         // 标准输出环境下配置项里过滤内容是否有分隔符过滤 有则进行配置项form校验
         const isCheckConfigItem = !(
-          this.currentEnvironment === 'std_log_config' && this.formData.collector_scenario_id === 'row'
+          this.currentEnvironment === 'std_log_config' &&
+          this.formData.collector_scenario_id === 'row'
         );
         // 检查配置项中是否有分隔符过滤
-        const isHaveSeparator = configList.some(item => item.subFormData.params.conditions.type === 'separator');
+        const isHaveSeparator = configList.some(
+          (item) => item.subFormData.params.conditions.type === 'separator'
+        );
         if (isCheckConfigItem || isHaveSeparator) {
           // 判断config列表里是否有需要校验的dom元素。
           for (const key in configList) {
-            if (containerConfigValidate) containerConfigValidate = await configList[Number(key)].logFilterValidate();
+            if (containerConfigValidate)
+              containerConfigValidate =
+                await configList[Number(key)].logFilterValidate();
           }
         }
         // 附加日志标签是否只单独填写了一边
-        this.isExtraError = this.formData.extra_labels.some(item => {
+        this.isExtraError = this.formData.extra_labels.some((item) => {
           const extraFillLength = Object.values(item).reduce((pre, cur) => {
             cur === '' && (pre += 1);
             return pre;
@@ -1195,9 +1256,15 @@ export default {
           return extraFillLength === 1;
         });
         if (!containerConfigValidate || this.isExtraError) return false;
-        if (this.getIsSharedCluster() && this.formData.configs.some(conf => !conf.namespaces.length)) {
+        if (
+          this.getIsSharedCluster() &&
+          this.formData.configs.some((conf) => !conf.namespaces.length)
+        ) {
           // 容器环境下选择了共享集群 但NameSpace为空
-          this.$bkMessage({ theme: 'error', message: this.$t('配置项命名空间不能为空') });
+          this.$bkMessage({
+            theme: 'error',
+            message: this.$t('配置项命名空间不能为空'),
+          });
           return false;
         }
       }
@@ -1217,7 +1284,7 @@ export default {
       const updateData = { params: urlParams, data: params };
       this.$http
         .request(requestUrl, updateData)
-        .then(res => {
+        .then((res) => {
           if (res.code === 0) {
             this.$store.commit(
               `collect/${this.isUpdate ? 'updateCurCollect' : 'setCurCollect'}`,
@@ -1255,11 +1322,13 @@ export default {
       } else {
         requestUrl = 'container/create';
       }
-      const data = Object.assign(params, this.isYaml ? this.yamlFormData : {}, { yaml_config_enabled: this.isYaml });
+      const data = Object.assign(params, this.isYaml ? this.yamlFormData : {}, {
+        yaml_config_enabled: this.isYaml,
+      });
       const updateData = { params: urlParams, data };
       this.$http
         .request(requestUrl, updateData)
-        .then(res => {
+        .then((res) => {
           if (res.code === 0) {
             this.$store.commit(
               `collect/${this.isUpdate ? 'updateCurCollect' : 'setCurCollect'}`,
@@ -1280,7 +1349,7 @@ export default {
             }
           }
         })
-        .catch(error => {
+        .catch((error) => {
           console.warn(error);
           callback?.(false);
           // this.isShowSubmitErrorDialog = true;
@@ -1342,10 +1411,16 @@ export default {
         });
         containerFromData.configs.forEach((item, index) => {
           const containerKey =
-            item.noQuestParams.containerExclude === '!=' ? 'container_name_exclude' : 'container_name';
-          const namespacesKey = item.noQuestParams.namespacesExclude === '!=' ? 'namespaces_exclude' : 'namespaces';
+            item.noQuestParams.containerExclude === '!='
+              ? 'container_name_exclude'
+              : 'container_name';
+          const namespacesKey =
+            item.noQuestParams.namespacesExclude === '!='
+              ? 'namespaces_exclude'
+              : 'namespaces';
           JSON.stringify(item.namespaces) === '["*"]' && (item.namespaces = []);
-          const { namespace, load, containerName } = this.getScopeSelectShow(index);
+          const { namespace, load, containerName } =
+            this.getScopeSelectShow(index);
           item.collector_type = this.currentEnvironment;
           if (namespace || this.isNode) item.namespaces = [];
           if (load || this.isNode) {
@@ -1355,11 +1430,17 @@ export default {
           const cloneNamespaces = deepClone(item.namespaces);
           delete item.namespaces;
           item[namespacesKey] = cloneNamespaces;
-          item.label_selector = this.getSelectorQueryParams(item.labelSelector, {
-            match_labels: [],
-            match_expressions: [],
-          });
-          item.annotation_selector = this.getSelectorQueryParams(item.annotationSelector, { match_annotations: [] });
+          item.label_selector = this.getSelectorQueryParams(
+            item.labelSelector,
+            {
+              match_labels: [],
+              match_expressions: [],
+            }
+          );
+          item.annotation_selector = this.getSelectorQueryParams(
+            item.annotationSelector,
+            { match_annotations: [] }
+          );
 
           item.container = {
             workload_type: item.container.workload_type,
@@ -1379,7 +1460,9 @@ export default {
           }
           item.params = this.filterParams(item.params);
         });
-        containerFromData.extra_labels = extraLabels.filter(item => !(item.key === '' && item.value === ''));
+        containerFromData.extra_labels = extraLabels.filter(
+          (item) => !(item.key === '' && item.value === '')
+        );
         return Object.assign(containerFromData, {
           // 容器环境更新
           bk_biz_id: this.bkBizId,
@@ -1424,9 +1507,14 @@ export default {
         if (type !== 'none') {
           Object.assign(params.conditions, { separator, separator_filters });
         }
-        params.paths = params.paths.map(item => (typeof item === 'object' ? item.value : item)) || [];
+        params.paths =
+          params.paths.map((item) =>
+            typeof item === 'object' ? item.value : item
+          ) || [];
         params.exclude_files =
-          params.exclude_files?.map(item => (typeof item === 'object' ? item.value : item)).filter(Boolean) || [];
+          params.exclude_files
+            ?.map((item) => (typeof item === 'object' ? item.value : item))
+            .filter(Boolean) || [];
       } else {
         params = this.$refs.formConfigRef.getWinParamsData;
       }
@@ -1526,7 +1614,7 @@ export default {
         .request('collect/details', {
           params: { collector_config_id: id },
         })
-        .then(res => {
+        .then((res) => {
           if (res.data) {
             this.$store.commit('collect/setCurCollect', res.data);
           }
@@ -1541,7 +1629,10 @@ export default {
     async getEnNameIsRepeat(val) {
       try {
         const res = await this.$http.request('collect/getPreCheck', {
-          params: { collector_config_name_en: val, bk_biz_id: this.$store.state.bkBizId },
+          params: {
+            collector_config_name_en: val,
+            bk_biz_id: this.$store.state.bkBizId,
+          },
         });
         if (res.data) {
           this.enNameErrorMessage = res.data.message;
@@ -1560,7 +1651,7 @@ export default {
       if (this.isUpdate && isDisable) return;
       this.currentEnvironment = name;
       if (!['linux', 'windows'].includes(this.currentEnvironment)) {
-        this.formData.configs.forEach(item => (item.labelSelector = [])); // 切换环境清空label
+        this.formData.configs.forEach((item) => (item.labelSelector = [])); // 切换环境清空label
       }
       if (name === 'windows' && this.isUpdateAndSelectedWinEvent) {
         this.formData.collector_scenario_id = 'wineventlog';
@@ -1570,7 +1661,8 @@ export default {
       this.formData.extra_labels.push({ key: '', value: '' });
     },
     handleDeleteExtraLabel(index) {
-      this.formData.extra_labels.length > 1 && this.formData.extra_labels.splice(index, 1);
+      this.formData.extra_labels.length > 1 &&
+        this.formData.extra_labels.splice(index, 1);
     },
     handleAddNewContainerConfig() {
       // 添加配置项
@@ -1581,7 +1673,11 @@ export default {
     },
     // 当前所选集群是否共享集群
     getIsSharedCluster() {
-      return this.clusterList?.find(cluster => cluster.id === this.formData.bcs_cluster_id)?.is_shared ?? false;
+      return (
+        this.clusterList?.find(
+          (cluster) => cluster.id === this.formData.bcs_cluster_id
+        )?.is_shared ?? false
+      );
     },
     /**
      * @desc: 获取bcs集群列表
@@ -1592,12 +1688,12 @@ export default {
       const query = { bk_biz_id: this.bkBizId };
       this.$http
         .request('container/getBcsList', { query })
-        .then(res => {
+        .then((res) => {
           if (res.code === 0) {
             this.clusterList = res.data;
           }
         })
-        .catch(err => {
+        .catch((err) => {
           console.warn(err);
         })
         .finally(() => {
@@ -1611,12 +1707,18 @@ export default {
     handelChangeYaml(val) {
       return new Promise((resolve, reject) => {
         if (val) {
-          const { add_pod_label, add_pod_annotation, extra_labels, configs } = this.handleParams();
-          const data = { add_pod_label, add_pod_annotation, extra_labels, configs };
+          const { add_pod_label, add_pod_annotation, extra_labels, configs } =
+            this.handleParams();
+          const data = {
+            add_pod_label,
+            add_pod_annotation,
+            extra_labels,
+            configs,
+          };
           // 传入处理后的参数 请求ui配置转yaml的数据
           this.$http
             .request('container/containerConfigsToYaml', { data })
-            .then(res => {
+            .then((res) => {
               this.formData.yaml_config = res.data;
               // 保存进入yaml模式之前的ui配置参数
               Object.assign(this.uiconfigToYamlData, {
@@ -1627,7 +1729,7 @@ export default {
               });
               resolve(true);
             })
-            .catch(err => {
+            .catch((err) => {
               console.warn(err);
               reject(false);
             });
@@ -1638,7 +1740,11 @@ export default {
               Object.assign(this.formData, this.uiconfigToYamlData);
             } else {
               // 无报错 回填yamlData的参数
-              const assignData = this.initContainerFormData(this.yamlFormData, 'all', true);
+              const assignData = this.initContainerFormData(
+                this.yamlFormData,
+                'all',
+                true
+              );
               Object.assign(this.formData, assignData);
             }
             resolve(true);
@@ -1652,12 +1758,18 @@ export default {
      * @desc: 编进进入时判断当前环境 禁用另一边环境选择
      */
     initBtnListDisable() {
-      const operateIndex = ['linux', 'windows'].includes(this.currentEnvironment) ? 1 : 0;
-      this.environmentList[operateIndex].btnList.forEach(item => (item.isDisable = true));
+      const operateIndex = ['linux', 'windows'].includes(
+        this.currentEnvironment
+      )
+        ? 1
+        : 0;
+      this.environmentList[operateIndex].btnList.forEach(
+        (item) => (item.isDisable = true)
+      );
     },
     handelClusterChange() {
       // 切换集群清空 namespaces
-      this.formData.configs = this.formData.configs.map(conf => {
+      this.formData.configs = this.formData.configs.map((conf) => {
         return {
           ...conf,
           namespaces: [],
@@ -1706,7 +1818,9 @@ export default {
       return this.formData.configs[conIndex].noQuestParams.scopeSelectShow;
     },
     getNameSpaceStr(namespaces) {
-      return namespaces.length === 1 && namespaces[0] === '*' ? '' : namespaces.join(',');
+      return namespaces.length === 1 && namespaces[0] === '*'
+        ? ''
+        : namespaces.join(',');
     },
     /**
      * @desc: 展示用的标签格式转化成存储或传参的标签格式
@@ -1752,7 +1866,12 @@ export default {
       const syncType = this.exportCollectObj.syncType;
       const collect = this.exportCollectObj.collect;
       const everyExport = ['source_log_info', 'acquisition_target'];
-      const { collector_config_name, collector_config_name_en, description, target_nodes: formNodes } = this.formData;
+      const {
+        collector_config_name,
+        collector_config_name_en,
+        description,
+        target_nodes: formNodes,
+      } = this.formData;
       const baseMessage = {
         collector_config_name,
         collector_config_name_en,
@@ -1760,7 +1879,7 @@ export default {
       };
       let collectConfig = {};
       this.initFromData(collect);
-      if (everyExport.every(item => syncType.includes(item))) {
+      if (everyExport.every((item) => syncType.includes(item))) {
         if (!this.isPhysicsEnvironment) {
           Object.assign(collectConfig, this.initContainerFormData(collect));
         }
@@ -1769,14 +1888,20 @@ export default {
           if (this.isPhysicsEnvironment) {
             this.formData.target_nodes = formNodes;
           } else {
-            Object.assign(collectConfig, this.initContainerFormData(collect, 'params'));
+            Object.assign(
+              collectConfig,
+              this.initContainerFormData(collect, 'params')
+            );
           }
         }
         if (syncType.includes('acquisition_target')) {
           if (this.isPhysicsEnvironment) {
             this.formData.target_nodes = collect.target_nodes;
           } else {
-            Object.assign(collectConfig, this.initContainerFormData(collect, 'collect'));
+            Object.assign(
+              collectConfig,
+              this.initContainerFormData(collect, 'collect')
+            );
           }
         }
       }
@@ -1831,487 +1956,487 @@ export default {
 </script>
 
 <style lang="scss">
-  @import '@/scss/mixins/flex.scss';
-
-  /* stylelint-disable no-descending-specificity */
-  .add-collection-container {
-    min-width: 950px;
-    max-height: 100%;
-    padding: 0 42px 42px;
-    overflow: auto;
-
-    .en-bk-form {
-      width: 710px;
-
-      .en-name-box {
-        align-items: center;
-
-        @include flex-justify(space-between);
-      }
-
-      .text-error {
-        position: absolute;
-        top: 6px;
-        left: 12px;
-        display: inline-block;
-        font-size: 12px;
-        color: transparent;
-
-        /* stylelint-disable-next-line declaration-no-important */
-        text-decoration: red wavy underline !important;
-        pointer-events: none;
-      }
-    }
-
-    .bk-form-content {
-      line-height: 20px;
-    }
-
-    .king-alert {
-      margin: 24px 0 -18px;
-
-      .link {
-        color: #3a84ff;
-        cursor: pointer;
-      }
-    }
-
-    .add-collection-title {
-      width: 100%;
-      padding-top: 36px;
-      padding-bottom: 10px;
-      margin-bottom: 20px;
-      font-size: 14px;
-      font-weight: 600;
-      color: #63656e;
-      border-bottom: 1px solid #dcdee5;
-    }
-
-    .add-collection-import {
-      padding: 12px 24px;
-      font-size: 16px;
-
-      span {
-        padding: 12px;
-        font-weight: 800;
-        color: #3a84ff;
-        cursor: pointer;
-      }
-    }
-
-    .original-title {
-      @include flex-justify(flex-start);
-
-      > div {
-        margin-left: 40px;
-        font-weight: 500;
-      }
-    }
-
-    .tips,
-    .en-name-tips {
-      padding-top: 4px;
-      font-size: 12px;
-      color: #aeb0b7;
-    }
-
-    .en-name-tips {
-      margin-top: 8px;
-      margin-left: 0;
-      line-height: 12px;
-    }
-
-    .hight-setting {
-      width: 100%;
-      min-height: 60px;
-
-      .icons-downs {
-        display: inline-block;
-        width: 9px;
-        height: 5px;
-        margin-top: -3px;
-        margin-right: 6px;
-        vertical-align: middle;
-        background: url('../../images/icons/triangle.png');
-        background-size: 100% 100%;
-      }
-
-      .icon-left {
-        transform: rotate(-90deg);
-      }
-
-      .log-paths {
-        .bk-form-control {
-          width: 460px;
-        }
-      }
-    }
-
-    .bk-label {
-      color: #90929a;
-    }
-
-    .w520 {
-      &.bk-form-control {
-        width: 520px;
-      }
-
-      &.bk-select {
-        width: 520px;
-      }
-    }
-
-    .multiline-log-container {
-      margin-top: 4px;
-
-      .row-container {
-        display: flex;
-        align-items: center;
-
-        &.second {
-          // padding-left: 115px;
-          margin-top: 10px;
-          font-size: 12px;
-          color: #63656e;
-
-          .bk-form-item {
-            /* stylelint-disable-next-line declaration-no-important */
-            margin: 0 !important;
-
-            .bk-form-content {
-              /* stylelint-disable-next-line declaration-no-important */
-              margin: 0 !important;
-
-              .bk-form-control {
-                width: 64px;
-                margin: 0 6px;
-              }
-            }
-          }
-        }
-
-        .king-button {
-          margin-bottom: 4px;
-        }
-      }
-    }
-
-    .form-div {
-      display: flex;
-
-      .form-inline-div {
-        .bk-form-content {
-          display: flex;
-        }
-      }
-
-      .prefix {
-        margin-right: 8px;
-        font-size: 14px;
-        line-height: 32px;
-        color: #858790;
-      }
-
-      .count {
-        margin-left: 8px;
-        font-size: 12px;
-        line-height: 32px;
-        color: #7a7c85;
-      }
-
-      .font-blue {
-        font-weight: bold;
-        color: #4e99ff;
-      }
-
-      .font-gray {
-        color: #858790;
-      }
-
-      .icons {
-        font-size: 21px;
-        line-height: 32px;
-        color: #c4c6cb;
-        vertical-align: middle;
-        cursor: pointer;
-      }
-
-      .disable {
-        color: #dcdee5;
-        cursor: not-allowed;
-      }
-
-      .item-target {
-        &.is-error .bk-form-content {
-          padding-right: 30px;
-        }
-      }
-    }
-
-    .win-filter {
-      margin-top: 8px;
-
-      .select-div {
-        width: 129px;
-        margin-right: 8px;
-      }
-
-      .tag-input {
-        width: 320px;
-      }
-    }
-
-    .log-type {
-      height: 32px;
-      border-radius: 2px;
-
-      .bk-button {
-        min-width: 106px;
-        font-size: 12px;
-
-        span {
-          padding: 0 1px;
-        }
-      }
-
-      .disable {
-        color: #dcdee5;
-        cursor: not-allowed;
-        border-color: #dcdee5;
-      }
-    }
-
-    .species-item {
-      margin-bottom: -30px;
-
-      .bk-form-checkbox {
-        display: flex;
-        align-items: center;
-        width: 320px;
-        height: 30px;
-      }
-
-      .bk-tag-selector {
-        width: 320px;
-        transform: translate3d(66px, -30px, 0);
-      }
-    }
-
-    .ml {
-      margin-left: -115px;
-    }
-
-    .mt {
-      margin-top: 20px;
-    }
-
-    .ml9 {
-      margin-left: 8px;
-    }
-
-    .ml10 {
-      margin-left: 10px;
-    }
-
-    .ml115 {
-      margin-left: 115px;
-    }
-
-    .mt8 {
-      margin-top: 8px;
-    }
-
-    .is-selected {
-      /* stylelint-disable-next-line declaration-no-important */
-      z-index: 2 !important;
-    }
-
-    .rulesColor {
-      /* stylelint-disable-next-line declaration-no-important */
-      border-color: #ff5656 !important;
-    }
-
-    .tagRulesColor {
-      .bk-tag-input {
-        /* stylelint-disable-next-line declaration-no-important */
-        border-color: #ff5656 !important;
-      }
-    }
-
-    .win-content {
-      position: relative;
-      left: 118px;
-      width: 76%;
-      padding-bottom: 20px;
-
-      > span {
-        position: absolute;
-        top: 6px;
-        left: -76px;
-        font-size: 12px;
-        color: #90929a;
-      }
-
-      &.en-span span {
-        left: -112px;
-      }
-
-      .filter-select {
-        margin-top: 11px;
-      }
-
-      .bk-select {
-        width: 184px;
-        height: 32px;
-        margin: 0 8px 12px 0;
-      }
-    }
-
-    .icon-close-circle {
-      display: inline-block;
-      font-size: 14px;
-      transform: rotateZ(45deg);
-    }
-
-    .environment-box {
-      display: flex;
-      align-items: center;
-      margin-bottom: 30px;
-
-      .environment-container {
-        height: 68px;
-        margin-right: 8px;
-
-        .environment-category {
-          display: inline-block;
-          margin: 6px 0;
-          font-size: 12px;
-          font-weight: 400;
-          color: #63656e;
-        }
-
-        .button-box {
-          display: flex;
-
-          .environment-button {
-            display: flex;
-            align-items: center;
-            width: 120px;
-            height: 40px;
-            margin-right: 16px;
-            font-size: 12px;
-            color: #313238;
-            cursor: pointer;
-            user-select: none;
-            border: 1px solid #dcdee5;
-            border-radius: 2px;
-
-            img {
-              padding: 0 8px 0 4px;
-            }
-
-            &.disable {
-              cursor: no-drop;
-              background: #fafbfd;
-            }
-
-            &.active {
-              background: #e1ecff;
-              border: 1px solid #3a84ff;
-            }
-          }
-        }
-
-        &:not(:first-child) {
-          position: relative;
-          margin-left: 24px;
-
-          &::before {
-            position: absolute;
-            top: 36px;
-            left: -24px;
-            width: 1px;
-            height: 32px;
-            content: ' ';
-            background-color: #dcdee5;
-          }
-        }
-      }
-    }
-
-    .cluster-select-box {
-      margin-top: 20px;
-
-      .bk-select {
-        width: 382px;
-      }
-
-      .tips {
-        font-size: 12px;
-        color: #979ba5;
-      }
-    }
-
-    .add-config-item {
-      justify-content: center;
-      width: 730px;
-      height: 42px;
-      margin: 0 0 14px 115px;
-      font-size: 12px;
-      cursor: pointer;
-      background: #fafbfd;
-      border: 1px dashed #dcdee5;
-
-      @include flex-align();
-
-      > div {
-        color: #63656e;
-
-        @include flex-center;
-      }
-
-      .icon-plus {
-        font-size: 22px;
-        color: #989ca7;
-      }
-    }
-
-    .extra-error {
-      .bk-form-input {
-        border-color: #ff5656;
-      }
-    }
-
-    .add-log-label {
-      display: flex;
-      align-items: center;
-
-      &:not(:first-child) {
-        margin-top: 20px;
-      }
-
-      span {
-        margin: 0 7px;
-        color: #ff9c01;
-      }
-
-      .bk-form-control {
-        width: 240px;
-      }
-    }
-
-    .page-operate {
-      margin-top: 36px;
-    }
-
-    .justify-bt {
+@import '@/scss/mixins/flex.scss';
+
+/* stylelint-disable no-descending-specificity */
+.add-collection-container {
+  min-width: 950px;
+  max-height: 100%;
+  padding: 0 42px 42px;
+  overflow: auto;
+
+  .en-bk-form {
+    width: 710px;
+
+    .en-name-box {
       align-items: center;
 
       @include flex-justify(space-between);
     }
 
-    .flex-ac {
-      @include flex-align();
+    .text-error {
+      position: absolute;
+      top: 6px;
+      left: 12px;
+      display: inline-block;
+      font-size: 12px;
+      color: transparent;
+
+      /* stylelint-disable-next-line declaration-no-important */
+      text-decoration: red wavy underline !important;
+      pointer-events: none;
     }
   }
+
+  .bk-form-content {
+    line-height: 20px;
+  }
+
+  .king-alert {
+    margin: 24px 0 -18px;
+
+    .link {
+      color: #3a84ff;
+      cursor: pointer;
+    }
+  }
+
+  .add-collection-title {
+    width: 100%;
+    padding-top: 36px;
+    padding-bottom: 10px;
+    margin-bottom: 20px;
+    font-size: 14px;
+    font-weight: 600;
+    color: #63656e;
+    border-bottom: 1px solid #dcdee5;
+  }
+
+  .add-collection-import {
+    padding: 12px 24px;
+    font-size: 16px;
+
+    span {
+      padding: 12px;
+      font-weight: 800;
+      color: #3a84ff;
+      cursor: pointer;
+    }
+  }
+
+  .original-title {
+    @include flex-justify(flex-start);
+
+    > div {
+      margin-left: 40px;
+      font-weight: 500;
+    }
+  }
+
+  .tips,
+  .en-name-tips {
+    padding-top: 4px;
+    font-size: 12px;
+    color: #aeb0b7;
+  }
+
+  .en-name-tips {
+    margin-top: 8px;
+    margin-left: 0;
+    line-height: 12px;
+  }
+
+  .hight-setting {
+    width: 100%;
+    min-height: 60px;
+
+    .icons-downs {
+      display: inline-block;
+      width: 9px;
+      height: 5px;
+      margin-top: -3px;
+      margin-right: 6px;
+      vertical-align: middle;
+      background: url('../../images/icons/triangle.png');
+      background-size: 100% 100%;
+    }
+
+    .icon-left {
+      transform: rotate(-90deg);
+    }
+
+    .log-paths {
+      .bk-form-control {
+        width: 460px;
+      }
+    }
+  }
+
+  .bk-label {
+    color: #90929a;
+  }
+
+  .w520 {
+    &.bk-form-control {
+      width: 520px;
+    }
+
+    &.bk-select {
+      width: 520px;
+    }
+  }
+
+  .multiline-log-container {
+    margin-top: 4px;
+
+    .row-container {
+      display: flex;
+      align-items: center;
+
+      &.second {
+        // padding-left: 115px;
+        margin-top: 10px;
+        font-size: 12px;
+        color: #63656e;
+
+        .bk-form-item {
+          /* stylelint-disable-next-line declaration-no-important */
+          margin: 0 !important;
+
+          .bk-form-content {
+            /* stylelint-disable-next-line declaration-no-important */
+            margin: 0 !important;
+
+            .bk-form-control {
+              width: 64px;
+              margin: 0 6px;
+            }
+          }
+        }
+      }
+
+      .king-button {
+        margin-bottom: 4px;
+      }
+    }
+  }
+
+  .form-div {
+    display: flex;
+
+    .form-inline-div {
+      .bk-form-content {
+        display: flex;
+      }
+    }
+
+    .prefix {
+      margin-right: 8px;
+      font-size: 14px;
+      line-height: 32px;
+      color: #858790;
+    }
+
+    .count {
+      margin-left: 8px;
+      font-size: 12px;
+      line-height: 32px;
+      color: #7a7c85;
+    }
+
+    .font-blue {
+      font-weight: bold;
+      color: #4e99ff;
+    }
+
+    .font-gray {
+      color: #858790;
+    }
+
+    .icons {
+      font-size: 21px;
+      line-height: 32px;
+      color: #c4c6cb;
+      vertical-align: middle;
+      cursor: pointer;
+    }
+
+    .disable {
+      color: #dcdee5;
+      cursor: not-allowed;
+    }
+
+    .item-target {
+      &.is-error .bk-form-content {
+        padding-right: 30px;
+      }
+    }
+  }
+
+  .win-filter {
+    margin-top: 8px;
+
+    .select-div {
+      width: 129px;
+      margin-right: 8px;
+    }
+
+    .tag-input {
+      width: 320px;
+    }
+  }
+
+  .log-type {
+    height: 32px;
+    border-radius: 2px;
+
+    .bk-button {
+      min-width: 106px;
+      font-size: 12px;
+
+      span {
+        padding: 0 1px;
+      }
+    }
+
+    .disable {
+      color: #dcdee5;
+      cursor: not-allowed;
+      border-color: #dcdee5;
+    }
+  }
+
+  .species-item {
+    margin-bottom: -30px;
+
+    .bk-form-checkbox {
+      display: flex;
+      align-items: center;
+      width: 320px;
+      height: 30px;
+    }
+
+    .bk-tag-selector {
+      width: 320px;
+      transform: translate3d(66px, -30px, 0);
+    }
+  }
+
+  .ml {
+    margin-left: -115px;
+  }
+
+  .mt {
+    margin-top: 20px;
+  }
+
+  .ml9 {
+    margin-left: 8px;
+  }
+
+  .ml10 {
+    margin-left: 10px;
+  }
+
+  .ml115 {
+    margin-left: 115px;
+  }
+
+  .mt8 {
+    margin-top: 8px;
+  }
+
+  .is-selected {
+    /* stylelint-disable-next-line declaration-no-important */
+    z-index: 2 !important;
+  }
+
+  .rulesColor {
+    /* stylelint-disable-next-line declaration-no-important */
+    border-color: #ff5656 !important;
+  }
+
+  .tagRulesColor {
+    .bk-tag-input {
+      /* stylelint-disable-next-line declaration-no-important */
+      border-color: #ff5656 !important;
+    }
+  }
+
+  .win-content {
+    position: relative;
+    left: 118px;
+    width: 76%;
+    padding-bottom: 20px;
+
+    > span {
+      position: absolute;
+      top: 6px;
+      left: -76px;
+      font-size: 12px;
+      color: #90929a;
+    }
+
+    &.en-span span {
+      left: -112px;
+    }
+
+    .filter-select {
+      margin-top: 11px;
+    }
+
+    .bk-select {
+      width: 184px;
+      height: 32px;
+      margin: 0 8px 12px 0;
+    }
+  }
+
+  .icon-close-circle {
+    display: inline-block;
+    font-size: 14px;
+    transform: rotateZ(45deg);
+  }
+
+  .environment-box {
+    display: flex;
+    align-items: center;
+    margin-bottom: 30px;
+
+    .environment-container {
+      height: 68px;
+      margin-right: 8px;
+
+      .environment-category {
+        display: inline-block;
+        margin: 6px 0;
+        font-size: 12px;
+        font-weight: 400;
+        color: #63656e;
+      }
+
+      .button-box {
+        display: flex;
+
+        .environment-button {
+          display: flex;
+          align-items: center;
+          width: 120px;
+          height: 40px;
+          margin-right: 16px;
+          font-size: 12px;
+          color: #313238;
+          cursor: pointer;
+          user-select: none;
+          border: 1px solid #dcdee5;
+          border-radius: 2px;
+
+          img {
+            padding: 0 8px 0 4px;
+          }
+
+          &.disable {
+            cursor: no-drop;
+            background: #fafbfd;
+          }
+
+          &.active {
+            background: #e1ecff;
+            border: 1px solid #3a84ff;
+          }
+        }
+      }
+
+      &:not(:first-child) {
+        position: relative;
+        margin-left: 24px;
+
+        &::before {
+          position: absolute;
+          top: 36px;
+          left: -24px;
+          width: 1px;
+          height: 32px;
+          content: ' ';
+          background-color: #dcdee5;
+        }
+      }
+    }
+  }
+
+  .cluster-select-box {
+    margin-top: 20px;
+
+    .bk-select {
+      width: 382px;
+    }
+
+    .tips {
+      font-size: 12px;
+      color: #979ba5;
+    }
+  }
+
+  .add-config-item {
+    justify-content: center;
+    width: 730px;
+    height: 42px;
+    margin: 0 0 14px 115px;
+    font-size: 12px;
+    cursor: pointer;
+    background: #fafbfd;
+    border: 1px dashed #dcdee5;
+
+    @include flex-align();
+
+    > div {
+      color: #63656e;
+
+      @include flex-center;
+    }
+
+    .icon-plus {
+      font-size: 22px;
+      color: #989ca7;
+    }
+  }
+
+  .extra-error {
+    .bk-form-input {
+      border-color: #ff5656;
+    }
+  }
+
+  .add-log-label {
+    display: flex;
+    align-items: center;
+
+    &:not(:first-child) {
+      margin-top: 20px;
+    }
+
+    span {
+      margin: 0 7px;
+      color: #ff9c01;
+    }
+
+    .bk-form-control {
+      width: 240px;
+    }
+  }
+
+  .page-operate {
+    margin-top: 36px;
+  }
+
+  .justify-bt {
+    align-items: center;
+
+    @include flex-justify(space-between);
+  }
+
+  .flex-ac {
+    @include flex-align();
+  }
+}
 </style>

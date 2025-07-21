@@ -34,10 +34,7 @@
       :info="authPageInfo"
     ></auth-container-page>
     <template v-if="!authPageInfo && !basicLoading && curIndexSet">
-      <basic-tab
-        :active.sync="activePanel"
-        type="border-card"
-      >
+      <basic-tab :active.sync="activePanel" type="border-card">
         <bk-tab-panel
           v-for="panel in panels"
           v-bind="panel"
@@ -48,11 +45,9 @@
             <div class="search-text">
               <span class="bk-icon icon-info"></span>
               <i18n path="数据采集好了，去 {0}">
-                <span
-                  class="search-button"
-                  @click="handleGoSearch"
-                  >{{ $t('查看数据') }}</span
-                >
+                <span class="search-button" @click="handleGoSearch">{{
+                  $t('查看数据')
+                }}</span>
               </i18n>
             </div>
           </div>
@@ -139,7 +134,10 @@ export default {
           // 显示无权限页面
         } else {
           // 正常显示页面
-          await Promise.all([this.fetchIndexSetData(indexSetId), this.fetchScenarioMap()]);
+          await Promise.all([
+            this.fetchIndexSetData(indexSetId),
+            this.fetchScenarioMap(),
+          ]);
         }
       } catch (err) {
         console.warn(err);
@@ -149,12 +147,18 @@ export default {
     },
     // 索引集详情
     async fetchIndexSetData(indexSetId) {
-      if (!this.curIndexSet.index_set_id || this.curIndexSet.index_set_id.toString() !== indexSetId) {
-        const { data: indexSetData } = await this.$http.request('indexSet/info', {
-          params: {
-            index_set_id: indexSetId,
-          },
-        });
+      if (
+        !this.curIndexSet.index_set_id ||
+        this.curIndexSet.index_set_id.toString() !== indexSetId
+      ) {
+        const { data: indexSetData } = await this.$http.request(
+          'indexSet/info',
+          {
+            params: {
+              index_set_id: indexSetId,
+            },
+          }
+        );
         this.$store.commit('collect/updateCurIndexSet', indexSetData);
       }
     },
@@ -163,7 +167,7 @@ export default {
       if (!this.scenarioMap) {
         const { data } = await this.$http.request('meta/scenario');
         const map = {};
-        data.forEach(item => {
+        data.forEach((item) => {
           map[item.scenario_id] = item.scenario_name;
         });
         this.$store.commit('collect/updateScenarioMap', map);

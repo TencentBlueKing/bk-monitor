@@ -24,15 +24,14 @@
  * IN THE SOFTWARE.
  */
 
+import DatePicker from '@blueking/date-picker/vue2';
+import '@blueking/date-picker/vue2/vue2.css';
 import { Component, Emit, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import DatePicker from '@blueking/date-picker/vue2';
-
 import { updateTimezone } from '../../language/dayjs';
-import { DEFAULT_TIME_RANGE } from './utils';
 
-import '@blueking/date-picker/vue2/vue2.css';
+import { DEFAULT_TIME_RANGE } from './utils';
 
 export type TimeRangeType = [string, string];
 
@@ -50,13 +49,15 @@ interface IEvents {
 
 @Component
 export default class TimeRange extends tsc<IProps, IEvents> {
-  @Prop({ default: () => DEFAULT_TIME_RANGE, type: Array }) value: TimeRangeType; // 组件回显值
+  @Prop({ default: () => DEFAULT_TIME_RANGE, type: Array })
+  value: TimeRangeType; // 组件回显值
   @Prop({ default: 'simplicity', type: String }) type: TimeRangeDisplayType; // 组件回显值
-  @Prop({ default: window.timezone, type: String }) timezone: TimeRangeDisplayType; // 组件回显值
+  @Prop({ default: window.timezone, type: String })
+  timezone: TimeRangeDisplayType; // 组件回显值
   @Prop({ default: true, type: Boolean }) needTimezone: boolean; // 是否显示时区选择
   @Emit('change')
   handleModelValueChange(v: TimeRangeType) {
-    if (v.every(item => typeof item === 'string')) {
+    if (v.every((item) => typeof item === 'string')) {
       localStorage.setItem('SEARCH_DEFAULT_TIME', JSON.stringify(v));
     }
 
@@ -82,18 +83,18 @@ export default class TimeRange extends tsc<IProps, IEvents> {
   }
   render() {
     return (
-      <div style='display: inline-flex'>
+      <div style="display: inline-flex">
         <DatePicker
-          ref='datePicker'
           behavior={this.type}
+          enableFormatClick={true}
+          format={this.formatStr}
           modelValue={this.value}
           needTimezone={this.needTimezone}
-          enableFormatClick={true}
-          timezone={this.timezone}
-          format={this.formatStr}
           onChange={this.handleModelValueChange}
           onFormatChange={this.handleFormatChange}
           onTimezoneChange={this.handleTimezoneChange}
+          ref="datePicker"
+          timezone={this.timezone}
         />
       </div>
     );

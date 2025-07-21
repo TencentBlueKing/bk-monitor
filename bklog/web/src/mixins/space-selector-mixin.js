@@ -29,17 +29,17 @@ import { SPACE_TYPE_MAP } from '@/store/constant';
 export default {
   data() {
     return {
-      /** 空间多选 */
-      spaceMultiple: true,
       /** 是否展示正在使用的标记 */
       isUseMark: true,
+      /** 空间多选 */
+      spaceMultiple: true,
     };
   },
   methods: {
     /** 空间选择 */
     handleSelectSpaceChange(bizId) {
       this.visibleBkBiz = this.visibleBkBiz.includes(bizId)
-        ? this.visibleBkBiz.filter(val => val !== bizId)
+        ? this.visibleBkBiz.filter((val) => val !== bizId)
         : [...this.visibleBkBiz, bizId];
     },
     /** 空间选择器下拉选择面板 */
@@ -49,7 +49,7 @@ export default {
         {
           class: `space-code-option ${this.spaceMultiple && this.visibleBkBiz.includes(item.bk_biz_id) ? 'is-selected' : ''}`,
           on: {
-            click: e => {
+            click: (e) => {
               e.stopPropagation();
               this.handleSelectSpaceChange(item.bk_biz_id);
             },
@@ -63,10 +63,14 @@ export default {
             },
             [
               this.isUseMark &&
-                h('span', { class: `identify-icon ${this.isUseMark && item.is_use ? 'is-use' : 'not-use'}` }),
+                h('span', {
+                  class: `identify-icon ${this.isUseMark && item.is_use ? 'is-use' : 'not-use'}`,
+                }),
               h('span', { class: 'code-name' }, [
                 item.space_full_code_name,
-                this.isUseMark && item.is_use ? `（${this.$t('正在使用')}）` : '',
+                this.isUseMark && item.is_use
+                  ? `（${this.$t('正在使用')}）`
+                  : '',
               ]),
             ]
           ),
@@ -77,7 +81,7 @@ export default {
             },
             [
               item.space_type_name &&
-                item.tags.map(tag =>
+                item.tags.map((tag) =>
                   h(
                     'span',
                     {
@@ -91,7 +95,9 @@ export default {
                 ),
               this.spaceMultiple &&
                 h('span', {
-                  class: this.visibleBkBiz.includes(item.bk_biz_id) && 'bk-icon icon-check-1',
+                  class:
+                    this.visibleBkBiz.includes(item.bk_biz_id) &&
+                    'bk-icon icon-check-1',
                 }),
             ]
           ),

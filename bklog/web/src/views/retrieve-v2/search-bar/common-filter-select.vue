@@ -7,7 +7,11 @@ import useStore from '@/hooks/use-store';
 
 import bklogTagChoice from './bklog-tag-choice';
 import CommonFilterSetting from './common-filter-setting.vue';
-import { FulltextOperator, FulltextOperatorKey, withoutValueConditionList } from './const.common';
+import {
+  FulltextOperator,
+  FulltextOperatorKey,
+  withoutValueConditionList,
+} from './const.common';
 import { operatorMapping, translateKeys } from './const-values';
 import useFieldEgges from './use-field-egges';
 import RetrieveHelper from '../../retrieve-helper';
@@ -25,7 +29,8 @@ const route = useRoute();
 const filterFieldsList = computed(() => getCommonFilterFieldsList(store.state));
 
 // 判定当前选中条件是否需要设置Value
-const isShowConditonValueSetting = operator => !withoutValueConditionList.includes(operator);
+const isShowConditonValueSetting = (operator) =>
+  !withoutValueConditionList.includes(operator);
 const commonFilterAddition = ref([]);
 
 const setCommonFilterAddition = () => {
@@ -46,7 +51,10 @@ const activeIndex = ref(-1);
 
 const operatorDictionary = computed(() => {
   const defVal = {
-    [getOperatorKey(FulltextOperatorKey)]: { label: $t('包含'), operator: FulltextOperator },
+    [getOperatorKey(FulltextOperatorKey)]: {
+      label: $t('包含'),
+      operator: FulltextOperator,
+    },
   };
   return {
     ...defVal,
@@ -63,44 +71,53 @@ const textDir = computed(() => {
  * 获取操作符展示文本
  * @param {*} item
  */
-const getOperatorLabel = item => {
+const getOperatorLabel = (item) => {
   if (item.field === '_ip-select_') {
     return '';
   }
 
-  const key = item.field === '*' ? getOperatorKey(`*${item.operator}`) : getOperatorKey(item.operator);
+  const key =
+    item.field === '*'
+      ? getOperatorKey(`*${item.operator}`)
+      : getOperatorKey(item.operator);
   if (translateKeys.includes(operatorMapping[item.operator])) {
     return $t(operatorMapping[item.operator] ?? item.operator);
   }
 
-  return operatorMapping[item.operator] ?? operatorDictionary.value[key]?.label ?? item.operator;
+  return (
+    operatorMapping[item.operator] ??
+    operatorDictionary.value[key]?.label ??
+    item.operator
+  );
 };
 
 const { requestFieldEgges, isRequesting } = useFieldEgges();
 const handleToggle = (visable, item, index) => {
   if (visable) {
     activeIndex.value = index;
-    requestFieldEgges(item, null, resp => {
+    requestFieldEgges(item, null, (resp) => {
       if (typeof resp === 'boolean') {
         return;
       }
-      commonFilterAddition.value[index].list = store.state.indexFieldInfo.aggs_items[item.field_name] ?? [];
+      commonFilterAddition.value[index].list =
+        store.state.indexFieldInfo.aggs_items[item.field_name] ?? [];
     });
   }
 };
 
 const handleInputVlaueChange = (value, item, index) => {
   activeIndex.value = index;
-  requestFieldEgges(item, value, resp => {
+  requestFieldEgges(item, value, (resp) => {
     if (typeof resp === 'boolean') {
       return;
     }
-    commonFilterAddition.value[index].list = store.state.indexFieldInfo.aggs_items[item.field_name] ?? [];
+    commonFilterAddition.value[index].list =
+      store.state.indexFieldInfo.aggs_items[item.field_name] ?? [];
   });
 };
 
 const handleChange = () => {
-  commonFilterAddition.value.forEach(item => {
+  commonFilterAddition.value.forEach((item) => {
     if (!isShowConditonValueSetting(item.operator)) {
       item.value = [];
     }
@@ -108,7 +125,9 @@ const handleChange = () => {
 
   setStorageCommonFilterAddition(store.state, commonFilterAddition.value);
 
-  store.commit('retrieve/updateCatchFilterAddition', { addition: commonFilterAddition.value });
+  store.commit('retrieve/updateCatchFilterAddition', {
+    addition: commonFilterAddition.value,
+  });
 
   if (route.query.tab !== 'graphAnalysis') {
     store.dispatch('requestIndexSetQuery');
@@ -126,12 +145,12 @@ const handleRowFocus = (index, e) => {
 
 const isChoiceInputFocus = ref(false);
 
-const handleChoiceFocus = index => {
+const handleChoiceFocus = (index) => {
   isChoiceInputFocus.value = true;
   focusIndex.value = index;
 };
 
-const handleChoiceBlur = index => {
+const handleChoiceBlur = (index) => {
   if (focusIndex.value === index) {
     focusIndex.value = null;
     isChoiceInputFocus.value = null;
@@ -147,7 +166,7 @@ const handleRowBlur = () => {
 };
 
 const handleDeleAllOptions = () => {
-  commonFilterAddition.value.forEach(item => {
+  commonFilterAddition.value.forEach((item) => {
     item.value = [];
   });
 
@@ -160,10 +179,7 @@ const handleDeleAllOptions = () => {
     <div class="filter-setting-btn">
       <CommonFilterSetting></CommonFilterSetting>
     </div>
-    <div
-      v-if="commonFilterAddition.length"
-      class="filter-container"
-    >
+    <div v-if="commonFilterAddition.length" class="filter-container">
       <div
         v-for="(item, index) in filterFieldsList"
         :class="['filter-select-wrap', { 'is-focus': focusIndex === index }]"
@@ -172,7 +188,7 @@ const handleDeleAllOptions = () => {
           class="title"
           v-bk-overflow-tips
           @blur.capture="handleRowBlur"
-          @focus.capture="e => handleRowFocus(index, e)"
+          @focus.capture="(e) => handleRowFocus(index, e)"
         >
           {{ item?.field_alias || item?.field_name || '' }}
         </div>
@@ -184,7 +200,7 @@ const handleDeleAllOptions = () => {
           filterable
           @change="handleChange"
           @blur.native.capture="handleRowBlur"
-          @focus.native.capture="e => handleRowFocus(index, e)"
+          @focus.native.capture="(e) => handleRowFocus(index, e)"
         >
           <template #trigger>
             <span
@@ -200,7 +216,11 @@ const handleDeleAllOptions = () => {
             :name="child.label"
           />
         </bk-select>
-        <template v-if="isShowConditonValueSetting(commonFilterAddition[index].operator)">
+        <template
+          v-if="
+            isShowConditonValueSetting(commonFilterAddition[index].operator)
+          "
+        >
           <bklogTagChoice
             :class="['value-select', { 'is-focus': focusIndex === index }]"
             v-model="commonFilterAddition[index].value"
@@ -213,8 +233,8 @@ const handleDeleAllOptions = () => {
             @focus="() => handleChoiceFocus(index)"
             @blur="() => handleChoiceBlur(index)"
             @change="handleChange"
-            @input="val => handleInputVlaueChange(val, item, index)"
-            @toggle="visible => handleToggle(visible, item, index)"
+            @input="(val) => handleInputVlaueChange(val, item, index)"
+            @toggle="(visible) => handleToggle(visible, item, index)"
             @custom-tag-enter="() => handleToggle(true, item, index)"
           ></bklogTagChoice>
         </template>
@@ -224,180 +244,177 @@ const handleDeleAllOptions = () => {
         class="btn-del-action bklog-icon bklog-qingkong"
       ></span>
     </div>
-    <div
-      v-else
-      class="empty-tips"
-    >
+    <div v-else class="empty-tips">
       （{{ $t('暂未设置常驻筛选，请点击左侧设置按钮') }}）
     </div>
   </div>
 </template>
 <style lang="scss" scoped>
-  .filter-container-wrap {
-    display: flex;
-    align-items: center;
-    padding: 0 10px 0px 10px;
-    background: #ffffff;
-    border-radius: 0 0 2px 2px;
-    box-shadow: 0 2px 4px 0 #19192914;
+.filter-container-wrap {
+  display: flex;
+  align-items: center;
+  padding: 0 10px 0px 10px;
+  background: #ffffff;
+  border-radius: 0 0 2px 2px;
+  box-shadow: 0 2px 4px 0 #19192914;
 
-    .filter-setting-btn {
-      min-width: 83px;
-      height: 40px;
-      font-size: 12px;
-      line-height: 40px;
-      color: #3880f8;
-      cursor: pointer;
+  .filter-setting-btn {
+    min-width: 83px;
+    height: 40px;
+    font-size: 12px;
+    line-height: 40px;
+    color: #3880f8;
+    cursor: pointer;
+  }
+
+  .empty-tips {
+    font-size: 12px;
+    color: #979ba5;
+  }
+}
+
+.filter-container {
+  display: flex;
+  flex-wrap: wrap;
+  width: calc(100% - 80px);
+  max-height: 114px;
+  margin-top: 4px;
+  overflow: auto;
+  position: relative;
+  padding-right: 30px;
+
+  .btn-del-action {
+    position: absolute;
+    right: 5px;
+    top: 5px;
+    cursor: pointer;
+  }
+}
+
+.filter-select-wrap {
+  display: flex;
+  align-items: center;
+  max-width: 560px;
+  margin-right: 4px;
+  margin-bottom: 4px;
+  box-sizing: content-box;
+
+  .title {
+    max-width: 120px;
+    padding-left: 8px;
+    overflow: hidden;
+    font-size: 12px;
+    color: #313238;
+    text-overflow: ellipsis;
+    border-top-left-radius: 3px;
+    border-bottom-left-radius: 3px;
+    border-left: 1px solid #dbdde1;
+    border-top: 1px solid #dbdde1;
+    border-bottom: 1px solid #dbdde1;
+    line-height: 32px;
+    height: 32px;
+    border-right: none;
+  }
+
+  .operator-select {
+    border: none;
+    border-top: 1px solid #dbdde1;
+    border-bottom: 1px solid #dbdde1;
+    line-height: 32px;
+    height: 32px;
+    border-left: none;
+    border-right: none;
+    border-radius: 0;
+
+    .operator-label {
+      display: inline-block;
+      width: 100%;
+      // padding: 4px;
+      padding-left: 2px;
+      color: #3a84ff;
+      white-space: nowrap;
+
+      &[data-operator^='not contains'],
+      &[data-operator^='does not exists'],
+      &[data-operator^='is false'],
+      &[data-operator^='!='] {
+        color: #ea3636;
+      }
+
+      &[data-operator^='exists'],
+      &[data-operator^='does not exists'] {
+        padding-right: 4px;
+      }
     }
 
-    .empty-tips {
-      font-size: 12px;
-      color: #979ba5;
+    &.bk-select.is-focus {
+      box-shadow: none;
     }
   }
 
-  .filter-container {
-    display: flex;
-    flex-wrap: wrap;
-    width: calc(100% - 80px);
-    max-height: 114px;
-    margin-top: 4px;
-    overflow: auto;
-    position: relative;
-    padding-right: 30px;
+  .value-select {
+    min-width: 120px;
+    border-left: none;
+    border-radius: 0;
 
-    .btn-del-action {
-      position: absolute;
-      right: 5px;
-      top: 5px;
-      cursor: pointer;
-    }
-  }
-
-  .filter-select-wrap {
-    display: flex;
-    align-items: center;
-    max-width: 560px;
-    margin-right: 4px;
-    margin-bottom: 4px;
-    box-sizing: content-box;
-
-    .title {
-      max-width: 120px;
-      padding-left: 8px;
-      overflow: hidden;
-      font-size: 12px;
-      color: #313238;
-      text-overflow: ellipsis;
-      border-top-left-radius: 3px;
-      border-bottom-left-radius: 3px;
-      border-left: 1px solid #dbdde1;
+    &:not(.is-focus) {
+      border-top-right-radius: 3px;
+      border-bottom-right-radius: 3px;
+      border-right: 1px solid #dbdde1;
       border-top: 1px solid #dbdde1;
       border-bottom: 1px solid #dbdde1;
-      line-height: 32px;
-      height: 32px;
-      border-right: none;
-    }
-
-    .operator-select {
-      border: none;
-      border-top: 1px solid #dbdde1;
-      border-bottom: 1px solid #dbdde1;
-      line-height: 32px;
-      height: 32px;
-      border-left: none;
-      border-right: none;
-      border-radius: 0;
-
-      .operator-label {
-        display: inline-block;
-        width: 100%;
-        // padding: 4px;
-        padding-left: 2px;
-        color: #3a84ff;
-        white-space: nowrap;
-
-        &[data-operator^='not contains'],
-        &[data-operator^='does not exists'],
-        &[data-operator^='is false'],
-        &[data-operator^='!='] {
-          color: #ea3636;
-        }
-
-        &[data-operator^='exists'],
-        &[data-operator^='does not exists'] {
-          padding-right: 4px;
-        }
-      }
-
-      &.bk-select.is-focus {
-        box-shadow: none;
-      }
-    }
-
-    .value-select {
-      min-width: 120px;
-      border-left: none;
-      border-radius: 0;
-
-      &:not(.is-focus) {
-        border-top-right-radius: 3px;
-        border-bottom-right-radius: 3px;
-        border-right: 1px solid #dbdde1;
-        border-top: 1px solid #dbdde1;
-        border-bottom: 1px solid #dbdde1;
-      }
-
-      &.is-focus {
-        border-top-right-radius: 3px;
-        border-top: 1px solid #3a84ff;
-        border-bottom: 1px solid #3a84ff;
-
-        &.is-ellipsis {
-          border-bottom-color: transparent;
-        }
-      }
-    }
-
-    .bk-select-angle {
-      font-size: 22px;
-      color: #979ba5;
     }
 
     &.is-focus {
-      border-color: #3a84ff;
-      .title {
-        border-left-color: #3a84ff;
-        border-top-color: #3a84ff;
-        border-bottom-color: #3a84ff;
-      }
+      border-top-right-radius: 3px;
+      border-top: 1px solid #3a84ff;
+      border-bottom: 1px solid #3a84ff;
 
-      .operator-select {
-        border-top-color: #3a84ff;
-        border-bottom-color: #3a84ff;
+      &.is-ellipsis {
+        border-bottom-color: transparent;
       }
+    }
+  }
 
-      > div {
-        &:last-child {
-          &:not(.is-choice-active) {
-            border-top-right-radius: 3px;
-            border-bottom-right-radius: 3px;
-            border-right: 1px solid #3a84ff;
-            padding-right: 4px;
-          }
-        }
-      }
+  .bk-select-angle {
+    font-size: 22px;
+    color: #979ba5;
+  }
+
+  &.is-focus {
+    border-color: #3a84ff;
+    .title {
+      border-left-color: #3a84ff;
+      border-top-color: #3a84ff;
+      border-bottom-color: #3a84ff;
+    }
+
+    .operator-select {
+      border-top-color: #3a84ff;
+      border-bottom-color: #3a84ff;
     }
 
     > div {
       &:last-child {
-        &:not(.value-select) {
+        &:not(.is-choice-active) {
           border-top-right-radius: 3px;
           border-bottom-right-radius: 3px;
-          border-right: 1px solid #dbdde1;
+          border-right: 1px solid #3a84ff;
           padding-right: 4px;
         }
       }
     }
   }
+
+  > div {
+    &:last-child {
+      &:not(.value-select) {
+        border-top-right-radius: 3px;
+        border-bottom-right-radius: 3px;
+        border-right: 1px solid #dbdde1;
+        padding-right: 4px;
+      }
+    }
+  }
+}
 </style>

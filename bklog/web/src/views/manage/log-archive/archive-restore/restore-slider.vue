@@ -75,7 +75,9 @@
               >
                 <bk-option
                   v-for="option in archiveList"
-                  :disabled="!option.permission[authorityMap.MANAGE_COLLECTION_AUTH]"
+                  :disabled="
+                    !option.permission[authorityMap.MANAGE_COLLECTION_AUTH]
+                  "
                   :id="option.archive_config_id"
                   :key="option.archive_config_id"
                   :name="option.instance_name"
@@ -277,9 +279,9 @@ export default {
       datePickerExpired: [this.requiredRules],
       datePickerValue: [
         {
-          validator: val => {
+          validator: (val) => {
             if (val.length) {
-              return !!val.every(item => item);
+              return !!val.every((item) => item);
             }
             return false;
           },
@@ -288,7 +290,7 @@ export default {
       ],
       notice_user: [
         {
-          validator: val => {
+          validator: (val) => {
             return !!val.length;
           },
           trigger: 'blur',
@@ -303,10 +305,11 @@ export default {
       };
       this.$http
         .request('archive/getAllArchives', { query })
-        .then(res => {
+        .then((res) => {
           this.archiveList = res.data || [];
           if (!this.isEdit) {
-            this.formData.archive_config_id = res.data[0].archive_config_id || '';
+            this.formData.archive_config_id =
+              res.data[0].archive_config_id || '';
             this.handleArchiveChange(res.data[0].archive_config_id);
           }
         })
@@ -329,20 +332,29 @@ export default {
       this.formData.expired_time = val;
     },
     handleArchiveChange(nval) {
-      const selectArchive = this.archiveList.find(el => el.archive_config_id === nval);
+      const selectArchive = this.archiveList.find(
+        (el) => el.archive_config_id === nval
+      );
       const date = new Date();
       const year = date.getFullYear();
-      const month = date.getMonth() * 1 + 1 >= 10 ? date.getMonth() * 1 + 1 : `0${date.getMonth() * 1 + 1}`;
+      const month =
+        date.getMonth() * 1 + 1 >= 10
+          ? date.getMonth() * 1 + 1
+          : `0${date.getMonth() * 1 + 1}`;
       const day = date.getDate() >= 10 ? date.getDate() : `0${date.getDate()}`;
-      const hour = date.getHours() >= 10 ? date.getHours() : `0${date.getHours()}`;
-      const min = date.getMinutes() >= 10 ? date.getMinutes() : `0${date.getMinutes()}`;
+      const hour =
+        date.getHours() >= 10 ? date.getHours() : `0${date.getHours()}`;
+      const min =
+        date.getMinutes() >= 10 ? date.getMinutes() : `0${date.getMinutes()}`;
       const dateStr = `${year}${month}${day}${hour}${min}`;
       this.formData.index_set_name = selectArchive
         ? `${selectArchive?.instance_name}-${this.$t('回溯')}-${dateStr}`
         : '';
     },
     updateDaysList() {
-      const retentionDaysList = [...this.globalsData.storage_duration_time].filter(item => {
+      const retentionDaysList = [
+        ...this.globalsData.storage_duration_time,
+      ].filter((item) => {
         return item.id;
       });
       this.retentionDaysList = retentionDaysList;
@@ -352,7 +364,7 @@ export default {
       const numberVal = parseInt(val.trim(), 10);
       const stringVal = numberVal.toString();
       if (numberVal) {
-        if (!this.retentionDaysList.some(item => item.id === stringVal)) {
+        if (!this.retentionDaysList.some((item) => item.id === stringVal)) {
           this.retentionDaysList.push({
             id: stringVal,
             name: stringVal + this.$t('天'),
@@ -414,32 +426,32 @@ export default {
 </script>
 
 <style lang="scss">
-  .restore-slider-content {
-    height: calc(100vh - 60px);
-    min-height: 394px;
+.restore-slider-content {
+  height: calc(100vh - 60px);
+  min-height: 394px;
 
-    .bk-form.bk-form-vertical {
-      padding: 10px 0 36px 36px;
+  .bk-form.bk-form-vertical {
+    padding: 10px 0 36px 36px;
 
-      .bk-form-item {
-        width: 500px;
-        margin-top: 18px;
-      }
+    .bk-form-item {
+      width: 500px;
+      margin-top: 18px;
+    }
 
-      .bk-alert {
-        width: 500px;
-        margin-top: 12px;
-      }
+    .bk-alert {
+      width: 500px;
+      margin-top: 12px;
+    }
 
-      .bk-select,
-      .bk-date-picker {
-        width: 300px;
-      }
+    .bk-select,
+    .bk-date-picker {
+      width: 300px;
+    }
 
-      .user-selector {
-        /* stylelint-disable-next-line declaration-no-important */
-        width: 500px !important;
-      }
+    .user-selector {
+      /* stylelint-disable-next-line declaration-no-important */
+      width: 500px !important;
     }
   }
+}
 </style>

@@ -23,8 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, defineComponent, Ref, ref, onMounted } from 'vue';
-
+import { axiosInstance } from '@/api';
 import $http from '@/api/index.js';
 import useFieldAliasRequestParams from '@/hooks/use-field-alias-request-params';
 import useLocale from '@/hooks/use-locale';
@@ -34,14 +33,14 @@ import RequestPool from '@/store/request-pool';
 import { debounce } from 'lodash';
 import screenfull from 'screenfull';
 import { format } from 'sql-formatter';
+import { computed, defineComponent, Ref, ref, onMounted } from 'vue';
 
 import { getCommonFilterAdditionWithValues } from '../../../../../store/helper';
 import RetrieveHelper, { RetrieveEvent } from '../../../../retrieve-helper';
 import BookmarkPop from '../../../search-bar/bookmark-pop.vue';
-import useEditor from './use-editor';
-import { axiosInstance } from '@/api';
 
 import './index.scss';
+import useEditor from './use-editor';
 
 export default defineComponent({
   props: {
@@ -51,6 +50,21 @@ export default defineComponent({
     },
   },
   emits: ['change', 'sql-change', 'error'],
+  render() {
+    return (
+      <div
+        class="bklog-sql-editor-root"
+        ref="refSqlBox"
+        style={this.sqlRootStyle}
+      >
+        <div class="bklog-sql-editor" ref="refRootElement">
+          {this.renderHeadTools()}
+        </div>
+        {this.renderSqlPreview()}
+        {this.renderTools()}
+      </div>
+    );
+  },
   setup(props, { emit, expose }) {
     const store = useStore();
     const refRootElement: Ref<HTMLElement> = ref();
@@ -72,12 +86,18 @@ export default defineComponent({
       }
     };
     const { $t } = useLocale();
-    const { editorInstance } = useEditor({ refRootElement, sqlContent, onValueChange });
+    const { editorInstance } = useEditor({
+      onValueChange,
+      refRootElement,
+      sqlContent,
+    });
     const { alias_settings } = useFieldAliasRequestParams();
 
     const indexSetId = computed(() => store.state.indexId);
     const retrieveParams = computed(() => store.getters.retrieveParams);
-    const filter_addition = computed(() => getCommonFilterAdditionWithValues(store.state));
+    const filter_addition = computed(() =>
+      getCommonFilterAdditionWithValues(store.state)
+    );
 
     const requestId = 'graphAnalysis_searchSQL';
 
@@ -91,24 +111,27 @@ export default defineComponent({
       emit('change', undefined, isRequesting.value);
       RequestPool.execCanceToken(requestId);
       const requestCancelToken = RequestPool.getCancelToken(requestId);
-      const baseUrl = process.env.NODE_ENV === 'development' ? 'api/v1' : (window as any).AJAX_URL_PREFIX;
-      const { start_time, end_time, keyword, addition } = retrieveParams.value;
+      const baseUrl =
+        process.env.NODE_ENV === 'development'
+          ? 'api/v1'
+          : (window as any).AJAX_URL_PREFIX;
+      const { addition, end_time, keyword, start_time } = retrieveParams.value;
       const params = {
-        method: 'post',
-        url: `/search/index_set/${indexSetId.value}/chart/`,
-        cancelToken: requestCancelToken,
-        withCredentials: true,
         baseURL: baseUrl,
-        originalResponse: true,
+        cancelToken: requestCancelToken,
         data: {
-          start_time,
-          end_time,
-          query_mode: 'sql',
-          keyword,
           addition,
-          sql, // 使用获取到的内容
           alias_settings: alias_settings.value,
+          end_time,
+          keyword,
+          query_mode: 'sql',
+          sql, // 使用获取到的内容
+          start_time,
         },
+        method: 'post',
+        originalResponse: true,
+        url: `/search/index_set/${indexSetId.value}/chart/`,
+        withCredentials: true,
       };
 
       emit('error', { code: 200, message: '请求中', result: true });
@@ -122,7 +145,7 @@ export default defineComponent({
             emit('error', resp);
           }
         })
-        .catch(err => {
+        .catch((err) => {
           if (err.code === 'ERR_CANCELED') {
             console.log('请求被取消');
           }
@@ -139,23 +162,26 @@ export default defineComponent({
     };
 
     const handleSyncAdditionToSQL = (callback?) => {
-      const { addition, start_time, end_time, keyword } = retrieveParams.value;
+      const { addition, end_time, keyword, start_time } = retrieveParams.value;
       isSyncSqlRequesting.value = true;
       return $http
         .request('graphAnalysis/generateSql', {
-          params: {
-            index_set_id: indexSetId.value,
-          },
           data: {
-            addition: [...addition, ...(filter_addition.value ?? []).filter(a => a.value?.length)],
-            start_time,
+            addition: [
+              ...addition,
+              ...(filter_addition.value ?? []).filter((a) => a.value?.length),
+            ],
+            alias_settings: alias_settings.value,
             end_time,
             keyword,
             sql: sqlContent.value,
-            alias_settings: alias_settings.value,
+            start_time,
+          },
+          params: {
+            index_set_id: indexSetId.value,
           },
         })
-        .then(resp => {
+        .then((resp) => {
           editorInstance.value.setValue(resp.data.sql);
           editorInstance.value.focus();
           onValueChange(resp.data.sql);
@@ -163,11 +189,13 @@ export default defineComponent({
             formatMonacoSqlCode();
           });
 
-          previewSqlContent.value = format(resp.data.additional_where_clause, { language: 'transactsql' });
+          previewSqlContent.value = format(resp.data.additional_where_clause, {
+            language: 'transactsql',
+          });
           isPreviewSqlShow.value = true;
           callback?.();
         })
-        .catch(err => {
+        .catch((err) => {
           console.error(err);
         })
         .finally(() => {
@@ -179,46 +207,53 @@ export default defineComponent({
 
     const handleFullscreenClick = () => {
       if (!screenfull.isEnabled) return;
-      isFullscreen.value ? screenfull.exit() : screenfull.request(refSqlBox.value);
+      isFullscreen.value
+        ? screenfull.exit()
+        : screenfull.request(refSqlBox.value);
       isFullscreen.value = !isFullscreen.value;
       editorInstance.value.focus();
     };
 
     const formatMonacoSqlCode = (value?: string) => {
-      const val = format(value ?? editorInstance.value?.getValue() ?? '', { language: 'transactsql' });
+      const val = format(value ?? editorInstance.value?.getValue() ?? '', {
+        language: 'transactsql',
+      });
       editorInstance.value?.setValue([val].join('\n'));
     };
 
     const renderTools = () => {
       return (
-        <div class='sql-editor-tools'>
+        <div class="sql-editor-tools">
           <bk-button
-            class='sql-editor-query-button'
-            v-bk-tooltips={{ content: $t('查询'), theme: 'light' }}
+            class="sql-editor-query-button"
             loading={isRequesting.value}
-            size='small'
-            theme='primary'
             onClick={handleQueryBtnClick}
+            size="small"
+            theme="primary"
+            v-bk-tooltips={{ content: $t('查询'), theme: 'light' }}
           >
-            <i class='bklog-icon bklog-bofang'></i>
+            <i class="bklog-icon bklog-bofang"></i>
           </bk-button>
           <bk-button
-            class='sql-editor-view-button'
-            v-bk-tooltips={{ content: $t('中止'), theme: 'light' }}
+            class="sql-editor-view-button"
             disabled={!isRequesting.value}
-            size='small'
             onClick={handleStopBtnClick}
+            size="small"
+            v-bk-tooltips={{ content: $t('中止'), theme: 'light' }}
           >
-            <i class='bk-icon icon-stop-shape' />
+            <i class="bk-icon icon-stop-shape" />
           </bk-button>
 
           <BookmarkPop
-            class='bklog-sqleditor-bookmark'
-            v-bk-tooltips={{ content: ($t('button-收藏') as string).replace('button-', ''), theme: 'light' }}
             addition={retrieveParams.value.addition ?? []}
+            class="bklog-sqleditor-bookmark"
             extendParams={props.extendParams}
-            search-mode='sqlChart'
+            search-mode="sqlChart"
             sql={retrieveParams.value.keyword}
+            v-bk-tooltips={{
+              content: ($t('button-收藏') as string).replace('button-', ''),
+              theme: 'light',
+            }}
           ></BookmarkPop>
         </div>
       );
@@ -226,32 +261,32 @@ export default defineComponent({
 
     const renderHeadTools = () => {
       return (
-        <div class='bk-monaco-tools'>
+        <div class="bk-monaco-tools">
           <span>{$t('SQL查询')}</span>
           <div>
-            <div class='fr header-tool-right'>
+            <div class="fr header-tool-right">
               <div
-                class='sqlFormat header-tool-right-icon'
-                v-bk-tooltips={{ content: $t('格式化') }}
+                class="sqlFormat header-tool-right-icon"
                 onClick={() => formatMonacoSqlCode()}
+                v-bk-tooltips={{ content: $t('格式化') }}
               >
-                <span class='bk-icon icon-script-file'></span>
+                <span class="bk-icon icon-script-file"></span>
               </div>
               {isFullscreen.value ? (
                 <div
-                  class='header-tool-right-icon'
-                  v-bk-tooltips={{ content: $t('取消全屏') }}
+                  class="header-tool-right-icon"
                   onClick={handleFullscreenClick}
+                  v-bk-tooltips={{ content: $t('取消全屏') }}
                 >
-                  <span class='bk-icon icon-un-full-screen'></span>
+                  <span class="bk-icon icon-un-full-screen"></span>
                 </div>
               ) : (
                 <div
-                  class='header-tool-right-icon'
-                  v-bk-tooltips={{ content: $t('全屏') }}
+                  class="header-tool-right-icon"
                   onClick={handleFullscreenClick}
+                  v-bk-tooltips={{ content: $t('全屏') }}
                 >
-                  <span class='bk-icon icon-full-screen'></span>
+                  <span class="bk-icon icon-full-screen"></span>
                 </div>
               )}
             </div>
@@ -263,14 +298,16 @@ export default defineComponent({
     const renderSqlPreview = () => {
       return (
         <div
-          ref={refSqlPreviewElement}
           class={['sql-preview-root', { 'is-show': isPreviewSqlShow.value }]}
+          ref={refSqlPreviewElement}
         >
-          <div class='sql-preview-title'>
-            <span class='bklog-icon bklog-circle-alert-filled'></span>
-            {$t('检测到「顶部查询条件」，已自动补充 SQL（与已输入 SQL 语句叠加生效）：')}
+          <div class="sql-preview-title">
+            <span class="bklog-icon bklog-circle-alert-filled"></span>
+            {$t(
+              '检测到「顶部查询条件」，已自动补充 SQL（与已输入 SQL 语句叠加生效）：'
+            )}
           </div>
-          <div class='sql-preview-text'>{previewSqlContent.value}</div>
+          <div class="sql-preview-text">{previewSqlContent.value}</div>
         </div>
       );
     };
@@ -288,7 +325,7 @@ export default defineComponent({
     /**
      * 监听关联数据变化
      */
-    const onRefereceChange = async args => {
+    const onRefereceChange = async (args) => {
       // 这里表示数据来自图表分析收藏点击回填数据
       if (args?.params?.chart_params?.sql?.length) {
         const old = editorInstance.value?.getValue();
@@ -333,33 +370,15 @@ export default defineComponent({
     });
 
     return {
+      handleQueryBtnClick,
+      previewSqlContent,
       refRootElement,
       refSqlBox,
-      previewSqlContent,
-      sqlContent,
-      sqlRootStyle,
-      renderTools,
       renderHeadTools,
       renderSqlPreview,
-      handleQueryBtnClick,
+      renderTools,
+      sqlContent,
+      sqlRootStyle,
     };
-  },
-  render() {
-    return (
-      <div
-        ref='refSqlBox'
-        style={this.sqlRootStyle}
-        class='bklog-sql-editor-root'
-      >
-        <div
-          ref='refRootElement'
-          class='bklog-sql-editor'
-        >
-          {this.renderHeadTools()}
-        </div>
-        {this.renderSqlPreview()}
-        {this.renderTools()}
-      </div>
-    );
   },
 });

@@ -6,10 +6,7 @@
       class="issued-btn-wrap"
       @click.stop="viewDetail()"
     >
-      <div
-        v-if="hasFailed"
-        class="issued-btn-dot"
-      ></div>
+      <div v-if="hasFailed" class="issued-btn-dot"></div>
       <i class="issued-icon bklog-icon bklog-jincheng"> </i>
     </div>
     <bk-sideslider
@@ -23,10 +20,7 @@
     >
       <template #header>
         <div>
-          <div
-            v-if="isStopCollection"
-            class="collect-link"
-          >
+          <div v-if="isStopCollection" class="collect-link">
             {{ $t('编辑采集项') }}
             <span style="padding: 3px 9px; background-color: #f0f1f5">
               <span class="bk-icon bklog-icon bklog-position"></span>
@@ -43,7 +37,9 @@
         <div
           v-if="!isFinishStep"
           class="step-issued-wrapper"
-          v-bkloading="{ isLoading: loading | (hasRunning && !tableList.length) }"
+          v-bkloading="{
+            isLoading: loading | (hasRunning && !tableList.length),
+          }"
           data-test-id="addNewCollectionItem_div_collectionDistribution"
         >
           <!-- 容器日志显示状态页信息 -->
@@ -56,10 +52,7 @@
               v-if="!curCollect.table_id"
               class="step-issued-notice notice-primary"
             >
-              <div
-                v-if="hasRunning"
-                style="display: flex"
-              >
+              <div v-if="hasRunning" style="display: flex">
                 <i
                   style="
                     display: inline-block;
@@ -70,21 +63,22 @@
                   class="bk-icon icon-refresh"
                 ></i>
                 <span class="notice-text">{{ $t('正在下发...') }}</span>
-                <i18n
-                  class="notice-time"
-                  path="已耗时{0}秒"
-                >
+                <i18n class="notice-time" path="已耗时{0}秒">
                   <span>{{ displaySeconds }}</span>
                 </i18n>
               </div>
               <div v-else>
                 <i class="bk-icon icon-info-circle-shape notice-icon"></i>
                 <span class="notice-text"
-                  ><span style="color: #34d97b">{{ $t('执行成功') }}{{ tabList[1].num }}/{{ tabList[0].num }};</span>
-                  <span
-                    v-if="tabList[2].num"
-                    style="color: #ff5656"
-                    >{{ $t('执行失败') }}{{ tabList[2].num }}/{{ tabList[0].num }}</span
+                  ><span style="color: #34d97b"
+                    >{{ $t('执行成功') }}{{ tabList[1].num }}/{{
+                      tabList[0].num
+                    }};</span
+                  >
+                  <span v-if="tabList[2].num" style="color: #ff5656"
+                    >{{ $t('执行失败') }}{{ tabList[2].num }}/{{
+                      tabList[0].num
+                    }}</span
                   ></span
                 >
               </div>
@@ -130,14 +124,14 @@
                 </bk-button>
               </div>
               <div class="step-issued-content">
-                <section
-                  v-if="tableList.length"
-                  class="cluster-collaspse"
-                >
+                <section v-if="tableList.length" class="cluster-collaspse">
                   <template v-for="cluster in tableList">
                     <right-panel
                       v-if="cluster.child.length"
-                      :class="['cluster-menu', { 'has-title-sign': cluster.is_label && isEdit }]"
+                      :class="[
+                        'cluster-menu',
+                        { 'has-title-sign': cluster.is_label && isEdit },
+                      ]"
                       :collapse.sync="cluster.collapse"
                       :collapse-color="'#313238'"
                       :key="cluster.id"
@@ -162,12 +156,11 @@
                       </template>
                       <template #title>
                         <div class="header-info">
-                          <div class="header-title fl">{{ cluster.node_path }}</div>
+                          <div class="header-title fl">
+                            {{ cluster.node_path }}
+                          </div>
                           <!-- eslint-disable-next-line vue/no-v-html -->
-                          <p
-                            class="fl"
-                            v-html="collaspseHeadInfo(cluster)"
-                          ></p>
+                          <p class="fl" v-html="collaspseHeadInfo(cluster)"></p>
                         </div>
                       </template>
                       <template #default>
@@ -199,22 +192,30 @@
                                     class="ip-status-cicle"
                                   ></div>
                                   <i
-                                    v-if="props.row.status !== 'success' && props.row.status !== 'failed'"
+                                    v-if="
+                                      props.row.status !== 'success' &&
+                                      props.row.status !== 'failed'
+                                    "
                                     style="
                                       display: inline-block;
                                       margin: 4px 5px 0 0;
                                       color: #3a84ff;
-                                      animation: button-icon-loading 1s linear infinite;
+                                      animation: button-icon-loading 1s linear
+                                        infinite;
                                     "
                                     class="bk-icon icon-refresh"
                                   >
                                   </i>
-                                  <div style="width: 100px">{{ getShowIp(props.row) }}</div>
+                                  <div style="width: 100px">
+                                    {{ getShowIp(props.row) }}
+                                  </div>
                                   <a
                                     v-if="props.row.status === 'failed'"
                                     class="retry"
                                     href="javascript: ;"
-                                    @click.stop="issuedRetry(props.row, cluster)"
+                                    @click.stop="
+                                      issuedRetry(props.row, cluster)
+                                    "
                                   >
                                     {{ $t('重试') }}
                                   </a>
@@ -231,7 +232,7 @@
                   v-else
                   class="exception-wrap-item exception-part"
                   scene="part"
-                  style="margin-top: 240px;"
+                  style="margin-top: 240px"
                   type="empty"
                 >
                 </bk-exception>
@@ -251,17 +252,16 @@
                       {{ $t('刷新') }}
                     </bk-button>
                   </div>
-                  <div
-                    class="detail-content"
-                    v-html="detail.content"
-                  ></div>
+                  <div class="detail-content" v-html="detail.content"></div>
                 </div>
               </div>
             </template>
             <template v-else>
               <div class="empty-view">
                 <i class="bk-icon icon-info-circle-shape"></i>
-                <div class="hint-text">{{ $t('采集目标未变更，无需下发') }}</div>
+                <div class="hint-text">
+                  {{ $t('采集目标未变更，无需下发') }}
+                </div>
               </div>
             </template>
           </template>
@@ -419,7 +419,10 @@ export default {
       return this.$t('完成');
     },
     hostIdentifierPriority() {
-      return this.$store.getters['globals/globalsData']?.host_identifier_priority ?? ['ip', 'host_name', 'ipv6'];
+      return (
+        this.$store.getters['globals/globalsData']
+          ?.host_identifier_priority ?? ['ip', 'host_name', 'ipv6']
+      );
     },
   },
   watch: {
@@ -434,13 +437,15 @@ export default {
     notReady(val) {
       if (!val) {
         const len = this.tableList.length;
-        this.isShowStepInfo = this.tableList.filter(item => item.child.length === 0).length === len;
+        this.isShowStepInfo =
+          this.tableList.filter((item) => item.child.length === 0).length ===
+          len;
       }
     },
   },
   created() {
     if (this.isContainer) return; // 容器日志展示容器日志的内容
-    this.curCollect?.task_id_list?.forEach(id => this.curTaskIdList.add(id));
+    this.curCollect?.task_id_list?.forEach((id) => this.curTaskIdList.add(id));
     this.collectionName = this.curCollect?.collector_config_name ?? '';
   },
   mounted() {
@@ -473,9 +478,11 @@ export default {
         this.tableList = JSON.parse(JSON.stringify(this.tableListAll));
       } else {
         const child = [];
-        this.tableListAll.forEach(item => {
+        this.tableListAll.forEach((item) => {
           const copyItem = JSON.parse(JSON.stringify(item));
-          copyItem.child = copyItem.child.filter(row => row.status === this.curTab);
+          copyItem.child = copyItem.child.filter(
+            (row) => row.status === this.curTab
+          );
           if (copyItem.child.length) {
             child.push(copyItem);
           }
@@ -515,13 +522,13 @@ export default {
               collector_config_id: this.curCollect.collector_config_id,
             },
           })
-          .then(res => {
+          .then((res) => {
             if (res.result) {
               this.isFinishStep = true;
               this.$emit('step-change');
             }
           })
-          .catch(error => {
+          .catch((error) => {
             console.warn(error);
           })
           .finally(() => {
@@ -567,14 +574,14 @@ export default {
         failed: 0,
         running: 0,
       };
-      this.tableListAll.forEach(cluster => {
+      this.tableListAll.forEach((cluster) => {
         num.all += cluster.child.length;
         cluster.child.length &&
-          cluster.child.forEach(row => {
+          cluster.child.forEach((row) => {
             num[row.status] = num[row.status] + 1;
           });
       });
-      this.tabList.forEach(tab => {
+      this.tabList.forEach((tab) => {
         tab.num = num[tab.type];
       });
     },
@@ -582,7 +589,7 @@ export default {
       const list = cluster.child;
       let success = 0;
       let failed = 0;
-      list.forEach(row => {
+      list.forEach((row) => {
         if (row.status === 'success') {
           success = success + 1;
         }
@@ -629,7 +636,7 @@ export default {
           params,
           query: { task_id_list: [...this.curTaskIdList.keys()].join(',') },
         })
-        .then(res => {
+        .then((res) => {
           const data = res.data.contents || [];
           this.notReady = res.data.task_ready === false; // 如果没有该字段，默认准备好了
           if (isPolling === 'polling') {
@@ -637,11 +644,14 @@ export default {
               // 之前返回的 contents 为空
               if (!this.tableListAll.length) {
                 let collapseCount = 0; // 展开前5个状态表格信息
-                data.forEach(cluster => {
+                data.forEach((cluster) => {
                   cluster.collapse = cluster.child.length && collapseCount < 5;
                   if (cluster.child.length) collapseCount += 1;
-                  cluster.child.forEach(host => {
-                    host.status = host.status === 'PENDING' ? 'running' : host.status.toLowerCase(); // pending-等待状态，与running不做区分
+                  cluster.child.forEach((host) => {
+                    host.status =
+                      host.status === 'PENDING'
+                        ? 'running'
+                        : host.status.toLowerCase(); // pending-等待状态，与running不做区分
                   });
                 });
                 this.tableListAll = [...data];
@@ -656,11 +666,14 @@ export default {
             }
           } else {
             let collapseCount = 0; // 展开前5个状态表格信息
-            data.forEach(cluster => {
+            data.forEach((cluster) => {
               cluster.collapse = cluster.child.length && collapseCount < 5;
               if (cluster.child.length) collapseCount += 1;
-              cluster.child.forEach(host => {
-                host.status = host.status === 'PENDING' ? 'running' : host.status.toLowerCase(); // pending-等待状态，与running不做区分
+              cluster.child.forEach((host) => {
+                host.status =
+                  host.status === 'PENDING'
+                    ? 'running'
+                    : host.status.toLowerCase(); // pending-等待状态，与running不做区分
               });
             });
             this.tableListAll = [...data];
@@ -668,7 +681,7 @@ export default {
             this.calcTabNum();
           }
         })
-        .catch(err => {
+        .catch((err) => {
           this.$bkMessage({
             theme: 'error',
             message: err.message,
@@ -688,10 +701,16 @@ export default {
       if (cluster) {
         // 单条重试
         row.status = 'running';
-        this.tableListAll.forEach(item => {
-          if (cluster.bk_inst_id === item.bk_inst_id && cluster.bk_obj_name === item.bk_obj_name) {
-            item.child?.forEach(itemRow => {
-              if (itemRow.ip === row.ip && itemRow.bk_cloud_id === row.bk_cloud_id) {
+        this.tableListAll.forEach((item) => {
+          if (
+            cluster.bk_inst_id === item.bk_inst_id &&
+            cluster.bk_obj_name === item.bk_obj_name
+          ) {
+            item.child?.forEach((itemRow) => {
+              if (
+                itemRow.ip === row.ip &&
+                itemRow.bk_cloud_id === row.bk_cloud_id
+              ) {
                 itemRow.status = 'running';
               }
             });
@@ -700,8 +719,8 @@ export default {
         instanceIDList.push(row.instance_id);
       } else {
         // 失败批量重试
-        this.tableListAll.forEach(item => {
-          item.child?.forEach(itemRow => {
+        this.tableListAll.forEach((item) => {
+          item.child?.forEach((itemRow) => {
             if (itemRow.status === 'failed') {
               itemRow.status = 'running';
               instanceIDList.push(itemRow.instance_id);
@@ -719,13 +738,13 @@ export default {
             instance_id_list: instanceIDList,
           },
         })
-        .then(res => {
+        .then((res) => {
           if (res.data) {
-            res.data.forEach(item => this.curTaskIdList.add(item));
+            res.data.forEach((item) => this.curTaskIdList.add(item));
             this.startStatusPolling();
           }
         })
-        .catch(err => {
+        .catch((err) => {
           this.$bkMessage({
             theme: 'error',
             message: err.message,
@@ -734,21 +753,30 @@ export default {
     },
     // 同步机器状态信息
     syncHostStatus(data) {
-      this.tableListAll.forEach(table => {
-        const cluster = data.find(item => {
-          return item.bk_inst_id === table.bk_inst_id && item.bk_obj_name === table.bk_obj_name;
+      this.tableListAll.forEach((table) => {
+        const cluster = data.find((item) => {
+          return (
+            item.bk_inst_id === table.bk_inst_id &&
+            item.bk_obj_name === table.bk_obj_name
+          );
         });
         if (cluster?.child?.length && table.child?.length) {
-          table.child.forEach(row => {
-            const tarHost = cluster.child.find(item => {
+          table.child.forEach((row) => {
+            const tarHost = cluster.child.find((item) => {
               // 优先判断host_id 若没找到对应的host_id则对比ip_host_name_ipv6的组成的字符串
               const tableStrKey = `${item.ip}_${item.host_name}_${item.ipv6}`;
               const childStrKey = `${row.ip}_${row.host_name}_${row.ipv6}`;
-              if (item?.host_id) return item.host_id === row.host_id || tableStrKey === childStrKey;
+              if (item?.host_id)
+                return (
+                  item.host_id === row.host_id || tableStrKey === childStrKey
+                );
               return tableStrKey === childStrKey;
             });
             if (tarHost) {
-              row.status = tarHost.status === 'PENDING' ? 'running' : tarHost.status.toLowerCase(); // pending-等待状态，与running不做区分
+              row.status =
+                tarHost.status === 'PENDING'
+                  ? 'running'
+                  : tarHost.status.toLowerCase(); // pending-等待状态，与running不做区分
               row.task_id = tarHost.task_id;
             }
           });
@@ -770,13 +798,13 @@ export default {
             task_id: row.task_id,
           },
         })
-        .then(res => {
+        .then((res) => {
           if (res.result) {
             this.detail.log = res.data.log_detail;
             this.detail.content = res.data.log_detail;
           }
         })
-        .catch(err => {
+        .catch((err) => {
           this.$bkMessage({
             theme: 'error',
             message: err.message || err,
@@ -787,392 +815,395 @@ export default {
         });
     },
     getShowIp(row) {
-      return row[this.hostIdentifierPriority.find(pItem => Boolean(row[pItem]))] ?? row.ip;
+      return (
+        row[this.hostIdentifierPriority.find((pItem) => Boolean(row[pItem]))] ??
+        row.ip
+      );
     },
   },
 };
 </script>
 
 <style scoped lang="scss">
-  @import '@/scss/mixins/scroller.scss';
-  @import '@/scss/mixins/clearfix';
-  @import '@/scss/conf';
-  @import '@/scss/mixins/overflow-tips.scss';
-  @import '@/scss/mixins/flex.scss';
+@import '@/scss/mixins/scroller.scss';
+@import '@/scss/mixins/clearfix';
+@import '@/scss/conf';
+@import '@/scss/mixins/overflow-tips.scss';
+@import '@/scss/mixins/flex.scss';
 
-  /* stylelint-disable no-descending-specificity */
-  .step-issued-wrapper {
-    position: relative;
-    max-height: 100%;
-    padding: 20px;
-    overflow-x: hidden;
-    overflow-y: auto;
+/* stylelint-disable no-descending-specificity */
+.step-issued-wrapper {
+  position: relative;
+  max-height: 100%;
+  padding: 20px;
+  overflow-x: hidden;
+  overflow-y: auto;
 
-    .step-issued-notice {
-      height: 36px;
-      padding: 9px 12px;
-      margin-bottom: 20px;
-      font-size: 12px;
-      line-height: 16px;
-      color: #63656e;
-      border-radius: 2px;
-
-      .notice-text {
-        margin-left: 10px;
-      }
-
-      .notice-time {
-        position: absolute;
-        right: 40px;
-        color: #a6acb8;
-      }
-
-      .notice-icon {
-        font-size: 14px;
-        vertical-align: text-bottom;
-      }
-
-      &.notice-primary {
-        background: #f0f8ff;
-
-        .notice-icon {
-          color: #3a84ff;
-        }
-      }
-    }
-
-    .step-issued-header {
-      margin-bottom: 20px;
-
-      @include clearfix;
-    }
-
-    .cur-tab {
-      background: #3a84ff;
-    }
-
-    .cluster-collaspse {
-      width: 40%;
-      height: calc(100vh - 204px);
-      overflow: scroll;
-      border: 1px solid #e5e7ec;
-    }
-
-    .cluster-menu {
-      margin-bottom: 10px;
-
-      &.has-title-sign .right-panel-title {
-        padding-left: 0;
-      }
-    }
-
-    .header-title {
-      margin-right: 20px;
-      font-weight: bold;
-      color: #63656e;
-    }
-
-    .heder-title-sign {
-      position: relative;
-      height: 24px;
-      padding: 0 12px 0 7px;
-      margin-right: 16px;
-      margin-left: -1px;
-      font-size: 12px;
-      line-height: 23px;
-      color: #fff;
-      background: #3a84ff;
-
-      &.sign-add {
-        background: #3a84ff;
-      }
-
-      &.sign-modify {
-        background: #414871;
-      }
-
-      &.sign-delete {
-        background: #6c3aff;
-      }
-
-      &:after {
-        position: absolute;
-        top: 0;
-        right: 0;
-        display: block;
-        content: '';
-        border-top: 12px solid transparent;
-        border-right: 6px solid #f0f1f5;
-        border-bottom: 12px solid transparent;
-        border-left: 6px solid transparent;
-      }
-    }
-
-    .header-info {
-      font-size: 12px;
-      color: #979ba5;
-    }
-
-    .cluster-table {
-      &.bk-table th :hover {
-        background: #fff;
-      }
-
-      &::before {
-        display: none;
-      }
-
-      :deep(.bk-table-row) {
-        cursor: pointer;
-      }
-
-      tr:last-child td {
-        border-bottom: none;
-      }
-
-      .status-running {
-        color: $primaryColor;
-      }
-
-      .status-success {
-        color: $successColor;
-      }
-
-      .status-failed {
-        color: $failColor;
-      }
-
-      .retry {
-        color: #3a84ff;
-      }
-
-      .row-detail {
-        .more {
-          display: inline;
-        }
-
-        p {
-          position: relative;
-          display: inline-block;
-          max-width: 100%;
-          padding-right: 30px;
-          overflow: hidden;
-          text-overflow: ellipsis;
-          white-space: nowrap;
-
-          .detail-text {
-            display: inline-block;
-            width: 100%;
-            overflow: hidden;
-            text-overflow: ellipsis;
-          }
-        }
-      }
-
-      .more {
-        position: absolute;
-        top: 0;
-        right: 0;
-        display: none;
-        color: #3a84ff;
-      }
-    }
-
-    .nav-section {
-      margin-bottom: 20px;
-      @include flex-justify(space-between);
-
-      .nav-btn-box {
-        align-items: center;
-        min-width: 327px;
-        height: 36px;
-        padding: 5px 4px;
-        font-size: 14px;
-        background: #f0f1f5;
-        border-radius: 4px;
-
-        @include flex-justify(space-between);
-
-        .nav-btn {
-          position: relative;
-          display: flex;
-          padding: 4px 15px;
-          color: #63656e;
-          border-radius: 4px;
-
-          &:not(:last-child)::after {
-            position: absolute;
-            top: 3px;
-            right: -8px;
-            color: #dcdee5;
-            content: '|';
-          }
-
-          &:not(:first-child) {
-            margin-left: 12px;
-          }
-
-          &:hover {
-            cursor: pointer;
-            background: #fff;
-          }
-
-          &.active {
-            color: #3a84ff;
-            background: #fff;
-          }
-        }
-      }
-    }
-
-    .ip-status-cicle {
-      width: 10px;
-      height: 10px;
-      margin: 4px 5px 0 0;
-      border: 1px solid $failColor;
-      border-radius: 50%;
-    }
-
-    .step-issued-footer {
-      margin-top: 20px;
-
-      button {
-        margin-right: 10px;
-      }
-    }
-
-    .empty-view {
-      position: relative;
-      display: flexbox;
-      display: flex;
-      justify-content: center;
-      height: 452px;
-      background: #fff;
-      border: 1px dashed #dcdee5;
-      border-radius: 2px;
-
-      /* stylelint-disable-next-line property-no-unknown */
-      box-pack: center;
-
-      /* stylelint-disable-next-line property-no-unknown */
-      flex-pack: center;
-
-      .hint-text {
-        position: absolute;
-        top: 186px;
-        min-width: 144px;
-        height: 16px;
-        font-size: 12px;
-        line-height: 16px;
-        color: #979ba5;
-      }
-
-      .icon-info-circle-shape {
-        position: absolute;
-        top: 142px;
-        left: calc(50% - 16px);
-        font-size: 32px;
-        color: #dcdee5;
-      }
-    }
-  }
-
-  .issued-btn-wrap {
-    position: fixed;
-    right: 45px;
-    bottom: 35px;
-    z-index: 10;
-    width: 47px;
-    height: 47px;
-    padding: 12px;
-    color: #666871;
-    cursor: pointer;
-    background-color: rgb(250, 251, 253);
-    border: 1px solid #dde4eb;
-    border-radius: 4px;
-
-    .issued-btn-dot {
-      position: absolute;
-      top: -2px;
-      right: -2px;
-      width: 8px;
-      height: 8px;
-      background-color: #ea3939;
-      border-radius: 50%;
-    }
-
-    .issued-icon {
-      font-size: 25px;
-    }
-
-    &:hover {
-      color: #699df4;
-      box-shadow: 5px 5px 10px rgba(0, 0, 0, 0.3);
-    }
-  }
-
-  .collect-link {
+  .step-issued-notice {
+    height: 36px;
+    padding: 9px 12px;
+    margin-bottom: 20px;
+    font-size: 12px;
+    line-height: 16px;
     color: #63656e;
     border-radius: 2px;
 
-    .icon-position {
+    .notice-text {
+      margin-left: 10px;
+    }
+
+    .notice-time {
+      position: absolute;
+      right: 40px;
+      color: #a6acb8;
+    }
+
+    .notice-icon {
       font-size: 14px;
-      color: #c4c6cc;
+      vertical-align: text-bottom;
+    }
+
+    &.notice-primary {
+      background: #f0f8ff;
+
+      .notice-icon {
+        color: #3a84ff;
+      }
     }
   }
 
-  :deep(.bk-sideslider-wrapper) {
-    padding-bottom: 0;
+  .step-issued-header {
+    margin-bottom: 20px;
 
-    .header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
+    @include clearfix;
+  }
+
+  .cur-tab {
+    background: #3a84ff;
+  }
+
+  .cluster-collaspse {
+    width: 40%;
+    height: calc(100vh - 204px);
+    overflow: scroll;
+    border: 1px solid #e5e7ec;
+  }
+
+  .cluster-menu {
+    margin-bottom: 10px;
+
+    &.has-title-sign .right-panel-title {
+      padding-left: 0;
+    }
+  }
+
+  .header-title {
+    margin-right: 20px;
+    font-weight: bold;
+    color: #63656e;
+  }
+
+  .heder-title-sign {
+    position: relative;
+    height: 24px;
+    padding: 0 12px 0 7px;
+    margin-right: 16px;
+    margin-left: -1px;
+    font-size: 12px;
+    line-height: 23px;
+    color: #fff;
+    background: #3a84ff;
+
+    &.sign-add {
+      background: #3a84ff;
     }
 
-    .header-refresh {
-      margin-right: 8px;
+    &.sign-modify {
+      background: #414871;
     }
 
-    .step-issued-content {
-      display: flex;
+    &.sign-delete {
+      background: #6c3aff;
+    }
 
-      .detail-wrap {
-        width: 60%;
-        height: calc(100vh - 200px);
-        padding: 20px;
-        overflow: scroll;
-        font-size: 12px;
-        color: #c4c6cc;
-        white-space: pre-wrap;
-        background-color: #313238;
+    &:after {
+      position: absolute;
+      top: 0;
+      right: 0;
+      display: block;
+      content: '';
+      border-top: 12px solid transparent;
+      border-right: 6px solid #f0f1f5;
+      border-bottom: 12px solid transparent;
+      border-left: 6px solid transparent;
+    }
+  }
 
-        .detail-header {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
+  .header-info {
+    font-size: 12px;
+    color: #979ba5;
+  }
 
-          .detail-title {
-            font-size: 14px;
-            color: #888c95;
-          }
-        }
+  .cluster-table {
+    &.bk-table th :hover {
+      background: #fff;
+    }
 
-        .detail-content {
+    &::before {
+      display: none;
+    }
+
+    :deep(.bk-table-row) {
+      cursor: pointer;
+    }
+
+    tr:last-child td {
+      border-bottom: none;
+    }
+
+    .status-running {
+      color: $primaryColor;
+    }
+
+    .status-success {
+      color: $successColor;
+    }
+
+    .status-failed {
+      color: $failColor;
+    }
+
+    .retry {
+      color: #3a84ff;
+    }
+
+    .row-detail {
+      .more {
+        display: inline;
+      }
+
+      p {
+        position: relative;
+        display: inline-block;
+        max-width: 100%;
+        padding-right: 30px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+
+        .detail-text {
+          display: inline-block;
           width: 100%;
-          padding: 20px;
-          background-color: #2a2b2f;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+      }
+    }
+
+    .more {
+      position: absolute;
+      top: 0;
+      right: 0;
+      display: none;
+      color: #3a84ff;
+    }
+  }
+
+  .nav-section {
+    margin-bottom: 20px;
+    @include flex-justify(space-between);
+
+    .nav-btn-box {
+      align-items: center;
+      min-width: 327px;
+      height: 36px;
+      padding: 5px 4px;
+      font-size: 14px;
+      background: #f0f1f5;
+      border-radius: 4px;
+
+      @include flex-justify(space-between);
+
+      .nav-btn {
+        position: relative;
+        display: flex;
+        padding: 4px 15px;
+        color: #63656e;
+        border-radius: 4px;
+
+        &:not(:last-child)::after {
+          position: absolute;
+          top: 3px;
+          right: -8px;
+          color: #dcdee5;
+          content: '|';
         }
 
-        a {
+        &:not(:first-child) {
+          margin-left: 12px;
+        }
+
+        &:hover {
+          cursor: pointer;
+          background: #fff;
+        }
+
+        &.active {
           color: #3a84ff;
+          background: #fff;
         }
       }
     }
   }
 
-  :deep(.bk-table-body .selected-row) {
-    /* stylelint-disable-next-line declaration-no-important */
-    border: 1px #3a84ff solid !important;
+  .ip-status-cicle {
+    width: 10px;
+    height: 10px;
+    margin: 4px 5px 0 0;
+    border: 1px solid $failColor;
+    border-radius: 50%;
   }
+
+  .step-issued-footer {
+    margin-top: 20px;
+
+    button {
+      margin-right: 10px;
+    }
+  }
+
+  .empty-view {
+    position: relative;
+    display: flexbox;
+    display: flex;
+    justify-content: center;
+    height: 452px;
+    background: #fff;
+    border: 1px dashed #dcdee5;
+    border-radius: 2px;
+
+    /* stylelint-disable-next-line property-no-unknown */
+    box-pack: center;
+
+    /* stylelint-disable-next-line property-no-unknown */
+    flex-pack: center;
+
+    .hint-text {
+      position: absolute;
+      top: 186px;
+      min-width: 144px;
+      height: 16px;
+      font-size: 12px;
+      line-height: 16px;
+      color: #979ba5;
+    }
+
+    .icon-info-circle-shape {
+      position: absolute;
+      top: 142px;
+      left: calc(50% - 16px);
+      font-size: 32px;
+      color: #dcdee5;
+    }
+  }
+}
+
+.issued-btn-wrap {
+  position: fixed;
+  right: 45px;
+  bottom: 35px;
+  z-index: 10;
+  width: 47px;
+  height: 47px;
+  padding: 12px;
+  color: #666871;
+  cursor: pointer;
+  background-color: rgb(250, 251, 253);
+  border: 1px solid #dde4eb;
+  border-radius: 4px;
+
+  .issued-btn-dot {
+    position: absolute;
+    top: -2px;
+    right: -2px;
+    width: 8px;
+    height: 8px;
+    background-color: #ea3939;
+    border-radius: 50%;
+  }
+
+  .issued-icon {
+    font-size: 25px;
+  }
+
+  &:hover {
+    color: #699df4;
+    box-shadow: 5px 5px 10px rgba(0, 0, 0, 0.3);
+  }
+}
+
+.collect-link {
+  color: #63656e;
+  border-radius: 2px;
+
+  .icon-position {
+    font-size: 14px;
+    color: #c4c6cc;
+  }
+}
+
+:deep(.bk-sideslider-wrapper) {
+  padding-bottom: 0;
+
+  .header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .header-refresh {
+    margin-right: 8px;
+  }
+
+  .step-issued-content {
+    display: flex;
+
+    .detail-wrap {
+      width: 60%;
+      height: calc(100vh - 200px);
+      padding: 20px;
+      overflow: scroll;
+      font-size: 12px;
+      color: #c4c6cc;
+      white-space: pre-wrap;
+      background-color: #313238;
+
+      .detail-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+
+        .detail-title {
+          font-size: 14px;
+          color: #888c95;
+        }
+      }
+
+      .detail-content {
+        width: 100%;
+        padding: 20px;
+        background-color: #2a2b2f;
+      }
+
+      a {
+        color: #3a84ff;
+      }
+    }
+  }
+}
+
+:deep(.bk-table-body .selected-row) {
+  /* stylelint-disable-next-line declaration-no-important */
+  border: 1px #3a84ff solid !important;
+}
 </style>

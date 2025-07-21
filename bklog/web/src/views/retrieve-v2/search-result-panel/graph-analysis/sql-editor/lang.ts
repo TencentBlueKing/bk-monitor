@@ -39,20 +39,22 @@ type DorisField = {
 monaco.languages.register({ id: 'dorisSQL' });
 
 monaco.languages.setMonarchTokensProvider('dorisSQL', {
+  /** brackets */
+  brackets: [
+    { close: ']', open: '[', token: 'delimiter.square' },
+    { close: ')', open: '(', token: 'delimiter.parenthesis' },
+  ],
+
+  /** builtinFunctions */
+  builtinFunctions,
+
+  builtinVariables,
+
   /** defaultToken */
   defaultToken: '',
 
-  /** tokenPostfix */
-  tokenPostfix: '.sql',
-
   /** ignoreCase */
   ignoreCase: true,
-
-  /** brackets */
-  brackets: [
-    { open: '[', close: ']', token: 'delimiter.square' },
-    { open: '(', close: ')', token: 'delimiter.parenthesis' },
-  ],
 
   /** keywords */
   keywords,
@@ -60,16 +62,57 @@ monaco.languages.setMonarchTokensProvider('dorisSQL', {
   /** operators */
   operators,
 
-  /** builtinFunctions */
-  builtinFunctions,
-
-  builtinVariables,
-
   /** pseudoColumns */
   pseudoColumns: ['$ACTION', '$IDENTITY', '$ROWGUID', '$PARTITION'],
 
+  /** tokenPostfix */
+  tokenPostfix: '.sql',
+
   /** tokenizer */
   tokenizer: {
+    bracketedIdentifier: [
+      [/[^\]]+/, 'identifier'],
+      [/]]/, 'identifier'],
+      [/]/, { next: '@pop', token: 'identifier.quote' }],
+    ],
+    comment: [
+      [/[^*/]+/, 'comment'],
+      // Not supporting nested comments, as nested comments seem to not be standard?
+      /* i.e. http://stackoverflow.com/questions/728172/are-there
+            -multiline-comment-delimiters-in-sql-that-are-vendor-agnostic */
+      // [/\/\*/, { token: 'comment.quote', next: '@push' }],    // nested comment not allowed :-(
+      [/\*\//, { next: '@pop', token: 'comment.quote' }],
+      [/./, 'comment'],
+    ],
+    comments: [
+      [/--+.*/, 'comment'],
+      [/\/\*/, { next: '@comment', token: 'comment.quote' }],
+    ],
+    complexIdentifiers: [
+      [/\[/, { next: '@bracketedIdentifier', token: 'identifier.quote' }],
+      [/"/, { next: '@quotedIdentifier', token: 'identifier.quote' }],
+    ],
+    numbers: [
+      [/0[xX][0-9a-fA-F]*/, 'number'],
+      [/[$][+-]*\d*(\.\d*)?/, 'number'],
+      [/((\d+(\.\d*)?)|(\.\d+))([eE][\-+]?\d+)?/, 'number'],
+    ],
+    pseudoColumns: [
+      [
+        /[$][A-Za-z_][\w@#$]*/,
+        {
+          cases: {
+            '@default': 'identifier',
+            '@pseudoColumns': 'predefined',
+          },
+        },
+      ],
+    ],
+    quotedIdentifier: [
+      [/[^"]+/, 'identifier'],
+      [/""/, 'identifier'],
+      [/"/, { next: '@pop', token: 'identifier.quote' }],
+    ],
     root: [
       { include: '@comments' },
       { include: '@whitespace' },
@@ -84,68 +127,15 @@ monaco.languages.setMonarchTokensProvider('dorisSQL', {
         /[\w@#$]+/,
         {
           cases: {
+            '@builtinFunctions': 'predefined',
+            '@builtinVariables': 'predefined',
+            '@default': 'identifier',
             '@keywords': 'keyword',
             '@operators': 'operator',
-            '@builtinVariables': 'predefined',
-            '@builtinFunctions': 'predefined',
-            '@default': 'identifier',
           },
         },
       ],
       [/[<>=!%&+\-*/|~^]/, 'operator'],
-    ],
-    whitespace: [[/\s+/, 'white']],
-    comments: [
-      [/--+.*/, 'comment'],
-      [/\/\*/, { token: 'comment.quote', next: '@comment' }],
-    ],
-    comment: [
-      [/[^*/]+/, 'comment'],
-      // Not supporting nested comments, as nested comments seem to not be standard?
-      /* i.e. http://stackoverflow.com/questions/728172/are-there
-            -multiline-comment-delimiters-in-sql-that-are-vendor-agnostic */
-      // [/\/\*/, { token: 'comment.quote', next: '@push' }],    // nested comment not allowed :-(
-      [/\*\//, { token: 'comment.quote', next: '@pop' }],
-      [/./, 'comment'],
-    ],
-    pseudoColumns: [
-      [
-        /[$][A-Za-z_][\w@#$]*/,
-        {
-          cases: {
-            '@pseudoColumns': 'predefined',
-            '@default': 'identifier',
-          },
-        },
-      ],
-    ],
-    numbers: [
-      [/0[xX][0-9a-fA-F]*/, 'number'],
-      [/[$][+-]*\d*(\.\d*)?/, 'number'],
-      [/((\d+(\.\d*)?)|(\.\d+))([eE][\-+]?\d+)?/, 'number'],
-    ],
-    strings: [
-      [/N'/, { token: 'string', next: '@string' }],
-      [/'/, { token: 'string', next: '@string' }],
-    ],
-    string: [
-      [/[^']+/, 'string'],
-      [/''/, 'string'],
-      [/'/, { token: 'string', next: '@pop' }],
-    ],
-    complexIdentifiers: [
-      [/\[/, { token: 'identifier.quote', next: '@bracketedIdentifier' }],
-      [/"/, { token: 'identifier.quote', next: '@quotedIdentifier' }],
-    ],
-    bracketedIdentifier: [
-      [/[^\]]+/, 'identifier'],
-      [/]]/, 'identifier'],
-      [/]/, { token: 'identifier.quote', next: '@pop' }],
-    ],
-    quotedIdentifier: [
-      [/[^"]+/, 'identifier'],
-      [/""/, 'identifier'],
-      [/"/, { token: 'identifier.quote', next: '@pop' }],
     ],
     scopes: [
       [/BEGIN\s+(DISTRIBUTED\s+)?TRAN(SACTION)?\b/i, 'keyword'],
@@ -158,6 +148,16 @@ monaco.languages.setMonarchTokensProvider('dorisSQL', {
       [/WHEN\b/i, { token: 'keyword.choice' }],
       [/THEN\b/i, { token: 'keyword.choice' }],
     ],
+    string: [
+      [/[^']+/, 'string'],
+      [/''/, 'string'],
+      [/'/, { next: '@pop', token: 'string' }],
+    ],
+    strings: [
+      [/N'/, { next: '@string', token: 'string' }],
+      [/'/, { next: '@string', token: 'string' }],
+    ],
+    whitespace: [[/\s+/, 'white']],
   },
 });
 
@@ -171,7 +171,7 @@ const castFieldMapFn = (item, index) => {
   return `['${item}']`;
 };
 
-const fetchDorisFieldsPromise = range => {
+const fetchDorisFieldsPromise = (range) => {
   return (fetchDorisFieldsFn?.() ?? []).map((field, index) => {
     let insertText = field.name;
     if (field.name.indexOf('.') > 0) {
@@ -182,12 +182,12 @@ const fetchDorisFieldsPromise = range => {
     }
 
     return {
-      label: field.name,
-      kind: monaco.languages.CompletionItemKind.Field,
-      insertText,
-      filterText: field.name,
       detail: field.type, // 显示字段类型
       documentation: field.description, // 显示字段描述
+      filterText: field.name,
+      insertText,
+      kind: monaco.languages.CompletionItemKind.Field,
+      label: field.name,
       range,
       sortText: `a`,
     };
@@ -199,34 +199,35 @@ monaco.languages.registerCompletionItemProvider('dorisSQL', {
   provideCompletionItems: (model, position) => {
     const word = model.getWordUntilPosition(position);
     const range = {
-      startLineNumber: position.lineNumber,
+      endColumn: word.endColumn,
       endLineNumber: position.lineNumber,
       startColumn: word.startColumn,
-      endColumn: word.endColumn,
+      startLineNumber: position.lineNumber,
     };
 
     const fieldSuggestions = fetchDorisFieldsPromise(range);
     const keywordAndFunctionSuggestions = [
       ...keywords.map((keyword, index) => ({
-        label: keyword,
-        kind: monaco.languages.CompletionItemKind.Keyword,
-        insertText: keyword + ' ',
         filterText: keyword,
+        insertText: keyword + ' ',
+        kind: monaco.languages.CompletionItemKind.Keyword,
+        label: keyword,
         range,
         sortText: `b`,
       })),
       ...builtinFunctions.map((func, index) => ({
-        label: func,
-        filterText: func,
-        kind: monaco.languages.CompletionItemKind.Function,
-        insertText: `${func}($0)`,
-        insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
-        range,
-        sortText: `c`,
         command: {
           id: 'editor.action.triggerParameterHints',
           title: 'Trigger Parameter Hints',
         },
+        filterText: func,
+        insertText: `${func}($0)`,
+        insertTextRules:
+          monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+        kind: monaco.languages.CompletionItemKind.Function,
+        label: func,
+        range,
+        sortText: `c`,
       })),
     ];
 

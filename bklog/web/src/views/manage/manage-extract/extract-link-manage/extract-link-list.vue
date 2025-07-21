@@ -50,10 +50,7 @@
       data-test-id="extractLinkListBox_table_LinkListTableBox"
       row-key="strategy_id"
     >
-      <bk-table-column
-        :label="$t('链路名称')"
-        :render-header="$renderHeader"
-      >
+      <bk-table-column :label="$t('链路名称')" :render-header="$renderHeader">
         <template #default="{ row }">
           <div class="table-ceil-container">
             <span v-bk-overflow-tips>{{ row.name }}</span>
@@ -78,25 +75,18 @@
       >
         <template #default="{ row }">
           <div class="task-operation-container">
-            <span
-              class="task-operation"
-              @click="handleEditStrategy(row)"
-              >{{ $t('编辑') }}</span
-            >
-            <span
-              class="task-operation"
-              @click="handleDeleteStrategy(row)"
-              >{{ $t('删除') }}</span
-            >
+            <span class="task-operation" @click="handleEditStrategy(row)">{{
+              $t('编辑')
+            }}</span>
+            <span class="task-operation" @click="handleDeleteStrategy(row)">{{
+              $t('删除')
+            }}</span>
           </div>
         </template>
       </bk-table-column>
       <template #empty>
         <div>
-          <empty-status
-            :empty-type="emptyType"
-            @operation="handleOperation"
-          />
+          <empty-status :empty-type="emptyType" @operation="handleOperation" />
         </div>
       </template>
     </bk-table>
@@ -161,7 +151,9 @@ export default {
     // 初始化提取链路列表
     async initList() {
       try {
-        const res = await this.$http.request('extractManage/getLogExtractLinks');
+        const res = await this.$http.request(
+          'extractManage/getLogExtractLinks'
+        );
         this.extractLinkList = res.data;
       } catch (e) {
         console.warn(e);
@@ -246,21 +238,21 @@ export default {
 </script>
 
 <style lang="scss" scoped>
-  .extract-link-list-container {
-    padding: 0 24px 20px;
+.extract-link-list-container {
+  padding: 0 24px 20px;
 
-    /*表格内容样式*/
-    :deep(.king-table) {
-      .task-operation-container {
-        display: flex;
-        align-items: center;
+  /*表格内容样式*/
+  :deep(.king-table) {
+    .task-operation-container {
+      display: flex;
+      align-items: center;
 
-        .task-operation {
-          margin-right: 12px;
-          color: #3a84ff;
-          cursor: pointer;
-        }
+      .task-operation {
+        margin-right: 12px;
+        color: #3a84ff;
+        cursor: pointer;
       }
     }
   }
+}
 </style>

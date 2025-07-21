@@ -29,7 +29,10 @@ import deepMerge from 'deepmerge';
 import MonitorBaseSeries from './base-chart-option';
 import { pieOptions } from './echart-options-config';
 import { ILegendItem, IChartInstance } from './type-interface';
-export default class MonitorPieSeries extends MonitorBaseSeries implements IChartInstance {
+export default class MonitorPieSeries
+  extends MonitorBaseSeries
+  implements IChartInstance
+{
   public defaultOption: any;
   public constructor(props: any) {
     super(props);
@@ -55,13 +58,13 @@ export default class MonitorPieSeries extends MonitorBaseSeries implements IChar
         ? series.map((item: any, index: number) => {
             item.data.forEach((seriesItem: any) => {
               const legendItem: ILegendItem = {
-                name: '',
+                avg: 0,
+                color: this.colors[index % this.colors.length],
                 max: 0,
                 min: 0,
-                avg: 0,
-                total: 0,
-                color: this.colors[index % this.colors.length],
+                name: '',
                 show: true,
+                total: 0,
               };
               if (seriesItem?.name) {
                 const curValue = +seriesItem.value;
@@ -75,15 +78,15 @@ export default class MonitorPieSeries extends MonitorBaseSeries implements IChar
               legendItem.name && legendData.push(legendItem);
             });
             const seriesItem = {
-              radius: ['50%', '70%'],
               avoidLabelOverlap: false,
               label: {
-                show: false,
                 position: 'center',
+                show: false,
               },
               labelLine: {
                 show: false,
               },
+              radius: ['50%', '70%'],
               type: this.chartType,
               ...item,
             };
@@ -92,10 +95,16 @@ export default class MonitorPieSeries extends MonitorBaseSeries implements IChar
         : [],
     };
     return {
-      options: deepMerge(deepMerge(this.defaultOption, otherOptions, { arrayMerge: this.overwriteMerge }), options, {
-        arrayMerge: this.overwriteMerge,
-      }),
       legendData,
+      options: deepMerge(
+        deepMerge(this.defaultOption, otherOptions, {
+          arrayMerge: this.overwriteMerge,
+        }),
+        options,
+        {
+          arrayMerge: this.overwriteMerge,
+        }
+      ),
     };
   }
 }

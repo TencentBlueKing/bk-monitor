@@ -46,10 +46,7 @@
     >
       <div class="setting-title">
         <span>{{ $t('设置') }}</span>
-        <span
-          class="bk-icon icon-close"
-          @click="closeSetting"
-        ></span>
+        <span class="bk-icon icon-close" @click="closeSetting"></span>
       </div>
 
       <div class="setting-main">
@@ -82,28 +79,19 @@
             <div class="details">
               <p>
                 <span>{{ $t('索引集') }}：</span>
-                <span
-                  class="title-overflow"
-                  v-bk-overflow-tips
-                >
+                <span class="title-overflow" v-bk-overflow-tips>
                   {{ indexSetItem.index_set_name }}
                 </span>
               </p>
               <p>
                 <span>{{ $t('索引') }}：</span>
-                <span
-                  class="title-overflow"
-                  v-bk-overflow-tips
-                >
+                <span class="title-overflow" v-bk-overflow-tips>
                   {{ showResultTableID }}
                 </span>
               </p>
               <p>
                 <span>{{ $t('来源') }}：</span>
-                <span
-                  class="title-overflow"
-                  v-bk-overflow-tips
-                >
+                <span class="title-overflow" v-bk-overflow-tips>
                   {{ indexSetItem.scenario_name }}
                 </span>
               </p>
@@ -269,10 +257,11 @@ export default {
   methods: {
     handleMenuStatus() {
       const { isExtractActive, isClusteringActive, isCollector } = this;
-      this.showCurrentList = this.showCurrentList.map(list => {
+      this.showCurrentList = this.showCurrentList.map((list) => {
         return {
           ...list,
-          isEditable: list.id === 'extract' ? isExtractActive : isClusteringActive,
+          isEditable:
+            list.id === 'extract' ? isExtractActive : isClusteringActive,
           isDisabled: list.id === 'extract' ? !isCollector : isClusteringActive,
         };
       });
@@ -316,14 +305,20 @@ export default {
         item.isEditable = true;
         return;
       }
-      const msg = item.id === 'extract' ? this.$t('是否关闭字段提取？') : this.$t('是否关闭日志聚类？');
+      const msg =
+        item.id === 'extract'
+          ? this.$t('是否关闭字段提取？')
+          : this.$t('是否关闭日志聚类？');
 
       if (item.id === 'extract') {
         this.$bkInfo({
           title: msg,
           confirmLoading: true,
           confirmFn: async () => {
-            const isFinish = item.id === 'extract' ? await this.requestCloseClean() : await this.requestCloseCluster();
+            const isFinish =
+              item.id === 'extract'
+                ? await this.requestCloseClean()
+                : await this.requestCloseCluster();
             isFinish && (item.isEditable = false);
           },
         });
@@ -386,7 +381,10 @@ export default {
     },
     handleClickDetail() {
       const {
-        extra: { collector_config_id: collectorID, collector_scenario_id: scenarioID },
+        extra: {
+          collector_config_id: collectorID,
+          collector_scenario_id: scenarioID,
+        },
       } = this.cleanConfig;
       if (!collectorID) return;
       const { spaceUid } = this.$store.state;
@@ -397,144 +395,146 @@ export default {
       window.open(jumpUrl, '_blank');
     },
     setIsShowExtract(state) {
-      this.showCurrentList = this.currentList.filter(item => (state ? true : item.id !== 'extract'));
+      this.showCurrentList = this.currentList.filter((item) =>
+        state ? true : item.id !== 'extract'
+      );
     },
   },
 };
 </script>
 
 <style lang="scss" scoped>
-  :deep(.bk-dialog-body) {
-    padding: 0;
-    overflow: hidden;
-    background-color: #f5f6fa;
-  }
+:deep(.bk-dialog-body) {
+  padding: 0;
+  overflow: hidden;
+  background-color: #f5f6fa;
+}
 
-  :deep(.bk-dialog-tool) {
-    display: none;
-  }
+:deep(.bk-dialog-tool) {
+  display: none;
+}
 
-  @mixin container-shadow() {
-    background: #fff;
-    border-radius: 2px;
-    box-shadow: 0px 2px 4px 0px rgba(25, 25, 41, 0.05);
-  }
+@mixin container-shadow() {
+  background: #fff;
+  border-radius: 2px;
+  box-shadow: 0px 2px 4px 0px rgba(25, 25, 41, 0.05);
+}
 
-  .setting-container {
-    display: flex;
-    justify-content: center;
+.setting-container {
+  display: flex;
+  justify-content: center;
+  min-width: 1460px;
+  height: calc(100vh - 52px);
+  overflow-y: auto;
+
+  .setting-title {
+    position: fixed;
+    z-index: 999;
+    width: calc(100vw + 12px);
     min-width: 1460px;
-    height: calc(100vh - 52px);
-    overflow-y: auto;
+    height: 52px;
+    font-size: 16px;
+    line-height: 52px;
+    text-align: center;
+    background-color: #fff;
+    border-bottom: 1px solid #dcdee5;
+    // box-shadow:0 3px 6px #DEE0E7 ;
+    .bk-icon {
+      position: absolute;
+      top: 10px;
+      right: 24px;
+      font-size: 32px;
+      cursor: pointer;
+    }
+  }
 
-    .setting-title {
-      position: fixed;
-      z-index: 999;
-      width: calc(100vw + 12px);
-      min-width: 1460px;
-      height: 52px;
-      font-size: 16px;
-      line-height: 52px;
-      text-align: center;
-      background-color: #fff;
-      border-bottom: 1px solid #dcdee5;
-      // box-shadow:0 3px 6px #DEE0E7 ;
-      .bk-icon {
-        position: absolute;
-        top: 10px;
-        right: 24px;
-        font-size: 32px;
+  .setting-main {
+    position: relative;
+    display: flex;
+    padding: 72px 40px 0;
+
+    .setting-left {
+      min-width: 240px;
+      height: 365px;
+      padding-top: 4px;
+
+      @include container-shadow;
+
+      .setting-option {
+        display: flex;
+        align-items: center;
+        justify-content: space-evenly;
+        height: 40px;
+        margin: 4px 0;
+        font-size: 15px;
         cursor: pointer;
+        transition: all 0.3s;
+
+        .bklog-icon {
+          margin-right: 20px;
+        }
+
+        &:hover {
+          @extend %current-color;
+        }
       }
     }
 
-    .setting-main {
-      position: relative;
-      display: flex;
-      padding: 72px 40px 0;
+    .setting-right {
+      max-width: 1020px;
 
-      .setting-left {
-        min-width: 240px;
-        height: 365px;
-        padding-top: 4px;
+      .more-details {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        height: 48px;
+        padding: 0 24px;
 
         @include container-shadow;
 
-        .setting-option {
+        .details {
           display: flex;
-          align-items: center;
-          justify-content: space-evenly;
-          height: 40px;
-          margin: 4px 0;
-          font-size: 15px;
-          cursor: pointer;
-          transition: all 0.3s;
+          flex-shrink: 0;
+          width: 810px;
 
-          .bklog-icon {
-            margin-right: 20px;
-          }
-
-          &:hover {
-            @extend %current-color;
-          }
-        }
-      }
-
-      .setting-right {
-        max-width: 1020px;
-
-        .more-details {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          height: 48px;
-          padding: 0 24px;
-
-          @include container-shadow;
-
-          .details {
+          p {
             display: flex;
-            flex-shrink: 0;
-            width: 810px;
+            align-items: center;
+            justify-content: center;
+            margin-right: 40px;
 
-            p {
-              display: flex;
-              align-items: center;
-              justify-content: center;
-              margin-right: 40px;
+            > :first-child {
+              flex-shrink: 0;
+              color: #979ba5;
+            }
 
-              > :first-child {
-                flex-shrink: 0;
-                color: #979ba5;
-              }
-
-              > :last-child {
-                max-width: 240px;
-              }
+            > :last-child {
+              max-width: 240px;
             }
           }
         }
+      }
 
-        .more-message {
-          min-width: 102px;
-          color: #3a84ff;
-          cursor: pointer;
-        }
+      .more-message {
+        min-width: 102px;
+        color: #3a84ff;
+        cursor: pointer;
+      }
 
-        .operation-container {
-          min-height: 770px;
-          padding: 24px 20px 10px;
-          margin-top: 20px;
+      .operation-container {
+        min-height: 770px;
+        padding: 24px 20px 10px;
+        margin-top: 20px;
 
-          @include container-shadow;
-        }
+        @include container-shadow;
       }
     }
-
-    %current-color,
-    .current-color {
-      color: #3a84ff;
-      background-color: #e1ecff;
-    }
   }
+
+  %current-color,
+  .current-color {
+    color: #3a84ff;
+    background-color: #e1ecff;
+  }
+}
 </style>

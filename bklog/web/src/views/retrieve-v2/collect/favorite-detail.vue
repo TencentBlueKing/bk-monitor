@@ -25,13 +25,14 @@
 -->
 <template>
   <div class="favorite-manage___favorite-detail-component">
-    <div class="header-title">{{ $t("收藏详情") }}
+    <div class="header-title">
+      {{ $t('收藏详情') }}
       <span class="bklog-icon bklog-close" @click="handleCloseDialog" />
     </div>
     <div class="detail-items-wrap">
       <!-- 收藏名称 -->
       <div class="form-item">
-        <div class="form-item-label">{{ $t("收藏名称") }}：</div>
+        <div class="form-item-label">{{ $t('收藏名称') }}：</div>
         <div class="form-item-content">
           <template v-if="!nameLoading">
             <template v-if="!showNameInput">
@@ -55,7 +56,7 @@
 
       <!-- 所属组 -->
       <div class="form-item">
-        <div class="form-item-label">{{ $t("所属组") }}：</div>
+        <div class="form-item-label">{{ $t('所属组') }}：</div>
         <div class="form-item-content">
           <template v-if="!groupLoading">
             <template v-if="!showGroupInput">
@@ -94,7 +95,7 @@
 
       <!-- 查询语句 -->
       <div class="form-item">
-        <div class="form-item-label">{{ $t("查询语句") }}：</div>
+        <div class="form-item-label">{{ $t('查询语句') }}：</div>
         <div class="form-item-content">
           <div class="query-content-wrap">
             <div class="query-string-wrap">{{ queryContent }}</div>
@@ -167,7 +168,9 @@ const handleUpdateGroup = async () => {
   showGroupInput.value = false;
   if (groupInput.value && groupInput.value !== props.value.group_id) {
     groupLoading.value = true;
-    const group_name = props.groups.find(item => String(item.id) === String(groupInput.value))?.name;
+    const group_name = props.groups.find(
+      (item) => String(item.id) === String(groupInput.value)
+    )?.name;
     const params = {
       ...props.value,
       group_id: groupInput.value === 'null' ? null : groupInput.value,
@@ -182,7 +185,7 @@ const handleUpdateGroup = async () => {
   }
 };
 
-const handleUpdateFavorite = async row => {
+const handleUpdateFavorite = async (row) => {
   const params = [
     {
       id: row.id,
@@ -208,7 +211,7 @@ const handleUpdateFavorite = async row => {
     .then(() => {
       return Promise.resolve(true);
     })
-    .catch(error => {
+    .catch((error) => {
       console.error('Batch update failed', error);
       return Promise.reject(error);
     });
@@ -267,7 +270,7 @@ watch(
     color: #313238;
     display: flex;
     justify-content: space-between;
-    .bklog-close{
+    .bklog-close {
       cursor: pointer;
     }
   }

@@ -26,10 +26,7 @@
 
 <template>
   <div>
-    <div
-      v-if="!globalLoading"
-      class="log-cluster-table-container"
-    >
+    <div v-if="!globalLoading" class="log-cluster-table-container">
       <div
         v-if="isShowTopNav"
         class="cluster-nav"
@@ -45,18 +42,10 @@
             <bk-tag v-if="getDimensionStr">
               {{ getDimensionStr }}
             </bk-tag>
-            <bk-tag
-              v-if="getGroupStr"
-              closable
-              @close="handleCloseGroupTag"
-            >
+            <bk-tag v-if="getGroupStr" closable @close="handleCloseGroupTag">
               {{ getGroupStr }}
             </bk-tag>
-            <bk-tag
-              v-if="getYearStr"
-              closable
-              @close="handleCloseYearTag"
-            >
+            <bk-tag v-if="getYearStr" closable @close="handleCloseYearTag">
               {{ getYearStr }}
             </bk-tag>
           </div>
@@ -72,32 +61,25 @@
         />
       </div>
 
-      <div
-        v-if="isShowGroupTag && !isExternal"
-        style="margin: 0 0 16px -6px"
-      >
+      <div v-if="isShowGroupTag && !isExternal" style="margin: 0 0 16px -6px">
         <bk-tag v-if="getDimensionStr">
           {{ getDimensionStr }}
         </bk-tag>
-        <bk-tag
-          v-if="getGroupStr"
-          closable
-          @close="handleCloseGroupTag"
-        >
+        <bk-tag v-if="getGroupStr" closable @close="handleCloseGroupTag">
           {{ getGroupStr }}
         </bk-tag>
-        <bk-tag
-          v-if="getYearStr"
-          closable
-          @close="handleCloseYearTag"
-        >
+        <bk-tag v-if="getYearStr" closable @close="handleCloseYearTag">
           {{ getYearStr }}
         </bk-tag>
       </div>
 
       <bk-alert
         v-if="clusterSwitch && !exhibitAll"
-        :title="$t('日志聚类必需至少有一个text类型的字段，当前无该字段类型，请前往日志清洗进行设置。')"
+        :title="
+          $t(
+            '日志聚类必需至少有一个text类型的字段，当前无该字段类型，请前往日志清洗进行设置。'
+          )
+        "
         type="info"
         closable
       >
@@ -141,11 +123,7 @@
         />
       </div>
 
-      <bk-table
-        v-else
-        class="no-text-table"
-        :data="[]"
-      >
+      <bk-table v-else class="no-text-table" :data="[]">
         <template #empty>
           <div>
             <empty-status
@@ -155,19 +133,14 @@
             >
               <p v-if="indexSetItem.scenario_id !== 'log' && !isHaveAnalyzed">
                 <i18n path="无分词字段 请前往 {0} 调整清洗">
-                  <span
-                    class="empty-leave"
-                    @click="handleLeaveCurrent"
-                    >{{ $t('计算平台') }}</span
-                  >
+                  <span class="empty-leave" @click="handleLeaveCurrent">{{
+                    $t('计算平台')
+                  }}</span>
                 </i18n>
               </p>
               <div v-else>
                 <p>{{ exhibitText }}</p>
-                <span
-                  class="empty-leave"
-                  @click="handleLeaveCurrent"
-                >
+                <span class="empty-leave" @click="handleLeaveCurrent">
                   {{ exhibitOperate }}
                 </span>
               </div>
@@ -329,7 +302,7 @@ export default {
       return this.$store.state.bkBizId;
     },
     isHaveAnalyzed() {
-      return this.totalFields.some(item => item.is_analyzed);
+      return this.totalFields.some((item) => item.is_analyzed);
     },
     collectorConfigId() {
       return this.cleanConfig.extra?.collector_config_id;
@@ -344,7 +317,7 @@ export default {
        *  来源如果是数据平台并且日志聚类大开关有打开则进入text判断
        *  有text则提示去开启日志聚类 无则显示跳转计算平台
        */
-      return this.totalFields.some(el => el.field_type === 'text');
+      return this.totalFields.some((el) => el.field_type === 'text');
     },
     globalLoading() {
       // 判断是否可以字段提取的全局loading
@@ -364,10 +337,15 @@ export default {
         : '';
     },
     getYearStr() {
-      return this.requestData.year_on_year_hour ? `${this.$t('同比')} : ${this.requestData.year_on_year_hour}h` : '';
+      return this.requestData.year_on_year_hour
+        ? `${this.$t('同比')} : ${this.requestData.year_on_year_hour}h`
+        : '';
     },
     isShowGroupTag() {
-      return this.clusterSwitch && (this.getGroupStr || this.getDimensionStr || this.getYearStr);
+      return (
+        this.clusterSwitch &&
+        (this.getGroupStr || this.getDimensionStr || this.getYearStr)
+      );
     },
     isShowTopNav() {
       return this.exhibitAll && this.clusterSwitch && !this.isShowClusterStep;
@@ -412,8 +390,10 @@ export default {
      * @desc: 初始化table所需的一些参数
      */
     async initTableOperator() {
-      const { log_clustering_level_year_on_year: yearOnYearList, log_clustering_level: clusterLevel } =
-        this.globalsData;
+      const {
+        log_clustering_level_year_on_year: yearOnYearList,
+        log_clustering_level: clusterLevel,
+      } = this.globalsData;
       let patternLevel;
       if (clusterLevel && clusterLevel.length > 0) {
         // 判断奇偶数来取pattern中间值
@@ -438,10 +418,14 @@ export default {
       if (this.isInitPage && !isNoRouteValue) {
         this.active = this.clusterRouteParams.activeNav;
         const paramData = this.clusterRouteParams.requestData;
-        const findIndex = clusterLevel.findIndex(item => item === String(paramData.pattern_level));
+        const findIndex = clusterLevel.findIndex(
+          (item) => item === String(paramData.pattern_level)
+        );
         if (findIndex >= 0) patternLevel = findIndex + 1;
         Object.assign(queryRequestData, paramData, {
-          pattern_level: paramData.pattern_level ? paramData.pattern_level : clusterLevel[patternLevel - 1],
+          pattern_level: paramData.pattern_level
+            ? paramData.pattern_level
+            : clusterLevel[patternLevel - 1],
         });
       }
       const { year_on_year_hour: yearOnYearHour } = queryRequestData;
@@ -449,7 +433,7 @@ export default {
         patternSize: patternLevel - 1,
         sliderMaxVal: clusterLevel.length - 1,
         patternList,
-        comparedList: yearOnYearList.filter(item => item.id !== 0),
+        comparedList: yearOnYearList.filter((item) => item.id !== 0),
         yearOnYearHour: yearOnYearHour > 0 ? yearOnYearHour : 1,
         yearSwitch: yearOnYearHour > 0,
         dimensionList: [],
@@ -458,9 +442,13 @@ export default {
       // 这里判断是否有保存过所有人都显示一样的分组 如果有则直接显示相应的分组
       const groupFields = await this.getInitGroupFields();
       if (groupFields?.length) {
-        const selectGroupList = this.fingerOperateData.selectGroupList.filter(item => !groupFields.includes(item));
+        const selectGroupList = this.fingerOperateData.selectGroupList.filter(
+          (item) => !groupFields.includes(item)
+        );
         // 如果初始化时有默认维度的字段 将维度和分组分开来处理
-        Object.assign(queryRequestData, { group_by: [...groupFields, ...selectGroupList] });
+        Object.assign(queryRequestData, {
+          group_by: [...groupFields, ...selectGroupList],
+        });
         Object.assign(this.fingerOperateData, {
           dimensionList: groupFields,
           selectGroupList,
@@ -481,7 +469,10 @@ export default {
         if (this.clusterSwitch) {
           const params = { index_set_id: this.routerIndexSet };
           const data = { collector_config_id: this.collectorConfigId };
-          const res = await this.$http.request('/logClustering/getConfig', { params, data });
+          const res = await this.$http.request('/logClustering/getConfig', {
+            params,
+            data,
+          });
           return res.data.group_fields;
         }
         return [];
@@ -561,7 +552,7 @@ export default {
           },
           { cancelWhenRouteChange: false }
         ) // 由于回填指纹的数据导致路由变化，故路由变化时不取消请求
-        .then(res => {
+        .then((res) => {
           this.fingerPage = 1;
           this.fingerList = [];
           this.allFingerList = res.data;
@@ -577,13 +568,19 @@ export default {
      * @desc: 数据指纹分页操作
      */
     async paginationOptions() {
-      if (this.isPageOver || this.fingerList.length >= this.allFingerList.length) {
+      if (
+        this.isPageOver ||
+        this.fingerList.length >= this.allFingerList.length
+      ) {
         return;
       }
       this.isPageOver = true;
       this.fingerPage += 1;
       const { fingerPage: page, fingerPageSize: pageSize } = this;
-      const sliceFingerList = this.allFingerList.slice(pageSize * (page - 1), pageSize * page);
+      const sliceFingerList = this.allFingerList.slice(
+        pageSize * (page - 1),
+        pageSize * page
+      );
       setTimeout(() => {
         this.fingerList.push(...sliceFingerList);
         this.isPageOver = false;
@@ -594,8 +591,8 @@ export default {
      */
     filterGroupList() {
       const filterList = this.totalFields
-        .filter(el => el.es_doc_values && !/^__dist_/.test(el.field_name)) // 过滤__dist字段
-        .map(item => {
+        .filter((el) => el.es_doc_values && !/^__dist_/.test(el.field_name)) // 过滤__dist字段
+        .map((item) => {
           const { field_name: id, field_alias: alias } = item;
           return { id, name: alias ? `${id}(${alias})` : id };
         });
@@ -609,7 +606,11 @@ export default {
     },
     handleCloseGroupTag() {
       Object.assign(this.fingerOperateData, { selectGroupList: [] });
-      this.handleFingerOperate('requestData', { group_by: this.fingerOperateData.dimensionList }, true);
+      this.handleFingerOperate(
+        'requestData',
+        { group_by: this.fingerOperateData.dimensionList },
+        true
+      );
     },
     handleCloseYearTag() {
       Object.assign(this.fingerOperateData, { yearSwitch: false });
@@ -689,79 +690,79 @@ export default {
 </script>
 
 <style lang="scss">
-  @import '@/scss/mixins/flex.scss';
+@import '@/scss/mixins/flex.scss';
 
-  /* stylelint-disable no-descending-specificity */
-  .log-cluster-table-container {
-    overflow: hidden;
+/* stylelint-disable no-descending-specificity */
+.log-cluster-table-container {
+  overflow: hidden;
 
-    .cluster-nav {
-      flex-wrap: nowrap;
-      align-items: center;
-      height: 32px;
-      margin-bottom: 12px;
-      color: #63656e;
-      @include flex-justify(space-between);
-    }
-
-    .bk-alert {
-      margin-bottom: 16px;
-    }
+  .cluster-nav {
+    flex-wrap: nowrap;
+    align-items: center;
+    height: 32px;
+    margin-bottom: 12px;
+    color: #63656e;
+    @include flex-justify(space-between);
   }
 
-  .no-text-table {
-    .bk-table-empty-block {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      min-height: calc(100vh - 480px);
-    }
-
-    .empty-text {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: space-between;
-
-      .bk-icon {
-        font-size: 65px;
-      }
-
-      .empty-leave {
-        margin-top: 8px;
-        color: #3a84ff;
-        cursor: pointer;
-      }
-    }
+  .bk-alert {
+    margin-bottom: 16px;
   }
+}
 
-  .fixed-scroll-top-btn {
-    position: fixed;
-    right: 14px;
-    bottom: 24px;
-    z-index: 2100;
+.no-text-table {
+  .bk-table-empty-block {
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 36px;
-    height: 36px;
-    color: #63656e;
-    cursor: pointer;
-    background: #f0f1f5;
-    border: 1px solid #dde4eb;
-    border-radius: 4px;
-    box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.2);
-    transition: all 0.2s;
+    min-height: calc(100vh - 480px);
+  }
 
-    &:hover {
-      color: #fff;
-      background: #979ba5;
-      transition: all 0.2s;
-    }
+  .empty-text {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: space-between;
 
     .bk-icon {
-      font-size: 20px;
-      font-weight: bold;
+      font-size: 65px;
+    }
+
+    .empty-leave {
+      margin-top: 8px;
+      color: #3a84ff;
+      cursor: pointer;
     }
   }
+}
+
+.fixed-scroll-top-btn {
+  position: fixed;
+  right: 14px;
+  bottom: 24px;
+  z-index: 2100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  color: #63656e;
+  cursor: pointer;
+  background: #f0f1f5;
+  border: 1px solid #dde4eb;
+  border-radius: 4px;
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.2);
+  transition: all 0.2s;
+
+  &:hover {
+    color: #fff;
+    background: #979ba5;
+    transition: all 0.2s;
+  }
+
+  .bk-icon {
+    font-size: 20px;
+    font-weight: bold;
+  }
+}
 </style>

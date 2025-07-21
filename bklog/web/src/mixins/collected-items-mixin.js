@@ -30,15 +30,107 @@ export default {
   data() {
     return {
       disabledTips: {
+        delete: this.$t('删除前请先停用'),
         terminated: {
           operateType: ['clone', 'storage', 'search', 'clean'],
           tips: this.$t('请先完成采集接入'),
         },
-        delete: this.$t('删除前请先停用'),
       },
     };
   },
   methods: {
+    async checkCreateAuth() {
+      try {
+        const res = await this.$store.dispatch('checkAllowed', {
+          action_ids: [authorityMap.CREATE_COLLECTION_AUTH],
+          resources: [
+            {
+              id: this.spaceUid,
+              type: 'space',
+            },
+          ],
+        });
+        this.isAllowedCreate = res.isAllowed;
+      } catch (err) {
+        console.warn(err);
+        this.isAllowedCreate = false;
+      }
+    },
+    getDisabledTipsMessage(row, operateType) {
+      if (operateType === 'delete') return this.disabledTips.delete;
+      if (!this.disabledTips[row.status]) return '--';
+      if (this.disabledTips[row.status].operateType?.includes(operateType)) {
+        return this.disabledTips[row.status].tips;
+      }
+      return '--';
+    },
+    getOperatorCanClick(row, operateType) {
+      if (operateType === 'search') {
+        return !(
+          !row.is_active ||
+          (!row.index_set_id && !row.bkdata_index_set_ids.length)
+        );
+      }
+      if (['clean', 'storage', 'clone'].includes(operateType)) {
+        return !row.status || row.table_id;
+      }
+      if (['stop', 'start'].includes(operateType)) {
+        return (
+          !(
+            !row.status ||
+            row.status === 'running' ||
+            row.status === 'prepare' ||
+            !this.collectProject
+          ) || row.is_active !== undefined
+        );
+      }
+      if (operateType === 'delete') {
+        return !(
+          !row.status ||
+          row.status === 'running' ||
+          row.is_active ||
+          !this.collectProject
+        );
+      }
+      return true;
+    },
+    async getOptionApplyData(paramData) {
+      try {
+        this.isTableLoading = true;
+        const res = await this.$store.dispatch('getApplyData', paramData);
+        this.$store.commit('updateAuthDialogData', res.data);
+      } catch (err) {
+        console.warn(err);
+      } finally {
+        this.isTableLoading = false;
+      }
+    },
+    /**
+     * 分页限制
+     * @param  {Number} page 当前页码
+     * @return {[type]}      [description]
+     */
+    handleLimitChange(page) {
+      if (this.pagination.limit !== page) {
+        this.pagination.current = 1;
+        this.pagination.limit = page;
+        this.requestData();
+      }
+    },
+    /**
+     * 分页变换
+     * @param  {Number} page 当前页码
+     * @return {[type]}      [description]
+     */
+    handlePageChange(page) {
+      if (this.pagination.current !== page) {
+        this.pagination.current = page;
+        if (this.$route.name === 'collection-item') {
+          this.stopStatusPolling();
+        }
+        this.requestData();
+      }
+    },
     async operateHandler(row, operateType) {
       // type: [view, status , search, edit, field, start, stop, delete]
       const isCanClick = this.getOperatorCanClick(row, operateType);
@@ -50,8 +142,8 @@ export default {
             action_ids: [authorityMap.CREATE_COLLECTION_AUTH],
             resources: [
               {
-                type: 'space',
                 id: this.spaceUid,
+                type: 'space',
               },
             ],
           });
@@ -63,8 +155,8 @@ export default {
             action_ids: [authorityMap.VIEW_COLLECTION_AUTH],
             resources: [
               {
-                type: 'collection',
                 id: row.collector_config_id,
+                type: 'collection',
               },
             ],
           });
@@ -76,8 +168,8 @@ export default {
             action_ids: [authorityMap.SEARCH_LOG_AUTH],
             resources: [
               {
-                type: 'indices',
                 id: row.index_set_id,
+                type: 'indices',
               },
             ],
           });
@@ -88,8 +180,8 @@ export default {
           action_ids: [authorityMap.MANAGE_COLLECTION_AUTH],
           resources: [
             {
-              type: 'collection',
               id: row.collector_config_id,
+              type: 'collection',
             },
           ],
         });
@@ -114,7 +206,7 @@ export default {
             collector_config_id: row.collector_config_id,
           },
         })
-        .then(res => {
+        .then((res) => {
           if (res.result) {
             const page =
               this.collectList.length <= 1
@@ -130,86 +222,6 @@ export default {
           }
         })
         .catch(() => {});
-    },
-    /**
-     * 分页变换
-     * @param  {Number} page 当前页码
-     * @return {[type]}      [description]
-     */
-    handlePageChange(page) {
-      if (this.pagination.current !== page) {
-        this.pagination.current = page;
-        if (this.$route.name === 'collection-item') {
-          this.stopStatusPolling();
-        }
-        this.requestData();
-      }
-    },
-    /**
-     * 分页限制
-     * @param  {Number} page 当前页码
-     * @return {[type]}      [description]
-     */
-    handleLimitChange(page) {
-      if (this.pagination.limit !== page) {
-        this.pagination.current = 1;
-        this.pagination.limit = page;
-        this.requestData();
-      }
-    },
-    async getOptionApplyData(paramData) {
-      try {
-        this.isTableLoading = true;
-        const res = await this.$store.dispatch('getApplyData', paramData);
-        this.$store.commit('updateAuthDialogData', res.data);
-      } catch (err) {
-        console.warn(err);
-      } finally {
-        this.isTableLoading = false;
-      }
-    },
-    async checkCreateAuth() {
-      try {
-        const res = await this.$store.dispatch('checkAllowed', {
-          action_ids: [authorityMap.CREATE_COLLECTION_AUTH],
-          resources: [
-            {
-              type: 'space',
-              id: this.spaceUid,
-            },
-          ],
-        });
-        this.isAllowedCreate = res.isAllowed;
-      } catch (err) {
-        console.warn(err);
-        this.isAllowedCreate = false;
-      }
-    },
-    getDisabledTipsMessage(row, operateType) {
-      if (operateType === 'delete') return this.disabledTips.delete;
-      if (!this.disabledTips[row.status]) return '--';
-      if (this.disabledTips[row.status].operateType?.includes(operateType)) {
-        return this.disabledTips[row.status].tips;
-      }
-      return '--';
-    },
-    getOperatorCanClick(row, operateType) {
-      if (operateType === 'search') {
-        return !(!row.is_active || (!row.index_set_id && !row.bkdata_index_set_ids.length));
-      }
-      if (['clean', 'storage', 'clone'].includes(operateType)) {
-        return !row.status || row.table_id;
-      }
-      if (['stop', 'start'].includes(operateType)) {
-        return (
-          !(!row.status || row.status === 'running' || row.status === 'prepare' || !this.collectProject) ||
-          row.is_active !== undefined
-        );
-      }
-      if (operateType === 'delete') {
-        return !(!row.status || row.status === 'running' || row.is_active || !this.collectProject);
-      }
-      return true;
     },
   },
 };

@@ -26,16 +26,9 @@
 
 <template>
   <div class="title-wrapper-new">
-    <div
-      ref="chartTitle"
-      class="chart-title"
-      tabindex="0"
-    >
+    <div ref="chartTitle" class="chart-title" tabindex="0">
       <div class="main-title">
-        <div
-          class="title-click"
-          @click.stop="handleShowMenu"
-        >
+        <div class="title-click" @click.stop="handleShowMenu">
           <span
             class="bk-icon icon-down-shape"
             :class="{ 'is-flip': isFold }"
@@ -49,11 +42,7 @@
             <span>{{ tookTime }}</span>
           </i18n>
         </div>
-        <div
-          v-if="!isEmptyChart && !isFold"
-          class="converge-cycle"
-          @click.stop
-        >
+        <div v-if="!isEmptyChart && !isFold" class="converge-cycle" @click.stop>
           <span>{{ $t('汇聚周期') }}</span>
           <bk-select
             style="width: 80px"
@@ -75,17 +64,11 @@
           </bk-select>
         </div>
       </div>
-      <div
-        v-if="subtitle"
-        class="sub-title"
-      >
+      <div v-if="subtitle" class="sub-title">
         {{ subtitle }}
       </div>
     </div>
-    <bk-spin
-      v-if="loading && !isFold"
-      class="chart-spin"
-    ></bk-spin>
+    <bk-spin v-if="loading && !isFold" class="chart-spin"></bk-spin>
     <!-- <div
       v-else-if="!isFold"
       class="menu-list"
@@ -122,7 +105,8 @@ export default class ChartTitle extends Vue {
   @Prop({ default: '' }) title: string;
   @Prop({ default: '' }) subtitle: string;
   @Prop({ default: () => [] }) menuList: string[];
-  @Prop({ default: localStorage.getItem('chartIsFold') === 'true' }) isFold: boolean;
+  @Prop({ default: localStorage.getItem('chartIsFold') === 'true' })
+  isFold: boolean;
   @Prop({ default: true }) loading: boolean;
   @Prop({ default: true }) isEmptyChart: boolean;
   @Prop({ required: true }) totalCount: number;
@@ -171,116 +155,116 @@ export default class ChartTitle extends Vue {
 }
 </script>
 <style lang="scss" scoped>
-  .title-wrapper-new {
-    position: relative;
-    z-index: 999;
-    flex: 1;
-    width: 100%;
+.title-wrapper-new {
+  position: relative;
+  z-index: 999;
+  flex: 1;
+  width: 100%;
 
-    .converge-cycle {
+  .converge-cycle {
+    display: flex;
+    align-items: center;
+    margin-left: 14px;
+    font-size: 12px;
+    font-weight: normal;
+    color: #63656e;
+
+    .select-custom {
+      display: inline-block;
+      margin-left: 5px;
+      vertical-align: middle;
+    }
+  }
+
+  .chart-title {
+    padding: 0 10px;
+    margin-left: -10px;
+    font-size: 12px;
+    color: #63656e;
+    border-radius: 2px;
+
+    .title-click {
       display: flex;
+      flex-wrap: nowrap;
       align-items: center;
-      margin-left: 14px;
-      font-size: 12px;
-      font-weight: normal;
-      color: #63656e;
-
-      .select-custom {
-        display: inline-block;
-        margin-left: 5px;
-        vertical-align: middle;
-      }
+      cursor: pointer;
     }
 
-    .chart-title {
-      padding: 0 10px;
-      margin-left: -10px;
-      font-size: 12px;
-      color: #63656e;
-      border-radius: 2px;
+    .main-title {
+      display: flex;
+      flex-wrap: nowrap;
+      align-items: center;
+      justify-content: space-between;
+      height: 24px;
 
-      .title-click {
-        display: flex;
-        flex-wrap: nowrap;
-        align-items: center;
-        cursor: pointer;
-      }
-
-      .main-title {
-        display: flex;
-        flex-wrap: nowrap;
-        align-items: center;
-        justify-content: space-between;
-        height: 24px;
-
-        .title-name {
-          height: 20px;
-          overflow: hidden;
-          font-weight: 700;
-          line-height: 20px;
-          text-overflow: ellipsis;
-          white-space: nowrap;
-        }
-
-        .time-result {
-          margin-left: 14px;
-
-          .total-count {
-            color: #f00;
-          }
-        }
-
-        .icon-down-shape {
-          margin-right: 8px;
-          transition: transform 0.3s;
-
-          &.is-flip {
-            transition: transform 0.3s;
-            transform: rotate(-90deg);
-          }
-        }
-
-        // &::after {
-        //   /* stylelint-disable-next-line declaration-no-important */
-        //   font-family: 'icon-monitor' !important;
-        //   content: '\e61c';
-        //   font-size: 20px;
-        //   width: 24px;
-        //   height: 16px;
-        //   align-items: center;
-        //   justify-content: center;
-        //   color: #979ba5;
-        //   margin-right: auto;
-        //   display: none;
-        // }
-      }
-
-      .sub-title {
-        height: 16px;
+      .title-name {
+        height: 20px;
         overflow: hidden;
-        line-height: 16px;
-        color: #979ba5;
+        font-weight: 700;
+        line-height: 20px;
         text-overflow: ellipsis;
         white-space: nowrap;
       }
-    }
 
-    .menu-list {
-      position: absolute;
-      top: 0;
-      right: 36px;
+      .time-result {
+        margin-left: 14px;
 
-      .bklog-icon {
-        font-size: 14px;
-        color: #979ba5;
-        cursor: pointer;
+        .total-count {
+          color: #f00;
+        }
       }
+
+      .icon-down-shape {
+        margin-right: 8px;
+        transition: transform 0.3s;
+
+        &.is-flip {
+          transition: transform 0.3s;
+          transform: rotate(-90deg);
+        }
+      }
+
+      // &::after {
+      //   /* stylelint-disable-next-line declaration-no-important */
+      //   font-family: 'icon-monitor' !important;
+      //   content: '\e61c';
+      //   font-size: 20px;
+      //   width: 24px;
+      //   height: 16px;
+      //   align-items: center;
+      //   justify-content: center;
+      //   color: #979ba5;
+      //   margin-right: auto;
+      //   display: none;
+      // }
     }
 
-    .chart-spin {
-      position: absolute;
-      top: 27px;
-      right: 36px;
+    .sub-title {
+      height: 16px;
+      overflow: hidden;
+      line-height: 16px;
+      color: #979ba5;
+      text-overflow: ellipsis;
+      white-space: nowrap;
     }
   }
+
+  .menu-list {
+    position: absolute;
+    top: 0;
+    right: 36px;
+
+    .bklog-icon {
+      font-size: 14px;
+      color: #979ba5;
+      cursor: pointer;
+    }
+  }
+
+  .chart-spin {
+    position: absolute;
+    top: 27px;
+    right: 36px;
+  }
+}
 </style>

@@ -34,31 +34,41 @@ const notKeywordDecorator = Decoration.mark({
 });
 
 function highlightNotKeywords() {
-  return EditorView.decorations.of(view => {
+  return EditorView.decorations.of((view) => {
     const decorations = [];
     const text = view.state.doc.toString();
     const regex = /\bNOT\b/g;
 
     let match;
     while ((match = regex.exec(text)) !== null) {
-      decorations.push(notKeywordDecorator.range(match.index, match.index + match[0].length));
+      decorations.push(
+        notKeywordDecorator.range(match.index, match.index + match[0].length)
+      );
     }
 
     return Decoration.set(decorations);
   });
 }
 
-export default ({ target, onChange, onFocusChange, onFocusPosChange, onKeyEnter, value, stopDefaultKeyboard }) => {
+export default ({
+  onChange,
+  onFocusChange,
+  onFocusPosChange,
+  onKeyEnter,
+  stopDefaultKeyboard,
+  target,
+  value,
+}) => {
   // 键盘操作事件处理函数
   // 这里通过回调函数处理，如果 stopDefaultKeyboard 返回true，则会阻止编辑器默认的监盘行为
-  const stopKeyboardList = ['ArrowUp', 'ArrowDown'].map(keymap => ({
+  const stopKeyboardList = ['ArrowUp', 'ArrowDown'].map((keymap) => ({
     key: keymap,
     run: () => {
       return stopDefaultKeyboard?.() ?? false;
     },
   }));
 
-  const debouncedTrack = debounce(update => {
+  const debouncedTrack = debounce((update) => {
     onChange?.(update.state.doc);
     onFocusPosChange?.(update.state);
   });
@@ -70,7 +80,7 @@ export default ({ target, onChange, onFocusChange, onFocusPosChange, onKeyEnter,
         {
           key: 'Enter',
           mac: 'Enter',
-          run: view => {
+          run: (view) => {
             return onKeyEnter?.(view) ?? false;
           },
         },
@@ -84,7 +94,7 @@ export default ({ target, onChange, onFocusChange, onFocusPosChange, onKeyEnter,
       EditorView.focusChangeEffect.of((state, focusing) => {
         onFocusChange?.(state, focusing);
       }),
-      EditorView.updateListener.of(update => {
+      EditorView.updateListener.of((update) => {
         if (update.selectionSet) {
           onFocusPosChange?.(update.state);
         }
@@ -96,11 +106,11 @@ export default ({ target, onChange, onFocusChange, onFocusPosChange, onKeyEnter,
   });
 
   const view = new EditorView({
-    state,
     parent: target,
+    state,
   });
 
-  const appendText = value => {
+  const appendText = (value) => {
     view.dispatch({
       changes: { from: view.state.doc.length, insert: value },
     });
@@ -116,7 +126,7 @@ export default ({ target, onChange, onFocusChange, onFocusPosChange, onKeyEnter,
     if (to === Infinity) {
       const docLength = view.state.doc.length;
       view.dispatch({
-        changes: { from: 0, to: docLength, insert: value },
+        changes: { from: 0, insert: value, to: docLength },
         selection: EditorSelection.cursor(value.length),
       });
       return;
@@ -152,20 +162,23 @@ export default ({ target, onChange, onFocusChange, onFocusPosChange, onKeyEnter,
       }
 
       view.dispatch({
-        changes: { from: safeFrom, to: safeTo, insert: value },
+        changes: { from: safeFrom, insert: value, to: safeTo },
         selection: EditorSelection.cursor(safeFrom + value.length),
         userEvent: 'input',
       });
     }
   };
 
-  const setFocus = focusPosition => {
+  const setFocus = (focusPosition) => {
     if (!view) return;
 
     view.focus();
     // 确保光标位置在有效范围内
     const docLength = view.state.doc.length;
-    const pos = typeof focusPosition === 'number' ? Math.min(Math.max(0, focusPosition), docLength) : 0;
+    const pos =
+      typeof focusPosition === 'number'
+        ? Math.min(Math.max(0, focusPosition), docLength)
+        : 0;
 
     view.dispatch({
       selection: EditorSelection.cursor(pos),
@@ -178,11 +191,11 @@ export default ({ target, onChange, onFocusChange, onFocusPosChange, onKeyEnter,
   };
 
   return {
+    appendText,
+    getValue,
+    setFocus,
+    setValue,
     state,
     view,
-    appendText,
-    setValue,
-    setFocus,
-    getValue,
   };
 };

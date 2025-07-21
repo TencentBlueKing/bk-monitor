@@ -83,7 +83,7 @@ export default {
         } else {
           // 有用户存在于人员列表中，才算是通过校验
           for (const user of this.value) {
-            if (this.list.find(item => item.username === user)) {
+            if (this.list.find((item) => item.username === user)) {
               this.isError = false;
               return;
             }
@@ -105,7 +105,7 @@ export default {
     },
     pasteFn(val) {
       const users = [...this.value];
-      val.split(';').forEach(item => {
+      val.split(';').forEach((item) => {
         item = item.trim();
         if (item) {
           if (this.allowCreate) {
@@ -113,8 +113,11 @@ export default {
               users.push(item);
             }
           } else {
-            this.list.forEach(user => {
-              if ((user.displayname === item || user.username === item) && !users.includes(user.username)) {
+            this.list.forEach((user) => {
+              if (
+                (user.displayname === item || user.username === item) &&
+                !users.includes(user.username)
+              ) {
                 users.push(user.username);
               }
             });
@@ -129,7 +132,7 @@ export default {
 </script>
 
 <style lang="scss" scoped>
-  .validate-tag-input :deep(.is-error .bk-tag-input) {
-    border-color: #ff5656;
-  }
+.validate-tag-input :deep(.is-error .bk-tag-input) {
+  border-color: #ff5656;
+}
 </style>

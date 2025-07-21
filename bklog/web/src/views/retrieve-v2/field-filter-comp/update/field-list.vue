@@ -63,20 +63,25 @@ const popoverLazyLoaded = ref({
 
 const unionIndexList = computed(() => store.state.unionIndexList);
 const isUnionSearch = computed(() => store.state.isUnionSearch);
-const isStartTextEllipsis = computed(() => store.state.storage.textEllipsisDir === 'start');
+const isStartTextEllipsis = computed(
+  () => store.state.storage.textEllipsisDir === 'start'
+);
 
 /** 字段配置管理组件所需参数 */
 const retrieveParams = computed(() => store.getters.retrieveParams);
 /** 字段配置管理组件所需参数 */
 const fieldAliasMap = computed(() => {
   return (store.state.indexFieldInfo.fields ?? []).reduce(
-    (out, field) => ({ ...out, [field.field_name]: field.field_alias || field.field_name }),
+    (out, field) => ({
+      ...out,
+      [field.field_name]: field.field_alias || field.field_name,
+    }),
     {}
   );
 });
 
 const searchConfigList = computed(() => {
-  return configList.value.filter(item => {
+  return configList.value.filter((item) => {
     // 确保 item.name 是一个字符串
     const name = String(item.name);
     // 检查 name 是否包含 searchString
@@ -181,7 +186,11 @@ const getFiledConfigList = async () => {
       data: {
         ...(isUnionSearch.value
           ? { index_set_ids: unionIndexList.value }
-          : { index_set_id: window.__IS_MONITOR_COMPONENT__ ? route.query.indexId : route.params.indexId }),
+          : {
+              index_set_id: window.__IS_MONITOR_COMPONENT__
+                ? route.query.indexId
+                : route.params.indexId,
+            }),
         scope: 'default',
         index_set_type: isUnionSearch.value ? 'union' : 'single',
       },
@@ -193,7 +202,7 @@ const getFiledConfigList = async () => {
   }
 };
 
-const handleClickSelectConfig = item => {
+const handleClickSelectConfig = (item) => {
   handlePopoverHide();
   store.commit('retrieve/updateFiledSettingConfigID', item.id);
   store.commit('updateIsSetDefaultTableColumn', false);
@@ -214,7 +223,7 @@ const handleClickSelectConfig = item => {
   <div class="field-select-config-v2">
     <div
       class="dropdown-trigger"
-      :ref="vm => (popoverTrigger = vm)"
+      :ref="(vm) => (popoverTrigger = vm)"
       @click="handleDropdownPopoverShow"
     >
       <span class="bklog-icon bklog-overview1"></span>
@@ -225,7 +234,7 @@ const handleClickSelectConfig = item => {
         v-if="popoverLazyLoaded.dropdown"
         class="dropdown-content"
         :ref="
-          vm => {
+          (vm) => {
             dropdownRef = vm;
           }
         "
@@ -267,7 +276,7 @@ const handleClickSelectConfig = item => {
         v-if="popoverLazyLoaded.setting"
         class="fields-setting-container"
         :ref="
-          vm => {
+          (vm) => {
             settingRef = vm;
           }
         "
@@ -286,5 +295,5 @@ const handleClickSelectConfig = item => {
   </div>
 </template>
 <style lang="scss">
-  @import './field-list.scss';
+@import './field-list.scss';
 </style>

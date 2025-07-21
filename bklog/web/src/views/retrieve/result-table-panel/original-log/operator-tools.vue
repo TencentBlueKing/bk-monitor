@@ -25,11 +25,21 @@
 -->
 
 <template>
-  <div :class="{ 'handle-content': true, 'fix-content': showAllHandle, 'origin-content': logType === 'origin' }">
+  <div
+    :class="{
+      'handle-content': true,
+      'fix-content': showAllHandle,
+      'origin-content': logType === 'origin',
+    }"
+  >
     <template v-if="!isUnionSearch">
       <span
         class="handle-card"
-        v-bk-tooltips="{ allowHtml: true, content: '#realTimeLog-html', delay: 500 }"
+        v-bk-tooltips="{
+          allowHtml: true,
+          content: '#realTimeLog-html',
+          delay: 500,
+        }"
       >
         <span
           :class="`icon bklog-icon bklog-handle bklog-time ${!isActiveLog && 'is-disable'}`"
@@ -39,7 +49,11 @@
       </span>
       <span
         class="handle-card"
-        v-bk-tooltips="{ allowHtml: true, content: '#contextLog-html', delay: 500 }"
+        v-bk-tooltips="{
+          allowHtml: true,
+          content: '#contextLog-html',
+          delay: 500,
+        }"
       >
         <span
           :class="`icon bklog-icon bklog-handle bklog-document ${!isActiveLog && 'is-disable'}`"
@@ -50,7 +64,11 @@
       <span
         v-if="isActiveWebConsole"
         class="handle-card"
-        v-bk-tooltips="{ allowHtml: true, content: '#webConsole-html', delay: 500 }"
+        v-bk-tooltips="{
+          allowHtml: true,
+          content: '#webConsole-html',
+          delay: 500,
+        }"
       >
         <span
           :class="`icon bklog-icon bklog-consola ${!isCanClickWebConsole && 'is-disable'}`"
@@ -113,7 +131,12 @@
         "
         @click.stop="handleClick('logSource')"
       >
-        <i :class="['bk-icon bklog-handle', `${!isShowSourceField ? 'icon-eye' : 'icon-eye-slash'}`]"></i>
+        <i
+          :class="[
+            'bk-icon bklog-handle',
+            `${!isShowSourceField ? 'icon-eye' : 'icon-eye-slash'}`,
+          ]"
+        ></i>
       </span>
     </template>
   </div>
@@ -207,55 +230,55 @@ export default {
 </script>
 
 <style lang="scss" scoped>
-  .handle-content {
-    position: absolute;
-    top: 0;
-    right: 0;
-    display: flex;
-    align-items: flex-start;
-    justify-content: flex-end;
-    width: 84px;
-    padding: 14px 10px;
-    overflow: hidden;
-  }
+.handle-content {
+  position: absolute;
+  top: 0;
+  right: 0;
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-end;
+  width: 84px;
+  padding: 14px 10px;
+  overflow: hidden;
+}
 
-  .fix-content {
-    width: auto;
-    background-color: #f5f7fa;
-  }
+.fix-content {
+  width: auto;
+  background-color: #f5f7fa;
+}
 
-  .icon-exclamation-circle-shape {
-    color: #d7473f;
-  }
+.icon-exclamation-circle-shape {
+  color: #d7473f;
+}
 
-  .icon-more {
-    transform: translateY(2px) translateX(4px);
-  }
+.icon-more {
+  transform: translateY(2px) translateX(4px);
+}
 
-  .is-disable {
-    /* stylelint-disable-next-line declaration-no-important */
-    color: #eceef2 !important;
+.is-disable {
+  /* stylelint-disable-next-line declaration-no-important */
+  color: #eceef2 !important;
 
-    /* stylelint-disable-next-line declaration-no-important */
-    cursor: no-drop !important;
-  }
+  /* stylelint-disable-next-line declaration-no-important */
+  cursor: no-drop !important;
+}
 
-  .clean-str {
+.clean-str {
+  color: #3a84ff;
+  cursor: pointer;
+}
+
+.union-icon {
+  margin-right: 8px;
+}
+
+.bklog-handle {
+  font-size: 14px;
+  color: #979ba5;
+  cursor: pointer;
+
+  &:hover {
     color: #3a84ff;
-    cursor: pointer;
   }
-
-  .union-icon {
-    margin-right: 8px;
-  }
-
-  .bklog-handle {
-    font-size: 14px;
-    color: #979ba5;
-    cursor: pointer;
-
-    &:hover {
-      color: #3a84ff;
-    }
-  }
+}
 </style>

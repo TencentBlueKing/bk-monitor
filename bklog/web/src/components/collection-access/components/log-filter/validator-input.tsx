@@ -20,7 +20,14 @@
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE
  */
 
-import { Component, Prop, Watch, Emit, Model, Ref } from 'vue-property-decorator';
+import {
+  Component,
+  Prop,
+  Watch,
+  Emit,
+  Model,
+  Ref,
+} from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import './validator-input.scss';
@@ -31,12 +38,13 @@ interface IProps {
 
 @Component
 export default class LogFilter extends tsc<object> {
-  @Model('change', { type: String, default: '' }) value: IProps['value'];
-  @Prop({ type: String, default: '' }) placeholder: string;
-  @Prop({ type: String, default: '' }) activeType: string;
-  @Prop({ type: String, default: 'text' }) inputType: string;
-  @Prop({ type: Object, default: () => ({}) }) rowData: any;
-  @Prop({ type: Array, default: () => [] }) originalFilterItemSelect: Array<any>;
+  @Model('change', { default: '', type: String }) value: IProps['value'];
+  @Prop({ default: '', type: String }) placeholder: string;
+  @Prop({ default: '', type: String }) activeType: string;
+  @Prop({ default: 'text', type: String }) inputType: string;
+  @Prop({ default: () => ({}), type: Object }) rowData: any;
+  @Prop({ default: () => [], type: Array })
+  originalFilterItemSelect: Array<any>;
   @Ref('input') readonly inputRef: any;
   @Ref('validateForm') readonly validateFormRef: any;
 
@@ -48,9 +56,9 @@ export default class LogFilter extends tsc<object> {
   rules = {
     inputValue: [
       {
-        validator: this.checkValidator,
         message: window.mainComponent.$t('必填项'),
         trigger: 'blur',
+        validator: this.checkValidator,
       },
     ],
   };
@@ -60,7 +68,9 @@ export default class LogFilter extends tsc<object> {
   }
   /** 当有下拉框的情况下 显示调试后行对应的值 */
   get selectedShowStr() {
-    return this.originalFilterItemSelect.find(item => item.id === this.formData.inputValue)?.name;
+    return this.originalFilterItemSelect.find(
+      (item) => item.id === this.formData.inputValue
+    )?.name;
   }
   /** 是否展示输入框  点击情况或者值为空的情况 */
   get isShowFormInput() {
@@ -83,7 +93,7 @@ export default class LogFilter extends tsc<object> {
   }
 
   validate() {
-    return new Promise(reject => {
+    return new Promise((reject) => {
       if (!this.validateFormRef) reject(true);
       this.validateFormRef.validate().then(
         () => reject(true),
@@ -105,7 +115,12 @@ export default class LogFilter extends tsc<object> {
 
   checkValidator() {
     const { fieldindex, word } = this.rowData;
-    if ((!fieldindex && !word) || (fieldindex && word) || this.formData.inputValue || this.activeType === 'match')
+    if (
+      (!fieldindex && !word) ||
+      (fieldindex && word) ||
+      this.formData.inputValue ||
+      this.activeType === 'match'
+    )
       return true;
     return false;
   }
@@ -119,11 +134,8 @@ export default class LogFilter extends tsc<object> {
         {this.isShowFormInput ? (
           formInput()
         ) : (
-          <div class='input-box'>
-            <span
-              class='input-value overflow-tips'
-              v-bk-overflow-tips
-            >
+          <div class="input-box">
+            <span class="input-value overflow-tips" v-bk-overflow-tips>
               {isSelect
                 ? `${this.selectedShowStr || this.$t('第{n}行', { n: this.formData.inputValue })}`
                 : this.$t('第{n}行', { n: this.formData.inputValue })}
@@ -134,8 +146,8 @@ export default class LogFilter extends tsc<object> {
     );
     const formInput = () => (
       <bk-form
-        ref='validateForm'
-        form-type='inline'
+        form-type="inline"
+        ref="validateForm"
         {...{
           props: {
             model: this.formData,
@@ -143,26 +155,23 @@ export default class LogFilter extends tsc<object> {
           },
         }}
       >
-        <bk-form-item
-          label=''
-          property='inputValue'
-        >
+        <bk-form-item label="" property="inputValue">
           <bk-input
-            ref='input'
-            v-model={this.formData.inputValue}
+            clearable
             min={1}
+            onBlur={this.blurInput}
             placeholder={this.placeholder ?? this.$t('请输入')}
+            ref="input"
+            show-clear-only-hover
             show-controls={false}
             type={this.inputType}
-            clearable
-            show-clear-only-hover
-            onBlur={this.blurInput}
+            v-model={this.formData.inputValue}
           />
         </bk-form-item>
       </bk-form>
     );
     return (
-      <div class='bklog-log-filter form-input'>
+      <div class="bklog-log-filter form-input">
         {!this.isShowSelect ? (
           this.inputType !== 'number' ? (
             formInput()
@@ -171,21 +180,18 @@ export default class LogFilter extends tsc<object> {
           )
         ) : (
           <bk-select
-            v-model={this.formData.inputValue}
+            clearable={false}
+            popover-width={320}
             scopedSlots={{
               trigger: () => inputTriggerSlot(true),
             }}
-            clearable={false}
-            popover-width={320}
             searchable
+            v-model={this.formData.inputValue}
           >
-            {this.originalFilterItemSelect.map(option => (
-              <bk-option
-                id={option.id}
-                name={option.name}
-              >
+            {this.originalFilterItemSelect.map((option) => (
+              <bk-option id={option.id} name={option.name}>
                 <span
-                  class='overflow-tips'
+                  class="overflow-tips"
                   title={`${this.$t('第{n}行', { n: option.id })} ${option.value || ''}`}
                 >{`${this.$t('第{n}行', { n: option.id })} ${option.value || ''}`}</span>
               </bk-option>

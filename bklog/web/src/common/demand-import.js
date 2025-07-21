@@ -29,8 +29,6 @@
  * @author <>
  */
 
-import Vue from 'vue';
-
 import {
   bkAlert,
   bkBadge,
@@ -98,6 +96,7 @@ import {
   bkSpin,
   bkResizeLayout,
 } from 'bk-magic-vue';
+import Vue from 'vue';
 
 // bkDiff 组件体积较大且不是很常用，因此注释掉。如果需要，打开注释即可
 // import { bkDiff } from 'bk-magic-vue'
@@ -175,5 +174,5 @@ Vue.use(bkOverflowTips);
 
 // Vue prototype mount
 Vue.prototype.$bkInfo = bkInfoBox;
-Vue.prototype.$bkMessage = args => bkMessage({ ...args, zIndex: 5000 });
+Vue.prototype.$bkMessage = (args) => bkMessage({ ...args, zIndex: 5000 });
 Vue.prototype.$bkNotify = bkNotify;

@@ -41,22 +41,13 @@
       {{ $t('下载历史') }}
     </div>
     <div class="search-history">
-      <span
-        class="top-start"
-        v-bk-tooltips="$t('查看所有的索引集的下载历史')"
-      >
-        <bk-button
-          theme="primary"
-          @click="handleSearchAll"
-        >
+      <span class="top-start" v-bk-tooltips="$t('查看所有的索引集的下载历史')">
+        <bk-button theme="primary" @click="handleSearchAll">
           {{ $t('查看所有') }}</bk-button
         >
       </span>
     </div>
-    <div
-      class="table-container"
-      v-bkloading="{ isLoading: tableLoading }"
-    >
+    <div class="table-container" v-bkloading="{ isLoading: tableLoading }">
       <bk-table
         class="export-table"
         :data="exportList"
@@ -66,17 +57,10 @@
         @page-limit-change="handleLimitChange"
       >
         <!-- ID -->
-        <bk-table-column
-          width="80"
-          label="ID"
-          prop="id"
-        ></bk-table-column>
+        <bk-table-column width="80" label="ID" prop="id"></bk-table-column>
         <!-- index_set_id -->
         <template v-if="isShowSetLabel">
-          <bk-table-column
-            width="100"
-            :label="$t('索引集ID')"
-          >
+          <bk-table-column width="100" :label="$t('索引集ID')">
             <template #default="{ row }">
               <span>
                 {{ getIndexSetIDs(row) }}
@@ -85,15 +69,9 @@
           </bk-table-column>
         </template>
         <!-- 检测请求参数 -->
-        <bk-table-column
-          width="180"
-          :label="$t('检索请求参数')"
-        >
+        <bk-table-column width="180" :label="$t('检索请求参数')">
           <template #default="{ row }">
-            <bk-popover
-              placement="top"
-              theme="light"
-            >
+            <bk-popover placement="top" theme="light">
               <template #content>
                 <div>
                   <!-- eslint-disable-next-line vue/no-v-html -->
@@ -113,11 +91,10 @@
           header-align="center"
         >
           <template #default="{ row }">
-            <div
-              class="title-overflow"
-              v-bk-overflow-tips
-            >
-              <span>{{ row.export_type === 'async' ? $t('异步') : $t('同步') }}</span>
+            <div class="title-overflow" v-bk-overflow-tips>
+              <span>{{
+                row.export_type === 'async' ? $t('异步') : $t('同步')
+              }}</span>
             </div>
           </template>
         </bk-table-column>
@@ -137,7 +114,8 @@
               <template #content>
                 <div>
                   <span v-if="!row.error_msg">
-                    {{ $t('完成时间') }}: {{ getFormatDate(row.export_completed_at) }}
+                    {{ $t('完成时间') }}:
+                    {{ getFormatDate(row.export_completed_at) }}
                   </span>
                   <span v-else>{{ $t('异常原因') }}: {{ row.error_msg }}</span>
                 </div>
@@ -166,10 +144,7 @@
           header-align="center"
         >
           <template #default="{ row }">
-            <div
-              class="title-overflow"
-              v-bk-overflow-tips
-            >
+            <div class="title-overflow" v-bk-overflow-tips>
               <span>{{ row.export_pkg_name || '--' }}</span>
             </div>
           </template>
@@ -181,7 +156,9 @@
           header-align="center"
         >
           <template #default="{ row }">
-            <span>{{ row.export_pkg_size ? `${row.export_pkg_size}M` : '--' }}</span>
+            <span>{{
+              row.export_pkg_size ? `${row.export_pkg_size}M` : '--'
+            }}</span>
           </template>
         </bk-table-column>
         <!-- 操作者 -->
@@ -191,10 +168,7 @@
           header-align="center"
         >
           <template #default="{ row }">
-            <div
-              class="title-overflow"
-              v-bk-overflow-tips
-            >
+            <div class="title-overflow" v-bk-overflow-tips>
               <span>{{ row.export_created_by || '--' }}</span>
             </div>
           </template>
@@ -207,10 +181,7 @@
           header-align="center"
         >
           <template #default="{ row }">
-            <div
-              class="title-overflow"
-              v-bk-overflow-tips
-            >
+            <div class="title-overflow" v-bk-overflow-tips>
               <span>{{ getFormatDate(row.export_created_at) }}</span>
             </div>
           </template>
@@ -223,10 +194,7 @@
           header-align="center"
         >
           <template #default="{ row }">
-            <span
-              v-if="isShowDownload(row)"
-              style="margin-right: 10px"
-            >
+            <span v-if="isShowDownload(row)" style="margin-right: 10px">
               <bk-button
                 v-if="row.download_able"
                 text
@@ -234,23 +202,13 @@
               >
                 {{ $t('下载') }}
               </bk-button>
-              <span
-                v-else
-                class="top-start"
-                v-bk-tooltips="$t('下载链接过期')"
-              >
-                <bk-button
-                  disabled
-                  text
-                >
+              <span v-else class="top-start" v-bk-tooltips="$t('下载链接过期')">
+                <bk-button disabled text>
                   {{ $t('下载') }}
                 </bk-button>
               </span>
             </span>
-            <span
-              v-if="isShowRetry(row)"
-              style="margin-right: 10px"
-            >
+            <span v-if="isShowRetry(row)" style="margin-right: 10px">
               <bk-button
                 v-if="row.retry_able && row.export_status !== 'success'"
                 text
@@ -266,18 +224,12 @@
                   disabled: row.export_status === 'success',
                 }"
               >
-                <bk-button
-                  disabled
-                  text
-                >
+                <bk-button disabled text>
                   {{ $t('重试') }}
                 </bk-button>
               </span>
             </span>
-            <bk-button
-              text
-              @click="handleRetrieve(row)"
-            >
+            <bk-button text @click="handleRetrieve(row)">
               {{ $t('检索') }}
             </bk-button>
           </template>
@@ -345,7 +297,9 @@ export default {
       return this.$store.state.bkBizId;
     },
     getTableWidth() {
-      return this.$store.getters.isEnLanguage ? this.enTableWidth : this.cnTableWidth;
+      return this.$store.getters.isEnLanguage
+        ? this.enTableWidth
+        : this.cnTableWidth;
     },
     ...mapGetters({
       unionIndexList: 'unionIndexList',
@@ -368,15 +322,24 @@ export default {
         window.open($row.download_url);
         return;
       }
-      this.openDownloadUrl({ ...$row.search_dict, log_index_set_id: $row.log_index_set_id });
+      this.openDownloadUrl({
+        ...$row.search_dict,
+        log_index_set_id: $row.log_index_set_id,
+      });
       this.startStatusPolling();
     },
     retryExport($row) {
       // 异常任务直接异步下载
       if ($row.export_type === 'sync') {
-        this.openDownloadUrl({ ...$row.search_dict, log_index_set_id: $row.log_index_set_id });
+        this.openDownloadUrl({
+          ...$row.search_dict,
+          log_index_set_id: $row.log_index_set_id,
+        });
       } else {
-        this.downloadAsync({ ...$row.search_dict, log_index_set_id: $row.log_index_set_id });
+        this.downloadAsync({
+          ...$row.search_dict,
+          log_index_set_id: $row.log_index_set_id,
+        });
       }
       this.startStatusPolling();
     },
@@ -389,7 +352,7 @@ export default {
       const stringParamsIndexSetID = String(params.log_index_set_id);
       axiosInstance
         .post(`/search/index_set/${stringParamsIndexSetID}/export/`, data)
-        .then(res => {
+        .then((res) => {
           if (typeof res !== 'string') {
             this.$bkMessage({
               theme: 'error',
@@ -397,7 +360,9 @@ export default {
             });
             return;
           }
-          const lightName = this.indexSetList.find(item => item.index_set_id === stringParamsIndexSetID)?.lightenName;
+          const lightName = this.indexSetList.find(
+            (item) => item.index_set_id === stringParamsIndexSetID
+          )?.lightenName;
           const downloadName = lightName
             ? `bk_log_search_${lightName.substring(2, lightName.length - 1)}.txt`
             : 'bk_log_search.txt';
@@ -420,7 +385,7 @@ export default {
           },
           data,
         })
-        .then(res => {
+        .then((res) => {
           if (res.result) {
             this.$bkMessage({
               theme: 'success',
@@ -449,10 +414,14 @@ export default {
       return objStr.replace(/\n/g, '<br>').replace(/\s/g, ' ');
     },
     isShowDownload(row) {
-      return ['success', 'download_expired', 'data_expired'].includes(row.export_status);
+      return ['success', 'download_expired', 'data_expired'].includes(
+        row.export_status
+      );
     },
     isShowRetry(row) {
-      return ['failed', 'download_expired', 'data_expired', 'success'].includes(row.export_status);
+      return ['failed', 'download_expired', 'data_expired', 'success'].includes(
+        row.export_status
+      );
     },
     isShowShape(status) {
       return ['success', 'failed'].includes(status);
@@ -509,8 +478,8 @@ export default {
      */
     setExportListData(data, isPolling) {
       if (isPolling) {
-        data.forEach(item => {
-          this.exportList.forEach(row => {
+        data.forEach((item) => {
+          this.exportList.forEach((row) => {
             if (row.id === item.id) {
               Object.assign(row, { ...item });
             }
@@ -530,7 +499,9 @@ export default {
       isReset && (this.pagination.current = 1);
       !isPolling && (this.tableLoading = true);
       const { limit, current } = this.pagination;
-      const queryUrl = this.isUnionSearch ? 'unionSearch/unionExportHistory' : 'retrieve/getExportHistoryList';
+      const queryUrl = this.isUnionSearch
+        ? 'unionSearch/unionExportHistory'
+        : 'retrieve/getExportHistoryList';
       const params = {
         index_set_id: this.$route.params.indexId,
         bk_biz_id: this.bkBizId,
@@ -545,7 +516,7 @@ export default {
         .request(queryUrl, {
           params,
         })
-        .then(res => {
+        .then((res) => {
           if (res.result) {
             this.pagination.count = res.data.total;
             this.setExportListData(res.data.list, isPolling);
@@ -586,72 +557,74 @@ export default {
       this.$emit('handle-close-dialog');
     },
     getIndexSetIDs(row) {
-      return row.log_index_set_ids?.length ? row.log_index_set_ids.join(',') : row.log_index_set_id;
+      return row.log_index_set_ids?.length
+        ? row.log_index_set_ids.join(',')
+        : row.log_index_set_id;
     },
   },
 };
 </script>
 
 <style lang="scss" scoped>
-  @import '@/scss/mixins/flex.scss';
-  @import '@/scss/conf';
+@import '@/scss/mixins/flex.scss';
+@import '@/scss/conf';
 
-  .table-title {
-    font-size: 16px;
-    font-weight: 700;
-  }
+.table-title {
+  font-size: 16px;
+  font-weight: 700;
+}
 
-  .search-history {
-    width: 100%;
-    margin: 10px 0 20px 0;
-    text-align: right;
-  }
+.search-history {
+  width: 100%;
+  margin: 10px 0 20px 0;
+  text-align: right;
+}
 
-  .export-table {
-    height: calc(100vh - 380px);
-    overflow-y: auto;
+.export-table {
+  height: calc(100vh - 380px);
+  overflow-y: auto;
 
-    .bk-table-body-wrapper {
-      min-height: calc(100vh - 520px);
+  .bk-table-body-wrapper {
+    min-height: calc(100vh - 520px);
 
-      .bk-table-empty-block {
-        min-height: calc(100vh - 440px);
+    .bk-table-empty-block {
+      min-height: calc(100vh - 440px);
 
-        @include flex-center;
-      }
+      @include flex-center;
     }
   }
+}
 
-  .parameter-search {
-    max-width: 170px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    cursor: pointer;
+.parameter-search {
+  max-width: 170px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.file-name {
+  width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.status {
+  cursor: pointer;
+
+  &.status-null i {
+    display: inline-block;
+    animation: button-icon-loading 1s linear infinite;
   }
 
-  .file-name {
-    width: 140px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    cursor: pointer;
+  &.status-success i {
+    color: $iconSuccessColor;
   }
 
-  .status {
-    cursor: pointer;
-
-    &.status-null i {
-      display: inline-block;
-      animation: button-icon-loading 1s linear infinite;
-    }
-
-    &.status-success i {
-      color: $iconSuccessColor;
-    }
-
-    &.status-failed i {
-      color: $iconFailColor;
-    }
+  &.status-failed i {
+    color: $iconFailColor;
   }
+}
 </style>

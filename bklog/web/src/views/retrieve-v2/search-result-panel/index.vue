@@ -38,13 +38,18 @@ const emit = defineEmits(['update:active-tab']);
 
 const store = useStore();
 const isFilterLoading = computed(() => store.state.indexFieldInfo.is_loading);
-const isSearchRersultLoading = computed(() => store.state.indexSetQueryResult.is_loading);
+const isSearchRersultLoading = computed(
+  () => store.state.indexSetQueryResult.is_loading
+);
 
 const retrieveParams = computed(() => store.getters.retrieveParams);
 const isNoIndexSet = computed(() => !store.state.retrieve.indexSetList.length);
 const isOriginShow = computed(() => props.activeTab === 'origin');
 const pageLoading = computed(
-  () => isFilterLoading.value || isSearchRersultLoading.value || store.state.retrieve.isIndexSetLoading
+  () =>
+    isFilterLoading.value ||
+    isSearchRersultLoading.value ||
+    store.state.retrieve.isIndexSetLoading
 );
 
 const totalCount = ref(0);
@@ -52,7 +57,9 @@ const queueStatus = ref(false);
 const isTrendChartShow = ref(true);
 const heightNum = ref();
 
-const fieldFilterWidth = computed(() => store.state.storage[BK_LOG_STORAGE.FIELD_SETTING].width);
+const fieldFilterWidth = computed(
+  () => store.state.storage[BK_LOG_STORAGE.FIELD_SETTING].width
+);
 const isShowFieldStatistics = computed(() => {
   if (window.__IS_MONITOR_TRACE__) {
     return false;
@@ -63,16 +70,19 @@ const isShowFieldStatistics = computed(() => {
 const retrieveParamsWithCommonAddition = computed(() => {
   return {
     ...retrieveParams.value,
-    addition: [...retrieveParams.value.addition, ...getCommonFilterAdditionWithValues(store.state)],
+    addition: [
+      ...retrieveParams.value.addition,
+      ...getCommonFilterAdditionWithValues(store.state),
+    ],
   };
 });
 
 RetrieveHelper.setLeftFieldSettingWidth(fieldFilterWidth.value);
 
-const changeTotalCount = count => {
+const changeTotalCount = (count) => {
   totalCount.value = count;
 };
-const changeQueueRes = status => {
+const changeQueueRes = (status) => {
   queueStatus.value = status;
 };
 
@@ -82,7 +92,7 @@ const handleToggleChange = (isShow, height) => {
   RetrieveHelper.setTrendGraphHeight(heightNum.value);
 };
 
-const handleFieldsShowChange = status => {
+const handleFieldsShowChange = (status) => {
   if (status) {
     RetrieveHelper.setLeftFieldSettingWidth(DEFAULT_FIELDS_WIDTH);
   }
@@ -95,7 +105,7 @@ const handleFieldsShowChange = status => {
   });
 };
 
-const handleFilterWidthChange = throttle(width => {
+const handleFilterWidthChange = throttle((width) => {
   if (width !== fieldFilterWidth.value) {
     RetrieveHelper.setLeftFieldSettingWidth(width);
     store.commit('updateStorage', {
@@ -107,7 +117,7 @@ const handleFilterWidthChange = throttle(width => {
   }
 });
 
-const handleUpdateActiveTab = active => {
+const handleUpdateActiveTab = (active) => {
   emit('update:active-tab', active);
 };
 
@@ -157,7 +167,10 @@ const rightContentStyle = computed(() => {
       </div>
       <div
         :style="__IS_MONITOR_TRACE__ ? undefined : rightContentStyle"
-        :class="['search-result-content', { 'field-list-show': isShowFieldStatistics }]"
+        :class="[
+          'search-result-content',
+          { 'field-list-show': isShowFieldStatistics },
+        ]"
       >
         <SearchResultChart
           v-show="isOriginShow"
@@ -166,10 +179,7 @@ const rightContentStyle = computed(() => {
           @change-total-count="changeTotalCount"
           @toggle-change="handleToggleChange"
         ></SearchResultChart>
-        <div
-          class="split-line"
-          v-show="isOriginShow"
-        ></div>
+        <div class="split-line" v-show="isOriginShow"></div>
 
         <keep-alive>
           <LogResult
@@ -192,5 +202,5 @@ const rightContentStyle = computed(() => {
 </template>
 
 <style lang="scss">
-  @import './index.scss';
+@import './index.scss';
 </style>

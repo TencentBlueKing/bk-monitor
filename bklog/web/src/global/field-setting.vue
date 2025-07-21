@@ -1,9 +1,6 @@
 <template>
   <div @click="hideSingleConfigInput">
-    <div
-      class="bklog-v3 field-setting-wrap"
-      @click="handleOpenSidebar"
-    >
+    <div class="bklog-v3 field-setting-wrap" @click="handleOpenSidebar">
       <span class="bklog-icon bklog-setting"></span>{{ t('索引配置') }}
     </div>
     <bk-sideslider
@@ -177,12 +174,11 @@
               :table-type="'originLog'"
             >
             </setting-table>
-            <div
-              v-else
-              class="setting-desc"
-              @click="batchAddField"
-            >
-              {{ $t('暂未保留原始日志') }}<span style="margin-left: 8px; color: #3a84ff">{{ $t('前往配置') }}</span
+            <div v-else class="setting-desc" @click="batchAddField">
+              {{ $t('暂未保留原始日志')
+              }}<span style="margin-left: 8px; color: #3a84ff">{{
+                $t('前往配置')
+              }}</span
               ><span
                 style="color: #3a84ff"
                 class="bklog-icon bklog-jump"
@@ -201,14 +197,8 @@
               :table-type="'indexLog'"
             >
             </setting-table>
-            <div
-              v-if="isShowAddFields && isEdit"
-              class="add-field-container"
-            >
-              <div
-                class="text-btn"
-                @click="addNewField"
-              >
+            <div v-if="isShowAddFields && isEdit" class="add-field-container">
+              <div class="text-btn" @click="addNewField">
                 <i class="icon bk-icon icon-plus push"></i>
                 <span class="text">{{ $t('新增字段') }}</span>
               </div>
@@ -344,7 +334,7 @@ const basicRules = ref({
     {
       required: true,
       trigger: 'blur',
-      validator: val => {
+      validator: (val) => {
         if (val) {
           isEditConfigName.value = false;
         }
@@ -383,12 +373,14 @@ const basicRules = ref({
       trigger: 'blur',
     },
     {
-      validator: val => {
+      validator: (val) => {
         if (val) {
           const currentStorageCluster = storageList.value.find(
-            item => item.storage_cluster_id === formData.value.storage_cluster_id
+            (item) =>
+              item.storage_cluster_id === formData.value.storage_cluster_id
           );
-          maxRetention.value = currentStorageCluster?.setup_config?.retention_days_max || 30;
+          maxRetention.value =
+            currentStorageCluster?.setup_config?.retention_days_max || 30;
           if (val <= maxRetention.value) {
             isEditRetention.value = false;
           }
@@ -396,7 +388,9 @@ const basicRules = ref({
         }
       },
       message: function () {
-        return t(`超出集群最大可保存天数，当前最大可保存{n}天`, { n: maxRetention.value });
+        return t(`超出集群最大可保存天数，当前最大可保存{n}天`, {
+          n: maxRetention.value,
+        });
       },
       trigger: 'blur',
     },
@@ -417,9 +411,13 @@ const addNewField = () => {
     field_index: tableField.value.length + 1,
   };
   // 获取table表格编辑的数据 新增新的字段对象
-  tableField.value.splice(0, fields.length, ...[...indexfieldTable.value.getData(), newBaseFieldObj]);
+  tableField.value.splice(
+    0,
+    fields.length,
+    ...[...indexfieldTable.value.getData(), newBaseFieldObj]
+  );
 };
-RetrieveHelper.on(RetrieveEvent.INDEX_CONFIG_OPEN, val => {
+RetrieveHelper.on(RetrieveEvent.INDEX_CONFIG_OPEN, (val) => {
   hideSingleConfigInput();
   handleOpenSidebar();
   nextTick(() => {
@@ -456,7 +454,9 @@ const indexBuiltField = ref([]);
 const initFormData = async () => {
   const indexSetList = store.state.retrieve.indexSetList;
   const indexSetId = route.params?.indexId;
-  const currentIndexSet = indexSetList.find(item => item.index_set_id === `${indexSetId}`);
+  const currentIndexSet = indexSetList.find(
+    (item) => item.index_set_id === `${indexSetId}`
+  );
   if (!currentIndexSet?.collector_config_id) return;
   collectorConfigId.value = currentIndexSet.collector_config_id;
   await http
@@ -465,9 +465,9 @@ const initFormData = async () => {
         collector_config_id: currentIndexSet.collector_config_id,
       },
     })
-    .then(res => {
+    .then((res) => {
       const keys = Object.keys(res.data.alias_settings || {});
-      const arr = keys.map(key => {
+      const arr = keys.map((key) => {
         return {
           query_alias: key,
           field_name: res.data.alias_settings[key].path,
@@ -479,11 +479,14 @@ const initFormData = async () => {
       formData.value = collectData;
       cleanType.value = collectData?.etl_config;
       indexBuiltField.value = collectData?.fields.filter(
-        item =>
+        (item) =>
           builtInInitHiddenList.includes(item.field_name) ||
-          (builtInInitHiddenList.includes(item.alias_name) && item.field_name !== 'data')
+          (builtInInitHiddenList.includes(item.alias_name) &&
+            item.field_name !== 'data')
       );
-      originBuiltFields.value = collectData?.fields?.filter(item => item.is_built_in && item.field_name === 'data');
+      originBuiltFields.value = collectData?.fields?.filter(
+        (item) => item.is_built_in && item.field_name === 'data'
+      );
     });
 
   await http
@@ -492,26 +495,30 @@ const initFormData = async () => {
         collector_config_id: currentIndexSet.collector_config_id,
       },
     })
-    .then(res => {
+    .then((res) => {
       const etlFields = res?.data?.etl_fields || [];
       const existingFields = formData.value.fields || [];
-      const existingFieldsMap = new Map(existingFields.map(field => [field.field_name, field]));
+      const existingFieldsMap = new Map(
+        existingFields.map((field) => [field.field_name, field])
+      );
       const mergedFields = [];
 
       // 遍历 etlFields，将其添加到结果数组中
-      etlFields.forEach(etlField => {
+      etlFields.forEach((etlField) => {
         mergedFields.push(etlField);
         // 从 existingFieldsMap 中删除已经处理过的 field_name
         existingFieldsMap.delete(etlField.field_name);
       });
 
       // 遍历 existingFieldsMap 中剩余的项（即那些在 etlFields 中未出现的项），将其添加到结果数组中
-      existingFieldsMap.forEach(existingField => {
+      existingFieldsMap.forEach((existingField) => {
         mergedFields.push(existingField);
       });
-      mergedFields.forEach(field => {
+      mergedFields.forEach((field) => {
         const matchingAlias = alias_settings.value.find(
-          alias => field.field_name === alias.field_name || field.alias_name === alias.field_name
+          (alias) =>
+            field.field_name === alias.field_name ||
+            field.alias_name === alias.field_name
         );
         if (matchingAlias) {
           field.query_alias = matchingAlias.query_alias;
@@ -519,20 +526,24 @@ const initFormData = async () => {
       });
 
       tableField.value = mergedFields.filter(
-        item =>
+        (item) =>
           !builtInInitHiddenList.includes(item.field_name) &&
           !builtInInitHiddenList.includes(item.alias_name) &&
           !item.is_delete
       );
-      formData.value.etl_params.retain_original_text = res?.data?.etl_params.retain_original_text;
+      formData.value.etl_params.retain_original_text =
+        res?.data?.etl_params.retain_original_text;
     });
   sliderLoading.value = false;
 };
 // 拼接query_alias
-const concatenationQueryAlias = fields => {
-  fields.forEach(item => {
-    alias_settings.value.forEach(item2 => {
-      if (item.field_name === item2.field_name || item.alias_name === item2.field_name) {
+const concatenationQueryAlias = (fields) => {
+  fields.forEach((item) => {
+    alias_settings.value.forEach((item2) => {
+      if (
+        item.field_name === item2.field_name ||
+        item.alias_name === item2.field_name
+      ) {
         item.query_alias = item2.query_alias;
       }
     });
@@ -576,7 +587,7 @@ const checkFieldsTable = () => {
 const originfieldTable = ref(null);
 
 const submit = () => {
-  validateForm.value.validate().then(res => {
+  validateForm.value.validate().then((res) => {
     if (res) {
       const promises = [];
       // if (formData.value.etl_config === 'bk_log_json') {
@@ -587,7 +598,9 @@ const submit = () => {
           confirmLoading.value = true;
           sliderLoading.value = true;
           const originfieldTableData = originfieldTable.value?.getData();
-          const indexfieldTableData = indexfieldTable.value.getAllData().filter(item => item.query_alias);
+          const indexfieldTableData = indexfieldTable.value
+            .getAllData()
+            .filter((item) => item.query_alias);
           const data = {
             collector_config_name: formData.value.collector_config_name,
             storage_cluster_id: formData.value.storage_cluster_id,
@@ -602,9 +615,11 @@ const submit = () => {
                 : '',
             },
             etl_config: formData.value.etl_config,
-            fields: indexfieldTable.value.getData().filter(item => !item.is_objectKey && !item.is_built_in),
+            fields: indexfieldTable.value
+              .getData()
+              .filter((item) => !item.is_objectKey && !item.is_built_in),
             alias_settings: [
-              ...indexfieldTableData.map(item => {
+              ...indexfieldTableData.map((item) => {
                 return {
                   field_name: item.alias_name || item.field_name,
                   query_alias: item.query_alias,
@@ -620,7 +635,7 @@ const submit = () => {
               },
               data,
             })
-            .then(res => {
+            .then((res) => {
               if (res.code === 0) {
                 window.mainComponent.messageSuccess(t('保存成功'));
                 nextTick(() => {
@@ -637,7 +652,7 @@ const submit = () => {
               sliderLoading.value = false;
             });
         },
-        validator => {
+        (validator) => {
           console.warn('保存失败', validator);
         }
       );
@@ -650,7 +665,10 @@ const closeSlider = () => {
 
 const isOriginTableSaved = computed(() => {
   if (
-    Object.prototype.hasOwnProperty.call(formData.value.etl_params ?? {}, 'retain_original_text') &&
+    Object.prototype.hasOwnProperty.call(
+      formData.value.etl_params ?? {},
+      'retain_original_text'
+    ) &&
     typeof formData.value.etl_params.retain_original_text === 'boolean'
   ) {
     return formData.value.etl_params.retain_original_text;
@@ -668,124 +686,124 @@ defineExpose({
 </script>
 
 <style lang="scss">
-  .bklog-v3 {
-    &.field-setting-wrap {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      width: 90px;
-      height: 52px;
-      font-size: 12px;
-      cursor: pointer;
+.bklog-v3 {
+  &.field-setting-wrap {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 90px;
+    height: 52px;
+    font-size: 12px;
+    cursor: pointer;
 
-      span {
-        margin: 0px 6px 0 0;
-        font-size: 16px;
-        // line-height: 20px;
-      }
+    span {
+      margin: 0px 6px 0 0;
+      font-size: 16px;
+      // line-height: 20px;
     }
   }
+}
 </style>
 <style lang="scss">
-  .bklog-v3 {
-    &.field-slider-content {
-      min-height: 394px;
-      max-height: calc(-119px + 100vh);
-      overflow-y: auto;
+.bklog-v3 {
+  &.field-slider-content {
+    min-height: 394px;
+    max-height: calc(-119px + 100vh);
+    overflow-y: auto;
 
-      .add-collection-title {
-        width: 100%;
-        padding-top: 16px;
-        font-size: 14px;
-        font-weight: 700;
-        color: #313238;
-      }
+    .add-collection-title {
+      width: 100%;
+      padding-top: 16px;
+      font-size: 14px;
+      font-weight: 700;
+      color: #313238;
+    }
 
-      .setting-title {
-        padding-top: 10px;
+    .setting-title {
+      padding-top: 10px;
+      font-size: 12px;
+      color: #63656e;
+    }
+
+    .setting-desc {
+      padding: 10px 0;
+      color: #f00;
+      cursor: pointer;
+    }
+
+    .field-setting-form {
+      padding: 4px 40px 36px;
+
+      .form-flex-container {
+        display: flex;
+        align-items: center;
+        // height: 32px;
         font-size: 12px;
         color: #63656e;
+
+        .icon-info {
+          margin: 0 8px 0 24px;
+          font-size: 14px;
+          color: #3a84ff;
+        }
       }
 
-      .setting-desc {
-        padding: 10px 0;
-        color: #f00;
-        cursor: pointer;
+      .bk-form-item {
+        .bk-label {
+          padding-right: 12px;
+          color: #4d4f56;
+        }
+
+        .bk-form-content {
+          font-size: 12px;
+          color: #313238;
+        }
       }
 
-      .field-setting-form {
-        padding: 4px 40px 36px;
+      .source-item {
+        display: flex;
+      }
 
-        .form-flex-container {
+      .add-field-container {
+        display: flex;
+        align-items: center;
+        height: 40px;
+        padding-left: 4px;
+        border: 1px solid #dcdee5;
+        border-top: none;
+        border-bottom: 1.5px solid #dcdee5;
+        border-radius: 0 0 2px 2px;
+        transform: translateY(-1px);
+
+        .text-btn {
           display: flex;
           align-items: center;
-          // height: 32px;
-          font-size: 12px;
-          color: #63656e;
+          cursor: pointer;
 
-          .icon-info {
-            margin: 0 8px 0 24px;
-            font-size: 14px;
+          .text,
+          .icon {
+            font-size: 22px;
             color: #3a84ff;
           }
-        }
 
-        .bk-form-item {
-          .bk-label {
-            padding-right: 12px;
-            color: #4d4f56;
-          }
-
-          .bk-form-content {
+          .text {
             font-size: 12px;
-            color: #313238;
           }
         }
-
-        .source-item {
-          display: flex;
-        }
-
-        .add-field-container {
-          display: flex;
-          align-items: center;
-          height: 40px;
-          padding-left: 4px;
-          border: 1px solid #dcdee5;
-          border-top: none;
-          border-bottom: 1.5px solid #dcdee5;
-          border-radius: 0 0 2px 2px;
-          transform: translateY(-1px);
-
-          .text-btn {
-            display: flex;
-            align-items: center;
-            cursor: pointer;
-
-            .text,
-            .icon {
-              font-size: 22px;
-              color: #3a84ff;
-            }
-
-            .text {
-              font-size: 12px;
-            }
-          }
-        }
-      }
-
-      .field-preview-form {
-        .bk-form-item {
-          margin-top: 5px;
-        }
-      }
-
-      .submit-container {
-        position: fixed;
-        bottom: 0;
-        padding: 16px 36px 16px;
       }
     }
+
+    .field-preview-form {
+      .bk-form-item {
+        margin-top: 5px;
+      }
+    }
+
+    .submit-container {
+      position: fixed;
+      bottom: 0;
+      padding: 16px 36px 16px;
+    }
   }
+}
 </style>

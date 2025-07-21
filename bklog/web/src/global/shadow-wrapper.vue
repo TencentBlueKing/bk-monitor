@@ -68,7 +68,7 @@ export default {
       this.$nextTick(() => {
         new Vue({
           parent: this.$parent,
-          render: h => h('div', { class: 'shadow-container' }, slotContent),
+          render: (h) => h('div', { class: 'shadow-container' }, slotContent),
         }).$mount(this.shadowRoot.appendChild(document.createElement('div')));
       });
     },
@@ -77,11 +77,11 @@ export default {
 </script>
 
 <style scoped>
-  /* ShadowWrapper 组件自身的样式 */
-  .shadow-container {
-    all: initial;
+/* ShadowWrapper 组件自身的样式 */
+.shadow-container {
+  all: initial;
 
-    /* 确保样式隔离 */
-    display: inline-block;
-  }
+  /* 确保样式隔离 */
+  display: inline-block;
+}
 </style>

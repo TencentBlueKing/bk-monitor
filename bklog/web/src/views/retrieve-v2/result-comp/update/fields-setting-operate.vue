@@ -31,16 +31,13 @@
       v-show="!configItem.isShowEdit"
       @click="emitOperate('click')"
     >
-      <span
-        ref="panelNameRef"
-        class="panel-name"
-        :title="configItem.name"
-        >{{ configItem.name }}</span
-      >
+      <span ref="panelNameRef" class="panel-name" :title="configItem.name">{{
+        configItem.name
+      }}</span>
       <div
         v-if="hasMoreIcon"
         class="panel-operate"
-        @click="e => e.stopPropagation()"
+        @click="(e) => e.stopPropagation()"
       >
         <SettingMoreMenu @menu-click="handleMenuClick" />
       </div>
@@ -48,7 +45,7 @@
     <div
       class="config-tab-item"
       v-show="configItem.isShowEdit"
-      @click="e => e.stopPropagation()"
+      @click="(e) => e.stopPropagation()"
     >
       <bk-input
         ref="inputRef"
@@ -62,23 +59,17 @@
       ></bk-input>
     </div>
     <div style="display: none">
-      <div
-        ref="deleteTipRef"
-        class="delete-tip-container bklog-v3-popover-tag"
-      >
-        <span class="delete-tip-description">{{ $t('确定要删除当前字段配置') }}?</span>
+      <div ref="deleteTipRef" class="delete-tip-container bklog-v3-popover-tag">
+        <span class="delete-tip-description"
+          >{{ $t('确定要删除当前字段配置') }}?</span
+        >
         <div class="delete-tip-operation">
-          <bk-button
-            text
-            @click="handleDeleteVerify"
-            >{{ $t('确定') }}</bk-button
-          >
-          <bk-button
-            theme="danger"
-            text
-            @click="handleDeleteTipPopoverHide"
-            >{{ $t('取消') }}</bk-button
-          >
+          <bk-button text @click="handleDeleteVerify">{{
+            $t('确定')
+          }}</bk-button>
+          <bk-button theme="danger" text @click="handleDeleteTipPopoverHide">{{
+            $t('取消')
+          }}</bk-button>
         </div>
       </div>
     </div>
@@ -132,7 +123,8 @@ export default {
       this.$emit('operateChange', type, submitData);
       // 进入编辑态时 focus 聚焦到input框
       this.$nextTick(() => {
-        type === 'edit' && this.$refs.inputRef?.$el?.querySelector('.bk-form-input')?.focus?.();
+        type === 'edit' &&
+          this.$refs.inputRef?.$el?.querySelector('.bk-form-input')?.focus?.();
       });
     },
 
@@ -222,84 +214,84 @@ export default {
 </script>
 
 <style lang="scss" scoped>
-  .config-tab-item {
+.config-tab-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  height: 36px;
+  padding: 0 4px;
+
+  &:hover {
+    .panel-operate {
+      :deep(.field-setting-more) {
+        &.field-setting-more {
+          .popover-trigger {
+            display: flex;
+          }
+        }
+      }
+    }
+  }
+
+  /* stylelint-disable-next-line no-descending-specificity */
+  .panel-operate {
+    flex-shrink: 0;
+
+    :deep(.field-setting-more) {
+      /* stylelint-disable-next-line no-descending-specificity */
+      &.field-setting-more {
+        /* stylelint-disable-next-line no-descending-specificity */
+        .popover-trigger {
+          display: none;
+
+          &.is-active {
+            display: flex;
+          }
+        }
+      }
+    }
+  }
+
+  .config-input {
     display: flex;
     align-items: center;
-    justify-content: space-between;
     width: 100%;
-    height: 36px;
-    padding: 0 4px;
+    height: 100%;
 
-    &:hover {
-      .panel-operate {
-        :deep(.field-setting-more) {
-          &.field-setting-more {
-            .popover-trigger {
-              display: flex;
-            }
-          }
-        }
-      }
-    }
-
-    /* stylelint-disable-next-line no-descending-specificity */
-    .panel-operate {
-      flex-shrink: 0;
-
-      :deep(.field-setting-more) {
-        /* stylelint-disable-next-line no-descending-specificity */
-        &.field-setting-more {
-          /* stylelint-disable-next-line no-descending-specificity */
-          .popover-trigger {
-            display: none;
-
-            &.is-active {
-              display: flex;
-            }
-          }
-        }
-      }
-    }
-
-    .config-input {
-      display: flex;
-      align-items: center;
-      width: 100%;
-      height: 100%;
-
-      // :deep(.bk-form-input) {
-      //   transform: translateY(-2px);
-      // }
-    }
-
-    .panel-name {
-      flex-basis: auto;
-      min-width: 0;
-      padding-left: 8px;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
+    // :deep(.bk-form-input) {
+    //   transform: translateY(-2px);
+    // }
   }
+
+  .panel-name {
+    flex-basis: auto;
+    min-width: 0;
+    padding-left: 8px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
 </style>
 <style lang="scss">
-  .field-setting-item-delete-tips-theme {
-    .delete-tip-container {
-      padding: 8px 14px;
-      font-size: 12px;
+.field-setting-item-delete-tips-theme {
+  .delete-tip-container {
+    padding: 8px 14px;
+    font-size: 12px;
 
-      .delete-tip-operation {
-        margin-top: 6px;
-        text-align: right;
+    .delete-tip-operation {
+      margin-top: 6px;
+      text-align: right;
 
-        .bk-button-text {
-          font-size: 12px;
+      .bk-button-text {
+        font-size: 12px;
 
-          &:first-child {
-            margin-right: 4px;
-          }
+        &:first-child {
+          margin-right: 4px;
         }
       }
     }
   }
+}
 </style>

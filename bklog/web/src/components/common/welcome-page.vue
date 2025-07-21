@@ -41,10 +41,7 @@
         />
         <p class="card-title">{{ $t('新业务接入') }}</p>
         <p class="card-detail">{{ $t('新业务接入详情') }}</p>
-        <div
-          class="button-container"
-          @click="handleNewBusiness"
-        >
+        <div class="button-container" @click="handleNewBusiness">
           <bk-button class="king-button">{{ $t('业务接入') }}</bk-button>
           <svg
             v-en-style="'left: 186px'"
@@ -55,7 +52,9 @@
             <path
               d="M864 864H160V160h352V96H128a32 32 0 0 0-32 32v768a32 32 0 0 0 32 32h768a32 32 0 0 0 32-32V512h-64z"
             ></path>
-            <path d="M896 96H672v64h146.72l-192 192L672 397.76l192-192V352h64V128a32 32 0 0 0-32-32z"></path>
+            <path
+              d="M896 96H672v64h146.72l-192 192L672 397.76l192-192V352h64V128a32 32 0 0 0-32-32z"
+            ></path>
           </svg>
         </div>
       </div>
@@ -65,44 +64,39 @@
         @mouseenter="handleMouseEnter"
         @mouseleave="handleMouseLeave"
       >
-        <img
-          class="card-img"
-          alt=""
-          src="../../images/icons/get-access.svg"
-        />
+        <img class="card-img" alt="" src="../../images/icons/get-access.svg" />
         <p class="card-title">{{ $t('获取权限') }}</p>
         <!-- 权限中心 -->
         <template v-if="data.getAccess.url">
           <p class="card-detail">
             {{
               data.getAccess.businessName
-                ? $t('您当前没有业务--{n}的权限，请先申请吧！', { n: data.getAccess.businessName })
+                ? $t('您当前没有业务--{n}的权限，请先申请吧！', {
+                    n: data.getAccess.businessName,
+                  })
                 : $t('您当前没有业务权限，请先申请吧！')
             }}
           </p>
-          <bk-button
-            class="king-button"
-            @click="handleGetAccess"
-            >{{ $t('权限申请') }}</bk-button
-          >
+          <bk-button class="king-button" @click="handleGetAccess">{{
+            $t('权限申请')
+          }}</bk-button>
         </template>
         <!-- 未接入权限中心带业务ID -->
-        <p
-          v-else-if="data.getAccess.businessName"
-          class="card-detail"
-        >
+        <p v-else-if="data.getAccess.businessName" class="card-detail">
           {{
-            $t('您当前没有业务--${x}的权限，请先联系运维同学{n}进行角色的添加', {
-              x: data.getAccess.businessName,
-              n: data.getAccess.operatorId ? `(${data.getAccess.operatorId})` : '',
-            })
+            $t(
+              '您当前没有业务--${x}的权限，请先联系运维同学{n}进行角色的添加',
+              {
+                x: data.getAccess.businessName,
+                n: data.getAccess.operatorId
+                  ? `(${data.getAccess.operatorId})`
+                  : '',
+              }
+            )
           }}
         </p>
         <!-- 未接入权限中心不带业务ID -->
-        <p
-          v-else
-          class="card-detail"
-        >
+        <p v-else class="card-detail">
           {{ $t('您当前没有业务权限，请先联系对应的业务运维同学进行添加!') }}
         </p>
       </div>
@@ -119,11 +113,9 @@
         />
         <p class="card-title">{{ $t('业务DEMO') }}</p>
         <p class="card-detail">{{ $t('您当前想快速体验下平台的功能') }}</p>
-        <bk-button
-          class="king-button"
-          @click="handleDemoBusiness"
-          >{{ $t('我要体验') }}</bk-button
-        >
+        <bk-button class="king-button" @click="handleDemoBusiness">{{
+          $t('我要体验')
+        }}</bk-button>
       </div>
     </div>
   </div>
@@ -178,90 +170,90 @@ export default {
 </script>
 
 <style lang="scss" scoped>
-  .welcome-page-container {
-    display: flow-root;
-    height: 100%;
-    background: #f4f7fa;
+.welcome-page-container {
+  display: flow-root;
+  height: 100%;
+  background: #f4f7fa;
 
-    .title {
-      height: 26px;
-      margin: 70px 0 35px;
-      font-size: 20px;
-      font-weight: normal;
-      line-height: 26px;
-      color: #313238;
-      text-align: center;
-    }
+  .title {
+    height: 26px;
+    margin: 70px 0 35px;
+    font-size: 20px;
+    font-weight: normal;
+    line-height: 26px;
+    color: #313238;
+    text-align: center;
+  }
 
-    .card-container {
+  .card-container {
+    display: flex;
+    justify-content: center;
+
+    .card {
+      position: relative;
       display: flex;
-      justify-content: center;
+      flex-flow: column;
+      align-items: center;
+      width: 260px;
+      height: 400px;
+      background: #fff;
+      border-radius: 2px;
+      transition: box-shadow 0.3s;
 
-      .card {
-        position: relative;
-        display: flex;
-        flex-flow: column;
-        align-items: center;
-        width: 260px;
-        height: 400px;
-        background: #fff;
-        border-radius: 2px;
+      .outside-link-icon {
+        position: absolute;
+        top: 333px;
+        left: 162px;
+        width: 10px;
+        height: 10px;
+        cursor: pointer;
+        fill: #63656e;
+      }
+
+      &:not(:last-child) {
+        margin-right: 40px;
+      }
+
+      &:hover {
+        box-shadow: 0 3px 6px 0 rgba(0, 0, 0, 0.1);
         transition: box-shadow 0.3s;
 
         .outside-link-icon {
-          position: absolute;
-          top: 333px;
-          left: 162px;
-          width: 10px;
-          height: 10px;
-          cursor: pointer;
-          fill: #63656e;
+          fill: #fff;
         }
+      }
 
-        &:not(:last-child) {
-          margin-right: 40px;
-        }
+      .card-img {
+        width: 220px;
+        height: 160px;
+        margin: 28px 0 20px;
+      }
 
-        &:hover {
-          box-shadow: 0 3px 6px 0 rgba(0, 0, 0, 0.1);
-          transition: box-shadow 0.3s;
+      .card-title {
+        font-size: 16px;
+        font-weight: 500;
+        line-height: 22px;
+        color: #313238;
+      }
 
-          .outside-link-icon {
-            fill: #fff;
-          }
-        }
+      .card-detail {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 200px;
+        height: 60px;
+        margin: 11px 0 21px;
+        font-size: 12px;
+        line-height: 20px;
+        color: #63656e;
+        text-align: center;
+      }
 
-        .card-img {
-          width: 220px;
-          height: 160px;
-          margin: 28px 0 20px;
-        }
-
-        .card-title {
-          font-size: 16px;
-          font-weight: 500;
-          line-height: 22px;
-          color: #313238;
-        }
-
-        .card-detail {
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          width: 200px;
-          height: 60px;
-          margin: 11px 0 21px;
-          font-size: 12px;
-          line-height: 20px;
-          color: #63656e;
-          text-align: center;
-        }
-
-        .king-button {
-          width: 200px;
-          font-size: 12px;
-        }
+      .king-button {
+        width: 200px;
+        font-size: 12px;
       }
     }
   }
+}
 </style>

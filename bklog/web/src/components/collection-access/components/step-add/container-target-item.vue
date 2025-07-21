@@ -51,11 +51,14 @@
       <bk-select
         ref="loadSelectRef"
         v-model="formData.workload_name"
-        :class="{ application: formData.workload_name, 'no-click': nameCannotClick }"
+        :class="{
+          application: formData.workload_name,
+          'no-click': nameCannotClick,
+        }"
         :placeholder="placeHolderStr"
         allow-create
         searchable
-        @toggle="status => (isOptionOpen = status)"
+        @toggle="(status) => (isOptionOpen = status)"
       >
         <bk-option
           v-for="(option, index) in nameList"
@@ -65,7 +68,9 @@
         >
         </bk-option>
       </bk-select>
-      <span :class="['bk-icon', 'icon-angle-down', isOptionOpen && 'angle-rotate']"></span>
+      <span
+        :class="['bk-icon', 'icon-angle-down', isOptionOpen && 'angle-rotate']"
+      ></span>
     </div>
   </div>
 </template>
@@ -110,7 +115,7 @@ export default {
       bkBizId: 'bkBizId',
     }),
     typeListIDStrList() {
-      return this.typeList.map(item => item.id);
+      return this.typeList.map((item) => item.id);
     },
   },
   watch: {
@@ -137,14 +142,17 @@ export default {
     nameCannotClick(val) {
       const inputDOM = this.$refs.loadSelectRef.$refs.createInput;
       // input禁用样式
-      val ? inputDOM.setAttribute('disabled', 'disabled') : inputDOM.removeAttribute('disabled');
+      val
+        ? inputDOM.setAttribute('disabled', 'disabled')
+        : inputDOM.removeAttribute('disabled');
     },
   },
   created() {
     Object.assign(this.formData, this.conItem.container);
   },
   mounted() {
-    this.$refs.loadSelectRef.$refs.createInput.placeholder = this.placeHolderStr;
+    this.$refs.loadSelectRef.$refs.createInput.placeholder =
+      this.placeHolderStr;
     this.$refs.typeSelectRef.$refs.createInput.placeholder = this.$t('请输入');
   },
   methods: {
@@ -159,12 +167,12 @@ export default {
       };
       this.$http
         .request('container/getWorkLoadName', { query })
-        .then(res => {
+        .then((res) => {
           if (res.code === 0) {
-            this.nameList = res.data.map(item => ({ id: item, name: item }));
+            this.nameList = res.data.map((item) => ({ id: item, name: item }));
           }
         })
-        .catch(err => {
+        .catch((err) => {
           console.warn(err);
         })
         .finally(() => {
@@ -173,78 +181,78 @@ export default {
     },
     closeTitle() {
       const els = document.querySelectorAll('.space-type-select>div>div');
-      els.forEach(item => (item.title = ''));
+      els.forEach((item) => (item.title = ''));
     },
   },
 };
 </script>
 <style lang="scss" scoped>
-  @import '@/scss/mixins/flex.scss';
+@import '@/scss/mixins/flex.scss';
 
-  /* stylelint-disable no-descending-specificity */
-  .load-container {
-    @include flex-center;
+/* stylelint-disable no-descending-specificity */
+.load-container {
+  @include flex-center;
 
-    > :first-child {
-      width: 28%;
-      margin-right: 12px;
-    }
+  > :first-child {
+    width: 28%;
+    margin-right: 12px;
+  }
 
-    > :last-child {
+  > :last-child {
+    flex: 1;
+  }
+
+  .flex-space-item {
+    position: relative;
+
+    @include flex-justify(space-between);
+
+    .bk-select,
+    .bk-form-control {
       flex: 1;
     }
 
-    .flex-space-item {
-      position: relative;
-
-      @include flex-justify(space-between);
-
-      .bk-select,
-      .bk-form-control {
-        flex: 1;
-      }
-
-      .space-item-label {
-        flex-shrink: 0;
-      }
-
-      :deep(.bk-form-input) {
-        height: 34px;
-      }
-    }
-
     .space-item-label {
-      min-width: 48px;
-      padding: 0 6px;
-      font-size: 12px;
-      color: #63656e;
-      background: #fafbfd;
-      border: 1px solid #c4c6cc;
-      border-radius: 2px 0 0 2px;
-      transform: translateX(1px);
+      flex-shrink: 0;
+    }
 
-      @include flex-center;
+    :deep(.bk-form-input) {
+      height: 34px;
     }
   }
 
-  .application:hover + .icon-angle-down {
-    display: none;
-  }
+  .space-item-label {
+    min-width: 48px;
+    padding: 0 6px;
+    font-size: 12px;
+    color: #63656e;
+    background: #fafbfd;
+    border: 1px solid #c4c6cc;
+    border-radius: 2px 0 0 2px;
+    transform: translateX(1px);
 
-  .icon-angle-down {
-    position: absolute;
-    top: 6px;
-    right: 4px;
-    font-size: 21px;
-    color: #979ba5;
-    transition: transform 0.3s;
+    @include flex-center;
   }
+}
 
-  .angle-rotate {
-    transform: rotateZ(-180deg);
-  }
+.application:hover + .icon-angle-down {
+  display: none;
+}
 
-  .no-click {
-    pointer-events: none;
-  }
+.icon-angle-down {
+  position: absolute;
+  top: 6px;
+  right: 4px;
+  font-size: 21px;
+  color: #979ba5;
+  transition: transform 0.3s;
+}
+
+.angle-rotate {
+  transform: rotateZ(-180deg);
+}
+
+.no-click {
+  pointer-events: none;
+}
 </style>

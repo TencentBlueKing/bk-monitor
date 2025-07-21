@@ -74,10 +74,7 @@
         @page-change="handlePageChange"
         @page-limit-change="handlePageLimitChange"
       >
-        <bk-table-column
-          :label="$t('时间')"
-          min-width="10"
-        >
+        <bk-table-column :label="$t('时间')" min-width="10">
           <template #default="{ row }">
             {{ utcFormatDate(row.created_at) }}
           </template>
@@ -87,25 +84,16 @@
           min-width="10"
           prop="created_by"
         ></bk-table-column>
-        <bk-table-column
-          :label="$t('查询语句')"
-          min-width="20"
-        >
+        <bk-table-column :label="$t('查询语句')" min-width="20">
           <template #default="{ row }">
             <div class="table-ceil-container">
-              <span
-                class="table-view-span-detail"
-                v-bk-overflow-tips
-                >{{ row.query_string }}</span
-              >
+              <span class="table-view-span-detail" v-bk-overflow-tips>{{
+                row.query_string
+              }}</span>
             </div>
           </template>
         </bk-table-column>
-        <bk-table-column
-          :label="$t('耗时(s)')"
-          min-width="6"
-          prop="duration"
-        >
+        <bk-table-column :label="$t('耗时(s)')" min-width="6" prop="duration">
           <template #default="{ row }">
             {{ (row.duration / 1000).toFixed(3) }}
           </template>
@@ -175,7 +163,10 @@ export default {
       this.fetchTableData();
     },
     fetchChartData() {
-      const tempList = handleTransformToTimestamp(this.chartDateValue, this.$store.getters.retrieveParams.format);
+      const tempList = handleTransformToTimestamp(
+        this.chartDateValue,
+        this.$store.getters.retrieveParams.format
+      );
       const payload = {
         params: {
           index_set_id: this.indexSetId,
@@ -225,7 +216,10 @@ export default {
     async fetchFrequencyChart(payload) {
       try {
         this.frequencyChartLoading = true;
-        const res = await this.$http.request('indexSet/getIndexFrequency', payload);
+        const res = await this.$http.request(
+          'indexSet/getIndexFrequency',
+          payload
+        );
         this.frequencyChartData = res.data;
       } catch (e) {
         console.warn(e);
@@ -249,7 +243,10 @@ export default {
     async fetchTableData() {
       try {
         this.tableLoading = true;
-        const tempList = handleTransformToTimestamp(this.tableDateValue, this.$store.getters.retrieveParams.format);
+        const tempList = handleTransformToTimestamp(
+          this.tableDateValue,
+          this.$store.getters.retrieveParams.format
+        );
         const res = await this.$http.request('indexSet/getIndexHistory', {
           params: {
             index_set_id: this.indexSetId,
@@ -288,15 +285,15 @@ export default {
 </script>
 
 <style lang="scss" scoped>
-  .chart-container {
-    /* stylelint-disable-next-line declaration-no-important */
-    width: calc((100% - 32px) / 3) !important;
-  }
+.chart-container {
+  /* stylelint-disable-next-line declaration-no-important */
+  width: calc((100% - 32px) / 3) !important;
+}
 
-  .usage-details-container {
-    .time-range-wrap {
-      font-size: 12px;
-      font-weight: normal;
-    }
+.usage-details-container {
+  .time-range-wrap {
+    font-size: 12px;
+    font-weight: normal;
   }
+}
 </style>

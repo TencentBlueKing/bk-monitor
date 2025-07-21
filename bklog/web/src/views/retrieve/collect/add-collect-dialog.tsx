@@ -24,9 +24,6 @@
  * IN THE SOFTWARE.
  */
 
-import { Component, Emit, Prop, Ref, Model } from 'vue-property-decorator';
-import { Component as tsc } from 'vue-tsx-support';
-
 import {
   Dialog,
   Form,
@@ -41,6 +38,8 @@ import {
   Switcher,
   Tag,
 } from 'bk-magic-vue';
+import { Component, Emit, Prop, Ref, Model } from 'vue-property-decorator';
+import { Component as tsc } from 'vue-tsx-support';
 
 import $http from '../../../api';
 
@@ -58,13 +57,13 @@ interface IProps {
 
 @Component
 export default class CollectDialog extends tsc<IProps> {
-  @Model('change', { type: Boolean, default: false }) value: IProps['value'];
-  @Prop({ type: Number, default: -1 }) favoriteID: number; // 编辑收藏ID
-  @Prop({ type: Object, default: () => ({}) }) addFavoriteData: object; // 新建收藏的数据
-  @Prop({ type: Object, default: () => ({}) }) replaceData: object; // 替换收藏的params数据
-  @Prop({ type: Boolean, default: false }) isClickFavoriteEdit: boolean; // 当前编辑的收藏是否是点击活跃的
-  @Prop({ type: Array, default: () => [] }) visibleFields: Array<any>; // 字段
-  @Prop({ type: Array, default: () => [] }) favoriteList: Array<any>; // 收藏列表
+  @Model('change', { default: false, type: Boolean }) value: IProps['value'];
+  @Prop({ default: -1, type: Number }) favoriteID: number; // 编辑收藏ID
+  @Prop({ default: () => ({}), type: Object }) addFavoriteData: object; // 新建收藏的数据
+  @Prop({ default: () => ({}), type: Object }) replaceData: object; // 替换收藏的params数据
+  @Prop({ default: false, type: Boolean }) isClickFavoriteEdit: boolean; // 当前编辑的收藏是否是点击活跃的
+  @Prop({ default: () => [], type: Array }) visibleFields: Array<any>; // 字段
+  @Prop({ default: () => [], type: Array }) favoriteList: Array<any>; // 收藏列表
   @Ref('validateForm') validateFormRef: Form;
   @Ref('checkInputForm') checkInputFormRef: Form;
   searchFieldsList = []; // 表单模式显示字段
@@ -74,54 +73,54 @@ export default class CollectDialog extends tsc<IProps> {
     groupName: '',
   };
   baseFavoriteData = {
-    // 收藏参数
-    space_uid: -1,
-    index_set_id: -1,
-    name: '',
-    group_id: null,
     created_by: '',
-    params: {
-      host_scopes: {
-        modules: [],
-        ips: '',
-        target_nodes: [],
-        target_node_type: '',
-      },
-      addition: [],
-      keyword: null,
-      search_fields: [],
-    },
-    is_enable_display_fields: false,
+    display_fields: [],
+    group_id: null,
+    index_set_id: -1,
     index_set_ids: [],
     index_set_name: '',
     index_set_names: [],
+    is_enable_display_fields: false,
+    name: '',
+    params: {
+      addition: [],
+      host_scopes: {
+        ips: '',
+        modules: [],
+        target_node_type: '',
+        target_nodes: [],
+      },
+      keyword: null,
+      search_fields: [],
+    },
+    // 收藏参数
+    space_uid: -1,
     visible_type: 'public',
-    display_fields: [],
   };
   favoriteData = {
-    // 收藏参数
-    space_uid: -1,
-    index_set_id: -1,
-    name: '',
-    group_id: null,
     created_by: '',
-    params: {
-      host_scopes: {
-        modules: [],
-        ips: '',
-        target_nodes: [],
-        target_node_type: '',
-      },
-      addition: [],
-      keyword: null,
-      search_fields: [],
-    },
-    is_enable_display_fields: false,
+    display_fields: [],
+    group_id: null,
+    index_set_id: -1,
     index_set_ids: [],
     index_set_name: '',
     index_set_names: [],
+    is_enable_display_fields: false,
+    name: '',
+    params: {
+      addition: [],
+      host_scopes: {
+        ips: '',
+        modules: [],
+        target_node_type: '',
+        target_nodes: [],
+      },
+      keyword: null,
+      search_fields: [],
+    },
+    // 收藏参数
+    space_uid: -1,
     visible_type: 'public',
-    display_fields: [],
   };
   positionTop = 0;
   publicGroupList = []; // 可见状态为公共的时候显示的收藏组
@@ -132,8 +131,8 @@ export default class CollectDialog extends tsc<IProps> {
   formLoading = false;
   isInitShowDisplayFields = false; // 编辑初始化时 是否显示字段
   groupNameMap = {
-    unknown: window.mainComponent.$t('未分组'),
     private: window.mainComponent.$t('个人收藏'),
+    unknown: window.mainComponent.$t('未分组'),
   };
   public rules = {
     name: [
@@ -142,19 +141,21 @@ export default class CollectDialog extends tsc<IProps> {
         trigger: 'blur',
       },
       {
-        validator: this.checkSpecification,
-        message: window.mainComponent.$t('{n}不规范, 包含特殊符号', { n: window.mainComponent.$t('收藏名') }),
+        message: window.mainComponent.$t('{n}不规范, 包含特殊符号', {
+          n: window.mainComponent.$t('收藏名'),
+        }),
         trigger: 'blur',
+        validator: this.checkSpecification,
       },
       {
-        validator: this.checkRepeatName,
         message: window.mainComponent.$t('收藏名重复'),
         trigger: 'blur',
+        validator: this.checkRepeatName,
       },
       {
-        validator: this.checkCannotUseName,
         message: window.mainComponent.$t('保留名称，不可使用'),
         trigger: 'blur',
+        validator: this.checkCannotUseName,
       },
       {
         max: 30,
@@ -167,18 +168,20 @@ export default class CollectDialog extends tsc<IProps> {
   public groupNameRules = {
     groupName: [
       {
-        validator: this.checkName,
-        message: window.mainComponent.$t('{n}不规范, 包含特殊符号', { n: window.mainComponent.$t('组名') }),
+        message: window.mainComponent.$t('{n}不规范, 包含特殊符号', {
+          n: window.mainComponent.$t('组名'),
+        }),
         trigger: 'blur',
+        validator: this.checkName,
       },
       {
-        validator: this.checkExistName,
         message: window.mainComponent.$t('组名重复'),
         trigger: 'blur',
+        validator: this.checkExistName,
       },
       {
-        required: true,
         message: window.mainComponent.$t('必填项'),
+        required: true,
         trigger: 'blur',
       },
       {
@@ -204,23 +207,29 @@ export default class CollectDialog extends tsc<IProps> {
   }
 
   get isCannotChangeVisible() {
-    return !this.isCreateFavorite && this.favoriteData.created_by !== this.userName;
+    return (
+      !this.isCreateFavorite && this.favoriteData.created_by !== this.userName
+    );
   }
 
   get showGroupList() {
-    return this.favoriteData.visible_type === 'public' ? this.publicGroupList : this.privateGroupList;
+    return this.favoriteData.visible_type === 'public'
+      ? this.publicGroupList
+      : this.privateGroupList;
   }
 
   get favStrList() {
     return this.favoriteList.reduce((pre, cur) => {
       // 获取所有收藏的名字新增时判断是否重命名
-      pre = pre.concat(cur.favorites.map(item => item.name));
+      pre = pre.concat(cur.favorites.map((item) => item.name));
       return pre;
     }, []);
   }
 
   get showFieldsLabel() {
-    return this.favoriteData.is_enable_display_fields ? this.$t('显示字段') : this.$t('当前字段');
+    return this.favoriteData.is_enable_display_fields
+      ? this.$t('显示字段')
+      : this.$t('当前字段');
   }
 
   get unionIndexList() {
@@ -256,7 +265,9 @@ export default class CollectDialog extends tsc<IProps> {
   }
 
   checkExistName() {
-    return !this.groupList.some(item => item.name === this.verifyData.groupName);
+    return !this.groupList.some(
+      (item) => item.name === this.verifyData.groupName
+    );
   }
 
   /** 判断是否收藏名是否重复 */
@@ -272,7 +283,9 @@ export default class CollectDialog extends tsc<IProps> {
   }
   /** 检查是否有内置名称不能使用 */
   checkCannotUseName() {
-    return ![this.$t('个人收藏'), this.$t('未分组')].includes(this.favoriteData.name.trim());
+    return ![this.$t('个人收藏'), this.$t('未分组')].includes(
+      this.favoriteData.name.trim()
+    );
   }
 
   handleSelectGroup(nVal: number) {
@@ -306,7 +319,10 @@ export default class CollectDialog extends tsc<IProps> {
   /** 新增组 */
   handleCreateGroup() {
     this.checkInputFormRef.validate().then(async () => {
-      const data = { name: this.verifyData.groupName, space_uid: this.spaceUid };
+      const data = {
+        name: this.verifyData.groupName,
+        space_uid: this.spaceUid,
+      };
       try {
         const res = await $http.request('favorite/createGroup', {
           data,
@@ -341,7 +357,8 @@ export default class CollectDialog extends tsc<IProps> {
   handleSubmitFormData() {
     this.validateFormRef.validate().then(() => {
       if (!this.unknownGroupID) return;
-      if (!this.favoriteData.group_id) this.favoriteData.group_id = this.unknownGroupID;
+      if (!this.favoriteData.group_id)
+        this.favoriteData.group_id = this.unknownGroupID;
       this.handleUpdateFavorite(this.favoriteData);
     });
   }
@@ -350,7 +367,9 @@ export default class CollectDialog extends tsc<IProps> {
     if (value) {
       // 如果关闭 则更新当前显示的显示字段
       if (this.isCreateFavorite || this.isClickFavoriteEdit) {
-        this.favoriteData.display_fields = this.visibleFields.map(item => item.field_name);
+        this.favoriteData.display_fields = this.visibleFields.map(
+          (item) => item.field_name
+        );
       }
     }
   }
@@ -361,31 +380,39 @@ export default class CollectDialog extends tsc<IProps> {
       const res = await $http.request('favorite/getSearchFields', {
         data: { keyword },
       });
-      this.searchFieldsList = res.data.map(item => ({
+      this.searchFieldsList = res.data.map((item) => ({
         ...item,
+        chName: item.name,
         name: item.is_full_text_field
           ? `${this.$t('全文检索')}${!!item.repeat_count ? `(${item.repeat_count})` : ''}`
           : item.name,
-        chName: item.name,
       }));
     } catch (error) {}
   }
 
   /** 更新收藏 */
   async handleUpdateFavorite(subData) {
-    const { index_set_id, params, name, group_id, display_fields, visible_type, id, is_enable_display_fields } =
-      subData;
-    const { ip_chooser, addition, keyword, search_fields } = params;
-    const data = {
-      name,
-      group_id,
+    const {
       display_fields,
-      visible_type,
-      ip_chooser,
-      addition,
-      keyword,
-      search_fields,
+      group_id,
+      id,
+      index_set_id,
       is_enable_display_fields,
+      name,
+      params,
+      visible_type,
+    } = subData;
+    const { addition, ip_chooser, keyword, search_fields } = params;
+    const data = {
+      addition,
+      display_fields,
+      group_id,
+      ip_chooser,
+      is_enable_display_fields,
+      keyword,
+      name,
+      search_fields,
+      visible_type,
     };
     if (this.isCreateFavorite) {
       Object.assign(data, {
@@ -399,11 +426,13 @@ export default class CollectDialog extends tsc<IProps> {
         index_set_type: 'union',
       });
     }
-    const requestStr = this.isCreateFavorite ? 'createFavorite' : 'updateFavorite';
+    const requestStr = this.isCreateFavorite
+      ? 'createFavorite'
+      : 'updateFavorite';
     try {
       const res = await $http.request(`favorite/${requestStr}`, {
-        params: { id },
         data,
+        params: { id },
       });
       if (res.result) {
         this.handleSubmitChange(this.isCreateFavorite, res.data);
@@ -420,7 +449,7 @@ export default class CollectDialog extends tsc<IProps> {
           space_uid: this.spaceUid,
         },
       });
-      this.groupList = res.data.map(item => ({
+      this.groupList = res.data.map((item) => ({
         ...item,
         name: this.groupNameMap[item.group_type] ?? item.name,
       }));
@@ -431,19 +460,25 @@ export default class CollectDialog extends tsc<IProps> {
     } catch (error) {
     } finally {
       if (isAddGroup) {
-        this.favoriteData.group_id = this.groupList.find(item => item.name === groupName)?.id;
+        this.favoriteData.group_id = this.groupList.find(
+          (item) => item.name === groupName
+        )?.id;
       }
     }
   }
   /** 获取收藏详情 */
   async getFavoriteData(id) {
     try {
-      const res = await $http.request('favorite/getFavorite', { params: { id } });
+      const res = await $http.request('favorite/getFavorite', {
+        params: { id },
+      });
       const assignData = res.data;
       this.isInitShowDisplayFields = assignData.is_enable_display_fields;
       // 有点击收藏列表并且与编辑的收藏id一致时，且为是否显示字段为关闭时  重新拉取检索显示字段
       if (this.isClickFavoriteEdit && !assignData.is_enable_display_fields) {
-        assignData.display_fields = this.visibleFields.map(item => item.field_name);
+        assignData.display_fields = this.visibleFields.map(
+          (item) => item.field_name
+        );
       }
       if (JSON.stringify(this.replaceData) !== '{}') {
         // 替换收藏 会把检索的params传过来
@@ -455,27 +490,32 @@ export default class CollectDialog extends tsc<IProps> {
 
   render() {
     const indexSetName = () => {
-      const { index_set_name: indexSetName, index_set_names: indexSetNames } = this.favoriteData;
-      return !this.isUnionSearch ? indexSetName : indexSetNames?.map(item => <Tag>{item}</Tag>) || '';
+      const { index_set_name: indexSetName, index_set_names: indexSetNames } =
+        this.favoriteData;
+      return !this.isUnionSearch
+        ? indexSetName
+        : indexSetNames?.map((item) => <Tag>{item}</Tag>) || '';
     };
     return (
       <Dialog
-        width={640}
-        ext-cls='add-collect-dialog'
         auto-close={false}
-        header-position='left'
+        ext-cls="add-collect-dialog"
+        header-position="left"
         ok-text={this.isCreateFavorite ? this.$t('确定') : this.$t('保存')}
-        position={{ top: this.positionTop }}
-        render-directive='if'
-        title={this.isCreateFavorite ? this.$t('新建收藏') : this.$t('编辑收藏')}
-        value={this.value}
         on-confirm={this.handleSubmitFormData}
         on-value-change={this.handleValueChange}
+        position={{ top: this.positionTop }}
+        render-directive="if"
+        title={
+          this.isCreateFavorite ? this.$t('新建收藏') : this.$t('编辑收藏')
+        }
+        value={this.value}
+        width={640}
       >
         <Form
-          ref='validateForm'
+          form-type="vertical"
+          ref="validateForm"
           v-bkloading={{ isLoading: this.formLoading }}
-          form-type='vertical'
           {...{
             props: {
               model: this.favoriteData,
@@ -483,85 +523,84 @@ export default class CollectDialog extends tsc<IProps> {
             },
           }}
         >
-          <div class='edit-information'>
+          <div class="edit-information">
             <span>{this.$t('索引集')}</span>
             <span>{indexSetName()}</span>
           </div>
-          <div class='edit-information'>
+          <div class="edit-information">
             <span>{this.$t('查询语句')}</span>
             <span>{this.favoriteData.params.keyword}</span>
           </div>
-          <div class='form-item-container'>
-            <FormItem
-              label={this.$t('收藏名')}
-              property='name'
-              required
-            >
+          <div class="form-item-container">
+            <FormItem label={this.$t('收藏名')} property="name" required>
               <Input
-                class='collect-name'
+                class="collect-name"
+                placeholder={this.$t('{n}, （长度30个字符）', {
+                  n: this.$t('填写收藏名'),
+                })}
                 vModel={this.favoriteData.name}
-                placeholder={this.$t('{n}, （长度30个字符）', { n: this.$t('填写收藏名') })}
               ></Input>
             </FormItem>
             <FormItem
-              class='collect-radio'
+              class="collect-radio"
               label={this.$t('可见范围')}
               required
             >
               <RadioGroup
-                vModel={this.favoriteData.visible_type}
                 on-change={this.handleClickRadio}
+                vModel={this.favoriteData.visible_type}
               >
                 <Radio value={'public'}>
                   {this.$t('公开')}({this.$t('本业务可见')})
                 </Radio>
-                <Radio
-                  disabled={this.isCannotChangeVisible}
-                  value={'private'}
-                >
+                <Radio disabled={this.isCannotChangeVisible} value={'private'}>
                   {this.$t('私有')}({this.$t('仅个人可见')})
                 </Radio>
               </RadioGroup>
             </FormItem>
           </div>
-          <div class='form-item-container'>
+          <div class="form-item-container">
             <FormItem label={this.$t('所属组')}>
               <span
-                v-bk-tooltips={{ content: this.$t('私有的只支持默认的“个人收藏”'), disabled: !this.isDisableSelect }}
+                v-bk-tooltips={{
+                  content: this.$t('私有的只支持默认的“个人收藏”'),
+                  disabled: !this.isDisableSelect,
+                }}
               >
                 <Select
-                  vModel={this.favoriteData.group_id}
                   disabled={this.isDisableSelect}
-                  ext-popover-cls='add-new-page-container'
-                  searchable
+                  ext-popover-cls="add-new-page-container"
                   on-change={this.handleSelectGroup}
+                  searchable
+                  vModel={this.favoriteData.group_id}
                 >
-                  {this.showGroupList.map(item => (
+                  {this.showGroupList.map((item) => (
                     <Option
                       id={item.id}
                       key={item.id}
                       name={item.name}
                     ></Option>
                   ))}
-                  <div slot='extension'>
+                  <div slot="extension">
                     {this.isShowAddGroup ? (
                       <div
-                        class='select-add-new-group'
+                        class="select-add-new-group"
                         onClick={() => (this.isShowAddGroup = false)}
                       >
                         <div>
-                          <i class='bk-icon icon-plus-circle'></i> {this.$t('新增')}
+                          <i class="bk-icon icon-plus-circle"></i>{' '}
+                          {this.$t('新增')}
                         </div>
                       </div>
                     ) : (
                       <li
+                        class="add-new-page-input"
                         style={{ padding: '6px 0' }}
-                        class='add-new-page-input'
                       >
                         <Form
-                          ref='checkInputForm'
-                          style={{ width: '100%' }}
                           labelWidth={0}
+                          ref="checkInputForm"
+                          style={{ width: '100%' }}
                           {...{
                             props: {
                               model: this.verifyData,
@@ -569,21 +608,23 @@ export default class CollectDialog extends tsc<IProps> {
                             },
                           }}
                         >
-                          <FormItem property='groupName'>
+                          <FormItem property="groupName">
                             <Input
-                              vModel={this.verifyData.groupName}
-                              placeholder={this.$t('{n}, （长度30个字符）', { n: this.$t('请输入组名') })}
                               clearable
+                              placeholder={this.$t('{n}, （长度30个字符）', {
+                                n: this.$t('请输入组名'),
+                              })}
+                              vModel={this.verifyData.groupName}
                             ></Input>
                           </FormItem>
                         </Form>
-                        <div class='operate-button'>
+                        <div class="operate-button">
                           <span
-                            class='bk-icon icon-check-line'
+                            class="bk-icon icon-check-line"
                             onClick={() => this.handleCreateGroup()}
                           ></span>
                           <span
-                            class='bk-icon icon-close-line-2'
+                            class="bk-icon icon-close-line-2"
                             onClick={() => {
                               this.isShowAddGroup = true;
                               this.verifyData.groupName = '';
@@ -598,39 +639,41 @@ export default class CollectDialog extends tsc<IProps> {
             </FormItem>
           </div>
           <FormItem label={this.$t('表单模式')}>
-            <div class='explanation-field'>
+            <div class="explanation-field">
               {this.$t(
                 '该功能指从查询语句中获取相应的字段，当勾选对应的字段时，将以表单的填写方式显示给收藏的使用者。（字段说明：没有字段时，为全文检索；重复的字段增加显示序号(N) ，默认不勾选任何字段)'
               )}
             </div>
             <CheckboxGroup vModel={this.favoriteData.params.search_fields}>
-              {this.searchFieldsList.map(item => (
+              {this.searchFieldsList.map((item) => (
                 <Checkbox value={item.chName}>{item.name}</Checkbox>
               ))}
             </CheckboxGroup>
           </FormItem>
           <FormItem
-            ext-cls='filed-label'
             desc={{
               content: `${this.$t('当打开时，使用该收藏将同时显示如下字段，不影响用户字段显示设置。')}`,
               placements: ['right'],
             }}
-            desc-icon='bk-icon icon-info'
-            desc-type='icon'
+            desc-icon="bk-icon icon-info"
+            desc-type="icon"
+            ext-cls="filed-label"
             label={this.$t('是否同时显示字段')}
             labelWidth={400}
           >
-            <div class='filed-container'>
+            <div class="filed-container">
               <Switcher
+                on-change={(value) => this.handleClickDisplayFields(value)}
+                theme="primary"
                 vModel={this.favoriteData.is_enable_display_fields}
-                theme='primary'
-                on-change={value => this.handleClickDisplayFields(value)}
               ></Switcher>
-              <span class='current-filed'>{this.showFieldsLabel}: </span>
+              <span class="current-filed">{this.showFieldsLabel}: </span>
               {this.favoriteData.display_fields.length ? (
-                this.favoriteData.display_fields.map(item => <Tag>{item}</Tag>)
+                this.favoriteData.display_fields.map((item) => (
+                  <Tag>{item}</Tag>
+                ))
               ) : (
-                <span class='current-filed'>{this.$t('显示全部字段')}</span>
+                <span class="current-filed">{this.$t('显示全部字段')}</span>
               )}
             </div>
           </FormItem>

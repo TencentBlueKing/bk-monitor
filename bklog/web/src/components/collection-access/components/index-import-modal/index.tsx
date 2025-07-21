@@ -24,10 +24,9 @@
  * IN THE SOFTWARE.
  */
 
+import { Dialog, Table } from 'bk-magic-vue';
 import { Component, ModelSync, Watch, Emit } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-
-import { Dialog, Table } from 'bk-magic-vue';
 
 import './index.scss';
 
@@ -44,10 +43,10 @@ export default class IndexImportModal extends tsc<IProps> {
   @ModelSync('value', 'change', { type: Boolean }) localIsShowValue!: boolean;
 
   syncTypeList = [
-    { name: $i18n.t('同步源日志信息'), id: 'source_log_info' },
-    { name: $i18n.t('同步字段清洗配置'), id: 'field_clear_config' },
-    { name: $i18n.t('同步存储配置'), id: 'storage_config' },
-    { name: $i18n.t('同步采集目标'), id: 'acquisition_target' },
+    { id: 'source_log_info', name: $i18n.t('同步源日志信息') },
+    { id: 'field_clear_config', name: $i18n.t('同步字段清洗配置') },
+    { id: 'storage_config', name: $i18n.t('同步存储配置') },
+    { id: 'acquisition_target', name: $i18n.t('同步采集目标') },
   ];
   syncType = ['source_log_info'];
   isTableLoading = false;
@@ -58,8 +57,8 @@ export default class IndexImportModal extends tsc<IProps> {
   searchKeyword = '';
   currentCheckImportID = null;
   pagination = {
-    current: 1,
     count: 0,
+    current: 1,
     limit: 10,
     limitList: [10, 20, 50],
   };
@@ -71,8 +70,11 @@ export default class IndexImportModal extends tsc<IProps> {
   get collectShowList() {
     let collect = this.collectList;
     if (this.keyword) {
-      collect = collect.filter(item =>
-        item.collector_config_name.toString().toLowerCase().includes(this.keyword.toLowerCase())
+      collect = collect.filter((item) =>
+        item.collector_config_name
+          .toString()
+          .toLowerCase()
+          .includes(this.keyword.toLowerCase())
       );
     }
     this.emptyType = this.keyword ? 'search-empty' : 'empty';
@@ -101,7 +103,7 @@ export default class IndexImportModal extends tsc<IProps> {
     this.changePagination({ current });
   }
   handleCollectLimitChange(limit) {
-    this.changePagination({ limit, current: 1 });
+    this.changePagination({ current: 1, limit });
   }
   changePagination(pagination = {}) {
     Object.assign(this.pagination, pagination);
@@ -141,18 +143,18 @@ export default class IndexImportModal extends tsc<IProps> {
           not_custom: 1,
         },
       })
-      .then(res => {
+      .then((res) => {
         const { data } = res;
         if (data?.length) {
-          this.collectList = data.map(item => {
+          this.collectList = data.map((item) => {
             const {
+              bk_data_id,
               collector_config_id,
               collector_config_name,
-              storage_cluster_name,
               etl_config,
-              retention,
               params,
-              bk_data_id,
+              retention,
+              storage_cluster_name,
             } = item;
             let paths = [];
             try {
@@ -165,10 +167,12 @@ export default class IndexImportModal extends tsc<IProps> {
               bk_data_id,
               collector_config_id,
               collector_config_name: collector_config_name || '--',
-              storage_cluster_name: storage_cluster_name || '--',
-              retention: retention ? `${retention}${$i18n.t('天')}` : '--',
+              etl_config:
+                this.etlConfigList.find((item) => item.id === etl_config)
+                  ?.name ?? '--',
               paths: paths?.join('; ') ?? '',
-              etl_config: this.etlConfigList.find(item => item.id === etl_config)?.name ?? '--',
+              retention: retention ? `${retention}${$i18n.t('天')}` : '--',
+              storage_cluster_name: storage_cluster_name || '--',
             };
           });
         }
@@ -201,15 +205,15 @@ export default class IndexImportModal extends tsc<IProps> {
     if (!this.currentCheckImportID || !this.syncType.length) {
       if (!this.currentCheckImportID) {
         this.$bkMessage({
-          theme: 'error',
           message: $i18n.t('请选择目标索引集'),
+          theme: 'error',
         });
       }
       if (!this.syncType.length) {
         setTimeout(() => {
           this.$bkMessage({
-            theme: 'error',
             message: $i18n.t('请选择需要同步的配置'),
+            theme: 'error',
           });
         }, 100);
       }
@@ -222,22 +226,28 @@ export default class IndexImportModal extends tsc<IProps> {
           collector_config_id: this.currentCheckImportID,
         },
       })
-      .then(async res => {
+      .then(async (res) => {
         if (res.data) {
           const collect = res.data;
           const isPhysics = collect.environment !== 'container';
-          if (collect.collector_scenario_id !== 'wineventlog' && isPhysics && collect?.params.paths) {
-            collect.params.paths = collect.params.paths.map(item => ({ value: item }));
+          if (
+            collect.collector_scenario_id !== 'wineventlog' &&
+            isPhysics &&
+            collect?.params.paths
+          ) {
+            collect.params.paths = collect.params.paths.map((item) => ({
+              value: item,
+            }));
           }
           this.$store.commit('collect/updateExportCollectObj', {
+            collect,
             collectID: this.currentCheckImportID,
             syncType: this.syncType,
-            collect,
           });
           this.handleExport();
         }
       })
-      .catch(err => {
+      .catch((err) => {
         console.warn(err);
       })
       .finally(() => {
@@ -247,56 +257,47 @@ export default class IndexImportModal extends tsc<IProps> {
 
   render() {
     const spanSlot = {
-      default: ({ row, column }) => (
-        <div
-          class='title-overflow'
-          v-bk-overflow-tips
-        >
+      default: ({ column, row }) => (
+        <div class="title-overflow" v-bk-overflow-tips>
           <span>{row[column.property] || '--'}</span>
         </div>
       ),
     };
     const checkBoxSlot = {
       default: ({ row }) => (
-        <div class='import-check-box'>
+        <div class="import-check-box">
           <bk-checkbox
-            class='group-check-box'
             checked={this.getCheckedStatus(row)}
+            class="group-check-box"
           ></bk-checkbox>
         </div>
       ),
     };
     return (
       <bk-dialog
-        width={1200}
-        ext-cls='index-import-modal'
-        v-model={this.localIsShowValue}
+        confirm-fn={this.handleConfirmDialog}
+        ext-cls="index-import-modal"
+        header-position="left"
+        mask-close={false}
+        on-value-change={this.dialogValueChange}
         position={{
           top: 100,
         }}
-        confirm-fn={this.handleConfirmDialog}
-        header-position='left'
-        mask-close={false}
-        render-directive='if'
-        theme='primary'
+        render-directive="if"
+        theme="primary"
         title={this.$t('索引配置导入')}
-        on-value-change={this.dialogValueChange}
+        v-model={this.localIsShowValue}
+        width={1200}
       >
-        <div
-          class='content'
-          v-bkloading={{ isLoading: this.submitLoading }}
-        >
-          <bk-form
-            form-type='vertical'
-            label-width={200}
-          >
+        <div class="content" v-bkloading={{ isLoading: this.submitLoading }}>
+          <bk-form form-type="vertical" label-width={200}>
             <bk-form-item required={true}>
-              <div class='top-sync-select'>
+              <div class="top-sync-select">
                 <bk-checkbox-group v-model={this.syncType}>
-                  {this.syncTypeList.map(item => (
+                  {this.syncTypeList.map((item) => (
                     <bk-checkbox
                       key={item.id}
-                      style='margin-right: 24px;'
+                      style="margin-right: 24px;"
                       value={item.id}
                     >
                       {item.name}
@@ -304,52 +305,52 @@ export default class IndexImportModal extends tsc<IProps> {
                   ))}
                 </bk-checkbox-group>
                 <bk-input
-                  v-model={this.searchKeyword}
-                  placeholder={$i18n.t('搜索名称')}
-                  right-icon='bk-icon icon-search'
                   on-change={this.handleSearchChange}
                   on-enter={this.search}
+                  placeholder={$i18n.t('搜索名称')}
+                  right-icon="bk-icon icon-search"
+                  v-model={this.searchKeyword}
                 ></bk-input>
               </div>
             </bk-form-item>
             <bk-form-item label={this.$t('请选择目标索引集')}>
               <bk-table
-                v-bkloading={{ isLoading: this.isTableLoading }}
                 data={this.collectShowList}
                 limit-list={this.pagination.limitList}
-                pagination={this.pagination}
                 on-page-change={this.handleCollectPageChange}
                 on-page-limit-change={this.handleCollectLimitChange}
                 on-row-click={this.handleRowCheckChange}
+                pagination={this.pagination}
+                v-bkloading={{ isLoading: this.isTableLoading }}
               >
                 <bk-table-column
-                  width='60'
-                  label=''
-                  prop=''
+                  label=""
+                  prop=""
                   scopedSlots={checkBoxSlot}
+                  width="60"
                 ></bk-table-column>
                 <bk-table-column
-                  label='索引集'
-                  prop='collector_config_name'
+                  label="索引集"
+                  prop="collector_config_name"
                   scopedSlots={spanSlot}
                 ></bk-table-column>
                 <bk-table-column
-                  label='采集路径'
-                  prop='paths'
+                  label="采集路径"
+                  prop="paths"
                   scopedSlots={spanSlot}
                 ></bk-table-column>
                 <bk-table-column
-                  label='采集模式'
-                  prop='etl_config'
+                  label="采集模式"
+                  prop="etl_config"
                 ></bk-table-column>
                 <bk-table-column
-                  label='存储集群'
-                  prop='storage_cluster_name'
+                  label="存储集群"
+                  prop="storage_cluster_name"
                   scopedSlots={spanSlot}
                 ></bk-table-column>
                 <bk-table-column
-                  label='存储时长'
-                  prop='retention'
+                  label="存储时长"
+                  prop="retention"
                 ></bk-table-column>
               </bk-table>
             </bk-form-item>

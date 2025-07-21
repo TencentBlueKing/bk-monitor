@@ -29,10 +29,7 @@
   <div>
     <bk-form :label-width="200">
       <!-- 大小写敏感 -->
-      <bk-form-item
-        :label="$t('大小写敏感')"
-        :required="true"
-      >
+      <bk-form-item :label="$t('大小写敏感')" :required="true">
         <bk-switcher
           class="ml200"
           v-model="formData.is_case_sensitive"
@@ -42,10 +39,7 @@
         ></bk-switcher>
       </bk-form-item>
       <!-- 包含中文 -->
-      <bk-form-item
-        :label="$t('包含中文')"
-        :required="true"
-      >
+      <bk-form-item :label="$t('包含中文')" :required="true">
         <bk-switcher
           class="ml200"
           v-model="demo1"
@@ -56,11 +50,7 @@
         </bk-switcher>
       </bk-form-item>
       <!-- 分词符 -->
-      <bk-form-item
-        :label="$t('分词符')"
-        :property="''"
-        :required="true"
-      >
+      <bk-form-item :label="$t('分词符')" :property="''" :required="true">
         <bk-input
           class="ml200 w240"
           v-model="formData.delimeter"
@@ -70,10 +60,7 @@
         </bk-input>
       </bk-form-item>
 
-      <bk-form-item
-        style="margin-top: 40px"
-        class="ml200"
-      >
+      <bk-form-item style="margin-top: 40px" class="ml200">
         <bk-button
           :disabled="!globalEditable"
           :loading="isHandle"
@@ -132,15 +119,15 @@ export default {
 </script>
 
 <style lang="scss" scoped>
-  :deep(.bk-label) {
-    text-align: left;
-  }
+:deep(.bk-label) {
+  text-align: left;
+}
 
-  .ml200 {
-    margin-left: -200px;
-  }
+.ml200 {
+  margin-left: -200px;
+}
 
-  .w240 {
-    width: 240px;
-  }
+.w240 {
+  width: 240px;
+}
 </style>

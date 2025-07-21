@@ -16,8 +16,14 @@ const props = defineProps({
   },
 });
 
-const emit = defineEmits(['retrieve', 'input', 'change', 'height-change', 'popup-change']);
-const handleHeightChange = height => {
+const emit = defineEmits([
+  'retrieve',
+  'input',
+  'change',
+  'height-change',
+  'popup-change',
+]);
+const handleHeightChange = (height) => {
   emit('height-change', height);
 };
 
@@ -50,7 +56,7 @@ const setEditorContext = (val, from = 0, to = Infinity) => {
  * 用于格式化并更新编辑器内容
  * @param item
  */
-const formatModelValueItem = item => {
+const formatModelValueItem = (item) => {
   setEditorContext(item, 0, Infinity);
   return item;
 };
@@ -59,58 +65,63 @@ const formatModelValueItem = item => {
  * 用于点击操作判定当前是否在搜索容器内部进行多次点击
  * @param e
  */
-const handleWrapperClickCapture = e => {
+const handleWrapperClickCapture = (e) => {
   return refEditorParent.value?.contains(e.target) ?? false;
 };
 
-const { modelValue, delayShowInstance, getTippyInstance, handleContainerClick, hideTippyInstance } = useFocusInput(
-  props,
-  {
-    onHeightChange: handleHeightChange,
-    formatModelValueItem,
-    refContent: refSqlQueryOption,
-    refTarget: refEditorParent,
-    refWrapper: refEditorParent,
-    arrow: false,
-    newInstance: false,
-    addInputListener: false,
-    tippyOptions: {
-      maxWidth: 'none',
-      offset: [0, 15],
-      hideOnClick: false,
-    },
-    onShowFn: instance => {
-      emit('popup-change', { isShow: true });
+const {
+  modelValue,
+  delayShowInstance,
+  getTippyInstance,
+  handleContainerClick,
+  hideTippyInstance,
+} = useFocusInput(props, {
+  onHeightChange: handleHeightChange,
+  formatModelValueItem,
+  refContent: refSqlQueryOption,
+  refTarget: refEditorParent,
+  refWrapper: refEditorParent,
+  arrow: false,
+  newInstance: false,
+  addInputListener: false,
+  tippyOptions: {
+    maxWidth: 'none',
+    offset: [0, 15],
+    hideOnClick: false,
+  },
+  onShowFn: (instance) => {
+    emit('popup-change', { isShow: true });
 
-      if (isSelectedText) {
-        return false;
-      }
-
-      if (refSqlQueryOption.value?.beforeShowndFn?.()) {
-        instance.popper?.style.setProperty('width', '100%');
-        refSqlQueryOption.value?.$el?.querySelector('.list-item')?.classList.add('is-hover');
-        return true;
-      }
-
+    if (isSelectedText) {
       return false;
-    },
-    onHiddenFn: () => {
-      refSqlQueryOption.value?.beforeHideFn?.();
-      emit('popup-change', { isShow: false });
+    }
+
+    if (refSqlQueryOption.value?.beforeShowndFn?.()) {
+      instance.popper?.style.setProperty('width', '100%');
+      refSqlQueryOption.value?.$el
+        ?.querySelector('.list-item')
+        ?.classList.add('is-hover');
       return true;
-    },
-    handleWrapperClick: handleWrapperClickCapture,
-    afterShowKeyEnter: () => {
-      editorInstance?.setFocus(Infinity);
-    },
-  }
-);
+    }
+
+    return false;
+  },
+  onHiddenFn: () => {
+    refSqlQueryOption.value?.beforeHideFn?.();
+    emit('popup-change', { isShow: false });
+    return true;
+  },
+  handleWrapperClick: handleWrapperClickCapture,
+  afterShowKeyEnter: () => {
+    editorInstance?.setFocus(Infinity);
+  },
+});
 
 /**
  * 编辑器内容改变回掉事件
  * @param doc
  */
-const onEditorContextChange = doc => {
+const onEditorContextChange = (doc) => {
   const val = doc.text.join('');
   if (val !== props.value) {
     emit('input', val);
@@ -127,14 +138,17 @@ const isEmptySqlString = computed(() => {
   return /^\s*$/.test(modelValue.value) || !modelValue.value.length;
 });
 
-const debounceRetrieve = debounce(value => {
+const debounceRetrieve = debounce((value) => {
   emit('retrieve', value ?? modelValue.value);
 });
 
-const closeAndRetrieve = value => {
+const closeAndRetrieve = (value) => {
   // 键盘enter事件，如果当前没有选中任何可选项 或者当前没有联想提示
   // 此时执行查询操作，如果有联想提示，关闭提示弹出
-  if (!(getTippyInstance()?.state?.isShown ?? false) || sqlActiveParamsIndex.value === null) {
+  if (
+    !(getTippyInstance()?.state?.isShown ?? false) ||
+    sqlActiveParamsIndex.value === null
+  ) {
     hideTippyInstance();
   }
 
@@ -167,7 +181,7 @@ const handleQueryChange = (value, retrieve, replace = true, focusPosition) => {
   }
 };
 
-const handleSqlParamsActiveChange = val => {
+const handleSqlParamsActiveChange = (val) => {
   sqlActiveParamsIndex.value = val;
 };
 
@@ -179,7 +193,7 @@ const handleCancel = (force = false) => {
   }
 };
 
-const handleDocumentClick = e => {
+const handleDocumentClick = (e) => {
   if (
     refEditorParent?.value?.contains(e.target) ||
     refSqlQueryOption.value?.$el.contains(e.target) ||
@@ -208,7 +222,7 @@ const createEditorInstance = () => {
     stopDefaultKeyboard: () => {
       return getTippyInstance()?.state?.isShown ?? false;
     },
-    onChange: e => {
+    onChange: (e) => {
       onEditorContextChange(e);
     },
     onKeyEnter: () => {
@@ -222,7 +236,7 @@ const createEditorInstance = () => {
         }
       }
     },
-    onFocusPosChange: state => {
+    onFocusPosChange: (state) => {
       editorFocusPosition.value = state.selection.main.to;
       isSelectedText = state.selection.main.to > state.selection.main.from;
     },
@@ -239,14 +253,8 @@ onBeforeUnmount(() => {
 });
 </script>
 <template>
-  <div
-    class="search-sql-query"
-    @click="handleEditorClick"
-  >
-    <div
-      ref="refEditorParent"
-      class="search-sql-editor"
-    ></div>
+  <div class="search-sql-query" @click="handleEditorClick">
+    <div ref="refEditorParent" class="search-sql-editor"></div>
     <span
       ref="refPopElement"
       class="empty-placeholder-text"
@@ -267,105 +275,107 @@ onBeforeUnmount(() => {
   </div>
 </template>
 <style lang="scss">
-  .search-sql-query {
-    display: inline-flex;
-    align-items: center;
+.search-sql-query {
+  display: inline-flex;
+  align-items: center;
+  width: 100%;
+
+  .empty-placeholder-text {
+    position: absolute;
+    top: 50%;
+    left: 14px;
+    font-family: 'Roboto Mono', Consolas, Menlo, Courier, monospace;
+    font-size: 12px;
+    line-height: 30px;
+    color: #c4c6cc;
+    pointer-events: none;
+    transform: translateY(-50%);
+  }
+
+  .search-sql-editor {
     width: 100%;
+    padding-left: 8px;
 
-    .empty-placeholder-text {
-      position: absolute;
-      top: 50%;
-      left: 14px;
-      font-family: 'Roboto Mono', Consolas, Menlo, Courier, monospace;
-      font-size: 12px;
-      line-height: 30px;
-      color: #c4c6cc;
-      pointer-events: none;
-      transform: translateY(-50%);
-    }
+    .cm-editor {
+      &.cm-focused {
+        outline: none;
+      }
 
-    .search-sql-editor {
-      width: 100%;
-      padding-left: 8px;
+      .cm-activeLine {
+        background-color: transparent;
+      }
 
-      .cm-editor {
-        &.cm-focused {
-          outline: none;
-        }
+      .cm-scroller {
+        font-family:
+          Menlo, Monaco, Consolas, Courier, 'PingFang SC', 'Microsoft Yahei',
+          monospace;
+        font-size: 12px;
 
-        .cm-activeLine {
-          background-color: transparent;
-        }
+        .cm-line {
+          width: fit-content;
+          color: #b17313;
 
-        .cm-scroller {
-          font-family: Menlo, Monaco, Consolas, Courier, 'PingFang SC', 'Microsoft Yahei', monospace;
-          font-size: 12px;
+          .ͼb {
+            font-weight: bold;
+            color: #7c609e;
+            // eslint-disable-next-line
+            font-family: RobotoMono-BoldItalic;
+            font-style: italic;
+          }
 
-          .cm-line {
-            width: fit-content;
-            color: #b17313;
-
+          .cm-not-keyword {
             .ͼb {
-              font-weight: bold;
-              color: #7c609e;
-              // eslint-disable-next-line
-              font-family: RobotoMono-BoldItalic;
-              font-style: italic;
-            }
-
-            .cm-not-keyword {
-              .ͼb {
-                color: #ea3636;
-              }
-            }
-
-            .ͼi,
-            .ͼf {
-              color: #02776e;
+              color: #ea3636;
             }
           }
 
-          .cm-gutters {
-            display: none;
+          .ͼi,
+          .ͼf {
+            color: #02776e;
+          }
+        }
 
-            /* border-right-color: transparent; */
-            background-color: transparent;
+        .cm-gutters {
+          display: none;
 
-            .cm-lineNumbers,
-            .cm-foldGutter {
-              .cm-activeLineGutter {
-                background-color: transparent;
-              }
+          /* border-right-color: transparent; */
+          background-color: transparent;
+
+          .cm-lineNumbers,
+          .cm-foldGutter {
+            .cm-activeLineGutter {
+              background-color: transparent;
             }
           }
         }
       }
     }
   }
+}
 </style>
 
 <style lang="scss">
-  @import 'tippy.js/dist/tippy.css';
+@import 'tippy.js/dist/tippy.css';
 </style>
 <style lang="scss">
-  [data-tippy-root] .tippy-box {
-    &[data-theme^='log-light'] {
-      color: #63656e;
-      background-color: #fff;
-      box-shadow: 0 2px 6px 0 #0000001a;
+[data-tippy-root] .tippy-box {
+  &[data-theme^='log-light'] {
+    color: #63656e;
+    background-color: #fff;
+    box-shadow: 0 2px 6px 0 #0000001a;
 
-      .tippy-content {
-        padding: 0;
-      }
+    .tippy-content {
+      padding: 0;
+    }
 
-      .tippy-arrow {
-        color: #fff;
+    .tippy-arrow {
+      color: #fff;
 
-        &::after {
-          background-color: #fff;
-          box-shadow: 0 2px 6px 0 #0000001a;
-        }
+      &::after {
+        background-color: #fff;
+        box-shadow: 0 2px 6px 0 #0000001a;
       }
     }
   }
+}
 </style>

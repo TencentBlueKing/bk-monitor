@@ -28,6 +28,7 @@ import { Ref } from 'vue';
 import JsonView from '../global/json-view';
 // import jsonEditorTask, { EditorTask } from '../global/utils/json-editor-task';
 import segmentPopInstance from '../global/utils/segment-pop-instance';
+
 import {
   getClickTargetElement,
   optimizedSplit,
@@ -46,13 +47,20 @@ export type FormatterConfig = {
   options?: Record<string, any>;
 };
 
-export type SegmentAppendText = { text: string; onClick?: (...args) => void; attributes?: Record<string, string> };
+export type SegmentAppendText = {
+  text: string;
+  onClick?: (...args) => void;
+  attributes?: Record<string, string>;
+};
 export default class UseJsonFormatter {
   editor: JsonView;
   config: FormatterConfig;
   setValuePromise: Promise<any>;
   localDepth: number;
-  getSegmentContent: (keyRef: object, fn: (...args) => void) => Ref<HTMLElement>;
+  getSegmentContent: (
+    keyRef: object,
+    fn: (...args) => void
+  ) => Ref<HTMLElement>;
   keyRef: any;
 
   constructor(cfg: FormatterConfig) {
@@ -60,7 +68,9 @@ export default class UseJsonFormatter {
     this.setValuePromise = Promise.resolve(true);
     this.localDepth = 1;
     this.keyRef = {};
-    this.getSegmentContent = UseSegmentPropInstance.getSegmentContent.bind(UseSegmentPropInstance);
+    this.getSegmentContent = UseSegmentPropInstance.getSegmentContent.bind(
+      UseSegmentPropInstance
+    );
   }
 
   update(cfg) {
@@ -68,7 +78,7 @@ export default class UseJsonFormatter {
   }
 
   getField(fieldName: string) {
-    return this.config.fields.find(item => item.field_name === fieldName);
+    return this.config.fields.find((item) => item.field_name === fieldName);
   }
 
   getFieldNameValue() {
@@ -83,7 +93,9 @@ export default class UseJsonFormatter {
     }
 
     if (name === undefined) {
-      const valueElement = tippyInstance.reference.closest('.field-value') as HTMLElement;
+      const valueElement = tippyInstance.reference.closest(
+        '.field-value'
+      ) as HTMLElement;
       name = valueElement?.getAttribute('data-field-name');
     }
 
@@ -91,25 +103,25 @@ export default class UseJsonFormatter {
       depth = target.closest('[data-depth]')?.getAttribute('data-depth');
     }
 
-    return { value, name, depth };
+    return { depth, name, value };
   }
 
   onSegmentEnumClick(val, isLink) {
-    const { name, value, depth } = this.getFieldNameValue();
+    const { depth, name, value } = this.getFieldNameValue();
     const activeField = this.getField(name);
     const target = ['date', 'date_nanos'].includes(activeField?.field_type)
       ? this.config.jsonValue?.[activeField?.field_name]
       : value;
 
     const option = {
+      depth,
       fieldName: activeField?.field_name,
       fieldType: activeField?.field_type,
       operation: val === 'not' ? 'is not' : val,
       value: target ?? value,
-      depth,
     };
 
-    this.config.onSegmentClick?.({ option, isLink });
+    this.config.onSegmentClick?.({ isLink, option });
     segmentPopInstance.hide();
   }
 
@@ -120,22 +132,37 @@ export default class UseJsonFormatter {
 
   handleSegmentClick(e: MouseEvent, value) {
     if (!value.toString() || value === '--') return;
-    const content = this.getSegmentContent(this.keyRef, this.onSegmentEnumClick.bind(this));
-    const traceView = content.value.querySelector('.bklog-trace-view')?.closest('.segment-event-box') as HTMLElement;
-    traceView?.style.setProperty('display', this.isValidTraceId(value) ? 'inline-flex' : 'none');
+    const content = this.getSegmentContent(
+      this.keyRef,
+      this.onSegmentEnumClick.bind(this)
+    );
+    const traceView = content.value
+      .querySelector('.bklog-trace-view')
+      ?.closest('.segment-event-box') as HTMLElement;
+    traceView?.style.setProperty(
+      'display',
+      this.isValidTraceId(value) ? 'inline-flex' : 'none'
+    );
 
     const { offsetX, offsetY } = getClickTargetElement(e);
     const target = setPointerCellClickTargetHandler(e, { offsetX, offsetY });
 
-    const valueElement = (e.target as HTMLElement).closest('.field-value') as HTMLElement;
+    const valueElement = (e.target as HTMLElement).closest(
+      '.field-value'
+    ) as HTMLElement;
     const fieldName = valueElement?.getAttribute('data-field-name');
-    const depth = valueElement.closest('[data-depth]')?.getAttribute('data-depth');
+    const depth = valueElement
+      .closest('[data-depth]')
+      ?.getAttribute('data-depth');
 
     target.setAttribute('data-field-value', value);
     target.setAttribute('data-field-name', fieldName);
     target.setAttribute('data-field-dpth', depth);
 
-    segmentPopInstance.show(target, this.getSegmentContent(this.keyRef, this.onSegmentEnumClick.bind(this)));
+    segmentPopInstance.show(
+      target,
+      this.getSegmentContent(this.keyRef, this.onSegmentEnumClick.bind(this))
+    );
   }
 
   isTextField(field: any) {
@@ -148,16 +175,19 @@ export default class UseJsonFormatter {
 
   escapeString(val: string) {
     const map = {
-      '&amp;': '&',
-      '&lt;': '<',
-      '&gt;': '>',
-      '&quot;': '"',
       '&#x27;': "'",
+      '&amp;': '&',
+      '&gt;': '>',
+      '&lt;': '<',
+      '&quot;': '"',
     };
 
     return typeof val !== 'string'
       ? val
-      : val.replace(RegExp(`(${Object.keys(map).join('|')})`, 'g'), match => map[match]);
+      : val.replace(
+          RegExp(`(${Object.keys(map).join('|')})`, 'g'),
+          (match) => map[match]
+        );
   }
 
   getSplitList(field: any, content: any) {
@@ -175,10 +205,10 @@ export default class UseJsonFormatter {
 
     return [
       {
-        text: value.replace(/<mark>/g, '').replace(/<\/mark>/g, ''),
-        isNotParticiple: this.isTextField(field),
-        isMark: new RegExp(markRegStr).test(value),
         isCursorText: true,
+        isMark: new RegExp(markRegStr).test(value),
+        isNotParticiple: this.isTextField(field),
+        text: value.replace(/<mark>/g, '').replace(/<\/mark>/g, ''),
       },
     ];
   }
@@ -191,7 +221,9 @@ export default class UseJsonFormatter {
 
     if (item.isMark) {
       const mrkNode = document.createElement('mark');
-      mrkNode.textContent = item.text.replace(/<mark>/g, '').replace(/<\/mark>/g, '');
+      mrkNode.textContent = item.text
+        .replace(/<mark>/g, '')
+        .replace(/<\/mark>/g, '');
       mrkNode.classList.add('valid-text');
       return mrkNode;
     }
@@ -226,15 +258,23 @@ export default class UseJsonFormatter {
         root = root.parentElement;
       }
 
-      const fieldName = (root.querySelector('.field-name .black-mark') as HTMLElement)?.getAttribute('data-field-name');
-      this.setNodeValueWordSplit(root, fieldName, '.field-value', text, appendText);
+      const fieldName = (
+        root.querySelector('.field-name .black-mark') as HTMLElement
+      )?.getAttribute('data-field-name');
+      this.setNodeValueWordSplit(
+        root,
+        fieldName,
+        '.field-value',
+        text,
+        appendText
+      );
     }
   }
 
   addWordSegmentClick(root: HTMLElement) {
     if (!root.hasAttribute('data-word-segment-click')) {
       root.setAttribute('data-word-segment-click', '1');
-      root.addEventListener('click', e => {
+      root.addEventListener('click', (e) => {
         if ((e.target as HTMLElement).classList.contains('valid-text')) {
           this.handleSegmentClick(e, (e.target as HTMLElement).textContent);
         }
@@ -266,7 +306,7 @@ export default class UseJsonFormatter {
 
         const segmentContent = this.creatSegmentNodes();
 
-        const { setListItem, removeScrollEvent } = setScrollLoadCell(
+        const { removeScrollEvent, setListItem } = setScrollLoadCell(
           vlaues,
           element,
           segmentContent,
@@ -284,7 +324,7 @@ export default class UseJsonFormatter {
             appendElement.addEventListener('click', appendText.onClick);
           }
 
-          Object.keys(appendText.attributes ?? {}).forEach(key => {
+          Object.keys(appendText.attributes ?? {}).forEach((key) => {
             appendElement.setAttribute(key, appendText.attributes[key]);
           });
 
@@ -309,11 +349,11 @@ export default class UseJsonFormatter {
 
   get computedOptions() {
     return {
+      mainMenuBar: false,
       mode: 'view',
       navigationBar: false,
-      statusBar: false,
-      mainMenuBar: false,
       onExpand: this.handleExpandNode.bind(this),
+      statusBar: false,
       ...(this.config.options ?? {}),
     };
   }
@@ -330,9 +370,9 @@ export default class UseJsonFormatter {
     if (this.getTargetRoot()) {
       this.localDepth = depth;
       this.editor = new JsonView(this.getTargetRoot(), {
-        onNodeExpand: this.handleExpandNode.bind(this),
         depth,
         field: this.config.field,
+        onNodeExpand: this.handleExpandNode.bind(this),
         segmentRender: (value: string, rootNode: HTMLElement) => {
           const vlaues = this.getSplitList(this.config.field, value);
           const segmentContent = this.creatSegmentNodes();
@@ -342,7 +382,7 @@ export default class UseJsonFormatter {
             rootNode.classList.add('bklog-scroll-box');
           }
 
-          const { setListItem, removeScrollEvent } = setScrollLoadCell(
+          const { removeScrollEvent, setListItem } = setScrollLoadCell(
             vlaues,
             rootNode,
             segmentContent,
@@ -353,7 +393,7 @@ export default class UseJsonFormatter {
         },
       });
 
-      this.editor.initClickEvent(e => {
+      this.editor.initClickEvent((e) => {
         if ((e.target as HTMLElement).classList.contains('valid-text')) {
           this.handleSegmentClick(e, (e.target as HTMLElement).textContent);
         }
@@ -408,10 +448,10 @@ export default class UseJsonFormatter {
 
   getEditor() {
     return {
-      setValue: this.setValue.bind(this),
-      setExpand: this.setExpand.bind(this),
-      initEditor: this.initEditor.bind(this),
       destroy: this.destroy.bind(this),
+      initEditor: this.initEditor.bind(this),
+      setExpand: this.setExpand.bind(this),
+      setValue: this.setValue.bind(this),
     };
   }
 }

@@ -25,8 +25,8 @@
  */
 
 const getMyProjectList = {
-  url: '/api/test/:id/test/',
   method: 'get',
+  url: '/api/test/:id/test/',
 };
 
 export { getMyProjectList };

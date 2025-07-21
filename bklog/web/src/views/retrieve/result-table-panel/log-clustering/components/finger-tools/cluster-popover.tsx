@@ -24,14 +24,12 @@
  * IN THE SOFTWARE.
  */
 
+import { Popover } from 'bk-magic-vue';
 import { Component, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { Popover } from 'bk-magic-vue';
-
-import ClusterRuleDialog from './cluster-rule-dialog';
-
 import './cluster-popover.scss';
+import ClusterRuleDialog from './cluster-rule-dialog';
 const { $i18n } = window.mainComponent;
 
 @Component
@@ -48,9 +46,11 @@ export default class ClusterPopover extends tsc<object> {
   feedRules = {
     labelRules: [
       {
-        validator: this.checkName,
-        message: this.$t('{n}不规范, 包含特殊符号.', { n: this.$t('问题反馈') }),
+        message: this.$t('{n}不规范, 包含特殊符号.', {
+          n: this.$t('问题反馈'),
+        }),
         trigger: 'blur',
+        validator: this.checkName,
       },
       {
         max: 100,
@@ -81,15 +81,15 @@ export default class ClusterPopover extends tsc<object> {
   handleClickPattern(e: Event) {
     this.destroyPopover();
     this.popoverInstance = this.$bkPopover(e.target, {
-      content: this.eventTippyRef,
-      arrow: true,
-      trigger: 'click',
-      theme: 'light',
-      placement: 'bottom',
-      interactive: true,
       allowHTML: true,
-      onShow: () => this.handlePopoverShow(),
+      arrow: true,
+      content: this.eventTippyRef,
+      interactive: true,
       onHidden: () => this.handlePopoverHide(),
+      onShow: () => this.handlePopoverShow(),
+      placement: 'bottom',
+      theme: 'light',
+      trigger: 'click',
     });
     this.popoverInstance.show(500);
   }
@@ -117,8 +117,8 @@ export default class ClusterPopover extends tsc<object> {
     if (this.intersectionObserver) {
       this.unregisterOberver();
     }
-    this.intersectionObserver = new IntersectionObserver(entries => {
-      entries.forEach(entry => {
+    this.intersectionObserver = new IntersectionObserver((entries) => {
+      entries.forEach((entry) => {
         if (this.intersectionObserver) {
           if (entry.intersectionRatio <= 0) {
             this.destroyPopover();
@@ -138,15 +138,15 @@ export default class ClusterPopover extends tsc<object> {
   render() {
     const feedbackDialog = () => (
       <bk-dialog
-        width='480'
-        v-model={this.isShowFeedbackDialog}
         confirm-fn={this.confirmFeedback}
-        header-position='left'
+        header-position="left"
         title={$i18n.t('问题反馈')}
+        v-model={this.isShowFeedbackDialog}
+        width="480"
       >
         <bk-form
-          ref='labelRef'
-          form-type='vertical'
+          form-type="vertical"
+          ref="labelRef"
           {...{
             props: {
               model: this.feedRulesData,
@@ -156,15 +156,15 @@ export default class ClusterPopover extends tsc<object> {
         >
           <bk-form-item
             label={$i18n.t('请输入反馈问题')}
-            property='labelRules'
+            property="labelRules"
             required
           >
             <bk-input
-              v-model={this.feedRulesData.textInputStr}
               maxlength={100}
               placeholder={$i18n.t('请输入')}
               rows={5}
-              type='textarea'
+              type="textarea"
+              v-model={this.feedRulesData.textInputStr}
             ></bk-input>
           </bk-form-item>
         </bk-form>
@@ -172,37 +172,31 @@ export default class ClusterPopover extends tsc<object> {
     );
     const popoverSlot = () => (
       <div style={{ display: 'none' }}>
-        <div
-          ref='eventTippy'
-          class='cluster-event-tippy'
-        >
-          <div class='event-icons'>
-            <div class='event-box'>
-              <span
-                class='event-btn'
-                onClick={() => this.handleClick('copy')}
-              >
-                <i class='icon bklog-icon bklog-copy'></i>
+        <div class="cluster-event-tippy" ref="eventTippy">
+          <div class="event-icons">
+            <div class="event-box">
+              <span class="event-btn" onClick={() => this.handleClick('copy')}>
+                <i class="icon bklog-icon bklog-copy"></i>
                 <span>{$i18n.t('复制')}</span>
               </span>
             </div>
-            <div class='event-box'>
+            <div class="event-box">
               <span
-                class='event-btn'
+                class="event-btn"
                 onClick={() => this.handleClick('show original')}
               >
-                <i class='icon bk-icon icon-eye'></i>
+                <i class="icon bk-icon icon-eye"></i>
                 <span>{$i18n.t('查询命中pattern的日志')}</span>
               </span>
               <div
-                class='new-link'
-                v-bk-tooltips={this.$t('新开标签页')}
-                onClick={e => {
+                class="new-link"
+                onClick={(e) => {
                   e.stopPropagation();
                   this.handleClick('show original', true);
                 }}
+                v-bk-tooltips={this.$t('新开标签页')}
               >
-                <i class='bklog-icon bklog-jump'></i>
+                <i class="bklog-icon bklog-jump"></i>
               </div>
             </div>
             {/* <div class='event-box'>
@@ -228,10 +222,7 @@ export default class ClusterPopover extends tsc<object> {
       </div>
     );
     return (
-      <div
-        class='pattern-line'
-        onClick={this.handleClickPattern}
-      >
+      <div class="pattern-line" onClick={this.handleClickPattern}>
         {this.$slots.default}
         {popoverSlot()}
         {feedbackDialog()}

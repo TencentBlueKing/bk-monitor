@@ -42,7 +42,9 @@ watch(localIsShow, () => {
 
 const nodeType = computed(() => {
   // 当前选择的ip类型
-  const selectType = Object.keys(props.value).find(item => props.value[item].length);
+  const selectType = Object.keys(props.value).find(
+    (item) => props.value[item].length
+  );
   return selectType ?? '';
 });
 
@@ -63,15 +65,17 @@ const nodeUnit = computed(() => {
   return nodeTypeTextMap[nodeType.value] || '';
 });
 
-const showText = computed(() => $t('已选择 {0} 个{1}', { 0: nodeCount.value, 1: nodeUnit.value }));
+const showText = computed(() =>
+  $t('已选择 {0} 个{1}', { 0: nodeCount.value, 1: nodeUnit.value })
+);
 
-const emitChange = value => {
+const emitChange = (value) => {
   emit('input', value);
   emit('change', value);
 };
 
-const handleIpSelectorValueChange = val => {
-  const nodeType = Object.keys(val).find(item => val[item].length);
+const handleIpSelectorValueChange = (val) => {
+  const nodeType = Object.keys(val).find((item) => val[item].length);
   let newValue = Object.assign({}, props.value);
   if (nodeType) {
     newValue[nodeType] = val[nodeType];

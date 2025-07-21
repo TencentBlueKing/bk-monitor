@@ -34,10 +34,7 @@
       :info="authPageInfo"
     ></auth-container-page>
     <template v-if="!authPageInfo && !basicLoading && collectorData">
-      <basic-tab
-        :active.sync="activePanel"
-        type="border-card"
-      >
+      <basic-tab :active.sync="activePanel" type="border-card">
         <bk-tab-panel
           v-for="panel in panels"
           v-bind="panel"
@@ -48,11 +45,9 @@
             <div class="search-text">
               <span class="bk-icon icon-info"></span>
               <i18n path="数据采集好了，去 {0}">
-                <span
-                  class="search-button"
-                  @click="handleGoSearch"
-                  >{{ $t('查看数据') }}</span
-                >
+                <span class="search-button" @click="handleGoSearch">{{
+                  $t('查看数据')
+                }}</span>
               </i18n>
             </div>
           </div>
@@ -154,11 +149,14 @@ export default {
           // 显示无权限页面
         } else {
           // 正常显示页面
-          const { data: collectorData } = await this.$http.request('collect/details', {
-            params: {
-              collector_config_id: this.$route.params.collectorId,
-            },
-          });
+          const { data: collectorData } = await this.$http.request(
+            'collect/details',
+            {
+              params: {
+                collector_config_id: this.$route.params.collectorId,
+              },
+            }
+          );
           this.collectorData = collectorData;
           this.$store.commit('collect/setCurCollect', collectorData);
         }

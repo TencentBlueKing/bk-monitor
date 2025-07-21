@@ -29,7 +29,12 @@ import dayjs from 'dayjs';
 export interface DateTimeBuiltinFormat {
   __momentBuiltinFormatBrand: any;
 }
-export type DateTimeInput = Array<number | string> | Date | DateTime | number | string; // null | undefined
+export type DateTimeInput =
+  | Array<number | string>
+  | Date
+  | DateTime
+  | number
+  | string; // null | undefined
 export type FormatInput = DateTimeBuiltinFormat | string | undefined;
 export type DurationInput = DateTimeDuration | number | string;
 export type DurationUnit =
@@ -76,7 +81,11 @@ export interface DateTimeDuration {
 export interface DateTime extends Object {
   add: (amount?: DateTimeInput, unit?: DurationUnit) => DateTime;
   set: (unit: DurationUnit, amount: DateTimeInput) => void;
-  diff: (amount: DateTimeInput, unit?: DurationUnit, truncate?: boolean) => number;
+  diff: (
+    amount: DateTimeInput,
+    unit?: DurationUnit,
+    truncate?: boolean
+  ) => number;
   endOf: (unitOfTime: DurationUnit) => DateTime;
   format: (formatInput?: FormatInput) => string;
   fromNow: (withoutSuffix?: boolean) => string;
@@ -102,15 +111,22 @@ export const setLocale = (_language: string) => {
   dayjs.locale();
 };
 
-export const toUtc = (input?, formatInput?): DateTime => dayjs.utc(input, formatInput) as unknown as DateTime;
+export const toUtc = (input?, formatInput?): DateTime =>
+  dayjs.utc(input, formatInput) as unknown as DateTime;
 
-export const toDuration = (input?, unit?): DateTimeDuration => dayjs.duration(input, unit) as DateTimeDuration;
+export const toDuration = (input?, unit?): DateTimeDuration =>
+  dayjs.duration(input, unit) as DateTimeDuration;
 
-export const dateTime = (input?, formatInput?): DateTime => dayjs(input, formatInput) as unknown as DateTime;
+export const dateTime = (input?, formatInput?): DateTime =>
+  dayjs(input, formatInput) as unknown as DateTime;
 
 export const dateTimeAsMoment = (input?: DateTimeInput) => dateTime(input);
 
-export const dateTimeForTimeZone = (timezone?, input?: DateTimeInput, formatInput?: FormatInput): DateTime => {
+export const dateTimeForTimeZone = (
+  timezone?,
+  input?: DateTimeInput,
+  formatInput?: FormatInput
+): DateTime => {
   if (timezone === 'utc') {
     return toUtc(input, formatInput);
   }

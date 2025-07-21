@@ -23,9 +23,8 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, getCurrentInstance } from 'vue';
-
 import useResizeObserve from '@/hooks/use-resize-observe';
+import { defineComponent, getCurrentInstance } from 'vue';
 export default defineComponent({
   emits: ['resize'],
   setup(_, { emit }) {

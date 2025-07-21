@@ -27,7 +27,10 @@
   <div class="fingerprint-setting fl-sb">
     <div
       class="is-near24"
-      v-bk-tooltips="{ content: $t('请先新建新类告警策略'), disabled: strategyHaveSubmit }"
+      v-bk-tooltips="{
+        content: $t('请先新建新类告警策略'),
+        disabled: strategyHaveSubmit,
+      }"
     >
       <bk-checkbox
         v-model="isNear24"
@@ -86,11 +89,9 @@
               >
             </li>
             <li>
-              <a
-                href="javascript:;"
-                @click="goToMySubscription"
-                >{{ $t('我的订阅') }}</a
-              >
+              <a href="javascript:;" @click="goToMySubscription">{{
+                $t('我的订阅')
+              }}</a>
             </li>
           </ul>
         </template>
@@ -132,7 +133,9 @@
               <span class="title">{{ $t('维度') }}</span>
               <i
                 class="notice bklog-icon bklog-help"
-                v-bk-tooltips.top="$t('修改字段会影响当前聚类结果，请勿随意修改')"
+                v-bk-tooltips.top="
+                  $t('修改字段会影响当前聚类结果，请勿随意修改')
+                "
               ></i>
             </span>
             <bk-select
@@ -160,7 +163,9 @@
             </bk-select>
             <div class="group-alert">
               <i class="bk-icon icon-info"></i>
-              <span>{{ $t('如需根据某些维度拆分聚类结果，可将字段设置为维度。') }}</span>
+              <span>{{
+                $t('如需根据某些维度拆分聚类结果，可将字段设置为维度。')
+              }}</span>
             </div>
           </div>
           <div class="piece">
@@ -192,11 +197,7 @@
           <div class="piece">
             <span class="title">{{ $t('同比') }}</span>
             <div class="year-on-year">
-              <bk-switcher
-                v-model="yearSwitch"
-                theme="primary"
-              >
-              </bk-switcher>
+              <bk-switcher v-model="yearSwitch" theme="primary"> </bk-switcher>
               <bk-select
                 ext-cls="compared-select"
                 v-model="yearOnYearHour"
@@ -230,7 +231,9 @@
                       <div class="compared-select-icon">
                         <span
                           class="top-end"
-                          v-bk-tooltips="$t('自定义输入格式: 如 1h 代表一小时 h小时')"
+                          v-bk-tooltips="
+                            $t('自定义输入格式: 如 1h 代表一小时 h小时')
+                          "
                         >
                           <i class="bklog-icon bklog-help"></i>
                         </span>
@@ -250,11 +253,7 @@
             >
               {{ $t('保存') }}
             </bk-button>
-            <bk-button
-              size="small"
-              theme="default"
-              @click="cancelPopover"
-            >
+            <bk-button size="small" theme="default" @click="cancelPopover">
               {{ $t('取消') }}
             </bk-button>
           </div>
@@ -328,13 +327,19 @@ export default {
       return this.$store.state.bkBizId;
     },
     dimensionList() {
-      return this.fingerOperateData.groupList.filter(item => !this.group.includes(item.id));
+      return this.fingerOperateData.groupList.filter(
+        (item) => !this.group.includes(item.id)
+      );
     },
     groupList() {
-      return this.fingerOperateData.groupList.filter(item => !this.dimension.includes(item.id));
+      return this.fingerOperateData.groupList.filter(
+        (item) => !this.dimension.includes(item.id)
+      );
     },
     indexSetId() {
-      return window.__IS_MONITOR_COMPONENT__ ? this.$route.query.indexId : this.$route.params.indexId;
+      return window.__IS_MONITOR_COMPONENT__
+        ? this.$route.query.indexId
+        : this.$route.params.indexId;
     },
   },
   watch: {
@@ -349,7 +354,10 @@ export default {
     },
   },
   created() {
-    this.checkReportIsExistedDebounce = debounce(1000, this.checkReportIsExisted);
+    this.checkReportIsExistedDebounce = debounce(
+      1000,
+      this.checkReportIsExisted
+    );
   },
   mounted() {
     if (!this.isClusterActive) return;
@@ -375,7 +383,9 @@ export default {
       }
       this.changeCustomizeState(true);
       const { comparedList: propComparedList } = this.fingerOperateData;
-      const isRepeat = propComparedList.some(el => el.id === Number(matchVal[1]));
+      const isRepeat = propComparedList.some(
+        (el) => el.id === Number(matchVal[1])
+      );
       if (isRepeat) {
         this.yearOnYearHour = Number(matchVal[1]);
         return;
@@ -390,7 +400,12 @@ export default {
       this.yearOnYearHour = Number(matchVal[1]);
     },
     handleShowNearPattern(state) {
-      this.$emit('handle-finger-operate', 'requestData', { show_new_pattern: state }, true);
+      this.$emit(
+        'handle-finger-operate',
+        'requestData',
+        { show_new_pattern: state },
+        true
+      );
     },
     handleChangepatternSize(val) {
       this.$emit(
@@ -401,10 +416,14 @@ export default {
       );
     },
     changeCustomizeState(val) {
-      this.$emit('handle-finger-operate', 'fingerOperateData', { isShowCustomize: val });
+      this.$emit('handle-finger-operate', 'fingerOperateData', {
+        isShowCustomize: val,
+      });
     },
     handleClickGroupPopover() {
-      !this.isShowPopoverInstance ? this.$refs.groupPopover.instance.show() : this.$refs.groupPopover.instance.hide();
+      !this.isShowPopoverInstance
+        ? this.$refs.groupPopover.instance.show()
+        : this.$refs.groupPopover.instance.hide();
       this.isShowPopoverInstance = !this.isShowPopoverInstance;
     },
     async submitPopover() {
@@ -416,7 +435,9 @@ export default {
         if (isShowInfo) {
           this.$bkInfo({
             type: 'warning',
-            title: this.$t('修改维度字段会影响已有备注、告警配置，如无必要，请勿随意变动。请确定是否修改？'),
+            title: this.$t(
+              '修改维度字段会影响已有备注、告警配置，如无必要，请勿随意变动。请确定是否修改？'
+            ),
             confirmFn: async () => {
               await this.updateInitGroup();
               this.finishEmit();
@@ -456,7 +477,9 @@ export default {
     async updateInitGroup() {
       await this.$http.request('/logClustering/updateInitGroup', {
         params: {
-          index_set_id: window.__IS_MONITOR_COMPONENT__ ? this.$route.query.indexId : this.$route.params.indexId,
+          index_set_id: window.__IS_MONITOR_COMPONENT__
+            ? this.$route.query.indexId
+            : this.$route.params.indexId,
         },
         data: {
           group_fields: this.dimension,
@@ -489,10 +512,12 @@ export default {
           query: {
             scenario: 'clustering',
             bk_biz_id: this.$store.state.bkBizId,
-            index_set_id: window.__IS_MONITOR_COMPONENT__ ? this.$route.query.indexId : this.$route.params.indexId,
+            index_set_id: window.__IS_MONITOR_COMPONENT__
+              ? this.$route.query.indexId
+              : this.$route.params.indexId,
           },
         })
-        .then(response => {
+        .then((response) => {
           this.isCurrentIndexSetIdCreateSubscription = !!response.data.length;
         })
         .catch(console.log);
@@ -511,217 +536,217 @@ export default {
 };
 </script>
 <style lang="scss" scoped>
-  @import '@/scss/mixins/flex.scss';
+@import '@/scss/mixins/flex.scss';
 
-  .fingerprint-setting {
-    flex-shrink: 0;
-    height: 32px;
-    font-size: 12px;
-    line-height: 24px;
+.fingerprint-setting {
+  flex-shrink: 0;
+  height: 32px;
+  font-size: 12px;
+  line-height: 24px;
 
-    .is-near24 {
-      margin-right: 20px;
-      @include flex-center;
+  .is-near24 {
+    margin-right: 20px;
+    @include flex-center;
 
-      > span {
-        margin-left: 4px;
-        line-height: 16px;
-        cursor: pointer;
-      }
-    }
-
-    .pattern {
-      width: 200px;
-      margin-right: 20px;
-
-      .pattern-slider-box {
-        width: 154px;
-      }
-
-      .pattern-slider {
-        width: 114px;
-      }
+    > span {
+      margin-left: 4px;
+      line-height: 16px;
+      cursor: pointer;
     }
   }
 
-  .compared-select-option {
-    .compared-customize {
-      position: relative;
-      padding: 4px 0;
+  .pattern {
+    width: 200px;
+    margin-right: 20px;
+
+    .pattern-slider-box {
+      width: 154px;
     }
 
-    .compared-select-icon {
-      position: absolute;
-      top: 3px;
-      right: 22px;
+    .pattern-slider {
+      width: 114px;
+    }
+  }
+}
+
+.compared-select-option {
+  .compared-customize {
+    position: relative;
+    padding: 4px 0;
+  }
+
+  .compared-select-icon {
+    position: absolute;
+    top: 3px;
+    right: 22px;
+    font-size: 14px;
+  }
+
+  .customize-option {
+    padding: 0 16px;
+    cursor: pointer;
+  }
+
+  .bk-form-control {
+    width: 90%;
+    margin: 0 auto;
+  }
+
+  .bk-form-input {
+    /* stylelint-disable-next-line declaration-no-important */
+    padding: 0 18px 0 10px !important;
+  }
+}
+
+.selected-ext {
+  .bk-option.is-selected {
+    /* stylelint-disable-next-line declaration-no-important */
+    background: none !important;
+  }
+
+  .bk-option:hover {
+    background: #f4f6fa;
+  }
+}
+
+.popover-content {
+  .group-popover {
+    padding-top: 8px;
+
+    .piece {
+      margin-bottom: 13px;
+    }
+
+    .title {
+      display: inline-block;
+      margin-bottom: 6px;
+      color: #63656e;
+    }
+
+    .notice {
       font-size: 14px;
-    }
-
-    .customize-option {
-      padding: 0 16px;
+      color: #979ba5;
       cursor: pointer;
     }
 
-    .bk-form-control {
-      width: 90%;
-      margin: 0 auto;
-    }
-
-    .bk-form-input {
-      /* stylelint-disable-next-line declaration-no-important */
-      padding: 0 18px 0 10px !important;
-    }
-  }
-
-  .selected-ext {
-    .bk-option.is-selected {
-      /* stylelint-disable-next-line declaration-no-important */
-      background: none !important;
-    }
-
-    .bk-option:hover {
-      background: #f4f6fa;
-    }
-  }
-
-  .popover-content {
-    .group-popover {
-      padding-top: 8px;
-
-      .piece {
-        margin-bottom: 13px;
-      }
-
-      .title {
-        display: inline-block;
-        margin-bottom: 6px;
-        color: #63656e;
-      }
-
-      .notice {
-        font-size: 14px;
-        color: #979ba5;
-        cursor: pointer;
-      }
-
-      .group-alert {
-        position: relative;
-        padding: 6px 30px;
-        margin: 6px 0 14px 0;
-        line-height: 20px;
-        color: #63656e;
-        background: #f0f1f5;
-        border-radius: 2px;
-
-        .icon-info {
-          position: absolute;
-          top: 8px;
-          left: 8px;
-          font-size: 16px;
-          color: #979ba5;
-        }
-      }
-
-      .year-on-year {
-        @include flex-center();
-      }
-
-      .compared-select {
-        flex: 1;
-        margin-left: 20px;
-      }
-
-      .popover-button {
-        padding: 12px 0;
-
-        @include flex-justify(flex-end);
-      }
-    }
-  }
-
-  .ext-box {
-    /* stylelint-disable-next-line declaration-no-important */
-    display: flex !important;
-    height: 32px;
-
-    @include flex-center();
-
-    :deep(.bk-checkbox-text) {
-      width: calc(100% - 20px);
-      overflow: hidden;
-
-      /* stylelint-disable-next-line declaration-no-important */
-      font-size: 12px !important;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
-  }
-
-  .disabled-icon {
-    cursor: not-allowed;
-    background-color: #fff;
-    border-color: #dcdee5;
-
-    &:hover,
-    .bklog-icon {
-      color: #c4c6cc;
-      border-color: #dcdee5;
-    }
-  }
-
-  .operation-icon {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 26px;
-    height: 26px;
-    cursor: pointer;
-    border: 1px solid #c4c6cc;
-    border-radius: 2px;
-    outline: none;
-    transition: boder-color 0.2s;
-
-    &:hover {
-      border-color: #979ba5;
-      transition: boder-color 0.2s;
-    }
-
-    &:active {
-      border-color: #3a84ff;
-      transition: boder-color 0.2s;
-    }
-
-    .icon-more {
-      width: 16px;
-      font-size: 16px;
-      color: #979ba5;
-    }
-  }
-
-  .fl-sb {
-    align-items: center;
-
-    @include flex-justify(space-between);
-  }
-
-  .btn-subscription {
-    margin-right: 20px;
-    font-size: 14px;
-    color: #63656e;
-    cursor: pointer;
-    border-radius: 2px;
-
-    &.selected {
-      color: #3a84ff;
-    }
-
-    &:hover {
+    .group-alert {
+      position: relative;
+      padding: 6px 30px;
+      margin: 6px 0 14px 0;
+      line-height: 20px;
+      color: #63656e;
       background: #f0f1f5;
+      border-radius: 2px;
+
+      .icon-info {
+        position: absolute;
+        top: 8px;
+        left: 8px;
+        font-size: 16px;
+        color: #979ba5;
+      }
     }
 
-    &:active {
-      background-color: #e1ecff;
+    .year-on-year {
+      @include flex-center();
+    }
+
+    .compared-select {
+      flex: 1;
+      margin-left: 20px;
+    }
+
+    .popover-button {
+      padding: 12px 0;
+
+      @include flex-justify(flex-end);
     }
   }
+}
+
+.ext-box {
+  /* stylelint-disable-next-line declaration-no-important */
+  display: flex !important;
+  height: 32px;
+
+  @include flex-center();
+
+  :deep(.bk-checkbox-text) {
+    width: calc(100% - 20px);
+    overflow: hidden;
+
+    /* stylelint-disable-next-line declaration-no-important */
+    font-size: 12px !important;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
+.disabled-icon {
+  cursor: not-allowed;
+  background-color: #fff;
+  border-color: #dcdee5;
+
+  &:hover,
+  .bklog-icon {
+    color: #c4c6cc;
+    border-color: #dcdee5;
+  }
+}
+
+.operation-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  cursor: pointer;
+  border: 1px solid #c4c6cc;
+  border-radius: 2px;
+  outline: none;
+  transition: boder-color 0.2s;
+
+  &:hover {
+    border-color: #979ba5;
+    transition: boder-color 0.2s;
+  }
+
+  &:active {
+    border-color: #3a84ff;
+    transition: boder-color 0.2s;
+  }
+
+  .icon-more {
+    width: 16px;
+    font-size: 16px;
+    color: #979ba5;
+  }
+}
+
+.fl-sb {
+  align-items: center;
+
+  @include flex-justify(space-between);
+}
+
+.btn-subscription {
+  margin-right: 20px;
+  font-size: 14px;
+  color: #63656e;
+  cursor: pointer;
+  border-radius: 2px;
+
+  &.selected {
+    color: #3a84ff;
+  }
+
+  &:hover {
+    background: #f0f1f5;
+  }
+
+  &:active {
+    background-color: #e1ecff;
+  }
+}
 </style>
 ./quick-create-subscription-drawer/quick-create-subscription.jsx

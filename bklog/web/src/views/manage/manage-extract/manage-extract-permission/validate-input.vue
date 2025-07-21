@@ -52,7 +52,7 @@ export default {
     },
     validator: {
       type: Function,
-      default: val => Boolean(val),
+      default: (val) => Boolean(val),
     },
   },
   data() {

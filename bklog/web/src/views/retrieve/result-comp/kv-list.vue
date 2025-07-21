@@ -27,11 +27,7 @@
 <template>
   <div class="kv-list-wrapper">
     <div class="kv-content">
-      <div
-        v-for="(field, index) in fieldKeyMap"
-        class="log-item"
-        :key="index"
-      >
+      <div v-for="(field, index) in fieldKeyMap" class="log-item" :key="index">
         <div
           :style="`max-width: ${getMaxWidth}px; width: ${getMaxWidth}px;`"
           class="field-label"
@@ -41,16 +37,15 @@
             v-bk-tooltips="fieldTypePopover(field)"
             :class="getFieldIcon(field)"
           ></span>
-          <span
-            class="field-text"
-            :title="field"
-            >{{ field }}
-          </span>
+          <span class="field-text" :title="field">{{ field }} </span>
         </div>
         <div class="handle-option-list">
           <span
             v-for="option in toolMenuList"
-            v-bk-tooltips="{ content: getIconPopover(option.id, field), delay: 300 }"
+            v-bk-tooltips="{
+              content: getIconPopover(option.id, field),
+              delay: 300,
+            }"
             :class="`icon ${getHandleIcon(option, field)} ${checkDisable(option.id, field)}`"
             :key="option.id"
             @click.stop="handleMenuClick(option.id, field)"
@@ -61,7 +56,10 @@
           <text-segmentation
             :content="formatterStr(data, field)"
             :field="getFieldItem(field)"
-            :menu-click="(type, content, isLink) => handleMenuClick(type, content, field, isLink)"
+            :menu-click="
+              (type, content, isLink) =>
+                handleMenuClick(type, content, field, isLink)
+            "
           />
           <span
             v-if="getRelationMonitorField(field)"
@@ -160,16 +158,23 @@ export default {
       return this.$store.state.bkBizId;
     },
     fieldKeyMap() {
-      return this.totalFields.filter(item => this.kvShowFieldsList.includes(item.field_name)).map(el => el.field_name);
+      return this.totalFields
+        .filter((item) => this.kvShowFieldsList.includes(item.field_name))
+        .map((el) => el.field_name);
     },
     /** 获取字段里最大的字段宽度 */
     getMaxWidth() {
       // 表格内字体如果用12px在windows系统下表格字体会显得很细，所以用13px来加粗
-      const fieldWidthList = this.fieldKeyMap.map(item => getTextPxWidth(item, '13px', TABLE_FOUNT_FAMILY));
+      const fieldWidthList = this.fieldKeyMap.map((item) =>
+        getTextPxWidth(item, '13px', TABLE_FOUNT_FAMILY)
+      );
       return Math.max(...fieldWidthList) + 18; // 18是icon的宽度
     },
     hiddenFields() {
-      return this.fieldList.filter(item => !this.visibleFields.some(visibleItem => item === visibleItem));
+      return this.fieldList.filter(
+        (item) =>
+          !this.visibleFields.some((visibleItem) => item === visibleItem)
+      );
     },
     filedSettingConfigID() {
       // 当前索引集的显示字段ID
@@ -191,19 +196,23 @@ export default {
     getHandleIcon(option, field) {
       if (option.id !== 'display') return option.icon;
 
-      const isDisplay = this.visibleFields.some(item => item.field_name === field);
+      const isDisplay = this.visibleFields.some(
+        (item) => item.field_name === field
+      );
       return `${option.icon} ${isDisplay ? 'is-hidden' : ''}`;
     },
     getFieldType(field) {
-      const target = this.fieldList.find(item => item.field_name === field);
+      const target = this.fieldList.find((item) => item.field_name === field);
       return target ? target.field_type : '';
     },
     getFieldIcon(field) {
       const fieldType = this.getFieldType(field);
-      return this.fieldTypeMap[fieldType] ? this.fieldTypeMap[fieldType].icon : 'bklog-icon bklog-unkown';
+      return this.fieldTypeMap[fieldType]
+        ? this.fieldTypeMap[fieldType].icon
+        : 'bklog-icon bklog-unkown';
     },
     fieldTypePopover(field) {
-      const target = this.fieldList.find(item => item.field_name === field);
+      const target = this.fieldList.find((item) => item.field_name === field);
       const fieldType = target ? target.field_type : '';
 
       return {
@@ -214,28 +223,46 @@ export default {
     checkDisable(id, field) {
       const type = this.getFieldType(field);
       const isExist = this.filterIsExist(id, field);
-      return (['is', 'not'].includes(id) && type === 'text') || type === '__virtual__' || isExist ? 'is-disabled' : '';
+      return (['is', 'not'].includes(id) && type === 'text') ||
+        type === '__virtual__' ||
+        isExist
+        ? 'is-disabled'
+        : '';
     },
     getIconPopover(id, field) {
       const type = this.getFieldType(field);
-      if (type === 'text' && ['is', 'not'].includes(id)) return this.toolMenuTips[`text_${id}`];
-      if (type === '__virtual__' && ['is', 'not'].includes(id)) return this.$t('该字段为平台补充 不可检索');
+      if (type === 'text' && ['is', 'not'].includes(id))
+        return this.toolMenuTips[`text_${id}`];
+      if (type === '__virtual__' && ['is', 'not'].includes(id))
+        return this.$t('该字段为平台补充 不可检索');
       if (this.filterIsExist(id, field)) return this.$t('已添加过滤条件');
 
       if (['is', 'not'].includes(id)) {
-        const curValue = this.tableRowDeepView(this.data, field, this.getFieldType(field), false);
+        const curValue = this.tableRowDeepView(
+          this.data,
+          field,
+          this.getFieldType(field),
+          false
+        );
         const operator = id === 'is' ? '=' : '!=';
         return `${field} ${operator} ${_escape(curValue)}`;
       }
 
       if (id !== 'display') return this.toolMenuTips[id];
 
-      const isDisplay = this.visibleFields.some(item => item.field_name === field);
+      const isDisplay = this.visibleFields.some(
+        (item) => item.field_name === field
+      );
       return this.toolMenuTips[isDisplay ? 'hiddenField' : 'displayField'];
     },
     handleMenuClick(operator, item, field, isLink = false) {
       let params = {};
-      const curValue = this.tableRowDeepView(this.data, item, this.getFieldType(item), false);
+      const curValue = this.tableRowDeepView(
+        this.data,
+        item,
+        this.getFieldType(item),
+        false
+      );
       if (!field) {
         // disable时操作禁用
         const disableStr = this.checkDisable(operator, item);
@@ -262,7 +289,9 @@ export default {
       }
 
       if (operator === 'display') {
-        const displayFieldNames = this.visibleFields.map(field => field.field_name);
+        const displayFieldNames = this.visibleFields.map(
+          (field) => field.field_name
+        );
         const isDisplay = displayFieldNames.includes(item);
         if (isDisplay) {
           displayFieldNames.splice(displayFieldNames.indexOf(item), 1);
@@ -287,12 +316,15 @@ export default {
         case 'trace_id':
         case 'traceid':
           if (this.apmRelation.is_active) {
-            const { app_name: appName, bk_biz_id: bkBizId } = this.apmRelation.extra;
+            const { app_name: appName, bk_biz_id: bkBizId } =
+              this.apmRelation.extra;
             path = `/?bizId=${bkBizId}#/trace/home?app_name=${appName}&search_type=accurate&trace_id=${this.data[field]}`;
           } else {
             this.$bkMessage({
               theme: 'warning',
-              message: this.$t('未找到相关的应用，请确认是否有Trace数据的接入。'),
+              message: this.$t(
+                '未找到相关的应用，请确认是否有Trace数据的接入。'
+              ),
             });
           }
           break;
@@ -337,10 +369,13 @@ export default {
         case 'serverip':
         case 'ip':
         case 'bk_host_id': {
-          const lowerKeyData = Object.entries(this.data).reduce((pre, [curKey, curVal]) => {
-            pre[curKey.toLowerCase()] = curVal;
-            return pre;
-          }, {});
+          const lowerKeyData = Object.entries(this.data).reduce(
+            (pre, [curKey, curVal]) => {
+              pre[curKey.toLowerCase()] = curVal;
+              return pre;
+            },
+            {}
+          );
           return !!lowerKeyData[key] ? this.$t('主机') : null; // 判断ip和serverIp是否有值 无值则不显示主机
         }
         // 容器
@@ -354,8 +389,13 @@ export default {
     filterIsExist(id, field) {
       if (this.retrieveParams?.addition.length) {
         if (id === 'not') id = 'is not';
-        const curValue = this.tableRowDeepView(this.data, field, this.getFieldType(field), false);
-        return this.retrieveParams.addition.some(addition => {
+        const curValue = this.tableRowDeepView(
+          this.data,
+          field,
+          this.getFieldType(field),
+          false
+        );
+        return this.retrieveParams.addition.some((addition) => {
           return (
             addition.field === field &&
             addition.operator === (this.mappingKay[id] ?? id) && // is is not 值映射 判断是否
@@ -366,113 +406,113 @@ export default {
       return false;
     },
     getFieldItem(fieldName) {
-      return this.fieldList.find(item => item.field_name === fieldName);
+      return this.fieldList.find((item) => item.field_name === fieldName);
     },
   },
 };
 </script>
 
 <style lang="scss" scoped>
-  @import '../../../scss/mixins/scroller';
+@import '../../../scss/mixins/scroller';
 
-  /* stylelint-disable no-descending-specificity */
-  .kv-list-wrapper {
-    .log-item {
+/* stylelint-disable no-descending-specificity */
+.kv-list-wrapper {
+  .log-item {
+    display: flex;
+    align-items: start;
+
+    .field-label {
       display: flex;
-      align-items: start;
+      flex-shrink: 0;
+      flex-wrap: nowrap;
+      align-items: baseline;
+      height: 100%;
 
-      .field-label {
-        display: flex;
-        flex-shrink: 0;
-        flex-wrap: nowrap;
-        align-items: baseline;
-        height: 100%;
-
-        .field-text {
-          display: block;
-          width: auto;
-          overflow: hidden;
-          font-family: var(--table-fount-family);
-          font-size: var(--table-fount-size);
-          color: var(--table-fount-color);
-          word-break: normal;
-          word-wrap: break-word;
-        }
-
-        :deep(.icon-ext) {
-          display: inline-block;
-          width: 13px;
-          font-size: 12px;
-          transform: translateX(-1px) scale(0.8);
-        }
-      }
-
-      .field-value {
+      .field-text {
+        display: block;
+        width: auto;
+        overflow: hidden;
         font-family: var(--table-fount-family);
         font-size: var(--table-fount-size);
         color: var(--table-fount-color);
-        word-break: break-all;
+        word-break: normal;
+        word-wrap: break-word;
       }
 
-      .handle-option-list {
-        display: flex;
-        flex-shrink: 0;
-        align-items: center;
-        justify-content: space-between;
-        margin: 0px 14px 0 24px;
-
-        .icon {
-          margin-right: 6px;
-          font-size: 14px;
-          cursor: pointer;
-
-          &:hover {
-            color: #3a84ff;
-          }
-        }
-
-        .search {
-          font-size: 16px;
-        }
-
-        .icon-arrows-up-circle {
-          margin-right: 2px;
-          font-size: 12px;
-          transform: rotate(45deg);
-
-          &.is-hidden {
-            transform: rotate(225deg);
-          }
-        }
-
-        .icon-chart {
-          margin: 0 0 0 6px;
-        }
-
-        .bklog-copy {
-          font-size: 24px;
-          cursor: pointer;
-          transform: rotate(0);
-        }
-
-        .icon-enlarge-line,
-        .icon-narrow-line,
-        .icon-arrows-up-circle,
-        .icon-copy {
-          &.is-disabled {
-            color: #dcdee5;
-            cursor: not-allowed;
-          }
-        }
+      :deep(.icon-ext) {
+        display: inline-block;
+        width: 13px;
+        font-size: 12px;
+        transform: translateX(-1px) scale(0.8);
       }
     }
 
-    .relation-monitor-btn {
-      margin-left: 12px;
-      font-size: 12px;
-      color: #3a84ff;
-      cursor: pointer;
+    .field-value {
+      font-family: var(--table-fount-family);
+      font-size: var(--table-fount-size);
+      color: var(--table-fount-color);
+      word-break: break-all;
+    }
+
+    .handle-option-list {
+      display: flex;
+      flex-shrink: 0;
+      align-items: center;
+      justify-content: space-between;
+      margin: 0px 14px 0 24px;
+
+      .icon {
+        margin-right: 6px;
+        font-size: 14px;
+        cursor: pointer;
+
+        &:hover {
+          color: #3a84ff;
+        }
+      }
+
+      .search {
+        font-size: 16px;
+      }
+
+      .icon-arrows-up-circle {
+        margin-right: 2px;
+        font-size: 12px;
+        transform: rotate(45deg);
+
+        &.is-hidden {
+          transform: rotate(225deg);
+        }
+      }
+
+      .icon-chart {
+        margin: 0 0 0 6px;
+      }
+
+      .bklog-copy {
+        font-size: 24px;
+        cursor: pointer;
+        transform: rotate(0);
+      }
+
+      .icon-enlarge-line,
+      .icon-narrow-line,
+      .icon-arrows-up-circle,
+      .icon-copy {
+        &.is-disabled {
+          color: #dcdee5;
+          cursor: not-allowed;
+        }
+      }
     }
   }
+
+  .relation-monitor-btn {
+    margin-left: 12px;
+    font-size: 12px;
+    color: #3a84ff;
+    cursor: pointer;
+  }
+}
 </style>
 ./text-segmentation.jsx

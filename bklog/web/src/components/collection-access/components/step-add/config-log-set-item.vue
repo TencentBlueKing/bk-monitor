@@ -34,10 +34,7 @@
     >
       <div>
         <!-- 段日志正则调试 -->
-        <div
-          v-if="hasMultilineReg"
-          class="multiline-log-container mt"
-        >
+        <div v-if="hasMultilineReg" class="multiline-log-container mt">
           <div class="row-container">
             <bk-form-item
               :label="$t('行首正则')"
@@ -63,11 +60,14 @@
               </div>
             </bk-form-item>
           </div>
-          <div :class="['row-container', 'second', showType === 'horizontal' && 'ml115']">
-            <i18n
-              class="i18n-style"
-              path="最多匹配{0}行，最大耗时{1}秒"
-            >
+          <div
+            :class="[
+              'row-container',
+              'second',
+              showType === 'horizontal' && 'ml115',
+            ]"
+          >
+            <i18n class="i18n-style" path="最多匹配{0}行，最大耗时{1}秒">
               <bk-form-item
                 :rules="rules.maxLine"
                 property="params.multiline_max_lines"
@@ -127,7 +127,10 @@
                     @click="addLog('paths')"
                   />
                   <i
-                    :class="['bk-icon icon-minus-circle-shape icons ml9', { disable: logPaths.length === 1 }]"
+                    :class="[
+                      'bk-icon icon-minus-circle-shape icons ml9',
+                      { disable: logPaths.length === 1 },
+                    ]"
                     data-test-id="sourceLogBox_i_deleteAddLogPath"
                     @click="delLog(index, 'paths')"
                   />
@@ -146,27 +149,36 @@
           <!-- 路径黑名单 -->
           <div
             v-en-class="'en-span'"
-            :class="['filter-content black-content', showType !== 'horizontal' && 'black-hori-title']"
+            :class="[
+              'filter-content black-content',
+              showType !== 'horizontal' && 'black-hori-title',
+            ]"
           >
             <div class="black-list-title">
               <div
                 class="list-title-btn"
                 @click="isShowBlackList = !isShowBlackList"
               >
-                <i :class="['bk-icon icon-play-shape', isShowBlackList && 'icon-rotate']"></i>
+                <i
+                  :class="[
+                    'bk-icon icon-play-shape',
+                    isShowBlackList && 'icon-rotate',
+                  ]"
+                ></i>
                 <span>{{ $t('路径黑名单') }}</span>
               </div>
               <div class="black-title-tips">
                 <i class="bk-icon icon-info-circle"></i>
                 <span>
-                  {{ $t('可通过正则语法排除符合条件的匹配项') }}   
+                  {{ $t('可通过正则语法排除符合条件的匹配项') }}
                   <!-- <a
                     href="javascript:;"
                     @click.stop="()=>{}"
                   >
                     {{ $t('正则语法说明') }}
                   </a> -->
-                  {{ $t('。如：匹配任意字符：.*')}}</span>
+                  {{ $t('。如：匹配任意字符：.*') }}</span
+                >
               </div>
             </div>
             <template v-if="isShowBlackList">
@@ -206,11 +218,7 @@
             </template>
           </div>
           <!-- 日志字符集 -->
-          <bk-form-item
-            class="mt"
-            :label="$t('字符集')"
-            required
-          >
+          <bk-form-item class="mt" :label="$t('字符集')" required>
             <bk-select
               style="width: 320px"
               v-model="subFormData.data_encoding"
@@ -229,11 +237,7 @@
           </bk-form-item>
         </template>
         <!-- 日志过滤 -->
-        <bk-form-item
-          class="mt"
-          :label="$t('日志过滤')"
-          required
-        >
+        <bk-form-item class="mt" :label="$t('日志过滤')" required>
           <log-filter
             ref="logFilterRef"
             :conditions="subFormData.params.conditions"
@@ -242,7 +246,9 @@
           />
         </bk-form-item>
         <bk-form-item
-          v-if="currentEnvironment == 'linux' || currentEnvironment == 'windows'"
+          v-if="
+            currentEnvironment == 'linux' || currentEnvironment == 'windows'
+          "
           class="mt"
           :label="$t('设备元数据')"
           required
@@ -279,7 +285,10 @@
           <div class="species-item">
             <bk-checkbox
               v-for="(item, index) in logSpeciesList"
-              :disabled="selectLogSpeciesList.length === 1 && selectLogSpeciesList[0] === item.id"
+              :disabled="
+                selectLogSpeciesList.length === 1 &&
+                selectLogSpeciesList[0] === item.id
+              "
               :key="index"
               :value="item.id"
             >
@@ -305,7 +314,13 @@
       v-en-class="'en-span'"
       :class="['config-item', 'mt', showType === 'horizontal' && 'win-content']"
     >
-      <span v-bk-tooltips="$t('为减少传输和存储成本，可以过滤掉部分内容,更复杂的可在“清洗”功能中完成')">
+      <span
+        v-bk-tooltips="
+          $t(
+            '为减少传输和存储成本，可以过滤掉部分内容,更复杂的可在“清洗”功能中完成'
+          )
+        "
+      >
         <span class="filter-title">{{ $t('过滤内容') }}</span>
       </span>
       <div
@@ -334,7 +349,7 @@
             'tag-input': true,
             tagRulesColor: !item.isCorrect,
           }"
-          :paste-fn="v => pasteFn(v, index)"
+          :paste-fn="(v) => pasteFn(v, index)"
           allow-auto-match
           allow-create
           has-delete-icon
@@ -353,7 +368,10 @@
             @click="addWinEvent"
           ></i>
           <i
-            :class="['bk-icon icon-minus-circle-shape icons ml9', { disable: eventSettingList.length === 1 }]"
+            :class="[
+              'bk-icon icon-minus-circle-shape icons ml9',
+              { disable: eventSettingList.length === 1 },
+            ]"
             @click="delWinEvent(index)"
           ></i>
         </div>
@@ -428,7 +446,7 @@ export default {
         maxLine: [
           // 最多匹配行数
           {
-            validator: val => {
+            validator: (val) => {
               if (val > 5000) {
                 this.formData.params.multiline_max_lines = '5000';
               } else if (val < 1) {
@@ -442,7 +460,7 @@ export default {
         maxTimeout: [
           // 最大耗时
           {
-            validator: val => {
+            validator: (val) => {
               if (val > 10) {
                 this.formData.params.multiline_timeout = '10';
               } else if (val < 1) {
@@ -529,7 +547,9 @@ export default {
           isSelect: false,
         },
       ],
-      eventSettingList: [{ type: 'winlog_event_id', list: [], isCorrect: true }],
+      eventSettingList: [
+        { type: 'winlog_event_id', list: [], isCorrect: true },
+      ],
       isShowBlackList: false,
     };
   },
@@ -555,7 +575,10 @@ export default {
     },
     // win日志类型是否有报错
     winCannotPass() {
-      return this.eventSettingList.some(el => el.isCorrect === false) || this.otherRules;
+      return (
+        this.eventSettingList.some((el) => el.isCorrect === false) ||
+        this.otherRules
+      );
     },
     getWinParamsData() {
       // wineventlog日志类型时进行params属性修改
@@ -566,7 +589,7 @@ export default {
         cloneSpeciesList.splice(cloneSpeciesList.indexOf('Other'), 1);
       }
       winParams.winlog_name = cloneSpeciesList.concat(otherSpeciesList);
-      eventSettingList.forEach(el => {
+      eventSettingList.forEach((el) => {
         winParams[el.type] = el.list;
       });
       return winParams;
@@ -588,12 +611,16 @@ export default {
     },
   },
   mounted() {
-    (this.isCloneOrUpdate || this.configChangeLength > 0) && this.initConfigLogSet();
+    (this.isCloneOrUpdate || this.configChangeLength > 0) &&
+      this.initConfigLogSet();
   },
   methods: {
     initPathList(params, type = 'paths') {
       if (params[type]?.length > 0) {
-        params[type] = typeof params[type][0] === 'string' ? params[type].map(item => ({ value: item })) : params[type];
+        params[type] =
+          typeof params[type][0] === 'string'
+            ? params[type].map((item) => ({ value: item }))
+            : params[type];
       } else {
         // 兼容原日志路径为空列表
         params[type] = [{ value: '' }];
@@ -611,11 +638,17 @@ export default {
       }
     },
     addWinEvent() {
-      const eventType = this.eventSettingList.map(el => el.type);
-      const selectType = this.selectEventList.map(el => el.id);
+      const eventType = this.eventSettingList.map((el) => el.type);
+      const selectType = this.selectEventList.map((el) => el.id);
       if (eventType.length !== selectType.length) {
-        const selectFilter = selectType.filter(v => eventType.indexOf(v) === -1);
-        this.eventSettingList.push({ type: selectFilter[0], list: [], isCorrect: true });
+        const selectFilter = selectType.filter(
+          (v) => eventType.indexOf(v) === -1
+        );
+        this.eventSettingList.push({
+          type: selectFilter[0],
+          list: [],
+          isCorrect: true,
+        });
         this.selectDisabledChange(true);
       }
     },
@@ -630,10 +663,10 @@ export default {
     },
     selectDisabledChange(state = true) {
       if (this.eventSettingList.length === 1) {
-        this.selectEventList.forEach(el => (el.isSelect = false));
+        this.selectEventList.forEach((el) => (el.isSelect = false));
       }
       if (this.eventSettingList.length === this.selectEventList.length) {
-        this.selectEventList.forEach(el => (el.isSelect = true));
+        this.selectEventList.forEach((el) => (el.isSelect = true));
       }
       for (const eItem of this.eventSettingList) {
         for (const sItem of this.selectEventList) {
@@ -648,14 +681,20 @@ export default {
       this.otherRules = !tags.every(Boolean);
       tags.length === 0 && (this.otherRules = false);
       const slist = this.selectLogSpeciesList;
-      if (slist.length === 1 && slist[0] === 'Other' && !this.otherSpeciesList.length) {
+      if (
+        slist.length === 1 &&
+        slist[0] === 'Other' &&
+        !this.otherSpeciesList.length
+      ) {
         this.otherRules = true;
       }
     },
     tagBlurRules(item, index) {
       switch (item.type) {
         case 'winlog_event_id':
-          this.eventSettingList[index].isCorrect = item.list.every(el => /^[\d]+$/.test(el));
+          this.eventSettingList[index].isCorrect = item.list.every((el) =>
+            /^[\d]+$/.test(el)
+          );
           break;
         case 'winlog_level':
           this.eventSettingList[index].isCorrect = item.list.every(Boolean);
@@ -686,10 +725,14 @@ export default {
       this.assignSubData(this.configData);
       const { params } = this.subFormData;
       if (this.scenarioId === 'wineventlog') {
-        const otherList = params.winlog_name.filter(v => ['Application', 'Security', 'System'].indexOf(v) === -1);
+        const otherList = params.winlog_name.filter(
+          (v) => ['Application', 'Security', 'System'].indexOf(v) === -1
+        );
         if (otherList.length > 0) {
           this.otherSpeciesList = otherList;
-          this.selectLogSpeciesList = params.winlog_name.filter(v => ['Application', 'Security', 'System'].includes(v));
+          this.selectLogSpeciesList = params.winlog_name.filter((v) =>
+            ['Application', 'Security', 'System'].includes(v)
+          );
           this.selectLogSpeciesList.push('Other');
         } else {
           this.selectLogSpeciesList = params.winlog_name;
@@ -700,7 +743,7 @@ export default {
         delete params.tail_files;
 
         const newEventSettingList = [];
-        const selectStrList = this.selectEventList.map(item => item.id);
+        const selectStrList = this.selectEventList.map((item) => item.id);
         for (const [key, val] of Object.entries(params)) {
           if (selectStrList.includes(key) && val[0] !== '') {
             newEventSettingList.push({
@@ -717,7 +760,7 @@ export default {
       }
       this.initPathList(params, 'paths');
       this.initPathList(params, 'exclude_files');
-      this.isShowBlackList = params.exclude_files.some(item => !!item.value);
+      this.isShowBlackList = params.exclude_files.some((item) => !!item.value);
       this.$nextTick(() => {
         this.$refs.logFilterRef?.initContainerData();
       });
@@ -738,93 +781,93 @@ export default {
 };
 </script>
 <style lang="scss" scoped>
-  @import '@/scss/mixins/flex.scss';
+@import '@/scss/mixins/flex.scss';
 
-  .filter-content {
-    position: relative;
-    left: 115px;
-    max-width: 80%;
-    padding: 20px 0;
+.filter-content {
+  position: relative;
+  left: 115px;
+  max-width: 80%;
+  padding: 20px 0;
 
-    &.en-span {
-      left: 180px;
+  &.en-span {
+    left: 180px;
 
-      > span {
-        left: -110px;
-      }
+    > span {
+      left: -110px;
     }
+  }
 
-    .black-list-title {
-      margin-bottom: 6px;
-      font-size: 12px;
+  .black-list-title {
+    margin-bottom: 6px;
+    font-size: 12px;
+
+    @include flex-align;
+
+    .list-title-btn {
+      color: #3a84ff;
+      cursor: pointer;
 
       @include flex-align;
 
-      .list-title-btn {
-        color: #3a84ff;
-        cursor: pointer;
-
-        @include flex-align;
-
-        i {
-          display: inline-block;
-          margin-right: 6px;
-        }
-
-        .icon-info-circle {
-          display: inline-block;
-        }
-
-        .icon-rotate {
-          transform: rotateZ(90deg);
-        }
+      i {
+        display: inline-block;
+        margin-right: 6px;
       }
 
-      .black-title-tips {
-        margin-left: 14px;
-        color: #63656e;
+      .icon-info-circle {
+        display: inline-block;
+      }
 
-        .icon-info-circle {
-          font-size: 16px;
-          color: #979ba5;
-        }
+      .icon-rotate {
+        transform: rotateZ(90deg);
       }
     }
 
-    .bk-form-radio {
-      font-size: 12px;
-    }
+    .black-title-tips {
+      margin-left: 14px;
+      color: #63656e;
 
-    :deep(.bk-form-content) {
-      /* stylelint-disable-next-line declaration-no-important */
-      margin-left: 0 !important;
-    }
-
-    &.black-content {
-      padding: 10px 0 0 0;
-    }
-
-    &.black-hori-title {
-      left: 0;
+      .icon-info-circle {
+        font-size: 16px;
+        color: #979ba5;
+      }
     }
   }
 
-  .log-path {
-    position: relative;
-
-    .bk-form-control {
-      width: 320px;
-    }
+  .bk-form-radio {
+    font-size: 12px;
   }
 
-  .log-tips {
-    position: absolute;
-    top: -30px;
-    left: 80px;
+  :deep(.bk-form-content) {
+    /* stylelint-disable-next-line declaration-no-important */
+    margin-left: 0 !important;
   }
 
-  .i18n-style {
-    display: flex;
-    align-items: center;
+  &.black-content {
+    padding: 10px 0 0 0;
   }
+
+  &.black-hori-title {
+    left: 0;
+  }
+}
+
+.log-path {
+  position: relative;
+
+  .bk-form-control {
+    width: 320px;
+  }
+}
+
+.log-tips {
+  position: absolute;
+  top: -30px;
+  left: 80px;
+}
+
+.i18n-style {
+  display: flex;
+  align-items: center;
+}
 </style>

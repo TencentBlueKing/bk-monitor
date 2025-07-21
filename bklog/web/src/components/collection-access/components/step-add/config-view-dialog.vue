@@ -36,10 +36,7 @@
     theme="primary"
     @cancel="handelCancelDialog"
   >
-    <div
-      class="view-main"
-      v-bkloading="{ isLoading: loading }"
-    >
+    <div class="view-main" v-bkloading="{ isLoading: loading }">
       <template v-if="viewList.length">
         <div
           v-for="(vItem, vIndex) in viewList"
@@ -50,23 +47,14 @@
             :class="['view-title', !vItem.isShowTarget && 'hidden-bottom']"
             @click="handleClickTitle(vIndex, vItem.isShowTarget)"
           >
-            <div
-              class="match title-overflow"
-              v-bk-overflow-tips
-            >
+            <div class="match title-overflow" v-bk-overflow-tips>
               <span>{{ vItem.group }}</span>
             </div>
-            <i18n
-              class="hit"
-              path="已命中 {0} 个内容"
-            >
+            <i18n class="hit" path="已命中 {0} 个内容">
               <span class="number">{{ vItem.total }}</span>
             </i18n>
           </div>
-          <div
-            class="view-target"
-            v-show="vItem.isShowTarget"
-          >
+          <div class="view-target" v-show="vItem.isShowTarget">
             <div
               v-for="(item, iIndex) in vItem.items"
               class="title-overflow"
@@ -78,11 +66,7 @@
           </div>
         </div>
       </template>
-      <empty-status
-        v-else
-        :show-text="false"
-        empty-type="empty"
-      >
+      <empty-status v-else :show-text="false" empty-type="empty">
         <p>{{ $t('暂无命中内容') }}</p>
       </empty-status>
     </div>
@@ -125,8 +109,11 @@ export default {
           .request('container/getLabelHitView', {
             data: this.viewQueryParams,
           })
-          .then(res => {
-            this.viewList = res.data.map(item => ({ ...item, isShowTarget: true }));
+          .then((res) => {
+            this.viewList = res.data.map((item) => ({
+              ...item,
+              isShowTarget: true,
+            }));
           })
           .finally(() => {
             this.loading = false;
@@ -149,57 +136,57 @@ export default {
 };
 </script>
 <style lang="scss" scoped>
-  @import '@/scss/mixins/flex.scss';
+@import '@/scss/mixins/flex.scss';
 
-  .view-main {
-    min-height: 200px;
-    max-height: 600px;
-    padding: 0 6px;
-    margin-top: -14px;
-    overflow-y: auto;
-    font-size: 12px;
+.view-main {
+  min-height: 200px;
+  max-height: 600px;
+  padding: 0 6px;
+  margin-top: -14px;
+  overflow-y: auto;
+  font-size: 12px;
 
-    .view-container {
-      box-sizing: border-box;
-      max-height: 264px;
-      margin-bottom: 12px;
-      border: 1px solid #dcdee5;
-      border-radius: 2px;
+  .view-container {
+    box-sizing: border-box;
+    max-height: 264px;
+    margin-bottom: 12px;
+    border: 1px solid #dcdee5;
+    border-radius: 2px;
 
-      .view-title {
-        padding: 6px 12px;
-        cursor: pointer;
-        background: #f0f1f5;
-        border-bottom: 1px solid #dcdee5;
+    .view-title {
+      padding: 6px 12px;
+      cursor: pointer;
+      background: #f0f1f5;
+      border-bottom: 1px solid #dcdee5;
 
-        @include flex-justify(space-between);
+      @include flex-justify(space-between);
 
-        .match {
-          font-weight: 700;
-          color: #63656e;
-        }
-
-        .number {
-          font-weight: 700;
-          color: #3a84ff;
-        }
+      .match {
+        font-weight: 700;
+        color: #63656e;
       }
 
-      .hidden-bottom {
-        /* stylelint-disable-next-line declaration-no-important */
-        border-bottom: none !important;
+      .number {
+        font-weight: 700;
+        color: #3a84ff;
       }
+    }
 
-      .view-target {
-        max-height: 232px;
-        overflow-y: auto;
-        border-top: none;
+    .hidden-bottom {
+      /* stylelint-disable-next-line declaration-no-important */
+      border-bottom: none !important;
+    }
 
-        div {
-          width: calc(100% - 32px);
-          margin: 8px 16px;
-        }
+    .view-target {
+      max-height: 232px;
+      overflow-y: auto;
+      border-top: none;
+
+      div {
+        width: calc(100% - 32px);
+        margin: 8px 16px;
       }
     }
   }
+}
 </style>

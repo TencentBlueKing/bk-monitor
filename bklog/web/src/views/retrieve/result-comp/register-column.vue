@@ -65,8 +65,8 @@ export default {
         this.unregisterObserver();
       }
       this.intersectionObserver = new IntersectionObserver(
-        entries => {
-          entries.forEach(entry => {
+        (entries) => {
+          entries.forEach((entry) => {
             if (this.intersectionObserver) {
               if (entry.intersectionRatio > 0) {
                 this.isMountContent = true;

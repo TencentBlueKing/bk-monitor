@@ -38,7 +38,9 @@
         <span
           v-if="formData.configs.length > 1"
           class="bk-icon icon-delete"
-          @click="handleDeleteConfig(conIndex, conItem.noQuestParams.letterIndex)"
+          @click="
+            handleDeleteConfig(conIndex, conItem.noQuestParams.letterIndex)
+          "
         ></span>
       </div>
 
@@ -53,14 +55,20 @@
               <div>
                 <i class="bk-icon icon-info"></i>
                 <span>
-                  {{ $t('采集范围排除能力依赖采集器 bk-log-collector >= 0.3.2，请保证采集器已升级到最新版本') }}
+                  {{
+                    $t(
+                      '采集范围排除能力依赖采集器 bk-log-collector >= 0.3.2，请保证采集器已升级到最新版本'
+                    )
+                  }}
                 </span>
               </div>
             </template>
           </bk-alert>
           <div class="config-cluster-title justify-bt">
             <div>
-              <span class="title">{{ $t('选择{n}范围', { n: isNode ? 'Node' : 'Container' }) }}</span>
+              <span class="title">{{
+                $t('选择{n}范围', { n: isNode ? 'Node' : 'Container' })
+              }}</span>
               <span>
                 <span class="bk-icon icon-info-circle"></span>
                 <span>{{ $t('所有选择范围可相互叠加并作用') }}</span>
@@ -97,7 +105,9 @@
                 class="operate-select"
                 v-model="conItem.noQuestParams.namespacesExclude"
                 :clearable="false"
-                :disabled="isNode || !formData.bcs_cluster_id || nameSpaceRequest"
+                :disabled="
+                  isNode || !formData.bcs_cluster_id || nameSpaceRequest
+                "
                 :popover-width="100"
                 placeholder=" "
               >
@@ -110,11 +120,13 @@
               </bk-select>
               <bk-select
                 v-model="conItem.namespaces"
-                :disabled="isNode || !formData.bcs_cluster_id || nameSpaceRequest"
+                :disabled="
+                  isNode || !formData.bcs_cluster_id || nameSpaceRequest
+                "
                 display-tag
                 multiple
                 searchable
-                @selected="option => handleNameSpaceSelect(option, conIndex)"
+                @selected="(option) => handleNameSpaceSelect(option, conIndex)"
               >
                 <bk-option
                   v-for="oItem in showNameSpacesSelectList(conIndex)"
@@ -130,9 +142,11 @@
               :edit-type="'label'"
               :config="conItem"
               :is-node="isNode"
-              @config-change="v => handleConfigChange(conIndex, v)"
+              @config-change="(v) => handleConfigChange(conIndex, v)"
               @show-dialog="handelShowDialog(conIndex, 'label')"
-              @delete-config-params-item="type => handleDeleteConfigParamsItem(conIndex, type)"
+              @delete-config-params-item="
+                (type) => handleDeleteConfigParamsItem(conIndex, type)
+              "
             />
           </template>
           <template v-if="isShowScopeItem(conIndex, 'annotation')">
@@ -140,8 +154,10 @@
               :edit-type="'annotation'"
               :config="conItem"
               :is-node="isNode"
-              @config-change="v => handleConfigChange(conIndex, v)"
-              @delete-config-params-item="type => handleDeleteConfigParamsItem(conIndex, type)"
+              @config-change="(v) => handleConfigChange(conIndex, v)"
+              @delete-config-params-item="
+                (type) => handleDeleteConfigParamsItem(conIndex, type)
+              "
             />
           </template>
           <div
@@ -197,7 +213,10 @@
                 allow-create
                 free-paste
                 has-delete-icon
-                @blur="(inputStr, list) => handleContainerNameBlur(inputStr, list, conIndex)"
+                @blur="
+                  (inputStr, list) =>
+                    handleContainerNameBlur(inputStr, list, conIndex)
+                "
               >
               </bk-tag-input>
             </div>
@@ -211,7 +230,10 @@
             <template #dropdown-trigger>
               <div>
                 <div
-                  v-bk-tooltips.top="{ content: $t('请先选择集群'), delay: 500 }"
+                  v-bk-tooltips.top="{
+                    content: $t('请先选择集群'),
+                    delay: 500,
+                  }"
                   :disabled="!!formData.bcs_cluster_id"
                 >
                   <bk-button
@@ -229,7 +251,8 @@
             <template #dropdown-content>
               <ul class="bk-dropdown-list">
                 <li
-                  v-for="(isShowScope, scopeStr) in conItem.noQuestParams.scopeSelectShow"
+                  v-for="(isShowScope, scopeStr) in conItem.noQuestParams
+                    .scopeSelectShow"
                   v-show="isShowScopeButton(conIndex, scopeStr)"
                   :key="`${scopeStr}`"
                   @click="handleAddNewScope(conIndex, scopeStr)"
@@ -255,7 +278,9 @@
             :is-clone-or-update="isCloneOrUpdate"
             :scenario-id="formData.collector_scenario_id"
             show-type="vertical"
-            @config-change="val => handelFormChange(val, 'containerConfig', conIndex)"
+            @config-change="
+              (val) => handelFormChange(val, 'containerConfig', conIndex)
+            "
           >
           </config-log-set-item>
         </div>
@@ -270,7 +295,7 @@
       :cluster-list="clusterList"
       :is-show-dialog.sync="isShowLabelTargetDialog"
       :label-params="currentSelector"
-      @config-label-change="val => handelFormChange(val, 'dialogChange')"
+      @config-label-change="(val) => handelFormChange(val, 'dialogChange')"
     />
   </div>
 </template>
@@ -372,34 +397,48 @@ export default {
       return String.fromCharCode(index + 65);
     },
     getNameSpaceList(clusterID, isFirstUpdateSelect = false) {
-      if (!clusterID || (this.isPhysicsEnvironment && this.isUpdate) || this.nameSpaceRequest) return;
+      if (
+        !clusterID ||
+        (this.isPhysicsEnvironment && this.isUpdate) ||
+        this.nameSpaceRequest
+      )
+        return;
       const query = { bcs_cluster_id: clusterID, bk_biz_id: this.bkBizId };
       this.nameSpaceRequest = true;
       this.$http
         .request('container/getNameSpace', { query })
-        .then(res => {
+        .then((res) => {
           // 判断是否是第一次切换集群 如果是 则进行详情页namespace数据回显
           if (isFirstUpdateSelect) {
             const namespaceList = [];
-            this.formData.configs.forEach(configItem => {
+            this.formData.configs.forEach((configItem) => {
               namespaceList.push(...configItem.namespaces);
             });
-            const resIDList = res.data.map(item => item.id);
+            const resIDList = res.data.map((item) => item.id);
             const setList = new Set([...namespaceList, ...resIDList]);
             setList.delete('*');
-            const allList = [...setList].map(item => ({ id: item, name: item }));
+            const allList = [...setList].map((item) => ({
+              id: item,
+              name: item,
+            }));
             this.nameSpacesSelectList = [...allList];
             if (!this.getIsSharedCluster()) {
-              this.nameSpacesSelectList.unshift({ name: this.$t('所有'), id: '*' });
+              this.nameSpacesSelectList.unshift({
+                name: this.$t('所有'),
+                id: '*',
+              });
             }
             return;
           }
           this.nameSpacesSelectList = [...res.data];
           if (!this.getIsSharedCluster()) {
-            this.nameSpacesSelectList.unshift({ name: this.$t('所有'), id: '*' });
+            this.nameSpacesSelectList.unshift({
+              name: this.$t('所有'),
+              id: '*',
+            });
           }
         })
-        .catch(err => {
+        .catch((err) => {
           console.warn(err);
         })
         .finally(() => {
@@ -414,21 +453,28 @@ export default {
     getWorkLoadTypeList() {
       this.$http
         .request('container/getWorkLoadType')
-        .then(res => {
-          if (res.code === 0) this.typeList = res.data.map(item => ({ id: item, name: item }));
+        .then((res) => {
+          if (res.code === 0)
+            this.typeList = res.data.map((item) => ({ id: item, name: item }));
         })
-        .catch(err => {
+        .catch((err) => {
           console.warn(err);
         });
     },
     // 当前所选集群是否共享集群
     getIsSharedCluster() {
-      return this.clusterList?.find(cluster => cluster.id === this.formData.bcs_cluster_id)?.is_shared ?? false;
+      return (
+        this.clusterList?.find(
+          (cluster) => cluster.id === this.formData.bcs_cluster_id
+        )?.is_shared ?? false
+      );
     },
     handleDeleteConfig(index, letterIndex) {
       // 删除配置项
       this.$bkInfo({
-        subTitle: this.$t('确定要删除配置项{n}？', { n: this.getFromCharCode(letterIndex) }),
+        subTitle: this.$t('确定要删除配置项{n}？', {
+          n: this.getFromCharCode(letterIndex),
+        }),
         type: 'warning',
         confirmFn: () => {
           this.formData.configs.splice(index, 1);
@@ -486,8 +532,14 @@ export default {
       this.currentSetIndex = index;
       const type = this.isNode ? 'node' : 'pod';
       const config = this.formData.configs[index];
-      const containerKey = config.noQuestParams.containerExclude === '!=' ? 'container_name_exclude' : 'container_name';
-      const namespacesKey = config.noQuestParams.namespacesExclude === '!=' ? 'namespaces_exclude' : 'namespaces';
+      const containerKey =
+        config.noQuestParams.containerExclude === '!='
+          ? 'container_name_exclude'
+          : 'container_name';
+      const namespacesKey =
+        config.noQuestParams.namespacesExclude === '!='
+          ? 'namespaces_exclude'
+          : 'namespaces';
       if (dialogType === 'label') {
         this.currentSelector = {
           bk_biz_id: this.bkBizId,
@@ -497,20 +549,30 @@ export default {
           labelSelector: config.labelSelector,
         };
       } else if (dialogType === 'view') {
-        const { workload_type: workloadType, workload_name: workloadName } = config.container;
-        const namespaces = config.namespaces.length === 1 && config.namespaces[0] === '*' ? [] : config.namespaces;
+        const { workload_type: workloadType, workload_name: workloadName } =
+          config.container;
+        const namespaces =
+          config.namespaces.length === 1 && config.namespaces[0] === '*'
+            ? []
+            : config.namespaces;
         this.viewQueryParams = {
           bk_biz_id: this.bkBizId,
           bcs_cluster_id: this.formData.bcs_cluster_id,
           type,
           [namespacesKey]: namespaces,
-          label_selector: this.getLabelSelectorQueryParams(config.labelSelector, {
-            match_labels: [],
-            match_expressions: [],
-          }),
-          annotation_selector: this.getLabelSelectorQueryParams(config.annotationSelector, {
-            match_annotations: [],
-          }),
+          label_selector: this.getLabelSelectorQueryParams(
+            config.labelSelector,
+            {
+              match_labels: [],
+              match_expressions: [],
+            }
+          ),
+          annotation_selector: this.getLabelSelectorQueryParams(
+            config.annotationSelector,
+            {
+              match_annotations: [],
+            }
+          ),
           container: {
             workload_type: workloadType,
             workload_name: workloadName,
@@ -518,7 +580,9 @@ export default {
           },
         };
       }
-      dialogType === 'label' ? (this.isShowLabelTargetDialog = true) : (this.isShowViewDialog = true);
+      dialogType === 'label'
+        ? (this.isShowLabelTargetDialog = true)
+        : (this.isShowViewDialog = true);
     },
     /**
      * @desc: 展示用的标签格式转化成存储或传参的标签格式
@@ -527,7 +591,9 @@ export default {
      */
     getLabelSelectorQueryParams(labelSelector, preParams) {
       return labelSelector.reduce((pre, cur) => {
-        const value = ['NotIn', 'In'].includes(cur.operator) ? `(${cur.value})` : cur.value;
+        const value = ['NotIn', 'In'].includes(cur.operator)
+          ? `(${cur.value})`
+          : cur.value;
         pre[cur.type].push({
           key: cur.key,
           operator: cur.operator,
@@ -551,25 +617,35 @@ export default {
         // 如果最后一步选择所有，则清空数组填所有
         const nameSpacesLength = config.namespaces.length;
         config.namespaces.splice(0, nameSpacesLength, '*');
-        config.noQuestParams.namespaceStr = this.getNameSpaceStr(config.namespaces);
+        config.noQuestParams.namespaceStr = this.getNameSpaceStr(
+          config.namespaces
+        );
         return;
       }
       if (option.length > 1 && option.includes('*')) {
         // 如果选中其他的值 包含所有则去掉所有选项
-        const allIndex = option.findIndex(item => item === '*');
+        const allIndex = option.findIndex((item) => item === '*');
         config.namespaces.splice(allIndex, 1);
       }
-      config.noQuestParams.namespaceStr = this.getNameSpaceStr(config.namespaces);
+      config.noQuestParams.namespaceStr = this.getNameSpaceStr(
+        config.namespaces
+      );
     },
     getNameSpaceStr(namespaces) {
-      return namespaces.length === 1 && namespaces[0] === '*' ? '' : namespaces.join(',');
+      return namespaces.length === 1 && namespaces[0] === '*'
+        ? ''
+        : namespaces.join(',');
     },
     showNameSpacesSelectList(conIndex) {
       const config = this.formData.configs[conIndex];
       const operate = config.noQuestParams.namespacesExclude;
       if (!this.nameSpacesSelectList.length) return [];
-      if (operate === '!=' && this.nameSpacesSelectList.some(item => item.id === '*')) {
-        if (config.namespaces.length === 1 && config.namespaces[0] === '*') config.namespaces = [];
+      if (
+        operate === '!=' &&
+        this.nameSpacesSelectList.some((item) => item.id === '*')
+      ) {
+        if (config.namespaces.length === 1 && config.namespaces[0] === '*')
+          config.namespaces = [];
         return this.nameSpacesSelectList.slice(1);
       }
       return this.nameSpacesSelectList;
@@ -577,7 +653,9 @@ export default {
     handleContainerNameBlur(input, list, conIndex) {
       if (!input) return;
       const config = this.formData.configs[conIndex];
-      config.containerNameList = !list.length ? [input] : [...new Set([...config.containerNameList, input])];
+      config.containerNameList = !list.length
+        ? [input]
+        : [...new Set([...config.containerNameList, input])];
     },
     // 是否展示添加范围的按钮
     isShowAddScopeButton(conIndex) {
@@ -608,261 +686,261 @@ export default {
 };
 </script>
 <style lang="scss" scoped>
-  @import '@/scss/mixins/flex.scss';
+@import '@/scss/mixins/flex.scss';
 
-  .config-box {
-    width: 730px;
-    margin-bottom: 20px;
-    font-size: 14px;
-    background: #fff;
-    border: 1px solid #dcdee5;
-    border-radius: 2px;
+.config-box {
+  width: 730px;
+  margin-bottom: 20px;
+  font-size: 14px;
+  background: #fff;
+  border: 1px solid #dcdee5;
+  border-radius: 2px;
 
-    .config-title {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      height: 31px;
-      padding: 0 16px;
-      background: #f0f1f5;
-      border-radius: 1px 1px 0 0;
+  .config-title {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 31px;
+    padding: 0 16px;
+    background: #f0f1f5;
+    border-radius: 1px 1px 0 0;
+
+    .icon-delete {
+      font-size: 16px;
+      color: #ea3636;
+      cursor: pointer;
+    }
+  }
+
+  .config-container {
+    padding: 16px 24px;
+    color: #63656e;
+    background: #fafbfd;
+
+    .config-cluster-box {
+      padding: 8px 12px 16px;
+      font-size: 12px;
+      background: #fff;
+      border: 1px solid #eaebf0;
+      border-radius: 2px;
+
+      .config-cluster-title {
+        padding: 8px 12px;
+
+        .title {
+          margin-right: 14px;
+          font-weight: 700;
+        }
+
+        .bk-icon {
+          font-size: 14px;
+        }
+
+        .disable {
+          /* stylelint-disable-next-line declaration-no-important */
+          color: #63656e !important;
+
+          /* stylelint-disable-next-line declaration-no-important */
+          cursor: no-drop !important;
+        }
+
+        .preview {
+          color: #3a84ff;
+          cursor: pointer;
+        }
+      }
+    }
+
+    .tips-btn {
+      color: #3a84ff;
+      cursor: pointer;
+    }
+
+    .config-item-title {
+      padding-bottom: 8px;
+
+      :last-child {
+        margin-left: 8px;
+        cursor: pointer;
+      }
 
       .icon-delete {
-        font-size: 16px;
+        display: none;
+        font-size: 14px;
         color: #ea3636;
         cursor: pointer;
       }
     }
 
-    .config-container {
-      padding: 16px 24px;
-      color: #63656e;
-      background: #fafbfd;
+    .operator-box {
+      width: 100%;
 
-      .config-cluster-box {
-        padding: 8px 12px 16px;
-        font-size: 12px;
-        background: #fff;
-        border: 1px solid #eaebf0;
-        border-radius: 2px;
+      @include flex-center();
 
-        .config-cluster-title {
-          padding: 8px 12px;
+      > :nth-child(2) {
+        position: relative;
+        left: -1px;
+        flex: 1;
+        border-radius: 0 2px 2px 0;
+      }
 
-          .title {
-            margin-right: 14px;
-            font-weight: 700;
-          }
+      .operate-select {
+        width: 30px;
+        border-radius: 2px 0 0 2px;
 
-          .bk-icon {
-            font-size: 14px;
-          }
+        :deep(.bk-select-angle) {
+          display: none;
+        }
+      }
 
-          .disable {
-            /* stylelint-disable-next-line declaration-no-important */
-            color: #63656e !important;
+      .is-focus {
+        position: relative;
+        z-index: 999;
+      }
+    }
 
-            /* stylelint-disable-next-line declaration-no-important */
-            cursor: no-drop !important;
-          }
+    .config-item {
+      padding: 8px 12px;
+      margin-bottom: 12px;
+      font-size: 12px;
+      border-radius: 2px;
 
-          .preview {
-            color: #3a84ff;
-            cursor: pointer;
+      .select-label {
+        margin-top: 4px;
+        color: #3a84ff;
+
+        .manually {
+          margin-right: 15px;
+          cursor: pointer;
+        }
+
+        .select {
+          position: relative;
+          margin-left: 15px;
+          cursor: pointer;
+
+          &::before {
+            position: absolute;
+            top: 4px;
+            left: -14px;
+            display: inline-block;
+            width: 1px;
+            height: 14px;
+            content: ' ';
+            background: #eaebf0;
           }
         }
       }
 
-      .tips-btn {
+      &.hover-light:hover {
+        background: #f5f7fa;
+      }
+
+      &:hover .icon-delete {
+        display: inline-block;
+      }
+    }
+
+    .container-input {
+      .input {
+        max-width: none;
+      }
+
+      .bk-tag-input {
+        border-radius: 0 2px 2px 0;
+      }
+    }
+
+    .container-btn-container {
+      position: relative;
+      align-items: center;
+
+      .span-box {
+        margin-right: 24px;
+
+        &:not(:first-child) {
+          position: relative;
+          margin-right: 0;
+
+          &::before {
+            position: absolute;
+            top: 3px;
+            left: -11px;
+            width: 1px;
+            height: 16px;
+            content: ' ';
+            background-color: #dcdee5;
+          }
+        }
+      }
+
+      .container-btn {
         color: #3a84ff;
         cursor: pointer;
-      }
 
-      .config-item-title {
-        padding-bottom: 8px;
-
-        :last-child {
-          margin-left: 8px;
-          cursor: pointer;
+        &.disable {
+          color: #c4c6cc;
+          cursor: not-allowed;
         }
 
-        .icon-delete {
-          display: none;
-          font-size: 14px;
-          color: #ea3636;
-          cursor: pointer;
+        &.cluster-not-select {
+          cursor: not-allowed;
         }
       }
+    }
 
-      .operator-box {
-        width: 100%;
+    .filter-content {
+      margin-top: 24px;
+      color: #979ba5;
 
-        @include flex-center();
-
-        > :nth-child(2) {
-          position: relative;
-          left: -1px;
-          flex: 1;
-          border-radius: 0 2px 2px 0;
-        }
-
-        .operate-select {
-          width: 30px;
-          border-radius: 2px 0 0 2px;
-
-          :deep(.bk-select-angle) {
-            display: none;
-          }
-        }
-
-        .is-focus {
-          position: relative;
-          z-index: 999;
-        }
-      }
-
-      .config-item {
-        padding: 8px 12px;
-        margin-bottom: 12px;
-        font-size: 12px;
-        border-radius: 2px;
-
-        .select-label {
-          margin-top: 4px;
-          color: #3a84ff;
-
-          .manually {
-            margin-right: 15px;
-            cursor: pointer;
-          }
-
-          .select {
-            position: relative;
-            margin-left: 15px;
-            cursor: pointer;
-
-            &::before {
-              position: absolute;
-              top: 4px;
-              left: -14px;
-              display: inline-block;
-              width: 1px;
-              height: 14px;
-              content: ' ';
-              background: #eaebf0;
-            }
-          }
-        }
-
-        &.hover-light:hover {
-          background: #f5f7fa;
-        }
-
-        &:hover .icon-delete {
-          display: inline-block;
-        }
-      }
-
-      .container-input {
-        .input {
-          max-width: none;
-        }
-
-        .bk-tag-input {
-          border-radius: 0 2px 2px 0;
-        }
-      }
-
-      .container-btn-container {
-        position: relative;
-        align-items: center;
-
-        .span-box {
-          margin-right: 24px;
-
-          &:not(:first-child) {
-            position: relative;
-            margin-right: 0;
-
-            &::before {
-              position: absolute;
-              top: 3px;
-              left: -11px;
-              width: 1px;
-              height: 16px;
-              content: ' ';
-              background-color: #dcdee5;
-            }
-          }
-        }
-
-        .container-btn {
-          color: #3a84ff;
-          cursor: pointer;
-
-          &.disable {
-            color: #c4c6cc;
-            cursor: not-allowed;
-          }
-
-          &.cluster-not-select {
-            cursor: not-allowed;
-          }
-        }
-      }
-
-      .filter-content {
-        margin-top: 24px;
-        color: #979ba5;
-
-        > span {
-          margin-bottom: 0;
-          color: #63656e;
-        }
-      }
-
-      .bk-select {
-        background: #fff;
-      }
-
-      .filter-select {
-        margin-top: 11px;
-
-        .bk-select {
-          width: 184px;
-          height: 32px;
-        }
-      }
-
-      .bk-label {
+      > span {
+        margin-bottom: 0;
         color: #63656e;
       }
     }
-  }
 
-  .conflict-container {
-    width: 730px;
-    height: 32px;
-    padding: 0 11px;
-    margin: 12px 0 14px 115px;
-    font-size: 12px;
-    background: #fff4e2;
-    border: 1px solid #ffdfac;
-    border-radius: 2px;
-
-    .icon-exclamation-circle {
-      font-size: 16px;
-      color: #ff9c01;
+    .bk-select {
+      background: #fff;
     }
 
-    .conflict-message {
-      margin: 0 16px 0 9px;
+    .filter-select {
+      margin-top: 11px;
+
+      .bk-select {
+        width: 184px;
+        height: 32px;
+      }
+    }
+
+    .bk-label {
       color: #63656e;
     }
-
-    .collection-item {
-      margin-left: 24px;
-      color: #3a84ff;
-    }
   }
+}
+
+.conflict-container {
+  width: 730px;
+  height: 32px;
+  padding: 0 11px;
+  margin: 12px 0 14px 115px;
+  font-size: 12px;
+  background: #fff4e2;
+  border: 1px solid #ffdfac;
+  border-radius: 2px;
+
+  .icon-exclamation-circle {
+    font-size: 16px;
+    color: #ff9c01;
+  }
+
+  .conflict-message {
+    margin: 0 16px 0 9px;
+    color: #63656e;
+  }
+
+  .collection-item {
+    margin-left: 24px;
+    color: #3a84ff;
+  }
+}
 </style>

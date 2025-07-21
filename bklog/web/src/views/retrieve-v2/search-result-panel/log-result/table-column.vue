@@ -81,8 +81,9 @@ export default {
   },
   computed: {
     ...mapState({
-      tableLineIsWrap: state => state.storage[BK_LOG_STORAGE.TABLE_LINE_IS_WRAP],
-      isFormatDateField: state => state.isFormatDate,
+      tableLineIsWrap: (state) =>
+        state.storage[BK_LOG_STORAGE.TABLE_LINE_IS_WRAP],
+      isFormatDateField: (state) => state.isFormatDate,
     }),
 
     isJsonFormat() {
@@ -116,10 +117,10 @@ export default {
 </script>
 
 <style lang="scss" scoped>
-  .bklog-column-wrapper {
-    display: flex;
-    align-items: flex-start;
-    height: fit-content;
-    padding: 0;
-  }
+.bklog-column-wrapper {
+  display: flex;
+  align-items: flex-start;
+  height: fit-content;
+  padding: 0;
+}
 </style>

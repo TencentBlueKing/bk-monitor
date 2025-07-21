@@ -100,71 +100,71 @@ const handleMousedown = e => {
 </template>
 
 <style lang="scss">
-  .graph-drag-tool {
+.graph-drag-tool {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  .drag-tool-point {
+    box-sizing: content-box;
     display: flex;
-    align-items: center;
-    justify-content: center;
+    justify-content: space-between;
 
-    .drag-tool-point {
-      box-sizing: content-box;
-      display: flex;
-      justify-content: space-between;
-
-      > span {
-        display: block;
-        width: 3px;
-        height: 3px;
-        background: #c4c6cc;
-        border-radius: 50%;
-      }
-    }
-
-    &.horizional {
-      &.dragging {
-        &::after {
-          position: absolute;
-          right: 0;
-          bottom: 0;
-          left: 0;
-          z-index: 100;
-          height: 1px;
-          content: '';
-          border-bottom: dashed 1px #3a84ff;
-          transform: translate(0, var(--line-offset-y));
-        }
-      }
-
-      .drag-tool-point {
-        width: 27px;
-        height: 3px;
-        padding: 2px 0;
-        cursor: s-resize;
-        content: '';
-      }
-    }
-
-    &.vertical {
-      &.dragging {
-        &::after {
-          position: absolute;
-          top: 0;
-          bottom: 0;
-          left: 0;
-          z-index: 100;
-          width: 1px;
-          content: '';
-          border-left: dashed 1px #3a84ff;
-          transform: translate(var(--line-offset-x), 0);
-        }
-      }
-
-      .drag-tool-point {
-        flex-direction: column;
-        width: 3px;
-        height: 27px;
-        padding: 0 2px;
-        cursor: w-resize;
-      }
+    > span {
+      display: block;
+      width: 3px;
+      height: 3px;
+      background: #c4c6cc;
+      border-radius: 50%;
     }
   }
+
+  &.horizional {
+    &.dragging {
+      &::after {
+        position: absolute;
+        right: 0;
+        bottom: 0;
+        left: 0;
+        z-index: 100;
+        height: 1px;
+        content: '';
+        border-bottom: dashed 1px #3a84ff;
+        transform: translate(0, var(--line-offset-y));
+      }
+    }
+
+    .drag-tool-point {
+      width: 27px;
+      height: 3px;
+      padding: 2px 0;
+      cursor: s-resize;
+      content: '';
+    }
+  }
+
+  &.vertical {
+    &.dragging {
+      &::after {
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        left: 0;
+        z-index: 100;
+        width: 1px;
+        content: '';
+        border-left: dashed 1px #3a84ff;
+        transform: translate(var(--line-offset-x), 0);
+      }
+    }
+
+    .drag-tool-point {
+      flex-direction: column;
+      width: 3px;
+      height: 27px;
+      padding: 0 2px;
+      cursor: w-resize;
+    }
+  }
+}
 </style>

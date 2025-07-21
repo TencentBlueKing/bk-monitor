@@ -58,4 +58,7 @@ export const LOG_SOURCE_F = () => {
   };
 };
 
-export type RowProxyData = Record<string, { visible?: boolean; height?: number; rowIndex?: number; mounted?: boolean }>;
+export type RowProxyData = Record<
+  string,
+  { visible?: boolean; height?: number; rowIndex?: number; mounted?: boolean }
+>;

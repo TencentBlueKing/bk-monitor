@@ -27,7 +27,7 @@ import { onMounted, onBeforeUnmount } from 'vue';
 
 import { getTargetElement } from './hooks-helper';
 
-export default ({ target, callback }) => {
+export default ({ callback, target }) => {
   const throttleCallback = (e: WheelEvent) => {
     callback?.(e);
   };

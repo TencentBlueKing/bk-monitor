@@ -24,17 +24,24 @@
  * IN THE SOFTWARE.
  */
 
-import { computed, defineComponent, onBeforeUnmount, onMounted, PropType, Ref, ref } from 'vue';
-
 import { Props } from 'tippy.js';
+import {
+  computed,
+  defineComponent,
+  onBeforeUnmount,
+  onMounted,
+  PropType,
+  Ref,
+  ref,
+} from 'vue';
 
 import { getOsCommandLabel } from '../../../../common/util';
 import BklogPopover from '../../../../components/bklog-popover';
 import EllipsisTagList from '../../../../components/ellipsis-tag-list';
-import Content from './content';
-import { IndexSetTabList, IndexSetType } from './use-choice';
 
+import Content from './content';
 import './index.scss';
+import { IndexSetTabList, IndexSetType } from './use-choice';
 
 export default defineComponent({
   props: {
@@ -103,40 +110,48 @@ export default defineComponent({
     let unionListValue = [];
 
     const tippyOptions: Props = {
-      hideOnClick: false,
-      arrow: false,
-      // #if MONITOR_APP !== 'trace'
-      zIndex: props.zIndex,
       // #endif
       appendTo: document.body,
+      arrow: false,
+      hideOnClick: false,
       maxWidth: 900,
+      onHide: () => {
+        isOpened.value = false;
+
+        if (props.activeTab === 'union') {
+          emit(
+            'value-change',
+            unionListValue.length ? unionListValue : props.indexSetValue,
+            'union'
+          );
+        }
+      },
 
       onShow: () => {
         isOpened.value = true;
         refContentObject.value?.resetUnionList();
       },
-      onHide: () => {
-        isOpened.value = false;
-
-        if (props.activeTab === 'union') {
-          emit('value-change', unionListValue.length ? unionListValue : props.indexSetValue, 'union');
-        }
-      },
+      // #if MONITOR_APP !== 'trace'
+      zIndex: props.zIndex,
     } as any;
 
     const rootStyle = computed(() => {
       return {
         '--indexset-root-h': `${props.height}px`,
-        '--indexset-root-w': /^\d+\.?\d*$/.test(`${props.width}`) ? `${props.width}px` : props.width,
         '--indexset-root-max-w': `${props.maxWidth}px`,
         '--indexset-root-min-w': `${props.minWidth}px`,
+        '--indexset-root-w': /^\d+\.?\d*$/.test(`${props.width}`)
+          ? `${props.width}px`
+          : props.width,
       };
     });
 
     const selectedValues = computed(() =>
       props.indexSetValue
-        .map(v => props.indexSetList.find((i: any) => `${i.index_set_id}` === `${v}`))
-        .filter(c => c !== undefined)
+        .map((v) =>
+          props.indexSetList.find((i: any) => `${i.index_set_id}` === `${v}`)
+        )
+        .filter((c) => c !== undefined)
     );
 
     const handleTabChange = (type: string) => {
@@ -148,7 +163,11 @@ export default defineComponent({
      * @param value
      * @returns
      */
-    const handleValueChange = (value: any, type: 'single' | 'union', id: number | string) => {
+    const handleValueChange = (
+      value: any,
+      type: 'single' | 'union',
+      id: number | string
+    ) => {
       // 如果是单选操作直接抛出事件
       if (['single', 'history', 'favorite'].includes(props.activeTab)) {
         emit('value-change', value, type, id);
@@ -163,7 +182,7 @@ export default defineComponent({
       }
     };
 
-    const handleKeyDown = event => {
+    const handleKeyDown = (event) => {
       // 检查是否按下了 ⌘/⌘/Ctrl + O 或 Cmd + O
       const isCtrlO = event.ctrlKey && event.key === 'o';
       const isCmdO = event.metaKey && event.key === 'o';
@@ -194,7 +213,7 @@ export default defineComponent({
       };
     });
 
-    const handleAuthRequest = item => {
+    const handleAuthRequest = (item) => {
       emit('auth-request', item);
       refRootElement.value?.hide();
     };
@@ -202,51 +221,54 @@ export default defineComponent({
     return () => {
       return (
         <BklogPopover
-          ref={refRootElement}
-          style={rootStyle.value}
           class={[
             'bklog-v3-indexset-container',
-            { 'is-opened': isOpened.value, 'is-multi': props.indexSetValue.length > 1 },
+            {
+              'is-multi': props.indexSetValue.length > 1,
+              'is-opened': isOpened.value,
+            },
           ]}
           data-shortcut-key={shortcutKey}
           options={tippyOptions}
+          ref={refRootElement}
+          style={rootStyle.value}
           {...{
             scopedSlots: {
               content: () => (
                 <Content
-                  ref={refContentObject}
-                  style={contentStyleVar.value}
                   activeId={props.activeTab}
                   list={props.indexSetList}
-                  spaceUid={props.spaceUid}
-                  type={props.activeType}
-                  value={props.indexSetValue}
-                  zIndex={props.zIndex}
                   on-auth-request={handleAuthRequest}
                   on-type-change={handleTabChange}
                   on-value-change={handleValueChange}
+                  ref={refContentObject}
+                  spaceUid={props.spaceUid}
+                  style={contentStyleVar.value}
+                  type={props.activeType}
+                  value={props.indexSetValue}
+                  zIndex={props.zIndex}
                 ></Content>
               ),
             },
           }}
         >
           <EllipsisTagList
-            class='indexset-value-list'
             activeEllipsisCount={selectedValues.value.length > 1}
+            class="indexset-value-list"
             list={selectedValues.value}
-            placement='right'
+            placement="right"
             {...{
               scopedSlots: {
-                item: v => (
-                  <span class='index-set-value-item'>
-                    <span class='index-set-name'>{v.index_set_name}</span>
-                    <span class='index-set-lighten-name'>{v.lightenName}</span>
+                item: (v) => (
+                  <span class="index-set-value-item">
+                    <span class="index-set-name">{v.index_set_name}</span>
+                    <span class="index-set-lighten-name">{v.lightenName}</span>
                   </span>
                 ),
               },
             }}
           ></EllipsisTagList>
-          <span class='bklog-icon bklog-arrow-down-filled-2'></span>
+          <span class="bklog-icon bklog-arrow-down-filled-2"></span>
         </BklogPopover>
       );
     };

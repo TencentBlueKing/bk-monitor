@@ -24,9 +24,8 @@
  * IN THE SOFTWARE.
  */
 
-import { Component, Prop, Emit, Mixins } from 'vue-property-decorator';
-
 import { Button, Tab, TabPanel, Alert } from 'bk-magic-vue';
+import { Component, Prop, Emit, Mixins } from 'vue-property-decorator';
 
 import $http from '../../api';
 import MonacoEditor from '../../components/collection-access/components/step-add/monaco-editor.vue';
@@ -37,8 +36,8 @@ import './masking-field-input.scss';
 @Component
 export default class MaskingFieldInput extends Mixins(classDragMixin) {
   /** 是否是采集项脱敏 */
-  @Prop({ type: Boolean, default: true }) isIndexSetMasking: boolean;
-  @Prop({ type: String, required: true }) operateType: string;
+  @Prop({ default: true, type: Boolean }) isIndexSetMasking: boolean;
+  @Prop({ required: true, type: String }) operateType: string;
   @Prop({ required: true }) indexSetId: number | string;
   /** 当前活跃的采样日志下标 */
   activeTab = '0';
@@ -62,23 +61,23 @@ export default class MaskingFieldInput extends Mixins(classDragMixin) {
   inputLoading = false;
   /** monaco输入框配置 */
   monacoConfig = {
-    cursorBlinking: 'blink',
-    acceptSuggestionOnEnter: 'off',
     acceptSuggestionOnCommitCharacter: false, // 是否提示输入
-    overviewRulerBorder: false, // 是否应围绕概览标尺绘制边框
-    selectOnLineNumbers: false, //
-    renderLineHighlight: 'none', // 当前行高亮方式
+    acceptSuggestionOnEnter: 'off',
+    cursorBlinking: 'blink',
     lineNumbers: 'off', // 左侧是否展示行
     // scrollBeyondLastLine: true,
     minimap: {
       enabled: false, // 是否启用预览图
     },
+    overviewRulerBorder: false, // 是否应围绕概览标尺绘制边框
+    renderLineHighlight: 'none', // 当前行高亮方式
     scrollbar: {
+      horizontalScrollbarSize: 4, // 横滚动条
       // 滚动条设置
       verticalScrollbarSize: 4, // 竖滚动条
-      horizontalScrollbarSize: 4, // 横滚动条
       // useShadows: true, // 失焦阴影动画
     },
+    selectOnLineNumbers: false, //
   };
   /** 是否是第一次添加采样 */
   isAddNewPanel = false;
@@ -88,11 +87,17 @@ export default class MaskingFieldInput extends Mixins(classDragMixin) {
   }
   /** 获取所有输入框的json元素列表 */
   get getJsonParseList() {
-    return this.jsonValueList.filter(item => this.isHaveValJSON(item.jsonStr)).map(item => JSON.parse(item.jsonStr));
+    return this.jsonValueList
+      .filter((item) => this.isHaveValJSON(item.jsonStr))
+      .map((item) => JSON.parse(item.jsonStr));
   }
   /** 是否展示正在下发采集配置警告 */
   get isShowAlertTips() {
-    return this.operateType === 'add' && !this.isAddNewPanel && !this.jsonValueList.length;
+    return (
+      this.operateType === 'add' &&
+      !this.isAddNewPanel &&
+      !this.jsonValueList.length
+    );
   }
 
   @Emit('change')
@@ -102,7 +107,7 @@ export default class MaskingFieldInput extends Mixins(classDragMixin) {
 
   @Emit('blurInput')
   handleBlurInput(isPreview = true) {
-    return { list: this.getJsonParseList, isPreview };
+    return { isPreview, list: this.getJsonParseList };
   }
 
   @Emit('createRule')
@@ -147,7 +152,8 @@ export default class MaskingFieldInput extends Mixins(classDragMixin) {
    */
   async handleBlurConfigInput(isPreview = true) {
     // 与缓存的字符串一样 不更新
-    if (this.activeJsonValue?.jsonStr === this.activeJsonValue?.catchJsonStr) return;
+    if (this.activeJsonValue?.jsonStr === this.activeJsonValue?.catchJsonStr)
+      return;
     this.activeJsonValue.catchJsonStr = this.activeJsonValue.jsonStr;
 
     this.handleBlurInput(isPreview);
@@ -171,12 +177,12 @@ export default class MaskingFieldInput extends Mixins(classDragMixin) {
     const id = this.jsonValueList.length;
     const catchStrValue = JSON.stringify(this.catchJsonList[id] ?? {}, null, 4);
     this.jsonValueList.push({
-      id,
-      jsonStr: catchStrValue === '{}' ? '' : catchStrValue,
       catchJsonStr: '',
-      name: String(id),
+      id,
       isJsonError: false,
+      jsonStr: catchStrValue === '{}' ? '' : catchStrValue,
       label: `${this.$t('采样日志')}${id + 1}`,
+      name: String(id),
     });
     if (isQuery) {
       this.activeTab = String(id);
@@ -232,112 +238,120 @@ export default class MaskingFieldInput extends Mixins(classDragMixin) {
       >
         {this.isShowAlertTips && (
           <Alert
-            style='margin-bottom: 16px;'
-            show-icon={false}
-            type='warning'
             closable
+            show-icon={false}
+            style="margin-bottom: 16px;"
+            type="warning"
           >
-            <div slot='title'>
-              <i class='bklog-icon bklog-log-loading'></i>
-              <span>{this.$t('正在下发采集配置，需要3-5分钟来生成采集日志，请稍后配置脱敏规则…')}</span>
+            <div slot="title">
+              <i class="bklog-icon bklog-log-loading"></i>
+              <span>
+                {this.$t(
+                  '正在下发采集配置，需要3-5分钟来生成采集日志，请稍后配置脱敏规则…'
+                )}
+              </span>
             </div>
           </Alert>
         )}
-        <div class='item-title'>
-          <div class='left'>
-            <span class='title'>{this.$t('采样日志')}</span>
-            <span class='alert'>
+        <div class="item-title">
+          <div class="left">
+            <span class="title">{this.$t('采样日志')}</span>
+            <span class="alert">
               {this.$t(
                 '日志脱敏会结合您的采样预览日志自动匹配并选用规则，无采样预览日志无法展示预览结果。您也可以新增采样，手动构造日志'
               )}
             </span>
           </div>
           <div
-            class='right-fix'
+            class="right-fix"
             onClick={() => (this.inputFix = !this.inputFix)}
           >
-            <i class={['bklog-icon', this.inputFix ? 'bklog-fix-shape' : 'bklog-fix-line']}></i>
-            <span class='text'>{this.inputFix ? this.$t('取消钉住') : this.$t('钉住')}</span>
+            <i
+              class={[
+                'bklog-icon',
+                this.inputFix ? 'bklog-fix-shape' : 'bklog-fix-line',
+              ]}
+            ></i>
+            <span class="text">
+              {this.inputFix ? this.$t('取消钉住') : this.$t('钉住')}
+            </span>
           </div>
         </div>
         <Tab
-          class={{ 'hidden-input is-not-log': !this.jsonValueList.length }}
           active={this.activeTab}
-          type='border-card'
+          class={{ 'hidden-input is-not-log': !this.jsonValueList.length }}
           closable
           on-close-panel={this.closePanel}
           on-tab-change={this.tabChange}
+          type="border-card"
         >
           <div
-            class='text-btn'
-            slot='setting'
+            class="text-btn"
             // eslint-disable-next-line @typescript-eslint/no-misused-promises
             onClick={() => this.handleRefreshConfigStr(true, true)}
+            slot="setting"
           >
-            <i class='icon bk-icon icon-right-turn-line'></i>
-            <span class='text'>{this.$t('刷新')}</span>
+            <i class="icon bk-icon icon-right-turn-line"></i>
+            <span class="text">{this.$t('刷新')}</span>
           </div>
-          <div
-            slot='add'
-            onClick={() => this.addPanel()}
-          >
-            <div
-              style='margin-left: 10px;'
-              class='text-btn'
-            >
-              <i class='icon bk-icon icon-plus push'></i>
-              <span class='text'>{this.$t('新增采样')}</span>
+          <div onClick={() => this.addPanel()} slot="add">
+            <div class="text-btn" style="margin-left: 10px;">
+              <i class="icon bk-icon icon-plus push"></i>
+              <span class="text">{this.$t('新增采样')}</span>
             </div>
           </div>
           {this.jsonValueList.map((panel, index) => (
-            <TabPanel
-              {...{ props: panel }}
-              key={index}
-            />
+            <TabPanel {...{ props: panel }} key={index} />
           ))}
           {!!this.jsonValueList.length ? (
             <div>
               <div
-                class='json-editor'
+                class="json-editor"
                 v-bkloading={{ isLoading: this.inputLoading }}
               >
                 <MonacoEditor
-                  height={this.collectHeight}
-                  v-model={this.activeJsonValue.jsonStr}
                   font-size={14}
+                  height={this.collectHeight}
                   is-show-problem-drag={false}
                   is-show-top-label={false}
-                  language='json'
+                  language="json"
                   monaco-config={this.monacoConfig}
-                  placeholder={this.$t('请输入 JSON 格式日志')}
-                  theme='vs'
                   on-blur={() => this.handleBlurConfigInput()}
-                  on-get-problem-state={(err: boolean) => (this.activeJsonValue.isJsonError = err)}
+                  on-get-problem-state={(err: boolean) =>
+                    (this.activeJsonValue.isJsonError = err)
+                  }
+                  placeholder={this.$t('请输入 JSON 格式日志')}
+                  theme="vs"
+                  v-model={this.activeJsonValue.jsonStr}
                 ></MonacoEditor>
               </div>
               <div
                 class={['drag-bottom', { 'drag-ing': this.isChanging }]}
-                onMousedown={e => this.dragBegin(e, 'dragY')}
+                onMousedown={(e) => this.dragBegin(e, 'dragY')}
               ></div>
             </div>
           ) : (
-            <div class='no-data-tips'>
+            <div class="no-data-tips">
               <span>{this.$t('暂无采样日志')}</span>
             </div>
           )}
         </Tab>
-        <div class='sync-rule-box'>
+        <div class="sync-rule-box">
           <Button
             disabled={!this.jsonValueList.length}
-            size='small'
-            theme='primary'
-            outline
             onClick={() => this.handleCreateRule()}
+            outline
+            size="small"
+            theme="primary"
           >
             {this.$t('自动匹配脱敏规则')}
           </Button>
-          {this.isShowCannotCreateRuleTips && <span>{this.$t('未检测到采样日志内容，无法同步规则')}</span>}
-          {this.isJSONStrError && <span>{this.$t('当前日志不符合JSON格式，请确认后重试')}</span>}
+          {this.isShowCannotCreateRuleTips && (
+            <span>{this.$t('未检测到采样日志内容，无法同步规则')}</span>
+          )}
+          {this.isJSONStrError && (
+            <span>{this.$t('当前日志不符合JSON格式，请确认后重试')}</span>
+          )}
         </div>
         {this.$slots.default}
       </div>

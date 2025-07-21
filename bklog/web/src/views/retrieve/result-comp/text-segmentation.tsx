@@ -37,9 +37,12 @@ interface IProps {
 
 @Component
 export default class QueryStatement extends tsc<IProps> {
-  @Prop({ type: Object, required: true }) field: any;
-  @Prop({ type: [String, Number, Boolean], required: true }) content: boolean | number | string;
-  @Prop({ type: Function, required: true }) menuClick: any;
+  @Prop({ required: true, type: Object }) field: any;
+  @Prop({ required: true, type: [String, Number, Boolean] }) content:
+    | boolean
+    | number
+    | string;
+  @Prop({ required: true, type: Function }) menuClick: any;
 
   /** 当前选中分词 */
   curValue = '';
@@ -60,7 +63,8 @@ export default class QueryStatement extends tsc<IProps> {
   get currentFieldRegStr() {
     try {
       let currentRegStr = this.segmentRegStr;
-      if (this.field.tokenize_on_chars) currentRegStr = this.field.tokenize_on_chars;
+      if (this.field.tokenize_on_chars)
+        currentRegStr = this.field.tokenize_on_chars;
       return currentRegStr;
     } catch (error) {
       return '';
@@ -89,9 +93,9 @@ export default class QueryStatement extends tsc<IProps> {
       // 未开分词的情况 且非text类型 则是整个值可点击 否则不可点击
       arr = [
         {
-          text: value.replace(/<mark>/g, '').replace(/<\/mark>/g, ''),
-          isNotParticiple: this.isText,
           isMark: new RegExp(this.markRegStr).test(value),
+          isNotParticiple: this.isText,
+          text: value.replace(/<mark>/g, '').replace(/<\/mark>/g, ''),
         },
       ];
     }
@@ -102,7 +106,7 @@ export default class QueryStatement extends tsc<IProps> {
     // 转义特殊字符，并构建用于分割的正则表达式
     const regexPattern = delimiterPattern
       .split('')
-      .map(delimiter => `\\${delimiter}`)
+      .map((delimiter) => `\\${delimiter}`)
       .join('|');
 
     // 构建正则表达式以找到分隔符或分隔符周围的文本
@@ -117,19 +121,19 @@ export default class QueryStatement extends tsc<IProps> {
         list.push(item);
       } else {
         const arr = item.split(regex);
-        arr.forEach(i => i && list.push(i));
+        arr.forEach((i) => i && list.push(i));
       }
       return list;
     }, []);
 
     // 转换结果为对象数组，包含分隔符标记
     const result = parts
-      .filter(part => part?.length)
+      .filter((part) => part?.length)
       .map((part, index) => {
         return {
-          text: part,
-          isNotParticiple: index < this.limitCount ? regex.test(part) : true,
           isMark: /^<mark>.*?<\/mark>$/.test(part),
+          isNotParticiple: index < this.limitCount ? regex.test(part) : true,
+          text: part,
         };
       });
 
@@ -141,13 +145,10 @@ export default class QueryStatement extends tsc<IProps> {
     this.handleDestroy();
     this.curValue = value;
     this.popoverInstance = this.$bkPopover(e.target, {
-      content: this.$refs.moreTools,
-      trigger: 'click',
-      placement: 'bottom-start',
       arrow: true,
-      theme: 'light',
-      interactive: true,
+      content: this.$refs.moreTools,
       extCls: 'event-tippy-content',
+      interactive: true,
       onHidden: () => {
         this.unregisterObserver();
         this.popoverInstance?.destroy();
@@ -159,14 +160,17 @@ export default class QueryStatement extends tsc<IProps> {
         this.currentEvent = e.target;
         this.currentEvent.classList.add('focus-text');
       },
+      placement: 'bottom-start',
+      theme: 'light',
+      trigger: 'click',
     });
     this.popoverInstance?.show(10);
   }
   // 注册Intersection监听
   registerObserver() {
     if (this.intersectionObserver) this.unregisterObserver();
-    this.intersectionObserver = new IntersectionObserver(entries => {
-      entries.forEach(entry => {
+    this.intersectionObserver = new IntersectionObserver((entries) => {
+      entries.forEach((entry) => {
         if (this.intersectionObserver) {
           if (entry.intersectionRatio <= 0) {
             this.popoverInstance.hide();
@@ -193,30 +197,36 @@ export default class QueryStatement extends tsc<IProps> {
   }
 
   handleMenuClick(event: string, isLink = false) {
-    this.menuClick(event, this.curValue.replace(/<mark>/g, '').replace(/<\/mark>/g, ''), isLink);
+    this.menuClick(
+      event,
+      this.curValue.replace(/<mark>/g, '').replace(/<\/mark>/g, ''),
+      isLink
+    );
     this.handleDestroy();
   }
 
   render() {
     return (
-      <span class='log-content-wrapper'>
+      <span class="log-content-wrapper">
         {this.isVirtual ? (
-          <span class='null-item'>{this.content}</span>
+          <span class="null-item">{this.content}</span>
         ) : (
-          <span class='segment-content'>
-            {this.splitList.map(item => {
+          <span class="segment-content">
+            {this.splitList.map((item) => {
               if (item.text === '\n') return <br />;
               if (item.isMark)
                 return (
-                  <mark onClick={$event => this.handleClick($event, item.text)}>
+                  <mark
+                    onClick={($event) => this.handleClick($event, item.text)}
+                  >
                     {item.text.replace(/<mark>/g, '').replace(/<\/mark>/g, '')}
                   </mark>
                 );
               if (!item.isNotParticiple)
                 return (
                   <span
-                    class='valid-text'
-                    onClick={$event => this.handleClick($event, item.text)}
+                    class="valid-text"
+                    onClick={($event) => this.handleClick($event, item.text)}
                   >
                     {item.text}
                   </span>
@@ -227,55 +237,52 @@ export default class QueryStatement extends tsc<IProps> {
         )}
 
         <div v-show={false}>
-          <div
-            ref='moreTools'
-            class='event-icons'
-          >
-            <div class='event-box'>
+          <div class="event-icons" ref="moreTools">
+            <div class="event-box">
               <span
-                class='event-btn'
+                class="event-btn"
                 onClick={() => this.handleMenuClick('copy')}
               >
-                <i class='icon bklog-icon bklog-copy'></i>
+                <i class="icon bklog-icon bklog-copy"></i>
                 <span>{this.$t('复制')}</span>
               </span>
             </div>
-            <div class='event-box'>
+            <div class="event-box">
               <span
-                class='event-btn'
+                class="event-btn"
                 onClick={() => this.handleMenuClick('is')}
               >
-                <i class='icon bk-icon icon-plus-circle'></i>
+                <i class="icon bk-icon icon-plus-circle"></i>
                 <span>{this.$t('添加到本次检索')}</span>
               </span>
               <div
-                class='new-link'
-                v-bk-tooltips={this.$t('新开标签页')}
-                onClick={e => {
+                class="new-link"
+                onClick={(e) => {
                   e.stopPropagation();
                   this.handleMenuClick('is', true);
                 }}
+                v-bk-tooltips={this.$t('新开标签页')}
               >
-                <i class='bklog-icon bklog-jump'></i>
+                <i class="bklog-icon bklog-jump"></i>
               </div>
             </div>
-            <div class='event-box'>
+            <div class="event-box">
               <span
-                class='event-btn'
+                class="event-btn"
                 onClick={() => this.handleMenuClick('not')}
               >
-                <i class='icon bk-icon icon-minus-circle'></i>
+                <i class="icon bk-icon icon-minus-circle"></i>
                 <span>{this.$t('从本次检索中排除')}</span>
               </span>
               <div
-                class='new-link'
-                v-bk-tooltips={this.$t('新开标签页')}
-                onClick={e => {
+                class="new-link"
+                onClick={(e) => {
                   e.stopPropagation();
                   this.handleMenuClick('not', true);
                 }}
+                v-bk-tooltips={this.$t('新开标签页')}
               >
-                <i class='bklog-icon bklog-jump'></i>
+                <i class="bklog-icon bklog-jump"></i>
               </div>
             </div>
           </div>

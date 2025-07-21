@@ -42,10 +42,7 @@
         </span>
         <div class="title-name">{{ title }}</div>
       </div>
-      <div
-        v-if="subtitle"
-        class="sub-title"
-      >
+      <div v-if="subtitle" class="sub-title">
         {{ subtitle }}
       </div>
     </div>
@@ -93,77 +90,77 @@ export default class ChartTitle extends Vue {
 </script>
 
 <style lang="scss" scoped>
-  .title-wrapper {
-    flex: 1;
-    width: 100%;
+.title-wrapper {
+  flex: 1;
+  width: 100%;
 
-    .chart-title {
-      padding: 5px 10px;
-      margin-left: -10px;
-      font-size: 12px;
-      color: #63656e;
-      border-radius: 2px;
+  .chart-title {
+    padding: 5px 10px;
+    margin-left: -10px;
+    font-size: 12px;
+    color: #63656e;
+    border-radius: 2px;
 
-      .main-title {
-        display: flex;
-        flex-wrap: nowrap;
-        align-items: center;
-        font-weight: 700;
+    .main-title {
+      display: flex;
+      flex-wrap: nowrap;
+      align-items: center;
+      font-weight: 700;
 
-        .title-name {
-          height: 20px;
-          overflow: hidden;
-          line-height: 20px;
-          text-overflow: ellipsis;
-          white-space: nowrap;
-        }
-
-        .icon-down-shape {
-          margin-right: 8px;
-          font-size: 16px;
-          color: #c4c6cc;
-          transition: transform 0.3s;
-
-          &.is-flip {
-            transition: transform 0.3s;
-            transform: rotate(-90deg);
-          }
-        }
-
-        &::after {
-          display: none;
-          align-items: center;
-          justify-content: center;
-          width: 24px;
-          height: 16px;
-          margin-right: auto;
-          font-size: 20px;
-          color: #979ba5;
-          content: '\e61c';
-        }
-      }
-
-      &:hover {
-        cursor: pointer;
-        background-color: #f0f1f5;
-
-        .main-title {
-          color: black;
-
-          &::after {
-            display: flex;
-          }
-        }
-      }
-
-      .sub-title {
-        height: 16px;
+      .title-name {
+        height: 20px;
         overflow: hidden;
-        line-height: 16px;
-        color: #979ba5;
+        line-height: 20px;
         text-overflow: ellipsis;
         white-space: nowrap;
       }
+
+      .icon-down-shape {
+        margin-right: 8px;
+        font-size: 16px;
+        color: #c4c6cc;
+        transition: transform 0.3s;
+
+        &.is-flip {
+          transition: transform 0.3s;
+          transform: rotate(-90deg);
+        }
+      }
+
+      &::after {
+        display: none;
+        align-items: center;
+        justify-content: center;
+        width: 24px;
+        height: 16px;
+        margin-right: auto;
+        font-size: 20px;
+        color: #979ba5;
+        content: '\e61c';
+      }
+    }
+
+    &:hover {
+      cursor: pointer;
+      background-color: #f0f1f5;
+
+      .main-title {
+        color: black;
+
+        &::after {
+          display: flex;
+        }
+      }
+    }
+
+    .sub-title {
+      height: 16px;
+      overflow: hidden;
+      line-height: 16px;
+      color: #979ba5;
+      text-overflow: ellipsis;
+      white-space: nowrap;
     }
   }
+}
 </style>

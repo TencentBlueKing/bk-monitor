@@ -47,14 +47,14 @@ interface ISelectOption {
 
 @Component
 export default class ClusterFilter extends tsc<IProps> {
-  @Prop({ type: String, required: true }) title: string;
-  @Prop({ type: Boolean, default: true }) searchable: boolean;
-  @Prop({ type: Number, default: 200 }) popoverMinWidth: number;
-  @Prop({ type: Function, default: () => {} }) toggle: (boolean) => void;
-  @Prop({ type: Array, default: () => [] }) select: Array<string>;
-  @Prop({ type: Array, default: () => [] }) selectList: Array<ISelectOption>;
-  @Prop({ type: Boolean, default: false }) loading: boolean;
-  @Prop({ type: Boolean, default: false }) isActive: boolean;
+  @Prop({ required: true, type: String }) title: string;
+  @Prop({ default: true, type: Boolean }) searchable: boolean;
+  @Prop({ default: 200, type: Number }) popoverMinWidth: number;
+  @Prop({ default: () => {}, type: Function }) toggle: (boolean) => void;
+  @Prop({ default: () => [], type: Array }) select: Array<string>;
+  @Prop({ default: () => [], type: Array }) selectList: Array<ISelectOption>;
+  @Prop({ default: false, type: Boolean }) loading: boolean;
+  @Prop({ default: false, type: Boolean }) isActive: boolean;
   @Ref('clusterSelect') clusterSelectRef: any;
 
   /** 选中的值 */
@@ -94,24 +94,25 @@ export default class ClusterFilter extends tsc<IProps> {
 
   render() {
     const triggerSlot = () => (
-      <div class='filter-box'>
+      <div class="filter-box">
         <span>{this.title}</span>
-        <i class={['bk-icon icon-funnel', { 'is-active': this.isShowSelectOption || this.isActive }]}></i>
+        <i
+          class={[
+            'bk-icon icon-funnel',
+            { 'is-active': this.isShowSelectOption || this.isActive },
+          ]}
+        ></i>
       </div>
     );
     const selectGroupDom = () => {
       return (
-        <div class='group-list'>
+        <div class="group-list">
           {!!this.selectList.length ? (
-            this.selectList.map(option => (
-              <bk-option
-                id={option.id}
-                class='group-item'
-                name={option.name}
-              >
+            this.selectList.map((option) => (
+              <bk-option class="group-item" id={option.id} name={option.name}>
                 <bk-checkbox
-                  ext-cls='ext-box'
                   checked={this.getGroupItemCheckedState(option.id)}
+                  ext-cls="ext-box"
                 >
                   <span title={option.name}>{option.name}</span>
                 </bk-checkbox>
@@ -119,7 +120,7 @@ export default class ClusterFilter extends tsc<IProps> {
             ))
           ) : (
             <span
-              class='group-loading'
+              class="group-loading"
               v-bkloading={{ isLoading: this.loading, zIndex: 10 }}
             >
               {this.loading ? '' : this.$t('暂无数据')}
@@ -129,45 +130,38 @@ export default class ClusterFilter extends tsc<IProps> {
       );
     };
     const extensionSlot = () => (
-      <div
-        class='extension-box'
-        slot='extension'
-      >
+      <div class="extension-box" slot="extension">
         <bk-button
-          style='margin-right: 8px;'
-          size='small'
-          theme='primary'
           onClick={this.submitFilter}
+          size="small"
+          style="margin-right: 8px;"
+          theme="primary"
         >
           {this.$t('确定')}
         </bk-button>
-        <bk-button
-          size='small'
-          theme='default'
-          onClick={this.cancelFilter}
-        >
+        <bk-button onClick={this.cancelFilter} size="small" theme="default">
           {this.$t('取消')}
         </bk-button>
       </div>
     );
     return (
       <bk-select
-        ref='clusterSelect'
-        class='cluster-select-filter'
-        v-model={this.selectValue}
-        scopedSlots={{
-          trigger: () => triggerSlot(),
-        }}
+        class="cluster-select-filter"
         clearable={false}
-        ext-popover-cls='cluster-select-filter-popover'
-        popover-min-width={this.popoverMinWidth}
-        popover-options={{ boundary: 'window' }}
-        scroll-height={236}
-        searchable={this.searchable}
-        show-empty={false}
+        ext-popover-cls="cluster-select-filter-popover"
         multiple
         onSelected={this.handleSelectedOption}
         onToggle={this.toggleSelect}
+        popover-min-width={this.popoverMinWidth}
+        popover-options={{ boundary: 'window' }}
+        ref="clusterSelect"
+        scopedSlots={{
+          trigger: () => triggerSlot(),
+        }}
+        scroll-height={236}
+        searchable={this.searchable}
+        show-empty={false}
+        v-model={this.selectValue}
       >
         {selectGroupDom()}
         {extensionSlot()}

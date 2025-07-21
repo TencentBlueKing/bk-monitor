@@ -90,10 +90,11 @@ export default {
       if (this.intersectionObserver) {
         this.unregisterOberver();
       }
-      this.intersectionObserver = new IntersectionObserver(entries => {
-        entries.forEach(entry => {
+      this.intersectionObserver = new IntersectionObserver((entries) => {
+        entries.forEach((entry) => {
           if (this.intersectionObserver) {
-            if (entry.boundingClientRect.height > 72) this.$emit('computed-height');
+            if (entry.boundingClientRect.height > 72)
+              this.$emit('computed-height');
           }
         });
       });
@@ -104,59 +105,59 @@ export default {
 </script>
 
 <style lang="scss" scoped>
-  .td-log-container {
-    position: relative;
-    line-height: 20px;
+.td-log-container {
+  position: relative;
+  line-height: 20px;
 
-    &.is-wrap {
-      padding-bottom: 3px;
-    }
+  &.is-wrap {
+    padding-bottom: 3px;
+  }
 
-    .field-container {
-      font-family: var(--table-fount-family);
-      font-size: var(--table-fount-size);
-      color: var(--table-fount-color);
+  .field-container {
+    font-family: var(--table-fount-family);
+    font-size: var(--table-fount-size);
+    color: var(--table-fount-color);
 
-      &.active:hover {
-        color: #3a84ff;
-        cursor: pointer;
-      }
-
-      &.mark {
-        color: black;
-        background: #f3e186;
-      }
-    }
-
-    .icon-search-container {
-      display: none;
-      align-items: center;
-      justify-content: center;
-      width: 14px;
-      height: 14px;
-      margin-left: 5px;
-      vertical-align: bottom;
+    &.active:hover {
+      color: #3a84ff;
       cursor: pointer;
-      background: #3a84ff;
-
-      .icon {
-        font-size: 12px;
-        font-weight: bold;
-        color: #fff;
-        background: #3a84ff;
-        transform: scale(0.6);
-
-        &.icon-copy {
-          font-size: 14px;
-          transform: scale(1);
-        }
-      }
     }
 
-    &:hover {
-      .icon-search-container {
-        display: inline-flex;
+    &.mark {
+      color: black;
+      background: #f3e186;
+    }
+  }
+
+  .icon-search-container {
+    display: none;
+    align-items: center;
+    justify-content: center;
+    width: 14px;
+    height: 14px;
+    margin-left: 5px;
+    vertical-align: bottom;
+    cursor: pointer;
+    background: #3a84ff;
+
+    .icon {
+      font-size: 12px;
+      font-weight: bold;
+      color: #fff;
+      background: #3a84ff;
+      transform: scale(0.6);
+
+      &.icon-copy {
+        font-size: 14px;
+        transform: scale(1);
       }
     }
   }
+
+  &:hover {
+    .icon-search-container {
+      display: inline-flex;
+    }
+  }
+}
 </style>

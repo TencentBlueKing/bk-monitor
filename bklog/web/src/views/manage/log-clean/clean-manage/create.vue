@@ -25,14 +25,8 @@
 -->
 
 <template>
-  <div
-    class="log-clean-create-container"
-    v-bkloading="{ isLoading: loading }"
-  >
-    <article
-      v-if="!isCleaning"
-      class="article"
-    >
+  <div class="log-clean-create-container" v-bkloading="{ isLoading: loading }">
+    <article v-if="!isCleaning" class="article">
       <step-field
         :cur-step="curStep"
         :is-clean-field="true"
@@ -49,10 +43,7 @@
       /> -->
     </article>
 
-    <article
-      v-else
-      class="article clean-landing"
-    >
+    <article v-else class="article clean-landing">
       <advance-clean-land back-router="log-clean-list" />
     </article>
   </div>
@@ -82,7 +73,7 @@ export default {
   },
   computed: {
     ...mapState({
-      showRouterLeaveTip: state => state.showRouterLeaveTip,
+      showRouterLeaveTip: (state) => state.showRouterLeaveTip,
     }),
   },
 
@@ -118,25 +109,25 @@ export default {
 </script>
 
 <style lang="scss" scoped>
-  @import '@/scss/mixins/scroller';
+@import '@/scss/mixins/scroller';
 
-  .log-clean-create-container {
-    height: 100%;
-    padding: 20px 24px;
-    overflow: auto;
+.log-clean-create-container {
+  height: 100%;
+  padding: 20px 24px;
+  overflow: auto;
 
-    @include scroller($backgroundColor: #adadad, $width: 4px);
+  @include scroller($backgroundColor: #adadad, $width: 4px);
 
-    .article {
-      margin-bottom: 20px;
-      background-color: #fff;
-      border: 1px solid #dcdee5;
-      border-radius: 3px;
-    }
-
-    .clean-landing {
-      height: calc(100% - 24px);
-      border: 0;
-    }
+  .article {
+    margin-bottom: 20px;
+    background-color: #fff;
+    border: 1px solid #dcdee5;
+    border-radius: 3px;
   }
+
+  .clean-landing {
+    height: calc(100% - 24px);
+    border: 0;
+  }
+}
 </style>

@@ -27,10 +27,14 @@
 import deepMerge from 'deepmerge';
 
 import { getValueFormat, ValueFormatter } from '../value-formats-package';
+
 import MonitorBaseSeries from './base-chart-option';
 import { lineOrBarOptions } from './echart-options-config';
 import { ILegendItem, IChartInstance } from './type-interface';
-export default class MonitorLineSeries extends MonitorBaseSeries implements IChartInstance {
+export default class MonitorLineSeries
+  extends MonitorBaseSeries
+  implements IChartInstance
+{
   public defaultOption: any;
   public constructor(props: any) {
     super(props);
@@ -52,79 +56,103 @@ export default class MonitorLineSeries extends MonitorBaseSeries implements ICha
     );
   }
   handleSetThreholds(series: any) {
-    let thresholdList = series.filter((set: any) => set?.thresholds?.length).map((set: any) => set.thresholds);
-    thresholdList = thresholdList.reduce((pre: any, cur: any, index: number) => {
-      pre.push(...cur.map((set: any) => set.yAxis));
-      if (index === thresholdList.length - 1) {
-        return Array.from(new Set(pre));
-      }
-      return pre;
-    }, []);
+    let thresholdList = series
+      .filter((set: any) => set?.thresholds?.length)
+      .map((set: any) => set.thresholds);
+    thresholdList = thresholdList.reduce(
+      (pre: any, cur: any, index: number) => {
+        pre.push(...cur.map((set: any) => set.yAxis));
+        if (index === thresholdList.length - 1) {
+          return Array.from(new Set(pre));
+        }
+        return pre;
+      },
+      []
+    );
     return {
       canScale: thresholdList.every((set: number) => set > 0),
-      minThreshold: Math.min(...thresholdList),
       maxThreshold: Math.max(...thresholdList),
+      minThreshold: Math.min(...thresholdList),
     };
   }
   // 设置折线图
   public getOptions(data: any, otherOptions: any = {}) {
     const { series } = data || {};
     const hasSeries = series && series.length > 0;
-    const formatterFunc = hasSeries && series[0].data?.length ? this.handleSetFormatterFunc(series[0].data) : null;
-    const { series: newSeries, legendData } = this.getSeriesData(series);
+    const formatterFunc =
+      hasSeries && series[0].data?.length
+        ? this.handleSetFormatterFunc(series[0].data)
+        : null;
+    const { legendData, series: newSeries } = this.getSeriesData(series);
     const [firstSery] = newSeries || [];
-    const { canScale, minThreshold, maxThreshold } = this.handleSetThreholds(series);
+    const { canScale, maxThreshold, minThreshold } =
+      this.handleSetThreholds(series);
     const options = {
-      yAxis: {
-        scale: canScale,
+      legend: {
+        show: false,
+      },
+      series: hasSeries ? newSeries : [],
+      xAxis: {
         axisLabel: {
-          formatter: newSeries.every((item: any) => item.unit && item.unit === firstSery.unit)
+          formatter: hasSeries && formatterFunc ? formatterFunc : '{value}',
+        },
+      },
+      yAxis: {
+        axisLabel: {
+          formatter: newSeries.every(
+            (item: any) => item.unit && item.unit === firstSery.unit
+          )
             ? (v: any) => {
-                const obj = getValueFormat(firstSery.unit)(v, firstSery.precision);
+                const obj = getValueFormat(firstSery.unit)(
+                  v,
+                  firstSery.precision
+                );
                 return obj.text + (obj.suffix || '');
               }
             : this.handleYxisLabelFormatter,
         },
         max: (v: { min: number; max: number }) => Math.max(v.max, maxThreshold),
         min: (v: { min: number; max: number }) => Math.min(v.min, minThreshold),
-        splitNumber: 4,
         minInterval: 1,
+        scale: canScale,
+        splitNumber: 4,
       },
-      xAxis: {
-        axisLabel: {
-          formatter: hasSeries && formatterFunc ? formatterFunc : '{value}',
-        },
-      },
-      legend: {
-        show: false,
-      },
-      series: hasSeries ? newSeries : [],
     };
     return {
-      options: deepMerge(deepMerge(this.defaultOption, otherOptions, { arrayMerge: this.overwriteMerge }), options, {
-        arrayMerge: this.overwriteMerge,
-      }),
       legendData,
+      options: deepMerge(
+        deepMerge(this.defaultOption, otherOptions, {
+          arrayMerge: this.overwriteMerge,
+        }),
+        options,
+        {
+          arrayMerge: this.overwriteMerge,
+        }
+      ),
     };
   }
   private getSeriesData(seriess: any = []) {
     const legendData: ILegendItem[] = [];
     const seriesData: any = deepMerge([], seriess);
     const series = seriesData.map((item: any, index: number) => {
-      let showSymbol = !!item?.markPoints?.every((set: any) => set?.length === 2);
+      let showSymbol = !!item?.markPoints?.every(
+        (set: any) => set?.length === 2
+      );
       const hasLegend = !!item.name;
       const legendItem: ILegendItem = {
-        name: String(item.name),
+        avg: 0,
+        color: item.color || this.colors[index % this.colors.length],
         max: 0,
         min: '',
-        avg: 0,
-        total: 0,
-        color: item.color || this.colors[index % this.colors.length],
+        name: String(item.name),
         show: true,
+        total: 0,
       };
       const unitFormatter = getValueFormat(item.unit || '');
       const precision = this.handleGetMinPrecision(
-        item.data.filter((set: any) => typeof set[1] === 'number').map(set => set[1]),
+        item.data
+          .filter((set: any) => typeof set[1] === 'number')
+          .map((set) => set[1]),
         unitFormatter,
         item.unit
       );
@@ -135,38 +163,47 @@ export default class MonitorLineSeries extends MonitorBaseSeries implements ICha
           if (typeof seriesItem[1] === 'number') {
             const curValue = +seriesItem[1];
             legendItem.max = Math.max(legendItem.max, curValue);
-            legendItem.min = legendItem.min === '' ? curValue : Math.min(+legendItem.min, curValue);
+            legendItem.min =
+              legendItem.min === ''
+                ? curValue
+                : Math.min(+legendItem.min, curValue);
             legendItem.total = legendItem.total + curValue;
           }
           if (item?.markPoints?.some((set: any) => set[1] === seriesItem[0])) {
             item.data[seriesIndex] = {
-              symbolSize: 12,
-              value: [seriesItem[0], seriesItem[1]],
               itemStyle: {
                 borderWidth: 6,
                 enabled: true,
-                shadowBlur: 0,
                 opacity: 1,
+                shadowBlur: 0,
               },
               label: {
                 show: false,
               },
+              symbolSize: 12,
+              value: [seriesItem[0], seriesItem[1]],
             };
           } else {
             const hasNoBrother =
-              (!pre && !next) || (pre && next && pre.length && next.length && pre[1] === null && next[1] === null);
+              (!pre && !next) ||
+              (pre &&
+                next &&
+                pre.length &&
+                next.length &&
+                pre[1] === null &&
+                next[1] === null);
             if (hasNoBrother) {
               showSymbol = true;
             }
             item.data[seriesIndex] = {
-              symbolSize: hasNoBrother ? 4 : 1,
-              value: [seriesItem[0], seriesItem[1]],
               itemStyle: {
                 borderWidth: hasNoBrother ? 4 : 1,
                 enabled: true,
-                shadowBlur: 0,
                 opacity: 1,
+                shadowBlur: 0,
               },
+              symbolSize: hasNoBrother ? 4 : 1,
+              value: [seriesItem[0], seriesItem[1]],
             };
           }
         } else if (seriesItem.symbolSize) {
@@ -177,28 +214,34 @@ export default class MonitorLineSeries extends MonitorBaseSeries implements ICha
       legendItem.total = +legendItem.total.toFixed(2);
       const seriesItem = {
         ...item,
-        type: this.chartType,
-        showSymbol,
-        symbol: 'circle',
-        z: 4,
-        smooth: 0.2,
-        unitFormatter,
-        precision,
         lineStyle: {
           width: this.lineWidth || 1,
         },
+        precision,
+        showSymbol,
+        smooth: 0.2,
+        symbol: 'circle',
+        type: this.chartType,
+        unitFormatter,
+        z: 4,
       };
       if (item?.markTimeRange?.length) {
         seriesItem.markArea = this.handleSetThresholdBand(item.markTimeRange);
       }
       if (item?.thresholds?.length) {
         seriesItem.markLine = this.handleSetThresholdLine(item.thresholds);
-        seriesItem.markArea = deepMerge(seriesItem.markArea, this.handleSetThresholdArea(item.thresholds));
+        seriesItem.markArea = deepMerge(
+          seriesItem.markArea,
+          this.handleSetThresholdArea(item.thresholds)
+        );
       }
       if (hasLegend) {
-        Object.keys(legendItem).forEach(key => {
+        Object.keys(legendItem).forEach((key) => {
           if (['min', 'max', 'avg', 'total'].includes(key)) {
-            const set = unitFormatter(legendItem[key], item.unit !== 'none' && precision < 1 ? 2 : precision);
+            const set = unitFormatter(
+              legendItem[key],
+              item.unit !== 'none' && precision < 1 ? 2 : precision
+            );
             legendItem[key] = set.text + (set.suffix || '');
           }
         });
@@ -211,41 +254,32 @@ export default class MonitorLineSeries extends MonitorBaseSeries implements ICha
   // 设置阈值线
   private handleSetThresholdLine(thresholdLine: []) {
     return {
-      symbol: [],
-      label: {
-        show: true,
-        position: 'insideStartTop',
-      },
-      lineStyle: {
-        color: '#FD9C9C',
-        type: 'dashed',
-        distance: 3,
-        width: 1,
-      },
       data: thresholdLine.map((item: any) => ({
         ...item,
         label: {
-          show: true,
           formatter(v: any) {
             return v.name || '';
           },
+          show: true,
         },
       })),
+      label: {
+        position: 'insideStartTop',
+        show: true,
+      },
+      lineStyle: {
+        color: '#FD9C9C',
+        distance: 3,
+        type: 'dashed',
+        width: 1,
+      },
+      symbol: [],
     };
   }
   // 设置阈值面板
   private handleSetThresholdBand(plotBands: { to: number; from: number }[]) {
     return {
-      silent: true,
-      show: true,
-      itemStyle: {
-        color: '#FFF5EC',
-        borderWidth: 1,
-        borderColor: '#FFE9D5',
-        shadowColor: '#FFF5EC',
-        shadowBlur: 0,
-      },
-      data: plotBands.map(item => [
+      data: plotBands.map((item) => [
         {
           xAxis: item.from,
           y: 'max',
@@ -255,11 +289,24 @@ export default class MonitorLineSeries extends MonitorBaseSeries implements ICha
           y: '0%',
         },
       ]),
+      itemStyle: {
+        borderColor: '#FFE9D5',
+        borderWidth: 1,
+        color: '#FFF5EC',
+        shadowBlur: 0,
+        shadowColor: '#FFF5EC',
+      },
       opacity: 0.1,
+      show: true,
+      silent: true,
     };
   }
 
-  private handleGetMinPrecision(data: number[], formattter: ValueFormatter, unit: string) {
+  private handleGetMinPrecision(
+    data: number[],
+    formattter: ValueFormatter,
+    unit: string
+  ) {
     if (!data || data.length === 0) {
       return 0;
     }
@@ -278,7 +325,7 @@ export default class MonitorLineSeries extends MonitorBaseSeries implements ICha
     sampling.push(data[middle]);
     sampling.push(data[middle + Math.floor((len - middle) / 2)]);
     sampling.push(data[len - 1]);
-    sampling = Array.from(new Set(sampling.filter(n => n !== undefined)));
+    sampling = Array.from(new Set(sampling.filter((n) => n !== undefined)));
     while (precision < 5) {
       const samp = sampling.reduce((pre, cur) => {
         pre[formattter(cur, precision).text] = 1;
@@ -295,15 +342,17 @@ export default class MonitorLineSeries extends MonitorBaseSeries implements ICha
   private handleSetThresholdArea(thresholdLine: any[]) {
     const data = this.handleSetThresholdAreaData(thresholdLine);
     return {
+      data,
       label: {
         show: false,
       },
-      data,
     };
   }
 
   private handleSetThresholdAreaData(thresholdLine: any[]) {
-    const threshold = thresholdLine.filter(item => item.method && !['eq', 'neq'].includes(item.method));
+    const threshold = thresholdLine.filter(
+      (item) => item.method && !['eq', 'neq'].includes(item.method)
+    );
 
     const openInterval = ['gte', 'gt']; // 开区间
     const closedInterval = ['lte', 'lt']; // 闭区间
@@ -345,8 +394,8 @@ export default class MonitorLineSeries extends MonitorBaseSeries implements ICha
             ...current,
           },
           {
-            yAxis,
             y: yAxis === 'max' ? '0%' : '',
+            yAxis,
           },
         ]);
     }

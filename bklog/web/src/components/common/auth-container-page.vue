@@ -27,11 +27,7 @@
 <template>
   <div class="auth-page">
     <div class="auth-page-container">
-      <img
-        class="lock-icon"
-        alt="lock"
-        src="../../images/lock-radius.svg"
-      />
+      <img class="lock-icon" alt="lock" src="../../images/lock-radius.svg" />
       <div class="flex-jsb">
         <div class="detail">{{ $t('您没有相应资源的访问权限') }}</div>
         <bk-button
@@ -54,7 +50,11 @@
         <div class="table-content">
           <table class="permission-table">
             <tbody>
-              <template v-if="authorityDetail.actions && authorityDetail.actions.length > 0">
+              <template
+                v-if="
+                  authorityDetail.actions && authorityDetail.actions.length > 0
+                "
+              >
                 <tr
                   v-for="(action, index) in authorityDetail.actions"
                   :key="index"
@@ -62,7 +62,9 @@
                   <td width="30%">{{ action.name }}</td>
                   <td width="50%">
                     <p
-                      v-for="(reItem, reIndex) in getResource(action.related_resource_types)"
+                      v-for="(reItem, reIndex) in getResource(
+                        action.related_resource_types
+                      )"
                       class="resource-type-item"
                       :key="reIndex"
                     >
@@ -72,10 +74,7 @@
                 </tr>
               </template>
               <tr v-else>
-                <td
-                  class="no-data"
-                  colspan="3"
-                >
+                <td class="no-data" colspan="3">
                   {{ $t('无数据') }}
                 </td>
               </tr>
@@ -113,7 +112,10 @@ export default {
       if (!Array.isArray(related)) return [];
       try {
         return related[0].instances[0].reduce(
-          (pre, cur) => (pre.push(`${cur.type_name}: [${cur.id}] ${cur.name}`), pre),
+          (pre, cur) => (
+            pre.push(`${cur.type_name}: [${cur.id}] ${cur.name}`),
+            pre
+          ),
           []
         );
       } catch (error) {
@@ -126,110 +128,110 @@ export default {
 </script>
 
 <style lang="scss" scoped>
-  @import '@/scss/mixins/flex.scss';
+@import '@/scss/mixins/flex.scss';
 
-  .flex-jsb {
-    align-items: center;
+.flex-jsb {
+  align-items: center;
 
-    @include flex-justify(space-between);
+  @include flex-justify(space-between);
+}
+
+.auth-page {
+  height: 100%;
+  min-height: 50%;
+
+  @include flex-center();
+}
+
+.auth-page-container {
+  display: flex;
+  flex-flow: column;
+  align-items: center;
+  width: 800px;
+  transform: translateY(-30%);
+
+  .lock-icon {
+    width: 160px;
+    margin-top: 128px;
   }
 
-  .auth-page {
-    height: 100%;
-    min-height: 50%;
-
-    @include flex-center();
+  .title {
+    margin-top: 26px;
+    font-size: 20px;
+    font-weight: 500;
+    line-height: 28px;
+    color: #313238;
   }
 
-  .auth-page-container {
-    display: flex;
-    flex-flow: column;
-    align-items: center;
-    width: 800px;
-    transform: translateY(-30%);
+  .detail {
+    margin: 30px 10px 0 0;
+    font-size: 14px;
+    line-height: 20px;
+    color: #63656e;
+  }
 
-    .lock-icon {
-      width: 160px;
-      margin-top: 128px;
+  .king-button {
+    margin-top: 30px;
+  }
+
+  .permission-container {
+    margin-top: 20px;
+    border: 1px solid #e7e8ed;
+    border-bottom: 0;
+    box-shadow: 1px -1px 2px #e7e8ed;
+  }
+
+  .permission-table {
+    width: 100%;
+    color: #63656e;
+    table-layout: fixed;
+    border-collapse: collapse;
+    border-bottom: 1px solid #e7e8ed;
+
+    th,
+    td {
+      padding: 12px 18px;
+      font-size: 12px;
+      text-align: left;
+      word-break: break-all;
+      border-bottom: 1px solid #e7e8ed;
     }
 
-    .title {
-      margin-top: 26px;
-      font-size: 20px;
-      font-weight: 500;
-      line-height: 28px;
+    th {
       color: #313238;
+      background: #f5f6fa;
     }
+  }
 
-    .detail {
-      margin: 30px 10px 0 0;
-      font-size: 14px;
-      line-height: 20px;
-      color: #63656e;
-    }
-
-    .king-button {
-      margin-top: 30px;
-    }
-
-    .permission-container {
-      margin-top: 20px;
-      border: 1px solid #e7e8ed;
-      border-bottom: 0;
-      box-shadow: 1px -1px 2px #e7e8ed;
-    }
+  .table-content {
+    max-height: 260px;
+    overflow: auto;
+    border-top: 0;
+    border-bottom: 1px solid #e7e8ed;
 
     .permission-table {
-      width: 100%;
-      color: #63656e;
-      table-layout: fixed;
-      border-collapse: collapse;
-      border-bottom: 1px solid #e7e8ed;
+      border-top: 0;
+      border-bottom: 0;
 
-      th,
-      td {
-        padding: 12px 18px;
-        font-size: 12px;
-        text-align: left;
-        word-break: break-all;
-        border-bottom: 1px solid #e7e8ed;
+      td:last-child {
+        border-right: 0;
       }
 
-      th {
-        color: #313238;
-        background: #f5f6fa;
+      tr:last-child td {
+        border-bottom: 0;
+      }
+
+      .resource-type-item {
+        padding: 0;
+        margin: 0;
       }
     }
 
-    .table-content {
-      max-height: 260px;
-      overflow: auto;
-      border-top: 0;
-      border-bottom: 1px solid #e7e8ed;
-
-      .permission-table {
-        border-top: 0;
-        border-bottom: 0;
-
-        td:last-child {
-          border-right: 0;
-        }
-
-        tr:last-child td {
-          border-bottom: 0;
-        }
-
-        .resource-type-item {
-          padding: 0;
-          margin: 0;
-        }
-      }
-
-      .no-data {
-        padding: 30px;
-        color: #999;
-        text-align: center;
-      }
+    .no-data {
+      padding: 30px;
+      color: #999;
+      text-align: center;
     }
   }
+}
 </style>

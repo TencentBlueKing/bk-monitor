@@ -18,7 +18,9 @@ const isUnionSearch = computed(() => store.getters.isUnionSearch);
 const unionIndexList = computed(() => store.getters.unionIndexList);
 const retrieveParams = computed(() => store.getters.retrieveParams);
 const isLoading = computed(() => store.state.indexFieldInfo.is_loading);
-const gradeOptions = computed(() => store.state.indexFieldInfo.custom_config?.grade_options);
+const gradeOptions = computed(
+  () => store.state.indexFieldInfo.custom_config?.grade_options
+);
 
 const refDataTrendCanvas = ref(null);
 const dynamicHeight = ref(130);
@@ -62,13 +64,16 @@ const getSeriesData = (startTimeStamp, endTimeStamp) => {
   if (finishPolling.value) return;
 
   // 请求间隔时间
-  requestInterval = isStart.value ? requestInterval : handleRequestSplit(startTimeStamp, endTimeStamp);
+  requestInterval = isStart.value
+    ? requestInterval
+    : handleRequestSplit(startTimeStamp, endTimeStamp);
 
   if (!isStart.value) {
     isInit = true;
     sumCount = 0;
     pollingEndTime = endTimeStamp;
-    pollingStartTime = requestInterval > 0 ? pollingEndTime - requestInterval : startTimeStamp;
+    pollingStartTime =
+      requestInterval > 0 ? pollingEndTime - requestInterval : startTimeStamp;
 
     isStart.value = true;
     store.commit('retrieve/updateTrendDataLoading', true);
@@ -99,13 +104,23 @@ const getSeriesData = (startTimeStamp, endTimeStamp) => {
     return;
   }
 
-  const indexId = window.__IS_MONITOR_COMPONENT__ ? route.query.indexId : route.params.indexId;
-  if ((!isUnionSearch.value && !!indexId) || (isUnionSearch.value && unionIndexList.value?.length)) {
+  const indexId = window.__IS_MONITOR_COMPONENT__
+    ? route.query.indexId
+    : route.params.indexId;
+  if (
+    (!isUnionSearch.value && !!indexId) ||
+    (isUnionSearch.value && unionIndexList.value?.length)
+  ) {
     // 从检索切到其他页面时 表格初始化的时候路由中indexID可能拿不到 拿不到 则不请求图表
-    const urlStr = isUnionSearch.value ? 'unionSearch/unionDateHistogram' : 'retrieve/getLogChartList';
+    const urlStr = isUnionSearch.value
+      ? 'unionSearch/unionDateHistogram'
+      : 'retrieve/getLogChartList';
     const queryData = {
       ...retrieveParams.value,
-      addition: [...retrieveParams.value.addition, ...getCommonFilterAdditionWithValues(store.state)],
+      addition: [
+        ...retrieveParams.value.addition,
+        ...getCommonFilterAdditionWithValues(store.state),
+      ],
       time_range: 'customized',
       interval: runningInterval,
       // 每次轮循的起始时间
@@ -137,14 +152,18 @@ const getSeriesData = (startTimeStamp, endTimeStamp) => {
           data: queryData,
         },
         {
-          cancelToken: new CancelToken(c => {
+          cancelToken: new CancelToken((c) => {
             logChartCancel = c;
           }),
         }
       )
-      .then(res => {
+      .then((res) => {
         if (res?.data) {
-          sumCount += setChartData(res?.data?.aggs, queryData.group_field, isInit);
+          sumCount += setChartData(
+            res?.data?.aggs,
+            queryData.group_field,
+            isInit
+          );
           isInit = false;
 
           store.commit('retrieve/updateTrendDataCount', sumCount);
@@ -183,7 +202,10 @@ const loadTrendData = () => {
   runningTimer = setTimeout(() => {
     finishPolling.value = false;
     isStart.value = false;
-    getSeriesData(retrieveParams.value.start_time, retrieveParams.value.end_time);
+    getSeriesData(
+      retrieveParams.value.start_time,
+      retrieveParams.value.end_time
+    );
   });
 };
 
@@ -210,9 +232,9 @@ onBeforeUnmount(() => {
 });
 </script>
 <script>
-  export default {
-    name: 'BkTrendChart',
-  };
+export default {
+  name: 'BkTrendChart',
+};
 </script>
 <template>
   <div
@@ -226,15 +248,15 @@ onBeforeUnmount(() => {
   </div>
 </template>
 <style lang="scss" scoped>
-  .monitor-echart-wrap {
-    position: relative;
-    width: 100%;
-    height: 100%;
-    padding-top: 18px;
-    color: #63656e;
-    background-color: #fff;
-    background-repeat: repeat;
-    background-position: top;
-    border-radius: 2px;
-  }
+.monitor-echart-wrap {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  padding-top: 18px;
+  color: #63656e;
+  background-color: #fff;
+  background-repeat: repeat;
+  background-position: top;
+  border-radius: 2px;
+}
 </style>

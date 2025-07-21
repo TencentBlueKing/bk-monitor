@@ -39,14 +39,8 @@
     <slot />
     <template #content>
       <div class="event-icons">
-        <div
-          v-if="isCluster"
-          class="event-box"
-        >
-          <span
-            class="event-btn"
-            @click="handleClick('show original')"
-          >
+        <div v-if="isCluster" class="event-box">
+          <span class="event-btn" @click="handleClick('show original')">
             <i class="icon bk-icon icon-eye"></i>
             <span>{{ $t('查询命中pattern的日志') }}</span>
           </span>
@@ -59,10 +53,7 @@
           </div>
         </div>
         <div class="event-box">
-          <span
-            class="event-btn"
-            @click="handleClick('copy')"
-          >
+          <span class="event-btn" @click="handleClick('copy')">
             <i class="icon bklog-icon bklog-copy"></i>
             <span>{{ $t('复制') }}</span>
           </span>
@@ -117,8 +108,8 @@ export default {
       if (this.intersectionObserver) {
         this.unregisterOberver();
       }
-      this.intersectionObserver = new IntersectionObserver(entries => {
-        entries.forEach(entry => {
+      this.intersectionObserver = new IntersectionObserver((entries) => {
+        entries.forEach((entry) => {
           if (this.intersectionObserver) {
             if (entry.intersectionRatio <= 0) {
               this.$refs.eventPopover.instance.hide();
@@ -139,99 +130,99 @@ export default {
 </script>
 
 <style lang="scss">
-  @import '@/scss/mixins/flex.scss';
+@import '@/scss/mixins/flex.scss';
 
-  .event-tippy {
-    .event-icons {
-      flex-direction: column;
+.event-tippy {
+  .event-icons {
+    flex-direction: column;
 
-      @include flex-center();
+    @include flex-center();
+  }
+
+  .event-box {
+    min-width: 240px;
+    height: 32px;
+    padding: 0 10px;
+    font-size: 12px;
+    cursor: pointer;
+
+    @include flex-center();
+
+    &:hover {
+      background: #eaf3ff;
     }
+  }
 
-    .event-box {
-      min-width: 240px;
-      height: 32px;
-      padding: 0 10px;
-      font-size: 12px;
-      cursor: pointer;
+  .new-link {
+    width: 24px;
+    height: 24px;
 
-      @include flex-center();
+    @include flex-center();
 
-      &:hover {
-        background: #eaf3ff;
-      }
+    &:hover {
+      color: #3a84ff;
     }
+  }
 
-    .new-link {
-      width: 24px;
-      height: 24px;
+  .event-btn {
+    flex: 1;
+    align-items: center;
 
-      @include flex-center();
+    @include flex-justify(left);
 
-      &:hover {
-        color: #3a84ff;
-      }
+    &:hover {
+      color: #3a84ff;
     }
+  }
 
-    .event-btn {
-      flex: 1;
-      align-items: center;
+  .tippy-tooltip {
+    padding: 6px 2px;
+  }
 
-      @include flex-justify(left);
+  .icon {
+    display: inline-block;
+    font-size: 14px;
+    cursor: pointer;
+  }
 
-      &:hover {
-        color: #3a84ff;
-      }
+  .icon-eye {
+    margin-right: 6px;
+  }
+
+  .icon-copy {
+    margin-left: -4px;
+    font-size: 24px;
+  }
+
+  .icon-copy:before {
+    content: '\e109';
+  }
+}
+
+.retrieve-event-popover {
+  .bk-tooltip-ref {
+    cursor: pointer;
+
+    &:hover {
+      color: #3a84ff;
+    }
+  }
+
+  mark {
+    color: #313238;
+    background: #f0f1f5;
+  }
+
+  &.is-inline {
+    display: inline;
+
+    .bk-tooltip-ref {
+      display: inline;
     }
 
     .tippy-tooltip {
-      padding: 6px 2px;
-    }
-
-    .icon {
-      display: inline-block;
-      font-size: 14px;
-      cursor: pointer;
-    }
-
-    .icon-eye {
-      margin-right: 6px;
-    }
-
-    .icon-copy {
-      margin-left: -4px;
-      font-size: 24px;
-    }
-
-    .icon-copy:before {
-      content: '\e109';
+      padding-left: 0;
     }
   }
-
-  .retrieve-event-popover {
-    .bk-tooltip-ref {
-      cursor: pointer;
-
-      &:hover {
-        color: #3a84ff;
-      }
-    }
-
-    mark {
-      color: #313238;
-      background: #f0f1f5;
-    }
-
-    &.is-inline {
-      display: inline;
-
-      .bk-tooltip-ref {
-        display: inline;
-      }
-
-      .tippy-tooltip {
-        padding-left: 0;
-      }
-    }
-  }
+}
 </style>

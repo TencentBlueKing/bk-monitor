@@ -23,14 +23,13 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import VueRouter from 'vue-router';
-
+import { TimeRangeType } from '@/components/time-range/time-range';
 // @ts-ignore
 import { handleTransformToTimestamp } from '@/components/time-range/utils';
+import VueRouter from 'vue-router';
 
 import { type RouteParams, BK_LOG_STORAGE } from './store.type';
 import RouteUrlResolver from './url-resolver';
-import { TimeRangeType } from '@/components/time-range/time-range';
 
 const DEFAULT_FIELDS_WIDTH = 200;
 
@@ -54,14 +53,14 @@ export const logSourceField = () => {
 };
 
 export const indexSetClusteringData = {
-  // 日志聚类参数
-  name: '',
-  is_active: true,
   extra: {
+    clustering_field: '',
     collector_config_id: null,
     signature_switch: false,
-    clustering_field: '',
   },
+  is_active: true,
+  // 日志聚类参数
+  name: '',
 };
 
 export const routeQueryKeys = [
@@ -81,7 +80,8 @@ export { BkLogGlobalStorageKey };
 
 const updateLocalstorage = (val: any) => {
   try {
-    const storageValue = window.localStorage.getItem(BkLogGlobalStorageKey) ?? '{}';
+    const storageValue =
+      window.localStorage.getItem(BkLogGlobalStorageKey) ?? '{}';
     const jsonVal = JSON.parse(storageValue);
     Object.assign(jsonVal, val);
     localStorage.setItem(BkLogGlobalStorageKey, JSON.stringify(jsonVal));
@@ -97,12 +97,12 @@ const getUrlArgs = (_route?) => {
     const router = new VueRouter({
       routes: [
         {
+          meta: {
+            navId: 'retrieve',
+            title: '检索',
+          },
           path: '',
           redirect: 'retrieve',
-          meta: {
-            title: '检索',
-            navId: 'retrieve',
-          },
         },
         {
           name: 'retrieve',
@@ -116,12 +116,17 @@ const getUrlArgs = (_route?) => {
     urlResolver = new RouteUrlResolver({ route: route.resolved });
     urlResolver.setResolver('index_id', () => {
       // #if MONITOR_APP !== 'apm' && MONITOR_APP !== 'trace'
-      return route.resolved.params.indexId ? `${route.resolved.params.indexId}` : '';
+      return route.resolved.params.indexId
+        ? `${route.resolved.params.indexId}`
+        : '';
       // #else
       // #code return route.resolved.query.indexId ? `${route.resolved.query.indexId}` : '';
       // #endif
     });
-    urlResolver.setResolver('search_mode', () => route.resolved.query.search_mode);
+    urlResolver.setResolver(
+      'search_mode',
+      () => route.resolved.query.search_mode
+    );
   } else {
     urlResolver = new RouteUrlResolver({ route: _route });
     urlResolver.setResolver('index_id', () => {
@@ -137,13 +142,15 @@ const getUrlArgs = (_route?) => {
   const result = urlResolver.convertQueryToStore<RouteParams>();
 
   if (result.search_mode) {
-    updateLocalstorage({ [BK_LOG_STORAGE.SEARCH_TYPE]: result.search_mode === 'sql' ? 1 : 0 });
+    updateLocalstorage({
+      [BK_LOG_STORAGE.SEARCH_TYPE]: result.search_mode === 'sql' ? 1 : 0,
+    });
   }
   return result;
 };
 
 let URL_ARGS = getUrlArgs();
-const update_URL_ARGS = route => {
+const update_URL_ARGS = (route) => {
   URL_ARGS = getUrlArgs(route);
   return URL_ARGS;
 };
@@ -152,16 +159,21 @@ export { URL_ARGS, update_URL_ARGS };
 
 export const getDefaultRetrieveParams = (defaultValue?) => {
   return {
-    keyword: '',
-    host_scopes: { modules: [], ips: '', target_nodes: [], target_node_type: '' },
-    ip_chooser: {},
     addition: [],
-    sort_list: [],
     begin: 0,
-    size: 50,
+    host_scopes: {
+      ips: '',
+      modules: [],
+      target_node_type: '',
+      target_nodes: [],
+    },
     interval: 'auto',
-    timezone: 'Asia/Shanghai',
+    ip_chooser: {},
+    keyword: '',
     search_mode: 'ui',
+    size: 50,
+    sort_list: [],
+    timezone: 'Asia/Shanghai',
     ...(defaultValue ?? {}),
     ...URL_ARGS,
   };
@@ -169,80 +181,85 @@ export const getDefaultRetrieveParams = (defaultValue?) => {
 
 export const getDefaultDatePickerValue = () => {
   const datePickerValue = ['now-15m', 'now'];
-  const format = localStorage.getItem('SEARCH_DEFAULT_TIME_FORMAT') ?? 'YYYY-MM-DD HH:mm:ss';
-  const [start_time, end_time] = handleTransformToTimestamp(datePickerValue as TimeRangeType, format);
+  const format =
+    localStorage.getItem('SEARCH_DEFAULT_TIME_FORMAT') ?? 'YYYY-MM-DD HH:mm:ss';
+  const [start_time, end_time] = handleTransformToTimestamp(
+    datePickerValue as TimeRangeType,
+    format
+  );
 
-  return { datePickerValue, start_time, end_time, format };
+  return { datePickerValue, end_time, format, start_time };
 };
 
 export const DEFAULT_RETRIEVE_PARAMS = getDefaultRetrieveParams();
 export const DEFAULT_DATETIME_PARAMS = getDefaultDatePickerValue();
 
 export const IndexSetQueryResult = {
-  is_loading: false,
-  exception_msg: '',
-  is_error: false,
-  request_counter: 0,
-  search_count: 0,
-  aggregations: {},
   _shards: {},
-  total: 0,
-  took: 0,
+  aggregations: {},
+  aggs: {},
+  exception_msg: '',
+  fields: [],
+  is_error: false,
+  is_loading: false,
   list: [],
   origin_log_list: [],
-  aggs: {},
-  fields: [],
+  request_counter: 0,
+  search_count: 0,
+  took: 0,
+  total: 0,
 };
 
 export const IndexFieldInfo = {
-  is_loading: false,
-  request_counter: 0,
-  fields: [],
+  aggs_items: {},
+  config: [],
+  config_id: 0,
+  custom_config: {
+    grade_options: {
+      disabled: false,
+      field: null,
+      settings: [],
+      type: 'normal',
+    },
+  },
   display_fields: [],
+  fields: [],
+  is_loading: false,
+  last_eggs_request_token: null,
+  request_counter: 0,
   sort_list: [],
   time_field: '',
   time_field_type: '',
   time_field_unit: '',
-  config: [],
-  config_id: 0,
-  aggs_items: {},
-  last_eggs_request_token: null,
-  custom_config: {
-    grade_options: {
-      disabled: false,
-      type: 'normal',
-      field: null,
-      settings: [],
-    },
-  },
   user_custom_config: {
-    filterSetting: [],
     displayFields: [],
     fieldsWidth: {},
     filterAddition: [],
+    filterSetting: [],
   },
 };
 
 export const IndexsetItemParams = { ...DEFAULT_RETRIEVE_PARAMS };
 export const IndexItem = {
-  ids: (URL_ARGS.unionList?.length ? [...URL_ARGS.unionList] : [URL_ARGS.index_id]).filter(
-    t => t !== '' && t !== undefined && t !== null
-  ),
-  isUnionIndex: URL_ARGS.unionList?.length ?? false,
-  items: [],
   catchUnionBeginList: [],
-  selectIsUnionSearch: URL_ARGS.unionList?.length ?? false,
   chart_params: {
     activeGraphCategory: 'table',
     chartActiveType: 'table',
     dimensions: [],
-    sql: '',
-    xFields: [],
-    yFields: [],
-    // 这里的fromCollectionActiveTab用于标识当前来自收藏的点击操作是否已经激活图表分析Tab
     // 这里每次的收藏选择应该只会激活一次
     fromCollectionActiveTab: undefined,
+    sql: '',
+    xFields: [],
+    // 这里的fromCollectionActiveTab用于标识当前来自收藏的点击操作是否已经激活图表分析Tab
+    yFields: [],
   },
+  ids: (URL_ARGS.unionList?.length
+    ? [...URL_ARGS.unionList]
+    : [URL_ARGS.index_id]
+  ).filter((t) => t !== '' && t !== undefined && t !== null),
+  isUnionIndex: URL_ARGS.unionList?.length ?? false,
+  items: [],
+  selectIsUnionSearch: URL_ARGS.unionList?.length ?? false,
   ...IndexsetItemParams,
   ...DEFAULT_DATETIME_PARAMS,
 };
@@ -253,7 +270,8 @@ export const IndexItem = {
  * @returns
  */
 export const getStorageOptions = (values?: any) => {
-  const storageValue = window.localStorage.getItem(BkLogGlobalStorageKey) ?? '{}';
+  const storageValue =
+    window.localStorage.getItem(BkLogGlobalStorageKey) ?? '{}';
   let storage = {};
   if (storageValue) {
     try {
@@ -263,13 +281,16 @@ export const getStorageOptions = (values?: any) => {
       // 如果传入了默认值，判定是否为SpaceUid或BizId
       // 如果是，则将其赋值到storage中，并删除传入的值
       // bizId 和 spaceUid通过iframe传入
-      if (values?.[BK_LOG_STORAGE.BK_SPACE_UID] || values?.[BK_LOG_STORAGE.BK_BIZ_ID]) {
+      if (
+        values?.[BK_LOG_STORAGE.BK_SPACE_UID] ||
+        values?.[BK_LOG_STORAGE.BK_BIZ_ID]
+      ) {
         Object.assign(storage, values);
         delete values[BK_LOG_STORAGE.BK_SPACE_UID];
         delete values[BK_LOG_STORAGE.BK_BIZ_ID];
       }
 
-      Object.keys(values ?? {}).forEach(key => {
+      Object.keys(values ?? {}).forEach((key) => {
         if (values[key] !== undefined && values[key] !== null) {
           update = true;
           Object.assign(storage, { [key]: values[key] });
@@ -311,7 +332,10 @@ export const getStorageOptions = (values?: any) => {
       });
 
       if (update) {
-        window.localStorage.setItem(BkLogGlobalStorageKey, JSON.stringify(storage));
+        window.localStorage.setItem(
+          BkLogGlobalStorageKey,
+          JSON.stringify(storage)
+        );
       }
     } catch (e) {
       console.error(e);
@@ -330,24 +354,24 @@ export const getStorageOptions = (values?: any) => {
 
   return Object.assign(
     {
-      [BK_LOG_STORAGE.TABLE_LINE_IS_WRAP]: false,
-      [BK_LOG_STORAGE.TABLE_JSON_FORMAT]: false,
-      [BK_LOG_STORAGE.TABLE_JSON_FORMAT_DEPTH]: 1,
-      [BK_LOG_STORAGE.TABLE_SHOW_ROW_INDEX]: false,
-      [BK_LOG_STORAGE.TABLE_ALLOW_EMPTY_FIELD]: false,
-      [BK_LOG_STORAGE.IS_LIMIT_EXPAND_VIEW]: false,
-      [BK_LOG_STORAGE.SHOW_FIELD_ALIAS]: true,
-      [BK_LOG_STORAGE.TEXT_ELLIPSIS_DIR]: 'end',
-      [BK_LOG_STORAGE.SEARCH_TYPE]: 0,
-      [BK_LOG_STORAGE.INDEX_SET_ACTIVE_TAB]: activeTab,
+      [BK_LOG_STORAGE.COMMON_SPACE_ID_LIST]: [],
       [BK_LOG_STORAGE.FAVORITE_ID]: URL_ARGS[BK_LOG_STORAGE.FAVORITE_ID],
-      [BK_LOG_STORAGE.HISTORY_ID]: URL_ARGS[BK_LOG_STORAGE.HISTORY_ID],
       [BK_LOG_STORAGE.FIELD_SETTING]: {
         show: true,
         width: DEFAULT_FIELDS_WIDTH,
       },
+      [BK_LOG_STORAGE.HISTORY_ID]: URL_ARGS[BK_LOG_STORAGE.HISTORY_ID],
+      [BK_LOG_STORAGE.INDEX_SET_ACTIVE_TAB]: activeTab,
+      [BK_LOG_STORAGE.IS_LIMIT_EXPAND_VIEW]: false,
       [BK_LOG_STORAGE.LAST_INDEX_SET_ID]: {},
-      [BK_LOG_STORAGE.COMMON_SPACE_ID_LIST]: [],
+      [BK_LOG_STORAGE.SEARCH_TYPE]: 0,
+      [BK_LOG_STORAGE.SHOW_FIELD_ALIAS]: true,
+      [BK_LOG_STORAGE.TABLE_ALLOW_EMPTY_FIELD]: false,
+      [BK_LOG_STORAGE.TABLE_JSON_FORMAT]: false,
+      [BK_LOG_STORAGE.TABLE_JSON_FORMAT_DEPTH]: 1,
+      [BK_LOG_STORAGE.TABLE_LINE_IS_WRAP]: false,
+      [BK_LOG_STORAGE.TABLE_SHOW_ROW_INDEX]: false,
+      [BK_LOG_STORAGE.TEXT_ELLIPSIS_DIR]: 'end',
     },
     storage
   );

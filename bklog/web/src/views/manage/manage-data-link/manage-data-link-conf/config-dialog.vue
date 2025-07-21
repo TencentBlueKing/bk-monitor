@@ -260,7 +260,10 @@ export default {
   watch: {
     visible(val) {
       if (val) {
-        this.dialogTitle = this.type === 'create' ? this.$t('新建链路配置') : this.$t('编辑链路配置');
+        this.dialogTitle =
+          this.type === 'create'
+            ? this.$t('新建链路配置')
+            : this.$t('编辑链路配置');
         this.formData = JSON.parse(JSON.stringify(this.dataSource));
         this.$refs.form.clearError();
       }
@@ -312,19 +315,19 @@ export default {
 </script>
 
 <style lang="scss" scoped>
-  .link-config-form {
-    :deep(.bk-form-content) {
-      position: relative;
+.link-config-form {
+  :deep(.bk-form-content) {
+    position: relative;
 
-      .form-error-tip {
-        position: absolute;
-        top: 32px;
-        margin: 0;
-      }
+    .form-error-tip {
+      position: absolute;
+      top: 32px;
+      margin: 0;
     }
   }
+}
 </style>
 
 <style lang="scss">
-  @import '@/scss/space-tag-option';
+@import '@/scss/space-tag-option';
 </style>

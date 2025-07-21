@@ -55,10 +55,7 @@
       @chart-loading="handleChartLoading"
       @dblclick="handleDbClick"
     />
-    <div
-      v-if="isEmptyChart && !isFold"
-      class="chart-empty"
-    >
+    <div v-if="isEmptyChart && !isFold" class="chart-empty">
       <svg
         width="256"
         height="256"
@@ -68,7 +65,9 @@
         xmlns="http://www.w3.org/2000/svg"
       >
         <path d="M128 160h64v640h704v64H128z"></path>
-        <path d="M307.2 636.8l-44.8-44.8 220.8-220.8 137.6 134.4 227.2-227.2 44.8 44.8-272 272-137.6-134.4z"></path>
+        <path
+          d="M307.2 636.8l-44.8-44.8 220.8-220.8 137.6 134.4 227.2-227.2 44.8 44.8-272 272-137.6-134.4z"
+        ></path>
       </svg>
       <span class="text">{{ $t('暂无数据') }}</span>
     </div>
@@ -201,7 +200,8 @@ export default {
     /** 未开启白名单时 是否由前端来统计总数 */
     isFrontStatistics() {
       let isFront = true;
-      const { field_analysis_config: fieldAnalysisToggle } = window.FEATURE_TOGGLE;
+      const { field_analysis_config: fieldAnalysisToggle } =
+        window.FEATURE_TOGGLE;
       switch (fieldAnalysisToggle) {
         case 'on':
           isFront = false;
@@ -210,10 +210,15 @@ export default {
           isFront = true;
           break;
         default:
-          const { scenario_id_white_list: scenarioIdWhiteList } = window.FIELD_ANALYSIS_CONFIG;
-          const { field_analysis_config: fieldAnalysisConfig } = window.FEATURE_TOGGLE_WHITE_LIST;
+          const { scenario_id_white_list: scenarioIdWhiteList } =
+            window.FIELD_ANALYSIS_CONFIG;
+          const { field_analysis_config: fieldAnalysisConfig } =
+            window.FEATURE_TOGGLE_WHITE_LIST;
           const scenarioID = this.indexSetItem?.scenario_id;
-          isFront = !(scenarioIdWhiteList?.includes(scenarioID) && fieldAnalysisConfig?.includes(Number(this.bkBizId)));
+          isFront = !(
+            scenarioIdWhiteList?.includes(scenarioID) &&
+            fieldAnalysisConfig?.includes(Number(this.bkBizId))
+          );
           break;
       }
       return isFront;
@@ -286,7 +291,11 @@ export default {
         !this.isFrontStatistics && this.getInfoTotalNum();
         this.totalCount = 0;
         // 框选时间范围
-        window.bus.$emit('changeTimeByChart', [startTime, endTime], 'customized');
+        window.bus.$emit(
+          'changeTimeByChart',
+          [startTime, endTime],
+          'customized'
+        );
       }
 
       // 轮循结束
@@ -313,7 +322,10 @@ export default {
         this.pollingEndTime = endTimeStamp;
         this.pollingStartTime = this.pollingEndTime - this.requestInterval;
 
-        if (this.pollingStartTime < startTimeStamp || this.requestInterval === 0) {
+        if (
+          this.pollingStartTime < startTimeStamp ||
+          this.requestInterval === 0
+        ) {
           this.pollingStartTime = startTimeStamp;
           // 轮询结束
           this.finishPolling = true;
@@ -333,7 +345,9 @@ export default {
         (this.isUnionSearch && this.unionIndexList?.length)
       ) {
         // 从检索切到其他页面时 表格初始化的时候路由中indexID可能拿不到 拿不到 则不请求图表
-        const urlStr = this.isUnionSearch ? 'unionSearch/unionDateHistogram' : 'retrieve/getLogChartList';
+        const urlStr = this.isUnionSearch
+          ? 'unionSearch/unionDateHistogram'
+          : 'retrieve/getLogChartList';
         const queryData = {
           ...this.retrieveParams,
           addition: this.localAddition,
@@ -356,15 +370,16 @@ export default {
               data: queryData,
             },
             {
-              cancelToken: new CancelToken(c => {
+              cancelToken: new CancelToken((c) => {
                 this.logChartCancel = c;
               }),
             }
           )
           .catch(() => false);
         if (res?.data) {
-          const originChartData = res?.data?.aggs?.group_by_histogram?.buckets || [];
-          const targetArr = originChartData.map(item => {
+          const originChartData =
+            res?.data?.aggs?.group_by_histogram?.buckets || [];
+          const targetArr = originChartData.map((item) => {
             this.totalCount = this.totalCount + item.doc_count;
             return [item.doc_count, item.key];
           });
@@ -376,7 +391,10 @@ export default {
 
           for (let i = 0; i < targetArr.length; i++) {
             for (let j = 0; j < this.optionData.length; j++) {
-              if (this.optionData[j][1] === targetArr[i][1] && targetArr[i][0] > 0) {
+              if (
+                this.optionData[j][1] === targetArr[i][1] &&
+                targetArr[i][0] > 0
+              ) {
                 // 根据请求结果匹配对应时间下数量叠加
                 this.optionData[j][0] = this.optionData[j][0] + targetArr[i][0];
               }
@@ -398,12 +416,17 @@ export default {
     },
     // 双击回到初始化时间范围
     handleDbClick() {
-      const { cacheDatePickerValue, cacheTimeRange } = this.$store.state.retrieve;
+      const { cacheDatePickerValue, cacheTimeRange } =
+        this.$store.state.retrieve;
 
       if (this.timeRange.length) {
         this.timeRange = [];
         setTimeout(() => {
-          window.bus.$emit('changeTimeByChart', cacheDatePickerValue, cacheTimeRange);
+          window.bus.$emit(
+            'changeTimeByChart',
+            cacheDatePickerValue,
+            cacheTimeRange
+          );
           this.finishPolling = true;
           this.totalCount = 0;
           !this.isFrontStatistics && this.getInfoTotalNum();
@@ -439,16 +462,18 @@ export default {
             {
               data: {
                 ...this.retrieveParams,
-                index_set_ids: this.isUnionSearch ? this.unionIndexList : [this.$route.params.indexId],
+                index_set_ids: this.isUnionSearch
+                  ? this.unionIndexList
+                  : [this.$route.params.indexId],
               },
             },
             {
-              cancelToken: new CancelToken(c => {
+              cancelToken: new CancelToken((c) => {
                 this.infoTotalCancel = c;
               }),
             }
           )
-          .then(res => {
+          .then((res) => {
             const { data, code } = res;
             if (code === 0) this.infoTotal = data.total_count;
           })
@@ -465,76 +490,76 @@ export default {
 </script>
 
 <style lang="scss">
-  .monitor-echarts-container {
-    position: relative;
-    // height: 160px;
-    overflow: hidden;
-    background-color: #fff;
+.monitor-echarts-container {
+  position: relative;
+  // height: 160px;
+  overflow: hidden;
+  background-color: #fff;
 
-    &.is-fold {
-      height: 60px;
-    }
+  &.is-fold {
+    height: 60px;
+  }
 
-    :deep(.echart-legend) {
-      display: flex;
-      justify-content: center;
-    }
+  :deep(.echart-legend) {
+    display: flex;
+    justify-content: center;
+  }
 
-    .converge-cycle-old {
-      position: absolute;
-      top: 17px;
-      left: 80px;
+  .converge-cycle-old {
+    position: absolute;
+    top: 17px;
+    left: 80px;
+    display: inline-block;
+    margin-left: 24px;
+    font-size: 12px;
+    color: #4d4f56;
+
+    .select-custom {
       display: inline-block;
-      margin-left: 24px;
-      font-size: 12px;
-      color: #4d4f56;
-
-      .select-custom {
-        display: inline-block;
-        margin-left: 5px;
-        vertical-align: middle;
-      }
-    }
-
-    .chart-empty {
-      position: absolute;
-      top: 0;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      width: 100%;
-      height: 100%;
-      background: #fff;
-
-      .icon-chart {
-        width: 38px;
-        height: 38px;
-        fill: #dcdee6;
-      }
-
-      .text {
-        font-size: 14px;
-        color: #979ba5;
-      }
-    }
-
-    .title-wrapper {
-      padding: 14px 24px 0;
-    }
-
-    .monitor-echart-wrap {
-      // height: 116px;
-      padding-top: 0;
-      padding-bottom: 0;
-
-      .chart-wrapper {
-        /* stylelint-disable-next-line declaration-no-important */
-        min-height: 116px !important;
-
-        /* stylelint-disable-next-line declaration-no-important */
-        max-height: 116px !important;
-      }
+      margin-left: 5px;
+      vertical-align: middle;
     }
   }
+
+  .chart-empty {
+    position: absolute;
+    top: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+    background: #fff;
+
+    .icon-chart {
+      width: 38px;
+      height: 38px;
+      fill: #dcdee6;
+    }
+
+    .text {
+      font-size: 14px;
+      color: #979ba5;
+    }
+  }
+
+  .title-wrapper {
+    padding: 14px 24px 0;
+  }
+
+  .monitor-echart-wrap {
+    // height: 116px;
+    padding-top: 0;
+    padding-bottom: 0;
+
+    .chart-wrapper {
+      /* stylelint-disable-next-line declaration-no-important */
+      min-height: 116px !important;
+
+      /* stylelint-disable-next-line declaration-no-important */
+      max-height: 116px !important;
+    }
+  }
+}
 </style>

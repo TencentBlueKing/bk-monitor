@@ -83,7 +83,7 @@ export default {
       }
     },
     handleChange(val) {
-      const realVal = val.filter(item => item !== undefined);
+      const realVal = val.filter((item) => item !== undefined);
       this.isError = !realVal.length;
       this.$emit('change', realVal);
     },
@@ -92,11 +92,14 @@ export default {
     },
     pasteFn(val) {
       const users = [...this.value];
-      val.split(';').forEach(item => {
+      val.split(';').forEach((item) => {
         item = item.trim();
         if (item) {
-          this.list.forEach(user => {
-            if ((user.displayname === item || user.username === item) && !users.includes(user.username)) {
+          this.list.forEach((user) => {
+            if (
+              (user.displayname === item || user.username === item) &&
+              !users.includes(user.username)
+            ) {
               users.push(user.username);
             }
           });
@@ -110,7 +113,7 @@ export default {
 </script>
 
 <style lang="scss" scoped>
-  .validate-user-selector :deep(.is-error .user-selector-container) {
-    border-color: #ff5656;
-  }
+.validate-user-selector :deep(.is-error .user-selector-container) {
+  border-color: #ff5656;
+}
 </style>

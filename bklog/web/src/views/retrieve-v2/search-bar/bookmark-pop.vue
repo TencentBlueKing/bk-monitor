@@ -35,7 +35,11 @@ const props = defineProps({
     type: Boolean,
   },
 });
-const emit = defineEmits(['refresh', 'save-current-active-favorite', 'instanceShow']);
+const emit = defineEmits([
+  'refresh',
+  'save-current-active-favorite',
+  'instanceShow',
+]);
 const { $t } = useLocale();
 const store = useStore();
 
@@ -50,12 +54,16 @@ const indexSetItem = computed(() => store.state.indexItem);
 const indexSetName = computed(() => {
   const indexSetList = store.state.retrieve.indexSetList || [];
   const indexSetId = store.state.indexId;
-  const indexSet = indexSetList.find(item => item.index_set_id == indexSetId);
+  const indexSet = indexSetList.find((item) => item.index_set_id == indexSetId);
   return indexSet ? indexSet.index_set_name : ''; // 提供一个默认名称或处理
 });
 const collectGroupList = computed(() => store.state.favoriteList);
-const favStrList = computed(() => store.state.favoriteList.map(item => item.name));
-const unknownGroupID = computed(() => collectGroupList.value[collectGroupList.value.length - 1]?.group_id);
+const favStrList = computed(() =>
+  store.state.favoriteList.map((item) => item.name)
+);
+const unknownGroupID = computed(
+  () => collectGroupList.value[collectGroupList.value.length - 1]?.group_id
+);
 const privateGroupID = computed(() => collectGroupList.value[0]?.group_id);
 // 表单ref
 const popoverFormRef = ref();
@@ -97,7 +105,9 @@ const checkName = () => {
 };
 
 const checkExistName = () => {
-  return !collectGroupList.value.some(item => item.name === verifyData.value.groupName);
+  return !collectGroupList.value.some(
+    (item) => item.name === verifyData.value.groupName
+  );
 };
 const checkSpecification = () => {
   return /^[\u4e00-\u9fa5_a-zA-Z0-9`~!@#$%^&*()_\-+=<>?:"{}|\s,.\/;'\\[\]·~！@#￥%……&*（）——\-+={}|《》？：“”【】、；‘'，。、]+$/im.test(
@@ -105,7 +115,9 @@ const checkSpecification = () => {
   );
 };
 const checkCannotUseName = () => {
-  return ![$t('个人收藏'), $t('未分组')].includes(favoriteData.value.name.trim());
+  return ![$t('个人收藏'), $t('未分组')].includes(
+    favoriteData.value.name.trim()
+  );
 };
 
 /** 判断是否收藏名是否重复 */
@@ -173,7 +185,10 @@ const checkInputFormRef = ref();
 // 确认新增组事件
 const handleCreateGroup = () => {
   checkInputFormRef.value.validate().then(async () => {
-    const data = { name: verifyData.value.groupName, space_uid: spaceUid.value };
+    const data = {
+      name: verifyData.value.groupName,
+      space_uid: spaceUid.value,
+    };
     try {
       const res = await $http.request('favorite/createGroup', {
         data,
@@ -192,17 +207,18 @@ const handleCreateGroup = () => {
   });
 };
 // 组选择事件
-const handleSelectGroup = nVal => {
+const handleSelectGroup = (nVal) => {
   if (collectGroupList.value.length > 0) {
-    const visibleType = nVal === collectGroupList.value[0].group_id ? 'private' : 'public';
+    const visibleType =
+      nVal === collectGroupList.value[0].group_id ? 'private' : 'public';
     Object.assign(favoriteData.value, { visibleType });
   }
 };
 
 const formatAddition = computed(() =>
   props.addition
-    .filter(item => !item.disabled)
-    .map(item => {
+    .filter((item) => !item.disabled)
+    .map((item) => {
       const instance = new ConditionOperator(item);
       return instance.getRequestParam();
     })
@@ -215,7 +231,10 @@ const additionString = computed(() => {
         const target = value?.[0] ?? {};
         return Object.keys(target)
           .reduce((output, key) => {
-            return [...output, `${key}:[${(target[key] ?? []).map(c => c.ip ?? c.objectId ?? c.id).join(' ')}]`];
+            return [
+              ...output,
+              `${key}:[${(target[key] ?? []).map((c) => c.ip ?? c.objectId ?? c.id).join(' ')}]`,
+            ];
           }, [])
           .join(' AND ');
       }
@@ -238,11 +257,15 @@ const sqlString = computed(() => {
 
 // 新建提交逻辑
 const handleCreateRequest = async () => {
-  const { name, group_id, display_fields, id, is_enable_display_fields } = favoriteData.value;
+  const { name, group_id, display_fields, id, is_enable_display_fields } =
+    favoriteData.value;
 
   const searchParams = ['sql', 'sqlChart'].includes(props.searchMode)
     ? { keyword: props.sql, addition: [], ...(props.extendParams ?? {}) }
-    : { addition: formatAddition.value.filter(v => v.field !== '_ip-select_'), keyword: '*' };
+    : {
+        addition: formatAddition.value.filter((v) => v.field !== '_ip-select_'),
+        keyword: '*',
+      };
 
   const data = {
     name,
@@ -251,7 +274,9 @@ const handleCreateRequest = async () => {
     visible_type: group_id === privateGroupID.value ? 'private' : 'public',
     is_enable_display_fields,
     search_mode: props.searchMode,
-    ip_chooser: formatAddition.value.find(item => item.field === '_ip-select_')?.value?.[0] ?? {},
+    ip_chooser:
+      formatAddition.value.find((item) => item.field === '_ip-select_')
+        ?.value?.[0] ?? {},
     index_set_ids: [],
     index_set_names: [],
     space_uid: spaceUid.value,
@@ -296,7 +321,8 @@ const handleSubmitFormData = () => {
   popoverFormRef.value.validate().then(() => {
     if (!unknownGroupID.value) return;
     // 未选择组则新增到未分组中
-    if (!favoriteData.value.group_id) favoriteData.value.group_id = unknownGroupID.value;
+    if (!favoriteData.value.group_id)
+      favoriteData.value.group_id = unknownGroupID.value;
     handleCreateRequest();
   });
 };
@@ -387,10 +413,7 @@ const handlePopoverHide = () => {
       @click="handleCollection"
       ><slot></slot
     ></span>
-    <bk-dropdown-menu
-      v-else
-      :align="'center'"
-    >
+    <bk-dropdown-menu v-else :align="'center'">
       <template #dropdown-trigger>
         <div
           style="font-size: 18px"
@@ -409,11 +432,9 @@ const handlePopoverHide = () => {
             >
           </li>
           <li>
-            <a
-              href="javascript:;"
-              @click.stop="handleCollection"
-              >{{ $t('另存为新收藏') }}</a
-            >
+            <a href="javascript:;" @click.stop="handleCollection">{{
+              $t('另存为新收藏')
+            }}</a>
           </li>
         </ul>
       </template>
@@ -430,20 +451,13 @@ const handlePopoverHide = () => {
           :rules="rules"
           form-type="vertical"
         >
-          <bk-form-item
-            :property="'name'"
-            :label="$t('收藏名称')"
-            required
-          >
+          <bk-form-item :property="'name'" :label="$t('收藏名称')" required>
             <bk-input
               ref="favoriteNameInputRef"
               v-model="favoriteData.name"
             ></bk-input>
           </bk-form-item>
-          <bk-form-item
-            :property="'project'"
-            :label="$t('所属分组')"
-          >
+          <bk-form-item :property="'project'" :label="$t('所属分组')">
             <bk-select
               ext-cls="add-popover-new-page-container"
               v-model="favoriteData.group_id"
@@ -457,7 +471,11 @@ const handlePopoverHide = () => {
                 v-for="item in collectGroupList"
                 :id="item.group_id"
                 :key="item.group_id"
-                :name="item.group_type === 'private' ? `${item.group_name} (${$t('仅个人可见')})` : item.group_name"
+                :name="
+                  item.group_type === 'private'
+                    ? `${item.group_name} (${$t('仅个人可见')})`
+                    : item.group_name
+                "
               >
                 <span>{{ item.group_name }}</span>
                 <span
@@ -478,10 +496,7 @@ const handlePopoverHide = () => {
                     <i class="bk-icon icon-plus-circle" />
                     <span class="add-text">{{ $t('新增分组') }}</span>
                   </div>
-                  <div
-                    v-else
-                    class="add-new-page-input"
-                  >
+                  <div v-else class="add-new-page-input">
                     <bk-form
                       ref="checkInputFormRef"
                       style="width: 100%"
@@ -492,7 +507,9 @@ const handlePopoverHide = () => {
                       <bk-form-item property="groupName">
                         <bk-input
                           v-model="verifyData.groupName"
-                          :placeholder="$t('{n}, （长度30个字符）', { n: $t('请输入组名') })"
+                          :placeholder="
+                            $t('{n}, （长度30个字符）', { n: $t('请输入组名') })
+                          "
                           clearable
                         ></bk-input>
                       </bk-form-item>
@@ -559,5 +576,5 @@ const handlePopoverHide = () => {
   </bk-popover>
 </template>
 <style lang="scss">
-  @import './bookmark-pop.scss';
+@import './bookmark-pop.scss';
 </style>

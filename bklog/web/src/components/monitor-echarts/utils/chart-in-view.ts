@@ -30,10 +30,18 @@ export default class ChartInView {
   public chartInBottom: InTopOrBottom;
   public timer: any;
   public rect: DOMRect;
-  public constructor(inTop: InTopOrBottom, inBottom: InTopOrBottom, rect: DOMRect) {
+  public constructor(
+    inTop: InTopOrBottom,
+    inBottom: InTopOrBottom,
+    rect: DOMRect
+  ) {
     this.setCharInView(inTop, inBottom, rect);
   }
-  public setCharInView(inTop: InTopOrBottom, inBottom: InTopOrBottom, rect: DOMRect) {
+  public setCharInView(
+    inTop: InTopOrBottom,
+    inBottom: InTopOrBottom,
+    rect: DOMRect
+  ) {
     this.chartInTop = inTop;
     this.chartInBottom = inBottom;
     this.rect = rect;

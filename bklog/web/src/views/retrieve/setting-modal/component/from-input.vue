@@ -25,15 +25,8 @@
 -->
 <template>
   <div class="check-container">
-    <div
-      v-show="!isShowAddInput"
-      class="add-new"
-      @click="handleShowAddInput"
-    >
-      <bk-button
-        class="config-btn"
-        :text="true"
-      >
+    <div v-show="!isShowAddInput" class="add-new" @click="handleShowAddInput">
+      <bk-button class="config-btn" :text="true">
         <i class="bk-icon icon-plus-circle-shape"></i>
         <span>{{ btnStr }}</span>
       </bk-button>
@@ -46,10 +39,7 @@
       :model="verifyData"
       :rules="verifyRules"
     >
-      <bk-form-item
-        property="inputStr"
-        :error-display-type="'normal'"
-      >
+      <bk-form-item property="inputStr" :error-display-type="'normal'">
         <div class="config-tab-item">
           <bk-input
             v-model="verifyData.inputStr"
@@ -57,14 +47,8 @@
             @enter="handleAddNew"
           ></bk-input>
           <div class="panel-operate">
-            <i
-              class="bk-icon icon-check-line"
-              @click="handleAddNew"
-            ></i>
-            <i
-              class="bk-icon icon-close-line-2"
-              @click="handleCancelNew"
-            ></i>
+            <i class="bk-icon icon-check-line" @click="handleAddNew"></i>
+            <i class="bk-icon icon-close-line-2" @click="handleCancelNew"></i>
           </div>
         </div>
       </bk-form-item>
@@ -105,7 +89,9 @@ export default {
         inputStr: [
           {
             validator: this.checkName,
-            message: this.$t('{n}不规范, 包含特殊符号', { n: this.$t('模板名称') }),
+            message: this.$t('{n}不规范, 包含特殊符号', {
+              n: this.$t('模板名称'),
+            }),
             trigger: 'blur',
           },
           {
@@ -145,7 +131,9 @@ export default {
       );
     },
     checkExistName() {
-      return !this.templateList.some(item => item.name === this.verifyData.inputStr);
+      return !this.templateList.some(
+        (item) => item.name === this.verifyData.inputStr
+      );
     },
     handleAddNew() {
       this.$refs.checkInputForm.validate().then(() => {
@@ -167,65 +155,65 @@ export default {
 };
 </script>
 <style lang="scss" scoped>
-  @import '@/scss/mixins/flex.scss';
+@import '@/scss/mixins/flex.scss';
 
-  .check-container {
-    .add-new {
-      height: 40px;
-      color: #3a84ff;
-      cursor: pointer;
+.check-container {
+  .add-new {
+    height: 40px;
+    color: #3a84ff;
+    cursor: pointer;
 
-      .config-btn {
-        width: 100%;
-        height: 100%;
-        font-size: 12px;
-        line-height: 100%;
-        @include flex-center();
-
-        .bk-icon {
-          transform: translateY(-1px);
-        }
-      }
-    }
-
-    .config-tab-item {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
+    .config-btn {
       width: 100%;
-      height: 40px;
+      height: 100%;
+      font-size: 12px;
+      line-height: 100%;
+      @include flex-center();
 
-      .config-input {
-        width: 100%;
-      }
-
-      .panel-name {
-        max-width: 100px;
-        padding-left: 20px;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-      }
-
-      .panel-operate {
-        flex-shrink: 0;
-        margin-left: 10px;
-        font-size: 14px;
-        color: #979ba5;
-        cursor: pointer;
-
-        .edit-icon:hover {
-          color: #3a84ff;
-        }
-
-        .icon-check-line {
-          color: #3a84ff;
-        }
-
-        .icon-close-line-2 {
-          color: #d7473f;
-        }
+      .bk-icon {
+        transform: translateY(-1px);
       }
     }
   }
+
+  .config-tab-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    height: 40px;
+
+    .config-input {
+      width: 100%;
+    }
+
+    .panel-name {
+      max-width: 100px;
+      padding-left: 20px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .panel-operate {
+      flex-shrink: 0;
+      margin-left: 10px;
+      font-size: 14px;
+      color: #979ba5;
+      cursor: pointer;
+
+      .edit-icon:hover {
+        color: #3a84ff;
+      }
+
+      .icon-check-line {
+        color: #3a84ff;
+      }
+
+      .icon-close-line-2 {
+        color: #d7473f;
+      }
+    }
+  }
+}
 </style>

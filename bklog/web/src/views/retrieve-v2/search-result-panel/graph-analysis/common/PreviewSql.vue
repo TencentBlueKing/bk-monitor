@@ -8,14 +8,17 @@
     header-position="left"
   >
     <template #default>
-      <pre class="per" style=" height: 424px; white-space: pre-wrap;background: #f5f7fa">
+      <pre
+        class="per"
+        style="height: 424px; white-space: pre-wrap; background: #f5f7fa"
+      >
         <code v-html="highlightedCode" class="flex-column" />
         <div class="vertical"></div>
       </pre>
     </template>
     <template #footer>
       <!-- <bk-button @click="copy" theme="primary">{{ $t("复制SQL") }}</bk-button> -->
-      <bk-button @click="close">{{ $t("关闭") }}</bk-button>
+      <bk-button @click="close">{{ $t('关闭') }}</bk-button>
     </template>
   </bk-dialog>
 </template>

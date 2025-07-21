@@ -37,19 +37,15 @@
     <div class="dialog-label">
       <span class="dialog-title">{{ title }}</span>
       <template v-if="!targetFields.length">
-        <span style="margin-right: 10px">IP: {{ params.ip || params.serverIp }}</span>
-        <span
-          class="title-overflow"
-          v-bk-overflow-tips
+        <span style="margin-right: 10px"
+          >IP: {{ params.ip || params.serverIp }}</span
         >
+        <span class="title-overflow" v-bk-overflow-tips>
           {{ $t('日志路径') + ': ' + (params.path || params.logfile) }}
         </span>
       </template>
       <template v-else>
-        <span
-          class="title-overflow"
-          v-bk-tooltips.bottom="getTargetFieldsStr"
-        >
+        <span class="title-overflow" v-bk-tooltips.bottom="getTargetFieldsStr">
           <span
             v-for="(item, index) of targetFields"
             style="margin-right: 10px"
@@ -88,10 +84,7 @@
           @cancel="cancelConfig"
           @confirm="confirmConfig"
         ></fields-config>
-        <div
-          class="control-icon"
-          @click="toggleScreenFull"
-        >
+        <div class="control-icon" @click="toggleScreenFull">
           <span class="icon bklog-icon bklog-full-screen-log"></span>
         </div>
       </div>
@@ -119,7 +112,9 @@
       :light-list="highlightList"
     />
 
-    <p class="handle-tips">{{ $t('快捷键  Esc:退出; PageUp: 向上翻页; PageDn: 向下翻页') }}</p>
+    <p class="handle-tips">
+      {{ $t('快捷键  Esc:退出; PageUp: 向上翻页; PageDn: 向下翻页') }}
+    </p>
     <!--        <div class="scroll-bar">-->
     <!--            <span class="icon bklog-icon bklog-up" @click.stop="scrollPage('up')"></span>-->
     <!--            <span class="icon bklog-icon bklog-down" @click.stop="scrollPage('down')"></span>-->
@@ -287,11 +282,17 @@ export default {
         });
         this.currentConfigID = res.data.config_id;
         this.totalFields = res.data.fields;
-        const { getFieldNames, getFieldName } = useFieldNameHook({ store: this.$store });
-        this.displayFieldNames = res.data.display_fields.map(item => getFieldName(item));
+        const { getFieldNames, getFieldName } = useFieldNameHook({
+          store: this.$store,
+        });
+        this.displayFieldNames = res.data.display_fields.map((item) =>
+          getFieldName(item)
+        );
         this.totalFieldNames = getFieldNames(res.data.fields);
-        this.displayFields = res.data.display_fields.map(fieldName => {
-          return res.data.fields.find(fieldInfo => fieldInfo.field_name === fieldName);
+        this.displayFields = res.data.display_fields.map((fieldName) => {
+          return res.data.fields.find(
+            (fieldInfo) => fieldInfo.field_name === fieldName
+          );
         });
         return true;
       } catch (err) {
@@ -328,7 +329,10 @@ export default {
 
         const { list } = res.data;
         if (list && list.length) {
-          const formatList = this.formatList(list, this.displayFieldNames.length ? this.displayFieldNames : ['log']);
+          const formatList = this.formatList(
+            list,
+            this.displayFieldNames.length ? this.displayFieldNames : ['log']
+          );
           if (direction) {
             if (direction === 'down') {
               this.logList.push(...formatList);
@@ -342,7 +346,9 @@ export default {
           } else {
             const zeroIndex = res.data.zero_index;
             if ((!zeroIndex && zeroIndex !== 0) || zeroIndex === -1) {
-              this.logList.splice(this.logList.length, 0, { error: this.$t('无法定位上下文') });
+              this.logList.splice(this.logList.length, 0, {
+                error: this.$t('无法定位上下文'),
+              });
             } else {
               this.logList.push(...formatList.slice(zeroIndex, list.length));
               this.rawList.push(...list.slice(zeroIndex, list.length));
@@ -360,7 +366,8 @@ export default {
         console.warn(e);
       } finally {
         this.logLoading = false;
-        if (this.highlightList.length) this.$refs.viewControlRef.initLightItemList(undefined, direction);
+        if (this.highlightList.length)
+          this.$refs.viewControlRef.initLightItemList(undefined, direction);
         if (this.zero) {
           this.$nextTick(() => {
             this.initLogScrollPosition();
@@ -376,12 +383,14 @@ export default {
      **/
     formatList(list, displayFieldNames) {
       const filterDisplayList = [];
-      list.forEach(listItem => {
+      list.forEach((listItem) => {
         const displayObj = {};
         const { newObject } = getFlatObjValues(listItem);
         const { changeFieldName } = useFieldNameHook({ store: this.$store });
-        displayFieldNames.forEach(field => {
-          Object.assign(displayObj, { [field]: newObject[changeFieldName(field)] });
+        displayFieldNames.forEach((field) => {
+          Object.assign(displayObj, {
+            [field]: newObject[changeFieldName(field)],
+          });
         });
         filterDisplayList.push(displayObj);
       });
@@ -391,15 +400,18 @@ export default {
     async confirmConfig(list) {
       this.isConfigLoading = true;
       const { changeFieldName } = useFieldNameHook({ store: this.$store });
-      const copyList = list.map(item => changeFieldName(item));
+      const copyList = list.map((item) => changeFieldName(item));
       const data = { display_fields: copyList };
       try {
-        const configRes = await this.$http.request('retrieve/getFieldsConfigByContextLog', {
-          params: {
-            index_set_id: this.indexSetId,
-            config_id: this.currentConfigID,
-          },
-        });
+        const configRes = await this.$http.request(
+          'retrieve/getFieldsConfigByContextLog',
+          {
+            params: {
+              index_set_id: this.indexSetId,
+              config_id: this.currentConfigID,
+            },
+          }
+        );
         Object.assign(data, {
           sort_list: configRes.data.sort_list,
           name: configRes.data.name,
@@ -412,7 +424,10 @@ export default {
         const res = await this.requestFields();
         if (res) {
           this.logList = this.formatList(this.rawList, this.displayFieldNames);
-          this.reverseLogList = this.formatList(this.reverseRawList, this.displayFieldNames);
+          this.reverseLogList = this.formatList(
+            this.reverseRawList,
+            this.displayFieldNames
+          );
           this.$refs.fieldsConfigRef._tippy.hide();
           this.messageSuccess(this.$t('设置成功'));
         }
@@ -427,7 +442,9 @@ export default {
     },
     initLogScrollPosition() {
       // 确定第0条的位置
-      this.firstLogEl = document.querySelector('.dialog-log-markdown .log-init');
+      this.firstLogEl = document.querySelector(
+        '.dialog-log-markdown .log-init'
+      );
       // 没有数据
       if (!this.firstLogEl) return;
       const logContentHeight = this.firstLogEl.scrollHeight;
@@ -438,12 +455,16 @@ export default {
       if (wrapperOffsetHeight <= logContentHeight) {
         this.$refs.contextLog.scrollTop = logOffsetTop;
       } else {
-        this.$refs.contextLog.scrollTop = logOffsetTop - Math.ceil((wrapperOffsetHeight - logContentHeight) / 2);
+        this.$refs.contextLog.scrollTop =
+          logOffsetTop -
+          Math.ceil((wrapperOffsetHeight - logContentHeight) / 2);
       }
       this.zero = false;
       // 避免重复请求
       setTimeout(() => {
-        this.$refs.contextLog.addEventListener('scroll', this.handleScroll, { passive: true });
+        this.$refs.contextLog.addEventListener('scroll', this.handleScroll, {
+          passive: true,
+        });
       }, 64);
     },
     handleScroll() {
@@ -459,7 +480,9 @@ export default {
             this.$nextTick(() => {
               // 记录刷新前滚动位置
               const newScrollHeight = this.$refs.contextLog.scrollHeight;
-              this.$refs.contextLog.scrollTo({ top: newScrollHeight - scrollHeight });
+              this.$refs.contextLog.scrollTo({
+                top: newScrollHeight - scrollHeight,
+              });
             });
           });
         } else if (scrollHeight - scrollTop - offsetHeight < 1) {
@@ -491,115 +514,115 @@ export default {
 </script>
 
 <style lang="scss" scoped>
-  @import '../../../scss/mixins/clearfix';
-  @import '../../../scss/mixins/scroller';
+@import '../../../scss/mixins/clearfix';
+@import '../../../scss/mixins/scroller';
 
-  .context-log-wrapper {
-    position: relative;
+.context-log-wrapper {
+  position: relative;
 
-    @include clearfix;
+  @include clearfix;
 
-    .dialog-label {
+  .dialog-label {
+    display: flex;
+    align-items: center;
+    margin-bottom: 20px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .dialog-title {
+    margin-right: 20px;
+    font-size: 20px;
+    line-height: 20px;
+    color: #313238;
+  }
+
+  .dialog-bars {
+    display: flex;
+    justify-content: space-between;
+
+    .controls {
       display: flex;
-      align-items: center;
-      margin-bottom: 20px;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
+      align-items: start;
 
-    .dialog-title {
-      margin-right: 20px;
-      font-size: 20px;
-      line-height: 20px;
-      color: #313238;
-    }
-
-    .dialog-bars {
-      display: flex;
-      justify-content: space-between;
-
-      .controls {
+      .control-icon {
         display: flex;
-        align-items: start;
+        align-items: center;
+        justify-content: center;
+        width: 32px;
+        height: 32px;
+        font-size: 32px;
+        cursor: pointer;
+        border: 1px solid #c4c6cc;
+        transition: color 0.2s;
 
-        .control-icon {
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          width: 32px;
-          height: 32px;
-          font-size: 32px;
-          cursor: pointer;
-          border: 1px solid #c4c6cc;
+        &:not(:last-child) {
+          margin-right: 10px;
+        }
+
+        &:hover {
+          color: #3a84ff;
           transition: color 0.2s;
-
-          &:not(:last-child) {
-            margin-right: 10px;
-          }
-
-          &:hover {
-            color: #3a84ff;
-            transition: color 0.2s;
-          }
         }
       }
     }
+  }
 
-    .dialog-log-markdown {
-      height: 404px;
-      overflow-y: auto;
-      background: #f5f7fa;
-      border: 1px solid #dcdee5;
-      border-bottom: none;
+  .dialog-log-markdown {
+    height: 404px;
+    overflow-y: auto;
+    background: #f5f7fa;
+    border: 1px solid #dcdee5;
+    border-bottom: none;
 
-      @include scroller($backgroundColor: #aaa, $width: 4px);
+    @include scroller($backgroundColor: #aaa, $width: 4px);
 
-      &::-webkit-scrollbar {
-        background-color: #dedede;
-      }
-    }
-
-    .scroll-bar {
-      position: absolute;
-      top: 68px;
-      right: 24px;
-      display: flex;
-      flex-flow: column;
-      justify-content: space-between;
-      // height: 56px;
-
-      .icon {
-        font-size: 24px;
-        color: #d9d9d9;
-        cursor: pointer;
-      }
-    }
-
-    .handle-tips {
-      margin-top: 10px;
-      color: #63656e;
+    &::-webkit-scrollbar {
+      background-color: #dedede;
     }
   }
 
-  .log-full-dialog-wrapper {
-    height: 100%;
-    overflow: hidden;
+  .scroll-bar {
+    position: absolute;
+    top: 68px;
+    right: 24px;
+    display: flex;
+    flex-flow: column;
+    justify-content: space-between;
+    // height: 56px;
 
-    .dialog-log-markdown {
-      height: calc(100% - 200px);
-    }
-
-    .handle-tips {
-      margin-top: 18px;
-    }
-
-    .dialog-label {
-      padding-top: 15px;
+    .icon {
+      font-size: 24px;
+      color: #d9d9d9;
+      cursor: pointer;
     }
   }
 
-  .log-full-width {
-    width: 1030px;
+  .handle-tips {
+    margin-top: 10px;
+    color: #63656e;
   }
+}
+
+.log-full-dialog-wrapper {
+  height: 100%;
+  overflow: hidden;
+
+  .dialog-log-markdown {
+    height: calc(100% - 200px);
+  }
+
+  .handle-tips {
+    margin-top: 18px;
+  }
+
+  .dialog-label {
+    padding-top: 15px;
+  }
+}
+
+.log-full-width {
+  width: 1030px;
+}
 </style>

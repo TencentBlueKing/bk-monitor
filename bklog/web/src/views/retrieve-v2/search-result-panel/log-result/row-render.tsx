@@ -23,9 +23,8 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, nextTick, provide, Ref, ref } from 'vue';
-
 import useIntersectionObserver from '@/hooks/use-intersection-observer';
+import { defineComponent, nextTick, provide, Ref, ref } from 'vue';
 
 import './row-render.scss';
 
@@ -37,6 +36,9 @@ export default defineComponent({
     },
   },
   emits: ['row-click', 'row-visible'],
+  render() {
+    return this.renderRowVNode();
+  },
   setup(props, { slots }) {
     const refRootContainer: Ref<HTMLElement> = ref();
     const refRowNodeRoot: Ref<HTMLElement> = ref();
@@ -45,7 +47,7 @@ export default defineComponent({
 
     const { destroyObserver } = useIntersectionObserver(
       () => refRootContainer.value,
-      entry => {
+      (entry) => {
         if (entry.isIntersecting) {
           isRowIntersecting.value = true;
           nextTick(destroyObserver);
@@ -55,14 +57,11 @@ export default defineComponent({
 
     const renderRowVNode = () => {
       return (
-        <div
-          ref={refRootContainer}
-          data-row-index={props.rowIndex}
-        >
+        <div data-row-index={props.rowIndex} ref={refRootContainer}>
           <div
-            ref={refRowNodeRoot}
             class={['bklog-row-observe', { 'is-pending': false }]}
             data-row-index={props.rowIndex}
+            ref={refRowNodeRoot}
           >
             {slots.default?.()}
           </div>
@@ -72,8 +71,5 @@ export default defineComponent({
     return {
       renderRowVNode,
     };
-  },
-  render() {
-    return this.renderRowVNode();
   },
 });

@@ -55,11 +55,7 @@
             >
             </bk-input>
           </bk-form-item>
-          <bk-form-item
-            :label="$t('数据分类')"
-            property="category_id"
-            required
-          >
+          <bk-form-item :label="$t('数据分类')" property="category_id" required>
             <bk-select
               v-model="formData.category_id"
               :clearable="false"
@@ -89,10 +85,7 @@
       <article class="article">
         <h3 class="title">{{ subTitle }}</h3>
         <template>
-          <div
-            v-if="scenarioId !== 'bkdata'"
-            class="collection-form"
-          >
+          <div v-if="scenarioId !== 'bkdata'" class="collection-form">
             <div class="collection-label">{{ $t('集群') }}</div>
             <div class="collection-select">
               <bk-select
@@ -127,9 +120,7 @@
                       >{{ $t('申请权限') }}</span
                     >
                   </div> -->
-                  <div
-                    class="option-slot-container"
-                  >
+                  <div class="option-slot-container">
                     {{ option.storage_cluster_name }}
                   </div>
                 </bk-option>
@@ -166,15 +157,9 @@
               ></bk-button>
             </div>
           </div>
-          <div
-            v-if="scenarioId !== 'es'"
-            class="collection-form"
-          >
+          <div v-if="scenarioId !== 'es'" class="collection-form">
             <div class="collection-label not-required"></div>
-            <div
-              style="width: 500px"
-              class="selected-collection"
-            >
+            <div style="width: 500px" class="selected-collection">
               <bk-table
                 v-bkloading="{ isLoading: tableLoading }"
                 :data="collectionTableData"
@@ -186,11 +171,9 @@
                   prop="field_name"
                 >
                   <template #default="props">
-                    <span
-                      class="title-overflow"
-                      v-bk-overflow-tips
-                      >{{ props.row.field_name }}</span
-                    >
+                    <span class="title-overflow" v-bk-overflow-tips>{{
+                      props.row.field_name
+                    }}</span>
                   </template>
                 </bk-table-column>
                 <bk-table-column
@@ -199,11 +182,9 @@
                   prop="field_type"
                 >
                   <template #default="props">
-                    <span
-                      class="title-overflow"
-                      v-bk-overflow-tips
-                      >{{ props.row.field_type }}</span
-                    >
+                    <span class="title-overflow" v-bk-overflow-tips>{{
+                      props.row.field_type
+                    }}</span>
                   </template>
                 </bk-table-column>
                 <template #empty>
@@ -214,15 +195,9 @@
               </bk-table>
             </div>
           </div>
-          <div
-            v-else
-            class="collection-form"
-          >
+          <div v-else class="collection-form">
             <div class="collection-label not-required"></div>
-            <div
-              style="width: 500px"
-              class="selected-collection"
-            >
+            <div style="width: 500px" class="selected-collection">
               <bk-table
                 v-bkloading="{ isLoading: tableLoading }"
                 :data="currentMatchedTableIds"
@@ -242,21 +217,17 @@
               </bk-table>
             </div>
           </div>
-          <div
-            v-if="scenarioId === 'es'"
-            class="collection-form"
-          >
-            <div class="collection-label not-required">{{ $t('时间字段') }}</div>
+          <div v-if="scenarioId === 'es'" class="collection-form">
+            <div class="collection-label not-required">
+              {{ $t('时间字段') }}
+            </div>
             <div class="selected-collection time-filed">
               {{ getTimeFiled }}
             </div>
           </div>
         </template>
       </article>
-      <article
-        v-if="scenarioId !== 'log'"
-        class="article"
-      >
+      <article v-if="scenarioId !== 'log'" class="article">
         <div class="title">
           <span>{{ $t('字段设置') }}</span>
           <span class="title-tips">
@@ -327,10 +298,7 @@
               @selected="handleAddSortFields"
             >
               <template #trigger>
-                <bk-button
-                  class="king-button"
-                  icon="plus"
-                ></bk-button>
+                <bk-button class="king-button" icon="plus"></bk-button>
               </template>
               <bk-option
                 v-for="option in targetFieldSelectList"
@@ -515,7 +483,10 @@ export default {
             time_field_type: data.time_field_type,
             time_field_unit: data.time_field_unit,
           };
-          await this.handleChangeShowTableList(data.indexes[0].result_table_id, true);
+          await this.handleChangeShowTableList(
+            data.indexes[0].result_table_id,
+            true
+          );
         }
       } catch (err) {
         console.warn(err);
@@ -527,12 +498,18 @@ export default {
     // 索引集详情
     async fetchIndexSetData() {
       const indexSetId = this.$route.params.indexSetId.toString();
-      if (!this.curIndexSet.index_set_id || this.curIndexSet.index_set_id.toString() !== indexSetId) {
-        const { data: indexSetData } = await this.$http.request('indexSet/info', {
-          params: {
-            index_set_id: indexSetId,
-          },
-        });
+      if (
+        !this.curIndexSet.index_set_id ||
+        this.curIndexSet.index_set_id.toString() !== indexSetId
+      ) {
+        const { data: indexSetData } = await this.$http.request(
+          'indexSet/info',
+          {
+            params: {
+              index_set_id: indexSetId,
+            },
+          }
+        );
         this.$store.commit('collect/updateCurIndexSet', indexSetData);
       }
     },
@@ -556,10 +533,14 @@ export default {
             s2.push(item);
           }
         }
-        this.clusterList = s1.concat(s2).filter(item => !item.is_platform);
+        this.clusterList = s1.concat(s2).filter((item) => !item.is_platform);
         if (this.$route.query.cluster) {
           const clusterId = this.$route.query.cluster;
-          if (this.clusterList.some(item => item.storage_cluster_id === Number(clusterId))) {
+          if (
+            this.clusterList.some(
+              (item) => item.storage_cluster_id === Number(clusterId)
+            )
+          ) {
             this.formData.storage_cluster_id = Number(clusterId);
           }
         }
@@ -621,12 +602,14 @@ export default {
       this.$refs.selectCollectionRef.openDialog();
     },
     addCollection(item) {
-      if (this.scenarioId === 'log') this.formData.storage_cluster_id = item.storage_cluster_id;
+      if (this.scenarioId === 'log')
+        this.formData.storage_cluster_id = item.storage_cluster_id;
       this.formData.indexes.push(item);
       this.handleChangeShowTableList(item.result_table_id, true);
     },
     handleClickTag(resultTableID) {
-      if (this.scenarioId === 'es') this.handleChangeShowTableList(resultTableID, false);
+      if (this.scenarioId === 'es')
+        this.handleChangeShowTableList(resultTableID, false);
     },
     // 删除采集项
     removeCollection(index, closeID) {
@@ -636,7 +619,10 @@ export default {
         this.currentMatchedTableIds = [];
       }
       if (this.currentActiveShowID === closeID || this.scenarioId !== 'es') {
-        this.handleChangeShowTableList(this.formData.indexes[0].result_table_id, true);
+        this.handleChangeShowTableList(
+          this.formData.indexes[0].result_table_id,
+          true
+        );
       }
     },
     // 新建索引集提交
@@ -716,7 +702,9 @@ export default {
           window.location.assign(redirectUrl);
         }
       } else {
-        this.messageSuccess(this.isEdit ? this.$t('设置成功') : this.$t('创建成功'));
+        this.messageSuccess(
+          this.isEdit ? this.$t('设置成功') : this.$t('创建成功')
+        );
         this.returnIndexList();
       }
     },
@@ -733,7 +721,9 @@ export default {
       return '';
     },
     handleCloseSortFiled(item) {
-      const splitIndex = this.formData.sort_fields.findIndex(fItem => fItem === item);
+      const splitIndex = this.formData.sort_fields.findIndex(
+        (fItem) => fItem === item
+      );
       this.formData.sort_fields.splice(splitIndex, 1);
     },
     async handleChangeShowTableList(resultTableId, isInitTarget = false) {
@@ -767,8 +757,10 @@ export default {
     async collectList() {
       this.tableLoading = true;
       try {
-        const resultTableID = this.formData.indexes.map(item => item.result_table_id);
-        const queryData = resultTableID.map(item => ({
+        const resultTableID = this.formData.indexes.map(
+          (item) => item.result_table_id
+        );
+        const queryData = resultTableID.map((item) => ({
           params: {
             result_table_id: item,
           },
@@ -777,11 +769,13 @@ export default {
             bk_biz_id: this.bkBizId,
           },
         }));
-        const promiseQuery = queryData.map(item => this.$refs.selectCollectionRef.handleCollectionSelected(null, item));
+        const promiseQuery = queryData.map((item) =>
+          this.$refs.selectCollectionRef.handleCollectionSelected(null, item)
+        );
         const res = await Promise.all(promiseQuery);
         const collectionMap = new Map();
-        res.forEach(item => {
-          item.data.fields.forEach(el => {
+        res.forEach((item) => {
+          item.data.fields.forEach((el) => {
             if (!collectionMap.has(el.field_name)) {
               collectionMap.set(el.field_name, el);
             }
@@ -799,34 +793,47 @@ export default {
      * @desc: 初始化字段设置所需的字段
      */
     async initTargetFieldSelectList() {
-      const resultTableID = this.formData.indexes.map(item => item.result_table_id);
-      const queryData = resultTableID.map(item => ({
+      const resultTableID = this.formData.indexes.map(
+        (item) => item.result_table_id
+      );
+      const queryData = resultTableID.map((item) => ({
         params: {
           result_table_id: item,
         },
         query: {
           scenario_id: this.scenarioId,
           bk_biz_id: this.bkBizId,
-          storage_cluster_id: this.scenarioId === 'es' ? this.formData.storage_cluster_id : undefined,
+          storage_cluster_id:
+            this.scenarioId === 'es'
+              ? this.formData.storage_cluster_id
+              : undefined,
         },
       }));
       let promiseQuery = [];
       if (this.scenarioId === 'es') {
-        promiseQuery = queryData.map(item => this.$refs.selectCollectionRef.fetchInfo(item));
+        promiseQuery = queryData.map((item) =>
+          this.$refs.selectCollectionRef.fetchInfo(item)
+        );
       } else {
-        promiseQuery = queryData.map(item => this.$refs.selectCollectionRef.handleCollectionSelected(null, item));
+        promiseQuery = queryData.map((item) =>
+          this.$refs.selectCollectionRef.handleCollectionSelected(null, item)
+        );
       }
       const res = await Promise.all(promiseQuery);
-      const { target_fields: targetField, sort_fields: sortFields } = this.formData;
-      const targetFieldSet = new Set([...(sortFields ?? []), ...(targetField ?? [])]);
-      res.forEach(item => {
-        item.data.fields.forEach(el => {
+      const { target_fields: targetField, sort_fields: sortFields } =
+        this.formData;
+      const targetFieldSet = new Set([
+        ...(sortFields ?? []),
+        ...(targetField ?? []),
+      ]);
+      res.forEach((item) => {
+        item.data.fields.forEach((el) => {
           if (!targetFieldSet.has(el.field_name)) {
             targetFieldSet.add(el.field_name);
           }
         });
       });
-      this.targetFieldSelectList = [...targetFieldSet].map(item => ({
+      this.targetFieldSelectList = [...targetFieldSet].map((item) => ({
         id: item,
         name: item,
       }));
@@ -842,157 +849,157 @@ export default {
 </script>
 
 <style scoped lang="scss">
-  @import '@/scss/mixins/overflow-tips.scss';
-  @import '@/scss/mixins/flex.scss';
+@import '@/scss/mixins/overflow-tips.scss';
+@import '@/scss/mixins/flex.scss';
 
-  .sort-box {
-    display: inline-flex;
-    align-items: center;
+.sort-box {
+  display: inline-flex;
+  align-items: center;
 
-    .add-sort-btn {
-      display: inline-block;
-      margin-left: 6px;
-      border: none;
-      box-shadow: none;
-    }
-
-    .not-sort {
-      margin-left: 0;
-    }
+  .add-sort-btn {
+    display: inline-block;
+    margin-left: 6px;
+    border: none;
+    box-shadow: none;
   }
 
-  .create-index-container {
-    padding: 20px 24px;
+  .not-sort {
+    margin-left: 0;
+  }
+}
 
-    .article {
-      padding: 22px 24px;
-      margin-bottom: 20px;
-      background-color: #fff;
-      border: 1px solid #dcdee5;
-      border-radius: 3px;
+.create-index-container {
+  padding: 20px 24px;
 
-      .title {
-        margin: 0 0 10px;
-        font-size: 14px;
-        font-weight: bold;
-        line-height: 20px;
-        color: #63656e;
+  .article {
+    padding: 22px 24px;
+    margin-bottom: 20px;
+    background-color: #fff;
+    border: 1px solid #dcdee5;
+    border-radius: 3px;
+
+    .title {
+      margin: 0 0 10px;
+      font-size: 14px;
+      font-weight: bold;
+      line-height: 20px;
+      color: #63656e;
+    }
+
+    .title-tips {
+      margin-left: 16px;
+      font-size: 12px;
+      font-weight: normal;
+
+      .icon-exclamation-circle {
+        font-size: 16px;
+        color: #ea3636;
       }
+    }
 
-      .title-tips {
-        margin-left: 16px;
+    .king-form {
+      width: 588px;
+
+      :deep(.bk-form-item) {
+        padding: 10px 0;
+        margin: 0;
+      }
+    }
+
+    .collection-form {
+      display: flex;
+      font-size: 14px;
+      color: #63656e;
+
+      .collection-label {
+        position: relative;
+        width: 160px;
+        padding: 10px 24px 10px 0;
         font-size: 12px;
-        font-weight: normal;
+        line-height: 32px;
+        text-align: right;
 
-        .icon-exclamation-circle {
-          font-size: 16px;
+        &:after {
+          position: absolute;
+          top: 12px;
+          right: 16px;
+          display: inline-block;
+          font-size: 12px;
           color: #ea3636;
+          content: '*';
         }
       }
 
-      .king-form {
-        width: 588px;
-
-        :deep(.bk-form-item) {
-          padding: 10px 0;
-          margin: 0;
+      .not-required {
+        &:after {
+          /* stylelint-disable-next-line declaration-no-important */
+          content: '' !important;
         }
       }
 
-      .collection-form {
-        display: flex;
-        font-size: 14px;
-        color: #63656e;
+      .collection-select {
+        width: 428px;
+        padding: 10px 0;
 
-        .collection-label {
-          position: relative;
-          width: 160px;
-          padding: 10px 24px 10px 0;
-          font-size: 12px;
+        .tag-items {
+          height: 32px;
           line-height: 32px;
-          text-align: right;
 
-          &:after {
-            position: absolute;
-            top: 12px;
-            right: 16px;
+          .icon-grag-fill {
             display: inline-block;
-            font-size: 12px;
-            color: #ea3636;
-            content: '*';
+            cursor: move;
+            transform: translateY(-1px);
           }
-        }
-
-        .not-required {
-          &:after {
-            /* stylelint-disable-next-line declaration-no-important */
-            content: '' !important;
-          }
-        }
-
-        .collection-select {
-          width: 428px;
-          padding: 10px 0;
-
-          .tag-items {
-            height: 32px;
-            line-height: 32px;
-
-            .icon-grag-fill {
-              display: inline-block;
-              cursor: move;
-              transform: translateY(-1px);
-            }
-          }
-        }
-
-        .dotted-line {
-          border-bottom: 1px dashed #63656e;
-        }
-
-        .selected-collection {
-          display: flex;
-          flex-flow: wrap;
-          padding: 10px 0 0;
-
-          :deep(.bk-tag) {
-            display: inline-flex;
-            align-items: center;
-            height: 32px;
-            padding: 0 4px 0 10px;
-            margin: 0 10px 10px 0;
-            line-height: 32px;
-            background: #f0f1f5;
-            background-color: #f0f1f5;
-
-            .bk-tag-close {
-              font-size: 18px;
-              color: #63656e;
-            }
-
-            &.bk-tag-info {
-              /* stylelint-disable-next-line declaration-no-important */
-              background: #ebf2ff !important;
-            }
-          }
-
-          .selected-tag {
-            cursor: pointer;
-          }
-        }
-
-        .time-filed {
-          align-items: center;
-          padding-top: 0;
-          font-size: 12px;
         }
       }
-    }
 
-    .king-button {
-      &.no-slot {
-        padding: 0 5px;
+      .dotted-line {
+        border-bottom: 1px dashed #63656e;
+      }
+
+      .selected-collection {
+        display: flex;
+        flex-flow: wrap;
+        padding: 10px 0 0;
+
+        :deep(.bk-tag) {
+          display: inline-flex;
+          align-items: center;
+          height: 32px;
+          padding: 0 4px 0 10px;
+          margin: 0 10px 10px 0;
+          line-height: 32px;
+          background: #f0f1f5;
+          background-color: #f0f1f5;
+
+          .bk-tag-close {
+            font-size: 18px;
+            color: #63656e;
+          }
+
+          &.bk-tag-info {
+            /* stylelint-disable-next-line declaration-no-important */
+            background: #ebf2ff !important;
+          }
+        }
+
+        .selected-tag {
+          cursor: pointer;
+        }
+      }
+
+      .time-filed {
+        align-items: center;
+        padding-top: 0;
+        font-size: 12px;
       }
     }
   }
+
+  .king-button {
+    &.no-slot {
+      padding: 0 5px;
+    }
+  }
+}
 </style>

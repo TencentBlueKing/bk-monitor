@@ -23,42 +23,44 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, onUnmounted, PropType, Ref, ref, watch } from 'vue';
-import useResizeObserve from '../../hooks/use-resize-observe';
-import './index.scss';
-import PopInstanceUtil from '../../global/pop-instance-util';
 import { Placement } from 'tippy.js';
+import { defineComponent, onUnmounted, PropType, Ref, ref, watch } from 'vue';
+
+import PopInstanceUtil from '../../global/pop-instance-util';
+import useResizeObserve from '../../hooks/use-resize-observe';
+
+import './index.scss';
 
 export default defineComponent({
   props: {
-    list: {
-      type: Array,
-      required: true,
-      default: () => {},
-    },
-    itemRender: {
-      type: Function,
-      default: undefined,
-    },
     activeEllipsisCount: {
-      type: Boolean,
       default: false,
+      type: Boolean,
     },
     hiddenClassName: {
-      type: String,
       default: 'bklog-v3-ellipsis-hidden',
+      type: String,
     },
-    tagWidth: {
-      type: Number,
-      default: 30,
+    itemRender: {
+      default: undefined,
+      type: Function,
     },
-    showFullTooltip: {
-      type: String as PropType<'auto' | 'disable' | 'enable'>,
-      default: 'auto',
+    list: {
+      default: () => {},
+      required: true,
+      type: Array,
     },
     placement: {
-      type: String as PropType<Placement>,
       default: 'auto',
+      type: String as PropType<Placement>,
+    },
+    showFullTooltip: {
+      default: 'auto',
+      type: String as PropType<'auto' | 'disable' | 'enable'>,
+    },
+    tagWidth: {
+      default: 30,
+      type: Number,
     },
   },
   setup(props, { slots }) {
@@ -73,14 +75,16 @@ export default defineComponent({
 
     let toolTipInstance: PopInstanceUtil = null;
 
-    const { observeElement, stopObserve, isStoped } = useResizeObserve(
+    const { isStoped, observeElement, stopObserve } = useResizeObserve(
       () => refContainerElement.value,
       () => {
         if (refContainerElement.value) {
-          const { scrollWidth, offsetWidth } = refRootElement.value;
+          const { offsetWidth, scrollWidth } = refRootElement.value;
 
           if (scrollWidth > offsetWidth) {
-            const childElements = Array.from(refContainerElement.value.children) as HTMLElement[];
+            const childElements = Array.from(
+              refContainerElement.value.children
+            ) as HTMLElement[];
             const overflowWidth = scrollWidth - offsetWidth + props.tagWidth;
 
             let hiddenWidth = 0;
@@ -88,7 +92,7 @@ export default defineComponent({
             let stop = false;
             let hiddenItemCount = 0;
 
-            childElements.forEach(item => {
+            childElements.forEach((item) => {
               if (item.classList.contains(props.hiddenClassName)) {
                 item.classList.remove(props.hiddenClassName);
               }
@@ -146,8 +150,14 @@ export default defineComponent({
         if (props.showFullTooltip === 'auto') {
           if (showMoreItemNum.value) {
             if (!addedMouseHoverEvent.value) {
-              refRootElement.value?.addEventListener('mouseenter', handleMouseenter);
-              refRootElement.value?.addEventListener('mouseleave', handleMouseleave);
+              refRootElement.value?.addEventListener(
+                'mouseenter',
+                handleMouseenter
+              );
+              refRootElement.value?.addEventListener(
+                'mouseleave',
+                handleMouseleave
+              );
               addedMouseHoverEvent.value = true;
             }
 
@@ -157,8 +167,14 @@ export default defineComponent({
 
         if (props.showFullTooltip === 'enable') {
           if (!addedMouseHoverEvent.value) {
-            refRootElement.value?.addEventListener('mouseenter', handleMouseenter);
-            refRootElement.value?.addEventListener('mouseleave', handleMouseleave);
+            refRootElement.value?.addEventListener(
+              'mouseenter',
+              handleMouseenter
+            );
+            refRootElement.value?.addEventListener(
+              'mouseleave',
+              handleMouseleave
+            );
             addedMouseHoverEvent.value = true;
           }
 
@@ -166,8 +182,14 @@ export default defineComponent({
         }
 
         if (addedMouseHoverEvent.value) {
-          refRootElement.value?.removeEventListener('mouseenter', handleMouseenter);
-          refRootElement.value?.removeEventListener('mouseleave', handleMouseleave);
+          refRootElement.value?.removeEventListener(
+            'mouseenter',
+            handleMouseenter
+          );
+          refRootElement.value?.removeEventListener(
+            'mouseleave',
+            handleMouseleave
+          );
           addedMouseHoverEvent.value = false;
         }
       }
@@ -191,20 +213,23 @@ export default defineComponent({
 
     onUnmounted(() => {
       if (addedMouseHoverEvent.value) {
-        refRootElement.value?.removeEventListener('mouseenter', handleMouseenter);
-        refRootElement.value?.removeEventListener('mouseleave', handleMouseleave);
+        refRootElement.value?.removeEventListener(
+          'mouseenter',
+          handleMouseenter
+        );
+        refRootElement.value?.removeEventListener(
+          'mouseleave',
+          handleMouseleave
+        );
       }
 
       toolTipInstance?.uninstallInstance();
     });
 
     return () => (
-      <div
-        ref={refRootElement}
-        class='bklgo-v3-ellipsis-tag-list'
-      >
+      <div class="bklgo-v3-ellipsis-tag-list" ref={refRootElement}>
         <div ref={refContainerElement}>
-          {props.list.map(item => {
+          {props.list.map((item) => {
             if (typeof props.itemRender === 'function') {
               return props.itemRender(item);
             }
@@ -213,10 +238,7 @@ export default defineComponent({
           })}
         </div>
         {showMoreItemNum.value && props.list.length > 1 ? (
-          <span
-            class='bklog-v3-ellipsis-num'
-            ref={refEllipsisNumElement}
-          >
+          <span class="bklog-v3-ellipsis-num" ref={refEllipsisNumElement}>
             +{moreItemNum.value}
           </span>
         ) : null}

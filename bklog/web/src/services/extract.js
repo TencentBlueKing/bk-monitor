@@ -25,83 +25,83 @@
  */
 
 const getTaskList = {
-  url: '/log_extract/tasks/',
   method: 'get',
+  url: '/log_extract/tasks/',
 };
 
 const getTaskDetail = {
-  url: '/log_extract/tasks/:id/',
   method: 'get',
+  url: '/log_extract/tasks/:id/',
 };
 
 const getTopoIpList = {
-  url: '/log_extract/explorer/topo/',
   method: 'get',
+  url: '/log_extract/explorer/topo/',
 };
 
 // 文件浏览策略，返回某用户在某业务-某IP 中可访问的目录的文件类型
 const getAvailableExplorerPath = {
-  url: '/log_extract/explorer/strategies/',
   method: 'post',
+  url: '/log_extract/explorer/strategies/',
 };
 
 // 预览用户在业务机器中的可下载的文件
 const getExplorerList = {
-  url: '/log_extract/explorer/list_file/',
   method: 'post',
+  url: '/log_extract/explorer/list_file/',
 };
 
 // 点击开始下载后创建下载任务
 const createDownloadTask = {
-  url: '/log_extract/tasks/',
   method: 'post',
+  url: '/log_extract/tasks/',
 };
 
 // 点击重新下载
 const reDownloadFile = {
-  url: '/log_extract/tasks/recreate/',
   method: 'post',
+  url: '/log_extract/tasks/recreate/',
 };
 
 // 轮询任务状态
 const pollingTaskStatus = {
-  url: '/log_extract/tasks/polling/',
   method: 'get',
+  url: '/log_extract/tasks/polling/',
 };
 
 // 轮询任务状态
 const getDownloadUrl = {
-  url: '/log_extract/tasks/download/',
   method: 'get',
+  url: '/log_extract/tasks/download/',
 };
 
 // 提取链路接口
 const getExtractLinkList = {
-  url: '/log_extract/tasks/link_list/',
   method: 'get',
+  url: '/log_extract/tasks/link_list/',
 };
 
 // 获取下载目标主机数量的拓扑树
 const trees = {
-  url: '/log_extract/explorer/trees/',
   method: 'post',
+  url: '/log_extract/explorer/trees/',
 };
 
 // 根据多个拓扑节点与搜索条件批量分页查询所包含的主机信息
 const queryHosts = {
-  url: '/log_extract/explorer/query_hosts/',
   method: 'post',
+  url: '/log_extract/explorer/query_hosts/',
 };
 
 // 根据多个拓扑节点与搜索条件批量分页查询所包含的主机ID信息
 const queryHostIdInfos = {
-  url: '/log_extract/explorer/query_host_id_infos/',
   method: 'post',
+  url: '/log_extract/explorer/query_host_id_infos/',
 };
 
 const getIpListDisplayName = {
-  url: '/bizs/:bk_biz_id/get_display_name/',
   method: 'post',
+  url: '/bizs/:bk_biz_id/get_display_name/',
 };
 
 export {

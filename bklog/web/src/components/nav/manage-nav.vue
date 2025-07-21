@@ -27,18 +27,13 @@
 
 <template>
   <div class="sub-nav-container">
-    <div
-      v-if="$route.meta.needBack"
-      class="back-container"
-      @click="handleBack"
-    >
+    <div v-if="$route.meta.needBack" class="back-container" @click="handleBack">
       <span class="bk-icon icon-arrows-left"></span>
     </div>
-    <div class="main-title">{{ $route.meta.needBack ? getTitleName() : activeManageNav.name }}</div>
-    <div
-      v-if="isShowDetailName"
-      class="collect-link"
-    >
+    <div class="main-title">
+      {{ $route.meta.needBack ? getTitleName() : activeManageNav.name }}
+    </div>
+    <div v-if="isShowDetailName" class="collect-link">
       <span class="bk-icon bklog-icon bklog-position"></span>
       {{ getBaseName() }}
     </div>
@@ -49,7 +44,10 @@
     >
       <template v-for="navItem in activeManageNav.children">
         <li
-          :class="{ 'sub-nav-item': true, active: navItem.id === activeManageSubNav.id }"
+          :class="{
+            'sub-nav-item': true,
+            active: navItem.id === activeManageSubNav.id,
+          }"
           :data-test-id="`logCollectionNavBox_li_${navItem.id}`"
           :key="navItem.id"
           @click="handleClickSubNav(navItem.id)"
@@ -148,40 +146,93 @@ export default {
         collectStop: this.$t('route-编辑采集项').replace('route-', ''),
         collectMasking: this.$t('route-编辑采集项').replace('route-', ''),
         'manage-collection': this.$t('route-采集详情').replace('route-', ''),
-        'log-index-set-create': this.$t('route-新建索引集').replace('route-', ''),
+        'log-index-set-create': this.$t('route-新建索引集').replace(
+          'route-',
+          ''
+        ),
         'log-index-set-edit': this.$t('route-编辑索引集').replace('route-', ''),
         'log-index-set-manage': this.$t('route-采集详情').replace('route-', ''),
-        'log-index-set-masking': this.$t('route-日志脱敏').replace('route-', ''),
-        'bkdata-index-set-create': this.$t('route-新建索引集').replace('route-', ''),
-        'bkdata-index-set-edit': this.$t('route-编辑索引集').replace('route-', ''),
-        'bkdata-index-set-manage': this.$t('route-采集详情').replace('route-', ''),
-        'bkdata-index-set-masking': this.$t('route-日志脱敏').replace('route-', ''),
-        'es-index-set-create': this.$t('route-新建索引集').replace('route-', ''),
+        'log-index-set-masking': this.$t('route-日志脱敏').replace(
+          'route-',
+          ''
+        ),
+        'bkdata-index-set-create': this.$t('route-新建索引集').replace(
+          'route-',
+          ''
+        ),
+        'bkdata-index-set-edit': this.$t('route-编辑索引集').replace(
+          'route-',
+          ''
+        ),
+        'bkdata-index-set-manage': this.$t('route-采集详情').replace(
+          'route-',
+          ''
+        ),
+        'bkdata-index-set-masking': this.$t('route-日志脱敏').replace(
+          'route-',
+          ''
+        ),
+        'es-index-set-create': this.$t('route-新建索引集').replace(
+          'route-',
+          ''
+        ),
         'es-index-set-edit': this.$t('route-编辑索引集').replace('route-', ''),
         'es-index-set-manage': this.$t('route-采集详情').replace('route-', ''),
         'es-index-set-masking': this.$t('route-日志脱敏').replace('route-', ''),
-        'bkdata-track-create': this.$t('route-新建索引集').replace('route-', ''),
+        'bkdata-track-create': this.$t('route-新建索引集').replace(
+          'route-',
+          ''
+        ),
         'bkdata-track-edit': this.$t('route-编辑索引集').replace('route-', ''),
         'bkdata-track-manage': this.$t('route-采集详情').replace('route-', ''),
-        'extract-link-create': this.$t('route-新建提取链路').replace('route-', ''),
-        'extract-link-edit': this.$t('route-编辑提取链路').replace('route-', ''),
+        'extract-link-create': this.$t('route-新建提取链路').replace(
+          'route-',
+          ''
+        ),
+        'extract-link-edit': this.$t('route-编辑提取链路').replace(
+          'route-',
+          ''
+        ),
         'clean-create': this.$t('route-新建清洗').replace('route-', ''),
         'clean-edit': this.$t('route-编辑清洗').replace('route-', ''),
-        'clean-template-create': this.$t('route-新建清洗模板').replace('route-', ''),
-        'clean-template-edit': this.$t('route-编辑清洗模板').replace('route-', ''),
-        'extract-create': this.$t('route-新建日志提取任务').replace('route-', ''),
-        'extract-clone': this.$t('route-克隆日志提取任务').replace('route-', ''),
-        'custom-report-create': this.$t('route-新建自定义上报').replace('route-', ''),
-        'custom-report-edit': this.$t('route-编辑自定义上报').replace('route-', ''),
+        'clean-template-create': this.$t('route-新建清洗模板').replace(
+          'route-',
+          ''
+        ),
+        'clean-template-edit': this.$t('route-编辑清洗模板').replace(
+          'route-',
+          ''
+        ),
+        'extract-create': this.$t('route-新建日志提取任务').replace(
+          'route-',
+          ''
+        ),
+        'extract-clone': this.$t('route-克隆日志提取任务').replace(
+          'route-',
+          ''
+        ),
+        'custom-report-create': this.$t('route-新建自定义上报').replace(
+          'route-',
+          ''
+        ),
+        'custom-report-edit': this.$t('route-编辑自定义上报').replace(
+          'route-',
+          ''
+        ),
         'custom-report-detail': this.$t('route-采集详情').replace('route-', ''),
-        'custom-report-masking': this.$t('route-日志脱敏').replace('route-', ''),
+        'custom-report-masking': this.$t('route-日志脱敏').replace(
+          'route-',
+          ''
+        ),
       };
       return map[this.$route.name];
     },
     getBaseName() {
-      const collectionName = this.$store.state.collect.curCollect?.collector_config_name ?? '';
+      const collectionName =
+        this.$store.state.collect.curCollect?.collector_config_name ?? '';
       const routerEditName = this.$route.query.editName ?? '';
-      const storeIndexSetName = this.$store.state.collect.curIndexSet?.index_set_name ?? '';
+      const storeIndexSetName =
+        this.$store.state.collect.curIndexSet?.index_set_name ?? '';
       const map = {
         'log-index-set-manage': storeIndexSetName,
         'bkdata-index-set-manage': storeIndexSetName,
@@ -215,76 +266,76 @@ export default {
 </script>
 
 <style lang="scss" scoped>
-  .sub-nav-container {
-    position: fixed;
-    top: 51px;
-    z-index: 9;
-    display: flex;
-    align-items: center;
-    width: 100%;
-    height: 48px;
-    padding: 0 20px;
-    line-height: 24px;
-    background-color: #fff;
-    box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.1);
+.sub-nav-container {
+  position: fixed;
+  top: 51px;
+  z-index: 9;
+  display: flex;
+  align-items: center;
+  width: 100%;
+  height: 48px;
+  padding: 0 20px;
+  line-height: 24px;
+  background-color: #fff;
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.1);
 
-    .main-title {
-      font-size: 16px;
-      color: #313238;
-    }
+  .main-title {
+    font-size: 16px;
+    color: #313238;
+  }
 
-    .back-container {
-      .icon-arrows-left {
-        font-size: 30px;
-        color: #3a84ff;
-        cursor: pointer;
+  .back-container {
+    .icon-arrows-left {
+      font-size: 30px;
+      color: #3a84ff;
+      cursor: pointer;
 
-        &:hover {
-          color: #699df4;
-        }
-      }
-    }
-
-    .sub-nav-list {
-      display: flex;
-      margin-left: 35px;
-      font-size: 14px;
-      color: #63656e;
-
-      .sub-nav-item {
-        height: 52px;
-        padding: 0 10px;
-        margin: 0 25px;
-        line-height: 52px;
-        cursor: pointer;
-        border-bottom: 3px solid transparent;
-        transition:
-          color,
-          border-color 0.3s;
-
-        &:hover,
-        &.active {
-          color: #3a84ff;
-          border-bottom: 3px solid #3a84ff;
-          transition:
-            color,
-            border-color 0.3s;
-        }
-      }
-    }
-
-    .collect-link {
-      padding: 0 9px;
-      margin-left: 12px;
-      font-size: 12px;
-      color: #63656e;
-      background: #f0f1f5;
-      border-radius: 2px;
-
-      .icon-position {
-        font-size: 14px;
-        color: #c4c6cc;
+      &:hover {
+        color: #699df4;
       }
     }
   }
+
+  .sub-nav-list {
+    display: flex;
+    margin-left: 35px;
+    font-size: 14px;
+    color: #63656e;
+
+    .sub-nav-item {
+      height: 52px;
+      padding: 0 10px;
+      margin: 0 25px;
+      line-height: 52px;
+      cursor: pointer;
+      border-bottom: 3px solid transparent;
+      transition:
+        color,
+        border-color 0.3s;
+
+      &:hover,
+      &.active {
+        color: #3a84ff;
+        border-bottom: 3px solid #3a84ff;
+        transition:
+          color,
+          border-color 0.3s;
+      }
+    }
+  }
+
+  .collect-link {
+    padding: 0 9px;
+    margin-left: 12px;
+    font-size: 12px;
+    color: #63656e;
+    background: #f0f1f5;
+    border-radius: 2px;
+
+    .icon-position {
+      font-size: 14px;
+      color: #c4c6cc;
+    }
+  }
+}
 </style>

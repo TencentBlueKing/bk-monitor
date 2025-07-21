@@ -24,11 +24,10 @@
  * IN THE SOFTWARE.
  */
 
-import Vue from 'vue';
-import VueI18n from 'vue-i18n';
-
 import { locale, lang } from 'bk-magic-vue';
 import jsCookie from 'js-cookie';
+import Vue from 'vue';
+import VueI18n from 'vue-i18n';
 
 // import en from './lang/en';
 import './dayjs';
@@ -43,12 +42,15 @@ if (localLanguage === 'en') {
   locale.use(lang.enUS);
 }
 const i18n = new VueI18n({
+  fallbackLocale: 'zh-cn',
   // 语言标识
   locale: localLanguage,
-  fallbackLocale: 'zh-cn',
   // this.$i18n.locale 通过切换locale的值来实现语言切换
   messages: {
     // 中文语言包
+    // en: Object.assign(lang.enUS, en),
+    en: Object.assign(lang.enUS, logEnJson),
+    // 英文语言包
     // 'zh-cn': Object.assign(lang.zhCN, zh),
     'zh-cn': Object.assign(
       lang.zhCN,
@@ -58,9 +60,6 @@ const i18n = new VueI18n({
         return pre;
       }, {})
     ),
-    // 英文语言包
-    // en: Object.assign(lang.enUS, en),
-    en: Object.assign(lang.enUS, logEnJson),
   },
 });
 locale.i18n((key, value) => i18n.t(key, value));

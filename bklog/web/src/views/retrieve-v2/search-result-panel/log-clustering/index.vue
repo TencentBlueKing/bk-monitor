@@ -26,10 +26,7 @@
 
 <template>
   <div class="log-cluster-table-container-main">
-    <div
-      v-if="!globalLoading"
-      class="log-cluster-table-container"
-    >
+    <div v-if="!globalLoading" class="log-cluster-table-container">
       <div
         v-if="isShowTopNav"
         class="cluster-nav"
@@ -52,32 +49,25 @@
         />
       </div>
 
-      <div
-        v-if="isShowGroupTag"
-        style="margin: 0 0 16px -6px"
-      >
+      <div v-if="isShowGroupTag" style="margin: 0 0 16px -6px">
         <bk-tag v-if="getDimensionStr">
           {{ getDimensionStr }}
         </bk-tag>
-        <bk-tag
-          v-if="getGroupStr"
-          closable
-          @close="handleCloseGroupTag"
-        >
+        <bk-tag v-if="getGroupStr" closable @close="handleCloseGroupTag">
           {{ getGroupStr }}
         </bk-tag>
-        <bk-tag
-          v-if="getYearStr"
-          closable
-          @close="handleCloseYearTag"
-        >
+        <bk-tag v-if="getYearStr" closable @close="handleCloseYearTag">
           {{ getYearStr }}
         </bk-tag>
       </div>
 
       <bk-alert
         v-if="clusterSwitch && !exhibitAll"
-        :title="$t('日志聚类必需至少有一个text类型的字段，当前无该字段类型，请前往日志清洗进行设置。')"
+        :title="
+          $t(
+            '日志聚类必需至少有一个text类型的字段，当前无该字段类型，请前往日志清洗进行设置。'
+          )
+        "
         type="info"
         closable
       >
@@ -117,15 +107,11 @@
           @handle-scroll-is-show="handleScrollIsShow"
           @pagination-options="paginationOptions"
           @update-request="requestFinger"
-          @show-change="v => $emit('show-change', v)"
+          @show-change="(v) => $emit('show-change', v)"
         />
       </template>
 
-      <bk-table
-        v-else
-        class="no-text-table"
-        :data="[]"
-      >
+      <bk-table v-else class="no-text-table" :data="[]">
         <template #empty>
           <div>
             <empty-status
@@ -135,19 +121,14 @@
             >
               <p v-if="indexSetItem?.scenario_id !== 'log' && !isHaveAnalyzed">
                 <i18n path="无分词字段 请前往 {0} 调整清洗">
-                  <span
-                    class="empty-leave"
-                    @click="handleLeaveCurrent"
-                    >{{ $t('计算平台') }}</span
-                  >
+                  <span class="empty-leave" @click="handleLeaveCurrent">{{
+                    $t('计算平台')
+                  }}</span>
                 </i18n>
               </p>
               <div v-else>
                 <p>{{ exhibitText }}</p>
-                <span
-                  class="empty-leave"
-                  @click="handleLeaveCurrent"
-                >
+                <span class="empty-leave" @click="handleLeaveCurrent">
                   {{ exhibitOperate }}
                 </span>
               </div>
@@ -289,7 +270,7 @@ export default {
       return this.$store.state.storage[BK_LOG_STORAGE.SHOW_FIELD_ALIAS];
     },
     isHaveAnalyzed() {
-      return this.totalFields.some(item => item.is_analyzed);
+      return this.totalFields.some((item) => item.is_analyzed);
     },
     totalFields() {
       return this.indexFieldInfo.fields || [];
@@ -310,14 +291,16 @@ export default {
        *  来源如果是数据平台并且日志聚类大开关有打开则进入text判断
        *  有text则提示去开启日志聚类 无则显示跳转计算平台
        */
-      return this.totalFields.some(el => el.field_type === 'text');
+      return this.totalFields.some((el) => el.field_type === 'text');
     },
     globalLoading() {
       // 判断是否可以字段提取的全局loading
       return this.indexFieldInfo.is_loading || this.isFieldInit;
     },
     routerIndexSet() {
-      return window.__IS_MONITOR_COMPONENT__ ? this.$route.query.indexId : this.$route.params.indexId;
+      return window.__IS_MONITOR_COMPONENT__
+        ? this.$route.query.indexId
+        : this.$route.params.indexId;
     },
     getDimensionStr() {
       return this.fingerOperateData.dimensionList.length
@@ -330,11 +313,15 @@ export default {
         : '';
     },
     getYearStr() {
-      return this.requestData.year_on_year_hour ? `${this.$t('同比')} : ${this.requestData.year_on_year_hour}h` : '';
+      return this.requestData.year_on_year_hour
+        ? `${this.$t('同比')} : ${this.requestData.year_on_year_hour}h`
+        : '';
     },
     isShowGroupTag() {
       return (
-        this.clusterSwitch && !this.isShowClusterStep && (this.getGroupStr || this.getDimensionStr || this.getYearStr)
+        this.clusterSwitch &&
+        !this.isShowClusterStep &&
+        (this.getGroupStr || this.getDimensionStr || this.getYearStr)
       );
     },
     isShowTopNav() {
@@ -371,7 +358,8 @@ export default {
     },
     isSearchIng(v) {
       this.isClickSearch = true;
-      if (this.exhibitAll && !this.isInitPage && this.isClusterActive && v) this.requestFinger();
+      if (this.exhibitAll && !this.isInitPage && this.isClusterActive && v)
+        this.requestFinger();
     },
     routerIndexSet() {
       this.isShowClusterStep = true;
@@ -406,8 +394,10 @@ export default {
      * @desc: 初始化table所需的一些参数
      */
     async initTableOperator() {
-      const { log_clustering_level_year_on_year: yearOnYearList, log_clustering_level: clusterLevel } =
-        this.globalsData;
+      const {
+        log_clustering_level_year_on_year: yearOnYearList,
+        log_clustering_level: clusterLevel,
+      } = this.globalsData;
       let patternLevel;
       if (clusterLevel && clusterLevel.length > 0) {
         // 判断奇偶数来取pattern中间值
@@ -429,10 +419,14 @@ export default {
       // 通过路由返回的值 初始化数据指纹的操作参数 url是否有缓存的值
       if (this.isInitPage && !!this.clusterParams) {
         const paramData = deepClone(this.clusterParams);
-        const findIndex = clusterLevel.findIndex(item => item === String(paramData.pattern_level));
+        const findIndex = clusterLevel.findIndex(
+          (item) => item === String(paramData.pattern_level)
+        );
         if (findIndex >= 0) patternLevel = findIndex + 1;
         Object.assign(queryRequestData, paramData, {
-          pattern_level: paramData.pattern_level ? paramData.pattern_level : clusterLevel[patternLevel - 1],
+          pattern_level: paramData.pattern_level
+            ? paramData.pattern_level
+            : clusterLevel[patternLevel - 1],
         });
       }
       const { year_on_year_hour: yearOnYearHour } = queryRequestData;
@@ -440,7 +434,7 @@ export default {
         patternSize: patternLevel - 1,
         sliderMaxVal: clusterLevel.length - 1,
         patternList,
-        comparedList: yearOnYearList.filter(item => item.id !== 0),
+        comparedList: yearOnYearList.filter((item) => item.id !== 0),
         yearOnYearHour: yearOnYearHour > 0 ? yearOnYearHour : 1,
         yearSwitch: yearOnYearHour > 0,
         dimensionList: [],
@@ -449,9 +443,13 @@ export default {
       // 这里判断是否有保存过所有人都显示一样的分组 如果有则直接显示相应的分组
       const groupFields = await this.getInitGroupFields();
       if (groupFields?.length) {
-        const selectGroupList = this.fingerOperateData.selectGroupList.filter(item => !groupFields.includes(item));
+        const selectGroupList = this.fingerOperateData.selectGroupList.filter(
+          (item) => !groupFields.includes(item)
+        );
         // 如果初始化时有默认维度的字段 将维度和分组分开来处理
-        Object.assign(queryRequestData, { group_by: [...groupFields, ...selectGroupList] });
+        Object.assign(queryRequestData, {
+          group_by: [...groupFields, ...selectGroupList],
+        });
         Object.assign(this.fingerOperateData, {
           dimensionList: groupFields,
           selectGroupList,
@@ -471,7 +469,10 @@ export default {
         if (this.clusterSwitch) {
           const params = { index_set_id: this.routerIndexSet };
           const data = { collector_config_id: this.collectorConfigId };
-          const res = await this.$http.request('/logClustering/getConfig', { params, data });
+          const res = await this.$http.request('/logClustering/getConfig', {
+            params,
+            data,
+          });
           return res.data.group_fields;
         }
         return [];
@@ -532,7 +533,8 @@ export default {
      */
     requestFinger() {
       // loading中，或者没有开启数据指纹功能，或当前页面初始化或者切换索引集时不允许起请求
-      if (this.tableLoading || !this.clusterSwitch || !this.isClusterActive) return;
+      if (this.tableLoading || !this.clusterSwitch || !this.isClusterActive)
+        return;
       const {
         start_time,
         end_time,
@@ -567,7 +569,7 @@ export default {
           },
           { cancelWhenRouteChange: false }
         ) // 由于回填指纹的数据导致路由变化，故路由变化时不取消请求
-        .then(res => {
+        .then((res) => {
           this.fingerPage = 1;
           this.fingerList = [];
           this.allFingerList = res.data;
@@ -584,13 +586,19 @@ export default {
      * @desc: 数据指纹分页操作
      */
     async paginationOptions() {
-      if (this.isPageOver || this.fingerList.length >= this.allFingerList.length) {
+      if (
+        this.isPageOver ||
+        this.fingerList.length >= this.allFingerList.length
+      ) {
         return;
       }
       this.isPageOver = true;
       this.fingerPage += 1;
       const { fingerPage: page, fingerPageSize: pageSize } = this;
-      const sliceFingerList = this.allFingerList.slice(pageSize * (page - 1), pageSize * page);
+      const sliceFingerList = this.allFingerList.slice(
+        pageSize * (page - 1),
+        pageSize * page
+      );
       setTimeout(() => {
         this.fingerList.push(...sliceFingerList);
         this.isPageOver = false;
@@ -600,10 +608,12 @@ export default {
      * @desc: 初始化分组select数组
      */
     filterGroupList() {
-      const { getConcatenatedFieldName } = useFieldNameHook({ store: this.$store });
+      const { getConcatenatedFieldName } = useFieldNameHook({
+        store: this.$store,
+      });
       const filterList = this.totalFields
-        .filter(el => el.es_doc_values && !/^__dist_/.test(el.field_name)) // 过滤__dist字段
-        .map(item => {
+        .filter((el) => el.es_doc_values && !/^__dist_/.test(el.field_name)) // 过滤__dist字段
+        .map((item) => {
           return getConcatenatedFieldName(item);
         });
       this.fingerOperateData.groupList = filterList;
@@ -618,7 +628,11 @@ export default {
     },
     handleCloseGroupTag() {
       Object.assign(this.fingerOperateData, { selectGroupList: [] });
-      this.handleFingerOperate('requestData', { group_by: this.fingerOperateData.dimensionList }, true);
+      this.handleFingerOperate(
+        'requestData',
+        { group_by: this.fingerOperateData.dimensionList },
+        true
+      );
     },
     handleCloseYearTag() {
       Object.assign(this.fingerOperateData, { yearSwitch: false });
@@ -674,7 +688,9 @@ export default {
         'retrieve/getClusteringConfigStatus',
         {
           params: {
-            index_set_id: window.__IS_MONITOR_COMPONENT__ ? this.$route.query.indexId : this.$route.params.indexId,
+            index_set_id: window.__IS_MONITOR_COMPONENT__
+              ? this.$route.query.indexId
+              : this.$route.params.indexId,
           },
         },
         {
@@ -737,83 +753,83 @@ export default {
 </script>
 
 <style lang="scss">
-  @import '@/scss/mixins/flex.scss';
+@import '@/scss/mixins/flex.scss';
 
-  .log-cluster-table-container-main {
-    height: 100%;
+.log-cluster-table-container-main {
+  height: 100%;
+}
+
+/* stylelint-disable no-descending-specificity */
+.log-cluster-table-container {
+  height: 100%;
+
+  .cluster-nav {
+    flex-wrap: nowrap;
+    align-items: center;
+    height: 32px;
+    margin-bottom: 12px;
+    color: #63656e;
+    @include flex-justify(space-between);
   }
 
-  /* stylelint-disable no-descending-specificity */
-  .log-cluster-table-container {
-    height: 100%;
-
-    .cluster-nav {
-      flex-wrap: nowrap;
-      align-items: center;
-      height: 32px;
-      margin-bottom: 12px;
-      color: #63656e;
-      @include flex-justify(space-between);
-    }
-
-    .bk-alert {
-      margin-bottom: 16px;
-    }
+  .bk-alert {
+    margin-bottom: 16px;
   }
+}
 
-  .no-text-table {
-    .bk-table-empty-block {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      min-height: calc(100vh - 348px);
-    }
-
-    .empty-text {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: space-between;
-
-      .bk-icon {
-        font-size: 65px;
-      }
-
-      .empty-leave {
-        margin-top: 8px;
-        color: #3a84ff;
-        cursor: pointer;
-      }
-    }
-  }
-
-  .fixed-scroll-top-btn {
-    position: fixed;
-    right: 14px;
-    bottom: 24px;
-    z-index: 2100;
+.no-text-table {
+  .bk-table-empty-block {
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 36px;
-    height: 36px;
-    color: #63656e;
-    cursor: pointer;
-    background: #f0f1f5;
-    border: 1px solid #dde4eb;
-    border-radius: 4px;
-    box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.2);
-    transition: all 0.2s;
+    min-height: calc(100vh - 348px);
+  }
 
-    &:hover {
-      color: #fff;
-      background: #979ba5;
-      transition: all 0.2s;
-    }
+  .empty-text {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: space-between;
 
     .bk-icon {
-      font-size: 20px;
-      font-weight: bold;
+      font-size: 65px;
+    }
+
+    .empty-leave {
+      margin-top: 8px;
+      color: #3a84ff;
+      cursor: pointer;
     }
   }
+}
+
+.fixed-scroll-top-btn {
+  position: fixed;
+  right: 14px;
+  bottom: 24px;
+  z-index: 2100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  color: #63656e;
+  cursor: pointer;
+  background: #f0f1f5;
+  border: 1px solid #dde4eb;
+  border-radius: 4px;
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.2);
+  transition: all 0.2s;
+
+  &:hover {
+    color: #fff;
+    background: #979ba5;
+    transition: all 0.2s;
+  }
+
+  .bk-icon {
+    font-size: 20px;
+    font-weight: bold;
+  }
+}
 </style>

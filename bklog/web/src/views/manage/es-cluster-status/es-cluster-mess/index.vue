@@ -221,7 +221,12 @@
             </log-button>
             <log-button
               class="mr10"
-              v-cursor="{ active: !(props.row.permission && props.row.permission[authorityMap.MANAGE_ES_SOURCE_AUTH]) }"
+              v-cursor="{
+                active: !(
+                  props.row.permission &&
+                  props.row.permission[authorityMap.MANAGE_ES_SOURCE_AUTH]
+                ),
+              }"
               :button-text="$t('编辑')"
               :disabled="!props.row.is_editable"
               :tips-conf="$t('平台默认的集群不允许编辑和删除，请联系管理员。')"
@@ -232,7 +237,12 @@
             </log-button>
             <log-button
               class="mr10"
-              v-cursor="{ active: !(props.row.permission && props.row.permission[authorityMap.MANAGE_ES_SOURCE_AUTH]) }"
+              v-cursor="{
+                active: !(
+                  props.row.permission &&
+                  props.row.permission[authorityMap.MANAGE_ES_SOURCE_AUTH]
+                ),
+              }"
               :button-text="$t('删除')"
               :disabled="!props.row.is_editable"
               :tips-conf="$t('平台默认的集群不允许编辑和删除，请联系管理员。')"
@@ -243,10 +253,7 @@
             </log-button>
           </template>
         </bk-table-column>
-        <bk-table-column
-          :tippy-options="{ zIndex: 3000 }"
-          type="setting"
-        >
+        <bk-table-column :tippy-options="{ zIndex: 3000 }" type="setting">
           <bk-table-setting-content
             v-en-style="'width: 530px'"
             :fields="clusterSetting.fields"
@@ -275,10 +282,7 @@
         :style="`right: ${introWidth - 18}px`"
         :class="`drag-item ${!introWidth && 'hidden-drag'}`"
       >
-        <span
-          class="bk-icon icon-more"
-          @mousedown.left="dragBegin"
-        ></span>
+        <span class="bk-icon icon-more" @mousedown.left="dragBegin"></span>
       </div>
       <intro-panel
         :is-open-window="isOpenWindow"
@@ -433,7 +437,7 @@ export default {
     sourceFilters() {
       const { es_source_type: esSourceType } = this.globalsData;
       const target = [];
-      esSourceType?.forEach(data => {
+      esSourceType?.forEach((data) => {
         target.push({
           text: data.name,
           value: data.id,
@@ -447,7 +451,10 @@ export default {
     this.getTableData();
     this.formatFileSize = formatFileSize;
     const { selectedFields } = this.clusterSetting;
-    this.clusterSetting.selectedFields = getDefaultSettingSelectFiled(this.settingCacheKey, selectedFields);
+    this.clusterSetting.selectedFields = getDefaultSettingSelectFiled(
+      this.settingCacheKey,
+      selectedFields
+    );
     this.$nextTick(() => {
       this.maxIntroWidth = this.$refs.accessContainerRef.clientWidth - 580;
     });
@@ -490,14 +497,19 @@ export default {
         this.computePageData();
         // 连接状态
         try {
-          const stateRes = await this.$http.request('/source/connectionStatus', {
-            query: {
-              bk_biz_id: this.bkBizId,
-            },
-            data: {
-              cluster_list: list.map(item => item.cluster_config.cluster_id),
-            },
-          });
+          const stateRes = await this.$http.request(
+            '/source/connectionStatus',
+            {
+              query: {
+                bk_biz_id: this.bkBizId,
+              },
+              data: {
+                cluster_list: list.map(
+                  (item) => item.cluster_config.cluster_id
+                ),
+              },
+            }
+          );
           this.stateMap = stateRes.data;
         } catch (e) {
           console.warn(e);
@@ -547,10 +559,13 @@ export default {
     searchCallback() {
       const keyword = this.params.keyword.trim();
       if (keyword) {
-        this.tableDataSearched = this.tableDataOrigin.filter(item => {
+        this.tableDataSearched = this.tableDataOrigin.filter((item) => {
           // 若是ipv6 则拿补全后的keyword与补全后的原地址对比
           if (isIPv6(keyword)) {
-            return this.completeIPv6Address(item.cluster_config.domain_name) === this.completeIPv6Address(keyword);
+            return (
+              this.completeIPv6Address(item.cluster_config.domain_name) ===
+              this.completeIPv6Address(keyword)
+            );
           }
           if (item.cluster_config.cluster_name) {
             return (
@@ -564,7 +579,8 @@ export default {
       } else {
         this.tableDataSearched = this.tableDataOrigin;
       }
-      this.emptyType = this.params.keyword || this.isFilterSearch ? 'search-empty' : 'empty';
+      this.emptyType =
+        this.params.keyword || this.isFilterSearch ? 'search-empty' : 'empty';
       this.pagination.current = 1;
       this.pagination.count = this.tableDataSearched.length;
       this.computePageData();
@@ -579,7 +595,7 @@ export default {
       }
 
       return sections
-        .map(section => {
+        .map((section) => {
           if (section.length < 4) {
             section = '0'.repeat(4 - section.length) + section;
           }
@@ -684,7 +700,9 @@ export default {
 
       this.$bkInfo({
         type: 'warning',
-        subTitle: this.$t('当前集群为{n}，确认要删除？', { n: row.cluster_config.domain_name }),
+        subTitle: this.$t('当前集群为{n}，确认要删除？', {
+          n: row.cluster_config.domain_name,
+        }),
         confirmFn: () => {
           this.handleDelete(row);
         },
@@ -698,13 +716,16 @@ export default {
             cluster_id: row.cluster_config.cluster_id,
           },
         })
-        .then(res => {
+        .then((res) => {
           if (res.result) {
             if (this.tableDataPaged.length <= 1) {
-              this.pagination.current = this.pagination.current > 1 ? this.pagination.current - 1 : 1;
+              this.pagination.current =
+                this.pagination.current > 1 ? this.pagination.current - 1 : 1;
             }
-            const deleteIndex = this.tableDataSearched.findIndex(item => {
-              return item.cluster_config.cluster_id === row.cluster_config.cluster_id;
+            const deleteIndex = this.tableDataSearched.findIndex((item) => {
+              return (
+                item.cluster_config.cluster_id === row.cluster_config.cluster_id
+              );
             });
             this.tableDataSearched.splice(deleteIndex, 1);
             this.computePageData();
@@ -739,14 +760,21 @@ export default {
       return state === value;
     },
     checkcFields(field) {
-      return this.clusterSetting.selectedFields.some(item => item.id === field);
+      return this.clusterSetting.selectedFields.some(
+        (item) => item.id === field
+      );
     },
     getPercent($row) {
       return (100 - $row.storage_usage) / 100;
     },
     handleFilterChange(data) {
-      Object.entries(data).forEach(([key, value]) => (this.filterSearchObj[key] = value.length));
-      this.isFilterSearch = Object.values(this.filterSearchObj).reduce((pre, cur) => ((pre += cur), pre), 0);
+      Object.entries(data).forEach(
+        ([key, value]) => (this.filterSearchObj[key] = value.length)
+      );
+      this.isFilterSearch = Object.values(this.filterSearchObj).reduce(
+        (pre, cur) => ((pre += cur), pre),
+        0
+      );
       this.searchCallback();
     },
     handleOperation(type) {
@@ -768,106 +796,106 @@ export default {
 </script>
 
 <style lang="scss">
-  .es-access-container {
-    position: relative;
-    display: flex;
-    justify-content: space-between;
-    transition: padding 0.5s;
+.es-access-container {
+  position: relative;
+  display: flex;
+  justify-content: space-between;
+  transition: padding 0.5s;
 
-    .main-operator-container {
-      margin-bottom: 20px;
-    }
+  .main-operator-container {
+    margin-bottom: 20px;
+  }
 
-    .king-table {
-      .state-container {
-        display: flex;
-        flex-wrap: nowrap;
-        align-items: center;
-        white-space: nowrap;
-
-        .bk-badge {
-          width: 5px;
-          height: 5px;
-          margin-right: 4px;
-          border-radius: 50%;
-        }
-
-        .bk-danger {
-          background-color: #2dcb56;
-        }
-
-        .bk-warning {
-          background-color: #ea3636;
-        }
-      }
-
-      :deep(.cell) {
-        padding: 4px 15px;
-      }
-
-      .filter-column {
-        .cell {
-          display: flex;
-        }
-      }
-    }
-
-    .es-cluster-list-container {
-      padding: 20px 24px;
-    }
-
-    .intro-container {
-      position: relative;
-      top: 2px;
-      width: 400px;
-      height: calc(100vh - 104px);
-      overflow: hidden;
-
-      &.draging-move {
-        border-left-color: #3a84ff;
-      }
-    }
-
-    .drag-item {
-      position: absolute;
-      top: 48%;
-      right: 304px;
-      z-index: 99;
-      display: inline-block;
-      width: 20px;
-      height: 40px;
-      color: #c4c6cc;
-      cursor: col-resize;
-      user-select: none;
-
-      &.hidden-drag {
-        display: none;
-      }
-
-      .icon-more::after {
-        position: absolute;
-        top: 12px;
-        left: 0;
-        content: '\e189';
-      }
-    }
-
-    .percent {
+  .king-table {
+    .state-container {
       display: flex;
+      flex-wrap: nowrap;
       align-items: center;
+      white-space: nowrap;
 
-      .percent-progress {
-        width: 40px;
+      .bk-badge {
+        width: 5px;
+        height: 5px;
         margin-right: 4px;
+        border-radius: 50%;
+      }
+
+      .bk-danger {
+        background-color: #2dcb56;
+      }
+
+      .bk-warning {
+        background-color: #ea3636;
+      }
+    }
+
+    :deep(.cell) {
+      padding: 4px 15px;
+    }
+
+    .filter-column {
+      .cell {
+        display: flex;
       }
     }
   }
 
-  .bk-table-setting-popover-content-theme.tippy-tooltip {
-    padding: 15px 0 0;
+  .es-cluster-list-container {
+    padding: 20px 24px;
+  }
 
-    .bk-table-setting-content .content-line-height {
+  .intro-container {
+    position: relative;
+    top: 2px;
+    width: 400px;
+    height: calc(100vh - 104px);
+    overflow: hidden;
+
+    &.draging-move {
+      border-left-color: #3a84ff;
+    }
+  }
+
+  .drag-item {
+    position: absolute;
+    top: 48%;
+    right: 304px;
+    z-index: 99;
+    display: inline-block;
+    width: 20px;
+    height: 40px;
+    color: #c4c6cc;
+    cursor: col-resize;
+    user-select: none;
+
+    &.hidden-drag {
       display: none;
     }
+
+    .icon-more::after {
+      position: absolute;
+      top: 12px;
+      left: 0;
+      content: '\e189';
+    }
   }
+
+  .percent {
+    display: flex;
+    align-items: center;
+
+    .percent-progress {
+      width: 40px;
+      margin-right: 4px;
+    }
+  }
+}
+
+.bk-table-setting-popover-content-theme.tippy-tooltip {
+  padding: 15px 0 0;
+
+  .bk-table-setting-content .content-line-height {
+    display: none;
+  }
+}
 </style>

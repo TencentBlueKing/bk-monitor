@@ -91,8 +91,8 @@ export default {
   },
   computed: {
     ...mapState({
-      bkBizId: state => state.bkBizId,
-      isExternal: state => state.isExternal,
+      bkBizId: (state) => state.bkBizId,
+      isExternal: (state) => state.isExternal,
     }),
     ...mapGetters({
       isUnionSearch: 'isUnionSearch',
@@ -101,7 +101,8 @@ export default {
       // 日志聚类总开关
       if (this.isUnionSearch) return false; // 联合查询时不包含日志聚类
       const { bkdata_aiops_toggle: bkdataAiopsToggle } = window.FEATURE_TOGGLE;
-      const aiopsBizList = window.FEATURE_TOGGLE_WHITE_LIST?.bkdata_aiops_toggle;
+      const aiopsBizList =
+        window.FEATURE_TOGGLE_WHITE_LIST?.bkdata_aiops_toggle;
 
       switch (bkdataAiopsToggle) {
         case 'on':
@@ -109,7 +110,9 @@ export default {
         case 'off':
           return false;
         default:
-          return aiopsBizList ? aiopsBizList.some(item => item.toString() === this.bkBizId) : false;
+          return aiopsBizList
+            ? aiopsBizList.some((item) => item.toString() === this.bkBizId)
+            : false;
       }
     },
     panelList() {
@@ -123,7 +126,8 @@ export default {
   },
   watch: {
     isInitPage() {
-      if (this.activeTableTab === 'clustering' && this.isAiopsToggle) this.active = 'clustering';
+      if (this.activeTableTab === 'clustering' && this.isAiopsToggle)
+        this.active = 'clustering';
     },
     active(val) {
       if (val === 'clustering' && !this.isReported) {
@@ -161,22 +165,22 @@ export default {
 </script>
 
 <style lang="scss">
-  .result-table-panel {
-    position: relative;
-    padding: 10px 24px 20px;
-    margin: 0 0 16px;
-    background: #fff;
+.result-table-panel {
+  position: relative;
+  padding: 10px 24px 20px;
+  margin: 0 0 16px;
+  background: #fff;
 
-    .bk-tab {
-      margin-bottom: 16px;
+  .bk-tab {
+    margin-bottom: 16px;
 
-      .bk-tab-section {
-        display: none;
-      }
-    }
-
-    .is-last {
-      border-bottom: 1px solid #dfe0e5;
+    .bk-tab-section {
+      display: none;
     }
   }
+
+  .is-last {
+    border-bottom: 1px solid #dfe0e5;
+  }
+}
 </style>

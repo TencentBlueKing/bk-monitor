@@ -27,22 +27,15 @@
 <template>
   <section class="log-search-top-nav">
     <div class="top-nav-content">
-      <div
-        v-if="title"
-        class="top-nav-title fl"
-      >
-        <div
-          v-if="title === $t('数据采样')"
-          class="skip"
-        >
-          <span @click="clickSkip('collectAccess')">{{ $t('采集接入') }} / </span>
+      <div v-if="title" class="top-nav-title fl">
+        <div v-if="title === $t('数据采样')" class="skip">
+          <span @click="clickSkip('collectAccess')"
+            >{{ $t('采集接入') }} /
+          </span>
           <span @click="clickSkip('allocation')">{{ $t('采集状态') }} / </span>
           {{ title }}
         </div>
-        <div
-          v-else
-          style="display: flex; align-items: center"
-        >
+        <div v-else style="display: flex; align-items: center">
           <i
             class="bk-icon icon-arrows-left title-btn-back"
             @click.stop="goBack"
@@ -50,19 +43,16 @@
           {{ title }}
         </div>
       </div>
-      <div
-        v-else
-        class="top-nav-title title-roll fl"
-      >
+      <div v-else class="top-nav-title title-roll fl">
         {{ menu.name }}
       </div>
-      <ul
-        v-if="!title && menu.children"
-        class="top-nav-list fl"
-      >
+      <ul v-if="!title && menu.children" class="top-nav-list fl">
         <li
           v-for="item in menu.children"
-          :class="{ active: routerName === item.id, 'text-disabled': item.id === 'esAccess' && !collectProject }"
+          :class="{
+            active: routerName === item.id,
+            'text-disabled': item.id === 'esAccess' && !collectProject,
+          }"
           :key="item.id"
           @click="routerHandler(item)"
         >
@@ -113,8 +103,8 @@ export default {
   },
   computed: {
     ...mapState({
-      currentMenu: state => state.currentMenu,
-      menuProject: state => state.menuProject,
+      currentMenu: (state) => state.currentMenu,
+      menuProject: (state) => state.menuProject,
     }),
     routerName() {
       return this.$route.name;
@@ -141,7 +131,7 @@ export default {
         return false;
       }
       if (routeMenu.children) {
-        routeMenu.children.forEach(child => {
+        routeMenu.children.forEach((child) => {
           this.getParentRoute(child, routeMenu);
         });
       }
@@ -160,89 +150,89 @@ export default {
 </script>
 
 <style lang="scss">
-  @import '../../scss/mixins/clearfix';
-  @import '../../scss/conf';
+@import '../../scss/mixins/clearfix';
+@import '../../scss/conf';
 
-  .log-search-top-nav {
-    padding: 0 60px;
-    font-size: 14px;
+.log-search-top-nav {
+  padding: 0 60px;
+  font-size: 14px;
+
+  @include clearfix;
+
+  .top-nav-content {
+    height: 60px;
+    padding: 20px 0;
+    line-height: 20px;
+    border-bottom: 1px solid $borderWeightColor;
+
+    @include clearfix;
+  }
+
+  .top-nav-title {
+    padding: 0 28px 0 10px;
+    font-weight: 600;
+
+    &.title-roll {
+      border-left: 2px solid #a3c5fd;
+    }
+
+    .title-btn-back {
+      font-size: 20px;
+      font-weight: 600;
+      color: #3a84ff;
+      cursor: pointer;
+    }
+  }
+
+  .top-nav-list {
+    color: #313238;
+    border-left: 1px solid $borderWeightColor;
 
     @include clearfix;
 
-    .top-nav-content {
-      height: 60px;
-      padding: 20px 0;
-      line-height: 20px;
-      border-bottom: 1px solid $borderWeightColor;
+    li {
+      float: left;
+      margin-left: 26px;
+      cursor: pointer;
 
-      @include clearfix;
-    }
-
-    .top-nav-title {
-      padding: 0 28px 0 10px;
-      font-weight: 600;
-
-      &.title-roll {
-        border-left: 2px solid #a3c5fd;
-      }
-
-      .title-btn-back {
-        font-size: 20px;
-        font-weight: 600;
-        color: #3a84ff;
-        cursor: pointer;
-      }
-    }
-
-    .top-nav-list {
-      color: #313238;
-      border-left: 1px solid $borderWeightColor;
-
-      @include clearfix;
-
-      li {
-        float: left;
-        margin-left: 26px;
-        cursor: pointer;
-
-        &.active {
-          color: #3a84ff;
-        }
-      }
-
-      span {
-        float: left;
-        margin-left: 26px;
-        cursor: pointer;
-      }
-
-      .nav-col {
+      &.active {
         color: #3a84ff;
       }
     }
 
-    .skip {
-      /* stylelint-disable-next-line declaration-no-important */
-      font-weight: normal !important;
-      color: #64656e;
-
-      span {
-        color: #979ba5;
-        cursor: pointer;
-      }
-
-      span:hover {
-        color: #64656e;
-      }
+    span {
+      float: left;
+      margin-left: 26px;
+      cursor: pointer;
     }
 
-    .text-disabled {
-      color: #c4c6cc;
-    }
-
-    .text-disabled:hover {
-      color: #c4c6cc;
-      cursor: not-allowed;
+    .nav-col {
+      color: #3a84ff;
     }
   }
+
+  .skip {
+    /* stylelint-disable-next-line declaration-no-important */
+    font-weight: normal !important;
+    color: #64656e;
+
+    span {
+      color: #979ba5;
+      cursor: pointer;
+    }
+
+    span:hover {
+      color: #64656e;
+    }
+  }
+
+  .text-disabled {
+    color: #c4c6cc;
+  }
+
+  .text-disabled:hover {
+    color: #c4c6cc;
+    cursor: not-allowed;
+  }
+}
 </style>

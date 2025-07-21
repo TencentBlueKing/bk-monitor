@@ -50,10 +50,7 @@
         style="width: 671px; height: 224px"
         class="bk-select-dropdown-content"
       >
-        <div
-          style="height: 32px"
-          class="bk-select-search-wrapper"
-        >
+        <div style="height: 32px" class="bk-select-search-wrapper">
           <i class="left-icon bk-icon icon-search"></i>
           <input
             class="bk-select-search-input"
@@ -62,14 +59,8 @@
             type="text"
           />
         </div>
-        <div
-          style="max-height: 190px"
-          class="bk-options-wrapper"
-        >
-          <ul
-            style="max-height: 190px"
-            class="bk-options bk-options-single"
-          >
+        <div style="max-height: 190px" class="bk-options-wrapper">
+          <ul style="max-height: 190px" class="bk-options bk-options-single">
             <li
               v-for="option in filesSearchedPath"
               class="bk-option"
@@ -80,10 +71,7 @@
             </li>
           </ul>
         </div>
-        <div
-          v-if="!filesSearchedPath.length"
-          class="bk-select-empty"
-        >
+        <div v-if="!filesSearchedPath.length" class="bk-select-empty">
           {{ $t('暂无选项') }}
         </div>
       </div>
@@ -115,7 +103,9 @@ export default {
   },
   computed: {
     filesSearchedPath() {
-      return this.availablePaths.filter(item => item.toLowerCase().includes(this.searchValue.toLowerCase()));
+      return this.availablePaths.filter((item) =>
+        item.toLowerCase().includes(this.searchValue.toLowerCase())
+      );
     },
   },
   watch: {

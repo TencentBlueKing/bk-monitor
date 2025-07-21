@@ -31,7 +31,9 @@
         <div>{{ $t('编辑器') }}</div>
         <div class="right-container">
           <slot name="right"></slot>
-          <span v-bk-tooltips="{ distance: 20, content: $t('全屏'), delay: 300 }">
+          <span
+            v-bk-tooltips="{ distance: 20, content: $t('全屏'), delay: 300 }"
+          >
             <span
               v-if="!isFull"
               class="bk-icon icon-full-screen"
@@ -43,12 +45,19 @@
     </template>
     <div
       ref="editorRefs"
-      :style="{ height: calcSize(renderHeight), width: calcSize(renderWidth), position: 'relative' }"
+      :style="{
+        height: calcSize(renderHeight),
+        width: calcSize(renderWidth),
+        position: 'relative',
+      }"
     >
       <div
         v-if="placeholder"
         :style="placeholderStyle"
-        :class="['monaco-placeholder', { 'light-monaco-placeholder': theme !== 'vs-dark' }]"
+        :class="[
+          'monaco-placeholder',
+          { 'light-monaco-placeholder': theme !== 'vs-dark' },
+        ]"
       >
         {{ placeholder }}
       </div>
@@ -66,10 +75,7 @@
         :style="`height: ${problemHeight}px; max-height: ${height - 50}px; font-size: ${fontSize}px;`"
         :class="['problems', { 'light-problems': theme !== 'vs-dark' }]"
       >
-        <div
-          class="problems-drag"
-          @mousedown="handleMouseDown"
-        ></div>
+        <div class="problems-drag" @mousedown="handleMouseDown"></div>
         <template>
           <div
             v-for="(item, index) of problemList"
@@ -80,10 +86,7 @@
             <div :class="`bk-icon ${item.codiconClass}`"></div>
             <div class="problem-text">
               <span>{{ item.problemMessage }}</span>
-              <span
-                v-if="item.lineNumber && item.column"
-                class="problem-line"
-              >
+              <span v-if="item.lineNumber && item.column" class="problem-line">
                 [{{ item.lineNumber }}, {{ item.column }}]
               </span>
             </div>
@@ -100,12 +103,18 @@ const PLACEHOLDER_SELECTOR = '.monaco-placeholder';
 self.MonacoEnvironment = {
   getWorkerUrl(moduleId, label) {
     if (label === 'yaml') {
-      return process.env.NODE_ENV === 'production' ? `${window.BK_STATIC_URL}/yaml.worker.js` : './yaml.worker.js';
+      return process.env.NODE_ENV === 'production'
+        ? `${window.BK_STATIC_URL}/yaml.worker.js`
+        : './yaml.worker.js';
     }
     if (label === 'json') {
-      return process.env.NODE_ENV === 'production' ? `${window.BK_STATIC_URL}/json.worker.js` : './json.worker.js';
+      return process.env.NODE_ENV === 'production'
+        ? `${window.BK_STATIC_URL}/json.worker.js`
+        : './json.worker.js';
     }
-    return process.env.NODE_ENV === 'production' ? `${window.BK_STATIC_URL}/editor.worker.js` : './editor.worker.js';
+    return process.env.NODE_ENV === 'production'
+      ? `${window.BK_STATIC_URL}/editor.worker.js`
+      : './editor.worker.js';
   },
 };
 
@@ -221,7 +230,8 @@ export default {
       },
     },
     language(newVal) {
-      this.editor && monaco.editor.setModelLanguage(monaco.editor.getModels()[0], newVal);
+      this.editor &&
+        monaco.editor.setModelLanguage(monaco.editor.getModels()[0], newVal);
     },
     theme(newVal) {
       this.editor && monaco.editor.setTheme(newVal);
@@ -238,7 +248,9 @@ export default {
       this.setWaringMarker(newVal);
     },
     'problemList.length'() {
-      this.isHaveError = this.problemList.some(item => item.codiconClass === 'icon-close-circle-shape');
+      this.isHaveError = this.problemList.some(
+        (item) => item.codiconClass === 'icon-close-circle-shape'
+      );
       this.$emit('get-problem-state', this.isHaveError);
     },
   },
@@ -286,36 +298,46 @@ export default {
       );
       this.editor = monaco.editor.create(this.$refs.editorRefs, options);
       this.$emit('editorDidMount', this.editor);
-      this.editor.onContextMenu(event => this.$emit('contextMenu', event));
-      this.editor.onDidBlurEditorWidget(() => this.$emit('blur', this.editor.getValue()));
+      this.editor.onContextMenu((event) => this.$emit('contextMenu', event));
+      this.editor.onDidBlurEditorWidget(() =>
+        this.$emit('blur', this.editor.getValue())
+      );
       this.editor.onDidBlurEditorText(() => this.$emit('blurText'));
-      this.editor.onDidChangeConfiguration(event => this.$emit('configuration', event));
-      this.editor.onDidChangeCursorPosition(event => {
+      this.editor.onDidChangeConfiguration((event) =>
+        this.$emit('configuration', event)
+      );
+      this.editor.onDidChangeCursorPosition((event) => {
         this.$emit('position', event);
       });
-      this.editor.onDidChangeCursorSelection(event => {
+      this.editor.onDidChangeCursorSelection((event) => {
         this.$emit('selection', event);
       });
-      this.editor.onDidChangeModelContent(event => {
+      this.editor.onDidChangeModelContent((event) => {
         const value = this.editor.getValue();
         if (this.value !== value) {
           this.$emit('change', value, event);
         }
       });
-      this.editor.onDidChangeModelDecorations(event => this.$emit('modelDecorations', event));
-      this.editor.onDidChangeModelLanguage(event => this.$emit('modelLanguage', event));
-      this.editor.onDidChangeModelOptions(event => this.$emit('modelOptions', event));
-      this.editor.onDidDispose(event => this.$emit('afterDispose', event));
+      this.editor.onDidChangeModelDecorations((event) =>
+        this.$emit('modelDecorations', event)
+      );
+      this.editor.onDidChangeModelLanguage((event) =>
+        this.$emit('modelLanguage', event)
+      );
+      this.editor.onDidChangeModelOptions((event) =>
+        this.$emit('modelOptions', event)
+      );
+      this.editor.onDidDispose((event) => this.$emit('afterDispose', event));
       this.editor.onDidFocusEditorWidget(() => this.$emit('focus'));
       this.editor.onDidFocusEditorText(() => this.$emit('focusText'));
-      this.editor.onDidLayoutChange(event => this.$emit('layout', event));
-      this.editor.onDidScrollChange(event => this.$emit('scroll', event));
-      this.editor.onKeyDown(event => this.$emit('keydown', event));
-      this.editor.onKeyUp(event => this.$emit('keyup', event));
-      this.editor.onMouseDown(event => this.$emit('mouseDown', event));
-      this.editor.onMouseLeave(event => this.$emit('mouseLeave', event));
-      this.editor.onMouseMove(event => this.$emit('mouseMove', event));
-      this.editor.onMouseUp(event => this.$emit('mouseUp', event));
+      this.editor.onDidLayoutChange((event) => this.$emit('layout', event));
+      this.editor.onDidScrollChange((event) => this.$emit('scroll', event));
+      this.editor.onKeyDown((event) => this.$emit('keydown', event));
+      this.editor.onKeyUp((event) => this.$emit('keyup', event));
+      this.editor.onMouseDown((event) => this.$emit('mouseDown', event));
+      this.editor.onMouseLeave((event) => this.$emit('mouseLeave', event));
+      this.editor.onMouseMove((event) => this.$emit('mouseMove', event));
+      this.editor.onMouseUp((event) => this.$emit('mouseUp', event));
       this.isShowProblem && this.markerChange(monaco);
       if (this.placeholder) {
         this.value === '' ? this.showPlaceholder('') : this.hidePlaceholder();
@@ -417,7 +439,7 @@ export default {
      */
     setWaringMarker(markers = []) {
       if (this.isHaveError) return;
-      const waringMarkers = markers.map(item => ({
+      const waringMarkers = markers.map((item) => ({
         lineNumber: item.startLineNumber,
         column: item.startColumn,
         problemMessage: item.message,
@@ -446,7 +468,7 @@ export default {
       if (!parentNode) return;
 
       const rect = parentNode.getBoundingClientRect();
-      const handleMouseMove = event => {
+      const handleMouseMove = (event) => {
         const [min, max] = this.range;
         const newHeight = rect.top - event.clientY + rect.height;
         if (newHeight < min) {
@@ -466,126 +488,126 @@ export default {
 };
 </script>
 <style lang="scss" scoped>
-  @import '@/scss/mixins/flex.scss';
+@import '@/scss/mixins/flex.scss';
 
-  /* stylelint-disable no-descending-specificity */
-  .editor-container {
-    width: 100%;
-  }
+/* stylelint-disable no-descending-specificity */
+.editor-container {
+  width: 100%;
+}
 
-  .problems {
-    position: absolute;
-    bottom: 0;
-    // max-height: 500px;
-    z-index: 999;
-    width: 100%;
-    padding: 6px 20px;
-    overflow-y: auto;
-    background: #212121;
-  }
+.problems {
+  position: absolute;
+  bottom: 0;
+  // max-height: 500px;
+  z-index: 999;
+  width: 100%;
+  padding: 6px 20px;
+  overflow-y: auto;
+  background: #212121;
+}
 
-  .light-problems {
-    background: #fafbfd;
-
-    .problem {
-      color: #212121;
-
-      &:hover {
-        color: #313238;
-        background: #f0f1f5;
-      }
-    }
-  }
+.light-problems {
+  background: #fafbfd;
 
   .problem {
-    display: flex;
-    align-items: center;
-    margin: 6px 0;
-    color: #dcdee5;
-    cursor: pointer;
-
-    .problem-text {
-      margin-left: 10px;
-    }
+    color: #212121;
 
     &:hover {
-      color: #fff;
-      background: #424242;
+      color: #313238;
+      background: #f0f1f5;
     }
   }
+}
 
-  .problems-drag {
-    position: sticky;
-    left: calc(50% - 13px);
-    z-index: 100;
-    width: 26px;
-    height: 6px;
-    border-radius: 3px;
-    transform: translateY(-50%);
+.problem {
+  display: flex;
+  align-items: center;
+  margin: 6px 0;
+  color: #dcdee5;
+  cursor: pointer;
 
-    @include flex-center();
-
-    &::after {
-      position: absolute;
-      left: 2px;
-      width: 100%;
-      height: 0;
-      content: ' ';
-      border-bottom: 3px dotted #63656e;
-    }
-
-    &:hover {
-      cursor: s-resize;
-      user-select: none;
-    }
+  .problem-text {
+    margin-left: 10px;
   }
 
-  .monaco-placeholder {
-    position: absolute;
-    top: 2px;
-    left: 24px;
-    z-index: 999;
+  &:hover {
     color: #fff;
+    background: #424242;
   }
+}
 
-  .light-monaco-placeholder {
-    color: #979ba5;
-  }
+.problems-drag {
+  position: sticky;
+  left: calc(50% - 13px);
+  z-index: 100;
+  width: 26px;
+  height: 6px;
+  border-radius: 3px;
+  transform: translateY(-50%);
 
-  .editor-title {
-    display: flex;
-    justify-content: space-between;
+  @include flex-center();
+
+  &::after {
+    position: absolute;
+    left: 2px;
     width: 100%;
-    padding: 14px 18px;
-    color: #979ba5;
-    background: #2e2e2e;
-
-    .right-container {
-      @include flex-center();
-    }
+    height: 0;
+    content: ' ';
+    border-bottom: 3px dotted #63656e;
   }
 
-  .icon-un-full-screen {
-    position: absolute;
-    top: 10px;
-    z-index: 1;
-    color: #fff;
+  &:hover {
+    cursor: s-resize;
+    user-select: none;
   }
+}
 
-  .bk-icon {
-    margin-right: 8px;
-    cursor: pointer;
-  }
+.monaco-placeholder {
+  position: absolute;
+  top: 2px;
+  left: 24px;
+  z-index: 999;
+  color: #fff;
+}
 
-  .icon-close-circle-shape {
-    color: #b34747;
-  }
+.light-monaco-placeholder {
+  color: #979ba5;
+}
 
-  .icon-exclamation-circle-shape {
-    color: #ff9c01;
-  }
+.editor-title {
+  display: flex;
+  justify-content: space-between;
+  width: 100%;
+  padding: 14px 18px;
+  color: #979ba5;
+  background: #2e2e2e;
 
-  .problem-line {
-    color: #979ba5;
+  .right-container {
+    @include flex-center();
   }
+}
+
+.icon-un-full-screen {
+  position: absolute;
+  top: 10px;
+  z-index: 1;
+  color: #fff;
+}
+
+.bk-icon {
+  margin-right: 8px;
+  cursor: pointer;
+}
+
+.icon-close-circle-shape {
+  color: #b34747;
+}
+
+.icon-exclamation-circle-shape {
+  color: #ff9c01;
+}
+
+.problem-line {
+  color: #979ba5;
+}
 </style>

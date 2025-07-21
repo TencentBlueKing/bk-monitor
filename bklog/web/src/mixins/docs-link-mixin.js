@@ -25,11 +25,11 @@
  */
 
 const linkMap = {
-  logExtract: 'UserGuide/ProductFeatures/log-analysis/customize-analyzer.md', // 日志清洗
+  bkBase: 'BK-Base/UserGuide/Introduction/intro.md', // 基础计算平台
   docCenter: 'UserGuide/Intro/README.md', // 产品文档
   logArchive: 'UserGuide/ProductFeatures/tools/log_archive.md', // 日志归档
   logCollection: 'UserGuide/ProductFeatures/integrations-logs/logs_overview.md', // 日志采集接入
-  bkBase: 'BK-Base/UserGuide/Introduction/intro.md', // 基础计算平台
+  logExtract: 'UserGuide/ProductFeatures/log-analysis/customize-analyzer.md', // 日志清洗
   queryString: 'UserGuide/ProductFeatures/data-visualization/query_string.md', // 查询语句语法
 };
 
@@ -44,7 +44,7 @@ export default {
               md_path: link,
             },
           })
-          .then(res => {
+          .then((res) => {
             window.open(res.data, '_blank');
           })
           .catch(() => false);

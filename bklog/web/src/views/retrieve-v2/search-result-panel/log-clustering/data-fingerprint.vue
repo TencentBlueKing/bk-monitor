@@ -27,10 +27,7 @@
 
 <template>
   <div class="finger-container">
-    <div
-      v-if="allFingerList.length"
-      class="top-operate"
-    >
+    <div v-if="allFingerList.length" class="top-operate">
       <p class="operate-message">
         <i18n
           v-if="selectList.length"
@@ -39,10 +36,7 @@
           <span>{{ selectSize }}</span>
           <span>{{ allFingerList.length }}</span>
         </i18n>
-        <i18n
-          v-else
-          path="共有{0}条数据"
-        >
+        <i18n v-else path="共有{0}条数据">
           <span>{{ allFingerList.length }}</span>
         </i18n>
       </p>
@@ -68,10 +62,7 @@
       row-key="$index"
       reserve-selection
     >
-      <bk-table-column
-        width="50"
-        :render-header="renderHeader"
-      >
+      <bk-table-column width="50" :render-header="renderHeader">
         <template #default="{ row }">
           <bk-checkbox
             :checked="getCheckedStatus(row)"
@@ -90,12 +81,7 @@
         <template #default="{ row }">
           <div class="fl-ac signature-box">
             <span v-bk-overflow-tips>{{ row.signature }}</span>
-            <div
-              class="new-finger"
-              v-show="row.is_new_class"
-            >
-              New
-            </div>
+            <div class="new-finger" v-show="row.is_new_class">New</div>
           </div>
         </template>
       </bk-table-column>
@@ -108,10 +94,7 @@
         sortable
       >
         <template #default="{ row }">
-          <span
-            class="link-color"
-            @click="handleMenuBatchClick(row)"
-          >
+          <span class="link-color" @click="handleMenuBatchClick(row)">
             {{ row.count }}</span
           >
         </template>
@@ -125,10 +108,7 @@
         sortable
       >
         <template #default="{ row }">
-          <span
-            class="link-color"
-            @click="handleMenuBatchClick(row)"
-          >
+          <span class="link-color" @click="handleMenuBatchClick(row)">
             {{ `${toFixedNumber(row.percentage, 2)}%` }}
           </span>
         </template>
@@ -160,7 +140,9 @@
         >
           <template #default="{ row }">
             <div class="fl-ac compared-change">
-              <span>{{ `${toFixedNumber(row.year_on_year_percentage, 2)}%` }}</span>
+              <span>{{
+                `${toFixedNumber(row.year_on_year_percentage, 2)}%`
+              }}</span>
               <span :class="['bk-icon', showArrowsClass(row)]"></span>
             </div>
           </template>
@@ -175,8 +157,17 @@
         <!-- eslint-disable-next-line -->
         <template slot-scope="{ row, $index }">
           <div class="pattern">
-            <div :class="['pattern-content', { 'is-limit': getLimitState($index) }]">
-              <cluster-event-popover @event-click="(option, isLink) => handleMenuClick(option, row, isLink)">
+            <div
+              :class="[
+                'pattern-content',
+                { 'is-limit': getLimitState($index) },
+              ]"
+            >
+              <cluster-event-popover
+                @event-click="
+                  (option, isLink) => handleMenuClick(option, row, isLink)
+                "
+              >
                 <text-highlight
                   style="word-break: break-all; white-space: pre-line"
                   class="monospace-text"
@@ -245,7 +236,7 @@
               :value="row.owners"
               placeholder=" "
               multiple
-              @change="val => handleChangePrincipal(val, row)"
+              @change="(val) => handleChangePrincipal(val, row)"
             >
             </bk-user-selector>
             <bk-tag-input
@@ -256,7 +247,7 @@
               :allow-create="true"
               :clearable="false"
               :has-delete-icon="true"
-              @blur="val => handleChangePrincipal(null, row)"
+              @blur="(val) => handleChangePrincipal(null, row)"
             >
             </bk-tag-input>
           </div>
@@ -271,13 +262,10 @@
       >
         <template #default="{ row }">
           <div>
-            <div
-              v-if="row.owners.length"
-              theme="primary"
-            >
+            <div v-if="row.owners.length" theme="primary">
               <bk-switcher
                 v-model="row.strategy_enabled"
-                @change="val => changeStrategy(val, row)"
+                @change="(val) => changeStrategy(val, row)"
               ></bk-switcher>
               <span
                 class="button-view"
@@ -305,7 +293,7 @@
         <template #default="{ row }">
           <div
             class="auto-height-container"
-            @mouseenter="e => handleHoverRemarkIcon(e, row)"
+            @mouseenter="(e) => handleHoverRemarkIcon(e, row)"
           >
             <span class="auto-height">
               {{ remarkContent(row.remark) }}
@@ -314,17 +302,11 @@
         </template>
       </bk-table-column>
 
-      <template
-        v-if="fingerList.length && isPageOver"
-        slot="append"
-      >
+      <template v-if="fingerList.length && isPageOver" slot="append">
         <clustering-loader :width-list="loaderWidthList" />
       </template>
 
-      <template
-        v-if="isShowBottomTips"
-        slot="append"
-      >
+      <template v-if="isShowBottomTips" slot="append">
         <div class="bottom-tips">
           <i18n path="已加载完全部数据，如需查看更多查询条件可以{0}">
             <span @click="handleReturnTop">{{ $t('返回顶部') }}</span>
@@ -333,19 +315,13 @@
       </template>
 
       <template #empty>
-        <empty-status
-          :show-text="false"
-          empty-type="empty"
-        >
+        <empty-status :show-text="false" empty-type="empty">
           <div
             v-if="!clusteringConfig.extra.signature_switch"
             class="empty-text"
           >
             <p>{{ $t('当前日志聚类未启用，请前往设置') }}</p>
-            <span
-              class="empty-leave"
-              @click="handleLeaveCurrent"
-            >
+            <span class="empty-leave" @click="handleLeaveCurrent">
               {{ $t('去设置') }}
             </span>
           </div>
@@ -355,31 +331,16 @@
     </bk-table>
 
     <div v-show="false">
-      <div
-        id="remark-tips"
-        ref="remarkTips"
-      >
-        <div
-          class="remark-list"
-          v-show="currentRemarkList.length"
-        >
-          <div
-            v-for="(remark, index) in currentRemarkList"
-            :key="index"
-          >
-            <div
-              v-if="remark.username"
-              class="user"
-            >
+      <div id="remark-tips" ref="remarkTips">
+        <div class="remark-list" v-show="currentRemarkList.length">
+          <div v-for="(remark, index) in currentRemarkList" :key="index">
+            <div v-if="remark.username" class="user">
               {{ remark.username }}
             </div>
             <div class="content">{{ remark.remark }}</div>
             <div class="tools">
               <span>{{ remark.showTime }}</span>
-              <div
-                v-if="remark.username === username"
-                class="icon"
-              >
+              <div v-if="remark.username === username" class="icon">
                 <i
                   class="bk-icon icon-edit-line"
                   @click="handleEditRemark(remark)"
@@ -393,10 +354,7 @@
           </div>
         </div>
         <div class="add-new-remark">
-          <div
-            class="text-btn"
-            @click="handleClickAddNewRemark"
-          >
+          <div class="text-btn" @click="handleClickAddNewRemark">
             <i class="icon bk-icon icon-plus push"></i>
             <span class="text">{{ $t('新增备注') }}</span>
           </div>
@@ -500,7 +458,9 @@ export default {
         labelRules: [
           {
             validator: this.checkName,
-            message: this.$t('{n}不规范, 包含特殊符号.', { n: this.$t('备注') }),
+            message: this.$t('{n}不规范, 包含特殊符号.', {
+              n: this.$t('备注'),
+            }),
             trigger: 'blur',
           },
           {
@@ -567,17 +527,24 @@ export default {
       return this.$store.state.storage[BK_LOG_STORAGE.IS_LIMIT_EXPAND_VIEW];
     },
     isShowBottomTips() {
-      return this.fingerList.length >= 50 && this.fingerList.length === this.allFingerList.length;
+      return (
+        this.fingerList.length >= 50 &&
+        this.fingerList.length === this.allFingerList.length
+      );
     },
     getTableWidth() {
-      return this.$store.getters.isEnLanguage ? this.enTableWidth : this.cnTableWidth;
+      return this.$store.getters.isEnLanguage
+        ? this.enTableWidth
+        : this.cnTableWidth;
     },
     /** 获取当前编辑操作的数据 */
     getHoverRowValue() {
       const uniqueVal = this.curEditUniqueVal;
       // 如果有分组也带上分组的条件
-      const fingerRow = this.fingerList.find(item =>
-        Object.keys(uniqueVal).every(key => deepEqual(item[key], uniqueVal[key]))
+      const fingerRow = this.fingerList.find((item) =>
+        Object.keys(uniqueVal).every((key) =>
+          deepEqual(item[key], uniqueVal[key])
+        )
       );
       return fingerRow;
     },
@@ -600,7 +567,9 @@ export default {
         // 全选时 分页下拉新增页默认选中
         if (this.isSelectAll) {
           this.$nextTick(() => {
-            this.selectList.push(...this.fingerList.slice(oldLength, newLength));
+            this.selectList.push(
+              ...this.fingerList.slice(oldLength, newLength)
+            );
           });
         }
       },
@@ -608,7 +577,8 @@ export default {
     'selectList.length'(newLength) {
       // 选择列表数据大小计算
       if (this.isSelectAll) {
-        this.selectSize = newLength + this.allFingerList.length - this.fingerList.length;
+        this.selectSize =
+          newLength + this.allFingerList.length - this.fingerList.length;
       } else {
         this.selectSize = newLength;
       }
@@ -673,47 +643,56 @@ export default {
       this.$store.commit('updateIndexItem', { search_mode: 'ui' });
       // 新开页打开首页是原始日志，不需要传聚类参数，如果传了则会初始化为聚类
       this.$store.commit('updateClusterParams', null);
-      this.$store.dispatch('setQueryCondition', additionList).then(([newSearchList, searchMode, isNewSearchPage]) => {
-        if (isLink) {
-          const openUrl = getConditionRouterParams(newSearchList, searchMode, isNewSearchPage, { tab: 'origin' });
-          window.open(openUrl, '_blank');
-          // 新开页后当前页面回填聚类参数
-          this.$store.commit('updateClusterParams', this.requestData);
-          return;
-        } else {
-          this.$emit('show-change', 'origin');
-        }
+      this.$store
+        .dispatch('setQueryCondition', additionList)
+        .then(([newSearchList, searchMode, isNewSearchPage]) => {
+          if (isLink) {
+            const openUrl = getConditionRouterParams(
+              newSearchList,
+              searchMode,
+              isNewSearchPage,
+              { tab: 'origin' }
+            );
+            window.open(openUrl, '_blank');
+            // 新开页后当前页面回填聚类参数
+            this.$store.commit('updateClusterParams', this.requestData);
+            return;
+          } else {
+            this.$emit('show-change', 'origin');
+          }
 
-        const query = { ...route.query };
+          const query = { ...route.query };
 
-        const resolver = new RetrieveUrlResolver({
-          clusterParams: store.state.clusterParams,
-          addition: additionList,
-          searchMode,
+          const resolver = new RetrieveUrlResolver({
+            clusterParams: store.state.clusterParams,
+            addition: additionList,
+            searchMode,
+          });
+
+          Object.assign(query, resolver.resolveParamsToUrl());
+
+          router.push({
+            params: { ...route.params },
+            query: { ...query, tab: 'origin', clusterParams: undefined },
+          });
+
+          // 触发索引集查询
+          this.$nextTick(() => {
+            store.dispatch('requestIndexSetQuery');
+          });
         });
-
-        Object.assign(query, resolver.resolveParamsToUrl());
-
-        router.push({
-          params: { ...route.params },
-          query: { ...query, tab: 'origin', clusterParams: undefined },
-        });
-
-        // 触发索引集查询
-        this.$nextTick(() => {
-          store.dispatch('requestIndexSetQuery');
-        });
-      });
     },
     showArrowsClass(row) {
       if (row.year_on_year_percentage === 0) return '';
-      return row.year_on_year_percentage < 0 ? 'icon-arrows-down' : 'icon-arrows-up';
+      return row.year_on_year_percentage < 0
+        ? 'icon-arrows-down'
+        : 'icon-arrows-up';
     },
     handleShowWhole(index) {
       this.cacheExpandStr.push(index);
     },
     handleHideWhole(index) {
-      this.cacheExpandStr = this.cacheExpandStr.map(item => item !== index);
+      this.cacheExpandStr = this.cacheExpandStr.map((item) => item !== index);
     },
     handleLeaveCurrent() {
       this.$emit('show-setting-log');
@@ -730,13 +709,19 @@ export default {
      * @param { String } state 新增或删除
      */
     scrollEvent(state = 'add') {
-      const scrollEl = document.querySelector(RetrieveHelper.globalScrollSelector);
+      const scrollEl = document.querySelector(
+        RetrieveHelper.globalScrollSelector
+      );
       if (!scrollEl) return;
       if (state === 'add') {
-        scrollEl.addEventListener('scroll', this.handleScroll, { passive: true });
+        scrollEl.addEventListener('scroll', this.handleScroll, {
+          passive: true,
+        });
       }
       if (state === 'close') {
-        scrollEl.removeEventListener('scroll', this.handleScroll, { passive: true });
+        scrollEl.removeEventListener('scroll', this.handleScroll, {
+          passive: true,
+        });
       }
     },
     /**
@@ -747,21 +732,25 @@ export default {
       if (this.isRequestAlarm) {
         return;
       }
-      const title = option ? this.$t('是否批量开启告警') : this.$t('是否批量关闭告警');
+      const title = option
+        ? this.$t('是否批量开启告警')
+        : this.$t('是否批量关闭告警');
       this.$bkInfo({
         title,
         confirmFn: () => {
           let alarmList = this.selectList;
           if (this.isSelectAll) {
             // 全选时获取未显示的数据指纹
-            alarmList = alarmList.concat(this.allFingerList.slice(alarmList.length));
+            alarmList = alarmList.concat(
+              this.allFingerList.slice(alarmList.length)
+            );
           }
           // 过滤告警开启或者关闭状态的元素
           let filterList;
           if (option) {
-            filterList = alarmList.filter(el => !el.monitor.is_active);
+            filterList = alarmList.filter((el) => !el.monitor.is_active);
           } else {
-            filterList = alarmList.filter(el => !!el.monitor.is_active);
+            filterList = alarmList.filter((el) => !!el.monitor.is_active);
           }
           // 分组情况下过滤重复的列表元素
           if (this.isGroupSearch) {
@@ -776,7 +765,7 @@ export default {
     },
     getSetList(list = []) {
       const setIDList = new Set();
-      const returnList = list.filter(el => {
+      const returnList = list.filter((el) => {
         if (!setIDList.has(el.signature)) {
           setIDList.add(el.signature);
           return true;
@@ -794,7 +783,9 @@ export default {
       if (!alarmList.length) {
         this.$bkMessage({
           theme: 'success',
-          message: state ? this.$t('已全部开启告警') : this.$t('已全部关闭告警'),
+          message: state
+            ? this.$t('已全部开启告警')
+            : this.$t('已全部关闭告警'),
         });
         return;
       }
@@ -821,7 +812,9 @@ export default {
       this.$http
         .request('/logClustering/updateStrategies', {
           params: {
-            index_set_id: window.__IS_MONITOR_COMPONENT__ ? this.$route.query.indexId : this.$route.params.indexId,
+            index_set_id: window.__IS_MONITOR_COMPONENT__
+              ? this.$route.query.indexId
+              : this.$route.params.indexId,
           },
           data: {
             bk_biz_id: this.bkBizId,
@@ -829,7 +822,7 @@ export default {
             actions,
           },
         })
-        .then(response => {
+        .then((response) => {
           const { operators, result } = response.data;
           /**
            * 当操作成功时 统一提示操作成功
@@ -843,7 +836,9 @@ export default {
             message = this.$t('操作成功');
           } else {
             theme = this.isSelectAll ? 'warning' : 'error';
-            message = this.isSelectAll ? this.$t('部分操作成功') : operators[0].operator_msg;
+            message = this.isSelectAll
+              ? this.$t('部分操作成功')
+              : operators[0].operator_msg;
           }
           this.$bkMessage({
             theme,
@@ -942,7 +937,9 @@ export default {
       this.$http
         .request('/logClustering/setOwner', {
           params: {
-            index_set_id: window.__IS_MONITOR_COMPONENT__ ? this.$route.query.indexId : this.$route.params.indexId,
+            index_set_id: window.__IS_MONITOR_COMPONENT__
+              ? this.$route.query.indexId
+              : this.$route.params.indexId,
           },
           data: {
             signature: this.getHoverRowValue.signature,
@@ -951,12 +948,12 @@ export default {
             groups: this.getGroupsValue(row.group),
           },
         })
-        .then(res => {
+        .then((res) => {
           if (res.result) {
             const { signature, groups, owners } = res.data;
             this.curEditUniqueVal = {
               signature,
-              group: this.requestData.group_by.map(gKey => groups[gKey]),
+              group: this.requestData.group_by.map((gKey) => groups[gKey]),
             };
             this.getHoverRowValue.owners = owners;
             this.$bkMessage({
@@ -998,7 +995,9 @@ export default {
       this.$http
         .request(`/logClustering/${queryStr}`, {
           params: {
-            index_set_id: window.__IS_MONITOR_COMPONENT__ ? this.$route.query.indexId : this.$route.params.indexId,
+            index_set_id: window.__IS_MONITOR_COMPONENT__
+              ? this.$route.query.indexId
+              : this.$route.params.indexId,
           },
           data: {
             signature: this.getHoverRowValue.signature,
@@ -1007,12 +1006,12 @@ export default {
             groups: this.getGroupsValue(this.curEditUniqueVal.group),
           },
         })
-        .then(res => {
+        .then((res) => {
           if (res.result) {
             const { signature, groups, remark } = res.data;
             this.curEditUniqueVal = {
               signature,
-              group: this.requestData.group_by.map(gKey => groups[gKey]),
+              group: this.requestData.group_by.map((gKey) => groups[gKey]),
             };
             this.getHoverRowValue.remark = remark;
             this.$bkMessage({
@@ -1037,7 +1036,7 @@ export default {
     handleHoverRemarkIcon(e, row) {
       if (!this.popoverInstance) {
         this.currentRemarkList = row.remark
-          .map(item => ({
+          .map((item) => ({
             ...item,
             showTime: item.create_time > 0 ? formatDate(item.create_time) : '',
           }))
@@ -1071,7 +1070,9 @@ export default {
     async confirmDialogStr() {
       try {
         await this.$refs.labelRef.validate();
-        const queryType = Object.keys(this.catchOperatorVal).length ? 'update' : 'add';
+        const queryType = Object.keys(this.catchOperatorVal).length
+          ? 'update'
+          : 'add';
         this.remarkQuery(queryType);
         this.isShowStrInputDialog = false;
       } catch (err) {
@@ -1117,10 +1118,12 @@ export default {
       this.$http
         .request('/logClustering/getOwnerList', {
           params: {
-            index_set_id: window.__IS_MONITOR_COMPONENT__ ? this.$route.query.indexId : this.$route.params.indexId,
+            index_set_id: window.__IS_MONITOR_COMPONENT__
+              ? this.$route.query.indexId
+              : this.$route.params.indexId,
           },
         })
-        .then(res => {
+        .then((res) => {
           this.ownerList = res.data.reduce((acc, cur) => {
             acc.push({
               id: cur,
@@ -1145,7 +1148,7 @@ export default {
       if (lastSelect === 'all') {
         this.ownerSelect = [lastSelect];
       } else {
-        this.ownerSelect = v.filter(item => !(item === 'all'));
+        this.ownerSelect = v.filter((item) => !(item === 'all'));
       }
     },
     /**
@@ -1169,7 +1172,7 @@ export default {
           }
         : {
             owner_config: v.includes('no_owner') ? 'no_owner' : 'owner',
-            owners: v.filter(item => item !== 'no_owner'),
+            owners: v.filter((item) => item !== 'no_owner'),
           };
       this.$emit('handle-finger-operate', 'requestData', ownerData, true);
     },
@@ -1177,13 +1180,20 @@ export default {
      * @desc: 备注提交
      */
     handleRemarkSubmit(v) {
-      this.$emit('handle-finger-operate', 'requestData', { remark_config: v[v.length - 1] }, true);
+      this.$emit(
+        'handle-finger-operate',
+        'requestData',
+        { remark_config: v[v.length - 1] },
+        true
+      );
     },
     /**
      * @desc: 初始化责任人选择的数据和初始化责任人列表
      */
     handleToggleUserSelect(v) {
-      this.ownerSelect = this.requestData.owners.length ? this.requestData.owners : [this.requestData.owner_config];
+      this.ownerSelect = this.requestData.owners.length
+        ? this.requestData.owners
+        : [this.requestData.owner_config];
       if (v) this.getUserList();
     },
     /**
@@ -1193,7 +1203,8 @@ export default {
       this.remarkSelect = [this.requestData.remark_config];
     },
     renderUserHeader(h, { column }) {
-      const isActive = this.ownerSelect.length && !this.ownerSelect.includes('all');
+      const isActive =
+        this.ownerSelect.length && !this.ownerSelect.includes('all');
       return h(ClusterFilter, {
         props: {
           title: column.label,
@@ -1233,7 +1244,8 @@ export default {
       ]);
     },
     renderRemarkHeader(h, { column }) {
-      const isActive = this.remarkSelect.length && !this.remarkSelect.includes('all');
+      const isActive =
+        this.remarkSelect.length && !this.remarkSelect.includes('all');
       return h(ClusterFilter, {
         props: {
           title: column.label,
@@ -1273,7 +1285,9 @@ export default {
       this.$http
         .request('/logClustering/updatePatternStrategy', {
           params: {
-            index_set_id: window.__IS_MONITOR_COMPONENT__ ? this.$route.query.indexId : this.$route.params.indexId,
+            index_set_id: window.__IS_MONITOR_COMPONENT__
+              ? this.$route.query.indexId
+              : this.$route.params.indexId,
           },
           data: {
             signature: this.getHoverRowValue.signature,
@@ -1282,7 +1296,7 @@ export default {
             groups: this.getGroupsValue(row.group),
           },
         })
-        .then(res => {
+        .then((res) => {
           if (res.result) {
             const { strategy_id } = res.data;
             this.$bkMessage({
@@ -1307,356 +1321,356 @@ export default {
 </script>
 
 <style lang="scss" scoped>
-  @import '@/scss/mixins/flex.scss';
+@import '@/scss/mixins/flex.scss';
 
-  /* stylelint-disable no-descending-specificity */
-  .finger-container {
-    position: relative;
+/* stylelint-disable no-descending-specificity */
+.finger-container {
+  position: relative;
 
-    .monospace-text,
-    %monospace-text {
-      line-height: 20px;
-    }
-
-    .monospace-text {
-      color: #313238;
-    }
-
-    .auto-height-container {
-      padding: 6px 0 6px;
-    }
-
-    .auto-height {
-      /* stylelint-disable-next-line value-no-vendor-prefix */
-      display: -webkit-box;
-      height: auto; /* 设置元素高度为自动 */
-      min-height: 20px; /* 根据需要设置最小高度 */
-      padding: 0 2px;
-      overflow: hidden;
-      text-overflow: ellipsis;
-
-      /* stylelint-disable-next-line property-no-vendor-prefix */
-      -webkit-box-orient: vertical;
-      -webkit-line-clamp: 3;
-    }
-
-    .top-operate {
-      position: absolute;
-      top: 42px;
-      z-index: 3;
-      width: 100%;
-      height: 32px;
-      font-size: 12px;
-      background: #f0f1f5;
-      border-top: 1px solid #dfe0e5;
-      border-bottom: 1px solid #dfe0e5;
-
-      @include flex-center;
-
-      .operate-message {
-        padding-right: 6px;
-        color: #63656e;
-      }
-
-      .operate-click {
-        padding-right: 6px;
-        color: #3a84ff;
-        cursor: pointer;
-      }
-    }
-
-    .finger-cluster-table {
-      color: #313238;
-
-      :deep(.bk-table-body-wrapper) {
-        min-height: calc(100vh - 450px);
-        margin-top: 32px;
-
-        .bk-table-empty-block {
-          min-height: calc(100vh - 450px);
-
-          @include flex-center;
-        }
-      }
-
-      &:before {
-        display: none;
-      }
-
-      :deep(.bk-table-row-last) {
-        td {
-          border: none;
-        }
-      }
-
-      .signature-box {
-        margin-top: 1px;
-
-        span {
-          overflow: hidden;
-          line-height: 24px;
-          text-overflow: ellipsis;
-          white-space: nowrap;
-
-          @extend %monospace-text;
-        }
-      }
-
-      .compared-change {
-        justify-content: center;
-        margin-top: 1px;
-      }
-
-      .bk-icon {
-        font-size: 22px;
-      }
-
-      .empty-text {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: space-between;
-
-        .bk-icon {
-          font-size: 65px;
-        }
-
-        .empty-leave {
-          margin-top: 8px;
-          color: #3a84ff;
-          cursor: pointer;
-        }
-      }
-
-      // .pattern {
-      // display: flex;
-      // align-items: center;
-      // }
-
-      .pattern-content {
-        position: relative;
-        display: inline-block;
-        padding: 0 6px;
-        margin-bottom: 15px;
-        overflow: hidden;
-
-        &.is-limit {
-          max-height: 114px;
-        }
-      }
-
-      .button-view {
-        margin-left: 5px;
-        font-size: 12px;
-        color: #3a84ff;
-        cursor: pointer;
-
-        .bklog-jump {
-          font-size: 14px;
-        }
-      }
-
-      .hover-row {
-        .show-whole-btn {
-          background-color: #f5f7fa;
-        }
-
-        .principal-input {
-          &:hover {
-            :deep(.user-selector-container) {
-              /* stylelint-disable-next-line declaration-no-important */
-              background: #eaebf0 !important;
-            }
-          }
-        }
-      }
-
-      :deep(.bk-tag-input) {
-        background-color: transparent;
-        border: none;
-
-        .input {
-          background-color: transparent;
-        }
-      }
-
-      :deep(.bk-tag-input):hover {
-        background-color: #eaebf0;
-
-        .input {
-          background-color: #eaebf0;
-        }
-      }
-
-      .show-whole-btn {
-        position: absolute;
-        top: 100px;
-        width: 100%;
-        height: 24px;
-        font-size: 12px;
-        color: #3a84ff;
-        cursor: pointer;
-        background: #fff;
-        transition: background-color 0.25s ease;
-      }
-
-      .hide-whole-btn {
-        margin-top: 2px;
-        line-height: 14px;
-        color: #3a84ff;
-        cursor: pointer;
-      }
-    }
+  .monospace-text,
+  %monospace-text {
+    line-height: 20px;
   }
 
-  .table-no-data {
-    :deep(.bk-table-header-wrapper) {
-      tr {
-        > th {
-          /* stylelint-disable-next-line declaration-no-important */
-          border-bottom: none !important;
-        }
-      }
-    }
+  .monospace-text {
+    color: #313238;
   }
 
-  .bottom-tips {
-    height: 43px;
-    line-height: 43px;
-    color: #979ba5;
-    text-align: center;
+  .auto-height-container {
+    padding: 6px 0 6px;
+  }
 
-    span {
+  .auto-height {
+    /* stylelint-disable-next-line value-no-vendor-prefix */
+    display: -webkit-box;
+    height: auto; /* 设置元素高度为自动 */
+    min-height: 20px; /* 根据需要设置最小高度 */
+    padding: 0 2px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+
+    /* stylelint-disable-next-line property-no-vendor-prefix */
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 3;
+  }
+
+  .top-operate {
+    position: absolute;
+    top: 42px;
+    z-index: 3;
+    width: 100%;
+    height: 32px;
+    font-size: 12px;
+    background: #f0f1f5;
+    border-top: 1px solid #dfe0e5;
+    border-bottom: 1px solid #dfe0e5;
+
+    @include flex-center;
+
+    .operate-message {
+      padding-right: 6px;
+      color: #63656e;
+    }
+
+    .operate-click {
+      padding-right: 6px;
       color: #3a84ff;
       cursor: pointer;
     }
   }
 
-  .new-finger {
-    flex-shrink: 0;
-    width: 40px;
-    height: 16px;
-    margin-left: 6px;
-    font-size: 12px;
-    line-height: 14px;
-    color: #ea3636;
-    text-align: center;
-    background: #fee;
-    border: 1px solid #fd9c9c;
-    border-radius: 9px;
-  }
+  .finger-cluster-table {
+    color: #313238;
 
-  .link-color {
+    :deep(.bk-table-body-wrapper) {
+      min-height: calc(100vh - 450px);
+      margin-top: 32px;
+
+      .bk-table-empty-block {
+        min-height: calc(100vh - 450px);
+
+        @include flex-center;
+      }
+    }
+
+    &:before {
+      display: none;
+    }
+
+    :deep(.bk-table-row-last) {
+      td {
+        border: none;
+      }
+    }
+
+    .signature-box {
+      margin-top: 1px;
+
+      span {
+        overflow: hidden;
+        line-height: 24px;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+
+        @extend %monospace-text;
+      }
+    }
+
+    .compared-change {
+      justify-content: center;
+      margin-top: 1px;
+    }
+
+    .bk-icon {
+      font-size: 22px;
+    }
+
+    .empty-text {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: space-between;
+
+      .bk-icon {
+        font-size: 65px;
+      }
+
+      .empty-leave {
+        margin-top: 8px;
+        color: #3a84ff;
+        cursor: pointer;
+      }
+    }
+
+    // .pattern {
+    // display: flex;
+    // align-items: center;
+    // }
+
+    .pattern-content {
+      position: relative;
+      display: inline-block;
+      padding: 0 6px;
+      margin-bottom: 15px;
+      overflow: hidden;
+
+      &.is-limit {
+        max-height: 114px;
+      }
+    }
+
+    .button-view {
+      margin-left: 5px;
+      font-size: 12px;
+      color: #3a84ff;
+      cursor: pointer;
+
+      .bklog-jump {
+        font-size: 14px;
+      }
+    }
+
+    .hover-row {
+      .show-whole-btn {
+        background-color: #f5f7fa;
+      }
+
+      .principal-input {
+        &:hover {
+          :deep(.user-selector-container) {
+            /* stylelint-disable-next-line declaration-no-important */
+            background: #eaebf0 !important;
+          }
+        }
+      }
+    }
+
+    :deep(.bk-tag-input) {
+      background-color: transparent;
+      border: none;
+
+      .input {
+        background-color: transparent;
+      }
+    }
+
+    :deep(.bk-tag-input):hover {
+      background-color: #eaebf0;
+
+      .input {
+        background-color: #eaebf0;
+      }
+    }
+
+    .show-whole-btn {
+      position: absolute;
+      top: 100px;
+      width: 100%;
+      height: 24px;
+      font-size: 12px;
+      color: #3a84ff;
+      cursor: pointer;
+      background: #fff;
+      transition: background-color 0.25s ease;
+    }
+
+    .hide-whole-btn {
+      margin-top: 2px;
+      line-height: 14px;
+      color: #3a84ff;
+      cursor: pointer;
+    }
+  }
+}
+
+.table-no-data {
+  :deep(.bk-table-header-wrapper) {
+    tr {
+      > th {
+        /* stylelint-disable-next-line declaration-no-important */
+        border-bottom: none !important;
+      }
+    }
+  }
+}
+
+.bottom-tips {
+  height: 43px;
+  line-height: 43px;
+  color: #979ba5;
+  text-align: center;
+
+  span {
     color: #3a84ff;
     cursor: pointer;
-
-    @extend %monospace-text;
   }
+}
 
-  .icon-arrows-down {
-    color: #2dcb56;
-  }
+.new-finger {
+  flex-shrink: 0;
+  width: 40px;
+  height: 16px;
+  margin-left: 6px;
+  font-size: 12px;
+  line-height: 14px;
+  color: #ea3636;
+  text-align: center;
+  background: #fee;
+  border: 1px solid #fd9c9c;
+  border-radius: 9px;
+}
 
-  .icon-arrows-up {
-    color: #ff5656;
-  }
+.link-color {
+  color: #3a84ff;
+  cursor: pointer;
 
-  .fl-ac {
-    margin-top: -4px;
+  @extend %monospace-text;
+}
 
-    @include flex-align;
-  }
+.icon-arrows-down {
+  color: #2dcb56;
+}
 
-  .principal-input {
-    width: 100%;
+.icon-arrows-up {
+  color: #ff5656;
+}
 
-    :deep(.user-selector-container) {
+.fl-ac {
+  margin-top: -4px;
+
+  @include flex-align;
+}
+
+.principal-input {
+  width: 100%;
+
+  :deep(.user-selector-container) {
+    /* stylelint-disable-next-line declaration-no-important */
+    background: transparent !important;
+
+    /* stylelint-disable-next-line declaration-no-important */
+    border: none !important;
+
+    &.disabled {
       /* stylelint-disable-next-line declaration-no-important */
       background: transparent !important;
-
-      /* stylelint-disable-next-line declaration-no-important */
-      border: none !important;
-
-      &.disabled {
-        /* stylelint-disable-next-line declaration-no-important */
-        background: transparent !important;
-      }
     }
   }
+}
 
-  #remark-tips {
-    .remark-list {
-      max-height: 120px;
-      margin-bottom: 6px;
-      overflow-y: auto;
-      font-size: 12px;
-      color: #63656e;
-      border-bottom: 1px solid #eaebf0;
+#remark-tips {
+  .remark-list {
+    max-height: 120px;
+    margin-bottom: 6px;
+    overflow-y: auto;
+    font-size: 12px;
+    color: #63656e;
+    border-bottom: 1px solid #eaebf0;
 
-      .user {
-        font-weight: 700;
-      }
-
-      .content {
-        padding: 6px 0;
-        white-space: pre-wrap;
-      }
-
-      .tools {
-        align-items: center;
-        color: #979ba5;
-
-        @include flex-justify(space-between);
-      }
-
-      .icon {
-        display: inline-block;
-        margin-right: 8px;
-        font-size: 14px;
-
-        .bk-icon:hover {
-          cursor: pointer;
-        }
-
-        .icon-edit-line:hover {
-          color: #3a84ff;
-        }
-
-        .icon-delete:hover {
-          color: #ea3636;
-        }
-      }
-
-      > div:not(:last-child) {
-        margin-bottom: 10px;
-      }
-
-      > div:last-child {
-        margin-bottom: 8px;
-      }
+    .user {
+      font-weight: 700;
     }
 
-    .add-new-remark {
-      @include flex-center();
+    .content {
+      padding: 6px 0;
+      white-space: pre-wrap;
+    }
 
-      .text-btn {
+    .tools {
+      align-items: center;
+      color: #979ba5;
+
+      @include flex-justify(space-between);
+    }
+
+    .icon {
+      display: inline-block;
+      margin-right: 8px;
+      font-size: 14px;
+
+      .bk-icon:hover {
         cursor: pointer;
+      }
 
-        @include flex-align(center);
+      .icon-edit-line:hover {
+        color: #3a84ff;
+      }
 
-        .text,
-        .icon {
-          color: #3a84ff;
-        }
+      .icon-delete:hover {
+        color: #ea3636;
+      }
+    }
 
-        .push {
-          font-size: 24px;
-        }
+    > div:not(:last-child) {
+      margin-bottom: 10px;
+    }
 
-        .text {
-          font-size: 12px;
-        }
+    > div:last-child {
+      margin-bottom: 8px;
+    }
+  }
+
+  .add-new-remark {
+    @include flex-center();
+
+    .text-btn {
+      cursor: pointer;
+
+      @include flex-align(center);
+
+      .text,
+      .icon {
+        color: #3a84ff;
+      }
+
+      .push {
+        font-size: 24px;
+      }
+
+      .text {
+        font-size: 12px;
       }
     }
   }
+}
 </style>

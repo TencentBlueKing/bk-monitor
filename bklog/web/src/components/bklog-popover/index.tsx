@@ -23,39 +23,43 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, ref, PropType, onMounted, onUnmounted } from 'vue';
-import PopInstanceUtil from '../../global/pop-instance-util';
 import { Props as TippyProps } from 'tippy.js';
+import { defineComponent, ref, PropType, onMounted, onUnmounted } from 'vue';
+
+import PopInstanceUtil from '../../global/pop-instance-util';
+
 import './index.scss';
 
 export default defineComponent({
   props: {
-    options: {
-      type: Object as PropType<TippyProps>,
-      default: () => ({}),
-    },
-    trigger: {
-      type: String as PropType<'click' | 'hover'>,
-      default: 'click',
-    },
-    delegateTarget: {
-      type: Object as PropType<HTMLElement>,
-      default: null,
-    },
-    contentClass: {
-      type: String,
-      default: '',
-    },
     beforeHide: {
-      type: Function as PropType<(e: MouseEvent) => boolean>,
       default: () => true,
+      type: Function as PropType<(e: MouseEvent) => boolean>,
     },
     content: {
-      type: [String, Function] as PropType<string | (() => JSX.Element) | JSX.Element>,
       default: undefined,
+      type: [String, Function] as PropType<
+        (() => JSX.Element) | JSX.Element | string
+      >,
+    },
+    contentClass: {
+      default: '',
+      type: String,
+    },
+    delegateTarget: {
+      default: null,
+      type: Object as PropType<HTMLElement>,
+    },
+    options: {
+      default: () => ({}),
+      type: Object as PropType<TippyProps>,
+    },
+    trigger: {
+      default: 'click',
+      type: String as PropType<'click' | 'hover'>,
     },
   },
-  setup(props, { slots, expose }) {
+  setup(props, { expose, slots }) {
     const refContentElement = ref(null);
     const refTargetElement = ref(null);
     let isDocumentClickBinded = false;
@@ -86,22 +90,30 @@ export default defineComponent({
       refContent: () => refContentElement.value,
       tippyOptions: {
         ...props.options,
-        trigger: 'manual',
-        onShown: (...args) => {
-          props.options.onShown?.(...args);
-
-          if (props.options.hideOnClick === false && props.trigger === 'click' && !isDocumentClickBinded) {
-            document.addEventListener('click', hanldeDocumentClick);
-            isDocumentClickBinded = true;
-          }
-        },
         onHidden: (...args) => {
           props.options.onHidden?.(...args);
-          if (props.options.hideOnClick === false && props.trigger === 'click' && isDocumentClickBinded) {
+          if (
+            props.options.hideOnClick === false &&
+            props.trigger === 'click' &&
+            isDocumentClickBinded
+          ) {
             document.removeEventListener('click', hanldeDocumentClick);
             isDocumentClickBinded = false;
           }
         },
+        onShown: (...args) => {
+          props.options.onShown?.(...args);
+
+          if (
+            props.options.hideOnClick === false &&
+            props.trigger === 'click' &&
+            !isDocumentClickBinded
+          ) {
+            document.addEventListener('click', hanldeDocumentClick);
+            isDocumentClickBinded = true;
+          }
+        },
+        trigger: 'manual',
       },
     });
 
@@ -138,15 +150,30 @@ export default defineComponent({
 
     const resolveOptions = () => {
       if (props.trigger === 'click') {
-        refTargetElement.value.addEventListener('click', handleRootElementClick);
+        refTargetElement.value.addEventListener(
+          'click',
+          handleRootElementClick
+        );
       }
 
       if (props.trigger === 'hover') {
-        refTargetElement.value.addEventListener('mouseenter', handleRootElementMouseenter);
-        refTargetElement.value.addEventListener('mouseleave', handleRootElementMouseleave);
+        refTargetElement.value.addEventListener(
+          'mouseenter',
+          handleRootElementMouseenter
+        );
+        refTargetElement.value.addEventListener(
+          'mouseleave',
+          handleRootElementMouseleave
+        );
 
-        refContentElement.value.addEventListener('mouseenter', handleContentElementMouseenter);
-        refContentElement.value.addEventListener('mouseleave', handleContentElementMouseleave);
+        refContentElement.value.addEventListener(
+          'mouseenter',
+          handleContentElementMouseenter
+        );
+        refContentElement.value.addEventListener(
+          'mouseleave',
+          handleContentElementMouseleave
+        );
       }
     };
 
@@ -169,15 +196,30 @@ export default defineComponent({
 
     onUnmounted(() => {
       if (props.trigger === 'click') {
-        refTargetElement.value?.removeEventListener('click', handleRootElementClick);
+        refTargetElement.value?.removeEventListener(
+          'click',
+          handleRootElementClick
+        );
       }
 
       if (props.trigger === 'hover') {
-        refTargetElement.value?.removeEventListener('mouseenter', handleRootElementMouseenter);
-        refTargetElement.value?.removeEventListener('mouseleave', handleRootElementMouseleave);
+        refTargetElement.value?.removeEventListener(
+          'mouseenter',
+          handleRootElementMouseenter
+        );
+        refTargetElement.value?.removeEventListener(
+          'mouseleave',
+          handleRootElementMouseleave
+        );
 
-        refContentElement.value?.removeEventListener('mouseenter', handleContentElementMouseenter);
-        refContentElement.value?.removeEventListener('mouseleave', handleContentElementMouseleave);
+        refContentElement.value?.removeEventListener(
+          'mouseenter',
+          handleContentElementMouseenter
+        );
+        refContentElement.value?.removeEventListener(
+          'mouseleave',
+          handleContentElementMouseleave
+        );
       }
 
       if (isDocumentClickBinded) {
@@ -186,17 +228,16 @@ export default defineComponent({
       }
     });
 
-    expose({ show, hide, setProps });
+    expose({ hide, setProps, show });
 
     return () => (
       <div ref={refTargetElement}>
         {slots.default?.()}
-        <div style='display: none;'>
-          <div
-            ref={refContentElement}
-            class={props.contentClass}
-          >
-            {slots.content?.() ?? (props.content as Function)?.() ?? props.content}
+        <div style="display: none;">
+          <div class={props.contentClass} ref={refContentElement}>
+            {slots.content?.() ??
+              (props.content as Function)?.() ??
+              props.content}
           </div>
         </div>
       </div>

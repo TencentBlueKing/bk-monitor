@@ -25,24 +25,37 @@
  */
 
 import { DecimalCount } from '../types/display-value';
+
 import { toFixed, FormattedValue } from './value-formats';
 
-export function toPercent(size: number, decimals?: DecimalCount): FormattedValue {
+export function toPercent(
+  size: number,
+  decimals?: DecimalCount
+): FormattedValue {
   if (size === null) {
     return { text: '' };
   }
-  return { text: toFixed(size, decimals < 3 ? decimals : 2), suffix: '%' };
+  return { suffix: '%', text: toFixed(size, decimals < 3 ? decimals : 2) };
 }
 
-export function toPercentUnit(size: number, decimals?: DecimalCount): FormattedValue {
+export function toPercentUnit(
+  size: number,
+  decimals?: DecimalCount
+): FormattedValue {
   if (size === null) {
     return { text: '' };
   }
 
-  return { text: toFixed(100 * size, decimals < 3 ? decimals : 2), suffix: '%' };
+  return {
+    suffix: '%',
+    text: toFixed(100 * size, decimals < 3 ? decimals : 2),
+  };
 }
 
-export function toHex0x(value: number, decimals: DecimalCount = 2): FormattedValue {
+export function toHex0x(
+  value: number,
+  decimals: DecimalCount = 2
+): FormattedValue {
   if (value == null) {
     return { text: '' };
   }
@@ -55,7 +68,10 @@ export function toHex0x(value: number, decimals: DecimalCount = 2): FormattedVal
   return asHex;
 }
 
-export function toHex(value: number, decimals: DecimalCount = 2): FormattedValue {
+export function toHex(
+  value: number,
+  decimals: DecimalCount = 2
+): FormattedValue {
   if (value == null) {
     return { text: '' };
   }

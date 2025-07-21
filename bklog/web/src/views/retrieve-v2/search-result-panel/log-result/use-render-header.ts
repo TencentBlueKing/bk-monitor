@@ -23,11 +23,10 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { h, computed } from 'vue';
-
 import useFieldNameHook from '@/hooks/use-field-name';
 import useLocale from '@/hooks/use-locale';
 import useStore from '@/hooks/use-store';
+import { h, computed } from 'vue';
 
 import TimeFormatterSwitcher from '../../components/result-cell-element/time-formatter-switcher';
 
@@ -40,7 +39,9 @@ export default () => {
   const isUnionSearch = computed(() => store.getters.isUnionSearch);
   const unionIndexItemList = computed(() => store.getters.unionIndexItemList);
   const visibleFields = computed(() => store.state.visibleFields);
-  const isNotVisibleFieldsShow = computed(() => store.state.isNotVisibleFieldsShow);
+  const isNotVisibleFieldsShow = computed(
+    () => store.state.isNotVisibleFieldsShow
+  );
   const activeSortField = computed(() => store.state.indexItem.sort_list);
 
   const renderHead = (field, onClickFn) => {
@@ -53,19 +54,23 @@ export default () => {
       const fieldName = getFieldNameByField(field);
       const fieldType = field.field_type;
       const isUnionSource = field?.tag === 'union-source';
-      const fieldIcon = fieldTypeMap.value?.[fieldType]?.icon ?? 'bklog-icon bklog-unkown';
-      const fieldIconColor = fieldTypeMap.value?.[fieldType]?.color ?? '#EAEBF0';
+      const fieldIcon =
+        fieldTypeMap.value?.[fieldType]?.icon ?? 'bklog-icon bklog-unkown';
+      const fieldIconColor =
+        fieldTypeMap.value?.[fieldType]?.color ?? '#EAEBF0';
       const fieldIconTextColor = fieldTypeMap.value?.[fieldType]?.textColor;
       const content = fieldTypeMap.value[fieldType]?.name;
       let unionContent = '';
       // 联合查询判断字段来源 若indexSetIDs缺少已检索的索引集内容 则增加字段来源判断
       if (isUnionSearch.value) {
-        const indexSetIDs = field.index_set_ids?.map(item => String(item)) || [];
-        const isDifferentFields = indexSetIDs.length !== unionIndexItemList.value.length;
+        const indexSetIDs =
+          field.index_set_ids?.map((item) => String(item)) || [];
+        const isDifferentFields =
+          indexSetIDs.length !== unionIndexItemList.value.length;
         if (isDifferentFields && !isUnionSource) {
           const lackIndexNameList = unionIndexItemList.value
-            .filter(item => indexSetIDs.includes(item.index_set_id))
-            .map(item => item.index_set_name);
+            .filter((item) => indexSetIDs.includes(item.index_set_id))
+            .map((item) => item.index_set_name);
           unionContent = `${$t('字段来源')}: ${lackIndexNameList.join(' ,')}`;
         }
       }
@@ -79,8 +84,10 @@ export default () => {
           on: {
             click: (e: MouseEvent) => {
               let nextOrder = 'ascending';
-              const targets = (e.target as HTMLElement).parentElement.querySelectorAll('.bk-table-sort-caret');
-              targets.forEach(element => {
+              const targets = (
+                e.target as HTMLElement
+              ).parentElement.querySelectorAll('.bk-table-sort-caret');
+              targets.forEach((element) => {
                 if (element.classList.contains('active')) {
                   element.classList.remove('active');
                   if (element.classList.contains('ascending')) {
@@ -104,6 +111,13 @@ export default () => {
         [
           h('span', {
             class: `field-type-icon ${fieldIcon}`,
+            directives: [
+              {
+                name: 'bk-tooltips',
+                value: content,
+              },
+            ],
+
             style: {
               ...{
                 marginRight: '4px',
@@ -111,24 +125,20 @@ export default () => {
               backgroundColor: fieldIconColor,
               color: fieldIconTextColor,
             },
-
-            directives: [
-              {
-                name: 'bk-tooltips',
-                value: content,
-              },
-            ],
           }),
           h(
             'span',
             {
+              class: { 'lack-index-filed': isLackIndexFields },
               directives: [
                 {
                   name: 'bk-tooltips',
-                  value: { allowHTML: false, content: isLackIndexFields ? unionContent : fieldName },
+                  value: {
+                    allowHTML: false,
+                    content: isLackIndexFields ? unionContent : fieldName,
+                  },
                 },
               ],
-              class: { 'lack-index-filed': isLackIndexFields },
             },
             [fieldName]
           ),
@@ -157,10 +167,10 @@ export default () => {
               },
             ],
             on: {
-              click: e => {
+              click: (e) => {
                 e.stopPropagation();
                 const displayFieldNames = [];
-                visibleFields.value.forEach(field => {
+                visibleFields.value.forEach((field) => {
                   if (field.field_name !== fieldName) {
                     displayFieldNames.push(field.field_name);
                   }

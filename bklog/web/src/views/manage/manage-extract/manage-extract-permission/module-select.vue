@@ -33,25 +33,14 @@
     :width="680"
     @value-change="handleValueChange"
   >
-    <div
-      class="module-select-container"
-      v-bkloading="{ isLoading }"
-    >
-      <bk-radio-group
-        style="margin-bottom: 20px"
-        v-model="selectedTypeData"
-      >
-        <bk-radio
-          style="margin-right: 16px"
-          value="topo"
-          >{{ $t('按大区选择') }}</bk-radio
-        >
+    <div class="module-select-container" v-bkloading="{ isLoading }">
+      <bk-radio-group style="margin-bottom: 20px" v-model="selectedTypeData">
+        <bk-radio style="margin-right: 16px" value="topo">{{
+          $t('按大区选择')
+        }}</bk-radio>
         <bk-radio value="module">{{ $t('按模块选择') }}</bk-radio>
       </bk-radio-group>
-      <div
-        class="tree-container"
-        v-show="selectedTypeData === 'topo'"
-      >
+      <div class="tree-container" v-show="selectedTypeData === 'topo'">
         <bk-big-tree
           ref="topoTreeRef"
           :check-strictly="false"
@@ -63,10 +52,7 @@
         >
         </bk-big-tree>
       </div>
-      <div
-        class="tree-container"
-        v-show="selectedTypeData === 'module'"
-      >
+      <div class="tree-container" v-show="selectedTypeData === 'module'">
         <div class="checkbox-container">
           <bk-checkbox
             :indeterminate="indeterminate"
@@ -139,19 +125,16 @@ export default {
         this.topoList = res.data;
         this.moduleList = this.filterList(res.data);
         // 数据回填
-        const { topoExpandNodes, topoCheckedNodes, moduleCheckedItems } = this.recursiveFindDefault(
-          res.data,
-          null,
-          this.selectedModules
-        );
+        const { topoExpandNodes, topoCheckedNodes, moduleCheckedItems } =
+          this.recursiveFindDefault(res.data, null, this.selectedModules);
         // 回填已选择的模块
-        this.selectedModuleList = moduleCheckedItems.map(item => ({
+        this.selectedModuleList = moduleCheckedItems.map((item) => ({
           bk_inst_id: item.bk_inst_id,
           bk_inst_name: item.bk_inst_name,
           bk_obj_id: item.bk_obj_id,
           bk_biz_id: item.bk_biz_id,
         }));
-        this.moduleCheckedNodes = moduleCheckedItems.map(item => item.id);
+        this.moduleCheckedNodes = moduleCheckedItems.map((item) => item.id);
         if (this.moduleCheckedNodes.length === this.moduleList.length) {
           this.isSelectAllModule = true;
         } else if (this.moduleCheckedNodes.length !== 0) {
@@ -170,7 +153,10 @@ export default {
           this.$nextTick(() => {
             const rootNode = this.$refs.topoTreeRef?.nodes[0];
             if (rootNode?.children?.length) {
-              this.recursiveDealCheckedNode(rootNode.children, rootNode.checked);
+              this.recursiveDealCheckedNode(
+                rootNode.children,
+                rootNode.checked
+              );
             }
           });
         }
@@ -185,7 +171,7 @@ export default {
       if (bool) {
         this.inheritCheckNode(nodes, bool);
       } else {
-        nodes.forEach(node => {
+        nodes.forEach((node) => {
           if (node?.children?.length) {
             this.recursiveDealCheckedNode(node.children, node.checked);
           }
@@ -194,7 +180,7 @@ export default {
     },
     // 找到模板节点并打平去重
     filterList(list, dict = {}) {
-      list.forEach(item => {
+      list.forEach((item) => {
         if (item.bk_obj_id === 'module' && !dict[item.bk_inst_name]) {
           dict[item.bk_inst_name] = item;
         }
@@ -213,13 +199,19 @@ export default {
       topoExpandNodes = [],
       moduleCheckedMap = {}
     ) {
-      treeNodes.forEach(treeNode => {
+      treeNodes.forEach((treeNode) => {
         treeNode.parentNode = parentNode || null;
 
         for (const selectedNode of selectedNodes) {
-          if (selectedNode.bk_obj_id === treeNode.bk_obj_id && selectedNode.bk_inst_id === treeNode.bk_inst_id) {
+          if (
+            selectedNode.bk_obj_id === treeNode.bk_obj_id &&
+            selectedNode.bk_inst_id === treeNode.bk_inst_id
+          ) {
             topoCheckedNodes.push(treeNode.id);
-            if (treeNode.bk_obj_id === 'module' && !moduleCheckedMap[treeNode.bk_inst_name]) {
+            if (
+              treeNode.bk_obj_id === 'module' &&
+              !moduleCheckedMap[treeNode.bk_inst_name]
+            ) {
               moduleCheckedMap[treeNode.bk_inst_name] = treeNode;
             }
             if (parentNode) {
@@ -249,12 +241,15 @@ export default {
     },
     // 按大区选择
     handleTopoNodeCheck(checkedId, checkedNode) {
-      checkedNode?.children?.length && this.inheritCheckNode(checkedNode.children, checkedNode.state.checked);
-      this.selectedTopoList = this.recursiveFindTopoNodes(this.$refs.topoTreeRef.nodes[0]);
+      checkedNode?.children?.length &&
+        this.inheritCheckNode(checkedNode.children, checkedNode.state.checked);
+      this.selectedTopoList = this.recursiveFindTopoNodes(
+        this.$refs.topoTreeRef.nodes[0]
+      );
     },
     // 父亲勾选或取消勾选后，子孙跟随状态变化，且父亲勾选后子孙禁用勾选
     inheritCheckNode(nodes, bool) {
-      nodes.forEach(node => {
+      nodes.forEach((node) => {
         node.checked = bool;
         node.disabled = bool;
         node.children?.length && this.inheritCheckNode(node.children, bool);
@@ -271,7 +266,7 @@ export default {
           bk_biz_id: data.bk_biz_id,
         });
       } else if (node.children?.length) {
-        node.children.forEach(child => {
+        node.children.forEach((child) => {
           this.recursiveFindTopoNodes(child, selectedTopoList);
         });
       }
@@ -293,7 +288,7 @@ export default {
         this.isSelectAllModule = false;
         this.indeterminate = false;
       }
-      this.selectedModuleList = checkedNodes.map(node => {
+      this.selectedModuleList = checkedNodes.map((node) => {
         const { data } = node;
         return {
           bk_inst_id: data.bk_inst_id,
@@ -309,10 +304,10 @@ export default {
       if (val) {
         this.indeterminate = false;
         this.isSelectAllModule = true;
-        nodes.forEach(node => {
+        nodes.forEach((node) => {
           node.checked = true;
         });
-        this.selectedModuleList = nodes.map(node => {
+        this.selectedModuleList = nodes.map((node) => {
           const { data } = node;
           return {
             bk_inst_id: data.bk_inst_id,
@@ -324,7 +319,7 @@ export default {
       } else {
         this.indeterminate = false;
         this.isSelectAllModule = false;
-        nodes.forEach(node => {
+        nodes.forEach((node) => {
           node.checked = false;
         });
         this.selectedModuleList = [];
@@ -334,7 +329,10 @@ export default {
       this.$emit('update:show-select-dialog', val);
     },
     handleConfirm() {
-      const selectedList = this.selectedTypeData === 'topo' ? this.selectedTopoList : this.selectedModuleList;
+      const selectedList =
+        this.selectedTypeData === 'topo'
+          ? this.selectedTopoList
+          : this.selectedModuleList;
       this.$emit('confirm', this.selectedTypeData, selectedList);
       this.$emit('update:show-select-dialog', false);
     },
@@ -343,16 +341,16 @@ export default {
 </script>
 
 <style lang="scss" scoped>
-  .module-select-container {
-    .tree-container {
-      height: 440px;
-      overflow: auto;
+.module-select-container {
+  .tree-container {
+    height: 440px;
+    overflow: auto;
 
-      .checkbox-container {
-        padding: 0 0 7px 20px;
-        line-height: 22px;
-        border-bottom: 1px solid #dfdfdf;
-      }
+    .checkbox-container {
+      padding: 0 0 7px 20px;
+      line-height: 22px;
+      border-bottom: 1px solid #dfdfdf;
     }
   }
+}
 </style>

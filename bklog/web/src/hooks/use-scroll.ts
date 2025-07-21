@@ -23,9 +23,8 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { onMounted, onBeforeUnmount } from 'vue';
-
 import { throttle } from 'lodash';
+import { onMounted, onBeforeUnmount } from 'vue';
 
 import { getTargetElement } from './hooks-helper';
 
@@ -41,7 +40,11 @@ export default (target, callback: (e: MouseEvent) => void) => {
   });
 
   const scrollToTop = (smooth = true) => {
-    getScrollElement()?.scrollTo({ left: 0, top: 0, behavior: smooth ? 'smooth' : 'instant' });
+    getScrollElement()?.scrollTo({
+      behavior: smooth ? 'smooth' : 'instant',
+      left: 0,
+      top: 0,
+    });
   };
 
   const hasScrollX = () => {
@@ -58,7 +61,7 @@ export default (target, callback: (e: MouseEvent) => void) => {
   });
 
   return {
-    scrollToTop,
     hasScrollX,
+    scrollToTop,
   };
 };

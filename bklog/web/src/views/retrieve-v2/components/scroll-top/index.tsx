@@ -23,12 +23,12 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, defineComponent, ref } from 'vue';
-
 import { getTargetElement } from '@/hooks/hooks-helper';
 import useLocale from '@/hooks/use-locale';
+import { computed, defineComponent, ref } from 'vue';
 
 import RetrieveHelper, { RetrieveEvent } from '../../../retrieve-helper';
+
 import './index.scss';
 
 export default defineComponent({
@@ -38,7 +38,7 @@ export default defineComponent({
     const offsetTop = ref(0);
     const GLOBAL_SCROLL_SELECTOR = RetrieveHelper.getScrollSelector();
 
-    RetrieveHelper.on(RetrieveEvent.GLOBAL_SCROLL, event => {
+    RetrieveHelper.on(RetrieveEvent.GLOBAL_SCROLL, (event) => {
       if (event.target) {
         offsetTop.value = (event.target as HTMLElement).scrollTop;
       }
@@ -56,7 +56,7 @@ export default defineComponent({
         v-bk-tooltips={$t('返回顶部')}
         onClick={() => scrollTop()}
       >
-        <i class='bklog-icon bklog-backtotop'></i>
+        <i class="bklog-icon bklog-backtotop"></i>
       </span>
     );
     return {

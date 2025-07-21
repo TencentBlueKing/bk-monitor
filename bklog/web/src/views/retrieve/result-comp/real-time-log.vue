@@ -36,20 +36,16 @@
       <span class="dialog-title">{{ title }}</span>
       <template v-if="!targetFields.length">
         <!-- IP -->
-        <span style="margin-right: 10px">IP: {{ params.ip || params.serverIp }}</span>
-        <!-- 日志路径 -->
-        <span
-          class="title-overflow"
-          v-bk-overflow-tips
+        <span style="margin-right: 10px"
+          >IP: {{ params.ip || params.serverIp }}</span
         >
+        <!-- 日志路径 -->
+        <span class="title-overflow" v-bk-overflow-tips>
           {{ $t('日志路径') + ': ' + (params.path || params.logfile) }}
         </span>
       </template>
       <template v-else>
-        <span
-          class="title-overflow"
-          v-bk-tooltips.bottom="getTargetFieldsStr"
-        >
+        <span class="title-overflow" v-bk-tooltips.bottom="getTargetFieldsStr">
           <span
             v-for="(item, index) of targetFields"
             style="margin-right: 10px"
@@ -70,17 +66,14 @@
       <div :class="['dialog-bar controls', { 'not-fill': !isScreenFull }]">
         <div
           class="control-icon"
-          v-bk-tooltips.top="{ content: isPolling ? $t('暂停') : $t('启动'), delay: 300 }"
+          v-bk-tooltips.top="{
+            content: isPolling ? $t('暂停') : $t('启动'),
+            delay: 300,
+          }"
           @click="togglePolling"
         >
-          <span
-            v-if="isPolling"
-            class="icon bklog-icon bklog-stop-log"
-          ></span>
-          <span
-            v-else
-            class="icon bklog-icon bklog-play-log"
-          ></span>
+          <span v-if="isPolling" class="icon bklog-icon bklog-stop-log"></span>
+          <span v-else class="icon bklog-icon bklog-play-log"></span>
         </div>
         <div
           class="control-icon"
@@ -98,11 +91,7 @@
         </div>
       </div>
     </div>
-    <div
-      ref="realTimeLog"
-      class="dialog-log-markdown"
-      tabindex="0"
-    >
+    <div ref="realTimeLog" class="dialog-log-markdown" tabindex="0">
       <log-view
         :filter-key="activeFilterKey"
         :filter-type="filterType"
@@ -117,11 +106,10 @@
         :show-type="showType"
       />
     </div>
-    <log-view-control
-      :show-type="showType"
-      :light-list="highlightList"
-    />
-    <p class="handle-tips">{{ $t('快捷键  Esc:退出; PageUp: 向上翻页; PageDn: 向下翻页') }}</p>
+    <log-view-control :show-type="showType" :light-list="highlightList" />
+    <p class="handle-tips">
+      {{ $t('快捷键  Esc:退出; PageUp: 向上翻页; PageDn: 向下翻页') }}
+    </p>
   </section>
 </template>
 
@@ -237,11 +225,16 @@ export default {
         .request('retrieve/getRealTimeLog', {
           params: { index_set_id: this.$route.params.indexId },
           data: Object.assign(
-            { order: '-', size: 50, zero: this.zero, dtEventTimeStamp: this.logParams.dtEventTimeStamp },
+            {
+              order: '-',
+              size: 50,
+              zero: this.zero,
+              dtEventTimeStamp: this.logParams.dtEventTimeStamp,
+            },
             this.params
           ),
         })
-        .then(res => {
+        .then((res) => {
           // 通过gseindex 去掉出返回日志， 并加入现有日志
           const { list } = res.data;
           if (list && list.length) {
@@ -252,7 +245,7 @@ export default {
             }
 
             const logArr = [];
-            list.forEach(item => {
+            list.forEach((item) => {
               const { log } = item;
               logArr.push({ log });
             });
@@ -267,11 +260,14 @@ export default {
               this.$nextTick(() => {
                 if (this.zero) {
                   // 首次不要滚动动画
-                  this.logWrapperEl.scrollTo({ top: this.logWrapperEl.scrollHeight });
+                  this.logWrapperEl.scrollTo({
+                    top: this.logWrapperEl.scrollHeight,
+                  });
                   this.zero = false;
                 } else {
                   this.$easeScroll(
-                    this.logWrapperEl.scrollHeight - this.logWrapperEl.offsetHeight,
+                    this.logWrapperEl.scrollHeight -
+                      this.logWrapperEl.offsetHeight,
                     300,
                     this.logWrapperEl
                   );
@@ -324,13 +320,18 @@ export default {
     },
     copyLogText() {
       const el = document.createElement('textarea');
-      const copyStrList = this.reverseLogList.concat(this.logList).map(item => item.log);
+      const copyStrList = this.reverseLogList
+        .concat(this.logList)
+        .map((item) => item.log);
       el.value = copyStrList.join('\n');
       el.setAttribute('readonly', '');
       el.style.position = 'absolute';
       el.style.left = '-9999px';
       document.body.appendChild(el);
-      const selected = document.getSelection().rangeCount > 0 ? document.getSelection().getRangeAt(0) : false;
+      const selected =
+        document.getSelection().rangeCount > 0
+          ? document.getSelection().getRangeAt(0)
+          : false;
       el.select();
       document.execCommand('copy');
       document.body.removeChild(el);
@@ -356,7 +357,9 @@ export default {
     },
     initLogScrollPosition() {
       // 确定第0条的位置
-      this.firstLogEl = document.querySelector('.dialog-log-markdown .log-init');
+      this.firstLogEl = document.querySelector(
+        '.dialog-log-markdown .log-init'
+      );
       // 没有数据
       if (!this.firstLogEl) return;
       const logContentHeight = this.firstLogEl.scrollHeight;
@@ -367,11 +370,15 @@ export default {
       if (wrapperOffsetHeight <= logContentHeight) {
         this.$refs.realTimeLog.scrollTop = logOffsetTop;
       } else {
-        this.$refs.realTimeLog.scrollTop = logOffsetTop - Math.ceil((wrapperOffsetHeight - logContentHeight) / 2);
+        this.$refs.realTimeLog.scrollTop =
+          logOffsetTop -
+          Math.ceil((wrapperOffsetHeight - logContentHeight) / 2);
       }
       // 避免重复请求
       setTimeout(() => {
-        this.$refs.realTimeLog.addEventListener('scroll', this.handleScroll, { passive: true });
+        this.$refs.realTimeLog.addEventListener('scroll', this.handleScroll, {
+          passive: true,
+        });
       }, 64);
     },
     handleFilter(field, value) {
@@ -386,122 +393,122 @@ export default {
 </script>
 
 <style lang="scss">
-  @import '../../../scss/mixins/clearfix.scss';
-  @import '../../../scss/mixins/scroller';
+@import '../../../scss/mixins/clearfix.scss';
+@import '../../../scss/mixins/scroller';
 
-  .log-dialog.bk-dialog-wrapper {
-    .bk-dialog-header {
-      padding-bottom: 12px;
-      line-height: 30px;
-    }
+.log-dialog.bk-dialog-wrapper {
+  .bk-dialog-header {
+    padding-bottom: 12px;
+    line-height: 30px;
+  }
 
-    .bk-dialog-body {
-      padding-bottom: 10px;
+  .bk-dialog-body {
+    padding-bottom: 10px;
+  }
+}
+
+.log-dialog-wrapper {
+  .dialog-label {
+    display: flex;
+    align-items: center;
+    height: 30px;
+    margin-bottom: 20px;
+    overflow: hidden;
+    white-space: nowrap;
+  }
+
+  .dialog-title {
+    margin-right: 20px;
+    font-size: 20px;
+    line-height: 20px;
+    color: #313238;
+  }
+
+  .dialog-bars {
+    position: relative;
+    display: flex;
+    align-items: start;
+    justify-content: space-between;
+
+    .dialog-bar {
+      display: flex;
+      align-items: center;
+
+      .label-text {
+        margin-right: 10px;
+        color: #2d3542;
+      }
+
+      .hot-key {
+        color: #979ba5;
+      }
+
+      &.controls {
+        flex: 1;
+
+        .control-icon {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          width: 32px;
+          height: 32px;
+          font-size: 32px;
+          cursor: pointer;
+          border: 1px solid #c4c6cc;
+          transition: color 0.2s;
+
+          &:not(:last-child) {
+            margin-right: 10px;
+          }
+
+          &:hover {
+            color: #3a84ff;
+            transition: color 0.2s;
+          }
+        }
+
+        &.not-fill .control-icon:not(:last-child) {
+          margin-right: 4px;
+        }
+      }
     }
   }
 
-  .log-dialog-wrapper {
-    .dialog-label {
-      display: flex;
-      align-items: center;
-      height: 30px;
-      margin-bottom: 20px;
-      overflow: hidden;
-      white-space: nowrap;
+  .dialog-log-markdown {
+    height: 404px;
+    overflow-y: auto;
+    background: #f5f7fa;
+    border: 1px solid #dcdee5;
+    border-bottom: none;
+
+    @include scroller($backgroundColor: #aaa, $width: 4px);
+
+    &::-webkit-scrollbar {
+      background-color: #dedede;
     }
+  }
 
-    .dialog-title {
-      margin-right: 20px;
-      font-size: 20px;
-      line-height: 20px;
-      color: #313238;
-    }
+  .handle-tips {
+    margin-top: 10px;
+    color: #63656e;
+  }
 
-    .dialog-bars {
-      position: relative;
-      display: flex;
-      align-items: start;
-      justify-content: space-between;
-
-      .dialog-bar {
-        display: flex;
-        align-items: center;
-
-        .label-text {
-          margin-right: 10px;
-          color: #2d3542;
-        }
-
-        .hot-key {
-          color: #979ba5;
-        }
-
-        &.controls {
-          flex: 1;
-
-          .control-icon {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            width: 32px;
-            height: 32px;
-            font-size: 32px;
-            cursor: pointer;
-            border: 1px solid #c4c6cc;
-            transition: color 0.2s;
-
-            &:not(:last-child) {
-              margin-right: 10px;
-            }
-
-            &:hover {
-              color: #3a84ff;
-              transition: color 0.2s;
-            }
-          }
-
-          &.not-fill .control-icon:not(:last-child) {
-            margin-right: 4px;
-          }
-        }
-      }
-    }
+  &.log-full-dialog-wrapper {
+    height: calc(100% - 16px);
+    margin-top: 10px;
+    overflow: hidden;
 
     .dialog-log-markdown {
-      height: 404px;
-      overflow-y: auto;
-      background: #f5f7fa;
-      border: 1px solid #dcdee5;
-      border-bottom: none;
-
-      @include scroller($backgroundColor: #aaa, $width: 4px);
-
-      &::-webkit-scrollbar {
-        background-color: #dedede;
-      }
+      height: calc(100% - 176px);
     }
 
     .handle-tips {
-      margin-top: 10px;
-      color: #63656e;
-    }
-
-    &.log-full-dialog-wrapper {
-      height: calc(100% - 16px);
-      margin-top: 10px;
-      overflow: hidden;
-
-      .dialog-log-markdown {
-        height: calc(100% - 176px);
-      }
-
-      .handle-tips {
-        margin-top: 18px;
-      }
+      margin-top: 18px;
     }
   }
+}
 
-  .log-full-width {
-    width: 1030px;
-  }
+.log-full-width {
+  width: 1030px;
+}
 </style>

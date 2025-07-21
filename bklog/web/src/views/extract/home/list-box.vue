@@ -25,20 +25,13 @@
 -->
 
 <template>
-  <div
-    v-if="listData.length || (mark && title)"
-    class="list-box-container"
-  >
+  <div v-if="listData.length || (mark && title)" class="list-box-container">
     <div :class="['list-title', mark && 'mark']">
       <span :class="icon"></span>
       <h2 class="text">{{ title }}</h2>
     </div>
     <ul class="list-box">
-      <li
-        v-for="item in listData"
-        class="list-item"
-        :key="item"
-      >
+      <li v-for="item in listData" class="list-item" :key="item">
         {{ item }}
       </li>
     </ul>

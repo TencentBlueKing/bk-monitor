@@ -25,10 +25,7 @@
 -->
 
 <template>
-  <div
-    class="fields-setting"
-    v-bkloading="{ isLoading: isLoading }"
-  >
+  <div class="fields-setting" v-bkloading="{ isLoading: isLoading }">
     <!-- 设置列表字段 -->
     <div class="fields-container">
       <div class="fields-config-container">
@@ -37,28 +34,19 @@
           v-show="!isShowAddInput"
           @click="handleClickAddNew"
         >
-          <bk-button
-            class="config-btn"
-            :text="true"
-          >
+          <bk-button class="config-btn" :text="true">
             <i class="bk-icon icon-plus-circle-shape"></i>
             <span>{{ $t('新建配置') }}</span>
           </bk-button>
         </div>
-        <div
-          class="config-tab-item"
-          v-show="isShowAddInput"
-        >
+        <div class="config-tab-item" v-show="isShowAddInput">
           <bk-input
             v-model="newConfigStr"
             :class="['config-input', { 'input-error': isInputError }]"
           >
           </bk-input>
           <div class="panel-operate">
-            <i
-              class="bk-icon icon-check-line"
-              @click="handleAddNewConfig"
-            ></i>
+            <i class="bk-icon icon-check-line" @click="handleAddNewConfig"></i>
             <i
               class="bk-icon icon-close-line-2"
               @click="handleCancelNewConfig"
@@ -77,7 +65,7 @@
               v-for="(panel, index) in configTabPanels"
               :key="panel.name"
               :name="panel.name"
-              :render-label="e => renderHeader(e, panel, index)"
+              :render-label="(e) => renderHeader(e, panel, index)"
             >
             </bk-tab-panel>
           </template>
@@ -91,10 +79,7 @@
             type="unborder-card"
           >
             <template v-for="(panel, index) in fieldTabPanels">
-              <bk-tab-panel
-                :key="index"
-                v-bind="panel"
-              ></bk-tab-panel>
+              <bk-tab-panel :key="index" v-bind="panel"></bk-tab-panel>
             </template>
           </bk-tab>
         </div>
@@ -112,26 +97,26 @@
             <div class="title">
               <!-- 待选项列表 全部添加 -->
               <span>{{ $t('待选项列表') + '(' + toSelectLength + ')' }}</span>
-              <span
-                class="text-action add-all"
-                @click="addAllField"
-                >{{ $t('全部添加') }}</span
-              >
+              <span class="text-action add-all" @click="addAllField">{{
+                $t('全部添加')
+              }}</span>
             </div>
             <ul class="select-list">
               <li
                 v-for="item in filterShadowTotal"
                 style="cursor: pointer"
                 class="select-item"
-                v-show="activeFieldTab === 'visible' ? !item.is_display : !item.isSorted && item.es_doc_values"
+                v-show="
+                  activeFieldTab === 'visible'
+                    ? !item.is_display
+                    : !item.isSorted && item.es_doc_values
+                "
                 :key="item.field_name"
                 @click="addField(item)"
               >
-                <span
-                  class="field-name"
-                  v-bk-overflow-tips
-                  >{{ getFiledDisplay(item) }}</span
-                >
+                <span class="field-name" v-bk-overflow-tips>{{
+                  getFiledDisplay(item)
+                }}</span>
                 <span class="icon bklog-icon bklog-filled-right-arrow"></span>
               </li>
             </ul>
@@ -147,16 +132,18 @@
           >
             <div class="title">
               <!-- 已选项列表 -->
-              <span>{{ $t('已选项列表') + '(' + shadowVisible.length + ')' }}</span>
+              <span>{{
+                $t('已选项列表') + '(' + shadowVisible.length + ')'
+              }}</span>
               <span
                 class="icon bklog-icon bklog-info-fill"
-                v-bk-tooltips="$t('支持拖拽更改顺序，从上向下对应列表列从左到右顺序')"
+                v-bk-tooltips="
+                  $t('支持拖拽更改顺序，从上向下对应列表列从左到右顺序')
+                "
               ></span>
-              <span
-                class="clear-all text-action"
-                @click="deleteAllField"
-                >{{ $t('取消') }}</span
-              >
+              <span class="clear-all text-action" @click="deleteAllField">{{
+                $t('取消')
+              }}</span>
             </div>
             <vue-draggable
               v-bind="dragOptions"
@@ -170,11 +157,9 @@
                   :key="item"
                 >
                   <span class="icon bklog-icon bklog-drag-dots"></span>
-                  <span
-                    class="field-name"
-                    v-bk-overflow-tips
-                    >{{ getFiledDisplayByFieldName(item) }}</span
-                  >
+                  <span class="field-name" v-bk-overflow-tips>{{
+                    getFiledDisplayByFieldName(item)
+                  }}</span>
                   <span
                     class="bk-icon icon-close-circle-shape delete"
                     @click="deleteField(item, index)"
@@ -184,22 +169,21 @@
             </vue-draggable>
           </div>
           <!-- 设置权重排序 -->
-          <div
-            class="sort-fields-list"
-            v-show="activeFieldTab === 'sort'"
-          >
+          <div class="sort-fields-list" v-show="activeFieldTab === 'sort'">
             <div class="title">
               <!-- 已选项列表 -->
-              <span>{{ $t('已选项列表') + '(' + shadowSort.length + ')' }}</span>
+              <span>{{
+                $t('已选项列表') + '(' + shadowSort.length + ')'
+              }}</span>
               <span
                 class="icon bklog-icon bklog-info-fill"
-                v-bk-tooltips="$t('支持拖拽更改顺序，排在上面的拥有更高的排序权重')"
+                v-bk-tooltips="
+                  $t('支持拖拽更改顺序，排在上面的拥有更高的排序权重')
+                "
               ></span>
-              <span
-                class="clear-all text-action"
-                @click="deleteAllField"
-                >{{ $t('取消') }}</span
-              >
+              <span class="clear-all text-action" @click="deleteAllField">{{
+                $t('取消')
+              }}</span>
             </div>
             <vue-draggable
               v-bind="dragOptions"
@@ -219,12 +203,12 @@
                     v-bk-overflow-tips
                     >{{ getFiledDisplayByFieldName(item[0]) }}</span
                   >
-                  <span :class="`bk-icon status ${filterStatusIcon(item[1])}`"></span>
                   <span
-                    class="option text-action"
-                    @click="setOrder(item)"
-                    >{{ filterOption(item[1]) }}</span
-                  >
+                    :class="`bk-icon status ${filterStatusIcon(item[1])}`"
+                  ></span>
+                  <span class="option text-action" @click="setOrder(item)">{{
+                    filterOption(item[1])
+                  }}</span>
                   <span
                     class="bk-icon icon-close-circle-shape delete"
                     @click="deleteField(item[0], index)"
@@ -245,11 +229,7 @@
       >
         {{ $t('保存') }}
       </bk-button>
-      <bk-button
-        :theme="'default'"
-        type="submit"
-        @click="cancelModifyFields"
-      >
+      <bk-button :theme="'default'" type="submit" @click="cancelModifyFields">
         {{ $t('取消') }}
       </bk-button>
     </div>
@@ -310,9 +290,13 @@ export default {
     },
     filterShadowTotal() {
       const fields = this.$store.state.indexFieldInfo.fields;
-      return fields.filter(item => {
-        const matchesKeyword = item.field_name?.includes(this.keyword) || item.query_alias?.includes(this.keyword);
-        const isInShadowVisible = this.shadowVisible.some(shadowItem => shadowItem === item.field_name);
+      return fields.filter((item) => {
+        const matchesKeyword =
+          item.field_name?.includes(this.keyword) ||
+          item.query_alias?.includes(this.keyword);
+        const isInShadowVisible = this.shadowVisible.some(
+          (shadowItem) => shadowItem === item.field_name
+        );
         return matchesKeyword && !isInShadowVisible;
       });
     },
@@ -321,7 +305,7 @@ export default {
     },
     fieldAliasMap() {
       let fieldAliasMap = {};
-      this.$store.state.indexFieldInfo.fields.forEach(item => {
+      this.$store.state.indexFieldInfo.fields.forEach((item) => {
         fieldAliasMap[item.field_name] = item.field_alias || item.field_name;
       });
       return fieldAliasMap;
@@ -334,7 +318,7 @@ export default {
         return this.shadowTotal.length - this.shadowVisible.length;
       }
       let totalLength = 0;
-      this.shadowTotal.forEach(fieldInfo => {
+      this.shadowTotal.forEach((fieldInfo) => {
         if (fieldInfo.es_doc_values) {
           totalLength += 1;
         }
@@ -348,7 +332,11 @@ export default {
     },
     currentClickConfigData() {
       // 当前选中的配置
-      return this.configTabPanels.find(item => item.id === this.currentClickConfigID) || this.configTabPanels?.[0];
+      return (
+        this.configTabPanels.find(
+          (item) => item.id === this.currentClickConfigID
+        ) || this.configTabPanels?.[0]
+      );
     },
     fieldWidth() {
       return this.$store.state.isEnLanguage ? '60' : '114';
@@ -364,12 +352,14 @@ export default {
     },
   },
   created() {
-    this.currentClickConfigID = this.configTabPanels.length ? this.filedSettingConfigID : 0;
+    this.currentClickConfigID = this.configTabPanels.length
+      ? this.filedSettingConfigID
+      : 0;
     this.initRequestConfigListShow();
   },
   methods: {
     getFiledDisplayByFieldName(name) {
-      const field = this.shadowTotal.find(item => item.field_name === name);
+      const field = this.shadowTotal.find((item) => item.field_name === name);
       return this.getFiledDisplay(field);
     },
     getFiledDisplay(field) {
@@ -430,7 +420,9 @@ export default {
       await this.$http
         .request('retrieve/postFieldsConfig', {
           data: {
-            index_set_id: window.__IS_MONITOR_COMPONENT__ ? this.$route.query.indexId : this.$route.params.indexId,
+            index_set_id: window.__IS_MONITOR_COMPONENT__
+              ? this.$route.query.indexId
+              : this.$route.params.indexId,
             index_set_ids: this.unionIndexList,
             index_set_type: this.isUnionSearch ? 'union' : 'single',
             display_fields: this.shadowVisible,
@@ -438,7 +430,7 @@ export default {
             config_id: configID,
           },
         })
-        .catch(e => {
+        .catch((e) => {
           console.warn(e);
         });
     },
@@ -499,14 +491,14 @@ export default {
     },
     addAllField() {
       if (this.activeFieldTab === 'visible') {
-        this.shadowTotal.forEach(fieldInfo => {
+        this.shadowTotal.forEach((fieldInfo) => {
           if (!fieldInfo.is_display) {
             fieldInfo.is_display = true;
             this.shadowVisible.push(fieldInfo.field_name);
           }
         });
       } else {
-        this.shadowTotal.forEach(fieldInfo => {
+        this.shadowTotal.forEach((fieldInfo) => {
           if (!fieldInfo.isSorted && fieldInfo.es_doc_values) {
             fieldInfo.isSorted = true;
             this.isSortFieldChanged = true;
@@ -517,14 +509,15 @@ export default {
     },
     deleteAllField() {
       if (this.activeFieldTab === 'visible') {
-        this.shadowTotal.forEach(fieldInfo => {
+        this.shadowTotal.forEach((fieldInfo) => {
           fieldInfo.is_display = false;
           this.shadowVisible.splice(0, this.shadowVisible.length);
         });
       } else {
-        this.shadowTotal.forEach(fieldInfo => {
+        this.shadowTotal.forEach((fieldInfo) => {
           fieldInfo.isSorted = false;
-          this.isSortFieldChanged = this.isSortFieldChanged || this.shadowSort.length;
+          this.isSortFieldChanged =
+            this.isSortFieldChanged || this.shadowSort.length;
           this.shadowSort.splice(0, this.shadowSort.length);
         });
       }
@@ -569,13 +562,13 @@ export default {
     },
     /** 编辑配置 */
     handleEditConfigName(index) {
-      this.configTabPanels.forEach(item => (item.isShowEdit = false));
+      this.configTabPanels.forEach((item) => (item.isShowEdit = false));
       this.configTabPanels[index].isShowEdit = true;
       this.isShowAddInput = false;
     },
     /** 点击新增配置 */
     handleClickAddNew() {
-      this.configTabPanels.forEach(item => (item.isShowEdit = false));
+      this.configTabPanels.forEach((item) => (item.isShowEdit = false));
       this.isShowAddInput = true;
     },
     /** 新增配置 */
@@ -607,7 +600,9 @@ export default {
         sort_list: updateItem.sort_list,
         display_fields: updateItem.display_fields,
         config_id: undefined,
-        index_set_id: window.__IS_MONITOR_COMPONENT__ ? this.$route.query.indexId : this.$route.params.indexId,
+        index_set_id: window.__IS_MONITOR_COMPONENT__
+          ? this.$route.query.indexId
+          : this.$route.params.indexId,
         index_set_ids: this.unionIndexList,
         index_set_type: this.isUnionSearch ? 'union' : 'single',
       };
@@ -618,9 +613,11 @@ export default {
         });
         if (this.activeFieldTab === 'sort') {
           if (this.isSortFieldChanged) {
-            this.$store.dispatch('requestIndexSetQuery', { formChartChange: false }).then(() => {
-              this.isSortFieldChanged = false;
-            });
+            this.$store
+              .dispatch('requestIndexSetQuery', { formChartChange: false })
+              .then(() => {
+                this.isSortFieldChanged = false;
+              });
           }
           this.$emit('should-retrieve', undefined, false); // 不请求图表
         }
@@ -637,7 +634,9 @@ export default {
         await this.$http.request('retrieve/deleteFieldsConfig', {
           data: {
             config_id: configID,
-            index_set_id: window.__IS_MONITOR_COMPONENT__ ? this.$route.query.indexId : this.$route.params.indexId,
+            index_set_id: window.__IS_MONITOR_COMPONENT__
+              ? this.$route.query.indexId
+              : this.$route.params.indexId,
             index_set_ids: this.unionIndexList,
             index_set_type: this.isUnionSearch ? 'union' : 'single',
           },
@@ -658,8 +657,8 @@ export default {
     /** 初始化显示字段 */
     initShadowFields() {
       this.activeConfigTab = this.currentClickConfigData.name;
-      this.shadowTotal.forEach(fieldInfo => {
-        this.shadowSort.forEach(item => {
+      this.shadowTotal.forEach((fieldInfo) => {
+        this.shadowSort.forEach((item) => {
           if (fieldInfo.field_name === item[0]) {
             fieldInfo.isSorted = true;
           }
@@ -668,7 +667,7 @@ export default {
       // 后台给的 display_fields 可能有无效字段 所以进行过滤，获得排序后的字段
       this.shadowVisible =
         this.currentClickConfigData.display_fields
-          ?.map(displayName => {
+          ?.map((displayName) => {
             for (const field of this.shadowTotal) {
               if (field.field_name === displayName) {
                 field.is_display = true;
@@ -695,7 +694,7 @@ export default {
             index_set_type: this.isUnionSearch ? 'union' : 'single',
           },
         });
-        this.configTabPanels = res.data.map(item => ({
+        this.configTabPanels = res.data.map((item) => ({
           ...item,
           isShowEdit: false,
           editStr: item.name,
@@ -716,259 +715,308 @@ export default {
 </script>
 
 <style lang="scss" scoped>
-  @import '../../../scss/mixins/scroller';
+@import '../../../scss/mixins/scroller';
 
-  .fields-setting {
-    position: relative;
+.fields-setting {
+  position: relative;
 
-    .fields-container {
-      display: flex;
+  .fields-container {
+    display: flex;
 
-      .fields-config-container {
-        .add-fields-config {
-          height: 40px;
-          color: #3a84ff;
-          cursor: pointer;
-          border-right: 1px solid #dcdee5;
+    .fields-config-container {
+      .add-fields-config {
+        height: 40px;
+        color: #3a84ff;
+        cursor: pointer;
+        border-right: 1px solid #dcdee5;
 
-          .config-btn {
-            width: 100%;
-            height: 100%;
-            padding-left: 24px;
-            line-height: 100%;
-            text-align: left;
-
-            .bk-icon {
-              transform: translateY(-2px);
-            }
-          }
-        }
-
-        .config-tab {
+        .config-btn {
           width: 100%;
-          height: calc(100% - 40px);
-          overflow-y: auto;
-        }
-
-        .config-tab-item {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          width: 100%;
-          height: 40px;
-          padding: 0 12px 0 4px;
-
-          .config-input {
-            width: 100px;
-          }
-
-          .input-error {
-            :deep(.bk-form-input) {
-              border: 1px solid #d7473f;
-            }
-          }
-
-          .panel-name {
-            padding-left: 20px;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-          }
-
-          .panel-operate {
-            margin-left: 10px;
-            font-size: 14px;
-            color: #979ba5;
-            cursor: pointer;
-
-            .edit-icon:hover {
-              color: #3a84ff;
-            }
-
-            .icon-check-line {
-              color: #3a84ff;
-            }
-
-            .icon-close-line-2 {
-              color: #d7473f;
-            }
-          }
-        }
-
-        :deep(.bk-tab-label) {
-          width: 100%;
-        }
-
-        :deep(.bk-tab-label-item) {
-          padding: 0;
-
-          /* stylelint-disable-next-line declaration-no-important */
-          line-height: 40px !important;
-          color: #63656e;
+          height: 100%;
+          padding-left: 24px;
+          line-height: 100%;
           text-align: left;
 
-          &:hover {
-            background: #f0f1f5;
+          .bk-icon {
+            transform: translateY(-2px);
+          }
+        }
+      }
+
+      .config-tab {
+        width: 100%;
+        height: calc(100% - 40px);
+        overflow-y: auto;
+      }
+
+      .config-tab-item {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        width: 100%;
+        height: 40px;
+        padding: 0 12px 0 4px;
+
+        .config-input {
+          width: 100px;
+        }
+
+        .input-error {
+          :deep(.bk-form-input) {
+            border: 1px solid #d7473f;
           }
         }
 
-        :deep(.bk-tab-header) {
-          width: 100%;
-          min-width: 160px;
-          padding: 0 0 10px;
-          // &::after {
-          //   display: none;
-          // }
-          &::before {
-            display: none;
+        .panel-name {
+          padding-left: 20px;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+
+        .panel-operate {
+          margin-left: 10px;
+          font-size: 14px;
+          color: #979ba5;
+          cursor: pointer;
+
+          .edit-icon:hover {
+            color: #3a84ff;
+          }
+
+          .icon-check-line {
+            color: #3a84ff;
+          }
+
+          .icon-close-line-2 {
+            color: #d7473f;
           }
         }
+      }
 
-        :deep(.active) {
-          color: #3a84ff;
+      :deep(.bk-tab-label) {
+        width: 100%;
+      }
 
-          /* stylelint-disable-next-line declaration-no-important */
-          background: #e1ecff !important;
+      :deep(.bk-tab-label-item) {
+        padding: 0;
+
+        /* stylelint-disable-next-line declaration-no-important */
+        line-height: 40px !important;
+        color: #63656e;
+        text-align: left;
+
+        &:hover {
+          background: #f0f1f5;
         }
+      }
 
-        :deep(.bk-tab-section) {
+      :deep(.bk-tab-header) {
+        width: 100%;
+        min-width: 160px;
+        padding: 0 0 10px;
+        // &::after {
+        //   display: none;
+        // }
+        &::before {
           display: none;
         }
       }
+
+      :deep(.active) {
+        color: #3a84ff;
+
+        /* stylelint-disable-next-line declaration-no-important */
+        background: #e1ecff !important;
+      }
+
+      :deep(.bk-tab-section) {
+        display: none;
+      }
     }
+  }
 
-    .fields-tab-container {
-      width: 723px;
-      padding: 0px 10px 0 10px;
-    }
+  .fields-tab-container {
+    width: 723px;
+    padding: 0px 10px 0 10px;
+  }
 
-    .menu-select-search {
-      width: 340px;
-      padding-left: 10px;
-      margin-top: -30px;
-    }
+  .menu-select-search {
+    width: 340px;
+    padding-left: 10px;
+    margin-top: -30px;
+  }
 
-    .fields-list-container {
-      display: flex;
-      width: 723px;
-      padding: 0 10px 14px 10px;
-      margin-top: 10px;
+  .fields-list-container {
+    display: flex;
+    width: 723px;
+    padding: 0 10px 14px 10px;
+    margin-top: 10px;
 
-      .total-fields-list,
-      .visible-fields-list,
-      .sort-fields-list {
-        width: 330px;
-        height: 268px;
-        border: 1px solid #dcdee5;
+    .total-fields-list,
+    .visible-fields-list,
+    .sort-fields-list {
+      width: 330px;
+      height: 268px;
+      border: 1px solid #dcdee5;
 
-        .text-action {
-          font-size: 12px;
-          color: #3a84ff;
-          cursor: pointer;
+      .text-action {
+        font-size: 12px;
+        color: #3a84ff;
+        cursor: pointer;
+      }
+
+      .title {
+        position: relative;
+        display: flex;
+        align-items: center;
+        height: 41px;
+        padding: 0 16px;
+        line-height: 40px;
+        color: #313238;
+        border-bottom: 1px solid #dcdee5;
+
+        .bklog-info-fill {
+          margin-left: 8px;
+          font-size: 14px;
+          color: #979ba5;
+          outline: none;
         }
 
-        .title {
-          position: relative;
+        .add-all,
+        .clear-all {
+          position: absolute;
+          top: 0;
+          right: 16px;
+        }
+      }
+
+      .select-list {
+        height: 223px;
+        padding: 4px 0;
+        overflow: auto;
+
+        @include scroller;
+
+        .select-item {
           display: flex;
           align-items: center;
-          height: 41px;
-          padding: 0 16px;
-          line-height: 40px;
-          color: #313238;
-          border-bottom: 1px solid #dcdee5;
+          padding: 0 8px;
+          font-size: 12px;
+          line-height: 32px;
 
-          .bklog-info-fill {
-            margin-left: 8px;
+          .bklog-drag-dots {
+            width: 16px;
             font-size: 14px;
             color: #979ba5;
-            outline: none;
+            text-align: left;
+            cursor: move;
+            opacity: 0;
+            transition: opacity 0.2s linear;
           }
 
-          .add-all,
-          .clear-all {
-            position: absolute;
-            top: 0;
-            right: 16px;
+          &.sortable-ghost-class {
+            background: #eaf3ff;
+            transition: background 0.2s linear;
           }
-        }
 
-        .select-list {
-          height: 223px;
-          padding: 4px 0;
-          overflow: auto;
-
-          @include scroller;
-
-          .select-item {
-            display: flex;
-            align-items: center;
-            padding: 0 8px;
-            font-size: 12px;
-            line-height: 32px;
+          &:hover {
+            background: #eaf3ff;
+            transition: background 0.2s linear;
 
             .bklog-drag-dots {
-              width: 16px;
-              font-size: 14px;
-              color: #979ba5;
-              text-align: left;
-              cursor: move;
-              opacity: 0;
+              opacity: 1;
               transition: opacity 0.2s linear;
-            }
-
-            &.sortable-ghost-class {
-              background: #eaf3ff;
-              transition: background 0.2s linear;
-            }
-
-            &:hover {
-              background: #eaf3ff;
-              transition: background 0.2s linear;
-
-              .bklog-drag-dots {
-                opacity: 1;
-                transition: opacity 0.2s linear;
-              }
             }
           }
         }
       }
+    }
 
-      /* stylelint-disable-next-line no-descending-specificity */
-      .total-fields-list .select-list .select-item {
-        .field-name {
-          width: calc(100% - 24px);
-          overflow: hidden;
-          text-overflow: ellipsis;
-          white-space: nowrap;
-        }
+    /* stylelint-disable-next-line no-descending-specificity */
+    .total-fields-list .select-list .select-item {
+      .field-name {
+        width: calc(100% - 24px);
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
 
-        .bklog-filled-right-arrow {
-          width: 24px;
-          font-size: 16px;
-          color: #3a84ff;
-          text-align: right;
-          cursor: pointer;
-          opacity: 0;
-          transition: opacity 0.2s linear;
-          transform: scale(0.5);
-          transform-origin: right center;
-        }
+      .bklog-filled-right-arrow {
+        width: 24px;
+        font-size: 16px;
+        color: #3a84ff;
+        text-align: right;
+        cursor: pointer;
+        opacity: 0;
+        transition: opacity 0.2s linear;
+        transform: scale(0.5);
+        transform-origin: right center;
+      }
 
-        &:hover .bklog-filled-right-arrow {
-          opacity: 1;
-          transition: opacity 0.2s linear;
-        }
+      &:hover .bklog-filled-right-arrow {
+        opacity: 1;
+        transition: opacity 0.2s linear;
+      }
+    }
+
+    /* stylelint-disable-next-line no-descending-specificity */
+    .visible-fields-list .select-list .select-item {
+      .field-name {
+        // 16 38
+        width: calc(100% - 30px);
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .delete {
+        font-size: 16px;
+        color: #c4c6cc;
+        text-align: right;
+        cursor: pointer;
+      }
+    }
+
+    .sort-fields-list {
+      flex-shrink: 0;
+
+      .sort-list-header {
+        display: flex;
+        align-items: center;
+        height: 31px;
+        font-size: 12px;
+        line-height: 30px;
+        background: rgba(250, 251, 253, 1);
+        border-bottom: 1px solid rgba(221, 228, 235, 1);
       }
 
       /* stylelint-disable-next-line no-descending-specificity */
-      .visible-fields-list .select-list .select-item {
+      .select-list .select-item {
         .field-name {
-          // 16 38
-          width: calc(100% - 30px);
+          // 16 42 50 38
+          width: calc(100% - 146px);
           overflow: hidden;
           text-overflow: ellipsis;
           white-space: nowrap;
+        }
+
+        .status {
+          font-weight: 700;
+
+          &.icon-arrows-down-line {
+            color: #ea3636;
+          }
+
+          &.icon-arrows-up-line {
+            color: #2dcb56;
+          }
+        }
+
+        .option {
+          width: 50px;
+          margin: 0 8px;
+          color: #3a84ff;
         }
 
         .delete {
@@ -978,90 +1026,41 @@ export default {
           cursor: pointer;
         }
       }
-
-      .sort-fields-list {
-        flex-shrink: 0;
-
-        .sort-list-header {
-          display: flex;
-          align-items: center;
-          height: 31px;
-          font-size: 12px;
-          line-height: 30px;
-          background: rgba(250, 251, 253, 1);
-          border-bottom: 1px solid rgba(221, 228, 235, 1);
-        }
-
-        /* stylelint-disable-next-line no-descending-specificity */
-        .select-list .select-item {
-          .field-name {
-            // 16 42 50 38
-            width: calc(100% - 146px);
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-          }
-
-          .status {
-            font-weight: 700;
-
-            &.icon-arrows-down-line {
-              color: #ea3636;
-            }
-
-            &.icon-arrows-up-line {
-              color: #2dcb56;
-            }
-          }
-
-          .option {
-            width: 50px;
-            margin: 0 8px;
-            color: #3a84ff;
-          }
-
-          .delete {
-            font-size: 16px;
-            color: #c4c6cc;
-            text-align: right;
-            cursor: pointer;
-          }
-        }
-      }
-
-      .sort-icon {
-        display: flex;
-        flex-shrink: 0;
-        align-items: center;
-        justify-content: center;
-        width: 35px;
-
-        .bklog-double-arrow {
-          font-size: 12px;
-          color: #989ca5;
-        }
-      }
     }
 
-    .fields-button-container {
+    .sort-icon {
       display: flex;
+      flex-shrink: 0;
       align-items: center;
-      justify-content: flex-end;
-      width: 100%;
-      height: 51px;
-      padding: 0 24px;
-      background-color: #fafbfd;
-      border-top: 1px solid #dcdee5;
-      border-radius: 0 0 2px 2px;
-    }
+      justify-content: center;
+      width: 35px;
 
-    .field-alias-setting {
-      position: absolute;
-      top: 0px;
-      right: 20px;
-      display: flex;
-      align-items: center;
-      height: 42px;
+      .bklog-double-arrow {
+        font-size: 12px;
+        color: #989ca5;
+      }
     }
   }
+
+  .fields-button-container {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    width: 100%;
+    height: 51px;
+    padding: 0 24px;
+    background-color: #fafbfd;
+    border-top: 1px solid #dcdee5;
+    border-radius: 0 0 2px 2px;
+  }
+
+  .field-alias-setting {
+    position: absolute;
+    top: 0px;
+    right: 20px;
+    display: flex;
+    align-items: center;
+    height: 42px;
+  }
+}
 </style>

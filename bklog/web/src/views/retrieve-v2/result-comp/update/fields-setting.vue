@@ -25,21 +25,12 @@
 -->
 
 <template>
-  <div
-    class="update-fields-setting"
-    v-bkloading="{ isLoading: isLoading }"
-  >
+  <div class="update-fields-setting" v-bkloading="{ isLoading: isLoading }">
     <!-- 设置列表字段 -->
     <div class="fields-container">
-      <div
-        v-if="isTemplateConfig"
-        class="fields-config-container"
-      >
+      <div v-if="isTemplateConfig" class="fields-config-container">
         <div class="config-container-header">
-          <div
-            class="header-config-operation"
-            v-show="!isShowAddInput"
-          >
+          <div class="header-config-operation" v-show="!isShowAddInput">
             <bk-button
               class="config-btn"
               :text="true"
@@ -48,18 +39,12 @@
               <i class="bk-icon icon-plus-circle-shape" />
               <span>{{ $t('新建') }}</span>
             </bk-button>
-            <log-export
-              class="config-btn"
-              @change="handleFieldConfigImport"
-            >
+            <log-export class="config-btn" @change="handleFieldConfigImport">
               <i class="bk-icon bklog-icon bklog-import" />
               <span>{{ $t('导入') }}</span>
             </log-export>
           </div>
-          <div
-            class="header-config-new-input"
-            v-show="isShowAddInput"
-          >
+          <div class="header-config-new-input" v-show="isShowAddInput">
             <bk-input
               v-model="newConfigStr"
               :class="['config-new-input', { 'input-error': isInputError }]"
@@ -88,7 +73,7 @@
             v-for="(panel, index) in configTabPanels"
             :key="panel.name"
             :name="panel.name"
-            :render-label="e => renderHeader(e, panel, index)"
+            :render-label="(e) => renderHeader(e, panel, index)"
           >
           </bk-tab-panel>
         </bk-tab>
@@ -97,15 +82,9 @@
         <div class="fields-tab-container">
           <div class="show-field">
             <div class="text-type">{{ $t('字段显示') }}:</div>
-            <fieldSetting
-              ref="fieldSettingRef"
-              :init-data="shadowVisible"
-            />
+            <fieldSetting ref="fieldSettingRef" :init-data="shadowVisible" />
           </div>
-          <div
-            style="padding-left: 12px"
-            class="table-sort"
-          >
+          <div style="padding-left: 12px" class="table-sort">
             <div class="text-type">{{ $t('表格排序') }}：</div>
             <tableSort
               ref="tableSortRef"
@@ -118,17 +97,13 @@
       </div>
     </div>
     <div
-      :style="{ 'justify-content': !isTemplateConfig ? 'space-between' : 'flex-end' }"
+      :style="{
+        'justify-content': !isTemplateConfig ? 'space-between' : 'flex-end',
+      }"
       class="fields-button-container"
     >
-      <div
-        v-if="!isTemplateConfig"
-        style="color: #4d4f56"
-      >
-        <span
-          style="font-size: 14px"
-          class="bklog-icon bklog-help"
-        ></span>
+      <div v-if="!isTemplateConfig" style="color: #4d4f56">
+        <span style="font-size: 14px" class="bklog-icon bklog-help"></span>
         {{ $t('当前设置仅对个人生效，可以') }}
         <save-as-popover
           :confirm-handler="handleUpdateConfig"
@@ -145,11 +120,7 @@
         >
           {{ $t('保存') }}
         </bk-button>
-        <bk-button
-          :theme="'default'"
-          type="submit"
-          @click="cancelModifyFields"
-        >
+        <bk-button :theme="'default'" type="submit" @click="cancelModifyFields">
           {{ $t('取消') }}
         </bk-button>
       </div>
@@ -238,7 +209,7 @@ export default {
     },
     /** 当前本地用户正在应用的展示字段设置 */
     localVisibleFields() {
-      return (this.$store.state.visibleFields ?? []).map(e => e.field_name);
+      return (this.$store.state.visibleFields ?? []).map((e) => e.field_name);
     },
     shadowSort() {
       if (!this.isTemplateConfig && this.catchFieldCustomSortList?.length) {
@@ -251,9 +222,13 @@ export default {
     },
     filterShadowTotal() {
       const fields = this.$store.state.indexFieldInfo.fields;
-      return fields.filter(item => {
-        const matchesKeyword = item.field_name?.includes(this.keyword) || item.query_alias?.includes(this.keyword);
-        const isInShadowVisible = this.shadowVisible.some(shadowItem => shadowItem === item.field_name);
+      return fields.filter((item) => {
+        const matchesKeyword =
+          item.field_name?.includes(this.keyword) ||
+          item.query_alias?.includes(this.keyword);
+        const isInShadowVisible = this.shadowVisible.some(
+          (shadowItem) => shadowItem === item.field_name
+        );
         return matchesKeyword && !isInShadowVisible;
       });
     },
@@ -262,7 +237,7 @@ export default {
     },
     fieldAliasMap() {
       let fieldAliasMap = {};
-      this.$store.state.indexFieldInfo.fields.forEach(item => {
+      this.$store.state.indexFieldInfo.fields.forEach((item) => {
         fieldAliasMap[item.field_name] = item.field_alias || item.field_name;
       });
       return fieldAliasMap;
@@ -275,7 +250,7 @@ export default {
         return this.shadowTotal.length - this.shadowVisible.length;
       }
       let totalLength = 0;
-      this.shadowTotal.forEach(fieldInfo => {
+      this.shadowTotal.forEach((fieldInfo) => {
         if (fieldInfo.es_doc_values) {
           totalLength += 1;
         }
@@ -289,7 +264,11 @@ export default {
     },
     currentClickConfigData() {
       // 当前选中的配置
-      return this.configTabPanels.find(item => item.id === this.currentClickConfigID) || this.configTabPanels?.[0];
+      return (
+        this.configTabPanels.find(
+          (item) => item.id === this.currentClickConfigID
+        ) || this.configTabPanels?.[0]
+      );
     },
     fieldWidth() {
       return this.$store.state.isEnLanguage ? '60' : '114';
@@ -299,8 +278,9 @@ export default {
     },
     currentVisibleList() {
       return (
-        this.$refs?.fieldSettingRef?.shadowVisible?.map(item => item.field_name) ||
-        this.shadowVisible?.map(item => item.field_name)
+        this.$refs?.fieldSettingRef?.shadowVisible?.map(
+          (item) => item.field_name
+        ) || this.shadowVisible?.map((item) => item.field_name)
       );
     },
     ...mapGetters({
@@ -338,7 +318,9 @@ export default {
       if (!this.isTemplateConfig) {
         this.initShadowFields(this.localVisibleFields);
         // 在数据初始化后缓存，使用深拷贝
-        this.cachedVisibleFields = JSON.parse(JSON.stringify(this.shadowVisible));
+        this.cachedVisibleFields = JSON.parse(
+          JSON.stringify(this.shadowVisible)
+        );
         this.cachedSortFields = JSON.parse(JSON.stringify(this.shadowSort));
         return;
       }
@@ -350,8 +332,11 @@ export default {
     },
     /** 保存或应用 */
     async confirmModifyFields() {
-      const currentSortList = this.$refs?.tableSortRef?.shadowSort || this.cachedSortFields;
-      const currentVisibleList = this.$refs.fieldSettingRef.shadowVisible.map(item => item.field_name);
+      const currentSortList =
+        this.$refs?.tableSortRef?.shadowSort || this.cachedSortFields;
+      const currentVisibleList = this.$refs.fieldSettingRef.shadowVisible.map(
+        (item) => item.field_name
+      );
 
       if (currentVisibleList.length === 0) {
         this.messageWarn(this.$t('显示字段不能为空'));
@@ -401,7 +386,9 @@ export default {
       await this.$http
         .request('retrieve/postFieldsConfig', {
           data: {
-            index_set_id: window.__IS_MONITOR_COMPONENT__ ? this.$route.query.indexId : this.$route.params.indexId,
+            index_set_id: window.__IS_MONITOR_COMPONENT__
+              ? this.$route.query.indexId
+              : this.$route.params.indexId,
             index_set_ids: this.unionIndexList,
             index_set_type: this.isUnionSearch ? 'union' : 'single',
             display_fields: this.shadowVisible,
@@ -409,7 +396,7 @@ export default {
             config_id: configID,
           },
         })
-        .catch(e => {
+        .catch((e) => {
           console.warn(e);
         });
     },
@@ -417,7 +404,9 @@ export default {
       // 取消时恢复缓存数据，使用深拷贝
       if (!this.isTemplateConfig) {
         // 只更新父组件的数据，子组件会通过 props 自动更新
-        this.shadowVisible = JSON.parse(JSON.stringify(this.cachedVisibleFields));
+        this.shadowVisible = JSON.parse(
+          JSON.stringify(this.cachedVisibleFields)
+        );
         // this.shadowSort = JSON.parse(JSON.stringify(this.cachedSortFields));
         this.cachedSortFields = JSON.parse(JSON.stringify(this.shadowSort));
       }
@@ -488,22 +477,27 @@ export default {
         sort_list: updateItem.sort_list,
         display_fields: updateItem.display_fields,
         config_id: undefined,
-        index_set_id: window.__IS_MONITOR_COMPONENT__ ? this.$route.query.indexId : this.$route.params.indexId,
+        index_set_id: window.__IS_MONITOR_COMPONENT__
+          ? this.$route.query.indexId
+          : this.$route.params.indexId,
         index_set_ids: this.unionIndexList,
         index_set_type: this.isUnionSearch ? 'union' : 'single',
       };
-      downJsonFile(JSON.stringify(fieldConfigParam, null, 4), `${FIELD_CONFIG_FILENAME_PREFIX}${fieldName}.json`);
+      downJsonFile(
+        JSON.stringify(fieldConfigParam, null, 4),
+        `${FIELD_CONFIG_FILENAME_PREFIX}${fieldName}.json`
+      );
     },
 
     /** 编辑配置 */
     handleEditConfigName(index) {
-      this.configTabPanels.forEach(item => (item.isShowEdit = false));
+      this.configTabPanels.forEach((item) => (item.isShowEdit = false));
       this.configTabPanels[index].isShowEdit = true;
       this.isShowAddInput = false;
     },
     /** 点击新增配置 */
     handleClickAddNew() {
-      this.configTabPanels.forEach(item => (item.isShowEdit = false));
+      this.configTabPanels.forEach((item) => (item.isShowEdit = false));
       this.isShowAddInput = true;
     },
     /** 新增配置 */
@@ -535,7 +529,9 @@ export default {
         sort_list: updateItem.sort_list,
         display_fields: updateItem.display_fields,
         config_id: undefined,
-        index_set_id: window.__IS_MONITOR_COMPONENT__ ? this.$route.query.indexId : this.$route.params.indexId,
+        index_set_id: window.__IS_MONITOR_COMPONENT__
+          ? this.$route.query.indexId
+          : this.$route.params.indexId,
         index_set_ids: this.unionIndexList,
         index_set_type: this.isUnionSearch ? 'union' : 'single',
       };
@@ -546,14 +542,18 @@ export default {
         });
         if (this.activeFieldTab === 'sort') {
           if (this.isSortFieldChanged) {
-            this.$store.dispatch('requestIndexSetQuery', { formChartChange: false }).then(() => {
-              this.isSortFieldChanged = false;
-            });
+            this.$store
+              .dispatch('requestIndexSetQuery', { formChartChange: false })
+              .then(() => {
+                this.isSortFieldChanged = false;
+              });
           }
           this.$emit('should-retrieve', undefined, false); // 不请求图表
         }
         if (successMsg) {
-          isCreate ? this.messageSuccess(successMsg) : this.messageInfo(successMsg);
+          isCreate
+            ? this.messageSuccess(successMsg)
+            : this.messageInfo(successMsg);
         }
       } catch (error) {
       } finally {
@@ -568,7 +568,9 @@ export default {
         await this.$http.request('retrieve/deleteFieldsConfig', {
           data: {
             config_id: configID,
-            index_set_id: window.__IS_MONITOR_COMPONENT__ ? this.$route.query.indexId : this.$route.params.indexId,
+            index_set_id: window.__IS_MONITOR_COMPONENT__
+              ? this.$route.query.indexId
+              : this.$route.params.indexId,
             index_set_ids: this.unionIndexList,
             index_set_type: this.isUnionSearch ? 'union' : 'single',
           },
@@ -589,8 +591,8 @@ export default {
     /** 初始化显示字段 */
     initShadowFields(configData) {
       this.activeConfigTab = this.currentClickConfigData?.name;
-      this.shadowTotal.forEach(fieldInfo => {
-        this.shadowSort.forEach(item => {
+      this.shadowTotal.forEach((fieldInfo) => {
+        this.shadowSort.forEach((item) => {
           if (fieldInfo.field_name === item[0]) {
             fieldInfo.isSorted = true;
           }
@@ -600,7 +602,7 @@ export default {
       this.shadowVisible =
         configData ||
         this.currentClickConfigData.display_fields
-          ?.map(displayName => {
+          ?.map((displayName) => {
             for (const field of this.shadowTotal) {
               if (field.field_name === displayName) {
                 field.is_display = true;
@@ -628,7 +630,7 @@ export default {
             index_set_type: this.isUnionSearch ? 'union' : 'single',
           },
         });
-        this.configTabPanels = res.data.map(item => ({
+        this.configTabPanels = res.data.map((item) => ({
           ...item,
           isShowEdit: false,
           editStr: item.name,
@@ -646,202 +648,202 @@ export default {
 </script>
 
 <style lang="scss" scoped>
-  @import '../../../../scss/mixins/scroller';
+@import '../../../../scss/mixins/scroller';
 
-  .update-fields-setting {
-    position: relative;
-    background: #ffffff;
-    border: 1px solid #dcdee5;
-    border-radius: 2px;
-    box-shadow: 0 2px 6px 0 #0000001a;
+.update-fields-setting {
+  position: relative;
+  background: #ffffff;
+  border: 1px solid #dcdee5;
+  border-radius: 2px;
+  box-shadow: 0 2px 6px 0 #0000001a;
 
-    .fields-container {
-      display: flex;
+  .fields-container {
+    display: flex;
 
-      .fields-config-container {
-        width: 150px;
-        background-color: #f5f7fa;
-        border-right: 1px solid #dcdee5;
-        %config-input-common {
-          width: 100%;
-        }
-
-        .config-container-header {
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          height: 42px;
-
-          .header-config-operation {
-            display: flex;
-            column-gap: 12px;
-            margin-top: 3px;
-            color: #3a84ff;
-            cursor: pointer;
-
-            .config-btn {
-              height: 100%;
-              line-height: 100%;
-
-              .bk-icon {
-                transform: translateY(-2px);
-              }
-            }
-          }
-
-          .header-config-new-input {
-            --config-padding: 4px;
-            position: relative;
-            padding: 0 var(--config-padding);
-
-            .config-new-input {
-              @extend %config-input-common;
-            }
-
-            .new-input-operation {
-              position: absolute;
-              right: var(--config-padding);
-              bottom: calc(100% + 2px);
-
-              .bk-icon {
-                display: inline-block;
-                width: 28px;
-                height: 28px;
-                font-size: 18px;
-                line-height: 28px;
-                cursor: pointer;
-                background: #fafbfd;
-                border: 1px solid #dcdee5;
-                border-radius: 2px;
-                box-shadow: 0 1px 3px 1px #0000001f;
-
-                &:hover {
-                  background: #f0f1f5;
-                }
-              }
-
-              .icon-check-line {
-                color: hsl(143, 60%, 43%);
-              }
-
-              .icon-close-line-2 {
-                color: hsl(0, 81%, 56%);
-              }
-            }
-          }
-        }
-
-        .bk-tab-label-list-has-bar::after {
-          display: none !important;
-        }
-
-        .config-tab {
-          width: 100%;
-          height: calc(100% - 43px);
-
-          :deep(.bk-tab-header) {
-            padding: 0px;
-            background-color: #f5f7fa;
-          }
-        }
-
-        :deep(.bk-tab-label) {
-          width: 100%;
-        }
-
-        :deep(.bk-tab-label-item) {
-          padding: 0;
-
-          /* stylelint-disable-next-line declaration-no-important */
-          line-height: 36px !important;
-          text-align: left;
-
-          .bk-tab-label {
-            font-size: 12px;
-            color: #4d4f56;
-          }
-
-          &:hover {
-            background: #eaebf0;
-          }
-
-          &.active {
-            /* stylelint-disable-next-line declaration-no-important */
-            background: #e1ecff !important;
-
-            .bk-tab-label {
-              color: #3a84ff;
-            }
-          }
-        }
-
-        :deep(.bk-tab-header) {
-          width: 100%;
-          min-width: 150px;
-          padding: 0 0 10px;
-          // &::after {
-          //   display: none;
-          // }
-          &::before {
-            display: none;
-          }
-        }
-
-        :deep(.bk-tab-section) {
-          display: none;
-        }
-      }
-    }
-
-    .fields-tab-container {
-      display: flex;
-      max-width: 930px;
-      padding: 12px 16px 0px 16px;
-
-      .show-field {
-        width: 587px;
-      }
-
-      .table-sort {
-        flex: 1;
-      }
-
-      .text-type {
-        margin-bottom: 8px;
-        font-family: MicrosoftYaHei;
-        font-size: 14px;
-        line-height: 22px;
-        color: #313238;
-      }
-    }
-
-    .fields-button-container {
-      display: flex;
-      align-items: center;
-
-      width: 100%;
-      height: 51px;
-      padding: 0 24px;
-      background-color: #fafbfd;
-      border-top: 1px solid #dcdee5;
-      border-radius: 0 0 2px 2px;
-    }
-  }
-</style>
-<style lang="scss">
-  .update-fields-setting {
     .fields-config-container {
-      .input-error {
-        .bk-form-input {
-          border: 1px solid #d7473f;
+      width: 150px;
+      background-color: #f5f7fa;
+      border-right: 1px solid #dcdee5;
+      %config-input-common {
+        width: 100%;
+      }
+
+      .config-container-header {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        height: 42px;
+
+        .header-config-operation {
+          display: flex;
+          column-gap: 12px;
+          margin-top: 3px;
+          color: #3a84ff;
+          cursor: pointer;
+
+          .config-btn {
+            height: 100%;
+            line-height: 100%;
+
+            .bk-icon {
+              transform: translateY(-2px);
+            }
+          }
         }
+
+        .header-config-new-input {
+          --config-padding: 4px;
+          position: relative;
+          padding: 0 var(--config-padding);
+
+          .config-new-input {
+            @extend %config-input-common;
+          }
+
+          .new-input-operation {
+            position: absolute;
+            right: var(--config-padding);
+            bottom: calc(100% + 2px);
+
+            .bk-icon {
+              display: inline-block;
+              width: 28px;
+              height: 28px;
+              font-size: 18px;
+              line-height: 28px;
+              cursor: pointer;
+              background: #fafbfd;
+              border: 1px solid #dcdee5;
+              border-radius: 2px;
+              box-shadow: 0 1px 3px 1px #0000001f;
+
+              &:hover {
+                background: #f0f1f5;
+              }
+            }
+
+            .icon-check-line {
+              color: hsl(143, 60%, 43%);
+            }
+
+            .icon-close-line-2 {
+              color: hsl(0, 81%, 56%);
+            }
+          }
+        }
+      }
+
+      .bk-tab-label-list-has-bar::after {
+        display: none !important;
       }
 
       .config-tab {
-        .bk-tab-label-list-has-bar::after {
+        width: 100%;
+        height: calc(100% - 43px);
+
+        :deep(.bk-tab-header) {
+          padding: 0px;
+          background-color: #f5f7fa;
+        }
+      }
+
+      :deep(.bk-tab-label) {
+        width: 100%;
+      }
+
+      :deep(.bk-tab-label-item) {
+        padding: 0;
+
+        /* stylelint-disable-next-line declaration-no-important */
+        line-height: 36px !important;
+        text-align: left;
+
+        .bk-tab-label {
+          font-size: 12px;
+          color: #4d4f56;
+        }
+
+        &:hover {
+          background: #eaebf0;
+        }
+
+        &.active {
+          /* stylelint-disable-next-line declaration-no-important */
+          background: #e1ecff !important;
+
+          .bk-tab-label {
+            color: #3a84ff;
+          }
+        }
+      }
+
+      :deep(.bk-tab-header) {
+        width: 100%;
+        min-width: 150px;
+        padding: 0 0 10px;
+        // &::after {
+        //   display: none;
+        // }
+        &::before {
           display: none;
         }
       }
+
+      :deep(.bk-tab-section) {
+        display: none;
+      }
     }
   }
+
+  .fields-tab-container {
+    display: flex;
+    max-width: 930px;
+    padding: 12px 16px 0px 16px;
+
+    .show-field {
+      width: 587px;
+    }
+
+    .table-sort {
+      flex: 1;
+    }
+
+    .text-type {
+      margin-bottom: 8px;
+      font-family: MicrosoftYaHei;
+      font-size: 14px;
+      line-height: 22px;
+      color: #313238;
+    }
+  }
+
+  .fields-button-container {
+    display: flex;
+    align-items: center;
+
+    width: 100%;
+    height: 51px;
+    padding: 0 24px;
+    background-color: #fafbfd;
+    border-top: 1px solid #dcdee5;
+    border-radius: 0 0 2px 2px;
+  }
+}
+</style>
+<style lang="scss">
+.update-fields-setting {
+  .fields-config-container {
+    .input-error {
+      .bk-form-input {
+        border: 1px solid #d7473f;
+      }
+    }
+
+    .config-tab {
+      .bk-tab-label-list-has-bar::after {
+        display: none;
+      }
+    }
+  }
+}
 </style>

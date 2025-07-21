@@ -23,9 +23,8 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { onMounted, Ref, onBeforeUnmount } from 'vue';
-
 import { debounce } from 'lodash';
+import { onMounted, Ref, onBeforeUnmount } from 'vue';
 
 export default (target: Ref<HTMLElement>, callbackFn, options?) => {
   const debounceCallback = debounce(() => {
@@ -42,7 +41,12 @@ export default (target: Ref<HTMLElement>, callbackFn, options?) => {
         debounceCallback();
       });
 
-      resizeObserver?.observe(cellElement, { subtree: true, childList: true, attributes: false, ...(options ?? {}) });
+      resizeObserver?.observe(cellElement, {
+        attributes: false,
+        childList: true,
+        subtree: true,
+        ...(options ?? {}),
+      });
     }
   };
 

@@ -52,10 +52,7 @@
           ></span>
           <span>
             {{ toolBarMap[item.id] }}
-            <span
-              v-if="item.id === 'ip'"
-              style="color: #c4c6cc"
-            >
+            <span v-if="item.id === 'ip'" style="color: #c4c6cc">
               {{ `(${item.value.split('-').reverse().join(':')})` }}
             </span>
           </span>
@@ -84,15 +81,28 @@ export default class ChartAnnotation extends Vue {
   handleGotoDetail(item: IAnnotationListItem) {
     switch (item.id) {
       case 'ip':
-        window.open(location.href.replace(location.hash, `#/performance/detail/${item.value}`));
+        window.open(
+          location.href.replace(
+            location.hash,
+            `#/performance/detail/${item.value}`
+          )
+        );
         break;
       case 'process':
         window.open(
-          location.href.replace(location.hash, `#/performance/detail-new/${item.value.id}/${item.value.processId}`)
+          location.href.replace(
+            location.hash,
+            `#/performance/detail-new/${item.value.id}/${item.value.processId}`
+          )
         );
         break;
       case 'strategy':
-        window.open(location.href.replace(location.hash, `#/strategy-config?metricId=${item.value}`));
+        window.open(
+          location.href.replace(
+            location.hash,
+            `#/strategy-config?metricId=${item.value}`
+          )
+        );
         break;
     }
   }
@@ -100,71 +110,71 @@ export default class ChartAnnotation extends Vue {
 </script>
 
 <style lang="scss" scoped>
-  .echart-annotation {
-    position: absolute;
-    z-index: 99;
-    width: 220px;
-    min-height: 84px;
-    font-size: 12px;
-    color: #63656e;
-    background: white;
-    border-radius: 2px;
-    box-shadow: 0px 4px 12px 0px rgba(0, 0, 0, 0.2);
+.echart-annotation {
+  position: absolute;
+  z-index: 99;
+  width: 220px;
+  min-height: 84px;
+  font-size: 12px;
+  color: #63656e;
+  background: white;
+  border-radius: 2px;
+  box-shadow: 0px 4px 12px 0px rgba(0, 0, 0, 0.2);
 
-    &-title {
-      margin: 6px 0 0 16px;
-      line-height: 20px;
+  &-title {
+    margin: 6px 0 0 16px;
+    line-height: 20px;
+  }
+
+  &-name {
+    display: flex;
+    align-items: center;
+    max-width: 90%;
+    height: 20px;
+    padding-left: 18px;
+    margin-top: 2px;
+    overflow: hidden;
+    font-weight: 700;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    border-bottom: 1px solid #f0f1f5;
+
+    .name-mark {
+      flex: 0 0 12px;
+      height: 4px;
+      margin-right: 10px;
     }
+  }
 
-    &-name {
+  &-list {
+    display: flex;
+    flex-direction: column;
+
+    .list-item {
       display: flex;
+      flex: 0 0 30px;
       align-items: center;
-      max-width: 90%;
-      height: 20px;
-      padding-left: 18px;
-      margin-top: 2px;
-      overflow: hidden;
-      font-weight: 700;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-      border-bottom: 1px solid #f0f1f5;
+      padding-left: 16px;
 
-      .name-mark {
-        flex: 0 0 12px;
-        height: 4px;
+      .item-icon {
+        width: 16px;
+        height: 16px;
         margin-right: 10px;
+        font-size: 16px;
       }
-    }
 
-    &-list {
-      display: flex;
-      flex-direction: column;
+      &-link {
+        margin-right: 6px;
+        margin-left: auto;
+        font-size: 12px;
+      }
 
-      .list-item {
-        display: flex;
-        flex: 0 0 30px;
-        align-items: center;
-        padding-left: 16px;
-
-        .item-icon {
-          width: 16px;
-          height: 16px;
-          margin-right: 10px;
-          font-size: 16px;
-        }
-
-        &-link {
-          margin-right: 6px;
-          margin-left: auto;
-          font-size: 12px;
-        }
-
-        &:hover {
-          color: #3a84ff;
-          cursor: pointer;
-          background-color: #e1ecff;
-        }
+      &:hover {
+        color: #3a84ff;
+        cursor: pointer;
+        background-color: #e1ecff;
       }
     }
   }
+}
 </style>

@@ -41,11 +41,7 @@
       @toggle-expand="toggleExpand"
     >
     </chart-title-v2>
-    <TrendChart
-      ref="chartRef"
-      v-show="!isFold"
-      :is-fold="isFold"
-    />
+    <TrendChart ref="chartRef" v-show="!isFold" :is-fold="isFold" />
   </div>
 </template>
 
@@ -72,7 +68,9 @@ const searchTotal = computed(() => {
   return store.state.retrieve.trendDataCount;
 });
 const isResultLoading = computed(
-  () => store.state.indexSetQueryResult.is_loading || store.state.indexFieldInfo.is_loading
+  () =>
+    store.state.indexSetQueryResult.is_loading ||
+    store.state.indexFieldInfo.is_loading
 );
 const getOffsetHeight = () => chartContainer.value?.offsetHeight ?? 26;
 
@@ -81,7 +79,7 @@ const chartContainer = ref(null);
 const chartInterval = ref('auto');
 const isLoading = computed(() => store.state.retrieve.isTrendDataLoading);
 
-const toggleExpand = val => {
+const toggleExpand = (val) => {
   isFold.value = val;
   localStorage.setItem('chartIsFold', val);
   nextTick(() => {
@@ -89,7 +87,7 @@ const toggleExpand = val => {
   });
 };
 
-const handleChangeInterval = v => {
+const handleChangeInterval = (v) => {
   chartInterval.value = v;
   store.commit('updateIndexItem', { interval: v });
   store.commit('retrieve/updateChartKey', { prefix: 'chart_interval_' });
@@ -110,5 +108,5 @@ onMounted(() => {
 </script>
 
 <style scoped lang="scss">
-  @import './index.scss';
+@import './index.scss';
 </style>

@@ -7,10 +7,7 @@
     trigger="click"
   >
     <span style="color: #3a84ff; cursor: pointer">
-      <span
-        style="font-size: 14px"
-        class="bklog-icon bklog-save"
-      ></span>
+      <span style="font-size: 14px" class="bklog-icon bklog-save"></span>
       {{ $t('另存为模板') }}
     </span>
     <template #content>
@@ -27,24 +24,13 @@
           :rules="rules.name"
           label="模板名称"
         >
-          <bk-input
-            class="template-name-input"
-            v-model="formModel.editStr"
-          />
+          <bk-input class="template-name-input" v-model="formModel.editStr" />
         </bk-form-item>
         <div class="button-wrap">
-          <bk-button
-            theme="primary"
-            text
-            @click="handleConfirm"
-          >
+          <bk-button theme="primary" text @click="handleConfirm">
             确定
           </bk-button>
-          <bk-button
-            theme="primary"
-            text
-            @click="handleCancel"
-          >
+          <bk-button theme="primary" text @click="handleCancel">
             取消
           </bk-button>
         </div>
@@ -77,7 +63,11 @@ const handleConfirm = async () => {
   await formRef.value.validate();
 
   await props.confirmHandler(
-    { editStr: formModel.editStr, display_fields: props.displayFields, sort_list: props.sortList },
+    {
+      editStr: formModel.editStr,
+      display_fields: props.displayFields,
+      sort_list: props.sortList,
+    },
     true,
     '模板保存成功，请在字段模板中查看。'
   );
@@ -90,20 +80,20 @@ const handleCancel = () => {
 </script>
 
 <style lang="scss" scoped>
-  .save-as-form {
-    .template-name-input {
-      width: 240px;
-    }
+.save-as-form {
+  .template-name-input {
+    width: 240px;
+  }
 
-    .button-wrap {
-      display: flex;
-      gap: 8px;
-      align-items: center;
-      margin-top: 8px;
+  .button-wrap {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    margin-top: 8px;
 
-      button{
-        font-size: 12px;
-      }
+    button {
+      font-size: 12px;
     }
   }
+}
 </style>

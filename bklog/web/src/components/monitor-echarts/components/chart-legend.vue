@@ -25,10 +25,7 @@
 -->
 
 <template>
-  <table
-    v-if="legendType === 'table'"
-    class="chart-legend"
-  >
+  <table v-if="legendType === 'table'" class="chart-legend">
     <colgroup>
       <col style="width: 100%" />
     </colgroup>
@@ -59,14 +56,8 @@
       </tr>
     </thead>
     <tbody>
-      <tr
-        v-for="(item, index) in list"
-        :key="index"
-      >
-        <td
-          v-for="title in headList"
-          :key="title"
-        >
+      <tr v-for="(item, index) in list" :key="index">
+        <td v-for="title in headList" :key="title">
           <div
             :style="{ width: title === 'Min' ? '228px' : '68px' }"
             class="content-wrapper"
@@ -74,9 +65,9 @@
             <div
               v-if="title === 'Min'"
               class="legend-metric"
-              @click="e => handleLegendEvent(e, 'click', item)"
-              @mouseenter="e => handleLegendEvent(e, 'highlight', item)"
-              @mouseleave="e => handleLegendEvent(e, 'downplay', item)"
+              @click="(e) => handleLegendEvent(e, 'click', item)"
+              @mouseenter="(e) => handleLegendEvent(e, 'highlight', item)"
+              @mouseleave="(e) => handleLegendEvent(e, 'downplay', item)"
             >
               <span
                 :style="{ backgroundColor: item.show ? item.color : '#ccc' }"
@@ -98,17 +89,14 @@
       </tr>
     </tbody>
   </table>
-  <div
-    v-else
-    class="common-legend"
-  >
+  <div v-else class="common-legend">
     <div
       v-for="(legend, index) in legendData"
       class="common-legend-item"
       :key="index"
-      @click="e => handleLegendEvent(e, 'click', legend)"
-      @mouseenter="e => handleLegendEvent(e, 'highlight', legend)"
-      @mouseleave="e => handleLegendEvent(e, 'downplay', legend)"
+      @click="(e) => handleLegendEvent(e, 'click', legend)"
+      @mouseenter="(e) => handleLegendEvent(e, 'highlight', legend)"
+      @mouseleave="(e) => handleLegendEvent(e, 'downplay', legend)"
     >
       <span
         :style="{ backgroundColor: legend.show ? legend.color : '#ccc' }"
@@ -179,148 +167,148 @@ export default class ChartLegend extends Vue {
 </script>
 
 <style lang="scss" scoped>
-  .chart-legend {
-    min-width: 400px;
-    overflow: auto;
-    font-size: 12px;
-    line-height: 26px;
-    color: #63656e;
-    border-collapse: collapse;
-    user-select: none;
+.chart-legend {
+  min-width: 400px;
+  overflow: auto;
+  font-size: 12px;
+  line-height: 26px;
+  color: #63656e;
+  border-collapse: collapse;
+  user-select: none;
 
-    tr {
-      height: 26px;
+  tr {
+    height: 26px;
+  }
+
+  thead tr,
+  tr:nth-child(even) {
+    background: #f5f6fa;
+  }
+
+  th {
+    padding: 0 12px;
+    font-weight: bold;
+    white-space: nowrap;
+
+    &:hover {
+      cursor: pointer;
+      background-color: #f0f1f5;
     }
 
-    thead tr,
-    tr:nth-child(even) {
-      background: #f5f6fa;
-    }
+    .caret-wrapper {
+      position: relative;
+      top: -1px;
+      display: inline-flex;
+      flex: 20px 0 0;
+      flex-direction: column;
+      align-items: center;
+      height: 20px;
+      margin-left: 4px;
+      vertical-align: middle;
+      cursor: pointer;
 
-    th {
-      padding: 0 12px;
-      font-weight: bold;
-      white-space: nowrap;
-
-      &:hover {
-        cursor: pointer;
-        background-color: #f0f1f5;
-      }
-
-      .caret-wrapper {
-        position: relative;
-        top: -1px;
-        display: inline-flex;
-        flex: 20px 0 0;
-        flex-direction: column;
-        align-items: center;
-        height: 20px;
+      .sort-caret {
+        position: absolute;
+        width: 0;
+        height: 0;
         margin-left: 4px;
-        vertical-align: middle;
-        cursor: pointer;
+        border: 5px solid transparent;
 
-        .sort-caret {
-          position: absolute;
-          width: 0;
-          height: 0;
-          margin-left: 4px;
-          border: 5px solid transparent;
-
-          &:hover {
-            cursor: pointer;
-          }
-
-          &.is-asc {
-            top: -1px;
-            border-bottom-color: #c0c4cc;
-
-            &.active {
-              border-bottom-color: #63656e;
-            }
-          }
-
-          &.is-desc {
-            bottom: -1px;
-            border-top-color: #c0c4cc;
-
-            &.active {
-              border-top-color: #63656e;
-            }
-          }
+        &:hover {
+          cursor: pointer;
         }
-      }
-    }
 
-    td {
-      display: table-cell;
-      padding: 0 6px;
-      text-align: right;
-      white-space: nowrap;
+        &.is-asc {
+          top: -1px;
+          border-bottom-color: #c0c4cc;
 
-      .content-wrapper {
-        display: flex;
-        align-items: center;
-        text-align: right;
-
-        .legend-metric {
-          display: inline-flex;
-          align-items: center;
-          margin-right: 9px;
-          overflow: hidden;
-          text-align: left;
-          text-overflow: ellipsis;
-          white-space: nowrap;
-
-          .metric-label {
-            display: inline-block;
-            width: 12px;
-            min-width: 12px;
-            height: 4px;
-            margin-right: 6px;
-            background-color: violet;
-          }
-
-          .metric-name {
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-          }
-
-          &:hover {
-            color: #999;
-            cursor: pointer;
+          &.active {
+            border-bottom-color: #63656e;
           }
         }
 
-        .legend-value {
-          margin-left: auto;
-          text-align: right;
+        &.is-desc {
+          bottom: -1px;
+          border-top-color: #c0c4cc;
+
+          &.active {
+            border-top-color: #63656e;
+          }
         }
       }
     }
   }
 
-  .common-legend {
-    &-item {
+  td {
+    display: table-cell;
+    padding: 0 6px;
+    text-align: right;
+    white-space: nowrap;
+
+    .content-wrapper {
       display: flex;
       align-items: center;
-      float: left;
-      margin-left: 10px;
-      font-size: 12px;
-      line-height: 16px;
-      white-space: nowrap;
+      text-align: right;
 
-      .legend-icon {
-        width: 12px;
-        height: 4px;
-        margin-right: 6px;
-        background-color: violet;
+      .legend-metric {
+        display: inline-flex;
+        align-items: center;
+        margin-right: 9px;
+        overflow: hidden;
+        text-align: left;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+
+        .metric-label {
+          display: inline-block;
+          width: 12px;
+          min-width: 12px;
+          height: 4px;
+          margin-right: 6px;
+          background-color: violet;
+        }
+
+        .metric-name {
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+
+        &:hover {
+          color: #999;
+          cursor: pointer;
+        }
       }
 
-      &:hover {
-        color: #999;
-        cursor: pointer;
+      .legend-value {
+        margin-left: auto;
+        text-align: right;
       }
     }
   }
+}
+
+.common-legend {
+  &-item {
+    display: flex;
+    align-items: center;
+    float: left;
+    margin-left: 10px;
+    font-size: 12px;
+    line-height: 16px;
+    white-space: nowrap;
+
+    .legend-icon {
+      width: 12px;
+      height: 4px;
+      margin-right: 6px;
+      background-color: violet;
+    }
+
+    &:hover {
+      color: #999;
+      cursor: pointer;
+    }
+  }
+}
 </style>

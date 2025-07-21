@@ -64,10 +64,7 @@
           @selected="handleAddSortFields"
         >
           <template #trigger>
-            <bk-button
-              class="king-button"
-              icon="plus"
-            ></bk-button>
+            <bk-button class="king-button" icon="plus"></bk-button>
           </template>
           <bk-option
             v-for="option in targetFieldSelectList"
@@ -110,7 +107,7 @@ const initTargetFieldSelectList = async () => {
       is_realtime: 'True',
     },
   });
-  targetFieldSelectList.value = res?.data?.fields.map(item => {
+  targetFieldSelectList.value = res?.data?.fields.map((item) => {
     return {
       id: item.field_name,
       name: item.field_name,
@@ -120,7 +117,7 @@ const initTargetFieldSelectList = async () => {
 
 watch(
   () => props.value,
-  newVal => {
+  (newVal) => {
     if (newVal && newVal?.indexSetId) {
       initTargetFieldSelectList();
     }
@@ -131,11 +128,11 @@ watch(
   }
 );
 
-const getSortDisabledState = id => {
+const getSortDisabledState = (id) => {
   return props.value.sortFields?.includes(id);
 };
 
-const handleAddSortFields = val => {
+const handleAddSortFields = (val) => {
   props.value?.sortFields.push(val);
 };
 
@@ -144,43 +141,43 @@ const handleCloseSortFiled = (item, index) => {
 };
 </script>
 <style lang="scss" scoped>
-  .sort-box {
-    display: inline-flex;
-    align-items: center;
+.sort-box {
+  display: inline-flex;
+  align-items: center;
 
-    .add-sort-btn {
+  .add-sort-btn {
+    display: inline-block;
+    margin-left: 6px;
+    border: none;
+    box-shadow: none;
+  }
+
+  .not-sort {
+    margin-left: 0;
+  }
+}
+
+.title-tips {
+  margin-left: 16px;
+  font-size: 12px;
+  font-weight: normal;
+
+  .icon-exclamation-circle {
+    font-size: 16px;
+    color: #ea3636;
+  }
+}
+
+.collection-select {
+  .tag-items {
+    height: 32px;
+    line-height: 32px;
+
+    .icon-grag-fill {
       display: inline-block;
-      margin-left: 6px;
-      border: none;
-      box-shadow: none;
-    }
-
-    .not-sort {
-      margin-left: 0;
+      cursor: move;
+      transform: translateY(-1px);
     }
   }
-
-  .title-tips {
-    margin-left: 16px;
-    font-size: 12px;
-    font-weight: normal;
-
-    .icon-exclamation-circle {
-      font-size: 16px;
-      color: #ea3636;
-    }
-  }
-
-  .collection-select {
-    .tag-items {
-      height: 32px;
-      line-height: 32px;
-
-      .icon-grag-fill {
-        display: inline-block;
-        cursor: move;
-        transform: translateY(-1px);
-      }
-    }
-  }
+}
 </style>

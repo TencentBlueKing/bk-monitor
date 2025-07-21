@@ -53,14 +53,8 @@
           v-bk-tooltips="$t('同步计算平台的结果')"
           @click="handleSync"
         >
-          <span
-            v-if="!syncLoading"
-            class="bklog-icon bklog-tongbu"
-          ></span>
-          <span
-            v-else
-            class="loading"
-          ></span>
+          <span v-if="!syncLoading" class="bklog-icon bklog-tongbu"></span>
+          <span v-else class="loading"></span>
         </div>
       </div>
     </section>
@@ -78,18 +72,12 @@
         @page-change="handlePageChange"
         @page-limit-change="handleLimitChange"
       >
-        <bk-table-column
-          :label="$t('名称')"
-          :render-header="$renderHeader"
-        >
+        <bk-table-column :label="$t('名称')" :render-header="$renderHeader">
           <template #default="props">
             {{ props.row.collector_config_name }}
           </template>
         </bk-table-column>
-        <bk-table-column
-          :label="$t('存储索引')"
-          :render-header="$renderHeader"
-        >
+        <bk-table-column :label="$t('存储索引')" :render-header="$renderHeader">
           <template #default="props">
             {{ props.row.result_table_id }}
           </template>
@@ -107,18 +95,12 @@
             {{ getFormatName(props.row) }}
           </template>
         </bk-table-column>
-        <bk-table-column
-          :label="$t('更新人')"
-          :render-header="$renderHeader"
-        >
+        <bk-table-column :label="$t('更新人')" :render-header="$renderHeader">
           <template #default="props">
             {{ props.row.updated_by }}
           </template>
         </bk-table-column>
-        <bk-table-column
-          :label="$t('更新时间')"
-          :render-header="$renderHeader"
-        >
+        <bk-table-column :label="$t('更新时间')" :render-header="$renderHeader">
           <template #default="props">
             {{ props.row.updated_at }}
           </template>
@@ -146,7 +128,12 @@
                 v-else
                 ext-cls="mr10 king-button"
                 :button-text="$t('检索')"
-                :cursor-active="!(props.row.permission && props.row.permission[authorityMap.SEARCH_LOG_AUTH])"
+                :cursor-active="
+                  !(
+                    props.row.permission &&
+                    props.row.permission[authorityMap.SEARCH_LOG_AUTH]
+                  )
+                "
                 :disabled="!props.row.is_active || !props.row.index_set_id"
                 :tips-conf="getTipText(props.row)"
                 theme="primary"
@@ -158,7 +145,10 @@
               <bk-button
                 class="mr10 king-button"
                 v-cursor="{
-                  active: !(props.row.permission && props.row.permission[authorityMap.MANAGE_COLLECTION_AUTH]),
+                  active: !(
+                    props.row.permission &&
+                    props.row.permission[authorityMap.MANAGE_COLLECTION_AUTH]
+                  ),
                 }"
                 theme="primary"
                 text
@@ -170,7 +160,12 @@
               <log-button
                 ext-cls="mr10 king-button"
                 :button-text="$t('删除')"
-                :cursor-active="!(props.row.permission && props.row.permission[authorityMap.MANAGE_COLLECTION_AUTH])"
+                :cursor-active="
+                  !(
+                    props.row.permission &&
+                    props.row.permission[authorityMap.MANAGE_COLLECTION_AUTH]
+                  )
+                "
                 :disabled="props.row.etl_config === 'bkdata_clean'"
                 :tips-conf="''"
                 theme="primary"
@@ -238,7 +233,7 @@ export default {
     formatFilters() {
       const { etl_config: etlConfig } = this.globalsData;
       const target = [];
-      etlConfig?.forEach(data => {
+      etlConfig?.forEach((data) => {
         target.push({
           text: data.name,
           value: data.id,
@@ -267,10 +262,13 @@ export default {
       this.requestData();
     },
     handleFilterChange(data) {
-      Object.keys(data).forEach(item => {
+      Object.keys(data).forEach((item) => {
         this.params[item] = data[item].join('');
       });
-      this.isFilterSearch = Object.values(data).reduce((pre, cur) => ((pre += cur.length), pre), 0);
+      this.isFilterSearch = Object.values(data).reduce(
+        (pre, cur) => ((pre += cur.length), pre),
+        0
+      );
       this.pagination.current = 1;
       this.search();
     },
@@ -299,7 +297,8 @@ export default {
     },
     requestData() {
       this.isTableLoading = true;
-      this.emptyType = this.params.keyword || this.isFilterSearch ? 'search-empty' : 'empty';
+      this.emptyType =
+        this.params.keyword || this.isFilterSearch ? 'search-empty' : 'empty';
       this.$http
         .request('clean/cleanList', {
           query: {
@@ -309,12 +308,12 @@ export default {
             pagesize: this.pagination.limit,
           },
         })
-        .then(res => {
+        .then((res) => {
           const { data } = res;
           this.pagination.count = data.total;
           this.cleanList = data.list;
         })
-        .catch(err => {
+        .catch((err) => {
           console.warn(err);
           this.emptyType = '500';
         })
@@ -351,7 +350,10 @@ export default {
       }
     },
     operateHandler(row, operateType) {
-      if (['edit', 'delete'].includes(operateType) && row.etl_config === 'bkdata_clean') {
+      if (
+        ['edit', 'delete'].includes(operateType) &&
+        row.etl_config === 'bkdata_clean'
+      ) {
         // 编辑、删除操作，高级清洗跳转计算平台
         const id = row.bk_data_id;
         const jumpUrl = `${window.BKDATA_URL}/#/data-access/data-detail/${id}/3`;
@@ -361,7 +363,9 @@ export default {
       if (operateType === 'delete' && row.etl_config !== 'bkdata_clean') {
         const h = this.$createElement;
         this.$bkInfo({
-          title: this.$t('确定要删除清洗：{n}？', { n: row.collector_config_name }),
+          title: this.$t('确定要删除清洗：{n}？', {
+            n: row.collector_config_name,
+          }),
           subHeader: h('div', this.$t('请注意！删除后不能恢复。')),
           type: 'warning',
           confirmLoading: true,
@@ -434,7 +438,7 @@ export default {
     },
     getFormatName(row) {
       const cleantype = row.etl_config;
-      const matchItem = this.formatFilters?.find(conf => {
+      const matchItem = this.formatFilters?.find((conf) => {
         return conf.value === cleantype;
       });
       return matchItem ? matchItem.text : '';
@@ -484,7 +488,7 @@ export default {
             polling: isPolling,
           },
         })
-        .then(res => {
+        .then((res) => {
           const { data } = res;
           if (data.status === 'DONE') {
             clearInterval(this.timer);
@@ -533,90 +537,90 @@ export default {
 </script>
 
 <style lang="scss">
-  @import '@/scss/mixins/clearfix';
-  @import '@/scss/conf';
-  @import '@/scss/devops-common.scss';
+@import '@/scss/mixins/clearfix';
+@import '@/scss/conf';
+@import '@/scss/devops-common.scss';
 
-  .log-clean-container {
-    padding: 20px 24px;
+.log-clean-container {
+  padding: 20px 24px;
 
-    .top-operation {
-      margin-bottom: 20px;
+  .top-operation {
+    margin-bottom: 20px;
 
-      @include clearfix;
+    @include clearfix;
 
-      .bk-button {
-        width: 120px;
-      }
+    .bk-button {
+      width: 120px;
+    }
+  }
+
+  .clean-search {
+    display: flex;
+    align-items: center;
+
+    .bk-input-text {
+      width: 320px;
     }
 
-    .clean-search {
+    .operation-icon {
       display: flex;
       align-items: center;
+      justify-content: center;
+      width: 32px;
+      min-width: 32px;
+      height: 32px;
+      margin-left: 10px;
+      cursor: pointer;
+      border: 1px solid #c4c6cc;
+      border-radius: 2px;
+      outline: none;
+      transition: boder-color 0.2s;
 
-      .bk-input-text {
-        width: 320px;
-      }
-
-      .operation-icon {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        width: 32px;
-        min-width: 32px;
-        height: 32px;
-        margin-left: 10px;
-        cursor: pointer;
-        border: 1px solid #c4c6cc;
-        border-radius: 2px;
-        outline: none;
+      &:hover {
+        border-color: #979ba5;
         transition: boder-color 0.2s;
-
-        &:hover {
-          border-color: #979ba5;
-          transition: boder-color 0.2s;
-        }
-
-        &:active {
-          border-color: #3a84ff;
-          transition: boder-color 0.2s;
-        }
-
-        .icon-tongbu {
-          font-size: 14px;
-          color: #979ba5;
-        }
-
-        .loading {
-          display: inline-block;
-          width: 14px;
-          height: 14px;
-          margin: 0 auto;
-          border: 2px solid #3a84ff;
-          border-right: 2px solid transparent;
-          border-radius: 50%;
-          animation: button-icon-loading 1s linear infinite;
-        }
-      }
-    }
-
-    .clean-table {
-      overflow: visible;
-
-      .text-disabled {
-        color: #c4c6cc;
       }
 
-      .text-active {
-        color: #3a84ff;
-        cursor: pointer;
+      &:active {
+        border-color: #3a84ff;
+        transition: boder-color 0.2s;
       }
 
-      .filter-column {
-        .cell {
-          display: flex;
-        }
+      .icon-tongbu {
+        font-size: 14px;
+        color: #979ba5;
+      }
+
+      .loading {
+        display: inline-block;
+        width: 14px;
+        height: 14px;
+        margin: 0 auto;
+        border: 2px solid #3a84ff;
+        border-right: 2px solid transparent;
+        border-radius: 50%;
+        animation: button-icon-loading 1s linear infinite;
       }
     }
   }
+
+  .clean-table {
+    overflow: visible;
+
+    .text-disabled {
+      color: #c4c6cc;
+    }
+
+    .text-active {
+      color: #3a84ff;
+      cursor: pointer;
+    }
+
+    .filter-column {
+      .cell {
+        display: flex;
+      }
+    }
+  }
+}
 </style>

@@ -1,14 +1,47 @@
-import { ref, computed, watch, defineComponent, Ref, onMounted, onBeforeUnmount, onBeforeMount, nextTick } from 'vue';
-
+/*
+ * Tencent is pleased to support the open source community by making
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
+ *
+ * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+ *
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
+ *
+ * License for 蓝鲸智云PaaS平台 (BlueKing PaaS):
+ *
+ * ---------------------------------------------------
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
+ * documentation files (the "Software"), to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and
+ * to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all copies or substantial portions of
+ * the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
+ * THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
+ * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+ * IN THE SOFTWARE.
+ */
 import { isNestedField } from '@/common/util';
+import { setScrollLoadCell } from '@/hooks/hooks-helper';
 import useLocale from '@/hooks/use-locale';
 import useResizeObserve from '@/hooks/use-resize-observe';
 import UseTextSegmentation from '@/hooks/use-text-segmentation';
-import { debounce } from 'lodash';
-
-import { setScrollLoadCell } from '@/hooks/hooks-helper';
 import { WordListItem } from '@/hooks/use-text-segmentation';
 import RetrieveHelper from '@/views/retrieve-helper';
+import { debounce } from 'lodash';
+import {
+  ref,
+  computed,
+  watch,
+  defineComponent,
+  Ref,
+  onMounted,
+  onBeforeUnmount,
+  onBeforeMount,
+  nextTick,
+} from 'vue';
 
 import './index.scss';
 
@@ -58,7 +91,7 @@ export default defineComponent({
       return ` ...${$t('更多')}`;
     });
 
-    const handleMenuClick = event => {
+    const handleMenuClick = (event) => {
       emit('menu-click', event);
     };
 
@@ -66,15 +99,15 @@ export default defineComponent({
       onSegmentClick: handleMenuClick,
       options: {
         content: props.content,
-        field: props.field,
         data: props.data,
+        field: props.field,
       },
     });
 
     let wordList: WordListItem[];
     let renderMoreItems: (size?, next?) => void = null;
 
-    const getTagName = item => {
+    const getTagName = (item) => {
       if (item.isMark) {
         return 'mark';
       }
@@ -86,7 +119,7 @@ export default defineComponent({
       return 'span';
     };
 
-    const handleClickMore = e => {
+    const handleClickMore = (e) => {
       e.stopPropagation();
       e.preventDefault();
       e.stopImmediatePropagation();
@@ -127,7 +160,7 @@ export default defineComponent({
     };
 
     const setWordSegmentRender = () => {
-      const { setListItem, removeScrollEvent } = cellScrollInstance;
+      const { removeScrollEvent, setListItem } = cellScrollInstance;
       renderMoreItems = setListItem;
       removeScrollEventFn = removeScrollEvent;
 
@@ -141,7 +174,10 @@ export default defineComponent({
       hasOverflowY.value = false;
       nextTick(() => {
         if (refSegmentContent.value) {
-          refSegmentContent.value.setAttribute('is-nested-value', `${isNestedValue}`);
+          refSegmentContent.value.setAttribute(
+            'is-nested-value',
+            `${isNestedValue}`
+          );
         }
         cellScrollInstance = setScrollLoadCell(
           wordList,
@@ -149,7 +185,9 @@ export default defineComponent({
           refSegmentContent.value,
           (item: WordListItem) => {
             const child = document.createElement(getTagName(item));
-            child.classList.add(item.isCursorText ? 'valid-text' : 'others-text');
+            child.classList.add(
+              item.isCursorText ? 'valid-text' : 'others-text'
+            );
 
             if (item.isBlobWord) {
               child.innerHTML = item.text?.length ? item.text : '""';
@@ -163,7 +201,9 @@ export default defineComponent({
 
         setWordSegmentRender();
 
-        nextTick(() => RetrieveHelper.highlightElement(refSegmentContent.value));
+        nextTick(() =>
+          RetrieveHelper.highlightElement(refSegmentContent.value)
+        );
       });
     });
 
@@ -176,16 +216,13 @@ export default defineComponent({
     const renderSegmentList = () => {
       return (
         <div
-          ref={refContent}
-          style={rootStyle.value}
-          class='field-value bklog-word-segment'
+          class="field-value bklog-word-segment"
           data-field-name={props.field.field_name}
           onClick={handleTextSegmentClick}
+          ref={refContent}
+          style={rootStyle.value}
         >
-          <span
-            ref={refSegmentContent}
-            class='segment-content'
-          ></span>
+          <span class="segment-content" ref={refSegmentContent}></span>
         </div>
       );
     };
@@ -204,8 +241,8 @@ export default defineComponent({
           onSegmentClick: handleMenuClick,
           options: {
             content: props.content,
-            field: props.field,
             data: props.data,
+            field: props.field,
           },
         });
         setWordList();
@@ -215,7 +252,9 @@ export default defineComponent({
       }
     );
 
-    const showMoreAction = computed(() => hasOverflowY.value || (showAll.value && !props.isLimitExpandView));
+    const showMoreAction = computed(
+      () => hasOverflowY.value || (showAll.value && !props.isLimitExpandView)
+    );
     const getMoreAction = () => {
       if (showMoreAction.value && !props.isLimitExpandView) {
         return (
@@ -236,10 +275,10 @@ export default defineComponent({
           'bklog-text-segment',
           'bklog-root-field',
           {
-            'is-wrap-line': props.isWrap,
+            'is-expand-all': showAll.value,
             'is-inline': !props.isWrap,
             'is-show-long': props.isLimitExpandView,
-            'is-expand-all': showAll.value,
+            'is-wrap-line': props.isWrap,
           },
         ]}
       >

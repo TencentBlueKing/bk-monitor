@@ -32,16 +32,13 @@
       @mouseenter="isHoverItem = true"
       @mouseleave="isHoverItem = false"
     >
-      <span
-        class="panel-name"
-        :title="configItem.name"
-      >
+      <span class="panel-name" :title="configItem.name">
         {{ configItem.name }}
       </span>
       <div
         class="panel-operate"
         v-if="isShowEditIcon"
-        @click="e => e.stopPropagation()"
+        @click="(e) => e.stopPropagation()"
       >
         <i
           class="bk-icon edit-icon icon-edit-line"
@@ -57,7 +54,7 @@
     <div
       class="config-tab-item"
       v-show="configItem.isShowEdit"
-      @click="e => e.stopPropagation()"
+      @click="(e) => e.stopPropagation()"
     >
       <bk-input
         v-model="nameStr"
@@ -65,14 +62,8 @@
         :placeholder="$t('请输入模板名')"
       ></bk-input>
       <div class="panel-operate">
-        <i
-          class="bk-icon icon-check-line"
-          @click="emitOperate('update')"
-        ></i>
-        <i
-          class="bk-icon icon-close-line-2"
-          @click="emitOperate('cancel')"
-        ></i>
+        <i class="bk-icon icon-check-line" @click="emitOperate('update')"></i>
+        <i class="bk-icon icon-close-line-2" @click="emitOperate('cancel')"></i>
       </div>
     </div>
   </div>
@@ -139,8 +130,10 @@ export default {
         return;
       }
       const h = this.$createElement;
-      const relatedList = this.configItem.related_index_set_list.map(item => item.index_set_name);
-      const vNodes = relatedList.map(text =>
+      const relatedList = this.configItem.related_index_set_list.map(
+        (item) => item.index_set_name
+      );
+      const vNodes = relatedList.map((text) =>
         h(
           'div',
           {
@@ -159,7 +152,10 @@ export default {
         )
       );
       this.$bkInfo({
-        title: this.$t(`当前模板在下列索引集中占用，取消占用后才能删除模板：{n}`, { n: this.configItem.name }),
+        title: this.$t(
+          `当前模板在下列索引集中占用，取消占用后才能删除模板：{n}`,
+          { n: this.configItem.name }
+        ),
         type: 'warning',
         subHeader: h(
           'div',
@@ -180,64 +176,64 @@ export default {
 </script>
 
 <style lang="scss" scoped>
-  .config-tab-item {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    width: 100%;
-    height: 40px;
+.config-tab-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  height: 40px;
 
-    .config-input {
-      width: 120px;
+  .config-input {
+    width: 120px;
+  }
+
+  .panel-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .panel-operate {
+    flex-shrink: 0;
+    margin-left: 6px;
+    font-size: 16px;
+    color: #979ba5;
+    cursor: pointer;
+
+    .edit-icon:hover {
+      color: #3a84ff;
     }
 
-    .panel-name {
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
+    .icon-check-line {
+      color: #3a84ff;
     }
 
-    .panel-operate {
-      flex-shrink: 0;
-      margin-left: 6px;
-      font-size: 16px;
-      color: #979ba5;
-      cursor: pointer;
-
-      .edit-icon:hover {
-        color: #3a84ff;
-      }
-
-      .icon-check-line {
-        color: #3a84ff;
-      }
-
-      .icon-close-line-2 {
-        color: #d7473f;
-      }
+    .icon-close-line-2 {
+      color: #d7473f;
     }
+  }
 
-    .input-error {
-      :deep(.bk-form-input) {
-        border: 1px solid #d7473f;
-      }
+  .input-error {
+    :deep(.bk-form-input) {
+      border: 1px solid #d7473f;
     }
+  }
 
-    .popover-slot {
-      padding: 8px 8px 4px;
+  .popover-slot {
+    padding: 8px 8px 4px;
 
-      .popover-btn {
-        margin-top: 6px;
-        text-align: right;
+    .popover-btn {
+      margin-top: 6px;
+      text-align: right;
 
-        > :first-child {
-          margin-right: 4px;
-        }
+      > :first-child {
+        margin-right: 4px;
+      }
 
-        .bk-button-text {
-          font-size: 12px;
-        }
+      .bk-button-text {
+        font-size: 12px;
       }
     }
   }
+}
 </style>
