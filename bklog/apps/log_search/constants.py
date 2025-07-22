@@ -1710,6 +1710,8 @@ SQL_CONDITION_MAPPINGS = {
     "is false": "IS FALSE",
 }
 
+# 图表分析
+
 # es保留字符
 ES_RESERVED_CHARACTERS = [
     "\\",
