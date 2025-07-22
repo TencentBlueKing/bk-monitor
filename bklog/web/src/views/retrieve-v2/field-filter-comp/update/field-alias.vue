@@ -70,8 +70,8 @@ const handleOpenSidebar = async () => {
   formData.value = fields.value.map((item) => {
     return {
       field_name: item.field_name,
-      query_alias: item.query_alias,
-      path_type: item.path_type,
+      query_alias: item.query_alias || '',
+      path_type: item.field_type,
     };
   });
 };
@@ -170,6 +170,7 @@ defineExpose({
     display: flex;
     align-items: center;
     color: #4d4f56;
+    font-size: 12px;
 
     .bklog-wholesale-editor {
       margin-right: 4px;
