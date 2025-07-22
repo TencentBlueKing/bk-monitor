@@ -42,23 +42,27 @@ import {
 
 import './manual-process.scss';
 
-interface IProps {
-  show?: boolean;
-  alertIds?: number[] | string[];
-  bizIds?: number[];
+export interface IStatusRes {
+  is_finished: boolean;
+  status: string;
+  content: {
+    action_plugin_type: string;
+    text: string;
+    url: string;
+  };
 }
 interface IEvent {
-  onShowChange?: boolean;
   onDebugStatus?: number[];
   onMealInfo?: { name: string };
+  onShowChange?: boolean;
 }
 
-interface IFormRule {
-  message: string;
-  required: boolean;
-  trigger: string;
-}
 interface IFormData {
+  formModel: { [propsName: string]: any };
+  formRules: { [propsName: string]: IFormRule };
+  name: string;
+  templateId: number | string;
+  timeout: number;
   formList: {
     formChildProps?: { placeholder?: string };
     formItemProps?: {
@@ -70,21 +74,17 @@ interface IFormData {
     key?: string;
     rules?: IFormRule;
   }[];
-  formModel: { [propsName: string]: any };
-  formRules: { [propsName: string]: IFormRule };
-  name: string;
-  templateId: number | string;
-  timeout: number;
+}
+interface IFormRule {
+  message: string;
+  required: boolean;
+  trigger: string;
 }
 
-export interface IStatusRes {
-  content: {
-    action_plugin_type: string;
-    text: string;
-    url: string;
-  };
-  is_finished: boolean;
-  status: string;
+interface IProps {
+  alertIds?: number[] | string[];
+  bizIds?: number[];
+  show?: boolean;
 }
 
 @Component
@@ -111,24 +111,24 @@ export default class ManualProcess extends tsc<IProps, IEvent> {
   mealList: {
     id: number | string;
     name: string;
-    plugin_type: string;
     plugin_id: number;
+    plugin_type: string;
   }[] = [];
   /* 当前套餐信息 */
   mealId = '';
   curMeal: {
+    bk_biz_id: number;
+    id: number;
     name: string;
     plugin_id: number;
-    id: number;
-    bk_biz_id: number;
     plugin_type: string;
   } = null;
 
   /* 当前执行方案 */
   templateData: {
-    name: string;
-    id: string;
     allList: { [pulginId: string]: any[] };
+    id: string;
+    name: string;
   } = {
     name: '',
     id: '',

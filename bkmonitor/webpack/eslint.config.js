@@ -1,5 +1,3 @@
-const eslintVueParser = require('vue-eslint-parser');
-
 const typescriptEslint = require('@typescript-eslint/eslint-plugin');
 const typescriptEslintParser = require('@typescript-eslint/parser');
 const eslintConfigPrettier = require('eslint-config-prettier');
@@ -7,6 +5,7 @@ const codecc = require('eslint-plugin-codecc');
 const perfectionist = require('eslint-plugin-perfectionist');
 const prettier = require('eslint-plugin-prettier');
 const eslintVuePlugin = require('eslint-plugin-vue');
+const eslintVueParser = require('vue-eslint-parser');
 const tencentEslintLegacyRules = require('eslint-config-tencent/ts').rules;
 // const tailwind = require('eslint-plugin-tailwindcss');
 
@@ -270,7 +269,7 @@ module.exports = [
             },
             {
               groupName: 'vueI18n',
-              elementNamePattern: ['./i18n/i18n', '^vue$', '^vue-'],
+              elementNamePattern: ['./i18n/i18n', '^vue$'],
             },
             {
               groupName: 'magicBox',

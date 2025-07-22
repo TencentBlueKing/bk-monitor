@@ -1,3 +1,4 @@
+import 'monitor-pc/file.d.ts';
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -24,5 +25,4 @@
  * IN THE SOFTWARE.
  */
 import 'monitor-pc/shims.d.ts';
-import 'monitor-pc/file.d.ts';
 import 'monitor-pc/vue.d.ts';

@@ -47,19 +47,19 @@ import type { IWebhook } from './meal-content-data';
 
 import './http-callback.scss';
 
-interface IProps {
-  isEdit: boolean;
-  value?: any;
-  label?: string;
-  isOnlyHttp?: boolean; // 是否只显示头部http数据
-  validatorHasVariable?: boolean;
-  variableList?: { example: string; id: string }[];
-  pluginId?: number | string;
-}
-
 interface IEvents {
   onChange?: IWebhook;
   onDebug?: void;
+}
+
+interface IProps {
+  isEdit: boolean;
+  isOnlyHttp?: boolean; // 是否只显示头部http数据
+  label?: string;
+  pluginId?: number | string;
+  validatorHasVariable?: boolean;
+  value?: any;
+  variableList?: { example: string; id: string }[];
 }
 
 // GET请求query参数匹配正则
