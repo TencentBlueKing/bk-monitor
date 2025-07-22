@@ -1029,6 +1029,7 @@ def create_basereport_datalink_for_bkcc(bk_biz_id, storage_cluster_name=None):
             source_label="bk_monitor",
             type_label="time_series",
             bk_biz_id=bk_biz_id,
+            created_from=DataIdCreatedFromSystem.BKDATA.value,
         )
         logger.info(
             "create_basereport_datalink_for_bkcc: data_source created,bk_biz_id->[%s],data_name->[%s],bk_data_id->[%s]",
@@ -1301,6 +1302,7 @@ def create_base_event_datalink_for_bkcc(bk_biz_id, storage_cluster_name=None):
             type_label="event",
             space_uid=space_uid,
             bk_biz_id=bk_biz_id,
+            created_from=DataIdCreatedFromSystem.BKDATA.value,
         )
 
     logger.info(
