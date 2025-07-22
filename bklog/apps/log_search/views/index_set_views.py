@@ -327,7 +327,8 @@ class IndexSetViewSet(ModelViewSet):
         }
         index_list = list(
             LogIndexSetData.objects.filter(index_set_id__in=index_set_ids).values(
-                "index_set_id", "result_table_id", "scenario_id", "storage_cluster_id"
+                "index_set_id", "result_table_id", "scenario_id", "storage_cluster_id",
+                "time_field", "time_field_type", "time_field_unit"
             )
         )
         for index in index_list:
@@ -343,46 +344,46 @@ class IndexSetViewSet(ModelViewSet):
             if not index_set.get("indexes", []):
                 continue
             indexes = index_set["indexes"]
-            origin_index_set = ",".join([index["result_table_id"] for index in indexes])
-            if index_set["scenario_id"] == Scenario.LOG:
-                origin_index_set = origin_index_set.replace(".", "_")
-            es_router_list = {
-                "cluster_id": index_set["storage_cluster_id"],
-                "index_set": origin_index_set,
+            base_es_router = {
                 "data_label": BaseIndexSetHandler.get_data_label(index_set_id),
                 "space_uid": index_set["space_uid"],
                 "need_create_index": True if index_set["collector_config_id"] else False,
-                "options": [
-                    {
-                        "name": "time_field",
-                        "value_type": "dict",
-                        "value": json.dumps(
-                            {
-                                "name": index_set["time_field"],
-                                "type": index_set["time_field_type"],
-                                "unit": index_set["time_field_unit"]
-                                if index_set["time_field_type"] != TimeFieldTypeEnum.DATE.value
-                                else TimeFieldUnitEnum.MILLISECOND.value,
-                            }
-                        ),
-                    },
-                    {
-                        "name": "need_add_time",
-                        "value_type": "bool",
-                        "value": json.dumps(index_set["scenario_id"] != Scenario.ES),
-                    },
-                ],
             }
 
             for index in indexes:
-                es_router_list.update(
+                time_field = index.get("time_field", index_set["time_field"])
+                time_field_type = index.get("time_field_type", index_set["time_field_type"])
+                time_field_unit = index.get("time_field_unit", index_set["time_field_unit"])
+                es_router = base_es_router.copy()
+                es_router.update(
                     {
                         "table_id": BaseIndexSetHandler.get_rt_id(index_set_id, index["result_table_id"]),
-                        "source_type": index["scenario_id"],
-                        "storage_cluster_id": index["storage_cluster_id"],
+                        "index_set": index["result_table_id"].replace(".", "_"),
+                        "source_type": index.get("scenario_id", index_set["scenario_id"]),
+                        "cluster_id": index.get("storage_cluster_id", index_set["storage_cluster_id"]),
+                        "options": [
+                            {
+                                "name": "time_field",
+                                "value_type": "dict",
+                                "value": json.dumps(
+                                    {
+                                        "name": time_field,
+                                        "type": time_field_type,
+                                        "unit": time_field_unit
+                                        if time_field_type != TimeFieldTypeEnum.DATE.value
+                                        else TimeFieldUnitEnum.MILLISECOND.value,
+                                    }
+                                ),
+                            },
+                            {
+                                "name": "need_add_time",
+                                "value_type": "bool",
+                                "value": json.dumps(index.get("scenario_id", index_set["scenario_id"]) != Scenario.ES),
+                            },
+                        ],
                     }
                 )
-                router_list.append(es_router_list)
+                router_list.append(es_router)
 
         # 聚类索引路由创建，追加至列表末尾，不支持space过滤
         if qs.count() < params["pagesize"]:
@@ -399,7 +400,7 @@ class IndexSetViewSet(ModelViewSet):
                         "source_type": Scenario.BKDATA,
                         "data_label": BaseIndexSetHandler.get_data_label(index_set_id, clustered_rt=clustered_rt),
                         "table_id": BaseIndexSetHandler.get_rt_id(
-                            index_set.index_set_id,
+                            index_set_id,
                             clustered_rt,
                         ),
                         "space_uid": index_set["space_uid"],
