@@ -82,8 +82,8 @@
             </div>
             <bk-progress
               :color="filterAvailable(scope.row.available, scope.row.status)"
-              :show-text="false"
               :percent="+(scope.row.available * 0.01).toFixed(2) || 0"
+              :show-text="false"
             />
           </div>
         </template>
@@ -100,12 +100,12 @@
       </bk-table-column>
       <bk-table-column
         :label="$t('创建人')"
-        prop="create_user"
         min-width="120"
+        prop="create_user"
       />
       <bk-table-column
-        :label="$t('状态')"
         width="120"
+        :label="$t('状态')"
       >
         <template slot-scope="scope">
           <span
@@ -122,36 +122,36 @@
         </template>
       </bk-table-column>
       <bk-table-column
-        :label="$t('启/停')"
         width="120"
+        :label="$t('启/停')"
       >
         <template slot-scope="scope">
           <bk-switcher
-            v-authority="{ active: !authority.MANAGE_AUTH }"
             class="col-switcher"
+            v-authority="{ active: !authority.MANAGE_AUTH }"
+            :disabled="['starting', 'new_draft', 'stoping'].includes(scope.row.status)"
             :pre-check="() => handleStatusChange(scope.row)"
             :value="scope.row.switch"
-            :disabled="['starting', 'new_draft', 'stoping'].includes(scope.row.status)"
             size="small"
           />
         </template>
       </bk-table-column>
       <bk-table-column
-        :label="$t('操作')"
         width="150"
+        :label="$t('操作')"
       >
         <template slot-scope="scope">
           <div class="col-operate">
             <span
-              v-authority="{ active: !authority.MANAGE_AUTH }"
               class="col-operate-btn"
+              v-authority="{ active: !authority.MANAGE_AUTH }"
               @click="authority.MANAGE_AUTH ? handleRowEdit(scope) : handleShowAuthorityDetail()"
             >
               {{ $t('编辑') }}
             </span>
             <span
-              v-authority="{ active: !authority.MANAGE_AUTH }"
               class="col-operate-btn"
+              v-authority="{ active: !authority.MANAGE_AUTH }"
               @click="authority.MANAGE_AUTH ? handleRowDelete(scope.row) : handleShowAuthorityDetail()"
             >
               {{ $t('删除') }}
@@ -166,8 +166,8 @@
               "
             >
               <i
-                data-popover="true"
                 class="bk-icon icon-more"
+                data-popover="true"
               />
             </span>
           </div>
@@ -175,7 +175,7 @@
       </bk-table-column>
     </bk-table>
     <bk-pagination
-      v-if="tableData && tableData.length"
+      v-if="tableData?.length"
       class="task-list-pagination list-pagination"
       align="right"
       size="small"
@@ -201,8 +201,8 @@
       <delete-subtitle
         ref="deleteSubTitle"
         :key="delSubTitle.name"
-        :title="delSubTitle.title"
         :name="delSubTitle.name"
+        :title="delSubTitle.title"
       />
     </div>
   </div>

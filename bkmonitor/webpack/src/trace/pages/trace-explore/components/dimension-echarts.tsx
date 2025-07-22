@@ -27,6 +27,7 @@
 import { computed, defineComponent, shallowRef, watch, type PropType } from 'vue';
 import { useI18n } from 'vue-i18n';
 
+import { formatDurationWithUnit } from '@/components/trace-view/utils/date';
 import dayjs from 'dayjs';
 import deepmerge from 'deepmerge';
 import { deepClone } from 'monitor-common/utils';
@@ -49,6 +50,10 @@ export default defineComponent({
     seriesType: {
       type: String as PropType<'histogram' | 'line'>,
       default: 'line',
+    },
+    isDuration: {
+      type: Boolean,
+      default: false,
     },
     data: {
       type: Array as PropType<IStatisticsGraph[]>,
@@ -111,11 +116,22 @@ export default defineComponent({
     }
 
     function customTooltips(params) {
+      let name = params[0].axisValue;
+      let value = params[0].value[1];
+      if (props.isDuration) {
+        const nameVal = params[0].name.split('-');
+        const [start, end] = nameVal;
+        const startLabel = formatDurationWithUnit(Number(start || 0));
+        const endLabel = formatDurationWithUnit(Number(end || 0));
+        name = `${startLabel} - ${endLabel}`;
+        value = params[0].value[1];
+      }
+
       return `<div class="monitor-chart-tooltips">
               <ul class="tooltips-content">
                  <li class="tooltips-content-item" style="--series-color: ${params[0].color}">
-                    <span class="item-name" style="color: #fff;font-weight: bold;">${params[0].axisValue}:</span>
-                    <span class="item-value" style="color: #fff;font-weight: bold;">${params[0].value[1]}</span>
+                    <span class="item-name" style="color: #fff;font-weight: bold;">${name}:</span>
+                    <span class="item-value" style="color: #fff;font-weight: bold;">${value}</span>
                  </li>
               </ul>
               </div>`;
@@ -131,7 +147,47 @@ export default defineComponent({
     );
 
     function setOptions() {
-      if (props.seriesType === 'histogram') {
+      if (props.isDuration) {
+        height.value = 81;
+        const series: MonitorEchartOptions['series'] = props.data.map(item => ({
+          type: 'bar',
+          name: '',
+          data: item.datapoints.map(point => [point[1], point[0] || null]),
+          barMinHeight: 6,
+          barCategoryGap: -1,
+          color: item.color,
+          itemStyle: {
+            color: item.color,
+          },
+        }));
+
+        options.value = deepmerge(
+          deepClone(MONITOR_BAR_OPTIONS),
+          {
+            grid: {
+              top: 0,
+              left: 0,
+              right: 0,
+              containLabel: false,
+            },
+            toolbox: [],
+            yAxis: {
+              type: 'value',
+              show: false,
+            },
+            xAxis: {
+              type: 'category',
+              boundaryGap: true,
+              show: false,
+            },
+            tooltip: {
+              show: true,
+            },
+            series,
+          },
+          { arrayMerge: (_, newArr) => newArr }
+        );
+      } else if (props.seriesType === 'histogram') {
         const series: MonitorEchartOptions['series'] = props.data.map(item => ({
           type: 'bar',
           name: '',
@@ -254,8 +310,11 @@ export default defineComponent({
         ref='chartContainer'
         class={['trace-explore-dimension-echarts-e', { 'has-legend': this.seriesType === 'line' }]}
       >
-        {this.data.length ? (
-          <div class='event-explore-dimension-echarts-content'>
+        <div
+          style={{ height: `${this.height}px` }}
+          class='event-explore-dimension-echarts-content'
+        >
+          {this.data.length ? (
             <BaseEchart
               ref='baseEchartRef'
               width={this.width}
@@ -263,10 +322,10 @@ export default defineComponent({
               customTooltips={this.seriesType === 'histogram' ? this.customTooltips : null}
               options={this.options}
             />
-          </div>
-        ) : (
-          <div class='empty-chart'>{this.t('查无数据')}</div>
-        )}
+          ) : (
+            <div class='empty-chart'>{this.t('查无数据')}</div>
+          )}
+        </div>
 
         {this.seriesType === 'line' && (
           <PageLegend

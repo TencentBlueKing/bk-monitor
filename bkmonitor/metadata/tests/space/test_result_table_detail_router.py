@@ -103,6 +103,25 @@ def create_or_delete_records(mocker):
         creator="system",
     )
 
+    # Doris字段别名
+    models.ESFieldQueryAliasOption.objects.create(
+        table_id="2_bklog.test_doris_non_exists",
+        bk_tenant_id="riot",
+        field_path="__ext.pod_name",
+        path_type="keyword",
+        query_alias="pod_name",
+        is_deleted=False,
+    )
+
+    models.ESFieldQueryAliasOption.objects.create(
+        table_id="2_bklog.test_doris_non_exists",
+        bk_tenant_id="riot",
+        field_path="__ext.pod_ip",
+        path_type="keyword",
+        query_alias="pod_ip",
+        is_deleted=False,
+    )
+
     # VM结果表
     models.BkBaseResultTable.objects.create(
         monitor_table_id="1001_bkmonitor_time_series_50010.__default__",
@@ -148,6 +167,7 @@ def create_or_delete_records(mocker):
     models.ResultTable.objects.all().delete()
     models.ResultTableField.objects.all().delete()
     models.AccessVMRecord.objects.all().delete()
+    models.ESFieldQueryAliasOption.objects.all().delete()
 
 
 @pytest.mark.django_db(databases="__all__")
@@ -195,8 +215,10 @@ def test_push_doris_table_id_detail(create_or_delete_records):
                 bk_tenant_id="riot", table_id_list=["2_bklog.test_doris_non_exists"], is_publish=True
             )
             expected_rt_detail_router = {
-                "2_bklog.test_doris_non_exists|riot": '{"db":"2_bklog_pure_doris,2_bklog_doris_log","measurement":"doris",'
-                '"storage_type":"bk_sql","data_label":"bkdata_index_set_7839|riot"}'
+                "2_bklog.test_doris_non_exists|riot": '{"db":"2_bklog_pure_doris,2_bklog_doris_log",'
+                '"measurement":"doris","storage_type":"bk_sql",'
+                '"data_label":"bkdata_index_set_7839","field_alias":{'
+                '"pod_name":"__ext.pod_name","pod_ip":"__ext.pod_ip"}}'
             }
 
             mock_hmset_to_redis.assert_has_calls(
@@ -229,7 +251,7 @@ def test_push_bkbase_table_id_detail(create_or_delete_records):
                 "2_bkbase_metric_agg.__default__|riot": '{"db":"2_bkbase_metric_agg",'
                 '"measurement":"",'
                 '"storage_type":"bk_sql",'
-                '"data_label":"bkbase_rt_meta_metric|riot",'
+                '"data_label":"bkbase_rt_meta_metric",'
                 '"fields":["metric_a","metric_b"]}'
             }
 

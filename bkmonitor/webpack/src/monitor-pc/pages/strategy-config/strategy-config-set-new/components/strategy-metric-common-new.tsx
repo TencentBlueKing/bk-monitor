@@ -370,7 +370,7 @@ class StrategyMetricCommon extends Mixins(metricTipsContentMixin) {
     if (
       this.cache?.[cacheKey]?.list &&
       this.cache[cacheKey].list.length <= this.cache[cacheKey].count &&
-      !Boolean(this.searchObj.keyWord.length)
+      !this.searchObj.keyWord.length
     ) {
       this.dataSource[this.sourceType].list = this.cache[cacheKey].list;
       this.dataSource[this.sourceType].count = this.cache[cacheKey].count;

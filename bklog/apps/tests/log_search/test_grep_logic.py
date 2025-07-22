@@ -14,7 +14,7 @@ GREP_SYNTAX_CASE = [
     'grep -i "error" | grep -v "test"',
     'grep "hello\\"world"',
     "grep -i critical\ error",
-    'grep -v "info" | egrep -i "error" | grep "failed"',
+    'grep -v "info" | egrep -i "error" | grep   "failed"',
     '-v "success"',
     "egrep -i 'OOM' | grep -v \"kill\"",
     'egrep "error|warning"',
@@ -126,10 +126,10 @@ GREP_PARAMS = [
     },
 ]
 
-GREP_QUERY_RESULT = {
+GREP_QUERY_RESULT = [
     "time >= 20250403 AND id REGEXP 'a' ORDER BY time ASC, container_id DESC LIMIT 10 OFFSET 0",
     "time >= 20250403 AND CAST(__ext['app']['label'] AS TEXT) REGEXP 'a' ORDER BY time ASC, CAST(__ext['app']['label'] AS TEXT) ASC LIMIT 10 OFFSET 0",
-}
+]
 
 HIGHLIGHT_PARAMS = [
     {
@@ -147,11 +147,23 @@ HIGHLIGHT_PARAMS = [
         "match_field": "__ext.labels.app",
         "pattern": "s",
     },
+    {
+        "data_list": [{"host_id": 21, "log": "123sasname age, des 1 ssa"}],
+        "match_field": "log",
+        "pattern": "name age",
+    },
+    {
+        "data_list": [{"host_id": 21, "log": "123sasname age, 1 des ssa"}],
+        "match_field": "log",
+        "pattern": "name age, 1 des",
+    },
 ]
 HIGHLIGHT_RESULT = [
     [{"host_id": "2<mark>1</mark>", "__ext": '{"container_id":"7df2fe1","labels":{"app":"dsa","component":"se"}}'}],
     [{"host_id": 21, "__ext": '{"container_id": "7<mark>df</mark>2fe1", "labels": {"app": "dsa", "component": "se"}}'}],
     [{"host_id": 21, "__ext": '{"container_id": "7df2fe1", "labels": {"app": "d<mark>s</mark>a", "component": "se"}}'}],
+    [{"host_id": 21, "log": "123sas<mark>name age</mark>, des 1 ssa"}],
+    [{"host_id": 21, "log": "123sas<mark>name age, 1 des</mark> ssa"}],
 ]
 
 

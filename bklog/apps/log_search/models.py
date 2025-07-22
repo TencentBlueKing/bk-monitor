@@ -683,6 +683,10 @@ class LogIndexSetData(SoftDeleteModel):
     result_table_name = models.CharField(_("结果表名称"), max_length=255, null=True, default=None, blank=True)
     time_field = models.CharField(_("时间字段"), max_length=64, null=True, default=True, blank=True)
     apply_status = models.CharField(_("审核状态"), max_length=64, choices=Status.StatusChoices, default=Status.PENDING)
+    scenario_id = models.CharField(_("接入场景"), max_length=64, null=True, blank=True)
+    storage_cluster_id = models.IntegerField(_("存储集群ID"), default=None, null=True, blank=True)
+    time_field_type = models.CharField(_("时间字段类型"), max_length=32, default=None, null=True)
+    time_field_unit = models.CharField(_("时间字段单位"), max_length=32, default=None, null=True)
 
     def list_operate(self):
         return format_html(_('<a href="../logindexset/?index_set_id=%s">索引集</a>&nbsp;&nbsp;') % self.index_set_id)
@@ -1306,6 +1310,13 @@ class Space(SoftDeleteModel):
             return space.bk_tenant_id
 
         return default_tenant_id
+
+    @classmethod
+    def get_space_uid_list(cls, tenant_id: str) -> list:
+        """
+        获取租户的所有空间ID
+        """
+        return cls.objects.filter(bk_tenant_id=tenant_id).values_list("space_uid", flat=True)
 
 
 class SpaceApi(AbstractSpaceApi):

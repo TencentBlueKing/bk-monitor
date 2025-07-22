@@ -363,4 +363,9 @@ export default {
   修改通知对象: 'Modify Notify Target',
   通知对象不能为空: 'Notify target cannot be empty',
   暂无选项: 'No options',
+  PromQL助手: 'PromQL Helper',
+  '指标/PromQL语句': 'Metric/PromQL',
+  用户指令: 'User Instruction',
+  '请输入指标/PromQL语句': 'Please enter the metric/PromQL statement',
+  请输入用户指令: 'Please enter the user instruction',
 };

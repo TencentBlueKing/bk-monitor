@@ -718,6 +718,7 @@ DOUBLE_CHECK_SUM_STRATEGY_IDS = os.environ.get("DOUBLE_CHECK_SUM_STRATEGY_IDS", 
 BCS_CLUSTER_BK_ENV_LABEL = os.environ.get("BCS_CLUSTER_BK_ENV_LABEL", "")
 
 ALARM_DISABLE_STRATEGY_RULES = []
+OPTZ_FAKE_EVENT_BIZ_IDS = []
 
 # access模块数据拉取延迟时间
 ACCESS_DATA_TIME_DELAY = 10
@@ -730,7 +731,12 @@ ACCESS_LATENCY_THRESHOLD_CONSTANT = 180
 KAFKA_AUTO_COMMIT = True
 
 DEFAULT_AUTO_FIELD = "django.db.models.AutoField"
-DATABASE_ROUTERS = ["bk_dataview.router.DBRouter", "bkmonitor.db_routers.TableVisitCountRouter"]
+
+DATABASE_ROUTERS = ["bk_dataview.router.DBRouter"]
+
+# 是否开启表访问次数统计
+if os.getenv("ENABLE_TABLE_VISIT_COUNT", "false").lower() == "true":
+    DATABASE_ROUTERS.append("bkmonitor.db_routers.TableVisitCountRouter")
 
 # 数据库配置
 (
@@ -1119,6 +1125,7 @@ if PLATFORM == "community" and not os.getenv("BK_DOCS_URL_PREFIX"):
 
 CMDB_USE_APIGW = os.getenv("BKAPP_CMDB_USE_APIGW", "false").lower() == "true"
 CMDB_API_BASE_URL = os.getenv("BKAPP_CMDB_API_BASE_URL", "")
+CMSI_API_BASE_URL = os.getenv("BKAPP_CMSI_API_BASE_URL", "")
 JOB_USE_APIGW = os.getenv("BKAPP_JOB_USE_APIGW", "false").lower() == "true"
 JOB_API_BASE_URL = os.getenv("BKAPP_JOB_API_BASE_URL", "")
 # monitor api base url:
@@ -1361,6 +1368,7 @@ AIDEV_AGENT_API_URL_TMPL = os.getenv("BK_AIDEV_AGENT_API_URL_TMPL")
 AIDEV_APIGW_ENDPOINT = os.getenv("BK_AIDEV_APIGW_ENDPOINT")
 AIDEV_AGENT_LLM_GW_ENDPOINT = os.getenv("BK_AIDEV_AGENT_LLM_GW_ENDPOINT")
 AIDEV_AGENT_LLM_DEFAULT_TEMPERATURE = 0.3  # 默认温度
+AIDEV_COMMAND_AGENT_MAPPING = {}  # 快捷指令<->Agent映射
 # AIAgent内容生成关键字
 AIDEV_AGENT_AI_GENERATING_KEYWORD = "生成中"
 
@@ -1484,6 +1492,9 @@ ENABLE_SYNC_BKBASE_METADATA_TO_DB = False
 # 特殊的可以不被禁用的BCS集群ID
 ALWAYS_RUNNING_FAKE_BCS_CLUSTER_ID_LIST = []
 
+# 使用RT中的路由过滤别名的结果表列表
+SPECIAL_RT_ROUTE_ALIAS_RESULT_TABLE_LIST = []
+
 # 是否启用新版方式接入计算平台
 ENABLE_V2_ACCESS_BKBASE_METHOD = True
 
@@ -1514,6 +1525,9 @@ SYNC_BKBASE_META_SUPPORTED_STORAGE_TYPES = ["mysql", "tspider", "hdfs"]
 DEFAULT_VM_DATA_LINK_NAMESPACE = "bkmonitor"
 # grafana和策略导出是否支持data_label转换
 ENABLE_DATA_LABEL_EXPORT = True
+
+# 是否启用多租户版本的BKBASE V4链路
+ENABLE_BKBASE_V4_MULTI_TENANT = False
 
 # 是否启用access数据批量处理
 ENABLED_ACCESS_DATA_BATCH_PROCESS = False
@@ -1594,8 +1608,8 @@ ENABLED_TARGET_CACHE_BK_BIZ_IDS = []
 # k8s灰度列表，关闭灰度: [0] 或删除该配置
 K8S_V2_BIZ_LIST = []
 
-# Trace 检索新版灰度配置
-TRACE_V2_BIZ_LIST = []
+# APM UnifyQuery 查询业务黑名单
+APM_UNIFY_QUERY_BLACK_BIZ_LIST = []
 
 # 文档中心对应文档版本
 BK_DOC_VERSION = "3.9"

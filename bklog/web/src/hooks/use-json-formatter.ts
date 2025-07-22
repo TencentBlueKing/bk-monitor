@@ -103,6 +103,7 @@ export default class UseJsonFormatter {
 
     const option = {
       fieldName: activeField?.field_name,
+      fieldType: activeField?.field_type,
       operation: val === 'not' ? 'is not' : val,
       value: target ?? value,
       depth,
@@ -177,7 +178,7 @@ export default class UseJsonFormatter {
         text: value.replace(/<mark>/g, '').replace(/<\/mark>/g, ''),
         isNotParticiple: this.isTextField(field),
         isMark: new RegExp(markRegStr).test(value),
-        isCursorText: field.is_time
+        isCursorText: true,
       },
     ];
   }
@@ -292,7 +293,7 @@ export default class UseJsonFormatter {
 
         requestAnimationFrame(() => {
           element.style.removeProperty('min-height');
-        })
+        });
       }
     });
   }

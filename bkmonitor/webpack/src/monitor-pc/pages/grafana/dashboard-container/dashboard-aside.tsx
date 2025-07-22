@@ -265,14 +265,17 @@ export default class DashboardAside extends tsc<IProps, IEvents> {
   }
 
   handleMessage(e: any) {
+    if (e.origin !== location.origin) {
+      return;
+    }
     if (e?.data?.starredChange) {
       this.handleFetchGrafanaTree();
       this.handleFetchFavGrafana();
     }
   }
   handleResetChecked() {
-    if (this.$store.getters.bizIdChangePedding) {
-      const list = this.$store.getters.bizIdChangePedding?.split('/') || [];
+    if (this.$store.getters.bizIdChangePending) {
+      const list = this.$store.getters.bizIdChangePending?.split('/') || [];
       this.checked = list.length < 2 ? GRAFANA_HOME_ID : list[2] || GRAFANA_HOME_ID;
     } else if (this.$route.name === 'grafana-home') {
       this.checked = GRAFANA_HOME_ID;
@@ -327,7 +330,7 @@ export default class DashboardAside extends tsc<IProps, IEvents> {
         hasPermission,
         isStarred,
         url,
-        isFolder: Object.prototype.hasOwnProperty.call(item, 'dashboards'),
+        isFolder: Object.hasOwn(item, 'dashboards'),
         editable: item.editable ?? true,
         children: this.handleGrafanaTreeData(dashboards),
       };

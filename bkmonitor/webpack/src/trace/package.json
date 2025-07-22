@@ -20,6 +20,8 @@
     "@blueking/monitor-trace-log": "2.0.5",
     "@blueking/tdesign-ui": "0.0.1-beta.32",
     "@dagrejs/dagre": "^1.1.4",
+    "@toast-ui/editor": "^3.2.2",
+    "@toast-ui/editor-plugin-code-syntax-highlight": "^3.1.0",
     "@vue-flow/core": "^1.45.0",
     "@vue-flow/minimap": "^1.5.3",
     "@vue/compiler-dom": "3.5.15",
@@ -60,7 +62,7 @@
     "vue": "3.5.15",
     "vue-demi": "0.14.10",
     "vue-echarts": "^7.0.3",
-    "vue-i18n": "11.1.4",
+    "vue-i18n": "^11.1.10",
     "vue-json-pretty": "2.4.0",
     "vue-router": "^4.5.1",
     "vue-tippy": "^6.7.1"

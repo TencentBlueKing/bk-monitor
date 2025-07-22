@@ -812,7 +812,7 @@ export default class HttpEditor extends tsc<IHttpEditor> {
   // tab的label模板
   tplTabLabel(tab: IHeaderInfo) {
     const { key } = tab;
-    let tips = undefined;
+    let tips;
     if (['Params', 'Headers'].includes(key)) {
       const value = (tab.value as IParamsValueItem[]).filter(item => item.isEnabled && !this.rowIsEmpty(item));
       const num = value.length;

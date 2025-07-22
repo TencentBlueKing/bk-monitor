@@ -116,6 +116,7 @@ class TestSubscribeReport:
 
     def test_render_external(self, report_item, report_content, generate_graph_mock, panel_titles, report_handler):
         render_args, err_msg = report_handler.render_images_to_html(
+            report_item.bk_tenant_id,
             report_item.mail_title,
             report_content,
             [Business(bk_biz_id=2)],
@@ -146,6 +147,7 @@ class TestSubscribeReport:
 
     def test_render_wxbot(self, report_item, report_content, generate_graph_mock, panel_titles, report_handler):
         render_args, _ = report_handler.render_images_to_html(
+            report_item.bk_tenant_id,
             report_item.mail_title,
             report_content,
             [Business(bk_biz_id=2)],

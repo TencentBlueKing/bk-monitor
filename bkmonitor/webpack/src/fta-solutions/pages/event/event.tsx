@@ -2614,8 +2614,9 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
               </div> */}
               <SpaceSelect
                 class='mr-16'
-                currentSpace={this.$store.getters.bizId}
+                // currentSpace={this.$store.getters.bizId}
                 hasAuthApply={true}
+                isAutoSelectCurrentSpace={true}
                 // needAlarmOption={!this.isIncident}
                 needIncidentOption={this.isIncident}
                 spaceList={this.$store.getters.bizList}
@@ -2630,6 +2631,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
                 searchType={this.searchType}
                 value={this.queryString}
                 valueMap={this.valueMap}
+                bkBizIds={this.bizIds}
                 onChange={this.handleQueryStringChange}
                 onClear={this.handleQueryStringChange}
               />

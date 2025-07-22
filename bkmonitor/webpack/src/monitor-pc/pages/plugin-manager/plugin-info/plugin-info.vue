@@ -527,7 +527,7 @@ export default {
       return this.business[this.pluginInfo.bk_biz_id];
     },
     isShowParam() {
-      return !!this.pluginInfo.config_json.find(item => !Object.prototype.hasOwnProperty.call(item, 'visible'));
+      return !!this.pluginInfo.config_json.find(item => !Object.hasOwn(item, 'visible'));
     },
     positionText() {
       return `${this.$t('插件名')}: ${this.pluginInfo.plugin_id}`;
@@ -598,11 +598,7 @@ export default {
           const height = this.$refs.pluginParams.clientHeight;
           this.isMultipleLin = height > 24 || height === 34;
           this.pluginInfo.config_json.forEach(item => {
-            this.$set(
-              item,
-              'multipleLin',
-              !Object.prototype.hasOwnProperty.call(item, 'visible') && this.isMultipleLin
-            );
+            this.$set(item, 'multipleLin', !Object.hasOwn(item, 'visible') && this.isMultipleLin);
           });
         }
         clearTimeout(timer);
@@ -665,19 +661,6 @@ export default {
         }
       });
       this.paramConf.isShow = true;
-    },
-    parseUrlStr(url) {
-      const obj = {};
-      const pattern = /^https?:\/\/(([a-zA-Z0-9_-])+(\.)?)*(:\d+)?(\/((\.)?(\?)?=?&?[a-zA-Z0-9_-](\?)?)*)*$/i;
-      if (url && pattern.test(url)) {
-        const url = /^(?:([A-Za-z]+):)?(\/{0,3})([0-9.\-A-Za-z]+)(?::(\d+))?(?:\/([^?#]*))?(?:\?([^#]*))?(?:#(.*))?$/;
-        const fields = ['url', 'scheme', 'slash', 'host', 'port', 'path', 'query', 'hash'];
-        const result = url.exec(url);
-        fields.forEach((item, index) => {
-          obj[item] = result[index];
-        });
-      }
-      return obj;
     },
     handleData(data) {
       // 转换is_diff_metric=true的指标type为diff用于展示

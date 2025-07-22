@@ -69,7 +69,7 @@ export default class WhereDisplay extends tsc<IProps, IEvent> {
   @Prop({ default: () => ({}), type: Object }) allNames: any;
 
   /** 维度名 */
-  whereNameMap: Map<number | string, TranslateResult | string> = new Map();
+  whereNameMap: Map<number | string, string | TranslateResult> = new Map();
 
   /** 方法名 */
   methodNameMap: Map<string, string> = new Map();
@@ -82,10 +82,14 @@ export default class WhereDisplay extends tsc<IProps, IEvent> {
   created() {
     if (!this.readonly) {
       this.handleGetWhereOption();
-      this.groupByList.forEach(item => this.whereNameMap.set(item.id, item.name));
+      for (const item of this.groupByList) {
+        this.whereNameMap.set(item.id, item.name);
+      }
     }
     const methodList = [...STRING_CONDITION_METHOD_LIST, ...NUMBER_CONDITION_METHOD_LIST];
-    methodList.forEach(item => this.methodNameMap.set(item.id, item.name));
+    for (const item of methodList) {
+      this.methodNameMap.set(item.id, item.name);
+    }
   }
 
   @Emit('valueMapChange')
@@ -96,7 +100,7 @@ export default class WhereDisplay extends tsc<IProps, IEvent> {
   /** 获取条件的可选项数据 */
   async handleGetWhereOption() {
     // eslint-disable-next-line @typescript-eslint/naming-convention
-    const { data_source_label, data_type_label, metric_field, result_table_id } = this.metric;
+    const { data_source_label, data_type_label, metric_field, result_table_id, index_set_id } = this.metric || {};
     const promiseList = this.value.map(item => {
       const params = {
         params: {
@@ -106,6 +110,11 @@ export default class WhereDisplay extends tsc<IProps, IEvent> {
           metric_field,
           result_table_id,
           where: [],
+          ...(data_source_label === 'bk_log_search'
+            ? {
+                index_set_id,
+              }
+            : {}),
         },
         type: 'dimension',
       };
@@ -152,7 +161,10 @@ export default class WhereDisplay extends tsc<IProps, IEvent> {
     return (
       <span class='where-display-wrap'>
         {this.value.map((item, index) => (
-          <span class='where-item'>
+          <span
+            key={`${item.key}-${index}`}
+            class='where-item'
+          >
             {!!item.condition && !!index ? <span class='where-condition'>{` ${item.condition} `}</span> : undefined}
             <span class='where-field'>{` ${this.getFieldName(item)} `}</span>
             <span class='where-method'>{` ${this.methodNameMap.get(item.method) || item.method} `}</span>
