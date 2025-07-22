@@ -163,7 +163,7 @@ export default defineComponent({
             formatMonacoSqlCode();
           });
 
-          previewSqlContent.value = format(resp.data.additional_where_clause, { language: 'transactsql' });
+          previewSqlContent.value = format(resp.data.additional_where_clause, { language: 'mysql' });
           isPreviewSqlShow.value = true;
           callback?.();
         })
@@ -185,7 +185,7 @@ export default defineComponent({
     };
 
     const formatMonacoSqlCode = (value?: string) => {
-      const val = format(value ?? editorInstance.value?.getValue() ?? '', { language: 'transactsql' });
+      const val = format(value ?? editorInstance.value?.getValue() ?? '', { language: 'mysql' });
       editorInstance.value?.setValue([val].join('\n'));
     };
 

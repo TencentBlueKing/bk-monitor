@@ -1084,7 +1084,6 @@ export default defineComponent({
         ref='refRootElement'
         class={['bklog-result-container', { 'has-scroll-x': this.hasScrollX, 'show-header': this.showHeader }]}
         v-bkloading={{ isLoading: this.isTableLoading, opacity: 0.1 }}
-        onClick={this.onRootClick}
       >
         {this.renderHeadVNode()}
         <div
