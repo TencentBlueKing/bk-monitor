@@ -34,8 +34,8 @@
         <van-radio-group v-model="shieldType">
           <van-radio
             v-for="item in radioList.type"
-            class="content-radio"
             :key="item.value"
+            class="content-radio"
             :name="item.value"
           >
             {{ item.name }}
@@ -51,8 +51,8 @@
       <div class="shield-section-detail">
         <div
           v-for="(item, index) in shieldContent"
-          :class="['detail-item', { 'is-dimension': item.name === $t('维度') }]"
           :key="index"
+          :class="['detail-item', { 'is-dimension': item.name === $t('维度') }]"
         >
           <template v-if="item.type === shieldType">
             <span>
@@ -61,8 +61,8 @@
             <!-- 维度信息需要可复选 -->
             <van-checkbox-group
               v-if="item.name === $t('维度') && Array.isArray(item.value)"
-              class="detail-item-span"
               v-model="selectedDimension"
+              class="detail-item-span"
               icon-size="16px"
             >
               <van-checkbox
@@ -93,8 +93,8 @@
         <van-grid :column-num="3">
           <van-grid-item
             v-for="item in dataPickerList"
-            :class="active === item.id ? 'active' : ''"
             :key="item.id"
+            :class="active === item.id ? 'active' : ''"
             :text="item.name"
             @click="handleShowDatePicker(item.id, item.value)"
           />
@@ -110,8 +110,8 @@
         <van-radio-group v-model="reason">
           <van-radio
             v-for="item in radioList.reason"
-            class="content-radio"
             :key="item.value"
+            class="content-radio"
             :name="item.value"
           >
             {{ item.name }}
@@ -145,41 +145,41 @@ import FooterButton from '../../components/footer-button/footer-button.vue';
 import AlarmModule from '../../store/modules/alarm-info';
 import EventModule from '../../store/modules/event-detail';
 
-interface IRadioList {
-  name: string;
-  value: string;
-}
-interface IDimensionItem {
-  displayValue: string;
-  displayKey: string;
-  value: string;
-  key: string;
+enum TimeSemantics {
+  Custom = 6,
+  OneDays = 4,
+  SevenDays = 5,
+  TenMinutes = 1,
+  ThirtyMinutes = 2,
+  TwelveHour = 3,
 }
 interface IDataPickerList {
   id: number;
   name: string;
   value: number;
 }
-interface IShieldItem {
-  type: string;
-  name: string;
-  value: IDimensionItem[] | string;
+interface IDimensionItem {
+  displayKey: string;
+  displayValue: string;
+  key: string;
+  value: string;
 }
 interface IEentDetail {
-  dimensions: IDimensionItem[];
+  anomalyMessage: string;
   dimensionMessage: string;
+  dimensions: IDimensionItem[];
+  levelName: string;
   strategyName: string;
   targetMessage: string;
-  anomalyMessage: string;
-  levelName: string;
 }
-enum TimeSemantics {
-  TenMinutes = 1,
-  ThirtyMinutes = 2,
-  TwelveHour = 3,
-  OneDays = 4,
-  SevenDays = 5,
-  Custom = 6,
+interface IRadioList {
+  name: string;
+  value: string;
+}
+interface IShieldItem {
+  name: string;
+  type: string;
+  value: IDimensionItem[] | string;
 }
 
 @Component({
@@ -203,7 +203,7 @@ export default class AlarmDetail extends Vue {
   private shieldType = 'event'; // 屏蔽类型 value
   private reason = '变更中'; // 屏蔽原因 value
   private customTime = ''; // 自定义时间
-  private radioList: { type: IRadioList[]; reason: IRadioList[] }; // type: 屏蔽类型列表 reason: 屏蔽原因列表
+  private radioList: { reason: IRadioList[]; type: IRadioList[] }; // type: 屏蔽类型列表 reason: 屏蔽原因列表
   private isShowDatePicker = false; // 是否展示时间选择器
   private dataPickerList: IDataPickerList[] = []; // 时间选择列表
   private loading = false;
@@ -391,7 +391,7 @@ export default class AlarmDetail extends Vue {
 </script>
 
 <style lang="scss" scoped>
-@import '../../static/scss/variate.scss';
+@import '../../static/scss/variate';
 
 .quick-alarm-shield {
   padding: 13px 16px;
@@ -412,7 +412,7 @@ export default class AlarmDetail extends Vue {
       padding: 0 20px;
       background: #fff;
       border-radius: 4px;
-      box-shadow: 0 1px 0 0 rgba(99, 101, 110, 0.05);
+      box-shadow: 0 1px 0 0 rgb(99 101 110 / 5%);
 
       .content-radio {
         position: relative;
@@ -423,7 +423,7 @@ export default class AlarmDetail extends Vue {
           color: $defaultFontColor;
         }
 
-        &:after {
+        &::after {
           position: absolute;
           right: 0;
           bottom: 0;

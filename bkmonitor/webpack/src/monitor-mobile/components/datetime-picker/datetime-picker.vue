@@ -63,9 +63,9 @@ import { Component, Emit, Prop, Ref, Vue } from 'vue-property-decorator';
 import { DatetimePicker } from 'vant';
 
 export interface ITimeObj {
-  timestamp: number;
-  datetime: string;
   dateObj: Date;
+  datetime: string;
+  timestamp: number;
 }
 
 @Component({
