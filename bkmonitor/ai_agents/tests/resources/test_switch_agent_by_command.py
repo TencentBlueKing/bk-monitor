@@ -177,7 +177,7 @@ def test_switch_agent_by_command_promql_helper():
     promql_helper_command_params = {
         "session_code": session_code,
         "role": "user",
-        "content": "链路元数据排障",
+        "content": "PromQL助手",
         "property": {
             "extra": {
                 "command": "promql_helper",
