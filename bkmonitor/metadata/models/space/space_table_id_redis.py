@@ -329,7 +329,7 @@ class SpaceTableIDRedis:
         推送Doris结果表详情路由
         @param bk_tenant_id: 租户ID
         @param table_id_list: 结果表列表
-        @param is_publish: 是否执F行推送
+        @param is_publish: 是否执行推送
         """
         logger.info(
             "push_doris_table_id_detail: try to push doris_table_id_detail for table_id_list->[%s]", table_id_list
