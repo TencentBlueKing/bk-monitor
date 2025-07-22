@@ -471,7 +471,7 @@ export default class StrategySetTarget extends Vue {
   getIndex(newVal: string, oldVal: string): number {
     const tempStr = newVal.length > oldVal.length ? newVal : oldVal;
     let diffIndex = 0;
-    tempStr.split('').find((item, idx) => {
+    tempStr.split('').find((_item, idx) => {
       diffIndex = idx;
       return oldVal[idx] !== newVal[idx];
     });
@@ -619,8 +619,8 @@ export default class StrategySetTarget extends Vue {
       top: 2px;
       padding: 0 20px;
       overflow: hidden;
-      line-height: 30px;
       text-overflow: ellipsis;
+      line-height: 30px;
       white-space: nowrap;
       background: #fafbfd;
       border: 1px solid#c4c6cc;

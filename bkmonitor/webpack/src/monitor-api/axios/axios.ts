@@ -24,27 +24,62 @@
  * IN THE SOFTWARE.
  */
 
-import axios from 'axios';
+import axios, { type AxiosInstance, type AxiosRequestConfig, type AxiosResponse, type AxiosError } from 'axios';
 import { getCookie } from 'monitor-common/utils/utils';
-import qs from 'qs';
+import * as qs from 'qs';
 
 import { authorityStore, bkMessage, makeMessage } from '../utils/index';
 
+// 类型定义
+interface ErrorResponse {
+  status: number;
+  data: {
+    code?: number;
+    message?: string;
+    error_details?: string;
+    login_url?: string;
+    has_plain?: boolean;
+  };
+}
+
+interface CustomAxiosRequestConfig extends AxiosRequestConfig {
+  needMessage?: boolean;
+  needTraceId?: boolean;
+  reject403?: boolean;
+  headers?: any;
+}
+
+interface FileResponseData {
+  filename: string;
+  isfile: boolean;
+  data: any;
+}
+
+interface ApiResponseData {
+  result: boolean;
+  data?: any;
+  message?: string;
+  code?: number;
+  error_details?: string;
+}
+
 // 错误请求处理 3314001(名称重复)
-const noMessageCode = [3314001, 3310003];
-const errorHandle = (response, config) => {
+const noMessageCode: number[] = [3314001, 3310003];
+
+const errorHandle = (response: ErrorResponse, config: CustomAxiosRequestConfig): void => {
   const traceparent = config?.headers?.traceparent;
   const resMessage = makeMessage(
     response.data.error_details || response.data.message || '请求出错了！',
     traceparent,
     config.needTraceId
   );
+
   switch (response.status) {
     case 502:
       if (config.needMessage) bkMessage(resMessage);
       break;
     case 400:
-      if (!noMessageCode.includes(response.data.code)) {
+      if (response.data.code && !noMessageCode.includes(response.data.code)) {
         if (config.needMessage) bkMessage(resMessage);
       }
       break;
@@ -52,18 +87,20 @@ const errorHandle = (response, config) => {
       {
         const { data } = response;
         if (process.env.NODE_ENV === 'development') {
-          const url = new URL(data.login_url);
-          url.searchParams.set('c_url', location.href);
-          window.open(url.href, '_self');
+          if (data.login_url) {
+            const url = new URL(data.login_url);
+            url.searchParams.set('c_url', location.href);
+            window.open(url.href, '_self');
+          }
         } else {
-          const handleLoginExpire = () => {
+          const handleLoginExpire = (): void => {
             window.location.href = `${window.bk_paas_host.replace(/\/$/g, '')}/login/`;
           };
           if (data?.has_plain) {
             try {
               if (data.login_url) {
                 // 初始化api 用于转换登入
-                if (config.url.includes('/commons/context/enhanced') && config.params.context_type === 'basic') {
+                if (config.url?.includes('/commons/context/enhanced') && config.params?.context_type === 'basic') {
                   const url = `${data.login_url.split('c_url=')[0]}c_url=${encodeURIComponent(location.href)}`;
                   window.open(url, '_self');
                   return;
@@ -73,9 +110,9 @@ const errorHandle = (response, config) => {
                 url.protocol = location.protocol;
                 if (curl) {
                   url.searchParams.set('c_url', curl.replace(/^http:/, location.protocol));
-                  window.showLoginModal({ loginUrl: url.href });
+                  window.showLoginModal?.({ loginUrl: url.href });
                 } else {
-                  window.showLoginModal({ loginUrl: data.login_url.replace(/^http:/, location.protocol) });
+                  window.showLoginModal?.({ loginUrl: data.login_url.replace(/^http:/, location.protocol) });
                 }
               } else {
                 handleLoginExpire();
@@ -101,7 +138,7 @@ const errorHandle = (response, config) => {
         !(
           (['#/', '#/event-center'].includes(location.hash.replace(/\?.*/, '')) ||
             location.hash.includes('#/event-center/detail')) &&
-          !config.url.includes('/incident/')
+          !config.url?.includes('/incident/')
         ) &&
         config.url !== 'rest/v2/grafana/dashboards/'
       ) {
@@ -112,10 +149,11 @@ const errorHandle = (response, config) => {
       break;
   }
 };
-const instance = axios.create({
+
+const instance: AxiosInstance = axios.create({
   timeout: 1000 * 120,
   withCredentials: true,
-  paramsSerializer(params) {
+  paramsSerializer(params: any): string {
     return qs.stringify(params, { arrayFormat: 'brackets' });
   },
   baseURL:
@@ -123,50 +161,56 @@ const instance = axios.create({
     (process.env.NODE_ENV === 'production' ? window.site_url : process.env.APP === 'mobile' ? '/weixin' : '/'),
   xsrfCookieName: 'X-CSRFToken',
 });
+
 instance.defaults.headers.post['Content-Type'] = 'application/x-www-form-urlencoded';
 
 instance.interceptors.request.use(
-  config => {
-    if (!['HEAD', 'OPTIONS', 'TRACE'].includes(config.method.toUpperCase())) {
+  (config: CustomAxiosRequestConfig): CustomAxiosRequestConfig => {
+    if (!['HEAD', 'OPTIONS', 'TRACE'].includes(config.method?.toUpperCase() || '')) {
+      config.headers = config.headers || {};
       config.headers['X-CSRFToken'] = window.csrf_token || getCookie(window.csrf_cookie_name);
     }
+    config.headers = config.headers || {};
     config.headers['X-Requested-With'] = 'XMLHttpRequest';
     config.headers['Source-App'] = window.source_app;
-    const isWhiteList = ['/get_context', 'get_token/get_share_params'].some(url => config.url.includes(url));
+
+    const isWhiteList = ['/get_context', 'get_token/get_share_params'].some(url => config.url?.includes(url));
     if (!isWhiteList && (window.__BK_WEWEB_DATA__?.token || window.token)) {
       config.headers.Authorization = `Bearer ${window.__BK_WEWEB_DATA__?.token || window.token}`;
     }
     return config;
   },
-  error => Promise.error(error)
+  (error: AxiosError): Promise<AxiosError> => Promise.reject(error)
 );
+
 instance.interceptors.response.use(
   // 请求成功
-  res => {
+  (res: AxiosResponse<ApiResponseData>): Promise<AxiosResponse<ApiResponseData | FileResponseData>> => {
     if (res.status === 200) {
       if (res.headers['content-disposition'] && res.config.method?.toLowerCase() === 'post') {
         const filename = res.headers['content-disposition'].split('filename=')[1]?.split(';')[0]?.replace(/"/g, '');
+        const fileData: FileResponseData = {
+          filename,
+          isfile: true,
+          data: res.data,
+        };
         return Promise.resolve({
-          data: {
-            filename,
-            isfile: true,
-            data: res.data,
-          },
-        });
+          data: fileData,
+        } as unknown as AxiosResponse<FileResponseData>);
       }
       if (!res.data.result) {
         return Promise.reject(res.data);
       }
-      return Promise.resolve(res.data);
+      return Promise.resolve(res.data) as unknown as Promise<AxiosResponse<ApiResponseData>>;
     }
     return Promise.reject(res);
   },
   // 请求失败
-  error => {
+  (error: AxiosError): Promise<AxiosError | AxiosResponse> => {
     const { response, config } = error;
     if (response) {
       // 请求已发出，但是不在2xx的范围
-      errorHandle(response, config);
+      errorHandle(response as ErrorResponse, config as CustomAxiosRequestConfig);
       return Promise.reject(response);
     }
     // 处理断网的情况

@@ -292,7 +292,7 @@ export default class ResourceRegister extends tsc<object> {
       case ETableColumn.use: {
         return (
           <div class='used-tags'>
-            {!!row.label ? row.labelArr.map(lable => <div class='tags-item'>{lable}</div>) : '--'}
+            {row.label ? row.labelArr.map(lable => <div class='tags-item'>{lable}</div>) : '--'}
           </div>
         );
       }
@@ -455,7 +455,7 @@ export default class ResourceRegister extends tsc<object> {
                                   );
                                 }
                                 return (() => {
-                                  if (!!_row[column.id]) {
+                                  if (_row[column.id]) {
                                     return _row[column.id];
                                   }
                                   if (_row[column.id] === 0) {

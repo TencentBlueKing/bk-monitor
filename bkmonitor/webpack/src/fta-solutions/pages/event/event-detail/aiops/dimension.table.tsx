@@ -149,10 +149,10 @@ export default class DimensionTable extends tsc<IProps> {
     return id;
   }
   created() {
-    (window as any).handleTipsItem = this.handleTooltipItem;
+    window.handleTipsItem = this.handleTooltipItem;
   }
   beforeDestroy() {
-    (window as any).handleTipsItem = null;
+    window.handleTipsItem = null;
   }
 
   /** 隐藏tips */

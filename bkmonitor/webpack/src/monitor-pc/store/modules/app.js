@@ -78,7 +78,7 @@ const state = {
   bizBgColor: '', // 业务颜色
   navRouteList: [], // 路由面包屑数据,
   lang: docCookies.getItem(LANGUAGE_COOKIE_KEY) || 'zh-cn',
-  bizIdChangePedding: '', // 业务id是否切换
+  bizIdChangePending: '', // 业务id是否切换
   spaceUidMap: new Map(),
   bizIdMap: new Map(),
   paddingRoute: null,
@@ -153,7 +153,7 @@ const mutations = {
     state.bizBgColor = val;
   },
   [SET_BIZ_CHANGE_PENDING](state, val) {
-    state.bizIdChangePedding = val;
+    state.bizIdChangePending = val;
   },
   setNavToggle(state, status) {
     state.navToggle = status;

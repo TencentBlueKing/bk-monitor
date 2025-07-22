@@ -93,11 +93,11 @@ export default class HomeBizSelect extends tsc<IProps, IEvents> {
     limit: number;
     data: IListItem[];
   } = {
-      current: 1,
-      count: 0,
-      limit: 20,
-      data: [],
-    };
+    current: 1,
+    count: 0,
+    limit: 20,
+    data: [],
+  };
 
   typeWrapInfo = {
     showBtn: false,

@@ -226,7 +226,7 @@ export default defineComponent({
     // 判断第一次点击/滑动 是否在操作时分秒
     function handleFirstTime(v) {
       // 如果点击的是日期，V是一个时间字符串；如果是滑动时分秒，V是一个数组
-      isHandleHMSTime.value = Array.isArray(v); 
+      isHandleHMSTime.value = Array.isArray(v);
     }
 
     // input输入修改时间 逻辑同操作时分秒

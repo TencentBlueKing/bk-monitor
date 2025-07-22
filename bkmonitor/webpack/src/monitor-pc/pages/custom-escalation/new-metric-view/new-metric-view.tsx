@@ -27,7 +27,6 @@ import { Component, Watch, ProvideReactive, Provide, Ref } from 'vue-property-de
 import { Component as tsc } from 'vue-tsx-support';
 
 import customEscalationViewStore from '@store/modules/custom-escalation-view';
-import { getCustomTsMetricGroups } from 'monitor-api/modules/scene_view_new';
 import DashboardTools from 'monitor-pc/pages/monitor-k8s/components/dashboard-tools';
 
 import HeaderBox from './components/header-box/index';
@@ -36,6 +35,7 @@ import PageHeadr from './components/page-header/index';
 import ViewColumn from './components/view-column/index';
 import ViewTab from './components/view-tab/index';
 import PanelChartView from './metric-chart-view/panel-chart-view';
+import { getCustomTsMetricGroups } from './services/scene_view_new';
 
 import type { TimeRangeType } from 'monitor-pc/components/time-range/time-range';
 

@@ -91,7 +91,7 @@ import { transfromNum } from 'monitor-common/utils/utils';
 import { Col, DropdownItem, DropdownMenu, Picker, Popup, Row } from 'vant';
 
 import BkSelect from '../../components/select/select.vue';
-import { ICompare, IConfig, IContent, IDropdownMenu, IOptions } from '../../types/tendency-chart';
+import type { ICompare, IConfig, IContent, IDropdownMenu, IOptions } from '../../types/tendency-chart';
 
 @Component({
   name: 'data-compare',

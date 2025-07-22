@@ -153,7 +153,7 @@ export default class GuidePage extends tsc<IProps, IEvents> {
               <div class='link-title'>{this.$t('快捷链接')}</div>
               <div class='link-list'>
                 {this.linkList.map(item =>
-                  !!item.link ? (
+                  item.link ? (
                     <span
                       class='link-item'
                       onClick={() => this.handleLinkTo(item)}

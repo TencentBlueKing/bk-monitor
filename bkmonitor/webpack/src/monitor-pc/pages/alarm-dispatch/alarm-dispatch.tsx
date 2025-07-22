@@ -26,6 +26,7 @@
 import { Component, Inject, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
+import dayjs from 'dayjs';
 import SetMealDetail from 'fta-solutions/pages/setting/set-meal-detail/set-meal-detail';
 import {
   createAssignGroup,
@@ -187,7 +188,7 @@ export default class AlarmDispatch extends tsc<object> {
     return this.ruleGroups.map(item => item.priority);
   }
   /** 增加告警组列的排序 */
-  get showRuleGroups() {
+  get showRuleGroups(): RuleGroupData[] {
     const list = deepClone(this.renderGroups || []);
     if (this.sortProp && this.sortOrder && list.length) {
       list.map(item => {
@@ -264,6 +265,8 @@ export default class AlarmDispatch extends tsc<object> {
             isExpan: true,
             ruleData: [],
             editAllowed: !!item?.edit_allowed,
+            updateTime: dayjs(item.update_time).format('YYYY-MM-DD HH:mm:ss'),
+            updateUser: item.update_user,
           })
       ) || [];
     this.loading = false;
@@ -702,6 +705,13 @@ export default class AlarmDispatch extends tsc<object> {
                         </div>
                         {this.renderEditAttribute(item.name, item.ruleData.length, 'name', item.id)}
                         {this.renderEditAttribute(`${this.$t('优先级')}:`, item.priority, 'priority', item.id)}
+                        <div class='expand-update-record'>
+                          <span class='label'>
+                            {this.$t('最近更新记录')}: {item.updateUser}
+                          </span>
+                          <span class='separator' />
+                          <span class='update-time'>{item.updateTime}</span>
+                        </div>
                         <div
                           class={['edit-btn-wrap', { 'edit-btn-disabled': !item.editAllowed }]}
                           v-bk-tooltips={{

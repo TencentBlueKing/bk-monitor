@@ -59,7 +59,7 @@ const getters = {
   // biz bg color
   bizBgColor: state => state.app.bizBgColor,
   lang: state => state.app.lang,
-  bizIdChangePedding: state => state.app.bizIdChangePedding,
+  bizIdChangePending: state => state.app.bizIdChangePending,
   spaceUidMap: state => state.app.spaceUidMap,
   bizIdMap: state => state.app.bizIdMap,
   paddingRoute: state => state.app.paddingRoute,
