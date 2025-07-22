@@ -19,6 +19,7 @@ We undertake not to change the open source license (MIT license) applicable to t
 the project delivered to anyone in the future.
 """
 
+import copy
 import json
 
 from django.conf import settings
@@ -327,7 +328,13 @@ class IndexSetViewSet(ModelViewSet):
         }
         index_list = list(
             LogIndexSetData.objects.filter(index_set_id__in=index_set_ids).values(
-                "index_set_id", "result_table_id", "scenario_id", "storage_cluster_id"
+                "index_set_id",
+                "result_table_id",
+                "scenario_id",
+                "storage_cluster_id",
+                "time_field",
+                "time_field_type",
+                "time_field_unit",
             )
         )
         for index in index_list:
@@ -352,37 +359,38 @@ class IndexSetViewSet(ModelViewSet):
                 "data_label": BaseIndexSetHandler.get_data_label(index_set_id),
                 "space_uid": index_set["space_uid"],
                 "need_create_index": True if index_set["collector_config_id"] else False,
-                "options": [
-                    {
-                        "name": "time_field",
-                        "value_type": "dict",
-                        "value": json.dumps(
-                            {
-                                "name": index_set["time_field"],
-                                "type": index_set["time_field_type"],
-                                "unit": index_set["time_field_unit"]
-                                if index_set["time_field_type"] != TimeFieldTypeEnum.DATE.value
-                                else TimeFieldUnitEnum.MILLISECOND.value,
-                            }
-                        ),
-                    },
-                    {
-                        "name": "need_add_time",
-                        "value_type": "bool",
-                        "value": json.dumps(index_set["scenario_id"] != Scenario.ES),
-                    },
-                ],
             }
 
             for index in indexes:
-                es_router_list.update(
+                _es_router_list = copy.deepcopy(es_router_list)
+                _es_router_list.update(
                     {
                         "table_id": BaseIndexSetHandler.get_rt_id(index_set_id, index["result_table_id"]),
                         "source_type": index["scenario_id"],
                         "storage_cluster_id": index["storage_cluster_id"],
+                        "options": [
+                            {
+                                "name": "time_field",
+                                "value_type": "dict",
+                                "value": json.dumps(
+                                    {
+                                        "name": index["time_field"],
+                                        "type": index["time_field_type"],
+                                        "unit": index["time_field_unit"]
+                                        if index["time_field_type"] != TimeFieldTypeEnum.DATE.value
+                                        else TimeFieldUnitEnum.MILLISECOND.value,
+                                    }
+                                ),
+                            },
+                            {
+                                "name": "need_add_time",
+                                "value_type": "bool",
+                                "value": json.dumps(index["scenario_id"] != Scenario.ES),
+                            },
+                        ],
                     }
                 )
-                router_list.append(es_router_list)
+                router_list.append(_es_router_list)
 
         # 聚类索引路由创建，追加至列表末尾，不支持space过滤
         if qs.count() < params["pagesize"]:

@@ -19,6 +19,7 @@ We undertake not to change the open source license (MIT license) applicable to t
 the project delivered to anyone in the future.
 """
 
+import copy
 import json
 import re
 from collections import defaultdict
@@ -1549,9 +1550,9 @@ class BaseIndexSetHandler:
             _storage_cluster_id = index.get("storage_cluster_id") or self.storage_cluster_id
             _, time_field_type, time_field_unit = self.init_time_field(
                 _scenario_id,
-                index.get("time_field"),
-                index.get("time_field_type"),
-                index.get("time_field_unit"),
+                index.get("time_field") or self.time_field,
+                index.get("time_field_type") or self.time_field_type,
+                index.get("time_field_unit") or self.time_field_unit,
             )
             IndexSetHandler(index_set_id=self.index_set_obj.index_set_id).add_index(
                 bk_biz_id=index["bk_biz_id"],
@@ -1594,41 +1595,42 @@ class BaseIndexSetHandler:
                 "space_id": index_set.space_uid.split("__")[-1],
                 "space_type": index_set.space_uid.split("__")[0],
                 "need_create_index": True if index_set.collector_config_id else False,
-                "options": [
-                    {
-                        "name": "time_field",
-                        "value_type": "dict",
-                        "value": json.dumps(
-                            {
-                                "name": index_set.time_field,
-                                "type": index_set.time_field_type,
-                                "unit": index_set.time_field_unit
-                                if index_set.time_field_type != TimeFieldTypeEnum.DATE.value
-                                else TimeFieldUnitEnum.MILLISECOND.value,
-                            }
-                        ),
-                    },
-                    {
-                        "name": "need_add_time",
-                        "value_type": "bool",
-                        "value": json.dumps(index_set.scenario_id != Scenario.ES),
-                    },
-                ],
             }
             multi_execute_func = MultiExecuteFunc()
             objs = LogIndexSetData.objects.filter(index_set_id=index_set.index_set_id)
             for obj in objs:
-                request_params.update(
+                _params = copy.deepcopy(request_params)
+                _params.update(
                     {
                         "table_id": self.get_rt_id(index_set.index_set_id, obj.result_table_id),
                         "source_type": obj.scenario_id,
                         "storage_cluster_id": obj.storage_cluster_id,
+                        "options": [
+                            {
+                                "name": "time_field",
+                                "value_type": "dict",
+                                "value": json.dumps(
+                                    {
+                                        "name": obj.time_field,
+                                        "type": obj.time_field_type,
+                                        "unit": obj.time_field_unit
+                                        if obj.time_field_type != TimeFieldTypeEnum.DATE.value
+                                        else TimeFieldUnitEnum.MILLISECOND.value,
+                                    }
+                                ),
+                            },
+                            {
+                                "name": "need_add_time",
+                                "value_type": "bool",
+                                "value": json.dumps(obj.scenario_id != Scenario.ES),
+                            },
+                        ],
                     }
                 )
                 multi_execute_func.append(
                     result_key=obj.result_table_id,
                     func=TransferApi.create_or_update_log_router,
-                    params=request_params,
+                    params=_params,
                 )
             multi_execute_func.run()
         except Exception as e:
@@ -1698,9 +1700,9 @@ class BaseIndexSetHandler:
             _storage_cluster_id = index.get("storage_cluster_id") or self.storage_cluster_id
             _, time_field_type, time_field_unit = self.init_time_field(
                 _scenario_id,
-                index.get("time_field"),
-                index.get("time_field_type"),
-                index.get("time_field_unit"),
+                index.get("time_field") or self.time_field,
+                index.get("time_field_type") or self.time_field_type,
+                index.get("time_field_unit") or self.time_field_unit,
             )
             IndexSetHandler(index_set_id=self.index_set_obj.index_set_id).add_index(
                 index["bk_biz_id"],
