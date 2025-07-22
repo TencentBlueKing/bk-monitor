@@ -81,8 +81,8 @@ export default defineComponent({
           default: () => (
             <>
               <SpaceSelector
-                currentSpace={this.bizId}
                 hasAuthApply={true}
+                isAutoSelectCurrentSpace={true}
                 isCommonStyle={false}
                 multiple={this.isMultiple}
                 needChangeChoiceType={true}

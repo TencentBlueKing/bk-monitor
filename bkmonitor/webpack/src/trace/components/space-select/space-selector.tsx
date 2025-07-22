@@ -309,23 +309,35 @@ export default defineComponent({
       }
       triggerRef(localSpaceList);
       if (needCurSpace.value) {
-        resetCurBiz();
+        if (+localCurrentSpace.value !== +props.currentSpace) {
+          resetCurBiz(+localCurrentSpace.value);
+        }
       }
       if (!!localValue.value.length && JSON.stringify(props.value) !== JSON.stringify(localValue.value)) {
+        handleAutoSetCurBiz();
         setTimeout(() => {
           handleChange();
         }, 50);
       }
     }
 
-    function resetCurBiz() {
-      if (+localCurrentSpace.value === +props.currentSpace) {
-        return;
-      }
-      appStore.bizId = +localCurrentSpace.value;
-      const searchParams = new URLSearchParams({ bizId: `${+localCurrentSpace.value}` });
+    function resetCurBiz(curSpace: number) {
+      appStore.bizId = curSpace;
+      const searchParams = new URLSearchParams({ bizId: `${curSpace}` });
       const newUrl = `${window.location.pathname}?${searchParams.toString()}#${route.fullPath}`;
       history.replaceState({}, '', newUrl);
+    }
+
+    function handleAutoSetCurBiz() {
+      if (props.isAutoSelectCurrentSpace) {
+        const selected = localValue.value.filter(v => !specialIds.includes(v));
+        if (selected.length === 1) {
+          if (+selected[0] !== localCurrentSpace.value) {
+            resetCurBiz(+selected[0]);
+          }
+          localCurrentSpace.value = +selected[0];
+        }
+      }
     }
 
     function getLocalValue() {
@@ -629,10 +641,10 @@ export default defineComponent({
       const smoothScrollTo = (element: HTMLDivElement, targetPosition: number, duration: number, callback) => {
         const startPosition = element.scrollLeft;
         const distance = targetPosition - startPosition;
-        const startTime = new Date().getTime();
+        const startTime = Date.now();
         const easeOutCubic = t => 1 - (1 - t) ** 3;
         const scroll = () => {
-          const elapsed = new Date().getTime() - startTime;
+          const elapsed = Date.now() - startTime;
           const progress = easeOutCubic(Math.min(elapsed / duration, 1));
           element.scrollLeft = startPosition + distance * progress;
           if (progress < 1) requestAnimationFrame(scroll);
@@ -851,7 +863,7 @@ export default defineComponent({
                         ({item.space_type_id === ETagsType.BKCC ? `#${item.id}` : item.space_id || item.space_code})
                       </span>
                     )}
-                    {+this.localCurrentSpace === +item.id && (
+                    {/* {+this.localCurrentSpace === +item.id && (
                       <span
                         class='icon-monitor icon-dingwei1 cur-position'
                         v-bk-tooltips={{
@@ -859,7 +871,7 @@ export default defineComponent({
                           placements: ['top'],
                         }}
                       />
-                    )}
+                    )} */}
                   </span>
                   <span class='space-tags'>
                     {!!item.noAuth && !item.hasData ? (
