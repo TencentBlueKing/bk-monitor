@@ -21,6 +21,8 @@ class ModuleManager(CMDBCacheManager):
     CMDB 模块缓存
     """
 
+    cache_type = "module"
+
     @classmethod
     def get_cache_key(cls, bk_tenant_id: str) -> str:
         return f"{cls._get_cache_key_prefix(bk_tenant_id)}.module"
