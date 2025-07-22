@@ -31,8 +31,8 @@ class CMDBCacheManager(ABC):
         """
         return f"{cls._get_cache_key_prefix(bk_tenant_id)}.{cls.cache_type}"
 
-    @abstractmethod
     @classmethod
+    @abstractmethod
     def get(cls, *args, **kwargs) -> Any:
         """
         获取缓存
