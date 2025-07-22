@@ -1586,7 +1586,7 @@ class BaseIndexSetHandler:
         )
         # 创建结果表路由信息
         try:
-            request_params = {
+            base_request_params = {
                 "data_label": self.get_data_label(index_set.index_set_id),
                 "space_id": index_set.space_uid.split("__")[-1],
                 "space_type": index_set.space_uid.split("__")[0],
@@ -1597,6 +1597,7 @@ class BaseIndexSetHandler:
             for obj in objs:
                 time_field = obj.time_field or index_set.time_field
                 time_field_type = obj.time_field_type or index_set.time_field_type
+                request_params = base_request_params.copy()
                 request_params.update(
                     {
                         "table_id": self.get_rt_id(index_set.index_set_id, obj.result_table_id),
