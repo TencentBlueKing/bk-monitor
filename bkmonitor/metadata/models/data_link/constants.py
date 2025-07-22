@@ -17,6 +17,7 @@ class DataLinkKind(Enum):
     DATAID = "DataId"
     RESULTTABLE = "ResultTable"
     VMSTORAGEBINDING = "VmStorageBinding"
+    ESSTORAGEBINDING = "ElasticSearchBinding"
     DATABUS = "Databus"
     CONDITIONALSINK = "ConditionalSink"
     SINK = "Sink"
@@ -28,6 +29,7 @@ class DataLinkKind(Enum):
         (DATAID, "dataids"),
         (RESULTTABLE, "resulttables"),
         (VMSTORAGEBINDING, "vmstoragebindings"),
+        (ESSTORAGEBINDING, "elasticsearchbindings"),
         (DATABUS, "databuses"),
         (CONDITIONALSINK, "conditionalsinks"),
         (SINK, "sinks"),
