@@ -34,7 +34,7 @@ from apps.constants import NotifyType, UserOperationActionEnum, UserOperationTyp
 from apps.decorators import user_operation_record
 from apps.exceptions import ValidationError
 from apps.feature_toggle.handlers.toggle import FeatureToggleObject
-from apps.feature_toggle.plugins.constants import LOG_DESENSITIZE, UNIFY_QUERY_SEARCH
+from apps.feature_toggle.plugins.constants import UNIFY_QUERY_SEARCH
 from apps.generic import APIViewSet
 from apps.iam import ActionEnum, ResourceEnum
 from apps.iam.handlers.drf import (
@@ -360,12 +360,16 @@ class SearchViewSet(APIViewSet):
         if data.get("is_scroll_search"):
             return Response(search_handler.scroll_search())
 
-        if FeatureToggleObject.switch(UNIFY_QUERY_SEARCH, data.get("bk_biz_id")):
-            data["index_set_ids"] = [index_set_id]
-            query_handler = UnifyQueryHandler(data)
-            return Response(query_handler.search())
-        else:
-            return Response(search_handler.search())
+        data["index_set_ids"] = [index_set_id]
+        query_handler = UnifyQueryHandler(data)
+        return Response(query_handler.search())
+
+        # if FeatureToggleObject.switch(UNIFY_QUERY_SEARCH, data.get("bk_biz_id")):
+        #     data["index_set_ids"] = [index_set_id]
+        #     query_handler = UnifyQueryHandler(data)
+        #     return Response(query_handler.search())
+        # else:
+        #     return Response(search_handler.search())
 
     @detail_route(methods=["POST"], url_path="search/original")
     def original_search(self, request, index_set_id=None):
@@ -776,22 +780,30 @@ class SearchViewSet(APIViewSet):
             FeatureToggleObject.toggle(FEATURE_ASYNC_EXPORT_COMMON).feature_config.get(FEATURE_ASYNC_EXPORT_NOTIFY_TYPE)
         )
 
-        if FeatureToggleObject.switch(UNIFY_QUERY_SEARCH, data.get("bk_biz_id")):
-            task_id, size = UnifyQueryAsyncExportHandlers(
-                index_set_id=int(index_set_id),
-                bk_biz_id=data["bk_biz_id"],
-                search_dict=data,
-                export_fields=data["export_fields"],
-                export_file_type=data["file_type"],
-            ).async_export(is_quick_export=is_quick_export)
-        else:
-            task_id, size = AsyncExportHandlers(
-                index_set_id=int(index_set_id),
-                bk_biz_id=data["bk_biz_id"],
-                search_dict=data,
-                export_fields=data["export_fields"],
-                export_file_type=data["file_type"],
-            ).async_export(is_quick_export=is_quick_export)
+        task_id, size = UnifyQueryAsyncExportHandlers(
+            index_set_id=int(index_set_id),
+            bk_biz_id=data["bk_biz_id"],
+            search_dict=data,
+            export_fields=data["export_fields"],
+            export_file_type=data["file_type"],
+        ).async_export(is_quick_export=is_quick_export)
+
+        # if FeatureToggleObject.switch(UNIFY_QUERY_SEARCH, data.get("bk_biz_id")):
+        #     task_id, size = UnifyQueryAsyncExportHandlers(
+        #         index_set_id=int(index_set_id),
+        #         bk_biz_id=data["bk_biz_id"],
+        #         search_dict=data,
+        #         export_fields=data["export_fields"],
+        #         export_file_type=data["file_type"],
+        #     ).async_export(is_quick_export=is_quick_export)
+        # else:
+        #     task_id, size = AsyncExportHandlers(
+        #         index_set_id=int(index_set_id),
+        #         bk_biz_id=data["bk_biz_id"],
+        #         search_dict=data,
+        #         export_fields=data["export_fields"],
+        #         export_file_type=data["file_type"],
+        #     ).async_export(is_quick_export=is_quick_export)
         return Response(
             {
                 "task_id": task_id,
@@ -1559,9 +1571,10 @@ class SearchViewSet(APIViewSet):
         for info in data.get("union_configs", []):
             if not info.get("is_desensitize") and not is_verify:
                 info["is_desensitize"] = True
-        if FeatureToggleObject.switch(UNIFY_QUERY_SEARCH, data.get("bk_biz_id")):
-            return Response(UnionSearchHandler(data).unifyquery_union_search())
-        return Response(UnionSearchHandler(data).union_search())
+        return Response(UnionSearchHandler(data).unifyquery_union_search())
+        # if FeatureToggleObject.switch(UNIFY_QUERY_SEARCH, data.get("bk_biz_id")):
+        #     return Response(UnionSearchHandler(data).unifyquery_union_search())
+        # return Response(UnionSearchHandler(data).union_search())
 
     @list_route(methods=["POST"], url_path="union_search/fields")
     def union_search_fields(self, request, *args, **kwargs):
