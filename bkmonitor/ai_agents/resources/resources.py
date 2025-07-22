@@ -14,7 +14,6 @@ from django.http import StreamingHttpResponse
 from ai_agents.services.agent_instance import AgentInstanceBuilder
 from ai_agents.services.command_handler import CommandProcessor
 from ai_agents.services.metrics_reporter import (
-    ai_metrics,
     ai_metrics_decorator,
     extract_agent_code_from_request,
     EnhancedStreamingResponseWrapper,
@@ -44,7 +43,7 @@ class CreateChatSessionResource(Resource):
         session_name = serializers.CharField(label="会话名称", required=True)
         agent_code = serializers.CharField(label="Agent代码", required=False, default=settings.AIDEV_AGENT_APP_CODE)
 
-    @ai_metrics
+    @ai_metrics_decorator()
     def perform_request(self, validated_request_data):
         session_code = validated_request_data.get("session_code")
         session_name = validated_request_data.get("session_name")
@@ -71,7 +70,7 @@ class RetrieveChatSessionResource(Resource):
     class RequestSerializer(serializers.Serializer):
         session_code = serializers.CharField(label="会话代码", required=True)
 
-    @ai_metrics
+    @ai_metrics_decorator()
     def perform_request(self, validated_request_data):
         session_code = validated_request_data.get("session_code")
 
@@ -92,7 +91,7 @@ class DestroyChatSessionResource(Resource):
     class RequestSerializer(serializers.Serializer):
         session_code = serializers.CharField(label="会话代码", required=True)
 
-    @ai_metrics
+    @ai_metrics_decorator()
     def perform_request(self, validated_request_data):
         session_code = validated_request_data.get("session_code")
 
@@ -121,7 +120,7 @@ class CreateChatSessionContentResource(Resource):
         super().__init__()
         self.command_processor = CommandProcessor()
 
-    @ai_metrics
+    @ai_metrics_decorator()
     def perform_request(self, validated_request_data):
         session_code = validated_request_data.get("session_code")
         property_data = validated_request_data.get("property", {})
@@ -157,7 +156,7 @@ class GetChatSessionContentsResource(Resource):
     class RequestSerializer(serializers.Serializer):
         session_code = serializers.CharField(label="会话代码", required=True)
 
-    @ai_metrics
+    @ai_metrics_decorator()
     def perform_request(self, validated_request_data):
         session_code = validated_request_data.get("session_code")
         logger.info("GetChatSessionContentResource: try to get content with session_code->[%s]", session_code)
@@ -177,7 +176,7 @@ class DestroyChatSessionContentResource(Resource):
     class RequestSerializer(serializers.Serializer):
         id = serializers.CharField(label="内容ID", required=True)
 
-    @ai_metrics
+    @ai_metrics_decorator()
     def perform_request(self, validated_request_data):
         id = validated_request_data.get("id")
         api_client = AidevApiClientBuilder.get_client(
@@ -195,7 +194,7 @@ class BatchDeleteSessionContentResource(Resource):
     class RequestSerializer(serializers.Serializer):
         ids = serializers.ListField(label="内容ID列表", required=True)
 
-    @ai_metrics
+    @ai_metrics_decorator()
     def perform_request(self, validated_request_data):
         logger.info(
             "BatchDeleteSessionContentResource: try to batch delete content with params->[%s]", validated_request_data
@@ -222,7 +221,7 @@ class UpdateChatSessionContentResource(Resource):
         status = serializers.CharField(label="状态", required=False, default="loading")
         property = serializers.DictField(label="属性", required=False)
 
-    @ai_metrics
+    @ai_metrics_decorator()
     def perform_request(self, validated_request_data):
         session_code = validated_request_data.get("session_code")
         id = validated_request_data.get("id")
