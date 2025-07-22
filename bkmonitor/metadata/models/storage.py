@@ -700,7 +700,7 @@ class StorageResultTable:
                     )
 
                 records_queryset = StorageClusterRecord.objects.filter(
-                    table_id=self.table_id, cluster_id=new_storage_cluster_id, is_current=True
+                    table_id=self.table_id, cluster_id=new_storage_cluster_id
                 )
 
                 # 若DB中不存在当前集群ID的记录,那么需要额外创建(避免非前端迁移行为导致的路由异常)
