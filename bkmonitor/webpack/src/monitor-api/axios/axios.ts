@@ -24,43 +24,43 @@
  * IN THE SOFTWARE.
  */
 
-import axios, { type AxiosInstance, type AxiosRequestConfig, type AxiosResponse, type AxiosError } from 'axios';
+import axios, { type AxiosError, type AxiosInstance, type AxiosRequestConfig, type AxiosResponse } from 'axios';
 import { getCookie } from 'monitor-common/utils/utils';
 import * as qs from 'qs';
 
 import { authorityStore, bkMessage, makeMessage } from '../utils/index';
+
+interface ApiResponseData {
+  code?: number;
+  data?: any;
+  error_details?: string;
+  message?: string;
+  result: boolean;
+}
+
+interface CustomAxiosRequestConfig extends AxiosRequestConfig {
+  headers?: any;
+  needMessage?: boolean;
+  needTraceId?: boolean;
+  reject403?: boolean;
+}
 
 // 类型定义
 interface ErrorResponse {
   status: number;
   data: {
     code?: number;
-    message?: string;
     error_details?: string;
-    login_url?: string;
     has_plain?: boolean;
+    login_url?: string;
+    message?: string;
   };
 }
 
-interface CustomAxiosRequestConfig extends AxiosRequestConfig {
-  needMessage?: boolean;
-  needTraceId?: boolean;
-  reject403?: boolean;
-  headers?: any;
-}
-
 interface FileResponseData {
+  data: any;
   filename: string;
   isfile: boolean;
-  data: any;
-}
-
-interface ApiResponseData {
-  result: boolean;
-  data?: any;
-  message?: string;
-  code?: number;
-  error_details?: string;
 }
 
 // 错误请求处理 3314001(名称重复)
