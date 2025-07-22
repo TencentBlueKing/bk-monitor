@@ -206,26 +206,6 @@ module.exports = [
           type: 'natural',
         },
       ],
-      // 'perfectionist/sort-objects': [
-      //   ERROR,
-      //   {
-      //     'custom-groups': {
-      //       ID: '*(id|ID|Id)',
-      //       NAME: '*(name|Name|NAME)',
-      //       path: 'path',
-      //       // components: 'components',
-      //       // directives: 'directives',
-      //       // emits: 'emits',
-      //       // props: 'props',
-      //       // setup: 'setup',
-      //       // render: 'render',
-      //     },
-      //     groups: ['ID', 'NAME', 'path', 'unknown'],
-      //     order: 'asc',
-      //     'partition-by-comment': 'Part:**',
-      //     type: 'natural',
-      //   },
-      // ],
     },
   },
   {

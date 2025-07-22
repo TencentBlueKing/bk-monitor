@@ -31,27 +31,27 @@ import { listEsClusterGroups } from 'monitor-api/modules/apm_meta';
 import ExpiredSelect from '../../../components/expired-select/expired-select';
 import ClusterTable from './cluster-table';
 
-import type { IPluginItem, ISetupData } from './app-add';
+import type { ICreateAppFormData } from '@/pages/home/typings/app';
 
 import './setting-params.scss';
 
+export interface IEsClusterInfo {
+  es_number_of_replicas: number;
+  es_retention: number;
+  es_shards: number;
+  es_slice_size?: '' | number;
+  es_storage_cluster: number;
+}
 interface IEvents {
   onPreStep: void;
   onSubmit: IEsClusterInfo;
 }
+
 interface IProps {
-  loading: boolean;
-  setupData: ISetupData;
   appInfoData: ICreateAppFormData;
   currentPlugin: IPluginItem;
-}
-
-export interface IEsClusterInfo {
-  es_storage_cluster: number;
-  es_retention: number;
-  es_number_of_replicas: number;
-  es_shards: number;
-  es_slice_size?: '' | number;
+  loading: boolean;
+  setupData: ISetupData;
 }
 @Component
 export default class SettingParams extends tsc<IProps, IEvents> {

@@ -25,7 +25,8 @@
  */
 
 import VueJsonPretty from 'vue-json-pretty';
-import { Component, InjectReactive, Watch, Prop } from 'vue-property-decorator';
+import 'vue-json-pretty/lib/styles.css';
+import { Component, InjectReactive, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import dayjs from 'dayjs';
@@ -50,11 +51,10 @@ import {
 import { PanelModel } from 'monitor-ui/chart-plugins/typings';
 
 import PanelItem from '../../../../components/panel-item/panel-item';
-import { ETelemetryDataType, type IAppInfo, type IStrategyData } from '../type';
+import { type IAppInfo, type IStrategyData, ETelemetryDataType } from '../type';
 
 import type { TimeRangeType } from 'monitor-pc/components/time-range/time-range';
 
-import 'vue-json-pretty/lib/styles.css';
 import './data-state-metric.scss';
 
 interface IProps {

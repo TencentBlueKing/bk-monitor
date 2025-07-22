@@ -24,6 +24,7 @@
  * IN THE SOFTWARE.
  */
 
+import type { TranslateResult } from 'vue-i18n';
 import { Component, Emit, Inject, Prop, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
@@ -33,34 +34,33 @@ import ExpiredSelect from '../../components/expired-select/expired-select';
 import VerifyItem from '../verify-item/verify-item';
 
 import type { IUnitItme } from '../../pages/application/app-configuration/type';
-import type { TranslateResult } from 'vue-i18n';
 
 import './editable-form-item.scss';
 
-interface IEditableFormItemProps {
-  value: any;
-  label?: string | TranslateResult;
-  selectEditValue?: any; // 下拉编辑选值
-  selectEditOption?: Array<object>; // 下拉编辑options
-  formType?: IFormType; // 表单类型
-  unit?: string; // 单位
-  showEditable?: boolean; // 是否显示编辑icon
-  showLabel?: boolean; // 是否显示label
-  validator?: any; // 检验规则
-  tooltips?: string | TranslateResult; // tooltip提示内容
-  maxExpired?: number; // 过期时间最大限制
-  selectList?: Array<object>; // select类型下拉 options
-  unitList?: IUnitItme[]; // 单位列表
-  authority?: boolean; // 编辑权限
-  authorityName?: string; // 权限名称
-  tagTheme?: string;
-  updateValue?: (val) => void; // 确认提交
-  onEditChange?: (val) => void; // 编辑表单值改变时
-  preCheckSwitcher?: (val) => Promise<any>; // Switcher 开关预检查
-}
-
 interface IEditableFormItemEvent {
   onUpdateValue: string;
+}
+
+interface IEditableFormItemProps {
+  authority?: boolean; // 编辑权限
+  authorityName?: string; // 权限名称
+  formType?: IFormType; // 表单类型
+  label?: string | TranslateResult;
+  maxExpired?: number; // 过期时间最大限制
+  selectEditOption?: Array<object>; // 下拉编辑options
+  selectEditValue?: any; // 下拉编辑选值
+  selectList?: Array<object>; // select类型下拉 options
+  showEditable?: boolean; // 是否显示编辑icon
+  showLabel?: boolean; // 是否显示label
+  tagTheme?: string;
+  tooltips?: string | TranslateResult; // tooltip提示内容
+  unit?: string; // 单位
+  unitList?: IUnitItme[]; // 单位列表
+  validator?: any; // 检验规则
+  value: any;
+  onEditChange?: (val) => void; // 编辑表单值改变时
+  preCheckSwitcher?: (val) => Promise<any>; // Switcher 开关预检查
+  updateValue?: (val) => void; // 确认提交
 }
 
 type IFormType = 'custom' | 'expired' | 'input' | 'password' | 'select' | 'selectEdit' | 'switch' | 'tag' | 'unit';
@@ -207,7 +207,9 @@ export default class EditableFormItem extends tsc<IEditableFormItemProps, IEdita
             )}
             <span
               class={`bk-icon toggle-icon ${this.showPassword ? 'icon-eye-slash' : 'icon-eye'}`}
-              onClick={() => (this.showPassword = !this.showPassword)}
+              onClick={() => {
+                this.showPassword = !this.showPassword;
+              }}
             />
           </span>
         ) : (
@@ -265,7 +267,11 @@ export default class EditableFormItem extends tsc<IEditableFormItemProps, IEdita
             class='edit-item select-item'
             v-model={this.lcoalValue}
             clearable={false}
-            onChange={v => v && (this.errorMsg.value = '')}
+            onChange={v => {
+              if (v) {
+                this.errorMsg.value = '';
+              }
+            }}
           >
             {this.selectList.map(option => (
               <bk-option
@@ -307,7 +313,11 @@ export default class EditableFormItem extends tsc<IEditableFormItemProps, IEdita
             class='edit-item input-item'
             v-model={this.lcoalValue}
             disabled={this.isSubmiting}
-            onChange={v => v && (this.errorMsg.value = '')}
+            onChange={v => {
+              if (v) {
+                this.errorMsg.value = '';
+              }
+            }}
           />
         );
     }

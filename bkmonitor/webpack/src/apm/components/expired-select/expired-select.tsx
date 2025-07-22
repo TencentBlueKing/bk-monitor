@@ -23,27 +23,26 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+import type { TranslateResult } from 'vue-i18n';
 import { Component, Emit, Model, Prop, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-
-import type { TranslateResult } from 'vue-i18n';
 
 import './expired-select.scss';
 
 export interface IOptionsItem {
   id: IProps['value'];
-  name: TranslateResult | string;
-}
-interface IProps {
-  value?: number;
-  options?: IOptionsItem[];
-  unit?: string;
-  placeholder?: string;
-  width?: number;
-  max?: number;
+  name: string | TranslateResult;
 }
 interface IEvents {
   onChange: number;
+}
+interface IProps {
+  max?: number;
+  options?: IOptionsItem[];
+  placeholder?: string;
+  unit?: string;
+  value?: number;
+  width?: number;
 }
 
 const DEFAULT_OPTIONS: IOptionsItem[] = [

@@ -1,3 +1,5 @@
+import type { RouteConfig } from 'vue-router';
+
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -26,7 +28,5 @@
 import applicationRoutes from './application';
 import homeRoutes from './home';
 import serviceRoutes from './service';
-
-import type { RouteConfig } from 'vue-router';
 
 export default [...homeRoutes, ...applicationRoutes, ...serviceRoutes] as RouteConfig[];
