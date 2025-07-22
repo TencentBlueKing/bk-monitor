@@ -58,7 +58,7 @@ export default class ClusterDetails extends tsc<IProps> {
   }
 
   init() {
-    if (!!this.data) {
+    if (this.data) {
       this.clusterName = this.data.cluster_name;
       this.contents = [
         {
@@ -71,7 +71,7 @@ export default class ClusterDetails extends tsc<IProps> {
         },
         {
           name: this.$tc('用途'),
-          content: !!this.data.label ? (
+          content: this.data.label ? (
             <div class='used-tags'>
               {this.data.lable.split(',').map(label => (
                 <div class='tags-item'>{label}</div>

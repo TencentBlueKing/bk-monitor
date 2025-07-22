@@ -240,9 +240,10 @@ export default defineComponent({
                 }
                 return item;
               });
+              const temporarySortList = syncSpecifiedFieldSort(field.field_name,sortList);
               store.commit('updateLocalSort', true);
               store.commit('updateIndexFieldInfo', { sort_list: updatedSortList });
-              store.commit('updateIndexItemParams', { sort_list: sortList });
+              store.commit('updateIndexItemParams', { sort_list: temporarySortList });
               store.dispatch('requestIndexSetQuery');
             }
           });
@@ -545,6 +546,29 @@ export default defineComponent({
       }
     };
 
+    const syncSpecifiedFieldSort = (field_name,updatedSortList) => {
+        const requiredFields = ['gseIndex', 'iterationIndex','dtEventTimeStamp'];
+        if (!requiredFields.includes(field_name) || !updatedSortList.length) {
+          return updatedSortList
+        }
+        const fields = store.state.indexFieldInfo.fields.map(item => item.field_name);
+        const currentSort = updatedSortList.find(([key]) => key === field_name)[1];
+
+        requiredFields.forEach(field => {
+          if (field === field_name)  return
+          if (fields.includes(field)) {
+            const index = updatedSortList.findIndex(([key]) => key === field);
+            const sortItem = [field, currentSort];
+
+            if (index !== -1) {
+              updatedSortList[index] = sortItem;
+            } else {
+              updatedSortList.push(sortItem);
+            }
+          }
+        });
+        return updatedSortList;
+    }
     watch(
       () => [tableShowRowIndex.value],
       () => {
@@ -1052,7 +1076,6 @@ export default defineComponent({
       <div
         ref='refRootElement'
         class='bklog-result-container'
-        onClick={this.onRootClick}
       >
         {this.renderHeadVNode()}
         <div

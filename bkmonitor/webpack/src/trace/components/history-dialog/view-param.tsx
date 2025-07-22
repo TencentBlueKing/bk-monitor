@@ -47,7 +47,7 @@ export default defineComponent({
     },
     onChange: {
       type: Function,
-      default: _v => { },
+      default: _v => {},
     },
   },
   setup(props) {
@@ -71,7 +71,7 @@ export default defineComponent({
         title={this.title}
         onUpdate:isShow={this.valueChange}
       >
-        {!!(this.$slots?.default?.() as any)?.props ? (
+        {(this.$slots?.default?.() as any)?.props ? (
           this.$slots?.default?.()
         ) : (
           <div class='param-body'>

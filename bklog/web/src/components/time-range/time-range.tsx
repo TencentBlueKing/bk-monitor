@@ -31,6 +31,7 @@ import DatePicker from '@blueking/date-picker/vue2';
 
 import { updateTimezone } from '../../language/dayjs';
 import { DEFAULT_TIME_RANGE } from './utils';
+import { BK_LOG_STORAGE } from '@/store/store.type.ts';
 
 import '@blueking/date-picker/vue2/vue2.css';
 
@@ -60,6 +61,7 @@ export default class TimeRange extends tsc<IProps, IEvents> {
       localStorage.setItem('SEARCH_DEFAULT_TIME', JSON.stringify(v));
     }
 
+    this.$store.commit('updateStorage', {[BK_LOG_STORAGE.CACHED_BATCH_LIST]: []});
     this.$store.commit('retrieve/updateCachePickerValue', this.value);
     return v;
   }

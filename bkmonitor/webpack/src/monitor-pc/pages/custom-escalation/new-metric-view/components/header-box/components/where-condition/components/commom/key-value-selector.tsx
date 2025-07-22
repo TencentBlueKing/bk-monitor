@@ -28,8 +28,9 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import customEscalationViewStore from '@store/modules/custom-escalation-view';
 import _ from 'lodash';
-import { getCustomTsDimensionValues } from 'monitor-api/modules/scene_view_new';
 import KvSelector from 'monitor-pc/components/retrieval-filter/setting-kv-selector';
+
+import { getCustomTsDimensionValues } from '../../../../../../services/scene_view_new';
 
 interface IProps {
   data: {

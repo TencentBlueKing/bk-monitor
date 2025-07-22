@@ -23,8 +23,36 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-let vue;
-export const axiosError = [
+
+// 类型定义
+export interface VueInstance {
+  prototype?: {
+    $bkMessage?: (message: any) => void;
+    $authorityStore?: AuthorityStore;
+  };
+  config?: {
+    globalProperties?: {
+      $Message?: (message: any) => void;
+      $authorityStore?: AuthorityStore;
+    };
+  };
+}
+
+interface AuthorityStore {
+  showAuthorityDetail?: (data: any) => void;
+}
+
+interface MessageObject {
+  detail?: any;
+  trace_id?: string;
+  [key: string]: any;
+}
+
+type MessageType = MessageObject | string;
+
+let vue: VueInstance;
+
+export const axiosError: string[] = [
   'ERR_BAD_OPTION_VALUE',
   'ERR_BAD_OPTION',
   'ERR_NOT_SUPPORT',
@@ -38,26 +66,27 @@ export const axiosError = [
   'ERR_BAD_RESPONSE',
   'ERR_BAD_REQUEST',
 ];
-export const setVue = function (instance) {
+
+export const setVue = (instance: VueInstance): void => {
   vue = instance;
 };
 
-export const bkMessage = message => {
+export const bkMessage = (message: any): void => {
   if (vue?.prototype?.$bkMessage) {
     vue.prototype.$bkMessage(message);
   } else {
-    vue.config.globalProperties.$Message(message);
+    vue.config?.globalProperties?.$Message?.(message);
   }
 };
 
-export const authorityStore = () => {
+export const authorityStore = (): AuthorityStore | undefined => {
   if (vue.prototype?.$authorityStore) {
     return vue.prototype.$authorityStore;
   }
   return vue.config?.globalProperties?.$authorityStore;
 };
 
-const formatJson = str => {
+const formatJson = (str: string): any => {
   const trimmed = str.trim();
   // 扩展预检查：允许所有 JSON 值类型（对象、数组、字符串、数字、布尔、null）
   const isLikelyJson = /^(\s*)({|\[|"|true|false|null|-?\d|\.\d)/.test(trimmed);
@@ -69,7 +98,7 @@ const formatJson = str => {
   }
 };
 
-export const makeMessage = (message, traceparent, needTraceId) => {
+export const makeMessage = (message: MessageType, traceparent?: string, needTraceId?: boolean): MessageType => {
   const list = traceparent?.split('-');
   let traceId = traceparent;
   if (list?.length) {

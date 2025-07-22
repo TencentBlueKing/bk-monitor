@@ -63,6 +63,7 @@ interface IProps {
   hasAuthApply?: boolean;
   currentSpace?: number | string;
   isCommonStyle?: boolean;
+  isAutoSelectCurrentSpace?: boolean;
   onChange?: (value: number[]) => void;
 }
 const componentClassNames = {
@@ -109,6 +110,8 @@ export default class SpaceSelect extends tsc<
   @Prop({ default: true, type: Boolean }) isCommonStyle: boolean;
   /* 是否包含我有故障的选项 */
   @Prop({ default: false, type: Boolean }) needIncidentOption: boolean;
+  /* 是否自动选择为当前空间（将空间添加到url上）单选时自动选择为当前空间, 多选时则（选择的第一个空间为当前空间） */
+  @Prop({ default: false, type: Boolean }) isAutoSelectCurrentSpace: boolean;
   @Ref('wrap') wrapRef: HTMLDivElement;
   @Ref('select') selectRef: HTMLDivElement;
   @Ref('typeList') typeListRef: HTMLDivElement;
@@ -465,9 +468,12 @@ export default class SpaceSelect extends tsc<
       item.preciseMatch = false;
     }
     if (this.needCurSpace) {
-      this.resetCurBiz();
+      if (+this.localCurrentSpace !== +this.currentSpace) {
+        this.resetCurBiz(+this.localCurrentSpace);
+      }
     }
     if (!!this.localValue.length && JSON.stringify(this.value) !== JSON.stringify(this.localValue)) {
+      this.handleAutoSetCurBiz();
       setTimeout(() => {
         this.handleChange();
       }, 50);
@@ -560,14 +566,23 @@ export default class SpaceSelect extends tsc<
   /**
    * @description 如当前空间切换，则刷新页面
    */
-  resetCurBiz() {
-    if (+this.localCurrentSpace === +this.currentSpace) {
-      return;
-    }
-    this.$store.commit('app/SET_BIZ_ID', +this.localCurrentSpace);
-    const searchParams = new URLSearchParams({ bizId: `${+this.localCurrentSpace}` });
+  resetCurBiz(curSpace: number) {
+    this.$store.commit('app/SET_BIZ_ID', curSpace);
+    const searchParams = new URLSearchParams({ bizId: `${curSpace}` });
     const newUrl = `${window.location.pathname}?${searchParams.toString()}#${this.$route.fullPath}`;
     history.replaceState({}, '', newUrl);
+  }
+  /* 自动选择当前空间 */
+  handleAutoSetCurBiz() {
+    if (this.isAutoSelectCurrentSpace) {
+      const selected = this.localValue.filter(v => !specialIds.includes(v));
+      if (selected.length === 1) {
+        if (+selected[0] !== this.localCurrentSpace) {
+          this.resetCurBiz(+selected[0]);
+        }
+        this.localCurrentSpace = +selected[0];
+      }
+    }
   }
   /* 获取当前选中的值 */
   getLocalValue() {
@@ -656,10 +671,10 @@ export default class SpaceSelect extends tsc<
     const smoothScrollTo = (element: HTMLDivElement, targetPosition: number, duration: number, callback) => {
       const startPosition = element.scrollLeft;
       const distance = targetPosition - startPosition;
-      const startTime = new Date().getTime();
+      const startTime = Date.now();
       const easeOutCubic = t => 1 - (1 - t) ** 3;
       const scroll = () => {
-        const elapsed = new Date().getTime() - startTime;
+        const elapsed = Date.now() - startTime;
         const progress = easeOutCubic(Math.min(elapsed / duration, 1));
         element.scrollLeft = startPosition + distance * progress;
         if (progress < 1) requestAnimationFrame(scroll);
@@ -813,7 +828,7 @@ export default class SpaceSelect extends tsc<
                         ({item.space_type_id === ETagsType.BKCC ? `#${item.id}` : item.space_id || item.space_code})
                       </span>
                     )}
-                    {+this.localCurrentSpace === +item.id && (
+                    {/* {+this.localCurrentSpace === +item.id && (
                       <span
                         class='icon-monitor icon-dingwei1 cur-position'
                         v-bk-tooltips={{
@@ -821,7 +836,7 @@ export default class SpaceSelect extends tsc<
                           placements: ['top'],
                         }}
                       />
-                    )}
+                    )} */}
                   </span>
                   <span class='space-tags'>
                     {!!item.noAuth && !item.hasData ? (

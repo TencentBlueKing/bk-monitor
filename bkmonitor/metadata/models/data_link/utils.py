@@ -253,3 +253,49 @@ def get_data_source_related_info(bk_data_id):
             e,
         )
         return {}
+
+
+def generate_result_table_field_list(table_id, bk_tenant_id):
+    """
+    生成结果表字段列表,供BkBase V4链路配置使用
+    @param table_id: 监控平台结果表ID
+    @param bk_tenant_id: 租户ID
+    """
+    # 查询指定table_id的所有字段数据
+    fields_data = models.ResultTableField.objects.filter(table_id=table_id, bk_tenant_id=bk_tenant_id).values(
+        "field_name", "description", "field_type", "tag"
+    )
+
+    field_list = []
+    idx = 0  # 初始化 idx
+
+    for field in fields_data:
+        field_name = field["field_name"]
+        field_alias = field["description"]
+        if field_alias == "":
+            field_alias = field_name
+        field_type = field["field_type"]
+        tag = field["tag"]
+
+        # 比较字段名，忽略大小写
+        if field_name.lower() == "dteventtimestamp".lower():
+            logger.info("generate_result_table_field_list: skip dteventtimestamp")
+            continue  # 跳过dtEventTimestamp字段
+
+        # 如果tag不是 'dimension'，则 is_dimension 为 False
+        is_dimension = tag == "dimension"
+
+        # 创建字典并追加到列表中
+        field_list.append(
+            {
+                "field_name": field_name,
+                "field_alias": field_alias,
+                "field_type": field_type,
+                "is_dimension": is_dimension,
+                "field_index": idx,
+            }
+        )
+
+        idx += 1  # 每次循环完成后手动增加 idx
+
+    return field_list
