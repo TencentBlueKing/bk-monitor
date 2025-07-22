@@ -1411,7 +1411,7 @@ class IndexSetHandler(APIModel):
                         "data_label": BaseIndexSetHandler.get_data_label(self.index_set_id),
                     },
                 )
-            multi_execute_func.run()
+            multi_execute_func.run(return_exception=True)
         except Exception as e:
             logger.exception("create or update index set(%s) es router failed：%s", self.index_set_id, e)
             raise CreateOrUpdateLogRouterException(
