@@ -1623,7 +1623,7 @@ class BaseIndexSetHandler:
                 multi_execute_func.append(
                     result_key=obj.result_table_id,
                     func=TransferApi.create_or_update_log_router,
-                    params=_params,
+                    params=request_params,
                 )
             multi_execute_func.run()
         except Exception as e:
