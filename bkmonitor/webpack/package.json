@@ -55,7 +55,6 @@
     "eslint-plugin-codecc": "1.0.0-beta.1",
     "eslint-plugin-perfectionist": "^4.15.0",
     "eslint-plugin-prettier": "^5.5.3",
-    "eslint-plugin-tailwindcss": "^3.18.2",
     "eslint-plugin-vue": "^10.3.0",
     "lint-staged": "^16.1.2",
     "nodemon": "^3.1.10",
