@@ -8,7 +8,7 @@ def add_initial_data(apps, schema_editor):
     LogIndexSet = apps.get_model("log_search", "LogIndexSet")
     index_set_ids = LogIndexSetData.objects.values_list("index_set_id", flat=True)
     log_index_sets = LogIndexSet.objects.filter(index_set_id__in=index_set_ids).values(
-        "index_set_id", "scenario_id", "storage_cluster_id", "time_field_type", "time_field_unit"
+        "index_set_id", "scenario_id", "storage_cluster_id", "time_field", "time_field_type", "time_field_unit"
     )
     objs_list = list(LogIndexSetData.objects.filter(index_set_id__in=index_set_ids))
     log_index_sets_dict = {log["index_set_id"]: log for log in log_index_sets}
@@ -19,11 +19,12 @@ def add_initial_data(apps, schema_editor):
         if log_data:
             obj.scenario_id = log_data["scenario_id"]
             obj.storage_cluster_id = log_data["storage_cluster_id"]
+            obj.time_field = log_data["time_field"]
             obj.time_field_type = log_data["time_field_type"]
             obj.time_field_unit = log_data["time_field_unit"]
 
     LogIndexSetData.objects.bulk_update(
-        objs_list, ["scenario_id", "storage_cluster_id", "time_field_type", "time_field_unit"], batch_size=500
+        objs_list, ["scenario_id", "storage_cluster_id", "time_field", "time_field_type", "time_field_unit"], batch_size=500
     )
 
 
