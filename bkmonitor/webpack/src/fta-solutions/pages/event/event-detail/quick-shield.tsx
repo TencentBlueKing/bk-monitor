@@ -406,6 +406,7 @@ export default class EventQuickShield extends tsc<IQuickShieldProps> {
           <div class='stratrgy-item'>
             <div class='item-label item-before'> {this.$t('屏蔽时间')} </div>
             <VerifyInput
+              errorTextTopMargin={80}
               show-validate={this.rule.customTime}
               {...{ on: { 'update: show-validate': val => (this.rule.customTime = val) } }}
               validator={{ content: this.$t('至少选择一种时间') }}

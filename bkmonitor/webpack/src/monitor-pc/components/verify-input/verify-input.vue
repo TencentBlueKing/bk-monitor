@@ -36,8 +36,9 @@
       v-show="showValidate && validator.content && position === 'right'"
     />
     <span
+      :style="{ top: errorTextTopMargin ? `${errorTextTopMargin}px` : null }"
+      class="bottom-text"
       v-show="showValidate && position === 'bottom'"
-      :class="['bottom-text', { 'custom-time-error-text': showValidate }]"
       >{{ validator.content }}</span
     >
   </div>
@@ -63,6 +64,10 @@ export default {
       type: Boolean,
       default: false,
     },
+    errorTextTopMargin: {
+      type: Number,
+      default: 0,
+    }
   },
   methods: {
     handleFocus() {
@@ -95,10 +100,6 @@ export default {
     font-size: 12px;
     line-height: 1;
     color: #f56c6c;
-
-    &.custom-time-error-text {
-      top: 80px;
-    }
   }
 
   :deep(.bk-select) {
