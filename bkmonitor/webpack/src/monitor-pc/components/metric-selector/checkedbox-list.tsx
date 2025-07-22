@@ -45,7 +45,7 @@ export default class CheckedboxList extends tsc<CheckedboxListProps, CheckedboxL
       const value = this.localValue[group.id];
       this.$set(group, 'checked', value || []);
       group.children = group.children.map(item => {
-        this.$set(item, 'show', !!item.count ? true : group.checked.includes(item.id));
+        this.$set(item, 'show', item.count ? true : group.checked.includes(item.id));
         return item;
       });
       return group;

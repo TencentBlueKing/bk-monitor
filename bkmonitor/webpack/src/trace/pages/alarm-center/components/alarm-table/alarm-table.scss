@@ -8,6 +8,20 @@
     text-overflow: ellipsis;
     white-space: nowrap;
   }
+  @mixin icon-size($size: 16px, $hasHover: false) {
+    display: flex;
+    flex: 0 0 $size;
+    align-items: center;
+    justify-content: center;
+    font-size: $size;
+
+    @if $hasHover {
+      &:hover {
+        color: #3a84ff;
+        cursor: pointer;
+      }
+    }
+  }
 
   .alarm-table {
     flex-grow: 1;
@@ -23,6 +37,90 @@
                   background-color: var(--tag-hover-bg-color);
                 }
               }
+
+              .alert-status-col {
+                .explore-col {
+                  .operate-panel {
+                    display: flex;
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+
+    .alert-status-col {
+      z-index: 50;
+      height: 0;
+      padding: 0;
+
+      .explore-col {
+        position: relative;
+        height: 100%;
+
+        .operate-panel {
+          position: absolute;
+          top: 0;
+          right: -40px;
+          display: none;
+          // display: flex;
+          column-gap: 14px;
+          align-items: center;
+          height: 100%;
+          padding: 0 16px;
+          color: #313238;
+          background: #eaebf0;
+
+          &-item {
+            --icon-container-size: 18px;
+            width: var(--icon-container-size);
+            height: var(--icon-container-size);
+            @include icon-size(18px, true);
+
+            &.icon-we-com {
+              width: var(--icon-container-size);
+              height: var(--icon-container-size);
+              @include icon-size(16px, true);
+            }
+
+            &.icon-chuli {
+              width: var(--icon-container-size);
+              height: var(--icon-container-size);
+              @include icon-size(16px, true);
+            }
+
+            &.is-disable {
+              color: #c4c6cc;
+              cursor: not-allowed;
+
+              &:hover {
+                color: #c4c6cc;
+                cursor: not-allowed;
+              }
+            }
+          }
+
+          .operate-more {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+
+            .icon-mc-more {
+              font-size: 18px;
+            }
+
+            &:hover {
+              cursor: pointer;
+              background: #e1ecff;
+            }
+
+            &.active {
+              background: #e1ecff;
             }
           }
         }

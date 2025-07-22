@@ -1408,7 +1408,7 @@ export default {
         this.tipsData = data;
       }
     },
-    async pluginTypeInfo(val, loading, needSetConfig) {
+    async pluginTypeInfo(val, _loading, needSetConfig) {
       // 获取提示输入数据
       this.loading = true;
       // 先去获取有关的所有插件，并处理数据
@@ -1470,7 +1470,7 @@ export default {
                 if (item.auth_json !== undefined) {
                   if (this.config.mode === 'edit' || this.isClone) {
                     const authJson = item.auth_json;
-                    for (const item of authJson) {
+                    for (const _item of authJson) {
                       for (const p of set) {
                         const mode = p.mode === 'collector' ? 'collector' : 'plugin';
                         const paramDefault = this.info.params[mode][p.key];
@@ -2292,9 +2292,9 @@ export default {
               :deep(.prepend-text) {
                 padding: 0 20px;
                 overflow: hidden;
+                text-overflow: ellipsis;
                 font-size: 12px;
                 line-height: 30px;
-                text-overflow: ellipsis;
                 white-space: nowrap;
               }
             }
@@ -2313,9 +2313,9 @@ export default {
               :deep(.prepend-text) {
                 padding: 0 20px;
                 overflow: hidden;
+                text-overflow: ellipsis;
                 font-size: 12px;
                 line-height: 30px;
-                text-overflow: ellipsis;
                 white-space: nowrap;
               }
             }
@@ -2328,9 +2328,9 @@ export default {
           .prepend-text {
             padding: 0 20px;
             overflow: hidden;
+            text-overflow: ellipsis;
             font-size: 12px;
             line-height: 30px;
-            text-overflow: ellipsis;
             white-space: nowrap;
 
             &.required {

@@ -808,6 +808,7 @@ export default defineComponent({
           activeRowType='single'
           data={this.tableViewData}
           hover={true}
+          needCustomScroll={false}
           resizable={true}
           rowKey={this.tableRowKeyField}
           showSortColumnBgColor={true}

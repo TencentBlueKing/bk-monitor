@@ -125,7 +125,7 @@ export default class EventDetailHead extends tsc<EventDetailHeadProps, IEvent> {
     const label = severity ? level[severity].label : '';
     return (
       <div class={['level-tag', className]}>
-        <i class={`icon-monitor ${level[severity]?.icon} sign-icon`}></i>
+        <i class={`icon-monitor ${level[severity]?.icon} sign-icon`} />
         {label}
       </div>
     );

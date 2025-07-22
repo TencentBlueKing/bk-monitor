@@ -82,7 +82,7 @@ export default defineComponent({
       const data = await getLinkMapping().catch(() => {});
       store.updateExtraDocLinkMap(data);
     };
-    const handleHeaderMenuClick = (id: string, routeName: string) => {
+    const handleHeaderMenuClick = (_id: string, routeName: string) => {
       if (route.name !== routeName) {
         router.push({ name: routeName });
       }

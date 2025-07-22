@@ -40,7 +40,7 @@ import { useRoute } from 'vue-router';
 
 import { Checkbox, Loading, Message, Popover, ResizeLayout, Tab, Switcher } from 'bkui-vue';
 import dayjs from 'dayjs';
-import { CancelToken } from 'monitor-api/index';
+import { CancelToken } from 'monitor-api/cancel';
 import { traceDetail } from 'monitor-api/modules/apm_trace';
 import { typeTools } from 'monitor-common/utils/utils';
 

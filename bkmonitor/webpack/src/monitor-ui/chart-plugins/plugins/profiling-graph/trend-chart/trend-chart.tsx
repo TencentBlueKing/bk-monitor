@@ -77,8 +77,8 @@ export default class TrendChart extends tsc<ITrendChartProps, ITrendChartEvents>
   @Watch('queryParams', { deep: true })
   handleQueryParamsChange() {
     let type: TimeSeriesType = 'bar';
-    let targetApi = undefined;
-    let targetData = undefined;
+    let targetApi;
+    let targetData;
     if (this.chartType === 'all') {
       type = 'line';
       targetApi = 'apm_profile.query';

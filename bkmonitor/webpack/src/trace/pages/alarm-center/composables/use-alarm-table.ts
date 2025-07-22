@@ -27,6 +27,8 @@ import { shallowRef, watchEffect, onScopeDispose } from 'vue';
 
 import { useAlarmCenterStore } from '@/store/modules/alarm-center';
 
+import { getOperatorDisabled } from '../utils';
+
 import type { ActionTableItem, AlertTableItem, IncidentTableItem } from '../typings';
 
 export function useAlarmTable() {
@@ -53,13 +55,14 @@ export function useAlarmTable() {
       ordering: ordering.value ? [ordering.value] : [],
     });
     // 获取告警关联事件数 和 关联告警信息
-    await alarmStore.alarmService.getAlterRelevance(res.data).then(({ event_count, extend_info }) => {
-      if (!Object.keys(event_count)?.length && !Object.keys(extend_info)?.length) {
-        return;
-      }
+    await alarmStore.alarmService.getAlterRelevance(res.data).then(result => {
+      if (!result) return;
+      // eslint-disable-next-line @typescript-eslint/naming-convention
+      const { event_count, extend_info } = result;
       for (const item of res.data as AlertTableItem[]) {
         item.event_count = event_count?.[item.id];
         item.extend_info = extend_info?.[item.id];
+        item.followerDisabled = getOperatorDisabled(item.follower, item.assignee);
       }
     });
 

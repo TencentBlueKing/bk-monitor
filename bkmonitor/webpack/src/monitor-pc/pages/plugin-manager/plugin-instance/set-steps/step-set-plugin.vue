@@ -1644,7 +1644,7 @@ ${this.$t('采集器将定期访问 http://127.0.0.1/server-status 以获取Apac
       const collectorJson = this.pluginData.collector_json;
 
       for (const key in collectorJson) {
-        if (Object.prototype.hasOwnProperty.call(collectorJson, key) && collectorJson[key]) {
+        if (Object.hasOwn(collectorJson, key) && collectorJson[key]) {
           hasCollectorJson = true;
         }
       }

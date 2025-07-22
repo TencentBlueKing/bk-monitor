@@ -35,7 +35,13 @@ import {
   onBeforeUnmount,
 } from 'vue';
 
-import { CONTENT_SCROLL_ELEMENT_CLASS_NAME, type TableColumnItem, type TablePagination } from '../../typings';
+import {
+  type AlertTableItem,
+  CONTENT_SCROLL_ELEMENT_CLASS_NAME,
+  type TableColumnItem,
+  type TablePagination,
+} from '../../typings';
+import { AlertSelectAction } from '../../typings/constants';
 import AlertContentDetail from './components/alert-content-detail/alert-content-detail';
 import AlertSelectionToolbar from './components/alert-selection-toolbar/alert-selection-toolbar';
 import CommonTable from './components/common-table/common-table';
@@ -95,7 +101,11 @@ export default defineComponent({
     /** hover 场景使用的popover工具函数 */
     const hoverPopoverTools = usePopover();
     /** click 场景使用的popover工具函数 */
-    const clickPopoverTools = usePopover({ trigger: 'click' });
+    const clickPopoverTools = usePopover({
+      trigger: 'click',
+      placement: 'bottom',
+      theme: 'light alarm-center-popover max-width-50vw text-wrap padding-0',
+    });
     /** 多选状态 */
     const selectedRowKeys = deepRef<(number | string)[]>([]);
     /* 关注人则禁用操作 */
@@ -109,6 +119,7 @@ export default defineComponent({
       handleShowDetail,
       hoverPopoverTools,
       handleAlertContentDetailShow,
+      handleAlertOperationClick,
     };
     // 使用场景渲染器
     const { transformColumns, currentScenario } = useScenarioRenderer(scenarioContext);
@@ -166,10 +177,10 @@ export default defineComponent({
     }
 
     /**
-     * @description 处理行选择变化
+     * @description 处理行选择变化(不传参数则清空选择)
      */
-    const handleSelectionChange = (keys: (number | string)[], options?: SelectOptions<any>) => {
-      selectedRowKeys.value = keys;
+    const handleSelectionChange = (keys?: (number | string)[], options?: SelectOptions<any>) => {
+      selectedRowKeys.value = keys || [];
       isSelectedFollower.value = options?.selectedRowData?.some?.(item => item.followerDisabled);
     };
     /**
@@ -187,11 +198,33 @@ export default defineComponent({
       clickPopoverTools.showPopover(e, () => alertContentDetailRef.value.$el);
     }
 
+    /**
+     * @description 告警行操作工具栏按钮点击回调事件
+     */
+    function handleAlertOperationClick(
+      clickType: 'chart' | 'confirm' | 'manual' | 'more',
+      row: AlertTableItem,
+      e?: MouseEvent
+    ) {
+      alert(`${row.id}-${clickType} ${e}`);
+    }
+
+    /**
+     * @description 告警批量设置
+     */
+    function handleAlertBatchSet(actionType: AlertSelectAction) {
+      if (actionType === AlertSelectAction.CANCEL) {
+        handleSelectionChange();
+        return;
+      }
+      alert(`批量设置${actionType}`);
+    }
+
     watch(
       () => props.data,
       () => {
         // 数据变化时，清空选中状态
-        handleSelectionChange([]);
+        handleSelectionChange();
       }
     );
 
@@ -201,6 +234,7 @@ export default defineComponent({
       selectedRowKeys,
       isSelectedFollower,
       handleSelectionChange,
+      handleAlertBatchSet,
     };
   },
   render() {
@@ -217,6 +251,7 @@ export default defineComponent({
                       class='alarm-table-first-full-row'
                       isSelectedFollower={this.isSelectedFollower}
                       selectedRowKeys={this.selectedRowKeys}
+                      onClickAction={this.handleAlertBatchSet}
                     />
                   ) as unknown as SlotReturnValue
               : undefined

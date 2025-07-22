@@ -56,7 +56,7 @@ export default class MyComponent extends tsc<object> {
   loading = true;
   hasLogin = false;
   showAlert = false;
-  get orignUrl() {
+  get originUrl() {
     return process.env.NODE_ENV === 'development' ? `${process.env.proxyUrl}/` : `${location.origin}${window.site_url}`;
   }
   get dashboardCheck() {
@@ -70,18 +70,23 @@ export default class MyComponent extends tsc<object> {
   @Watch('url', { immediate: true })
   async handleUrlChange() {
     this.showAlert = !localStorage.getItem(UPDATE_GRAFANA_KEY);
-    if (this.$store.getters.bizIdChangePedding) {
+    if (this.$store.getters.bizIdChangePending) {
       this.loading = true;
-      this.grafanaUrl = `${this.orignUrl}${this.$store.getters.bizIdChangePedding.replace('/home', '')}/?orgName=${this.$store.getters.bizId
-        }${this.getUrlParamsString()}`;
-      setTimeout(() => (this.loading = false), 2000);
+      this.grafanaUrl = `${this.originUrl}${this.$store.getters.bizIdChangePending.replace('/home', '')}/?orgName=${
+        this.$store.getters.bizId
+      }${this.getUrlParamsString()}`;
+      setTimeout(() => {
+        this.loading = false;
+      }, 2000);
       return;
     }
     this.loading = true;
     const grafanaUrl = await this.handleGetGrafanaUrl();
     if (!this.grafanaUrl) {
       this.grafanaUrl = grafanaUrl;
-      setTimeout(() => (this.loading = false), 2000);
+      setTimeout(() => {
+        this.loading = false;
+      }, 2000);
     } else {
       this.loading = false;
       const url = new URL(grafanaUrl);
@@ -98,7 +103,7 @@ export default class MyComponent extends tsc<object> {
     let grafanaUrl = '';
     if (!this.url) {
       if (this.$route.name === 'grafana-home') {
-        grafanaUrl = `${this.orignUrl}grafana/?orgName=${this.$store.getters.bizId}${this.getUrlParamsString()}`;
+        grafanaUrl = `${this.originUrl}grafana/?orgName=${this.$store.getters.bizId}${this.getUrlParamsString()}`;
       } else {
         const list = await getDashboardList().catch(() => []);
         const { bizId } = this.$store.getters;
@@ -113,7 +118,7 @@ export default class MyComponent extends tsc<object> {
           });
           localStorage.setItem(DASHBOARD_ID_KEY, JSON.stringify({ ...dashboardCache, [bizId]: dashboardCacheId }));
         } else {
-          grafanaUrl = `${this.orignUrl}grafana/?orgName=${this.$store.getters.bizId}${this.getUrlParamsString()}`;
+          grafanaUrl = `${this.originUrl}grafana/?orgName=${this.$store.getters.bizId}${this.getUrlParamsString()}`;
           this.$router.replace({ name: 'grafana-home' });
         }
         await this.$nextTick();
@@ -127,8 +132,9 @@ export default class MyComponent extends tsc<object> {
       // );
     } else {
       const isFavorite = this.$route.name === FavoriteDashboardRouteName;
-      grafanaUrl = `${this.orignUrl}grafana/${isFavorite && !this.url?.startsWith('d/') ? `d/${this.url}` : this.url}?orgName=${this.$store.getters.bizId
-        }${this.getUrlParamsString()}`;
+      grafanaUrl = `${this.originUrl}grafana/${isFavorite && !this.url?.startsWith('d/') ? `d/${this.url}` : this.url}?orgName=${
+        this.$store.getters.bizId
+      }${this.getUrlParamsString()}`;
       isFavorite && this.handleSetDashboardCache(this.url);
     }
     return grafanaUrl;

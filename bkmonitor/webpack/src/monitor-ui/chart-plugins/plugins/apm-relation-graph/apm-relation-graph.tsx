@@ -28,7 +28,7 @@ import { Component, Inject, InjectReactive, ProvideReactive, Ref, Watch } from '
 
 // import { Component as tsc } from 'vue-tsx-support';
 import dayjs from 'dayjs';
-import { CancelToken } from 'monitor-api/index';
+import { CancelToken } from 'monitor-api/cancel';
 // import type { PanelModel } from '../../typings';
 import { dataTypeBarQuery } from 'monitor-api/modules/apm_topo';
 import { topoView } from 'monitor-api/modules/apm_topo';

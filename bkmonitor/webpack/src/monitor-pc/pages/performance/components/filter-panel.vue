@@ -181,7 +181,7 @@ export default class FilterPanel extends Vue {
   updateCheckedData() {
     const checkedList = this.storage.get(CONDITION_CHECKED_LIST);
     this.data.forEach(item => {
-      if (!!checkedList) {
+      if (checkedList) {
         item.show = checkedList.includes(item.id);
         item.filterChecked = item.show;
       }

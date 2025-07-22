@@ -102,7 +102,7 @@ export default defineComponent({
                     ...getSkeletonStyle(pItem),
                   }}
                   class='skeleton-element'
-                ></div>
+                />
               </div>
             ))}
           </div>

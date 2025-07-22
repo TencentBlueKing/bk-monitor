@@ -284,7 +284,7 @@ export default class ServiceTemplate extends Vue {
   // 检测是否全选
   // eslint-disable-next-line @typescript-eslint/member-ordering
   getAllSelectedStatus() {
-    if (!!this.searchValue) {
+    if (this.searchValue) {
       this.isSelectAll = this.currentTemplateData.length
         ? this.currentTemplateData.every(item => this.selectionIds.includes(item.bk_inst_id))
         : false;

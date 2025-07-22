@@ -177,7 +177,7 @@ export default class RotationPreview extends tsc<IProps> {
       return;
     }
     let dutyPlans = [];
-    if (!!this.alarmGroupId) {
+    if (this.alarmGroupId) {
       dutyPlans = this.dutyPlans;
     } else if (!isHistory) {
       this.previewDutyRules.forEach(item => {
