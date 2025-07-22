@@ -95,15 +95,15 @@ class TestBusinessManager(TestCase):
                 "time_zone": "Asia/Shanghai",
             },
         }
-        BusinessManager.cache.delete(BusinessManager.cache_key)
+        BusinessManager.cache.delete(BusinessManager.get_cache_key("test"))
         BusinessManager.cache.hmset(
-            BusinessManager.cache_key,
+            BusinessManager.get_cache_key("test"),
             {key: json.dumps(biz_data, ensure_ascii=False) for key, biz_data in test_business.items()},
         )
 
     def tearDown(self):
         super().tearDown()
-        BusinessManager.cache.delete(BusinessManager.cache_key)
+        BusinessManager.cache.delete(BusinessManager.get_cache_key("test"))
 
     def test_get(self):
         """测试获取单个业务信息"""

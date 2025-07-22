@@ -9,25 +9,19 @@ specific language governing permissions and limitations under the License.
 """
 
 import json
+from typing import cast
 
-from alarm_backends.core.cache.base import CacheManager
-from alarm_backends.core.storage.redis import Cache
 from api.cmdb.define import Set
-from constants.common import DEFAULT_TENANT_ID
+
+from .base import CMDBCacheManager
 
 
-class SetManager:
+class SetManager(CMDBCacheManager):
     """
     CMDB 集群缓存
     """
 
-    cache = Cache("cache-cmdb")
-
-    @classmethod
-    def get_cache_key(cls, bk_tenant_id: str) -> str:
-        if bk_tenant_id == DEFAULT_TENANT_ID:
-            return f"{CacheManager.CACHE_KEY_PREFIX}.cmdb.set"
-        return f"{bk_tenant_id}.{CacheManager.CACHE_KEY_PREFIX}.cmdb.set"
+    cache_type = "set"
 
     @classmethod
     def mget(cls, *, bk_tenant_id: str, bk_set_ids: list[int]) -> dict[int, Set]:
@@ -40,16 +34,18 @@ class SetManager:
             return {}
 
         cache_key = cls.get_cache_key(bk_tenant_id)
-        result: list[str | None] = cls.cache.hmget(cache_key, [str(bk_set_id) for bk_set_id in bk_set_ids])
+        result: list[str | None] = cast(
+            list[str | None], cls.cache.hmget(cache_key, [str(bk_set_id) for bk_set_id in bk_set_ids])
+        )
         return {bk_set_id: Set(**json.loads(r)) for bk_set_id, r in zip(bk_set_ids, result) if r}
 
     @classmethod
-    def get(cls, *, bk_tenant_id: str, bk_set_id: int) -> Set | None:
+    def get(cls, *, bk_tenant_id: str, bk_set_id: int, **kwargs) -> Set | None:
         """
         获取单个集群
         :param bk_tenant_id: 租户ID
         :param bk_set_id: 集群ID
         """
         cache_key = cls.get_cache_key(bk_tenant_id)
-        result = cls.cache.hget(cache_key, str(bk_set_id))
+        result = cast(str | None, cls.cache.hget(cache_key, str(bk_set_id)))
         return Set(**json.loads(result)) if result else None

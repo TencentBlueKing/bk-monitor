@@ -9,26 +9,18 @@ specific language governing permissions and limitations under the License.
 """
 
 import json
-from typing import Any
 from collections.abc import Sequence
+from typing import Any, cast
 
-from alarm_backends.core.cache.base import CacheManager
-from alarm_backends.core.storage.redis import Cache
-from constants.common import DEFAULT_TENANT_ID
+from .base import CMDBCacheManager
 
 
-class DynamicGroupManager:
+class DynamicGroupManager(CMDBCacheManager):
     """
     CMDB 模块缓存
     """
 
-    cache = Cache("cache-cmdb")
-
-    @classmethod
-    def get_cache_key(cls, bk_tenant_id: str) -> str:
-        if bk_tenant_id == DEFAULT_TENANT_ID:
-            return f"{CacheManager.CACHE_KEY_PREFIX}.cmdb.dynamic_group"
-        return f"{bk_tenant_id}.{CacheManager.CACHE_KEY_PREFIX}.cmdb.dynamic_group"
+    cache_type = "dynamic_group"
 
     @classmethod
     def mget(cls, *, bk_tenant_id: str, dynamic_group_ids: Sequence[str]) -> dict[str, dict[str, Any]]:
@@ -37,17 +29,18 @@ class DynamicGroupManager:
         :param bk_tenant_id: 租户ID
         :param dynamic_group_ids: 动态组ID列表
         """
-        cache_key = cls.get_cache_key(bk_tenant_id)
-        result = cls.cache.hmget(cache_key, [str(dynamic_group_id) for dynamic_group_id in dynamic_group_ids])
+        dynamic_group_id_list: list[str] = list(str(dynamic_group_id) for dynamic_group_id in dynamic_group_ids)
+        result: list[str | None] = cast(
+            list[str | None], cls.cache.hmget(cls.get_cache_key(bk_tenant_id), dynamic_group_id_list)
+        )
         return {dynamic_group_id: json.loads(r) for dynamic_group_id, r in zip(dynamic_group_ids, result) if r}
 
     @classmethod
-    def get(cls, *, bk_tenant_id: str, dynamic_group_id: str) -> dict | None:
+    def get(cls, *, bk_tenant_id: str, dynamic_group_id: str, **kwargs) -> dict | None:
         """
         获取单个动态组
         :param bk_tenant_id: 租户ID
         :param dynamic_group_id: 动态组ID
         """
-        cache_key = cls.get_cache_key(bk_tenant_id)
-        result = cls.cache.hget(cache_key, str(dynamic_group_id))
+        result = cast(str | None, cls.cache.hget(cls.get_cache_key(bk_tenant_id), str(dynamic_group_id)))
         return json.loads(result) if result else None

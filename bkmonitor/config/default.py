@@ -1647,3 +1647,7 @@ ENABLE_AIOPS_EVENT_CENTER_BIZ_LIST = []
 
 # 用户管理web api地址
 BK_USER_WEB_API_URL = os.getenv("BK_USER_WEB_API_URL") or f"{BK_COMPONENT_API_URL}/api/bk-user-web/prod/"
+
+# GSE消息槽
+GSE_SLOT_ID = int(os.getenv("GSE_SLOT_ID", 0))
+GSE_SLOT_TOKEN = os.getenv("GSE_SLOT_TOKEN", "")

@@ -9,24 +9,19 @@ specific language governing permissions and limitations under the License.
 """
 
 import json
-from alarm_backends.core.cache.base import CacheManager
-from alarm_backends.core.storage.redis import Cache
+from typing import cast
+
 from api.cmdb.define import TopoNode
-from constants.common import DEFAULT_TENANT_ID
+
+from .base import CMDBCacheManager
 
 
-class TopoManager:
+class TopoManager(CMDBCacheManager):
     """
     拓扑节点缓存
     """
 
-    cache = Cache("cache-cmdb")
-
-    @classmethod
-    def get_cache_key(cls, bk_tenant_id: str) -> str:
-        if bk_tenant_id == DEFAULT_TENANT_ID:
-            return f"{CacheManager.CACHE_KEY_PREFIX}.cmdb.topo"
-        return f"{bk_tenant_id}.{CacheManager.CACHE_KEY_PREFIX}.cmdb.topo"
+    cache_type = "topo"
 
     @classmethod
     def mget(cls, *, bk_tenant_id: str, topo_nodes: list[tuple[str, int]]) -> dict[tuple[str, int], TopoNode]:
@@ -39,7 +34,8 @@ class TopoManager:
             return {}
 
         cache_key = cls.get_cache_key(bk_tenant_id)
-        result = cls.cache.hmget(cache_key, [f"{bk_obj_id}|{bk_inst_id}" for bk_obj_id, bk_inst_id in topo_nodes])
+        topo_keys: list[str] = [f"{bk_obj_id}|{bk_inst_id}" for bk_obj_id, bk_inst_id in topo_nodes]
+        result: list[str | None] = cast(list[str | None], cls.cache.hmget(cache_key, topo_keys))
         return {
             (bk_obj_id, bk_inst_id): TopoNode(**json.loads(r))
             for (bk_obj_id, bk_inst_id), r in zip(topo_nodes, result)
@@ -47,7 +43,7 @@ class TopoManager:
         }
 
     @classmethod
-    def get(cls, *, bk_tenant_id: str, bk_obj_id: str, bk_inst_id: int) -> TopoNode | None:
+    def get(cls, *, bk_tenant_id: str, bk_obj_id: str, bk_inst_id: int, **kwargs) -> TopoNode | None:
         """
         获取单个拓扑节点
         :param bk_tenant_id: 租户ID
@@ -55,7 +51,7 @@ class TopoManager:
         :param bk_inst_id: 实例ID
         """
         cache_key = cls.get_cache_key(bk_tenant_id)
-        result = cls.cache.hget(cache_key, f"{bk_obj_id}|{bk_inst_id}")
+        result = cast(str | None, cls.cache.hget(cache_key, f"{bk_obj_id}|{bk_inst_id}"))
         if not result:
             return None
         return TopoNode(**json.loads(result))

@@ -11,77 +11,84 @@ specific language governing permissions and limitations under the License.
 import json
 import logging
 from collections import defaultdict
+from typing import cast
 
-from alarm_backends.core.cache.base import CacheManager
-from alarm_backends.core.storage.redis import Cache
-from api.cmdb.define import Host, TopoTree
+from api.cmdb.define import Host, Set, TopoTree
 from bkmonitor.utils.local import local
-from constants.common import DEFAULT_TENANT_ID
 from core.drf_resource import api
+
+from .base import CMDBCacheManager
 
 setattr(local, "host_cache", {})
 
 logger = logging.getLogger(__name__)
 
 
-class HostAgentIDManager:
+class HostAgentIDManager(CMDBCacheManager):
     """
     CMDB 主机Agent缓存
     """
 
-    cache = Cache("cache-cmdb")
+    cache_type = "agent_id"
 
     @classmethod
-    def get_cache_key(cls, bk_tenant_id: str) -> str:
-        if bk_tenant_id == DEFAULT_TENANT_ID:
-            return f"{CacheManager.CACHE_KEY_PREFIX}.cmdb.agent_id"
-        return f"{bk_tenant_id}.{CacheManager.CACHE_KEY_PREFIX}.cmdb.agent_id"
+    def get(cls, *, bk_tenant_id: str, bk_agent_id: str, **kwargs) -> int | None:
+        """
+        根据AgentID获取主机ID
+        :param bk_tenant_id: 租户ID
+        :param bk_agent_id: 主机AgentID
+        :return: 主机ID
+        """
+        result: str | None = cast(str | None, cls.cache.hget(cls.get_cache_key(bk_tenant_id), bk_agent_id))
+        if not result:
+            return None
+
+        try:
+            return int(result)
+        except (ValueError, TypeError):
+            return None
 
     @classmethod
-    def get(cls, *, bk_tenant_id: str | None = None, bk_agent_id: str) -> tuple[str, int]:
+    def get_without_tenant(cls, *, bk_agent_id: str) -> tuple[str, int]:
         """
-        :rtype: tuple[str, int]
-        return (bk_tenant_id, bk_host_id)
+        根据AgentID获取主机ID（不指定租户）
+        :param bk_agent_id: 主机AgentID
+        :return: 租户ID, 主机ID
         """
-        # 如果传入租户则只查询该租户，否则查询所有租户
-        bk_tenant_ids: list[str]
-        if bk_tenant_id:
-            bk_tenant_ids = [bk_tenant_id]
-        else:
-            bk_tenant_ids = [tenant["id"] for tenant in api.bk_login.list_tenant()]
+        # 查询租户列表
+        bk_tenant_ids: list[str] = [tenant["id"] for tenant in api.bk_login.list_tenant()]
 
-        # 遍历租户缓存
+        # 查询所有租户缓存
+        pipeline = cls.cache.pipeline()
         for bk_tenant_id in bk_tenant_ids:
-            cache_key = cls.get_cache_key(bk_tenant_id)
-            result = cls.cache.hget(cache_key, bk_agent_id)
-            try:
-                if result:
-                    return bk_tenant_id, int(result)
-            except (ValueError, TypeError):
+            pipeline.hget(cls.get_cache_key(bk_tenant_id), bk_agent_id)
+        results = pipeline.execute()
+
+        # 返回第一个匹配的租户ID和主机ID
+        for bk_tenant_id, result in zip(bk_tenant_ids, results):
+            if not result:
                 continue
 
-            if result:
-                return bk_tenant_id, result
+            try:
+                return bk_tenant_id, int(result)
+            except (ValueError, TypeError):
+                continue
 
         return "", 0
 
 
-class HostIPManager:
+class HostIPManager(CMDBCacheManager):
     """
     CMDB 主机IP 缓存
     缓存格式: ip -> [ip:bk_cloud_id1, ip:bk_cloud_id2, ...]
     """
 
-    cache = Cache("cache-cmdb")
-
-    @classmethod
-    def get_cache_key(cls, bk_tenant_id: str) -> str:
-        return f"{bk_tenant_id}.{CacheManager.CACHE_KEY_PREFIX}.cmdb.host_ip"
+    cache_type = "host_ip"
 
     @classmethod
     def mget(cls, *, bk_tenant_id: str, ips: list[str]) -> dict[str, list[str]]:
         cache_key = cls.get_cache_key(bk_tenant_id)
-        result = cls.cache.hmget(cache_key, ips)
+        result: list[str | None] = cast(list[str | None], cls.cache.hmget(cache_key, ips))
         return {ip: json.loads(result) if result else [] for ip, result in zip(ips, result) if result}
 
     @classmethod
@@ -104,18 +111,12 @@ class HostIPManager:
         return {ip: list(partial_host_keys) for ip, partial_host_keys in host_keys_gby_ip.items()}
 
 
-class HostManager:
+class HostManager(CMDBCacheManager):
     """
     CMDB 主机缓存
     """
 
-    cache = Cache("cache-cmdb")
-
-    @classmethod
-    def get_cache_key(cls, bk_tenant_id: str) -> str:
-        if bk_tenant_id == DEFAULT_TENANT_ID:
-            return f"{CacheManager.CACHE_KEY_PREFIX}.cmdb.host"
-        return f"{bk_tenant_id}.{CacheManager.CACHE_KEY_PREFIX}.cmdb.host"
+    cache_type = "host"
 
     @classmethod
     def get_host_key(cls, ip: str, bk_cloud_id: int | str) -> str:
@@ -123,8 +124,8 @@ class HostManager:
 
     @classmethod
     def all(cls, *, bk_tenant_id: str) -> list[Host]:
-        cache_key = cls.get_cache_key(bk_tenant_id)
-        return [Host(**json.loads(host)) for host in cls.cache.hgetall(cache_key).values()]
+        result: dict[str, str] = cast(dict[str, str], cls.cache.hgetall(cls.get_cache_key(bk_tenant_id)))
+        return [Host(**json.loads(host)) for host in result.values()]
 
     @classmethod
     def _get(cls, *, bk_tenant_id: str, ip: str, bk_cloud_id: int) -> Host | None:
@@ -137,14 +138,21 @@ class HostManager:
         """
         host_key = cls.get_host_key(ip, bk_cloud_id)
         cache_key = cls.get_cache_key(bk_tenant_id)
-        host = cls.cache.hget(cache_key, host_key)
+        host = cast(str | None, cls.cache.hget(cache_key, host_key))
         if not host:
             return None
         return Host(**json.loads(host))
 
     @classmethod
     def get(
-        cls, *, bk_tenant_id: str, ip: str, bk_cloud_id: int = 0, using_mem: bool = False, using_api: bool = False
+        cls,
+        *,
+        bk_tenant_id: str,
+        ip: str,
+        bk_cloud_id: int = 0,
+        using_mem: bool = False,
+        using_api: bool = False,
+        **kwargs,
     ) -> Host | None:
         """
         :rtype: Host
@@ -186,16 +194,16 @@ class HostManager:
             return {}
 
         cache_key = cls.get_cache_key(bk_tenant_id)
-        result: list[str | None] = cls.cache.hmget(cache_key, host_keys)
+        result: list[str | None] = cast(list[str | None], cls.cache.hmget(cache_key, host_keys))
         return {host_key: Host(**json.loads(r)) for host_key, r in zip(host_keys, result) if r}
 
     @classmethod
-    def get_by_agent_id(cls, *, bk_tenant_id: str | None = None, bk_agent_id: str) -> Host | None:
+    def get_by_agent_id(cls, *, bk_tenant_id: str, bk_agent_id: str) -> Host | None:
         if not bk_agent_id:
             return None
 
         # 根据AgentID获取主机ID
-        bk_tenant_id, bk_host_id = HostAgentIDManager.get(bk_tenant_id=bk_tenant_id, bk_agent_id=bk_agent_id)
+        bk_host_id = HostAgentIDManager.get(bk_tenant_id=bk_tenant_id, bk_agent_id=bk_agent_id)
         if not bk_host_id:
             return None
 
@@ -213,17 +221,20 @@ class HostManager:
 
         # 尝试从本地缓存中获取
         if using_mem:
-            host = local.host_cache.get(bk_host_id, None)
+            host: Host | None = local.host_cache.get(bk_host_id, None)
             if host:
                 return host
 
         # 尝试使用bk_host_id获取主机信息
         cache_key = cls.get_cache_key(bk_tenant_id)
-        host = cls.cache.hget(cache_key, bk_host_id)
-        if not host:
+        host_str: str | None = cast(str | None, cls.cache.hget(cache_key, bk_host_id))
+        if not host_str:
             return None
 
-        host = Host(**json.loads(host))
+        host_dict: dict = json.loads(host_str)
+        host_dict["bk_tenant_id"] = bk_tenant_id
+        host = Host(**host_dict)
+
         # 本地缓存主机信息
         if using_mem:
             local.host_cache[bk_host_id] = host
@@ -234,9 +245,9 @@ class HostManager:
     def fill_attr_to_hosts(cls, bk_biz_id: int, hosts: list[Host], with_world_ids: bool = False):
         topo_tree: TopoTree = api.cmdb.get_topo_tree(bk_biz_id=bk_biz_id)
         topo_link_dict: dict[str, list] = topo_tree.convert_to_topo_link()
-        biz_sets: list = []
+        biz_sets: list[Set] = []
         if with_world_ids:
-            biz_sets: list = api.cmdb.get_set(bk_biz_id=bk_biz_id)
+            biz_sets = api.cmdb.get_set(bk_biz_id=bk_biz_id)
 
         for host in hosts:
             host.topo_link = {}

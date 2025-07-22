@@ -8,46 +8,38 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-from collections import defaultdict
 import json
+from collections import defaultdict
 from collections.abc import Sequence
-from alarm_backends.core.cache.base import CacheManager
+from typing import cast
+
 from alarm_backends.core.cache.cmdb.host import HostManager
-from alarm_backends.core.storage.redis import Cache
 from api.cmdb.define import ServiceInstance, TopoTree
-from constants.common import DEFAULT_TENANT_ID
 from core.drf_resource import api
 
+from .base import CMDBCacheManager
 
-class ServiceInstanceManager:
+
+class ServiceInstanceManager(CMDBCacheManager):
     """
     CMDB 服务实例缓存
     """
 
-    cache = Cache("cache-cmdb")
-
-    CACHE_KEY = f"{CacheManager.CACHE_KEY_PREFIX}.cmdb.service_instance"
-    HOST_TO_SERVICE_INSTANCE_ID_CACHE_KEY = f"{CacheManager.CACHE_KEY_PREFIX}.cmdb.host_to_service_instance_id"
-
-    @classmethod
-    def get_cache_key(cls, bk_tenant_id: str) -> str:
-        if bk_tenant_id == DEFAULT_TENANT_ID:
-            return f"{CacheManager.CACHE_KEY_PREFIX}.cmdb.service_instance"
-        return f"{bk_tenant_id}.{CacheManager.CACHE_KEY_PREFIX}.cmdb.service_instance"
+    cache_type = "service_instance"
 
     @classmethod
     def get_host_to_service_instance_id_cache_key(cls, bk_tenant_id: str) -> str:
-        return f"{bk_tenant_id}.{CacheManager.CACHE_KEY_PREFIX}.cmdb.host_to_service_instance_id"
+        return f"{cls._get_cache_key_prefix(bk_tenant_id)}.host_to_service_instance_id"
 
     @classmethod
-    def get(cls, *, bk_tenant_id: str, service_instance_id: str | int) -> ServiceInstance | None:
+    def get(cls, *, bk_tenant_id: str, service_instance_id: str | int, **kwargs) -> ServiceInstance | None:
         """
         获取单个服务实例
         :param bk_tenant_id: 租户ID
         :param service_instance_id: 服务实例ID
         """
         cache_key = cls.get_cache_key(bk_tenant_id)
-        result = cls.cache.hget(cache_key, str(service_instance_id))
+        result = cast(str | None, cls.cache.hget(cache_key, str(service_instance_id)))
         if not result:
             return None
         return ServiceInstance(**json.loads(result))
@@ -59,12 +51,17 @@ class ServiceInstanceManager:
         :param bk_tenant_id: 租户ID
         :param service_instance_ids: 服务实例ID列表
         """
-        if not service_instance_ids:
+        service_instance_id_list: list[str] = list(
+            str(service_instance_id) for service_instance_id in service_instance_ids
+        )
+
+        if not service_instance_id_list:
             return {}
 
         cache_key = cls.get_cache_key(bk_tenant_id)
-        results: list[str | None] = cls.cache.hmget(
-            cache_key, [str(service_instance_id) for service_instance_id in service_instance_ids]
+        results: list[str | None] = cast(
+            list[str | None],
+            cls.cache.hmget(cache_key, service_instance_id_list),
         )
         return {
             service_instance_id: ServiceInstance(**json.loads(result))
@@ -80,10 +77,10 @@ class ServiceInstanceManager:
         :param bk_host_id: 主机ID
         """
         cache_key = cls.get_host_to_service_instance_id_cache_key(bk_tenant_id)
-        result = cls.cache.hget(cache_key, str(bk_host_id))
+        result = cast(str | None, cls.cache.hget(cache_key, str(bk_host_id)))
         if not result:
             return []
-        return [service_instance_id for service_instance_id in json.loads(result)]
+        return [int(service_instance_id) for service_instance_id in json.loads(result)]
 
     @classmethod
     def refresh_by_biz(cls, *, bk_tenant_id: str, bk_biz_id: int) -> list[ServiceInstance]:

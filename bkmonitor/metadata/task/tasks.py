@@ -26,14 +26,14 @@ from core.prometheus import metrics
 from metadata import models
 from metadata.models import BkBaseResultTable, DataSource
 from metadata.models.constants import (
-    DataIdCreatedFromSystem,
-    BASEREPORT_RESULT_TABLE_FIELD_MAP,
     BASE_EVENT_RESULT_TABLE_FIELD_MAP,
     BASE_EVENT_RESULT_TABLE_OPTION_MAP,
+    BASEREPORT_RESULT_TABLE_FIELD_MAP,
+    DataIdCreatedFromSystem,
 )
-from metadata.models.data_link.constants import DataLinkResourceStatus, BASEREPORT_SOURCE_SYSTEM, BASEREPORT_USAGES
+from metadata.models.data_link.constants import BASEREPORT_SOURCE_SYSTEM, BASEREPORT_USAGES, DataLinkResourceStatus
 from metadata.models.data_link.service import get_data_link_component_status
-from metadata.models.space.constants import SpaceTypes, EtlConfigs
+from metadata.models.space.constants import EtlConfigs, SpaceTypes
 from metadata.models.vm.utils import (
     create_fed_bkbase_data_link,
     get_vm_cluster_id_name,
@@ -1477,3 +1477,62 @@ def create_base_event_datalink_for_bkcc(bk_biz_id, storage_cluster_name=None):
     logger.info(
         "create_base_event_datalink_for_bkcc: create base event datalink for bk_biz_id->[%s] success", bk_biz_id
     )
+
+
+def _get_bk_biz_internal_data_ids(bk_tenant_id: str, bk_biz_id: int) -> list[dict[str, int | str]]:
+    """
+    获取业务内置数据ID
+    """
+    result: list[dict[str, int | str]] = []
+
+    # 系统指标
+    system_metric_data_source = DataSource.objects.filter(data_name=f"{bk_tenant_id}_{bk_biz_id}_sys_base").first()
+    if system_metric_data_source:
+        result.append({"task": "basereport", "datadd": system_metric_data_source.bk_data_id})
+
+    # 系统事件
+    # system_event_data_source = DataSource.objects.filter(data_name=f"base_{bk_biz_id}_agent_event").first()
+    # system_event_data_id: int | None = system_event_data_source.bk_data_id if system_event_data_source else None
+
+    return result
+
+
+@app.task(ignore_result=True, queue="celery_metadata_task_worker")
+def process_gse_delivery(message_id: str, bk_agent_id: str, content: str, received_at: str):
+    """
+    Celery异步任务--处理GSE投递的数据
+    """
+    from alarm_backends.core.cache.cmdb import HostManager
+
+    content_data = json.loads(content)  # 解析Content，Content内容为采集器与Metadata约定的协议
+    if content_data["type"] == "fetch/host/dataid":
+        logger.info("process_gse_delivery: start to fetch host dataid")
+
+        host = HostManager.get_by_agent_id(bk_agent_id=bk_agent_id)
+        if not host:
+            logger.warning("process_gse_delivery: host not found, bk_agent_id->%s", bk_agent_id)
+            return
+
+        # params: dict[str, Any] = content_data.get("params", {})
+        # tasks: list[str] = content_data.get("tasks", [])
+
+        result: list[dict[str, int | str]] = _get_bk_biz_internal_data_ids(host.bk_tenant_id, host.bk_biz_id)
+
+        # 回调GSE接口,告知DataId
+        logger.info(
+            "process_gse_delivery: callback gse interface,message_id->%s,bk_agent_id->%s,content->%s,received_at->%s,result->%s",
+            message_id,
+            bk_agent_id,
+            content,
+            received_at,
+            result,
+        )
+
+    else:
+        logger.warning(
+            "process_gse_delivery: unknown content type,message_id->%s,bk_agent_id->%s,content->%s,received_at->%s",
+            message_id,
+            bk_agent_id,
+            content,
+            received_at,
+        )

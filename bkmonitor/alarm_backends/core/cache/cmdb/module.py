@@ -9,25 +9,21 @@ specific language governing permissions and limitations under the License.
 """
 
 import json
+from typing import cast
 
-from alarm_backends.core.cache.base import CacheManager
-from alarm_backends.core.storage.redis import Cache
 from api.cmdb.define import Module
-from constants.common import DEFAULT_TENANT_ID
+
+from .base import CMDBCacheManager
 
 
-class ModuleManager:
+class ModuleManager(CMDBCacheManager):
     """
     CMDB 模块缓存
     """
 
-    cache = Cache("cache-cmdb")
-
     @classmethod
     def get_cache_key(cls, bk_tenant_id: str) -> str:
-        if bk_tenant_id == DEFAULT_TENANT_ID:
-            return f"{CacheManager.CACHE_KEY_PREFIX}.cmdb.module"
-        return f"{bk_tenant_id}.{CacheManager.CACHE_KEY_PREFIX}.cmdb.module"
+        return f"{cls._get_cache_key_prefix(bk_tenant_id)}.module"
 
     @classmethod
     def mget(cls, *, bk_tenant_id: str, bk_module_ids: list[int]) -> dict[int, Module]:
@@ -40,18 +36,20 @@ class ModuleManager:
             return {}
 
         cache_key = cls.get_cache_key(bk_tenant_id)
-        result: list[str | None] = cls.cache.hmget(cache_key, [str(bk_module_id) for bk_module_id in bk_module_ids])
+        result: list[str | None] = cast(
+            list[str | None], cls.cache.hmget(cache_key, [str(bk_module_id) for bk_module_id in bk_module_ids])
+        )
         return {bk_module_id: Module(**json.loads(r)) for bk_module_id, r in zip(bk_module_ids, result) if r}
 
     @classmethod
-    def get(cls, *, bk_tenant_id: str, bk_module_id: int) -> Module | None:
+    def get(cls, *, bk_tenant_id: str, bk_module_id: int, **kwargs) -> Module | None:
         """
         获取单个模块
         :param bk_tenant_id: 租户ID
         :param bk_module_id: 模块ID
         """
         cache_key = cls.get_cache_key(bk_tenant_id)
-        result: str | None = cls.cache.hget(cache_key, str(bk_module_id))
+        result: str | None = cast(str | None, cls.cache.hget(cache_key, str(bk_module_id)))
         if not result:
             return None
         return Module(**json.loads(result))

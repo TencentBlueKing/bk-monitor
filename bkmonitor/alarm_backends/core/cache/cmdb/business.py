@@ -9,23 +9,24 @@ specific language governing permissions and limitations under the License.
 """
 
 import json
-from alarm_backends.core.cache.base import CacheManager
-from alarm_backends.core.storage.redis import Cache
+from typing import cast
+
 from api.cmdb.define import Business
 from constants.common import DEFAULT_TENANT_ID
 
+from .base import CMDBCacheManager
 
-class BusinessManager:
+
+class BusinessManager(CMDBCacheManager):
     """
     CMDB 业务缓存
     """
 
-    cache_key = f"{CacheManager.CACHE_KEY_PREFIX}.cmdb.business"
-    cache = Cache("cache-cmdb")
+    cache_type = "business"
 
     @classmethod
-    def get(cls, bk_biz_id: int) -> Business | None:
-        result: str | None = cls.cache.hget(cls.cache_key, str(bk_biz_id))
+    def get(cls, bk_biz_id: int | str, **kwargs) -> Business | None:
+        result: str | None = cast(str | None, cls.cache.hget(cls.get_cache_key(DEFAULT_TENANT_ID), str(bk_biz_id)))
         if not result:
             return None
 
@@ -41,12 +42,13 @@ class BusinessManager:
         """
         获取业务ID列表
         """
-        return [int(key) for key in cls.cache.hkeys(cls.cache_key)]
+        result: list[str] = cast(list[str], cls.cache.hkeys(cls.get_cache_key(DEFAULT_TENANT_ID)))
+        return [int(key) for key in result]
 
     @classmethod
     def all(cls) -> list[Business]:
         """
         获取全部业务
         """
-        result = cls.cache.hgetall(cls.cache_key)
+        result = cast(dict[str, str], cls.cache.hgetall(cls.get_cache_key(DEFAULT_TENANT_ID)))
         return [Business(**json.loads(value)) for value in result.values() if value]

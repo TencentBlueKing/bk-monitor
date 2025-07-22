@@ -502,3 +502,34 @@ class IntelligentDiagnosisMetadataResource(Resource):
             return json.dumps(report, ensure_ascii=False)  # 适配中文返回
         except Exception as e:  # pylint: disable=broad-except
             logger.exception("metadata diagnose error, bk_data_id->[%s], error->[%s]", bk_data_id, e)
+
+
+class GseDeliveryResource(Resource):
+    """
+    接收GSE投递的异步处理接口
+    """
+
+    class RequestSerializer(serializers.Serializer):
+        message_id = serializers.CharField(required=True, label="消息ID")
+        bk_agent_id = serializers.CharField(required=True, label="Agent ID")
+        content = serializers.CharField(required=False, label="请求内容")
+
+    def perform_request(self, validated_request_data):
+        if not settings.GSE_SLOT_ID or not settings.GSE_SLOT_TOKEN:
+            logger.warning("GseDeliveryResource: gse slot id or token is not set, skip")
+            return False
+
+        from metadata.task.tasks import process_gse_delivery
+
+        logger.info("GseDeliveryResource: receive gse delivery request, %s", validated_request_data)
+        try:
+            process_gse_delivery.delay(
+                message_id=validated_request_data["message_id"],
+                bk_agent_id=validated_request_data["bk_agent_id"],
+                content=validated_request_data["content"],
+                received_at=timezone.now().isoformat(),
+            )
+        except Exception as e:  # pylint: disable=broad-except
+            logger.error(f"GseDeliveryResource: failed to process gse delivery request, {validated_request_data}, {e}")
+
+        return True

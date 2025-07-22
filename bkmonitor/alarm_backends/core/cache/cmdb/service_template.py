@@ -9,24 +9,17 @@ specific language governing permissions and limitations under the License.
 """
 
 import json
+from typing import cast
 
-from alarm_backends.core.cache.base import CacheManager
-from alarm_backends.core.storage.redis import Cache
-from constants.common import DEFAULT_TENANT_ID
+from .base import CMDBCacheManager
 
 
-class ServiceTemplateManager:
+class ServiceTemplateManager(CMDBCacheManager):
     """
     CMDB 服务模板缓存
     """
 
-    cache = Cache("cache-cmdb")
-
-    @classmethod
-    def get_cache_key(cls, bk_tenant_id: str) -> str:
-        if bk_tenant_id == DEFAULT_TENANT_ID:
-            return f"{CacheManager.CACHE_KEY_PREFIX}.cmdb.service_template"
-        return f"{bk_tenant_id}.{CacheManager.CACHE_KEY_PREFIX}.cmdb.service_template"
+    cache_type = "service_template"
 
     @classmethod
     def mget(cls, *, bk_tenant_id: str, ids: list[int]) -> dict[int, list[int]]:
@@ -39,16 +32,17 @@ class ServiceTemplateManager:
             return {id: [] for id in ids}
 
         cache_key = cls.get_cache_key(bk_tenant_id)
-        result = cls.cache.hmget(cache_key, [str(id) for id in ids])
+        id_list: list[str] = list(str(id) for id in ids)
+        result: list[str | None] = cast(list[str | None], cls.cache.hmget(cache_key, id_list))
         return {id: json.loads(r) if r else [] for id, r in zip(ids, result)}
 
     @classmethod
-    def get(cls, *, bk_tenant_id: str, id: int) -> list[int]:
+    def get(cls, *, bk_tenant_id: str, id: int, **kwargs) -> list[int]:
         """
         获取单个服务模板下的模块ID列表
         :param bk_tenant_id: 租户ID
         :param id: 服务模板ID
         """
         cache_key = cls.get_cache_key(bk_tenant_id)
-        result = cls.cache.hget(cache_key, str(id))
+        result = cast(str | None, cls.cache.hget(cache_key, str(id)))
         return json.loads(result) if result else []
