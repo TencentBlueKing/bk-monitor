@@ -36,6 +36,7 @@
       v-show="showValidate && validator.content && position === 'right'"
     />
     <span
+      :style="{ top: errorTextTopMargin ? `${errorTextTopMargin}px` : null }"
       class="bottom-text"
       v-show="showValidate && position === 'bottom'"
       >{{ validator.content }}</span
@@ -63,6 +64,10 @@ export default {
       type: Boolean,
       default: false,
     },
+    errorTextTopMargin: {
+      type: Number,
+      default: 0,
+    }
   },
   methods: {
     handleFocus() {
