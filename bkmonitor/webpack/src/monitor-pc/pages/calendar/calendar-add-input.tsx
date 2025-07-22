@@ -50,7 +50,7 @@ interface IEvents {
  * 新建日历输入框
  */
 @Component
-export default class CalendarAddInput extends tsc<{}, IEvents> {
+export default class CalendarAddInput extends tsc<object, IEvents> {
   @Ref() inputRef: any;
   /** 日历名称 */
   inputText = '';
@@ -79,7 +79,7 @@ export default class CalendarAddInput extends tsc<{}, IEvents> {
    * 隐藏输入框操作
    */
   handleShowInput(val: boolean) {
-    if (!!this.$slots.default) {
+    if (this.$slots.default) {
       this.isShowInput = val;
       val && this.focus();
     }

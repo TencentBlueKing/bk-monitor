@@ -161,7 +161,7 @@ export default defineComponent({
           });
         };
         setTimeout(() => {
-          if (!!classify) {
+          if (classify) {
             selectedNodeKey.value = '';
             if (classify.type === 'service') {
               const filterValue = classify.filter_value;
@@ -217,7 +217,7 @@ export default defineComponent({
               });
               setEdgeSelected(Array.from(edgeSet) as string[]);
               handleEditSpanList(selectedSpans);
-              if (!!targetKey) {
+              if (targetKey) {
                 fitView({
                   nodes: [targetKey],
                 });

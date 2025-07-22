@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -20,7 +19,6 @@ import tarfile
 import uuid
 from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor
-from typing import Dict
 from uuid import uuid4
 
 from django.conf import settings
@@ -71,6 +69,7 @@ from monitor_web.models import (
     UploadedFileInfo,
 )
 from monitor_web.plugin.manager import PluginManagerFactory
+from monitor_web.strategies.default_settings.datalink.v1 import DEFAULT_DATALINK_COLLECTING_FLAG
 from monitor_web.strategies.serializers import handle_target, is_validate_target
 from monitor_web.tasks import import_config, remove_file
 
@@ -83,7 +82,7 @@ class GetAllConfigListResource(Resource):
     """
 
     def __init__(self):
-        super(GetAllConfigListResource, self).__init__()
+        super().__init__()
         self.node_manager = None
         self.collect_config_list = None
         self.strategy_config_list = None
@@ -238,7 +237,8 @@ class GetAllConfigListResource(Resource):
                 Q(id__icontains=search_value) | Q(name__icontains=search_value)
             )
             self.strategy_config_list = self.strategy_config_list.filter(
-                Q(id__icontains=search_value) | Q(name__icontains=search_value)
+                Q(id__icontains=search_value)
+                | Q(name__icontains=search_value) & ~Q(source=DEFAULT_DATALINK_COLLECTING_FLAG)
             )
             self.view_config_list = [
                 view_config
@@ -270,7 +270,7 @@ class ExportPackageResource(Resource):
     """
 
     def __init__(self):
-        super(ExportPackageResource, self).__init__()
+        super().__init__()
         self.collect_config_ids = []
         self.strategy_config_ids = []
         self.view_config_ids = []
@@ -398,7 +398,7 @@ class ExportPackageResource(Resource):
                 os.path.join(
                     self.package_path,
                     "collect_config_directory",
-                    "{}_{}.json".format(convert_filename(collect_config_file_name), collect_config_meta.id),
+                    f"{convert_filename(collect_config_file_name)}_{collect_config_meta.id}.json",
                 ),
                 "w",
             ) as fs:
@@ -412,7 +412,7 @@ class ExportPackageResource(Resource):
             os.path.join(
                 self.package_path,
                 "csv_files",
-                "{}.csv".format(uuid.uuid4()),
+                f"{uuid.uuid4()}.csv",
             ),
             "w",
             encoding="utf-8-sig",
@@ -454,7 +454,7 @@ class ExportPackageResource(Resource):
                 os.path.join(
                     self.package_path,
                     "view_config_directory",
-                    "{}_{}.json".format(convert_filename(view_config_file_name), uid),
+                    f"{convert_filename(view_config_file_name)}_{uid}.json",
                 ),
                 "w",
             ) as fs:
@@ -477,7 +477,7 @@ class ExportPackageResource(Resource):
                 os.path.join(
                     self.package_path,
                     "strategy_config_directory",
-                    "{}_{}.json".format(convert_filename(strategy_config_file_name), strategy_id),
+                    f"{convert_filename(strategy_config_file_name)}_{strategy_id}.json",
                 ),
                 "w",
             ) as fs:
@@ -666,7 +666,7 @@ class UploadPackageResource(Resource):
     """
 
     def __init__(self):
-        super(UploadPackageResource, self).__init__()
+        super().__init__()
         self.file_manager = None
         self.file_id = None
         uuid_str = str(uuid4())
@@ -691,10 +691,12 @@ class UploadPackageResource(Resource):
         t = None
         try:
             t = tarfile.open(fileobj=file_instance.file_data.file)
-            t.extractall(path=self.parse_path, filter='data')
+            t.extractall(path=self.parse_path, filter="data")
         except Exception as e:
-            logger.exception("压缩包解压失败: {}".format(e))
-            raise UploadPackageError({"msg": _("导入文件格式不正确，需要是.tar.gz/.tgz/.tar.bz2/.tbz2等后缀(gzip或bzip2压缩)")})
+            logger.exception(f"压缩包解压失败: {e}")
+            raise UploadPackageError(
+                {"msg": _("导入文件格式不正确，需要是.tar.gz/.tgz/.tar.bz2/.tbz2等后缀(gzip或bzip2压缩)")}
+            )
         finally:
             if t is not None:
                 t.close()
@@ -893,7 +895,7 @@ class ImportConfigResource(Resource):
     """
 
     def __init__(self):
-        super(ImportConfigResource, self).__init__()
+        super().__init__()
         self.uuid_list = []
         self.import_history_instance = None
 
@@ -903,7 +905,9 @@ class ImportConfigResource(Resource):
         import_history_id = serializers.IntegerField(required=False, label="导入历史ID")
         # 覆盖模式下，如果存在同名的策略、告警组、处理套餐将会被覆盖。
         # 非覆盖模式下，如果存在同名的策略、告警组、处理套餐，将会给名称加上"_clone"后缀，然后新建。
-        is_overwrite_mode = serializers.BooleanField(required=False, label="是否覆盖同名的策略、告警组、处理套餐", default=False)
+        is_overwrite_mode = serializers.BooleanField(
+            required=False, label="是否覆盖同名的策略、告警组、处理套餐", default=False
+        )
 
     def perform_request(self, validated_request_data):
         username = get_request().user.username
@@ -986,9 +990,7 @@ class ImportConfigResource(Resource):
 
         # 发送审计上报
         try:
-            event_content = (
-                f"导入{len(collect_config_list)}条采集配置, {len(strategy_config_list)}个策略配置, {len(view_config_list)}个仪表盘"
-            )
+            event_content = f"导入{len(collect_config_list)}条采集配置, {len(strategy_config_list)}个策略配置, {len(view_config_list)}个仪表盘"
             send_frontend_report_event(self, bk_biz_id, username, event_content)
         except Exception as e:
             logger.exception(f"send frontend report event error: {e}")
@@ -1236,7 +1238,7 @@ class ExportConfigToBusinessResource(Resource):
             )
             self.parse_objs.append(parse_obj)
 
-    def create_folder(self, view_config: Dict, org_id: int):
+    def create_folder(self, view_config: dict, org_id: int):
         """创建仪表盘目录"""
         dashboard = view_config.get("dashboard")
 
@@ -1271,7 +1273,7 @@ class ExportConfigToBusinessResource(Resource):
             self.existed_folders.add(folder_title)
             self.existed_folders_info[folder_title] = dashboard["folderId"]
 
-    def change_name_and_biz_id(self, config: Dict):
+    def change_name_and_biz_id(self, config: dict):
         """修改名称和业务ID"""
 
         def change(d):

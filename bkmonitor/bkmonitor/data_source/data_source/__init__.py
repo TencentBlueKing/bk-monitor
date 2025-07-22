@@ -2010,15 +2010,18 @@ class BkApmTraceDataSource(BkMonitorLogDataSource):
     EXTRA_DISTINCT_FIELD = None
     EXTRA_AGG_DIMENSIONS = []
 
-    # 对象字段，需要进行存在性校验，选用 Set 结构以提升效率。
-    OBJECT_FIELDS: set[str] = {
+    # Span 对象字段
+    SPAN_OBJECT_FIELDS: set[str] = {OtlpKey.ATTRIBUTES, OtlpKey.RESOURCE, OtlpKey.STATUS}
+
+    # 预计算对象字段
+    PRE_CALCULATE_OBJECT_FIELDS: set[str] = {
         PreCalculateSpecificField.CATEGORY_STATISTICS.value,
         PreCalculateSpecificField.KIND_STATISTICS.value,
         PreCalculateSpecificField.COLLECTIONS.value,
-        OtlpKey.ATTRIBUTES,
-        OtlpKey.RESOURCE,
-        OtlpKey.STATUS,
     }
+
+    # 对象字段，需要进行存在性校验，选用 Set 结构以提升效率。
+    OBJECT_FIELDS: set[str] = SPAN_OBJECT_FIELDS | PRE_CALCULATE_OBJECT_FIELDS
 
     NESTED_FIELDS: set[str] = {OtlpKey.EVENTS, OtlpKey.LINKS}
 
@@ -2105,6 +2108,7 @@ class BkApmTraceDataSource(BkMonitorLogDataSource):
         processed_records: list[dict[str, Any]] = []
         for record in records:
             processed_record: dict[str, Any] = {}
+            exists_object_fields: set[str] = set()
             for field, value in record.items():
                 field = self.FIELD_MAPPING.get(field, field)
                 if field in ["_meta"]:
@@ -2128,9 +2132,30 @@ class BkApmTraceDataSource(BkMonitorLogDataSource):
                     # unify-query 将 object 字段打平返回，这里将其重新转为结构化数据，确保和之前的逻辑一致。
                     # events 等 nested 字段返回格式与之前一致，无需处理。
                     # 转换示例：resource.a.b / resource.a.c -> resource: {"a.b": "xxx", "a.c": "xxxx"}
+                    exists_object_fields.add(root_field)
                     processed_record.setdefault(root_field, {})[attr_field] = value
                 else:
                     processed_record[field] = value
+
+            # 对于 Object 类型的数据：
+            # 1）ES 返回结构化的数据，即：{"attributes": {"a": "xxx"}}
+            # 2）UnifyQuery 返回打平后的数据，例如 {"attributes.a": "xxx"}
+            # 如果 attributes 为 {}，UnifyQuery 将不会返回该字段，而在 Trace 场景，部分 object 字段是必需的，
+            # 例如 attributes、resource、status，下面逻辑将对上述情况，对标准字段进行补全。
+            if self.select:
+                # 指定某些字段进行返回，仅需确保这些字段存在。
+                select_object_fields: set[str] = set(self.select) & self.OBJECT_FIELDS
+            else:
+                # 如果没有指定 select，则需根据数据类型（Span or 预计算），确保返回的对象字段存在。
+                is_span: bool = OtlpKey.SPAN_ID in processed_record
+                select_object_fields: set[str] = self.PRE_CALCULATE_OBJECT_FIELDS
+                if is_span:
+                    select_object_fields = self.SPAN_OBJECT_FIELDS
+
+            for field in select_object_fields:
+                if field not in exists_object_fields:
+                    # 如果 select 中的对象字段不存在，则添加空对象。
+                    processed_record[field] = {}
 
             processed_records.append(processed_record)
 

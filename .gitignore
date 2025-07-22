@@ -12,7 +12,6 @@ sites/
 ## Project Part
 .idea
 .tmp/
-.vscode
 
 ## Python Part
 
@@ -192,7 +191,7 @@ build.yml
 .gtmproject.yaml
 
 .idea
-.vscode
+/.vscode/
 .fleet
 
 pre-*-bkcodeai

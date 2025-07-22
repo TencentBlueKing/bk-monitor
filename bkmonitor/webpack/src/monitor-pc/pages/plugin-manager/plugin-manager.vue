@@ -428,7 +428,7 @@
   </div>
 </template>
 <script>
-import { CancelToken } from 'monitor-api/index';
+import { CancelToken } from 'monitor-api/cancel';
 import { getLabel } from 'monitor-api/modules/commons';
 import {
   deleteCollectorPlugin,
