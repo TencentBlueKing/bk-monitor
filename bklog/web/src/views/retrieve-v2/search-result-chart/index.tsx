@@ -177,10 +177,15 @@ export default defineComponent({
     // 节流后的回退操作函数
     const throttledBackToPreChart = throttle(backToPreChart, 500, { trailing: false });
 
+    /**
+     * 分段请求的原因：
+     * 当查询的时间范围较大时，单次请求的数据量可能非常大，容易导致后端超时或前端卡顿。
+     * 通过将大时间段拆分为多个小时间段分别请求，可以降低单次请求压力，提高数据加载的稳定性和用户体验。
+     * 例如：若时间范围为近30天，一次请求时间可能会很长，前端等待时间会变长，导致页面出现卡顿现象。
+     */
     // 根据时间范围决定是否分段请求
     const handleRequestSplit = (startTime, endTime) => {
-      if(chartInterval.value === 'auto') return 0; // 自动模式下不分段请求
-
+      // if(chartInterval.value === 'auto') return 0; // 若需要auto模式下不分段请求，取消注释
       const duration = (endTime - startTime) / 3600000; // 计算时间间隔,单位:小时
       if (duration <= 6) return 0;  // 0-6小时不分段请求
       if (duration <= 48) return 21600 * 1000;  // 6-48小时, 每6小时1段
