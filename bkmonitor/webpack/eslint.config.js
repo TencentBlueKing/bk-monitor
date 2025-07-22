@@ -135,23 +135,6 @@ const jsxOrVueSortGroups = {
       elementNamePattern: ['^v-html$', '^v-text$', '^vHtml$', '^vText$'],
     },
   ],
-  // customGroups: {
-  //   DEFINITION: '*(is|vIs|v-is)',
-  //   LIST_RENDERING: '*(v-for|vFor)',
-  //   CONDITIONALS: '*(v-if|v-else-if|v-else|vIf|vElseIf|vElse)',
-  //   RENDER_MODIFIERS: '*(v-pre|v-once|vPre|vOnce)',
-  //   GLOBAL: 'id',
-  //   UNIQUE: '*(ref|key)',
-  //   WIDTH: 'width',
-  //   HEIGHT: 'height',
-  //   STYLE: '*style',
-  //   CLASS: '*(class|ext-cls|extCls)',
-  //   TWO_WAY_BINDING: '*(v-model|vModel)',
-  //   SLOT: '*(v-slot|slot|vSlot)',
-  //   OTHER_DIRECTIVES: 'v-*',
-  //   EVENTS: '*(on*|v-on|vOn|@*)',
-  //   CONTENT: '*(v-html|v-text|vHtml|vText)',
-  // },
   groups: [
     'DEFINITION',
     'LIST_RENDERING',
@@ -346,13 +329,6 @@ module.exports = [
           order: 'asc',
         },
       ],
-      'perfectionist/sort-union-types': [
-        ERROR,
-        {
-          order: 'asc',
-          type: 'natural',
-        },
-      ],
       'perfectionist/sort-named-exports': [
         ERROR,
         {
@@ -381,6 +357,37 @@ module.exports = [
           ],
         },
       ],
+      'perfectionist/sort-named-imports': [
+        ERROR,
+        {
+          type: 'natural',
+          order: 'asc',
+          groups: ['type-import', 'value-import', 'unknown'],
+        },
+      ],
+      'perfectionist/sort-object-types': [
+        ERROR,
+        {
+          type: 'natural',
+          order: 'asc',
+        },
+      ],
+      'perfectionist/sort-union-types': [
+        ERROR,
+        {
+          type: 'natural',
+          order: 'asc',
+        },
+      ],
+      'perfectionist/sort-variable-declarations': [
+        ERROR,
+        {
+          type: 'natural',
+          order: 'asc',
+        },
+      ],
+      'perfectionist/sort-switch-case': OFF,
+      'perfectionist/sort-sets': OFF,
       // 'perfectionist/sort-vue-attributes': [
       //   ERROR,
       //   {
@@ -488,6 +495,26 @@ module.exports = [
       '@typescript-eslint/explicit-member-accessibility': OFF,
       'comma-dangle': [ERROR, 'always-multiline'],
       ...deprecateRules,
+      'vue/attributes-order': [
+        ERROR,
+        {
+          order: [
+            'DEFINITION',
+            'LIST_RENDERING',
+            'CONDITIONALS',
+            'RENDER_MODIFIERS',
+            'GLOBAL',
+            'UNIQUE',
+            'TWO_WAY_BINDING',
+            'SLOT',
+            'OTHER_DIRECTIVES',
+            'OTHER_ATTR',
+            'EVENTS',
+            'CONTENT',
+          ],
+          alphabetical: false,
+        },
+      ],
     },
   },
   {
@@ -498,7 +525,6 @@ module.exports = [
     rules: {
       'vue/html-self-closing': OFF,
       'vue/require-default-prop': OFF,
-      'vue/attributes-order': OFF,
     },
   },
   {
