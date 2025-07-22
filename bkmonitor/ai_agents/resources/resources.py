@@ -303,15 +303,13 @@ def _handle_streaming_response(agent_instance, execute_kwargs):
 
 
 def _handle_streaming_response_with_metrics(
-    agent_instance, execute_kwargs, resource_name: str, session_code: str, agent_code: str, username: str
+    agent_instance, execute_kwargs, resource_name: str, agent_code: str, username: str
 ):
     """处理流式响应（带指标统计）"""
     logger.info(f"Starting streaming chat completion with kwargs: {execute_kwargs}")
 
     # 创建指标跟踪器
-    metrics_tracker = StreamingMetricsTracker(
-        resource_name=resource_name, session_code=session_code, agent_code=agent_code, username=username
-    )
+    metrics_tracker = StreamingMetricsTracker(resource_name=resource_name, agent_code=agent_code, username=username)
 
     # 检查 ExecuteKwargs 解析是否正确
     try:
@@ -376,7 +374,6 @@ class CreateChatCompletionResource(Resource):
                 agent_instance=agent_instance,
                 execute_kwargs=execute_kwargs,
                 resource_name=self.__class__.__name__,
-                session_code=session_code,
                 agent_code=agent_code,
                 username=username,
             )
