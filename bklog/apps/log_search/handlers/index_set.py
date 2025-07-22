@@ -1691,20 +1691,14 @@ class BaseIndexSetHandler:
         for index in to_append_indexes:
             _scenario_id = index.get("scenario_id") or self.scenario_id
             _storage_cluster_id = index.get("storage_cluster_id") or self.storage_cluster_id
-            time_field, time_field_type, time_field_unit = self.init_time_field(
-                _scenario_id,
-                index.get("time_field") or self.time_field,
-                index.get("time_field_type") or self.time_field_type,
-                index.get("time_field_unit") or self.time_field_unit,
-            )
             IndexSetHandler(index_set_id=self.index_set_obj.index_set_id).add_index(
                 bk_biz_id=index["bk_biz_id"],
-                time_field=time_field,
+                time_field=index.get("time_field") or self.time_field,
                 result_table_id=index["result_table_id"],
                 scenario_id=_scenario_id,
                 storage_cluster_id=_storage_cluster_id,
-                time_field_type=time_field_type,
-                time_field_unit=time_field_unit,
+                time_field_type=index.get("time_field_type") or self.time_field_type,
+                time_field_unit=index.get("time_field_unit") or self.time_field_unit,
             )
 
         # 更新字段快照
