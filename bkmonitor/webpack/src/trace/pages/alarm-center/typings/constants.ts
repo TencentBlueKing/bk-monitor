@@ -104,15 +104,15 @@ export const AlertStatusMap = {
 
 export const AlertDataTypeMap = {
   time_series: {
-    prefixIcon: 'description-icon icon-monitor icon-zhibiaojiansuo',
+    prefixIcon: 'alert-description-icon icon-monitor icon-zhibiaojiansuo',
     alias: window.i18n.t('时序数据'),
   },
   event: {
-    prefixIcon: 'description-icon icon-monitor icon-shijianjiansuo',
+    prefixIcon: 'alert-description-icon icon-monitor icon-shijianjiansuo',
     alias: window.i18n.t('事件'),
   },
   log: {
-    prefixIcon: 'description-icon icon-monitor icon-a-logrizhi',
+    prefixIcon: 'alert-description-icon icon-monitor icon-a-logrizhi',
     alias: window.i18n.t('日志'),
   },
 };
@@ -130,6 +130,53 @@ export const AlertTargetTypeMap = {
   //   prefixIcon: 'target-icon icon-monitor icon-zidingyizhibiao',
   //   alias: window.i18n.t('自定义指标'),
   // },
+};
+
+export const ActionLevelIconMap = {
+  running: {
+    icon: 'rect',
+    iconColor: '#A3C4FD',
+  },
+  success: {
+    icon: 'rect',
+    iconColor: '#8DD3B5',
+  },
+  failure: {
+    icon: 'rect',
+    iconColor: '#F59E9E',
+  },
+  skipped: {
+    icon: 'rect',
+    iconColor: '#FED694',
+  },
+  shield: {
+    icon: 'rect',
+    iconColor: '#CBCDD2',
+  },
+};
+
+export const ActionStatusIconMap = {
+  success: {
+    prefixIcon: 'action-status-icon icon-monitor icon-mc-check-fill',
+    alias: window.i18n.t('成功'),
+  },
+  running: {
+    prefixIcon: 'action-status-icon icon-monitor',
+    alias: window.i18n.t('执行中'),
+  },
+  failure: {
+    prefixIcon: 'action-status-icon icon-monitor icon-mc-close-fill',
+    alias: window.i18n.t('失败'),
+  },
+};
+
+export const ActionFailureTypeMap = {
+  shield: window.i18n.t('已屏蔽'),
+  skipped: window.i18n.t('被收敛'),
+  framework_code_failure: window.i18n.t('系统异常'),
+  timeout: window.i18n.t('执行超时'),
+  execute_failure: window.i18n.t('执行失败'),
+  unknown: window.i18n.t('失败'),
 };
 
 /** 告警-关联信息不同类型提示信息 */

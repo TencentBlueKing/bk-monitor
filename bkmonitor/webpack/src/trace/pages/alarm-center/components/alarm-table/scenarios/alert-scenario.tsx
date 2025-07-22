@@ -59,7 +59,7 @@ export class AlertScenario extends BaseScenario {
 
   constructor(
     private readonly context: {
-      handleShowDetail: (id: string) => void;
+      handleAlertSliderShowDetail: (id: string) => void;
       hoverPopoverTools: IUsePopoverTools;
       handleAlertContentDetailShow: (e: MouseEvent) => void;
       handleAlertOperationClick: (
@@ -67,7 +67,6 @@ export class AlertScenario extends BaseScenario {
         row: AlertTableItem,
         e?: MouseEvent
       ) => void;
-      [methodName: string]: any;
     }
   ) {
     super();
@@ -94,7 +93,7 @@ export class AlertScenario extends BaseScenario {
       event_count: {
         renderType: ExploreTableColumnTypeEnum.CLICK,
         clickCallback: row => {
-          this.context.handleShowDetail(row.id);
+          this.context.handleAlertSliderShowDetail(row.id);
         },
       },
       /** 首次异常时间(first_anomaly_time) 列 */
@@ -165,14 +164,14 @@ export class AlertScenario extends BaseScenario {
   private renderAlertName(row: AlertTableItem): SlotReturnValue {
     const rectColor = AlarmLevelIconMap?.[row?.severity]?.iconColor;
     return (
-      <div class='explore-col alert-lever-rect-col'>
+      <div class='explore-col lever-rect-col'>
         <i
           style={{ '--lever-rect-color': rectColor }}
           class='lever-rect'
         />
         <div
           class='lever-rect-text ellipsis-text'
-          onClick={() => this.context.handleShowDetail(row.id)}
+          onClick={() => this.context.handleAlertSliderShowDetail(row.id)}
           onMouseenter={e => this.handleAlterNameHover(e, row)}
           onMouseleave={this.context.hoverPopoverTools.clearPopoverTimer}
         >

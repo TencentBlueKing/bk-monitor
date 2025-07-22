@@ -116,10 +116,11 @@ export default defineComponent({
     let scrollPointerEventsTimer = null;
     /** 创建场景上下文 */
     const scenarioContext: AlertScenario['context'] & IncidentScenario['context'] & ActionScenario['context'] = {
-      handleShowDetail,
+      handleAlertSliderShowDetail,
       hoverPopoverTools,
       handleAlertContentDetailShow,
       handleAlertOperationClick,
+      handleActionSliderShowDetail,
     };
     // 使用场景渲染器
     const { transformColumns, currentScenario, tableEmpty } = useScenarioRenderer(scenarioContext);
@@ -184,10 +185,17 @@ export default defineComponent({
       isSelectedFollower.value = options?.selectedRowData?.some?.(item => item.followerDisabled);
     };
     /**
-     * @description: 展示详情
+     * @description: 展示 告警 详情抽屉
      */
-    function handleShowDetail(id: string) {
-      alert(`记录${id}的详情弹窗`);
+    function handleAlertSliderShowDetail(id: string) {
+      alert(`展示 告警 ${id}的详情抽屉窗`);
+    }
+
+    /**
+     * @description: 展示 处理记录 详情抽屉
+     */
+    function handleActionSliderShowDetail(id: number | string) {
+      alert(`展示 处理记录 ${id}的详情抽屉窗`);
     }
 
     /**

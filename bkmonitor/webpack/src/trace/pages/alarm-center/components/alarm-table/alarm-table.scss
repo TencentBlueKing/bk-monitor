@@ -129,7 +129,7 @@
   }
 
   .explore-col {
-    &.alert-lever-rect-col {
+    &.lever-rect-col {
       display: flex;
       align-items: center;
 
@@ -190,6 +190,12 @@
       }
     }
 
+    &.action-content-col {
+      a {
+        color: #3a84ff;
+      }
+    }
+
     &.explore-prefix-icon-col {
       .prefix-icon {
         margin-right: 4px;
@@ -216,7 +222,7 @@
         }
       }
 
-      .description-icon {
+      .alert-description-icon {
         &.icon-monitor {
           display: inline-flex;
           align-items: center;
@@ -226,6 +232,16 @@
           font-size: 14px;
           color: #8e9bb3;
           background-color: #f0f2f7;
+        }
+      }
+
+      .action-status-icon {
+        &.icon-mc-close-fill {
+          color: #f59789;
+        }
+
+        &.icon-mc-check-fill {
+          color: #6fc5bf;
         }
       }
     }

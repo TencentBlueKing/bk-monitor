@@ -94,7 +94,7 @@ export function useExploreDataCache(rowKeyField: MaybeRef<string>) {
    * 清空缓存
    */
   function clearCache() {
-    rowDataCache.clear();
+    rowDataCache?.clear?.();
   }
 
   onBeforeUnmount(() => {
