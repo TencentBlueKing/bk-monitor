@@ -6,10 +6,59 @@
   .stratrgy-item {
     display: flex;
     flex-direction: column;
-    margin-bottom: 17px;
+    margin-bottom: 20px;
     &.m0 {
       margin-bottom: 0;
     }
+
+    &.custom-time {
+      margin-top: -10px;
+      position: relative;
+      flex-direction: row;
+      align-items: center;
+      justify-content: center;
+      height: 42px;
+      font-size: 12px;
+      color: #4d4f56;
+      border: 1px solid #dcdee5;
+      background-color: #fafbfd;
+
+      &::after {
+        position: absolute;
+        top: -4px;
+        left: 0;
+        width: 4px;
+        height: 4px;
+        content: '';
+        border-top: 1px solid #dcdee5;;
+        border-right: 1px solid #dcdee5;;
+        transform: rotate(-45deg);
+        background-color: #fafbfd;
+      }
+
+      .custom-input-time {
+        margin: 0 8px;
+        width: 48px;
+        
+        .bk-form-input {
+          line-height: 22px;
+          height: 22px;
+        } 
+      }
+
+      .custom-select-time {
+        margin: 0 8px;
+      }
+    }
+
+    &.left-next-day::after {
+      left: 81%;
+    }
+
+    &.left-custom::after {
+      left: 93.7%;
+    }
+
     .item-label {
       width: 68px;
       margin-bottom: 8px;
@@ -27,8 +76,11 @@
     }
     .item-time {
       display: flex;
+      width: 100%;
       .width-item {
+        flex: 1;
         min-width: 86px;
+        max-width: 13%;
         &:hover {
           color: #3a84ff;
           background: #e1ecff;
@@ -36,9 +88,7 @@
           z-index: 2;
         }
       }
-      .custom-width {
-        width: 327px;
-      }
+
       .is-selected {
         color: #3a84ff;
         background: #e1ecff;
@@ -150,12 +200,12 @@
       }
     }
     .bk-date-picker.long {
-      width: 327px;
+      width: 300px;
     }
     .bk-date-picker-rel .bk-date-picker-editor {
       border-radius: 0;
       margin-left: -1px;
-      border: 1px #3a84ff solid;
+      // border: 1px #3a84ff solid;
     }
   }
   .bk-date-picker-dropdown {
@@ -168,9 +218,9 @@
 }
 .quick-shield-dialog {
   .monitor-dialog {
-    max-height: 549px;
+    // max-height: 549px;
     .monitor-dialog-body {
-      max-height: 455px;
+      // max-height: 455px;
       overflow-y: auto;
     }
   }
