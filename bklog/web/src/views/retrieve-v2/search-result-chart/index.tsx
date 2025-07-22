@@ -179,6 +179,8 @@ export default defineComponent({
 
     // 根据时间范围决定是否分段请求
     const handleRequestSplit = (startTime, endTime) => {
+      if(chartInterval.value === 'auto') return 0; // 自动模式下不分段请求
+
       const duration = (endTime - startTime) / 3600000; // 计算时间间隔,单位:小时
       if (duration <= 6) return 0;  // 0-6小时不分段请求
       if (duration <= 48) return 21600 * 1000;  // 6-48小时, 每6小时1段
