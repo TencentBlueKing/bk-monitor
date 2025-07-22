@@ -550,7 +550,8 @@ class LogSubscriptionConfig(models.Model):
                 cluster_mapping[cluster_id] = [BkCollectorClusterConfig.GLOBAL_CONFIG_BK_BIZ_ID]
 
         for cluster_id, cc_bk_biz_ids in cluster_mapping.items():
-            if str(bk_biz_id) not in cc_bk_biz_ids and int(bk_biz_id) not in cc_bk_biz_ids:
+            need_deploy_bk_biz_ids = {str(bk_biz_id), int(bk_biz_id), BkCollectorClusterConfig.GLOBAL_CONFIG_BK_BIZ_ID}
+            if not set(need_deploy_bk_biz_ids) & set(cc_bk_biz_ids):
                 continue
 
             try:
