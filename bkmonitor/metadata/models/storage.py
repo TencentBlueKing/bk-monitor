@@ -699,6 +699,29 @@ class StorageResultTable:
                         new_record.cluster_id,
                     )
 
+                records_queryset = StorageClusterRecord.objects.filter(
+                    table_id=self.table_id, cluster_id=new_storage_cluster_id, is_current=True
+                )
+
+                # 若DB中不存在当前集群ID的记录,那么需要额外创建(避免非前端迁移行为导致的路由异常)
+                if not records_queryset.exists():
+                    logger.warning(
+                        "update_storage: table_id->[%s] update es_storage_cluster_id may be failed, no record found",
+                        self.table_id,
+                    )
+                    result_table = ResultTable.objects.get(table_id=self.table_id)
+                    # 先将存量记录的is_current更改为False
+                    StorageClusterRecord.objects.filter(table_id=self.table_id, is_current=True).update(
+                        is_current=False, disable_time=result_table.last_modify_time
+                    )
+
+                    correct_record, _ = StorageClusterRecord.objects.get_or_create(
+                        table_id=self.table_id,
+                        cluster_id=new_storage_cluster_id,
+                        is_current=True,
+                        defaults={"enable_time": result_table.last_modify_time},
+                    )
+
                 # 刷新RESULT_TABLE_DETAIL路由
                 logger.info("update_storage: table_id->[%s] try to refresh es_table_id_detail", self.table_id)
                 space_client.push_es_table_id_detail(table_id_list=[self.table_id], is_publish=True)
