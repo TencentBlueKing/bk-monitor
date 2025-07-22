@@ -527,17 +527,7 @@ class LogSubscriptionConfig(models.Model):
             return
 
         # 2. 获取配置
-        log_config = {
-            "bk_data_token": log_group.get_bk_data_token(),
-            "bk_biz_id": log_group.bk_biz_id,
-            "bk_app_name": log_group.log_group_name,
-            "log_data_id": log_group.bk_data_id,
-            "qps_config": {
-                "name": "rate_limiter/token_bucket",
-                "type": "token_bucket",
-                "qps": log_group.max_rate if log_group.max_rate > 0 else LOG_REPORT_MAX_QPS,
-            },
-        }
+        log_config = cls.get_log_config(log_group)
 
         # 3. 下发配置
         try:
@@ -548,6 +538,49 @@ class LogSubscriptionConfig(models.Model):
                 cls.deploy(bk_tenant_id, log_group, log_config, proxy_target_hosts)
         except Exception as e:  # pylint: disable=broad-except
             logger.exception(f"auto deploy bk-collector log config error ({e})")
+
+    @classmethod
+    def refresh_k8s(cls, log_group: "LogGroup") -> None:
+        bk_biz_id = log_group.bk_biz_id
+
+        cluster_mapping: dict = BkCollectorClusterConfig.get_cluster_mapping()
+        if settings.CUSTOM_REPORT_DEFAULT_DEPLOY_CLUSTER:
+            # 补充中心化集群
+            for cluster_id in settings.CUSTOM_REPORT_DEFAULT_DEPLOY_CLUSTER:
+                cluster_mapping[cluster_id] = [BkCollectorClusterConfig.GLOBAL_CONFIG_BK_BIZ_ID]
+
+        for cluster_id, cc_bk_biz_ids in cluster_mapping.items():
+            if str(bk_biz_id) not in cc_bk_biz_ids and int(bk_biz_id) not in cc_bk_biz_ids:
+                continue
+
+            try:
+                tpl = BkCollectorClusterConfig.sub_config_tpl(
+                    cluster_id, BkCollectorComp.CONFIG_MAP_APPLICATION_TPL_NAME
+                )
+                if tpl is None:
+                    continue
+
+                config_context = cls.get_log_config(log_group)
+                config_content = Environment().from_string(tpl).render(config_context)
+
+                config_id = int(log_group.bk_data_id)
+                BkCollectorClusterConfig.deploy_to_k8s(cluster_id, config_id, "log", config_content)
+            except Exception as e:  # pylint: disable=broad-except
+                logger.info(f"refresh custom report ({bk_biz_id}) config to k8s({cluster_id}) error({e})")
+
+    @classmethod
+    def get_log_config(cls, log_group: "LogGroup") -> dict:
+        return {
+            "bk_data_token": log_group.get_bk_data_token(),
+            "bk_biz_id": log_group.bk_biz_id,
+            "bk_app_name": log_group.log_group_name,
+            "log_data_id": log_group.bk_data_id,
+            "qps_config": {
+                "name": "rate_limiter/token_bucket",
+                "type": "token_bucket",
+                "qps": log_group.max_rate if log_group.max_rate > 0 else LOG_REPORT_MAX_QPS,
+            },
+        }
 
     @classmethod
     def deploy(cls, bk_tenant_id: str, log_group: "LogGroup", log_config: dict, bk_host_ids: list[int]) -> None:
