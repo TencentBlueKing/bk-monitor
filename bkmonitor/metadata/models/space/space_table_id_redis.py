@@ -294,12 +294,16 @@ class SpaceTableIDRedis:
             data_label_map = models.ResultTable.objects.filter(
                 table_id__in=table_id_list, bk_tenant_id=bk_tenant_id
             ).values("table_id", "data_label")
+            # 构建字段别名map
+            field_alias_map = self._get_field_alias_map(table_id_list, bk_tenant_id)
         else:
             doris_records = models.DorisStorage.objects.filter(bk_tenant_id=bk_tenant_id)
             tids = list(doris_records.values_list("table_id", flat=True))
             data_label_map = models.ResultTable.objects.filter(table_id__in=tids, bk_tenant_id=bk_tenant_id).values(
                 "table_id", "data_label"
             )
+            # 构建字段别名map
+            field_alias_map = self._get_field_alias_map(table_id_list, bk_tenant_id)
 
         data_label_map_dict = {item["table_id"]: item["data_label"] for item in data_label_map}
 
@@ -314,6 +318,7 @@ class SpaceTableIDRedis:
                 "measurement": models.ClusterInfo.TYPE_DORIS,
                 "storage_type": "bk_sql",
                 "data_label": data_label,
+                "field_alias": field_alias_map.get(table_id, {}),  # 字段查询别名
             }
         return data
 

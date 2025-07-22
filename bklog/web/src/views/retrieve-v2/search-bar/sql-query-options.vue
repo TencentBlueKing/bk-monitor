@@ -105,12 +105,12 @@
   ]);
 
   const setOptionActive = () => {
+    const dropdownList = refDropdownEl?.value?.querySelectorAll('.list-item');
+    refDropdownEl?.value?.querySelector('.list-item.active')?.classList.remove('active');
     if (activeIndex.value === null) {
       return;
     }
 
-    const dropdownList = refDropdownEl?.value?.querySelectorAll('.list-item');
-    refDropdownEl?.value?.querySelector('.list-item.active')?.classList.remove('active');
     dropdownList?.[activeIndex.value]?.classList.add('active');
   };
 
@@ -161,7 +161,7 @@
       return;
     }
 
-    valueList.value = getValueList(retrieveDropdownData.value[fieldName] ?? {});
+    valueList.value = getValueList(retrieveDropdownData.value[fieldName] ?? {})?.filter(item => item?.indexOf(value) !== -1);
   };
 
   /**
@@ -262,7 +262,7 @@
       return;
     }
 
-    const lastValues = /(:|>=|<=|>|<)\s*(\d+|"((?:[^"\\]|\\.)*)"?)/.exec(lastFragment);
+    const lastValues = /(:|>=|<=|>|<)\s*(\d+|\w+|"((?:[^"\\]|\\.)*)"?)/.exec(lastFragment);
     const matchValue = lastValues?.[3] ?? lastValues?.[2];
     const matchValueWithQuotes = lastValues?.[2];
 
@@ -364,7 +364,7 @@
     const rightValue = getFocusRightValue();
     const lastFragment = sqlValue.split(/\s+(AND\s+NOT|OR|AND)\s+/i)?.pop() ?? '';
 
-    const lastValues = /(:|>=|<=|>|<)\s*(\d+|"((?:[^"\\]|\\.)*)"?)/.exec(lastFragment);
+    const lastValues = /(:|>=|<=|>|<)\s*(\d+|\w+|"((?:[^"\\]|\\.)*)"?)/.exec(lastFragment);
     const matchValueWithQuotes = lastValues?.[2] ?? '';
     const matchLeft = sqlValue.slice(0, sqlValue.length - matchValueWithQuotes.length);
     const targetValue = value.replace(/^"|"$/g, '').replace(/"/g, '\\"');

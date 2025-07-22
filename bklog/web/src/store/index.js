@@ -454,13 +454,12 @@ const store = new Vuex.Store({
         if (Array.isArray(payload[key]) && Array.isArray(state.indexSetQueryResult[key])) {
           if (Object.isFrozen(state.indexSetQueryResult[key])) {
             state.indexSetQueryResult[key] = undefined;
-            set(state.indexSetQueryResult, key, []);
+            set(state.indexSetQueryResult, key, payload[key]);
           } else {
             state.indexSetQueryResult[key].length = 0;
             state.indexSetQueryResult[key] = [];
+            state.indexSetQueryResult[key].push(...(payload[key] ?? []).filter(v => v !== null && v !== undefined));
           }
-
-          state.indexSetQueryResult[key].push(...(payload[key] ?? []).filter(v => v !== null && v !== undefined));
         } else {
           set(state.indexSetQueryResult, key, payload[key]);
         }
@@ -1330,10 +1329,12 @@ const store = new Vuex.Store({
                 const originLogList = parseBigNumberList(rsolvedData.origin_log_list);
                 const size = logList.length;
 
-                rsolvedData.list = payload.isPagination ? indexSetQueryResult.list.concat(logList) : logList;
-                rsolvedData.origin_log_list = payload.isPagination
-                  ? indexSetQueryResult.origin_log_list.concat(originLogList)
-                  : originLogList;
+                rsolvedData.list = Object.freeze(
+                  payload.isPagination ? indexSetQueryResult.list.concat(logList) : logList,
+                );
+                rsolvedData.origin_log_list = Object.freeze(
+                  payload.isPagination ? indexSetQueryResult.origin_log_list.concat(originLogList) : originLogList,
+                );
 
                 const catchUnionBeginList = parseBigNumberList(rsolvedData?.union_configs || []);
                 state.tookTime = payload.isPagination
