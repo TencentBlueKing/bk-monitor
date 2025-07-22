@@ -429,6 +429,7 @@ class TestIndexSet(TestCase):
         for key, value in kwargs.items():
             index_set[key] = value
 
+    @patch("apps.api.TransferApi.create_or_update_log_router", return_value=None)
     @patch("apps.log_search.tasks.mapping.sync_index_set_mapping_snapshot.delay", return_value=None)
     @patch("apps.utils.bk_data_auth.BkDataAuthHandler.filter_unauthorized_rt_by_user", return_value=[])
     @patch(
