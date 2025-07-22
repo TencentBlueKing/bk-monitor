@@ -73,23 +73,85 @@ const jsVueFiles = [
   'src/monitor-pc/pages/uptime-check/**/*.vue',
 ];
 const jsxOrVueSortGroups = {
-  customGroups: {
-    DEFINITION: '*(is|vIs|v-is)',
-    LIST_RENDERING: '*(v-for|vFor)',
-    CONDITIONALS: '*(v-if|v-else-if|v-else|vIf|vElseIf|vElse)',
-    RENDER_MODIFIERS: '*(v-pre|v-once|vPre|vOnce)',
-    GLOBAL: 'id',
-    UNIQUE: '*(ref|key)',
-    WIDTH: 'width',
-    HEIGHT: 'height',
-    STYLE: '*style',
-    CLASS: '*(class|ext-cls|extCls)',
-    TWO_WAY_BINDING: '*(v-model|vModel)',
-    SLOT: '*(v-slot|slot|vSlot)',
-    OTHER_DIRECTIVES: 'v-*',
-    EVENTS: '*(on*|v-on|vOn|@*)',
-    CONTENT: '*(v-html|v-text|vHtml|vText)',
-  },
+  customGroups: [
+    {
+      groupName: 'DEFINITION',
+      elementNamePattern: ['^is$', '^vIs$', '^v-is$'],
+    },
+    {
+      groupName: 'LIST_RENDERING',
+      elementNamePattern: ['^v-for$', '^vFor$'],
+    },
+    {
+      groupName: 'CONDITIONALS',
+      elementNamePattern: ['^v-if$', '^v-else-if$', '^v-else$', '^vIf$', '^vElseIf$', '^vElse$'],
+    },
+    {
+      groupName: 'RENDER_MODIFIERS',
+      elementNamePattern: ['^v-pre$', '^v-once$', '^vPre$', '^vOnce$'],
+    },
+    {
+      groupName: 'GLOBAL',
+      elementNamePattern: '^id$',
+    },
+    {
+      groupName: 'UNIQUE',
+      elementNamePattern: ['^ref$', '^key$'],
+    },
+    {
+      groupName: 'WIDTH',
+      elementNamePattern: '^width$',
+    },
+    {
+      groupName: 'HEIGHT',
+      elementNamePattern: '^height$',
+    },
+    {
+      groupName: 'STYLE',
+      elementNamePattern: '^style$',
+    },
+    {
+      groupName: 'CLASS',
+      elementNamePattern: ['^class$', '^ext-cls$', '^extCls$'],
+    },
+    {
+      groupName: 'TWO_WAY_BINDING',
+      elementNamePattern: ['^v-model$', '^vModel$'],
+    },
+    {
+      groupName: 'SLOT',
+      elementNamePattern: ['^v-slot$', '^slot$', '^vSlot$'],
+    },
+    {
+      groupName: 'OTHER_DIRECTIVES',
+      elementNamePattern: '^v-',
+    },
+    {
+      groupName: 'EVENTS',
+      elementNamePattern: ['^on\\w+', '^v-on', '^vOn', '^@\\w+', '^on-'],
+    },
+    {
+      groupName: 'CONTENT',
+      elementNamePattern: ['^v-html$', '^v-text$', '^vHtml$', '^vText$'],
+    },
+  ],
+  // customGroups: {
+  //   DEFINITION: '*(is|vIs|v-is)',
+  //   LIST_RENDERING: '*(v-for|vFor)',
+  //   CONDITIONALS: '*(v-if|v-else-if|v-else|vIf|vElseIf|vElse)',
+  //   RENDER_MODIFIERS: '*(v-pre|v-once|vPre|vOnce)',
+  //   GLOBAL: 'id',
+  //   UNIQUE: '*(ref|key)',
+  //   WIDTH: 'width',
+  //   HEIGHT: 'height',
+  //   STYLE: '*style',
+  //   CLASS: '*(class|ext-cls|extCls)',
+  //   TWO_WAY_BINDING: '*(v-model|vModel)',
+  //   SLOT: '*(v-slot|slot|vSlot)',
+  //   OTHER_DIRECTIVES: 'v-*',
+  //   EVENTS: '*(on*|v-on|vOn|@*)',
+  //   CONTENT: '*(v-html|v-text|vHtml|vText)',
+  // },
   groups: [
     'DEFINITION',
     'LIST_RENDERING',
@@ -200,6 +262,13 @@ module.exports = [
           type: 'natural',
         },
       ],
+      'perfectionist/sort-heritage-clauses': [
+        ERROR,
+        {
+          order: 'asc',
+          type: 'natural',
+        },
+      ],
       'perfectionist/sort-jsx-props': [
         ERROR,
         {
@@ -229,34 +298,54 @@ module.exports = [
             ['internal', 'sibling', 'parent', 'side-effect', 'index', 'object'],
             'unknown',
             ['type', 'builtin-type', 'external-type', 'internal-type', 'parent-type', 'sibling-type', 'index-type'],
-            ['style', 'side-effect-style'],
+            ['side-effect-style', 'style'],
           ],
-          customGroups: {
-            value: {
-              top: ['./public-path', './public-path.ts', 'monitor-common/polyfill'],
-              vueI18n: ['./i18n/i18n', 'vue', 'vue-*'],
-              magicBox: ['./common/import-magicbox-ui', 'monitor-ui/directive/index', 'monitor-static/svg-icons'],
-              tsxSupport: ['vue-property-decorator', 'vue-tsx-support'],
+          customGroups: [
+            {
+              groupName: 'top',
+              elementNamePattern: ['./public-path', './public-path.ts', 'monitor-common/polyfill'],
             },
-            type: {
-              top: 'top',
-              vueI18n: 'vueI18n',
-              magicBox: 'magicBox',
-              tsxSupport: 'tsxSupport',
+            {
+              groupName: 'vueI18n',
+              elementNamePattern: ['./i18n/i18n', '^vue$', '^vue-'],
             },
+            {
+              groupName: 'magicBox',
+              elementNamePattern: [
+                './common/import-magicbox-ui',
+                'monitor-ui/directive/index',
+                'monitor-static/svg-icons',
+              ],
+            },
+            {
+              groupName: 'tsxSupport',
+              elementNamePattern: ['vue-property-decorator', 'vue-tsx-support'],
+            },
+          ],
+          fallbackSort: {
+            type: 'line-length',
+            order: 'asc',
           },
           newlinesBetween: 'always',
-          internalPattern: ['@/*', '@router/*', '@store/*', '@page/*', '@static/*'],
+          internalPattern: ['^@/', '^@router/', '^@store/', '^@page/', '^@static/'],
           sortSideEffects: true,
         },
       ],
-      // 'perfectionist/sort-intersection-types': [
-      //   ERROR,
-      //   {
-      //     type: 'natural',
-      //     order: 'asc',
-      //   },
-      // ],
+      'perfectionist/sort-interfaces': [
+        ERROR,
+        {
+          order: 'asc',
+          type: 'natural',
+          groups: ['unknown', 'method', 'multiline-member'],
+        },
+      ],
+      'perfectionist/sort-intersection-types': [
+        ERROR,
+        {
+          type: 'natural',
+          order: 'asc',
+        },
+      ],
       'perfectionist/sort-union-types': [
         ERROR,
         {
@@ -264,14 +353,42 @@ module.exports = [
           type: 'natural',
         },
       ],
-      'perfectionist/sort-vue-attributes': [
+      'perfectionist/sort-named-exports': [
         ERROR,
         {
-          ...jsxOrVueSortGroups,
           type: 'natural',
           order: 'asc',
         },
       ],
+      'perfectionist/sort-modules': [
+        ERROR,
+        {
+          type: 'natural',
+          order: 'asc',
+          groups: [
+            'declare-enum',
+            'export-enum',
+            'enum',
+            ['declare-interface', 'declare-type'],
+            ['export-interface', 'export-type'],
+            ['interface', 'type'],
+            'declare-class',
+            'class',
+            'export-class',
+            'declare-function',
+            'export-function',
+            'function',
+          ],
+        },
+      ],
+      // 'perfectionist/sort-vue-attributes': [
+      //   ERROR,
+      //   {
+      //     ...jsxOrVueSortGroups,
+      //     type: 'natural',
+      //     order: 'asc',
+      //   },
+      // ],
     },
   },
   {
