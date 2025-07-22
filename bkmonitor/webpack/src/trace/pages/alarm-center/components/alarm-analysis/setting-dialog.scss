@@ -47,7 +47,7 @@
 
     .right-panel {
       width: 360px;
-      padding: 10px 25px;
+      padding: 10px 25px 10px 16px;
       background: #F5F7FA;
 
       .header {
@@ -67,6 +67,7 @@
       }
 
       .selected-list {
+        height: calc(100% - 22px);
         padding: 8px 0;
         overflow-y: auto;
 
@@ -91,9 +92,11 @@
           .list-item-left {
             display: flex;
             flex: 1;
+            align-items: center;
             overflow: hidden;
 
             .icon-mc-tuozhuai {
+              font-size: 12px;
               cursor: pointer;
             }
 

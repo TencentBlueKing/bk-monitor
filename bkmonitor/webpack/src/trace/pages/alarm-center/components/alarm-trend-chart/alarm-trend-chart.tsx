@@ -24,12 +24,13 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, provide } from 'vue';
+import { defineComponent, provide, shallowRef } from 'vue';
 import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import { PanelModel } from 'monitor-ui/chart-plugins/typings';
 
+import IntervalSelect from '../../../../components/interval-select/interval-select';
 import ChartCollapse from '../../../../pages/trace-explore/components/explore-chart/chart-collapse';
 import ExploreChart from '../../../../pages/trace-explore/components/explore-chart/explore-chart';
 import { useAlarmCenterStore } from '../../../../store/modules/alarm-center';
@@ -47,6 +48,12 @@ export default defineComponent({
       [AlarmType.ALERT]: 'alert.alertDateHistogram',
       [AlarmType.ACTION]: 'alert.actionDateHistogram',
       [AlarmType.INCIDENT]: '',
+    };
+
+    /** 汇聚周期 */
+    const interval = shallowRef('auto');
+    const handleIntervalChange = (value: string) => {
+      interval.value = value;
     };
 
     const seriesColorMap = {
@@ -106,9 +113,11 @@ export default defineComponent({
       const { start_time, end_time, ...otherParmas } = store.commonFilterParams;
       return {
         ...otherParmas,
+        interval: interval.value,
       };
     });
 
+    /** 格式化图表数据 */
     const formatterData = (data: any) => {
       return {
         series: data.series.map(item => {
@@ -128,6 +137,7 @@ export default defineComponent({
       };
     };
 
+    /** 图表框选 */
     const handleDataZoomChange = dataZoom => {
       store.timeRange = dataZoom;
     };
@@ -136,8 +146,10 @@ export default defineComponent({
       t,
       panel,
       params,
+      interval,
       formatterData,
       handleDataZoomChange,
+      handleIntervalChange,
     };
   },
   render() {
@@ -149,15 +161,28 @@ export default defineComponent({
           hasResize={true}
           title={this.t('总趋势')}
         >
-          <div class='alarm-trend-chart-container'>
-            <ExploreChart
-              formatterData={this.formatterData}
-              panel={this.panel}
-              params={this.params}
-              showTitle={false}
-              onDataZoomChange={this.handleDataZoomChange}
-            />
-          </div>
+          {{
+            default: () => (
+              <div class='alarm-trend-chart-container'>
+                <ExploreChart
+                  formatterData={this.formatterData}
+                  panel={this.panel}
+                  params={this.params}
+                  showTitle={false}
+                  onDataZoomChange={this.handleDataZoomChange}
+                />
+              </div>
+            ),
+            headerCustom: () => (
+              <div class='header-custom'>
+                <IntervalSelect
+                  interval={this.interval}
+                  label={this.t('汇聚周期')}
+                  onChange={this.handleIntervalChange}
+                />
+              </div>
+            ),
+          }}
         </ChartCollapse>
       </div>
     );

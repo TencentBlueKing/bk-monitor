@@ -21,16 +21,12 @@
     .panel-item {
       height: 208px;
       padding: 6px 8px 12px 12px;
+      cursor: pointer;
       background: #f5f7fa;
       border-radius: 4px;
 
-      .panel-item-header {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        height: 20px;
-
-        &:hover {
+      &:hover {
+        .panel-item-header {
           .header-left .icon-mc-copy {
             display: block;
           }
@@ -39,6 +35,13 @@
             display: block;
           }
         }
+      }
+
+      .panel-item-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        height: 20px;
 
         .header-left {
           display: flex;
