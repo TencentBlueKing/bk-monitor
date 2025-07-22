@@ -135,6 +135,7 @@ SPACE_DATASOURCE_ETL_LIST = [item[0] for item in EtlConfigs._choices_labels.valu
 ENABLE_V4_DATALINK_ETL_CONFIGS = [
     EtlConfigs.BK_STANDARD_V2_TIME_SERIES.value,
     EtlConfigs.BK_MULTI_TENANCY_AGENT_EVENT_ETL_CONFIG.value,
+    EtlConfigs.BK_MULTI_TENANCY_BASEREPORT_ETL_CONFIG.value,
 ]
 
 # 系统内置数据-清洗类型列表
