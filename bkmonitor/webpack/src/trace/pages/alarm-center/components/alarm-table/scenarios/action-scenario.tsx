@@ -28,6 +28,7 @@ import { ACTION_STORAGE_KEY } from '../../../services/action-services';
 import { BaseScenario } from './base-scenario';
 
 import type { BaseTableColumn } from '../../../../trace-explore/components/trace-explore-table/typing';
+import type { TableEmpty } from '../../../typings';
 import type { IUsePopoverTools } from '../hooks/use-popover';
 
 /**
@@ -45,6 +46,13 @@ export class ActionScenario extends BaseScenario {
     }
   ) {
     super();
+  }
+
+  getEmptyConfig(): TableEmpty {
+    return {
+      type: 'search-empty',
+      emptyText: window.i18n.t('当前检索范围，暂无处理记录'),
+    };
   }
 
   getColumnsConfig(): Record<string, Partial<BaseTableColumn>> {

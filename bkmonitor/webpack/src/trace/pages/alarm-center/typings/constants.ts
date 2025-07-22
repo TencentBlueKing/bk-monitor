@@ -148,9 +148,14 @@ export const CONTENT_SCROLL_ELEMENT_CLASS_NAME = 'alarm-center-content';
 
 /** 告警场景 表格批量操作栏按钮项 id */
 export enum AlertSelectAction {
+  /** 取消选择 */
   CANCEL = 'cancel',
+  /** 一键拉群 */
   CHAT = 'chat',
+  /** 批量确认 */
   CONFIRM = 'confirm',
+  /** 批量分派 */
   DISPATCH = 'dispatch',
+  /** 批量屏蔽 */
   SHIELD = 'shield',
 }

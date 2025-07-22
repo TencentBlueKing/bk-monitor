@@ -122,7 +122,7 @@ export default defineComponent({
       handleAlertOperationClick,
     };
     // 使用场景渲染器
-    const { transformColumns, currentScenario } = useScenarioRenderer(scenarioContext);
+    const { transformColumns, currentScenario, tableEmpty } = useScenarioRenderer(scenarioContext);
     /** 转换后的列配置 */
     const transformedColumns = computed(() => transformColumns(props.columns));
 
@@ -232,6 +232,7 @@ export default defineComponent({
       transformedColumns,
       currentScenario,
       selectedRowKeys,
+      tableEmpty,
       isSelectedFollower,
       handleSelectionChange,
       handleAlertBatchSet,
@@ -243,18 +244,17 @@ export default defineComponent({
         <CommonTable
           ref='tableRef'
           class='alarm-table'
-          firstFullRow={
+          firstFullRow={() =>
             this.selectedRowKeys?.length
-              ? () =>
-                  (
-                    <AlertSelectionToolbar
-                      class='alarm-table-first-full-row'
-                      isSelectedFollower={this.isSelectedFollower}
-                      selectedRowKeys={this.selectedRowKeys}
-                      onClickAction={this.handleAlertBatchSet}
-                    />
-                  ) as unknown as SlotReturnValue
-              : undefined
+              ? ((
+                  <AlertSelectionToolbar
+                    class='alarm-table-first-full-row'
+                    isSelectedFollower={this.isSelectedFollower}
+                    selectedRowKeys={this.selectedRowKeys}
+                    onClickAction={this.handleAlertBatchSet}
+                  />
+                ) as unknown as SlotReturnValue)
+              : null
           }
           headerAffixedTop={{
             container: `.${CONTENT_SCROLL_ELEMENT_CLASS_NAME}`,
@@ -269,6 +269,7 @@ export default defineComponent({
           autoFillSpace={true}
           columns={this.transformedColumns}
           data={this.data}
+          empty={this.tableEmpty}
           loading={this.loading}
           pagination={this.pagination}
           selectedRowKeys={this.selectedRowKeys}

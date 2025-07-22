@@ -41,6 +41,7 @@ import {
   type AlertTableItem,
   AlertTargetTypeMap,
   EXTEND_INFO_MAP,
+  type TableEmpty,
 } from '../../../typings';
 import { BaseScenario } from './base-scenario';
 
@@ -70,6 +71,13 @@ export class AlertScenario extends BaseScenario {
     }
   ) {
     super();
+  }
+
+  getEmptyConfig(): TableEmpty {
+    return {
+      type: 'search-empty',
+      emptyText: window.i18n.t('当前检索范围，暂无告警'),
+    };
   }
 
   getColumnsConfig(): Record<string, Partial<BaseTableColumn>> {

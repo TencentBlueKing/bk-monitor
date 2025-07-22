@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { computed, onBeforeUnmount, onMounted, watch } from 'vue';
+import { computed, type MaybeRef, onBeforeUnmount, onMounted, watch } from 'vue';
 
 import { useAlarmCenterStore } from '../../../../../store/modules/alarm-center';
 import { ACTION_STORAGE_KEY } from '../../../services/action-services';
@@ -34,16 +34,30 @@ import { ActionScenario } from '../scenarios/action-scenario';
 import { AlertScenario } from '../scenarios/alert-scenario';
 import { IncidentScenario } from '../scenarios/incident-scenario';
 
-import type { TableColumnItem } from '../../../typings';
+import type { TableColumnItem, TableEmpty } from '../../../typings';
 import type { BaseScenario } from '../scenarios/base-scenario';
 
-export function useScenarioRenderer(context: any) {
+export interface ScenarioRenderer {
+  /** 当前场景实例 */
+  currentScenario: MaybeRef<BaseScenario>;
+  /** 当前场景表格空状态配置 */
+  tableEmpty: MaybeRef<TableEmpty>;
+  /** 转换列配置 */
+  transformColumns: (columns: TableColumnItem[]) => TableColumnItem[];
+}
+
+export function useScenarioRenderer(
+  context: AlertScenario['context'] & IncidentScenario['context'] & ActionScenario['context']
+): ScenarioRenderer {
   const alarmStore = useAlarmCenterStore();
   // 用 Map 缓存场景实例，避免重复创建
   let scenarioInstanceMap = new Map<string, BaseScenario>();
 
   // 场景映射表
-  const scenarioMap: Record<string, new (ctx: any) => BaseScenario> = {
+  const scenarioMap: Record<
+    string,
+    new (ctx: AlertScenario['context'] & IncidentScenario['context'] & ActionScenario['context']) => BaseScenario
+  > = {
     [ALERT_STORAGE_KEY]: AlertScenario,
     [INCIDENT_STORAGE_KEY]: IncidentScenario,
     [ACTION_STORAGE_KEY]: ActionScenario,
@@ -59,6 +73,8 @@ export function useScenarioRenderer(context: any) {
     }
     return scenarioInstanceMap.get(storageKey);
   });
+
+  const tableEmpty = computed<TableEmpty>(() => currentScenario.value.getEmptyConfig());
 
   /**
    * @description 转换列配置
@@ -107,6 +123,7 @@ export function useScenarioRenderer(context: any) {
 
   return {
     currentScenario,
+    tableEmpty,
     transformColumns,
   };
 }

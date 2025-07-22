@@ -29,6 +29,7 @@ import {
   type BaseTableColumn,
 } from '../../../../trace-explore/components/trace-explore-table/typing';
 
+import type { TableEmpty } from '../../../typings';
 /**
  * @abstract
  * @description 场景表格特殊列渲染配置抽象基类
@@ -49,6 +50,7 @@ export abstract class BaseScenario {
    * @returns 列键到特殊配置的映射
    */
   abstract getColumnsConfig(): Record<string, BaseTableColumn>;
+
   /**
    * @description 公共列配置（所有场景共享）
    */
@@ -70,6 +72,13 @@ export abstract class BaseScenario {
       // 其他通用列...
     };
   }
+
+  /**
+   * @description 获取当前场景的空数据配置
+   * @returns 空数据展示配置
+   */
+  abstract getEmptyConfig(): TableEmpty;
+
   /**
    * @description 获取合并后的列配置（公共+私有）
    */

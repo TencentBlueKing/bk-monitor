@@ -102,10 +102,7 @@ export default defineComponent({
 
   render() {
     return (
-      <div
-        v-if='selectedRowKeys.length > 0'
-        class='alert-selection-toolbar'
-      >
+      <div class='alert-selection-toolbar'>
         <div class='alert-selection-info'>
           <span>
             <i18n-t keypath='已选择 {0} 条告警'>
