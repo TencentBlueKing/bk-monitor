@@ -1395,30 +1395,29 @@ class IndexSetHandler(APIModel):
         self.data.query_alias_settings = query_alias_settings
         self.data.save()
         multi_execute_func = MultiExecuteFunc()
-        try:
-            objs = LogIndexSetData.objects.filter(index_set_id=self.index_set_id)
-            for obj in objs:
-                multi_execute_func.append(
-                    result_key=obj.result_table_id,
-                    func=TransferApi.create_or_update_log_router,
-                    params={
-                        "table_id": BaseIndexSetHandler.get_rt_id(
-                            self.index_set_id, obj.result_table_id.replace(".", "_")
-                        ),
-                        "query_alias_settings": query_alias_settings,
-                        "space_type": self.data.space_uid.split("__")[0],
-                        "space_id": self.data.space_uid.split("__")[-1],
-                        "data_label": BaseIndexSetHandler.get_data_label(self.index_set_id),
-                    },
-                )
-            multi_execute_func.run(return_exception=True)
-        except Exception as e:
-            logger.exception("create or update index set(%s) es router failed：%s", self.index_set_id, e)
-            raise CreateOrUpdateLogRouterException(
-                CreateOrUpdateLogRouterException.MESSAGE.format(
-                    reason=f"create or update index set({self.index_set_id}) es router failed：{e}"
-                )
+        objs = LogIndexSetData.objects.filter(index_set_id=self.index_set_id)
+        for obj in objs:
+            multi_execute_func.append(
+                result_key=obj.result_table_id,
+                func=TransferApi.create_or_update_log_router,
+                params={
+                    "table_id": BaseIndexSetHandler.get_rt_id(self.index_set_id, obj.result_table_id.replace(".", "_")),
+                    "query_alias_settings": query_alias_settings,
+                    "space_type": self.data.space_uid.split("__")[0],
+                    "space_id": self.data.space_uid.split("__")[-1],
+                    "data_label": BaseIndexSetHandler.get_data_label(self.index_set_id),
+                },
             )
+        multi_result = multi_execute_func.run(return_exception=True)
+        for ret in multi_result.values():
+            if isinstance(ret, Exception):
+                # 子查询异常
+                logger.exception("create or update index set(%s) es router failed：%s", self.index_set_id, ret)
+                raise CreateOrUpdateLogRouterException(
+                    CreateOrUpdateLogRouterException.MESSAGE.format(
+                        reason=f"create or update index set({self.index_set_id}) es router failed：{ret}"
+                    )
+                )
         return {"index_set_id": self.index_set_id}
 
 
