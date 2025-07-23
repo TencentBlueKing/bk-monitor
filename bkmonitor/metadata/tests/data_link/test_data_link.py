@@ -1272,60 +1272,133 @@ def test_create_basereport_datalink_for_bkcc_bkbase_v4_part(create_or_delete_rec
                         "match_labels": [{"any": ["cpu_summary"], "name": "__result_table"}],
                         "relabels": [{"name": "__result_table", "value": "cpu_summary"}],
                         "sinks": [
-                            {"kind": "VmStorageBinding", "name": "base_1_sys_cpu_summary", "namespace": "bkmonitor"}
+                            {
+                                "kind": "VmStorageBinding",
+                                "name": "base_1_sys_cpu_summary",
+                                "namespace": "bkmonitor",
+                                "tenant": "system",
+                            }
                         ],
                     },
                     {
                         "match_labels": [{"any": ["cpu_detail"], "name": "__result_table"}],
                         "relabels": [{"name": "__result_table", "value": "cpu_detail"}],
                         "sinks": [
-                            {"kind": "VmStorageBinding", "name": "base_1_sys_cpu_detail", "namespace": "bkmonitor"}
+                            {
+                                "kind": "VmStorageBinding",
+                                "name": "base_1_sys_cpu_detail",
+                                "namespace": "bkmonitor",
+                                "tenant": "system",
+                            }
                         ],
                     },
                     {
                         "match_labels": [{"any": ["disk"], "name": "__result_table"}],
                         "relabels": [{"name": "__result_table", "value": "disk"}],
-                        "sinks": [{"kind": "VmStorageBinding", "name": "base_1_sys_disk", "namespace": "bkmonitor"}],
+                        "sinks": [
+                            {
+                                "kind": "VmStorageBinding",
+                                "name": "base_1_sys_disk",
+                                "namespace": "bkmonitor",
+                                "tenant": "system",
+                            }
+                        ],
                     },
                     {
                         "match_labels": [{"any": ["env"], "name": "__result_table"}],
                         "relabels": [{"name": "__result_table", "value": "env"}],
-                        "sinks": [{"kind": "VmStorageBinding", "name": "base_1_sys_env", "namespace": "bkmonitor"}],
+                        "sinks": [
+                            {
+                                "kind": "VmStorageBinding",
+                                "name": "base_1_sys_env",
+                                "namespace": "bkmonitor",
+                                "tenant": "system",
+                            }
+                        ],
                     },
                     {
                         "match_labels": [{"any": ["inode"], "name": "__result_table"}],
                         "relabels": [{"name": "__result_table", "value": "inode"}],
-                        "sinks": [{"kind": "VmStorageBinding", "name": "base_1_sys_inode", "namespace": "bkmonitor"}],
+                        "sinks": [
+                            {
+                                "kind": "VmStorageBinding",
+                                "name": "base_1_sys_inode",
+                                "namespace": "bkmonitor",
+                                "tenant": "system",
+                            }
+                        ],
                     },
                     {
                         "match_labels": [{"any": ["io"], "name": "__result_table"}],
                         "relabels": [{"name": "__result_table", "value": "io"}],
-                        "sinks": [{"kind": "VmStorageBinding", "name": "base_1_sys_io", "namespace": "bkmonitor"}],
+                        "sinks": [
+                            {
+                                "kind": "VmStorageBinding",
+                                "name": "base_1_sys_io",
+                                "namespace": "bkmonitor",
+                                "tenant": "system",
+                            }
+                        ],
                     },
                     {
                         "match_labels": [{"any": ["load"], "name": "__result_table"}],
                         "relabels": [{"name": "__result_table", "value": "load"}],
-                        "sinks": [{"kind": "VmStorageBinding", "name": "base_1_sys_load", "namespace": "bkmonitor"}],
+                        "sinks": [
+                            {
+                                "kind": "VmStorageBinding",
+                                "name": "base_1_sys_load",
+                                "namespace": "bkmonitor",
+                                "tenant": "system",
+                            }
+                        ],
                     },
                     {
                         "match_labels": [{"any": ["mem"], "name": "__result_table"}],
                         "relabels": [{"name": "__result_table", "value": "mem"}],
-                        "sinks": [{"kind": "VmStorageBinding", "name": "base_1_sys_mem", "namespace": "bkmonitor"}],
+                        "sinks": [
+                            {
+                                "kind": "VmStorageBinding",
+                                "name": "base_1_sys_mem",
+                                "namespace": "bkmonitor",
+                                "tenant": "system",
+                            }
+                        ],
                     },
                     {
                         "match_labels": [{"any": ["net"], "name": "__result_table"}],
                         "relabels": [{"name": "__result_table", "value": "net"}],
-                        "sinks": [{"kind": "VmStorageBinding", "name": "base_1_sys_net", "namespace": "bkmonitor"}],
+                        "sinks": [
+                            {
+                                "kind": "VmStorageBinding",
+                                "name": "base_1_sys_net",
+                                "namespace": "bkmonitor",
+                                "tenant": "system",
+                            }
+                        ],
                     },
                     {
                         "match_labels": [{"any": ["netstat"], "name": "__result_table"}],
                         "relabels": [{"name": "__result_table", "value": "netstat"}],
-                        "sinks": [{"kind": "VmStorageBinding", "name": "base_1_sys_netstat", "namespace": "bkmonitor"}],
+                        "sinks": [
+                            {
+                                "kind": "VmStorageBinding",
+                                "name": "base_1_sys_netstat",
+                                "namespace": "bkmonitor",
+                                "tenant": "system",
+                            }
+                        ],
                     },
                     {
                         "match_labels": [{"any": ["swap"], "name": "__result_table"}],
                         "relabels": [{"name": "__result_table", "value": "swap"}],
-                        "sinks": [{"kind": "VmStorageBinding", "name": "base_1_sys_swap", "namespace": "bkmonitor"}],
+                        "sinks": [
+                            {
+                                "kind": "VmStorageBinding",
+                                "name": "base_1_sys_swap",
+                                "namespace": "bkmonitor",
+                                "tenant": "system",
+                            }
+                        ],
                     },
                 ]
             },
@@ -1340,7 +1413,14 @@ def test_create_basereport_datalink_for_bkcc_bkbase_v4_part(create_or_delete_rec
             },
             "spec": {
                 "maintainers": ["admin"],
-                "sinks": [{"kind": "ConditionalSink", "name": "system_1_sys_base", "namespace": "bkmonitor"}],
+                "sinks": [
+                    {
+                        "kind": "ConditionalSink",
+                        "name": "system_1_sys_base",
+                        "namespace": "bkmonitor",
+                        "tenant": "system",
+                    }
+                ],
                 "sources": [
                     {"kind": "DataId", "name": "system_1_sys_base", "namespace": "bkmonitor", "tenant": "system"}
                 ],
