@@ -33,7 +33,7 @@ RUN --mount=type=cache,target=/app/fonts \
     && install -m644 /app/fonts/* /usr/share/fonts/truetype/
 
 # install tools
-RUN apt-get update && apt-get install -y vim chromium wget strace graphviz tini
+RUN apt-get update && apt-get install -y --allow-unauthenticated vim chromium wget strace graphviz tini
 
 
 # build python packages
