@@ -34,6 +34,7 @@ from apps.log_search.constants import (
     TimeFieldUnitEnum,
     MAX_ASYNC_COUNT,
     MAX_QUICK_EXPORT_ASYNC_COUNT,
+    SCROLL,
 )
 from apps.log_search.exceptions import BaseSearchResultAnalyzeException
 from apps.log_search.handlers.index_set import BaseIndexSetHandler
@@ -1005,7 +1006,7 @@ class UnifyQueryHandler:
 
         search_params = copy.deepcopy(self.base_dict)
         search_params["limit"] = MAX_RESULT_WINDOW
-        search_params["scroll"] = "10m"
+        search_params["scroll"] = SCROLL
 
         total_count = 0
         while True:
