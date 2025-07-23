@@ -131,7 +131,7 @@ export interface INormalWhere {
 // 组件外部格式
 export interface IWhereItem {
   key: string;
-  condition?: ECondition;
+  condition?: ECondition | string;
   method?: EMethod | string;
   operator?: string;
   value: number[] | string[];

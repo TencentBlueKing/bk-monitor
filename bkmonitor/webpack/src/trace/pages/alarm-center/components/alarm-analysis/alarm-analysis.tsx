@@ -45,7 +45,8 @@ export const AlarmAnalysisCollapse = 'ALARM_ANALYSIS_COLLAPSE';
 
 export default defineComponent({
   name: 'AlarmAnalysis',
-  setup() {
+  emits: ['conditionChange'],
+  setup(props, { emit }) {
     const { t } = useI18n();
     const {
       analysisFieldTopNData,
@@ -166,8 +167,69 @@ export default defineComponent({
       );
     };
 
-    const handleConditionChange = (type, value: string, field: string) => {
-      console.log(type, value, field);
+    const handleConditionChange = (type: string, value: string, field: string) => {
+      emit('conditionChange', {
+        key: field,
+        value: [value],
+        method: type,
+      });
+    };
+
+    /** 渲染折叠内容区域 */
+    const renderCollapseContent = () => {
+      if (analysisFieldTopNLoading.value) {
+        return (
+          <div class='skeleton-wrap'>
+            {new Array(5).fill(0).map((panel, index) => (
+              <div
+                key={index}
+                class='skeleton-panel-item'
+              >
+                {new Array(6).fill(0).map((item, i) => (
+                  <div
+                    key={i}
+                    class={['skeleton-element', { title: i === 0 }]}
+                  />
+                ))}
+              </div>
+            ))}
+          </div>
+        );
+      }
+
+      if (!showAnalysisList.value.length) return <EmptyStatus type='empty' />;
+
+      return (
+        <div class='collapse-content'>
+          {showAnalysisList.value.map(panel => (
+            <div
+              key={panel.field}
+              class='panel-item'
+            >
+              <div class='panel-item-header'>
+                <div class='header-left'>
+                  <span class='title'>{panel.name}</span>
+                  <div class='count'>{panel.bucket_count}</div>
+                  <i
+                    class='icon-monitor icon-mc-copy'
+                    v-bk-tooltips={{ content: '批量复制' }}
+                    onClick={() => handleCopyNames(panel.buckets)}
+                  />
+                </div>
+                {panel.bucket_count > 5 && (
+                  <span
+                    class='header-right'
+                    onClick={() => handleViewAll(panel)}
+                  >
+                    {t('查看全部')}
+                  </span>
+                )}
+              </div>
+              <div class='panel-item-content'>{renderAnalysisList(panel.buckets.slice(0, 5), panel.field)}</div>
+            </div>
+          ))}
+        </div>
+      );
     };
 
     /** 设置字段，维度是否展示 */
@@ -253,6 +315,7 @@ export default defineComponent({
       renderAnalysisSlider,
       getAnalysisDataByFields,
       handleSelectValueChange,
+      renderCollapseContent,
     };
   },
   render() {
@@ -275,56 +338,7 @@ export default defineComponent({
                 <span>{this.t('设置')}</span>
               </div>
             ),
-            default: () =>
-              this.analysisFieldTopNLoading ? (
-                <div class='skeleton-wrap'>
-                  {new Array(5).fill(0).map((panel, index) => (
-                    <div
-                      key={index}
-                      class='skeleton-panel-item'
-                    >
-                      {new Array(6).fill(0).map((item, i) => (
-                        <div
-                          key={i}
-                          class={['skeleton-element', { title: i === 0 }]}
-                        />
-                      ))}
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div class='collapse-content'>
-                  {this.showAnalysisList.map(panel => (
-                    <div
-                      key={panel.field}
-                      class='panel-item'
-                    >
-                      <div class='panel-item-header'>
-                        <div class='header-left'>
-                          <span class='title'>{panel.name}</span>
-                          <div class='count'>{panel.bucket_count}</div>
-                          <i
-                            class='icon-monitor icon-mc-copy'
-                            v-bk-tooltips={{ content: '批量复制' }}
-                            onClick={() => this.handleCopyNames(panel.buckets)}
-                          />
-                        </div>
-                        {panel.bucket_count > 5 && (
-                          <span
-                            class='header-right'
-                            onClick={() => this.handleViewAll(panel)}
-                          >
-                            {this.t('查看全部')}
-                          </span>
-                        )}
-                      </div>
-                      <div class='panel-item-content'>
-                        {this.renderAnalysisList(panel.buckets.slice(0, 5), panel.field)}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ),
+            default: this.renderCollapseContent,
           }}
         </ChartCollapse>
 
