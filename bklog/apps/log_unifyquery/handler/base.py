@@ -9,7 +9,6 @@ specific language governing permissions and limitations under the License.
 """
 
 import copy
-import json
 from collections import defaultdict
 from typing import Any
 
@@ -795,7 +794,6 @@ class UnifyQueryHandler:
         search_dict["from"] = self.search_params["begin"]
         search_dict["limit"] = once_size
         search_dict["highlight"] = {"enable": self.highlight}
-        print(json.dumps(search_dict))
         # 预查询
         result = self.query_ts_raw(search_dict, pre_search=pre_search)
         if pre_search and len(result["list"]) != once_size:
