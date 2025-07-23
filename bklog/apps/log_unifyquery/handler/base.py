@@ -1002,19 +1002,17 @@ class UnifyQueryHandler:
         """
         轮询滚动查询接口导出数据
         """
-        max_count = MAX_QUICK_EXPORT_ASYNC_COUNT if is_quick_export else MAX_ASYNC_COUNT
-
         search_params = copy.deepcopy(self.base_dict)
         search_params["limit"] = MAX_RESULT_WINDOW
         search_params["scroll"] = SCROLL
 
+        max_result_count = MAX_QUICK_EXPORT_ASYNC_COUNT if is_quick_export else MAX_ASYNC_COUNT
         total_count = 0
-        while True:
+        while total_count < max_result_count:
             # 首次请求清空缓存
             search_params["clear_cache"] = total_count == 0
             search_result = UnifyQueryHandler.query_ts_raw_with_scroll(search_params)
-            # done为true代表已经获取完所有数据，可以结束查询，这时候字段list正常情况为空列表
-            if search_result.get("done", True) and not search_result.get("list"):
+            if not search_result.get("list"):
                 break
 
             if is_quick_export:
@@ -1023,7 +1021,9 @@ class UnifyQueryHandler:
                 yield self._deal_query_result(search_result)["origin_log_list"]
 
             total_count += len(search_result["list"])
-            if total_count >= max_count:
+
+            # done为true代表已经获取完所有数据，可以结束查询
+            if search_result.get("done", True):
                 break
 
     def _get_user_sorted_list(self, sorted_fields):
