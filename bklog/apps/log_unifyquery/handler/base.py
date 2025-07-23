@@ -9,6 +9,7 @@ specific language governing permissions and limitations under the License.
 """
 
 import copy
+import json
 from collections import defaultdict
 from typing import Any
 
@@ -34,6 +35,7 @@ from apps.log_search.constants import (
     TimeFieldUnitEnum,
     MAX_ASYNC_COUNT,
     SCROLL,
+    MAX_QUICK_EXPORT_ASYNC_COUNT,
 )
 from apps.log_search.exceptions import BaseSearchResultAnalyzeException
 from apps.log_search.handlers.index_set import BaseIndexSetHandler
@@ -232,6 +234,19 @@ class UnifyQueryHandler:
             return UnifyQueryApi.query_ts_raw(search_dict)
         except Exception as e:  # pylint: disable=broad-except
             logger.exception("query ts raw error: %s, search params: %s", e, search_dict)
+            if raise_exception:
+                raise e
+            return {"list": []}
+
+    @staticmethod
+    def query_ts_raw_with_scroll(search_dict, raise_exception=True):
+        """
+        日志下载
+        """
+        try:
+            return UnifyQueryApi.query_ts_raw_with_scroll(search_dict)
+        except Exception as e:  # pylint: disable=broad-except
+            logger.exception("query ts raw with scroll error: %s, search params: %s", e, search_dict)
             if raise_exception:
                 raise e
             return {"list": []}
@@ -780,7 +795,7 @@ class UnifyQueryHandler:
         search_dict["from"] = self.search_params["begin"]
         search_dict["limit"] = once_size
         search_dict["highlight"] = {"enable": self.highlight}
-
+        print(json.dumps(search_dict))
         # 预查询
         result = self.query_ts_raw(search_dict, pre_search=pre_search)
         if pre_search and len(result["list"]) != once_size:
@@ -1039,6 +1054,34 @@ class UnifyQueryHandler:
             search_after_size = len(search_result["list"])
             result_size += search_after_size
             yield self._deal_query_result(search_result)
+
+    def export_data(self, is_quick_export: bool = False):
+        """
+        轮询滚动查询接口导出数据
+        """
+        max_count = MAX_QUICK_EXPORT_ASYNC_COUNT if is_quick_export else MAX_ASYNC_COUNT
+
+        search_params = copy.deepcopy(self.base_dict)
+        search_params["limit"] = MAX_RESULT_WINDOW
+        search_params["scroll"] = "10m"
+
+        total_count = 0
+        while True:
+            # 首次请求清空缓存
+            search_params["clear_cache"] = total_count == 0
+            search_result = UnifyQueryHandler.query_ts_raw_with_scroll(search_params)
+            # done为true代表已经获取完所有数据，可以结束查询，这时候字段list正常情况为空列表
+            if search_result.get("done", True) and not search_result.get("list"):
+                break
+
+            if is_quick_export:
+                yield search_result["list"]
+            else:
+                yield self._deal_query_result(search_result)["origin_log_list"]
+
+            total_count += len(search_result["list"])
+            if total_count >= max_count:
+                break
 
     def _get_user_sorted_list(self, sorted_fields):
         index_set_id = self.index_info_list[0]["index_set_id"]
