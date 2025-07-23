@@ -1540,7 +1540,7 @@ def process_gse_slot_message(message_id: str, bk_agent_id: str, content: str, re
         return
 
     # 解析Content，Content内容为采集器与Metadata约定的协议
-    if content_data["type"] == "fetch/host/dataid":
+    if content_data.get("type") == "fetch/host/dataid":
         logger.info("process_gse_slot_message: start to fetch host dataid")
 
         bk_tenant_id = content_data.get("bk_tenant_id")
