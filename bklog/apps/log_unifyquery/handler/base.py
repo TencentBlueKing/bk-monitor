@@ -794,6 +794,7 @@ class UnifyQueryHandler:
         search_dict["from"] = self.search_params["begin"]
         search_dict["limit"] = once_size
         search_dict["highlight"] = {"enable": self.highlight}
+
         # 预查询
         result = self.query_ts_raw(search_dict, pre_search=pre_search)
         if pre_search and len(result["list"]) != once_size:
