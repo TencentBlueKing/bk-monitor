@@ -1498,39 +1498,87 @@ def _get_bk_biz_internal_data_ids(bk_tenant_id: str, bk_biz_id: int) -> list[dic
 
 
 @app.task(ignore_result=True, queue="celery_metadata_task_worker")
-def process_gse_delivery(message_id: str, bk_agent_id: str, content: str, received_at: str):
+def process_gse_slot_message(message_id: str, bk_agent_id: str, content: str, received_at: str):
     """
     Celery异步任务--处理GSE投递的数据
+
+    {
+        # type 格式为 "动作名称"/"影响范围"/"操作内容"
+        "type": "fetch/host/dataid", # 请求类型，暂时只有一种，后续可能扩展
+        "cloudid": 0, # 发起请求的采集器主机 cloudid
+        "bk_agent_id": "02000000005254003dd2ea1700473962076n", # 发起请求的采集器主机 agentid
+        "ip": "127.0.0.1", # 发起请求的采集器主机 ip
+        "bk_tenant_id" : "my-tenant_id", # 采集器读到的 CMDB 下发的文件中的租户 ID
+        "params": "..." # 请求参数，不同的 type 对应着不同的参数
+    }
+
+    type: fetch/host/dataid
+    {
+        # metadata 可以内置这批 tasks 的数据格式以及元信息等，编写成一个独立的任务。
+        "tasks": [
+            "basereport", # 原 1001 dataid
+            "processbeat_perf", # 原 1007 dataid
+            "processbeat_port", # 原 1013 dataid
+            "global_heartbeat", # 原 1100001 dataid
+            "gather_up_beat",  # 原 1100017 dataid
+            "timesync", # 原 1100030 dataid
+            "dmesg" # 原 1100031 dataid
+        ]
+    }
     """
     from alarm_backends.core.cache.cmdb import HostManager
 
-    content_data = json.loads(content)  # 解析Content，Content内容为采集器与Metadata约定的协议
-    if content_data["type"] == "fetch/host/dataid":
-        logger.info("process_gse_delivery: start to fetch host dataid")
+    try:
+        content_data = json.loads(content)
+    except (ValueError, TypeError):
+        logger.error(
+            "process_gse_slot_message: content is not a valid json, message_id->%s, bk_agent_id->%s, content->%s",
+            message_id,
+            bk_agent_id,
+            content,
+        )
+        return
 
-        host = HostManager.get_by_agent_id(bk_agent_id=bk_agent_id)
-        if not host:
-            logger.warning("process_gse_delivery: host not found, bk_agent_id->%s", bk_agent_id)
+    # 解析Content，Content内容为采集器与Metadata约定的协议
+    if content_data["type"] == "fetch/host/dataid":
+        logger.info("process_gse_slot_message: start to fetch host dataid")
+
+        bk_tenant_id = content_data.get("bk_tenant_id")
+        bk_agent_id = content_data.get("bk_agent_id")
+
+        if not bk_tenant_id or not bk_agent_id:
+            logger.warning(
+                "process_gse_slot_message: bk_tenant_id or bk_agent_id is not found,message_id->%s,content->%s",
+                message_id,
+                content,
+            )
             return
 
-        # params: dict[str, Any] = content_data.get("params", {})
-        # tasks: list[str] = content_data.get("tasks", [])
+        host = HostManager.get_by_agent_id(bk_tenant_id=bk_tenant_id, bk_agent_id=bk_agent_id)
+        if not host:
+            logger.warning(
+                "process_gse_slot_message: host not found,bk_tenant_id->%s,bk_agent_id->%s",
+                bk_tenant_id,
+                bk_agent_id,
+            )
+            return
 
-        result: list[dict[str, int | str]] = _get_bk_biz_internal_data_ids(host.bk_tenant_id, host.bk_biz_id)
+        result: list[dict[str, int | str]] = _get_bk_biz_internal_data_ids(
+            bk_tenant_id=bk_tenant_id, bk_biz_id=host.bk_biz_id
+        )
 
         # 回调GSE接口,告知DataId
         logger.info(
-            "process_gse_delivery: callback gse interface,message_id->%s,bk_agent_id->%s,content->%s,received_at->%s,result->%s",
+            "process_gse_slot_message: callback gse interface,message_id->%s,bk_agent_id->%s,content->%s,received_at->%s,result->%s",
             message_id,
             bk_agent_id,
             content,
             received_at,
             result,
         )
-
     else:
         logger.warning(
-            "process_gse_delivery: unknown content type,message_id->%s,bk_agent_id->%s,content->%s,received_at->%s",
+            "process_gse_slot_message: unknown content type,message_id->%s,bk_agent_id->%s,content->%s,received_at->%s",
             message_id,
             bk_agent_id,
             content,
