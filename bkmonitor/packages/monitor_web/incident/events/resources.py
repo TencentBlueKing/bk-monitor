@@ -8,7 +8,6 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-from typing import Any
 from monitor_web.incident.events.constants import EntityType, IndexType
 from core.drf_resource.base import Resource
 from monitor_web.incident.events.serializers import EventsSearchSerializer, EventDetailSerializer
@@ -64,10 +63,8 @@ class IncidentEventsSearchResource(Resource):
         if entity_type == EntityType.BcsPod:
             # bcs_pod类型的entity type需要拿到bk_data_id
             bk_biz_id = kwargs.get("bk_biz_id", "")
-            cluster_infos: list[dict[str, Any]] = api.metadata.list_bcs_cluster_info(
-                cluster_ids=[kwargs.get("cluster_id", "")]
-            )
-            cluster_to_data_id: dict[str, int] = {
+            cluster_infos: list = api.metadata.list_bcs_cluster_info(cluster_ids=[kwargs.get("cluster_id", "")])
+            cluster_to_data_id: dict = {
                 cluster_info["cluster_id"]: cluster_info["k8s_event_data_id"] for cluster_info in cluster_infos
             }
             bk_data_id = cluster_to_data_id.get(kwargs.get("cluster_id", ""))
