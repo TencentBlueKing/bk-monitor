@@ -4,9 +4,17 @@
   position: relative;
   display: flex;
   flex-direction: column;
+  // 最小高度应为骨架屏高度避免出现空白
+  min-height: 370px;
 
   .common-table {
     @include tableCommonTheme.table-theme();
+
+    .common-table-ellipsis {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
   }
 
   // 在根元素容器高度仍有剩余的情况下，表格是否自适应填满根元素容器的剩余空间
@@ -14,6 +22,7 @@
     .common-table {
       flex-grow: 1;
       flex-basis: auto;
+      min-height: 0;
 
       &.t-table {
         // 容器有剩余空间时撑满容器

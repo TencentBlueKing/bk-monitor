@@ -31,13 +31,18 @@ import { Exception, Pagination } from 'bkui-vue';
 import TableSkeleton from '../../../../../../components/skeleton/table-skeleton';
 import { useTableCell } from '../../../../../trace-explore/components/trace-explore-table/hooks/use-table-cell';
 import { useTableEllipsis } from '../../../../../trace-explore/components/trace-explore-table/hooks/use-table-popover';
+import {
+  COMMON_TABLE_ELLIPSIS_CLASS_NAME,
+  type TableEmpty,
+  type TablePagination,
+  type TableRenderer,
+} from '../../../../typings';
 import { DEFAULT_TABLE_CONFIG } from './table-constants';
 
 import type {
   BaseTableColumn,
   TableCellRenderer,
 } from '../../../../../trace-explore/components/trace-explore-table/typing';
-import type { TableEmpty, TablePagination, TableRenderer } from '../../../../typings';
 import type { CheckboxGroupValue, SelectOptions, SizeEnum, SlotReturnValue, TdAffixProps } from 'tdesign-vue-next';
 
 import './common-table.scss';
@@ -130,13 +135,23 @@ export default defineComponent({
     const { tableCellRender, renderContext } = useTableCell({
       rowKeyField: props.rowKey,
       customCellRenderMap: props.customCellRenderMap,
+      cellEllipsisClass: COMMON_TABLE_ELLIPSIS_CLASS_NAME,
     });
     /** 表格功能单元格内容溢出弹出 popover 功能 */
-    const { initListeners: initEllipsisListeners } = useTableEllipsis(tableRef);
+    const { initListeners: initEllipsisListeners } = useTableEllipsis(tableRef, {
+      trigger: {
+        selector: `.${COMMON_TABLE_ELLIPSIS_CLASS_NAME}`,
+      },
+    });
 
     /** 处理后的表格列配置 */
     const tableColumns = computed(() =>
       props.columns.map(column => ({
+        // @ts-ignore
+        cellEllipsis: column?.ellipsis != null ? column?.ellipsis : true,
+        ellipsis: false,
+        // @ts-ignore
+        ellipsisTitle: column?.ellipsisTitle != null ? column?.ellipsisTitle : true,
         ...column,
         cell: (_, { row }) =>
           column?.cellRenderer

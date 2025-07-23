@@ -192,6 +192,8 @@ export const MY_AUTH_BIZ_ID = -1;
 export const MY_ALARM_BIZ_ID = -2;
 /** 内容滚动元素类名 */
 export const CONTENT_SCROLL_ELEMENT_CLASS_NAME = 'alarm-center-content';
+/** common-table 表格检测是否内容溢出弹出 tip 功能类名 */
+export const COMMON_TABLE_ELLIPSIS_CLASS_NAME = 'common-table-ellipsis';
 
 /** 告警场景 表格批量操作栏按钮项 id */
 export enum AlertSelectAction {
