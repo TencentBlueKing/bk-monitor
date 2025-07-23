@@ -1544,11 +1544,10 @@ def process_gse_slot_message(message_id: str, bk_agent_id: str, content: str, re
         logger.info("process_gse_slot_message: start to fetch host dataid")
 
         bk_tenant_id = content_data.get("bk_tenant_id")
-        bk_agent_id = content_data.get("bk_agent_id")
 
-        if not bk_tenant_id or not bk_agent_id:
+        if not bk_tenant_id:
             logger.warning(
-                "process_gse_slot_message: bk_tenant_id or bk_agent_id is not found,message_id->%s,content->%s",
+                "process_gse_slot_message: bk_tenant_id is not found,message_id->%s,content->%s",
                 message_id,
                 content,
             )
