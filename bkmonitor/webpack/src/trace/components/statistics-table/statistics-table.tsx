@@ -1433,9 +1433,9 @@ export default defineComponent({
           v-slots={{ empty: () => emptyContent() }}
           bkUiSettings={this.isCompareView ? this.diffTableSettings : this.tableSettings}
           columns={this.tableColumns}
-          data={this.tableData}
+          data={this.tableData.map(item => ({ ...item, id: item.id ?? random(6) }))}
           filterValue={this.filterValue}
-          rowKey='span_name'
+          rowKey='id'
           sort={this.sortInfo}
           showSortColumnBgColor
           onFilterChange={this.filterValueChange}

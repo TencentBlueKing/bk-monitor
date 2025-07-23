@@ -52,7 +52,6 @@ class AIMetricsReporter:
         status: str,
         duration: float | None = None,
         agent_code: str | None = None,
-        session_code: str | None = None,
         username: str | None = None,
     ):
         """
@@ -61,19 +60,16 @@ class AIMetricsReporter:
         @params status: 请求状态
         @params duration: 请求耗时（秒）
         @params agent_code: Agent代码
-        @params session_code: 会话ID
         @params username: 用户名
         """
         # 获取默认值
         agent_code = agent_code or "unknown"
-        session_code = session_code or "unknown"
         username = username or self._get_username()
 
         # 上报请求总数
         self.requests_total.labels(
             agent_code=agent_code,
             resource_name=resource_name,
-            session_code=session_code,
             status=status,
             username=username,
         ).inc()
@@ -83,7 +79,6 @@ class AIMetricsReporter:
             self.requests_cost.labels(
                 agent_code=agent_code,
                 resource_name=resource_name,
-                session_code=session_code,
                 status=status,
                 username=username,
             ).set(duration)
@@ -92,7 +87,7 @@ class AIMetricsReporter:
 
         logger.info(
             f"AIMetricsReporter: resource={resource_name}, status={status}, "
-            f"duration={duration}, agent_code={agent_code}, session_code={session_code}"
+            f"duration={duration}, agent_code={agent_code}"
         )
 
     def _get_username(self) -> str:
@@ -111,13 +106,12 @@ ai_metrics_reporter = AIMetricsReporter()
 # ===================== 装饰器实现 =====================
 
 
-def ai_metrics_decorator(extract_agent_code_func=None, extract_session_code_func=None, extract_username_func=None):
+def ai_metrics_decorator(extract_agent_code_func=None, extract_username_func=None):
     """
     AI服务指标上报装饰器
 
     Args:
         extract_agent_code_func: 提取agent_code的函数
-        extract_session_code_func: 提取session_code的函数
         extract_username_func: 提取username的函数
     """
 
@@ -129,7 +123,6 @@ def ai_metrics_decorator(extract_agent_code_func=None, extract_session_code_func
 
             # 提取标签值
             agent_code = None
-            session_code = None
             username = None
 
             try:
@@ -139,11 +132,6 @@ def ai_metrics_decorator(extract_agent_code_func=None, extract_session_code_func
                 else:
                     agent_code = validated_request_data.get("agent_code")
 
-                if extract_session_code_func:
-                    session_code = extract_session_code_func(validated_request_data)
-                else:
-                    session_code = validated_request_data.get("session_code")
-
                 if extract_username_func:
                     username = extract_username_func(validated_request_data)
 
@@ -152,7 +140,6 @@ def ai_metrics_decorator(extract_agent_code_func=None, extract_session_code_func
                     resource_name=resource_name,
                     status=RequestStatus.STARTED,
                     agent_code=agent_code,
-                    session_code=session_code,
                     username=username,
                 )
 
@@ -176,7 +163,6 @@ def ai_metrics_decorator(extract_agent_code_func=None, extract_session_code_func
                     status=status,
                     duration=duration,
                     agent_code=agent_code,
-                    session_code=session_code,
                     username=username,
                 )
 
@@ -192,7 +178,6 @@ def ai_metrics_decorator(extract_agent_code_func=None, extract_session_code_func
                     status=RequestStatus.ERROR,
                     duration=duration,
                     agent_code=agent_code,
-                    session_code=session_code,
                     username=username,
                 )
 
@@ -225,7 +210,6 @@ def ai_streaming_metrics(func):
 
         # 提取标签值
         agent_code = validated_request_data.get("agent_code")
-        session_code = validated_request_data.get("session_code")
 
         try:
             # 上报流式开始
@@ -233,7 +217,6 @@ def ai_streaming_metrics(func):
                 resource_name=resource_name,
                 status=RequestStatus.STREAMING,
                 agent_code=agent_code,
-                session_code=session_code,
             )
 
             # 执行原方法
@@ -246,7 +229,6 @@ def ai_streaming_metrics(func):
                 status=RequestStatus.COMPLETED,
                 duration=duration,
                 agent_code=agent_code,
-                session_code=session_code,
             )
 
             return result
@@ -258,7 +240,6 @@ def ai_streaming_metrics(func):
                 status=RequestStatus.ERROR,
                 duration=duration,
                 agent_code=agent_code,
-                session_code=session_code,
             )
             logger.error(f"AIMetricsReporter: AI streaming service error in {resource_name}: {e}")
             raise
@@ -277,9 +258,8 @@ def extract_agent_code_from_request(validated_request_data):
 class StreamingMetricsTracker:
     """流式响应指标跟踪器"""
 
-    def __init__(self, resource_name: str, session_code: str, agent_code: str, username: str):
+    def __init__(self, resource_name: str, agent_code: str, username: str):
         self.resource_name = resource_name
-        self.session_code = session_code
         self.agent_code = agent_code
         self.username = username
 
@@ -307,7 +287,6 @@ class StreamingMetricsTracker:
                 status=RequestStatus.STREAMING,
                 duration=setup_duration,
                 agent_code=self.agent_code,
-                session_code=self.session_code,
                 username=self.username,
             )
 
@@ -336,7 +315,6 @@ class StreamingMetricsTracker:
             status=RequestStatus.COMPLETED,
             duration=total_duration,
             agent_code=self.agent_code,
-            session_code=self.session_code,
             username=self.username,
         )
 
@@ -346,7 +324,6 @@ class StreamingMetricsTracker:
             status="chunk_count",
             duration=self.chunk_count,  # 使用duration字段存储chunk数量
             agent_code=self.agent_code,
-            session_code=self.session_code,
             username=self.username,
         )
 
@@ -370,7 +347,6 @@ class StreamingMetricsTracker:
             status=RequestStatus.ERROR,
             duration=total_duration,
             agent_code=self.agent_code,
-            session_code=self.session_code,
             username=self.username,
         )
 
@@ -429,7 +405,6 @@ def ai_enhanced_streaming_metrics(func):
 
         # 提取标签值
         agent_code = validated_request_data.get("agent_code", "unknown")
-        session_code = validated_request_data.get("session_code", "unknown")
         username = ai_metrics_reporter._get_username()
 
         try:
@@ -438,7 +413,6 @@ def ai_enhanced_streaming_metrics(func):
                 resource_name=resource_name,
                 status=RequestStatus.STARTED,
                 agent_code=agent_code,
-                session_code=session_code,
                 username=username,
             )
 
@@ -458,7 +432,6 @@ def ai_enhanced_streaming_metrics(func):
                     status=RequestStatus.SUCCESS,
                     duration=duration,
                     agent_code=agent_code,
-                    session_code=session_code,
                     username=username,
                 )
 
@@ -471,7 +444,6 @@ def ai_enhanced_streaming_metrics(func):
                 status=RequestStatus.ERROR,
                 duration=duration,
                 agent_code=agent_code,
-                session_code=session_code,
                 username=username,
             )
             logger.error(f"AIMetricsReporter: AI streaming service error in {resource_name}: {e}")
