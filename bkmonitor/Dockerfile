@@ -4,23 +4,23 @@ COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 # variables
 ARG username=bkmonitor
 ARG pypi_index_url=https://pypi.org/simple/
+ARG replace_debian_source=false
 
 # update debian source
-RUN cat <<EOF > /etc/apt/sources.list.d/debian.sources
-Types: deb
-# http://snapshot.debian.org/archive/debian/20250610T000000Z
-URIs: http://mirrors.tencent.com/debian
-Suites: bookworm bookworm-updates
-Components: main
-Signed-By: /usr/share/keyrings/debian-archive-keyring.gpg
-
-Types: deb
-# http://snapshot.debian.org/archive/debian-security/20250610T000000Z
-URIs: http://mirrors.tencent.com/debian-security
-Suites: bookworm-security
-Components: main
-Signed-By: /usr/share/keyrings/debian-archive-keyring.gpg
-EOF
+RUN if [ ${replace_debian_source} ] ; then \
+        echo "update debian source to tencent" && \
+        rm -rf /etc/apt/sources.list && \
+        echo "deb https://mirrors.tencent.com/debian/ bullseye main contrib non-free" >>/etc/apt/sources.list && \
+        echo "deb-src https://mirrors.tencent.com/debian/ bullseye main contrib non-free" >>/etc/apt/sources.list && \
+        echo "deb https://mirrors.tencent.com/debian/ bullseye-updates main contrib non-free" >>/etc/apt/sources.list && \
+        echo "deb-src https://mirrors.tencent.com/debian/ bullseye-updates main contrib non-free" >>/etc/apt/sources.list && \
+        echo "deb https://mirrors.tencent.com/debian/ bullseye-backports main contrib non-free" >>/etc/apt/sources.list && \
+        echo "deb-src https://mirrors.tencent.com/debian/ bullseye-backports main contrib non-free" >>/etc/apt/sources.list && \
+        echo "deb https://mirrors.tencent.com/debian-security/ bullseye-security main contrib non-free" >>/etc/apt/sources.list && \
+        echo "deb-src https://mirrors.tencent.com/debian-security/ bullseye-security main contrib non-free" >>/etc/apt/sources.list; \
+    else \
+        echo "don't need change debian source"; \
+    fi
 
 # install chinese fonts
 RUN --mount=type=cache,target=/app/fonts \
@@ -33,7 +33,7 @@ RUN --mount=type=cache,target=/app/fonts \
     && install -m644 /app/fonts/* /usr/share/fonts/truetype/
 
 # install tools
-RUN apt-get update --allow-insecure-repositories && apt-get install -y --allow-unauthenticated vim chromium wget strace graphviz tini
+RUN apt-get update && apt-get install -y vim chromium wget strace graphviz tini
 
 
 # build python packages
