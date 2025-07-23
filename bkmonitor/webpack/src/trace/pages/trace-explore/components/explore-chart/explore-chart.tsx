@@ -60,7 +60,7 @@ export default defineComponent({
       default: () => ({}),
     },
   },
-  emits: ['dataZoomChange'],
+  emits: ['dataZoomChange', 'durationChange'],
   setup(props, { emit }) {
     const { t } = useI18n();
     const chartInstance = useTemplateRef<InstanceType<typeof VueEcharts>>('echart');
@@ -70,7 +70,7 @@ export default defineComponent({
     const panel = computed(() => props.panel);
     const params = computed(() => props.params);
 
-    const { options, loading, metricList, targets, series } = useEcharts(
+    const { options, loading, metricList, targets, series, duration } = useEcharts(
       panel,
       chartRef,
       instance.appContext.config.globalProperties.$api,
@@ -111,6 +111,14 @@ export default defineComponent({
     const handleMouseInChange = (v: boolean) => {
       mouseIn.value = v;
     };
+
+    watch(
+      () => duration.value,
+      val => {
+        emit('durationChange', val);
+      }
+    );
+
     watch(
       [loading, options],
       async () => {

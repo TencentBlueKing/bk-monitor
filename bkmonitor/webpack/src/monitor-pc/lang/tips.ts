@@ -363,4 +363,5 @@ export default {
   修改通知对象: 'Modify Notify Target',
   通知对象不能为空: 'Notify target cannot be empty',
   暂无选项: 'No options',
+  '（找到 {0} 条结果，用时 {1} 毫秒）': '(Found {0} results, took {1} milliseconds)',
 };

@@ -88,6 +88,7 @@ export default defineComponent({
         <AlarmRetrievalFilter class='alarm-center-filters' />
         <div class='alarm-center-main'>
           <TraceExploreLayout
+            class='alarm-center-layout'
             v-slots={{
               aside: () => {
                 return (
