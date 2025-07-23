@@ -23,7 +23,11 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { request } from '../base';
+import {
+  getCustomTsMetricGroups as getCustomTsMetricGroupsApi,
+  getCustomTsDimensionValues as getCustomTsDimensionValuesApi,
+  getCustomTsGraphConfig as getCustomTsGraphConfigApi,
+} from 'monitor-api/modules/scene_view';
 
 /*
  * 查询指标分组信息
@@ -44,7 +48,7 @@ export const getCustomTsMetricGroups: (params: { bk_biz_id?: number; time_series
       metric_name: string;
     }[];
   }[];
-}> = request('GET', 'rest/v2/scene_view/get_custom_ts_metric_groups/');
+}> = getCustomTsMetricGroupsApi;
 
 /*
  * 查询维度的候选值
@@ -56,10 +60,7 @@ export const getCustomTsDimensionValues: (params: {
   start_time: number;
   end_time: number;
   metrics: string[];
-}) => Promise<{ name: string; alias: string }[]> = request(
-  'POST',
-  'rest/v2/scene_view/get_custom_ts_dimension_values/'
-);
+}) => Promise<{ name: string; alias: string }[]> = getCustomTsDimensionValuesApi;
 
 /*
  * 获取图表配置
@@ -95,7 +96,7 @@ export const getCustomTsGraphConfig: (params?: {
   };
   start_time: number;
   end_time: number;
-}) => Promise<any> = request('POST', 'rest/v2/scene_view/get_custom_ts_graph_config/');
+}) => Promise<any> = getCustomTsGraphConfigApi;
 
 export default {
   getCustomTsMetricGroups,

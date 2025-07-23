@@ -94,7 +94,7 @@ export const AlertStatusMap = {
   },
   RECOVERED: {
     prefixIcon: 'alert-status-icon icon-monitor icon-mc-check-fill',
-    name: window.i18n.t('已恢复'),
+    alias: window.i18n.t('已恢复'),
   },
   CLOSED: {
     prefixIcon: 'alert-status-icon icon-monitor icon-shixiao',
@@ -145,3 +145,12 @@ export const MY_AUTH_BIZ_ID = -1;
 export const MY_ALARM_BIZ_ID = -2;
 /** 内容滚动元素类名 */
 export const CONTENT_SCROLL_ELEMENT_CLASS_NAME = 'alarm-center-content';
+
+/** 告警场景 表格批量操作栏按钮项 id */
+export enum AlertSelectAction {
+  CANCEL = 'cancel',
+  CHAT = 'chat',
+  CONFIRM = 'confirm',
+  DISPATCH = 'dispatch',
+  SHIELD = 'shield',
+}

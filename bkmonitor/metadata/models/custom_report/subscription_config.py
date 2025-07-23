@@ -13,11 +13,14 @@ from collections import defaultdict
 from itertools import chain
 from typing import TYPE_CHECKING, Any, Literal, Union
 
+from jinja2.sandbox import SandboxedEnvironment as Environment
 from django.conf import settings
 from django.db import models
 
+from bkmonitor.utils.bk_collector_config import BkCollectorClusterConfig
 from bkmonitor.utils.common_utils import count_md5
 from bkmonitor.utils.db.fields import JsonField
+from constants.bk_collector import BkCollectorComp
 from core.drf_resource import api
 from core.errors.api import BKAPIError
 from metadata.models.constants import LOG_REPORT_MAX_QPS
@@ -98,7 +101,7 @@ class CustomReportSubscription(models.Model):
             bk_biz_id,
             bk_host_ids,
         )
-        for item, sub_config_name in data_id_configs:
+        for item, protocol in data_id_configs:
             subscription_params = {
                 "scope": {
                     "object_type": "HOST",
@@ -112,7 +115,7 @@ class CustomReportSubscription(models.Model):
                         "config": {
                             "plugin_name": "bk-collector",
                             "plugin_version": "latest",
-                            "config_templates": [{"name": sub_config_name, "version": "latest"}],
+                            "config_templates": [{"name": cls.SUB_CONFIG_MAP[protocol], "version": "latest"}],
                         },
                         "params": {"context": {"bk_biz_id": bk_biz_id, **item}},
                     },
@@ -232,7 +235,7 @@ class CustomReportSubscription(models.Model):
                         "qps": max_rate,
                     },
                 }
-            data_id_config: tuple[dict[str, Any], str] = (item, cls.SUB_CONFIG_MAP[protocol])
+            data_id_config: tuple[dict[str, Any], str] = (item, protocol)
             biz_id_to_data_id_config.setdefault(r["bk_biz_id"], []).append(data_id_config)
         return biz_id_to_data_id_config
 
@@ -280,6 +283,40 @@ class CustomReportSubscription(models.Model):
             len(biz_id_to_data_id_config),
         )
         return biz_id_to_data_id_config
+
+    @classmethod
+    def _refresh_k8s_custom_config_by_biz(
+        cls,
+        bk_biz_id: int,
+        data_id_configs: list[tuple[dict[str, Any], str]],
+    ):
+        cluster_mapping = BkCollectorClusterConfig.get_cluster_mapping()
+        if settings.CUSTOM_REPORT_DEFAULT_DEPLOY_CLUSTER:
+            # 补充中心化集群
+            for cluster_id in settings.CUSTOM_REPORT_DEFAULT_DEPLOY_CLUSTER:
+                cluster_mapping[cluster_id] = [BkCollectorClusterConfig.GLOBAL_CONFIG_BK_BIZ_ID]
+
+        for cluster_id, cc_bk_biz_ids in cluster_mapping.items():
+            if str(bk_biz_id) not in cc_bk_biz_ids and int(bk_biz_id) not in cc_bk_biz_ids:
+                continue
+
+            try:
+                for config_context, protocol in data_id_configs:
+                    tpl_name = BkCollectorComp.CONFIG_MAP_NAME_MAP.get(protocol)
+                    if tpl_name is None:
+                        logger.info(f"can not find protocol({protocol}) sub config template name")
+                        continue
+
+                    tpl = BkCollectorClusterConfig.sub_config_tpl(cluster_id, tpl_name)
+                    if tpl is None:
+                        continue
+
+                    config_id = int(config_context.get("bk_data_id"))
+                    config_context.setdefault("bk_biz_id", bk_biz_id)
+                    config_content = Environment().from_string(tpl).render(config_context)
+                    BkCollectorClusterConfig.deploy_to_k8s(cluster_id, config_id, protocol, config_content)
+            except Exception as e:  # pylint: disable=broad-except
+                logger.info(f"refresh custom report ({bk_biz_id}) config to k8s({cluster_id}) error({e})")
 
     @classmethod
     def _refresh_collect_custom_config_by_biz(
@@ -382,11 +419,17 @@ class CustomReportSubscription(models.Model):
             else:
                 data_id_configs = biz_id_to_data_id_config.get(bk_biz_id, [])
 
-            # 下发配置
+            # 1. 下发配置（走节点管理下发至主机）
             cls._refresh_collect_custom_config_by_biz(
                 bk_tenant_id=bk_tenant_id,
                 bk_biz_id=bk_biz_id,
                 op_type=op_type,
+                data_id_configs=data_id_configs,
+            )
+
+            # 2. 下发配置（走 K8S 下发至集群）
+            cls._refresh_k8s_custom_config_by_biz(
+                bk_biz_id=bk_biz_id,
                 data_id_configs=data_id_configs,
             )
 

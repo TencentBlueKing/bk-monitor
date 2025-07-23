@@ -67,7 +67,7 @@ export function jsonp<T>(url: string, options: JsonpOptions<T>): void {
   const params = new URLSearchParams();
   if (options.data) {
     for (const key in options.data) {
-      if (Object.prototype.hasOwnProperty.call(options.data, key)) {
+      if (Object.hasOwn(options.data, key)) {
         params.append(key, String(options.data[key]));
       }
     }

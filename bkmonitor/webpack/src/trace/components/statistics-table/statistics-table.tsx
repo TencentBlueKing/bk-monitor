@@ -1435,6 +1435,7 @@ export default defineComponent({
           columns={this.tableColumns}
           data={this.tableData}
           filterValue={this.filterValue}
+          needCustomScroll={false}
           rowKey='span_name'
           sort={this.sortInfo}
           showSortColumnBgColor

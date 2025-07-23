@@ -1,6 +1,32 @@
 packages:
-  - 'src/*'
+  - src/*
   - '!packages/*'
   - '!**/bk-iframe/**'
   - '!**/bk-weweb/**'
   - '!**/mermaid/**'
+
+modulesDir: node_modules
+
+onlyBuiltDependencies:
+  - '@biomejs/biome'
+  - 'simple-git-hooks'
+
+overrides:
+  bk-magic-vue: 2.5.10-beta.5
+  eslint: $eslint
+  monaco-editor: 0.44.0
+  monaco-editor-webpack-plugin>monaco-editor: 0.44.0
+  semver: ^7.7.2
+  vue-class-component: ^7.2.6
+  vue-property-decorator: ^9.1.2
+  vue-tsx-support: ^3.2.0
+  vuex-module-decorators: ^1.2.0
+  npm-run-all>cross-spawn: ^7.0.6
+
+recursiveInstall: true
+
+publicHoistPattern:
+  - '!vue'
+  - '!vue-template-compiler'
+  - '!vue-i18n'
+  - '!@vue/compiler-sfc'

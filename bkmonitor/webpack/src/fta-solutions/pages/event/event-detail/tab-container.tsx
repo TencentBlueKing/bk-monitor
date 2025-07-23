@@ -29,7 +29,6 @@ import { Component as tsc } from 'vue-tsx-support';
 import { DEFAULT_TIME_RANGE } from 'monitor-pc/components/time-range/utils';
 import { MetricType } from 'monitor-pc/pages/strategy-config/strategy-config-set-new/typings';
 
-import AiopsContainer from './aiops/aiops-container';
 import CirculationRecord from './circulation-record';
 import HandleExperiences from './handle-experiences';
 import LogInfo from './log-info';
@@ -392,7 +391,7 @@ export default class TabContainer extends tsc<ITabContainerProps> {
             isScrollEnd={this.isScrollEnd}
             show={this.active === EPanelsNames.viewInfo}
           />
-          {/* {!!(window as any).enable_aiops && !this.isHostAnomalyDetection && !this.checkPromqlPanel && (
+          {/* {!!window.enable_aiops && !this.isHostAnomalyDetection && !this.checkPromqlPanel && (
             <AiopsContainer
               detail={this.detail}
               show={this.active === EPanelsNames.viewInfo}

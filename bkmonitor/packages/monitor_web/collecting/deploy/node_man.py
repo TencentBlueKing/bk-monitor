@@ -715,7 +715,7 @@ class NodeManInstaller(BaseInstaller):
                 "bk_cloud_id": host["bk_cloud_id"],
                 "bk_host_id": host["bk_host_id"],
                 "bk_host_name": host["bk_host_name"],
-                "bk_supplier_id": host["bk_supplier_account"],
+                "bk_supplier_id": host.get("bk_supplier_account", "0"),
                 "task_id": instance_result["task_id"],
                 "status": instance_result["status"],
                 "plugin_version": self.collect_config.deployment_config.plugin_version.version,

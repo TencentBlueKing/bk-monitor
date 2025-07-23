@@ -36,6 +36,8 @@ export interface TableCellRenderContext<K extends string = string> {
   cellRenderHandleMap: Record<ExploreTableColumnTypeEnum | K, TableCellRenderer>;
   /** 是否启用单元格文本省略号 */
   isEnabledCellEllipsis: (column: BaseTableColumn<any, any>) => string;
+  /** 获取当前行的唯一 rowId */
+  getRowId: (row: Record<string, any>) => string;
 }
 
 /**

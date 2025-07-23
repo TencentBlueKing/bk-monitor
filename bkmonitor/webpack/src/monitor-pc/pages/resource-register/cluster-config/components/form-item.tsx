@@ -46,7 +46,7 @@ export default class FormItem extends tsc<IProps> {
   render() {
     return (
       <div
-        style={{ width: !!this.width ? `${this.width}px` : undefined }}
+        style={{ width: this.width ? `${this.width}px` : undefined }}
         class='cluster-config-form-item'
       >
         <div class='form-item-title'>

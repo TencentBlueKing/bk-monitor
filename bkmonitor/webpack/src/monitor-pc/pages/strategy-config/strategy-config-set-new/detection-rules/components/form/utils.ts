@@ -198,7 +198,7 @@ export class FormItem {
    * @returns 转换后的值
    */
   constructor(data: IFormDataItem) {
-    if (!!data) {
+    if (data) {
       this.label = data.label ?? '';
       this.field = data.field ?? '';
       this.value = data.value ?? '';

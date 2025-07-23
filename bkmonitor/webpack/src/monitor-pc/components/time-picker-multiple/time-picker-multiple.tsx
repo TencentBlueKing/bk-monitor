@@ -143,7 +143,7 @@ export default class TimePickerMultiple extends tsc<IProps, IEvents> {
     const timeList = time.split(':');
     return methodList.reduce((moment, method, index) => {
       const val = timeList[index];
-      if (!!val) {
+      if (val) {
         return moment[method]?.(timeList[index]);
       }
       return moment;
@@ -179,7 +179,7 @@ export default class TimePickerMultiple extends tsc<IProps, IEvents> {
   handleDelItem() {
     if (this.triggerInputText.length > 0) return;
     this.localValue.splice(this.currentIndex, 1);
-    if (!!this.currentIndex) {
+    if (this.currentIndex) {
       this.currentIndex -= 1;
       this.targetEl = this.timeRangeListRef.children[this.currentIndex];
       this.timeRange = [...this.localValue[this.currentIndex]];
@@ -325,10 +325,10 @@ export default class TimePickerMultiple extends tsc<IProps, IEvents> {
       const endTime = timeRange[1];
       const fn = (timeStr: string, index: number): string => {
         const time = timeStr.split(':');
-        const [hour = '00', min = '00', sec = !!index ? '59' : '00'] = time;
+        const [hour = '00', min = '00', sec = index ? '59' : '00'] = time;
         const timeList = [hour, min, sec];
         return timeList.reduce((total, cur, index) => {
-          const reg = !!index ? /^\d$|^[0-5]\d$/ : /^\d$|^[0-1]\d$|^[2][0-4]$/;
+          const reg = index ? /^\d$|^[0-5]\d$/ : /^\d$|^[0-1]\d$|^[2][0-4]$/;
           if (!reg.test(cur)) throw Error('时间格式错误');
           return total.concat(`${cur.padStart(2, '0')}${index !== timeList.length - 1 ? ':' : ''}`);
         }, '');

@@ -28,7 +28,7 @@ import { defineComponent, reactive, shallowRef, watch, computed, type PropType }
 import { useI18n } from 'vue-i18n';
 
 import { $bkPopover, Progress, Sideslider } from 'bkui-vue';
-import { CancelToken } from 'monitor-api/index';
+import { CancelToken } from 'monitor-api/cancel';
 import {
   traceDownloadTopK,
   traceFieldStatisticsGraph,
@@ -154,6 +154,13 @@ export default defineComponent({
           statisticsList.distinct_count = 0;
           statisticsList.field = '';
           statisticsList.list = [];
+          statisticsInfo.value = {
+            field: '',
+            total_count: 0,
+            field_count: 0,
+            distinct_count: 0,
+            field_percent: 0,
+          };
           chartData.value = [];
         }
       }

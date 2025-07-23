@@ -62,7 +62,7 @@ const normalRule = {
 };
 const englishNameRule = {
   validator(val) {
-    return /^[a-z][a-z0-9\-]{1,31}$/.test(val);
+    return /^[a-z][a-z0-9-]{1,31}$/.test(val);
   },
   message: window.i18n.t('英文缩写必须由小写字母+数字+中划线组成，以小写字母开头，长度限制32字符！'),
   trigger: 'blur',

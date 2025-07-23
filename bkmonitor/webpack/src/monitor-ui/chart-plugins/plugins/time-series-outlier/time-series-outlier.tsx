@@ -27,7 +27,7 @@ import { Component } from 'vue-property-decorator';
 
 import dayjs from 'dayjs';
 import deepmerge from 'deepmerge';
-import { CancelToken } from 'monitor-api/index';
+import { CancelToken } from 'monitor-api/cancel';
 import { Debounce, deepClone, random } from 'monitor-common/utils/utils';
 import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
 
@@ -123,7 +123,7 @@ export default class TimeSeriesOutlier extends LineChart {
       return total;
     }, []);
     const item = list[0];
-    if (!!item) {
+    if (item) {
       return Object.entries(item)
         .reduce((total, tar) => {
           const [, val] = tar;

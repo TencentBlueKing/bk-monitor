@@ -32,8 +32,8 @@
       <div v-if="alarm.name === 'uptimecheck'">
         <div
           v-for="item in alarm.notice_task"
-          :key="item.task_id"
           class="content-item"
+          :key="item.task_id"
         >
           <a
             class="guide"
@@ -52,8 +52,8 @@
         </div>
         <div
           v-for="item in alarm.warning_task"
-          :key="item.task_id"
           class="content-item"
+          :key="item.task_id"
         >
           <a
             class="guide"
@@ -295,6 +295,7 @@ export default {
 
 @mixin content-dec {
   color: #3a84ff;
+
   &:hover {
     cursor: pointer;
   }
@@ -302,48 +303,58 @@ export default {
 
 .common-normal {
   padding-right: 40px;
+
   .title {
     min-width: 450px;
-    font-size: 12px;
-    color: $defaultFontColor;
-    line-height: 19px;
     padding-bottom: 17px;
+    font-size: 12px;
+    line-height: 19px;
+    color: $defaultFontColor;
     border-bottom: 1px solid $defaultBorderColor;
+
     &-guide {
       @include content-dec();
     }
   }
+
   .content {
     padding: 13px 0;
+
     > div {
       max-height: 260px;
       overflow: auto;
     }
+
     &-item {
+      margin: 10px 0;
+      overflow: hidden;
       font-size: 12px;
       color: $defaultFontColor;
-      overflow: hidden;
-      margin: 10px 0;
+
       .item-icon {
-        color: #979ba5;
         float: left;
         margin-top: 1px;
         font-size: $fontNormalSize;
+        color: #979ba5;
       }
+
       .item-content {
-        margin-left: 25px;
         min-width: 340px;
         margin-right: 60px;
+        margin-left: 25px;
+
         .into {
           color: #3a84ff;
           cursor: pointer;
         }
       }
+
       .guide {
         float: right;
 
         @include content-dec();
       }
+
       .item-warning {
         color: #ff9c01;
       }

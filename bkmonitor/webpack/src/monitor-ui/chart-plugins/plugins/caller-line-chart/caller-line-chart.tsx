@@ -30,7 +30,7 @@ import { ofType } from 'vue-tsx-support';
 import dayjs from 'dayjs';
 import deepmerge from 'deepmerge';
 import { toPng } from 'html-to-image';
-import { CancelToken } from 'monitor-api/index';
+import { CancelToken } from 'monitor-api/cancel';
 import { Debounce, deepClone, random } from 'monitor-common/utils/utils';
 import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
 import {
@@ -374,7 +374,7 @@ class CallerLineChart extends CommonSimpleChart {
         });
         promiseList.push(...list);
       }
-      let customEventScatterSeries = undefined;
+      let customEventScatterSeries;
       // 初始化事件分析配置
       if (!this.eventColumns.length) {
         const { config, columns } = await getCustomEventAnalysisConfig({

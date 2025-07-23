@@ -56,7 +56,7 @@ import { Component, Prop, Vue } from 'vue-property-decorator';
 
 import { Tab, Tabs } from 'vant';
 
-import { ITabItem } from './event-center.vue';
+import type { ITabItem } from './event-center.vue';
 
 @Component({
   name: 'event-tab',

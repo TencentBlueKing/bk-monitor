@@ -180,13 +180,13 @@ export default class ProfilingFlameGraph extends tsc<IFlameGraphProps, IFlameGra
                 this.tipDetail = {};
                 return;
               }
-              let detailsData = undefined;
-              let dataText = undefined;
+              let detailsData;
+              let dataText;
               const { value: dataValue, text: profileText } = parseProfileDataTypeValue(d.data.value, this.unit, true);
               detailsData = dataValue;
               dataText = profileText;
 
-              let diffData = undefined;
+              let diffData;
               let diffValue = 0;
               if (this.isCompared && d.data?.diff_info) {
                 const { value: diffProfileValue } = parseProfileDataTypeValue(d.data.diff_info.comparison, this.unit);

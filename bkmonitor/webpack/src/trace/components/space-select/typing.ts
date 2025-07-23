@@ -111,6 +111,11 @@ export const SPACE_SELECTOR_PROPS = {
     type: Boolean,
     default: false,
   },
+  /* 是否自动选择为当前空间（将空间添加到url上）单选时自动选择为当前空间, 多选时则（选择的第一个空间为当前空间） */
+  isAutoSelectCurrentSpace: {
+    type: Boolean,
+    default: false,
+  },
 };
 export const SPACE_SELECTOR_EMITS = {
   change: (_val: number[]) => true,

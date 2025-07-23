@@ -984,7 +984,7 @@ export default {
       } else {
         config.port = this.task.port.toString().trim();
         if (this.protocol.value === 'UDP') {
-          config.request = !!this.task.requestContent ? this.task.requestContent.trim() : '';
+          config.request = this.task.requestContent ? this.task.requestContent.trim() : '';
           config.request_format = this.requestFormat;
           config.wait_empty_response = advanced.wait_empty_response;
         }
@@ -1222,7 +1222,7 @@ export default {
     },
     validateName() {
       let isPass = true;
-      if (!Boolean(this.task.name) || allSpaceRegex(this.task.name)) {
+      if (!this.task.name || allSpaceRegex(this.task.name)) {
         isPass = false;
         this.requiredOptions.name = true;
         this.nameErrorMsg = this.$t('必填项');
@@ -1257,7 +1257,7 @@ export default {
       const maxVersion = '2.7.3.184';
       const maxVersionNum = maxVersion.split('.').reduce((pre, cur, index) => pre + +cur * nums[index], 0);
       const updNodeVersionNums = versions.map(item => {
-        const numFn = v => (!!v ? v.split('.').reduce((pre, cur, index) => pre + +cur * nums[index], 0) : 0);
+        const numFn = v => (v ? v.split('.').reduce((pre, cur, index) => pre + +cur * nums[index], 0) : 0);
         return numFn(item);
       });
       return updNodeVersionNums.sort((a, b) => b - a)[0] >= maxVersionNum;

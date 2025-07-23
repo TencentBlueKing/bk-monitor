@@ -400,7 +400,7 @@ export function allSpaceRegex(value: string) {
 export function validateExpression(expression: string) {
   // 使用正则表达式验证表达式结构是否合法
   const structureCheck =
-    /^([A-Za-z0-9]+|\(\s*[A-Za-z0-9+\-*/%^]+\s*\))([\+\-*/%^]\s*([A-Za-z0-9]+|\(\s*[A-Za-z0-9+\-*/%^]+\s*\)))*$/.test(
+    /^([A-Za-z0-9]+|\(\s*[A-Za-z0-9+\-*/%^]+\s*\))([+\-*/%^]\s*([A-Za-z0-9]+|\(\s*[A-Za-z0-9+\-*/%^]+\s*\)))*$/.test(
       expression
     );
   if (!structureCheck) {

@@ -25,31 +25,31 @@
 -->
 <template>
   <panel-card
-    :title="$t('拨测站点可用率趋势对比')"
     class="available-rate-chart"
+    :title="$t('拨测站点可用率趋势对比')"
   >
     <bk-dropdown-menu
-      slot="title"
       ref="dropdown"
+      slot="title"
       :class="['title-setting', { 'title-disable': !series.length && !setList.length }]"
-      trigger="click"
       :disabled="!setList.length"
+      trigger="click"
     >
       <div
-        slot="dropdown-trigger"
         class="chart-dropdown"
+        slot="dropdown-trigger"
       >
         <svg-icon
-          icon-name="setting"
-          class="icon-setting"
           :style="{ color: !series.length && !setList.length ? '#979BA5' : '#3A84FF' }"
+          class="icon-setting"
+          icon-name="setting"
         />
         <span class="tag-setting"> {{ $t('展示设置') }} </span>
       </div>
       <div
         v-if="setList.length"
-        slot="dropdown-content"
         style="margin: -6px 0"
+        slot="dropdown-content"
       >
         <ul
           class="bk-dropdown-list title-setting-dropdown"
@@ -62,18 +62,18 @@
           >
             <label class="bk-form-checkbox bk-checkbox-small check-label-item char-checkbox">
               <input
-                v-model="checkedSets"
-                type="checkbox"
                 class="bk-checkbox"
+                v-model="checkedSets"
                 :value="item.id"
+                type="checkbox"
               />
               <i class="bk-checkbox-text">{{ item.name }}</i>
             </label>
           </li>
         </ul>
         <div
-          slot="dropdown-content"
           class="title-setting-footer"
+          slot="dropdown-content"
         >
           <span @click="submitHandle"> {{ $t('确定') }} </span>
           <span @click="cancelHandle"> {{ $t('取消') }} </span>
@@ -81,11 +81,7 @@
       </div>
     </bk-dropdown-menu>
     <monitor-echart
-      unit="%"
       height="300"
-      :set-no-data="false"
-      :options="newOptions"
-      :series="newSeries"
       :colors="[
         '#27C24C',
         '#058DC7',
@@ -101,6 +97,10 @@
         '#FE0000',
         '#C3017C',
       ]"
+      :options="newOptions"
+      :series="newSeries"
+      :set-no-data="false"
+      unit="%"
     />
   </panel-card>
 </template>
@@ -254,8 +254,8 @@ export default {
         width: 16px;
         height: 16px;
         margin-right: 5px;
-        color: #3a84ff;
         vertical-align: middle;
+        color: #3a84ff;
       }
 
       .tag-setting {

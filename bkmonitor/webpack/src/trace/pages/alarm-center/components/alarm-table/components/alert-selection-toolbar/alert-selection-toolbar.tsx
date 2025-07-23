@@ -28,6 +28,8 @@ import { useI18n } from 'vue-i18n';
 
 import BkButton from 'bkui-vue/lib/button';
 
+import { AlertSelectAction } from '../../../../typings/constants';
+
 import './alert-selection-toolbar.scss';
 
 export default defineComponent({
@@ -43,58 +45,57 @@ export default defineComponent({
       type: Boolean,
     },
   },
-  setup() {
+  emits: {
+    clickAction: (action: AlertSelectAction) => typeof action === 'string',
+  },
+  setup(props, { emit }) {
     const { t } = useI18n();
 
     /** 当前环境是否支持一键拉群 */
     const enableCreateChatGroup = window.enable_create_chat_group || false;
     /** 所有的操作配置集合 */
     const allSelectActionsMap = {
-      confirm: {
-        id: 'confirm',
+      [AlertSelectAction.CONFIRM]: {
+        id: AlertSelectAction.CONFIRM,
         label: t('批量确认'),
         prefixIcon: 'icon-check',
-        onClick: () => {
-          console.log('批量确认');
-        },
+        onClick: () => emit('clickAction', AlertSelectAction.CONFIRM),
       },
-      shield: {
-        id: 'shield',
+      [AlertSelectAction.SHIELD]: {
+        id: AlertSelectAction.SHIELD,
         label: t('批量屏蔽'),
         prefixIcon: 'icon-mc-notice-shield',
-        onClick: () => {
-          console.log('批量屏蔽');
-        },
+        onClick: () => emit('clickAction', AlertSelectAction.SHIELD),
       },
-      dispatch: {
-        id: 'dispatch',
+      [AlertSelectAction.DISPATCH]: {
+        id: AlertSelectAction.DISPATCH,
         label: t('批量分派'),
         prefixIcon: 'icon-fenpai',
-        onClick: () => {
-          console.log('批量分派');
-        },
+        onClick: () => emit('clickAction', AlertSelectAction.DISPATCH),
       },
-      chat: {
-        id: 'dispatch',
+      [AlertSelectAction.CHAT]: {
+        id: AlertSelectAction.CHAT,
         label: t('一键拉群'),
         prefixIcon: 'icon-qiye-weixin',
-        onClick: () => {
-          console.log('一键拉群');
-        },
+        onClick: () => emit('clickAction', AlertSelectAction.CHAT),
       },
-      cancel: {
-        id: 'cancel',
+      [AlertSelectAction.CANCEL]: {
+        id: AlertSelectAction.CANCEL,
         label: t('取消选择'),
         prefixIcon: 'icon-a-3yuan-bohui',
-        onClick: () => {
-          console.log('取消选择');
-        },
+        onClick: () => emit('clickAction', AlertSelectAction.CANCEL),
       },
     };
     /** 需要渲染的操作id数组 */
     const showActionsIds = !enableCreateChatGroup
-      ? ['confirm', 'shield', 'dispatch', 'chat', 'cancel']
-      : ['confirm', 'shield', 'dispatch', 'cancel'];
+      ? [
+          AlertSelectAction.CONFIRM,
+          AlertSelectAction.SHIELD,
+          AlertSelectAction.DISPATCH,
+          AlertSelectAction.CHAT,
+          AlertSelectAction.CANCEL,
+        ]
+      : [AlertSelectAction.CONFIRM, AlertSelectAction.SHIELD, AlertSelectAction.DISPATCH, AlertSelectAction.CANCEL];
 
     return { t, allSelectActionsMap, showActionsIds };
   },
@@ -118,7 +119,7 @@ export default defineComponent({
             <BkButton
               key={actionId}
               class='action-item'
-              disabled={actionId === 'chat' ? false : this.isSelectedFollower}
+              disabled={actionId === AlertSelectAction.CHAT ? false : this.isSelectedFollower}
               text={true}
               theme='primary'
               onClick={this.allSelectActionsMap[actionId].onClick}

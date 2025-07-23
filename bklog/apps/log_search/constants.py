@@ -30,6 +30,13 @@ from apps.log_databus.constants import (
     ETL_DELIMITER_END,
     ETL_DELIMITER_IGNORE,
 )
+from apps.log_search.exceptions import (
+    ESQuerySyntaxException,
+    NoMappingException,
+    HighlightException,
+    UnsupportedOperationException,
+    QueryServerUnavailableException,
+)
 from apps.utils import ChoicesEnum
 from apps.utils.custom_report import render_otlp_report_config
 
@@ -1763,3 +1770,14 @@ class DateFormat:
 class HighlightConfig:
     PRE_TAG = "<mark>"
     POST_TAG = "</mark>"
+
+
+ES_ERROR_PATTERNS = [
+    (r"ERROR DSL is|Lexical error at line|Failed to parse query", ESQuerySyntaxException),
+    (r"No mapping found for \[(?P<field_name>.*?)] in order to sort on", NoMappingException),
+    (r"The length of \[(?P<field_name>.*?)] field.*?analyzed for highlighting", HighlightException),
+    (r"The length \[\d+] of field \[(?P<field_name>.*?)].*?highlight", HighlightException),
+    (r"Can't load fielddata on \[(?P<field_name>.*?)]", UnsupportedOperationException),
+    (r"Set fielddata=true on \[(?P<field_name>.*?)] in order to load fielddata", UnsupportedOperationException),
+    (r"connect_timeout\[.*?]|timed out after|HTTPConnectionPool.*?Read timed out", QueryServerUnavailableException),
+]

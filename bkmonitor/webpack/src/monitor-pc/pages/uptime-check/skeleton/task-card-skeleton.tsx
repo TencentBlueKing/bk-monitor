@@ -43,37 +43,37 @@ export default class TaskCardSkeleton extends tsc<IProps> {
       return (
         <div class='uptime-check-task-card-skeleton-01'>
           <div class='head'>
-            <div class='head-ring skeleton-element'></div>
+            <div class='head-ring skeleton-element' />
             <div class='head-right'>
-              <div class='skeleton-element h-16 w-84'></div>
+              <div class='skeleton-element h-16 w-84' />
               <div class='head-right-bottom'>
-                <div class='skeleton-element h-16 w-54 mr-4'></div>
-                <div class='skeleton-element h-16 w-54 mr-4'></div>
-                <div class='skeleton-element h-16 w-54'></div>
+                <div class='skeleton-element h-16 w-54 mr-4' />
+                <div class='skeleton-element h-16 w-54 mr-4' />
+                <div class='skeleton-element h-16 w-54' />
               </div>
             </div>
           </div>
           <div class='bottom'>
             <div class='bottom-item'>
               <div class='bottom-item-head'>
-                <div class='skeleton-element h-16 w-84'></div>
-                <div class='skeleton-element h-16 w-27'></div>
+                <div class='skeleton-element h-16 w-84' />
+                <div class='skeleton-element h-16 w-27' />
               </div>
-              <div class='skeleton-element w-auto h-3 mt-6'></div>
+              <div class='skeleton-element w-auto h-3 mt-6' />
             </div>
             <div class='bottom-item'>
               <div class='bottom-item-head'>
-                <div class='skeleton-element h-16 w-60'></div>
-                <div class='skeleton-element h-16 w-27'></div>
+                <div class='skeleton-element h-16 w-60' />
+                <div class='skeleton-element h-16 w-27' />
               </div>
-              <div class='skeleton-element w-auto h-3 mt-6'></div>
+              <div class='skeleton-element w-auto h-3 mt-6' />
             </div>
             <div class='bottom-item'>
               <div class='bottom-item-head'>
-                <div class='skeleton-element h-16 w-73'></div>
-                <div class='skeleton-element h-16 w-27'></div>
+                <div class='skeleton-element h-16 w-73' />
+                <div class='skeleton-element h-16 w-27' />
               </div>
-              <div class='skeleton-element w-auto h-3 mt-6'></div>
+              <div class='skeleton-element w-auto h-3 mt-6' />
             </div>
           </div>
         </div>
@@ -82,12 +82,12 @@ export default class TaskCardSkeleton extends tsc<IProps> {
     return (
       <div class='uptime-check-task-card-skeleton-02'>
         <div class='header'>
-          <div class='skeleton-element h-22 w-88'></div>
-          <div class='skeleton-element h-16 w-177 mt-6'></div>
+          <div class='skeleton-element h-22 w-88' />
+          <div class='skeleton-element h-16 w-177 mt-6' />
         </div>
         <div class='bottom'>
-          <div class='skeleton-element h-82 w-110 mr-32'></div>
-          <div class='skeleton-element h-82 w-110'></div>
+          <div class='skeleton-element h-82 w-110 mr-32' />
+          <div class='skeleton-element h-82 w-110' />
         </div>
       </div>
     );

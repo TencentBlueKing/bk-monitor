@@ -783,6 +783,7 @@ export default defineComponent({
                     columns={this.transformedColumns}
                     data={this.tableData}
                     expandIcon={true}
+                    needCustomScroll={false}
                   />
                 </div>
               </div>
