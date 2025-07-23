@@ -1750,7 +1750,7 @@ const store = new Vuex.Store({
         )
         .then(res => {
           const { data, code } = res;
-          if (code === 0) state.searchTotal = data.total_count;
+          if (res.result === true) state.searchTotal = data.total_count;
           return res;
         });
     },
