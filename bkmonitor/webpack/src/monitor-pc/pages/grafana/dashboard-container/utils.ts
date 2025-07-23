@@ -65,12 +65,11 @@ export class TreeMenuItem {
   uid = '';
   constructor(data: ITreeMenuItem, options?: ITreeOptions) {
     const { children = [] } = data;
-    Object.entries(data).forEach(item => {
-      const [key, value] = item;
+    for (const [key, value] of Object.entries(data)) {
       if (key === 'editable') {
         this.editable = value ?? true;
       } else this[key] = value;
-    });
+    }
     this.editValue = this.title;
     this.options = options;
     const { level = 0 } = options || {};

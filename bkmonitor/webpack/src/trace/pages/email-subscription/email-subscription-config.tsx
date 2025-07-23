@@ -1327,6 +1327,7 @@ export default defineComponent({
               }}
               bkUiSettings={this.table.settings}
               data={this.table.data}
+              needCustomScroll={false}
               showSortColumnBgColor={true}
               onFilterChange={(filters: TableProps['filterValue']) => {
                 const conditions = [];
@@ -1394,6 +1395,7 @@ export default defineComponent({
               bkUiSettings={this.tableForSelf.settings}
               data={this.computedTableDataForSelf}
               filterValue={this.filterConfig}
+              needCustomScroll={false}
               onFilterChange={(filters: TableProps['filterValue']) => {
                 this.filterConfig = filters;
               }}
@@ -1465,6 +1467,7 @@ export default defineComponent({
                   height={400}
                   columns={this.sendRecordTable.columns}
                   data={this.sendRecordTable.data}
+                  needCustomScroll={false}
                   rowKey='id'
                 />
               </Loading>

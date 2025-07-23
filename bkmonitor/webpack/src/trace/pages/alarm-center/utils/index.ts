@@ -23,12 +23,15 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-const moduleFiles = require.context('./modules', false, /\.js$/);
-const modules = moduleFiles.keys().reduce((modules, modulePath) => {
-  const moduleName = modulePath.replace(/^\.\/(.*)\.\w+$/, '$1');
-  const value = moduleFiles(modulePath);
-  modules[moduleName] = value.default;
-  return modules;
-}, {});
 
-export default modules;
+/**
+ * @description 在关注人里面但不在通知人则禁用操作
+ * @param follower
+ * @param assignee
+ */
+export function getOperatorDisabled(follower: string[], assignee: string[]) {
+  const username = window.user_name || window.username;
+  const hasFollower = (follower || []).some(u => u === username);
+  const hasAssignee = (assignee || []).some(u => u === username);
+  return hasAssignee ? false : hasFollower;
+}

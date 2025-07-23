@@ -29,7 +29,7 @@ import { computed, shallowRef, watchEffect } from 'vue';
 import { useAlarmCenterStore } from '@/store/modules/alarm-center';
 import { useStorage } from '@vueuse/core';
 
-import { MY_ALARM_BIZ_ID, MY_AUTH_BIZ_ID, type TableColumnItem } from '../typings';
+import { AlarmType, MY_ALARM_BIZ_ID, MY_AUTH_BIZ_ID, type TableColumnItem } from '../typings';
 
 import type { BkUiSettings } from '@blueking/tdesign-ui';
 /** 业务名称/空间名称 字段 */
@@ -66,6 +66,12 @@ export function useAlarmTableColumns() {
       .filter(Boolean);
   });
   const allTableFields = computed<BkUiSettings['fields']>(() => {
+    if (alarmStore.alarmType === AlarmType.ALERT) {
+      return [{ title: '', colKey: 'row-select' }, ...alarmStore.alarmService.allTableColumns].map(item => ({
+        label: item.title.toString(),
+        field: item.colKey,
+      }));
+    }
     return alarmStore.alarmService.allTableColumns.map(item => ({
       label: item.title.toString(),
       field: item.colKey,

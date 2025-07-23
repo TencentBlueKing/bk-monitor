@@ -195,7 +195,7 @@ export default class HttpCallBack extends tsc<IProps, IEvents> {
   }
 
   get checkUrl(): boolean {
-    return /(^(((ht|f)tps?):\/\/)[\w-]+(\.[\w-]+)+([\w.,@?^=%&:/~+#-{}]*[\w@?^=%&/~+#-{}])?$)|({{[\w\.]+?}})/.test(
+    return /(^(((ht|f)tps?):\/\/)[\w-]+(\.[\w-]+)+([\w.,@?^=%&:/~+#-{}]*[\w@?^=%&/~+#-{}])?$)|({{[\w.]+?}})/.test(
       this.httpData.url
     );
   }
@@ -398,7 +398,7 @@ export default class HttpCallBack extends tsc<IProps, IEvents> {
       html: 'HTML',
     };
 
-    const isVar = /{{[\w\.]+?}}/.test(content);
+    const isVar = /{{[\w.]+?}}/.test(content);
     if (content && type === 'json') {
       let target = '';
       if (isVar && this.validatorHasVariable) {
@@ -814,7 +814,7 @@ export default class HttpCallBack extends tsc<IProps, IEvents> {
   // tab的label模板
   tplTabLabel(tab: IHeaderInfo) {
     const { key } = tab;
-    let tips = undefined;
+    let tips;
     if (['Params', 'Headers'].includes(key)) {
       const value = (tab.value as IParamsValueItem[]).filter(item => item.isEnabled && !this.rowIsEmpty(item));
       const num = value.length;

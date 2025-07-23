@@ -43,7 +43,7 @@ import FailureMenu from '../failure-menu/failure-menu';
 import FailureProcess from '../failure-process/failure-process';
 import TroubleShooting from '../trouble-shooting/trouble-shooting';
 
-import type { ITagInfoType, IAggregationRoot } from '../types';
+import type { ITagInfoType, IAggregationRoot, IStrategyMapItem } from '../types';
 
 import './failure-nav.scss';
 
@@ -68,6 +68,7 @@ export default defineComponent({
     'changeSpace',
     'changeTab',
     'alertList',
+    'strategy',
   ],
   setup(props, { emit }) {
     /** 左侧头部菜单 */
@@ -197,6 +198,11 @@ export default defineComponent({
       const alertObj = formatAlertObj(alertIds, list[0]);
       emit('alertList', alertObj);
     };
+    const goStrategy = (strategy: IStrategyMapItem) => {
+      emit('strategy', {
+        ids: `策略ID: ${strategy.strategy_id}`,
+      });
+    };
     return {
       active,
       tabList,
@@ -215,6 +221,7 @@ export default defineComponent({
       showKeys,
       currentTabConfig,
       goAlertList,
+      goStrategy,
     };
   },
   render() {
@@ -242,6 +249,7 @@ export default defineComponent({
             onFilterSearch={this.filterSearch}
             onNodeClick={this.nodeClick}
             onNodeExpand={this.nodeExpand}
+            onStrategy={this.goStrategy}
             onTreeScroll={this.treeScroll}
           />
         </div>

@@ -512,7 +512,7 @@ export default class GroupManageDialog extends tsc<IProps, IEvents> {
                   {this.$t('取消')}
                 </bk-button>
               </div>,
-              !!this.addErrMsg ? <div class='add-err-msg'>{this.addErrMsg}</div> : undefined,
+              this.addErrMsg ? <div class='add-err-msg'>{this.addErrMsg}</div> : undefined,
             ]}
             <div class={['group-list', { 'add-active': this.isAdd }]}>
               {this.groupList.map((item, index) => (
@@ -665,7 +665,7 @@ export default class GroupManageDialog extends tsc<IProps, IEvents> {
                               class='item-name'
                               v-bk-tooltips={{
                                 placements: ['right'],
-                                content: !!row.description ? `${row.name}  (${row.description})` : row.name,
+                                content: row.description ? `${row.name}  (${row.description})` : row.name,
                                 boundary: 'window',
                                 allowHTML: false,
                               }}
@@ -743,7 +743,7 @@ export default class GroupManageDialog extends tsc<IProps, IEvents> {
                       class='list-item-label'
                       v-bk-tooltips={{
                         placements: ['right'],
-                        content: !!item.description ? `${item.name}  (${item.description})` : item.name,
+                        content: item.description ? `${item.name}  (${item.description})` : item.name,
                         boundary: 'window',
                         allowHTML: false,
                       }}

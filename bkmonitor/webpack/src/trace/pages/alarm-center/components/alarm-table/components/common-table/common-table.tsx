@@ -305,6 +305,7 @@ export default defineComponent({
           horizontalScrollAffixedBottom={this.horizontalScrollAffixedBottom}
           hover={true}
           lastFullRow={this.data?.length ? this.tableLastFullRowRender : null}
+          needCustomScroll={false}
           reserveSelectedRowOnPaginate={false}
           resizable={true}
           rowKey={this.rowKey}

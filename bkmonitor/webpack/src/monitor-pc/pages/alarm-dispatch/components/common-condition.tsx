@@ -228,11 +228,11 @@ export default class CommonCondition extends tsc<IProps> {
     if (this.readonly) {
       return;
     }
-    if (!!this.popInstance?.show) {
+    if (this.popInstance?.show) {
       this.handlePopoerHidden();
       return;
     }
-    if (!!this.settingsPopInstance?.show) {
+    if (this.settingsPopInstance?.show) {
       this.handleSettingsPopHidden();
     }
     event.stopPropagation();
@@ -452,7 +452,7 @@ export default class CommonCondition extends tsc<IProps> {
       this.tagList.splice(inputItemIndex, 1);
       this.tagList[this.tagList.length - 1].type = TypeEnum.input;
     }
-    if (!!this.locaLValue.length) {
+    if (this.locaLValue.length) {
       if (this.tagList[this.tagList.length - 2]?.type === TypeEnum.condition) {
         this.tagList.splice(this.tagList.length - 2, 1);
         this.showAdd = true;
@@ -768,7 +768,7 @@ export default class CommonCondition extends tsc<IProps> {
     const keyCode = event?.code || '';
     switch (keyCode) {
       case 'Enter': {
-        if (!!this.inputValue) {
+        if (this.inputValue) {
           const preTagItem = this.tagList[index - 1];
           if (this.isClickKeyTag) {
             /* 自定义key值 */
@@ -939,7 +939,7 @@ export default class CommonCondition extends tsc<IProps> {
           id: keyItem?.id || condition.field,
           name: keyItem?.name || condition.field,
           type: TypeEnum.key,
-          alias: !!keyItem?.groupName ? `[${keyItem.groupName}]${keyItem.name}` : undefined,
+          alias: keyItem?.groupName ? `[${keyItem.groupName}]${keyItem.name}` : undefined,
         });
         tagList.push({
           id: methodItem?.id || METHODS[0].id,
@@ -1151,7 +1151,7 @@ export default class CommonCondition extends tsc<IProps> {
     let keyList = [];
     if (item.id === 'dimensions') {
       const tempKeys = this.getDimensionKeys() as any;
-      if (!!tempKeys?.length) {
+      if (tempKeys?.length) {
         keyList = tempKeys;
       }
     } else {
@@ -1407,7 +1407,7 @@ export default class CommonCondition extends tsc<IProps> {
                       onClick={() => this.handleOptionClick(item)}
                       onMouseenter={e => this.handleOptionMouseEnter(e, item)}
                     >
-                      {!!item?.isStrategyId ? (
+                      {item?.isStrategyId ? (
                         <span class='strategy-name'>
                           <span>{item.name}</span>
                           <span class='strategy-name-info'>{`${item.first_label_name} (#${item.id})`}</span>

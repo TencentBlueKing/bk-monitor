@@ -391,7 +391,7 @@ export default defineComponent({
         name: 'left-border-rect',
       });
 
-      let durationRect = undefined;
+      let durationRect;
       if (
         // 显示耗时或者对比存在 added 或者 removed 标签的情况下
         isShowDuration.value ||

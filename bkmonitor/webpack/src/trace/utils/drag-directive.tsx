@@ -61,7 +61,7 @@ const handleMouseMove = (event: MouseEvent) => {
   if (maxWidth && width > maxWidth) {
     width = maxWidth;
   } else if (width < minWidth) {
-    if (!!autoHidden) {
+    if (autoHidden) {
       width = 0;
       onHidden();
     } else {

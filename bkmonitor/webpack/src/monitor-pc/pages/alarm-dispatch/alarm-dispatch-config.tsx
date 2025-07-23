@@ -895,7 +895,9 @@ export default class AlarmDispatchConfig extends tsc<object> {
         item.actionId || '',
         item.alertSeverity,
         // 补充 规则 通知
-        item.additionalTags.map(tag => `${tag.key}:${tag.value}`).join(';'),
+        item.additionalTags
+          .map(tag => `${tag.key}:${tag.value}`)
+          .join(';'),
         item.isEnabled,
       ];
       tdArr.push(row);

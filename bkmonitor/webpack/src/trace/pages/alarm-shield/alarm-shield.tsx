@@ -772,6 +772,7 @@ export default defineComponent({
                 }}
                 data={this.tableList}
                 filterValue={this.filterValue}
+                needCustomScroll={false}
                 rowKey='id'
                 showSortColumnBgColor={true}
                 sort={this.sort}

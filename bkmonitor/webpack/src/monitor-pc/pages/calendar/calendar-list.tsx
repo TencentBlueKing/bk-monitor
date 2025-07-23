@@ -242,7 +242,7 @@ export default class CalendarList extends tsc<IProps, IEvents> {
     this.tableSize = (this.storage.get(CALENDAR_TABLE_SIZE) ?? 'small') as string;
     const checkedList = this.storage.get(CALENDAR_TABLE_COLUMNS_CHECKED) as string[];
 
-    this.selectedFields = !!checkedList
+    this.selectedFields = checkedList
       ? this.tableColumns.filter(item => checkedList.includes(item.id))
       : this.tableColumns;
   }

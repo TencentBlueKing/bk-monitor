@@ -168,11 +168,11 @@ export default class GroupSearchMultiple extends tsc<IProps> {
                   !this.getIsDisabel(item.id)
                     ? { disabled: true }
                     : {
-                      content: this.$t('由匹配规则{0}生成', [this.getDisableTip(item.id)]),
-                      placements: ['right'],
-                      boundary: 'window',
-                      allowHTML: false,
-                    }
+                        content: this.$t('由匹配规则{0}生成', [this.getDisableTip(item.id)]),
+                        placements: ['right'],
+                        boundary: 'window',
+                        allowHTML: false,
+                      }
                 }
                 disabled={this.getIsDisabel(item.id)}
                 name={item.name}

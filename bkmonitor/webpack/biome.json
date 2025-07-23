@@ -1,7 +1,18 @@
 {
-  "$schema": "https://biomejs.dev/schemas/1.9.4/schema.json",
-  "organizeImports": {
-    "enabled": false
+  "$schema": "https://biomejs.dev/schemas/2.1.1/schema.json",
+  "root": true,
+  "files": {
+    "includes": [
+      "**",
+      "!node_modules",
+      "!*src/monitor-api/modules",
+      "!**/*.scss",
+      "!**/*.css",
+      "!**/*.less",
+      "!**/*.sass",
+      "!**/*.png",
+      "!**/*.svg"
+    ]
   },
   "vcs": {
     "enabled": true,
@@ -13,10 +24,13 @@
       "recommended": true,
       "suspicious": {
         "noExplicitAny": {
-          "level": "off"
+          "level": "warn"
         },
-        "noAssignInExpressions": "warn",
-        "noArrayIndexKey": "warn"
+        "noArrayIndexKey": "warn",
+        "noConfusingVoidType": {
+          "level": "warn",
+          "fix": "none"
+        }
       },
       "style": {
         "useSelfClosingElements": {
@@ -47,11 +61,13 @@
         "useKeyWithClickEvents": "off",
         "noSvgWithoutTitle": "off",
         "useValidAnchor": "off",
-        "noLabelWithoutControl": "off"
+        "noLabelWithoutControl": "off",
+        "noStaticElementInteractions": "off"
       }
     }
   },
   "formatter": {
+    "enabled": true,
     "indentStyle": "space",
     "indentWidth": 2,
     "lineEnding": "lf",
@@ -59,6 +75,12 @@
     "attributePosition": "multiline"
   },
   "javascript": {
+    "parser": {
+      "jsxEverywhere": false
+    },
+    "linter": {
+      "enabled": true
+    },
     "formatter": {
       "quoteStyle": "single",
       "jsxQuoteStyle": "single",
@@ -69,6 +91,17 @@
       "bracketSpacing": true,
       "bracketSameLine": false,
       "attributePosition": "multiline"
+    }
+  },
+  "assist": {
+    "enabled": true,
+    "actions": {
+      "source": {
+        "organizeImports": "off",
+        "useSortedAttributes": "off",
+        "useSortedKeys": "off",
+        "useSortedProperties": "off"
+      }
     }
   }
 }

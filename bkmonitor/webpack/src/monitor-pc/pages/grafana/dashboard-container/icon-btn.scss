@@ -12,8 +12,8 @@
   }
 
   &.has-title {
-    padding: 0 5px;
     height: 24px;
+    padding: 0 5px;
   }
 
   &.dark {
@@ -24,21 +24,21 @@
 }
 
 .icon-btn-theme {
-  border-radius: 0;
-  padding: 0!important;
-  background-color: transparent;
   min-width: 74px;
+  padding: 0 !important;
+  background-color: transparent;
+  border-radius: 0;
 
   .tippy-backdrop {
     background-color: transparent;
   }
 
   .icon-options-list {
-    color: #fff;
     padding: 4px 0;
+    color: #fff;
+    background-color: #394561;
     border: 1px solid #656d8e;
     border-radius: 2px;
-    background-color: #394561;
 
     .icon-option {
       display: flex;
@@ -54,12 +54,12 @@
 
     .option-icon {
       display: flex;
-      width: 14px;
-      height: 14px;
-      font-size: 14px;
       align-items: center;
       justify-content: center;
+      width: 14px;
+      height: 14px;
       margin-right: 6px;
+      font-size: 14px;
     }
   }
 }

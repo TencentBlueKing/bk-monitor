@@ -244,6 +244,28 @@ class QueryDataByPromqlResource(UnifyQueryAPIResource):
         step = serializers.RegexField(required=False, regex=r"^\d+(ms|s|m|h|d|w|y)$")
         timezone = serializers.CharField(required=False)
         down_sample_range = serializers.CharField(allow_blank=True, required=False)
+        # 背景：默认情况下，unify-query 会对查询结果进行时序对齐，叠加上 SaaS 默认 drop 最后一个数据点逻辑，会导致数据不准确，
+        # 该默认行为对基于一段时间配置汇总数据的视图非常不友好，会出现较大的误差，或者直接无数据。
+        #
+        # e.g. 按流水线统计一段时间（近 3h）内（2025-07-14 18:48:39 ～ 2025-07-14 21:48:39）的运行次数：
+        # 1）queryTs：
+        # - ES 过滤时间范围：2025-07-14 17:59:59 ～ 2025-07-15 00:48:38
+        # - 按 3h 进行分桶
+        #
+        # 返回数据点：
+        # - 1752487200000（2025-07-14 18:00:00）, 130
+        # - 1752498000000（2025-07-14 21:00:00）, 0（❌不完整周期，对齐后无数据。）
+        #
+        # 2）queryReference
+        # - ES 过滤时间范围：2025-07-14 18:48:39 ～ 2025-07-14 21:48:39
+        #
+        # 返回数据点：
+        # - 1752487200000（2025-07-14 18:00:00）, 130
+        # - 1752498000000（2025-07-14 21:00:00）, 31（✅不完整周期，也能得到当前数量。）
+        #
+        # 在日志场景，如果希望保证数据准确性，且保留最新数据点，设置 reference=True 取消对数据的时序对齐，配合 SaaS 侧提供的
+        # time_alignment=False 参数。
+        reference = serializers.BooleanField(default=False, required=False)
 
         def validate(self, attrs):
             logger.info(f"PROMQL_QUERY: {json.dumps(attrs)}")

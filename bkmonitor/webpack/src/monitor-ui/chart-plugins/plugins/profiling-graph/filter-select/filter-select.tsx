@@ -237,7 +237,7 @@ export default class FilterSelect extends tsc<IFilterSelectProps, IFilterSelectE
                 allow-create
                 clearable
                 has-delete-icon
-                paste-fn={(str) => this.tagInputPasteFn(mode, str, item.title)}
+                paste-fn={str => this.tagInputPasteFn(mode, str, item.title)}
                 on-change={() => this.handleSelectValueChange(mode)}
               />
             </span>

@@ -124,7 +124,7 @@ export default class AddAlarmChartDialog extends tsc<IAddAlarmChartDialogProps, 
   }
 
   @Emit('cancel')
-  handleCancel() { }
+  handleCancel() {}
 
   /** 表单校验 */
   handleValidate(): Promise<boolean> {

@@ -27,7 +27,7 @@ import { Component, Emit, InjectReactive, Prop, ProvideReactive, Ref, Watch } fr
 import { Component as tsc } from 'vue-tsx-support';
 
 import MonitorDrag from 'fta-solutions/pages/event/monitor-drag';
-import { CancelToken } from 'monitor-api/index';
+import { CancelToken } from 'monitor-api/cancel';
 import { Debounce, copyText, random } from 'monitor-common/utils/utils';
 import { isShadowEqual } from 'monitor-ui/chart-plugins/utils';
 import { VariablesService } from 'monitor-ui/chart-plugins/utils/variable';

@@ -138,6 +138,8 @@ ADVANCED_OPTIONS = OrderedDict(
         ("BACKEND_VERSION", slz.CharField(label="Backend版本号", default="unknown")),
         ("WXWORK_BOT_WEBHOOK_URL", slz.CharField(label="企业微信机器人回调地址", default="", allow_blank=True)),
         ("ACCESS_TIME_PER_WINDOW", slz.IntegerField(label="access模块策略拉取耗时限制（每10分钟）", default=30)),
+        ("QOS_DATASOURCE_LABELS", slz.ListField(label="access模块流控数据源列表", default=[])),
+        ("QOS_INTERVAL_EXPAND", slz.IntegerField(label="access模块触发流控后周期放大倍数", default=3)),
         ("RSA_PRIVATE_KEY", slz.CharField(label="RSA PRIVATE KEY", default=settings.RSA_PRIVATE_KEY)),
         ("SKIP_PLUGIN_DEBUG", slz.BooleanField(label="跳过插件调试", default=False)),
         ("BKUNIFYLOGBEAT_METRIC_BIZ", slz.IntegerField(label="日志采集器指标所属业务", default=0)),
