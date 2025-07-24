@@ -46,17 +46,17 @@ import './http-editor.scss';
 
 const { i18n } = window;
 
-export type MethodType = 'DELETE' | 'GET' | 'PATCH' | 'POST' | 'PUT';
 export type MethodListType = Array<MethodType>;
+export type MethodType = 'DELETE' | 'GET' | 'PATCH' | 'POST' | 'PUT';
 interface IHttpEditor {
+  behavior?: InputType;
   isEdit: boolean;
-  needUrl?: boolean;
-  value?: any;
   label?: string;
   methodList?: MethodListType;
   needSettings?: boolean;
   needSslCheckbox?: boolean;
-  behavior?: InputType;
+  needUrl?: boolean;
+  value?: any;
 }
 
 type InputType = 'normal' | 'simplicity';

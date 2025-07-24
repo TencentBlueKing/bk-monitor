@@ -49,7 +49,7 @@ import {
   incidentValidateQueryString,
 } from 'monitor-api/modules/incident';
 import { promqlToQueryConfig } from 'monitor-api/modules/strategies';
-import { commonPageSizeSet, commonPageSizeGet, LANGUAGE_COOKIE_KEY, docCookies } from 'monitor-common/utils';
+import { commonPageSizeGet, commonPageSizeSet, docCookies, LANGUAGE_COOKIE_KEY } from 'monitor-common/utils';
 import { random } from 'monitor-common/utils/utils';
 // 20231205 代码还原，先保留原有部分
 import SpaceSelect from 'monitor-pc/components/space-select/space-select';
@@ -71,7 +71,6 @@ import EmptyTable from './empty-table';
 import EventChart from './event-chart';
 import AlarmConfirm from './event-detail/alarm-confirm';
 import AlarmDispatch from './event-detail/alarm-dispatch';
-
 // import EventDetailSlider from './event-detail/event-detail-slider';
 import ManualDebugStatus from './event-detail/manual-debug-status';
 import ManualProcess from './event-detail/manual-process';
@@ -83,19 +82,18 @@ import MonitorDrag from './monitor-drag';
 import AdvancedFilterSkeleton from './skeleton/advanced-filter-skeleton';
 import {
   type AnlyzeField,
-  EBatchAction,
+  type eventPanelType,
   type FilterInputStatus,
   type IChatGroupDialogOptions,
   type ICommonItem,
   type ICommonTreeItem,
   type IEventItem,
   type SearchType,
-  type eventPanelType,
+  EBatchAction,
 } from './typings/event';
-import { INIT_COMMON_FILTER_DATA, getOperatorDisabled } from './utils';
+import { getOperatorDisabled, INIT_COMMON_FILTER_DATA } from './utils';
 
 import type { TType as TSliderType } from './event-detail/event-detail-slider';
-
 // import { showAccessRequest } from 'monitor-pc/components/access-request-dialog';
 import type { EmptyStatusOperationType, EmptyStatusType } from 'monitor-pc/components/empty-status/types';
 import type { TimeRangeType } from 'monitor-pc/components/time-range/time-range';
@@ -236,13 +234,13 @@ const commonIncidentFieldMap = {
 };
 // 监控环境下侧栏初始宽度
 const filterWidth = 240;
+interface IEventProps {
+  defaultParams?: Record<string, any>;
+  isSplitEventPanel?: boolean;
+  toggleSet?: boolean;
+}
 interface IPanelItem extends ICommonItem {
   id: eventPanelType;
-}
-interface IEventProps {
-  toggleSet?: boolean;
-  isSplitEventPanel?: boolean;
-  defaultParams?: Record<string, any>;
 }
 Component.registerHooks(['beforeRouteEnter', 'beforeRouteLeave']);
 const filterIconMap = {
@@ -402,7 +400,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
   filterWidth = 320;
   filterInputStatus: FilterInputStatus = 'success';
   // 侧栏详情信息
-  detailInfo: { isShow: boolean; id: string; type: TSliderType; activeTab: string; bizId: number } = {
+  detailInfo: { activeTab: string; bizId: number; id: string; isShow: boolean; type: TSliderType } = {
     isShow: false,
     id: '',
     type: 'eventDetail',
@@ -2192,7 +2190,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
    * @param {object} obj 子查询语句
    * @return {*}
    */
-  async handleAppendQuery(obj: { type: 'add' | 'del'; queryString: string }) {
+  async handleAppendQuery(obj: { queryString: string; type: 'add' | 'del' }) {
     let str = '';
     if (obj.type === 'add') {
       str = this.queryString ? `(${this.queryString}) AND ${obj.queryString}` : obj.queryString;
@@ -2626,12 +2624,12 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
               />
               <FilterInput
                 ref='filterInput'
+                bkBizIds={this.bizIds}
                 inputStatus={this.filterInputStatus}
                 isFillId={true}
                 searchType={this.searchType}
                 value={this.queryString}
                 valueMap={this.valueMap}
-                bkBizIds={this.bizIds}
                 onChange={this.handleQueryStringChange}
                 onClear={this.handleQueryStringChange}
               />
