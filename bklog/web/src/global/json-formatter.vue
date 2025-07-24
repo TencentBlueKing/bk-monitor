@@ -12,6 +12,7 @@
       },
     ]"
     :style="rootElementStyle"
+    @click="handleClick"
   >
     <template v-for="item in rootList">
       <span
@@ -194,6 +195,14 @@
 
     return content;
   };
+
+  const handleClick = (e: MouseEvent) => {
+    const selection = window.getSelection();
+    if (selection && (e.target as HTMLElement).contains(selection.anchorNode)) {
+      e.stopPropagation();
+      e.preventDefault();
+    }
+  }
 
   const getFieldValue = field => {
     if (formatJson.value) {

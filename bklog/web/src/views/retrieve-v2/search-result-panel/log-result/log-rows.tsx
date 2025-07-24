@@ -240,7 +240,7 @@ export default defineComponent({
                 }
                 return item;
               });
-              const temporarySortList = syncSpecifiedFieldSort(field.field_name,sortList);
+              const temporarySortList = syncSpecifiedFieldSort(field.field_name, sortList);
               store.commit('updateLocalSort', true);
               store.commit('updateIndexFieldInfo', { sort_list: updatedSortList });
               store.commit('updateIndexItemParams', { sort_list: temporarySortList });
@@ -546,29 +546,29 @@ export default defineComponent({
       }
     };
 
-    const syncSpecifiedFieldSort = (field_name,updatedSortList) => {
-        const requiredFields = ['gseIndex', 'iterationIndex','dtEventTimeStamp'];
-        if (!requiredFields.includes(field_name) || !updatedSortList.length) {
-          return updatedSortList
-        }
-        const fields = store.state.indexFieldInfo.fields.map(item => item.field_name);
-        const currentSort = updatedSortList.find(([key]) => key === field_name)[1];
-
-        requiredFields.forEach(field => {
-          if (field === field_name)  return
-          if (fields.includes(field)) {
-            const index = updatedSortList.findIndex(([key]) => key === field);
-            const sortItem = [field, currentSort];
-
-            if (index !== -1) {
-              updatedSortList[index] = sortItem;
-            } else {
-              updatedSortList.push(sortItem);
-            }
-          }
-        });
+    const syncSpecifiedFieldSort = (field_name, updatedSortList) => {
+      const requiredFields = ['gseIndex', 'iterationIndex', 'dtEventTimeStamp'];
+      if (!requiredFields.includes(field_name) || !updatedSortList.length) {
         return updatedSortList;
-    }
+      }
+      const fields = store.state.indexFieldInfo.fields.map(item => item.field_name);
+      const currentSort = updatedSortList.find(([key]) => key === field_name)[1];
+
+      requiredFields.forEach(field => {
+        if (field === field_name) return;
+        if (fields.includes(field)) {
+          const index = updatedSortList.findIndex(([key]) => key === field);
+          const sortItem = [field, currentSort];
+
+          if (index !== -1) {
+            updatedSortList[index] = sortItem;
+          } else {
+            updatedSortList.push(sortItem);
+          }
+        }
+      });
+      return updatedSortList;
+    };
     watch(
       () => [tableShowRowIndex.value],
       () => {
@@ -875,6 +875,17 @@ export default defineComponent({
       ];
     };
 
+    const handleRowClick = (e: MouseEvent, item: any) => {
+      const target = e.target as HTMLElement;
+      const config: RowConfig = tableRowConfig.get(item).value;
+      config.expand = !config.expand;
+      nextTick(() => {
+        if (config.expand) {
+          hanldeAfterExpandClick(target);
+        }
+      });
+    };
+
     const renderRowVNode = () => {
       return renderList.map((row, rowIndex) => {
         const logLevel = gradeOption.value.disabled ? '' : RetrieveHelper.getLogLevel(row.item, gradeOption.value);
@@ -884,6 +895,7 @@ export default defineComponent({
             key={row[ROW_KEY]}
             class={['bklog-row-container', logLevel ?? 'normal']}
             row-index={rowIndex}
+            on-row-click={e => handleRowClick(e, row.item)}
           >
             {renderRowCells(row.item, rowIndex)}
           </RowRender>,
@@ -1013,37 +1025,6 @@ export default defineComponent({
       );
     };
 
-    const onRootClick = (e: MouseEvent) => {
-      const target = e.target as HTMLElement;
-
-      if (
-        (target?.hasAttribute('data-row-click') && target?.hasAttribute('data-row-index')) ||
-        !(
-          target?.classList.contains('segment-content') ||
-          target?.classList.contains('bklog-json-view-icon-expand') ||
-          target?.classList.contains('bklog-json-view-icon-text') ||
-          target?.classList.contains('black-mark') ||
-          target?.parentElement?.classList.contains('segment-content')
-        )
-      ) {
-        const row = target.hasAttribute('data-row-index') ? target : target.closest('[data-row-click]');
-        const index = parseInt(row?.getAttribute?.('data-row-index') ?? '-1', 10);
-
-        if (index >= 0) {
-          const { item } = renderList[index] ?? {};
-          if (item) {
-            const config: RowConfig = tableRowConfig.get(item).value;
-            config.expand = !config.expand;
-            nextTick(() => {
-              if (config.expand) {
-                hanldeAfterExpandClick(target);
-              }
-            });
-          }
-        }
-      }
-    };
-
     onBeforeUnmount(() => {
       popInstanceUtil.uninstallInstance();
       resetRowListState(-1);
@@ -1061,7 +1042,6 @@ export default defineComponent({
       renderLoader,
       renderHeadVNode,
       getExceptionRender,
-      onRootClick,
       tableDataSize,
       resultContainerId,
       hasScrollX,
