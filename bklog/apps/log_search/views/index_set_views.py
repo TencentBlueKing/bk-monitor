@@ -351,7 +351,7 @@ class IndexSetViewSet(ModelViewSet):
             }
 
             for index in indexes:
-                time_field = index.get("time_field", index_set["time_field"])
+                time_field = index.get("time_field") or index_set["time_field"]
                 time_field_type = index.get("time_field_type", index_set["time_field_type"])
                 time_field_unit = index.get("time_field_unit", index_set["time_field_unit"])
                 es_router = base_es_router.copy()

@@ -332,13 +332,15 @@ export default defineComponent({
         isInit = true;
         // 若未选择索引集（无索引集或索引集为空数组），则直接关闭loading 并终止后续流程
         if (!store.state.indexItem.ids || !store.state.indexItem.ids.length) {
+          isStart.value = false;
           store.commit('retrieve/updateTrendDataLoading', false);
           return;
         }
         // 1. 先请求总数
-        await store.dispatch('requestSearchTotal');
-        // 2. 判断总数
-        if (store.state.searchTotal === 0) {
+        const res = await store.dispatch('requestSearchTotal');
+        // 2. 判断总数是否为0或请求是否失败
+        if (store.state.searchTotal === 0 || res.result === false) {
+          isStart.value = false;
           store.commit('retrieve/updateTrendDataLoading', false);
           return;
         }
