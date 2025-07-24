@@ -117,7 +117,7 @@ export default [
   ...tsEslint.config(
     jsEslint.configs.recommended,
     tsEslint.configs.recommended,
-    ...eslintVuePlugin.configs['flat/recommended'],
+    ...eslintVuePlugin.configs['flat/vue2-recommended'],
     {
       files: ['*.vue', '**/*.vue'],
       languageOptions: {
@@ -461,7 +461,6 @@ export default [
       'no-case-declarations': OFF, // biome lint/style/noCaseDeclarations
       'vue/html-self-closing': OFF, // biome lint/style/selfClosing
       'vue/require-default-prop': OFF,
-      'vue/no-deprecated-v-bind-sync': OFF,
       '@typescript-eslint/no-explicit-any': OFF, // biome lint/suspicious/noExplicitAny
       '@typescript-eslint/ban-ts-comment': [
         WARNING,
