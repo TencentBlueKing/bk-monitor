@@ -1570,6 +1570,7 @@ def process_gse_slot_message(message_id: str, bk_agent_id: str, content: str, re
 
         # 回调GSE接口,告知DataId
         api.gse.dispatch_message(
+            bk_tenant_id=bk_tenant_id,
             message_id=message_id,
             agent_id_list=[bk_agent_id],
             content=json.dumps(
