@@ -145,7 +145,7 @@
                   <bk-input
                     v-model="item.default"
                     :class="['item-param-input', { 'value-password': item.type === 'password' }]"
-                    :placeholder="$t('输入参数值')"
+                    :placeholder="$t(item.required ? '输入参数值' : '（选填）请输入参数值')"
                     :type="item.type === 'password' ? 'password' : 'text'"
                     @blur="validatePort(item.default, info.plugin_type === 'SNMP' ? 'snmpPort' : 'jmxPort')"
                   />
@@ -158,7 +158,7 @@
                     'item-param-input',
                     { 'value-password': item.type === 'password' || item.type === 'encrypt' },
                   ]"
-                  :placeholder="$t('输入参数值')"
+                  :placeholder="$t(item.required ? '输入参数值' : '（选填）请输入参数值')"
                   :type="item.type === 'password' || item.type === 'encrypt' ? 'password' : 'text'"
                 />
               </template>
@@ -221,7 +221,7 @@
                   v-if="item.type === 'text' || item.type === 'password' || item.type === 'encrypt'"
                   v-model="item.default"
                   :class="{ 'value-password': item.type === 'password' || item.type === 'encrypt' }"
-                  :placeholder="$t('输入参数值')"
+                  :placeholder="$t(item.required ? '输入参数值' : '（选填）请输入参数值')"
                   :type="item.type === 'password' || item.type === 'encrypt' ? 'password' : 'text'"
                   @blur="handleValidate(item)"
                 />
