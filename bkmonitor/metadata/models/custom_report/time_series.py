@@ -460,6 +460,11 @@ class TimeSeriesGroup(CustomGroupBase):
                 "tag_value_list": tag_value_list,
             }
             ret_data.append(item)
+
+            # 过滤非法的指标名
+            if not self.FIELD_NAME_REGEX.match(md["name"]):
+                logger.warning("invalid metric name: %s", md["name"])
+                continue
         return ret_data
 
     def get_metrics_from_redis(self, expired_time: int | None = settings.TIME_SERIES_METRIC_EXPIRED_SECONDS):
