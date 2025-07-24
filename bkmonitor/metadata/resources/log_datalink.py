@@ -98,6 +98,7 @@ class CreateEsRouter(BaseLogRouter):
         index_set = serializers.CharField(required=False, allow_blank=True, label="索引集规则")
         source_type = serializers.CharField(required=False, allow_blank=True, label="数据源类型")
         need_create_index = serializers.BooleanField(required=False, label="是否创建索引")
+        origin_table_id = serializers.CharField(required=False, label="原始结果表ID")
 
     def perform_request(self, data: OrderedDict):
         space = models.Space.objects.get(
@@ -134,6 +135,7 @@ class CreateEsRouter(BaseLogRouter):
                 source_type=data.get("source_type") or "",
                 index_set=data.get("index_set") or "",
                 need_create_index=need_create_index,
+                origin_table_id=data.get("origin_table_id", ""),
             )
         # 推送空间数据
         push_and_publish_log_space_router(space_type=data["space_type"], space_id=data["space_id"])
@@ -215,6 +217,7 @@ class UpdateEsRouter(BaseLogRouter):
         index_set = serializers.CharField(required=False, label="索引集规则")
         source_type = serializers.CharField(required=False, label="数据源类型")
         need_create_index = serializers.BooleanField(required=False, label="是否创建索引")
+        origin_table_id = serializers.CharField(required=False, label="原始结果表ID")
 
     def perform_request(self, data: OrderedDict):
         bk_tenant_id = get_request_tenant_id()
@@ -249,6 +252,9 @@ class UpdateEsRouter(BaseLogRouter):
         if data.get("cluster_id") and data["cluster_id"] != es_storage.storage_cluster_id:
             es_storage.storage_cluster_id = data["cluster_id"]
             update_es_fields.append("storage_cluster_id")
+        if data.get("origin_table_id") and data["origin_table_id"] != es_storage.origin_table_id:
+            es_storage.origin_table_id = data["origin_table_id"]
+            update_es_fields.append("origin_table_id")
         if update_es_fields:
             need_refresh_table_id_detail = True
             es_storage.save(update_fields=update_es_fields)
@@ -359,6 +365,7 @@ class CreateOrUpdateLogRouter(Resource):
             label="存储类型",
             default=models.ClusterInfo.TYPE_ES,
         )
+        origin_table_id = serializers.CharField(required=False, label="原始结果表ID")
 
         class QueryAliasSettingSerializer(serializers.Serializer):
             field_name = serializers.CharField(required=True, label="字段名", help_text="需要设置查询别名的字段名")
