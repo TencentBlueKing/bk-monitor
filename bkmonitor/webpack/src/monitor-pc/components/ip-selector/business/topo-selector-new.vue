@@ -780,7 +780,7 @@ export default class TopoSelector extends Vue {
     const index = this.previewData.findIndex(item => item.id === 'INSTANCE');
     if (index > -1) {
       const { data = [] } = this.previewData[index];
-      const hasCloudId = !data[0] || Object.prototype.hasOwnProperty.call(data[0], 'bk_cloud_id'); // 兼容拨测选择的IP不带云区域问题
+      const hasCloudId = !data[0] || Object.hasOwn(data[0], 'bk_cloud_id'); // 兼容拨测选择的IP不带云区域问题
       const dataMap = (JSON.parse(JSON.stringify(data)) as any[]).reduce<any>((pre, next, index) => {
         next.index = index;
         const key = this.getIpKey(next, hasCloudId);

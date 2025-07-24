@@ -475,7 +475,7 @@ export default class MonitorEcharts extends Vue {
           },
           formatter: this.handleSetTooltip,
           appendToBody: true,
-          position: (pos, params, dom, rect, size) => {
+          position: (pos, _params, _dom, _rect, size) => {
             const { contentSize } = size;
             const chartRect = this.$el.getBoundingClientRect();
             const posRect = {
@@ -529,7 +529,7 @@ export default class MonitorEcharts extends Vue {
       },
       (this.options || {}) as MonitorEchartOptions,
       {
-        arrayMerge: (destinationArray, sourceArray) => sourceArray,
+        arrayMerge: (_destinationArray, sourceArray) => sourceArray,
       }
     );
   }
@@ -788,13 +788,13 @@ export default class MonitorEcharts extends Vue {
         const series: any = deepMerge([], data || []);
         const hasSeries =
           (series && series.length > 0 && series.some(item => item?.datapoints?.length)) ||
-          (series && Object.prototype.hasOwnProperty.call(series, 'series') && series.series.length);
+          (series && Object.hasOwn(series, 'series') && series.series.length);
         if (!hasSeries) {
           this.noData = !hasSeries;
           resolve(undefined);
           return;
         }
-        const realSeries = Object.prototype.hasOwnProperty.call(series, 'series') ? series.series : series;
+        const realSeries = Object.hasOwn(series, 'series') ? series.series : series;
         if (this.chartType === 'line' && realSeries[0]?.metric) {
           const [
             {
@@ -826,7 +826,7 @@ export default class MonitorEcharts extends Vue {
           this.legend.show = hasSeries && optionData.legendData.length > 0;
         } else {
           this.legend.show = optionData.options.lengend
-            ? Object.prototype.hasOwnProperty.call(optionData.options.lengend, 'show')
+            ? Object.hasOwn(optionData.options.lengend, 'show')
               ? optionData.options.lengend.show
               : true
             : false;
@@ -1167,7 +1167,7 @@ export default class MonitorEcharts extends Vue {
    * 根据图表接口响应数据下载csv文件
    */
   handleExportCsv() {
-    if (!!this.seriesData?.length) {
+    if (this.seriesData?.length) {
       const csvList = [];
       const keys = Object.keys(this.tableData[0]).filter(key => !['$index'].includes(key));
       csvList.push(keys.map(key => key.replace(/,/gim, '_')).join(','));

@@ -80,7 +80,7 @@
 <script lang="ts">
 import { Vue, Component, Prop, Ref } from 'vue-property-decorator';
 
-import { IListItem } from './event-center.vue';
+import type { IListItem } from './event-center.vue';
 
 @Component({
   name: 'event-item',

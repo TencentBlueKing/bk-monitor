@@ -31,7 +31,10 @@
   "devDependencies": {
     "@types/throttle-debounce": "^5.0.2"
   },
-  "keywords": ["monitor", "mobile"],
+  "keywords": [
+    "monitor",
+    "mobile"
+  ],
   "author": "bk fe",
   "license": "MIT"
 }

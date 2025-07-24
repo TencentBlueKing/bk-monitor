@@ -26,7 +26,7 @@
 import { Component, Emit, InjectReactive, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { CancelToken } from 'monitor-api/index';
+import { CancelToken } from 'monitor-api/cancel';
 import { getIntelligentDetectAccessStatus, getIntelligentModel } from 'monitor-api/modules/strategies';
 
 import IntelligentModelsStore, { IntelligentModelsType } from '../../../../../../store/modules/intelligent-models';
@@ -243,10 +243,10 @@ export default class AbnormalCluster extends tsc<AbnormalClusterProps, AbnormalC
     });
     // 根据服务端返回的 is_default 字段 是否 默认选中 特定的模型。
     let defaultSelectModelId = null;
-    if (!!resData.length) {
+    if (resData.length) {
       this.modelList = resData;
       modelItem.options = resData.map(item => {
-        if (!!item.is_default) defaultSelectModelId = item.id;
+        if (item.is_default) defaultSelectModelId = item.id;
         return {
           id: item.id,
           name: item.name,

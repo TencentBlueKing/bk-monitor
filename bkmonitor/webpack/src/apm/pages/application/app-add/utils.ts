@@ -181,7 +181,7 @@ export class SystemData {
   /** 批量修改整行卡片的选中状态 */
   handleRowChecked(row: IListDataItem, bool = false) {
     row.list.forEach(item => (item.checked = bool));
-    if (!!row.other) {
+    if (row.other) {
       row.other.checked = bool;
       row.other.value = '';
     }

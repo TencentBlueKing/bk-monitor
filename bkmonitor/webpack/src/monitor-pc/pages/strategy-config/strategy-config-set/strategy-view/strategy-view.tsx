@@ -559,7 +559,7 @@ export default class StrategyView extends tsc<IStrateViewProps> {
       params.start_time = startTime;
       params.end_time = endTime;
     }
-    let firstData = undefined;
+    let firstData;
     const { series: queryData } = await graphUnifyQuery(params).catch(() => ({ series: [] }));
     if (hasIntelligentDetect) {
       firstData = queryData.find(item => item.alias === 'value') || [];

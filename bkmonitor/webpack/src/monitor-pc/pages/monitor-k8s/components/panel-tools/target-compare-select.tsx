@@ -380,7 +380,7 @@ export default class TargetCompareSelect extends tsc<IProps> {
   }
   /* 选择 */
   handleSelectItem(item) {
-    if (!!item?.isCheck) {
+    if (item?.isCheck) {
       const delIndex = this.localValue.findIndex(v => v.id === item.id);
       if (delIndex >= 0) {
         this.localValue.splice(delIndex, 1);
@@ -430,7 +430,7 @@ export default class TargetCompareSelect extends tsc<IProps> {
       }
     } else if (event.code === 'Enter' || event.code === 'NumpadEnter') {
       const item = this.pagination.data?.[this.activeIndex];
-      if (!!item) {
+      if (item) {
         this.handleSelectItem(item);
       }
     }

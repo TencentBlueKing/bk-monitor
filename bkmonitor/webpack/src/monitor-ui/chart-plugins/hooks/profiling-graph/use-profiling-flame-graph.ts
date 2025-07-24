@@ -210,8 +210,8 @@ export function getGraphOptions(
         const nodeItem: IFlameGraphDataItem = params.value?.[3];
         const { value, text } = parseProfileDataTypeValue(nodeItem.value, unit, true);
         const { name, diff_info, proportion } = nodeItem;
-        let reference = undefined;
-        let difference = undefined;
+        let reference;
+        let difference;
         let columnName = text;
         if (isCompared && diff_info) {
           const parseData = parseProfileDataTypeValue(diff_info.comparison, unit, true);
