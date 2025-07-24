@@ -240,7 +240,7 @@ class ChartHandler:
         keyword=None,
         action=SQLGenerateMode.COMPLETE.value,
         alias_mappings=None,
-    ) -> dict:
+    ) -> dict | str:
         """
         根据过滤条件生成sql
         :param addition: 过滤条件
@@ -392,7 +392,10 @@ class ChartHandler:
             field_name = f"CAST({field_name} AS TEXT)"
         return field_name
 
-    def add_grep_condition(self, where_clause, grep_query, grep_field, alias_mappings, sort_list, size=10, begin=0):
+    @classmethod
+    def add_grep_condition(
+        cls, grep_query, grep_field, alias_mappings, sort_list, index_set_id, where_clause="", size=10, begin=0
+    ):
         """
         添加grep查询条件
         :param where_clause: sql的where子句
@@ -400,6 +403,7 @@ class ChartHandler:
         :param grep_field: 查询字段
         :param alias_mappings: 别名
         :param sort_list: 排序字段
+        :param index_set_id: 索引集id
         :param size: 查询数据条数
         :param begin: 偏移量
         """
@@ -411,8 +415,8 @@ class ChartHandler:
             # 加上 grep 查询条件
             grep_syntax_list = grep_parser(grep_query)
             # _ext.a.b的字段名需要转化为JSON_EXTRACT的形式
-            _grep_field = self.convert_object_field(grep_field)
-            grep_where_clause = self.convert_to_where_clause(_grep_field, grep_syntax_list)
+            _grep_field = cls.convert_object_field(grep_field)
+            grep_where_clause = cls.convert_to_where_clause(_grep_field, grep_syntax_list)
             if grep_where_clause:
                 use_not = False
                 ignore_case = False
@@ -426,16 +430,19 @@ class ChartHandler:
                     if ignore_case:
                         pattern = re.match(r"LOWER\((.*)\)", pattern).group(1)
                     pattern = pattern.strip("'")
-                where_clause += f" AND {grep_where_clause}"
+                if where_clause:
+                    where_clause += f" AND {grep_where_clause}"
+                else:
+                    where_clause = grep_where_clause
         # 加上排序条件
         if not sort_list:
-            sort_list = SearchHandler(self.index_set_id, {}).sort_list
+            sort_list = SearchHandler(index_set_id, {}).sort_list
         # 构建 ORDER BY 子句
         order_by_clause = ""
         for field, direction in sort_list:
             order_field = alias_mappings.get(field, field)
             # _ext.a.b的字段名需要转化为JSON_EXTRACT的形式
-            order_field = self.convert_object_field(order_field)
+            order_field = cls.convert_object_field(order_field)
             if order_by_clause:
                 order_by_clause += ", "
             order_by_clause += f"{order_field} {direction.upper()}"
@@ -617,6 +624,7 @@ class SQLChartHandler(ChartHandler):
             grep_query=params.get("grep_query"),
             alias_mappings=alias_mappings,
             sort_list=params.get("sort_list", []),
+            index_set_id=self.index_set_id,
             size=params["size"],
             begin=params["begin"],
         )

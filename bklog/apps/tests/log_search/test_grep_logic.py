@@ -6,6 +6,8 @@ from apps.log_search.handlers.search.chart_handlers import ChartHandler
 from apps.log_search.utils import add_highlight_mark
 from apps.utils.grep_syntax_parse import grep_parser
 
+
+INDEX_SET_ID = 1
 GREP_SYNTAX_CASE = [
     "error",
     'grep "error"',
@@ -116,6 +118,7 @@ GREP_PARAMS = [
         "grep_query": "egrep a",
         "alias_mappings": {"id_alias": "id"},
         "sort_list": [["time", "asc"], ["container_id", "desc"]],
+        "index_set_id": INDEX_SET_ID,
     },
     {
         "where_clause": "time >= 20250403",
@@ -123,6 +126,7 @@ GREP_PARAMS = [
         "grep_query": "egrep a",
         "alias_mappings": {"app_label": "__ext.app.label"},
         "sort_list": [["time", "asc"], ["app_label", "asc"]],
+        "index_set_id": INDEX_SET_ID,
     },
 ]
 
@@ -191,7 +195,7 @@ class TestGrepLogic(TestCase):
         mock_data.support_doris = 1
         mock_data.doris_table_id = "x"
         mock_log_index_get.return_value = mock_data
-        instance = ChartHandler.get_instance(index_set_id=1, mode="sql")
+        instance = ChartHandler.get_instance(index_set_id=INDEX_SET_ID, mode="sql")
         for grep_param, grep_query_result in zip(GREP_PARAMS, GREP_QUERY_RESULT):
             result, _, _ = instance.add_grep_condition(**grep_param)
             self.assertEqual(result, grep_query_result)
