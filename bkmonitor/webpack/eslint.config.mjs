@@ -1,12 +1,12 @@
-const typescriptEslint = require('@typescript-eslint/eslint-plugin');
-const typescriptEslintParser = require('@typescript-eslint/parser');
-const eslintConfigPrettier = require('eslint-config-prettier');
-const codecc = require('eslint-plugin-codecc');
-const perfectionist = require('eslint-plugin-perfectionist');
-const prettier = require('eslint-plugin-prettier');
-const eslintVuePlugin = require('eslint-plugin-vue');
-const eslintVueParser = require('vue-eslint-parser');
-const tencentEslintLegacyRules = require('eslint-config-tencent/ts').rules;
+import typescriptEslint from '@typescript-eslint/eslint-plugin';
+import typescriptEslintParser from '@typescript-eslint/parser';
+import eslintConfigPrettier from 'eslint-config-prettier';
+import tencentEslintLegacyRules from 'eslint-config-tencent/ts';
+import codecc from 'eslint-plugin-codecc';
+import perfectionist from 'eslint-plugin-perfectionist';
+import prettier from 'eslint-plugin-prettier';
+import eslintVuePlugin from 'eslint-plugin-vue';
+import eslintVueParser from 'vue-eslint-parser';
 // const tailwind = require('eslint-plugin-tailwindcss');
 
 const OFF = 0;
@@ -154,7 +154,7 @@ const jsxOrVueSortGroups = {
     'EVENTS',
   ],
 };
-module.exports = [
+export default [
   {
     ignores: [
       'node_modules',
@@ -425,7 +425,7 @@ module.exports = [
         },
       ],
       ...typescriptEslint.configs.recommended.rules,
-      ...tencentEslintLegacyRules,
+      ...tencentEslintLegacyRules.rules,
       ...deprecateRules,
       '@typescript-eslint/consistent-type-imports': [
         ERROR,
@@ -470,7 +470,7 @@ module.exports = [
     },
     rules: {
       ...recommendedVue2Config.rules,
-      ...tencentEslintLegacyRules,
+      ...tencentEslintLegacyRules.rules,
       '@typescript-eslint/explicit-member-accessibility': OFF,
       'comma-dangle': [ERROR, 'always-multiline'],
       ...deprecateRules,
