@@ -228,7 +228,7 @@ export class AlertScenario extends BaseScenario {
         {window.enable_create_chat_group ? (
           <span
             class='operate-panel-item icon-monitor icon-we-com'
-            v-tippy={{ content: window.i18n.t('一键拉群'), delay: 200, appendTo: 'parent' }}
+            v-tippy={{ content: window.i18n.t('一键拉群'), delay: 200 }}
             onClick={() => this.context.handleAlertOperationClick('chart', row)}
           />
         ) : null}
@@ -243,7 +243,6 @@ export class AlertScenario extends BaseScenario {
                 ? this.askTipMsg(isAck, status, ackOperator, followerDisabled)
                 : window.i18n.t('告警确认'),
             delay: 200,
-            appendTo: 'parent',
             allowHTML: false,
           }}
           onClick={() =>
@@ -263,7 +262,6 @@ export class AlertScenario extends BaseScenario {
           v-tippy={{
             content: followerDisabled ? window.i18n.t('关注人禁用此操作') : window.i18n.t('手动处理'),
             delay: 200,
-            appendTo: 'parent',
           }}
           onClick={() => !followerDisabled && this.context.handleAlertOperationClick('manual', row)}
         />

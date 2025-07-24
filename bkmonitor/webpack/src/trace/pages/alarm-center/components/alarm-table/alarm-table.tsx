@@ -33,8 +33,10 @@ import {
   watch,
   onMounted,
   onBeforeUnmount,
+  toValue,
 } from 'vue';
 
+import { INCIDENT_STORAGE_KEY } from '../../services/incident-services';
 import {
   type AlertTableItem,
   CONTENT_SCROLL_ELEMENT_CLASS_NAME,
@@ -126,6 +128,15 @@ export default defineComponent({
     const { transformColumns, currentScenario, tableEmpty } = useScenarioRenderer(scenarioContext);
     /** 转换后的列配置 */
     const transformedColumns = computed(() => transformColumns(props.columns));
+    /** 表格 setting 配置 */
+    const settings = computed(() =>
+      toValue(currentScenario).name !== INCIDENT_STORAGE_KEY
+        ? {
+            ...props.tableSettings,
+            hasCheckAll: true,
+          }
+        : null
+    );
 
     onMounted(() => {
       addScrollListener();
@@ -241,6 +252,7 @@ export default defineComponent({
       currentScenario,
       selectedRowKeys,
       tableEmpty,
+      settings,
       isSelectedFollower,
       handleSelectionChange,
       handleAlertBatchSet,
@@ -252,16 +264,17 @@ export default defineComponent({
         <CommonTable
           ref='tableRef'
           class='alarm-table'
-          firstFullRow={() =>
+          firstFullRow={
             this.selectedRowKeys?.length
-              ? ((
-                  <AlertSelectionToolbar
-                    class='alarm-table-first-full-row'
-                    isSelectedFollower={this.isSelectedFollower}
-                    selectedRowKeys={this.selectedRowKeys}
-                    onClickAction={this.handleAlertBatchSet}
-                  />
-                ) as unknown as SlotReturnValue)
+              ? () =>
+                  (
+                    <AlertSelectionToolbar
+                      class='alarm-table-first-full-row'
+                      isSelectedFollower={this.isSelectedFollower}
+                      selectedRowKeys={this.selectedRowKeys}
+                      onClickAction={this.handleAlertBatchSet}
+                    />
+                  ) as unknown as SlotReturnValue
               : null
           }
           headerAffixedTop={{
@@ -269,10 +282,6 @@ export default defineComponent({
           }}
           horizontalScrollAffixedBottom={{
             container: `.${CONTENT_SCROLL_ELEMENT_CLASS_NAME}`,
-          }}
-          tableSettings={{
-            ...this.tableSettings,
-            hasCheckAll: true,
           }}
           autoFillSpace={true}
           columns={this.transformedColumns}
@@ -282,6 +291,7 @@ export default defineComponent({
           pagination={this.pagination}
           selectedRowKeys={this.selectedRowKeys}
           sort={this.sort}
+          tableSettings={this.settings}
           onCurrentPageChange={page => this.$emit('currentPageChange', page)}
           onDisplayColFieldsChange={displayColFields => this.$emit('displayColFieldsChange', displayColFields)}
           onPageSizeChange={pageSize => this.$emit('pageSizeChange', pageSize)}
