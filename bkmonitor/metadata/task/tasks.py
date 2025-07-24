@@ -1489,7 +1489,7 @@ def _get_bk_biz_internal_data_ids(bk_tenant_id: str, bk_biz_id: int) -> list[dic
     # 系统指标
     system_metric_data_source = DataSource.objects.filter(data_name=f"{bk_tenant_id}_{bk_biz_id}_sys_base").first()
     if system_metric_data_source:
-        result.append({"task": "basereport", "datadd": system_metric_data_source.bk_data_id})
+        result.append({"task": "basereport", "dataid": system_metric_data_source.bk_data_id})
 
     # 系统事件
     # system_event_data_source = DataSource.objects.filter(data_name=f"base_{bk_biz_id}_agent_event").first()
