@@ -1321,6 +1321,7 @@ class QueryExceptionEventResource(PageListResource):
                 validated_data["bk_biz_id"],
                 validated_data["app_name"],
                 service_name,
+                raise_exception=False,
             )
             # 如果是组件 增加查询参数
             if ComponentHandler.is_component_by_node(node):
@@ -2375,6 +2376,7 @@ class QueryEndpointStatisticsResource(PageListResource):
                 validated_data["bk_biz_id"],
                 validated_data["app_name"],
                 service_name,
+                raise_exception=False,
             )
             if ComponentHandler.is_component_by_node(node):
                 ComponentHandler.build_component_filter_params(
@@ -2475,6 +2477,7 @@ class QueryExceptionDetailEventResource(PageListResource):
                 validated_data["bk_biz_id"],
                 validated_data["app_name"],
                 service_name,
+                raise_exception=False,
             )
             if ComponentHandler.is_component_by_node(node):
                 ComponentHandler.build_component_filter_params(
@@ -2575,6 +2578,7 @@ class QueryExceptionEndpointResource(Resource):
                 validated_data["bk_biz_id"],
                 validated_data["app_name"],
                 service_name,
+                raise_exception=False,
             )
             if ComponentHandler.is_component_by_node(node):
                 ComponentHandler.build_component_filter_params(
@@ -2698,7 +2702,9 @@ class QueryExceptionTypeGraphResource(Resource):
         # Step2: 区分服务和组件，生成对应查询条件
         filter_params, service_name = self.build_filter_params(validated_data["filter_params"])
         if service_name:
-            node = ServiceHandler.get_node(validated_data["bk_biz_id"], validated_data["app_name"], service_name)
+            node = ServiceHandler.get_node(
+                validated_data["bk_biz_id"], validated_data["app_name"], service_name, raise_exception=False
+            )
             if ComponentHandler.is_component_by_node(node):
                 q = q.filter(
                     ComponentHandler.build_component_filter(
