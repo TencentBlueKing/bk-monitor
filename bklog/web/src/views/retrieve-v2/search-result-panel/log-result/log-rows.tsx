@@ -870,6 +870,11 @@ export default defineComponent({
     };
 
     const handleRowClick = (e: MouseEvent, item: any) => {
+      const selection = window.getSelection();
+      if (selection && !selection.isCollapsed && (e.target as HTMLElement).contains(selection.anchorNode)) {
+        return;
+      }
+
       const target = e.target as HTMLElement;
       const config: RowConfig = tableRowConfig.get(item).value;
       config.expand = !config.expand;
