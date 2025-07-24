@@ -91,7 +91,7 @@ onBeforeUnmount(() => {
             @handle-popover-hide="handlePopoverHide"
           ></FieldSelectConfig>
         </li>
-        <li><FieldAlias @handle-popover-hide="handlePopoverHide"></FieldAlias></li>
+        <!-- <li><FieldAlias @handle-popover-hide="handlePopoverHide"></FieldAlias></li> -->
       </ul>
     </div>
   </div>
