@@ -712,6 +712,7 @@ export default defineComponent({
       if (refResultRowBox.value && refRootElement.value) {
         refResultRowBox.value.scrollLeft = scrollXOffsetLeft;
         if (refTableHead.value) {
+          refTableHead.value.style.setProperty('width', `${scrollWidth.value}px`);
           refTableHead.value.style.transform = `translateX(-${scrollXOffsetLeft}px)`;
           const fixedRight = refTableHead.value?.querySelector(
             '.bklog-list-row .bklog-row-cell.header-cell.right',
