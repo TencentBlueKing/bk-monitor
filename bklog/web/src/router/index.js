@@ -1,4 +1,3 @@
-
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -26,7 +25,7 @@
  */
 
 /**
- * @file router 配置
+ * @file 路由主配置文件
  * @author  <>
  */
 
@@ -36,6 +35,7 @@ import http from '@/api';
 import store from '@/store';
 import reportLogStore from '@/store/modules/report-log';
 
+// 1.导入各业务模块的路由（检索、监控、仪表盘、管理）
 import manageRoutes from './manage';
 import retrieveRoutes from './retrieve';
 import dashboardRoutes from './dashboard';
@@ -43,7 +43,7 @@ import monitorRoutes from './dashboard';
 
 Vue.use(VueRouter);
 
-// 解决编程式路由往同一地址跳转时会报错的情况
+// 2. 统一处理 VueRouter push/replace 的异常，避免重复跳转报错
 const originalPush = VueRouter.prototype.push;
 const originalReplace = VueRouter.prototype.replace;
 
@@ -59,33 +59,26 @@ VueRouter.prototype.replace = function push(location, onResolve, onReject) {
   return originalReplace.call(this, location).catch(err => err);
 };
 
-const getDefRouteName = () => {
-  if (window.IS_EXTERNAL === true || window.IS_EXTERNAL === 'true') {
-    if (externalMenu?.includes('retrieve')) {
-      return 'retrieve';
-    }
-    return 'manage';
-  }
-  return 'retrieve';
-};
-
-// 路由配置生成函数
+// 3.动态生成路由表
 const getRoutes = (spaceId, bkBizId, externalMenu) => {
+  // 获取默认路由名称
+  const getDefRouteName = () => {
+    const isExternal = String(window.IS_EXTERNAL) === 'true';
+    if (isExternal) {
+      return externalMenu?.includes('retrieve') ? 'retrieve' : 'manage';
+    }
+    return 'retrieve';
+  };
+
   return [
     // 当用户访问根路径/时，根据当前环境和参数，自动跳转到检索页or管理页
     {
       path: '',
       redirect: () => ({
         name: getDefRouteName(),
-        query: {
-          spaceUid: spaceId,
-          bizId: bkBizId,
-        },
+        query: { spaceUid: spaceId, bizId: bkBizId },
       }),
-      meta: {
-        title: '检索',
-        navId: 'retrieve',
-      },
+      meta: { title: '检索', navId: 'retrieve' },
     },
     // 检索模块路由
     ...retrieveRoutes(),
@@ -98,10 +91,7 @@ const getRoutes = (spaceId, bkBizId, externalMenu) => {
   ];
 };
 
-/**
- * @param id 路由id
- * @returns 路由配置
- */
+// 4.根据 navId 获取路由配置
 export function getRouteConfigById(id, space_uid, bk_biz_id, externalMenu) {
   const flatConfig = getRoutes(space_uid, bk_biz_id, externalMenu).flatMap(config => {
     if (config.children?.length) {
@@ -118,18 +108,21 @@ export function getRouteConfigById(id, space_uid, bk_biz_id, externalMenu) {
   return flatConfig.find(item => item.meta?.navId === id);
 }
 
+// 5.创建并返回 VueRouter 实例，包含路由守卫和路由日志上报
 export default (spaceId, bkBizId, externalMenu) => {
   const routes = getRoutes(spaceId, bkBizId, externalMenu);
   const router = new VueRouter({
     routes,
   });
 
+  // 路由切换前取消所有需要取消的请求，避免数据串扰
   const cancelRequest = async () => {
     const allRequest = http.queue.get();
     const requestQueue = allRequest.filter(request => request.cancelWhenRouteChange);
     await http.cancel(requestQueue.map(request => request.requestId));
   };
 
+  // 路由前置守卫：切换路由时取消请求、处理外部跳转和重定向
   router.beforeEach(async (to, from, next) => {
     await cancelRequest();
     if (to.name === 'retrieve') {
@@ -164,6 +157,7 @@ export default (spaceId, bkBizId, externalMenu) => {
     console.warn('externalMenu JSON.stringify error', e);
   }
 
+  // 路由后置钩子：每次路由切换后上报路由日志
   router.afterEach(to => {
     if (to.name === 'exception') return;
     reportLogStore.reportRouteLog({
