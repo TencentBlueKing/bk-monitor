@@ -22,6 +22,7 @@ from tenacity import RetryError
 
 from alarm_backends.service.scheduler.app import app
 from constants.common import DEFAULT_TENANT_ID
+from core.drf_resource import api
 from core.prometheus import metrics
 from metadata import models
 from metadata.models import BkBaseResultTable, DataSource
@@ -1492,7 +1493,8 @@ def _get_bk_biz_internal_data_ids(bk_tenant_id: str, bk_biz_id: int) -> list[dic
 
     # 系统事件
     # system_event_data_source = DataSource.objects.filter(data_name=f"base_{bk_biz_id}_agent_event").first()
-    # system_event_data_id: int | None = system_event_data_source.bk_data_id if system_event_data_source else None
+    # if system_event_data_source:
+    #     result.append({"task": "base_event", "datadd": system_event_data_source.bk_data_id})
 
     return result
 
@@ -1567,6 +1569,16 @@ def process_gse_slot_message(message_id: str, bk_agent_id: str, content: str, re
         )
 
         # 回调GSE接口,告知DataId
+        api.gse.dispatch_message(
+            message_id=message_id,
+            agent_id_list=[bk_agent_id],
+            content=json.dumps(
+                {
+                    "code": "0",
+                    "data": result,
+                }
+            ),
+        )
         logger.info(
             "process_gse_slot_message: callback gse interface,message_id->%s,bk_agent_id->%s,content->%s,received_at->%s,result->%s",
             message_id,
