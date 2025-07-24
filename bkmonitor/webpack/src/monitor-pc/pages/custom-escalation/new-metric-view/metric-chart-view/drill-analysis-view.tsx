@@ -94,7 +94,7 @@ export default class DrillAnalysisView extends tsc<IDrillAnalysisViewProps, IDri
     drill_group_by: [],
     limit: {
       function: 'top',
-      limit: 10,
+      limit: 50,
     },
     function: {
       time_compare: [],
