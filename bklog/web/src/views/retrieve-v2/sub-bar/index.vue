@@ -332,7 +332,8 @@
    */
   function handleIndexConfigSliderOpen() {
     if (isFieldSettingShow.value && store.state.spaceUid && hasCollectorConfigId.value) {
-      fieldAliasRef.value?.handleOpenSidebar?.();
+      // fieldAliasRef.value?.handleOpenSidebar?.();
+      fieldSettingRef.value?.handleShowSlider?.();
     } else {
       bkMessage({
         theme: 'primary',
@@ -377,11 +378,11 @@
         ref="fieldSettingRef"
         class="custom-border-right"
       />
-      <FildAlias
+      <!-- <FildAlias
         v-if="false"
         ref="fieldAliasRef"
         class="custom-border-right"
-      ></FildAlias>
+      ></FildAlias> -->
       <WarningSetting
         v-if="!isExternal"
         class="custom-border-right"
