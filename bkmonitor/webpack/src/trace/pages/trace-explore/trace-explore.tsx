@@ -317,6 +317,15 @@ export default defineComponent({
         query_string,
         filters,
       };
+
+      /** 携带traceId检索，展开详情侧栏 */
+      const hasIdFilter = filters.find(item => item.key === 'trace_id');
+      if (hasIdFilter) {
+        showSlideDetail.value = {
+          type: 'trace',
+          id: hasIdFilter.value[0],
+        };
+      }
       setUrlParams();
     };
 
@@ -344,7 +353,9 @@ export default defineComponent({
     async function getAllUserConfig() {
       isShowFavorite.value = JSON.parse(localStorage.getItem(TRACE_EXPLORE_SHOW_FAVORITE) || 'false');
       await Promise.all([
-        handleGetUserConfig<string>(TRACE_EXPLORE_DEFAULT_APPLICATION).then(res => (defaultApplication.value = res)),
+        handleGetUserConfig<string>(TRACE_EXPLORE_DEFAULT_APPLICATION).then(res => {
+          defaultApplication.value = res;
+        }),
         handleGetThumbtackUserConfig<string[]>(TRACE_EXPLORE_APPLICATION_ID_THUMBTACK).then(res => {
           thumbtackList.value = res || [];
         }),
@@ -404,13 +415,11 @@ export default defineComponent({
         queryString.value = (query || queryQueryString) as string;
         showResidentBtn.value = tryURLDecodeParse<boolean>(queryShowResidentBtn as string, true);
         filterMode.value = (queryFilterMode as EMode) || EMode.ui;
-        favorite_id && (defaultFavoriteId.value = Number(favorite_id));
+        if (favorite_id) {
+          defaultFavoriteId.value = Number(favorite_id);
+        }
         if (trace_id) {
           where.value.push({ key: 'trace_id', operator: 'equal', value: [trace_id as string] });
-          showSlideDetail.value = {
-            type: 'trace',
-            id: trace_id,
-          };
         }
       } catch (error) {
         console.log('route query:', error);
