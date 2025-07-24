@@ -561,7 +561,6 @@ class K8sPodMeta(K8sResourceMeta, NetworkWithRelation):
 
     @property
     def meta_prom_with_kube_pod_container_resource_requests_cpu_cores(self):
-        # TODO: 待验证
         promql = f"""sum by(pod)(kube_pod_container_resource_requests_cpu_cores{{{self.filter.filter_string()}}})"""
         return promql
 
@@ -601,7 +600,6 @@ class K8sPodMeta(K8sResourceMeta, NetworkWithRelation):
 
     @property
     def meta_prom_with_kube_pod_container_resource_requests_memory_bytes(self):
-        # TODO: 待验证
         promql = f"""sum by(pod)(kube_pod_container_resource_requests_memory_bytes{{{self.filter.filter_string()}}})
                   """
         return promql
@@ -1206,7 +1204,6 @@ class K8sWorkloadMeta(K8sResourceMeta):
 
     @property
     def meta_prom_with_kube_pod_container_resource_requests_cpu_cores(self):
-        # DONE: 已验证
         promql = f"""(sum by (workload_kind, workload_name) 
         (count by (workload_kind, workload_name, pod_name, namespace)
         (rate(container_cpu_usage_seconds_total{{{self.filter.filter_string()}}}[1m]  )) *
@@ -1252,7 +1249,6 @@ class K8sWorkloadMeta(K8sResourceMeta):
 
     @property
     def meta_prom_with_kube_pod_container_resource_requests_memory_bytes(self):
-        # DONE: 已验证
         promql = f"""
         (sum by (workload_kind, workload_name)
                 (count by (workload_kind, workload_name, pod_name, namespace) (
