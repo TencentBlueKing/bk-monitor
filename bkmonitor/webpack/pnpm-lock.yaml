@@ -477,9 +477,6 @@ importers:
       xlsx:
         specifier: ^0.18.5
         version: 0.18.5
-      xss:
-        specifier: ^1.0.15
-        version: 1.0.15
     devDependencies:
       '@types/throttle-debounce':
         specifier: ^5.0.2
