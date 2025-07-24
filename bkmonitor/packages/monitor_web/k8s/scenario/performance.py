@@ -81,7 +81,7 @@ def get_metrics() -> list:
                 Metric(
                     id="kube_pod_container_resource_requests_memory_bytes",
                     name=_lazy("内存 request"),
-                    unit="core",
+                    unit="bytes",
                     unsupported_resource=["namespace"],
                 ),
             ],
