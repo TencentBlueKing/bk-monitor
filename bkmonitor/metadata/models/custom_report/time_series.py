@@ -12,8 +12,8 @@ import datetime
 import json
 import logging
 import math
-import time
 import re
+import time
 
 from django.conf import settings
 from django.db import models
@@ -454,17 +454,18 @@ class TimeSeriesGroup(CustomGroupBase):
                     "last_update_time": d["update_time"],
                     "values": [v["value"] for v in d["values"]],
                 }
+
+            # 过滤非法的指标名
+            if not self.FIELD_NAME_REGEX.match(md["name"]):
+                logger.warning("invalid metric name: %s", md["name"])
+                continue
+
             item = {
                 "field_name": md["name"],
                 "last_modify_time": md["update_time"] // 1000,
                 "tag_value_list": tag_value_list,
             }
             ret_data.append(item)
-
-            # 过滤非法的指标名
-            if not self.FIELD_NAME_REGEX.match(md["name"]):
-                logger.warning("invalid metric name: %s", md["name"])
-                continue
         return ret_data
 
     def get_metrics_from_redis(self, expired_time: int | None = settings.TIME_SERIES_METRIC_EXPIRED_SECONDS):
