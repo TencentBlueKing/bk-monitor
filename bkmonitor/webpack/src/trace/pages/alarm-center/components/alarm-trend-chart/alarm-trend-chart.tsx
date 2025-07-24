@@ -56,6 +56,13 @@ export default defineComponent({
       interval.value = value;
     };
 
+    const duration = shallowRef(0);
+    const handleDurationChange = (val: number) => {
+      duration.value = val;
+    };
+
+    const count = shallowRef(0);
+
     const seriesColorMap = {
       ...AlarmStatusIconMap,
       success: '#6FC5BF',
@@ -119,6 +126,7 @@ export default defineComponent({
 
     /** 格式化图表数据 */
     const formatterData = (data: any) => {
+      count.value = data.series?.[0].data.length || 0;
       return {
         series: data.series.map(item => {
           return {
@@ -147,6 +155,9 @@ export default defineComponent({
       panel,
       params,
       interval,
+      duration,
+      count,
+      handleDurationChange,
       formatterData,
       handleDataZoomChange,
       handleIntervalChange,
@@ -170,11 +181,20 @@ export default defineComponent({
                   params={this.params}
                   showTitle={false}
                   onDataZoomChange={this.handleDataZoomChange}
+                  onDurationChange={this.handleDurationChange}
                 />
               </div>
             ),
             headerCustom: () => (
               <div class='header-custom'>
+                <i18n-t
+                  class='title-desc'
+                  keypath='（找到 {0} 条结果，用时 {1} 毫秒）'
+                  tag='div'
+                >
+                  <span class='count'>{this.count}</span>
+                  <span class='duration'>{this.duration}</span>
+                </i18n-t>
                 <IntervalSelect
                   interval={this.interval}
                   label={this.t('汇聚周期')}

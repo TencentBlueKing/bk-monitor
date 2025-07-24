@@ -54,6 +54,8 @@ export const useEcharts = (
 
   const cancelTokens = [];
   const loading = shallowRef(false);
+  /** 接口请求耗时 */
+  const duration = shallowRef(0);
   const options = shallowRef();
   const metricList = shallowRef([]);
   const targets = shallowRef<IDataQuery[]>([]);
@@ -68,6 +70,7 @@ export const useEcharts = (
   const series = shallowRef([]);
 
   const getEchartOptions = async () => {
+    const startDate = +new Date();
     loading.value = true;
     metricList.value = [];
     targets.value = [];
@@ -112,6 +115,7 @@ export const useEcharts = (
     for (const item of resList) {
       Array.isArray(item?.value) && item.value.length && seriesList.push(...item.value);
     }
+    duration.value = +new Date() - startDate;
     series.value = seriesList;
     if (!seriesList.length) {
       return undefined;
@@ -410,6 +414,7 @@ export const useEcharts = (
     metricList,
     targets,
     queryConfigs,
+    duration,
     series,
     getEchartOptions,
   };

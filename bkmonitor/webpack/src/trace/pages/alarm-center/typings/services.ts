@@ -30,7 +30,7 @@ import type { INCIDENT_STORAGE_KEY } from '../services/incident-services';
 
 export type CommonCondition = {
   key: string;
-  value: string[];
+  value: number[] | string[];
   condition?: string;
   method?: string;
 };

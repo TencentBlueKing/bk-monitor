@@ -23,10 +23,15 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, shallowRef } from 'vue';
+import { defineComponent, onBeforeMount, shallowRef, watchEffect } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
 
 import { useAlarmCenterStore } from '@/store/modules/alarm-center';
+import { tryURLDecodeParse } from 'monitor-common/utils';
 
+import { EMode } from '../../components/retrieval-filter/typing';
+import { mergeWhereList } from '../../components/retrieval-filter/utils';
+import { getDefaultTimezone } from '../../i18n/dayjs';
 import TraceExploreLayout from '../trace-explore/components/trace-explore-layout';
 import AlarmAnalysis from './components/alarm-analysis/alarm-analysis';
 import AlarmCenterHeader from './components/alarm-center-header';
@@ -43,6 +48,8 @@ import './alarm-center.scss';
 export default defineComponent({
   name: 'AlarmCenter',
   setup() {
+    const router = useRouter();
+    const route = useRoute();
     const alarmStore = useAlarmCenterStore();
     const { quickFilterList, quickFilterLoading } = useQuickFilter();
     const { data, loading, total, page, pageSize, ordering } = useAlarmTable();
@@ -62,6 +69,79 @@ export default defineComponent({
       alarmStore.quickFilterValue = filterValue;
     };
 
+    const handleConditionChange = (condition: CommonCondition) => {
+      alarmStore.conditions = mergeWhereList(alarmStore.conditions, [
+        {
+          ...condition,
+          ...(alarmStore.conditions.length > 1 ? { condition: 'and' } : {}),
+        },
+      ]);
+    };
+
+    watchEffect(() => {
+      setUrlParams();
+    });
+
+    function setUrlParams() {
+      const queryParams = {
+        from: alarmStore.timeRange[0],
+        to: alarmStore.timeRange[1],
+        timezone: alarmStore.timezone,
+        refreshInterval: String(alarmStore.refreshInterval),
+        queryString: alarmStore.queryString,
+        conditions: JSON.stringify(alarmStore.conditions),
+        residentCondition: JSON.stringify(alarmStore.residentCondition),
+        quickFilterValue: JSON.stringify(alarmStore.quickFilterValue),
+        filterMode: alarmStore.filterMode,
+        bizIds: JSON.stringify(alarmStore.bizIds),
+      };
+
+      const targetRoute = router.resolve({
+        query: queryParams,
+      });
+      // /** 防止出现跳转当前地址导致报错 */
+      if (targetRoute.fullPath !== route.fullPath) {
+        router.replace({
+          query: queryParams,
+        });
+      }
+    }
+
+    function getUrlParams() {
+      const {
+        from,
+        to,
+        timezone,
+        refreshInterval,
+        queryString,
+        conditions,
+        residentCondition,
+        quickFilterValue,
+        filterMode,
+        bizIds,
+      } = route.query;
+      try {
+        if (from && to) {
+          alarmStore.timeRange = [from as string, to as string];
+        }
+        alarmStore.timezone = (timezone as string) || getDefaultTimezone();
+        alarmStore.refreshInterval = Number(refreshInterval) || -1;
+        alarmStore.queryString = (queryString as string) || '';
+        alarmStore.conditions = tryURLDecodeParse(conditions as string, []);
+        alarmStore.residentCondition = tryURLDecodeParse(residentCondition as string, []);
+        alarmStore.quickFilterValue = tryURLDecodeParse(quickFilterValue as string, []);
+        alarmStore.filterMode = (filterMode as EMode) || EMode.ui;
+        alarmStore.bizIds = tryURLDecodeParse(bizIds as string, [-1]);
+      } catch (error) {
+        console.log('route query:', error);
+      }
+    }
+
+    onBeforeMount(() => {
+      getUrlParams();
+      setUrlParams();
+    });
+
     return {
       quickFilterList,
       quickFilterLoading,
@@ -79,6 +159,7 @@ export default defineComponent({
       alarmStore,
       handleFilterValueChange,
       updateIsCollapsed,
+      handleConditionChange,
     };
   },
   render() {
@@ -88,6 +169,7 @@ export default defineComponent({
         <AlarmRetrievalFilter class='alarm-center-filters' />
         <div class='alarm-center-main'>
           <TraceExploreLayout
+            class='alarm-center-layout'
             v-slots={{
               aside: () => {
                 return (
@@ -109,7 +191,7 @@ export default defineComponent({
                       <AlarmTrendChart />
                     </div>
                     <div class='alarm-analysis'>
-                      <AlarmAnalysis />
+                      <AlarmAnalysis onConditionChange={this.handleConditionChange} />
                     </div>
                     <div class='alarm-center-table'>
                       <AlarmTable
