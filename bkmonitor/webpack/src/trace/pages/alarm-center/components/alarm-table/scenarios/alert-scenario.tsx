@@ -92,6 +92,7 @@ export class AlertScenario extends BaseScenario {
       /** 关联事件(event_count) 列 */
       event_count: {
         renderType: ExploreTableColumnTypeEnum.CLICK,
+        getRenderValue: row => (row.event_count > 0 ? row.event_count : undefined),
         clickCallback: row => {
           this.context.handleAlertSliderShowDetail(row.id);
         },
