@@ -81,7 +81,7 @@ export const createDefaultParams = (): IResult => ({
   group_by: [],
   limit: {
     function: 'top',
-    limit: 10,
+    limit: 50,
   },
   compare: {
     type: '',
@@ -200,12 +200,12 @@ export default class HeaderBox extends tsc<IProps, IEmit> {
                 value={this.params.group_by}
                 onChange={this.handleGroupByChange}
               />
-              {this.params.group_by.length > 0 && (
-                <LimitFunction
-                  value={this.params.limit}
-                  onChange={this.handleLimitChange}
-                />
-              )}
+              {/* {this.params.group_by.length > 0 && ( */}
+              <LimitFunction
+                value={this.params.limit}
+                onChange={this.handleLimitChange}
+              />
+              {/* )} */}
               <CompareType
                 exclude={this.exclude}
                 offsetSingle={this.offsetSingle}

@@ -118,7 +118,6 @@ export default defineComponent({
     const kvShowFieldsList = computed(() => indexFieldInfo.value?.fields.map(f => f.field_name));
     const userSettingConfig = computed(() => store.state.retrieve.catchFieldCustomConfig);
     const tableDataSize = computed(() => indexSetQueryResult.value?.list?.length ?? 0);
-    const fieldRequestCounter = computed(() => indexFieldInfo.value.request_counter);
     const isUnionSearch = computed(() => store.getters.isUnionSearch);
     const tableList = computed<Array<any>>(() => Object.freeze(indexSetQueryResult.value?.list ?? []));
     const gradeOption = computed(() => store.state.indexFieldInfo.custom_config?.grade_options ?? { disabled: false });
@@ -589,20 +588,15 @@ export default defineComponent({
     );
 
     watch(
-      () => [fieldRequestCounter.value],
-      () => {
-        scrollXOffsetLeft = 0;
-        refScrollXBar.value?.scrollLeft(0);
-        computeRect();
-      },
-    );
-
-    watch(
       () => [visibleFields.value.length],
       () => {
         if (!visibleFields.value.length) {
           setFullColumns();
         }
+
+        scrollXOffsetLeft = 0;
+        refScrollXBar.value?.scrollLeft(0);
+        computeRect(refResultRowBox.value);
       },
     );
 

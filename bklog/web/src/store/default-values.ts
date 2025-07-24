@@ -180,7 +180,6 @@ export const IndexSetQueryResult = {
   is_loading: false,
   exception_msg: '',
   is_error: false,
-  request_counter: 0,
   search_count: 0,
   aggregations: {},
   _shards: {},
@@ -194,7 +193,6 @@ export const IndexSetQueryResult = {
 
 export const IndexFieldInfo = {
   is_loading: false,
-  request_counter: 0,
   fields: [],
   display_fields: [],
   sort_list: [],
