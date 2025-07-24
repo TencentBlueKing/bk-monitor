@@ -63,6 +63,9 @@
         "useValidAnchor": "off",
         "noLabelWithoutControl": "off",
         "noStaticElementInteractions": "off"
+      },
+      "correctness": {
+        "useJsxKeyInIterable": "error"
       }
     }
   },

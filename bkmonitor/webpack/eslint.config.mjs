@@ -261,7 +261,7 @@ export default [
             },
           ],
           fallbackSort: {
-            type: 'line-length',
+            type: 'natural',
             order: 'asc',
           },
           newlinesBetween: 'always',
