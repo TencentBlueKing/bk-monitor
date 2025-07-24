@@ -32,14 +32,14 @@
 
 import Vue from 'vue';
 import VueRouter from 'vue-router';
-
-import reportLogStore from '@/store/modules/report-log';
-import exception from '@/views/404';
-
 import http from '@/api';
 import store from '@/store';
+import reportLogStore from '@/store/modules/report-log';
+
 import manageRoutes from './manage';
 import retrieveRoutes from './retrieve';
+import dashboardRoutes from './dashboard';
+import monitorRoutes from './dashboard';
 
 Vue.use(VueRouter);
 
@@ -59,325 +59,42 @@ VueRouter.prototype.replace = function push(location, onResolve, onReject) {
   return originalReplace.call(this, location).catch(err => err);
 };
 
-const DashboardTempView = {
-  name: 'DashboardTempView',
-  template: '<router-view></router-view>',
-};
-const retrieve = () => import(/* webpackChunkName: 'logRetrieve' */ '@/views/retrieve-hub');
-
-const dashboard = () => import(/* webpackChunkName: 'dashboard' */ '@/views/dashboard');
-const playground = () => import('@/views/playground');
-
-// 管理端
-const Manage = () => import(/* webpackChunkName: 'manage' */ '@/views/manage');
-// ---- 日志接入 ---- 日志采集（采集项）
-const CollectionItem = () =>
-  import(
-    /* webpackChunkName: 'collection-item' */
-    '@/views/manage/manage-access/log-collection/collection-item'
-  );
-// ---- 日志接入 ---- 日志采集（采集项）---- 管理(查看)采集项
-const ManageCollection = () =>
-  import(
-    /* webpackChunkName: 'manage-collection' */
-    '@/views/manage/manage-access/log-collection/collection-item/manage-collection'
-  );
-// ---- 日志接入 ---- 日志采集（采集项）---- 新建、编辑、停用、启用、字段提取
-const AccessSteps = () =>
-  import(
-    /* webpackChunkName: 'access-steps' */
-    // '@/views/manage/manage-access/log-collection/collection-item/access-steps'
-    '@/components/collection-access'
-  );
-// ---- 日志接入 ---- 日志采集索引集、数据平台、第三方ES接入 ---- 索引集列表
-const IndexList = () =>
-  import(
-    /* webpackChunkName: 'index-set' */
-    '@/views/manage/manage-access/components/index-set/list'
-  );
-// ---- 日志接入 ---- 日志采集索引集、数据平台、第三方ES接入---- 管理索引集
-const ManageIndex = () =>
-  import(
-    /* webpackChunkName: 'mange-index' */
-    '@/views/manage/manage-access/components/index-set/manage'
-  );
-// ---- 日志接入 ---- 日志采集索引集、数据平台、第三方ES接入 ---- 新建索引集
-const CreateIndex = () =>
-  import(
-    /* webpackChunkName: 'create-index' */
-    '@/views/manage/manage-access/components/index-set/create'
-  );
-// ---- 日志接入 ---- 自定义上报 ---- 自定义上报列表
-const CustomReportList = () =>
-  import(
-    /* webpackChunkName: 'create-index' */
-    '@/views/manage/manage-access/custom-report/list'
-  );
-// ---- 日志接入 ---- 自定义上报 ---- 自定义上报新建/编辑
-const CustomReportCreate = () =>
-  import(
-    /* webpackChunkName: 'create-index' */
-    '@/views/manage/manage-access/custom-report/create'
-  );
-// ---- 日志接入 ---- 自定义上报 ---- 自定义上报详情
-const CustomReportDetail = () =>
-  import(
-    /* webpackChunkName: 'create-index' */
-    '@/views/manage/manage-access/custom-report/detail'
-  );
-// ---- 全链路跟踪 ---- 采集跟踪
-const CollectionTrack = () =>
-  import(
-    /* webpackChunkName: 'collection-track' */
-    '@/views/manage/trace-track/collection-track'
-  );
-// ---- 全链路跟踪 ---- SDK跟踪
-const SdkTrack = () =>
-  import(
-    /* webpackChunkName: 'sdk-track' */
-    '@/views/manage/trace-track/sdk-track'
-  );
-// ---- 日志清洗 ---- 清洗列表
-const cleanList = () =>
-  import(
-    /* webpackChunkName: 'sdk-track' */
-    '@/views/manage/log-clean/clean-manage/list'
-  );
-// ---- 日志清洗 ---- 新增/编辑 清洗
-const cleanCreate = () =>
-  import(
-    /* webpackChunkName: 'sdk-track' */
-    '@/views/manage/log-clean/clean-manage/create'
-  );
-// ---- 日志清洗 ---- 新增/编辑 清洗
-const cleanTempCreate = () =>
-  import(
-    /* webpackChunkName: 'sdk-track' */
-    '@/views/manage/log-clean/clean-template/create'
-  );
-// ---- 模板清洗 ---- 清洗模版
-const cleanTemplate = () =>
-  import(
-    /* webpackChunkName: 'sdk-track' */
-    '@/views/manage/log-clean/clean-template/list'
-  );
-// ---- 日志归档 ---- 归档仓库
-const ArchiveRepository = () =>
-  import(
-    /* webpackChunkName: 'sdk-track' */
-    '@/views/manage/log-archive/archive-repository/list'
-  );
-// ---- 日志归档 ---- 归档列表
-const ArchiveList = () =>
-  import(
-    /* webpackChunkName: 'sdk-track' */
-    '@/views/manage/log-archive/archive-list/list'
-  );
-// ---- 日志归档 ---- 归档回溯
-const ArchiveRestore = () =>
-  import(
-    /* webpackChunkName: 'sdk-track' */
-    '@/views/manage/log-archive/archive-restore/list'
-  );
-// ---- 日志归档 ---- 订阅管理
-const ReportManage = () =>
-  import(
-    /* webpackChunkName: 'report-manage' */
-    '@/views/manage/report-management'
-  );
-// ---- 日志提取 ---- 提取配置
-const ExtractPermission = () =>
-  import(
-    /* webpackChunkName: 'manage-extract-permission' */
-    '@/views/manage/manage-extract/manage-extract-permission'
-  );
-// ---- 日志提取 ---- 提取任务
-const extract = () =>
-  import(
-    /* webpackChunkName: 'logExtract' */
-    '@/views/extract/index'
-  );
-// ---- 日志提取 ---- 提取任务列表
-const extractHome = () =>
-  import(
-    /* webpackChunkName: 'extract-home' */
-    '@/views/extract/home'
-  );
-// ---- 日志提取 ---- 新建/克隆提取任务
-const extractCreate = () =>
-  import(
-    /* webpackChunkName: 'extract-create' */
-    '@/views/extract/create'
-  );
-// ---- 日志提取 ---- 链路管理列表
-const ExtractLinkList = () =>
-  import(
-    /* webpackChunkName: 'extract-link-manage' */
-    '@/views/manage/manage-extract/extract-link-manage/extract-link-list'
-  );
-// ---- 日志提取 ---- 链路管理创建/编辑
-const ExtractLinkCreate = () =>
-  import(
-    /* webpackChunkName: 'extract-link-manage' */
-    '@/views/manage/manage-extract/extract-link-manage/extract-link-create'
-  );
-// ---- ES集群 ---- 集群信息
-const ClusterMess = () =>
-  import(
-    /* webpackChunkName: 'es-cluster-mess' */
-    '@/views/manage/es-cluster-status/es-cluster-mess'
-  );
-// ---- 管理 ---- 采集链路管理
-const DataLinkConf = () =>
-  import(
-    /* webpackChunkName: 'manage-data-link-conf' */
-    '@/views/manage/manage-data-link/manage-data-link-conf'
-  );
-// 外部版授权列表
-const externalAuth = () =>
-  import(
-    /* webpackChunkName: 'externalAuth' */
-    '@/views/authorization/authorization-list'
-  );
-// ---- 脱敏 ---- 脱敏编辑
-const MaskingEdit = () =>
-  import(
-    /* webpackChunkName: 'field-masking-separate' */
-    '@/views/manage/field-masking-separate'
-  );
-// ---- 脱敏 ---- 业务下的脱敏列表
-const MaskingList = () =>
-  import(
-    /* webpackChunkName: 'manage-data-link-conf' */
-    '@/views/manage/log-clean/clean-masking/list'
-  );
-
-// #if MONITOR_APP === 'apm'
-const MonitorApmLog = () =>
-  import(
-    /* webpackChunkName: 'monitor-apm-log' */
-    '@/views/retrieve-v3/monitor/monitor.tsx'
-  );
-// #endif
-// #if MONITOR_APP === 'trace'
-const MonitorTraceLog = () =>
-  import(
-    /* webpackChunkName: 'monitor-trace-log' */
-    '@/views/retrieve-v3/monitor/monitor.tsx'
-  );
-// #endif
-
-const ShareLink = () =>
-  import(
-    /* webpackChunkName: 'share-link' */
-    '@/views/share/index.tsx'
-  );
-
-const DataIdUrl = () =>
-  import(
-    /* webpackChunkName: 'data-id-url' */
-    '@/views/data-id-url/index.tsx'
-  );
-
-const getRoutes = (spaceId, bkBizId, externalMenu) => {
-  const getDefRouteName = () => {
-    if (window.IS_EXTERNAL === true || window.IS_EXTERNAL === 'true') {
-      if (externalMenu?.includes('retrieve')) {
-        return 'retrieve';
-      }
-      return 'manage';
+const getDefRouteName = () => {
+  if (window.IS_EXTERNAL === true || window.IS_EXTERNAL === 'true') {
+    if (externalMenu?.includes('retrieve')) {
+      return 'retrieve';
     }
-    return 'retrieve';
-  };
+    return 'manage';
+  }
+  return 'retrieve';
+};
 
+// 路由配置生成函数
+const getRoutes = (spaceId, bkBizId, externalMenu) => {
   return [
-    // 仪表盘
+    // 当用户访问根路径/时，根据当前环境和参数，自动跳转到检索页or管理页
     {
-      path: '/dashboard',
-      name: 'dashboard',
-      component: DashboardTempView,
-      redirect: '/dashboard/default-dashboard',
-      children: [
-        {
-          path: 'default-dashboard',
-          name: 'default-dashboard',
-          component: dashboard,
-          meta: {
-            title: '仪表盘',
-            navId: 'dashboard',
-          },
+      path: '',
+      redirect: () => ({
+        name: getDefRouteName(),
+        query: {
+          spaceUid: spaceId,
+          bizId: bkBizId,
         },
-        {
-          path: 'create-dashboard',
-          name: 'create-dashboard',
-          meta: {
-            title: '仪表盘',
-            needBack: true,
-            backName: 'default-dashboard',
-            navId: 'dashboard',
-          },
-          component: dashboard,
-        },
-        {
-          path: 'import-dashboard',
-          name: 'import-dashboard',
-          meta: {
-            title: '仪表盘',
-            needBack: true,
-            backName: 'default-dashboard',
-            navId: 'dashboard',
-          },
-          component: dashboard,
-        },
-        {
-          path: 'create-folder',
-          name: 'create-folder',
-          meta: {
-            title: '仪表盘',
-            needBack: true,
-            backName: 'default-dashboard',
-            navId: 'dashboard',
-          },
-          component: dashboard,
-        },
-      ],
-    },
-    // 检索
-    ...retrieveRoutes(spaceId, bkBizId, externalMenu),
-    // 管理
-    ...manageRoutes(spaceId, bkBizId, externalMenu),
-    // 监控
-    // #if MONITOR_APP === 'apm'
-    {
-      path: '/monitor-apm-log/:indexId?',
-      name: 'monitor-apm-log',
-      component: MonitorApmLog,
+      }),
       meta: {
-        title: 'APM检索-日志',
-        navId: 'monitor-apm-log',
+        title: '检索',
+        navId: 'retrieve',
       },
     },
-    // #endif
-    // #if MONITOR_APP === 'trace'
-    {
-      path: '/monitor-trace-log/:indexId?',
-      name: 'monitor-trace-log',
-      component: MonitorTraceLog,
-      meta: {
-        title: 'Trace检索-日志',
-        navId: 'monitor-trace-log',
-      },
-    },
-    // #endif
-    {
-      path: '*',
-      name: 'exception',
-      component: exception,
-      meta: {
-        navId: 'exception',
-        title: '无权限页面',
-      },
-    },
+    // 检索模块路由
+    ...retrieveRoutes(),
+    // 监控模块路由
+    ...monitorRoutes(),
+    // 仪表盘模块路由
+    ...dashboardRoutes(),
+    // 管理模块路由
+    ...manageRoutes(),
   ];
 };
 
