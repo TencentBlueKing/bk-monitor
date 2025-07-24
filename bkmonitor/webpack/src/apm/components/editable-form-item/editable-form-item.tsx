@@ -24,7 +24,6 @@
  * IN THE SOFTWARE.
  */
 
-import type { TranslateResult } from 'vue-i18n';
 import { Component, Emit, Inject, Prop, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
@@ -34,6 +33,7 @@ import ExpiredSelect from '../../components/expired-select/expired-select';
 import VerifyItem from '../verify-item/verify-item';
 
 import type { IUnitItme } from '../../pages/application/app-configuration/type';
+import type { TranslateResult } from 'vue-i18n';
 
 import './editable-form-item.scss';
 
@@ -361,7 +361,7 @@ export default class EditableFormItem extends tsc<IEditableFormItemProps, IEdita
       }
       setTimeout(() => {
         // biome-ignore lint/complexity/noExtraBooleanCast: <explanation>
-        this.isEditing = !Boolean(res);
+        this.isEditing = !res;
         this.isSubmiting = false;
       }, 500);
     }

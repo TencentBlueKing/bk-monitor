@@ -23,17 +23,13 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-/*
- * @Date: 2021-06-13 16:25:19
- * @LastEditTime: 2021-06-21 11:10:11
- * @Description:
- */
+
 import Vue from 'vue';
-import Router, { type RouteConfig } from 'vue-router';
 
 import { random } from 'monitor-common/utils/utils';
 import { getAuthById, setAuthById } from 'monitor-pc/common/auth-store';
 import ExceptionPage from 'monitor-pc/pages/exception-page/exception-page.vue';
+import Router, { type RouteConfig } from 'vue-router';
 
 import authorityStore from '../store/modules/authority';
 import Store from '../store/store';

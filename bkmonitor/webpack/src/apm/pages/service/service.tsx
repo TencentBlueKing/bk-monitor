@@ -1,4 +1,3 @@
-import type { TranslateResult } from 'vue-i18n';
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -42,6 +41,7 @@ import applicationStore from '../../store/modules/application';
 
 import type { IAppSelectOptItem } from '../home/app-select';
 import type { IViewOptions } from 'monitor-ui/chart-plugins/typings';
+import type { TranslateResult } from 'vue-i18n';
 
 import './service.scss';
 
