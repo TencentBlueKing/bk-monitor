@@ -33,14 +33,14 @@ export interface IMenuItem {
   name: string;
 }
 
-interface IListMenuProps {
-  list?: IMenuItem[];
-  keyword?: string;
-}
 interface IListMenuEvent {
-  onMenuSelect: IMenuItem;
   onHidden: void;
+  onMenuSelect: IMenuItem;
   onShow: void;
+}
+interface IListMenuProps {
+  keyword?: string;
+  list?: IMenuItem[];
 }
 
 @Component
