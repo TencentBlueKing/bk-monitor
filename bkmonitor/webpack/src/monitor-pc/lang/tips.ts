@@ -59,7 +59,7 @@ export default {
   满足以上条件的拨测节点数: 'Number of probe nodes that meet the above conditions',
   满足以下条件时触发: 'Trigger when the following conditions are met',
   '您没有业务{0}的权限,请联系运维!': 'You do not have permission for business {0}, please contact administrator!',
-  '您没有业务{name}的权限': 'You currently do not have permission for the business {name}',
+  '您没有业务 {name} 的权限先申请吧': 'You do not have permission for business {name}, Apply first.',
   '您没有业务权限，请先申请！': 'You do not have business permissions, please apply first!',
   '您没有该业务的权限，请先申请!': 'You do not have business permissions, please apply first!',
   '您没有该资源的权限，请先申请!': 'You do not have resource permissions, please apply first!',
