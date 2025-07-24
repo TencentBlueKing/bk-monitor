@@ -27,20 +27,13 @@
 import { onBeforeUnmount } from 'vue';
 import { type TippyContent, type TippyOptions, useTippy } from 'vue-tippy';
 
-export interface IUsePopoverTools {
-  /** 显示 Popover */
-  showPopover: (e: MouseEvent, content: TippyContent, options?: TippyOptions) => void;
-  /** 清除 popover */
-  hidePopover: () => void;
-  /** 清除 popover 延时打开定时器 */
-  clearPopoverTimer: () => void;
-}
+export type IUsePopoverTools = ReturnType<typeof usePopover>;
 
 /**
  * @description Popover 管理钩子（单例）
  * @returns Popover 控制方法
  */
-export function usePopover(popoverDefaultOptions: TippyOptions = {}): IUsePopoverTools {
+export function usePopover(popoverDefaultOptions: TippyOptions = {}) {
   /** popover 实例 */
   let popoverInstance = null;
   /** popover 延迟打开定时器 */
@@ -63,28 +56,56 @@ export function usePopover(popoverDefaultOptions: TippyOptions = {}): IUsePopove
   };
 
   /**
-   * 显示 Popover
+   * @description 显示 Popover
    * @param target 目标元素
    * @param content 弹窗内容
-   * @param options 自定义选项
-   *
+   * @param instanceKey popover 实例唯一标识，用来判断是否连续同一元素触发，避免连续两次同一元素触发 关闭又打开 交互不好
+   * @param customOptions 自定义选项
    */
-  function showPopover(e: MouseEvent, content: TippyContent, customOptions: TippyOptions = {}) {
+  function showPopover(e: MouseEvent, content: TippyContent, instanceKey?: string, customOptions?: TippyOptions);
+  /**
+   * @description 显示 Popover
+   * @param target 目标元素
+   * @param content 弹窗内容
+   * @param customOptions 自定义选项
+   */
+  function showPopover(e: MouseEvent, content: TippyContent, customOptions?: TippyOptions);
+  function showPopover(
+    e: MouseEvent,
+    content: TippyContent,
+    instanceKeyOrOptions?: string | TippyOptions,
+    customOptions?: TippyOptions
+  ) {
+    let instanceKey: string | undefined;
+    if (typeof instanceKeyOrOptions === 'string') {
+      instanceKey = instanceKeyOrOptions;
+    } else {
+      customOptions = instanceKeyOrOptions;
+    }
+
+    customOptions = customOptions || {};
+    const prevInstanceKey = popoverInstance?.instanceKey;
     if (popoverInstance || popoverDelayTimer) {
       hidePopover();
     }
+
+    // 相同实例Key直接返回，只关闭 popover 不在打开
+    if (instanceKey && prevInstanceKey === instanceKey) return;
+
     popoverInstance = useTippy(e.currentTarget, {
       content: content,
       ...defaultOptions,
       ...customOptions,
     });
-    const popoverCache = popoverInstance;
+    // 设置实例唯一标识key（非必须）
+    popoverInstance.instanceKey = instanceKey || '';
+    const currentInstance = popoverInstance;
     popoverDelayTimer = setTimeout(() => {
-      if (popoverCache === popoverInstance) {
+      if (currentInstance === popoverInstance) {
         popoverInstance?.show?.(0);
       } else {
-        popoverCache?.hide?.(0);
-        popoverCache?.destroy?.();
+        currentInstance?.hide?.(0);
+        currentInstance?.destroy?.();
       }
     }, 300);
   }

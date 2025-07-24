@@ -8,6 +8,8 @@
 
   .explore-table {
     height: 100%;
+    // 最小高度应为骨架屏高度避免出现空白
+    min-height: 370px;
     @include traceTable.table-theme();
 
     &.t-table {
@@ -165,6 +167,10 @@
   }
 
   .explore-text-ellipsis {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+
     &:has(> .explore-table-condition-menu) {
       &:hover {
         color: #3a84ff;

@@ -127,7 +127,6 @@ export default defineComponent({
                         data={this.data}
                         loading={this.loading}
                         sort={this.ordering}
-                        // @ts-ignore
                         onCurrentPageChange={page => {
                           this.page = page;
                         }}

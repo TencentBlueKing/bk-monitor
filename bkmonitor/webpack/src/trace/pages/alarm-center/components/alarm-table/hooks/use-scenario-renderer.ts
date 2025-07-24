@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { computed, onBeforeUnmount, onMounted, watch } from 'vue';
+import { computed, type MaybeRef, onBeforeUnmount, onMounted, watch } from 'vue';
 
 import { useAlarmCenterStore } from '../../../../../store/modules/alarm-center';
 import { ACTION_STORAGE_KEY } from '../../../services/action-services';
@@ -34,14 +34,30 @@ import { ActionScenario } from '../scenarios/action-scenario';
 import { AlertScenario } from '../scenarios/alert-scenario';
 import { IncidentScenario } from '../scenarios/incident-scenario';
 
-import type { TableColumnItem } from '../../../typings';
+import type { TableColumnItem, TableEmpty } from '../../../typings';
 import type { BaseScenario } from '../scenarios/base-scenario';
 
-export function useScenarioRenderer(context: any) {
+export interface ScenarioRenderer {
+  /** 当前场景实例 */
+  currentScenario: MaybeRef<BaseScenario>;
+  /** 当前场景表格空状态配置 */
+  tableEmpty: MaybeRef<TableEmpty>;
+  /** 转换列配置 */
+  transformColumns: (columns: TableColumnItem[]) => TableColumnItem[];
+}
+
+export function useScenarioRenderer(
+  context: AlertScenario['context'] & IncidentScenario['context'] & ActionScenario['context']
+): ScenarioRenderer {
   const alarmStore = useAlarmCenterStore();
+  // 用 Map 缓存场景实例，避免重复创建
+  let scenarioInstanceMap = new Map<string, BaseScenario>();
 
   // 场景映射表
-  const scenarioMap: Record<string, new (ctx: any) => BaseScenario> = {
+  const scenarioMap: Record<
+    string,
+    new (ctx: AlertScenario['context'] & IncidentScenario['context'] & ActionScenario['context']) => BaseScenario
+  > = {
     [ALERT_STORAGE_KEY]: AlertScenario,
     [INCIDENT_STORAGE_KEY]: IncidentScenario,
     [ACTION_STORAGE_KEY]: ActionScenario,
@@ -52,8 +68,13 @@ export function useScenarioRenderer(context: any) {
     const storageKey = alarmStore.alarmService.storageKey;
     // eslint-disable-next-line @typescript-eslint/naming-convention
     const ScenarioClass = scenarioMap[storageKey] || AlertScenario; // 默认告警场景
-    return new ScenarioClass(context);
+    if (!scenarioInstanceMap.has(storageKey)) {
+      scenarioInstanceMap.set(storageKey, new ScenarioClass(context));
+    }
+    return scenarioInstanceMap.get(storageKey);
   });
+
+  const tableEmpty = computed<TableEmpty>(() => currentScenario.value.getEmptyConfig());
 
   /**
    * @description 转换列配置
@@ -72,7 +93,7 @@ export function useScenarioRenderer(context: any) {
         fixed: 'left',
       });
     }
-    const scenarioColumns = currentScenario.value.getColumnsConfig();
+    const scenarioColumns = currentScenario.value.getMergedColumnsConfig();
     for (const column of columns) {
       const scenarioConfig = scenarioColumns[column.colKey];
       const targetColumn = scenarioConfig ? { ...column, ...scenarioConfig } : column;
@@ -96,10 +117,13 @@ export function useScenarioRenderer(context: any) {
 
   onBeforeUnmount(() => {
     currentScenario.value?.cleanup?.();
+    scenarioInstanceMap.clear();
+    scenarioInstanceMap = null;
   });
 
   return {
     currentScenario,
+    tableEmpty,
     transformColumns,
   };
 }

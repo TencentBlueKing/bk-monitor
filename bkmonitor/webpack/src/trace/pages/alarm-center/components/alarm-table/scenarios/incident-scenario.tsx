@@ -28,6 +28,7 @@ import { INCIDENT_STORAGE_KEY } from '../../../services/incident-services';
 import { BaseScenario } from './base-scenario';
 
 import type { BaseTableColumn } from '../../../../trace-explore/components/trace-explore-table/typing';
+import type { TableEmpty } from '../../../typings';
 import type { IUsePopoverTools } from '../hooks/use-popover';
 
 /**
@@ -36,9 +37,6 @@ import type { IUsePopoverTools } from '../hooks/use-popover';
  * @extends BaseScenario
  */
 export class IncidentScenario extends BaseScenario {
-  /**
-   * @readonly 场景标识
-   */
   readonly name = INCIDENT_STORAGE_KEY;
 
   constructor(
@@ -50,13 +48,15 @@ export class IncidentScenario extends BaseScenario {
     super();
   }
 
-  /**
-   * @description 获取当前场景的特殊列配置
-   */
+  getEmptyConfig(): TableEmpty {
+    return {
+      type: 'search-empty',
+      emptyText: window.i18n.t('当前检索范围，暂无故障'),
+    };
+  }
+
   getColumnsConfig(): Record<string, Partial<BaseTableColumn>> {
-    const commonColumnConfig = this.getCommonColumnsConfig();
     const columns = {
-      ...commonColumnConfig,
       // ... other private columns config
     };
 

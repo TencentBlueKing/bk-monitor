@@ -116,13 +116,14 @@ export default defineComponent({
     let scrollPointerEventsTimer = null;
     /** 创建场景上下文 */
     const scenarioContext: AlertScenario['context'] & IncidentScenario['context'] & ActionScenario['context'] = {
-      handleShowDetail,
+      handleAlertSliderShowDetail,
       hoverPopoverTools,
       handleAlertContentDetailShow,
       handleAlertOperationClick,
+      handleActionSliderShowDetail,
     };
     // 使用场景渲染器
-    const { transformColumns, currentScenario } = useScenarioRenderer(scenarioContext);
+    const { transformColumns, currentScenario, tableEmpty } = useScenarioRenderer(scenarioContext);
     /** 转换后的列配置 */
     const transformedColumns = computed(() => transformColumns(props.columns));
 
@@ -184,10 +185,17 @@ export default defineComponent({
       isSelectedFollower.value = options?.selectedRowData?.some?.(item => item.followerDisabled);
     };
     /**
-     * @description: 展示详情
+     * @description: 展示 告警 详情抽屉
      */
-    function handleShowDetail(id: string) {
-      alert(`记录${id}的详情弹窗`);
+    function handleAlertSliderShowDetail(id: string) {
+      alert(`展示 告警 ${id}的详情抽屉窗`);
+    }
+
+    /**
+     * @description: 展示 处理记录 详情抽屉
+     */
+    function handleActionSliderShowDetail(id: number | string) {
+      alert(`展示 处理记录 ${id}的详情抽屉窗`);
     }
 
     /**
@@ -232,6 +240,7 @@ export default defineComponent({
       transformedColumns,
       currentScenario,
       selectedRowKeys,
+      tableEmpty,
       isSelectedFollower,
       handleSelectionChange,
       handleAlertBatchSet,
@@ -243,18 +252,17 @@ export default defineComponent({
         <CommonTable
           ref='tableRef'
           class='alarm-table'
-          firstFullRow={
+          firstFullRow={() =>
             this.selectedRowKeys?.length
-              ? () =>
-                  (
-                    <AlertSelectionToolbar
-                      class='alarm-table-first-full-row'
-                      isSelectedFollower={this.isSelectedFollower}
-                      selectedRowKeys={this.selectedRowKeys}
-                      onClickAction={this.handleAlertBatchSet}
-                    />
-                  ) as unknown as SlotReturnValue
-              : undefined
+              ? ((
+                  <AlertSelectionToolbar
+                    class='alarm-table-first-full-row'
+                    isSelectedFollower={this.isSelectedFollower}
+                    selectedRowKeys={this.selectedRowKeys}
+                    onClickAction={this.handleAlertBatchSet}
+                  />
+                ) as unknown as SlotReturnValue)
+              : null
           }
           headerAffixedTop={{
             container: `.${CONTENT_SCROLL_ELEMENT_CLASS_NAME}`,
@@ -269,6 +277,7 @@ export default defineComponent({
           autoFillSpace={true}
           columns={this.transformedColumns}
           data={this.data}
+          empty={this.tableEmpty}
           loading={this.loading}
           pagination={this.pagination}
           selectedRowKeys={this.selectedRowKeys}

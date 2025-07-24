@@ -29,27 +29,30 @@ import {
   type BaseTableColumn,
 } from '../../../../trace-explore/components/trace-explore-table/typing';
 
+import type { TableEmpty } from '../../../typings';
 /**
  * @abstract
  * @description 场景表格特殊列渲染配置抽象基类
  */
 export abstract class BaseScenario {
-  // 场景名称（用于调试）
+  /**
+   * @readonly 场景标识
+   */
   abstract readonly name: string;
 
   /**
-   * 场景清理（可选）
+   * @description 场景清理（可选）
    */
   cleanup?(): void;
 
   /**
-   * 获取当前场景的特殊列配置
+   * @description 获取当前场景的特殊列配置(只实现私有列配置，公共的可配置在基类 getCommonColumnsConfig 中)
    * @returns 列键到特殊配置的映射
    */
   abstract getColumnsConfig(): Record<string, BaseTableColumn>;
 
   /**
-   * 公共列配置（所有场景共享）
+   * @description 公共列配置（所有场景共享）
    */
   // eslint-disable-next-line @typescript-eslint/member-ordering
   protected getCommonColumnsConfig(): Record<string, Partial<BaseTableColumn>> {
@@ -71,7 +74,24 @@ export abstract class BaseScenario {
   }
 
   /**
-   * 场景初始化（可选）
+   * @description 获取当前场景的空数据配置
+   * @returns 空数据展示配置
+   */
+  abstract getEmptyConfig(): TableEmpty;
+
+  /**
+   * @description 获取合并后的列配置（公共+私有）
+   */
+  // eslint-disable-next-line @typescript-eslint/member-ordering
+  public getMergedColumnsConfig(): Record<string, Partial<BaseTableColumn>> {
+    return {
+      ...this.getCommonColumnsConfig(),
+      ...this.getColumnsConfig(),
+    };
+  }
+
+  /**
+   * @description 场景初始化（可选）
    */
   initialize?(): void;
 }

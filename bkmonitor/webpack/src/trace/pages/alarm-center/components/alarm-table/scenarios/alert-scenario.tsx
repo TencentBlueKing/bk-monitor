@@ -41,6 +41,7 @@ import {
   type AlertTableItem,
   AlertTargetTypeMap,
   EXTEND_INFO_MAP,
+  type TableEmpty,
 } from '../../../typings';
 import { BaseScenario } from './base-scenario';
 
@@ -54,14 +55,11 @@ import type { TippyContent } from 'vue-tippy';
  * @extends BaseScenario
  */
 export class AlertScenario extends BaseScenario {
-  /**
-   * @readonly 场景标识
-   */
   readonly name = ALERT_STORAGE_KEY;
 
   constructor(
     private readonly context: {
-      handleShowDetail: (id: string) => void;
+      handleAlertSliderShowDetail: (id: string) => void;
       hoverPopoverTools: IUsePopoverTools;
       handleAlertContentDetailShow: (e: MouseEvent) => void;
       handleAlertOperationClick: (
@@ -69,19 +67,20 @@ export class AlertScenario extends BaseScenario {
         row: AlertTableItem,
         e?: MouseEvent
       ) => void;
-      [methodName: string]: any;
     }
   ) {
     super();
   }
 
-  /**
-   * @description 获取当前场景的特殊列配置
-   */
+  getEmptyConfig(): TableEmpty {
+    return {
+      type: 'search-empty',
+      emptyText: window.i18n.t('当前检索范围，暂无告警'),
+    };
+  }
+
   getColumnsConfig(): Record<string, Partial<BaseTableColumn>> {
-    const commonColumnConfig = this.getCommonColumnsConfig();
     const columns: Record<string, Partial<BaseTableColumn>> = {
-      ...commonColumnConfig,
       /** 告警状态(alert_status) 列 */
       alert_name: {
         cellRenderer: row => this.renderAlertName(row),
@@ -94,7 +93,7 @@ export class AlertScenario extends BaseScenario {
       event_count: {
         renderType: ExploreTableColumnTypeEnum.CLICK,
         clickCallback: row => {
-          this.context.handleShowDetail(row.id);
+          this.context.handleAlertSliderShowDetail(row.id);
         },
       },
       /** 首次异常时间(first_anomaly_time) 列 */
@@ -165,14 +164,14 @@ export class AlertScenario extends BaseScenario {
   private renderAlertName(row: AlertTableItem): SlotReturnValue {
     const rectColor = AlarmLevelIconMap?.[row?.severity]?.iconColor;
     return (
-      <div class='explore-col alert-lever-rect-col'>
+      <div class='explore-col lever-rect-col'>
         <i
           style={{ '--lever-rect-color': rectColor }}
           class='lever-rect'
         />
         <div
           class='lever-rect-text ellipsis-text'
-          onClick={() => this.context.handleShowDetail(row.id)}
+          onClick={() => this.context.handleAlertSliderShowDetail(row.id)}
           onMouseenter={e => this.handleAlterNameHover(e, row)}
           onMouseleave={this.context.hoverPopoverTools.clearPopoverTimer}
         >
