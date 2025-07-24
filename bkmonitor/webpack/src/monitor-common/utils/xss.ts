@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import 'xss/typings/xss';
+import 'xss/dist/xss';
 // <a style="color:red">dsafsd</a> <img src onerror="alert(1)" />
 export const xssFilter = (str: string) => {
   if (!str) return str;
