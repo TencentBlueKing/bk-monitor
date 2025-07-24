@@ -528,6 +528,9 @@ class TimeSeriesGroup(CustomGroupBase):
                     field_name = field_name.decode("utf-8")
 
                 # 过滤非法的指标名
+                if not self.FIELD_NAME_REGEX.match(field_name):
+                    logger.warning("invalid metric name: %s", field_name)
+                    continue
 
                 metrics_info.append(
                     {
