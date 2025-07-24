@@ -87,7 +87,7 @@ export default class FilterConditions extends tsc<IProps, IEmit> {
           </router-link>
         )}
         {this.data.length < 1 && (
-          <i18n path='(暂无常用维度，请前往 {0} 设置)'>
+          <i18n path='(暂未设置常驻筛选，请前往 {0} 设置)'>
             <router-link
               style='color: #3a84ff;'
               to={{
