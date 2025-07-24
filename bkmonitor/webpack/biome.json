@@ -65,7 +65,9 @@
         "noStaticElementInteractions": "off"
       },
       "correctness": {
-        "useJsxKeyInIterable": "error"
+        "useJsxKeyInIterable": "error",
+        "noUnusedVariables": "error",
+        "noUnusedImports": "error"
       }
     }
   },

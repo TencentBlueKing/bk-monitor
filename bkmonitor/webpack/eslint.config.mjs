@@ -458,8 +458,10 @@ export default [
   {
     rules: {
       'no-undef': OFF,
+      'no-case-declarations': OFF, // biome lint/style/noCaseDeclarations
       'vue/html-self-closing': OFF, // biome lint/style/selfClosing
       'vue/require-default-prop': OFF,
+      'vue/no-deprecated-v-bind-sync': OFF,
       '@typescript-eslint/no-explicit-any': OFF, // biome lint/suspicious/noExplicitAny
       '@typescript-eslint/ban-ts-comment': [
         WARNING,
@@ -471,6 +473,7 @@ export default [
           'ts-nocheck': false,
         },
       ],
+      '@typescript-eslint/no-unused-vars': OFF, // biome lint/style/noUnusedVars
     },
   },
 ];
