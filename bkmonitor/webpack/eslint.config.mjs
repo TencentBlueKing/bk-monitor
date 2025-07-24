@@ -1,76 +1,15 @@
-import typescriptEslint from '@typescript-eslint/eslint-plugin';
-import typescriptEslintParser from '@typescript-eslint/parser';
+import jsEslint from '@eslint/js';
 import eslintConfigPrettier from 'eslint-config-prettier';
 import tencentEslintLegacyRules from 'eslint-config-tencent/ts';
 import codecc from 'eslint-plugin-codecc';
 import perfectionist from 'eslint-plugin-perfectionist';
 import prettier from 'eslint-plugin-prettier';
 import eslintVuePlugin from 'eslint-plugin-vue';
-import eslintVueParser from 'vue-eslint-parser';
-// const tailwind = require('eslint-plugin-tailwindcss');
+import tsEslint from 'typescript-eslint';
 
 const OFF = 0;
 const WARNING = 1;
 const ERROR = 2;
-// Deprecate formatting rules https://typescript-eslint.io/blog/deprecating-formatting-rules
-const deprecateRules = Object.fromEntries(
-  [
-    'ban-ts-comment',
-    'block-spacing',
-    'brace-style',
-    'comma-dangle',
-    'comma-spacing',
-    'func-call-spacing',
-    'indent',
-    'key-spacing',
-    'keyword-spacing',
-    'lines-around-comment',
-    'lines-between-class-members',
-    'member-delimiter-style',
-    'no-explicit-any',
-    'no-extra-parens',
-    'no-extra-semi',
-    'padding-line-between-statements',
-    'quotes',
-    'semi',
-    'space-before-blocks',
-    'space-before-function-paren',
-    'space-infix-ops',
-    'type-annotation-spacing',
-    'no-misused-promises',
-  ].map(rule => [`@typescript-eslint/${rule}`, OFF])
-);
-const recommendedVue2Config = eslintVuePlugin.configs['flat/vue2-recommended'].find(config => config.files);
-// 以下是 script = js 的vue 文件 需要和 ts 分开检测
-const jsVueFiles = [
-  'src/monitor-pc/components/editors/**/*.vue',
-  'src/monitor-pc/components/history-dialog/**/*.vue',
-  'src/monitor-pc/components/ip-select/**/*.vue',
-  'src/monitor-pc/components/log-version/**/*.vue',
-  'src/monitor-pc/components/metric-dimension/**/*.vue',
-  'src/monitor-pc/components/metric-select/**/*.vue',
-  'src/monitor-pc/components/monitor-date-range/**/*.vue',
-  'src/monitor-pc/components/polling-loading/**/*.vue',
-  'src/monitor-pc/components/svg-icon/**/*.vue',
-  'src/monitor-pc/components/svg-wrap/**/*.vue',
-  'src/monitor-pc/components/table-filter/**/*.vue',
-  'src/monitor-pc/components/verify-input/**/*.vue',
-  'src/monitor-pc/pages/alarm-group/**/*.vue',
-  'src/monitor-pc/pages/alarm-shield/**/*.vue',
-  'src/monitor-pc/pages/collector-config/**/*.vue',
-  'src/monitor-pc/pages/collector-upgrade/**/*.vue',
-  'src/monitor-pc/pages/event-center/**/*.vue',
-  'src/monitor-pc/pages/export-import/**/*.vue',
-  'src/monitor-pc/pages/global-config/**/*.vue',
-  'src/monitor-pc/pages/home/**/*.vue',
-  'src/monitor-pc/pages/monitor-navigation/**/*.vue',
-  'src/monitor-pc/pages/performance/*.vue',
-  'src/monitor-pc/pages/plugin-manager/**/*.vue',
-  'src/monitor-pc/pages/service-classify/**/*.vue',
-  'src/monitor-pc/pages/shell-collector/**/*.vue',
-  'src/monitor-pc/pages/strategy-config/**/*.vue',
-  'src/monitor-pc/pages/uptime-check/**/*.vue',
-];
 const jsxOrVueSortGroups = {
   customGroups: [
     {
@@ -154,6 +93,7 @@ const jsxOrVueSortGroups = {
     'EVENTS',
   ],
 };
+
 export default [
   {
     ignores: [
@@ -173,6 +113,42 @@ export default [
     plugins: { prettier },
     rules: { ...prettier.configs.recommended.rules },
   },
+  ...tsEslint.config(jsEslint.configs.recommended, tsEslint.configs.recommended),
+  ...tsEslint.config(
+    jsEslint.configs.recommended,
+    tsEslint.configs.recommended,
+    ...eslintVuePlugin.configs['flat/recommended'],
+    {
+      files: ['*.vue', '**/*.vue'],
+      languageOptions: {
+        parserOptions: {
+          parser: '@typescript-eslint/parser',
+        },
+      },
+      rules: {
+        'vue/attributes-order': [
+          ERROR,
+          {
+            order: [
+              'DEFINITION',
+              'LIST_RENDERING',
+              'CONDITIONALS',
+              'RENDER_MODIFIERS',
+              'GLOBAL',
+              'UNIQUE',
+              'TWO_WAY_BINDING',
+              'SLOT',
+              'OTHER_DIRECTIVES',
+              'OTHER_ATTR',
+              'EVENTS',
+              'CONTENT',
+            ],
+            alphabetical: false,
+          },
+        ],
+      },
+    }
+  ),
   {
     files: ['src/**/*.ts', 'src/**/*.js'],
     ignores: ['src/**/*.tsx', 'src/**/*.vue'],
@@ -381,7 +357,7 @@ export default [
     files: ['src/**/*.ts', 'src/**/*.tsx', './**/*.js', 'src/**/*.js'],
     ignores: [],
     languageOptions: {
-      parser: typescriptEslintParser,
+      parser: tsEslint.parser,
       parserOptions: {
         ecmaFeatures: { jsx: true, legacyDecorators: true },
         ecmaVersion: 'latest',
@@ -389,7 +365,6 @@ export default [
       },
     },
     plugins: {
-      '@typescript-eslint': typescriptEslint,
       codecc,
     },
     rules: {
@@ -424,9 +399,7 @@ export default [
           pattern: '.*Tencent is pleased to support the open source community.+',
         },
       ],
-      ...typescriptEslint.configs.recommended.rules,
       ...tencentEslintLegacyRules.rules,
-      ...deprecateRules,
       '@typescript-eslint/consistent-type-imports': [
         ERROR,
         {
@@ -437,75 +410,6 @@ export default [
       ],
     },
   },
-  ...eslintVuePlugin.configs['flat/vue2-recommended'].filter(config => !config.files?.length),
-  {
-    ...recommendedVue2Config,
-    files: ['src/**/*.vue'],
-    ignores: jsVueFiles,
-    languageOptions: {
-      ...recommendedVue2Config.languageOptions,
-      parser: eslintVueParser,
-      parserOptions: {
-        ...recommendedVue2Config.languageOptions.parserOptions,
-        allowAutomaticSingleRunInference: false,
-        ecmaFeatures: { jsx: true, legacyDecorators: true },
-        ecmaVersion: 'latest',
-        extraFileExtensions: ['.vue'],
-        parser: {
-          cjs: 'espree',
-          cts: typescriptEslintParser,
-          js: 'espree',
-          jsx: 'espree',
-          mjs: 'espree',
-          mts: typescriptEslintParser,
-          ts: typescriptEslintParser,
-          tsx: typescriptEslintParser,
-        },
-        project: true,
-      },
-    },
-    plugins: {
-      '@typescript-eslint': typescriptEslint,
-      vue: eslintVuePlugin,
-    },
-    rules: {
-      ...recommendedVue2Config.rules,
-      ...tencentEslintLegacyRules.rules,
-      '@typescript-eslint/explicit-member-accessibility': OFF,
-      'comma-dangle': [ERROR, 'always-multiline'],
-      ...deprecateRules,
-      'vue/attributes-order': [
-        ERROR,
-        {
-          order: [
-            'DEFINITION',
-            'LIST_RENDERING',
-            'CONDITIONALS',
-            'RENDER_MODIFIERS',
-            'GLOBAL',
-            'UNIQUE',
-            'TWO_WAY_BINDING',
-            'SLOT',
-            'OTHER_DIRECTIVES',
-            'OTHER_ATTR',
-            'EVENTS',
-            'CONTENT',
-          ],
-          alphabetical: false,
-        },
-      ],
-    },
-  },
-  {
-    ...recommendedVue2Config,
-    files: jsVueFiles,
-  },
-  {
-    rules: {
-      'vue/html-self-closing': OFF,
-      'vue/require-default-prop': OFF,
-    },
-  },
   {
     files: ['./*.js', 'public/**/*.js', 'webpack/*.js'],
     rules: {
@@ -513,7 +417,6 @@ export default [
       'codecc/license': OFF,
     },
   },
-  // ...tailwind.configs['flat/recommended'],
   eslintConfigPrettier,
   {
     files: ['src/trace/**/*.tsx', 'src/trace/**/*.ts'],
@@ -550,6 +453,24 @@ export default [
     },
     rules: {
       'monitor-vue3/no-ref': WARNING,
+    },
+  },
+  {
+    rules: {
+      'no-undef': OFF,
+      'vue/html-self-closing': OFF, // biome lint/style/selfClosing
+      'vue/require-default-prop': OFF,
+      '@typescript-eslint/no-explicit-any': OFF, // biome lint/suspicious/noExplicitAny
+      '@typescript-eslint/ban-ts-comment': [
+        WARNING,
+        {
+          minimumDescriptionLength: 0,
+          'ts-check': false,
+          'ts-expect-error': false,
+          'ts-ignore': false,
+          'ts-nocheck': false,
+        },
+      ],
     },
   },
 ];

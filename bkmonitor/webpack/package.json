@@ -45,9 +45,8 @@
     "@biomejs/biome": "2.1.2",
     "@blueking/bkmonitor-cli": "7.0.1-beta.8",
     "@blueking/stylelint-config": "0.0.3",
+    "@eslint/js": "^9.31.0",
     "@types/throttle-debounce": "^5.0.2",
-    "@typescript-eslint/eslint-plugin": "^8.38.0",
-    "@typescript-eslint/parser": "^8.38.0",
     "cross-env": "^7.0.3",
     "eslint": "^9.31.0",
     "eslint-config-prettier": "^10.1.8",
@@ -74,8 +73,8 @@
     "stylelint-scss": "^6.12.1",
     "taze": "^19.1.0",
     "typescript": "^5.8.3",
-    "vue": "v2-latest",
-    "vue-eslint-parser": "^10.2.0"
+    "typescript-eslint": "^8.38.0",
+    "vue": "v2-latest"
   },
   "nodemonConfig": {
     "watch": [
