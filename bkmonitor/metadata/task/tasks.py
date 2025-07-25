@@ -1573,12 +1573,7 @@ def process_gse_slot_message(message_id: str, bk_agent_id: str, content: str, re
             bk_tenant_id=bk_tenant_id,
             message_id=message_id,
             agent_id_list=[bk_agent_id],
-            content=json.dumps(
-                {
-                    "code": "0",
-                    "data": result,
-                }
-            ),
+            content=json.dumps({"code": 0, "data": result}),
         )
         logger.info(
             "process_gse_slot_message: callback gse interface,message_id->%s,bk_agent_id->%s,content->%s,received_at->%s,result->%s",
