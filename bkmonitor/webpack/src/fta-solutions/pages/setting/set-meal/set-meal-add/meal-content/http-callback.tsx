@@ -47,19 +47,19 @@ import type { IWebhook } from './meal-content-data';
 
 import './http-callback.scss';
 
-interface IProps {
-  isEdit: boolean;
-  value?: any;
-  label?: string;
-  isOnlyHttp?: boolean; // 是否只显示头部http数据
-  validatorHasVariable?: boolean;
-  variableList?: { example: string; id: string }[];
-  pluginId?: number | string;
-}
-
 interface IEvents {
   onChange?: IWebhook;
   onDebug?: void;
+}
+
+interface IProps {
+  isEdit: boolean;
+  isOnlyHttp?: boolean; // 是否只显示头部http数据
+  label?: string;
+  pluginId?: number | string;
+  validatorHasVariable?: boolean;
+  value?: any;
+  variableList?: { example: string; id: string }[];
 }
 
 // GET请求query参数匹配正则
@@ -195,7 +195,7 @@ export default class HttpCallBack extends tsc<IProps, IEvents> {
   }
 
   get checkUrl(): boolean {
-    return /(^(((ht|f)tps?):\/\/)[\w-]+(\.[\w-]+)+([\w.,@?^=%&:/~+#-{}]*[\w@?^=%&/~+#-{}])?$)|({{[\w\.]+?}})/.test(
+    return /(^(((ht|f)tps?):\/\/)[\w-]+(\.[\w-]+)+([\w.,@?^=%&:/~+#\-{}]*[\w@?^=%&/~+#\-{}])?$)|({{[\w.]+?}})/.test(
       this.httpData.url
     );
   }
@@ -255,7 +255,9 @@ export default class HttpCallBack extends tsc<IProps, IEvents> {
       // 认证
       const authData = this.localHeaderInfo.find(item => item.key === 'Authorization');
       const authType = authorize.auth_type;
-      authType !== 'none' && (authData[authType] = authorize.auth_config);
+      if (authType !== 'none') {
+        authData[authType] = authorize.auth_config;
+      }
       authData.type = authType;
       // 头部数据
       const headersData = this.localHeaderInfo.find(item => item.key === 'Headers');
@@ -264,7 +266,9 @@ export default class HttpCallBack extends tsc<IProps, IEvents> {
       // body
       const bodyData = this.localHeaderInfo.find(item => item.key === 'Body');
       const bodyType = body.data_type;
-      !['default', 'raw'].includes(bodyType) && (bodyData[bodyType] = transformDataKey(body.params));
+      if (!['default', 'raw'].includes(bodyType)) {
+        bodyData[bodyType] = transformDataKey(body.params);
+      }
       if (bodyType === 'raw') {
         bodyData[bodyType] = { type: 'text', content: '' };
         bodyData[bodyType].content = body.content;
@@ -357,8 +361,12 @@ export default class HttpCallBack extends tsc<IProps, IEvents> {
     const typeMap = ['form_data', 'x_www_form_urlencoded'];
     if (key === 'Body' && typeMap.includes(type)) {
       let tableData = null;
-      type === 'form_data' && (tableData = this.curHeaderData.form_data);
-      type === 'x_www_form_urlencoded' && (tableData = this.curHeaderData.x_www_form_urlencoded);
+      if (type === 'form_data') {
+        tableData = this.curHeaderData.form_data;
+      }
+      if (type === 'x_www_form_urlencoded') {
+        tableData = this.curHeaderData.x_www_form_urlencoded;
+      }
       this.handleAddRowIntoTable(tableData);
     }
 
@@ -398,21 +406,21 @@ export default class HttpCallBack extends tsc<IProps, IEvents> {
       html: 'HTML',
     };
 
-    const isVar = /{{[\w\.]+?}}/.test(content);
+    const isVar = /{{[\w.]+?}}/.test(content);
     if (content && type === 'json') {
       let target = '';
       if (isVar && this.validatorHasVariable) {
         const variableMap = new Map();
-        this.variableList.forEach(template => {
+        for (const template of this.variableList) {
           variableMap.set(template.id, template);
-        });
+        }
         target = setVariableToString(variableMap, content);
       } else {
         target = content;
       }
       try {
         JSON.parse(target);
-      } catch (error) {
+      } catch {
         const isVerify = await variableJsonVerify(this.pluginId, content).catch(() => false);
         if (!isVerify) {
           errorMsg = this.$t('文本不符合 {type} 格式', { type: typeNameMap[type] }) as string;
@@ -422,9 +430,11 @@ export default class HttpCallBack extends tsc<IProps, IEvents> {
     if (content && ['html', 'xml'].includes(type)) {
       const parser = new DOMParser();
       const res = parser.parseFromString(content, 'application/xhtml+xml');
-      const parsererror = res.querySelector('parsererror');
+      const error = res.querySelector('parsererror');
       if (!isVar) {
-        parsererror && (errorMsg = this.$t('文本不符合 {type} 格式', { type: typeNameMap[type] }) as string);
+        if (error) {
+          errorMsg = this.$t('文本不符合 {type} 格式', { type: typeNameMap[type] }) as string;
+        }
       }
     }
     this.rawErrorMsg = errorMsg;
@@ -622,7 +632,9 @@ export default class HttpCallBack extends tsc<IProps, IEvents> {
                 content: this.headerHideTips[`${isHide}`],
                 allowHTML: false,
               }}
-              onClick={() => (this.curHeaderData.hide = !isHide)}
+              onClick={() => {
+                this.curHeaderData.hide = !isHide;
+              }}
             />
             {isHide ? (
               <span>{this.$t('已隐藏{count}项', { count: hideCount })}</span>
@@ -722,7 +734,9 @@ export default class HttpCallBack extends tsc<IProps, IEvents> {
                 disabled={!this.isEdit}
                 type={'textarea'}
                 onBlur={() => this.handleRawBlur(data.type, data.content)}
-                onFocus={() => (this.rawErrorMsg = '')}
+                onFocus={() => {
+                  this.rawErrorMsg = '';
+                }}
                 onInput={this.bodyParamInput}
               />
               {this.rawErrorMsg && <p style='margin: 0; color: #ff5656;'>{this.rawErrorMsg}</p>}
@@ -814,7 +828,7 @@ export default class HttpCallBack extends tsc<IProps, IEvents> {
   // tab的label模板
   tplTabLabel(tab: IHeaderInfo) {
     const { key } = tab;
-    let tips = undefined;
+    let tips: boolean | number | undefined;
     if (['Params', 'Headers'].includes(key)) {
       const value = (tab.value as IParamsValueItem[]).filter(item => item.isEnabled && !this.rowIsEmpty(item));
       const num = value.length;

@@ -25,16 +25,6 @@
  */
 
 /**
- * 轮值tab类型
- */
-export enum RotationTabTypeEnum {
-  /** 交替轮值 */
-  HANDOFF = 'handoff',
-  /** 固定值班 */
-  REGULAR = 'regular',
-}
-
-/**
  * 轮值下拉框类型
  */
 export enum RotationSelectTypeEnum {
@@ -52,6 +42,16 @@ export enum RotationSelectTypeEnum {
   Weekly = 'weekly',
   /** 工作日 */
   WorkDay = 'work_day',
+}
+
+/**
+ * 轮值tab类型
+ */
+export enum RotationTabTypeEnum {
+  /** 交替轮值 */
+  HANDOFF = 'handoff',
+  /** 固定值班 */
+  REGULAR = 'regular',
 }
 
 /**

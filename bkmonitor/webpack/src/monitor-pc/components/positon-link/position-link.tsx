@@ -26,15 +26,15 @@
 import { Component, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { Debounce, copyText } from 'monitor-common/utils/utils';
+import { copyText, Debounce } from 'monitor-common/utils/utils';
 
 import './position-link.scss';
 
 interface IProps {
   copyContent?: string;
   icon?: string;
-  tipsText?: string;
   positionText: string;
+  tipsText?: string;
 }
 
 /**

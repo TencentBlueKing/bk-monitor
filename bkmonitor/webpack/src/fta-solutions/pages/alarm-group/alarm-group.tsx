@@ -23,13 +23,13 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+import type { VNode } from 'vue';
+
 import { Component, Mixins } from 'vue-property-decorator';
 
 import AlarmGroupList from 'monitor-pc/pages/alarm-group/alarm-group-common/alarm-group';
 import * as authorityMap from 'monitor-pc/pages/alarm-group/authority-map';
 import authorityMixinCreate from 'monitor-ui/mixins/authorityMixin';
-
-import type { VNode } from 'vue';
 
 @Component({
   name: 'AlarmGroupListFta',

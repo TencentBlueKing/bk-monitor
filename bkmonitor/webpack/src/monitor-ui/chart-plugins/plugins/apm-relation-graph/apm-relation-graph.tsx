@@ -28,7 +28,7 @@ import { Component, Inject, InjectReactive, ProvideReactive, Ref, Watch } from '
 
 // import { Component as tsc } from 'vue-tsx-support';
 import dayjs from 'dayjs';
-import { CancelToken } from 'monitor-api/index';
+import { CancelToken } from 'monitor-api/cancel';
 // import type { PanelModel } from '../../typings';
 import { dataTypeBarQuery } from 'monitor-api/modules/apm_topo';
 import { topoView } from 'monitor-api/modules/apm_topo';
@@ -46,12 +46,12 @@ import BarAlarmChart from './components/bar-alarm-chart';
 // import ResourceTopo from './components/resource-topo/resource-topo';
 import ServiceOverview from './components/service-overview';
 import {
+  type EdgeDataType,
   alarmBarChartDataTransform,
   CategoryEnum,
   DATA_TYPE_LIST,
   EDataType,
   nodeIconClass,
-  type EdgeDataType,
 } from './components/utils';
 
 import type { IFilterDict, ITableColumn, ITablePagination } from 'monitor-pc/pages/monitor-k8s/typings/table';

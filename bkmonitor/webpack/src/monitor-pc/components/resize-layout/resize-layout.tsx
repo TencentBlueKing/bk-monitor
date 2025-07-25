@@ -32,24 +32,24 @@ export const ASIDE_DEFAULT_HEIGHT = 280;
 /** 侧栏收起高度 */
 export const ASIDE_COLLAPSE_HEIGHT = 40;
 
-interface IProps {
-  min?: number;
-  max?: number;
-  disabled?: boolean;
-  default?: number;
-  placement?: string;
-  toggleBefore?: () => boolean;
-}
 export interface IUpdateHeight {
-  mainHeight: number;
   asideHeight: number;
+  mainHeight: number;
 }
 interface IEvents {
-  onTriggerMin: IUpdateHeight;
-  onUpdateHeight: IUpdateHeight;
+  onAfterResize?: IUpdateHeight;
   onResizing: IUpdateHeight;
   onTogglePlacement: string;
-  onAfterResize?: IUpdateHeight;
+  onTriggerMin: IUpdateHeight;
+  onUpdateHeight: IUpdateHeight;
+}
+interface IProps {
+  default?: number;
+  disabled?: boolean;
+  max?: number;
+  min?: number;
+  placement?: string;
+  toggleBefore?: () => boolean;
 }
 @Component
 export default class MonitorResizeLayout extends tsc<IProps, IEvents> {

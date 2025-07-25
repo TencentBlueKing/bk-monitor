@@ -101,25 +101,6 @@ const needSetJson: Record<string, string> = {};
 // 标识是否存在需要修改的重复词条
 let hasNeedSetData = false;
 
-/**
- * @description 将两个翻译文件进行合并
- * @param {Record<string, string>} data - 合并后的翻译文件
- * @param {Record<string, string>} item - 需要合并的翻译文件
- * @param {string} prefix - 翻译文件的前缀
- * @returns {Record<string, string>} 合并后的翻译文件
- */
-function mergeJson<T extends keyof MonitorLang>(data: Record<string, string>, item: MonitorLang[T], prefix?: T) {
-  return Object.keys(item).reduce((res, key) => {
-    if (prefix && data[key]) {
-      res[`${prefix}-${key}`] = item[key];
-      needSetJson[`${prefix}-${key}`] = item[key];
-      hasNeedSetData = true;
-    } else {
-      res[key] = item[key];
-    }
-    return res;
-  }, data);
-}
 type MonitorLangDataType = typeof MonitorLangData;
 /**
  * @description 合并所有翻译文件
@@ -146,4 +127,23 @@ export function mergeI18nJson() {
     }, {}) as MonitorLangDataType[keyof MonitorLangDataType],
     enUS: data as MonitorLangDataType[keyof MonitorLangDataType],
   };
+}
+/**
+ * @description 将两个翻译文件进行合并
+ * @param {Record<string, string>} data - 合并后的翻译文件
+ * @param {Record<string, string>} item - 需要合并的翻译文件
+ * @param {string} prefix - 翻译文件的前缀
+ * @returns {Record<string, string>} 合并后的翻译文件
+ */
+function mergeJson<T extends keyof MonitorLang>(data: Record<string, string>, item: MonitorLang[T], prefix?: T) {
+  return Object.keys(item).reduce((res, key) => {
+    if (prefix && data[key]) {
+      res[`${prefix}-${key}`] = item[key];
+      needSetJson[`${prefix}-${key}`] = item[key];
+      hasNeedSetData = true;
+    } else {
+      res[key] = item[key];
+    }
+    return res;
+  }, data);
 }

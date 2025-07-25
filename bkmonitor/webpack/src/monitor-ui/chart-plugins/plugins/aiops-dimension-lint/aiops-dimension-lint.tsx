@@ -27,7 +27,7 @@ import { Component, Inject, InjectReactive, Prop, Watch } from 'vue-property-dec
 
 import dayjs from 'dayjs';
 import deepmerge from 'deepmerge';
-import { CancelToken } from 'monitor-api/index';
+import { CancelToken } from 'monitor-api/cancel';
 import { metricRecommendationFeedback } from 'monitor-api/modules/alert';
 import { createAnomalyDimensionTips } from 'monitor-common/tips/anomaly-dimension-tips';
 import { random } from 'monitor-common/utils/utils';
@@ -53,25 +53,25 @@ enum EEvaluation {
 }
 
 interface IFeedback {
-  self?: string;
-  good?: number;
   bad?: number;
-}
-interface IRecommendInfo {
-  reasons?: string[];
-  anomaly_points?: number[];
-  class?: string;
-  src_metric_id?: string;
+  good?: number;
+  self?: string;
 }
 interface IPanelModel extends PanelModel {
+  anomaly_level?: number;
+  anomaly_score?: number;
+  bk_biz_id?: string;
+  class?: string;
+  enable_threshold?: boolean;
   feedback?: IFeedback;
   recommend_info?: IRecommendInfo;
-  anomaly_score?: number;
-  anomaly_level?: number;
-  enable_threshold?: boolean;
   src_metric_id?: string;
+}
+interface IRecommendInfo {
+  anomaly_points?: number[];
   class?: string;
-  bk_biz_id?: string;
+  reasons?: string[];
+  src_metric_id?: string;
 }
 const AnomalyLevelColorMap = {
   1: '#E71818',

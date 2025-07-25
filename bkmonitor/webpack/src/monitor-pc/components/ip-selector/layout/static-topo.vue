@@ -50,9 +50,9 @@
 <script lang="ts">
 import { Component, Emit, Prop, Ref, Vue } from 'vue-property-decorator';
 
-import type { ISearchDataOption, ITableCheckData, ITableConfig, SearchDataFuncType } from '../types/selector-type';
-
 import DynamicTopo from './dynamic-topo.vue';
+
+import type { ISearchDataOption, ITableCheckData, ITableConfig, SearchDataFuncType } from '../types/selector-type';
 
 @Component({ name: 'static-topo', components: { DynamicTopo } })
 export default class StaticTopo extends Vue {
@@ -91,7 +91,7 @@ export default class StaticTopo extends Vue {
   private handleSearchSelectionChange(selections: any[]) {
     return selections;
   }
-  // eslint-disable-next-line @typescript-eslint/member-ordering
+
   public handleGetDefaultSelections() {
     this.dynamicTopoRef?.handleGetDefaultSelections();
   }

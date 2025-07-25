@@ -45,16 +45,16 @@ import type { IData as IBusinessCard } from 'fta-solutions/pages/home/business-i
 
 import './home.scss';
 
-interface IDataOverview {
-  timeChecked: number;
-  timeOption: { id: number; name: string }[];
-  data: IDataOverviewData[];
-}
 interface IBusinessOverview {
-  searchValue: string;
+  data: IBusinessCard[];
   filterItem: number;
   filterList: { id: number; name: string }[];
-  data: IBusinessCard[];
+  searchValue: string;
+}
+interface IDataOverview {
+  data: IDataOverviewData[];
+  timeChecked: number;
+  timeOption: { id: number; name: string }[];
 }
 
 // 过滤选项

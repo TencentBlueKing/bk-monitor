@@ -32,21 +32,21 @@ import { isEn } from '../../../../i18n/lang';
 
 import './log-retrieval-dialog.scss';
 
-interface LogRetrievalDialogProps {
-  show: boolean;
-  indexList: Array<indexItem>;
-  showTips: boolean;
-  ip: string;
-  bizId?: number;
+interface indexItem {
+  index_set_id: number;
+  index_set_name: string;
+  status: number;
+  status_name: string;
 }
 interface LogRetrievalDialogEvent {
   onShowChange: boolean;
 }
-interface indexItem {
-  status: number;
-  status_name: string;
-  index_set_name: string;
-  index_set_id: number;
+interface LogRetrievalDialogProps {
+  bizId?: number;
+  indexList: Array<indexItem>;
+  ip: string;
+  show: boolean;
+  showTips: boolean;
 }
 
 @Component({

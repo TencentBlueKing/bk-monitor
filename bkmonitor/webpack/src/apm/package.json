@@ -33,7 +33,10 @@
     "vuex": "^3.6.2",
     "vuex-module-decorators": "^1.2.0"
   },
-  "keywords": ["monitor", "apm"],
+  "keywords": [
+    "monitor",
+    "apm"
+  ],
   "author": "bkfe",
   "license": "MIT",
   "devDependencies": {

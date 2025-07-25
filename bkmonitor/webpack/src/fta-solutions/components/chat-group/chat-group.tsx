@@ -32,14 +32,14 @@ import UserSelector from 'monitor-pc/components/user-selector/user-selector';
 
 import './chat-group.scss';
 
-interface IChatGroupProps {
-  show?: boolean;
-  alarmEventName?: string;
-  assignee: string[];
-  alertIds: string[];
-}
 interface IChatGroupEvent {
   onShowChange?: boolean;
+}
+interface IChatGroupProps {
+  alarmEventName?: string;
+  alertIds: string[];
+  assignee: string[];
+  show?: boolean;
 }
 
 @Component

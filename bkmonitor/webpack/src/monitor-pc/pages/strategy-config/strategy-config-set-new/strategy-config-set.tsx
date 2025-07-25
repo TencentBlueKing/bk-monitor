@@ -69,25 +69,25 @@ import BaseConfig, { type IBaseConfig } from './base-config/base-config';
 import GroupPanel from './components/group-panel';
 import DetectionRules from './detection-rules/detection-rules';
 import JudgingCondition, {
+  type IJudgingData,
   DEFAULT_TIME_RANGES,
   RecoveryConfigStatusSetter,
-  type IJudgingData,
 } from './judging-condition/judging-condition';
 import AiopsMonitorData from './monitor-data/aiops-monitor-data';
 import MonitorData from './monitor-data/monitor-data';
 import MonitorDataEmpty from './monitor-data/monitor-data-empty';
 import NoticeConfigNew, { type INoticeValue } from './notice-config/notice-config';
 import {
+  type dataModeType,
   type EditModeType,
   type IBaseInfoRouteParams,
   type IDetectionConfig,
   type IMetricDetail,
   type IScenarioItem,
   type ISourceData,
+  type strategyType,
   MetricDetail,
   MetricType,
-  type dataModeType,
-  type strategyType,
 } from './typings';
 
 import type { IProps as ITimeRangeMultipleProps } from '../../../components/time-picker-multiple/time-picker-multiple';
@@ -116,9 +116,10 @@ const serviceTargetFieldType = {
   SET_TEMPLATE: 'service_set_template',
   DYNAMIC_GROUP: 'dynamic_group',
 };
-interface IStrategyConfigSetProps {
-  fromRouteName: string;
+export interface IAlarmGroupList {
   id: number | string;
+  name: string;
+  receiver: string[];
 }
 
 interface IStrategyConfigSetEvent {
@@ -126,10 +127,9 @@ interface IStrategyConfigSetEvent {
   onSave: () => void;
 }
 
-export interface IAlarmGroupList {
+interface IStrategyConfigSetProps {
+  fromRouteName: string;
   id: number | string;
-  name: string;
-  receiver: string[];
 }
 
 /* data_source_label 为 prometheus 监控数据模式显示为source模式 */
@@ -189,7 +189,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
   alarmGroupList: IAlarmGroupList[] = [];
   alarmGroupLoading = false;
 
-  strategyView: { rightWidth: number | string; range: number[]; show: boolean; isActive: boolean } = {
+  strategyView: { isActive: boolean; range: number[]; rightWidth: number | string; show: boolean } = {
     rightWidth: '33%',
     range: [300, 1200],
     show: true,
@@ -338,13 +338,13 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
   targetType = '';
   loading = false;
   metricSelector: {
-    type: MetricType;
+    dataTypeLabel?: string;
     id: string;
+    isEdit?: boolean;
+    key?: string;
     monitorType: string;
     show: boolean;
-    key?: string;
-    dataTypeLabel?: string;
-    isEdit?: boolean;
+    type: MetricType;
   } = {
     type: MetricType.TimeSeries,
     id: null,
@@ -1093,7 +1093,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
     // 策略快照start
     this.strategyId = 0;
     const { fromEvent } = this.$route.query;
-    let snapshotRes: { strategy_status?: string; name?: string; id?: number } = {};
+    let snapshotRes: { id?: number; name?: string; strategy_status?: string } = {};
     if (fromEvent) {
       snapshotRes = await strategySnapshot({ id });
       this.strategyStatus = snapshotRes.strategy_status;
@@ -1442,7 +1442,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
   }
 
   // 继续添加指标
-  handleShowMetricContinue(data: { type: MetricType; key: string; metric_id: string }) {
+  handleShowMetricContinue(data: { key: string; metric_id: string; type: MetricType }) {
     this.metricSelectorTargetId = `#set-panel-item-${data.type}${data.key || ''}`;
     // if (!data.metric_id) {
     //   this.metricSelector.key = data.key;
@@ -2416,7 +2416,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
    * @description: 切换指标的编辑模式
    * @param {EditModeType} mode
    */
-  async handleEditModeChange({ mode }: { mode: EditModeType; hasError: boolean }) {
+  async handleEditModeChange({ mode }: { hasError: boolean; mode: EditModeType }) {
     // 切换指标的编辑模式时，警告有则消失
     if (this.metricTipType) {
       this.metricTipType = '';

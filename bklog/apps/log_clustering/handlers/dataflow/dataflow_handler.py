@@ -1552,13 +1552,11 @@ class DataFlowHandler(BaseAiopsHandler):
                         "index_set": clustering_config.clustered_rt,
                         "source_type": Scenario.BKDATA,
                         "data_label": BaseIndexSetHandler.get_data_label(
-                            Scenario.BKDATA, index_set.index_set_id, clustered_rt=clustering_config.clustered_rt
+                            index_set.index_set_id, clustered_rt=clustering_config.clustered_rt
                         ),
                         "table_id": BaseIndexSetHandler.get_rt_id(
                             index_set.index_set_id,
-                            index_set.collector_config_id,
-                            [],
-                            clustered_rt=clustering_config.clustered_rt,
+                            clustering_config.clustered_rt,
                         ),
                         "space_id": index_set.space_uid.split("__")[-1],
                         "space_type": index_set.space_uid.split("__")[0],

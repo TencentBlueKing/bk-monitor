@@ -30,21 +30,21 @@ import { deepClone } from 'monitor-common/utils';
 import MonitorDialog from 'monitor-ui/monitor-dialog';
 
 import UserConfigMixin from '../../../../mixins/userStoreConfig';
-import { COMMON_ROUTE_LIST, type IRouteConfigItem } from '../../../../router/router-config';
+import { type IRouteConfigItem, COMMON_ROUTE_LIST } from '../../../../router/router-config';
 
 import './header-setting-modal.scss';
-
-// 定义组件属性接口
-interface IHeaderSettingModalProps {
-  show: boolean;
-  quickAccessList: IRouteConfigItem[];
-}
 
 // 定义组件事件接口
 interface IHeaderSettingModalEvent {
   onChange: boolean;
   onConfirm: IRouteConfigItem[];
   onStoreRoutesChange: IRouteConfigItem[];
+}
+
+// 定义组件属性接口
+interface IHeaderSettingModalProps {
+  quickAccessList: IRouteConfigItem[];
+  show: boolean;
 }
 
 @Component

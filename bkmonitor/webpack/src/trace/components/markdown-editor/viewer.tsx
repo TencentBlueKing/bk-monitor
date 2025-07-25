@@ -23,9 +23,9 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, ref as deepRef, watch, onMounted, onBeforeUnmount } from 'vue';
+import { ref as deepRef, defineComponent, onBeforeUnmount, onMounted, watch } from 'vue';
 
-import { Editor, type Viewer } from '@toast-ui/editor';
+import { type Viewer, Editor } from '@toast-ui/editor';
 import codeSyntaxHighlight from '@toast-ui/editor-plugin-code-syntax-highlight/dist/toastui-editor-plugin-code-syntax-highlight-all';
 
 import fixUrlPlugin from './fixUrlPlugin';
@@ -33,14 +33,14 @@ import fixUrlPlugin from './fixUrlPlugin';
 import type { EditorPlugin } from '@toast-ui/editor/types/editor';
 
 import './viewer.scss';
-import '@toast-ui/editor/dist/toastui-editor.css';
 import '@toast-ui/editor-plugin-code-syntax-highlight/dist/toastui-editor-plugin-code-syntax-highlight.css';
+import '@toast-ui/editor/dist/toastui-editor.css';
 import 'prismjs/themes/prism.css';
 
 interface MarkdownViewerProps {
+  flowchartStyle?: boolean;
   height?: number | string;
   value: string;
-  flowchartStyle?: boolean;
 }
 
 export default defineComponent<MarkdownViewerProps>({

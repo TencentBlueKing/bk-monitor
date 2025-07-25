@@ -30,17 +30,17 @@ import { modifyCustomTsFields } from 'monitor-api/modules/custom_report';
 
 import './render-metric.scss';
 
+interface IEmit {
+  onCheckChange: (checked: boolean) => void;
+  onEditSuccess: () => void;
+}
+
 interface IProps {
+  checked?: boolean;
   data: {
     alias: string;
     metric_name: string;
   };
-  checked?: boolean;
-}
-
-interface IEmit {
-  onCheckChange: (checked: boolean) => void;
-  onEditSuccess: () => void;
 }
 
 @Component

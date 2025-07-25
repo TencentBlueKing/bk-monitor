@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { Component, Prop, Emit } from 'vue-property-decorator';
+import { Component, Emit, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import DashboardPanel from 'monitor-ui/chart-plugins/components/flex-dashboard-panel';
@@ -33,11 +33,11 @@ import type { PanelModel, ZrClickEvent } from '../../../typings';
 
 import './chart-view.scss';
 
-interface IChartViewProps {
-  panelsData: PanelModel[];
-}
 interface IChartViewEvent {
   onZrClick?: (event: ZrClickEvent) => void;
+}
+interface IChartViewProps {
+  panelsData: PanelModel[];
 }
 @Component({
   name: 'ChartView',

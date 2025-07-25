@@ -34,11 +34,11 @@ import { transformDataKey } from 'monitor-common/utils/utils';
 import { defineStore } from 'pinia';
 
 export interface IAuthorityState {
-  authorityMeta: any[];
-  showAuthortyDialog: boolean;
-  dialogLoading: boolean;
   authApplyUrl: string;
   authDetail: any;
+  authorityMeta: any[];
+  dialogLoading: boolean;
+  showAuthortyDialog: boolean;
 }
 
 export interface IInstanceAuthResource {

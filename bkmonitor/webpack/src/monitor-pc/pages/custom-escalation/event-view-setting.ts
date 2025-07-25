@@ -29,14 +29,14 @@ import { COLLECT_CHART_TYPE } from '../../constant/constant';
 import type { hideOptions } from '../collector-config/collector-view/log-handle';
 import type { metric } from '../collector-config/collector-view/type';
 
-interface IMetricDimension {
-  variableParams?: any; // 查询预览值api参数
-
-  metricList: { id: string; metrics: metric[]; result_table_id?: string }[]; // 指标列表(自定义事件没有)
-  dimensionList: metric[]; // 维度列表
-}
 interface IEventInfoList {
   dimension_list?: { dimension_name: string }[];
+}
+interface IMetricDimension {
+  dimensionList: metric[]; // 维度列表
+
+  metricList: { id: string; metrics: metric[]; result_table_id?: string }[]; // 指标列表(自定义事件没有)
+  variableParams?: any; // 查询预览值api参数
 }
 // 自定义事件不区分维度所属所有图表可用
 // 自定义事件维度和指标分组只有一个暂设置为base

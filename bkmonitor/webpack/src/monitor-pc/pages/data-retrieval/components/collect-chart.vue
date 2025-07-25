@@ -28,30 +28,34 @@
     <template v-if="!isSingle">
       <transition name="collection-fade">
         <div
-          :class="['view-collection', { en: isEn }]"
           v-show="show"
+          :class="['view-collection', { en: isEn }]"
         >
           <div style="flex-grow: 1">
             <span>{{ $t('已勾选{count}个', { count: collectList.length }) }} </span>
             <span
               class="view-collection-btn"
               @click="handleCollectionAll"
-            >{{ $t('点击全选') }}</span>
+              >{{ $t('点击全选') }}</span
+            >
             <span
               class="view-collection-btn"
               @click="handleShowCollectionDialog"
-            >{{ $t('收藏至仪表盘') }}</span>
+              >{{ $t('收藏至仪表盘') }}</span
+            >
             <span
-              class="view-collection-btn"
               v-if="!isDataRetrieval"
+              class="view-collection-btn"
               @click="gotoDataRetrieval"
             >
-              {{ $t('route-数据探索') }}</span>
+              {{ $t('route-数据探索') }}</span
+            >
             <span
               v-if="collectList.length > 1"
               :class="['view-collection-btn', isEn ? 'mr24' : 'mr5']"
               @click="gotoViewDetail"
-            >{{ $t('对比') }}</span>
+              >{{ $t('对比') }}</span
+            >
           </div>
           <i
             class="icon-monitor icon-mc-close-fill"
@@ -63,9 +67,9 @@
 
     <!-- 收藏组件 -->
     <collection-dialog
-      @on-collection-success="onCollectionSuccess"
       :collection-list="collectList"
       :is-show.sync="isDialogShow"
+      @on-collection-success="onCollectionSuccess"
     />
   </div>
 </template>
@@ -73,7 +77,6 @@
 import { Component, Emit, Prop, Vue, Watch } from 'vue-property-decorator';
 
 import { isEnFn } from '../../../utils';
-
 import CollectionDialog from './collection-dialog.vue';
 
 @Component({
@@ -154,7 +157,7 @@ export default class CollectChart extends Vue {
   padding: 0 11px 0 20px;
   font-size: 14px;
   color: #fff;
-  background: rgba(0, 0, 0, .85);
+  background: rgba(0, 0, 0, 0.85);
   border: 1px solid #313238;
   border-radius: 21px;
 
@@ -180,11 +183,11 @@ export default class CollectChart extends Vue {
 }
 
 .collection-fade-enter-active {
-  transition: all .3s ease;
+  transition: all 0.3s ease;
 }
 
 .collection-fade-leave-active {
-  transition: all .3s ease;
+  transition: all 0.3s ease;
 }
 
 .collection-fade-enter,

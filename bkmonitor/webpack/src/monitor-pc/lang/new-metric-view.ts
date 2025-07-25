@@ -45,7 +45,7 @@ export default {
   限制: 'Limit',
   '1小时前': '1 Hour Ago',
   '1 月前': '1 Month Ago',
-  '(暂无常用维度，请前往 {0} 设置)': '(No frequently used dimensions yet. Please go to {0} to set up)',
+  '(暂未设置常驻筛选，请前往 {0} 设置)': '(No persistent filters set yet. Please go to {0} to set up)',
   '全选：': 'Select All:',
   编辑指标别名: 'Edit Metric Alias',
   '指标名：': 'Metric Name:',

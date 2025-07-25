@@ -558,7 +558,7 @@ export default {
         // 静态拓扑
         const isService = this.instanceType !== 'service';
         const statciNodeKey = this.instanceType !== 'service' ? 'ip' : 'service_instance_id';
-        if (Object.prototype.hasOwnProperty.call(node, statciNodeKey)) {
+        if (Object.hasOwn(node, statciNodeKey)) {
           // IP 节点
           nodes = isService
             ? this.getSameIpNodesByIp(this.handleGetId(node), selector.staticTreeData)
@@ -741,7 +741,7 @@ export default {
     },
     getSameIpNodesByIp(ip, treeData, nodes = [], onlyIp = false) {
       treeData.forEach(item => {
-        if (Object.prototype.hasOwnProperty.call(item, 'ip') && this.handleGetId(item, onlyIp) === ip) {
+        if (Object.hasOwn(item, 'ip') && this.handleGetId(item, onlyIp) === ip) {
           nodes.push(item);
         } else if (item.children?.length) {
           this.getSameIpNodesByIp(ip, item.children, nodes, onlyIp);
@@ -751,10 +751,7 @@ export default {
     },
     getSameServiceInstance(serviceInstId, treeData, nodes = []) {
       treeData.forEach(item => {
-        if (
-          Object.prototype.hasOwnProperty.call(item, 'service_instance_id') &&
-          item.service_instance_id === serviceInstId
-        ) {
+        if (Object.hasOwn(item, 'service_instance_id') && item.service_instance_id === serviceInstId) {
           nodes.push(item);
         } else if (item.children?.length) {
           this.getSameServiceInstance(serviceInstId, item.children, nodes);
@@ -864,7 +861,7 @@ export default {
     },
     getIpNodes(data, key, nodes = []) {
       data.forEach(item => {
-        if (Object.prototype.hasOwnProperty.call(item, key) && item[key]) {
+        if (Object.hasOwn(item, key) && item[key]) {
           nodes.push(item);
         } else if (item.children?.length) {
           this.getIpNodes(item.children, key, nodes);
@@ -995,7 +992,7 @@ export default {
     },
     getAllIpByTree(treeData, nodes = []) {
       treeData.forEach(item => {
-        if (Object.prototype.hasOwnProperty.call(item, 'ip')) {
+        if (Object.hasOwn(item, 'ip')) {
           nodes.push(this.handleGetId(item));
         } else if (item.children?.length) {
           this.getAllIpByTree(item.children, nodes);

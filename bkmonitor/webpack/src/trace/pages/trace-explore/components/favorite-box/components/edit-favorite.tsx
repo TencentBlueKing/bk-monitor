@@ -23,14 +23,14 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, type PropType, reactive, watch } from 'vue';
+import { type PropType, defineComponent, reactive, watch } from 'vue';
 import { shallowRef } from 'vue';
 import { computed } from 'vue';
-import { useI18n } from 'vue-i18n';
 
-import { Dialog, Form, Input, Select, Button, Tag } from 'bkui-vue';
+import { Button, Dialog, Form, Input, Select, Tag } from 'bkui-vue';
 import _ from 'lodash';
 import { createFavorite, updateFavorite } from 'monitor-api/modules/model';
+import { useI18n } from 'vue-i18n';
 
 import { GROUP_ID_PERSONAL } from '../constants';
 import useFavoriteType from '../hooks/use-favorite-type';

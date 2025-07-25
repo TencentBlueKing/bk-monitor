@@ -27,7 +27,7 @@ import { Component, InjectReactive, Watch } from 'vue-property-decorator';
 import { ofType } from 'vue-tsx-support';
 
 import deepmerge from 'deepmerge';
-import { CancelToken } from 'monitor-api/index';
+import { CancelToken } from 'monitor-api/cancel';
 import { Debounce, deepClone } from 'monitor-common/utils/utils';
 
 import { MONITOR_PIE_OPTIONS } from '../../../chart-plugins/constants';

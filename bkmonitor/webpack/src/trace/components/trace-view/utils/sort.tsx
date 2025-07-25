@@ -24,25 +24,8 @@
  * IN THE SOFTWARE.
  */
 
-export function localeStringComparator(itemA: string, itemB: any) {
-  return itemA.localeCompare(itemB);
-}
-
-export function numberSortComparator(itemA: number, itemB: number) {
-  return itemA - itemB;
-}
-
 export function classNameForSortDir(dir: number) {
   return `sorted ${dir === 1 ? 'ascending' : 'descending'}`;
-}
-
-export function getNewSortForClick(prevSort: { key: any; dir: any }, column: { name?: any; defaultDir?: any }) {
-  const { defaultDir = 1 } = column;
-
-  return {
-    key: column.name,
-    dir: prevSort.key === column.name ? -1 * prevSort.dir : defaultDir,
-  };
 }
 
 export function createSortClickHandler(
@@ -55,4 +38,21 @@ export function createSortClickHandler(
     const { key, dir } = getNewSortForClick({ key: currentSortKey, dir: currentSortDir }, column);
     updateSort(key, dir);
   };
+}
+
+export function getNewSortForClick(prevSort: { dir: any; key: any }, column: { defaultDir?: any; name?: any }) {
+  const { defaultDir = 1 } = column;
+
+  return {
+    key: column.name,
+    dir: prevSort.key === column.name ? -1 * prevSort.dir : defaultDir,
+  };
+}
+
+export function localeStringComparator(itemA: string, itemB: any) {
+  return itemA.localeCompare(itemB);
+}
+
+export function numberSortComparator(itemA: number, itemB: number) {
+  return itemA - itemB;
 }

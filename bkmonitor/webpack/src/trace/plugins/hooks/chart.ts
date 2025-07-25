@@ -55,18 +55,18 @@ export const READONLY = 'readonly';
 export const IS_ENABLED_PROFILING = 'IS_ENABLED_PROFILING';
 
 export interface IChartProvider {
+  // 图表是否立即刷新
+  readonly refreshImmediate: Ref<number | string>;
+  // 图表数据刷新间隔
+  readonly refreshInterval: Ref<number>;
+  // 图表对比数据
+  readonly timeOffset: Ref<number[] | string[]>;
   // 数据时间间隔
   readonly timeRange: Ref<TimeRangeType>;
   // 时区
   readonly timezone: Ref<string>;
-  // 图表数据刷新间隔
-  readonly refreshInterval: Ref<number>;
   // 通用图表查询数据配置
   readonly viewOptions: Ref<IViewOptions>;
-  // 图表是否立即刷新
-  readonly refreshImmediate: Ref<number | string>;
-  // 图表对比数据
-  readonly timeOffset: Ref<number[] | string[]>;
 }
 
 // 通用视图注入数据

@@ -24,9 +24,9 @@
  * IN THE SOFTWARE.
  */
 import { defineComponent } from 'vue';
-import { useI18n } from 'vue-i18n';
 
 import { Dialog, Tag } from 'bkui-vue';
+import { useI18n } from 'vue-i18n';
 
 import './view-param.scss';
 
@@ -47,7 +47,7 @@ export default defineComponent({
     },
     onChange: {
       type: Function,
-      default: _v => { },
+      default: _v => {},
     },
   },
   setup(props) {
@@ -71,7 +71,7 @@ export default defineComponent({
         title={this.title}
         onUpdate:isShow={this.valueChange}
       >
-        {!!(this.$slots?.default?.() as any)?.props ? (
+        {(this.$slots?.default?.() as any)?.props ? (
           this.$slots?.default?.()
         ) : (
           <div class='param-body'>

@@ -1,3 +1,26 @@
+export interface IList {
+  hasActive: boolean;
+  id: string;
+  name: string;
+}
+
+export interface IPanelList {
+  href: boolean;
+  id: string;
+  name: string;
+}
+
+export interface ISearchParams {
+  page: number;
+  page_size: number;
+  search_key: string;
+}
+
+export interface ISearchValue {
+  customEvent: string;
+  customTimeSeries: string;
+}
+
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -28,31 +51,8 @@ export interface Itab {
   list: IList[];
 }
 
-export interface ISearchValue {
-  customEvent: string;
-  customTimeSeries: string;
-}
-
-export interface IPanelList {
-  name: string;
-  id: string;
-  href: boolean;
-}
-
 export interface ITableData {
-  loading: boolean;
   customEvent: any[];
   customTimeSeries: any[];
-}
-
-export interface ISearchParams {
-  search_key: string;
-  page: number;
-  page_size: number;
-}
-
-export interface IList {
-  name: string;
-  id: string;
-  hasActive: boolean;
+  loading: boolean;
 }

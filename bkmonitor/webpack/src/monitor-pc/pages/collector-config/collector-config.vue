@@ -82,9 +82,9 @@
         >
           <li
             v-for="(num, key) in activeTabItem.data"
+            :key="key"
             class="panel-content-item"
             :class="{ 'active-num': key === panel.itemActive }"
-            :key="key"
             @click="handleTabNumClick(key, num)"
           >
             <span class="content-num">{{ num }}</span>
@@ -95,9 +95,9 @@
       <div class="collector-config-tool">
         <div class="tool-btn">
           <bk-button
+            v-authority="{ active: !authority.MANAGE_AUTH }"
             style="margin-right: 8px"
             class="mc-btn-add"
-            v-authority="{ active: !authority.MANAGE_AUTH }"
             theme="primary"
             @click="authority.MANAGE_AUTH ? handleShowAdd('add') : handleShowAuthorityDetail()"
           >
@@ -107,8 +107,8 @@
           <!-- <bk-button theme="default" @click="handleToLogCollection"> {{ $t('日志采集') }} </bk-button> -->
         </div>
         <bk-input
-          class="tool-search"
           v-model="panel.keyword"
+          class="tool-search"
           :placeholder="$t('采集配置名称/ID')"
           right-icon="bk-icon icon-search"
           @change="handleSearch"
@@ -121,7 +121,7 @@
         <table-skeleton
           v-if="delayLoading"
           :type="2"
-        ></table-skeleton>
+        />
         <div
           v-else
           class="table-wrap"
@@ -230,20 +230,20 @@
                 <div class="col-operator">
                   <span
                     v-if="scope.row.bizId === bizId"
-                    class="col-operator-btn"
                     v-authority="{
                       active: !authority.MANAGE_AUTH && !(scope.row.taskStatus === 'STOPPED' || scope.row.doingStatus),
                     }"
+                    class="col-operator-btn"
                     :class="{ 'btn-disabled': checkUpdateTargetDisabled(scope.row) }"
                     @click="authority.MANAGE_AUTH ? handleUpdateTarget(scope.row) : handleShowAuthorityDetail()"
                   >
                     {{ $t('增删目标') }}
                   </span>
                   <span
-                    class="col-operator-btn"
                     v-authority="{
                       active: !authority.MANAGE_AUTH && !(scope.row.taskStatus === 'STOPPED' || scope.row.doingStatus),
                     }"
+                    class="col-operator-btn"
                     :class="{ 'btn-disabled': scope.row.taskStatus === 'STOPPED' }"
                     @click="scope.row.taskStatus !== 'STOPPED' && handleCheckView(scope.row)"
                   >
@@ -256,10 +256,10 @@
                   </span>
                   <span
                     v-if="scope.row.bizId === bizId"
-                    class="col-operator-btn"
                     v-authority="{
                       active: !authority.MANAGE_AUTH && !(scope.row.taskStatus === 'STOPPED' || scope.row.doingStatus),
                     }"
+                    class="col-operator-btn"
                     :class="{ 'btn-disabled': scope.row.taskStatus === 'STOPPED' }"
                     @click="scope.row.taskStatus !== 'STOPPED' && handleShowAdd('edit', scope.row)"
                   >
@@ -267,13 +267,13 @@
                   </span>
                   <span
                     v-if="scope.row.bizId === bizId"
-                    class="col-operator-more"
+                    :ref="'operator-' + scope.$index"
                     v-authority="{ active: !authority.MANAGE_AUTH && !scope.row.doingStatus }"
+                    class="col-operator-more"
                     :class="{
                       'operator-active': popover.hover === scope.$index,
                       'btn-disabled': scope.row.doingStatus,
                     }"
-                    :ref="'operator-' + scope.$index"
                     data-popover="true"
                     @click="
                       authority.MANAGE_AUTH || scope.row.doingStatus
@@ -325,8 +325,8 @@
       @update-name="handleChangeCollectName"
     />
     <bk-dialog
-      width="850"
       v-model="dialog.update.show"
+      width="850"
       :show-footer="false"
     >
       <collector-config-update

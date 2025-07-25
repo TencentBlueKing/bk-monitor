@@ -562,7 +562,7 @@ class UnifyQueryRawResource(ApiAuthResource):
         format = serializers.ChoiceField(choices=("time_series", "heatmap", "table"), default="time_series")
         type = serializers.ChoiceField(choices=("instant", "range"), default="range")
         series_num = serializers.IntegerField(label="查询多少条数据", required=False)
-        time_alignment = serializers.BooleanField(label="是否对齐时间", required=False, default=True)
+        time_alignment = serializers.BooleanField(label="是否保留最后一个数据点", required=False, default=True)
         null_as_zero = serializers.BooleanField(label="是否将空值转换为0", required=False, default=False)
         query_method = serializers.CharField(label="查询方法", required=False, default="query_data")
         unit = serializers.CharField(label="单位", default="", allow_blank=True)
@@ -1238,6 +1238,7 @@ class GraphPromqlQueryResource(Resource):
         format = serializers.ChoiceField(choices=("time_series", "heatmap", "table"), default="time_series")
         type = serializers.ChoiceField(choices=("instant", "range"), default="range")
         down_sample_range = serializers.CharField(label="降采样周期", default="", allow_blank=True)
+        time_alignment = serializers.BooleanField(label="是否保留最后一个数据点", required=False, default=True)
 
         def validate(self, attrs):
             if attrs["step"] == "auto":
@@ -1291,8 +1292,11 @@ class GraphPromqlQueryResource(Resource):
             return {"metrics": [], "series": []}
 
         params["promql"] = self.remove_all_conditions(params["promql"])
-        start_time = time_interval_align(params["start_time"], interval)
-        end_time = time_interval_align(params["end_time"], interval)
+
+        start_time, end_time = params["start_time"], params["end_time"]
+        if params["time_alignment"]:
+            start_time, end_time = time_interval_align(start_time, interval), time_interval_align(end_time, interval)
+
         request_params = dict(
             promql=params["promql"],
             match=cookies_filter,
@@ -1302,6 +1306,7 @@ class GraphPromqlQueryResource(Resource):
             bk_biz_ids=[params["bk_biz_id"]],
             timezone=timezone.get_current_timezone_name(),
             down_sample_range=params["down_sample_range"],
+            reference=not params["time_alignment"],
         )
 
         result = api.unify_query.query_data_by_promql(**request_params)["series"] or []

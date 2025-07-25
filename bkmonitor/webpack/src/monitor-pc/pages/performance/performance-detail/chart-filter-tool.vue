@@ -26,11 +26,6 @@
 <template>
   <div class="chart-tool">
     <compare-panel
-      @change="handleToolChange"
-      @chart-change="handleChartChange"
-      @add-timerange-option="handleAddTimeRangeOption"
-      @add-timeshift-option="handleAddTimeshifOption"
-      @on-immediate-refresh="handleImmediateRefresh"
       :value="value"
       :chart-type="chartType"
       :compare-list="compareList"
@@ -40,11 +35,16 @@
       :need-split="needSplit"
       :need-search-select="true"
       :cur-host="curNode"
+      @change="handleToolChange"
+      @chart-change="handleChartChange"
+      @add-timerange-option="handleAddTimeRangeOption"
+      @add-timeshift-option="handleAddTimeshifOption"
+      @on-immediate-refresh="handleImmediateRefresh"
     >
       <template #pre>
         <span
-          class="tool-icon right"
           v-show="!listVisible"
+          class="tool-icon right"
           @click="handleShowList"
         >
           <i class="arrow-right icon-monitor icon-double-up" />
@@ -64,13 +64,13 @@
           </bk-button>
         </div>
         <div
-          class="chart-tool-agg"
           v-if="curNode.type === 'node'"
+          class="chart-tool-agg"
         >
           <span class="label">{{ $t('汇聚') }}：</span>
           <drop-down-menu
-            class="content"
             v-model="method"
+            class="content"
             :list="aggMethods"
             @change="handleAggMethodChange"
           />
@@ -80,12 +80,12 @@
         <div class="tool-search">
           <i class="bk-icon icon-search tool-search-icon" />
           <input
+            v-model="search.value"
             :style="{ width: search.focus || search.value ? '140px' : '40px' }"
             class="tool-search-input"
+            :placeholder="$t('搜索')"
             @focus="search.focus = true"
             @blur="search.focus = false"
-            :placeholder="$t('搜索')"
-            v-model="search.value"
             @input="searchFn"
           />
         </div>
@@ -101,8 +101,8 @@
             <i class="icon-monitor icon-setting" />
           </span>
           <span
-            class="tool-icon"
             v-show="!detailVisible"
+            class="tool-icon"
             @click="handleShowDetail"
           >
             <i class="arrow-left icon-monitor icon-double-up" />
@@ -114,24 +114,25 @@
       v-if="groupsData.length"
       v-model="showSetting"
       :groups-data="groupsData"
-      @save="handleSortChange"
-      @undo="handleUndo"
       :loading="sortLoading"
       :need-group="viewType === 'host'"
+      @save="handleSortChange"
+      @undo="handleUndo"
     />
   </div>
 </template>
 <script lang="ts">
-import { debounce } from 'throttle-debounce';
 import { Component, Emit, Inject, Prop, Vue } from 'vue-property-decorator';
 
-import { DEFAULT_TIMESHIFT_LIST, DEFAULT_TIME_RANGE_LIST } from '../../../common/constant';
+import { debounce } from 'throttle-debounce';
+
+import { DEFAULT_TIME_RANGE_LIST, DEFAULT_TIMESHIFT_LIST } from '../../../common/constant';
 import DropDownMenu from '../../../components/monitor-dropdown/dropdown-menu.vue';
 import PerformanceModule, { type ICurNode } from '../../../store/modules/performance';
-import type { ICompareOption, IHostGroup, IOption, IToolsOption, ViewType } from '../performance-type';
-
 import ComparePanel from './compare-panel.vue';
 import SortPanel from './sort-panel.vue';
+
+import type { ICompareOption, IHostGroup, IOption, IToolsOption, ViewType } from '../performance-type';
 
 @Component({
   name: 'chart-filter-tool',

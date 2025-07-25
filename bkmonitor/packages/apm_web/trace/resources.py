@@ -10,7 +10,6 @@ specific language governing permissions and limitations under the License.
 
 import copy
 import logging
-import math
 
 from django.utils.translation import gettext as _
 from django.utils.translation import gettext_lazy as _lazy
@@ -26,7 +25,6 @@ from apm_web.handlers.trace_handler.base import (
 )
 from apm_web.handlers.trace_handler.dimension_statistics import (
     DimensionStatisticsAPIHandler,
-    HistogramNiceNumberGenerator,
 )
 from apm_web.handlers.trace_handler.query import (
     QueryHandler,
@@ -1376,18 +1374,7 @@ class TraceFieldStatisticsGraphResource(Resource):
             min_value, max_value, *_ = field_info["values"][:4]
             if min_value is None or max_value is None:
                 return self.EMPTY_DATA
-        # 耗时交互优化特殊处理
-        if field_info["field_name"] in {OtlpKey.ELAPSED_TIME, PreCalculateSpecificField.TRACE_DURATION}:
-            field_info_values = field_info["values"]
-            min_value, max_value, _, interval_num = field_info_values[:4]
-            min_value, max_value, _, interval_num = HistogramNiceNumberGenerator.align_histogram_bounds(
-                min_value, max_value, interval_num, 1
-            )
-            field_info_values[0], field_info_values[1], field_info_values[3] = (
-                math.floor(min_value),
-                math.ceil(max_value),
-                interval_num,
-            )
+
         return DimensionStatisticsAPIHandler.get_api_statistics_graph_data(validated_data)
 
 

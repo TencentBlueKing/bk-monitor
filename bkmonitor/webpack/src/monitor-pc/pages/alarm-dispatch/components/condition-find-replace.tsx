@@ -35,15 +35,15 @@ import './condition-find-replace.scss';
 
 export interface IListItem {
   id: string;
-  name: string;
   isCheck?: boolean;
+  name: string;
 }
 
 interface IProps {
+  groupKey: string[];
+  groupKeys: TGroupKeys;
   keyList?: IListItem[];
   valueMap: TValueMap;
-  groupKeys: TGroupKeys;
-  groupKey: string[];
 }
 
 @Component

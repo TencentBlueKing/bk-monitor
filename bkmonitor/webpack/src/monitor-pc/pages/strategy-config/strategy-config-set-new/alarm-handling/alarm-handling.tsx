@@ -61,41 +61,41 @@ export const actionConfigGroupList = (actionConfigList: IActionConfig[]): IGroup
   return groupList;
 };
 
+export interface IAllDefense {
+  description?: string;
+  key: string;
+  name: string;
+}
+
 export interface IValue {
   config_id?: number;
+  signal?: string[];
   user_groups?: number[];
   options: {
     converge_config: {
       converge_func: string; // 防御动作
-      timedelta: number; // 防御窗口大小（秒），默认设置为 60
       count: number; // 执行次数，默认设置为 1
       is_enabled?: boolean; // 是否启用
+      timedelta: number; // 防御窗口大小（秒），默认设置为 60
     };
     skip_delay: number; // 数据延迟秒数
   };
-  signal?: string[];
-}
-
-export interface IAllDefense {
-  key: string;
-  name: string;
-  description?: string;
-}
-
-interface IAlarmHandlingNewProps {
-  value?: IValue;
-  allDefense?: IAllDefense[]; // 防御动作列表
-  allAction?: IGroupItem[]; // 套餐列表
-  readonly?: boolean;
-  strategyId?: number | string;
-  extCls?: string;
-  isSimple?: boolean; // 简洁模式(无预览，无回填)
-  list?: signalOptionsItem[];
 }
 
 interface IAlarmHandlingNewEvent {
   onChange?: IValue;
   onAddMeal?: () => void;
+}
+
+interface IAlarmHandlingNewProps {
+  allAction?: IGroupItem[]; // 套餐列表
+  allDefense?: IAllDefense[]; // 防御动作列表
+  extCls?: string;
+  isSimple?: boolean; // 简洁模式(无预览，无回填)
+  list?: signalOptionsItem[];
+  readonly?: boolean;
+  strategyId?: number | string;
+  value?: IValue;
 }
 
 interface signalOptionsItem {

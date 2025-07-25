@@ -65,17 +65,17 @@ const addTypes: { id: ESceneType; name: any | string }[] = [
 ];
 
 interface ITableItem {
+  collect_config_count: number;
   id: string;
+  metric_id?: string;
   name: string;
-  sub_name: string;
-  scene_type: ESceneType;
   plugin_type?: string;
   scenario: string;
-  collect_config_count: number;
-  strategy_count: number;
+  scene_type: ESceneType;
   scene_view_id: string;
   status: CommonStatusType;
-  metric_id?: string;
+  strategy_count: number;
+  sub_name: string;
 }
 
 @Component
@@ -83,7 +83,7 @@ class CustomScenes extends Mixins(authorityMixinCreate(authMap)) {
   /* 搜索 */
   keyword = '';
   /* 表格数据 */
-  tableData: { columns: ITableColumn[]; allData: ITableItem[]; data: TableRow[]; pagination: ITablePagination } = {
+  tableData: { allData: ITableItem[]; columns: ITableColumn[]; data: TableRow[]; pagination: ITablePagination } = {
     columns: [
       { id: 'nameColumn', name: window.i18n.t('名称') as string, type: 'scoped_slots' },
       { id: 'sceneType', name: window.i18n.t('类型') as string, type: 'string' },

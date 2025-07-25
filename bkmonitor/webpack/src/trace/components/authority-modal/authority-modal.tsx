@@ -25,9 +25,9 @@
  */
 
 import { computed, defineComponent, ref, watch } from 'vue';
-import { useI18n } from 'vue-i18n';
 
 import { Button, Dialog, Loading } from 'bkui-vue';
+import { useI18n } from 'vue-i18n';
 
 import lockImg from '../../static/img/lock-radius.svg';
 import { useAuthorityStore } from '../../store/modules/authority';

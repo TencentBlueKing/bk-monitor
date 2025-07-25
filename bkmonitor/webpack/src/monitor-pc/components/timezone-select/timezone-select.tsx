@@ -81,7 +81,7 @@ export default class TimezoneSelect extends tsc<IProps> {
           slot='trigger'
         >
           <div class='left'>
-            {!!this.curInfo.name ? (
+            {this.curInfo.name ? (
               <span>{`${this.curInfo.name}, ${this.curInfo.z}`}</span>
             ) : (
               <span class='placeholder'>{this.$t('请选择时区')}</span>

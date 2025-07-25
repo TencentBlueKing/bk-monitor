@@ -44,8 +44,8 @@
       <div class="node-label">
         <span class="label">{{ data.name }}</span>
         <span
-          :class="['num mr10', { selected: getSelectedStatus(data) }]"
           v-show="showCount"
+          :class="['num mr10', { selected: getSelectedStatus(data) }]"
         >
           {{ data.children ? data.children.length : 0 }}
         </span>
@@ -54,14 +54,13 @@
   </bk-big-tree>
 </template>
 <script lang="ts">
-/* eslint-disable @typescript-eslint/member-ordering */
 import { Component, Emit, Prop, Ref, Vue } from 'vue-property-decorator';
 
 import type { ITreeNode } from '../types/selector-type';
 
 @Component({ name: 'topo-tree' })
 export default class StaticTopo extends Vue {
-  @Prop({ default: () => [], type: Array }) private readonly defaultCheckedNodes!: (string | number)[];
+  @Prop({ default: () => [], type: Array }) private readonly defaultCheckedNodes!: (number | string)[];
   @Prop({ default: () => ({}), type: Object }) private readonly options!: any;
   @Prop({ default: () => [], type: Array }) private readonly nodes!: ITreeNode[];
   @Prop({ default: true, type: Boolean }) private readonly checkedable!: boolean;
@@ -118,7 +117,7 @@ export default class StaticTopo extends Vue {
     }
   }
 
-  public addNode(data: ITreeNode[], parentId: string | number) {
+  public addNode(data: ITreeNode[], parentId: number | string) {
     this.treeRef?.addNode(data, parentId);
   }
 
@@ -126,10 +125,8 @@ export default class StaticTopo extends Vue {
     return treeData.reduce((pre: any[], node) => {
       (deep => {
         if (deep > 1 && Array.isArray(node.children) && node.children.length > 0) {
-          // eslint-disable-next-line no-param-reassign
           pre = pre.concat(this.handleGetExpandNodeByDeep((deep = deep - 1), node.children));
         } else {
-          // eslint-disable-next-line no-param-reassign
           pre = pre.concat(node.id);
         }
       })(deep);

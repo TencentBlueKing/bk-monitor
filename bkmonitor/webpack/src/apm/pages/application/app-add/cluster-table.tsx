@@ -28,14 +28,14 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import './cluster-table.scss';
 
-interface IProps {
-  value?: number;
-  tableType?: string;
-  tableList: any[];
-}
-
 interface IEvent {
   onChange: number;
+}
+
+interface IProps {
+  tableList: any[];
+  tableType?: string;
+  value?: number;
 }
 
 @Component

@@ -35,10 +35,10 @@ import DashboardPanel from 'monitor-ui/chart-plugins/components/dashboard-panel'
 import { DEFAULT_INTERVAL, DEFAULT_METHOD } from 'monitor-ui/chart-plugins/constants/dashbord';
 import { APM_LOG_ROUTER_QUERY_KEYS } from 'monitor-ui/chart-plugins/plugins/monitor-retrieve/monitor-retrieve';
 import {
-  BookMarkModel,
   type DashboardMode,
   type IPanelModel,
   type IViewOptions,
+  BookMarkModel,
 } from 'monitor-ui/chart-plugins/typings';
 import { VariablesService } from 'monitor-ui/chart-plugins/utils/variable';
 
@@ -51,7 +51,6 @@ import { DEFAULT_TIME_RANGE, handleTransformToTimestamp } from '../../../compone
 import { CP_METHOD_LIST, PANEL_INTERVAL_LIST } from '../../../constant/constant';
 import { getDefaultTimezone, updateTimezone } from '../../../i18n/dayjs';
 import { Storage } from '../../../utils';
-
 // import { CHART_INTERVAL } from '../../../constant/constant';
 import HostList from '../../performance/performance-detail/host-list/host-list';
 import HostTree, {
@@ -60,7 +59,6 @@ import HostTree, {
 } from '../../performance/performance-detail/host-tree/host-tree';
 import SettingModal from '../../setting-modal';
 import {
-  DASHBOARD_PANEL_COLUMN_KEY,
   type IBookMark,
   type IMenuId,
   type IMenuItem,
@@ -70,24 +68,25 @@ import {
   type ISearchItem,
   type ITabItem,
   type ITableItem,
-  METHOD_LIST,
   type PanelToolsType,
+  type SearchType,
+  DASHBOARD_PANEL_COLUMN_KEY,
+  METHOD_LIST,
   SPLIT_MAX_WIDTH,
   SPLIT_MIN_WIDTH,
-  type SearchType,
 } from '../typings';
 import { SETTINGS_POP_Z_INDEX } from '../utils';
 import AlarmTools from './alarm-tools';
 import CommonDetail, { INDEX_LIST_DEFAULT_CONFIG_KEY } from './common-detail';
-import CommonList from './common-list/common-list';
 import CommonListK8s from './common-list-k8s/common-list-k8s';
+import CommonList from './common-list/common-list';
 import CommonSelectTable from './common-select-table/common-select-table';
 import CommonTree from './common-tree/common-tree';
 import DashboardTools from './dashboard-tools';
 import FilterVarSelectGroup from './filter-var-select/filter-var-select-group';
 import FilterVarSelectSimple from './filter-var-select/filter-var-select-simple';
 import GroupCompareSelect from './group-compare-select/group-compare-select';
-import { ETypeSelect as EGroupCompareType, type IGroupByVariables } from './group-compare-select/utils';
+import { type IGroupByVariables, ETypeSelect as EGroupCompareType } from './group-compare-select/utils';
 import GroupSelect from './group-select/group-select';
 import PageTitle from './page-title';
 import CompareSelect from './panel-tools/compare-select';
@@ -116,33 +115,33 @@ const DEFAULT_QUERY_DATA = {
   filterDict: {},
 };
 
+interface ICommonPageEvent {
+  onSceneTypeChange: SceneType;
+  onTabChange: string;
+  onTimeRangeChange: TimeRangeType;
+  onTitleChange: string;
+  onPageTitleChange: (a: string, b?: Record<string, any>) => void;
+}
 interface ICommonPageProps {
+  // 详情返回操作
+  backToOverviewKey?: string;
+  // 默认汇聚方法
+  defalutMethod?: string;
+  defaultDashboardId?: string;
+  // 默认viewoptions 视图变量等
+  defaultViewOptions: IViewOptions;
+  // 是否展示分屏按钮
+  isShowSplitPanel?: boolean;
   // 场景id
   sceneId: string;
   // 场景类型
   sceneType: SceneType;
-  // 默认viewoptions 视图变量等
-  defaultViewOptions: IViewOptions;
-  // 标题
-  title?: string;
-  // 是否展示分屏按钮
-  isShowSplitPanel?: boolean;
-  // 详情返回操作
-  backToOverviewKey?: string;
   // tab切换是否转换为overview
   tab2SceneType?: boolean;
+  // 标题
+  title?: string;
   // 表格搜索条件需要保留的字段
   toggleTabSearchFilterKeys?: string[];
-  // 默认汇聚方法
-  defalutMethod?: string;
-  defaultDashboardId?: string;
-}
-interface ICommonPageEvent {
-  onTitleChange: string;
-  onPageTitleChange: (a: string, b?: Record<string, any>) => void;
-  onTabChange: string;
-  onTimeRangeChange: TimeRangeType;
-  onSceneTypeChange: SceneType;
 }
 export const MIN_DASHBOARD_PANEL_WIDTH = '640';
 export type ShowModeType = 'dashboard' | 'default' | 'list';

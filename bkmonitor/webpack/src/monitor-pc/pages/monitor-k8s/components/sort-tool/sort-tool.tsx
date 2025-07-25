@@ -28,9 +28,8 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import './sort-tool.scss';
 
-interface ISortFieldItem {
-  id: string;
-  name: string;
+interface IEvents {
+  onChange: string;
 }
 
 interface IProps {
@@ -38,8 +37,9 @@ interface IProps {
   sortFields: ISortFieldItem[];
 }
 
-interface IEvents {
-  onChange: string;
+interface ISortFieldItem {
+  id: string;
+  name: string;
 }
 
 @Component

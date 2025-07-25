@@ -27,9 +27,9 @@
 import { defineComponent, ref } from 'vue';
 import { computed } from 'vue';
 import { watch } from 'vue';
-import { useI18n } from 'vue-i18n';
 
-import { Select, Message, Input } from 'bkui-vue';
+import { Input, Message, Select } from 'bkui-vue';
+import { useI18n } from 'vue-i18n';
 
 import { COMPARE_TIME_OPTIONS } from './utils';
 

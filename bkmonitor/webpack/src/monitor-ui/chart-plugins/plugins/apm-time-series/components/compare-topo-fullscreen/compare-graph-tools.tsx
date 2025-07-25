@@ -26,21 +26,21 @@
 import { Component, Emit, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-type CompareGraphToolsProps = {
-  originScaleValue?: number;
-  scaleValue?: number;
-  maxScale?: number;
-  minScale?: number;
-  scaleStep?: number;
-  showThumbnail?: boolean;
-  showLegend?: boolean;
-};
 type CompareGraphToolsEvent = {
-  onScaleChange: (scaleValue: number) => void;
   onDownloadImage: () => void;
+  onResetCenter: () => void;
+  onScaleChange: (scaleValue: number) => void;
   onShowLegend: () => void;
   onShowThumbnail: () => void;
-  onResetCenter: () => void;
+};
+type CompareGraphToolsProps = {
+  maxScale?: number;
+  minScale?: number;
+  originScaleValue?: number;
+  scaleStep?: number;
+  scaleValue?: number;
+  showLegend?: boolean;
+  showThumbnail?: boolean;
 };
 
 import './compare-graph-tools.scss';

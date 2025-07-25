@@ -8,10 +8,10 @@
     "lint": "eslint --fix ./",
     "fix": "npm run prettier && npm run lint"
   },
-  "devDependencies": {},
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "vue": "v2-latest"
+    "vue": "v2-latest",
+    "xss": "^1.0.15"
   }
 }

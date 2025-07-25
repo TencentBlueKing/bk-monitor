@@ -107,6 +107,7 @@
   import axios from 'axios';
   import { debounce } from 'throttle-debounce';
   import { mapGetters } from 'vuex';
+  import { BK_LOG_STORAGE } from '@/store/store.type.ts';
 
   const CancelToken = axios.CancelToken;
 
@@ -134,7 +135,6 @@
       return {
         timeRange: [],
         timer: null,
-        isFold: localStorage.getItem('chartIsFold') === 'true',
         intervalArr: [
           { id: 'auto', name: 'auto' },
           { id: '1m', name: '1 min' },
@@ -183,6 +183,10 @@
       };
     },
     computed: {
+      isFold() {
+        return this.$store.state.storage[BK_LOG_STORAGE.TREND_CHART_IS_FOLD]
+      },
+
       chartKey() {
         this.getInterval();
         return this.$store.state.retrieve.chartKey;
@@ -419,8 +423,7 @@
         }
       },
       toggleExpand(isFold) {
-        this.isFold = isFold;
-        localStorage.setItem('chartIsFold', isFold);
+        this.$store.commit('updateStorage', { [BK_LOG_STORAGE.TREND_CHART_IS_FOLD]: isFold });
         this.$refs.chartRef.handleToggleExpand(isFold);
       },
       handleMoreToolItemSet(event) {

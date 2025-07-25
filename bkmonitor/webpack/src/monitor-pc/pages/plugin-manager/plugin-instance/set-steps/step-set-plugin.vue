@@ -26,8 +26,8 @@
 <template>
   <div
     ref="stepPlugin"
-    class="step-plugin"
     v-bkloading="{ isLoading: data.isEdit ? pluginLoading : false }"
+    class="step-plugin"
   >
     <div class="step-plugin-item">
       <div class="item-label item-required">
@@ -35,8 +35,8 @@
       </div>
       <div class="item-container">
         <bk-select
-          class="biz"
           v-model="bizList.value"
+          class="biz"
           :clearable="false"
           :disabled="isPublicPlugin || data.isEdit || ccBizId !== 0"
           :list="bizList.list"
@@ -66,17 +66,17 @@
           :validator="{ content: pluginBasicInfo.nameErrorMsg }"
         >
           <bk-input
-            class="item-input"
             v-model="pluginBasicInfo.name"
+            class="item-input"
             :disabled="disabledPluginId"
             :placeholder="$t('英文')"
             @blur="checkPluginId"
           />
         </verify-input>
         <bk-checkbox
-          style="vertical-align: baseline"
           v-model="isPublicPlugin"
           v-authority="{ active: !authority.MANAGE_PUBLIC_AUTH }"
+          style="vertical-align: baseline"
           :class="{
             'auth-disabled': !authority.MANAGE_PUBLIC_AUTH,
           }"
@@ -96,8 +96,8 @@
       </div>
       <div class="item-container">
         <bk-input
-          class="item-input"
           v-model="pluginBasicInfo.alias"
+          class="item-input"
           :placeholder="$t('别名')"
         />
       </div>
@@ -114,9 +114,9 @@
           <bk-button
             v-for="(pluginType, index) in pluginBasicInfo.type.list"
             v-show="!pluginBasicInfo.type.notShowType.includes(pluginType.id)"
+            :key="index"
             :class="{ 'is-selected': pluginType.id === pluginBasicInfo.type.value }"
             :disabled="disabledPluginId && pluginType.name !== pluginBasicInfo.type.value"
-            :key="index"
             @click="handlePluginChange(pluginType.id)"
           >
             {{ pluginType.name }}
@@ -136,8 +136,8 @@
       </div>
     </div>
     <div
-      class="step-plugin-item label-bottom upload-package"
       v-show="['Exporter', 'DataDog'].includes(pluginBasicInfo.type.value)"
+      class="step-plugin-item label-bottom upload-package"
     >
       <div class="item-label item-required">
         {{ $t('上传内容') }}
@@ -149,31 +149,31 @@
         >
           <div
             v-for="(system, index) in systemTabs.list"
-            class="upload-item"
             v-show="pluginBasicInfo.type.value === 'Exporter'"
             :key="`${index}-Exporter`"
+            class="upload-item"
           >
             <mo-upload
+              :ref="`uploadFile-exporter-${index}`"
               :collector="pluginBasicInfo.exporterCollector[system.name]"
               :is-edit="data.isEdit"
               :plugin-id="pluginBasicInfo.name"
               :plugin-type="pluginBasicInfo.type.value"
-              :ref="`uploadFile-exporter-${index}`"
               :system="system.name"
             />
           </div>
           <div
             v-for="(system, index) in systemTabs.list"
-            class="upload-item"
             v-show="pluginBasicInfo.type.value === 'DataDog'"
             :key="`${index}-DataDog`"
+            class="upload-item"
           >
             <mo-upload
+              :ref="`uploadFile-datadog-${index}`"
               :collector="pluginBasicInfo.dataDogCollector[system.name]"
               :is-edit="data.isEdit"
               :plugin-id="pluginBasicInfo.name"
               :plugin-type="pluginBasicInfo.type.value"
-              :ref="`uploadFile-datadog-${index}`"
               :system="system.name"
               @change="getCheckNameChange"
               @yaml="getYaml"
@@ -183,8 +183,8 @@
       </div>
     </div>
     <div
-      class="step-plugin-item label-bottom"
       v-show="['Script', 'JMX', 'DataDog'].includes(pluginBasicInfo.type.value)"
+      class="step-plugin-item label-bottom"
     >
       <div class="item-label item-required">
         {{ $t('采集配置') }}
@@ -202,8 +202,8 @@
       </div>
     </div>
     <div
-      class="step-plugin-item"
       v-show="pluginBasicInfo.type.value === 'Exporter'"
+      class="step-plugin-item"
     >
       <div class="item-label item-required">
         {{ $t('绑定端口') }}
@@ -224,8 +224,8 @@
       </div>
     </div>
     <div
-      class="step-plugin-item"
       v-show="pluginBasicInfo.type.value === 'Exporter'"
+      class="step-plugin-item"
     >
       <div class="item-label">
         {{ $t('绑定主机') }}
@@ -240,8 +240,8 @@
       </div>
     </div>
     <div
-      class="step-plugin-item"
       v-show="pluginBasicInfo.type.value === 'SNMP'"
+      class="step-plugin-item"
     >
       <div class="item-label item-required">
         {{ $t('SNMP版本') }}
@@ -261,8 +261,8 @@
       </div>
     </div>
     <div
-      class="step-plugin-item"
       v-show="pluginBasicInfo.type.value === 'SNMP'"
+      class="step-plugin-item"
     >
       <div class="item-label item-required">
         {{ $t('采集配置') }}
@@ -296,8 +296,8 @@
       <div class="item-container">
         <div
           v-for="(param, index) in params"
-          class="item-param"
           :key="index"
+          class="item-param"
           @click="handleEditParam(param)"
         >
           <div class="wrapper">
@@ -305,8 +305,8 @@
               {{ param.alias || param.name }}
             </span>
             <span
-              class="bk-icon icon-close-circle-shape"
               v-show="!param.disabled"
+              class="bk-icon icon-close-circle-shape"
               @click.stop="handleDeleteParam(param)"
             />
           </div>
@@ -328,8 +328,8 @@
       </div>
     </div>
     <div
-      class="step-plugin-item"
       v-show="pluginBasicInfo.type.value === 'Exporter'"
+      class="step-plugin-item"
     >
       <div class="item-label" />
       <div class="item-container">
@@ -359,9 +359,9 @@
             >
               <bk-option
                 v-for="(option, i) in group.children"
-                :disabled="option.disabled"
                 :id="option.id"
                 :key="i"
+                :disabled="option.disabled"
                 :name="option.name"
               >
                 <div
@@ -637,6 +637,7 @@ export default {
             mode: 'collector',
             type: 'text',
             alias: this.$t('采集URL'),
+            required: true,
             default: '',
             description: '',
             disabled: true,
@@ -1644,7 +1645,7 @@ ${this.$t('采集器将定期访问 http://127.0.0.1/server-status 以获取Apac
       const collectorJson = this.pluginData.collector_json;
 
       for (const key in collectorJson) {
-        if (Object.prototype.hasOwnProperty.call(collectorJson, key) && collectorJson[key]) {
+        if (Object.hasOwn(collectorJson, key) && collectorJson[key]) {
           hasCollectorJson = true;
         }
       }
@@ -1910,8 +1911,8 @@ ${this.$t('采集器将定期访问 http://127.0.0.1/server-status 以获取Apac
         margin: 0 8px 5px 0;
         font-size: 12px;
         line-height: 22px;
-        text-align: center;
         vertical-align: top;
+        text-align: center;
         border: 1px solid #c4c6cc;
         border-radius: 2px;
 

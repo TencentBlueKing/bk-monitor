@@ -26,8 +26,8 @@
 <template>
   <span :class="['table-filter-wrap', { 'is-active': value.length }]">
     <bk-popover
-      ext-cls="menu-list-wrapper"
       ref="selectDropdown"
+      ext-cls="menu-list-wrapper"
       trigger="click"
       placement="bottom-start"
       theme="light menu-list-wrapper"
@@ -47,15 +47,15 @@
         <i class="icon-monitor icon-filter-fill" />
       </span>
       <span
+        ref="menuList"
         slot="content"
         class="menu-list-wrap"
-        ref="menuList"
       >
         <ul class="menu-list">
           <li
-            class="list-item"
             v-for="(item, index) in localList"
             :key="index"
+            class="list-item"
             @click="item.checked = !item.checked"
           >
             <span @click.stop>
@@ -73,11 +73,15 @@
             <span
               class="monitor-btn"
               @click="handleConfirm"
-            > {{ $t('确定') }} </span>
+            >
+              {{ $t('确定') }}
+            </span>
             <span
               class="monitor-btn"
               @click="handleCancel"
-            > {{ $t('重置') }} </span>
+            >
+              {{ $t('重置') }}
+            </span>
           </div>
         </div>
       </span>
@@ -85,13 +89,14 @@
   </span>
 </template>
 <script lang="ts">
-import { deepClone } from 'monitor-common/utils/utils';
 import { Component, Emit, Prop, Ref, Vue, Watch } from 'vue-property-decorator';
 
+import { deepClone } from 'monitor-common/utils/utils';
+
 export interface IListItem {
-  id: string | number;
-  name: string | number;
   checked: boolean;
+  id: number | string;
+  name: number | string;
 }
 
 @Component({ name: 'table-filter' })
@@ -176,7 +181,7 @@ export default class TableFilter extends Vue {
   /* stylelint-disable-next-line declaration-no-important */
   padding: 0 !important;
   border-radius: 0;
-  box-shadow: 0 0 6px rgba(204, 204, 204, .3);
+  box-shadow: 0 0 6px rgba(204, 204, 204, 0.3);
 
   .menu-list-wrap {
     display: inline-block;

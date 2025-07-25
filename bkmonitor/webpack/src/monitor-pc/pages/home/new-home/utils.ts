@@ -26,8 +26,12 @@
  */
 
 import type { IRouteItem } from './type';
-export interface IDataItem {
-  [key: string]: any;
+/* 搜索内容的类型 */
+export enum ESearchPopoverType {
+  // 历史搜索
+  localHistoryList = 'localHistoryList',
+  // 接口搜索结果
+  searchList = 'searchList',
 }
 /* 搜索的类型 */
 export enum ESearchType {
@@ -44,12 +48,8 @@ export enum ESearchType {
   // trace: Trace
   trace = 'trace',
 }
-/* 搜索内容的类型 */
-export enum ESearchPopoverType {
-  // 历史搜索
-  localHistoryList = 'localHistoryList',
-  // 接口搜索结果
-  searchList = 'searchList',
+export interface IDataItem {
+  [key: string]: any;
 }
 /* status */
 export const EStatusType = {
@@ -80,23 +80,21 @@ export const RECENT_FAVORITE_LIST_KEY = 'recent_favorite_list_key'.toLocaleUpper
 export const RECENT_ALARM_TIME_RANGE_KEY = 'recent_alarm_time_range_key'.toLocaleUpperCase();
 export const RECENT_ALARM_SEVERITY_KEY = 'recent_alarm_severity_key'.toLocaleUpperCase();
 /**
- * @description 输入字段匹配字段高亮
- * @param searchValue 输入的字段
- * @param listData
- * @param dataKeys 需要匹配的key列表
- * @returns
+ * @description: 处理树形结构的数据，将数据统一为平级的数据
+ * @param {IRouteItem[]} tree
+ * @return {*}
  */
-export function highLightContent(searchValue: string, listData: IDataItem[], dataKeys: string[]) {
-  const searchKey = searchValue.trim().split(' ');
-  return listData.map(data => {
-    const copyData = JSON.parse(JSON.stringify(data));
-    dataKeys.map(key => {
-      copyData[`${key}Search`] = searchKey[0]
-        ? data[key].replace(new RegExp(`(${searchKey.join('|')})`, 'gi'), `<span class="highlight">$1</span>`)
-        : data[key];
-    });
-    return copyData;
-  });
+export function flattenRoute(tree: IRouteItem[]) {
+  const result = [];
+  const traverse = node => {
+    if (!node) return;
+    result.push(node);
+    if (node.children && node.children.length > 0) {
+      node.children.map(child => traverse(child));
+    }
+  };
+  tree.map(rootNode => traverse(rootNode));
+  return result;
 }
 /**
  * @description: 在图表数据没有单位或者单位不一致时则不做单位转换 y轴label的转换用此方法做计数简化
@@ -124,19 +122,21 @@ export function handleYAxisLabelFormatter(num: number): string {
 }
 
 /**
- * @description: 处理树形结构的数据，将数据统一为平级的数据
- * @param {IRouteItem[]} tree
- * @return {*}
+ * @description 输入字段匹配字段高亮
+ * @param searchValue 输入的字段
+ * @param listData
+ * @param dataKeys 需要匹配的key列表
+ * @returns
  */
-export function flattenRoute(tree: IRouteItem[]) {
-  const result = [];
-  const traverse = node => {
-    if (!node) return;
-    result.push(node);
-    if (node.children && node.children.length > 0) {
-      node.children.map(child => traverse(child));
-    }
-  };
-  tree.map(rootNode => traverse(rootNode));
-  return result;
+export function highLightContent(searchValue: string, listData: IDataItem[], dataKeys: string[]) {
+  const searchKey = searchValue.trim().split(' ');
+  return listData.map(data => {
+    const copyData = JSON.parse(JSON.stringify(data));
+    dataKeys.map(key => {
+      copyData[`${key}Search`] = searchKey[0]
+        ? data[key].replace(new RegExp(`(${searchKey.join('|')})`, 'gi'), `<span class="highlight">$1</span>`)
+        : data[key];
+    });
+    return copyData;
+  });
 }

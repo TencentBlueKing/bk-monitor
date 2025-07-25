@@ -25,8 +25,8 @@
 -->
 <template>
   <div
-    class="migrate-dashboard"
     v-monitor-loading="{ isLoading: loading }"
+    class="migrate-dashboard"
   >
     <div class="migrate-dashboard-footer mb20 migrate-dashboard-header">
       <div>
@@ -37,16 +37,18 @@
       <div>
         <bk-button
           class="mr10"
-          @click="handleDialogShow(true)"
           theme="primary"
+          @click="handleDialogShow(true)"
         >
           {{ $t('新建映射规则') }}
         </bk-button>
         <span
           v-if="docUrl"
-          style="color: #3a84ff;cursor: pointer;"
+          style="color: #3a84ff; cursor: pointer"
           @click="gotoDoc"
-        > {{ $t('迁移指引') }} </span>
+        >
+          {{ $t('迁移指引') }}
+        </span>
       </div>
       <biz-select
         class="biz-select"
@@ -111,7 +113,8 @@
           <bk-button
             text
             @click="handleDelTableRow(row)"
-          >{{$t('删除')}}</bk-button>
+            >{{ $t('删除') }}</bk-button
+          >
         </template>
       </bk-table-column>
     </bk-table>
@@ -122,12 +125,12 @@
       size="small"
       show-total-count
       pagination-able
-      @change="handlePageChange"
-      @limit-change="handleLimitChange"
       :current="totalData.page"
       :limit="totalData.pageSize"
       :count="totalData.data.length"
       :limit-list="pageList"
+      @change="handlePageChange"
+      @limit-change="handleLimitChange"
     />
     <div class="migrate-dashboard-footer">
       <bk-upload
@@ -146,15 +149,15 @@
         @on-done="handleFileListDone"
       />
       <bk-button
-        @click="importGrafanaDashboard"
         theme="primary"
+        @click="importGrafanaDashboard"
       >
         {{ $t('导入仪表盘') }}
       </bk-button>
       <bk-button
         class="ml5"
-        @click="importAlertrule"
         theme="primary"
+        @click="importAlertrule"
       >
         {{ $t('导入告警策略') }}
       </bk-button>
@@ -166,12 +169,13 @@
           <span
             class="mb5"
             style="font-weight: bold"
-          >"{{ file }}"<br></span>
+            >"{{ file }}"<br
+          /></span>
           <li
             v-for="result in results"
             :key="result.message"
           >
-            {{result.status}} ---  {{result.message}}<br>
+            {{ result.status }} --- {{ result.message }}<br />
           </li>
         </span>
       </div>
@@ -190,60 +194,63 @@
     >
       <div>
         <div class="mb10">
-          <span>{{$t('规则名称')}}:</span>
+          <span>{{ $t('规则名称') }}:</span>
           <bk-input
+            v-model="configField"
             class="mt10"
             :clearable="true"
-            v-model="configField"
           />
         </div>
         <div class="mb10">
-          <span>{{$t('映射类型')}}:</span>
+          <span>{{ $t('映射类型') }}:</span>
           <bk-radio-group
-            class="mt10"
             v-model="rangeType"
+            class="mt10"
             @change="clearTableIds"
           >
             <bk-radio
               class="method-radio mr15"
               value="kubernetes"
-            >{{ $t('K8s内置') }}</bk-radio>
+              >{{ $t('K8s内置') }}</bk-radio
+            >
             <bk-radio
               class="method-radio mr15"
               value="bkPull"
-            >{{ $t('BK-PULL插件') }}</bk-radio>
+              >{{ $t('BK-PULL插件') }}</bk-radio
+            >
             <bk-radio
               class="method-radio"
               value="customTs"
-            >{{ $t('自定义上报') }}</bk-radio>
+              >{{ $t('自定义上报') }}</bk-radio
+            >
           </bk-radio-group>
         </div>
         <div
-          class="mb10"
           v-show="rangeType !== 'kubernetes'"
+          class="mb10"
         >
-          <span v-show="rangeType !== 'kubernetes'">{{$t("映射范围")}}:</span>
+          <span v-show="rangeType !== 'kubernetes'">{{ $t('映射范围') }}:</span>
           <bk-select
+            v-show="rangeType !== 'kubernetes'"
+            v-model="tableIds"
             :clearable="false"
             class="mt10"
             multiple
             show-select-all
             :loading="isLoading"
             :z-index="commonZIndex + 100"
-            v-show="rangeType !== 'kubernetes'"
-            v-model="tableIds"
             :placeholder="$t('选择上报指标映射范围')"
           >
             <bk-option
               v-for="(option, index) in tableList"
-              :key="index"
               :id="option.table_id"
+              :key="index"
               :name="option.name"
             />
           </bk-select>
         </div>
         <div>
-          <span>{{ $t("映射配置")}}:</span>
+          <span>{{ $t('映射配置') }}:</span>
           <bk-upload
             :key="uploadKey"
             :tip="$t('指标映射规则文件格式为yaml')"
@@ -266,6 +273,8 @@
 </template>
 
 <script lang="ts">
+import { Component, Mixins, Watch } from 'vue-property-decorator';
+
 import { customTimeSeriesList } from 'monitor-api/modules/custom_report';
 import { listCollectorPlugin } from 'monitor-api/modules/model';
 import {
@@ -276,15 +285,14 @@ import {
   importGrafanaDashboard,
 } from 'monitor-api/modules/promql_import';
 import { getCookie, random } from 'monitor-common/utils/utils';
-import { Component, Mixins, Watch } from 'vue-property-decorator';
 
 import BizSelect from '../../components/biz-select/biz-select';
 import authorityMixinCreate from '../../mixins/authorityMixin';
 import commonPageSizeMixin from '../../mixins/commonPageSizeMixin';
 import documentLinkMixin from '../../mixins/documentLinkMixin';
-import type MonitorVue from '../../types/index';
-
 import * as migrageAuth from './authority-map';
+
+import type MonitorVue from '../../types/index';
 
 const COMMON_ZINDEX = 2500;
 /** 弹窗的层级控制 */
@@ -706,5 +714,4 @@ $statusColors: #f0f1f5 #94f5a4 #fd9c9c;
     align-items: center;
   }
 }
-
 </style>

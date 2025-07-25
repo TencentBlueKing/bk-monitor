@@ -46,25 +46,25 @@ import type { IViewOptions, PanelModel } from 'monitor-ui/chart-plugins/typings'
 import './common-list-k8s.scss';
 import '@blueking/search-select-v3/vue2/vue2.css';
 
+interface ICommonListEvent {
+  // 选中列表行数据触发
+  onChange: IViewOptions;
+  // get list
+  onListChange: Record<string, any>[];
+  onOverviewChange: boolean;
+  // 标题修改触发
+  onTitleChange: string;
+}
+
 interface ICommonListProps {
+  height?: number;
+  isOverview: boolean;
+  // 是否为目标对比
+  isTargetCompare: boolean;
   // panel实例
   panel: PanelModel;
   // 视图数据参数配置
   viewOptions: IViewOptions;
-  // 是否为目标对比
-  isTargetCompare: boolean;
-  isOverview: boolean;
-  height?: number;
-}
-
-interface ICommonListEvent {
-  // 选中列表行数据触发
-  onChange: IViewOptions;
-  // 标题修改触发
-  onTitleChange: string;
-  // get list
-  onListChange: Record<string, any>[];
-  onOverviewChange: boolean;
 }
 
 @Component

@@ -1,3 +1,5 @@
+import type { VNode } from 'vue';
+
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -24,51 +26,54 @@
  * IN THE SOFTWARE.
  */
 import type { IBookMark, ICurVarItem } from 'monitor-ui/chart-plugins/typings';
-import type { VNode } from 'vue';
+export type ISettingTpl = Record<SettingType, VNode>;
 /** 编辑页签  编辑变量 编辑视图 */
 export type SettingType = 'edit-dashboard' | 'edit-tab' | 'edit-variate';
-export type ISettingTpl = Record<SettingType, VNode>;
 
 /** 设置组件 */
 export declare namespace SettingsWrapType {
+  interface IEvents {
+    onActiveChange: SettingType;
+    onPanelChange: string;
+    onSaveVar: SettingsVarType.IEvents['onSave'];
+    onUpdataTabList: void;
+  }
   interface IProps {
     active: SettingType;
-    bookMarkData: IBookMark[];
     activeTab: string;
-    viewType: string;
+    bookMarkData: IBookMark[];
+    enableAutoGrouping?: boolean;
+    initAddSetting?: boolean;
     sceneId: string;
     title: string;
-    initAddSetting?: boolean;
-    enableAutoGrouping?: boolean;
-  }
-  interface IEvents {
-    onSaveVar: SettingsVarType.IEvents['onSave'];
-    onActiveChange: SettingType;
-    onUpdataTabList: void;
-    onPanelChange: string;
-  }
-  /** 设置保存接口config参数 */
-  interface ISettingsSaveConfig {
-    index?: number; // 排序索引
-    mode?: 'auto' | 'custom'; // 平铺 | 自定义
-    variables?: ISaveVarItem; // 变量
-    order?: any[];
-    panels?: any[]; // 图表
-    list?: object;
-    options?: object;
+    viewType: string;
   }
   /** 变量参数 */
   type ISaveVarItem = Array<any>;
+  /** 设置保存接口config参数 */
+  interface ISettingsSaveConfig {
+    index?: number; // 排序索引
+    list?: object;
+    mode?: 'auto' | 'custom'; // 平铺 | 自定义
+    options?: object;
+    order?: any[];
+    panels?: any[]; // 图表
+    variables?: ISaveVarItem; // 变量
+  }
 }
 
 /** 页签设置组件 */
 export declare namespace SettingsTabType {
+  interface IEvents {
+    onDelete: string;
+    onSave: ITabForm;
+  }
   interface IProps {
-    canAddTab: boolean;
     activeTab: string;
     bookMarkData: IBookMark[];
-    title: string;
+    canAddTab: boolean;
     needAutoAdd?: boolean;
+    title: string;
   }
   /** 页签信息表单 */
   interface ITabForm {
@@ -77,69 +82,65 @@ export declare namespace SettingsTabType {
     show_panel_count?: boolean;
     view_order?: string[];
   }
-  interface IEvents {
-    onSave: ITabForm;
-    onDelete: string;
-  }
 }
 
 /** 变量设置组件 */
 export declare namespace SettingsVarType {
-  interface IProps {
-    bookMarkData: IBookMark[];
-    activeTab: string;
-    sceneId: string;
-    viewType: string;
-    title: string;
-    needAutoAdd?: boolean;
-    getTabDetail: (tabId: string) => void;
-  }
-
-  interface IVarChangeData {
-    id: string;
-    name: string;
-    data: ICurVarItem[];
-  }
   interface IEvents {
     onSave: IVarChangeData;
-    onVarListChange: IVarChangeData;
     onTabChange: string;
+    onVarListChange: IVarChangeData;
+  }
+
+  interface IProps {
+    activeTab: string;
+    bookMarkData: IBookMark[];
+    needAutoAdd?: boolean;
+    sceneId: string;
+    title: string;
+    viewType: string;
+    getTabDetail: (tabId: string) => void;
+  }
+  interface IVarChangeData {
+    data: ICurVarItem[];
+    id: string;
+    name: string;
   }
 }
 
 type TMatchType = 'auto' | 'manual';
 /** 视图设置组件 */
 export declare namespace SettingsDashboardType {
+  interface IEvents {
+    onGetSceneView: string;
+    onGetTabDetail: string;
+    onSave: IPanelData;
+  }
+  interface IGroupItem {
+    hidden: boolean;
+    id: string;
+    key?: string;
+    match_rules: string[];
+    match_type?: TMatchType[];
+    title: string;
+  }
+  interface IPanelData {
+    data: IPanelGroup[];
+    id: string;
+    name: string;
+  }
+  interface IPanelGroup {
+    auto_rules?: string[];
+    id: string;
+    manual_list?: string[];
+    panels: IGroupItem[];
+    title: string;
+    type?: string;
+  }
   interface IProps {
     activeTab: string;
     bookMarkData: IBookMark[];
-    title: string;
     enableAutoGrouping?: boolean;
-  }
-  interface IGroupItem {
-    id: string;
-    key?: string;
     title: string;
-    hidden: boolean;
-    match_type?: TMatchType[];
-    match_rules: string[];
-  }
-  interface IPanelGroup {
-    id: string;
-    title: string;
-    panels: IGroupItem[];
-    type?: string;
-    auto_rules?: string[];
-    manual_list?: string[];
-  }
-  interface IPanelData {
-    id: string;
-    name: string;
-    data: IPanelGroup[];
-  }
-  interface IEvents {
-    onSave: IPanelData;
-    onGetSceneView: string;
-    onGetTabDetail: string;
   }
 }

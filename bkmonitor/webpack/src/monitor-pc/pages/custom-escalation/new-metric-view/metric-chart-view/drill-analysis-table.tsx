@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Prop, InjectReactive } from 'vue-property-decorator';
+import { Component, InjectReactive, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { copyText } from 'monitor-common/utils/utils';
@@ -32,27 +32,27 @@ import TableSkeleton from 'monitor-pc/components/skeleton/table-skeleton';
 import { timeOffsetDateFormat } from 'monitor-pc/pages/monitor-k8s/components/group-compare-select/utils';
 import { getValueFormat } from 'monitor-ui/monitor-echarts/valueFormats/valueFormats';
 
-import { generateTimeStrings, handleGetMinPrecision, formatTipsContent, typeEnums } from './utils';
+import { formatTipsContent, generateTimeStrings, handleGetMinPrecision, typeEnums } from './utils';
 
-import type { IDimensionItem, IColumnItem, IDataItem, IFilterConfig } from '../type';
+import type { IColumnItem, IDataItem, IDimensionItem, IFilterConfig } from '../type';
 import type { TimeRangeType } from 'monitor-pc/components/time-range/time-range';
 
 import './drill-analysis-table.scss';
 
 /** 维度下钻 - 聚合维度表格 */
 
-interface IDrillAnalysisTableProps {
-  dimensionsList?: IDimensionItem[];
-  tableList?: any[];
-  loading?: boolean;
-  filterConfig?: IFilterConfig;
-  tableLoading?: boolean;
+interface IDrillAnalysisTableEvent {
+  onChooseDrill?: (v: IDimensionItem[], item: string[]) => void;
+  onShowDetail?: (v: IDataItem, item: IDimensionItem) => void;
+  onUpdateDimensions?: (v: IDimensionItem[]) => void;
 }
 
-interface IDrillAnalysisTableEvent {
-  onUpdateDimensions?: (v: IDimensionItem[]) => void;
-  onShowDetail?: (v: IDataItem, item: IDimensionItem) => void;
-  onChooseDrill?: (v: IDimensionItem[], item: string[]) => void;
+interface IDrillAnalysisTableProps {
+  dimensionsList?: IDimensionItem[];
+  filterConfig?: IFilterConfig;
+  loading?: boolean;
+  tableList?: any[];
+  tableLoading?: boolean;
 }
 
 @Component

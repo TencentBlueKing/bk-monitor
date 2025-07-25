@@ -34,25 +34,25 @@ import './custom-tab.scss';
 
 export interface IPanels {
   key?: number | string;
-  name?: string;
   label?: string;
+  name?: string;
   timeValue?: string[];
 }
 
-interface ICustomTabProps {
-  panels?: IPanels[];
-  active?: number | string;
-  type?: 'period' | 'text';
-  newKey?: string;
-  timeStyleType?: number;
-  minIsMinute?: boolean; // 最小单位是否为分钟
+interface ICustomTabEvent {
+  onAdd?: IPanels[];
+  onChange?: string;
+  onDel?: string;
+  onTimeChange?: { key: string; value: string[] };
 }
 
-interface ICustomTabEvent {
-  onChange?: string;
-  onAdd?: IPanels[];
-  onDel?: string;
-  onTimeChange?: { value: string[]; key: string };
+interface ICustomTabProps {
+  active?: number | string;
+  minIsMinute?: boolean; // 最小单位是否为分钟
+  newKey?: string;
+  panels?: IPanels[];
+  timeStyleType?: number;
+  type?: 'period' | 'text';
 }
 
 @Component({

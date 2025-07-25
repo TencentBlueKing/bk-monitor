@@ -30,13 +30,13 @@ import { Debounce } from 'monitor-common/utils/utils';
 import { xssFilter } from 'monitor-common/utils/xss';
 import DimensionLine from 'monitor-ui/chart-plugins/plugins/aiops-dimension-point/aiops-dimension-point';
 
-import { EventReportType, type IAnomalyDimensions } from './types';
+import { type IAnomalyDimensions, EventReportType } from './types';
 
 import './dimension.table.scss';
 
 interface IProps {
-  tableData: IAnomalyDimensions[];
   dimensionDrillDownErr?: string;
+  tableData: IAnomalyDimensions[];
 }
 
 @Component
@@ -149,10 +149,10 @@ export default class DimensionTable extends tsc<IProps> {
     return id;
   }
   created() {
-    (window as any).handleTipsItem = this.handleTooltipItem;
+    window.handleTipsItem = this.handleTooltipItem;
   }
   beforeDestroy() {
-    (window as any).handleTipsItem = null;
+    window.handleTipsItem = null;
   }
 
   /** 隐藏tips */

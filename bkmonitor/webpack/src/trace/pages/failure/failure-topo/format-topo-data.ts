@@ -1,3 +1,15 @@
+export type Edge = { source: string; target: string };
+
+export type NodeArgs = {
+  combos: {
+    id: string;
+    parentId?: string;
+  }[];
+  edges: Edge[];
+  maxGroupSize?: number;
+  nodes: VirtaulNode[];
+};
+
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -23,30 +35,18 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-export type VirtaulNode = {
-  id: string;
-  isVirtual?: boolean;
-  subComboId?: string;
-  comboId?: string;
-  isCombo?: boolean;
+export type VirtaulNode = Record<string, any> & {
   children?: (undefined | VirtaulNode)[];
+  comboId?: string;
+  height?: number;
+  id: string;
+  isCombo?: boolean;
+  isVirtual?: boolean;
   parentVid?: string;
+  subComboId?: string;
+  width?: number;
   x?: number;
   y?: number;
-  width?: number;
-  height?: number;
-} & Record<string, any>;
-
-export type Edge = { source: string; target: string };
-
-export type NodeArgs = {
-  combos: {
-    id: string;
-    parentId?: string;
-  }[];
-  nodes: VirtaulNode[];
-  edges: Edge[];
-  maxGroupSize?: number;
 };
 
 export default ({ combos, nodes, edges, maxGroupSize = 5 }: NodeArgs) => {

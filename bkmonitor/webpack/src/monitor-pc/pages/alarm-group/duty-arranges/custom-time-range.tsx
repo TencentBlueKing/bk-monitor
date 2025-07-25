@@ -28,12 +28,12 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import './custom-time-range.scss';
 
-interface IProps {
-  value: string[];
-  allowCrossDay?: boolean;
-}
 interface IEvents {
   onChange?: string[];
+}
+interface IProps {
+  allowCrossDay?: boolean;
+  value: string[];
 }
 
 @Component

@@ -30,9 +30,9 @@
  */
 export const hasOwnProperty = (obj: any, props: string | string[]) => {
   if (Array.isArray(props)) {
-    return props.every(str => Object.prototype.hasOwnProperty.call(obj, str));
+    return props.every(str => Object.hasOwn(obj, str));
   }
-  return Object.prototype.hasOwnProperty.call(obj, props);
+  return Object.hasOwn(obj, props);
 };
 /**
  * 防抖装饰器

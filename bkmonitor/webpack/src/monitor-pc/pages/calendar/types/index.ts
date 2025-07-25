@@ -29,26 +29,6 @@ import dayjs from 'dayjs';
 /** 日历服务列表的弹层层级 */
 export const Z_INDEX = 2500;
 
-/** 日历列表侧边栏数据结构 */
-export interface ICalendarTypeListItem {
-  title: string;
-  list: ICalendarListItem[];
-}
-
-/** 日历列表数据 */
-export interface ICalendarListItem {
-  id: number | string;
-  name: string;
-  checked: boolean;
-  color: string;
-}
-
-export interface IOptionsItem {
-  id: number | string;
-  name: string;
-  disabled?: boolean;
-}
-
 export enum ERepeatKey {
   custom = 'custom',
   everyDay = 'every-day',
@@ -59,14 +39,6 @@ export enum ERepeatKey {
   noRepeat = 'no-repeat',
 }
 
-export interface IRepeatParams {
-  freq: ERepeatTypeId; // 重复类型
-  interval: number; // 间隔
-  until: number; // 结束时间
-  every: number[]; // 区间
-  exclude_date: number[]; // 排除事项日期
-}
-
 /** 自定义类型id */
 export enum ERepeatTypeId {
   days = 'day', // 天
@@ -75,31 +47,59 @@ export enum ERepeatTypeId {
   years = 'year', // 年
 }
 
+/** 日历列表数据 */
+export interface ICalendarListItem {
+  checked: boolean;
+  color: string;
+  id: number | string;
+  name: string;
+}
+
 /** 事项列表数据结构 */
 export interface ICalendarTableItem {
-  id: number;
-  start_time: number; // 开始时间
-  end_time: number; // 结束时间
-  name: string; // 事项名称
-  repeat: IRepeatParams; // 重复选项
   calendar_id: number; // 归属日历
-  time_zone?: string; // 时区
+  end_time: number; // 结束时间
+  id: number;
   is_first?: boolean; // 是否为重复项的第一条数据
-  status: boolean; // 事项是否有效
+  name: string; // 事项名称
   parent_id: number; // 修改了当独项才会出现
+  repeat: IRepeatParams; // 重复选项
+  start_time: number; // 开始时间
+  status: boolean; // 事项是否有效
+  time_zone?: string; // 时区
+}
+
+/** 日历列表侧边栏数据结构 */
+export interface ICalendarTypeListItem {
+  list: ICalendarListItem[];
+  title: string;
+}
+
+export interface IOptionsItem {
+  disabled?: boolean;
+  id: number | string;
+  name: string;
 }
 
 /** 重复配置数据格式 */
 export interface IRepeatConfig {
+  every: number[]; // 区间
+  exclude_date: number[]; // 排除事项日期
   freq: ERepeatTypeId;
   interval: number; // 间隔
   until: number; // 结束日期
+}
+
+export interface IRepeatParams {
   every: number[]; // 区间
   exclude_date: number[]; // 排除事项日期
+  freq: ERepeatTypeId; // 重复类型
+  interval: number; // 间隔
+  until: number; // 结束时间
 }
 
 /** 重复选项的接口参数 */
-export const repeatParamsMap: Record<ERepeatKey, {} | IRepeatConfig> = {
+export const repeatParamsMap: Record<ERepeatKey, IRepeatConfig | {}> = {
   [ERepeatKey.noRepeat]: {},
   [ERepeatKey.everyDay]: {
     freq: 'day',

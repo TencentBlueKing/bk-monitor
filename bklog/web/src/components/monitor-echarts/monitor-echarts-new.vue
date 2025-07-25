@@ -206,7 +206,7 @@
     @Prop({ default: 165 }) height: number | string;
     @Prop({ default: 1, type: Number }) lineWidth: number;
 
-    @Prop({ default: localStorage.getItem('chartIsFold') === 'true' }) isFold: boolean;
+    @Prop({ default: false }) isFold: boolean;
 
     // chart: Echarts.ECharts = null
     resizeHandler: ResizeCallback<HTMLDivElement>;
@@ -364,6 +364,8 @@
     }
 
     mounted() {
+      debugger;
+
       if (this.isFold) {
         this.chartTitle = this.title;
       }

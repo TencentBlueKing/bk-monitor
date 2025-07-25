@@ -38,33 +38,33 @@ import type { metric, orderList, variable } from './type';
 
 import './variable-settings.scss';
 
-interface IVariableSettings {
-  metricDimension: {
-    variableParams?: any; // 获取预览值所需参数
-    metricList: { id: string; metrics: metric[]; result_table_id: string }[]; // 获取预览值需要的指标信息
-    dimensionList: metric[]; // 维度列表
-  };
-  sceneName: string; // 场景名（动态）
-  sceneList: { name: string; variables: { id: string; name: string }[] }[]; // 场景列表（存储变量值）
-  orderList: orderList[];
-  id: number;
-  routeType: 'collect' | 'custom';
-}
-
-interface IVariableSettingsProps {
-  onResultChange?: { key: string; value: string[]; groupId: string }[];
-  onSaveChange?: {
-    sceneName: string;
-    variables: { id: string; name: string }[];
-  };
-}
 interface Icache {
+  checked?: { dimension: string; value: string[] }[];
   sceneName: string; // 场景名
   previews: {
     // 预览值
     [propName: string]: { label: string; value: string }[];
   };
-  checked?: { dimension: string; value: string[] }[];
+}
+
+interface IVariableSettings {
+  id: number;
+  orderList: orderList[];
+  routeType: 'collect' | 'custom';
+  sceneList: { name: string; variables: { id: string; name: string }[] }[]; // 场景列表（存储变量值）
+  sceneName: string; // 场景名（动态）
+  metricDimension: {
+    dimensionList: metric[]; // 维度列表
+    metricList: { id: string; metrics: metric[]; result_table_id: string }[]; // 获取预览值需要的指标信息
+    variableParams?: any; // 获取预览值所需参数
+  };
+}
+interface IVariableSettingsProps {
+  onResultChange?: { groupId: string; key: string; value: string[] }[];
+  onSaveChange?: {
+    sceneName: string;
+    variables: { id: string; name: string }[];
+  };
 }
 export const selectAllItemKey = 'selecteAllItemKey';
 @Component({

@@ -37,18 +37,18 @@ const defaultDays = () => {
 };
 
 interface IDay {
-  value: number;
   active: boolean;
-}
-
-interface IProps {
-  value?: number | number[];
-  list?: IDay[];
-  multiple?: boolean;
+  value: number;
 }
 
 interface IEvents {
   onChange?: number | number[];
+}
+
+interface IProps {
+  list?: IDay[];
+  multiple?: boolean;
+  value?: number | number[];
 }
 
 @Component

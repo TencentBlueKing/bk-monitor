@@ -30,20 +30,20 @@ export interface IBaseEditor {
 }
 
 export interface IMonacoEditorInstance extends IBaseEditor {
-  updateOptions(params: any): void;
-  layout(params?: any): void;
-  getValue(params?: any): string;
-  setValue(params: string): void;
   dispose(): void;
+  getValue(params?: any): string;
+  layout(params?: any): void;
   onContextMenu(params?: any): any;
+  setValue(params: string): void;
+  updateOptions(params: any): void;
 }
 
 export default interface MonitorVue extends Vue {
-  _l: any;
+  $bkInfo: any;
   $bkMessage: any;
   $bkPopover: any;
-  $bkInfo: any;
   $bus: any;
+  _l: any;
 }
 export * from './common/common';
 export * from 'monitor-common/typings/index';

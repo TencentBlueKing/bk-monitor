@@ -184,7 +184,7 @@ export default class RecentAlarmEvents extends tsc<object> {
   get severityList() {
     return JSON.parse(
       localStorage.getItem(`${RECENT_ALARM_SEVERITY_KEY}_${this.activeTabId}`) ||
-      JSON.stringify(Array(this.alarmGraphContent.length).fill(DEFAULT_SEVERITY_LIST))
+        JSON.stringify(Array(this.alarmGraphContent.length).fill(DEFAULT_SEVERITY_LIST))
     );
   }
 

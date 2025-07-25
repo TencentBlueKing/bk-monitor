@@ -24,6 +24,7 @@
  * IN THE SOFTWARE.
  */
 import type { VueConstructor } from 'vue';
+
 import type { DirectiveBinding } from 'vue/types/options';
 
 interface IElement extends HTMLElement {
@@ -31,8 +32,8 @@ interface IElement extends HTMLElement {
 }
 interface IOptions {
   active: boolean;
-  offset: number[];
   cls: string;
+  offset: number[];
 }
 
 const DEFAULT_OPTIONS: IOptions = {
@@ -40,6 +41,34 @@ const DEFAULT_OPTIONS: IOptions = {
   offset: [12, 0],
   cls: 'cursor-element',
 };
+
+// biome-ignore lint/complexity/noStaticOnlyClass: <explanation>
+export default class AuthorityDirective {
+  public static install(Vue: VueConstructor) {
+    Vue.directive('authority', {
+      bind(el: IElement, binding: DirectiveBinding) {
+        const options: IOptions = Object.assign({}, DEFAULT_OPTIONS, binding.value);
+        init(el, options);
+      },
+      update(el: IElement, binding: DirectiveBinding) {
+        const options: IOptions = Object.assign({}, DEFAULT_OPTIONS, binding.value);
+        destroy(el);
+        init(el, options);
+      },
+      unbind(el: IElement) {
+        destroy(el);
+      },
+    });
+  }
+}
+
+function destroy(el: IElement) {
+  el.element?.remove();
+  el.element = null;
+  el.removeEventListener('mouseenter', el.mouseEnterHandler);
+  el.removeEventListener('mousemove', el.mouseMoveHandler);
+  el.removeEventListener('mouseleave', el.mouseLeaveHandler);
+}
 
 function init(el: IElement, options: IOptions) {
   el.mouseEnterHandler = function () {
@@ -69,33 +98,5 @@ function init(el: IElement, options: IOptions) {
   if (options.active) {
     el.addEventListener('mouseenter', el.mouseEnterHandler);
     el.addEventListener('mouseleave', el.mouseLeaveHandler);
-  }
-}
-
-function destroy(el: IElement) {
-  el.element?.remove();
-  el.element = null;
-  el.removeEventListener('mouseenter', el.mouseEnterHandler);
-  el.removeEventListener('mousemove', el.mouseMoveHandler);
-  el.removeEventListener('mouseleave', el.mouseLeaveHandler);
-}
-
-// biome-ignore lint/complexity/noStaticOnlyClass: <explanation>
-export default class AuthorityDirective {
-  public static install(Vue: VueConstructor) {
-    Vue.directive('authority', {
-      bind(el: IElement, binding: DirectiveBinding) {
-        const options: IOptions = Object.assign({}, DEFAULT_OPTIONS, binding.value);
-        init(el, options);
-      },
-      update(el: IElement, binding: DirectiveBinding) {
-        const options: IOptions = Object.assign({}, DEFAULT_OPTIONS, binding.value);
-        destroy(el);
-        init(el, options);
-      },
-      unbind(el: IElement) {
-        destroy(el);
-      },
-    });
   }
 }

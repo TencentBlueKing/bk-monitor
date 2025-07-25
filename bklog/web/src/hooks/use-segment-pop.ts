@@ -149,15 +149,15 @@ class UseSegmentProp {
           'div',
           {
             class: 'segment-event-box',
+            on: {
+              click: item.onClick,
+            },
           },
           [
             h(
               'span',
               {
                 class: 'segment-event-btn',
-                on: {
-                  click: item.onClick,
-                },
               },
               [
                 h('span', { class: 'segment-btn-left' }, [

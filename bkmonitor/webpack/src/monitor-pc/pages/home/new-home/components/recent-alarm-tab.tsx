@@ -1,3 +1,6 @@
+import { Emit, Mixins, Prop } from 'vue-property-decorator';
+
+import { saveAlarmGraphBizIndex } from 'monitor-api/modules/overview';
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -24,9 +27,6 @@
  * IN THE SOFTWARE.
  */
 import Component from 'vue-class-component';
-import { Emit, Mixins, Prop } from 'vue-property-decorator';
-
-import { saveAlarmGraphBizIndex } from 'monitor-api/modules/overview';
 
 import { shortcuts } from '../../../../components/time-range/utils';
 import UserConfigMixin from '../../../../mixins/userStoreConfig';
@@ -39,10 +39,10 @@ import type { IRecentAlarmTab } from '../type';
 import './recent-alarm-tab.scss';
 
 interface IRecentAlarmTabProps {
-  tabs: IRecentAlarmTab[];
   activeTabId: number;
-  showTabLoading: boolean;
   bizLimit: number;
+  showTabLoading: boolean;
+  tabs: IRecentAlarmTab[];
 }
 @Component({
   name: 'RecentAlarmTab',

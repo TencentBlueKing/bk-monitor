@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { shallowRef, computed } from 'vue';
+import { computed, shallowRef } from 'vue';
 
 import type { IFavorite } from '../types';
 

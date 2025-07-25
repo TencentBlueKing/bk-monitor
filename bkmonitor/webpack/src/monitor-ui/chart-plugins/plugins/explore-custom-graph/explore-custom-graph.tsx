@@ -40,16 +40,16 @@ import './explore-custom-graph.scss';
 
 export type IntervalType = 'auto' | number;
 
+interface IExploreCustomChartEvents {
+  /** 图表汇聚周期 */
+  onIntervalChange: (interval: IntervalType) => void;
+}
+
 interface IExploreCustomChartProps {
   /** 图表汇聚周期 */
   chartInterval: IntervalType;
   /** 数据总数 */
   total?: number;
-}
-
-interface IExploreCustomChartEvents {
-  /** 图表汇聚周期 */
-  onIntervalChange: (interval: IntervalType) => void;
 }
 
 @Component

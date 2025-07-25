@@ -30,17 +30,17 @@
       :value="value === 2"
       :class="{
         'all-checked': currentType === 'all',
-        indeterminate: value === 1 && currentType === 'all'
+        indeterminate: value === 1 && currentType === 'all',
       }"
       :disabled="disabled"
       @change="handleChangeAll"
     />
     <bk-popover
+      ref="popover"
       placement="bottom-start"
       theme="column-check"
       :arrow="false"
       trigger="click"
-      ref="popover"
       offset="-10, 0"
       :distance="0"
       :on-hide="() => (showList = false)"
@@ -50,9 +50,9 @@
       <template #content>
         <ul class="dropdown-list">
           <li
-            :class="['list-item', { 'list-item-active': currentType === item.id }]"
             v-for="(item, index) in list"
             :key="index"
+            :class="['list-item', { 'list-item-active': currentType === item.id }]"
             @click="handleSelect(item.id)"
           >
             {{ item.name }}
@@ -83,7 +83,7 @@ export default class StrategySetTarget extends Vue {
   })
   value: number;
 
-  @Prop({ default: 'current' }) readonly defaultType: 'current' | 'all';
+  @Prop({ default: 'current' }) readonly defaultType: 'all' | 'current';
   @Prop({ default: false, type: Boolean }) disabled: boolean;
 
   checkValue = false;
@@ -100,7 +100,7 @@ export default class StrategySetTarget extends Vue {
   }
 
   @Emit('change')
-  emitChange(value: number, type: string): { value: number; type: string } {
+  emitChange(value: number, type: string): { type: string; value: number } {
     return {
       value,
       type,
@@ -140,7 +140,7 @@ export default class StrategySetTarget extends Vue {
     font-size: 14px;
     background-color: #fff;
     border-radius: 4px;
-    box-shadow: 0px 3px 6px 1px rgba(0, 0, 0, .1);
+    box-shadow: 0px 3px 6px 1px rgba(0, 0, 0, 0.1);
 
     .list-item {
       height: 32px;

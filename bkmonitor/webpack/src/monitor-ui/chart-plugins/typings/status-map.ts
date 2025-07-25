@@ -1,3 +1,15 @@
+// 扩展数据
+export interface IExtendDataItem {
+  // 名称
+  name: string;
+  // 类型
+  type?: string;
+  // 单位
+  unit?: string;
+  // 值
+  value: string;
+}
+
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -25,35 +37,23 @@
  */
 // china status-map 数据定义
 export interface IStatusMapData {
-  series: IStatusMapSeriesItem[];
-  legend: IStatusMapLegendItem[];
   extend_data: IExtendDataItem[];
+  legend: IStatusMapLegendItem[];
+  series: IStatusMapSeriesItem[];
 }
-
+// 图例数据
+export interface IStatusMapLegendItem {
+  // 图例名称
+  name: string;
+  // 状态 4种状态 对应legend显示的4种级别显示
+  status: 1 | 2 | 3 | 4;
+}
 // series
 export interface IStatusMapSeriesItem {
   // 省份 或 直辖市 及 南海诸岛名称
   name: string;
+  // 状态 4种状态 对应legend显示的4种级别显示
+  status: 1 | 2 | 3 | 4;
   // 值
   value: number;
-  // 状态 4种状态 对应legend显示的4种级别显示
-  status: 1 | 2 | 3 | 4;
-}
-// 图例数据
-export interface IStatusMapLegendItem {
-  // 状态 4种状态 对应legend显示的4种级别显示
-  status: 1 | 2 | 3 | 4;
-  // 图例名称
-  name: string;
-}
-// 扩展数据
-export interface IExtendDataItem {
-  // 名称
-  name: string;
-  // 值
-  value: string;
-  // 单位
-  unit?: string;
-  // 类型
-  type?: string;
 }

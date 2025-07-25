@@ -28,31 +28,31 @@
 
 // text 为普通文本展示 link 为可跳转链接
 export type BarLabelType = 'link' | 'text';
-// self 为内部框架跳转  blank为新开窗口跳转 event 触发本地事件
-export type LinkItemTarget = 'blank' | 'event' | 'self';
 export interface IPercentageBarData {
-  // 图例名称
-  name: string;
   // 指标数据
   metrics?: [];
   // 更多数据的跳转链接
   more_data_url: string;
+  // 图例名称
+  name: string;
   // 数据
   series: IPercentageBarSeriesItem[];
 }
-
 export interface IPercentageBarSeriesItem {
-  // total
-  total?: number;
-  // 单位
-  unit?: number;
-  // 值
-  value: number;
+  key?: string;
   // 名称
   name: string;
+  target?: LinkItemTarget;
+  // total
+  total?: number;
   // 类型
   type?: BarLabelType;
+  // 单位
+  unit?: number;
   url?: string;
-  key?: string;
-  target?: LinkItemTarget;
+  // 值
+  value: number;
 }
+
+// self 为内部框架跳转  blank为新开窗口跳转 event 触发本地事件
+export type LinkItemTarget = 'blank' | 'event' | 'self';

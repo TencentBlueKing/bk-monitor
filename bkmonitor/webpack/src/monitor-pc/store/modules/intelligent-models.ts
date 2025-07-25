@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 import { listIntelligentModels } from 'monitor-api/modules/strategies';
-import { Action, Module, Mutation, VuexModule, getModule } from 'vuex-module-decorators';
+import { Action, getModule, Module, Mutation, VuexModule } from 'vuex-module-decorators';
 
 import store from '../store';
 
@@ -94,7 +94,7 @@ class IntelligentModels extends VuexModule {
     return window.enable_aiops && this.intelligentModelsMap.get(algorithm)?.length > 0;
   }
   @Mutation
-  public setIntelligentModels({ key, data }: { key: IntelligentModelsType; data: Array<Record<string, any>> }) {
+  public setIntelligentModels({ key, data }: { data: Array<Record<string, any>>; key: IntelligentModelsType }) {
     this.intelligentModelsMap.set(key, data);
   }
   @Mutation

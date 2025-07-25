@@ -27,7 +27,7 @@ import { Component, Inject, InjectReactive } from 'vue-property-decorator';
 
 import dayjs from 'dayjs';
 import deepmerge from 'deepmerge';
-import { CancelToken } from 'monitor-api/index';
+import { CancelToken } from 'monitor-api/cancel';
 import { deepClone, random } from 'monitor-common/utils/utils';
 import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
 
@@ -36,7 +36,7 @@ import ListLegend from '../../components/chart-legend/common-legend';
 import TableLegend from '../../components/chart-legend/table-legend';
 import ChartHeader from '../../components/chart-title/chart-title';
 import { COLOR_LIST, MONITOR_LINE_OPTIONS } from '../../constants';
-import { createMenuList, type CustomChartConnector, reviewInterval } from '../../utils';
+import { type CustomChartConnector, createMenuList, reviewInterval } from '../../utils';
 import { getSeriesMaxInterval, getTimeSeriesXInterval } from '../../utils/axis';
 import { VariablesService } from '../../utils/variable';
 import BaseEchart from '../monitor-base-echart';

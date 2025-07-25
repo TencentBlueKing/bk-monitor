@@ -28,14 +28,14 @@ import { defineStore } from 'pinia';
 import type { IDocLinkData, ISpaceItem } from '../../typings';
 
 export interface IAppState {
-  userName: string;
   bizId: number | string;
   bizList: ISpaceItem[];
-  csrfCookieName: string;
-  siteUrl: string;
-  navId: string;
   bkUrl: string;
+  csrfCookieName: string;
   extraDocLinkMap: Record<string, IDocLinkData>;
+  navId: string;
+  siteUrl: string;
+  userName: string;
 }
 
 export const useAppStore = defineStore('app', {

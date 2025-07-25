@@ -28,13 +28,13 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import './show-mode-button.scss';
 
-export type ShowModeButtonType = 'left' | 'right';
-export interface IShowModeButtonProps {
-  active: ShowModeButtonType;
-}
 export interface IShowModeButtonEvent {
   onChange: ShowModeButtonType;
 }
+export interface IShowModeButtonProps {
+  active: ShowModeButtonType;
+}
+export type ShowModeButtonType = 'left' | 'right';
 
 @Component
 export default class ShowModeButton extends tsc<IShowModeButtonProps, IShowModeButtonEvent> {

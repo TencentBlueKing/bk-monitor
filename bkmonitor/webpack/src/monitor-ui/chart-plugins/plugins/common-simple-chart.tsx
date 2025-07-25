@@ -34,7 +34,7 @@ import type { IQueryData } from 'monitor-pc/pages/monitor-k8s/typings';
 
 @Component
 export class CommonSimpleChart
-  extends Mixins<IntersectionMixin & ChartLoadingMixin & ToolsMixin & ResizeMixin & LegendMixin & ErrorMsgMixins>(
+  extends Mixins<ChartLoadingMixin & ErrorMsgMixins & IntersectionMixin & LegendMixin & ResizeMixin & ToolsMixin>(
     IntersectionMixin,
     ChartLoadingMixin,
     ToolsMixin,

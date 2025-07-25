@@ -36,17 +36,6 @@ import { validateQuery } from './validation';
 
 import './promql-editor.scss';
 
-function editorWillMount(monaco) {
-  const languageId = promLanguageDefinition.id;
-  const { aliases, extensions, mimetypes } = promLanguageDefinition;
-  monaco.languages.register({ id: languageId, aliases, extensions, mimetypes });
-  monaco.languages.onLanguage(languageId, () => {
-    monaco.languages.setMonarchTokensProvider(languageId, language);
-    monaco.languages.setLanguageConfiguration(languageId, languageConfiguration);
-    monaco.languages.registerCompletionItemProvider(languageId, completionItemProvider);
-  });
-  return {};
-}
 /**
  * @description placeholder
  */
@@ -77,6 +66,17 @@ class PlaceholderWidget {
     const isEmpty = model.getValueLength() === 0;
     this.domNode.style.display = isEmpty ? 'block' : 'none';
   }
+}
+function editorWillMount(monaco) {
+  const languageId = promLanguageDefinition.id;
+  const { aliases, extensions, mimetypes } = promLanguageDefinition;
+  monaco.languages.register({ id: languageId, aliases, extensions, mimetypes });
+  monaco.languages.onLanguage(languageId, () => {
+    monaco.languages.setMonarchTokensProvider(languageId, language);
+    monaco.languages.setLanguageConfiguration(languageId, languageConfiguration);
+    monaco.languages.registerCompletionItemProvider(languageId, completionItemProvider);
+  });
+  return {};
 }
 
 const defalutOptions = {
@@ -121,22 +121,22 @@ const defalutOptions = {
   cursorStyle: 'line-thin',
 };
 export interface IPromqlMonacoEditorProps {
-  width?: string;
-  height?: string;
-  value?: null | string;
+  className?: null | string;
   defaultValue?: string;
+  height?: string;
+  isError?: boolean;
   language?: string;
-  theme?: null | string;
+  minHeight?: number;
   options?: object;
   overrideServices?: object;
-  className?: null | string;
   readonly?: boolean;
-  minHeight?: number;
-  isError?: boolean;
-  onBlur?: (value: string, hasErr: boolean) => void;
-  onFocus?: () => void;
-  onChange?: (v: string) => void;
+  theme?: null | string;
+  value?: null | string;
+  width?: string;
   executeQuery?: (v: boolean) => void;
+  onBlur?: (value: string, hasErr: boolean) => void;
+  onChange?: (v: string) => void;
+  onFocus?: () => void;
   uri?: (v: any) => void;
 }
 @Component

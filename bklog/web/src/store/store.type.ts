@@ -85,7 +85,18 @@ enum BK_LOG_STORAGE {
    * 常用业务ID列表
    */
   COMMON_SPACE_ID_LIST = '_16',
+
+  /**
+   * 趋势图是否折叠
+   */
+  TREND_CHART_IS_FOLD = '_17',
+
+  /**
+   * 缓存趋势图历史选择的起止时间列表
+   */
+  CACHED_BATCH_LIST = '_18',
 }
+
 
 export { BK_LOG_STORAGE };
 

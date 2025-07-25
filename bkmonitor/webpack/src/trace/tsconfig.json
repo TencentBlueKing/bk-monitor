@@ -16,7 +16,7 @@
       "@/*": ["./*"],
       "@router/*": ["./router/*"],
       "@store/*": ["./store/*"],
-      "@page/*": ["./page/*"],
+      "@page/*": ["./pages/*"],
       "@static/*": ["./static/*"]
     }
   }

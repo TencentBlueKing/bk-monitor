@@ -24,9 +24,9 @@
  * IN THE SOFTWARE.
  */
 import { defineComponent } from 'vue';
+import type { PropType } from 'vue';
 
 import type { ILegendItem, LegendActionType } from '../typings';
-import type { PropType } from 'vue';
 
 import './common-legend.scss';
 

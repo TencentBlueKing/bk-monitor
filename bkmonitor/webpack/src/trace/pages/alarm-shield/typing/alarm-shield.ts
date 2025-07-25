@@ -53,35 +53,35 @@ export enum EColumn {
   // updateUser = 'update_user',
 }
 
+export interface AlarmShieldTableItem {
+  begin_time: string;
+  bk_biz_id: number;
+  category: string;
+  category_name: string;
+  content: string;
+  cycle_duration: string;
+  description: string;
+  dimension_config: DimensionConfig;
+  failure_time: string;
+  id: number;
+  label: string;
+  source: string;
+  status: number;
+  status_name: string;
+  update_user: string;
+}
+
 export interface IColumn {
-  id: EColumn;
-  name: string;
-  minWidth?: number;
-  width?: number;
   disabled?: boolean;
-  sortable?: boolean;
+  filter?: { checked?: boolean; label: string; value: string }[];
   filterMultiple?: boolean;
-  filter?: { label: string; value: string; checked?: boolean }[];
+  id: EColumn;
+  minWidth?: number;
+  name: string;
+  sortable?: boolean;
+  width?: number;
 }
 
 interface DimensionConfig {
   id: number[];
-}
-
-export interface AlarmShieldTableItem {
-  id: number;
-  bk_biz_id: number;
-  category: string;
-  category_name: string;
-  status: number;
-  status_name: string;
-  dimension_config: DimensionConfig;
-  content: string;
-  begin_time: string;
-  failure_time: string;
-  cycle_duration: string;
-  description: string;
-  source: string;
-  update_user: string;
-  label: string;
 }

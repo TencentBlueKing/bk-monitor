@@ -58,32 +58,21 @@ const levelOfColor = {
 //   ['event-center', 'event-action', 'event-center-detail', 'event-center-action-detail'];
 export const AI_WHALE_EXCLUDE_ROUTES = ['no-business', 'error-exception', 'share']; // 告警页也可显示ai小鲸
 
-interface IHostPreviewListItem {
-  ip: string;
-  exception_metric_count: number;
-  other_metric_count?: number;
-  bk_cloud_id?: number;
-}
-interface IWhaleHelperListItem {
-  icon_name?: string;
-  link: string;
-  name: string;
-}
-
-type ThemeType = 'blue' | 'red' | 'yellow';
-
 export type AIQuickActionData = {
-  type: 'explanation' | 'translate';
   content: string;
+  type: 'explanation' | 'translate';
 };
-
 interface IData {
+  fetch_range?: string;
+  link: IWhaleHelperListItem[];
+  need_notice: boolean;
+  robot_level?: number;
   alert: {
     abnormal_count: number; // 空间告警
     emergency_count: number;
-    recent_count: number;
     latest_person_abnormal_count?: number; // 个人最近新增告警
     person_abnormal_count?: number; // 个人最近告警
+    recent_count: number;
   };
   intelligent_detect: {
     host: {
@@ -95,11 +84,22 @@ interface IData {
       }[];
     };
   };
-  link: IWhaleHelperListItem[];
-  need_notice: boolean;
-  fetch_range?: string;
-  robot_level?: number;
 }
+
+interface IHostPreviewListItem {
+  bk_cloud_id?: number;
+  exception_metric_count: number;
+  ip: string;
+  other_metric_count?: number;
+}
+
+interface IWhaleHelperListItem {
+  icon_name?: string;
+  link: string;
+  name: string;
+}
+
+type ThemeType = 'blue' | 'red' | 'yellow';
 
 const robotWidth = 64;
 

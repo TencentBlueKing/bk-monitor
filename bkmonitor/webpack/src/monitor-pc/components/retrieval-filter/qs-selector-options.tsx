@@ -34,11 +34,11 @@ import QsSelectorHelp from './qs-selector-help';
 import { getQueryStringMethods, QUERY_STRING_CONDITIONS, queryStringColorMap } from './query-string-utils';
 import TextHighlighter from './text-highlighter';
 import {
-  EQueryStringTokenType,
+  type IFavoriteListItem,
+  type IFilterField,
   type IGetValueFnParams,
   type IWhereValueOptionsItem,
-  type IFilterField,
-  type IFavoriteListItem,
+  EQueryStringTokenType,
 } from './utils';
 
 import './qs-selector-options.scss';
@@ -86,22 +86,22 @@ const descMap = {
 };
 
 interface IOptions {
+  desc?: string;
   id: string;
   name: string;
-  desc?: string;
 }
 
 interface IProps {
-  fields: IFilterField[];
-  field?: string;
-  search?: string;
-  type?: EQueryStringTokenType;
-  show?: boolean;
-  queryString?: string;
   favoriteList?: IFavoriteListItem[];
-  onSelectFavorite?: (v: string) => void;
-  onSelect?: (v: string) => void;
+  field?: string;
+  fields: IFilterField[];
+  queryString?: string;
+  search?: string;
+  show?: boolean;
+  type?: EQueryStringTokenType;
   getValueFn?: (params: IGetValueFnParams) => Promise<IWhereValueOptionsItem>;
+  onSelect?: (v: string) => void;
+  onSelectFavorite?: (v: string) => void;
 }
 
 @Component
@@ -131,7 +131,7 @@ export default class QsSelectorSelector extends tsc<IProps> {
   @Ref('options') optionsRef: HTMLDivElement;
 
   localOptions: IOptions[] = [];
-  favoriteOptions: { title: string; content: string; keyword: string }[] = [];
+  favoriteOptions: { content: string; keyword: string; title: string }[] = [];
   cursorIndex = -1;
 
   loading = false;

@@ -64,5 +64,8 @@
   "最近异常时间": "Last abnormal time",
   "告警确认后，异常事件持续未恢复的情况将不会再发起通知；注意！请及时处理故障，以免影响业务正常运行。": "After the alarm is confirmed, if the abnormal event is not recovered continuously, the notice will not be sent again; note! Please handle the fault in time to avoid affecting the normal operation of the business.",
   "不对比": "not contrast",
-  "数据加载中...": "loading..."
+  "数据加载中...": "loading...",
+  "至次日": "to {num} next day",
+  "选择至次日": "to",
+  "选择至次日点": "next day"
 }

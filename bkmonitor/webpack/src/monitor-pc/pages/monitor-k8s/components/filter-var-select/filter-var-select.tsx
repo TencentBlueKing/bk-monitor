@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Emit, Prop, Watch, InjectReactive } from 'vue-property-decorator';
+import { Component, Emit, InjectReactive, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { deepClone, random, typeTools } from 'monitor-common/utils/utils';
@@ -42,31 +42,31 @@ import './filter-var-select.scss';
 
 const SPLIT_CHART = '-'; // 变量id的分隔符
 
-export interface IProps {
-  label?: string | TranslateResult;
-  panel?: IVariableModel;
-  customParams?: CustomParamsType;
-  multiple?: boolean;
-  editable?: boolean;
-  value?: FilterDictType;
-  required?: boolean;
-  clearable?: boolean;
-  autoGetOption?: boolean;
-  whereRefMap: Map<string, string | string[]>;
-  viewOptions: IViewOptions;
-  variables: Record<string, any>;
-  currentGroupValue?: CurrentGroupValueType;
-}
+export type CurrentGroupValueType = Record<string, any>;
 
 export type CustomParamsType = { [key in string]: any };
 
-export type CurrentGroupValueType = Record<string, any>;
-
 export type FilterDictType = Record<string, string[]>;
+
 export interface IEvents {
   onChange: FilterDictType;
   onDefaultValue: FilterDictType;
   onValueChange: FilterDictType;
+}
+export interface IProps {
+  autoGetOption?: boolean;
+  clearable?: boolean;
+  currentGroupValue?: CurrentGroupValueType;
+  customParams?: CustomParamsType;
+  editable?: boolean;
+  label?: string | TranslateResult;
+  multiple?: boolean;
+  panel?: IVariableModel;
+  required?: boolean;
+  value?: FilterDictType;
+  variables: Record<string, any>;
+  viewOptions: IViewOptions;
+  whereRefMap: Map<string, string | string[]>;
 }
 
 type LocalValue<T extends boolean> = T extends true ? Array<number | string> : number | string;

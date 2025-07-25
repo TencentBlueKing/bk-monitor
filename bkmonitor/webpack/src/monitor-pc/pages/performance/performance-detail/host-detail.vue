@@ -25,8 +25,8 @@
 -->
 <template>
   <div
-    class="host-detail"
     v-bkloading="{ isLoading }"
+    class="host-detail"
   >
     <div class="host-detail-title">
       <i
@@ -40,32 +40,32 @@
         <template v-if="data.type === 'host'">
           <!-- 主机基本信息 -->
           <li
-            class="host-info"
             v-for="item in hostInfo"
             :key="item.id"
+            class="host-info"
           >
             <span class="host-info-title">{{ `${item.title}:` }}</span>
             <div class="host-info-content">
               <!-- 状态 -->
               <span
-                :class="item.value === 0 ? 'status-normal' : 'status-unkown'"
                 v-if="item.id === 'status'"
+                :class="item.value === 0 ? 'status-normal' : 'status-unkown'"
               >
                 {{ statusMap[item.value] }}
               </span>
               <div v-else-if="item.id === 'module'">
                 <ul :class="{ 'module-expand': !showAllModule }">
                   <li
-                    class="module-item"
                     v-for="(data, index) in item.value"
                     :key="index"
+                    class="module-item"
                   >
                     {{ data.topo_link_display.join('-') }}
                   </li>
                 </ul>
                 <li
-                  class="module-item"
                   v-if="item.value.length > 2"
+                  class="module-item"
                 >
                   <bk-button
                     class="btn"
@@ -91,15 +91,15 @@
               </div>
               <span v-else>{{ item.value || '--' }}</span>
               <i
+                v-if="item.link && item.value"
                 v-bk-tooltips="$t('查看详情')"
                 class="ml5 icon-monitor icon-mc-link"
-                v-if="item.link && item.value"
                 @click="handleToCmdbHost"
               />
               <i
+                v-if="item.copy && item.value"
                 v-bk-tooltips="$t('复制')"
                 class="ml5 icon-monitor icon-mc-copy"
-                v-if="item.copy && item.value"
                 @click="handleCopyValue(item.value)"
               />
             </div>
@@ -108,26 +108,26 @@
         <template v-else>
           <!-- 节点基本信息 -->
           <li
-            class="node-info"
             v-for="item in nodeInfo.filter(
               item => !['bk_bak_operato', 'operator'].includes(item.id) || data.bkObjId === 'module'
             )"
             :key="item.id"
+            class="node-info"
           >
             <span class="node-info-title">{{ `${item.title}:` }}</span>
             <div class="node-info-content">
               <span v-if="Array.isArray(item.value)">{{ item.value.join(',') || '--' }}</span>
               <span v-else>{{ item.value || '--' }}</span>
               <i
+                v-if="item.link && item.value"
                 v-bk-tooltips="$t('查看详情')"
                 class="ml5 icon-monitor icon-mc-link"
-                v-if="item.link && item.value"
                 @click="handleToCmdbHost"
               />
               <i
+                v-if="item.copy && item.value"
                 v-bk-tooltips="$t('复制')"
                 class="ml5 icon-monitor icon-mc-copy"
-                v-if="item.copy && item.value"
                 @click="handleCopyValue(item.value)"
               />
             </div>
@@ -177,12 +177,14 @@
   </div>
 </template>
 <script lang="ts">
-import { copyText } from 'monitor-common/utils/utils.js';
 import { Component, Emit, Model, Prop, Ref, Vue, Watch } from 'vue-property-decorator';
 
+import { copyText } from 'monitor-common/utils/utils.js';
+
 import PerformanceModule, { type ICurNode } from '../../../store/modules/performance';
-import type MonitorVue from '../../../types/index';
 import IpStatusTips, { handleIpStatusData } from '../components/ip-status-tips';
+
+import type MonitorVue from '../../../types/index';
 import type { IHostInfo } from '../performance-type';
 
 @Component({ name: 'host-detail', components: { IpStatusTips } })

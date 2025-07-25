@@ -26,22 +26,23 @@
 import { Component, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import customEscalationViewStore from '@store/modules/custom-escalation-view';
 import _ from 'lodash';
-import { getCustomTsDimensionValues } from 'monitor-api/modules/scene_view_new';
 import KvSelector from 'monitor-pc/components/retrieval-filter/setting-kv-selector';
 
-interface IProps {
-  data: {
-    key: string;
-    alias: string;
-    method: string;
-    value: string[];
-  };
-}
+import { getCustomTsDimensionValues } from '../../../../../../services/scene_view_new';
+import customEscalationViewStore from '@store/modules/custom-escalation-view';
 
 interface IEmit {
   onChange: (value: IProps['data']) => void;
+}
+
+interface IProps {
+  data: {
+    alias: string;
+    key: string;
+    method: string;
+    value: string[];
+  };
 }
 
 @Component

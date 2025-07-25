@@ -24,11 +24,11 @@
  * IN THE SOFTWARE.
  */
 import { type PropType, computed, defineComponent, onBeforeUnmount, onMounted, provide, ref, toRef, watch } from 'vue';
-import { useI18n } from 'vue-i18n';
 
 import { random } from 'monitor-common/utils/utils';
 import { type DashboardColumnType, type IPanelModel, PanelModel } from 'monitor-ui/chart-plugins/typings';
 import { echarts } from 'monitor-ui/monitor-echarts/types/monitor-echarts';
+import { useI18n } from 'vue-i18n';
 
 import ChartWrapper from './chart-wrapper';
 

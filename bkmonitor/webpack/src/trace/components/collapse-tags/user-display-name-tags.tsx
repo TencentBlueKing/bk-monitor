@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, shallowRef, watchEffect, type PropType } from 'vue';
+import { type PropType, defineComponent, shallowRef, watchEffect } from 'vue';
 
 import { getBkUserDisplayNameInstance, getUserComponentConfig } from 'monitor-pc/common/user-display-name';
 

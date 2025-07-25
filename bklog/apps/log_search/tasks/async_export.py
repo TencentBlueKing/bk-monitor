@@ -588,7 +588,7 @@ class AsyncExportUtils:
         for res in result:
             origin_result_list = res.get("origin_log_list")
             for item in origin_result_list:
-                f.write("%s\n" % ujson.dumps(item))
+                f.write("%s\n" % ujson.dumps(item, ensure_ascii=False))
 
 
 class UnionAsyncExportUtils:
@@ -897,4 +897,4 @@ class UnionAsyncExportUtils:
         for res in result:
             origin_result_list = res.get("origin_log_list")
             for item in origin_result_list:
-                f.write("%s\n" % ujson.dumps(item))
+                f.write("%s\n" % ujson.dumps(item, ensure_ascii=False))

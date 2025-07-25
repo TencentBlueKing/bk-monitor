@@ -31,8 +31,8 @@ import { getUserDepartments, listDepartments } from 'monitor-api/modules/commons
 import './organization-selector.scss';
 
 interface IItem {
-  id: number | string;
   full_name: string;
+  id: number | string;
   name: string;
 }
 
@@ -41,18 +41,18 @@ const typeIndexs = {
   dept: 1,
   center: 2,
 };
-type IType = 'bg' | 'center' | 'dept';
-
-interface ISelectItem {
-  list: IItem[];
-  value: number | string;
-  type: IType;
-  loading: boolean;
-}
-
 interface IProps {
   onChange?: (value: string[]) => void;
 }
+
+interface ISelectItem {
+  list: IItem[];
+  loading: boolean;
+  type: IType;
+  value: number | string;
+}
+
+type IType = 'bg' | 'center' | 'dept';
 
 @Component
 export default class OrganizationSelector extends tsc<IProps> {

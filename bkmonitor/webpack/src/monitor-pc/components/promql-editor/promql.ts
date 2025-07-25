@@ -28,7 +28,7 @@ import { languages } from 'monaco-editor';
 // noinspection JSUnusedGlobalSymbols
 export const languageConfiguration = {
   // the default separators except `@$`
-  wordPattern: /(-?\d*\.\d\w*)|([^`~!#%^&*()\-=+\[{\]}\\|;:'",.<>\/?\s]+)/g,
+  wordPattern: /(-?\d*\.\d\w*)|([^`~!#%^&*()\-=+[{\]}\\|;:'",.<>/?\s]+)/g,
   // Not possible to make comments in PromQL syntax
   comments: {
     lineComment: '#',
@@ -184,7 +184,7 @@ export const language = {
   operators,
   vectorMatching: vectorMatchingRegex,
   // we include these common regular expressions
-  symbols: /[=><!~?:&|+\-*\/^%]+/,
+  symbols: /[=><!~?:&|+\-*/^%]+/,
   escapes: /\\(?:[abfnrtv\\"']|x[0-9A-Fa-f]{1,4}|u[0-9A-Fa-f]{4}|U[0-9A-Fa-f]{8})/,
   digits: /\d+(_+\d+)*/,
   octaldigits: /[0-7]+(_+[0-7]+)*/,
@@ -220,7 +220,7 @@ export const language = {
       // whitespace
       { include: '@whitespace' },
       // delimiters and operators
-      [/[{}()\[\]]/, '@brackets'],
+      [/[{}()[\]]/, '@brackets'],
       [/[<>](?!@symbols)/, '@brackets'],
       [
         /@symbols/,
@@ -233,8 +233,8 @@ export const language = {
       ],
       // numbers
       [/\d+[smhdwy]/, 'number'],
-      [/\d*\d+[eE]([\-+]?\d+)?(@floatsuffix)/, 'number.float'],
-      [/\d*\.\d+([eE][\-+]?\d+)?(@floatsuffix)/, 'number.float'],
+      [/\d*\d+[eE]([-+]?\d+)?(@floatsuffix)/, 'number.float'],
+      [/\d*\.\d+([eE][-+]?\d+)?(@floatsuffix)/, 'number.float'],
       [/0[xX][0-9a-fA-F']*[0-9a-fA-F](@integersuffix)/, 'number.hex'],
       [/0[0-7']*[0-7](@integersuffix)/, 'number.octal'],
       [/0[bB][0-1']*[0-1](@integersuffix)/, 'number.binary'],

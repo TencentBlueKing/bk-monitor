@@ -32,8 +32,8 @@
     @update:isShow="handleHidden"
   >
     <div
-      class="detail-header"
       slot="header"
+      class="detail-header"
     >
       <span
         v-if="!loading && basicInfo"
@@ -61,8 +61,8 @@
       >
         <bk-button
           v-if="basicInfo && basicInfo.bk_biz_id === $store.getters.bizId"
-          style="width: 88px; margin-right: 8px"
           v-authority="{ active: !authority.MANAGE_AUTH && sideData.status !== 'STOPPED' }"
+          style="width: 88px; margin-right: 8px"
           :disabled="sideData.status === 'STOPPED'"
           :outline="true"
           theme="primary"
@@ -81,9 +81,9 @@
       </div>
     </div>
     <div
-      class="detail-content"
       slot="content"
       v-bkloading="{ isLoading: loading }"
+      class="detail-content"
     >
       <div class="detail-content-tab clearfix">
         <span
@@ -105,8 +105,8 @@
       </div>
       <div class="detail-content-wrap">
         <div
-          class="basic-info"
           v-show="active === 0"
+          class="basic-info"
         >
           <ul
             v-if="basicInfo"
@@ -114,8 +114,8 @@
           >
             <li
               v-for="(item, key) in basicInfoMap"
-              class="detail-item"
               :key="key"
+              class="detail-item"
             >
               <div
                 v-en-style="'width: 120px'"
@@ -126,9 +126,9 @@
               </div>
               <span
                 v-if="key === 'name'"
+                v-authority="{ active: !authority.MANAGE_AUTH }"
                 style="line-height: 32px"
                 class="detail-item-val"
-                v-authority="{ active: !authority.MANAGE_AUTH }"
                 @click="authority.MANAGE_AUTH ? handleEditLabel(key) : handleShowAuthorityDetail()"
               >
                 <span
@@ -136,8 +136,8 @@
                   class="name-wrapper"
                 >
                   <span
-                    class="config-name"
                     v-bk-tooltips.top="basicInfo[key]"
+                    class="config-name"
                     >{{ basicInfo[key] }}
                   </span>
                   <i
@@ -147,11 +147,11 @@
                 </span>
                 <bk-input
                   v-if="input.show"
-                  style="width: 150px"
+                  :ref="'input' + key"
                   v-model="input.copyName"
                   v-bk-clickoutside="handleTagClickout"
+                  style="width: 150px"
                   :maxlength="50"
-                  :ref="'input' + key"
                   @keydown="handleLabelKey"
                 />
               </span>
@@ -176,16 +176,16 @@
               <template v-if="key === 'plugin_display_name'">
                 <template v-if="basicInfo && basicInfo.collect_type !== 'Log'">
                   <span
-                    class="detail-item-val plugin-id"
                     v-bk-tooltips.top="basicInfo['plugin_id'] + '(' + basicInfo[key] + ')'"
+                    class="detail-item-val plugin-id"
                   >
                     {{ basicInfo['plugin_id'] + '(' + basicInfo[key] + ')' }}
                   </span>
                   <i
                     v-if="!input.show"
+                    v-authority="{ active: !authority.PLUGIN_MANAGE_AUTH }"
                     style="margin-top: -4px"
                     class="icon-monitor icon-bianji col-name-icon"
-                    v-authority="{ active: !authority.PLUGIN_MANAGE_AUTH }"
                     @click="handleToEditPlugin"
                   />
                 </template>
@@ -300,8 +300,8 @@
           >
             <li
               v-for="(item, index) in runtimeParams"
-              class="param-list-item"
               :key="index"
+              class="param-list-item"
             >
               <span class="item-name">{{ item.name }}</span>
               <span
@@ -326,16 +326,16 @@
           </div>
           <right-panel
             v-for="(table, index) in metricList"
+            :key="index"
             class="metric-wrap"
             :class="{ 'no-bottom': table.collapse }"
             :collapse="table.collapse"
-            :key="index"
             need-border
             @change="handleCollapseChange(index)"
           >
             <div
-              class="metric-wrap-title"
               slot="title"
+              class="metric-wrap-title"
             >
               {{ getTitle(table) }}
             </div>
@@ -388,8 +388,8 @@
           </right-panel>
         </div>
         <div
-          class="collect-target"
           v-show="active === 1"
+          class="collect-target"
         >
           <!-- <right-panel need-border> -->
           <!-- 复制目标 -->
@@ -435,8 +435,8 @@
                 <template v-if="scope.row.labels.length">
                   <span
                     v-for="(item, index) in scope.row.labels"
-                    class="classifiy-label"
                     :key="index"
+                    class="classifiy-label"
                   >
                     <span class="label-name">{{ item.first }}</span>
                     <span class="label-name">{{ item.second }}</span>

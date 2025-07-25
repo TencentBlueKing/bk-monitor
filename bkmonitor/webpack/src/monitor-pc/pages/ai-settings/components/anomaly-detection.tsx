@@ -32,14 +32,14 @@ import type { TranslateResult } from 'vue-i18n';
 import './anomaly-detection.scss';
 
 interface IGroupPanelProps {
-  title?: TranslateResult | string;
-  subtitle?: TranslateResult | string;
-  showExpand?: boolean;
   defaultExpand?: boolean;
-  readonly?: boolean;
-  validate?: boolean;
   isPackUp?: boolean;
+  readonly?: boolean;
+  showExpand?: boolean;
+  subtitle?: string | TranslateResult;
   theme?: 'dark' | 'light';
+  title?: string | TranslateResult;
+  validate?: boolean;
 }
 
 @Component

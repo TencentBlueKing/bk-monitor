@@ -24,23 +24,23 @@
  * IN THE SOFTWARE.
  */
 import {
-  defineComponent,
-  shallowRef,
-  computed,
-  reactive,
-  onMounted,
   type PropType,
-  watch,
-  onBeforeUnmount,
-  useTemplateRef,
+  computed,
   defineAsyncComponent,
+  defineComponent,
   KeepAlive,
+  onBeforeUnmount,
+  onMounted,
+  reactive,
+  readonly,
+  shallowRef,
   toRef,
   unref,
-  readonly,
+  useTemplateRef,
+  watch,
 } from 'vue';
 
-import { PrimaryTable, type TableSort, type SortInfo } from '@blueking/tdesign-ui';
+import { type SortInfo, type TableSort, PrimaryTable } from '@blueking/tdesign-ui';
 import { useDebounceFn } from '@vueuse/core';
 import { $bkPopover, Loading } from 'bkui-vue';
 
@@ -110,7 +110,7 @@ export default defineComponent({
   },
   emits: {
     backTop: () => true,
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+
     conditionChange: (val: ConditionChangeEvent) => true,
     clearRetrievalFilter: () => true,
     setUrlParams: () => true,

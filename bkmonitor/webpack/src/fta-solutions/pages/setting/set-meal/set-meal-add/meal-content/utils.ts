@@ -26,7 +26,7 @@
 import { getActionParams } from 'monitor-api/modules/action';
 
 /* 将变量({{xxx}})替换为变量值 */
-export const setVariableToString = (variableMap: Map<string, { id: string; example: string }>, targetStr: string) => {
+export const setVariableToString = (variableMap: Map<string, { example: string; id: string }>, targetStr: string) => {
   /* 获取字符串里的变量 */
   const getVariabelStrList = (value: string) => {
     const list = value.match(/\{\{(.*?)\}\}/g);

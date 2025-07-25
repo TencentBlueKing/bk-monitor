@@ -26,15 +26,15 @@
 <template>
   <!-- 功能开关列表 -->
   <div
-    class="function-switch-wrapper"
     v-monitor-loading="{ isLoading: loading }"
+    class="function-switch-wrapper"
   >
     <!-- 功能item -->
     <template v-if="!isAbnormal">
       <function-item
-        class="func-item"
         v-for="(item, index) in dataList"
         :key="index"
+        class="func-item"
         :data="item"
         :enable.sync="item.isEnable"
       />
@@ -48,25 +48,26 @@
         alt=""
         class="abnormal-img"
         src="../../static/images/svg/Abnormal-data.svg"
-      >
+      />
       <div class="abnormal-text">
         {{ $t('拉取用户配置数据失败') }}
       </div>
       <bk-button
         theme="primary"
         @click="getFunctionList"
-      >{{ $t('重新获取') }}</bk-button>
+        >{{ $t('重新获取') }}</bk-button
+      >
     </div>
   </div>
 </template>
 
 <script lang="ts">
-import { listFunction } from 'monitor-api/modules/function_switch.js';
-import { transformDataKey } from 'monitor-common/utils/utils';
 import { Component, Mixins, Provide, ProvideReactive } from 'vue-property-decorator';
 
-import authorityMixinCreate from '../../mixins/authorityMixin';
+import { listFunction } from 'monitor-api/modules/function_switch.js';
+import { transformDataKey } from 'monitor-common/utils/utils';
 
+import authorityMixinCreate from '../../mixins/authorityMixin';
 import * as funcAuth from './authority-map';
 import FunctionItem from './function-item.vue';
 

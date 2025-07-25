@@ -43,13 +43,13 @@ interface IBaseEvent extends IChartEvent {
 }
 interface IBaseProps extends IChartProps {
   groupId?: string;
-  showRestore?: boolean;
-  needTooltips?: boolean;
-  sortTooltipsValue?: boolean;
-  needZrClick?: boolean;
   needMenuClick?: boolean;
-  tooltipsContentLastItemFn?: (v: any) => string;
+  needTooltips?: boolean;
+  needZrClick?: boolean;
+  showRestore?: boolean;
+  sortTooltipsValue?: boolean;
   customTooltips?: (v: any) => string; // 自定义tooltip内容
+  tooltipsContentLastItemFn?: (v: any) => string;
 }
 @Component
 class MonitorBaseEchart extends BaseEchart {

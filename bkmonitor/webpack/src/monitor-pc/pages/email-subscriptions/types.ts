@@ -25,14 +25,12 @@
  */
 import type { TranslateResult } from 'vue-i18n';
 
-export interface IRadioMap {
-  id: number;
-  name: TranslateResult | string;
-}
-
-export interface IGraphValueItem {
-  id: string;
-  name: string;
+export enum EType {
+  day = 2,
+  hour = 5,
+  month = 4,
+  once = 1,
+  week = 3,
 }
 
 export enum EWeek {
@@ -45,79 +43,81 @@ export enum EWeek {
   Wed = 3,
 }
 
-export enum EType {
-  day = 2,
-  hour = 5,
-  month = 4,
-  once = 1,
-  week = 3,
-}
-
-export interface ITimePeriodValue {
-  type: EType;
-  runTime: string;
-  dayList: number[];
-  weekList: number[];
-  hour: number;
-}
-
-export interface IContentFormData {
-  contentTitle: string;
-  contentDetails: string;
-  rowPicturesNum: 1 | 2;
-  graphs: string[];
-  curBizId?: string;
-  curGrafana?: string;
-  curGrafanaName?: string;
-  width?: number;
-  height?: number;
-}
-
-export interface ISelectChartValue {
-  title?: string;
-  bkBizId: number;
-  dashboardUid: number;
-  panelId: number;
-}
-
 export interface IAddChartToolData {
-  show: boolean;
   active: string;
+  show: boolean;
   tabList: any;
 }
 
-export interface IToolTabListItem {
-  label: string;
-  name: 'default' | 'grafana';
+export interface IChartDataItem {
+  fatherId?: string;
+  id: number;
+  key?: string;
+  title: string;
 }
 
 export interface IChartListAllItem {
+  bk_biz_id?: number;
   id: number;
   name: string;
   panels: IChartDataItem[];
   text: string;
-  uid: string;
   title?: string;
-  bk_biz_id?: number;
+  uid: string;
 }
 
-export interface IChartDataItem {
-  id: number;
-  title: string;
-  key?: string;
-  fatherId?: string;
-}
-
-export interface ITableColumnItem {
-  label: TranslateResult | string;
-  key: string;
-  formatter?: Function;
+export interface IContentFormData {
+  contentDetails: string;
+  contentTitle: string;
+  curBizId?: string;
+  curGrafana?: string;
+  curGrafanaName?: string;
+  graphs: string[];
+  height?: number;
+  rowPicturesNum: 1 | 2;
   width?: number;
-  overflow?: boolean;
 }
 
 export interface IDefaultRadioList {
   id: string;
   text: string;
   title: string;
+}
+
+export interface IGraphValueItem {
+  id: string;
+  name: string;
+}
+
+export interface IRadioMap {
+  id: number;
+  name: string | TranslateResult;
+}
+
+export interface ISelectChartValue {
+  bkBizId: number;
+  dashboardUid: number;
+  panelId: number;
+  title?: string;
+}
+
+export interface ITableColumnItem {
+  formatter?: Function;
+  key: string;
+  label: string | TranslateResult;
+  overflow?: boolean;
+  width?: number;
+}
+
+export interface ITimePeriodValue {
+  dayList: number[];
+  hour: number;
+  runTime: string;
+  type: EType;
+  weekList: number[];
+}
+
+export interface IToolTabListItem {
+  label: string;
+  name: 'default' | 'grafana';
 }

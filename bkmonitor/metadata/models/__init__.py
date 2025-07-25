@@ -36,6 +36,9 @@ from .data_link import (  # noqa
     DataLinkResourceConfig,
     VMResultTableConfig,
     VMStorageBindingConfig,
+    LogResultTableConfig,
+    ESStorageBindingConfig,
+    LogDataBusConfig,
 )
 from .data_pipeline import (
     DataPipeline,

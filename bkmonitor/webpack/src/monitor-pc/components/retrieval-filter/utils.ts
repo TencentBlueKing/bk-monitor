@@ -24,18 +24,8 @@
  * IN THE SOFTWARE.
  */
 
-export enum EMode {
-  queryString = 'queryString',
-  ui = 'ui',
-}
 export enum ECondition {
   and = 'and',
-}
-export enum EMethod {
-  eq = 'eq',
-  exclude = 'exclude',
-  include = 'include',
-  ne = 'ne',
 }
 export enum EFieldType {
   all = 'all',
@@ -43,6 +33,16 @@ export enum EFieldType {
   integer = 'integer',
   keyword = 'keyword',
   text = 'text',
+}
+export enum EMethod {
+  eq = 'eq',
+  exclude = 'exclude',
+  include = 'include',
+  ne = 'ne',
+}
+export enum EMode {
+  queryString = 'queryString',
+  ui = 'ui',
 }
 
 export const OPPOSE_METHODS = [EMethod.ne, EMethod.exclude];
@@ -89,46 +89,66 @@ export const fieldTypeMap = {
 
 /* 可选数据格式 */
 export interface IFilterField {
-  name: string;
   alias: string;
-  type: EFieldType;
-  is_option_enabled: boolean; // 是否可自定选项
   is_dimensions?: boolean;
+  is_option_enabled: boolean; // 是否可自定选项
+  name: string;
+  type: EFieldType;
   supported_operations: {
     alias: string;
-    value: EMethod;
     options?: {
       label: string;
       name: string;
     };
+    value: EMethod;
   }[]; // 支持的操作
+}
+/* 条件结果数据格式 */
+export interface IFilterItem {
+  condition: { id: ECondition; name: string };
+  hide?: boolean;
+  isSetting?: boolean; // 是否是设置项
+  key: { id: string; name: string };
+  method: { id: EMethod; name: string };
+  value: { id: string; name: string }[];
+  options?: {
+    is_wildcard: boolean;
+  };
 }
 /* 接口where参数格式 */
 export interface IWhereItem {
-  key: string;
   condition: ECondition;
+  key: string;
   method: EMethod | string;
   value: string[];
   options?: {
     is_wildcard: boolean;
   };
 }
-/* 条件结果数据格式 */
-export interface IFilterItem {
-  key: { id: string; name: string };
-  condition: { id: ECondition; name: string };
-  method: { id: EMethod; name: string };
-  value: { id: string; name: string }[];
-  options?: {
-    is_wildcard: boolean;
-  };
-  hide?: boolean;
-  isSetting?: boolean; // 是否是设置项
-}
 export const MODE_LIST = [
   { id: EMode.ui, name: window.i18n.t('UI 模式') },
   { id: EMode.queryString, name: window.i18n.t('语句模式') },
 ];
+
+export interface IFavoriteListItem {
+  id: string;
+  name: string;
+  favorites: {
+    config: {
+      queryConfig: {
+        query_string: string;
+        where: IWhereItem[];
+      };
+    };
+    name: string;
+  }[];
+}
+export interface IGetValueFnParams {
+  fields?: string[];
+  limit?: number;
+  queryString?: string;
+  where?: IWhereItem[];
+}
 
 export interface IWhereValueOptionsItem {
   count: number;
@@ -137,25 +157,15 @@ export interface IWhereValueOptionsItem {
     name: string;
   }[];
 }
-export interface IGetValueFnParams {
-  limit?: number;
-  where?: IWhereItem[];
-  fields?: string[];
-  queryString?: string;
-}
 
-export interface IFavoriteListItem {
-  id: string;
-  name: string;
-  favorites: {
-    name: string;
-    config: {
-      queryConfig: {
-        query_string: string;
-        where: IWhereItem[];
-      };
-    };
-  }[];
+export function defaultWhereItem(params = {}): IWhereItem {
+  return {
+    condition: ECondition.and,
+    key: '',
+    method: EMethod.eq,
+    value: [],
+    ...params,
+  };
 }
 
 /**
@@ -185,23 +195,10 @@ export function getTitleAndSubtitle(str) {
   };
 }
 
-export function defaultWhereItem(params = {}): IWhereItem {
-  return {
-    condition: ECondition.and,
-    key: '',
-    method: EMethod.eq,
-    value: [],
-    ...params,
-  };
-}
-
 export const RETRIEVAL_FILTER_UI_DATA_CACHE_KEY = '__RETRIEVAL_FILTER_UI_DATA_CACHE_KEY__';
-/**
- * @description 缓存ui数据
- * @param v
- */
-export function setCacheUIData(v: IFilterItem[]) {
-  localStorage.setItem(RETRIEVAL_FILTER_UI_DATA_CACHE_KEY, JSON.stringify(v));
+interface IResidentSetting {
+  field: IFilterField;
+  value: IWhereItem;
 }
 export function getCacheUIData(): IFilterItem[] {
   const uiDataSrt = localStorage.getItem(RETRIEVAL_FILTER_UI_DATA_CACHE_KEY);
@@ -213,13 +210,22 @@ export function getCacheUIData(): IFilterItem[] {
   }
 }
 
-interface IResidentSetting {
-  field: IFilterField;
-  value: IWhereItem;
+/**
+ * @description 缓存ui数据
+ * @param v
+ */
+export function setCacheUIData(v: IFilterItem[]) {
+  localStorage.setItem(RETRIEVAL_FILTER_UI_DATA_CACHE_KEY, JSON.stringify(v));
 }
 export const RETRIEVAL_FILTER_RESIDENT_SETTING_KEY = 'RETRIEVAL_FILTER_RESIDENT_SETTING_KEY';
-export function setResidentSettingData(v: IResidentSetting[]) {
-  localStorage.setItem(RETRIEVAL_FILTER_RESIDENT_SETTING_KEY, JSON.stringify(v));
+export enum EQueryStringTokenType {
+  bracket = 'bracket',
+  condition = 'condition',
+  key = 'key',
+  method = 'method',
+  split = 'split',
+  value = 'value',
+  valueCondition = 'value-condition',
 }
 export function getResidentSettingData(): IResidentSetting[] {
   const uiDataSrt = localStorage.getItem(RETRIEVAL_FILTER_RESIDENT_SETTING_KEY);
@@ -231,28 +237,8 @@ export function getResidentSettingData(): IResidentSetting[] {
   }
 }
 
-/**
- * @description 关闭模态框事件
- * @param element
- * @param callback
- * @param param2
- * @returns
- */
-export function onClickOutside(element, callback, { once = false } = {}) {
-  const handler = (event: MouseEvent) => {
-    let isInside = false;
-    if (Array.isArray(element)) {
-      isInside = element.some(el => el.contains(event.target));
-    } else {
-      isInside = element.contains(event.target);
-    }
-    if (!isInside) {
-      callback(event);
-      if (once) document.removeEventListener('click', handler);
-    }
-  };
-  document.addEventListener('click', handler);
-  return () => document.removeEventListener('click', handler);
+export function isNumeric(str) {
+  return /^[-+]?(\d+(\.\d*)?|\.\d+)([eE][-+]?\d+)?$/.test(str);
 }
 // 单次触发示例
 // const removeListener = onClickOutside(targetElement, closeModal, { once: true });
@@ -287,18 +273,32 @@ export function mergeWhereList(source: IWhereItem[], target: IWhereItem[]) {
   result = [...source, ...localTarget];
   return result;
 }
-export enum EQueryStringTokenType {
-  bracket = 'bracket',
-  condition = 'condition',
-  key = 'key',
-  method = 'method',
-  split = 'split',
-  value = 'value',
-  valueCondition = 'value-condition',
+/**
+ * @description 关闭模态框事件
+ * @param element
+ * @param callback
+ * @param param2
+ * @returns
+ */
+export function onClickOutside(element, callback, { once = false } = {}) {
+  const handler = (event: MouseEvent) => {
+    let isInside = false;
+    if (Array.isArray(element)) {
+      isInside = element.some(el => el.contains(event.target));
+    } else {
+      isInside = element.contains(event.target);
+    }
+    if (!isInside) {
+      callback(event);
+      if (once) document.removeEventListener('click', handler);
+    }
+  };
+  document.addEventListener('click', handler);
+  return () => document.removeEventListener('click', handler);
 }
 
-export function isNumeric(str) {
-  return /^[-+]?(\d+(\.\d*)?|\.\d+)([eE][-+]?\d+)?$/.test(str);
+export function setResidentSettingData(v: IResidentSetting[]) {
+  localStorage.setItem(RETRIEVAL_FILTER_RESIDENT_SETTING_KEY, JSON.stringify(v));
 }
 
 /**

@@ -1,3 +1,5 @@
+import type { VNode } from 'vue';
+
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -28,7 +30,6 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import AlarmGroupAdd from '../../../pages/alarm-group/alarm-group-add/alarm-group-add-common/alarm-group-add';
 
-import type { VNode } from 'vue';
 import type { Route } from 'vue-router';
 
 interface IAlarmGroupAdd {

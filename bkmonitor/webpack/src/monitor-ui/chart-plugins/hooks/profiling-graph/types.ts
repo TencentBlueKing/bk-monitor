@@ -1,3 +1,8 @@
+export interface ICommonMenuItem {
+  icon: string;
+  id: string;
+  name: string;
+}
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -26,23 +31,24 @@
 export interface IDiffInfo {
   baseline: number;
   comparison: number;
-  mark: 'added' | 'changed' | 'removed' | 'unchanged';
   diff: number;
-}
-export interface IFlameGraphDataItem {
-  id: string;
-  name: string;
-  self: number;
-  value: number;
-  level: number;
-  children?: IFlameGraphDataItem[];
-  start?: number;
-  end?: number;
-  proportion?: number;
-  diff_info?: IDiffInfo;
+  mark: 'added' | 'changed' | 'removed' | 'unchanged';
 }
 
 export type IFlameGraphData = IFlameGraphDataItem[];
+
+export interface IFlameGraphDataItem {
+  children?: IFlameGraphDataItem[];
+  diff_info?: IDiffInfo;
+  end?: number;
+  id: string;
+  level: number;
+  name: string;
+  proportion?: number;
+  self: number;
+  start?: number;
+  value: number;
+}
 
 export type IProfilingGraphData = Pick<
   IFlameGraphDataItem,
@@ -50,9 +56,3 @@ export type IProfilingGraphData = Pick<
 > & {
   value: any[];
 };
-
-export interface ICommonMenuItem {
-  id: string;
-  name: string;
-  icon: string;
-}

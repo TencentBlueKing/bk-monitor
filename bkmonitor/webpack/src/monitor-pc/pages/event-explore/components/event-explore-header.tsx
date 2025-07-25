@@ -37,25 +37,25 @@ import type { TimeRangeType } from '../../../components/time-range/time-range';
 import type { HideFeatures, IDataIdItem } from '../typing';
 
 import './event-explore-header.scss';
-interface EventRetrievalNavBarProps {
-  timeRange?: TimeRangeType;
-  timezone?: string;
-  refreshInterval?: number;
-  dataIdList?: IDataIdItem[];
-  dataId: string;
-  dataSourceLabel: string;
-  dataTypeLabel: string;
-  isShowFavorite?: boolean;
-}
-
 interface EventRetrievalNavBarEvents {
-  onTimezoneChange(val: string): void;
-  onTimeRangeChange(val: TimeRangeType): void;
-  onImmediateRefresh(): void;
-  onRefreshChange(val: number): void;
   onDataIdChange(val: string): void;
   onEventTypeChange(val: { data_source_label: string; data_type_label: string }): void;
   onFavoriteShowChange(show: boolean): void;
+  onImmediateRefresh(): void;
+  onRefreshChange(val: number): void;
+  onTimeRangeChange(val: TimeRangeType): void;
+  onTimezoneChange(val: string): void;
+}
+
+interface EventRetrievalNavBarProps {
+  dataId: string;
+  dataIdList?: IDataIdItem[];
+  dataSourceLabel: string;
+  dataTypeLabel: string;
+  isShowFavorite?: boolean;
+  refreshInterval?: number;
+  timeRange?: TimeRangeType;
+  timezone?: string;
 }
 
 /** 置顶的data_id */

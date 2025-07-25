@@ -24,6 +24,7 @@
  * IN THE SOFTWARE.
  */
 import Vue from 'vue';
+
 import { Component, ProvideReactive, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 

@@ -29,7 +29,7 @@ import { Component as tsc } from 'vue-tsx-support';
 import { Debounce, random } from 'monitor-common/utils';
 
 import { getEventPaths } from '../../../utils';
-import { CONDITIONS, type ICondtionItem, METHODS } from '../typing';
+import { type ICondtionItem, CONDITIONS, METHODS } from '../typing';
 import {
   type ISpecialOptions,
   type TGroupKeys,
@@ -41,12 +41,12 @@ import {
 import './common-condition.scss';
 
 interface IListItem {
-  id: string;
-  name: string;
-  isCheck?: boolean;
-  isStrategyId?: boolean;
   first_label_name?: string; // 适用于策略id
+  id: string;
+  isCheck?: boolean;
   isGroupKey?: boolean;
+  isStrategyId?: boolean;
+  name: string;
 }
 
 const groupNamesMap = {
@@ -66,29 +66,29 @@ enum TypeEnum {
 const NULL_NAME = `-${window.i18n.t('空')}-`;
 const settingPopClassName = 'common-condition-component-settings-msg';
 
-interface ITagItem {
-  type: TypeEnum;
-  id: string;
-  name: string;
-  alias?: string; // 别名， 标签和维度的key 需要有别名
-}
-
 interface IProps {
-  value: ICondtionItem[];
-  keyList?: IListItem[];
-  valueList?: IListItem[];
-  valueMap?: TValueMap;
-  groupKeys?: TGroupKeys;
   groupKey?: string[];
-  readonly?: boolean;
-  specialOptions?: ISpecialOptions;
-  settingsValue?: ICondtionItem[];
+  groupKeys?: TGroupKeys;
+  keyList?: IListItem[];
   loading?: boolean;
   needValidate?: boolean;
+  readonly?: boolean;
+  settingsValue?: ICondtionItem[];
+  specialOptions?: ISpecialOptions;
+  value: ICondtionItem[];
+  valueList?: IListItem[];
+  valueMap?: TValueMap;
   onChange?: (v: ICondtionItem[]) => void;
+  onRepeat?: (v: boolean) => void;
   onSettingsChange?: () => void;
   onValidate?: (v: boolean) => void;
-  onRepeat?: (v: boolean) => void;
+}
+
+interface ITagItem {
+  alias?: string; // 别名， 标签和维度的key 需要有别名
+  id: string;
+  name: string;
+  type: TypeEnum;
 }
 
 @Component
@@ -228,11 +228,11 @@ export default class CommonCondition extends tsc<IProps> {
     if (this.readonly) {
       return;
     }
-    if (!!this.popInstance?.show) {
+    if (this.popInstance?.show) {
       this.handlePopoerHidden();
       return;
     }
-    if (!!this.settingsPopInstance?.show) {
+    if (this.settingsPopInstance?.show) {
       this.handleSettingsPopHidden();
     }
     event.stopPropagation();
@@ -452,7 +452,7 @@ export default class CommonCondition extends tsc<IProps> {
       this.tagList.splice(inputItemIndex, 1);
       this.tagList[this.tagList.length - 1].type = TypeEnum.input;
     }
-    if (!!this.locaLValue.length) {
+    if (this.locaLValue.length) {
       if (this.tagList[this.tagList.length - 2]?.type === TypeEnum.condition) {
         this.tagList.splice(this.tagList.length - 2, 1);
         this.showAdd = true;
@@ -764,11 +764,11 @@ export default class CommonCondition extends tsc<IProps> {
   }
 
   /* 输入框操作 */
-  handleKeydown(event: Event | any, item: ITagItem, index: number) {
+  handleKeydown(event: any | Event, item: ITagItem, index: number) {
     const keyCode = event?.code || '';
     switch (keyCode) {
       case 'Enter': {
-        if (!!this.inputValue) {
+        if (this.inputValue) {
           const preTagItem = this.tagList[index - 1];
           if (this.isClickKeyTag) {
             /* 自定义key值 */
@@ -939,7 +939,7 @@ export default class CommonCondition extends tsc<IProps> {
           id: keyItem?.id || condition.field,
           name: keyItem?.name || condition.field,
           type: TypeEnum.key,
-          alias: !!keyItem?.groupName ? `[${keyItem.groupName}]${keyItem.name}` : undefined,
+          alias: keyItem?.groupName ? `[${keyItem.groupName}]${keyItem.name}` : undefined,
         });
         tagList.push({
           id: methodItem?.id || METHODS[0].id,
@@ -1151,7 +1151,7 @@ export default class CommonCondition extends tsc<IProps> {
     let keyList = [];
     if (item.id === 'dimensions') {
       const tempKeys = this.getDimensionKeys() as any;
-      if (!!tempKeys?.length) {
+      if (tempKeys?.length) {
         keyList = tempKeys;
       }
     } else {
@@ -1407,7 +1407,7 @@ export default class CommonCondition extends tsc<IProps> {
                       onClick={() => this.handleOptionClick(item)}
                       onMouseenter={e => this.handleOptionMouseEnter(e, item)}
                     >
-                      {!!item?.isStrategyId ? (
+                      {item?.isStrategyId ? (
                         <span class='strategy-name'>
                           <span>{item.name}</span>
                           <span class='strategy-name-info'>{`${item.first_label_name} (#${item.id})`}</span>

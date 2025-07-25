@@ -33,7 +33,7 @@ import TimeRange, { type TimeRangeType } from 'monitor-pc/components/time-range/
 import { getDefaultTimezone, updateTimezone } from 'monitor-pc/i18n/dayjs';
 
 import TabList from '../tabList';
-import { ETelemetryDataType, type IAppInfo } from '../type';
+import { type IAppInfo, ETelemetryDataType } from '../type';
 import Metric from './data-state-metric';
 
 import type { IViewOptions } from 'monitor-ui/chart-plugins/typings';

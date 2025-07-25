@@ -24,7 +24,6 @@
  * IN THE SOFTWARE.
  */
 import { defineComponent, reactive, ref, shallowRef, watch } from 'vue';
-import { useI18n } from 'vue-i18n';
 
 import { PrimaryTable } from '@blueking/tdesign-ui';
 import { Checkbox, Loading, Select } from 'bkui-vue';
@@ -36,6 +35,7 @@ import {
   promqlToQueryConfig,
 } from 'monitor-api/modules/strategies';
 import { random } from 'monitor-common/utils';
+import { useI18n } from 'vue-i18n';
 
 import AlarmShieldConfigScope, { scopeData } from './alarm-shield-config-scope';
 import DimensionConditionInput from './components/dimension-input/dimension-input';

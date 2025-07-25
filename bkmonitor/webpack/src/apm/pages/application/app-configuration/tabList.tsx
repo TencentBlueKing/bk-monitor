@@ -28,20 +28,20 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import './tabList.scss';
 
-interface ITab {
-  name: string;
-  label: string;
-  status: 'disabled' | 'no_data' | 'normal';
-  disabledTips?: string;
-  noDataTips?: string;
+interface IEvent {
+  onChange: (active: string) => void;
 }
 
 interface IProps {
-  tabList: ITab[];
   activeTab: string;
+  tabList: ITab[];
 }
-interface IEvent {
-  onChange: (active: string) => void;
+interface ITab {
+  disabledTips?: string;
+  label: string;
+  name: string;
+  noDataTips?: string;
+  status: 'disabled' | 'no_data' | 'normal';
 }
 @Component
 export default class TabList extends tsc<IProps, IEvent> {

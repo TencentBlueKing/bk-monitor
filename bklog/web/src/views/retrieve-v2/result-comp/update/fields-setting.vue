@@ -352,7 +352,7 @@
       async confirmModifyFields() {
         const currentSortList = this.$refs?.tableSortRef?.shadowSort || this.cachedSortFields;
         const currentVisibleList = this.$refs.fieldSettingRef.shadowVisible.map(item => item.field_name);
-
+        const updateSortList = this.syncSort(currentSortList)
         if (currentVisibleList.length === 0) {
           this.messageWarn(this.$t('显示字段不能为空'));
           return;
@@ -362,7 +362,7 @@
           if (this.isTemplateConfig) {
             const confirmConfigData = {
               editStr: this.currentClickConfigData.name,
-              sort_list: currentSortList,
+              sort_list:updateSortList,
               display_fields: currentVisibleList,
               id: this.currentClickConfigData.id,
             };
@@ -380,7 +380,7 @@
           this.$store
             .dispatch('userFieldConfigChange', {
               displayFields: currentVisibleList,
-              sortList: currentSortList,
+              sortList: updateSortList,
               fieldsWidth: {},
             })
             .then(() => {
@@ -641,6 +641,33 @@
       searchChange(v) {
         this.keyword = v;
       },
+      /** gseIndex和iterationIndex排序顺序同步dtEventTimeStamp */
+      syncSort(currentSortList) {
+        const fields = this.$store.state.indexFieldInfo.fields.map(item => item.field_name);
+        const existingKeys = new Set(currentSortList.map(item => item[0]));
+        const requiredFields = ['gseIndex', 'iterationIndex'];
+
+        if (!existingKeys.has('dtEventTimeStamp')) {
+          return currentSortList.filter(([key]) => !requiredFields.includes(key));
+        }
+
+        const dtEventTimeStampSort = currentSortList.find(([key]) => key === 'dtEventTimeStamp')[1];
+
+        requiredFields.forEach(field => {
+          if (fields.includes(field)) {
+            const index = currentSortList.findIndex(([key]) => key === field);
+            const sortItem = [field, dtEventTimeStampSort];
+
+            if (index !== -1) {
+              currentSortList[index] = sortItem;
+            } else {
+              currentSortList.push(sortItem);
+            }
+          }
+        });
+
+        return currentSortList;
+      }
     },
   };
 </script>

@@ -26,8 +26,8 @@
 <template>
   <div class="process-params">
     <div
-      class="form-item"
       v-show="false"
+      class="form-item"
     >
       <!-- 插件选择部分优先级提高，故隐藏此处 -->
       <label class="item-label required">{{ $t('插件') }}</label>
@@ -42,8 +42,8 @@
       <label class="item-label required line-height-20">{{ $t('进程匹配') }}</label>
       <div class="item-content">
         <bk-radio-group
-          class="process-match"
           v-model="params.match_type"
+          class="process-match"
         >
           <bk-radio value="command">
             {{ $t('命令行匹配') }}
@@ -63,8 +63,8 @@
             position="right"
           >
             <bk-input
-              class="mt10 small-input required"
               v-model="params.match_pattern"
+              class="mt10 small-input required"
               :placeholder="`${$t('直接字符串匹配，不支持正则')}，${$t('举例')}：/data/home/user00/world`"
             >
               <template slot="prepend">
@@ -75,8 +75,8 @@
             </bk-input>
           </verify-input>
           <bk-input
-            class="mt10 small-input"
             v-model="params.exclude_pattern"
+            class="mt10 small-input"
             :placeholder="`${$t('排除匹配到的进程，支持正则')}，${$t('举例')}：/data/home/user00/wold[\d].+`"
           >
             <template slot="prepend">
@@ -86,8 +86,8 @@
             </template>
           </bk-input>
           <bk-input
-            class="mt10 small-input"
             v-model="params.extract_pattern"
+            class="mt10 small-input"
             :placeholder="`${$t('举例')}：--type=(?P<type>[^&\s]+)`"
           >
             <template slot="prepend">
@@ -105,8 +105,8 @@
             position="right"
           >
             <bk-input
-              class="mt10 small-input"
               v-model="params.pid_path"
+              class="mt10 small-input"
               :placeholder="$t('PID的绝对路径')"
             />
           </verify-input>
@@ -117,26 +117,26 @@
       <label class="item-label required">{{ $t('进程名提取') }}</label>
       <div class="item-content">
         <bk-radio-group
-          class="process-extract"
           v-model="processExtractMode"
+          class="process-extract"
         >
           <bk-radio
             v-for="(item, index) in processExtractModeList"
-            ext-cls="process-extract-item"
+            :key="index"
             v-bk-tooltips="{
               content: item.hoverText,
               width: 240,
             }"
-            :key="index"
+            ext-cls="process-extract-item"
             :value="item.value"
           >
             {{ item.label }}
           </bk-radio>
         </bk-radio-group>
         <bk-input
-          class="process-input"
-          v-model="params.process_name"
           v-show="showInput"
+          v-model="params.process_name"
+          class="process-input"
         />
       </div>
     </div>
@@ -147,8 +147,8 @@
       <label class="item-label line-height-20">{{ $t('调试') }}</label>
       <div class="item-content debug-content">
         <bk-input
-          ext-cls="debug-control"
           v-model="debugProcesses"
+          ext-cls="debug-control"
           :placeholder="$t('输入示例文本查看匹配结果')"
           :rows="5"
           type="textarea"
@@ -191,8 +191,7 @@
               width="150"
               label="匹配进程"
               prop="process_name"
-            >
-            </bk-table-column>
+            />
             <bk-table-column
               label="匹配维度"
               prop="dimensions"
@@ -201,8 +200,8 @@
                 <div class="match-dimension">
                   <div
                     v-for="[key, value] in Object.entries(props.row.dimensions)"
-                    class="dimension"
                     :key="key"
+                    class="dimension"
                   >
                     <span class="dimension-key">{{ key }} = </span>
                     <span class="dimension-value">{{ value }}</span>

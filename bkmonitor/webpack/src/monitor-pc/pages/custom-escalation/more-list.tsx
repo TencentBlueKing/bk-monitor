@@ -153,7 +153,7 @@ export default class MoreList extends tsc<IProps> {
   /* 保存并匹配 */
   handleSave() {
     if (!this.tempInput) return;
-    if (!!this.editActive) {
+    if (this.editActive) {
       const index = this.localList.findIndex(item => item === this.editActive);
       if (this.localList.filter(item => item !== this.editActive).includes(this.tempInput)) {
         this.errMsg = this.$tc('注意: 名字冲突');
@@ -245,7 +245,7 @@ export default class MoreList extends tsc<IProps> {
               onEnter={this.handleSave}
             />
             <div
-              style={{ display: !!this.errMsg ? 'block' : 'none' }}
+              style={{ display: this.errMsg ? 'block' : 'none' }}
               class='err-msg'
             >
               {this.errMsg}

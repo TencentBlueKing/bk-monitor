@@ -31,7 +31,7 @@
 
 import Vue from 'vue';
 
-import { LANGUAGE_COOKIE_KEY, docCookies } from 'monitor-common/utils';
+import { docCookies, LANGUAGE_COOKIE_KEY } from 'monitor-common/utils';
 import { Module, Mutation, VuexModule } from 'vuex-module-decorators';
 
 import type { ISpaceItem } from '../../typings';
@@ -41,18 +41,18 @@ export const SET_BIZ_BGCOLOR = 'SET_BIZ_BGCOLOR';
 
 export const SET_NAV_ROUTE_LIST = 'SET_NAV_ROUTE_LIST';
 export interface IAppState {
-  navId: string;
-  userName: string;
-  bizId: string;
-  bizList: ISpaceItem[];
-  csrfCookieName: string;
-  siteUrl: string;
-  bkUrl: string;
-  navRouteList: any[];
   bizBgColor: string;
-  lang: string;
-  spaceUidMap: Map<string, ISpaceItem>;
+  bizId: string;
   bizIdMap: Map<string, ISpaceItem>;
+  bizList: ISpaceItem[];
+  bkUrl: string;
+  csrfCookieName: string;
+  lang: string;
+  navId: string;
+  navRouteList: any[];
+  siteUrl: string;
+  spaceUidMap: Map<string, ISpaceItem>;
+  userName: string;
 }
 
 @Module({ name: 'app', namespaced: true })

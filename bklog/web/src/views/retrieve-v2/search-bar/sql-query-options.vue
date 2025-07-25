@@ -31,7 +31,7 @@
 
   const store = useStore();
   const { $t } = useLocale();
-  const { getFieldNames } = useFieldNameHook({ store });
+  const { getQualifiedFieldName } = useFieldNameHook({ store });
 
   enum OptionItemType {
     Colon = 'Colon',
@@ -71,7 +71,7 @@
   /** 所有字段的字段名 */
   const totalFieldsNameList = computed(() => {
     const filterFn = field => field.field_type !== '__virtual__' && !excludesFields.includes(field.field_name);
-    return getFieldNames(totalFields.value.filter(filterFn));
+    return totalFields.value.filter(filterFn).map(fieldInfo => fieldInfo.field_name);
   });
 
   // 检索后的日志数据如果字段在字段接口找不到则不展示联想的key
@@ -105,12 +105,12 @@
   ]);
 
   const setOptionActive = () => {
+    const dropdownList = refDropdownEl?.value?.querySelectorAll('.list-item');
+    refDropdownEl?.value?.querySelector('.list-item.active')?.classList.remove('active');
     if (activeIndex.value === null) {
       return;
     }
 
-    const dropdownList = refDropdownEl?.value?.querySelectorAll('.list-item');
-    refDropdownEl?.value?.querySelector('.list-item.active')?.classList.remove('active');
     dropdownList?.[activeIndex.value]?.classList.add('active');
   };
 
@@ -161,7 +161,7 @@
       return;
     }
 
-    valueList.value = getValueList(retrieveDropdownData.value[fieldName] ?? {});
+    valueList.value = getValueList(retrieveDropdownData.value[fieldName] ?? {})?.filter(item => item?.indexOf(value) !== -1);
   };
 
   /**
@@ -262,7 +262,7 @@
       return;
     }
 
-    const lastValues = /(:|>=|<=|>|<)\s*(\d+|"((?:[^"\\]|\\.)*)"?)/.exec(lastFragment);
+    const lastValues = /(:|>=|<=|>|<)\s*(\d+|\w+|"((?:[^"\\]|\\.)*)"?)/.exec(lastFragment);
     const matchValue = lastValues?.[3] ?? lastValues?.[2];
     const matchValueWithQuotes = lastValues?.[2];
 
@@ -291,7 +291,7 @@
     // 开始输入字段【nam】
     const inputField = /^\s*(?<field>[\w.]+)$/.exec(lastFragment)?.groups?.field;
     if (inputField) {
-      fieldList.value = originFieldList().filter(item => item.includes(inputField));
+      fieldList.value = originFieldList().filter(item => getQualifiedFieldName(item).includes(inputField));
       if (fieldList.value.length) {
         showWhichDropdown(OptionItemType.Fields);
         return;
@@ -364,7 +364,7 @@
     const rightValue = getFocusRightValue();
     const lastFragment = sqlValue.split(/\s+(AND\s+NOT|OR|AND)\s+/i)?.pop() ?? '';
 
-    const lastValues = /(:|>=|<=|>|<)\s*(\d+|"((?:[^"\\]|\\.)*)"?)/.exec(lastFragment);
+    const lastValues = /(:|>=|<=|>|<)\s*(\d+|\w+|"((?:[^"\\]|\\.)*)"?)/.exec(lastFragment);
     const matchValueWithQuotes = lastValues?.[2] ?? '';
     const matchLeft = sqlValue.slice(0, sqlValue.length - matchValueWithQuotes.length);
     const targetValue = value.replace(/^"|"$/g, '').replace(/"/g, '\\"');
@@ -553,7 +553,9 @@
       setOptionActive();
     });
   });
-
+ const filedNameShow = (item)=> {
+  return getQualifiedFieldName(item)
+  }
   defineExpose({
     beforeShowndFn,
     beforeHideFn,
@@ -597,7 +599,7 @@
                 class="item-text text-overflow-hidden"
                 v-bk-overflow-tips="{ placement: 'right' }"
               >
-                {{ item }}
+                {{ filedNameShow(item) }}
               </div>
             </li>
           </div>

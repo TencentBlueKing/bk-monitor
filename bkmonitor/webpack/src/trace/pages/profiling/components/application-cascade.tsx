@@ -24,10 +24,10 @@
  * IN THE SOFTWARE.
  */
 import { type PropType, computed, defineComponent, reactive, ref, watch } from 'vue';
-import { useI18n } from 'vue-i18n';
 
-import { Button, Form, Input, Loading, Popover, Exception } from 'bkui-vue';
+import { Button, Exception, Form, Input, Loading, Popover } from 'bkui-vue';
 import { queryBkDataToken } from 'monitor-api/modules/apm_meta';
+import { useI18n } from 'vue-i18n';
 
 import { useDocumentLink } from '../../../hooks';
 

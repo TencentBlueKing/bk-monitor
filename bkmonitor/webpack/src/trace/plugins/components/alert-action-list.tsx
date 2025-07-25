@@ -23,14 +23,14 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { type Ref, computed, defineComponent, inject, reactive, ref as deepRef } from 'vue';
-import { useI18n } from 'vue-i18n';
+import { type Ref, computed, ref as deepRef, defineComponent, inject, reactive } from 'vue';
 
 import { Message } from 'bkui-vue';
 import BkDropdown, { BkDropdownItem, BkDropdownMenu } from 'bkui-vue/lib/dropdown';
 import BkLink from 'bkui-vue/lib/link';
 import { random } from 'lodash';
 import { feedbackIncidentRoot, incidentRecordOperation } from 'monitor-api/modules/incident';
+import { useI18n } from 'vue-i18n';
 
 import AlarmConfirm from '../../pages/failure/alarm-detail/alarm-confirm';
 import AlarmDispatch from '../../pages/failure/alarm-detail/alarm-dispatch';

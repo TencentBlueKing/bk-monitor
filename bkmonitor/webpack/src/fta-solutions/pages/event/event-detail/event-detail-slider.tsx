@@ -36,19 +36,19 @@ import type { IDetail } from './type';
 
 import './event-detail-slider.scss';
 
-interface IEventDetailSlider {
-  isShow?: boolean;
-  eventId: string;
-  type: TType;
-  activeTab?: string;
-  bizId: number;
-}
+// 事件详情 | 处理记录详情
+export type TType = 'eventDetail' | 'handleDetail';
 interface IEvent {
   onShowChange?: boolean;
 }
 
-// 事件详情 | 处理记录详情
-export type TType = 'eventDetail' | 'handleDetail';
+interface IEventDetailSlider {
+  activeTab?: string;
+  bizId: number;
+  eventId: string;
+  isShow?: boolean;
+  type: TType;
+}
 
 @Component
 export default class EventDetailSlider extends tsc<IEventDetailSlider, IEvent> {

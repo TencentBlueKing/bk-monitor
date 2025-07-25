@@ -24,23 +24,23 @@
  * IN THE SOFTWARE.
  */
 import {
-  defineComponent,
   type PropType,
+  type UnwrapRef,
+  computed,
+  defineComponent,
+  onBeforeUnmount,
+  onMounted,
   shallowRef,
   watch,
-  onMounted,
-  onBeforeUnmount,
-  computed,
-  type UnwrapRef,
 } from 'vue';
-import { useI18n } from 'vue-i18n';
 
 // import { Table, TableColumn } from '@blueking/table';
 import { PrimaryTable } from '@blueking/tdesign-ui';
-import { Button, Input, Exception, Message, Checkbox } from 'bkui-vue';
+import { Button, Checkbox, Exception, Input, Message } from 'bkui-vue';
 import _ from 'lodash';
 import { bulkDeleteFavorite } from 'monitor-api/modules/model';
-import tippy, { type SingleTarget, type Instance } from 'tippy.js';
+import tippy, { type Instance, type SingleTarget } from 'tippy.js';
+import { useI18n } from 'vue-i18n';
 
 import { GROUP_ID_ALL } from '../../../../constants';
 import useDebouncedRef from '../../../../hooks/use-debounced-ref';

@@ -100,8 +100,8 @@ export default ({
 
   const hasScrollX = computed(() => scrollWidth.value > offsetWidth.value);
 
-  const computeRect = () => {
-    const current = getCurrentElement();
+  const computeRect = (targetElement?: HTMLElement) => {
+    const current = targetElement ?? getCurrentElement();
     scrollWidth.value = (current?.scrollWidth ?? 2) - 2;
     offsetWidth.value = current?.offsetWidth ?? 0;
   };

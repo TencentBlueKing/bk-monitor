@@ -23,12 +23,12 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, defineComponent, inject, type PropType, ref } from 'vue';
+import { type PropType, computed, defineComponent, inject, ref } from 'vue';
 import { watch } from 'vue';
 import { shallowRef } from 'vue';
-import { useI18n } from 'vue-i18n';
 
 import { random } from 'monitor-common/utils';
+import { useI18n } from 'vue-i18n';
 
 import CommonDetail from '../../../components/common-detail/common-detail';
 import FlexDashboardPanel from '../../../plugins/components/flex-dashboard-panel';

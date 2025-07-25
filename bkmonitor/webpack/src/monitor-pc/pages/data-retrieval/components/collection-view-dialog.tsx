@@ -27,12 +27,12 @@ import { ofType } from 'vue-tsx-support';
 
 import Component from './collection-dialog.vue';
 
-interface IProps {
-  isShow?: boolean;
-  collectionList?: any[];
-}
 interface IEvents {
-  onShow?: (v: boolean) => void;
   onOnCollectionSuccess?: () => void;
+  onShow?: (v: boolean) => void;
+}
+interface IProps {
+  collectionList?: any[];
+  isShow?: boolean;
 }
 export default ofType<IProps, IEvents>().convert(Component);

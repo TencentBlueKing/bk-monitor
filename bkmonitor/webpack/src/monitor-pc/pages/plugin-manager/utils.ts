@@ -1,3 +1,7 @@
+/* 判断是否为非法字符串 */
+export function judgeIsIllegal(value: string) {
+  return /^[_a-zA-Z][a-zA-Z0-9_]*$/.test(value);
+}
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -40,10 +44,6 @@ export function metricNameTransFrom(value: string) {
     return str;
   }
   return value;
-}
-/* 判断是否为非法字符串 */
-export function judgeIsIllegal(value: string) {
-  return /^[_a-zA-Z][a-zA-Z0-9_]*$/.test(value);
 }
 function judgeIsIllegalNew(value: string) {
   return /^[a-zA-Z][a-zA-Z0-9_]*$/.test(value);

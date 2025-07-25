@@ -31,20 +31,20 @@
     >
       <li
         v-for="(item, index) in list"
+        v-show="!item.hidden"
         :key="index"
         class="menu-item"
         :style="{ 'text-align': align }"
         :disabled="item.disabled"
         :title="item.name"
-        v-show="!item.hidden"
         @click="!item.disabled && handleMenuClick(item)"
       >
         {{ item.name }}
       </li>
     </ul>
     <div
-      class="extension"
       v-show="showExtension"
+      class="extension"
       @click="handleExtensionClick"
     >
       {{ extensionText }}
@@ -55,11 +55,11 @@
 import { Component, Emit, Prop, Vue } from 'vue-property-decorator';
 
 export interface IMenu {
-  id: string | number;
-  name: string;
-  readonly?: boolean;
   disabled?: boolean;
   hidden?: boolean;
+  id: number | string;
+  name: string;
+  readonly?: boolean;
 }
 
 @Component({ name: 'select-menu' })

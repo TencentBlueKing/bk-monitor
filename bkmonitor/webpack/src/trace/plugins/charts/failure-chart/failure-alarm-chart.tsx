@@ -24,11 +24,11 @@
  * IN THE SOFTWARE.
  */
 import { type Ref, computed, defineComponent, inject, onMounted, ref, watch } from 'vue';
-import { useI18n } from 'vue-i18n';
 
 import dayjs from 'dayjs';
 import { alertGraphQuery } from 'monitor-api/modules/alert';
 import { transformDataKey } from 'monitor-common/utils/utils';
+import { useI18n } from 'vue-i18n';
 
 import FailureChart from './failure-chart';
 
@@ -36,7 +36,7 @@ export const createAutoTimeRange = (
   startTime: number,
   endTime: number,
   interval = 60
-): { startTime: string; endTime: string } => {
+): { endTime: string; startTime: string } => {
   const INTERVAL_5 = 5 * interval * 1000;
   const INTERVAL_1440 = 1440 * interval * 1000;
   const INTERVAL_60 = 60 * interval * 1000;

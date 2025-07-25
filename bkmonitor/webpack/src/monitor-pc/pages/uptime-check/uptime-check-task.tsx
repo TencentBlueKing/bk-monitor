@@ -48,7 +48,7 @@ import CardsContainer from './components/cards-container';
 import GroupCard, { type IOptionType as IGroupCardOperate } from './components/group-card';
 import HeaderTools, { type IClickType } from './components/header-tools';
 import OperateOptions from './components/operate-options';
-import TaskCard, { type IData as ItaskItem, type IOptionTypes as ITaskCardOperate } from './components/task-card';
+import TaskCard, { type IOptionTypes as ITaskCardOperate, type IData as ItaskItem } from './components/task-card';
 import UploadContent from './components/upload-content';
 import TaskCardSkeleton from './skeleton/task-card-skeleton';
 import {
@@ -82,17 +82,17 @@ import type { IActive as IUptimeCheckType } from './uptime-check';
 
 import './uptime-check-task.scss';
 
+interface IUptimeCheckTaskEvents {
+  onLoading?: boolean;
+  onRefresh?: IUptimeCheckType;
+  onGroupStatus?: (v: boolean) => void;
+  onNodeNameChange?: (v: string) => void;
+}
+
 interface IUptimeCheckTaskProps {
   isCard?: boolean;
   nodeName?: string;
   refreshKey?: string;
-}
-
-interface IUptimeCheckTaskEvents {
-  onLoading?: boolean;
-  onRefresh?: IUptimeCheckType;
-  onNodeNameChange?: (v: string) => void;
-  onGroupStatus?: (v: boolean) => void;
 }
 
 @Component({
@@ -580,7 +580,7 @@ export default class UptimeCheckTask extends tsc<IUptimeCheckTaskProps, IUptimeC
   }
 
   // 列表排序
-  handleSortChange(v: { prop: string; order: 'ascending' | 'descending' | null }) {
+  handleSortChange(v: { order: 'ascending' | 'descending' | null; prop: string }) {
     const columnId = v.prop;
     const { order } = v; // ascending: 升序
     let taskData = [];

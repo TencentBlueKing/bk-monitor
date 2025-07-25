@@ -23,17 +23,20 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, nextTick, onMounted, onBeforeUnmount, type Ref } from 'vue';
+import { ref, computed, nextTick, onMounted, onBeforeUnmount, type Ref, watch } from 'vue';
 
 // @ts-ignore
 import useStore from '@/hooks/use-store';
+import { useRoute, useRouter } from 'vue-router/composables';
 import dayjs from 'dayjs';
 import * as Echarts from 'echarts';
 import { debounce } from 'lodash';
 import { addListener, removeListener } from 'resize-detector';
+import { formatNumberWithRegex } from '@/common/util';
 
 import chartOption, { COLOR_LIST, getSeriesData } from './trend-chart-options';
 import RetrieveHelper, { RetrieveEvent } from '../views/retrieve-helper';
+import { BK_LOG_STORAGE } from '@/store/store.type.ts';
 
 export type TrandChartOption = {
   target: Ref<HTMLDivElement | null>;
@@ -50,6 +53,8 @@ export default ({ target, handleChartDataZoom, dynamicHeight }: TrandChartOption
   let chartInstance: Echarts.ECharts = null;
   const options: any = Object.assign({}, chartOption);
   const store = useStore();
+  const router = useRouter();
+  const route = useRoute();
 
   const retrieveParams = computed(() => store.getters.retrieveParams);
   const gradeOptionsGroups = computed(() =>
@@ -73,27 +78,6 @@ export default ({ target, handleChartDataZoom, dynamicHeight }: TrandChartOption
     delegateMethod('dispatchAction', payload);
   };
 
-  const formatTimeString = (data, interval) => {
-    if (/\d+s$/.test(interval)) {
-      return dayjs.tz(data).format('HH:mm:ss');
-    }
-
-    if (/\d+(m|h)$/.test(interval)) {
-      const { start_time, end_time } = retrieveParams.value;
-      const durationHour = (end_time / 1000 - start_time / 1000) / 3600;
-      // 当筛选时间间隔6小时以上 显示日期
-      const format = durationHour < 6 ? 'HH:mm:ss' : 'MM-DD HH:mm:ss';
-      return dayjs.tz(data).format(format).replace(/:00$/, '');
-    }
-
-    if (/\d+d$/.test(interval)) {
-      return dayjs
-        .tz(data)
-        .format('MM-DD HH:mm:ss')
-        .replace(/00:00:00$/, '');
-    }
-  };
-
   const getIntervalValue = (interval: string) => {
     const timeunit = {
       s: 1,
@@ -109,8 +93,8 @@ export default ({ target, handleChartDataZoom, dynamicHeight }: TrandChartOption
     return timeunit[unit] * Number(num);
   };
 
-  // 默认需要展示的柱子数量
-  const barCount = 60;
+  const barCount = 60; // auto时展示的柱子数量
+
   const intervals: [string, number][] = [
     ['d', 86400],
     ['h', 3600],
@@ -118,18 +102,19 @@ export default ({ target, handleChartDataZoom, dynamicHeight }: TrandChartOption
     ['s', 1],
   ];
 
+  const xLabelMap = new Map<number, string>(); // 用于存储横坐标标签
+
   const setRunnningInterval = () => {
+    // 1. 若汇聚周期不为auto，则直接使用用户选择的汇聚周期
     if (retrieveParams.value.interval !== 'auto') {
       runningInterval = retrieveParams.value.interval;
       return;
     }
 
+    // 2. 若汇聚周期为auto，则根据时间范围动态计算
     const { start_time, end_time } = retrieveParams.value;
-
-    // 按照小时统计
-    // 按照指定的柱子数量分割
     const duration = (end_time - start_time) / 1000;
-    const segments = Math.floor(duration / barCount);
+    const segments = Math.floor(duration / barCount); // 按照指定的柱子数量分割
     for (const [name, seconds] of intervals) {
       if (segments >= seconds) {
         const interval = Math.floor(segments / seconds);
@@ -190,10 +175,77 @@ export default ({ target, handleChartDataZoom, dynamicHeight }: TrandChartOption
     return RetrieveHelper.isMatchedGroup(group, fieldValue, isGradeMatchValue.value);
   };
 
+  // 计算x轴坐标点的时间显示格式
+  const getXAxisFormat = (startTime: number, endTime: number, interval: string) => {
+    const totalSpan = endTime - startTime; // 查询的总时间范围
+    const intervalMs = getIntervalValue(interval) * 1000; // 查询的时间间隔
+
+    // 若时间范围小于1天（<24h）
+    if (totalSpan < 24 * 60 * 60 * 1000) {
+      if (intervalMs <= 1000) return 'HH:mm:ss.SSS'; // <=1s
+      if (intervalMs <= 60 * 1000) return 'HH:mm:ss'; // 1s~1min
+      if (intervalMs <= 60 * 60 * 1000) return 'HH:mm'; // 1min~1h
+      return 'MM-DD HH:mm'; // >1h
+    }
+    // 时间范围大于等于1天（>=24h）
+    else {
+      if (intervalMs <= 1000) return 'MM-DD HH:mm:ss.SSS'; // <=1s
+      if (intervalMs <= 60 * 1000) return 'MM-DD HH:mm:ss'; // 1s~1min
+      if (intervalMs <= 60 * 60 * 1000) return 'MM-DD HH:mm'; // 1min~1h
+      if (intervalMs <= 24 * 60 * 60 * 1000) return 'MM-DD HH:mm'; // 1h~1d
+      return 'YYYY-MM-DD HH:mm'; // >1d
+    }
+  };
+
+  // 补齐图表数据到指定长度
+  const padDataToLength = (data: Array<[number, number, string | null]>, targetLength: number, intervalMs: number) => {
+    if (data.length >= targetLength) return data;
+
+    // 按时间升序排序
+    data.sort((a, b) => a[0] - b[0]);
+    const result = [...data];
+    const missing = targetLength - data.length;
+
+    // 计算需要补前面和后面的数量
+    const padBefore = Math.floor(missing / 2);
+    const padAfter = missing - padBefore;
+
+    // 前补
+    let firstTime = data.length ? data[0][0] : Date.now();
+    for (let i = 1; i <= padBefore; i++) {
+      result.unshift([firstTime - i * intervalMs, 0, null]);
+    }
+    // 后补
+    let lastTime = data.length ? data[data.length - 1][0] : Date.now();
+    for (let i = 1; i <= padAfter; i++) {
+      result.push([lastTime + i * intervalMs, 0, null]);
+    }
+
+    return result;
+  };
+
+  // 监听loading, 在接口请求结束时再补充数据
+  const loading = computed(() => store.state.retrieve.isTrendDataLoading);
+  watch(loading, val => {
+    if (val === false) {
+      const intervalMs = getIntervalValue(runningInterval) * 1000;
+      if (options.series && Array.isArray(options.series)) {
+        options.series.forEach(series => {
+          if (series.data && Array.isArray(series.data)) {
+            series.data = padDataToLength(series.data, 15, intervalMs);
+          }
+        });
+        updateChart();
+      }
+    }
+  });
+
   const setGroupData = (group, fieldName, isInit?) => {
     const buckets = group?.buckets || [];
-
     let count = 0;
+
+    const { start_time, end_time } = retrieveParams.value;
+    const formatStr = getXAxisFormat(start_time, end_time, runningInterval);
 
     if (isInit) {
       dataset.clear();
@@ -207,7 +259,11 @@ export default ({ target, handleChartDataZoom, dynamicHeight }: TrandChartOption
           options.series.push(dst);
           colors.push(group.color);
           const index = options.series.length - 1;
-          dataset.set(group.id, { group, dst: options.series[index], dataMap: new Map<string, number>() });
+          dataset.set(group.id, {
+            group,
+            dst: options.series[index],
+            dataMap: new Map<string, [number, number, string | null]>(),
+          });
         }
       });
 
@@ -226,6 +282,7 @@ export default ({ target, handleChartDataZoom, dynamicHeight }: TrandChartOption
         sortKeys.forEach(dstKey => {
           const { dataMap } = dataset.get(dstKey);
           dataMap.set(key, [key, 0, key_as_string]);
+          xLabelMap.set(key, dayjs(key).format(formatStr));
         });
       }
 
@@ -247,6 +304,7 @@ export default ({ target, handleChartDataZoom, dynamicHeight }: TrandChartOption
           }
 
           dataMap.set(key, [key, count, key_as_string]);
+          xLabelMap.set(key, dayjs(key).format(formatStr));
         });
       });
     });
@@ -261,10 +319,13 @@ export default ({ target, handleChartDataZoom, dynamicHeight }: TrandChartOption
   };
 
   const setDefaultData = (aggs?, isInit?) => {
-    let opt_data = new Map<Number, Number[]>();
+    let opt_data = new Map<number, [number, string | null]>();
     const buckets = aggs?.group_by_histogram?.buckets || [];
     const series = [];
     let count = 0;
+
+    const { start_time, end_time } = retrieveParams.value;
+    const formatStr = getXAxisFormat(start_time, end_time, runningInterval);
 
     if (!isInit) {
       (options.series[0]?.data ?? []).forEach(item => {
@@ -273,13 +334,17 @@ export default ({ target, handleChartDataZoom, dynamicHeight }: TrandChartOption
     }
 
     buckets.forEach(({ key, doc_count, key_as_string }) => {
+      xLabelMap.set(key, dayjs(key).format(formatStr));
       opt_data.set(key, [doc_count + (opt_data.get(key)?.[0] ?? 0), key_as_string]);
       count += doc_count;
     });
 
     const keys = [...opt_data.keys()];
     keys.sort((a, b) => a[0] - b[0]);
-    const data = keys.map(key => [key, opt_data.get(key)[0], opt_data.get(key)[1]]);
+    let data = keys.map(key => {
+      const val = opt_data.get(key);
+      return [key, val ? val[0] : 0, val ? val[1] : null] as [number, number, string | null];
+    });
 
     if (isInit) {
       series.push(getSeriesData({ name: '', data: data.length ? data : getDefData(), color: '#A4B3CD' }));
@@ -295,6 +360,7 @@ export default ({ target, handleChartDataZoom, dynamicHeight }: TrandChartOption
   };
 
   const setChartData = (eggs, fieldName?, isInit?) => {
+    if (isInit) xLabelMap.clear();
     if (fieldName) {
       return setGroupData(eggs?.group_by_histogram ?? {}, fieldName, isInit);
     }
@@ -306,7 +372,7 @@ export default ({ target, handleChartDataZoom, dynamicHeight }: TrandChartOption
     updateChart();
   };
 
-  /** 缩写数字 */
+  // 格式化数字（带单位）
   const abbreviateNumber = (value: number) => {
     let newValue = value;
     let suffix = '';
@@ -331,15 +397,62 @@ export default ({ target, handleChartDataZoom, dynamicHeight }: TrandChartOption
     return `${formatter.format(newValue)}${suffix}`;
   };
 
+  // 格式化数字（三位分隔）
+  const getShowTotalNum = (num: number) => formatNumberWithRegex(num);
+
   const updateChart = (notMerge = true) => {
     if (!chartInstance) {
       return;
     }
 
-    options.xAxis[0].axisLabel.formatter = v => formatTimeString(v, runningInterval);
+    const { start_time, end_time } = retrieveParams.value;
+    const formatStr = getXAxisFormat(start_time, end_time, runningInterval);
+
+    options.xAxis[0].axisLabel.formatter = v => xLabelMap.get(v) || dayjs(v).format(formatStr);
     options.xAxis[0].minInterval = getIntervalValue(runningInterval);
     options.yAxis[0].axisLabel.formatter = v => abbreviateNumber(v);
     options.yAxis[0].splitNumber = dynamicHeight.value < 120 ? 2 : 4;
+
+    // 格式化tooltip
+    options.tooltip.formatter = function (params) {
+      // 获取开始时间
+      const timeStart = dayjs(params[0].value[0]).format('MM-DD HH:mm:ss');
+
+      // 计算结束时间：起始时间 + runningInterval
+      const startTimestamp = params[0].value[0]; // 时间戳
+      const intervalSeconds = getIntervalValue(runningInterval);
+      const endTimestamp = startTimestamp + intervalSeconds * 1000; // 转换为毫秒
+      const timeEnd = dayjs(endTimestamp).format('MM-DD HH:mm:ss');
+
+      // 多 series 展示
+      const seriesHtml = params
+        .map(item => {
+          const value = item.value[1] || 0;
+          const seriesName = item.seriesName;
+          const color = item.color;
+          return `
+          <div style="display: flex; align-items: center; margin-top: 4px;">
+            <span style="
+              display: inline-block; 
+              width: 10px; 
+              height: 10px; 
+              background-color: ${color}; 
+              border-radius: 50%; 
+            "></span>
+            <span style="flex: 1; margin-left: 6px;">${seriesName}</span>
+            <span style="font-weight: bold;">${getShowTotalNum(value)}</span>
+          </div>
+        `;
+        })
+        .join('');
+
+      return `
+        <div style="min-width: 120px;">
+          <div>${timeStart} <span style="font-weight:bold;margin:0 4px;">to</span> ${timeEnd}</div>
+          ${seriesHtml}
+        </div>
+      `;
+    };
 
     chartInstance.setOption(options, { notMerge });
     nextTick(() => {
@@ -351,13 +464,33 @@ export default ({ target, handleChartDataZoom, dynamicHeight }: TrandChartOption
     });
   };
 
-  let cachedBatch: any = null;
+  const cachedBatch = computed(() => store.state.storage[BK_LOG_STORAGE.CACHED_BATCH_LIST] || []);
+  const canGoBack = computed(() => cachedBatch.value.length > 1);
 
   const handleDataZoom = debounce(event => {
     const [batch] = event.batch;
-    if (cachedBatch === null && !batch.dblclick) {
+
+    // 初始化时，存入初始时间范围
+    if (cachedBatch.value.length === 0 && !batch.dblclick && !batch.isBack) {
       const { start_time, end_time } = store.state.indexItem;
-      cachedBatch = { startValue: start_time, endValue: end_time };
+      cachedBatch.value.push({
+        startValue: start_time,
+        endValue: end_time,
+        start: start_time,
+        end: end_time,
+      });
+      store.commit('updateStorage', { [BK_LOG_STORAGE.CACHED_BATCH_LIST]: cachedBatch.value });
+    }
+
+    // 每次有效选择都 push
+    if (batch.startValue && batch.endValue && !batch.dblclick && !batch.isBack) {
+      cachedBatch.value.push({
+        startValue: batch.startValue,
+        endValue: batch.endValue,
+        start: batch.startValue,
+        end: batch.endValue,
+      });
+      store.commit('updateStorage', { [BK_LOG_STORAGE.CACHED_BATCH_LIST]: cachedBatch.value });
     }
 
     if (batch.startValue && batch.endValue) {
@@ -371,33 +504,53 @@ export default ({ target, handleChartDataZoom, dynamicHeight }: TrandChartOption
         // 更新Store中的时间范围
         store.dispatch('handleTrendDataZoom', { start_time: timeFrom, end_time: timeTo, format: true }).then(() => {
           store.dispatch('requestIndexSetQuery');
+          // 更新URL
+          router.replace({
+            query: {
+              ...route.query,
+              start_time: timeFrom,
+              end_time: timeTo,
+            },
+          });
         });
       }
     }
   });
 
+  // 趋势图回退到上一个时间范围
+  const backToPreChart = () => {
+    if (cachedBatch.value.length > 1) {
+      const prev = cachedBatch.value[cachedBatch.value.length - 2]; // 倒数第二个
+      chartInstance.dispatchAction({
+        type: 'dataZoom',
+        batch: [prev],
+        dblclick: false,
+        isBack: true, // 标记本次是回退,避免点击回退时触发handleDataZoom的push操作
+      });
+      cachedBatch.value.pop();
+      store.commit('updateStorage', { [BK_LOG_STORAGE.CACHED_BATCH_LIST]: cachedBatch.value });
+    }
+  };
+
   const handleCanvasResize = debounce(() => {
     chartInstance?.resize();
   });
 
+  // 回到初始趋势图（第一个历史范围）
   const handleDblClick = () => {
-    if (cachedBatch !== null) {
+    if (cachedBatch.value.length > 0) {
+      const first = cachedBatch.value[0];
       chartInstance.dispatchAction({
         type: 'dataZoom',
-        dblclick: true,
-        batch: [
-          {
-            startValue: cachedBatch.startValue,
-            endValue: cachedBatch.endValue,
-            start: cachedBatch.startValue,
-            end: cachedBatch.endValue,
-          },
-        ],
+        dblclick: true, // 标记本次是双击
+        isBack: true,
+        batch: [first],
       });
-
-      cachedBatch = null;
+      cachedBatch.value.splice(0, cachedBatch.value.length);  // 清空缓存时间组
+      store.commit('updateStorage', { [BK_LOG_STORAGE.CACHED_BATCH_LIST]: cachedBatch.value });
     }
   };
+
   onMounted(() => {
     if (target.value) {
       chartInstance = Echarts.init(target.value);
@@ -416,5 +569,5 @@ export default ({ target, handleChartDataZoom, dynamicHeight }: TrandChartOption
     }
   });
 
-  return { initChartData, setChartData, clearChartData };
+  return { initChartData, setChartData, clearChartData, backToPreChart, canGoBack };
 };

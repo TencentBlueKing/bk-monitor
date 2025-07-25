@@ -24,9 +24,9 @@
  * IN THE SOFTWARE.
  */
 export interface ISearchItem {
+  children?: ISearchItem[];
   id: string;
   name: string;
-  children?: ISearchItem[];
   values?: ISearchItem[];
 }
 // 搜索模式

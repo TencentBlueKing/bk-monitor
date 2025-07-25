@@ -34,18 +34,18 @@ import type { EmptyStatusOperationType, EmptyStatusType } from 'monitor-pc/compo
 
 import './list.scss';
 
+interface IListEvents {
+  onEmptyOperate?: (type: EmptyStatusOperationType) => void;
+  onOperate: (data: IOperateData) => void;
+}
+
 interface IListProps {
   data: IGroupData;
   emptyType?: EmptyStatusType;
 }
-
 interface IOperateData {
-  type: OperateType;
   item: IPluginDetail;
-}
-interface IListEvents {
-  onOperate: (data: IOperateData) => void;
-  onEmptyOperate?: (type: EmptyStatusOperationType) => void;
+  type: OperateType;
 }
 /**
  * 列表视图

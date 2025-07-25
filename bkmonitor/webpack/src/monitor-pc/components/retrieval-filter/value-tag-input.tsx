@@ -31,11 +31,11 @@ import { getCharLength } from './utils';
 import './value-tag-input.scss';
 
 interface IProps {
-  value: string;
   isOneRow?: boolean;
-  onInput?: (v: string) => void;
+  value: string;
   onChange?: (v: string) => void;
   onDelete?: (e?: MouseEvent) => void;
+  onInput?: (v: string) => void;
 }
 
 @Component

@@ -25,7 +25,7 @@
  */
 import { defineStore } from 'pinia';
 
-import { DEFAULT_TIME_RANGE, type TimeRangeType } from '../../components/time-range/utils';
+import { type TimeRangeType, DEFAULT_TIME_RANGE } from '../../components/time-range/utils';
 import { getDefaultTimezone } from '../../i18n/dayjs';
 
 import type { IApplicationItem } from '../../pages/trace-explore/typing';
@@ -33,17 +33,17 @@ import type { ISpanListItem, ITraceListItem } from '../../typings';
 import type { SortInfo } from '@blueking/tdesign-ui';
 
 export interface ITraceExploreState {
-  timeRange: TimeRangeType;
-  timezone: string;
-  mode: 'span' | 'trace';
-  appName: string;
-  refreshInterval: number;
-  refreshImmediate: string;
   appList: IApplicationItem[];
+  appName: string;
+  filterTableList: ISpanListItem[] | ITraceListItem[];
+  mode: 'span' | 'trace';
+  refreshImmediate: string;
+  refreshInterval: number;
   tableList: ISpanListItem[] | ITraceListItem[];
   tableLoading: boolean;
-  filterTableList: ISpanListItem[] | ITraceListItem[];
   tableSortContainer: SortInfo;
+  timeRange: TimeRangeType;
+  timezone: string;
 }
 export const useTraceExploreStore = defineStore('explore', {
   state: (): ITraceExploreState => ({

@@ -37,16 +37,16 @@ enum ResearchStatus {
   edit = 0 /** 编辑 */,
 }
 interface IFormValue {
-  project?: string; // 蓝盾项目
-  spaceName: string; //  空间名
-  spaceId: string; // 英文名
-  desc: string; // 说明
-  organizationStr?: string; // 组织
-  organization?: string[]; // 组织
-  project_type?: number | string;
   bg_id?: number | string;
-  dept_id?: number | string;
   center_id?: number | string;
+  dept_id?: number | string;
+  desc: string; // 说明
+  organization?: string[]; // 组织
+  organizationStr?: string; // 组织
+  project?: string; // 蓝盾项目
+  project_type?: number | string;
+  spaceId: string; // 英文名
+  spaceName: string; //  空间名
 }
 
 interface ISpaceItem {
@@ -62,7 +62,7 @@ const normalRule = {
 };
 const englishNameRule = {
   validator(val) {
-    return /^[a-z][a-z0-9\-]{1,31}$/.test(val);
+    return /^[a-z][a-z0-9-]{1,31}$/.test(val);
   },
   message: window.i18n.t('英文缩写必须由小写字母+数字+中划线组成，以小写字母开头，长度限制32字符！'),
   trigger: 'blur',
@@ -107,8 +107,8 @@ const projectTypeList = [
 
 interface IProps {
   spaceList?: ISpaceItem[];
-  onSuccess?: () => void;
   onCancel?: () => void;
+  onSuccess?: () => void;
 }
 
 /**

@@ -51,7 +51,7 @@ export default class Metric extends tsc<IProps> {
   };
   render() {
     const statusSlot = {
-      default: (props: { row: IMetricStorageInfo; index: string }) => {
+      default: (props: { index: string; row: IMetricStorageInfo }) => {
         return (
           <span
             key={props.index}

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -54,7 +53,10 @@ DIRECT_ESQUERY_SEARCH = "direct_esquery_search"
 LOG_DESENSITIZE = "log_desensitize"
 
 # AI 助手
-AI_ASSISTANT = 'ai_assistant'
+AI_ASSISTANT = "ai_assistant"
 
 # unify_query_search查询的开关
 UNIFY_QUERY_SEARCH = "unify_query_search"
+
+# unify_query_sql 查询的开关
+UNIFY_QUERY_SQL = "unify_query_sql"

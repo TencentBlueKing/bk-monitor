@@ -26,16 +26,15 @@
 
 import {
   type PropType,
-  Teleport,
   defineComponent,
   nextTick,
   onBeforeUnmount,
   onMounted,
   ref,
   shallowRef,
+  Teleport,
   watch,
 } from 'vue';
-import { useI18n } from 'vue-i18n';
 
 import { Exception } from 'bkui-vue';
 import { sortTableGraph } from 'monitor-ui/chart-plugins/plugins/profiling-graph/table-graph/utils';
@@ -44,6 +43,7 @@ import {
   parseProfileDataTypeValue,
 } from 'monitor-ui/chart-plugins/plugins/profiling-graph/utils';
 import { getSpanColorByName } from 'monitor-ui/chart-plugins/typings';
+import { useI18n } from 'vue-i18n';
 
 import type { DirectionType } from '../../../../typings';
 import type {

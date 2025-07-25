@@ -38,16 +38,16 @@ import type { IPanelModel, IViewOptions } from 'monitor-ui/chart-plugins/typings
 import './group-select.scss';
 
 const VALUE_KEY = 'groups';
+export interface IEvents {
+  onChange: string[];
+}
+
 export interface IProps {
+  pageId: string;
   panel?: IPanelModel;
   scencId?: string;
   sceneType?: string;
-  pageId: string;
   value?: string[];
-}
-
-export interface IEvents {
-  onChange: string[];
 }
 @Component
 export default class GroupSelect extends tsc<IProps, IEvents> {

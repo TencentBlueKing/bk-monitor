@@ -104,7 +104,7 @@ export default class TimeSeriesForecastingChart extends tsc<IProps> {
         alias: '',
         options: {
           time_series_forecast: {
-            forecast_time_range: !!index ? forecastTimeRange : undefined,
+            forecast_time_range: index ? forecastTimeRange : undefined,
             no_result: !!index,
           },
         },

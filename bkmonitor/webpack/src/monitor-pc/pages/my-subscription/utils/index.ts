@@ -24,53 +24,8 @@
  * IN THE SOFTWARE.
  */
 import i18n from '../../../i18n/i18n';
-import { FrequencyType, type Report, type ReportSendRecord } from '../types';
 
-export function getSendFrequencyText(data: Report) {
-  const weekMap = [
-    i18n.t('周一'),
-    i18n.t('周二'),
-    i18n.t('周三'),
-    i18n.t('周四'),
-    i18n.t('周五'),
-    i18n.t('周六'),
-    i18n.t('周日'),
-  ];
-  let str = '';
-  if (!data?.frequency?.type) return '';
-  switch (data.frequency.type) {
-    case FrequencyType.onlyOnce: {
-      str = i18n.t('仅一次').toString();
-      break;
-    }
-    case FrequencyType.dayly: {
-      const includeWeekend = [1, 2, 3, 4, 5, 6, 7];
-      const isIncludeWeekend = includeWeekend.every(item => data.frequency.week_list.includes(item));
-      str = `${i18n.t('每天')}${isIncludeWeekend ? `(${i18n.t('包含周末')})` : ''} ${data.frequency.run_time}`;
-      break;
-    }
-    case FrequencyType.weekly: {
-      const weekStrArr = data.frequency.week_list.map(item => weekMap[item - 1]);
-      const weekStr = weekStrArr.join(', ');
-      str = `${weekStr} ${data.frequency.run_time}`;
-      break;
-    }
-    case FrequencyType.monthly: {
-      const dayArr = data.frequency.day_list.map(item => `${item}${i18n.t('号')}`);
-      const dayStr = dayArr.join(', ');
-      str = `${dayStr} ${data.frequency.run_time}`;
-      break;
-    }
-    case FrequencyType.hourly: {
-      str = i18n.t('每{0}小时发送一次', [data.frequency.hour]).toString();
-      break;
-    }
-    default:
-      str = data.frequency.run_time;
-      break;
-  }
-  return str;
-}
+import { type Report, type ReportSendRecord, FrequencyType } from '../types';
 
 // 生成一个有 默认数据 的对象
 export function getDefaultReportData(): Report {
@@ -152,4 +107,50 @@ export function getDefaultSingleSendRecord(): ReportSendRecord {
     send_status: '',
     send_time: '1970-01-01 00:00:00+0000',
   };
+}
+
+export function getSendFrequencyText(data: Report) {
+  const weekMap = [
+    i18n.t('周一'),
+    i18n.t('周二'),
+    i18n.t('周三'),
+    i18n.t('周四'),
+    i18n.t('周五'),
+    i18n.t('周六'),
+    i18n.t('周日'),
+  ];
+  let str = '';
+  if (!data?.frequency?.type) return '';
+  switch (data.frequency.type) {
+    case FrequencyType.onlyOnce: {
+      str = i18n.t('仅一次').toString();
+      break;
+    }
+    case FrequencyType.dayly: {
+      const includeWeekend = [1, 2, 3, 4, 5, 6, 7];
+      const isIncludeWeekend = includeWeekend.every(item => data.frequency.week_list.includes(item));
+      str = `${i18n.t('每天')}${isIncludeWeekend ? `(${i18n.t('包含周末')})` : ''} ${data.frequency.run_time}`;
+      break;
+    }
+    case FrequencyType.weekly: {
+      const weekStrArr = data.frequency.week_list.map(item => weekMap[item - 1]);
+      const weekStr = weekStrArr.join(', ');
+      str = `${weekStr} ${data.frequency.run_time}`;
+      break;
+    }
+    case FrequencyType.monthly: {
+      const dayArr = data.frequency.day_list.map(item => `${item}${i18n.t('号')}`);
+      const dayStr = dayArr.join(', ');
+      str = `${dayStr} ${data.frequency.run_time}`;
+      break;
+    }
+    case FrequencyType.hourly: {
+      str = i18n.t('每{0}小时发送一次', [data.frequency.hour]).toString();
+      break;
+    }
+    default:
+      str = data.frequency.run_time;
+      break;
+  }
+  return str;
 }

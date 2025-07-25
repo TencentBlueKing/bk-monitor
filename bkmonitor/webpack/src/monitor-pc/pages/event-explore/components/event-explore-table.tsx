@@ -39,11 +39,11 @@ import {
   type EventExploreTableColumn,
   type ExploreEntitiesMap,
   type ExploreFieldMap,
+  type ExploreTableRequestParams,
   ExploreSourceTypeEnum,
   ExploreTableColumnTypeEnum,
-  type ExploreTableRequestParams,
 } from '../typing';
-import { ExploreObserver, type ExploreSubject, getEventLegendColorByType } from '../utils';
+import { type ExploreSubject, ExploreObserver, getEventLegendColorByType } from '../utils';
 import ExploreExpandViewWrapper from './explore-expand-view-wrapper';
 
 import type { EmptyStatusType } from '../../../components/empty-status/types';
@@ -51,45 +51,45 @@ import type { KVFieldList } from './explore-kv-list';
 
 import './event-explore-table.scss';
 
-export interface TableSort {
-  prop: null | string;
-  order: 'ascending' | 'descending' | null;
-}
-
-interface EventExploreTableProps {
-  /** 来源 */
-  source: APIType;
-  /** 接口请求配置参数 */
-  queryParams: Omit<ExploreTableRequestParams, 'limit' | 'offset'>;
-  /** 数据总数 */
-  total?: number;
-  /** 表格单页条数 */
-  limit?: number;
-  /** expand 展开 kv 面板使用 */
-  fieldMap: ExploreFieldMap;
-  /** expand 展开 kv 面板使用 */
-  entitiesMapList: ExploreEntitiesMap[];
-  /** 滚动事件被观察者实例 */
-  scrollSubject: ExploreSubject;
-  /** 刷新表格 */
-  refreshTable: string;
-  eventSourceType?: ExploreSourceTypeEnum[];
-}
-
-interface EventExploreTableEvents {
-  onConditionChange: (condition: ConditionChangeEvent) => void;
-  onSearch: () => void;
-  onClearSearch: () => void;
-  onShowEventSourcePopover: (event: Event) => void;
-  onSetRouteParams: (otherQuery: Record<string, any>) => void;
-}
-
 /** 检索表格loading类型枚举 */
 enum ExploreTableLoadingEnum {
   /** 刷新 -- 显示 骨架屏 效果loading */
   REFRESH = 'refreshLoading',
   /** 滚动 -- 显示 表格底部 loading */
   SCROLL = 'scrollLoading',
+}
+
+export interface TableSort {
+  order: 'ascending' | 'descending' | null;
+  prop: null | string;
+}
+
+interface EventExploreTableEvents {
+  onClearSearch: () => void;
+  onConditionChange: (condition: ConditionChangeEvent) => void;
+  onSearch: () => void;
+  onSetRouteParams: (otherQuery: Record<string, any>) => void;
+  onShowEventSourcePopover: (event: Event) => void;
+}
+
+interface EventExploreTableProps {
+  /** expand 展开 kv 面板使用 */
+  entitiesMapList: ExploreEntitiesMap[];
+  eventSourceType?: ExploreSourceTypeEnum[];
+  /** expand 展开 kv 面板使用 */
+  fieldMap: ExploreFieldMap;
+  /** 表格单页条数 */
+  limit?: number;
+  /** 接口请求配置参数 */
+  queryParams: Omit<ExploreTableRequestParams, 'limit' | 'offset'>;
+  /** 刷新表格 */
+  refreshTable: string;
+  /** 滚动事件被观察者实例 */
+  scrollSubject: ExploreSubject;
+  /** 来源 */
+  source: APIType;
+  /** 数据总数 */
+  total?: number;
 }
 
 /**
@@ -801,14 +801,14 @@ export default class EventExploreTable extends tsc<EventExploreTableProps, Event
       <div class='event-explore-table'>
         <bk-table
           ref='tableRef'
-          row-style={e => {
-            return this.getCssVarsByType(e?.row?.type?.value);
-          }}
           style={{ display: !this.tableLoading[ExploreTableLoadingEnum.REFRESH] ? 'flex' : 'none' }}
           class='explore-table'
           header-cell-class-name={e => {
             const columnKey = e?.column?.columnKey;
             return this.tableColumns.columnForKeyMap?.[columnKey]?.customHeaderCls || '';
+          }}
+          row-style={e => {
+            return this.getCssVarsByType(e?.row?.type?.value);
           }}
           border={false}
           data={this.tableData}

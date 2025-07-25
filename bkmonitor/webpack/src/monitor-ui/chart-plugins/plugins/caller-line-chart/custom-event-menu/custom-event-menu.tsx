@@ -30,7 +30,7 @@ import { Component as tsc } from 'vue-tsx-support';
 import dayjs from 'dayjs';
 import base64Svg from 'monitor-common/svg/base64';
 
-import { getCustomEventTagDetails, type IEventTagsItem, type ICustomEventDetail } from '../use-custom';
+import { type ICustomEventDetail, type IEventTagsItem, getCustomEventTagDetails } from '../use-custom';
 
 import type { IPosition } from 'CustomEventMenu';
 
@@ -40,10 +40,10 @@ export enum EventTab {
   Warning = 'warning',
 }
 interface IProps {
-  /* 位置 */
-  position: IPosition;
   /* 事件项 */
   eventItem: Partial<IEventTagsItem>;
+  /* 位置 */
+  position: IPosition;
 }
 @Component
 export default class CustomEventMenu extends tsc<IProps> {

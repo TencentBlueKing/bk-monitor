@@ -24,11 +24,11 @@
  * IN THE SOFTWARE.
  */
 import { type PropType, defineComponent, ref, toRefs, watch } from 'vue';
-import { useI18n } from 'vue-i18n';
 
 import { Collapse, Progress } from 'bkui-vue';
 import { EnlargeLine, NarrowLine } from 'bkui-vue/lib/icon';
 import { deepClone } from 'monitor-common/utils/utils';
+import { useI18n } from 'vue-i18n';
 
 import { SPAN_KIND_MAPS, SPAN_STATUS_CODE } from '../../../store/constant';
 
@@ -37,14 +37,14 @@ import type { FieldListType, FieldValue } from 'monitor-pc/pages/data-retrieval/
 import './field-list.scss';
 
 export interface IDimissionItem {
+  alias?: string;
   id: string;
   percent: number;
-  alias?: string;
 }
 
-export type TraceFieldValue = FieldValue & {
+export type TraceFieldValue = {
   list_key: string; // 列表取值索引
-};
+} & FieldValue;
 
 type AliasMapType = {
   [key: string]: string;

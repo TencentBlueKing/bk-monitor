@@ -25,9 +25,9 @@
  */
 
 export interface IColumnBarData {
+  color: string;
   name: string;
   value: number;
-  color: string;
   link: {
     target: string;
     url: string;

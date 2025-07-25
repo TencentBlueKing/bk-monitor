@@ -24,10 +24,10 @@
  * IN THE SOFTWARE.
  */
 import { type PropType, defineComponent, onMounted, ref, shallowRef } from 'vue';
-import { useI18n } from 'vue-i18n';
 
 import { incidentTopologyMenu } from 'monitor-api/modules/incident';
 import { random } from 'monitor-common/utils/utils';
+import { useI18n } from 'vue-i18n';
 
 import { useIncidentInject } from '../utils';
 import AggregationSelect from './aggregation-select';

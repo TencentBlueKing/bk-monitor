@@ -24,10 +24,10 @@
  * IN THE SOFTWARE.
  */
 import { type PropType, computed, defineComponent, ref, watch } from 'vue';
-import { useI18n } from 'vue-i18n';
 
 import { Button, Input, Popover, Radio } from 'bkui-vue';
 import { EnlargeLine, Transfer } from 'bkui-vue/lib/icon';
+import { useI18n } from 'vue-i18n';
 
 import type { IFavList } from '../typings/favorite-list';
 

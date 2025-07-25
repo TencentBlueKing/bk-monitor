@@ -35,19 +35,17 @@ import {
   shallowRef,
   watch,
 } from 'vue';
-import { useI18n } from 'vue-i18n';
-import { useRouter } from 'vue-router';
 
 import {
-  Arrow,
-  Graph,
   type ICombo,
   type INode,
-  Tooltip,
+  Arrow,
+  Graph,
   registerBehavior,
   registerCombo,
   registerEdge,
   registerNode,
+  Tooltip,
 } from '@antv/g6';
 import { addListener, removeListener } from '@blueking/fork-resize-detector';
 import { Exception, Loading, Message, Popover, Slider } from 'bkui-vue';
@@ -56,6 +54,8 @@ import isEqual from 'lodash/isEqual';
 import { feedbackIncidentRoot, incidentTopology } from 'monitor-api/modules/incident';
 import { random } from 'monitor-common/utils/utils.js';
 import { debounce } from 'throttle-debounce';
+import { useI18n } from 'vue-i18n';
+import { useRouter } from 'vue-router';
 
 import ErrorImg from '../../../static/img/error.svg';
 import NoDataImg from '../../../static/img/no-data.svg';
@@ -68,9 +68,9 @@ import formatTopoData from './format-topo-data';
 import { NODE_TYPE_SVG } from './node-type-svg';
 import ServiceCombo from './service-combo';
 import TopoTools from './topo-tools';
-import { getNodeAttrs, truncateText, getApmServiceType } from './utils';
+import { getApmServiceType, getNodeAttrs, truncateText } from './utils';
 
-import type { IEdge, IEntity, ITopoData, ITopoNode, IncidentDetailData } from './types';
+import type { IEdge, IEntity, IncidentDetailData, ITopoData, ITopoNode } from './types';
 
 import './failure-topo.scss';
 
@@ -826,11 +826,11 @@ export default defineComponent({
         onMouseMove(e) {
           if (this.dragging) {
             const comboRect = this.comboRect as {
-              topCombo: ICombo;
               bottomCombo: ICombo;
-              xCombo: ICombo;
-              width: number;
               height: number;
+              topCombo: ICombo;
+              width: number;
+              xCombo: ICombo;
             };
             let { movementX, movementY } = e.originalEvent;
             // 大于零向上拖动

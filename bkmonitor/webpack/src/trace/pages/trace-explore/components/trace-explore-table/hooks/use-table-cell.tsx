@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { get, type MaybeRef } from '@vueuse/core';
+import { type MaybeRef, get } from '@vueuse/core';
 
 import { formatDuration, formatTraceTableDate } from '../../../../../components/trace-view/utils/date';
 import TagsCell from '../components/table-cell/tags-cell';
@@ -33,7 +33,7 @@ import {
   ENABLED_TABLE_ELLIPSIS_CELL_CLASS_NAME,
   TABLE_DEFAULT_CONFIG,
 } from '../constants';
-import { type ExploreTableColumn, ExploreTableColumnTypeEnum, type GetTableCellRenderValue } from '../typing';
+import { type ExploreTableColumn, type GetTableCellRenderValue, ExploreTableColumnTypeEnum } from '../typing';
 
 import type { SlotReturnValue } from 'tdesign-vue-next';
 

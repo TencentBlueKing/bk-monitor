@@ -40,8 +40,8 @@ interface IEvent {
 }
 
 interface IProps {
-  list?: any[];
   isCorrelationMetrics?: boolean;
+  list?: any[];
 }
 
 @Component({})

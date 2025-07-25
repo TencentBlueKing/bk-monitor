@@ -33,10 +33,10 @@
       :title="$t('业务监控状态总览')"
     >
       <business-alarm-aquare
-        :squares="businessAlarm"
-        :selected-index.sync="selectedIndex"
-        :is-all-normal.sync="isAllNormal"
         class="content"
+        :is-all-normal.sync="isAllNormal"
+        :selected-index.sync="selectedIndex"
+        :squares="businessAlarm"
         :status="selectAlarm.status"
       />
     </panel-card>
@@ -44,8 +44,8 @@
       <!-- <all-overview v-if="isAllNormal" :selected-index.sync="selectedIndex" :business-alarm="businessAlarm" :alarm="selectAlarm"></all-overview> -->
       <business-alarm-panel
         v-show="!isAllNormal"
-        :title="selectTitle"
         :icon="selectAlarm.status"
+        :title="selectTitle"
       >
         <keep-alive>
           <uptimecheck

@@ -25,37 +25,37 @@
  */
 
 import { type PropType, computed, defineComponent, onBeforeMount, ref } from 'vue';
-import { useI18n } from 'vue-i18n';
 
 import { Checkbox, Form, Input, Radio, Select } from 'bkui-vue';
 import { deepClone } from 'monitor-common/utils/utils';
+import { useI18n } from 'vue-i18n';
 
 import SetMealAdd from '../../../../store/modules/set-meal-add';
 import AutoInput from '../auto-input/auto-input';
 
 import './dynamic-form.scss';
 
-interface FormItemProps {
-  property?: string;
-  required?: boolean;
-  sensitive?: boolean;
-  help_text?: string;
-}
 interface FormChildProps {
-  property?: string;
-  placeholder?: string;
   help_text?: string;
   label?: string;
+  placeholder?: string;
+  property?: string;
   required?: boolean;
   options?: {
     id: string;
-    value: string;
     name: string;
+    value: string;
   }[];
 }
+interface FormItemProps {
+  help_text?: string;
+  property?: string;
+  required?: boolean;
+  sensitive?: boolean;
+}
 interface FormListItem {
-  formItemProps?: FormItemProps;
   formChildProps?: FormChildProps;
+  formItemProps?: FormItemProps;
   type?: string;
 }
 

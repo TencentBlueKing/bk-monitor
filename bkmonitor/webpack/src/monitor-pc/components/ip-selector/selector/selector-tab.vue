@@ -26,27 +26,27 @@
 <template>
   <div class="selector-tab">
     <div
-      class="selector-tab-header"
-      ref="tabwrapper"
       v-show="tabVisible && panels.length"
+      ref="tabwrapper"
       v-resize="handleResize"
+      class="selector-tab-header"
     >
       <ul
-        class="selector-tab-horizontal"
         ref="tabcontent"
+        class="selector-tab-horizontal"
       >
         <li
           v-for="item in panels"
+          v-show="!item.hidden && !hiddenPanels.some(data => data.name === item.name)"
           :key="item.name"
-          :class="['tab-item', { active: active === item.name }, { disabled: item.disabled }]"
-          v-show="!item.hidden && !hiddenPanels.some((data) => data.name === item.name)"
-          :data-name="item.name"
+          ref="tabItem"
           v-bk-tooltips.top="{
             disabled: !item.disabled || !item.tips,
             content: item.tips,
-            delay: [300, 0]
+            delay: [300, 0],
           }"
-          ref="tabItem"
+          :class="['tab-item', { active: active === item.name }, { disabled: item.disabled }]"
+          :data-name="item.name"
           @click="!item.disabled && handleTabChange(item)"
         >
           <slot
@@ -80,6 +80,7 @@ import { Component, Emit, Model, Prop, Ref, Vue } from 'vue-property-decorator';
 import { resize } from '../common/observer-directive';
 import { Debounce, hasOwnProperty } from '../common/util';
 import Menu from '../components/menu.vue';
+
 import type { IPanel } from '../types/selector-type';
 
 @Component({

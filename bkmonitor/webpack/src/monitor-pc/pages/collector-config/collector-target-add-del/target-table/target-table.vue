@@ -163,7 +163,7 @@ export default {
   },
   async created() {
     this.$emit('update:pageLoading', false);
-    // eslint-disable-next-line @typescript-eslint/no-misused-promises
+
     setTimeout(async () => {
       const show = await isTaskReady({ collect_config_id: this.data.id });
       this.taskReady.show = !show;
@@ -181,7 +181,6 @@ export default {
   },
   methods: {
     async taskReadyStatus() {
-      // eslint-disable-next-line @typescript-eslint/no-misused-promises
       this.taskReadyTimer = setTimeout(async () => {
         clearTimeout(this.taskReadyTimer);
         if (this.taskReady.show) {
@@ -358,7 +357,7 @@ export default {
     async taskReadyStatusPromise(id) {
       let timer = null;
       clearTimeout(timer);
-      // eslint-disable-next-line @typescript-eslint/no-misused-promises
+
       return new Promise(async resolve => {
         const show = await isTaskReady({ collect_config_id: id });
         if (show) {

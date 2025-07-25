@@ -1,3 +1,17 @@
+export interface IAddWrapSize {
+  height: number;
+  startClientX: number;
+  startClientY: number;
+  width: number;
+}
+
+export interface IList {
+  children?: IList[];
+  id: string;
+  labelName: string;
+  name?: string;
+}
+
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -24,33 +38,19 @@
  * IN THE SOFTWARE.
  */
 export interface ITreeItem {
-  name: string;
-  id: string;
-  key: string;
   children?: ITreeItem[];
-  parent?: ITreeItem;
-  isCreate?: boolean;
   expanded?: boolean;
-  renamed?: boolean;
   group?: string;
   groupName?: string;
+  id: string;
+  isCreate?: boolean;
+  key: string;
+  name: string;
+  parent?: ITreeItem;
   parentKey?: string;
+  renamed?: boolean;
 }
-
-export type TMode = 'create' | 'select';
 
 export type TBehavior = 'normal' | 'simplicity';
 
-export interface IAddWrapSize {
-  width: number;
-  height: number;
-  startClientX: number;
-  startClientY: number;
-}
-
-export interface IList {
-  labelName: string;
-  id: string;
-  children?: IList[];
-  name?: string;
-}
+export type TMode = 'create' | 'select';

@@ -29,18 +29,18 @@ import { Component as tsc } from 'vue-tsx-support';
 import './auto-width-input.scss';
 
 interface IProps {
-  value?: string;
   fontSize?: number;
-  isFocus?: boolean;
   height?: number;
   initWidth?: number;
+  isFocus?: boolean;
   placeholder?: string;
-  onFocus?: () => void;
-  onBlur?: () => void;
-  onInput?: (value: string) => void;
-  onEnter?: () => void;
+  value?: string;
   onBackspace?: () => void;
   onBackspaceNull?: () => void;
+  onBlur?: () => void;
+  onEnter?: () => void;
+  onFocus?: () => void;
+  onInput?: (value: string) => void;
 }
 @Component
 export default class AutoWidthInput extends tsc<IProps> {

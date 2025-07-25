@@ -30,23 +30,23 @@ import { Debounce } from 'monitor-common/utils/utils';
 
 import './monitor-drag.scss';
 
-type ThemeType = 'line' | 'line-round' | 'normal' | 'simple-line-round';
-interface IMonitorDragProps {
-  minWidth?: number;
-  maxWidth?: number;
-  toggleSet?: boolean;
-  startPlacement?: string;
-  resetPosKey?: string;
-  theme?: ThemeType;
-  lineText?: string;
-  isShow?: boolean;
-  top?: number;
-  isOnlyShowIndex?: boolean;
-}
 interface IMonitorDragEvent {
-  onMove: (left: number, swipeRight: boolean, cancelFn: () => void) => void;
   onTrigger: boolean;
+  onMove: (left: number, swipeRight: boolean, cancelFn: () => void) => void;
 }
+interface IMonitorDragProps {
+  isOnlyShowIndex?: boolean;
+  isShow?: boolean;
+  lineText?: string;
+  maxWidth?: number;
+  minWidth?: number;
+  resetPosKey?: string;
+  startPlacement?: string;
+  theme?: ThemeType;
+  toggleSet?: boolean;
+  top?: number;
+}
+type ThemeType = 'line' | 'line-round' | 'normal' | 'simple-line-round';
 @Component
 export default class MonitorDrag extends tsc<IMonitorDragProps, IMonitorDragEvent> {
   @Prop({ type: Number, default: 200 }) minWidth: number;

@@ -31,17 +31,17 @@ import { matchRuleFn } from './group-manage-dialog';
 import './group-select-multiple.scss';
 
 interface IListItem {
+  disable?: boolean;
   id: string;
   name: string;
-  disable?: boolean;
 }
 interface IProps {
-  list?: IListItem[];
-  value?: string[];
   groupsMap?: Map<string, any>;
+  list?: IListItem[];
   metricName?: string;
   onChange?: any;
   onToggle?: any;
+  value?: string[];
 }
 
 @Component

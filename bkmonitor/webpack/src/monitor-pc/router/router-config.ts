@@ -64,22 +64,22 @@ export const GLOBAL_FEATURE_LIST = [
 // route config
 // route item
 export interface IRouteConfigItem {
+  active?: boolean;
+  canStore?: boolean;
+  children?: IRouteConfigItem[];
+  hidden?: boolean;
+  href?: string;
+  icon?: string;
   id: string;
+  isBeta?: boolean;
   name: string;
+  navName?: string;
+  noCache?: boolean /** 侧栏导航不缓存到浏览器 */;
+  path?: string;
+  query?: any;
   route?: string;
   shortName?: string;
-  icon?: string;
-  path?: string;
-  href?: string;
-  navName?: string;
-  hidden?: boolean;
-  active?: boolean;
   usePath?: boolean;
-  isBeta?: boolean;
-  children?: IRouteConfigItem[];
-  noCache?: boolean /** 侧栏导航不缓存到浏览器 */;
-  canStore?: boolean;
-  query?: any;
 }
 // route config
 // nav list
@@ -548,10 +548,6 @@ COMMON_ROUTE_LIST.push({
   children: [...GLOBAL_FEATURE_LIST],
 });
 
-// 路由id是否存在于常用路由列表
-export function isInCommonRoute(id: string) {
-  return COMMON_ROUTE_LIST.some(item => item?.children?.some(set => set.id === id));
-}
 // 获取本地存储的访问常用路由列表
 export function getLocalStoreRoute() {
   const str = localStorage.getItem(LOCAL_COMMON_ROUTE_STORE_KEY);
@@ -560,13 +556,6 @@ export function getLocalStoreRoute() {
     return JSON.parse(str);
   } catch {}
   return undefined;
-}
-// 设置本地存储的访问常用路由列表
-export function setLocalStoreRoute(id: string) {
-  const list = new Set(getLocalStoreRoute() || []);
-  list.has(id) && list.delete(id);
-  list.add(id);
-  localStorage.setItem(LOCAL_COMMON_ROUTE_STORE_KEY, JSON.stringify(Array.from(list)));
 }
 /**
  * @param id 路由id
@@ -585,4 +574,15 @@ export function getRouteConfigById(id: string) {
     return config;
   });
   return flatConfig.find(item => item.id === id) || getRouteConfig().find(item => item.route === id);
+}
+// 路由id是否存在于常用路由列表
+export function isInCommonRoute(id: string) {
+  return COMMON_ROUTE_LIST.some(item => item?.children?.some(set => set.id === id));
+}
+// 设置本地存储的访问常用路由列表
+export function setLocalStoreRoute(id: string) {
+  const list = new Set(getLocalStoreRoute() || []);
+  list.has(id) && list.delete(id);
+  list.add(id);
+  localStorage.setItem(LOCAL_COMMON_ROUTE_STORE_KEY, JSON.stringify(Array.from(list)));
 }

@@ -24,9 +24,9 @@
  * IN THE SOFTWARE.
  */
 import { type PropType, type Ref, defineComponent, inject } from 'vue';
-import { useI18n } from 'vue-i18n';
 
 import { Alert, Loading } from 'bkui-vue';
+import { useI18n } from 'vue-i18n';
 
 import TimelineDiagram from './timeline-diagram';
 

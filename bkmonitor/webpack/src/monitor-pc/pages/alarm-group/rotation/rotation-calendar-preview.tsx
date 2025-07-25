@@ -156,7 +156,7 @@ export default class RotationCalendarPreview extends tsc<IProps> {
                 </div>
               ))}
               {item.data.map((data, _index) =>
-                !!data.users.length ? (
+                data.users.length ? (
                   <div
                     style={{
                       top: `${48 + data.row * 22}px`,

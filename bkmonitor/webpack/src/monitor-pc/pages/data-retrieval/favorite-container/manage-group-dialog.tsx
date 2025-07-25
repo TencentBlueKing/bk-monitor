@@ -24,7 +24,6 @@
  * IN THE SOFTWARE.
  */
 
-import VueJsonPretty from 'vue-json-pretty';
 import { Component, Emit, Model, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
@@ -38,31 +37,32 @@ import {
   listFavoriteGroup,
 } from 'monitor-api/modules/model';
 import { deepClone } from 'monitor-common/utils/utils';
+import VueJsonPretty from 'vue-json-pretty';
 
 import './manage-group-dialog.scss';
 import 'vue-json-pretty/lib/styles.css';
-
-interface IProps {
-  value?: boolean;
-  favoriteSearchType: string;
-}
 
 interface IEvent {
   onSubmit: boolean;
 }
 
 interface IFavoriteItem {
-  // 收藏元素
-  id: number;
   created_user: string;
-  update_time: string;
-  update_user: string;
-  name: string;
   group_id: number | string;
   group_name: string;
-  visible_type: string;
-  visible_option: any[];
   group_option: any[];
+  // 收藏元素
+  id: number;
+  name: string;
+  update_time: string;
+  update_user: string;
+  visible_option: any[];
+  visible_type: string;
+}
+
+interface IProps {
+  favoriteSearchType: string;
+  value?: boolean;
 }
 
 const settingFields = [

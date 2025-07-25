@@ -29,8 +29,8 @@ import { Component as tsc } from 'vue-tsx-support';
 import './auto-height-textarea.scss';
 
 interface IProps {
-  value?: string;
   placeholder: string;
+  value?: string;
 }
 
 @Component

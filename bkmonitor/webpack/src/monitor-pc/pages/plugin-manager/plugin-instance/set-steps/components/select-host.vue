@@ -39,16 +39,16 @@
     <div class="host-body">
       <bk-input
         ref="selectInput"
-        class="body-search"
         v-model.trim="keyword"
+        class="body-search"
         :placeholder="$t('输入')"
         right-icon="bk-icon icon-search"
         clearable
         @input="handleKeywordChange"
       />
       <div
-        class="body-table"
         v-bkloading="{ isLoading: isLoading }"
+        class="body-table"
       >
         <bk-table
           ref="hostTableRef"

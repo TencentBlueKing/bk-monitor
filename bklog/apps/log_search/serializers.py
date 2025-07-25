@@ -40,11 +40,11 @@ from apps.log_search.constants import (
     FavoriteVisibleType,
     IndexSetType,
     InstanceTypeEnum,
-    QueryMode,
     SearchMode,
     SearchScopeEnum,
     TagColor,
     TemplateType,
+    QueryMode,
 )
 from apps.log_search.models import LogIndexSetData, ProjectInfo, Scenario
 from apps.log_unifyquery.constants import FIELD_TYPE_MAP

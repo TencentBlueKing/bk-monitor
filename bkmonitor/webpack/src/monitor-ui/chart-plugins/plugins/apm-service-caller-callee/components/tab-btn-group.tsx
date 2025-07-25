@@ -24,17 +24,17 @@
  * IN THE SOFTWARE.
  */
 
-import { Component, Prop, Emit } from 'vue-property-decorator';
+import { Component, Emit, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-interface ITabBtnGroupProps {
-  type?: string;
-  height?: number;
-  list: ITabItem[];
-  activeKey: string;
-}
 interface ITabBtnGroupEvent {
   onChange: (id: string) => void;
+}
+interface ITabBtnGroupProps {
+  activeKey: string;
+  height?: number;
+  list: ITabItem[];
+  type?: string;
 }
 
 import type { ITabItem } from '../type';

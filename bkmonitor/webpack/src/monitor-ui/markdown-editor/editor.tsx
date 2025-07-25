@@ -26,21 +26,21 @@
 import { Component, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { Editor, type EditorOptions, type PreviewStyle } from '@toast-ui/editor';
+import { type EditorOptions, type PreviewStyle, Editor } from '@toast-ui/editor';
 
+import './viewer.scss';
 // import codeSyntaxHighlight from '@toast-ui/editor-plugin-code-syntax-highlight/dist/toastui-editor-plugin-code-syntax-highlight-all';
 // import '@toast-ui/editor-plugin-code-syntax-highlight/dist/toastui-editor-plugin-code-syntax-highlight.css';
 import '@toast-ui/editor/dist/toastui-editor.css';
-import './viewer.scss';
 
 interface IMarkdownEditorProps {
-  previewStyle: PreviewStyle;
-  height: string;
-  value: string;
-  options: EditorOptions;
-  html: string;
-  visible: boolean;
   flowchartStyle?: boolean;
+  height: string;
+  html: string;
+  options: EditorOptions;
+  previewStyle: PreviewStyle;
+  value: string;
+  visible: boolean;
 }
 @Component
 export default class MarkdownEditor extends tsc<IMarkdownEditorProps> {

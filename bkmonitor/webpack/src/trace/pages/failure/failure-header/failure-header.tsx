@@ -25,10 +25,10 @@
  */
 
 import { type Ref, computed, defineComponent, inject, onBeforeUnmount, onMounted, reactive, ref } from 'vue';
-import { useI18n } from 'vue-i18n';
 
 import { Dialog, Form, Input, Loading, Message, Popover, Progress, Tag } from 'bkui-vue';
 import { editIncident, incidentAlertAggregate } from 'monitor-api/modules/incident';
+import { useI18n } from 'vue-i18n';
 
 import ChatGroup from '../alarm-detail/chat-group/chat-group';
 import { LEVEL_LIST } from '../constant';

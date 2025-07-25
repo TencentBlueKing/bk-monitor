@@ -30,7 +30,7 @@
  */
 
 import { applicationInfoByAppName, metaConfigInfo } from 'monitor-api/modules/apm_meta';
-import { Action, Module, Mutation, VuexModule, getModule } from 'vuex-module-decorators';
+import { Action, getModule, Module, Mutation, VuexModule } from 'vuex-module-decorators';
 
 import store from '@store/store';
 
@@ -42,8 +42,8 @@ export interface IApplicationState {
 
 interface IAppInfoQuery {
   app_name: string;
-  start_time: number;
   end_time: number;
+  start_time: number;
 }
 // app_list service_list
 @Module({ name: 'application', namespaced: true, dynamic: true, store })

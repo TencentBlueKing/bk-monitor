@@ -33,12 +33,12 @@ export interface IListItem {
   name: number | string;
 }
 interface ISelectMenuProps {
-  target?: any;
   content?: any;
-  show?: boolean;
-  needDelete?: boolean;
-  minWidth?: number;
   list?: IListItem[];
+  minWidth?: number;
+  needDelete?: boolean;
+  show?: boolean;
+  target?: any;
 }
 @Component
 export default class SelectMenu extends tsc<ISelectMenuProps> {

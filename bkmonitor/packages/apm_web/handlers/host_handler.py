@@ -163,7 +163,11 @@ class HostHandler:
         """
         是否存在主机关联
         """
-        if api.apm_api.query_host_instance(bk_biz_id=bk_biz_id, app_name=app_name, service_name=service_name):
+        host_instances = (
+            api.apm_api.query_host_instance(bk_biz_id=bk_biz_id, app_name=app_name, service_name=service_name) or []
+        )
+        hosts_in_cmdb = [h for h in host_instances if h.get("bk_host_id")]
+        if hosts_in_cmdb:
             return True
 
         if CMDBServiceRelation.objects.filter(

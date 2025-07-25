@@ -43,12 +43,9 @@ const preDateTypeList = [
   },
 ];
 
-function timeShiftFormat(t: string) {
-  const regex = /^\d{4}-\d{2}-\d{2}$/;
-  if (regex.test(t)) {
-    return `${dayjs().diff(dayjs(t), 'day')}d`;
-  }
-  return t;
+interface IProps {
+  value?: string[];
+  onChange?: (value: string[]) => void;
 }
 
 function timeOffsetDateFormat(t: string) {
@@ -65,9 +62,12 @@ function timeOffsetDateFormat(t: string) {
   return t;
 }
 
-interface IProps {
-  value?: string[];
-  onChange?: (value: string[]) => void;
+function timeShiftFormat(t: string) {
+  const regex = /^\d{4}-\d{2}-\d{2}$/;
+  if (regex.test(t)) {
+    return `${dayjs().diff(dayjs(t), 'day')}d`;
+  }
+  return t;
 }
 
 @Component

@@ -28,22 +28,22 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import './kv-tag.scss';
 
-interface IValue {
-  id: string;
-  name: string;
+interface IProps {
+  active?: boolean;
+  value?: ITagListItem;
+  onClickTag?: (e: any) => void;
+  onDeleteTag?: () => void;
 }
 interface ITagListItem {
-  key: string;
   id: string;
+  key: string;
   name: string;
   values: IValue[];
 }
 
-interface IProps {
-  value?: ITagListItem;
-  active?: boolean;
-  onDeleteTag?: () => void;
-  onClickTag?: (e: any) => void;
+interface IValue {
+  id: string;
+  name: string;
 }
 
 @Component

@@ -33,17 +33,17 @@ import type { TranslateResult } from 'vue-i18n';
 import './http-url-input.scss';
 
 interface IHttpUrlInputProps {
+  errorTips?: string | TranslateResult;
   value: string;
   validateFn?: (v: string) => boolean;
-  errorTips?: TranslateResult | string;
 }
 @Component
 export default class HttpUrlInput extends tsc<
   IHttpUrlInputProps,
   {
     onChange: string;
-    onEidt: MouseEvent;
     onDelete: MouseEvent;
+    onEidt: MouseEvent;
   }
 > {
   @Prop() value: string;

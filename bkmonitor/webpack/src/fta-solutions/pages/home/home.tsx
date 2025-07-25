@@ -90,26 +90,26 @@ export const initUnit = (num: number, type: '%' | 'num' | 'time') => {
   return numObj;
 };
 
+interface IBusinessOverview {
+  data: IData[];
+  filterItem: number;
+  filterList: { id: number; name: string }[];
+  searchValue: string;
+}
 interface IDataOverview {
   timeChecked: number;
   timeOption: { id: number; name: string }[];
   data: {
+    allowHtml?: boolean;
+    borderRight?: boolean;
+    icon: string;
     id: string;
     name: string;
-    icon: string;
     num: number;
-    unit: string;
-    type: '%' | 'num' | 'time';
-    borderRight?: boolean;
     tip?: string;
-    allowHtml?: boolean;
+    type: '%' | 'num' | 'time';
+    unit: string;
   }[];
-}
-interface IBusinessOverview {
-  searchValue: string;
-  filterItem: number;
-  filterList: { id: number; name: string }[];
-  data: IData[];
 }
 interface IHomeProps {
   name: string;

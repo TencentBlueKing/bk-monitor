@@ -44,12 +44,12 @@ export default class AppListSkeleton extends tsc<IProps> {
             class='expan-header'
           >
             <div class='header-left'>
-              <span class='icon-monitor icon-mc-triangle-down'></span>
-              <div class='skeleton-01 skeleton-element'></div>
-              <div class='skeleton-02 skeleton-element'></div>
-              <div class='skeleton-03 skeleton-element'></div>
-              <div class='skeleton-04 skeleton-element'></div>
-              <div class='skeleton-05 skeleton-element'></div>
+              <span class='icon-monitor icon-mc-triangle-down' />
+              <div class='skeleton-01 skeleton-element' />
+              <div class='skeleton-02 skeleton-element' />
+              <div class='skeleton-03 skeleton-element' />
+              <div class='skeleton-04 skeleton-element' />
+              <div class='skeleton-05 skeleton-element' />
             </div>
             <div class='header-right'>
               <bk-button
@@ -67,7 +67,7 @@ export default class AppListSkeleton extends tsc<IProps> {
                 {this.$t('配置')}
               </bk-button>
               <div class='more-btn'>
-                <span class='icon-monitor icon-mc-more'></span>
+                <span class='icon-monitor icon-mc-more' />
               </div>
             </div>
           </div>

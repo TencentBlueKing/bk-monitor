@@ -1,3 +1,33 @@
+export interface ICustomData {
+  limit: number;
+  list: any;
+  page: number;
+  searchKey: string;
+  total: number;
+}
+
+export interface IDetailInfo {
+  bkBizId?: number;
+  collectType?: string;
+  createTime?: string;
+  createUser?: string;
+  deploymentId?: number;
+  id?: number;
+  label?: string;
+  labelInfo?: string;
+  name?: string;
+  params?: any;
+  pluginInfo?: any;
+  remoteCollectingHost?: any;
+  subscriptionId?: number;
+  target?: any;
+  targetNodes?: any;
+  targetNodeType?: string;
+  targetObjectType?: string;
+  updateTime?: string;
+  updateUser?: string;
+}
+
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -24,49 +54,9 @@
  * IN THE SOFTWARE.
  */
 export interface IDrag {
-  width: number;
-  minWidth: number;
   maxWidth: number;
-}
-
-export interface IStatusData {
-  success: IStatus;
-  failed: IStatus;
-  nodata: IStatus;
-  all: IStatus;
-}
-
-export interface IStatus {
-  count: number;
-  data: any;
-}
-
-export interface ITabList {
-  name?: string;
-  type: string;
-  tips?: string;
-}
-
-export interface IDetailInfo {
-  bkBizId?: number;
-  collectType?: string;
-  createTime?: string;
-  createUser?: string;
-  deploymentId?: number;
-  id?: number;
-  label?: string;
-  labelInfo?: string;
-  name?: string;
-  params?: any;
-  pluginInfo?: any;
-  remoteCollectingHost?: any;
-  subscriptionId?: number;
-  target?: any;
-  targetNodeType?: string;
-  targetNodes?: any;
-  targetObjectType?: string;
-  updateTime?: string;
-  updateUser?: string;
+  minWidth: number;
+  width: number;
 }
 
 export interface IHostTopoStatus {
@@ -74,25 +64,35 @@ export interface IHostTopoStatus {
   topo: boolean;
 }
 
-export interface ICustomData {
-  list: any;
-  page: number;
-  limit: number;
-  searchKey: string;
-  total: number;
+export interface IStatus {
+  count: number;
+  data: any;
 }
 
-export interface IVariableData {
-  $bk_target_ip?: number | string;
-  $bk_target_cloud_id?: number | string;
-  $bk_target_service_instance_id?: string[];
-  $target?: string;
-  $bk_inst_id?: string;
-  $bk_obj_id?: string;
-  $method?: string;
+export interface IStatusData {
+  all: IStatus;
+  failed: IStatus;
+  nodata: IStatus;
+  success: IStatus;
+}
+
+export interface ITabList {
+  name?: string;
+  tips?: string;
+  type: string;
 }
 
 export interface ITargetList {
   id: string;
   name: string;
+}
+
+export interface IVariableData {
+  $bk_inst_id?: string;
+  $bk_obj_id?: string;
+  $bk_target_cloud_id?: number | string;
+  $bk_target_ip?: number | string;
+  $bk_target_service_instance_id?: string[];
+  $method?: string;
+  $target?: string;
 }

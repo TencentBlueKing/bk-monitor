@@ -36,12 +36,12 @@ import './metrics-collapse.scss';
 const DASHBOARD_PANEL_COLUMN_KEY = '__aiops_metrics_chart_view_type__';
 
 interface IProps {
+  headerTips: string;
+  info: IInfo;
   layoutActive?: number;
   needLayout?: boolean;
   showCollapse?: boolean;
   title: string;
-  headerTips: string;
-  info: IInfo;
   valueCount?: number;
   valueTotal?: number;
 }

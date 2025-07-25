@@ -30,10 +30,9 @@ import type { IRelationStatusItem, LegendActionType } from '../../typings';
 
 import './relation-legend.scss';
 
-interface IStatistics {
-  id: string;
-  name: string;
-  data: { name: string; size: number }[];
+interface IEvents {
+  onStatisticsChange?: string;
+  onSelectLegend?: (p: { actionType: string; item: any }) => void;
 }
 
 interface IRelationLegendProps {
@@ -41,9 +40,10 @@ interface IRelationLegendProps {
   sizeCategory?: string;
 }
 
-interface IEvents {
-  onStatisticsChange?: string;
-  onSelectLegend?: (p: { actionType: string; item: any }) => void;
+interface IStatistics {
+  data: { name: string; size: number }[];
+  id: string;
+  name: string;
 }
 
 @Component({})

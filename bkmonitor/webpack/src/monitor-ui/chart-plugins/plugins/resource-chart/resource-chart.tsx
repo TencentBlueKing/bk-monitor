@@ -48,13 +48,13 @@ import type {
 
 import './resource-chart.scss';
 
-interface IResourceChartProps {
-  panel: PanelModel;
-  showHeaderMoreTool?: boolean;
-}
 interface IResourceChartEvent {
   onFullScreen: PanelModel;
   onCollectChart?: () => void; // 保存到仪表盘
+}
+interface IResourceChartProps {
+  panel: PanelModel;
+  showHeaderMoreTool?: boolean;
 }
 @Component
 class ResourceChart extends CommonSimpleChart {
@@ -234,7 +234,7 @@ class ResourceChart extends CommonSimpleChart {
       case 1:
         window.open(location.href.replace(location.hash, `#/strategy-config?metricId=${JSON.stringify(metricIds)}`));
         break;
-      case 2:
+      case 2: {
         const eventTargetStr = alarmStatus.targetStr;
 
         window.open(
@@ -246,6 +246,7 @@ class ResourceChart extends CommonSimpleChart {
           )
         );
         break;
+      }
     }
   }
 

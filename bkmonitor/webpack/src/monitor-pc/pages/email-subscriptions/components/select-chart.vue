@@ -25,8 +25,8 @@
 -->
 <template>
   <div
-    class="select-chart-wrap"
     v-bkloading="{ isLoading }"
+    class="select-chart-wrap"
   >
     <div class="select-tool-wrap">
       <div class="tool-left-wrap">
@@ -43,7 +43,7 @@
               :key="index"
             />
           </bk-tab>
-          <div class="placeholder-box"></div>
+          <div class="placeholder-box" />
         </div>
         <!-- <bk-select
           v-show="tool.active === 'default'"
@@ -60,8 +60,8 @@
         <div class="chart-dashboard-container">
           <div class="left-panel">
             <div
-              class="biz-list-wrap"
               v-show="tool.active === 'default'"
+              class="biz-list-wrap"
             >
               <space-select
                 :need-alarm-option="false"
@@ -72,14 +72,13 @@
                 @change="handleChangeBizIdList"
               />
               <bk-input
-                class="search-input"
                 v-model="defaultKeyWord"
+                class="search-input"
                 :clearable="true"
                 :placeholder="$t('搜索 内置')"
                 :right-icon="'bk-icon icon-search'"
                 @change="handleDefaultSearch"
-              >
-              </bk-input>
+              />
             </div>
             <div
               v-if="tool.active === 'grafana'"
@@ -94,28 +93,27 @@
                 @change="handleGraphBizid"
               />
               <bk-input
-                class="search-input"
                 v-model="grafanaKeyWord"
+                class="search-input"
                 :clearable="true"
                 :placeholder="$t('搜索 仪表盘')"
                 :right-icon="'bk-icon icon-search'"
                 @change="handleGrafanaSearch"
-              >
-              </bk-input>
+              />
             </div>
             <div class="left-list-wrap">
               <div
                 v-for="(item, index) in leftList"
-                :class="['left-list-item', { active: leftActive === item.uid }]"
                 :key="index"
-                @click="handleSelectLeftItem(item)"
                 v-bk-overflow-tips
+                :class="['left-list-item', { active: leftActive === item.uid }]"
+                @click="handleSelectLeftItem(item)"
               >
                 {{ item.name }}
               </div>
               <bk-exception
-                class="exception"
                 v-if="exceptionType"
+                class="exception"
                 scene="part"
                 :type="exceptionType"
               />
@@ -127,17 +125,16 @@
               <span class="chart-count">{{ `( ${rightList.length} )` }}</span>
             </div>
             <bk-input
-              class="chart-search-input"
               v-model="chartKeyWord"
+              class="chart-search-input"
               :clearable="true"
               :placeholder="$t('搜索 图表')"
               :right-icon="'bk-icon icon-search'"
               @change="handleChartSearch"
-            >
-            </bk-input>
+            />
             <div
-              class="right-list-wrap"
               v-bkloading="{ isLoading: isRightListLoading }"
+              class="right-list-wrap"
             >
               <checkbox-group
                 v-model="rightSelect"
@@ -147,8 +144,8 @@
                 @valueChange="handleValueChange"
               />
               <bk-exception
-                class="exception"
                 v-if="!rightList.length"
+                class="exception"
                 scene="part"
                 :type="chartKeyWord ? 'search-empty' : 'empty'"
               />
@@ -174,13 +171,13 @@
         >
           <li
             v-for="(item, index) in selectedList"
+            :key="item.id"
             :class="[
               'selected-item',
               {
                 active: DragData.toActive === index || selectedActive === item.id,
               },
             ]"
-            :key="item.id"
             draggable="true"
             @click="handleSelectItem(item)"
             @dragend="handleDragEnd($event, index)"
@@ -192,8 +189,8 @@
             <div class="selected-item-title">
               <span class="icon-monitor icon-mc-tuozhuai" />
               <span
-                class="item-title"
                 v-bk-overflow-tips
+                class="item-title"
                 >{{ item.name }}</span
               >
               <span
@@ -202,15 +199,15 @@
               />
             </div>
             <span
-              class="des"
               v-bk-tooltips="{ content: handleBelonging(item), delay: 300, allowHTML: false }"
+              class="des"
               >{{ `${$t('所属:')}&nbsp;&nbsp;${handleBelonging(item)}` }}</span
             >
           </li>
         </transition-group>
         <bk-exception
-          class="exception"
           v-if="!selectedList.length"
+          class="exception"
           scene="part"
           type="empty"
         />

@@ -40,43 +40,43 @@ import CustomSelect from './custom-select';
 
 import './data-pipeline-config.scss';
 
-interface IData {
-  name: string;
-  spaces: string[];
-  etl_configs: string[];
-  kafka_cluster_id: string;
-  transfer_cluster_id: string;
-  is_default: boolean;
-  influxdb_storage_cluster_id: string;
-  kafka_storage_cluster_id: string;
-  description: string;
-  spacesIds?: string[];
-  etl_config?: { etl_config: string }[];
-  isDefault?: boolean;
-}
-
 enum EType {
   es = 'elasticsearch',
   influxdb = 'influxdb',
   kafka = 'kafka',
+}
+
+interface IData {
+  description: string;
+  etl_config?: { etl_config: string }[];
+  etl_configs: string[];
+  influxdb_storage_cluster_id: string;
+  is_default: boolean;
+  isDefault?: boolean;
+  kafka_cluster_id: string;
+  kafka_storage_cluster_id: string;
+  name: string;
+  spaces: string[];
+  spacesIds?: string[];
+  transfer_cluster_id: string;
 }
 interface IOption {
   id: string;
   name: string;
 }
 interface IPiplineListItem {
+  etl_config: { etl_config: string; is_default: boolean }[];
   isDefalut: boolean;
   name: string;
-  etl_config: { etl_config: string; is_default: boolean }[];
-  spaces: { space_id: string; is_default: boolean }[];
+  spaces: { is_default: boolean; space_id: string }[];
 }
 interface IProps {
-  show?: boolean;
   data?: IData;
   piplineList?: IPiplineListItem[];
+  show?: boolean;
+  onEdit?: (v: string) => void;
   onShowChange?: (v: boolean) => void;
   onSuccess?: () => void;
-  onEdit?: (v: string) => void;
 }
 
 @Component

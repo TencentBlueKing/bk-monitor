@@ -1,3 +1,5 @@
+import type { VNode } from 'vue';
+
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -41,19 +43,18 @@ import TableStore from '../store';
 import BatchOperationDialog from './batch-operation-dialog';
 
 import type { EmptyStatusOperationType, EmptyStatusType } from '../../../components/empty-status/types';
-import type { VNode } from 'vue';
 
 import './alarm-group.scss';
 import '@blueking/search-select-v3/vue2/vue2.css';
 
 const { i18n } = window;
 
-type TGroupType = 'fta' | 'monitor';
 interface IGroupList {
-  type?: TGroupType;
   fromRouterName?: string;
   needRefresh?: boolean;
+  type?: TGroupType;
 }
+type TGroupType = 'fta' | 'monitor';
 
 @Component({
   name: 'AlarmGroupList',

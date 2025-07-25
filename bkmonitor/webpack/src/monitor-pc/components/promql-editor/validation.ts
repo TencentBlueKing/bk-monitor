@@ -28,17 +28,17 @@ import type { LRParser } from '@lezer/lr';
 
 export const ErrorId = 0;
 
-interface ParserErrorBoundary {
-  startLineNumber: number;
-  startColumn: number;
-  endLineNumber: number;
-  endColumn: number;
-  error: string;
+interface ParseError {
+  node: SyntaxNode;
+  text: string;
 }
 
-interface ParseError {
-  text: string;
-  node: SyntaxNode;
+interface ParserErrorBoundary {
+  endColumn: number;
+  endLineNumber: number;
+  error: string;
+  startColumn: number;
+  startLineNumber: number;
 }
 
 export function validateQuery(
@@ -46,7 +46,7 @@ export function validateQuery(
   interpolatedQuery: string,
   queryLines: string[],
   parser: LRParser
-): ParserErrorBoundary[] | false {
+): false | ParserErrorBoundary[] {
   if (!query) {
     return false;
   }
@@ -68,24 +68,7 @@ export function validateQuery(
   return parseErrors.map(parseError => findErrorBoundary(query, queryLines, parseError)).filter(isErrorBoundary);
 }
 
-function parseQuery(query: string, parser: LRParser) {
-  const parseErrors: ParseError[] = [];
-  const tree = parser.parse(query);
-  tree.iterate({
-    enter: (nodeRef): false | void => {
-      if (nodeRef.type.id === ErrorId) {
-        const { node } = nodeRef;
-        parseErrors.push({
-          node,
-          text: query.substring(node.from, node.to),
-        });
-      }
-    },
-  });
-  return parseErrors;
-}
-
-function findErrorBoundary(query: string, queryLines: string[], parseError: ParseError): ParserErrorBoundary | null {
+function findErrorBoundary(query: string, queryLines: string[], parseError: ParseError): null | ParserErrorBoundary {
   if (queryLines.length === 1) {
     const isEmptyString = parseError.node.from === parseError.node.to;
     const errorNode = isEmptyString && parseError.node.parent ? parseError.node.parent : parseError.node;
@@ -121,8 +104,25 @@ function findErrorBoundary(query: string, queryLines: string[], parseError: Pars
   return null;
 }
 
-function isErrorBoundary(boundary: ParserErrorBoundary | null): boundary is ParserErrorBoundary {
+function isErrorBoundary(boundary: null | ParserErrorBoundary): boundary is ParserErrorBoundary {
   return boundary !== null;
+}
+
+function parseQuery(query: string, parser: LRParser) {
+  const parseErrors: ParseError[] = [];
+  const tree = parser.parse(query);
+  tree.iterate({
+    enter: (nodeRef): false | void => {
+      if (nodeRef.type.id === ErrorId) {
+        const { node } = nodeRef;
+        parseErrors.push({
+          node,
+          text: query.substring(node.from, node.to),
+        });
+      }
+    },
+  });
+  return parseErrors;
 }
 
 export const placeHolderScopedVars = {

@@ -41,26 +41,26 @@ import type { IPanelModel, IViewOptions } from 'monitor-ui/chart-plugins/typings
 
 import './metrics-view.scss';
 
-interface IProps {
-  panelMap?: IPanelMap;
-  info?: IInfo;
-  metricRecommendationErr?: string;
-  metricRecommendationLoading: boolean;
-}
 interface IMetrics {
   metric_name?: string;
   metric_name_alias?: string;
-  title?: string;
   panels?: IPanelModel[];
+  title?: string;
+}
+interface IPanelMap {
+  dimensionPanels?: IPanelModel[];
+  recommendedMetricPanels?: IRecommendedMetricPanels[];
+}
+interface IProps {
+  info?: IInfo;
+  metricRecommendationErr?: string;
+  metricRecommendationLoading: boolean;
+  panelMap?: IPanelMap;
 }
 interface IRecommendedMetricPanels {
   metrics: IMetrics[];
   result_table_label: string;
   result_table_label_name: string;
-}
-interface IPanelMap {
-  dimensionPanels?: IPanelModel[];
-  recommendedMetricPanels?: IRecommendedMetricPanels[];
 }
 
 @Component

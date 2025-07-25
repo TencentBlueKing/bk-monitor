@@ -102,216 +102,26 @@ export const QUERY_STRING_DATA_TYPES = Object.keys(queryStringColorMap);
 
 const defaultColor = '#313238';
 
-export function getQueryStringMethods(fieldType: EFieldType) {
-  if (fieldType === EFieldType.integer) {
-    return [...QUERY_STRING_METHODS];
-  }
-  return [
-    {
-      id: ':',
-      name: window.i18n.tc('等于'),
-    },
-    {
-      id: ':*',
-      name: window.i18n.tc('存在'),
-    },
-  ];
-}
-
 export interface IStrItem {
-  value: string;
   key?: string;
   type: EQueryStringTokenType;
-}
-
-export function parseQueryString(query: string): IStrItem[] {
-  const tokens: IStrItem[] = [];
-
-  // 增强正则表达式，支持完整括号集和运算符
-  // const tokenRegex = /(\s+)|([(){}[\]])|(AND\s+NOT|AND|OR)|(<=|>=|:\*|:|>|<)|(".*?")|(\S+)/gi;
-  const tokenRegex = /(\s+)|([(){}[\]])|(AND\s+NOT|AND|OR)|(<=|>=|:|>|<)|(".*?")|(\S+)/gi;
-
-  let match: null | RegExpExecArray;
-  while ((match = tokenRegex.exec(query)) !== null) {
-    const [_full, space, bracket, condition, method, quoted, word] = match;
-    if (space) {
-      tokens.push({ value: space, type: EQueryStringTokenType.split });
-    } else if (bracket) {
-      tokens.push({ value: bracket, type: EQueryStringTokenType.bracket });
-    } else if (condition) {
-      tokens.push({ value: condition.toUpperCase(), type: EQueryStringTokenType.condition });
-    } else if (method) {
-      tokens.push({ value: method, type: EQueryStringTokenType.method });
-    } else if (quoted) {
-      tokens.push({ value: quoted, type: EQueryStringTokenType.value });
-    } else if (word) {
-      const match = word.match(/[)\]}]/);
-      if (match) {
-        tokens.push({ value: word.slice(0, match.index), type: EQueryStringTokenType.value });
-        tokens.push({ value: match[0], type: EQueryStringTokenType.bracket });
-      } else {
-        tokens.push({ value: word, type: EQueryStringTokenType.value });
-      }
-    }
-  }
-
-  // 增强的括号层级处理
-  let hasBracket = false;
-  const leftBrackets = new Set(['(', '[', '{']);
-  const rightBrackets = new Set([')', ']', '}']);
-
-  if (tokens?.[0]?.type === EQueryStringTokenType.split) {
-    tokens.splice(0, 1);
-  }
-  if (tokens?.[tokens.length - 1]?.type === EQueryStringTokenType.split) {
-    tokens[tokens.length - 1].value = ' ';
-  }
-
-  let index = -1;
-  for (const token of tokens) {
-    index += 1;
-    // 更新括号层级
-    if (token.type === EQueryStringTokenType.bracket) {
-      if (hasBracket) {
-        const isRight = rightBrackets.has(token.value);
-        hasBracket = !isRight;
-        continue;
-      }
-      const isLeft = leftBrackets.has(token.value);
-      hasBracket = isLeft;
-      continue;
-    }
-
-    // 动态条件类型转换
-    if (token.type === EQueryStringTokenType.condition) {
-      token.type = hasBracket ? EQueryStringTokenType.valueCondition : EQueryStringTokenType.condition;
-    }
-
-    // 增强的键值类型推导
-    if (token.type === EQueryStringTokenType.value) {
-      const nextToken = tokens.slice(index + 1).find(t => t.type !== EQueryStringTokenType.split);
-      const preToken = tokens
-        .slice(0, index)
-        .reverse()
-        .find(t => t.type !== EQueryStringTokenType.split);
-
-      // 检查后续是否存在方法运算符
-      if (
-        nextToken?.type === EQueryStringTokenType.method ||
-        (!hasBracket && preToken?.type === EQueryStringTokenType.condition)
-      ) {
-        token.type = EQueryStringTokenType.key;
-      }
-    }
-    if (index === 0 && token.value) {
-      token.type = EQueryStringTokenType.key;
-    }
-  }
-  return tokens;
-}
-
-// 获取光标全局字符偏移量
-function getGlobalOffset(editor) {
-  const selection = window.getSelection();
-  if (!selection.rangeCount) return 0;
-  const range = selection.getRangeAt(0);
-  let offset = 0;
-  const nodeStack = [editor];
-  let found = false;
-  // 前序遍历所有文本节点
-  while (nodeStack.length > 0 && !found) {
-    const node = nodeStack.pop();
-    if (node.nodeType === Node.TEXT_NODE) {
-      if (node === range.startContainer) {
-        offset += range.startOffset;
-        found = true;
-      } else {
-        offset += node.textContent.length;
-      }
-    } else {
-      // 逆序压栈保证遍历顺序
-      for (let i = node.childNodes.length - 1; i >= 0; i--) {
-        nodeStack.push(node.childNodes[i]);
-      }
-    }
-  }
-  return offset;
-}
-
-// 设置光标到指定偏移量
-function setGlobalOffset(editor, targetOffset) {
-  let currentOffset = 0;
-  let targetNode = editor;
-  let targetNodeOffset = 0;
-  // 遍历所有文本节点
-  const walker = document.createTreeWalker(editor, NodeFilter.SHOW_TEXT, null);
-  let node: Node;
-  while ((node = walker.nextNode())) {
-    const nodeLength = node.textContent.length;
-    if (currentOffset + nodeLength > targetOffset) {
-      targetNode = node;
-      targetNodeOffset = targetOffset - currentOffset;
-      break;
-    }
-    currentOffset += nodeLength;
-  }
-  // 处理越界情况（放置到最后一个位置）
-  if (!targetNode || targetNode.nodeType !== Node.TEXT_NODE) {
-    const allChildren = editor.childNodes;
-    targetNode = editor;
-    targetNodeOffset = allChildren.length;
-  }
-  // 设置光标位置
-  const range = document.createRange();
-  range.setStart(targetNode, targetNodeOffset);
-  range.collapse(true);
-  const selection = window.getSelection();
-  selection.removeAllRanges();
-  selection.addRange(range);
-}
-
-/**
- * @description 替换编辑器内容的同时保持聚焦状态
- * @param editor
- * @param content
- * @param isLast
- */
-function replaceContent(editor, content: string, isLast = false) {
-  // 保存原始偏移量
-  const originalOffset = getGlobalOffset(editor);
-  // 生成新内容（示例：随机长度的新文本）
-  const newText = content;
-  editor.innerHTML = newText;
-  // 计算新内容总长度
-  let newContentLength = 0;
-  const walker = document.createTreeWalker(editor, NodeFilter.SHOW_TEXT, null);
-  let node: Node;
-  while ((node = walker.nextNode())) {
-    newContentLength += node.textContent.length;
-  }
-  let adjustedOffset = Math.min(originalOffset, newContentLength);
-  if (isLast) {
-    adjustedOffset = newContentLength; // 将光标移动到最后
-  }
-  // 恢复光标
-  setGlobalOffset(editor, adjustedOffset);
-  // 保持聚焦
-  editor.focus();
+  value: string;
 }
 
 interface IOptions {
   target: Element;
   value: string;
-  popUpFn?: (type: EQueryStringTokenType, field: string) => void;
-  popDownFn?: () => void;
-  onSearch?: (value: string) => void;
-  onChange?: (value: string) => void;
-  onQuery?: (v?: string) => void;
-  onInput?: (v: string) => void;
-  onBlur?: () => void;
   keyFormatter?: (field: string) => string;
+  onBlur?: () => void;
+  onChange?: (value: string) => void;
+  onInput?: (v: string) => void;
+  onQuery?: (v?: string) => void;
+  onSearch?: (value: string) => void;
+  popDownFn?: () => void;
+  popUpFn?: (type: EQueryStringTokenType, field: string) => void;
   valueFormatter?: (field: string, method: string, value: string) => string;
 }
+
 export class QueryStringEditor {
   /* 当前token类型 */
   curTokenType = EQueryStringTokenType.key;
@@ -588,4 +398,194 @@ export class QueryStringEditor {
       this.options?.onChange?.(this.queryString.replace(/^\s+|\s+$/g, ''));
     }
   }
+}
+
+export function getQueryStringMethods(fieldType: EFieldType) {
+  if (fieldType === EFieldType.integer) {
+    return [...QUERY_STRING_METHODS];
+  }
+  return [
+    {
+      id: ':',
+      name: window.i18n.tc('等于'),
+    },
+    {
+      id: ':*',
+      name: window.i18n.tc('存在'),
+    },
+  ];
+}
+
+export function parseQueryString(query: string): IStrItem[] {
+  const tokens: IStrItem[] = [];
+
+  // 增强正则表达式，支持完整括号集和运算符
+  // const tokenRegex = /(\s+)|([(){}[\]])|(AND\s+NOT|AND|OR)|(<=|>=|:\*|:|>|<)|(".*?")|(\S+)/gi;
+  const tokenRegex = /(\s+)|([(){}[\]])|(AND\s+NOT|AND|OR)|(<=|>=|:|>|<)|(".*?")|(\S+)/gi;
+
+  let match: null | RegExpExecArray;
+  while ((match = tokenRegex.exec(query)) !== null) {
+    const [_full, space, bracket, condition, method, quoted, word] = match;
+    if (space) {
+      tokens.push({ value: space, type: EQueryStringTokenType.split });
+    } else if (bracket) {
+      tokens.push({ value: bracket, type: EQueryStringTokenType.bracket });
+    } else if (condition) {
+      tokens.push({ value: condition.toUpperCase(), type: EQueryStringTokenType.condition });
+    } else if (method) {
+      tokens.push({ value: method, type: EQueryStringTokenType.method });
+    } else if (quoted) {
+      tokens.push({ value: quoted, type: EQueryStringTokenType.value });
+    } else if (word) {
+      const match = word.match(/[)\]}]/);
+      if (match) {
+        tokens.push({ value: word.slice(0, match.index), type: EQueryStringTokenType.value });
+        tokens.push({ value: match[0], type: EQueryStringTokenType.bracket });
+      } else {
+        tokens.push({ value: word, type: EQueryStringTokenType.value });
+      }
+    }
+  }
+
+  // 增强的括号层级处理
+  let hasBracket = false;
+  const leftBrackets = new Set(['(', '[', '{']);
+  const rightBrackets = new Set([')', ']', '}']);
+
+  if (tokens?.[0]?.type === EQueryStringTokenType.split) {
+    tokens.splice(0, 1);
+  }
+  if (tokens?.[tokens.length - 1]?.type === EQueryStringTokenType.split) {
+    tokens[tokens.length - 1].value = ' ';
+  }
+
+  let index = -1;
+  for (const token of tokens) {
+    index += 1;
+    // 更新括号层级
+    if (token.type === EQueryStringTokenType.bracket) {
+      if (hasBracket) {
+        const isRight = rightBrackets.has(token.value);
+        hasBracket = !isRight;
+        continue;
+      }
+      const isLeft = leftBrackets.has(token.value);
+      hasBracket = isLeft;
+      continue;
+    }
+
+    // 动态条件类型转换
+    if (token.type === EQueryStringTokenType.condition) {
+      token.type = hasBracket ? EQueryStringTokenType.valueCondition : EQueryStringTokenType.condition;
+    }
+
+    // 增强的键值类型推导
+    if (token.type === EQueryStringTokenType.value) {
+      const nextToken = tokens.slice(index + 1).find(t => t.type !== EQueryStringTokenType.split);
+      const preToken = tokens
+        .slice(0, index)
+        .reverse()
+        .find(t => t.type !== EQueryStringTokenType.split);
+
+      // 检查后续是否存在方法运算符
+      if (
+        nextToken?.type === EQueryStringTokenType.method ||
+        (!hasBracket && preToken?.type === EQueryStringTokenType.condition)
+      ) {
+        token.type = EQueryStringTokenType.key;
+      }
+    }
+    if (index === 0 && token.value) {
+      token.type = EQueryStringTokenType.key;
+    }
+  }
+  return tokens;
+}
+
+// 获取光标全局字符偏移量
+function getGlobalOffset(editor) {
+  const selection = window.getSelection();
+  if (!selection.rangeCount) return 0;
+  const range = selection.getRangeAt(0);
+  let offset = 0;
+  const nodeStack = [editor];
+  let found = false;
+  // 前序遍历所有文本节点
+  while (nodeStack.length > 0 && !found) {
+    const node = nodeStack.pop();
+    if (node.nodeType === Node.TEXT_NODE) {
+      if (node === range.startContainer) {
+        offset += range.startOffset;
+        found = true;
+      } else {
+        offset += node.textContent.length;
+      }
+    } else {
+      // 逆序压栈保证遍历顺序
+      for (let i = node.childNodes.length - 1; i >= 0; i--) {
+        nodeStack.push(node.childNodes[i]);
+      }
+    }
+  }
+  return offset;
+}
+
+/**
+ * @description 替换编辑器内容的同时保持聚焦状态
+ * @param editor
+ * @param content
+ * @param isLast
+ */
+function replaceContent(editor, content: string, isLast = false) {
+  // 保存原始偏移量
+  const originalOffset = getGlobalOffset(editor);
+  // 生成新内容（示例：随机长度的新文本）
+  const newText = content;
+  editor.innerHTML = newText;
+  // 计算新内容总长度
+  let newContentLength = 0;
+  const walker = document.createTreeWalker(editor, NodeFilter.SHOW_TEXT, null);
+  let node: Node;
+  while ((node = walker.nextNode())) {
+    newContentLength += node.textContent.length;
+  }
+  let adjustedOffset = Math.min(originalOffset, newContentLength);
+  if (isLast) {
+    adjustedOffset = newContentLength; // 将光标移动到最后
+  }
+  // 恢复光标
+  setGlobalOffset(editor, adjustedOffset);
+  // 保持聚焦
+  editor.focus();
+}
+// 设置光标到指定偏移量
+function setGlobalOffset(editor, targetOffset) {
+  let currentOffset = 0;
+  let targetNode = editor;
+  let targetNodeOffset = 0;
+  // 遍历所有文本节点
+  const walker = document.createTreeWalker(editor, NodeFilter.SHOW_TEXT, null);
+  let node: Node;
+  while ((node = walker.nextNode())) {
+    const nodeLength = node.textContent.length;
+    if (currentOffset + nodeLength > targetOffset) {
+      targetNode = node;
+      targetNodeOffset = targetOffset - currentOffset;
+      break;
+    }
+    currentOffset += nodeLength;
+  }
+  // 处理越界情况（放置到最后一个位置）
+  if (!targetNode || targetNode.nodeType !== Node.TEXT_NODE) {
+    const allChildren = editor.childNodes;
+    targetNode = editor;
+    targetNodeOffset = allChildren.length;
+  }
+  // 设置光标位置
+  const range = document.createRange();
+  range.setStart(targetNode, targetNodeOffset);
+  range.collapse(true);
+  const selection = window.getSelection();
+  selection.removeAllRanges();
+  selection.addRange(range);
 }

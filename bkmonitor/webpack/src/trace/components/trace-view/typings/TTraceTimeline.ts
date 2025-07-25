@@ -32,7 +32,7 @@ type TTraceTimeline = {
   hoverIndentGuideIds: Set<string>;
   shouldScrollToFirstUiFindMatch: boolean;
   spanNameColumnWidth: number;
-  traceID: TNil | string;
+  traceID: string | TNil;
 };
 
 export default TTraceTimeline;

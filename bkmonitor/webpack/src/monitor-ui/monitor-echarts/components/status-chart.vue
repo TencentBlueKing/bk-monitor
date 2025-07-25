@@ -28,9 +28,9 @@
     <template v-if="series.length">
       <template v-for="(item, index) in series">
         <bk-popover
+          :key="index"
           :content="statusList[item.status]"
           placement="top"
-          :key="index"
         >
           <li
             class="status-chart-item"
@@ -62,7 +62,7 @@ export default class StatusChart extends Vue {
       return [];
     },
   })
-  readonly series: { value: string; status: string }[];
+  readonly series: { status: string; value: string }[];
   private statusList: any[];
   created() {
     this.statusList = [this.$t('正常'), this.$t('停用'), this.$t('异常')];

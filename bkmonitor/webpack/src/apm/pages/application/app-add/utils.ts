@@ -26,32 +26,32 @@
 
 import { deepClone } from 'monitor-common/utils/utils';
 
-export type ThemeType = 'lang' | 'plugin' | 'system';
+export interface ICardItem {
+  checked: boolean;
+  descData?: IDescData;
+  hidden: boolean;
+  id: string;
+  img: string;
+  theme: ThemeType;
+  title: string;
+}
 export interface IDescData {
-  name: string;
-  isOfficial: boolean;
   heat: number;
+  isOfficial: boolean;
+  name: string;
 }
 export interface IListDataItem {
-  title: string;
-  list?: ICardItem[];
   children?: IListDataItem[];
+  list?: ICardItem[];
   multiple?: boolean;
+  title: string;
   other?: {
-    title: string;
     checked: boolean;
+    title: string;
     value: string;
   };
 }
-export interface ICardItem {
-  id: string;
-  title: string;
-  theme: ThemeType;
-  img: string;
-  descData?: IDescData;
-  hidden: boolean;
-  checked: boolean;
-}
+export type ThemeType = 'lang' | 'plugin' | 'system';
 export class SystemData {
   /** 语言数据 */
   lang: IListDataItem = {
@@ -181,7 +181,7 @@ export class SystemData {
   /** 批量修改整行卡片的选中状态 */
   handleRowChecked(row: IListDataItem, bool = false) {
     row.list.forEach(item => (item.checked = bool));
-    if (!!row.other) {
+    if (row.other) {
       row.other.checked = bool;
       row.other.value = '';
     }

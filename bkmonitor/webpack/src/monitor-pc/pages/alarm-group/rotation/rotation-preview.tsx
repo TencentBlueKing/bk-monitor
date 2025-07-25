@@ -37,12 +37,12 @@ import {
 import './rotation-preview.scss';
 
 interface IProps {
-  value?: any;
   alarmGroupId?: number | string;
   dutyPlans?: any[];
   previewDutyRules?: any[];
-  onStartTimeChange?: (v: string) => void;
+  value?: any;
   onInitStartTime?: (v: string) => void;
+  onStartTimeChange?: (v: string) => void;
 }
 
 @Component
@@ -177,7 +177,7 @@ export default class RotationPreview extends tsc<IProps> {
       return;
     }
     let dutyPlans = [];
-    if (!!this.alarmGroupId) {
+    if (this.alarmGroupId) {
       dutyPlans = this.dutyPlans;
     } else if (!isHistory) {
       this.previewDutyRules.forEach(item => {

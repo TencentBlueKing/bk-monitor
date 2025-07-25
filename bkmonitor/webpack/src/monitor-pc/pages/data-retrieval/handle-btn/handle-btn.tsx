@@ -97,7 +97,7 @@ export default class HandleBtn extends tsc<HandleBtnType.IProps, HandleBtnType.I
             {this.autoQuery ? this.$t('自动查询') : this.$t('查询')}
           </bk-button>
         </span>
-        {!!this.favCheckedValue ? (
+        {this.favCheckedValue ? (
           <div class='favorite-btn-container'>
             {this.isFavoriteUpdate ? <i class='catching-ball' /> : undefined}
             <span

@@ -30,9 +30,9 @@ import MonitorTab from 'monitor-pc/components/monitor-tab/monitor-tab';
 
 import './configuration-nav.scss';
 
-interface IMenuItem {
-  id: string;
-  name: string;
+interface IConfiguratioNavEvent {
+  onAlertClick: void;
+  onMenuClick: string;
 }
 
 interface IConfiguratioNavProps {
@@ -40,9 +40,9 @@ interface IConfiguratioNavProps {
   menuList: IMenuItem[];
 }
 
-interface IConfiguratioNavEvent {
-  onMenuClick: string;
-  onAlertClick: void;
+interface IMenuItem {
+  id: string;
+  name: string;
 }
 
 @Component

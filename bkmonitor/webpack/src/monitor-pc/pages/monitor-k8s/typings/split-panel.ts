@@ -26,17 +26,17 @@
 export const SPLIT_MIN_WIDTH = 300;
 export const SPLIT_MAX_WIDTH = 1200;
 
-export type SceneType = 'detail' | 'overview';
 export type ContentType = 'component' | 'dashboard' | 'event';
-
 export interface IRelateItem {
+  children?: IRelateItem[];
+  contentType?: ContentType;
   id: string;
   name: string;
-  children?: IRelateItem[];
   queryType?: string[];
-  contentType?: ContentType;
   sceneType?: SceneType;
 }
+
+export type SceneType = 'detail' | 'overview';
 // 分屏关联查看选项列表
 export const RELATED_MENU_LIST: IRelateItem[] = [
   {
@@ -68,6 +68,12 @@ export const RELATED_MENU_LIST: IRelateItem[] = [
   },
 ];
 
+export interface ISplitPanelItem {
+  children: SplitPanelModel[];
+  id: string;
+  name: string;
+}
+
 export class SplitPanelModel {
   contentType?: ContentType;
   id: string;
@@ -88,12 +94,6 @@ export class SplitPanelModel {
   get hasSearchInput() {
     return this.queryType.includes('input');
   }
-}
-
-export interface ISplitPanelItem {
-  id: string;
-  name: string;
-  children: SplitPanelModel[];
 }
 
 export const SPLIT_PANEL_LIST: ISplitPanelItem[] = RELATED_MENU_LIST.reduce((pre, cur) => {

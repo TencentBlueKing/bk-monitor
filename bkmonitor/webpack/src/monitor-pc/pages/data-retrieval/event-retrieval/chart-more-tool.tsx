@@ -28,12 +28,12 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import './chart-more-tool.scss';
 
-export interface IProps {
-  toolChecked: string[];
-  moreChecked: string[];
-}
 export interface IEvents {
   onSelect: string;
+}
+export interface IProps {
+  moreChecked: string[];
+  toolChecked: string[];
 }
 @Component
 export default class ChartToolsMenu extends tsc<IProps, IEvents> {
@@ -151,7 +151,7 @@ export default class ChartToolsMenu extends tsc<IProps, IEvents> {
             onClick={() => this.handleSelect(item.id)}
           />
         ))}
-        {!!this.moreChecked.length ? (
+        {this.moreChecked.length ? (
           <i
             ref='moreRef'
             class='icon-monitor icon-mc-more'

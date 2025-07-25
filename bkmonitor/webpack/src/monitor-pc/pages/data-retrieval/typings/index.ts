@@ -36,150 +36,150 @@ import type { IIndexListItem } from '../index-list/index-list';
  */
 import type { TranslateResult } from 'vue-i18n';
 
+export interface IOption {
+  id: number | string;
+  name: string | TranslateResult;
+}
+
 export interface whereItem {
   condition: 'and' | 'or';
   key: string;
   method: string;
   value: string[];
 }
-
-export interface IOption {
-  id: number | string;
-  name: string | TranslateResult;
-}
 // 收藏列表
 export declare namespace IFavList {
   interface favGroupList {
-    name: string;
-    id: number;
     editable: boolean;
     favorites: favList[];
+    id: number;
+    name: string;
   }
   interface favList {
     config: any;
     create_user: string;
+    disabled?: boolean;
     group_id: number | object;
+    groupName?: string;
     id: number;
     name: string;
     update_time: string;
     update_user: string;
-    disabled?: boolean;
+  }
+  interface favTableList extends favList {
+    editGroup?: boolean;
+    editName?: boolean;
     groupName?: string;
   }
   interface groupList {
-    group_name: string;
     group_id: number;
-  }
-  interface IProps {
-    value: favList[];
-    checkedValue: favList;
+    group_name: string;
   }
   interface IEvent {
     deleteFav?: number;
     selectFav?: any;
   }
 
-  interface favTableList extends favList {
-    editName?: boolean;
-    editGroup?: boolean;
-    groupName?: string;
+  interface IProps {
+    checkedValue: favList;
+    value: favList[];
   }
 }
 
 // 指标检索类型
 export declare namespace IDataRetrieval {
-  type tabId = 'event' | 'log' | 'monitor'; // 数据检索 | 日志检索 | 事件检索
-  interface ITabList {
-    id: tabId;
-    name: string | TranslateResult;
-  }
-
-  type IOption = 'copy' | 'delete' | 'enable' | 'source'; // 对应的操作：源码、开启、复制、删除
-
-  type ILocalValue = DataRetrievalQueryItem | IExpressionItem;
-
-  interface IExpressionItem {
-    key: string;
-    isMetric: boolean;
-    enable: boolean;
-    alias?: string; // 别名
-    value: string;
-    functions: IFunctionsValue[];
-    errMsg?: string;
-  }
-  interface queryConfigsParams {
-    metric: string;
-    method: string;
-    alias: string;
-    interval: number;
-    table: string;
-    data_label?: string;
-    data_source_label: string;
-    data_type_label: string;
-    group_by: string[];
-    where: whereItem[];
-    functions: IFunctionItem[];
-    index_set_id?: number | string;
-    filter_dict?: Record<string, any>;
-  }
   // 目前跳转检索的两种数据结构分类分别以 仪表盘grafana图表 | 主机详情图表 为代表，但不仅包含其一
   type fromRouteNameType = 'grafana' | 'performance-detail';
-
-  type TargetType = 'DYNAMIC_GROUP' | 'INSTANCE' | 'SERVICE_TEMPLATE' | 'SET_TEMPLATE' | 'TOPO';
-  interface ITarget {
-    show: boolean;
-    objectType: 'HOST';
-    targetType: TargetType;
-    value: any[];
-    desc: string;
-    mainlineObjectTopoList: any[];
+  interface IExpressionItem {
+    alias?: string; // 别名
+    enable: boolean;
+    errMsg?: string;
+    functions: IFunctionsValue[];
+    isMetric: boolean;
+    key: string;
+    value: string;
   }
-  type promEventType = 'blur' | 'enter'; // enter键触发 失焦触发
+
+  type ILocalValue = DataRetrievalQueryItem | IExpressionItem;
 
   // 周期单位对应的换算
   // 周期单位对应的换算
   interface IntervalUnitMap {
-    s: 1;
-    m: 30;
-    h: 3600;
     d: 86400;
+    h: 3600;
+    m: 30;
     M: 2592000;
+    s: 1;
     y: 31104000;
   }
+
+  type IOption = 'copy' | 'delete' | 'enable' | 'source'; // 对应的操作：源码、开启、复制、删除
+  interface ITabList {
+    id: tabId;
+    name: string | TranslateResult;
+  }
+  interface ITarget {
+    desc: string;
+    mainlineObjectTopoList: any[];
+    objectType: 'HOST';
+    show: boolean;
+    targetType: TargetType;
+    value: any[];
+  }
+
+  type promEventType = 'blur' | 'enter'; // enter键触发 失焦触发
+  interface queryConfigsParams {
+    alias: string;
+    data_label?: string;
+    data_source_label: string;
+    data_type_label: string;
+    filter_dict?: Record<string, any>;
+    functions: IFunctionItem[];
+    group_by: string[];
+    index_set_id?: number | string;
+    interval: number;
+    method: string;
+    metric: string;
+    table: string;
+    where: whereItem[];
+  }
+  type tabId = 'event' | 'log' | 'monitor'; // 数据检索 | 日志检索 | 事件检索
+
+  type TargetType = 'DYNAMIC_GROUP' | 'INSTANCE' | 'SERVICE_TEMPLATE' | 'SET_TEMPLATE' | 'TOPO';
 }
 
 // 查询项/表达式 类型
 export declare namespace IDataRetrievalItem {
-  type IValue = DataRetrievalQueryItem | IDataRetrieval.IExpressionItem;
+  // where: 条件值更新 where-clear-value: 清除条件值操作
+  type emitType = 'where' | 'where-clear-value';
   interface IAggMethodList {
-    name: string;
     id: string;
+    name: string;
+  }
+  interface IEvent {
+    onChange?: onChange;
+    onLoadingChange?: boolean;
+    onClearMetric?: () => void;
+    onShowMetricSelector?: () => void;
   }
   interface IProps {
-    value: IValue;
-    scenarioList: any[];
-    index: number;
     compareValue: IDataRetrievalView.ICompareValue;
+    index: number;
+    scenarioList: any[];
+    value: IValue;
   }
+  type IValue = DataRetrievalQueryItem | IDataRetrieval.IExpressionItem;
+
   interface IWhere {
+    condition: string;
     key: string;
     method: string;
     value: string[];
-    condition: string;
   }
+
   interface onChange {
-    value: DataRetrievalQueryItem;
     type: emitType;
-  }
-
-  // where: 条件值更新 where-clear-value: 清除条件值操作
-  type emitType = 'where' | 'where-clear-value';
-
-  interface IEvent {
-    onChange?: onChange;
-    onShowMetricSelector?: () => void;
-    onClearMetric?: () => void;
-    onLoadingChange?: boolean;
+    value: DataRetrievalQueryItem;
   }
 }
 
@@ -188,132 +188,101 @@ export declare namespace IDataRetrievalView {
   type chartType = 0 | 1 | 2 | 3 | 4 | number;
 
   type compareType = 'metric' | 'none' | 'target' | 'time';
-  type typeOfView = 'event' | 'monitor' | 'trace';
   interface ICompare {
     type: compareType;
     value?: boolean | string | string[];
   }
-  interface ITools {
-    refreshInterval: number;
-    timeRange: TimeRangeType;
-    timezone: string;
+  interface ICompareComChange {
+    compare: ICompare;
+    tools: ITools;
+    type: 'compare' | 'interval' | 'timeRange';
   }
   interface ICompareValue {
     compare: ICompare;
     tools: ITools;
   }
-  interface ICompareComChange {
-    type: 'compare' | 'interval' | 'timeRange';
-    compare: ICompare;
-    tools: ITools;
-  }
-  interface ISearchTipsObj {
-    show: boolean;
-    time: number;
-    showSplit: boolean;
-    value: boolean;
-    showAddStrategy: boolean;
-  }
   interface IEmptyView {
-    showType: typeOfView;
-    queryLoading: boolean;
+    emptyStatus: EmptyStatusType;
     eventMetricParams?: object;
     onClickEventBtn?: any;
-    emptyStatus: EmptyStatusType;
+    queryLoading: boolean;
+    showType: typeOfView;
   }
   interface IEvent {
-    onCompareChange: ICompareValue;
-    onShowLeft: boolean;
-    onDeleteFav: number;
-    onSplitChange: boolean;
-    onSelectFav: IDataRetrieval.ILocalValue[];
-    onAddStrategy: () => void;
-    onEventIntervalChange: EventRetrievalViewType.intervalType;
-    onTimeRangeChangeEvent: EventRetrievalViewType.IEvent['onTimeRangeChange'];
     onAddEventStrategy: IFilterCondition.VarParams;
+    onCompareChange: ICompareValue;
     onCompareValueChange: PanelToolsType.Compare;
-    onTimeRangeChange: PanelHeaderType.TimeRangeValue;
+    onDeleteFav: number;
     onDrillKeywordsSearch: string;
-  }
-  interface IProps {
-    compareValue: ICompareValue;
-    favoritesList?: IFavList.favList[];
-    favCheckedValue?: IFavList.favList;
-    leftShow: boolean;
-    queryResult: any[];
-    queryTimeRange: number;
-    canAddStrategy: boolean;
-    retrievalType: IDataRetrieval.tabId;
-    refleshNumber?: number;
-    queryLoading?: boolean;
-    // eventFieldList: FieldValue[];
-    eventMetricParams: IFilterCondition.VarParams;
-    eventChartInterval: EventRetrievalViewType.intervalType;
-    eventCount?: number;
-    eventChartTitle?: string;
-    indexList?: IIndexListItem[];
-    needCompare?: boolean;
-    emptyStatus: EmptyStatusType;
+    onEventIntervalChange: EventRetrievalViewType.intervalType;
+    onSelectFav: IDataRetrieval.ILocalValue[];
+    onShowLeft: boolean;
+    onSplitChange: boolean;
+    onTimeRangeChange: PanelHeaderType.TimeRangeValue;
+    onTimeRangeChangeEvent: EventRetrievalViewType.IEvent['onTimeRangeChange'];
+    onAddStrategy: () => void;
   }
   interface IOptionItem {
     id?: string;
     name: string | TranslateResult;
     value?: number | string;
   }
-}
-
-interface IDataRetrievalQueryItem {
-  enable?: boolean;
-  sourceCode?: string;
-  sourceCodeCache?: string;
-  showSource?: boolean;
-  key?: string;
-  sourceCodeIsNullMetric?: boolean;
-  consistency?: boolean;
-  filter_dict?: Record<string, any>;
-  errMsg?: string;
-}
-
-// 查询项数据结构
-export class DataRetrievalQueryItem extends MetricDetail {
-  agg_interval: any = 'auto'; // 源码
-  consistency = true; // 源码缓存
-  enable = true; // 记录源码转换出现空指标
-  errMsg = ''; // 展示源码
-  filter_dict: Record<string, any> = {}; // 源码报错
-  isMetric = true; // ui与source一致性标记
-  key = random(8); // 是否生效
-  loading = false; // 初始化指标数据标记
-  showSource = false; // 唯一key值
-  sourceCode = '';
-  sourceCodeCache = ''; // 将切换ui
-  sourceCodeError = false;
-  sourceCodeIsNullMetric = false;
-  switchToUI = false; /* 转换为promql时的报错信息 */
-  constructor(data?: IMetricDetail & IDataRetrievalQueryItem) {
-    super(data);
-    if (!data) return;
-    this.key = data.key || random(8);
-    this.enable = data.enable ?? true;
-    this.showSource = data.showSource ?? false;
-    this.sourceCode = data.sourceCode || '';
-    this.sourceCodeCache = data.sourceCodeCache || '';
-    this.sourceCodeIsNullMetric = data.sourceCodeIsNullMetric ?? false;
-    this.consistency = data.consistency ?? true;
-    this.filter_dict = data.filter_dict ?? {};
-    this.agg_interval = data.agg_interval ?? 'auto';
-    this.errMsg = '';
+  interface IProps {
+    canAddStrategy: boolean;
+    compareValue: ICompareValue;
+    emptyStatus: EmptyStatusType;
+    eventChartInterval: EventRetrievalViewType.intervalType;
+    eventChartTitle?: string;
+    eventCount?: number;
+    // eventFieldList: FieldValue[];
+    eventMetricParams: IFilterCondition.VarParams;
+    favCheckedValue?: IFavList.favList;
+    favoritesList?: IFavList.favList[];
+    indexList?: IIndexListItem[];
+    leftShow: boolean;
+    needCompare?: boolean;
+    queryLoading?: boolean;
+    queryResult: any[];
+    queryTimeRange: number;
+    refleshNumber?: number;
+    retrievalType: IDataRetrieval.tabId;
   }
+  interface ISearchTipsObj {
+    show: boolean;
+    showAddStrategy: boolean;
+    showSplit: boolean;
+    time: number;
+    value: boolean;
+  }
+  interface ITools {
+    refreshInterval: number;
+    timeRange: TimeRangeType;
+    timezone: string;
+  }
+  type typeOfView = 'event' | 'monitor' | 'trace';
 }
 
 interface IDataRetrievalPromqlItem {
-  key: string;
+  alias: string;
   code: string;
   enable: boolean;
-  alias: string;
-  step: number | string;
   filter_dict?: Record<string, string>;
+  key: string;
+  step: number | string;
 }
+
+interface IDataRetrievalQueryItem {
+  consistency?: boolean;
+  enable?: boolean;
+  errMsg?: string;
+  filter_dict?: Record<string, any>;
+  key?: string;
+  showSource?: boolean;
+  sourceCode?: string;
+  sourceCodeCache?: string;
+  sourceCodeIsNullMetric?: boolean;
+}
+
 export class DataRetrievalPromqlItem {
   alias = '';
   code = '';
@@ -333,39 +302,75 @@ export class DataRetrievalPromqlItem {
     this.errMsg = '';
   }
 }
+// 查询项数据结构
+export class DataRetrievalQueryItem extends MetricDetail {
+  agg_interval: any = 'auto'; // 源码
+  consistency = true; // 源码缓存
+  enable = true; // 记录源码转换出现空指标
+  errMsg = ''; // 展示源码
+  filter_dict: Record<string, any> = {}; // 源码报错
+  isMetric = true; // ui与source一致性标记
+  key = random(8); // 是否生效
+  loading = false; // 初始化指标数据标记
+  showSource = false; // 唯一key值
+  sourceCode = '';
+  sourceCodeCache = ''; // 将切换ui
+  sourceCodeError = false;
+  sourceCodeIsNullMetric = false;
+  switchToUI = false; /* 转换为promql时的报错信息 */
+  constructor(data?: IDataRetrievalQueryItem & IMetricDetail) {
+    super(data);
+    if (!data) return;
+    this.key = data.key || random(8);
+    this.enable = data.enable ?? true;
+    this.showSource = data.showSource ?? false;
+    this.sourceCode = data.sourceCode || '';
+    this.sourceCodeCache = data.sourceCodeCache || '';
+    this.sourceCodeIsNullMetric = data.sourceCodeIsNullMetric ?? false;
+    this.consistency = data.consistency ?? true;
+    this.filter_dict = data.filter_dict ?? {};
+    this.agg_interval = data.agg_interval ?? 'auto';
+    this.errMsg = '';
+  }
+}
 
 // 事件检索组件
 export declare namespace IEventRetrieval {
+  interface EventTypeChange {
+    data_source_label: 'bk_monitor' | 'custom';
+    data_type_label: 'event' | 'log';
+  }
   interface IEvent {
-    onEventTypeChange: EventTypeChange;
-    onWhereChange: IFilterCondition.localValue[];
-    onQuery: IFilterCondition.VarParams;
     onAddFav: HandleBtnType.IEvent['onAddFav'];
-    onCountChange: number;
     onChartTitleChange: string;
+    onCountChange: number;
+    onEventTypeChange: EventTypeChange;
+    onQuery: IFilterCondition.VarParams;
+    onWhereChange: IFilterCondition.localValue[];
     onAutoQueryChange?: (v: boolean) => void;
+    onChange?: (value: ILocalValue) => void;
     onClearDrillKeywords: () => void;
     onEmptyStatusChange: (val: EmptyStatusType) => void;
-    onChange?: (value: ILocalValue) => void;
-  }
-  interface IProps {
-    where: IFilterCondition.localValue[];
-    autoQuery: boolean;
-    isFavoriteUpdate: boolean;
-    drillKeywords?: string;
-    compareValue: IDataRetrievalView.ICompareValue;
-    queryConfig: IFilterCondition.VarParams;
-    eventInterval: EventRetrievalViewType.intervalType;
-    favCheckedValue: IFavList.favList;
-    chartTimeRange: EventRetrievalViewType.IEvent['onTimeRangeChange'];
   }
 
   type IEventTypeList = IOption;
 
   interface ILocalValue {
     eventType: 'bk_monitor_log' | 'custom_event';
-    result_table_id: string;
     query_string: string;
+    result_table_id: string;
+    where: IFilterCondition.localValue[];
+  }
+
+  interface IProps {
+    autoQuery: boolean;
+    chartTimeRange: EventRetrievalViewType.IEvent['onTimeRangeChange'];
+    compareValue: IDataRetrievalView.ICompareValue;
+    drillKeywords?: string;
+    eventInterval: EventRetrievalViewType.intervalType;
+    favCheckedValue: IFavList.favList;
+    isFavoriteUpdate: boolean;
+    queryConfig: IFilterCondition.VarParams;
     where: IFilterCondition.localValue[];
   }
 
@@ -374,102 +379,97 @@ export declare namespace IEventRetrieval {
     value: string[];
   }
 
-  interface EventTypeChange {
-    data_source_label: 'bk_monitor' | 'custom';
-    data_type_label: 'event' | 'log';
-  }
-
   interface SourceAndTypeLabelMap {
-    custom_event: {
-      data_source_label: 'custom';
-      data_type_label: 'event';
-    };
     bk_monitor_log: {
       data_source_label: 'bk_monitor';
       data_type_label: 'log';
+    };
+    custom_event: {
+      data_source_label: 'custom';
+      data_type_label: 'event';
     };
   }
 }
 
 export declare namespace IFilterCondition {
-  interface IProps {
-    value: localValue[];
-    groupBy: IGroupBy[];
-    varParams: VarParams;
+  type AddType = 'add' | 'edit';
+  type GroupbyType = 'number' | 'string';
+  interface IConditonOption extends IOption {
+    placeholder?: string;
   }
   interface IEvent {
     onChange: localValue[];
   }
-  type GroupbyType = 'number' | 'string';
   type IGroupBy = IOption & {
     type: GroupbyType;
   };
-  interface VarParams {
-    data_source_label: string;
-    data_type_label: string;
-    metric_field: string;
-    result_table_id: string;
-    where?: any[];
-    query_string?: string;
-    group_by?: string[];
-    filter_dict?: { [propName: string]: string[] };
-    method?: string;
-    metric_field_cache?: string; // 新增策略的metric_field
+  interface IProps {
+    groupBy: IGroupBy[];
+    value: localValue[];
+    varParams: VarParams;
   }
   interface localValue {
+    condition: 'and' | 'or';
     key: number | string;
     method: string;
     value: number[] | string[];
-    condition: 'and' | 'or';
   }
-  type AddType = 'add' | 'edit';
 
-  interface IConditonOption extends IOption {
-    placeholder?: string;
+  interface VarParams {
+    data_source_label: string;
+    data_type_label: string;
+    filter_dict?: { [propName: string]: string[] };
+    group_by?: string[];
+    method?: string;
+    metric_field: string;
+    metric_field_cache?: string; // 新增策略的metric_field
+    query_string?: string;
+    result_table_id: string;
+    where?: any[];
   }
 }
 
 export declare namespace FieldFilteringType {
-  interface IProps {
-    value: FieldValue[];
-    total: number;
-  }
-  interface IEvent {
-    onAddCondition: IFilterCondition.localValue;
-    onChange: FieldValue[];
-  }
   enum FieldDataType {
     date = 'date',
     number = 'number',
     string = 'string',
     text = 'text',
   }
-  interface IFieldValue {
-    id: string;
-    count: number;
+  interface IEvent {
+    onAddCondition: IFilterCondition.localValue;
+    onChange: FieldValue[];
   }
-
   interface IFieldTypeValue {
     aggVal: string;
     fieldType: string;
   }
+  interface IFieldValue {
+    count: number;
+    id: string;
+  }
+
+  interface IProps {
+    total: number;
+    value: FieldValue[];
+  }
 }
 
-export interface IFieldValueType {
-  field: string;
-  type?: string;
-  total: number;
-  dimensions: IFieldDimensions[];
-}
-export interface IFieldDimensions {
-  value: string;
-  number: number;
-  percentage: number;
-}
 export interface FieldValueDimension {
+  count?: number;
   id: string;
   percent: number;
-  count?: number;
+}
+export interface IFieldDimensions {
+  number: number;
+  percentage: number;
+  value: string;
+}
+export interface IFieldValueType {
+  dimensions: IFieldDimensions[];
+  field: string;
+  total: number;
+  type?: string;
 }
 export class FieldValue {
   checked = true;
@@ -496,44 +496,44 @@ export class FieldValue {
 }
 
 export declare namespace FieldListType {
-  interface IProp {
-    value: FieldValue[];
-    total: number;
-  }
+  type AddConditionType = 'AND' | 'NOT';
   interface IEvent {
     onAddCondition: IFilterCondition.localValue;
-    onCheckedChange: { index: number; checked: boolean; field: string };
+    onCheckedChange: { checked: boolean; field: string; index: number };
   }
-  type AddConditionType = 'AND' | 'NOT';
+  interface IProp {
+    total: number;
+    value: FieldValue[];
+  }
 }
 
 export declare namespace EventRetrievalViewType {
-  type intervalType = 'auto' | number;
-  interface IProps {
-    // fieldList: FieldValue[];
-    compareValue: IDataRetrievalView.ICompareValue;
-    eventMetricParams: IFilterCondition.VarParams;
-    chartInterval: intervalType;
-    intervalList?: IOption[];
-    showTip?: boolean;
-    extCls?: string;
-    queryLoading?: boolean;
-    // count?: number;
-    chartTitle?: string;
-    chartOption?: any;
-    toolChecked?: string[];
-    moreChecked?: string[];
-    emptyStatus: EmptyStatusType;
-  }
-  interface IEvent {
-    onIntervalChange: intervalType;
-    onAddStrategy?: IFilterCondition.VarParams;
-    onTimeRangeChange: [number, number];
-    onExportDataRetrieval?: () => void;
-  }
   interface IDrill {
     data: object;
     onDrillSearch: (v: string) => string;
+  }
+  interface IEvent {
+    onAddStrategy?: IFilterCondition.VarParams;
+    onIntervalChange: intervalType;
+    onTimeRangeChange: [number, number];
+    onExportDataRetrieval?: () => void;
+  }
+  type intervalType = 'auto' | number;
+  interface IProps {
+    chartInterval: intervalType;
+    chartOption?: any;
+    // count?: number;
+    chartTitle?: string;
+    // fieldList: FieldValue[];
+    compareValue: IDataRetrievalView.ICompareValue;
+    emptyStatus: EmptyStatusType;
+    eventMetricParams: IFilterCondition.VarParams;
+    extCls?: string;
+    intervalList?: IOption[];
+    moreChecked?: string[];
+    queryLoading?: boolean;
+    showTip?: boolean;
+    toolChecked?: string[];
   }
   interface ITextSegment {
     content: string;
@@ -543,56 +543,56 @@ export declare namespace EventRetrievalViewType {
 }
 
 export declare namespace HandleBtnType {
+  interface IEvent {
+    onAddFav: boolean;
+    onQueryTypeChange?: boolean;
+    onClear: () => void;
+    onQuery: () => void;
+  }
   interface IProps {
-    canQuery: boolean;
     autoQuery: boolean;
+    canFav?: boolean;
+    canQuery: boolean;
+    favCheckedValue?: IFavList.favList;
     isFavoriteUpdate?: boolean;
     queryLoading?: boolean;
-    canFav?: boolean;
-    favCheckedValue?: IFavList.favList;
-  }
-  interface IEvent {
-    onQuery: () => void;
-    onClear: () => void;
-    onQueryTypeChange?: boolean;
-    onAddFav: boolean;
   }
 }
 
 export declare namespace FavoriteIndexType {
-  interface IProps {
-    favoriteSearchType: string;
-    favoritesList: IFavList.favGroupList[];
-    favoriteLoading: boolean;
-    isShowFavorite: boolean;
-    favCheckedValue: IFavList.favList;
-    dataId?: string;
-  }
-  interface IEvent {
-    onOperateChange: {
-      operate: string;
-      value: any;
-    };
-    onGetFavoritesList();
-    onClose(): void;
-  }
   interface IContainerProps {
-    dataList?: IFavList.favGroupList[];
     collectItem?: IFavList.favGroupList;
-    groupList: IFavList.groupList[];
-    favCheckedValue: IFavList.favList;
-    emptyStatusType: EmptyStatusType;
-    isSearchFilter: boolean;
     collectLoading?: boolean;
+    dataList?: IFavList.favGroupList[];
+    emptyStatusType: EmptyStatusType;
+    favCheckedValue: IFavList.favList;
+    groupList: IFavList.groupList[];
+    isSearchFilter: boolean;
     onChange?: object;
     onHandleOperation?(type: EmptyStatusOperationType);
   }
   interface IDropProps {
+    data: IFavList.favGroupList | IFavList.favList;
     dropType?: string;
     groupList: IFavList.groupList[];
-    isHoverTitle?: boolean;
     groupName?: string;
-    data: IFavList.favGroupList | IFavList.favList;
+    isHoverTitle?: boolean;
+  }
+  interface IEvent {
+    onClose(): void;
+    onGetFavoritesList();
+    onOperateChange: {
+      operate: string;
+      value: any;
+    };
+  }
+  interface IProps {
+    dataId?: string;
+    favCheckedValue: IFavList.favList;
+    favoriteLoading: boolean;
+    favoriteSearchType: string;
+    favoritesList: IFavList.favGroupList[];
+    isShowFavorite: boolean;
   }
 }
 

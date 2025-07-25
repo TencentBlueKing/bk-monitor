@@ -27,92 +27,21 @@
 import type { IWhereItem } from '../../components/retrieval-filter/utils';
 import type { TranslateResult } from 'vue-i18n';
 
-export interface IFormData {
-  data_source_label: string;
-  data_type_label: string;
-  table: string;
-  query_string: string;
-  where: IWhereItem[];
-  group_by: any[];
-  filter_dict: Record<string, any>;
-}
-
-export interface IDataIdItem {
-  name: string;
-  id: string;
-  /** 是否置顶 */
-  isTop?: boolean;
-  is_platform?: boolean;
-  [key: string]: any;
-}
-
-export type DimensionType = 'boolean' | 'date' | 'double' | 'integer' | 'keyword' | 'long' | 'object' | 'text';
-
-export interface IDimensionOperation {
-  alias: string;
-  value: string;
-  options: { label: string; name: string }[];
-}
-export interface IDimensionField {
-  name: string;
-  alias: string;
-  type: DimensionType;
-  is_option_enabled: boolean;
-  is_dimensions: boolean;
-  support_operations: IDimensionOperation[];
-  pinyinStr?: string;
-}
-
-export interface ITopKRequestParams {
-  limit: number;
-  query_configs: IFormData[];
-  fields: string[];
-  start_time: number;
-  end_time: number;
-  app_name?: string;
-  service_name?: string;
-}
-
-export interface ITopKField {
-  distinct_count: number;
-  field: string;
-  list: {
-    alias: string;
-    count: number;
-    proportions: number;
-    value: string;
-  }[];
-}
-
-/** 统计信息 */
-export interface IStatisticsInfo {
-  field: string;
-  total_count: number;
-  field_count: number;
-  distinct_count: number;
-  field_percent: number;
-  value_analysis?: {
-    max: number;
-    min: number;
-    avg: number;
-    median: number;
-  };
-}
-
 /**
- * @description 事件检索 table表格列类型 枚举
+ * @description 事件type类型枚举
  */
-export enum ExploreTableColumnTypeEnum {
-  /** 事件 -- 内容列 */
-  CONTENT = 'content',
-  /** 事件 -- 目标列 */
-  LINK = 'link',
-  /** 事件 -- 来源列 */
-  PREFIX_ICON = 'prefix-icon',
-  /** 事件 -- 名称列  */
-  TEXT = 'text',
-  /** 事件 -- 发生时间列 */
-  TIME = 'time',
+export enum DimensionsTypeEnum {
+  DEFAULT = 'Default',
+  NORMAL = 'Normal',
+  WARNING = 'Warning',
+}
+
+/** 事件检索 kv 面板跳转其他页面 类型枚举 */
+export enum ExploreEntitiesTypeEnum {
+  /** 主机 */
+  HOST = 'ip',
+  /** 容器 */
+  K8S = 'k8s',
 }
 
 /**
@@ -131,66 +60,54 @@ export enum ExploreSourceTypeEnum {
 }
 
 /**
- * @description 事件type类型枚举
+ * @description 事件检索 table表格列类型 枚举
  */
-export enum DimensionsTypeEnum {
-  DEFAULT = 'Default',
-  NORMAL = 'Normal',
-  WARNING = 'Warning',
+export enum ExploreTableColumnTypeEnum {
+  /** 事件 -- 内容列 */
+  CONTENT = 'content',
+  /** 事件 -- 目标列 */
+  LINK = 'link',
+  /** 事件 -- 来源列 */
+  PREFIX_ICON = 'prefix-icon',
+  /** 事件 -- 名称列  */
+  TEXT = 'text',
+  /** 事件 -- 发生时间列 */
+  TIME = 'time',
 }
+/**
+ * @description 分词枚举
+ */
+export enum KVSplitEnum {
+  /** 分词符号 */
+  SEGMENTS = 'segments',
+  /** 单词 */
+  WORD = 'word',
+}
+
+export type ConditionChangeEvent = Pick<IWhereItem, 'key' | 'method'> & { value: string };
+
+export type DimensionType = 'boolean' | 'date' | 'double' | 'integer' | 'keyword' | 'long' | 'object' | 'text';
 
 /** 检索表格列配置类型 */
 export interface EventExploreTableColumn {
-  /** 字段类型 */
-  type?: ExploreTableColumnTypeEnum;
-  /** 字段id */
-  id: string;
-  /** 字段名称（渲染指标列时为指标名称） */
-  name: TranslateResult;
-  /** 列宽 */
-  width?: number;
-  /** 最小列宽 */
-  min_width?: number;
-  /** 是否固定列 */
-  fixed?: 'left' | 'right' | boolean;
-  /** 是否可排序 */
-  sortable?: boolean;
   /** 自定义列表头类型 */
   customHeaderCls?: string;
+  /** 是否固定列 */
+  fixed?: 'left' | 'right' | boolean;
+  /** 字段id */
+  id: string;
+  /** 最小列宽 */
+  min_width?: number;
+  /** 字段名称（渲染指标列时为指标名称） */
+  name: TranslateResult;
+  /** 是否可排序 */
+  sortable?: boolean;
+  /** 字段类型 */
+  type?: ExploreTableColumnTypeEnum;
+  /** 列宽 */
+  width?: number;
   /** 自定义列表头内容 */
   renderHeader?: (column: EventExploreTableColumn) => any;
-}
-
-/** 事件检索 kv 面板跳转其他页面 类型枚举 */
-export enum ExploreEntitiesTypeEnum {
-  /** 主机 */
-  HOST = 'ip',
-  /** 容器 */
-  K8S = 'k8s',
-}
-
-interface ExploreRequestParams {
-  limit: number;
-  offset: number;
-  query_configs: IFormData[];
-  fields: string[];
-  start_time: number;
-  end_time: number;
-  app_name?: string;
-  service_name?: string;
-}
-
-export type ExploreTotalRequestParams = Omit<ExploreRequestParams, 'fields' | 'limit' | 'offset'>;
-export type ExploreTableRequestParams = Omit<ExploreRequestParams, 'fields'>;
-
-type ExploreFieldTransform = Record<string, Partial<IDimensionField> & { finalName?: string }>;
-/**
- * @description 用于在表格 kv面板 中获取字段的类型
- * @description 将接口中的 fieldList 数组 结构转换为 kv 结构，从而提供使用 key 可以直接 get 方式取值，无需在循环
- **/
-export interface ExploreFieldMap {
-  source: ExploreFieldTransform;
-  target: ExploreFieldTransform;
 }
 
 export interface ExploreEntitiesItem {
@@ -206,21 +123,104 @@ export interface ExploreEntitiesItem {
  **/
 export type ExploreEntitiesMap = Record<string, ExploreEntitiesItem>;
 
-export type ConditionChangeEvent = Pick<IWhereItem, 'key' | 'method'> & { value: string };
-
 /**
- * @description 分词枚举
- */
-export enum KVSplitEnum {
-  /** 分词符号 */
-  SEGMENTS = 'segments',
-  /** 单词 */
-  WORD = 'word',
+ * @description 用于在表格 kv面板 中获取字段的类型
+ * @description 将接口中的 fieldList 数组 结构转换为 kv 结构，从而提供使用 key 可以直接 get 方式取值，无需在循环
+ **/
+export interface ExploreFieldMap {
+  source: ExploreFieldTransform;
+  target: ExploreFieldTransform;
+}
+
+export type ExploreTableRequestParams = Omit<ExploreRequestParams, 'fields'>;
+
+export type ExploreTotalRequestParams = Omit<ExploreRequestParams, 'fields' | 'limit' | 'offset'>;
+
+export interface IDataIdItem {
+  [key: string]: any;
+  id: string;
+  is_platform?: boolean;
+  /** 是否置顶 */
+  isTop?: boolean;
+  name: string;
+}
+
+export interface IDimensionField {
+  alias: string;
+  is_dimensions: boolean;
+  is_option_enabled: boolean;
+  name: string;
+  pinyinStr?: string;
+  support_operations: IDimensionOperation[];
+  type: DimensionType;
+}
+export interface IDimensionOperation {
+  alias: string;
+  options: { label: string; name: string }[];
+  value: string;
+}
+
+export interface IFormData {
+  data_source_label: string;
+  data_type_label: string;
+  filter_dict: Record<string, any>;
+  group_by: any[];
+  query_string: string;
+  table: string;
+  where: IWhereItem[];
+}
+/** 统计信息 */
+export interface IStatisticsInfo {
+  distinct_count: number;
+  field: string;
+  field_count: number;
+  field_percent: number;
+  total_count: number;
+  value_analysis?: {
+    avg: number;
+    max: number;
+    median: number;
+    min: number;
+  };
+}
+
+export interface ITopKField {
+  distinct_count: number;
+  field: string;
+  list: {
+    alias: string;
+    count: number;
+    proportions: number;
+    value: string;
+  }[];
+}
+
+export interface ITopKRequestParams {
+  app_name?: string;
+  end_time: number;
+  fields: string[];
+  limit: number;
+  query_configs: IFormData[];
+  service_name?: string;
+  start_time: number;
 }
 
 export interface KVSplitItem {
-  value: string;
   type: KVSplitEnum;
+  value: string;
+}
+
+type ExploreFieldTransform = Record<string, Partial<IDimensionField> & { finalName?: string }>;
+
+interface ExploreRequestParams {
+  app_name?: string;
+  end_time: number;
+  fields: string[];
+  limit: number;
+  offset: number;
+  query_configs: IFormData[];
+  service_name?: string;
+  start_time: number;
 }
 
 export const EventExploreFeatures = [

@@ -24,11 +24,11 @@
  * IN THE SOFTWARE.
  */
 import { computed, defineComponent, onMounted, ref, watch } from 'vue';
-import { useI18n } from 'vue-i18n';
 
 import { PrimaryTable } from '@blueking/tdesign-ui';
 import { Button, Checkbox, Input, Radio, Select, Switcher } from 'bkui-vue';
 import { debounce, deepClone, transformDataKey } from 'monitor-common/utils/utils';
+import { useI18n } from 'vue-i18n';
 
 import CommonItem from '../components/common-item';
 import { localDataConvertToRequest } from '../components/http-editor/utils';
@@ -216,7 +216,9 @@ export default defineComponent({
         // 认证
         const authData = localHeaderInfo.value.find(item => item.key === 'Authorization');
         const authType = authorize.auth_type;
-        authType !== 'none' && (authData[authType] = authorize.auth_config);
+        if (authType !== 'none') {
+          authData[authType] = authorize.auth_config;
+        }
         authData.type = authType;
         // 头部数据
         const headersData = localHeaderInfo.value.find(item => item.key === 'Headers');
@@ -225,7 +227,9 @@ export default defineComponent({
         // body
         const bodyData = localHeaderInfo.value.find(item => item.key === 'Body');
         const bodyType = body.data_type;
-        !['default', 'raw'].includes(bodyType) && (bodyData[bodyType] = transformDataKey(body.params));
+        if (!['default', 'raw'].includes(bodyType)) {
+          bodyData[bodyType] = transformDataKey(body.params);
+        }
         if (bodyType === 'raw') {
           bodyData[bodyType] = { type: 'text', content: '' };
           bodyData[bodyType].content = body.content;
@@ -333,8 +337,12 @@ export default defineComponent({
         const typeMap = ['form_data', 'x_www_form_urlencoded'];
         if (key === 'Body' && typeMap.includes(type)) {
           let tableData = null;
-          type === 'form_data' && (tableData = curHeaderData.value.form_data);
-          type === 'x_www_form_urlencoded' && (tableData = curHeaderData.value.x_www_form_urlencoded);
+          if (type === 'form_data') {
+            tableData = curHeaderData.value.form_data;
+          }
+          if (type === 'x_www_form_urlencoded') {
+            tableData = curHeaderData.value.x_www_form_urlencoded;
+          }
           handleAddRowIntoTable(tableData);
         }
 
@@ -398,8 +406,10 @@ export default defineComponent({
       if (content && ['html', 'xml'].includes(type)) {
         const parser = new DOMParser();
         const res = parser.parseFromString(content, 'application/xhtml+xml');
-        const parsererror = res.querySelector('parsererror');
-        parsererror && (errorMsg = t('文本不符合 {type} 格式', { type: typeNameMap[type] }) as string);
+        const error = res.querySelector('parsererror');
+        if (error) {
+          errorMsg = t('文本不符合 {type} 格式', { type: typeNameMap[type] }) as string;
+        }
       }
       rawErrorMsg.value = errorMsg;
       emitLocalHeaderInfo();
@@ -552,9 +562,9 @@ export default defineComponent({
       };
       const scopedSlots = paramInputScopedSlots(data, paramInput, handleDel);
       const columns = [];
-      paramTableColumns.value.forEach(column => {
-        columns.push({ ...column, cell: scopedSlots.default });
-      });
+      for (const item of paramTableColumns.value) {
+        columns.push({ ...item, cell: scopedSlots.default });
+      }
       return (
         <div class='header-content header-params'>
           <PrimaryTable
@@ -586,9 +596,9 @@ export default defineComponent({
       };
       const scopedSlots = paramInputScopedSlots(temp, headersChange, handleDel);
       const columns = [];
-      headersTableColumns.value.forEach(column => {
-        columns.push({ ...column, render: scopedSlots.default });
-      });
+      for (const item of headersTableColumns.value) {
+        columns.push({ ...item, render: scopedSlots.default });
+      }
       return (
         <div class='header-content header-headers'>
           {hideCount ? (
@@ -596,7 +606,9 @@ export default defineComponent({
               <i
                 class={['icon-monitor', isHide ? 'icon-mc-invisible' : 'icon-mc-visual']}
                 v-bk-tooltips={headerHideTips.value[`${isHide}`]}
-                onClick={() => (curHeaderData.value.hide = !isHide)}
+                onClick={() => {
+                  curHeaderData.value.hide = !isHide;
+                }}
               />
               {isHide ? <span>{t('已隐藏{count}项', { count: hideCount })}</span> : <span>{t('已展开全部')}</span>}
             </div>
@@ -690,7 +702,9 @@ export default defineComponent({
                         disabled={!props.isEdit}
                         type={'textarea'}
                         onBlur={() => handleRawBlur(data.type, data.content)}
-                        onFocus={() => (rawErrorMsg.value = '')}
+                        onFocus={() => {
+                          rawErrorMsg.value = '';
+                        }}
                         onInput={bodyParamInput}
                       />,
                       rawErrorMsg.value && <p style='margin: 0; color: #ff5656;'>{rawErrorMsg.value}</p>,
@@ -776,7 +790,7 @@ export default defineComponent({
     // tab的label模板
     const tplTabLabel = (tab: IHeaderInfo) => {
       const { key } = tab;
-      let tips = undefined;
+      let tips: number | undefined;
       if (['Params', 'Headers'].includes(key)) {
         const value = (tab.value as IParamsValueItem[]).filter(item => item.isEnabled && !rowIsEmpty(item));
         const num = value.length;

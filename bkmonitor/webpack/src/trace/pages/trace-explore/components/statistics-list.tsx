@@ -24,11 +24,10 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, reactive, shallowRef, watch, computed, type PropType } from 'vue';
-import { useI18n } from 'vue-i18n';
+import { type PropType, computed, defineComponent, reactive, shallowRef, watch } from 'vue';
 
 import { $bkPopover, Progress, Sideslider } from 'bkui-vue';
-import { CancelToken } from 'monitor-api/index';
+import { CancelToken } from 'monitor-api/cancel';
 import {
   traceDownloadTopK,
   traceFieldStatisticsGraph,
@@ -38,11 +37,12 @@ import {
 import { downloadFile, formatPercent } from 'monitor-common/utils';
 import loadingIcon from 'monitor-ui/chart-plugins/icons/spinner.svg';
 import { storeToRefs } from 'pinia';
+import { useI18n } from 'vue-i18n';
 
 import EmptyStatus from '../../../components/empty-status/empty-status';
 import { NULL_VALUE_NAME } from '../../../components/retrieval-filter/utils';
 import { handleTransformTime, handleTransformToTimestamp } from '../../../components/time-range/utils';
-import { formatDurationWithUnit, formatDuration } from '../../../components/trace-view/utils/date';
+import { formatDuration, formatDurationWithUnit } from '../../../components/trace-view/utils/date';
 import { transformTableDataToCsvStr } from '../../../plugins/utls/menu';
 import { useAppStore } from '../../../store/modules/app';
 import { useTraceExploreStore } from '../../../store/modules/explore';
@@ -154,6 +154,13 @@ export default defineComponent({
           statisticsList.distinct_count = 0;
           statisticsList.field = '';
           statisticsList.list = [];
+          statisticsInfo.value = {
+            field: '',
+            total_count: 0,
+            field_count: 0,
+            distinct_count: 0,
+            field_percent: 0,
+          };
           chartData.value = [];
         }
       }

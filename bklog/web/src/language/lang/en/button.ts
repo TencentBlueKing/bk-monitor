@@ -220,4 +220,6 @@ export default {
   清空收藏: 'Clear Favorites',
   清空选择: 'Clear Selection',
   默认配置: 'Default Configuration',
+  批量编辑别名: 'Batch Edit Aliases',
+  批量编辑变量别名: 'Batch edit variable alias mappings',
 };

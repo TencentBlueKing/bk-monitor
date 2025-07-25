@@ -558,6 +558,7 @@
           },
         ],
         ownerList: [],
+        timer: null,
         // ownerLoading: false,
       };
     },
@@ -633,6 +634,13 @@
     },
     beforeDestroy() {
       this.scrollEvent('close');
+      if (this.timer) {
+        clearInterval(this.timer);
+      }
+      if (this.popoverInstance) {
+        this.popoverInstance?.destroy();
+        this.popoverInstance = null;
+      }
     },
     methods: {
       handleMenuClick(option, row, isLink = false) {
@@ -860,7 +868,7 @@
       handleScroll() {
         if (this.throttle) return;
         this.throttle = true;
-        setTimeout(() => {
+        this.timer = setTimeout(() => {
           this.throttle = false;
           // scroll变化时判断是否展示返回顶部的Icon
           this.$emit('handle-scroll-is-show');

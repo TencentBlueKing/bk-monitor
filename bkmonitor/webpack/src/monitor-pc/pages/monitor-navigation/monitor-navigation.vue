@@ -26,8 +26,8 @@
 -->
 <template>
   <div
-    class="monitor-navigation"
     v-bkloading="{ isLoading: loading }"
+    class="monitor-navigation"
     :class="$route.meta.navClass"
   >
     <bk-navigation
@@ -42,8 +42,8 @@
       @toggle-click="handleToggleClick"
     >
       <div
-        class="monitor-navigation-header"
         slot="header"
+        class="monitor-navigation-header"
       >
         <div class="header-title">
           <span
@@ -54,8 +54,8 @@
           {{ navTitle && $t('route-' + navTitle).replace('route-', '') }}
           <i
             v-if="showCopyBtn"
-            class="icon-monitor icon-copy-link monitor-copy-link"
             v-bk-tooltips="{ content: $t('复制链接') }"
+            class="icon-monitor icon-copy-link monitor-copy-link"
             @click="handleCopyLink"
           />
           <template v-if="$route.name === 'grafana'">
@@ -70,8 +70,8 @@
         </div>
         <bk-select
           ref="headerSelect"
-          class="header-select"
           v-model="header.select.value"
+          class="header-select"
           :clearable="false"
           search-with-pinyin
           searchable
@@ -84,8 +84,8 @@
             :name="option.text"
           />
           <div
-            class="select-extension"
             slot="extension"
+            class="select-extension"
           >
             <span
               class="select-extension-btn has-border"
@@ -124,8 +124,8 @@
             <ul class="monitor-navigation-help">
               <li
                 v-for="(item, index) in help.list"
-                class="nav-item"
                 :key="index"
+                class="nav-item"
                 @click="handleHelp(item)"
               >
                 {{ item.name }}
@@ -147,8 +147,8 @@
         </bk-popover>
       </div>
       <div
-        class="monitor-logo"
         slot="side-icon"
+        class="monitor-logo"
       >
         <img
           class="monitor-logo-icon"
@@ -157,8 +157,8 @@
         />
       </div>
       <div
-        class="monitor-menu"
         slot="menu"
+        class="monitor-menu"
       >
         <bk-navigation-menu
           ref="menu"
@@ -169,8 +169,8 @@
           <template v-for="item in nav.list">
             <bk-navigation-menu-group
               v-if="item.children && !!item.children.length"
-              :group-name="nav.toggle ? $t(item.navName || item.name) : $t(item.shortName)"
               :key="item.name"
+              :group-name="nav.toggle ? $t(item.navName || item.name) : $t(item.shortName)"
             >
               <template v-for="child in item.children">
                 <bk-navigation-menu-item
@@ -201,14 +201,14 @@
       <!-- eslint-disable-next-line vue/no-v-html-->
       <div
         v-if="$route.name === 'home'"
-        style="width: 100%"
         slot="footer"
+        style="width: 100%"
         v-html="footer.html"
       />
       <div
-        class="monitor-main-loading"
-        v-bkloading="{ isLoading: mcMainLoading }"
         v-show="mcMainLoading"
+        v-bkloading="{ isLoading: mcMainLoading }"
+        class="monitor-main-loading"
       />
       <template>
         <keep-alive>
@@ -236,7 +236,7 @@ import Vue from 'vue';
 
 import BkPaasLogin from '@blueking/paas-login';
 import { getFooter } from 'monitor-api/modules/commons';
-import { LOCAL_BIZ_STORE_KEY, copyText, deleteCookie, getUrlParam } from 'monitor-common/utils/utils';
+import { copyText, deleteCookie, getUrlParam, LOCAL_BIZ_STORE_KEY } from 'monitor-common/utils/utils';
 import AuthorityModal from 'monitor-ui/authority-modal/index';
 import { createNamespacedHelpers } from 'vuex';
 

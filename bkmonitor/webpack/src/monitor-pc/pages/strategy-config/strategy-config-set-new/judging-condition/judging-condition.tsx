@@ -53,46 +53,46 @@ export enum RecoveryConfigStatusSetter {
   RECOVERY_NODATA = 'recovery-nodata',
 }
 export interface IJudgingData {
-  triggerConfig: {
-    count: number;
-    checkWindow: number;
-    checkType: string;
-    timeRanges: ITimeRangeMultipleProps['value'];
-    calendars: string[];
+  noDataConfig: {
+    continuous: number;
+    dimensions: unknown[];
+    isEnabled: boolean;
+    level: number;
+  };
+  noticeTemplate: {
+    anomalyTemplate: string;
+    previewTemplate: boolean;
+    triggerList: unknown[];
+    variateList: unknown[];
+    variateListShow: boolean;
   };
   recoveryConfig: {
     checkWindow: number;
     statusSetter: RecoveryConfigStatusSetter;
   };
-  noDataConfig: {
-    continuous: number;
-    isEnabled: boolean;
-    dimensions: unknown[];
-    level: number;
-  };
-  noticeTemplate: {
-    anomalyTemplate: string;
-    triggerList: unknown[];
-    variateList: unknown[];
-    previewTemplate: boolean;
-    variateListShow: boolean;
+  triggerConfig: {
+    calendars: string[];
+    checkType: string;
+    checkWindow: number;
+    count: number;
+    timeRanges: ITimeRangeMultipleProps['value'];
   };
 }
 interface Idata {
+  calendarList: IOptionsItem[];
   data: IJudgingData;
-  scenario: string;
-  metricData: MetricDetail[];
-  legalDimensionList?: ICommonItem[];
+  editMode?: EditModeType;
+  isAlert?: boolean; // 是否为关联告警
   isDetailMode?: boolean;
   isFta?: boolean;
-  isAlert?: boolean; // 是否为关联告警
   judgeTimeRange?: string[]; // 关联告警时只显示生效时间段
-  calendarList: IOptionsItem[];
-  editMode?: EditModeType;
+  legalDimensionList?: ICommonItem[];
+  metricData: MetricDetail[];
+  scenario: string;
 }
 interface IEvent {
-  onNoDataChange?: boolean;
   onChange?: IJudgingData;
+  onNoDataChange?: boolean;
   onTimeChange?: string[]; // 生效时间段
   onValidatorErr?: () => void; // 校验不通过派出
 }

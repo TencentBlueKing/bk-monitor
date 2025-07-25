@@ -33,16 +33,16 @@ import QsSelector from './qs-selector';
 import ResidentSetting from './resident-setting';
 import UiSelector from './ui-selector';
 import {
-  ECondition,
   type EMethod,
-  EMode,
-  getCacheUIData,
   type IFavoriteListItem,
   type IFilterField,
   type IFilterItem,
   type IGetValueFnParams,
   type IWhereItem,
   type IWhereValueOptionsItem,
+  ECondition,
+  EMode,
+  getCacheUIData,
   METHOD_MAP,
   MODE_LIST,
   setCacheUIData,
@@ -52,33 +52,33 @@ import type { IFavList } from '../../pages/data-retrieval/typings';
 
 import './retrieval-filter.scss';
 
-interface IProps {
-  dataId?: string;
-  source?: APIType;
-  residentSettingOnlyId?: string;
-  fields: IFilterField[];
-  where?: IWhereItem[];
-  commonWhere?: IWhereItem[];
-  queryString?: string;
-  selectFavorite?: IFavList.favList;
-  favoriteList?: IFavoriteListItem[];
-  filterMode?: EMode;
-  defaultShowResidentBtn?: boolean;
-  // isQsOperateWrapBottom?: boolean;
-  isShowFavorite?: boolean;
-  getValueFn?: (params: IGetValueFnParams) => Promise<IWhereValueOptionsItem>;
+interface IEvent {
+  onCommonWhereChange?: (where: IWhereItem[]) => void;
+  onCopyWhere: (v: IWhereItem[]) => void;
+  onFavorite: (isEdit: boolean) => void;
+  onModeChange?: (v: EMode) => void;
+  onQueryStringChange?: (v: string) => void;
+  onQueryStringInputChange?: (v: string) => void;
+  onSearch: () => void;
+  onShowResidentBtnChange?: (v: boolean) => void;
+  onWhereChange?: (v: IWhereItem[]) => void;
 }
 
-interface IEvent {
-  onFavorite: (isEdit: boolean) => void;
-  onWhereChange?: (v: IWhereItem[]) => void;
-  onQueryStringChange?: (v: string) => void;
-  onModeChange?: (v: EMode) => void;
-  onQueryStringInputChange?: (v: string) => void;
-  onCommonWhereChange?: (where: IWhereItem[]) => void;
-  onShowResidentBtnChange?: (v: boolean) => void;
-  onSearch: () => void;
-  onCopyWhere: (v: IWhereItem[]) => void;
+interface IProps {
+  commonWhere?: IWhereItem[];
+  dataId?: string;
+  defaultShowResidentBtn?: boolean;
+  favoriteList?: IFavoriteListItem[];
+  fields: IFilterField[];
+  filterMode?: EMode;
+  // isQsOperateWrapBottom?: boolean;
+  isShowFavorite?: boolean;
+  queryString?: string;
+  residentSettingOnlyId?: string;
+  selectFavorite?: IFavList.favList;
+  source?: APIType;
+  where?: IWhereItem[];
+  getValueFn?: (params: IGetValueFnParams) => Promise<IWhereValueOptionsItem>;
 }
 
 @Component
@@ -239,7 +239,7 @@ export default class RetrievalFilter extends tsc<IProps, IEvent> {
     const uiCacheData = getCacheUIData();
     const localValue: IFilterItem[] = [];
     const uiCacheDataMap: Map<string, IFilterItem> = new Map();
-    const uiCacheDataHideList: { value: IFilterItem; index: number }[] = [];
+    const uiCacheDataHideList: { index: number; value: IFilterItem }[] = [];
     let index = -1;
     for (const item of uiCacheData) {
       index += 1;

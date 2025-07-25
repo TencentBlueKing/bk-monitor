@@ -23,12 +23,12 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, type PropType, shallowRef, reactive, computed } from 'vue';
-import { useI18n } from 'vue-i18n';
+import { type PropType, computed, defineComponent, reactive, shallowRef } from 'vue';
 
 import { Message, Select, Tag } from 'bkui-vue';
 import _ from 'lodash';
 import { updateFavorite } from 'monitor-api/modules/model';
+import { useI18n } from 'vue-i18n';
 
 import CreateGroupExtends from '../../../../../components/create-group-extends';
 import useFavoriteType from '../../../../../hooks/use-favorite-type';

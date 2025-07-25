@@ -40,7 +40,7 @@ export default class ApmPage extends tsc<object> {
   loading = false;
   appkey = 'apm';
   // 侧栏详情信息
-  detailInfo: { isShow: boolean; id: string; type: 'eventDetail'; bizId: number } = {
+  detailInfo: { bizId: number; id: string; isShow: boolean; type: 'eventDetail' } = {
     isShow: false,
     id: '',
     type: 'eventDetail',

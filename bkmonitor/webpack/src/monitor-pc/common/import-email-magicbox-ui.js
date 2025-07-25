@@ -24,6 +24,7 @@
  * IN THE SOFTWARE.
  */
 import Vue from 'vue';
+
 import { bkClickoutside, bkLoading, bkOverflowTips, bkPopover, bkTooltips } from 'bk-magic-vue';
 
 // components use

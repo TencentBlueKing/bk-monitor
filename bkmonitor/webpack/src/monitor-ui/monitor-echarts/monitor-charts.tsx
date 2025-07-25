@@ -37,40 +37,40 @@ import type {
 import type { MonitorEchartOptions, MonitorEchartSeries } from './types/monitor-echarts';
 
 interface IAlarmStatus {
-  status: number;
   alert_number: number;
+  status: number;
   strategy_number: number;
 }
 interface IMonitorEchartsProps {
-  options: IStatusChartOption | ITextChartOption | MonitorEchartOptions;
-  watchOptionsDeep: boolean;
   autoresize: boolean;
-  // 是否需要设置全屏
-  needFullScreen: boolean;
-  // 是有fullscreen递归
-  needChild: boolean;
-  // 是使用组件内的无数据设置
-  setNoData: boolean;
-  // 图表刷新间隔
-  refreshInterval: number;
-  // 图表类型
-  chartType: ChartType;
-  // 图表title
-  title: string;
-  subtitle: string;
-  // 图表系列数据
-  series: IStatusSeries | ITextSeries | MonitorEchartSeries;
   // 背景图
   backgroundUrl: string;
-  // 获取图标数据
-  getSeriesData: (timeFrom?: string, timeTo?: string, range?: boolean) => Promise<void>;
-  // 获取指标告警状态信息
-  getAlarmStatus: (param: any) => Promise<IAlarmStatus>;
+  // 图表类型
+  chartType: ChartType;
   // 图标系列颜色集合
   colors: string[];
   emptyText: string;
   // 图表高度
   height: number | string;
   lineWidth: number;
+  // 是有fullscreen递归
+  needChild: boolean;
+  // 是否需要设置全屏
+  needFullScreen: boolean;
+  options: IStatusChartOption | ITextChartOption | MonitorEchartOptions;
+  // 图表刷新间隔
+  refreshInterval: number;
+  // 图表系列数据
+  series: IStatusSeries | ITextSeries | MonitorEchartSeries;
+  // 是使用组件内的无数据设置
+  setNoData: boolean;
+  subtitle: string;
+  // 图表title
+  title: string;
+  watchOptionsDeep: boolean;
+  // 获取指标告警状态信息
+  getAlarmStatus: (param: any) => Promise<IAlarmStatus>;
+  // 获取图标数据
+  getSeriesData: (timeFrom?: string, timeTo?: string, range?: boolean) => Promise<void>;
 }
 ofType<IMonitorEchartsProps>().convert(MonitorCharts);

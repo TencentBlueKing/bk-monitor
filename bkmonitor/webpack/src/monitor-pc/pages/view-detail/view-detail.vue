@@ -26,14 +26,14 @@
 <template>
   <monitor-dialog
     class="view-detail-modal"
-    :value.sync="showModal"
     :append-to-body="true"
-    :full-screen="true"
-    :need-footer="false"
-    need-header
-    :header-theme="'header-bar'"
-    :title="$t('查看大图')"
     :before-close="handleBackStep"
+    :full-screen="true"
+    :header-theme="'header-bar'"
+    :need-footer="false"
+    :title="$t('查看大图')"
+    :value.sync="showModal"
+    need-header
   >
     <div class="view-detail">
       <div
@@ -45,16 +45,16 @@
           <div :class="['view-box-header-left', { 'show-right': isRightBoxShow }]">
             <compare-panel
               class="compare-panel"
-              :need-split="false"
-              :has-view-change-icon="false"
-              :compare-list="compareList"
               :compare-hide="compareList.length < 2"
-              :value="compareValue"
+              :compare-list="compareList"
+              :has-view-change-icon="false"
+              :need-split="false"
               :refresh-list="refreshList"
-              :timeshift-list="timeshiftList"
               :timerange-list="timerangeList"
-              @change="handleComparePanelChange"
+              :timeshift-list="timeshiftList"
+              :value="compareValue"
               @add-timeshift-option="handleAddTimeshifOption"
+              @change="handleComparePanelChange"
               @on-immediate-refresh="handleImmediateRefresh"
             />
           </div>
@@ -79,22 +79,22 @@
           >
             <!-- 图表组件 -->
             <div
+              :style="{ height: drag.height + 'px' }"
               class="section-chart"
               data-tag="resizeTarget"
-              :style="{ height: drag.height + 'px' }"
             >
               <monitor-echarts
                 v-if="queryConfigKey"
                 :key="renderKey + '_' + queryConfigKey"
                 :chart-type="['graph', 'aiops-dimension-lint', 'performance-chart'].includes(type) ? 'line' : type"
-                :height="drag.height - 20"
-                :refresh-interval="compareValue.tools.refreshInterval"
-                :title="title"
-                :subtitle="subtitle"
-                :options="chartOptions"
-                :need-full-screen="false"
                 :get-alarm-status="getAlarmStatus"
                 :get-series-data="getSeriesData(queryconfig)"
+                :height="drag.height - 20"
+                :need-full-screen="false"
+                :options="chartOptions"
+                :refresh-interval="compareValue.tools.refreshInterval"
+                :subtitle="subtitle"
+                :title="title"
                 @add-strategy="handleAddStrategy(queryconfig)"
               />
               <div
@@ -117,10 +117,10 @@
               </div>
               <div class="section-box-content">
                 <table
-                  cellspacing="0"
-                  cellpadding="0"
-                  border="0"
                   style="width: 100%"
+                  border="0"
+                  cellpadding="0"
+                  cellspacing="0"
                 >
                   <thead>
                     <tr class="table-head">
@@ -130,8 +130,8 @@
                         class="table-content"
                       >
                         <div
-                          class="table-item sort-handle"
                           :style="index === 0 ? 'text-align: left' : ''"
+                          class="table-item sort-handle"
                           @click="() => handleTableSortAuto(item, index)"
                         >
                           <span class="table-header">
@@ -157,15 +157,15 @@
                         class="table-content"
                       >
                         <div
-                          class="table-item"
                           :style="tdIndex === 0 ? 'text-align: left' : ''"
+                          class="table-item"
                         >
-                          {{ item?.value === null ? '--' : item.value }}
+                          {{ item && item.value === null ? '--' : item && item.value }}
                           <img
-                            v-if="tdIndex > 0 && (item?.max || item?.min)"
-                            alt=""
+                            v-if="tdIndex > 0 && ((item && item.max) || (item && item.min))"
                             class="item-max-min"
-                            :src="require(`../../static/images/svg/${item?.min ? 'min.svg' : 'max.svg'}`)"
+                            :src="require(`../../static/images/svg/${item && item.min ? 'min.svg' : 'max.svg'}`)"
+                            alt=""
                           />
                         </div>
                       </td>
@@ -183,13 +183,13 @@
             <query-criteria-item
               v-for="(item, index) in rightData"
               :key="index"
-              :query-config="item"
-              :group-index="index"
               :compare-value="compareValue"
-              @change-status="handleChangeStatus"
-              @query-change="handleQueryChange"
-              @checked-change="handleCheckedChange"
+              :group-index="index"
+              :query-config="item"
               @change-loading="handleChangeLoading"
+              @change-status="handleChangeStatus"
+              @checked-change="handleCheckedChange"
+              @query-change="handleQueryChange"
             />
           </div>
         </section>
@@ -198,7 +198,6 @@
   </monitor-dialog>
 </template>
 <script lang="ts">
-/* eslint-disable @typescript-eslint/member-ordering */
 import { Component, InjectReactive, Mixins, Prop, Provide, ProvideReactive, Vue } from 'vue-property-decorator';
 
 import dayjs from 'dayjs';
@@ -208,7 +207,7 @@ import { deepClone, random } from 'monitor-common/utils/utils';
 import MonitorDialog from 'monitor-ui/monitor-dialog/monitor-dialog.vue';
 import MonitorEcharts from 'monitor-ui/monitor-echarts/monitor-echarts-new.vue';
 
-import { DEFAULT_REFLESH_LIST, DEFAULT_TIMESHIFT_LIST, DEFAULT_TIME_RANGE_LIST } from '../../common/constant';
+import { DEFAULT_REFLESH_LIST, DEFAULT_TIME_RANGE_LIST, DEFAULT_TIMESHIFT_LIST } from '../../common/constant';
 import SortButton from '../../components/sort-button/sort-button';
 import { handleTransformToTimestamp } from '../../components/time-range/utils';
 // import { handleTimeRange } from '../../utils/index';
@@ -298,7 +297,7 @@ export default class MigrateDashboard extends Mixins(authorityMixinCreate(author
       name: window.i18n.t('指标对比'),
     },
   ];
-  refreshList: { name: any; id: number }[] = DEFAULT_REFLESH_LIST;
+  refreshList: { id: number; name: any }[] = DEFAULT_REFLESH_LIST;
 
   tableTdMaxMinMap = [];
   queryConfigKey = random(10);
@@ -605,7 +604,7 @@ export default class MigrateDashboard extends Mixins(authorityMixinCreate(author
           item.filter_dict[key] = val;
         }
       } else {
-        if (Object.prototype.hasOwnProperty.call(item.filter_dict, key)) {
+        if (Object.hasOwn(item.filter_dict, key)) {
           this.$delete(item.filter_dict, key);
         }
       }

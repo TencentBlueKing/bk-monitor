@@ -28,7 +28,7 @@ import { Component, Ref, Watch } from 'vue-property-decorator';
 
 import dayjs from 'dayjs';
 import deepmerge from 'deepmerge';
-import { CancelToken } from 'monitor-api/index';
+import { CancelToken } from 'monitor-api/cancel';
 import { Debounce, deepClone, random } from 'monitor-common/utils/utils';
 import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
 import { type ILogUrlParams, findRight, transformLogUrlQuery } from 'monitor-pc/utils';
@@ -252,7 +252,7 @@ export default class TimeSeriesForecast extends LineChart {
         );
         /** 处理上下边界 */
         const boundarySeries = this.handleBoundaryList(seriesResult[0], seriesResult).flat(Number.POSITIVE_INFINITY);
-        if (!!boundarySeries) {
+        if (boundarySeries) {
           const lineSeriesList = seriesList
             .map((item: any) => ({ ...item, z: 6 }))
             .filter(item => ['_result_', 'predict'].includes(item.metricField));

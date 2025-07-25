@@ -33,17 +33,17 @@ import { matchRuleFn } from '../group-manage-dialog';
 import './group-search-multiple.scss';
 
 interface IListItem {
+  disable?: boolean;
   id: string;
   name: string;
-  disable?: boolean;
 }
 interface IProps {
-  list?: IListItem[];
-  value?: string[];
   groupsMap?: Map<string, any>;
+  list?: IListItem[];
   metricName?: string;
   onChange?: any;
   onToggle?: any;
+  value?: string[];
 }
 
 @Component
@@ -168,11 +168,11 @@ export default class GroupSearchMultiple extends tsc<IProps> {
                   !this.getIsDisabel(item.id)
                     ? { disabled: true }
                     : {
-                      content: this.$t('由匹配规则{0}生成', [this.getDisableTip(item.id)]),
-                      placements: ['right'],
-                      boundary: 'window',
-                      allowHTML: false,
-                    }
+                        content: this.$t('由匹配规则{0}生成', [this.getDisableTip(item.id)]),
+                        placements: ['right'],
+                        boundary: 'window',
+                        allowHTML: false,
+                      }
                 }
                 disabled={this.getIsDisabel(item.id)}
                 name={item.name}

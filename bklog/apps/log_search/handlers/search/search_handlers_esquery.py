@@ -122,7 +122,7 @@ from apps.log_search.models import (
     UserIndexSetSearchHistory,
 )
 from apps.log_search.permission import Permission
-from apps.log_search.utils import sort_func
+from apps.log_search.utils import sort_func, handle_es_query_error
 from apps.models import model_to_dict
 from apps.utils.cache import cache_five_minute
 from apps.utils.core.cache.cmdb_host import CmdbHostCache
@@ -828,7 +828,7 @@ class SearchHandler:
 
                 return data
             except Exception as e:
-                raise LogSearchException(LogSearchException.MESSAGE.format(e=e))
+                raise handle_es_query_error(e)
 
         storage_cluster_ids = {self.storage_cluster_id}
 

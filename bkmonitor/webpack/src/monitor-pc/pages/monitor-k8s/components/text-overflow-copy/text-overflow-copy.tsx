@@ -33,8 +33,8 @@ import type { ITableItem } from '../../typings';
 import './text-overflow-copy.scss';
 
 interface IProps {
-  val: ITableItem<'string'>;
   isEveryCopy: boolean;
+  val: ITableItem<'string'>;
 }
 @Component
 export default class TextOverflowCopy extends tsc<IProps> {

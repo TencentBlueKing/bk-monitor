@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Emit, Prop, Mixins } from 'vue-property-decorator';
+import { Component, Emit, Mixins, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { SPACE_TYPE_MAP } from '../../common/constant';
@@ -34,38 +34,38 @@ import type { ThemeType } from './biz-select';
 
 import './list.scss';
 
-interface IProps {
-  list: IListItem[];
-  checked?: number;
-  theme?: ThemeType;
-  canSetDefaultSpace?: boolean;
-}
-interface IEvents {
-  onSelected: number;
-  onHide: () => void;
-}
-export interface IListItem {
-  id: number | string;
-  name: string;
-  space_code?: string;
-  space_type_id?: string;
-  space_id?: string;
-  tags?: ITagsItem[];
-  children?: IListItem[];
-  is_hidden_tag?: boolean;
-}
-interface ITagsItem {
-  id: string;
-  name: string;
-  type: ETagsType;
-}
-
 export enum ETagsType {
   BCS = 'bcs' /** 容器项目 */,
   BKCC = 'bkcc' /** 业务 */,
   BKCI = 'bkci' /** 蓝盾项目 */,
   BKSAAS = 'bksaas' /** 蓝鲸应用 */,
   MONITOR = 'monitor' /** 监控空间 */,
+}
+export interface IListItem {
+  children?: IListItem[];
+  id: number | string;
+  is_hidden_tag?: boolean;
+  name: string;
+  space_code?: string;
+  space_id?: string;
+  space_type_id?: string;
+  tags?: ITagsItem[];
+}
+interface IEvents {
+  onSelected: number;
+  onHide: () => void;
+}
+interface IProps {
+  canSetDefaultSpace?: boolean;
+  checked?: number;
+  list: IListItem[];
+  theme?: ThemeType;
+}
+
+interface ITagsItem {
+  id: string;
+  name: string;
+  type: ETagsType;
 }
 
 const DEFAULT_BIZ_ID = 'DEFAULT_BIZ_ID';

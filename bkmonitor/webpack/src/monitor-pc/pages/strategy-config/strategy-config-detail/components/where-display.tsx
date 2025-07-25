@@ -37,9 +37,9 @@ import type { TranslateResult } from 'vue-i18n';
 import './where-display.scss';
 
 interface IProps {
-  value: IWhereItem[];
   groupByList: ICommonItem[];
   metric: MetricDetail;
+  value: IWhereItem[];
 }
 /**
  * 用于策略详情条件的数据展示
@@ -54,7 +54,7 @@ export default class WhereDisplay extends tsc<IProps> {
   @Prop({ type: Object }) metric: MetricDetail;
 
   /** 维度名 */
-  whereNameMap: Map<number | string, TranslateResult | string> = new Map();
+  whereNameMap: Map<number | string, string | TranslateResult> = new Map();
 
   /** 方法名 */
   methodNameMap: Map<string, string> = new Map();

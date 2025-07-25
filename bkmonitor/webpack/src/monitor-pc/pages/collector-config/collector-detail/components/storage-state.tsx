@@ -28,30 +28,31 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import './storage-state.scss';
 
+interface DataInterface {
+  info: InfoItem[];
+  status: StatusItem[];
+}
+
 interface InfoItem {
-  key: string;
-  name: string;
-  value: string;
-  type?: 'input' | 'number';
   hasEdit?: boolean;
   /** 是否需要下划线 */
   hasUnderline?: boolean;
+  key: string;
+  name: string;
+  type?: 'input' | 'number';
+  value: string;
 }
 
 interface LocalInfoField extends InfoItem {
-  /** 是否处于编辑态 */
-  isEdit?: boolean;
   /** 编辑值 */
   editValue?: number | string;
+  /** 是否处于编辑态 */
+  isEdit?: boolean;
 }
 
 interface StatusContentItem {
   key: string;
   name: string;
-}
-
-interface StatusValueItem {
-  [key: string]: number | string;
 }
 
 interface StatusItem {
@@ -62,9 +63,8 @@ interface StatusItem {
   };
 }
 
-interface DataInterface {
-  info: InfoItem[];
-  status: StatusItem[];
+interface StatusValueItem {
+  [key: string]: number | string;
 }
 
 interface StorageStateProps {

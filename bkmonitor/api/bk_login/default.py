@@ -87,7 +87,7 @@ class GetAllUserResource(BkUserApiResource):
     def perform_request(self, params):
         # 如果使用apigw，则直接返回空列表，这种情况下要求前端直接请求bk-user的接口获取用户展示信息
         if self.use_apigw():
-            return []
+            return {"count": 0, "results": []}
         return super().perform_request(params)
 
 

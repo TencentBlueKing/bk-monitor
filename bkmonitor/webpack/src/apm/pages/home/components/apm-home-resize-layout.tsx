@@ -28,15 +28,15 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import './apm-home-resize-layout.scss';
 
-type IProps = {
-  initSideWidth?: number;
-  minWidth?: number;
-  maxWidth?: number;
-  isShowCollapse?: boolean;
-};
-
 type IEvent = {
   onCollapseChange: (collapse: boolean) => void;
+};
+
+type IProps = {
+  initSideWidth?: number;
+  isShowCollapse?: boolean;
+  maxWidth?: number;
+  minWidth?: number;
 };
 
 @Component

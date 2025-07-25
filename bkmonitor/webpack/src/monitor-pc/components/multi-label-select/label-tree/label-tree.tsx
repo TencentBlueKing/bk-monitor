@@ -1,3 +1,5 @@
+import type { VNode } from 'vue';
+
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -30,15 +32,14 @@ import { deleteStrategyLabel, strategyLabel } from 'monitor-api/modules/strategi
 import { deepClone } from 'monitor-common/utils/utils';
 
 import type { ITreeItem, TMode } from '../types';
-import type { VNode } from 'vue';
 
 import './label-tree.scss';
 
 const { i18n } = window;
 interface IContainerProps {
+  checkedNode?: string[];
   mode?: TMode;
   treeData?: ITreeItem[];
-  checkedNode?: string[];
 }
 
 @Component

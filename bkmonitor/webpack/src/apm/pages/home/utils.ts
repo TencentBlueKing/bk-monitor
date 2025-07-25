@@ -1,5 +1,3 @@
-import type { IPanelModel } from 'monitor-ui/chart-plugins/typings';
-
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -26,6 +24,7 @@ import type { IPanelModel } from 'monitor-ui/chart-plugins/typings';
  * IN THE SOFTWARE.
  */
 import type { IOperateOption } from 'monitor-pc/pages/uptime-check/components/operate-options';
+import type { IPanelModel } from 'monitor-ui/chart-plugins/typings';
 
 export const STATUS_MAP = {
   normal: {
@@ -58,9 +57,9 @@ export const STATUS_MAP = {
   },
 };
 export interface ISearchCondition {
+  children?: ISearchCondition[];
   id: string;
   name: string;
-  children?: ISearchCondition[];
   values?: Omit<ISearchCondition, 'children' | 'values'>[];
 }
 export function getDefaultAppListSearchCondition() {

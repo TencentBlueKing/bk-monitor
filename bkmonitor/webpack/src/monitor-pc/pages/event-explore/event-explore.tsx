@@ -23,22 +23,21 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, ProvideReactive, Ref, Prop, Watch, Emit, InjectReactive } from 'vue-property-decorator';
+import { Component, Emit, InjectReactive, Prop, ProvideReactive, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 // import { getDataSourceConfig } from 'monitor-api/modules/grafana';
-
 import { eventGenerateQueryString } from 'monitor-api/modules/data_explorer';
 import { copyText, Debounce, deepClone } from 'monitor-common/utils';
 
 import RetrievalFilter from '../../components/retrieval-filter/retrieval-filter';
 import {
+  type IGetValueFnParams,
   ECondition,
   EFieldType,
   EMethod,
   EMode,
   mergeWhereList,
-  type IGetValueFnParams,
 } from '../../components/retrieval-filter/utils';
 import { handleTransformToTimestamp } from '../../components/time-range/utils';
 import { APIType, getEventViewConfig, RetrievalFilterCandidateValue } from './api-utils';
@@ -50,9 +49,9 @@ import {
   type ConditionChangeEvent,
   type ExploreEntitiesMap,
   type ExploreFieldMap,
-  ExploreSourceTypeEnum,
   type HideFeatures,
   type IFormData,
+  ExploreSourceTypeEnum,
 } from './typing';
 
 import type { IWhereItem } from '../../components/retrieval-filter/utils';
@@ -63,34 +62,34 @@ import type { IViewOptions } from '../monitor-k8s/typings/book-mark';
 import './event-explore.scss';
 Component.registerHooks(['beforeRouteEnter', 'beforeRouteLeave']);
 
-interface IProps {
-  source: APIType;
-  dataId?: string;
-  dataTypeLabel?: string;
-  dataSourceLabel?: string;
-  queryString?: string;
-  where?: IWhereItem[];
-  commonWhere?: IWhereItem[];
-  group_by?: IFormData['group_by'];
-  filter_dict?: IFormData['filter_dict'];
-  favoriteList?: IFavList.favGroupList[];
-  currentFavorite?: IFavList.favList;
-  filterMode?: EMode;
-  defaultShowResidentBtn?: boolean;
-  eventSourceType?: ExploreSourceTypeEnum[];
-  hideFeatures?: HideFeatures;
-}
-
 interface IEvent {
-  onWhereChange: (where: IWhereItem[]) => void;
-  onQueryStringChange: (queryString: string) => void;
+  onCommonWhereChange: (where: IWhereItem[]) => void;
+  onEventSourceTypeChange: (v: ExploreSourceTypeEnum[]) => void;
   onFavorite: (isEdit: boolean) => void;
   onFilterModeChange: (filterMode: EMode) => void;
+  onQueryStringChange: (queryString: string) => void;
   onQueryStringInputChange: (val: string) => void;
-  onCommonWhereChange: (where: IWhereItem[]) => void;
-  onShowResidentBtnChange?: (v: boolean) => void;
-  onEventSourceTypeChange: (v: ExploreSourceTypeEnum[]) => void;
   onSetRouteParams: (otherQuery: Record<string, any>) => void;
+  onShowResidentBtnChange?: (v: boolean) => void;
+  onWhereChange: (where: IWhereItem[]) => void;
+}
+
+interface IProps {
+  commonWhere?: IWhereItem[];
+  currentFavorite?: IFavList.favList;
+  dataId?: string;
+  dataSourceLabel?: string;
+  dataTypeLabel?: string;
+  defaultShowResidentBtn?: boolean;
+  eventSourceType?: ExploreSourceTypeEnum[];
+  favoriteList?: IFavList.favGroupList[];
+  filter_dict?: IFormData['filter_dict'];
+  filterMode?: EMode;
+  group_by?: IFormData['group_by'];
+  hideFeatures?: HideFeatures;
+  queryString?: string;
+  source: APIType;
+  where?: IWhereItem[];
 }
 @Component
 export default class EventExplore extends tsc<

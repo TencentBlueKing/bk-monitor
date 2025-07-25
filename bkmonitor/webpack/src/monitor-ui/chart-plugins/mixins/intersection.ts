@@ -31,7 +31,7 @@ export default class IntersectionMixin extends Vue {
   beforeDestroy() {
     this.unregisterObserver();
   }
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+
   getPanelData(...p) {}
   isInViewPort() {
     const { top, bottom } = this.$el.getBoundingClientRect();

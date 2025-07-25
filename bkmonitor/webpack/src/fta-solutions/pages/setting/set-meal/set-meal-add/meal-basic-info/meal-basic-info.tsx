@@ -33,16 +33,16 @@ import './meal-basic-info.scss';
 
 const { i18n } = window;
 
+interface IBasicInfo {
+  asStrategy: number;
+  bizId: number;
+  desc: string;
+  enable: boolean;
+  name: string;
+}
 interface IMealBasicInfo {
   basicInfo: IBasicInfo;
   type?: 'add' | 'edit';
-}
-interface IBasicInfo {
-  bizId: number;
-  name: string;
-  asStrategy: number;
-  enable: boolean;
-  desc: string;
 }
 
 @Component({

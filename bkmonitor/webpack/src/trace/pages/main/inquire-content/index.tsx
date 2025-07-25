@@ -24,6 +24,7 @@
  * IN THE SOFTWARE.
  */
 import { type PropType, computed, defineComponent } from 'vue';
+
 import { useI18n } from 'vue-i18n';
 
 import EmptyStatus from '../../../components/empty-status/empty-status';

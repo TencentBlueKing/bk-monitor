@@ -32,9 +32,9 @@
       <bk-input
         :disabled="disabled"
         :value="value"
+        :placeholder="placeholder"
         @change="handleChange"
         @blur="handleBlur"
-        :placeholder="placeholder"
       />
     </div>
   </div>
@@ -82,7 +82,7 @@ export default class ParamCard extends Vue {
   border: 1px solid #dcdee5;
 
   &:hover {
-    box-shadow: 0 2px 4px 0 rgba(0, 0, 0, .06);
+    box-shadow: 0 2px 4px 0 rgba(0, 0, 0, 0.06);
   }
 
   &.disabled {
@@ -92,7 +92,7 @@ export default class ParamCard extends Vue {
     :deep(.bk-form-input) {
       /* stylelint-disable-next-line declaration-no-important */
       color: #000 !important;
-      border: 1px solid rgba(255, 255, 255, .5);
+      border: 1px solid rgba(255, 255, 255, 0.5);
 
       /* stylelint-disable-next-line declaration-no-important */
       border-color: #fafbfd !important;
@@ -113,7 +113,7 @@ export default class ParamCard extends Vue {
       height: 26px;
       padding-left: 8px;
       color: #000;
-      border: 1px solid rgba(255, 255, 255, .5);
+      border: 1px solid rgba(255, 255, 255, 0.5);
 
       &:hover {
         color: #c4c6cc;

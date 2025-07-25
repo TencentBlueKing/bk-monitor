@@ -29,15 +29,15 @@ import { Component as tsc } from 'vue-tsx-support';
 import './overview-content.scss';
 
 export interface IData {
+  allowHtml?: boolean;
+  borderRight?: boolean;
+  icon: string;
   id: string;
   name: string;
-  icon: string;
   num: number;
-  unit: string;
-  type: '%' | 'num' | 'time';
-  borderRight?: boolean;
   tip?: string;
-  allowHtml?: boolean;
+  type: '%' | 'num' | 'time';
+  unit: string;
 }
 
 interface IOverviewContentProps {

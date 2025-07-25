@@ -23,7 +23,11 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { request } from '../base';
+import {
+  getCustomTsDimensionValues as getCustomTsDimensionValuesApi,
+  getCustomTsGraphConfig as getCustomTsGraphConfigApi,
+  getCustomTsMetricGroups as getCustomTsMetricGroupsApi,
+} from 'monitor-api/modules/scene_view';
 
 /*
  * 查询指标分组信息
@@ -34,7 +38,6 @@ export const getCustomTsMetricGroups: (params: { bk_biz_id?: number; time_series
     name: string;
   }[];
   metric_groups: {
-    name: string;
     metrics: {
       alias: string;
       dimensions: {
@@ -43,31 +46,45 @@ export const getCustomTsMetricGroups: (params: { bk_biz_id?: number; time_series
       }[];
       metric_name: string;
     }[];
+    name: string;
   }[];
-}> = request('GET', 'rest/v2/scene_view/get_custom_ts_metric_groups/');
+}> = getCustomTsMetricGroupsApi;
 
 /*
  * 查询维度的候选值
  */
 export const getCustomTsDimensionValues: (params: {
   bk_biz_id?: number;
-  time_series_group_id: number;
   dimension: string;
-  start_time: number;
   end_time: number;
   metrics: string[];
-}) => Promise<{ name: string; alias: string }[]> = request(
-  'POST',
-  'rest/v2/scene_view/get_custom_ts_dimension_values/'
-);
+  start_time: number;
+  time_series_group_id: number;
+}) => Promise<{ alias: string; name: string }[]> = getCustomTsDimensionValuesApi;
 
 /*
  * 获取图表配置
  */
 export const getCustomTsGraphConfig: (params?: {
   bk_biz_id: number;
-  time_series_group_id: number;
-  metrics: string[];
+  common_conditions?: {
+    key: string;
+    method: string;
+    value: string[];
+  }[];
+  compare?: {
+    /** ​ 时间偏移量 (如 1d=1天，2h=2小时) */
+    offset: string[];
+    /** ​ 对比类型：时间对比 | 指标对比 */
+    type: 'metric' | 'time';
+  };
+  conditions: {
+    condition: 'and' | 'or';
+    key: string;
+    method: string;
+    value: string[];
+  }[];
+  end_time: number;
   group_by: {
     field: string;
     split: boolean;
@@ -76,26 +93,10 @@ export const getCustomTsGraphConfig: (params?: {
     function: 'bottom' | 'top';
     limit: number;
   };
-  conditions: {
-    condition: 'and' | 'or';
-    key: string;
-    method: string;
-    value: string[];
-  }[];
-  common_conditions?: {
-    key: string;
-    method: string;
-    value: string[];
-  }[];
-  compare?: {
-    /** ​ 对比类型：时间对比 | 指标对比 */
-    type: 'metric' | 'time';
-    /** ​ 时间偏移量 (如 1d=1天，2h=2小时) */
-    offset: string[];
-  };
+  metrics: string[];
   start_time: number;
-  end_time: number;
-}) => Promise<any> = request('POST', 'rest/v2/scene_view/get_custom_ts_graph_config/');
+  time_series_group_id: number;
+}) => Promise<any> = getCustomTsGraphConfigApi;
 
 export default {
   getCustomTsMetricGroups,
