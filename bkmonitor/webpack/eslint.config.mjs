@@ -107,6 +107,7 @@ export default [
       './trace/*',
       './external/*',
       './mp/*',
+      './src/monitor-api/modules/*',
     ],
   },
   {
