@@ -30,6 +30,7 @@ import useLocale from "@/hooks/use-locale";
 import useStore from "@/hooks/use-store";
 import { useRoute } from "vue-router/composables";
 import $http from "@/api";
+import { deepClone } from "@/common/util";
 const store = useStore();
 const route = useRoute();
 const { t } = useLocale();
@@ -38,6 +39,7 @@ const showSlider = ref(false);
 const sliderLoading = ref(false);
 const confirmLoading = ref(false);
 const formData = ref([]);
+const objField = ref([]);
 const fields = computed(() => store.state.indexFieldInfo.fields);
 const globalsData = computed(() => store.getters["globals/globalsData"]);
 const handleOpenSidebar = async () => {
@@ -53,22 +55,23 @@ const submit = async () => {
     const alias_settings = formData.value
       .filter((item) => !item.is_objectKey)
       .reduce((acc, item) => {
-        if (item.path_type !== "object") {
+        if (item.field_type !== "object") {
           acc.push({
             field_name: item.field_name,
-            query_alias: item.query_alias || "",
-            path_type: item.field_type || "",
+            query_alias: item.query_alias,
+            path_type: item.field_type,
           });
         } else if (item.children) {
           const childrenFields = item.children.map((child) => ({
             field_name: child.field_name,
-            query_alias: child.query_alias || "",
-            path_type: child.field_type || "",
+            query_alias: child.query_alias,
+            path_type: child.field_type,
           }));
           acc.push(...childrenFields);
         }
         return acc;
-      }, []);
+      }, [])
+      .filter((item) => item.query_alias);
     const res = await $http.request("retrieve/updateFieldsAlias", {
       params: {
         index_set_id: route.params.indexId,
@@ -83,7 +86,7 @@ const submit = async () => {
       location.reload();
     }
   } catch (error) {
-    console.error("Submit failed:", error); 
+    console.error("Submit failed:", error);
   }
 };
 const handleCancel = () => {
@@ -108,14 +111,15 @@ const initFormData = async () => {
       },
     })
     .then((res) => {
-      formData.value = res.data.fields.map((item) => {
-        return {
-          field_name: item.field_name,
-          query_alias: item.query_alias || "",
-          path_type: item.field_type,
-          aliasErr: "",
-        };
-      });
+      objField.value = res.data.fields
+        .filter((field) => field.field_type === "object")
+        .map((item) => {
+          return {
+            field_name: item.field_name,
+            query_alias: item.query_alias,
+            field_type: item.field_type,
+          };
+        });
       sliderLoading.value = false;
     });
 };
@@ -141,24 +145,46 @@ const aliasShow = (row) => {
   }
   return !row.alias_name;
 };
-
 const addObject = () => {
-  const fieldsData = fields.value.filter(
-    (field) => field.field_type !== "__virtual__" && field.field_name.includes(".")
+  const deepFields = deepClone(
+    fields.value.map((item) => {
+      return {
+        ...item,
+        aliasErr: "",
+      };
+    })
   );
-  fieldsData.forEach((item) => {
-    let name = item.field_name?.split(".")[0].replace(/^_+|_+$/g, "");
-    item.is_objectKey = true;
-    formData.value.forEach((field) => {
-      if (field.path_type === "object" && name === field.field_name?.split(".")[0]) {
-        if (!Array.isArray(field.children)) {
-          field.children = [];
-          field.expand = false;
-        }
-        field.children.push(item);
-      }
-    });
+  const keyFieldList = deepFields.filter((field) => field.field_name.includes("."));
+  const objectFieldMap = new Map();
+  objField.value.forEach((objectField) => {
+    const objectFieldName = objectField.field_name?.split(".")[0];
+    if (!objectFieldMap.has(objectFieldName)) {
+      objectFieldMap.set(objectFieldName, objectField);
+    }
   });
+
+  const fieldsDataList = [
+    ...objectFieldMap.values(),
+    ...deepFields.filter(
+      (field) => field.field_type !== "__virtual__" && !field.field_name.includes(".")
+    ),
+  ];
+
+  keyFieldList.forEach((item) => {
+    item.is_objectKey = true;
+    const keyFieldPrefix = item.field_name.split(".")[0].replace(/^_+|_+$/g, "");
+    const objectField = objectFieldMap.get(keyFieldPrefix);
+
+    if (objectField) {
+      if (!objectField.children) {
+        objectField.children = [];
+        objectField.expand = false;
+      }
+      objectField.children.push(item);
+    }
+  });
+
+  formData.value = fieldsDataList;
 };
 // 校验别名
 const checkQueryAlias = () => {
@@ -281,7 +307,7 @@ defineExpose({
               <bk-table-column :label="$t('别名')" :resizable="true">
                 <template #default="props">
                   <div class="alias-container">
-                    <div v-if="props.row.path_type === 'object'"></div>
+                    <div v-if="props.row.field_type === 'object'"></div>
                     <bk-input
                       v-else
                       class="alias-input"
