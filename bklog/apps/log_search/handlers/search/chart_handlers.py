@@ -397,16 +397,36 @@ class ChartHandler:
         return field_name
 
     @classmethod
-    def get_grep_condition(cls, grep_query, grep_field, alias_mappings, sort_list, index_set_id, size=10, begin=0):
+    def get_order_by_clause(cls, index_set_id, sort_list, alias_mappings):
+        """
+        获取排序条件
+        :param index_set_id: 索引集ID
+        :param sort_list: 排序字段
+        :param alias_mappings: 别名
+        """
+        if not sort_list:
+            sort_list = SearchHandler(index_set_id, {}).sort_list
+        # 构建 ORDER BY 子句
+        order_by_clause = ""
+        for field, direction in sort_list:
+            order_field = alias_mappings.get(field, field)
+            # _ext.a.b的字段名需要转化为JSON_EXTRACT的形式
+            order_field = cls.convert_object_field(order_field)
+            if order_by_clause:
+                order_by_clause += ", "
+            order_by_clause += f"{order_field} {direction.upper()}"
+
+        if order_by_clause:
+            order_by_clause = f"ORDER BY {order_by_clause}"
+        return order_by_clause
+
+    @classmethod
+    def get_grep_condition(cls, grep_query, grep_field, alias_mappings):
         """
         获取grep查询条件
         :param grep_query: 查询语句
         :param grep_field: 查询字段
         :param alias_mappings: 别名
-        :param sort_list: 排序字段
-        :param index_set_id: 索引集id
-        :param size: 查询数据条数
-        :param begin: 偏移量
         """
         pattern = ""
         grep_where_clause = ""
@@ -432,23 +452,7 @@ class ChartHandler:
                     if ignore_case:
                         pattern = re.match(r"LOWER\((.*)\)", pattern).group(1)
                     pattern = pattern.strip("'")
-        # 加上排序条件
-        if not sort_list:
-            sort_list = SearchHandler(index_set_id, {}).sort_list
-        # 构建 ORDER BY 子句
-        order_by_clause = ""
-        for field, direction in sort_list:
-            order_field = alias_mappings.get(field, field)
-            # _ext.a.b的字段名需要转化为JSON_EXTRACT的形式
-            order_field = cls.convert_object_field(order_field)
-            if order_by_clause:
-                order_by_clause += ", "
-            order_by_clause += f"{order_field} {direction.upper()}"
-        if order_by_clause:
-            grep_where_clause += f" ORDER BY {order_by_clause}"
-        # 加上分页条件
-        grep_where_clause += f" LIMIT {size} OFFSET {begin}"
-        return grep_where_clause, pattern, ignore_case
+        return {"grep_where_clause": grep_where_clause, "pattern": pattern, "ignore_case": ignore_case}
 
     def add_doris_query_trace(self, sql=None, total_records=None, time_taken=None):
         """
@@ -609,28 +613,38 @@ class SQLChartHandler(ChartHandler):
         alias_mappings = params["alias_mappings"]
 
         grep_field = params.get("grep_field")
-        grep_where_clause, pattern, ignore_case = self.get_grep_condition(
+        grep_condition_dict = self.get_grep_condition(
             grep_field=grep_field,
             grep_query=params.get("grep_query"),
             alias_mappings=alias_mappings,
-            sort_list=params.get("sort_list", []),
-            index_set_id=self.index_set_id,
-            size=params["size"],
-            begin=params["begin"],
         )
+        grep_where_clause = grep_condition_dict["grep_where_clause"]
+        # where_clause_flag用于判断是否有where条件生成
+        where_clause_flag = grep_where_clause
+        pattern = grep_condition_dict["pattern"]
+        ignore_case = grep_condition_dict["ignore_case"]
+        order_by_clause = self.get_order_by_clause(
+            index_set_id=self.index_set_id,
+            sort_list=params.get("sort_list", []),
+            alias_mappings=alias_mappings,
+        )
+        # 加上排序条件
+        grep_where_clause += f" ORDER BY {order_by_clause}"
+        # 加上分页条件
+        grep_where_clause += f" LIMIT {params['size']} OFFSET {params['begin']}"
         try:
             bk_biz_id = space_uid_to_bk_biz_id(self.data.space_uid)
             if FeatureToggleObject.switch(UNIFY_QUERY_SQL, bk_biz_id):
                 params["index_set_ids"] = [self.index_set_id]
                 params["bk_biz_id"] = bk_biz_id
-                # 执行UnifyQuery
-                grep_where_clause = grep_where_clause.strip()
-                if grep_where_clause.startswith("ORDER BY") or grep_where_clause.startswith("LIMIT"):
-                    sql = f"SELECT * {grep_where_clause}"
-                else:
+                if where_clause_flag:
                     sql = f"SELECT * WHERE {grep_where_clause}"
+                else:
+                    sql = f"SELECT * {grep_where_clause}"
+
                 params["sql"] = sql
                 trace_params = {"sql": sql}
+                # 执行UnifyQuery
                 query_handler = UnifyQueryChartHandler(params)
                 result = query_handler.get_chart_data()
             else:
@@ -642,7 +656,10 @@ class SQLChartHandler(ChartHandler):
                     action=SQLGenerateMode.WHERE_CLAUSE.value,
                     alias_mappings=alias_mappings,
                 )
-                where_clause += f" AND {grep_where_clause}"
+                if where_clause_flag:
+                    where_clause += f" AND {grep_where_clause}"
+                else:
+                    where_clause += f" {grep_where_clause}"
                 sql = f"SELECT * FROM {self.data.doris_table_id} WHERE {where_clause}"
                 trace_params = {"sql": sql}
                 # 执行doris查询

@@ -116,21 +116,36 @@ GREP_PARAMS = [
         "grep_field": "id_alias",
         "grep_query": "egrep a",
         "alias_mappings": {"id_alias": "id"},
-        "sort_list": [["time", "asc"], ["container_id", "desc"]],
-        "index_set_id": INDEX_SET_ID,
     },
     {
         "grep_field": "__ext.app.label",
         "grep_query": "egrep a",
         "alias_mappings": {"app_label": "__ext.app.label"},
-        "sort_list": [["time", "asc"], ["app_label", "asc"]],
-        "index_set_id": INDEX_SET_ID,
     },
 ]
 
 GREP_QUERY_RESULT = [
-    "id REGEXP 'a' ORDER BY time ASC, container_id DESC LIMIT 10 OFFSET 0",
-    "CAST(__ext['app']['label'] AS TEXT) REGEXP 'a' ORDER BY time ASC, CAST(__ext['app']['label'] AS TEXT) ASC LIMIT 10 OFFSET 0",
+    "id REGEXP 'a'",
+    "CAST(__ext['app']['label'] AS TEXT) REGEXP 'a'",
+]
+
+
+ORDER_BY_PARAMS = [
+    {
+        "sort_list": [["time", "asc"], ["container_id", "desc"]],
+        "index_set_id": INDEX_SET_ID,
+        "alias_mappings": {"id_alias": "id"},
+    },
+    {
+        "sort_list": [["time", "asc"], ["app_label", "asc"]],
+        "index_set_id": INDEX_SET_ID,
+        "alias_mappings": {"app_label": "__ext.app.label"},
+    },
+]
+
+ORDER_BY_RESULT = [
+    "ORDER BY time ASC, container_id DESC",
+    "ORDER BY time ASC, CAST(__ext['app']['label'] AS TEXT) ASC",
 ]
 
 HIGHLIGHT_PARAMS = [
@@ -188,15 +203,27 @@ class TestGrepLogic(TestCase):
             grep_parser(exception_syntax)
 
     @patch("apps.log_search.models.LogIndexSet.objects.get")
-    def test_add_grep_condition(self, mock_log_index_get):
+    def test_get_grep_condition(self, mock_log_index_get):
         mock_data = MagicMock()
         mock_data.support_doris = 1
         mock_data.doris_table_id = "x"
         mock_log_index_get.return_value = mock_data
         instance = ChartHandler.get_instance(index_set_id=INDEX_SET_ID, mode="sql")
         for grep_param, grep_query_result in zip(GREP_PARAMS, GREP_QUERY_RESULT):
-            result, _, _ = instance.get_grep_condition(**grep_param)
+            grep_condition_dict = instance.get_grep_condition(**grep_param)
+            result = grep_condition_dict["grep_where_clause"]
             self.assertEqual(result, grep_query_result)
+
+    @patch("apps.log_search.models.LogIndexSet.objects.get")
+    def test_get_order_by_clause(self, mock_log_index_get):
+        mock_data = MagicMock()
+        mock_data.support_doris = 1
+        mock_data.doris_table_id = "x"
+        mock_log_index_get.return_value = mock_data
+        instance = ChartHandler.get_instance(index_set_id=INDEX_SET_ID, mode="sql")
+        for order_by_param, order_by_result in zip(ORDER_BY_PARAMS, ORDER_BY_RESULT):
+            result = instance.get_order_by_clause(**order_by_param)
+            self.assertEqual(result, order_by_result)
 
     def test_add_highlight_mark(self):
         for highlight_param, highlight_result in zip(HIGHLIGHT_PARAMS, HIGHLIGHT_RESULT):
