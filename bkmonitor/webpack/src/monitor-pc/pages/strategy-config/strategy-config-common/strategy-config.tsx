@@ -64,6 +64,7 @@ import { DetectionRuleTypeEnum, MetricDetail } from '../strategy-config-set-new/
 import StrategyIpv6 from '../strategy-ipv6/strategy-ipv6';
 import { compareObjectsInArray, countElementsNotInFirstRow, handleMouseDown, handleMouseMove } from '../util';
 import DeleteSubtitle from './delete-subtitle';
+import DetectionRulesSide from './detection-rules-side';
 import FilterPanelPopover from './filter-panel-popover';
 
 import type { EmptyStatusOperationType, EmptyStatusType } from '../../../components/empty-status/types';
@@ -282,6 +283,12 @@ class StrategyConfig extends Mixins(UserConfigMixin, authorityMixinCreate(strate
   emptyType: EmptyStatusType = 'empty'; // 空状态
   selectKey = 1;
   firstRequest = true; // 第一次请求
+  // 当前选中的检测算法
+  selectAlgorithms = {
+    selectedStrategy: null,
+    index: 0,
+    show: false,
+  };
   cancelFn = () => {}; // 取消监控目标接口方法
 
   get bizList() {
@@ -2066,6 +2073,27 @@ class StrategyConfig extends Mixins(UserConfigMixin, authorityMixinCreate(strate
     );
   }
 
+  /**
+   * @description 展开检测算法详情
+   * @param selectedStrategy
+   * @param index
+   */
+  handleDetectionTypeClick(selectedStrategy, index: number) {
+    this.selectAlgorithms = {
+      selectedStrategy,
+      index,
+      show: true,
+    };
+  }
+
+  /**
+   * @description 检测算法修改成功
+   */
+  detectionRulesSideSuccess() {
+    this.selectAlgorithms.show = false;
+    this.handleGetListData();
+  }
+
   getTableComponent() {
     const idSlot = {
       default: props => props.row.id,
@@ -2207,35 +2235,46 @@ class StrategyConfig extends Mixins(UserConfigMixin, authorityMixinCreate(strate
         </div>
       ),
     };
-    const overflowGroupDom = (props, type, customTip = '' /* 通用组样式 */) => (
-      <div class='col-classifiy'>
-        {props.row[type].length > 0 ? (
-          <div
-            ref={`table-${type}-${props.$index}`}
-            class='col-classifiy-wrap'
-            v-bk-tooltips={{
-              placements: ['top-start'],
-              boundary: 'window',
-              content: () => customTip || props.row[type].join('、 '),
-              delay: 200,
-              allowHTML: false,
-            }}
-          >
-            {props.row[type].map((item, index) => (
-              <span
-                key={`${item}-${index}`}
-                class='classifiy-label gray'
-              >
-                <span class='text-overflow'>{item}</span>
-              </span>
-            ))}
-            {props.row[`overflow${type}`] ? <span class='classifiy-overflow gray'>...</span> : undefined}
-          </div>
-        ) : (
-          <div>--</div>
-        )}
-      </div>
-    );
+    const overflowGroupDom = (props, type, customTip = '' /* 通用组样式 */) => {
+      return (
+        <div class='col-classifiy'>
+          {props.row[type].length > 0 ? (
+            <div
+              ref={`table-${type}-${props.$index}`}
+              class='col-classifiy-wrap'
+              v-bk-tooltips={{
+                placements: ['top-start'],
+                boundary: 'window',
+                content: () => customTip || props.row[type].join('、 '),
+                delay: 200,
+                allowHTML: false,
+              }}
+            >
+              {props.row[type].map((item, index) => (
+                <span
+                  key={`${item}-${index}`}
+                  class='classifiy-label gray'
+                >
+                  <span
+                    class='text-overflow'
+                    onClick={() => {
+                      if (type === 'detectionTypes') {
+                        this.handleDetectionTypeClick(props.row, index);
+                      }
+                    }}
+                  >
+                    {item}
+                  </span>
+                </span>
+              ))}
+              {props.row[`overflow${type}`] ? <span class='classifiy-overflow gray'>...</span> : undefined}
+            </div>
+          ) : (
+            <div>--</div>
+          )}
+        </div>
+      );
+    };
     const labelsSlot = {
       /* 标签 */
       default: props => (
@@ -2870,6 +2909,15 @@ class StrategyConfig extends Mixins(UserConfigMixin, authorityMixinCreate(strate
         key={6}
         v-model={this.alarmGroupDialog.show}
         hasEditBtn={false}
+      />,
+      <DetectionRulesSide
+        key={7}
+        show={this.selectAlgorithms.show}
+        strategyData={this.selectAlgorithms.selectedStrategy}
+        onShowChange={v => {
+          this.selectAlgorithms.show = v;
+        }}
+        onSuccess={this.detectionRulesSideSuccess}
       />,
     ];
   }
