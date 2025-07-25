@@ -1295,7 +1295,6 @@ def test_create_basereport_datalink_for_bkcc_bkbase_v4_part(create_or_delete_rec
                 "conditions": [
                     {
                         "match_labels": [{"any": ["cpu_summary"], "name": "__result_table"}],
-                        "relabels": [{"name": "__result_table", "value": "cpu_summary"}],
                         "sinks": [
                             {
                                 "kind": "VmStorageBinding",
@@ -1307,7 +1306,6 @@ def test_create_basereport_datalink_for_bkcc_bkbase_v4_part(create_or_delete_rec
                     },
                     {
                         "match_labels": [{"any": ["cpu_detail"], "name": "__result_table"}],
-                        "relabels": [{"name": "__result_table", "value": "cpu_detail"}],
                         "sinks": [
                             {
                                 "kind": "VmStorageBinding",
@@ -1319,7 +1317,6 @@ def test_create_basereport_datalink_for_bkcc_bkbase_v4_part(create_or_delete_rec
                     },
                     {
                         "match_labels": [{"any": ["disk"], "name": "__result_table"}],
-                        "relabels": [{"name": "__result_table", "value": "disk"}],
                         "sinks": [
                             {
                                 "kind": "VmStorageBinding",
@@ -1331,7 +1328,6 @@ def test_create_basereport_datalink_for_bkcc_bkbase_v4_part(create_or_delete_rec
                     },
                     {
                         "match_labels": [{"any": ["env"], "name": "__result_table"}],
-                        "relabels": [{"name": "__result_table", "value": "env"}],
                         "sinks": [
                             {
                                 "kind": "VmStorageBinding",
@@ -1343,7 +1339,6 @@ def test_create_basereport_datalink_for_bkcc_bkbase_v4_part(create_or_delete_rec
                     },
                     {
                         "match_labels": [{"any": ["inode"], "name": "__result_table"}],
-                        "relabels": [{"name": "__result_table", "value": "inode"}],
                         "sinks": [
                             {
                                 "kind": "VmStorageBinding",
@@ -1355,7 +1350,6 @@ def test_create_basereport_datalink_for_bkcc_bkbase_v4_part(create_or_delete_rec
                     },
                     {
                         "match_labels": [{"any": ["io"], "name": "__result_table"}],
-                        "relabels": [{"name": "__result_table", "value": "io"}],
                         "sinks": [
                             {
                                 "kind": "VmStorageBinding",
@@ -1367,7 +1361,6 @@ def test_create_basereport_datalink_for_bkcc_bkbase_v4_part(create_or_delete_rec
                     },
                     {
                         "match_labels": [{"any": ["load"], "name": "__result_table"}],
-                        "relabels": [{"name": "__result_table", "value": "load"}],
                         "sinks": [
                             {
                                 "kind": "VmStorageBinding",
@@ -1379,7 +1372,6 @@ def test_create_basereport_datalink_for_bkcc_bkbase_v4_part(create_or_delete_rec
                     },
                     {
                         "match_labels": [{"any": ["mem"], "name": "__result_table"}],
-                        "relabels": [{"name": "__result_table", "value": "mem"}],
                         "sinks": [
                             {
                                 "kind": "VmStorageBinding",
@@ -1391,7 +1383,6 @@ def test_create_basereport_datalink_for_bkcc_bkbase_v4_part(create_or_delete_rec
                     },
                     {
                         "match_labels": [{"any": ["net"], "name": "__result_table"}],
-                        "relabels": [{"name": "__result_table", "value": "net"}],
                         "sinks": [
                             {
                                 "kind": "VmStorageBinding",
@@ -1403,7 +1394,6 @@ def test_create_basereport_datalink_for_bkcc_bkbase_v4_part(create_or_delete_rec
                     },
                     {
                         "match_labels": [{"any": ["netstat"], "name": "__result_table"}],
-                        "relabels": [{"name": "__result_table", "value": "netstat"}],
                         "sinks": [
                             {
                                 "kind": "VmStorageBinding",
@@ -1415,7 +1405,6 @@ def test_create_basereport_datalink_for_bkcc_bkbase_v4_part(create_or_delete_rec
                     },
                     {
                         "match_labels": [{"any": ["swap"], "name": "__result_table"}],
-                        "relabels": [{"name": "__result_table", "value": "swap"}],
                         "sinks": [
                             {
                                 "kind": "VmStorageBinding",
