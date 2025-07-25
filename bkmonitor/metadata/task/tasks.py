@@ -1494,9 +1494,9 @@ def _get_bk_biz_internal_data_ids(bk_tenant_id: str, bk_biz_id: int) -> list[dic
         result.append({"task": "basereport", "dataid": system_metric_data_source.bk_data_id})
 
     # 系统事件
-    # system_event_data_source = DataSource.objects.filter(data_name=f"base_{bk_biz_id}_agent_event").first()
-    # if system_event_data_source:
-    #     result.append({"task": "base_event", "datadd": system_event_data_source.bk_data_id})
+    system_event_data_source = DataSource.objects.filter(data_name=f"base_{bk_biz_id}_agent_event").first()
+    if system_event_data_source:
+        result.append({"task": "exceptionbeat", "dataid": system_event_data_source.bk_data_id})
 
     return result
 
@@ -1526,7 +1526,8 @@ def process_gse_slot_message(message_id: str, bk_agent_id: str, content: str, re
             "global_heartbeat", # 原 1100001 dataid
             "gather_up_beat",  # 原 1100017 dataid
             "timesync", # 原 1100030 dataid
-            "dmesg" # 原 1100031 dataid
+            "dmesg", # 原 1100031 dataid
+            "exceptionbeat", # 原 1000 dataid
         ]
     }
     """
