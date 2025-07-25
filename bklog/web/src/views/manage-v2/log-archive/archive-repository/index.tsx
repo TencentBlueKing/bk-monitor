@@ -31,7 +31,7 @@ export default defineComponent({
       current: 1,
       count: 0,
       limit: 10,
-      limitList: [1, 10, 20, 50, 100],
+      limitList: [10, 20, 50, 100],
     });
 
     const repoTypeMap = computed(() => ({ // 仓库类型映射
@@ -136,7 +136,7 @@ export default defineComponent({
         computePageData();
       }
     };
-    
+
     // 分页条数变更
     const handleLimitChange = (limit: number) => {
       if (pagination.limit !== limit) {
