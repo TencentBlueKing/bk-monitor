@@ -23,7 +23,17 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { type PropType, type Ref, TransitionGroup, computed, defineComponent, inject, reactive, watch } from 'vue';
+import {
+  type PropType,
+  type Ref,
+  TransitionGroup,
+  type VNode,
+  computed,
+  defineComponent,
+  inject,
+  reactive,
+  watch,
+} from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import UserSelector from '@/components/user-selector/user-selector';
@@ -32,7 +42,6 @@ import { random } from 'lodash';
 import { getDefaultUserGroupListSync, type IUserInfo } from 'monitor-pc/components/user-selector/user-group';
 import { isEn } from 'monitor-pc/i18n/lang';
 
-import MemberSelect, { type TagItemModel } from '../../../components/member-select/member-select';
 import { RotationSelectTypeEnum } from '../typings/common';
 import { validTimeOverlap } from '../utils';
 import CalendarSelect from './calendar-select';
@@ -590,40 +599,76 @@ export default defineComponent({
       handleEmitData();
     }
 
+    function handAutoMemberSelectChange(ind: number, userInfos: IUserInfo[]) {
+      if (localValue.users.value[ind].value?.length && userInfos.length === localValue.users.value[ind].value.length) {
+        const dragEvent = findDragIndexes(localValue.users.value[ind].value, userInfos);
+        if (dragEvent) {
+          handleAutoGroupDrop(dragEvent.startIndex, dragEvent.endIndex);
+        }
+      }
+      localValue.users.value[ind].value = userInfos.map(user => ({
+        id: user.id,
+        type: user?.type === 'userGroup' ? 'group' : 'user',
+      }));
+      handleEmitData();
+    }
+
+    /**
+     * @description 计算拖拽排序的起始位置和结束位置
+     */
+    function findDragIndexes(original, modified) {
+      const originalIndices: Map<string, number> = new Map(original.map((item, index) => [item.id, index]));
+      const modifiedIndices: Map<string, number> = new Map(modified.map((item, index) => [item.id, index]));
+
+      let maxDiff = -Infinity;
+      let movedItem = null;
+
+      original.forEach(item => {
+        const originalIndex = originalIndices.get(item.id);
+        const modifiedIndex = modifiedIndices.get(item.id);
+
+        // 跳过新增或删除的元素
+        if (modifiedIndex === undefined || originalIndex === undefined) return;
+
+        const diff = modifiedIndex - originalIndex;
+
+        // 修复点：允许第一次比较时更新 maxDiff
+        if (movedItem === null || Math.abs(diff) > Math.abs(maxDiff)) {
+          maxDiff = diff;
+          movedItem = item;
+        }
+      });
+
+      if (!movedItem) return null;
+
+      return {
+        startIndex: originalIndices.get(movedItem.id),
+        endIndex: modifiedIndices.get(movedItem.id),
+      };
+    }
+
     /**
      * 自动分组人员tag模板
      * @param data 人员数据
      * @param index 人员索引
      * @returns 模板
      */
-    function autoGroupTagTpl(data: TagItemModel, index: number) {
-      function handleCloseTag(e: Event) {
-        e.stopPropagation();
-        localValue.users.value[0].value.splice(index, 1);
-        handleEmitData();
-      }
-      return [
-        <div
-          key={1}
-          style={{ 'background-color': colorList.value[getOrderIndex(index)] }}
-          class='auto-group-tag-color'
-        />,
-        <span
-          key={2}
-          class='icon-monitor icon-mc-tuozhuai'
-        />,
-        <span
-          key={3}
-          class='user-name'
-        >
-          {data?.username}
-        </span>,
-        <span
-          key={4}
-          class='icon-monitor icon-mc-close'
-          onClick={e => handleCloseTag(e)}
-        />,
-      ];
+    function autoGroupTagTpl(_, userInfo: IUserInfo) {
+      const index = localValue.users.value[0].value.findIndex(item => item.id === userInfo.id);
+      return (
+        <div class='auto-group-tag-item'>
+          <div class='auto-group-tag-prefix'>
+            <div
+              style={{ 'background-color': colorList.value[getOrderIndex(index)] }}
+              class='auto-group-tag-color'
+            />
+            <span class='icon-monitor icon-mc-tuozhuai' />
+          </div>
+          <div class='auto-group-tag-main'>
+            <span class='auto-group-tag-item-name'>{userInfo.name}</span>
+          </div>
+        </div>
+      ) as unknown as VNode;
     }
 
     /**
@@ -704,6 +749,7 @@ export default defineComponent({
       handleAddUserGroup,
       handleDelUserGroup,
       handMemberSelectChange,
+      handAutoMemberSelectChange,
       handleDragstart,
       handleDragover,
       handleDrop,
@@ -809,14 +855,13 @@ export default defineComponent({
                   label={this.t('轮值人员')}
                   labelWidth={this.labelWidth}
                 >
-                  <MemberSelect
-                    v-model={this.localValue.users.value[0].value}
-                    defaultGroup={this.defaultGroup}
-                    hasDefaultGroup={true}
-                    showType='tag'
-                    tagTpl={this.autoGroupTagTpl}
-                    onDrop={this.handleAutoGroupDrop}
-                    onSelectEnd={val => this.handMemberSelectChange(0, val)}
+                  <UserSelector
+                    class='auto-user-selector'
+                    draggable={true}
+                    modelValue={this.localValue.users.value[0].value.map(user => user.id)}
+                    renderTag={this.autoGroupTagTpl}
+                    userGroupList={this.defaultUserGroupList}
+                    onChange={userInfos => this.handAutoMemberSelectChange(0, userInfos)}
                   />
                 </FormItem>
                 <FormItem
