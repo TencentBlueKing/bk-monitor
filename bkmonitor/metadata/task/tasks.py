@@ -31,6 +31,7 @@ from metadata.models.constants import (
     BASE_EVENT_RESULT_TABLE_OPTION_MAP,
     BASEREPORT_RESULT_TABLE_FIELD_MAP,
     DataIdCreatedFromSystem,
+    BASE_EVENT_RESULT_TABLE_FIELD_OPTION_MAP,
 )
 from metadata.models.data_link.constants import BASEREPORT_SOURCE_SYSTEM, BASEREPORT_USAGES, DataLinkResourceStatus
 from metadata.models.data_link.service import get_data_link_component_status
@@ -1314,7 +1315,7 @@ def create_base_event_datalink_for_bkcc(bk_biz_id, storage_cluster_name=None):
 
     table_id = f"base_{bk_tenant_id}_{bk_biz_id}_event"
 
-    # TASK1 -- 监控平台侧元信息逻辑: DataSource,ResultTable,ResultTableField,ResultTableOption,ESStorage
+    # TASK1 -- 监控平台侧元信息逻辑: DataSource,ResultTable,ResultTableField,ResultTableOption,ESStorage,ResultTalbeFieldOption
     try:
         with transaction.atomic():
             rt_queryset = models.ResultTable.objects.filter(table_id=table_id, bk_tenant_id=bk_tenant_id)
@@ -1401,6 +1402,34 @@ def create_base_event_datalink_for_bkcc(bk_biz_id, storage_cluster_name=None):
             if result_table_option_to_create:
                 logger.info("create_base_event_datalink_for_bkcc: creating rt options,table_id->[%s]", table_id)
                 models.ResultTableOption.objects.bulk_create(result_table_option_to_create)
+
+            field_options = BASE_EVENT_RESULT_TABLE_FIELD_OPTION_MAP.get("base_event", [])
+            field_option_to_create = []
+            existing_options = list(
+                models.ResultTableFieldOption.objects.filter(table_id=table_id, bk_tenant_id=bk_tenant_id).values_list(
+                    "field_name", "name"
+                )
+            )
+
+            for field_option in field_options:
+                if (field_option["field_name"], field_option["name"]) in existing_options:
+                    continue
+
+                field_option_to_create.append(
+                    models.ResultTableFieldOption(
+                        table_id=table_id,
+                        bk_tenant_id=bk_tenant_id,
+                        value_type=field_option["value_type"],
+                        value=field_option["value"],
+                        field_name=field_option["field_name"],
+                        name=field_option["name"],
+                        creator=field_option["creator"],
+                    )
+                )
+
+            if field_option_to_create:
+                logger.info("create_base_event_datalink_for_bkcc: creating rt field options,table_id->[%s]", table_id)
+                models.ResultTableFieldOption.objects.bulk_create(field_option_to_create)
 
             dsrt_qs = models.DataSourceResultTable.objects.filter(bk_data_id=data_source.bk_data_id, table_id=table_id)
             if not dsrt_qs:
