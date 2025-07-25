@@ -42,8 +42,8 @@ import {
   type BaseDataType,
   type DataTypeItem,
   type IQueryParams,
-  PanelModel,
   type ProfilingTableItem,
+  PanelModel,
   TextDirectionType,
   ViewModeType,
 } from '../../typings';

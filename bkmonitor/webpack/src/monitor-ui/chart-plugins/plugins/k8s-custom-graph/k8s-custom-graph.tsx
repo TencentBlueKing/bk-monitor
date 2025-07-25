@@ -34,10 +34,10 @@ import { CancelToken } from 'monitor-api/cancel';
 import { Debounce, deepClone, random } from 'monitor-common/utils/utils';
 import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
 import {
+  type IUnifyQuerySeriesItem,
   downCsvFile,
   transformSrcData,
   transformTableDataToCsvStr,
-  type IUnifyQuerySeriesItem,
 } from 'monitor-pc/pages/view-detail/utils';
 
 import { type ValueFormatter, getValueFormat } from '../../../monitor-echarts/valueFormats';
@@ -57,8 +57,8 @@ import type {
   ILegendItem,
   IMenuChildItem,
   IMenuItem,
-  ITitleAlarm,
   ITimeSeriesItem,
+  ITitleAlarm,
   PanelModel,
 } from '../../../chart-plugins/typings';
 import type { IChartTitleMenuEvents } from '../../components/chart-title/chart-title-menu';
@@ -83,36 +83,6 @@ const SpecialSeriesColorMap = {
 };
 interface IProps {
   panel: PanelModel;
-}
-
-function removeTrailingZeros(num) {
-  if (num && num !== '0') {
-    return num
-      .toString()
-      .replace(/(\.\d*?)0+$/, '$1')
-      .replace(/\.$/, '');
-  }
-  return num;
-}
-
-function getNumberAndUnit(str) {
-  const match = str.match(/^(\d+)([a-zA-Z])$/);
-  return match ? { number: Number.parseInt(match[1], 10), unit: match[2] } : null;
-}
-
-function timeToDayNum(t) {
-  const regex = /^\d{4}-\d{2}-\d{2}$/;
-  if (regex.test(t)) {
-    return dayjs().diff(dayjs(t), 'day');
-  }
-  const timeInfo = getNumberAndUnit(t);
-  if (timeInfo?.unit === 'd') {
-    return timeInfo.number;
-  }
-  if (timeInfo?.unit === 'w') {
-    return timeInfo.number * 7;
-  }
-  return 0;
 }
 
 @Component
@@ -1140,6 +1110,36 @@ class K8SCustomChart extends CommonSimpleChart {
       </div>
     );
   }
+}
+
+function getNumberAndUnit(str) {
+  const match = str.match(/^(\d+)([a-zA-Z])$/);
+  return match ? { number: Number.parseInt(match[1], 10), unit: match[2] } : null;
+}
+
+function removeTrailingZeros(num) {
+  if (num && num !== '0') {
+    return num
+      .toString()
+      .replace(/(\.\d*?)0+$/, '$1')
+      .replace(/\.$/, '');
+  }
+  return num;
+}
+
+function timeToDayNum(t) {
+  const regex = /^\d{4}-\d{2}-\d{2}$/;
+  if (regex.test(t)) {
+    return dayjs().diff(dayjs(t), 'day');
+  }
+  const timeInfo = getNumberAndUnit(t);
+  if (timeInfo?.unit === 'd') {
+    return timeInfo.number;
+  }
+  if (timeInfo?.unit === 'w') {
+    return timeInfo.number * 7;
+  }
+  return 0;
 }
 
 export default ofType<IProps>().convert(K8SCustomChart);

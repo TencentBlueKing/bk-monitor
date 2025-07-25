@@ -35,14 +35,14 @@ import type { PanelModel } from '../../typings';
 
 import './aiops-chart.scss';
 
-interface IProps {
-  panels: PanelModel[];
-  onDimensionsOfSeries?: (dimensions: string[]) => string[];
-  clearErrorMsg?: () => void;
-  errorMsgFn?: (mgs: string) => void;
-}
 interface IDataZoomTimeRange {
   timeRange: any[];
+}
+interface IProps {
+  panels: PanelModel[];
+  clearErrorMsg?: () => void;
+  errorMsgFn?: (mgs: string) => void;
+  onDimensionsOfSeries?: (dimensions: string[]) => string[];
 }
 @Component
 export default class AiopsChart extends tsc<IProps> {

@@ -28,7 +28,7 @@
 import { Component, Emit, InjectReactive, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import G6, { type IGroup, type ModelConfig, type Graph, type INode, type IEdge, type IShape } from '@antv/g6';
+import G6, { type Graph, type IEdge, type IGroup, type INode, type IShape, type ModelConfig } from '@antv/g6';
 import { addListener, removeListener } from '@blueking/fork-resize-detector';
 import dayjs from 'dayjs';
 import { nodeEndpointsTop } from 'monitor-api/modules/apm_topo';
@@ -40,9 +40,9 @@ import CompareGraphTools from '../../apm-time-series/components/compare-topo-ful
 import ApmTopoLegend from './apm-topo-legend';
 // import TopoMenu, { type ITopoMenuItem } from './topo-menu';
 import {
-  CategoryEnum,
-  type NodeDisplayTypeMap,
   type EdgeDataType,
+  type NodeDisplayTypeMap,
+  CategoryEnum,
   NodeDisplayType,
   nodeIconMap,
   nodeLanguageMap,
@@ -53,59 +53,59 @@ import type { TimeRangeType } from 'monitor-pc/components/time-range/time-range'
 import './apm-relation-topo.scss';
 
 export interface INodeModel {
+  color: string;
+  endpoint_tips: { group?: string; name: string; value: string }[];
+  have_data: boolean;
+  menu: { action: string; name: string; type?: string; url?: string }[];
+  node_tips: { group?: string; name: string; value: string }[];
+  request_count: number;
+  size: number;
   data: {
     category: CategoryEnum;
     display_key: string;
+    extra_info: Record<string, any>;
+    id: string;
+    kind: string;
     name: string;
     type: NodeDisplayTypeMap;
-    kind: string;
-    id: string;
-    extra_info: Record<string, any>;
   };
-  have_data: boolean;
-  request_count: number;
-  color: string;
-  size: number;
-  menu: { name: string; action: string; url?: string; type?: string }[];
-  node_tips: { name: string; value: string; group?: string }[];
-  endpoint_tips: { name: string; value: string; group?: string }[];
 }
 
-type IEdgeModel = {
-  from_name: string;
-  to_name: string;
-  edge_breadth: number;
-  duration_avg?: string;
-  duration_p99?: string;
-  duration_p95?: string;
-  duration_p50?: string;
-  request_count?: number;
+type ApmRelationTopoEvent = {
+  onDrillingNodeClick: (node: INodeModel, drillingItem) => void;
+  onEdgeTypeChange: (edgeType: EdgeDataType) => void;
+  onNodeClick: (node: INodeModel) => void;
+  onResourceDrilling: (node: INodeModel) => void;
+  onServiceDetail: (node: INodeModel) => void;
 };
 
 type ApmRelationTopoProps = {
-  data: { nodes: INodeModel[]; edges: IEdgeModel[] };
   activeNode: string;
-  edgeType: EdgeDataType;
   appName: string;
-  showType: string;
+  data: { edges: IEdgeModel[]; nodes: INodeModel[] };
   dataType: string;
-  refreshTopoLayout: boolean;
-  filterCondition: {
-    type: CategoryEnum;
-    searchValue: string;
-  };
+  edgeType: EdgeDataType;
   expandMenuList: string[];
+  filterCondition: {
+    searchValue: string;
+    type: CategoryEnum;
+  };
+  refreshTopoLayout: boolean;
+  showType: string;
 };
 
-type ApmRelationTopoEvent = {
-  onNodeClick: (node: INodeModel) => void;
-  onResourceDrilling: (node: INodeModel) => void;
-  onEdgeTypeChange: (edgeType: EdgeDataType) => void;
-  onServiceDetail: (node: INodeModel) => void;
-  onDrillingNodeClick: (node: INodeModel, drillingItem) => void;
+type IEdgeModel = {
+  duration_avg?: string;
+  duration_p50?: string;
+  duration_p95?: string;
+  duration_p99?: string;
+  edge_breadth: number;
+  from_name: string;
+  request_count?: number;
+  to_name: string;
 };
 
-type INodeModelConfig = ModelConfig & INodeModel;
+type INodeModelConfig = INodeModel & ModelConfig;
 
 // 节点hover阴影宽度
 const HoverCircleWidth = 13;
@@ -489,7 +489,7 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
               {
                 type: 'tooltip',
                 formatText: model => {
-                  const nodeTips = (model?.node_tips || []) as Array<{ name: string; value: string; group?: string }>;
+                  const nodeTips = (model?.node_tips || []) as Array<{ group?: string; name: string; value: string }>;
 
                   // 节点只展示 请求数 相关信息
                   return (

@@ -24,6 +24,7 @@
  * IN THE SOFTWARE.
  */
 import Vue from 'vue';
+
 import Component from 'vue-class-component';
 
 @Component

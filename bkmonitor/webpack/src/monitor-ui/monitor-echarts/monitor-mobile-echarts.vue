@@ -106,17 +106,18 @@ import { debounce } from 'throttle-debounce';
 import ChartLegend from './components/chart-legend.vue';
 import { colorList } from './options/constant';
 import EchartOptions from './options/echart-options';
-import type { ILegendItem } from './options/type-interface';
 import { type MonitorEchartOptions, type MonitorEchartSeries, echarts } from './types/monitor-echarts';
 import watermarkMaker from './utils/watermarkMaker';
 
+import type { ILegendItem } from './options/type-interface';
+
 interface ICurValue {
-  xAxis: number | string;
-  yAxis: number | string;
-  dataIndex: number;
   color: string;
+  dataIndex: number;
   name: string;
   seriesIndex: number;
+  xAxis: number | string;
+  yAxis: number | string;
 }
 
 @Component({
@@ -144,7 +145,7 @@ export default class MonitorMobileEcharts extends Vue {
   refreshIntervalInstance = 0;
   chartOptionInstance = null;
   hasInitChart = false;
-  legend: { show: boolean; list: ILegendItem[] } = {
+  legend: { list: ILegendItem[]; show: boolean } = {
     show: false,
     list: [],
   };

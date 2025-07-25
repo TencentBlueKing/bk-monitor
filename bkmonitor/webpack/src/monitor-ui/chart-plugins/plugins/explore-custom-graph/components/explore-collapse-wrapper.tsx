@@ -31,12 +31,12 @@ import MonitorCrossDrag from '../../../components/monitor-cross-drag/monitor-cro
 import './explore-collapse-wrapper.scss';
 
 interface ExploreCollapseWrapperProps {
-  title?: string;
-  description?: string;
+  collapseShowHeight?: number;
   defaultHeight?: number;
   defaultIsExpand?: number;
+  description?: string;
   hasResize?: boolean;
-  collapseShowHeight?: number;
+  title?: string;
 }
 
 @Component

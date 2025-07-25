@@ -28,14 +28,14 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import './monitor-cross-drag.scss';
 
-interface IMonitorDragProps {
-  /** 可拖动的最小容器高度 */
-  minHeight?: number;
-  /** 可拖动的最大容器高度 */
-  maxHeight?: number;
-}
 interface IMonitorDragEvent {
   onMove: (resultHeight: number, cancelFn: () => void) => void;
+}
+interface IMonitorDragProps {
+  /** 可拖动的最大容器高度 */
+  maxHeight?: number;
+  /** 可拖动的最小容器高度 */
+  minHeight?: number;
 }
 @Component
 export default class MonitorCrossDrag extends tsc<IMonitorDragProps, IMonitorDragEvent> {
