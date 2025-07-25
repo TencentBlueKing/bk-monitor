@@ -173,13 +173,15 @@ class DataLink(models.Model):
                     )
 
                     # 为每个usage创建conditional sink条件
-                    sinks = [
-                        {
-                            "kind": "VmStorageBinding",
-                            "name": usage_vmrt_name,
-                            "namespace": settings.DEFAULT_VM_DATA_LINK_NAMESPACE,
-                        }
-                    ]
+                    sink_item = {
+                        "kind": "VmStorageBinding",
+                        "name": usage_vmrt_name,
+                        "namespace": settings.DEFAULT_VM_DATA_LINK_NAMESPACE,
+                    }
+                    if settings.ENABLE_BKBASE_V4_MULTI_TENANT:
+                        sink_item["tenant"] = self.bk_tenant_id
+
+                    sinks = [sink_item]
 
                     relabels = [{"name": "__result_table", "value": usage}]
 
@@ -225,13 +227,15 @@ class DataLink(models.Model):
         vm_conditional_sink_config = vm_conditional_ins.compose_conditional_sink_config(conditions=conditions)
 
         # 创建conditional sink引用
-        conditional_sink = [
-            {
-                "kind": DataLinkKind.CONDITIONALSINK.value,
-                "name": self.data_link_name,
-                "namespace": settings.DEFAULT_VM_DATA_LINK_NAMESPACE,
-            },
-        ]
+        conditional_sink_item = {
+            "kind": DataLinkKind.CONDITIONALSINK.value,
+            "name": self.data_link_name,
+            "namespace": settings.DEFAULT_VM_DATA_LINK_NAMESPACE,
+        }
+        if settings.ENABLE_BKBASE_V4_MULTI_TENANT:
+            conditional_sink_item["tenant"] = self.bk_tenant_id
+
+        conditional_sink = [conditional_sink_item]
 
         # 组装data bus配置
         data_bus_config = data_bus_ins.compose_config(
