@@ -1,0 +1,30 @@
+.alarm-trend-chart-comp {
+  .chart-collapse-header {
+    .header-custom {
+      display: flex;
+      align-items: center;
+      height: 100%;
+
+      .title-desc {
+        .count {
+          color: #E71818;
+        }
+      }
+
+      .interval-select {
+        margin-right: 12px;
+        margin-left: auto;
+      }
+    }
+  }
+
+  .alarm-trend-chart-container {
+    display: flex;
+    flex: 1;
+    min-height: 0;
+
+    .explore-chart {
+      width: 100%;
+    }
+  }
+}  

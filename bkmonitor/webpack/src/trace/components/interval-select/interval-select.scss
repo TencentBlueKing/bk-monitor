@@ -1,0 +1,70 @@
+.interval-select {
+  position: relative;
+  display: flex;
+  align-items: center;
+
+  .interval-label {
+    margin-right: 6px;
+    color: #4d4f56;
+  }
+
+  .popover-trigger {
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+
+    .trigger-value {
+      display: inline-flex;
+      justify-content: center;
+      width: 30px;
+      font-size: 12px;
+      color: #313238;
+      user-select: none;
+    }
+
+    &.is-active {
+      .icon-arrow-up {
+        transform: rotate(0deg);
+      }
+
+      .trigger-value {
+        color: #3a84ff;
+      }
+    }
+
+    .icon-arrow-up {
+      display: inline-block;
+      font-size: 16px;
+      pointer-events: none;
+      transform: rotate(180deg);
+      transition: transform 0.3s ease;
+    }
+  }
+}
+
+.bk-popover.bk-pop2-content.interval-select-popover {
+  padding: 0;
+
+  .interval-list-menu {
+    width: 70px;
+    padding: 4px 0;
+
+    .menu-item {
+      height: 32px;
+      padding: 0 16px;
+      font-size: 12px;
+      line-height: 32px;
+      color: #4d4f56;
+      cursor: pointer;
+
+      &.is-active {
+        color: #3a84ff;
+        background-color: #f4f6fa;
+      }
+
+      &:hover {
+        background: #eaf3ff;
+      }
+    }
+  }
+}

@@ -763,7 +763,6 @@ export default class SpaceSelect extends tsc<
                       item.id,
                       { 'hover-active': item.id !== this.searchTypeId },
                       { selected: item.id === this.searchTypeId },
-                      item.id,
                     ]}
                     onClick={() => this.handleSearchType(item.id)}
                   >

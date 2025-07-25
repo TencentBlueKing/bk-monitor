@@ -1,0 +1,39 @@
+.alert-selection-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 20px;
+
+  .alert-selection-info {
+    color: #4d4f56;
+
+    .info-count {
+      font-weight: 700;
+    }
+  }
+
+  .alert-selection-actions {
+    display: flex;
+    column-gap: 16px;
+    color: #3a84ff;
+
+    .action-item {
+      display: flex;
+      align-items: center;
+
+      .icon-monitor {
+        flex-shrink: 0;
+        margin-right: 3px;
+        font-size: 14px;
+
+        &.icon-fenpai {
+          font-size: 12px;
+        }
+
+        &.icon-qiye-weixin {
+          font-size: 16px;
+        }
+      }
+    }
+  }
+}

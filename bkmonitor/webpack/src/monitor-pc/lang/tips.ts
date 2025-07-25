@@ -363,6 +363,7 @@ export default {
   修改通知对象: 'Modify Notify Target',
   通知对象不能为空: 'Notify target cannot be empty',
   暂无选项: 'No options',
+  '（找到 {0} 条结果，用时 {1} 毫秒）': '(Found {0} results, took {1} milliseconds)',
   PromQL助手: 'PromQL Helper',
   '指标/PromQL语句': 'Metric/PromQL',
   用户指令: 'User Instruction',

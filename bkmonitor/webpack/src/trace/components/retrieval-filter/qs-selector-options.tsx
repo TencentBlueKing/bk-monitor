@@ -118,21 +118,21 @@ export default defineComponent({
     });
 
     function getSearchFavoriteOptions() {
-      const favoriteOptions$ = [];
+      const favoriteOptionsTemp = [];
       if (props.queryString && !/^\s*$/.test(props.queryString)) {
         const keyword = props.queryString.replace(/^\s+|\s+$/g, '').toLocaleLowerCase();
         for (const item of props.favoriteList) {
-          const content = item?.config?.queryParams?.query || '';
+          const content = item?.config?.queryString || '';
           if (content?.toLocaleLowerCase().includes(keyword)) {
-            favoriteOptions$.push({
-              title: `${item.name} / ${item.name}`,
+            favoriteOptionsTemp.push({
+              title: `${item.groupName} / ${item.name}`,
               content,
               keyword,
             });
           }
         }
       }
-      favoriteOptions.value = favoriteOptions$;
+      favoriteOptions.value = favoriteOptionsTemp;
     }
 
     async function handleGetOptions() {

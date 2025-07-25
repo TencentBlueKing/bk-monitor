@@ -1,0 +1,72 @@
+.promql-viewer {
+  width: 100%;
+
+  .language-promql {
+    display: inline-block;
+    width: 100%;
+    font-family: RobotoMono;
+    font-size: 14px;
+    font-weight: 400;
+    line-height: 22px;
+    color: #000000;
+    word-break: break-all;
+    word-wrap: break-word;
+    white-space: pre-wrap;
+
+    span {
+      word-break: break-all;
+      word-wrap: break-word;
+    }
+
+    /* 关键字 (by, without, offset) */
+    .hljs-keyword {
+      color: #008080;
+    }
+
+    /* 函数 (sum, rate, predict_linear) */
+    .hljs-function {
+      color: #008080;
+    }
+
+    /* 字符串 (标签值) */
+    .hljs-string {
+      color: #800000;
+    }
+
+    /* 数字 (5, 0.05, 3600) */
+    .hljs-number {
+      color: #098658;
+    }
+
+    /* 运算符 (+, -, /, *) */
+    .hljs-operator {
+      color: #000000;
+    }
+
+    /* 注释 */
+    .hljs-comment {
+      font-style: italic;
+      color: #7a7a8c;
+    }
+
+    /* 标签名 (job, status_code) */
+    .hljs-label {
+      color: #800000;
+    }
+
+    /* 指标名 (http_requests_total) */
+    .hljs-metric {
+      color: #000000;
+    }
+
+    /* 时间单位 (5m, 1h) */
+    .hljs-duration {
+      color: #098658;
+    }
+
+    /* 聚合操作符 (sum, avg, count) */
+    .hljs-aggregation {
+      color: #000000;
+    }
+  }
+}

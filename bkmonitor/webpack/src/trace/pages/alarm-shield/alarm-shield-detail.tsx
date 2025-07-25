@@ -407,6 +407,7 @@ export default defineComponent({
                                   bordered={true}
                                   data={this.scopeData.tableData}
                                   maxHeight={450}
+                                  needCustomScroll={false}
                                   resizable={true}
                                   rowKey='name'
                                 />
@@ -482,6 +483,7 @@ export default defineComponent({
                                   bordered={true}
                                   data={this.strategyData.scope.tableData}
                                   maxHeight={450}
+                                  needCustomScroll={false}
                                   resizable={true}
                                   rowKey='name'
                                 />

@@ -285,6 +285,7 @@ export default defineComponent({
               _ => _
             )}
             data={renderFavoriteList.value}
+            needCustomScroll={false}
             rowClassName={rowClassCallback}
             rowKey='id'
             onRowClick={handleRowClick}

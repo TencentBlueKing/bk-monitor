@@ -1,0 +1,76 @@
+.alarm-module-selector-popover-content {
+  width: 376px;
+  padding-top: 6px;
+  color: #4D4F56;
+
+  .all-option {
+    display: flex;
+    align-items: center;
+    height: 32px;
+    padding: 0 12px;
+    cursor: pointer;
+
+    .icon-All {
+      margin-right: 4px;
+      font-size: 16px;
+    }
+
+    &:hover {
+      color: #3A84FF;
+      background: #E1ECFF;
+    }
+  }
+
+  .split-line {
+    width: 100%;
+    height: 1px;
+    margin: 4px 0;
+    background: #EAEBF0;
+  }
+
+  .search-input {
+    margin: 0 8px;
+
+    .bk-input.is-simplicity {
+     border-bottom-color: #EAEBF0;
+    }
+
+    .icon-mc-search {
+      font-size: 16px;
+      line-height: 32px;
+      color: #979BA5;
+    }
+  }
+
+  .list-wrap {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr); /* 固定3列 */
+    gap: 8px; /* 列间距 */
+    width: 100%;
+    padding: 12px 8px 21px 8px;
+
+    .list-wrap-item {
+      display: flex;
+      flex-direction: column;
+
+      .list-wrap-item-father {
+        display: flex;
+        align-items: center;
+        height: 22px;
+        padding-left: 4px;
+        margin-bottom: 4px;
+        color: #8E9BB3;
+        background: #F5F7FA;
+        border-radius: 2px;
+      }
+
+      .list-wrap-item-child {
+        display: flex;
+        align-items: center;
+        height: 32px;
+        margin-left: 6px;
+        cursor: pointer;
+      }
+    }
+  }
+}
