@@ -39,35 +39,174 @@ const sliderLoading = ref(false);
 const confirmLoading = ref(false);
 const formData = ref([]);
 const fields = computed(() => store.state.indexFieldInfo.fields);
+const globalsData = computed(() => store.getters["globals/globalsData"]);
 const handleOpenSidebar = async () => {
   showSlider.value = true;
   emit("handle-popover-hide");
-  formData.value = fields.value.map((item) => {
-    return {
-      field_name: item.field_name,
-      query_alias: item.query_alias || '',
-      path_type: item.field_type,
-    };
-  });
+  await initFormData();
+  addObject();
 };
+// 提交
 const submit = async () => {
-  const res = await $http.request("retrieve/updateFieldsAlias", {
-    params: {
-      index_set_id: route.params.indexId,
-    },
-    data: {
-      alias_settings: formData.value,
+  try {
+    await checkQueryAlias();
+    const alias_settings = formData.value
+      .filter((item) => !item.is_objectKey)
+      .reduce((acc, item) => {
+        if (item.path_type !== "object") {
+          acc.push({
+            field_name: item.field_name,
+            query_alias: item.query_alias || "",
+            path_type: item.field_type || "",
+          });
+        } else if (item.children) {
+          const childrenFields = item.children.map((child) => ({
+            field_name: child.field_name,
+            query_alias: child.query_alias || "",
+            path_type: child.field_type || "",
+          }));
+          acc.push(...childrenFields);
+        }
+        return acc;
+      }, []);
+    const res = await $http.request("retrieve/updateFieldsAlias", {
+      params: {
+        index_set_id: route.params.indexId,
+      },
+      data: {
+        alias_settings,
+      },
+    });
+
+    if (res.code === 0) {
+      showSlider.value = false;
+      location.reload();
     }
-  });
-  if (res.code === 0) {
-    showSlider.value = false;
-    location.reload();
+  } catch (error) {
+    console.error("Submit failed:", error); 
   }
 };
 const handleCancel = () => {
+  formData.value = [];
   showSlider.value = false;
 };
+const closeSlider = () => {
+  formData.value = [];
+};
+// 初始化数据
+const initFormData = async () => {
+  sliderLoading.value = true;
+  const indexSetList = store.state.retrieve.indexSetList;
+  const indexSetId = route.params?.indexId;
+  const currentIndexSet = indexSetList.find(
+    (item) => item.index_set_id === `${indexSetId}`
+  );
+  await $http
+    .request("collect/details", {
+      params: {
+        collector_config_id: currentIndexSet.collector_config_id,
+      },
+    })
+    .then((res) => {
+      formData.value = res.data.fields.map((item) => {
+        return {
+          field_name: item.field_name,
+          query_alias: item.query_alias || "",
+          path_type: item.field_type,
+          aliasErr: "",
+        };
+      });
+      sliderLoading.value = false;
+    });
+};
+// 展开对象按钮的回调
+const expandObject = (row, show) => {
+  row.expand = show;
+  const index = formData.value.findIndex((item) => item.field_name === row.field_name);
 
+  if (show) {
+    if (index !== -1) {
+      formData.value.splice(index + 1, 0, ...row.children);
+    }
+  } else {
+    if (index !== -1) {
+      const childrenCount = row.children ? row.children.length : 0;
+      formData.value.splice(index + 1, childrenCount);
+    }
+  }
+};
+const aliasShow = (row) => {
+  if (row.is_built_in) {
+    return true;
+  }
+  return !row.alias_name;
+};
+
+const addObject = () => {
+  const fieldsData = fields.value.filter(
+    (field) => field.field_type !== "__virtual__" && field.field_name.includes(".")
+  );
+  fieldsData.forEach((item) => {
+    let name = item.field_name?.split(".")[0].replace(/^_+|_+$/g, "");
+    item.is_objectKey = true;
+    formData.value.forEach((field) => {
+      if (field.path_type === "object" && name === field.field_name?.split(".")[0]) {
+        if (!Array.isArray(field.children)) {
+          field.children = [];
+          field.expand = false;
+        }
+        field.children.push(item);
+      }
+    });
+  });
+};
+// 校验别名
+const checkQueryAlias = () => {
+  return new Promise((resolve, reject) => {
+    try {
+      let result = true;
+      formData.value.forEach((row) => {
+        if (!checkQueryAliasItem(row)) {
+          result = false;
+        }
+      });
+
+      if (result) {
+        resolve();
+      } else {
+        console.warn("QueryAlias校验错误");
+        reject(result);
+      }
+    } catch (err) {
+      console.warn("QueryAlias校验错误");
+      reject(err);
+    }
+  });
+};
+const checkQueryAliasItem = (row) => {
+  const { field_name: fieldName, query_alias: queryAlias } = row;
+  if (queryAlias) {
+    // 设置了别名
+    if (!/^(?!^\d)[\w]+$/gi.test(queryAlias)) {
+      row.aliasErr = $t("别名只支持【英文、数字、下划线】，并且不能以数字开头");
+
+      return false;
+    } else if (queryAlias === fieldName) {
+      row.aliasErr = $t("别名与字段名重复");
+      return false;
+    }
+    if (
+      globalsData.value.field_built_in.find(
+        (item) => item.id === queryAlias.toLocaleLowerCase()
+      )
+    ) {
+      row.aliasErr = $t("别名不能与内置字段名相同");
+      return false;
+    }
+  }
+  row.aliasErr = "";
+  return true;
+};
 defineExpose({
   handleOpenSidebar,
 });
@@ -83,6 +222,7 @@ defineExpose({
       :title="$t('批量编辑变量别名')"
       :transfer="true"
       :width="640"
+      @animation-end="closeSlider"
     >
       <template #header>
         <div>
@@ -90,7 +230,7 @@ defineExpose({
         </div>
       </template>
       <template #content>
-        <div class="sideslider-content">
+        <div class="sideslider-content" v-bkloading="{ isLoading: sliderLoading }">
           <bk-table
             class="field-table field-alias-table"
             :data="formData"
@@ -104,17 +244,60 @@ defineExpose({
             <template>
               <bk-table-column :label="$t('字段名')" :resizable="true">
                 <template #default="props">
-                  <div class="sideslider-field-name">{{ props.row.field_name }}</div>
+                  <div
+                    class="sideslider-field-name field-name-overflow-tips"
+                    v-bk-overflow-tips
+                  >
+                    <span
+                      v-if="props.row.children?.length && !props.row.expand"
+                      @click="expandObject(props.row, true)"
+                      class="ext-btn rotate bklog-icon bklog-arrow-down-filled"
+                    >
+                    </span>
+                    <span
+                      v-if="props.row.children?.length && props.row.expand"
+                      @click="expandObject(props.row, false)"
+                      class="ext-btn bklog-icon bklog-arrow-down-filled"
+                    >
+                    </span>
+
+                    <!-- 如果为内置字段且有alias_name则优先展示alias_name -->
+                    <div v-if="aliasShow(props.row)" class="field-name">
+                      <span
+                        v-if="props.row.is_objectKey"
+                        class="bklog-icon bklog-subnode"
+                      ></span>
+                      {{ props.row.field_name }}
+                    </div>
+                    <div
+                      v-else-if="props.row.is_built_in && props.row.alias_name"
+                      class="field-name"
+                    >
+                      {{ props.row.alias_name }}
+                    </div>
+                  </div>
                 </template>
               </bk-table-column>
               <bk-table-column :label="$t('别名')" :resizable="true">
                 <template #default="props">
-                  <bk-input
-                    class="alias-input"
-                    v-model="props.row.query_alias"
-                    :placeholder="$t('请输入')"
-                  >
-                  </bk-input>
+                  <div class="alias-container">
+                    <div v-if="props.row.path_type === 'object'"></div>
+                    <bk-input
+                      v-else
+                      class="alias-input"
+                      v-model="props.row.query_alias"
+                      :placeholder="$t('请输入')"
+                      @blur="checkQueryAliasItem(props.row)"
+                    >
+                    </bk-input>
+                    <template v-if="props.row.aliasErr">
+                      <i
+                        style="right: 8px"
+                        class="bk-icon icon-exclamation-circle-shape tooltips-icon"
+                        v-bk-tooltips.top="props.row.aliasErr"
+                      ></i>
+                    </template>
+                  </div>
                 </template>
               </bk-table-column>
 
@@ -144,8 +327,8 @@ defineExpose({
   .field-alias-title {
     display: flex;
     align-items: center;
-    color: #4d4f56;
     font-size: 12px;
+    color: #4d4f56;
 
     .bklog-wholesale-editor {
       margin-right: 4px;
@@ -166,6 +349,40 @@ defineExpose({
 
       .sideslider-field-name {
         padding: 0 8px;
+      }
+
+      .field-name-overflow-tips {
+        .ext-btn {
+          position: absolute;
+          left: 0;
+          font-size: 18px;
+          cursor: pointer;
+        }
+
+        .bklog-subnode {
+          font-size: 16px;
+        }
+
+        .rotate {
+          transform: rotate(-90deg);
+        }
+
+        .field-name {
+          margin: 15px 10px 15px 15px;
+        }
+      }
+
+      .alias-container {
+        position: relative;
+
+        .tooltips-icon {
+          position: absolute;
+          top: 14px;
+          z-index: 10;
+          font-size: 16px;
+          color: #ea3636;
+          cursor: pointer;
+        }
       }
 
       .alias-input {
