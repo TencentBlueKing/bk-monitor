@@ -33,9 +33,9 @@
   >
     <bk-checkbox-group v-model="aaa">
       <bk-checkbox
-        class="dialog-checkbox"
         v-for="item in dimensionsList"
         :key="item.id"
+        class="dialog-checkbox"
         :value="item.id"
         :disabled="item.disabled"
       >
@@ -46,8 +46,9 @@
 </template>
 
 <script lang="ts">
-import MonitorDialog from 'monitor-ui/monitor-dialog/monitor-dialog.vue';
 import { Component, Prop, Vue } from 'vue-property-decorator';
+
+import MonitorDialog from 'monitor-ui/monitor-dialog/monitor-dialog.vue';
 
 @Component({
   name: 'add-dimesion-dialog',

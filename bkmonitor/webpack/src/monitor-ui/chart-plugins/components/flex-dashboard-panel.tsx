@@ -33,11 +33,11 @@ import EmptyStatus from 'monitor-pc/components/empty-status/empty-status';
 
 import {
   type DashboardColumnType,
+  type IDataItem,
   type IPanelModel,
   type ObservablePanelField,
-  type IDataItem,
-  PanelModel,
   type ZrClickEvent,
+  PanelModel,
 } from '../typings';
 import ChartCollect from './chart-collect/chart-collect';
 import ChartWrapper from './chart-wrapper';
@@ -47,30 +47,30 @@ import type { ITableItem, SceneType } from 'monitor-pc/pages/monitor-k8s/typings
 import './dashboard-panel.scss';
 /** 接收图表当前页面跳转事件 */
 export const UPDATE_SCENES_TAB_DATA = 'UPDATE_SCENES_TAB_DATA';
+interface IDashboardPanelEvents {
+  onLintToDetail: ITableItem<'link'>;
+  onBackToOverview: () => void;
+  /** 图表鼠标右击事件的回调方法 */
+  onMenuClick?: (data: IDataItem) => void;
+  onZrClick?: (event: ZrClickEvent) => void;
+}
 interface IDashboardPanelProps {
-  // 视图集合
-  panels: IPanelModel[];
-  // dashboard id
-  id: string;
+  backToType?: SceneType;
   // 自动展示初始化列数
   column?: DashboardColumnType;
-  // 是否在分屏展示
-  isSplitPanel?: boolean;
-  isSingleChart?: boolean;
-  needOverviewBtn?: boolean;
-  backToType?: SceneType;
   /** 根据column */
   customHeightFn?: ((a: any) => number) | null;
   dashboardId?: string;
+  // dashboard id
+  id: string;
+  isSingleChart?: boolean;
+  // 是否在分屏展示
+  isSplitPanel?: boolean;
   matchFields?: Record<string, any>;
   needCheck?: boolean;
-}
-interface IDashboardPanelEvents {
-  onBackToOverview: () => void;
-  onLintToDetail: ITableItem<'link'>;
-  onZrClick?: (event: ZrClickEvent) => void;
-  /** 图表鼠标右击事件的回调方法 */
-  onMenuClick?: (data: IDataItem) => void;
+  needOverviewBtn?: boolean;
+  // 视图集合
+  panels: IPanelModel[];
 }
 @Component
 export default class FlexDashboardPanel extends tsc<IDashboardPanelProps, IDashboardPanelEvents> {

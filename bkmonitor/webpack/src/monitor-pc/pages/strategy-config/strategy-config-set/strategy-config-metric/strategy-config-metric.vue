@@ -176,7 +176,7 @@
                 <img
                   src="../../../../static/images/svg/spinner.svg"
                   alt=""
-                >
+                />
                 {{ $t('正加载更多内容…') }}
               </div>
             </template>
@@ -900,7 +900,8 @@ export default {
       flex: 0 0 185px;
       flex-direction: column;
       font-size: 14px;
-      background-image: linear-gradient(180deg, #dcdee5 1px, rgba(0, 0, 0, 0) 1px, rgba(0, 0, 0, 0) 100%),
+      background-image:
+        linear-gradient(180deg, #dcdee5 1px, rgba(0, 0, 0, 0) 1px, rgba(0, 0, 0, 0) 100%),
         linear-gradient(90deg, #dcdee5 1px, rgba(0, 0, 0, 0) 1px, rgba(0, 0, 0, 0) 100%),
         linear-gradient(-90deg, #dcdee5 1px, rgba(0, 0, 0, 0) 1px, rgba(0, 0, 0, 0) 100%);
       background-size: 100% 100%;
@@ -951,7 +952,8 @@ export default {
     &-right {
       flex: 1;
       max-width: 717px;
-      background-image: linear-gradient(180deg, #dcdee5 1px, rgba(0, 0, 0, 0) 1px, rgba(0, 0, 0, 0) 100%),
+      background-image:
+        linear-gradient(180deg, #dcdee5 1px, rgba(0, 0, 0, 0) 1px, rgba(0, 0, 0, 0) 100%),
         linear-gradient(-90deg, #dcdee5 1px, rgba(0, 0, 0, 0) 1px, rgba(0, 0, 0, 0) 100%);
       background-size: 100% 100%;
       border-radius: 0 2px 0 0;

@@ -29,7 +29,7 @@ import { deepClone } from 'monitor-common/utils/utils';
 import { filterDictConvertedToWhere } from 'monitor-ui/chart-plugins/utils';
 
 import { handleTransformToTimestamp } from '../../components/time-range/utils';
-import { VariablesService, downFile, reviewInterval } from '../../utils';
+import { downFile, reviewInterval, VariablesService } from '../../utils';
 
 import type { IExtendMetricData, ILogUrlParams, IViewOptions, PanelModel } from '../typings';
 import type { IIableTdArrItem } from 'monitor-pc/pages/view-detail/utils';
@@ -37,7 +37,7 @@ import type { IIableTdArrItem } from 'monitor-pc/pages/view-detail/utils';
  * 数据检索日期范围转换
  * @param {*} timeRange number | string | array
  */
-export const handleTimeRange = (timeRange: number | string | string[]): { startTime: number; endTime: number } => {
+export const handleTimeRange = (timeRange: number | string | string[]): { endTime: number; startTime: number } => {
   let startTime = null;
   let endTime = null;
   if (typeof timeRange === 'number') {
@@ -128,6 +128,20 @@ export const transformLogUrlQuery = (data: ILogUrlParams): string => {
   return queryStr;
 };
 /**
+ * @description: 获取跳转url
+ * @param {string} hash hash值
+ * @return {*}
+ */
+export function commOpenUrl(hash: string) {
+  let url = '';
+  if (process.env.NODE_ENV === 'development') {
+    url = `${process.env.proxyUrl}?bizId=${window.cc_biz_id}${hash}`;
+  } else {
+    url = location.href.replace(location.hash, hash);
+  }
+  return url;
+}
+/**
  * @description: 跳转到检索
  * @param {PanelModel} panel 图表数据
  * @param {IViewOptions} scopedVars 变量值
@@ -179,20 +193,6 @@ export function handleExplore(
       }&to=${timeRange[1]}`
     );
   }
-}
-/**
- * @description: 获取跳转url
- * @param {string} hash hash值
- * @return {*}
- */
-export function commOpenUrl(hash: string) {
-  let url = '';
-  if (process.env.NODE_ENV === 'development') {
-    url = `${process.env.proxyUrl}?bizId=${window.cc_biz_id}${hash}`;
-  } else {
-    url = location.href.replace(location.hash, hash);
-  }
-  return url;
 }
 export const getMetricId = (
   data_source_label: string,
@@ -252,6 +252,11 @@ export const handleRelateAlert = (panel: PanelModel, timeRange: string[]) => {
     window.open(commOpenUrl(`#/event-center?queryString=${queryString}&from=${timeRange[0]}&to=${timeRange[1]}`));
 };
 
+export interface IUnifyQuerySeriesItem {
+  datapoints: Array<[number, number]>;
+  target: string;
+}
+
 /**
  * @description: 下载图表为png图片
  * @param {string} title 图片标题
@@ -265,11 +270,6 @@ export function handleStoreImage(title: string, targetEl: HTMLElement, customSav
       downFile(dataUrl, `${title}.png`);
     })
     .catch(() => {});
-}
-
-export interface IUnifyQuerySeriesItem {
-  datapoints: Array<[number, number]>;
-  target: string;
 }
 /**
  * 根据图表接口响应的数据转换成表格展示的原始数据
@@ -316,7 +316,7 @@ export const transformSrcData = (data: IUnifyQuerySeriesItem[]) => {
     }
   });
   tableTdArr.forEach(th => {
-    th.forEach((td: { value: null; max: boolean; min: boolean }, i: number) => {
+    th.forEach((td: { max: boolean; min: boolean; value: null }, i: number) => {
       if (i > 0) {
         if (maxMinMap[i].max !== null && td.value === maxMinMap[i].max) {
           td.max = true;

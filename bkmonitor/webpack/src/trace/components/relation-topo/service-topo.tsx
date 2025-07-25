@@ -26,7 +26,7 @@
 
 import { type PropType, defineComponent, nextTick, ref, watch } from 'vue';
 
-import { type Edge, type ViewportTransform, VueFlow, useVueFlow } from '@vue-flow/core';
+import { type Edge, type ViewportTransform, useVueFlow, VueFlow } from '@vue-flow/core';
 import { Popover } from 'bkui-vue';
 import dayjs from 'dayjs';
 import { random } from 'monitor-common/utils';
@@ -49,18 +49,18 @@ enum ENodeType {
   service = 'service',
 }
 interface IServiceTopoData {
-  nodes: {
-    key: string;
-    node_type: ENodeType;
-    display_name: string;
-    spans: IServiceSpanListItem[];
-  }[];
   edges: {
     key: string;
-    target: string;
+    num_of_operations: number;
     source: string;
     spans: IServiceSpanListItem[];
-    num_of_operations: number;
+    target: string;
+  }[];
+  nodes: {
+    display_name: string;
+    key: string;
+    node_type: ENodeType;
+    spans: IServiceSpanListItem[];
   }[];
 }
 

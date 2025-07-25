@@ -25,10 +25,9 @@
  */
 
 import { defineComponent, ref, watch } from 'vue';
+import type { PropType } from 'vue';
 
 import { Select } from 'bkui-vue';
-
-import type { PropType } from 'vue';
 
 import './filter-var-select-simple.scss';
 

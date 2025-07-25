@@ -25,38 +25,119 @@
  */
 import { randomColor } from '../utils';
 
+export interface ICalendarData {
+  users: ICalendarDataUser[];
+  data: {
+    data: ICalendarDataDataItem[];
+    dates: {
+      day: number;
+      isCurDay: boolean;
+      isOtherMonth: boolean;
+      month: number;
+      // 日历表一行的数据
+      year: number;
+    }[];
+    maxRow?: number;
+  }[];
+}
 export interface ICalendarDataUser {
   color: string;
   timeRange: string[];
   users: { id: string; name: string }[];
 }
+export interface IDutyPreviewParams {
+  duty_plans: IDutyPlans[];
+  rule_id: number | string;
+}
 interface ICalendarDataDataItem {
-  // 日历表一行的数据
-  users: { id: string; name: string }[]; // 用户组
   color: string; // 颜色
-  range: number[]; // 宽度 此宽度最大为一周的宽度 最小为0 最大为1 例如 [0.1, 0.5]
   isStartBorder?: boolean;
+  range: number[]; // 宽度 此宽度最大为一周的宽度 最小为0 最大为1 例如 [0.1, 0.5]
   row?: number; // 第几行
   timeRange: string[]; // 时间间隔
+  // 日历表一行的数据
+  users: { id: string; name: string }[]; // 用户组
   other: {
     time: string;
     users: string;
   }; // 其他信息
 }
-export interface ICalendarData {
-  users: ICalendarDataUser[];
-  data: {
-    dates: {
-      // 日历表一行的数据
-      year: number;
-      month: number;
-      day: number;
-      isOtherMonth: boolean;
-      isCurDay: boolean;
-    }[];
-    maxRow?: number;
-    data: ICalendarDataDataItem[];
+
+interface IDutyPlans {
+  order?: number;
+  user_index?: number;
+  users: {
+    display_name: string;
+    id: string;
+    type: string;
   }[];
+  work_times: {
+    end_time: string;
+    start_time: string;
+  }[];
+}
+
+/**
+ * @description 将用户组可视化
+ * @param data
+ */
+export function calendarDataConversion(data: ICalendarData) {
+  const calendarData: ICalendarData = JSON.parse(JSON.stringify(data));
+  const { users } = calendarData;
+  calendarData.data = calendarData.data.map(row => {
+    const { dates } = row;
+    const rowTotalTimeRange = [
+      `${dates[0].year}-${dates[0].month + 1}-${dates[0].day} 00:00`,
+      `${dates[6].year}-${dates[6].month + 1}-${dates[6].day} 23:59`,
+    ];
+    const temp = [];
+    users.forEach(u => {
+      const { timeRange } = u;
+      const rowTotalTimeRangeNum = rowTotalTimeRange.map(item => new Date(item).getTime());
+      const timeRangeNum = timeRange.map(item => new Date(item).getTime());
+      if (timeRangeNum[0] < rowTotalTimeRangeNum[1] && timeRangeNum[1] > rowTotalTimeRangeNum[0]) {
+        let tempRange = [];
+        if (timeRangeNum[0] < rowTotalTimeRangeNum[0]) {
+          tempRange = [rowTotalTimeRangeNum[0], timeRangeNum[1]];
+        } else if (timeRangeNum[1] > rowTotalTimeRangeNum[1]) {
+          tempRange = [timeRangeNum[0], rowTotalTimeRangeNum[1]];
+        } else {
+          tempRange = [timeRangeNum[0], timeRangeNum[1]];
+        }
+        const rangeStr = getDateStrAndRange(tempRange, rowTotalTimeRangeNum);
+        temp.push({
+          ...u,
+          range: rangeStr.range,
+          isStartBorder: rangeStr.isStartBorder,
+          other: {
+            time: rangeStr.timeStr,
+            users: u.users,
+          },
+        });
+      }
+    });
+    const rowData = setRowYOfOverlap(temp);
+    return {
+      ...row,
+      maxRow: rowData.maxRow,
+      data: rowData.result,
+    };
+  });
+  return calendarData;
+}
+
+export function getAutoOrderList(data) {
+  const autoOrders: { [key: number]: number } = {};
+  if (data?.category === 'handoff') {
+    data?.duty_arranges?.forEach((item, index) => {
+      if (item.group_type === 'auto') {
+        autoOrders[index] = item.duty_users?.[0]?.length || 0;
+      } else {
+        autoOrders[index] = item.duty_users?.length || 0;
+      }
+    });
+  }
+  return autoOrders;
 }
 export function getCalendar() {
   const today = new Date(); // 获取当前日期
@@ -111,7 +192,6 @@ export function getCalendar() {
 
   return calendar;
 }
-
 /**
  * @description 以当前周为起始周查询最近一个月的日期
  */
@@ -155,6 +235,28 @@ export function getCalendarNew() {
   }
   return calendar;
 }
+/* 根据时间戳段 获取百分比并输出字符串时间格式 */
+export function getDateStrAndRange(timeRange: number[], totalRange: number[]) {
+  const start = timeRange[0];
+  const end = timeRange[1];
+  const totalStart = totalRange[0];
+  const totalEnd = totalRange[1];
+  const range = [(start - totalStart) / (totalEnd - totalStart), (end - totalStart) / (totalEnd - totalStart)];
+  const startObj = timeStampToTimeStr(start);
+  const isStartBorder = startObj.hours === 0 && startObj.minutes === 0;
+  const endObj = timeStampToTimeStr(end);
+  const startTimeStr = `${startObj.year}-${startObj.month}-${startObj.day} ${startObj.hoursStr}:${startObj.minutesStr}`;
+  const endTimeStr = `${endObj.year}-${endObj.month}-${endObj.day} ${endObj.hoursStr}:${endObj.minutesStr}`;
+  const timeStr =
+    startTimeStr.split(' ')[0] === endTimeStr.split(' ')[0]
+      ? `${startTimeStr.split(' ')[0]} ${startTimeStr.split(' ')[1]}-${endTimeStr.split(' ')[1]}`
+      : `${startTimeStr}-${endTimeStr}`;
+  return {
+    range,
+    isStartBorder,
+    timeStr,
+  };
+}
 
 /* 获取预览接口的生效时间及查询天数 */
 export function getPreviewParams(effectiveTime: string) {
@@ -185,42 +287,122 @@ export function getPreviewParams(effectiveTime: string) {
   };
 }
 
-/* 将时间戳转为字符串格式 */
-function timeStampToTimeStr(num: number) {
-  const date = new Date(num);
-  return {
-    year: date.getFullYear(),
-    month: date.getMonth() + 1,
-    day: date.getDate(),
-    hours: date.getHours(),
-    minutes: date.getMinutes(),
-    seconds: date.getSeconds(),
-    hoursStr: date.getHours() < 10 ? `${0}${date.getHours()}` : date.getHours(),
-    minutesStr: date.getMinutes() < 10 ? `${0}${date.getMinutes()}` : date.getMinutes(),
-  };
+export function noOrderDutyData(data: IDutyPlans[]) {
+  return data.map(item => ({
+    ...item,
+    order: 0,
+  }));
 }
-/* 根据时间戳段 获取百分比并输出字符串时间格式 */
-export function getDateStrAndRange(timeRange: number[], totalRange: number[]) {
-  const start = timeRange[0];
-  const end = timeRange[1];
-  const totalStart = totalRange[0];
-  const totalEnd = totalRange[1];
-  const range = [(start - totalStart) / (totalEnd - totalStart), (end - totalStart) / (totalEnd - totalStart)];
-  const startObj = timeStampToTimeStr(start);
-  const isStartBorder = startObj.hours === 0 && startObj.minutes === 0;
-  const endObj = timeStampToTimeStr(end);
-  const startTimeStr = `${startObj.year}-${startObj.month}-${startObj.day} ${startObj.hoursStr}:${startObj.minutesStr}`;
-  const endTimeStr = `${endObj.year}-${endObj.month}-${endObj.day} ${endObj.hoursStr}:${endObj.minutesStr}`;
-  const timeStr =
-    startTimeStr.split(' ')[0] === endTimeStr.split(' ')[0]
-      ? `${startTimeStr.split(' ')[0]} ${startTimeStr.split(' ')[1]}-${endTimeStr.split(' ')[1]}`
-      : `${startTimeStr}-${endTimeStr}`;
-  return {
-    range,
-    isStartBorder,
-    timeStr,
+
+/**
+ * @description 根据后台接口数据转换为预览数据
+ * @param params
+ */
+export function setPreviewDataOfServer(
+  params: IDutyPlans[],
+  autoOrders?: { [key: number]: number },
+  colorList?: string[]
+) {
+  const hasColorList = !!colorList;
+  const data = [];
+  const colorFn = (userIndex: number) => {
+    if (hasColorList) {
+      if (userIndex > colorList?.length - 1) {
+        return randomColor(userIndex);
+      }
+      return colorList[userIndex];
+    }
+    return randomColor(userIndex);
   };
+  userIndexResetOfpreviewData(params, autoOrders).forEach((item, index) => {
+    const users = item.users.map(u => ({ id: u.id, name: u.display_name || u.id }));
+    if (item.work_times.length) {
+      timeRangeMerger(item.work_times).forEach(work => {
+        data.push({
+          users,
+          color: colorFn(item.user_index === undefined ? index : item.user_index),
+          timeRange: [work.start_time, work.end_time],
+        });
+      });
+    }
+  });
+  return data;
 }
+
+/**
+ * @description 将时间段相交的区域进行合并处理
+ * @param times
+ */
+export function timeRangeMerger(timePeriods: { end_time: string; start_time: string }[]) {
+  if (!timePeriods?.length) {
+    return [];
+  }
+  // 先对时间段按照开始时间进行排序
+  timePeriods.sort((a, b) => {
+    return new Date(a.start_time).getTime() - new Date(b.start_time).getTime();
+  });
+
+  const mergedPeriods = [];
+  let currentPeriod = timePeriods[0];
+
+  for (let i = 1; i < timePeriods.length; i++) {
+    const nextPeriod = timePeriods[i];
+
+    const currentEndTime = new Date(currentPeriod.end_time);
+    const nextStartTime = new Date(nextPeriod.start_time);
+
+    if (nextStartTime.getTime() <= currentEndTime.getTime()) {
+      // 时间段相交，更新当前时间段的结束时间
+      currentPeriod.end_time = nextPeriod.end_time;
+    } else {
+      // 时间段不相交，将当前时间段加入到合并后的数组中，并更新当前时间段为下一个时间段
+      mergedPeriods.push(currentPeriod);
+      currentPeriod = nextPeriod;
+    }
+  }
+
+  // 将最后一个时间段加入到合并后的数组中
+  mergedPeriods.push(currentPeriod);
+  /* 判断跨行的数据 */
+  // const result = [];
+  // mergedPeriods.forEach(item => {
+
+  // });
+  return mergedPeriods;
+}
+
+/**
+ * @description 重新配置user_index  以user_index + order 判断其唯一性
+ * @param params
+ */
+export function userIndexResetOfpreviewData(params: IDutyPlans[], autoOrders?: { [key: number]: number }) {
+  const userIndexCount = (all: { [key: string]: Set<number> }, curIndex, order) => {
+    let count = 0;
+    for (let i = 0; i < order; i++) {
+      if (typeof autoOrders?.[i] !== 'undefined') {
+        count += autoOrders?.[i] || 0;
+      } else if (all?.[i]?.size) {
+        count += Math.max(...Array.from(all[i])) + 1;
+      }
+    }
+    return curIndex + count;
+  };
+  const temp: { [key: string]: Set<number> } = {};
+  params.forEach(plan => {
+    const o = plan?.order || 0;
+    if (!temp?.[o]) {
+      temp[o] = new Set();
+    }
+    temp[o].add(plan.user_index);
+  });
+  return params.map(plan => {
+    return {
+      ...plan,
+      user_index: userIndexCount(temp, plan.user_index, plan?.order || 0),
+    };
+  });
+}
+
 /**
  * @description 如有重叠区域需要展示多行
  * @param data
@@ -270,200 +452,18 @@ function setRowYOfOverlap(data: ICalendarDataDataItem[]) {
     result,
   };
 }
-/**
- * @description 将用户组可视化
- * @param data
- */
-export function calendarDataConversion(data: ICalendarData) {
-  const calendarData: ICalendarData = JSON.parse(JSON.stringify(data));
-  const { users } = calendarData;
-  calendarData.data = calendarData.data.map(row => {
-    const { dates } = row;
-    const rowTotalTimeRange = [
-      `${dates[0].year}-${dates[0].month + 1}-${dates[0].day} 00:00`,
-      `${dates[6].year}-${dates[6].month + 1}-${dates[6].day} 23:59`,
-    ];
-    const temp = [];
-    users.forEach(u => {
-      const { timeRange } = u;
-      const rowTotalTimeRangeNum = rowTotalTimeRange.map(item => new Date(item).getTime());
-      const timeRangeNum = timeRange.map(item => new Date(item).getTime());
-      if (timeRangeNum[0] < rowTotalTimeRangeNum[1] && timeRangeNum[1] > rowTotalTimeRangeNum[0]) {
-        let tempRange = [];
-        if (timeRangeNum[0] < rowTotalTimeRangeNum[0]) {
-          tempRange = [rowTotalTimeRangeNum[0], timeRangeNum[1]];
-        } else if (timeRangeNum[1] > rowTotalTimeRangeNum[1]) {
-          tempRange = [timeRangeNum[0], rowTotalTimeRangeNum[1]];
-        } else {
-          tempRange = [timeRangeNum[0], timeRangeNum[1]];
-        }
-        const rangeStr = getDateStrAndRange(tempRange, rowTotalTimeRangeNum);
-        temp.push({
-          ...u,
-          range: rangeStr.range,
-          isStartBorder: rangeStr.isStartBorder,
-          other: {
-            time: rangeStr.timeStr,
-            users: u.users,
-          },
-        });
-      }
-    });
-    const rowData = setRowYOfOverlap(temp);
-    return {
-      ...row,
-      maxRow: rowData.maxRow,
-      data: rowData.result,
-    };
-  });
-  return calendarData;
-}
 
-interface IDutyPlans {
-  user_index?: number;
-  order?: number;
-  users: {
-    id: string;
-    display_name: string;
-    type: string;
-  }[];
-  work_times: {
-    start_time: string;
-    end_time: string;
-  }[];
-}
-
-export interface IDutyPreviewParams {
-  rule_id: number | string;
-  duty_plans: IDutyPlans[];
-}
-
-/**
- * @description 将时间段相交的区域进行合并处理
- * @param times
- */
-export function timeRangeMerger(timePeriods: { start_time: string; end_time: string }[]) {
-  if (!timePeriods?.length) {
-    return [];
-  }
-  // 先对时间段按照开始时间进行排序
-  timePeriods.sort((a, b) => {
-    return new Date(a.start_time).getTime() - new Date(b.start_time).getTime();
-  });
-
-  const mergedPeriods = [];
-  let currentPeriod = timePeriods[0];
-
-  for (let i = 1; i < timePeriods.length; i++) {
-    const nextPeriod = timePeriods[i];
-
-    const currentEndTime = new Date(currentPeriod.end_time);
-    const nextStartTime = new Date(nextPeriod.start_time);
-
-    if (nextStartTime.getTime() <= currentEndTime.getTime()) {
-      // 时间段相交，更新当前时间段的结束时间
-      currentPeriod.end_time = nextPeriod.end_time;
-    } else {
-      // 时间段不相交，将当前时间段加入到合并后的数组中，并更新当前时间段为下一个时间段
-      mergedPeriods.push(currentPeriod);
-      currentPeriod = nextPeriod;
-    }
-  }
-
-  // 将最后一个时间段加入到合并后的数组中
-  mergedPeriods.push(currentPeriod);
-  /* 判断跨行的数据 */
-  // const result = [];
-  // mergedPeriods.forEach(item => {
-
-  // });
-  return mergedPeriods;
-}
-
-/**
- * @description 根据后台接口数据转换为预览数据
- * @param params
- */
-export function setPreviewDataOfServer(
-  params: IDutyPlans[],
-  autoOrders?: { [key: number]: number },
-  colorList?: string[]
-) {
-  const hasColorList = !!colorList;
-  const data = [];
-  const colorFn = (userIndex: number) => {
-    if (hasColorList) {
-      if (userIndex > colorList?.length - 1) {
-        return randomColor(userIndex);
-      }
-      return colorList[userIndex];
-    }
-    return randomColor(userIndex);
+/* 将时间戳转为字符串格式 */
+function timeStampToTimeStr(num: number) {
+  const date = new Date(num);
+  return {
+    year: date.getFullYear(),
+    month: date.getMonth() + 1,
+    day: date.getDate(),
+    hours: date.getHours(),
+    minutes: date.getMinutes(),
+    seconds: date.getSeconds(),
+    hoursStr: date.getHours() < 10 ? `${0}${date.getHours()}` : date.getHours(),
+    minutesStr: date.getMinutes() < 10 ? `${0}${date.getMinutes()}` : date.getMinutes(),
   };
-  userIndexResetOfpreviewData(params, autoOrders).forEach((item, index) => {
-    const users = item.users.map(u => ({ id: u.id, name: u.display_name || u.id }));
-    if (item.work_times.length) {
-      timeRangeMerger(item.work_times).forEach(work => {
-        data.push({
-          users,
-          color: colorFn(item.user_index === undefined ? index : item.user_index),
-          timeRange: [work.start_time, work.end_time],
-        });
-      });
-    }
-  });
-  return data;
-}
-
-/**
- * @description 重新配置user_index  以user_index + order 判断其唯一性
- * @param params
- */
-export function userIndexResetOfpreviewData(params: IDutyPlans[], autoOrders?: { [key: number]: number }) {
-  const userIndexCount = (all: { [key: string]: Set<number> }, curIndex, order) => {
-    let count = 0;
-    for (let i = 0; i < order; i++) {
-      if (typeof autoOrders?.[i] !== 'undefined') {
-        count += autoOrders?.[i] || 0;
-      } else if (all?.[i]?.size) {
-        count += Math.max(...Array.from(all[i])) + 1;
-      }
-    }
-    return curIndex + count;
-  };
-  const temp: { [key: string]: Set<number> } = {};
-  params.forEach(plan => {
-    const o = plan?.order || 0;
-    if (!temp?.[o]) {
-      temp[o] = new Set();
-    }
-    temp[o].add(plan.user_index);
-  });
-  return params.map(plan => {
-    return {
-      ...plan,
-      user_index: userIndexCount(temp, plan.user_index, plan?.order || 0),
-    };
-  });
-}
-
-export function getAutoOrderList(data) {
-  const autoOrders: { [key: number]: number } = {};
-  if (data?.category === 'handoff') {
-    data?.duty_arranges?.forEach((item, index) => {
-      if (item.group_type === 'auto') {
-        autoOrders[index] = item.duty_users?.[0]?.length || 0;
-      } else {
-        autoOrders[index] = item.duty_users?.length || 0;
-      }
-    });
-  }
-  return autoOrders;
-}
-
-export function noOrderDutyData(data: IDutyPlans[]) {
-  return data.map(item => ({
-    ...item,
-    order: 0,
-  }));
 }

@@ -27,20 +27,20 @@
 import { Component, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import G6, { type IGroup, type ModelConfig, type Graph, type INode, type IEdge } from '@antv/g6';
+import G6, { type Graph, type IEdge, type IGroup, type INode, type ModelConfig } from '@antv/g6';
 import { addListener, removeListener } from '@blueking/fork-resize-detector';
 import dayjs from 'dayjs';
 
 import CompareGraphTools from './compare-graph-tools';
 
 import './compare-topo-graph.scss';
-type CompareTopoGraphProps = {
-  data: any;
-  activeNode: string;
-};
-
 type CompareTopoGraphEvent = {
   onNodeClick: (id: string) => void;
+};
+
+type CompareTopoGraphProps = {
+  activeNode: string;
+  data: any;
 };
 
 @Component

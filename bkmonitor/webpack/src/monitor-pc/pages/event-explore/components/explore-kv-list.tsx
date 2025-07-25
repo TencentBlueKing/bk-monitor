@@ -32,7 +32,7 @@ import { copyText } from 'monitor-common/utils';
 
 import { ECondition, EMethod, EMode } from '../../../components/retrieval-filter/utils';
 import { APIType } from '../api-utils';
-import { ExploreObserver, type ExploreSubject } from '../utils';
+import { type ExploreSubject, ExploreObserver } from '../utils';
 import FieldTypeIcon from './field-type-icon';
 import StatisticsList from './statistics-list';
 
@@ -40,22 +40,24 @@ import type { ConditionChangeEvent, DimensionType, ExploreEntitiesItem, KVSplitI
 
 import './explore-kv-list.scss';
 
-type KVEntities = Pick<ExploreEntitiesItem, 'alias' | 'type'> & { path: string };
 export interface KVFieldList {
-  /** kv 面板中的 key */
-  name: string;
-  /** 字段的类型 */
-  type: DimensionType;
-  /** kv 面板中的 value */
-  value: KVSplitItem[] | string;
-  /** 部分字段目前显示的 name 是经过拼接处理后的值，sourceName 则是最原始未处理前的 name */
-  sourceName: string;
+  /** kv 面板中的 value 部分是否可以点击打开 menu popover 操作弹窗 */
+  canClick: boolean;
   /** 点击 name 是否能够弹出 统计面板popover */
   canOpenStatistics: boolean;
   /** 跳转到其他哪个页面入口list（容器/主机） */
   entities: KVEntities[];
-  /** kv 面板中的 value 部分是否可以点击打开 menu popover 操作弹窗 */
-  canClick: boolean;
+  /** kv 面板中的 key */
+  name: string;
+  /** 部分字段目前显示的 name 是经过拼接处理后的值，sourceName 则是最原始未处理前的 name */
+  sourceName: string;
+  /** 字段的类型 */
+  type: DimensionType;
+  /** kv 面板中的 value */
+  value: KVSplitItem[] | string;
+}
+interface IExploreKvListEvents {
+  onConditionChange(e: ConditionChangeEvent): void;
 }
 interface IExploreKvListProps {
   fieldList: KVFieldList[];
@@ -64,9 +66,7 @@ interface IExploreKvListProps {
   source: APIType;
 }
 
-interface IExploreKvListEvents {
-  onConditionChange(e: ConditionChangeEvent): void;
-}
+type KVEntities = Pick<ExploreEntitiesItem, 'alias' | 'type'> & { path: string };
 
 @Component
 export default class ExploreKvList extends tsc<IExploreKvListProps, IExploreKvListEvents> {
@@ -444,7 +444,7 @@ export default class ExploreKvList extends tsc<IExploreKvListProps, IExploreKvLi
    * @param {boolean} config.hasClick 是否有点击事件及 hover新开标签页 tooltip 提示
    *
    */
-  menuItemSuffixRender(config: { method?: EMethod; hasClick?: boolean }) {
+  menuItemSuffixRender(config: { hasClick?: boolean; method?: EMethod }) {
     const { method, hasClick = true } = config;
     return () => (
       <i

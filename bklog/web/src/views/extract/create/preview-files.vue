@@ -85,7 +85,7 @@
           :label="$t('文件名')"
           :render-header="$renderHeader"
           :sort-by="['path', 'mtime', 'size']"
-          min-width="80"
+          min-width="400"
           prop="path"
           sortable
         >
@@ -111,7 +111,7 @@
           :label="$t('最后修改时间')"
           :render-header="$renderHeader"
           :sort-by="['mtime', 'path', 'size']"
-          min-width="50"
+          min-width="40"
           prop="mtime"
           sortable
         >
@@ -120,7 +120,7 @@
           :label="$t('文件大小')"
           :render-header="$renderHeader"
           :sort-by="['size', 'mtime', 'path']"
-          min-width="40"
+          min-width="30"
           prop="size"
           sortable
         >

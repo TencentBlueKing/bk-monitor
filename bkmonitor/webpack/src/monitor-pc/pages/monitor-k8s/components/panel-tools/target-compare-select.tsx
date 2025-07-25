@@ -37,17 +37,17 @@ interface IItem {
   id: string;
   name: string;
 }
-interface IProps {
-  value: string[];
-  list: IItem[];
-  filterList?: IItem[];
-  onChange?: (v: string[]) => void;
-}
 interface ILocalListItem extends IItem {
-  type?: 'input';
-  lightContent?: any;
   isCheck?: boolean;
+  lightContent?: any;
   show?: boolean;
+  type?: 'input';
+}
+interface IProps {
+  filterList?: IItem[];
+  list: IItem[];
+  value: string[];
+  onChange?: (v: string[]) => void;
 }
 
 const INPUT_ITEM = {
@@ -91,10 +91,10 @@ export default class TargetCompareSelect extends tsc<IProps> {
   classId = random(8);
   /* 当前分页数据 */
   pagination: {
-    current: number;
     count: number;
-    limit: number;
+    current: number;
     data: ILocalListItem[];
+    limit: number;
   } = {
     current: 1,
     count: 0,

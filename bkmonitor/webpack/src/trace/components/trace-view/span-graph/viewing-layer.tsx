@@ -25,9 +25,9 @@
  */
 
 import { type PropType, defineComponent, onBeforeUnmount, ref } from 'vue';
-import { useI18n } from 'vue-i18n';
 
 import { Button } from 'bkui-vue';
+import { useI18n } from 'vue-i18n';
 
 import { useSpanBarCurrentInject, useViewRangeInject } from '../hooks';
 import DraggableManager, { type DraggableBounds, type DraggingUpdate, EUpdateTypes } from '../utils/draggable-manager';

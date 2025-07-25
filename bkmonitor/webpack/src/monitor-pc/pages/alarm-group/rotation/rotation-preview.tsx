@@ -37,12 +37,12 @@ import {
 import './rotation-preview.scss';
 
 interface IProps {
-  value?: any;
   alarmGroupId?: number | string;
   dutyPlans?: any[];
   previewDutyRules?: any[];
-  onStartTimeChange?: (v: string) => void;
+  value?: any;
   onInitStartTime?: (v: string) => void;
+  onStartTimeChange?: (v: string) => void;
 }
 
 @Component

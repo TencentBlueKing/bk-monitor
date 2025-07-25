@@ -1,3 +1,8 @@
+import { Emit, Prop, Ref, Watch } from 'vue-property-decorator';
+import { Component as tsc } from 'vue-tsx-support';
+
+import { getStrategyListV2 } from 'monitor-api/modules/strategies';
+import { Debounce } from 'monitor-common/utils/utils';
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -24,22 +29,23 @@
  * IN THE SOFTWARE.
  */
 import Component from 'vue-class-component';
-import { Emit, Prop, Ref, Watch } from 'vue-property-decorator';
-import { Component as tsc } from 'vue-tsx-support';
-
-import { getStrategyListV2 } from 'monitor-api/modules/strategies';
-import { Debounce } from 'monitor-common/utils/utils';
 
 import { EStatusType } from '../utils';
 
 import './add-alarm-chart-dialog.scss';
 
+type IAddAlarmChartDialogEvent = {
+  onAfterDialogLeave: () => void;
+  onCancel: () => void;
+  onConfirm: (strategyIds: number[], name: string, delStrategyIdSet: Set<number>) => void;
+};
+
 interface IAddAlarmChartDialogProps {
-  showAddTaskDialog: boolean;
-  handleMenuMode: string;
-  spaceName: string;
   currentBizId: number;
   editStrategyConfig?: IStrategyConfig;
+  handleMenuMode: string;
+  showAddTaskDialog: boolean;
+  spaceName: string;
 }
 
 interface IStrategyConfig {
@@ -50,12 +56,6 @@ interface IStrategyConfig {
     strategy_id: number;
   }[];
 }
-
-type IAddAlarmChartDialogEvent = {
-  onConfirm: (strategyIds: number[], name: string, delStrategyIdSet: Set<number>) => void;
-  onCancel: () => void;
-  onAfterDialogLeave: () => void;
-};
 
 @Component({
   name: 'AddAlarmChartDialog',

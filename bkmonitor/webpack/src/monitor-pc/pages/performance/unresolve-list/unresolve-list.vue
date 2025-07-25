@@ -24,8 +24,8 @@
 * IN THE SOFTWARE.
 -->
 <script lang="ts">
-// eslint-disable-next-line no-unused-vars
 import type { CreateElement } from 'vue';
+
 import { Component, Prop, Vue } from 'vue-property-decorator';
 
 @Component({ name: 'unresolve-list' })

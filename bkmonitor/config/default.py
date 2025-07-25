@@ -1399,9 +1399,6 @@ BCS_APIGW_BASE_URL = os.getenv("BKAPP_BCS_APIGW_BASE_URL", "")
 # 获取指标的间隔时间，默认为 2 hour
 FETCH_TIME_SERIES_METRIC_INTERVAL_SECONDS = 7200
 
-# 是否启用 metadata 新功能
-IS_ENABLE_METADATA_FUNCTION_CONTROLLER = True
-
 # 自定义指标过期时间
 TIME_SERIES_METRIC_EXPIRED_SECONDS = 30 * 24 * 3600
 
@@ -1525,6 +1522,9 @@ SYNC_BKBASE_META_SUPPORTED_STORAGE_TYPES = ["mysql", "tspider", "hdfs"]
 DEFAULT_VM_DATA_LINK_NAMESPACE = "bkmonitor"
 # grafana和策略导出是否支持data_label转换
 ENABLE_DATA_LABEL_EXPORT = True
+
+# 是否启用多租户版本的BKBASE V4链路
+ENABLE_BKBASE_V4_MULTI_TENANT = False
 
 # 是否启用access数据批量处理
 ENABLED_ACCESS_DATA_BATCH_PROCESS = False

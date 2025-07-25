@@ -48,37 +48,37 @@ const ALERT_NOTICE = 'alert_notice';
 const ACTION_NOTICE = 'action_notice';
 
 export interface IAlarmGroupDetail {
-  id: number | string;
-  show?: boolean;
   customEdit?: boolean;
   hasEditBtn?: boolean;
+  id: number | string;
+  show?: boolean;
+}
+interface IAlert {
+  key?: string;
+  notify_config?: INoticeWayValue[];
+  time_range?: string;
 }
 interface IEvent {
-  onShowChange?: boolean;
   onEditGroup?: number | string;
-}
-interface IFormData {
-  channels: string[];
-  name: string;
-  bizId: string;
-  desc: string;
-  users: any[];
-  needDuty?: boolean;
-  mention_list: any[];
+  onShowChange?: boolean;
 }
 
-interface IAlert {
-  time_range?: string;
-  notify_config?: INoticeWayValue[];
-  key?: string;
+interface IFormData {
+  bizId: string;
+  channels: string[];
+  desc: string;
+  mention_list: any[];
+  name: string;
+  needDuty?: boolean;
+  users: any[];
 }
 interface INotice {
-  [ALERT_NOTICE]: IAlert[]; // 所有通知方式数据
   [ACTION_NOTICE]: IAlert[];
-  alertData: IAlert; // 当前通知方式数据
-  actionData: IAlert;
-  alertActive: string; // 当前通知方式选项
   actionActive: string;
+  actionData: IAlert;
+  [ALERT_NOTICE]: IAlert[]; // 所有通知方式数据
+  alertActive: string; // 当前通知方式选项
+  alertData: IAlert; // 当前通知方式数据
 }
 
 const noticeTypeMap = {
@@ -667,18 +667,16 @@ export default class AlarmGroupDetail extends tsc<IAlarmGroupDetail, IEvent> {
                       this.refreshKey.alertKey = true;
                     }}
                   >
-                    {this.notice[ALERT_NOTICE]
-                      .map(item => ({
-                        key: item.key,
-                        label: item.time_range.replace('--', '-'),
-                      }))
-                      .map(item => (
-                        <bk-tab-panel
-                          key={item.key}
-                          label={item.label}
-                          name={item.key}
-                        />
-                      ))}
+                    {this.notice[ALERT_NOTICE].map(item => ({
+                      key: item.key,
+                      label: item.time_range.replace('--', '-'),
+                    })).map(item => (
+                      <bk-tab-panel
+                        key={item.key}
+                        label={item.label}
+                        name={item.key}
+                      />
+                    ))}
                   </bk-tab>
                   <div class='notice-item-content'>
                     <NoticeModeNew
@@ -708,18 +706,16 @@ export default class AlarmGroupDetail extends tsc<IAlarmGroupDetail, IEvent> {
                       this.refreshKey.actionKey = true;
                     }}
                   >
-                    {this.notice[ACTION_NOTICE]
-                      .map(item => ({
-                        key: item.key,
-                        label: item.time_range.replace('--', '-'),
-                      }))
-                      .map(item => (
-                        <bk-tab-panel
-                          key={item.key}
-                          label={item.label}
-                          name={item.key}
-                        />
-                      ))}
+                    {this.notice[ACTION_NOTICE].map(item => ({
+                      key: item.key,
+                      label: item.time_range.replace('--', '-'),
+                    })).map(item => (
+                      <bk-tab-panel
+                        key={item.key}
+                        label={item.label}
+                        name={item.key}
+                      />
+                    ))}
                   </bk-tab>
                   <div class='notice-item-content'>
                     <NoticeModeNew

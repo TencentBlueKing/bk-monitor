@@ -44,22 +44,22 @@ import type { ILegendItem, ITimeSeriesItem, PanelModel } from '../../typings';
 
 import './apdex-chart.scss';
 
-interface IApdexChartTipItem {
-  name: string;
-  color: string;
-  tips: string;
-}
 export enum APDEX_CHART_TYPE {
   APDEX = 'apdex',
   EVENT = 'event',
+}
+interface IApdexChartEvent {
+  onDataZoom: () => void;
+  onDblClick: () => void;
 }
 interface IApdexChartProps {
   panel: PanelModel;
   splitNumber?: number;
 }
-interface IApdexChartEvent {
-  onDataZoom: () => void;
-  onDblClick: () => void;
+interface IApdexChartTipItem {
+  color: string;
+  name: string;
+  tips: string;
 }
 @Component
 export class ApdexChart extends LineChart {

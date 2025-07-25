@@ -80,20 +80,6 @@ export function getNumberAndUnit(str) {
   return match ? { number: Number.parseInt(match[1], 10), unit: match[2] } : null;
 }
 
-export function timeToDayNum(t) {
-  const regex = /^\d{4}-\d{2}-\d{2}$/;
-  if (regex.test(t)) {
-    return dayjs().diff(dayjs(t), 'day');
-  }
-  const timeInfo = getNumberAndUnit(t);
-  if (timeInfo?.unit === 'd') {
-    return timeInfo.number;
-  }
-  if (timeInfo?.unit === 'w') {
-    return timeInfo.number * 7;
-  }
-  return 0;
-}
 // 设置x轴label formatter方法
 export function handleSetFormatterFunc(seriesData: any, onlyBeginEnd = false) {
   let formatterFunc = null;
@@ -130,7 +116,40 @@ export function handleSetFormatterFunc(seriesData: any, onlyBeginEnd = false) {
     });
   return formatterFunc;
 }
+/** 处理时间对比时线条名字 */
+export function handleTimeOffset(timeOffset: string) {
+  const match = timeOffset.match(/(current|(\d+)([hdwM]))/);
+  if (match) {
+    const [target, , num, type] = match;
+    const map = {
+      d: window.i18n.tc('{n} 天前', { n: num }),
+      w: window.i18n.tc('{n} 周前', { n: num }),
+      M: window.i18n.tc('{n} 月前', { n: num }),
+      current: window.i18n.tc('当前'),
+    };
+    return map[type || target];
+  }
+  return timeOffset;
+}
 
+// 转换time_shift显示
+export function handleTransformTimeShift(val: string) {
+  const timeMatch = val.match(/(-?\d+)(\w+)/);
+  const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+  const hasMatch = timeMatch && timeMatch.length > 2;
+  if (dateRegex.test(val)) {
+    return val;
+  }
+  if (val === '1d') {
+    return window.i18n.tc('昨天');
+  }
+  if (val === '1w') {
+    return window.i18n.tc('上周');
+  }
+  return hasMatch
+    ? (dayjs() as any).add(-timeMatch[1], timeMatch[2]).fromNow().replace(/\s*/g, '')
+    : val.replace('current', window.i18n.tc('当前'));
+}
 /**
  * @description: 在图表数据没有单位或者单位不一致时则不做单位转换 y轴label的转换用此方法做计数简化
  * @param {number} num
@@ -155,38 +174,19 @@ export function handleYAxisLabelFormatter(num: number): string {
   }
   return (num / si[i].value).toFixed(3).replace(rx, '$1') + si[i].symbol;
 }
-// 转换time_shift显示
-export function handleTransformTimeShift(val: string) {
-  const timeMatch = val.match(/(-?\d+)(\w+)/);
-  const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
-  const hasMatch = timeMatch && timeMatch.length > 2;
-  if (dateRegex.test(val)) {
-    return val;
+export function timeToDayNum(t) {
+  const regex = /^\d{4}-\d{2}-\d{2}$/;
+  if (regex.test(t)) {
+    return dayjs().diff(dayjs(t), 'day');
   }
-  if (val === '1d') {
-    return window.i18n.tc('昨天');
+  const timeInfo = getNumberAndUnit(t);
+  if (timeInfo?.unit === 'd') {
+    return timeInfo.number;
   }
-  if (val === '1w') {
-    return window.i18n.tc('上周');
+  if (timeInfo?.unit === 'w') {
+    return timeInfo.number * 7;
   }
-  return hasMatch
-    ? (dayjs() as any).add(-timeMatch[1], timeMatch[2]).fromNow().replace(/\s*/g, '')
-    : val.replace('current', window.i18n.tc('当前'));
-}
-/** 处理时间对比时线条名字 */
-export function handleTimeOffset(timeOffset: string) {
-  const match = timeOffset.match(/(current|(\d+)([hdwM]))/);
-  if (match) {
-    const [target, , num, type] = match;
-    const map = {
-      d: window.i18n.tc('{n} 天前', { n: num }),
-      w: window.i18n.tc('{n} 周前', { n: num }),
-      M: window.i18n.tc('{n} 月前', { n: num }),
-      current: window.i18n.tc('当前'),
-    };
-    return map[type || target];
-  }
-  return timeOffset;
+  return 0;
 }
 
 export const chunkArray = <T extends any[]>(array: T, chunkSize: number): T[] => {

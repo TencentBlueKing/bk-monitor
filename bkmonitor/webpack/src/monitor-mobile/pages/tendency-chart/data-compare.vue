@@ -35,8 +35,8 @@
         <i class="icon-down" />
       </div>
       <div
-        class="table-filter-dimension"
         v-show="compareType.value > 0"
+        class="table-filter-dimension"
         @click="handleShowPopup('compareData')"
       >
         {{ compareValue }}
@@ -56,8 +56,8 @@
     <!-- 表格内容 -->
     <van-row
       v-for="(row, index) in data"
-      class="table-body"
       :key="index"
+      class="table-body"
     >
       <van-col
         v-for="(config, i) in dataConfig"
@@ -91,6 +91,7 @@ import { transfromNum } from 'monitor-common/utils/utils';
 import { Col, DropdownItem, DropdownMenu, Picker, Popup, Row } from 'vant';
 
 import BkSelect from '../../components/select/select.vue';
+
 import type { ICompare, IConfig, IContent, IDropdownMenu, IOptions } from '../../types/tendency-chart';
 
 @Component({
@@ -273,7 +274,7 @@ export default class Table extends Vue {
 <style lang="scss">
 .van-row {
   line-height: 3.125rem;
-  border-bottom: 1px solid rgba(220, 222, 229, 0.6);
+  border-bottom: 1px solid rgb(220 222 229 / 60%);
 
   .van-col:not(:first-child) {
     text-align: right;
@@ -288,7 +289,7 @@ export default class Table extends Vue {
 }
 
 .table {
-  padding: 0 1.5rem 0 1.5rem;
+  padding: 0 1.5rem;
   padding-top: 1rem;
   font-size: 0.8rem;
   background: #fff;
@@ -320,7 +321,7 @@ export default class Table extends Vue {
       display: inline-block;
       width: 0;
       height: 0;
-      border-color: #979ba5 transparent transparent transparent;
+      border-color: #979ba5 transparent transparent;
       border-style: solid;
       border-width: 5px;
       transform: translateY(2px);

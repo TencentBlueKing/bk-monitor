@@ -30,27 +30,27 @@ import type { IGroupData } from './group';
 
 import './checkbox-tree.scss';
 
-interface ICheckboxTreeData extends IGroupData {
-  id: string;
-  value: string[];
-  level: number;
-  parent: null | string;
-  indeterminate: boolean;
-  child: any[];
-  count: number;
-}
-
 export interface ICheckedData {
   id: string;
   values: string[];
 }
 
-interface ICheckboxTreeProps {
-  data: IGroupData[];
+interface ICheckboxTreeData extends IGroupData {
+  child: any[];
+  count: number;
+  id: string;
+  indeterminate: boolean;
+  level: number;
+  parent: null | string;
+  value: string[];
 }
 
 interface ICheckboxTreeEvents {
   onChange: (data: ICheckedData[]) => void;
+}
+
+interface ICheckboxTreeProps {
+  data: IGroupData[];
 }
 
 @Component({ name: 'CheckboxTree' })

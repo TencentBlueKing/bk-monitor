@@ -28,17 +28,17 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import { CHART_INTERVAL } from 'monitor-pc/constant/constant';
 
-import type { IOption, EventRetrievalViewType } from 'monitor-pc/pages/data-retrieval/typings';
+import type { EventRetrievalViewType, IOption } from 'monitor-pc/pages/data-retrieval/typings';
 
 import './explore-interval-select.scss';
 
-interface ExploreIntervalSelectProps {
-  selectLabel: string;
-  interval: EventRetrievalViewType.intervalType;
-  intervalList?: IOption[];
-}
 interface ExploreIntervalSelectEvents {
   onChange: (interval: EventRetrievalViewType.intervalType) => void;
+}
+interface ExploreIntervalSelectProps {
+  interval: EventRetrievalViewType.intervalType;
+  intervalList?: IOption[];
+  selectLabel: string;
 }
 
 @Component

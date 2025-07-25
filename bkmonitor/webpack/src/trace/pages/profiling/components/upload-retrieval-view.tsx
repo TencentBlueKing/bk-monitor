@@ -24,15 +24,15 @@
  * IN THE SOFTWARE.
  */
 import { type PropType, computed, defineComponent, reactive, ref } from 'vue';
-import { useI18n } from 'vue-i18n';
 
 import { Button, Exception, Select } from 'bkui-vue';
 import { Upload as UploadIcon } from 'bkui-vue/lib/icon';
 import { listProfileUploadRecord } from 'monitor-api/modules/apm_profile';
 import { LANGUAGE_COOKIE_KEY } from 'monitor-common/utils/constant';
 import { docCookies } from 'monitor-common/utils/utils';
+import { useI18n } from 'vue-i18n';
 
-import { ConditionType, type DataTypeItem, type RetrievalFormData } from '../typings';
+import { type DataTypeItem, type RetrievalFormData, ConditionType } from '../typings';
 import { EFileStatus, fileStatusMap } from '../typings/profiling-file';
 import ProfilingFileUpload from './profiling-file-upload';
 import ProfilingRetrievalView from './profiling-retrieval-view';

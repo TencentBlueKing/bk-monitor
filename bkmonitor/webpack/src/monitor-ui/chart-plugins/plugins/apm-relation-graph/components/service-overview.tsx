@@ -44,6 +44,20 @@ import './service-overview.scss';
 
 const customMenuList = ['more', 'fullscreen', 'explore', 'set', 'area', 'drill-down', 'relate-alert', 'strategy'];
 
+type ServiceOverviewProps = {
+  appName?: string;
+  dashboardId?: string;
+  data: Record<string, any>;
+  detailIcon?: string;
+  endpoint?: string;
+  nodeTipsMap?: TNodeTipsMap;
+  onSliceTimeRangeChange?: (timeRange: [number, number]) => void;
+  serviceName?: string;
+  show?: boolean;
+  sliceTimeRange?: number[];
+  timeRange?: TimeRangeType;
+};
+
 type TNodeTipsMap = Map<
   string,
   {
@@ -52,20 +66,6 @@ type TNodeTipsMap = Map<
     value: string;
   }[]
 >;
-
-type ServiceOverviewProps = {
-  data: Record<string, any>;
-  show?: boolean;
-  appName?: string;
-  serviceName?: string;
-  timeRange?: TimeRangeType;
-  endpoint?: string;
-  detailIcon?: string;
-  nodeTipsMap?: TNodeTipsMap;
-  sliceTimeRange?: number[];
-  dashboardId?: string;
-  onSliceTimeRangeChange?: (timeRange: [number, number]) => void;
-};
 
 const apiFn = (api: string) => {
   return {

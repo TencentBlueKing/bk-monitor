@@ -34,10 +34,10 @@ import DashboardPanel from 'monitor-ui/chart-plugins/components/dashboard-panel'
 import FlexDashboardPanel from 'monitor-ui/chart-plugins/components/flex-dashboard-panel';
 import { DEFAULT_INTERVAL, DEFAULT_METHOD } from 'monitor-ui/chart-plugins/constants/dashbord';
 import {
-  BookMarkModel,
   type DashboardMode,
   type IPanelModel,
   type IViewOptions,
+  BookMarkModel,
   PanelModel,
 } from 'monitor-ui/chart-plugins/typings';
 import { VariablesService } from 'monitor-ui/chart-plugins/utils/variable';
@@ -67,7 +67,6 @@ import HostTree, {
 import SettingModal from '../../setting-modal';
 import GroupSelect from '../components/group-select/group-select';
 import {
-  DASHBOARD_PANEL_COLUMN_KEY,
   type IBookMark,
   type IMenuId,
   type IMenuItem,
@@ -77,15 +76,16 @@ import {
   type ISearchItem,
   type ITabItem,
   type ITableItem,
-  METHOD_LIST,
   type PanelToolsType,
+  type SearchType,
+  DASHBOARD_PANEL_COLUMN_KEY,
+  METHOD_LIST,
   SPLIT_MAX_WIDTH,
   SPLIT_MIN_WIDTH,
-  type SearchType,
 } from '../typings';
 import { SETTINGS_POP_Z_INDEX } from '../utils';
-import CommonList from './common-list/common-list';
 import CommonListK8s from './common-list-k8s/common-list-k8s';
+import CommonList from './common-list/common-list';
 import CommonSelectTable from './common-select-table/common-select-table';
 import CommonTree from './common-tree/common-tree';
 import ApmApiPanel from './select-panel/apm-api-panel';
@@ -108,38 +108,38 @@ const DEFAULT_QUERY_DATA = {
   filter: '',
 };
 
+interface ICommonPageEvent {
+  onSceneTypeChange: SceneType;
+  onTabChange: string;
+  onTimeRangeChange: TimeRangeType;
+  onTitleChange: string;
+  onMenuSelect: (data: { id: number; param?: { taskId?: string } }) => void;
+  onPageTitleChange: (a: string, b?: Record<string, any>) => void;
+}
 interface ICommonPageProps {
+  // 详情返回操作
+  backToOverviewKey?: string;
+  // 默认汇聚方法
+  defalutMethod?: string;
+  // 默认viewoptions 视图变量等
+  defaultViewOptions: IViewOptions;
+  // 是否合并菜单列表
+  isMergeMenuList?: boolean;
+  // 是否展示分屏按钮
+  isShowSplitPanel?: boolean;
+  // 菜单列表
+  menuList?: IMenuItem[];
   // 场景id
   sceneId: string;
   // 场景类型
   sceneType: SceneType;
-  // 是否合并菜单列表
-  isMergeMenuList?: boolean;
-  // 默认viewoptions 视图变量等
-  defaultViewOptions: IViewOptions;
-  // 标题
-  title?: string;
-  // 是否展示分屏按钮
-  isShowSplitPanel?: boolean;
-  // 详情返回操作
-  backToOverviewKey?: string;
+  showListMenu?: boolean;
   // tab切换是否转换为overview
   tab2SceneType?: boolean;
+  // 标题
+  title?: string;
   // 表格搜索条件需要保留的字段
   toggleTabSearchFilterKeys?: string[];
-  // 默认汇聚方法
-  defalutMethod?: string;
-  // 菜单列表
-  menuList?: IMenuItem[];
-  showListMenu?: boolean;
-}
-interface ICommonPageEvent {
-  onTitleChange: string;
-  onPageTitleChange: (a: string, b?: Record<string, any>) => void;
-  onTabChange: string;
-  onTimeRangeChange: TimeRangeType;
-  onSceneTypeChange: SceneType;
-  onMenuSelect: (data: { id: number; param?: { taskId?: string } }) => void;
 }
 @Component({
   components: {

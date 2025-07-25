@@ -26,7 +26,7 @@
 
 import { h } from 'vue';
 
-import type { GetTableCellRenderValue, ExploreTableColumnTypeEnum } from './typing';
+import type { ExploreTableColumnTypeEnum, GetTableCellRenderValue } from './typing';
 
 export const TABLE_DEFAULT_CONFIG = Object.freeze({
   tableConfig: {
