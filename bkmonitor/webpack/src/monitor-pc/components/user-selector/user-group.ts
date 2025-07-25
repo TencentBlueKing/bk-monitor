@@ -32,6 +32,12 @@ export interface IUserGroup {
     name: string;
   }[];
 }
+
+export interface IUserInfo extends IUserGroup {
+  type?: 'userGroup' | undefined;
+  logo?: string;
+}
+
 /** 获取默认用户组同步用法 */
 export const getDefaultUserGroupListSync = (groupList = []): IUserGroup[] => {
   const defaultUserGroupList = [
