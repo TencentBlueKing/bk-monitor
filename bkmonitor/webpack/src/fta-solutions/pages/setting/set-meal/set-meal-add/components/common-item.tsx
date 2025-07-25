@@ -29,8 +29,8 @@ import { Component as tsc } from 'vue-tsx-support';
 import './common-item.scss';
 
 interface ICommonItemProps {
-  title?: string;
   required?: boolean;
+  title?: string;
 }
 
 @Component({

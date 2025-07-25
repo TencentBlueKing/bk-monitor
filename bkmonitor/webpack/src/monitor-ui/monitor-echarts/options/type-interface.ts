@@ -25,74 +25,74 @@
  */
 import type { MonitorEchartOptions } from '../types/monitor-echarts';
 
-export interface ILegendItem {
-  name: string;
-  min: number | string;
-  max: number;
-  avg: number;
-  total: number;
-  color: string;
-  show: boolean;
-  hidden?: boolean;
-}
 export type ChartType = 'bar' | 'line' | 'map' | 'pie' | 'scatter' | 'status' | 'table' | 'text';
-export interface IChartOptionPorps {
-  chartType: ChartType;
-  colors: string[];
-  showExtremum: boolean;
-  chartOption: MonitorEchartOptions;
-  lineWidth: number;
+export interface IAnnotation {
+  color: string;
+  list?: IAnnotationListItem[];
+  name: string;
+  show: boolean;
+  title: string;
+  x: number;
+  y: number;
+}
+export interface IAnnotationListItem {
+  id: string;
+  show: boolean;
+  value: any;
 }
 
 export interface IChartInstance {
   getOptions: (
     data: any,
     otherOptions?: MonitorEchartOptions
-  ) => { options: MonitorEchartOptions; legendData: ILegendItem[] };
+  ) => { legendData: ILegendItem[]; options: MonitorEchartOptions };
 }
 
-export interface IMoreToolItem {
+export type IChartOption = IStatusChartOption | ITextChartOption | MonitorEchartOptions;
+
+export interface IChartOptionPorps {
+  chartOption: MonitorEchartOptions;
+  chartType: ChartType;
+  colors: string[];
+  lineWidth: number;
+  showExtremum: boolean;
+}
+export interface ILegendItem {
+  avg: number;
+  color: string;
+  hidden?: boolean;
+  max: number;
+  min: number | string;
   name: string;
+  show: boolean;
+  total: number;
+}
+export interface IMoreToolItem {
   checked: boolean;
   id: string;
-  nextName?: string;
-}
-
-export interface IAnnotation {
-  x: number;
-  y: number;
-  show: boolean;
-  title: string;
   name: string;
-  color: string;
-  list?: IAnnotationListItem[];
-}
-export interface IAnnotationListItem {
-  id: string;
-  value: any;
-  show: boolean;
-}
-export interface IStatusSeries {
-  value: number | string;
-  status: number | string;
+  nextName?: string;
 }
 export interface IStatusChartOption {
   series: IStatusSeries[];
 }
 
-export interface ITextSeries {
-  value?: number | string;
-  unit?: string;
+export interface IStatusSeries {
+  status: number | string;
+  value: number | string;
 }
-
-export interface ITextChartOption {
-  series: ITextSeries;
-}
-export type MoreChartToolItem = 'area' | 'explore' | 'set' | 'strategy';
-
-export type IChartOption = IStatusChartOption | ITextChartOption | MonitorEchartOptions;
 
 export interface ITableSeries {
   columns?: { text: string; type: string }[];
   rows?: unknown[][];
 }
+export interface ITextChartOption {
+  series: ITextSeries;
+}
+
+export interface ITextSeries {
+  unit?: string;
+  value?: number | string;
+}
+
+export type MoreChartToolItem = 'area' | 'explore' | 'set' | 'strategy';

@@ -51,14 +51,14 @@ import type { IQueryOption } from '../performance/performance-type';
 import './view-detail-new.scss';
 // import { IViewOptions } from 'monitor-ui/chart-plugins/typings';
 
-interface IViewConfig {
-  config: PanelModel;
-  compareValue?: IQueryOption;
-}
-
 interface IProps {
   show?: boolean;
   viewConfig?: IViewConfig;
+}
+
+interface IViewConfig {
+  compareValue?: IQueryOption;
+  config: PanelModel;
 }
 
 @Component

@@ -43,8 +43,8 @@ import RotationCalendarPreview from './rotation-calendar-preview';
 import './rotation-detail.scss';
 
 interface IProps {
-  show: boolean;
   id: number | string;
+  show: boolean;
   onShowChange?: (v: boolean) => void;
 }
 

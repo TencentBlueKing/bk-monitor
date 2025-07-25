@@ -45,10 +45,10 @@ import AlertTopic from './components/alert-topic';
 import FieldDetails from './components/field-details';
 import LinkStatus from './components/link-status';
 import StorageState from './components/storage-state';
-import { type ChangeConfig, type DetailData, TCollectorAlertStage, TabEnum, type TabProperty } from './typings/detail';
+import { type ChangeConfig, type DetailData, type TabProperty, TabEnum, TCollectorAlertStage } from './typings/detail';
 
 import type { IAlarmGroupList } from './components/alarm-group';
-import type { Route, NavigationGuardNext } from 'vue-router';
+import type { NavigationGuardNext, Route } from 'vue-router';
 
 import './collector-detail.scss';
 

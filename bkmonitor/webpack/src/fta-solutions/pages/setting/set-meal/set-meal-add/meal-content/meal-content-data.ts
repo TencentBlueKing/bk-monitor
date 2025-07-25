@@ -33,38 +33,59 @@ export const mealType = {
   callback: 'webhook',
 };
 
-export interface INoticeAlert {
-  // 告警通知配置
-  timeRange?: string[]; // 时间段
-  notifyInterval?: number; // 时间间隔
-  intervalNotifyMode?: 'increasing' | 'standard'; // 间隔模式
-  notifyConfig?: INoticeWayValue[];
-  key?: string; // key前端随机生成
-}
-
-export interface INoticeTemplate {
-  // 通知模板配置
-  signal?: string; // 触发信号：abnormal-告警触发时，recovered-告警恢复时，closed-告警关闭时
-  messageTmpl?: string;
-  titleTmpl?: string;
-}
-
 export interface IExecution {
+  notifyConfig?: INoticeWayValue[];
   // 执行通知配置
   riskLevel?: number; // 敏感度，1 - 高危，2 - 一般，3 - 无所谓
-  notifyConfig?: INoticeWayValue[];
 }
+
+export interface IMealData {
+  id?: number;
+  name?: string;
+  notice?: INotice; // 通知告警
+  peripheral?: IPeripheral; // 周边系统
+  pluginType?: string; // 套餐类型
+  webhook?: IWebhook; // http回调
+}
+
 export interface INotice {
   alert?: INoticeAlert[];
   execution?: IExecution[];
   template?: INoticeTemplate[];
 }
+export interface INoticeAlert {
+  intervalNotifyMode?: 'increasing' | 'standard'; // 间隔模式
+  key?: string; // key前端随机生成
+  notifyConfig?: INoticeWayValue[];
+  notifyInterval?: number; // 时间间隔
+  // 告警通知配置
+  timeRange?: string[]; // 时间段
+}
+
+export interface INoticeTemplate {
+  messageTmpl?: string;
+  // 通知模板配置
+  signal?: string; // 触发信号：abnormal-告警触发时，recovered-告警恢复时，closed-告警关闭时
+  titleTmpl?: string;
+}
+export interface IPeripheral {
+  riskLevel?: number;
+  timeout?: number;
+  data?: {
+    formTemplateId?: number | string;
+    templateDetail?: {
+      [propName: string]: string;
+    };
+  };
+}
 
 export interface IWebhook {
+  riskLevel?: number;
+  timeout?: number;
   res?: {
     authorize?: {
       // 认证
-      authConfig?: { token?: string; password?: string; username?: string };
+      authConfig?: { password?: string; token?: string; username?: string };
       authType?: string;
     };
     body?: {
@@ -103,27 +124,6 @@ export interface IWebhook {
     }[];
     url: string;
   };
-  riskLevel?: number;
-  timeout?: number;
-}
-export interface IPeripheral {
-  data?: {
-    formTemplateId?: number | string;
-    templateDetail?: {
-      [propName: string]: string;
-    };
-  };
-  riskLevel?: number;
-  timeout?: number;
-}
-
-export interface IMealData {
-  pluginType?: string; // 套餐类型
-  id?: number;
-  name?: string;
-  notice?: INotice; // 通知告警
-  webhook?: IWebhook; // http回调
-  peripheral?: IPeripheral; // 周边系统
 }
 
 export const templateSignalName = {

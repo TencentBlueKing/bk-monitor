@@ -31,15 +31,15 @@ import { Debounce, random } from 'monitor-common/utils';
 import { detectOperatingSystem } from 'monitor-common/utils/navigator';
 
 import {
-  fieldTypeMap,
-  getTitleAndSubtitle,
+  type IFilterField,
+  type IFilterItem,
   type IGetValueFnParams,
   type IWhereValueOptionsItem,
-  type IFilterField,
   ECondition,
-  type IFilterItem,
-  EMethod,
   EFieldType,
+  EMethod,
+  fieldTypeMap,
+  getTitleAndSubtitle,
   isNumeric,
 } from './utils';
 import ValueTagSelector, { type IValue } from './value-tag-selector';
@@ -50,12 +50,12 @@ import './ui-selector-options.scss';
 
 interface IProps {
   fields: IFilterField[];
-  value?: IFilterItem;
-  show?: boolean;
   keyword?: string; // 上层传的关键字，用于搜索
+  show?: boolean;
+  value?: IFilterItem;
   getValueFn?: (params: IGetValueFnParams) => Promise<IWhereValueOptionsItem>;
-  onConfirm?: (v: IFilterItem) => void;
   onCancel?: () => void;
+  onConfirm?: (v: IFilterItem) => void;
 }
 @Component
 export default class UiSelectorOptions extends tsc<IProps> {
@@ -388,7 +388,7 @@ export default class UiSelectorOptions extends tsc<IProps> {
     this.rightFocus = true;
   }
 
-  getValueFnProxy(params: { search: string; limit: number; field: string }): any | TGetValueFn {
+  getValueFnProxy(params: { field: string; limit: number; search: string }): any | TGetValueFn {
     return new Promise((resolve, _reject) => {
       this.getValueFn({
         where: params.search

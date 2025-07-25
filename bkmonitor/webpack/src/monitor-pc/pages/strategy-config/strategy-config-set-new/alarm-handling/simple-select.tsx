@@ -28,22 +28,22 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import './simple-select.scss';
 
+interface IEvents {
+  onChange?: IValue;
+  onToggle?: boolean;
+}
+
 interface IItem {
   id: string;
   name: string;
 }
 
 interface IProps {
-  value: string | string[];
+  disabled?: boolean;
   list?: IItem[];
   multiple?: boolean;
   popoverMinWidth?: number;
-  disabled?: boolean;
-}
-
-interface IEvents {
-  onChange?: IValue;
-  onToggle?: boolean;
+  value: string | string[];
 }
 
 type IValue = string | string[];

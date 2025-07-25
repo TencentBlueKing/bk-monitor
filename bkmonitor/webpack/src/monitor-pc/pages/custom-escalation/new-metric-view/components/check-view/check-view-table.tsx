@@ -1,3 +1,5 @@
+import type { CreateElement } from 'vue';
+
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -23,7 +25,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Prop, Watch, Ref } from 'vue-property-decorator';
+import { Component, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import dayjs from 'dayjs';
@@ -31,26 +33,25 @@ import { xssFilter } from 'monitor-common/utils/xss';
 import TableSkeleton from 'monitor-pc/components/skeleton/table-skeleton';
 import { timeOffsetDateFormat } from 'monitor-pc/pages/monitor-k8s/components/group-compare-select/utils';
 import { getValueFormat } from 'monitor-ui/monitor-echarts/valueFormats/valueFormats';
-import { Table as TTable, ConfigProvider as TConfigProvider } from 'tdesign-vue';
+import { ConfigProvider as TConfigProvider, Table as TTable } from 'tdesign-vue';
 
 import { typeEnums } from '../../metric-chart-view/utils';
 
 import type { IColumnItem, IDataItem } from 'monitor-pc/pages/custom-escalation/new-metric-view/type';
 import type { ILegendItem } from 'monitor-ui/chart-plugins/typings';
-import type { CreateElement } from 'vue';
 
 import './check-view-table.scss';
 import 'tdesign-vue/es/style/index.css';
 
-interface ITableData {
-  time: string;
-  date: number;
-  rowKey: number;
+interface IFooterData {
   [key: string]: any;
 }
 
-interface IFooterData {
+interface ITableData {
   [key: string]: any;
+  date: number;
+  rowKey: number;
+  time: string;
 }
 
 @Component
@@ -311,11 +312,11 @@ export default class CheckViewTable extends tsc<object, object> {
     );
   }
 
-  renderCol(h: CreateElement, { row, col }: { row: IDataItem; col: IColumnItem }): JSX.Element {
+  renderCol(h: CreateElement, { row, col }: { col: IColumnItem; row: IDataItem }): JSX.Element {
     return <span>{this.renderValue(row, col.colKey, row.unit)}</span>;
   }
 
-  renderFluctuationCol(h: CreateElement, { row, col }: { row: IDataItem; col: IColumnItem }): JSX.Element {
+  renderFluctuationCol(h: CreateElement, { row, col }: { col: IColumnItem; row: IDataItem }): JSX.Element {
     const data = row[col.colKey];
     const isFix = data !== '--' && data !== 0 && data !== undefined;
     const color = data >= 0 ? '#3AB669' : '#E91414';
@@ -454,12 +455,12 @@ export default class CheckViewTable extends tsc<object, object> {
     };
   }
 
-  sortChange(sortInfo: { sortBy?: string; descending?: boolean }): void {
+  sortChange(sortInfo: { descending?: boolean; sortBy?: string }): void {
     this.sort = sortInfo;
     this.handleSort(sortInfo);
   }
 
-  handleSort(sort: { sortBy?: string; descending?: boolean }): void {
+  handleSort(sort: { descending?: boolean; sortBy?: string }): void {
     if (sort) {
       this.tableData = this.timeData.concat().sort((a, b) => (sort.descending ? b.date - a.date : a.date - b.date));
     } else {

@@ -347,11 +347,11 @@ class IndexSetViewSet(ModelViewSet):
             base_es_router = {
                 "data_label": BaseIndexSetHandler.get_data_label(index_set_id),
                 "space_uid": index_set["space_uid"],
-                "need_create_index": True if index_set["collector_config_id"] else False,
+                "need_create_index": False,
             }
 
             for index in indexes:
-                time_field = index.get("time_field", index_set["time_field"])
+                time_field = index.get("time_field") or index_set["time_field"]
                 time_field_type = index.get("time_field_type", index_set["time_field_type"])
                 time_field_unit = index.get("time_field_unit", index_set["time_field_unit"])
                 es_router = base_es_router.copy()
@@ -383,6 +383,8 @@ class IndexSetViewSet(ModelViewSet):
                         ],
                     }
                 )
+                if es_router["source_type"] == Scenario.LOG:
+                    es_router["origin_table_id"] = index["result_table_id"]
                 router_list.append(es_router)
 
         # 聚类索引路由创建，追加至列表末尾，不支持space过滤

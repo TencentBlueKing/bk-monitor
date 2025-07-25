@@ -23,27 +23,27 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Ref, Watch, Prop } from 'vue-property-decorator';
+import { Component, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import customEscalationViewStore from '@store/modules/custom-escalation-view';
 import _ from 'lodash';
 import ValueTagSelector from 'monitor-pc/components/retrieval-filter/value-tag-selector';
 
 import { getCustomTsDimensionValues } from '../../../../../../../../services/scene_view_new';
 import { methodMap } from './index';
+import customEscalationViewStore from '@store/modules/custom-escalation-view';
 
 import './panel-value-select.scss';
+
+interface IEmit {
+  onMethondChange: (value: string) => void;
+  onValueChange: (value: string[]) => void;
+}
 
 interface IProps {
   keyName: string;
   method: string;
   value: string[];
-}
-
-interface IEmit {
-  onMethondChange: (value: string) => void;
-  onValueChange: (value: string[]) => void;
 }
 
 @Component

@@ -34,13 +34,13 @@ import type { DraggableBounds, DraggingUpdate } from './types';
 const LEFT_MOUSE_BUTTON = 0;
 
 type DraggableManagerOptions = {
-  getBounds: (tag: TNil | string) => DraggableBounds;
+  getBounds: (tag: string | TNil) => DraggableBounds;
+  onDragEnd?: (update: DraggingUpdate) => void;
+  onDragMove?: (update: DraggingUpdate) => void;
+  onDragStart?: (update: DraggingUpdate) => void;
   onMouseEnter?: (update: DraggingUpdate) => void;
   onMouseLeave?: (update: DraggingUpdate) => void;
   onMouseMove?: (update: DraggingUpdate) => void;
-  onDragStart?: (update: DraggingUpdate) => void;
-  onDragMove?: (update: DraggingUpdate) => void;
-  onDragEnd?: (update: DraggingUpdate) => void;
   resetBoundsOnResize?: boolean;
   tag?: string;
 };
@@ -66,10 +66,10 @@ export default class DraggableManager {
    * the range the current drag can span to. It also establishes the left offset
    * to adjust `clientX` by (from the `MouseEvent`s).
    */
-  getBounds: (tag: TNil | string) => DraggableBounds;
+  getBounds: (tag: string | TNil) => DraggableBounds;
 
   // convenience data
-  tag: TNil | string;
+  tag: string | TNil;
 
   // handlers for integration with DOM elements
   handleMouseEnter: (event: MouseEvent) => void;

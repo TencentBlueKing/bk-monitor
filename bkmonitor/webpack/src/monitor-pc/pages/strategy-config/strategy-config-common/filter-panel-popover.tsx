@@ -31,13 +31,13 @@ import type { IGroupData } from '../strategy-config-list/group';
 
 import './filter-panel-popover.scss';
 
-interface IProps {
-  showFields: string[];
-  list: IGroupData[];
+interface IEmits {
+  onFilterFieldChange: (fields: { order: number[]; showFields: string[] }) => void;
 }
 
-interface IEmits {
-  onFilterFieldChange: (fields: { showFields: string[]; order: number[] }) => void;
+interface IProps {
+  list: IGroupData[];
+  showFields: string[];
 }
 
 @Component

@@ -32,16 +32,16 @@ import type { ICommonItem, SearchType } from './typings/event';
 
 import './event-chart.scss';
 
-interface IEventChartProps {
-  chartInterval: number | string;
-  getSeriesData: () => Promise<{ unit: string; series: any[] }>;
-  intervalList?: ICommonItem[];
-  chartKey: string;
-  searchType: SearchType;
-}
-
 interface IEventChartEvent {
   onIntervalChange: number | string;
+}
+
+interface IEventChartProps {
+  chartInterval: number | string;
+  chartKey: string;
+  intervalList?: ICommonItem[];
+  searchType: SearchType;
+  getSeriesData: () => Promise<{ series: any[]; unit: string }>;
 }
 @Component({
   components: { MonitorEcharts },

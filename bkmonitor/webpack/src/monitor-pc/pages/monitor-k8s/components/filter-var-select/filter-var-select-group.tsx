@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -39,16 +38,15 @@ import type { IVariableModel, IViewOptions, VariableModel } from 'monitor-ui/cha
 const DIMENSION_LIST_KEY = 'dimension_list';
 import './filter-var-select-group.scss';
 
-export interface IProps {
-  panelList: IVariableModel[];
-  customParams?: CustomParamsType;
-  editable?: boolean;
-  scencId?: string;
-  sceneType?: string;
-  pageId?: string;
-  variables: Record<string, any>;
-  needAddBtn: boolean;
-  // viewOptions?: IViewOptions;
+export interface IApiPromiseStatus {
+  component: FilterVarSelect; // 变量的组件实例
+  // isReady: boolean; // 是否已经请求完毕数据
+  fieldKey: string;
+  reference: string[]; // 该变量的引用关系
+  value?: Record<string, any>; // 变量的默认选中值
+  apiStatus: {
+    isReady: boolean; // 是否已经请求完毕数据
+  };
 }
 export interface IEvents {
   onChange: FilterDictType[];
@@ -56,15 +54,16 @@ export interface IEvents {
   onAddFilter: () => void;
 }
 
-export interface IApiPromiseStatus {
-  // isReady: boolean; // 是否已经请求完毕数据
-  fieldKey: string;
-  reference: string[]; // 该变量的引用关系
-  component: FilterVarSelect; // 变量的组件实例
-  value?: Record<string, any>; // 变量的默认选中值
-  apiStatus: {
-    isReady: boolean; // 是否已经请求完毕数据
-  };
+export interface IProps {
+  customParams?: CustomParamsType;
+  editable?: boolean;
+  needAddBtn: boolean;
+  pageId?: string;
+  panelList: IVariableModel[];
+  scencId?: string;
+  sceneType?: string;
+  variables: Record<string, any>;
+  // viewOptions?: IViewOptions;
 }
 
 @Component

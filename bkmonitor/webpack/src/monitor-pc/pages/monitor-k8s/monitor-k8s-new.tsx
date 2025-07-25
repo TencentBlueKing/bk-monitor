@@ -45,7 +45,7 @@ import K8sTableNew, {
   type K8sTableGroupByEvent,
 } from './components/k8s-table-new/k8s-table-new';
 import { K8sGroupDimension, sceneDimensionMap } from './k8s-dimension';
-import { type IK8SMetricItem, type ICommonParams, K8sNewTabEnum, SceneEnum, EDimensionKey } from './typings/k8s-new';
+import { type ICommonParams, type IK8SMetricItem, EDimensionKey, K8sNewTabEnum, SceneEnum } from './typings/k8s-new';
 
 import type { TimeRangeType } from '../../components/time-range/time-range';
 

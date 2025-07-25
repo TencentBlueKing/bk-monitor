@@ -24,13 +24,13 @@
  * IN THE SOFTWARE.
  */
 import {
+  type PropType,
   computed,
   defineComponent,
   getCurrentInstance,
   onBeforeUnmount,
   onMounted,
   shallowRef,
-  type PropType,
 } from 'vue';
 
 import './back-top.scss';

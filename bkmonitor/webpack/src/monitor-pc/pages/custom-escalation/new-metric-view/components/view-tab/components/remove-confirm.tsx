@@ -27,14 +27,14 @@
 import { Component, Prop, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
+interface IEmit {
+  onSubmit: (id: string) => void;
+}
 interface IProps {
   data: {
     id: string;
     name: string;
   };
-}
-interface IEmit {
-  onSubmit: (id: string) => void;
 }
 @Component
 export default class RemoveConfirm extends tsc<IProps, IEmit> {

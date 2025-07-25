@@ -35,11 +35,11 @@ import {
   shallowRef,
   watch,
 } from 'vue';
-import { useI18n } from 'vue-i18n';
 
 import dayjs from 'dayjs';
 import { getTimeSeriesXInterval } from 'monitor-ui/chart-plugins/utils/axis';
 import { type MonitorEchartOptions, echarts } from 'monitor-ui/monitor-echarts/types/monitor-echarts';
+import { useI18n } from 'vue-i18n';
 
 import { Toolbox } from './typings/toolbox';
 
@@ -255,7 +255,7 @@ export default defineComponent({
         liHtmlList = list
           .sort((a: { value: number[] }, b: { value: number[] }) => b.value[1] - a.value[1])
           .map(
-            (item: { value: number[]; color: any; seriesName: any; seriesIndex: number | string; dataIndex: any }) => {
+            (item: { color: any; dataIndex: any; seriesIndex: number | string; seriesName: any; value: number[] }) => {
               let markColor = 'color: #fafbfd;';
               if (data[0].value === item.value[1]) {
                 markColor = 'color: #fff;font-weight: bold;';

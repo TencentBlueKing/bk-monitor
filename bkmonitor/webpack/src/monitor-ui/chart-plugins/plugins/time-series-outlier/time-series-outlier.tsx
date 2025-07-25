@@ -45,9 +45,9 @@ import type { ILegendItem, ITimeSeriesItem, LegendActionType } from '../../typin
 import './time-series-outlier.scss';
 
 interface ISensitivityRangeItem {
+  color: string;
   id: string;
   name: string;
-  color: string;
 }
 const LOWER_STR = 'lower-';
 const UPPER_STR = 'upper-';

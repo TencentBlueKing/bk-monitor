@@ -32,13 +32,13 @@
     @after-leave="handleCloseDialog"
   >
     <div
-      class="collection-dialog"
       v-bkloading="{ isLoading: loading }"
+      class="collection-dialog"
     >
       <div>
         <bk-input
-          clearable
           v-model="search"
+          clearable
           :placeholder="$t('搜索')"
           :right-icon="'bk-icon icon-search'"
           @change="handleSearchChange"
@@ -46,9 +46,9 @@
       </div>
       <!-- 仪表盘分组 -->
       <div
-        class="dashboard-group"
         v-for="group in searchDashBoardList"
         :key="group.id"
+        class="dashboard-group"
       >
         <!-- 分组名称 -->
         <div
@@ -73,13 +73,13 @@
           <div v-if="groupData.checkId === group.id">
             <!-- 新增仪表盘 -->
             <div
-              class="add-row-input dashboard-input"
               v-if="dashboard.isShow"
+              class="add-row-input dashboard-input"
             >
               <bk-input
                 :ref="`dashboardInput${group.id}`"
-                :placeholder="$tc('输入仪表盘名称')"
                 v-model="dashboard.name"
+                :placeholder="$tc('输入仪表盘名称')"
               />
               <div
                 class="input-icon"
@@ -95,9 +95,9 @@
               </div>
             </div>
             <div
+              v-else
               class="dashboard-group-child add-new"
               @click="handleShowDashboardAdd(group.id)"
-              v-else
             >
               <i class="icon-monitor icon-mc-add" />
               {{ $t('新建仪表盘') }}
@@ -112,8 +112,8 @@
             >
               <span class="group-child-name">{{ item.title }}</span>
               <i
-                class="bk-icon icon-check-1"
                 v-if="checkedDashboard.id === item.id"
+                class="bk-icon icon-check-1"
               />
             </div>
           </div>
@@ -121,13 +121,13 @@
       </div>
       <!-- 新增仪表盘分组 -->
       <div
-        class="add-row-input group-input"
         v-if="groupData.isShow"
+        class="add-row-input group-input"
       >
         <bk-input
-          :placeholder="$tc('输入目录名称')"
-          v-model="groupData.name"
           ref="groupInput"
+          v-model="groupData.name"
+          :placeholder="$tc('输入目录名称')"
           :left-icon="'icon-monitor icon-mc-file-close'"
         />
         <div
@@ -144,9 +144,9 @@
         </div>
       </div>
       <div
+        v-else
         class="dashboard-group-title add-new"
         @click="handleShowGroupAdd"
-        v-else
       >
         <i class="icon-monitor icon-mc-add" />
         {{ $t('新建目录') }}
@@ -156,15 +156,15 @@
       <bk-button
         :loading="loading"
         theme="primary"
-        @click="handleCollectionToDashboard(true)"
         :disabled="!Object.keys(checkedDashboard).length"
+        @click="handleCollectionToDashboard(true)"
         >{{ $t('收藏并跳转') }}</bk-button
       >
       <bk-button
         :loading="loading"
         theme="primary"
-        @click="handleCollectionToDashboard(false)"
         :disabled="!Object.keys(checkedDashboard).length"
+        @click="handleCollectionToDashboard(false)"
         >{{ $t('直接收藏') }}</bk-button
       >
       <bk-button @click="handleCloseDialog">
@@ -174,13 +174,15 @@
   </bk-dialog>
 </template>
 <script lang="ts">
+import { Component, Mixins, Prop, Ref, Watch } from 'vue-property-decorator';
+
 import { createDashboardOrFolder, getDirectoryTree, saveToDashboard } from 'monitor-api/modules/grafana';
 import { filterDictConvertedToWhere } from 'monitor-ui/chart-plugins/utils';
-import { Component, Mixins, Prop, Ref, Watch } from 'vue-property-decorator';
 
 import { Debounce } from '../../../components/ip-selector/common/util';
 import { DASHBOARD_ID_KEY } from '../../../constant/constant';
 import collapseMixin from '../../../mixins/collapseMixin';
+
 import type MonitorVue from '../../../types/index';
 import type { ICheckedDashboard } from '../index';
 

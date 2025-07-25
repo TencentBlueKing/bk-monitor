@@ -26,24 +26,24 @@
 import { Component, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { ETabNames, type IInfo } from './types';
+import { type IInfo, ETabNames } from './types';
 
 import './tab-title.scss';
+
+interface IProps {
+  active: string;
+  dimensionDrillDownErr?: string;
+  dimensionDrillDownLoading: boolean;
+  metricRecommendationErr?: string;
+  metricRecommendationLoading: boolean;
+  showDimensionDrill: boolean;
+  showMetricRecommendation: boolean;
+  tabInfo?: ITabInfo;
+}
 
 interface ITabInfo {
   dimensionInfo: IInfo;
   indexInfo: IInfo;
-}
-
-interface IProps {
-  active: string;
-  tabInfo?: ITabInfo;
-  metricRecommendationLoading: boolean;
-  dimensionDrillDownLoading: boolean;
-  metricRecommendationErr?: string;
-  dimensionDrillDownErr?: string;
-  showDimensionDrill: boolean;
-  showMetricRecommendation: boolean;
 }
 
 @Component

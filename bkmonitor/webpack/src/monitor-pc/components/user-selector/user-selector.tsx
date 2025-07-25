@@ -37,19 +37,19 @@ import './user-selector.scss';
 import '@blueking/bk-user-selector/vue2/vue2.css';
 
 interface IBkUserSelectorProps {
+  [key: string]: any;
   apiBaseUrl?: string;
+  draggable?: boolean;
+  emptyText?: string;
+  enableMultiTenantMode?: boolean;
   modelValue?: string | string[];
   multiple?: boolean;
-  draggable?: boolean;
+  placeholder?: string;
   tenantId?: string;
   userGroup?: IUserGroup[];
-  enableMultiTenantMode?: boolean;
-  placeholder?: string;
-  emptyText?: string;
+  onChange?: (value: string[]) => void;
   renderListItem?: (_, userInfo: FormattedUser) => JSX.Element;
   renderTag?: (_, userInfo: FormattedUser) => JSX.Element;
-  onChange?: (value: string[]) => void;
-  [key: string]: any;
 }
 
 const BkUserSelector: (props: IBkUserSelectorProps) => JSX.Element = BkUserSelectorOrigin as any as (
@@ -61,13 +61,13 @@ const BkUserSelector: (props: IBkUserSelectorProps) => JSX.Element = BkUserSelec
 })
 export default class UserSelector extends tsc<
   {
-    userIds: string | string[];
-    userGroupList?: IUserGroup[];
-    userGroup?: string[];
-    multiple?: boolean;
     draggable?: boolean;
-    placeholder?: string;
     emptyText?: string;
+    multiple?: boolean;
+    placeholder?: string;
+    userGroup?: string[];
+    userGroupList?: IUserGroup[];
+    userIds: string | string[];
   },
   { onChange: string[] }
 > {

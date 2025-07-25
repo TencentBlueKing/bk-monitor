@@ -26,14 +26,14 @@
 <template>
   <div
     ref="ipListWrapper"
-    class="ip-list"
     v-bkloading="{ isLoading: isLoading && !disabledLoading }"
+    class="ip-list"
   >
     <bk-input
       v-if="enableTableSearch"
+      v-model="tableKeyword"
       clearable
       right-icon="bk-icon icon-search"
-      v-model="tableKeyword"
       :placeholder="ipListPlaceholder"
       @change="handleKeywordChange"
     />
@@ -61,11 +61,12 @@ import { Component, Emit, Prop, Ref, Vue, Watch } from 'vue-property-decorator';
 
 import { Debounce } from '../common/util';
 import IpSelectorTable from '../components/ip-selector-table.vue';
+
 import type {
+  IipListParams,
   IPagination,
   ITableCheckData,
   ITableConfig,
-  IipListParams,
   SearchDataFuncType,
 } from '../types/selector-type';
 
@@ -124,21 +125,20 @@ export default class IpList extends Vue {
     this.maxHeight = this.ipListWrapperRef.clientHeight - this.slotHeight - 42;
   }
 
-  // eslint-disable-next-line @typescript-eslint/member-ordering
   public handleGetDefaultData(type = '') {
     this.pagination.current = 1;
     this.pagination.count = 0;
     this.tableRef?.resetCheckedStatus();
     this.handleGetSearchData(type);
   }
-  // eslint-disable-next-line @typescript-eslint/member-ordering
+
   public handleGetDefaultSelections() {
     // 获取默认勾选项
     this.defaultSelections = this.tableData.filter(
       row => this.getDefaultSelections && !!this.getDefaultSelections(row)
     );
   }
-  // eslint-disable-next-line @typescript-eslint/member-ordering
+
   public selectionAllData() {
     this.$nextTick(() => {
       !!this.tableData.length && this.tableRef && this.tableRef.handleSelectionChange({ value: 2, type: 'all' });

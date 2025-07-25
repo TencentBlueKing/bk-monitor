@@ -48,27 +48,27 @@ import type { IViewOptions, PanelModel } from 'monitor-ui/chart-plugins/typings'
 import './apm-api-panel.scss';
 import '@blueking/search-select-v3/vue2/vue2.css';
 
-interface ICommonListProps {
-  // panel实例
-  panel: PanelModel;
-  // 视图数据参数配置
-  viewOptions: IViewOptions;
-  height?: number;
+export interface ITabItem {
+  id: string;
+  name: string;
+  status: string;
+  tips: string;
 }
 
 interface ICommonListEvent {
   // 选中列表行数据触发
   onChange: IViewOptions;
-  // 标题修改触发
-  onTitleChange: string;
   // get list
   onListChange: Record<string, any>[];
+  // 标题修改触发
+  onTitleChange: string;
 }
-export interface ITabItem {
-  name: string;
-  id: string;
-  tips: string;
-  status: string;
+interface ICommonListProps {
+  height?: number;
+  // panel实例
+  panel: PanelModel;
+  // 视图数据参数配置
+  viewOptions: IViewOptions;
 }
 @Component
 export default class ApmTopo extends tsc<ICommonListProps, ICommonListEvent> {

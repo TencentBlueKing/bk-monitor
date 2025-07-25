@@ -27,31 +27,31 @@
 import type { IFilterDict } from './table';
 
 /**
+ * BkSeachSelect 的值
+ */
+export interface IBkSeachSelectValue {
+  children?: Array<{ id: string; name: string }>;
+  id: string;
+  multiple?: boolean;
+  name: string;
+  values?: Array<{ id: string; name: string }>;
+}
+/**
  * k8s列表图表的查询参数
  */
 export interface IQueryData {
+  checkboxs?: string[]; // checkbox filter
+  filter: string; // 状态筛选
+  filterDict?: IFilterDict;
+  keyword?: string; // 搜索关键字
   page: number; // 当前分页
   pageSize: number; // 页数
   search?: IQueryDataSearch; // 搜索框条件
   selectorSearch?: IQueryDataSearch; // 详情侧栏搜索条件
-  filter: string; // 状态筛选
-  keyword?: string; // 搜索关键字
   sort?: string; // 置顶排序
-  checkboxs?: string[]; // checkbox filter
-  filterDict?: IFilterDict;
 }
+
 /**
  * 搜索框条件
  */
 export type IQueryDataSearch = Array<Record<string, string | string[]>>;
-
-/**
- * BkSeachSelect 的值
- */
-export interface IBkSeachSelectValue {
-  id: string;
-  name: string;
-  multiple?: boolean;
-  values?: Array<{ id: string; name: string }>;
-  children?: Array<{ id: string; name: string }>;
-}

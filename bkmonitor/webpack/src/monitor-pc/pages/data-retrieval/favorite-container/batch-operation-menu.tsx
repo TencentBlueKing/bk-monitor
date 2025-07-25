@@ -32,14 +32,14 @@ import type { IFavList } from '../typings';
 
 import './batch-operation-menu.scss';
 
-interface BatchOperationMenuProps {
-  selectFavoriteList: IFavList.favList[];
-  favoriteType: string;
-  favoriteGroupList: IFavList.favGroupList[];
-}
-
 interface BatchOperationMenuEvents {
   onOperateChange(operate: string, value?: any): void;
+}
+
+interface BatchOperationMenuProps {
+  favoriteGroupList: IFavList.favGroupList[];
+  favoriteType: string;
+  selectFavoriteList: IFavList.favList[];
 }
 
 @Component

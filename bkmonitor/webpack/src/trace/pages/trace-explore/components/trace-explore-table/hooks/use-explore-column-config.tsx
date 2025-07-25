@@ -24,10 +24,11 @@
  * IN THE SOFTWARE.
  */
 
-import { computed, reactive, type VNode } from 'vue';
-import { useI18n } from 'vue-i18n';
+import { type VNode, computed, reactive } from 'vue';
+import type { DeepReadonly, MaybeRef } from 'vue';
 
 import { get } from '@vueuse/core';
+import { useI18n } from 'vue-i18n';
 
 import useUserConfig from '../../../../../hooks/useUserConfig';
 import { useTraceExploreStore } from '../../../../../store/modules/explore';
@@ -41,28 +42,27 @@ import {
   TABLE_DISPLAY_COLUMNS_FIELD_SUFFIX,
 } from '../constants';
 import {
-  ExploreTableColumnTypeEnum,
-  type GetTableCellRenderValue,
+  type ActiveConditionMenuTarget,
   type CustomDisplayColumnFieldsConfig,
   type ExploreTableColumn,
-  type ActiveConditionMenuTarget,
+  type GetTableCellRenderValue,
+  ExploreTableColumnTypeEnum,
 } from '../typing';
 
 import type { IDimensionField } from '../../../typing';
 import type { SortInfo, TableSort } from '@blueking/tdesign-ui';
 import type { SlotReturnValue } from 'tdesign-vue-next';
-import type { MaybeRef, DeepReadonly } from 'vue';
 
 interface UseExploreTableColumnConfig {
-  props: Record<string, any>;
   isSpanVisual: MaybeRef<boolean>;
+  props: Record<string, any>;
   rowKeyField: MaybeRef<string>;
   sortContainer: DeepReadonly<SortInfo>;
-  tableHeaderCellRender: (title: string, tipText: string, column: ExploreTableColumn) => () => SlotReturnValue;
-  tableCellRender: (column: ExploreTableColumn, row: Record<string, any>) => SlotReturnValue;
   handleConditionMenuShow: (triggerDom: HTMLElement, conditionMenuTarget: ActiveConditionMenuTarget) => void;
   handleSliderShowChange: (mode: 'span' | 'trace', id: string) => void;
   handleSortChange: (sortEvent: TableSort) => void;
+  tableCellRender: (column: ExploreTableColumn, row: Record<string, any>) => SlotReturnValue;
+  tableHeaderCellRender: (title: string, tipText: string, column: ExploreTableColumn) => () => SlotReturnValue;
 }
 
 /**
@@ -178,7 +178,7 @@ export function useExploreColumnConfig({
           attrs: column.sorter
             ? {
                 // 扩大排序点击热区范围
-                onClick(e: MouseEvent & { target: Element; currentTarget: Element }) {
+                onClick(e: MouseEvent & { currentTarget: Element; target: Element }) {
                   if (
                     column.colKey &&
                     e.currentTarget.tagName.toLocaleLowerCase() === 'th' &&

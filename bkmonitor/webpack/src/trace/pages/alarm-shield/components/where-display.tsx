@@ -24,12 +24,12 @@
  * IN THE SOFTWARE.
  */
 import { type PropType, defineComponent, reactive, ref } from 'vue';
-import { useI18n } from 'vue-i18n';
 
 import { Popover } from 'bkui-vue';
 import { getVariableValue } from 'monitor-api/modules/grafana';
 import { random } from 'monitor-common/utils';
 import { NUMBER_CONDITION_METHOD_LIST, STRING_CONDITION_METHOD_LIST } from 'monitor-pc/constant/constant';
+import { useI18n } from 'vue-i18n';
 
 import type {
   ICommonItem,
@@ -74,8 +74,8 @@ export default defineComponent({
   setup(props) {
     const { t } = useI18n();
     const maps = reactive<{
-      whereNameMap: Map<number | string, string>;
       methodNameMap: Map<string, string>;
+      whereNameMap: Map<number | string, string>;
       whereValueMap: Map<string, ICommonItem[]>;
     }>({
       whereNameMap: new Map(),

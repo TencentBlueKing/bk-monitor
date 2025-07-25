@@ -25,22 +25,22 @@
 -->
 <template>
   <div
-    class="task-form"
     v-bkloading="{ isLoading: isLoading }"
+    class="task-form"
   >
     <div class="task-form-content">
       <section v-show="!formDone.show">
         <div class="uptime-form-item">
           <div
-            class="item-label item-required"
             v-en-class="'mw-170'"
+            class="item-label item-required"
           >
             {{ $t('所属') }}
           </div>
           <div class="item-container">
             <bk-select
-              class="reset-width"
               v-model="task.business"
+              class="reset-width"
               :clearable="false"
               :disabled="ccBizId !== 0"
               @change="handleChangeBiz"
@@ -53,8 +53,8 @@
               />
             </bk-select>
             <span
-              class="validate-hint"
               v-show="requiredOptions.business"
+              class="validate-hint"
             >
               {{ $t('选择所属空间') }}
             </span>
@@ -62,8 +62,8 @@
         </div>
         <div class="uptime-form-item">
           <div
-            class="item-label item-required"
             v-en-class="'mw-170'"
+            class="item-label item-required"
           >
             {{ $t('任务名称') }}
           </div>
@@ -83,8 +83,8 @@
         </div>
         <div class="uptime-form-item">
           <div
-            class="item-label item-required"
             v-en-class="'mw-170'"
+            class="item-label item-required"
           >
             {{ $t('协议') }}
           </div>
@@ -95,8 +95,8 @@
             >
               <bk-radio
                 v-for="(item, index) in protocol.data"
-                class="protocol-radio"
                 :key="index"
+                class="protocol-radio"
                 :value="item"
               >
                 <span
@@ -106,9 +106,9 @@
                 >
                 <span
                   v-else
+                  v-bk-tooltips.bottom="$t('功能依赖1.10.x及以上版本的bkmonitorbeat')"
                   style="font-size: 12px"
                   class="radio-icmp-tips"
-                  v-bk-tooltips.bottom="$t('功能依赖1.10.x及以上版本的bkmonitorbeat')"
                 >
                   {{ item }}
                 </span>
@@ -118,8 +118,8 @@
         </div>
         <div class="uptime-form-item http-selector-wrap">
           <div
-            class="item-label item-required"
             v-en-class="'mw-170'"
+            class="item-label item-required"
           >
             {{ $t('目标') }}
           </div>
@@ -138,9 +138,9 @@
               @addTarget="handleAddTcpTarget"
             />
             <div
+              v-show="requiredOptions.target"
               :style="{ color: '#f56c6c' }"
               class="item-container-tips"
-              v-show="requiredOptions.target"
             >
               {{ $t('添加拨测目标') }}
             </div>
@@ -151,17 +151,17 @@
           class="uptime-form-item http-selector-wrap"
         >
           <div
-            class="item-label"
             v-en-class="'mw-170'"
+            class="item-label"
           >
             {{ $t('参数设置') }}
           </div>
           <div class="item-container">
             <http-editor
               ref="http-selector"
+              :key="httpEditorKey"
               class="http-selector"
               :is-edit="true"
-              :key="httpEditorKey"
               :method-list="methodList"
               :need-settings="false"
               :value="httpConfig"
@@ -172,39 +172,39 @@
           </div>
         </div>
         <div
-          class="uptime-form-item submit-content"
           v-show="protocol.value === 'HTTP' && task.method === 'POST'"
+          class="uptime-form-item submit-content"
         >
           <div
-            class="item-label item-required"
             v-en-class="'mw-170'"
+            class="item-label item-required"
           >
             {{ $t('提交内容') }}
           </div>
           <div class="item-container">
             <bk-input
-              class="reset-width"
               v-model="task.submitContent"
+              class="reset-width"
               placeholder='发送的内容格式：k1=v1;k2=v2，或者一段JSONObject，如: {"key":"value"}'
               type="textarea"
               @blur="requiredOptions.submitContent = !Boolean(task.submitContent)"
               @focus="requiredOptions.submitContent = false"
             />
             <span
-              class="validate-hint"
               v-show="requiredOptions.submitContent"
+              class="validate-hint"
             >
               {{ $t('填写提交内容') }}
             </span>
           </div>
         </div>
         <div
-          class="uptime-form-item"
           v-show="protocol.value !== 'HTTP' && protocol.value !== 'ICMP'"
+          class="uptime-form-item"
         >
           <div
-            class="item-label item-required"
             v-en-class="'mw-170'"
+            class="item-label item-required"
           >
             {{ $t('端口') }}
           </div>
@@ -226,12 +226,12 @@
           </div>
         </div>
         <div
-          class="uptime-form-item"
           v-show="protocol.value === 'UDP'"
+          class="uptime-form-item"
         >
           <div
-            class="item-label"
             v-en-class="'mw-170'"
+            class="item-label"
           >
             {{ $t('请求内容') }}
           </div>
@@ -242,8 +242,8 @@
             >
               <bk-compose-form-item>
                 <bk-select
-                  style="width: 92px"
                   v-model="requestFormat"
+                  style="width: 92px"
                   :clearable="false"
                   @change="() => validateRequestContent(task.requestContent)"
                 >
@@ -255,8 +255,8 @@
                   />
                 </bk-select>
                 <bk-input
-                  class="request-width"
                   v-model="task.requestContent"
+                  class="request-width"
                   :placeholder="
                     $t(requestFormat === 'hex' ? '十六进制的请求内容，如3a47534b422d644c' : '原始请求内容, 如echo')
                   "
@@ -268,8 +268,8 @@
         </div>
         <div class="uptime-form-item">
           <div
-            class="item-label item-required"
             v-en-class="'mw-170'"
+            class="item-label item-required"
           >
             {{ $t('拨测节点') }}
           </div>
@@ -280,8 +280,8 @@
             >
               <bk-select
                 ref="taskNodeSelect"
-                class="reset-width"
                 v-model="task.nodes"
+                class="reset-width"
                 :clearable="false"
                 :loading="nodeListLoading"
                 :multiple="true"
@@ -289,9 +289,9 @@
               >
                 <bk-option
                   v-for="item in node[task.business]"
-                  :disabled="Boolean(item.status === '-1')"
                   :id="item.id"
                   :key="item.id"
+                  :disabled="Boolean(item.status === '-1')"
                   :name="item.name + ' ' + item.ip"
                 >
                   <div class="node-option">
@@ -300,8 +300,8 @@
                   </div>
                 </bk-option>
                 <div
-                  class="item-input-create"
                   slot="extension"
+                  class="item-input-create"
                   @click="handleCreateTaskNode"
                 >
                   <i class="bk-icon icon-plus-circle" />{{ $t('新建拨测节点') }}
@@ -312,8 +312,8 @@
         </div>
         <div class="uptime-form-item">
           <div
-            class="item-label item-required"
             v-en-class="'mw-170'"
+            class="item-label item-required"
           >
             {{ $t('超时设置') }}
           </div>
@@ -323,22 +323,22 @@
               :validator="timeoutValidate"
             >
               <bk-input
-                style="width: 120px"
                 v-model.number="task.timeout"
+                style="width: 120px"
                 type="number"
                 @blur="handleValidateTimeout"
               >
                 <div
-                  class="unit"
                   slot="append"
+                  class="unit"
                 >
                   ms
                 </div>
               </bk-input>
             </verify-input>
             <div
-              class="hint-icon"
               v-bk-tooltips.top="$t('超过该时长未正常采集数据时，系统判定该任务为不可用状态！')"
+              class="hint-icon"
             >
               <span class="icon-monitor icon-tips icon" />
             </div>
@@ -346,23 +346,23 @@
         </div>
         <div class="uptime-form-item last-item">
           <div
-            class="item-label group"
             v-en-class="'mw-170'"
+            class="item-label group"
           >
             {{ $t('任务组') }}
           </div>
           <div class="item-container">
             <bk-select
-              class="reset-width"
               v-model="task.groups"
+              class="reset-width"
               :multiple="true"
               :placeholder="$t('选择想要加入的任务组')"
             >
               <bk-option
                 v-for="item in groupList"
-                class="reset-width"
                 :id="item.id"
                 :key="item.id"
+                class="reset-width"
                 :name="item.name"
               />
             </bk-select>
@@ -370,8 +370,8 @@
         </div>
         <div class="uptime-form-item text-item">
           <div
-            class="item-label"
             v-en-class="'mw-170'"
+            class="item-label"
           />
           <div class="item-container item-advance">
             <bk-button
@@ -386,8 +386,8 @@
         <!-- 高级选项 -->
         <transition name="advanced-option-fade">
           <div
-            class="uptime-form-item advanced-option"
             v-show="isShowAdvanced"
+            class="uptime-form-item advanced-option"
           >
             <advanced-option
               ref="advancedRef"
@@ -398,13 +398,13 @@
         </transition>
         <div class="uptime-form-item">
           <div
-            class="item-label"
             v-en-class="'mw-170'"
+            class="item-label"
           />
           <div class="item-container">
             <bk-button
-              class="btn-submit"
               v-authority="{ active: !authority.MANAGE_AUTH }"
+              class="btn-submit"
               :disabled="nodeListLoading || isLoading || isSubmit"
               :icon="isSubmit ? 'loading' : ''"
               theme="primary"
@@ -1326,7 +1326,8 @@ export default {
       }
 
       :deep(.ip-select-right) {
-        background-image: linear-gradient(-90deg, #dcdee5 1px, rgba(0, 0, 0, 0) 1px, rgba(0, 0, 0, 0) 100%),
+        background-image:
+          linear-gradient(-90deg, #dcdee5 1px, rgba(0, 0, 0, 0) 1px, rgba(0, 0, 0, 0) 100%),
           linear-gradient(0deg, #dcdee5 1px, rgba(0, 0, 0, 0) 1px, rgba(0, 0, 0, 0) 100%);
         border-top: 1px solid #dcdee5;
 

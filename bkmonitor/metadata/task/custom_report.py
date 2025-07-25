@@ -207,6 +207,7 @@ def refresh_custom_log_config(log_group_id=None):
 
     try:
         models.LogSubscriptionConfig.refresh(log_group)
+        models.LogSubscriptionConfig.refresh_k8s(log_group)
     except Exception as err:  # pylint: disable=broad-except
         logger.exception("[RefreshCustomLogConfigFailed] Err => %s; LogGroup => %s", str(err), log_group.log_group_id)
 

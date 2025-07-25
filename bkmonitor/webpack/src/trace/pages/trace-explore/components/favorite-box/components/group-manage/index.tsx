@@ -23,7 +23,8 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, Teleport, type PropType, type UnwrapRef, shallowRef } from 'vue';
+import { type PropType, type UnwrapRef, defineComponent, shallowRef, Teleport } from 'vue';
+
 import { useI18n } from 'vue-i18n';
 
 import RenderFavoriteTable from './components/render-favorite-table/index';

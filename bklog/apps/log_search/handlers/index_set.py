@@ -1584,7 +1584,7 @@ class BaseIndexSetHandler:
                 "data_label": self.get_data_label(index_set.index_set_id),
                 "space_id": index_set.space_uid.split("__")[-1],
                 "space_type": index_set.space_uid.split("__")[0],
-                "need_create_index": True if index_set.collector_config_id else False,
+                "need_create_index": False,
             }
             multi_execute_func = MultiExecuteFunc()
             objs = LogIndexSetData.objects.filter(index_set_id=index_set.index_set_id)
@@ -1620,10 +1620,13 @@ class BaseIndexSetHandler:
                         ],
                     }
                 )
+
+                if request_params["source_type"] == Scenario.LOG:
+                    request_params["origin_table_id"] = obj.result_table_id
                 multi_execute_func.append(
                     result_key=obj.result_table_id,
                     func=TransferApi.create_or_update_log_router,
-                    params=_params,
+                    params=request_params,
                 )
             multi_execute_func.run()
         except Exception as e:

@@ -40,8 +40,8 @@
               {{ item.count ? (item.shortTitle ? item.shortTitle : item.title) : item.title }}
             </span>
             <span
-              class="count"
               v-show="item.count"
+              class="count"
             >
               {{ handleCount(item.count) }}
             </span>
@@ -84,7 +84,7 @@ export default class EventTab extends Vue {
 }
 </script>
 <style lang="scss">
-@import '../../static/scss/variate.scss';
+@import '../../static/scss/variate';
 
 .event-tab {
   box-sizing: border-box;
@@ -110,8 +110,8 @@ export default class EventTab extends Vue {
 
     .count {
       display: flex;
-      align-items: center;
-      justify-items: center;
+      place-items: center center;
+
       // height: 16px;
       padding: 0 4px;
       margin-left: 6px;

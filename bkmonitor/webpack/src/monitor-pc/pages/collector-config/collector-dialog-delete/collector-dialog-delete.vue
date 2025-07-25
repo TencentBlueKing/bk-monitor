@@ -42,8 +42,8 @@
       </div>
     </div>
     <div
-      class="step-wrapper"
       v-if="!isDeleting"
+      class="step-wrapper"
     >
       <div class="checkbox-wrapper">
         <div class="checkbox-item">
@@ -52,27 +52,30 @@
             :checked="!collectTaskIsStop"
             :disabled="true"
           />
-          <span>{{ $t('停用该采集任务')
-          }}<span
-            class="tips"
-            v-if="collectorTaskData.status === 'STOPPED'"
-          >{{ $t('（已停用）') }}</span></span>
+          <span
+            >{{ $t('停用该采集任务')
+            }}<span
+              v-if="collectorTaskData.status === 'STOPPED'"
+              class="tips"
+              >{{ $t('（已停用）') }}</span
+            ></span
+          >
         </div>
       </div>
       <div class="checkbox-wrapper">
         <div class="checkbox-item">
           <bk-checkbox
-            class="checkbox"
             v-model="checkboxCnofig"
+            class="checkbox"
             :disabled="!hasRelatedStrategy"
           />
-          <span
-            class="step-title"
-          >{{ $t('同时删除相关联的策略配置') }}
+          <span class="step-title"
+            >{{ $t('同时删除相关联的策略配置') }}
             <span
               v-if="!hasRelatedStrategy"
               class="tips"
-            >{{ $t('（未关联策略配置）') }}</span>
+              >{{ $t('（未关联策略配置）') }}</span
+            >
             <span
               v-else
               class="tips-hl to-detail"
@@ -97,13 +100,13 @@
       </div>
     </div>
     <div
-      class="running-wrapper"
       v-else-if="deletingStepList.length"
+      class="running-wrapper"
     >
       <div
-        class="step-item"
         v-for="(item, index) in deletingStepList"
         :key="index"
+        class="step-item"
       >
         <div class="header">
           <img
@@ -111,7 +114,7 @@
             class="loading"
             src="../../../static/images/svg/spinner.svg"
             alt=""
-          >
+          />
           <div
             v-else
             class="poit"
@@ -121,8 +124,8 @@
           </div>
         </div>
         <div
-          class="tips"
           v-if="item.data"
+          class="tips"
         >
           <i18n path="已停用{0}个节点内的{1}台主机">
             <span class="tips-hl">{{ item.data.node }}</span>
@@ -131,7 +134,8 @@
           <span
             class="tips-hl to-detail"
             @click="handleCheckStatus"
-          >（{{ $t('查看详情') }} <i class="icon-monitor icon-mc-wailian" />）</span>
+            >（{{ $t('查看详情') }} <i class="icon-monitor icon-mc-wailian" />）</span
+          >
         </div>
         <div :class="['line', { 'need-line': deletingStepList[index + 1], 'is-loading': item.loading }]" />
       </div>
@@ -142,14 +146,15 @@
         :theme="'primary'"
         :disabled="isDeleting && !isDeleted"
         @click="handleDel"
-      >{{
-        isDeleted ? $t('删除完成') : isDeleting ? $t('删除中...') : $t('删除')
-      }}</bk-button>
+        >{{ isDeleted ? $t('删除完成') : isDeleting ? $t('删除中...') : $t('删除') }}</bk-button
+      >
     </div>
   </monitor-dialog>
 </template>
 
 <script lang="ts">
+import { Component, Prop, PropSync, Vue, Watch } from 'vue-property-decorator';
+
 import {
   collectTargetStatus,
   deleteCollectConfig,
@@ -158,7 +163,6 @@ import {
 } from 'monitor-api/modules/collecting';
 import { deleteStrategyConfig } from 'monitor-api/modules/strategies';
 import monitorDialog from 'monitor-ui/monitor-dialog/monitor-dialog.vue';
-import { Component, Prop, PropSync, Vue, Watch } from 'vue-property-decorator';
 
 import type { ICollectorTaskData, IDeletingStepListItem } from '../collector-type';
 

@@ -31,17 +31,17 @@ import type { INavItem, IRouteBackItem } from '../typings';
 
 import './common-nav-bar.scss';
 
+export type NavBarMode = 'copy' | 'display' | 'share';
 interface ICommonNavBarProps {
-  routeList?: INavItem[];
-  needBack?: boolean;
-  needShadow?: boolean;
-  needCopyLink?: boolean;
-  positionText?: string;
   backGotoItem?: IRouteBackItem;
   navMode?: NavBarMode;
+  needBack?: boolean;
+  needCopyLink?: boolean;
+  needShadow?: boolean;
+  positionText?: string;
+  routeList?: INavItem[];
   callbackRouterBack?: () => void;
 }
-export type NavBarMode = 'copy' | 'display' | 'share';
 
 @Component({
   name: 'CommonNavBar',

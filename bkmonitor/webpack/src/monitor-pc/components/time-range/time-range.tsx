@@ -35,22 +35,22 @@ import type { Dayjs } from 'dayjs';
 
 import '@blueking/date-picker/vue2/vue2.css';
 
-export type TimeRangeType = [string, string];
-
 export type DateValue = [Dayjs | number | string, Dayjs | number | string];
 
-type TimeRangeDisplayType = 'normal' | 'simplicity';
-interface IProps {
-  value: TimeRangeType;
-  type?: TimeRangeDisplayType;
-  timezone?: string;
-  needTimezone?: boolean;
-  commonUseList?: DateValue[];
-}
+export type TimeRangeType = [string, string];
+
 interface IEvents {
   onChange: TimeRangeType;
   onTimezoneChange: string;
 }
+interface IProps {
+  commonUseList?: DateValue[];
+  needTimezone?: boolean;
+  timezone?: string;
+  type?: TimeRangeDisplayType;
+  value: TimeRangeType;
+}
+type TimeRangeDisplayType = 'normal' | 'simplicity';
 
 @Component
 export default class TimeRange extends tsc<IProps, IEvents> {

@@ -64,6 +64,21 @@ export function formatDuration(value: number, baseUnit = 'μs'): string {
   return `${value}ms`; // 默认返回ms
 }
 /**
+ * 检查字符串是否为有效的时间格式（数值+单位）
+ * @param str - 要检查的字符串
+ * @returns 是否为有效时间格式
+ */
+export function isValidTimeFormat(str: string, baseUnit = 'μs'): boolean {
+  // 正则解释：
+  // ^[\d.]+ - 以数字或小数点开头（至少一个）
+  // (ns|μs|ms|s|m|h|d)$ - 以指定单位结尾
+  if (['μs', 'us'].includes(baseUnit)) {
+    return /^[\d.]+(μs|us|ms|s|m|h|d)$/.test(str);
+  }
+  return /^[\d.]+(ns|μs|us|ms|s|m|h|d)$/.test(str);
+}
+
+/**
  * 将时间字符串转换为数值（基于指定基础单位）
  * @param timeStr - 时间字符串，格式为"数值+单位"，例如："1.5s"、"500ms"
  * @param baseUnit - 基础单位，默认为'μs'（微秒），可选'ms'（毫秒）
@@ -102,19 +117,4 @@ export function parseDuration(timeStr: string, baseUnit = 'μs'): number {
   const unit = match[2];
 
   return value * (unitMap[unit] || 1);
-}
-
-/**
- * 检查字符串是否为有效的时间格式（数值+单位）
- * @param str - 要检查的字符串
- * @returns 是否为有效时间格式
- */
-export function isValidTimeFormat(str: string, baseUnit = 'μs'): boolean {
-  // 正则解释：
-  // ^[\d.]+ - 以数字或小数点开头（至少一个）
-  // (ns|μs|ms|s|m|h|d)$ - 以指定单位结尾
-  if (['μs', 'us'].includes(baseUnit)) {
-    return /^[\d.]+(μs|us|ms|s|m|h|d)$/.test(str);
-  }
-  return /^[\d.]+(ns|μs|us|ms|s|m|h|d)$/.test(str);
 }
