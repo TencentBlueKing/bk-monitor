@@ -18,7 +18,6 @@ from django.conf import settings
 from alarm_backends.management.hashring import HashRing
 from api.cmdb.define import Host
 from bkmonitor.commons.tools import is_ipv6_biz
-from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id
 from constants.common import DEFAULT_TENANT_ID
 from core.drf_resource import api
 from core.prometheus import metrics
@@ -75,44 +74,42 @@ def refresh_ping_conf(plugin_name: str):
     # metadata模块不应该引入alarm_backends下的文件，这里通过函数内引用，避免循环引用问题
     from alarm_backends.core.cache.cmdb.host import HostManager
 
-    # 获取CMDB下的所有主机ip
-    try:
-        all_hosts: list[Host] = HostManager.all()
-    except Exception:  # noqa
-        logger.exception("CMDB的主机缓存获取失败。获取不到主机，有可能会导致pingserver不执行")
-        return
+    for tenant in api.bk_login.list_tenant():
+        bk_tenant_id: str = tenant["id"]
 
-    # 按租户ID+云区域对主机进行分组
-    exists_host_ids = set()
-    tenant_cloud_to_hosts: dict[tuple[str, int], list[dict[str, Any]]] = defaultdict(list)
-    for h in all_hosts:
-        ip = h.bk_host_innerip_v6 if is_ipv6_biz(h.bk_biz_id) else h.bk_host_innerip
-        # 跳过忽略监控的主机和已经处理过的主机
-        if h.ignore_monitoring or not ip or h.bk_host_id in exists_host_ids:
+        exists_host_ids: set[int] = set()
+        cloud_to_hosts: dict[int, list[dict[str, Any]]] = defaultdict(list)
+
+        # 获取CMDB下的所有主机ip
+        try:
+            all_hosts: list[Host] = HostManager.all(bk_tenant_id=bk_tenant_id)
+        except Exception:  # noqa
+            logger.exception("CMDB的主机缓存获取失败。获取不到主机，有可能会导致pingserver不执行")
             continue
 
-        # 根据业务ID获取租户ID
-        try:
-            bk_tenant_id = bk_biz_id_to_bk_tenant_id(h.bk_biz_id)
-        except ValueError:
-            continue
+        for h in all_hosts:
+            ip = h.bk_host_innerip_v6 if is_ipv6_biz(h.bk_biz_id) else h.bk_host_innerip
+            # 跳过忽略监控的主机和已经处理过的主机
+            if h.ignore_monitoring or not ip or h.bk_host_id in exists_host_ids:
+                continue
 
-        # 将主机添加到租户ID+云区域对应的列表中
-        tenant_cloud_to_hosts[(bk_tenant_id, h.bk_cloud_id)].append(
-            {"ip": ip, "bk_cloud_id": h.bk_cloud_id, "bk_biz_id": h.bk_biz_id, "bk_host_id": h.bk_host_id}
-        )
-        exists_host_ids.add(h.bk_host_id)
-
-    del all_hosts
-
-    # 按租户ID+云区域对主机进行分组，并刷新Ping Server的ip列表配置
-    for (bk_tenant_id, bk_cloud_id), target_ips in tenant_cloud_to_hosts.items():
-        try:
-            _refresh_ping_conf_by_cloud_id(bk_tenant_id, bk_cloud_id, plugin_name, target_ips)
-        except Exception as e:
-            logger.exception(
-                f"refresh ping server config error, bk_tenant_id({bk_tenant_id}), bk_cloud_id({bk_cloud_id}), error({e})"
+            # 将主机添加到租户ID+云区域对应的列表中
+            cloud_to_hosts[h.bk_cloud_id].append(
+                {"ip": ip, "bk_cloud_id": h.bk_cloud_id, "bk_biz_id": h.bk_biz_id, "bk_host_id": h.bk_host_id}
             )
+            exists_host_ids.add(h.bk_host_id)
+
+        # 释放内存
+        del all_hosts
+
+        # 按租户ID+云区域对主机进行分组，并刷新Ping Server的ip列表配置
+        for bk_cloud_id, target_ips in cloud_to_hosts.items():
+            try:
+                _refresh_ping_conf_by_cloud_id(bk_tenant_id, bk_cloud_id, plugin_name, target_ips)
+            except Exception as e:
+                logger.exception(
+                    f"refresh ping server config error, bk_tenant_id({bk_tenant_id}), bk_cloud_id({bk_cloud_id}), error({e})"
+                )
 
 
 def _refresh_ping_conf_by_cloud_id(

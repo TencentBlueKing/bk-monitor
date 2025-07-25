@@ -7,6 +7,7 @@ from django.utils.translation import gettext as _
 from api.cmdb.define import Business
 from bkmonitor.models import ReportContents
 from bkmonitor.utils.send import Sender
+from constants.common import DEFAULT_TENANT_ID
 
 pytestmark = pytest.mark.django_db
 
@@ -52,7 +53,7 @@ def report_content():
 
 @pytest.fixture()
 def report_handler():
-    yield ReportHandler(item_id=-1)
+    yield ReportHandler(item_id=-1, bk_tenant_id=DEFAULT_TENANT_ID)
 
 
 @pytest.fixture()
