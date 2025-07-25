@@ -161,6 +161,15 @@ export default defineComponent({
     // 使用示例
     const extendedTsql = createExtendedTSQL();
 
+    const getFormatValue = sql => {
+      try {
+        return formatDialect(sql, { dialect: extendedTsql });
+      } catch (err) {
+        console.error(err);
+        return sql;
+      }
+    };
+
     const handleSyncAdditionToSQL = (callback?) => {
       const { addition, start_time, end_time, keyword } = retrieveParams.value;
       isSyncSqlRequesting.value = true;
@@ -186,7 +195,7 @@ export default defineComponent({
             formatMonacoSqlCode();
           });
 
-          previewSqlContent.value = formatDialect(resp.data.additional_where_clause, { dialect: extendedTsql });
+          previewSqlContent.value = getFormatValue(resp.data.additional_where_clause);
           isPreviewSqlShow.value = true;
           callback?.();
         })
@@ -208,8 +217,7 @@ export default defineComponent({
     };
 
     const formatMonacoSqlCode = (value?: string) => {
-      // 测试反引号支持：SELECT `column_name` FROM `table_name` WHERE `id` = 1
-      const val = formatDialect(value ?? editorInstance.value?.getValue() ?? '', { dialect: extendedTsql });
+      const val = getFormatValue(value ?? editorInstance.value?.getValue() ?? '');
       editorInstance.value?.setValue([val].join('\n'));
     };
 
