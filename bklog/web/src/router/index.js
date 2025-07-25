@@ -34,6 +34,7 @@ import VueRouter from 'vue-router';
 import http from '@/api';
 import store from '@/store';
 import reportLogStore from '@/store/modules/report-log';
+import exception from '@/views/404';
 
 // 1.导入各业务模块的路由（检索、监控、仪表盘、管理）
 import manageRoutes from './manage';
@@ -88,6 +89,16 @@ const getRoutes = (spaceId, bkBizId, externalMenu) => {
     ...dashboardRoutes(),
     // 管理模块路由
     ...manageRoutes(),
+    // 无权限页面路由
+    {
+      path: '*',
+      name: 'exception',
+      component: exception,
+      meta: {
+        navId: 'exception',
+        title: '无权限页面',
+      },
+    },
   ];
 };
 

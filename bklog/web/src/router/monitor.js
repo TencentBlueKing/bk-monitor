@@ -24,8 +24,6 @@
  * IN THE SOFTWARE.
  */
 
-import exception from '@/views/404';
-
 // #if MONITOR_APP === 'apm'
 const MonitorApmLog = () => import(/* webpackChunkName: 'monitor-apm-log' */ '@/views/retrieve-v3/monitor/monitor.tsx');
 // #endif
@@ -57,15 +55,6 @@ const getMonitorRoutes = () => [
     },
   },
   // #endif
-  {
-    path: '*',
-    name: 'exception',
-    component: exception,
-    meta: {
-      navId: 'exception',
-      title: '无权限页面',
-    },
-  },
 ];
 
 export default getMonitorRoutes;
