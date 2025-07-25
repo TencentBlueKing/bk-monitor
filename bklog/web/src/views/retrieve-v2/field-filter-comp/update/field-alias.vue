@@ -83,7 +83,7 @@ const submit = async () => {
 
     if (res.code === 0) {
       showSlider.value = false;
-      location.reload();
+      store.dispatch("requestIndexSetFieldInfo");
     }
   } catch (error) {
     console.error("Submit failed:", error);
@@ -147,29 +147,27 @@ const aliasShow = (row) => {
 };
 const addObject = () => {
   const deepFields = deepClone(
-    fields.value.map((item) => {
-      return {
-        ...item,
-        aliasErr: "",
-      };
-    })
+    fields.value
+      .filter((fields) => fields.field_type !== "object")
+      .map((item) => {
+        return {
+          ...item,
+          aliasErr: "",
+        };
+      })
   );
   const keyFieldList = deepFields.filter((field) => field.field_name.includes("."));
+
   const objectFieldMap = new Map();
   objField.value.forEach((objectField) => {
     const objectFieldName = objectField.field_name?.split(".")[0];
     if (!objectFieldMap.has(objectFieldName)) {
-      objectFieldMap.set(objectFieldName, objectField);
+      objectFieldMap.set(objectFieldName, {
+        ...objectField,
+        children: undefined,
+      });
     }
   });
-
-  const fieldsDataList = [
-    ...objectFieldMap.values(),
-    ...deepFields.filter(
-      (field) => field.field_type !== "__virtual__" && !field.field_name.includes(".")
-    ),
-  ];
-
   keyFieldList.forEach((item) => {
     item.is_objectKey = true;
     const keyFieldPrefix = item.field_name.split(".")[0].replace(/^_+|_+$/g, "");
@@ -178,13 +176,29 @@ const addObject = () => {
     if (objectField) {
       if (!objectField.children) {
         objectField.children = [];
-        objectField.expand = false;
       }
       objectField.children.push(item);
     }
   });
 
-  formData.value = fieldsDataList;
+  const normalFields = deepFields.filter(
+    (field) => field.field_type !== "virtual" && !field.field_name.includes(".")
+  );
+
+  // 将对象字段分为有子项和无子项两类
+  const objectFields = Array.from(objectFieldMap.values());
+  const objectFieldsWithChildren = objectFields.filter(
+    (field) => field.children?.length > 0
+  );
+  const objectFieldsWithoutChildren = objectFields.filter(
+    (field) => !field.children || field.children.length === 0
+  );
+
+  formData.value = [
+    ...objectFieldsWithChildren,
+    ...normalFields,
+    ...objectFieldsWithoutChildren,
+  ];
 };
 // 校验别名
 const checkQueryAlias = () => {
@@ -307,7 +321,13 @@ defineExpose({
               <bk-table-column :label="$t('别名')" :resizable="true">
                 <template #default="props">
                   <div class="alias-container">
-                    <div v-if="props.row.field_type === 'object'"></div>
+                    <div
+                      v-if="props.row.field_type === 'object'"
+                      class="ml8"
+                      v-bk-tooltips.top="$t('object字段不支持编辑别名')"
+                    >
+                      --
+                    </div>
                     <bk-input
                       v-else
                       class="alias-input"
@@ -400,6 +420,10 @@ defineExpose({
 
       .alias-container {
         position: relative;
+
+        .ml8 {
+          margin-left: 8px;
+        }
 
         .tooltips-icon {
           position: absolute;
