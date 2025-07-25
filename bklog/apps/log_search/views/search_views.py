@@ -2041,35 +2041,6 @@ class SearchViewSet(APIViewSet):
         }
         """
         params = self.params_valid(LogGrepQuerySerializer)
-        bk_biz_id = space_uid_to_bk_biz_id(self.get_object().space_uid)
-
-        if FeatureToggleObject.switch(UNIFY_QUERY_SQL, bk_biz_id):
-            params["index_set_ids"] = [index_set_id]
-            params["bk_biz_id"] = bk_biz_id
-            grep_field = params.get("grep_field")
-            alias_mappings = params["alias_mappings"]
-            where_clause, pattern, ignore_case = ChartHandler.add_grep_condition(
-                grep_field=grep_field,
-                grep_query=params.get("grep_query"),
-                alias_mappings=alias_mappings,
-                sort_list=params.get("sort_list", []),
-                index_set_id=index_set_id,
-                size=params["size"],
-                begin=params["begin"],
-            )
-            where_clause = where_clause.strip()
-            if where_clause.startswith("ORDER BY") or where_clause.startswith("LIMIT"):
-                params["sql"] = f"SELECT * {where_clause}"
-            else:
-                params["sql"] = f"SELECT * WHERE {where_clause}"
-            query_handler = UnifyQueryChartHandler(params)
-            data = query_handler.fetch_grep_query_data(
-                grep_field=grep_field,
-                alias_mappings=alias_mappings,
-                pattern=pattern,
-                ignore_case=ignore_case,
-            )
-        else:
-            instance = ChartHandler.get_instance(index_set_id=index_set_id, mode=QueryMode.SQL.value)
-            data = instance.fetch_grep_query_data(params)
+        instance = ChartHandler.get_instance(index_set_id=index_set_id, mode=QueryMode.SQL.value)
+        data = instance.fetch_grep_query_data(params)
         return Response(data)

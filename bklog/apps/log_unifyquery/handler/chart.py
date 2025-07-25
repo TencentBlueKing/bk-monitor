@@ -14,7 +14,6 @@ import time
 from django.conf import settings
 
 from apps.api import UnifyQueryApi
-from apps.log_search.utils import add_highlight_mark
 from apps.log_unifyquery.constants import REFERENCE_ALIAS
 from apps.log_unifyquery.handler.base import UnifyQueryHandler
 
@@ -49,17 +48,13 @@ class UnifyQueryChartHandler(UnifyQueryHandler):
             "bk_biz_id": self.bk_biz_id,
         }
 
-    def get_unify_query_data(self):
+    def get_chart_data(self):
+        start_time = time.time()
         result = UnifyQueryApi.query_ts_raw(self.base_dict)
         for record in result["list"]:
             # 删除内置字段
             for key in ["__data_label", "__index", "__result_table"]:
                 record.pop(key, None)
-        return result
-
-    def get_chart_data(self):
-        start_time = time.time()
-        result = self.get_unify_query_data()
 
         result_table_options = list(result.get("result_table_options", {}).values())
         result_schema = result_table_options[0]["result_schema"] if result_table_options else []
@@ -83,23 +78,3 @@ class UnifyQueryChartHandler(UnifyQueryHandler):
             "sql": self.sql,
             "additional_where_clause": final_sql,
         }
-
-    def fetch_grep_query_data(self, grep_field, alias_mappings, pattern, ignore_case):
-        """
-        grep query查询
-        :param grep_field: 查询字段
-        :param alias_mappings: 别名
-        :param pattern: 高亮内容的正则表达式
-        :param ignore_case: 是否忽略大小写
-        """
-        start_time = time.time()
-        result = self.get_unify_query_data()
-
-        # 添加高亮标记
-        log_list = add_highlight_mark(
-            data_list=result["list"],
-            match_field=alias_mappings.get(grep_field, grep_field),
-            pattern=pattern,
-            ignore_case=ignore_case,
-        )
-        return {"list": log_list, "total": result["total"], "took": time.time() - start_time}

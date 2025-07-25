@@ -113,7 +113,6 @@ WHERE_CLAUSE_RESULT = [
 
 GREP_PARAMS = [
     {
-        "where_clause": "time >= 20250403",
         "grep_field": "id_alias",
         "grep_query": "egrep a",
         "alias_mappings": {"id_alias": "id"},
@@ -121,7 +120,6 @@ GREP_PARAMS = [
         "index_set_id": INDEX_SET_ID,
     },
     {
-        "where_clause": "time >= 20250403",
         "grep_field": "__ext.app.label",
         "grep_query": "egrep a",
         "alias_mappings": {"app_label": "__ext.app.label"},
@@ -131,8 +129,8 @@ GREP_PARAMS = [
 ]
 
 GREP_QUERY_RESULT = [
-    "time >= 20250403 AND id REGEXP 'a' ORDER BY time ASC, container_id DESC LIMIT 10 OFFSET 0",
-    "time >= 20250403 AND CAST(__ext['app']['label'] AS TEXT) REGEXP 'a' ORDER BY time ASC, CAST(__ext['app']['label'] AS TEXT) ASC LIMIT 10 OFFSET 0",
+    "id REGEXP 'a' ORDER BY time ASC, container_id DESC LIMIT 10 OFFSET 0",
+    "CAST(__ext['app']['label'] AS TEXT) REGEXP 'a' ORDER BY time ASC, CAST(__ext['app']['label'] AS TEXT) ASC LIMIT 10 OFFSET 0",
 ]
 
 HIGHLIGHT_PARAMS = [
