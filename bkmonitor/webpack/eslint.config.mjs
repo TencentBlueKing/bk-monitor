@@ -93,7 +93,6 @@ const jsxOrVueSortGroups = {
     'EVENTS',
   ],
 };
-
 export default [
   {
     ignores: [
@@ -114,7 +113,6 @@ export default [
     plugins: { prettier },
     rules: { ...prettier.configs.recommended.rules },
   },
-  ...tsEslint.config(jsEslint.configs.recommended, tsEslint.configs.recommended),
   ...tsEslint.config(
     jsEslint.configs.recommended,
     tsEslint.configs.recommended,
