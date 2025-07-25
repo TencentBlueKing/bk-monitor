@@ -27,11 +27,11 @@
   <ul class="menu">
     <li
       v-for="(item, index) in list"
+      v-show="!item.hidden"
       :key="index"
       class="menu-item"
       :style="{ 'text-align': align }"
       :disabled="item.disabled"
-      v-show="!item.hidden"
       @click="!item.disabled && handleMenuClick(item)"
     >
       {{ item.label }}

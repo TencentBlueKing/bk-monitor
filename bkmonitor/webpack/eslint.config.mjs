@@ -473,7 +473,19 @@ export default [
         },
       ],
       '@typescript-eslint/no-unused-vars': OFF, // biome lint/style/noUnusedVars
-      'vue/html-self-closing': ERROR,
+      'vue/html-self-closing': [
+        ERROR,
+        {
+          html: {
+            void: 'always',
+            normal: 'always',
+            component: 'always',
+          },
+          svg: 'always',
+          math: 'always',
+        },
+      ],
+      '@typescript-eslint/no-unused-expressions': OFF, // biome lint/style/noUnusedExpressions
     },
   },
 ];

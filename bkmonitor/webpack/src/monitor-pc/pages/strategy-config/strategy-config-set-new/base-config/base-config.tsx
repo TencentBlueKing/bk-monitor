@@ -47,22 +47,22 @@ import type { IScenarioItem } from '../typings/index';
 
 import './base-config.scss';
 
-interface IBaseConfigProps {
-  data: IBaseConfig;
-  bizList: ISpaceItem[];
-  bizId: number | string;
-  scenarioList: IScenarioItem[];
-  scenarioReadonly: boolean;
-  readonly?: boolean;
-}
 export interface IBaseConfig {
   bk_biz_id: number | string;
-  scenario: string;
-  name: string;
-  labels: string[];
-  isEnabled: boolean;
-  priority: null | number | string;
   id?: number | string;
+  isEnabled: boolean;
+  labels: string[];
+  name: string;
+  priority: null | number | string;
+  scenario: string;
+}
+interface IBaseConfigProps {
+  bizId: number | string;
+  bizList: ISpaceItem[];
+  data: IBaseConfig;
+  readonly?: boolean;
+  scenarioList: IScenarioItem[];
+  scenarioReadonly: boolean;
 }
 @Component
 export default class BaseInfo extends tsc<IBaseConfigProps> {

@@ -37,31 +37,43 @@
         </bk-button>
         <bk-dropdown-menu :disabled="!selectionsCount">
           <bk-button
-            :disabled="!selectionsCount"
             slot="dropdown-trigger"
+            :disabled="!selectionsCount"
           >
             {{ $t('复制IP') }}
           </bk-button>
           <ul
-            class="bk-dropdown-list"
             slot="dropdown-content"
+            class="bk-dropdown-list"
           >
-            <li><a
-              href="javascript:;"
-              @click="handleCopyIp('bk_host_innerip')"
-            >{{$t('内网IPv4')}}</a></li>
-            <li><a
-              href="javascript:;"
-              @click="handleCopyIp('bk_host_innerip_v6')"
-            >{{$t('内网IPv6')}}</a></li>
-            <li><a
-              href="javascript:;"
-              @click="handleCopyIp('bk_host_outerip')"
-            >{{$t('外网IPv4')}}</a></li>
-            <li><a
-              href="javascript:;"
-              @click="handleCopyIp('bk_host_outerip_v6')"
-            >{{$t('外网IPv6')}}</a></li>
+            <li>
+              <a
+                href="javascript:;"
+                @click="handleCopyIp('bk_host_innerip')"
+                >{{ $t('内网IPv4') }}</a
+              >
+            </li>
+            <li>
+              <a
+                href="javascript:;"
+                @click="handleCopyIp('bk_host_innerip_v6')"
+                >{{ $t('内网IPv6') }}</a
+              >
+            </li>
+            <li>
+              <a
+                href="javascript:;"
+                @click="handleCopyIp('bk_host_outerip')"
+                >{{ $t('外网IPv4') }}</a
+              >
+            </li>
+            <li>
+              <a
+                href="javascript:;"
+                @click="handleCopyIp('bk_host_outerip_v6')"
+                >{{ $t('外网IPv6') }}</a
+              >
+            </li>
           </ul>
         </bk-dropdown-menu>
       </div>
@@ -106,13 +118,14 @@
               >
                 <bk-checkbox
                   :value="item.checked"
-                  @change="handleCheckColChange(item)"
                   :disabled="item.disable"
+                  @change="handleCheckColChange(item)"
                 >
                   <span
                     v-bk-overflow-tips
                     class="checkbox-text"
-                  >{{ item.name }}</span>
+                    >{{ item.name }}</span
+                  >
                 </bk-checkbox>
               </li>
             </ul>
@@ -133,15 +146,16 @@
   </div>
 </template>
 <script lang="ts">
-import { Debounce, copyText, typeTools } from 'monitor-common/utils/utils.js';
 import { Component, Emit, Inject, Prop, Vue } from 'vue-property-decorator';
+
+import { copyText, Debounce, typeTools } from 'monitor-common/utils/utils.js';
+
+import FilterPanel from './filter-panel.vue';
+import FilterTag from './filter-tag.vue';
 
 import type MonitorVue from '../../../types/index';
 import type { CheckType, IFieldConfig, ITableRow } from '../performance-type';
 import type TableStore from '../table-store';
-
-import FilterPanel from './filter-panel.vue';
-import FilterTag from './filter-tag.vue';
 
 @Component({
   name: 'performance-tool',
@@ -364,14 +378,14 @@ export default class PerformanceTool extends Vue<MonitorVue> {
 
     :deep(.bk-dropdown-menu.disabled) {
       color: #c4c6cc;
-      background-color: #fff!important;
-      border-color: #dcdee5!important;
+      background-color: #fff !important;
+      border-color: #dcdee5 !important;
     }
 
     :deep(.bk-dropdown-menu.disabled *) {
       color: #c4c6cc;
-      background-color: #fff!important;
-      border-color: #dcdee5!important;
+      background-color: #fff !important;
+      border-color: #dcdee5 !important;
     }
   }
 

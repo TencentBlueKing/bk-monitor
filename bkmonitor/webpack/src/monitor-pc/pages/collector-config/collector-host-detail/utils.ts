@@ -105,14 +105,14 @@ export const statusMap = {
 };
 
 export interface IContentsItem {
-  isExpand: boolean;
-  is_label: boolean;
-  label_name: string;
-  successNum: number;
+  child: any[];
   failedNum: number;
+  is_label: boolean;
+  isExpand: boolean;
+  label_name: string;
   pendingNum: number;
   showAlertHistogram?: boolean;
-  child: any[];
+  successNum: number;
   table: any[];
 }
 

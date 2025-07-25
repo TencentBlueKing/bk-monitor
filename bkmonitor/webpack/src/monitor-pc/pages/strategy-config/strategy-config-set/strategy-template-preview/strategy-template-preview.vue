@@ -37,9 +37,9 @@
         <ul class="preview-tab">
           <li
             v-for="(item, index) in renderData"
+            :key="index"
             class="preview-tab-item"
             :class="{ 'tab-active': tabActive === index }"
-            :key="index"
             @click="handleTabItemClick(item, index)"
           >
             {{ item.label }}

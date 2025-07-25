@@ -28,7 +28,7 @@ import { Component, ProvideReactive, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { addListener, removeListener } from '@blueking/fork-resize-detector';
-import { listStickySpaces, getLinkMapping } from 'monitor-api/modules/commons';
+import { getLinkMapping, listStickySpaces } from 'monitor-api/modules/commons';
 import { getDashboardList } from 'monitor-api/modules/grafana';
 import { APP_NAV_COLORS, LANGUAGE_COOKIE_KEY } from 'monitor-common/utils';
 import debounce from 'monitor-common/utils/debounce-decorator';
@@ -40,7 +40,7 @@ import OverseasLogo from '../components/overseas-logo/overseas-logo';
 import introduce from '../common/introduce';
 import UserConfigMixin from '../mixins/userStoreConfig';
 import { isAuthority } from '../router/router';
-import { GLOBAL_FEATURE_LIST, type IRouteConfigItem, getRouteConfig } from '../router/router-config';
+import { type IRouteConfigItem, getRouteConfig, GLOBAL_FEATURE_LIST } from '../router/router-config';
 import { SET_NAV_ROUTE_LIST } from '../store/modules/app';
 import type { IOverseasConfig, ISpaceItem } from '../types';
 import { useCheckVersion } from './check-version';

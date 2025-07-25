@@ -40,85 +40,88 @@ import type { TranslateResult } from 'vue-i18n';
 
 // 视图模式 auto：平铺模式 custom：自定义模式
 export type BookMarkMode = 'auto' | 'custom';
+// dashboard 仪表盘模式  list: 列表模式 chart: 视图模式
+export type DashboardMode = 'chart' | 'list';
+
 // 页签配置
 export interface IBookMark {
   // 页签id
   id: string;
-  // 页签名称
-  name: string;
+  // 已请求数据
+  isReady?: boolean;
   // 链接
   link?: string;
-  // 是否展示数字
-  needCount?: boolean;
-  // 变量设置
-  variables?: IVariableModel[];
-  // 视图配置
-  panels: IPanelModel[];
-  overview_panels?: IPanelModel[];
   // 列表模式视图配置
   list?: IPanelModel[];
+  // 视图模式 auto：平铺模式 custom：自定义模式
+  mode?: BookMarkMode;
+  // 页签名称
+  name: string;
+  // 是否展示数字
+  needCount?: boolean;
   // 页签配置
   options?: IBookMarkOptions;
   // 平铺模式 特有的图表配置顺序
   order?: IPanelModel[];
-  // 视图模式 auto：平铺模式 custom：自定义模式
-  mode?: BookMarkMode;
-  // 是否展示页签图表统计数据
-  show_panel_count?: boolean;
+  overview_panels?: IPanelModel[];
   // 页签图表统计数据
   panel_count?: number;
-  // 已请求数据
-  isReady?: boolean;
+  // 视图配置
+  panels: IPanelModel[];
+  // 是否展示页签图表统计数据
+  show_panel_count?: boolean;
+  // 变量设置
+  variables?: IVariableModel[];
 }
 
 export interface IBookMarkOptions {
-  // 详情配置
-  detail_panel?: IPanelModel;
-  // 概览详情配置
-  overview_detail_panel?: IPanelModel;
-  // 是否可设置group
-  enable_group?: boolean;
-  // 是否可设置变量 filter
-  variable_editable?: boolean;
-  // 左侧选择配置
-  selector_panel?: IPanelModel;
-  // 告警、策略统计数据
-  overview_panel?: PanelModel;
-  // 动态获取panels 类似service_monitor
-  fetch_panels?: PanelModel;
   // 主机详情
   ai_panel?: PanelModel;
+  alert_filterable?: boolean; // 图表的告警状态接口是否需要加入$current_target作为请求参数
+  // 详情配置
+  detail_panel?: IPanelModel;
+  enable_auto_grouping?: boolean; // 视图设置是否开启自动分组
+  // 是否可设置group
+  enable_group?: boolean;
+  // 是否开启图表索引列表功能
+  enable_index_list?: boolean;
+  // 动态获取panels 类似service_monitor
+  fetch_panels?: PanelModel;
   // group面板
   group_panel?: PanelModel;
+  only_index_list?: boolean; // 仅展示索引列表
+  // 概览详情配置
+  overview_detail_panel?: IPanelModel;
+  // 告警、策略统计数据
+  overview_panel?: PanelModel;
+  // 左侧选择配置
+  selector_panel?: IPanelModel;
+  // 是否可设置变量 filter
+  variable_editable?: boolean;
   // 是否可设置页签
   view_editable?: boolean;
   // 视图面板的工具栏配置
   panel_tool?: {
-    compare_select?: boolean; // 是否需要对比选择器
     columns_toggle?: boolean; // 是否需要图表分列布局切换
+    compare_select?: boolean; // 是否需要对比选择器
+    full_table?: boolean; // 是否需要全屏表格
     interval_select?: boolean; // 是否需要汇聚周期选择器
-    split_switcher?: boolean; // 是否需要合并、分割视图开关
     method_select?: boolean; // 是否需要汇聚周期选择器
     need_compare_target?: boolean; // 是否需要目标对比
-    full_table?: boolean; // 是否需要全屏表格
+    split_switcher?: boolean; // 是否需要合并、分割视图开关
   };
-  // 是否开启图表索引列表功能
-  enable_index_list?: boolean;
-  only_index_list?: boolean; // 仅展示索引列表
-  alert_filterable?: boolean; // 图表的告警状态接口是否需要加入$current_target作为请求参数
-  enable_auto_grouping?: boolean; // 视图设置是否开启自动分组
 }
 
 /** 变量数据 */
 export interface ICurVarItem {
+  alias: string;
+  checked?: boolean;
+  groupBy: string;
   key: string;
   loading: boolean;
-  alias: string;
-  groupBy: string;
   optionalValue: IOption[];
-  where: IWhere[];
-  checked?: boolean;
   value?: string[];
+  where: IWhere[];
 }
 
 /** 可选值 */
@@ -127,10 +130,40 @@ export interface IOption {
   name: string | TranslateResult;
 }
 
+export interface IViewOptions {
+  app_name?: string;
+  bk_target_cloud_id?: string;
+  bk_target_ip?: string;
+  // 对比目标 主机监控特殊使用
+  compare_targets?: Record<string, any>[];
+  // 对比数据 如 目标对比 集成等
+  compares?: Record<'targets', any>;
+  // 当前选中的目标 主机和容器监控特殊使用
+  current_target?: Record<string, any>;
+  // filter 数据 视图最侧栏定位数据使用
+  filters?: Record<string, any>;
+  // 特殊数据组  主机监控使用 主机ip 云区域id
+  group_by?: string[];
+  groupByVariables?: IGroupByVariables;
+  // 数据组 维度 指标组
+  groups?: string[];
+  // 汇聚周期
+  interval?: 'auto' | number | string;
+  // 用于动态判断panel是否显示
+  matchFields?: Record<string, any>;
+  // 汇聚方法
+  method?: string;
+  service_name?: string;
+  // 策略id 用于hostIntelligentAnomalyRange接口
+  strategy_id?: number | string;
+  // 变量数据 视图变量
+  variables?: Record<string, any>;
+}
+
 /** 条件 */
 export interface IWhere {
-  key: string;
   condition?: 'and' | 'or';
+  key: string;
   method: string;
   value: string[];
 }
@@ -454,36 +487,3 @@ export class BookMarkModel implements IBookMark {
     return panelCount;
   }
 }
-
-export interface IViewOptions {
-  // 对比数据 如 目标对比 集成等
-  compares?: Record<'targets', any>;
-  // filter 数据 视图最侧栏定位数据使用
-  filters?: Record<string, any>;
-  // 变量数据 视图变量
-  variables?: Record<string, any>;
-  // 汇聚方法
-  method?: string;
-  // 汇聚周期
-  interval?: 'auto' | number | string;
-  // 数据组 维度 指标组
-  groups?: string[];
-  // 特殊数据组  主机监控使用 主机ip 云区域id
-  group_by?: string[];
-  // 当前选中的目标 主机和容器监控特殊使用
-  current_target?: Record<string, any>;
-  // 对比目标 主机监控特殊使用
-  compare_targets?: Record<string, any>[];
-  bk_target_cloud_id?: string;
-  bk_target_ip?: string;
-  // 用于动态判断panel是否显示
-  matchFields?: Record<string, any>;
-  // 策略id 用于hostIntelligentAnomalyRange接口
-  strategy_id?: number | string;
-  app_name?: string;
-  service_name?: string;
-  groupByVariables?: IGroupByVariables;
-}
-
-// dashboard 仪表盘模式  list: 列表模式 chart: 视图模式
-export type DashboardMode = 'chart' | 'list';

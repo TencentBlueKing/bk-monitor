@@ -35,19 +35,29 @@ import WhereCondition from './components/where-condition';
 
 import './index.scss';
 
+interface IEmit {
+  onChange: (value: IResult) => void;
+}
+
+interface IProps {
+  dimenstionParams?: Record<string, any>;
+  exclude?: string[];
+  isShowExpand?: boolean;
+  offsetSingle?: boolean;
+  splitable?: boolean;
+}
+
 interface IResult {
   metrics: string[];
-  where: {
-    key: string;
-    method: string;
-    condition: string;
-    value: string[];
-  }[];
   common_conditions: {
     key: string;
     method: string;
     value: string[];
   }[];
+  compare: {
+    offset: string[];
+    type: string;
+  };
   group_by: {
     field: string;
     split: boolean;
@@ -56,22 +66,12 @@ interface IResult {
     function: 'bottom' | 'top';
     limit: number;
   };
-  compare: {
-    type: string;
-    offset: string[];
-  };
-}
-
-interface IProps {
-  dimenstionParams?: Record<string, any>;
-  isShowExpand?: boolean;
-  exclude?: string[];
-  splitable?: boolean;
-  offsetSingle?: boolean;
-}
-
-interface IEmit {
-  onChange: (value: IResult) => void;
+  where: {
+    condition: string;
+    key: string;
+    method: string;
+    value: string[];
+  }[];
 }
 
 export const createDefaultParams = (): IResult => ({
@@ -126,7 +126,7 @@ export default class HeaderBox extends tsc<IProps, IEmit> {
     });
   }
 
-  handleConditionChange(payload: { where: IResult['where']; common_conditions: IResult['common_conditions'] }) {
+  handleConditionChange(payload: { common_conditions: IResult['common_conditions']; where: IResult['where'] }) {
     this.params.where = payload.where;
     this.params.common_conditions = payload.common_conditions;
     this.triggerChange();

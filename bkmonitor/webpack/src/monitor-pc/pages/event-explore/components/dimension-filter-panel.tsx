@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { Component, Emit, Ref, InjectReactive, Prop, Watch } from 'vue-property-decorator';
+import { Component, Emit, InjectReactive, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { CancelToken } from 'monitor-api/cancel';
@@ -32,7 +32,7 @@ import { Debounce } from 'monitor-common/utils';
 
 import EmptyStatus from '../../../components/empty-status/empty-status';
 import { APIType, getEventTopK } from '../api-utils';
-import { type ConditionChangeEvent, ExploreSourceTypeEnum, type IDimensionField } from '../typing';
+import { type ConditionChangeEvent, type IDimensionField, ExploreSourceTypeEnum } from '../typing';
 import FieldTypeIcon from './field-type-icon';
 import StatisticsList from './statistics-list';
 
@@ -41,20 +41,20 @@ import type { IWhereItem } from '../../../components/retrieval-filter/utils';
 
 import './dimension-filter-panel.scss';
 
-interface DimensionFilterPanelProps {
-  list: IDimensionField[];
-  listLoading: boolean;
-  condition: IWhereItem[];
-  queryString: string;
-  source: APIType;
-  eventSourceType?: ExploreSourceTypeEnum[];
-  hasSourceSelect?: boolean;
-}
-
 interface DimensionFilterPanelEvents {
   onClose(): void;
   onConditionChange(val: ConditionChangeEvent): void;
   onShowEventSourcePopover(e: Event): void;
+}
+
+interface DimensionFilterPanelProps {
+  condition: IWhereItem[];
+  eventSourceType?: ExploreSourceTypeEnum[];
+  hasSourceSelect?: boolean;
+  list: IDimensionField[];
+  listLoading: boolean;
+  queryString: string;
+  source: APIType;
 }
 
 @Component

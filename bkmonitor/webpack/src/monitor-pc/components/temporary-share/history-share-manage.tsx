@@ -78,37 +78,37 @@ export const STATUS_LIST = [
   { id: EStatus.isDeleted, ...statusMap[EStatus.isDeleted] },
 ];
 
+interface IProps {
+  navList?: INavItem[];
+  pageInfo?: Record<string, any>;
+  positionText?: string;
+  shareUrl?: string;
+  show?: boolean;
+  onShowChange?: (v: boolean) => void;
+}
 interface ITableItem {
-  isCheck?: boolean;
-  link: string;
   accessCount: number;
-  status: EStatus;
   create_time: string;
   create_user: string;
   expire_time: number;
+  expireTimeStr: string;
+  isCheck?: boolean;
   isShowAccess: boolean;
+  link: string;
+  status: EStatus;
   token: string;
+  access_info: {
+    data: { last_time: number; visitor: string }[];
+    total: number;
+  };
   params_info: {
-    name: string;
-    lock_search: boolean;
     default_time_range?: string[];
     end_time: number;
-    start_time: number;
     expire_period?: string;
+    lock_search: boolean;
+    name: string;
+    start_time: number;
   }[];
-  access_info: {
-    total: number;
-    data: { visitor: string; last_time: number }[];
-  };
-  expireTimeStr: string;
-}
-interface IProps {
-  show?: boolean;
-  shareUrl?: string;
-  pageInfo?: Record<string, any>;
-  positionText?: string;
-  navList?: INavItem[];
-  onShowChange?: (v: boolean) => void;
 }
 
 @Component

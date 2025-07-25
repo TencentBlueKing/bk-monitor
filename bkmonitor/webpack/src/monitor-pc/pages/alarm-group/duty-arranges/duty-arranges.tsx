@@ -39,50 +39,19 @@ import type { IGroupListItem } from './user-selector';
 
 import './duty-arranges.scss';
 
-interface IuserItem {
-  // 用户组
-  id: string; // 用户id
-  name: string; // 用户名
-  type: 'group' | 'user';
-}
-
-type TWorkType = '' | 'daily' | 'monthly' | 'weekly';
 export interface IDutyItem {
-  key: string;
-  isExpan: boolean; // 是否展开
-  title: string; // 组名
   draggable: boolean; // 是否可抓取
-  subTitle: string; // 轮值时间
-  id?: number; // 轮值ID(非必须)
-  needRotation?: boolean; // 是否需要交接
-  handoffTime?: {
-    // 交接时间
-    rotationType: TWorkType; // 轮值类型
-    date: number; // 日期
-    time: string; // 时间
-  };
+  effectiveIsAutoFill?: boolean; // 是否由系统自动填充的时间
   effectiveReadonly?: boolean;
   effectiveTime?: string; // 生效时间
   effectiveTimeKey?: string;
-  effectiveIsAutoFill?: boolean; // 是否由系统自动填充的时间
-  dutyTime?: {
-    // 工作时间
-    workType: TWorkType; // 轮值类型
-    workDays: number[]; // 日期
-    workTime: string[]; // 时间
-  };
-  dutyUsers: {
-    color: string; // 颜色
-    key: string;
-    users: IuserItem[];
-  }[];
+  id?: number; // 轮值ID(非必须)
+  isExpan: boolean; // 是否展开
+  key: string;
+  needRotation?: boolean; // 是否需要交接
+  subTitle: string; // 轮值时间
+  title: string; // 组名
   backups: {
-    // 代班信息
-    users: {
-      // 代班人员
-      id: string;
-      type: 'group' | 'user';
-    }[];
     beginTime: string; // 开始时间
     endTime: string; // 结束时间
     excludeSettings: {
@@ -90,8 +59,39 @@ export interface IDutyItem {
       date: string; // 日期
       time: string; // 时间
     }[];
+    // 代班信息
+    users: {
+      // 代班人员
+      id: string;
+      type: 'group' | 'user';
+    }[];
   }[];
+  dutyTime?: {
+    workDays: number[]; // 日期
+    workTime: string[]; // 时间
+    // 工作时间
+    workType: TWorkType; // 轮值类型
+  };
+  dutyUsers: {
+    color: string; // 颜色
+    key: string;
+    users: IuserItem[];
+  }[];
+  handoffTime?: {
+    date: number; // 日期
+    // 交接时间
+    rotationType: TWorkType; // 轮值类型
+    time: string; // 时间
+  };
 }
+
+interface IuserItem {
+  // 用户组
+  id: string; // 用户id
+  name: string; // 用户名
+  type: 'group' | 'user';
+}
+type TWorkType = '' | 'daily' | 'monthly' | 'weekly';
 
 const operatorText = {
   bk_bak_operator: window.i18n.t('来自配置平台主机的备份维护人'),
@@ -190,7 +190,7 @@ const DUTY_TYPE = [
   { id: 'monthly', name: window.i18n.tc('每月') },
 ];
 /* 获取近七天的日期 */
-const getLastDays = (max: number, start = 0): { name: string; dateObj: Date; dayTimeStamp: number }[] => {
+const getLastDays = (max: number, start = 0): { dateObj: Date; dayTimeStamp: number; name: string }[] => {
   const dateArr = [];
   const oneDay = 24 * 60 * 60 * 1000;
   const toDay = new Date();
@@ -221,7 +221,7 @@ const getCycleDays = (cycleNumber: number) => {
 };
 
 /* 获取一天到某一周期最后一天的日期列表 */
-const getTargetDays = (start: string, cycle: number): { name: string; dateObj: Date; dayTimeStamp: number }[] => {
+const getTargetDays = (start: string, cycle: number): { dateObj: Date; dayTimeStamp: number; name: string }[] => {
   const startDate = new Date(start);
   const oneDay = 24 * 60 * 60 * 1000;
   const toDay = new Date();
@@ -248,16 +248,16 @@ const getTargetDays = (start: string, cycle: number): { name: string; dateObj: D
 interface IDutyplan {
   // 生效时间之前的
   begin_time: string;
-  end_time: string;
   duty_arrange_id: number;
+  end_time: string;
   duty_time: {
     work_days: number[];
     work_time: string;
     work_type: TWorkType;
   }[];
   users: {
-    id: string;
     display_name: string;
+    id: string;
   }[];
 }
 
@@ -358,15 +358,15 @@ export const dutyDataTransform = (data: any[]): IDutyItem[] => {
     } as any;
   });
 };
-interface IProps {
-  value?: IDutyItem[]; // 轮值组
-  defaultGroupList?: IGroupListItem[];
-  readonly?: boolean;
-  dutyPlans?: IDutyplan[]; // 生效时间
-  defaultUserList?: IuserItem[]; // 开启轮值时通知对象带过来
-}
 interface IEvents {
   onChange?: IDutyItem[];
+}
+interface IProps {
+  defaultGroupList?: IGroupListItem[];
+  defaultUserList?: IuserItem[]; // 开启轮值时通知对象带过来
+  dutyPlans?: IDutyplan[]; // 生效时间
+  readonly?: boolean;
+  value?: IDutyItem[]; // 轮值组
 }
 @Component
 export default class DutyArranges extends tsc<IProps, IEvents> {
@@ -394,7 +394,7 @@ export default class DutyArranges extends tsc<IProps, IEvents> {
   previewKey = random(8);
 
   /* 轮值预览下的统计信息 */
-  userPreviewList: { name: string; id: string }[] = [];
+  userPreviewList: { id: string; name: string }[] = [];
 
   /* 校验 */
   errMsgList: string[] = [];
@@ -644,13 +644,13 @@ export default class DutyArranges extends tsc<IProps, IEvents> {
     /* 获取生效时间前的轮值 */
     const dutyPlansObj: {
       [id: string]: {
-        targetEffectiveTime: string;
         data: {
           dateStr: string;
-          year: string;
           ranges: number[][];
           users: { id: string; name: string }[];
+          year: string;
         }[];
+        targetEffectiveTime: string;
       };
     } = {};
     const dutyArranges: IDutyItem[] = deepClone(this.dutyArranges);
@@ -717,8 +717,8 @@ export default class DutyArranges extends tsc<IProps, IEvents> {
     const allDutyPlansRanges: {
       [id: string]: {
         dateStr: {
-          users: any[];
           ranges: number[][];
+          users: any[];
         };
       };
     } = {};
@@ -765,11 +765,11 @@ export default class DutyArranges extends tsc<IProps, IEvents> {
       }
       /* 获取开始时间值结束时间每天的日期 */
       const dateArr: {
-        name: string;
         dateObj: Date;
         dayTimeStamp: number;
-        startMintes: number;
         endMinutes: number;
+        name: string;
+        startMintes: number;
       }[] = [];
       if (relStartObj && relEndObj) {
         for (let i = relStartObj.yearNum; i <= relEndObj.yearNum; i += oneDay) {
@@ -893,8 +893,8 @@ export default class DutyArranges extends tsc<IProps, IEvents> {
     const timeToPointObj = (
       effectiveTime: string
     ): {
-      timeStamp: number;
       num: number;
+      timeStamp: number;
     } => {
       const temp = effectiveTime.split(' ');
       const timeStamp = new Date(temp[0]).getTime();
@@ -933,7 +933,7 @@ export default class DutyArranges extends tsc<IProps, IEvents> {
       ranges: number[][];
     }[] => {
       const effectiveTimeObj = timeToPointObj(effectiveTime);
-      const isHasCurDay = (day: { name: string; dateObj: Date; dayTimeStamp: number }) =>
+      const isHasCurDay = (day: { dateObj: Date; dayTimeStamp: number; name: string }) =>
         day.dayTimeStamp >= effectiveTimeObj.timeStamp;
       const startNum = timeToNum(timeRange[0]);
       const endNum = timeToNum(timeRange[1]);
@@ -1039,17 +1039,17 @@ export default class DutyArranges extends tsc<IProps, IEvents> {
       /* 从0-当前切换的周期所有工作时间段 */
       const allCycleDatesRange: {
         dateStr: string;
-        ranges: number[][];
         handoverNum?: number;
+        ranges: number[][];
       }[] = [];
-      let allCycleDays: { name: string; dateObj: Date; dayTimeStamp: number }[] = [];
+      let allCycleDays: { dateObj: Date; dayTimeStamp: number; name: string }[] = [];
       allCycleDays = getTargetDays(effectiveTime.split(' ')[0], this.cycleNumber);
       allCycleDays.forEach(item => {
         const startNum = timeToNum(timeRange[0]);
         const endNum = timeToNum(timeRange[1]);
         const effectiveTimeObj = timeToPointObj(effectiveTime);
         /* 判断当前日期是否大于生效日期 */
-        const isHasCurDay = (day: { name: string; dateObj: Date; dayTimeStamp: number }) =>
+        const isHasCurDay = (day: { dateObj: Date; dayTimeStamp: number; name: string }) =>
           day.dayTimeStamp >= effectiveTimeObj.timeStamp;
         /* 交接时间点 */
         if (rotationType === 'daily') {
@@ -1340,7 +1340,7 @@ export default class DutyArranges extends tsc<IProps, IEvents> {
       };
     });
     const allDateItemGroup: {
-      dateStr: { name: string; dateObj: Date; dayTimeStamp: number };
+      dateStr: { dateObj: Date; dayTimeStamp: number; name: string };
       ranges: number[][];
     }[] = [];
     /* 空档期 */
@@ -1562,8 +1562,8 @@ export default class DutyArranges extends tsc<IProps, IEvents> {
                           [
                             <div class='step-content-item'>
                               <span
-                                v-en-style='width: 100px'
                                 class='item-label'
+                                v-en-style='width: 100px'
                               >
                                 {this.$t('轮值类型')}
                               </span>
@@ -1619,8 +1619,8 @@ export default class DutyArranges extends tsc<IProps, IEvents> {
                             </div>,
                             <div class='step-content-item mt-12'>
                               <div
-                                v-en-style='width: 100px'
                                 class='item-label'
+                                v-en-style='width: 100px'
                               >
                                 {this.$t('交接时间')}
                               </div>
@@ -1669,8 +1669,8 @@ export default class DutyArranges extends tsc<IProps, IEvents> {
                           /* 交接 */
                           <div class='step-content-item'>
                             <span
-                              v-en-style='width: 100px'
                               class='item-label'
+                              v-en-style='width: 100px'
                             >
                               {this.$t('工作周期')}
                             </span>
@@ -1729,8 +1729,8 @@ export default class DutyArranges extends tsc<IProps, IEvents> {
                           item.dutyTime.workType !== 'daily' && (
                             <div class='step-content-item'>
                               <span
-                                v-en-style='width: 100px'
                                 class='item-label'
+                                v-en-style='width: 100px'
                               >
                                 {this.$t('工作周期')}
                               </span>
@@ -1768,8 +1768,8 @@ export default class DutyArranges extends tsc<IProps, IEvents> {
                         )}
                         <div class='step-content-item mt-12'>
                           <span
-                            v-en-style='width: 100px'
                             class='item-label'
+                            v-en-style='width: 100px'
                           >
                             {this.$t('工作时间')}
                           </span>
@@ -1784,8 +1784,8 @@ export default class DutyArranges extends tsc<IProps, IEvents> {
                         {
                           <div class='step-content-item mt-12'>
                             <span
-                              v-en-style='width: 100px'
                               class='item-label'
+                              v-en-style='width: 100px'
                             >
                               {this.$t('生效时间')}
                             </span>
