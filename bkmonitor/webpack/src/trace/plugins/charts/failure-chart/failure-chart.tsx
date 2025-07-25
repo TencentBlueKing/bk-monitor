@@ -38,7 +38,6 @@ import {
   ref,
   watch,
 } from 'vue';
-import { useI18n } from 'vue-i18n';
 
 import { addListener, removeListener } from '@blueking/fork-resize-detector';
 import { Loading, Message } from 'bkui-vue';
@@ -50,6 +49,7 @@ import { copyText, hexToRgbA } from 'monitor-common/utils/utils';
 import EchartOptions from 'monitor-ui/monitor-echarts/options/echart-options';
 import { type MonitorEchartOptions, echarts } from 'monitor-ui/monitor-echarts/types/monitor-echarts';
 import { debounce } from 'throttle-debounce';
+import { useI18n } from 'vue-i18n';
 
 import ChartTitle from '../../components/chart-title';
 import CommonLegend from '../../components/common-legend';

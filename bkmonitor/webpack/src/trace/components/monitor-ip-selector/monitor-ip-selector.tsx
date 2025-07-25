@@ -27,13 +27,16 @@
 import { computed, defineComponent } from 'vue';
 
 import {
+  agentStatisticsIpChooserDynamicGroup,
   agentStatisticsIpChooserTemplate,
   agentStatisticsIpChooserTopo,
   batchGetIpChooserConfig,
   checkIpChooserHost,
   detailsIpChooserHost,
   detailsIpChooserServiceInstance,
+  executeIpChooserDynamicGroup,
   globalConfigIpChooserConfig,
+  groupsIpChooserDynamicGroup,
   hostsIpChooserTemplate,
   nodesIpChooserTemplate,
   queryHostIdInfosIpChooserTopo,
@@ -44,9 +47,6 @@ import {
   templatesIpChooserTemplate,
   treesIpChooserTopo,
   updateConfigIpChooserConfig,
-  groupsIpChooserDynamicGroup,
-  executeIpChooserDynamicGroup,
-  agentStatisticsIpChooserDynamicGroup,
 } from 'monitor-api/modules/model';
 
 import { useAppStore } from '../../store/modules/app';

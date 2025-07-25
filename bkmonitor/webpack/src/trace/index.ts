@@ -32,7 +32,7 @@ import i18n from './i18n/i18n';
 import { createApp } from 'vue';
 
 import Api from 'monitor-api/api';
-import { setVue, type VueInstance } from 'monitor-api/utils/index';
+import { type VueInstance, setVue } from 'monitor-api/utils/index';
 import { immediateRegister } from 'monitor-common/service-worker/service-worker';
 import { getUrlParam, mergeSpaceList, setGlobalBizId } from 'monitor-common/utils';
 

@@ -25,36 +25,36 @@
  */
 import {
   type PropType,
-  TransitionGroup,
   computed,
   defineComponent,
   nextTick,
   onMounted,
   reactive,
   ref,
+  TransitionGroup,
   watch,
 } from 'vue';
-import { useI18n } from 'vue-i18n';
 
 import { Loading, Popover } from 'bkui-vue';
 import { debounce, random } from 'lodash';
 import { listUsersUser } from 'monitor-api/modules/model';
 import { getReceiver } from 'monitor-api/modules/notice_group';
+import { useI18n } from 'vue-i18n';
 
 import './member-select.scss';
 
-interface DateItem {
-  id: string;
-  type: 'group' | 'user';
-  logo?: string;
+export interface TagItemModel {
   display_name?: string;
+  id: string;
+  logo?: string;
+  type: 'group' | 'user';
+  username: string;
 }
 
-export interface TagItemModel {
+interface DateItem {
+  display_name?: string;
   id: string;
   logo?: string;
-  display_name?: string;
-  username: string;
   type: 'group' | 'user';
 }
 

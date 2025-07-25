@@ -24,11 +24,11 @@
  * IN THE SOFTWARE.
  */
 import { type PropType, defineComponent, onMounted, reactive, ref, watch } from 'vue';
-import { useI18n } from 'vue-i18n';
 
 import { Select } from 'bkui-vue';
 import { debounce } from 'lodash';
 import { queryLabelValues } from 'monitor-api/modules/apm_profile';
+import { useI18n } from 'vue-i18n';
 
 import type { IConditionItem } from '../typings';
 

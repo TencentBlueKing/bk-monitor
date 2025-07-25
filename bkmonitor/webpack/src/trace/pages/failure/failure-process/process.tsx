@@ -24,6 +24,7 @@
  * IN THE SOFTWARE.
  */
 import { reactive } from 'vue';
+
 import { useI18n } from 'vue-i18n';
 
 import { LEVEL_LIST, STATUS_LIST } from '../constant';

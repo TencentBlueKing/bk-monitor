@@ -23,10 +23,10 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { type PropType, defineComponent, ref, watch, defineExpose } from 'vue';
-import { useI18n } from 'vue-i18n';
+import { type PropType, defineComponent, defineExpose, ref, watch } from 'vue';
 
 import { Popover, Slider } from 'bkui-vue';
+import { useI18n } from 'vue-i18n';
 
 import type { IAlert } from '../types';
 

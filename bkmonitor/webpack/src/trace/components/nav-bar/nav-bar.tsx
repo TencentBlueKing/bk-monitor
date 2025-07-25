@@ -24,6 +24,7 @@
  * IN THE SOFTWARE.
  */
 import { computed, defineComponent, inject } from 'vue';
+
 import { useRoute, useRouter } from 'vue-router';
 
 import type { ICommonNavBarProps, INavItem } from './type';
