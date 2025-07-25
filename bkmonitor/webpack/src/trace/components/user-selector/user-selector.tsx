@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { type PropType, computed, defineComponent, onMounted, shallowRef } from 'vue';
+import { type PropType, computed, defineComponent, onMounted, shallowRef, type VNode, type createVNode } from 'vue';
 
 import { BkUserSelector } from '@blueking/bk-user-selector/vue3';
 import { getUserComponentConfig, USER_GROUP_TYPE } from 'monitor-pc/common/user-display-name';
@@ -78,8 +78,23 @@ export default defineComponent({
     placeholder: {
       type: String,
     },
+    /**
+     * 空列表提示文本
+     */
     emptyText: {
       type: String,
+    },
+    /**
+     * 渲染tag
+     */
+    renderTag: {
+      type: Function as PropType<(h: typeof createVNode, userInfo: IUserInfo) => VNode>,
+    },
+    /**
+     * 渲染列表项
+     */
+    renderListItem: {
+      type: Function as PropType<(h: typeof createVNode, userInfo: IUserInfo) => VNode>,
     },
   },
   emits: {
@@ -124,7 +139,10 @@ export default defineComponent({
      * @description 人员选择器下拉框列表项渲染
      *
      */
-    const listItemRender = (_, userInfo) => {
+    const listItemRender = (h: typeof createVNode, userInfo: IUserInfo) => {
+      if (props.renderListItem) {
+        return props.renderListItem?.(h, userInfo);
+      }
       const prefixIcon = getPrefixIcon(userInfo);
       return (
         <div class='user-selector-list-item'>
@@ -140,7 +158,10 @@ export default defineComponent({
      * @description 人员选择器已选项 tag 渲染
      *
      */
-    const tagItemRender = (_, userInfo) => {
+    const tagItemRender = (h: typeof createVNode, userInfo: IUserInfo) => {
+      if (props.renderTag) {
+        return props.renderTag?.(h, userInfo);
+      }
       const prefixIcon = getPrefixIcon(userInfo);
       return (
         <div class='user-selector-tag-item'>
