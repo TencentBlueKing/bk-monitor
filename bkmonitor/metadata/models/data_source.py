@@ -29,7 +29,6 @@ from core.drf_resource import api
 from core.errors.api import BKAPIError
 from metadata import config
 from metadata.models.space.constants import (
-    ENABLE_V4_DATALINK_ETL_CONFIGS,
     SPACE_UID_HYPHEN,
     SYSTEM_BASE_DATA_ETL_CONFIGS,
     SpaceTypes,
@@ -560,6 +559,8 @@ class DataSource(models.Model):
             # 如果由GSE来分配DataID的话，那么从GSE获取data_id，而不是走数据库的自增id
             # 现阶段仅支持指标的数据，因为现阶段指标的数据都为单指标单表
             # 添加过滤条件，只接入单指标单表时序数据到V4链路
+            from metadata.models.space.constants import ENABLE_V4_DATALINK_ETL_CONFIGS
+
             if settings.ENABLE_V2_BKDATA_GSE_RESOURCE and etl_config in ENABLE_V4_DATALINK_ETL_CONFIGS:
                 logger.info(f"apply for data id from bkdata,type_label->{type_label},etl_config->{etl_config}")
                 # TODO: 多租户 等待BkBase多租户协议,传递租户ID

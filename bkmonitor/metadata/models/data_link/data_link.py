@@ -21,6 +21,8 @@ from metadata.models.data_link.constants import (
     DataLinkResourceStatus,
     BASEREPORT_USAGES,
     BASEREPORT_DATABUS_FORMAT,
+    BK_STANDARD_TRANSFORMER_FORMAT,
+    BK_EXPORTER_TRANSFORMER_FORMAT,
 )
 from metadata.models.data_link.data_link_configs import (
     ConditionalSinkConfig,
@@ -44,7 +46,9 @@ class DataLink(models.Model):
     涵盖资源配置按需组装 -> 下发配置申请链路 ->同步元数据 全流程
     """
 
-    BK_STANDARD_V2_TIME_SERIES = "bk_standard_v2_time_series"
+    BK_STANDARD_V2_TIME_SERIES = "bk_standard_v2_time_series"  # 标准单指标单表时序链路
+    BK_EXPORTER_TIME_SERIES = "bk_exporter_time_series"  # 采集插件 -- 固定指标单表(metric_name)时序链路
+    BK_STANDARD_TIME_SERIES = "bk_standard_time_series"  # 采集插件 -- 固定指标单表(metric_name)时序链路
     BCS_FEDERAL_PROXY_TIME_SERIES = "bcs_federal_proxy_time_series"  # 联邦代理集群（父集群）时序链路
     BCS_FEDERAL_SUBSET_TIME_SERIES = "bcs_federal_subset_time_series"  # 联邦集群（子集群）时序链路
     BASEREPORT_TIME_SERIES_V1 = "basereport_time_series_v1"  # 主机基础数据上报时序链路
@@ -52,6 +56,8 @@ class DataLink(models.Model):
 
     DATA_LINK_STRATEGY_CHOICES = (
         (BK_STANDARD_V2_TIME_SERIES, "标准单指标单表时序数据链路"),
+        (BK_EXPORTER_TIME_SERIES, "采集插件时序数据链路"),
+        (BK_STANDARD_TIME_SERIES, "STANDARD采集插件时序数据链路"),
         (BCS_FEDERAL_PROXY_TIME_SERIES, "联邦代理时序数据链路"),
         (BCS_FEDERAL_SUBSET_TIME_SERIES, "联邦子集时序数据链路"),
         (BASEREPORT_TIME_SERIES_V1, "主机基础采集时序数据链路"),
@@ -61,6 +67,8 @@ class DataLink(models.Model):
     # 各个套餐所需要的链路资源
     STRATEGY_RELATED_COMPONENTS = {
         BK_STANDARD_V2_TIME_SERIES: [VMResultTableConfig, VMStorageBindingConfig, DataBusConfig],
+        BK_EXPORTER_TIME_SERIES: [VMResultTableConfig, VMStorageBindingConfig, DataBusConfig],
+        BK_STANDARD_TIME_SERIES: [VMResultTableConfig, VMStorageBindingConfig, DataBusConfig],
         BCS_FEDERAL_PROXY_TIME_SERIES: [VMResultTableConfig, VMStorageBindingConfig],
         BCS_FEDERAL_SUBSET_TIME_SERIES: [
             VMResultTableConfig,
@@ -74,10 +82,17 @@ class DataLink(models.Model):
 
     STORAGE_TYPE_MAP = {
         BK_STANDARD_V2_TIME_SERIES: ClusterInfo.TYPE_VM,
+        BK_EXPORTER_TIME_SERIES: ClusterInfo.TYPE_VM,
+        BK_STANDARD_TIME_SERIES: ClusterInfo.TYPE_VM,
         BCS_FEDERAL_PROXY_TIME_SERIES: ClusterInfo.TYPE_VM,
         BCS_FEDERAL_SUBSET_TIME_SERIES: ClusterInfo.TYPE_VM,
         BASEREPORT_TIME_SERIES_V1: ClusterInfo.TYPE_VM,
         BASE_EVENT_V1: ClusterInfo.TYPE_ES,
+    }
+
+    DATABUS_TRANSFORMER_FORMAT = {
+        BK_EXPORTER_TIME_SERIES: BK_EXPORTER_TRANSFORMER_FORMAT,
+        BK_STANDARD_TIME_SERIES: BK_STANDARD_TRANSFORMER_FORMAT,
     }
 
     data_link_name = models.CharField(max_length=255, verbose_name="链路名称", primary_key=True)
@@ -101,6 +116,8 @@ class DataLink(models.Model):
         # 类似switch的形式，选择对应的组装方式
         switcher = {
             DataLink.BK_STANDARD_V2_TIME_SERIES: self.compose_standard_time_series_configs,
+            DataLink.BK_STANDARD_TIME_SERIES: self.compose_bk_plugin_time_series_config,
+            DataLink.BK_EXPORTER_TIME_SERIES: self.compose_bk_plugin_time_series_config,
             DataLink.BCS_FEDERAL_PROXY_TIME_SERIES: self.compose_bcs_federal_proxy_time_series_configs,
             DataLink.BCS_FEDERAL_SUBSET_TIME_SERIES: self.compose_bcs_federal_subset_time_series_configs,
             DataLink.BASEREPORT_TIME_SERIES_V1: self.compose_basereport_time_series_configs,
@@ -575,6 +592,59 @@ class DataLink(models.Model):
         ]
         return configs
 
+    def compose_bk_plugin_time_series_config(self, data_source, table_id, storage_cluster_name):
+        """
+        生成采集插件时序数据链路配置 -- bk_standard & bk_exporter
+        """
+        bkbase_data_name = utils.compose_bkdata_data_id_name(data_source.data_name, self.data_link_strategy)
+        bkbase_vmrt_name = utils.compose_bkdata_table_id(table_id, self.data_link_strategy)
+        bk_biz_id = utils.parse_and_get_rt_biz_id(table_id)
+
+        try:
+            with transaction.atomic():
+                # 渲染所需的资源配置
+                vm_table_id_ins, _ = VMResultTableConfig.objects.get_or_create(
+                    name=bkbase_vmrt_name,
+                    data_link_name=self.data_link_name,
+                    namespace=self.namespace,
+                    bk_biz_id=bk_biz_id,
+                )
+                vm_storage_ins, _ = VMStorageBindingConfig.objects.get_or_create(
+                    name=bkbase_vmrt_name,
+                    vm_cluster_name=storage_cluster_name,
+                    data_link_name=self.data_link_name,
+                    namespace=self.namespace,
+                    bk_biz_id=bk_biz_id,
+                )
+                sinks = [
+                    {
+                        "kind": DataLinkKind.VMSTORAGEBINDING.value,
+                        "name": bkbase_vmrt_name,
+                        "namespace": settings.DEFAULT_VM_DATA_LINK_NAMESPACE,
+                    }
+                ]
+
+                # TODO: 非自动发现情况下,需要传递指标/维度白名单至VMStorageBinding中
+                data_bus_ins, _ = DataBusConfig.objects.get_or_create(
+                    name=bkbase_vmrt_name,
+                    data_id_name=bkbase_data_name,
+                    data_link_name=self.data_link_name,
+                    namespace=self.namespace,
+                    bk_biz_id=bk_biz_id,
+                )
+        except Exception as e:  # pylint: disable=broad-except
+            logger.error("compose_configs: data_link_name->[%s] error->[%s],rollback!", self.data_link_name, e)
+            raise e
+
+        transform_format = self.DATABUS_TRANSFORMER_FORMAT.get(self.data_link_strategy)
+
+        configs = [
+            vm_table_id_ins.compose_config(),
+            vm_storage_ins.compose_config(),
+            data_bus_ins.compose_config(sinks=sinks, transform_format=transform_format),
+        ]
+        return configs
+
     def apply_data_link(self, *args, **kwargs):
         """
         组装配置并下发数据链路
@@ -703,14 +773,17 @@ class DataLink(models.Model):
             with transaction.atomic():
                 # 创建11个VMResultTableConfig和VMStorageBindingConfig
                 for usage in BASEREPORT_USAGES:
-                    vm_result_table_id = f"{bkbase_vmrt_prefix}_{usage}"
+                    vm_result_table_id = f"{bk_biz_id}_{bkbase_vmrt_prefix}_{usage}"
                     result_table_id = f"{self.bk_tenant_id}_{bk_biz_id}_{source}.{usage}"
-                    vm_record, _ = AccessVMRecord.objects.get_or_create(
+                    vm_record, _ = AccessVMRecord.objects.update_or_create(
                         result_table_id=result_table_id,
-                        vm_result_table_id=vm_result_table_id,
-                        storage_cluster_id=storage_cluster_id,
-                        vm_cluster_id=storage_cluster_id,
                         bk_base_data_id=datasource.bk_data_id,
+                        bk_base_data_name=datasource.data_name,
+                        defaults={
+                            "vm_result_table_id": vm_result_table_id,
+                            "vm_cluster_id": storage_cluster_id,
+                            "storage_cluster_id": storage_cluster_id,
+                        },
                     )
         except Exception as e:  # pylint: disable=broad-except
             logger.error("sync_basereport_metadata: failed to create access vm record! error message->%s", e)
