@@ -35,6 +35,7 @@ from apps.log_search.constants import (
     MAX_ASYNC_COUNT,
     MAX_QUICK_EXPORT_ASYNC_COUNT,
     SCROLL,
+    MAX_QUICK_EXPORT_ASYNC_COUNT,
 )
 from apps.log_search.exceptions import BaseSearchResultAnalyzeException
 from apps.log_search.handlers.index_set import BaseIndexSetHandler
@@ -1021,6 +1022,29 @@ class UnifyQueryHandler:
 
             # done为true代表已经获取完所有数据，可以结束查询
             if search_result.get("done", True):
+                break
+
+    def export_data(self, is_quick_export: bool = False):
+        """
+        轮询滚动查询接口导出数据
+        """
+        max_count = MAX_QUICK_EXPORT_ASYNC_COUNT if is_quick_export else MAX_ASYNC_COUNT
+
+        search_params = copy.deepcopy(self.base_dict)
+        search_params["limit"] = MAX_RESULT_WINDOW
+        search_params["scroll"] = SCROLL
+
+        total_count = 0
+        while True:
+            search_result = UnifyQueryHandler.query_ts_raw_with_scroll(search_params)
+            total_count += len(search_result["list"])
+
+            if is_quick_export:
+                yield search_result["list"]
+            else:
+                yield self._deal_query_result(search_result)["origin_log_list"]
+
+            if search_result.get("done", True) or total_count >= max_count:
                 break
 
     def _get_user_sorted_list(self, sorted_fields):
