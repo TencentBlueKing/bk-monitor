@@ -48,6 +48,7 @@ from apps.log_search.models import (
     UserIndexSetSearchHistory,
 )
 from apps.log_search.permission import Permission
+from apps.log_search.utils import handle_es_query_error
 from apps.log_unifyquery.constants import BASE_OP_MAP, MAX_LEN_DICT, REFERENCE_ALIAS
 from apps.log_unifyquery.utils import deal_time_format, transform_advanced_addition
 from apps.utils.cache import cache_five_minute
@@ -781,11 +782,15 @@ class UnifyQueryHandler:
         search_dict["limit"] = once_size
         search_dict["highlight"] = {"enable": self.highlight}
 
-        # 预查询
-        result = self.query_ts_raw(search_dict, pre_search=pre_search)
-        if pre_search and len(result["list"]) != once_size:
-            # 全量查询
-            result = self.query_ts_raw(search_dict)
+        try:
+            # 预查询
+            result = self.query_ts_raw(search_dict, raise_exception=True, pre_search=pre_search)
+            if pre_search and len(result["list"]) != once_size:
+                # 全量查询
+                result = self.query_ts_raw(search_dict, raise_exception=True)
+        except Exception as e:
+            raise handle_es_query_error(e)
+
         result = self._deal_query_result(result)
 
         # 脱敏配置日志原文检索 提前返回
