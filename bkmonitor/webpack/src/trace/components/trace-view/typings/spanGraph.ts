@@ -24,11 +24,59 @@
  * IN THE SOFTWARE.
  */
 
-import type { TNil } from './trace';
 import type { Ref } from 'vue';
 
+import type { TNil } from './trace';
+
+export enum ETraceViewType {
+  TraceGraph = 'TraceGraph',
+  TraceSpansView = 'TraceSpansView',
+  TraceStatistics = 'TraceStatistics',
+  TraceTimelineViewer = 'TraceTimelineViewer',
+}
+
+export interface IChildrenHiddenStore {
+  childrenHiddenIds: Ref<any>;
+  onChange: (spanId: string) => void;
+}
+
+export interface IFocusMatchesStore {
+  findMatchesIDs: Ref<any>;
+  focusMatchesId: Ref<string>;
+  focusMatchesIdIndex: Ref<number>;
+}
+
+export interface ISpanBarStore {
+  current: Ref<[number, number]>;
+  onCurrentChange: (current: [number, number]) => void;
+}
+
+export interface IViewRange {
+  time: IViewRangeTime;
+}
+
+export interface IViewRangeStore {
+  viewRange: Ref<IViewRange>;
+  onViewRangeChange: (viewRange: IViewRange) => void;
+}
+
+export interface IViewRangeTime {
+  current: [number, number];
+  cursor?: number | TNil;
+  shiftEnd?: number;
+  shiftStart?: number;
+  reframe?: {
+    anchor: number;
+    shift: number;
+  };
+}
+
+export type TUpdateViewRangeTimeFunction = (start: number, end: number, trackSrc?: string) => void;
+
+export type ViewRangeTimeUpdate = ITimeCursorUpdate | ITimeReframeUpdate | ITimeShiftEndUpdate | ITimeShiftStartUpdate;
+
 interface ITimeCursorUpdate {
-  cursor: TNil | number;
+  cursor: number | TNil;
 }
 
 interface ITimeReframeUpdate {
@@ -44,51 +92,4 @@ interface ITimeShiftEndUpdate {
 
 interface ITimeShiftStartUpdate {
   shiftStart: number;
-}
-
-export type TUpdateViewRangeTimeFunction = (start: number, end: number, trackSrc?: string) => void;
-
-export type ViewRangeTimeUpdate = ITimeCursorUpdate | ITimeReframeUpdate | ITimeShiftEndUpdate | ITimeShiftStartUpdate;
-
-export interface IViewRangeTime {
-  current: [number, number];
-  cursor?: TNil | number;
-  reframe?: {
-    anchor: number;
-    shift: number;
-  };
-  shiftEnd?: number;
-  shiftStart?: number;
-}
-
-export interface IViewRange {
-  time: IViewRangeTime;
-}
-
-export interface IViewRangeStore {
-  viewRange: Ref<IViewRange>;
-  onViewRangeChange: (viewRange: IViewRange) => void;
-}
-
-export interface ISpanBarStore {
-  current: Ref<[number, number]>;
-  onCurrentChange: (current: [number, number]) => void;
-}
-
-export interface IFocusMatchesStore {
-  focusMatchesId: Ref<string>;
-  focusMatchesIdIndex: Ref<number>;
-  findMatchesIDs: Ref<any>;
-}
-
-export interface IChildrenHiddenStore {
-  childrenHiddenIds: Ref<any>;
-  onChange: (spanId: string) => void;
-}
-
-export enum ETraceViewType {
-  TraceGraph = 'TraceGraph',
-  TraceSpansView = 'TraceSpansView',
-  TraceStatistics = 'TraceStatistics',
-  TraceTimelineViewer = 'TraceTimelineViewer',
 }

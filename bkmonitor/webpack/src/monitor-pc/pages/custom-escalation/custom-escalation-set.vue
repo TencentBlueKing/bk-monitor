@@ -120,13 +120,13 @@
               >
                 <bk-option-group
                   v-for="(group, index) in scenarioList"
-                  :name="group.name"
                   :key="index"
+                  :name="group.name"
                 >
                   <bk-option
                     v-for="(option, groupIndex) in group.children"
-                    :key="groupIndex"
                     :id="option.id"
+                    :key="groupIndex"
                     :name="option.name"
                   />
                 </bk-option-group>
@@ -157,8 +157,8 @@
               </div>
             </verify-input>
             <span
-              class="description"
               v-if="protocolDes"
+              class="description"
             >
               {{ protocolDes }}
             </span>
@@ -169,8 +169,8 @@
             :label="type === 'customEvent' ? $t('是否为平台事件') : $t('作用范围')"
           >
             <bk-checkbox
-              v-model="formData.isPlatform"
               v-if="type === 'customEvent'"
+              v-model="formData.isPlatform"
             />
             <div v-else>
               <bk-radio-group
@@ -178,10 +178,11 @@
                 class="bk-radio-group"
               >
                 <bk-radio
-                  :value="scope.id"
                   v-for="(scope, index) in scopeList"
                   :key="index"
-                >{{ $t(scope.name) }}</bk-radio>
+                  :value="scope.id"
+                  >{{ $t(scope.name) }}</bk-radio
+                >
               </bk-radio-group>
             </div>
             <div
@@ -189,13 +190,15 @@
               class="platform-tips"
             >
               <span class="icon-monitor icon-tixing" />
-              <span>{{ $t('开启全业务作用范围，全部业务都可见属于自身业务的数据，有平台特定的数据格式要求，请联系平台管理员。') }}</span>
+              <span>{{
+                $t('开启全业务作用范围，全部业务都可见属于自身业务的数据，有平台特定的数据格式要求，请联系平台管理员。')
+              }}</span>
             </div>
           </bk-form-item>
           <bk-form-item
+            v-if="type !== 'customEvent'"
             :ext-cls="'content-basic'"
             :label="$t('描述')"
-            v-if="type !== 'customEvent'"
           >
             <bk-input
               v-model="formData.desc"
@@ -212,13 +215,15 @@
     <!-- 事件列表 -->
     <div class="escalation-form escalation-list">
       <span
-        class="escalation-form-title"
         v-if="type === 'customEvent'"
-      >{{ $t('事件列表') }}</span>
-      <span
         class="escalation-form-title"
+        >{{ $t('事件列表') }}</span
+      >
+      <span
         v-else
-      >{{ $t('时序列表') }}</span>
+        class="escalation-form-title"
+        >{{ $t('时序列表') }}</span
+      >
       <span class="escalation-list-explain">{{ $t('（新建完成后自动获取）') }}</span>
     </div>
     <!-- 底部按钮 -->
@@ -226,21 +231,25 @@
       <bk-button
         class="mc-btn-add"
         theme="primary"
-        @click="handleSubmit"
         :icon="btnLoadingIcon"
         :disabled="disableSubmit || !isAllowSubmit"
+        @click="handleSubmit"
       >
         {{ submitBtnText }}
       </bk-button>
       <bk-button
-        @click="handleCancel"
         class="ml10 mc-btn-add"
-      > {{ $t('取消') }} </bk-button>
+        @click="handleCancel"
+      >
+        {{ $t('取消') }}
+      </bk-button>
     </div>
   </div>
 </template>
 
 <script lang="ts">
+import { Component, Vue, Watch } from 'vue-property-decorator';
+
 import { getLabel } from 'monitor-api/modules/commons';
 import {
   createCustomEventGroup,
@@ -248,10 +257,10 @@ import {
   validateCustomEventGroupLabel,
   validateCustomTsGroupLabel,
 } from 'monitor-api/modules/custom_report';
-import { Component, Vue, Watch } from 'vue-property-decorator';
 
 import VerifyInput from '../../components/verify-input/verify-input.vue';
 import { SET_NAV_ROUTE_LIST } from '../../store/modules/app';
+
 import type { IFormData, IParams, IRule } from '../../types/custom-escalation/custom-escalation-set';
 import type MonitorVue from '../../types/index';
 
@@ -449,8 +458,7 @@ export default class CustomEscalationSet extends Vue<MonitorVue> {
     }
     const res =
       this.type === 'customEvent'
-        ? // eslint-disable-next-line vue/max-len
-          await validateCustomEventGroupLabel(
+        ? await validateCustomEventGroupLabel(
             { data_label: this.formData.dataLabel },
             { needRes: true, needMessage: false, needTraceId: false }
           ).catch(err => err)
@@ -515,7 +523,7 @@ export default class CustomEscalationSet extends Vue<MonitorVue> {
       this.handleToDetail(result.bk_event_group_id);
     } else {
       // 自定义指标新增字段
-      // eslint-disable-next-line no-unused-expressions
+
       const addParams = {
         protocol: this.formData.protocol,
         desc: this.formData.desc,
@@ -592,7 +600,7 @@ export default class CustomEscalationSet extends Vue<MonitorVue> {
     font-size: 12px;
     background: $whiteColor;
     border-radius: 2px;
-    box-shadow: 0 1px 2px 0 rgba(0, 0, 0, .1);
+    box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.1);
 
     @include border-1px($color: $defaultBorderColor);
 
@@ -607,7 +615,7 @@ export default class CustomEscalationSet extends Vue<MonitorVue> {
       font-size: 12px;
       line-height: 1;
       color: #979ba5;
-    };
+    }
 
     .bk-radio-group {
       padding-top: 6px;

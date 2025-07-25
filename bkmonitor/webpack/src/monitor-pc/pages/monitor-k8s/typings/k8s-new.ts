@@ -36,6 +36,15 @@ export enum EDimensionKey {
   service = 'service',
   node = 'node',
 }
+/** 汇聚类型枚举 */
+export enum K8sConvergeTypeEnum {
+  AVG = 'avg',
+  COUNT = 'count',
+  MAX = 'max',
+  MIN = 'min',
+  SUM = 'sum',
+}
+
 /**
  * @description: k8s tab类型枚举
  */
@@ -132,14 +141,45 @@ export enum K8sTableColumnKeysEnum {
   NETWORK_TRANSMIT_BYTES = 'container_network_transmit_bytes_total',
 }
 
-/** 汇聚类型枚举 */
-export enum K8sConvergeTypeEnum {
-  AVG = 'avg',
-  COUNT = 'count',
-  MAX = 'max',
-  MIN = 'min',
-  SUM = 'sum',
+export enum SceneEnum {
+  Performance = 'performance',
+  Network = 'network',
+  Capacity = 'capacity',
 }
+
+export interface GroupListItem<T = string> {
+  [key: string]: any;
+  children?: GroupListItem<T>[];
+  count?: number;
+  id: T;
+  name: string;
+  relation?: Record<EDimensionKey, string>; // 关联维度
+  showMore?: boolean;
+}
+
+export interface ICommonParams {
+  bcs_cluster_id: string;
+  scenario: SceneEnum;
+  timeRange: TimeRangeType;
+}
+
+export interface IK8SMetricItem {
+  children: IK8SMetricItem[];
+  count?: number;
+  id: string;
+  name: string;
+  unit?: string;
+  unsupported_resource?: string[];
+}
+
+export interface K8sDimensionParams extends ICommonParams {
+  page_size: number;
+  page_type: 'scrolling' | 'traditional';
+  query_string: string;
+}
+
+/** 排序类型 */
+export type K8sSortType = '' | 'asc' | 'desc';
 
 /** 指标字段 */
 export type K8sTableMetricKeys =
@@ -152,46 +192,6 @@ export type K8sTableMetricKeys =
   | 'MEMORY_RSS'
   | 'NETWORK_RECEIVE_BYTES'
   | 'NETWORK_TRANSMIT_BYTES';
-
-/** 排序类型 */
-export type K8sSortType = '' | 'asc' | 'desc';
-
-export enum SceneEnum {
-  Performance = 'performance',
-  Network = 'network',
-  Capacity = 'capacity',
-}
-
-export interface GroupListItem<T = string> {
-  id: T;
-  name: string;
-  count?: number;
-  showMore?: boolean;
-  children?: GroupListItem<T>[];
-  relation?: Record<EDimensionKey, string>; // 关联维度
-  [key: string]: any;
-}
-
-export interface K8sDimensionParams extends ICommonParams {
-  query_string: string;
-  page_size: number;
-  page_type: 'scrolling' | 'traditional';
-}
-
-export interface ICommonParams {
-  scenario: SceneEnum;
-  bcs_cluster_id: string;
-  timeRange: TimeRangeType;
-}
-
-export interface IK8SMetricItem {
-  id: string;
-  name: string;
-  count?: number;
-  unit?: string;
-  children: IK8SMetricItem[];
-  unsupported_resource?: string[];
-}
 
 export const K8SPerformanceMetricUnitMap = {
   container_cpu_usage_seconds_total: 'short',

@@ -26,15 +26,15 @@
 
 // 类型定义
 export interface VueInstance {
-  prototype?: {
-    $bkMessage?: (message: any) => void;
-    $authorityStore?: AuthorityStore;
-  };
   config?: {
     globalProperties?: {
-      $Message?: (message: any) => void;
       $authorityStore?: AuthorityStore;
+      $Message?: (message: any) => void;
     };
+  };
+  prototype?: {
+    $authorityStore?: AuthorityStore;
+    $bkMessage?: (message: any) => void;
   };
 }
 
@@ -43,9 +43,9 @@ interface AuthorityStore {
 }
 
 interface MessageObject {
+  [key: string]: any;
   detail?: any;
   trace_id?: string;
-  [key: string]: any;
 }
 
 type MessageType = MessageObject | string;

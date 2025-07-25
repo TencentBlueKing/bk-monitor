@@ -25,13 +25,16 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import create from '@blueking/ip-selector/dist/index.esm';
 import {
+  agentStatisticsIpChooserDynamicGroup,
   agentStatisticsIpChooserTemplate,
   agentStatisticsIpChooserTopo,
   batchGetIpChooserConfig,
   checkIpChooserHost,
   detailsIpChooserHost,
   detailsIpChooserServiceInstance,
+  executeIpChooserDynamicGroup,
   globalConfigIpChooserConfig,
+  groupsIpChooserDynamicGroup,
   hostsIpChooserTemplate,
   nodesIpChooserTemplate,
   queryHostIdInfosIpChooserTopo,
@@ -42,9 +45,6 @@ import {
   templatesIpChooserTemplate,
   treesIpChooserTopo,
   updateConfigIpChooserConfig,
-  groupsIpChooserDynamicGroup,
-  executeIpChooserDynamicGroup,
-  agentStatisticsIpChooserDynamicGroup,
 } from 'monitor-api/modules/model';
 
 import { PanelTargetMap, transformCacheMapToOriginData, transformOriginDataToCacheMap } from './utils';
@@ -57,6 +57,12 @@ import type {
   IIpV6Value,
   INode,
   INodeType,
+  IpSelectorConfig,
+  IpSelectorHostMemuExtend,
+  IpSelectorHostTableCustomColumn,
+  IpSelectorMode,
+  IpSelectorNameStyle,
+  IpSelectorService,
   IQuery,
   IScopeItme,
   IStatistics,
@@ -64,12 +70,6 @@ import type {
   ITemplateItem,
   ITemplateNode,
   ITreeItem,
-  IpSelectorConfig,
-  IpSelectorHostMemuExtend,
-  IpSelectorHostTableCustomColumn,
-  IpSelectorMode,
-  IpSelectorNameStyle,
-  IpSelectorService,
 } from './typing';
 
 import '@blueking/ip-selector/dist/styles/index.css';
@@ -78,42 +78,42 @@ const BkIpSelector = create({
   version: '3',
   serviceConfigError: false,
 });
-export interface IMonitorIpSelectorProps {
-  panelList?: string[];
-  value?: IIpV6Value;
-  hostTableCustomColumnList?: IpSelectorHostTableCustomColumn[];
-  nodeTableCustomColumnList?: IpSelectorHostTableCustomColumn[];
-  serviceTemplateTableCustomColumnList?: IpSelectorHostTableCustomColumn[];
-  setTemplateTableCustomColumnList?: IpSelectorHostTableCustomColumn[];
-  hostMemuExtends?: IpSelectorHostMemuExtend[];
-  hostTableRenderColumnList?: string[];
-  originalValue?: IIpV6Value;
-  mode?: IpSelectorMode;
-  nameStyle?: IpSelectorNameStyle;
-  showDialog?: boolean;
-  unqiuePanelValue?: boolean;
-  showView?: boolean;
-  showViewDiff?: boolean;
-  readonly?: boolean;
-  disableDialogSubmitMethod?: () => void;
-  disableHostMethod?: () => void;
-  viewSearchKey?: string;
-  service?: IpSelectorService;
-  height?: number;
-  extractScene?: boolean;
-  singleHostSelect?: boolean;
-  keepHostFieldOutput?: boolean;
-  defaultOutputFieldList?: string[];
-  outputFieldList?: string[];
-  outputFieldOptionalHostTableColumn?: string[];
-  countInstanceType?: CoutIntanceName;
-  enableOriginData?: boolean;
-}
 export interface IMonitorIpSelectorEvents {
   onChange: (v: Record<string, INode[]>) => void;
-  onTargetTypeChange: (v: INodeType) => void;
   onCloseDialog: (v: boolean) => void;
   onOutputFieldChange: (v: string[]) => void;
+  onTargetTypeChange: (v: INodeType) => void;
+}
+export interface IMonitorIpSelectorProps {
+  countInstanceType?: CoutIntanceName;
+  defaultOutputFieldList?: string[];
+  enableOriginData?: boolean;
+  extractScene?: boolean;
+  height?: number;
+  hostMemuExtends?: IpSelectorHostMemuExtend[];
+  hostTableCustomColumnList?: IpSelectorHostTableCustomColumn[];
+  hostTableRenderColumnList?: string[];
+  keepHostFieldOutput?: boolean;
+  mode?: IpSelectorMode;
+  nameStyle?: IpSelectorNameStyle;
+  nodeTableCustomColumnList?: IpSelectorHostTableCustomColumn[];
+  originalValue?: IIpV6Value;
+  outputFieldList?: string[];
+  outputFieldOptionalHostTableColumn?: string[];
+  panelList?: string[];
+  readonly?: boolean;
+  service?: IpSelectorService;
+  serviceTemplateTableCustomColumnList?: IpSelectorHostTableCustomColumn[];
+  setTemplateTableCustomColumnList?: IpSelectorHostTableCustomColumn[];
+  showDialog?: boolean;
+  showView?: boolean;
+  showViewDiff?: boolean;
+  singleHostSelect?: boolean;
+  unqiuePanelValue?: boolean;
+  value?: IIpV6Value;
+  viewSearchKey?: string;
+  disableDialogSubmitMethod?: () => void;
+  disableHostMethod?: () => void;
 }
 
 @Component({

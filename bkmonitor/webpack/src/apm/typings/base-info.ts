@@ -29,97 +29,28 @@ export enum RelationEventType {
   pipeline = 'cicd_event',
   System = 'system_event',
 }
-export interface IBaseParams {
-  bk_biz_id: number;
-  app_name: string;
-  service_name: string;
+export interface IApdexRelation {
+  apdex_value: number;
 }
 
-export interface IBaseServiceInfo {
-  labels: string[];
-}
-
-export interface IBaseInfoList {
-  label: TranslateResult;
-  icon: null | string;
-  value: string;
-}
-
-export interface ICMDBInfoList {
-  id: number;
-  template_id: number;
-  submitType: string;
-}
-
-export interface ICMDBSelectOption {
-  id: number | string;
-  name: string;
-  firstValue: string;
-  firstIcon: string;
-  secondValue: string;
-  secondIcon: string;
-}
-
-export interface ILogsInfoList {
-  id?: number;
-  log_type?: string;
-  log_type_name?: string;
-  value?: string;
-  editValue: string;
-  submitType: string;
-  isSubmiting: boolean;
-}
-
-export interface ISelectOption {
-  id: number | string;
+export interface IAppInfoItem {
+  application_id: number;
+  id: string;
   name: string;
 }
 
 export interface IAppInfoList {
+  editBkID: number | string;
   id?: number;
   relate_app_name?: string;
   relate_bk_biz_id?: number;
   relate_bk_biz_name?: string;
-  editBkID: number | string;
   submitType: string;
 }
 
-export interface ISelectEditValue {
-  activeItem: IAppInfoList | ICMDBInfoList | ILogsInfoList;
-  selectValue: string;
-  type: string;
-}
-
-export type IReqType = 'del' | 'get' | 'set';
-
-export interface IExtraData {
-  category_name: string;
-  category_icon: string;
-  predicate_value: string;
-  predicate_value_icon: string;
-  service_language: string;
-}
-
-export interface ICmdbRelationCategory {
+export interface IApplicationItem {
+  id: string;
   name: string;
-  icon: string;
-}
-
-export interface ICmdbRelation {
-  template_id?: number | string;
-  id?: number;
-  template_name?: string;
-  first_category?: ICmdbRelationCategory;
-  second_category?: ICmdbRelationCategory;
-}
-
-export interface ILogRelation {
-  log_type: string;
-  log_type_alias: string;
-  value: string;
-  value_alias?: string;
-  related_bk_biz_id?: number;
-  related_bk_biz_name?: string;
 }
 
 export interface IAppRelation {
@@ -129,52 +60,20 @@ export interface IAppRelation {
   relate_bk_biz_name: string;
 }
 
-export interface IApdexRelation {
-  apdex_value: number;
+export interface IBaseInfoList {
+  icon: null | string;
+  label: TranslateResult;
+  value: string;
 }
 
-export interface IUriRelation {
-  id: number;
-  rank: number;
-  uri: string;
+export interface IBaseParams {
+  app_name: string;
+  bk_biz_id: number;
+  service_name: string;
 }
 
-export interface IServiceRelation {
-  cmdb_relation?: ICmdbRelation;
-  log_relation?: ILogRelation;
-  app_relation?: IAppRelation;
-  apdex_relation?: IApdexRelation;
-  uri_relation?: IUriRelation[];
-  event_relation?: {
-    table: RelationEventType;
-    relations: {
-      bcs_cluster_id?: string;
-      namespace?: string;
-      kind?: string;
-      name?: string;
-    }[];
-    options: {
-      is_auto: boolean;
-    };
-  }[];
-}
-
-export interface IServiceInfo {
-  topo_key: string;
-  instance_count: number;
-  extra_data: IExtraData;
-  relation: IServiceRelation;
+export interface IBaseServiceInfo {
   labels: string[];
-}
-
-export interface ILocationRelation {
-  cmdb: number | string;
-  logType: string;
-  logValue: string;
-  bizId: number | string;
-  appId: string;
-  apdex: number;
-  relatedBizId: number | string;
 }
 
 export interface ICmdbInfoItem {
@@ -182,15 +81,40 @@ export interface ICmdbInfoItem {
   name: string;
 }
 
-export interface ILogInfoItem {
-  id: string;
+export interface ICMDBInfoList {
+  id: number;
+  submitType: string;
+  template_id: number;
+}
+
+export interface ICmdbRelation {
+  first_category?: ICmdbRelationCategory;
+  id?: number;
+  second_category?: ICmdbRelationCategory;
+  template_id?: number | string;
+  template_name?: string;
+}
+
+export interface ICmdbRelationCategory {
+  icon: string;
   name: string;
 }
 
-export interface IAppInfoItem {
-  application_id: number;
-  id: string;
+export interface ICMDBSelectOption {
+  firstIcon: string;
+  firstValue: string;
+  id: number | string;
   name: string;
+  secondIcon: string;
+  secondValue: string;
+}
+
+export interface IExtraData {
+  category_icon: string;
+  category_name: string;
+  predicate_value: string;
+  predicate_value_icon: string;
+  service_language: string;
 }
 
 export interface IIndexSetItem {
@@ -198,7 +122,83 @@ export interface IIndexSetItem {
   name: string;
 }
 
-export interface IApplicationItem {
+export interface ILocationRelation {
+  apdex: number;
+  appId: string;
+  bizId: number | string;
+  cmdb: number | string;
+  logType: string;
+  logValue: string;
+  relatedBizId: number | string;
+}
+
+export interface ILogInfoItem {
   id: string;
   name: string;
+}
+
+export interface ILogRelation {
+  log_type: string;
+  log_type_alias: string;
+  related_bk_biz_id?: number;
+  related_bk_biz_name?: string;
+  value: string;
+  value_alias?: string;
+}
+
+export interface ILogsInfoList {
+  editValue: string;
+  id?: number;
+  isSubmiting: boolean;
+  log_type?: string;
+  log_type_name?: string;
+  submitType: string;
+  value?: string;
+}
+
+export type IReqType = 'del' | 'get' | 'set';
+
+export interface ISelectEditValue {
+  activeItem: IAppInfoList | ICMDBInfoList | ILogsInfoList;
+  selectValue: string;
+  type: string;
+}
+
+export interface ISelectOption {
+  id: number | string;
+  name: string;
+}
+
+export interface IServiceInfo {
+  extra_data: IExtraData;
+  instance_count: number;
+  labels: string[];
+  relation: IServiceRelation;
+  topo_key: string;
+}
+
+export interface IServiceRelation {
+  apdex_relation?: IApdexRelation;
+  app_relation?: IAppRelation;
+  cmdb_relation?: ICmdbRelation;
+  log_relation?: ILogRelation;
+  uri_relation?: IUriRelation[];
+  event_relation?: {
+    options: {
+      is_auto: boolean;
+    };
+    relations: {
+      bcs_cluster_id?: string;
+      kind?: string;
+      name?: string;
+      namespace?: string;
+    }[];
+    table: RelationEventType;
+  }[];
+}
+
+export interface IUriRelation {
+  id: number;
+  rank: number;
+  uri: string;
 }

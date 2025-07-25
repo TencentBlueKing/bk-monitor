@@ -37,12 +37,6 @@ import type { ECharts } from 'echarts';
 
 import './aiops-dimension-point.scss';
 
-interface IDimensionDetails {
-  dimension_value: string;
-  metric_value: number;
-  anomaly_score: number;
-}
-
 interface IChartDataItem {
   anomaly_score: number;
   dimension_details: IDimensionDetails[];
@@ -50,10 +44,16 @@ interface IChartDataItem {
   is_filled?: boolean;
 }
 
+interface IDimensionDetails {
+  anomaly_score: number;
+  dimension_value: string;
+  metric_value: number;
+}
+
 interface IInfo {
+  median?: number;
   metric_alias?: string;
   unit?: string;
-  median?: number;
 }
 
 interface IProps {

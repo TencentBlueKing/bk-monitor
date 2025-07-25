@@ -35,19 +35,19 @@ import type { TimeRangeType } from '../../../../components/time-range/time-range
 
 import './K8s-nav-bar.scss';
 
-interface K8sNavBarProps {
-  value?: string;
-  timeRange?: TimeRangeType;
-  timezone?: string;
-  refreshInterval?: number;
-}
-
 interface K8sNavBarEvent {
-  onSelected(val: string): void;
-  onTimezoneChange(val: string): void;
-  onTimeRangeChange(val: TimeRangeType): void;
   onImmediateRefresh(): void;
   onRefreshChange(val: number): void;
+  onSelected(val: string): void;
+  onTimeRangeChange(val: TimeRangeType): void;
+  onTimezoneChange(val: string): void;
+}
+
+interface K8sNavBarProps {
+  refreshInterval?: number;
+  timeRange?: TimeRangeType;
+  timezone?: string;
+  value?: string;
 }
 
 @Component

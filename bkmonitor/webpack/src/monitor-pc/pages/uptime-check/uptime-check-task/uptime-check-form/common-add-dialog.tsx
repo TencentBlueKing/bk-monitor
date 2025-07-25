@@ -32,24 +32,24 @@ import type { TranslateResult } from 'vue-i18n';
 
 import './common-add-dialog.scss';
 
-interface ICommonAddDialogProps {
-  show: boolean;
-  placeholder?: TranslateResult | string;
-  title?: TranslateResult | string;
-  defaultValue: string;
-  validateTips?: TranslateResult | string;
-  showValidateTips?: boolean;
-}
 interface ICommonAddDialogEvent {
-  onShowChange: boolean;
   onConfirm: string;
   onFocus: MouseEvent;
+  onShowChange: boolean;
+}
+interface ICommonAddDialogProps {
+  defaultValue: string;
+  placeholder?: string | TranslateResult;
+  show: boolean;
+  showValidateTips?: boolean;
+  title?: string | TranslateResult;
+  validateTips?: string | TranslateResult;
 }
 @Component
 export default class CommonAddDialog extends tsc<ICommonAddDialogProps, ICommonAddDialogEvent> {
   @Prop() show: boolean;
-  @Prop() placeholder: TranslateResult | string;
-  @Prop() title: TranslateResult | string;
+  @Prop() placeholder: string | TranslateResult;
+  @Prop() title: string | TranslateResult;
   @Prop() defaultValue: string;
   @Prop() validateTips: string;
   @Prop() showValidateTips: boolean;

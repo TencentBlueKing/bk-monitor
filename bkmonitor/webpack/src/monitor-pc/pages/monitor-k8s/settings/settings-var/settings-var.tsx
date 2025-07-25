@@ -26,7 +26,7 @@
 import { Component, Emit, InjectReactive, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { getSceneViewDimensionValue, getSceneViewDimensions } from 'monitor-api/modules/scene_view';
+import { getSceneViewDimensions, getSceneViewDimensionValue } from 'monitor-api/modules/scene_view';
 import { deepClone, random } from 'monitor-common/utils/utils';
 import DragItem from 'monitor-ui/monitor-draggable/drag-item';
 import MonitorDraggable, { type IOnDrop } from 'monitor-ui/monitor-draggable/monitor-draggable';
@@ -34,7 +34,7 @@ import MonitorDraggable, { type IOnDrop } from 'monitor-ui/monitor-draggable/mon
 import ConditionInput, {
   type IVarOption,
 } from '../../../strategy-config/strategy-config-set-new/monitor-data/condition-input';
-import { SETTINGS_POP_Z_INDEX, handleCheckVarWhere, handleReplaceWhereVar } from '../../utils';
+import { handleCheckVarWhere, handleReplaceWhereVar, SETTINGS_POP_Z_INDEX } from '../../utils';
 
 import type { IBookMark, ICurVarItem, IOption, IViewOptions, IWhere, SettingsVarType } from '../../typings';
 

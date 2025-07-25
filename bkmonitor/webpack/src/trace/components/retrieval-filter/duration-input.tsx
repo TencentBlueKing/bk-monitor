@@ -24,11 +24,11 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, shallowRef, watch, type PropType } from 'vue';
+import { type PropType, defineComponent, shallowRef, watch } from 'vue';
 import { shallowReactive } from 'vue';
-import { useI18n } from 'vue-i18n';
 
-import { Input, type InputValue, Slider, type SliderValue } from 'tdesign-vue-next';
+import { type InputValue, type SliderValue, Input, Slider } from 'tdesign-vue-next';
+import { useI18n } from 'vue-i18n';
 
 import { formatDuration, isValidTimeFormat, parseDuration } from './duration-input-utils';
 

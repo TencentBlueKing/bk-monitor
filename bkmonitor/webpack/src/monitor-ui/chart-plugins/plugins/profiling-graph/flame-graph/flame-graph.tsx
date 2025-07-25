@@ -27,7 +27,7 @@ import { Component, Emit, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { addListener, removeListener } from '@blueking/fork-resize-detector';
-import { Debounce, copyText } from 'monitor-common/utils/utils';
+import { copyText, Debounce } from 'monitor-common/utils/utils';
 import {
   type ProfileDataUnit,
   parseProfileDataTypeValue,
@@ -36,13 +36,13 @@ import {
 import { getValueFormat } from '../../../../monitor-echarts/valueFormats';
 import {
   type BaseDataType,
-  CommonMenuList,
   type IAxisRect,
   type ICommonMenuItem,
   type IContextMenuRect,
   type IOtherData,
   type ITipsDetail,
   type IZoomRect,
+  CommonMenuList,
   RootId,
 } from '../../../typings';
 import { FlameChart } from './use-flame';
@@ -52,29 +52,29 @@ import type { HierarchyNode } from 'd3-hierarchy';
 
 import './frame-graph.scss';
 
+interface IFlameGraphEvent {
+  onUpdateHighlightId: number;
+  onUpdateHighlightName: string;
+  onDiffTraceSuccess: () => void;
+  onShowSpanDetail: () => void;
+  onUpdateLoading: () => void;
+}
+
 interface IFlameGraphProps {
-  data: BaseDataType;
   appName?: string;
-  diffTraceId?: string;
-  filterKeywords?: string[];
-  textDirection?: 'ltr' | 'rtl';
-  profileId?: string;
-  start?: number;
-  end?: number;
   bizId?: number;
-  showGraphTools?: boolean;
+  data: BaseDataType;
+  diffTraceId?: string;
+  end?: number;
+  filterKeywords?: string[];
   highlightId?: number;
   highlightName?: string;
   isCompared?: boolean;
+  profileId?: string;
+  showGraphTools?: boolean;
+  start?: number;
+  textDirection?: 'ltr' | 'rtl';
   unit: ProfileDataUnit;
-}
-
-interface IFlameGraphEvent {
-  onUpdateLoading: () => void;
-  onShowSpanDetail: () => void;
-  onDiffTraceSuccess: () => void;
-  onUpdateHighlightId: number;
-  onUpdateHighlightName: string;
 }
 
 const usFormat = getValueFormat('µs');

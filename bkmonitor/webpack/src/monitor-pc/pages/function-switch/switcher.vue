@@ -29,7 +29,7 @@
       type="checkbox"
       :checked="value"
       @change="handleChange"
-    >
+    />
   </span>
 </template>
 
@@ -51,7 +51,7 @@ export default class Switcher extends Vue {
 </script>
 
 <style lang="scss" scoped>
-@import "../../theme/index.scss";
+@import '../../theme/index.scss';
 
 .switcher-wrapper {
   position: relative;
@@ -65,10 +65,10 @@ export default class Switcher extends Vue {
     left: 0;
     width: 100%;
     height: 4px;
-    content: "";
+    content: '';
     background-color: $slightFontColor;
     border-radius: 2px;
-    transition: all .4s ease;
+    transition: all 0.4s ease;
     transform: translate3D(0, -50%, 0);
     will-change: background-color;
   }
@@ -79,14 +79,14 @@ export default class Switcher extends Vue {
     left: 3px;
     width: 10px;
     height: 10px;
-    content: "";
+    content: '';
     background-color: $defaultFontColor;
     border-radius: 50%;
-    transition: all .4s ease;
+    transition: all 0.4s ease;
     will-change: background-color, left;
   }
 
-  input[type="checkbox"] {
+  input[type='checkbox'] {
     position: absolute;
     top: 0;
     left: 0;

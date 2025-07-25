@@ -35,18 +35,18 @@ import type { MetricDetail } from '../../strategy-config-set-new/typings';
 
 import './metric-list-item.scss';
 
-interface IProps {
-  metric?: MetricDetail;
-  expression?: string;
-  expFunctions?: IFunctionsValue[];
-}
-
 interface IConfigsItem {
+  enabled: boolean;
   key: 'function' | 'groupBy' | 'interval' | 'localQueryString' | 'logMetricName' | 'method' | 'metricName' | 'where';
   label: string;
   value: string | VueTsxSupport.JSX.Element | VueTsxSupport.JSX.Element[];
   format?: (val: any) => any;
-  enabled: boolean;
+}
+
+interface IProps {
+  expFunctions?: IFunctionsValue[];
+  expression?: string;
+  metric?: MetricDetail;
 }
 
 /**

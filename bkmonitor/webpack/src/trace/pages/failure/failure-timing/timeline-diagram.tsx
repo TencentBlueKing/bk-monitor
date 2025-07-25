@@ -35,7 +35,6 @@ import {
   ref,
   watch,
 } from 'vue';
-import { useI18n } from 'vue-i18n';
 
 import { Message, Popover } from 'bkui-vue';
 import { timeDay } from 'd3-time';
@@ -43,12 +42,13 @@ import dayjs from 'dayjs';
 import { feedbackIncidentRoot, incidentRecordOperation } from 'monitor-api/modules/incident';
 import { getCookie } from 'monitor-common/utils';
 import { random } from 'monitor-common/utils/utils.js';
+import { useI18n } from 'vue-i18n';
 
 import AlarmConfirm from '../alarm-detail/alarm-confirm';
 import AlarmDispatch from '../alarm-detail/alarm-dispatch';
 import ManualProcess from '../alarm-detail/manual-process';
 import QuickShield from '../alarm-detail/quick-shield';
-import { EVENT_SEVERITY, TREE_SHOW_ICON_LIST, dialogConfig } from '../constant';
+import { dialogConfig, EVENT_SEVERITY, TREE_SHOW_ICON_LIST } from '../constant';
 import { renderMap } from '../failure-process/process';
 import FeedbackCauseDialog from '../failure-topo/feedback-cause-dialog';
 import { useIncidentInject } from '../utils';
@@ -57,9 +57,9 @@ import TimelineZoom from './timeline-zoom';
 import type { IAggregationRoot, IAlert, IIncident, IIncidentOperation } from '../types';
 
 import './timeline-diagram.scss';
-interface Operation {
-  create_time: number;
-  [key: string]: any;
+interface GroupResult {
+  list: Operation[];
+  more: boolean;
 }
 interface IncidentOperationsRecord {
   [key: string]: IIncidentOperation[];
@@ -68,9 +68,9 @@ interface IStatusEnum {
   [key: string]: string;
 }
 
-interface GroupResult {
-  list: Operation[];
-  more: boolean;
+interface Operation {
+  [key: string]: any;
+  create_time: number;
 }
 // const iconList = {
 //   alert_confirm: 'gaojing1',

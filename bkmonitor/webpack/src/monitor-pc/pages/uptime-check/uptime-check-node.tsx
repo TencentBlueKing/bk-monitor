@@ -230,7 +230,7 @@ export default class UptimeCheckNode extends tsc<IUptimeCheckNodeEvents> {
     return v;
   }
 
-  handleSortChange(v: { prop: string; order: 'ascending' | 'descending' | null }) {
+  handleSortChange(v: { order: 'ascending' | 'descending' | null; prop: string }) {
     const columnId = v.prop;
     const { order } = v; // ascending: 升序
     let nodeData = [];

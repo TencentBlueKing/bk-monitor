@@ -24,9 +24,10 @@
  * IN THE SOFTWARE.
  */
 
-import Component from 'vue-class-component';
 import { Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
+import Component from 'vue-class-component';
 
 import ViewParam from './view-param.vue';
 
@@ -35,8 +36,8 @@ import type { TranslateResult } from 'vue-i18n';
 import './history-dialog.scss';
 
 interface IHistoryDialogProps {
+  list?: { label: string | TranslateResult; value: (number | string)[] | (number | string) }[];
   title?: string;
-  list?: { label: TranslateResult | string; value: (number | string)[] | (number | string) }[];
   showCallback?: () => Promise<void> | void;
 }
 
@@ -77,9 +78,9 @@ export default class HistoryDialog extends tsc<IHistoryDialogProps> {
         <span class='icon-monitor icon-lishijilu icon' />
         <ViewParam
           list={this.list}
+          on={{ 'update:visible': val => (this.visible = val) }}
           title={this.title}
           visible={this.visible}
-          on={{ 'update:visible': val => (this.visible = val) }}
         >
           {this.$slots.default && <template slot='default'>{this.$slots.default}</template>}
         </ViewParam>

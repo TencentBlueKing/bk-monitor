@@ -35,24 +35,24 @@ import * as ruleAuth from '../../authority-map';
 import './alarm-group.scss';
 
 interface IAlarmList {
-  value?: number[];
-  list: any[];
-  disabledList?: number[];
   disabled?: boolean;
-  readonly?: boolean;
-  strategyId?: number | string;
-  showAddTip?: boolean;
-  isSimple?: boolean; // 简洁模式（无预览，无回填）
+  disabledList?: number[];
   isOpenNewPage?: boolean; // 点击创建按钮新开页
-  tagClick?: (id: number, e: Event) => void;
   isRefresh?: boolean;
+  isSimple?: boolean; // 简洁模式（无预览，无回填）
+  list: any[];
   loading?: boolean;
+  readonly?: boolean;
+  showAddTip?: boolean;
+  strategyId?: number | string;
+  value?: number[];
+  tagClick?: (id: number, e: Event) => void;
 }
 interface IEvent {
   onChange?: number[];
   onAddGroup?: () => void;
-  onToggle?: (v: boolean) => void;
   onRefresh?: () => void;
+  onToggle?: (v: boolean) => void;
 }
 @Component({ name: 'AlarmGroup' })
 export default class AlarmGroup extends tsc<IAlarmList, IEvent> {
@@ -315,8 +315,8 @@ export default class AlarmGroup extends tsc<IAlarmList, IEvent> {
                 </div>
               </bk-select>
               <span
-                v-en-style='width: 120px'
                 class={['add-tag', { disabled: this.disabled }]}
+                v-en-style='width: 120px'
                 onClick={!this.disabled && this.handleShowSelect}
               >
                 {this.$slots.default || [

@@ -42,7 +42,7 @@ const queryString = (type: 'defense' | 'trigger', id) => {
 };
 export const handleToAlertList = (
   type: 'defense' | 'trigger',
-  detailInfo: { create_time: number; end_time: number; id: string; converge_id?: number },
+  detailInfo: { converge_id?: number; create_time: number; end_time: number; id: string },
   bizId
 ) => {
   // const queryStringUrl = `queryString="${encodeURI(queryString(type, detailInfo.id))}"`;
@@ -62,9 +62,34 @@ export const handleToAlertList = (
   );
 };
 
+interface IActiveDetail {
+  bizId?: number;
+  id?: string;
+}
+interface IDetailInfo {
+  action_config_id?: string;
+  action_name?: string;
+  action_plugin?: { name?: string }; // 套餐类型
+  action_plugin_type?: string;
+  bk_biz_id?: string;
+  bk_target_display?: string; // 告警目标
+  content?: { action_plugin_type?: string; text?: string; url?: string }; // 具体内容
+  converge_id?: number; // 收敛id
+  create_time?: number; // 开始时间
+  duration?: string; // 耗时
+  end_time?: number;
+  failure_type?: string;
+  id?: string;
+  operate_target_string?: string; // 执行对象
+  operator?: string[]; // 负责人
+  signal_display?: string; // 触发信号
+  status?: string; // 状态
+  update_time?: number; // 结束时间
+}
 interface ITableData {
-  id: string; // 告警ID
   alert_name: string; // 告警名称
+  description: string;
+  id: string; // 告警ID
   severity: number; // 级别
   dimensions: {
     display_key?: string;
@@ -72,31 +97,6 @@ interface ITableData {
     key?: string;
     value?: boolean;
   }; // 告警内容
-  description: string;
-}
-interface IActiveDetail {
-  id?: string;
-  bizId?: number;
-}
-interface IDetailInfo {
-  id?: string;
-  action_name?: string;
-  bk_target_display?: string; // 告警目标
-  action_plugin?: { name?: string }; // 套餐类型
-  duration?: string; // 耗时
-  operator?: string[]; // 负责人
-  create_time?: number; // 开始时间
-  status?: string; // 状态
-  update_time?: number; // 结束时间
-  content?: { action_plugin_type?: string; text?: string; url?: string }; // 具体内容
-  signal_display?: string; // 触发信号
-  converge_id?: number; // 收敛id
-  end_time?: number;
-  operate_target_string?: string; // 执行对象
-  bk_biz_id?: string;
-  failure_type?: string;
-  action_config_id?: string;
-  action_plugin_type?: string;
 }
 
 @Component({
@@ -107,7 +107,7 @@ export default class ActiveDetail extends tsc<IActiveDetail> {
   @Prop({ type: [Number, String], default: +window.bk_biz_id }) bizId: number;
 
   detailInfo: IDetailInfo = {};
-  tableData: { trigger: ITableData[]; defense: ITableData[] } = {
+  tableData: { defense: ITableData[]; trigger: ITableData[] } = {
     trigger: [],
     defense: [],
   };

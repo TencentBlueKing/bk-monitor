@@ -32,8 +32,8 @@
       <div v-if="alarm.name === 'uptimecheck'">
         <div
           v-for="item in alarm.notice_task"
-          class="content-item"
           :key="item.task_id"
+          class="content-item"
         >
           <a
             class="guide"
@@ -52,8 +52,8 @@
         </div>
         <div
           v-for="item in alarm.warning_task"
-          class="content-item"
           :key="item.task_id"
+          class="content-item"
         >
           <a
             class="guide"

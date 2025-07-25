@@ -30,12 +30,12 @@ import { K8sConvergeTypeEnum } from '../../typings/k8s-new';
 
 import './k8s-converge-select.scss';
 
-interface K8sConvergeSelectProps {
-  method: number | string;
-  enableTip?: boolean;
-}
 interface K8sConvergeSelectEvents {
   onMethodChange: (method: K8sConvergeTypeEnum) => void;
+}
+interface K8sConvergeSelectProps {
+  enableTip?: boolean;
+  method: number | string;
 }
 
 @Component

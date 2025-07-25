@@ -23,11 +23,11 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, getCurrentInstance, inject, reactive, type PropType, ref, watch, type Ref } from 'vue';
-import { useI18n } from 'vue-i18n';
+import { type PropType, type Ref, defineComponent, getCurrentInstance, inject, reactive, ref, watch } from 'vue';
 
 import { CancelToken } from 'monitor-api/cancel';
 import { isShadowEqual } from 'monitor-ui/chart-plugins/utils';
+import { useI18n } from 'vue-i18n';
 
 import { VariablesService } from '../../utils';
 import EmptyStatus from '../empty-status/empty-status';

@@ -36,35 +36,35 @@ import { SPACE_TYPE_MAP } from './utils';
 import type { ISpaceItem } from '../../types';
 
 import './space-select.scss';
+interface ILocalSpaceList extends ISpaceItem {
+  hasData?: boolean;
+  isCheck?: boolean;
+  isSpecial?: boolean;
+  name?: string;
+  noAuth?: boolean;
+  preciseMatch?: boolean;
+  show?: boolean;
+  tags?: ITagsItem[];
+}
+interface IProps {
+  currentSpace?: number | string;
+  disabled?: boolean;
+  hasAuthApply?: boolean;
+  isAutoSelectCurrentSpace?: boolean;
+  isCommonStyle?: boolean;
+  multiple?: boolean;
+  needAlarmOption?: boolean;
+  needAuthorityOption?: boolean;
+  needDefaultOptions?: boolean;
+  needIncidentOption?: boolean;
+  spaceList?: ISpaceItem[];
+  value?: string[];
+  onChange?: (value: number[]) => void;
+}
 interface ITagsItem {
   id: string;
   name: string;
   type: ETagsType;
-}
-interface ILocalSpaceList extends ISpaceItem {
-  isCheck?: boolean;
-  tags?: ITagsItem[];
-  name?: string;
-  show?: boolean;
-  preciseMatch?: boolean;
-  isSpecial?: boolean;
-  noAuth?: boolean;
-  hasData?: boolean;
-}
-interface IProps {
-  value?: string[];
-  spaceList?: ISpaceItem[];
-  multiple?: boolean;
-  needAuthorityOption?: boolean;
-  needAlarmOption?: boolean;
-  needDefaultOptions?: boolean;
-  needIncidentOption?: boolean;
-  disabled?: boolean;
-  hasAuthApply?: boolean;
-  currentSpace?: number | string;
-  isCommonStyle?: boolean;
-  isAutoSelectCurrentSpace?: boolean;
-  onChange?: (value: number[]) => void;
 }
 const componentClassNames = {
   selectInput: 'space-select-content',
@@ -140,10 +140,10 @@ export default class SpaceSelect extends tsc<
   isOpen = false;
   /* 当前分页数据 */
   pagination: {
-    current: number;
     count: number;
-    limit: number;
+    current: number;
     data: ILocalSpaceList[];
+    limit: number;
   } = {
     current: 1,
     count: 0,

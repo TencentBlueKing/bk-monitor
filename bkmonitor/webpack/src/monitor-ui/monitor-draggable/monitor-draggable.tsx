@@ -29,8 +29,8 @@ import { Component as tsc } from 'vue-tsx-support';
 import './monitor-draggable.scss';
 
 export interface IDraggableEvent {
-  onDrop: IOnDrop;
   onDragstart: DragEvent;
+  onDrop: IOnDrop;
 }
 
 export interface IOnDrop {

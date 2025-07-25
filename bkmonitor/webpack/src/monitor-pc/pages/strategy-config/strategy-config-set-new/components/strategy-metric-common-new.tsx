@@ -50,32 +50,32 @@ import type { IScenarioItem, MetricDetail } from '../typings/index';
 import './strategy-metric-common.scss';
 import '@blueking/search-select-v3/vue2/vue2.css';
 
-interface IStrategyMetricCommon {
-  isShow: boolean;
-  scenarioList: IScenarioItem[];
-  monitorType: string;
-  timerangeList?: IOption;
-  metricData: MetricDetail[];
-  multiple?: boolean;
-  readonly?: boolean;
-  maxLength?: number;
-}
-interface IOption {
-  name: string;
-  id?: number | string;
-  value?: number | string;
-  children?: IOption[];
-}
-
 interface ICache {
   [propName: string]: {
-    page?: number;
-    list?: any[];
     count?: number;
+    list?: any[];
+    page?: number;
+    scenarioCounts?: any[];
     scrollTop?: number;
     tags?: { id: string; name: string }[];
-    scenarioCounts?: any[];
   };
+}
+interface IOption {
+  children?: IOption[];
+  id?: number | string;
+  name: string;
+  value?: number | string;
+}
+
+interface IStrategyMetricCommon {
+  isShow: boolean;
+  maxLength?: number;
+  metricData: MetricDetail[];
+  monitorType: string;
+  multiple?: boolean;
+  readonly?: boolean;
+  scenarioList: IScenarioItem[];
+  timerangeList?: IOption;
 }
 
 @Component({

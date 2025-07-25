@@ -24,26 +24,26 @@
  * IN THE SOFTWARE.
  */
 
-import { Component, Prop, Ref, Model, Watch } from 'vue-property-decorator';
+import { Component, Model, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import customEscalationViewStore from '@store/modules/custom-escalation-view';
 import _ from 'lodash';
-import { getSceneViewList, deleteSceneView, getSceneView, updateSceneView } from 'monitor-api/modules/scene_view';
+import { deleteSceneView, getSceneView, getSceneViewList, updateSceneView } from 'monitor-api/modules/scene_view';
 
 import { optimizedDeepEqual } from '../../metric-chart-view/utils';
 import RemoveConfirm from './components/remove-confirm';
-import ViewSave from './components/view-save';
 import ViewManage from './components/view-manage';
+import ViewSave from './components/view-save';
+import customEscalationViewStore from '@store/modules/custom-escalation-view';
 
 import './index.scss';
 
-interface IProps {
-  graphConfigPayload: Record<string, any>;
-}
-
 interface IEmit {
   onPayloadChange: (params: Record<string, any>) => void;
+}
+
+interface IProps {
+  graphConfigPayload: Record<string, any>;
 }
 
 const DEFAULT_VALUE = 'default';

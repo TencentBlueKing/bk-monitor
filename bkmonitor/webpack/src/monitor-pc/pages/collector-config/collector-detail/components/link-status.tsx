@@ -38,14 +38,14 @@ import type { TimeRangeType } from '../../../../components/time-range/time-range
 
 import './link-status.scss';
 
-interface LinkStatusProps {
-  show: boolean;
-  collectId: number;
+interface ChartConfigModel {
+  data: any[];
+  timeRange: TimeRangeType;
 }
 
-interface ChartConfigModel {
-  timeRange: TimeRangeType;
-  data: any[];
+interface LinkStatusProps {
+  collectId: number;
+  show: boolean;
 }
 
 @Component

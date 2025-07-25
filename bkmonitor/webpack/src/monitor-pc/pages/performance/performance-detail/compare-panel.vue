@@ -97,9 +97,9 @@
           <bk-select
             v-else-if="compare.type === 'time'"
             ref="timeSelect"
-            class="time-select"
             v-model="compare.value"
             v-en-class="'en-lang'"
+            class="time-select"
             :clearable="false"
             multiple
             @change="handleValueChange('compare')"
@@ -130,8 +130,8 @@
                 />
                 <span
                   v-if="custom.show"
-                  class="help-icon icon-monitor icon-mc-help-fill"
                   v-bk-tooltips.top="$t('自定义输入格式: 如 1w 代表一周 m 分钟 h 小时 d 天 w 周 M 月 y 年')"
+                  class="help-icon icon-monitor icon-mc-help-fill"
                 />
               </div>
             </div>
@@ -168,8 +168,8 @@
                   @change="handleSearchSelectChange"
                 >
                   <i
-                    class="bk-icon icon-search"
                     slot="prepend"
+                    class="bk-icon icon-search"
                   />
                 </search-select>
               </div>
@@ -196,8 +196,8 @@
             </monitor-date-range> -->
           </div>
           <drop-down-menu
-            class="time-interval"
             v-model="tools.refreshInterval"
+            class="time-interval"
             :is-refresh-interval="true"
             :list="refreshList"
             :show-name="showText"

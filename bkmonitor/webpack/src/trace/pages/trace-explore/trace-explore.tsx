@@ -24,18 +24,16 @@
  * IN THE SOFTWARE.
  */
 import {
-  computed,
-  defineComponent,
-  ref as deepRef,
-  onMounted,
-  shallowRef,
-  watch,
-  onUnmounted,
-  useTemplateRef,
   type ComponentPublicInstance,
+  computed,
+  ref as deepRef,
+  defineComponent,
+  onMounted,
+  onUnmounted,
+  shallowRef,
+  useTemplateRef,
+  watch,
 } from 'vue';
-import { useI18n } from 'vue-i18n';
-import { useRoute, useRouter } from 'vue-router';
 
 import { Message } from 'bkui-vue';
 import { listApplicationInfo } from 'monitor-api/modules/apm_meta';
@@ -43,15 +41,17 @@ import { listTraceViewConfig, traceGenerateQueryString } from 'monitor-api/modul
 import { updateFavorite } from 'monitor-api/modules/model';
 import { copyText, random } from 'monitor-common/utils';
 import pinyin from 'tiny-pinyin';
+import { useI18n } from 'vue-i18n';
+import { useRoute, useRouter } from 'vue-router';
 
 import EmptyStatus from '../../components/empty-status/empty-status';
 import RetrievalFilter from '../../components/retrieval-filter/retrieval-filter';
 import {
-  EMode,
-  type IWhereItem,
   type IGetValueFnParams,
-  EMethod,
+  type IWhereItem,
   EFieldType,
+  EMethod,
+  EMode,
 } from '../../components/retrieval-filter/typing';
 import { useCandidateValue } from '../../components/retrieval-filter/use-candidate-value';
 import {
@@ -68,7 +68,7 @@ import { useIsEnabledProfilingProvider } from '../../plugins/hooks';
 import { useAppStore } from '../../store/modules/app';
 import { useTraceExploreStore } from '../../store/modules/explore';
 import DimensionFilterPanel from './components/dimension-filter-panel';
-import FavoriteBox, { EditFavorite, type IFavoriteGroup } from './components/favorite-box';
+import FavoriteBox, { type IFavoriteGroup, EditFavorite } from './components/favorite-box';
 import TraceExploreHeader from './components/trace-explore-header';
 import TraceExploreLayout from './components/trace-explore-layout';
 import TraceExploreView from './components/trace-explore-view/trace-explore-view';

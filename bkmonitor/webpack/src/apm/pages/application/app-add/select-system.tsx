@@ -38,33 +38,33 @@ import type { IIpV6Value, INodeType } from 'monitor-pc/components/monitor-ip-sel
 
 import './select-system.scss';
 
-export interface IListDataItem {
+export interface ICardItem {
+  checked: boolean;
+  descData?: IDescData;
+  hidden: boolean;
+  id: string;
+  img: string;
+  theme: ThemeType;
   title: string;
-  list?: ICardItem[];
+}
+export interface IListDataItem {
   children?: IListDataItem[];
+  list?: ICardItem[];
   multiple?: boolean;
+  title: string;
   other?: {
-    title: string;
     checked: boolean;
+    title: string;
     value: string;
   };
 }
-export interface ICardItem {
-  id: string;
-  title: string;
-  theme: ThemeType;
-  img: string;
-  descData?: IDescData;
-  hidden: boolean;
-  checked: boolean;
+interface IEvents {
+  onChange: ICreateAppFormData;
+  onNextStep: void;
 }
 interface IProps {
-  loading: boolean;
   listData: IListDataItem[];
-}
-interface IEvents {
-  onNextStep: void;
-  onChange: ICreateAppFormData;
+  loading: boolean;
 }
 @Component
 export default class SelectSystem extends Mixins(documentLinkMixin) {
@@ -337,7 +337,7 @@ export default class SelectSystem extends Mixins(documentLinkMixin) {
     });
   }
 
-  handleSelectorChange(data: { value: IIpV6Value; nodeType: INodeType }) {
+  handleSelectorChange(data: { nodeType: INodeType; value: IIpV6Value }) {
     // TODO: 将数据拍平，不知道最后是否用得着
     const value = transformValueToMonitor(data.value, data.nodeType);
     this.formData.plugin_config.target_nodes = value.map(item => ({

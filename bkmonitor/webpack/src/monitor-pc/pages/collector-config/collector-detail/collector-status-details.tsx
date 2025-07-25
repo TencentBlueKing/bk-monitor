@@ -40,12 +40,12 @@ import { copyText } from 'monitor-common/utils/utils.js';
 import ExpandWrapper from '../../../components/expand-wrapper/expand-wrapper';
 import { transformJobUrl } from '../../../utils/index';
 import {
+  type IContentsItem,
+  colorMap,
   EStatus,
   FILTER_TYPE_LIST,
-  type IContentsItem,
-  STATUS_LIST,
-  colorMap,
   labelMap,
+  STATUS_LIST,
   statusMap,
 } from '../collector-host-detail/utils';
 import AlertHistogram from './components/alert-histogram';
