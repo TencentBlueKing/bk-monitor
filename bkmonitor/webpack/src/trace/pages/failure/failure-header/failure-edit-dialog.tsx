@@ -23,12 +23,12 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { type Ref, defineComponent, inject, nextTick, onMounted, ref as deepRef, watch } from 'vue';
-import { useI18n } from 'vue-i18n';
+import { type Ref, ref as deepRef, defineComponent, inject, nextTick, onMounted, watch } from 'vue';
 
 import { Button, Dialog, Form, Input, Message, Radio, TagInput } from 'bkui-vue';
 import { editIncident } from 'monitor-api/modules/incident';
 import { strategyLabelList } from 'monitor-api/modules/strategies';
+import { useI18n } from 'vue-i18n';
 
 import UserSelector from '../../../components/user-selector/user-selector';
 

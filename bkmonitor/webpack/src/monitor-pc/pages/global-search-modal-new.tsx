@@ -32,12 +32,12 @@ import { globalSearch } from 'monitor-api/modules/search';
 
 import './global-search-modal-new.scss';
 
-interface IGlobalSearchModalProps {
-  show: boolean;
-}
-
 interface IGlobalSearchModalEvent {
   onChange: (v: boolean, searchKey: string) => void;
+}
+
+interface IGlobalSearchModalProps {
+  show: boolean;
 }
 
 const LIMIT_RECORD_COUNT = 8; // 搜索历史保存最新的前 X 条

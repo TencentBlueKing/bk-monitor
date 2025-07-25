@@ -26,16 +26,16 @@
 
 import { type PropType, type Ref, computed, defineComponent, inject, ref, watch, watchEffect } from 'vue';
 import { shallowRef } from 'vue';
-import { useI18n } from 'vue-i18n';
 
 import { Exception, Loading } from 'bkui-vue';
 import { CancelToken } from 'monitor-api/cancel';
 import { query } from 'monitor-api/modules/apm_profile';
 import { typeTools } from 'monitor-common/utils';
 import { type BaseDataType, type ProfilingTableItem, ViewModeType } from 'monitor-ui/chart-plugins/typings';
+import { useI18n } from 'vue-i18n';
 
 import { handleTransformToTimestamp } from '../../../components/time-range/utils';
-import { SearchType, type ToolsFormData } from '../../../pages/profiling/typings';
+import { type ToolsFormData, SearchType } from '../../../pages/profiling/typings';
 import { assignUniqueIds } from '../../../utils/utils';
 import ChartTitle from './chart-title/chart-title';
 import FrameGraph from './profiling-flame-graph/flame-graph';

@@ -23,11 +23,11 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, ref, nextTick, watch, type PropType, shallowRef } from 'vue';
-import { useI18n } from 'vue-i18n';
+import { type PropType, defineComponent, nextTick, ref, shallowRef, watch } from 'vue';
 
 import loadingIcon from 'monitor-ui/chart-plugins/icons/spinner.svg';
 import { getValueFormat } from 'monitor-ui/monitor-echarts/valueFormats';
+import { useI18n } from 'vue-i18n';
 
 import BaseEchart from '../../../plugins/base-echart';
 import { useChartResize } from '../../../plugins/hooks';

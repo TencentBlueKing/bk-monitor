@@ -26,10 +26,8 @@
 import { Component, Emit, InjectReactive, Prop, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-interface K8sDimensionDrillDownProps {
-  value: number | string;
-  dimension: string;
-  enableTip?: boolean;
+interface K8sDimensionDrillDownEvents {
+  onHandleDrillDown: (val: { dimension: string; id: number | string }) => void;
 }
 import { SceneEnum } from 'monitor-pc/pages/monitor-k8s/typings/k8s-new';
 
@@ -37,8 +35,10 @@ import type { K8sGroupDimension } from 'monitor-pc/pages/monitor-k8s/k8s-dimensi
 
 import './k8s-dimension-drilldown.scss';
 
-interface K8sDimensionDrillDownEvents {
-  onHandleDrillDown: (val: { id: number | string; dimension: string }) => void;
+interface K8sDimensionDrillDownProps {
+  dimension: string;
+  enableTip?: boolean;
+  value: number | string;
 }
 
 const drillListMap = {

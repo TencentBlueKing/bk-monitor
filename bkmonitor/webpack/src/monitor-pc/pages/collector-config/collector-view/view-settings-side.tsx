@@ -36,21 +36,21 @@ import type { addSceneResult, metric, orderList, sceneList, viewSettingParams } 
 import './view-settings-side.scss';
 
 interface IViewSettingsSide {
-  show?: boolean;
-  isEdit?: boolean;
-  orderList?: any;
-  id?: number | string;
-  routeType?: 'collect' | 'custom';
-  viewSettingParams?: viewSettingParams;
-  sceneList?: sceneList[];
-  sceneName?: string;
   defaultOrderList?: orderList[];
   dimensions?: metric[];
+  id?: number | string;
+  isEdit?: boolean;
+  orderList?: any;
+  routeType?: 'collect' | 'custom';
+  sceneList?: sceneList[];
+  sceneName?: string;
+  show?: boolean;
+  viewSettingParams?: viewSettingParams;
   viewSortHide?: boolean;
 }
 interface IViewSettingsSideEvent {
-  onChange?: boolean;
   onAddScene?: addSceneResult;
+  onChange?: boolean;
 }
 
 @Component({

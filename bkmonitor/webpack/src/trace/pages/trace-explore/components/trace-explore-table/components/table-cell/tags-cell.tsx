@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, useTemplateRef, type PropType, computed } from 'vue';
+import { type PropType, computed, defineComponent, useTemplateRef } from 'vue';
 import { shallowRef } from 'vue';
 
 import { ENABLED_TABLE_CONDITION_MENU_CLASS_NAME } from '../../constants';

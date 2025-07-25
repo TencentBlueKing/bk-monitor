@@ -25,7 +25,7 @@
  */
 
 import { random } from 'monitor-common/utils';
-import { Action, Module, Mutation, VuexModule, getModule } from 'vuex-module-decorators';
+import { Action, getModule, Module, Mutation, VuexModule } from 'vuex-module-decorators';
 
 import GlobalConfigMixin from '../../mixins/globalConfig';
 import store from '../store';

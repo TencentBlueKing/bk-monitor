@@ -39,8 +39,8 @@
       :validator="{ content: message }"
     >
       <bk-input
-        ref="inputRef"
         v-show="!isTag"
+        ref="inputRef"
         :value="value"
         @blur="switchStatus(true)"
         @input="handleInput"

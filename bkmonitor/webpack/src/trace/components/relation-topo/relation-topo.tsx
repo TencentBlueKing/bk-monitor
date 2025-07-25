@@ -35,13 +35,13 @@ import {
   toRefs,
   watch,
 } from 'vue';
-import { useI18n } from 'vue-i18n';
 
 import G6, { type Graph, type IEdge, type INode } from '@antv/g6';
 import { addListener, removeListener } from '@blueking/fork-resize-detector';
 import { Alert, Popover } from 'bkui-vue';
 import dayjs from 'dayjs';
 import { traceDiagram } from 'monitor-api/modules/apm_trace';
+import { useI18n } from 'vue-i18n';
 
 import { formatDuration } from '../../components/trace-view/utils/date';
 import GraphTools from '../../plugins/charts/flame-graph/graph-tools/graph-tools';
@@ -66,16 +66,16 @@ import type { Span } from '../trace-view/typings';
 import './relation-topo.scss';
 
 interface IState {
-  keyword: string[];
-  canvasWidth: number;
   canvasHeight: number;
-  zoomValue: number;
-  minZoomVal: number;
-  maxZoomVal: number;
-  matchesNodeIds: string[];
+  canvasWidth: number;
   curMathesFocusIndex: number;
   curSelectedSpanId: string;
   isCompareView: boolean;
+  keyword: string[];
+  matchesNodeIds: string[];
+  maxZoomVal: number;
+  minZoomVal: number;
+  zoomValue: number;
 }
 
 const RelationTopoProps = {
@@ -689,7 +689,7 @@ export default defineComponent({
       const allNodes = graph?.getNodes() || []; // 所有节点
       const matches: string[] = []; // 搜索关键字匹配
 
-      allNodes.forEach((node: { getModel: () => any; getEdges: () => any[] }) => {
+      allNodes.forEach((node: { getEdges: () => any[]; getModel: () => any }) => {
         const model = node.getModel();
         // 关键字搜索匹配
         const isKeywordMatch = classifyIds

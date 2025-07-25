@@ -35,16 +35,16 @@ import TimelineViewingLayer from './timeline-viewing-layer';
 import './timeline-header-row.scss';
 
 type TimelineHeaderRowProps = {
+  columnResizeHandleHeight: number;
   duration: number;
-  nameColumnWidth: number;
   minSpanNameColumnWidth: number;
+  nameColumnWidth: number;
   numTicks: number;
   onCollapseAll: () => void;
   onCollapseOne: () => void;
   onColummWidthChange: (width: number) => void;
   onExpandAll: () => void;
   onExpandOne: () => void;
-  columnResizeHandleHeight: number;
 };
 
 const TimelineHeaderRow = (props: TimelineHeaderRowProps) => {

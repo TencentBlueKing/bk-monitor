@@ -25,16 +25,16 @@
 -->
 <template>
   <div
-    :class="['auto-complete-input', { 'password-input': isPasswordInput }]"
     ref="wrap"
+    :class="['auto-complete-input', { 'password-input': isPasswordInput }]"
   >
     <!-- 文本类型 -->
     <template v-if="!['file', 'boolean', 'list', 'switch', 'tag_list', 'code'].includes($attrs.type)">
       <!-- 新增判断是否为密码框，若为密码框则不显示密码，根据密码的有无显示placeholder为"已配置/未配置" -->
       <bk-input
-        :class="['input-text', { password: isPasswordInput }]"
         ref="input"
         v-model="params"
+        :class="['input-text', { password: isPasswordInput }]"
         :placeholder="computedPlaceholder"
         :readonly="isPasswordInput && passwordInputReadonly"
         :type="isPasswordInput ? 'password' : 'text'"
@@ -59,11 +59,11 @@
           class="auto-complete-input-list"
         >
           <li
-            @mousedown="handleMousedown(item, index)"
-            class="list-item"
             v-for="(item, index) in tipsData"
-            :key="item.name + index"
             v-show="!params || item.name.includes(keyword)"
+            :key="item.name + index"
+            class="list-item"
+            @mousedown="handleMousedown(item, index)"
           >
             {{ item.name }}
             <span class="item-desc">{{ item.description }}</span>
@@ -100,9 +100,9 @@
             </template>
           </bk-input>
           <input
+            ref="upload"
             class="auto-complete-input-file-input"
             type="file"
-            ref="upload"
             accept=".yaml,.yml"
             @change="fileChange"
           />
@@ -132,10 +132,10 @@
       </div>
       <div class="file-name switch-wrap">
         <bk-switcher
+          v-model="params"
           true-value="true"
           false-value="false"
           @change="handleSwitchChange"
-          v-model="params"
         />
       </div>
     </div>
@@ -158,20 +158,20 @@
       <div class="auto-complete-input-select">
         <slot name="prepend" />
         <bk-select
+          v-model="params"
           :clearable="false"
           :disabled="false"
-          v-model="params"
           multiple
-          @change="handleTagListChange"
           ext-cls="select-custom"
           ext-popover-cls="select-popover-custom"
           :allow-create="false"
           :display-tag="true"
+          @change="handleTagListChange"
         >
           <bk-option
             v-for="option in config.election"
-            :key="option.id"
             :id="option.id"
+            :key="option.id"
             :name="option.name"
           />
         </bk-select>
@@ -184,17 +184,17 @@
         <div class="auto-complete-input-select">
           <slot name="prepend" />
           <bk-select
+            v-model="params"
             :clearable="false"
             :disabled="false"
-            v-model="params"
-            @change="handleSelectSecurity"
             ext-cls="select-custom"
             ext-popover-cls="select-popover-custom"
+            @change="handleSelectSecurity"
           >
             <bk-option
               v-for="option in allConfig.election"
-              :key="option"
               :id="option.id"
+              :key="option"
               :name="option"
             />
           </bk-select>
@@ -205,18 +205,18 @@
         <div class="auto-complete-input-select">
           <slot name="prepend" />
           <bk-select
-            :disabled="false"
             v-model="params"
-            @change="handleSelect"
+            :disabled="false"
             ext-cls="select-custom"
             ext-popover-cls="select-popover-custom"
+            @change="handleSelect"
           >
             <bk-option
               v-for="option in allConfig?.auth_priv?.[curAuthPriv]?.need
                 ? allConfig.auth_priv[curAuthPriv].election
                 : allConfig.election"
-              :key="option"
               :id="option?.id ? option.id : option"
+              :key="option"
               :name="option?.name ? option.name : option"
             />
           </bk-select>
@@ -229,18 +229,18 @@
 <script lang="ts">
 import { Component, Emit, Prop, Vue, Watch } from 'vue-property-decorator';
 
-import ImportFile from '../../../plugin-manager/plugin-instance/set-steps/components/import-file.vue';
 import MonacoEditor from '../../../../components/editors/monaco-editor.vue';
+import ImportFile from '../../../plugin-manager/plugin-instance/set-steps/components/import-file.vue';
 
 interface IPopoverInstance {
-  hide: (time: number) => void | boolean;
-  show: (time: number) => void | boolean;
   destroy: () => void;
-  set: (options: any) => void | IPopoverInstance;
+  hide: (time: number) => boolean | void;
+  set: (options: any) => IPopoverInstance | void;
+  show: (time: number) => boolean | void;
 }
 interface ITipsItem {
-  name: string;
   description: string;
+  name: string;
 }
 @Component({
   name: 'auto-complete-input',
@@ -429,7 +429,7 @@ export default class StrategySetTarget extends Vue {
   fileChange(e): void {
     if (e.target.files[0]) {
       this.loading = true;
-      // eslint-disable-next-line prefer-destructuring
+
       const file = e.target.files[0];
       const fileName = file.name;
       this.params = fileName;
@@ -448,7 +448,6 @@ export default class StrategySetTarget extends Vue {
           });
           this.loading = false;
         } finally {
-          // eslint-disable-next-line
           this.$refs.upload.value = '';
         }
       };

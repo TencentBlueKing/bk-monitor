@@ -24,78 +24,78 @@
  * IN THE SOFTWARE.
  */
 
-import { Component, Prop, Ref, Watch, Emit } from 'vue-property-decorator';
+import { Component, Emit, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { pipelineOverview, listPipeline } from 'monitor-api/modules/apm_service';
+import { listPipeline, pipelineOverview } from 'monitor-api/modules/apm_service';
 import { Debounce, random } from 'monitor-common/utils';
 
 import OverflowPrefixEllipsis from './overflow-prefix-ellipsis';
 
 import './pipeline-select-panel.scss';
 
-interface TreeNode {
-  // 子节点id
+interface ILocalValue {
   id: string;
-  name: string;
   key: string;
+  name: string;
+  projectId: string;
+}
+
+interface IParams {
+  appName: string;
+  bkBizId: number;
+}
+
+interface ISendValue {
+  pipeline_id: string;
+  pipeline_name: string;
+  project_id: string;
+}
+
+interface PipelineSelectPanelProps {
+  isEditing: boolean;
+  params: IParams;
+  value: ISendValue[];
+}
+
+interface TreeNode {
   // 流水线总数
   count: number;
+  // 子节点id
+  id: string;
+  key: string;
+  loading?: boolean;
+  name: string;
   // 子集页码
   page: number;
   // 一级项目id
   projectId?: string;
-  loading?: boolean;
   data?: {
     key: string;
-  };
-  state: {
-    checked: boolean;
   };
   parent?: {
     id: string;
   };
+  state: {
+    checked: boolean;
+  };
 }
 
 interface TreeNodeData {
-  // 节点id
-  id: string;
-  name: string;
-  key: string;
-  // 根节点
-  root?: boolean;
-  // 流水线总数
-  count?: number;
   // 子集
   children: TreeNode[];
+  // 流水线总数
+  count?: number;
+  // 节点id
+  id: string;
+  key: string;
+  name: string;
   // 一级项目id
   projectId?: string;
+  // 根节点
+  root?: boolean;
   // 子集页码
   // page: number;
-}
-
-interface IParams {
-  bkBizId: number;
-  appName: string;
-}
-
-interface ILocalValue {
-  id: string;
-  name: string;
-  key: string;
-  projectId: string;
-}
-
-interface ISendValue {
-  project_id: string;
-  pipeline_id: string;
-  pipeline_name: string;
-}
-
-interface PipelineSelectPanelProps {
-  value: ISendValue[];
-  isEditing: boolean;
-  params: IParams;
 }
 
 @Component

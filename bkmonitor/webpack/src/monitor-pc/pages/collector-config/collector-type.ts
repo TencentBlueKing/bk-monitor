@@ -24,14 +24,14 @@
  * IN THE SOFTWARE.
  */
 export interface ICollectorTaskData {
-  status: 'STARTED' | 'STOPPED'; // 采集任务启停状态
   id: number | string; // 任务id
   name: string;
+  status: 'STARTED' | 'STOPPED'; // 采集任务启停状态
 }
 
 export interface IDeletingStepListItem {
-  type: 'collect' | 'strategy';
+  data?: any;
   loading: boolean;
   title: string;
-  data?: any;
+  type: 'collect' | 'strategy';
 }

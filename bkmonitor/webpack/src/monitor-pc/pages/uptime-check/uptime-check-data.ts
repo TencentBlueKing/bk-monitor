@@ -47,8 +47,8 @@ export const taskDataInit = (): ITaskData => ({
 
 // 拖拽时的状态
 export interface IDragStatus {
-  taskId: number;
   dragging: boolean;
+  taskId: number;
 }
 
 // 任务组命名校验
@@ -56,8 +56,8 @@ export const groupNameValidate = (
   targetStr: string,
   allName: string[]
 ): {
-  validate: boolean;
   message: string;
+  validate: boolean;
 } => {
   const validateStatus = {
     validate: false,
@@ -91,11 +91,11 @@ export const groupNameValidate = (
 };
 
 export interface IGroupDialogData {
-  show: boolean; // 是否展示弹窗
-  data: { name: string; tasks: number[]; img: string; groupId?: string }; // 表单数据
+  data: { groupId?: string; img: string; name: string; tasks: number[] }; // 表单数据
   errMsg: { [propName: string]: string }; // 校验提示
-  validate: boolean; // 校验是否通过
   isEdit?: boolean; // 是否为编辑
+  show: boolean; // 是否展示弹窗
+  validate: boolean; // 校验是否通过
 }
 // 新建任务组弹窗数据初始化
 export const groupDialogDataInit = (): IGroupDialogData => ({
@@ -123,10 +123,10 @@ export const getGroupToTaskData = (groupTasks: IGroupDataTaskItem[], taskData: I
 
 // 单个任务组下所有任务数据
 export interface IGroupDataTask {
+  groupId: number;
+  groupName: string;
   show: boolean;
   tasks: ITaskCardData[];
-  groupName: string;
-  groupId: number;
 }
 export const groupDataTaskInit = (): IGroupDataTask => ({
   show: false,
@@ -319,16 +319,9 @@ export const taskDataToTableData = (tasks: ITaskCardData[]): ICommonTableProps['
   return data as ICommonTableProps['data'];
 };
 
-// 以下为节点数据转换
-export interface INodesTableData extends ICommonTableProps {
-  pagination: {
-    count: number;
-    current: number;
-    limit: number;
-  };
-}
 export interface INodeData {
   bk_biz_id?: number;
+  bk_host_id: string;
   carrieroperator?: string;
   country?: string;
   gse_status?: string;
@@ -342,7 +335,14 @@ export interface INodeData {
   status: string;
   task_num: number;
   version: string;
-  bk_host_id: string;
+}
+// 以下为节点数据转换
+export interface INodesTableData extends ICommonTableProps {
+  pagination: {
+    count: number;
+    current: number;
+    limit: number;
+  };
 }
 export const nodesCommonTableProps: ICommonTableProps = {
   checkable: false,

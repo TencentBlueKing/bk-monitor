@@ -23,23 +23,24 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Ref, Prop, Watch } from 'vue-property-decorator';
+import { Component, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import customEscalationViewStore from '@store/modules/custom-escalation-view';
 import Dayjs from 'dayjs';
 import _ from 'lodash';
 import { makeMap } from 'monitor-common/utils/make-map';
 
-import './edit-offset.scss';
+import customEscalationViewStore from '@store/modules/custom-escalation-view';
 
-interface IProps {
-  value: string[];
-  offsetSingle: boolean; // 是否单选
-}
+import './edit-offset.scss';
 
 interface IEmit {
   onChange: (value: string[]) => void;
+}
+
+interface IProps {
+  offsetSingle: boolean; // 是否单选
+  value: string[];
 }
 
 @Component

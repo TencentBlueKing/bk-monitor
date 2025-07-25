@@ -25,9 +25,9 @@
  */
 import type { VueConstructor } from 'vue';
 
-import type { DirectiveBinding, DirectiveOptions } from 'vue/types/options';
-
 import { random } from '../utils/utils';
+
+import type { DirectiveBinding, DirectiveOptions } from 'vue/types/options';
 
 let insertedEl: IDragHtmlElement = null;
 
@@ -36,22 +36,22 @@ export type MapType<T extends string> = { [key in T]?: IDragHtmlElement };
 const insertedElMap: MapType<string> = {};
 
 interface IBindValue {
-  style: object; // 拖拽按钮样式
+  autoHidden: boolean; // 超出最小宽度时是否自动隐藏
+  defaultWidth: number; // 默认宽度
+  isShow: boolean; // 是否展示
   maxWidth: number; // 最大宽度
   minWidth: number; // 最小宽度
-  defaultWidth: number; // 默认宽度
-  autoHidden: boolean; // 超出最小宽度时是否自动隐藏
-  isShow: boolean; // 是否展示
-  theme: 'dotted' | 'normal' | 'simple'; // 拖拽按钮主题
   placement: 'left' | 'right'; // 拖拽侧栏的位置 默认left
+  style: object; // 拖拽按钮样式
+  theme: 'dotted' | 'normal' | 'simple'; // 拖拽按钮主题
   onHidden?: () => void; // 隐藏回调
   onWidthChange?: (width: number) => void; // 宽度更新
 }
 interface IDragHtmlElement extends HTMLElement {
   _bk_monitor_drag: {
+    dragKey: string;
     el: HTMLDivElement;
     value: IBindValue;
-    dragKey: string;
   };
 }
 

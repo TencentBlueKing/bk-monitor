@@ -24,58 +24,48 @@
  * IN THE SOFTWARE.
  */
 export interface IDataSource {
-  bk_monitor_time_series?: IDataSourceItem;
-  log_time_series?: IDataSourceItem;
   bk_data_time_series?: IDataSourceItem;
-  custom_time_series?: IDataSourceItem;
-  bk_monitor_log?: IDataSourceItem;
-  custom_event?: IDataSourceItem;
   bk_monitor_event?: IDataSourceItem;
+  bk_monitor_log?: IDataSourceItem;
+  bk_monitor_time_series?: IDataSourceItem;
+  custom_event?: IDataSourceItem;
+  custom_time_series?: IDataSourceItem;
+  log_time_series?: IDataSourceItem;
 }
 export interface IDataSourceItem {
   count: number;
   dataSourceLabel: string;
   dataTypeLabel: string;
-  sourceType: string;
-  sourceName: string;
   list: any[];
+  sourceName: string;
+  sourceType: string;
 }
-export interface IPage {
-  bk_monitor_time_series: number;
-  bk_data_time_series: number;
-  custom_time_series: number;
-  log_time_series: number;
-}
-
-export interface ISearchObj {
-  keyWord: { values: { id: string; name: string }[]; id: string; name: string }[];
-  data: ISearchOption[];
-}
-
 export interface IMetric {
   dataSourceLabel: string;
   dataTypeLabel: string;
   id: number;
   metricName: string;
-  resultTableId: string;
   relatedId: string;
   relatedName: string;
+  resultTableId: string;
 }
 
-export interface ITimeSelect {
-  value: number;
-  list: { id: number; name: string }[];
+export interface IPage {
+  bk_data_time_series: number;
+  bk_monitor_time_series: number;
+  custom_time_series: number;
+  log_time_series: number;
 }
 
-export type ITag = {
-  value: string;
-  list: ITimeSelect['list'];
-};
+export interface ISearchObj {
+  data: ISearchOption[];
+  keyWord: { id: string; name: string; values: { id: string; name: string }[] }[];
+}
 
 export interface ISearchOption {
+  children: any[];
   id: string;
   name: string;
-  children: any[];
 }
 
 export interface IStaticParams {
@@ -83,4 +73,14 @@ export interface IStaticParams {
   data_source_label: string | string[];
   data_type_label: string;
   result_table_label: string;
+}
+
+export type ITag = {
+  list: ITimeSelect['list'];
+  value: string;
+};
+
+export interface ITimeSelect {
+  list: { id: number; name: string }[];
+  value: number;
 }

@@ -23,9 +23,10 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+import type { VueConstructor } from 'vue';
+
 import { random } from 'monitor-common/utils/utils';
 
-import type { VueConstructor } from 'vue';
 import type { DirectiveBinding, DirectiveOptions } from 'vue/types/options';
 
 let insertedEl: IDragHtmlElement = null;
@@ -35,17 +36,17 @@ export type MapType<T extends string> = { [key in T]?: IDragHtmlElement };
 const insertedElMap: MapType<string> = {};
 
 interface IBindValue {
-  style: object; // 拖拽按钮样式
+  autoHidden: boolean; // 超出最小宽度时是否自动隐藏
   maxWidth: number; // 最大宽度
   minWidth: number; // 最小宽度
-  autoHidden: boolean; // 超出最小宽度时是否自动隐藏
+  style: object; // 拖拽按钮样式
   theme: 'normal' | 'simple'; // 拖拽按钮主题
 }
 interface IDragHtmlElement extends HTMLElement {
   _bk_monitor_drag: {
+    dragKey: string;
     el: HTMLDivElement;
     value: IBindValue;
-    dragKey: string;
   };
 }
 

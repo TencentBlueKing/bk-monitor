@@ -32,8 +32,8 @@
     @on-confirm="handleConfirm"
   >
     <div
-      class="retrieval-set"
       v-bkloading="{ isLoading: loading }"
+      class="retrieval-set"
     >
       <bk-tab
         :active.sync="scenarioType"
@@ -52,8 +52,8 @@
           :placeholder="placeholder"
           :clearable="true"
           :right-icon="'bk-icon icon-search'"
-          @change="handleKeywordSearch"
           :value="origin.keyword"
+          @change="handleKeywordSearch"
         />
       </div>
       <div class="retrieval-content">
@@ -63,14 +63,15 @@
             v-for="(item, index) in origin.list"
             :key="index"
             class="left-item"
-            @click="handleOrginChange(item.id)"
             :class="{ 'item-active': item.id === origin.value }"
+            @click="handleOrginChange(item.id)"
           >
             <span class="left-item-name">{{ item.name }}</span>
             <span
               class="left-item-num"
               :class="{ 'num-active': item.id === origin.value }"
-            >{{ item.count }}</span>
+              >{{ item.count }}</span
+            >
           </li>
         </ul>
         <!-- 右侧表格 -->
@@ -124,35 +125,36 @@
   </monitor-dialog>
 </template>
 <script lang="ts">
+import { Component, Prop, Vue, Watch } from 'vue-property-decorator';
+
 import { getMetricList } from 'monitor-api/modules/strategies';
 import MonitorDialog from 'monitor-ui/monitor-dialog/monitor-dialog.vue';
 import { debounce } from 'throttle-debounce';
-// eslint-disable-next-line no-unused-vars
-import type { TranslateResult } from 'vue-i18n/types/index';
-import { Component, Prop, Vue, Watch } from 'vue-property-decorator';
 
+import type { TranslateResult } from 'vue-i18n/types/index';
+
+interface IMetricParams {
+  bk_biz_id: number | string;
+  data_source_label: string;
+  data_type_label: string;
+  page: number;
+  result_table_label: string;
+}
+interface IOrigin {
+  keyword: string;
+  list: { count: number; id: string; name: TranslateResult }[];
+  value: string;
+}
 interface IParams {
   bk_biz_id: number | string;
   page_size: number;
   search_data_source: string;
   search_value: string;
 }
-interface IMetricParams {
-  bk_biz_id: number | string;
-  data_source_label: string;
-  data_type_label: string;
-  result_table_label: string;
-  page: number;
-}
-interface IOrigin {
-  list: { id: string; name: TranslateResult; count: number }[];
-  value: string;
-  keyword: string;
-}
 interface ITable {
+  bkMonitorLogData: [];
   data: { checked: boolean }[];
   logData: [];
-  bkMonitorLogData: [];
 }
 @Component({
   components: {
@@ -163,7 +165,7 @@ export default class StrategyConfigRetreval extends Vue {
   @Prop(Boolean) // dialog展示控制
   readonly dialogShow: boolean;
   @Prop({ type: [String, Number], default: 0 }) // 回填的选择ID
-  readonly indexId: string | number;
+  readonly indexId: number | string;
   @Prop({ type: String, default: 'service_module' }) // 监控对象
   readonly monitorType: string;
   @Prop() // 监控对象列表
@@ -309,7 +311,7 @@ export default class StrategyConfigRetreval extends Vue {
 
   //  搜索逻辑处理
   handleSearch(): void {
-    const { value, keyword }: { value: string; keyword: string } = this.origin;
+    const { value, keyword }: { keyword: string; value: string } = this.origin;
     const data = this.table[this.tableDataMap[value]];
     if (this.origin.value === 'logData') {
       this.table.data = data.filter(
@@ -364,7 +366,8 @@ export default class StrategyConfigRetreval extends Vue {
       flex: 0 0 185px;
       flex-direction: column;
       font-size: 14px;
-      background-image: linear-gradient(180deg, #dcdee5 1px, rgba(0, 0, 0, 0) 1px, rgba(0, 0, 0, 0) 100%),
+      background-image:
+        linear-gradient(180deg, #dcdee5 1px, rgba(0, 0, 0, 0) 1px, rgba(0, 0, 0, 0) 100%),
         linear-gradient(90deg, #dcdee5 1px, rgba(0, 0, 0, 0) 1px, rgba(0, 0, 0, 0) 100%),
         linear-gradient(-90deg, #dcdee5 1px, rgba(0, 0, 0, 0) 1px, rgba(0, 0, 0, 0) 100%);
       background-size: 100% 100%;

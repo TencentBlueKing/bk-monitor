@@ -33,11 +33,11 @@ import type { ITableItem } from 'monitor-pc/pages/monitor-k8s/typings';
 import './exception-guide.scss';
 
 export interface IGuideInfo {
-  type?: string;
-  title: string;
-  subTitle: string;
-  link: ITableItem<'link'> | null;
   icon?: string;
+  link: ITableItem<'link'> | null;
+  subTitle: string;
+  title: string;
+  type?: string;
 }
 
 export default defineComponent({

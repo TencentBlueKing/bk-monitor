@@ -33,17 +33,17 @@ import BusinessRight from './skeleton/business-right';
 
 import './business-item-big.scss';
 
-interface IProps {
-  data?: IBusinessCard;
-  /* 首页的时间范围 */
-  homeDays?: number;
-}
 interface IEvent {
   onSticky?: boolean;
   onToEvent?: {
     activeFilterId: any;
     id: string;
   };
+}
+interface IProps {
+  data?: IBusinessCard;
+  /* 首页的时间范围 */
+  homeDays?: number;
 }
 
 @Component({

@@ -30,21 +30,21 @@ import { Debounce } from 'monitor-common/utils/utils';
 
 import './header-tools.scss';
 
-interface IHeaderToolsProps {
-  option?: {
-    showTask?: boolean;
-    showGroup?: boolean;
-    showImport?: boolean;
-    showNode?: boolean;
-  };
-  search?: string;
-}
+export type IClickType = 'createGroup' | 'createNode' | 'createTask' | 'import';
 interface IHeaderToolsEvents {
   onCreate?: IClickType;
   onSearch?: string;
 }
 
-export type IClickType = 'createGroup' | 'createNode' | 'createTask' | 'import';
+interface IHeaderToolsProps {
+  search?: string;
+  option?: {
+    showGroup?: boolean;
+    showImport?: boolean;
+    showNode?: boolean;
+    showTask?: boolean;
+  };
+}
 
 @Component({
   name: 'HeaderTools',

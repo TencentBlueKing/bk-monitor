@@ -25,9 +25,9 @@
 -->
 <template>
   <div
-    class="dynamic-topo"
     ref="leftWrapper"
     v-bkloading="{ isLoading }"
+    class="dynamic-topo"
   >
     <div
       class="dynamic-topo-left"
@@ -46,8 +46,8 @@
       />
       <topo-tree
         v-if="nodes.length"
-        class="topo-tree"
         ref="tree"
+        class="topo-tree"
         :default-checked-nodes="defaultCheckedNodes"
         :options="treeDataOptions"
         :nodes="nodes"
@@ -75,23 +75,23 @@
   </div>
 </template>
 <script lang="ts">
-import type { TranslateResult } from 'vue-i18n';
 import { Component, Emit, Prop, Ref, Vue, Watch } from 'vue-property-decorator';
 
 import { resize } from '../common/observer-directive';
 import TopoSearch from '../components/topo-search.vue';
 import TopoTree from '../components/topo-tree.vue';
+import IpListTable from './ip-list.vue';
+
 import type {
+  IipListParams,
   ISearchData,
   ISearchDataOption,
   ITableCheckData,
   ITableConfig,
   ITreeNode,
-  IipListParams,
   SearchDataFuncType,
 } from '../types/selector-type';
-
-import IpListTable from './ip-list.vue';
+import type { TranslateResult } from 'vue-i18n';
 
 @Component({
   name: 'dynamic-topo',
@@ -152,7 +152,7 @@ export default class DynamicTopo extends Vue {
   private nodes: ITreeNode[] = [];
   private selections: any[] = [];
   private parentNode: ITreeNode | null = null;
-  private defaultSelectionIds: (string | number)[] = [];
+  private defaultSelectionIds: (number | string)[] = [];
   private searchPanelData: any[] = [];
 
   @Watch('defaultCheckedNodes')
@@ -212,7 +212,7 @@ export default class DynamicTopo extends Vue {
   private handleSearchPanelShow() {
     if (this.getSearchResultSelections) {
       const { idKey = 'id' } = this.searchDataOptions;
-      this.defaultSelectionIds = this.searchPanelData.reduce<(string | number)[]>((pre, next) => {
+      this.defaultSelectionIds = this.searchPanelData.reduce<(number | string)[]>((pre, next) => {
         !!this.getSearchResultSelections(next) && pre.push(next[idKey]);
         return pre;
       }, []);
@@ -275,13 +275,13 @@ export default class DynamicTopo extends Vue {
   private handleTableCheckChange(data: ITableCheckData) {
     return data;
   }
-  // eslint-disable-next-line @typescript-eslint/member-ordering
+
   public handleGetDefaultSelections() {
     this.tableRef?.handleGetDefaultSelections();
   }
 
   /* 选中搜索结果 */
-  // eslint-disable-next-line @typescript-eslint/member-ordering
+
   handleSelectSearch(item: ISearchData) {
     this.treeRef?.handleSetSelected(item.id as any, true);
   }

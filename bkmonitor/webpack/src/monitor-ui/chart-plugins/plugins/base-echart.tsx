@@ -33,40 +33,40 @@ import type { IDataItem } from './apm-service-caller-callee/type';
 
 import './base-echart.scss';
 
+export interface IChartEvent {
+  // click 事件
+  onClick: MouseEvent;
+  // dblclick 事件
+  onDblClick: MouseEvent;
+  /** mousemove事件  */
+  onMousemove: MouseEvent;
+  onBrush?: (v: any) => void;
+  onBrushEnd?: (v: any) => void;
+  // contextmenu 事件
+  onContextmenu?: (v: any) => void;
+  onLoaded?: () => void;
+  /** 图表鼠标右击事件的回调方法 */
+  onMenuClick?: (data: IDataItem) => void;
+  // mouseout 事件
+  onMouseout: () => void;
+  // mouseover 事件
+  onMouseover: () => void;
+  onUpdateAxisPointer?: (v: any) => void;
+  onZrClick: (p: ZrClickEvent) => void;
+}
 export interface IChartProps {
   // 视图高度
   height: number;
-  // 视图宽度 默认撑满父级
-  width?: number;
-  // echart 配置
-  options: MonitorEchartOptions;
   // hover是显示所有图标tooltips
   hoverAllTooltips?: boolean;
   // 禁用右键菜单默认事件
   isContextmenuPreventDefault?: boolean;
   notMerge?: boolean;
+  // echart 配置
+  options: MonitorEchartOptions;
   toolbox?: string[];
-}
-export interface IChartEvent {
-  // mouseover 事件
-  onMouseover: () => void;
-  // mouseout 事件
-  onMouseout: () => void;
-  // dblclick 事件
-  onDblClick: MouseEvent;
-  /** mousemove事件  */
-  onMousemove: MouseEvent;
-  // click 事件
-  onClick: MouseEvent;
-  // contextmenu 事件
-  onContextmenu?: (v: any) => void;
-  onUpdateAxisPointer?: (v: any) => void;
-  onZrClick: (p: ZrClickEvent) => void;
-  onBrush?: (v: any) => void;
-  onBrushEnd?: (v: any) => void;
-  onLoaded?: () => void;
-  /** 图表鼠标右击事件的回调方法 */
-  onMenuClick?: (data: IDataItem) => void;
+  // 视图宽度 默认撑满父级
+  width?: number;
 }
 const MOUSE_EVENTS = [
   'click',

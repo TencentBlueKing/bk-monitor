@@ -29,19 +29,19 @@ import { Component as tsc } from 'vue-tsx-support';
 import { deepClone, isPostiveInt } from 'monitor-common/utils';
 
 import { SIMPLE_METHOD_LIST } from '../../../../../../constant/constant';
-import { DetectionRuleTypeEnum, type IDetectionTypeRuleData } from '../../../typings';
+import { type IDetectionTypeRuleData, DetectionRuleTypeEnum } from '../../../typings';
 
 import './year-round.scss';
 
-interface YearRoundProps {
-  data?: IDetectionTypeRuleData;
-  otherSelectRuleData?: IDetectionTypeRuleData[];
-  readonly?: boolean;
-  isRealtime?: boolean;
-}
-
 interface YearRoundEvents {
   onDataChange: IDetectionTypeRuleData;
+}
+
+interface YearRoundProps {
+  data?: IDetectionTypeRuleData;
+  isRealtime?: boolean;
+  otherSelectRuleData?: IDetectionTypeRuleData[];
+  readonly?: boolean;
 }
 
 // 算法类型对应的数据模型

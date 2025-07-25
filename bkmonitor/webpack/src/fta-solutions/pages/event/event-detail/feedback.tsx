@@ -33,13 +33,13 @@ import './feedback.scss';
 
 const TAGS = [window.i18n.tc('无法给予帮助'), window.i18n.tc('结果不准确'), window.i18n.tc('问题定位不清晰')];
 interface AlarmConfirmProps {
-  show: boolean;
   ids?: Array<string>;
+  show: boolean;
 }
 
 interface IEvent {
-  onConfirm?: boolean;
   onChange?: boolean;
+  onConfirm?: boolean;
 }
 
 @Component({

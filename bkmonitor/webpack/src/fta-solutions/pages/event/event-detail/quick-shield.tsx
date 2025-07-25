@@ -39,29 +39,29 @@ import './quick-shield.scss';
 
 const { i18n } = window;
 
-interface IQuickShieldProps {
-  show: boolean;
-  details: IDetail[];
-  ids?: Array<string>;
-  bizIds?: number[];
-  authority?: Record<string, boolean>;
-  handleShowAuthorityDetail?: (action: any) => void;
-}
 export interface IDetail {
-  severity: number;
-  dimension?: IDimensionItem[];
-  trigger?: string;
-  isModified?: boolean;
   alertId: string;
+  dimension?: IDimensionItem[];
+  isModified?: boolean;
+  severity: number;
+  trigger?: string;
   strategy?: {
-    name?: string;
     id?: number;
+    name?: string;
   };
 }
-
 interface DimensionConfig {
   alert_ids: string[];
   dimensions?: { [key: string]: string[] };
+}
+
+interface IQuickShieldProps {
+  authority?: Record<string, boolean>;
+  bizIds?: number[];
+  details: IDetail[];
+  ids?: Array<string>;
+  show: boolean;
+  handleShowAuthorityDetail?: (action: any) => void;
 }
 
 @Component({
@@ -171,7 +171,8 @@ export default class EventQuickShield extends tsc<IQuickShieldProps> {
       begin = new Date();
       const nowS = begin.getTime();
       end = new Date(nowS + this.timeValue * 100000);
-      if (this.timeValue === -1) { // 次日时间点
+      if (this.timeValue === -1) {
+        // 次日时间点
         if (this.nextDayTime === '') {
           this.rule.customTime = true;
           return false;

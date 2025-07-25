@@ -24,6 +24,7 @@
  * IN THE SOFTWARE.
  */
 import { Component, Vue } from 'vue-property-decorator';
+
 import type { Route } from 'vue-router';
 
 Component.registerHooks(['beforeRouteLeave']);

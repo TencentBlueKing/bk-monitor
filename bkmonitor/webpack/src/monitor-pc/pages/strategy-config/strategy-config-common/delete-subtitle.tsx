@@ -29,8 +29,8 @@ import { Component as tsc } from 'vue-tsx-support';
 import './delete-subtitle.scss';
 
 interface IProps {
-  title?: string;
   name?: string;
+  title?: string;
 }
 
 @Component

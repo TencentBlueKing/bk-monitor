@@ -24,10 +24,10 @@
  * IN THE SOFTWARE.
  */
 import { type PropType, type Ref, computed, defineComponent, inject, ref, watch } from 'vue';
-import { type TranslateResult, useI18n } from 'vue-i18n';
 
 import { Select, Tag } from 'bkui-vue';
 import { incidentValidateQueryString } from 'monitor-api/modules/incident';
+import { type TranslateResult, useI18n } from 'vue-i18n';
 
 import { SPACE_TYPE_MAP } from '../../common/constant';
 import FilterSearchInput from './filter-search-input';
@@ -204,7 +204,6 @@ export default defineComponent({
         <div class='main-top'>
           <Select
             ref='selectRef'
-            selected-style='checkbox'
             class={['main-select', { error: this.isErr }]}
             v-model={this.spaceFilter}
             v-slots={{
@@ -221,6 +220,7 @@ export default defineComponent({
             }}
             clearable={false}
             inputSearch={false}
+            selected-style='checkbox'
             trigger={this.trigger}
             filterable
             multiple

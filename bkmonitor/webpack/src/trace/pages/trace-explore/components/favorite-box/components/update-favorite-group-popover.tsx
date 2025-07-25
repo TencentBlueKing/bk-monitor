@@ -23,19 +23,19 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, shallowRef, type PropType, onMounted, onBeforeUnmount, computed, nextTick, watch } from 'vue';
-import { useI18n } from 'vue-i18n';
+import { type PropType, computed, defineComponent, nextTick, onBeforeUnmount, onMounted, shallowRef, watch } from 'vue';
 
-import { useAppStore } from '@store/modules/app';
 import { Message, Tag } from 'bkui-vue';
 import _ from 'lodash';
 import { bulkUpdateFavorite } from 'monitor-api/modules/model';
 import tippy, { type SingleTarget } from 'tippy.js';
+import { useI18n } from 'vue-i18n';
 
 import { GROUP_ID_PERSONAL } from '../constants';
 import useFavoriteType from '../hooks/use-favorite-type';
 import useGroupList from '../hooks/use-group-list';
 import CreateGroupExtend from './create-group-extends';
+import { useAppStore } from '@store/modules/app';
 
 import type { IFavoriteGroup } from '../types';
 

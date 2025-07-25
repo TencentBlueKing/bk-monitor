@@ -34,8 +34,8 @@
         <van-radio-group v-model="shieldType">
           <van-radio
             v-for="item in radioList.type"
-            class="content-radio"
             :key="item.value"
+            class="content-radio"
             :name="item.value"
           >
             {{ item.name }}
@@ -51,8 +51,8 @@
       <div class="shield-section-detail">
         <div
           v-for="(item, index) in shieldContent"
-          :class="['detail-item', { 'is-dimension': item.name === $t('维度') }]"
           :key="index"
+          :class="['detail-item', { 'is-dimension': item.name === $t('维度') }]"
         >
           <template v-if="item.type === shieldType">
             <span>
@@ -61,8 +61,8 @@
             <!-- 维度信息需要可复选 -->
             <van-checkbox-group
               v-if="item.name === $t('维度') && Array.isArray(item.value)"
-              class="detail-item-span"
               v-model="selectedDimension"
+              class="detail-item-span"
               icon-size="16px"
             >
               <van-checkbox
@@ -93,8 +93,8 @@
         <van-grid :column-num="3">
           <van-grid-item
             v-for="item in dataPickerList"
-            :class="active === item.id ? 'active' : ''"
             :key="item.id"
+            :class="active === item.id ? 'active' : ''"
             :text="item.name"
             @click="handleShowDatePicker(item.id, item.value)"
           />
@@ -110,8 +110,8 @@
         <van-radio-group v-model="reason">
           <van-radio
             v-for="item in radioList.reason"
-            class="content-radio"
             :key="item.value"
+            class="content-radio"
             :name="item.value"
           >
             {{ item.name }}
@@ -125,9 +125,9 @@
       @confirm="handleDateTimeConfirm"
     />
     <van-popup
+      v-model="showPicker"
       :overlay-style="{ 'background-color': 'rgba(0, 0, 0, 0.1)' }"
       class="next-day-picker__field"
-      v-model="showPicker"
       :close-on-click-overlay="false"
       position="bottom"
       round
@@ -146,8 +146,8 @@
           </div>
         </template>
         <div
-          class="next-day-picker__bottom"
           slot="columns-bottom"
+          class="next-day-picker__bottom"
         >
           <div
             class="next-day-picker__cancel"
@@ -175,9 +175,9 @@
 </template>
 
 <script lang="ts">
-import { Component, Prop, Vue, Watch, Ref } from 'vue-property-decorator';
+import { Component, Prop, Ref, Vue, Watch } from 'vue-property-decorator';
 
-import { Checkbox, CheckboxGroup, Grid, GridItem, Popup, Radio, RadioGroup, Toast, Picker } from 'vant';
+import { Checkbox, CheckboxGroup, Grid, GridItem, Picker, Popup, Radio, RadioGroup, Toast } from 'vant';
 
 import { quickShield } from '../../../monitor-api/modules/mobile_event';
 import DatetimePicker, { type ITimeObj } from '../../components/datetime-picker/datetime-picker.vue';
@@ -185,34 +185,6 @@ import FooterButton from '../../components/footer-button/footer-button.vue';
 import AlarmModule from '../../store/modules/alarm-info';
 import EventModule from '../../store/modules/event-detail';
 
-interface IRadioList {
-  name: string;
-  value: string;
-}
-interface IDimensionItem {
-  displayValue: string;
-  displayKey: string;
-  value: string;
-  key: string;
-}
-interface IDataPickerList {
-  id: number;
-  name: string;
-  value: number;
-}
-interface IShieldItem {
-  type: string;
-  name: string;
-  value: IDimensionItem[] | string;
-}
-interface IEentDetail {
-  dimensions: IDimensionItem[];
-  dimensionMessage: string;
-  strategyName: string;
-  targetMessage: string;
-  anomalyMessage: string;
-  levelName: string;
-}
 enum TimeSemantics {
   Custom = 8,
   CustomNextDay = 7,
@@ -222,6 +194,34 @@ enum TimeSemantics {
   ThirtyMinutes = 2,
   ThreeHour = 3,
   TwelveHour = 4,
+}
+interface IDataPickerList {
+  id: number;
+  name: string;
+  value: number;
+}
+interface IDimensionItem {
+  displayKey: string;
+  displayValue: string;
+  key: string;
+  value: string;
+}
+interface IEentDetail {
+  anomalyMessage: string;
+  dimensionMessage: string;
+  dimensions: IDimensionItem[];
+  levelName: string;
+  strategyName: string;
+  targetMessage: string;
+}
+interface IRadioList {
+  name: string;
+  value: string;
+}
+interface IShieldItem {
+  name: string;
+  type: string;
+  value: IDimensionItem[] | string;
 }
 
 @Component({
@@ -247,7 +247,7 @@ export default class AlarmDetail extends Vue {
   private shieldType = 'event'; // 屏蔽类型 value
   private reason = '变更中'; // 屏蔽原因 value
   private customTime = ''; // 自定义时间
-  private radioList: { type: IRadioList[]; reason: IRadioList[] }; // type: 屏蔽类型列表 reason: 屏蔽原因列表
+  private radioList: { reason: IRadioList[]; type: IRadioList[] }; // type: 屏蔽类型列表 reason: 屏蔽原因列表
   private isShowDatePicker = false; // 是否展示时间选择器
   private dataPickerList: IDataPickerList[] = []; // 时间选择列表
   private loading = false;
@@ -472,7 +472,7 @@ export default class AlarmDetail extends Vue {
 </script>
 
 <style lang="scss" scoped>
-@import '../../static/scss/variate.scss';
+@import '../../static/scss/variate';
 
 .quick-alarm-shield {
   padding: 13px 16px;
@@ -493,7 +493,7 @@ export default class AlarmDetail extends Vue {
       padding: 0 20px;
       background: #fff;
       border-radius: 4px;
-      box-shadow: 0 1px 0 0 rgba(99, 101, 110, 0.05);
+      box-shadow: 0 1px 0 0 rgb(99 101 110 / 5%);
 
       .content-radio {
         position: relative;
@@ -504,7 +504,7 @@ export default class AlarmDetail extends Vue {
           color: $defaultFontColor;
         }
 
-        &:after {
+        &::after {
           position: absolute;
           right: 0;
           bottom: 0;
@@ -606,7 +606,7 @@ export default class AlarmDetail extends Vue {
     bottom: 16px;
     left: 16px;
     width: auto;
-    padding: 20px 0 20px;
+    padding: 20px 0;
     border-radius: 16px;
 
     :deep(.van-picker__toolbar) {
@@ -624,11 +624,12 @@ export default class AlarmDetail extends Vue {
       font-size: 16px;
       line-height: 44px;
       transform: translateY(-50%);
-    } 
+    }
 
     .next-day-picker__title {
       padding: 0 20px;
       font-size: 20px;
+
       // line-height: 1.75rem;
       color: #313238;
     }

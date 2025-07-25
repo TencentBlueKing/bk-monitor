@@ -39,6 +39,14 @@ import DataPipelineConfig from './data-pipeline-config';
 
 import './data-pipeline.scss';
 
+enum EChildColumn {
+  influxdbStorage = 'influxdbStorage',
+  kafkaTopic = 'kafkaTopic',
+  kafkaTopicStorage = 'kafkaTopicStorage',
+  name = 'name',
+  space = 'space',
+  type = 'type',
+}
 enum EColumn {
   influxdbStorage = 'influxdbStorage',
   isDefault = 'isDefault',
@@ -51,65 +59,57 @@ enum EColumn {
   transfer = 'Transfer',
   type = 'type',
 }
-enum EChildColumn {
-  influxdbStorage = 'influxdbStorage',
-  kafkaTopic = 'kafkaTopic',
-  kafkaTopicStorage = 'kafkaTopicStorage',
-  name = 'name',
-  space = 'space',
-  type = 'type',
-}
 
+interface IChildTable {
+  data: IChildTableData[];
+  page: number;
+  total: number;
+}
 interface IChildTableData {
   dataId: number;
   dataName: string;
-  kafkaTopic: string;
   influxdbDomainName: string;
-  kafkaStorageTopic: string;
   isPlatformDataId: boolean;
-  spaceName: string;
+  kafkaStorageTopic: string;
+  kafkaTopic: string;
   spaceId: string;
-}
-interface IChildTable {
-  page: number;
-  total: number;
-  data: IChildTableData[];
+  spaceName: string;
 }
 
 interface IPiplineData {
-  key?: string;
-  name?: string;
-  chinese_name?: string;
-  label?: string;
-  kafka_cluster_id?: number;
-  transfer_cluster_id?: string;
-  influxdb_storage_cluster_id?: number;
-  kafka_storage_cluster_id?: number;
-  kafka_cluster_name?: string;
-  kafka_storage_cluster_name?: string;
-  influxdb_storage_cluster_name?: string;
-  es_storage_cluster_id?: number;
-  vm_storage_cluster_id?: number;
-  is_enable?: boolean;
-  description?: string;
-  is_default?: boolean;
-  etl_config?: any[];
-  spaces?: any[];
-  creator?: string;
-  create_time?: string;
-  updater?: string;
-  update_time?: string;
   childTable: IChildTable;
+  chinese_name?: string;
+  create_time?: string;
+  creator?: string;
+  description?: string;
+  es_storage_cluster_id?: number;
+  etl_config?: any[];
   etlConfigStr?: string;
-  spaceStr?: string;
   id: string;
+  influxdb_storage_cluster_id?: number;
+  influxdb_storage_cluster_name?: string;
+  is_default?: boolean;
+  is_enable?: boolean;
   isDefault?: boolean;
+  kafka_cluster_id?: number;
+  kafka_cluster_name?: string;
+  kafka_storage_cluster_id?: number;
+  kafka_storage_cluster_name?: string;
+  key?: string;
+  label?: string;
+  name?: string;
+  spaces?: any[];
+  spaceStr?: string;
+  transfer_cluster_id?: string;
+  update_time?: string;
+  updater?: string;
+  vm_storage_cluster_id?: number;
 }
 
 interface ITableData {
   columns: any[];
-  expandRowKeys: string[];
   data: IPiplineData[];
+  expandRowKeys: string[];
   filterData: IPiplineData[];
 }
 

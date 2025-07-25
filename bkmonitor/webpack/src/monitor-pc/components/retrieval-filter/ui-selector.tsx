@@ -34,20 +34,20 @@ import KvTag from './kv-tag';
 import UiSelectorOptions from './ui-selector-options';
 import {
   type IFilterField,
-  EFieldType,
+  type IFilterItem,
   type IGetValueFnParams,
   type IWhereValueOptionsItem,
-  type IFilterItem,
-  EMethod,
   ECondition,
+  EFieldType,
+  EMethod,
 } from './utils';
 
 import './ui-selector.scss';
 
 interface IProps {
+  clearKey?: string;
   fields: IFilterField[];
   value?: IFilterItem[];
-  clearKey?: string;
   getValueFn?: (params: IGetValueFnParams) => Promise<IWhereValueOptionsItem>;
   onChange?: (v: IFilterItem[]) => void;
 }
