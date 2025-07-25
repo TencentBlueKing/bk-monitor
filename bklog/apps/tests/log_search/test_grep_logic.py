@@ -144,8 +144,8 @@ ORDER_BY_PARAMS = [
 ]
 
 ORDER_BY_RESULT = [
-    "ORDER BY time ASC, container_id DESC",
-    "ORDER BY time ASC, CAST(__ext['app']['label'] AS TEXT) ASC",
+    " ORDER BY time ASC, container_id DESC",
+    " ORDER BY time ASC, CAST(__ext['app']['label'] AS TEXT) ASC",
 ]
 
 HIGHLIGHT_PARAMS = [

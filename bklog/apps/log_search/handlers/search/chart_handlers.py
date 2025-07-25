@@ -417,7 +417,7 @@ class ChartHandler:
             order_by_clause += f"{order_field} {direction.upper()}"
 
         if order_by_clause:
-            order_by_clause = f"ORDER BY {order_by_clause}"
+            order_by_clause = f" ORDER BY {order_by_clause}"
         return order_by_clause
 
     @classmethod
@@ -629,7 +629,7 @@ class SQLChartHandler(ChartHandler):
             alias_mappings=alias_mappings,
         )
         # 加上排序条件
-        grep_where_clause += f" ORDER BY {order_by_clause}"
+        grep_where_clause += order_by_clause
         # 加上分页条件
         grep_where_clause += f" LIMIT {params['size']} OFFSET {params['begin']}"
         try:
