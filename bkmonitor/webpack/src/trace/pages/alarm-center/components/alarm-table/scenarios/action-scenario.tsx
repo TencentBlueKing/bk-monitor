@@ -75,14 +75,14 @@ export class ActionScenario extends BaseScenario {
       },
       /** 触发告警数(alert_count) 列 */
       alert_count: {
-        renderType: ExploreTableColumnTypeEnum.CLICK,
-        getRenderValue: row => row?.alert_id?.length || '-1',
+        getRenderValue: row => row?.alert_id?.length || 0,
         clickCallback: row => this.handleAlterCountClick(row),
+        cellRenderer: (row, column, renderCtx) => this.renderCount(row, column, renderCtx),
       },
       /** 防御告警数(converge_count) 列 */
       converge_count: {
-        renderType: ExploreTableColumnTypeEnum.CLICK,
         clickCallback: row => this.handleAlterCountClick(row),
+        cellRenderer: (row, column, renderCtx) => this.renderCount(row, column, renderCtx),
       },
       /** 执行状态(status) 列 */
       status: {
@@ -122,6 +122,21 @@ export class ActionScenario extends BaseScenario {
         </div>
       </div>
     ) as unknown as SlotReturnValue;
+  }
+
+  /**
+   * @description 触发告警数(alert_count) 和 防御告警数(converge_count) 列渲染方法
+   */
+  private renderCount(
+    row: ActionTableItem,
+    column: BaseTableColumn,
+    renderCtx: TableCellRenderContext
+  ): SlotReturnValue {
+    const count = renderCtx.getTableCellRenderValue(row, column) as number;
+    if (count > 0) {
+      return renderCtx.cellRenderHandleMap?.[ExploreTableColumnTypeEnum.CLICK]?.(row, column, renderCtx);
+    }
+    return renderCtx.cellRenderHandleMap?.[ExploreTableColumnTypeEnum.TEXT]?.(row, column, renderCtx);
   }
 
   /**
