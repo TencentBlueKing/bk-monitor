@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -12,7 +11,6 @@ specific language governing permissions and limitations under the License.
 import datetime
 import re
 import time
-from typing import Union
 
 import arrow
 import six
@@ -255,7 +253,7 @@ def get_datetime_range(period, distance, now=None, rounding=True):
             begin = begin.ceil("hour")
             end = end.ceil("hour")
     else:
-        raise TypeError("invalid period: %r" % period)
+        raise TypeError(f"invalid period: {period!r}")
 
     if settings.USE_TZ:
         return begin.datetime, end.datetime
@@ -269,7 +267,7 @@ def get_datetime_list(begin_time, end_time, period):
     elif period == "hour":
         timedelta = "hours"
     else:
-        raise TypeError("invalid period: %r" % period)
+        raise TypeError(f"invalid period: {period!r}")
 
     datetime_list = []
     item = begin_time
@@ -326,12 +324,12 @@ def hms_string(sec_elapsed, display_num=2, day_unit="d", hour_unit="h", minute_u
             continue
 
         index += 1
-        time_str += "{}{} ".format(unit[0], unit[1])
+        time_str += f"{unit[0]}{unit[1]} "
         if index >= display_num:
             return time_str.strip()
 
     if not time_str:
-        return "{}{}".format(s, second_unit)
+        return f"{s}{second_unit}"
 
     return time_str.strip()
 
@@ -339,13 +337,13 @@ def hms_string(sec_elapsed, display_num=2, day_unit="d", hour_unit="h", minute_u
 TIME_ABBREVIATION_MATCH = re.compile(r"^[-+]?[0-9]*\.?[0-9]+[smhdwMy]")
 
 
-def parse_time_compare_abbreviation(time_offset: Union[int, str]) -> int:
+def parse_time_compare_abbreviation(time_offset: int | str) -> int:
     """
     时间对比解析(h/d/w/M/y)
     :param time_offset: 1d / 0.5m / -5w
     :return: 返回一个整数，以秒为单位。 int (unit: s)
     """
-    if isinstance(time_offset, (int, float)):
+    if isinstance(time_offset, int | float):
         return time_offset
 
     time_offset = str(time_offset).strip()
@@ -408,6 +406,26 @@ def time_interval_align(timestamp: int, interval: int):
     timestamp -= timezone_offset
 
     return timestamp
+
+
+def split_time_range(start_timestamp, end_timestamp, time_step):
+    """
+    将时间范围按步长划分为多个小时间段。
+
+    :param start_timestamp: 开始时间的 UNIX 时间戳
+    :param end_timestamp: 结束时间的 UNIX 时间戳
+    :param time_step: 步长，单位为秒
+    :return: 列表，每个元素是一个 (start, end) 时间范围的元组
+    """
+    ranges = []
+    current = start_timestamp
+
+    while current < end_timestamp:
+        next_point = min(current + time_step, end_timestamp)
+        ranges.append((current, next_point))
+        current = next_point
+
+    return ranges
 
 
 MAX_DATETIME_STR = datetime2str(datetime.datetime.max)

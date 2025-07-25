@@ -8,16 +8,26 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-from .action_tasks import *  # noqa
-from .alert_denoise import create_alert_denoise_action
-from .create_action import (  # noqa
-    check_create_poll_action,
-    check_create_poll_action_10_secs,
-    create_actions,
-    create_interval_actions,
-)
-from .noise_reduce import (  # noqa
-    NoiseReduceExecuteProcessor,
-    NoiseReduceRecordProcessor,
-    run_noise_reduce_task,
-)
+import abc
+import logging
+
+logger = logging.getLogger("incident")
+
+
+####################################
+#           Base Process           #
+####################################
+class BaseIncidentProcess(metaclass=abc.ABCMeta):
+    """
+    故障处理基类
+    """
+
+    def __init__(self, *args, **kwargs):
+        super().__init__()
+
+    def __str__(self):
+        return self.__class__.__name__
+
+    @abc.abstractmethod
+    def process(self):
+        raise NotImplementedError()
