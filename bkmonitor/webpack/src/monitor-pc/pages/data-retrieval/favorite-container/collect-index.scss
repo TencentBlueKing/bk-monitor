@@ -102,24 +102,52 @@
     z-index: 9;
     display: flex;
     align-items: center;
-    height: 32px;
-    padding-left: 2px;
-    margin: 0 12px 8px;
-    color: #313238;
+    height: 34px;
+    padding-left: 4px;
+    margin: 3px 8px 11px;
+    // color: #313238;
+    color: #3a84ff;
     cursor: pointer;
-    border-top: 1px solid #dcdee5;
-    border-bottom: 1px solid #dcdee5;
+    transition: all .15s;
 
-    .icon-xinjiansuo {
-      margin-right: 4px;
-      color: #A3B1CC;
+    &::before {
+      position: absolute;
+      top: -3px;
+      right: 4px;
+      left: 4px;
+      height: 1px;
+      cursor: default;
+      content: '';
+      background-color: #dcdee5;
+    }
+
+    &::after {
+      position: absolute;
+      right: 4px;
+      bottom: -3px;
+      left: 4px;
+      height: 1px;
+      cursor: default;
+      content: '';
+      background-color: #dcdee5;
+    }
+
+    &:hover {
+      background: #fff;
+      border-radius: 4px;
+      box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.0784313725);
     }
 
     &.active {
+      // color: #3a84ff;
       background: #FFFFFF;
       border: none;
       border-radius: 4px;
       box-shadow: 0 1px 2px 0 #00000014;
+    }
+
+    .icon-xinjiansuo {
+      color: #3a84ff;
     }
   }
 

@@ -36,6 +36,7 @@ export enum EMethod {
   exclude = 'exclude',
   include = 'include',
   ne = 'ne',
+  nreg = 'nreg',
 }
 export enum EFieldType {
   all = 'all',
@@ -45,7 +46,7 @@ export enum EFieldType {
   text = 'text',
 }
 
-export const OPPOSE_METHODS = [EMethod.ne, EMethod.exclude];
+export const OPPOSE_METHODS = [EMethod.ne, EMethod.exclude, EMethod.nreg];
 
 export const METHOD_MAP = {
   [EMethod.eq]: '=',

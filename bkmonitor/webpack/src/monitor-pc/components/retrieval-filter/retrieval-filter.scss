@@ -57,6 +57,14 @@
 
     .filter-content {
       flex: 1;
+
+      &:hover {
+        background: #FAFBFD;
+
+        & + .component-right {
+          background: #FAFBFD;
+        }
+      }
     }
 
     .component-right {
