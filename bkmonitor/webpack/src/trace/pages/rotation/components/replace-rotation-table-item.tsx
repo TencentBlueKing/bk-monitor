@@ -25,8 +25,10 @@
  */
 import { type PropType, type Ref, computed, defineComponent, inject, reactive, TransitionGroup, watch } from 'vue';
 
+import UserSelector from '@/components/user-selector/user-selector';
 import { Button, Input, Select } from 'bkui-vue';
 import { random } from 'lodash';
+import { getDefaultUserGroupListSync, type IUserInfo } from 'monitor-pc/components/user-selector/user-group';
 import { isEn } from 'monitor-pc/i18n/lang';
 import { useI18n } from 'vue-i18n';
 
@@ -86,6 +88,7 @@ export default defineComponent({
     const colorList = inject<{ setValue: (val: string[]) => void; value: string[] }>('colorList');
 
     const defaultGroup = inject<Ref<any[]>>('defaultGroup');
+    const defaultUserGroupList = computed(() => getDefaultUserGroupListSync(defaultGroup.value?.[0]?.children || []));
     const labelWidth = computed(() => (isEn ? 110 : 70));
 
     const rotationTypeList: { label: string; value: RotationSelectTypeEnum }[] = [
@@ -579,8 +582,11 @@ export default defineComponent({
       localValue.users.value.splice(ind, 1);
       handleEmitData();
     }
-    function handMemberSelectChange(ind: number, val: ReplaceRotationUsersModel['value'][0]['value']) {
-      localValue.users.value[ind].value = val;
+    function handMemberSelectChange(ind: number, userInfos: IUserInfo[]) {
+      localValue.users.value[ind].value = userInfos.map(user => ({
+        id: user.id,
+        type: user?.type === 'userGroup' ? 'group' : 'user',
+      }));
       handleEmitData();
     }
 
@@ -688,6 +694,7 @@ export default defineComponent({
       labelWidth,
       colorList,
       defaultGroup,
+      defaultUserGroupList,
       rotationTypeList,
       localValue,
       rotationSelectType,
@@ -759,24 +766,20 @@ export default defineComponent({
                       onDragstart={e => this.handleDragstart(e, ind)}
                       onDrop={e => this.handleDrop(e, ind)}
                     >
-                      <MemberSelect
-                        v-model={item.value}
-                        defaultGroup={this.defaultGroup}
-                        hasDefaultGroup={true}
-                        showType='avatar'
-                        onSelectEnd={val => this.handMemberSelectChange(ind, val)}
-                      >
-                        {{
-                          prefix: () => (
-                            <div
-                              style={{ 'border-left-color': this.colorList.value[this.getOrderIndex(ind)] }}
-                              class='member-select-prefix'
-                            >
-                              <span class='icon-monitor icon-mc-tuozhuai' />
-                            </div>
-                          ),
-                        }}
-                      </MemberSelect>
+                      <div class='user-select-wrapper'>
+                        <div
+                          style={{ 'background-color': this.colorList.value[item.orderIndex] }}
+                          class='user-select-prefix'
+                        >
+                          <span class='icon-monitor icon-mc-tuozhuai' />
+                        </div>
+                        <UserSelector
+                          class='user-selector'
+                          modelValue={item.value.map(user => user.id)}
+                          userGroupList={this.defaultUserGroupList}
+                          onChange={userInfos => this.handMemberSelectChange(ind, userInfos)}
+                        />
+                      </div>
                       {this.localValue.users.value.length > 1 && (
                         <i
                           class='icon-monitor icon-mc-delete-line del-icon'
