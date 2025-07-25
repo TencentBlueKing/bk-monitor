@@ -121,7 +121,6 @@ const getUrlArgs = (_route?) => {
       // #code return route.resolved.query.indexId ? `${route.resolved.query.indexId}` : '';
       // #endif
     });
-    urlResolver.setResolver('search_mode', () => route.resolved.query.search_mode);
   } else {
     urlResolver = new RouteUrlResolver({ route: _route });
     urlResolver.setResolver('index_id', () => {
@@ -131,7 +130,6 @@ const getUrlArgs = (_route?) => {
       // #code return _route.query.indexId ? `${_route.query.indexId}` : '';
       // #endif
     });
-    urlResolver.setResolver('search_mode', () => _route.query.search_mode);
   }
 
   const result = urlResolver.convertQueryToStore<RouteParams>();

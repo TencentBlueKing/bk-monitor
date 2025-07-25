@@ -146,6 +146,22 @@ class RetrieveHelper extends RetrieveBase {
   }
 
   /**
+   * 键盘按下事件拦截
+   * 拦截键盘按下事件，如果按下的键是斜杠 "/"，需要判定当前是否在输入框内部
+   * 如果不在输入框内部，则调用 callback 函数
+   * @param event 键盘按下事件
+   * @param callback 回调函数
+   */
+  beforeSlashKeyKeyDown(event: KeyboardEvent, callback: () => void) {
+    const target = event.target as HTMLElement;
+    if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') {
+      return;
+    }
+
+    callback();
+  }
+
+  /**
    * 将值转换为可匹配的字符串
    * @param value 待转换的值
    * @returns 转换后的字符串或null

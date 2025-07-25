@@ -712,6 +712,7 @@ export default defineComponent({
       if (refResultRowBox.value && refRootElement.value) {
         refResultRowBox.value.scrollLeft = scrollXOffsetLeft;
         if (refTableHead.value) {
+          refTableHead.value.style.setProperty('width', `${scrollWidth.value}px`);
           refTableHead.value.style.transform = `translateX(-${scrollXOffsetLeft}px)`;
           const fixedRight = refTableHead.value?.querySelector(
             '.bklog-list-row .bklog-row-cell.header-cell.right',
@@ -869,6 +870,22 @@ export default defineComponent({
       ];
     };
 
+    const handleRowClick = (e: MouseEvent, item: any) => {
+      const selection = window.getSelection();
+      if (selection && !selection.isCollapsed && (e.target as HTMLElement).contains(selection.anchorNode)) {
+        return;
+      }
+
+      const target = e.target as HTMLElement;
+      const config: RowConfig = tableRowConfig.get(item).value;
+      config.expand = !config.expand;
+      nextTick(() => {
+        if (config.expand) {
+          hanldeAfterExpandClick(target);
+        }
+      });
+    };
+
     const renderRowVNode = () => {
       return renderList.map((row, rowIndex) => {
         const logLevel = gradeOption.value.disabled ? '' : RetrieveHelper.getLogLevel(row.item, gradeOption.value);
@@ -878,6 +895,7 @@ export default defineComponent({
             key={row[ROW_KEY]}
             class={['bklog-row-container', logLevel ?? 'normal']}
             row-index={rowIndex}
+            on-row-click={e => handleRowClick(e, row.item)}
           >
             {renderRowCells(row.item, rowIndex)}
           </RowRender>,
@@ -1007,37 +1025,6 @@ export default defineComponent({
       );
     };
 
-    const onRootClick = (e: MouseEvent) => {
-      const target = e.target as HTMLElement;
-
-      if (
-        (target?.hasAttribute('data-row-click') && target?.hasAttribute('data-row-index')) ||
-        !(
-          target?.classList.contains('segment-content') ||
-          target?.classList.contains('bklog-json-view-icon-expand') ||
-          target?.classList.contains('bklog-json-view-icon-text') ||
-          target?.classList.contains('black-mark') ||
-          target?.parentElement?.classList.contains('segment-content')
-        )
-      ) {
-        const row = target.hasAttribute('data-row-index') ? target : target.closest('[data-row-click]');
-        const index = parseInt(row?.getAttribute?.('data-row-index') ?? '-1', 10);
-
-        if (index >= 0) {
-          const { item } = renderList[index] ?? {};
-          if (item) {
-            const config: RowConfig = tableRowConfig.get(item).value;
-            config.expand = !config.expand;
-            nextTick(() => {
-              if (config.expand) {
-                hanldeAfterExpandClick(target);
-              }
-            });
-          }
-        }
-      }
-    };
-
     onBeforeUnmount(() => {
       popInstanceUtil.uninstallInstance();
       resetRowListState(-1);
@@ -1055,7 +1042,6 @@ export default defineComponent({
       renderLoader,
       renderHeadVNode,
       getExceptionRender,
-      onRootClick,
       tableDataSize,
       resultContainerId,
       hasScrollX,
