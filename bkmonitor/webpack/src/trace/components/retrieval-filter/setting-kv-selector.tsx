@@ -24,13 +24,13 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, shallowRef, useTemplateRef, computed, onBeforeUnmount, watch, nextTick } from 'vue';
+import { computed, defineComponent, nextTick, onBeforeUnmount, shallowRef, useTemplateRef, watch } from 'vue';
 import { onMounted } from 'vue';
-import { useI18n } from 'vue-i18n';
-import { useTippy } from 'vue-tippy';
 
 import { promiseTimeout, useResizeObserver } from '@vueuse/core';
 import { Dropdown } from 'bkui-vue';
+import { useI18n } from 'vue-i18n';
+import { useTippy } from 'vue-tippy';
 
 import AutoWidthInput from './auto-width-input';
 import { METHOD_MAP, NOT_TYPE_METHODS, SETTING_KV_SELECTOR_EMITS, SETTING_KV_SELECTOR_PROPS } from './typing';

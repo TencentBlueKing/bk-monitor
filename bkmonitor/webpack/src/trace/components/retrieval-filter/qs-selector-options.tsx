@@ -25,9 +25,9 @@
  */
 
 import { defineComponent, onUnmounted, shallowRef, useTemplateRef, watch } from 'vue';
-import { useI18n } from 'vue-i18n';
 
 import { useDebounceFn, useEventListener } from '@vueuse/core';
+import { useI18n } from 'vue-i18n';
 
 import loadingImg from '../../static/img/spinner.svg';
 import EmptyStatus from '../empty-status/empty-status';
@@ -35,8 +35,8 @@ import QsSelectorHelp from './qs-selector-help';
 import { getQueryStringMethods, QUERY_STRING_CONDITIONS, queryStringColorMap } from './query-string-utils';
 import TextHighlighter from './text-highlighter';
 import {
-  EQueryStringTokenType,
   type IFilterField,
+  EQueryStringTokenType,
   QS_SELECTOR_OPTIONS_EMITS,
   QS_SELECTOR_OPTIONS_PROPS,
   qsSelectorOptionsDescMap,
@@ -45,9 +45,9 @@ import {
 import './qs-selector-options.scss';
 
 interface IOptions {
+  desc?: string;
   id: string;
   name: string;
-  desc?: string;
 }
 
 export default defineComponent({
@@ -59,7 +59,7 @@ export default defineComponent({
     const optionsRef = useTemplateRef<HTMLDivElement>('options');
 
     const localOptions = shallowRef<IOptions[]>([]);
-    const favoriteOptions = shallowRef<{ title: string; content: string; keyword: string }[]>([]);
+    const favoriteOptions = shallowRef<{ content: string; keyword: string; title: string }[]>([]);
     const cursorIndex = shallowRef(-1);
     const loading = shallowRef(false);
     const pageSize = shallowRef(200);

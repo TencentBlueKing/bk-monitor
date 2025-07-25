@@ -1,5 +1,5 @@
 import { RecoveryConfigStatusSetter } from './strategy-config-set-new/judging-condition/judging-condition';
-import { MetricType, type MetricDetail } from './strategy-config-set-new/typings';
+import { type MetricDetail, MetricType } from './strategy-config-set-new/typings';
 
 /*
  * Tencent is pleased to support the open source community by making
@@ -29,7 +29,7 @@ import { MetricType, type MetricDetail } from './strategy-config-set-new/typings
 const { i18n } = window;
 // 编辑时设置监控目标描述
 export const handleSetTargetDesc = (
-  targetList: { count: number; bk_obj_id: string; nodes_count?: number; instances_count?: number; all_host: any[] }[],
+  targetList: { all_host: any[]; bk_obj_id: string; count: number; instances_count?: number; nodes_count?: number }[],
   bkTargetType: string,
   objectType: string,
   nodeCount = 0,

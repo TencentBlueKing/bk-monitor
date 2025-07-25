@@ -31,7 +31,7 @@ import { Debounce } from 'monitor-common/utils/utils';
 import { SPACE_FIRST_CODE_COLOR_MAP, SPACE_TYPE_MAP } from '../../common/constant';
 import authorityStore from '../../store/modules/authority';
 import { Storage } from '../../utils';
-import List, { ETagsType, type IListItem } from './list';
+import List, { type IListItem, ETagsType } from './list';
 
 import type { ISpaceItem } from '../../types';
 
@@ -51,21 +51,21 @@ const BIZ_COLOR_LIST = [
   '#D36C68',
   '#BC4FB3',
 ];
-interface IProps {
-  value: number;
-  zIndex?: number;
-  bizList: ISpaceItem[];
-  isShrink?: boolean;
-  theme?: ThemeType;
-  minWidth?: number;
-  stickyList?: string[];
-  isShowCommon?: boolean;
-  canSetDefaultSpace?: boolean;
-}
 export type ThemeType = 'dark' | 'light';
 interface IEvents {
   onChange: number;
   onOpenSpaceManager: () => void;
+}
+interface IProps {
+  bizList: ISpaceItem[];
+  canSetDefaultSpace?: boolean;
+  isShowCommon?: boolean;
+  isShrink?: boolean;
+  minWidth?: number;
+  stickyList?: string[];
+  theme?: ThemeType;
+  value: number;
+  zIndex?: number;
 }
 /**
  * 业务选择器组件
@@ -111,10 +111,10 @@ export default class BizSelect extends tsc<IProps, IEvents> {
   /* 当前分页数据 */
   generalList: IListItem[] = [];
   pagination: {
-    current: number;
     count: number;
-    limit: number;
+    current: number;
     data: IListItem[];
+    limit: number;
   } = {
     current: 1,
     count: 0,

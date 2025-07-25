@@ -1,3 +1,6 @@
+// import { Tree } from 'bk-magic-vue'
+import type { VNode } from 'vue';
+
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -39,25 +42,23 @@ import LabelTree from './label-tree/label-tree';
 import { labelListToTreeData } from './utils';
 
 import type { IAddWrapSize, ITreeItem, TBehavior, TMode } from './types';
-// import { Tree } from 'bk-magic-vue'
-import type { VNode } from 'vue';
 
 import './multi-label-select.scss';
 
 interface IContainerProps {
-  mode: TMode;
-  behavior?: TBehavior;
-  readonly?: boolean;
-  treeData?: ITreeItem[];
-  checkedNode?: string[];
   allowAutoMatch?: boolean;
   autoGetList?: boolean;
+  behavior?: TBehavior;
+  checkedNode?: string[];
+  mode: TMode;
+  readonly?: boolean;
+  treeData?: ITreeItem[];
 }
 
 interface IEvent {
-  onLoading?: boolean;
-  onListChange?: any;
   onCheckedChange?: string[];
+  onListChange?: any;
+  onLoading?: boolean;
 }
 
 @Component({

@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Ref, Prop } from 'vue-property-decorator';
+import { Component, Prop, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import _ from 'lodash';
@@ -31,18 +31,18 @@ import { updateSceneView } from 'monitor-api/modules/scene_view';
 
 import './index.scss';
 
+interface IEmit {
+  onSuccess: () => void;
+}
+
 interface IProps {
-  sceneId: string;
   payload: Record<string, any>;
+  sceneId: string;
   viewId: string;
   viewList: {
     id: string;
     name: string;
   }[];
-}
-
-interface IEmit {
-  onSuccess: () => void;
 }
 
 @Component

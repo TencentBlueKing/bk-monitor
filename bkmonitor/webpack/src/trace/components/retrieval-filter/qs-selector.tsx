@@ -24,11 +24,11 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, onBeforeUnmount, shallowRef, useTemplateRef, nextTick, watch, onUnmounted } from 'vue';
+import { defineComponent, nextTick, onBeforeUnmount, onUnmounted, shallowRef, useTemplateRef, watch } from 'vue';
+
+import { useEventListener, watchDebounced } from '@vueuse/core';
 import { useI18n } from 'vue-i18n';
 import { useTippy } from 'vue-tippy';
-
-import { watchDebounced, useEventListener } from '@vueuse/core';
 
 import QsSelectorOptions from './qs-selector-options';
 import { QueryStringEditor } from './query-string-utils';

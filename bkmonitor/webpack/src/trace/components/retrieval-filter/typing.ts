@@ -26,10 +26,6 @@
 
 import type { PropType } from 'vue';
 
-export enum EMode {
-  queryString = 'queryString',
-  ui = 'ui',
-}
 export enum EFieldType {
   // 全文检索输入框
   all = 'all',
@@ -45,7 +41,6 @@ export enum EFieldType {
   // textarea 输入框
   text = 'text',
 }
-
 export enum EMethod {
   eq = 'equal',
   exclude = 'exclude',
@@ -55,6 +50,11 @@ export enum EMethod {
   ne = 'not_equal',
   notExists = 'not exists',
   notLike = 'not_like',
+}
+
+export enum EMode {
+  queryString = 'queryString',
+  ui = 'ui',
 }
 
 export const METHOD_MAP = {
@@ -69,137 +69,8 @@ export enum APIType {
   MONITOR = 'monitor', // monitor default
 }
 
-export interface IValue {
-  id: string;
-  name: string;
-}
-
-export interface IFilterField {
-  // 字段名
-  name: string;
-  // 字段别名
-  alias: string;
-  // 字段类型
-  type: EFieldType;
-  // isDimensions: boolean;
-  // 是否需要异步加载数据
-  isEnableOptions?: boolean;
-  // 支持的操作符
-  methods: {
-    // 操作符别名
-    alias: string;
-    // 操作符id
-    value: EMethod;
-    // 操作符显示的placeholder TODO(待支持)
-    placeholder?: string;
-    // 用于进行异步搜索时的默认操作符
-    wildcardValue?: string;
-    // options用于是否展示通配符或者组件关系等其他选项字段
-    /* 通配符字段key */
-    // const WILDCARD_KEY = 'is_wildcard';
-    /* 组件关系字段key */
-    // const GROUP_RELATION_KEY = 'group_relation';
-    options?: {
-      default?: boolean | string; // 其他选项字段默认值
-      label: string; // 其他选项字段别名
-      name: string; // 当前暂时支持WILDCARD_KEY， GROUP_RELATION_KEY
-      children?: {
-        // 其他选项的可选项
-        label: string; // 其他选项的可选项别名
-        value: string; // 其他选项的可选项值
-      }[];
-    }[];
-  }[];
-}
-
 export enum ECondition {
   and = 'and',
-}
-//  组件内部标准格式
-export interface INormalWhere {
-  key: string;
-  condition: ECondition;
-  method: EMethod | string;
-  value: Array<number | string>;
-  options:
-    | {
-        is_wildcard?: boolean;
-        group_relation?: boolean;
-      }
-    | Record<string, any>;
-}
-// 组件外部格式
-export interface IWhereItem {
-  key: string;
-  condition?: ECondition | string;
-  method?: EMethod | string;
-  operator?: string;
-  value: number[] | string[];
-  options?: {
-    is_wildcard?: boolean;
-    group_relation?: boolean;
-  };
-}
-
-export interface IGetValueFnParams {
-  limit?: number;
-  where?: IWhereItem[];
-  fields?: string[];
-  queryString?: string;
-  search?: string;
-  field?: string;
-  isInit__?: boolean; // 此字段不传给后台
-}
-export interface IOptionsInfo {
-  count: 0;
-  list: IValue[];
-}
-export type TGetValueFn = (params: IGetValueFnParams) => Promise<IOptionsInfo>;
-
-export interface IWhereValueOptionsItem {
-  count: number;
-  list: {
-    id: string;
-    name: string;
-  }[];
-}
-
-export interface IFilterItem {
-  key: { id: string; name: string };
-  condition: { id: ECondition; name: string };
-  method: { id: EMethod; name: string };
-  value: { id: number | string; name: number | string }[];
-  options?:
-    | {
-        is_wildcard?: boolean;
-        group_relation?: string;
-      }
-    | Record<string, any>;
-  hide?: boolean;
-  isSetting?: boolean; // 是否是设置项
-}
-
-export interface IFavoriteListItem {
-  id: string;
-  name: string;
-  groupName: string;
-  config: {
-    queryString?: string;
-    where?: IWhereItem[];
-    commonWhere?: IWhereItem[];
-  };
-}
-
-export interface IFieldItem {
-  /* 字段名 */
-  field: string;
-  /* 字段别名 */
-  alias: string;
-  /* 是否含有可选项选项 */
-  isEnableOptions: boolean;
-  /* 包含的method */
-  methods: IValue[];
-  type?: EFieldType;
 }
 
 export enum EQueryStringTokenType {
@@ -211,6 +82,250 @@ export enum EQueryStringTokenType {
   value = 'value',
   valueCondition = 'value-condition',
 }
+export interface IFavoriteListItem {
+  groupName: string;
+  id: string;
+  name: string;
+  config: {
+    commonWhere?: IWhereItem[];
+    queryString?: string;
+    where?: IWhereItem[];
+  };
+}
+export interface IFavoriteListItem {
+  id: string;
+  name: string;
+  favorites: {
+    config: {
+      queryConfig: {
+        query_string: string;
+        where: IWhereItem[];
+      };
+    };
+    name: string;
+  }[];
+}
+
+export interface IFieldItem {
+  /* 字段别名 */
+  alias: string;
+  /* 字段名 */
+  field: string;
+  /* 是否含有可选项选项 */
+  isEnableOptions: boolean;
+  /* 包含的method */
+  methods: IValue[];
+  type?: EFieldType;
+}
+export interface IFieldItem {
+  /* 字段别名 */
+  alias: string;
+  /* 字段名 */
+  field: string;
+  /* 是否含有可选项选项 */
+  isEnableOptions: boolean;
+  /* 包含的method */
+  methods: IValue[];
+  type?: EFieldType;
+}
+export interface IFilterField {
+  // 字段别名
+  alias: string;
+  // isDimensions: boolean;
+  // 是否需要异步加载数据
+  isEnableOptions?: boolean;
+  // 字段名
+  name: string;
+  // 字段类型
+  type: EFieldType;
+  // 支持的操作符
+  methods: {
+    // 操作符别名
+    alias: string;
+    // options用于是否展示通配符或者组件关系等其他选项字段
+    /* 通配符字段key */
+    // const WILDCARD_KEY = 'is_wildcard';
+    /* 组件关系字段key */
+    // const GROUP_RELATION_KEY = 'group_relation';
+    options?: {
+      children?: {
+        // 其他选项的可选项
+        label: string; // 其他选项的可选项别名
+        value: string; // 其他选项的可选项值
+      }[];
+      default?: boolean | string; // 其他选项字段默认值
+      label: string; // 其他选项字段别名
+      name: string; // 当前暂时支持WILDCARD_KEY， GROUP_RELATION_KEY
+    }[];
+    // 操作符显示的placeholder TODO(待支持)
+    placeholder?: string;
+    // 操作符id
+    value: EMethod;
+    // 用于进行异步搜索时的默认操作符
+    wildcardValue?: string;
+  }[];
+}
+
+export interface IFilterField {
+  alias: string;
+  can_displayed?: boolean;
+  // is_option_enabled: boolean;
+  is_dimensions?: boolean;
+  is_searched?: boolean;
+  isEnableOptions?: boolean;
+  name: string;
+  type: EFieldType;
+  supported_operations: {
+    alias: string;
+    label?: string;
+    operator?: string;
+    options?: {
+      children?: {
+        label: string;
+        value: string;
+      }[];
+      default?: boolean | string;
+      label: string;
+      name: string;
+    }[];
+    placeholder?: string;
+    value: EMethod;
+    wildcard_operator?: string;
+  }[]; // 支持的操作
+}
+
+export interface IFilterItem {
+  condition: { id: ECondition; name: string };
+  hide?: boolean;
+  isSetting?: boolean; // 是否是设置项
+  key: { id: string; name: string };
+  method: { id: EMethod; name: string };
+  value: { id: number | string; name: number | string }[];
+  options?:
+    | Record<string, any>
+    | {
+        group_relation?: string;
+        is_wildcard?: boolean;
+      };
+}
+
+export interface IFilterItem {
+  condition: { id: ECondition; name: string };
+  hide?: boolean;
+  isSetting?: boolean; // 是否是设置项
+  key: { id: string; name: string };
+  method: { id: EMethod; name: string };
+  value: { id: string; name: string }[];
+  options?: {
+    group_relation?: string;
+    is_wildcard?: boolean;
+  };
+}
+
+export interface IGetValueFnParams {
+  field?: string;
+  fields?: string[];
+  isInit__?: boolean; // 此字段不传给后台
+  limit?: number;
+  queryString?: string;
+  search?: string;
+  where?: IWhereItem[];
+}
+export interface IGetValueFnParams {
+  field?: string;
+  fields?: string[];
+  isInit__?: boolean; // 此字段不传给后台
+  limit?: number;
+  queryString?: string;
+  search?: string;
+  where?: IWhereItem[];
+}
+
+//  组件内部标准格式
+export interface INormalWhere {
+  condition: ECondition;
+  key: string;
+  method: EMethod | string;
+  value: Array<number | string>;
+  options:
+    | Record<string, any>
+    | {
+        group_relation?: boolean;
+        is_wildcard?: boolean;
+      };
+}
+
+export interface IOptionsInfo {
+  count: 0;
+  list: IValue[];
+}
+export interface IOptionsInfo {
+  count: 0;
+  list: IValue[];
+}
+
+export interface IValue {
+  id: string;
+  name: string;
+}
+export interface IValue {
+  id: string;
+  name: string;
+}
+// 组件外部格式
+export interface IWhereItem {
+  condition?: ECondition | string;
+  key: string;
+  method?: EMethod | string;
+  operator?: string;
+  value: number[] | string[];
+  options?: {
+    group_relation?: boolean;
+    is_wildcard?: boolean;
+  };
+}
+
+export interface IWhereItem {
+  condition?: ECondition;
+  key: string;
+  method?: EMethod | string;
+  operator?: string;
+  value: number[] | string[];
+  options?: {
+    group_relation?: boolean;
+    is_wildcard?: boolean;
+  };
+}
+
+export interface IWhereValueOptionsItem {
+  count: number;
+  list: {
+    id: string;
+    name: string;
+  }[];
+}
+
+export interface IWhereValueOptionsItem {
+  count: number;
+  list: {
+    id: string;
+    name: string;
+  }[];
+}
+
+export type TGetValueFn = (params: IGetValueFnParams) => Promise<IOptionsInfo>;
+
+// interface FavList {
+//   config: any;
+//   create_user: string;
+//   disabled?: boolean;
+//   group_id: number | object;
+//   groupName?: string;
+//   id: number;
+//   name: string;
+//   update_time: string;
+//   update_user: string;
+// }
 export const NOT_TYPE_METHODS = [EMethod.ne, EMethod.exclude, EMethod.notExists, EMethod.notLike];
 
 export const qsSelectorOptionsDescMap = {

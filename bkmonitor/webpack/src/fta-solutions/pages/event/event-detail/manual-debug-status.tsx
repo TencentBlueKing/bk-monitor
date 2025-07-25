@@ -32,8 +32,8 @@ import './manual-debug-status.scss';
 
 interface IProps {
   actionIds: number[];
-  debugKey: string;
   bizIds: Array<number | string>;
+  debugKey: string;
   mealInfo?: any;
 }
 
@@ -47,9 +47,9 @@ export default class ManualDebugStatus extends tsc<IProps> {
   // 手动处理状态轮询
   isQueryStatus = false;
   debugStatusData: {
-    status?: '' | 'failure' | 'received' | 'running' | 'success';
+    content?: { action_plugin_type: string; text: string; url: string };
     is_finished?: boolean;
-    content?: { text: string; url: string; action_plugin_type: string };
+    status?: '' | 'failure' | 'received' | 'running' | 'success';
   } = {};
 
   get actionUrl() {

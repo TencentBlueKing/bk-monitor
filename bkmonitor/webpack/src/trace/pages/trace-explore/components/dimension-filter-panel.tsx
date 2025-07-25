@@ -24,11 +24,11 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, shallowRef, useTemplateRef, watch, type PropType } from 'vue';
-import { useI18n } from 'vue-i18n';
+import { type PropType, defineComponent, shallowRef, useTemplateRef, watch } from 'vue';
 
 import { useDebounceFn } from '@vueuse/core';
 import { $bkPopover, Input } from 'bkui-vue';
+import { useI18n } from 'vue-i18n';
 
 import EmptyStatus, {
   type EmptyStatusOperationType,
@@ -38,7 +38,7 @@ import { convertToTree } from '../utils';
 import FieldTypeIcon from './field-type-icon';
 import StatisticsList from './statistics-list';
 
-import type { IDimensionFieldTreeItem, ConditionChangeEvent, IDimensionField, ICommonParams } from '../typing';
+import type { ConditionChangeEvent, ICommonParams, IDimensionField, IDimensionFieldTreeItem } from '../typing';
 
 import './dimension-filter-panel.scss';
 

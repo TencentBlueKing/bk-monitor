@@ -24,13 +24,13 @@
  * IN THE SOFTWARE.
  */
 import { type PropType, defineComponent } from 'vue';
-import { useI18n } from 'vue-i18n';
 
 import { Form, Loading, Sideslider } from 'bkui-vue';
+import { useI18n } from 'vue-i18n';
 
 import { useDocumentLink } from '../../../hooks';
 import { transformByte } from '../../../utils';
-import { DetailType, type FileDetail, type ServicesDetail } from '../typings';
+import { type FileDetail, type ServicesDetail, DetailType } from '../typings';
 
 import './profiling-detail.scss';
 

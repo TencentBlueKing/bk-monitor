@@ -24,22 +24,22 @@
  * IN THE SOFTWARE.
  */
 
-import { inject, type MaybeRef } from 'vue';
-
-import { DEFAULT_TIME_RANGE } from '@/components/time-range/utils';
-import {
-  downCsvFile,
-  type IUnifyQuerySeriesItem,
-  transformSrcData,
-  transformTableDataToCsvStr,
-} from '@/plugins/utls/menu';
-
-import type { IDataQuery } from '@/plugins/typings';
+import { type MaybeRef, inject } from 'vue';
 // import { handleAddStrategy } from '@/plugins/utls/menu';
+
 import { get } from '@vueuse/core';
 
 import { handleAddStrategy, handleExplore, handleRelateAlert, handleStoreImage } from './menu';
+import { DEFAULT_TIME_RANGE } from '@/components/time-range/utils';
+import {
+  type IUnifyQuerySeriesItem,
+  downCsvFile,
+  transformSrcData,
+  transformTableDataToCsvStr,
+} from '@/plugins/utls/menu';
+// import { handleAddStrategy } from '@/plugins/utls/menu';
 
+import type { IDataQuery } from '@/plugins/typings';
 import type { IMenuItem, ITitleAlarm } from '@/plugins/typings/chart-title';
 import type { IExtendMetricData } from '@/plugins/typings/metric';
 
@@ -83,7 +83,10 @@ export const useChartTitleEvent = (
         return;
       case 'screenshot':
         // 300ms 关闭动画
-        chartRef && setTimeout(() => handleStoreImage(title, get(chartRef)), 300);
+        chartRef &&
+          setTimeout(() => {
+            handleStoreImage(title, get(chartRef));
+          }, 300);
         return;
       case 'export-csv': {
         if (seriesData && get(seriesData).length) {

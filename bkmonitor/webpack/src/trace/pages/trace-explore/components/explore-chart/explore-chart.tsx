@@ -23,13 +23,15 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, defineComponent, useTemplateRef, watch, type PropType } from 'vue';
+import { type PropType, computed, defineComponent, useTemplateRef, watch } from 'vue';
 import { getCurrentInstance } from 'vue';
 import { shallowRef } from 'vue';
+
 import VueEcharts from 'vue-echarts';
 import { useI18n } from 'vue-i18n';
 
 import ChartSkeleton from '../../../../components/skeleton/chart-skeleton';
+// import { useTraceExploreStore } from '@/store/modules/explore';
 import ChartTitle from '../../../../plugins/components/chart-title';
 import CommonLegend from '../../../../plugins/components/common-legend';
 import { useChartLegend } from './use-chart-legend';

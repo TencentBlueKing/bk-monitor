@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Prop, InjectReactive } from 'vue-property-decorator';
+import { Component, InjectReactive, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { copyText } from 'monitor-common/utils/utils';
@@ -40,8 +40,8 @@ import './event-detail-head.scss';
 
 interface EventDetailHeadProps {
   basicInfo: IDetail;
-  eventId: string;
   bizId: number;
+  eventId: string;
   isFeedback?: boolean;
   isNewPage?: boolean;
 }

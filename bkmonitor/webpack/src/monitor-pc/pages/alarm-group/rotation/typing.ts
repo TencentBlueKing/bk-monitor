@@ -26,21 +26,21 @@
 
 import type { EStatus } from '../../../../trace/pages/rotation/typings/common';
 
-export interface IDutyListItem {
+export interface IDutyItem {
+  category: string;
   id: number | string;
   name: string;
-  category: string;
-  typeLabel: string;
-  labels: string[];
-  isCheck: boolean;
-  show: boolean;
   status: EStatus;
+  typeLabel: string;
 }
 
-export interface IDutyItem {
-  id: number | string;
-  name: string;
-  typeLabel: string;
-  status: EStatus;
+export interface IDutyListItem {
   category: string;
+  id: number | string;
+  isCheck: boolean;
+  labels: string[];
+  name: string;
+  show: boolean;
+  status: EStatus;
+  typeLabel: string;
 }

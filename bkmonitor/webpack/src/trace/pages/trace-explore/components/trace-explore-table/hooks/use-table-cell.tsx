@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { get, type MaybeRef } from '@vueuse/core';
+import { type MaybeRef, get } from '@vueuse/core';
 
 import { formatDuration, formatTraceTableDate } from '../../../../../components/trace-view/utils/date';
 import TagsCell from '../components/table-cell/tags-cell';
@@ -36,23 +36,23 @@ import {
 import {
   type BaseTableColumn,
   type ExploreTableColumn,
-  ExploreTableColumnTypeEnum,
   type GetTableCellRenderValue,
   type TableCellRenderContext,
   type TableCellRenderer,
+  ExploreTableColumnTypeEnum,
 } from '../typing';
 
 import type { SlotReturnValue } from 'tdesign-vue-next';
 
 export interface UseTableCellOptions {
-  /** 表格行数据唯一key字段名 */
-  rowKeyField: MaybeRef<string>;
   /** 是否启用单元格文本省略号 */
   cellEllipsisClass?: string;
-  /** 默认单元格数据取值逻辑 */
-  customDefaultGetRenderValue?: (row, column: BaseTableColumn<any, any>) => string | string[];
   /** 自定义单元格渲染策略对象集合 */
   customCellRenderMap?: Record<string, TableCellRenderer>;
+  /** 表格行数据唯一key字段名 */
+  rowKeyField: MaybeRef<string>;
+  /** 默认单元格数据取值逻辑 */
+  customDefaultGetRenderValue?: (row, column: BaseTableColumn<any, any>) => string | string[];
 }
 export function useTableCell({
   rowKeyField,

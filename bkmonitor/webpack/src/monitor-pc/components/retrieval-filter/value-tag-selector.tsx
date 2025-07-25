@@ -41,14 +41,14 @@ export interface IValue {
 }
 
 interface IProps {
-  value?: IValue[];
-  fieldInfo?: IFieldItem;
   autoFocus?: boolean;
+  fieldInfo?: IFieldItem;
+  /* 获取数据 */
+  getValueFn?: TGetValueFn;
+  value?: IValue[];
   onChange?: (v: IValue[]) => void;
   /* 下拉选项显隐 */
   onDropDownChange?: (v: boolean) => void;
-  /* 获取数据 */
-  getValueFn?: TGetValueFn;
   onSelectorBlur?: () => void;
   onSelectorFocus?: () => void;
 }

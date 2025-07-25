@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 import dayjs from 'dayjs';
-import { LANGUAGE_COOKIE_KEY, docCookies } from 'monitor-common/utils';
+import { docCookies, LANGUAGE_COOKIE_KEY } from 'monitor-common/utils';
 
 import type { IOption } from '../pages/monitor-k8s/typings';
 import type { IMetricDetail } from '../pages/strategy-config/strategy-config-set-new/typings';
@@ -46,7 +46,7 @@ export const getRandomId = (len = 8): string => {
  * 数据检索日期范围转换
  * @param {*} timeRange number | string | array
  */
-export const handleTimeRange = (timeRange: number | string | string[]): { startTime: number; endTime: number } => {
+export const handleTimeRange = (timeRange: number | string | string[]): { endTime: number; startTime: number } => {
   let startTime = null;
   let endTime = null;
   if (typeof timeRange === 'number') {
@@ -154,19 +154,19 @@ export const formatTime = (time: number) => {
   return timeRes;
 };
 
-export interface ILogUrlParams {
-  bizId: string;
-  time_range?: 'customized'; // 带了时间start_time end_time必填
-  keyword: string; // 搜索关键字
-  addition: IAddition[]; // 搜索条件 即监控的汇聚条件
-  start_time?: string; // 起始时间
-  end_time?: string; // 终止时间
-}
 export interface IAddition {
-  key: string;
-  value: string[];
-  method: string;
   condition?: 'and' | 'or';
+  key: string;
+  method: string;
+  value: string[];
+}
+export interface ILogUrlParams {
+  addition: IAddition[]; // 搜索条件 即监控的汇聚条件
+  bizId: string;
+  end_time?: string; // 终止时间
+  keyword: string; // 搜索关键字
+  start_time?: string; // 起始时间
+  time_range?: 'customized'; // 带了时间start_time end_time必填
 }
 /**
  * @description: 转换跳转日志平台所需的url参数
@@ -205,14 +205,14 @@ export const transformLogUrlQuery = (data: ILogUrlParams): string => {
  * express 为缓存的生效时长(单位：ms), 超过express则缓存失效
  */
 interface ILocalStroageItem {
-  value: any;
-  updateTime: number;
   express: number;
+  updateTime: number;
+  value: any;
 }
 interface IStorage {
-  set: (key: string, value: any, express: number) => void;
   get: (key: string) => any;
   remove: (key: string) => void;
+  set: (key: string, value: any, express: number) => void;
 }
 export class Storage implements IStorage {
   /** 过期时长 */
@@ -375,21 +375,21 @@ export const createOnlyId = (len = 6, keywords = 'abcdefghijklmnopqrstuvwxyz1234
 export const isEnFn = () => docCookies.getItem(LANGUAGE_COOKIE_KEY) === 'en';
 
 /**
- * @description 是否包含emoji
- * @param value
- * @returns
- */
-export function emojiRegex(value: string) {
-  return /(\ud83c[\udf00-\udfff])|(\ud83d[\udc00-\ude4f\ude80-\udeff])|[\u2600-\u2B55]/g.test(value);
-}
-
-/**
  * @description 是否为连续空格
  * @param value
  * @returns
  */
 export function allSpaceRegex(value: string) {
   return /^\s*$/.test(value);
+}
+
+/**
+ * @description 是否包含emoji
+ * @param value
+ * @returns
+ */
+export function emojiRegex(value: string) {
+  return /(\ud83c[\udf00-\udfff])|(\ud83d[\udc00-\ude4f\ude80-\udeff])|[\u2600-\u2B55]/g.test(value);
 }
 
 /**

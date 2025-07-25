@@ -29,8 +29,8 @@ import { Component as tsc } from 'vue-tsx-support';
 import './notify-box.scss';
 
 interface IStepBoxProps {
-  placement: string;
   hasBorder: boolean;
+  placement: string;
   tipStyles: Record<string, string>;
 }
 

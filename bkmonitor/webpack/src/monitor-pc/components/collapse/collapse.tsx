@@ -1,3 +1,5 @@
+import type { VNode } from 'vue';
+
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -30,21 +32,19 @@ import { Debounce } from 'monitor-common/utils/utils';
 
 import { resize } from '../../components/ip-selector/common/observer-directive';
 
-import type { VNode } from 'vue';
-
 import './collapse.scss';
 
-export interface ICollapseProps {
-  expand: boolean;
-  defaultHeight?: number;
-  renderContent?: boolean;
-  needCloseButton?: boolean;
-  maxHeight?: number;
-  renderAnimation?: boolean;
-}
 export interface ICollapseEvents {
   onExpandChange: boolean;
   onOverflow: boolean;
+}
+export interface ICollapseProps {
+  defaultHeight?: number;
+  expand: boolean;
+  maxHeight?: number;
+  needCloseButton?: boolean;
+  renderAnimation?: boolean;
+  renderContent?: boolean;
 }
 /**
  * 提供根据内容多少展开折叠的能力

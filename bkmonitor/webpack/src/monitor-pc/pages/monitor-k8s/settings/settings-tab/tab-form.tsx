@@ -30,20 +30,20 @@ import type { IBookMark, SettingsTabType } from '../../typings';
 
 import './tab-form.scss';
 
-interface ITabFormProps {
-  canAddTab: boolean;
-  formData: SettingsTabType.ITabForm;
-  bookMarkData: IBookMark[];
-}
-
 interface ITabFormEvents {
   // biome-ignore lint/suspicious/noConfusingVoidType: <explanation>
   onChange: void;
-  // biome-ignore lint/suspicious/noConfusingVoidType: <explanation>
-  onSave: void;
   onDelete: string;
   // biome-ignore lint/suspicious/noConfusingVoidType: <explanation>
   onReset: void;
+  // biome-ignore lint/suspicious/noConfusingVoidType: <explanation>
+  onSave: void;
+}
+
+interface ITabFormProps {
+  bookMarkData: IBookMark[];
+  canAddTab: boolean;
+  formData: SettingsTabType.ITabForm;
 }
 
 @Component
