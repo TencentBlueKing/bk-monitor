@@ -376,7 +376,6 @@ ADVANCED_OPTIONS = OrderedDict(
         ("BKCI_SPACE_ACCESS_PLUGIN_LIST", slz.ListField(label="蓝盾空间允许访问的插件列表", default=[])),
         ("ENABLE_BKBASE_V4_MULTI_TENANT", slz.BooleanField(label="是否启用多租户版本的BKBASE V4链路", default=False)),
         ("ENABLE_V2_BKDATA_GSE_RESOURCE", slz.BooleanField(label="是否启用新版的GSE资源申请", default=False)),
-        ("ENABLE_PLUGIN_ACCESS_V4_DATA_LINK", slz.BooleanField(label="插件数据是否启用接入V4链路", default=False)),
         ("ENABLE_V2_VM_DATA_LINK", slz.BooleanField(label="是否启用新版的VM链路", default=False)),
         ("ENABLE_BKDATA_KAFKA_TAIL_API", slz.BooleanField(label="是否启用计算平台Kafka采样接口", default=False)),
         ("KAFKA_TAIL_API_RETRY_TIMES", slz.IntegerField(label="Kafka采样接口重试次数", default=3)),
