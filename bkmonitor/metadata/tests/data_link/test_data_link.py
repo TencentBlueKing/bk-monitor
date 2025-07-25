@@ -23,6 +23,7 @@ from metadata.models.constants import (
     BASEREPORT_RESULT_TABLE_FIELD_MAP,
     BASE_EVENT_RESULT_TABLE_FIELD_MAP,
     BASE_EVENT_RESULT_TABLE_OPTION_MAP,
+    BASE_EVENT_RESULT_TABLE_FIELD_OPTION_MAP,
 )
 from metadata.models.data_link import DataLink, utils
 from metadata.models.data_link.constants import (
@@ -1499,6 +1500,15 @@ def test_create_base_event_datalink_for_bkcc_metadata_part(create_or_delete_reco
     for option in options:
         result_table_option = models.ResultTableOption.objects.get(table_id=table_id, name=option["name"])
         assert result_table_option.bk_tenant_id == "system"
+        assert result_table_option.value == option["value"]
+
+    field_options = BASE_EVENT_RESULT_TABLE_FIELD_OPTION_MAP.get("base_event", [])
+    for field_option in field_options:
+        result_table_field_option = models.ResultTableFieldOption.objects.get(
+            table_id=table_id, name=field_option["name"], field_name=field_option["field_name"]
+        )
+        assert result_table_field_option.value == field_option["value"]
+        assert result_table_field_option.value_type == field_option["value_type"]
 
 
 @pytest.mark.django_db(databases="__all__")
@@ -1643,6 +1653,7 @@ def test_create_bkbase_data_link_for_bk_exporter(create_or_delete_records, mocke
     """
     mocker.patch("metadata.models.vm.utils.settings.ENABLE_V2_ACCESS_BKBASE_METHOD", True)
     settings.ENABLE_PLUGIN_ACCESS_V4_DATA_LINK = True
+    settings.ENABLE_BKBASE_V4_MULTI_TENANT = True
 
     ds = models.DataSource.objects.get(bk_data_id=50011)
     rt = models.ResultTable.objects.get(table_id="1001_bkmonitor_time_series_50011.__default__")
@@ -1683,6 +1694,7 @@ def test_create_bkbase_data_link_for_bk_exporter(create_or_delete_records, mocke
                 "labels": {"bk_biz_id": "1001"},
                 "name": "bkm_1001_bkmonitor_time_series_50011",
                 "namespace": "bkmonitor",
+                "tenant": "system",
             },
             "spec": {
                 "alias": "bkm_1001_bkmonitor_time_series_50011",
@@ -1698,15 +1710,22 @@ def test_create_bkbase_data_link_for_bk_exporter(create_or_delete_records, mocke
                 "labels": {"bk_biz_id": "1001"},
                 "name": "bkm_1001_bkmonitor_time_series_50011",
                 "namespace": "bkmonitor",
+                "tenant": "system",
             },
             "spec": {
                 "data": {
                     "kind": "ResultTable",
                     "name": "bkm_1001_bkmonitor_time_series_50011",
                     "namespace": "bkmonitor",
+                    "tenant": "system",
                 },
                 "maintainers": ["admin"],
-                "storage": {"kind": "VmStorage", "name": "vm-plat", "namespace": "bkmonitor"},
+                "storage": {
+                    "kind": "VmStorage",
+                    "name": "vm-plat",
+                    "namespace": "bkmonitor",
+                    "tenant": "system",
+                },
             },
         },
         {
@@ -1715,6 +1734,7 @@ def test_create_bkbase_data_link_for_bk_exporter(create_or_delete_records, mocke
                 "labels": {"bk_biz_id": "1001"},
                 "name": "bkm_1001_bkmonitor_time_series_50011",
                 "namespace": "bkmonitor",
+                "tenant": "system",
             },
             "spec": {
                 "maintainers": ["admin"],
@@ -1723,9 +1743,17 @@ def test_create_bkbase_data_link_for_bk_exporter(create_or_delete_records, mocke
                         "kind": "VmStorageBinding",
                         "name": "bkm_1001_bkmonitor_time_series_50011",
                         "namespace": "bkmonitor",
+                        "tenant": "system",
                     }
                 ],
-                "sources": [{"kind": "DataId", "name": "bkm_bk_exporter_test", "namespace": "bkmonitor"}],
+                "sources": [
+                    {
+                        "kind": "DataId",
+                        "name": "bkm_bk_exporter_test",
+                        "namespace": "bkmonitor",
+                        "tenant": "system",
+                    }
+                ],
                 "transforms": [{"format": "bkmonitor_exporter_v1", "kind": "PreDefinedLogic", "name": "log_to_metric"}],
             },
         },
@@ -1741,6 +1769,7 @@ def test_create_bkbase_data_link_for_bk_standard(create_or_delete_records, mocke
     """
     mocker.patch("metadata.models.vm.utils.settings.ENABLE_V2_ACCESS_BKBASE_METHOD", True)
     settings.ENABLE_PLUGIN_ACCESS_V4_DATA_LINK = True
+    settings.ENABLE_BKBASE_V4_MULTI_TENANT = True
 
     ds = models.DataSource.objects.get(bk_data_id=50012)
     rt = models.ResultTable.objects.get(table_id="1001_bkmonitor_time_series_50012.__default__")
@@ -1781,6 +1810,7 @@ def test_create_bkbase_data_link_for_bk_standard(create_or_delete_records, mocke
                 "labels": {"bk_biz_id": "1001"},
                 "name": "bkm_1001_bkmonitor_time_series_50012",
                 "namespace": "bkmonitor",
+                "tenant": "system",
             },
             "spec": {
                 "alias": "bkm_1001_bkmonitor_time_series_50012",
@@ -1796,15 +1826,22 @@ def test_create_bkbase_data_link_for_bk_standard(create_or_delete_records, mocke
                 "labels": {"bk_biz_id": "1001"},
                 "name": "bkm_1001_bkmonitor_time_series_50012",
                 "namespace": "bkmonitor",
+                "tenant": "system",
             },
             "spec": {
                 "data": {
                     "kind": "ResultTable",
                     "name": "bkm_1001_bkmonitor_time_series_50012",
                     "namespace": "bkmonitor",
+                    "tenant": "system",
                 },
                 "maintainers": ["admin"],
-                "storage": {"kind": "VmStorage", "name": "vm-plat", "namespace": "bkmonitor"},
+                "storage": {
+                    "kind": "VmStorage",
+                    "name": "vm-plat",
+                    "namespace": "bkmonitor",
+                    "tenant": "system",
+                },
             },
         },
         {
@@ -1813,6 +1850,7 @@ def test_create_bkbase_data_link_for_bk_standard(create_or_delete_records, mocke
                 "labels": {"bk_biz_id": "1001"},
                 "name": "bkm_1001_bkmonitor_time_series_50012",
                 "namespace": "bkmonitor",
+                "tenant": "system",
             },
             "spec": {
                 "maintainers": ["admin"],
@@ -1821,9 +1859,17 @@ def test_create_bkbase_data_link_for_bk_standard(create_or_delete_records, mocke
                         "kind": "VmStorageBinding",
                         "name": "bkm_1001_bkmonitor_time_series_50012",
                         "namespace": "bkmonitor",
+                        "tenant": "system",
                     }
                 ],
-                "sources": [{"kind": "DataId", "name": "bkm_bk_standard_test", "namespace": "bkmonitor"}],
+                "sources": [
+                    {
+                        "kind": "DataId",
+                        "name": "bkm_bk_standard_test",
+                        "namespace": "bkmonitor",
+                        "tenant": "system",
+                    }
+                ],
                 "transforms": [{"format": "bkmonitor_standard", "kind": "PreDefinedLogic", "name": "log_to_metric"}],
             },
         },

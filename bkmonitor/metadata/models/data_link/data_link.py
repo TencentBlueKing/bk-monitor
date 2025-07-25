@@ -616,13 +616,15 @@ class DataLink(models.Model):
                     namespace=self.namespace,
                     bk_biz_id=bk_biz_id,
                 )
-                sinks = [
-                    {
-                        "kind": DataLinkKind.VMSTORAGEBINDING.value,
-                        "name": bkbase_vmrt_name,
-                        "namespace": settings.DEFAULT_VM_DATA_LINK_NAMESPACE,
-                    }
-                ]
+                sink_item = {
+                    "kind": DataLinkKind.VMSTORAGEBINDING.value,
+                    "name": bkbase_vmrt_name,
+                    "namespace": settings.DEFAULT_VM_DATA_LINK_NAMESPACE,
+                }
+                if settings.ENABLE_BKBASE_V4_MULTI_TENANT:
+                    sink_item["tenant"] = self.bk_tenant_id
+
+                sinks = [sink_item]
 
                 # TODO: 非自动发现情况下,需要传递指标/维度白名单至VMStorageBinding中
                 data_bus_ins, _ = DataBusConfig.objects.get_or_create(
