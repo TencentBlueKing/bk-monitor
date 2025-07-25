@@ -29,7 +29,7 @@ import { BkUserSelector } from '@blueking/bk-user-selector/vue3';
 import { getUserComponentConfig, USER_GROUP_TYPE } from 'monitor-pc/common/user-display-name';
 
 import type { ConfigOptions } from '@blueking/bk-user-display-name';
-import type { IUserGroup } from 'monitor-pc/components/user-selector/user-group';
+import type { IUserGroup, IUserInfo } from 'monitor-pc/components/user-selector/user-group';
 
 import './user-selector.scss';
 import '@blueking/bk-user-selector/vue3/vue3.css';
@@ -84,6 +84,7 @@ export default defineComponent({
   },
   emits: {
     'update:modelValue': (value: string[]) => Array.isArray(value),
+    change: (userInfos: IUserInfo[]) => Array.isArray(userInfos),
   },
   setup(props, { emit }) {
     const componentConfig = shallowRef<Partial<ConfigOptions>>({});
@@ -94,6 +95,10 @@ export default defineComponent({
 
     const handleUpdateModuleValue = (value: string[]) => {
       emit('update:modelValue', value);
+    };
+
+    const handleUserInfoChange = (userInfos: IUserInfo[]) => {
+      emit('change', userInfos);
     };
 
     /**
@@ -151,6 +156,7 @@ export default defineComponent({
       enableMultiTenantMode,
       componentConfig,
       handleUpdateModuleValue,
+      handleUserInfoChange,
       listItemRender,
       tagItemRender,
     };
@@ -173,6 +179,7 @@ export default defineComponent({
         renderTag={this.tagItemRender}
         tenantId={this.componentConfig.tenantId}
         userGroup={this.userGroupList}
+        onChange={this.handleUserInfoChange}
         onUpdate:modelValue={this.handleUpdateModuleValue}
       />
     );
