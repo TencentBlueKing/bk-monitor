@@ -195,7 +195,7 @@ class TestGrepLogic(TestCase):
         mock_log_index_get.return_value = mock_data
         instance = ChartHandler.get_instance(index_set_id=INDEX_SET_ID, mode="sql")
         for grep_param, grep_query_result in zip(GREP_PARAMS, GREP_QUERY_RESULT):
-            result, _, _ = instance.add_grep_condition(**grep_param)
+            result, _, _ = instance.get_grep_condition(**grep_param)
             self.assertEqual(result, grep_query_result)
 
     def test_add_highlight_mark(self):

@@ -397,7 +397,7 @@ class ChartHandler:
         return field_name
 
     @classmethod
-    def add_grep_condition(cls, grep_query, grep_field, alias_mappings, sort_list, index_set_id, size=10, begin=0):
+    def get_grep_condition(cls, grep_query, grep_field, alias_mappings, sort_list, index_set_id, size=10, begin=0):
         """
         获取grep查询条件
         :param grep_query: 查询语句
@@ -609,7 +609,7 @@ class SQLChartHandler(ChartHandler):
         alias_mappings = params["alias_mappings"]
 
         grep_field = params.get("grep_field")
-        grep_where_clause, pattern, ignore_case = self.add_grep_condition(
+        grep_where_clause, pattern, ignore_case = self.get_grep_condition(
             grep_field=grep_field,
             grep_query=params.get("grep_query"),
             alias_mappings=alias_mappings,
