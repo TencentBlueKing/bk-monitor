@@ -8,6 +8,7 @@
     text-overflow: ellipsis;
     white-space: nowrap;
   }
+
   @mixin icon-size($size: 16px, $hasHover: false) {
     display: flex;
     flex: 0 0 $size;
@@ -47,6 +48,11 @@
               }
             }
           }
+
+          td:last-child {
+            width: 40px;
+            max-width: 40px;
+          }
         }
       }
     }
@@ -65,6 +71,7 @@
           top: 0;
           right: -40px;
           display: none;
+
           // display: flex;
           column-gap: 14px;
           align-items: center;
@@ -75,19 +82,23 @@
 
           &-item {
             --icon-container-size: 18px;
+
             width: var(--icon-container-size);
             height: var(--icon-container-size);
+
             @include icon-size(18px, true);
 
             &.icon-we-com {
               width: var(--icon-container-size);
               height: var(--icon-container-size);
+
               @include icon-size(16px, true);
             }
 
             &.icon-chuli {
               width: var(--icon-container-size);
               height: var(--icon-container-size);
+
               @include icon-size(16px, true);
             }
 
@@ -276,6 +287,7 @@
 
     .alert-name-item {
       display: flex;
+
       // align-items: center;
       align-items: flex-start;
       font-size: 12px;

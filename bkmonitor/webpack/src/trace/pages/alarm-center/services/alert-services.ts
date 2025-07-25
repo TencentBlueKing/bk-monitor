@@ -24,29 +24,30 @@
  * IN THE SOFTWARE.
  */
 
-import { EFieldType, EMethod, type IFilterField } from '@/components/retrieval-filter/typing';
 import { isEn } from '@/i18n/i18n';
+
 import { alertTopN, searchAlert } from 'monitor-api/modules/alert';
 
 import {
-  type CommonFilterParams,
-  type AnalysisTopNDataResponse,
-  type AnalysisFieldAggItem,
   type AlertTableItem,
+  type AnalysisFieldAggItem,
+  type AnalysisTopNDataResponse,
+  type CommonFilterParams,
   type FilterTableResponse,
   type QuickFilterItem,
   type TableColumnItem,
-  AlarmStatusIconMap,
   AlarmLevelIconMap,
+  AlarmStatusIconMap,
 } from '../typings';
 import { AlarmService } from './base';
+import { type IFilterField, EFieldType, EMethod } from '@/components/retrieval-filter/typing';
 const ALERT_TABLE_COLUMNS = [
   {
     colKey: 'alert_name',
     title: window.i18n.t('告警名称'),
     is_default: true,
     is_locked: true,
-    width: 160,
+    minWidth: 160,
     fixed: 'left',
     sorter: true,
   },
@@ -55,7 +56,7 @@ const ALERT_TABLE_COLUMNS = [
     title: window.i18n.t('空间名'),
     is_default: true,
     is_locked: false,
-    width: 100,
+    minWidth: 100,
     fixed: 'left',
     sorter: true,
   },
@@ -64,21 +65,21 @@ const ALERT_TABLE_COLUMNS = [
     title: window.i18n.t('告警来源'),
     is_default: false,
     is_locked: false,
-    width: 110,
+    minWidth: 110,
   },
   {
     colKey: 'category_display',
     title: window.i18n.t('分类'),
     is_default: true,
     is_locked: false,
-    width: 160,
+    minWidth: 160,
   },
   {
     colKey: 'metric',
     title: window.i18n.t('告警指标'),
     is_default: true,
     is_locked: false,
-    width: 240,
+    minWidth: 240,
     sorter: true,
   },
   {
@@ -86,14 +87,14 @@ const ALERT_TABLE_COLUMNS = [
     title: window.i18n.t('关联事件'),
     is_default: true,
     is_locked: false,
-    width: 140,
+    minWidth: 140,
   },
   {
     colKey: 'create_time',
     title: window.i18n.t('创建时间'),
     is_default: false,
     is_locked: false,
-    width: 150,
+    minWidth: 150,
     sorter: true,
   },
   {
@@ -101,7 +102,7 @@ const ALERT_TABLE_COLUMNS = [
     title: window.i18n.t('开始时间'),
     is_default: false,
     is_locked: false,
-    width: 150,
+    minWidth: 150,
     sorter: true,
   },
   {
@@ -109,7 +110,7 @@ const ALERT_TABLE_COLUMNS = [
     title: window.i18n.t('结束时间'),
     is_default: false,
     is_locked: false,
-    width: 150,
+    minWidth: 150,
     sorter: true,
   },
   {
@@ -117,7 +118,7 @@ const ALERT_TABLE_COLUMNS = [
     title: window.i18n.t('最新事件时间'),
     is_default: false,
     is_locked: false,
-    width: 150,
+    minWidth: 150,
     sorter: true,
   },
   {
@@ -125,7 +126,7 @@ const ALERT_TABLE_COLUMNS = [
     title: window.i18n.t('首次异常时间'),
     is_default: false,
     is_locked: false,
-    width: 150,
+    minWidth: 150,
     sorter: true,
   },
   {
@@ -140,49 +141,49 @@ const ALERT_TABLE_COLUMNS = [
     title: window.i18n.t('告警内容'),
     is_default: true,
     is_locked: false,
-    width: 300,
+    minWidth: 300,
   },
   {
     colKey: 'target_key',
     title: window.i18n.t('监控目标'),
     is_default: true,
     is_locked: false,
-    width: 300,
+    minWidth: 300,
   },
   {
     colKey: 'tags',
     title: window.i18n.t('维度'),
     is_default: false,
     is_locked: false,
-    width: 200,
+    minWidth: 200,
   },
   {
     colKey: 'extend_info',
     title: window.i18n.t('关联信息'),
     is_default: false,
     is_locked: false,
-    width: 250,
+    minWidth: 250,
   },
   {
     colKey: 'appointee',
     title: window.i18n.t('负责人'),
     is_default: true,
     is_locked: false,
-    width: 200,
+    minWidth: 200,
   },
   {
     colKey: 'assignee',
     title: window.i18n.t('通知人'),
     is_default: true,
     is_locked: false,
-    width: 200,
+    minWidth: 200,
   },
   {
     colKey: 'follower',
     title: window.i18n.t('关注人'),
     is_default: true,
     is_locked: false,
-    width: 200,
+    minWidth: 200,
   },
   {
     colKey: 'strategy_name',
@@ -195,7 +196,7 @@ const ALERT_TABLE_COLUMNS = [
     title: window.i18n.t('策略标签'),
     is_default: false,
     is_locked: false,
-    width: 200,
+    minWidth: 200,
   },
   {
     colKey: 'stage_display',
@@ -203,7 +204,7 @@ const ALERT_TABLE_COLUMNS = [
     is_default: true,
     is_locked: false,
     fixed: 'right',
-    width: 110,
+    minWidth: 110,
   },
   {
     colKey: 'status',
@@ -211,7 +212,7 @@ const ALERT_TABLE_COLUMNS = [
     is_default: true,
     is_locked: true,
     fixed: 'right',
-    width: isEn ? 120 : 80,
+    minWidth: isEn ? 120 : 80,
     sorter: true,
   },
 ] as const;

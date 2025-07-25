@@ -29,19 +29,19 @@ import { copyText } from 'monitor-common/utils';
 import { transformLogUrlQuery } from 'monitor-pc/utils';
 
 import {
-  ExploreTableColumnTypeEnum,
-  type TableCellRenderContext,
   type BaseTableColumn,
+  type TableCellRenderContext,
+  ExploreTableColumnTypeEnum,
 } from '../../../../trace-explore/components/trace-explore-table/typing';
 import { ALERT_STORAGE_KEY } from '../../../services/alert-services';
 import {
+  type AlertTableItem,
+  type TableEmpty,
   AlarmLevelIconMap,
   AlertDataTypeMap,
   AlertStatusMap,
-  type AlertTableItem,
   AlertTargetTypeMap,
   EXTEND_INFO_MAP,
-  type TableEmpty,
 } from '../../../typings';
 import { BaseScenario } from './base-scenario';
 
@@ -59,14 +59,14 @@ export class AlertScenario extends BaseScenario {
 
   constructor(
     private readonly context: {
-      handleAlertSliderShowDetail: (id: string) => void;
-      hoverPopoverTools: IUsePopoverTools;
       handleAlertContentDetailShow: (e: MouseEvent) => void;
       handleAlertOperationClick: (
         clickType: 'chart' | 'confirm' | 'manual' | 'more',
         row: AlertTableItem,
         e?: MouseEvent
       ) => void;
+      handleAlertSliderShowDetail: (id: string) => void;
+      hoverPopoverTools: IUsePopoverTools;
     }
   ) {
     super();
