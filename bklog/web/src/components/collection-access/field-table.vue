@@ -230,42 +230,7 @@
                 </bk-form-item>
               </template>
             </bk-table-column>
-            <!-- 别名 -->
-            <bk-table-column
-              :render-header="renderHeaderQueryAlias"
-              :resizable="false"
-              min-width="100"
-            >
-              <template #default="props">
-                <div
-                  v-if="isPreviewMode"
-                  class="overflow-tips"
-                  v-bk-overflow-tips
-                >
-                  <span>{{ props.row.query_alias }}</span>
-                </div>
-                <bk-form-item
-                  v-else
-                  :class="{ 'is-required is-error': props.row.aliasErr }"
-                  class="participle-form-item"
-                >
-                  <bk-input
-                    class="participle-field-name-input-pl5"
-                    v-model.trim="props.row.query_alias"
-                    :disabled="props.row.is_delete || isSetDisabled || props.row.field_type === 'object'"
-                    @blur="checkQueryAliasItem(props.row)"
-                  >
-                  </bk-input>
-                  <template v-if="props.row.aliasErr">
-                    <i
-                      style="right: 8px"
-                      class="bk-icon icon-exclamation-circle-shape tooltips-icon"
-                      v-bk-tooltips.top="props.row.aliasErr"
-                    ></i>
-                  </template>
-                </bk-form-item>
-              </template>
-            </bk-table-column>
+           
             <!-- 字段说明 -->
             <!-- <bk-table-column
               :render-header="renderHeaderDescription"
@@ -701,21 +666,6 @@
             //     validator: this.checkFieldName,
             //     trigger: 'blur'
             // }
-          ],
-          query_alias: [
-            // 目前组件不能拿到其他字段的值，不能通过validator进行验证
-            // {
-            //     validator: this.checkQueryAlias,
-            //     trigger: 'blur'
-            // }
-            {
-              max: 50,
-              trigger: 'blur',
-            },
-            {
-              regex: /^[A-Za-z0-9_]+$/,
-              trigger: 'blur',
-            },
           ],
           field_type: [
             // {
@@ -1161,60 +1111,11 @@
           }
         });
       },
-      checkQueryAliasItem(row) {
-        const { field_name: fieldName, query_alias: queryAlias, alias_name: aliasName, is_delete: isDelete } = row;
-        if (isDelete) {
-          return true;
-        }
-        if (queryAlias) {
-          // 设置了别名
-          if (!/^(?!^\d)[\w]+$/gi.test(queryAlias)) {
-            // 别名只支持【英文、数字、下划线】，并且不能以数字开头
-            row.aliasErr = this.$t('别名只支持【英文、数字、下划线】，并且不能以数字开头');
-            return false;
-          }else if (queryAlias === fieldName) {
-            row.aliasErr = this.$t('别名与字段名重复');
-            return false;
-          }else if (queryAlias === aliasName) {
-            row.aliasErr = this.$t('别名与重命名重复');
-            return false;
-          }
-          if (this.globalsData.field_built_in.find(item => item.id === queryAlias.toLocaleLowerCase())) {
-            // 别名不能与内置字段名相同
-            row.aliasErr = this.$t('别名不能与内置字段名相同');
-            return false;
-          }
-        }
 
-        row.aliasErr = '';
-        return true;
-      },
-      checkQueryAlias() {
-        return new Promise((resolve, reject) => {
-          try {
-            let result = true;
-            this.formData.tableList.forEach(row => {
-              if (!this.checkQueryAliasItem(row)) {
-                result = false;
-              }
-            });
-            if (result) {
-              resolve();
-            } else {
-              console.warn('QueryAlias校验错误');
-              reject(result);
-            }
-          } catch (err) {
-            console.warn('QueryAlias校验错误');
-            reject(err);
-          }
-        });
-      },
       validateFieldTable() {
         const promises = [];
         promises.push(this.checkAliasName());
         promises.push(this.checkFieldName());
-        promises.push(this.checkQueryAlias());
         promises.push(this.checkType());
         return promises;
       },
@@ -1231,15 +1132,7 @@
         this.$emit('handle-built-field', value);
         this.builtFieldVisible = !this.builtFieldVisible;
       },
-      renderHeaderQueryAlias(h) {
-        return h(
-          'div',
-          {
-            class: 'render-header',
-          },
-          [h('span', { directives: [{ name: 'bk-overflow-tips' }], class: 'title-overflow' }, [this.$t('别名')])],
-        );
-      },
+   
       renderHeaderDescription(h) {
         return h(
           'div',
