@@ -200,11 +200,8 @@ class DataLink(models.Model):
 
                     sinks = [sink_item]
 
-                    relabels = [{"name": "__result_table", "value": usage}]
-
                     condition = {
                         "match_labels": [{"name": "__result_table", "any": [usage]}],
-                        "relabels": relabels,
                         "sinks": sinks,
                     }
                     conditions.append(condition)
