@@ -127,7 +127,9 @@ export default class TableStore {
       const detectionTypes = algorithms
         .map(alg => alg.type)
         .filter((type, index, arr) => arr.indexOf(type, 0) === index && !!type)
-        .map(type => detectionTypeMap[type]);
+        .map(type => {
+          return detectionTypeMap[type];
+        });
       const mealNames = item.actions
         .filter((action, index, arr) => arr.map(a => a.config_id).indexOf(action.config_id, 0) === index)
         .map(action => action.config?.name || '--');
@@ -200,6 +202,9 @@ export default class TableStore {
         app: item.app,
         shieldAlertCount: item.shield_alert_count || 0,
         editAllowed: !!item?.edit_allowed,
+        algorithms: algorithms || [],
+        metricType: item.metric_type,
+        detects: item.detects,
       });
       i += 1;
     }
