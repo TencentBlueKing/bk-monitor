@@ -31,10 +31,10 @@ import { Loading } from 'bkui-vue';
 import './simple-list.scss';
 
 interface IDataItem {
-  id: string;
   duration: string;
-  startTime: string;
+  id: string;
   isError: boolean;
+  startTime: string;
 }
 
 const TRACE_TABLE_ROW_HEIGHT = 60; // trace 表格行高

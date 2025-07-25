@@ -26,25 +26,25 @@
 import { Component, Emit, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import AlarmHandling, { type IAllDefense, type IValue as IAlarmItem } from './alarm-handling';
+import AlarmHandling, { type IValue as IAlarmItem, type IAllDefense } from './alarm-handling';
 import SimpleSelect from './simple-select';
 
 import type { IGroupItem } from '../components/group-select';
 
 import './alarm-handling-list.scss';
 
-interface IProps {
-  value?: IAlarmItem[];
-  allAction?: IGroupItem[]; // 套餐列表
-  allDefense?: IAllDefense[]; // 防御动作列表
-  readonly?: boolean;
-  strategyId?: number | string;
-  isSimple?: boolean; // 简易模式（无预览, 无回填）
+interface IEvents {
+  onAddMeal?: number;
+  onChange?: IAlarmItem[];
 }
 
-interface IEvents {
-  onChange?: IAlarmItem[];
-  onAddMeal?: number;
+interface IProps {
+  allAction?: IGroupItem[]; // 套餐列表
+  allDefense?: IAllDefense[]; // 防御动作列表
+  isSimple?: boolean; // 简易模式（无预览, 无回填）
+  readonly?: boolean;
+  strategyId?: number | string;
+  value?: IAlarmItem[];
 }
 
 export const signalNames = {

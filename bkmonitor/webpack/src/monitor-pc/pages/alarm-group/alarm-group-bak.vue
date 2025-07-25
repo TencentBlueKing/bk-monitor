@@ -30,14 +30,14 @@
 -->
 <template>
   <div
-    class="alarm-group"
     v-monitor-loading="{ isLoading: loading }"
+    class="alarm-group"
   >
     <!-- 列表页 -->
     <div class="alarm-group-tool">
       <bk-button
-        class="tool-btn mc-btn-add"
         v-authority="{ active: !authority.MANAGE_AUTH }"
+        class="tool-btn mc-btn-add"
         theme="primary"
         @click="authority.MANAGE_AUTH ? handleShowAddView('add') : handleShowAuthorityDetail()"
       >
@@ -86,8 +86,8 @@
           <template slot-scope="scope">
             <div class="col-appstrategy">
               <span
-                class="strategy-num"
                 v-authority="{ active: scope.row.relatedStrategy > 0 && !authority.STRATEGY_VIEW_AUTH }"
+                class="strategy-num"
                 :class="{ 'btn-disabled': scope.row.relatedStrategy === 0 }"
                 @click="handleToAppStrategy(scope.row)"
               >
@@ -111,8 +111,8 @@
         >
           <template slot-scope="scope">
             <bk-button
-              class="col-btn"
               v-authority="{ active: !authority.MANAGE_AUTH }"
+              class="col-btn"
               :disabled="!scope.row.editAllowed"
               :text="true"
               @click="authority.MANAGE_AUTH ? handleShowAddView('edit', scope.row.id) : handleShowAuthorityDetail()"
@@ -120,8 +120,8 @@
               {{ $t('编辑') }}
             </bk-button>
             <bk-button
-              class="col-btn"
               v-authority="{ active: !authority.MANAGE_AUTH }"
+              class="col-btn"
               :disabled="!scope.row.deleteAllowed"
               :text="true"
               @click="authority.MANAGE_AUTH ? handleDeleteRow(scope.row.id) : handleShowAuthorityDetail()"
@@ -134,8 +134,8 @@
       <div class="alarm-group-pagination">
         <template v-if="tableInstance">
           <bk-pagination
-            class="config-pagination list-pagination"
             v-show="tableInstance.total"
+            class="config-pagination list-pagination"
             :count="tableInstance.total"
             :current="tableInstance.page"
             :limit="tableInstance.pageSize"
@@ -152,10 +152,10 @@
     </div>
     <!-- 详情页 组件 -->
     <alarm-group-detail
+      :id="detail.id"
       :authority="authority"
       :detail="detail"
       :handle-show-authority-detail="handleShowAuthorityDetail"
-      :id="detail.id"
       @detail-close="handleDetailClose"
       @edit-group="handleEditGroup"
     />

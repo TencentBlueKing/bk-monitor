@@ -34,10 +34,10 @@ const classMap = {
 };
 
 interface IProps {
+  defaultInterval?: number;
   value: {
     level: number;
   }[];
-  defaultInterval?: number;
 }
 
 @Component
@@ -57,7 +57,7 @@ export default class AlertHistogram extends tsc<IProps> {
   /* 当前容器宽度 */
   width = 0;
   /* 当前显示的数据 */
-  localValue: { times: number[]; level: number }[] = [];
+  localValue: { level: number; times: number[] }[] = [];
   /* pop实例 */
   popInstance = null;
   /* 当前hover的时间 */
@@ -140,7 +140,7 @@ export default class AlertHistogram extends tsc<IProps> {
    * @param e
    * @param item
    */
-  handleMouseenter(e: Event, item: { times: number[]; level: number }) {
+  handleMouseenter(e: Event, item: { level: number; times: number[] }) {
     if (item.times.length > 1) {
       const start = item.times[0];
       const end = item.times[item.times.length - 1];

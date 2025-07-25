@@ -38,11 +38,11 @@ import './grafana.scss';
 
 interface IMessageEvent extends MessageEvent {
   data: {
+    href?: string;
+    login_url?: string;
     pathname?: string;
     redirected?: boolean;
-    href?: string;
     status?: 'login' | 'logout';
-    login_url?: string;
   };
 }
 const FavoriteDashboardRouteName = 'favorite-dashboard';

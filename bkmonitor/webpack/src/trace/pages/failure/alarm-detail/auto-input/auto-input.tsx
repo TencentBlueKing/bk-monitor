@@ -24,24 +24,24 @@
  * IN THE SOFTWARE.
  */
 import { type PropType, computed, defineComponent, ref } from 'vue';
-import { useI18n } from 'vue-i18n';
 
 import { Input } from 'bkui-vue';
 import { $bkPopover } from 'bkui-vue/lib/popover';
-
-type PopoverInstance = {
-  show: () => void;
-  hide: () => void;
-  close: () => void;
-  [key: string]: any;
-};
-
-import './auto-input.scss';
+import { useI18n } from 'vue-i18n';
 
 interface ITipsList {
   id: string;
   name: string;
 }
+
+import './auto-input.scss';
+
+type PopoverInstance = {
+  [key: string]: any;
+  close: () => void;
+  hide: () => void;
+  show: () => void;
+};
 
 export default defineComponent({
   props: {

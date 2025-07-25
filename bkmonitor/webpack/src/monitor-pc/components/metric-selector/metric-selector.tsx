@@ -32,7 +32,7 @@ import { addCustomMetric } from 'monitor-api/modules/custom_report';
 import { getMetricListV2, updateMetricListByBiz } from 'monitor-api/modules/strategies';
 import { LANGUAGE_COOKIE_KEY } from 'monitor-common/utils/constant';
 import { skipToDocsLink } from 'monitor-common/utils/docs';
-import { Debounce, copyText, deepClone, docCookies } from 'monitor-common/utils/utils';
+import { copyText, Debounce, deepClone, docCookies } from 'monitor-common/utils/utils';
 import { xssFilter } from 'monitor-common/utils/xss';
 
 import { isEn } from '../../i18n/lang';

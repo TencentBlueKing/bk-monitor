@@ -27,9 +27,9 @@
   <div class="label-menu-wrapper">
     <ul class="label-menu-list">
       <li
-        class="item"
         v-for="(item, index) in list"
         :key="index"
+        class="item"
         @click="handleCheck(item)"
       >
         <bk-checkbox :value="item.checked" />
@@ -58,9 +58,9 @@
 import { Component, Emit, Vue } from 'vue-property-decorator';
 
 interface IOption {
+  checked: boolean;
   id: string;
   name: string;
-  checked: boolean;
 }
 
 @Component({ name: 'label-menu' })

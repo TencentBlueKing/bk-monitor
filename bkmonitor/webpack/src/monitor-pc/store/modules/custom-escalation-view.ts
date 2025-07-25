@@ -1,7 +1,5 @@
 import { makeMap } from 'monitor-common/utils/make-map';
 import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
-
-import type { getCustomTsMetricGroups } from '../../pages/custom-escalation/new-metric-view/services/scene_view_new';
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -27,9 +25,11 @@ import type { getCustomTsMetricGroups } from '../../pages/custom-escalation/new-
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Module, VuexModule, getModule, Mutation } from 'vuex-module-decorators';
+import { getModule, Module, Mutation, VuexModule } from 'vuex-module-decorators';
 
 import store from '../store';
+
+import type { getCustomTsMetricGroups } from '../../pages/custom-escalation/new-metric-view/services/scene_view_new';
 
 type TCustomTsMetricGroups = ServiceReturnType<typeof getCustomTsMetricGroups>;
 

@@ -26,7 +26,7 @@
 import { Component, Prop, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { loadApp, unmount, mount } from '@blueking/bk-weweb';
+import { loadApp, mount, unmount } from '@blueking/bk-weweb';
 
 import '@blueking/bk-weweb';
 

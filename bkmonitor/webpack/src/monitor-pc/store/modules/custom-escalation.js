@@ -24,22 +24,22 @@
  * IN THE SOFTWARE.
  */
 import {
+  createOrUpdateGroupingRule,
   customTimeSeriesDetail,
   customTimeSeriesList,
   deleteCustomEventGroup,
-  getCustomTsFields,
-  modifyCustomTsFields,
-  previewGroupingRule,
-  deleteGroupingRule,
-  createOrUpdateGroupingRule,
-  updateGroupingRuleOrder,
   deleteCustomTimeSeries,
+  deleteGroupingRule,
   getCustomEventGroup,
   getCustomTimeSeriesLatestDataByFields,
+  getCustomTsFields,
   modifyCustomEventGroup,
   modifyCustomTimeSeries,
+  modifyCustomTsFields,
+  previewGroupingRule,
   proxyHostInfo,
   queryCustomEventGroup,
+  updateGroupingRuleOrder,
   validateCustomEventGroupName,
   validateCustomTsGroupName,
 } from 'monitor-api/modules/custom_report';

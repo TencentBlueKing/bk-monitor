@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { onBeforeUnmount, type MaybeRef } from 'vue';
+import { type MaybeRef, onBeforeUnmount } from 'vue';
 
 import { get } from '@vueuse/core';
 
@@ -72,7 +72,7 @@ export function useExploreDataCache(rowKeyField: MaybeRef<string>) {
    * @param colKey 列字段名
    * @param options 可选，包含 index/field 等
    */
-  function getCellComplexValue(rowKey: TableRowId, colKey: string, options?: { index?: number; field?: string }) {
+  function getCellComplexValue(rowKey: TableRowId, colKey: string, options?: { field?: string; index?: number }) {
     const row = getRow(rowKey);
     if (!row) return undefined;
     let value = row[colKey];

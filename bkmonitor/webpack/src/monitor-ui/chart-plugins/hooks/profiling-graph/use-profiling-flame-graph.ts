@@ -27,7 +27,7 @@
 import { random, updateColorOpacity } from 'monitor-common/utils';
 
 import { getSingleDiffColor } from '../../plugins/profiling-graph/flame-graph/utils';
-import { parseProfileDataTypeValue, type ProfileDataUnit } from '../../plugins/profiling-graph/utils';
+import { type ProfileDataUnit, parseProfileDataTypeValue } from '../../plugins/profiling-graph/utils';
 import { getSpanColorByName } from '../../typings/flame-graph';
 
 import type { IFlameGraphDataItem, IProfilingGraphData } from './types';
@@ -35,6 +35,166 @@ const defaultHeight = 20;
 const canvas = document.createElement('canvas');
 const context = canvas.getContext('2d');
 context.font = '12px sans-serif';
+/**
+ *
+ * @param base64Url
+ * @param filename
+ */
+export function downloadBase64AsPng(base64Url: string, filename: string) {
+  // 创建一个隐藏的<a>元素
+  const link = document.createElement('a');
+
+  // 将Base64 URL转换为Blob对象
+  const byteString = atob(base64Url.split(',')[1]);
+  const mimeString = base64Url.split(',')[0].split(':')[1].split(';')[0];
+
+  const ab = new ArrayBuffer(byteString.length);
+  const ia = new Uint8Array(ab);
+  for (let i = 0; i < byteString.length; i++) {
+    ia[i] = byteString.charCodeAt(i);
+  }
+
+  const blob = new Blob([ab], { type: mimeString });
+
+  // 创建一个URL对象
+  const url = URL.createObjectURL(blob);
+
+  // 设置<a>的下载属性
+  link.href = url;
+  link.download = filename;
+
+  // 触发点击事件下载文件
+  document.body.appendChild(link); // 需要将元素添加到DOM中才能触发点击事件
+  link.click();
+  document.body.removeChild(link); // 下载完成后移除元素
+
+  // 释放URL对象
+  URL.revokeObjectURL(url);
+}
+
+export function getGraphOptions(
+  data: IProfilingGraphData[],
+  {
+    unit,
+    filterKeyword,
+    textDirection = 'ltr',
+    highlightNode,
+    isCompared = false,
+  }: {
+    filterKeyword: string;
+    highlightNode: IProfilingGraphData;
+    isCompared: boolean;
+    textDirection: 'ltr' | 'rtl';
+    unit: ProfileDataUnit;
+  }
+) {
+  return {
+    grid: {
+      id: 'grid',
+      show: false,
+      left: 2,
+      top: 2,
+      bottom: 2,
+      right: 2,
+    },
+    animation: false,
+    tooltip: {
+      padding: 0,
+      backgroundColor: '#000',
+      borderColor: '#000',
+      appendToBody: false,
+      trigger: 'item',
+      axisPointer: {
+        snap: false,
+      },
+      formatter: (params: any) => {
+        const nodeItem: IFlameGraphDataItem = params.value?.[3];
+        const { value, text } = parseProfileDataTypeValue(nodeItem.value, unit, true);
+        const { name, diff_info, proportion } = nodeItem;
+        let reference;
+        let difference;
+        let columnName = text;
+        if (isCompared && diff_info) {
+          const parseData = parseProfileDataTypeValue(diff_info.comparison, unit, true);
+          reference = parseData.value;
+          columnName = parseData.text;
+          difference = diff_info.comparison === 0 || diff_info.mark === 'unchanged' ? 0 : diff_info.diff;
+        }
+        return `<div class="profiling-flame-graph-tips">
+            <div class="funtion-name">${name}</div>
+            <table class="tips-table">
+              ${
+                diff_info
+                  ? `<thead>
+                <th></th>
+                <th>当前</th>
+                <th>参照</th>
+                <th>差异</th>
+              </thead>`
+                  : ''
+              }
+              <tbody>
+                ${
+                  !diff_info
+                    ? `<tr>
+                        <td>${window.i18n.t('占比')}</td>
+                        <td>${proportion}</td>
+                      </tr>
+                      <tr>
+                        <td>${columnName}</td>
+                        <td>${value}</td>
+                      </tr>`
+                    : `<tr>
+                      <td>${columnName}</td>
+                      <td>${value}</td>
+                      <td>${reference ?? '--'}</td>
+                      <td>
+                        ${
+                          diff_info.mark === 'added'
+                            ? `<span class='tips-added'>${diff_info.mark}</span>`
+                            : `${(difference * 100).toFixed(2)}%`
+                        }
+                      </td>
+                    </tr>`
+                }
+              </tbody>
+            </table>
+            <div class="tips-info">
+              <span class="icon-monitor icon-mc-mouse tips-info-icon"></span>${window.i18n.t('鼠标右键有更多菜单')}
+            </div>`;
+      },
+    },
+    title: {
+      show: false,
+    },
+    toolbox: false,
+    hoverLayerThreshold: 1000 ** 5,
+    xAxis: {
+      show: false,
+      max: data[0].value[2],
+      position: 'top',
+    },
+    yAxis: {
+      inverse: true,
+      show: false,
+      max: data.at(-1)?.level,
+    },
+    series: [
+      {
+        type: 'custom',
+        renderItem: (api, params) =>
+          renderItem(api, params, { data, unit, filterKeyword, textDirection, highlightNode }),
+        encode: {
+          x: [1, 2],
+          y: 0,
+        },
+        data,
+        animation: false,
+      },
+    ],
+  };
+}
+
 export function getMaxWidthText(text: string, width: number) {
   context.clearRect(0, 0, canvas.width, canvas.height);
   const charWidth = (text: string): number => context.measureText(text).width;
@@ -44,12 +204,11 @@ export function getMaxWidthText(text: string, width: number) {
   }
   return truncatedText;
 }
-
 export function recursionData(jsonData: IFlameGraphDataItem) {
   const rootValue = jsonData.value;
   function flattenTreeWithLevelBFS(data: IFlameGraphDataItem[]): any[] {
     const result: IProfilingGraphData[] = [];
-    const queue: { node: IFlameGraphDataItem; level: number; start: number; end: number }[] = [];
+    const queue: { end: number; level: number; node: IFlameGraphDataItem; start: number }[] = [];
     queue.push({ node: data[0], level: 0, start: 0, end: 0 });
     while (queue.length > 0) {
       const { node, level, start, end } = queue.shift();
@@ -170,163 +329,4 @@ function renderItem(param, api, { data, unit, filterKeyword, textDirection = 'lt
       },
     },
   };
-}
-export function getGraphOptions(
-  data: IProfilingGraphData[],
-  {
-    unit,
-    filterKeyword,
-    textDirection = 'ltr',
-    highlightNode,
-    isCompared = false,
-  }: {
-    unit: ProfileDataUnit;
-    filterKeyword: string;
-    textDirection: 'ltr' | 'rtl';
-    highlightNode: IProfilingGraphData;
-    isCompared: boolean;
-  }
-) {
-  return {
-    grid: {
-      id: 'grid',
-      show: false,
-      left: 2,
-      top: 2,
-      bottom: 2,
-      right: 2,
-    },
-    animation: false,
-    tooltip: {
-      padding: 0,
-      backgroundColor: '#000',
-      borderColor: '#000',
-      appendToBody: false,
-      trigger: 'item',
-      axisPointer: {
-        snap: false,
-      },
-      formatter: (params: any) => {
-        const nodeItem: IFlameGraphDataItem = params.value?.[3];
-        const { value, text } = parseProfileDataTypeValue(nodeItem.value, unit, true);
-        const { name, diff_info, proportion } = nodeItem;
-        let reference;
-        let difference;
-        let columnName = text;
-        if (isCompared && diff_info) {
-          const parseData = parseProfileDataTypeValue(diff_info.comparison, unit, true);
-          reference = parseData.value;
-          columnName = parseData.text;
-          difference = diff_info.comparison === 0 || diff_info.mark === 'unchanged' ? 0 : diff_info.diff;
-        }
-        return `<div class="profiling-flame-graph-tips">
-            <div class="funtion-name">${name}</div>
-            <table class="tips-table">
-              ${
-                diff_info
-                  ? `<thead>
-                <th></th>
-                <th>当前</th>
-                <th>参照</th>
-                <th>差异</th>
-              </thead>`
-                  : ''
-              }
-              <tbody>
-                ${
-                  !diff_info
-                    ? `<tr>
-                        <td>${window.i18n.t('占比')}</td>
-                        <td>${proportion}</td>
-                      </tr>
-                      <tr>
-                        <td>${columnName}</td>
-                        <td>${value}</td>
-                      </tr>`
-                    : `<tr>
-                      <td>${columnName}</td>
-                      <td>${value}</td>
-                      <td>${reference ?? '--'}</td>
-                      <td>
-                        ${
-                          diff_info.mark === 'added'
-                            ? `<span class='tips-added'>${diff_info.mark}</span>`
-                            : `${(difference * 100).toFixed(2)}%`
-                        }
-                      </td>
-                    </tr>`
-                }
-              </tbody>
-            </table>
-            <div class="tips-info">
-              <span class="icon-monitor icon-mc-mouse tips-info-icon"></span>${window.i18n.t('鼠标右键有更多菜单')}
-            </div>`;
-      },
-    },
-    title: {
-      show: false,
-    },
-    toolbox: false,
-    hoverLayerThreshold: 1000 ** 5,
-    xAxis: {
-      show: false,
-      max: data[0].value[2],
-      position: 'top',
-    },
-    yAxis: {
-      inverse: true,
-      show: false,
-      max: data.at(-1)?.level,
-    },
-    series: [
-      {
-        type: 'custom',
-        renderItem: (api, params) =>
-          renderItem(api, params, { data, unit, filterKeyword, textDirection, highlightNode }),
-        encode: {
-          x: [1, 2],
-          y: 0,
-        },
-        data,
-        animation: false,
-      },
-    ],
-  };
-}
-
-/**
- *
- * @param base64Url
- * @param filename
- */
-export function downloadBase64AsPng(base64Url: string, filename: string) {
-  // 创建一个隐藏的<a>元素
-  const link = document.createElement('a');
-
-  // 将Base64 URL转换为Blob对象
-  const byteString = atob(base64Url.split(',')[1]);
-  const mimeString = base64Url.split(',')[0].split(':')[1].split(';')[0];
-
-  const ab = new ArrayBuffer(byteString.length);
-  const ia = new Uint8Array(ab);
-  for (let i = 0; i < byteString.length; i++) {
-    ia[i] = byteString.charCodeAt(i);
-  }
-
-  const blob = new Blob([ab], { type: mimeString });
-
-  // 创建一个URL对象
-  const url = URL.createObjectURL(blob);
-
-  // 设置<a>的下载属性
-  link.href = url;
-  link.download = filename;
-
-  // 触发点击事件下载文件
-  document.body.appendChild(link); // 需要将元素添加到DOM中才能触发点击事件
-  link.click();
-  document.body.removeChild(link); // 下载完成后移除元素
-
-  // 释放URL对象
-  URL.revokeObjectURL(url);
 }

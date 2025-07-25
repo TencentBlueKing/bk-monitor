@@ -675,7 +675,6 @@ const store = new Vuex.Store({
     },
     updateVisibleFields(state, val) {
       state.visibleFields.splice(0, state.visibleFields.length, ...(val ?? []));
-      state.indexFieldInfo.request_counter++;
     },
     updateVisibleFieldMinWidth(state, tableList, fieldList) {
       const staticWidth = state.indexSetOperatorConfig?.bcsWebConsole?.is_active ? 84 : 58 + 50;
@@ -817,8 +816,6 @@ const store = new Vuex.Store({
           catchFieldsWidthObj,
           staticWidth + 60,
         );
-        // request_counter 用于触发查询结果表格的更新
-        state.indexFieldInfo.request_counter++;
       }
       if (typeof payload === 'boolean') state.isSetDefaultTableColumn = payload;
     },
@@ -1343,7 +1340,7 @@ const store = new Vuex.Store({
 
                 if (!payload?.isPagination) {
                   commit('updateIsSetDefaultTableColumn', { list: logList });
-                  dispatch('requestSearchTotal');
+                  // dispatch('requestSearchTotal');
                 }
                 // 更新页数
                 commit('updateSqlQueryFieldList', logList);
@@ -1749,8 +1746,9 @@ const store = new Vuex.Store({
           },
         )
         .then(res => {
-          const { data, code } = res;
-          if (code === 0) state.searchTotal = data.total_count;
+          const { data } = res;
+          if (res.result === true) state.searchTotal = data.total_count;
+          return res;
         });
     },
     setApiError({ commit }, payload) {

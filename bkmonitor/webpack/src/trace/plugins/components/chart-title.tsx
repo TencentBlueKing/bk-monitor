@@ -24,11 +24,11 @@
  * IN THE SOFTWARE.
  */
 import { type ComputedRef, type PropType, computed, defineComponent, onBeforeMount, onMounted, ref, watch } from 'vue';
-import { useI18n } from 'vue-i18n';
 
 import { Popover } from 'bkui-vue';
 import { fetchItemStatus } from 'monitor-api/modules/strategies';
 import { deduplicateByField } from 'monitor-ui/chart-plugins/utils';
+import { useI18n } from 'vue-i18n';
 
 import { createMetricTitleTooltips } from '../../utils';
 import AlertActionList from './alert-action-list';

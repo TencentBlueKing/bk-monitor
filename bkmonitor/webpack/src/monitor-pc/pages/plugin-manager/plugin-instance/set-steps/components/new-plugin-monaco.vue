@@ -27,14 +27,14 @@
   <div class="plugin-monaco">
     <div v-show="type === 'Script'">
       <div
-        class="system-list"
         ref="systemList"
+        class="system-list"
       >
         <div
-          class="item"
-          :class="{ active: sys.name === selectedSystem.name }"
           v-for="(sys, index) in systemList"
           :key="index"
+          class="item"
+          :class="{ active: sys.name === selectedSystem.name }"
           @click="handleActiveTab(sys)"
         >
           <div class="switch-wrapper">
@@ -50,9 +50,9 @@
       </div>
       <ul class="language-list">
         <li
-          :class="{ item: true, active: lang.name === currentLanguage.name }"
           v-for="(lang, index) in currentLanguageList"
           :key="index"
+          :class="{ item: true, active: lang.name === currentLanguage.name }"
           @click="handleLangChange(lang)"
         >
           {{ lang.name }}
@@ -64,10 +64,10 @@
         <monaco-editor
           ref="pluginMonaco"
           :width="editorWidth"
-          @change="handleInput"
           :language="replacedCurrentLanguage"
           :value="currentLanguage.text"
           :full-screen="true"
+          @change="handleInput"
         />
       </div>
       <div
@@ -89,33 +89,34 @@
         </div>
       </div>
       <div
-        class="enable-mask"
         v-if="!selectedSystem.enable && !isOther"
+        class="enable-mask"
       >
         <div
-          class="switch-popvoer"
           ref="switchTips"
+          class="switch-popvoer"
         >
           <span class="text">{{ $t('是否启用{0}脚本采集?', [selectedSystem.name]) }}</span>
           <span
             class="open-btn"
             @click="handleSwitchChange"
-          >{{ $t('启用') }}</span>
+            >{{ $t('启用') }}</span
+          >
         </div>
       </div>
     </div>
   </div>
 </template>
 <script lang="ts">
-import { debounce } from 'throttle-debounce';
 import { Component, Prop, Vue, Watch } from 'vue-property-decorator';
 
+import { debounce } from 'throttle-debounce';
+
 import MonacoEditor from '../../../../../components/editors/monaco-editor.vue';
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-import type MonitorVue from '../../../../../types/index';
-// eslint-disable-next-line no-unused-vars
-import type { ILanguage, ISystem, IValues } from '../../../../../types/plugin-manager/index';
 import ShellSideNotice from '../../../../shell-collector/set-data-source/set-data-steps/shell-side-notice.vue';
+
+import type MonitorVue from '../../../../../types/index';
+import type { ILanguage, ISystem, IValues } from '../../../../../types/plugin-manager/index';
 
 const descPanelWidth = 368;
 const expandedElWidth = 25;
@@ -230,7 +231,7 @@ export default class NewPluginMonaco extends Vue<MonitorVue> {
   };
 
   otherPluginType: string[] = ['JMX', 'DataDog'];
-  otherLanguage: { JMX: ILanguage; DataDog: ILanguage } = { JMX: null, DataDog: null };
+  otherLanguage: { DataDog: ILanguage; JMX: ILanguage } = { JMX: null, DataDog: null };
   handleInput = debounce(300, (text: string) => this.scriptChange(text));
   // 传进来的系统列表
   @Prop(Array)
@@ -265,7 +266,7 @@ export default class NewPluginMonaco extends Vue<MonitorVue> {
   }
 
   // 当前语言
-  get currentLanguage(): ILanguage | { text: ''; lang: '' } {
+  get currentLanguage(): ILanguage | { lang: ''; text: '' } {
     if (this.otherPluginType.includes(this.type)) {
       return this.otherLanguage[this.type];
     }
@@ -412,7 +413,7 @@ export default class NewPluginMonaco extends Vue<MonitorVue> {
    * @description 检查脚本内容是否为空
    * @param { ISystem } sys
    */
-  checkScriptContent(sys: ISystem): { lang: ILanguage | undefined; system: string; empty: boolean } {
+  checkScriptContent(sys: ISystem): { empty: boolean; lang: ILanguage | undefined; system: string } {
     const lang = sys.languageList.find(lang => lang.active);
     if (lang && !lang.text) {
       const timer: number = setTimeout(() => {
@@ -430,7 +431,7 @@ export default class NewPluginMonaco extends Vue<MonitorVue> {
   /**
    * @description 获取其他类型的脚本内容
    */
-  getOtherScriptContent(): ILanguage | false {
+  getOtherScriptContent(): false | ILanguage {
     const lang: ILanguage = this.otherLanguage[this.type];
     if (!lang.text) {
       this.$bkMessage({ theme: 'error', message: `${this.type}的脚本内容不能为空` });
@@ -611,7 +612,7 @@ export default class NewPluginMonaco extends Vue<MonitorVue> {
       height: calc(100% + 32px);
       text-align: center;
       background: #313238;
-      opacity: .9;
+      opacity: 0.9;
     }
   }
 

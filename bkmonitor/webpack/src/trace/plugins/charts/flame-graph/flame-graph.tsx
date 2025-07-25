@@ -24,7 +24,6 @@
  * IN THE SOFTWARE.
  */
 import { defineComponent, inject, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
-import { useI18n } from 'vue-i18n';
 
 import { addListener, removeListener } from '@blueking/fork-resize-detector';
 import { Exception } from 'bkui-vue';
@@ -34,6 +33,7 @@ import { lightenDarkenColor, random } from 'monitor-common/utils';
 import { echarts } from 'monitor-ui/monitor-echarts/types/monitor-echarts';
 import { getValueFormat } from 'monitor-ui/monitor-echarts/valueFormats';
 import { debounce } from 'throttle-debounce';
+import { useI18n } from 'vue-i18n';
 
 import traceIcons from '../../utls/icons';
 import { storeImage } from '../../utls/store-img';
@@ -49,26 +49,26 @@ const MinScale = 100;
 const scaleStep = 20;
 const TotalStep = MaxScale / scaleStep;
 
-interface IJsonItem {
-  id: string;
-  name: string;
-  value?: number;
-  comparison?: number;
-  delta?: number;
-  baseline?: number;
-  start_time: number;
-  end_time: number;
-  rawValue: number;
-  icon_type?: keyof typeof traceIcons;
-  original?: Record<string, any>;
-  children?: IJsonItem[];
-}
 interface IDataItem {
   name: string;
   value: Array<number | Record<string, any> | string>;
   itemStyle: {
     color: string;
   };
+}
+interface IJsonItem {
+  baseline?: number;
+  children?: IJsonItem[];
+  comparison?: number;
+  delta?: number;
+  end_time: number;
+  icon_type?: keyof typeof traceIcons;
+  id: string;
+  name: string;
+  original?: Record<string, any>;
+  rawValue: number;
+  start_time: number;
+  value?: number;
 }
 const ColorTypes = {
   http: '#aea2e0',
@@ -84,9 +84,9 @@ const ColorTypes = {
 const defaultHeight = 30;
 const height = ref(100);
 export interface ICommonMenuItem {
+  icon: string;
   id: string;
   name: string;
-  icon: string;
 }
 const CommonMenuList: ICommonMenuItem[] = [
   {

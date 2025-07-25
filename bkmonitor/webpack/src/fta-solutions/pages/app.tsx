@@ -24,8 +24,8 @@
  * IN THE SOFTWARE.
  */
 import Vue from 'vue';
+
 import { Component, Ref, Watch } from 'vue-property-decorator';
-import {} from 'vue-router';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { listStickySpaces } from 'monitor-api/modules/commons';
@@ -36,6 +36,7 @@ import BizSelect from 'monitor-pc/components/biz-select/biz-select';
 import CommonNavBar from 'monitor-pc/pages/monitor-k8s/components/common-nav-bar';
 import NavTools from 'monitor-pc/pages/nav-tools';
 import AuthorityModal from 'monitor-ui/authority-modal/index';
+import {} from 'vue-router';
 
 import debounce from '../common/debounce-decorator';
 import { createRouteConfig } from '../router/router-config';

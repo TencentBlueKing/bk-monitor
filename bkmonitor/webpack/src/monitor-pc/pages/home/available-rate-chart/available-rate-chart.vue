@@ -36,8 +36,8 @@
       trigger="click"
     >
       <div
-        class="chart-dropdown"
         slot="dropdown-trigger"
+        class="chart-dropdown"
       >
         <svg-icon
           :style="{ color: !series.length && !setList.length ? '#979BA5' : '#3A84FF' }"
@@ -48,8 +48,8 @@
       </div>
       <div
         v-if="setList.length"
-        style="margin: -6px 0"
         slot="dropdown-content"
+        style="margin: -6px 0"
       >
         <ul
           class="bk-dropdown-list title-setting-dropdown"
@@ -62,8 +62,8 @@
           >
             <label class="bk-form-checkbox bk-checkbox-small check-label-item char-checkbox">
               <input
-                class="bk-checkbox"
                 v-model="checkedSets"
+                class="bk-checkbox"
                 :value="item.id"
                 type="checkbox"
               />
@@ -72,8 +72,8 @@
           </li>
         </ul>
         <div
-          class="title-setting-footer"
           slot="dropdown-content"
+          class="title-setting-footer"
         >
           <span @click="submitHandle"> {{ $t('确定') }} </span>
           <span @click="cancelHandle"> {{ $t('取消') }} </span>

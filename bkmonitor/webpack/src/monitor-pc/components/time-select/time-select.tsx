@@ -29,17 +29,17 @@ import { Component as tsc } from 'vue-tsx-support';
 import './time-select.scss';
 
 export interface ITimeListItem {
-  name: string;
   id: string;
+  name: string;
+}
+interface IITimeSelectEvent {
+  onAddItem: ITimeListItem;
+  onChange: string;
 }
 interface ITimeSelectProps {
   list: ITimeListItem[];
-  value: string;
   tip?: string;
-}
-interface IITimeSelectEvent {
-  onChange: string;
-  onAddItem: ITimeListItem;
+  value: string;
 }
 @Component
 export default class TimeSelect extends tsc<ITimeSelectProps, IITimeSelectEvent> {

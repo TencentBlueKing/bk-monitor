@@ -37,8 +37,8 @@ import type { ITableColumnItem } from './types';
 import './email-subscriptions-history.scss';
 
 export interface IPagination {
-  current: number;
   count: number;
+  current: number;
   limit: number;
 }
 @Component

@@ -25,54 +25,54 @@
  */
 
 export interface IDetail {
-  id: string; // 告警id
-  bk_biz_id: number; // 业务id
-  alert_name: string; // 告警名称
-  first_anomaly_time: number; // 首次异常事件
-  begin_time: number; // 事件产生事件
-  is_ack: boolean; // 是否确认
-  is_shielded: boolean; // 是否屏蔽
-  is_handled: boolean;
-  dimension: Array<{ key: string; value: string }>; // 维度信息
-  severity: number; // 严重程度
-  status: string; // 告警状态
   alert_info: any;
+  alert_name: string; // 告警名称
+  appointee?: string[];
+  assignee?: string[];
+  begin_time: number; // 事件产生事件
+  bk_biz_id: number; // 业务id
+  bk_cloud_id?: number;
+  category?: string;
+  category_display?: string;
+  create_time?: number;
   description: string;
+  dimension: Array<{ key: string; value: string }>; // 维度信息
+  dimension_message: string; // 维度信息
+  dimensions?: any[];
   duration: string; // 持续时间
+  end_time?: number;
+  extra_info?: any;
+  first_anomaly_time: number; // 首次异常事件
+  follower?: string[];
+  graph_panel?: any;
+  id: string; // 告警id
+  ip?: string;
+  is_ack: boolean; // 是否确认
+  is_handled: boolean;
+  is_shielded: boolean; // 是否屏蔽
+  latest_time?: number;
+  metric?: string;
+  overview?: any;
   plugin_display_name?: string; // 告警来源
   plugin_id?: string; // 告警来源ID
-  dimension_message: string; // 维度信息
-  extra_info?: any;
+  relation_info?: string;
+  severity: number; // 严重程度
+  shield_id?: number[];
+  shield_left_time?: string; // 屏蔽剩余时间
+  stage_display?: string; // 处理阶段
+  start_time?: number;
+  status: string; // 告警状态
+  strategy_id?: number;
+  strategy_name?: string;
+  tags?: Array<{ key: string; value: string }>;
+  target?: string;
+  target_type?: string;
+  update_time?: number;
   extend_info?:
+    | any
     | {
         result_table_id?: string;
-      }
-    | any;
-  create_time?: number;
-  start_time?: number;
-  end_time?: number;
-  update_time?: number;
-  strategy_id?: number;
-  category_display?: string;
-  strategy_name?: string;
-  metric?: string;
-  tags?: Array<{ key: string; value: string }>;
-  relation_info?: string;
-  latest_time?: number;
-  graph_panel?: any;
-  target_type?: string;
-  target?: string;
-  ip?: string;
-  bk_cloud_id?: number;
-  overview?: any;
-  shield_left_time?: string; // 屏蔽剩余时间
-  dimensions?: any[];
-  shield_id?: number[];
-  category?: string;
-  assignee?: string[];
-  stage_display?: string; // 处理阶段
-  appointee?: string[];
-  follower?: string[];
+      };
 }
 
 export const setBizIdToPanel = (panels, bkBizId) =>

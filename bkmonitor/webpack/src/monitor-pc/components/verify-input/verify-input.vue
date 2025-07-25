@@ -31,14 +31,14 @@
   >
     <slot />
     <span
-      class="bk-icon icon-exclamation-circle-shape tooltips-icon"
-      v-bk-tooltips.top-end="validator"
       v-show="showValidate && validator.content && position === 'right'"
+      v-bk-tooltips.top-end="validator"
+      class="bk-icon icon-exclamation-circle-shape tooltips-icon"
     />
     <span
+      v-show="showValidate && position === 'bottom'"
       :style="{ top: errorTextTopMargin ? `${errorTextTopMargin}px` : null }"
       class="bottom-text"
-      v-show="showValidate && position === 'bottom'"
       >{{ validator.content }}</span
     >
   </div>
@@ -67,7 +67,7 @@ export default {
     errorTextTopMargin: {
       type: Number,
       default: 0,
-    }
+    },
   },
   methods: {
     handleFocus() {

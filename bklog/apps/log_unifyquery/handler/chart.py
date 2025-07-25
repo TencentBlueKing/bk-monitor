@@ -11,7 +11,10 @@ specific language governing permissions and limitations under the License.
 import copy
 import time
 
+from django.conf import settings
+
 from apps.api import UnifyQueryApi
+from apps.log_unifyquery.constants import REFERENCE_ALIAS
 from apps.log_unifyquery.handler.base import UnifyQueryHandler
 
 
@@ -21,11 +24,29 @@ class UnifyQueryChartHandler(UnifyQueryHandler):
         super().__init__(params)
 
     def init_base_dict(self):
-        base_dict = super().init_base_dict()
-        for q in base_dict["query_list"]:
-            q["sql"] = self.sql
-            q["table_id"] = f"bkdata_{q['table_id'].split('_', 1)[1]}"
-        return base_dict
+        # 拼接查询参数列表
+        query_list = []
+        for index, index_info in enumerate(self.index_info_list):
+            query_dict = {
+                "data_source": settings.UNIFY_QUERY_DATA_SOURCE,
+                "reference_name": REFERENCE_ALIAS[index],
+                "conditions": self._transform_additions(index_info),
+                "query_string": self.query_string,
+                "sql": self.sql,
+                "table_id": f"bkdata_index_set_{self.index_set_ids[0]}",
+            }
+
+            query_list.append(query_dict)
+
+        return {
+            "query_list": query_list,
+            "metric_merge": " + ".join([query["reference_name"] for query in query_list]),
+            "start_time": str(self.start_time),
+            "end_time": str(self.end_time),
+            "down_sample_range": "",
+            "timezone": "UTC",  # 仅用于提供给 unify-query 生成读别名，对应存储入库时区
+            "bk_biz_id": self.bk_biz_id,
+        }
 
     def get_chart_data(self):
         start_time = time.time()

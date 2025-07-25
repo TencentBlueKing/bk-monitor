@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { LOCAL_BIZ_STORE_KEY, COMMON_PAGE_SIZE_KEY } from './constant';
+import { COMMON_PAGE_SIZE_KEY, LOCAL_BIZ_STORE_KEY } from './constant';
 import { getUrlParam } from './utils';
 
 import type { ISpaceItem } from '../typings';

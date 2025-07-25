@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { Component, Emit, Inject, InjectReactive, Watch, Ref } from 'vue-property-decorator';
+import { Component, Emit, Inject, InjectReactive, Ref, Watch } from 'vue-property-decorator';
 import { ofType } from 'vue-tsx-support';
 
 import dayjs from 'dayjs';
@@ -34,10 +34,10 @@ import { CancelToken } from 'monitor-api/cancel';
 import { Debounce, deepClone, random } from 'monitor-common/utils/utils';
 import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
 import {
+  type IUnifyQuerySeriesItem,
   downCsvFile,
   transformSrcData,
   transformTableDataToCsvStr,
-  type IUnifyQuerySeriesItem,
 } from 'monitor-pc/pages/view-detail/utils';
 
 import { type ValueFormatter, getValueFormat } from '../../../monitor-echarts/valueFormats';
@@ -53,13 +53,13 @@ import { CommonSimpleChart } from '../common-simple-chart';
 import BaseEchart from '../monitor-base-echart';
 import CustomEventMenu from './custom-event-menu/custom-event-menu';
 import {
-  createCommonWhere,
   type EventTagColumn,
   type EventTagConfig,
+  type IEventTagsItem,
+  createCommonWhere,
   getCustomEventAnalysisConfig,
   getCustomEventSeries,
   getCustomEventSeriesParams,
-  type IEventTagsItem,
   updateCustomEventAnalysisConfig,
 } from './use-custom';
 
@@ -70,8 +70,8 @@ import type {
   IMenuChildItem,
   IMenuItem,
   IPanelModel,
-  ITitleAlarm,
   ITimeSeriesItem,
+  ITitleAlarm,
   PanelModel,
   ZrClickEvent,
 } from '../../../chart-plugins/typings';
@@ -83,36 +83,6 @@ import './caller-line-chart.scss';
 
 interface IProps {
   panel: PanelModel;
-}
-
-function removeTrailingZeros(num) {
-  if (num && num !== '0') {
-    return num
-      .toString()
-      .replace(/(\.\d*?)0+$/, '$1')
-      .replace(/\.$/, '');
-  }
-  return num;
-}
-
-function getNumberAndUnit(str) {
-  const match = str.match(/^(\d+)([a-zA-Z])$/);
-  return match ? { number: Number.parseInt(match[1], 10), unit: match[2] } : null;
-}
-
-function timeToDayNum(t) {
-  const regex = /^\d{4}-\d{2}-\d{2}$/;
-  if (regex.test(t)) {
-    return dayjs().diff(dayjs(t), 'day');
-  }
-  const timeInfo = getNumberAndUnit(t);
-  if (timeInfo?.unit === 'd') {
-    return timeInfo.number;
-  }
-  if (timeInfo?.unit === 'w') {
-    return timeInfo.number * 7;
-  }
-  return 0;
 }
 
 @Component
@@ -1239,16 +1209,16 @@ class CallerLineChart extends CommonSimpleChart {
             {typeof this.eventConfig.is_enabled_metric_tags !== 'undefined' && (
               <bk-popover
                 ref='eventAnalyze'
+                tippyOptions={{
+                  hideOnClick:
+                    !this.cacheEventConfig.is_enabled_metric_tags && !this.eventConfig.is_enabled_metric_tags,
+                }}
                 arrow={false}
                 distance={2}
                 placement='bottom-start'
                 theme='light common-monitor'
                 trigger='click'
                 on-show={this.handleEventAnalyzeShow}
-                tippyOptions={{
-                  hideOnClick:
-                    !this.cacheEventConfig.is_enabled_metric_tags && !this.eventConfig.is_enabled_metric_tags,
-                }}
               >
                 <div
                   class='event-analyze tips-icon'
@@ -1317,8 +1287,8 @@ class CallerLineChart extends CommonSimpleChart {
                         {this.$t('确定')}
                       </bk-button>
                       <bk-button
-                        v-bk-tooltips={{ placement: 'top', content: this.$t('服务下其他图表一并生效') }}
                         style={{ width: '108px' }}
+                        v-bk-tooltips={{ placement: 'top', content: this.$t('服务下其他图表一并生效') }}
                         outline={true}
                         size='small'
                         theme='primary'
@@ -1382,6 +1352,36 @@ class CallerLineChart extends CommonSimpleChart {
       </div>
     );
   }
+}
+
+function getNumberAndUnit(str) {
+  const match = str.match(/^(\d+)([a-zA-Z])$/);
+  return match ? { number: Number.parseInt(match[1], 10), unit: match[2] } : null;
+}
+
+function removeTrailingZeros(num) {
+  if (num && num !== '0') {
+    return num
+      .toString()
+      .replace(/(\.\d*?)0+$/, '$1')
+      .replace(/\.$/, '');
+  }
+  return num;
+}
+
+function timeToDayNum(t) {
+  const regex = /^\d{4}-\d{2}-\d{2}$/;
+  if (regex.test(t)) {
+    return dayjs().diff(dayjs(t), 'day');
+  }
+  const timeInfo = getNumberAndUnit(t);
+  if (timeInfo?.unit === 'd') {
+    return timeInfo.number;
+  }
+  if (timeInfo?.unit === 'w') {
+    return timeInfo.number * 7;
+  }
+  return 0;
 }
 
 export default ofType<

@@ -40,8 +40,8 @@ import authorityStore from 'monitor-pc/store/modules/authority';
 import authorityMixinCreate from 'monitor-ui/mixins/authorityMixin';
 import { throttle } from 'throttle-debounce';
 
-import AiopsContainer from './aiops/aiops-container-new';
 import { createAutoTimeRange } from './aiops-chart';
+import AiopsContainer from './aiops/aiops-container-new';
 import AlarmConfirm from './alarm-confirm';
 import AlarmDispatch from './alarm-dispatch';
 import BasicInfo from './basic-info';

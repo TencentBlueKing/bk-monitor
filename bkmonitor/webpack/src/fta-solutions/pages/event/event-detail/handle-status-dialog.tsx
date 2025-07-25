@@ -36,18 +36,18 @@ import NoticeStatusTable from './notice-status-table';
 import './handle-status-dialog.scss';
 
 const NOTICE = 'notice';
-interface IHandleStatusDialog {
-  value?: boolean;
-  actions?: any[];
-  alertId?: string;
-  total?: number;
-}
+// 事件详情 | 处理记录详情
+export type TType = 'eventDetail' | 'handleDetail';
 interface IEvent {
   onShowChange?: boolean;
 }
 
-// 事件详情 | 处理记录详情
-export type TType = 'eventDetail' | 'handleDetail';
+interface IHandleStatusDialog {
+  actions?: any[];
+  alertId?: string;
+  total?: number;
+  value?: boolean;
+}
 
 @Component
 export default class HandleStatusDialog extends tsc<IHandleStatusDialog, IEvent> {

@@ -29,11 +29,11 @@
  * @Description:
  */
 import Vue from 'vue';
-import Router, { type RouteConfig } from 'vue-router';
 
 import { random } from 'monitor-common/utils/utils';
 import { getAuthById, setAuthById } from 'monitor-pc/common/auth-store';
 import ExceptionPage from 'monitor-pc/pages/exception-page/exception-page.vue';
+import Router, { type RouteConfig } from 'vue-router';
 
 import authorityStore from '../store/modules/authority';
 import Store from '../store/store';
