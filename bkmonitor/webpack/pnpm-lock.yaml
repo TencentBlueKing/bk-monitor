@@ -21,7 +21,7 @@ importers:
   .:
     devDependencies:
       '@biomejs/biome':
-        specifier: 2.1.2
+        specifier: ^2.1.2
         version: 2.1.2
       '@blueking/bkmonitor-cli':
         specifier: 7.0.1-beta.8

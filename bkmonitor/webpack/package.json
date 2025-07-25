@@ -42,7 +42,7 @@
     "commit-msg": "node ./bkmonitor/webpack/webpack/verify-commit.js $1"
   },
   "devDependencies": {
-    "@biomejs/biome": "2.1.2",
+    "@biomejs/biome": "^2.1.2",
     "@blueking/bkmonitor-cli": "7.0.1-beta.8",
     "@blueking/stylelint-config": "0.0.3",
     "@eslint/js": "^9.31.0",
