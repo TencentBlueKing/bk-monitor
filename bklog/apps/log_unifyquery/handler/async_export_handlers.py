@@ -88,7 +88,7 @@ class UnifyQueryAsyncExportHandlers:
         if AsyncTask.objects.filter(
             request_param=self.search_dict,
             created_by=self.request_user,
-            export_status__isnull=True,
+            export_status=ExportStatus.DOWNLOAD_LOG,
         ).exists():
             raise DuplicateUnifyQueryExportException()
 
@@ -320,7 +320,7 @@ class UnifyQueryUnionAsyncExportHandlers:
         if AsyncTask.objects.filter(
             request_param=self.search_dict,
             created_by=self.request_user,
-            export_status__isnull=True,
+            export_status=ExportStatus.DOWNLOAD_LOG,
         ).exists():
             raise DuplicateUnifyQueryExportException()
 

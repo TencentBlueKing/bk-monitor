@@ -105,6 +105,7 @@ def async_export(
             raise BaseException(f"Can not find this: id: {async_task_id} record")
 
         async_task.export_status = ExportStatus.DOWNLOAD_LOG
+        async_task.save()
         try:
             async_export_util.export_package()
         except Exception as e:  # pylint: disable=broad-except
@@ -114,6 +115,7 @@ def async_export(
         async_task.export_status = ExportStatus.EXPORT_PACKAGE
         async_task.file_name = tar_file_name
         async_task.file_size = async_export_util.get_file_size()
+        async_task.save()
         try:
             async_export_util.export_upload()
         except Exception as e:  # pylint: disable=broad-except
@@ -121,6 +123,7 @@ def async_export(
             raise
 
         async_task.export_status = ExportStatus.EXPORT_UPLOAD
+        async_task.save()
         try:
             url = async_export_util.generate_download_url(url_path=url_path)
         except Exception as e:  # pylint: disable=broad-except
@@ -209,6 +212,7 @@ def union_async_export(
             raise BaseException(f"Can not find this: id: {async_task_id} record")
 
         async_task.export_status = ExportStatus.DOWNLOAD_LOG
+        async_task.save()
         try:
             async_export_util.export_package()
         except Exception as e:  # pylint: disable=broad-except
@@ -218,6 +222,7 @@ def union_async_export(
         async_task.export_status = ExportStatus.EXPORT_PACKAGE
         async_task.file_name = tar_file_name
         async_task.file_size = async_export_util.get_file_size()
+        async_task.save()
         try:
             async_export_util.export_upload()
         except Exception as e:  # pylint: disable=broad-except
@@ -225,6 +230,7 @@ def union_async_export(
             raise
 
         async_task.export_status = ExportStatus.EXPORT_UPLOAD
+        async_task.save()
         try:
             url = async_export_util.generate_download_url(url_path=url_path)
         except Exception as e:  # pylint: disable=broad-except

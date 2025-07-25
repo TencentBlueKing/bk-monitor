@@ -1015,10 +1015,7 @@ class UnifyQueryHandler:
             if not search_result.get("list"):
                 break
 
-            if is_quick_export:
-                yield search_result["list"]
-            else:
-                yield self._deal_query_result(search_result)["origin_log_list"]
+            yield self._deal_query_result(search_result)["origin_log_list"]
 
             total_count += len(search_result["list"])
 
