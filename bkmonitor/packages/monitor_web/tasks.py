@@ -448,9 +448,9 @@ def soft_delete_expired_shields():
     from datetime import timedelta
 
     one_month_ago = timezone.now() - timedelta(days=30)
-    updated_count = Shield.objects.filter(
-        create_time__lte=one_month_ago, is_enabled=True, failure_time__lte=timezone.now()
-    ).update(is_enabled=False, is_deleted=True)
+    updated_count = Shield.objects.filter(create_time__lte=one_month_ago, failure_time__lte=timezone.now()).update(
+        is_enabled=False, is_deleted=True
+    )
 
     if updated_count:
         logger.info(f"Soft deleted {updated_count} expired shield records")
