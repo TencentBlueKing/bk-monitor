@@ -33,7 +33,7 @@ class EventsSearchSerializer(serializers.Serializer):
 
 class EventDetailSerializer(serializers.Serializer):
     bk_biz_id = serializers.IntegerField(label="业务ID")
-    app_name = serializers.CharField(label="应用名称")
+    app_name = serializers.CharField(label="应用名称", required=False)
     service_name = serializers.CharField(label="服务名称", required=False)
     query_configs = serializers.ListField(label="查询配置列表", default=[])
     expression = serializers.CharField(label="查询表达式", allow_blank=True)

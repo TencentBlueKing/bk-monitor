@@ -49,7 +49,8 @@ class IncidentEventsSearchResource(Resource):
         EntityType.BkNodeHost: DataTypeLabel.EVENT,
     }
 
-    def _get_table_by_entity_type(self, entity_type: str, **kwargs) -> str:
+    @classmethod
+    def get_table_by_entity_type(cls, entity_type: str, **kwargs) -> str:
         """
         根据实体类型获取对应的table名
 
@@ -79,7 +80,8 @@ class IncidentEventsSearchResource(Resource):
             return "gse_system_event"
         return ""
 
-    def _get_where_filter_by_dimensions(self, dimensions: dict) -> list:
+    @classmethod
+    def get_where_filter_by_dimensions(cls, dimensions: dict) -> list:
         """
         根据维度数据生成Where过滤条件
 
@@ -97,7 +99,7 @@ class IncidentEventsSearchResource(Resource):
             where_filters.append({"field": key, "method": "eq", "value": value, "condition": "and"})
         return where_filters
 
-    def _build_base_query_config(
+    def build_base_query_config(
         self, data_source_label: str, data_type_label: str, bk_biz_id: int, start_time: int, end_time: int
     ) -> dict:
         """
@@ -137,7 +139,8 @@ class IncidentEventsSearchResource(Resource):
             "end_time": end_time,
         }
 
-    def _build_base_response(self, bk_biz_id: int) -> dict:
+    @classmethod
+    def build_base_response(cls, bk_biz_id: int) -> dict:
         return {
             "bk_biz_id": bk_biz_id,
             "statistics": {
@@ -147,7 +150,7 @@ class IncidentEventsSearchResource(Resource):
             "events": {},
         }
 
-    def _apply_dimension_filters(self, time_series_request: dict, dimensions_filter: dict) -> None:
+    def apply_dimension_filters(self, time_series_request: dict, dimensions_filter: dict) -> None:
         """
         应用维度过滤条件到查询配置
 
@@ -159,7 +162,7 @@ class IncidentEventsSearchResource(Resource):
             return
 
         # 添加Where过滤条件
-        where_filters = self._get_where_filter_by_dimensions(dimensions_filter)
+        where_filters = self.get_where_filter_by_dimensions(dimensions_filter)
         time_series_request["query_configs"][0]["where"] = where_filters
 
         # 兼容event_timeseries resource的特殊参数
@@ -170,7 +173,8 @@ class IncidentEventsSearchResource(Resource):
         if apm_service:
             time_series_request["apm_service"] = apm_service
 
-    def _build_event_info(self, dimension: dict) -> dict:
+    @classmethod
+    def build_event_info(cls, dimension: dict) -> dict:
         """
         构建事件基础信息
 
@@ -188,7 +192,7 @@ class IncidentEventsSearchResource(Resource):
             "event_level": dimension.get("type", ""),
         }
 
-    def _query_entity_events(self, validated_request_data: dict, base_response: dict) -> dict:
+    def query_entity_events(self, validated_request_data: dict, base_response: dict) -> dict:
         """
         查询Entity类型的事件数据（完整流程）
 
@@ -200,15 +204,15 @@ class IncidentEventsSearchResource(Resource):
             dict: Entity类型事件搜索响应数据
         """
         # 构建查询请求
-        time_series_request = self._build_entity_query_request(validated_request_data)
+        time_series_request = self.build_entity_query_request(validated_request_data)
 
         # 执行查询
         time_series_response = event_resources.EventTimeSeriesResource().perform_request(time_series_request)
 
         # 格式化响应数据
-        return self._format_entity_events_response(time_series_response, base_response)
+        return self.format_entity_events_response(time_series_response, base_response)
 
-    def _query_edge_events(self, validated_request_data: dict, base_response: dict) -> dict:
+    def query_edge_events(self, validated_request_data: dict, base_response: dict) -> dict:
         """
         查询Edge类型的事件数据（完整流程）
 
@@ -223,7 +227,7 @@ class IncidentEventsSearchResource(Resource):
         # 目前返回基础响应，后续可以根据需求实现具体的Edge查询逻辑
         return base_response
 
-    def _build_entity_query_request(self, validated_request_data: dict) -> dict:
+    def build_entity_query_request(self, validated_request_data: dict) -> dict:
         """
         构建Entity类型的查询请求配置
 
@@ -246,21 +250,21 @@ class IncidentEventsSearchResource(Resource):
         data_type_label = self.EntityTypeDataTypeMapping.get(entity_type, "")
 
         # 构建基础查询配置
-        time_series_request = self._build_base_query_config(
+        time_series_request = self.build_base_query_config(
             data_source_label, data_type_label, bk_biz_id, start_time, end_time
         )
 
         # 应用维度过滤条件
-        self._apply_dimension_filters(time_series_request, dimensions_filter)
+        self.apply_dimension_filters(time_series_request, dimensions_filter)
 
         # 根据entity_type生成table
-        table = self._get_table_by_entity_type(entity_type, bk_biz_id=bk_biz_id, **dimensions_filter)
+        table = self.get_table_by_entity_type(entity_type, bk_biz_id=bk_biz_id, **dimensions_filter)
         if table:
             time_series_request["query_configs"][0]["table"] = table
 
         return time_series_request
 
-    def _format_entity_events_response(self, time_series_response: dict, base_response: dict) -> dict:
+    def format_entity_events_response(self, time_series_response: dict, base_response: dict) -> dict:
         """
         格式化Entity类型的事件响应数据
 
@@ -279,7 +283,7 @@ class IncidentEventsSearchResource(Resource):
                 continue
 
             # 构建事件基础信息
-            event_info = self._build_event_info(dimension)
+            event_info = self.build_event_info(dimension)
             event_name = event_info["event_name"]
 
             # 更新统计信息
@@ -323,13 +327,13 @@ class IncidentEventsSearchResource(Resource):
         bk_biz_id = validated_request_data.get("bk_biz_id")
 
         # 构建基础响应
-        base_response = self._build_base_response(bk_biz_id)
+        base_response = self.build_base_response(bk_biz_id)
 
         # 根据IndexType分类处理
         if index_type == IndexType.ENTITY.value:
-            return self._query_entity_events(validated_request_data, base_response)
+            return self.query_entity_events(validated_request_data, base_response)
         elif index_type == IndexType.EDGE.value:
-            return self._query_edge_events(validated_request_data, base_response)
+            return self.query_edge_events(validated_request_data, base_response)
         else:
             # 未知类型，返回基础响应
             return base_response
