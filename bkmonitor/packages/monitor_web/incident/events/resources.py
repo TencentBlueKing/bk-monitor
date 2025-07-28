@@ -13,6 +13,7 @@ from core.drf_resource.base import Resource
 from monitor_web.incident.events.serializers import EventsSearchSerializer, EventDetailSerializer
 from constants.data_source import DataSourceLabel, DataTypeLabel
 from monitor_web.data_explorer.event import resources as event_resources
+from apm_web.event.serializers import EventTimeSeriesRequestSerializer
 from monitor_web.data_explorer.event.constants import EventSource, EventType
 from monitor_web.incident.utils import get_chinese_labels_dict, pascal_to_snake
 from core.drf_resource import api
@@ -44,9 +45,9 @@ class IncidentEventsSearchResource(Resource):
     }
 
     EntityTypeDataTypeMapping = {
-        EntityType.BcsPod: DataTypeLabel.EVENT,
-        EntityType.APMService: DataTypeLabel.EVENT,
-        EntityType.BkNodeHost: DataTypeLabel.EVENT,
+        EntityType.BcsPod.value: DataTypeLabel.EVENT,
+        EntityType.APMService.value: DataTypeLabel.EVENT,
+        EntityType.BkNodeHost.value: DataTypeLabel.EVENT,
     }
 
     @classmethod
@@ -61,7 +62,7 @@ class IncidentEventsSearchResource(Resource):
         Returns:
             str: 数据表名，如果无法确定则返回空字符串
         """
-        if entity_type == EntityType.BcsPod:
+        if entity_type == EntityType.BcsPod.value:
             # bcs_pod类型的entity type需要拿到bk_data_id
             bk_biz_id = kwargs.get("bk_biz_id", "")
             cluster_infos: list = api.metadata.list_bcs_cluster_info(cluster_ids=[kwargs.get("cluster_id", "")])
@@ -72,11 +73,11 @@ class IncidentEventsSearchResource(Resource):
             if bk_data_id:
                 return f"{bk_biz_id}_bkmonitor_event_{bk_data_id}"
 
-        elif entity_type == EntityType.APMService:
+        elif entity_type == EntityType.APMService.value:
             # apm_service 可以不带table
             return ""
 
-        elif entity_type == EntityType.BkNodeHost:
+        elif entity_type == EntityType.BkNodeHost.value:
             return "gse_system_event"
         return ""
 
@@ -94,7 +95,7 @@ class IncidentEventsSearchResource(Resource):
         where_filters = []
         for key, value in dimensions.items():
             # 过滤掉app_name和apm_service这些特殊值
-            if value in IncidentEventsSearchResource.SPECIAL_FILTER_VALUES:
+            if not value:
                 continue
             where_filters.append({"field": key, "method": "eq", "value": value, "condition": "and"})
         return where_filters
@@ -121,7 +122,7 @@ class IncidentEventsSearchResource(Resource):
                 {
                     "data_source_label": data_source_label,
                     "data_type_label": data_type_label,
-                    "query_string": "",
+                    "query_string": "*",
                     "where": [],
                     "group_by": self.DEFAULT_GROUP_BY_FIELDS,
                     "filter_dict": {},
@@ -205,9 +206,12 @@ class IncidentEventsSearchResource(Resource):
         """
         # 构建查询请求
         time_series_request = self.build_entity_query_request(validated_request_data)
+        serializer = EventTimeSeriesRequestSerializer(data=time_series_request)
+        serializer.is_valid()
+        validated_time_series_request = serializer.validated_data
 
         # 执行查询
-        time_series_response = event_resources.EventTimeSeriesResource().perform_request(time_series_request)
+        time_series_response = event_resources.EventTimeSeriesResource().perform_request(validated_time_series_request)
 
         # 格式化响应数据
         return self.format_entity_events_response(time_series_response, base_response)
@@ -243,7 +247,7 @@ class IncidentEventsSearchResource(Resource):
         bk_biz_id = validated_request_data.get("bk_biz_id")
         start_time = validated_request_data.get("start_time")
         end_time = validated_request_data.get("end_time")
-        dimensions_filter = index_info.get("dimensions", [])
+        dimensions_filter = index_info.get("dimensions", {})
 
         # 获取数据源映射
         data_source_label = self.EntityTypeDataSourceMapping.get(entity_type, "")
@@ -276,19 +280,19 @@ class IncidentEventsSearchResource(Resource):
             dict: 格式化后的响应数据
         """
         for series_data in time_series_response.get("series", []):
-            dimension = series_data.get("dimension", {})
+            dimensions = series_data.get("dimensions", {})
 
             # 跳过没有event_name的数据
-            if not dimension.get("event_name"):
+            if not dimensions.get("event_name"):
                 continue
 
             # 构建事件基础信息
-            event_info = self.build_event_info(dimension)
+            event_info = self.build_event_info(dimensions)
             event_name = event_info["event_name"]
 
             # 更新统计信息
-            source = dimension.get("source", "")
-            event_level = dimension.get("type", "")
+            source = dimensions.get("source", "")
+            event_level = dimensions.get("type", "")
             if event_level in base_response["statistics"]["event_level"]:
                 base_response["statistics"]["event_level"][event_level] += 1
             if source in base_response["statistics"]["event_source"]:
@@ -296,7 +300,7 @@ class IncidentEventsSearchResource(Resource):
 
             # 构建序列数据
             series_info = {
-                "dimensions": dimension,
+                "dimensions": dimensions,
                 "target": series_data.get("target", ""),
                 "metric_field": series_data.get("metric_field", ""),
                 "datapoints": [[datapoint[1], datapoint[0]] for datapoint in series_data.get("datapoints", [])],
