@@ -43,27 +43,21 @@ import FilterVarSelectSimple from '../filter-var-select/filter-var-select-simple
 import K8sDetailSlider from '../k8s-detail-slider/k8s-detail-slider';
 import TimeCompareSelect from '../panel-tools/time-compare-select';
 
-import type { K8sTableColumnResourceKey, K8sTableGroupByEvent } from '../k8s-table-new/k8s-table-new';
+import type { K8sTableColumnResourceKey } from '../k8s-table-new/k8s-table-new';
 import type { IViewOptions } from 'monitor-ui/chart-plugins/typings';
 import type { IPanelModel } from 'monitor-ui/chart-plugins/typings/dashboard-panel';
 
 import './k8s-charts.scss';
 @Component
-export default class K8SCharts extends tsc<
-  {
-    metricList: IK8SMetricItem[];
-    hideMetrics: string[];
-    groupBy: K8sTableColumnResourceKey[];
-    filterCommonParams: Record<string, any>;
-    isDetailMode?: boolean;
-    activeMetricId?: string;
-    resourceListData?: Record<K8sTableColumnKeysEnum, string>[];
-  },
-  {
-    onDrillDown: (item: K8sTableGroupByEvent, needBack: boolean) => void;
-    onFilterChange: (id: string, dimensionId: string, isSelect: boolean) => void;
-  }
-> {
+export default class K8SCharts extends tsc<{
+  metricList: IK8SMetricItem[];
+  hideMetrics: string[];
+  groupBy: K8sTableColumnResourceKey[];
+  filterCommonParams: Record<string, any>;
+  isDetailMode?: boolean;
+  activeMetricId?: string;
+  resourceListData?: Record<K8sTableColumnKeysEnum, string>[];
+}> {
   @Prop({ type: Array, default: () => [] }) metricList: IK8SMetricItem[];
   @Prop({ type: Array, default: () => [] }) hideMetrics: string[];
   @Prop({ type: Array, default: () => [] }) groupBy: K8sTableColumnResourceKey[];
@@ -148,48 +142,6 @@ export default class K8SCharts extends tsc<
     dom.scrollIntoView?.();
     dom.classList.add('scroll-in');
   }
-  @Provide('onDrillDown')
-  handleDrillDown(group: string, field: string) {
-    let name = field;
-    if (this.timeOffset.length) {
-      name = field.split('-')?.slice(1).join('-');
-    }
-    if (this.groupByField === K8sTableColumnKeysEnum.CONTAINER) {
-      const [container] = name.split(':');
-      this.$emit('drillDown', { id: this.groupByField, dimension: group, filterById: container }, true);
-      return;
-    }
-    if ([K8sTableColumnKeysEnum.INGRESS, K8sTableColumnKeysEnum.SERVICE].includes(this.groupByField)) {
-      const isIngress = this.groupByField === K8sTableColumnKeysEnum.INGRESS;
-      const list = field.split(':');
-      const id = isIngress ? list[0] : list[1];
-      this.$emit('drillDown', { id: this.groupByField, dimension: group, filterById: id }, true);
-      return;
-    }
-    this.$emit('drillDown', { id: this.groupByField, dimension: group, filterById: name }, true);
-  }
-
-  @Provide('onFilterChange')
-  handleFilterChange(field: string, dimensionId: string, isSelect: boolean) {
-    console.log(field, dimensionId, isSelect);
-    let name = field;
-    if (this.timeOffset.length) {
-      name = field.split('-')?.slice(1).join('-');
-    }
-    if (this.groupByField === K8sTableColumnKeysEnum.CONTAINER) {
-      const [container] = name.split(':');
-      this.$emit('filterChange', container, dimensionId, isSelect);
-      return;
-    }
-    if ([K8sTableColumnKeysEnum.INGRESS, K8sTableColumnKeysEnum.SERVICE].includes(this.groupByField)) {
-      const isIngress = this.groupByField === K8sTableColumnKeysEnum.INGRESS;
-      const list = field.split(':');
-      const id = isIngress ? list[0] : list[1];
-      this.$emit('filterChange', id, dimensionId, isSelect);
-      return;
-    }
-    this.$emit('filterChange', field, dimensionId, isSelect);
-  }
 
   @Provide('onShowDetail')
   handleShowDetail(field: string) {
@@ -256,8 +208,7 @@ export default class K8SCharts extends tsc<
             externalData: {
               groupByField: this.groupByField,
               metrics: [{ metric_id: panel.id }],
-              filters: this.filterCommonParams?.filter_dict?.[this.groupByField] || [],
-              scene: this.scene,
+              filterCommonParams: this.filterCommonParams,
             },
             options: {
               legend: {

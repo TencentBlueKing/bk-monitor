@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Prop, Component, Emit, Watch, InjectReactive, Inject, Ref } from 'vue-property-decorator';
+import { Prop, Component, Emit, Watch, InjectReactive, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { listK8sResources, resourceTrend } from 'monitor-api/modules/k8s';
@@ -37,6 +37,7 @@ import TableSkeleton from '../../../../components/skeleton/table-skeleton';
 import { handleTransformToTimestamp } from '../../../../components/time-range/utils';
 import {
   type IK8SMetricItem,
+  type ITableCommonParams,
   K8sConvergeTypeEnum,
   K8sNewTabEnum,
   type K8sSortType,
@@ -87,10 +88,6 @@ export interface K8sTableColumn<T extends K8sTableColumnKeysEnum> {
   fixed?: boolean;
   /** 表头对齐方式 */
   header_align?: 'center' | 'left' | 'right';
-  /** 是否开启 添加/移除 筛选项 icon */
-  k8s_filter?: boolean;
-  /** 是否开启 下钻 icon */
-  k8s_group?: boolean;
   /** 表格列自定义渲染方法 */
   renderHeader?: (column: K8sTableColumn<K8sTableColumnKeysEnum>) => any;
   /** 自定义获取值逻辑函数 */
@@ -132,8 +129,6 @@ interface K8sTableNewProps {
   activeTab: K8sNewTabEnum;
   /** GroupBy 选择器选中数据类实例 */
   groupInstance: K8sGroupDimension;
-  /** 筛选 Filter By 过滤项 */
-  filterBy: Record<string, string[]>;
   /** 获取资源列表公共请求参数 */
   filterCommonParams: Record<string, any>;
   metricList: IK8SMetricItem[];
@@ -179,26 +174,14 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
   @Prop({ type: String, default: K8sNewTabEnum.LIST }) activeTab: K8sNewTabEnum;
   /** GroupBy 选择器选中数据类实例 */
   @Prop({ type: Object }) groupInstance: K8sGroupDimension;
-  /** FilterBy 选择器选中数据 */
-  @Prop({ type: Object, default: () => ({}) }) filterBy: Record<string, string[]>;
   /** 获取资源列表公共请求参数 */
-  @Prop({ type: Object, default: () => ({}) }) filterCommonParams: Record<string, any>;
+  @Prop({ type: Object, default: () => ({}) }) filterCommonParams: ITableCommonParams;
   @Prop({ type: Array, default: () => [] }) metricList: IK8SMetricItem[];
   @Prop({ type: Array, default: () => [] }) hideMetrics: string[];
   // 刷新间隔 - monitor-k8s-new 传入
   @InjectReactive('refreshInterval') readonly refreshInterval!: number;
   // 是否立即刷新 - monitor-k8s-new 传入
   @InjectReactive('refreshImmediate') readonly refreshImmediate!: string;
-  @Inject({ from: 'onFilterChange', default: () => null }) readonly onFilterChange: (
-    id: string,
-    groupId: K8sTableColumnResourceKey,
-    isSelect: boolean
-  ) => void;
-
-  @Inject({ from: 'onGroupChange', default: () => null }) readonly onDrillDown: (
-    item: K8sTableGroupByEvent,
-    showCancelDrill?: boolean
-  ) => void;
 
   tableLoading = {
     /** table 骨架屏 loading */
@@ -337,6 +320,10 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
     return this.tableViewData?.length !== this.tableDataTotal;
   }
 
+  get filterBy() {
+    return this.filterCommonParams?.filter_dict || {};
+  }
+
   /** table 空数据时显示样式类型 'search-empty'/'empty' */
   get tableEmptyType() {
     for (const filtersArgs of Object.values(this.filterBy)) {
@@ -452,8 +439,6 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
         type: K8sTableColumnTypeEnum.RESOURCES_TEXT,
         min_width: 260,
         can_click: true,
-        k8s_filter: this.isListTab,
-        k8s_group: this.isListTab,
       },
       [WORKLOAD_KIND]: {
         id: WORKLOAD_KIND,
@@ -470,8 +455,6 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
         type: K8sTableColumnTypeEnum.RESOURCES_TEXT,
         min_width: 240,
         can_click: true,
-        k8s_filter: this.isListTab,
-        k8s_group: this.isListTab,
         getValue: !this.isListTab ? K8sTableNew.getWorkloadValue(WORKLOAD, 1) : null,
       },
       [NAMESPACE]: {
@@ -480,8 +463,6 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
         sortable: false,
         type: K8sTableColumnTypeEnum.RESOURCES_TEXT,
         min_width: 160,
-        k8s_filter: this.isListTab,
-        k8s_group: this.isListTab,
       },
       [CONTAINER]: {
         id: CONTAINER,
@@ -490,8 +471,6 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
         type: K8sTableColumnTypeEnum.RESOURCES_TEXT,
         min_width: 150,
         can_click: true,
-        k8s_filter: this.isListTab,
-        k8s_group: this.isListTab,
       },
       [INGRESS]: {
         id: INGRESS,
@@ -500,8 +479,6 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
         type: K8sTableColumnTypeEnum.RESOURCES_TEXT,
         min_width: 150,
         can_click: true,
-        k8s_filter: this.isListTab,
-        k8s_group: this.isListTab,
       },
       [SERVICE]: {
         id: SERVICE,
@@ -510,8 +487,6 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
         type: K8sTableColumnTypeEnum.RESOURCES_TEXT,
         min_width: 150,
         can_click: true,
-        k8s_filter: this.isListTab,
-        k8s_group: this.isListTab,
       },
       [NODE]: {
         id: NODE,
@@ -520,8 +495,6 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
         type: K8sTableColumnTypeEnum.RESOURCES_TEXT,
         min_width: 150,
         can_click: true,
-        k8s_filter: this.isListTab,
-        k8s_group: this.isListTab,
       },
     };
   }
@@ -1061,14 +1034,9 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
           {this.isListTab ? (
             <K8sQuickTools
               class='table-col-tools'
-              enableDrillDown={column.k8s_group}
-              enableFilter={column.k8s_filter}
-              filters={this.filterBy?.[column.id] || []}
-              filterValue={text}
+              filterCommonParams={this.filterCommonParams}
               groupByField={column.id}
-              scene={this.filterCommonParams?.scenario}
-              onDrillDown={groupByEvent => this.onDrillDown(groupByEvent, true)}
-              onFilterChange={this.onFilterChange}
+              value={text}
             />
           ) : null}
         </div>
