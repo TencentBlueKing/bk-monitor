@@ -33,7 +33,7 @@ import useStore from '@/hooks/use-store';
 import RequestPool from '@/store/request-pool';
 import { debounce } from 'lodash';
 import screenfull from 'screenfull';
-import { format } from 'sql-formatter';
+import { transactsql, formatDialect } from 'sql-formatter';
 
 import { getCommonFilterAdditionWithValues } from '../../../../../store/helper';
 import RetrieveHelper, { RetrieveEvent } from '../../../../retrieve-helper';
@@ -138,6 +138,38 @@ export default defineComponent({
       isRequesting.value = false;
     };
 
+    // 创建类型安全的自定义方言
+    const createExtendedTSQL = () =>
+      ({
+        ...transactsql,
+        name: 'extended-transactsql',
+        tokenizerOptions: {
+          ...transactsql.tokenizerOptions,
+          // 添加反引号标识符支持，同时保留原有的双引号和方括号支持
+          identTypes: [
+            ...transactsql.tokenizerOptions.identTypes,
+            '``', // 添加反引号支持
+          ],
+          // 允许标识符以数字开头，这是 MySQL 反引号标识符的特性
+          identChars: {
+            ...transactsql.tokenizerOptions.identChars,
+            allowFirstCharNumber: true,
+          },
+        },
+      }) as const;
+
+    // 使用示例
+    const extendedTsql = createExtendedTSQL();
+
+    const getFormatValue = sql => {
+      try {
+        return formatDialect(sql, { dialect: extendedTsql });
+      } catch (err) {
+        console.error(err);
+        return sql;
+      }
+    };
+
     const handleSyncAdditionToSQL = (callback?) => {
       const { addition, start_time, end_time, keyword } = retrieveParams.value;
       isSyncSqlRequesting.value = true;
@@ -163,7 +195,7 @@ export default defineComponent({
             formatMonacoSqlCode();
           });
 
-          previewSqlContent.value = format(resp.data.additional_where_clause, { language: 'mysql' });
+          previewSqlContent.value = getFormatValue(resp.data.additional_where_clause);
           isPreviewSqlShow.value = true;
           callback?.();
         })
@@ -185,7 +217,7 @@ export default defineComponent({
     };
 
     const formatMonacoSqlCode = (value?: string) => {
-      const val = format(value ?? editorInstance.value?.getValue() ?? '', { language: 'mysql' });
+      const val = getFormatValue(value ?? editorInstance.value?.getValue() ?? '');
       editorInstance.value?.setValue([val].join('\n'));
     };
 
