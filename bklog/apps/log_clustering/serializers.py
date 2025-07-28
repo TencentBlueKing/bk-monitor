@@ -93,6 +93,15 @@ class FilerRuleSerializer(serializers.Serializer):
     logic_operator = serializers.CharField(required=False, allow_blank=True, allow_null=True)
 
 
+class ClusteringRegexTemplateSerializer(serializers.Serializer):
+    clustering_fields = serializers.CharField()
+    predefined_varibles = serializers.CharField()
+    regex_template_id = serializers.IntegerField()
+    regex_rule_type = serializers.ChoiceField(
+        choices=RegexRuleTypeEnum.get_choices(), default=RegexRuleTypeEnum.CUSTOMIZE.value
+    )
+
+
 class ClusteringConfigSerializer(serializers.Serializer):
     bk_biz_id = serializers.IntegerField()
     clustering_fields = serializers.CharField()

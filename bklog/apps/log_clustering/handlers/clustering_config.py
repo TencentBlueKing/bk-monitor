@@ -244,17 +244,30 @@ class ClusteringConfigHandler:
 
     def synchronous_update(self, params):
         pipeline_id = self.update(params)
-        # 类型:自定义
-        if params["regex_rule_type"] == RegexRuleTypeEnum.CUSTOMIZE.value:
-            return [pipeline_id]
+        return [pipeline_id]
+
+    def regex_template_update(self, params):
+        from apps.log_clustering.handlers.pipline_service.aiops_service_online import (
+            UpdateOnlineService,
+        )
+
+        service_params = {
+            "index_set_id": self.index_set_id,
+            "params": params,
+        }
+
+        service = UpdateOnlineService()
+        data = service.build_data_context(service_params)
+        pipeline = service.build_pipeline(data, **service_params)
+        pipeline_ids = [pipeline.id] if pipeline else []
+
         instance = RegexTemplate.objects.get(id=params["regex_template_id"])
         # 模板无变化
         if instance.predefined_varibles == params["predefined_varibles"]:
-            return [pipeline_id]
+            return pipeline_ids
         instance.predefined_varibles = params["predefined_varibles"]
         instance.save()
 
-        pipeline_ids = [pipeline_id]
         configs = ClusteringConfig.objects.exclude(index_set_id=self.index_set_id).filter(
             regex_template_id=params["regex_template_id"], signature_enable=True
         )
