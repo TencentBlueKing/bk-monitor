@@ -31,7 +31,7 @@ class IncidentEventsSearchResource(Resource):
     DEFAULT_GROUP_BY_FIELDS = ["type", "source", "event_name"]
 
     # 特殊值过滤列表
-    SPECIAL_FILTER_VALUES = ["", None, "app_name", "apm_service"]
+    SPECIAL_FILTER_VALUES = ["apm_application_name", "apm_service_name", "apm_service_category"]
 
     def __init__(self):
         super().__init__()
@@ -75,7 +75,7 @@ class IncidentEventsSearchResource(Resource):
 
         elif entity_type == EntityType.APMService.value:
             # apm_service 可以不带table
-            return ""
+            return "builtin"
 
         elif entity_type == EntityType.BkNodeHost.value:
             return "gse_system_event"
@@ -94,8 +94,8 @@ class IncidentEventsSearchResource(Resource):
         """
         where_filters = []
         for key, value in dimensions.items():
-            # 过滤掉app_name和apm_service这些特殊值
-            if not value:
+            # 过滤掉app_name和service_name这些特殊值
+            if not value or key in cls.SPECIAL_FILTER_VALUES:
                 continue
             where_filters.append({"field": key, "method": "eq", "value": value, "condition": "and"})
         return where_filters
@@ -167,12 +167,12 @@ class IncidentEventsSearchResource(Resource):
         time_series_request["query_configs"][0]["where"] = where_filters
 
         # 兼容event_timeseries resource的特殊参数
-        app_name = dimensions_filter.get("app_name", "")
-        apm_service = dimensions_filter.get("apm_service", "")
+        app_name = dimensions_filter.get("apm_application_name", "")
+        apm_service = dimensions_filter.get("apm_service_name", "")
         if app_name:
             time_series_request["app_name"] = app_name
         if apm_service:
-            time_series_request["apm_service"] = apm_service
+            time_series_request["service_name"] = apm_service
 
     @classmethod
     def build_event_info(cls, dimension: dict) -> dict:
