@@ -29,7 +29,7 @@ class IncidentEventsViewSet(ResourceViewSet):
 
     resource_routes = [
         # 故障事件接口 events
-        ResourceRoute("POST", resource.incident.incident_events_search, endpoint="incident_events_search"),
+        ResourceRoute("POST", resource.incident.incident_events_search, endpoint="search"),
         # 故障事件详情接口
-        ResourceRoute("POST", resource.incident.incident_events_detail, endpoint="incident_events_detail"),
+        ResourceRoute("POST", resource.incident.incident_events_detail, endpoint="detail"),
     ]

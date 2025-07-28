@@ -29,5 +29,5 @@ class IncidentMetricsViewSet(ResourceViewSet):
 
     resource_routes = [
         # 故障指标接口 metrics
-        ResourceRoute("POST", resource.incident.incident_metrics_search, endpoint="incident_metrics_search"),
+        ResourceRoute("POST", resource.incident.incident_metrics_search, endpoint="search"),
     ]
