@@ -508,7 +508,7 @@ class HighlightException(BaseSearchException):
     MESSAGE = _("日志检索失败，字段({field_name})内容过长导致高亮异常，请联系 BK 助手处理")
 
 
-class NoMappingException(BaseSearchException):
+class FieldNoMappingException(BaseSearchException):
     ERROR_CODE = "451"
     MESSAGE = _("日志检索失败，排序字段({field_name})不存在，请调整排序配置后重试")
 
@@ -521,6 +521,11 @@ class UnsupportedOperationException(BaseSearchException):
 class QueryServerUnavailableException(BaseSearchException):
     ERROR_CODE = "453"
     MESSAGE = _("日志检索失败，存储集群请求超时，请稍后重试或联系 BK 助手确认集群状态")
+
+
+class IndexMappingEmptyException(BaseSearchException):
+    ERROR_CODE = "454"
+    MESSAGE = _("日志检索失败，索引({result_table_id}) mapping 信息为空")
 
 
 # =================================================

@@ -2,10 +2,11 @@ from django.test import TestCase
 from apps.log_search.exceptions import (
     ESQuerySyntaxException,
     HighlightException,
-    NoMappingException,
+    FieldNoMappingException,
     UnsupportedOperationException,
     QueryServerUnavailableException,
     LogSearchException,
+    IndexMappingEmptyException,
 )
 from apps.log_search.utils import handle_es_query_error
 
@@ -27,7 +28,7 @@ class TestESExceptionHandler(TestCase):
         # 测试字段映射缺失错误
         error_msg = "No mapping found for [test_field] in order to sort on"
         exc = handle_es_query_error(Exception(error_msg))
-        self.assertIsInstance(exc, NoMappingException)
+        self.assertIsInstance(exc, FieldNoMappingException)
         self.assertIn("test_field", str(exc))
 
     def test_handle_highlight_error(self):
@@ -65,6 +66,14 @@ class TestESExceptionHandler(TestCase):
             with self.subTest(msg=msg):
                 exc = handle_es_query_error(Exception(msg))
                 self.assertIsInstance(exc, QueryServerUnavailableException)
+
+    def test_mapping_empty_error(self):
+        error_msg = (
+            '"error":"query test_index_set_2.__default__:[] is error: index is empty with [2_test_trace_xiazc_demo_*]'
+        )
+        exc = handle_es_query_error(Exception(error_msg))
+        self.assertIsInstance(exc, IndexMappingEmptyException)
+        self.assertIn("2_test_trace_xiazc_demo_*", str(exc))
 
     def test_raw_error(self):
         # 测试没有匹配到任何错误模式
