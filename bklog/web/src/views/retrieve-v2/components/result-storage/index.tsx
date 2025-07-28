@@ -24,9 +24,11 @@
  * IN THE SOFTWARE.
  */
 
-import { computed, defineComponent } from 'vue';
-import useStore from '@/hooks/use-store';
+import { computed, defineComponent, ref, watch, nextTick } from 'vue';
+
 import useLocale from '@/hooks/use-locale';
+import useStore from '@/hooks/use-store';
+
 import { BK_LOG_STORAGE } from '../../../../store/store.type';
 
 import './index.scss';
@@ -42,7 +44,14 @@ export default defineComponent({
     const isAllowEmptyField = computed(() => store.state.storage[BK_LOG_STORAGE.TABLE_ALLOW_EMPTY_FIELD]);
     const showRowIndex = computed(() => store.state.storage[BK_LOG_STORAGE.TABLE_SHOW_ROW_INDEX]);
     const expandTextView = computed(() => store.state.storage[BK_LOG_STORAGE.IS_LIMIT_EXPAND_VIEW]);
-
+    const showLogTime = ref(store.state.visibleFields.some(item => item?.field_name === 'dtEventTimeStamp'));
+    watch(
+      () => store.state.visibleFields,
+      newVisibleFields => {
+        showLogTime.value = newVisibleFields.some(item => item?.field_name === 'dtEventTimeStamp');
+      },
+      { deep: true },
+    );
     const handleStorageChange = (val, key) => {
       store.commit('updateStorage', { [key]: val });
     };
@@ -53,67 +62,109 @@ export default defineComponent({
       store.commit('updateStorage', { [BK_LOG_STORAGE.TABLE_JSON_FORMAT_DEPTH]: target });
     };
 
+    const handleShowLogTimeChange = async val => {
+      const displayFieldNames = [...store.state.visibleFields].map(field => field?.field_name);
+      if (val && !displayFieldNames.includes('dtEventTimeStamp')) {
+        displayFieldNames.unshift('dtEventTimeStamp');
+      } else if (!val && displayFieldNames.includes('dtEventTimeStamp')) {
+        displayFieldNames.splice(displayFieldNames.indexOf('dtEventTimeStamp'), 1);
+      }
+      store.dispatch('userFieldConfigChange', {
+        displayFields: displayFieldNames,
+      });
+      await nextTick();
+      store.commit('resetVisibleFields', displayFieldNames);
+      store.commit('updateIsSetDefaultTableColumn');
+    };
     return () => (
       <div class='bklog-v3-storage'>
         <bk-checkbox
           style='margin: 0 12px'
           class='bklog-option-item'
-          value={showRowIndex.value}
           theme='primary'
+          value={showRowIndex.value}
           on-change={val => handleStorageChange(val, BK_LOG_STORAGE.TABLE_SHOW_ROW_INDEX)}
         >
           <span class='switch-label'>{$t('显示行号')}</span>
         </bk-checkbox>
+
         <bk-checkbox
           style='margin: 0 12px 0 0'
           class='bklog-option-item'
-          value={expandTextView.value}
           theme='primary'
-          on-change={val => handleStorageChange(val, BK_LOG_STORAGE.IS_LIMIT_EXPAND_VIEW)}
-        >
-          <span class='switch-label'>{$t('展开长字段')}</span>
-        </bk-checkbox>
-        <bk-checkbox
-          style='margin: 0 12px 0 0'
-          class='bklog-option-item'
           value={isWrap.value}
-          theme='primary'
           on-change={val => handleStorageChange(val, BK_LOG_STORAGE.TABLE_LINE_IS_WRAP)}
         >
           <span class='switch-label'>{$t('换行')}</span>
         </bk-checkbox>
-
         <bk-checkbox
           style='margin: 0 12px 0 0'
           class='bklog-option-item'
-          value={isJsonFormat.value}
           theme='primary'
-          on-change={val => handleStorageChange(val, BK_LOG_STORAGE.TABLE_JSON_FORMAT)}
+          value={showLogTime.value}
+          on-change={val => handleShowLogTimeChange(val)}
         >
-          <span class='switch-label'>{$t('JSON 解析')}</span>
+          <span class='switch-label'>{$t('日志时间')}</span>
         </bk-checkbox>
 
-        {isJsonFormat.value && (
-          <bk-input
-            style='margin: 0 12px 0 0'
-            class='json-depth-num json-depth-num-input'
-            max={15}
-            min={1}
-            value={jsonFormatDeep.value}
-            type='number'
-            on-change={handleJsonFormatDeepChange}
-          ></bk-input>
-        )}
-
-        <bk-checkbox
-          style='margin: 0 12px 0 0'
-          class='bklog-option-item'
-          value={isAllowEmptyField.value}
-          theme='primary'
-          on-change={val => handleStorageChange(val, BK_LOG_STORAGE.TABLE_ALLOW_EMPTY_FIELD)}
+        <bk-popover
+          extCls='storage-more-popover'
+          placement='bottom-start'
+          theme='light'
+          trigger='click'
         >
-          <span class='switch-label'>{$t('展示空字段')}</span>
-        </bk-checkbox>
+          <div class='bklog-option-more'>
+            <span
+              style='font-size:18px'
+              class='bklog-icon bklog-more'
+            ></span>
+          </div>
+
+          <div
+            class='bklog-option-list'
+            slot='content'
+          >
+            <bk-checkbox
+              class='bklog-option-item'
+              theme='primary'
+              value={expandTextView.value}
+              on-change={val => handleStorageChange(val, BK_LOG_STORAGE.IS_LIMIT_EXPAND_VIEW)}
+            >
+              <span class='switch-label'>{$t('展开长字段')}</span>
+            </bk-checkbox>
+            <div class='bklog-option-json-format'>
+              <bk-checkbox
+                style='margin: 0 12px 0 0'
+                class='bklog-option-item'
+                theme='primary'
+                value={isJsonFormat.value}
+                on-change={val => handleStorageChange(val, BK_LOG_STORAGE.TABLE_JSON_FORMAT)}
+              >
+                <span class='switch-label'>{$t('JSON 解析')}</span>
+              </bk-checkbox>
+
+              {isJsonFormat.value && (
+                <bk-input
+                  style='margin: 0 12px 0 0'
+                  class='json-depth-num json-depth-num-input'
+                  max={15}
+                  min={1}
+                  type='number'
+                  value={jsonFormatDeep.value}
+                  on-change={handleJsonFormatDeepChange}
+                ></bk-input>
+              )}
+            </div>
+            <bk-checkbox
+              class='bklog-option-item'
+              theme='primary'
+              value={isAllowEmptyField.value}
+              on-change={val => handleStorageChange(val, BK_LOG_STORAGE.TABLE_ALLOW_EMPTY_FIELD)}
+            >
+              <span class='switch-label'>{$t('展示空字段')}</span>
+            </bk-checkbox>
+          </div>
+        </bk-popover>
       </div>
     );
   },

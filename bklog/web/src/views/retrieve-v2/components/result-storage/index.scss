@@ -7,4 +7,39 @@
     line-height: 20px;
     color: #63656e;
   }
+
+  .bklog-option-more{
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 21px;
+    height: 21px;
+    margin-top: 2px;
+    cursor: pointer;
+    background-color: #F0F1F5;
+    border-radius: 50%;
+  }
+}
+
+.storage-more-popover{
+  .bklog-option-list{
+    display: flex;
+    flex-direction: column;
+
+    .bklog-option-json-format{
+      display: flex;
+      align-items: center;
+    }
+
+    .bklog-option-item {
+      margin: 8px 0;
+      line-height: 20px;
+      color: #63656e;
+
+      .switch-label{
+        font-size: 12px;
+      }
+    }
+  }
+  
 }
