@@ -24,9 +24,10 @@
  * IN THE SOFTWARE.
  */
 
-import { copyText } from 'monitor-common/utils';
 import { Component, Emit, Prop, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
+import { copyText } from 'monitor-common/utils';
 
 import { ECondition, EMethod, EMode } from '../../../components/retrieval-filter/utils';
 import { SceneAliasMap } from '../../monitor-k8s/k8s-dimension';
@@ -85,7 +86,7 @@ export default class ExploreConditionMenu extends tsc<ExploreConditionMenuProps,
       suffixRender: this.menuItemSuffixRender({ hasClick: false }),
       onClick: this.handleNewExplorePage,
     },
-    // 隐藏事件快捷跳转容器监控其他场景功能，等后续后端接口实现后补充逻辑
+    // TODO 暂不支持配置，隐藏事件快捷跳转容器监控其他场景功能，等后续后端接口实现后补充逻辑
     // {
     //   id: 'other-scene',
     //   name: this.$t('查看该对象的其他场景'),
@@ -159,8 +160,7 @@ export default class ExploreConditionMenu extends tsc<ExploreConditionMenuProps,
    *
    */
   handleNewK8sPage(targetScene: SceneEnum) {
-    this.handleScenePopoverHide();
-    this.menuClick();
+    // TODO 暂不支持配置，隐藏事件快捷跳转容器监控其他场景功能，等后续后端接口实现后补充逻辑
     // const { scene: currentScene, groupBy, filterBy, ...rest } = this.$route.query;
     // const targetPageGroupInstance = K8sGroupDimension.createInstance(targetScene);
     // targetPageGroupInstance.addGroupFilter(this.groupByField);
@@ -176,6 +176,8 @@ export default class ExploreConditionMenu extends tsc<ExploreConditionMenuProps,
     // });
     // this.menuClick();
     // window.open(`${location.origin}${location.pathname}${location.search}${targetRoute.href}`, '_blank');
+    this.handleScenePopoverHide();
+    this.menuClick();
   }
 
   /**
@@ -332,7 +334,8 @@ export default class ExploreConditionMenu extends tsc<ExploreConditionMenuProps,
             <div class='item-suffix'>{item?.suffixRender?.()}</div>
           </li>
         ))}
-        {this.sceneMenuListRender()}
+        {/* TODO 暂不支持配置，隐藏事件快捷跳转容器监控其他场景功能，等后续后端接口实现后补充逻辑 */}
+        {/* {this.sceneMenuListRender()} */}
       </ul>
     );
   }
