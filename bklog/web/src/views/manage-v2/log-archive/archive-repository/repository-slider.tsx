@@ -141,6 +141,9 @@ export default defineComponent({
 
     // 集群变更处理
     const handleChangeCluster = (value: string) => {
+      // console.log('esClusterList:', esClusterList.value);
+      // const curCluster = esClusterList.value.find(cluster => cluster.cluster_config.cluster_id === value);
+      // esClusterSource.value = curCluster?.source_name || '';
       const curCluster = esClusterList.value.find(cluster => cluster.storage_cluster_id === value);
       esClusterSource.value = curCluster?.storage_cluster_name || '';
     };

@@ -34,22 +34,25 @@ export default defineComponent({
       limitList: [10, 20, 50, 100],
     });
 
-    const repoTypeMap = computed(() => ({ // 仓库类型映射
+    // 仓库类型映射
+    const repoTypeMap = computed(() => ({
       hdfs: 'HDFS',
       fs: t('共享目录'),
       cos: 'COS',
     }));
     const bkBizId = computed(() => store.getters.bkBizId); // 业务ID
     const globalsData = computed(() => store.getters['globals/globalsData']); // 全局数据
-    const repositoryFilters = computed(() => // 仓库类型过滤项
+    // 仓库类型过滤项
+    const repositoryFilters = computed(() => 
       Object.keys(repoTypeMap.value).map(item => ({ text: repoTypeMap.value[item], value: item }))
     );
-    const sourceFilters = computed(() => { // 来源过滤项
+    // 来源过滤项
+    const sourceFilters = computed(() => { 
       const esSourceType = globalsData.value?.es_source_type || [];
       return esSourceType.map((data: any) => ({ text: data.name, value: data.id }));
     });
 
-    // 获取表格数据
+    // 加载表格数据
     const getTableData = () => {
       isTableLoading.value = true;
       http.request('archive/getRepositoryList', {
@@ -256,7 +259,7 @@ export default defineComponent({
               clearable
               right-icon="bk-icon icon-search"
               data-test-id="storehouseContainer_input_searchTableItem"
-              onInput={val => {
+              onChange={val => {
                 params.keyword = val;
                 handleSearchChange(val);
               }}
