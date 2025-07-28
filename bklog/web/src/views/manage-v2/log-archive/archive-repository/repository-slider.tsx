@@ -48,6 +48,8 @@ export default defineComponent({
       type: Number,
       default: null,
     },
+    onHandleCancelSidebar: { type: Function },
+    onHandleUpdatedTable: { type: Function },
   },
   emits: ['handleCancelSidebar', 'handleUpdatedTable'],
 
