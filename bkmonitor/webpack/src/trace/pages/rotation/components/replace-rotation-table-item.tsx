@@ -35,10 +35,9 @@ import {
   watch,
 } from 'vue';
 
-import UserSelector from '@/components/user-selector/user-selector';
 import { Button, Input, Select } from 'bkui-vue';
 import { random } from 'lodash';
-import { getDefaultUserGroupListSync, type IUserInfo } from 'monitor-pc/components/user-selector/user-group';
+import { type IUserInfo, getDefaultUserGroupListSync } from 'monitor-pc/components/user-selector/user-group';
 import { isEn } from 'monitor-pc/i18n/lang';
 import { useI18n } from 'vue-i18n';
 
@@ -49,6 +48,7 @@ import DataTimeSelect from './data-time-select';
 import FormItem from './form-item';
 import TimeTagPicker from './time-tag-picker';
 import WeekSelect from './week-select';
+import UserSelector from '@/components/user-selector/user-selector';
 
 import './replace-rotation-table-item.scss';
 export interface ReplaceItemDataModel {
@@ -599,54 +599,6 @@ export default defineComponent({
       handleEmitData();
     }
 
-    function handAutoMemberSelectChange(ind: number, userInfos: IUserInfo[]) {
-      if (localValue.users.value[ind].value?.length && userInfos.length === localValue.users.value[ind].value.length) {
-        const dragEvent = findDragIndexes(localValue.users.value[ind].value, userInfos);
-        if (dragEvent) {
-          handleAutoGroupDrop(dragEvent.startIndex, dragEvent.endIndex);
-        }
-      }
-      localValue.users.value[ind].value = userInfos.map(user => ({
-        id: user.id,
-        type: user?.type === 'userGroup' ? 'group' : 'user',
-      }));
-      handleEmitData();
-    }
-
-    /**
-     * @description 计算拖拽排序的起始位置和结束位置
-     */
-    function findDragIndexes(original, modified) {
-      const originalIndices: Map<string, number> = new Map(original.map((item, index) => [item.id, index]));
-      const modifiedIndices: Map<string, number> = new Map(modified.map((item, index) => [item.id, index]));
-
-      let maxDiff = -Infinity;
-      let movedItem = null;
-
-      original.forEach(item => {
-        const originalIndex = originalIndices.get(item.id);
-        const modifiedIndex = modifiedIndices.get(item.id);
-
-        // 跳过新增或删除的元素
-        if (modifiedIndex === undefined || originalIndex === undefined) return;
-
-        const diff = modifiedIndex - originalIndex;
-
-        // 修复点：允许第一次比较时更新 maxDiff
-        if (movedItem === null || Math.abs(diff) > Math.abs(maxDiff)) {
-          maxDiff = diff;
-          movedItem = item;
-        }
-      });
-
-      if (!movedItem) return null;
-
-      return {
-        startIndex: originalIndices.get(movedItem.id),
-        endIndex: modifiedIndices.get(movedItem.id),
-      };
-    }
-
     /**
      * 自动分组人员tag模板
      * @param data 人员数据
@@ -749,7 +701,6 @@ export default defineComponent({
       handleAddUserGroup,
       handleDelUserGroup,
       handMemberSelectChange,
-      handAutoMemberSelectChange,
       handleDragstart,
       handleDragover,
       handleDrop,
@@ -861,7 +812,8 @@ export default defineComponent({
                     modelValue={this.localValue.users.value[0].value.map(user => user.id)}
                     renderTag={this.autoGroupTagTpl}
                     userGroupList={this.defaultUserGroupList}
-                    onChange={userInfos => this.handAutoMemberSelectChange(0, userInfos)}
+                    onDragEnd={dragEvent => this.handleAutoGroupDrop(dragEvent?.oldIndex, dragEvent?.newIndex)}
+                    onChange={userInfos => this.handMemberSelectChange(0, userInfos)}
                   />
                 </FormItem>
                 <FormItem

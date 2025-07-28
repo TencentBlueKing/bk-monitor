@@ -34,8 +34,20 @@ export interface IUserGroup {
 }
 
 export interface IUserInfo extends IUserGroup {
-  type?: 'userGroup' | undefined;
   logo?: string;
+  type?: 'userGroup' | undefined;
+}
+
+export interface UserSelectorDragEvent {
+  clone: HTMLElement;
+  from: HTMLElement;
+  item: HTMLElement;
+  newDraggableIndex: number;
+  newIndex: number;
+  oldDraggableIndex: number;
+  oldIndex: number;
+  originalEvent: DragEvent;
+  to: HTMLElement;
 }
 
 /** 获取默认用户组同步用法 */

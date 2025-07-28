@@ -130,6 +130,9 @@
         align-items: flex-start;
         min-height: 78px;
         padding: 6px 10px 6px 8px;
+        .search-input {
+          height: 20px;
+        }
       }
 
       .bk-tag {
@@ -150,7 +153,7 @@
             display: flex;
             align-items: center;
             height: 100%;
-            cursor: pointer;
+            // cursor: pointer;
 
             .auto-group-tag-color {
               width: 4px;
