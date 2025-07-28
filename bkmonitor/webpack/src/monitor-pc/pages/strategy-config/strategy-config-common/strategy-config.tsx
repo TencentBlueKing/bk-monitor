@@ -67,6 +67,7 @@ import { compareObjectsInArray, countElementsNotInFirstRow, handleMouseDown, han
 import DeleteSubtitle from './delete-subtitle';
 import DetectionRulesSide from './detection-rules-side';
 import FilterPanelPopover from './filter-panel-popover';
+import OverflowTags from './overflow-tags';
 
 import type { EmptyStatusOperationType, EmptyStatusType } from '../../../components/empty-status/types';
 import type { INodeType, TargetObjectType } from '../../../components/monitor-ip-selector/typing';
@@ -2256,16 +2257,7 @@ class StrategyConfig extends Mixins(UserConfigMixin, authorityMixinCreate(strate
                   key={`${item}-${index}`}
                   class='classifiy-label gray'
                 >
-                  <span
-                    class='text-overflow'
-                    onClick={() => {
-                      if (type === 'detectionTypes') {
-                        this.handleDetectionTypeClick(props.row, index);
-                      }
-                    }}
-                  >
-                    {item}
-                  </span>
+                  <span class='text-overflow'>{item}</span>
                 </span>
               ))}
               {props.row[`overflow${type}`] ? <span class='classifiy-overflow gray'>...</span> : undefined}
@@ -2365,7 +2357,18 @@ class StrategyConfig extends Mixins(UserConfigMixin, authorityMixinCreate(strate
       /* 级别 */ default: props => overflowGroupDom(props, 'levels'),
     };
     const detectionTypesSlot = {
-      /* 检测规则类型 */ default: props => overflowGroupDom(props, 'detectionTypes'),
+      /* 检测规则类型 */ default: props => {
+        const tags = props.row.detectionTypes?.map(item => ({
+          id: item,
+          name: item,
+        }));
+        return (
+          <OverflowTags
+            tags={tags}
+            onSelect={index => this.handleDetectionTypeClick(props.row, index)}
+          />
+        );
+      },
     };
     const mealNamesSlot = {
       /* 处理套餐 */
