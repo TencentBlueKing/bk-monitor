@@ -525,7 +525,7 @@ class QueryServerUnavailableException(BaseSearchException):
 
 class IndexMappingEmptyException(BaseSearchException):
     ERROR_CODE = "454"
-    MESSAGE = _("日志检索失败，索引({result_table_id})mapping信息为空")
+    MESSAGE = _("日志检索失败，索引({result_table_id}) mapping 信息为空")
 
 
 # =================================================

@@ -205,7 +205,7 @@ class UnifyQueryHandler:
                 raise e
             return {"series": []}
 
-    def query_ts_raw(self, search_dict, raise_exception=False, pre_search=False):
+    def query_ts_raw(self, search_dict, raise_exception=True, pre_search=False):
         """
         查询时序型日志数据
         """
@@ -234,7 +234,7 @@ class UnifyQueryHandler:
         except Exception as e:  # pylint: disable=broad-except
             logger.exception("query ts raw error: %s, search params: %s", e, search_dict)
             if raise_exception:
-                raise e
+                raise handle_es_query_error(e)
             return {"list": []}
 
     def _enhance(self):
@@ -782,14 +782,11 @@ class UnifyQueryHandler:
         search_dict["limit"] = once_size
         search_dict["highlight"] = {"enable": self.highlight}
 
-        try:
-            # 预查询
-            result = self.query_ts_raw(search_dict, raise_exception=True, pre_search=pre_search)
-            if pre_search and len(result["list"]) != once_size:
-                # 全量查询
-                result = self.query_ts_raw(search_dict, raise_exception=True)
-        except Exception as e:
-            raise handle_es_query_error(e)
+        # 预查询
+        result = self.query_ts_raw(search_dict, pre_search=pre_search)
+        if pre_search and len(result["list"]) != once_size:
+            # 全量查询
+            result = self.query_ts_raw(search_dict)
 
         result = self._deal_query_result(result)
 
