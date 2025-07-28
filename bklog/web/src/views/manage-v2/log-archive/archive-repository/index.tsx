@@ -4,7 +4,7 @@ import useStore from '@/hooks/use-store';
 import useLocale from '@/hooks/use-locale';
 import http from '@/api';
 import * as authorityMap from '@/common/authority-map';
-import RepositorySlider from './repository-slider.vue';
+import RepositorySlider from './repository-slider.tsx';
 import { clearTableFilter } from '@/common/util'; 
 import { InfoBox, Message } from 'bk-magic-vue';
 
@@ -124,8 +124,7 @@ export default defineComponent({
     };
 
     // 关闭侧滑弹窗
-    const handleCancel = () => {
-      console.log('cancel');
+    const handleCancelSidebar = () => {
       showSlider.value = false;
     };
 
@@ -158,7 +157,7 @@ export default defineComponent({
         InfoBox({
           type: 'warning',
           subTitle: t('当前仓库名称为{n}，确认要删除？', { n: row.repository_name }),
-          onConfirm: () => requestDeleteRepo(row),
+          confirmFn: () => requestDeleteRepo(row),
         });
       }
     };
@@ -200,7 +199,7 @@ export default defineComponent({
     };
 
     // 仓库信息更新后回调
-    const handleUpdated = () => {
+    const handleUpdatedTable = () => {
       showSlider.value = false;
       pagination.count = 1;
       getTableData();
@@ -355,15 +354,12 @@ export default defineComponent({
           </bk-table>
         </section>
         {/* 新建/编辑归档仓库侧滑 */}
-        {showSlider.value && (
           <RepositorySlider
-            onHandleCancel={handleCancel}
+            on-HandleCancelSidebar={handleCancelSidebar}
+            on-HandleUpdatedTable={handleUpdatedTable}
             editClusterId={editClusterId.value}
-            showSlider={showSlider.value}
-            {...({ 'onUpdate:showSlider': (val: boolean) => (showSlider.value = val) } as any)}
-            onUpdated={handleUpdated}
+            show-slider={showSlider.value}
           />
-        )}
       </section>
     );
   },
