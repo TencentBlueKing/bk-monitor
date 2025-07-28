@@ -13,6 +13,8 @@ from django.conf import settings
 from bkmonitor.iam.drf import ViewBusinessPermission
 from core.drf_resource import resource
 from core.drf_resource.viewsets import ResourceRoute, ResourceViewSet
+from .metrics.views import IncidentMetricsViewSet  # noqa
+from .events.views import IncidentEventsViewSet  # noqa
 
 
 class IncidentViewSet(ResourceViewSet):
@@ -72,10 +74,4 @@ class IncidentViewSet(ResourceViewSet):
         ResourceRoute("GET", resource.incident.incident_results, endpoint="incident_results"),
         # 故障诊断页结果接口
         ResourceRoute("POST", resource.incident.incident_diagnosis, endpoint="incident_diagnosis"),
-        # 故障指标接口 metrics
-        ResourceRoute("POST", resource.incident.metrics.incident_metrics_search, endpoint="incident_metrics_search"),
-        # 故障事件接口 events
-        ResourceRoute("POST", resource.incident.events.incident_events_search, endpoint="incident_events_search"),
-        # 故障事件详情接口
-        ResourceRoute("POST", resource.incident.events.incident_events_detail, endpoint="incident_events_detail"),
     ]
