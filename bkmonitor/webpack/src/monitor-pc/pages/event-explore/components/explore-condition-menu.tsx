@@ -23,10 +23,10 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Emit, Prop, Ref } from 'vue-property-decorator';
-import { Component as tsc } from 'vue-tsx-support';
 
 import { copyText } from 'monitor-common/utils';
+import { Component, Emit, Prop, Ref } from 'vue-property-decorator';
+import { Component as tsc } from 'vue-tsx-support';
 
 import { ECondition, EMethod, EMode } from '../../../components/retrieval-filter/utils';
 import { SceneAliasMap } from '../../monitor-k8s/k8s-dimension';
@@ -85,13 +85,14 @@ export default class ExploreConditionMenu extends tsc<ExploreConditionMenuProps,
       suffixRender: this.menuItemSuffixRender({ hasClick: false }),
       onClick: this.handleNewExplorePage,
     },
-    {
-      id: 'other-scene',
-      name: this.$t('查看该对象的其他场景'),
-      icon: 'icon-switch',
-      suffixRender: () => <i class={'icon-monitor icon-arrow-right '} />,
-      onClick: this.handleScenePopoverShow,
-    },
+    // 隐藏事件快捷跳转容器监控其他场景功能，等后续后端接口实现后补充逻辑
+    // {
+    //   id: 'other-scene',
+    //   name: this.$t('查看该对象的其他场景'),
+    //   icon: 'icon-switch',
+    //   suffixRender: () => <i class={'icon-monitor icon-arrow-right '} />,
+    //   onClick: this.handleScenePopoverShow,
+    // },
   ];
 
   /** 二级 popover 实例(切换场景菜单) */
@@ -158,7 +159,6 @@ export default class ExploreConditionMenu extends tsc<ExploreConditionMenuProps,
    *
    */
   handleNewK8sPage(targetScene: SceneEnum) {
-    console.log('================ targetScene ================', targetScene);
     this.handleScenePopoverHide();
     this.menuClick();
     // const { scene: currentScene, groupBy, filterBy, ...rest } = this.$route.query;
