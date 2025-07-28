@@ -1605,7 +1605,7 @@ export default class MaskingField extends tsc<IProps> {
               <EmptyStatus
                 emptyType={this.emptyType}
                 showText={!this.isShowConfigFiledEmptyTips}
-                onOperation={this.handleOperation}
+                on-operation={this.handleOperation}
               >
                 {this.isShowConfigFiledEmptyTips && (
                   <span>{this.$t('未检测到字段信息，请确认采集项是否已配置索引')}</span>

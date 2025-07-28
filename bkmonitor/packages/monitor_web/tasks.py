@@ -439,6 +439,24 @@ def append_metric_list_cache(bk_tenant_id: str, result_table_id_list: list[str])
 
 
 @shared_task(ignore_result=True)
+def soft_delete_expired_shields():
+    """
+    软删除失效且创建时间在1个月前的屏蔽记录
+    """
+    from django.utils import timezone
+    from bkmonitor.models import Shield
+    from datetime import timedelta
+
+    one_month_ago = timezone.now() - timedelta(days=30)
+    updated_count = Shield.objects.filter(create_time__lte=one_month_ago, failure_time__lte=timezone.now()).update(
+        is_enabled=False, is_deleted=True
+    )
+
+    if updated_count:
+        logger.info(f"Soft deleted {updated_count} expired shield records")
+
+
+@shared_task(ignore_result=True)
 def update_failure_shield_content():
     """
     更新失效的屏蔽策略的内容信息

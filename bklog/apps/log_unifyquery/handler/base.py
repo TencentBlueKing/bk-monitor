@@ -48,6 +48,7 @@ from apps.log_search.models import (
     UserIndexSetSearchHistory,
 )
 from apps.log_search.permission import Permission
+from apps.log_search.utils import handle_es_query_error
 from apps.log_unifyquery.constants import BASE_OP_MAP, MAX_LEN_DICT, REFERENCE_ALIAS
 from apps.log_unifyquery.utils import deal_time_format, transform_advanced_addition
 from apps.utils.cache import cache_five_minute
@@ -204,7 +205,7 @@ class UnifyQueryHandler:
                 raise e
             return {"series": []}
 
-    def query_ts_raw(self, search_dict, raise_exception=False, pre_search=False):
+    def query_ts_raw(self, search_dict, raise_exception=True, pre_search=False):
         """
         查询时序型日志数据
         """
@@ -233,7 +234,7 @@ class UnifyQueryHandler:
         except Exception as e:  # pylint: disable=broad-except
             logger.exception("query ts raw error: %s, search params: %s", e, search_dict)
             if raise_exception:
-                raise e
+                raise handle_es_query_error(e)
             return {"list": []}
 
     def _enhance(self):

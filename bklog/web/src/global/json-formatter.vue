@@ -32,8 +32,7 @@
           :data-with-intersection="true"
           :data-field-name="item.name"
           :ref="item.formatter.ref"
-          v-html="item.formatter.stringValue"
-        ></span>
+        >{{ item.formatter.stringValue }}</span>
       </span>
     </template>
     <template v-if="showMoreTextAction && hasScrollY">
@@ -238,7 +237,7 @@
       ref: ref(),
       isJson: typeof objValue === 'object' && objValue !== undefined,
       value: getDateFieldValue(field, objValue, formatDate),
-      stringValue: getDateFieldValue(field, getCellRender(val), formatDate),
+      stringValue: getDateFieldValue(field, getCellRender(val), formatDate).replace(/<\/?mark>/igm, ''),
       field,
     };
   };
