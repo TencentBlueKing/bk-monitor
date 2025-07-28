@@ -787,7 +787,6 @@ class UnifyQueryHandler:
         if pre_search and len(result["list"]) != once_size:
             # 全量查询
             result = self.query_ts_raw(search_dict)
-
         result = self._deal_query_result(result)
 
         # 脱敏配置日志原文检索 提前返回
