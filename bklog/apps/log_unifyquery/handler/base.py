@@ -1020,7 +1020,7 @@ class UnifyQueryHandler:
             total_count += len(search_result["list"])
 
             # done为true代表已经获取完所有数据，可以结束查询
-            if search_result.get("done", True):
+            if search_result.get("done", False):
                 break
 
     def _get_user_sorted_list(self, sorted_fields):
