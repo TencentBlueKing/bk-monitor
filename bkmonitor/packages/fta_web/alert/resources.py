@@ -677,7 +677,7 @@ class AlertDetailResource(Resource):
                 continue
 
             cluster = BCSCluster.objects.filter(bcs_cluster_id=d["value"]).first()
-            if cluster:
+            if cluster and cluster.space_uid:
                 d["project_name"] = cluster.space_uid.split("__")[1]
             else:
                 d["project_name"] = ""
