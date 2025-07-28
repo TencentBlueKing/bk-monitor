@@ -234,6 +234,11 @@ export function toTransformNode(nodes: Array<IHost | INode>, nodeType: INodeType
         bk_obj_id: nodeType,
         bk_inst_id: item.id,
       }));
+    case 'DYNAMIC_GROUP':
+      return nodes.map((item: INode) => ({
+        bk_obj_id: 'host',
+        bk_inst_id: item.id,
+      }));
     default:
       return [];
   }
