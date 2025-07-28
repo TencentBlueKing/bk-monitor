@@ -28,6 +28,7 @@
 import { Component, Emit, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
+import { xssFilter } from '@/common/util';
 import {
   Select,
   Option,
@@ -757,7 +758,7 @@ export default class QueryStatement extends tsc<object> {
 
     if (!this.namePopoverInstance) {
       this.namePopoverInstance = this.$bkPopover(e.target, {
-        content: `<span style='font-size: 12px;'>${str}</span>`,
+        content: `<span style='font-size: 12px;'>${xssFilter(str)}</span>`,
         arrow: true,
         boundary: 'viewport',
         placement: 'top-start',

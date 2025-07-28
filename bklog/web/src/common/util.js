@@ -32,6 +32,7 @@
 import { set } from 'vue';
 
 import dayjs from 'dayjs';
+import DOMPurify from 'dompurify';
 import JSONBigNumber from 'json-bignumber';
 
 import store from '../store';
@@ -1132,20 +1133,7 @@ export const blobDownload = (data, fileName = 'default', type = 'text/plain') =>
 };
 
 export const xssFilter = str => {
-  return (
-    str?.replace?.(/[&<>"]/gi, function (match) {
-      switch (match) {
-        case '&':
-          return '&amp;';
-        case '<':
-          return '&lt;';
-        case '>':
-          return '&gt;';
-        case '"':
-          return '&quot;';
-      }
-    }) || str
-  );
+  return DOMPurify.sanitize(str);
 };
 /** 数字千分位处理 */
 export const formatNumberWithRegex = number => {
