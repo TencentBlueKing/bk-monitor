@@ -49,8 +49,9 @@
   </monitor-dialog>
 </template>
 <script lang="ts">
-import MonitorDialog from 'monitor-ui/monitor-dialog/monitor-dialog.vue';
 import { Component, Prop, Vue, Watch } from 'vue-property-decorator';
+
+import MonitorDialog from 'monitor-ui/monitor-dialog/monitor-dialog.vue';
 
 import StrategyConfigTarget from '../../strategy-config-target/strategy-config-target.vue';
 
@@ -87,17 +88,17 @@ export default class StrategySetTarget extends Vue {
 
   // 策略id
   @Prop()
-  strategyId: string | number;
+  strategyId: number | string;
 
   // tab的disabled状态控制, 0: 静态disabled; 1: 动态disabled; -1: 都不disabled
   @Prop({ default: null, type: [Number, null] })
-  tabDisabled: 0 | 1 | -1 | null;
+  tabDisabled: -1 | 0 | 1 | null;
 
   // 是否允许保存空的目标
   @Prop({ default: false, type: Boolean })
   canSaveEmpty: {
-    type: boolean;
     default: false;
+    type: boolean;
   };
 
   @Prop({ default: false, type: Boolean }) hiddenTemplate: boolean;
@@ -120,9 +121,7 @@ export default class StrategySetTarget extends Vue {
   }
 
   get zIndex() {
-    // eslint-disable-next-line no-underscore-dangle
     if (window.__bk_zIndex_manager?.nextZIndex) {
-      // eslint-disable-next-line no-underscore-dangle
       return window.__bk_zIndex_manager.nextZIndex();
     }
     return 2000;

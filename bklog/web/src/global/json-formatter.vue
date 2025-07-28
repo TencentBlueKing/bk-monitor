@@ -205,8 +205,13 @@
         return [convertToObject(props.jsonValue), props.jsonValue];
       }
 
-      const fieldValue = parseTableRowData(props.jsonValue, field.field_name);
-      return [convertToObject(fieldValue), fieldValue];
+      if (typeof props.jsonValue === 'object') {
+        const fieldValue = parseTableRowData(props.jsonValue, field.field_name);
+        return [convertToObject(fieldValue), fieldValue];
+      }
+
+      return [props.jsonValue, props.jsonValue];
+
     }
 
     if (typeof props.jsonValue === 'object') {

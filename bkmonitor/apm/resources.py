@@ -74,6 +74,7 @@ from apm.serializers import (
     TraceFieldsTopkRequestSerializer,
 )
 from apm.task.tasks import create_or_update_tail_sampling, delete_application_async
+from apm.utils.ui_optimizations import HistogramNiceNumberGenerator
 from apm_web.constants import ServiceRelationLogTypeChoices
 from bkm_space.api import SpaceApi
 from bkm_space.utils import space_uid_to_bk_biz_id
@@ -2170,8 +2171,11 @@ class QueryFieldStatisticsGraphResource(Resource):
             )
             return resource.grafana.graph_unify_query(config)
 
-        # 字段枚举数量小于等于区间数量或者区间的最大数量小于等于区间数，直接查询枚举值返回
         min_value, max_value, distinct_count, interval_num = values[:4]
+        if min_value is None or max_value is None:
+            return self.process_graph_info([])
+
+        # 字段枚举数量小于等于区间数量或者区间的最大数量小于等于区间数，直接查询枚举值返回
         if distinct_count is not None and (
             distinct_count <= interval_num or (max_value - min_value + 1) <= interval_num
         ):
@@ -2201,23 +2205,19 @@ class QueryFieldStatisticsGraphResource(Resource):
         :return: List[Tuple[int, int]]
             返回各区间的元组列表，每个元组包含闭合区间 (最小值, 最大值)
         """
-        intervals = []
-        current_min = min_value
-        for i in range(interval_num):
-            # 闭区间，加上区间数后要 -1
-            current_max = current_min + (max_value - min_value + 1) // interval_num - 1
-            # 确保最后一个区间覆盖到 max_value
-            if i == interval_num - 1:
-                current_max = max_value
-            intervals.append((current_min, current_max))
-            current_min = current_max + 1
-        return intervals
+        left_x, _, bucket_size, num_buckets = HistogramNiceNumberGenerator.align_histogram_bounds(
+            min_value, max_value, interval_num
+        )
+        return [(left_x + i * bucket_size, left_x + (i + 1) * bucket_size) for i in range(num_buckets)]
 
     @classmethod
     def process_graph_info(cls, buckets):
         """
         处理数值趋势图格式，和时序趋势图保持一致
         """
+        # 如果只有一个 bucket，且数据为 0，则返回空数据
+        if len(buckets) == 1 and buckets[0][0] == 0:
+            buckets = []
         return {"series": [{"datapoints": buckets}]}
 
     @classmethod

@@ -1,5 +1,16 @@
 import dayjs from 'dayjs';
 
+/* 头部对比时间预设 */
+export enum EPreDateType {
+  lastWeek = '1w',
+  yesterday = '1d',
+}
+
+export enum ETypeSelect {
+  compare = 'compare',
+  group = 'group',
+}
+
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -26,27 +37,16 @@ import dayjs from 'dayjs';
  * IN THE SOFTWARE.
  */
 export interface IGroupByVariables {
-  metric_cal_type: string;
-  limit_sort_method: string;
-  limit: number;
   group_by_limit_enabled: boolean;
-}
-
-export enum ETypeSelect {
-  compare = 'compare',
-  group = 'group',
-}
-
-/* 头部对比时间预设 */
-export enum EPreDateType {
-  lastWeek = '1w',
-  yesterday = '1d',
+  limit: number;
+  limit_sort_method: string;
+  metric_cal_type: string;
 }
 
 export interface IGroupOption {
+  checked?: boolean;
   id: string;
   name: string;
-  checked?: boolean;
   top_limit_enable?: boolean;
 }
 
@@ -54,8 +54,8 @@ export interface IListItem {
   id?: string;
   name?: string;
   text?: string;
-  value?: string;
   top_limit_enable?: boolean;
+  value?: string;
 }
 
 const preDateTypeList = [

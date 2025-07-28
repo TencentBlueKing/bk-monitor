@@ -28,25 +28,25 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import './select-card-item.scss';
 
-interface IProps {
-  title: string;
-  img: string;
-  checked?: boolean;
-  theme?: ThemeType;
-  descData?: IDescData;
-  mode?: 'normal' | 'small';
-  multiple?: boolean;
+export interface IDescData {
+  heat: number;
+  isOfficial: boolean;
+  name: string;
 }
 export type ThemeType = 'intro' | 'lang' | 'plugin' | 'system';
 
-export interface IDescData {
-  name: string;
-  isOfficial: boolean;
-  heat: number;
-}
-
 interface IEvent {
   onClick: Event;
+}
+
+interface IProps {
+  checked?: boolean;
+  descData?: IDescData;
+  img: string;
+  mode?: 'normal' | 'small';
+  multiple?: boolean;
+  theme?: ThemeType;
+  title: string;
 }
 
 @Component

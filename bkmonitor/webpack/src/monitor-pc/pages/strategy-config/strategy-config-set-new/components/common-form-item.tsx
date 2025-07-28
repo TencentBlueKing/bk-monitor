@@ -31,17 +31,17 @@ import type { TranslateResult } from 'vue-i18n';
 import './common-form-item.scss';
 
 interface ICommonFormItemProp {
-  title: TranslateResult | string;
   isRequired?: boolean;
   showSemicolon?: boolean;
-  tips?: TranslateResult | string;
+  tips?: string | TranslateResult;
+  title: string | TranslateResult;
   topTitle?: boolean;
 }
 @Component({
   name: 'CommonFormItem',
 })
 export default class CommonFormItem extends tsc<ICommonFormItemProp> {
-  @Prop({ type: String, required: false }) title: TranslateResult | string;
+  @Prop({ type: String, required: false }) title: string | TranslateResult;
   @Prop({ type: Boolean, default: false }) isRequired: boolean;
   @Prop({ type: Boolean, default: false }) showSemicolon: boolean;
   @Prop({ type: String, default: '' }) tips!: string;

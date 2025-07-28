@@ -84,11 +84,21 @@ class ExplanationCommandHandler(CommandHandler):
 
 class MetadataDiagnosisCommandHandler(CommandHandler):
     command = "metadata_diagnosis"
-    agent_code = "aidev-metadata"
 
     def get_template(self) -> str:
         return """
         请帮助我分析排障,数据源ID为{bk_data_id}
+        """
+
+
+class PromQLHelperCommandHandler(CommandHandler):
+    command = "promql_helper"
+
+    def get_template(self) -> str:
+        return """
+        请根据用户的需求,生成PromQL查询语句
+        指标/语句:{promql}
+        用户需求:{user_demand}
         """
 
 
@@ -120,3 +130,4 @@ class CommandProcessor:
 CommandProcessor.register_handler("translate", TranslateCommandHandler)
 CommandProcessor.register_handler("explanation", ExplanationCommandHandler)
 CommandProcessor.register_handler("metadata_diagnosis", MetadataDiagnosisCommandHandler)
+CommandProcessor.register_handler("promql_helper", PromQLHelperCommandHandler)

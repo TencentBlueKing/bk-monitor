@@ -49,29 +49,29 @@ const DEFAULT_SEARCH_INPUT_HEIGHT = 32;
 /** big-tree 默认的高度 */
 const DEFAULT_TREE_HEIGHT = 500;
 
-interface ICommonListProps {
-  // panel实例
-  panel: PanelModel;
-  condition: any[];
-  height?: number;
-  // 视图数据参数配置
-  viewOptions: IViewOptions;
-  checkedNode?: FilterDictType;
-}
+export type FilterDictType = {
+  [key in string]: any;
+};
 
 interface ICommonListEvent {
   // 选中列表行数据触发
   onChange: IViewOptions;
-  // 标题修改触发
-  onTitleChange: string;
   // get list
   onListChange: Record<string, any>[];
   onSearchChange: any[];
+  // 标题修改触发
+  onTitleChange: string;
 }
 
-export type FilterDictType = {
-  [key in string]: any;
-};
+interface ICommonListProps {
+  checkedNode?: FilterDictType;
+  condition: any[];
+  height?: number;
+  // panel实例
+  panel: PanelModel;
+  // 视图数据参数配置
+  viewOptions: IViewOptions;
+}
 
 @Component
 export default class CommonList extends tsc<ICommonListProps, ICommonListEvent> {
@@ -268,7 +268,7 @@ export default class CommonList extends tsc<ICommonListProps, ICommonListEvent> 
     this.handleClickItem(data);
   }
   /** big-tree搜索回调方法 */
-  filterMethod(filterObj: { status: string; keyword: string }, node: { data: any }): boolean {
+  filterMethod(filterObj: { keyword: string; status: string }, node: { data: any }): boolean {
     const { data } = node;
     const searchTarget = [data.name];
     return (

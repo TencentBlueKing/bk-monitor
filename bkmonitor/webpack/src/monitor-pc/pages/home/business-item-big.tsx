@@ -33,17 +33,17 @@ import BusinessRight from './skeleton/business-right';
 
 import './business-item-big.scss';
 
-interface IProps {
-  data?: IBusinessCard;
-  /* 首页的时间范围 */
-  homeDays?: number;
-}
 interface IEvent {
   onSticky?: boolean;
   onToEvent?: {
     activeFilterId: any;
     id: string;
   };
+}
+interface IProps {
+  data?: IBusinessCard;
+  /* 首页的时间范围 */
+  homeDays?: number;
 }
 
 @Component({
@@ -99,7 +99,7 @@ export default class BusinessItemBig extends tsc<IProps, IEvent> {
 
   async getBusinessAlarmOverviewData() {
     this.businessAlarmLoading = true;
-    const data = {uptimecheck: [], service: [], process: [], os: []};
+    const data = { uptimecheck: [], service: [], process: [], os: [] };
     this.businessAlarm = [data.uptimecheck, data.service, data.process, data.os];
     this.businessAlarmLoading = false;
   }

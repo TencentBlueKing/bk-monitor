@@ -1487,28 +1487,41 @@ class IncidentResultsResource(IncidentBaseResource):
 class IncidentDiagnosisResource(IncidentBaseResource):
     class RequestSerializer(serializers.Serializer):
         id = serializers.IntegerField(required=True, label="故障ID")
-        bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
+        bk_biz_ids = serializers.ListField(required=True, label="业务IDs")
         sub_panel = serializers.CharField(required=False, default="summary")
 
     def perform_request(self, validated_request_data: dict) -> dict:
         panel = validated_request_data.get("panel", "incident_diagnosis")
         sub_panel = validated_request_data.get("sub_panel")
         incident_id = str(validated_request_data["id"])[10:]
-        bk_biz_id = int(validated_request_data["bk_biz_id"])
+        bk_biz_ids = validated_request_data["bk_biz_ids"]
         raw_results = api.bkdata.get_incident_analysis_results(incident_id=int(incident_id))
         raw_content = raw_results.get(panel, {}).get("sub_panels", {}).get(sub_panel, {}).get("content", [])
         if sub_panel == "anomaly_analysis":
             content = []
             for drill_result in raw_content:
                 alerts = (
-                    self.get_alerts_by_alert_ids(drill_result["alert_ids"], bk_biz_ids=[bk_biz_id])
+                    self.get_alerts_by_alert_ids(drill_result["alert_ids"], bk_biz_ids=bk_biz_ids)
                     if drill_result.get("alert_ids")
                     else []
                 )
+                strategy_alerts_mapping = {}
+                for alert in alerts:
+                    if not alert.get("strategy_id"):
+                        continue
+                    if str(alert["strategy_id"]) not in strategy_alerts_mapping:
+                        strategy_alerts_mapping[str(alert["strategy_id"])] = {
+                            "strategy_id": alert["strategy_id"],
+                            "strategy_name": alert["strategy_name"],
+                            "alerts": [],
+                        }
+                    strategy_alerts_mapping[str(alert["strategy_id"])]["alerts"].append(alert["id"])
+
                 content_item = {
                     "score": drill_result["score"],
                     "alert_count": len(alerts),
                     "alerts": alerts,
+                    "strategy_alerts_mapping": strategy_alerts_mapping,
                     "dimension_values": {k: [v] for k, v in drill_result.get("dimensions", {}).items()},
                 }
                 content.append(content_item)

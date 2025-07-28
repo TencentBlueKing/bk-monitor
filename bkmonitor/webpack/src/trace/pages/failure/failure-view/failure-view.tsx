@@ -23,11 +23,11 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, onMounted, provide, ref, watch, inject, type Ref } from 'vue';
-import { useI18n } from 'vue-i18n';
+import { type Ref, defineComponent, inject, onMounted, provide, ref, watch } from 'vue';
 
 import { Exception, Loading } from 'bkui-vue';
 import { incidentAlertView } from 'monitor-api/modules/incident';
+import { useI18n } from 'vue-i18n';
 
 import DashboardPanel from '../../../plugins/components/flex-dashboard-panel';
 import { useIncidentInject } from '../utils';

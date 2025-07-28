@@ -24,13 +24,13 @@
  * IN THE SOFTWARE.
  */
 import { type PropType, defineComponent, reactive, watch } from 'vue';
-import { useI18n } from 'vue-i18n';
 
 import { getDefaultTimezone } from 'monitor-pc/i18n/dayjs';
+import { useI18n } from 'vue-i18n';
 
 import PageToolHeader from '../../../components/page-tool-header/page-tool-header';
-import { DEFAULT_TIME_RANGE, type TimeRangeType } from '../../../components/time-range/utils';
-import { MenuEnum, PanelType, type ToolsFormData } from '../typings';
+import { type TimeRangeType, DEFAULT_TIME_RANGE } from '../../../components/time-range/utils';
+import { type ToolsFormData, MenuEnum, PanelType } from '../typings';
 
 import type { ISelectMenuOption } from '../../../components/select-menu/select-menu';
 

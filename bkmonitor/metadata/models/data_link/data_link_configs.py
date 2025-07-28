@@ -44,6 +44,7 @@ class DataLinkResourceConfigBase(models.Model):
     status = models.CharField(verbose_name="状态", max_length=64)
     data_link_name = models.CharField(verbose_name="数据链路名称", max_length=64)
     bk_biz_id = models.BigIntegerField(verbose_name="业务ID", default=settings.DEFAULT_BKDATA_BIZ_ID)
+    bk_tenant_id = models.CharField("租户ID", max_length=256, null=True, default="system")
 
     class Meta:
         abstract = True
@@ -83,7 +84,7 @@ class DataIdConfig(DataLinkResourceConfigBase):
         verbose_name = "数据源配置"
         verbose_name_plural = verbose_name
 
-    def compose_config(self) -> dict:
+    def compose_config(self, event_type="metric") -> dict:
         """
         数据源下发计算平台的资源配置
         """
@@ -93,26 +94,42 @@ class DataIdConfig(DataLinkResourceConfigBase):
                 "metadata": {
                     "name": "{{name}}",
                     "namespace": "{{namespace}}",
+                    {% if tenant %}
+                    "tenant": "{{ tenant }}",
+                    {% endif %}
                     "labels": {"bk_biz_id": "{{bk_biz_id}}"}
                 },
                 "spec": {
                     "alias": "{{name}}",
                     "bizId": {{monitor_biz_id}},
                     "description": "{{name}}",
-                    "maintainers": {{maintainers}}
+                    "maintainers": {{maintainers}},
+                    "event_type": "{{event_type}}"
                 }
             }
             """
         maintainer = settings.BK_DATA_PROJECT_MAINTAINER.split(",")
+        render_params = {
+            "name": self.name,
+            "namespace": self.namespace,
+            "bk_biz_id": self.bk_biz_id,  # 数据实际归属的业务ID
+            "monitor_biz_id": settings.DEFAULT_BKDATA_BIZ_ID,  # 接入者的业务ID
+            "maintainers": json.dumps(maintainer),
+            "event_type": event_type,
+        }
+
+        # 现阶段仅在多租户模式下添加tenant字段
+        if settings.ENABLE_BKBASE_V4_MULTI_TENANT:
+            logger.info(
+                "compose_v4_datalink_config: enable multi tenant mode,add bk_tenant_id->[%s],kind->[%s]",
+                self.bk_tenant_id,
+                self.kind,
+            )
+            render_params["tenant"] = self.bk_tenant_id
+
         return utils.compose_config(
             tpl=tpl,
-            render_params={
-                "name": self.name,
-                "namespace": self.namespace,
-                "bk_biz_id": self.bk_biz_id,  # 数据实际归属的业务ID
-                "monitor_biz_id": settings.DEFAULT_BKDATA_BIZ_ID,  # 接入者的业务ID
-                "maintainers": json.dumps(maintainer),
-            },
+            render_params=render_params,
             err_msg_prefix="compose data_id config",
         )
 
@@ -140,6 +157,9 @@ class VMResultTableConfig(DataLinkResourceConfigBase):
                 "metadata": {
                     "name": "{{name}}",
                     "namespace": "{{namespace}}",
+                    {% if tenant %}
+                    "tenant": "{{ tenant }}",
+                    {% endif %}
                     "labels": {"bk_biz_id": "{{bk_biz_id}}"}
                 },
                 "spec": {
@@ -152,17 +172,187 @@ class VMResultTableConfig(DataLinkResourceConfigBase):
             }
             """
         maintainer = settings.BK_DATA_PROJECT_MAINTAINER.split(",")
+
+        render_params = {
+            "name": self.name,
+            "namespace": self.namespace,
+            "bk_biz_id": self.bk_biz_id,  # 数据实际归属的业务ID
+            "monitor_biz_id": settings.DEFAULT_BKDATA_BIZ_ID,  # 接入者的业务ID
+            "data_type": self.data_type,
+            "maintainers": json.dumps(maintainer),
+        }
+
+        # 现阶段仅在多租户模式下添加tenant字段
+        if settings.ENABLE_BKBASE_V4_MULTI_TENANT:
+            logger.info(
+                "compose_v4_datalink_config: enable multi tenant mode,add bk_tenant_id->[%s],kind->[%s]",
+                self.bk_tenant_id,
+                self.kind,
+            )
+            render_params["tenant"] = self.bk_tenant_id
+
         return utils.compose_config(
             tpl=tpl,
-            render_params={
-                "name": self.name,
-                "namespace": self.namespace,
-                "bk_biz_id": self.bk_biz_id,  # 数据实际归属的业务ID
-                "monitor_biz_id": settings.DEFAULT_BKDATA_BIZ_ID,  # 接入者的业务ID
-                "data_type": self.data_type,
-                "maintainers": json.dumps(maintainer),
-            },
+            render_params=render_params,
+            err_msg_prefix="compose bkdata es table_id config",
+        )
+
+
+class LogResultTableConfig(DataLinkResourceConfigBase):
+    """
+    日志链路结果表配置
+    """
+
+    kind = DataLinkKind.RESULTTABLE.value
+    name = models.CharField(verbose_name="结果表名称", max_length=64, db_index=True, unique=True)
+    data_type = models.CharField(verbose_name="结果表类型", max_length=64, default="log")
+
+    class Meta:
+        verbose_name = "日志结果表配置"
+        verbose_name_plural = verbose_name
+
+    def compose_config(self, fields):
+        """
+        组装数据源结果表配置
+        @param fields: 字段列表
+        """
+        tpl = """
+            {
+                "kind": "ResultTable",
+                "metadata": {
+                    "name": "{{name}}",
+                    {% if tenant %}
+                    "tenant": "{{ tenant }}",
+                    {% endif %}
+                    "namespace": "{{namespace}}",
+                    "labels": {"bk_biz_id": "{{bk_biz_id}}"}
+                },
+                "spec": {
+                    "alias": "{{name}}",
+                    "bizId": {{monitor_biz_id}},
+                    "dataType": "{{data_type}}",
+                    "description": "{{name}}",
+                    "maintainers": {{maintainers}},
+                    "fields": {{fields}}
+                }
+            }
+            """
+        maintainer = settings.BK_DATA_PROJECT_MAINTAINER.split(",")
+
+        render_params = {
+            "name": self.name,
+            "namespace": self.namespace,
+            "bk_biz_id": self.bk_biz_id,  # 数据实际归属的业务ID
+            "monitor_biz_id": settings.DEFAULT_BKDATA_BIZ_ID,  # 接入者的业务ID
+            "data_type": self.data_type,
+            "maintainers": json.dumps(maintainer),
+            "fields": json.dumps(fields, ensure_ascii=False),
+        }
+
+        # 现阶段仅在多租户模式下添加tenant字段
+        if settings.ENABLE_BKBASE_V4_MULTI_TENANT:
+            logger.info(
+                "compose_v4_datalink_config: enable multi tenant mode,add bk_tenant_id->[%s],kind->[%s]",
+                self.bk_tenant_id,
+                self.kind,
+            )
+            render_params["tenant"] = self.bk_tenant_id
+
+        return utils.compose_config(
+            tpl=tpl,
+            render_params=render_params,
             err_msg_prefix="compose bkdata table_id config",
+        )
+
+
+class ESStorageBindingConfig(DataLinkResourceConfigBase):
+    """
+    链路ES结果表存储配置
+    """
+
+    kind = DataLinkKind.ESSTORAGEBINDING.value
+    name = models.CharField(verbose_name="存储配置名称", max_length=64, db_index=True, unique=True)
+    es_cluster_name = models.CharField(verbose_name="ES集群名称", max_length=64)
+    timezone = models.IntegerField("时区设置", default=0)
+
+    class Meta:
+        verbose_name = "ES存储配置"
+        verbose_name_plural = verbose_name
+
+    def compose_config(
+        self,
+        storage_cluster_name,
+        write_alias_format,
+        unique_field_list,
+    ):
+        """
+        结果表- ES存储关联关系
+        在日志链路中,整套链路各个资源的name相同
+        """
+        tpl = """
+            {
+                "kind": "ElasticSearchBinding",
+                "metadata": {
+                    "name": "{{name}}",
+                    {% if tenant %}
+                    "tenant": "{{ tenant }}",
+                    {% endif %}
+                    "namespace": "{{namespace}}",
+                    "labels": {"bk_biz_id": "{{bk_biz_id}}"}
+                },
+                "spec": {
+                    "data": {
+                        "kind": "ResultTable",
+                        "name": "{{name}}",
+                        {% if tenant %}
+                        "tenant": "{{ tenant }}",
+                        {% endif %}
+                        "namespace": "{{namespace}}"
+                    },
+                    "storage": {
+                        "kind": "ElasticSearch",
+                        "namespace": "{{namespace}}",
+                        {% if tenant %}
+                        "tenant": "{{ tenant }}",
+                        {% endif %}
+                        "name": "{{storage_cluster_name}}"
+                    },
+                    "write_alias": {
+                        "TimeBased": {
+                            "format": "{{write_alias_format}}",
+                            "timezone": {{timezone}}
+                        }
+                    },
+                    "unique_field_list": {{unique_field_list}},
+                    "maintainers": {{maintainers}}
+                }
+            }
+            """
+        maintainer = settings.BK_DATA_PROJECT_MAINTAINER.split(",")
+        render_params = {
+            "name": self.name,
+            "namespace": self.namespace,
+            "bk_biz_id": self.bk_biz_id,  # 数据实际归属的业务ID
+            "storage_cluster_name": storage_cluster_name,
+            "unique_field_list": json.dumps(unique_field_list),
+            "write_alias_format": write_alias_format,
+            "timezone": self.timezone,
+            "maintainers": json.dumps(maintainer),
+        }
+
+        # 现阶段仅在多租户模式下添加tenant字段
+        if settings.ENABLE_BKBASE_V4_MULTI_TENANT:
+            logger.info(
+                "compose_v4_datalink_config: enable multi tenant mode,add bk_tenant_id->[%s],kind->[%s]",
+                self.bk_tenant_id,
+                self.kind,
+            )
+            render_params["tenant"] = self.bk_tenant_id
+
+        return utils.compose_config(
+            tpl=tpl,
+            render_params=render_params,
+            err_msg_prefix="compose es storage binding config",
         )
 
 
@@ -179,6 +369,7 @@ class VMStorageBindingConfig(DataLinkResourceConfigBase):
         verbose_name = "VM存储配置"
         verbose_name_plural = verbose_name
 
+    # TODO 多租户yaml改造
     def compose_config(
         self,
     ) -> dict:
@@ -190,6 +381,9 @@ class VMStorageBindingConfig(DataLinkResourceConfigBase):
                 "kind": "VmStorageBinding",
                 "metadata": {
                     "name": "{{name}}",
+                    {% if tenant %}
+                    "tenant": "{{ tenant }}",
+                    {% endif %}
                     "namespace": "{{namespace}}",
                     "labels": {"bk_biz_id": "{{bk_biz_id}}"}
                 },
@@ -197,28 +391,46 @@ class VMStorageBindingConfig(DataLinkResourceConfigBase):
                     "data": {
                         "kind": "ResultTable",
                         "name": "{{rt_name}}",
+                        {% if tenant %}
+                        "tenant": "{{ tenant }}",
+                        {% endif %}
                         "namespace": "{{namespace}}"
                     },
                     "maintainers": {{maintainers}},
                     "storage": {
                         "kind": "VmStorage",
                         "name": "{{vm_name}}",
+                        {% if tenant %}
+                        "tenant": "{{ tenant }}",
+                        {% endif %}
                         "namespace": "{{namespace}}"
                     }
                 }
             }
             """
         maintainer = settings.BK_DATA_PROJECT_MAINTAINER.split(",")
+
+        render_params = {
+            "name": self.name,
+            "namespace": self.namespace,
+            "bk_biz_id": self.bk_biz_id,  # 数据实际归属的业务ID
+            "rt_name": self.name,
+            "vm_name": self.vm_cluster_name,
+            "maintainers": json.dumps(maintainer),
+        }
+
+        # 现阶段仅在多租户模式下添加tenant字段
+        if settings.ENABLE_BKBASE_V4_MULTI_TENANT:
+            logger.info(
+                "compose_v4_datalink_config: enable multi tenant mode,add bk_tenant_id->[%s],kind->[%s]",
+                self.bk_tenant_id,
+                self.kind,
+            )
+            render_params["tenant"] = self.bk_tenant_id
+
         return utils.compose_config(
             tpl=tpl,
-            render_params={
-                "name": self.name,
-                "namespace": self.namespace,
-                "bk_biz_id": self.bk_biz_id,  # 数据实际归属的业务ID
-                "rt_name": self.name,
-                "vm_name": self.vm_cluster_name,
-                "maintainers": json.dumps(maintainer),
-            },
+            render_params=render_params,
             err_msg_prefix="compose vm storage binding config",
         )
 
@@ -257,6 +469,9 @@ class DataBusConfig(DataLinkResourceConfigBase):
             "kind": "Databus",
             "metadata": {
                 "name": "{{name}}",
+                {% if tenant %}
+                "tenant": "{{ tenant }}",
+                {% endif %}
                 "namespace": "{{namespace}}",
                 "labels": {"bk_biz_id": "{{bk_biz_id}}"}
             },
@@ -267,6 +482,9 @@ class DataBusConfig(DataLinkResourceConfigBase):
                     {
                         "kind": "DataId",
                         "name": "{{data_id_name}}",
+                        {% if tenant %}
+                        "tenant": "{{ tenant }}",
+                        {% endif %}
                         "namespace": "{{namespace}}"
                     }
                 ],
@@ -281,20 +499,31 @@ class DataBusConfig(DataLinkResourceConfigBase):
         }
         """
         maintainer = settings.BK_DATA_PROJECT_MAINTAINER.split(",")
+        render_params = {
+            "name": self.name,
+            "namespace": self.namespace,
+            "bk_biz_id": self.bk_biz_id,  # 接入者的业务ID
+            "sinks": json.dumps(sinks),
+            "sink_name": self.name,
+            "data_id_name": self.data_id_name,
+            "transform_kind": transform_kind,
+            "transform_name": transform_name,
+            "transform_format": transform_format,
+            "maintainers": json.dumps(maintainer),
+        }
+
+        # 现阶段仅在多租户模式下添加tenant字段
+        if settings.ENABLE_BKBASE_V4_MULTI_TENANT:
+            logger.info(
+                "compose_v4_datalink_config: enable multi tenant mode,add bk_tenant_id->[%s],kind->[%s]",
+                self.bk_tenant_id,
+                self.kind,
+            )
+            render_params["tenant"] = self.bk_tenant_id
+
         return utils.compose_config(
             tpl=tpl,
-            render_params={
-                "name": self.name,
-                "namespace": self.namespace,
-                "bk_biz_id": self.bk_biz_id,  # 接入者的业务ID
-                "sinks": json.dumps(sinks),
-                "sink_name": self.name,
-                "data_id_name": self.data_id_name,
-                "transform_kind": transform_kind,
-                "transform_name": transform_name,
-                "transform_format": transform_format,
-                "maintainers": json.dumps(maintainer),
-            },
+            render_params=render_params,
             err_msg_prefix="compose vm databus config",
         )
 
@@ -322,6 +551,9 @@ class ConditionalSinkConfig(DataLinkResourceConfigBase):
             "metadata": {
                 "namespace": "{{namespace}}",
                 "name": "{{name}}",
+                {% if tenant %}
+                "tenant": "{{ tenant }}",
+                {% endif %}
                 "labels": {"bk_biz_id": "{{bk_biz_id}}"}
             },
             "spec": {
@@ -329,13 +561,110 @@ class ConditionalSinkConfig(DataLinkResourceConfigBase):
             }
         }
         """
+
+        render_params = {
+            "name": self.name,
+            "namespace": settings.DEFAULT_VM_DATA_LINK_NAMESPACE,
+            "bk_biz_id": self.bk_biz_id,
+            "conditions": json.dumps(conditions),
+        }
+
+        # 现阶段仅在多租户模式下添加tenant字段
+        if settings.ENABLE_BKBASE_V4_MULTI_TENANT:
+            logger.info(
+                "compose_v4_datalink_config: enable multi tenant mode,add bk_tenant_id->[%s],kind->[%s]",
+                self.bk_tenant_id,
+                self.kind,
+            )
+            render_params["tenant"] = self.bk_tenant_id
+
         return utils.compose_config(
             tpl=tpl,
-            render_params={
-                "name": self.name,
-                "namespace": settings.DEFAULT_VM_DATA_LINK_NAMESPACE,
-                "bk_biz_id": self.bk_biz_id,
-                "conditions": json.dumps(conditions),
-            },
+            render_params=render_params,
             err_msg_prefix="compose vm conditional sink config",
         )
+
+
+class LogDataBusConfig(DataLinkResourceConfigBase):
+    """
+    日志/事件/Trace 等非时序链路清洗总线配置
+    """
+
+    kind = DataLinkKind.DATABUS.value
+    name = models.CharField(verbose_name="清洗任务名称", max_length=64, db_index=True, unique=True)
+    data_id_name = models.CharField(verbose_name="关联消费数据源名称", max_length=64)
+
+    class Meta:
+        verbose_name = "非指标数据清洗总线配置"
+        verbose_name_plural = verbose_name
+
+    def compose_base_event_config(self):
+        """
+        基础事件清洗总线配置（固定逻辑）
+        原先的1000 基础事件
+        链路的各个环节的组件name一致
+        """
+        tpl = """
+            {
+                "kind": "Databus",
+                "metadata": {
+                    "name": "{{name}}",
+                    {% if tenant %}
+                    "tenant": "{{ tenant }}",
+                    {% endif %}
+                    "namespace": "{{namespace}}",
+                    "labels": {"bk_biz_id": "{{bk_biz_id}}"}
+                },
+                "spec": {
+                    "maintainers": {{maintainers}},
+                    "sinks": [{
+                        "kind": "ElasticSearchBinding",
+                        "name": "{{name}}",
+                        {% if tenant %}
+                        "tenant": "{{ tenant }}",
+                        {% endif %}
+                        "namespace": "{{namespace}}"
+                    }],
+                    "sources": [{
+                        "kind": "DataId",
+                        "name": "{{name}}",
+                        {% if tenant %}
+                        "tenant": "{{ tenant }}",
+                        {% endif %}
+                        "namespace": "{{namespace}}"
+                    }],
+                    "transforms": [{
+                        "kind": "PreDefinedLogic",
+                        "name":"gse_system_event"
+                    }]
+                }
+            }
+            """
+        maintainer = settings.BK_DATA_PROJECT_MAINTAINER.split(",")
+        render_params = {
+            "name": self.name,
+            "namespace": self.namespace,
+            "bk_biz_id": self.bk_biz_id,  # 数据实际归属的业务ID
+            "maintainers": json.dumps(maintainer),
+        }
+
+        # 现阶段仅在多租户模式下添加tenant字段
+        if settings.ENABLE_BKBASE_V4_MULTI_TENANT:
+            logger.info(
+                "compose_v4_datalink_config: enable multi tenant mode,add bk_tenant_id->[%s],kind->[%s]",
+                self.bk_tenant_id,
+                self.kind,
+            )
+            render_params["tenant"] = self.bk_tenant_id
+
+        return utils.compose_config(
+            tpl=tpl,
+            render_params=render_params,
+            err_msg_prefix="compose data_id config",
+        )
+
+    def compose_config(self):
+        """
+        常规日志清洗总线配置
+        """
+        pass

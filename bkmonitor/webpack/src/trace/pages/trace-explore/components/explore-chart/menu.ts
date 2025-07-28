@@ -24,14 +24,14 @@
  * IN THE SOFTWARE.
  */
 
-import { commOpenUrl, getMetricId, transformLogUrlQuery } from '@/plugins/utls/menu';
 import { toPng } from 'html-to-image';
 import { deepClone } from 'monitor-common/utils';
 import { filterDictConvertedToWhere } from 'monitor-ui/chart-plugins/utils';
 
+import { commOpenUrl, getMetricId, transformLogUrlQuery } from '@/plugins/utls/menu';
 import { downFile } from '@/utils';
 
-import type { IExtendMetricData, IDataQuery, ILogUrlParams } from '@/plugins/typings';
+import type { IDataQuery, IExtendMetricData, ILogUrlParams } from '@/plugins/typings';
 
 /**
  * @description: 跳转到检索
@@ -98,21 +98,6 @@ export const handleRelateAlert = (targets: IDataQuery[], timeRange: string[]) =>
     window.open(commOpenUrl(`#/event-center?queryString=${queryString}&from=${timeRange[0]}&to=${timeRange[1]}`));
 };
 
-/**
- * @description: 下载图表为png图片
- * @param {string} title 图片标题
- * @param {HTMLElement} targetEl 截图目标元素 默认组件$el
- * @param {*} customSave 自定义保存图片
- */
-export function handleStoreImage(title: string, targetEl: HTMLElement, customSave = false) {
-  return toPng(targetEl)
-    .then(dataUrl => {
-      if (customSave) return dataUrl;
-      downFile(dataUrl, `${title}.png`);
-    })
-    .catch(() => {});
-}
-
 export function handleAddStrategy(targets: IDataQuery[], metric: IExtendMetricData | null) {
   try {
     let result: any = null;
@@ -149,4 +134,19 @@ export function handleAddStrategy(targets: IDataQuery[], metric: IExtendMetricDa
   } catch (e) {
     console.info(e);
   }
+}
+
+/**
+ * @description: 下载图表为png图片
+ * @param {string} title 图片标题
+ * @param {HTMLElement} targetEl 截图目标元素 默认组件$el
+ * @param {*} customSave 自定义保存图片
+ */
+export function handleStoreImage(title: string, targetEl: HTMLElement, customSave = false) {
+  return toPng(targetEl)
+    .then(dataUrl => {
+      if (customSave) return dataUrl;
+      downFile(dataUrl, `${title}.png`);
+    })
+    .catch(() => {});
 }

@@ -67,7 +67,7 @@ export default class MonitorLineSeries extends MonitorBaseSeries implements ICha
       const current = threshold[index];
       const nextThreshold = threshold[index + 1];
       // 判断是否为一个闭合区间
-      let yAxis = undefined;
+      let yAxis;
       if (
         openInterval.includes(current.method) &&
         nextThreshold &&
@@ -178,7 +178,7 @@ export default class MonitorLineSeries extends MonitorBaseSeries implements ICha
         },
       },
       yAxis: {
-        max: (v: { min: number; max: number }) => Math.max(v.max, maxThreshold),
+        max: (v: { max: number; min: number }) => Math.max(v.max, maxThreshold),
         min: Math.min(0, minThreshold),
       },
       legend: {

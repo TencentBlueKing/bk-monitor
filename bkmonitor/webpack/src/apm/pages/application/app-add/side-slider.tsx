@@ -31,13 +31,13 @@ import './side-slider.scss';
 const DEFAULT_WIDTH = 0;
 const EXPAND_WIDTH = 400;
 
-interface IEvent {
-  onWidthChange?: (emitValue: IWidthValue) => void;
+export interface IWidthValue {
+  animation: boolean;
+  val: number;
 }
 
-export interface IWidthValue {
-  val: number;
-  animation: boolean;
+interface IEvent {
+  onWidthChange?: (emitValue: IWidthValue) => void;
 }
 
 @Component

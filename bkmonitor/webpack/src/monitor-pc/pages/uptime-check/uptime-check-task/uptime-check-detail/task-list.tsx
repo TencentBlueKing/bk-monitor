@@ -33,32 +33,32 @@ import type { IViewOptions, PanelModel } from 'monitor-ui/chart-plugins/typings'
 
 import './task-list.scss';
 
-interface TaskDataItem {
-  id: number | string;
-  name: string;
+export interface IEvents {
+  onChange: IViewOptions;
+  onListChange?: { id: string; name: string }[];
+  onOverviewChange?: void;
+  onTitleChange: string;
+}
+
+export interface IProps {
+  isStatusFilter?: boolean;
+  isTargetCompare?: boolean;
+  panel: PanelModel;
+  showOverview?: boolean;
+  viewOptions: IViewOptions;
 }
 
 export interface IViewOption {
   filter_dict?: Record<string, any>;
   group_by?: string[];
-  method?: string;
   interval?: string;
+  method?: string;
   time_shift?: string;
 }
 
-export interface IProps {
-  panel: PanelModel;
-  viewOptions: IViewOptions;
-  isStatusFilter?: boolean;
-  showOverview?: boolean;
-  isTargetCompare?: boolean;
-}
-
-export interface IEvents {
-  onTitleChange: string;
-  onChange: IViewOptions;
-  onListChange?: { id: string; name: string }[];
-  onOverviewChange?: void;
+interface TaskDataItem {
+  id: number | string;
+  name: string;
 }
 
 @Component({})

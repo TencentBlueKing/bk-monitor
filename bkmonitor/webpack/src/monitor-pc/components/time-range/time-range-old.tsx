@@ -40,16 +40,16 @@ import './time-range-old.scss';
 
 export type TimeRangeType = [string, string];
 
-type TimeRangeDisplayType = 'border' | 'input' | 'normal' | 'simple';
-interface IProps {
-  value: TimeRangeType;
-  type?: TimeRangeDisplayType;
-  placement?: string;
-  defaultShortcuts?: typeof shortcuts;
-}
 interface IEvents {
   onChange: TimeRangeType;
 }
+interface IProps {
+  defaultShortcuts?: typeof shortcuts;
+  placement?: string;
+  type?: TimeRangeDisplayType;
+  value: TimeRangeType;
+}
+type TimeRangeDisplayType = 'border' | 'input' | 'normal' | 'simple';
 
 @Component
 export default class TimeRange extends tsc<IProps, IEvents> {
@@ -144,7 +144,7 @@ export default class TimeRange extends tsc<IProps, IEvents> {
 
   /** 点击快捷时间选项 */
   handleShortcutChange(data) {
-    if (!!data?.value) {
+    if (data?.value) {
       this.isPanelTimeRange = false;
       const value = [...data.value] as TimeRangeType;
       this.handleTransformTime(value);

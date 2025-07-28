@@ -39,7 +39,7 @@
   const { $t } = useLocale();
   const { $bkPopover } = Vue.prototype;
 
-  const emit = defineEmits(['select-fields-config']);
+  const emit = defineEmits(['select-fields-config','handle-popover-hide']);
 
   /** popover 弹窗实例 */
   let popoverInstance = null;
@@ -103,14 +103,15 @@
       content: dropdownRef.value,
       trigger: 'click',
       animateFill: false,
-      placement: 'bottom-start',
+      placement: 'right',
       theme: 'light field-template-menu field-template-menu-expand',
       arrow: false,
       interactive: true,
       boundary: 'viewport',
-      onHidden: () => {
+      onHidden: async() => {
         popoverInstance?.destroy?.();
         popoverInstance = null;
+        emit('handle-popover-hide');
       },
     });
     await nextTick();
@@ -135,13 +136,14 @@
       trigger: 'click',
       animation: 'slide-toggle',
       animateFill: false,
-      placement: 'bottom-start',
+      placement: 'top-start',
       theme: 'light bk-select-dropdown field-template-menu',
       arrow: false,
       interactive: true,
       boundary: 'viewport',
-      hideOnClick: false,
+      hideOnClick: true,
       zIndex: 3000,
+      offset:"-16px,-40px",
       onHidden: () => {
         showFieldsSetting.value = false;
         popoverInstance?.destroy?.();
@@ -157,10 +159,11 @@
    * @description 关闭 popover
    *
    */
-  function handlePopoverHide() {
+  async function handlePopoverHide() {
     popoverInstance?.hide?.();
     popoverInstance?.destroy?.();
     popoverInstance = null;
+    emit('handle-popover-hide');
   }
 
   /**
@@ -209,6 +212,13 @@
         emit('select-fields-config', item.display_fields);
       });
   };
+
+  const isPopoverInstance = () => {
+    return popoverInstance?.state.isShown
+  }
+  defineExpose({
+    isPopoverInstance,
+  })
 </script>
 <template>
   <div class="field-select-config-v2">
@@ -219,6 +229,7 @@
     >
       <span class="bklog-icon bklog-overview1"></span>
       <span class="trigger-label"> {{ $t('字段模板') }} </span>
+      <i class='bk-icon icon-angle-right-line'></i>
     </div>
     <div style="display: none">
       <div

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,7 +7,6 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-from typing import List
 
 from django.utils.translation import gettext_lazy as _lazy
 
@@ -20,7 +18,7 @@ k8s 性能场景配置, 初版
 
 
 # 每个场景需要配置一个 get_metrics函数 以返回指标列表
-def get_metrics() -> List:
+def get_metrics() -> list:
     return [
         Category(
             id="CPU",
@@ -31,24 +29,35 @@ def get_metrics() -> List:
                     name=_lazy("CPU使用量"),
                     unit="core",
                     unsupported_resource=[],
+                    show_chart=True,
                 ),
                 Metric(
                     id="kube_pod_cpu_requests_ratio",
                     name=_lazy("CPU request使用率"),
                     unit="percentunit",
                     unsupported_resource=["namespace"],
+                    show_chart=True,
                 ),
                 Metric(
                     id="kube_pod_cpu_limits_ratio",
                     name=_lazy("CPU limit使用率"),
                     unit="percentunit",
                     unsupported_resource=["namespace"],
+                    show_chart=True,
+                ),
+                Metric(
+                    id="kube_pod_container_resource_requests_cpu_cores",
+                    name=_lazy("CPU request"),
+                    unit="core",
+                    unsupported_resource=["namespace"],
+                    show_chart=False,
                 ),
                 Metric(
                     id="container_cpu_cfs_throttled_ratio",
                     name=_lazy("CPU 限流占比"),
                     unit="percentunit",
                     unsupported_resource=[],
+                    show_chart=True,
                 ),
             ],
         ),
@@ -61,18 +70,28 @@ def get_metrics() -> List:
                     name=_lazy("内存使用量(Working Set)"),
                     unit="bytes",
                     unsupported_resource=[],
+                    show_chart=True,
                 ),
                 Metric(
                     id="kube_pod_memory_requests_ratio",
                     name=_lazy("内存 request使用率"),
                     unit="percentunit",
                     unsupported_resource=["namespace"],
+                    show_chart=True,
                 ),
                 Metric(
                     id="kube_pod_memory_limits_ratio",
                     name=_lazy("内存 limit使用率"),
                     unit="percentunit",
                     unsupported_resource=["namespace"],
+                    show_chart=True,
+                ),
+                Metric(
+                    id="kube_pod_container_resource_requests_memory_bytes",
+                    name=_lazy("内存 request"),
+                    unit="bytes",
+                    unsupported_resource=["namespace"],
+                    show_chart=False,
                 ),
             ],
         ),
@@ -85,12 +104,14 @@ def get_metrics() -> List:
                     name=_lazy("网络入带宽"),
                     unit="Bps",
                     unsupported_resource=["container"],
+                    show_chart=True,
                 ),
                 Metric(
                     id="container_network_transmit_bytes_total",
                     name=_lazy("网络出带宽"),
                     unit="Bps",
                     unsupported_resource=["container"],
+                    show_chart=True,
                 ),
             ],
         ),

@@ -44,55 +44,6 @@ import type {
 
 import './chart-title.scss';
 
-export interface IChartTitleProps {
-  // 主标题
-  title: string;
-  // 副标题
-  subtitle?: string;
-  // 带icon说明
-  description?: string;
-  // 告警信息
-  alarm?: ITitleAlarm;
-  // 采集周期
-  collectInterval?: string;
-  // 是否显示更多图标
-  showMore?: boolean;
-  // 可设置图标的功能的id列表
-  menuList?: ChartTitleMenuType[];
-  dragging?: boolean;
-  // 指标数据
-  metrics?: IExtendMetricData[];
-  // 是否显示添加指标到策略选项
-  showAddMetric?: boolean;
-  /** 是否展示title的各个icon */
-  showTitleIcon?: boolean;
-  // 下拉中是否显示添加指标到策略选项
-  showMenuAddMetric?: boolean;
-  // 是否实时
-  isInstant?: boolean;
-  /** 下钻类型 */
-  drillDownOption?: IMenuChildItem[];
-  initialized?: boolean;
-  /** 修改掉菜单的点击区域, 为true时 菜单区域仅为icon区域 */
-  customArea?: boolean;
-  // 数据步长（步长过大情况时需要）
-  collectIntervalDisplay?: string;
-  rawInterval?: string;
-  // 是否展示更多菜单
-  needMoreMenu?: boolean;
-  /** title的内容是否需要hover才展示 */
-  isHoverShow?: boolean;
-}
-
-interface IChartTitleEvent {
-  onMenuClick: IMenuItem;
-  onSelectChild: IChartTitleMenuEvents['onSelectChild'];
-  onAlarmClick: ITitleAlarm;
-  onUpdateDragging: boolean;
-  onMetricClick: IExtendMetricData;
-  onAllMetricClick: () => void;
-}
-
 enum AlarmStatus {
   /** 已经配置策略 */
   already_config_strategy = 1,
@@ -102,15 +53,64 @@ enum AlarmStatus {
   on_warning = 2,
 }
 
+export interface IChartTitleProps {
+  // 告警信息
+  alarm?: ITitleAlarm;
+  // 采集周期
+  collectInterval?: string;
+  // 数据步长（步长过大情况时需要）
+  collectIntervalDisplay?: string;
+  /** 修改掉菜单的点击区域, 为true时 菜单区域仅为icon区域 */
+  customArea?: boolean;
+  // 带icon说明
+  description?: string;
+  dragging?: boolean;
+  /** 下钻类型 */
+  drillDownOption?: IMenuChildItem[];
+  initialized?: boolean;
+  /** title的内容是否需要hover才展示 */
+  isHoverShow?: boolean;
+  // 是否实时
+  isInstant?: boolean;
+  // 可设置图标的功能的id列表
+  menuList?: ChartTitleMenuType[];
+  // 指标数据
+  metrics?: IExtendMetricData[];
+  // 是否展示更多菜单
+  needMoreMenu?: boolean;
+  rawInterval?: string;
+  // 是否显示添加指标到策略选项
+  showAddMetric?: boolean;
+  // 下拉中是否显示添加指标到策略选项
+  showMenuAddMetric?: boolean;
+  // 是否显示更多图标
+  showMore?: boolean;
+  /** 是否展示title的各个icon */
+  showTitleIcon?: boolean;
+  // 副标题
+  subtitle?: string;
+  // 主标题
+  title: string;
+}
+
+interface IChartTitleEvent {
+  onAlarmClick: ITitleAlarm;
+  onMenuClick: IMenuItem;
+  onMetricClick: IExtendMetricData;
+  onSelectChild: IChartTitleMenuEvents['onSelectChild'];
+  onUpdateDragging: boolean;
+  onAllMetricClick: () => void;
+}
+
 @Component
 export default class ChartTitle extends tsc<
   IChartTitleProps,
   IChartTitleEvent,
   {
-    title: string;
-    subTitle: string;
     customSlot: string;
     iconList: string;
+    subTitle: string;
+    title: string;
   }
 > {
   @Prop({ default: '' }) title: string;

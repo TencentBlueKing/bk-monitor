@@ -24,9 +24,9 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { type K8sTableColumnResourceKey } from '../components/k8s-table-new/k8s-table-new';
 
 import type { TimeRangeType } from '../../../components/time-range/time-range';
+import type { K8sTableColumnResourceKey } from '../components/k8s-table-new/k8s-table-new';
 
 export enum EDimensionKey {
   container = 'container',
@@ -37,6 +37,15 @@ export enum EDimensionKey {
   service = 'service',
   node = 'node',
 }
+/** 汇聚类型枚举 */
+export enum K8sConvergeTypeEnum {
+  AVG = 'avg',
+  COUNT = 'count',
+  MAX = 'max',
+  MIN = 'min',
+  SUM = 'sum',
+}
+
 /**
  * @description: k8s tab类型枚举
  */
@@ -133,30 +142,6 @@ export enum K8sTableColumnKeysEnum {
   NETWORK_TRANSMIT_BYTES = 'container_network_transmit_bytes_total',
 }
 
-/** 汇聚类型枚举 */
-export enum K8sConvergeTypeEnum {
-  AVG = 'avg',
-  COUNT = 'count',
-  MAX = 'max',
-  MIN = 'min',
-  SUM = 'sum',
-}
-
-/** 指标字段 */
-export type K8sTableMetricKeys =
-  | 'CPU_LIMIT'
-  | 'CPU_REQUEST'
-  | 'CPU_THROTTLED'
-  | 'CPU_USAGE'
-  | 'MEMORY_LIMIT'
-  | 'MEMORY_REQUEST'
-  | 'MEMORY_RSS'
-  | 'NETWORK_RECEIVE_BYTES'
-  | 'NETWORK_TRANSMIT_BYTES';
-
-/** 排序类型 */
-export type K8sSortType = '' | 'asc' | 'desc';
-
 export enum SceneEnum {
   /** 性能 */
   Performance = 'performance',
@@ -173,29 +158,19 @@ export enum SceneEnum {
 }
 
 export interface GroupListItem<T = string> {
+  [key: string]: any;
+  children?: GroupListItem<T>[];
+  count?: number;
   id: T;
   name: string;
-  count?: number;
-  showMore?: boolean;
-  children?: GroupListItem<T>[];
   relation?: Record<EDimensionKey, string>; // 关联维度
-  [key: string]: any;
-}
-
-export interface K8sDimensionParams extends ICommonParams {
-  query_string: string;
-  page_size: number;
-  page_type: 'scrolling' | 'traditional';
+  showMore?: boolean;
 }
 
 export interface ICommonParams {
-  scenario: SceneEnum;
   bcs_cluster_id: string;
+  scenario: SceneEnum;
   timeRange: TimeRangeType;
-}
-
-export interface ITableCommonParams extends ICommonParams {
-  filter_dict: Record<string, string[]>;
 }
 
 export interface IFilterCommonParams extends ITableCommonParams {
@@ -204,13 +179,38 @@ export interface IFilterCommonParams extends ITableCommonParams {
 }
 
 export interface IK8SMetricItem {
+  children: IK8SMetricItem[];
+  count?: number;
   id: string;
   name: string;
-  count?: number;
   unit?: string;
-  children: IK8SMetricItem[];
   unsupported_resource?: string[];
 }
+
+export interface ITableCommonParams extends ICommonParams {
+  filter_dict: Record<string, string[]>;
+}
+
+export interface K8sDimensionParams extends ICommonParams {
+  page_size: number;
+  page_type: 'scrolling' | 'traditional';
+  query_string: string;
+}
+
+/** 排序类型 */
+export type K8sSortType = '' | 'asc' | 'desc';
+
+/** 指标字段 */
+export type K8sTableMetricKeys =
+  | 'CPU_LIMIT'
+  | 'CPU_REQUEST'
+  | 'CPU_THROTTLED'
+  | 'CPU_USAGE'
+  | 'MEMORY_LIMIT'
+  | 'MEMORY_REQUEST'
+  | 'MEMORY_RSS'
+  | 'NETWORK_RECEIVE_BYTES'
+  | 'NETWORK_TRANSMIT_BYTES';
 
 export const K8SPerformanceMetricUnitMap = {
   container_cpu_usage_seconds_total: 'short',

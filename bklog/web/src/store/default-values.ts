@@ -25,12 +25,12 @@
  */
 import VueRouter from 'vue-router';
 
+import { TimeRangeType } from '@/components/time-range/time-range';
 // @ts-ignore
 import { handleTransformToTimestamp } from '@/components/time-range/utils';
 
 import { type RouteParams, BK_LOG_STORAGE } from './store.type';
 import RouteUrlResolver from './url-resolver';
-import { TimeRangeType } from '@/components/time-range/time-range';
 
 const DEFAULT_FIELDS_WIDTH = 200;
 
@@ -182,7 +182,6 @@ export const IndexSetQueryResult = {
   is_loading: false,
   exception_msg: '',
   is_error: false,
-  request_counter: 0,
   search_count: 0,
   aggregations: {},
   _shards: {},
@@ -196,7 +195,6 @@ export const IndexSetQueryResult = {
 
 export const IndexFieldInfo = {
   is_loading: false,
-  request_counter: 0,
   fields: [],
   display_fields: [],
   sort_list: [],
@@ -347,6 +345,7 @@ export const getStorageOptions = (values?: any) => {
         width: DEFAULT_FIELDS_WIDTH,
       },
       [BK_LOG_STORAGE.LAST_INDEX_SET_ID]: {},
+      [BK_LOG_STORAGE.COMMON_SPACE_ID_LIST]: [],
     },
     storage,
   );

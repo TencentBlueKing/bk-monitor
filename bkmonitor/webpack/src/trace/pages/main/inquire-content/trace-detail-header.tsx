@@ -24,10 +24,10 @@
  * IN THE SOFTWARE.
  */
 import { defineComponent } from 'vue';
-import { useI18n } from 'vue-i18n';
 
 import { Message, Popover } from 'bkui-vue';
 import { copyText } from 'monitor-common/utils/utils';
+import { useI18n } from 'vue-i18n';
 
 import './trace-detail-header.scss';
 

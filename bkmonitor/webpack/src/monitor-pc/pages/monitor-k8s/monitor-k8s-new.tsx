@@ -25,7 +25,6 @@
  */
 import { Component, Mixins, Provide, ProvideReactive, Watch } from 'vue-property-decorator';
 
-import { EMode } from '@/components/retrieval-filter/utils';
 import { listBcsCluster, scenarioMetricList } from 'monitor-api/modules/k8s';
 import { random, tryURLDecodeParse } from 'monitor-common/utils';
 
@@ -48,14 +47,15 @@ import K8sTableNew, {
 } from './components/k8s-table-new/k8s-table-new';
 import { K8sGroupDimension, sceneDimensionMap } from './k8s-dimension';
 import {
-  type IK8SMetricItem,
   type ICommonParams,
+  type IFilterCommonParams,
+  type IK8SMetricItem,
+  type ITableCommonParams,
+  EDimensionKey,
   K8sNewTabEnum,
   SceneEnum,
-  EDimensionKey,
-  type ITableCommonParams,
-  type IFilterCommonParams,
 } from './typings/k8s-new';
+import { EMode } from '@/components/retrieval-filter/utils';
 
 import type { TimeRangeType } from '../../components/time-range/time-range';
 import type { IWhere } from './typings';
@@ -388,7 +388,7 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
     /** 非事件场景之间切换，对filterBy和groupBy查询条件取交集 */
     if (oldScene !== SceneEnum.Event && value !== SceneEnum.Event) {
       this.filterBy = this.sceneDimensionList.reduce((pre, cur) => {
-        if (Object.prototype.hasOwnProperty.call(this.filterBy, cur)) {
+        if (Object.hasOwn(this.filterBy, cur)) {
           pre[cur] = this.filterBy[cur];
         } else {
           pre[cur] = [];

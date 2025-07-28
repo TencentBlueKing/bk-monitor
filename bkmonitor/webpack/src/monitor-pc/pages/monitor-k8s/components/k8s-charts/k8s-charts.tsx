@@ -34,10 +34,10 @@ import TableSkeleton from '../../../../components/skeleton/table-skeleton';
 import { handleTransformToTimestamp } from '../../../../components/time-range/utils';
 import { K8S_METHOD_LIST, PANEL_INTERVAL_LIST } from '../../../../constant/constant';
 import {
+  type IK8SMetricItem,
   K8SPerformanceMetricUnitMap,
   K8sTableColumnKeysEnum,
   SceneEnum,
-  type IK8SMetricItem,
 } from '../../typings/k8s-new';
 import FilterVarSelectSimple from '../filter-var-select/filter-var-select-simple';
 import K8sDetailSlider from '../k8s-detail-slider/k8s-detail-slider';
@@ -50,12 +50,12 @@ import type { IPanelModel } from 'monitor-ui/chart-plugins/typings/dashboard-pan
 import './k8s-charts.scss';
 @Component
 export default class K8SCharts extends tsc<{
-  metricList: IK8SMetricItem[];
-  hideMetrics: string[];
-  groupBy: K8sTableColumnResourceKey[];
-  filterCommonParams: Record<string, any>;
-  isDetailMode?: boolean;
   activeMetricId?: string;
+  filterCommonParams: Record<string, any>;
+  groupBy: K8sTableColumnResourceKey[];
+  hideMetrics: string[];
+  isDetailMode?: boolean;
+  metricList: IK8SMetricItem[];
   resourceListData?: Record<K8sTableColumnKeysEnum, string>[];
 }> {
   @Prop({ type: Array, default: () => [] }) metricList: IK8SMetricItem[];
@@ -416,6 +416,7 @@ export default class K8SCharts extends tsc<{
       // 网络出丢包率
       case 'nw_container_network_transmit_errors_ratio':
       // 网络入丢包率
+      // eslint-disable-next-line no-fallthrough
       case 'nw_container_network_receive_errors_ratio': {
         // const commonFilter = this.createCommonPromqlContent(false, false);
         // const isPod = this.groupByField === K8sTableColumnKeysEnum.POD;

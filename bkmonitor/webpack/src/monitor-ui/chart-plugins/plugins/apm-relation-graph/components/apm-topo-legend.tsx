@@ -23,22 +23,22 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Prop, Emit } from 'vue-property-decorator';
+import { Component, Emit, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { EDataType, type EdgeDataType } from './utils';
+import { type EdgeDataType, EDataType } from './utils';
 
 import './apm-topo-legend.scss';
-
-interface TopoLegendProps {
-  edgeType: EdgeDataType;
-  dataType: string;
-  legendFilter: { color: string; size: string };
-}
 
 interface TopoLegendEvent {
   onEdgeTypeChange(type: EdgeDataType): void;
   onLegendFilterChange(filter: { color: string; size: string }): void;
+}
+
+interface TopoLegendProps {
+  dataType: string;
+  edgeType: EdgeDataType;
+  legendFilter: { color: string; size: string };
 }
 
 @Component

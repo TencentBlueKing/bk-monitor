@@ -23,14 +23,14 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Prop, Emit, InjectReactive, Watch } from 'vue-property-decorator';
+import { Component, Emit, InjectReactive, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { getFieldOptionValues } from 'monitor-api/modules/apm_metric';
 import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
 
 import { VariablesService } from '../../../utils/variable';
-import { type CallOptions, EKind, type IFilterCondition, type IFilterOption, type IListItem } from '../type';
+import { type CallOptions, type IFilterCondition, type IFilterOption, type IListItem, EKind } from '../type';
 import { SYMBOL_LIST } from '../utils';
 
 import type { PanelModel } from '../../../typings';
@@ -39,14 +39,14 @@ import type { IViewOptions } from 'monitor-ui/chart-plugins/typings';
 
 import './caller-callee-filter.scss';
 
-interface ICallerCalleeFilterProps {
-  panel: PanelModel;
-  callType?: EKind;
-  callOptions?: Partial<CallOptions>;
-}
 interface ICallerCalleeFilterEvent {
   onReset?: () => void;
   onSearch?: (options: CallOptions['call_filter']) => void;
+}
+interface ICallerCalleeFilterProps {
+  callOptions?: Partial<CallOptions>;
+  callType?: EKind;
+  panel: PanelModel;
 }
 const filterOption: IListItem = {
   text: '- 空 -',

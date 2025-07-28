@@ -24,13 +24,13 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, computed, shallowRef, type UnwrapRef, watch } from 'vue';
+import { type UnwrapRef, computed, defineComponent, shallowRef, watch } from 'vue';
+
+import { Exception, Input, Loading } from 'bkui-vue';
+import _ from 'lodash';
 import { useI18n } from 'vue-i18n';
 
-import { Input, Loading, Exception } from 'bkui-vue';
-import _ from 'lodash';
-
-import { GROUP_ID_PERSONAL, GROUP_ID_ALL, GROUP_ID_NOT } from '../../../constants';
+import { GROUP_ID_ALL, GROUP_ID_NOT, GROUP_ID_PERSONAL } from '../../../constants';
 import useGroupList from '../../../hooks/use-group-list';
 import CreateGroupPopover from '../../create-group-popover';
 

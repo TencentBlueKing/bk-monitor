@@ -24,19 +24,19 @@
  * IN THE SOFTWARE.
  */
 
-import { computed, defineComponent, shallowRef, watch, type PropType } from 'vue';
-import { useI18n } from 'vue-i18n';
+import { type PropType, computed, defineComponent, shallowRef, watch } from 'vue';
 
-import { formatDuration } from '@/components/trace-view/utils/date';
 import dayjs from 'dayjs';
 import deepmerge from 'deepmerge';
 import { deepClone } from 'monitor-common/utils';
 import { MONITOR_BAR_OPTIONS, MONITOR_LINE_OPTIONS } from 'monitor-ui/chart-plugins/constants';
 import { getSeriesMaxInterval, getTimeSeriesXInterval } from 'monitor-ui/chart-plugins/utils/axis';
+import { useI18n } from 'vue-i18n';
 
 import BaseEchart from '../../../plugins/base-echart';
 import PageLegend from '../../../plugins/components/page-legend';
 import { useChartResize } from '../../../plugins/hooks';
+import { formatDurationWithUnit } from '@/components/trace-view/utils/date';
 
 import type { ILegendItem, LegendActionType } from '../../../plugins/typings';
 import type { IStatisticsGraph } from '../typing';
@@ -121,8 +121,8 @@ export default defineComponent({
       if (props.isDuration) {
         const nameVal = params[0].name.split('-');
         const [start, end] = nameVal;
-        const startLabel = formatDuration(Number(start || 0), '', '');
-        const endLabel = formatDuration(Number(end || 0), '', '');
+        const startLabel = formatDurationWithUnit(Number(start || 0));
+        const endLabel = formatDurationWithUnit(Number(end || 0));
         name = `${startLabel} - ${endLabel}`;
         value = params[0].value[1];
       }

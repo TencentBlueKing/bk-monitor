@@ -43,18 +43,18 @@ import type {
   TargetObjectType,
 } from '../../../components/monitor-ip-selector/typing';
 
-interface IStrategyIpv6Props {
-  showDialog: boolean;
-  strategyIds?: string[];
-  objectType?: TargetObjectType;
-  nodeType?: INodeType;
-  bizId?: number | string;
-  checkedNodes?: any[];
-}
 interface IStrategyIpv6Events {
+  onChange: { nodeType: INodeType; objectType: TargetObjectType; value: IIpV6Value };
   onCloseDialog: boolean;
   onSave: boolean;
-  onChange: { value: IIpV6Value; nodeType: INodeType; objectType: TargetObjectType };
+}
+interface IStrategyIpv6Props {
+  bizId?: number | string;
+  checkedNodes?: any[];
+  nodeType?: INodeType;
+  objectType?: TargetObjectType;
+  showDialog: boolean;
+  strategyIds?: string[];
 }
 const HostTargetFieldMap = {
   TOPO: 'host_topo_node',

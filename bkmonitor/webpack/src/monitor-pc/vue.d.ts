@@ -32,13 +32,13 @@ import type { Route } from 'vue-router/types';
 
 declare module 'vue/types/vue' {
   interface Vue {
-    $router: VueRouter;
+    $d: typeof VueI18n.prototype.d;
+    readonly $i18n: IVueI18n & VueI18n;
+    $n: typeof VueI18n.prototype.n;
     $route: Route;
-    readonly $i18n: VueI18n & IVueI18n;
+    $router: VueRouter;
     $t: typeof VueI18n.prototype.t;
     $tc: typeof VueI18n.prototype.tc;
     $te: typeof VueI18n.prototype.te;
-    $d: typeof VueI18n.prototype.d;
-    $n: typeof VueI18n.prototype.n;
   }
 }

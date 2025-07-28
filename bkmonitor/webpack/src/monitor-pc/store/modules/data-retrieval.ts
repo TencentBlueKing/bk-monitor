@@ -29,7 +29,7 @@ import { getLabel, getMainlineObjectTopo } from 'monitor-api/modules/commons';
 import { getGraphQueryConfig } from 'monitor-api/modules/data_explorer';
 import { createQueryHistory, destroyQueryHistory, listQueryHistory } from 'monitor-api/modules/model';
 import { deepClone, random, transformDataKey } from 'monitor-common/utils/utils';
-import { Action, Module, Mutation, VuexModule, getModule } from 'vuex-module-decorators';
+import { Action, getModule, Module, Mutation, VuexModule } from 'vuex-module-decorators';
 
 import { handleTimeRange } from '../../utils/index';
 import store from '../store';
@@ -397,7 +397,7 @@ class DataRetrieval extends VuexModule {
   }
 
   @Mutation
-  public setCompareConfig(payload: { type: string; timeOffset: string }) {
+  public setCompareConfig(payload: { timeOffset: string; type: string }) {
     this.queryData.compareConfig = { type: payload.type, split: true, timeOffset: payload.timeOffset };
   }
 
@@ -408,7 +408,7 @@ class DataRetrieval extends VuexModule {
    * @param context 上下文 默认为this
    */
   @Mutation
-  public setData({ expr, value, context = this }: { expr: string; value: any; context?: any }) {
+  public setData({ expr, value, context = this }: { context?: any; expr: string; value: any }) {
     expr.split('.').reduce((data, curKey, index, arr) => {
       if (index === arr.length - 1) {
         // 给表达式最后一个赋值
@@ -429,7 +429,7 @@ class DataRetrieval extends VuexModule {
 
   // 更新查询条件数据
   @Action
-  public async setQueryConfigItem({ index, expr, value }: { index: number; expr: string; value: any }) {
+  public async setQueryConfigItem({ index, expr, value }: { expr: string; index: number; value: any }) {
     const tempItem = this.queryData.queryConfigs[index];
     this.setData({ expr, value, context: tempItem });
   }

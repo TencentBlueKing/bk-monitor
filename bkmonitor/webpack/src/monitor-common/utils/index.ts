@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { LOCAL_BIZ_STORE_KEY, COMMON_PAGE_SIZE_KEY } from './constant';
+import { COMMON_PAGE_SIZE_KEY, LOCAL_BIZ_STORE_KEY } from './constant';
 import { getUrlParam } from './utils';
 
 import type { ISpaceItem } from '../typings';
@@ -262,26 +262,6 @@ export const detectOS = (): 'Mac' | 'Unknown' | 'Windows' => {
 };
 
 /**
- * URL解码并转化
- * @param str 需要解析的字符串
- * @param defaultValue 默认值
- * @returns 解析后的值
- */
-export function tryURLDecodeParse<T>(str: string, defaultValue: T) {
-  let result: T;
-  try {
-    result = JSON.parse(str);
-  } catch {
-    try {
-      result = JSON.parse(decodeURIComponent(str));
-    } catch {
-      result = defaultValue;
-    }
-  }
-  return result || defaultValue;
-}
-
-/**
  * 格式化百分比数值，使其在不同情况下都能合理显示，避免精度问题导致的数据失真
  * 如果数值小数过大，toFixed函数会导致精度丢失，
  * @param {number} value - 要格式化的百分比数值（可以是整数或浮点数）
@@ -329,6 +309,26 @@ export function formatPercent(value, precision = 2, sigFigCnt = 2, readablePreci
 
   // 7. 默认返回四舍五入后的值
   return withSign(roundedPercent);
+}
+
+/**
+ * URL解码并转化
+ * @param str 需要解析的字符串
+ * @param defaultValue 默认值
+ * @returns 解析后的值
+ */
+export function tryURLDecodeParse<T>(str: string, defaultValue: T) {
+  let result: T;
+  try {
+    result = JSON.parse(str);
+  } catch {
+    try {
+      result = JSON.parse(decodeURIComponent(str));
+    } catch {
+      result = defaultValue;
+    }
+  }
+  return result || defaultValue;
 }
 
 export * from './colorHelpers';

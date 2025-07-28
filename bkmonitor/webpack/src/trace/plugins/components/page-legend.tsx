@@ -23,9 +23,9 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, nextTick, shallowRef, watch, useTemplateRef, type PropType, onUnmounted } from 'vue';
+import { type PropType, defineComponent, nextTick, onUnmounted, shallowRef, useTemplateRef, watch } from 'vue';
 
-import type { LegendActionType, ILegendItem } from '../typings';
+import type { ILegendItem, LegendActionType } from '../typings';
 
 import './page-legend.scss';
 

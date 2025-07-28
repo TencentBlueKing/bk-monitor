@@ -24,13 +24,12 @@
  * IN THE SOFTWARE.
  */
 import { type PropType, computed, defineComponent, ref, watch } from 'vue';
-import { useI18n } from 'vue-i18n';
 
 import { Exception, Input, Popover } from 'bkui-vue';
 import { Search } from 'bkui-vue/lib/icon';
-
 // import { $bkPopover } from 'bkui-vue/lib/popover';
 import { debounce } from 'monitor-common/utils';
+import { useI18n } from 'vue-i18n';
 
 import './group-select.scss';
 
@@ -42,10 +41,10 @@ import './group-select.scss';
 // }
 
 export interface IGroupItem {
-  id: string;
-  name: string;
   children?: IGroupItem[];
   fatherName?: string;
+  id: string;
+  name: string;
 }
 
 export default defineComponent({

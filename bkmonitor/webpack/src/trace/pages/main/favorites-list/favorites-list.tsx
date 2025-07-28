@@ -34,18 +34,18 @@ import {
   toRefs,
   watch,
 } from 'vue';
-import { useI18n } from 'vue-i18n';
 
 import { debounce, deepClone } from 'monitor-common/utils/utils';
+import { useI18n } from 'vue-i18n';
 
 import type { IFavList, IFavoriteItem } from '../../../typings';
 
 import './favorites-list.scss';
 
 interface IState {
-  localValue: IFavList.favList[];
-  isExpand: boolean;
   allowScroll: boolean;
+  isExpand: boolean;
+  localValue: IFavList.favList[];
 }
 
 const IProps = {

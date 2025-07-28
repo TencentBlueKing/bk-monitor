@@ -27,9 +27,9 @@ interface ICollectConfig {
   [propName: string]: {
     // id  custom_${id} || collect_${id}
     [propName: string]: {
+      activeName?: string[]; // 图表展开记录
       // 场景名
       variables?: { [propName: string]: string[] }; // 变量值输入记录
-      activeName?: string[]; // 图表展开记录
     };
   };
 }
@@ -41,7 +41,7 @@ const collectStorageKey = 'collectVariablesConfig';
 const setCollectVariable: Function = (
   collectId: string, // 采集id 或者自定义指标id
   sceneName: string, // 场景名
-  data: { type: 'dashboard' | 'variables'; variables?: { id: string; value: string[] }[]; active?: string[] }, // 存储检查视图变量或者图表分组展开记录 type:variables对应variables 'dashboard'对应active
+  data: { active?: string[]; type: 'dashboard' | 'variables'; variables?: { id: string; value: string[] }[] }, // 存储检查视图变量或者图表分组展开记录 type:variables对应variables 'dashboard'对应active
   type = 'collect' // 区分是采集还是其他地方的检查视图
 ) => {
   const id = `${type}_${collectId}`;

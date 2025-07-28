@@ -71,5 +71,5 @@ class IncidentViewSet(ResourceViewSet):
         # 故障页结果状态概览
         ResourceRoute("GET", resource.incident.incident_results, endpoint="incident_results"),
         # 故障诊断页结果接口
-        ResourceRoute("GET", resource.incident.incident_diagnosis, endpoint="incident_diagnosis"),
+        ResourceRoute("POST", resource.incident.incident_diagnosis, endpoint="incident_diagnosis"),
     ]
