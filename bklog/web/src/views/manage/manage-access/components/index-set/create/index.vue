@@ -90,7 +90,7 @@
         <h3 class="title">{{ subTitle }}</h3>
         <template>
           <div
-            v-if="scenarioId !== 'bkdata'"
+            v-if="scenarioId === 'es'"
             class="collection-form"
           >
             <div class="collection-label">{{ $t('集群') }}</div>

@@ -86,6 +86,44 @@
               </div>
             </bk-option>
           </bk-select>
+          <bk-select
+            v-model="formData.resultTableIds"
+            :clearable="false"
+            multiple
+            data-test-id="addIndex_multiple_select_selectIndex"
+            searchable
+            @selected="val => handleCollectionSelected(val)"
+          >
+            <bk-option
+              v-for="item in getShowCollectionList"
+              class="custom-no-padding-option"
+              :disabled="parentData.indexes.some(selectedItem => item.result_table_id === selectedItem.result_table_id)"
+              :id="item.result_table_id"
+              :key="item.result_table_id"
+              :name="`${item.result_table_name_alias}(${item.result_table_id})`"
+            >
+              <div
+                v-if="
+                  scenarioId === 'log' && !(item.permission && item.permission[authorityMap.MANAGE_COLLECTION_AUTH])
+                "
+                class="option-slot-container no-authority"
+                @click.stop
+              >
+                <span class="text">{{ item.result_table_name_alias }}</span>
+                <span
+                  class="apply-text"
+                  @click="applyCollectorAccess(item)"
+                  >{{ $t('申请权限') }}</span
+                >
+              </div>
+              <div
+                v-else
+                class="option-slot-container"
+              >
+                {{ item.result_table_name_alias }}
+              </div>
+            </bk-option>
+          </bk-select>
         </bk-form-item>
         <bk-form-item label="">
           <bk-table
@@ -178,6 +216,7 @@
         tableData: [], // log bkdata 表格
         formData: {
           resultTableId: '',
+          resultTableIds: [],
         },
         formRules: {
           resultTableId: [
@@ -215,6 +254,7 @@
           tableData: [], // log bkdata 表格
           formData: {
             resultTableId: '',
+            resultTableIds: [],
           },
         });
       },
@@ -241,6 +281,8 @@
       },
       // 选择采集项
       async handleCollectionSelected(id, foreignParams) {
+        console.log(id, foreignParams);
+        
         try {
           this.tableLoading = true;
           const res = await this.$http.request(
