@@ -27,7 +27,6 @@ from apps.log_clustering.constants import (
     DEFULT_FILTER_NOT_CLUSTERING_OPERATOR,
     OwnerConfigEnum,
     PatternEnum,
-    RegexRuleTypeEnum,
     RemarkConfigEnum,
     StrategiesAlarmLevelEnum,
     StrategiesType,
@@ -93,30 +92,16 @@ class FilerRuleSerializer(serializers.Serializer):
     logic_operator = serializers.CharField(required=False, allow_blank=True, allow_null=True)
 
 
-class ClusteringRegexTemplateSerializer(serializers.Serializer):
-    clustering_fields = serializers.CharField()
-    predefined_varibles = serializers.CharField()
-    regex_template_id = serializers.IntegerField()
-    regex_rule_type = serializers.ChoiceField(
-        choices=RegexRuleTypeEnum.get_choices(), default=RegexRuleTypeEnum.CUSTOMIZE.value
-    )
-
-
 class ClusteringConfigSerializer(serializers.Serializer):
     bk_biz_id = serializers.IntegerField()
     clustering_fields = serializers.CharField()
     filter_rules = serializers.ListField(child=FilerRuleSerializer(), required=False)
     min_members = serializers.IntegerField(required=False)
-    predefined_varibles = serializers.CharField(required=False, allow_blank=True)
     delimeter = serializers.CharField(required=False, allow_blank=True)
     max_log_length = serializers.IntegerField(required=False)
     is_case_sensitive = serializers.IntegerField(required=False)
     new_cls_strategy_enable = serializers.BooleanField(default=False)
     normal_strategy_enable = serializers.BooleanField(default=False)
-    regex_rule_type = serializers.ChoiceField(
-        choices=RegexRuleTypeEnum.get_choices(), default=RegexRuleTypeEnum.CUSTOMIZE.value
-    )
-    regex_template_id = serializers.IntegerField(default=0)
 
 
 class ClusteringDebugSerializer(serializers.Serializer):
@@ -280,7 +265,9 @@ class SendReportSerializer(serializers.Serializer):
 class CreateRegexTemplateSerializer(serializers.Serializer):
     space_uid = SpaceUIDField(label=_("空间唯一标识"), required=True)
     template_name = serializers.CharField(required=True)
+    predefined_varibles = serializers.CharField(required=False)
 
 
 class UpdateRegexTemplateSerializer(serializers.Serializer):
     template_name = serializers.CharField(required=True)
+    predefined_varibles = serializers.CharField()

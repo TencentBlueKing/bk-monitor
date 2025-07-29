@@ -46,7 +46,7 @@ from apps.log_clustering.handlers.dataflow.constants import OnlineTaskTrainingAr
 from apps.log_clustering.handlers.dataflow.dataflow_handler import DataFlowHandler
 from apps.log_clustering.handlers.pipline_service.constants import OperatorServiceEnum
 from apps.log_clustering.handlers.regex_template import RegexTemplateHandler
-from apps.log_clustering.models import ClusteringConfig, RegexTemplate
+from apps.log_clustering.models import ClusteringConfig
 from apps.log_clustering.tasks.msg import access_clustering
 from apps.log_clustering.utils import pattern
 from apps.log_databus.models import CollectorConfig
@@ -162,10 +162,7 @@ class ClusteringConfigHandler:
                     "min_members", default_conf.get("min_members", OnlineTaskTrainingArgs.MIN_MEMBERS)
                 ),
                 max_dist_list=OnlineTaskTrainingArgs.MAX_DIST_LIST,
-                predefined_varibles=params.get(
-                    "predefined_varibles",
-                    default_conf.get("predefined_varibles", OnlineTaskTrainingArgs.PREDEFINED_VARIBLES),
-                ),
+                predefined_varibles=default_conf.get("predefined_varibles", OnlineTaskTrainingArgs.PREDEFINED_VARIBLES),
                 depth=OnlineTaskTrainingArgs.DEPTH,
                 delimeter=params.get("delimeter", default_conf.get("delimeter", OnlineTaskTrainingArgs.DELIMETER)),
                 max_log_length=params.get(
@@ -245,36 +242,6 @@ class ClusteringConfigHandler:
     def synchronous_update(self, params):
         pipeline_id = self.update(params)
         return [pipeline_id]
-
-    def regex_template_update(self, params):
-        from apps.log_clustering.handlers.pipline_service.aiops_service_online import (
-            UpdateOnlineService,
-        )
-
-        service_params = {
-            "index_set_id": self.index_set_id,
-            "params": params,
-        }
-
-        service = UpdateOnlineService()
-        data = service.build_data_context(service_params)
-        pipeline = service.build_pipeline(data, **service_params)
-        pipeline_ids = [pipeline.id] if pipeline else []
-
-        instance = RegexTemplate.objects.get(id=params["regex_template_id"])
-        # 模板无变化
-        if instance.predefined_varibles == params["predefined_varibles"]:
-            return pipeline_ids
-        instance.predefined_varibles = params["predefined_varibles"]
-        instance.save()
-
-        configs = ClusteringConfig.objects.exclude(index_set_id=self.index_set_id).filter(
-            regex_template_id=params["regex_template_id"], signature_enable=True
-        )
-        update_params = {"predefined_varibles": params["predefined_varibles"]}
-        for c in configs:
-            pipeline_ids.append(ClusteringConfigHandler(index_set_id=c.index_set_id).update(update_params))
-        return pipeline_ids
 
     def get_access_status(self, task_id=None, include_update=False):
         """
