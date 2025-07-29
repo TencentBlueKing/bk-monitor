@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { computed, defineComponent, onMounted, shallowRef } from 'vue';
+import { computed, defineComponent, onMounted, shallowRef, watch } from 'vue';
 
 import { get, set } from '@vueuse/core';
 
@@ -64,7 +64,8 @@ export default defineComponent({
       default: 36,
     },
   },
-  setup(props, { slots }) {
+  emits: ['collapseChange'],
+  setup(props, { slots, emit }) {
     /** 折叠面板，是否展开图表 */
     const isExpand = shallowRef(true);
     /** 显示内容区域高度 -- 主要用于配合 resize 操作时使用 */
@@ -89,6 +90,15 @@ export default defineComponent({
       // 容器切换折叠状态时动画持续时长
       '--expand-animation-duration': '0.6s',
     }));
+
+    watch(
+      () => props.defaultIsExpand,
+      val => {
+        if (val !== isExpand.value) {
+          set(isExpand, val);
+        }
+      }
+    );
 
     onMounted(() => {
       initConfig();
@@ -117,6 +127,7 @@ export default defineComponent({
      */
     function handleExpandChange() {
       set(isExpand, !get(isExpand));
+      emit('collapseChange', get(isExpand));
     }
 
     /**

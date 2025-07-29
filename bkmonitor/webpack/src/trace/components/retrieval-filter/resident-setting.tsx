@@ -26,8 +26,8 @@
 
 import { computed, defineComponent, shallowRef, useTemplateRef, watch } from 'vue';
 
-import tippy from 'tippy.js';
 import { useI18n } from 'vue-i18n';
+import { useTippy } from 'vue-tippy';
 
 import useUserConfig from '../../hooks/useUserConfig';
 import ResidentSettingTransfer from './resident-setting-transfer';
@@ -37,21 +37,21 @@ import TimeConsuming from './time-consuming';
 import {
   type IFieldItem,
   type IFilterField,
-  type IWhereItem,
+  type INormalWhere,
   type TGetValueFn,
   ECondition,
+  EFieldType,
   EMethod,
   RESIDENT_SETTING_EMITS,
   RESIDENT_SETTING_PROPS,
 } from './typing';
-import { defaultWhereItem, DURATION_KEYS, EXISTS_KEYS, INPUT_TAG_KEYS } from './utils';
+import { defaultWhereItem, EXISTS_KEYS } from './utils';
 
 import './resident-setting.scss';
-import 'tippy.js/dist/tippy.css';
 
 export interface IResidentSetting {
   field: IFilterField;
-  value: IWhereItem;
+  value: INormalWhere;
 }
 
 export default defineComponent({
@@ -93,7 +93,7 @@ export default defineComponent({
                   valueNameMap[key] || {
                     key: fieldNameMap.value[key]?.name,
                     value: valueNameMap[key]?.value || [],
-                    method: fieldNameMap.value[key]?.supported_operations?.[0]?.value || EMethod.eq,
+                    method: fieldNameMap.value[key]?.methods?.[0]?.value || EMethod.eq,
                   }
                 ),
               });
@@ -144,8 +144,8 @@ export default defineComponent({
         destroyPopoverInstance();
         return;
       }
-      popoverInstance.value = tippy(event.target as any, {
-        content: selectorRef.value,
+      popoverInstance.value = useTippy(event.target as any, {
+        content: () => selectorRef.value,
         trigger: 'click',
         placement: 'bottom-start',
         theme: 'light common-monitor padding-0',
@@ -186,7 +186,7 @@ export default defineComponent({
           valueNameMap[item.name] || {
             key: item.name,
             value: [],
-            method: fieldNameMap.value[item.name]?.supported_operations?.[0]?.value || EMethod.eq,
+            method: fieldNameMap.value[item.name]?.methods?.[0]?.value || EMethod.eq,
           }
         ),
       }));
@@ -194,7 +194,7 @@ export default defineComponent({
       destroyPopoverInstance();
       handleSetUserConfig(JSON.stringify(fields.map(item => item.name)));
     }
-    function handleValueChange(value: IWhereItem, index: number) {
+    function handleValueChange(value: INormalWhere, index: number) {
       localValue.value[index].value = value;
       handleChange();
     }
@@ -224,7 +224,7 @@ export default defineComponent({
         alias: item.alias,
         isEnableOptions: !!item?.isEnableOptions,
         methods:
-          item?.supported_operations?.map(o => ({
+          item?.methods?.map(o => ({
             id: o.value,
             name: o.alias,
           })) || [],
@@ -238,7 +238,7 @@ export default defineComponent({
      * @returns 返回操作符字符串
      * @description 根据字段名称和搜索模式获取对应的通配符操作符:
      * - 非搜索模式下返回字段对应的 method 值或默认值 'equal'
-     * - 搜索模式下根据 supported_operations 匹配 wildcard_operator,若无匹配则返回第一个支持的操作符或默认值 'equal'
+     * - 搜索模式下根据 methods 匹配 wildcardValue,若无匹配则返回第一个支持的操作符或默认值 'equal'
      */
     function getWildcardOperator(field: string, isSearch = false) {
       let operator = '';
@@ -250,14 +250,14 @@ export default defineComponent({
         operator = tempLocalValue.value?.method || 'equal';
         return operator;
       }
-      for (const m of tempLocalValue.field?.supported_operations || []) {
+      for (const m of tempLocalValue.field?.methods || []) {
         if (tempLocalValue.value?.method === m.value) {
-          operator = m?.wildcard_operator;
+          operator = m?.wildcardValue;
           break;
         }
       }
       if (!operator) {
-        operator = tempLocalValue.field?.supported_operations?.[0]?.wildcard_operator || 'equal';
+        operator = tempLocalValue.field?.methods?.[0]?.wildcardValue || 'equal';
       }
       return operator;
     }
@@ -335,7 +335,7 @@ export default defineComponent({
         <div class='right-content'>
           {this.localValue.length ? (
             this.localValue.map((item, index) => {
-              if (DURATION_KEYS.includes(item.field.name)) {
+              if (item.field.type === EFieldType.duration) {
                 return (
                   <TimeConsuming
                     key={item.field.name}
@@ -346,7 +346,7 @@ export default defineComponent({
                   />
                 );
               }
-              if (INPUT_TAG_KEYS.includes(item.field.name)) {
+              if ([EFieldType.input, EFieldType.all, EFieldType.text].includes(item.field.type)) {
                 return (
                   <SettingKvInput
                     key={item.field.name}

@@ -247,6 +247,7 @@ export default defineComponent({
           ]}
           data={this.tableData || []}
           maxHeight={this.maxHeight}
+          needCustomScroll={false}
           resizable={true}
           rowKey='display_name'
           stripe={false}

@@ -87,6 +87,12 @@ body {
   }
 }
 
+.tippy-box[data-theme~=common-monitor] {
+  .tippy-content {
+    padding: 0;
+  }
+}
+
 .disable-hover,
 .disable-hover * {
   /* stylelint-disable-next-line declaration-no-important */

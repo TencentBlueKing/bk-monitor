@@ -46,6 +46,8 @@ import {
   type CustomDisplayColumnFieldsConfig,
   type ExploreTableColumn,
   type GetTableCellRenderValue,
+  type TableCellRenderContext,
+  type TableCellRenderer,
   ExploreTableColumnTypeEnum,
 } from '../typing';
 
@@ -56,12 +58,14 @@ import type { SlotReturnValue } from 'tdesign-vue-next';
 interface UseExploreTableColumnConfig {
   isSpanVisual: MaybeRef<boolean>;
   props: Record<string, any>;
+  renderContext: TableCellRenderContext;
   rowKeyField: MaybeRef<string>;
   sortContainer: DeepReadonly<SortInfo>;
+  tableCellRender: TableCellRenderer;
   handleConditionMenuShow: (triggerDom: HTMLElement, conditionMenuTarget: ActiveConditionMenuTarget) => void;
   handleSliderShowChange: (mode: 'span' | 'trace', id: string) => void;
   handleSortChange: (sortEvent: TableSort) => void;
-  tableCellRender: (column: ExploreTableColumn, row: Record<string, any>) => SlotReturnValue;
+  // tableCellRender: (column: ExploreTableColumn, row: Record<string, any>) => SlotReturnValue;
   tableHeaderCellRender: (title: string, tipText: string, column: ExploreTableColumn) => () => SlotReturnValue;
 }
 
@@ -74,6 +78,7 @@ export function useExploreColumnConfig({
   isSpanVisual,
   rowKeyField,
   sortContainer,
+  renderContext,
   tableHeaderCellRender,
   tableCellRender,
   handleConditionMenuShow,
@@ -168,7 +173,7 @@ export function useExploreColumnConfig({
         // 表格列表头渲染方法
         const tableHeaderTitle = tableHeaderCellRender(column.title as string, tipText, column);
         // 表格单元格渲染方法
-        const tableCell = (_, { row }) => tableCellRender(column, row);
+        const tableCell = (_, { row }) => tableCellRender(row, column, renderContext);
 
         return {
           ...defaultTableConfig,
@@ -566,8 +571,8 @@ export function useExploreColumnConfig({
           return value.map(v => ({
             alias: SPAN_KIND_MAPS[v]?.alias,
             value: v,
-            tagColor: '#63656e',
-            tagBgColor: 'rgba(151,155,165,.1)',
+            tagColor: '#4D4F56',
+            tagBgColor: '#F0F1F5',
           }));
         },
       },

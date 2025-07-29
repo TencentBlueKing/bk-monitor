@@ -47,7 +47,6 @@ import {
 } from './typing';
 import {
   DEFAULT_GROUP_RELATION,
-  DURATION_KEYS,
   EXISTS_KEYS,
   fieldTypeMap,
   GROUP_RELATION_KEY,
@@ -82,12 +81,12 @@ export default defineComponent({
     const isMacSystem = shallowRef(false);
 
     const wildcardItem = computed(() =>
-      checkedItem.value?.supported_operations
+      checkedItem.value?.methods
         ?.find(item => item.value === method.value)
         ?.options?.find(item => item.name === WILDCARD_KEY)
     );
     const groupRelationItem = computed(() =>
-      checkedItem.value?.supported_operations
+      checkedItem.value?.methods
         ?.find(item => item.value === method.value)
         ?.options?.find(item => item.name === GROUP_RELATION_KEY)
     );
@@ -109,25 +108,29 @@ export default defineComponent({
         alias: checkedItem.value?.alias,
         isEnableOptions: !!checkedItem.value?.isEnableOptions,
         methods:
-          checkedItem.value?.supported_operations?.map(item => ({
+          checkedItem.value?.methods?.map(item => ({
             id: item.value,
             name: item.alias,
             placeholder: item?.placeholder || '',
-            wildcardOperator: item?.wildcard_operator || '',
+            wildcardOperator: item?.wildcardValue || '',
           })) || [],
         type: checkedItem.value?.type,
       };
     });
     const placeholderStr = computed(() => {
-      return checkedItem.value?.supported_operations?.find(item => item.value === method.value)?.placeholder || '';
+      return checkedItem.value?.methods?.find(item => item.value === method.value)?.placeholder || '';
     });
     /* 是否选择了耗时 */
     const isDurationKey = computed(() => {
-      return DURATION_KEYS.includes(checkedItem.value?.name);
+      return checkedItem.value.type === EFieldType.duration;
     });
     /* 是否选择了无需检索值的操作符 */
     const notValueOfMethod = computed(() => {
       return NOT_VALUE_METHODS.includes(method.value);
+    });
+    /* 是否选择了全文检索或者同类型的输入形式 */
+    const isTextarea = computed(() => {
+      return checkedItem.value?.name === '*' || [EFieldType.all, EFieldType.text].includes(checkedItem.value?.type);
     });
 
     const enterSelectionDebounce = useDebounceFn((isFocus = false) => {
@@ -241,12 +244,12 @@ export default defineComponent({
           value: (value || []).map(item => item.id),
         };
       } else {
-        method.value = methodP || item?.supported_operations?.[0]?.value || '';
+        method.value = methodP || item?.methods?.[0]?.value || '';
       }
       isWildcard.value = options?.isWildcard || false;
       groupRelation.value = options?.groupRelation || DEFAULT_GROUP_RELATION;
       const index = searchLocalFields.value.findIndex(f => f.name === item.name) || 0;
-      if (checkedItem.value.name === '*') {
+      if (isTextarea.value) {
         queryString.value = value[0]?.id || '';
       } else {
         if (cacheCheckedName.value !== item.name) {
@@ -269,9 +272,9 @@ export default defineComponent({
       } else {
         await promiseTimeout(50);
       }
-      if (checkedItem.value.name === '*' && queryString.value) {
+      if (isTextarea.value && queryString.value) {
         const value: IFilterItem = {
-          key: { id: checkedItem.value.name, name: t('全文') },
+          key: { id: checkedItem.value?.name || '*', name: checkedItem.value?.alias || t('全文') },
           method: { id: EMethod.include, name: t('包含') },
           value: [{ id: queryString.value, name: queryString.value }],
           condition: { id: ECondition.and, name: 'AND' },
@@ -285,7 +288,7 @@ export default defineComponent({
         values.value.length ||
         (isDurationKey.value && timeConsumingValue.value.value.length)
       ) {
-        const methodName = checkedItem.value.supported_operations.find(item => item.value === method.value)?.alias;
+        const methodName = checkedItem.value.methods.find(item => item.value === method.value)?.alias;
         const opt = {};
         if (isWildcard.value) {
           opt[WILDCARD_KEY] = true;
@@ -531,6 +534,7 @@ export default defineComponent({
       timeConsumingValue,
       notValueOfMethod,
       isDurationKey,
+      isTextarea,
       getValueFnProxy,
       handleValueChange,
       handleTimeConsumingValueChange,
@@ -548,7 +552,7 @@ export default defineComponent({
   },
   render() {
     const rightRender = () => {
-      if (this.checkedItem?.name === '*') {
+      if (this.isTextarea) {
         return [
           <div
             key={'all'}
@@ -585,7 +589,7 @@ export default defineComponent({
                     clearable={false}
                     onChange={this.handleMethodChange}
                   >
-                    {this.checkedItem.supported_operations.map(item => (
+                    {this.checkedItem.methods.map(item => (
                       <Select.Option
                         id={item.value}
                         key={item.value}
