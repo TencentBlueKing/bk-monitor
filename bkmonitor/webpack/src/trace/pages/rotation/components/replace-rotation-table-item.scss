@@ -127,11 +127,11 @@
   .auto-group-wrap {
     .auto-user-selector {
       .tags-container {
-        align-items: flex-start;
+        align-items: flex-start !important;
         min-height: 78px;
         padding: 6px 10px 6px 8px;
         .search-input {
-          height: 20px;
+          height: 22px;
         }
       }
 

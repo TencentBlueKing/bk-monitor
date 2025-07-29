@@ -812,8 +812,8 @@ export default defineComponent({
                     modelValue={this.localValue.users.value[0].value.map(user => user.id)}
                     renderTag={this.autoGroupTagTpl}
                     userGroupList={this.defaultUserGroupList}
-                    onDragEnd={dragEvent => this.handleAutoGroupDrop(dragEvent?.oldIndex, dragEvent?.newIndex)}
                     onChange={userInfos => this.handMemberSelectChange(0, userInfos)}
+                    onDragEnd={dragEvent => this.handleAutoGroupDrop(dragEvent?.oldIndex, dragEvent?.newIndex)}
                   />
                 </FormItem>
                 <FormItem
