@@ -29,13 +29,30 @@ import Vue, { ref, computed, onBeforeUnmount } from "vue";
 import FieldSelectConfig from "./field-list.vue";
 import FieldAlias from "./field-alias.vue";
 import useStore from "@/hooks/use-store";
+import { useRoute } from "vue-router/composables";
 
 const { $bkPopover } = Vue.prototype;
 const store = useStore();
+const route = useRoute();
+
 let popoverInstance = null;
 const fieldSelectConfigRef = ref();
 const dropdownListRef = ref();
+
 const isUnionSearch = computed(() => store.getters.isUnionSearch);
+const isExternal = computed(() => store.state.isExternal);
+const indexSetList = computed(() => store.state.retrieve.indexSetList);
+const hasCollectorConfigId = computed(() => {
+  const indexSetId = route.params?.indexId;
+  const currentIndexSet = indexSetList.value.find(
+    (item) => item.index_set_id == indexSetId
+  );
+  return currentIndexSet?.collector_config_id;
+});
+const isFieldSettingShow = computed(() => {
+  return !store.getters.isUnionSearch && !isExternal.value;
+});
+
 const handleSetting = (e) => {
   if (popoverInstance) {
     return;
@@ -91,7 +108,9 @@ onBeforeUnmount(() => {
             @handle-popover-hide="handlePopoverHide"
           ></FieldSelectConfig>
         </li>
-        <!-- <li><FieldAlias @handle-popover-hide="handlePopoverHide"></FieldAlias></li> -->
+        <li v-if="isFieldSettingShow && store.state.spaceUid && hasCollectorConfigId">
+          <FieldAlias @handle-popover-hide="handlePopoverHide"></FieldAlias>
+        </li>
       </ul>
     </div>
   </div>
