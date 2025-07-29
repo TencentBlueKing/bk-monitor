@@ -27,8 +27,8 @@ from apps.log_clustering.constants import (
     DEFULT_FILTER_NOT_CLUSTERING_OPERATOR,
     OwnerConfigEnum,
     PatternEnum,
-    RegexRuleTypeEnum,
     RemarkConfigEnum,
+    RegexRuleTypeEnum,
     StrategiesAlarmLevelEnum,
     StrategiesType,
 )
@@ -271,7 +271,9 @@ class SendReportSerializer(serializers.Serializer):
 class CreateRegexTemplateSerializer(serializers.Serializer):
     space_uid = SpaceUIDField(label=_("空间唯一标识"), required=True)
     template_name = serializers.CharField(required=True)
+    predefined_varibles = serializers.CharField(required=False)
 
 
 class UpdateRegexTemplateSerializer(serializers.Serializer):
     template_name = serializers.CharField(required=True)
+    predefined_varibles = serializers.CharField()
