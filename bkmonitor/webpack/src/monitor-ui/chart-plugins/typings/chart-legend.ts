@@ -24,38 +24,38 @@
  * IN THE SOFTWARE.
  */
 export interface ILegendItem {
-  name?: string;
   alias?: string;
-  min?: number | string;
-  max?: number | string;
   avg?: number | string;
-  total?: number | string;
-  color?: string;
-  show?: boolean;
-  value?: number | string;
-  borderColor?: string;
-  hidden?: boolean;
-  minSource?: number;
-  maxSource?: number;
   avgSource?: number;
-  totalSource?: number;
-  metricField?: string;
+  borderColor?: string;
+  color?: string;
   dimensions?: Record<string, string>;
-  lineStyleType?: 'dashed' | 'solid';
-  silent?: boolean;
-  latest?: number;
-  timeOffset?: number | string;
-  maxTime?: number;
-  minTime?: number;
-  latestTime?: number;
-  tipsName?: string;
+  hidden?: boolean;
   key?: string;
+  latest?: number;
+  latestTime?: number;
+  lineStyleType?: 'dashed' | 'solid';
+  max?: number | string;
+  maxSource?: number;
+  maxTime?: number;
+  metricField?: string;
+  min?: number | string;
+  minSource?: number;
+  minTime?: number;
+  name?: string;
+  show?: boolean;
+  silent?: boolean;
+  timeOffset?: number | string;
+  tipsName?: string;
+  total?: number | string;
+  totalSource?: number;
+  value?: number | string;
 }
-export type TableLegendHeadType = 'Avg' | 'Max' | 'Min';
+export interface IRelationStatusItem {
+  color: string;
+  name: string;
+  show: boolean;
+}
 export type LegendActionType = 'click' | 'downplay' | 'highlight' | 'shift-click';
 
-export interface IRelationStatusItem {
-  show: boolean;
-  name: string;
-  color: string;
-}
+export type TableLegendHeadType = 'Avg' | 'Max' | 'Min';

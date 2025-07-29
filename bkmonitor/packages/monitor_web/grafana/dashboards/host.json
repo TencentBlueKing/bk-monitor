@@ -804,7 +804,7 @@
       "targets": [
         {
           "data": {
-            "alias": "$metric_id",
+            "alias": "$metric_metric_field_name",
             "conditions": [
               [
                 {
@@ -1041,7 +1041,7 @@
         },
         {
           "data": {
-            "alias": "$metric_id",
+            "alias": "$metric_metric_field_name",
             "conditions": [
               [
                 {
@@ -1278,7 +1278,7 @@
         },
         {
           "data": {
-            "alias": "$metric_id",
+            "alias": "$metric_metric_field_name",
             "conditions": [
               [
                 {

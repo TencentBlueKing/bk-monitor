@@ -27,6 +27,12 @@ import { type ValueFormatter, scaledUnits } from './valueFormats';
 
 import type { DecimalCount } from '../types/displayValue';
 
+export function binarySIPrefix(unit: string, offset = 0): ValueFormatter {
+  const prefixes = ['', 'Ki', 'Mi', 'Gi', 'Ti', 'Pi', 'Ei', 'Zi', 'Yi'].slice(offset);
+  const units = prefixes.map(p => ` ${p}${unit}`);
+  return scaledUnits(1024, units);
+}
+
 export function currency(symbol: string, asSuffix?: boolean): ValueFormatter {
   const units = ['', 'K', 'M', 'B', 'T'];
   const scaler = scaledUnits(1000, units);
@@ -42,6 +48,13 @@ export function currency(symbol: string, asSuffix?: boolean): ValueFormatter {
     }
     return scaled;
   };
+}
+
+export function decimalSIPrefix(unit: string, offset = 0): ValueFormatter {
+  let prefixes = ['f', 'p', 'n', 'µ', 'm', '', 'k', 'M', 'G', 'T', 'P', 'E', 'Z', 'Y'];
+  prefixes = prefixes.slice(5 + (offset || 0));
+  const units = prefixes.map(p => ` ${p}${unit}`);
+  return scaledUnits(1000, units);
 }
 
 export function getOffsetFromSIPrefix(c: string): number {
@@ -77,17 +90,4 @@ export function getOffsetFromSIPrefix(c: string): number {
       return 8;
   }
   return 0;
-}
-
-export function binarySIPrefix(unit: string, offset = 0): ValueFormatter {
-  const prefixes = ['', 'Ki', 'Mi', 'Gi', 'Ti', 'Pi', 'Ei', 'Zi', 'Yi'].slice(offset);
-  const units = prefixes.map(p => ` ${p}${unit}`);
-  return scaledUnits(1024, units);
-}
-
-export function decimalSIPrefix(unit: string, offset = 0): ValueFormatter {
-  let prefixes = ['f', 'p', 'n', 'µ', 'm', '', 'k', 'M', 'G', 'T', 'P', 'E', 'Z', 'Y'];
-  prefixes = prefixes.slice(5 + (offset || 0));
-  const units = prefixes.map(p => ` ${p}${unit}`);
-  return scaledUnits(1000, units);
 }

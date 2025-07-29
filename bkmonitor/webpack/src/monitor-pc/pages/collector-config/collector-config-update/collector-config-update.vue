@@ -25,8 +25,8 @@
 -->
 <template>
   <div
-    class="dialog-update"
     v-bkloading="{ isLoading: loading }"
+    class="dialog-update"
   >
     <div class="dialog-update-left">
       <div class="left-title">
@@ -67,8 +67,8 @@
                   <!-- snmp多用户 -->
                   <auto-multi
                     v-if="item.auth_json !== undefined"
-                    :allow-add="false"
                     :key="index"
+                    :allow-add="false"
                     :param-type="paramType"
                     :souce-data="item.auth_json"
                     :template-data="[]"
@@ -82,17 +82,17 @@
                   />
                   <verify-input
                     v-else
-                    :class="{ 'params-item': true, 'params-item-code': item.type === 'code' }"
                     :key="index"
+                    :class="{ 'params-item': true, 'params-item-code': item.type === 'code' }"
                     :show-validate.sync="item.validate.isValidate"
                     :validator="item.validate"
                     position="right"
                   >
                     <auto-complete-input
-                      class="mb10"
-                      v-model.trim="item.default"
-                      :config="item"
                       :key="index"
+                      v-model.trim="item.default"
+                      class="mb10"
+                      :config="item"
                       :tips-data="[]"
                       :type="item.type"
                       @error-message="msg => handleErrorMessage(msg, item)"
@@ -193,8 +193,8 @@
         <ul class="record-list">
           <li
             v-for="(item, index) in versionLog"
-            class="record-list-item"
             :key="index"
+            class="record-list-item"
           >
             <div
               class="item-title"

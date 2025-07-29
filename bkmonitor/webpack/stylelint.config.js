@@ -1,6 +1,6 @@
 /** @type {import('stylelint').Config} */
-module.exports = {
-  extends: ['stylelint-config-recommended-vue', 'stylelint-config-recess-order'],
+export default {
+  extends: ['stylelint-config-standard-scss', 'stylelint-config-recommended-vue/scss', 'stylelint-config-recess-order'],
   overrides: [
     {
       customSyntax: 'postcss-scss',

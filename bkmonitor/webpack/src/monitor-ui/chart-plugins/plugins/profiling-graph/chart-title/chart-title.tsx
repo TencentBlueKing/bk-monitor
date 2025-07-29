@@ -32,17 +32,17 @@ import { TextDirectionType, ViewModeType } from '../../../typings/profiling-grap
 
 import './chart-title.scss';
 
-interface IChartTitleProps {
-  activeMode: ViewModeType;
-  textDirection: TextDirectionType;
-  isCompared: boolean;
-  keyword: string;
-}
 interface IChartTitleEvent {
+  onDownload: string;
+  onKeywordChange: string;
   onModeChange: ViewModeType;
   onTextDirectionChange: TextDirectionType;
-  onKeywordChange: string;
-  onDownload: string;
+}
+interface IChartTitleProps {
+  activeMode: ViewModeType;
+  isCompared: boolean;
+  keyword: string;
+  textDirection: TextDirectionType;
 }
 
 @Component

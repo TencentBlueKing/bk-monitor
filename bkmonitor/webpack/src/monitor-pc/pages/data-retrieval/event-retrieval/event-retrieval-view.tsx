@@ -336,10 +336,10 @@ export default class EventRetrievalView extends tsc<EventRetrievalViewType.IProp
    * @description: 操作图表切换时间范围 timeRange ["2021-09-04 14:49", "2021-09-04 15:18"]
    */
   @Emit('timeRangeChange')
-  handleTimeRangeChange(timeRange: [string, string] | { start_time: number; end_time: number }) {
+  handleTimeRangeChange(timeRange: [string, string] | { end_time: number; start_time: number }) {
     let time = null;
 
-    const temp = timeRange as { start_time: number; end_time: number };
+    const temp = timeRange as { end_time: number; start_time: number };
     if (timeRange && Array.isArray(timeRange)) {
       // time = handleTimeRange(timeRange);
       time = handleTransformToTimestamp(timeRange || this.compareValue.tools.timeRange);

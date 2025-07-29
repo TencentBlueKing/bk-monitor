@@ -24,14 +24,14 @@
  * IN THE SOFTWARE.
  */
 const { i18n } = window;
-export type OperationType = 'noticeUser';
-
 export type IOperationTypeMap = {
   [key in OperationType]: {
     title: string;
     width: number;
   };
 };
+
+export type OperationType = 'noticeUser';
 
 export const OperationTypeMap: IOperationTypeMap = {
   noticeUser: {

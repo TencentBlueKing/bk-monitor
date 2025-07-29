@@ -26,6 +26,7 @@ from alarm_backends.service.access.data.records import DataRecord
 from alarm_backends.service.detect import AnomalyDataPoint, DataPoint
 from alarm_backends.templatetags.unit import unit_auto_convert, unit_convert_min
 from constants.aiops import SDKDetectStatus
+from constants.strategy import OS_RESTART_METRIC_ID
 from core.errors.alarm_backends.detect import (
     HistoryDataNotExists,
     InvalidAlgorithmsConfig,
@@ -289,6 +290,9 @@ class HistoryPointFetcher:
 
     def query_history_points(self, data_points):
         item = data_points[0].item
+        # os_restart 策略优化
+        if item.query_configs[0]["metric_id"] == OS_RESTART_METRIC_ID:
+            item.query.expression = "a"
         # 按时间从小到大排序
         sorted_data_points = sorted(data_points, key=lambda x: x.timestamp)
         offsets = self.get_history_offsets(item)

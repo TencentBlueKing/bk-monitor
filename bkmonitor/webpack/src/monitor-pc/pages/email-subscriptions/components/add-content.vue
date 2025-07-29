@@ -34,13 +34,13 @@
       {{ $t('添加内容') }}
     </div>
     <div
-      class="content-main"
       slot="content"
+      class="content-main"
     >
       <bk-form
+        ref="validateForm"
         :model="formData"
         :rules="rules"
-        ref="validateForm"
         :label-width="$store.getters.lang === 'en' ? 136 : 120"
         class="form-wrap"
       >
@@ -51,19 +51,19 @@
           :error-display-type="'normal'"
         >
           <bk-input
+            v-model="formData.contentTitle"
             class="input"
             :placeholder="$t('输入子标题')"
-            v-model="formData.contentTitle"
           />
         </bk-form-item>
         <bk-form-item :label="$t('说明')">
           <bk-input
+            v-model="formData.contentDetails"
             class="input"
             :placeholder="$t('输入说明')"
             :type="'textarea'"
             :rows="3"
             :maxlength="200"
-            v-model="formData.contentDetails"
           />
         </bk-form-item>
         <template v-if="contentType === 'view'">
@@ -72,8 +72,8 @@
             :required="true"
           >
             <bk-radio-group
-              class="radio-wrap"
               v-model="formData.rowPicturesNum"
+              class="radio-wrap"
               @change="handlePicturesnumChange"
             >
               <bk-radio :value="2">
@@ -89,28 +89,28 @@
             :required="true"
           >
             <bk-input
-              class="img-size-input"
               v-model="formData.width"
+              class="img-size-input"
               :max="4000"
               :min="1"
               :placeholder="`${$t('最大')}4000`"
               type="number"
             >
               <template slot="prepend">
-                <span class="group-text">{{ this.$t('宽') }}</span>
+                <span class="group-text">{{ $t('宽') }}</span>
               </template>
             </bk-input>
             <span class="img-size-span">×</span>
             <bk-input
+              v-model="formData.height"
               class="img-size-input"
               :placeholder="`${$t('最大')}2000`"
               :min="1"
               :max="2000"
               type="number"
-              v-model="formData.height"
             >
               <template slot="prepend">
-                <span class="group-text">{{ this.$t('高') }}</span>
+                <span class="group-text">{{ $t('高') }}</span>
               </template>
             </bk-input>
           </bk-form-item>
@@ -157,16 +157,16 @@
             :required="true"
           >
             <bk-select
+              v-model="formData.curGrafana"
               v-bkloading="{ isLoading: grafanaLoading }"
               class="biz-list-wrap"
-              v-model="formData.curGrafana"
               searchable
               :clearable="false"
             >
               <bk-option
                 v-for="option in grafanaList"
-                :key="option.uid"
                 :id="option.uid"
+                :key="option.uid"
                 :name="option.text"
               />
             </bk-select>
@@ -176,8 +176,8 @@
             :required="true"
           >
             <bk-input
-              class="img-size-input single"
               v-model="formData.width"
+              class="img-size-input single"
               :max="4000"
               :min="1"
               :placeholder="`${$t('高度自适应，宽度最大值为')}4000`"
@@ -202,13 +202,14 @@
 </template>
 
 <script lang="ts">
-import { getDashboardList } from 'monitor-api/modules/grafana';
 import { Component, Emit, Prop, PropSync, Ref, Vue, Watch } from 'vue-property-decorator';
 
-import SpaceSelect from '../../../components/space-select/space-select';
-import type { IContentFormData } from '../types';
+import { getDashboardList } from 'monitor-api/modules/grafana';
 
+import SpaceSelect from '../../../components/space-select/space-select';
 import selectChart from './select-chart.vue';
+
+import type { IContentFormData } from '../types';
 /**
  * 添加内容-侧边伸缩栏
  */
@@ -227,7 +228,7 @@ export default class AddContent extends Vue {
   // 编辑传入数据
   @Prop({ type: Object }) private readonly data: IContentFormData;
   // view: 视图截取  pull: 整屏截取
-  @Prop({ type: String, default: 'view' }) private readonly contentType: 'view' | 'full';
+  @Prop({ type: String, default: 'view' }) private readonly contentType: 'full' | 'view';
   @Ref('validateForm') private readonly validateFormRef: any;
   // 表单展示数据
 
@@ -470,7 +471,7 @@ export default class AddContent extends Vue {
       padding: 0;
       font-size: 12px;
       line-height: 30px;
-      color: #4D4F56;
+      color: #4d4f56;
       text-align: center;
     }
 
@@ -478,7 +479,7 @@ export default class AddContent extends Vue {
       background-color: #f5f7fa;
 
       .number-option-item {
-        color: #979ba5
+        color: #979ba5;
       }
     }
   }

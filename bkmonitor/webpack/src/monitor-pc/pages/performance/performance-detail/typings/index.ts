@@ -24,6 +24,6 @@
  * IN THE SOFTWARE.
  */
 export interface ICurrentNode {
-  type: 'host' | 'node'; // 主机 | 节点
   id: string;
+  type: 'host' | 'node'; // 主机 | 节点
 }

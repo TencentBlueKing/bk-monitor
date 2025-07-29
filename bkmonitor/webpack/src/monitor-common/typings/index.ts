@@ -26,32 +26,32 @@
 
 import type { DocLinkType } from '@/utils/docs';
 
+// 业务
+export interface IBizItem {
+  id: string;
+  is_demo: boolean;
+  text: string;
+}
+// 文档链接
+export interface IDocLinkData {
+  type: DocLinkType;
+  value: string;
+}
+
 // 项目空间
 export interface ISpaceItem {
+  bk_biz_id: number;
   id: number;
+  is_demo: boolean;
+  is_hidden_tag?: boolean;
+  py_text?: string; // 拼音全拼
+  pyf_text?: string; // 拼音首字母
   space_code: string;
   space_id: string;
   space_name: string;
   space_type_id: string;
   space_uid: string;
   status: string;
+  text: string;
   type_name: string;
-  is_demo: boolean;
-  text: string;
-  bk_biz_id: number;
-  py_text?: string; // 拼音全拼
-  pyf_text?: string; // 拼音首字母
-  is_hidden_tag?: boolean;
-}
-// 业务
-export interface IBizItem {
-  text: string;
-  id: string;
-  is_demo: boolean;
-}
-
-// 文档链接
-export interface IDocLinkData {
-  type: DocLinkType;
-  value: string;
 }

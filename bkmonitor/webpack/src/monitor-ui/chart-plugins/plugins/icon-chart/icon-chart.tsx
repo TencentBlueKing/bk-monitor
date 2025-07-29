@@ -35,14 +35,14 @@ import type { PanelModel } from '../../typings';
 
 import './icon-chart.scss';
 
-interface IIconChartProps {
-  panel: PanelModel;
-}
-
 enum StatusIconEnum {
   FAILD = 'minus-line',
   SUCCESS = 'check-line',
   WARNING = 'close-line-2',
+}
+
+interface IIconChartProps {
+  panel: PanelModel;
 }
 
 type StatusType = 'FAILD' | 'SUCCESS' | 'WARNING';

@@ -24,21 +24,21 @@
  * IN THE SOFTWARE.
  */
 import {
+  type Ref,
+  ref as deepRef,
   defineComponent,
+  inject,
   nextTick,
   onMounted,
-  inject,
   onUnmounted,
   provide,
-  ref as deepRef,
   watch,
-  type Ref,
 } from 'vue';
-import { useI18n } from 'vue-i18n';
 
 import { Checkbox, Exception, Loading, PopConfirm, Tree } from 'bkui-vue';
 import { BkCheckboxGroup } from 'bkui-vue/lib/checkbox';
 import { incidentAlertAggregate } from 'monitor-api/modules/incident';
+import { useI18n } from 'vue-i18n';
 
 import { useIncidentInject } from '../utils';
 import FilterSearchMain from './filter-search-main';

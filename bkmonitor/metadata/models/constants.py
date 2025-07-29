@@ -499,7 +499,6 @@ NANO_FORMAT = "date_nanos"
 STRICT_NANO_ES_FORMAT = "strict_date_optional_time_nanos"
 NON_STRICT_NANO_ES_FORMAT = "strict_date_optional_time_nanos||epoch_millis"
 
-
 BASEREPORT_RESULT_TABLE_FIELD_MAP = {
     "cpu_summary": [
         {
@@ -3210,6 +3209,79 @@ BASE_EVENT_RESULT_TABLE_OPTION_MAP = {
             "creator": "system",
             "value_type": "list",
             "value": '["event","target","dimensions","event_name","time"]',
-        }
+        },
+        {
+            "name": "need_add_time",
+            "creator": "system",
+            "value_type": "bool",
+            "value": "true",
+        },
+        {
+            "name": "time_field",
+            "creator": "system",
+            "value_type": "dict",
+            "value": '{"name":"time","type":"date","unit":"millisecond"}',
+        },
+    ]
+}
+
+BASE_EVENT_RESULT_TABLE_FIELD_OPTION_MAP = {
+    "base_event": [
+        {
+            "value_type": "string",
+            "value": "date_nanos",
+            "creator": "system",
+            "field_name": "time",
+            "name": "es_type",
+        },
+        {
+            "value_type": "string",
+            "value": "epoch_millis",
+            "creator": "system",
+            "field_name": "time",
+            "name": "es_format",
+        },
+        {
+            "value_type": "string",
+            "value": "object",
+            "creator": "system",
+            "field_name": "event",
+            "name": "es_type",
+        },
+        {
+            "value_type": "dict",
+            "value": '{"content":{"type":"text"},"count":{"type":"integer"}}',
+            "creator": "system",
+            "field_name": "event",
+            "name": "es_properties",
+        },
+        {
+            "value_type": "string",
+            "value": "keyword",
+            "creator": "system",
+            "field_name": "target",
+            "name": "es_type",
+        },
+        {
+            "value_type": "string",
+            "value": "object",
+            "creator": "system",
+            "field_name": "dimensions",
+            "name": "es_type",
+        },
+        {
+            "value_type": "bool",
+            "value": "true",
+            "creator": "system",
+            "field_name": "dimensions",
+            "name": "es_dynamic",
+        },
+        {
+            "value_type": "string",
+            "value": "keyword",
+            "creator": "system",
+            "field_name": "event_name",
+            "name": "es_type",
+        },
     ]
 }

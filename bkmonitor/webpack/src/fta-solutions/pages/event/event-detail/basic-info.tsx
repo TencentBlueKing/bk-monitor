@@ -1,4 +1,11 @@
 /* eslint-disable @typescript-eslint/naming-convention */
+import { Component, Emit, InjectReactive, Prop } from 'vue-property-decorator';
+import { Component as tsc } from 'vue-tsx-support';
+
+import dayjs from 'dayjs';
+import { copyText } from 'monitor-common/utils';
+import { ETagsType } from 'monitor-pc/components/biz-select/list';
+import { TabEnum as CollectorTabEnum } from 'monitor-pc/pages/collector-config/collector-detail/typings/detail';
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -25,15 +32,8 @@
  * IN THE SOFTWARE.
  */
 import VueJsonPretty from 'vue-json-pretty';
-import { Component, Emit, InjectReactive, Prop } from 'vue-property-decorator';
-import { Component as tsc } from 'vue-tsx-support';
 
-import dayjs from 'dayjs';
-import { copyText } from 'monitor-common/utils';
-import { ETagsType } from 'monitor-pc/components/biz-select/list';
-import { TabEnum as CollectorTabEnum } from 'monitor-pc/pages/collector-config/collector-detail/typings/detail';
-
-import { toPerformanceDetail, toBcsDetail } from '../../../common/go-link';
+import { toBcsDetail, toPerformanceDetail } from '../../../common/go-link';
 import EventDetail from '../../../store/modules/event-detail';
 import { getOperatorDisabled } from '../utils';
 

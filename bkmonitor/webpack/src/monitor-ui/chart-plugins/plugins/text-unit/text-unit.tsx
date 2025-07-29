@@ -37,10 +37,10 @@ import CommonSimpleChart from '../common-simple-chart';
 import './text-unit.scss';
 
 interface ITextUnitSeriesItem {
-  // 值
-  value: number | string;
   // 单位
   unit: number | string;
+  // 值
+  value: number | string;
 }
 @Component
 export default class TextUnit extends CommonSimpleChart {

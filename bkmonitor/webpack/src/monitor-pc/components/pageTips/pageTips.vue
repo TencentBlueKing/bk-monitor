@@ -31,12 +31,14 @@
       <span
         class="link"
         @click="handleOpenLink(linkUrl)"
-      >{{ linkText }}</span>
+        >{{ linkText }}</span
+      >
       <span
+        v-if="docLink"
         class="link"
         @click="handleGotoLink(docLink)"
-        v-if="docLink"
-      >{{ $t('相关文档查看') }}</span>
+        >{{ $t('相关文档查看') }}</span
+      >
     </span>
   </div>
 </template>

@@ -23,55 +23,56 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-export interface ISideslider {
-  isShow: boolean;
-  title: string;
-  data: Record<string, any>;
-}
 
-export interface IParams {
-  time_range: string;
+export interface IDetailData {
+  access_token: string;
+  auto_discover?: boolean;
+  bk_biz_id?: string;
+  bk_data_id: string;
   bk_event_group_id?: string;
+  data_label?: string;
+  desc?: string;
+  event_info_list?: any[];
+  is_platform?: boolean;
+  is_readonly?: boolean;
+  last_time?: number | string;
+  metric_json?: any[];
+  name: string;
+  protocol?: string;
+  scenario: string;
+  scenario_display: string[];
+  table_id?: string;
   time_series_group_id?: string;
 }
 
 export interface IEditParams {
   bk_event_group_id?: string;
-  time_series_group_id?: string;
-  name: string;
-  scenario: string;
+  data_label?: string;
   is_enable: boolean;
-  data_label?: string;
   is_platform?: boolean;
-}
-
-export interface IDetailData {
-  bk_data_id: string;
-  access_token: string;
   name: string;
   scenario: string;
-  bk_event_group_id?: string;
   time_series_group_id?: string;
-  scenario_display: string[];
-  event_info_list?: any[];
-  metric_json?: any[];
-  last_time?: number | string;
-  table_id?: string;
-  data_label?: string;
-  is_platform?: boolean;
-  is_readonly?: boolean;
-  protocol?: string;
-  desc?: string;
-  bk_biz_id?: string;
-  auto_discover?: boolean;
 }
 
-export interface IShortcuts {
-  list: { value: number; name: string }[];
-  value: number;
+export interface IParams {
+  bk_event_group_id?: string;
+  time_range: string;
+  time_series_group_id?: string;
 }
 
 export interface IRefreshList {
-  list: { value: number; name: string }[];
+  list: { name: string; value: number }[];
   value: number;
+}
+
+export interface IShortcuts {
+  list: { name: string; value: number }[];
+  value: number;
+}
+
+export interface ISideslider {
+  data: Record<string, any>;
+  isShow: boolean;
+  title: string;
 }

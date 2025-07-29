@@ -31,14 +31,14 @@ import { customServiceConfig, customServiceDataSource, customServiceMatchList } 
 
 import type { ICustomServiceInfo } from './type';
 
-interface IProps {
-  value?: boolean;
-  appName: string;
-  serviceInfo?: ICustomServiceInfo | null;
-}
-
 interface IEvents {
   onRefresh: () => any;
+}
+
+interface IProps {
+  appName: string;
+  serviceInfo?: ICustomServiceInfo | null;
+  value?: boolean;
 }
 
 @Component

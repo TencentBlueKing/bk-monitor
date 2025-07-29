@@ -32,11 +32,11 @@ import Viewer from 'monitor-ui/markdown-editor/viewer';
 
 import RulesViewer from '../rules-viewer/rules-viewer';
 import {
-  EPluginType,
   type IAlertConfigTable,
   type INormalizationTable,
   type IPushConfigData,
   type TPluginType,
+  EPluginType,
 } from '../types';
 import PullForm from './pull-form';
 
@@ -45,23 +45,23 @@ import './config.scss';
 const { i18n } = window;
 
 interface IConfig {
-  id: string;
-  httpData?: any;
-  type: TPluginType;
-  normalizationTable?: INormalizationTable[];
   alertConfigTable?: IAlertConfigTable[];
-  pushConfigData?: IPushConfigData;
-  tutorialMd: string;
-  isShow: boolean;
-  paramsSchema?: any[];
+  httpData?: any;
+  id: string;
   instanceId?: number;
   isInstalled?: boolean;
+  isShow: boolean;
+  normalizationTable?: INormalizationTable[];
+  paramsSchema?: any[];
+  pushConfigData?: IPushConfigData;
+  tutorialMd: string;
+  type: TPluginType;
 }
 
 interface ITableColumnsItem {
+  key?: string;
   label: string;
   prop: string;
-  key?: string;
   width?: number;
   formatter?: (row: any) => any;
 }

@@ -956,6 +956,8 @@ ESQUERY_WHITE_LIST = [
     "paasv3cli",
     "bk_paas3",
     "kingeye-web_saas",
+    "apigw-dashboard",
+    "bk_apigateway",
 ] + ESQUERY_EXTRA_WHITE_LIST
 
 # BK repo conf

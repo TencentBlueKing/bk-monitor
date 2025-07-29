@@ -40,11 +40,11 @@ import './circulation-record.scss';
 const { i18n } = window;
 
 interface ICirculationRecordProps {
-  show?: boolean;
+  actions?: any[];
   conditions?: string[];
   detail?: IDetail;
   isScrollEnd?: boolean;
-  actions?: any[];
+  show?: boolean;
 }
 
 @Component({

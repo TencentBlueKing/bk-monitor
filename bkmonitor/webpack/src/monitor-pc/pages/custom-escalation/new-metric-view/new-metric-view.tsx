@@ -23,10 +23,9 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Watch, ProvideReactive, Provide, Ref } from 'vue-property-decorator';
+import { Component, Provide, ProvideReactive, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import customEscalationViewStore from '@store/modules/custom-escalation-view';
 import DashboardTools from 'monitor-pc/pages/monitor-k8s/components/dashboard-tools';
 
 import HeaderBox from './components/header-box/index';
@@ -36,6 +35,7 @@ import ViewColumn from './components/view-column/index';
 import ViewTab from './components/view-tab/index';
 import PanelChartView from './metric-chart-view/panel-chart-view';
 import { getCustomTsMetricGroups } from './services/scene_view_new';
+import customEscalationViewStore from '@store/modules/custom-escalation-view';
 
 import type { TimeRangeType } from 'monitor-pc/components/time-range/time-range';
 

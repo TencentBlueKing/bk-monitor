@@ -30,22 +30,22 @@ import { Debounce } from 'monitor-common/utils/utils';
 
 import './monitor-drag.scss';
 
-type ThemeType = 'line' | 'line-round' | 'normal' | 'simple-line-round';
-interface IMonitorDragProps {
-  minWidth?: number;
-  maxWidth?: number;
-  toggleSet?: boolean;
-  startPlacement?: string;
-  resetPosKey?: string;
-  theme?: ThemeType;
-  lineText?: string;
-  isShow?: boolean;
-  top?: number;
-  isOnlyShowIndex?: boolean;
-}
+export type ThemeType = 'line' | 'line-round' | 'normal' | 'simple-line-round';
 interface IMonitorDragEvent {
-  onMove: (left: number, swipeRight: boolean, cancelFn: () => void) => void;
   onTrigger: boolean;
+  onMove: (left: number, swipeRight: boolean, cancelFn: () => void) => void;
+}
+interface IMonitorDragProps {
+  isOnlyShowIndex?: boolean;
+  isShow?: boolean;
+  lineText?: string;
+  maxWidth?: number;
+  minWidth?: number;
+  resetPosKey?: string;
+  startPlacement?: string;
+  theme?: ThemeType;
+  toggleSet?: boolean;
+  top?: number;
 }
 @Component
 export default class MonitorDrag extends tsc<IMonitorDragProps, IMonitorDragEvent> {
@@ -117,8 +117,8 @@ export default class MonitorDrag extends tsc<IMonitorDragProps, IMonitorDragEven
     let mouseX = mouseDownEvent.clientX;
     // eslint-disable-next-line @typescript-eslint/no-this-alias
     const vm = this;
-    if (this.isInPanelView && this.left) {
-    }
+    // if (this.isInPanelView && this.left) {
+    // }
     document.onselectstart = () => false;
     document.ondragstart = () => false;
     function handleMouseMove(event) {
@@ -135,7 +135,9 @@ export default class MonitorDrag extends tsc<IMonitorDragProps, IMonitorDragEven
         vm.$emit('move', 0, swipeRight, handleMouseUp);
         handleMouseUp();
         vm.left = vm.startPlacement === 'left' ? rect.left - 3 : rect.left + rect.width - 3;
-        vm.$nextTick(() => (vm.left = vm.defaultLeft));
+        vm.$nextTick(() => {
+          vm.left = vm.defaultLeft;
+        });
       } else {
         const left = Math.min(
           Math.max(

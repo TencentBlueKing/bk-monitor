@@ -23,13 +23,13 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { type PropType, defineComponent, reactive, watch, shallowRef } from 'vue';
-import { useI18n } from 'vue-i18n';
+import { type PropType, defineComponent, reactive, shallowRef, watch } from 'vue';
 
 import { DatePicker, Radio, Select, TimePicker } from 'bkui-vue';
 import dayjs from 'dayjs';
+import { useI18n } from 'vue-i18n';
 
-import { EShieldCycle, type INoticeDate } from '../typing';
+import { type INoticeDate, EShieldCycle } from '../typing';
 import DayPicker from './day-picker';
 import FormItem from './form-item';
 

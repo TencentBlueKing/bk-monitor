@@ -25,18 +25,19 @@
 -->
 <template>
   <div
-    class="filter-tag"
     v-show="fieldData.length || panelName"
+    class="filter-tag"
   >
     <span
       v-en-style="'flex: 0 0 105px'"
       class="filter-tag-title"
-    >{{ $t('筛选条件') }}</span>
+      >{{ $t('筛选条件') }}</span
+    >
     <div class="filter-tag-content">
       <span
-        class="tag"
         v-for="(item, index) in fieldData"
         :key="index"
+        class="tag"
       >
         <span>{{ item.name }}</span>
         <span class="ml5 mr5 tag-value">{{ item.display }}</span>
@@ -47,8 +48,8 @@
         />
       </span>
       <span
-        class="tag"
         v-if="panelName"
+        class="tag"
       >
         <span class="ml5 mr5 tag-value">{{ panelName }}</span>
         <span>{{ `( ${panelData.length} )` }}</span>
@@ -58,9 +59,9 @@
         />
       </span>
       <bk-button
+        v-if="fieldData.length || panelName"
         text
         class="btn"
-        v-if="fieldData.length || panelName"
         @click="handleClear"
       >
         {{ $t('清空筛选条件') }}
@@ -69,8 +70,9 @@
   </div>
 </template>
 <script lang="ts">
-import { typeTools } from 'monitor-common/utils/utils.js';
 import { Component, Emit, Inject, Vue } from 'vue-property-decorator';
+
+import { typeTools } from 'monitor-common/utils/utils.js';
 
 import type { IConditionValue, IOption, ITag } from '../performance-type';
 import type TableStore from '../table-store';
@@ -124,7 +126,7 @@ export default class FilterTag extends Vue {
         // 下拉框类型
         // 区分单选和多选
         const data = Array.isArray(next.value)
-          ? (next.value as (string | number)[]).reduce<IOption[]>((pre, value) => {
+          ? (next.value as (number | string)[]).reduce<IOption[]>((pre, value) => {
               const data = next.options.find(item => item.id === value);
               if (data) {
                 pre.push(data);

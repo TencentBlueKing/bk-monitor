@@ -26,13 +26,13 @@
 import './icon-font.scss';
 
 interface IIconFontProps {
-  icon: string /** icon-font */;
-  classes?: string[] /** 组件类名 */;
-  height?: number /** 高度 */;
-  width?: number /** 宽度 */;
-  fontSize?: number /** icon字体大小 */;
-  hoverStyle?: boolean /** hover时的样式 */;
   activeStyle?: boolean /** 选中样式 */;
+  classes?: string[] /** 组件类名 */;
+  fontSize?: number /** icon字体大小 */;
+  height?: number /** 高度 */;
+  hoverStyle?: boolean /** hover时的样式 */;
+  icon: string /** icon-font */;
+  width?: number /** 宽度 */;
   onClick?: () => void /** 点击方法 */;
 }
 const IconFont = (props: IIconFontProps) => {

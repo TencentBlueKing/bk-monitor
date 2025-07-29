@@ -28,11 +28,11 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import './square.scss';
 
-interface ISquareProps {
-  status: string;
-}
 interface ISquareEvents {
   onStatusChange?: string;
+}
+interface ISquareProps {
+  status: string;
 }
 
 @Component({

@@ -38,16 +38,16 @@ import './guide-page.scss';
 interface IEvents {
   onCreateApp: () => void;
 }
-interface IProps {
-  isDialogContent?: boolean;
-  pluginsList: IAppSelectOptItem[]; // 插件列表
-  guideUrl: IGuideLink; // 链接数据
+interface ILinkItem {
+  link: string; // url
+  title: string; // 链接名
+  to?: 'monitor'; // 跳转值监控
 }
 
-interface ILinkItem {
-  title: string; // 链接名
-  link: string; // url
-  to?: 'monitor'; // 跳转值监控
+interface IProps {
+  guideUrl: IGuideLink; // 链接数据
+  isDialogContent?: boolean;
+  pluginsList: IAppSelectOptItem[]; // 插件列表
 }
 @Component
 export default class GuidePage extends tsc<IProps, IEvents> {

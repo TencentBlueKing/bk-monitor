@@ -334,7 +334,6 @@ ADVANCED_OPTIONS = OrderedDict(
         ("MAX_FIELD_PAGE_SIZE", slz.IntegerField(label="最大的指标分片页查询的大小", default=1000)),
         ("BKPAAS_AUTHORIZED_DATA_ID_LIST", slz.ListField(label="需要授权的 PaaS 创建的数据源 ID", default=[])),
         ("ACCESS_DBM_RT_SPACE_UID", slz.ListField(label="访问 dbm 结果表的空间 UID", default=[])),
-        ("IS_ENABLE_METADATA_FUNCTION_CONTROLLER", slz.BooleanField(label="METADATA 是否启用功能开关", default=True)),
         ("BLOCK_SPACE_RULE", slz.CharField(label="用户名规则【屏蔽空间信息】", default="")),
         ("INNER_COLLOCTOR_HOST", slz.CharField(label="collector内网域名", default="")),
         ("OUTER_COLLOCTOR_HOST", slz.CharField(label="collector外网域名", default="")),

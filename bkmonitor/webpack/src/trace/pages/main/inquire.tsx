@@ -36,8 +36,6 @@ import {
   ref,
   shallowRef,
 } from 'vue';
-import { useI18n } from 'vue-i18n';
-import { useRoute, useRouter } from 'vue-router';
 
 // import TemporaryShare from '../../components/temporary-share/temporary-share';
 import * as authorityMap from 'apm/pages/home/authority-map';
@@ -59,21 +57,23 @@ import { createQueryHistory, destroyQueryHistory, listQueryHistory } from 'monit
 import { skipToDocsLink } from 'monitor-common/utils/docs';
 import { deepClone, random } from 'monitor-common/utils/utils';
 import { debounce } from 'throttle-debounce';
+import { useI18n } from 'vue-i18n';
+import { useRoute, useRouter } from 'vue-router';
 
 import Condition from '../../components/condition/condition';
 import DeleteDialogContent from '../../components/delete-dialog-content/delete-dialog-content';
-import { DEFAULT_TIME_RANGE, type TimeRangeType, handleTransformToTimestamp } from '../../components/time-range/utils';
+import { type TimeRangeType, DEFAULT_TIME_RANGE, handleTransformToTimestamp } from '../../components/time-range/utils';
 import transformTraceTree from '../../components/trace-view/model/transform-trace-data';
 import VerifyInput from '../../components/verify-input/verify-input';
 import { destroyTimezone, getDefaultTimezone, updateTimezone } from '../../i18n/dayjs';
 import {
   REFRESH_IMMEDIATE_KEY,
   REFRESH_INTERVAL_KEY,
-  TIMEZONE_KEY,
   TIME_OFFSET_KEY,
   TIME_RANGE_KEY,
-  VIEW_OPTIONS_KEY,
+  TIMEZONE_KEY,
   useIsEnabledProfilingProvider,
+  VIEW_OPTIONS_KEY,
 } from '../../plugins/hooks';
 import { DEFAULT_TRACE_DATA, QUERY_TRACE_RELATION_APP } from '../../store/constant';
 import { useSearchStore } from '../../store/modules/search';
@@ -103,21 +103,21 @@ import './inquire.scss';
 
 interface IState {
   app: string;
-  showLeft: boolean;
   autoQuery: boolean;
-  leftWidth: number;
-  searchType: SearchType;
+  cacheQueryAppName: string;
   isAlreadyAccurateQuery: boolean;
   isAlreadyScopeQuery: boolean;
-  cacheQueryAppName: string;
+  leftWidth: number;
+  searchType: SearchType;
+  showLeft: boolean;
 }
 
 interface Params {
-  bk_biz_id: number | string;
   app_name: string;
-  trace_id?: number | string;
-  span_id?: number | string;
+  bk_biz_id: number | string;
   query_trace_relation_app?: boolean;
+  span_id?: number | string;
+  trace_id?: number | string;
 }
 
 /** 头部工具栏高度 */
@@ -407,8 +407,8 @@ export default defineComponent({
     function queryScopeParams() {
       type IFilterItem = {
         key: string;
-        value: Array<any>;
         operator: 'between' | 'equal' | 'logic' | 'not_equal';
+        value: Array<any>;
       };
       let filters: IFilterItem[] = [];
 
@@ -844,9 +844,9 @@ export default defineComponent({
       hideCallback,
       favLoadingCallBack,
     }: {
-      value: string;
-      hideCallback: () => void;
       favLoadingCallBack: (show: boolean) => void;
+      hideCallback: () => void;
+      value: string;
     }) {
       // 条件查询值映射
       searchSelectValue.value.forEach(item => {

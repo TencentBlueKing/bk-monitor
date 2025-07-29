@@ -29,17 +29,17 @@ import { Component as tsc } from 'vue-tsx-support';
 import TreeList, { type IMoreData } from './tree-list';
 import { type ITreeMenuItem, TreeMenuItem } from './utils';
 
+interface IEvents {
+  onMore: IMoreData;
+  onRename: TreeMenuItem;
+  onSelected: TreeMenuItem;
+}
 interface IProps {
+  checked?: string;
+  closeIcon?: string;
   data: ITreeMenuItem[];
   defaultExpend?: boolean;
   expendIcon?: string;
-  closeIcon?: string;
-  checked?: string;
-}
-interface IEvents {
-  onSelected: TreeMenuItem;
-  onMore: IMoreData;
-  onRename: TreeMenuItem;
 }
 
 @Component

@@ -36,28 +36,28 @@ import { type IPeripheral, type IWebhook, transformMealContentParams } from './m
 import './meal-debug-dialog.scss';
 
 interface IDebugData {
+  peripheral: IPeripheral;
   type: string;
   webhook: IWebhook;
-  peripheral: IPeripheral;
 }
 interface IDebugPeripheral {
   isVariable?: boolean; // 是否为变量
   key?: string; // 是变量的话此值有效
-  value?: string; // 变量值
   label?: string; // 输入框title
   required?: boolean; // 是否必填
+  value?: string; // 变量值
 }
 
 interface IProps {
-  show: boolean;
   debugData: IDebugData;
   debugPeripheralForm: IDebugPeripheral[];
-  pluginId: number | string;
   mealName: string;
-  onShowChange?: (v: boolean) => void;
-  onDebugWebhookDataChange?: (v: IWebhook) => void;
+  pluginId: number | string;
+  show: boolean;
   onDebugPeripheralDataChange?: (v: IDebugPeripheral[]) => void;
   onDebugPeripheralStop?: () => void;
+  onDebugWebhookDataChange?: (v: IWebhook) => void;
+  onShowChange?: (v: boolean) => void;
 }
 
 @Component
@@ -71,9 +71,9 @@ export default class MealDebugDialog extends tsc<IProps> {
   debugActionLoading = false;
   // 调试状态数据
   debugStatusData: {
-    status?: '' | 'failure' | 'received' | 'running' | 'success';
+    content?: { action_plugin_type: string; text: string; url: string };
     is_finished?: boolean;
-    content?: { text: string; url: string; action_plugin_type: string };
+    status?: '' | 'failure' | 'received' | 'running' | 'success';
   } = {};
   // 是否正在轮询状态中
   isQueryStatus = false;

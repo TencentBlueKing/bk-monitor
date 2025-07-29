@@ -24,6 +24,7 @@
  * IN THE SOFTWARE.
  */
 import {
+  type ComputedRef,
   type PropType,
   type Ref,
   computed,
@@ -31,12 +32,10 @@ import {
   getCurrentInstance,
   inject,
   onBeforeUnmount,
+  onUnmounted,
   ref,
   watch,
-  onUnmounted,
-  type ComputedRef,
 } from 'vue';
-import { useI18n } from 'vue-i18n';
 
 import { bkTooltips } from 'bkui-vue';
 import dayjs from 'dayjs';
@@ -47,10 +46,11 @@ import { COLOR_LIST, COLOR_LIST_BAR, MONITOR_LINE_OPTIONS } from 'monitor-ui/cha
 import { getSeriesMaxInterval, getTimeSeriesXInterval } from 'monitor-ui/chart-plugins/utils/axis';
 import { type ValueFormatter, getValueFormat } from 'monitor-ui/monitor-echarts/valueFormats';
 import { debounce } from 'throttle-debounce';
+import { useI18n } from 'vue-i18n';
 
 import ChartSkeleton from '../../../components/skeleton/chart-skeleton';
 import { handleTransformToTimestamp } from '../../../components/time-range/utils';
-import { VariablesService, isShadowEqual, reviewInterval } from '../../../utils';
+import { isShadowEqual, reviewInterval, VariablesService } from '../../../utils';
 import BaseEchart from '../../base-echart';
 import ChartTitle from '../../components/chart-title';
 import CommonLegend from '../../components/common-legend';
@@ -250,7 +250,7 @@ export default defineComponent({
       return timeOffset;
     }
     // 设置series 名称
-    function handleSeriesName(item: DataQuery, series: { time_offset?: any; dimensions?: any }) {
+    function handleSeriesName(item: DataQuery, series: { dimensions?: any; time_offset?: any }) {
       const { dimensions = {} } = series;
       if (!item.alias)
         return series.time_offset ? handleTimeOffset(series.time_offset) : Object.values(dimensions).join('|');

@@ -30,7 +30,7 @@ import { VariablesService } from 'monitor-ui/chart-plugins/utils/variable';
 
 import CompareTime from './compare-time';
 import GroupBy from './group-by';
-import { ETypeSelect, type IListItem, type IGroupOption } from './utils';
+import { type IGroupOption, type IListItem, ETypeSelect } from './utils';
 
 import type { IPanelModel, IViewOptions } from 'monitor-ui/chart-plugins/typings';
 
@@ -39,26 +39,26 @@ import './group-compare-select.scss';
 const VALUE_KEY = 'groups';
 
 interface IProps {
+  active?: ETypeSelect;
+  groupOptions?: IGroupOption[];
+  groupOptionsLimitEnabled?: boolean;
+  groups?: string[];
+  hasGroupOptions?: boolean;
+  limit?: number;
+  limitSortMethod?: string;
+  limitSortMethods?: IListItem[];
+  metricCalType?: string;
+  metricCalTypes?: IListItem[];
+  pageId?: string;
   panel?: IPanelModel;
   sceneId?: string;
   sceneType?: string;
-  pageId?: string;
-  groupOptions?: IGroupOption[];
-  metricCalTypes?: IListItem[];
-  groups?: string[];
-  limitSortMethod?: string;
-  limit?: number;
-  metricCalType?: string;
   timeValue?: string[];
-  active?: ETypeSelect;
-  limitSortMethods?: IListItem[];
-  hasGroupOptions?: boolean;
-  groupOptionsLimitEnabled?: boolean;
-  onTimeCompareChange?: (val: string[]) => void;
   onGroupChange?: (val: string[]) => void;
-  onLimitSortMethodChange?: (val: string) => void;
   onLimitChange?: (val: number) => void;
+  onLimitSortMethodChange?: (val: string) => void;
   onMetricCalTypeChange?: (val: string) => void;
+  onTimeCompareChange?: (val: string[]) => void;
   onTypeChange?: (val: ETypeSelect) => void;
   onVariablesChange?: (val: object) => void;
 }

@@ -31,7 +31,7 @@
     >
       <span :class="['text', 'color-' + itemData.level]">
         <span class="ellipsis">{{ itemData.target ? itemData.target : itemData.name }}</span>
-        <i :class="['icon-monitor', 'icon-arrow-down', { 'icon-show': showTarget }]"></i>
+        <i :class="['icon-monitor', 'icon-arrow-down', { 'icon-show': showTarget }]" />
       </span>
     </div>
     <transition name="count-fade">
@@ -49,8 +49,8 @@
     >
       <li
         v-for="(item, index) in itemData.events"
-        class="target-item"
         :key="item.eventId + '-' + index"
+        class="target-item"
         @click="goToDetail(item)"
       >
         <template v-if="!itemData.target">
@@ -78,7 +78,7 @@
   </div>
 </template>
 <script lang="ts">
-import { Vue, Component, Prop, Ref } from 'vue-property-decorator';
+import { Component, Prop, Ref, Vue } from 'vue-property-decorator';
 
 import type { IListItem } from './event-center.vue';
 
@@ -131,14 +131,14 @@ export default class EventListItem extends Vue {
 }
 </script>
 <style lang="scss" scoped>
-@import '../../static/scss/variate.scss';
-@import '../../static/scss/mixin.scss';
+@import '../../static/scss/variate';
+@import '../../static/scss/mixin';
 
 .event-item {
   min-height: 66px;
   background-color: #fff;
   border-radius: 4px;
-  box-shadow: 0px 1px 0px 0px rgba(99, 101, 110, 0.05);
+  box-shadow: 0 1px 0 0 rgb(99 101 110 / 5%);
 
   &:not(:last-child) {
     margin-bottom: 10px;
@@ -149,7 +149,7 @@ export default class EventListItem extends Vue {
   }
 
   &-title {
-    padding: 11px 16px 4px 16px;
+    padding: 11px 16px 4px;
     border-bottom: 1px solid #fff;
     transition: all 0.3s ease-in-out;
 
@@ -180,9 +180,9 @@ export default class EventListItem extends Vue {
         overflow: hidden;
         font-size: 28px;
         color: #dcdee5;
-        transition: transform 0.3s ease-in-out;
         transform: rotate(0);
         transform-origin: 50% 50%;
+        transition: transform 0.3s ease-in-out;
       }
 
       .icon-show {
@@ -215,11 +215,12 @@ export default class EventListItem extends Vue {
   }
 
   &-count {
-    padding: 0px 16px 0 16px;
+    padding: 0 16px;
     overflow: hidden;
     font-size: 14px;
     color: #979ba5;
   }
+
   // count-fade
   .count-fade-enter {
     opacity: 0;
@@ -250,7 +251,7 @@ export default class EventListItem extends Vue {
     will-change: max-height;
 
     .target-item {
-      padding: 16px 0 17px 0;
+      padding: 16px 0 17px;
       font-size: 14px;
       color: $defaultFontColor;
 

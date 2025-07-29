@@ -97,7 +97,7 @@
               <template #content>
                 <div>
                   <!-- eslint-disable-next-line vue/no-v-html -->
-                  <div v-html="getSearchDictHtml(row.search_dict)"></div>
+                  <div v-html="$xss(getSearchDictHtml(row.search_dict))"></div>
                 </div>
               </template>
               <div class="parameter-search">
@@ -387,8 +387,16 @@
       openDownloadUrl(params) {
         const data = params.search_dict;
         const stringParamsIndexSetID = String(params.log_index_set_id);
+
+        let downRequestUrl = `/search/index_set/${stringParamsIndexSetID}/export/`;
+        if (this.isUnionSearch) {
+          // 判断是否是联合查询 如果是 则加参数
+          downRequestUrl = '/search/index_set/union_search/export/';
+          Object.assign(data, { index_set_ids: this.unionIndexList });
+        }
+
         axiosInstance
-          .post(`/search/index_set/${stringParamsIndexSetID}/export/`, data)
+          .post(downRequestUrl, data)
           .then(res => {
             if (typeof res !== 'string') {
               this.$bkMessage({
@@ -413,13 +421,29 @@
        */
       downloadAsync(data) {
         this.tableLoading = true;
+        let downRequestUrl = this.isUnionSearch ? `retrieve/unionExportAsync` : 'retrieve/exportAsync';
+
+        if (this.isUnionSearch) {
+          Object.assign(data, {
+            is_quick_export: false,
+            union_configs: this.unionIndexList.map(item => {
+              return {
+                begin: 0,
+                index_set_id: item,
+              };
+            }),
+          });
+        }
+
+        const requestConfig = this.isUnionSearch
+          ? { data }
+          : {
+              params: { index_set_id: window.__IS_MONITOR_COMPONENT__ ? this.$route.query.indexId : this.$route.params.indexId },
+              data,
+            };
+
         this.$http
-          .request('retrieve/exportAsync', {
-            params: {
-              index_set_id: window.__IS_MONITOR_COMPONENT__ ? this.$route.query.indexId : this.$route.params.indexId,
-            },
-            data,
-          })
+          .request(downRequestUrl, requestConfig)
           .then(res => {
             if (res.result) {
               this.$bkMessage({

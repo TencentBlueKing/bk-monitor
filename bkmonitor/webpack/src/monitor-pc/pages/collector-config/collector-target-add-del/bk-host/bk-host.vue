@@ -33,8 +33,8 @@
     </div>
     <bk-tag-input
       v-if="data.collect_type === 'SNMP'"
-      style="margin-bottom: 20px"
       v-model="snmpTargets"
+      style="margin-bottom: 20px"
       :allow-auto-match="true"
       :allow-create="true"
       :has-delete-icon="true"
@@ -103,10 +103,10 @@
         >
           {{ $t('采集专有主机') }}
           <span
-            class="icon-monitor icon-tips"
             v-bk-tooltips.top="
               $t('专有采集主机 使用整个服务器的50%的资源,其他情况都只是使用10%的资源并且不超过单CPU资源.')
             "
+            class="icon-monitor icon-tips"
           />
         </bk-checkbox>
       </div>

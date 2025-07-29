@@ -1,3 +1,5 @@
+import type { Ref } from 'vue';
+
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台社区版 (BlueKing PaaS Community Edition) available.
@@ -28,7 +30,6 @@ import { deepClone } from 'monitor-common/utils/utils';
 import type BaseEchart from '../base-echart';
 import type { ILegendItem, LegendActionType } from '../typings';
 import type { MonitorEchartOptions } from 'monitor-ui/monitor-echarts/types/monitor-echarts';
-import type { Ref } from 'vue';
 
 export function useChartLegend(
   baseChart: Ref<typeof BaseEchart | undefined>,
@@ -94,7 +95,7 @@ export function useChartLegend(
     if (needResetChart) {
       // 默认显示
       targetOption.series[0].label = {
-        formatter: (params: { dataIndex: number; value: number; name: any }) => {
+        formatter: (params: { dataIndex: number; name: any; value: number }) => {
           if (params.dataIndex === 0) {
             const divide = Number((params.value / totalValue).toFixed(2));
             const ratio = isNaN(divide) ? 0 : divide * 100;
@@ -119,8 +120,8 @@ export function useChartLegend(
   }: {
     actionType: LegendActionType;
     item: ILegendItem;
-    option: MonitorEchartOptions;
     needResetChart?: boolean;
+    option: MonitorEchartOptions;
   }) {
     if (['highlight', 'downplay'].includes(actionType)) {
       const chartInstance = baseChart.value?.instance;

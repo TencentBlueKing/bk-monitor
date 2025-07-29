@@ -28,16 +28,16 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import { Debounce } from 'monitor-common/utils';
 
-import { fieldTypeMap, getTitleAndSubtitle, type IFilterField } from './utils';
+import { type IFilterField, fieldTypeMap, getTitleAndSubtitle } from './utils';
 
 import './resident-setting-transfer.scss';
 
 interface IProps {
   fields: IFilterField[];
-  value?: string[];
   show?: boolean;
-  onConfirm?: (value: IFilterField[]) => void;
+  value?: string[];
   onCancel?: () => void;
+  onConfirm?: (value: IFilterField[]) => void;
 }
 
 @Component

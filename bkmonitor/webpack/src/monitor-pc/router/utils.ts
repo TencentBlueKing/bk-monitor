@@ -1,3 +1,5 @@
+import type { CreateElement } from 'vue';
+
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -26,8 +28,6 @@
 import introduce, { type IntroduceRouteKey } from '../common/introduce';
 import loading from '../pages/loading/page-loading';
 import store from '../store/store';
-
-import type { CreateElement } from 'vue';
 
 export const lazyLoadRoute = async (component: any) => {
   const asyncComponent = () => ({

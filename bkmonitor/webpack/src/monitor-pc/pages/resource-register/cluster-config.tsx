@@ -38,19 +38,19 @@ import MoreConfig from './cluster-config/components/more-config';
 import EsBasicInfo from './cluster-config/es-basic-info';
 import InfluxdbBasicInfo from './cluster-config/influxdb-basic-info';
 import KafkaBasicInfo from './cluster-config/kafka-basic-info';
-import { EClusterType, EScopes, type ITableRowConfig } from './type';
+import { type ITableRowConfig, EClusterType, EScopes } from './type';
 
 import './cluster-config.scss';
 
 // 四种资源类别的属性
 interface IResourceListItem {
-  id: EClusterType;
+  data: object;
+  disabled: boolean;
   icon: string;
+  id: EClusterType;
+  label?: Array<any>;
   name: string;
   optionTitle: string;
-  label?: Array<any>;
-  disabled: boolean;
-  data: object;
 }
 
 const formData = {
@@ -477,9 +477,9 @@ export default class ClusterConfig extends tsc<object> {
         width={640}
         ext-cls='cluster-config-wrapper-component'
         isShow={this.show}
+        on={{ 'update:isShow': this.emitShowChange }}
         quick-close={true}
         transfer={true}
-        on={{ 'update:isShow': this.emitShowChange }}
         on-hidden={this.handleSliderHidden}
       >
         <div

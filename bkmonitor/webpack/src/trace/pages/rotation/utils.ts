@@ -84,6 +84,17 @@ export const randomColor = (index: number) => {
   return `rgba(${r},${g},${b},0.8)`;
 };
 
+export interface RuleDetailModel {
+  groupNumber: number;
+  isAuto: boolean;
+  ruleUser: { orderIndex: number; users: { display_name: string; logo: string; type: 'group' | 'user' }[] }[];
+  ruleTime: {
+    day: string;
+    periodSettings: string;
+    timer: string[];
+  }[];
+}
+
 export function createColorList(num = 100) {
   const colors = [...colorList];
   for (let i = 0; i < num; i++) {
@@ -95,54 +106,71 @@ export function createColorList(num = 100) {
   return colors;
 }
 
-export function timeRangeTransform(val: string) {
-  const [start, end] = val.split('--');
-  return dayjs(start, 'hh:mm').isBefore(dayjs(end, 'hh:mm')) ? val : `${start} - ${window.i18n.t('次日')}${end}`;
-}
-
 /**
- * 校验固定值班单条轮值规则是否符合规范
- * @param data 轮值规则数据
- * @returns 是否符合规范
+ * 固定值班-接口数据和实际使用数据转化
+ * @param data 需要转化的数据
+ * @param type params 实际数据转接口数据 data: 接口数据转实际数据
+ * @returns 转化后的数据
  */
-export function validFixedRotationData(data: FixedDataModel) {
-  if (data.users.length === 0) return { success: false, msg: window.i18n.t('轮值规则必须添加人员') };
-  if (validTimeOverlap(data.workTime)) return { success: false, msg: window.i18n.t('时间段重复了') };
-  return { success: true, msg: '' };
-}
+export function fixedRotationTransform(data, type) {
+  if (type === 'data')
+    return data.map(item => {
+      const obj: FixedDataModel = {
+        id: item.id,
+        key: random(8, true),
+        type: item.duty_time?.[0]?.work_type || RotationSelectTypeEnum.Weekly,
+        workDays: item.duty_time?.[0]?.work_days || [],
+        workDateRange: [],
+        workTime: (item.duty_time?.[0]?.work_time || []).map(item => item.split('--')),
+        users: item.duty_users[0] || [],
+        orderIndex: 0,
+      };
+      const dateRange = item.duty_time?.[0]?.work_date_range || [];
+      if (dateRange.length) {
+        obj.workDateRange = dateRange[0].split('--');
+      }
+      return obj;
+    });
 
-/**
- * 校验交替轮值单条轮值规则是否符合规范
- * @param data 轮值规则数据
- * @returns 是否符合规范
- */
-export function validReplaceRotationData(data: ReplaceDataModel) {
-  if (!data.users.value.some(item => item.value.length))
-    return { success: false, msg: window.i18n.t('轮值规则必须添加人员') };
-  const type = data.date.isCustom ? RotationSelectTypeEnum.Custom : data.date.type;
-  switch (type) {
-    case RotationSelectTypeEnum.Daily:
-    case RotationSelectTypeEnum.WorkDay:
-    case RotationSelectTypeEnum.Weekend: {
-      if (data.date.value.every(item => !item.workTime.length)) {
-        return { success: false, msg: window.i18n.t('轮值规则必须添加单班时间') };
+  const filterData: FixedDataModel[] = data.filter(item => validFixedRotationData(item).success);
+
+  return filterData.map(item => {
+    let dutyTimeItem;
+    switch (item.type) {
+      case RotationSelectTypeEnum.Daily: {
+        dutyTimeItem = {
+          work_type: item.type,
+          work_time: item.workTime.map(item => item.join('--')),
+        };
+        break;
       }
-      break;
+      case RotationSelectTypeEnum.Weekly:
+      case RotationSelectTypeEnum.Monthly: {
+        dutyTimeItem = {
+          work_type: item.type,
+          work_days: item.workDays,
+          work_time: item.workTime.map(item => item.join('--')),
+        };
+        break;
+      }
+      case RotationSelectTypeEnum.DateRange: {
+        const dateRange = item.workDateRange.map(date => dayjs(date).format('YYYY-MM-DD')).join('--');
+        dutyTimeItem = {
+          work_type: item.type,
+          work_date_range: dateRange ? [dateRange] : [],
+          work_time: item.workTime.map(item => item.join('--')),
+          work_time_type: 'time_range',
+        };
+        break;
+      }
     }
-    case RotationSelectTypeEnum.Weekly:
-    case RotationSelectTypeEnum.Monthly: {
-      if (data.date.workTimeType === 'time_range' && data.date.value.every(item => !item.workDays.length)) {
-        return { success: false, msg: window.i18n.t('轮值规则必须添加单班时间') };
-      }
-      if (data.date.workTimeType === 'datetime_range' && data.date.value.every(item => !item.workTime.length)) {
-        return { success: false, msg: window.i18n.t('轮值规则必须添加单班时间') };
-      }
-      break;
-    }
-  }
-  if (data.date.value.some(date => validTimeOverlap(date.workTime)))
-    return { success: false, msg: window.i18n.t('时间段重复了') };
-  return { success: true, msg: '' };
+    const obj = {
+      id: item.id,
+      duty_time: [dutyTimeItem],
+      duty_users: item.users.length ? [item.users] : [],
+    };
+    return obj;
+  });
 }
 
 /**
@@ -308,102 +336,11 @@ export function replaceRotationTransform(originData, type) {
   });
 }
 
-/**
- * 固定值班-接口数据和实际使用数据转化
- * @param data 需要转化的数据
- * @param type params 实际数据转接口数据 data: 接口数据转实际数据
- * @returns 转化后的数据
- */
-export function fixedRotationTransform(data, type) {
-  if (type === 'data')
-    return data.map(item => {
-      const obj: FixedDataModel = {
-        id: item.id,
-        key: random(8, true),
-        type: item.duty_time?.[0]?.work_type || RotationSelectTypeEnum.Weekly,
-        workDays: item.duty_time?.[0]?.work_days || [],
-        workDateRange: [],
-        workTime: (item.duty_time?.[0]?.work_time || []).map(item => item.split('--')),
-        users: item.duty_users[0] || [],
-        orderIndex: 0,
-      };
-      const dateRange = item.duty_time?.[0]?.work_date_range || [];
-      if (dateRange.length) {
-        obj.workDateRange = dateRange[0].split('--');
-      }
-      return obj;
-    });
-
-  const filterData: FixedDataModel[] = data.filter(item => validFixedRotationData(item).success);
-
-  return filterData.map(item => {
-    let dutyTimeItem;
-    switch (item.type) {
-      case RotationSelectTypeEnum.Daily: {
-        dutyTimeItem = {
-          work_type: item.type,
-          work_time: item.workTime.map(item => item.join('--')),
-        };
-        break;
-      }
-      case RotationSelectTypeEnum.Weekly:
-      case RotationSelectTypeEnum.Monthly: {
-        dutyTimeItem = {
-          work_type: item.type,
-          work_days: item.workDays,
-          work_time: item.workTime.map(item => item.join('--')),
-        };
-        break;
-      }
-      case RotationSelectTypeEnum.DateRange: {
-        const dateRange = item.workDateRange.map(date => dayjs(date).format('YYYY-MM-DD')).join('--');
-        dutyTimeItem = {
-          work_type: item.type,
-          work_date_range: dateRange ? [dateRange] : [],
-          work_time: item.workTime.map(item => item.join('--')),
-          work_time_type: 'time_range',
-        };
-        break;
-      }
-    }
-    const obj = {
-      id: item.id,
-      duty_time: [dutyTimeItem],
-      duty_users: item.users.length ? [item.users] : [],
-    };
-    return obj;
-  });
+export function timeRangeTransform(val: string) {
+  const [start, end] = val.split('--');
+  return dayjs(start, 'hh:mm').isBefore(dayjs(end, 'hh:mm')) ? val : `${start} - ${window.i18n.t('次日')}${end}`;
 }
 
-/**
- * 根据值，展示值所对应的星期名
- * @param data 值
- * @returns 星期名
- */
-export function transformWeeklyName(data: number[]) {
-  const week = [
-    '',
-    window.i18n.t('一'),
-    window.i18n.t('二'),
-    window.i18n.t('三'),
-    window.i18n.t('四'),
-    window.i18n.t('五'),
-    window.i18n.t('六'),
-    window.i18n.t('日'),
-  ];
-  return data?.length ? `${window.i18n.t('每周')}${data.map(item => week[item]).join('、')}` : '';
-}
-
-export interface RuleDetailModel {
-  ruleTime: {
-    day: string;
-    timer: string[];
-    periodSettings: string;
-  }[];
-  ruleUser: { users: { type: 'group' | 'user'; display_name: string; logo: string }[]; orderIndex: number }[];
-  isAuto: boolean;
-  groupNumber: number;
-}
 export function transformRulesDetail(data: any[], type: 'handoff' | 'regular'): RuleDetailModel[] {
   let orderIndex = 0;
   return data.map(rule => {
@@ -460,15 +397,66 @@ export function transformRulesDetail(data: any[], type: 'handoff' | 'regular'): 
 }
 
 /**
- * 判断两个时间段是否存在重叠
- * @param start1 第一个时间段的起始时间
- * @param end1 第一个时间段的结束时间
- * @param start2 第二个时间段的起始时间
- * @param end2 第二个时间段的结束时间
- * @returns 是否存在重叠
+ * 根据值，展示值所对应的星期名
+ * @param data 值
+ * @returns 星期名
  */
-function hasOverlap(start1: number, end1: number, start2: number, end2: number) {
-  return start1 < end2 && start2 < end1;
+export function transformWeeklyName(data: number[]) {
+  const week = [
+    '',
+    window.i18n.t('一'),
+    window.i18n.t('二'),
+    window.i18n.t('三'),
+    window.i18n.t('四'),
+    window.i18n.t('五'),
+    window.i18n.t('六'),
+    window.i18n.t('日'),
+  ];
+  return data?.length ? `${window.i18n.t('每周')}${data.map(item => week[item]).join('、')}` : '';
+}
+
+/**
+ * 校验固定值班单条轮值规则是否符合规范
+ * @param data 轮值规则数据
+ * @returns 是否符合规范
+ */
+export function validFixedRotationData(data: FixedDataModel) {
+  if (data.users.length === 0) return { success: false, msg: window.i18n.t('轮值规则必须添加人员') };
+  if (validTimeOverlap(data.workTime)) return { success: false, msg: window.i18n.t('时间段重复了') };
+  return { success: true, msg: '' };
+}
+/**
+ * 校验交替轮值单条轮值规则是否符合规范
+ * @param data 轮值规则数据
+ * @returns 是否符合规范
+ */
+export function validReplaceRotationData(data: ReplaceDataModel) {
+  if (!data.users.value.some(item => item.value.length))
+    return { success: false, msg: window.i18n.t('轮值规则必须添加人员') };
+  const type = data.date.isCustom ? RotationSelectTypeEnum.Custom : data.date.type;
+  switch (type) {
+    case RotationSelectTypeEnum.Daily:
+    case RotationSelectTypeEnum.WorkDay:
+    case RotationSelectTypeEnum.Weekend: {
+      if (data.date.value.every(item => !item.workTime.length)) {
+        return { success: false, msg: window.i18n.t('轮值规则必须添加单班时间') };
+      }
+      break;
+    }
+    case RotationSelectTypeEnum.Weekly:
+    case RotationSelectTypeEnum.Monthly: {
+      if (data.date.workTimeType === 'time_range' && data.date.value.every(item => !item.workDays.length)) {
+        return { success: false, msg: window.i18n.t('轮值规则必须添加单班时间') };
+      }
+      if (data.date.workTimeType === 'datetime_range' && data.date.value.every(item => !item.workTime.length)) {
+        return { success: false, msg: window.i18n.t('轮值规则必须添加单班时间') };
+      }
+      break;
+    }
+  }
+  if (data.date.value.some(date => validTimeOverlap(date.workTime)))
+    return { success: false, msg: window.i18n.t('时间段重复了') };
+  return { success: true, msg: '' };
 }
 
 /**
@@ -495,4 +483,16 @@ export function validTimeOverlap(list: string[][]) {
   }
 
   return false; // 没有找到重叠
+}
+
+/**
+ * 判断两个时间段是否存在重叠
+ * @param start1 第一个时间段的起始时间
+ * @param end1 第一个时间段的结束时间
+ * @param start2 第二个时间段的起始时间
+ * @param end2 第二个时间段的结束时间
+ * @returns 是否存在重叠
+ */
+function hasOverlap(start1: number, end1: number, start2: number, end2: number) {
+  return start1 < end2 && start2 < end1;
 }

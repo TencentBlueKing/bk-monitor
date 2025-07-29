@@ -24,11 +24,11 @@
  * IN THE SOFTWARE.
  */
 
-import VueJsonPretty from 'vue-json-pretty';
-import { Component, Prop, Watch, Emit, Ref } from 'vue-property-decorator';
+import { Component, Emit, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { updateFavorite } from 'monitor-api/modules/model';
+import VueJsonPretty from 'vue-json-pretty';
 
 import { mergeWhereList } from '../../../components/retrieval-filter/utils';
 import { isEn } from '../../../i18n/lang';
@@ -43,11 +43,11 @@ interface IGroup {
 }
 
 interface IProps {
-  value?: IFavList.favList;
   favoriteType?: string;
   groups?: IGroup[];
-  onSuccess?: (data: IFavList.favList) => void;
+  value?: IFavList.favList;
   onClose?: () => void;
+  onSuccess?: (data: IFavList.favList) => void;
 }
 
 @Component

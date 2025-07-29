@@ -27,27 +27,27 @@ import {
   type PropType,
   computed,
   defineComponent,
+  KeepAlive,
   nextTick,
   onBeforeUnmount,
   onMounted,
+  onUnmounted,
   provide,
   reactive,
   ref,
+  shallowRef,
   toRefs,
   watch,
-  KeepAlive,
-  onUnmounted,
-  shallowRef,
 } from 'vue';
-import { useI18n } from 'vue-i18n';
-import { useRoute, useRouter } from 'vue-router';
 
 import { addListener, removeListener } from '@blueking/fork-resize-detector';
-import { Checkbox, Loading, Popover, Radio, Table, Sideslider } from 'bkui-vue';
+import { Checkbox, Loading, Popover, Radio, Sideslider, Table } from 'bkui-vue';
 import { CancelToken } from 'monitor-api/cancel';
 import { listOptionValues, spanDetail, traceDetail } from 'monitor-api/modules/apm_trace';
 import { random } from 'monitor-common/utils/utils';
 import { echartsDisconnect } from 'monitor-ui/monitor-echarts/utils';
+import { useI18n } from 'vue-i18n';
+import { useRoute, useRouter } from 'vue-router';
 
 import EmptyStatus from '../../../components/empty-status/empty-status';
 import TableSkeleton from '../../../components/skeleton/table-skeleton';
@@ -82,10 +82,6 @@ const fieldQueryKeyMaps: AliasMapType = {
   status_code: 'status.code',
 };
 
-enum TraceFilter {
-  Error = 'error',
-}
-
 enum SpanFilter {
   EntrySpan = 'entry_span',
   Error = 'error',
@@ -94,18 +90,22 @@ enum SpanFilter {
   ThirdPart = '3',
 }
 
+enum TraceFilter {
+  Error = 'error',
+}
+
 export type TraceListType = {
-  // 属于 Trace 列表的
-  root_service: any[];
-  root_service_span_name: any[];
-  root_service_status_code: any[];
-  root_service_category: any[];
-  root_span_name: any[];
   // 属于 Span 列表的
   kind: any[];
   'resource.bk.instance.id': any[];
   'resource.service.name': any[];
   'resource.telemetry.sdk.version': any[];
+  // 属于 Trace 列表的
+  root_service: any[];
+  root_service_category: any[];
+  root_service_span_name: any[];
+  root_service_status_code: any[];
+  root_span_name: any[];
   span_name: any[];
   'status.code': any[];
 };
@@ -381,7 +381,7 @@ export default defineComponent({
         settingsLabel: `${t('调用类型')}`,
         field: 'root_service_category',
         width: 120,
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+
         render: ({ cell, data }: { cell: { text: string; value: string }; data: ITraceListItem }) => (
           <div>{cell.text || '--'}</div>
         ),
@@ -412,7 +412,7 @@ export default defineComponent({
           filterFn: () => true as any,
           // btnSave: !!traceListFilter.root_service_status_code.length ? t('确定') : false
         },
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+
         render: ({ cell, data }: { cell: number; data: ITraceListItem }) => (
           <div class={`status-code status-${data.root_service_status_code?.type}`}>
             {data.root_service_status_code?.value || '--'}
@@ -438,7 +438,7 @@ export default defineComponent({
           : false,
         settingsLabel: `${t('耗时')}`,
         field: 'trace_duration',
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+
         render: ({ cell, data }: { cell: number; data: ITraceListItem }) => (
           <div>
             <span>{formatDuration(cell)}</span>
@@ -1065,7 +1065,7 @@ export default defineComponent({
           list: traceListFilter.span_name,
           filterFn: () => true as any,
         },
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+
         render: ({ cell, data }: { cell: string; data: ISpanListItem }) => (
           <div>
             <span title={cell}>{cell}</span>
@@ -1087,7 +1087,7 @@ export default defineComponent({
         sort: {
           sortFn: () => false,
         },
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+
         render: ({ cell, data }: { cell: number; data: ISpanListItem }) => (
           <div>
             <span>{`${formatDate(cell)} ${formatTime(cell)}`}</span>
@@ -1109,7 +1109,7 @@ export default defineComponent({
         sort: {
           sortFn: () => false,
         },
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+
         render: ({ cell, data }: { cell: number; data: ISpanListItem }) => (
           <div>
             <span>{`${formatDate(cell)} ${formatTime(cell)}`}</span>
@@ -1132,7 +1132,7 @@ export default defineComponent({
         sort: {
           sortFn: () => false,
         },
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+
         render: ({ cell, data }: { cell: number; data: ISpanListItem }) => (
           <div>
             <span>{formatDuration(cell, ' ')}</span>
@@ -1156,7 +1156,7 @@ export default defineComponent({
           list: traceListFilter['status.code'],
           filterFn: () => true as any,
         },
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+
         render: ({ cell, data }: { cell: number; data: ISpanListItem }) => (
           // TODO: 需要补上 圆点 样式
           <div style='display: flex; align-items: center'>
@@ -1182,7 +1182,7 @@ export default defineComponent({
           list: traceListFilter.kind,
           filterFn: () => true as any,
         },
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+
         render: ({ cell, data }: { cell: number; data: ISpanListItem }) => (
           <div>
             <span>{SPAN_KIND_MAPS[data.kind]}</span>
@@ -1205,7 +1205,7 @@ export default defineComponent({
           list: traceListFilter['resource.service.name'],
           filterFn: () => true as any,
         },
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+
         render: ({ cell, data }: { cell: string; data: ISpanListItem }) => (
           <div
             class='link-column'
@@ -1232,7 +1232,7 @@ export default defineComponent({
           list: traceListFilter['resource.bk.instance.id'],
           filterFn: () => true as any,
         },
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+
         render: ({ cell, data }: { cell: string; data: ISpanListItem }) => (
           <div>
             {/* // eslint-disable-next-line @typescript-eslint/quotes */}
@@ -1252,7 +1252,7 @@ export default defineComponent({
           </Popover>
         ),
         field: 'resource.telemetry.sdk.name',
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+
         render: ({ cell, data }: { cell: string; data: ISpanListItem }) => (
           <div>
             {/* // eslint-disable-next-line @typescript-eslint/quotes */}
@@ -1276,7 +1276,7 @@ export default defineComponent({
           list: traceListFilter['resource.telemetry.sdk.version'],
           filterFn: () => true as any,
         },
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+
         render: ({ cell, data }: { cell: string; data: ISpanListItem }) => (
           <div>
             {/* // eslint-disable-next-line @typescript-eslint/quotes */}
@@ -1296,7 +1296,7 @@ export default defineComponent({
           </Popover>
         ),
         field: 'trace_id',
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+
         render: ({ cell, data }: { cell: string; data: any[] }) => (
           <div class='link-column'>
             <span
@@ -1351,12 +1351,12 @@ export default defineComponent({
       window.open(url, '_blank');
     }
 
-    function handleTraceTableSettingsChange(settings: { checked: string[]; size: string; height: number }) {
+    function handleTraceTableSettingsChange(settings: { checked: string[]; height: number; size: string }) {
       store.tableSettings.trace.checked = settings.checked;
       window.localStorage.setItem('traceCheckedSettings', JSON.stringify(settings.checked));
     }
 
-    function handleSpanTableSettingsChange(settings: { checked: string[]; size: string; height: number }) {
+    function handleSpanTableSettingsChange(settings: { checked: string[]; height: number; size: string }) {
       store.tableSettings.span.checked = settings.checked;
       window.localStorage.setItem('spanCheckedSettings', JSON.stringify(settings.checked));
     }

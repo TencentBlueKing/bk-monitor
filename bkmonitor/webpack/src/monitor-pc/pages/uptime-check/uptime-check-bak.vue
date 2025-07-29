@@ -28,9 +28,9 @@
     <div class="uptime-check-tab">
       <div
         v-for="item in tabList"
+        :key="item.id"
         class="tab-item"
         :class="{ 'tab-active': active === item.id }"
-        :key="item.id"
         @click="handleTabChange(item.id)"
       >
         {{ item.name }}
@@ -61,19 +61,19 @@
   </div>
 </template>
 <script lang="ts">
-import type { TranslateResult } from 'vue-i18n';
 import { Component, Mixins, Prop, Provide, ProvideReactive } from 'vue-property-decorator';
 
 import pageTips from '../../components/pageTips/pageTips.vue';
 import authorityMixinCreate from '../../mixins/authorityMixin';
-
 import * as uptimeAuth from './authority-map';
 import UptimeCheckNode from './uptime-check-nodes/uptime-check-nodes.vue';
 import UptimeCheckTask from './uptime-check-task/uptime-check-task.vue';
 
+import type { TranslateResult } from 'vue-i18n';
+
 enum UptimeCheckType {
-  task = 'uptime-check-task',
   node = 'uptime-check-node',
+  task = 'uptime-check-task',
 }
 interface ITabItem {
   id: UptimeCheckType;

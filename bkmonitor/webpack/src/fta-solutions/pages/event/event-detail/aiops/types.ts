@@ -24,11 +24,6 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-export enum ETabNames {
-  diagnosis = 'diagnosis',
-  dimension = 'dimension',
-  index = 'index',
-}
 
 export enum DimensionTypes {
   application_check = 'icon-mc-business',
@@ -42,31 +37,10 @@ export enum DimensionTypes {
   service_module = 'icon-mc-service-test',
   uptimecheck = 'icon-mc-service-test',
 }
-
-export interface IInfo {
-  anomaly_dimension_count?: number;
-  anomaly_dimension_value_count?: number;
-  configured_metric_count?: number;
-  recommended_metric_count?: number;
-  default_column?: number;
-  recommended_metric?: number;
-}
-
-export interface IDistribution {
-  metric_alias: string;
-  median: number;
-  data: any[];
-  [key: string]: any;
-}
-export interface IAnomalyDimensions {
-  anomaly_dimension?: string;
-  anomaly_dimension_alias?: string;
-  dimension_anomaly_value_count?: number;
-  dimension_value_total_count?: number;
-  dimension_value_percent?: number;
-  anomaly_score_top10?: any[];
-  anomaly_score_distribution?: IDistribution;
-  [key: string]: any;
+export enum ETabNames {
+  diagnosis = 'diagnosis',
+  dimension = 'dimension',
+  index = 'index',
 }
 
 export enum EventReportType {
@@ -75,28 +49,54 @@ export enum EventReportType {
   View = 'event_detail_view',
 }
 
-export interface TabConfig {
-  name: string;
-  icon: string;
-  titleKey: string;
-  loading: boolean;
-  error?: string;
-  infoType: 'dimensionInfo' | 'indexInfo';
-  contentRenderer?: () => void;
-  dataItems: {
-    path: string;
-    labelKey: string;
-    showComma?: boolean;
-  }[];
+export interface IAnomalyDimensions {
+  [key: string]: any;
+  anomaly_dimension?: string;
+  anomaly_dimension_alias?: string;
+  anomaly_score_distribution?: IDistribution;
+  anomaly_score_top10?: any[];
+  dimension_anomaly_value_count?: number;
+  dimension_value_percent?: number;
+  dimension_value_total_count?: number;
+}
+export interface IDistribution {
+  [key: string]: any;
+  data: any[];
+  median: number;
+  metric_alias: string;
 }
 
 export interface IIncidentDetail {
+  begin_time: number;
+  bk_biz_name: string;
+  current_topology: Record<string, unknown>;
+  duration: string;
+  end_time: number;
   id: string;
   incident_name: string;
   status_alias: string;
-  duration: string;
-  bk_biz_name: string;
-  current_topology: Record<string, unknown>;
-  begin_time: number;
-  end_time: number;
+}
+
+export interface IInfo {
+  anomaly_dimension_count?: number;
+  anomaly_dimension_value_count?: number;
+  configured_metric_count?: number;
+  default_column?: number;
+  recommended_metric?: number;
+  recommended_metric_count?: number;
+}
+
+export interface TabConfig {
+  error?: string;
+  icon: string;
+  infoType: 'dimensionInfo' | 'indexInfo';
+  loading: boolean;
+  name: string;
+  titleKey: string;
+  contentRenderer?: () => void;
+  dataItems: {
+    labelKey: string;
+    path: string;
+    showComma?: boolean;
+  }[];
 }

@@ -25,54 +25,87 @@
  */
 import type Vue from 'vue';
 import type { VNode } from 'vue';
+
 import type { TranslateResult } from 'vue-i18n';
 
-export type IpType = 'DYNAMIC_GROUP' | 'INSTANCE' | 'SERVICE_TEMPLATE' | 'SET_TEMPLATE' | 'TOPO';
+export type CheckType = 'all' | 'current';
 
-// tab数据源
-export interface IPanel {
-  name: string; // tab唯一标识（要和components目录的文件名保持一致，作为后面动态组件的name）
-  label: string | TranslateResult; // tab默认显示文本
-  hidden?: boolean; // tab是否显示
-  disabled?: boolean; // tab是否禁用
-  keepAlive?: boolean; // 是否缓存
-  tips?: string | TranslateResult;
-  component?: Vue; // 组件对象（默认根据name从layout里面获取）
-  type?: IpType; // 当前tab对于的类型（目前对于后端来说只有两种，只是前端选择方式不一样）
+// 0 未选 1 半选 2 全选
+export type CheckValue = 0 | 1 | 2;
+
+export interface IAgentStatusData {
+  count?: number;
+  display: string | TranslateResult;
+  errorCount?: number;
+  status: string;
+}
+
+export interface IClassifyTab {
+  active: string;
+  list: { id: 'inner' | 'other' | 'outer'; name: TranslateResult }[];
 }
 
 export interface IEventsMap {
   [key: string]: Function;
 }
 
+export interface IipListParams {
+  current: number;
+  limit: number;
+  tableKeyword: string;
+}
+
+export interface ILayoutComponents {
+  [key: string]: Vue;
+}
+
 export interface IMenu {
+  disabled?: boolean;
+  hidden?: boolean;
   id: number | string;
   label: string | TranslateResult;
   readonly?: boolean;
-  disabled?: boolean;
-  hidden?: boolean;
 }
 
 export interface INodeData extends IMenu {
-  data: any; // 原始数据
   children?: INodeData[];
+  data: any; // 原始数据
 }
 
-export interface IPreviewData {
-  id: IpType;
-  name: string | TranslateResult;
-  data: any[];
-  dataNameKey?: string;
+export interface IPagination {
+  count: number;
+  current: number;
+  limit: number;
 }
 
-export interface ISearchData extends INodeData {
-  path?: string;
+// tab数据源
+export interface IPanel {
+  component?: Vue; // 组件对象（默认根据name从layout里面获取）
+  disabled?: boolean; // tab是否禁用
+  hidden?: boolean; // tab是否显示
+  keepAlive?: boolean; // 是否缓存
+  label: string | TranslateResult; // tab默认显示文本
+  name: string; // tab唯一标识（要和components目录的文件名保持一致，作为后面动态组件的name）
+  tips?: string | TranslateResult;
+  type?: IpType; // 当前tab对于的类型（目前对于后端来说只有两种，只是前端选择方式不一样）
 }
 
 export type IPerateFunc = (item: IPreviewData) => IMenu[];
 
-export interface ILayoutComponents {
-  [key: string]: Vue;
+export interface IPreviewData {
+  data: any[];
+  dataNameKey?: string;
+  id: IpType;
+  name: string | TranslateResult;
+}
+
+export interface IPreviewDataOption {
+  nameKey?: string;
+}
+export type IpType = 'DYNAMIC_GROUP' | 'INSTANCE' | 'SERVICE_TEMPLATE' | 'SET_TEMPLATE' | 'TOPO';
+
+export interface ISearchData extends INodeData {
+  path?: string;
 }
 
 export interface ISearchDataOption {
@@ -81,48 +114,11 @@ export interface ISearchDataOption {
   pathKey: string;
 }
 
-export interface IPreviewDataOption {
-  nameKey?: string;
-}
-
-export interface ITreeNode {
-  id: number | string;
-  name: string;
-  level: number | string;
-  children: ITreeNode[];
-  data?: any;
-  parent?: ITreeNode;
-}
-
-export interface ITableConfig {
-  prop: string;
-  label: string | TranslateResult;
-  render?: (row: any, column: any, $index: number) => any | VNode;
-  hidden?: boolean;
-  minWidth?: number;
-}
-
-export interface IAgentStatusData {
-  count?: number;
-  status: string;
-  display: string | TranslateResult;
-  errorCount?: number;
-}
-// 0 未选 1 半选 2 全选
-export type CheckValue = 0 | 1 | 2;
-
-export type CheckType = 'all' | 'current';
-
-export interface IPagination {
-  limit: number;
-  count: number;
-  current: number;
-}
-
-export interface ITemplateDataOptions {
-  idKey?: string;
-  labelKey?: string;
-  childrenKey?: string;
+export interface ITableCheckData {
+  checkType?: CheckType;
+  checkValue?: CheckValue;
+  excludeData?: any[];
+  selections: any[];
 }
 
 /**
@@ -130,22 +126,27 @@ export interface ITemplateDataOptions {
  * @param params 接口参数
  */
 
-export type SearchDataFuncType = (params: any, type?: string) => Promise<{ total: number; data: any[] }>;
-
-export interface IipListParams {
-  current: number;
-  limit: number;
-  tableKeyword: string;
+export interface ITableConfig {
+  hidden?: boolean;
+  label: string | TranslateResult;
+  minWidth?: number;
+  prop: string;
+  render?: (row: any, column: any, $index: number) => any | VNode;
 }
 
-export interface ITableCheckData {
-  excludeData?: any[];
-  selections: any[];
-  checkType?: CheckType;
-  checkValue?: CheckValue;
+export interface ITemplateDataOptions {
+  childrenKey?: string;
+  idKey?: string;
+  labelKey?: string;
 }
 
-export interface IClassifyTab {
-  active: string;
-  list: { id: 'inner' | 'other' | 'outer'; name: TranslateResult }[];
+export interface ITreeNode {
+  children: ITreeNode[];
+  data?: any;
+  id: number | string;
+  level: number | string;
+  name: string;
+  parent?: ITreeNode;
 }
+
+export type SearchDataFuncType = (params: any, type?: string) => Promise<{ data: any[]; total: number }>;

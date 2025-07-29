@@ -25,19 +25,36 @@
  */
 import type { INodeType, TargetObjectType } from 'monitor-pc/components/monitor-ip-selector/typing';
 
+export interface IAppListItem {
+  app_alias: string;
+  app_name: string;
+  application_id: number;
+  data_status: string;
+  firstCode: string;
+  firstCodeColor: string;
+  loading: false;
+  metric_result_table_id: string;
+  profiling_data_status: string;
+  service_count?: number;
+  trace_result_table_id: string;
+  permission: {
+    [key: string]: boolean;
+  };
+}
+
 export interface ICreateAppFormData {
-  name: string;
-  enName: string;
   desc: string;
-  pluginId: string;
   enableProfiling: boolean;
   enableTracing: boolean;
+  enName: string;
+  name: string;
+  pluginId: string;
   plugin_config?: {
-    target_node_type: INodeType;
-    target_object_type: TargetObjectType;
-    target_nodes: any[];
     data_encoding: string;
     paths: string[];
+    target_node_type: INodeType;
+    target_nodes: any[];
+    target_object_type: TargetObjectType;
   };
 }
 
@@ -45,21 +62,4 @@ export interface IGuideLink {
   access_url: string;
   best_practice: string;
   metric_description: string;
-}
-
-export interface IAppListItem {
-  app_alias: string;
-  app_name: string;
-  application_id: number;
-  firstCode: string;
-  permission: {
-    [key: string]: boolean;
-  };
-  loading: false;
-  service_count?: number;
-  firstCodeColor: string;
-  profiling_data_status: string;
-  data_status: string;
-  metric_result_table_id: string;
-  trace_result_table_id: string;
 }

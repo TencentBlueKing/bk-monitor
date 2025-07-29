@@ -33,13 +33,13 @@ import type { TranslateResult } from 'vue-i18n';
 import './common-item.scss';
 
 interface ICommonProps {
-  title: string | TranslateResult;
+  desc?: string;
   isRequired?: boolean;
+  isSwitch?: boolean;
+  isWrap?: boolean;
   showSemicolon?: boolean;
   tips?: string | TranslateResult;
-  isWrap?: boolean;
-  isSwitch?: boolean;
-  desc?: string;
+  title: string | TranslateResult;
 }
 @Component({ name: 'CommonItem' })
 export default class MyComponent extends tsc<ICommonProps> {

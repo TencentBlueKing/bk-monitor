@@ -24,17 +24,17 @@
  * IN THE SOFTWARE.
  */
 import { type PropType, computed, defineComponent } from 'vue';
-import { useI18n } from 'vue-i18n';
 
 import { Exception } from 'bkui-vue';
+import { useI18n } from 'vue-i18n';
 
 import type { TranslateResult } from 'vue-i18n';
 
 import './empty-status.scss';
 
-export type EmptyStatusType = '403' | '500' | 'empty' | 'search-empty' | string;
-export type EmptyStatusScene = 'page' | 'part';
 export type EmptyStatusOperationType = 'clear-filter' | 'refresh';
+export type EmptyStatusScene = 'page' | 'part';
+export type EmptyStatusType = '403' | '500' | 'empty' | 'search-empty' | string;
 export type IEmptyStatusTextMap = {
   [key in EmptyStatusType]?: TranslateResult;
 };

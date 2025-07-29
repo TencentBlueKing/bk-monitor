@@ -43,6 +43,7 @@ import { type ILogUrlParams, transformLogUrlQuery } from '../../../../utils/inde
 import CollectChart from '../../../data-retrieval/components/collect-chart.vue';
 import GroupPanel from '../../strategy-config-set-new/components/group-panel';
 import {
+  type dataModeType,
   type EditModeType,
   type ICommonItem,
   type IDetectionConfig,
@@ -50,7 +51,6 @@ import {
   type IWhereItem,
   type MetricDetail,
   MetricType,
-  type dataModeType,
 } from '../../strategy-config-set-new/typings/index';
 import { allDescription } from './description';
 import MultipleMetricView from './multiple-metric-view';
@@ -80,22 +80,22 @@ const windowHostDataFieldsForDimensionNameMap = {
 const defaultHostDataFields = ['bk_target_ip', 'bk_target_cloud_id'];
 
 interface IStrateViewProps {
-  metricData: MetricDetail[];
-  detectionConfig: IDetectionConfig;
-  expression: string;
-  legalDimensionList: ICommonItem[];
-  dataMode: dataModeType;
+  activeModelMd?: number;
   aiopsChartType: ChartType;
   aiopsModelMdList?: IModelData[];
-  activeModelMd?: number;
-  expFunctions: IFunctionsValue[];
+  dataMode: dataModeType;
   descriptionType?: string;
+  detectionConfig: IDetectionConfig;
   editMode?: EditModeType;
-  sourceData?: ISourceData;
+  expFunctions: IFunctionsValue[];
+  expression: string;
   isMultivariateAnomalyDetection?: boolean;
+  legalDimensionList: ICommonItem[];
+  metricData: MetricDetail[];
+  multivariateAnomalyDetectionParams?: IMultivariateAnomalyDetectionParams;
+  sourceData?: ISourceData;
   /** 策略目标 */
   strategyTarget?: any[];
-  multivariateAnomalyDetectionParams?: IMultivariateAnomalyDetectionParams;
   onMultivariateAnomalyRefreshView: () => void;
 }
 @Component({
@@ -171,7 +171,7 @@ export default class StrategyView extends tsc<IStrateViewProps> {
 
   @Ref('tool') toolRef!: StrategyViewTool;
 
-  private tools: { timeRange: TimeRangeType; refreshInterval: number } = {
+  private tools: { refreshInterval: number; timeRange: TimeRangeType } = {
     timeRange: ['now-3h', 'now'],
     refreshInterval: 5 * 60 * 1000,
   };

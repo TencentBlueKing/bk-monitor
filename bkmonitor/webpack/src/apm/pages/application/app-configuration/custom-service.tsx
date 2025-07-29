@@ -36,8 +36,8 @@ import type { TimeRangeType } from 'monitor-pc/components/time-range/time-range'
 import type { IPanelModel, IViewOptions } from 'monitor-ui/chart-plugins/typings';
 
 interface IPagination {
-  current: number;
   count: number;
+  current: number;
   limit: number;
 }
 

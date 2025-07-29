@@ -28,8 +28,8 @@
   <ul class="preview-template">
     <li
       v-for="(item, index) in renderList"
-      class="preview-template-item"
       :key="index"
+      class="preview-template-item"
     >
       <h5 class="item-title">
         {{ item.name }}
@@ -39,8 +39,8 @@
       <div
         v-if="item.type === 'mail'"
         class="item-template"
-        v-html="item.message"
         :class="{ 'no-br': item.type === 'mail' }"
+        v-html="item.message"
       />
       <pre v-else>{{ item.message }}</pre>
     </li>

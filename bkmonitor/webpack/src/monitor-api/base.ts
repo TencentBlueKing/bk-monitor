@@ -30,35 +30,35 @@ import { random } from 'monitor-common/utils/utils';
 import axios from './axios/axios';
 import { axiosError, bkMessage, makeMessage } from './utils/index';
 
+interface ApiError {
+  code?: number | string;
+  error_details?: string;
+  message?: string;
+}
+
 interface RequestConfig {
-  /* 是否需要自动带上业务ID */
-  needBiz?: boolean;
-  /* 是否需要返回原始 response */
-  needRes?: boolean;
-  /* 是否需要header 加上 X-Async-Task */
-  isAsync?: boolean;
-  /* 是否报错时需要 message 弹窗 */
-  needMessage?: boolean;
-  /* 是否需要拒绝403 */
-  reject403?: boolean;
   /* cancelToken */
   cancelToken?: any;
-  /* 是否需要自动取消重复请求 */
-  needCancel?: boolean;
-  /* 是否需要配置header Traceparent */
-  needTraceId?: boolean;
   /* 是否需要配置header */
   headers?: Record<string, any>;
+  /* 是否需要header 加上 X-Async-Task */
+  isAsync?: boolean;
+  /* 是否需要自动带上业务ID */
+  needBiz?: boolean;
+  /* 是否需要自动取消重复请求 */
+  needCancel?: boolean;
+  /* 是否报错时需要 message 弹窗 */
+  needMessage?: boolean;
+  /* 是否需要返回原始 response */
+  needRes?: boolean;
+  /* 是否需要配置header Traceparent */
+  needTraceId?: boolean;
+  /* 是否需要拒绝403 */
+  reject403?: boolean;
   /* 取消请求 */
   cancelFn?: () => void;
   /* 上传进度 */
   onUploadProgress?: (progressEvent: any) => void;
-}
-
-interface ApiError {
-  code?: number | string;
-  message?: string;
-  error_details?: string;
 }
 
 type RequestMethod = 'delete' | 'get' | 'head' | 'options' | 'patch' | 'post' | 'put';

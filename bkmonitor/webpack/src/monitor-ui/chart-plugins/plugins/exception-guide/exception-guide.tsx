@@ -41,10 +41,10 @@ interface IExceptionGuideProps {
 }
 
 interface IGuideInfo {
-  type: string;
-  title: string;
-  subTitle: string;
   link: ITableItem<'link'> | null;
+  subTitle: string;
+  title: string;
+  type: string;
 }
 
 @Component

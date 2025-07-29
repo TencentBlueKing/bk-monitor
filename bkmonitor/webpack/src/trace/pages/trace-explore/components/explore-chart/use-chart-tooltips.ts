@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { shallowRef, type Ref, type MaybeRef, computed } from 'vue';
+import { type MaybeRef, type Ref, computed, shallowRef } from 'vue';
 
 import { get } from '@vueuse/core';
 import dayjs from 'dayjs';
@@ -38,8 +38,8 @@ export const useChartTooltips = (
     hoverAllTooltips,
     options,
   }: {
-    isMouseOver: MaybeRef<boolean>;
     hoverAllTooltips: MaybeRef<boolean>;
+    isMouseOver: MaybeRef<boolean>;
     options: MaybeRef<any>;
   }
 ) => {

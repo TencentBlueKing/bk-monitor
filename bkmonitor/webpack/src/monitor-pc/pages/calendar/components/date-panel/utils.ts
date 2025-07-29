@@ -28,6 +28,69 @@
 const ONE_DAY_TIME = 24 * 60 * 60 * 1000;
 
 /**
+ * 一天的日期数据
+ */
+export class Days {
+  /** 当前时间 */
+  currentTimestamp: number = null;
+  /** 日期对象 */
+  date: Date = null;
+  /** 日期 */
+  day: number = null;
+  /** 月份 */
+  month: number = null;
+  /** 当前面板的月份 */
+  panelMoth: number = null;
+  /** 时间戳 */
+  timestamp: number = null;
+  /** 年份 */
+  year: number = null;
+  /**
+   * @param timestamp 时间戳
+   */
+  constructor(timestamp: number) {
+    this.initData(timestamp);
+  }
+
+  /** 是否为当月面板的日期 null 为没有归属的面板 boolean 为归属当前月的日期 */
+  get currentMonthsDay(): boolean | null {
+    return this.panelMoth === null ? null : this.month === this.panelMoth;
+  }
+
+  /** 当前日期 */
+  get isToday() {
+    const { year, month, day } = this.getYearMonthDay(this.currentTimestamp);
+    return this.year === year && this.month === month && this.day === day;
+  }
+
+  /**
+   * 获取指定时间戳的年、月、日数据
+   * @param timestamp 时间戳
+   */
+  getYearMonthDay(timestamp: number): {
+    day: number;
+    month: number;
+    year: number;
+  } {
+    const date = new Date(timestamp);
+    const year = date.getFullYear();
+    const month = date.getMonth();
+    const day = date.getDate();
+    return { year, month, day };
+  }
+
+  /** 初始化数据 */
+  initData(timestamp: number) {
+    this.date = new Date(timestamp);
+    this.timestamp = timestamp;
+    this.year = this.date.getFullYear();
+    this.month = this.date.getMonth();
+    this.day = this.date.getDate();
+    this.currentTimestamp = +new Date();
+  }
+}
+
+/**
  * 一个月的日期类
  */
 export class MonthsPanel {
@@ -71,68 +134,5 @@ export class MonthsPanel {
       days.panelMoth = this.month;
       this.dateList.push(days);
     }
-  }
-}
-
-/**
- * 一天的日期数据
- */
-export class Days {
-  /** 当前时间 */
-  currentTimestamp: number = null;
-  /** 日期对象 */
-  date: Date = null;
-  /** 日期 */
-  day: number = null;
-  /** 月份 */
-  month: number = null;
-  /** 当前面板的月份 */
-  panelMoth: number = null;
-  /** 时间戳 */
-  timestamp: number = null;
-  /** 年份 */
-  year: number = null;
-  /**
-   * @param timestamp 时间戳
-   */
-  constructor(timestamp: number) {
-    this.initData(timestamp);
-  }
-
-  /** 是否为当月面板的日期 null 为没有归属的面板 boolean 为归属当前月的日期 */
-  get currentMonthsDay(): boolean | null {
-    return this.panelMoth === null ? null : this.month === this.panelMoth;
-  }
-
-  /** 当前日期 */
-  get isToday() {
-    const { year, month, day } = this.getYearMonthDay(this.currentTimestamp);
-    return this.year === year && this.month === month && this.day === day;
-  }
-
-  /**
-   * 获取指定时间戳的年、月、日数据
-   * @param timestamp 时间戳
-   */
-  getYearMonthDay(timestamp: number): {
-    year: number;
-    month: number;
-    day: number;
-  } {
-    const date = new Date(timestamp);
-    const year = date.getFullYear();
-    const month = date.getMonth();
-    const day = date.getDate();
-    return { year, month, day };
-  }
-
-  /** 初始化数据 */
-  initData(timestamp: number) {
-    this.date = new Date(timestamp);
-    this.timestamp = timestamp;
-    this.year = this.date.getFullYear();
-    this.month = this.date.getMonth();
-    this.day = this.date.getDate();
-    this.currentTimestamp = +new Date();
   }
 }

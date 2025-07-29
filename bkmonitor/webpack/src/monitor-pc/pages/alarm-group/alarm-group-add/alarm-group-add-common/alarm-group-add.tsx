@@ -1,3 +1,5 @@
+import type { VNode } from 'vue';
+
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -42,62 +44,59 @@ import {
 import SetMealAddStore from 'fta-solutions/store/modules/set-meal-add';
 import { createUserGroup, retrieveUserGroup, updateUserGroup } from 'monitor-api/modules/model';
 import { getReceiver } from 'monitor-api/modules/notice_group';
-
-import { getDefaultUserGroupListSync } from '../../../../components/user-selector/user-group';
 // import { getReceiver } from 'monitor-api/modules/notice_group';
 import { getBkchatGroup } from 'monitor-api/modules/user_groups';
 import { deepClone, random } from 'monitor-common/utils/utils';
 
+import { getDefaultUserGroupListSync } from '../../../../components/user-selector/user-group';
 import UserSelector from '../../../../components/user-selector/user-selector';
-
 // import TimezoneSelect from '../../../../components/timezone-select/timezone-select';
 import { SET_NAV_ROUTE_LIST } from '../../../../store/modules/app';
 import RotationConfig from '../../rotation/rotation-config';
 
 import type { IDutyItem } from '../../duty-arranges/duty-arranges';
-import type { VNode } from 'vue';
 
 import './alarm-group-add.scss';
 
 const { i18n } = window;
 
-type TGroupType = 'fta' | 'monitor';
 type NoticeType = 'action_notice' | 'alert_notice'; // 告警通知及执行通知
+type TGroupType = 'fta' | 'monitor';
 const ALERT_NOTICE = 'alert_notice';
 const ACTION_NOTICE = 'action_notice';
 
-interface IAlert {
-  time_range?: string[]; // 时间段
-  notify_config?: INoticeWayValue[]; // 通知方式
-  key?: string; // 随机数生成的key
-}
-
 interface IAlarmGroupAdd {
-  groupId?: number;
   fromRoute?: string;
+  groupId?: number;
   type?: TGroupType;
 }
 
-type TRouterName = 'alarm-group' | 'strategy-config-add' | 'strategy-config-clone' | 'strategy-config-edit';
-type TRouterNameMap = { [key in TRouterName]: () => void };
+interface IAlert {
+  key?: string; // 随机数生成的key
+  notify_config?: INoticeWayValue[]; // 通知方式
+  time_range?: string[]; // 时间段
+}
 
 interface IFormData {
-  name: string;
-  bizId: string;
-  users: string[];
-  mention_list: { id: string; type: string }[];
-  desc: string;
-  alert_notice: IAlert[]; // 告警通知
   action_notice: IAlert[]; // 执行通知
-  needDuty?: boolean;
+  alert_notice: IAlert[]; // 告警通知
+  bizId: string;
   channels: string[];
+  desc: string;
+  mention_list: { id: string; type: string }[];
+  name: string;
+  needDuty?: boolean;
   timezone: string;
+  users: string[];
 }
 interface IUserItem {
   id: string; // 用户id
   name: string; // 用户名
   type: 'group' | 'user';
 }
+
+type TRouterName = 'alarm-group' | 'strategy-config-add' | 'strategy-config-clone' | 'strategy-config-edit';
+type TRouterNameMap = { [key in TRouterName]: () => void };
 // 注册路由钩子
 Component.registerHooks(['beforeRouteEnter']);
 
@@ -762,7 +761,7 @@ export default class AlarmGroupAdd extends tsc<IAlarmGroupAdd> {
     this.formData[type].splice(index, 1);
   }
   /* 编辑时间段 */
-  handleEditTimeRang(v: { value: string[]; key: string }, type: NoticeType) {
+  handleEditTimeRang(v: { key: string; value: string[] }, type: NoticeType) {
     const noticeData = { [ALERT_NOTICE]: this.alertData, [ACTION_NOTICE]: this.actionData };
     const curTimeRange = deepClone(noticeData[type].time_range);
     if (

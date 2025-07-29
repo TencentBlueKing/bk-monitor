@@ -24,6 +24,7 @@
  * IN THE SOFTWARE.
  */
 import { type PropType, defineComponent, ref } from 'vue';
+
 import { useI18n } from 'vue-i18n';
 
 import HandleSearch from './handle-search';

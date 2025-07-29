@@ -26,7 +26,7 @@
 import { Component, Emit, InjectReactive, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { queryLabelValues, queryLabels } from 'monitor-api/modules/apm_profile';
+import { queryLabels, queryLabelValues } from 'monitor-api/modules/apm_profile';
 import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
 import { getPopoverWidth } from 'monitor-pc/utils';
 
@@ -34,15 +34,17 @@ import type { TimeRangeType } from 'monitor-pc/components/time-range/time-range'
 
 import './filter-select.scss';
 
-interface IListItem {
-  id: string;
-  name: string;
+interface IFilterPanel {
+  options: IListItem[]; // 变量的配置
+  title: string; // 变量的标题
+  value?: string[]; // 值
 }
 
-interface IFilterPanel {
-  title: string; // 变量的标题
-  options: IListItem[]; // 变量的配置
-  value?: string[]; // 值
+interface IFilterSelectEvents {
+  onDateDiffChange: boolean;
+  onDiffChange: Record<string, string>;
+  onDiffModeChange: boolean;
+  onFilterChange: Record<string, string>;
 }
 
 interface IFilterSelectProps {
@@ -50,11 +52,9 @@ interface IFilterSelectProps {
   serviceName: string;
 }
 
-interface IFilterSelectEvents {
-  onFilterChange: Record<string, string>;
-  onDiffChange: Record<string, string>;
-  onDiffModeChange: boolean;
-  onDateDiffChange: boolean;
+interface IListItem {
+  id: string;
+  name: string;
 }
 
 @Component
@@ -231,13 +231,13 @@ export default class FilterSelect extends tsc<IFilterSelectProps, IFilterSelectE
               <bk-tag-input
                 v-model={item.value}
                 list={item.options}
+                paste-fn={str => this.tagInputPasteFn(mode, str, item.title)}
                 placeholder={this.$t('输入')}
                 trigger='focus'
                 allow-auto-match
                 allow-create
                 clearable
                 has-delete-icon
-                paste-fn={str => this.tagInputPasteFn(mode, str, item.title)}
                 on-change={() => this.handleSelectValueChange(mode)}
               />
             </span>

@@ -30,7 +30,7 @@
       :indeterminate="value === 1"
       :class="{
         'all-check': checkType.active === 'all',
-        indeterminate: value === 1 && checkType.active === 'all'
+        indeterminate: value === 1 && checkType.active === 'all',
       }"
       :disabled="disabled"
       @change="handleCheckChange"
@@ -39,7 +39,7 @@
       :class="[
         'bk-icon selection-header-icon',
         { disabled: disabled },
-        isDropDownShow ? 'icon-angle-up' : 'icon-angle-down'
+        isDropDownShow ? 'icon-angle-up' : 'icon-angle-down',
       ]"
       @click="handleShowMenu"
     />
@@ -48,9 +48,9 @@
 <script lang="ts">
 import { Component, Emit, Model, Prop, Ref, Vue, Watch } from 'vue-property-decorator';
 
-import type { CheckType, CheckValue, IMenu } from '../types/selector-type';
-
 import Menu from './menu.vue';
+
+import type { CheckType, CheckValue, IMenu } from '../types/selector-type';
 
 // 表格自定义check列
 @Component({ name: 'selection-column' })

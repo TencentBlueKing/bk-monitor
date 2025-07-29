@@ -25,10 +25,10 @@
  */
 import { type Ref, computed, defineComponent, inject, onBeforeUnmount, onMounted, onUnmounted, watch } from 'vue';
 import { shallowRef } from 'vue';
-import { useI18n } from 'vue-i18n';
 
 import { Tag } from 'bkui-vue';
 import { debounce } from 'lodash';
+import { useI18n } from 'vue-i18n';
 
 import UserDisplayNameTags from '../../../components/collapse-tags/user-display-name-tags';
 import { useTagsOverflow } from './tags-utils';

@@ -50,8 +50,6 @@ import './authorization-list.scss';
 
 const { i18n } = window;
 
-export type AngleType = 'approval' | 'resource' | 'user';
-type StatusType = 'all' | 'approval' | 'available' | 'expired' | 'failed' | 'invalid' | 'success';
 enum TableColumnEnum {
   action_id = 'action_id',
   authorized_user = 'authorized_user',
@@ -63,40 +61,42 @@ enum TableColumnEnum {
   space_name = 'space_name',
   status = 'status',
 }
+export type AngleType = 'approval' | 'resource' | 'user';
+export interface EditModel {
+  action_id: string;
+  authorized_users: string[];
+  expire_time?: string;
+  resources: number[];
+}
 
 interface ColumnItem {
-  prop: TableColumnEnum;
-  name: string;
-  hidden?: boolean;
   authHidden?: boolean;
+  hidden?: boolean;
+  name: string;
+  prop: TableColumnEnum;
   props?: any;
 }
 
-interface UserListItem {
-  authorized_user: string;
-  authorizer: string;
-  space_name: string;
-  action_id: string;
-  bk_biz_id: number;
-  expire_time: string;
-  resources: string[];
-  status: Exclude<StatusType, 'all'>;
-}
 interface ResourceListItem {
   action_id: string;
   authorized_users: string[];
   authorizer: string;
-  space_name: string;
+  expire_time?: string;
   resource_id: string;
+  space_name: string;
   status: Exclude<StatusType, 'all'>;
-  expire_time?: string;
 }
+type StatusType = 'all' | 'approval' | 'available' | 'expired' | 'failed' | 'invalid' | 'success';
 
-export interface EditModel {
+interface UserListItem {
   action_id: string;
-  authorized_users: string[];
-  resources: number[];
-  expire_time?: string;
+  authorized_user: string;
+  authorizer: string;
+  bk_biz_id: number;
+  expire_time: string;
+  resources: string[];
+  space_name: string;
+  status: Exclude<StatusType, 'all'>;
 }
 
 export const STATUS_LIST = [

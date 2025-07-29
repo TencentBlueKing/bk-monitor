@@ -28,12 +28,12 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import Viewer from 'monitor-ui/markdown-editor/viewer';
 
-interface IConfigurationViewProps {
-  data: string; // 富文本内容
-}
-
 interface IConfigurationViewEvent {
   onShrink: MouseEvent; // 关闭侧栏
+}
+
+interface IConfigurationViewProps {
+  data: string; // 富文本内容
 }
 
 @Component

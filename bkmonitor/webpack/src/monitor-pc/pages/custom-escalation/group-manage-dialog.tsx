@@ -45,40 +45,40 @@ export const matchRuleFn = (str: string, matchStr: string) => {
   return isMatch;
 };
 
-interface IGroup {
-  name: string;
-  matchRules: string[];
-  manualList: string[];
-}
-
-interface IGroupItem {
-  name: string;
-  manualList: string[];
-  matchRules: string[];
-  isEditName: boolean;
-  key: string;
-  ruleCount?: number;
-  isManualActive?: boolean;
-}
-interface IMetricItem {
-  name: string;
-  description: string;
-}
-
-interface IProps {
-  show?: boolean;
-  metricList?: IMetricItem[];
-  groups?: IGroup[];
-  id: number | string;
-}
 interface IEvents {
   onShow?: boolean;
 }
 
-interface IPreviewListItem {
-  type: 'manual' | 'rule';
+interface IGroup {
+  manualList: string[];
+  matchRules: string[];
   name: string;
+}
+interface IGroupItem {
+  isEditName: boolean;
+  isManualActive?: boolean;
+  key: string;
+  manualList: string[];
+  matchRules: string[];
+  name: string;
+  ruleCount?: number;
+}
+
+interface IMetricItem {
+  description: string;
+  name: string;
+}
+interface IPreviewListItem {
   list: IMetricItem[];
+  name: string;
+  type: 'manual' | 'rule';
+}
+
+interface IProps {
+  groups?: IGroup[];
+  id: number | string;
+  metricList?: IMetricItem[];
+  show?: boolean;
 }
 
 @Component
@@ -96,11 +96,11 @@ export default class GroupManageDialog extends tsc<IProps, IEvents> {
   tempName = '';
   /* 手动添加指标列表数据 */
   manualCheck: {
-    search: string;
-    list: { description: string; name: string; checked: boolean }[];
-    isSelectAll: boolean;
-    searchList: { description: string; name: string; checked: boolean }[];
     index: number;
+    isSelectAll: boolean;
+    list: { checked: boolean; description: string; name: string }[];
+    search: string;
+    searchList: { checked: boolean; description: string; name: string }[];
   } = {
     search: '',
     list: [],

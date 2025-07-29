@@ -98,7 +98,7 @@ export default class RegexCall {
     }
     return this.n(m, n);
   }
-  p(regex?: RegexCall | number | string, m?: number | string, n?: number) {
+  p(regex?: number | RegexCall | string, m?: number | string, n?: number) {
     if (regex instanceof RegexCall) {
       this.regex += `(?:${regex.regex})`;
     } else if (typeof regex === 'string' && regex !== '') {

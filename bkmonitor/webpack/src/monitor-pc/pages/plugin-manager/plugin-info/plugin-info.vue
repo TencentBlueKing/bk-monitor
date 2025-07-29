@@ -25,8 +25,8 @@
 -->
 <template>
   <div
-    class="plugin-detail-wrapper"
     v-bkloading="{ isLoading: isLoading }"
+    class="plugin-detail-wrapper"
   >
     <common-nav-bar
       :position-text="positionText"
@@ -66,8 +66,8 @@
             <div class="operator">
               <bk-button
                 v-if="canEdit"
-                style="width: 88px"
                 v-authority="{ active: !authority.MANAGE_AUTH }"
+                style="width: 88px"
                 theme="primary"
                 outline
                 @click="authority.MANAGE_AUTH ? handleEdit() : handleShowAuthorityDetail()"
@@ -80,9 +80,9 @@
               />
             </div>
             <div
+              v-show="tabActive === 'detail'"
               ref="pluginInfo"
               class="plugin-info"
-              v-show="tabActive === 'detail'"
             >
               <div class="info-item">
                 <div class="item-label">
@@ -154,8 +154,8 @@
                     <template v-for="(collector, key) in pluginInfo.collector_json">
                       <div
                         v-if="collector && collector.file_name"
-                        class="file-wrapper"
                         :key="key"
+                        class="file-wrapper"
                       >
                         <div class="icon-wrapper">
                           <span :class="['item-icon', 'icon-monitor', `icon-${key}`]" />
@@ -187,8 +187,8 @@
                       <template v-for="(collector, key) in pluginInfo.systemList">
                         <li
                           v-if="collector"
-                          :class="['system-tab', { active: collectorConf.active === collector }]"
                           :key="key"
+                          :class="['system-tab', { active: collectorConf.active === collector }]"
                           @click="viewCollectorConf(collector)"
                         >
                           <span>{{ collector }}</span>
@@ -254,8 +254,8 @@
                   <template v-for="(param, index) in pluginInfo.config_json">
                     <span
                       v-if="!param.hasOwnProperty('visible')"
-                      :class="{ 'item-param': true, 'multiple-lin': param.multipleLin, required: param.required }"
                       :key="index"
+                      :class="{ 'item-param': true, 'multiple-lin': param.multipleLin, required: param.required }"
                       @click="viewParam(param)"
                     >
                       {{ param.name || param.description }}
@@ -309,8 +309,8 @@
         >
           <div class="content-wrapper">
             <div
-              class="operator"
               v-show="tabActive === 'metric'"
+              class="operator"
             >
               <bk-button
                 v-authority="{ active: !authority.MANAGE_AUTH }"
@@ -323,9 +323,9 @@
             </div>
             <div
               v-for="group in pluginInfo.metric_json"
+              :key="group.table_name"
               class="metric-group"
               :class="{ 'active-group': show }"
-              :key="group.table_name"
             >
               <div class="group-header">
                 <div

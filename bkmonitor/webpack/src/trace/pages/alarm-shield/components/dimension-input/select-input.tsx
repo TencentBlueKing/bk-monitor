@@ -24,11 +24,11 @@
  * IN THE SOFTWARE.
  */
 import { type PropType, computed, defineComponent, nextTick, reactive, shallowRef, watch } from 'vue';
-import { useI18n } from 'vue-i18n';
 
-import { Input, Loading, OverflowTitle, Popover, Radio, bkTooltips } from 'bkui-vue';
+import { bkTooltips, Input, Loading, OverflowTitle, Popover, Radio } from 'bkui-vue';
 import { getMetricListV2, getStrategyListV2, promqlToQueryConfig } from 'monitor-api/modules/strategies';
 import { debounce } from 'monitor-common/utils';
+import { useI18n } from 'vue-i18n';
 
 import EmptyStatus from '../../../../components/empty-status/empty-status';
 

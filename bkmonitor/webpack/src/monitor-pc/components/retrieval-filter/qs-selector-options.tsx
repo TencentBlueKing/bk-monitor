@@ -34,11 +34,11 @@ import QsSelectorHelp from './qs-selector-help';
 import { getQueryStringMethods, QUERY_STRING_CONDITIONS, queryStringColorMap } from './query-string-utils';
 import TextHighlighter from './text-highlighter';
 import {
-  EQueryStringTokenType,
+  type IFavoriteListItem,
+  type IFilterField,
   type IGetValueFnParams,
   type IWhereValueOptionsItem,
-  type IFilterField,
-  type IFavoriteListItem,
+  EQueryStringTokenType,
 } from './utils';
 
 import './qs-selector-options.scss';
@@ -86,22 +86,22 @@ const descMap = {
 };
 
 interface IOptions {
+  desc?: string;
   id: string;
   name: string;
-  desc?: string;
 }
 
 interface IProps {
-  fields: IFilterField[];
-  field?: string;
-  search?: string;
-  type?: EQueryStringTokenType;
-  show?: boolean;
-  queryString?: string;
   favoriteList?: IFavoriteListItem[];
-  onSelectFavorite?: (v: string) => void;
-  onSelect?: (v: string) => void;
+  field?: string;
+  fields: IFilterField[];
+  queryString?: string;
+  search?: string;
+  show?: boolean;
+  type?: EQueryStringTokenType;
   getValueFn?: (params: IGetValueFnParams) => Promise<IWhereValueOptionsItem>;
+  onSelect?: (v: string) => void;
+  onSelectFavorite?: (v: string) => void;
 }
 
 @Component
@@ -131,7 +131,7 @@ export default class QsSelectorSelector extends tsc<IProps> {
   @Ref('options') optionsRef: HTMLDivElement;
 
   localOptions: IOptions[] = [];
-  favoriteOptions: { title: string; content: string; keyword: string }[] = [];
+  favoriteOptions: { content: string; keyword: string; title: string }[] = [];
   cursorIndex = -1;
 
   loading = false;
@@ -175,16 +175,13 @@ export default class QsSelectorSelector extends tsc<IProps> {
     if (this.queryString && !/^\s*$/.test(this.queryString)) {
       const keyword = this.queryString.replace(/^\s+|\s+$/g, '').toLocaleLowerCase();
       for (const item of this.favoriteList) {
-        const favorites = item?.favorites || [];
-        for (const favoriteItem of favorites) {
-          const content = favoriteItem?.config?.queryConfig?.query_string || '';
-          if (content?.toLocaleLowerCase().includes(keyword)) {
-            favoriteOptions.push({
-              title: `${item.name} / ${favoriteItem.name}`,
-              content,
-              keyword,
-            });
-          }
+        const content = item?.config?.queryString || '';
+        if (content?.toLocaleLowerCase().includes(keyword)) {
+          favoriteOptions.push({
+            title: `${item.groupName} / ${item.name}`,
+            content,
+            keyword,
+          });
         }
       }
     }

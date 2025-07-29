@@ -19,7 +19,7 @@
     "@blueking/login-modal": "^1.0.6",
     "@blueking/monitor-trace-log": "2.0.5",
     "@blueking/tdesign-ui": "0.0.1-beta.32",
-    "@dagrejs/dagre": "^1.1.4",
+    "@dagrejs/dagre": "^1.1.5",
     "@toast-ui/editor": "^3.2.2",
     "@toast-ui/editor-plugin-code-syntax-highlight": "^3.1.0",
     "@vue-flow/core": "^1.45.0",
@@ -28,9 +28,9 @@
     "@vue/compiler-sfc": "3.5.15",
     "@vue/runtime-dom": "3.5.15",
     "@vue/shared": "3.5.15",
-    "@vueuse/core": "^13.3.0",
+    "@vueuse/core": "^13.5.0",
     "apm": "workspace:*",
-    "bkui-vue": "^2.0.2-beta.29",
+    "bkui-vue": "^2.0.2-beta.50",
     "d3-array": "^3.2.4",
     "d3-dispatch": "^3.0.1",
     "d3-ease": "^3.0.1",
@@ -76,7 +76,7 @@
   "devDependencies": {
     "@types/d3": "^7.4.3",
     "@types/deep-freeze": "^0.1.5",
-    "@types/lodash": "^4.17.17",
+    "@types/lodash": "^4.17.20",
     "@types/throttle-debounce": "^5.0.2"
   }
 }

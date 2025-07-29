@@ -33,8 +33,8 @@ import type { IAppSelectOptItem } from './app-select';
 import './app-add-form.scss';
 
 interface IProps {
-  value?: boolean;
   pluginId?: string;
+  value?: boolean;
 }
 @Component
 export default class AppAddForm extends tsc<IProps> {

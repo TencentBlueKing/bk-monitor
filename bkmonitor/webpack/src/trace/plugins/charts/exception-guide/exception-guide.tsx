@@ -24,10 +24,10 @@
  * IN THE SOFTWARE.
  */
 import { type PropType, defineComponent, onMounted, reactive } from 'vue';
-import { useRoute, useRouter } from 'vue-router';
 
 import { Button, Exception } from 'bkui-vue';
 import { random } from 'monitor-common/utils/utils';
+import { useRoute, useRouter } from 'vue-router';
 
 import type { ITableItem } from 'monitor-pc/pages/monitor-k8s/typings';
 import type { PanelModel } from 'monitor-ui/chart-plugins/typings';
@@ -35,10 +35,10 @@ import type { PanelModel } from 'monitor-ui/chart-plugins/typings';
 import './exception-guide.scss';
 
 interface IGuideInfo {
-  type: string;
-  title: string;
-  subTitle: string;
   link: ITableItem<'link'> | null;
+  subTitle: string;
+  title: string;
+  type: string;
 }
 
 export default defineComponent({

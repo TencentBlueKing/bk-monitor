@@ -30,15 +30,15 @@ import type { ILegendItem, LegendActionType } from '../../typings';
 
 import './common-legend.scss';
 
-interface ILegendProps {
-  // 图例数据
-  legendData: ILegendItem[];
-  alignCenter?: boolean;
-  preventEvent?: boolean;
-}
 interface ILegendEvent {
   // 点击图例事件
   onSelectLegend: (p: { actionType: string; item: ILegendItem }) => void;
+}
+interface ILegendProps {
+  alignCenter?: boolean;
+  // 图例数据
+  legendData: ILegendItem[];
+  preventEvent?: boolean;
 }
 
 @Component

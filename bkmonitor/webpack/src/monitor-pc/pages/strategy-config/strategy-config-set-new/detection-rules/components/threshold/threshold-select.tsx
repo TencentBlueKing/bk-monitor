@@ -36,22 +36,22 @@ export interface IItem {
 }
 
 export interface ILocalValueItem {
+  condition: string;
   method: string;
   value: number;
-  condition: string;
 }
 export type IThresholdSelectValue = Array<Array<{ method: string; threshold: number }>>;
+interface IEvent {
+  onChange?: any;
+}
+
 interface IThresholdSelect {
-  value?: IThresholdSelectValue;
+  autoAdd?: boolean;
+  label?: string;
   methodList?: IItem[];
   readonly?: boolean;
   unit: string;
-  label?: string;
-  autoAdd?: boolean;
-}
-
-interface IEvent {
-  onChange?: any;
+  value?: IThresholdSelectValue;
 }
 
 @Component({ name: 'ThresholdSelect' })

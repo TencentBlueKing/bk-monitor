@@ -36,17 +36,18 @@
       />
       <span
         v-else
-        @click="exitFullScreen"
         class="icon-monitor icon-mc-unfull-screen icon-style"
         style="right: 20px"
+        @click="exitFullScreen"
       />
     </template>
   </div>
 </template>
 
 <script lang="ts">
-import * as monaco from 'monaco-editor';
 import { Component, Model, Prop, Vue, Watch } from 'vue-property-decorator';
+
+import * as monaco from 'monaco-editor';
 
 import type { IMonacoEditorInstance } from '../../types/index';
 // @ts-ignore
@@ -64,8 +65,8 @@ self.MonacoEnvironment = {
 export default class MonacoEditor extends Vue {
   initWidth: number | string = 0;
   initHeight = 0;
-  renderWidth: string | number = '100%';
-  renderHeight: string | number = '100%';
+  renderWidth: number | string = '100%';
+  renderHeight: number | string = '100%';
   isFull = false;
   editor: IMonacoEditorInstance | null = null;
 
@@ -107,13 +108,13 @@ export default class MonacoEditor extends Vue {
   }
 
   @Watch('width')
-  onWidthChange(newVal: string | number) {
+  onWidthChange(newVal: number | string) {
     this.renderWidth = newVal;
     this.initWidth = this.width;
   }
 
   @Watch('height')
-  onHeightChange(newVal: string | number) {
+  onHeightChange(newVal: number | string) {
     this.renderHeight = newVal;
     this.initHeight = this.height;
   }
@@ -133,7 +134,7 @@ export default class MonacoEditor extends Vue {
     monaco.editor.getModels().forEach(model => model.dispose());
   }
 
-  calcSize(size: string | number): string {
+  calcSize(size: number | string): string {
     const _size = size.toString();
     if (_size.match(/^\d*$/)) return `${size}px`;
     if (_size.match(/^[0-9]?%$/)) return _size;

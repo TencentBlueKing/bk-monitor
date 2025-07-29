@@ -1,5 +1,5 @@
 {
-  "$schema": "https://biomejs.dev/schemas/2.1.2/schema.json",
+  "$schema": "./node_modules/@biomejs/biome/configuration_schema.json",
   "root": true,
   "files": {
     "includes": [
@@ -63,6 +63,11 @@
         "useValidAnchor": "off",
         "noLabelWithoutControl": "off",
         "noStaticElementInteractions": "off"
+      },
+      "correctness": {
+        "useJsxKeyInIterable": "error",
+        "noUnusedVariables": "error",
+        "noUnusedImports": "error"
       }
     }
   },

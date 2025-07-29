@@ -32,11 +32,11 @@ import {
 } from 'monitor-ui/chart-plugins/plugins/profiling-graph/utils';
 
 import {
-  ColorTypes,
   type ITableTipsDetail,
   type ProfilingTableItem,
   type TableColumn,
   type TextDirectionType,
+  ColorTypes,
 } from '../../../typings';
 import { getHashVal } from '../flame-graph/utils';
 import { sortTableGraph } from './utils';
@@ -45,19 +45,19 @@ import './table-graph.scss';
 const TABLE_PAGE_SIZE = 30;
 const TABLE_BGCOLOR_COLUMN_WIDTH = 120;
 
-interface ITableChartProps {
-  unit: ProfileDataUnit;
-  textDirection: TextDirectionType;
-  data: ProfilingTableItem[];
-  highlightName: string;
-  filterKeyword: string;
-  isCompared: boolean;
-  dataType: string;
+interface ITableChartEvents {
+  onSortChange: string;
+  onUpdateHighlightName: string;
 }
 
-interface ITableChartEvents {
-  onUpdateHighlightName: string;
-  onSortChange: string;
+interface ITableChartProps {
+  data: ProfilingTableItem[];
+  dataType: string;
+  filterKeyword: string;
+  highlightName: string;
+  isCompared: boolean;
+  textDirection: TextDirectionType;
+  unit: ProfileDataUnit;
 }
 
 @Component

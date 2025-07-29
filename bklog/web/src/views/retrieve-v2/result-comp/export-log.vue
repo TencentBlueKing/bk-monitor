@@ -377,11 +377,6 @@
         this.isShowExportDialog = false;
       },
       quickDownload() {
-        if (!/^\d+$/.test(this.routerIndexSet)) {
-          console.warn('当前检索结果不是索引集，无法进行快速下载');
-          return;
-        }
-
         const { timezone, ...rest } = this.retrieveParams;
         const params = Object.assign(rest, { begin: 0, bk_biz_id: this.bkBizId });
         const downRequestUrl = this.isUnionSearch
@@ -434,11 +429,6 @@
           });
       },
       openDownloadUrl() {
-        if (!/^\d+$/.test(this.routerIndexSet)) {
-          console.warn('当前检索结果不是索引集，无法进行快速下载');
-          return;
-        }
-
         const { timezone, ...rest } = this.retrieveParams;
         const params = Object.assign(rest, { begin: 0, bk_biz_id: this.bkBizId });
         let downRequestUrl = `/search/index_set/${this.routerIndexSet}/export/`;

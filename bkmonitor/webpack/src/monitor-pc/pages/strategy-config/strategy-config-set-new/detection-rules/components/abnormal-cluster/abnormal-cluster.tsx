@@ -30,13 +30,13 @@ import { CancelToken } from 'monitor-api/cancel';
 import { getIntelligentDetectAccessStatus, getIntelligentModel } from 'monitor-api/modules/strategies';
 
 import IntelligentModelsStore, { IntelligentModelsType } from '../../../../../../store/modules/intelligent-models';
-import { DetectionRuleTypeEnum, type IDetectionTypeRuleData, type MetricDetail } from '../../../typings';
+import { type IDetectionTypeRuleData, type MetricDetail, DetectionRuleTypeEnum } from '../../../typings';
 import Form from '../form/form';
 import {
-  EFormItemValueType,
-  FormItem,
   type IFormDataItem,
   type ISelectOptionItem,
+  EFormItemValueType,
+  FormItem,
   handleCreateModelOptionsDetail,
 } from '../form/utils';
 
@@ -50,25 +50,25 @@ const LEVEL_FIELD = 'level'; /** 告警级别key */
 const MODEL_FIELD = 'plan_id'; /** 模型key */
 const GROUP_FIELD = 'group'; /** 分群key */
 
-interface IOutlierDetecValue {
-  [MODEL_FIELD]: number | string;
-  [GROUP_FIELD]: string[];
-  args?: {
-    [key: string]: any;
-  };
+interface AbnormalClusterEvents {
+  onDataChange: IDetectionTypeRuleData<IOutlierDetecValue>;
+  onModelChange: IModelData;
 }
 
 interface AbnormalClusterProps {
   data?: IDetectionTypeRuleData<IOutlierDetecValue>;
-  readonly?: boolean;
+  interval: number;
   isEdit?: boolean;
   metricData: MetricDetail[];
-  interval: number;
+  readonly?: boolean;
 }
 
-interface AbnormalClusterEvents {
-  onDataChange: IDetectionTypeRuleData<IOutlierDetecValue>;
-  onModelChange: IModelData;
+interface IOutlierDetecValue {
+  [GROUP_FIELD]: string[];
+  [MODEL_FIELD]: number | string;
+  args?: {
+    [key: string]: any;
+  };
 }
 
 @Component({})

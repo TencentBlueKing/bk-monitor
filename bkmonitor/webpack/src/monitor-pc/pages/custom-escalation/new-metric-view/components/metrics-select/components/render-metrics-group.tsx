@@ -23,35 +23,35 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Watch, Prop } from 'vue-property-decorator';
+import { Component, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import customEscalationViewStore from '@store/modules/custom-escalation-view';
 import _ from 'lodash';
 import { makeMap } from 'monitor-common/utils/make-map';
 
 import { getCustomTsMetricGroups } from '../../../services/scene_view_new';
 import RenderMetric from './render-metric';
+import customEscalationViewStore from '@store/modules/custom-escalation-view';
 
 import './render-metrics-group.scss';
 
 export interface IMetric {
   alias: string;
+  metric_name: string;
   dimensions: {
     alias: string;
     name: string;
   }[];
-  metric_name: string;
 }
 
-type TCustomTsMetricGroups = ServiceReturnType<typeof getCustomTsMetricGroups>;
+interface IEmit {
+  onChange: (value: string[]) => void;
+}
 
 interface IProps {
   searchKey?: string;
 }
-interface IEmit {
-  onChange: (value: string[]) => void;
-}
+type TCustomTsMetricGroups = ServiceReturnType<typeof getCustomTsMetricGroups>;
 
 /**
  * @desc 正则表达式关键字符转换

@@ -34,16 +34,16 @@ import './dimension-transfer.scss';
 
 interface IProps {
   fields: IDimensionItem[]; // 全部数据集合
-  value?: string[]; // 已选列表/默认选中的数据唯一标识集合
   show?: boolean; // 展示穿梭框
+  value?: string[]; // 已选列表/默认选中的数据唯一标识集合
 }
 
 @Component
 export default class ResidentSettingTransfer extends tsc<
   IProps,
   {
-    onConfirm: IDimensionItem[];
     onCancel: () => void;
+    onConfirm: IDimensionItem[];
   }
 > {
   @Prop({ type: Array, default: () => [] }) fields: IDimensionItem[];

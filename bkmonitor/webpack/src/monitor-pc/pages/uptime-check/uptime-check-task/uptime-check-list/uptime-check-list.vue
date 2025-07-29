@@ -127,8 +127,8 @@
       >
         <template slot-scope="scope">
           <bk-switcher
-            class="col-switcher"
             v-authority="{ active: !authority.MANAGE_AUTH }"
+            class="col-switcher"
             :disabled="['starting', 'new_draft', 'stoping'].includes(scope.row.status)"
             :pre-check="() => handleStatusChange(scope.row)"
             :value="scope.row.switch"
@@ -143,15 +143,15 @@
         <template slot-scope="scope">
           <div class="col-operate">
             <span
-              class="col-operate-btn"
               v-authority="{ active: !authority.MANAGE_AUTH }"
+              class="col-operate-btn"
               @click="authority.MANAGE_AUTH ? handleRowEdit(scope) : handleShowAuthorityDetail()"
             >
               {{ $t('编辑') }}
             </span>
             <span
-              class="col-operate-btn"
               v-authority="{ active: !authority.MANAGE_AUTH }"
+              class="col-operate-btn"
               @click="authority.MANAGE_AUTH ? handleRowDelete(scope.row) : handleShowAuthorityDetail()"
             >
               {{ $t('删除') }}

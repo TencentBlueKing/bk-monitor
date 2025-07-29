@@ -47,48 +47,48 @@
       class="init-add">
     </span> -->
     <span
+      v-show="!localValue.length"
       class="init-add"
       data-type="func"
-      v-show="!localValue.length"
       @click="handleAddFunc('init-add')"
     >
       <bk-input
+        ref="target-init-add"
         :placeholder="placeholder"
         :readonly="readonly"
         class="init-add-input"
-        ref="target-init-add"
       />
     </span>
     <!-- 方法 -->
     <span
-      data-type="func"
       v-for="(item, index) in localValue"
       :key="item.id"
       :ref="`target-${item.id}`"
+      data-type="func"
       class="func-item"
     >
       <span
-        @click="handleAddFunc(item.id, item, index)"
         :class="['is-hover', { 'is-readonly': readonly }]"
+        @click="handleAddFunc(item.id, item, index)"
         >{{ item.name }}</span
       >
       <span class="brackets">&nbsp;(&nbsp;</span>
       <span
-        class="params-item"
         v-for="(set, i) in item.params"
         :key="i"
+        class="params-item"
       >
         <!-- 参数 -->
         <span
-          :class="['params-text', 'is-hover', { 'is-readonly': readonly }]"
           v-show="!set.contenteditable"
+          :class="['params-text', 'is-hover', { 'is-readonly': readonly }]"
           @click.stop="handleFuncParams(set, i)"
           >{{ set.value }}</span
         >
         <input
           v-show="set.contenteditable"
-          v-model="set.value"
           :ref="`input-${set.parentId}-${set.name}`"
+          v-model="set.value"
           :data-focus="set.contenteditable"
           :class="['params-input', { 'is-edit': set.contenteditable }]"
           @blur="handleFuncParamsBlur(set, index, i)"
@@ -97,11 +97,11 @@
       <span class="brackets">&nbsp;)&nbsp;</span>
     </span>
     <span
+      v-show="localValue.length"
+      ref="target-Add"
       data-type="func"
       class="func-add-btn"
-      v-show="localValue.length"
       @click="handleAddFunc('Add')"
-      ref="target-Add"
     >
       <span class="icon-monitor icon-mc-add" />
     </span>
@@ -117,10 +117,12 @@
   </span>
 </template>
 <script lang="ts">
-import { deepClone } from 'monitor-common/utils/utils';
 import { Component, Emit, Model, Prop, Ref, Vue, Watch } from 'vue-property-decorator';
 
+import { deepClone } from 'monitor-common/utils/utils';
+
 import SelectMenu from '../components/select-menu.vue';
+
 import type { IFuncListItem, IFuncLocalParamsItem, IFuncLocalValue, IFuncValueItem, IIdNameItem } from '../type';
 
 @Component({
@@ -340,7 +342,7 @@ export default class FunctionSelect extends Vue {
   /**
    * 新增修改函数
    */
-  private handleAddFunc(target: string | number, funcItem: any = null, funcIndex: number = null) {
+  private handleAddFunc(target: number | string, funcItem: any = null, funcIndex: number = null) {
     if (this.readonly) return;
     this.curSelectFunction = funcItem;
     this.curSelectFunctionIndex = funcIndex;

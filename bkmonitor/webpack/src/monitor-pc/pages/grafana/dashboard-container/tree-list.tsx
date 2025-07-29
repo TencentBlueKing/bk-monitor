@@ -34,20 +34,20 @@ import type { TreeMenuItem } from './utils';
 
 import './tree-list.scss';
 
-interface IProps {
-  list: TreeMenuItem[];
-  indent?: number;
-  checked?: string;
-  needAdd?: boolean;
+export interface IMoreData {
+  item: TreeMenuItem;
+  option: IIconBtnOptions;
 }
 interface IEvents {
-  onSelected: TreeMenuItem;
   onMore: IMoreData;
   onRename: TreeMenuItem;
+  onSelected: TreeMenuItem;
 }
-export interface IMoreData {
-  option: IIconBtnOptions;
-  item: TreeMenuItem;
+interface IProps {
+  checked?: string;
+  indent?: number;
+  list: TreeMenuItem[];
+  needAdd?: boolean;
 }
 @Component({
   name: 'TreeList',

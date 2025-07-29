@@ -40,22 +40,22 @@ const START_TIME = '00:00:00';
 const TIME_FORMATER = 'HH:mm';
 const TIME_FORMAT_REG = /HH|mm|ss/g;
 
-type TimeRange = [string, string];
-export interface IProps {
-  value?: Array<TimeRange>; // [['09:00:00', '10:00:00']]
-  placeholder?: string;
-  autoSort?: boolean;
-  needHandle?: boolean;
-  allowNextFocus?: boolean;
-  format?: 'HH:mm' | 'HH:mm:ss';
-}
-interface IEvents {
-  onChange: IProps['value'];
-}
 enum EMode {
   add = 'add', // 新增时间范围
   edit = 'edit', // 编辑时间范围
 }
+export interface IProps {
+  allowNextFocus?: boolean;
+  autoSort?: boolean;
+  format?: 'HH:mm' | 'HH:mm:ss';
+  needHandle?: boolean;
+  placeholder?: string;
+  value?: Array<TimeRange>; // [['09:00:00', '10:00:00']]
+}
+interface IEvents {
+  onChange: IProps['value'];
+}
+type TimeRange = [string, string];
 /**
  * 多选的时间范围组件
  */

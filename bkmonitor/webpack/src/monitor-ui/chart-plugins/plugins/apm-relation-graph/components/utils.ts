@@ -86,8 +86,8 @@ export const alarmColorMap = {
 };
 
 export interface IAlarmDataItem {
-  type: EAlarmType;
   time: number;
+  type: EAlarmType;
   value: number;
 }
 export const alarmBarChartDataTransform = (dataType: EDataType, series: any[]) => {

@@ -25,8 +25,8 @@
 -->
 <template>
   <div
-    class="dynamic-group"
     v-bkloading="{ isLoading }"
+    class="dynamic-group"
   >
     <div
       :style="{ width: isNaN(leftPanelWidth) ? leftPanelWidth : `${leftPanelWidth}px` }"
@@ -104,10 +104,10 @@ import IpSelectorTable from '../components/ip-selector-table.vue';
 import IpListTable from './ip-list.vue';
 
 import type {
+  IipListParams,
   ITableCheckData,
   ITableConfig,
   ITemplateDataOptions,
-  IipListParams,
   SearchDataFuncType,
 } from '../types/selector-type';
 import type { TranslateResult } from 'vue-i18n';
@@ -284,7 +284,7 @@ export default class ServiceTemplate extends Vue {
     const groupId = groupItem.id;
     return this.tplDataCountByIdMap[groupId] ?? 0;
   }
-  // eslint-disable-next-line @typescript-eslint/member-ordering
+
   public handleGetDefaultSelections() {
     const { idKey = 'id' } = this.templateOptions;
     this.selectionIds = this.tplData.reduce((pre, next) => {
@@ -295,7 +295,6 @@ export default class ServiceTemplate extends Vue {
     }, []);
   }
 
-  // eslint-disable-next-line @typescript-eslint/member-ordering
   handleAllSelected() {
     const { idKey = 'id' } = this.templateOptions;
     /* 全选/清除全选 */
@@ -322,7 +321,7 @@ export default class ServiceTemplate extends Vue {
   }
 
   // 检测是否全选
-  // eslint-disable-next-line @typescript-eslint/member-ordering
+
   getAllSelectedStatus() {
     if (this.searchValue) {
       this.isSelectAll = this.currentTemplateData.length

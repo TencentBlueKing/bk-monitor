@@ -38,15 +38,15 @@ export interface IFunctionsValue {
   id: string;
   params: { id: string; value: any }[];
 }
-interface IFunctionProps {
-  value?: IFunctionsValue[];
-  placeholder?: string;
-  readonly?: boolean;
-  isExpSupport?: boolean;
-  isMultiple?: boolean;
-}
 interface IEvent {
   onValueChange?: IFunctionsValue[];
+}
+interface IFunctionProps {
+  isExpSupport?: boolean;
+  isMultiple?: boolean;
+  placeholder?: string;
+  readonly?: boolean;
+  value?: IFunctionsValue[];
 }
 @Component
 export default class FunctionSelect extends tsc<IFunctionProps, IEvent> {
@@ -242,8 +242,8 @@ export default class FunctionSelect extends tsc<IFunctionProps, IEvent> {
         <FunctionMenu
           class='init-add'
           isExpSupport={this.isExpSupport}
-          list={this.metricFunctions}
           isMultiple={this.isMultiple}
+          list={this.metricFunctions}
           onFuncSelect={this.handleFuncSelect}
         >
           {!this.localValue?.length && <span class='init-add-input'>{this.placeholder}</span>}

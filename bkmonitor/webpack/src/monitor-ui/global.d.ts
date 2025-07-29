@@ -23,6 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import 'monitor-pc/shims.d.ts';
+
 import 'monitor-pc/file.d.ts';
+import 'monitor-pc/shims.d.ts';
 import 'monitor-pc/vue.d.ts';

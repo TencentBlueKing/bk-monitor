@@ -24,33 +24,33 @@
  * IN THE SOFTWARE.
  */
 import { ref, shallowRef } from 'vue';
+import type { Ref } from 'vue';
 
 import dagre from '@dagrejs/dagre';
 import { Position, useVueFlow } from '@vue-flow/core';
 import { toJpeg as ElToJpg, toPng as ElToPng } from 'html-to-image';
 
 import type { Options as HTMLToImageOptions } from 'html-to-image/es/types';
-import type { Ref } from 'vue';
-
-export type ImageType = 'jpeg' | 'png';
-
-export interface UseScreenshotOptions extends HTMLToImageOptions {
-  type?: ImageType;
-  fileName?: string;
-  shouldDownload?: boolean;
-  fetchRequestInit?: RequestInit;
-}
 
 export type CaptureScreenshot = (el: HTMLElement, options?: UseScreenshotOptions) => Promise<string>;
 
 export type Download = (fileName: string) => void;
 
+export type ImageType = 'jpeg' | 'png';
+
 export interface UseScreenshot {
   // returns the data url of the screenshot
   capture: CaptureScreenshot;
-  download: Download;
   dataUrl: Ref<string>;
+  download: Download;
   error: Ref;
+}
+
+export interface UseScreenshotOptions extends HTMLToImageOptions {
+  fetchRequestInit?: RequestInit;
+  fileName?: string;
+  shouldDownload?: boolean;
+  type?: ImageType;
 }
 
 export function useLayout() {

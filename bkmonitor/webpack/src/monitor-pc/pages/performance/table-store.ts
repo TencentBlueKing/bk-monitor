@@ -1,6 +1,5 @@
 import { commonPageSizeGet } from 'monitor-common/utils';
 /* eslint-disable @typescript-eslint/prefer-for-of */
-
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -31,7 +30,6 @@ import { commonPageSizeGet } from 'monitor-common/utils';
  * @LastEditTime: 2021-07-01 17:23:59
  * @Description:
  */
-
 // @ts-nocheck
 import { isFullIpv6, padIPv6 } from 'monitor-common/utils/ip-utils';
 import { typeTools } from 'monitor-common/utils/utils.js';

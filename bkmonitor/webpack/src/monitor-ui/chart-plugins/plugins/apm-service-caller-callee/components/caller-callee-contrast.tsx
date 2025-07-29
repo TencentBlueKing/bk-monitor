@@ -24,34 +24,34 @@
  * IN THE SOFTWARE.
  */
 /** 主被调 - 右侧对比模式栏 */
-import { Component, Prop, Emit, Watch } from 'vue-property-decorator';
+import { Component, Emit, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { EParamsMode, type IListItem, type IServiceConfig, type IDataItem } from '../type';
+import { type IDataItem, type IListItem, type IServiceConfig, EParamsMode } from '../type';
 import ContrastView from './common-comp/contrast-view';
 import GroupByView from './common-comp/group-by-view';
 
 import './caller-callee-contrast.scss';
-interface ICallerCalleeContrastProps {
-  searchList: IServiceConfig[];
-  contrastDates?: string[];
-  groupBy?: string[];
-  supportedCalculationTypes?: IListItem[];
-  supportedMethods?: IListItem[];
-  method?: string;
-  limit?: number;
-  metricCalType?: string;
-  paramsMode?: EParamsMode;
-  timeStrShow?: IDataItem;
-}
 interface ICallerCalleeContrastEvent {
   onContrastDatesChange?: (val: string[]) => void;
   onGroupByChange?: (val: string[]) => void;
   onGroupFilter?: () => void;
-  onMethodChange?: (val: string) => void;
   onLimitChange?: (val: number) => void;
+  onMethodChange?: (val: string) => void;
   onMetricCalType?: (val: string) => void;
   onTypeChange?: (val: EParamsMode) => void;
+}
+interface ICallerCalleeContrastProps {
+  contrastDates?: string[];
+  groupBy?: string[];
+  limit?: number;
+  method?: string;
+  metricCalType?: string;
+  paramsMode?: EParamsMode;
+  searchList: IServiceConfig[];
+  supportedCalculationTypes?: IListItem[];
+  supportedMethods?: IListItem[];
+  timeStrShow?: IDataItem;
 }
 @Component({
   name: 'CallerCalleeContrast',

@@ -35,9 +35,9 @@
     />
     <!--搜索结果-->
     <div
-      class="topo-search-result"
       v-show="showPanel"
       v-bk-clickoutside="handleClickoutside"
+      class="topo-search-result"
       :style="{ width: `${resultWidth}px` }"
     >
       <template v-if="searchData.length">
@@ -72,7 +72,7 @@
                     :key="index"
                     :class="strObj.isSearchStr ? 'highlight' : ''"
                   >
-                    {{strObj.value}}
+                    {{ strObj.value }}
                   </span>
                 </span>
                 <span class="item-left-path">
@@ -87,7 +87,7 @@
                   text
                   title="primary"
                   class="add"
-                  @click="(e) => handleAddItem(e, data)"
+                  @click="e => handleAddItem(e, data)"
                 >
                   {{ $t('添加') }}
                 </bk-button>
@@ -109,6 +109,7 @@
 import { Component, Emit, Model, Prop, Vue, Watch } from 'vue-property-decorator';
 
 import { Debounce } from '../common/util';
+
 import type { ISearchData, ISearchDataOption } from '../types/selector-type';
 
 @Component({
@@ -121,7 +122,7 @@ export default class TopoSearch extends Vue {
   @Prop({ default: 380, type: [Number, String] }) private readonly resultWidth!: number | string;
   @Prop({ default: 300, type: Number }) private readonly height!: number;
   @Prop({ default: () => ({}), type: Object }) private readonly options!: ISearchDataOption;
-  @Prop({ default: () => [], type: Array }) private readonly defaultSelectionIds!: (string | number)[];
+  @Prop({ default: () => [], type: Array }) private readonly defaultSelectionIds!: (number | string)[];
 
   private showPanel = false;
   private searchData: ISearchData[] = [];
@@ -205,7 +206,6 @@ export default class TopoSearch extends Vue {
     return this.selections.some(select => select.id === item.id);
   }
 
-  // eslint-disable-next-line @typescript-eslint/member-ordering
   @Debounce(300)
   public async handleSearch(keyword: string) {
     this.showPanel = true;
@@ -238,7 +238,7 @@ export default class TopoSearch extends Vue {
   }
 
   /* 搜索文案变蓝 */
-  // eslint-disable-next-line @typescript-eslint/member-ordering
+
   getSearchTextArr(text: string): { isSearchStr: boolean; value: string }[] {
     const splitStr = '<highHeight>';
     const search = this.value;
@@ -252,7 +252,7 @@ export default class TopoSearch extends Vue {
   }
 
   /* 选中搜索结果后同时选中拓扑数对应的节点 */
-  // eslint-disable-next-line @typescript-eslint/member-ordering
+
   @Emit('select-search')
   handleSelectItem(item: ISearchData) {
     this.showPanel = false;
@@ -275,8 +275,8 @@ export default class TopoSearch extends Vue {
     background: #fff;
     border: 1px solid #dcdee5;
     border-radius: 2px;
-    box-shadow: 0 2px 6px rgba(51, 60, 72, .1);
-    transition: all .3s ease;
+    box-shadow: 0 2px 6px rgba(51, 60, 72, 0.1);
+    transition: all 0.3s ease;
 
     .result-title {
       display: flex;
@@ -354,7 +354,7 @@ export default class TopoSearch extends Vue {
               left: 4px;
               width: 4px;
               height: 8px;
-              content: "";
+              content: '';
               border: 2px solid #fff;
               border-top: 0;
               border-left: 0;

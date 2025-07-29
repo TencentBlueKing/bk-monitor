@@ -37,9 +37,9 @@ import {
 import type { TranslateResult } from 'vue-i18n';
 
 export type ActionType = 'add' | 'batchDelete' | 'batchReset' | 'copy' | 'delete' | 'reset';
+export type RuleStatusType = 'add' | 'change' | 'common' | 'initial' | 'verification';
 export type TContionType = 'and' | 'or';
 export type TMthodType = 'eq' | 'exclude' | 'include' | 'neq' | 'nreg' | 'reg';
-export type RuleStatusType = 'add' | 'change' | 'common' | 'initial' | 'verification';
 
 export const CONDITIONS = [
   { id: 'and', name: 'AND' },
@@ -85,56 +85,6 @@ export const LEVELLIST: LevelItem[] = [
 //   id: string;
 // }
 
-export interface ICondtionItem {
-  /* 条件 */ field: string;
-  value: string[];
-  method: TMthodType;
-  condition: TContionType;
-}
-
-interface IRuleDataItem {
-  // 规则组每条规则的数据
-  alarmGroups: number[]; // 告警组
-  conditions: ICondtionItem[]; // 匹配规则
-  notice: {
-    // 通知
-    isUpdate: boolean;
-    time: number;
-    group: string[];
-  };
-  actionConfig: string; // 流程(处理套餐)
-  level: string; // 等级调整
-}
-
-interface IActionTtem {
-  actionType: 'itsm' | 'notice';
-  upgradeConfig?: {
-    isEnabled: boolean;
-    userGroups: number[];
-    upgradeInterval: number;
-  };
-  isEnabled?: boolean;
-  actionId?: number;
-}
-
-export interface IRuleGroup {
-  isExpan: boolean;
-  id: number;
-  name: string;
-  priority: number; // 优先级
-  ruleData: IRuleDataItem[];
-  editAllowed?: boolean;
-  updateTime: string;
-  updateUser: string;
-}
-
-export interface LevelItem {
-  value: number;
-  name: string | TranslateResult;
-  icon?: string;
-  color?: string;
-}
-
 export enum EColumn {
   actionId = 'actionId',
   additionalTags = 'additionalTags',
@@ -150,37 +100,54 @@ export enum EColumn {
   userGroups = 'userGroups',
 }
 
-export class RuleGroupData {
-  editAllowed = false;
-  id = 0; // 规则组ID
-  isExpan = true; // 规则名
-  name = '';
-  priority = 0;
-  ruleData = [];
-  settings = {};
-  updateTime = '';
-  updateUser = '';
+export interface ICondtionItem {
+  /* 条件 */ condition: TContionType;
+  field: string;
+  method: TMthodType;
+  value: string[];
+}
 
-  constructor(data: IRuleGroup) {
-    const TEMP_THIS = JSON.parse(JSON.stringify(this));
-    Object.keys(TEMP_THIS).forEach(key => {
-      if (data?.[key]) {
-        this[key] = data[key];
-      }
-    });
-  }
-  setExpan(v: boolean) {
-    this.isExpan = v;
-  }
-  setRuleData(list) {
-    this.ruleData = list.map(item => ({
-      ...item,
-      conditions: item.conditions.map(c => ({
-        ...c,
-        value: c.value.map(v => topNDataStrTransform(String(v))),
-      })),
-    }));
-  }
+export interface IRuleGroup {
+  editAllowed?: boolean;
+  id: number;
+  isExpan: boolean;
+  name: string;
+  priority: number; // 优先级
+  ruleData: IRuleDataItem[];
+  updateTime: string;
+  updateUser: string;
+}
+
+export interface LevelItem {
+  color?: string;
+  icon?: string;
+  name: string | TranslateResult;
+  value: number;
+}
+
+interface IActionTtem {
+  actionId?: number;
+  actionType: 'itsm' | 'notice';
+  isEnabled?: boolean;
+  upgradeConfig?: {
+    isEnabled: boolean;
+    upgradeInterval: number;
+    userGroups: number[];
+  };
+}
+
+interface IRuleDataItem {
+  actionConfig: string; // 流程(处理套餐)
+  // 规则组每条规则的数据
+  alarmGroups: number[]; // 告警组
+  conditions: ICondtionItem[]; // 匹配规则
+  level: string; // 等级调整
+  notice: {
+    group: string[];
+    // 通知
+    isUpdate: boolean;
+    time: number;
+  };
 }
 
 export class RuleData {
@@ -475,6 +442,39 @@ export class RuleData {
     this.conditions = conditionsDeduplication(this.conditions);
     this.conditions = mergeConditions(this.conditions);
     this.conditionsRenderKey = random(8);
+  }
+}
+
+export class RuleGroupData {
+  editAllowed = false;
+  id = 0; // 规则组ID
+  isExpan = true; // 规则名
+  name = '';
+  priority = 0;
+  ruleData = [];
+  settings = {};
+  updateTime = '';
+  updateUser = '';
+
+  constructor(data: IRuleGroup) {
+    const TEMP_THIS = JSON.parse(JSON.stringify(this));
+    Object.keys(TEMP_THIS).forEach(key => {
+      if (data?.[key]) {
+        this[key] = data[key];
+      }
+    });
+  }
+  setExpan(v: boolean) {
+    this.isExpan = v;
+  }
+  setRuleData(list) {
+    this.ruleData = list.map(item => ({
+      ...item,
+      conditions: item.conditions.map(c => ({
+        ...c,
+        value: c.value.map(v => topNDataStrTransform(String(v))),
+      })),
+    }));
   }
 }
 

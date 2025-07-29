@@ -23,23 +23,16 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, defineComponent, onMounted, ref as deepRef } from 'vue';
-import { useI18n } from 'vue-i18n';
+import { computed, ref as deepRef, defineComponent, onMounted } from 'vue';
 
 import { Exception, Input, Loading, Popover } from 'bkui-vue';
 import { incidentHandlers } from 'monitor-api/modules/incident';
+import { useI18n } from 'vue-i18n';
 
 import { useIncidentInject } from '../utils';
 
 import './handler-list.scss';
 
-interface IHandleListItem {
-  alert_count?: number;
-  id?: string;
-  index?: number;
-  name?: string;
-  children?: Array<IHandleListItem>;
-}
 interface IHandleData {
   all: IHandleListItem;
   mine: IHandleListItem;
@@ -47,6 +40,13 @@ interface IHandleData {
   other: {
     children?: any[];
   };
+}
+interface IHandleListItem {
+  alert_count?: number;
+  children?: Array<IHandleListItem>;
+  id?: string;
+  index?: number;
+  name?: string;
 }
 export default defineComponent({
   name: 'HandlerList',

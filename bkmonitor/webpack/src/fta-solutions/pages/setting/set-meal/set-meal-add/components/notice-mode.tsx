@@ -35,34 +35,34 @@ export const robot = {
   wxworkBot: 'wxwork-bot',
 };
 
+export interface INoticeWayValue {
+  chatid?: string; // 可选
+  level?: number;
+  notice_ways?: INoticeWays[];
+  phase?: number;
+}
+interface INoticeModeEvent {
+  onChange?: INoticeWayValue[];
+}
 interface INoticeModeProps {
   noticeWay?: INoticeWay[];
   notifyConfig?: INoticeWayValue[];
-  type?: number;
   readonly?: boolean;
-  showlevelMark?: boolean;
   showHeader?: boolean;
+  showlevelMark?: boolean;
+  type?: number;
 }
 interface INoticeWay {
-  type: string;
-  label: string;
-  icon?: string;
-  tip?: string;
-  width?: number;
   channel?: string;
-}
-export interface INoticeWayValue {
-  phase?: number;
-  level?: number;
-  notice_ways?: INoticeWays[];
-  chatid?: string; // 可选
+  icon?: string;
+  label: string;
+  tip?: string;
+  type: string;
+  width?: number;
 }
 interface INoticeWays {
   name: string;
   receivers?: string | string[];
-}
-interface INoticeModeEvent {
-  onChange?: INoticeWayValue[];
 }
 
 @Component({

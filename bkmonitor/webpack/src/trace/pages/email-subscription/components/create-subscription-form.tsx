@@ -24,7 +24,6 @@
  * IN THE SOFTWARE.
  */
 import { type PropType, defineComponent, nextTick, onMounted, reactive, ref, watch } from 'vue';
-import { useI18n } from 'vue-i18n';
 
 import { PrimaryTable } from '@blueking/tdesign-ui';
 import {
@@ -46,10 +45,11 @@ import dayjs from 'dayjs';
 import { logServiceRelationBkLogIndexSet } from 'monitor-api/modules/apm_service';
 import { getExistReports, getVariables } from 'monitor-api/modules/new_report';
 import { copyText, deepClone, transformDataKey } from 'monitor-common/utils';
+import { useI18n } from 'vue-i18n';
 
 import MemberSelect from '../../../components/member-select/member-select';
 import { Scenario } from '../mapping';
-import { FrequencyType, type Report } from '../types';
+import { type Report, FrequencyType } from '../types';
 import { getDefaultReportData, switchReportDataForCreate, switchReportDataForUpdate } from '../utils';
 import ExistedReportAlert from './existed-report-alert';
 

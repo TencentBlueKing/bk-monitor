@@ -145,12 +145,12 @@ const processTimeData = (
 
 self.onmessage = (
   e: MessageEvent<{
-    data: IDataItem[];
     columns: IColumnItem[];
     compare: string[];
-    timeData: IDataItem[];
+    data: IDataItem[];
     isCompareNotDimensions: boolean;
     isMergeTable: boolean;
+    timeData: IDataItem[];
   }>
 ) => {
   const { data, columns, compare, timeData, isCompareNotDimensions, isMergeTable } = e.data;

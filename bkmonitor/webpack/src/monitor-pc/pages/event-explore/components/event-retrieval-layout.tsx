@@ -23,18 +23,37 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component } from 'vue-property-decorator';
+import { Component, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import MonitorDrag from 'fta-solutions/pages/event/monitor-drag';
+import MonitorDrag, { type ThemeType } from 'fta-solutions/pages/event/monitor-drag';
 
 import './event-retrieval-layout.scss';
 
+export type CloseTheme = 'button' | 'icon';
+export interface EventRetrievalLayoutProps {
+  defaultShow?: boolean;
+  minWidth?: number;
+  maxWidth?: number;
+  defaultWidth?: number;
+  lineTheme?: ThemeType;
+  closeTheme?: CloseTheme;
+}
+
+interface EventRetrievalLayoutEvents {
+  onShowChange(val: boolean): void;
+}
+
 @Component
-export default class EventRetrievalLayout extends tsc<object> {
+export default class EventRetrievalLayout extends tsc<EventRetrievalLayoutProps, EventRetrievalLayoutEvents> {
+  @Prop({ default: true }) defaultShow: boolean;
+  @Prop({ default: 120 }) minWidth: number;
+  @Prop({ default: 400 }) maxWidth: number;
+  @Prop({ default: 200 }) defaultWidth: number;
+  @Prop({ default: 'simple-line-round' }) lineTheme: ThemeType;
+  @Prop({ default: 'icon' }) closeTheme: CloseTheme;
+
   isShow = true;
-  maxWidth = 400;
-  minWidth = 120;
   width = 200;
 
   handleDragChange(width: number) {
@@ -47,7 +66,39 @@ export default class EventRetrievalLayout extends tsc<object> {
 
   handleClickShrink(val?: boolean) {
     this.isShow = val ?? !this.isShow;
-    this.width = this.isShow ? 200 : 0;
+    this.width = this.isShow ? this.defaultWidth : 0;
+    this.$emit('onShowChange', this.isShow);
+  }
+
+  mounted() {
+    this.width = this.defaultWidth;
+    this.isShow = this.defaultShow;
+  }
+
+  renderTriggerDrag() {
+    if (this.closeTheme === 'button' || this.isShow) {
+      return (
+        <MonitorDrag
+          isShow={this.isShow}
+          lineText={this.closeTheme === 'icon' ? '' : this.$tc('展开')}
+          maxWidth={this.maxWidth}
+          minWidth={this.minWidth}
+          startPlacement='right'
+          theme={this.lineTheme}
+          onMove={this.handleDragChange}
+          onTrigger={() => this.handleClickShrink()}
+        />
+      );
+    }
+    return (
+      <div
+        class='expand-trigger'
+        v-bk-tooltips={{ content: this.$t('展开') }}
+        onClick={() => this.handleClickShrink(true)}
+      >
+        <i class='icon-monitor icon-gongneng-shouqi' />
+      </div>
+    );
   }
 
   render() {
@@ -61,25 +112,7 @@ export default class EventRetrievalLayout extends tsc<object> {
             {this.$slots.aside}
           </div>
 
-          {this.isShow ? (
-            <MonitorDrag
-              isShow={this.isShow}
-              lineText=''
-              maxWidth={this.maxWidth}
-              minWidth={this.minWidth}
-              startPlacement='right'
-              theme='simple-line-round'
-              onMove={this.handleDragChange}
-            />
-          ) : (
-            <div
-              class='expand-trigger'
-              v-bk-tooltips={{ content: this.$t('展开') }}
-              onClick={() => this.handleClickShrink(true)}
-            >
-              <i class='icon-monitor icon-gongneng-shouqi' />
-            </div>
-          )}
+          {this.renderTriggerDrag()}
         </div>
         <div class='layout-main'>{this.$slots.default}</div>
       </div>

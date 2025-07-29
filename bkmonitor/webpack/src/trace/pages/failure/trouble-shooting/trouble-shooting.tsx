@@ -23,16 +23,16 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, defineComponent, shallowRef, watch, reactive, onMounted, inject, type Ref } from 'vue';
+import { type Ref, computed, defineComponent, inject, onMounted, reactive, shallowRef, watch } from 'vue';
+
+import { Collapse, Dropdown, Exception, Loading } from 'bkui-vue';
+import { incidentDiagnosis } from 'monitor-api/modules/incident';
 import { useI18n } from 'vue-i18n';
 import { useRoute } from 'vue-router';
 
-import { Collapse, Exception, Loading, Dropdown } from 'bkui-vue';
-import { incidentDiagnosis } from 'monitor-api/modules/incident';
-
 import MarkdownViewer from '../../../components/markdown-editor/viewer';
 
-import type { IContentList, IListItem, IAlertData, IAnomalyAnalysis, IStrategyMapItem } from '../types';
+import type { IAlertData, IAnomalyAnalysis, IContentList, IListItem, IStrategyMapItem } from '../types';
 
 import './trouble-shooting.scss';
 

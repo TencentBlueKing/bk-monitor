@@ -29,36 +29,36 @@ import { Component as tsc } from 'vue-tsx-support';
 import ThresholdSelect from '../threshold/threshold-select';
 import AiLevelSelect from './ai-level-select';
 import AlarmThresholdSelect, { type BoundType } from './alarm-threshold-select';
-import { EFormItemValueType, type FormItem, type IUnitOptionItem } from './utils';
+import { type FormItem, type IUnitOptionItem, EFormItemValueType } from './utils';
 
 import './form.scss';
 /** 数组值分隔符 */
 export const ARRAY_SPLIT_CHART = ',';
-interface IProps {
-  formItemList: FormItem[];
-  readonly?: boolean;
-  rules?: {
-    [key: string]: {
-      required?: boolean;
-      message?: ((val: any) => string) | string;
-      trigger?: string;
-      min?: number;
-      max?: number;
-      validator?: (val: any) => boolean;
-    };
-  };
-  labelWidth?: number;
+export interface IDescription {
+  dataLength: DescType<string>;
+  frequency: DescType<number>;
+  message: DescType<string>;
 }
+type DescType<T> = { isMatch: boolean; value: T };
+
 interface IEvents {
   onChange: void;
 }
 
-type DescType<T> = { value: T; isMatch: boolean };
-
-export interface IDescription {
-  dataLength: DescType<string>;
-  message: DescType<string>;
-  frequency: DescType<number>;
+interface IProps {
+  formItemList: FormItem[];
+  labelWidth?: number;
+  readonly?: boolean;
+  rules?: {
+    [key: string]: {
+      max?: number;
+      message?: ((val: any) => string) | string;
+      min?: number;
+      required?: boolean;
+      trigger?: string;
+      validator?: (val: any) => boolean;
+    };
+  };
 }
 @Component
 export default class Form extends tsc<IProps, IEvents> {

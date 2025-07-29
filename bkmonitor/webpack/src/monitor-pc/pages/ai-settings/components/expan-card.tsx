@@ -29,8 +29,8 @@ import { Component as tsc } from 'vue-tsx-support';
 import './expan-card.scss';
 
 interface IProps {
-  title: string;
   expand: boolean;
+  title: string;
 }
 
 @Component

@@ -23,10 +23,10 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, type PropType, ref, watch, computed } from 'vue';
-import { useI18n } from 'vue-i18n';
+import { type PropType, computed, defineComponent, ref, watch } from 'vue';
 
 import { Checkbox, Input, Select } from 'bkui-vue';
+import { useI18n } from 'vue-i18n';
 
 import { useAppStore } from '../../../../../../store/modules/app';
 
@@ -37,29 +37,29 @@ export const robot = {
   wxworkBot: 'wxwork-bot',
 };
 
-interface INoticeWay {
-  type: string;
-  label: string;
-  icon?: string;
-  tip?: string;
-  width?: number;
-  channel?: string;
-}
 export interface INoticeWayValue {
-  type?: string[];
-  phase?: number;
+  chatid?: string; // 可选
   level?: number;
   notice_ways?: INoticeWays[];
-  chatid?: string; // 可选
-}
-interface INoticeWays {
-  name: string;
-  receivers?: string | string[];
+  phase?: number;
+  type?: string[];
 }
 interface IBkchat {
   [x: string]: any;
   id: string;
   name: string;
+}
+interface INoticeWay {
+  channel?: string;
+  icon?: string;
+  label: string;
+  tip?: string;
+  type: string;
+  width?: number;
+}
+interface INoticeWays {
+  name: string;
+  receivers?: string | string[];
 }
 
 export default defineComponent({

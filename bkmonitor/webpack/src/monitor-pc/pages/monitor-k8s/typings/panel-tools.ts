@@ -29,46 +29,46 @@ import type { TranslateResult } from 'vue-i18n';
 
 /** 面板工具的类型 */
 export declare namespace PanelToolsType {
-  interface IProps {
-    layoutActive?: number;
-    compareListEnable?: CompareId[];
-    needSplit?: boolean;
-    split?: boolean;
-    needLayout?: boolean;
-    disabledLayout?: boolean;
-  }
-  interface IEvents {
-    onLayoutChange?: LayoutId;
-    onCompareChange?: Compare;
-    onSplitChange?: boolean;
-  }
+  /** 对比数据类型 */
+  type Compare = CompareOneOf<PanelToolsType.CompareId>;
   /** 不对比 | 时间对比 | 目标对比 | 指标对比 */
   type CompareId = 'metric' | 'none' | 'target' | 'time';
-  /** 图表布局 */
-  type LayoutId = 0 | 1 | 2;
-  /** 对比方法可选项 */
-  interface ICompareListItem {
-    id: CompareId;
-    name: TranslateResult | string;
-  }
-  interface ICompareValueType {
-    none: boolean;
-    target: string[];
-    time: string[];
-    metric: string[];
-  }
-  type CompareValue<T extends CompareId> = ICompareValueType[T];
   interface CompareOneOf<T extends CompareId> {
     type: CompareId;
     value: CompareValue<T>;
   }
-  /** 对比数据类型 */
-  type Compare = CompareOneOf<PanelToolsType.CompareId>;
+  type CompareValue<T extends CompareId> = ICompareValueType[T];
+  /** 对比方法可选项 */
+  interface ICompareListItem {
+    id: CompareId;
+    name: string | TranslateResult;
+  }
+  interface ICompareValueType {
+    metric: string[];
+    none: boolean;
+    target: string[];
+    time: string[];
+  }
+  interface IEvents {
+    onCompareChange?: Compare;
+    onLayoutChange?: LayoutId;
+    onSplitChange?: boolean;
+  }
+  interface IProps {
+    compareListEnable?: CompareId[];
+    disabledLayout?: boolean;
+    layoutActive?: number;
+    needLayout?: boolean;
+    needSplit?: boolean;
+    split?: boolean;
+  }
+  /** 图表布局 */
+  type LayoutId = 0 | 1 | 2;
 }
 
 export interface OptionsItem {
   id: string;
-  name: TranslateResult | string;
+  name: string | TranslateResult;
 }
 
 export const COMPARE_KEY = ['none', 'time', 'target', 'metric'];
@@ -219,26 +219,26 @@ export const REFRESH_DEFAULT_LIST = [
 ];
 
 export declare namespace PanelHeaderType {
-  type TimeRangeValue = number | string[];
-  interface IProps {
-    timeRange: TimeRangeValue;
-    refreshInterval: number;
-    timezone: string;
-    timeRangeList?: OptionsItem[];
-    refreshList?: OptionsItem[];
-    favoritesList?: IFavList.favList[];
-    favCheckedValue?: IFavList.favList;
-    downSampleRange?: string;
-    showDownSample: boolean;
-    eventSelectTimeRange?: TimeRangeValue;
-  }
   interface IEvents {
-    onImmediateRefresh: void;
-    onRefreshIntervalChange: number;
-    onTimeRangeChange: TimeRangeValue;
-    onSelectFav: any;
     onDeleteFav: number;
     onDownSampleChange: string;
+    onImmediateRefresh: void;
+    onRefreshIntervalChange: number;
+    onSelectFav: any;
+    onTimeRangeChange: TimeRangeValue;
     onTimezoneChange: string;
   }
+  interface IProps {
+    downSampleRange?: string;
+    eventSelectTimeRange?: TimeRangeValue;
+    favCheckedValue?: IFavList.favList;
+    favoritesList?: IFavList.favList[];
+    refreshInterval: number;
+    refreshList?: OptionsItem[];
+    showDownSample: boolean;
+    timeRange: TimeRangeValue;
+    timeRangeList?: OptionsItem[];
+    timezone: string;
+  }
+  type TimeRangeValue = number | string[];
 }

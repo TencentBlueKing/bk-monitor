@@ -1,3 +1,8 @@
+export interface IBtnAndLinkItem {
+  name: string;
+  url: string;
+}
+
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -24,10 +29,28 @@
  * IN THE SOFTWARE.
  */
 export interface IMenuItem {
+  href?: string;
   id: string;
   name: string;
-  href?: string;
 }
+export interface IOverseasConfig {
+  icon?: string;
+  subtitle?: string;
+  title: string;
+  url?: string;
+}
+export interface ISPaceIntroduceData {
+  is_no_data?: boolean;
+  is_no_source?: boolean;
+  data?: {
+    buttons: IBtnAndLinkItem[];
+    introduce: string[];
+    links: IBtnAndLinkItem[];
+    subTitle: string;
+    title: string;
+  };
+}
+export type SpaceIntoduceType = Record<SpaceIntroduceKeys, ISPaceIntroduceData>;
 
 export type SpaceIntroduceKeys =
   | 'apm-home'
@@ -38,26 +61,3 @@ export type SpaceIntroduceKeys =
   | 'k8s'
   | 'performance'
   | 'uptime-check';
-export interface IBtnAndLinkItem {
-  name: string;
-  url: string;
-}
-export interface ISPaceIntroduceData {
-  is_no_data?: boolean;
-  is_no_source?: boolean;
-  data?: {
-    title: string;
-    subTitle: string;
-    introduce: string[];
-    buttons: IBtnAndLinkItem[];
-    links: IBtnAndLinkItem[];
-  };
-}
-export type SpaceIntoduceType = Record<SpaceIntroduceKeys, ISPaceIntroduceData>;
-
-export interface IOverseasConfig {
-  title: string;
-  url?: string;
-  subtitle?: string;
-  icon?: string;
-}

@@ -26,53 +26,78 @@
 
 import type { IWhereItem } from '../../components/retrieval-filter/typing';
 
-export interface IApplicationItem {
-  app_alias: string;
-  app_name: string;
-  application_id: number;
-  metric_result_table_id: string;
-  /** 是否置顶 */
-  isTop?: boolean;
-  [key: string]: any;
-}
+export type ConditionChangeEvent = Pick<IWhereItem, 'key' | 'method'> & { value: string };
 
 export type DimensionType = 'boolean' | 'date' | 'double' | 'integer' | 'keyword' | 'long' | 'object' | 'text';
 
-export interface IDimensionOperation {
-  alias: string;
-  value: string;
-  options: { label: string; name: string }[];
-}
-
-export interface IDimensionField {
-  name: string;
-  alias: string;
-  type: DimensionType;
-  can_displayed: boolean;
-  is_option_enabled: boolean;
-  is_dimensions: boolean;
-  support_operations: IDimensionOperation[];
-  pinyinStr?: string;
-}
-
 export type ExploreFieldList = {
-  trace: IDimensionField[];
   span: IDimensionField[];
+  trace: IDimensionField[];
 };
 
-/** 维度列表树形结构 */
-export interface IDimensionFieldTreeItem extends IDimensionField {
-  count?: number;
-  levelName?: string;
-  expand?: boolean;
-  children?: IDimensionFieldTreeItem[];
+export interface IApplicationItem {
+  [key: string]: any;
+  app_alias: string;
+  app_name: string;
+  application_id: number;
+  /** 是否置顶 */
+  isTop?: boolean;
+  metric_result_table_id: string;
 }
 
 export interface ICommonParams {
   app_name: string;
   filters: any[];
-  query_string: string;
   mode: 'span' | 'trace';
+  query_string: string;
+}
+
+export interface IDimensionField {
+  alias: string;
+  can_displayed: boolean;
+  is_dimensions: boolean;
+  is_option_enabled: boolean;
+  name: string;
+  pinyinStr?: string;
+  support_operations: IDimensionOperation[];
+  type: DimensionType;
+}
+
+/** 维度列表树形结构 */
+export interface IDimensionFieldTreeItem extends IDimensionField {
+  children?: IDimensionFieldTreeItem[];
+  count?: number;
+  expand?: boolean;
+  levelName?: string;
+}
+
+export interface IDimensionOperation {
+  alias: string;
+  options: { label: string; name: string }[];
+  value: string;
+}
+
+export interface IStatisticsGraph {
+  [key: string]: any;
+  color: string;
+  datapoints: [number, number | string][];
+  name: string;
+  type: 'bar' | 'line';
+}
+
+/** 统计信息 */
+export interface IStatisticsInfo {
+  distinct_count: number;
+  field: string;
+  field_count: number;
+  field_percent: number;
+  total_count: number;
+  value_analysis?: {
+    avg: number | string;
+    max: number | string;
+    median: number | string;
+    min: number | string;
+  };
 }
 
 /** topk列表 */
@@ -86,31 +111,6 @@ export interface ITopKField {
     value: string;
   }[];
 }
-
-/** 统计信息 */
-export interface IStatisticsInfo {
-  field: string;
-  total_count: number;
-  field_count: number;
-  distinct_count: number;
-  field_percent: number;
-  value_analysis?: {
-    max: number | string;
-    min: number | string;
-    avg: number | string;
-    median: number | string;
-  };
-}
-
-export interface IStatisticsGraph {
-  name: string;
-  color: string;
-  datapoints: [number, number | string][];
-  type: 'bar' | 'line';
-  [key: string]: any;
-}
-
-export type ConditionChangeEvent = Pick<IWhereItem, 'key' | 'method'> & { value: string };
 
 export const EventExploreFeatures = [
   /** 收藏 */

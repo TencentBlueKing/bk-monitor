@@ -42,7 +42,7 @@ import { transformValueToMonitor } from '../../../../components/monitor-ip-selec
 import { handleSetTargetDesc as getTargetDesc } from '../../common';
 import StrategyTargetTable from '../../strategy-config-detail/strategy-config-detail-table.vue';
 import StrategyIpv6 from '../../strategy-ipv6/strategy-ipv6';
-import { type EditModeType, type MetricDetail, MetricType, type dataModeType } from '../typings';
+import { type dataModeType, type EditModeType, type MetricDetail, MetricType } from '../typings';
 import MonitorDataInput from './monitor-data-input';
 
 import type { IIpV6Value, INodeType, TargetObjectType } from '../../../../components/monitor-ip-selector/typing';
@@ -59,46 +59,46 @@ const targetMessageTemp = {
 // 服务实例不支持的监控目标类型：静态拓扑，动态分组
 const SERVICE_UNSUPPORTED_TARGET_TYPES: string[] = ['INSTANCE', 'DYNAMIC_GROUP'];
 
-interface IMonitorDataProps {
-  metricData: MetricDetail[];
-  source: string;
-  metricTipType: string;
-  expression: string;
-  defaultCheckedTarget: any;
-  dataMode: dataModeType;
-  readonly: boolean;
-  hasAIntelligentDetect: boolean;
-  loading: boolean;
-  editMode: EditModeType;
-  promqlError: boolean;
-  expFunctions: IFunctionsValue[];
-  dataTypeLabel?: string;
-  sourceStep: number | string;
-  errMsg?: string;
-  hasAiOpsDetect?: boolean;
-  showRealtimeStrategy?: boolean;
-  isKpiAnomalySdkEnabled?: boolean;
-}
 interface IMonitorDataEvent {
-  onModeChange: dataModeType;
-  onSourceChange: string;
-  onExpressionChange: string;
-  onDelete: () => void;
   onAddMetric: { type: MetricType };
   onAddNullMetric: { type: MetricType };
-  onTargetChange: any;
-  onTargetTypeChange: string;
-  onExpressionBlur: string;
-  onMethodChange: string;
-  onFunctionChange: any;
-  onEditModeChange: { mode: EditModeType; hasError: boolean };
-  onPromqlEnter: boolean;
-  onPromqlBlur: boolean;
-  onPromqlFocus: () => void;
+  onclearErr?: boolean;
+  onEditModeChange: { hasError: boolean; mode: EditModeType };
   onExpFunctionsChange: IFunctionsValue[];
+  onExpressionBlur: string;
+  onExpressionChange: string;
+  onFunctionChange: any;
+  onMethodChange: string;
+  onModeChange: dataModeType;
+  onPromqlBlur: boolean;
+  onPromqlEnter: boolean;
   onShowExpress: boolean;
   onSouceStepChange: number;
-  onclearErr?: boolean;
+  onSourceChange: string;
+  onTargetChange: any;
+  onTargetTypeChange: string;
+  onDelete: () => void;
+  onPromqlFocus: () => void;
+}
+interface IMonitorDataProps {
+  dataMode: dataModeType;
+  dataTypeLabel?: string;
+  defaultCheckedTarget: any;
+  editMode: EditModeType;
+  errMsg?: string;
+  expFunctions: IFunctionsValue[];
+  expression: string;
+  hasAIntelligentDetect: boolean;
+  hasAiOpsDetect?: boolean;
+  isKpiAnomalySdkEnabled?: boolean;
+  loading: boolean;
+  metricData: MetricDetail[];
+  metricTipType: string;
+  promqlError: boolean;
+  readonly: boolean;
+  showRealtimeStrategy?: boolean;
+  source: string;
+  sourceStep: number | string;
 }
 
 @Component({
@@ -358,7 +358,7 @@ export default class MyComponent extends tsc<IMonitorDataProps, IMonitorDataEven
     // this.handleSetTargetDesc(this.targetList, this.metricData[0].targetType);
   }
 
-  handleTopoCheckedChange(data: { value: IIpV6Value; nodeType: INodeType; objectType: TargetObjectType }) {
+  handleTopoCheckedChange(data: { nodeType: INodeType; objectType: TargetObjectType; value: IIpV6Value }) {
     this.targetList = transformValueToMonitor(data.value, data.nodeType);
     this.target.targetType = data.nodeType;
     this.handleSetTargetDesc(this.targetList, this.target.targetType);
@@ -367,7 +367,7 @@ export default class MyComponent extends tsc<IMonitorDataProps, IMonitorDataEven
 
   // 编辑时设置监控目标描述
   handleSetTargetDesc(
-    targetList: { count: number; bk_obj_id: string; nodes_count?: number; instances_count?: number; all_host: any[] }[],
+    targetList: { all_host: any[]; bk_obj_id: string; count: number; instances_count?: number; nodes_count?: number }[],
     bkTargetType: string,
     nodeCount = 0,
     instance_count = 0
@@ -580,7 +580,6 @@ export default class MyComponent extends tsc<IMonitorDataProps, IMonitorDataEven
                     <span
                       key={item.id}
                       style={{ marginLeft: index > 0 ? '-1px' : '' }}
-                      v-en-style='width: 80px'
                       class={[
                         'tab-item',
                         {
@@ -609,6 +608,7 @@ export default class MyComponent extends tsc<IMonitorDataProps, IMonitorDataEven
                         //  || !isTabDisabled(item.id)
                         //  || this.readonly
                       }}
+                      v-en-style='width: 80px'
                       on-click={() => !this.readonly && !isTabDisabled(item.id) && this.handleChangeTab(item)}
                     >
                       <span class='bd-hover'>{item.name}</span>
@@ -818,8 +818,8 @@ export default class MyComponent extends tsc<IMonitorDataProps, IMonitorDataEven
             (item.metricMetaId === 'bk_monitor|event' || item.data_type_label === 'alert') && (
               <div class='monitor-event'>
                 <span
-                  v-en-style='width: 105px'
                   class='monitor-event-title'
+                  v-en-style='width: 105px'
                 >
                   {this.$t('告警级别')} :
                 </span>

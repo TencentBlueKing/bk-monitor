@@ -25,8 +25,8 @@
 -->
 <template>
   <div
-    class="subscriptions-set-wrap"
     v-bkloading="{ isLoading }"
+    class="subscriptions-set-wrap"
   >
     <!-- 基本信息 -->
     <div class="content-wrap">
@@ -47,8 +47,8 @@
             :required="true"
           >
             <bk-input
-              class="input"
               v-model="formData.mailTitle"
+              class="input"
               :placeholder="$t('输入邮件标题')"
             />
           </bk-form-item>
@@ -65,8 +65,8 @@
                 </bk-checkbox>
               </div>
               <div
-                class="form-item-row"
                 v-show="formData.receiversEnabled"
+                class="form-item-row"
               >
                 <!-- 人员选择器 -->
                 <user-selector
@@ -84,19 +84,18 @@
                   {{ $t('外部邮件') }}
                 </bk-checkbox>
                 <span
-                  class="warning-hint"
                   v-show="formData.channels[0].isEnabled"
+                  class="warning-hint"
                 >
                   <i class="icon-monitor icon-remind" />
                   <span class="text">{{ $t('请遵守公司规范，切勿泄露敏感信息，后果自负！') }}</span>
                 </span>
               </div>
               <div
-                class="form-item-row"
                 v-show="formData.channels[0].isEnabled"
+                class="form-item-row"
               >
                 <bk-input
-                  style="width: 465px; height: 32px"
                   v-model="formData.channels[0].subscribers"
                   v-bk-tooltips.click="{
                     content: $t('多个邮箱使用逗号隔开'),
@@ -105,6 +104,7 @@
                     placements: ['right'],
                     theme: 'light',
                   }"
+                  style="width: 465px; height: 32px"
                 >
                   <template slot="prepend">
                     <div class="group-text">
@@ -121,11 +121,10 @@
                 </bk-checkbox>
               </div>
               <div
-                class="form-item-row"
                 v-show="formData.channels[1].isEnabled"
+                class="form-item-row"
               >
                 <bk-input
-                  style="width: 465px; height: 32px"
                   v-model="formData.channels[1].subscribers"
                   v-bk-tooltips.click="{
                     content: wxworkBotTips,
@@ -134,6 +133,7 @@
                     placements: ['right'],
                     theme: 'light',
                   }"
+                  style="width: 465px; height: 32px"
                 >
                   <template slot="prepend">
                     <div class="group-text">
@@ -142,7 +142,6 @@
                   </template>
                 </bk-input>
                 <i
-                  class="icon-monitor icon-mc-help-fill"
                   v-bk-tooltips="{
                     content: wxworkBotTips,
                     showOnInit: false,
@@ -150,6 +149,7 @@
                     placements: ['right'],
                     allowHTML: false,
                   }"
+                  class="icon-monitor icon-mc-help-fill"
                 />
               </div>
             </div>
@@ -169,13 +169,13 @@
                 @change="handleSelectManager"
               />
               <i
-                class="icon-monitor icon-tips"
                 v-bk-tooltips="{
                   content: $t('可以对本订阅内容进行修改的人员'),
                   showOnInit: false,
                   duration: 200,
                   placements: ['top'],
                 }"
+                class="icon-monitor icon-tips"
               />
               <div
                 ref="receiverTarget"
@@ -200,8 +200,8 @@
             property="timeRange"
           >
             <bk-select
-              class="time-range-select"
               v-model="formData.timeRange"
+              class="time-range-select"
               :clearable="false"
             >
               <bk-option
@@ -214,8 +214,8 @@
           </bk-form-item>
           <!-- 订阅内容的校验替身 -->
           <bk-form-item
-            ref="reportContentsFormItem"
             v-show="false"
+            ref="reportContentsFormItem"
             :error-display-type="'normal'"
             :property="'reportContents'"
             :required="true"
@@ -322,6 +322,7 @@ import { deepClone, transformDataKey } from 'monitor-common/utils/utils';
 import MonitorDialog from 'monitor-ui/monitor-dialog/monitor-dialog.vue';
 import { Sortable } from 'sortablejs';
 
+import { getDefaultUserGroupListSync } from '../../components/user-selector/user-group';
 import userSelector from '../../components/user-selector/user-selector';
 import { SET_NAV_ROUTE_LIST } from '../../store/modules/app';
 import addContent from './components/add-content.vue';
@@ -333,7 +334,6 @@ import { splitGraphId } from './utils';
 import type { IContentFormData, ITableColumnItem } from './types';
 import type VueI18n from 'vue-i18n';
 import type { TranslateResult } from 'vue-i18n';
-import { getDefaultUserGroupListSync } from '../../components/user-selector/user-group';
 /** 默认的图表数据时间范围 按照发送频率 */
 const DEFAULT_TIME_RANGE = 'none';
 
@@ -342,8 +342,8 @@ interface IOption {
   name: string | TranslateResult;
 }
 interface ITimeRangeObj {
-  timeLevel: 'days' | 'hours' | 'minutes';
   number: number;
+  timeLevel: 'days' | 'hours' | 'minutes';
 }
 /**
  * 邮件订阅新建/编辑页

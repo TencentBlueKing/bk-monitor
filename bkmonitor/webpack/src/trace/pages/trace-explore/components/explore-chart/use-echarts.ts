@@ -28,8 +28,6 @@ import { type MaybeRef, type Ref, watch } from 'vue';
 import { shallowRef } from 'vue';
 import { computed } from 'vue';
 
-import { handleTransformToTimestamp } from '@/components/time-range/utils';
-import { useTraceExploreStore } from '@/store/modules/explore';
 import { get } from '@vueuse/core';
 import dayjs from 'dayjs';
 import { CancelToken } from 'monitor-api/cancel';
@@ -38,6 +36,8 @@ import { COLOR_LIST_BAR } from 'monitor-ui/chart-plugins/constants/charts';
 import { getValueFormat } from 'monitor-ui/monitor-echarts/valueFormats/valueFormats';
 
 import { useChartTooltips } from './use-chart-tooltips';
+import { handleTransformToTimestamp } from '@/components/time-range/utils';
+import { useTraceExploreStore } from '@/store/modules/explore';
 
 import type { EchartSeriesItem, FormatterFunc, SeriesItem } from './types';
 import type { IDataQuery } from '@/plugins/typings';

@@ -76,17 +76,6 @@ const COLORS_HEX = [
   '#CBDB95',
 ];
 
-// TS needs the precise return type
-function strToRgb(s: string): [number, number, number] {
-  if (s.length !== 7) {
-    return [0, 0, 0];
-  }
-  const r = s.slice(1, 3);
-  const g = s.slice(3, 5);
-  const b = s.slice(5);
-  return [Number.parseInt(r, 16), Number.parseInt(g, 16), Number.parseInt(b, 16)];
-}
-
 export class ColorGenerator {
   colorsHex: string[];
   colorsRgb: [number, number, number][];
@@ -138,6 +127,17 @@ export class ColorGenerator {
     this.cache.clear();
     this.currentIdx = 0;
   }
+}
+
+// TS needs the precise return type
+function strToRgb(s: string): [number, number, number] {
+  if (s.length !== 7) {
+    return [0, 0, 0];
+  }
+  const r = s.slice(1, 3);
+  const g = s.slice(3, 5);
+  const b = s.slice(5);
+  return [Number.parseInt(r, 16), Number.parseInt(g, 16), Number.parseInt(b, 16)];
 }
 
 export default new ColorGenerator();

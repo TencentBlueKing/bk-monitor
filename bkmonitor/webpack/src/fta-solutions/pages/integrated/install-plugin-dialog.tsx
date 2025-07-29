@@ -33,13 +33,16 @@ import DynamicForm from '../setting/set-meal/set-meal-add/components/dynamic-for
 
 import './install-plugin-dialog.scss';
 
-type InstallType = 'current' | 'multi';
-
 export interface IData {
-  version: string;
-  pluginId: string;
   paramsSchema: any;
   pluginDisplayName: string;
+  pluginId: string;
+  version: string;
+}
+
+interface IInstallPluginDialogEvents {
+  onChange: (value: boolean) => void;
+  onSuccess: () => void;
 }
 
 interface IInstallPluginDialogProps {
@@ -47,10 +50,7 @@ interface IInstallPluginDialogProps {
   data: IData;
 }
 
-interface IInstallPluginDialogEvents {
-  onChange: (value: boolean) => void;
-  onSuccess: () => void;
-}
+type InstallType = 'current' | 'multi';
 
 @Component({ name: 'InstallPluginDialog' })
 export default class InstallPluginDialog extends tsc<IInstallPluginDialogProps, IInstallPluginDialogEvents> {

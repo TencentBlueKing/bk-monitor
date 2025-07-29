@@ -25,15 +25,15 @@
  */
 import type { TimeRangeType } from '../../../components/time-range/utils';
 
+export enum MenuEnum {
+  FullScreen = 'fullScreen',
+}
+
 export interface ToolsFormData {
+  /** 刷新时间 */
+  refreshInterval: number;
   /** 日期时间 */
   timeRange: TimeRangeType;
   /** 时区 */
   timezone: string;
-  /** 刷新时间 */
-  refreshInterval: number;
-}
-
-export enum MenuEnum {
-  FullScreen = 'fullScreen',
 }

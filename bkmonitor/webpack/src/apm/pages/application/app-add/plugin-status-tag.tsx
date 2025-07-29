@@ -29,10 +29,10 @@ import { Component as tsc } from 'vue-tsx-support';
 import './plugin-status-tag.scss';
 
 interface IProps {
-  icon: string;
   checked: boolean;
-  text: string;
+  icon: string;
   iconFontSize?: number;
+  text: string;
   tips?: string;
 }
 @Component

@@ -39,16 +39,16 @@ import type { TranslateResult } from 'vue-i18n';
 
 import './where-display.scss';
 
-interface IProps {
-  value: IWhereItem[];
-  groupByList: ICommonItem[];
-  metric: MetricDetail;
-  allWhereValueMap?: Map<string, ICommonItem[]>;
-  readonly?: boolean;
-  allNames?: { [key: string]: string };
-}
 interface IEvent {
   onValueMapChange?: Map<string, ICommonItem[]>;
+}
+interface IProps {
+  allNames?: { [key: string]: string };
+  allWhereValueMap?: Map<string, ICommonItem[]>;
+  groupByList: ICommonItem[];
+  metric: MetricDetail;
+  readonly?: boolean;
+  value: IWhereItem[];
 }
 /**
  * 用于策略详情条件的数据展示

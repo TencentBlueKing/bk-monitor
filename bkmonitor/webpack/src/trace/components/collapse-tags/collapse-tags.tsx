@@ -24,14 +24,14 @@
  * IN THE SOFTWARE.
  */
 import {
+  type PropType,
+  computed,
+  ref as deepRef,
   defineComponent,
   nextTick,
   onBeforeUnmount,
-  ref as deepRef,
   shallowRef,
   watch,
-  computed,
-  type PropType,
 } from 'vue';
 
 import { useDebounceFn } from '@vueuse/core';

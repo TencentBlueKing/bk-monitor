@@ -109,7 +109,7 @@
                   <!-- eslint-disable-next-line vue/no-v-html -->
                   <p
                     class="fl"
-                    v-html="collaspseHeadInfo(cluster)"
+                    v-html="$xss(collaspseHeadInfo(cluster))"
                   ></p>
                   <!-- <span class="success">{{ cluster.success }}</span> 个成功
                 <span v-if="cluster.failed" class="failed">，{{ cluster.failed }}</span> 个失败 -->
@@ -262,7 +262,7 @@
         <div
           class="p20 detail-content"
           v-bkloading="{ isLoading: detail.loading }"
-          v-html="detail.content"
+          v-html="$xss(detail.content)"
         ></div>
       </template>
     </bk-sideslider>

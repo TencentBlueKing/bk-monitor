@@ -33,14 +33,14 @@
       </div>
       <div class="strategy-item-content">
         <bk-select
+          v-model="bizId"
           style="width: 413px"
           readonly
-          v-model="bizId"
         >
           <bk-option
             v-for="(option, index) in bizList"
-            :key="index"
             :id="option.id"
+            :key="index"
             :name="option.text"
           />
         </bk-select>
@@ -60,17 +60,17 @@
       >
         <div class="strategy-item-content">
           <bk-select
+            v-model="strategyId"
             style="width: 836px"
             searchable
             multiple
             :disabled="isEdit"
-            v-model="strategyId"
             @change="handleStrategyInfo"
           >
             <bk-option
               v-for="option in strategyList"
-              :key="option.id"
               :id="option.id"
+              :key="option.id"
               :name="option.name"
             >
               <span style="margin-right: 9px">{{ option.name }}</span>
@@ -86,8 +86,8 @@
     <template v-if="isShowDetail">
       <!-- 策略内容 -->
       <div
-        class="strategy-detail"
         v-if="isOneStrategy && strategyData"
+        class="strategy-detail"
       >
         <div class="item-label">
           {{ $t('策略内容') }}
@@ -96,8 +96,8 @@
         <strategy-detail-new :strategy-data="strategyData" />
       </div>
       <div
-        class="strategy-detail"
         v-if="strategyId.length > 0"
+        class="strategy-detail"
       >
         <div class="item-label">
           {{ $t('维度选择') }}
@@ -115,10 +115,10 @@
               <template slot-scope>
                 <where-display
                   v-if="dimensionCondition.conditionList.length"
+                  :key="dimensionCondition.conditionKey"
                   :value="dimensionCondition.conditionList"
                   :readonly="true"
                   :all-names="dimensionCondition.allNames"
-                  :key="dimensionCondition.conditionKey"
                 />
                 <span v-else>--</span>
               </template>
@@ -132,7 +132,7 @@
           :dimensions-list="dimensionCondition.dimensionList"
           :metric-meta="dimensionCondition.metricMeta"
           @change="
-            (v) => {
+            v => {
               dimensionCondition.conditionList = v;
             }
           "
@@ -140,8 +140,8 @@
       </div>
       <!-- 选择实例 IP 节点 -->
       <div
-        class="strategy-detail"
         v-if="isShowShieldScope && !(dataTarget.length === 1 && dataTarget[0] === '')"
+        class="strategy-detail"
       >
         <div class="item-label">
           {{ $t('屏蔽范围') }}
@@ -200,9 +200,9 @@
       </div>
       <div class="strategy-desc-content">
         <bk-input
+          v-model="desc"
           class="content-desc"
           type="textarea"
-          v-model="desc"
           :row="3"
           :maxlength="100"
         />
@@ -219,7 +219,9 @@
           class="button"
           :theme="'primary'"
           @click="handleSubmit"
-        > {{ $t('提交') }} </bk-button>
+        >
+          {{ $t('提交') }}
+        </bk-button>
         <bk-button
           class="button ml10"
           :theme="'default'"
@@ -233,21 +235,16 @@
 </template>
 
 <script lang="ts">
+import { Component, Mixins, Model, Prop, Ref, Watch } from 'vue-property-decorator';
+
+import WhereDisplay from 'fta-solutions/pages/event/event-detail/where-display';
 import { addShield, editShield } from 'monitor-api/modules/shield';
 import { getMetricListV2, getStrategyListV2, getStrategyV2, plainStrategyList } from 'monitor-api/modules/strategies';
 import { random, transformDataKey } from 'monitor-common/utils/utils';
-// eslint-disable-next-line no-unused-vars
-import type { TranslateResult } from 'vue-i18n/types/index';
-import { Component, Mixins, Model, Prop, Ref, Watch } from 'vue-property-decorator';
-// eslint-disable-next-line no-unused-vars
-import type { Location } from 'vue-router/types/router';
 
-import WhereDisplay from 'fta-solutions/pages/event/event-detail/where-display';
 import VerifyInput from '../../../components/verify-input/verify-input.vue';
 import alarmShieldMixin from '../../../mixins/alarmShieldMixin';
 import strategyMapMixin from '../../../mixins/strategyMapMixin';
-// eslint-disable-next-line no-unused-vars
-import type MonitorVue from '../../../types/index';
 import ShieldDateConfig from '../alarm-shield-components/alarm-shield-date.vue';
 import AlarmShieldNotice from '../alarm-shield-components/alarm-shield-notice.vue';
 import ShieldTarget from '../alarm-shield-components/alarm-shield-target.vue';
@@ -255,32 +252,36 @@ import StrategyDetailNew from '../alarm-shield-components/strategy-detail-new.ts
 import StrategyDetail from '../alarm-shield-components/strategy-detail.vue';
 import SimpleConditionInput from '../components/simple-condition-input';
 
-interface IStrategyList {
-  firstLabelName: string;
-  id: string | number;
-  name: string;
-  scenario: string;
-  secondLabelName: string;
-}
-interface IParams {
-  bk_biz_id: string;
-  category: string;
-  dimension_config: IDimensionConfig;
-  description: string;
-  shield_notice: boolean;
-  cycle_config: {};
-  begin_time: string;
-  end_time: string;
-  notice_config?: {};
-  id?: string;
-  level?: string[];
-}
+import type MonitorVue from '../../../types/index';
+import type { TranslateResult } from 'vue-i18n/types/index';
+import type { Location } from 'vue-router/types/router';
+
 interface IDimensionConfig {
+  dimension_conditions?: any; // 参考基于维度进行屏蔽
   id: number[];
   level: string[];
   scope_type?: string;
   target?: [];
-  dimension_conditions?: any; // 参考基于维度进行屏蔽
+}
+interface IParams {
+  begin_time: string;
+  bk_biz_id: string;
+  category: string;
+  cycle_config: {};
+  description: string;
+  dimension_config: IDimensionConfig;
+  end_time: string;
+  id?: string;
+  level?: string[];
+  notice_config?: {};
+  shield_notice: boolean;
+}
+interface IStrategyList {
+  firstLabelName: string;
+  id: number | string;
+  name: string;
+  scenario: string;
+  secondLabelName: string;
 }
 @Component({
   components: {
@@ -312,7 +313,7 @@ export default class AlarmShieldStrategy extends Mixins(alarmShieldMixin, strate
   targetType = ''; // 屏蔽范围类型
   dataTarget: string[] = [];
   //  校验提示
-  rule: { strategyId: boolean; noticeLever: boolean } = {
+  rule: { noticeLever: boolean; strategyId: boolean } = {
     strategyId: false,
     noticeLever: false,
   };
@@ -332,7 +333,7 @@ export default class AlarmShieldStrategy extends Mixins(alarmShieldMixin, strate
   @Model('changeCommonDateData', {
     type: Object,
   })
-  commonDateData!: Object;
+  commonDateData!: object;
 
   //  编辑时回填的屏蔽详情数据
   @Prop({ default: () => ({}) })
@@ -340,7 +341,7 @@ export default class AlarmShieldStrategy extends Mixins(alarmShieldMixin, strate
 
   //  是否来自策略列表页
   @Prop({ default: () => ({}) })
-  fromStrategy: { is: boolean; id: number };
+  fromStrategy: { id: number; is: boolean };
 
   @Prop({ default: false })
   edit: boolean;
@@ -717,7 +718,7 @@ export default class AlarmShieldStrategy extends Mixins(alarmShieldMixin, strate
       }
 
       &.shield-target {
-        :deep(.ip-select-right ) {
+        :deep(.ip-select-right) {
           max-width: 600px;
         }
       }
@@ -832,7 +833,7 @@ export default class AlarmShieldStrategy extends Mixins(alarmShieldMixin, strate
       margin-bottom: 0;
     }
 
-    :deep(.bk-form-textarea ) {
+    :deep(.bk-form-textarea) {
       min-height: 60px;
     }
   }

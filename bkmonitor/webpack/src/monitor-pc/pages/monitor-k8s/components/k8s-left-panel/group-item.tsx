@@ -32,33 +32,33 @@ import type { GroupListItem } from '../../typings/k8s-new';
 
 import './group-item.scss';
 
-type Tools = '' | 'clear' | 'drillDown' | 'groupBy' | 'search' | 'view';
-
-interface GroupItemProps {
-  list: GroupListItem;
-  value?: string[];
-  isGroupBy?: boolean;
-  tools?: Tools[];
-  hiddenList?: string[];
-  disabledList?: { id: string; tooltips: string }[];
-  defaultExpand?: { [key: string]: boolean } | boolean;
-  drillDownList?: string[];
-  expandLoading?: Record<string, boolean>;
-  loadMoreLoading?: Record<string, boolean>;
-  activeMetric?: string;
-  keyword?: string;
-}
-
 interface GroupItemEvent {
-  onHandleSearch: (val: { id: string; isSelect: boolean }) => void;
-  onHandleDrillDown: (val: { id: string; drillDownDimension: string }) => void;
-  onHandleGroupByChange: (val: boolean) => void;
-  onHandleMoreClick: (dimension: string) => void;
-  onHandleHiddenChange: (ids: string[]) => void;
-  onHandleItemClick: (id: string) => void;
   onClear: () => void;
   onFirstExpand: (id: string) => void;
+  onHandleDrillDown: (val: { drillDownDimension: string; id: string }) => void;
+  onHandleGroupByChange: (val: boolean) => void;
+  onHandleHiddenChange: (ids: string[]) => void;
+  onHandleItemClick: (id: string) => void;
+  onHandleMoreClick: (dimension: string) => void;
+  onHandleSearch: (val: { id: string; isSelect: boolean }) => void;
 }
+
+interface GroupItemProps {
+  activeMetric?: string;
+  defaultExpand?: boolean | { [key: string]: boolean };
+  disabledList?: { id: string; tooltips: string }[];
+  drillDownList?: string[];
+  expandLoading?: Record<string, boolean>;
+  hiddenList?: string[];
+  isGroupBy?: boolean;
+  keyword?: string;
+  list: GroupListItem;
+  loadMoreLoading?: Record<string, boolean>;
+  tools?: Tools[];
+  value?: string[];
+}
+
+type Tools = '' | 'clear' | 'drillDown' | 'groupBy' | 'search' | 'view';
 
 @Component
 export default class GroupItem extends tsc<GroupItemProps, GroupItemEvent> {

@@ -36,82 +36,82 @@ import { handleToAlertList } from './event-detail/action-detail';
 
 import type { TType as TSliderType } from './event-detail/event-detail-slider';
 // import { getStatusInfo } from './event-detail/type';
-import type { IPagination, SearchType, eventPanelType } from './typings/event';
+import type { eventPanelType, IPagination, SearchType } from './typings/event';
 import type { TranslateResult } from 'vue-i18n';
 
 import './incident-table.scss';
 
-// const alertStoreKey = '__ALERT_EVENT_COLUMN__' ;
-// const actionStoreKey = '__ACTION_EVENT_COLUMN__';
-type TableSizeType = 'large' | 'medium' | 'small';
-
-interface IncidentItem {
-  labels: { key: string; value: string }[] | string[];
-  assignees: string[];
-  incident_reason: string;
-  bk_biz_id: string;
+export interface IShowDetail {
+  activeTab?: string;
+  bizId: string;
   id: string;
-  level: string;
-  duration: string;
-  begin_time: string;
-  event_time: string;
+  type: TSliderType;
+}
+
+interface IColumnItem {
+  checked: boolean;
+  disabled: boolean;
+  id: string;
+  name: string | TranslateResult;
+  props?: {
+    fixed?: 'left' | 'right';
+    formatter?: (value: any) => any;
+    minWidth?: number | string;
+    resizable?: boolean;
+    sortable?: 'curstom' | boolean;
+    width?: number | string;
+  };
+}
+
+interface IEventStatusMap {
+  bgColor: string;
+  color: string;
+  icon: string;
+  name: string | TranslateResult;
+}
+interface IEventTableEvent {
+  onAlarmDispatch?: IncidentItem;
+  onAlertConfirm?: IncidentItem;
+  onBatchSet: string;
+  onChatGroup?: IncidentItem;
+  onLimitChange: number;
+  onManualProcess?: IncidentItem;
+  onPageChange: number;
+  onQuickShield?: IncidentItem;
+  onSelectChange: string[];
+  onShowDetail?: { id: string; type: TSliderType };
+  onSortChange: string;
+}
+interface IEventTableProps {
+  bizIds: number[];
+  doLayout: eventPanelType;
+  loading?: boolean;
+  pagination: IPagination;
+  searchType: SearchType;
+  selectedList?: string[];
+  tableData: IncidentItem[];
+}
+interface IncidentItem {
   alert_count: number;
-  severity: number;
+  assignees: string[];
+  begin_time: string;
+  bk_biz_id: string;
   create_time: number | string;
+  duration: string;
   end_time: number | string;
+  event_time: string;
+  id: string;
+  incident_reason: string;
+  labels: string[] | { key: string; value: string }[];
   last_time: string;
+  level: string;
+  severity: number;
   status: string;
 }
 
-interface IEventTableProps {
-  tableData: IncidentItem[];
-  pagination: IPagination;
-  loading?: boolean;
-  searchType: SearchType;
-  bizIds: number[];
-  doLayout: eventPanelType;
-  selectedList?: string[];
-}
-interface IEventStatusMap {
-  color: string;
-  bgColor: string;
-  name: string | TranslateResult;
-  icon: string;
-}
-interface IColumnItem {
-  id: string;
-  name: string | TranslateResult;
-  disabled: boolean;
-  checked: boolean;
-  props?: {
-    width?: number | string;
-    fixed?: 'left' | 'right';
-    minWidth?: number | string;
-    resizable?: boolean;
-    formatter?: (value: any) => any;
-    sortable?: 'curstom' | boolean;
-  };
-}
-interface IEventTableEvent {
-  onPageChange: number;
-  onLimitChange: number;
-  onShowDetail?: { id: string; type: TSliderType };
-  onSelectChange: string[];
-  onAlertConfirm?: IncidentItem;
-  onQuickShield?: IncidentItem;
-  onSortChange: string;
-  onBatchSet: string;
-  onManualProcess?: IncidentItem;
-  onChatGroup?: IncidentItem;
-  onAlarmDispatch?: IncidentItem;
-}
-
-export interface IShowDetail {
-  id: string;
-  bizId: string;
-  type: TSliderType;
-  activeTab?: string;
-}
+// const alertStoreKey = '__ALERT_EVENT_COLUMN__' ;
+// const actionStoreKey = '__ACTION_EVENT_COLUMN__';
+type TableSizeType = 'large' | 'medium' | 'small';
 @Component({
   // components: { Popover, Pagination, Checkbox }
 })

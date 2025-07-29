@@ -36,24 +36,24 @@ import type { ITableFilterItem } from 'monitor-pc/pages/monitor-k8s/typings';
 import './relation-chart-title.scss';
 import '@blueking/search-select-v3/vue2/vue2.css';
 
-interface IRelationChartTitleProps {
-  filterList?: ITableFilterItem[];
-  isOverview?: boolean;
-  searchType?: string;
-  conditionOptions?: any[];
-  showNoData?: boolean;
-  isFullScreen?: boolean;
-}
-
 interface IRelationChartTitleEvent {
+  onbackToCenter?: void;
+  onConditionChange?: void;
+  onfilterChange?: string;
+  onFullScreen?: void;
   onMenuClick: void;
   onOverview?: boolean;
   onSearchChange?: number | string;
-  onConditionChange?: void;
-  onbackToCenter?: void;
   onShowNodata?: boolean;
-  onfilterChange?: string;
-  onFullScreen?: void;
+}
+
+interface IRelationChartTitleProps {
+  conditionOptions?: any[];
+  filterList?: ITableFilterItem[];
+  isFullScreen?: boolean;
+  isOverview?: boolean;
+  searchType?: string;
+  showNoData?: boolean;
 }
 @Component
 export default class ChartTitle extends tsc<IRelationChartTitleProps, IRelationChartTitleEvent> {

@@ -26,8 +26,8 @@
 export type JsonpCallback<T> = (response: T) => void;
 
 interface JsonpOptions<T> {
-  data?: Record<string, number | string>;
   callback?: JsonpCallback<T>;
+  data?: Record<string, number | string>;
   onError?: (e: Event | string) => void;
 }
 /**

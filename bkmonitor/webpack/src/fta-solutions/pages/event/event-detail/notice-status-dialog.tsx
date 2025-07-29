@@ -33,12 +33,12 @@ import NoticeStatusTable from './notice-status-table';
 
 import './notice-status-dialog.scss';
 
-interface INoticeStatusDialog {
-  value?: boolean;
-  actionId: string;
-}
 interface IEvent {
   onShowChange?: boolean;
+}
+interface INoticeStatusDialog {
+  actionId: string;
+  value?: boolean;
 }
 
 @Component

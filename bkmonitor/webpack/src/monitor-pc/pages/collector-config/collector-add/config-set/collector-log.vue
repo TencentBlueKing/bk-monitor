@@ -27,16 +27,17 @@
   <div class="collector-log">
     <!-- 选择插件 -->
     <div
-      class="collector-log-item"
       v-show="false"
-    > <!-- 插件选择部分优先级提高，故隐藏此处 -->
+      class="collector-log-item"
+    >
+      <!-- 插件选择部分优先级提高，故隐藏此处 -->
       <div class="item-label">
         {{ $t('插件') }}
       </div>
       <div class="item-content">
         <bk-input
-          class="input-width"
           v-model="pluginName"
+          class="input-width"
           readonly
         />
       </div>
@@ -56,14 +57,14 @@
       >
         <div class="item-content">
           <div
-            class="input-group"
             v-for="(item, index) in logPath"
             :key="index"
+            class="input-group"
           >
             <bk-input
+              v-model="item.value"
               class="input-width"
               :placeholder="$t('填写日志路径')"
-              v-model="item.value"
             />
             <i
               class="icon-monitor icon-jia"
@@ -87,14 +88,14 @@
       </div>
       <div class="item-content">
         <bk-select
-          class="input-width"
           v-model="character"
+          class="input-width"
           :clearable="false"
         >
           <bk-option
             v-for="item in characterList"
-            :key="item.id"
             :id="item.id"
+            :key="item.id"
             :name="item.name"
           />
         </bk-select>
@@ -107,13 +108,13 @@
       </div>
       <div class="item-content">
         <div
-          class="input-group"
           v-for="(item, index) in filterRule"
           :key="index"
+          class="input-group"
         >
           <bk-input
-            class="input-width"
             v-model="item.value"
+            class="input-width"
             :placeholder="$t('填写规则语句')"
           />
           <i
@@ -141,9 +142,9 @@
       >
         <div class="item-content">
           <div
-            class="input-group"
             v-for="(item, index) in keywordRule"
             :key="index"
+            class="input-group"
           >
             <bk-input
               v-model="item.name"
@@ -165,9 +166,11 @@
             />
           </div>
           <div
-            style="color: #f00"
             v-if="!isRuleNameRepeat"
-          >{{ $t('注意: 名字冲突') }}</div>
+            style="color: #f00"
+          >
+            {{ $t('注意: 名字冲突') }}
+          </div>
         </div>
       </verify-input>
     </div>
@@ -175,37 +178,38 @@
 </template>
 
 <script lang="ts">
-import { deepClone } from 'monitor-common/utils/utils';
-// eslint-disable-next-line no-unused-vars
-import type { TranslateResult } from 'vue-i18n/types/index';
 import { Component, Emit, Prop, Vue, Watch } from 'vue-property-decorator';
+
+import { deepClone } from 'monitor-common/utils/utils';
 
 import VerifyInput from '../../../../components/verify-input/verify-input.vue';
 
+import type { TranslateResult } from 'vue-i18n/types/index';
+
+interface IfilterRules {
+  value: string;
+}
 interface IKeywordRule {
   name: string;
   pattern: string;
+}
+interface ILogData {
+  charset: string;
+  filter_patterns: string[];
+  log_path: string[];
+  rules: IKeywordRule[];
 }
 interface ILogPath {
   id: number;
   value: string;
 }
-interface IfilterRules {
-  value: string;
-}
-interface ILogData {
-  charset: string;
-  log_path: string[];
-  rules: IKeywordRule[];
-  filter_patterns: string[];
-}
 interface IParams {
-  log_path: string[];
   charset: string;
-  rules: IKeywordRule[];
   filter_patterns: string[];
+  log_path: string[];
+  rules: IKeywordRule[];
 }
-type TRuleType = 'path' | 'rule' | 'filter';
+type TRuleType = 'filter' | 'path' | 'rule';
 
 @Component({
   components: {
@@ -220,7 +224,7 @@ export default class CollectorLog extends Vue {
   keywordRule: IKeywordRule[] = [{ name: '', pattern: '' }]; //    关键字规则
   filterRule: IfilterRules[] = [{ value: '' }];
   //  校验提示
-  rule: { logPath: boolean; keywordRule: boolean } = {
+  rule: { keywordRule: boolean; logPath: boolean } = {
     logPath: false,
     keywordRule: false,
   };
@@ -301,14 +305,14 @@ export default class CollectorLog extends Vue {
 
   //  添加行操作
   handleAddRow(type: TRuleType, index: number): void {
-    const arr: ILogPath[] | IKeywordRule[] | IfilterRules[] = this.ruleDataMap[type];
+    const arr: IfilterRules[] | IKeywordRule[] | ILogPath[] = this.ruleDataMap[type];
     const params: any = deepClone(this.ruleItemMap[type]);
     arr.splice(index + 1, 0, params);
   }
 
   //  删除行操作
   handleDelRow(type: TRuleType, index: number): void {
-    const arr: ILogPath[] | IKeywordRule[] | IfilterRules[] = this.ruleDataMap[type];
+    const arr: IfilterRules[] | IKeywordRule[] | ILogPath[] = this.ruleDataMap[type];
     if (arr.length === 1) {
       const params: any = deepClone(this.ruleItemMap[type]);
       arr.splice(index + 1, 0, params);

@@ -27,10 +27,10 @@
   <div class="content-process">
     <ul class="process-list">
       <li
-        class="process-list-item"
         v-for="(item, index) in processList"
-        :class="{ 'is-active': item.displayName === process }"
         :key="index"
+        class="process-list-item"
+        :class="{ 'is-active': item.displayName === process }"
         @click="handleProcessChange(item)"
       >
         <span :class="`item-status-${item.status}`" />
@@ -49,8 +49,8 @@
       </li>
     </ul>
     <ul
-      class="chart-list"
       v-if="false"
+      class="chart-list"
     >
       <li class="chart-list-item special-item">
         <monitor-echarts
@@ -83,12 +83,12 @@
   </div>
 </template>
 <script lang="ts">
-import MonitorEcharts from 'monitor-ui/monitor-echarts/monitor-echarts-new.vue';
 import { Component, Emit, Prop, Vue } from 'vue-property-decorator';
+
+import MonitorEcharts from 'monitor-ui/monitor-echarts/monitor-echarts-new.vue';
 
 import AbnormalTips from '../../../components/abnormal-tips/abnormal-tips.vue';
 import PerformanceModule from '../../../store/modules/performance';
-
 import DashboardPanels from './dashboard-panels.vue';
 
 @Component({

@@ -28,19 +28,24 @@ import { alertTopN, listAlertTags } from 'monitor-api/modules/alert';
 import { getAssignConditionKeys, searchObjectAttribute } from 'monitor-api/modules/assign';
 import { listEventPlugin } from 'monitor-api/modules/event_plugin';
 import { getVariableValue } from 'monitor-api/modules/grafana';
-import { listUsersUser, groupsIpChooserDynamicGroup } from 'monitor-api/modules/model';
+import { groupsIpChooserDynamicGroup, listUsersUser } from 'monitor-api/modules/model';
 import { getMetricListV2, getScenarioList, getStrategyV2, plainStrategyList } from 'monitor-api/modules/strategies';
 
 import { handleTransformToTimestamp } from '../../../components/time-range/utils';
-import { CONDITIONS, type ICondtionItem } from './index';
+import { type ICondtionItem, CONDITIONS } from './index';
 
 /* 通知人员需支持远程搜索 */
 export const NOTICE_USERS_KEY = 'notice_users';
 /* 策略标签 */
 const STRATEGY_LABELS = 'labels';
 
-/* 每个key 包含的value选项数组 */
-export type TValueMap = Map<string, { id: string; name: string }[]>;
+export interface IConditionProps {
+  groupKey: string[];
+  groupKeys: TGroupKeys;
+  // keyList?: IListItem[];
+  keys?: IListItem[];
+  valueMap: TValueMap;
+}
 /*
   条件选择器特殊选项
   key: 组成形式 `${key}=${value}`
@@ -49,19 +54,14 @@ export type TValueMap = Map<string, { id: string; name: string }[]>;
 export interface ISpecialOptions {
   [key: string]: TValueMap;
 }
+/* 每个key前缀包含的选项 例：dimensions: ['xxx'] => dimensions.xxx */
+export type TGroupKeys = Map<string, any[] | string[]>;
+/* 每个key 包含的value选项数组 */
+export type TValueMap = Map<string, { id: string; name: string }[]>;
 interface IListItem {
   id: string;
   name: string;
 }
-export interface IConditionProps {
-  // keyList?: IListItem[];
-  keys?: IListItem[];
-  valueMap: TValueMap;
-  groupKeys: TGroupKeys;
-  groupKey: string[];
-}
-/* 每个key前缀包含的选项 例：dimensions: ['xxx'] => dimensions.xxx */
-export type TGroupKeys = Map<string, any[] | string[]>;
 /* 条件选择组合key选项 */
 export const GROUP_KEYS = ['dimensions', 'tags', 'set', 'module', 'host'];
 /* 条件选择value固定项 */
@@ -90,97 +90,6 @@ export const KEY_TAG_MAPS = {
   [EKeyTags.strategy]: ['alert.scenario', 'alert.metric', 'alert.strategy_id', STRATEGY_LABELS],
   [EKeyTags.event]: ['alert.name', NOTICE_USERS_KEY, 'dimensions', 'ip', 'bk_cloud_id', 'alert.event_source'],
 };
-
-export function conditionCompare(left: ICondtionItem, right: ICondtionItem) {
-  if (!left || !right) return false;
-  const leftValues = JSON.parse(JSON.stringify(left?.value || [])).sort();
-  const rightValues = JSON.parse(JSON.stringify(right?.value || [])).sort();
-  return (
-    // biome-ignore lint/suspicious/noSelfCompare: <explanation>
-    (left.condition || CONDITIONS[0].id) === (left.condition || CONDITIONS[0].id) &&
-    left.field === right.field &&
-    left.method === right.method &&
-    JSON.stringify(leftValues) === JSON.stringify(rightValues)
-  );
-}
-/* 查找替换 */
-export function conditionFindReplace(
-  oldCondition: ICondtionItem[],
-  findData: ICondtionItem[],
-  replaceData: ICondtionItem[],
-  isUnshift = false
-) {
-  const conditions = [];
-  const findConditions: ICondtionItem[] = findData.map(item => ({
-    ...item,
-    condition: item.condition || CONDITIONS[0].id,
-  })) as any;
-  const replaceConditions = JSON.parse(JSON.stringify(replaceData || [])).map(item => ({
-    ...item,
-    condition: item.condition || CONDITIONS[0].id,
-  }));
-  let startHitIndex = 0;
-  oldCondition.forEach(condition => {
-    let isHit = false;
-    if (findConditions.length) {
-      for (let i = 0; i < findConditions.length; i++) {
-        if (conditionCompare(condition, findConditions[i])) {
-          isHit = true;
-          findConditions.splice(i, 1);
-          break;
-        }
-      }
-    }
-    if (isHit) {
-      startHitIndex = conditions.length;
-    } else {
-      conditions.push(condition);
-    }
-  });
-  if (findConditions.length === 0) {
-    if (isUnshift) {
-      conditions.unshift(...replaceConditions);
-    } else {
-      conditions.splice(startHitIndex, 0, ...replaceConditions);
-    }
-    return conditions;
-  }
-  return oldCondition;
-}
-
-/* 查找当前条件是否包含在当前条件组合里 */
-export function conditionsInclues(targetCondition: ICondtionItem, conditions: ICondtionItem[]) {
-  let isInclues = false;
-  for (const condition of conditions) {
-    if (conditionCompare(targetCondition, condition)) {
-      isInclues = true;
-      break;
-    }
-  }
-  return isInclues;
-}
-
-/* 获取所有的条件队列里相同条件组合 */
-export function statisticsSameConditions(groups: ICondtionItem[][]) {
-  const localGroups: ICondtionItem[][] = JSON.parse(JSON.stringify(groups || [])).sort((a, b) => a.length - b.length);
-  let filterConditions = [];
-  const isHasNull = localGroups.some(item => !item.length);
-  if (isHasNull) {
-    return filterConditions;
-  }
-  if (localGroups.length >= 2) {
-    filterConditions = localGroups[0].filter(item => localGroups.every(g => conditionsInclues(item, g)));
-  } else {
-    filterConditions = localGroups;
-  }
-  return filterConditions;
-}
-
-/* topn 接口部分数据需要去掉首尾的双引号 */
-export function topNDataStrTransform(value: string) {
-  const result = value.replace(/(^")|("$)/g, '');
-  return result;
-}
 
 /* 获取所有key和value选项 */
 export async function allKVOptions(
@@ -502,6 +411,99 @@ export async function allKVOptions(
   });
   awaitAll();
 }
+export function conditionCompare(left: ICondtionItem, right: ICondtionItem) {
+  if (!left || !right) return false;
+  const leftValues = JSON.parse(JSON.stringify(left?.value || [])).sort();
+  const rightValues = JSON.parse(JSON.stringify(right?.value || [])).sort();
+  return (
+    // biome-ignore lint/suspicious/noSelfCompare: <explanation>
+    (left.condition || CONDITIONS[0].id) === (left.condition || CONDITIONS[0].id) &&
+    left.field === right.field &&
+    left.method === right.method &&
+    JSON.stringify(leftValues) === JSON.stringify(rightValues)
+  );
+}
+
+/* 查找替换 */
+export function conditionFindReplace(
+  oldCondition: ICondtionItem[],
+  findData: ICondtionItem[],
+  replaceData: ICondtionItem[],
+  isUnshift = false
+) {
+  const conditions = [];
+  const findConditions: ICondtionItem[] = findData.map(item => ({
+    ...item,
+    condition: item.condition || CONDITIONS[0].id,
+  })) as any;
+  const replaceConditions = JSON.parse(JSON.stringify(replaceData || [])).map(item => ({
+    ...item,
+    condition: item.condition || CONDITIONS[0].id,
+  }));
+  let startHitIndex = 0;
+  oldCondition.forEach(condition => {
+    let isHit = false;
+    if (findConditions.length) {
+      for (let i = 0; i < findConditions.length; i++) {
+        if (conditionCompare(condition, findConditions[i])) {
+          isHit = true;
+          findConditions.splice(i, 1);
+          break;
+        }
+      }
+    }
+    if (isHit) {
+      startHitIndex = conditions.length;
+    } else {
+      conditions.push(condition);
+    }
+  });
+  if (findConditions.length === 0) {
+    if (isUnshift) {
+      conditions.unshift(...replaceConditions);
+    } else {
+      conditions.splice(startHitIndex, 0, ...replaceConditions);
+    }
+    return conditions;
+  }
+  return oldCondition;
+}
+
+/* conditions去重 */
+export function conditionsDeduplication(conditions: ICondtionItem[]): ICondtionItem[] {
+  const target = [];
+  conditions.forEach(item => {
+    if (!conditionsInclues(item, target)) {
+      target.push(item);
+    }
+  });
+  return target;
+}
+
+/* 查找当前条件是否包含在当前条件组合里 */
+export function conditionsInclues(targetCondition: ICondtionItem, conditions: ICondtionItem[]) {
+  let isInclues = false;
+  for (const condition of conditions) {
+    if (conditionCompare(targetCondition, condition)) {
+      isInclues = true;
+      break;
+    }
+  }
+  return isInclues;
+}
+
+/* 将conditions中 key和 method相同的规则合并 */
+export function mergeConditions(conditions: ICondtionItem[]) {
+  return conditions.reduce((result, item) => {
+    const targetCondition = result.find(config => item.field === config.field);
+    if (targetCondition && targetCondition?.method === item.method) {
+      targetCondition.value = [...targetCondition.value, ...item.value];
+    } else {
+      result.push(item);
+    }
+    return result;
+  }, []);
+}
 
 /* 根据策略id获取维度及维度值列表 */
 export async function setDimensionsOfStrategy(strategyId, setData: (valuesMap) => void) {
@@ -556,26 +558,24 @@ export async function setDimensionsOfStrategy(strategyId, setData: (valuesMap) =
   setData(valuesMap);
 }
 
-/* conditions去重 */
-export function conditionsDeduplication(conditions: ICondtionItem[]): ICondtionItem[] {
-  const target = [];
-  conditions.forEach(item => {
-    if (!conditionsInclues(item, target)) {
-      target.push(item);
-    }
-  });
-  return target;
+/* 获取所有的条件队列里相同条件组合 */
+export function statisticsSameConditions(groups: ICondtionItem[][]) {
+  const localGroups: ICondtionItem[][] = JSON.parse(JSON.stringify(groups || [])).sort((a, b) => a.length - b.length);
+  let filterConditions = [];
+  const isHasNull = localGroups.some(item => !item.length);
+  if (isHasNull) {
+    return filterConditions;
+  }
+  if (localGroups.length >= 2) {
+    filterConditions = localGroups[0].filter(item => localGroups.every(g => conditionsInclues(item, g)));
+  } else {
+    filterConditions = localGroups;
+  }
+  return filterConditions;
 }
 
-/* 将conditions中 key和 method相同的规则合并 */
-export function mergeConditions(conditions: ICondtionItem[]) {
-  return conditions.reduce((result, item) => {
-    const targetCondition = result.find(config => item.field === config.field);
-    if (targetCondition && targetCondition?.method === item.method) {
-      targetCondition.value = [...targetCondition.value, ...item.value];
-    } else {
-      result.push(item);
-    }
-    return result;
-  }, []);
+/* topn 接口部分数据需要去掉首尾的双引号 */
+export function topNDataStrTransform(value: string) {
+  const result = value.replace(/(^")|("$)/g, '');
+  return result;
 }

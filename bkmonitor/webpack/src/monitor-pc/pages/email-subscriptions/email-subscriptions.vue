@@ -33,8 +33,8 @@
       @item-click="arr => handleItemClick(arr, 'subAcitveList')"
     >
       <span
-        class="header-btn"
         slot="header-btn"
+        class="header-btn"
         @click.stop="handleRouterTo('email-subscriptions-add')"
       >
         <span class="icon-monitor icon-mc-plus-fill" />
@@ -45,9 +45,9 @@
         class="list-content"
       >
         <table-skeleton
+          v-if="subscribedLoading"
           style="padding: 16px"
           :type="3"
-          v-if="subscribedLoading"
         />
         <bk-table
           v-else
@@ -112,9 +112,9 @@
             />
             <bk-table-column
               v-else
+              :key="index"
               :show-overflow-tooltip="item.overflow"
               :width="item.width"
-              :key="index"
               :label="item.label"
               :prop="item.key"
               :formatter="item.formatter"
@@ -212,6 +212,8 @@
 </template>
 
 <script lang="ts">
+import { Component, Vue } from 'vue-property-decorator';
+
 import {
   groupList,
   reportClone,
@@ -221,16 +223,14 @@ import {
   reportList,
 } from 'monitor-api/modules/report';
 import { deepClone, getCookie, transformDataKey } from 'monitor-common/utils/utils';
-import { Component, Vue } from 'vue-property-decorator';
 
+import TableSkeleton from '../../components/skeleton/table-skeleton';
 import { isEn } from '../../i18n/lang';
-
 import ListCollapse from './components/list-collapse.vue';
 // import { getReceiver } from 'monitor-api/modules/notice_group'
 import ReceiverList from './components/receiver-list.vue';
-import type { ITableColumnItem } from './types';
 
-import TableSkeleton from '../../components/skeleton/table-skeleton';
+import type { ITableColumnItem } from './types';
 
 const { i18n } = window;
 const frequencyMap: string[] = [
@@ -391,7 +391,7 @@ export default class EmailSubscriptions extends Vue {
   /**
    * 翻页
    */
-  private changelistPage(page: number, type: 'subscribed' | 'send') {
+  private changelistPage(page: number, type: 'send' | 'subscribed') {
     const temp = type === 'subscribed' ? this.subscribedPagination : this.sendPagination;
     temp.current = page;
     const { current, limit } = temp;
@@ -407,7 +407,7 @@ export default class EmailSubscriptions extends Vue {
   /**
    * 切换每页数量
    */
-  private handlePageLimitChange(limit: number, type: 'subscribed' | 'send') {
+  private handlePageLimitChange(limit: number, type: 'send' | 'subscribed') {
     const temp = type === 'subscribed' ? this.subscribedPagination : this.sendPagination;
     temp.limit = limit;
     this.changelistPage(1, type);
@@ -453,7 +453,7 @@ export default class EmailSubscriptions extends Vue {
       .finally(() => (this.subscribedLoading = false));
   }
 
-  private handleItemClick(arr: string[], type: 'subAcitveList' | 'sendActiveList') {
+  private handleItemClick(arr: string[], type: 'sendActiveList' | 'subAcitveList') {
     this[type] = arr;
   }
 
@@ -508,7 +508,7 @@ export default class EmailSubscriptions extends Vue {
       title: this.$t(bool ? '重新订阅' : '取消订阅该邮件，且不再显示？'),
       width: getCookie('blueking_language') === 'en' && !bool ? 500 : 400,
       confirmLoading: true,
-      // eslint-disable-next-line @typescript-eslint/no-misused-promises
+
       confirmFn: async () => {
         try {
           await reportCreateOrUpdate(params).then(() => {
@@ -563,7 +563,7 @@ export default class EmailSubscriptions extends Vue {
     this.$bkInfo({
       title: this.$t('删除订阅'),
       confirmLoading: true,
-      // eslint-disable-next-line @typescript-eslint/no-misused-promises
+
       confirmFn: async () => {
         try {
           await reportDelete({ report_item_id: row.id }).then(() => {

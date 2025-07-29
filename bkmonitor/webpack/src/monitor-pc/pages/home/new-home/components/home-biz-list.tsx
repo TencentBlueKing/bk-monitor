@@ -40,18 +40,18 @@ import './home-biz-list.scss';
 /** 业务组件常用的业务缓存key */
 const BIZ_SELECTOR_COMMON_IDS = 'BIZ_SELECTOR_COMMON_IDS';
 
-interface IProps {
-  zIndex?: number;
-  bizList: ISpaceItem[];
-  theme?: ThemeType;
-  minWidth?: number;
-  stickyList?: string[];
-  isShowCommon?: boolean;
-}
 export type ThemeType = 'dark' | 'light';
 interface IEvents {
   onChange: number;
   onOpenSpaceManager: () => void;
+}
+interface IProps {
+  bizList: ISpaceItem[];
+  isShowCommon?: boolean;
+  minWidth?: number;
+  stickyList?: string[];
+  theme?: ThemeType;
+  zIndex?: number;
 }
 
 /**
@@ -88,10 +88,10 @@ export default class HomeBizSelect extends tsc<IProps, IEvents> {
 
   generalList: IListItem[] = [];
   pagination: {
-    current: number;
     count: number;
-    limit: number;
+    current: number;
     data: IListItem[];
+    limit: number;
   } = {
     current: 1,
     count: 0,

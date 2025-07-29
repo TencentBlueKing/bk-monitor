@@ -40,20 +40,20 @@ import DimensionEcharts from './dimension-echarts';
 import type { ConditionChangeEvent, DimensionType, IStatisticsInfo, ITopKField } from '../typing';
 
 import './statistics-list.scss';
-interface StatisticsListProps {
-  selectField: string;
-  fieldType: string;
-  popoverInstance?: any;
-  isDimensions?: boolean;
-  source: APIType;
-  isShow?: boolean;
-  isShowChart?: boolean;
-}
-
 interface StatisticsListEvents {
   onConditionChange(e: ConditionChangeEvent): void;
   onShowMore(): void;
   onSliderShowChange(sliderShow: boolean): void;
+}
+
+interface StatisticsListProps {
+  fieldType: string;
+  isDimensions?: boolean;
+  isShow?: boolean;
+  isShowChart?: boolean;
+  popoverInstance?: any;
+  selectField: string;
+  source: APIType;
 }
 
 @Component

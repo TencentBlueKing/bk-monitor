@@ -32,23 +32,16 @@ import { deepClone } from 'monitor-common/utils/utils';
 import './user-selector.scss';
 
 export interface IGroupListItem {
-  children: {
-    display_name: string;
-    id: string;
-    type: string;
-    username: string;
-    members?: { display_name?: string; id?: string }[];
-  }[];
   display_name: string;
   id: string;
   type: string;
-}
-
-interface IProps {
-  value?: string[];
-  groupList?: IGroupListItem[];
-  hasDrag?: boolean;
-  color?: string;
+  children: {
+    display_name: string;
+    id: string;
+    members?: { display_name?: string; id?: string }[];
+    type: string;
+    username: string;
+  }[];
 }
 
 interface IEvents {
@@ -59,6 +52,13 @@ interface IEvents {
     name: string; // 用户名
     type: 'group' | 'user';
   }[];
+}
+
+interface IProps {
+  color?: string;
+  groupList?: IGroupListItem[];
+  hasDrag?: boolean;
+  value?: string[];
 }
 
 @Component

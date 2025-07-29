@@ -28,25 +28,25 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import './operate-options.scss';
 
-interface IOption {
-  id: string;
-  name?: string;
-  authority?: boolean;
-  disable?: boolean;
-  authorityDetail?: string;
-  tip?: string;
+interface IOperateOptionsEvents {
+  onOptionClick?: string;
 }
-interface IOptions {
-  outside?: IOption[];
-  popover?: IOption[];
-}
-
 interface IOperateOptionsProps {
   options?: IOptions;
 }
 
-interface IOperateOptionsEvents {
-  onOptionClick?: string;
+interface IOption {
+  authority?: boolean;
+  authorityDetail?: string;
+  disable?: boolean;
+  id: string;
+  name?: string;
+  tip?: string;
+}
+
+interface IOptions {
+  outside?: IOption[];
+  popover?: IOption[];
 }
 
 @Component({

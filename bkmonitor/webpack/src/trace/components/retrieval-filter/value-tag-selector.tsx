@@ -24,13 +24,13 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, shallowRef, computed, useTemplateRef, watch } from 'vue';
+import { computed, defineComponent, shallowRef, useTemplateRef, watch } from 'vue';
+
+import { onClickOutside, promiseTimeout } from '@vueuse/core';
 import { useI18n } from 'vue-i18n';
 
-import { promiseTimeout, onClickOutside } from '@vueuse/core';
-
 import AutoWidthInput from './auto-width-input';
-import { EFieldType, type IValue, VALUE_TAG_SELECTOR_EMITS, VALUE_TAG_SELECTOR_PROPS } from './typing';
+import { type IValue, EFieldType, VALUE_TAG_SELECTOR_EMITS, VALUE_TAG_SELECTOR_PROPS } from './typing';
 import { isNumeric, triggerShallowRef } from './utils';
 import ValueOptions from './value-options';
 import ValueTagInput from './value-tag-input';

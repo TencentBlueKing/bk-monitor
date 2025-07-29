@@ -32,23 +32,23 @@
       <slot />
     </span>
     <bk-select
-      :ext-popover-cls="`dropdown-content ${extPopoverCls}`"
-      class="select-dropdown"
       ref="selectDropdown"
       v-model="localValue"
+      :ext-popover-cls="`dropdown-content ${extPopoverCls}`"
+      class="select-dropdown"
       :popover-min-width="popoverMinWidth"
       @toggle="handleToggle"
       @change="handleSelectChange"
     >
       <bk-option
         v-for="(option, index) in localList"
-        :key="index"
         :id="option.id"
+        :key="index"
         :disabled="option.disabled"
         :name="option.name"
       >
         <slot
-          v-bind:option="option"
+          :option="option"
           name="item"
         />
       </bk-option>
@@ -56,8 +56,9 @@
   </span>
 </template>
 <script lang="ts">
-import { deepClone } from 'monitor-common/utils/utils';
 import { Component, Emit, Model, Prop, Ref, Vue, Watch } from 'vue-property-decorator';
+
+import { deepClone } from 'monitor-common/utils/utils';
 
 @Component({ name: 'monitor-select' })
 export default class MonitorSelect extends Vue {
@@ -66,12 +67,12 @@ export default class MonitorSelect extends Vue {
   @Prop({ default: 100, type: Number }) readonly popoverMinWidth: number;
   @Prop({ default: '', type: String }) readonly extPopoverCls: '';
 
-  @Model('valueChange') readonly value: string | number;
+  @Model('valueChange') readonly value: number | string;
 
   @Ref('selectDropdown') readonly selectDropdownRef: any;
 
   private showInput = false;
-  private localValue: string | number = '';
+  private localValue: number | string = '';
   private localList: any = [];
   private localInputValue = '';
 

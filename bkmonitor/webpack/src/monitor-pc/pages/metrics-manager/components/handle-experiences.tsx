@@ -55,23 +55,23 @@ const bindList = [
   { id: EType.DIMENSION, name: window.i18n.tc('维度') },
 ];
 
+interface IExperience {
+  alert_name?: string;
+  conditions?: IConditionItem[];
+  create_time?: string;
+  create_user?: string;
+  description: string;
+  id?: string; // 仅用于删除
+  is_match?: boolean; // 是否命中；只作为标识
+  metric?: any[];
+  type: EType;
+  update_time?: string;
+  update_user?: string;
+}
 interface IHandleExperienceProps {
-  show?: boolean;
   detail?: IDetail;
   metricData?: IMetricDetail;
-}
-interface IExperience {
-  type: EType;
-  conditions?: IConditionItem[];
-  metric?: any[];
-  description: string;
-  create_user?: string;
-  create_time?: string;
-  update_user?: string;
-  update_time?: string;
-  is_match?: boolean; // 是否命中；只作为标识
-  id?: string; // 仅用于删除
-  alert_name?: string;
+  show?: boolean;
 }
 
 @Component({

@@ -23,11 +23,11 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, type PropType, computed, useTemplateRef, watch, nextTick } from 'vue';
-import { useI18n } from 'vue-i18n';
+import { type PropType, computed, defineComponent, nextTick, useTemplateRef, watch } from 'vue';
 
 import { Checkbox } from 'bkui-vue';
 import { storeToRefs } from 'pinia';
+import { useI18n } from 'vue-i18n';
 
 import BackTop from '../../../../components/back-top/back-top';
 import { useTraceExploreStore } from '../../../../store/modules/explore';
@@ -66,13 +66,13 @@ export default defineComponent({
     },
     /** 是否展示详情 */
     showSlideDetail: {
-      type: Object as PropType<{ type: 'span' | 'trace'; id: string }>,
+      type: Object as PropType<{ id: string; type: 'span' | 'trace' }>,
       default: null,
     },
   },
   emits: {
     checkboxFiltersChange: (checkboxGroupEvent: string[]) => Array.isArray(checkboxGroupEvent),
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+
     conditionChange: (val: ConditionChangeEvent) => true,
     clearRetrievalFilter: () => true,
     setUrlParams: () => true,

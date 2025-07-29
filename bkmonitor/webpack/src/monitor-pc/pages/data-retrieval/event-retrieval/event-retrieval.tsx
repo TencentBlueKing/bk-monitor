@@ -39,10 +39,10 @@ import FieldFiltering from '../event-retrieval/field-filtering';
 import HandleBtn from '../handle-btn/handle-btn';
 import {
   type EventRetrievalViewType,
-  FieldValue,
   type IDataRetrievalView,
   type IEventRetrieval,
   type IFilterCondition,
+  FieldValue,
 } from '../typings';
 import FilterCondition from './filter-condition';
 
@@ -336,7 +336,7 @@ export default class EventRetrieval extends tsc<IEventRetrieval.IProps, IEventRe
    * @description: 获取维度列表数据
    */
 
-  getGroupByList(time?: { start_time: number; end_time: number }) {
+  getGroupByList(time?: { end_time: number; start_time: number }) {
     if (!this.currentGroupByVarPramas.result_table_id) return;
     const timeRange = time ? time : this.timeRange;
     this.timeRangeCache = [timeRange.start_time, timeRange.end_time];

@@ -25,28 +25,17 @@
  */
 
 import { type MaybeRef, onBeforeUnmount } from 'vue';
-import { type TippyContent, type TippyOptions, useTippy } from 'vue-tippy';
 
 import { get } from '@vueuse/core';
+import { type TippyContent, type TippyOptions, useTippy } from 'vue-tippy';
 
 import { ENABLED_TABLE_DESCRIPTION_HEADER_CLASS_NAME, ENABLED_TABLE_ELLIPSIS_CELL_CLASS_NAME } from '../constants';
 import { isEllipsisActiveSingleLine } from '../utils/dom-helper';
 
 import type { PrimaryTable } from '@blueking/tdesign-ui';
 
-type ICSSSelector = string;
-type PopoverContent = HTMLElement | JSX.Element | number | string;
-type PopoverTriggerEventType = 'click' | 'mouseenter';
-
 export interface UseTablePopoverOptions {
-  trigger: {
-    /** 触发元素 */
-    selector: ICSSSelector;
-    /** 延迟触发/防抖 时间 */
-    delay?: number;
-    /** 需要监听的触发类型（默认为 'mouseenter'） */
-    eventType?: PopoverTriggerEventType;
-  };
+  popoverOptions?: Partial<TippyOptions>;
   getContentOptions: (
     el: HTMLElement,
     event: MouseEvent
@@ -56,8 +45,19 @@ export interface UseTablePopoverOptions {
   }; // 自定义内容获取
   // popover 隐藏回调
   onHide?: () => void;
-  popoverOptions?: Partial<TippyOptions>;
+  trigger: {
+    /** 延迟触发/防抖 时间 */
+    delay?: number;
+    /** 需要监听的触发类型（默认为 'mouseenter'） */
+    eventType?: PopoverTriggerEventType;
+    /** 触发元素 */
+    selector: ICSSSelector;
+  };
 }
+type ICSSSelector = string;
+type PopoverContent = HTMLElement | JSX.Element | number | string;
+
+type PopoverTriggerEventType = 'click' | 'mouseenter';
 
 export const useTablePopover = (
   delegationRoot: MaybeRef<InstanceType<typeof PrimaryTable>>,

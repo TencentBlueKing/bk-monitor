@@ -60,32 +60,6 @@ const TABLE_COLUMN_SORT_WIDTH = 120;
 // 外容器内边距
 const CONTAINER_PADDING_WIDTH = 32;
 
-interface IPagination {
-  current: number;
-  count: number;
-  limit: number;
-}
-
-interface ISortFieldItem {
-  id: string;
-  name: string;
-}
-
-interface ICommonSelectTableProps {
-  // panel实例
-  panel: PanelModel;
-  // 视图数据参数配置
-  viewOptions: IViewOptions;
-  // 是否为数据总览模式
-  isOverview: boolean;
-  // dashboard 面板是否有overview_panels配置
-  hasOverviewPanels?: boolean;
-  // 展示模式 纯列表 list 纯视图 dashboar  列表和纯视图混合模式 default
-  showMode?: ShowModeType;
-  // 容器宽度
-  width?: number;
-}
-
 interface ICommonSelectTableEvent {
   // 详情选中列表行数据触发
   onChange: IViewOptions;
@@ -93,6 +67,32 @@ interface ICommonSelectTableEvent {
   onOverviewChange: boolean;
   // 标题修改触发
   onTitleChange: string;
+}
+
+interface ICommonSelectTableProps {
+  // dashboard 面板是否有overview_panels配置
+  hasOverviewPanels?: boolean;
+  // 是否为数据总览模式
+  isOverview: boolean;
+  // panel实例
+  panel: PanelModel;
+  // 展示模式 纯列表 list 纯视图 dashboar  列表和纯视图混合模式 default
+  showMode?: ShowModeType;
+  // 视图数据参数配置
+  viewOptions: IViewOptions;
+  // 容器宽度
+  width?: number;
+}
+
+interface IPagination {
+  count: number;
+  current: number;
+  limit: number;
+}
+
+interface ISortFieldItem {
+  id: string;
+  name: string;
 }
 
 @Component

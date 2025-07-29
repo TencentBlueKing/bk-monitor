@@ -23,15 +23,15 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, ref, computed, onMounted, onBeforeUnmount, type PropType } from 'vue';
+import { type PropType, computed, defineComponent, onBeforeUnmount, onMounted, ref } from 'vue';
 
 import './TagDisplay.scss';
 
 interface ITagItem {
   display_key: string;
   display_value: string;
-  value: string;
   key: string;
+  value: string;
 }
 
 export default defineComponent({

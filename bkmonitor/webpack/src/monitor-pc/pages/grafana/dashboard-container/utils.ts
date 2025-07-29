@@ -25,23 +25,23 @@
  */
 
 export interface ITreeMenuItem {
-  id: number;
-  title: string;
-  icon?: string;
+  children?: ITreeMenuItem[];
+  editable?: boolean;
   expend?: boolean;
-  level?: number;
-  uid: string;
   hasPermission?: boolean;
+  icon?: string;
+  id: number;
   isFolder?: boolean;
   isStarred?: boolean;
-  editable?: boolean;
+  level?: number;
+  title: string;
+  uid: string;
   url?: string;
-  children?: ITreeMenuItem[];
 }
 export interface ITreeOptions {
-  level?: number;
-  expendIcon?: string;
   closeIcon?: string;
+  expendIcon?: string;
+  level?: number;
 }
 /**
  * 树形列表数据项抽象类

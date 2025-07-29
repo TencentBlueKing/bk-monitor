@@ -25,8 +25,8 @@
 -->
 <template>
   <div
-    class="config-delivery"
     v-bkloading="{ isLoading: loading }"
+    class="config-delivery"
     :class="{ 'need-loading': loading }"
   >
     <template v-if="!isTencentCloudPlugin">

@@ -52,6 +52,18 @@ export enum TabEnum {
   TargetDetail = 'targetDetail',
 }
 
+export enum TCollectorAlertStage {
+  collecting = 'collecting',
+  storage = 'storage',
+  transfer = 'transfer',
+}
+
+export type ChangeConfig<T extends TabEnum, K extends TabProperty<T>> = {
+  data: TabValue<T, K>;
+  property: K;
+  tab: T;
+};
+
 export interface DetailData {
   basic_info: Record<string, any>;
   extend_info: Record<string, any>;
@@ -59,19 +71,7 @@ export interface DetailData {
   runtime_params: Record<string, any>[];
   subscription_id: number;
 }
-
-export enum TCollectorAlertStage {
-  collecting = 'collecting',
-  storage = 'storage',
-  transfer = 'transfer',
-}
-
 export type TabData<T extends TabEnum> = CollectorDetail['allData'][T];
 export type TabProperty<T extends TabEnum> = keyof TabData<T>;
-export type TabValue<T extends TabEnum, K extends TabProperty<T>> = TabData<T>[K];
 
-export type ChangeConfig<T extends TabEnum, K extends TabProperty<T>> = {
-  tab: T;
-  property: K;
-  data: TabValue<T, K>;
-};
+export type TabValue<T extends TabEnum, K extends TabProperty<T>> = TabData<T>[K];

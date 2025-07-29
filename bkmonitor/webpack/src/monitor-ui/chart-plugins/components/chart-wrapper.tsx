@@ -60,7 +60,6 @@ import PortStatusChart from '../plugins/port-status-chart/port-status-chart';
 import ProfilingGraph from '../plugins/profiling-graph/profiling-graph';
 import RatioRingChart from '../plugins/ratio-ring-chart/ratio-ring-chart';
 import RelatedLogChart from '../plugins/related-log-chart/related-log-chart';
-
 // import RelationGraph from '../plugins/relation-graph/relation-graph';
 import ResourceChart from '../plugins/resource-chart/resource-chart';
 import StatusListChart from '../plugins/status-list-chart/status-list-chart';
@@ -69,9 +68,9 @@ import TableBarChart from '../plugins/table-bar-chart/table-bar-chart';
 import TableChart from '../plugins/table-chart/table-chart';
 import TagChart from '../plugins/tag-chart/tag-chart';
 import TextUnit from '../plugins/text-unit/text-unit';
-import LineEcharts from '../plugins/time-series/time-series';
 import TimeSeriesForecast from '../plugins/time-series-forecast/time-series-forecast';
 import TimeSeriesOutlier from '../plugins/time-series-outlier/time-series-outlier';
+import LineEcharts from '../plugins/time-series/time-series';
 import { initLogRetrieveWindowsFields } from '../utils/init-windows';
 
 import type { ChartTitleMenuType, IDataItem, PanelModel, ZrClickEvent } from '../typings';
@@ -82,25 +81,25 @@ import type { IDetectionConfig } from 'monitor-pc/pages/strategy-config/strategy
 
 import './chart-wrapper.scss';
 
-interface IChartWrapperProps {
-  panel: PanelModel;
-  chartChecked?: boolean;
-  collapse?: boolean;
-  detectionConfig?: IDetectionConfig;
-  needCheck?: boolean;
-  customMenuList?: ChartTitleMenuType[];
-  isSingleChart?: boolean;
-}
 interface IChartWrapperEvent {
   onChartCheck: boolean;
   onCollapse: boolean;
-  onCollectChart?: () => void;
-  onChangeHeight?: (height: number) => void;
-  onDblClick?: () => void;
-  onZrClick?: (event: ZrClickEvent) => void;
   onDimensionsOfSeries?: string[];
+  onChangeHeight?: (height: number) => void;
+  onCollectChart?: () => void;
+  onDblClick?: () => void;
   /** 图表鼠标右击事件的回调方法 */
   onMenuClick?: (data: IDataItem) => void;
+  onZrClick?: (event: ZrClickEvent) => void;
+}
+interface IChartWrapperProps {
+  chartChecked?: boolean;
+  collapse?: boolean;
+  customMenuList?: ChartTitleMenuType[];
+  detectionConfig?: IDetectionConfig;
+  isSingleChart?: boolean;
+  needCheck?: boolean;
+  panel: PanelModel;
 }
 
 @Component({

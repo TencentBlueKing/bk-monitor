@@ -33,13 +33,13 @@ import VariableList from './variable-list/variable-list';
 
 import './meal-desc.scss';
 
-interface IMealDescProps {
-  show?: boolean;
-  pluginType?: string;
-  pluginTypeId?: number;
-}
 interface IMealDescEvent {
   onChange?: boolean;
+}
+interface IMealDescProps {
+  pluginType?: string;
+  pluginTypeId?: number;
+  show?: boolean;
 }
 
 @Component({

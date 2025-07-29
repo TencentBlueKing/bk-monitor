@@ -85,11 +85,11 @@
             >
               <monitor-echarts
                 v-if="queryConfigKey"
+                :key="renderKey + '_' + queryConfigKey"
                 :chart-type="['graph', 'aiops-dimension-lint', 'performance-chart'].includes(type) ? 'line' : type"
                 :get-alarm-status="getAlarmStatus"
                 :get-series-data="getSeriesData(queryconfig)"
                 :height="drag.height - 20"
-                :key="renderKey + '_' + queryConfigKey"
                 :need-full-screen="false"
                 :options="chartOptions"
                 :refresh-interval="compareValue.tools.refreshInterval"
@@ -126,8 +126,8 @@
                     <tr class="table-head">
                       <th
                         v-for="(item, index) in tableThArr"
-                        class="table-content"
                         :key="index"
+                        class="table-content"
                       >
                         <div
                           :style="index === 0 ? 'text-align: left' : ''"
@@ -137,8 +137,8 @@
                           <span class="table-header">
                             {{ item.name }}
                             <sort-button
-                              class="sort-btn"
                               v-model="item.sort"
+                              class="sort-btn"
                               @change="() => handleTableSort(item.sort, index)"
                             />
                           </span>
@@ -153,8 +153,8 @@
                     >
                       <td
                         v-for="(item, tdIndex) in row"
-                        class="table-content"
                         :key="tdIndex"
+                        class="table-content"
                       >
                         <div
                           :style="tdIndex === 0 ? 'text-align: left' : ''"
@@ -176,15 +176,15 @@
             </div>
           </div>
           <div
-            class="box-right"
             v-show="isRightBoxShow"
+            class="box-right"
           >
             <!-- 右边部分 设置部分 -->
             <query-criteria-item
               v-for="(item, index) in rightData"
+              :key="index"
               :compare-value="compareValue"
               :group-index="index"
-              :key="index"
               :query-config="item"
               @change-loading="handleChangeLoading"
               @change-status="handleChangeStatus"
@@ -198,7 +198,6 @@
   </monitor-dialog>
 </template>
 <script lang="ts">
-/* eslint-disable @typescript-eslint/member-ordering */
 import { Component, InjectReactive, Mixins, Prop, Provide, ProvideReactive, Vue } from 'vue-property-decorator';
 
 import dayjs from 'dayjs';
@@ -208,7 +207,7 @@ import { deepClone, random } from 'monitor-common/utils/utils';
 import MonitorDialog from 'monitor-ui/monitor-dialog/monitor-dialog.vue';
 import MonitorEcharts from 'monitor-ui/monitor-echarts/monitor-echarts-new.vue';
 
-import { DEFAULT_REFLESH_LIST, DEFAULT_TIMESHIFT_LIST, DEFAULT_TIME_RANGE_LIST } from '../../common/constant';
+import { DEFAULT_REFLESH_LIST, DEFAULT_TIME_RANGE_LIST, DEFAULT_TIMESHIFT_LIST } from '../../common/constant';
 import SortButton from '../../components/sort-button/sort-button';
 import { handleTransformToTimestamp } from '../../components/time-range/utils';
 // import { handleTimeRange } from '../../utils/index';
@@ -298,7 +297,7 @@ export default class MigrateDashboard extends Mixins(authorityMixinCreate(author
       name: window.i18n.t('指标对比'),
     },
   ];
-  refreshList: { name: any; id: number }[] = DEFAULT_REFLESH_LIST;
+  refreshList: { id: number; name: any }[] = DEFAULT_REFLESH_LIST;
 
   tableTdMaxMinMap = [];
   queryConfigKey = random(10);

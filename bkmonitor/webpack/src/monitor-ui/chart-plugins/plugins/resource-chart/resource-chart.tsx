@@ -48,13 +48,13 @@ import type {
 
 import './resource-chart.scss';
 
-interface IResourceChartProps {
-  panel: PanelModel;
-  showHeaderMoreTool?: boolean;
-}
 interface IResourceChartEvent {
   onFullScreen: PanelModel;
   onCollectChart?: () => void; // 保存到仪表盘
+}
+interface IResourceChartProps {
+  panel: PanelModel;
+  showHeaderMoreTool?: boolean;
 }
 @Component
 class ResourceChart extends CommonSimpleChart {

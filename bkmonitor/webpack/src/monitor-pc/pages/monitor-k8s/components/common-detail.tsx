@@ -28,16 +28,16 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import MonitorDrag from 'fta-solutions/pages/event/monitor-drag';
 import { CancelToken } from 'monitor-api/cancel';
-import { Debounce, copyText, random } from 'monitor-common/utils/utils';
+import { copyText, Debounce, random } from 'monitor-common/utils/utils';
 import { isShadowEqual } from 'monitor-ui/chart-plugins/utils';
 import { VariablesService } from 'monitor-ui/chart-plugins/utils/variable';
 
 import EmptyStatus from '../../../components/empty-status/empty-status';
 import { resize } from '../../../components/ip-selector/common/observer-directive';
 import MonitorResizeLayout, {
+  type IUpdateHeight,
   ASIDE_COLLAPSE_HEIGHT,
   ASIDE_DEFAULT_HEIGHT,
-  type IUpdateHeight,
 } from '../../../components/resize-layout/resize-layout';
 import { handleTransformToTimestamp } from '../../../components/time-range/utils';
 import { Storage } from '../../../utils/index';
@@ -67,41 +67,41 @@ export const INDEX_LIST_DEFAULT_CONFIG_KEY = 'INDEX_LIST_DEFAULT_CONFIG_KEY';
 const COMMON_DETAIL_WIDTH_KEY = 'COMMON_DETAIL_WIDTH_KEY';
 const MIN_DASHBOARD_WIDTH = 640;
 const MIN_PANEL_WIDTH = 100;
+interface ICommonDetailEvent {
+  onLinkToDetail: ITableItem<'link'>;
+  onShrink: MouseEvent;
+  onTitleChange: string;
+  onShowChange: (show: boolean, width: number) => void;
+  onWidthChange: (showMode: ShowModeType) => void;
+}
 interface ICommonDetailProps {
-  // 标题
-  title?: string;
+  aiPanel?: PanelModel;
+  allPanelId?: string[];
+  collapse?: boolean;
   // detail 数据
   data?: [];
-  panel?: PanelModel;
-  aiPanel?: PanelModel;
+  defaultWidth?: number;
   enableResizeListener?: boolean;
-  startPlacement?: string;
-  placement?: string;
-  minWidth?: number;
-  maxWidth?: number;
-  toggleSet?: boolean;
-  resetDragPosKey?: string;
-  needShrinkBtn?: boolean;
+  indexList?: IIndexListItem[];
+  isOnlyShowIndex?: boolean;
   lineText?: string;
-  showAminate?: boolean;
+  maxWidth?: number;
+  minWidth?: number;
   needIndexSelect?: boolean;
   needOverflow?: boolean;
-  indexList?: IIndexListItem[];
+  needShrinkBtn?: boolean;
+  panel?: PanelModel;
+  placement?: string;
+  resetDragPosKey?: string;
+  scencId?: string;
   selectorPanelType?: string;
+  showAminate?: boolean;
   showMode?: ShowModeType;
   specialDrag?: boolean;
-  collapse?: boolean;
-  isOnlyShowIndex?: boolean;
-  defaultWidth?: number;
-  scencId?: string;
-  allPanelId?: string[];
-}
-interface ICommonDetailEvent {
-  onShrink: MouseEvent;
-  onShowChange: (show: boolean, width: number) => void;
-  onTitleChange: string;
-  onLinkToDetail: ITableItem<'link'>;
-  onWidthChange: (showMode: ShowModeType) => void;
+  startPlacement?: string;
+  // 标题
+  title?: string;
+  toggleSet?: boolean;
 }
 
 interface IScopeSlots {

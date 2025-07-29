@@ -55,33 +55,21 @@ const levelMap = {
   3: window.i18n.tc('提醒'),
 };
 
-interface IRelatedEventsProps {
-  show?: boolean;
-  params?: IParams;
-  alertId?: number | string;
-  detail: IDetail;
-}
-interface IParams {
-  end_time: number;
-  start_time: number;
-}
-
 interface IColumnItem {
+  checked: boolean;
+  disabled: boolean;
   id: string;
   name: string;
-  disabled: boolean;
-  checked: boolean;
   props?: {
-    width?: number | string;
     fixed?: 'left' | 'right';
+    formatter?: (value: any, row: any, index: number) => any;
     minWidth?: number | string;
     resizable?: boolean;
-    formatter?: (value: any, row: any, index: number) => any;
-    sortable?: 'custom' | boolean;
     showOverflowTooltip?: boolean;
+    sortable?: 'custom' | boolean;
+    width?: number | string;
   };
 }
-
 interface IEventItem {
   // 关联事件列表字段
   alert_name?: string;
@@ -105,10 +93,22 @@ interface IEventItem {
   severity?: number;
   status?: string;
   strategy_id?: number;
-  tags?: { key: string; value: string }[] | null;
+  tags?: null | { key: string; value: string }[];
   target: string;
   target_type: string;
   time: number;
+}
+
+interface IParams {
+  end_time: number;
+  start_time: number;
+}
+
+interface IRelatedEventsProps {
+  alertId?: number | string;
+  detail: IDetail;
+  params?: IParams;
+  show?: boolean;
 }
 
 @Component({
@@ -470,7 +470,7 @@ export default class RelatedEvents extends tsc<IRelatedEventsProps> {
    * @param {object} obj
    * @return {*}
    */
-  handleSortChange(obj: { column: any; prop: string; order: string }) {
+  handleSortChange(obj: { column: any; order: string; prop: string }) {
     let sort = [];
     const sortType = ['ascending', 'descending'];
     if (sortType[0] === obj.order) {
@@ -669,9 +669,9 @@ export default class RelatedEvents extends tsc<IRelatedEventsProps> {
           },
         }}
         ref='eventTabel'
-        header-cell-style={{ background: '#f5f6fa' }}
         class='related-events-table'
         header-border={false}
+        header-cell-style={{ background: '#f5f6fa' }}
         outer-border={false}
         pagination={this.pagination}
         on-page-change={this.handlePageChange}

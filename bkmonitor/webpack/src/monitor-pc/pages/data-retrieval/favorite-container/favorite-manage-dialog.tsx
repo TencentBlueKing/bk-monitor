@@ -37,15 +37,15 @@ import FavoriteDetail from './favorite-detail';
 import type { IFavList } from '../typings';
 
 import './favorite-manage-dialog.scss';
-interface FavoriteManageDialogProps {
-  show: boolean;
-  favoriteType: string;
-  favoriteList: IFavList.favGroupList[];
+interface FavoriteManageDialogEvents {
+  onOperateChange(operate: string, value?: any): void;
+  onShowChange(show: boolean): void;
 }
 
-interface FavoriteManageDialogEvents {
-  onShowChange(show: boolean): void;
-  onOperateChange(operate: string, value?: any): void;
+interface FavoriteManageDialogProps {
+  favoriteList: IFavList.favGroupList[];
+  favoriteType: string;
+  show: boolean;
 }
 
 @Component

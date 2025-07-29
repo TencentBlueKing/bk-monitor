@@ -24,8 +24,6 @@
  * IN THE SOFTWARE.
  */
 import { computed, defineComponent, reactive, ref, shallowRef } from 'vue';
-import { useI18n } from 'vue-i18n';
-import { useRoute, useRouter } from 'vue-router';
 
 import { Button, Checkbox, Input, Loading, Message, Select, Switcher } from 'bkui-vue';
 import dayjs from 'dayjs';
@@ -33,6 +31,8 @@ import { getNoticeWay, getReceiver } from 'monitor-api/modules/notice_group';
 import { addShield, editShield, frontendCloneInfo, frontendShieldDetail } from 'monitor-api/modules/shield';
 import { deepClone, random } from 'monitor-common/utils';
 import { getDefaultUserGroupListSync } from 'monitor-pc/components/user-selector/user-group';
+import { useI18n } from 'vue-i18n';
+import { useRoute, useRouter } from 'vue-router';
 
 import { transformMonitorToValue, transformValueToMonitor } from '../../components/monitor-ip-selector/utils';
 import NavBar from '../../components/nav-bar/nav-bar';
@@ -44,20 +44,20 @@ import AlarmShieldConfigStrategy, { strategyDataProp } from './alarm-shield-conf
 import FormItem from './components/form-item';
 import ScopeDateConfig from './components/scope-date-config';
 import {
+  type INoticeDate,
+  categoryMap,
   EShieldCycle,
   EShieldType,
-  type INoticeDate,
   Ipv6FieldMap,
   ShieldDetailTargetFieldMap,
   ShieldDimension2NodeType,
-  categoryMap,
 } from './typing';
 
 import './alarm-shield-config.scss';
 
 interface ITabData {
   active: EShieldType;
-  list: { name: string; id: EShieldType }[];
+  list: { id: EShieldType; name: string }[];
 }
 
 export default defineComponent({

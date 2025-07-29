@@ -23,14 +23,13 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Prop, Component, Emit, Watch, InjectReactive, Inject, Ref } from 'vue-property-decorator';
+import { Component, Emit, InjectReactive, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { listK8sResources, resourceTrend } from 'monitor-api/modules/k8s';
 import { bkMessage, makeMessage } from 'monitor-api/utils';
 import { Debounce, random } from 'monitor-common/utils/utils';
 import loadingIcon from 'monitor-ui/chart-plugins/icons/spinner.svg';
-import K8sDimensionDrillDown from 'monitor-ui/chart-plugins/plugins/k8s-custom-graph/k8s-dimension-drilldown';
 import { getValueFormat } from 'monitor-ui/monitor-echarts/valueFormats';
 
 import EmptyStatus from '../../../../components/empty-status/empty-status';
@@ -38,13 +37,15 @@ import TableSkeleton from '../../../../components/skeleton/table-skeleton';
 import { handleTransformToTimestamp } from '../../../../components/time-range/utils';
 import {
   type IK8SMetricItem,
+  type ITableCommonParams,
+  type K8sSortType,
+  type K8sTableMetricKeys,
   K8sConvergeTypeEnum,
   K8sNewTabEnum,
-  type K8sSortType,
   K8sTableColumnKeysEnum,
-  type K8sTableMetricKeys,
 } from '../../typings/k8s-new';
 import K8sDetailSlider from '../k8s-detail-slider/k8s-detail-slider';
+import K8sQuickTools from '../k8s-quick-tools/k8s-quick-tools';
 import K8sConvergeSelect from './k8s-converge-select';
 
 import type { K8sGroupDimension } from '../../k8s-dimension';
@@ -53,103 +54,97 @@ import type { TranslateResult } from 'vue-i18n';
 
 import './k8s-table-new.scss';
 
-type GetK8sColumnEnumValueType<T extends keyof typeof K8sTableColumnKeysEnum> = (typeof K8sTableColumnKeysEnum)[T];
-/** k8s table column 图表字段类型 */
-export type K8sTableColumnChartKey = GetK8sColumnEnumValueType<K8sTableMetricKeys>;
-/** k8s table column 列资源字段类型 */
-export type K8sTableColumnResourceKey = GetK8sColumnEnumValueType<
-  keyof Omit<typeof K8sTableColumnKeysEnum, K8sTableMetricKeys>
->;
-
-/** k8s 表格列配置类型 */
-export interface K8sTableColumn<T extends K8sTableColumnKeysEnum> {
-  /** 字段类型 */
-  type: K8sTableColumnTypeEnum;
-  /** 字段id */
-  id: T;
-  /** 字段名称（渲染指标列时为指标名称） */
-  name: TranslateResult;
-  /** 小类目名称（选择指标列时使用） */
-  category_name?: string;
-  /** 是否伸缩大小 */
-  resizable?: boolean;
-  /** 是否可以排序 */
-  sortable?: 'custom' | boolean;
-  /** 列宽 */
-  width?: number;
-  /** 最小列宽 */
-  min_width?: number;
-  /** label 是否可以点击 */
-  can_click?: boolean;
-  /** 是否需要异步加载 */
-  asyncable?: boolean;
-  /** 是否固定列 */
-  fixed?: boolean;
-  /** 表头对齐方式 */
-  header_align?: 'center' | 'left' | 'right';
-  /** 是否开启 添加/移除 筛选项 icon */
-  k8s_filter?: boolean;
-  /** 是否开启 下钻 icon */
-  k8s_group?: boolean;
-  /** 表格列自定义渲染方法 */
-  renderHeader?: (column: K8sTableColumn<K8sTableColumnKeysEnum>) => any;
-  /** 自定义获取值逻辑函数 */
-  getValue?: (row: K8sTableRow) => string;
-}
-
-/** k8s table行数据数据类型 */
-export type K8sTableRow = Partial<Record<K8sTableColumnResourceKey, string>> &
-  Record<K8sTableColumnChartKey, Pick<ITableItemMap, 'datapoints'>['datapoints']>;
-
-export interface TableSort {
-  prop: K8sTableColumnChartKey | null;
-  order: 'ascending' | 'descending' | null;
-}
-
-export interface K8sTableSortContainer extends Pick<TableSort, 'prop'> {
-  orderBy: K8sSortType;
-  /** 处理 table 设置了 default-sort 时导致初始化时会自动走一遍sort-change事件问题 */
-  initDone: boolean;
-}
-
-export interface K8sTableClickEvent {
-  column: K8sTableColumn<K8sTableColumnResourceKey>;
-  row: K8sTableRow;
-  index: number;
-}
-
-export interface DrillDownEvent {
-  /** 点击下钻时数据所在维度 */
-  id: K8sTableColumnResourceKey;
-  /** 用户选择的需要下钻的维度 */
-  dimension: K8sTableColumnResourceKey;
-}
-
-export type K8sTableGroupByEvent = DrillDownEvent & { filterById: string };
-
-interface K8sTableNewProps {
-  /** 当前选中的 tab 项 */
-  activeTab: K8sNewTabEnum;
-  /** GroupBy 选择器选中数据类实例 */
-  groupInstance: K8sGroupDimension;
-  /** 筛选 Filter By 过滤项 */
-  filterBy: Record<string, string[]>;
-  /** 获取资源列表公共请求参数 */
-  filterCommonParams: Record<string, any>;
-  metricList: IK8SMetricItem[];
-  hideMetrics: string[];
-}
-interface K8sTableNewEvent {
-  onRouterParamChange: (sort: Omit<K8sTableSortContainer, 'initDone'>) => void;
-  onClearSearch: () => void;
-}
-
 /**
  * @enum k8s 表格列类型枚举
  */
 export enum K8sTableColumnTypeEnum {
   DATA_CHART = 'data_chart',
   RESOURCES_TEXT = 'resources_text',
+}
+export interface DrillDownEvent {
+  /** 用户选择的需要下钻的维度 */
+  dimension: K8sTableColumnResourceKey;
+  /** 点击下钻时数据所在维度 */
+  id: K8sTableColumnResourceKey;
+}
+export interface K8sTableClickEvent {
+  column: K8sTableColumn<K8sTableColumnResourceKey>;
+  index: number;
+  row: K8sTableRow;
+}
+
+/** k8s 表格列配置类型 */
+export interface K8sTableColumn<T extends K8sTableColumnKeysEnum> {
+  /** 是否需要异步加载 */
+  asyncable?: boolean;
+  /** label 是否可以点击 */
+  can_click?: boolean;
+  /** 小类目名称（选择指标列时使用） */
+  category_name?: string;
+  /** 是否固定列 */
+  fixed?: boolean;
+  /** 表头对齐方式 */
+  header_align?: 'center' | 'left' | 'right';
+  /** 字段id */
+  id: T;
+  /** 最小列宽 */
+  min_width?: number;
+  /** 字段名称（渲染指标列时为指标名称） */
+  name: TranslateResult;
+  /** 是否伸缩大小 */
+  resizable?: boolean;
+  /** 是否可以排序 */
+  sortable?: 'custom' | boolean;
+  /** 字段类型 */
+  type: K8sTableColumnTypeEnum;
+  /** 列宽 */
+  width?: number;
+  /** 自定义获取值逻辑函数 */
+  getValue?: (row: K8sTableRow) => string;
+  /** 表格列自定义渲染方法 */
+  renderHeader?: (column: K8sTableColumn<K8sTableColumnKeysEnum>) => any;
+}
+
+/** k8s table column 图表字段类型 */
+export type K8sTableColumnChartKey = GetK8sColumnEnumValueType<K8sTableMetricKeys>;
+
+/** k8s table column 列资源字段类型 */
+export type K8sTableColumnResourceKey = GetK8sColumnEnumValueType<
+  keyof Omit<typeof K8sTableColumnKeysEnum, K8sTableMetricKeys>
+>;
+
+export type K8sTableGroupByEvent = DrillDownEvent & { filterById: string };
+
+/** k8s table行数据数据类型 */
+export type K8sTableRow = Partial<Record<K8sTableColumnResourceKey, string>> &
+  Record<K8sTableColumnChartKey, Pick<ITableItemMap, 'datapoints'>['datapoints']>;
+
+export interface K8sTableSortContainer extends Pick<TableSort, 'prop'> {
+  /** 处理 table 设置了 default-sort 时导致初始化时会自动走一遍sort-change事件问题 */
+  initDone: boolean;
+  orderBy: K8sSortType;
+}
+
+export interface TableSort {
+  order: 'ascending' | 'descending' | null;
+  prop: K8sTableColumnChartKey | null;
+}
+
+type GetK8sColumnEnumValueType<T extends keyof typeof K8sTableColumnKeysEnum> = (typeof K8sTableColumnKeysEnum)[T];
+interface K8sTableNewEvent {
+  onClearSearch: () => void;
+  onRouterParamChange: (sort: Omit<K8sTableSortContainer, 'initDone'>) => void;
+}
+
+interface K8sTableNewProps {
+  /** 当前选中的 tab 项 */
+  activeTab: K8sNewTabEnum;
+  /** 获取资源列表公共请求参数 */
+  filterCommonParams: Record<string, any>;
+  /** GroupBy 选择器选中数据类实例 */
+  groupInstance: K8sGroupDimension;
+  hideMetrics: string[];
+  metricList: IK8SMetricItem[];
 }
 
 /** 是否开启前端分页功能 */
@@ -179,26 +174,14 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
   @Prop({ type: String, default: K8sNewTabEnum.LIST }) activeTab: K8sNewTabEnum;
   /** GroupBy 选择器选中数据类实例 */
   @Prop({ type: Object }) groupInstance: K8sGroupDimension;
-  /** FilterBy 选择器选中数据 */
-  @Prop({ type: Object, default: () => ({}) }) filterBy: Record<string, string[]>;
   /** 获取资源列表公共请求参数 */
-  @Prop({ type: Object, default: () => ({}) }) filterCommonParams: Record<string, any>;
+  @Prop({ type: Object, default: () => ({}) }) filterCommonParams: ITableCommonParams;
   @Prop({ type: Array, default: () => [] }) metricList: IK8SMetricItem[];
   @Prop({ type: Array, default: () => [] }) hideMetrics: string[];
   // 刷新间隔 - monitor-k8s-new 传入
   @InjectReactive('refreshInterval') readonly refreshInterval!: number;
   // 是否立即刷新 - monitor-k8s-new 传入
   @InjectReactive('refreshImmediate') readonly refreshImmediate!: string;
-  @Inject({ from: 'onFilterChange', default: () => null }) readonly onFilterChange: (
-    id: string,
-    groupId: K8sTableColumnResourceKey,
-    isSelect: boolean
-  ) => void;
-
-  @Inject({ from: 'onGroupChange', default: () => null }) readonly onDrillDown: (
-    item: K8sTableGroupByEvent,
-    showCancelDrill?: boolean
-  ) => void;
 
   tableLoading = {
     /** table 骨架屏 loading */
@@ -337,6 +320,10 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
     return this.tableViewData?.length !== this.tableDataTotal;
   }
 
+  get filterBy() {
+    return this.filterCommonParams?.filter_dict || {};
+  }
+
   /** table 空数据时显示样式类型 'search-empty'/'empty' */
   get tableEmptyType() {
     for (const filtersArgs of Object.values(this.filterBy)) {
@@ -452,8 +439,6 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
         type: K8sTableColumnTypeEnum.RESOURCES_TEXT,
         min_width: 260,
         can_click: true,
-        k8s_filter: this.isListTab,
-        k8s_group: this.isListTab,
       },
       [WORKLOAD_KIND]: {
         id: WORKLOAD_KIND,
@@ -470,8 +455,6 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
         type: K8sTableColumnTypeEnum.RESOURCES_TEXT,
         min_width: 240,
         can_click: true,
-        k8s_filter: this.isListTab,
-        k8s_group: this.isListTab,
         getValue: !this.isListTab ? K8sTableNew.getWorkloadValue(WORKLOAD, 1) : null,
       },
       [NAMESPACE]: {
@@ -480,8 +463,6 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
         sortable: false,
         type: K8sTableColumnTypeEnum.RESOURCES_TEXT,
         min_width: 160,
-        k8s_filter: this.isListTab,
-        k8s_group: this.isListTab,
       },
       [CONTAINER]: {
         id: CONTAINER,
@@ -490,8 +471,6 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
         type: K8sTableColumnTypeEnum.RESOURCES_TEXT,
         min_width: 150,
         can_click: true,
-        k8s_filter: this.isListTab,
-        k8s_group: this.isListTab,
       },
       [INGRESS]: {
         id: INGRESS,
@@ -500,8 +479,6 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
         type: K8sTableColumnTypeEnum.RESOURCES_TEXT,
         min_width: 150,
         can_click: true,
-        k8s_filter: this.isListTab,
-        k8s_group: this.isListTab,
       },
       [SERVICE]: {
         id: SERVICE,
@@ -510,8 +487,6 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
         type: K8sTableColumnTypeEnum.RESOURCES_TEXT,
         min_width: 150,
         can_click: true,
-        k8s_filter: this.isListTab,
-        k8s_group: this.isListTab,
       },
       [NODE]: {
         id: NODE,
@@ -520,8 +495,6 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
         type: K8sTableColumnTypeEnum.RESOURCES_TEXT,
         min_width: 150,
         can_click: true,
-        k8s_filter: this.isListTab,
-        k8s_group: this.isListTab,
       },
     };
   }
@@ -624,7 +597,7 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
    * @param {boolean} config.needRefresh 是否需要刷新表格状态
    * @param {boolean} config.needIncrement 是否需要增量加载（table 触底加载）
    */
-  async getK8sList(config: { needRefresh?: boolean; needIncrement?: boolean } = {}) {
+  async getK8sList(config: { needIncrement?: boolean; needRefresh?: boolean } = {}) {
     if (!this.filterCommonParams.bcs_cluster_id || this.tableLoading.scrollLoading || !this.metricList?.length) {
       return;
     }
@@ -918,7 +891,7 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
    */
   handleLabelClick(item: K8sTableClickEvent) {
     const { row, column } = item;
-    const detail: Partial<{ externalParam: { isCluster: boolean } } & Record<K8sTableColumnKeysEnum, string>> = {
+    const detail: Partial<Record<K8sTableColumnKeysEnum, string> & { externalParam: { isCluster: boolean } }> = {
       namespace: row[K8sTableColumnKeysEnum.NAMESPACE],
       cluster: this.filterCommonParams.bcs_cluster_id,
     };
@@ -1040,52 +1013,6 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
   }
 
   /**
-   * @description 表格列 filter icon 渲染配置方法
-   * @param {K8sTableRow} row
-   * @param {K8sTableColumn} column
-   */
-  filterIconFormatter(column: K8sTableColumn<K8sTableColumnResourceKey>, row: K8sTableRow) {
-    if (!column.k8s_filter) {
-      return null;
-    }
-    const resourceValue = K8sTableNew.getResourcesTextRowValue(row, column);
-    if (resourceValue) {
-      const groupItem = this.filterBy?.[column.id];
-      const hasFilter = groupItem?.includes(resourceValue);
-      const elAttr = hasFilter
-        ? { className: ['selected'], text: '移除该筛选项' }
-        : { className: ['icon-monitor icon-a-sousuo'], text: '添加为筛选项' };
-      return (
-        <i
-          class={elAttr.className}
-          v-bk-tooltips={{ content: this.$t(elAttr.text), interactive: false }}
-          onClick={() => this.onFilterChange(resourceValue, column.id, !hasFilter)}
-        />
-      );
-    }
-    return null;
-  }
-
-  /**
-   * @description 表格列 group icon 渲染配置方法
-   * @param {K8sTableRow} row
-   * @param {K8sTableColumn} column
-   */
-  groupIconFormatter(column: K8sTableColumn<K8sTableColumnResourceKey>, row: K8sTableRow) {
-    if (!column.k8s_group) {
-      return null;
-    }
-    const filterById = K8sTableNew.getResourcesTextRowValue(row, column);
-    return (
-      <K8sDimensionDrillDown
-        dimension={column.id}
-        value={column.id}
-        onHandleDrillDown={v => this.onDrillDown({ ...(v as DrillDownEvent), filterById }, true)}
-      />
-    );
-  }
-
-  /**
    * @description K8sTableColumnTypeEnum.RESOURCES_TEXT 类型表格列文本渲染方法
    * @param {K8sTableColumn} column
    */
@@ -1104,10 +1031,14 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
           ) : (
             <span class='col-item-label'>{text}</span>
           )}
-          <div class='col-item-operate'>
-            {this.filterIconFormatter(column, row)}
-            {this.groupIconFormatter(column, row)}
-          </div>
+          {this.isListTab ? (
+            <K8sQuickTools
+              class='table-col-tools'
+              filterCommonParams={this.filterCommonParams}
+              groupByField={column.id}
+              value={text}
+            />
+          ) : null}
         </div>
       );
     };

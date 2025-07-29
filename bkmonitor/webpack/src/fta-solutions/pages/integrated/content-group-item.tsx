@@ -32,42 +32,42 @@ import type { IGroupData } from './group';
 
 import './content-group-item.scss';
 
-// 插件 安装、详情、启用、禁用
-export type OperateType = 'config' | 'detail' | 'enabled' | 'install';
-interface IContentGroupItemProps {
-  data: IGroupData;
-}
-
-interface IContentGroupItemEvents {
-  onOperate: ({ type, item }: { type: OperateType; item: IPluginDetail }) => void;
-  onGotoWorkbench: () => void;
-}
-
-export type PluginCategory = 'event' | 'service';
 export interface IPluginDetail {
-  plugin_category: PluginCategory;
+  author: string;
   bk_biz_id: number;
-  plugin_id: string;
-  plugin_display_name: string;
-  plugin_type: string;
-  main_type: string;
-  plugin_type_display: string;
-  main_type_display: string;
-  summary: string;
-  logo: string;
-  tags: string[];
-  popularity: number;
-  status: StatusType;
-  create_user: string;
   create_time: string;
-  update_user: string;
-  update_time: string;
+  create_user: string;
+  is_installed?: boolean;
   is_official: boolean;
+  logo: string;
+  main_type: string;
+  main_type_display: string;
+  plugin_category: PluginCategory;
+  plugin_display_name: string;
+  plugin_id: string;
+  plugin_type: string;
+  plugin_type_display: string;
+  popularity: number;
   scenario: string;
   show: boolean;
-  author: string;
+  status: StatusType;
+  summary: string;
+  tags: string[];
+  update_time: string;
+  update_user: string;
   version?: string;
-  is_installed?: boolean;
+}
+// 插件 安装、详情、启用、禁用
+export type OperateType = 'config' | 'detail' | 'enabled' | 'install';
+
+export type PluginCategory = 'event' | 'service';
+
+interface IContentGroupItemEvents {
+  onGotoWorkbench: () => void;
+  onOperate: ({ type, item }: { item: IPluginDetail; type: OperateType }) => void;
+}
+interface IContentGroupItemProps {
+  data: IGroupData;
 }
 
 @Component({ name: 'ContentGroupItem' })

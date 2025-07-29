@@ -36,11 +36,11 @@ import './access-request-dialog.scss';
 interface IBusinessInfo {
   bk_biz_id: number;
   bk_biz_name: string;
-  space_type_id: string;
-  space_code: string;
-  operator: string[];
   get_access_url: string;
   new_biz_apply: string;
+  operator: string[];
+  space_code: string;
+  space_type_id: string;
 }
 
 @Component

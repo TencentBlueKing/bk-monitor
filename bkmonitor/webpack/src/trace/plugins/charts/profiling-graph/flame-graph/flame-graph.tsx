@@ -23,11 +23,10 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Teleport, computed, defineComponent, nextTick, onBeforeUnmount, ref, shallowRef, toRaw, watch } from 'vue';
-import { useI18n } from 'vue-i18n';
+import { computed, defineComponent, nextTick, onBeforeUnmount, ref, shallowRef, Teleport, toRaw, watch } from 'vue';
 
 import { addListener, removeListener } from '@blueking/fork-resize-detector';
-import { Exception, Popover, Message } from 'bkui-vue';
+import { Exception, Message, Popover } from 'bkui-vue';
 import { query } from 'monitor-api/modules/apm_profile';
 import { copyText } from 'monitor-common/utils/utils';
 import { FlameChart } from 'monitor-ui/chart-plugins/plugins/profiling-graph/flame-graph/use-flame';
@@ -37,17 +36,18 @@ import {
 } from 'monitor-ui/chart-plugins/plugins/profiling-graph/utils';
 import {
   type BaseDataType,
-  CommonMenuList,
   type IAxisRect,
   type ICommonMenuItem,
   type IContextMenuRect,
   type IOtherData,
   type ITipsDetail,
   type IZoomRect,
+  CommonMenuList,
   RootId,
 } from 'monitor-ui/chart-plugins/typings/flame-graph';
 import { getValueFormat } from 'monitor-ui/monitor-echarts/valueFormats';
 import { debounce } from 'throttle-debounce';
+import { useI18n } from 'vue-i18n';
 
 import { COMPARE_DIFF_COLOR_LIST, getSingleDiffColor } from '../../../../utils/compare';
 import GraphTools from '../../flame-graph/graph-tools/graph-tools';

@@ -1,12 +1,12 @@
 /*
  * Tencent is pleased to support the open source community by making
- * 蓝鲸智云PaaS平台社区版 (BlueKing PaaS Community Edition) available.
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
  *
  * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
  *
- * 蓝鲸智云PaaS平台社区版 (BlueKing PaaS Community Edition) is licensed under the MIT License.
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
  *
- * License for 蓝鲸智云PaaS平台社区版 (BlueKing PaaS Community Edition):
+ * License for 蓝鲸智云PaaS平台 (BlueKing PaaS):
  *
  * ---------------------------------------------------
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
@@ -23,9 +23,9 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { random } from 'monitor-common/utils/utils';
-
 import type { ObjectDirective } from 'vue';
+
+import { random } from 'monitor-common/utils/utils';
 
 let insertedEl: IDragHtmlElement = null;
 
@@ -34,21 +34,21 @@ export type MapType<T extends string> = { [key in T]?: IDragHtmlElement };
 const insertedElMap: MapType<string> = {};
 
 interface IBindValue {
-  style: object; // 拖拽按钮样式
+  autoHidden: boolean; // 超出最小宽度时是否自动隐藏
+  defaultWidth: number; // 默认宽度
+  isShow: boolean; // 是否展示
   maxWidth: number; // 最大宽度
   minWidth: number; // 最小宽度
-  defaultWidth: number; // 默认宽度
-  autoHidden: boolean; // 超出最小宽度时是否自动隐藏
-  isShow: boolean; // 是否展示
+  style: object; // 拖拽按钮样式
   theme: 'normal' | 'simple'; // 拖拽按钮主题
   onHidden?: () => void; // 隐藏回调
   onWidthChange?: (w: number) => void; // 宽度更新
 }
 interface IDragHtmlElement extends HTMLElement {
   _bk_monitor_drag: {
+    dragKey: string;
     el: HTMLDivElement;
     value: IBindValue;
-    dragKey: string;
   };
 }
 

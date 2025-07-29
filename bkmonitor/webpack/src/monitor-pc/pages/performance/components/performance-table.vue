@@ -36,10 +36,10 @@
       <bk-table
         v-if="Object.keys(columns).length"
         ref="table"
+        :key="tableKey"
         :cell-class-name="cellClassName"
         :data="tableData"
         :header-cell-class-name="cellClassName"
-        :key="tableKey"
         @header-dragend="setTableData(tableData)"
         @row-mouse-enter="handleRowEnter"
         @row-mouse-leave="handleRowLeave"
@@ -53,8 +53,8 @@
         <template #prepend>
           <transition name="fade">
             <div
-              class="selection-tips"
               v-show="allCheckValue === 2"
+              class="selection-tips"
             >
               <i18n path="已选择{0}台主机">
                 <span class="tips-num">{{ selectionsCount }}</span>
@@ -99,12 +99,12 @@
         >
           <template #default="{ row }">
             <div
-              class="ip-col"
               :key="row.bk_host_id"
+              class="ip-col"
             >
               <router-link
-                class="ip-col-main"
                 v-bk-overflow-tips
+                class="ip-col-main"
                 :to="{
                   name: 'performance-detail',
                   params: {
@@ -126,8 +126,8 @@
               />
               <svg
                 v-if="$i18n.locale !== 'enUS'"
-                class="ip-col-mark"
                 v-show="hoverMarkId === row.rowId || row.mark"
+                class="ip-col-mark"
                 viewBox="0 0 28 16"
                 @click.stop.prevent="handleIpMark(row)"
               >
@@ -146,8 +146,8 @@
               </svg>
               <svg-icon
                 v-else
-                class="ip-col-mark"
                 v-show="hoverMarkId === row.rowId || row.mark"
+                class="ip-col-mark"
                 :class="[row.mark ? 'path-primary' : 'path-default']"
                 icon-name="top"
                 @click.stop.prevent="handleIpMark(row)"
@@ -543,16 +543,16 @@
             >
               <div
                 v-if="row.component && row.component.length"
-                class="process-module-wrap"
                 :ref="'table-row-' + $index"
+                class="process-module-wrap"
               >
                 <span
                   v-for="(item, index) in row.component"
+                  :key="item.display_name + '__' + index"
                   :class="[
                     'process-status',
                     item.status === -1 ? 'process-status-default' : `process-status-${item.status}`,
                   ]"
-                  :key="item.display_name + '__' + index"
                   @click.stop="openProcessView(row, item.display_name)"
                   @mouseenter="handleTipsMouseenter($event, item, 'Thread')"
                 >
@@ -560,7 +560,6 @@
                 </span>
                 <span
                   v-if="overflowRowIds[row.rowId]"
-                  class="process-status-3 process-overflow"
                   v-bk-tooltips="{
                     content: () => row.component.map(({ display_name }) => display_name).join('、'),
                     showOnInit: false,
@@ -568,6 +567,7 @@
                     interactive: false,
                     allowHTML: false,
                   }"
+                  class="process-status-3 process-overflow"
                   @click="openProcessView(row, 'row-overflow')"
                 >
                   {{ `+${overflowRowIds[row.rowId]}` }}
@@ -575,8 +575,8 @@
               </div>
               <div
                 v-else
-                class="process-module-wrap"
                 :ref="'table-row-' + $index"
+                class="process-module-wrap"
               >
                 <span
                   class="no-process-text"
@@ -631,11 +631,11 @@
   </div>
 </template>
 <script lang="ts">
+import type { CreateElement } from 'vue';
+
 import { Component, Emit, Prop, Ref, Vue, Watch } from 'vue-property-decorator';
 
 import { typeTools } from 'monitor-common/utils/utils.js';
-
-import type { CreateElement } from 'vue';
 
 // import AbnormalTips from '../../../components/abnormal-tips/abnormal-tips.vue'
 import TipsTpl from '../../../components/abnormal-tips/tips-tpl.vue';
@@ -1109,7 +1109,7 @@ export default class PerformanceTable extends Vue<MonitorVue> {
    * 取有告警数且等级最高的
    * level 越低等级越高。
    */
-  getStatusLabelBgColor(alarmCount: { count: number; level: number; color?: string }[]) {
+  getStatusLabelBgColor(alarmCount: { color?: string; count: number; level: number }[]) {
     // 第一次执行会为空。
     if (!alarmCount || alarmCount.length === 0) {
       return '';

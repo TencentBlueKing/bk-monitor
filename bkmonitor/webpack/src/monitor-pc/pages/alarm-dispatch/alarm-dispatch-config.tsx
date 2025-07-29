@@ -42,13 +42,13 @@ import AlarmBatchEdit from './components/alarm-batch-edit';
 import AlarmGroupSelect from './components/alarm-group-select';
 import CommonCondition from './components/common-condition-new';
 import DebuggingResult, { type IRuleGroupsDataItem } from './components/debugging-result';
-import { type ActionType, EColumn, type ICondtionItem, LEVELLIST, RuleData, deepCompare } from './typing';
+import { type ActionType, type ICondtionItem, deepCompare, EColumn, LEVELLIST, RuleData } from './typing';
 import {
-  GROUP_KEYS,
   type ISpecialOptions,
   type TGroupKeys,
   type TValueMap,
   allKVOptions,
+  GROUP_KEYS,
   setDimensionsOfStrategy,
   statisticsSameConditions,
 } from './typing/condition';
@@ -82,15 +82,15 @@ const hasBatchColumn = [
   EColumn.isEnabled,
 ];
 
-interface ITableColumn {
-  id: EColumn;
-  content?: any;
-  class?: string;
-  width?: number;
-  show?: boolean;
-}
-
 type FiledType = 'alertSeveritySingle' | 'name' | 'notice' | 'priority' | EColumn;
+
+interface ITableColumn {
+  class?: string;
+  content?: any;
+  id: EColumn;
+  show?: boolean;
+  width?: number;
+}
 type MergeColumn = 'levelTag' | 'noticeProgress';
 
 @Component
@@ -156,10 +156,10 @@ export default class AlarmDispatchConfig extends tsc<object> {
 
   /* kv 选项数据 */
   kvOptionsData: {
-    keys: { id: string; name: string }[];
-    valueMap: TValueMap;
     groupKeys: TGroupKeys;
+    keys: { id: string; name: string }[];
     specialOptions: ISpecialOptions;
+    valueMap: TValueMap;
   } = {
     keys: [],
     valueMap: new Map(),
@@ -206,7 +206,7 @@ export default class AlarmDispatchConfig extends tsc<object> {
   /* 判断规则是否发生变化 */
   get isRuleChange() {
     if (this.tableData.length !== this.cacheTableData.length) return true;
-    return Object.values(this.resetConfig).some((item: { disabled: boolean; cacheData: RuleData }) => !item.disabled);
+    return Object.values(this.resetConfig).some((item: { cacheData: RuleData; disabled: boolean }) => !item.disabled);
   }
 
   created() {
@@ -895,9 +895,7 @@ export default class AlarmDispatchConfig extends tsc<object> {
         item.actionId || '',
         item.alertSeverity,
         // 补充 规则 通知
-        item.additionalTags
-          .map(tag => `${tag.key}:${tag.value}`)
-          .join(';'),
+        item.additionalTags.map(tag => `${tag.key}:${tag.value}`).join(';'),
         item.isEnabled,
       ];
       tdArr.push(row);

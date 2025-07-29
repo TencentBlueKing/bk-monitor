@@ -24,20 +24,20 @@
  * IN THE SOFTWARE.
  */
 import {
-  KeepAlive,
   type PropType,
   type Ref,
   computed,
   defineComponent,
   inject,
-  ref,
-  watch,
+  KeepAlive,
   nextTick,
   provide,
+  ref,
+  watch,
 } from 'vue';
-import { useI18n } from 'vue-i18n';
 
 import { incidentValidateQueryString } from 'monitor-api/modules/incident';
+import { useI18n } from 'vue-i18n';
 
 import AlarmDetail from '../alarm-detail/alarm-detail';
 import FilterSearchInput from '../failure-handle/filter-search-input';

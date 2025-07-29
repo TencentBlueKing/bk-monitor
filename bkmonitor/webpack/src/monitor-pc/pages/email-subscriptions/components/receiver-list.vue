@@ -27,8 +27,8 @@
   <div v-show="false">
     <div
       ref="content"
-      class="receiver-list-wrap"
       v-bkloading="{ isLoading: loading }"
+      class="receiver-list-wrap"
     >
       <div class="title">
         {{ $t('订阅人员列表') }}
@@ -47,8 +47,8 @@
             :formatter="item.formatter"
           />
           <bk-table-column
-            :key="'handle-' + index"
             v-else-if="needHandle"
+            :key="'handle-' + index"
             :label="item.label"
             :prop="item.key"
           >
@@ -57,7 +57,8 @@
                 v-if="!scope.row.isEnabled && scope.row.createTime"
                 :text="true"
                 @click="emitReceiver(scope.row)"
-              >{{ $t('重新订阅') }}{{ scope.row[item.key] }}</bk-button>
+                >{{ $t('重新订阅') }}{{ scope.row[item.key] }}</bk-button
+              >
             </template>
           </bk-table-column>
         </template>

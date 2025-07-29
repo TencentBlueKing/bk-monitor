@@ -25,14 +25,39 @@
  */
 import type VueI18n from 'vue-i18n';
 
-export interface IContent {
-  [propName: string]: any;
+export type CompareMap = {
+  [p in CompareOptions]: VueI18n.TranslateResult;
+};
+
+export type CompareOptions = 'WEEKLY' | 'YESTERDAY';
+
+export interface ICompare {
+  type: string;
+  value: number;
+}
+
+export interface ICompareData {
+  avg: number;
+  current: number;
+  max: number;
+  min: number;
+  name: string;
+  total: number;
 }
 
 export interface IConfig {
   label: string;
-  span: number;
   prop: string;
+  span: number;
+}
+
+export interface IContent {
+  [propName: string]: any;
+}
+
+export interface IDropdownMenu {
+  options: IOptions[];
+  value: number;
 }
 
 export interface IOptions {
@@ -40,34 +65,9 @@ export interface IOptions {
   value: number;
 }
 
-export interface IDropdownMenu {
-  value: number;
-  options: IOptions[];
-}
-
-export interface ICompareData {
-  current: number;
-  max: number;
-  avg: number;
-  total: number;
-  min: number;
-  name: string;
-}
-
-export type CompareOptions = 'WEEKLY' | 'YESTERDAY';
-
-export type CompareMap = {
-  [p in CompareOptions]: VueI18n.TranslateResult;
-};
-
 export interface ISelectGroup {
-  list: ISelectItem[];
   active: number;
-}
-
-export interface ISeriesData {
-  name: string;
-  data: Array<object>;
+  list: ISelectItem[];
 }
 
 export interface ISelectItem {
@@ -75,7 +75,7 @@ export interface ISelectItem {
   value: number;
 }
 
-export interface ICompare {
-  type: string;
-  value: number;
+export interface ISeriesData {
+  data: Array<object>;
+  name: string;
 }

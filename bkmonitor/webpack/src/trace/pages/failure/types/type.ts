@@ -24,435 +24,112 @@
  * IN THE SOFTWARE.
  */
 
-export interface IncidentNameTemplate {
-  template: string;
-  elements: Array<[string, string] | string>;
-  affected_types: [[string, string[]]];
-}
-
-export interface IEntityData {
-  entity_id: string;
-  entity_name: string;
-  entity_type: string;
-  is_anomaly: boolean;
-  anomaly_score: number;
-  anomaly_type: string;
-  is_root: boolean;
-  rank_name: string;
-  dimensions: {
-    node_type: string;
-    cluster_id: string;
-    namespace: string;
-    pod_name: string;
-  };
-}
-
-export interface IEdge {
-  source_type: string;
-  target_type: string;
-  source_id: string;
-  target_id: string;
-  edge_type: string;
-}
-
-export interface IncidentPropagationGraph {
-  entities: IEntityData[];
-  edges: IEdge[];
-}
-
-export interface ISnapshotContent {
-  snapshot_id: string;
-  timestamp: number;
-  alerts: number;
-  bk_biz_id: number;
-  incident_alerts: Array<{
-    id: string;
-    strategy_id: string;
-    entity_id: string;
-  }>;
-  incident_name: string;
-  incident_name_template: IncidentNameTemplate;
-  incident_root: [string, string];
-  incident_label: string[];
-  product_hierarchy_category: {
-    service: {
-      category_id: number;
-      category_name: string;
-      category_alias: string;
-    };
-    host_platform: {
-      category_id: number;
-      category_name: string;
-      category_alias: string;
-    };
-    data_center: {
-      category_id: number;
-      category_name: string;
-      category_alias: string;
-    };
-  };
-  product_hierarchy_rank: {
-    service_module: {
-      rank_id: number;
-      rank_name: string;
-      rank_alias: string;
-      rank_category: string;
-    };
-    k8s: {
-      rank_id: number;
-      rank_name: string;
-      rank_alias: string;
-      rank_category: string;
-    };
-    operate_system: {
-      rank_id: number;
-      rank_name: string;
-      rank_alias: string;
-      rank_category: string;
-    };
-    rack: {
-      rank_id: number;
-      rank_name: string;
-      rank_alias: string;
-      rank_category: string;
-    };
-    idc_unit: {
-      rank_id: number;
-      rank_name: string;
-      rank_alias: string;
-      rank_category: string;
-    };
-    idc: {
-      rank_id: number;
-      rank_name: string;
-      rank_alias: string;
-      rank_category: string;
-    };
-  };
-  incident_propagation_graph: IncidentPropagationGraph;
-  one_hop_neighbors: string[];
-  anomaly_time: number;
-  graph_snapshot_id: string;
-}
-
-export interface ISnapshot {
-  incident_id: number;
-  bk_biz_id: number[];
-  status: string;
-  alerts: number[];
-  create_time: number;
-  content: ISnapshotContent;
-  fpp_snapshot_id: string;
-  id: string;
-  bk_biz_ids?: Array<{ bk_biz_id: number; bk_biz_name: string }>;
-  events?: any[];
-  update_time?: any;
-  extra_info?: any;
-}
-
-export type ICurrentISnapshot = ISnapshot;
-
-interface IncidentRoot {
-  rca_trace_info: {
-    abnormal_traces_query: Record<string, string>;
-  };
-}
-export interface IIncident {
-  id: string;
-  incident_id: number;
-  incident_name: string;
-  incident_reason: string;
-  bk_biz_id: number;
-  status: string;
-  level: string;
-  assignees: string[];
-  handlers: string[];
-  labels: string[];
-  create_time: number;
-  update_time: number;
+export interface IAlert {
+  alert_example: IAlertData;
+  alert_ids: string[];
   begin_time: number;
-  end_time: null | number;
-  snapshot: ISnapshot;
-  status_alias: string;
-  level_alias: string;
-  alert_count: number;
-  duration: string;
-  snapshots: ISnapshot[];
-  incident_root: IncidentRoot;
-  bk_biz_name: string;
-  current_snapshot: ICurrentISnapshot;
+  children: IAlert[];
+  count: number;
+  end_time: number;
+  id: string;
+  is_feedback_root: boolean;
+  is_root: boolean;
+  isDraw: boolean;
+  isOpen: boolean;
+  isShow: boolean;
+  level_name: string;
+  name: string;
+  related_entities: IAlertData[];
+  status: string;
 }
 
 export interface IAlertData {
-  id: string;
+  ack_duration: number;
+  ack_operator: string;
   alert_name: string;
-  status: string;
-  description: string;
-  severity: number;
-  metric: string[];
-  labels: null;
+  appointee: string[];
+  assignee: string[];
+  begin_time: number;
   bk_biz_id: number;
-  ip: string;
-  ipv6: string;
-  bk_host_id: number;
+  bk_biz_name: string;
   bk_cloud_id: number;
+  bk_host_id: number;
   bk_service_instance_id: null;
   bk_topo_node: string[];
-  assignee: string[];
-  appointee: string[];
-  supervisor: null;
-  follower: null;
-  is_ack: null;
-  is_shielded: boolean;
-  shield_left_time: string;
-  shield_id: null;
-  is_handled: boolean;
-  is_blocked: boolean;
-  strategy_id: number;
-  create_time: number;
-  update_time: number;
-  begin_time: number;
-  end_time: number;
-  latest_time: number;
-  first_anomaly_time: number;
-  target_type: string;
-  target: string;
   category: string;
-  tags: Array<{ key: string; value: string }>;
   category_display: string;
-  duration: string;
-  ack_duration: number;
-  data_type: string;
   converge_id: string;
-  event_id: string;
-  plugin_id: string;
-  plugin_display_name: string;
-  strategy_name: string;
-  stage_display: string;
-  dimensions: Array<{ key: string; value: string; display_key: string; display_value: string }>;
-  seq_id: number;
-  dedupe_md5: string;
+  create_time: number;
+  data_type: string;
   dedupe_keys: string[];
+  dedupe_md5: string;
+  description: string;
+  dimension_message: string;
+  dimensions: Array<{ display_key: string; display_value: string; key: string; value: string }>;
+  duration: string;
+  end_time: number;
+  event_id: string;
+  first_anomaly_time: number;
+  follower: null;
+  id: string;
+  ip: string;
+  ipv6: string;
+  is_ack: null;
+  is_blocked: boolean;
+  is_handled: boolean;
+  is_shielded: boolean;
+  labels: null;
+  latest_time: number;
+  metric: string[];
+  metric_display: Array<{ id: string; name: string }>;
+  plugin_display_name: string;
+  plugin_id: string;
+  seq_id: number;
+  severity: number;
+  shield_id: null;
+  shield_left_time: string;
+  shield_operator: any[];
+  stage_display: string;
+  status: string;
+  strategy_id: number;
+  strategy_name: string;
+  supervisor: null;
+  tags: Array<{ key: string; value: string }>;
+  target: string;
+  target_key: string;
+  target_type: string;
+  update_time: number;
+  entity: {
+    aggregated_entities: any[];
+    anomaly_score: number;
+    anomaly_type: null;
+    bk_biz_id: null;
+    dimensions: {
+      cluster_id: string;
+      namespace: string;
+      node_type: string;
+      pod_name: string;
+    };
+    entity_id: string;
+    entity_name: string;
+    entity_type: string;
+    is_anomaly: boolean;
+    is_on_alert: boolean;
+    is_root: boolean;
+    rank: {
+      rank_alias: string;
+      rank_category: {
+        category_alias: string;
+        category_id: number;
+        category_name: string;
+      };
+      rank_id: number;
+      rank_name: string;
+    };
+    tags: any;
+  };
   extra_info: {
-    origin_alarm: {
-      trigger_time: number;
-      data: {
-        time: number;
-        value: number;
-        values: { _result_: number; time: number };
-        dimensions: {
-          bk_target_ip: string;
-          device_name: string;
-          bk_topo_node: string[];
-          bk_host_id: number;
-        };
-        record_id: string;
-        dimension_fields: string[];
-        access_time: number;
-        detect_time: number;
-      };
-      trigger: {
-        level: string;
-        anomaly_ids: string[];
-      };
-      anomaly: {
-        [key: string]: {
-          anomaly_message: string;
-          anomaly_id: string;
-          anomaly_time: string;
-        };
-      };
-      dimension_translation: {
-        [key: string]: {
-          value: number | string | string[];
-          display_name: string;
-          display_value: string | string[];
-        };
-      };
-      strategy_snapshot_key: string;
-    };
-    strategy: {
-      id: number;
-      version: string;
-      bk_biz_id: number;
-      name: string;
-      source: string;
-      scenario: string;
-      type: string;
-      items: Array<{
-        algorithms: Array<{
-          level: number;
-          id: number;
-          type: string;
-          config: { ceil: number; floor: number; unit_prefix: string };
-        }>;
-        update_time: number;
-        expression: string;
-        origin_sql: string;
-        functions: any[];
-        query_configs: Array<{
-          metric_id: string;
-          promql: string;
-          data_type_label: string;
-          functions: any[];
-          agg_interval: number;
-          alias: string;
-          id: number;
-          data_source_label: string;
-          target: any[];
-        }>;
-        query_md5: string;
-        name: string;
-        metric_type: string;
-        id: number;
-        no_data_config: {
-          is_enabled: boolean;
-          level: number;
-          continuous: number;
-          agg_dimension: any[];
-        };
-        target: any[];
-      }>;
-      detects: Array<{
-        expression: string;
-        trigger_config: {
-          check_window: number;
-          count: number;
-          uptime: {
-            calendars: any[];
-            time_ranges: Array<{ start: string; end: string }>;
-          };
-        };
-        connector: string;
-        level: number;
-        id: number;
-        recovery_config: {
-          check_window: number;
-          status_setter: string;
-        };
-      }>;
-      actions: Array<{
-        user_type: string;
-        config_id: number;
-        options: {
-          start_time: string;
-          converge_config: {
-            is_enabled: boolean;
-            condition: Array<{ value: string[]; dimension: string }>;
-            timedelta: number;
-            count: number;
-            need_biz_converge: boolean;
-            converge_func: string;
-          };
-          end_time: string;
-        };
-        id: number;
-        signal: string[];
-        config: {
-          execute_config: {
-            template_detail: {
-              failed_retry: { is_enabled: boolean; retry_interval: number; max_retry_times: number; timeout: number };
-              headers: any[];
-              notify_interval: number;
-              method: string;
-              query_params: any[];
-              body: { content_type: string; data_type: string; params: any[]; content: string };
-              authorize: { auth_type: string; auth_config: any };
-              url: string;
-              need_poll: boolean;
-            };
-            timeout: number;
-          };
-          plugin_id: string;
-          bk_biz_id: string;
-          name: string;
-          id: number;
-          desc: string;
-        };
-        user_groups: number[];
-        relate_type: string;
-      }>;
-      notice: {
-        id: number;
-        config_id: number;
-        user_groups: number[];
-        user_type: string;
-        signal: string[];
-        options: {
-          end_time: string;
-          start_time: string;
-          assign_mode: string[];
-          upgrade_config: {
-            is_enabled: boolean;
-            user_groups: any[];
-            upgrade_interval: number;
-          };
-          converge_config: {
-            count: number;
-            condition: Array<{ dimension: string; value: string[] }>;
-            timedelta: number;
-            is_enabled: boolean;
-            converge_func: string;
-            need_biz_converge: boolean;
-            sub_converge_config: {
-              timedelta: number;
-              count: number;
-              condition: Array<{ dimension: string; value: string[] }>;
-              converge_func: string;
-            };
-          };
-          chart_image_enabled: boolean;
-          exclude_notice_ways: {
-            ack: any[];
-            closed: any[];
-            recovered: any[];
-          };
-          noise_reduce_config: {
-            unit: string;
-            count: number;
-            timedelta: number;
-            dimensions: any[];
-            is_enabled: boolean;
-          };
-        };
-        relate_type: string;
-        config: {
-          need_poll: boolean;
-          notify_interval: number;
-          interval_notify_mode: string;
-          template: Array<{
-            title_tmpl: string;
-            message_tmpl: string;
-            signal: string;
-          }>;
-        };
-      };
-      is_enabled: boolean;
-      is_invalid: boolean;
-      invalid_type: string;
-      update_time: number;
-      update_user: string;
-      create_time: number;
-      create_user: string;
-      labels: any[];
-      app: string;
-      path: string;
-      priority: null;
-      priority_group_key: string;
-      edit_allowed: boolean;
-      metric_type: string;
-    };
     agg_dimensions: any[];
-    matched_rule_info: {
-      notice_upgrade_user_groups: any[];
-      follow_groups: any[];
-      notice_appointees: any[];
-      itsm_actions: any;
-      severity: number;
-      additional_tags: any[];
-      rule_snaps: any;
-      group_info: any;
-    };
     cycle_handle_record: {
       [key: string]: {
         execute_times: number;
@@ -461,76 +138,434 @@ export interface IAlertData {
         latest_anomaly_time: number;
       };
     };
-    is_recovering: boolean;
     end_description: string;
-    recovery_value: number;
-  };
-  dimension_message: string;
-  metric_display: Array<{ id: string; name: string }>;
-  target_key: string;
-  ack_operator: string;
-  shield_operator: any[];
-  bk_biz_name: string;
-  entity: {
-    entity_id: string;
-    entity_name: string;
-    entity_type: string;
-    is_anomaly: boolean;
-    is_root: boolean;
-    rank: {
-      rank_id: number;
-      rank_name: string;
-      rank_alias: string;
-      rank_category: {
-        category_id: number;
-        category_name: string;
-        category_alias: string;
+    is_recovering: boolean;
+    matched_rule_info: {
+      additional_tags: any[];
+      follow_groups: any[];
+      group_info: any;
+      itsm_actions: any;
+      notice_appointees: any[];
+      notice_upgrade_user_groups: any[];
+      rule_snaps: any;
+      severity: number;
+    };
+    origin_alarm: {
+      anomaly: {
+        [key: string]: {
+          anomaly_id: string;
+          anomaly_message: string;
+          anomaly_time: string;
+        };
       };
+      data: {
+        access_time: number;
+        detect_time: number;
+        dimension_fields: string[];
+        dimensions: {
+          bk_host_id: number;
+          bk_target_ip: string;
+          bk_topo_node: string[];
+          device_name: string;
+        };
+        record_id: string;
+        time: number;
+        value: number;
+        values: { _result_: number; time: number };
+      };
+      dimension_translation: {
+        [key: string]: {
+          display_name: string;
+          display_value: string | string[];
+          value: number | string | string[];
+        };
+      };
+      strategy_snapshot_key: string;
+      trigger: {
+        anomaly_ids: string[];
+        level: string;
+      };
+      trigger_time: number;
     };
-    dimensions: {
-      node_type: string;
-      cluster_id: string;
-      namespace: string;
-      pod_name: string;
+    recovery_value: number;
+    strategy: {
+      actions: Array<{
+        config: {
+          bk_biz_id: string;
+          desc: string;
+          execute_config: {
+            template_detail: {
+              authorize: { auth_config: any; auth_type: string };
+              body: { content: string; content_type: string; data_type: string; params: any[] };
+              failed_retry: { is_enabled: boolean; max_retry_times: number; retry_interval: number; timeout: number };
+              headers: any[];
+              method: string;
+              need_poll: boolean;
+              notify_interval: number;
+              query_params: any[];
+              url: string;
+            };
+            timeout: number;
+          };
+          id: number;
+          name: string;
+          plugin_id: string;
+        };
+        config_id: number;
+        id: number;
+        options: {
+          converge_config: {
+            condition: Array<{ dimension: string; value: string[] }>;
+            converge_func: string;
+            count: number;
+            is_enabled: boolean;
+            need_biz_converge: boolean;
+            timedelta: number;
+          };
+          end_time: string;
+          start_time: string;
+        };
+        relate_type: string;
+        signal: string[];
+        user_groups: number[];
+        user_type: string;
+      }>;
+      app: string;
+      bk_biz_id: number;
+      create_time: number;
+      create_user: string;
+      detects: Array<{
+        connector: string;
+        expression: string;
+        id: number;
+        level: number;
+        recovery_config: {
+          check_window: number;
+          status_setter: string;
+        };
+        trigger_config: {
+          check_window: number;
+          count: number;
+          uptime: {
+            calendars: any[];
+            time_ranges: Array<{ end: string; start: string }>;
+          };
+        };
+      }>;
+      edit_allowed: boolean;
+      id: number;
+      invalid_type: string;
+      is_enabled: boolean;
+      is_invalid: boolean;
+      items: Array<{
+        algorithms: Array<{
+          config: { ceil: number; floor: number; unit_prefix: string };
+          id: number;
+          level: number;
+          type: string;
+        }>;
+        expression: string;
+        functions: any[];
+        id: number;
+        metric_type: string;
+        name: string;
+        no_data_config: {
+          agg_dimension: any[];
+          continuous: number;
+          is_enabled: boolean;
+          level: number;
+        };
+        origin_sql: string;
+        query_configs: Array<{
+          agg_interval: number;
+          alias: string;
+          data_source_label: string;
+          data_type_label: string;
+          functions: any[];
+          id: number;
+          metric_id: string;
+          promql: string;
+          target: any[];
+        }>;
+        query_md5: string;
+        target: any[];
+        update_time: number;
+      }>;
+      labels: any[];
+      metric_type: string;
+      name: string;
+      notice: {
+        config: {
+          interval_notify_mode: string;
+          need_poll: boolean;
+          notify_interval: number;
+          template: Array<{
+            message_tmpl: string;
+            signal: string;
+            title_tmpl: string;
+          }>;
+        };
+        config_id: number;
+        id: number;
+        options: {
+          assign_mode: string[];
+          chart_image_enabled: boolean;
+          converge_config: {
+            condition: Array<{ dimension: string; value: string[] }>;
+            converge_func: string;
+            count: number;
+            is_enabled: boolean;
+            need_biz_converge: boolean;
+            sub_converge_config: {
+              condition: Array<{ dimension: string; value: string[] }>;
+              converge_func: string;
+              count: number;
+              timedelta: number;
+            };
+            timedelta: number;
+          };
+          end_time: string;
+          exclude_notice_ways: {
+            ack: any[];
+            closed: any[];
+            recovered: any[];
+          };
+          noise_reduce_config: {
+            count: number;
+            dimensions: any[];
+            is_enabled: boolean;
+            timedelta: number;
+            unit: string;
+          };
+          start_time: string;
+          upgrade_config: {
+            is_enabled: boolean;
+            upgrade_interval: number;
+            user_groups: any[];
+          };
+        };
+        relate_type: string;
+        signal: string[];
+        user_groups: number[];
+        user_type: string;
+      };
+      path: string;
+      priority: null;
+      priority_group_key: string;
+      scenario: string;
+      source: string;
+      type: string;
+      update_time: number;
+      update_user: string;
+      version: string;
     };
-    anomaly_score: number;
-    anomaly_type: null;
-    is_on_alert: boolean;
-    bk_biz_id: null;
-    tags: any;
-    aggregated_entities: any[];
   };
 }
 
-export interface IAlert {
-  id: string;
-  name: string;
-  level_name: string;
-  count: number;
-  related_entities: IAlertData[];
-  children: IAlert[];
-  alert_ids: string[];
-  is_root: boolean;
-  is_feedback_root: boolean;
-  begin_time: number;
-  end_time: number;
-  status: string;
-  alert_example: IAlertData;
-  isOpen: boolean;
-  isShow: boolean;
-  isDraw: boolean;
+export interface IAlertObj {
+  ids?: string;
+  label?: string;
 }
+
+export interface IAnomalyAnalysis {
+  $index?: number;
+  alert_count?: number;
+  alerts?: IAlertData[];
+  name?: string;
+  score?: number;
+  dimension_values?: {
+    [key: string]: string[];
+  };
+  strategy_alerts_mapping?: {
+    [key: number]: IStrategyMapItem;
+  };
+}
+
+export interface IContentList {
+  anomaly_analysis?: IAnomalyAnalysis[];
+  suggestion?: string;
+  summary?: string;
+}
+
+export type ICurrentISnapshot = ISnapshot;
+
+export interface IDetail {
+  dimension?: string;
+  severity: number;
+  trigger?: string;
+  strategy?: {
+    id?: number | string;
+    name?: string;
+  };
+}
+
+export interface IEdge {
+  edge_type: string;
+  source_id: string;
+  source_type: string;
+  target_id: string;
+  target_type: string;
+}
+export interface IEntityData {
+  anomaly_score: number;
+  anomaly_type: string;
+  entity_id: string;
+  entity_name: string;
+  entity_type: string;
+  is_anomaly: boolean;
+  is_root: boolean;
+  rank_name: string;
+  dimensions: {
+    cluster_id: string;
+    namespace: string;
+    node_type: string;
+    pod_name: string;
+  };
+}
+
 export interface IFilterSearch {
-  id: string;
   aggregate_bys: string[];
+  bk_biz_id: number;
   bk_biz_ids: number[];
+  id: string;
   query_string: string;
   username: string;
-  bk_biz_id: number;
 }
-export interface IUserName {
+
+export interface IIncident {
+  alert_count: number;
+  assignees: string[];
+  begin_time: number;
+  bk_biz_id: number;
+  bk_biz_name: string;
+  create_time: number;
+  current_snapshot: ICurrentISnapshot;
+  duration: string;
+  end_time: null | number;
+  handlers: string[];
   id: string;
-  name: string;
+  incident_id: number;
+  incident_name: string;
+  incident_reason: string;
+  incident_root: IncidentRoot;
+  labels: string[];
+  level: string;
+  level_alias: string;
+  snapshot: ISnapshot;
+  snapshots: ISnapshot[];
+  status: string;
+  status_alias: string;
+  update_time: number;
+}
+export interface IListItem {
+  icon?: string;
+  key?: string;
+  message?: string;
+  name?: string;
+  render?: () => JSX.Element;
+}
+export interface IncidentNameTemplate {
+  affected_types: [[string, string[]]];
+  elements: Array<[string, string] | string>;
+  template: string;
+}
+
+export interface IncidentPropagationGraph {
+  edges: IEdge[];
+  entities: IEntityData[];
+}
+export interface ISnapshot {
+  alerts: number[];
+  bk_biz_id: number[];
+  bk_biz_ids?: Array<{ bk_biz_id: number; bk_biz_name: string }>;
+  content: ISnapshotContent;
+  create_time: number;
+  events?: any[];
+  extra_info?: any;
+  fpp_snapshot_id: string;
+  id: string;
+  incident_id: number;
+  status: string;
+  update_time?: any;
+}
+export interface ISnapshotContent {
+  alerts: number;
+  anomaly_time: number;
+  bk_biz_id: number;
+  graph_snapshot_id: string;
+  incident_label: string[];
+  incident_name: string;
+  incident_name_template: IncidentNameTemplate;
+  incident_propagation_graph: IncidentPropagationGraph;
+  incident_root: [string, string];
+  one_hop_neighbors: string[];
+  snapshot_id: string;
+  timestamp: number;
+  incident_alerts: Array<{
+    entity_id: string;
+    id: string;
+    strategy_id: string;
+  }>;
+  product_hierarchy_category: {
+    data_center: {
+      category_alias: string;
+      category_id: number;
+      category_name: string;
+    };
+    host_platform: {
+      category_alias: string;
+      category_id: number;
+      category_name: string;
+    };
+    service: {
+      category_alias: string;
+      category_id: number;
+      category_name: string;
+    };
+  };
+  product_hierarchy_rank: {
+    idc: {
+      rank_alias: string;
+      rank_category: string;
+      rank_id: number;
+      rank_name: string;
+    };
+    idc_unit: {
+      rank_alias: string;
+      rank_category: string;
+      rank_id: number;
+      rank_name: string;
+    };
+    k8s: {
+      rank_alias: string;
+      rank_category: string;
+      rank_id: number;
+      rank_name: string;
+    };
+    operate_system: {
+      rank_alias: string;
+      rank_category: string;
+      rank_id: number;
+      rank_name: string;
+    };
+    rack: {
+      rank_alias: string;
+      rank_category: string;
+      rank_id: number;
+      rank_name: string;
+    };
+    service_module: {
+      rank_alias: string;
+      rank_category: string;
+      rank_id: number;
+      rank_name: string;
+    };
+  };
+}
+export interface IStrategyMapItem {
+  alerts?: string[];
+  strategy_id?: number;
+  strategy_name?: string;
 }
 
 export interface ITagInfoType {
@@ -538,48 +573,13 @@ export interface ITagInfoType {
   bk_biz_name: string;
   isCheck: boolean;
 }
-export interface IDetail {
-  severity: number;
-  dimension?: string;
-  trigger?: string;
-  strategy?: {
-    name?: string;
-    id?: number | string;
-  };
-}
-export interface IAlertObj {
-  ids?: string;
-  label?: string;
-}
-export interface IStrategyMapItem {
-  strategy_id?: number;
-  strategy_name?: string;
-  alerts?: string[];
+export interface IUserName {
+  id: string;
+  name: string;
 }
 
-export interface IAnomalyAnalysis {
-  name?: string;
-  $index?: number;
-  score?: number;
-  alert_count?: number;
-  dimension_values?: {
-    [key: string]: string[];
+interface IncidentRoot {
+  rca_trace_info: {
+    abnormal_traces_query: Record<string, string>;
   };
-  alerts?: IAlertData[];
-  strategy_alerts_mapping?: {
-    [key: number]: IStrategyMapItem;
-  };
-}
-export interface IContentList {
-  suggestion?: string;
-  anomaly_analysis?: IAnomalyAnalysis[];
-  summary?: string;
-}
-
-export interface IListItem {
-  name?: string;
-  key?: string;
-  icon?: string;
-  message?: string;
-  render?: () => JSX.Element;
 }

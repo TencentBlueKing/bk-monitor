@@ -26,31 +26,18 @@
 
 import type { MonitorEchartOptions } from './index';
 
-// 时序性图表类型 bar: 柱状图 line: 线性图
-export type TimeSeriesType = 'bar' | 'line';
-
-export interface ITimeSeriesItem extends MonitorEchartOptions {
-  // 时序型图表数据 [x, y][]  x: 时间戳 y: 数值
-  data: [number, number][];
-  // 图例名称
-  name: string;
-  // 单位
-  unit: string;
-  // 图表显示类型 bar | line
-  type: TimeSeriesType;
-  // 数据堆叠，同个类目轴上系列配置相同的stack值可以堆叠放置。
-  stack?: string;
+export interface IPlotBand {
+  borderColor?: string;
+  borderType?: 'dashed' | 'dotted' | 'solid';
   color?: string;
-  metricField?: string; // 指标
-  traceData?: Record<number, IProfilingTraceInfo[]>;
-  markArea?: Record<string, any>;
-  dimensions?: Record<string, any>;
-  timeOffset?: number | string;
+  from: number;
+  shadowColor?: string;
+  to?: number;
 }
 
 export interface IProfilingTraceInfo {
-  time: string;
   span_id: string;
+  time: string;
 }
 
 export interface ITimeSeriesData {
@@ -60,11 +47,24 @@ export interface ITimeSeriesData {
   series: ITimeSeriesItem[];
 }
 
-export interface IPlotBand {
-  from: number;
-  to?: number;
+export interface ITimeSeriesItem extends MonitorEchartOptions {
   color?: string;
-  borderColor?: string;
-  shadowColor?: string;
-  borderType?: 'dashed' | 'dotted' | 'solid';
+  // 时序型图表数据 [x, y][]  x: 时间戳 y: 数值
+  data: [number, number][];
+  dimensions?: Record<string, any>;
+  markArea?: Record<string, any>;
+  metricField?: string; // 指标
+  // 图例名称
+  name: string;
+  // 数据堆叠，同个类目轴上系列配置相同的stack值可以堆叠放置。
+  stack?: string;
+  timeOffset?: number | string;
+  traceData?: Record<number, IProfilingTraceInfo[]>;
+  // 图表显示类型 bar | line
+  type: TimeSeriesType;
+  // 单位
+  unit: string;
 }
+
+// 时序性图表类型 bar: 柱状图 line: 线性图
+export type TimeSeriesType = 'bar' | 'line';

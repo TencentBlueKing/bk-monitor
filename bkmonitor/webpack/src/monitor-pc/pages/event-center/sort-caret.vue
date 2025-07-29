@@ -34,7 +34,7 @@ import { Component, Prop, Vue } from 'vue-property-decorator';
 
 @Component({ name: 'sort-caret' })
 export default class SortCaret extends Vue {
-  @Prop({ required: true }) active: 'normal' | 'asc' | 'desc';
+  @Prop({ required: true }) active: 'asc' | 'desc' | 'normal';
   private list: [
     {
       id: 'asc';

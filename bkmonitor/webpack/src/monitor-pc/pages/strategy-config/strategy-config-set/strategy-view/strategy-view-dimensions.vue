@@ -26,19 +26,21 @@
 <template>
   <div class="dimensions-panel">
     <div
-      v-for="item in dimensionData.filter((item) => !!item.name)"
+      v-for="item in dimensionData.filter(item => !!item.name)"
       :key="item.id"
       class="dimensions-panel-item"
     >
       <div
-        class="item-title"
         v-bk-tooltips="{ content: item.id, allowHTML: false }"
-      >{{ item.name }}</div>
+        class="item-title"
+      >
+        {{ item.name }}
+      </div>
       <div class="item-content">
         <bk-input
+          v-model.trim="dimensionValues[item.id]"
           class="item-content-select"
           size="small"
-          v-model.trim="dimensionValues[item.id]"
           @click.native="handleShowMenu($event, item)"
           @change="handleSelectChange"
           @input="(v, event) => handleInputChange(v, item, event)"
@@ -52,14 +54,13 @@
 import { Component, Emit, Prop, Vue } from 'vue-property-decorator';
 
 import { Debounce } from '../../../../components/ip-selector/common/util';
-
 import SelectMenu, { type IMenu } from './select-menu.vue';
 
 interface IDimensionOption {
   id: string;
+  list: IMenu[];
   name: string;
   show: boolean;
-  list: IMenu[];
 }
 
 @Component({ name: 'strategy-view-dimensions' })

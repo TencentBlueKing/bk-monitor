@@ -29,6 +29,9 @@ import { Component as tsc } from 'vue-tsx-support';
 import { type IScrollListItem, ScrollPageMode } from './type';
 
 import './scroll-list.scss';
+export interface IScrollListEvents {
+  pageChange: (page: number) => void;
+}
 export interface IScrollListProps {
   /** 列表数据**/
   data: IScrollListItem[];
@@ -36,15 +39,12 @@ export interface IScrollListProps {
   mode: ScrollPageMode;
   /** 当前页码**/
   page: number;
-  /** 总条数**/
-  total: number;
   /** 每页条数**/
   pageSize: number;
+  /** 总条数**/
+  total: number;
   /** 获取列表数据的方法**/
   getData: (page: number) => Promise<IScrollListItem[]>;
-}
-export interface IScrollListEvents {
-  pageChange: (page: number) => void;
 }
 @Component
 export default class ScrollList extends tsc<object> {

@@ -40,11 +40,11 @@ const MenuList: CommonItem[] = [
     name: window.i18n.tc('复制所有'),
   },
 ];
-interface ICommonCollapseProps {
-  menuList?: CommonItem[];
-}
 interface ICommonCollapseEvents {
   onMenuSelect: string;
+}
+interface ICommonCollapseProps {
+  menuList?: CommonItem[];
 }
 @Component
 export default class CommonCollapse extends tsc<ICommonCollapseProps, ICommonCollapseEvents> {

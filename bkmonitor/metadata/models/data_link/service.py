@@ -56,6 +56,7 @@ def apply_data_id_v2(
     namespace: str = settings.DEFAULT_VM_DATA_LINK_NAMESPACE,
     bk_biz_id: int = settings.DEFAULT_BKDATA_BIZ_ID,
     is_base: bool = False,
+    event_type: str = "metric",
 ) -> bool:
     """
     下发 data_id 资源，并记录对应的资源及配置
@@ -63,8 +64,9 @@ def apply_data_id_v2(
     @param namespace: 资源命名空间
     @param bk_biz_id: 业务ID
     @param is_base: 是否是基础数据源
+    @param event_type: 数据类型
     """
-    logger.info("apply_data_id_v2:apply data_id for data_name: %s", data_name)
+    logger.info("apply_data_id_v2:apply data_id for data_name: %s,event_type: %s", data_name, event_type)
 
     if is_base:  # 如果是基础数据源（1000,1001）,那么沿用固定格式的data_name，会以此name作为bkbase申请时的唯一键
         bkbase_data_name = data_name
@@ -79,7 +81,7 @@ def apply_data_id_v2(
     data_id_config_ins, _ = DataIdConfig.objects.get_or_create(
         name=bkbase_data_name, namespace=namespace, bk_biz_id=bk_biz_id
     )
-    data_id_config = data_id_config_ins.compose_config()
+    data_id_config = data_id_config_ins.compose_config(event_type=event_type)
 
     api.bkdata.apply_data_link({"config": [data_id_config]})
     logger.info("apply_data_id_v2:apply data_id for data_name: %s success", data_name)
@@ -471,9 +473,7 @@ def create_fed_vm_data_link(
         ]
         conditions.append({"match_labels": match_labels, "relabels": relabels, "sinks": sinks})
         logger.info(
-            "composed datalink config,name->{},builtin_name->{},match_labels->{},relabels->{},sinks->{}".format(
-                name, builtin_name, match_labels, relabels, sinks
-            )
+            f"composed datalink config,name->{name},builtin_name->{builtin_name},match_labels->{match_labels},relabels->{relabels},sinks->{sinks}"
         )
         # 添加rt及和存储的关联
         rt_config = DataLinkResourceConfig.compose_vm_table_id_config(builtin_name)

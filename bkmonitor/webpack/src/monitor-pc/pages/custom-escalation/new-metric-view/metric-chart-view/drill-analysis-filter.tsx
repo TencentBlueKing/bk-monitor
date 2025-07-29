@@ -39,19 +39,31 @@ import type { TimeRangeType } from 'monitor-pc/components/time-range/time-range'
 
 import './drill-analysis-filter.scss';
 
+interface IEmit {
+  onComparTypeChange: (value: IResultItem['compare']) => void;
+  onConditionChange: (value: { custom_data: IResultItem['common_conditions']; where: IResultItem['where'] }) => void;
+  onGroupByChange: (value: IResultItem['group_by']) => void;
+  onImmediateRefresh: () => void;
+  onLimitChange: (value: IResultItem['limit']) => void;
+  onRefreshInterval: (value: number) => void;
+  onTimeRangeChange: (value: TimeRangeType) => void;
+  onTimezoneChange: (value: string) => void;
+}
+
 interface IProps {
+  isHaveGroupBy?: boolean;
+  refreshInterval: number;
+  timeRange: TimeRangeType;
   filterConfig: {
-    where: {
-      key: string;
-      method: string;
-      condition: string;
-      value: string[];
-    }[];
     commonConditions: {
       key: string;
       method: string;
       value: string[];
     }[];
+    compare: {
+      offset: string[];
+      type: string;
+    };
     group_by: {
       field: string;
       split: boolean;
@@ -60,25 +72,13 @@ interface IProps {
       function: string;
       limit: number;
     };
-    compare: {
-      type: string;
-      offset: string[];
-    };
+    where: {
+      condition: string;
+      key: string;
+      method: string;
+      value: string[];
+    }[];
   };
-  timeRange: TimeRangeType;
-  refreshInterval: number;
-  isHaveGroupBy?: boolean;
-}
-
-interface IEmit {
-  onConditionChange: (value: { where: IResultItem['where']; custom_data: IResultItem['common_conditions'] }) => void;
-  onTimeRangeChange: (value: TimeRangeType) => void;
-  onTimezoneChange: (value: string) => void;
-  onRefreshInterval: (value: number) => void;
-  onImmediateRefresh: () => void;
-  onGroupByChange: (value: IResultItem['group_by']) => void;
-  onLimitChange: (value: IResultItem['limit']) => void;
-  onComparTypeChange: (value: IResultItem['compare']) => void;
 }
 @Component
 export default class DrillAnalysisView extends tsc<IProps, IEmit> {
@@ -94,7 +94,7 @@ export default class DrillAnalysisView extends tsc<IProps, IEmit> {
 
   calcLableWidth: () => void;
 
-  handleConditionChange(value: { where: IResultItem['where']; custom_data: IResultItem['common_conditions'] }) {
+  handleConditionChange(value: { custom_data: IResultItem['common_conditions']; where: IResultItem['where'] }) {
     this.$emit('conditionChange', value);
   }
 

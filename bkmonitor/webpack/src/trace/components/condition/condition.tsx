@@ -25,9 +25,9 @@
  * IN THE SOFTWARE.
  */
 import { type PropType, defineComponent, ref, watch } from 'vue';
-import { useI18n } from 'vue-i18n';
 
 import { Cascader, Dropdown, Select, Switcher } from 'bkui-vue';
+import { useI18n } from 'vue-i18n';
 
 import DurationFilter from '../../pages/main/duration-filter/duration-filter';
 

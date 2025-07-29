@@ -26,31 +26,31 @@
 import { Component, Emit, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { deepClone, Debounce } from 'monitor-common/utils/utils';
+import { Debounce, deepClone } from 'monitor-common/utils/utils';
 import { Sortable } from 'sortablejs';
 
 import './subscription-content.scss';
 
+interface ISubscriptionContent {
+  contentType?: string;
+  data: {
+    pullData?: ITableData[];
+    viewData?: ITableData[];
+  };
+}
 interface ITableData {
   contentDetails?: string;
   contentTitle?: string;
-  graphName?: { graphId?: string; graphName?: string }[];
-  graphs?: { id?: string; name: string }[];
-  id?: number;
-  reportItem?: number;
-  rowPicturesNum?: number;
   curBizId?: string;
   curGrafana?: string;
   curGrafanaName?: string;
-  width?: number;
+  graphName?: { graphId?: string; graphName?: string }[];
+  graphs?: { id?: string; name: string }[];
   height?: number;
-}
-interface ISubscriptionContent {
-  data: {
-    viewData?: ITableData[];
-    pullData?: ITableData[];
-  };
-  contentType?: string;
+  id?: number;
+  reportItem?: number;
+  rowPicturesNum?: number;
+  width?: number;
 }
 
 @Component({
@@ -207,7 +207,7 @@ export default class SubscriptionContent extends tsc<ISubscriptionContent> {
 
   // 视图截取表格
   getViewTable() {
-    const tableColumnsMap: { label: string; key: string; width?: number }[] = [
+    const tableColumnsMap: { key: string; label: string; width?: number }[] = [
       { label: this.$t('子标题') as string, key: 'contentTitle' },
       { label: this.$t('图表数量') as string, key: 'graphs', width: 150 },
       { label: this.$t('布局') as string, key: 'rowPicturesNum', width: 150 },
@@ -287,7 +287,7 @@ export default class SubscriptionContent extends tsc<ISubscriptionContent> {
   }
   // 整屏截取表格
   getPullTable() {
-    const tableColumnsMap: { label: string; key: string; width?: number }[] = [
+    const tableColumnsMap: { key: string; label: string; width?: number }[] = [
       { label: this.$t('子标题') as string, key: 'contentTitle' },
       { label: this.$t('图片宽度') as string, key: 'imgSize', width: 150 },
       { label: this.$t('说明') as string, key: 'contentDetails', width: 150 },

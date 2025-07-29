@@ -72,7 +72,7 @@ interface INumberChartProps {
 }
 @Component
 class TableBarChart extends Mixins<
-  ChartLoadingMixin & IntersectionMixin & ChartLoadingMixin & LegendMixin & ToolsMixin & ResizeMixin
+  ChartLoadingMixin & ChartLoadingMixin & IntersectionMixin & LegendMixin & ResizeMixin & ToolsMixin
 >(IntersectionMixin, ChartLoadingMixin, ChartLoadingMixin, LegendMixin, ToolsMixin, ResizeMixin) {
   @Prop({ required: true }) panel: PanelModel;
   @Ref() scrollRef: HTMLElement;

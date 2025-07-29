@@ -36,10 +36,10 @@ import type { AnomalyDetectionBase, SchemeItem } from '../types';
 import './single-indicator.scss';
 
 interface SingleIndicatorProps {
-  schemeList: SchemeItem[];
   data: AnomalyDetectionBase;
   isEdit: boolean;
   isSingle?: boolean;
+  schemeList: SchemeItem[];
 }
 
 @Component

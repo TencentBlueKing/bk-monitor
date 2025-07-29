@@ -39,12 +39,12 @@ import type { TreeMenuItem } from './utils';
 // import ResizeLayout from '../../../components/resize-layout/resize-layout';
 import './dashboard-container.scss';
 
-interface IProps {
-  bizIdList: ISpaceItem[];
-}
 interface IEvents {
   onBizChange: number;
   onOpenSpaceManager?: () => void;
+}
+interface IProps {
+  bizIdList: ISpaceItem[];
 }
 @Component
 class DashboardContainer extends Mixins(authorityMixinCreate(grafanaAuth, 'created')) {

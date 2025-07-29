@@ -1,0 +1,112 @@
+.k8s-quick-tools {
+  display: flex;
+  column-gap: 4px;
+  padding: 2px;
+  background: #ffffff;
+  border: 1px solid #f5f7fa;
+  border-radius: 2px;
+  box-shadow: 0 2px 4px 0 #0000001f;
+
+  .tool-item {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    color: #4d4f56;
+
+    &:hover {
+      color: #3a84ff;
+    }
+
+    &:has(+ .tool-item:not(.hidden)) {
+      position: relative;
+
+      &::after {
+        position: absolute;
+        right: -2px;
+        width: 1px;
+        height: 12px;
+        content: '';
+        background: #dcdee5;
+      }
+    }
+
+    .icon-monitor {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+      height: 100%;
+      cursor: pointer;
+
+      &.icon-xiazuan {
+        font-size: 14px;
+      }
+
+      &.icon-switch {
+        font-size: 12px;
+      }
+    }
+
+    &.filter-tool {
+      .selected {
+        display: block;
+        width: inherit;
+        height: inherit;
+        cursor: pointer;
+        background: url('../../../../static/images/svg/cancel-search.svg');
+        background-repeat: no-repeat;
+        background-position: center;
+        background-size: 20px 20px;
+      }
+    }
+
+    &.drill-down-tool {
+      .drill-down-icon {
+        width: 100%;
+        height: 100%;
+        margin-left: 0;
+        line-height: inherit;
+
+        .popover-trigger {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          width: 100%;
+          height: 100%;
+          line-height: inherit;
+        }
+      }
+    }
+
+    &.scene-tool {
+      &.active {
+        color: #3a84ff;
+        background: #cddffe;
+      }
+    }
+  }
+}
+
+.tippy-tooltip.k8s-scene-popover-theme {
+  min-width: 58px;
+
+  .scene-list-menu {
+    width: 58px;
+    padding: 4px 0;
+
+    .menu-item {
+      height: 32px;
+      padding: 0 12px;
+      font-size: 12px;
+      line-height: 32px;
+      color: #4d4f56;
+      cursor: pointer;
+
+      &:hover {
+        background: #f5f7fa;
+      }
+    }
+  }
+}

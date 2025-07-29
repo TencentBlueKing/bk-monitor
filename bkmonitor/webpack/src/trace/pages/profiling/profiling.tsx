@@ -26,12 +26,12 @@
  */
 
 import { type Ref, computed, defineComponent, onMounted, provide, reactive, ref } from 'vue';
-import { useI18n } from 'vue-i18n';
-import { useRoute, useRouter } from 'vue-router';
 
 import { Dialog } from 'bkui-vue';
 import { queryServicesDetail } from 'monitor-api/modules/apm_profile';
 import { getDefaultTimezone } from 'monitor-pc/i18n/dayjs';
+import { useI18n } from 'vue-i18n';
+import { useRoute, useRouter } from 'vue-router';
 
 import { handleTransformToTimestamp } from '../../components/time-range/utils';
 import ProfilingQueryImage from '../../static/img/profiling-query.png';
@@ -47,14 +47,14 @@ import RetrievalSearch from './components/retrieval-search';
 import UploadRetrievalView from './components/upload-retrieval-view';
 import {
   type DataTypeItem,
-  DetailType,
   type FileDetail,
-  PanelType,
   type SearchState,
-  SearchType,
   type ServicesDetail,
+  DetailType,
+  PanelType,
+  SearchType,
 } from './typings';
-import { MenuEnum, type ToolsFormData } from './typings/page-header';
+import { type ToolsFormData, MenuEnum } from './typings/page-header';
 
 import type { ISelectMenuOption } from '../../components/select-menu/select-menu';
 

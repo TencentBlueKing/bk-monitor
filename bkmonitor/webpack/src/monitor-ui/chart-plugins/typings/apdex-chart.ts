@@ -25,28 +25,28 @@
  */
 import type { BarSeriesOption } from 'echarts/charts';
 
-export interface IApdexSeriesItem extends BarSeriesOption {
-  // 时序型图表数据 [x, y][]  x: 时间戳 y: 数值
-  data: {
-    itemStyle: {
-      // 数据颜色
-      color?: string;
-      // 边框颜色
-      borderColor?: string;
-    };
-    value: [number, number];
-  }[];
-  // 图例名称
-  name: string;
-  // 单位
-  unit: string;
-  // 数据堆叠，同个类目轴上系列配置相同的stack值可以堆叠放置。
-  stack?: string;
-}
-
 export interface IApdexSeriesData {
   // 指标数据
   metrics?: [];
   // 图表数据
   series: IApdexSeriesItem[];
+}
+
+export interface IApdexSeriesItem extends BarSeriesOption {
+  // 图例名称
+  name: string;
+  // 数据堆叠，同个类目轴上系列配置相同的stack值可以堆叠放置。
+  stack?: string;
+  // 单位
+  unit: string;
+  // 时序型图表数据 [x, y][]  x: 时间戳 y: 数值
+  data: {
+    itemStyle: {
+      // 边框颜色
+      borderColor?: string;
+      // 数据颜色
+      color?: string;
+    };
+    value: [number, number];
+  }[];
 }

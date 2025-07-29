@@ -38,16 +38,8 @@ import type { MetricDetail } from '../typings/index';
 import './strategy-metric-alert.scss';
 import '@blueking/search-select-v3/vue2/vue2.css';
 
-interface IStrategyMetricAlertProps {
-  isShow: boolean;
-  scenarioList: IScenarioItem[];
-  monitorType?: string;
-  metricData?: MetricDetail[];
-}
-interface IStrategyMetricAlertEvent {
-  onShowChange?: boolean;
-  onSelected?: any[];
-  onScenarioChange?: string;
+interface ICache {
+  [propName: string]: { count?: number; list?: any[]; page?: number; scenarioCounts?: any[]; scrollTop?: number };
 }
 interface IDataSource {
   bk_fta_alert?: IDataSourceItem; // 第三方告警
@@ -57,23 +49,23 @@ interface IDataSourceItem {
   count: number;
   dataSourceLabel: string;
   dataTypeLabel: string;
-  sourceType: string;
-  sourceName: string;
   list: any[];
+  sourceName: string;
+  sourceType: string;
 }
 interface IScenarioItem {
+  children?: IScenarioItem[];
   id: string;
   name: string;
-  children?: IScenarioItem[];
 }
 interface ISearchObj {
-  keyWord: { values: { id: string; name: string }[]; id: string; name: string }[];
   data: ISearchOption[];
+  keyWord: { id: string; name: string; values: { id: string; name: string }[] }[];
 }
 interface ISearchOption {
+  children: any[];
   id: string;
   name: string;
-  children: any[];
 }
 interface IStaticParams {
   bk_biz_id: number;
@@ -81,8 +73,16 @@ interface IStaticParams {
   data_type_label: string;
   result_table_label: string;
 }
-interface ICache {
-  [propName: string]: { page?: number; list?: any[]; count?: number; scrollTop?: number; scenarioCounts?: any[] };
+interface IStrategyMetricAlertEvent {
+  onScenarioChange?: string;
+  onSelected?: any[];
+  onShowChange?: boolean;
+}
+interface IStrategyMetricAlertProps {
+  isShow: boolean;
+  metricData?: MetricDetail[];
+  monitorType?: string;
+  scenarioList: IScenarioItem[];
 }
 @Component({
   name: 'StrategyMetricAlert',

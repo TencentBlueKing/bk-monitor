@@ -55,7 +55,7 @@
         >
           <div
             class="help-md"
-            v-html="item.help_md"
+            v-html="$xss(item.help_md)"
           ></div>
           <template v-if="item.button_list.length">
             <div

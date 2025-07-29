@@ -24,10 +24,10 @@
  * IN THE SOFTWARE.
  */
 export interface IRouteConfig {
+  children?: any[];
   id: string;
   name: string;
   route: string;
-  children?: any[];
 }
 export const allRouteConfig: IRouteConfig[] = [
   {

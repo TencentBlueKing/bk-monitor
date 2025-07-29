@@ -26,7 +26,7 @@
 
 import type { Span } from '../typings';
 
-export type ViewedBoundsFunctionType = (start: number, end: number) => { start: number; end: number };
+export type ViewedBoundsFunctionType = (start: number, end: number) => { end: number; start: number };
 /**
  * Given a range (`min`, `max`) and factoring in a zoom (`viewStart`, `viewEnd`)
  * a function is created that will find the position of a sub-range (`start`, `end`).
@@ -41,7 +41,7 @@ export type ViewedBoundsFunctionType = (start: number, end: number) => { start: 
  *                            relative to the `min`, `max`.
  * @returns {(number, number) => Object} Created view bounds function
  */
-export function createViewedBoundsFunc(viewRange: { min: number; max: number; viewStart: number; viewEnd: number }) {
+export function createViewedBoundsFunc(viewRange: { max: number; min: number; viewEnd: number; viewStart: number }) {
   const { min, max, viewStart, viewEnd } = viewRange;
   const duration = max - min;
   const viewMin = min + viewStart * duration;
@@ -84,6 +84,27 @@ const isErrorStr = spanHasTag.bind(null, 'error', 'true');
 export const isErrorSpan = (span: Span) => isErrorBool(span) || isErrorStr(span);
 
 /**
+ * Expects the first span to be the parent span.
+ */
+export function findServerChildSpan(spans: Span[]) {
+  if (spans.length <= 1 || !isClientSpan(spans[0])) {
+    return false;
+  }
+  const span = spans[0];
+  const spanChildDepth = span.depth + 1;
+  let i = 1;
+  while (i < spans.length && spans[i].depth === spanChildDepth) {
+    if (isServerSpan(spans[i]) && spans[i].source !== 'ebpf') {
+      // ebpf类型节点只是一种补充，不应该影响正常的服务之间的调用关系
+      return spans[i];
+    }
+
+    i++;
+  }
+  return null;
+}
+
+/**
  * Returns `true` if at least one of the descendants of the `parentSpanIndex`
  * span contains an error tag.
  *
@@ -103,27 +124,6 @@ export function spanContainsErredSpan(spans: Span[], parentSpanIndex: number) {
     }
   }
   return false;
-}
-
-/**
- * Expects the first span to be the parent span.
- */
-export function findServerChildSpan(spans: Span[]) {
-  if (spans.length <= 1 || !isClientSpan(spans[0])) {
-    return false;
-  }
-  const span = spans[0];
-  const spanChildDepth = span.depth + 1;
-  let i = 1;
-  while (i < spans.length && spans[i].depth === spanChildDepth) {
-    if (isServerSpan(spans[i]) && spans[i].source !== 'ebpf') {
-      // ebpf类型节点只是一种补充，不应该影响正常的服务之间的调用关系
-      return spans[i];
-    }
-
-    i++;
-  }
-  return null;
 }
 
 export const isKindClient = (span: Span): boolean =>

@@ -24,12 +24,12 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, type PropType, shallowRef, watch, useTemplateRef, computed } from 'vue';
-import { useI18n } from 'vue-i18n';
+import { type PropType, computed, defineComponent, shallowRef, useTemplateRef, watch } from 'vue';
 
 import { useStorage } from '@vueuse/core';
-import { Input, Checkbox, Loading } from 'bkui-vue';
+import { Checkbox, Input, Loading } from 'bkui-vue';
 import _ from 'lodash';
+import { useI18n } from 'vue-i18n';
 
 import CreateGroupPopover from './components/create-group-popover';
 import EditFavorite from './components/edit-favorite';

@@ -35,9 +35,9 @@ import './guide-page.scss';
 
 const SPACE_DEMO_NAME = 'DEMO';
 interface IGuidePageProps {
-  marginless?: boolean;
-  guideId?: string;
   guideData?: ISPaceIntroduceData;
+  guideId?: string;
+  marginless?: boolean;
 }
 Component.registerHooks(['beforeRouteEnter']);
 @Component

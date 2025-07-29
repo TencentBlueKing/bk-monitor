@@ -36,14 +36,14 @@ import { type OperationType, OperationTypeMap } from './utils';
 
 import './batch-operation-dialog.scss';
 
-interface BatchOperationDialogProps {
-  show: boolean;
-  operationType: string;
-  groupIds: number[];
-}
-
 interface BatchOperationDialogEvents {
   onCloseDialog: () => void;
+}
+
+interface BatchOperationDialogProps {
+  groupIds: number[];
+  operationType: string;
+  show: boolean;
 }
 
 @Component({

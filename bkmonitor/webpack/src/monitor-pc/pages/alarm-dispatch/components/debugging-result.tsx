@@ -33,42 +33,42 @@ import { random } from 'monitor-common/utils';
 import TimeRange, { type TimeRangeType } from '../../../components/time-range/time-range';
 import { handleTransformToTimestamp } from '../../../components/time-range/utils';
 import emptyImageSrc from '../../../static/images/png/empty.png';
-import { GROUP_KEYS, type IConditionProps } from '../typing/condition';
+import { type IConditionProps, GROUP_KEYS } from '../typing/condition';
 import CommonCondition from './common-condition-new';
 
 import './debugging-result.scss';
 
-interface IResultGroupItem {
-  group_id: string;
-  group_name: string;
-  priority: string;
-  alerts_count?: number;
-  rules: { is_enabled: boolean }[] | any[];
-  key?: string;
-  isExpand: boolean;
-}
-
 export interface IRuleGroupsDataItem {
+  assign_group_id: number;
   bk_biz_id: number;
   group_name: string;
-  assign_group_id: number;
   priority: number;
   rules: any[];
   settings?: any;
 }
-interface IProps {
-  isShow: boolean;
-  isViewDebugEffect?: boolean;
-  alarmGroupList: any[];
-  ruleGroupsData?: any[];
-  conditionProps?: IConditionProps;
-  excludeGroups?: string[];
-}
 
 interface IEvent {
   onShowChange?: boolean;
-  onSaveSuccess?: () => void;
   onDelSuccess?: () => void;
+  onSaveSuccess?: () => void;
+}
+interface IProps {
+  alarmGroupList: any[];
+  conditionProps?: IConditionProps;
+  excludeGroups?: string[];
+  isShow: boolean;
+  isViewDebugEffect?: boolean;
+  ruleGroupsData?: any[];
+}
+
+interface IResultGroupItem {
+  alerts_count?: number;
+  group_id: string;
+  group_name: string;
+  isExpand: boolean;
+  key?: string;
+  priority: string;
+  rules: any[] | { is_enabled: boolean }[];
 }
 
 @Component

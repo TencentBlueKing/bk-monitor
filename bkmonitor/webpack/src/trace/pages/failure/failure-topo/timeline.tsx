@@ -24,10 +24,10 @@
  * IN THE SOFTWARE.
  */
 import { type PropType, type Ref, computed, defineComponent, inject, ref, watch } from 'vue';
-import { useI18n } from 'vue-i18n';
 
 import { DatePicker, Dropdown, Slider } from 'bkui-vue';
 import dayjs from 'dayjs';
+import { useI18n } from 'vue-i18n';
 
 import type { IncidentDetailData, TopoRawData } from './types';
 

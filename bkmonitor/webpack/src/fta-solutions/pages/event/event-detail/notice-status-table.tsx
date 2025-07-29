@@ -28,20 +28,20 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import './notice-status-table.scss';
 
-interface ITableData {
-  target?: string;
-  label?: string;
-  tip?: string;
+interface IProps {
+  hasColumns?: string[];
+  tableColumns?: ITableColumn[];
+  tableData?: ITableData[];
 }
 interface ITableColumn {
   label?: string;
   prop?: string;
 }
 
-interface IProps {
-  tableData?: ITableData[];
-  tableColumns?: ITableColumn[];
-  hasColumns?: string[];
+interface ITableData {
+  label?: string;
+  target?: string;
+  tip?: string;
 }
 
 @Component

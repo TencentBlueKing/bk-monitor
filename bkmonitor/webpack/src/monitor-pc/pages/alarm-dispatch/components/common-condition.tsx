@@ -29,7 +29,7 @@ import { Component as tsc } from 'vue-tsx-support';
 import { Debounce, random } from 'monitor-common/utils';
 
 import { getEventPaths } from '../../../utils';
-import { CONDITIONS, type ICondtionItem, METHODS } from '../typing';
+import { type ICondtionItem, CONDITIONS, METHODS } from '../typing';
 import {
   type ISpecialOptions,
   type TGroupKeys,
@@ -41,12 +41,12 @@ import {
 import './common-condition.scss';
 
 interface IListItem {
-  id: string;
-  name: string;
-  isCheck?: boolean;
-  isStrategyId?: boolean;
   first_label_name?: string; // 适用于策略id
+  id: string;
+  isCheck?: boolean;
   isGroupKey?: boolean;
+  isStrategyId?: boolean;
+  name: string;
 }
 
 const groupNamesMap = {
@@ -66,29 +66,29 @@ enum TypeEnum {
 const NULL_NAME = `-${window.i18n.t('空')}-`;
 const settingPopClassName = 'common-condition-component-settings-msg';
 
-interface ITagItem {
-  type: TypeEnum;
-  id: string;
-  name: string;
-  alias?: string; // 别名， 标签和维度的key 需要有别名
-}
-
 interface IProps {
-  value: ICondtionItem[];
-  keyList?: IListItem[];
-  valueList?: IListItem[];
-  valueMap?: TValueMap;
-  groupKeys?: TGroupKeys;
   groupKey?: string[];
-  readonly?: boolean;
-  specialOptions?: ISpecialOptions;
-  settingsValue?: ICondtionItem[];
+  groupKeys?: TGroupKeys;
+  keyList?: IListItem[];
   loading?: boolean;
   needValidate?: boolean;
+  readonly?: boolean;
+  settingsValue?: ICondtionItem[];
+  specialOptions?: ISpecialOptions;
+  value: ICondtionItem[];
+  valueList?: IListItem[];
+  valueMap?: TValueMap;
   onChange?: (v: ICondtionItem[]) => void;
+  onRepeat?: (v: boolean) => void;
   onSettingsChange?: () => void;
   onValidate?: (v: boolean) => void;
-  onRepeat?: (v: boolean) => void;
+}
+
+interface ITagItem {
+  alias?: string; // 别名， 标签和维度的key 需要有别名
+  id: string;
+  name: string;
+  type: TypeEnum;
 }
 
 @Component
@@ -764,7 +764,7 @@ export default class CommonCondition extends tsc<IProps> {
   }
 
   /* 输入框操作 */
-  handleKeydown(event: Event | any, item: ITagItem, index: number) {
+  handleKeydown(event: any | Event, item: ITagItem, index: number) {
     const keyCode = event?.code || '';
     switch (keyCode) {
       case 'Enter': {

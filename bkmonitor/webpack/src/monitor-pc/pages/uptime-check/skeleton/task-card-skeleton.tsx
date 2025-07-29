@@ -29,8 +29,8 @@ import { Component as tsc } from 'vue-tsx-support';
 import './task-card-skeleton.scss';
 
 interface IProps {
-  type?: number;
   num?: number;
+  type?: number;
 }
 
 @Component

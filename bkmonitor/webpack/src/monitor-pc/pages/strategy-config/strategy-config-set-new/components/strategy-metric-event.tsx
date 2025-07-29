@@ -30,13 +30,13 @@ import { deepClone } from 'monitor-common/utils/utils';
 
 import StrategyMetricWrap from './strategy-metric-wrap';
 
+interface IEventFn {
+  onShowChange: Function;
+}
+
 interface IStrategyMetricEvent {
   isShow: boolean;
   scenarioList: any;
-}
-
-interface IEventFn {
-  onShowChange: Function;
 }
 
 @Component({

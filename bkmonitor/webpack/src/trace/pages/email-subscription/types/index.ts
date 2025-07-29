@@ -1,3 +1,99 @@
+export enum FrequencyType {
+  /** 按天 */
+  daily = 2,
+  /** 按小时 */
+  hourly = 5,
+  /** 按月 */
+  monthly = 4,
+  /** 仅一次 */
+  onlyOnce = 1,
+  /** 按周 */
+  weekly = 3,
+}
+
+export type Channel = {
+  channel_name: 'email' | 'user' | 'wxbot';
+  is_enabled: boolean;
+  send_text?: string;
+  subscribers: Subscriber[];
+};
+
+export type ContentConfig = {
+  is_link_enabled: boolean;
+  title: string;
+};
+
+// 订阅详情 对象 开始
+export type DataRange = {
+  number: number;
+  time_level: string;
+};
+
+export interface IColumn {
+  field: string;
+  filter?: { label: string; value: number | string }[];
+  label: string;
+  minWidth?: number;
+  sortable?: boolean;
+  width?: number | string;
+}
+
+export interface ITable {
+  columns: IColumn[];
+  data: Record<string, any>[];
+  settings?: {
+    checked: string[];
+    fields: { field: string; label: string }[];
+    size: string;
+  };
+}
+
+export type Report = {
+  bk_biz_id: number;
+  channels: Channel[];
+  content_config: ContentConfig;
+  create_time?: string;
+  create_user?: string;
+  end_time: number;
+  frequency: TimeFrequency;
+  id: number;
+  is_deleted?: boolean;
+  is_enabled?: boolean;
+  is_invalid?: boolean;
+  is_manager_created?: boolean;
+  is_self_subscribed: boolean;
+  last_send_time?: null | string;
+  name: string;
+  scenario: string;
+  scenario_config: ScenarioConfig;
+  send_mode?: string;
+  send_round?: number;
+  send_status: string;
+  start_time: number;
+  subscriber_type: string;
+  // 该值为表单组件内的使用值，请不要上传。
+  timerange?: string[];
+  update_time?: string;
+  update_user?: string;
+};
+
+export type ScenarioConfig = {
+  generate_attachment: boolean;
+  index_set_id: null | number;
+  is_show_new_pattern: boolean;
+  log_display_count: number;
+  pattern_level: string;
+  year_on_year_change: string;
+  year_on_year_hour: number;
+};
+
+export type Subscriber = {
+  id: string;
+  is_enabled: boolean;
+  type?: string;
+};
+// 订阅详情 对象 结束
+
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -25,107 +121,11 @@
  */
 export type TestSendingTarget = 'all' | 'self';
 
-export enum FrequencyType {
-  /** 按天 */
-  daily = 2,
-  /** 按小时 */
-  hourly = 5,
-  /** 按月 */
-  monthly = 4,
-  /** 仅一次 */
-  onlyOnce = 1,
-  /** 按周 */
-  weekly = 3,
-}
-
-// 订阅详情 对象 开始
-export type DataRange = {
-  number: number;
-  time_level: string;
-};
-
 export type TimeFrequency = {
-  hour: number;
-  type: FrequencyType;
-  day_list: number[];
-  run_time: string;
-  week_list: number[];
   data_range?: DataRange;
+  day_list: number[];
+  hour: number;
+  run_time: string;
+  type: FrequencyType;
+  week_list: number[];
 };
-
-export type ScenarioConfig = {
-  index_set_id: null | number;
-  pattern_level: string;
-  log_display_count: number;
-  year_on_year_hour: number;
-  generate_attachment: boolean;
-  is_show_new_pattern: boolean;
-  year_on_year_change: string;
-};
-
-export type ContentConfig = {
-  title: string;
-  is_link_enabled: boolean;
-};
-
-export type Subscriber = {
-  id: string;
-  type?: string;
-  is_enabled: boolean;
-};
-
-export type Channel = {
-  channel_name: 'email' | 'user' | 'wxbot';
-  is_enabled: boolean;
-  subscribers: Subscriber[];
-  send_text?: string;
-};
-
-export type Report = {
-  id: number;
-  is_enabled?: boolean;
-  is_deleted?: boolean;
-  create_user?: string;
-  create_time?: string;
-  update_user?: string;
-  update_time?: string;
-  name: string;
-  bk_biz_id: number;
-  scenario: string;
-  frequency: TimeFrequency;
-  content_config: ContentConfig;
-  scenario_config: ScenarioConfig;
-  start_time: number;
-  end_time: number;
-  send_mode?: string;
-  subscriber_type: string;
-  send_round?: number;
-  is_manager_created?: boolean;
-  channels: Channel[];
-  is_invalid?: boolean;
-  is_self_subscribed: boolean;
-  last_send_time?: null | string;
-  send_status: string;
-  // 该值为表单组件内的使用值，请不要上传。
-  timerange?: string[];
-};
-// 订阅详情 对象 结束
-
-export interface IColumn {
-  label: string;
-  field: string;
-  width?: number | string;
-  filter?: { label: string; value: number | string }[];
-  sortable?: boolean;
-  minWidth?: number;
-}
-
-export interface ITable {
-  data: Record<string, any>[];
-  columns: IColumn[];
-  settings?: {
-    checked: string[];
-    fields: { field: string; label: string }[];
-    size: string;
-  };
-}

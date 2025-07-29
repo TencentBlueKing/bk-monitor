@@ -36,13 +36,13 @@ import CommonTagList from '../common-tag-list/common-tag-list';
 import type { ITableItem } from '../../typings';
 import type { IDetailItem, IDetailValItem } from '../../typings/common-detail';
 
+interface IEvents {
+  onLinkToDetail: ITableItem<'link'>;
+}
+
 interface IProps {
   data: IDetailItem[];
   width: number | string;
-}
-
-interface IEvents {
-  onLinkToDetail: ITableItem<'link'>;
 }
 
 interface IStatusData {
@@ -53,8 +53,8 @@ interface IStatusData {
 
 interface IStatusDataSubValue {
   name: string;
-  type: string;
   text: string;
+  type: string;
 }
 
 // 由于本地的 vue-i18n 库导致无法正常调试，这里做了一个特殊处理去解决后端的文本强制转成中文作为判断。

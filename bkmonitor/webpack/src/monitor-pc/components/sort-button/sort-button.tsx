@@ -28,16 +28,16 @@ import { modifiers, Component as tsc } from 'vue-tsx-support';
 
 import './sort-button.scss';
 
-interface IProps {
-  value: SortType;
-}
-interface IEvents {
-  onChange: SortType;
-}
 export enum SortType {
   asc = 'asc' /** 升序 */,
   desc = 'desc' /** 降序 */,
   none = '' /** 无排序 */,
+}
+interface IEvents {
+  onChange: SortType;
+}
+interface IProps {
+  value: SortType;
 }
 /**
  * 表格排序按钮

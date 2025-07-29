@@ -26,6 +26,35 @@
 
 import type { MetricDetail } from './typings';
 
+// 函数可选列表
+export interface IFuncListItem {
+  id: number;
+  name: string;
+  params: IFuncListParamsItem[];
+}
+
+export interface IFuncListParamsItem {
+  default: number | string;
+  list: Array<number | string>;
+  name: string;
+}
+
+export interface IFuncLocalParamsItem {
+  contenteditable: boolean;
+  default: number | string;
+  list: IIdNameItem[];
+  name: string;
+  parentId: number;
+  value: number | string;
+}
+
+// 函数组件localValue
+export interface IFuncLocalValue {
+  id: number;
+  name: string;
+  params: IFuncLocalParamsItem[];
+}
+
 // 函数组件value
 export interface IFuncValueItem {
   id: number;
@@ -36,35 +65,6 @@ export interface IFuncValueItem {
 export interface IIdNameItem {
   id: number | string;
   name: number | string;
-}
-
-// 函数组件localValue
-export interface IFuncLocalValue {
-  id: number;
-  name: string;
-  params: IFuncLocalParamsItem[];
-}
-
-export interface IFuncLocalParamsItem {
-  name: string;
-  value: number | string;
-  default: number | string;
-  parentId: number;
-  contenteditable: boolean;
-  list: IIdNameItem[];
-}
-
-// 函数可选列表
-export interface IFuncListItem {
-  id: number;
-  name: string;
-  params: IFuncListParamsItem[];
-}
-
-export interface IFuncListParamsItem {
-  name: string;
-  default: number | string;
-  list: Array<number | string>;
 }
 export const levelList: { id: number; name: string }[] = [
   {
@@ -84,9 +84,9 @@ export const levelList: { id: number; name: string }[] = [
 export interface IActionConfig {
   id?: number;
   name?: string;
-  plugin_type?: string;
-  plugin_name?: string;
   plugin_id?: number;
+  plugin_name?: string;
+  plugin_type?: string;
 }
 
 // eslint-disable-next-line @typescript-eslint/naming-convention

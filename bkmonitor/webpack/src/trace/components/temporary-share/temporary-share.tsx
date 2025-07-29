@@ -24,17 +24,17 @@
  * IN THE SOFTWARE.
  */
 import { type Ref, type VNode, computed, defineComponent, ref } from 'vue';
-import { type TranslateResult, useI18n } from 'vue-i18n';
-import { useRoute } from 'vue-router';
 
-import { Button, Dialog, InfoBox, Message, Switcher, bkTooltips } from 'bkui-vue';
+import { bkTooltips, Button, Dialog, InfoBox, Message, Switcher } from 'bkui-vue';
 import dayjs from 'dayjs';
 import { createShareToken, deleteShareToken, updateShareToken } from 'monitor-api/modules/share';
 import { copyText } from 'monitor-common/utils/utils';
+import { type TranslateResult, useI18n } from 'vue-i18n';
+import { useRoute } from 'vue-router';
 
 import { useAppStore } from '../../store/modules/app';
 import TimeRangeComp from '../time-range/time-range';
-import { TimeRange, type TimeRangeType } from '../time-range/utils';
+import { type TimeRangeType, TimeRange } from '../time-range/utils';
 
 import './temporary-share.scss';
 
@@ -91,7 +91,6 @@ export default defineComponent({
       const period = validityPeriod.value.match(/([0-9]+)/)?.[0] || 1;
       let weWebData = {};
       if (window.__BK_WEWEB_DATA__) {
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
         const { $baseStore = null, ...data } = { ...window.__BK_WEWEB_DATA__ };
         weWebData = { ...data };
       }

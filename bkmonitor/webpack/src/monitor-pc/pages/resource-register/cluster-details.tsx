@@ -31,10 +31,10 @@ import HistoryDialog from '../../components/history-dialog/history-dialog';
 import './cluster-details.scss';
 
 interface IProps {
-  show?: boolean;
   data?: any;
-  onShowChange?: (v: boolean) => void;
+  show?: boolean;
   onEdit?: (id: string) => void;
+  onShowChange?: (v: boolean) => void;
 }
 @Component
 export default class ClusterDetails extends tsc<IProps> {
@@ -127,7 +127,7 @@ export default class ClusterDetails extends tsc<IProps> {
     this.$emit('edit', this.data.cluster_id);
   }
 
-  detailsItem(item: { name: string; content: any }, key) {
+  detailsItem(item: { content: any; name: string }, key) {
     return (
       <div
         key={key}

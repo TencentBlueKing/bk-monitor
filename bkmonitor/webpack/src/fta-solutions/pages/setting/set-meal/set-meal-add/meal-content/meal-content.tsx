@@ -40,34 +40,34 @@ import { setVariableToString } from './utils';
 import './meal-content.scss';
 
 export interface IMealTypeList {
-  id?: number | string;
-  name?: string;
   children?: IMealTypeList[];
   hasChild?: boolean;
-  pluginType?: 'notice' | 'webhook' | string;
+  id?: number | string;
+  name?: string;
   pluginSource?: string;
+  pluginType?: 'notice' | 'webhook' | string;
   newInfo?: {
-    url: string;
     tips: string;
+    url: string;
   };
-}
-
-interface IMealContentNewProps {
-  mealTypeList?: IMealTypeList[];
-  mealData?: IMealData;
-  name?: string; // 套餐名
-  type?: PageType;
-  refreshKey?: string;
-}
-interface IMealContentNewEvent {
-  onChange?: IMealData;
 }
 
 interface IDebugPeripheral {
   isVariable?: boolean; // 是否为变量
   key?: string; // 是变量的话此值有效
-  value?: string; // 变量值
   label?: string; // 输入框title
+  value?: string; // 变量值
+}
+interface IMealContentNewEvent {
+  onChange?: IMealData;
+}
+
+interface IMealContentNewProps {
+  mealData?: IMealData;
+  mealTypeList?: IMealTypeList[];
+  name?: string; // 套餐名
+  refreshKey?: string;
+  type?: PageType;
 }
 
 type PageType = 'add' | 'edit';
@@ -95,16 +95,16 @@ export default class MealContentNew extends tsc<IMealContentNewProps, IMealConte
   isShowDebug = false;
 
   // 调试数据
-  debugData: { type: string; webhook: IWebhook; peripheral: IPeripheral } = {
+  debugData: { peripheral: IPeripheral; type: string; webhook: IWebhook } = {
     type: '',
     webhook: {},
     peripheral: {},
   };
   // 调试状态数据
   debugStatusData: {
-    status?: '' | 'failure' | 'received' | 'running' | 'success';
+    content?: { action_plugin_type: string; text: string; url: string };
     is_finished?: boolean;
-    content?: { text: string; url: string; action_plugin_type: string };
+    status?: '' | 'failure' | 'received' | 'running' | 'success';
   } = {};
   // 调试单据id
   debugActionId = 0;

@@ -81,29 +81,29 @@ import type { TimeRangeType } from 'monitor-pc/components/time-range/time-range'
 
 import './time-series.scss';
 
-interface ITimeSeriesProps {
-  panel: PanelModel;
-  showHeaderMoreTool?: boolean;
-  showChartHeader?: boolean;
-  customTimeRange?: [string, string];
-  customMenuList?: ChartTitleMenuType[];
-  needSetEvent?: boolean;
-  isSingleChart?: boolean;
-}
 interface ITimeSeriesEvent {
-  onFullScreen: PanelModel;
-  onDataZoom: () => void;
-  onDblClick: () => void;
-  onCollectChart?: () => void; // 保存到仪表盘
-  onSelectLegend: ILegendItem[]; // 选择图例时
   onDimensionsOfSeries?: string[]; // 图表数据包含维度是派出
+  onFullScreen: PanelModel;
+  onSelectLegend: ILegendItem[]; // 选择图例时
   onSeriesData?: any;
   onZrClick: ZrClickEvent;
+  onCollectChart?: () => void; // 保存到仪表盘
+  onDataZoom: () => void;
+  onDblClick: () => void;
   onOptionsLoaded(): void;
+}
+interface ITimeSeriesProps {
+  customMenuList?: ChartTitleMenuType[];
+  customTimeRange?: [string, string];
+  isSingleChart?: boolean;
+  needSetEvent?: boolean;
+  panel: PanelModel;
+  showChartHeader?: boolean;
+  showHeaderMoreTool?: boolean;
 }
 @Component
 export class LineChart
-  extends Mixins<ResizeMixin & IntersectionMixin & ToolsMixin & LegendMixin & ChartLoadingMixin & ErrorMsgMixins>(
+  extends Mixins<ChartLoadingMixin & ErrorMsgMixins & IntersectionMixin & LegendMixin & ResizeMixin & ToolsMixin>(
     ResizeMixin,
     IntersectionMixin,
     ToolsMixin,

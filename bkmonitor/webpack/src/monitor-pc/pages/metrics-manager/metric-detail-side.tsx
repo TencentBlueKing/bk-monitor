@@ -39,13 +39,13 @@ import type { IMetricDetail } from '../strategy-config/strategy-config-set-new/t
 
 import './metric-detail-side.scss';
 
-interface IProps {
-  show?: boolean;
-  detail?: IMetricDetail;
-}
-
 interface IEvents {
   onShowChange?: boolean;
+}
+
+interface IProps {
+  detail?: IMetricDetail;
+  show?: boolean;
 }
 
 @Component

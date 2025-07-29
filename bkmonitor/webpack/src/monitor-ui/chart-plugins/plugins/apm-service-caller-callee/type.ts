@@ -24,40 +24,6 @@
  * IN THE SOFTWARE.
  */
 import type { ETypeSelect as EGroupCompareType } from 'monitor-pc/pages/monitor-k8s/components/group-compare-select/utils';
-export interface IServiceConfig {
-  value: string;
-  text: string;
-  label: string;
-  name: string;
-  operate: number;
-  values: string[];
-  value_type: number;
-  checked?: boolean;
-}
-export interface IColumn {
-  label: string;
-  prop: string;
-}
-
-export interface IDataItem {
-  dimensions?: Record<string, any>;
-  [key: string]: any;
-}
-export interface IFilterCondition {
-  key: string;
-  method: string;
-  value: string[];
-  condition: string;
-}
-export interface IFilterOption extends IFilterCondition {
-  options: { value: string; text: string }[];
-  loading: boolean;
-}
-export interface IFilterType {
-  call_filter: IFilterCondition[];
-  group_by_filter: IDataItem[];
-  time_shift: IDataItem[];
-}
 /* 主调/被调 */
 export enum EKind {
   callee = 'callee',
@@ -68,63 +34,97 @@ export enum EParamsMode {
   contrast = 'contrast',
   group = 'group',
 }
+
 /* 头部对比时间预设 */
 export enum EPreDateType {
   lastWeek = '1w',
   yesterday = '1d',
 }
-
-export interface IListItem {
-  value?: string;
-  text?: string;
-  label?: string;
-}
-
 export type CallOptions = {
+  [key: string]: any;
+  // 左侧查询条件字段
+  call_filter: IFilterCondition[];
   group_by: string[];
-  method: string;
   limit: number;
+  method: string;
   metric_cal_type: string;
   // 时间对比 字段
   time_shift: string[];
-  // 左侧查询条件字段
-  call_filter: IFilterCondition[];
   // 对比 还是 group by
   tool_mode: EGroupCompareType;
-  [key: string]: any;
+};
+export type DimensionItem = {
+  active: boolean;
+  text: string;
+  value: string;
 };
 export type IChartOption = {
-  time?: string;
   dimensions?: IDataItem;
   interval?: number;
   name?: string;
+  time?: string;
 };
+export interface IColumn {
+  label: string;
+  prop: string;
+}
+export interface IDataItem {
+  [key: string]: any;
+  dimensions?: Record<string, any>;
+}
 export type IDimensionChartOpt = {
-  metric_cal_type: string;
-  time_shift: string;
-  metric_cal_type_name: string;
+  dimensionTime?: IDataItem;
   drillFilterData?: IDataItem[];
   drillGroupBy?: string[];
-  dimensionTime?: IDataItem;
-};
-export type IFilterData = {
-  caller: IColumn[];
-  callee: IColumn[];
+  metric_cal_type: string;
+  metric_cal_type_name: string;
+  time_shift: string;
 };
 
-export interface ITabItem {
-  label: string;
-  id: string;
-  icon?: string;
-  handle?: () => void;
+export interface IFilterCondition {
+  condition: string;
+  key: string;
+  method: string;
+  value: string[];
+}
+
+export type IFilterData = {
+  callee: IColumn[];
+  caller: IColumn[];
+};
+export interface IFilterOption extends IFilterCondition {
+  loading: boolean;
+  options: { text: string; value: string }[];
+}
+export interface IFilterType {
+  call_filter: IFilterCondition[];
+  group_by_filter: IDataItem[];
+  time_shift: IDataItem[];
+}
+export interface IListItem {
+  label?: string;
+  text?: string;
+  value?: string;
 }
 
 export type IPointTime = {
   endTime?: number;
   startTime?: number;
 };
-export type DimensionItem = {
-  value: string;
+
+export interface IServiceConfig {
+  checked?: boolean;
+  label: string;
+  name: string;
+  operate: number;
   text: string;
-  active: boolean;
-};
+  value: string;
+  value_type: number;
+  values: string[];
+}
+export interface ITabItem {
+  icon?: string;
+  id: string;
+  label: string;
+  handle?: () => void;
+}

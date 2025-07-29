@@ -50,14 +50,14 @@ const operatorText = {
 };
 
 interface IProps {
+  alarmGroupId?: number | string;
+  defaultGroupList?: IGroupListItem[];
   dutyArranges?: (number | string)[];
   dutyNotice?: any;
-  defaultGroupList?: IGroupListItem[];
-  rendreKey?: string;
-  alarmGroupId?: number | string;
   dutyPlans?: any[];
-  onNoticeChange?: (_v) => void;
+  rendreKey?: string;
   onDutyChange?: (v: number[]) => void;
+  onNoticeChange?: (_v) => void;
 }
 
 @Component
@@ -104,7 +104,7 @@ export default class RotationConfig extends tsc<IProps> {
   noticeRenderKey = random(8);
 
   /* 轮值预览下的统计信息 */
-  userPreviewList: { name: string; id: string }[] = [];
+  userPreviewList: { id: string; name: string }[] = [];
   previewStartTime = '';
 
   errMsg = '';

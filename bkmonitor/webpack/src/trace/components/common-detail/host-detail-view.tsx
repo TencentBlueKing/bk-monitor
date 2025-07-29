@@ -24,14 +24,13 @@ import { defineComponent } from 'vue';
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-
-import { type PropType, reactive, computed } from 'vue';
-import { useI18n } from 'vue-i18n';
-import { useRoute, useRouter } from 'vue-router';
+import { type PropType, computed, reactive } from 'vue';
 
 import { Message, overflowTitle, Progress } from 'bkui-vue';
 import dayjs from 'dayjs';
 import { copyText, random } from 'monitor-common/utils/utils';
+import { useI18n } from 'vue-i18n';
+import { useRoute, useRouter } from 'vue-router';
 
 import CollapseItem from '../collapse-item/collapse-item';
 import ContentCollapse from '../content-collapse/content-collapse';

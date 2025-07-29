@@ -49,13 +49,11 @@ import {
   queryConfigToPromql,
 } from 'monitor-api/modules/strategies';
 import { monitorDrag } from 'monitor-common/utils/drag-directive';
-import { Debounce, copyText, deepClone, getUrlParam, random } from 'monitor-common/utils/utils';
+import { copyText, Debounce, deepClone, getUrlParam, random } from 'monitor-common/utils/utils';
 
 import MetricSelector from '../../components/metric-selector/metric-selector';
 import { transformValueToMonitor } from '../../components/monitor-ip-selector/utils';
 import NotifyBox from '../../components/notify-box/notify-box';
-import { LETTERS } from '../../constant/constant';
-
 // import PromqlEditor from 'monitor-ui/promql-editor/promql-editor';
 import PromqlEditor from '../../components/promql-editor/promql-editor';
 import {
@@ -63,6 +61,7 @@ import {
   handleTransformToTimestamp,
   timestampTransformStr,
 } from '../../components/time-range/utils';
+import { LETTERS } from '../../constant/constant';
 import { getDefaultTimezone, updateTimezone } from '../../i18n/dayjs';
 import { MetricDetail, MetricType } from '../../pages/strategy-config/strategy-config-set-new/typings';
 import { validateExpression } from '../../utils/index';
@@ -78,8 +77,6 @@ import FavoriteIndex from './favorite-container/collect-index';
 import FilterDict from './filter-dict';
 import HandleBtn from './handle-btn/handle-btn';
 import {
-  DataRetrievalPromqlItem,
-  DataRetrievalQueryItem,
   type EventRetrievalViewType,
   type IDataRetrieval,
   type IDataRetrievalItem,
@@ -87,6 +84,8 @@ import {
   type IFavList,
   type IFilterCondition,
   type TEditMode,
+  DataRetrievalPromqlItem,
+  DataRetrievalQueryItem,
 } from './typings';
 
 // import PromqlEditor from 'monitor-ui/promql-editor/promql-editor';
@@ -1155,7 +1154,7 @@ export default class DataRetrieval extends tsc<object> {
    * @description: 保存选中目标
    * @param {*} data 目标数据
    */
-  handleTargetChange(data: { value: IIpV6Value; nodeType: INodeType }) {
+  handleTargetChange(data: { nodeType: INodeType; value: IIpV6Value }) {
     const value = transformValueToMonitor(data.value, data.nodeType);
     this.target.value = value;
     this.target.targetType = data.nodeType;
@@ -1274,9 +1273,9 @@ export default class DataRetrieval extends tsc<object> {
     }
     data.tools && (this.compareValue.tools = data.tools);
     const compareMap: { [key in IDataRetrievalView.compareType]: (params: any) => any } = {
-      none: ({ type, split }: { type: IDataRetrievalView.compareType; split: boolean }) => ({ type, value: split }),
+      none: ({ type, split }: { split: boolean; type: IDataRetrievalView.compareType }) => ({ type, value: split }),
       target: ({ type }: { type: IDataRetrievalView.compareType }) => ({ type }),
-      time: ({ type, timeOffset }: { type: IDataRetrievalView.compareType; timeOffset: string[] }) => ({
+      time: ({ type, timeOffset }: { timeOffset: string[]; type: IDataRetrievalView.compareType }) => ({
         type,
         value: timeOffset,
       }),
@@ -2011,9 +2010,9 @@ export default class DataRetrieval extends tsc<object> {
   getCompare() {
     type type = IDataRetrievalView.compareType;
     type CompareFunction = (compare: { type: type; value?: boolean | string[] }) => {
-      type: type;
       split?: boolean;
       time_offset?: string[];
+      type: type;
     };
     const compareMap: { [key in type]: CompareFunction } = {
       none: ({ type, value }: { type: type; value: boolean }) => ({ type, split: value }),

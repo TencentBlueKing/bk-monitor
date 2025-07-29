@@ -28,63 +28,65 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import { copyText, deepClone, random } from 'monitor-common/utils';
 
-import { APIType } from '../../pages/event-explore/api-utils';
 import QsSelector from './qs-selector';
 import ResidentSetting from './resident-setting';
 import UiSelector from './ui-selector';
 import {
-  ECondition,
   type EMethod,
-  EMode,
-  getCacheUIData,
   type IFavoriteListItem,
   type IFilterField,
   type IFilterItem,
   type IGetValueFnParams,
   type IWhereItem,
   type IWhereValueOptionsItem,
+  ECondition,
+  EMode,
+  getCacheUIData,
   METHOD_MAP,
   MODE_LIST,
   setCacheUIData,
 } from './utils';
 
-import type { IFavList } from '../../pages/data-retrieval/typings';
-
 import './retrieval-filter.scss';
 
-interface IProps {
-  dataId?: string;
-  source?: APIType;
-  residentSettingOnlyId?: string;
-  fields: IFilterField[];
-  where?: IWhereItem[];
+interface ICurrentFavorite {
   commonWhere?: IWhereItem[];
-  queryString?: string;
-  selectFavorite?: IFavList.favList;
-  favoriteList?: IFavoriteListItem[];
-  filterMode?: EMode;
-  defaultShowResidentBtn?: boolean;
-  // isQsOperateWrapBottom?: boolean;
-  isShowFavorite?: boolean;
-  getValueFn?: (params: IGetValueFnParams) => Promise<IWhereValueOptionsItem>;
+  where?: IWhereItem[];
 }
 
 interface IEvent {
-  onFavorite: (isEdit: boolean) => void;
-  onWhereChange?: (v: IWhereItem[]) => void;
-  onQueryStringChange?: (v: string) => void;
-  onModeChange?: (v: EMode) => void;
-  onQueryStringInputChange?: (v: string) => void;
   onCommonWhereChange?: (where: IWhereItem[]) => void;
-  onShowResidentBtnChange?: (v: boolean) => void;
-  onSearch: () => void;
   onCopyWhere: (v: IWhereItem[]) => void;
+  onFavorite: (isEdit: boolean) => void;
+  onModeChange?: (v: EMode) => void;
+  onQueryStringChange?: (v: string) => void;
+  onQueryStringInputChange?: (v: string) => void;
+  onSearch: () => void;
+  onShowResidentBtnChange?: (v: boolean) => void;
+  onWhereChange?: (v: IWhereItem[]) => void;
+}
+interface IProps {
+  commonWhere?: IWhereItem[];
+  defaultShowResidentBtn?: boolean;
+  favoriteList?: IFavoriteListItem[];
+  fields?: IFilterField[];
+  filterMode?: EMode;
+  isDefaultResidentSetting?: boolean;
+  isShowCopy?: boolean;
+  isShowFavorite?: boolean;
+  isShowResident?: boolean;
+  queryString?: string;
+  residentSettingOnlyId?: string;
+  selectFavorite?: ICurrentFavorite;
+  where?: IWhereItem[];
+  getValueFn?: (params: IGetValueFnParams) => Promise<IWhereValueOptionsItem>;
 }
 
 @Component
 export default class RetrievalFilter extends tsc<IProps, IEvent> {
   @Prop({ type: Array, default: () => [] }) fields: IFilterField[];
-  @Prop({ type: Object, default: null }) selectFavorite: IFavList.favList;
+  // 当前选择的收藏项
+  @Prop({ type: Object, default: null }) selectFavorite: ICurrentFavorite;
   @Prop({
     type: Function,
     default: () =>
@@ -101,14 +103,20 @@ export default class RetrievalFilter extends tsc<IProps, IEvent> {
   @Prop({ type: String, default: '' }) queryString: string;
   /** 常驻筛选唯一ID,用于保存常驻筛选配置*/
   @Prop({ type: String, default: '' }) residentSettingOnlyId: string;
-  @Prop({ type: String, default: '' }) dataId: string;
-  @Prop({ type: String, default: APIType.MONITOR }) source: APIType;
+  // 收藏列表 用于语句模式联想搜索
   @Prop({ type: Array, default: () => [] }) favoriteList: IFavoriteListItem[];
   @Prop({ type: String, default: EMode.ui }) filterMode: EMode;
   /* 语句模式hover显示的操作是否显示在下方 */
   // @Prop({ type: Boolean, default: false }) isQsOperateWrapBottom: boolean;
   @Prop({ type: Boolean, default: false }) isShowFavorite: boolean;
+  /* 默认常驻按钮状态 */
   @Prop({ type: Boolean, default: false }) defaultShowResidentBtn: boolean;
+  /* 是否使用默认常驻设置 */
+  @Prop({ type: Boolean, default: true }) isDefaultResidentSetting: boolean;
+  /* 是否需要常驻设置功能 */
+  @Prop({ type: Boolean, default: false }) isShowResident: boolean;
+  /* 是否需要复制功能 */
+  @Prop({ type: Boolean, default: false }) isShowCopy: boolean;
 
   /* 展示常驻设置 */
   showResidentSetting = false;
@@ -131,24 +139,10 @@ export default class RetrievalFilter extends tsc<IProps, IEvent> {
   searchBtnObserver = null;
   rightBtnsWrapWidth = 146;
 
-  /** 当前选择收藏的id */
-  get curFavoriteId() {
-    return this.selectFavorite?.config?.queryConfig?.result_table_id;
-  }
-
-  /** 判断是否展示默认的常驻设置 */
-  get isDefaultResidentSetting() {
-    // 如果当前dataId和收藏的dataId一致，展示收藏
-    if (this.curFavoriteId === this.dataId) {
-      return false;
-    }
-    return true;
-  }
-
   get residentSettingValue() {
     if (this.isDefaultResidentSetting) return this.commonWhere;
     /** 不展示默认的常驻设置，则使用收藏的常驻设置 */
-    return this.selectFavorite?.config?.queryConfig?.commonWhere || [];
+    return this.selectFavorite?.commonWhere || [];
   }
 
   created() {
@@ -239,7 +233,7 @@ export default class RetrievalFilter extends tsc<IProps, IEvent> {
     const uiCacheData = getCacheUIData();
     const localValue: IFilterItem[] = [];
     const uiCacheDataMap: Map<string, IFilterItem> = new Map();
-    const uiCacheDataHideList: { value: IFilterItem; index: number }[] = [];
+    const uiCacheDataHideList: { index: number; value: IFilterItem }[] = [];
     let index = -1;
     for (const item of uiCacheData) {
       index += 1;
@@ -525,17 +519,19 @@ export default class RetrievalFilter extends tsc<IProps, IEvent> {
               >
                 <span class='icon-monitor icon-a-Clearqingkong' />
               </div>
-              <div
-                class={['copy-btn', { disabled: this.mode === EMode.ui ? !this.uiValue.length : !this.qsValue }]}
-                v-bk-tooltips={{
-                  content: window.i18n.tc('复制'),
-                  delay: 300,
-                }}
-                onClick={this.handleCopy}
-              >
-                <span class='icon-monitor icon-mc-copy' />
-              </div>
-              {this.mode === EMode.ui && (
+              {this.isShowCopy ? (
+                <div
+                  class={['copy-btn', { disabled: this.mode === EMode.ui ? !this.uiValue.length : !this.qsValue }]}
+                  v-bk-tooltips={{
+                    content: window.i18n.tc('复制'),
+                    delay: 300,
+                  }}
+                  onClick={this.handleCopy}
+                >
+                  <span class='icon-monitor icon-mc-copy' />
+                </div>
+              ) : undefined}
+              {this.mode === EMode.ui && this.isShowResident ? (
                 <div
                   class={['setting-btn', { 'btn-active': this.showResidentSetting }]}
                   v-bk-tooltips={{
@@ -546,7 +542,7 @@ export default class RetrievalFilter extends tsc<IProps, IEvent> {
                 >
                   <span class='icon-monitor icon-configuration' />
                 </div>
-              )}
+              ) : undefined}
               {this.isShowFavorite && (
                 <bk-popover
                   class='favorite-btn'
@@ -600,7 +596,7 @@ export default class RetrievalFilter extends tsc<IProps, IEvent> {
             </div>
           </div>
         </div>
-        {this.showResidentSetting && (
+        {this.showResidentSetting && this.isShowResident ? (
           <ResidentSetting
             fields={this.fields}
             getValueFn={this.getValueFn}
@@ -609,7 +605,7 @@ export default class RetrievalFilter extends tsc<IProps, IEvent> {
             value={this.residentSettingValue}
             onChange={this.handleCommonWhereChange}
           />
-        )}
+        ) : undefined}
       </div>
     );
   }

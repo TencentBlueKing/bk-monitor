@@ -24,9 +24,9 @@
  * IN THE SOFTWARE.
  */
 import { defineComponent } from 'vue';
-import { useI18n } from 'vue-i18n';
 
 import { Dialog, Tag } from 'bkui-vue';
+import { useI18n } from 'vue-i18n';
 
 import './view-param.scss';
 

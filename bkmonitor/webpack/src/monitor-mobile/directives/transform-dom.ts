@@ -25,6 +25,7 @@
  */
 
 import type { DirectiveOptions } from 'vue';
+
 import type { DirectiveBinding } from 'vue/types/options';
 
 function getTarget(selector: string) {

@@ -29,9 +29,9 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import { addListener, removeListener } from '@blueking/fork-resize-detector';
 import { getTopoList } from 'monitor-api/modules/alert';
-import { LANGUAGE_COOKIE_KEY, docCookies } from 'monitor-common/utils';
-import { getEventPaths } from 'monitor-pc/utils';
+import { docCookies, LANGUAGE_COOKIE_KEY } from 'monitor-common/utils';
 import { Debounce } from 'monitor-common/utils/utils';
+import { getEventPaths } from 'monitor-pc/utils';
 
 import debounceDecorator from '../../common/debounce-decorator';
 import EventModuleStore from '../../store/modules/event';
@@ -41,39 +41,39 @@ import type { TranslateResult } from 'vue-i18n';
 
 import './filter-input.scss';
 
-type PanelType = 'favorite' | 'field' | 'history';
-type PanelShowType = 'condition' | 'field' | 'method' | 'value' | false;
-interface IFocusData {
-  show?: PanelShowType;
-  replaceStart?: number;
-  nextText?: string;
-  filedId?: string;
-}
-interface IListItem extends ICommonItem {
-  queryString?: string;
-  edit?: boolean;
-  fakeName?: string;
-  special?: string;
-}
-interface IFilterInputProps {
-  value: string;
-  searchType?: SearchType;
-  inputStatus?: FilterInputStatus;
-  valueMap?: Record<string, ICommonItem[]>;
-  isFillId?: boolean;
-  bkBizIds?: number[];
-}
 interface IFilterInputEvent {
   onBlur: string;
+  onChange: string;
   onClear: string;
   onFavorite: string;
-  onChange: string;
 }
+interface IFilterInputProps {
+  bkBizIds?: number[];
+  inputStatus?: FilterInputStatus;
+  isFillId?: boolean;
+  searchType?: SearchType;
+  value: string;
+  valueMap?: Record<string, ICommonItem[]>;
+}
+interface IFocusData {
+  filedId?: string;
+  nextText?: string;
+  replaceStart?: number;
+  show?: PanelShowType;
+}
+interface IListItem extends ICommonItem {
+  edit?: boolean;
+  fakeName?: string;
+  queryString?: string;
+  special?: string;
+}
+type PanelShowType = 'condition' | 'field' | 'method' | 'value' | false;
+type PanelType = 'favorite' | 'field' | 'history';
 
 interface SuggestionType {
-  type: string;
   label: string;
   prefix: string;
+  type: string;
 }
 
 const textTypeList = ['field', 'method', 'value', 'condition'];
@@ -189,7 +189,7 @@ export default class FilerInput extends tsc<IFilterInputProps, IFilterInputEvent
   searchTopoList = {
     set_id: [],
     module_id: [],
-  }
+  };
 
   get isTopoList() {
     return ['set_id', 'module_id'].includes(this.focusData?.filedId);
@@ -247,7 +247,7 @@ export default class FilerInput extends tsc<IFilterInputProps, IFilterInputEvent
   @Watch('bkBizIds')
   handlebkBizIdsChange() {
     if (this.searchType === 'alert' && this.bkBizIds.length) {
-      this.getTopoListData(); 
+      this.getTopoListData();
     }
   }
 

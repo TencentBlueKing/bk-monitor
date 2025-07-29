@@ -25,18 +25,18 @@
 -->
 <template>
   <div
-    class="service-template"
     v-bkloading="{ isLoading }"
+    class="service-template"
   >
     <div
       class="service-template-left"
       :style="{ width: isNaN(leftPanelWidth) ? leftPanelWidth : `${leftPanelWidth}px` }"
     >
       <bk-input
+        v-model="searchValue"
         clearable
         right-icon="bk-icon icon-search"
         :placeholder="serviceTemplatePlaceholder"
-        v-model="searchValue"
         @change="handleTemplateSearchChange"
       />
       <!-- 全选 -->
@@ -47,7 +47,8 @@
         <span
           class="btn"
           @click="handleAllSelected"
-        >{{ isSelectAll ? $t('清除全选') : $t('全选') }}</span>
+          >{{ isSelectAll ? $t('清除全选') : $t('全选') }}</span
+        >
       </div>
       <bk-virtual-scroll
         :list="currentTemplateData"
@@ -89,20 +90,20 @@
   </div>
 </template>
 <script lang="ts">
-import type { TranslateResult } from 'vue-i18n';
 import { Component, Emit, Prop, Ref, Vue, Watch } from 'vue-property-decorator';
 
 import { Debounce, defaultSearch } from '../common/util';
 import IpSelectorTable from '../components/ip-selector-table.vue';
+import IpListTable from './ip-list.vue';
+
 import type {
+  IipListParams,
   ITableCheckData,
   ITableConfig,
   ITemplateDataOptions,
-  IipListParams,
   SearchDataFuncType,
 } from '../types/selector-type';
-
-import IpListTable from './ip-list.vue';
+import type { TranslateResult } from 'vue-i18n';
 
 // 服务模板
 @Component({
@@ -140,7 +141,7 @@ export default class ServiceTemplate extends Vue {
   private tplData: any[] = [];
   // 默认为true是为了阻止 IpListTable 组件loading
   private isLoading = true;
-  private selectionIds: (string | number)[] = [];
+  private selectionIds: (number | string)[] = [];
   private emptyText: TranslateResult = window.i18n.t('暂无数据');
 
   private isSelectAll = false;
@@ -247,7 +248,7 @@ export default class ServiceTemplate extends Vue {
     }
     return item[childrenKey];
   }
-  // eslint-disable-next-line @typescript-eslint/member-ordering
+
   public handleGetDefaultSelections() {
     const { idKey = 'bk_inst_id' } = this.templateOptions;
     this.selectionIds = this.tplData.reduce((pre, next) => {
@@ -257,7 +258,7 @@ export default class ServiceTemplate extends Vue {
       return pre;
     }, []);
   }
-  // eslint-disable-next-line @typescript-eslint/member-ordering
+
   handleAllSelected() {
     /* 全选/清除全选 */
     if (!this.currentTemplateData.length) return;
@@ -282,7 +283,7 @@ export default class ServiceTemplate extends Vue {
     this.tableRef?.handleGetDefaultData('selection-change');
   }
   // 检测是否全选
-  // eslint-disable-next-line @typescript-eslint/member-ordering
+
   getAllSelectedStatus() {
     if (this.searchValue) {
       this.isSelectAll = this.currentTemplateData.length

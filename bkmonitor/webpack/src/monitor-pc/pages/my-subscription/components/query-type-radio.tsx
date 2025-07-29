@@ -30,18 +30,18 @@ import type { ReportQueryType } from '../types';
 
 import './query-type-radio.scss';
 
-interface IProps {
-  tabList: TabList[];
-}
 interface IEvent {
   onChange: string;
 }
+interface IProps {
+  tabList: TabList[];
+}
 
 type TabList = {
-  type: string;
-  text: string;
   iconClass: string;
   isShow?: boolean;
+  text: string;
+  type: string;
 };
 
 @Component

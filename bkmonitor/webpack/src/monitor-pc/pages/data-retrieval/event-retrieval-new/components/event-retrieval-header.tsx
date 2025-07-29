@@ -32,21 +32,21 @@ import DashboardTools from '../../../monitor-k8s/components/dashboard-tools';
 import type { TimeRangeType } from '../../../../components/time-range/time-range';
 
 import './event-retrieval-header.scss';
-interface EventRetrievalNavBarProps {
-  timeRange?: TimeRangeType;
-  timezone?: string;
-  refreshInterval?: number;
-  dataId?: string;
-  eventType?: { data_source_label: string; data_type_label: string };
-}
-
 interface EventRetrievalNavBarEvents {
-  onTimezoneChange(val: string): void;
-  onTimeRangeChange(val: TimeRangeType): void;
-  onImmediateRefresh(): void;
-  onRefreshChange(val: number): void;
   onDataIdChange(val: string): void;
   onEventTypeChange(eventType: EventRetrievalNavBarProps['eventType']): void;
+  onImmediateRefresh(): void;
+  onRefreshChange(val: number): void;
+  onTimeRangeChange(val: TimeRangeType): void;
+  onTimezoneChange(val: string): void;
+}
+
+interface EventRetrievalNavBarProps {
+  dataId?: string;
+  eventType?: { data_source_label: string; data_type_label: string };
+  refreshInterval?: number;
+  timeRange?: TimeRangeType;
+  timezone?: string;
 }
 
 @Component

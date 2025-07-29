@@ -117,8 +117,8 @@ export default class MonitorLineSeries extends MonitorBaseSeries implements ICha
             }
           : (v: number) => this.handleYAxisLabelFormatter(v - minBase),
       },
-      max: (v: { min: number; max: number }) => Math.max(v.max, maxThreshold),
-      min: (v: { min: number; max: number }) => Math.min(v.min, minThreshold),
+      max: (v: { max: number; min: number }) => Math.max(v.max, maxThreshold),
+      min: (v: { max: number; min: number }) => Math.min(v.min, minThreshold),
       splitNumber: 4,
       minInterval: 1,
       axisPointer: {
@@ -148,8 +148,8 @@ export default class MonitorLineSeries extends MonitorBaseSeries implements ICha
               }
             : (v: number) => this.handleYAxisLabelFormatter(v - minBase),
         },
-        max: (v: { min: number; max: number }) => v.max,
-        min: (v: { min: number; max: number }) => v.min,
+        max: (v: { max: number; min: number }) => v.max,
+        min: (v: { max: number; min: number }) => v.min,
         splitNumber: 4,
         minInterval: 1,
         axisPointer: {
@@ -386,17 +386,17 @@ export default class MonitorLineSeries extends MonitorBaseSeries implements ICha
       return [];
     }
     const resultData: {
+      itemStyle: {
+        borderColor: any;
+        borderWidth: number;
+        color: string;
+        enabled: boolean;
+        opacity: number;
+        shadowBlur: number;
+      };
       symbol: string;
       symbolSize: number;
       value: any[];
-      itemStyle: {
-        borderWidth: number;
-        borderColor: any;
-        enabled: boolean;
-        shadowBlur: number;
-        color: string;
-        opacity: number;
-      };
     }[] = [];
     // 暂时只做一个上下边界 后期需求再实现
     const [{ upBoundary, lowBoundary }] = boundary;
@@ -549,22 +549,6 @@ export default class MonitorLineSeries extends MonitorBaseSeries implements ICha
     return precision;
   }
 
-  handleSetThresholds(series: any) {
-    let thresholdList = series.filter((set: any) => set?.thresholds?.length).map((set: any) => set.thresholds);
-    thresholdList = thresholdList.reduce((pre: any, cur: any, index: number) => {
-      pre.push(...cur.map((set: any) => set.yAxis));
-      if (index === thresholdList.length - 1) {
-        return Array.from(new Set(pre));
-      }
-      return pre;
-    }, []);
-    return {
-      canScale: thresholdList.every((set: number) => set > 0),
-      minThreshold: Math.min(...thresholdList),
-      maxThreshold: Math.max(...thresholdList),
-    };
-  }
-
   handleSetThresholdArea(thresholdLine: any[]) {
     const data = this.handleSetThresholdAreaData(thresholdLine);
     return {
@@ -574,6 +558,7 @@ export default class MonitorLineSeries extends MonitorBaseSeries implements ICha
       data,
     };
   }
+
   /**
    * @description:
    * @param {any} thresholdLine
@@ -630,7 +615,7 @@ export default class MonitorLineSeries extends MonitorBaseSeries implements ICha
     return data;
   }
   // 设置阈值面板
-  handleSetThresholdBand(plotBands: { to: number; from: number }[]) {
+  handleSetThresholdBand(plotBands: { from: number; to: number }[]) {
     return {
       silent: true,
       show: true,
@@ -689,6 +674,21 @@ export default class MonitorLineSeries extends MonitorBaseSeries implements ICha
           },
         },
       })),
+    };
+  }
+  handleSetThresholds(series: any) {
+    let thresholdList = series.filter((set: any) => set?.thresholds?.length).map((set: any) => set.thresholds);
+    thresholdList = thresholdList.reduce((pre: any, cur: any, index: number) => {
+      pre.push(...cur.map((set: any) => set.yAxis));
+      if (index === thresholdList.length - 1) {
+        return Array.from(new Set(pre));
+      }
+      return pre;
+    }, []);
+    return {
+      canScale: thresholdList.every((set: number) => set > 0),
+      minThreshold: Math.min(...thresholdList),
+      maxThreshold: Math.max(...thresholdList),
     };
   }
   segmentsIntr({ a, b, c, d }: any) {

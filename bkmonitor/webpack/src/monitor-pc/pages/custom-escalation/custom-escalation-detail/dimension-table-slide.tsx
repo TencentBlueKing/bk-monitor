@@ -32,13 +32,13 @@ import { Debounce, deepClone } from 'monitor-common/utils';
 
 import ColumnCheck from '../../performance/column-check/column-check.vue';
 import {
-  ALL_OPTION,
-  CheckboxStatus,
-  CHECKED_OPTION,
   type DimensionHeaderKeys,
   type IColumnConfig,
   type IDimensionItem,
   type PopoverChildRef,
+  ALL_OPTION,
+  CheckboxStatus,
+  CHECKED_OPTION,
   RADIO_OPTIONS,
 } from './type';
 import { fuzzyMatch } from './utils';
@@ -289,7 +289,7 @@ export default class DimensionTableSlide extends tsc<any> {
   }
 
   // 渲染输入列
-  renderInputColumn(props: { row: IDimensionItem; $index: number }, field: string) {
+  renderInputColumn(props: { $index: number; row: IDimensionItem }, field: string) {
     return (
       <bk-input
         class='slider-input'

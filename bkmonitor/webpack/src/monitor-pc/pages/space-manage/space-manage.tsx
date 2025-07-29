@@ -35,11 +35,10 @@ import { SPACE_TYPE_MAP } from '../../common/constant';
 import { ETagsType } from '../../components/biz-select/list';
 import EmptyStatus from '../../components/empty-status/empty-status';
 import CommonStatus from '../monitor-k8s/components/common-status/common-status';
+import SpaceAddList from './space-add-list/space-add-list';
 
 import type { EmptyStatusOperationType, EmptyStatusType } from '../../components/empty-status/types';
 import type { ISpaceItem } from '../../types'; /** 监听空间置顶列表数据事件key */
-
-import SpaceAddList from './space-add-list/space-add-list';
 
 import './space-manage.scss';
 
@@ -83,36 +82,36 @@ const SPACE_FEATURE_LIST = [
   //   name: window.i18n.tc('PaaS应用')
   // },
 ];
-enum SpaceType {
-  all = 1 /** 全部空间 */,
-  mine = 0 /** 我的空间 */,
+/** 功能状态 */
+enum FuncType {
+  normal = 'normal' /** 正常的 */,
+  stop = 'stoped' /** 停用的 */,
 }
 /** 空间状态 */
 enum SpaceStatus {
   normal = 'success' /** 正常 */,
   stoped = 'failed' /** 被停用 */,
 }
-/** 功能状态 */
-enum FuncType {
-  normal = 'normal' /** 正常的 */,
-  stop = 'stoped' /** 停用的 */,
-}
-interface ITableItem {
-  name: string;
-  enName: string;
-  collected: boolean;
-  status: SpaceStatus;
-  statusText: string;
-  types: Array<{ id: ETagsType; name: string }>;
-  function: IFuncItem[];
-  uid: string;
-  bizId: number;
-  hasAuth: boolean;
+enum SpaceType {
+  all = 1 /** 全部空间 */,
+  mine = 0 /** 我的空间 */,
 }
 interface IFuncItem {
   name: string;
   status: FuncType;
   type: 'select' | 'status';
+}
+interface ITableItem {
+  bizId: number;
+  collected: boolean;
+  enName: string;
+  function: IFuncItem[];
+  hasAuth: boolean;
+  name: string;
+  status: SpaceStatus;
+  statusText: string;
+  types: Array<{ id: ETagsType; name: string }>;
+  uid: string;
 }
 /**
  * 空间管理页面

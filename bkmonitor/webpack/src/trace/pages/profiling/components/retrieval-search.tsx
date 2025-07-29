@@ -31,27 +31,27 @@ import {
   defineComponent,
   inject,
   onMounted,
-  shallowReadonly,
   ref,
+  shallowReadonly,
   toRef,
   unref,
   watch,
 } from 'vue';
-import { useI18n } from 'vue-i18n';
 
 import { Button, Switcher } from 'bkui-vue';
 import { Plus } from 'bkui-vue/lib/icon';
 import { listApplicationServices, queryLabels } from 'monitor-api/modules/apm_profile';
+import { useI18n } from 'vue-i18n';
 
 import { handleTransformToTimestamp } from '../../../components/time-range/utils';
 import {
   type ApplicationList,
-  ConditionType,
   type IConditionItem,
   type RetrievalFormData,
   type SearchState,
-  SearchType,
   type ToolsFormData,
+  ConditionType,
+  SearchType,
 } from '../typings';
 import ApplicationCascade from './application-cascade';
 import ConditionItem from './condition-item';

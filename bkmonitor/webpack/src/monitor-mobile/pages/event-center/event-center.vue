@@ -26,15 +26,15 @@
 <template>
   <div class="event-center">
     <event-tab
-      class="tab-list"
       v-model="curTab"
+      class="tab-list"
       :tab-list="tabList"
       @change="changeTab"
     />
     <van-list
       ref="vanList"
-      class="card-list"
       v-model="loading"
+      class="card-list"
       :finished="finished"
       :finished-text="noDataText"
       :immediate-check="false"
@@ -65,8 +65,8 @@
         >
           <event-list-item
             v-for="(item, index) in listData"
-            :item-data="item"
             :key="item.strategyId + '-' + index"
+            :item-data="item"
           />
         </div>
       </div>
@@ -83,15 +83,9 @@ import EventCenterModule from '../../store/modules/event-center';
 import EventListItem from './event-list-item.vue';
 import EventTab from './event-tab.vue';
 
-export interface ITabItem {
-  title: string;
-  shortTitle?: string;
-  value: number | string;
-  count: number;
-}
 export interface IListItem {
-  name: string;
   level: string;
+  name: string;
   strategyId: number;
   events: {
     dimensionMessage: string;
@@ -100,18 +94,24 @@ export interface IListItem {
     target: string;
   }[];
 }
-interface ITypeList {
-  type: string;
-  text: string;
-  icon: string;
-  value: number;
+export interface ITabItem {
+  count: number;
+  shortTitle?: string;
+  title: string;
+  value: number | string;
 }
 interface IEventCenterData {
-  loading: boolean;
   curTab: string;
   curType: string;
+  loading: boolean;
   tabList: ITabItem[];
   typeList: ITypeList[];
+}
+interface ITypeList {
+  icon: string;
+  text: string;
+  type: string;
+  value: number;
 }
 
 @Component({
@@ -268,7 +268,7 @@ export default class EventCenter extends Vue implements IEventCenterData {
 }
 </script>
 <style lang="scss" scoped>
-@import '../../static/scss/variate.scss';
+@import '../../static/scss/variate';
 
 .event-center {
   box-sizing: border-box;
@@ -288,7 +288,7 @@ export default class EventCenter extends Vue implements IEventCenterData {
   }
 
   &-content {
-    padding: 16px 16px 0 16px;
+    padding: 16px 16px 0;
   }
 
   &-list {

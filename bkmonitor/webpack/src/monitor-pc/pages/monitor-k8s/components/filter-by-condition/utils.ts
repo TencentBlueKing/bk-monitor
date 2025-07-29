@@ -33,33 +33,33 @@ export interface IFilterByItem {
   value: string[];
 }
 
-interface IValue {
+export interface IGroupOptionsItem {
+  count: number;
   id: string;
   name: string;
 }
 
 export interface ITagListItem {
-  key: string;
   id: string;
+  key: string;
   name: string;
   values: IValue[];
 }
 
-export interface IGroupOptionsItem {
-  id: string;
-  name: string;
-  count: number;
-}
 export interface IValueItem {
-  id: string;
-  name: string;
   checked: boolean;
   count?: number;
+  id: string;
+  name: string;
   children?: {
+    checked: boolean;
     id: string;
     name: string;
-    checked: boolean;
   }[];
+}
+interface IValue {
+  id: string;
+  name: string;
 }
 
 export class FilterByOptions {

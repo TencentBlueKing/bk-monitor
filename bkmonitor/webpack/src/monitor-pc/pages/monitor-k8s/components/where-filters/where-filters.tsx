@@ -41,12 +41,12 @@ import type { VariableModel } from 'monitor-ui/chart-plugins/typings/dashboard-p
 
 import './where-filters.scss';
 
+export interface IWhereFiltersEvent {
+  onChange: (value: IConditionItem[]) => void;
+}
 export interface IWhereFiltersProps {
   panel: VariableModel;
   variableName: string;
-}
-export interface IWhereFiltersEvent {
-  onChange: (value: IConditionItem[]) => void;
 }
 @Component
 export default class WhereFilters extends tsc<IWhereFiltersProps, IWhereFiltersEvent> {

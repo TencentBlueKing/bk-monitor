@@ -29,23 +29,23 @@
  * @Description:
  */
 
-import { LANGUAGE_COOKIE_KEY, LOCAL_BIZ_STORE_KEY, docCookies } from 'monitor-common/utils';
-import { Module, Mutation, VuexModule, getModule } from 'vuex-module-decorators';
+import { docCookies, LANGUAGE_COOKIE_KEY, LOCAL_BIZ_STORE_KEY } from 'monitor-common/utils';
+import { getModule, Module, Mutation, VuexModule } from 'vuex-module-decorators';
 
 import store from '@store/store';
 
 import type { ISpaceItem } from '../../typings';
 
 export interface IAppState {
-  navId: string;
-  userName: string;
   bizId: number;
   bizList: ISpaceItem[];
-  csrfCookieName: string;
-  siteUrl: string;
   bkUrl: string;
+  csrfCookieName: string;
   lang: string;
+  navId: string;
   navRouteList: INavRouteListItem[];
+  siteUrl: string;
+  userName: string;
 }
 
 interface INavRouteListItem {
@@ -65,22 +65,6 @@ class AppStore extends VuexModule implements IAppState {
   public navTitle = '';
   public siteUrl = '/';
   public userName = '';
-  @Mutation
-  SET_APP_STATE(data: IAppState) {
-    Object.keys(data).forEach(key => {
-      this[key] = data[key];
-    });
-  }
-  @Mutation
-  SET_NAV_ID(navId: string) {
-    this.navId = navId;
-  }
-
-  @Mutation
-  SET_NAV_TITLE(title: string) {
-    this.navTitle = title;
-  }
-
   /** 切换业务id逻辑 */
   @Mutation
   handleChangeBizId({ bizId, ctx }) {
@@ -108,6 +92,22 @@ class AppStore extends VuexModule implements IAppState {
     } else {
       handleReload();
     }
+  }
+  @Mutation
+  SET_APP_STATE(data: IAppState) {
+    Object.keys(data).forEach(key => {
+      this[key] = data[key];
+    });
+  }
+
+  @Mutation
+  SET_NAV_ID(navId: string) {
+    this.navId = navId;
+  }
+
+  @Mutation
+  SET_NAV_TITLE(title: string) {
+    this.navTitle = title;
   }
 
   /**

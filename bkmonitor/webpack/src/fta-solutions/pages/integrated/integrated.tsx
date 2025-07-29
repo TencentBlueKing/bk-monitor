@@ -257,7 +257,7 @@ export default class Integrated extends tsc<IIntegratedProps> {
    * 插件操作
    * @param param0
    */
-  handlePluginOperate({ type, item }: { type: OperateType; item: IPluginDetail }) {
+  handlePluginOperate({ type, item }: { item: IPluginDetail; type: OperateType }) {
     switch (type) {
       case 'detail':
         this.curDetailId = item.plugin_id;

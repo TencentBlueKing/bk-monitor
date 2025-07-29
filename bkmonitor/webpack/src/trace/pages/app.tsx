@@ -25,8 +25,6 @@
  */
 import { computed, defineComponent, onMounted } from 'vue';
 import { shallowRef } from 'vue';
-import { useI18n } from 'vue-i18n';
-import { RouterView, useRoute, useRouter } from 'vue-router';
 
 import { ConfigProvider, Navigation } from 'bkui-vue';
 import { en, zhCn } from 'bkui-vue/lib/locale';
@@ -34,6 +32,8 @@ import { getLinkMapping } from 'monitor-api/modules/commons';
 import { LANGUAGE_COOKIE_KEY } from 'monitor-common/utils';
 import { globalUrlFeatureMap } from 'monitor-common/utils/global-feature-map';
 import { docCookies } from 'monitor-common/utils/utils';
+import { useI18n } from 'vue-i18n';
+import { RouterView, useRoute, useRouter } from 'vue-router';
 
 import AuthorityModal from '../components/authority-modal/authority-modal';
 import { createRouteConfig } from '../router/router-config';

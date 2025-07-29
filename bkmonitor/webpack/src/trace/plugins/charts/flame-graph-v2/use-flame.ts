@@ -36,13 +36,13 @@ import traceIcons from '../../utls/icons';
 import {
   type BaseDataType,
   type BaseRect,
-  ColorTypes,
   type IFlameChartOptions,
   type IFlameData,
   type ILineData,
   type IOtherData,
-  RootId,
   type ThreadPos,
+  ColorTypes,
+  RootId,
 } from './types';
 
 const usFormat = getValueFormat('µs');

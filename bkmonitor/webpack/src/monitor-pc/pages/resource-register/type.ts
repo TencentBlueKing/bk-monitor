@@ -83,6 +83,13 @@ export enum ETableColumn {
   use = 'use',
 }
 
+export interface IChildDataRow {
+  host: string;
+  port: number;
+  schema: any;
+  version: any;
+}
+
 export interface IInfluxdbChildData {
   id: string;
   isExpand?: boolean;
@@ -92,31 +99,24 @@ export interface IInfluxdbChildData {
     data: any[];
   };
 }
-
-export interface IChildDataRow {
-  host: string;
-  port: number;
-  version: any;
-  schema: any;
-}
 export interface ITableDataRow {
   cluster_id: number;
   cluster_name: string;
   cluster_type: EClusterType;
-  label: string;
-  description: string;
-  labelArr: string[];
-  username: string;
   creator: string;
+  description: string;
+  label: string;
+  labelArr: string[];
   pipeline_name?: string;
+  username: string;
   childData:
+    | any
     | {
         data: IChildDataRow[];
-      }
-    | any;
+      };
 }
 
 export interface ITableRowConfig {
   operationType: string;
-  rowData?: ITableDataRow | any;
+  rowData?: any | ITableDataRow;
 }

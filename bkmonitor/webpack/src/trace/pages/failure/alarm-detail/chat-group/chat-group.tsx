@@ -24,11 +24,11 @@
  * IN THE SOFTWARE.
  */
 import { computed, defineComponent, ref, watch } from 'vue';
-import { useI18n } from 'vue-i18n';
 
 import { Button, Checkbox, Dialog, Message } from 'bkui-vue';
 import { createChatGroup } from 'monitor-api/modules/action';
 import { incidentRecordOperation } from 'monitor-api/modules/incident';
+import { useI18n } from 'vue-i18n';
 
 import UserSelector from '../../../../components/user-selector/user-selector';
 

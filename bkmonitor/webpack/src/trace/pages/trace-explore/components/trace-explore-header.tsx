@@ -24,12 +24,12 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, shallowRef, computed, type PropType, onMounted, onUnmounted } from 'vue';
-import { useI18n } from 'vue-i18n';
-import { useRoute, useRouter } from 'vue-router';
+import { type PropType, computed, defineComponent, onMounted, onUnmounted, shallowRef } from 'vue';
 
 import { Badge, Select } from 'bkui-vue';
 import { deepClone, detectOS, random } from 'monitor-common/utils';
+import { useI18n } from 'vue-i18n';
+import { useRoute, useRouter } from 'vue-router';
 
 import RefreshRate from '../../../components/refresh-rate/refresh-rate';
 import SelectMenu, { type ISelectMenuOption } from '../../../components/select-menu/select-menu';

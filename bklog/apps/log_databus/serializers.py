@@ -110,7 +110,7 @@ class TargetNodeSerializer(serializers.Serializer):
     """
 
     id = serializers.IntegerField(label=_("服务实例id"), required=False)
-    bk_inst_id = serializers.IntegerField(label=_("节点实例id"), required=False)
+    bk_inst_id = serializers.JSONField(label=_("节点实例id"), required=False)
     bk_obj_id = serializers.CharField(label=_("节点对象"), max_length=64, required=False)
     bk_host_id = serializers.IntegerField(label=_("主机ID"), required=False)
     ip = serializers.CharField(label=_("主机实例ip"), max_length=15, required=False)

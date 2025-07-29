@@ -33,7 +33,7 @@ import { register, unregister } from 'monitor-common/service-worker/service-work
 import { getUrlParam } from 'monitor-common/utils/utils';
 import Notify from 'vant/lib/notify';
 
-import { setVue, type VueInstance } from '../monitor-api/utils/index';
+import { type VueInstance, setVue } from '../monitor-api/utils/index';
 import App from './pages/app.vue';
 import router from './router/router';
 import store from './store/store';

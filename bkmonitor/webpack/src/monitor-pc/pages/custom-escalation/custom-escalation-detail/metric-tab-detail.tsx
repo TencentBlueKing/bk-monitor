@@ -34,9 +34,9 @@ import { ALL_LABEL, NULL_LABEL } from './type';
 import './metric-tab-detail.scss';
 
 interface IGroup {
+  icon: string;
   id: string;
   name: string;
-  icon: string;
 }
 @Component({
   inheritAttrs: false,

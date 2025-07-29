@@ -25,12 +25,19 @@
  */
 import type { FormattedValue } from '../valueFormats';
 
+export type DecimalCount = null | number | undefined;
+
+export interface DecimalInfo {
+  decimals: DecimalCount;
+  scaledDecimals: DecimalCount;
+}
+
 export type DisplayProcessor = (value: any) => DisplayValue;
 
 export interface DisplayValue extends FormattedValue {
+  color?: string; // color based on configs or Threshold
   numeric: number; // Use isNaN to check if it is a real number
   percent?: number; // 0-1 between min & max
-  color?: string; // color based on configs or Threshold
   title?: string;
 }
 
@@ -40,11 +47,4 @@ export interface DisplayValue extends FormattedValue {
  */
 export interface DisplayValueAlignmentFactors extends FormattedValue {
   title: string;
-}
-
-export type DecimalCount = null | number | undefined;
-
-export interface DecimalInfo {
-  decimals: DecimalCount;
-  scaledDecimals: DecimalCount;
 }

@@ -36,19 +36,19 @@ import type { IPeripheral } from './meal-content-data';
 
 import './peripheral-system.scss';
 
-type PageType = 'add' | 'edit';
-interface IProps {
-  id?: number;
-  peripheralData?: IPeripheral;
-  isEdit?: boolean;
-  type?: PageType;
-  isInit?: boolean;
-}
 interface IEvents {
-  onDebug?: void;
   onChange?: IPeripheral;
+  onDebug?: void;
   onInit?: boolean;
 }
+interface IProps {
+  id?: number;
+  isEdit?: boolean;
+  isInit?: boolean;
+  peripheralData?: IPeripheral;
+  type?: PageType;
+}
+type PageType = 'add' | 'edit';
 
 @Component({
   name: 'PeripheralSystem',

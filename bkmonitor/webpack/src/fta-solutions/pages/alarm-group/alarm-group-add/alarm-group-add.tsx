@@ -23,12 +23,13 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+import type { VNode } from 'vue';
+
 import { Component, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import AlarmGroupAdd from 'monitor-pc/pages/alarm-group/alarm-group-add/alarm-group-add-common/alarm-group-add';
 
-import type { VNode } from 'vue';
 import type { Route } from 'vue-router';
 
 interface IAlarmGroupAdd {

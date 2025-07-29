@@ -31,9 +31,9 @@ import { getIntelligentDetectAccessStatus, getIntelligentModel } from 'monitor-a
 
 import { THRESHOLD_METHOD_LIST } from '../../../../../../constant/constant';
 import IntelligentModelsStore, { IntelligentModelsType } from '../../../../../../store/modules/intelligent-models';
-import { DetectionRuleTypeEnum, type IDetectionTypeRuleData } from '../../../typings';
+import { type IDetectionTypeRuleData, DetectionRuleTypeEnum } from '../../../typings';
 import Form from '../form/form';
-import { FormItem, type IFormDataItem } from '../form/utils';
+import { type IFormDataItem, FormItem } from '../form/utils';
 
 import type { BoundType } from '../form/alarm-threshold-select';
 import type { ITipsData } from '../intelligent-detect/intelligent-detect';
@@ -47,22 +47,19 @@ const DURATION_FIELD = 'duration'; /** 预测时长 */
 const THRESHOLDS_FIELD = 'thresholds'; /** 阈值 */
 const LEVEL_FIELD = 'level'; /** 告警级别key */
 
-interface ITimeSeriesForecastValue {
-  [MODEL_FIELD]: string;
-  [DURATION_FIELD]: number | string;
-  [THRESHOLDS_FIELD]: any;
-  bound_type: BoundType;
-  args: Record<string, IThresholdSelectValue>;
-  visual_type?: string;
+export interface IModelData {
+  document?: string; // 使用说明
+  instruction: string; // 方案描述
+  name: string; // 算法名称
 }
 
-interface TimeSeriesForecastingProps {
-  data?: IDetectionTypeRuleData<ITimeSeriesForecastValue>;
-  readonly?: boolean;
-  isEdit?: boolean;
-  unit: string;
-  interval: number;
-  methodList?: IItem[];
+interface ITimeSeriesForecastValue {
+  args: Record<string, IThresholdSelectValue>;
+  bound_type: BoundType;
+  [DURATION_FIELD]: number | string;
+  [MODEL_FIELD]: string;
+  [THRESHOLDS_FIELD]: any;
+  visual_type?: string;
 }
 
 interface TimeSeriesForecastingEvents {
@@ -70,10 +67,13 @@ interface TimeSeriesForecastingEvents {
   onModelChange: IModelData;
 }
 
-export interface IModelData {
-  name: string; // 算法名称
-  instruction: string; // 方案描述
-  document?: string; // 使用说明
+interface TimeSeriesForecastingProps {
+  data?: IDetectionTypeRuleData<ITimeSeriesForecastValue>;
+  interval: number;
+  isEdit?: boolean;
+  methodList?: IItem[];
+  readonly?: boolean;
+  unit: string;
 }
 
 @Component({})

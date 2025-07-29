@@ -39,14 +39,14 @@ import type { PanelModel } from '../../typings';
 import './port-status-chart.scss';
 
 export interface IStatusChartItem {
-  // 值
-  value: string;
+  // 状态名
+  name: string;
   // 背景色
   statusBgColor: string;
   // 状态色
   statusColor: string;
-  // 状态名
-  name: string;
+  // 值
+  value: string;
 }
 interface IPortStatusChartProps {
   panel?: PanelModel;

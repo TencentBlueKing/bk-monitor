@@ -29,36 +29,21 @@ import { nextTick } from 'vue';
 import { type IG6GraphEvent, type IGraph, type Item, Tooltip } from '@antv/g6';
 
 export interface IPluginBaseConfig {
-  container?: HTMLDivElement | null | string;
-  className?: string;
-  graph?: IGraph;
   [key: string]: any;
+  className?: string;
+  container?: HTMLDivElement | null | string;
+  graph?: IGraph;
 }
 
 interface TooltipConfig extends IPluginBaseConfig {
-  getContent?: (evt?: IG6GraphEvent) => HTMLDivElement | string;
-  offsetX?: number;
-  offsetY?: number;
-  shouldBegin?: (evt?: IG6GraphEvent) => boolean;
+  fixToNode?: [number, number] | undefined;
   // 允许出现 tooltip 的 item 类型
   itemTypes?: string[];
+  offsetX?: number;
+  offsetY?: number;
   trigger?: 'click' | 'mouseenter';
-  fixToNode?: [number, number] | undefined;
-}
-
-/**
- * Modify the CSS of a DOM.
- * @param dom
- * @param css
- * @returns
- */
-function modifyCSS(dom: HTMLElement | null | undefined, css: { [key: string]: any }): HTMLElement {
-  if (!dom) return;
-
-  Object.keys(css).forEach(key => {
-    dom.style[key] = css[key];
-  });
-  return dom;
+  getContent?: (evt?: IG6GraphEvent) => HTMLDivElement | string;
+  shouldBegin?: (evt?: IG6GraphEvent) => boolean;
 }
 
 export default class TopoTooltip extends Tooltip {
@@ -165,4 +150,19 @@ export default class TopoTooltip extends Tooltip {
       });
     });
   }
+}
+
+/**
+ * Modify the CSS of a DOM.
+ * @param dom
+ * @param css
+ * @returns
+ */
+function modifyCSS(dom: HTMLElement | null | undefined, css: { [key: string]: any }): HTMLElement {
+  if (!dom) return;
+
+  Object.keys(css).forEach(key => {
+    dom.style[key] = css[key];
+  });
+  return dom;
 }

@@ -48,17 +48,17 @@ export interface ICheckPanel {
   panels?: ICheckPanel[];
 }
 
-interface IChartCollectProps {
-  localPanels?: ICheckPanel[]; // 已选中的视图
-  observablePanelsField?: ObservablePanelField; // 视图响应式数据
-  showCollect?: boolean; // 展示收藏弹窗
-  isCollectSingle?: boolean; // 是否为收藏指定视图
-}
-
 interface IChartCollectEvent {
   onCheckAll?: () => void;
   onCheckClose?: () => void;
   onShowCollect?: (v: boolean) => void;
+}
+
+interface IChartCollectProps {
+  isCollectSingle?: boolean; // 是否为收藏指定视图
+  localPanels?: ICheckPanel[]; // 已选中的视图
+  observablePanelsField?: ObservablePanelField; // 视图响应式数据
+  showCollect?: boolean; // 展示收藏弹窗
 }
 
 @Component({

@@ -28,26 +28,26 @@ import { modifiers, Component as tsc } from 'vue-tsx-support';
 
 import './icon-btn.scss';
 
-interface IProps {
+export interface IIconBtnOptions {
+  action_id?: string;
+  hasAuth?: boolean;
   icon?: string;
-  title?: string;
-  theme?: 'dark' | 'light';
-  iconOnly?: boolean;
-  options?: IIconBtnOptions[];
-  checked?: boolean;
+  id: unknown;
+  name: string;
+  style?: Record<string, string>;
 }
 interface IEvents {
   onClick: Event;
-  onShowChange: boolean;
   onSelected: IIconBtnOptions;
+  onShowChange: boolean;
 }
-export interface IIconBtnOptions {
-  id: unknown;
-  name: string;
+interface IProps {
+  checked?: boolean;
   icon?: string;
-  style?: Record<string, string>;
-  hasAuth?: boolean;
-  action_id?: string;
+  iconOnly?: boolean;
+  options?: IIconBtnOptions[];
+  theme?: 'dark' | 'light';
+  title?: string;
 }
 @Component
 export default class IconBtn extends tsc<IProps, IEvents> {

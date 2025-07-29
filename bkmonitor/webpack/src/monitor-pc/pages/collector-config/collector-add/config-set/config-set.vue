@@ -26,8 +26,8 @@
 <template>
   <div
     ref="configSet"
-    class="config-set"
     v-bkloading="{ isLoading: loading }"
+    class="config-set"
   >
     <div class="set-edit">
       <div
@@ -57,8 +57,8 @@
             :validator="{ content: rules.bizId.message }"
           >
             <bk-select
-              class="reset-big-width"
               v-model="info.bizId"
+              class="reset-big-width"
               :disabled="!canSelectBusiness"
               :placeholder="$t('选择业务')"
               @change="handleSelectToggle(arguments, info.bizId, rules.bizId)"
@@ -86,8 +86,8 @@
             :validator="{ content: rules.name.message }"
           >
             <bk-input
-              class="reset-big-width"
               v-model.trim="info.name"
+              class="reset-big-width"
               :placeholder="$t('输入采集任务名')"
               @change="validateField(info.name, rules.name)"
             />
@@ -103,9 +103,9 @@
         </div>
         <div class="item-container">
           <plugin-selector
-            :disabled="disabled"
             :id="pluginSelectorObj.id"
             :key="pluginSelectorObj.key"
+            :disabled="disabled"
             :list="pluginSelectorObj.list"
             :loading="pluginListLoading"
             @change="handlePluginChange"
@@ -121,8 +121,8 @@
         </div>
         <div class="item-container">
           <bk-select
-            class="reset-big-width"
             v-model="info.objectId"
+            class="reset-big-width"
             :clearable="false"
             :disabled="disabled || pluginSelectorObj.objectIdDisable"
             :loading="pluginListLoading"
@@ -156,8 +156,8 @@
             :validator="{ content: rules.period.message }"
           >
             <cycle-input
-              class="reset-width custom-cycle"
               v-model="info.period"
+              class="reset-width custom-cycle"
               :need-auto="false"
               default-unit="m"
             />
@@ -177,8 +177,8 @@
             :validator="{ content: rules.timeout.message }"
           >
             <bk-input
-              class="reset-width"
               v-model.number="info.timeout"
+              class="reset-width"
               :show-controls="false"
               type="number"
               @blur="validateField(info.timeout, rules.timeout)"
@@ -210,8 +210,8 @@
       />
       <template v-if="info.plugin.type === 'Exporter'">
         <div
-          class="edit-item edit-item-host"
           v-show="Object.keys(info.host || {}).length"
+          class="edit-item edit-item-host"
         >
           <div
             v-en-style="'min-width: 100px'"
@@ -228,8 +228,8 @@
                 position="right"
               >
                 <bk-input
-                  class="reset-big-width"
                   v-model.trim="info.host.default"
+                  class="reset-big-width"
                   @blur="validateHost"
                 >
                   <template slot="prepend">
@@ -248,8 +248,8 @@
           </div>
         </div>
         <div
-          class="edit-item edit-item-port"
           v-show="Object.keys(info.port).length"
+          class="edit-item edit-item-port"
         >
           <div
             v-en-style="'min-width: 100px'"
@@ -266,8 +266,8 @@
                 position="right"
               >
                 <bk-input
-                  class="reset-big-width"
                   v-model.trim="info.port.default"
+                  class="reset-big-width"
                   @blur="info.port.default !== '' && validateParam(info.port)"
                 >
                   <template slot="prepend">
@@ -290,8 +290,8 @@
         </div>
       </template>
       <div
-        class="edit-item"
         v-show="info.plugin.id && !['Log', 'Process'].includes(info.collectType)"
+        class="edit-item"
       >
         <div
           v-en-style="'min-width: 100px'"
@@ -314,8 +314,8 @@
               <template v-if="item.auth_json !== undefined">
                 <!-- snmp多用户 -->
                 <auto-multi
-                  :allow-add="!(info.collectType === 'SNMP')"
                   :key="index"
+                  :allow-add="!(info.collectType === 'SNMP')"
                   :param-type="paramType"
                   :souce-data="item.auth_json"
                   :template-data="SnmpAuthTemplate"
@@ -327,16 +327,16 @@
               <template v-else-if="item.auth_priv">
                 <verify-input
                   v-if="item.auth_priv[curAuthPriv] && item.auth_priv[curAuthPriv].need"
-                  class="param-item"
                   :key="index"
+                  class="param-item"
                   :show-validate.sync="item.validate.isValidate"
                   :validator="item.validate"
                   position="right"
                 >
                   <!-- 自动补全 -->
                   <auto-complete-input
-                    class="reset-big-width"
                     v-model.trim="item.default"
+                    class="reset-big-width"
                     :config="item"
                     :cur-auth-priv="curAuthPriv"
                     :tips-data="tipsData"
@@ -366,16 +366,16 @@
               <template v-else-if="item.type === 'service' || item.type === 'host'" />
               <template v-else>
                 <verify-input
-                  class="param-item"
                   :key="index"
+                  class="param-item"
                   :show-validate.sync="item.validate.isValidate"
                   :validator="item.validate"
                   position="right"
                 >
                   <!-- 自动补全 -->
                   <auto-complete-input
-                    class="reset-big-width"
                     v-model.trim="item.default"
+                    class="reset-big-width"
                     :config="item"
                     :cur-auth-priv="curAuthPriv"
                     :tips-data="tipsData"
@@ -419,8 +419,8 @@
         </div>
       </div>
       <div
-        class="edit-item"
         v-show="info.plugin.id && !['Log', 'Process'].includes(info.collectType) && showDmsInsert"
+        class="edit-item"
       >
         <div
           v-en-style="'min-width: 100px'"
@@ -432,8 +432,8 @@
           <template v-for="(item, index) in info.plugin.configJson">
             <template v-if="item.type === 'service'">
               <div
-                class="dms-insert-category"
                 :key="index"
+                class="dms-insert-category"
               >
                 <div :class="{ 'container-tips': true, required: item.required }">
                   {{ $t('服务实例标签') }}
@@ -449,16 +449,16 @@
                   />
                 </div>
                 <span
-                  style="color: #ff5656"
                   v-show="item.validate.isValidate"
+                  style="color: #ff5656"
                   >{{ item.validate.content }}</span
                 >
               </div>
             </template>
             <template v-else-if="item.type === 'host'">
               <div
-                class="dms-insert-category"
                 :key="index"
+                class="dms-insert-category"
               >
                 <div :class="{ 'container-tips': true, required: item.required }">
                   {{ $t('主机字段') }}
@@ -474,8 +474,8 @@
                   />
                 </div>
                 <span
-                  style="color: #ff5656"
                   v-show="item.validate.isValidate"
+                  style="color: #ff5656"
                   >{{ item.validate.content }}</span
                 >
               </div>
@@ -492,8 +492,8 @@
           <div class="btn-container">
             <bk-button
               v-if="!['Log', 'Process'].includes(info.collectType) && info.collectType !== 'SNMP_Trap'"
-              class="btn-preview"
               v-show="isShowPreview"
+              class="btn-preview"
               theme="default"
               @click="handlePreview"
             >
@@ -550,13 +550,13 @@
         @mouseout="handleMouseOut"
       >
         <collector-introduction
-          :introduction="introduction"
           :key="introduction.content"
+          :introduction="introduction"
         />
         <div
+          v-show="resizeState.show"
           :style="{ left: descWidth - resizeState.left + 'px' }"
           class="resize-line"
-          v-show="resizeState.show"
         />
       </div>
     </div>

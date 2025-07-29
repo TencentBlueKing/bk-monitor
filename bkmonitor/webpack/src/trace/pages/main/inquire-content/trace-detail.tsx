@@ -35,14 +35,14 @@ import {
   toRefs,
   watch,
 } from 'vue';
-import { useI18n } from 'vue-i18n';
-import { useRoute } from 'vue-router';
 
-import { Checkbox, Loading, Message, Popover, ResizeLayout, Tab, Switcher } from 'bkui-vue';
+import { Checkbox, Loading, Message, Popover, ResizeLayout, Switcher, Tab } from 'bkui-vue';
 import dayjs from 'dayjs';
 import { CancelToken } from 'monitor-api/cancel';
 import { traceDetail } from 'monitor-api/modules/apm_trace';
 import { typeTools } from 'monitor-common/utils/utils';
+import { useI18n } from 'vue-i18n';
+import { useRoute } from 'vue-router';
 
 import CompareSelect from '../../../components/compare-select/compare-select';
 import MonitorTab from '../../../components/monitor-tab/monitor-tab';
@@ -64,10 +64,10 @@ import {
 import { useTraceStore } from '../../../store/modules/trace';
 import {
   type DirectionType,
-  ETopoType,
   type ISpanClassifyItem,
   type ITraceData,
   type ITraceTree,
+  ETopoType,
 } from '../../../typings';
 import { COMPARE_DIFF_COLOR_LIST, updateTemporaryCompareTrace } from '../../../utils/compare';
 import SpanDetails from '../span-details';
@@ -97,26 +97,26 @@ const TraceDetailProps = {
 
 type IPanelEnum = 'flame' | 'sequence' | 'statistics' | 'timeline' | 'topo';
 
-interface ITabItem {
-  id: string; // id
-  name: string;
-  icon: string;
-}
-
 interface IState {
   activePanel: IPanelEnum;
+  compareSpanList: Span[];
+  compareTraceID: string;
+  filterSpanIds: string[];
+  filterSpanSubTitle: string;
+  isClassifyFilter: boolean;
+  isCollapsefilter: boolean;
+  isCompareView: boolean;
+  matchedSpanIds: number;
   searchKeywords: string[];
   selectClassifyFilters: { [key: string]: number | string };
   tabPanels: ITabItem[];
-  matchedSpanIds: number;
   traceMainStyle: string;
-  isClassifyFilter: boolean;
-  filterSpanIds: string[];
-  filterSpanSubTitle: string;
-  isCollapsefilter: boolean;
-  isCompareView: boolean;
-  compareTraceID: string;
-  compareSpanList: Span[];
+}
+
+interface ITabItem {
+  icon: string;
+  id: string; // id
+  name: string;
 }
 
 const TOOLS_ROW_HEIGHT = 90; // 工具栏高度 90 第三期功能不显示 暂时改为 58

@@ -24,62 +24,63 @@
  * IN THE SOFTWARE.
  */
 
+import type i18n from './i18n/i18n';
+
 import 'vue/dist/vue.d.ts';
 import 'vue/jsx.d.ts';
 
-import type i18n from './i18n/i18n';
 import type { IBizItem, ISpaceItem } from './typings';
 import type { Dayjs } from 'dayjs';
 import type { HTMLAttributes, ReservedProps } from 'vue/dist/vue.d.ts';
 
 declare global {
   interface Window {
-    site_url: string;
-    static_url: string;
-    user_name: string;
-    username: string;
-    timezone: string;
-    bkchat_manage_url: string;
-    uin: string;
-    space_list: ISpaceItem[];
-    bk_biz_list: IBizItem[];
-    csrf_cookie_name: string;
-    cc_biz_id: number | string;
-    bk_biz_id: number | string;
-    bk_log_search_url: string;
-    bklogsearch_host: string;
-    bk_url: string;
-    source_app: string;
-    i18n: typeof i18n.global;
     __BK_WEWEB_DATA__?: Record<string, any>;
     __POWERED_BY_BK_WEWEB__?: boolean;
-    rawWindow?: Window;
-    mermaidClick?: (id: string) => void;
+    AJAX_URL_PREFIX: string;
     apm_ebpf_enabled: boolean;
+    bk_biz_id: number | string;
+    bk_biz_list: IBizItem[];
+    BK_DOC_URL?: string;
+    bk_doc_version: string;
+    bk_docs_site_url: string;
+    bk_log_search_url: string;
+    bk_url: string;
+    bkchat_manage_url: string;
+    bklogsearch_host: string;
+    cc_biz_id: number | string;
+    csrf_cookie_name: string;
     dayjs?: Dayjs;
     enable_apm_profiling: boolean;
-    bk_docs_site_url: string;
-    bk_doc_version: string;
-    graph_watermark: boolean;
-    // 以下为日志全局变量配置
-    mainComponent: any;
-    traceLogComponent: any;
-    AJAX_URL_PREFIX: string;
-    BK_DOC_URL?: string;
-    FEATURE_TOGGLE?: Record<string, 'off' | 'on'>;
+    enable_create_chat_group?: boolean;
     // 多租户用户中心是否开启
     enable_multi_tenant_mode?: boolean;
-    enable_create_chat_group?: boolean;
+    FEATURE_TOGGLE?: Record<string, 'off' | 'on'>;
+    graph_watermark: boolean;
+    i18n: typeof i18n.global;
+    // 以下为日志全局变量配置
+    mainComponent: any;
+    rawWindow?: Window;
+    site_url: string;
+    source_app: string;
+    space_list: ISpaceItem[];
+    static_url: string;
+    timezone: string;
+    traceLogComponent: any;
+    uin: string;
+    user_name: string;
+    username: string;
+    mermaidClick?: (id: string) => void;
   }
 }
 
 declare global {
   namespace JSX {
     interface IntrinsicElements {
-      'bk-user-display-name': {
-        'user-id': string;
-      } & ReservedProps &
-        HTMLAttributes;
+      'bk-user-display-name': HTMLAttributes &
+        ReservedProps & {
+          'user-id': string;
+        };
     }
   }
 }

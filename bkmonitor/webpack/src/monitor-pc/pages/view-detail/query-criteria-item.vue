@@ -67,9 +67,9 @@
                     <div class="item-agg-condition">
                       <div
                         v-for="(item, index) in getWhereData(queryConfigItem.where)"
+                        :key="index"
                         :style="{ color: aggConditionColorMap[item], 'font-weight': aggConditionFontMap[item] }"
                         class="item-agg-dimension mb-2"
-                        :key="index"
                       >
                         {{ Array.isArray(item) ? item.join(' , ') : item }}
                       </div>
@@ -125,16 +125,16 @@
                     @change="handleSourceStepChange"
                   >
                     <div
-                      class="step-input-prepend"
                       slot="prepend"
+                      class="step-input-prepend"
                     >
                       <span>Step</span>
                       <span
-                        class="icon-monitor icon-hint"
                         v-bk-tooltips="{
                           content: $t('数据步长'),
                           placements: ['top'],
                         }"
+                        class="icon-monitor icon-hint"
                       />
                     </div>
                   </bk-input>
@@ -150,8 +150,8 @@
               </div>
               <div
                 v-for="(item, index) in queryConfigdata.query_configs"
-                class="query-configs-metric"
                 :key="index"
+                class="query-configs-metric"
               >
                 <div class="retrieval-content-row">
                   <span class="row-label">{{ item.metrics[0].alias }}</span>
@@ -172,12 +172,12 @@
                     <div class="item-agg-condition">
                       <div
                         v-for="(condition, i) in getWhereData(item.where)"
+                        :key="i"
                         :style="{
                           color: aggConditionColorMap[condition],
                           'font-weight': aggConditionFontMap[condition],
                         }"
                         class="item-agg-dimension mb-2"
-                        :key="i"
                       >
                         {{ Array.isArray(condition) ? condition.join(' , ') : condition }}
                       </div>
@@ -200,12 +200,12 @@
             :key="JSON.stringify(item.name)"
           >
             <convergence-options-item
-              class="retrieval-convergence"
               v-show="item.checked"
+              :id="item.id"
+              class="retrieval-convergence"
               :default-value="(item && item.defaultValue) || ''"
               :groupby-list="() => getGroupByList(item.id)"
               :has-close-icon="!item.disabled"
-              :id="item.id"
               :is-default="item.disabled"
               :title="item.name"
               @checked-change="handleCheckedChange"
@@ -225,18 +225,18 @@
               @showChange="handleShowChange"
             >
               <span
-                class="add-convergence-trigger"
                 slot="target"
+                class="add-convergence-trigger"
               >
                 <i class="icon-monitor icon-mc-plus-fill" />
                 {{ $t('添加条件') }}
               </span>
               <bk-option
                 v-for="item in groupList"
-                class="add-con-option"
-                :disabled="item.disabled"
                 :id="item.id"
                 :key="item.id"
+                class="add-con-option"
+                :disabled="item.disabled"
                 :name="item.name"
               />
             </custom-select>
@@ -253,9 +253,9 @@
       <bk-checkbox-group v-model="groupChecked">
         <bk-checkbox
           v-for="item in groupList"
+          :key="item.id"
           class="dialog-checkbox"
           :disabled="item.disabled"
-          :key="item.id"
           :value="item.id"
         >
           {{ item.name }}

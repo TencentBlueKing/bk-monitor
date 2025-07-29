@@ -30,49 +30,49 @@ import type {
   MetricType,
 } from '../../pages/strategy-config/strategy-config-set-new/typings';
 
-export type TGetMetricData = (
-  params: Record<string, any>
-) => { metricList: IMetricDetail[] } | Promise<{ metricList: IMetricDetail[] }> | any;
+export interface CheckedboxListEvents {
+  onChange: CheckedboxListVlaue;
+}
 
-export type MetricSelectorProps = {
-  type?: MetricType;
-  metricId?: string;
-  scenarioList?: any;
-  metricKey?: string;
-  isPromql?: boolean;
-  defaultScenario?: string;
-  multiple?: boolean;
-  metricIds?: string[];
-  getMetricData?: TGetMetricData;
-} & MetricPopoverProps;
+export interface CheckedboxListProps {
+  list: ICheckedboxList[];
+  value: CheckedboxListVlaue;
+}
 
-export type MetricSelectorEvents = {
-  onSelected: MetricDetail;
-  onChecked: (obj: { checked: boolean; id: string }) => void;
-} & MetricPopoverEvents;
+export type CheckedboxListVlaue = Record<string, string[]>;
 
-export interface MetricPopoverProps {
-  targetId: string;
+export interface ICheckedboxList {
+  checked?: string[];
+  children?: ICheckedboxList[];
+  count?: number;
+  id: string;
+  name: string;
   show?: boolean;
-  width?: number;
 }
 export interface MetricPopoverEvents {
   onShowChange: boolean;
 }
 
-export type CheckedboxListVlaue = Record<string, string[]>;
-export interface CheckedboxListProps {
-  list: ICheckedboxList[];
-  value: CheckedboxListVlaue;
-}
-export interface CheckedboxListEvents {
-  onChange: CheckedboxListVlaue;
-}
-export interface ICheckedboxList {
-  id: string;
-  name: string;
-  count?: number;
-  checked?: string[];
+export interface MetricPopoverProps {
   show?: boolean;
-  children?: ICheckedboxList[];
+  targetId: string;
+  width?: number;
 }
+export type MetricSelectorEvents = MetricPopoverEvents & {
+  onChecked: (obj: { checked: boolean; id: string }) => void;
+  onSelected: MetricDetail;
+};
+export type MetricSelectorProps = MetricPopoverProps & {
+  defaultScenario?: string;
+  getMetricData?: TGetMetricData;
+  isPromql?: boolean;
+  metricId?: string;
+  metricIds?: string[];
+  metricKey?: string;
+  multiple?: boolean;
+  scenarioList?: any;
+  type?: MetricType;
+};
+export type TGetMetricData = (
+  params: Record<string, any>
+) => any | Promise<{ metricList: IMetricDetail[] }> | { metricList: IMetricDetail[] };

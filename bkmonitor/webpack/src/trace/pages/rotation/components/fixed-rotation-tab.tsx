@@ -24,10 +24,10 @@
  * IN THE SOFTWARE.
  */
 import { type PropType, type Ref, defineComponent, inject, reactive, watch } from 'vue';
-import { useI18n } from 'vue-i18n';
 
 import { Button, DatePicker, Select } from 'bkui-vue';
 import { random } from 'lodash';
+import { useI18n } from 'vue-i18n';
 
 import MemberSelect from '../../../components/member-select/member-select';
 import { RotationSelectTypeEnum, WeekDataList } from '../typings/common';
@@ -41,16 +41,16 @@ import './fixed-rotation-tab.scss';
 export interface FixedDataModel {
   id?: number;
   key: number;
+  orderIndex: number;
+  users: { id: string; type: 'group' | 'user' }[];
+  workDateRange: [];
+  workDays: (number | string)[];
+  workTime: string[][];
   type:
     | RotationSelectTypeEnum.Daily
     | RotationSelectTypeEnum.DateRange
     | RotationSelectTypeEnum.Monthly
     | RotationSelectTypeEnum.Weekly;
-  workDays: (number | string)[];
-  workDateRange: [];
-  workTime: string[][];
-  orderIndex: number;
-  users: { type: 'group' | 'user'; id: string }[];
 }
 
 export default defineComponent({
@@ -66,7 +66,7 @@ export default defineComponent({
     // --------公共------------
     const { t } = useI18n();
     const defaultGroup = inject<Ref<any[]>>('defaultGroup');
-    const colorList = inject<{ value: string[]; setValue: (val: string[]) => void }>('colorList');
+    const colorList = inject<{ setValue: (val: string[]) => void; value: string[] }>('colorList');
 
     const typeList = [
       { label: t('每天'), value: RotationSelectTypeEnum.Daily },

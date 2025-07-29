@@ -36,8 +36,8 @@
       @confirm="handleFilterData"
     >
       <div
-        class="filter-panel"
         v-if="value"
+        class="filter-panel"
       >
         <div
           v-for="item in data"
@@ -45,8 +45,8 @@
         >
           <filter-panel-item
             v-if="item.show"
-            :class="{ mb10: lastItemId !== item.id }"
             v-model="item.value"
+            :class="{ mb10: lastItemId !== item.id }"
             :title="item.name"
             :type="item.type"
             :disabled="item.filterDisable"
@@ -79,12 +79,12 @@
 import { Component, Emit, Inject, Model, Prop, Vue, Watch } from 'vue-property-decorator';
 
 import { Storage } from '../../../utils';
-import type { IFieldConfig, ISelectedValues } from '../performance-type';
-import type TableStore from '../table-store';
-
 import ConditionPanel from './condition-panel.vue';
 import FilterPanelItem from './filter-panel-item.vue';
 import PerformanceDialog from './performance-dialog.vue';
+
+import type { IFieldConfig, ISelectedValues } from '../performance-type';
+import type TableStore from '../table-store';
 
 const CONDITION_CHECKED_LIST = 'CONDITION_CHECKED_LIST'; /** 筛选条件缓存key */
 @Component({

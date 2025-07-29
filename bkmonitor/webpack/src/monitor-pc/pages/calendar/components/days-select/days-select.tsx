@@ -31,9 +31,9 @@ import { ERepeatTypeId } from '../../types';
 import './days-select.scss';
 
 interface IOptionItem {
+  checked?: boolean;
   id: number | string;
   name: string;
-  checked?: boolean;
 }
 interface IProps {
   mode: ERepeatTypeId;

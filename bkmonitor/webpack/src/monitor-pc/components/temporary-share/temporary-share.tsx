@@ -1,3 +1,5 @@
+import type { VNode } from 'vue';
+
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -32,26 +34,25 @@ import { copyText } from 'monitor-common/utils/utils';
 import MonitorDialog from 'monitor-ui/monitor-dialog';
 
 import TimeRangeComponent, { type TimeRangeType } from '../time-range/time-range';
-import { TimeRange, shortcuts } from '../time-range/utils';
+import { shortcuts, TimeRange } from '../time-range/utils';
 import TimeSelect, { type ITimeListItem } from '../time-select/time-select';
 import HistoryShareManage from './history-share-manage';
 
 import type { NavBarMode } from '../../pages/monitor-k8s/components/common-nav-bar';
 import type { INavItem } from '../../pages/monitor-k8s/typings';
-import type { VNode } from 'vue';
 import type { TranslateResult } from 'vue-i18n';
 
 import './temporary-share.scss';
 // const MomentFormater = 'YYYY-MM-DD HH:mm:ss';
 
 export interface ITemporaryShareProps {
-  navList?: INavItem[];
-  onlyCopy?: boolean;
-  icon?: string;
-  navMode?: NavBarMode;
   customData?: Record<string, any>;
-  positionText?: string;
+  icon?: string;
+  navList?: INavItem[];
+  navMode?: NavBarMode;
+  onlyCopy?: boolean;
   pageInfo?: Record<string, any>;
+  positionText?: string;
 }
 @Component
 export default class TemporaryShareNew extends tsc<ITemporaryShareProps> {
@@ -151,7 +152,6 @@ export default class TemporaryShareNew extends tsc<ITemporaryShareProps> {
     const period = this.validityPeriod.match(/([0-9]+)/)?.[0] || 1;
     let weWebData = {};
     if (window.__BK_WEWEB_DATA__) {
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const { $baseStore = null, ...data } = { ...window.__BK_WEWEB_DATA__ };
       weWebData = { ...data };
     }

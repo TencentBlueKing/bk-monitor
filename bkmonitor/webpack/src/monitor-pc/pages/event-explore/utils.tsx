@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { DimensionsTypeEnum, KVSplitEnum, type KVSplitItem } from './typing';
+import { type KVSplitItem, DimensionsTypeEnum, KVSplitEnum } from './typing';
 
 export const fieldTypeMap = {
   integer: {
@@ -102,6 +102,14 @@ export const getEventLegendColorByType = (type: DimensionsTypeEnum) => {
   return EVENT_CHART_COLORS[eventChartMap[type]];
 };
 
+export class ExploreObserver {
+  constructor(private fn) {}
+
+  notify(...args): void {
+    this.fn(...args);
+  }
+}
+
 /**
  * @description 简易观察者模式
  */
@@ -130,14 +138,6 @@ export class ExploreSubject {
 
   destroy() {
     this.set.clear();
-  }
-}
-
-export class ExploreObserver {
-  constructor(private fn) {}
-
-  notify(...args): void {
-    this.fn(...args);
   }
 }
 

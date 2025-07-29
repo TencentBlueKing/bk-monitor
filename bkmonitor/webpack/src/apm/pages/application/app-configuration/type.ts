@@ -27,52 +27,87 @@
 import type { INodeType, TargetObjectType } from 'monitor-pc/components/monitor-ip-selector/typing';
 import type { IPanelModel } from 'monitor-ui/chart-plugins/typings';
 
+/* telemetry_data_type 字段枚举 */
+export enum ETelemetryDataType {
+  log = 'log',
+  metric = 'metric',
+  profiling = 'profiling',
+  trace = 'trace',
+}
+
+export interface ClusterOption {
+  id: string;
+  name: string;
+}
+
 export interface IApdexConfig {
+  apdex_backend: number;
+  apdex_db: number;
   apdex_default: number;
   apdex_http: number;
-  apdex_db: number;
-  apdex_rpc: number;
-  apdex_backend: number;
   apdex_messaging: number;
+  apdex_rpc: number;
 }
 
-export interface ISamplingRule {
-  key: string;
-  method: string;
-  value: any;
-  key_alias: string;
-  condition?: string;
-  type: string;
-}
-
-export interface IApplicationSamplerConfig {
-  sampler_type: string;
-  sampler_percentage?: number;
-  tail_conditions: ISamplingRule[];
+// 应用详情
+export interface IAppInfo {
+  app_alias: string;
+  app_name: string;
+  application_apdex_config: IApdexConfig;
+  application_datasource_config: IDatasourceConfig;
+  application_db_system: string[];
+  application_id: number;
+  application_instance_name_config: IApplicationInstanceNameConfig;
+  application_sampler_config: IApplicationSamplerConfig;
+  create_time: string;
+  create_user: string;
+  description: string;
+  enable_profiling: boolean;
+  enable_tracing: boolean;
+  es_storage_index_name: string;
+  is_enabled: boolean;
+  // 数据上报开关
+  is_enabled_log: boolean;
+  is_enabled_metric: boolean;
+  is_enabled_profiling: boolean;
+  is_enabled_trace: boolean;
+  log_data_status: TDataStatus;
+  // 类型状态
+  metric_data_status: TDataStatus;
+  no_data_period: number;
+  owner: string;
+  plugin_id: string;
+  profiling_data_status: TDataStatus;
+  trace_data_status: TDataStatus;
+  update_time: string;
+  update_user: string;
+  application_db_config: {
+    db_system: string;
+    enabled_slow_sql: boolean;
+    length: number;
+    threshold: number;
+    trace_mode: 'closed' | 'no_parameters' | 'origin';
+  }[];
+  plugin_config?: {
+    bk_biz_id?: number | string;
+    bk_data_id?: number | string;
+    data_encoding: string;
+    paths: string[];
+    subscription_id?: number | string;
+    target_node_type: INodeType;
+    target_nodes: any[];
+    target_object_type: TargetObjectType;
+  };
 }
 
 export interface IApplicationInstanceNameConfig {
   instance_name_composition: IInstanceOption[];
 }
 
-export interface IInstanceOption {
-  id: string;
-  name: string;
-  value: string;
-  alias: string;
-}
-
-export interface IDatasourceConfig {
-  es_number_of_replicas: number;
-  es_retention: number;
-  es_storage_cluster: number;
-  es_shards: number;
-  es_slice_size?: number;
-}
-
-export interface INoticeGroupItem {
-  id: number;
-  name: string;
+export interface IApplicationSamplerConfig {
+  sampler_percentage?: number;
+  sampler_type: string;
+  tail_conditions: ISamplingRule[];
 }
 
 export interface IClusterConfig {
@@ -81,12 +116,33 @@ export interface IClusterConfig {
   storage_cluster_id: string;
 }
 
-export interface IFormatsItem {
-  id: string;
-  name: string;
-  suffix: string;
+export interface IClusterItem {
+  cluster_config: IClusterConfig;
 }
 
+export interface IConditionInfo {
+  operator: string;
+  value: string;
+}
+
+export interface ICustomServiceInfo {
+  host_match_count: IMatchCount;
+  icon: string;
+  id: number;
+  match_type: string;
+  name: string;
+  rule: IRules;
+  type: string;
+  uri_match_count: IMatchCount;
+  uriMatch: number;
+}
+export interface IDatasourceConfig {
+  es_number_of_replicas: number;
+  es_retention: number;
+  es_shards: number;
+  es_slice_size?: number;
+  es_storage_cluster: number;
+}
 // 指标维度
 export interface IDimensionItem {
   description: string;
@@ -94,61 +150,46 @@ export interface IDimensionItem {
   type: string;
   unit: string;
 }
-type TDataStatus = 'disabled' | 'no_data' | 'normal';
-// 应用详情
-export interface IAppInfo {
-  application_id: number;
-  app_name: string;
-  app_alias: string;
-  description: string;
-  enable_profiling: boolean;
-  enable_tracing: boolean;
-  application_apdex_config: IApdexConfig;
-  owner: string;
-  is_enabled: boolean;
-  es_storage_index_name: string;
-  application_datasource_config: IDatasourceConfig;
-  create_user: string;
-  create_time: string;
-  update_time: string;
-  update_user: string;
-  no_data_period: number;
-  application_sampler_config: IApplicationSamplerConfig;
-  application_instance_name_config: IApplicationInstanceNameConfig;
-  application_db_config: {
-    db_system: string;
-    trace_mode: 'closed' | 'no_parameters' | 'origin';
-    length: number;
-    threshold: number;
-    enabled_slow_sql: boolean;
-  }[];
-  application_db_system: string[];
-  plugin_id: string;
-  plugin_config?: {
-    target_node_type: INodeType;
-    target_object_type: TargetObjectType;
-    target_nodes: any[];
-    data_encoding: string;
-    paths: string[];
-    bk_biz_id?: number | string;
-    bk_data_id?: number | string;
-    subscription_id?: number | string;
-  };
-  // 数据上报开关
-  is_enabled_log: boolean;
-  is_enabled_metric: boolean;
-  is_enabled_profiling: boolean;
-  is_enabled_trace: boolean;
-  // 类型状态
-  metric_data_status: TDataStatus;
-  log_data_status: TDataStatus;
-  profiling_data_status: TDataStatus;
-  trace_data_status: TDataStatus;
+
+export interface IFieldFilterItem {
+  text: string;
+  value: boolean | number | string;
 }
 
-export interface ClusterOption {
+export interface IFieldItem {
+  analysis_field: number;
+  ch_field_name: string;
+  field_name: string;
+  field_type: string;
+  time_field: number;
+}
+
+export interface IFormatsItem {
   id: string;
   name: string;
+  suffix: string;
+}
+
+export interface IInstanceOption {
+  alias: string;
+  id: string;
+  name: string;
+  value: string;
+}
+
+export interface ILogStorageInfo {
+  display_es_storage_index_name: string;
+  display_index_split_rule: string;
+  display_storage_cluster_name: string;
+  es_number_of_replicas: number;
+  es_retention: number;
+  es_shards: number;
+  es_slice_size: number;
+  es_storage_cluster: number;
+}
+
+export interface IMatchCount {
+  value: number;
 }
 
 export interface IMenuItem {
@@ -156,74 +197,40 @@ export interface IMenuItem {
   name: string;
 }
 
-// 无数据告警
-export interface IStrategyData {
-  id: number;
-  name: string;
-  alert_status: number;
-  alert_graph: IPanelModel;
-  is_enabled: boolean;
-  notice_group: INoticeGroupItem[];
-}
-
 // 指标详情
 export interface IMetricData {
+  data_source_label: string;
   field_name: string;
   metric_display_name: string;
-  type: string;
-  unit: string;
-  table_id: string;
-  data_source_label: string;
   result_table_label_name: string;
+  table_id: string;
   tag_list: IDimensionItem[];
   tags: string[];
+  type: string;
+  unit: string;
 }
-
-export interface IClusterItem {
-  cluster_config: IClusterConfig;
+/* 存储状态 指标 存储信息 */
+export interface IMetricStorageInfo {
+  created_at: string;
+  created_by: string;
+  expire_time_alias: string;
+  result_table_id: string;
+  status: 'failed' | 'running' | 'started' | 'stopped';
+  status_display: string;
+  storage_type: string;
 }
 
 export interface IndicesItem {
+  docs_count: number;
   health: string;
   pri: number;
   rep: number;
-  docs_count: number;
   store_size: number;
 }
 
-export interface IFieldItem {
-  field_name: string;
-  ch_field_name: string;
-  field_type: string;
-  time_field: number;
-  analysis_field: number;
-}
-
-export interface IStoreItem {
-  es_storage_index_name: string;
-  es_storage_cluster: string;
-  validity: string;
-  health: string;
-  create_user: string;
-  create_time: string;
-}
-export interface IUnitItme {
+export interface INoticeGroupItem {
+  id: number;
   name: string;
-  formats: IFormatsItem[];
-}
-
-export interface IFieldFilterItem {
-  text: string;
-  value: boolean | number | string;
-}
-
-export interface IMatchCount {
-  value: number;
-}
-
-export interface IConditionInfo {
-  operator: string;
-  value: string;
 }
 
 export interface IParamItem {
@@ -233,62 +240,55 @@ export interface IParamItem {
 }
 
 export interface IRules {
-  regex: string;
   operator: IConditionInfo;
-  uri: IConditionInfo;
   params: IParamItem[];
+  regex: string;
+  uri: IConditionInfo;
 }
 
-export interface ICustomServiceInfo {
-  id: number;
-  name: string;
-  icon: string;
+export interface ISamplingRule {
+  condition?: string;
+  key: string;
+  key_alias: string;
+  method: string;
   type: string;
-  match_type: string;
-  host_match_count: IMatchCount;
-  uri_match_count: IMatchCount;
-  uriMatch: number;
-  rule: IRules;
+  value: any;
 }
 
-/* telemetry_data_type 字段枚举 */
-export enum ETelemetryDataType {
-  log = 'log',
-  metric = 'metric',
-  profiling = 'profiling',
-  trace = 'trace',
-}
-/* 调用链存储信息 */
-export interface ITracingStorageInfo {
-  es_storage_cluster: number;
-  es_retention: number;
-  es_number_of_replicas: number;
-  es_shards: number;
-  es_slice_size: number;
-}
-
-export interface ILogStorageInfo {
-  es_number_of_replicas: number;
-  es_retention: number;
-  es_shards: number;
-  es_slice_size: number;
-  es_storage_cluster: number;
-  display_storage_cluster_name: string;
-  display_es_storage_index_name: string;
-  display_index_split_rule: string;
-}
 /* 存储信息 */
 export interface IStorageInfo {
-  [key: string]: ITracingStorageInfo & ILogStorageInfo & IMetricStorageInfo[];
+  [key: string]: ILogStorageInfo & IMetricStorageInfo[] & ITracingStorageInfo;
 }
 
-/* 存储状态 指标 存储信息 */
-export interface IMetricStorageInfo {
-  result_table_id: string;
-  storage_type: string;
-  expire_time_alias: string;
-  created_by: string;
-  created_at: string;
-  status: 'failed' | 'running' | 'started' | 'stopped';
-  status_display: string;
+export interface IStoreItem {
+  create_time: string;
+  create_user: string;
+  es_storage_cluster: string;
+  es_storage_index_name: string;
+  health: string;
+  validity: string;
 }
+// 无数据告警
+export interface IStrategyData {
+  alert_graph: IPanelModel;
+  alert_status: number;
+  id: number;
+  is_enabled: boolean;
+  name: string;
+  notice_group: INoticeGroupItem[];
+}
+
+/* 调用链存储信息 */
+export interface ITracingStorageInfo {
+  es_number_of_replicas: number;
+  es_retention: number;
+  es_shards: number;
+  es_slice_size: number;
+  es_storage_cluster: number;
+}
+export interface IUnitItme {
+  formats: IFormatsItem[];
+  name: string;
+}
+
+type TDataStatus = 'disabled' | 'no_data' | 'normal';

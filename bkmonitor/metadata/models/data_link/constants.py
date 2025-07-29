@@ -116,6 +116,10 @@ DEFAULT_METRIC_TRANSFORMER_KIND = "PreDefinedLogic"
 DEFAULT_METRIC_TRANSFORMER = "log_to_metric"
 DEFAULT_METRIC_TRANSFORMER_FORMAT = "bkmonitor_standard_v2"
 
+# 采集插件对应的 TRANSFORM FORMAT
+BK_STANDARD_TRANSFORMER_FORMAT = "bkmonitor_standard"
+BK_EXPORTER_TRANSFORMER_FORMAT = "bkmonitor_exporter_v1"
+
 # 针对数据源名称需要替换的正则
 MATCH_DATA_NAME_PATTERN = r"[\u4e00-\u9fa5\.\!\:\*\+\?\^\$\{\}\[\]\(\)\|\\]"
 

@@ -24,26 +24,26 @@
  * IN THE SOFTWARE.
  */
 import {
-  computed,
-  KeepAlive,
   type PropType,
   type Ref,
+  computed,
+  ref as deepRef,
   defineComponent,
   inject,
-  ref as deepRef,
+  KeepAlive,
   shallowRef,
   watch,
 } from 'vue';
-import { useI18n } from 'vue-i18n';
 
 import { incidentAlertAggregate } from 'monitor-api/modules/incident';
+import { useI18n } from 'vue-i18n';
 
 import FailureHandle from '../failure-handle/failure-handle';
 import FailureMenu from '../failure-menu/failure-menu';
 import FailureProcess from '../failure-process/failure-process';
 import TroubleShooting from '../trouble-shooting/trouble-shooting';
 
-import type { ITagInfoType, IAggregationRoot, IStrategyMapItem } from '../types';
+import type { IAggregationRoot, IStrategyMapItem, ITagInfoType } from '../types';
 
 import './failure-nav.scss';
 

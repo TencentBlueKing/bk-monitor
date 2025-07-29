@@ -27,13 +27,13 @@
 import { Module, Mutation, VuexModule } from 'vuex-module-decorators';
 
 export interface IAppState {
+  alarmNum?: number;
   bizId: number | string;
-  loading?: boolean;
+  bkBizName: string;
   collectId: number | string;
   eventId?: number | string;
-  alarmNum?: number;
+  loading?: boolean;
   refresh?: boolean;
-  bkBizName: string;
 }
 
 @Module({ name: 'app', namespaced: true })

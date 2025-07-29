@@ -41,35 +41,35 @@ const nullOptions = {
   id: '',
   name: `- ${window.i18n.tc('空')} -`,
 };
-interface IMetricMeta {
-  dataSourceLabel: string;
-  dataTypeLabel: string;
-  metricField: string;
-  resultTableId: number | string;
-  indexSetId?: number | string;
-}
+export type GetVarApiType = (field: string) => Promise<IVarOption[]>;
 export interface IConditionItem {
-  key: string;
-  value: string | string[];
-  method: string;
   condition?: string;
-}
-interface IConditionInputProps {
-  dimensionsList?: ICommonItem[];
-  conditionList: IConditionItem[];
-  metricMeta?: IMetricMeta;
-  getDataApi?: GetVarApiType;
-  /* 选择维度自动填充默认值 */
-  defaultValue?: {
-    [propName: string]: string[];
-  };
-  title?: string;
+  key: string;
+  method: string;
+  value: string | string[];
 }
 export interface IVarOption {
   id: string;
   name: string;
 }
-export type GetVarApiType = (field: string) => Promise<IVarOption[]>;
+interface IConditionInputProps {
+  conditionList: IConditionItem[];
+  dimensionsList?: ICommonItem[];
+  getDataApi?: GetVarApiType;
+  metricMeta?: IMetricMeta;
+  title?: string;
+  /* 选择维度自动填充默认值 */
+  defaultValue?: {
+    [propName: string]: string[];
+  };
+}
+interface IMetricMeta {
+  dataSourceLabel: string;
+  dataTypeLabel: string;
+  indexSetId?: number | string;
+  metricField: string;
+  resultTableId: number | string;
+}
 @Component({
   name: 'ConditionInput',
 })

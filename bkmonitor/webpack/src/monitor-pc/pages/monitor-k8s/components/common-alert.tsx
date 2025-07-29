@@ -29,9 +29,9 @@ import { Component as tsc } from 'vue-tsx-support';
 type CommonAlertType = 'error' | 'info' | 'success' | 'warning';
 
 interface IProps {
-  type?: CommonAlertType;
   showIcon?: boolean;
   title?: string;
+  type?: CommonAlertType;
 }
 
 @Component

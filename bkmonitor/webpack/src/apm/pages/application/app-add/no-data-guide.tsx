@@ -39,8 +39,8 @@ import { type ICardItem, type IListDataItem, SystemData } from './utils';
 import './no-data-guide.scss';
 
 interface IProps {
-  type: 'noData' | 'service'; // 应用无数据 | 新增服务
   appName: string; // 应用名
+  type: 'noData' | 'service'; // 应用无数据 | 新增服务
 }
 interface IPushUrlItem {
   bk_cloud_id: number;

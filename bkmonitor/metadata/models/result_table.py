@@ -34,7 +34,7 @@ from .common import BaseModel, Label, OptionBase
 from .data_source import DataSource, DataSourceOption, DataSourceResultTable
 from .result_table_manage import EnableManager
 from .space import SpaceDataSource, SpaceTypeToResultTableFilterAlias
-from .space.constants import EtlConfigs, SpaceTypes
+from .space.constants import SpaceTypes
 from .storage import (
     ArgusStorage,
     BkDataStorage,
@@ -333,6 +333,8 @@ class ResultTable(models.Model):
         :param bk_biz_id_alias: 结果表所属业务名称
         :return: result_table instance | raise Exception
         """
+        from metadata.models.space.constants import ENABLE_V4_DATALINK_ETL_CONFIGS
+
         logger.info(
             "create_result_table: start to create result table for bk_data_id->[%s],table_id->[%s],bk_biz_id->[%s],"
             "bk_biz_id_alias->[%s]",
@@ -340,14 +342,6 @@ class ResultTable(models.Model):
             table_id,
             bk_biz_id,
             bk_biz_id_alias,
-        )
-        logger.info(
-            "create_result_table: start to create result table for bk_tenant_id->[%s],bk_data_id->[%s],"
-            "table_id->[%s],bk_biz_id->[%s]",
-            bk_tenant_id,
-            bk_data_id,
-            table_id,
-            bk_biz_id,
         )
 
         # 判断label是否真实存在的配置
@@ -368,7 +362,7 @@ class ResultTable(models.Model):
             logger.error("create_result_table: bk_data_id->[%s] is not exists, nothing will do.", bk_data_id)
             raise ValueError(_("数据源ID不存在，请确认"))
         datasource = datasource_qs.first()
-        allow_access_v2_data_link = datasource.etl_config == EtlConfigs.BK_STANDARD_V2_TIME_SERIES.value
+        allow_access_v2_data_link = datasource.etl_config in ENABLE_V4_DATALINK_ETL_CONFIGS
 
         # 非系统创建的结果表，不可以使用容器监控的表前缀名
         if operator != "system" and table_id.startswith(config.BCS_TABLE_ID_PREFIX):

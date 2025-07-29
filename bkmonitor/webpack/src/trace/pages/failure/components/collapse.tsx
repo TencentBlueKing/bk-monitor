@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, ref, type PropType, type VNode } from 'vue';
+import { type PropType, type VNode, defineComponent, ref } from 'vue';
 
 import { AngleRight } from 'bkui-vue/lib/icon';
 

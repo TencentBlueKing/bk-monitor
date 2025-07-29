@@ -1,3 +1,7 @@
+import { Component, Emit, InjectReactive, Prop } from 'vue-property-decorator';
+import { Component as tsc } from 'vue-tsx-support';
+
+import { copyText } from 'monitor-common/utils';
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -24,44 +28,40 @@
  * IN THE SOFTWARE.
  */
 import VueJsonPretty from 'vue-json-pretty';
-import { Component, Emit, InjectReactive, Prop } from 'vue-property-decorator';
-import { Component as tsc } from 'vue-tsx-support';
-
-import { copyText } from 'monitor-common/utils';
 
 import { getDefaultTimezone } from '../../../i18n/dayjs';
 import { APIType } from '../api-utils';
 import {
-  ExploreEntitiesTypeEnum,
   type ConditionChangeEvent,
   type DimensionType,
   type ExploreEntitiesMap,
   type ExploreFieldMap,
+  ExploreEntitiesTypeEnum,
 } from '../typing';
-import { optimizedSplit, type ExploreSubject } from '../utils';
+import { type ExploreSubject, optimizedSplit } from '../utils';
 import ExploreKvList, { type KVFieldList } from './explore-kv-list';
 
 import './explore-expand-view-wrapper.scss';
 
-interface ExploreExpandViewWrapperProps {
-  data: Record<string, any>;
-  detailData: Record<string, any>;
-  fieldMap: ExploreFieldMap;
-  entitiesMapList: ExploreEntitiesMap[];
-  /** 滚动事件被观察者实例 */
-  scrollSubject: ExploreSubject;
-  source: APIType;
-  kvFieldCache: WeakMap<any, KVFieldList[]>;
-}
-
-interface ExploreExpandViewWrapperEvents {
-  onUpdateKvFieldCache: (originData, kvFieldItem: KVFieldList) => void;
-  onConditionChange(e: ConditionChangeEvent): void;
-}
-
 enum ExploreViewTabEnum {
   JSON = 'json',
   KV = 'kv',
+}
+
+interface ExploreExpandViewWrapperEvents {
+  onConditionChange(e: ConditionChangeEvent): void;
+  onUpdateKvFieldCache: (originData, kvFieldItem: KVFieldList) => void;
+}
+
+interface ExploreExpandViewWrapperProps {
+  data: Record<string, any>;
+  detailData: Record<string, any>;
+  entitiesMapList: ExploreEntitiesMap[];
+  fieldMap: ExploreFieldMap;
+  kvFieldCache: WeakMap<any, KVFieldList[]>;
+  /** 滚动事件被观察者实例 */
+  scrollSubject: ExploreSubject;
+  source: APIType;
 }
 
 @Component

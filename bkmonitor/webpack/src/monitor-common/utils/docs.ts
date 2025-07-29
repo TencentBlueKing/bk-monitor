@@ -88,6 +88,15 @@ export const DOCS_LINK_MAP = {
 const isEn = docCookies.getItem(LANGUAGE_COOKIE_KEY) === 'en';
 
 /**
+ * @description 拼接监控外其他项目文档（如日志等）链接
+ * @param path 需要跳转的文档路径
+ * @returns docs链接
+ */
+export function concatBKOtherDocsUrl(path: string) {
+  return `${rstrip(window.bk_docs_site_url, '/')}/markdown/${path}`;
+}
+
+/**
  * @description 拼接监控项目文档链接
  * @param path 需要跳转的文档路径
  * @returns docs链接
@@ -96,15 +105,6 @@ export function concatMonitorDocsUrl(path: string) {
   const lang = isEn ? 'EN' : 'ZH';
   const docsVersion = window.bk_doc_version || 4.7;
   return `${rstrip(window.bk_docs_site_url, '/')}/markdown/${lang}/Monitor/${docsVersion}/${path}`;
-}
-
-/**
- * @description 拼接监控外其他项目文档（如日志等）链接
- * @param path 需要跳转的文档路径
- * @returns docs链接
- */
-export function concatBKOtherDocsUrl(path: string) {
-  return `${rstrip(window.bk_docs_site_url, '/')}/markdown/${path}`;
 }
 
 /**

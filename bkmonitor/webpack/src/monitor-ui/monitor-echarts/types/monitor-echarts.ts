@@ -23,8 +23,9 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { BarChart, LineChart, MapChart, PieChart, HeatmapChart, CustomChart } from 'echarts/charts';
+import { BarChart, CustomChart, HeatmapChart, LineChart, MapChart, PieChart } from 'echarts/charts';
 import {
+  BrushComponent,
   GeoComponent,
   GraphicComponent,
   GridComponent,
@@ -36,7 +37,6 @@ import {
   ToolboxComponent,
   TooltipComponent,
   VisualMapComponent,
-  BrushComponent,
 } from 'echarts/components';
 import * as echarts from 'echarts/core';
 import { CanvasRenderer } from 'echarts/renderers';

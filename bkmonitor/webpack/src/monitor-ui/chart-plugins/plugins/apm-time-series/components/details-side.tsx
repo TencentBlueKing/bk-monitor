@@ -46,6 +46,17 @@ import type { ITableColumn, ITablePagination, TableRow } from 'monitor-pc/pages/
 
 import './details-side.scss';
 
+export enum EDataType {
+  avgDuration = 'avg_duration',
+  errorCount = 'error_count',
+  requestCount = 'request_count',
+}
+
+export enum EOptionKind {
+  callee = 'callee',
+  caller = 'caller',
+}
+
 enum EColumn {
   Chart = 'datapoints',
   CompareCount = 'compare_count',
@@ -56,27 +67,16 @@ enum EColumn {
   ServerName = 'service',
 }
 
-export enum EOptionKind {
-  callee = 'callee',
-  caller = 'caller',
-}
-
-export enum EDataType {
-  avgDuration = 'avg_duration',
-  errorCount = 'error_count',
-  requestCount = 'request_count',
-}
-
 interface IProps {
-  show: boolean;
-  timeRange?: TimeRangeType;
-  serviceName?: string;
   appName?: string;
   dataType?: EDataType;
-  panelTitle?: string;
   dimensions?: string[];
-  pointValueUnit?: string;
   errorCountCategory?: Record<string, string>;
+  panelTitle?: string;
+  pointValueUnit?: string;
+  serviceName?: string;
+  show: boolean;
+  timeRange?: TimeRangeType;
   onClose?: () => void;
 }
 

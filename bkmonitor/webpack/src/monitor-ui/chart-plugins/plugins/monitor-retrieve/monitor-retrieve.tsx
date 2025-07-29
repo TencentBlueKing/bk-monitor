@@ -24,17 +24,18 @@
  * IN THE SOFTWARE.
  */
 import Vue from 'vue';
-import { Component, InjectReactive, Inject } from 'vue-property-decorator';
+
+import { Component, Inject, InjectReactive } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import {
-  MonitorApmLog as Log,
-  initMonitorState,
-  initGlobalComponents,
-  logStore,
   i18n,
+  initGlobalComponents,
+  initMonitorState,
+  MonitorApmLog as Log,
+  logStore,
 } from '@blueking/monitor-apm-log/main';
-import { serviceRelationList, serviceLogInfo } from 'monitor-api/modules/apm_log';
+import { serviceLogInfo, serviceRelationList } from 'monitor-api/modules/apm_log';
 import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
 
 import type { IViewOptions } from '../../typings';

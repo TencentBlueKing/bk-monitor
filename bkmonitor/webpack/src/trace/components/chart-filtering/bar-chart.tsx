@@ -55,7 +55,7 @@ export default defineComponent({
   props: BarChartProps,
   setup(props) {
     // 当前图表配置取消监听函数
-    let unwatchOptions: WatchStopHandle | null = null;
+    let unwatchOptions: null | WatchStopHandle = null;
     const chartRef = ref<HTMLDivElement>();
     // echarts 实例
     const instance = shallowRef<echarts.ECharts>();

@@ -26,25 +26,25 @@
 import { Component, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import draggable from 'vuedraggable';
 // import _ from 'lodash';
-import { deleteSceneView, bulkUpdateSceneViewOrderAndName } from 'monitor-api/modules/scene_view';
+import { bulkUpdateSceneViewOrderAndName, deleteSceneView } from 'monitor-api/modules/scene_view';
 import { deepClone } from 'monitor-common/utils';
+import draggable from 'vuedraggable';
 
 import './index.scss';
 
-interface IProps {
-  sceneId: string;
-  payload: Record<string, any>;
-  viewList: {
-    id: string;
-    name: string;
-    edit?: boolean;
-  }[];
-}
-
 interface IEmit {
   onSuccess: () => void;
+}
+
+interface IProps {
+  payload: Record<string, any>;
+  sceneId: string;
+  viewList: {
+    edit?: boolean;
+    id: string;
+    name: string;
+  }[];
 }
 
 @Component({
@@ -168,13 +168,13 @@ export default class ViewManage extends tsc<IProps, IEmit> {
         <i class='icon-monitor icon-shezhi1' />
         <bk-dialog
           width={480}
+          class='metric-view-manage-dialog'
           v-model={this.isShowDialog}
           draggable={false}
           header-position='left'
           render-directive='if'
           scrollable={false}
           title={this.$t('视图管理')}
-          class='metric-view-manage-dialog'
         >
           <draggable
             v-model={this.pageList}
@@ -183,9 +183,9 @@ export default class ViewManage extends tsc<IProps, IEmit> {
             onStart={this.dragStart}
           >
             <transition-group
+              class='metric-view-drag-list'
               name={this.dragData.from !== null ? 'flip-list' : 'flip-list-none'}
               tag='ul'
-              class='metric-view-drag-list'
             >
               {this.pageList.map((item, index) => (
                 <li
@@ -212,8 +212,8 @@ export default class ViewManage extends tsc<IProps, IEmit> {
           </draggable>
           <div slot='footer'>
             <bk-button
-              loading={this.isLoading}
               style={{ marginRight: '5px' }}
+              loading={this.isLoading}
               theme='primary'
               onClick={this.handleSave}
             >

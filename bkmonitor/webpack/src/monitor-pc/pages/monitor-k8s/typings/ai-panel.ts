@@ -1,3 +1,16 @@
+export type DataArray = DataObj[];
+
+export interface DataObj {
+  create_time?: string;
+  id?: string;
+  ip?: string;
+  label?: string;
+  source: number | string;
+  status?: string;
+  value: number | string;
+}
+
+export type FieldHeaderArray = FieldHeaderObj[];
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -27,16 +40,3 @@ export interface FieldHeaderObj {
   id: string;
   label: string;
 }
-
-export type FieldHeaderArray = FieldHeaderObj[];
-
-export interface DataObj {
-  ip?: string;
-  source: number | string;
-  status?: string;
-  value: number | string;
-  create_time?: string;
-  id?: string;
-  label?: string;
-}
-export type DataArray = DataObj[];

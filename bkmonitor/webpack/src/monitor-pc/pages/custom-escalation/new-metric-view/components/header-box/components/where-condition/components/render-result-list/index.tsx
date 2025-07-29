@@ -26,20 +26,20 @@
 import { Component, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import customEscalationViewStore from '@store/modules/custom-escalation-view';
 import _ from 'lodash';
 
 import { formatTipsContent } from '../../../../../../metric-chart-view/utils';
-import EditPanel, { type IValue, type IMetrics, methodMap } from './components/edit-panel/index';
+import EditPanel, { type IMetrics, type IValue, methodMap } from './components/edit-panel/index';
+import customEscalationViewStore from '@store/modules/custom-escalation-view';
 
 import './index.scss';
 
-interface IProps {
-  value: IValue[];
-}
-
 interface IEmit {
   onChange: (value: IValue[]) => void;
+}
+
+interface IProps {
+  value: IValue[];
 }
 
 @Component

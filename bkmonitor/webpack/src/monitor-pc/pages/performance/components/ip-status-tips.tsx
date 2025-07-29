@@ -29,9 +29,9 @@ import { Component as tsc } from 'vue-tsx-support';
 import './ip-status-tips.scss';
 
 interface IIpStatusTips {
+  hostId: number;
   ignoreMonitoring: boolean;
   isShielding: boolean;
-  hostId: number;
 }
 
 /**
@@ -40,7 +40,7 @@ interface IIpStatusTips {
  * @param {boolean} isShielding
  * @return {*}
  */
-export const handleIpStatusData = (ignoreMonitoring: boolean, isShielding: boolean): { id?: string; icon?: string } => {
+export const handleIpStatusData = (ignoreMonitoring: boolean, isShielding: boolean): { icon?: string; id?: string } => {
   const data = {
     icon: ignoreMonitoring ? 'icon-celvepingbi' : isShielding ? 'icon-menu-shield' : '',
     id: ignoreMonitoring ? '#ignore-monitoring' : isShielding ? '#is-shielding' : '',

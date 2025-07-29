@@ -39,7 +39,6 @@ import { deepClone } from 'monitor-common/utils/utils';
 
 import MultiLabelSelect from '../../../components/multi-label-select/multi-label-select';
 import TimePickerMultiple from '../../../components/time-picker-multiple/time-picker-multiple';
-import TemplateInput from '../strategy-config-set/strategy-template-input/strategy-template-input.vue';
 import {
   type IValue as IAlarmItem,
   type IAllDefense,
@@ -52,6 +51,7 @@ import VerifyItem from '../strategy-config-set-new/components/verify-item';
 import DetectionRules from '../strategy-config-set-new/detection-rules/detection-rules';
 import { DEFAULT_TIME_RANGES } from '../strategy-config-set-new/judging-condition/judging-condition';
 import { actionOption, intervalModeList, noticeOptions } from '../strategy-config-set-new/notice-config/notice-config';
+import TemplateInput from '../strategy-config-set/strategy-template-input/strategy-template-input.vue';
 
 import type { IGroupItem } from '../strategy-config-set-new/components/group-select';
 import type { MetricDetail } from '../strategy-config-set-new/typings';
@@ -145,24 +145,24 @@ interface IAlarmGroupList {
   receiver: string[];
 }
 
-interface IGroup {
-  count?: number;
-  name?: string;
-  id?: number;
+interface IEvents {
+  onConfirm?: () => void;
+  onGetGroupList?: () => void;
+  onHideDialog?: () => void;
 }
 
-interface IProps {
-  loading?: boolean;
-  checkedList?: number[];
-  groupList?: IGroup[];
-  dialogShow?: boolean;
-  setType?: number;
-  selectMetricData?: MetricDetail[];
+interface IGroup {
+  count?: number;
+  id?: number;
+  name?: string;
 }
-interface IEvents {
-  onGetGroupList?: () => void;
-  onConfirm?: () => void;
-  onHideDialog?: () => void;
+interface IProps {
+  checkedList?: number[];
+  dialogShow?: boolean;
+  groupList?: IGroup[];
+  loading?: boolean;
+  selectMetricData?: MetricDetail[];
+  setType?: number;
 }
 
 @Component

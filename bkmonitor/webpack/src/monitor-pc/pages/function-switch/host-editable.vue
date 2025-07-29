@@ -26,14 +26,16 @@
 <template>
   <div class="host-editable-wrapper">
     <div
-      @dblclick="dblclickHost"
-      class="text"
       ref="text"
-    >{{ value || '--' }}</div>
+      class="text"
+      @dblclick="dblclickHost"
+    >
+      {{ value || '--' }}
+    </div>
     <div
-      class="input"
       v-show="editable"
       ref="input"
+      class="input"
       :contenteditable="editable"
       @blur="handleBlur"
       @keydown.enter="handleEnter"
@@ -92,7 +94,7 @@ export default class HostEditable extends Vue {
 </script>
 
 <style lang="scss" scoped>
-@import "../../theme/index.scss";
+@import '../../theme/index.scss';
 
 .host-editable-wrapper {
   position: relative;

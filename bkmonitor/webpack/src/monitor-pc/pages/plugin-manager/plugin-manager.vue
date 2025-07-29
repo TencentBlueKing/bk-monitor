@@ -42,8 +42,8 @@
       <div class="plugin-manager-header">
         <div class="left">
           <bk-button
-            class="left-button mc-btn-add"
             v-authority="{ active: !authority.MANAGE_AUTH }"
+            class="left-button mc-btn-add"
             theme="primary"
             @click="authority.MANAGE_AUTH ? handlePluginAdd(null) : handleShowAuthorityDetail()"
           >
@@ -51,8 +51,8 @@
             {{ $t('新建') }}
           </bk-button>
           <bk-button
-            class="left-button mc-btn-add"
             v-authority="{ active: !authority.MANAGE_AUTH }"
+            class="left-button mc-btn-add"
             @click="!authority.MANAGE_AUTH && handleShowAuthorityDetail()"
           >
             {{ $t('导入') }}
@@ -87,9 +87,9 @@
         <ul class="tab-list">
           <li
             v-for="(item, index) in panel.tabs"
+            :key="item.name"
             class="tab-list-item"
             :class="{ 'tab-active': index === panel.active }"
-            :key="item.name"
             @click="handlePanelChange(item, index)"
           >
             <span class="tab-name">{{ item.name }}</span>
@@ -101,7 +101,7 @@
           v-if="loading || table.loading"
           class="plugin-table-skeleton"
           :type="2"
-        ></table-skeleton>
+        />
         <template v-else>
           <bk-table
             class="plugin-table"
@@ -143,10 +143,10 @@
                     {{ scope.row.logo ? '' : scope.row.plugin_display_name.slice(0, 1).toLocaleUpperCase() }}
                   </div>
                   <div
-                    class="col-name-desc"
                     v-authority="{
                       active: !authority.MANAGE_AUTH && scope.row.status === 'draft',
                     }"
+                    class="col-name-desc"
                     @click="
                       getManageAuth(scope.row) && scope.row.status === 'draft'
                         ? showAuthorityDetail(scope.row)
@@ -155,8 +155,8 @@
                   >
                     <div class="desc-alias">
                       <span
-                        class="desc-alias-title"
                         v-bk-overflow-tips
+                        class="desc-alias-title"
                       >
                         {{ scope.row.plugin_display_name ? scope.row.plugin_display_name : scope.row.plugin_id }}
                       </span>
@@ -270,8 +270,8 @@
               <template slot-scope="scope">
                 <div class="col-operate">
                   <bk-button
-                    class="edit-btn"
                     v-authority="{ active: getManageAuth(scope.row) }"
+                    class="edit-btn"
                     :disabled="!scope.row.edit_allowed"
                     :text="true"
                     type="primary"
@@ -282,10 +282,10 @@
                     {{ $t('button-编辑') }}
                   </bk-button>
                   <span
-                    class="col-operator-more"
-                    v-authority="{ active: getManageAuth(scope.row) }"
-                    :class="{ 'operator-active': tablePopover.hover === scope.$index }"
                     :ref="'operator-' + scope.$index"
+                    v-authority="{ active: getManageAuth(scope.row) }"
+                    class="col-operator-more"
+                    :class="{ 'operator-active': tablePopover.hover === scope.$index }"
                     data-popover="true"
                     @click="
                       !getManageAuth(scope.row)
@@ -303,8 +303,8 @@
             </bk-table-column>
           </bk-table>
           <bk-pagination
-            class="plugin-pagination list-pagination"
             v-show="table.data.length"
+            class="plugin-pagination list-pagination"
             :count="panel.active ? panel.tabs[panel.active].num : pagination.total"
             :current="pagination.page"
             :limit="pagination.pageSize"
@@ -333,9 +333,9 @@
       >
         <li
           v-for="tag in popover.list"
-          class="popover-tag-item"
           v-show="tag.includes(popover.active)"
           :key="tag"
+          class="popover-tag-item"
           data-mark="popover-tag-mark"
           @click="handleTagSelect(tag)"
         >
@@ -352,8 +352,8 @@
         <ul class="label-menu-list">
           <li
             v-for="(item, index) in label.list"
-            class="item"
             :key="index"
+            class="item"
             @click="handleSelectLabel(item)"
           >
             <bk-checkbox
@@ -439,7 +439,7 @@ import {
   tagOptionsCollectorPlugin,
 } from 'monitor-api/modules/model';
 import { saveAndReleasePlugin } from 'monitor-api/modules/plugin';
-import { commonPageSizeSet, commonPageSizeGet } from 'monitor-common/utils';
+import { commonPageSizeGet, commonPageSizeSet } from 'monitor-common/utils';
 import { debounce } from 'throttle-debounce';
 import { createNamespacedHelpers } from 'vuex';
 

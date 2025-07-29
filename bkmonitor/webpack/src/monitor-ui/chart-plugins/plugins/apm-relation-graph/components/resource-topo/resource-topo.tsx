@@ -27,13 +27,13 @@ import { Component, Prop, Watch } from 'vue-property-decorator';
 import { ofType } from 'vue-tsx-support';
 
 import {
-  MonitorTopo,
-  createApp,
-  h as vue3CreateElement,
+  type IResourceData,
   type IResourceEdge,
   type IResourceNode,
   type IResourceSidebar,
-  type IResourceData,
+  createApp,
+  MonitorTopo,
+  h as vue3CreateElement,
 } from '@blueking/monitor-resource-topo/vue2';
 import { CancelToken } from 'monitor-api/cancel';
 import { nodeRelation, nodeRelationDetail, topoLink } from 'monitor-api/modules/apm_topo';

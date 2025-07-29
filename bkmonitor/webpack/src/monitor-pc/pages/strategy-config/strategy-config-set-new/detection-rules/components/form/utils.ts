@@ -27,6 +27,55 @@
 import type { IItem } from '../threshold/threshold-select';
 import type { BoundType } from './alarm-threshold-select';
 
+export enum EFormItemValueType {
+  array = 'array',
+  number = 'number',
+  string = 'string',
+}
+
+export interface IFormDataItem {
+  behavior?: IBehavior;
+  boundType?: BoundType; // 告警阈值类型
+  clearable?: boolean;
+  default?: any;
+  description?: string;
+  disabled?: boolean;
+  errorDisplayType?: errorDisplayType;
+  field: string;
+  hoverOptionId?: string;
+  isAdvanced?: boolean; // 是否隐藏参数组件，但是要提交默认值给后台
+  label: string;
+  max?: number;
+  methodList?: IItem[];
+  min?: number;
+  multiple?: boolean;
+  options?: ISelectOptionItem[];
+  placeholder?: string;
+  required?: boolean;
+  separator?: string; // 多选的分隔符
+  type: FormItemType;
+  unit?: string;
+  unitId?: number; // 单位换倍数
+  unitOption?: IUnitOptionItem[]; // 单位可选值
+  value: any;
+  valueType?: TValueType;
+  width?: number;
+  onChange?: (item: FormItem) => void;
+}
+export interface ISelectOptionItem {
+  default?: boolean; // 是否为默认
+  detail?: Record<string, any>; // 模型数据详情
+  id: string;
+  loading?: boolean; // 数据加在状态
+  name: string;
+}
+export interface IUnitOptionItem {
+  id: number;
+  name: string;
+}
+
+type errorDisplayType = 'normal' | 'tooltips';
+
 type FormItemType =
   | 'ai-level'
   | 'alarm-thresholds'
@@ -40,58 +89,9 @@ type FormItemType =
   | 'tag-input'
   | 'thresholds';
 
-export interface ISelectOptionItem {
-  id: string;
-  name: string;
-  default?: boolean; // 是否为默认
-  loading?: boolean; // 数据加在状态
-  detail?: Record<string, any>; // 模型数据详情
-}
-export interface IUnitOptionItem {
-  id: number;
-  name: string;
-}
 type IBehavior = 'normal' | 'simplicity';
 
-export enum EFormItemValueType {
-  array = 'array',
-  number = 'number',
-  string = 'string',
-}
-
 type TValueType = EFormItemValueType.array | EFormItemValueType.number | EFormItemValueType.string;
-
-type errorDisplayType = 'normal' | 'tooltips';
-
-export interface IFormDataItem {
-  label: string;
-  field: string;
-  value: any;
-  default?: any;
-  type: FormItemType;
-  options?: ISelectOptionItem[];
-  min?: number;
-  max?: number;
-  unit?: string;
-  methodList?: IItem[];
-  behavior?: IBehavior;
-  required?: boolean;
-  onChange?: (item: FormItem) => void;
-  placeholder?: string;
-  disabled?: boolean;
-  multiple?: boolean;
-  valueType?: TValueType;
-  clearable?: boolean;
-  hoverOptionId?: string;
-  width?: number;
-  unitOption?: IUnitOptionItem[]; // 单位可选值
-  unitId?: number; // 单位换倍数
-  description?: string;
-  boundType?: BoundType; // 告警阈值类型
-  errorDisplayType?: errorDisplayType;
-  isAdvanced?: boolean; // 是否隐藏参数组件，但是要提交默认值给后台
-  separator?: string; // 多选的分隔符
-}
 /** 时序预测表单组件数据结构 */
 export class FormItem {
   static createFormItemData(data, valueDisplay?: Record<string, any>) {

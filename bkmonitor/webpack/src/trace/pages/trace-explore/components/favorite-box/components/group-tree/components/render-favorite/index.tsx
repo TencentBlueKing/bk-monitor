@@ -23,12 +23,12 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, type PropType, onMounted, shallowRef, onBeforeUnmount, computed } from 'vue';
-import { useI18n } from 'vue-i18n';
+import { type PropType, computed, defineComponent, onBeforeUnmount, onMounted, shallowRef } from 'vue';
 
 import { Message } from 'bkui-vue';
-import { createFavorite, updateFavorite, destroyFavorite } from 'monitor-api/modules/model';
-import tippy, { type SingleTarget, type Instance } from 'tippy.js';
+import { createFavorite, destroyFavorite, updateFavorite } from 'monitor-api/modules/model';
+import tippy, { type Instance, type SingleTarget } from 'tippy.js';
+import { useI18n } from 'vue-i18n';
 
 import EditFavorite from '../../../../components/edit-favorite';
 import useFavoriteType from '../../../../hooks/use-favorite-type';

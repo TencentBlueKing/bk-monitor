@@ -1,3 +1,6 @@
+import { Emit, Mixins, Prop } from 'vue-property-decorator';
+
+import { deepClone } from 'monitor-common/utils';
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -24,9 +27,6 @@
  * IN THE SOFTWARE.
  */
 import Component from 'vue-class-component';
-import { Emit, Mixins, Prop } from 'vue-property-decorator';
-
-import { deepClone } from 'monitor-common/utils';
 
 import UserConfigMixin from '../../../../mixins/userStoreConfig';
 import { COMMON_ROUTE_LIST, COMMON_ROUTE_STORE_KEY, DEFAULT_ROUTE_LIST } from '../../../../router/router-config';

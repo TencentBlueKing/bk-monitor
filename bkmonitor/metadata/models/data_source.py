@@ -29,10 +29,10 @@ from core.drf_resource import api
 from core.errors.api import BKAPIError
 from metadata import config
 from metadata.models.space.constants import (
-    ENABLE_V4_DATALINK_ETL_CONFIGS,
     SPACE_UID_HYPHEN,
     SYSTEM_BASE_DATA_ETL_CONFIGS,
     SpaceTypes,
+    LOG_EVENT_ETL_CONFIGS,
 )
 from metadata.utils import consul_tools, hash_util
 from metadata.utils.basic import get_space_uid_and_bk_biz_id_by_bk_data_id
@@ -348,13 +348,14 @@ class DataSource(models.Model):
     # TODO：多租户,需要等待BkBase接口协议,理论上需要补充租户ID,不再有默认接入者概念
     @classmethod
     def apply_for_data_id_from_bkdata(
-        cls, data_name: str, bk_biz_id: int = settings.DEFAULT_BKDATA_BIZ_ID, is_base: bool = False
+        cls, data_name: str, bk_biz_id: int = settings.DEFAULT_BKDATA_BIZ_ID, is_base: bool = False, event_type="metric"
     ) -> int:
         """
         从计算平台申请data_id
         :param data_name: 数据源名称
         :param bk_biz_id: 业务ID
         :param is_base: 是否是基础数据源
+        :param event_type: 数据类型
         :return: data_id
         """
         # 下发配置
@@ -369,7 +370,7 @@ class DataSource(models.Model):
             bk_biz_id = settings.DEFAULT_BKDATA_BIZ_ID
 
         try:
-            apply_data_id_v2(data_name=data_name, bk_biz_id=bk_biz_id, is_base=is_base)
+            apply_data_id_v2(data_name=data_name, bk_biz_id=bk_biz_id, is_base=is_base, event_type=event_type)
             # 写入记录
         except BKAPIError as e:
             logger.error("apply data id from bkdata error: %s", e)
@@ -560,6 +561,8 @@ class DataSource(models.Model):
             # 如果由GSE来分配DataID的话，那么从GSE获取data_id，而不是走数据库的自增id
             # 现阶段仅支持指标的数据，因为现阶段指标的数据都为单指标单表
             # 添加过滤条件，只接入单指标单表时序数据到V4链路
+            from metadata.models.space.constants import ENABLE_V4_DATALINK_ETL_CONFIGS
+
             if settings.ENABLE_V2_BKDATA_GSE_RESOURCE and etl_config in ENABLE_V4_DATALINK_ETL_CONFIGS:
                 logger.info(f"apply for data id from bkdata,type_label->{type_label},etl_config->{etl_config}")
                 # TODO: 多租户 等待BkBase多租户协议,传递租户ID
@@ -569,8 +572,13 @@ class DataSource(models.Model):
                 if etl_config in SYSTEM_BASE_DATA_ETL_CONFIGS:
                     is_base = True
 
+                if etl_config in LOG_EVENT_ETL_CONFIGS:
+                    event_type = "log"
+                else:
+                    event_type = "metric"
+
                 bk_data_id = cls.apply_for_data_id_from_bkdata(
-                    data_name=data_name, bk_biz_id=bk_biz_id, is_base=is_base
+                    data_name=data_name, bk_biz_id=bk_biz_id, is_base=is_base, event_type=event_type
                 )
                 created_from = DataIdCreatedFromSystem.BKDATA.value
             else:
