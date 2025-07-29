@@ -101,13 +101,13 @@ def get_alert_ids_by_action_id(action_ids) -> list:
     return list(alert_ids)
 
 
-def get_alert_ids_by_action_name(action_names, bk_biz_ids, start_time=None, fuzzy=False) -> list:
+def get_alert_ids_by_action_name(action_names, bk_biz_ids, start_time=None, include=False, exclude=False) -> list:
     """通过处理套餐名称获取告警ID"""
     if not isinstance(action_names, list):
         action_names = [action_names]
 
     # 构建查询条件
-    if fuzzy:
+    if include:
         # 模糊查询多个名称
         name_conditions = DQ()
         for action_name in action_names:
@@ -116,6 +116,9 @@ def get_alert_ids_by_action_name(action_names, bk_biz_ids, start_time=None, fuzz
         filter_params_query = DQ(**filter_params) & name_conditions
     else:
         filter_params_query = DQ(name__in=action_names, bk_biz_id__in=bk_biz_ids)
+
+    if include is False and exclude:
+        filter_params_query = ~filter_params_query
 
     action_config_ids = ActionConfig.objects.filter(filter_params_query).values_list("id", flat=True)
 
@@ -744,6 +747,23 @@ class AlertQueryHandler(BaseBizQueryHandler):
             alert_ids = get_alert_ids_by_action_id(condition["value"])
             if not alert_ids:
                 alert_ids = [0]
+            return Q("ids", values=alert_ids)
+
+        elif condition["origin_key"] == "action_name" and condition["key"] == "id":
+            # 用于支持对处理套餐名称查询
+            params = {
+                "action_names": condition["value"],
+                "bk_biz_ids": self.bk_biz_ids,
+                "start_time": self.start_time,
+                "include": condition["method"] == "include",
+                "exclude": condition["method"] == "exclude",
+            }
+            alert_ids = get_alert_ids_by_action_name(**params)
+
+            # 如果没有找到匹配的告警ID，则构造一个不可能匹配的条件
+            if not alert_ids:
+                alert_ids = [0]
+
             return Q("ids", values=alert_ids)
         return super().parse_condition_item(condition)
 
