@@ -170,13 +170,13 @@ def _query_alert_ids_from_db(action_names, bk_biz_ids, start_time, include=False
     return list(alert_ids)
 
 
-def get_alert_ids_by_action_name(action_names, bk_biz_ids, start_time=None, fuzzy=False) -> list:
+def get_alert_ids_by_action_name(action_names, bk_biz_ids, start_time=None, include=False, exclude=False) -> list:
     """通过处理套餐名称获取告警ID"""
     if not isinstance(action_names, list):
         action_names = [action_names]
 
     # 构建查询条件
-    if fuzzy:
+    if include:
         # 模糊查询多个名称
         name_conditions = DQ()
         for action_name in action_names:
@@ -185,6 +185,9 @@ def get_alert_ids_by_action_name(action_names, bk_biz_ids, start_time=None, fuzz
         filter_params_query = DQ(**filter_params) & name_conditions
     else:
         filter_params_query = DQ(name__in=action_names, bk_biz_id__in=bk_biz_ids)
+
+    if include is False and exclude:
+        filter_params_query = ~filter_params_query
 
     action_config_ids = ActionConfig.objects.filter(filter_params_query).values_list("id", flat=True)
 
