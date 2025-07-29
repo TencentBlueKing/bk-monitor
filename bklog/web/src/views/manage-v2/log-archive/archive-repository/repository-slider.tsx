@@ -48,10 +48,10 @@ export default defineComponent({
       type: Number,
       default: null,
     },
-    onHandleCancelSidebar: { type: Function },
+    onHandleCancelSlider: { type: Function },
     onHandleUpdatedTable: { type: Function },
   },
-  emits: ['handleCancelSidebar', 'handleUpdatedTable'],
+  emits: ['handleCancelSlider', 'handleUpdatedTable'],
 
   setup(props, { emit }) {
     const store = useStore();
@@ -143,11 +143,8 @@ export default defineComponent({
 
     // 集群变更处理
     const handleChangeCluster = (value: string) => {
-      // console.log('esClusterList:', esClusterList.value);
       // const curCluster = esClusterList.value.find(cluster => cluster.cluster_config.cluster_id === value);
       // esClusterSource.value = curCluster?.source_name || '';
-      const curCluster = esClusterList.value.find(cluster => cluster.storage_cluster_id === value);
-      esClusterSource.value = curCluster?.storage_cluster_name || '';
     };
 
     // 取消操作/关闭侧滑弹窗
@@ -157,7 +154,7 @@ export default defineComponent({
         subTitle: t('离开将会导致未保存信息丢失'),
         okText: '离开',
         cancelText: '取消',
-        confirmFn: () => emit('handleCancelSidebar'),
+        confirmFn: () => emit('handleCancelSlider'),
       });
     };
 
@@ -387,9 +384,7 @@ export default defineComponent({
                 value={formData.hdfsFormData.isSecurity}
                 size='large'
                 theme='primary'
-                onChange={(value: boolean) => {
-                  formData.hdfsFormData.isSecurity = value;
-                }}
+                onChange={val => (formData.hdfsFormData.isSecurity = val)}
               />
               <bk-input
                 value={formData.hdfsFormData.security.principal}
@@ -563,9 +558,13 @@ export default defineComponent({
                   ref={validateForm}
                   class='king-form'
                   label-width={150}
-                  model={formData}
-                  rules={basicRules}
                   form-type='vertical'
+                  {...{
+                    props: {
+                      model: formData,
+                      rules: basicRules,
+                    }
+                  }}
                 >
                   {/* 基础信息标题 */}
                   <h3 class='form-title'>{t('基础信息')}</h3>
@@ -581,7 +580,10 @@ export default defineComponent({
                       value={formData.cluster_id}
                       data-test-id='addNewStorehouse_select_selectEsCluster'
                       searchable
-                      onChange={handleChangeCluster}
+                      onChange={val => {
+                        formData.cluster_id = val;
+                        handleChangeCluster(val);
+                      }}
                     >
                       {renderEsClusterOptions()}
                     </bk-select>

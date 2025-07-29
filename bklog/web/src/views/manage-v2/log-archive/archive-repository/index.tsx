@@ -127,7 +127,7 @@ export default defineComponent({
     };
 
     // 关闭侧滑弹窗
-    const handleCancelSidebar = () => {
+    const handleCancelSlider = () => {
       showSlider.value = false;
     };
 
@@ -204,7 +204,7 @@ export default defineComponent({
     // 仓库信息更新后回调
     const handleUpdatedTable = () => {
       showSlider.value = false;
-      pagination.count = 1;
+      pagination.current = 1;
       getTableData();
     };
 
@@ -358,8 +358,8 @@ export default defineComponent({
         </section>
         {/* 新建/编辑归档仓库侧滑 */}
           <RepositorySlider
-            on-HandleCancelSidebar={handleCancelSidebar}
-            on-HandleUpdatedTable={handleUpdatedTable}
+            onHandleCancelSlider={handleCancelSlider}
+            onHandleUpdatedTable={handleUpdatedTable}
             editClusterId={editClusterId.value}
             show-slider={showSlider.value}
           />

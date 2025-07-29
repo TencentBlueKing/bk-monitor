@@ -5,7 +5,7 @@ import http from '@/api';
 import * as authorityMap from '@/common/authority-map';
 import { formatFileSize, clearTableFilter } from '@/common/util';
 import EmptyStatus from '@/components/empty-status/index.vue';
-import ArchiveSlider from './archive-slider.vue';
+import ListSlider from './list-slider.tsx';
 import RestoreSlider from '../archive-restore/restore-slider.vue';
 import StateTable from './state-table.tsx';
 import { InfoBox, Message } from 'bk-magic-vue';
@@ -16,7 +16,7 @@ export default defineComponent({
   name: 'ArchiveList',
   components: {
     StateTable,
-    ArchiveSlider,
+    ListSlider,
     RestoreSlider,
     EmptyStatus,
   },
@@ -113,9 +113,14 @@ export default defineComponent({
     };
 
     // 更新归档后回调
-    const handleUpdated = () => {
+    const handleUpdatedTable = () => {
       showSlider.value = false;
       search();
+    };
+
+    // 关闭新增归档/编辑归档侧滑弹窗
+    const handleCancelSlider = () => {
+      showSlider.value = false;
     };
 
     // 更新回溯后回调
@@ -141,6 +146,7 @@ export default defineComponent({
       if (operateType === 'restore') {
         editArchiveId.value = row.archive_config_id;
         showRestoreSlider.value = true;
+        return;
       }
 
       if (operateType === 'edit') {
@@ -157,6 +163,7 @@ export default defineComponent({
             requestDelete(row);
           },
         });
+        return;
       }
     };
 
@@ -360,15 +367,11 @@ export default defineComponent({
 
         {/* 新增/编辑归档 */}
         {isRenderSlider.value && (
-          <ArchiveSlider
+          <ListSlider
+            onHandleCancelSlider={handleCancelSlider}
+            onHandleUpdatedTable={handleUpdatedTable}
             editArchive={editArchive.value}
-            showSlider={showSlider.value}
-            {...{
-              on: {
-                updated: handleUpdated,
-                'update:showSlider': (val: boolean) => { showSlider.value = val; }
-              }
-            }}
+            show-slider={showSlider.value}
           />
         )}
 
