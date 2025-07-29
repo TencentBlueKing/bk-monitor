@@ -47,6 +47,7 @@ import AlarmGroupDetail from '../../alarm-group/alarm-group-detail/alarm-group-d
 import CommonNavBar from '../../monitor-k8s/components/common-nav-bar';
 import { handleSetTargetDesc, isRecoveryDisable, isStatusSetterNoData } from '../common';
 import { signalNames } from '../strategy-config-set-new/alarm-handling/alarm-handling-list';
+import { AI_DETECT_RULE_TYPES } from '../strategy-config-set-new/detection-rules/detection-rules';
 import { RecoveryConfigStatusSetter } from '../strategy-config-set-new/judging-condition/judging-condition';
 import AiopsMonitorData from '../strategy-config-set-new/monitor-data/aiops-monitor-data';
 import {
@@ -431,6 +432,16 @@ export default class StrategyConfigDetailCommon extends tsc<object> {
   // 是否显示判断条件
   get isNeedJudgingCondition() {
     return this.metricData?.[0]?.data_type_label !== 'alert';
+  }
+
+  /* 是否只选择了智能检测算法 */
+  get isOnlyAiDetectRule() {
+    return (
+      !!this.detectionConfig.data.length &&
+      this.detectionConfig.data.every(item => {
+        return AI_DETECT_RULE_TYPES.includes(item.type);
+      })
+    );
   }
 
   created() {
@@ -1246,29 +1257,33 @@ export default class StrategyConfigDetailCommon extends tsc<object> {
                 <div class='analyzing-conditions'>
                   {this.isNeedJudgingCondition
                     ? [
-                        commonItem(
-                          this.$t('触发条件'),
-                          <i18n path='在{0}个周期内{1}满足{2}次检测算法，触发告警通知'>
-                            <span class='bold-span'>{triggerConfig.checkWindow}</span>
-                            <span class='bold-span'>
-                              {aggList.find(item => triggerConfig.checkType === item.id).name}
-                            </span>
-                            <span class='bold-span'>{triggerConfig.count}</span>
-                          </i18n>
-                        ),
-                        commonItem(
-                          this.$t('恢复条件'),
-                          <i18n
-                            class='i18n-path'
-                            path='连续{0}个周期内不满足触发条件{1}'
-                          >
-                            <span class='bold-span'>{recoveryConfig.checkWindow}</span>
-                            {!isRecoveryDisable(this.metricData) &&
-                            isStatusSetterNoData(this.analyzingConditions?.recoveryConfig?.statusSetter) ? (
-                              <span class='bold-span bold-span-no-left-margin'>{this.$t('或无数据')}</span>
-                            ) : null}
-                          </i18n>
-                        ),
+                        !this.isOnlyAiDetectRule
+                          ? commonItem(
+                              this.$t('触发条件'),
+                              <i18n path='在{0}个周期内{1}满足{2}次检测算法，触发告警通知'>
+                                <span class='bold-span'>{triggerConfig.checkWindow}</span>
+                                <span class='bold-span'>
+                                  {aggList.find(item => triggerConfig.checkType === item.id).name}
+                                </span>
+                                <span class='bold-span'>{triggerConfig.count}</span>
+                              </i18n>
+                            )
+                          : undefined,
+                        !this.isOnlyAiDetectRule
+                          ? commonItem(
+                              this.$t('恢复条件'),
+                              <i18n
+                                class='i18n-path'
+                                path='连续{0}个周期内不满足触发条件{1}'
+                              >
+                                <span class='bold-span'>{recoveryConfig.checkWindow}</span>
+                                {!isRecoveryDisable(this.metricData) &&
+                                isStatusSetterNoData(this.analyzingConditions?.recoveryConfig?.statusSetter) ? (
+                                  <span class='bold-span bold-span-no-left-margin'>{this.$t('或无数据')}</span>
+                                ) : null}
+                              </i18n>
+                            )
+                          : undefined,
                         commonItem(
                           this.$t('无数据'),
                           noDataConfig.isEnabled ? (

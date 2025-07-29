@@ -82,6 +82,13 @@ interface IEvent {
   onUnitChange?: string;
 }
 
+/* 智能检测算法类型 */
+export const AI_DETECT_RULE_TYPES = [
+  DetectionRuleTypeEnum.IntelligentDetect,
+  DetectionRuleTypeEnum.TimeSeriesForecasting,
+  DetectionRuleTypeEnum.AbnormalCluster,
+];
+
 @Component({ name: 'DetectionRules' })
 export default class DetectionRules extends tsc<IDetectionRules, IEvent> {
   @Prop({ type: String, default: '' }) unit: string;
@@ -297,13 +304,7 @@ export default class DetectionRules extends tsc<IDetectionRules, IEvent> {
       }
 
       // 智能检测算法 | 时序预测算法一致 | 离群检测
-      if (
-        [
-          DetectionRuleTypeEnum.IntelligentDetect,
-          DetectionRuleTypeEnum.TimeSeriesForecasting,
-          DetectionRuleTypeEnum.AbnormalCluster,
-        ].includes(item.id)
-      ) {
+      if (AI_DETECT_RULE_TYPES.includes(item.id)) {
         if (!this.isCanSetAiops) {
           item.disabled = true;
           item.disabledTip = this.$tc('只支持计算平台的单指标数据');
