@@ -51,9 +51,8 @@ const cleanList = () => import(/* webpackChunkName: 'sdk-track' */ '@/views/mana
 const cleanCreate = () => import(/* webpackChunkName: 'sdk-track' */ '@/views/manage/log-clean/clean-manage/create');
 const cleanTempCreate = () => import(/* webpackChunkName: 'sdk-track' */ '@/views/manage/log-clean/clean-template/create');
 const cleanTemplate = () => import(/* webpackChunkName: 'sdk-track' */ '@/views/manage/log-clean/clean-template/list');
-// const ArchiveRepository = () => import(/* webpackChunkName: 'sdk-track' */ '@/views/manage/log-archive/archive-repository/list');
 const ArchiveRepository = () => import(/* webpackChunkName: 'sdk-track' */ '@/views/manage-v2/log-archive/archive-repository/index.tsx');
-const ArchiveList = () => import(/* webpackChunkName: 'sdk-track' */ '@/views/manage/log-archive/archive-list/list');
+const ArchiveList = () => import(/* webpackChunkName: 'sdk-track' */ '@/views/manage-v2/log-archive/archive-list/index.tsx');
 const ArchiveRestore = () => import(/* webpackChunkName: 'sdk-track' */ '@/views/manage/log-archive/archive-restore/list');
 const ReportManage = () => import(/* webpackChunkName: 'report-manage' */ '@/views/manage/report-management');
 const ExtractPermission = () => import(/* webpackChunkName: 'manage-extract-permission' */ '@/views/manage/manage-extract/manage-extract-permission');
