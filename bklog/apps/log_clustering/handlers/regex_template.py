@@ -94,7 +94,7 @@ class RegexTemplateHandler:
             ]
         return list(data)
 
-    def create_template(self, space_uid, template_name, predefined_varibles):
+    def create_template(self, space_uid, template_name, predefined_varibles=None):
         instance, created = RegexTemplate.objects.get_or_create(space_uid=space_uid, template_name=template_name)
         if not created:
             raise DuplicateNameException(DuplicateNameException.MESSAGE.format(name=template_name))
@@ -128,7 +128,8 @@ class RegexTemplateHandler:
             configs = ClusteringConfig.objects.filter(regex_template_id=template_id, signature_enable=True)
             update_params = {"predefined_varibles": predefined_varibles}
             for c in configs:
-                pipeline_ids.append(ClusteringConfigHandler(index_set_id=c.index_set_id).update(update_params))
+                if pipeline_id := ClusteringConfigHandler(index_set_id=c.index_set_id).update(update_params):
+                    pipeline_ids.append(pipeline_id)
         instance.template_name = template_name
         instance.save()
         return {

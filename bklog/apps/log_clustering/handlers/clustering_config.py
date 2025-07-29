@@ -41,12 +41,13 @@ from apps.log_clustering.exceptions import (
     ClusteringDebugException,
     CollectorEsStorageNotExistException,
     CollectorStorageNotExistException,
+    RegexTemplateNotExistException,
 )
 from apps.log_clustering.handlers.dataflow.constants import OnlineTaskTrainingArgs
 from apps.log_clustering.handlers.dataflow.dataflow_handler import DataFlowHandler
 from apps.log_clustering.handlers.pipline_service.constants import OperatorServiceEnum
 from apps.log_clustering.handlers.regex_template import RegexTemplateHandler
-from apps.log_clustering.models import ClusteringConfig
+from apps.log_clustering.models import ClusteringConfig, RegexTemplate
 from apps.log_clustering.tasks.msg import access_clustering
 from apps.log_clustering.utils import pattern
 from apps.log_databus.models import CollectorConfig
@@ -240,6 +241,18 @@ class ClusteringConfigHandler:
         return pipeline.id
 
     def synchronous_update(self, params):
+        regex_template_id = params["regex_template_id"]
+        if params["regex_rule_type"] == RegexRuleTypeEnum.CUSTOMIZE.value:
+            # 当 regex_rule_type 为 customize 时，regex_template_id 设为0，predefined_varibles 按前端的传的保存
+            params["regex_template_id"] = 0
+        else:
+            # 当 regex_rule_type 为 template 时，predefined_varibles从模板获取
+            instance = RegexTemplate.objects.filter(id=regex_template_id).first()
+            if not instance:
+                raise RegexTemplateNotExistException(
+                    RegexTemplateNotExistException.MESSAGE.format(regex_template_id=regex_template_id)
+                )
+            params["predefined_varibles"] = instance.predefined_varibles
         pipeline_id = self.update(params)
         return [pipeline_id]
 
