@@ -47,9 +47,11 @@
         <bk-form-item
           :label="$t('索引')"
           property="resultTableId"
+          v-if="scenarioId === 'bkdata'"
           required
         >
           <bk-select
+            v-if="scenarioId === 'bkdata'"
             v-model="formData.resultTableId"
             :clearable="false"
             data-test-id="addIndex_select_selectIndex"
@@ -65,34 +67,26 @@
               :name="`${item.result_table_name_alias}(${item.result_table_id})`"
             >
               <div
-                v-if="
-                  scenarioId === 'log' && !(item.permission && item.permission[authorityMap.MANAGE_COLLECTION_AUTH])
-                "
-                class="option-slot-container no-authority"
-                @click.stop
-              >
-                <span class="text">{{ item.result_table_name_alias }}</span>
-                <span
-                  class="apply-text"
-                  @click="applyCollectorAccess(item)"
-                  >{{ $t('申请权限') }}</span
-                >
-              </div>
-              <div
-                v-else
                 class="option-slot-container"
               >
                 {{ item.result_table_name_alias }}
               </div>
             </bk-option>
           </bk-select>
+        </bk-form-item>
+        <bk-form-item
+          v-else
+          :label="$t('索引')"
+          property="resultTableIds"
+          required
+        >
           <bk-select
             v-model="formData.resultTableIds"
             :clearable="false"
             multiple
             data-test-id="addIndex_multiple_select_selectIndex"
             searchable
-            @selected="val => handleCollectionSelected(val)"
+            @selected="(value) => handleLogSelected(value)"
           >
             <bk-option
               v-for="item in getShowCollectionList"
@@ -103,9 +97,7 @@
               :name="`${item.result_table_name_alias}(${item.result_table_id})`"
             >
               <div
-                v-if="
-                  scenarioId === 'log' && !(item.permission && item.permission[authorityMap.MANAGE_COLLECTION_AUTH])
-                "
+                v-if="!(item.permission && item.permission[authorityMap.MANAGE_COLLECTION_AUTH])"
                 class="option-slot-container no-authority"
                 @click.stop
               >
@@ -191,7 +183,6 @@
 <script>
   import EmptyStatus from '@/components/empty-status';
   import { mapState } from 'vuex';
-
   import * as authorityMap from '../../../../../../common/authority-map';
 
   export default {
@@ -225,7 +216,14 @@
               trigger: 'blur',
             },
           ],
+          resultTableIds: [
+            {
+              required: true,
+              trigger: 'blur',
+            },
+          ],
         },
+        searchData:[],// log 多选时搜索结果
       };
     },
     computed: {
@@ -281,8 +279,6 @@
       },
       // 选择采集项
       async handleCollectionSelected(id, foreignParams) {
-        console.log(id, foreignParams);
-        
         try {
           this.tableLoading = true;
           const res = await this.$http.request(
@@ -305,6 +301,52 @@
         } catch (e) {
           console.warn(e);
         }
+      },
+      async handleMultipleSelected(id ) {
+        try {
+          const res = await this.$http.request(
+            '/resultTables/info',
+            {
+              params: {
+                result_table_id: id,
+              },
+              query: {
+                scenario_id: this.scenarioId,
+                bk_biz_id: this.bkBizId,
+              },
+            },
+          );
+           return res.data?.fields || [];
+        } catch (e) {
+          console.warn(e);
+          return [];
+        }
+      },
+      async handleLogSelected(value){
+        const existingIds = new Set(this.searchData.map(item => item.id));
+        this.searchData = this.searchData.filter(item => value.includes(item.id));
+        const newEntriesPromises = value
+          .filter(id => !existingIds.has(id)) 
+          .map(async id => {
+            try {
+              const data = await this.handleMultipleSelected(id);
+              return { id, data };
+            } catch (error) {
+              console.error(`Error fetching data for id ${id}:`, error);
+              return null; 
+            }
+          });
+        const newEntries = await Promise.all(newEntriesPromises);
+        this.searchData.push(...newEntries.filter(entry => entry !== null));
+        const collectionMap = new Map();
+        this.searchData.forEach(item => {
+          item.data.forEach(el => {
+            if (!collectionMap.has(el.field_name)) {
+              collectionMap.set(el.field_name, el);
+            }
+          });
+        });
+        this.tableData = [...collectionMap.values()];
       },
       // 采集项-申请权限
       async applyCollectorAccess(option) {
@@ -332,6 +374,7 @@
         try {
           await this.$refs.formRef.validate();
           this.confirmLoading = true;
+          
           const data = {
             scenario_id: this.scenarioId,
             basic_indices: this.parentData.indexes.map(item => ({
