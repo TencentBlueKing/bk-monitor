@@ -153,7 +153,8 @@ class RegexTemplateViewSet(ModelViewSet):
             "data": {
                 "id': 6,
                 "space_uid": "bkcc__2",
-                "template_name": "aaa"
+                "template_name": "aaa",
+                "pipeline_ids": ["xx"]
             },
             "result": true
         }
