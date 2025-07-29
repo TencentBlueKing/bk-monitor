@@ -24,50 +24,22 @@
  * IN THE SOFTWARE.
  */
 
-import type { EStatus } from '../../../../trace/pages/rotation/typings/common';
+import { K8sTableColumnKeysEnum } from 'monitor-pc/pages/monitor-k8s/typings/k8s-new';
 
-export interface DutyNotice {
-  hit_first_duty?: boolean; // api 生成的轮值数据
-  personal_notice?: PersonalNotice;
-  plan_notice?: PlanNotice;
-}
-
-// 添加类型定义
-export interface DutyRule {
-  // 根据实际使用情况补充字段
-  [key: string]: any;
-}
-
-export interface IDutyItem {
-  category: string;
-  id: number | string;
-  name: string;
-  status: EStatus;
-  typeLabel: string;
-}
-
-export interface IDutyListItem {
-  category: string;
-  id: number | string;
-  isCheck: boolean;
-  labels: string[];
-  name: string;
-  show: boolean;
-  status: EStatus;
-  typeLabel: string;
-}
-
-export interface PersonalNotice {
-  duty_rules: DutyRule[];
-  enabled: boolean;
-  hours_ago: number;
-}
-
-export interface PlanNotice {
-  chat_ids: string[];
-  date: number;
-  days: number;
-  enabled: boolean;
-  time: string;
-  type: 'daily' | 'monthly' | 'weekly'; // 根据实际可能的值调整
-}
+export const transformField = (field: string, groupByField: K8sTableColumnKeysEnum, timeOffset: string[]) => {
+  let name = field;
+  if (timeOffset.length) {
+    name = field.split('-')?.slice(1).join('-');
+  }
+  if (groupByField === K8sTableColumnKeysEnum.CONTAINER) {
+    const [container] = name.split(':');
+    return container;
+  }
+  if ([K8sTableColumnKeysEnum.INGRESS, K8sTableColumnKeysEnum.SERVICE].includes(groupByField)) {
+    const isIngress = groupByField === K8sTableColumnKeysEnum.INGRESS;
+    const list = field.split(':');
+    const id = isIngress ? list[0] : list[1];
+    return id;
+  }
+  return field;
+};

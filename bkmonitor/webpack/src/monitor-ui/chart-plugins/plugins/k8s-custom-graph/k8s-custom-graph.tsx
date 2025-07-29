@@ -33,6 +33,7 @@ import { toPng } from 'html-to-image';
 import { CancelToken } from 'monitor-api/cancel';
 import { Debounce, deepClone, random } from 'monitor-common/utils/utils';
 import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
+import K8sQuickTools from 'monitor-pc/pages/monitor-k8s/components/k8s-quick-tools/k8s-quick-tools';
 import {
   type IUnifyQuerySeriesItem,
   downCsvFile,
@@ -49,7 +50,6 @@ import { getSeriesMaxInterval, getTimeSeriesXInterval } from '../../utils/axis';
 import { VariablesService } from '../../utils/variable';
 import { CommonSimpleChart } from '../common-simple-chart';
 import BaseEchart from '../monitor-base-echart';
-import K8sDimensionDrillDown from './k8s-dimension-drilldown';
 
 import type {
   DataQuery,
@@ -96,7 +96,6 @@ class K8SCustomChart extends CommonSimpleChart {
   @Inject({ from: 'enableSelectionRestoreAll', default: false }) readonly enableSelectionRestoreAll: boolean;
   @Inject({ from: 'handleChartDataZoom', default: () => null }) readonly handleChartDataZoom: (value: any) => void;
   @Inject({ from: 'handleRestoreEvent', default: () => null }) readonly handleRestoreEvent: () => void;
-  @Inject({ from: 'onDrillDown', default: () => null }) readonly onDrillDown: (group: string, name: string) => void;
   @Inject({ from: 'onShowDetail', default: () => null }) readonly onShowDetail: (
     dimensions: Record<string, string>
   ) => void;
@@ -1088,11 +1087,17 @@ class K8SCustomChart extends CommonSimpleChart {
                           {item.name}
                         </span>
                         {!this.isSpecialSeries(item.name) && (
-                          <K8sDimensionDrillDown
-                            dimension={this.panel.externalData?.groupByField}
-                            value={this.panel.externalData?.groupByField}
-                            onHandleDrillDown={({ dimension }) => this.onDrillDown(dimension, item.name)}
+                          <K8sQuickTools
+                            class='k8s-graph-quick-tools'
+                            filterCommonParams={this.panel.externalData?.filterCommonParams}
+                            groupByField={this.panel.externalData?.groupByField}
+                            value={item.name}
                           />
+                          // <K8sDimensionDrillDown
+                          //   dimension={this.panel.externalData?.groupByField}
+                          //   value={this.panel.externalData?.groupByField}
+                          //   onHandleDrillDown={({ dimension }) => this.onDrillDown(dimension, item.name)}
+                          // />
                         )}
                       </div>
                     ),

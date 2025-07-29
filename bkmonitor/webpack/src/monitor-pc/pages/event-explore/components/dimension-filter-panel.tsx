@@ -54,7 +54,7 @@ interface DimensionFilterPanelProps {
   list: IDimensionField[];
   listLoading: boolean;
   queryString: string;
-  source: APIType;
+  source?: APIType;
 }
 
 @Component
@@ -193,7 +193,9 @@ export default class DimensionFilterPanel extends tsc<DimensionFilterPanelProps,
       },
       this.source,
       {
-        cancelToken: new CancelToken(c => (this.topKCancelFn = c)),
+        cancelToken: new CancelToken(c => {
+          this.topKCancelFn = c;
+        }),
       }
     ).catch(() => []);
   }
@@ -303,7 +305,9 @@ export default class DimensionFilterPanel extends tsc<DimensionFilterPanelProps,
                     active: this.selectField === item.name,
                     disabled: !item.is_option_enabled || !this.fieldListCount[item.name],
                   }}
-                  onClick={e => this.handleDimensionItemClick(e, item)}
+                  onClick={e => {
+                    this.handleDimensionItemClick(e, item);
+                  }}
                 >
                   <FieldTypeIcon type={item.type} />
                   <span
