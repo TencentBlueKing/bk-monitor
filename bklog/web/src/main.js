@@ -100,6 +100,18 @@ const mountedVueInstance = () => {
       components: {
         App,
       },
+      mounted() {
+        // 对于手动输入URL，直接刷新页面重置所有参数和状态
+        window.addEventListener('hashchange', this.reset);
+      },
+      beforeUnmount() {
+        window.removeEventListener('hashchange', this.reset);
+      },
+      methods: {
+        reset() {
+          window.location.reload();
+        },
+      },
       template: '<App/>',
     });
   });
