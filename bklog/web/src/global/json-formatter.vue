@@ -49,7 +49,7 @@
   import { computed, ref, watch, onBeforeUnmount, onMounted, inject } from 'vue';
 
   // @ts-ignore
-  import { parseTableRowData } from '@/common/util';
+  import { formatDate, formatDateNanos, parseTableRowData } from '@/common/util';
   import useFieldNameHook from '@/hooks/use-field-name';
 
   import useJsonRoot from '../hooks/use-json-root';
@@ -66,7 +66,7 @@
 
   const props = defineProps({
     jsonValue: {
-      type: [Object, String, Number],
+      type: [Object, String, Number, Boolean],
       default: () => ({}),
     },
     fields: {
@@ -320,6 +320,7 @@
   .bklog-json-formatter-root {
     position: relative;
     width: 100%;
+    overflow: hidden;
     font-family: var(--table-fount-family);
     font-size: var(--table-fount-size);
     line-height: 20px;

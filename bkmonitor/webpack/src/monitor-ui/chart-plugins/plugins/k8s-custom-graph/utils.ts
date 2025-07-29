@@ -23,62 +23,23 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, nextTick, provide, Ref, ref } from 'vue';
 
-import useIntersectionObserver from '@/hooks/use-intersection-observer';
+import { K8sTableColumnKeysEnum } from 'monitor-pc/pages/monitor-k8s/typings/k8s-new';
 
-import './row-render.scss';
-
-export default defineComponent({
-  props: {
-    rowIndex: {
-      type: Number,
-      default: 0,
-    },
-  },
-  emits: ['row-click', 'row-visible'],
-  setup(props, { slots, emit }) {
-    const refRootContainer: Ref<HTMLElement> = ref();
-    const refRowNodeRoot: Ref<HTMLElement> = ref();
-    const isRowIntersecting = ref(false);
-    provide('isRowIntersecting', isRowIntersecting);
-
-    const { destroyObserver } = useIntersectionObserver(
-      () => refRootContainer.value,
-      entry => {
-        if (entry.isIntersecting) {
-          isRowIntersecting.value = true;
-          nextTick(destroyObserver);
-        }
-      },
-    );
-
-    const handleRowClick = (e: MouseEvent) => {
-      emit('row-click', e);
-    };
-
-    const renderRowVNode = () => {
-      return (
-        <div
-          ref={refRootContainer}
-          data-row-index={props.rowIndex}
-          on-click={handleRowClick}
-        >
-          <div
-            ref={refRowNodeRoot}
-            class={['bklog-row-observe', { 'is-pending': false }]}
-            data-row-index={props.rowIndex}
-          >
-            {slots.default?.()}
-          </div>
-        </div>
-      );
-    };
-    return {
-      renderRowVNode,
-    };
-  },
-  render() {
-    return this.renderRowVNode();
-  },
-});
+export const transformField = (field: string, groupByField: K8sTableColumnKeysEnum, timeOffset: string[]) => {
+  let name = field;
+  if (timeOffset.length) {
+    name = field.split('-')?.slice(1).join('-');
+  }
+  if (groupByField === K8sTableColumnKeysEnum.CONTAINER) {
+    const [container] = name.split(':');
+    return container;
+  }
+  if ([K8sTableColumnKeysEnum.INGRESS, K8sTableColumnKeysEnum.SERVICE].includes(groupByField)) {
+    const isIngress = groupByField === K8sTableColumnKeysEnum.INGRESS;
+    const list = field.split(':');
+    const id = isIngress ? list[0] : list[1];
+    return id;
+  }
+  return field;
+};

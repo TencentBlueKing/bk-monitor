@@ -16,6 +16,7 @@ from collections import defaultdict
 from collections.abc import Generator
 from datetime import datetime
 from functools import reduce
+from typing import Any
 
 import requests
 from django.conf import settings
@@ -69,6 +70,13 @@ from monitor_web.plugin.constant import ParamMode, PluginType
 from monitor_web.plugin.manager.process import (
     BuildInProcessDimension,
     BuildInProcessMetric,
+)
+from monitor_web.strategies.metric_cache.built_in_metrics import (
+    PROCESS_METRIC_DIMENSIONS,
+    PROCESS_METRICS,
+    PROCESS_PORT_METRIC_DIMENSIONS,
+    SYSTEM_HOST_METRICS,
+    UPTIMECHECK_METRICS,
 )
 from monitor_web.tasks import run_metric_manager_async
 
@@ -1140,10 +1148,10 @@ class BaseAlarmMetricCacheManager(BaseMetricCacheManager):
         增加gse进程托管相关指标
         """
         gse_process_dimensions = [
-            {"id": "event_name", "name": _("事件名称"), "is_dimension": True, "type": "string"},
-            {"id": "process_name", "name": _("进程名称"), "is_dimension": True, "type": "string"},
-            {"id": "process_group_id", "name": _("进程组ID"), "is_dimension": True, "type": "string"},
-            {"id": "process_index", "name": _("进程索引"), "is_dimension": True, "type": "string"},
+            {"id": "event_name", "name": _("事件名称")},
+            {"id": "process_name", "name": _("进程名称")},
+            {"id": "process_group_id", "name": _("进程组ID")},
+            {"id": "process_index", "name": _("进程索引")},
         ]
         gse_base_dict = {
             "bk_biz_id": 0,
@@ -1166,6 +1174,10 @@ class BaseAlarmMetricCacheManager(BaseMetricCacheManager):
             yield metric
 
     def get_tables(self):
+        # 多租户模式下暂时不内置系统事件
+        if settings.ENABLE_MULTI_TENANT_MODE:
+            return
+
         yield {}
 
     def get_metrics_by_table(self, table):
@@ -1269,6 +1281,11 @@ class BkmonitorMetricCacheManager(BaseMetricCacheManager):
         )
 
     def get_tables(self):
+        # 多租户模式下，直接走新的处理逻辑
+        if settings.ENABLE_MULTI_TENANT_MODE:
+            yield {}
+            return
+
         if self.bk_biz_id is None:
             yield from api.metadata.list_monitor_result_table(with_option=False)
         else:
@@ -1385,7 +1402,163 @@ class BkmonitorMetricCacheManager(BaseMetricCacheManager):
                     },
                 }
 
+    def get_metrics_multi_tenant(self) -> Generator[dict, None, None]:
+        """
+        多租户模式下，使用全新的缓存逻辑，后续单租户模式同样兼容
+        """
+        if self.bk_biz_id == 0:
+            # 主机数据
+            result_table_label_name_map = {"os": "操作系统", "host_process": "进程"}
+            for result_table_info in copy.deepcopy(SYSTEM_HOST_METRICS):
+                # 判断是否需要补充节点类型和节点名称维度
+                dimensions = result_table_info["dimensions"]
+                if settings.IS_ACCESS_BK_DATA and settings.IS_ENABLE_VIEW_CMDB_LEVEL:
+                    dimensions.append({"id": "bk_obj_id", "name": _("节点类型")})
+                    dimensions.append({"id": "bk_inst_id", "name": _("节点名称")})
+
+                for metric_info in result_table_info["metrics"]:
+                    yield {
+                        "bk_biz_id": 0,
+                        "result_table_id": result_table_info["result_table_id"],
+                        "result_table_name": result_table_info["result_table_name"],
+                        "metric_field": metric_info["metric_field"],
+                        "metric_field_name": metric_info["metric_field_name"],
+                        "unit": metric_info["unit"],
+                        "dimensions": result_table_info["dimensions"],
+                        "default_dimensions": result_table_info["default_dimensions"],
+                        "default_condition": [],
+                        "result_table_label": result_table_info["result_table_label"],
+                        "result_table_label_name": result_table_label_name_map[result_table_info["result_table_label"]],
+                        "data_source_label": DataSourceLabel.BK_MONITOR_COLLECTOR,
+                        "data_type_label": DataTypeLabel.TIME_SERIES,
+                        "data_target": DataTarget.HOST_TARGET,
+                        "data_label": result_table_info["data_label"],
+                        "related_id": "system",
+                        "related_name": "system",
+                    }
+            # 拨测数据
+            for result_table_info in copy.deepcopy(UPTIMECHECK_METRICS):
+                for metric_info in result_table_info["metrics"]:
+                    yield {
+                        "bk_biz_id": 0,
+                        "result_table_id": result_table_info["result_table_id"],
+                        "result_table_name": result_table_info["result_table_name"],
+                        "metric_field": metric_info["metric_field"],
+                        "metric_field_name": metric_info["metric_field_name"],
+                        "unit": metric_info["unit"],
+                        "dimensions": metric_info["dimensions"],
+                        "default_dimensions": ["task_id"],
+                        "default_condition": [],
+                        "result_table_label": "uptimecheck",
+                        "result_table_label_name": "服务拨测",
+                        "data_source_label": DataSourceLabel.BK_MONITOR_COLLECTOR,
+                        "data_type_label": DataTypeLabel.TIME_SERIES,
+                        "data_target": DataTarget.NONE_TARGET,
+                        "data_label": result_table_info["data_label"],
+                    }
+
+            # 内置进程采集插件
+            # 进程性能
+            for metric_info in PROCESS_METRICS:
+                yield {
+                    "bk_biz_id": 0,
+                    "result_table_id": "process.perf",
+                    "result_table_name": "进程性能",
+                    "metric_field": metric_info["metric_field"],
+                    "metric_field_name": metric_info["metric_field_name"],
+                    "unit": metric_info["unit"],
+                    "dimensions": PROCESS_METRIC_DIMENSIONS,
+                    "default_dimensions": [],
+                    "default_condition": [],
+                    "result_table_label": "host_process",
+                    "result_table_label_name": "进程",
+                    "data_source_label": DataSourceLabel.BK_MONITOR_COLLECTOR,
+                    "data_type_label": DataTypeLabel.TIME_SERIES,
+                    "data_target": DataTarget.HOST_TARGET,
+                    "data_label": "",
+                    "related_id": "process",
+                    "related_name": "进程采集",
+                }
+            # 进程端口
+            yield {
+                "bk_biz_id": 0,
+                "result_table_id": "process.port",
+                "result_table_name": "进程端口",
+                "metric_field": "alive",
+                "metric_field_name": "端口存活",
+                "unit": "none",
+                "dimensions": PROCESS_PORT_METRIC_DIMENSIONS,
+                "default_dimensions": [],
+                "default_condition": [],
+                "result_table_label": "host_process",
+                "result_table_label_name": "进程",
+                "data_source_label": DataSourceLabel.BK_MONITOR_COLLECTOR,
+                "data_type_label": DataTypeLabel.TIME_SERIES,
+                "data_target": DataTarget.HOST_TARGET,
+                "data_label": "",
+                "related_id": "process",
+                "related_name": "进程采集",
+            }
+
+        # 插件采集
+        plugins = CollectorPluginMeta.objects.filter(bk_tenant_id=self.bk_tenant_id, bk_biz_id=self.bk_biz_id).exclude(
+            plugin_type__in=CollectorPluginMeta.VIRTUAL_PLUGIN_TYPE
+        )
+        for plugin in plugins:
+            # 刷新插件的metric_json
+            plugin.refresh_metric_json()
+            for table in plugin.current_version.info.metric_json:
+                metric_infos: list[dict[str, Any]] = []
+                dimension_infos: list[dict[str, Any]] = []
+                for field in table["fields"]:
+                    # 字段分类
+                    if field["monitor_type"] == "metric":
+                        # 跳过非活跃字段
+                        if field["is_active"]:
+                            metric_infos.append(field)
+                    else:
+                        dimension_infos.append(field)
+
+                # 维度列表
+                dimensions = [
+                    {"id": dimension_info["name"], "name": dimension_info["description"] or dimension_info["name"]}
+                    for dimension_info in dimension_infos
+                ]
+
+                # 判断目标类型
+                data_target = DataTargetMapping.get_data_target(
+                    result_table_label=plugin.label,
+                    data_source_label=DataSourceLabel.BK_MONITOR_COLLECTOR,
+                    data_type_label=DataTypeLabel.TIME_SERIES,
+                )
+
+                for metric_info in metric_infos:
+                    yield {
+                        "bk_biz_id": 0,
+                        "result_table_id": PluginVersionHistory.get_result_table_id(
+                            plugin, table["table_name"]
+                        ).lower(),
+                        "result_table_name": table["table_desc"],
+                        "metric_field": metric_info["name"],
+                        "metric_field_name": metric_info["description"] or metric_info["name"],
+                        "unit": metric_info["unit"],
+                        "dimensions": dimensions,
+                        "default_dimensions": [],
+                        "default_condition": [],
+                        "result_table_label": plugin.label,
+                        "result_table_label_name": self.get_label_name(plugin.label),
+                        "data_source_label": DataSourceLabel.BK_MONITOR_COLLECTOR,
+                        "data_type_label": DataTypeLabel.TIME_SERIES,
+                        "data_target": data_target,
+                        "data_label": plugin.plugin_id,
+                    }
+
     def get_metrics_by_table(self, table):
+        # 多租户模式下，直接使用全新的缓存逻辑
+        if settings.ENABLE_MULTI_TENANT_MODE:
+            yield from self.get_metrics_multi_tenant()
+            return
+
         try:
             result_table_id = table["table_id"]
             influx_db_name = table["table_id"].split(".")[0]
