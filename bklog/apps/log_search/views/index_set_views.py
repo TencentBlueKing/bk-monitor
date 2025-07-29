@@ -67,7 +67,7 @@ class IndexSetViewSet(ModelViewSet):
     model = LogIndexSet
     search_fields = ("index_set_name",)
     lookup_value_regex = "[^/]+"
-    filter_fields_exclude = ["target_fields", "sort_fields"]
+    filter_fields_exclude = ["target_fields", "sort_fields", "query_alias_settings"]
 
     def get_permissions(self):
         try:
