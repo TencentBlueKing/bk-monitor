@@ -31,7 +31,6 @@ from apps.log_clustering.exceptions import (
     RegexTemplateNotExistException,
     RegexTemplateReferencedException,
 )
-from apps.log_clustering.handlers.clustering_config import ClusteringConfigHandler
 from apps.log_clustering.handlers.dataflow.constants import OnlineTaskTrainingArgs
 from apps.log_clustering.models import ClusteringConfig, RegexTemplate
 from apps.log_search.models import LogIndexSet
@@ -123,12 +122,14 @@ class RegexTemplateHandler:
         pipeline_ids = []
         # 模板改变
         if instance.predefined_varibles != predefined_varibles:
+            from apps.log_clustering.handlers.clustering_config import ClusteringConfigHandler
+
+            instance.predefined_varibles = predefined_varibles
             configs = ClusteringConfig.objects.filter(regex_template_id=template_id, signature_enable=True)
             update_params = {"predefined_varibles": predefined_varibles}
             for c in configs:
                 pipeline_ids.append(ClusteringConfigHandler(index_set_id=c.index_set_id).update(update_params))
         instance.template_name = template_name
-        instance.predefined_varibles = predefined_varibles
         instance.save()
         return {
             "id": instance.id,
