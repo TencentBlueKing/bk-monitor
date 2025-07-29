@@ -229,7 +229,6 @@ export function toTransformNode(nodes: Array<IHost | INode>, nodeType: INodeType
       }));
     case 'SERVICE_TEMPLATE':
     case 'SET_TEMPLATE':
-    case 'DYNAMIC_GROUP':
       return nodes.map((item: INode) => ({
         bk_obj_id: nodeType,
         bk_inst_id: item.id,
