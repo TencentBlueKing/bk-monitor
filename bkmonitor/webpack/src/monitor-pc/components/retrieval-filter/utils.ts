@@ -143,13 +143,29 @@ export interface IFavoriteListItem {
     name: string;
   }[];
 }
+export interface IFavoriteListItem {
+  groupName: string;
+  id: string;
+  name: string;
+  config: {
+    commonWhere?: IWhereItem[];
+    queryString?: string;
+    where?: IWhereItem[];
+  };
+}
+
 export interface IGetValueFnParams {
   fields?: string[];
   limit?: number;
   queryString?: string;
   where?: IWhereItem[];
 }
-
+export interface IGetValueFnParams {
+  fields?: string[];
+  limit?: number;
+  queryString?: string;
+  where?: IWhereItem[];
+}
 export interface IWhereValueOptionsItem {
   count: number;
   list: {

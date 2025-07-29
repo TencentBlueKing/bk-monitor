@@ -120,6 +120,16 @@
         }
       }
     }
+
+    .k8s-graph-quick-tools {
+      display: none;
+    }
+
+    &:hover {
+      .k8s-graph-quick-tools {
+        display: flex;
+      }
+    }
   }
 
   .empty-chart {
