@@ -112,6 +112,7 @@ def reformat_table_id(table_id: str) -> str:
 
 
 def list_spaces(
+    bk_tenant_id: str,
     space_type_id: str | None = None,
     space_id: str | None = None,
     space_name: str | None = None,
@@ -140,6 +141,7 @@ def list_spaces(
     # 获取空间类型 ID 和 空间类型名称
     space_type_id_name = {obj["type_id"]: obj["type_name"] for obj in SpaceType.objects.values("type_id", "type_name")}
     space_info = Space.objects.list_all_spaces(
+        bk_tenant_id,
         space_type_id,
         space_id,
         space_name,
