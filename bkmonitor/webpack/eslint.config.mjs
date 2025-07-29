@@ -428,7 +428,8 @@ export default [
               fixable: null,
               messages: {
                 // vueuse 推荐
-                'no-ref': `建议使用 shallowRef 替代 ref 或者
+                'no-ref': `建议使用 shallowRef 替代 ref
+                或使用
 1、使用 import { ref as deepRef } from 'vue'; deepRef 来替换 ref 的名称;
 2、使用 import { createRef } from '@vueuse/core'; createRef(initialData, true); 来替换 ref 的名称;`,
               },
