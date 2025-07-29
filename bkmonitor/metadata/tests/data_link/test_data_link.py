@@ -935,6 +935,22 @@ def test_create_basereport_datalink_for_bkcc_bkbase_v4_part(create_or_delete_rec
             },
         },
         {
+            "kind": "ResultTable",
+            "metadata": {
+                "labels": {"bk_biz_id": "1"},
+                "name": "base_1_sys_cpu_summary_cmdb",
+                "namespace": "bkmonitor",
+                "tenant": "system",
+            },
+            "spec": {
+                "alias": "base_1_sys_cpu_summary_cmdb",
+                "bizId": 0,
+                "dataType": "metric",
+                "description": "base_1_sys_cpu_summary_cmdb",
+                "maintainers": ["admin"],
+            },
+        },
+        {
             "kind": "VmStorageBinding",
             "metadata": {
                 "labels": {"bk_biz_id": "1"},
@@ -946,6 +962,25 @@ def test_create_basereport_datalink_for_bkcc_bkbase_v4_part(create_or_delete_rec
                 "data": {
                     "kind": "ResultTable",
                     "name": "base_1_sys_cpu_summary",
+                    "namespace": "bkmonitor",
+                    "tenant": "system",
+                },
+                "maintainers": ["admin"],
+                "storage": {"kind": "VmStorage", "name": "vm-default", "namespace": "bkmonitor", "tenant": "system"},
+            },
+        },
+        {
+            "kind": "VmStorageBinding",
+            "metadata": {
+                "labels": {"bk_biz_id": "1"},
+                "name": "base_1_sys_cpu_summary_cmdb",
+                "namespace": "bkmonitor",
+                "tenant": "system",
+            },
+            "spec": {
+                "data": {
+                    "kind": "ResultTable",
+                    "name": "base_1_sys_cpu_summary_cmdb",
                     "namespace": "bkmonitor",
                     "tenant": "system",
                 },
@@ -970,6 +1005,22 @@ def test_create_basereport_datalink_for_bkcc_bkbase_v4_part(create_or_delete_rec
             },
         },
         {
+            "kind": "ResultTable",
+            "metadata": {
+                "labels": {"bk_biz_id": "1"},
+                "name": "base_1_sys_cpu_detail_cmdb",
+                "namespace": "bkmonitor",
+                "tenant": "system",
+            },
+            "spec": {
+                "alias": "base_1_sys_cpu_detail_cmdb",
+                "bizId": 0,
+                "dataType": "metric",
+                "description": "base_1_sys_cpu_detail_cmdb",
+                "maintainers": ["admin"],
+            },
+        },
+        {
             "kind": "VmStorageBinding",
             "metadata": {
                 "labels": {"bk_biz_id": "1"},
@@ -981,6 +1032,25 @@ def test_create_basereport_datalink_for_bkcc_bkbase_v4_part(create_or_delete_rec
                 "data": {
                     "kind": "ResultTable",
                     "name": "base_1_sys_cpu_detail",
+                    "namespace": "bkmonitor",
+                    "tenant": "system",
+                },
+                "maintainers": ["admin"],
+                "storage": {"kind": "VmStorage", "name": "vm-default", "namespace": "bkmonitor", "tenant": "system"},
+            },
+        },
+        {
+            "kind": "VmStorageBinding",
+            "metadata": {
+                "labels": {"bk_biz_id": "1"},
+                "name": "base_1_sys_cpu_detail_cmdb",
+                "namespace": "bkmonitor",
+                "tenant": "system",
+            },
+            "spec": {
+                "data": {
+                    "kind": "ResultTable",
+                    "name": "base_1_sys_cpu_detail_cmdb",
                     "namespace": "bkmonitor",
                     "tenant": "system",
                 },
@@ -1005,6 +1075,22 @@ def test_create_basereport_datalink_for_bkcc_bkbase_v4_part(create_or_delete_rec
             },
         },
         {
+            "kind": "ResultTable",
+            "metadata": {
+                "labels": {"bk_biz_id": "1"},
+                "name": "base_1_sys_disk_cmdb",
+                "namespace": "bkmonitor",
+                "tenant": "system",
+            },
+            "spec": {
+                "alias": "base_1_sys_disk_cmdb",
+                "bizId": 0,
+                "dataType": "metric",
+                "description": "base_1_sys_disk_cmdb",
+                "maintainers": ["admin"],
+            },
+        },
+        {
             "kind": "VmStorageBinding",
             "metadata": {
                 "labels": {"bk_biz_id": "1"},
@@ -1016,6 +1102,25 @@ def test_create_basereport_datalink_for_bkcc_bkbase_v4_part(create_or_delete_rec
                 "data": {
                     "kind": "ResultTable",
                     "name": "base_1_sys_disk",
+                    "namespace": "bkmonitor",
+                    "tenant": "system",
+                },
+                "maintainers": ["admin"],
+                "storage": {"kind": "VmStorage", "name": "vm-default", "namespace": "bkmonitor", "tenant": "system"},
+            },
+        },
+        {
+            "kind": "VmStorageBinding",
+            "metadata": {
+                "labels": {"bk_biz_id": "1"},
+                "name": "base_1_sys_disk_cmdb",
+                "namespace": "bkmonitor",
+                "tenant": "system",
+            },
+            "spec": {
+                "data": {
+                    "kind": "ResultTable",
+                    "name": "base_1_sys_disk_cmdb",
                     "namespace": "bkmonitor",
                     "tenant": "system",
                 },
@@ -1040,6 +1145,22 @@ def test_create_basereport_datalink_for_bkcc_bkbase_v4_part(create_or_delete_rec
             },
         },
         {
+            "kind": "ResultTable",
+            "metadata": {
+                "labels": {"bk_biz_id": "1"},
+                "name": "base_1_sys_env_cmdb",
+                "namespace": "bkmonitor",
+                "tenant": "system",
+            },
+            "spec": {
+                "alias": "base_1_sys_env_cmdb",
+                "bizId": 0,
+                "dataType": "metric",
+                "description": "base_1_sys_env_cmdb",
+                "maintainers": ["admin"],
+            },
+        },
+        {
             "kind": "VmStorageBinding",
             "metadata": {
                 "labels": {"bk_biz_id": "1"},
@@ -1049,6 +1170,25 @@ def test_create_basereport_datalink_for_bkcc_bkbase_v4_part(create_or_delete_rec
             },
             "spec": {
                 "data": {"kind": "ResultTable", "name": "base_1_sys_env", "namespace": "bkmonitor", "tenant": "system"},
+                "maintainers": ["admin"],
+                "storage": {"kind": "VmStorage", "name": "vm-default", "namespace": "bkmonitor", "tenant": "system"},
+            },
+        },
+        {
+            "kind": "VmStorageBinding",
+            "metadata": {
+                "labels": {"bk_biz_id": "1"},
+                "name": "base_1_sys_env_cmdb",
+                "namespace": "bkmonitor",
+                "tenant": "system",
+            },
+            "spec": {
+                "data": {
+                    "kind": "ResultTable",
+                    "name": "base_1_sys_env_cmdb",
+                    "namespace": "bkmonitor",
+                    "tenant": "system",
+                },
                 "maintainers": ["admin"],
                 "storage": {"kind": "VmStorage", "name": "vm-default", "namespace": "bkmonitor", "tenant": "system"},
             },
@@ -1070,6 +1210,22 @@ def test_create_basereport_datalink_for_bkcc_bkbase_v4_part(create_or_delete_rec
             },
         },
         {
+            "kind": "ResultTable",
+            "metadata": {
+                "labels": {"bk_biz_id": "1"},
+                "name": "base_1_sys_inode_cmdb",
+                "namespace": "bkmonitor",
+                "tenant": "system",
+            },
+            "spec": {
+                "alias": "base_1_sys_inode_cmdb",
+                "bizId": 0,
+                "dataType": "metric",
+                "description": "base_1_sys_inode_cmdb",
+                "maintainers": ["admin"],
+            },
+        },
+        {
             "kind": "VmStorageBinding",
             "metadata": {
                 "labels": {"bk_biz_id": "1"},
@@ -1081,6 +1237,25 @@ def test_create_basereport_datalink_for_bkcc_bkbase_v4_part(create_or_delete_rec
                 "data": {
                     "kind": "ResultTable",
                     "name": "base_1_sys_inode",
+                    "namespace": "bkmonitor",
+                    "tenant": "system",
+                },
+                "maintainers": ["admin"],
+                "storage": {"kind": "VmStorage", "name": "vm-default", "namespace": "bkmonitor", "tenant": "system"},
+            },
+        },
+        {
+            "kind": "VmStorageBinding",
+            "metadata": {
+                "labels": {"bk_biz_id": "1"},
+                "name": "base_1_sys_inode_cmdb",
+                "namespace": "bkmonitor",
+                "tenant": "system",
+            },
+            "spec": {
+                "data": {
+                    "kind": "ResultTable",
+                    "name": "base_1_sys_inode_cmdb",
                     "namespace": "bkmonitor",
                     "tenant": "system",
                 },
@@ -1105,6 +1280,22 @@ def test_create_basereport_datalink_for_bkcc_bkbase_v4_part(create_or_delete_rec
             },
         },
         {
+            "kind": "ResultTable",
+            "metadata": {
+                "labels": {"bk_biz_id": "1"},
+                "name": "base_1_sys_io_cmdb",
+                "namespace": "bkmonitor",
+                "tenant": "system",
+            },
+            "spec": {
+                "alias": "base_1_sys_io_cmdb",
+                "bizId": 0,
+                "dataType": "metric",
+                "description": "base_1_sys_io_cmdb",
+                "maintainers": ["admin"],
+            },
+        },
+        {
             "kind": "VmStorageBinding",
             "metadata": {
                 "labels": {"bk_biz_id": "1"},
@@ -1114,6 +1305,25 @@ def test_create_basereport_datalink_for_bkcc_bkbase_v4_part(create_or_delete_rec
             },
             "spec": {
                 "data": {"kind": "ResultTable", "name": "base_1_sys_io", "namespace": "bkmonitor", "tenant": "system"},
+                "maintainers": ["admin"],
+                "storage": {"kind": "VmStorage", "name": "vm-default", "namespace": "bkmonitor", "tenant": "system"},
+            },
+        },
+        {
+            "kind": "VmStorageBinding",
+            "metadata": {
+                "labels": {"bk_biz_id": "1"},
+                "name": "base_1_sys_io_cmdb",
+                "namespace": "bkmonitor",
+                "tenant": "system",
+            },
+            "spec": {
+                "data": {
+                    "kind": "ResultTable",
+                    "name": "base_1_sys_io_cmdb",
+                    "namespace": "bkmonitor",
+                    "tenant": "system",
+                },
                 "maintainers": ["admin"],
                 "storage": {"kind": "VmStorage", "name": "vm-default", "namespace": "bkmonitor", "tenant": "system"},
             },
@@ -1135,6 +1345,22 @@ def test_create_basereport_datalink_for_bkcc_bkbase_v4_part(create_or_delete_rec
             },
         },
         {
+            "kind": "ResultTable",
+            "metadata": {
+                "labels": {"bk_biz_id": "1"},
+                "name": "base_1_sys_load_cmdb",
+                "namespace": "bkmonitor",
+                "tenant": "system",
+            },
+            "spec": {
+                "alias": "base_1_sys_load_cmdb",
+                "bizId": 0,
+                "dataType": "metric",
+                "description": "base_1_sys_load_cmdb",
+                "maintainers": ["admin"],
+            },
+        },
+        {
             "kind": "VmStorageBinding",
             "metadata": {
                 "labels": {"bk_biz_id": "1"},
@@ -1146,6 +1372,25 @@ def test_create_basereport_datalink_for_bkcc_bkbase_v4_part(create_or_delete_rec
                 "data": {
                     "kind": "ResultTable",
                     "name": "base_1_sys_load",
+                    "namespace": "bkmonitor",
+                    "tenant": "system",
+                },
+                "maintainers": ["admin"],
+                "storage": {"kind": "VmStorage", "name": "vm-default", "namespace": "bkmonitor", "tenant": "system"},
+            },
+        },
+        {
+            "kind": "VmStorageBinding",
+            "metadata": {
+                "labels": {"bk_biz_id": "1"},
+                "name": "base_1_sys_load_cmdb",
+                "namespace": "bkmonitor",
+                "tenant": "system",
+            },
+            "spec": {
+                "data": {
+                    "kind": "ResultTable",
+                    "name": "base_1_sys_load_cmdb",
                     "namespace": "bkmonitor",
                     "tenant": "system",
                 },
@@ -1170,6 +1415,22 @@ def test_create_basereport_datalink_for_bkcc_bkbase_v4_part(create_or_delete_rec
             },
         },
         {
+            "kind": "ResultTable",
+            "metadata": {
+                "labels": {"bk_biz_id": "1"},
+                "name": "base_1_sys_mem_cmdb",
+                "namespace": "bkmonitor",
+                "tenant": "system",
+            },
+            "spec": {
+                "alias": "base_1_sys_mem_cmdb",
+                "bizId": 0,
+                "dataType": "metric",
+                "description": "base_1_sys_mem_cmdb",
+                "maintainers": ["admin"],
+            },
+        },
+        {
             "kind": "VmStorageBinding",
             "metadata": {
                 "labels": {"bk_biz_id": "1"},
@@ -1179,6 +1440,25 @@ def test_create_basereport_datalink_for_bkcc_bkbase_v4_part(create_or_delete_rec
             },
             "spec": {
                 "data": {"kind": "ResultTable", "name": "base_1_sys_mem", "namespace": "bkmonitor", "tenant": "system"},
+                "maintainers": ["admin"],
+                "storage": {"kind": "VmStorage", "name": "vm-default", "namespace": "bkmonitor", "tenant": "system"},
+            },
+        },
+        {
+            "kind": "VmStorageBinding",
+            "metadata": {
+                "labels": {"bk_biz_id": "1"},
+                "name": "base_1_sys_mem_cmdb",
+                "namespace": "bkmonitor",
+                "tenant": "system",
+            },
+            "spec": {
+                "data": {
+                    "kind": "ResultTable",
+                    "name": "base_1_sys_mem_cmdb",
+                    "namespace": "bkmonitor",
+                    "tenant": "system",
+                },
                 "maintainers": ["admin"],
                 "storage": {"kind": "VmStorage", "name": "vm-default", "namespace": "bkmonitor", "tenant": "system"},
             },
@@ -1200,6 +1480,22 @@ def test_create_basereport_datalink_for_bkcc_bkbase_v4_part(create_or_delete_rec
             },
         },
         {
+            "kind": "ResultTable",
+            "metadata": {
+                "labels": {"bk_biz_id": "1"},
+                "name": "base_1_sys_net_cmdb",
+                "namespace": "bkmonitor",
+                "tenant": "system",
+            },
+            "spec": {
+                "alias": "base_1_sys_net_cmdb",
+                "bizId": 0,
+                "dataType": "metric",
+                "description": "base_1_sys_net_cmdb",
+                "maintainers": ["admin"],
+            },
+        },
+        {
             "kind": "VmStorageBinding",
             "metadata": {
                 "labels": {"bk_biz_id": "1"},
@@ -1209,6 +1505,25 @@ def test_create_basereport_datalink_for_bkcc_bkbase_v4_part(create_or_delete_rec
             },
             "spec": {
                 "data": {"kind": "ResultTable", "name": "base_1_sys_net", "namespace": "bkmonitor", "tenant": "system"},
+                "maintainers": ["admin"],
+                "storage": {"kind": "VmStorage", "name": "vm-default", "namespace": "bkmonitor", "tenant": "system"},
+            },
+        },
+        {
+            "kind": "VmStorageBinding",
+            "metadata": {
+                "labels": {"bk_biz_id": "1"},
+                "name": "base_1_sys_net_cmdb",
+                "namespace": "bkmonitor",
+                "tenant": "system",
+            },
+            "spec": {
+                "data": {
+                    "kind": "ResultTable",
+                    "name": "base_1_sys_net_cmdb",
+                    "namespace": "bkmonitor",
+                    "tenant": "system",
+                },
                 "maintainers": ["admin"],
                 "storage": {"kind": "VmStorage", "name": "vm-default", "namespace": "bkmonitor", "tenant": "system"},
             },
@@ -1230,6 +1545,22 @@ def test_create_basereport_datalink_for_bkcc_bkbase_v4_part(create_or_delete_rec
             },
         },
         {
+            "kind": "ResultTable",
+            "metadata": {
+                "labels": {"bk_biz_id": "1"},
+                "name": "base_1_sys_netstat_cmdb",
+                "namespace": "bkmonitor",
+                "tenant": "system",
+            },
+            "spec": {
+                "alias": "base_1_sys_netstat_cmdb",
+                "bizId": 0,
+                "dataType": "metric",
+                "description": "base_1_sys_netstat_cmdb",
+                "maintainers": ["admin"],
+            },
+        },
+        {
             "kind": "VmStorageBinding",
             "metadata": {
                 "labels": {"bk_biz_id": "1"},
@@ -1241,6 +1572,25 @@ def test_create_basereport_datalink_for_bkcc_bkbase_v4_part(create_or_delete_rec
                 "data": {
                     "kind": "ResultTable",
                     "name": "base_1_sys_netstat",
+                    "namespace": "bkmonitor",
+                    "tenant": "system",
+                },
+                "maintainers": ["admin"],
+                "storage": {"kind": "VmStorage", "name": "vm-default", "namespace": "bkmonitor", "tenant": "system"},
+            },
+        },
+        {
+            "kind": "VmStorageBinding",
+            "metadata": {
+                "labels": {"bk_biz_id": "1"},
+                "name": "base_1_sys_netstat_cmdb",
+                "namespace": "bkmonitor",
+                "tenant": "system",
+            },
+            "spec": {
+                "data": {
+                    "kind": "ResultTable",
+                    "name": "base_1_sys_netstat_cmdb",
                     "namespace": "bkmonitor",
                     "tenant": "system",
                 },
@@ -1265,6 +1615,22 @@ def test_create_basereport_datalink_for_bkcc_bkbase_v4_part(create_or_delete_rec
             },
         },
         {
+            "kind": "ResultTable",
+            "metadata": {
+                "labels": {"bk_biz_id": "1"},
+                "name": "base_1_sys_swap_cmdb",
+                "namespace": "bkmonitor",
+                "tenant": "system",
+            },
+            "spec": {
+                "alias": "base_1_sys_swap_cmdb",
+                "bizId": 0,
+                "dataType": "metric",
+                "description": "base_1_sys_swap_cmdb",
+                "maintainers": ["admin"],
+            },
+        },
+        {
             "kind": "VmStorageBinding",
             "metadata": {
                 "labels": {"bk_biz_id": "1"},
@@ -1276,6 +1642,25 @@ def test_create_basereport_datalink_for_bkcc_bkbase_v4_part(create_or_delete_rec
                 "data": {
                     "kind": "ResultTable",
                     "name": "base_1_sys_swap",
+                    "namespace": "bkmonitor",
+                    "tenant": "system",
+                },
+                "maintainers": ["admin"],
+                "storage": {"kind": "VmStorage", "name": "vm-default", "namespace": "bkmonitor", "tenant": "system"},
+            },
+        },
+        {
+            "kind": "VmStorageBinding",
+            "metadata": {
+                "labels": {"bk_biz_id": "1"},
+                "name": "base_1_sys_swap_cmdb",
+                "namespace": "bkmonitor",
+                "tenant": "system",
+            },
+            "spec": {
+                "data": {
+                    "kind": "ResultTable",
+                    "name": "base_1_sys_swap_cmdb",
                     "namespace": "bkmonitor",
                     "tenant": "system",
                 },
@@ -1305,11 +1690,33 @@ def test_create_basereport_datalink_for_bkcc_bkbase_v4_part(create_or_delete_rec
                         ],
                     },
                     {
+                        "match_labels": [{"any": ["cpu_summary_cmdb"], "name": "__result_table"}],
+                        "sinks": [
+                            {
+                                "kind": "VmStorageBinding",
+                                "name": "base_1_sys_cpu_summary_cmdb",
+                                "namespace": "bkmonitor",
+                                "tenant": "system",
+                            }
+                        ],
+                    },
+                    {
                         "match_labels": [{"any": ["cpu_detail"], "name": "__result_table"}],
                         "sinks": [
                             {
                                 "kind": "VmStorageBinding",
                                 "name": "base_1_sys_cpu_detail",
+                                "namespace": "bkmonitor",
+                                "tenant": "system",
+                            }
+                        ],
+                    },
+                    {
+                        "match_labels": [{"any": ["cpu_detail_cmdb"], "name": "__result_table"}],
+                        "sinks": [
+                            {
+                                "kind": "VmStorageBinding",
+                                "name": "base_1_sys_cpu_detail_cmdb",
                                 "namespace": "bkmonitor",
                                 "tenant": "system",
                             }
@@ -1327,11 +1734,33 @@ def test_create_basereport_datalink_for_bkcc_bkbase_v4_part(create_or_delete_rec
                         ],
                     },
                     {
+                        "match_labels": [{"any": ["disk_cmdb"], "name": "__result_table"}],
+                        "sinks": [
+                            {
+                                "kind": "VmStorageBinding",
+                                "name": "base_1_sys_disk_cmdb",
+                                "namespace": "bkmonitor",
+                                "tenant": "system",
+                            }
+                        ],
+                    },
+                    {
                         "match_labels": [{"any": ["env"], "name": "__result_table"}],
                         "sinks": [
                             {
                                 "kind": "VmStorageBinding",
                                 "name": "base_1_sys_env",
+                                "namespace": "bkmonitor",
+                                "tenant": "system",
+                            }
+                        ],
+                    },
+                    {
+                        "match_labels": [{"any": ["env_cmdb"], "name": "__result_table"}],
+                        "sinks": [
+                            {
+                                "kind": "VmStorageBinding",
+                                "name": "base_1_sys_env_cmdb",
                                 "namespace": "bkmonitor",
                                 "tenant": "system",
                             }
@@ -1349,11 +1778,33 @@ def test_create_basereport_datalink_for_bkcc_bkbase_v4_part(create_or_delete_rec
                         ],
                     },
                     {
+                        "match_labels": [{"any": ["inode_cmdb"], "name": "__result_table"}],
+                        "sinks": [
+                            {
+                                "kind": "VmStorageBinding",
+                                "name": "base_1_sys_inode_cmdb",
+                                "namespace": "bkmonitor",
+                                "tenant": "system",
+                            }
+                        ],
+                    },
+                    {
                         "match_labels": [{"any": ["io"], "name": "__result_table"}],
                         "sinks": [
                             {
                                 "kind": "VmStorageBinding",
                                 "name": "base_1_sys_io",
+                                "namespace": "bkmonitor",
+                                "tenant": "system",
+                            }
+                        ],
+                    },
+                    {
+                        "match_labels": [{"any": ["io_cmdb"], "name": "__result_table"}],
+                        "sinks": [
+                            {
+                                "kind": "VmStorageBinding",
+                                "name": "base_1_sys_io_cmdb",
                                 "namespace": "bkmonitor",
                                 "tenant": "system",
                             }
@@ -1371,11 +1822,33 @@ def test_create_basereport_datalink_for_bkcc_bkbase_v4_part(create_or_delete_rec
                         ],
                     },
                     {
+                        "match_labels": [{"any": ["load_cmdb"], "name": "__result_table"}],
+                        "sinks": [
+                            {
+                                "kind": "VmStorageBinding",
+                                "name": "base_1_sys_load_cmdb",
+                                "namespace": "bkmonitor",
+                                "tenant": "system",
+                            }
+                        ],
+                    },
+                    {
                         "match_labels": [{"any": ["mem"], "name": "__result_table"}],
                         "sinks": [
                             {
                                 "kind": "VmStorageBinding",
                                 "name": "base_1_sys_mem",
+                                "namespace": "bkmonitor",
+                                "tenant": "system",
+                            }
+                        ],
+                    },
+                    {
+                        "match_labels": [{"any": ["mem_cmdb"], "name": "__result_table"}],
+                        "sinks": [
+                            {
+                                "kind": "VmStorageBinding",
+                                "name": "base_1_sys_mem_cmdb",
                                 "namespace": "bkmonitor",
                                 "tenant": "system",
                             }
@@ -1393,6 +1866,17 @@ def test_create_basereport_datalink_for_bkcc_bkbase_v4_part(create_or_delete_rec
                         ],
                     },
                     {
+                        "match_labels": [{"any": ["net_cmdb"], "name": "__result_table"}],
+                        "sinks": [
+                            {
+                                "kind": "VmStorageBinding",
+                                "name": "base_1_sys_net_cmdb",
+                                "namespace": "bkmonitor",
+                                "tenant": "system",
+                            }
+                        ],
+                    },
+                    {
                         "match_labels": [{"any": ["netstat"], "name": "__result_table"}],
                         "sinks": [
                             {
@@ -1404,11 +1888,33 @@ def test_create_basereport_datalink_for_bkcc_bkbase_v4_part(create_or_delete_rec
                         ],
                     },
                     {
+                        "match_labels": [{"any": ["netstat_cmdb"], "name": "__result_table"}],
+                        "sinks": [
+                            {
+                                "kind": "VmStorageBinding",
+                                "name": "base_1_sys_netstat_cmdb",
+                                "namespace": "bkmonitor",
+                                "tenant": "system",
+                            }
+                        ],
+                    },
+                    {
                         "match_labels": [{"any": ["swap"], "name": "__result_table"}],
                         "sinks": [
                             {
                                 "kind": "VmStorageBinding",
                                 "name": "base_1_sys_swap",
+                                "namespace": "bkmonitor",
+                                "tenant": "system",
+                            }
+                        ],
+                    },
+                    {
+                        "match_labels": [{"any": ["swap_cmdb"], "name": "__result_table"}],
+                        "sinks": [
+                            {
+                                "kind": "VmStorageBinding",
+                                "name": "base_1_sys_swap_cmdb",
                                 "namespace": "bkmonitor",
                                 "tenant": "system",
                             }
