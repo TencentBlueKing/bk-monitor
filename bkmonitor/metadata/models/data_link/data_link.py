@@ -156,6 +156,7 @@ class DataLink(models.Model):
                 # 创建11个VMResultTableConfig和VMStorageBindingConfig
                 for usage in BASEREPORT_USAGES:
                     usage_vmrt_name = f"{bkbase_vmrt_prefix}_{usage}"
+                    usage_cmdb_level_vmrt_name = f"{usage_vmrt_name}_cmdb"
                     logger.info(
                         "compose_basereport_configs: try to create rt and storage for usage->[%s],name->[%s]",
                         usage,
@@ -165,6 +166,13 @@ class DataLink(models.Model):
                     # 创建VM ResultTable配置
                     vm_table_id_ins, _ = VMResultTableConfig.objects.get_or_create(
                         name=usage_vmrt_name,
+                        data_link_name=self.data_link_name,
+                        namespace=self.namespace,
+                        bk_biz_id=bk_biz_id,
+                        bk_tenant_id=self.bk_tenant_id,
+                    )
+                    vm_table_id_ins_cmdb, _ = VMResultTableConfig.objects.get_or_create(
+                        name=usage_cmdb_level_vmrt_name,
                         data_link_name=self.data_link_name,
                         namespace=self.namespace,
                         bk_biz_id=bk_biz_id,
@@ -180,12 +188,22 @@ class DataLink(models.Model):
                         bk_biz_id=bk_biz_id,
                         bk_tenant_id=self.bk_tenant_id,
                     )
+                    vm_storage_ins_cmdb, _ = VMStorageBindingConfig.objects.get_or_create(
+                        name=usage_cmdb_level_vmrt_name,
+                        vm_cluster_name=storage_cluster_name,
+                        data_link_name=self.data_link_name,
+                        namespace=self.namespace,
+                        bk_biz_id=bk_biz_id,
+                        bk_tenant_id=self.bk_tenant_id,
+                    )
 
                     # 添加配置到列表
                     config_list.extend(
                         [
                             vm_table_id_ins.compose_config(),
+                            vm_table_id_ins_cmdb.compose_config(),
                             vm_storage_ins.compose_config(),
+                            vm_storage_ins_cmdb.compose_config(),
                         ]
                     )
 
@@ -200,11 +218,26 @@ class DataLink(models.Model):
 
                     sinks = [sink_item]
 
+                    sink_item_cmdb = {
+                        "kind": "VmStorageBinding",
+                        "name": usage_cmdb_level_vmrt_name,
+                        "namespace": settings.DEFAULT_VM_DATA_LINK_NAMESPACE,
+                    }
+                    if settings.ENABLE_BKBASE_V4_MULTI_TENANT:
+                        sink_item_cmdb["tenant"] = self.bk_tenant_id
+
+                    sinks_cmdb = [sink_item_cmdb]
+
                     condition = {
                         "match_labels": [{"name": "__result_table", "any": [usage]}],
                         "sinks": sinks,
                     }
+                    cmdb_condition = {
+                        "match_labels": [{"name": "__result_table", "any": [f"{usage}_cmdb"]}],
+                        "sinks": sinks_cmdb,
+                    }
                     conditions.append(condition)
+                    conditions.append(cmdb_condition)
 
                 # 创建ConditionalSinkConfig
                 vm_conditional_ins, _ = ConditionalSinkConfig.objects.get_or_create(

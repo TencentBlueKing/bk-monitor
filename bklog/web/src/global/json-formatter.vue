@@ -232,12 +232,12 @@
 
   const getFieldFormatter = (field, formatDate) => {
     const [objValue, val] = getFieldValue(field);
-
+    const strVal = getDateFieldValue(field, getCellRender(val), formatDate);
     return {
       ref: ref(),
       isJson: typeof objValue === 'object' && objValue !== undefined,
       value: getDateFieldValue(field, objValue, formatDate),
-      stringValue: getDateFieldValue(field, getCellRender(val), formatDate).replace(/<\/?mark>/igm, ''),
+      stringValue: strVal?.replace?.(/<\/?mark>/igm, '') ?? strVal,
       field,
     };
   };

@@ -447,7 +447,6 @@ export function setFieldsWidth(visibleFieldsList, fieldsWidthInfo, minWidth = 10
  * @return {String}
  */
 export function formatDate(val, isTimzone = true, formatMilliseconds = false) {
-  
   try {
     const date = new Date(val);
     if (isNaN(date.getTime())) {
@@ -461,7 +460,7 @@ export function formatDate(val, isTimzone = true, formatMilliseconds = false) {
     }
 
     if (isTimzone) {
-      let timestamp = 0;
+      let timestamp = val;
 
       if (/^\d+\.?\d*$/.test(val)) {
         // 将时间戳转换为毫秒级别，如果是10位时间戳则乘以1000
@@ -485,8 +484,7 @@ export function formatDate(val, isTimzone = true, formatMilliseconds = false) {
     const dd = `0${date.getDate()}`.slice(-2);
     const time = date.toTimeString().slice(0, 8);
     return `${yyyy}-${mm}-${dd} ${time}`;
-  } 
-  catch (e) {
+  } catch (e) {
     console.warn(e);
     return val;
   }

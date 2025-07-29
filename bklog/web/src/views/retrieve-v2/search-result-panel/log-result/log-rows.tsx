@@ -872,11 +872,17 @@ export default defineComponent({
 
     const handleRowClick = (e: MouseEvent, item: any) => {
       const selection = window.getSelection();
-      if (selection && !selection.isCollapsed && (e.target as HTMLElement).contains(selection.anchorNode)) {
+      const target = e.target as HTMLElement;
+      const expandCell = target.closest('.bklog-row-observe')?.querySelector('.expand-view-wrapper');
+
+      if (
+        target.classList.contains('valid-text') ||
+        expandCell?.contains(target) ||
+        (selection && !selection.isCollapsed && target.contains(selection.anchorNode))
+      ) {
         return;
       }
 
-      const target = e.target as HTMLElement;
       const config: RowConfig = tableRowConfig.get(item).value;
       config.expand = !config.expand;
       nextTick(() => {
