@@ -31,11 +31,12 @@ import 'vue/jsx.d.ts';
 
 import type { IBizItem, ISpaceItem } from './typings';
 import type { Dayjs } from 'dayjs';
+import type { Vue3WewebData } from 'monitor-pc/types/weweb/weweb';
 import type { HTMLAttributes, ReservedProps } from 'vue/dist/vue.d.ts';
 
 declare global {
   interface Window {
-    __BK_WEWEB_DATA__?: Record<string, any>;
+    __BK_WEWEB_DATA__?: Vue3WewebData;
     __POWERED_BY_BK_WEWEB__?: boolean;
     AJAX_URL_PREFIX: string;
     apm_ebpf_enabled: boolean;
