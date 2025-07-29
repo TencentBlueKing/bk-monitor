@@ -78,10 +78,6 @@
       type: [Number, String, null],
       default: 3,
     },
-    limitRow: {
-      type: [Number, String, null],
-      default: 3,
-    },
   });
 
   const bigJson = JSONBig({ useNativeBigInt: true });
@@ -282,16 +278,6 @@
     hasScrollY.value = false;
   };
 
-  const setIsOverflowY = () => {
-    if (refJsonFormatterCell.value) {
-      const { offsetHeight, scrollHeight } = refJsonFormatterCell.value;
-      hasScrollY.value = scrollHeight > offsetHeight;
-      return;
-    }
-
-    hasScrollY.value = false;
-  };
-
   watch(
     () => [isRowIntersecting.value],
     () => {
@@ -334,12 +320,12 @@
   .bklog-json-formatter-root {
     position: relative;
     width: 100%;
+    overflow: hidden;
     font-family: var(--table-fount-family);
     font-size: var(--table-fount-size);
     line-height: 20px;
     color: var(--table-fount-color);
     text-align: left;
-    overflow: hidden;
 
     .bklog-scroll-box {
       max-height: 50vh;
