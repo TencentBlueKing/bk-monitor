@@ -73,7 +73,7 @@ class ListSpacesResource(Resource):
         include_resource_id = serializers.BooleanField(label="过滤掉平台级的空间", required=False, default=False)
 
     def perform_request(self, request_data):
-        return utils.list_spaces(**request_data)
+        return utils.list_spaces(bk_tenant_id=get_request_tenant_id(), **request_data)
 
 
 class GetSpaceDetailResource(Resource):

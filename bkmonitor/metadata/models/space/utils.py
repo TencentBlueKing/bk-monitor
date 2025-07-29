@@ -112,6 +112,7 @@ def reformat_table_id(table_id: str) -> str:
 
 
 def list_spaces(
+    bk_tenant_id: str | None = None,
     space_type_id: str | None = None,
     space_id: str | None = None,
     space_name: str | None = None,
@@ -124,7 +125,7 @@ def list_spaces(
     include_resource_id: bool | None = False,
 ) -> dict:
     """查询空间实例信息
-
+    :param bk_tenant_id: 租户ID
     :param space_type_id: 空间类型ID
     :param space_id: 空间ID
     :param space_name: 空间中文名称
