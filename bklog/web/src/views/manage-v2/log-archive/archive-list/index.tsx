@@ -7,7 +7,7 @@ import { formatFileSize, clearTableFilter } from '@/common/util';
 import EmptyStatus from '@/components/empty-status/index.vue';
 import ArchiveSlider from './archive-slider.vue';
 import RestoreSlider from '../archive-restore/restore-slider.vue';
-import StateTable from './state-table.vue';
+import StateTable from './state-table.tsx';
 import { InfoBox, Message } from 'bk-magic-vue';
 
 import './index.scss';
