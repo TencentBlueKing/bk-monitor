@@ -47,6 +47,9 @@ export default defineComponent({
   },
   setup(props) {
     const { t } = useI18n();
+    if (!window.__BK_WEWEB_DATA__?.handleAIBluekingShortcut) {
+      return () => null;
+    }
     return () => (
       <div
         class='ai-blueking-icon'
