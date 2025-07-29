@@ -12,7 +12,6 @@ import itertools
 import time
 from collections import defaultdict
 
-from django.utils import timezone
 
 from apm_web.constants import DataStatus, ServiceRelationLogTypeChoices
 from apm_web.handlers.host_handler import HostHandler
@@ -84,34 +83,47 @@ class ServiceLogHandler:
         log_datasource = cls.get_log_datasource(bk_biz_id, app_name)
         if log_datasource:
             table_id = log_datasource["result_table_id"].replace("-", "_").replace(".", "_")
-            response = api.log_search.es_query_dsl(
-                indices=f"{table_id}*",
-                body={
-                    "size": 0,
-                    "query": {
-                        "range": {
-                            "time": {
-                                "format": "epoch_second",
-                                "time_zone": str(timezone.get_current_timezone()),
-                                "gte": start_time,
-                                "lte": end_time,
-                            }
-                        }
-                    },
-                    "aggs": {
-                        "service_names": {
-                            "terms": {
-                                "field": "resource.service.name",
-                            }
-                        }
-                    },
-                },
-            )
-            if response:
-                for svr in response.get("aggregations", {}).get("service_names", {}).get("buckets", []):
-                    res[svr["key"]] = DataStatus.NORMAL
+            futures = []
+            service_name_field_list = ["resource.service.name", "resource.server"]
+            for label in service_name_field_list:
+                futures.append(
+                    pool.apply_async(cls.get_label_values_in_table, args=(table_id, label, start_time, end_time))
+                )
+            has_data_service_list = list(itertools.chain(*[f.get() for f in futures]))
+            res.update({s: DataStatus.NORMAL for s in has_data_service_list})
 
         return res
+
+    @classmethod
+    def get_label_values_in_table(cls, table_id, label, start_time, end_time) -> list:
+        response = api.log_search.es_query_dsl(
+            indices=f"{table_id}*",
+            body={
+                "size": 0,
+                "query": {
+                    "range": {
+                        "time": {
+                            "format": "epoch_second",
+                            "gte": start_time,
+                            "lte": end_time,
+                        }
+                    }
+                },
+                "aggs": {
+                    "service_names": {
+                        "terms": {
+                            "field": label,
+                        }
+                    }
+                },
+            },
+        )
+
+        ret = []
+        if response:
+            for svr in response.get("aggregations", {}).get("service_names", {}).get("buckets", []):
+                ret.append(svr["key"])
+        return ret
 
     @classmethod
     def get_and_check_datasource_index_set_id(cls, bk_biz_id, app_name, full_indexes=None):

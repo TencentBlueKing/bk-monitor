@@ -75,7 +75,7 @@ DEFAULT_OS_STRATEGIES = [
 ]
 
 # 多租户模式下，暂不内置系统事件
-if not settings.MULTI_TENANT_MODE:
+if not settings.ENABLE_MULTI_TENANT_MODE:
     DEFAULT_OS_STRATEGIES.extend(
         [
             {

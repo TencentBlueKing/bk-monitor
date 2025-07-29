@@ -722,9 +722,13 @@ class StorageResultTable:
                         defaults={"enable_time": result_table.last_modify_time},
                     )
 
-                # 刷新RESULT_TABLE_DETAIL路由
-                logger.info("update_storage: table_id->[%s] try to refresh es_table_id_detail", self.table_id)
-                space_client.push_es_table_id_detail(table_id_list=[self.table_id], is_publish=True)
+                # 刷新RESULT_TABLE_DETAIL路由,需要先找到该RT关联的虚拟RT
+                virtual_rt_list = list(
+                    ESStorage.objects.filter(origin_table_id=self.table_id).values_list("table_id", flat=True)
+                )
+                table_ids = [self.table_id] + virtual_rt_list
+                logger.info("update_storage: table_id->[%s] try to refresh es_table_id_detail", json.dumps(table_ids))
+                space_client.push_es_table_id_detail(table_id_list=table_ids, is_publish=True)
             except Exception as e:  # pylint: disable=broad-except
                 logger.warning(
                     "update_storage: table_id->[%s] update es_storage_cluster_id failed,error->[%s]", self.table_id, e

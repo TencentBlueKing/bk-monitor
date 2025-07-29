@@ -37,6 +37,7 @@ from apps.log_search.exceptions import (
     UnsupportedOperationException,
     QueryServerUnavailableException,
     IndexMappingEmptyException,
+    TooManyBucketsException,
 )
 from apps.utils import ChoicesEnum
 from apps.utils.custom_report import render_otlp_report_config
@@ -1784,4 +1785,5 @@ ES_ERROR_PATTERNS = [
     (r"Set fielddata=true on \[(?P<field_name>.*?)] in order to load fielddata", UnsupportedOperationException),
     (r"connect_timeout\[.*?]|timed out after|HTTPConnectionPool.*?Read timed out", QueryServerUnavailableException),
     (r"index is empty with \[(?P<result_table_id>.*?)]", IndexMappingEmptyException),
+    (r"too_many_buckets_exception.*?Trying to create too many buckets", TooManyBucketsException),
 ]
