@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2022 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,6 +7,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import time
 
 from django.conf import settings
@@ -27,9 +27,12 @@ class EventReportHelper:
     def _get_content(cls, content, app=None):
         info = ""
         if app:
-            response_biz_data = api.cmdb.get_business(bk_biz_ids=[app.bk_biz_id])
+            response_biz_data = api.cmdb.get_business(bk_biz_ids=[app.bk_biz_id], bk_tenant_id=app.bk_tenant_id)
             bk_biz_name = response_biz_data[0].bk_biz_name if response_biz_data else ""
-            info = f"应用名称: {app.app_name} 业务 ID: {app.bk_biz_id} 业务名称: {bk_biz_name} " f"操作人: {get_request_username()}"
+            info = (
+                f"应用名称: {app.app_name} 业务 ID: {app.bk_biz_id} 业务名称: {bk_biz_name} "
+                f"操作人: {get_request_username()}"
+            )
 
         return [
             {
