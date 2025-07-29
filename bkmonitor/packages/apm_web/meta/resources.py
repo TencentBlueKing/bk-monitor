@@ -868,7 +868,7 @@ class SetupResource(Resource):
         Application.objects.filter(application_id=application.application_id).update(update_user=get_global_user())
 
         # Log-Trace配置更新
-        if application.plugin_id == LOG_TRACE:
+        if application.plugin_id == LOG_TRACE and validated_data.get("plugin_config"):
             Application.update_plugin_config(application.application_id, validated_data["plugin_config"])
 
         from apm_web.tasks import update_application_config
