@@ -170,6 +170,37 @@ def _query_alert_ids_from_db(action_names, bk_biz_ids, start_time, include=False
     return list(alert_ids)
 
 
+def get_alert_ids_by_action_name(action_names, bk_biz_ids, start_time=None, fuzzy=False) -> list:
+    """通过处理套餐名称获取告警ID"""
+    if not isinstance(action_names, list):
+        action_names = [action_names]
+
+    # 构建查询条件
+    if fuzzy:
+        # 模糊查询多个名称
+        name_conditions = DQ()
+        for action_name in action_names:
+            name_conditions |= DQ(name__icontains=action_name)
+        filter_params = {"bk_biz_id__in": bk_biz_ids}
+        filter_params_query = DQ(**filter_params) & name_conditions
+    else:
+        filter_params_query = DQ(name__in=action_names, bk_biz_id__in=bk_biz_ids)
+
+    action_config_ids = ActionConfig.objects.filter(filter_params_query).values_list("id", flat=True)
+
+    # 获取开始时间,没有则取7天前的时间
+    if start_time is None:
+        start_time = int(time.time()) - 7 * 24 * 60 * 60
+
+    start_time = datetime.fromtimestamp(start_time, tz=timezone.utc)
+
+    alert_id_ids = ActionInstance.objects.filter(
+        action_config_id__in=list(action_config_ids), create_time__gte=start_time
+    ).values_list("alerts", flat=True)
+    alert_ids = set(chain.from_iterable(alert_id_ids))
+    return list(alert_ids)
+
+
 class AlertQueryTransformer(BaseQueryTransformer):
     NESTED_KV_FIELDS = {"tags": "event.tags"}
     VALUE_TRANSLATE_FIELDS = {
@@ -370,32 +401,12 @@ class AlertQueryTransformer(BaseQueryTransformer):
         ]:
             bk_biz_ids = context.get("bk_biz_ids", [])
             start_time = context.get("start_time", None)
-            alert_ids = self.get_alert_ids_by_action_name(node.value, bk_biz_ids, start_time)
+            alert_ids = get_alert_ids_by_action_name([node.value], bk_biz_ids, start_time)
             node = FieldGroup(OrOperation(*[Word(str(alert_id)) for alert_id in alert_ids or [0]]))
             context = {"ignore_search_field": True, "ignore_word": True}
             return node, context
 
         return None, None
-
-    def get_alert_ids_by_action_name(self, action_name, bk_biz_ids, start_time=None, fuzzy=False) -> list:
-        """通过处理套餐名称获取告警ID"""
-        filter_params = {"name": action_name, "bk_biz_id__in": bk_biz_ids}
-        if fuzzy:
-            filter_params["name__icontains"] = action_name
-            filter_params.pop("name", None)
-        action_config_ids = ActionConfig.objects.filter(**filter_params).values_list("id", flat=True)
-
-        # 获取开始时间,没有则取7天前的时间
-        if start_time is None:
-            start_time = int(time.time()) - 7 * 24 * 60 * 60
-
-        start_time = datetime.fromtimestamp(start_time, tz=timezone.utc)
-
-        alert_id_ids = ActionInstance.objects.filter(
-            action_config_id__in=action_config_ids, create_time__gte=start_time
-        ).values_list("alerts", flat=True)
-        alert_ids = set(chain.from_iterable(alert_id_ids))
-        return list(alert_ids)
 
     def _process_module_id(self, node: Word, context: dict) -> tuple:
         """处理模块ID"""
