@@ -66,7 +66,7 @@
 
   const props = defineProps({
     jsonValue: {
-      type: [Object, String, Number],
+      type: [Object, String, Number, Boolean],
       default: () => ({}),
     },
     fields: {
@@ -325,6 +325,7 @@
     line-height: 20px;
     color: var(--table-fount-color);
     text-align: left;
+    overflow: hidden;
 
     .bklog-scroll-box {
       max-height: 50vh;
