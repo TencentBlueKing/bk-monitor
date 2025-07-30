@@ -24,35 +24,35 @@
  * IN THE SOFTWARE.
  */
 
-import { computed } from 'vue';
+import { computed, watch } from 'vue';
 
 import { random } from 'monitor-common/utils';
 
-import { EMode, type IGetValueFnParams } from '../../../../..//components/retrieval-filter/typing';
+import { type IGetValueFnParams, EMode } from '../../../../..//components/retrieval-filter/typing';
 import { useAlarmCenterStore } from '../../../../../store/modules/alarm-center';
 
 import type { CommonCondition } from '../../../../../pages/alarm-center/typings/services';
+
+type ICandidateValueMap = Map<
+  string,
+  {
+    count: number;
+    isEnd: boolean;
+    values: { id: string; name: string }[];
+  }
+>;
 
 interface ICondition extends CommonCondition {
   condition: any | string;
 }
 
-type ICandidateValueMap = Map<
-  string,
-  {
-    values: { id: string; name: string }[];
-    isEnd: boolean;
-    count: number;
-  }
->;
-
 interface IParams {
-  mode: string;
-  filters: any[];
-  limit: number;
   fields: string[];
-  query_string: string;
+  filters: any[];
   isInit__?: boolean; // 此字段判断是否需要初始化缓存候选值，不传给接口参数
+  limit: number;
+  mode: string;
+  query_string: string;
 }
 
 export function useAlarmFilter() {
@@ -82,6 +82,30 @@ export function useAlarmFilter() {
   const showAlarmModule = computed(() => {
     return filterMode.value === EMode.ui;
   });
+
+  const favoriteList = computed(() => {
+    return (
+      alarmStore.favoriteList.map(item => ({
+        groupName: '',
+        id: item.id,
+        name: item.name,
+        config: {
+          queryString: item?.params?.query_string || '',
+          where: [],
+          commonWhere: [],
+        },
+      })) || []
+    );
+  });
+
+  watch(
+    () => alarmStore.alarmType,
+    async v => {
+      const data = await alarmStore.alarmService.getListSearchFavorite({ search_type: v });
+      alarmStore.favoriteList = data;
+    },
+    { immediate: true }
+  );
 
   function handleConditionChange(val) {
     alarmStore.conditions = val;
@@ -187,6 +211,7 @@ export function useAlarmFilter() {
     queryString,
     residentSettingOnlyId,
     filterMode,
+    favoriteList,
     residentCondition,
     showAlarmModule,
     handleQuery,

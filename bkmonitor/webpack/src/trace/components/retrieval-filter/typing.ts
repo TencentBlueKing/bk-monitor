@@ -92,19 +92,6 @@ export interface IFavoriteListItem {
     where?: IWhereItem[];
   };
 }
-export interface IFavoriteListItem {
-  id: string;
-  name: string;
-  favorites: {
-    config: {
-      queryConfig: {
-        query_string: string;
-        where: IWhereItem[];
-      };
-    };
-    name: string;
-  }[];
-}
 
 export interface IFieldItem {
   /* 字段别名 */

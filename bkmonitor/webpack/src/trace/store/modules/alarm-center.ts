@@ -28,28 +28,28 @@ import { computed, ref as deepRef, shallowRef, watch } from 'vue';
 import { onScopeDispose } from 'vue';
 import { customRef } from 'vue';
 
-import { AlarmServiceFactory } from '@/pages/alarm-center/services/factory';
 import { random } from 'monitor-common/utils';
 import { defineStore } from 'pinia';
 
 import { EMode } from '../../components/retrieval-filter/typing';
-import { DEFAULT_TIME_RANGE, handleTransformToTimestamp, type TimeRangeType } from '../../components/time-range/utils';
+import { type TimeRangeType, DEFAULT_TIME_RANGE, handleTransformToTimestamp } from '../../components/time-range/utils';
 import { getDefaultTimezone } from '../../i18n/dayjs';
 import { AlarmType } from '../../pages/alarm-center/typings';
+import { AlarmServiceFactory } from '@/pages/alarm-center/services/factory';
 
 import type { AlarmService } from '@/pages/alarm-center/services/base';
 import type { CommonCondition } from '@/pages/alarm-center/typings';
 const REFRESH_EFFECT_KEY = '__REFRESH_EFFECT_KEY__';
 
 export interface IAlarmCenterState {
-  timeRange: TimeRangeType; // 时间范围
-  timezone: string; // 时区
-  refreshInterval: number; // 刷新间隔
-  refreshImmediate: string; // 是否立即刷新
   alarmType: AlarmType; // 告警类型
   bizIds: number[]; // 业务ID
   conditions: CommonCondition[]; // 条件
   queryString: string; // 查询字符串
+  refreshImmediate: string; // 是否立即刷新
+  refreshInterval: number; // 刷新间隔
+  timeRange: TimeRangeType; // 时间范围
+  timezone: string; // 时区
 }
 
 export const useAlarmCenterStore = defineStore('alarmCenter', () => {
@@ -83,6 +83,9 @@ export const useAlarmCenterStore = defineStore('alarmCenter', () => {
   > = new Map();
 
   const alarmService = shallowRef<AlarmService<AlarmType>>();
+
+  /* 收藏列表数据 */
+  const favoriteList = shallowRef([]);
 
   const timeRangeTimestamp = computed(() => {
     const [start, end] = handleTransformToTimestamp(timeRange.value);
@@ -183,6 +186,7 @@ export const useAlarmCenterStore = defineStore('alarmCenter', () => {
     refreshInterval.value = -1;
     refreshImmediate.value = '';
     quickFilterValue.value = [];
+    favoriteList.value = [];
     cacheMap.clear();
   });
   return {
@@ -200,5 +204,6 @@ export const useAlarmCenterStore = defineStore('alarmCenter', () => {
     quickFilterValue,
     filterMode,
     residentCondition,
+    favoriteList,
   };
 });

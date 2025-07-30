@@ -25,22 +25,23 @@
  */
 
 import { isEn } from '@/i18n/i18n';
+
 import { alertEventCount, alertRelatedInfo, listAlertTags } from 'monitor-api/modules/alert';
 
 import { AlarmType } from '../typings';
 
 import type {
-  CommonFilterParams,
-  QuickFilterItem,
-  AnalysisFieldAggItem,
-  AnalysisTopNDataResponse,
-  AlertTableItem,
   ActionTableItem,
-  FilterTableResponse,
-  IncidentTableItem,
-  TableColumnItem,
   AlertEventCountResult,
   AlertExtendInfoResult,
+  AlertTableItem,
+  AnalysisFieldAggItem,
+  AnalysisTopNDataResponse,
+  CommonFilterParams,
+  FilterTableResponse,
+  IncidentTableItem,
+  QuickFilterItem,
+  TableColumnItem,
 } from '../typings';
 import type { IFilterField } from '@/components/retrieval-filter/typing';
 
@@ -122,6 +123,12 @@ export abstract class AlarmService<S = AlarmType> {
     T = S extends AlarmType.ALERT ? AlertTableItem : S extends AlarmType.INCIDENT ? IncidentTableItem : ActionTableItem,
   >(params: Partial<CommonFilterParams>): Promise<FilterTableResponse<T>>;
 
+  /**
+   * @description 获取收藏列表
+   * @param params
+   * @param config
+   */
+  abstract getListSearchFavorite(params: Partial<{ search_type: AlarmType }>, config?: Record<string, any>);
   /**
    * @description: 获取快速筛选列表
    * @param {Partial<CommonFilterParams>} params
