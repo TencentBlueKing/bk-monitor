@@ -180,7 +180,6 @@ export default defineComponent({
                     <QuickFiltering
                       filterList={this.quickFilterList}
                       filterValue={this.alarmStore.quickFilterValue}
-                      isFilterEmptyItem={false}
                       loading={this.quickFilterLoading}
                       onClose={this.updateIsCollapsed}
                       onUpdate:filterValue={this.handleFilterValueChange}
