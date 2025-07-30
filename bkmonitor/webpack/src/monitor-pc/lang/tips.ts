@@ -369,4 +369,6 @@ export default {
   用户指令: 'User Instruction',
   '请输入指标/PromQL语句': 'Please enter the metric/PromQL statement',
   请输入用户指令: 'Please enter the user instruction',
+  '根据所选维度（组合）{0}，{1}内出现新的维度时，将产生告警':
+    'When a new dimension appears within {1} according to the selected dimension (combination) {0}, an alarm will be generated',
 };

@@ -137,6 +137,8 @@ export enum DetectionRuleTypeEnum {
   AdvancedYearRound = 'AdvancedYearRound',
   /** 单指标异常检测 */
   IntelligentDetect = 'IntelligentDetect',
+  /** 新维度值检测 */
+  NewSeries = 'NewSeries',
   /** 部分节点数 */
   PartialNodes = 'PartialNodes',
   /** 环比策略(大类) */
