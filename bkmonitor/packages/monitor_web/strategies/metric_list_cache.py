@@ -24,6 +24,9 @@ from django.db.models import Count, Max, Q
 from django.utils.translation import gettext as _
 from django.utils.translation import gettext_lazy as _lazy
 
+from bkm_space.api import SpaceApi
+from bkm_space.define import SpaceTypeEnum
+from bkm_space.utils import bk_biz_id_to_space_uid
 from bkmonitor.commons.tools import is_ipv6_biz
 from bkmonitor.data_source import is_build_in_process_data_source
 from bkmonitor.documents import AlertDocument
@@ -965,6 +968,11 @@ class CustomEventCacheManager(BaseMetricCacheManager):
         for result in custom_event_result:
             if result["event_group_id"] in event_group_ids:
                 yield result
+        if self.bk_biz_id < 0:
+            space_uid = bk_biz_id_to_space_uid(self.bk_biz_id)
+            if space_uid.startswith(SpaceTypeEnum.BKCI.value):
+                space = SpaceApi.get_related_space(space_uid, SpaceTypeEnum.BKCC.value)
+                custom_event_result += api.metadata.query_event_group.request.refresh(bk_biz_id=space.bk_biz_id)
         # k8s 事件
         # 1. 先拿业务下的集群列表
         # 区分 custom_event 和 k8s_event (来自metadata的设计)
@@ -985,6 +993,8 @@ class CustomEventCacheManager(BaseMetricCacheManager):
         for cluster_id in cluster_map:
             for result in custom_event_result:
                 if cluster_id in result["event_group_name"]:
+                    if self.bk_biz_id < 0:
+                        result["bk_biz_id"] = self.bk_biz_id
                     # bcs 集群事件 目标调整为kubernetes
                     result["label"] = "kubernetes"
                     # 补充是否告警
