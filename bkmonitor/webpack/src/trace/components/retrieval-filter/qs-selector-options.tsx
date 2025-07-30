@@ -125,7 +125,7 @@ export default defineComponent({
           const content = item?.config?.queryString || '';
           if (content?.toLocaleLowerCase().includes(keyword)) {
             favoriteOptionsTemp.push({
-              title: `${item.groupName} / ${item.name}`,
+              title: `${item.groupName ? `${item.groupName} / ` : ''}${item.name}`,
               content,
               keyword,
             });
@@ -281,7 +281,7 @@ export default defineComponent({
       isEnd.value = false;
     }
 
-    async function handleScroll() {
+    function handleScroll() {
       const container = optionsRef.value;
       const scrollTop = container.scrollTop;
       const clientHeight = container.clientHeight;
@@ -290,9 +290,13 @@ export default defineComponent({
         if (!scrollLoading.value && !isEnd.value && props.type === EQueryStringTokenType.value) {
           scrollLoading.value = true;
           page.value += 1;
-          const data = await getValueData(true);
-          localOptions.value = data;
-          scrollLoading.value = false;
+          getValueData(true)
+            .then(data => {
+              localOptions.value = data;
+            })
+            .finally(() => {
+              scrollLoading.value = false;
+            });
         }
       }
     }
@@ -304,12 +308,19 @@ export default defineComponent({
         const items = qsSelectorOptionsDescMap?.[id] || [];
         return (
           <span class='subtitle-text'>
-            {items.map(item => {
+            {items.map((item, index) => {
               if (item.type === 'text') {
                 return item.text;
               }
               if (item.type === 'tag') {
-                return <span class='subtitle-text-tag'>{item.text}</span>;
+                return (
+                  <span
+                    key={index}
+                    class='subtitle-text-tag'
+                  >
+                    {item.text}
+                  </span>
+                );
               }
             })}
           </span>

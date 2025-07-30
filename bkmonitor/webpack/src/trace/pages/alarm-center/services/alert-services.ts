@@ -27,8 +27,10 @@
 import { isEn } from '@/i18n/i18n';
 
 import { alertTopN, searchAlert } from 'monitor-api/modules/alert';
+import { listSearchFavorite } from 'monitor-api/modules/model';
 
 import {
+  type AlarmType,
   type AlertTableItem,
   type AnalysisFieldAggItem,
   type AnalysisTopNDataResponse,
@@ -583,6 +585,12 @@ export class AlertService extends AlarmService {
         data: [],
       }));
     console.info('AlertService getFilterTableList', data, '==========');
+    return data;
+  }
+  async getListSearchFavorite(params: Partial<{ search_type: AlarmType }>) {
+    const data = await listSearchFavorite(params).catch(() => {
+      return [];
+    });
     return data;
   }
   async getQuickFilterList(params: Partial<CommonFilterParams>): Promise<QuickFilterItem[]> {
