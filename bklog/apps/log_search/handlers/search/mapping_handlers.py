@@ -475,6 +475,7 @@ class MappingHandlers:
             latest_mapping = BkLogApi.mapping(params)
         return latest_mapping
 
+    @cache_one_minute("latest_mapping_key_{indices}_{only_search}", need_md5=True)
     def _get_latest_mapping(self, indices, only_search=False):  # noqa
         # 获取最近一天的mapping
         start_time, end_time = generate_time_range("1d", "", "", self.time_zone)
@@ -523,7 +524,6 @@ class MappingHandlers:
         merge_result = list()
         try:
             for _key, _result in multi_result.items():
-                print(_result)
                 merge_result.extend(_result)
         except Exception as e:
             logger.error(f"[_multi_get_latest_mapping] error -> e: {e}")
