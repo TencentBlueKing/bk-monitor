@@ -14,9 +14,14 @@ import arrow
 def build_context_params(params):
     # 获取当前日志的时间戳，查询时间范围为日志打印时间的前后12h
     try:
-        log_time = arrow.get(params.get("dtEventTimeStamp"))
+        ts = int(params.get("dtEventTimeStamp"))
+        log_time = arrow.get(ts)
     except Exception:  # pylint: disable=broad-except
-        log_time = arrow.utcnow()
+        try:
+            # 尝试以字符串格式获取
+            log_time = arrow.get(params.get("dtEventTimeStamp"))
+        except Exception:  # pylint: disable=broad-except
+            log_time = arrow.utcnow()
     params["end_time"] = int(log_time.shift(hours=12).timestamp())
     params["start_time"] = int(log_time.shift(hours=-12).timestamp())
     params["index_set_ids"] = [params["index_set_id"]]
