@@ -24,6 +24,7 @@ from django.db.models import Count, Max, Q
 from django.utils.translation import gettext as _
 from django.utils.translation import gettext_lazy as _lazy
 
+from bkm_space.api import SpaceApi
 from bkmonitor.commons.tools import is_ipv6_biz
 from bkmonitor.data_source import is_build_in_process_data_source
 from bkmonitor.documents import AlertDocument
@@ -227,6 +228,9 @@ class BaseMetricCacheManager:
         raise NotImplementedError
 
     def get_metric_pool(self):
+        """
+        根据数据源的类型筛选出当前manager负责的指标缓存
+        """
         return MetricListCache.objects.filter(
             reduce(
                 lambda x, y: x | y,
@@ -237,6 +241,29 @@ class BaseMetricCacheManager:
             ),
             bk_tenant_id=self.bk_tenant_id,
         )
+
+    @classmethod
+    def get_available_biz_id(cls, bk_tenant_id: str) -> list:
+        """
+        获取当前数据源类型可用的业务ID列表
+        默认返回所有的业务ID， 子类根据自己的需求重写此方法， 返回符合要求的biz_id列表
+        """
+        # 默认返回所有业务ID
+        businesses = SpaceApi.list_spaces(bk_tenant_id=bk_tenant_id)
+        return [biz.bk_biz_id for biz in businesses]
+
+    @classmethod
+    def is_biz_id_valid(cls, bk_tenant_id: str, bk_biz_id: int) -> bool:
+        """
+        判断业务ID是否对当前缓存管理器有效
+        子类可重写此方法以实现特定的判断逻辑
+
+        :param bk_tenant_id: 租户ID
+        :param bk_biz_id: 业务ID
+        :return: 是否有效
+        """
+        # 基类默认实现：所有业务ID都有效
+        return True
 
     def refresh_metric_use_frequency(self):
         self.metric_use_frequency = {
@@ -255,6 +282,9 @@ class BaseMetricCacheManager:
         }
 
     def _run(self):
+        """
+        对比数据库已有数据， 实现指标缓存的增量更新
+        """
         start_time = time.time()
         logger.info(f"[start] update metric {self.__class__.__name__}({self.bk_biz_id})")
 
@@ -269,7 +299,7 @@ class BaseMetricCacheManager:
             metric_pool = metric_pool.filter(bk_biz_id=self.bk_biz_id)
         metric_pool_values = metric_pool.only(*METRIC_POOL_KEYS)
 
-        # metric_hash_dict
+        # metric_hash_dict(当前数据库[缓存]中的指标)
         metric_hash_dict = {}
         for m in list(metric_pool_values):
             metric_id = f"{m.bk_biz_id}.{m.result_table_id}.{m.metric_field}.{m.related_id}"
@@ -278,6 +308,7 @@ class BaseMetricCacheManager:
             else:
                 metric_hash_dict[metric_id] = m
 
+        # 遍历非缓存数据[最新数据]
         for table in self.get_tables():
             for metric in self.get_metrics_by_table(table):
                 # 处理result_table_id长度
@@ -295,6 +326,7 @@ class BaseMetricCacheManager:
                     if "type" not in dimension:
                         dimension["type"] = DimensionFieldType.String
 
+                # 更新metric使用频率
                 metric.update(
                     dict(
                         use_frequency=self.metric_use_frequency.get(
@@ -304,6 +336,7 @@ class BaseMetricCacheManager:
                         )
                     )
                 )
+                # 生成指标的唯一标识符
                 metric_id = "{}.{}.{}.{}".format(
                     metric["bk_biz_id"],
                     metric.get("result_table_id", ""),
@@ -311,6 +344,7 @@ class BaseMetricCacheManager:
                     metric.get("related_id", ""),
                 )
                 metric_instance = metric_hash_dict.pop(metric_id, None)
+                # 处理新增指标
                 if metric_instance is None:
                     _metric = MetricListCache(bk_tenant_id=self.bk_tenant_id, **metric)
                     metric["readable_name"] = _metric.get_human_readable_name()
@@ -325,6 +359,7 @@ class BaseMetricCacheManager:
                 metric["readable_name"] = metric_instance.get_human_readable_name()
 
                 metric["metric_md5"] = count_md5(metric)
+                # 处理更新逻辑
                 if not metric_instance.metric_md5 or metric_instance.metric_md5 != metric["metric_md5"]:
                     metric["last_update"] = datetime.now()
                     logger.info(f"Going to adding {metric_id} to cache updating list")
@@ -714,6 +749,18 @@ class BkdataMetricCacheManager(BaseMetricCacheManager):
                 field_dict["unit_conversion"] = field.get("unit_conversion", 1.0)
                 yield field_dict
 
+    @classmethod
+    def is_biz_id_valid(cls, bk_tenant_id: str, bk_biz_id: int) -> bool:
+        """
+        判断业务ID是否有效（非0业务且环境允许）
+        """
+        # 部分环境可禁用数据平台指标缓存
+        if not settings.ENABLE_BKDATA_METRIC_CACHE:
+            return False
+
+        # 数据平台指标缓存仅支持更新大于0业务
+        return bk_biz_id > 0
+
     def run(self, delay=True):
         super().run(delay)
 
@@ -863,6 +910,11 @@ class BkLogSearchCacheManager(BaseMetricCacheManager):
 
         yield from return_list
 
+    @classmethod
+    def is_biz_id_valid(cls, bk_tenant_id: str, bk_biz_id: int) -> bool:
+        """日志平台指标缓存仅支持更新大于0业务"""
+        return bk_biz_id > 0
+
     def run(self, delay=True):
         super().run(delay)
 
@@ -952,10 +1004,10 @@ class CustomEventCacheManager(BaseMetricCacheManager):
     ]
 
     def get_tables(self):
-        # 系统事件
+        # 1.系统事件(biz_id为0)
         if self.bk_biz_id == 0:
             yield from self.SYSTEM_EVENTS
-
+        # 2.自定义事件[查询CustomEventGroup表]
         custom_event_result = api.metadata.query_event_group.request.refresh(bk_biz_id=self.bk_biz_id)
         event_group_ids = [
             custom_event.bk_event_group_id
@@ -965,7 +1017,7 @@ class CustomEventCacheManager(BaseMetricCacheManager):
         for result in custom_event_result:
             if result["event_group_id"] in event_group_ids:
                 yield result
-        # k8s 事件
+        # 3.k8s 事件
         # 1. 先拿业务下的集群列表
         # 区分 custom_event 和 k8s_event (来自metadata的设计)
         try:
@@ -1072,6 +1124,42 @@ class CustomEventCacheManager(BaseMetricCacheManager):
             }
             metric_detail.update(base_dict)
             yield metric_detail
+
+    @classmethod
+    def get_available_biz_id(cls, bk_tenant_id: str) -> list:
+        """
+        获取匹配的业务ID列表
+        1. 有自定义事件的业务
+        2. 有k8s集群的业务
+        3. 全局业务(biz_id=0)
+        """
+        biz_ids = set()
+
+        # 1. 获取有自定义事件的业务ID
+        custom_event_biz_ids = list(
+            CustomEventGroup.objects.filter(type="custom_event", bk_tenant_id=bk_tenant_id)
+            .values_list("bk_biz_id", flat=True)
+            .distinct()
+        )
+        biz_ids.update(custom_event_biz_ids)
+
+        all_clusters = []
+        # 2. 获取有K8s集群的业务ID
+        try:
+            # 一次性获取租户下所有集群
+            all_clusters = api.kubernetes.fetch_k8s_cluster_list(bk_tenant_id=bk_tenant_id)
+        except Exception as e:
+            logger.exception(f"Failed to get k8s clusters: {e}")
+        # 从集群信息中提取业务ID并添加到结果集
+        for cluster in all_clusters:
+            if "bk_biz_id" in cluster:
+                biz_id = cluster["bk_biz_id"]
+                biz_ids.add(biz_id)
+        # 3. 添加业务ID为0（处理系统事件）
+        if 0 not in biz_ids and cls.SYSTEM_EVENTS:
+            biz_ids.add(0)
+
+        return list(biz_ids)
 
 
 class BkMonitorLogCacheManager(BaseMetricCacheManager):
@@ -1264,6 +1352,7 @@ class BkmonitorMetricCacheManager(BaseMetricCacheManager):
         )
         self.ts_db_name = []
         self.dimension_map = dict()
+        # 将数据库中的表ID格式转化为结果表ID格式
         for result_table_id, dimension_field in default_dimension_list:
             map_key = result_table_id.replace("_", ".", 1)
             self.dimension_map[map_key] = dimension_field.split(",")
@@ -1281,11 +1370,13 @@ class BkmonitorMetricCacheManager(BaseMetricCacheManager):
         )
 
     def get_tables(self):
+        """
+        获取所有需要处理的表数据
+        """
         # 多租户模式下，直接走新的处理逻辑
         if settings.ENABLE_MULTI_TENANT_MODE:
             yield {}
             return
-
         if self.bk_biz_id is None:
             yield from api.metadata.list_monitor_result_table(with_option=False)
         else:
@@ -1554,11 +1645,13 @@ class BkmonitorMetricCacheManager(BaseMetricCacheManager):
                     }
 
     def get_metrics_by_table(self, table):
+        """
+        处理不同类型的表数据， 根据influx_db_name的不同， 进行不同的处理
+        """
         # 多租户模式下，直接使用全新的缓存逻辑
         if settings.ENABLE_MULTI_TENANT_MODE:
             yield from self.get_metrics_multi_tenant()
             return
-
         try:
             result_table_id = table["table_id"]
             influx_db_name = table["table_id"].split(".")[0]
@@ -1984,6 +2077,11 @@ class BkMonitorAlertCacheManager(BaseMetricCacheManager):
 
         yield metric_detail
 
+    @classmethod
+    def is_biz_id_valid(cls, bk_tenant_id: str, bk_biz_id: int) -> bool:
+        """监控告警事件指标缓存仅支持更新大于0业务"""
+        return bk_biz_id > 0
+
 
 class BkFtaAlertCacheManager(BaseMetricCacheManager):
     """
@@ -2170,6 +2268,11 @@ class BkFtaAlertCacheManager(BaseMetricCacheManager):
             }
 
             yield metric_detail
+
+    @classmethod
+    def is_biz_id_valid(cls, bk_tenant_id: str, bk_biz_id: int) -> bool:
+        """告警源事件指标缓存仅支持更新大于0业务"""
+        return bk_biz_id > 0
 
 
 # 当前支持的数据来源（监控、计算平台、系统事件）

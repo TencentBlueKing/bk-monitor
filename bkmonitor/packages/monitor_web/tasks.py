@@ -181,6 +181,7 @@ def update_metric_list():
     from monitor.models import GlobalConfig
 
     now_timestamp = arrow.get(datetime.datetime.now()).timestamp
+    # 遍历所有租户id
     for tenant in api.bk_login.list_tenant():
         bk_tenant_id = tenant["id"]
         last_timestamp_key = (
@@ -226,7 +227,7 @@ def update_metric_list():
 
 def _update_metric_list(bk_tenant_id: str, period: int, offset: int):
     """
-    刷新指定租户的指标列表结果表
+    定时刷新指定租户的指标列表结果表
 
     Args:
         bk_tenant_id (str): 租户ID，用于区分不同的租户环境
@@ -248,8 +249,14 @@ def _update_metric_list(bk_tenant_id: str, period: int, offset: int):
     from monitor_web.strategies.metric_list_cache import SOURCE_TYPE
 
     def update_metric(_source_type: str, bk_biz_id: int | None = None):
+        """执行具体的指标列表更新操作"""
         try:
-            SOURCE_TYPE[_source_type](bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id).run(delay=True)
+            m_class = SOURCE_TYPE[_source_type]
+            # 验证业务ID是否有效
+            if bk_biz_id is not None and not m_class.is_biz_id_valid(bk_tenant_id, bk_biz_id):
+                return
+
+            m_class(bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id).run(delay=True)
         except BaseException as e:
             logger.exception(
                 "Failed to update metric list(%s) for (%s)",
@@ -261,59 +268,61 @@ def _update_metric_list(bk_tenant_id: str, period: int, offset: int):
 
     # 指标缓存类型: 全业务、单业务、业务0
     source_type_use_biz = ["BKDATA", "LOGTIMESERIES", "BKMONITORALERT"]
-    source_type_all_biz = ["BASEALARM", "BKMONITORLOG"]
+    # source_type_all_biz = ["BASEALARM", "BKMONITORLOG"]
     source_type_add_biz_0 = ["BKMONITOR", "CUSTOMEVENT", "CUSTOMTIMESERIES", "BKFTAALERT", "BKMONITORK8S"]
-    # 非业务空间不需要执行
-    source_type_gt_0 = ["BKDATA"]
-    # 不再全局周期任务重执行，引导用户通过主动刷新进行触发
-    extr_source_type_gt_0 = ["LOGTIMESERIES", "BKFTAALERT", "BKMONITORALERT", "BKMONITOR"]
-    # 非web请求， 允许使用 list_spaces
-    businesses: list[Space] = SpaceApi.list_spaces(bk_tenant_id=bk_tenant_id)
-    # 计算每轮任务更新业务数
-    biz_num = math.ceil(len(businesses) / period)
-    biz_count = 0
+    # source_type_gt_0 = ["BKDATA"]
+    # extr_source_type_gt_0 = ["LOGTIMESERIES", "BKFTAALERT", "BKMONITORALERT", "BKMONITOR"]
 
     # 记录任务开始时间
     start = time.time()
     logger.info(f"^update metric list(round {offset})")
 
     # 第一轮进行全业务和0业务更新
-    if offset == 0:
-        biz_count += 1
-        for source_type in source_type_all_biz:
-            update_metric(source_type)
-        for source_type in source_type_add_biz_0:
-            update_metric(source_type, 0)
+    # if offset == 0:
+    #     for source_type in source_type_all_biz:
+    #         update_metric(source_type)
+    #     for source_type in source_type_add_biz_0:
+    #         update_metric(source_type, 0)
 
-    # 记录有容器集群的cmdb业务列表
+    # 创建空的记录容器
     k8s_biz_set = set()
-    for biz in businesses[offset * biz_num : (offset + 1) * biz_num]:
-        biz_count += 1
-        for source_type in source_type_use_biz + source_type_add_biz_0:
-            # 非容器平台项目，不需要缓存容器指标：
-            if not biz.space_code and source_type == "BKMONITORK8S":
-                continue
-            else:
-                # 记录容器平台项目空间关联的业务id
+
+    # 根据数据源类型分别处理有效业务ID
+    for source_type in source_type_use_biz + source_type_add_biz_0:
+        # 获取当前数据源类型的管理器类(CacheManager)
+        manager_class = SOURCE_TYPE[source_type]
+
+        # 获取有效的业务ID列表
+        available_biz_ids = manager_class.get_available_biz_id(bk_tenant_id)
+
+        # 分页处理
+        total_biz_count = len(available_biz_ids)
+        if total_biz_count == 0:
+            continue
+        # 对获取到的biz进行分页处理
+        biz_per_round = math.ceil(total_biz_count / period)
+        bizids_for_current_round = available_biz_ids[offset * biz_per_round : (offset + 1) * biz_per_round]
+
+        for biz_id in bizids_for_current_round:
+            # 更新指标缓存(将校验当前是否需要更新的逻辑迁移到update_metric)
+            update_metric(source_type, biz_id)
+
+            # 记录有容器集群的业务
+            if source_type == "BKMONITORK8S":
                 try:
-                    k8s_biz: Space = SpaceApi.get_related_space(biz.space_uid, SpaceTypeEnum.BKCC.value)
+                    k8s_biz: Space = SpaceApi.get_related_space(
+                        SpaceApi.get_space(bk_biz_id=biz_id).space_uid, SpaceTypeEnum.BKCC.value
+                    )
                     if k8s_biz:
                         k8s_biz_set.add(k8s_biz.bk_biz_id)
                 except BKAPIError:
                     pass
-            # 部分环境可用禁用数据平台指标缓存
-            if not settings.ENABLE_BKDATA_METRIC_CACHE and source_type == "BKDATA":
-                continue
-            # 数据平台指标缓存仅支持更新大于0业务
-            if source_type in (source_type_gt_0 + extr_source_type_gt_0) and biz.bk_biz_id <= 0:
-                continue
-            update_metric(source_type, biz.bk_biz_id)
 
     # 关联容器平台的业务，批量跑容器指标
     for k8s_biz_id in k8s_biz_set:
         update_metric("BKMONITORK8S", k8s_biz_id)
 
-    logger.info(f"$update metric list(round {offset}), biz count: {biz_count}, cost: {time.time() - start}")
+    logger.info(f"$update metric list(round {offset}), cost: {time.time() - start}")
 
 
 @shared_task(queue="celery_resource")
