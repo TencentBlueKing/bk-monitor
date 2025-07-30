@@ -96,7 +96,6 @@ export default class RuleWrapper extends tsc<RuleWrapperProps, RuleWrapperEvent>
 
   @Emit('dataChange')
   handleDataChange(val: IDetectionTypeRuleData) {
-    console.log(val);
     return val;
   }
 

@@ -303,13 +303,13 @@ export default class DetectionRules extends tsc<IDetectionRules, IEvent> {
         item.disabledTip = this.$tc('离群检测和其他算法互斥');
       }
 
-      // 智能检测算法 | 时序预测算法一致 | 离群检测
+      // 智能检测算法 | 时序预测算法一致 | 离群检测 | 新维度值检测
       if (
         [
           DetectionRuleTypeEnum.IntelligentDetect,
           DetectionRuleTypeEnum.TimeSeriesForecasting,
           DetectionRuleTypeEnum.AbnormalCluster,
-          // DetectionRuleTypeEnum.NewSeries,
+          DetectionRuleTypeEnum.NewSeries,
         ].includes(item.id)
       ) {
         if (!this.isCanSetAiops) {
