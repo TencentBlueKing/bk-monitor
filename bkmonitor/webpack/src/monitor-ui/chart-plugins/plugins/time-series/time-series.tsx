@@ -488,6 +488,7 @@ export class LineChart
         const { maxSeriesCount, maxXInterval } = getSeriesMaxInterval(series);
         /* 派出图表数据包含的维度*/
         this.emitDimensions(series);
+        series = series.toSorted((a, b) => b.name?.localeCompare?.(a?.name));
         this.series = Object.freeze(series) as any;
         if (this.onlyOneResult) {
           let hasResultSeries = false;
@@ -512,7 +513,6 @@ export class LineChart
           seriesResult.map((item, index) => ({
             name: item.name,
             cursor: 'auto',
-            // biome-ignore lint/style/noCommaOperator: <explanation>
             data: item.datapoints.reduce((pre: any, cur: any) => (pre.push(cur.reverse()), pre), []),
             stack: item.stack || random(10),
             unit: this.panel.options?.unit || item.unit,
