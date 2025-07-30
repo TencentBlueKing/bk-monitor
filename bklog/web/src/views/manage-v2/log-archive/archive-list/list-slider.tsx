@@ -89,23 +89,25 @@ export default defineComponent({
         bk_biz_id: bkBizId.value,
         have_data_id: 1,
       };
-      
+
       try {
         // 获取采集项配置列表
         const collectorConfigRes = await http.request('collect/getAllCollectors', { query });
-        collectorList.value[0].list = collectorConfigRes.data.map((item: any) => ({
-          id: item.collector_config_id,
-          name: item.collector_config_name,
-          ...item,
-        })) || [];
-        
+        collectorList.value[0].list =
+          collectorConfigRes.data.map((item: any) => ({
+            id: item.collector_config_id,
+            name: item.collector_config_name,
+            ...item,
+          })) || [];
+
         // 获取采集插件列表
         const collectorPluginRes = await http.request('collect/getCollectorPlugins', { query });
-        collectorList.value[1].list = collectorPluginRes.data.map((item: any) => ({
-          id: item.collector_plugin_id,
-          name: item.collector_plugin_name,
-          ...item,
-        })) || [];
+        collectorList.value[1].list =
+          collectorPluginRes.data.map((item: any) => ({
+            id: item.collector_plugin_id,
+            name: item.collector_plugin_name,
+            ...item,
+          })) || [];
       } catch (error) {
         console.warn('获取采集项列表失败:', error);
       }
@@ -130,9 +132,7 @@ export default defineComponent({
 
     // 采集项变更处理
     const handleCollectorChange = (value: any) => {
-      collectorType.value = collectorList.value.find(item => 
-        item.list.some((val: any) => val.id === value)
-      )?.id || '';
+      collectorType.value = collectorList.value.find(item => item.list.some((val: any) => val.id === value))?.id || '';
       formData.target_snapshot_repository_name = '';
     };
 
@@ -188,7 +188,7 @@ export default defineComponent({
       try {
         // 验证表单
         await validateForm.value?.validate();
-        
+
         // 确定请求URL和参数
         let url = '/archive/createArchive';
         const params: any = {};
@@ -217,14 +217,14 @@ export default defineComponent({
           data: paramsData,
           params,
         });
-        
+
         // 提示保存成功
         Message({
           theme: 'success',
           message: t('保存成功'),
           delay: 1500,
         });
-        
+
         // 通知父组件更新
         emit('handleUpdatedTable');
       } catch (error) {
@@ -286,39 +286,42 @@ export default defineComponent({
     };
 
     // 监听 showSlider 变化
-    watch(() => props.showSlider, async (val) => {
-      if (val) {
-        sliderLoading.value = isEdit.value;
-        await getCollectorList();
-        await getRepoList();
-        updateDaysList();
+    watch(
+      () => props.showSlider,
+      async val => {
+        if (val) {
+          sliderLoading.value = isEdit.value;
+          await getCollectorList();
+          await getRepoList();
+          updateDaysList();
 
-        if (isEdit.value) {
-          const {
-            instance_id: instanceId,
-            target_snapshot_repository_name,
-            snapshot_days,
-            instance_type: instanceType,
-          } = props.editArchive;
+          if (isEdit.value) {
+            const {
+              instance_id: instanceId,
+              target_snapshot_repository_name,
+              snapshot_days,
+              instance_type: instanceType,
+            } = props.editArchive;
 
-          // 先设置采集类型和采集项
-          collectorType.value = instanceType;
-          formData.instance_id = instanceId;
-          formData.snapshot_days = snapshot_days;
+            // 先设置采集类型和采集项
+            collectorType.value = instanceType;
+            formData.instance_id = instanceId;
+            formData.snapshot_days = snapshot_days;
 
-          // 等仓库选项刷新后再赋值仓库名称
-          await nextTick();
-          formData.target_snapshot_repository_name = target_snapshot_repository_name;
+            // 等仓库选项刷新后再赋值仓库名称
+            await nextTick();
+            formData.target_snapshot_repository_name = target_snapshot_repository_name;
+          }
+        } else {
+          // 清空表单数据
+          Object.assign(formData, {
+            snapshot_days: '',
+            instance_id: '',
+            target_snapshot_repository_name: '',
+          });
         }
-      } else {
-        // 清空表单数据
-        Object.assign(formData, {
-          snapshot_days: '',
-          instance_id: '',
-          target_snapshot_repository_name: '',
-        });
-      }
-    });
+      },
+    );
 
     // 组件挂载时初始化验证规则
     onMounted(() => {
@@ -331,7 +334,7 @@ export default defineComponent({
 
     // 侧滑组件主渲染
     return () => (
-      <div class="archive-slider-container">
+      <div class='archive-slider-container'>
         <bk-sideslider
           width={676}
           is-show={props.showSlider}
@@ -343,17 +346,17 @@ export default defineComponent({
         >
           <template slot='content'>
             <div
-              class="archive-slider-content"
+              class='archive-slider-content'
               v-bkloading={{ isLoading: sliderLoading.value }}
             >
               {/* 加载完成后渲染表单 */}
               {!sliderLoading.value && (
                 <bk-form
                   ref={validateForm}
-                  class="king-form"
+                  class='king-form'
                   label-width={350}
-                  data-test-id="addNewArchive_div_formContainer"
-                  form-type="vertical"
+                  data-test-id='addNewArchive_div_formContainer'
+                  form-type='vertical'
                   {...{
                     props: {
                       model: formData,
@@ -364,14 +367,14 @@ export default defineComponent({
                   {/* 选择采集项/采集插件 */}
                   <bk-form-item
                     label={t('选择采集项/采集插件')}
-                    property="instance_id"
+                    property='instance_id'
                     required
                   >
                     <bk-select
                       value={formData.instance_id}
                       clearable={false}
                       disabled={isEdit.value}
-                      data-test-id="formContainer_select_selectCollector"
+                      data-test-id='formContainer_select_selectCollector'
                       searchable
                       onChange={val => {
                         formData.instance_id = val;
@@ -381,50 +384,46 @@ export default defineComponent({
                       {renderCollectorOptions()}
                     </bk-select>
                   </bk-form-item>
-                  
+
                   {/* 归档仓库 */}
                   <bk-form-item
                     label={t('归档仓库')}
-                    property="target_snapshot_repository_name"
+                    property='target_snapshot_repository_name'
                     required
                   >
                     <bk-select
                       value={formData.target_snapshot_repository_name}
                       onChange={val => (formData.target_snapshot_repository_name = val)}
                       disabled={isEdit.value || !formData.instance_id}
-                      data-test-id="formContainer_select_selectStorehouse"
+                      data-test-id='formContainer_select_selectStorehouse'
                     >
                       {renderRepositoryOptions()}
                     </bk-select>
                   </bk-form-item>
-                  
+
                   {/* 过期时间 */}
                   <bk-form-item
                     label={t('过期时间')}
-                    property="snapshot_days"
+                    property='snapshot_days'
                     required
                   >
                     <bk-select
-                      style="width: 300px"
+                      style='width: 300px'
                       value={formData.snapshot_days}
                       onChange={val => (formData.snapshot_days = val)}
                       clearable={false}
-                      data-test-id="formContainer_select_selectExpireDate"
+                      data-test-id='formContainer_select_selectExpireDate'
                       scopedSlots={{
-                        trigger: () => (
-                          <div class="bk-select-name">
-                            {getDaysStr.value}
-                          </div>
-                        ),
+                        trigger: () => <div class='bk-select-name'>{getDaysStr.value}</div>,
                         extension: () => (
-                          <div style="padding: 8px 0">
+                          <div style='padding: 8px 0'>
                             <bk-input
                               value={customRetentionDay.value}
                               onChange={val => (customRetentionDay.value = val)}
                               placeholder={t('输入自定义天数，按 Enter 确认')}
                               show-controls={false}
-                              size="small"
-                              type="number"
+                              size='small'
+                              type='number'
                               onEnter={(val: string) => enterCustomDay(val)}
                             />
                           </div>
@@ -434,20 +433,20 @@ export default defineComponent({
                       {renderRetentionDaysOptions()}
                     </bk-select>
                   </bk-form-item>
-                  
+
                   {/* 提交/取消按钮 */}
-                  <bk-form-item style="margin-top: 40px">
+                  <bk-form-item style='margin-top: 40px'>
                     <bk-button
-                      class="king-button mr10"
+                      class='king-button mr10'
                       loading={confirmLoading.value}
-                      data-test-id="formContainer_button_handleSubmit"
-                      theme="primary"
+                      data-test-id='formContainer_button_handleSubmit'
+                      theme='primary'
                       onClick={handleConfirm}
                     >
                       {t('提交')}
                     </bk-button>
                     <bk-button
-                      data-test-id="formContainer_button_handleCancel"
+                      data-test-id='formContainer_button_handleCancel'
                       onClick={handleCancel}
                     >
                       {t('取消')}
@@ -461,4 +460,4 @@ export default defineComponent({
       </div>
     );
   },
-}); 
+});

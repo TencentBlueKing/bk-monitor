@@ -563,7 +563,7 @@ export default defineComponent({
                     props: {
                       model: formData,
                       rules: basicRules,
-                    }
+                    },
                   }}
                 >
                   {/* 基础信息标题 */}

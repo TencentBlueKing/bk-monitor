@@ -5,12 +5,17 @@ import useLocale from '@/hooks/use-locale';
 import http from '@/api';
 import * as authorityMap from '@/common/authority-map';
 import RepositorySlider from './repository-slider.tsx';
-import { clearTableFilter } from '@/common/util'; 
+import { clearTableFilter } from '@/common/util';
 import { InfoBox, Message } from 'bk-magic-vue';
 
-import './index.scss'; 
+import './index.scss';
 
 export default defineComponent({
+  name: 'ArchiveRepository',
+  components: {
+    RepositorySlider,
+    EmptyStatus,
+  },
   setup() {
     const store = useStore();
     const { t } = useLocale();
@@ -27,7 +32,8 @@ export default defineComponent({
     const isFilterSearch = ref(false); // 是否处于过滤搜索状态
     const params = reactive({ keyword: '' }); // 搜索参数
     const filterConditions = reactive({ type: '', cluster_source_type: '' }); // 过滤条件
-    const pagination = reactive({ // 分页参数
+    const pagination = reactive({
+      // 分页参数
       current: 1,
       count: 0,
       limit: 10,
@@ -40,14 +46,18 @@ export default defineComponent({
       fs: t('共享目录'),
       cos: 'COS',
     }));
+
     const bkBizId = computed(() => store.getters.bkBizId); // 业务ID
+    const authorityMapComputed = computed(() => authorityMap); // 权限映射计算属性
     const globalsData = computed(() => store.getters['globals/globalsData']); // 全局数据
+
     // 仓库类型过滤项
-    const repositoryFilters = computed(() => 
-      Object.keys(repoTypeMap.value).map(item => ({ text: repoTypeMap.value[item], value: item }))
+    const repositoryFilters = computed(() =>
+      Object.keys(repoTypeMap.value).map(item => ({ text: repoTypeMap.value[item], value: item })),
     );
+
     // 来源过滤项
-    const sourceFilters = computed(() => { 
+    const sourceFilters = computed(() => {
       const esSourceType = globalsData.value?.es_source_type || [];
       return esSourceType.map((data: any) => ({ text: data.name, value: data.id }));
     });
@@ -55,9 +65,10 @@ export default defineComponent({
     // 加载表格数据
     const getTableData = () => {
       isTableLoading.value = true;
-      http.request('archive/getRepositoryList', {
-        query: { bk_biz_id: bkBizId.value },
-      })
+      http
+        .request('archive/getRepositoryList', {
+          query: { bk_biz_id: bkBizId.value },
+        })
         .then((res: any) => {
           const data: any[] = Array.isArray(res.data) ? res.data : [];
           tableDataOrigin.value = data;
@@ -88,7 +99,7 @@ export default defineComponent({
       isTableLoading.value = true;
       if (params.keyword) {
         tableDataSearched.value = tableDataOrigin.value.filter(item =>
-          (item.repository_name + item.cluster_name).includes(params.keyword)
+          (item.repository_name + item.cluster_name).includes(params.keyword),
         );
       } else {
         tableDataSearched.value = tableDataOrigin.value;
@@ -103,7 +114,6 @@ export default defineComponent({
 
     // 过滤条件变更处理
     const handleFilterChange = (data: Record<string, string[]>) => {
-      console.log('handleFilterChange', data);
       Object.keys(data).forEach(item => {
         tableDataSearched.value = tableDataOrigin.value.filter(repo => {
           filterConditions[item] = Object.values(data)[0][0];
@@ -150,9 +160,9 @@ export default defineComponent({
 
     // 表格操作按钮处理（如删除）
     const operateHandler = (row: any, operateType: string) => {
-      if (!row.permission?.[authorityMap.MANAGE_ES_SOURCE_AUTH]) {
+      if (!row.permission?.[authorityMapComputed.value.MANAGE_ES_SOURCE_AUTH]) {
         return getOptionApplyData({
-          action_ids: [authorityMap.MANAGE_ES_SOURCE_AUTH],
+          action_ids: [authorityMapComputed.value.MANAGE_ES_SOURCE_AUTH],
           resources: [{ type: 'es_source', id: row.cluster_id }],
         });
       }
@@ -167,25 +177,27 @@ export default defineComponent({
 
     // 删除仓库请求
     const requestDeleteRepo = (row: any) => {
-      http.request('archive/deleteRepository', {
-        data: {
-          cluster_id: row.cluster_id,
-          snapshot_repository_name: row.repository_name,
-        },
-      }).then((res: any) => {
-        if (res.result) {
-          Message({
-            theme: 'success',
-            message: t('删除成功'),
-          });
-          if (tableDataPaged.value.length <= 1) {
-            pagination.current = pagination.current > 1 ? pagination.current - 1 : 1;
+      http
+        .request('archive/deleteRepository', {
+          data: {
+            cluster_id: row.cluster_id,
+            snapshot_repository_name: row.repository_name,
+          },
+        })
+        .then((res: any) => {
+          if (res.result) {
+            Message({
+              theme: 'success',
+              message: t('删除成功'),
+            });
+            if (tableDataPaged.value.length <= 1) {
+              pagination.current = pagination.current > 1 ? pagination.current - 1 : 1;
+            }
+            const deleteIndex = tableDataSearched.value.findIndex(item => item.repository_name === row.repository_name);
+            tableDataSearched.value.splice(deleteIndex, 1);
+            computePageData();
           }
-          const deleteIndex = tableDataSearched.value.findIndex(item => item.repository_name === row.repository_name);
-          tableDataSearched.value.splice(deleteIndex, 1);
-          computePageData();
-        }
-      });
+        });
     };
 
     // 权限申请弹窗
@@ -208,15 +220,7 @@ export default defineComponent({
       getTableData();
     };
 
-    // 搜索输入框内容变更处理
-    const handleSearchChange = (val: string) => {
-      if (val === '' && isTableLoading.value) {
-        pagination.current = 1;
-        handleSearch();
-      }
-    };
-
-    // 顶部操作栏按钮处理（清空过滤、刷新等）
+    // 清空筛选条件
     const handleOperation = (type: string) => {
       if (type === 'clear-filter') {
         params.keyword = '';
@@ -242,36 +246,41 @@ export default defineComponent({
     const renderHeader = (_: any, { column }: any) => <span>{column.label}</span>;
 
     return () => (
-      <section class="log-archive-repository" data-test-id="archive_section_storehouseContainer">
+      <section
+        class='log-archive-repository'
+        data-test-id='archive_section_storehouseContainer'
+      >
         {/* 顶部操作栏 */}
-        <section class="top-operation">
+        <section class='top-operation'>
           <bk-button
-            class="fl"
-            data-test-id="storehouseContainer_button_addNewStoreHouse"
-            theme="primary"
+            class='fl'
+            data-test-id='storehouseContainer_button_addNewStoreHouse'
+            theme='primary'
             onClick={handleCreate}
           >
             {t('新建')}
           </bk-button>
-          <div class="repository-search fr">
+          <div class='repository-search fr'>
             <bk-input
               value={params.keyword}
               clearable
-              right-icon="bk-icon icon-search"
-              data-test-id="storehouseContainer_input_searchTableItem"
-              onChange={val => {
-                params.keyword = val;
-                handleSearchChange(val);
-              }}
+              right-icon='bk-icon icon-search'
+              data-test-id='storehouseContainer_input_searchTableItem'
+              placeholder={t('请输入仓库名称')}
+              onChange={val => (params.keyword = val)}
               onEnter={handleSearch}
             />
           </div>
         </section>
+
         {/* 表格区域 */}
-        <section class="log-repository-table" data-test-id="storehouseContainer_section_tableList">
+        <section
+          class='log-repository-table'
+          data-test-id='storehouseContainer_section_tableList'
+        >
           <bk-table
             ref={repositoryTable}
-            class="repository-table"
+            class='repository-table'
             v-bkloading={{ isLoading: isTableLoading.value }}
             data={tableDataPaged.value}
             limit-list={pagination.limitList}
@@ -282,13 +291,16 @@ export default defineComponent({
             scopedSlots={{
               empty: () => (
                 <div>
-                  <EmptyStatus emptyType={emptyType.value} on-operation={handleOperation} />
+                  <EmptyStatus
+                    emptyType={emptyType.value}
+                    on-operation={handleOperation}
+                  />
                 </div>
               ),
             }}
           >
             <bk-table-column
-              width="120"
+              width='120'
               label={t('集群ID')}
               renderHeader={renderHeader}
               scopedSlots={{ default: (props: any) => props.row.cluster_id }}
@@ -308,9 +320,9 @@ export default defineComponent({
               filters={repositoryFilters.value}
               label={t('类型')}
               renderHeader={renderHeader}
-              class-name="filter-column"
-              column-key="type"
-              prop="type"
+              class-name='filter-column'
+              column-key='type'
+              prop='type'
               scopedSlots={{ default: (props: any) => repoTypeMap.value[props.row.type] }}
             />
             <bk-table-column
@@ -318,9 +330,9 @@ export default defineComponent({
               filters={sourceFilters.value}
               label={t('来源')}
               renderHeader={renderHeader}
-              class-name="filter-column"
-              column-key="cluster_source_type"
-              prop="cluster_source_type"
+              class-name='filter-column'
+              column-key='cluster_source_type'
+              prop='cluster_source_type'
               scopedSlots={{ default: (props: any) => props.row.cluster_source_name }}
             />
             <bk-table-column
@@ -334,16 +346,20 @@ export default defineComponent({
               scopedSlots={{ default: (props: any) => props.row.create_time }}
             />
             <bk-table-column
-              width="160"
+              width='160'
               label={t('操作')}
               renderHeader={renderHeader}
               scopedSlots={{
                 default: (props: any) => (
-                  <div class="repository-table-operate">
+                  <div class='repository-table-operate'>
                     <bk-button
-                      class="mr10 king-button"
-                      disabled={!(props.row.permission && props.row.permission[authorityMap.MANAGE_ES_SOURCE_AUTH])}
-                      theme="primary"
+                      class='mr10 king-button'
+                      disabled={
+                        !(
+                          props.row.permission && props.row.permission[authorityMapComputed.value.MANAGE_ES_SOURCE_AUTH]
+                        )
+                      }
+                      theme='primary'
                       text
                       onClick={() => operateHandler(props.row, 'delete')}
                     >
@@ -353,17 +369,17 @@ export default defineComponent({
                 ),
               }}
             />
-            {/* 空数据插槽已通过 scopedSlots.empty 实现，无需 template slot */}
           </bk-table>
         </section>
+
         {/* 新建/编辑归档仓库侧滑 */}
-          <RepositorySlider
-            onHandleCancelSlider={handleCancelSlider}
-            onHandleUpdatedTable={handleUpdatedTable}
-            editClusterId={editClusterId.value}
-            show-slider={showSlider.value}
-          />
+        <RepositorySlider
+          onHandleCancelSlider={handleCancelSlider}
+          onHandleUpdatedTable={handleUpdatedTable}
+          editClusterId={editClusterId.value}
+          show-slider={showSlider.value}
+        />
       </section>
     );
   },
-}); 
+});

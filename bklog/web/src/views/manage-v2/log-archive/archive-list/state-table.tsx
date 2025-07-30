@@ -53,7 +53,7 @@ export default defineComponent({
 
         const { data } = res;
         isPageOver.value = data.indices.length < pageSize;
-        
+
         if (data.indices.length) {
           const list = data.indices.map((item: any) => ({ ...item }));
           dataList.value.splice(dataList.value.length, 0, ...list);
@@ -103,25 +103,25 @@ export default defineComponent({
     return () => (
       <section
         ref={scrollContainer}
-        class="archive-state-list"
+        class='archive-state-list'
         onScroll={handleScroll}
       >
         <section>
           <bk-table
-            class="state-table"
+            class='state-table'
             v-bkloading={{ isLoading: isTableLoading.value }}
             data={dataList.value}
             outer-border={false}
           >
             <bk-table-column
               label={t('索引名')}
-              min-width="300"
+              min-width='300'
               renderHeader={renderHeader}
               scopedSlots={{ default: (props: any) => props.row.index_name }}
             />
             <bk-table-column
               label={t('数据起止时间')}
-              min-width="200"
+              min-width='200'
               renderHeader={renderHeader}
               scopedSlots={{ default: (props: any) => `${props.row.start_time} - ${props.row.end_time}` }}
             />
@@ -140,23 +140,23 @@ export default defineComponent({
               renderHeader={renderHeader}
               scopedSlots={{
                 default: (props: any) => (
-                  <div class="restore-status">
+                  <div class='restore-status'>
                     <span class={`status-icon is-${props.row.state}`}></span>
-                    <span class="status-text">{stateMap[props.row.state]}</span>
+                    <span class='status-text'>{stateMap[props.row.state]}</span>
                   </div>
                 ),
               }}
             />
             <bk-table-column
-              width="200"
+              width='200'
               label={t('是否已回溯')}
               renderHeader={renderHeader}
-              scopedSlots={{ default: (props: any) => props.row.is_stored ? t('是') : t('否') }}
+              scopedSlots={{ default: (props: any) => (props.row.is_stored ? t('是') : t('否')) }}
             />
           </bk-table>
           {dataList.value.length > 0 && (
             <div
-              style="height: 40px"
+              style='height: 40px'
               v-bkloading={{ isLoading: true }}
               v-show={!isPageOver.value}
             ></div>
@@ -165,4 +165,4 @@ export default defineComponent({
       </section>
     );
   },
-}); 
+});

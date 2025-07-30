@@ -6,7 +6,7 @@ import * as authorityMap from '@/common/authority-map';
 import { formatFileSize, clearTableFilter } from '@/common/util';
 import EmptyStatus from '@/components/empty-status/index.vue';
 import ListSlider from './list-slider.tsx';
-import RestoreSlider from '../archive-restore/restore-slider.vue';
+import RestoreSlider from '../archive-restore/restore-slider.tsx';
 import StateTable from './state-table.tsx';
 import { InfoBox, Message } from 'bk-magic-vue';
 
@@ -26,7 +26,7 @@ export default defineComponent({
     const archiveTable = ref<any>(null); // 表格引用
 
     const isTableLoading = ref(false); // 表格加载状态
-    const isRenderSlider = ref(true); // 是否渲染侧滑组件
+    // const isRenderSlider = ref(true); // 是否渲染侧滑组件
     const showRestoreSlider = ref(false); // 是否显示回溯侧滑
     const showSlider = ref(false); // 是否显示归档侧滑
     const keyword = ref(''); // 搜索关键词
@@ -34,7 +34,8 @@ export default defineComponent({
     const editArchive = ref<any>(null); // 编辑的归档数据
     const dataList = ref<any[]>([]); // 表格数据列表
     const emptyType = ref('empty'); // 空状态类型
-    const pagination = reactive({ // 分页配置
+    const pagination = reactive({
+      // 分页配置
       current: 1,
       count: 0,
       limit: 10,
@@ -58,15 +59,16 @@ export default defineComponent({
     const requestData = () => {
       isTableLoading.value = true;
       emptyType.value = keyword.value ? 'search-empty' : 'empty';
-      
-      http.request('archive/getArchiveList', {
-        query: {
-          keyword: keyword.value,
-          bk_biz_id: bkBizId.value,
-          page: pagination.current,
-          pagesize: pagination.limit,
-        },
-      })
+
+      http
+        .request('archive/getArchiveList', {
+          query: {
+            keyword: keyword.value,
+            bk_biz_id: bkBizId.value,
+            page: pagination.current,
+            pagesize: pagination.limit,
+          },
+        })
         .then((res: any) => {
           const { data } = res;
           pagination.count = data.total;
@@ -85,9 +87,6 @@ export default defineComponent({
       pagination.current = 1;
       requestData();
     };
-
-    // 过滤条件变更
-    const handleFilterChange = () => {};
 
     // 新建归档
     const handleCreate = () => {
@@ -118,9 +117,14 @@ export default defineComponent({
       search();
     };
 
-    // 关闭新增归档/编辑归档侧滑弹窗
+    // 关闭归档侧滑弹窗
     const handleCancelSlider = () => {
       showSlider.value = false;
+    };
+
+    // 关闭回溯侧滑弹窗
+    const handleCancelRestoreSlider = () => {
+      showRestoreSlider.value = false;
     };
 
     // 更新回溯后回调
@@ -169,19 +173,16 @@ export default defineComponent({
 
     // 删除请求
     const requestDelete = (row: any) => {
-      http.request('archive/deleteArchive', {
-        params: {
-          archive_config_id: row.archive_config_id,
-        },
-      })
+      http
+        .request('archive/deleteArchive', {
+          params: {
+            archive_config_id: row.archive_config_id,
+          },
+        })
         .then((res: any) => {
           if (res.result) {
             const page =
-              dataList.value.length <= 1
-                ? pagination.current > 1
-                  ? pagination.current - 1
-                  : 1
-                : pagination.current;
+              dataList.value.length <= 1 ? (pagination.current > 1 ? pagination.current - 1 : 1) : pagination.current;
             Message({
               theme: 'success',
               message: t('删除成功'),
@@ -234,65 +235,71 @@ export default defineComponent({
     const renderHeader = (_: any, { column }: any) => <span>{column.label}</span>;
 
     return () => (
-      <section class="log-archive-list" data-test-id="archive_section_archiveList">
+      <section
+        class='log-archive-list'
+        data-test-id='archive_section_archiveList'
+      >
         {/* 顶部操作栏 */}
-        <section class="top-operation">
+        <section class='top-operation'>
           <bk-button
-            class="fl"
-            data-test-id="archiveList_button_newArchive"
-            theme="primary"
+            class='fl'
+            data-test-id='archiveList_button_newArchive'
+            theme='primary'
             onClick={handleCreate}
           >
-            {t('归档')}
+            {t('新建')}
           </bk-button>
-          <div class="list-search fr">
+          <div class='list-search fr'>
             <bk-input
               value={keyword.value}
               clearable
-              right-icon="bk-icon icon-search"
-              data-test-id="archiveList_input_searchListItem"
-              onChange={val => keyword.value = val}
+              right-icon='bk-icon icon-search'
+              data-test-id='archiveList_input_searchListItem'
+              placeholder={t('请输入仓库名称')}
+              onChange={val => (keyword.value = val)}
               onEnter={search}
             />
           </div>
         </section>
 
         {/* 表格区域 */}
-        <section class="log-archive-table">
+        <section class='log-archive-table'>
           <bk-table
             ref={archiveTable}
-            class="archive-table"
+            class='archive-table'
             v-bkloading={{ isLoading: isTableLoading.value }}
             data={dataList.value}
             limit-list={pagination.limitList}
             pagination={pagination}
-            data-test-id="archiveList_section_tableList"
-            onFilter-change={handleFilterChange}
+            data-test-id='archiveList_section_tableList'
             onPage-change={handlePageChange}
             onPage-limit-change={handleLimitChange}
             scopedSlots={{
               empty: () => (
                 <div>
-                  <EmptyStatus emptyType={emptyType.value} on-operation={handleOperation} />
+                  <EmptyStatus
+                    emptyType={emptyType.value}
+                    on-operation={handleOperation}
+                  />
                 </div>
               ),
             }}
           >
             <bk-table-column
-              width="30"
-              align="center"
-              type="expand"
+              width='30'
+              align='center'
+              type='expand'
               scopedSlots={{
                 default: (props: any) => (
-                  <div class="state-table-wrapper">
+                  <div class='state-table-wrapper'>
                     <StateTable archiveConfigId={props.row.archive_config_id} />
                   </div>
                 ),
               }}
             />
             <bk-table-column
-              width="100"
-              label="ID"
+              width='100'
+              label='ID'
               scopedSlots={{ default: (props: any) => props.row.archive_config_id }}
             />
             <bk-table-column
@@ -318,21 +325,26 @@ export default defineComponent({
             <bk-table-column
               label={t('归档仓库')}
               renderHeader={renderHeader}
-              prop="target_snapshot_repository_name"
+              prop='target_snapshot_repository_name'
               scopedSlots={{ default: (props: any) => props.row.target_snapshot_repository_name }}
             />
             <bk-table-column
-              width="200"
+              width='200'
               label={t('操作')}
               renderHeader={renderHeader}
               scopedSlots={{
                 default: (props: any) => (
-                  <div class="collect-table-operate">
+                  <div class='collect-table-operate'>
                     {/* 回溯 */}
                     <bk-button
-                      class="mr10 king-button"
-                      disabled={!(props.row.permission && props.row.permission[authorityMapComputed.value.MANAGE_COLLECTION_AUTH])}
-                      theme="primary"
+                      class='mr10 king-button'
+                      disabled={
+                        !(
+                          props.row.permission &&
+                          props.row.permission[authorityMapComputed.value.MANAGE_COLLECTION_AUTH]
+                        )
+                      }
+                      theme='primary'
                       text
                       onClick={() => operateHandler(props.row, 'restore')}
                     >
@@ -340,9 +352,14 @@ export default defineComponent({
                     </bk-button>
                     {/* 编辑 */}
                     <bk-button
-                      class="mr10 king-button"
-                      disabled={!(props.row.permission && props.row.permission[authorityMapComputed.value.MANAGE_COLLECTION_AUTH])}
-                      theme="primary"
+                      class='mr10 king-button'
+                      disabled={
+                        !(
+                          props.row.permission &&
+                          props.row.permission[authorityMapComputed.value.MANAGE_COLLECTION_AUTH]
+                        )
+                      }
+                      theme='primary'
                       text
                       onClick={() => operateHandler(props.row, 'edit')}
                     >
@@ -350,9 +367,14 @@ export default defineComponent({
                     </bk-button>
                     {/* 删除 */}
                     <bk-button
-                      class="mr10 king-button"
-                      disabled={!(props.row.permission && props.row.permission[authorityMapComputed.value.MANAGE_COLLECTION_AUTH])}
-                      theme="primary"
+                      class='mr10 king-button'
+                      disabled={
+                        !(
+                          props.row.permission &&
+                          props.row.permission[authorityMapComputed.value.MANAGE_COLLECTION_AUTH]
+                        )
+                      }
+                      theme='primary'
                       text
                       onClick={() => operateHandler(props.row, 'delete')}
                     >
@@ -366,25 +388,19 @@ export default defineComponent({
         </section>
 
         {/* 新增/编辑归档 */}
-        {isRenderSlider.value && (
-          <ListSlider
-            onHandleCancelSlider={handleCancelSlider}
-            onHandleUpdatedTable={handleUpdatedTable}
-            editArchive={editArchive.value}
-            show-slider={showSlider.value}
-          />
-        )}
+        <ListSlider
+          onHandleCancelSlider={handleCancelSlider}
+          onHandleUpdatedTable={handleUpdatedTable}
+          editArchive={editArchive.value}
+          showSlider={showSlider.value}
+        />
 
         {/* 新建回溯 */}
         <RestoreSlider
+          onHandleCancelSlider={handleCancelRestoreSlider}
+          onHandleUpdatedTable={handleUpdatedRestore}
           archiveId={editArchiveId.value}
           showSlider={showRestoreSlider.value}
-          {...{
-            on: {
-              updated: handleUpdatedRestore,
-              'update:showSlider': (val: boolean) => { showRestoreSlider.value = val; }
-            }
-          }}
         />
       </section>
     );
