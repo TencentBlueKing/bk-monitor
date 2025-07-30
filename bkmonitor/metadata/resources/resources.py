@@ -305,10 +305,10 @@ class CreateResultTableResource(Resource):
             logger.error(
                 "CreateResultTableResource: create table failed, table_id->[%s], error->[%s]", table_id, e.__cause__
             )
-            raise e.__cause__
+            raise e
         except Exception as e:
             logger.error("CreateResultTableResource: create table failed, table_id->[%s], error->[%s]", table_id, e)
-            raise e.__cause__
+            raise e
         return {"table_id": new_result_table.table_id}
 
 

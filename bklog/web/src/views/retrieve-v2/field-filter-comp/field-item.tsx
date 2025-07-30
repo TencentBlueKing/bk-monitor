@@ -134,7 +134,10 @@ export default class FieldItem extends tsc<object> {
   handleClickAnalysisItem() {
     this.instanceDestroy();
     this.analysisActive = true;
-    this.fieldAnalysisInstance = new FieldAnalysis();
+    this.fieldAnalysisInstance = new FieldAnalysis({
+      router: this.$router,
+      store: this.$store,
+    });
     const indexSetIDs = this.isUnionSearch
       ? this.unionIndexList
       : [window.__IS_MONITOR_COMPONENT__ ? this.$route.query.indexId : this.$route.params.indexId];
