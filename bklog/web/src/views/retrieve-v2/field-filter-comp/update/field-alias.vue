@@ -45,7 +45,7 @@ const globalsData = computed(() => store.getters["globals/globalsData"]);
 const handleOpenSidebar = async () => {
   showSlider.value = true;
   emit("handle-popover-hide");
-  await initFormData();
+  // await initFormData();
   addObject();
 };
 // 提交
@@ -97,32 +97,38 @@ const closeSlider = () => {
   formData.value = [];
 };
 // 初始化数据
-const initFormData = async () => {
-  sliderLoading.value = true;
-  const indexSetList = store.state.retrieve.indexSetList;
-  const indexSetId = route.params?.indexId;
-  const currentIndexSet = indexSetList.find(
-    (item) => item.index_set_id === `${indexSetId}`
-  );
-  await $http
-    .request("collect/details", {
-      params: {
-        collector_config_id: currentIndexSet.collector_config_id,
-      },
-    })
-    .then((res) => {
-      objField.value = res.data.fields
-        .filter((field) => field.field_type === "object")
-        .map((item) => {
-          return {
-            field_name: item.field_name,
-            query_alias: item.query_alias,
-            field_type: item.field_type,
-          };
-        });
-      sliderLoading.value = false;
-    });
-};
+// const initFormData = async () => {
+ 
+//   sliderLoading.value = true;
+//   const indexSetList = store.state.retrieve.indexSetList;
+//   const indexSetId = route.params?.indexId;
+//   const currentIndexSet = indexSetList.find(
+//     (item) => item.index_set_id === `${indexSetId}`
+//   );
+//   console.log(currentIndexSet);
+//   if(!currentIndexSet.collector_config_id){ 
+//     sliderLoading.value = false;
+//     return
+//   }
+//   await $http
+//     .request("collect/details", {
+//       params: {
+//         collector_config_id: currentIndexSet.collector_config_id,
+//       },
+//     })
+//     .then((res) => {
+//       objField.value = res.data.fields
+//         .filter((field) => field.field_type === "object")
+//         .map((item) => {
+//           return {
+//             field_name: item.field_name,
+//             query_alias: item.query_alias,
+//             field_type: item.field_type,
+//           };
+//         });
+//       sliderLoading.value = false;
+//     });
+// };
 // 展开对象按钮的回调
 const expandObject = (row, show) => {
   row.expand = show;
@@ -159,13 +165,17 @@ const addObject = () => {
   const keyFieldList = deepFields.filter((field) => field.field_name.includes("."));
 
   const objectFieldMap = new Map();
-  objField.value.forEach((objectField) => {
-    const objectFieldName = objectField.field_name?.split(".")[0];
-    if (!objectFieldMap.has(objectFieldName)) {
-      objectFieldMap.set(objectFieldName, {
-        ...objectField,
-        children: undefined,
-      });
+  fields.value.forEach((field) => {
+  if (field.field_name.includes(".") || field.field_type == "object") {
+      const fieldNamePrefix = field.field_name.split(".")[0].replace(/^_+|_+$/g, "");
+      if (!objectFieldMap.has(fieldNamePrefix)) {
+        objectFieldMap.set(fieldNamePrefix, {
+          field_name: fieldNamePrefix,
+          field_type: "object",
+          is_built_in: true,
+          children: undefined,
+        });
+      }
     }
   });
   keyFieldList.forEach((item) => {
@@ -182,7 +192,7 @@ const addObject = () => {
   });
 
   const normalFields = deepFields.filter(
-    (field) => field.field_type !== "virtual" && !field.field_name.includes(".")
+    (field) => field.field_type !== "__virtual__" && !field.field_name.includes(".")
   );
 
   // 将对象字段分为有子项和无子项两类
