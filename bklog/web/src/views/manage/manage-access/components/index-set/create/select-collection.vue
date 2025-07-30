@@ -122,6 +122,7 @@
             v-bkloading="{ isLoading: tableLoading }"
             :data="tableData"
             max-height="400"
+            ext-cls="table-container-collection"
           >
             <bk-table-column
               :label="$t('字段')"
@@ -374,21 +375,29 @@
         try {
           await this.$refs.formRef.validate();
           this.confirmLoading = true;
-          
-          const data = {
-            scenario_id: this.scenarioId,
-            basic_indices: this.parentData.indexes.map(item => ({
-              index: item.result_table_id,
-            })),
-            append_index: {
-              index: this.formData.resultTableId,
-            },
-          };
-          await this.$http.request('/resultTables/adapt', { data });
-          this.$emit(
-            'selected',
-            this.collectionList.find(item => item.result_table_id === this.formData.resultTableId),
-          );
+          if(this.scenarioId === 'log') {
+            this.formData.resultTableIds.forEach(resultTableId => {
+              this.$emit(
+              'selected',
+              this.collectionList.find(item => item.result_table_id === resultTableId),
+            );
+            });
+          }else{
+            const data = {
+              scenario_id: this.scenarioId,
+              basic_indices: this.parentData.indexes.map(item => ({
+                index: item.result_table_id,
+              })),
+              append_index: {
+                index: this.formData.resultTableId,
+              },
+            };
+            await this.$http.request('/resultTables/adapt', { data });
+            this.$emit(
+              'selected',
+              this.collectionList.find(item => item.result_table_id === this.formData.resultTableId),
+            );
+          }
           this.showDialog = false;
         } catch (e) {
           console.warn(e);
@@ -432,5 +441,11 @@
 
   .overflow-tips {
     @include overflow-tips;
+  }
+  .table-container-collection{
+
+    :deep(.bk-table-body-wrapper){
+      overflow-x: hidden;
+    }
   }
 </style>
