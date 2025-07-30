@@ -543,7 +543,7 @@ class UnifyQueryHandler:
             clustered_rt = None
             if index_info.get("using_clustering_proxy", False):
                 clustered_rt = index_info["indices"]
-            query_dict["table_id"] = BaseIndexSetHandler.get_data_label(self.index_set_ids[0], clustered_rt)
+            query_dict["table_id"] = BaseIndexSetHandler.get_data_label(index_info["index_set_id"], clustered_rt)
 
             if self.agg_field:
                 query_dict["field_name"] = self.agg_field
