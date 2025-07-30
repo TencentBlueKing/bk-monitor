@@ -51,7 +51,6 @@
           required
         >
           <bk-select
-            v-if="scenarioId === 'bkdata'"
             v-model="formData.resultTableId"
             :clearable="false"
             data-test-id="addIndex_select_selectIndex"
@@ -303,7 +302,8 @@
           console.warn(e);
         }
       },
-      async handleMultipleSelected(id ) {
+      // 选择采集项获取字段列表
+      async handleMultipleSelected(id) {
         try {
           const res = await this.$http.request(
             '/resultTables/info',
@@ -442,8 +442,8 @@
   .overflow-tips {
     @include overflow-tips;
   }
-  .table-container-collection{
 
+  .table-container-collection{
     :deep(.bk-table-body-wrapper){
       overflow-x: hidden;
     }
