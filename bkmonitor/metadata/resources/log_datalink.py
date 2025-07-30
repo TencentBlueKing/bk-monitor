@@ -20,10 +20,10 @@ from bkmonitor.utils.user import get_request_username
 from core.drf_resource import Resource
 from metadata import config, models
 from metadata.models.constants import BULK_CREATE_BATCH_SIZE, BULK_UPDATE_BATCH_SIZE
+from metadata.models.space.space_table_id_redis import SpaceTableIDRedis
 from metadata.service.space_redis import (
     push_and_publish_doris_table_id_detail,
     push_and_publish_es_aliases,
-    push_and_publish_es_table_id,
     push_and_publish_log_space_router,
 )
 
@@ -259,23 +259,12 @@ class UpdateEsRouter(BaseLogRouter):
         # 更新options
         if data.get("options"):
             self.create_or_update_options(bk_tenant_id=bk_tenant_id, table_id=table_id, options=data["options"])
-        options = list(
-            models.ResultTableOption.objects.filter(bk_tenant_id=bk_tenant_id, table_id=table_id).values(
-                "name", "value", "value_type"
-            )
-        )
         # 如果别名或者索引集有变动，则需要通知到unify-query
         if need_refresh_data_label:
             push_and_publish_es_aliases(bk_tenant_id=bk_tenant_id, data_label=data["data_label"])
         logger.info("UpdateEsRouter: try to push es detail router for table_id->[%s]", table_id)
-        push_and_publish_es_table_id(
-            bk_tenant_id=result_table.bk_tenant_id,
-            table_id=table_id,
-            index_set=es_storage.index_set,
-            source_type=es_storage.source_type,
-            cluster_id=es_storage.storage_cluster_id,
-            options=options,
-        )
+        client = SpaceTableIDRedis()
+        client.push_es_table_id_detail(table_id_list=[table_id], bk_tenant_id=bk_tenant_id, is_publish=True)
 
 
 class UpdateDorisRouter(BaseLogRouter):
