@@ -48,6 +48,10 @@
       /* stylelint-disable-next-line declaration-no-important */
       max-height: 126px !important;
     }
+
+    .bk-loading {
+      z-index: 1;
+    }
   }
 }
 
