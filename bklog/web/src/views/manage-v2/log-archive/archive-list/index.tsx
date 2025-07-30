@@ -255,7 +255,7 @@ export default defineComponent({
               clearable
               right-icon='bk-icon icon-search'
               data-test-id='archiveList_input_searchListItem'
-              placeholder={t('请输入仓库名称')}
+              placeholder={t('请输入名称')}
               onChange={val => (keyword.value = val)}
               onEnter={search}
             />

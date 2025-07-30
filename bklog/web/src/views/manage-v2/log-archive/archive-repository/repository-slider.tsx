@@ -152,8 +152,8 @@ export default defineComponent({
       InfoBox({
         title: t('确认离开当前页？'),
         subTitle: t('离开将会导致未保存信息丢失'),
-        okText: '离开',
-        cancelText: '取消',
+        okText: t('离开'),
+        cancelText: t('取消'),
         confirmFn: () => emit('handleCancelSlider'),
       });
     };

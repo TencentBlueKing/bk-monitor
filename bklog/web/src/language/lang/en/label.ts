@@ -821,4 +821,6 @@ export default {
   分享: 'Share',
   综合时间排序: 'Comprehensive Time Sorting',
   '已选择{0}个动态组': 'Selected {0} dynamic groups',
+  请输入仓库名称: 'Please enter a store name',
+  请输入名称: 'Please enter a name',
 };
