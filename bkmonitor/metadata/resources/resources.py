@@ -62,6 +62,7 @@ from metadata.models.data_link.utils import (
 )
 from metadata.models.data_source import DataSourceResultTable
 from metadata.models.space.constants import SPACE_UID_HYPHEN, SpaceTypes, EtlConfigs
+from metadata.models.space.space_table_id_redis import SpaceTableIDRedis
 from metadata.service.data_source import (
     modify_data_id_source,
     stop_or_enable_datasource,
@@ -546,6 +547,16 @@ class ModifyResultTableResource(Resource):
         except Exception as e:  # pylint: disable=broad-except
             logger.warning("notify_log_data_id_changed error, table_id->[%s],error->[%s]", table_id, e)
 
+        if result_table.default_storage == models.ClusterInfo.TYPE_ES:
+            # 推送路由
+            logger.info(
+                "ModifyResultTableResource: all things done, now try to push es route,table_id->[%s]",
+                result_table.table_id,
+            )
+            client = SpaceTableIDRedis()
+            client.push_es_table_id_detail(
+                table_id_list=[result_table.table_id], bk_tenant_id=result_table.bk_tenant_id
+            )
         return result_table.to_json()
 
 
