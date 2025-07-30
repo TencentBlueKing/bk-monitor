@@ -46,6 +46,7 @@ export const alarmTypeMap: { label: string; value: AlarmType }[] = [
   },
 ] as const;
 
+/** 告警状态icon */
 export const AlarmStatusIconMap = {
   ABNORMAL: {
     icon: 'icon-mind-fill',
@@ -66,6 +67,46 @@ export const AlarmStatusIconMap = {
   CLOSED: {
     icon: '',
     iconColor: '#DCDEE5',
+  },
+};
+
+/** 处理记录icon */
+export const ActionIconMap = {
+  success: {
+    icon: 'icon-mc-check-fill',
+    iconColor: '#6FC5BF',
+  },
+  failure: {
+    icon: 'icon-mc-close-fill',
+    iconColor: '#F59789',
+  },
+};
+
+/** 故障icon */
+export const IncidentIconMap = {
+  MY_ASSIGNEE_INCIDENT: {
+    icon: 'icon-gaojingfenpai',
+    iconColor: '',
+  },
+  MY_HANDLER_INCIDENT: {
+    icon: 'icon-chulitaocan1',
+    iconColor: '',
+  },
+  abnormal: {
+    icon: 'icon-mind-fill',
+    iconColor: '#F59789',
+  },
+  closed: {
+    icon: 'icon-mc-solved',
+    iconColor: '#8E9BB3',
+  },
+  recovering: {
+    icon: 'icon-mc-visual-fill',
+    iconColor: '#F8B64F',
+  },
+  recovered: {
+    icon: 'icon-mc-check-fill',
+    iconColor: '#6FC5BF',
   },
 };
 

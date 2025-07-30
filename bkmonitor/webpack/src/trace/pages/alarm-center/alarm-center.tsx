@@ -24,10 +24,9 @@
  * IN THE SOFTWARE.
  */
 import { defineComponent, onBeforeMount, shallowRef, watchEffect } from 'vue';
-import { useRoute, useRouter } from 'vue-router';
 
-import { useAlarmCenterStore } from '@/store/modules/alarm-center';
 import { tryURLDecodeParse } from 'monitor-common/utils';
+import { useRoute, useRouter } from 'vue-router';
 
 import { EMode } from '../../components/retrieval-filter/typing';
 import { mergeWhereList } from '../../components/retrieval-filter/utils';
@@ -42,7 +41,8 @@ import QuickFiltering from './components/quick-filtering';
 import { useAlarmTable } from './composables/use-alarm-table';
 import { useQuickFilter } from './composables/use-quick-filter';
 import { useAlarmTableColumns } from './composables/use-table-columns';
-import { CONTENT_SCROLL_ELEMENT_CLASS_NAME, type CommonCondition } from './typings';
+import { type CommonCondition, AlarmType, CONTENT_SCROLL_ELEMENT_CLASS_NAME } from './typings';
+import { useAlarmCenterStore } from '@/store/modules/alarm-center';
 
 import './alarm-center.scss';
 export default defineComponent({
@@ -93,6 +93,7 @@ export default defineComponent({
         residentCondition: JSON.stringify(alarmStore.residentCondition),
         quickFilterValue: JSON.stringify(alarmStore.quickFilterValue),
         filterMode: alarmStore.filterMode,
+        alarmType: alarmStore.alarmType,
         bizIds: JSON.stringify(alarmStore.bizIds),
       };
 
@@ -119,6 +120,7 @@ export default defineComponent({
         quickFilterValue,
         filterMode,
         bizIds,
+        alarmType,
       } = route.query;
       try {
         if (from && to) {
@@ -132,6 +134,7 @@ export default defineComponent({
         alarmStore.quickFilterValue = tryURLDecodeParse(quickFilterValue as string, []);
         alarmStore.filterMode = (filterMode as EMode) || EMode.ui;
         alarmStore.bizIds = tryURLDecodeParse(bizIds as string, [-1]);
+        alarmStore.alarmType = (alarmType as AlarmType) || AlarmType.ALERT;
       } catch (error) {
         console.log('route query:', error);
       }
@@ -177,6 +180,7 @@ export default defineComponent({
                     <QuickFiltering
                       filterList={this.quickFilterList}
                       filterValue={this.alarmStore.quickFilterValue}
+                      isFilterEmptyItem={false}
                       loading={this.quickFilterLoading}
                       onClose={this.updateIsCollapsed}
                       onUpdate:filterValue={this.handleFilterValueChange}

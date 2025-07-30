@@ -24,20 +24,21 @@
  * IN THE SOFTWARE.
  */
 
-import { incidentTopN, incidentList, incidentOverview } from 'monitor-api/modules/incident';
+import { incidentList, incidentOverview, incidentTopN } from 'monitor-api/modules/incident';
 
+import {
+  type AlarmType,
+  type AnalysisFieldAggItem,
+  type AnalysisTopNDataResponse,
+  type CommonFilterParams,
+  type FilterTableResponse,
+  type IncidentTableItem,
+  type QuickFilterItem,
+  type TableColumnItem,
+  IncidentIconMap,
+} from '../typings';
 import { AlarmService } from './base';
 
-import type {
-  AlarmType,
-  CommonFilterParams,
-  AnalysisTopNDataResponse,
-  AnalysisFieldAggItem,
-  IncidentTableItem,
-  FilterTableResponse,
-  QuickFilterItem,
-  TableColumnItem,
-} from '../typings';
 import type { IFilterField } from '@/components/retrieval-filter/typing';
 const INCIDENT_TABLE_COLUMNS = [
   {
@@ -169,10 +170,13 @@ export class IncidentService extends AlarmService<AlarmType.INCIDENT> {
         const incidentLevelList = [];
         for (const item of overview?.children || []) {
           if (['MY_ASSIGNEE_INCIDENT', 'MY_HANDLER_INCIDENT'].includes(item.id)) {
-            myIncidentList.push(item);
+            myIncidentList.push({
+              ...item,
+              ...IncidentIconMap[item.id],
+            });
             continue;
           }
-          incidentLevelList.push(item);
+          incidentLevelList.push({ ...item, ...IncidentIconMap[item.id] });
         }
         return [
           {
