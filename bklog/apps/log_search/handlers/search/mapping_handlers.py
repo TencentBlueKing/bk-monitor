@@ -20,14 +20,11 @@ the project delivered to anyone in the future.
 """
 
 import copy
-import datetime
 import functools
 import re
 from collections import defaultdict
 from typing import Any
 
-import arrow
-import pytz
 from django.conf import settings
 from django.utils.functional import cached_property
 from django.utils.translation import gettext as _
@@ -462,24 +459,8 @@ class MappingHandlers:
         return type_keyword_fields[:2]
 
     def _get_mapping(self):
-        # 当没有指定时间范围时，默认获取最近一天的mapping
-        if not self.start_time and not self.end_time:
-            start_time, end_time = generate_time_range("1d", "", "", self.time_zone)
-        else:
-            try:
-                start_time = arrow.get(int(self.start_time)).to(self.time_zone)
-                end_time = arrow.get(int(self.end_time)).to(self.time_zone)
-            except ValueError:
-                start_time = arrow.get(self.start_time, tzinfo=self.time_zone)
-                end_time = arrow.get(self.end_time, tzinfo=self.time_zone)
-
-        start_time_format = start_time.floor("hour").strftime("%Y-%m-%d %H:%M:%S")
-        end_time_format = end_time.ceil("hour").strftime("%Y-%m-%d %H:%M:%S")
-
         return self._get_latest_mapping(
             indices=self.indices,
-            start_time=start_time_format,
-            end_time=end_time_format,
             only_search=self.only_search,
         )
 
@@ -494,32 +475,24 @@ class MappingHandlers:
             latest_mapping = BkLogApi.mapping(params)
         return latest_mapping
 
-    @cache_one_minute("latest_mapping_key_{indices}_{start_time}_{end_time}_{only_search}", need_md5=True)
-    def _get_latest_mapping(self, indices, start_time, end_time, only_search=False):  # noqa
-        storage_cluster_record_objs = StorageClusterRecord.objects.none()
+    def _get_latest_mapping(self, indices, only_search=False):  # noqa
+        # 获取最近一天的mapping
+        start_time, end_time = generate_time_range("1d", "", "", self.time_zone)
 
-        if self.start_time:
-            try:
-                tz_info = pytz.timezone(get_local_param("time_zone", settings.TIME_ZONE))
-                if isinstance(self.start_time, int | float) or (
-                    isinstance(self.start_time, str) and self.start_time.isdigit()
-                ):
-                    start_datetime = arrow.get(int(self.start_time)).to(tz=tz_info).datetime
-                else:
-                    start_datetime = arrow.get(self.start_time).replace(tzinfo=tz_info).datetime
-                storage_cluster_record_objs = StorageClusterRecord.objects.filter(
-                    index_set_id=int(self.index_set_id), created_at__gt=(start_datetime - datetime.timedelta(hours=1))
-                ).exclude(storage_cluster_id=self.storage_cluster_id)
-            except Exception as e:  # pylint: disable=broad-except
-                logger.exception(f"[_multi_mappings] parse time error -> e: {e}")
+        start_time_format = start_time.floor("hour").strftime("%Y-%m-%d %H:%M:%S")
+        end_time_format = end_time.ceil("hour").strftime("%Y-%m-%d %H:%M:%S")
+
+        storage_cluster_record_objs = StorageClusterRecord.objects.filter(
+            index_set_id=int(self.index_set_id), created_at__gt=start_time.datetime
+        ).exclude(storage_cluster_id=self.storage_cluster_id)
 
         params = {
             "indices": self.indices,
             "scenario_id": self.scenario_id,
             "storage_cluster_id": self.storage_cluster_id,
             "time_zone": self.time_zone,
-            "start_time": start_time,
-            "end_time": end_time,
+            "start_time": start_time_format,
+            "end_time": end_time_format,
             "add_settings_details": False if only_search else True,
         }
         if not storage_cluster_record_objs.exists():
@@ -550,6 +523,7 @@ class MappingHandlers:
         merge_result = list()
         try:
             for _key, _result in multi_result.items():
+                print(_result)
                 merge_result.extend(_result)
         except Exception as e:
             logger.error(f"[_multi_get_latest_mapping] error -> e: {e}")
