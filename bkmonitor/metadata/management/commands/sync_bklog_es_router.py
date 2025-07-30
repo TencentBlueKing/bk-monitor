@@ -103,7 +103,7 @@ class Command(BaseCommand):
     def _get_biz_id_by_space(self, space_type_and_id: list) -> dict:
         space_and_biz = {}
         for space in set(space_type_and_id):
-            if len(space) < 2:
+            if len(space) != 2:
                 self.stderr.write(f"invalid space: {space}")
                 continue
             biz_id = models.Space.objects.get_biz_id_by_space(space_type=space[0], space_id=space[1])
