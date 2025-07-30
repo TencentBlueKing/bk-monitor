@@ -24,13 +24,18 @@
  * IN THE SOFTWARE.
  */
 
+import {
+  type BaseTableColumn,
+  type TableCellRenderContext,
+  ExploreTableColumnTypeEnum,
+} from '../../../../trace-explore/components/trace-explore-table/typing';
 import { INCIDENT_STORAGE_KEY } from '../../../services/incident-services';
+import { type IncidentTableItem, type TableEmpty, IncidentLevelIconMap, IncidentStatusIconMap } from '../../../typings';
 import { BaseScenario } from './base-scenario';
 
-import type { BaseTableColumn } from '../../../../trace-explore/components/trace-explore-table/typing';
-import type { TableEmpty } from '../../../typings';
 import type { IUsePopoverTools } from '../hooks/use-popover';
-
+import type { SlotReturnValue } from 'tdesign-vue-next';
+import type { Router } from 'vue-router';
 /**
  * @class IncidentScenario
  * @classdesc 故障场景表格特殊列渲染配置类
@@ -38,11 +43,13 @@ import type { IUsePopoverTools } from '../hooks/use-popover';
  */
 export class IncidentScenario extends BaseScenario {
   readonly name = INCIDENT_STORAGE_KEY;
+  readonly privateClassName = 'incident-table';
 
   constructor(
     private readonly context: {
-      hoverPopoverTools: IUsePopoverTools;
       [methodName: string]: any;
+      hoverPopoverTools: IUsePopoverTools;
+      router: Router;
     }
   ) {
     super();
@@ -57,13 +64,79 @@ export class IncidentScenario extends BaseScenario {
 
   getColumnsConfig(): Record<string, Partial<BaseTableColumn>> {
     const columns = {
-      // ... other private columns config
+      /** 故障名称(incident_name) 列 */
+      incident_name: {
+        attrs: { class: 'alarm-first-col' },
+        cellRenderer: (row, column, renderCtx) => this.renderActionId(row, column, renderCtx),
+      },
+      /** 故障状态(status) 列 */
+      status: {
+        renderType: ExploreTableColumnTypeEnum.PREFIX_ICON,
+        getRenderValue: row => IncidentStatusIconMap[row?.status],
+      },
+      /** 告警数量(alert_count) 列 */
+      alert_count: {
+        getRenderValue: row => row?.alert_count,
+        clickCallback: row => this.jumpToIncidentDetail(row.id, 'FailureView'),
+        cellRenderer: (row, column, renderCtx) => this.renderCount(row, column, renderCtx),
+      },
     };
 
     return columns;
   }
 
   // ----------------- 故障场景私有渲染方法 -----------------
-
+  /**
+   * @description 故障名称(incident_name) 列渲染方法
+   */
+  private renderActionId(
+    row: IncidentTableItem,
+    column: BaseTableColumn,
+    renderCtx: TableCellRenderContext
+  ): SlotReturnValue {
+    const rectColor = IncidentLevelIconMap?.[row?.level]?.iconColor;
+    return (
+      <div class='explore-col lever-rect-col'>
+        <i
+          style={{ '--lever-rect-color': rectColor }}
+          class='lever-rect'
+        />
+        <div
+          class={`lever-rect-text ${renderCtx.isEnabledCellEllipsis(column)}`}
+          onClick={() => this.context.handleActionSliderShowDetail(row.id)}
+        >
+          <span>{row?.incident_name}</span>
+        </div>
+      </div>
+    ) as unknown as SlotReturnValue;
+  }
+  /**
+   * @description 告警数量(alert_count) 列渲染方法
+   */
+  private renderCount(
+    row: IncidentTableItem,
+    column: BaseTableColumn,
+    renderCtx: TableCellRenderContext
+  ): SlotReturnValue {
+    const count = renderCtx.getTableCellRenderValue(row, column) as number;
+    if (count > -1) {
+      return renderCtx.cellRenderHandleMap?.[ExploreTableColumnTypeEnum.CLICK]?.(row, column, renderCtx);
+    }
+    return renderCtx.cellRenderHandleMap?.[ExploreTableColumnTypeEnum.TEXT]?.(row, column, renderCtx);
+  }
   // ----------------- 故障场景私有逻辑方法 -----------------
+  /**
+   * @description 跳转至故障详情页面
+   */
+  private jumpToIncidentDetail(id: string, activeTab: string) {
+    this.context.router.push({
+      name: 'incident-detail',
+      params: {
+        id,
+      },
+      query: {
+        activeTab,
+      },
+    });
+  }
 }

@@ -159,13 +159,13 @@ export interface TableCellRenderContext<K extends string = string> {
   cellRenderHandleMap: Record<ExploreTableColumnTypeEnum | K, TableCellRenderer>;
   /** 获取当前行的唯一 rowId */
   getRowId: (row: Record<string, any>) => string;
-  /** 是否启用单元格文本省略号 */
-  isEnabledCellEllipsis: (column: BaseTableColumn<any, any>) => string;
   /** 获取表格单元格渲染值 */
   getTableCellRenderValue: <T extends ExploreTableColumnTypeEnum | string>(
     row: Record<string, any>,
     column: BaseTableColumn<any, any>
   ) => GetTableCellRenderValue<T>;
+  /** 是否启用单元格文本省略号 */
+  isEnabledCellEllipsis: (column: BaseTableColumn<any, any>) => string;
 }
 
 /**

@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { computed, type MaybeRef, onBeforeUnmount, onMounted, watch } from 'vue';
+import { type MaybeRef, computed, onBeforeUnmount, onMounted, watch } from 'vue';
 
 import { useAlarmCenterStore } from '../../../../../store/modules/alarm-center';
 import { ACTION_STORAGE_KEY } from '../../../services/action-services';
@@ -42,12 +42,14 @@ export interface ScenarioRenderer {
   currentScenario: MaybeRef<BaseScenario>;
   /** 当前场景表格空状态配置 */
   tableEmpty: MaybeRef<TableEmpty>;
+  /** 当前场景私有类名 */
+  tableScenarioClassName: MaybeRef<string>;
   /** 转换列配置 */
   transformColumns: (columns: TableColumnItem[]) => TableColumnItem[];
 }
 
 export function useScenarioRenderer(
-  context: AlertScenario['context'] & IncidentScenario['context'] & ActionScenario['context']
+  context: ActionScenario['context'] & AlertScenario['context'] & IncidentScenario['context']
 ): ScenarioRenderer {
   const alarmStore = useAlarmCenterStore();
   // 用 Map 缓存场景实例，避免重复创建
@@ -56,7 +58,7 @@ export function useScenarioRenderer(
   // 场景映射表
   const scenarioMap: Record<
     string,
-    new (ctx: AlertScenario['context'] & IncidentScenario['context'] & ActionScenario['context']) => BaseScenario
+    new (ctx: ActionScenario['context'] & AlertScenario['context'] & IncidentScenario['context']) => BaseScenario
   > = {
     [ALERT_STORAGE_KEY]: AlertScenario,
     [INCIDENT_STORAGE_KEY]: IncidentScenario,
@@ -75,6 +77,7 @@ export function useScenarioRenderer(
   });
 
   const tableEmpty = computed<TableEmpty>(() => currentScenario.value.getEmptyConfig());
+  const tableScenarioClassName = computed(() => currentScenario.value.privateClassName || '');
 
   /**
    * @description 转换列配置
@@ -124,6 +127,7 @@ export function useScenarioRenderer(
   return {
     currentScenario,
     tableEmpty,
+    tableScenarioClassName,
     transformColumns,
   };
 }

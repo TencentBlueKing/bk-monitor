@@ -24,24 +24,26 @@
  * IN THE SOFTWARE.
  */
 import {
-  computed,
-  defineComponent,
-  ref as deepRef,
   type PropType,
-  useTemplateRef,
-  shallowRef,
-  watch,
-  onMounted,
+  computed,
+  ref as deepRef,
+  defineComponent,
   onBeforeUnmount,
+  onMounted,
+  shallowRef,
   toValue,
+  useTemplateRef,
+  watch,
 } from 'vue';
+
+import { useRouter } from 'vue-router';
 
 import { INCIDENT_STORAGE_KEY } from '../../services/incident-services';
 import {
   type AlertTableItem,
-  CONTENT_SCROLL_ELEMENT_CLASS_NAME,
   type TableColumnItem,
   type TablePagination,
+  CONTENT_SCROLL_ELEMENT_CLASS_NAME,
 } from '../../typings';
 import { AlertSelectAction } from '../../typings/constants';
 import AlertContentDetail from './components/alert-content-detail/alert-content-detail';
@@ -97,6 +99,7 @@ export default defineComponent({
   },
   setup(props) {
     // const alarmStore = useAlarmCenterStore();
+    const router = useRouter();
     const tableRef = useTemplateRef<InstanceType<typeof CommonTable>>('tableRef');
     const alertContentDetailRef = useTemplateRef<InstanceType<typeof AlertContentDetail>>('alertContentDetailRef');
 
@@ -117,7 +120,8 @@ export default defineComponent({
     /** 滚动结束后回调逻辑执行计时器  */
     let scrollPointerEventsTimer = null;
     /** 创建场景上下文 */
-    const scenarioContext: AlertScenario['context'] & IncidentScenario['context'] & ActionScenario['context'] = {
+    const scenarioContext: ActionScenario['context'] & AlertScenario['context'] & IncidentScenario['context'] = {
+      router,
       handleAlertSliderShowDetail,
       hoverPopoverTools,
       handleAlertContentDetailShow,
@@ -125,7 +129,8 @@ export default defineComponent({
       handleActionSliderShowDetail,
     };
     // 使用场景渲染器
-    const { transformColumns, currentScenario, tableEmpty } = useScenarioRenderer(scenarioContext);
+    const { transformColumns, currentScenario, tableEmpty, tableScenarioClassName } =
+      useScenarioRenderer(scenarioContext);
     /** 转换后的列配置 */
     const transformedColumns = computed(() => transformColumns(props.columns));
     /** 表格 setting 配置 */
@@ -252,6 +257,7 @@ export default defineComponent({
       currentScenario,
       selectedRowKeys,
       tableEmpty,
+      tableScenarioClassName,
       settings,
       isSelectedFollower,
       handleSelectionChange,
@@ -263,7 +269,7 @@ export default defineComponent({
       <div class='alarm-table-container'>
         <CommonTable
           ref='tableRef'
-          class='alarm-table'
+          class={`alarm-table ${this.tableScenarioClassName}`}
           firstFullRow={
             this.selectedRowKeys?.length
               ? () =>

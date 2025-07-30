@@ -25,19 +25,20 @@
  */
 
 import {
-  ExploreTableColumnTypeEnum,
   type BaseTableColumn,
   type TableCellRenderContext,
+  ExploreTableColumnTypeEnum,
 } from '../../../../trace-explore/components/trace-explore-table/typing';
 import { ACTION_STORAGE_KEY } from '../../../services/action-services';
 import {
+  type ActionTableItem,
+  type TableEmpty,
   ActionFailureTypeMap,
   ActionLevelIconMap,
   ActionStatusIconMap,
-  type ActionTableItem,
-  type TableEmpty,
 } from '../../../typings';
 import { BaseScenario } from './base-scenario';
+import UserDisplayNameTags from '@/components/collapse-tags/user-display-name-tags';
 
 import type { IUsePopoverTools } from '../hooks/use-popover';
 import type { SlotReturnValue } from 'tdesign-vue-next';
@@ -49,12 +50,13 @@ import type { SlotReturnValue } from 'tdesign-vue-next';
  */
 export class ActionScenario extends BaseScenario {
   readonly name = ACTION_STORAGE_KEY;
+  readonly privateClassName = 'action-table';
 
   constructor(
     private readonly context: {
-      hoverPopoverTools: IUsePopoverTools;
-      handleActionSliderShowDetail: (id: number | string) => void;
       [methodName: string]: any;
+      handleActionSliderShowDetail: (id: number | string) => void;
+      hoverPopoverTools: IUsePopoverTools;
     }
   ) {
     super();
@@ -71,7 +73,12 @@ export class ActionScenario extends BaseScenario {
     const columns: Record<string, Partial<BaseTableColumn>> = {
       /** 告警状态(id) 列 */
       id: {
+        attrs: { class: 'alarm-first-col' },
         cellRenderer: (row, column, renderCtx) => this.renderActionId(row, column, renderCtx),
+      },
+      /** 负责人(operator) 列 */
+      operator: {
+        cellRenderer: row => this.renderOperator(row),
       },
       /** 触发告警数(alert_count) 列 */
       alert_count: {
@@ -122,6 +129,13 @@ export class ActionScenario extends BaseScenario {
         </div>
       </div>
     ) as unknown as SlotReturnValue;
+  }
+
+  /**
+   * @description 负责人(operator) 列渲染方法
+   */
+  private renderOperator(row: ActionTableItem) {
+    return (<UserDisplayNameTags data={row.operator} />) as unknown as SlotReturnValue;
   }
 
   /**

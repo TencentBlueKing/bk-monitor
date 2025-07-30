@@ -27,11 +27,35 @@
   .alarm-table {
     flex-grow: 1;
     flex-basis: auto;
+    &.incident-table {
+      .explore-col {
+        align-items: flex-start;
+        min-height: 40px;
+        &.lever-rect-col {
+          .lever-rect {
+            margin-top: 1px;
+          }
+        }
+      }
+      .common-table-ellipsis:not(.tag-item) {
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        white-space: normal;
+        word-break: break-all;
+      }
+    }
 
     .t-table {
       .t-table__content {
         .t-table__body {
           tr:not(.t-table__row--full) {
+            // 保证表格内容不足以撑满表格区域时，行高度不自适应增高
+            td.alarm-first-col {
+              padding-top: 0;
+              padding-bottom: 0;
+              height: 0;
+            }
             &:hover {
               .explore-tags-col {
                 .tag-item {
@@ -60,7 +84,9 @@
     .alert-status-col {
       z-index: 50;
       height: 0;
-      padding: 0;
+      padding-top: 0;
+      padding-bottom: 0;
+      padding-right: 0;
 
       .explore-col {
         position: relative;
@@ -140,6 +166,7 @@
   }
 
   .explore-col {
+    line-height: 20px;
     &.lever-rect-col {
       display: flex;
       align-items: center;
@@ -147,9 +174,19 @@
       .lever-rect {
         flex-shrink: 0;
         width: 3px;
-        height: 12px;
+        height: 20px;
         margin-right: 4px;
-        background-color: var(--lever-rect-color, red);
+        position: relative;
+        display: inline-flex;
+        align-items: center;
+        &::before {
+          content: '';
+          width: 100%;
+          height: 12px;
+          background-color: var(--lever-rect-color);
+          left: 0;
+          position: absolute;
+        }
       }
 
       .lever-rect-text {
@@ -261,6 +298,25 @@
 
         &.icon-mc-check-fill {
           color: #6fc5bf;
+        }
+      }
+
+      .incident-status-icon {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+
+        &.icon-mind-fill {
+          color: #f59789;
+        }
+        &.icon-mc-visual-fill {
+          color: #f8b64f;
+        }
+        &.icon-mc-check-fill {
+          color: #6fc5bf;
+        }
+        &.icon-mc-solved {
+          color: #8e9bb3;
         }
       }
     }

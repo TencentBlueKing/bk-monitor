@@ -42,19 +42,20 @@ import { AlarmService } from './base';
 
 import type { IFilterField } from '@/components/retrieval-filter/typing';
 const INCIDENT_TABLE_COLUMNS = [
-  {
-    colKey: 'id',
-    title: window.i18n.t('故障ID'),
-    is_default: false,
-    width: 160,
-    fixed: 'left',
-  },
+  // {
+  //   colKey: 'id',
+  //   title: window.i18n.t('故障ID'),
+  //   is_default: false,
+  //   width: 160,
+  //   fixed: 'left',
+  // },
   {
     colKey: 'incident_name',
     title: window.i18n.t('故障名称'),
     is_default: true,
-    width: 180,
+    width: 354,
     ellipsis: true,
+    fixed: 'left',
   },
   {
     colKey: 'status',

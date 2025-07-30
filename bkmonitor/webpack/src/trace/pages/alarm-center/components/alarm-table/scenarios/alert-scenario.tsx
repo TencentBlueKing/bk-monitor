@@ -56,6 +56,7 @@ import type { TippyContent } from 'vue-tippy';
  */
 export class AlertScenario extends BaseScenario {
   readonly name = ALERT_STORAGE_KEY;
+  readonly privateClassName = 'alert-table';
 
   constructor(
     private readonly context: {
@@ -83,6 +84,7 @@ export class AlertScenario extends BaseScenario {
     const columns: Record<string, Partial<BaseTableColumn>> = {
       /** 告警状态(alert_status) 列 */
       alert_name: {
+        attrs: { class: 'alarm-first-col' },
         cellRenderer: row => this.renderAlertName(row),
       },
       /** 告警指标(metric) 列 */
@@ -390,7 +392,7 @@ export class AlertScenario extends BaseScenario {
    * @description 处理不同类型的跳转逻辑
    */
   private handleGotoMore(extendInfo: Record<string, any>, bizId: string) {
-    const origin = process.env.NODE_ENV === 'development' ? process.env.proxyUrl : location.origin;
+    const origin = process.env.NODE_ENV === 'development' ? process.env.proxyUrl.replace(/\/$/, '') : location.origin;
     switch (extendInfo.type) {
       // 监控主机监控详情
       case 'host': {
