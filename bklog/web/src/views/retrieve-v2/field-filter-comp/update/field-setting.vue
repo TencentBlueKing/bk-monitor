@@ -29,7 +29,6 @@ import Vue, { ref, computed, onBeforeUnmount } from "vue";
 import FieldSelectConfig from "./field-list.vue";
 import FieldAlias from "./field-alias.vue";
 import useStore from "@/hooks/use-store";
-import { useRoute } from "vue-router/composables";
 
 const { $bkPopover } = Vue.prototype;
 const store = useStore();

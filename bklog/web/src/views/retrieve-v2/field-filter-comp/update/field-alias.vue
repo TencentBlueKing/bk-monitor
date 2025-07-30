@@ -39,13 +39,11 @@ const showSlider = ref(false);
 const sliderLoading = ref(false);
 const confirmLoading = ref(false);
 const formData = ref([]);
-const objField = ref([]);
 const fields = computed(() => store.state.indexFieldInfo.fields);
 const globalsData = computed(() => store.getters["globals/globalsData"]);
 const handleOpenSidebar = async () => {
   showSlider.value = true;
   emit("handle-popover-hide");
-  // await initFormData();
   addObject();
 };
 // 提交
@@ -96,39 +94,7 @@ const handleCancel = () => {
 const closeSlider = () => {
   formData.value = [];
 };
-// 初始化数据
-// const initFormData = async () => {
- 
-//   sliderLoading.value = true;
-//   const indexSetList = store.state.retrieve.indexSetList;
-//   const indexSetId = route.params?.indexId;
-//   const currentIndexSet = indexSetList.find(
-//     (item) => item.index_set_id === `${indexSetId}`
-//   );
-//   console.log(currentIndexSet);
-//   if(!currentIndexSet.collector_config_id){ 
-//     sliderLoading.value = false;
-//     return
-//   }
-//   await $http
-//     .request("collect/details", {
-//       params: {
-//         collector_config_id: currentIndexSet.collector_config_id,
-//       },
-//     })
-//     .then((res) => {
-//       objField.value = res.data.fields
-//         .filter((field) => field.field_type === "object")
-//         .map((item) => {
-//           return {
-//             field_name: item.field_name,
-//             query_alias: item.query_alias,
-//             field_type: item.field_type,
-//           };
-//         });
-//       sliderLoading.value = false;
-//     });
-// };
+
 // 展开对象按钮的回调
 const expandObject = (row, show) => {
   row.expand = show;
