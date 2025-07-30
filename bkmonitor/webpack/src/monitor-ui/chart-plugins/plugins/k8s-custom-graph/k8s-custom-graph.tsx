@@ -181,7 +181,7 @@ class K8SCustomChart extends CommonSimpleChart {
     } else {
       try {
         this.unregisterObserver();
-        const series = [];
+        let series = [];
         const metrics = [];
         this.legendSorts = [];
         const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
@@ -282,6 +282,7 @@ class K8SCustomChart extends CommonSimpleChart {
         await Promise.all(promiseList).catch(() => false);
         this.metrics = metrics || [];
         if (series.length) {
+          series = series.toSorted((a, b) => b.name?.localeCompare?.(a?.name));
           const { maxSeriesCount, maxXInterval } = getSeriesMaxInterval(series);
           /* 派出图表数据包含的维度*/
           this.series = Object.freeze(series) as any;
@@ -296,7 +297,6 @@ class K8SCustomChart extends CommonSimpleChart {
             seriesResult.map(item => ({
               name: item.name,
               cursor: 'auto',
-              // biome-ignore lint/style/noCommaOperator: <explanation>
               data: item.datapoints.reduce((pre: any, cur: any) => (pre.push(cur.reverse()), pre), []),
               stack: item.stack || random(10),
               unit: this.viewOptions.unit || this.panel.options?.unit || item.unit,

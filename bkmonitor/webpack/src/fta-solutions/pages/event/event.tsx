@@ -1641,6 +1641,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
    */
   handleShowDetail({ id, type, activeTab, bizId }: IShowDetail) {
     if (this.searchType === 'incident') {
+      // 携带当前已经配置的时间范围，避免回调时间范围重置
       this.$router.push({
         name: 'incident-detail',
         params: {
@@ -1648,6 +1649,8 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
         },
         query: {
           activeTab,
+          from: this.timeRange[0],
+          to: this.timeRange[1] ,
         },
       });
     } else {
