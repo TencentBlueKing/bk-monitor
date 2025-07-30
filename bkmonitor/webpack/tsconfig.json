@@ -3,6 +3,6 @@
   "compilerOptions": {
     "outDir": "./dist"
   },
-  "include": ["./*.js", "./public/**/*.js", "webpack/*.js", "eslint.config.mjs"],
+  "include": ["./*.js", "./public/**/*.js", "webpack/*.js", "eslint.config.mjs", "stylelint.config.mjs"],
   "exclude": ["node_modules", "src/**"]
 }
