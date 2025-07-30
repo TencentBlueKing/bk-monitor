@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 from rest_framework import serializers
 
 from constants.report import GROUPS, StaffChoice
@@ -17,9 +16,31 @@ class ReceiverSerializer(StaffSerializer):
 
 class ReportContentSerializer(serializers.Serializer):
     content_title = serializers.CharField(required=True, max_length=512, label="子内容标题")
-    content_details = serializers.CharField(required=True, max_length=512, label="字内容说明", allow_blank=True)
-    row_pictures_num = serializers.IntegerField(required=True, label="一行几幅图")
+    content_details = serializers.CharField(required=True, max_length=512, label="子内容说明", allow_blank=True)
+    row_pictures_num = serializers.ChoiceField(
+        required=True, choices=[(1, "1 Picture"), (2, "2 Pictures")], label="一行几幅图"
+    )
+    width = serializers.IntegerField(required=False, max_value=4000, label="单图宽度", allow_null=True)
+    height = serializers.IntegerField(required=False, max_value=2000, label="单图高度", allow_null=True)
     graphs = serializers.ListField(required=True, label="图表")
+
+    # 单图宽度高度默认值
+    size_mapping = {1: (800, 270), 2: (620, 300)}
+
+    def validate(self, attrs):
+        """
+        根据 row_pictures_num 的值设置 width 和 height 的默认值。
+        """
+        # 判断是否是整屏图表
+        if attrs.get("graphs") and "*" in attrs["graphs"][0]:
+            attrs["width"] = attrs.get("width", 1600)
+            attrs["height"] = attrs.get("height", None)
+        else:
+            # 如果图表是单图，则根据row_pictures_num设置width和height
+            width, height = self.size_mapping[attrs["row_pictures_num"]]
+            attrs["width"] = attrs.get("width", width)
+            attrs["height"] = attrs.get("height", height)
+        return attrs
 
 
 class FrequencySerializer(serializers.Serializer):
@@ -38,7 +59,7 @@ class FrequencySerializer(serializers.Serializer):
     def to_internal_value(self, data):
         if not data.get("hour"):
             data["hour"] = 0.5
-        data = super(FrequencySerializer, self).to_internal_value(data)
+        data = super().to_internal_value(data)
         return data
 
 
@@ -59,7 +80,7 @@ class ReportChannelSerializer(serializers.Serializer):
     subscriber_serializers = {"email": EmailSubscriberSerializer}
 
     def to_internal_value(self, data):
-        channel = super(ReportChannelSerializer, self).to_internal_value(data)
+        channel = super().to_internal_value(data)
         subscriber_slz_class = SubscriberSerializer
         if channel["channel_name"] in self.subscriber_serializers:
             subscriber_slz_class = self.subscriber_serializers[channel["channel_name"]]

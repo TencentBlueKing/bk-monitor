@@ -52,27 +52,56 @@ export const statusMap = new Map([
 /** 默认高度偏移量 */
 export const DEFAULT_HEIGHT_OFFSET = 8;
 
-/** 分组列表 */
-export interface IGroupListItem {
-  name: string; // 分组名称
-  matchRules: string[]; // 匹配规则
-  manualList: string[]; // 手动添加的指标
-  matchRulesOfMetrics?: string[]; // 匹配规则匹配的指标列表
-}
+export type DimensionHeaderKeys = keyof Pick<IDimensionItem, 'common' | 'hidden'>;
 
 /** 表格列配置 */
 export interface IColumnConfig {
   label: string;
-  width: number;
   type?: string;
+  width: number;
   renderFn: (props: any, key?: any) => any;
   renderHeaderFn?: (config: any) => any;
 }
 
-export interface PopoverInstance extends Vue {
-  $el: HTMLDivElement;
-  hideHandler: () => void;
+export interface IDimensionItem {
+  common?: boolean;
+  description?: string;
+  disabled?: boolean;
+  error?: string;
+  hidden?: boolean;
+  isNew?: boolean;
+  name: string;
+  selection?: boolean;
+  type?: string;
 }
+
+/** 分组列表 */
+export interface IGroupListItem {
+  manualList: string[]; // 手动添加的指标
+  matchRules: string[]; // 匹配规则
+  matchRulesOfMetrics?: string[]; // 匹配规则匹配的指标列表
+  name: string; // 分组名称
+}
+
+export interface IMetricItem {
+  aggregate_method?: string;
+  description?: string;
+  dimensions?: string[];
+  disabled?: boolean;
+  error?: string;
+  function?: string[];
+  hidden?: boolean;
+  interval?: number;
+  isNew?: boolean;
+  name: string;
+  selection?: boolean;
+  unit?: string;
+}
+
+export type MetricHeaderKeys = keyof Pick<
+  IMetricItem,
+  'aggregate_method' | 'dimensions' | 'function' | 'interval' | 'unit'
+>;
 
 export type PopoverChildRef = Vue & {
   $refs: {
@@ -81,36 +110,7 @@ export type PopoverChildRef = Vue & {
   };
 };
 
-export type MetricHeaderKeys = keyof Pick<
-  IMetricItem,
-  'aggregate_method' | 'dimensions' | 'function' | 'interval' | 'unit'
->;
-
-export interface IMetricItem {
-  name: string;
-  description?: string;
-  unit?: string;
-  aggregate_method?: string;
-  interval?: number;
-  function?: string[];
-  hidden?: boolean;
-  disabled?: boolean;
-  isNew?: boolean;
-  dimensions?: string[];
-  error?: string;
-  selection?: boolean;
+export interface PopoverInstance extends Vue {
+  $el: HTMLDivElement;
+  hideHandler: () => void;
 }
-
-export interface IDimensionItem {
-  name: string;
-  description?: string;
-  disabled?: boolean;
-  isNew?: boolean;
-  error?: string;
-  common?: boolean;
-  type?: string;
-  selection?: boolean;
-  hidden?: boolean;
-}
-
-export type DimensionHeaderKeys = keyof Pick<IDimensionItem, 'common' | 'hidden'>;

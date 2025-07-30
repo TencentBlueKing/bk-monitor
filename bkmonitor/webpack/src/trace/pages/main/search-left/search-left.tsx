@@ -24,11 +24,12 @@
  * IN THE SOFTWARE.
  */
 import { computed, defineComponent } from 'vue';
-import { useI18n } from 'vue-i18n';
+import type { PropType } from 'vue';
 
 import * as authorityMap from 'apm/pages/home/authority-map';
 import { Button, ResizeLayout, Select } from 'bkui-vue';
 import { storeToRefs } from 'pinia';
+import { useI18n } from 'vue-i18n';
 
 import ChartFiltering from '../../../components/chart-filtering/chart-filtering';
 import { useAuthorityStore } from '../../../store/modules/authority';
@@ -37,7 +38,6 @@ import FieldFiltering from '../event-retrieval/field-filtering';
 
 import type { IAppItem, ISearchTypeItem, ISpanListItem, ITraceListItem, SearchType } from '../../../typings';
 import type { IFilterCondition } from 'monitor-pc/pages/data-retrieval/typings';
-import type { PropType } from 'vue';
 
 import './search-left.scss';
 

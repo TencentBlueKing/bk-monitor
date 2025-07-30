@@ -1,4 +1,11 @@
 /* eslint-disable @typescript-eslint/naming-convention */
+import { Component, Emit, InjectReactive, Prop } from 'vue-property-decorator';
+import { Component as tsc } from 'vue-tsx-support';
+
+import dayjs from 'dayjs';
+import { copyText } from 'monitor-common/utils';
+import { ETagsType } from 'monitor-pc/components/biz-select/list';
+import { TabEnum as CollectorTabEnum } from 'monitor-pc/pages/collector-config/collector-detail/typings/detail';
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -25,15 +32,8 @@
  * IN THE SOFTWARE.
  */
 import VueJsonPretty from 'vue-json-pretty';
-import { Component, Emit, InjectReactive, Prop } from 'vue-property-decorator';
-import { Component as tsc } from 'vue-tsx-support';
 
-import dayjs from 'dayjs';
-import { copyText } from 'monitor-common/utils';
-import { ETagsType } from 'monitor-pc/components/biz-select/list';
-import { TabEnum as CollectorTabEnum } from 'monitor-pc/pages/collector-config/collector-detail/typings/detail';
-
-import { toPerformanceDetail, toBcsDetail } from '../../../common/go-link';
+import { toBcsDetail, toPerformanceDetail } from '../../../common/go-link';
 import EventDetail from '../../../store/modules/event-detail';
 import { getOperatorDisabled } from '../utils';
 
@@ -324,7 +324,15 @@ export default class MyComponent extends tsc<IBasicInfoProps, IEvents> {
   getFollowerInfo() {
     return (
       <span class='follower-info'>
-        <span>{this.basicInfo?.follower?.join(',') || '--'}</span>
+        {this.basicInfo?.follower?.length
+          ? this.basicInfo?.follower.map((v, index, arr) => [
+              <bk-user-display-name
+                key={v}
+                user-id={v}
+              />,
+              index !== arr.length - 1 ? <span key={`${v}-${index}`}>{','}</span> : null,
+            ])
+          : '--'}
         {!!this.basicInfo?.follower?.length && !!this.bkCollectConfigId && (
           <span
             class='fenxiang-btn'
@@ -472,7 +480,16 @@ export default class MyComponent extends tsc<IBasicInfoProps, IEvents> {
           },
           {
             title: this.$t('负责人'),
-            content: appointee?.join(',') || '--',
+            extCls: 'flex-wrap',
+            content: appointee?.length
+              ? appointee.map((v, index, arr) => [
+                  <bk-user-display-name
+                    key={v}
+                    user-id={v}
+                  />,
+                  index !== arr.length - 1 ? <span key={`${v}-${index}`}>{','}</span> : null,
+                ])
+              : '--',
           },
         ],
       },
@@ -507,7 +524,7 @@ export default class MyComponent extends tsc<IBasicInfoProps, IEvents> {
               {child.children.map((item, ind) => (
                 <div
                   key={ind}
-                  class='item-col'
+                  class={['item-col', item.extCls]}
                 >
                   <div
                     class='item-label'
@@ -564,7 +581,7 @@ export default class MyComponent extends tsc<IBasicInfoProps, IEvents> {
     );
   }
   getEventLog() {
-    return EventDetail.getlistEventLog({
+    return EventDetail.getListEventLog({
       bk_biz_id: this.basicInfo.bk_biz_id,
       id: this.basicInfo.id,
       offset: 0,

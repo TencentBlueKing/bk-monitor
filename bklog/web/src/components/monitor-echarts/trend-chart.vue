@@ -3,7 +3,7 @@
   import useStore from '@/hooks/use-store';
   import useTrendChart from '@/hooks/use-trend-chart';
   import { useRoute } from 'vue-router/composables';
-  import { getCommonFilterAddition } from '../../store/helper';
+  import { getCommonFilterAdditionWithValues } from '../../store/helper';
   import RetrieveHelper, { RetrieveEvent } from '../../views/retrieve-helper';
   import axios from 'axios';
 
@@ -31,11 +31,10 @@
 
   const finishPolling = ref(false);
   const isStart = ref(false);
-
   let requestInterval = 0;
   let pollingEndTime = 0;
   let pollingStartTime = 0;
-  let logChartCancel = null;
+  let logChartCancel = null; 
 
   const handleRequestSplit = (startTime, endTime) => {
     const duration = (endTime - startTime) / 3600000;
@@ -105,7 +104,7 @@
       const urlStr = isUnionSearch.value ? 'unionSearch/unionDateHistogram' : 'retrieve/getLogChartList';
       const queryData = {
         ...retrieveParams.value,
-        addition: [...retrieveParams.value.addition, ...getCommonFilterAddition(store.state)],
+        addition: [...retrieveParams.value.addition, ...getCommonFilterAdditionWithValues(store.state)],
         time_range: 'customized',
         interval: runningInterval,
         // 每次轮循的起始时间

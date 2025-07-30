@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,11 +7,12 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import base64
 import gzip
 import logging
 
-import jinja2
+from jinja2.sandbox import SandboxedEnvironment as Environment
 from django.conf import settings
 from kubernetes import client
 from opentelemetry import trace
@@ -24,13 +24,14 @@ from apm.constants import (
     DEFAULT_PLATFORM_LICENSE_CONFIG,
     GLOBAL_CONFIG_BK_BIZ_ID,
 )
-from apm.core.bk_collector_config import BkCollectorConfig
-from apm.core.cluster_config import ClusterConfig
 from apm.models import BcsClusterDefaultApplicationRelation
 from apm.models.subscription_config import SubscriptionConfig
 from bkmonitor.utils.bcs import BcsKubeClient
+from bkmonitor.utils.bk_collector_config import BkCollectorConfig, BkCollectorClusterConfig
 from bkmonitor.utils.common_utils import count_md5
-from constants.apm import BkCollectorComp, SpanKindKey
+from constants.apm import SpanKindKey
+from constants.bk_collector import BkCollectorComp
+from constants.common import DEFAULT_TENANT_ID
 from core.drf_resource import api
 
 logger = logging.getLogger("apm")
@@ -45,34 +46,39 @@ class PlatformConfig(BkCollectorConfig):
 
     PLUGIN_PLATFORM_CONFIG_TEMPLATE_NAME = "bk-collector-platform.conf"
 
-    @classmethod
-    def refresh(cls):
-        """
-        [旧] 下发平台默认配置到主机上 （通过节点管理）
-        """
-        bk_host_ids = cls.get_target_hosts()
-        if not bk_host_ids:
-            logger.info("no bk-collector node, otlp is disabled")
-            return
+    def __init__(self, bk_tenant_id: str):
+        self.bk_tenant_id = bk_tenant_id
 
+    @classmethod
+    def refresh(cls, bk_tenant_id: str):
+        """
+        [主机下发模式：待废弃] 下发平台默认配置到主机上（通过节点管理）
+        按租户：每个租户一份平台配置
+        """
+        # 1. 获取配置上下文
         platform_config = cls.get_platform_config()
 
+        # 2. 下发给给定租户下
+        proxy_bk_host_ids = cls.get_target_host_ids_by_bk_tenant_id(bk_tenant_id)
         try:
-            cls.deploy_to_nodeman(platform_config, bk_host_ids)
+            if bk_tenant_id == DEFAULT_TENANT_ID:
+                # 如果是 默认租户，需要增加全局配置中的主机
+                proxy_bk_host_ids += cls.get_target_host_in_default_cloud_area()
+            cls.deploy_to_nodeman(bk_tenant_id, platform_config, proxy_bk_host_ids)
         except Exception:  # noqa
-            logger.exception("auto deploy bk-collector platform config error")
+            logger.exception(f"auto deploy TENANT_ID({bk_tenant_id}) bk-collector platform config error")
 
     @classmethod
     def refresh_k8s(cls):
         """
-        下发平台默认配置到 K8S 集群
+        下发平台默认配置到 K8S 集群（不区分租户，每个集群一份平台配置）
 
         # 1. 获取所有集群ID列表
         # 2. 针对每一个集群
         #    2.1 从集群中获取模版配置
         #    2.2 获取到模板，则下发，否则忽略该集群
         """
-        cluster_mapping = ClusterConfig.get_cluster_mapping()
+        cluster_mapping = BkCollectorClusterConfig.get_cluster_mapping()
 
         if settings.CUSTOM_REPORT_DEFAULT_DEPLOY_CLUSTER:
             # 补充中心化集群
@@ -84,7 +90,7 @@ class PlatformConfig(BkCollectorConfig):
                 f"cluster-id: {cluster_id}", attributes={"bk_biz_ids": cc_bk_biz_ids}
             ) as s:
                 try:
-                    platform_config_tpl = ClusterConfig.platform_config_tpl(cluster_id)
+                    platform_config_tpl = BkCollectorClusterConfig.platform_config_tpl(cluster_id)
                     if platform_config_tpl is None:
                         # 如果集群中不存在 bk-collector 的平台配置模版，则不下发
                         continue
@@ -100,8 +106,8 @@ class PlatformConfig(BkCollectorConfig):
 
                     # Step2: 往集群的 bk-collector 下发配置
                     platform_config_context = PlatformConfig.get_platform_config(cluster_id)
-                    tpl = jinja2.Template(platform_config_tpl)
-                    platform_config = tpl.render(platform_config_context)
+
+                    platform_config = Environment().from_string(platform_config_tpl).render(platform_config_context)
                     PlatformConfig.deploy_to_k8s(cluster_id, platform_config)
 
                     # s.add_event("default_application", attributes={"id": default_application.id})
@@ -344,7 +350,7 @@ class PlatformConfig(BkCollectorConfig):
         bcs_client = BcsKubeClient(bcs_cluster_id)
         svc = bcs_client.client_request(
             bcs_client.core_api.list_namespaced_service,
-            namespace=ClusterConfig.bk_collector_namespace(bcs_cluster_id),
+            namespace=BkCollectorClusterConfig.bk_collector_namespace(bcs_cluster_id),
             label_selector="app.kubernetes.io/bk-component=bkmonitor-operator",
         )
         count = len(svc.items)
@@ -354,7 +360,7 @@ class PlatformConfig(BkCollectorConfig):
         operator_service_name = svc.items[0].metadata.name
 
         cluster_cache_config = settings.K8S_COLLECTOR_CONFIG or {}
-        cache_interval = cluster_cache_config.get(bcs_cluster_id, {}).get("cache", {}).get("interval", '10s')
+        cache_interval = cluster_cache_config.get(bcs_cluster_id, {}).get("cache", {}).get("interval", "10s")
 
         return {
             "name": "resource_filter/fill_dimensions",
@@ -388,6 +394,7 @@ class PlatformConfig(BkCollectorConfig):
             "name": "resource_filter/instance_id",
             "assemble": [{"destination": "bk.instance.id", "separator": ":", "keys": instance_id_assemble_keys}],
             "drop": {"keys": ["resource.bk.data.token", "resource.tps.tenant.id"]},
+            "default_value": [{"type": "string", "key": "resource.service.name", "value": "unknown_service"}],
         }
 
     @classmethod
@@ -407,10 +414,14 @@ class PlatformConfig(BkCollectorConfig):
         ]
 
     @classmethod
-    def deploy_to_nodeman(cls, platform_config, bk_host_ids):
+    def deploy_to_nodeman(cls, bk_tenant_id, platform_config, bk_host_ids):
         """
         下发bk-collector的平台配置
         """
+        if not bk_host_ids:
+            logger.info("no bk-collector node, otlp is disabled")
+            return
+
         scope = {
             "object_type": "HOST",
             "node_type": "INSTANCE",
@@ -432,7 +443,9 @@ class PlatformConfig(BkCollectorConfig):
             ],
         }
 
-        platform_subscription = SubscriptionConfig.objects.filter(bk_biz_id=GLOBAL_CONFIG_BK_BIZ_ID, app_name="")
+        platform_subscription = SubscriptionConfig.objects.filter(
+            bk_tenant_id=bk_tenant_id, bk_biz_id=GLOBAL_CONFIG_BK_BIZ_ID, app_name=""
+        )
         if platform_subscription.exists():
             try:
                 logger.info("apm platform config subscription task already exists.")
@@ -445,22 +458,21 @@ class PlatformConfig(BkCollectorConfig):
                 if old_subscription_params_md5 != new_subscription_params_md5:
                     logger.info("apm platform config subscription task config has changed, update it.")
                     result = api.node_man.update_subscription(subscription_params)
-                    logger.info("update apm platform config subscription successful, result:{}".format(result))
+                    logger.info(f"update apm platform config subscription successful, result:{result}")
                     platform_subscription.update(config=subscription_params)
                 return sub_config_obj.subscription_id
             except Exception as e:  # noqa
-                logger.exception(
-                    "update apm platform config subscription error:{}, params:{}".format(e, subscription_params)
-                )
+                logger.exception(f"update apm platform config subscription error:{e}, params:{subscription_params}")
         else:
             try:
                 logger.info("apm platform config subscription task not exists, create it.")
                 result = api.node_man.create_subscription(subscription_params)
-                logger.info("create apm platform config subscription successful, result:{}".format(result))
+                logger.info(f"create apm platform config subscription successful, result:{result}")
 
                 # 创建订阅成功后，优先存储下来，不然因为其他报错会导致订阅ID丢失
                 subscription_id = result["subscription_id"]
                 SubscriptionConfig.objects.create(
+                    bk_tenant_id=bk_tenant_id,
                     bk_biz_id=GLOBAL_CONFIG_BK_BIZ_ID,
                     app_name="",
                     config=subscription_params,
@@ -468,13 +480,11 @@ class PlatformConfig(BkCollectorConfig):
                 )
 
                 result = api.node_man.run_subscription(
-                    subscription_id=subscription_id, actions={cls.PLUGIN_NAME: "INSTALL"}
+                    bk_tenant_id=bk_tenant_id, subscription_id=subscription_id, actions={cls.PLUGIN_NAME: "INSTALL"}
                 )
-                logger.info("run apm platform config subscription result:{}".format(result))
+                logger.info(f"run apm platform config subscription result:{result}")
             except Exception as e:  # noqa
-                logger.exception(
-                    "create apm platform config subscription error{}, params:{}".format(e, subscription_params)
-                )
+                logger.exception(f"create apm platform config subscription error{e}, params:{subscription_params}")
 
     @classmethod
     def deploy_to_k8s(cls, cluster_id, platform_config):
@@ -482,14 +492,11 @@ class PlatformConfig(BkCollectorConfig):
         b64_content = base64.b64encode(gzip_content).decode()
 
         bcs_client = BcsKubeClient(cluster_id)
-        namespace = ClusterConfig.bk_collector_namespace(cluster_id)
+        namespace = BkCollectorClusterConfig.bk_collector_namespace(cluster_id)
         secrets = bcs_client.client_request(
             bcs_client.core_api.list_namespaced_secret,
             namespace=namespace,
-            label_selector="component={},template=false,type={}".format(
-                BkCollectorComp.LABEL_COMPONENT_VALUE,
-                BkCollectorComp.LABEL_TYPE_PLATFORM_CONFIG,
-            ),
+            label_selector=f"component={BkCollectorComp.LABEL_COMPONENT_VALUE},template=false,type={BkCollectorComp.LABEL_TYPE_PLATFORM_CONFIG}",
         )
         if len(secrets.items) > 0:
             # 存在，且与已有的数据不一致，则更新

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,13 +7,14 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import copy
 import logging
 from collections import defaultdict
-from typing import Dict, List
 
 from django.conf import settings
 from django.utils.translation import gettext as _
+from rest_framework.serializers import ValidationError
 
 from api.cmdb.define import Host
 from bkmonitor.strategy.new_strategy import Item
@@ -84,7 +84,7 @@ class HostRegionISPInfoResource(Resource):
         isp_name = params.get("bk_isp_name", "")
 
         # 按业务模块过滤
-        hosts: List[Host] = api.cmdb.get_host_by_topo_node(bk_biz_id=bk_biz_id)
+        hosts: list[Host] = api.cmdb.get_host_by_topo_node(bk_biz_id=bk_biz_id)
 
         # 如果省份提供了，则优先使用省份查询
         region_key = province_name or state_name
@@ -99,7 +99,7 @@ class HostRegionISPInfoResource(Resource):
             filtered_hosts.append(host)
 
         # 获取主机的Agent状态
-        agent_status: Dict[int, int] = resource.cc.get_agent_status(bk_biz_id, filtered_hosts)
+        agent_status: dict[int, int] = resource.cc.get_agent_status(bk_biz_id, filtered_hosts)
 
         return [
             {
@@ -298,7 +298,7 @@ class GetHostInstanceByNodeResource(CacheResource):
     cache_type = CacheType.HOST
 
     def __init__(self):
-        super(GetHostInstanceByNodeResource, self).__init__()
+        super().__init__()
         self.node_list = []
         self.bk_biz_id = None
         # 用于查询模块和服务分类之间的关系
@@ -683,3 +683,63 @@ class GetDynamicGroupInstanceResource(Resource):
                 }
             )
         return result
+
+
+class GetTopoListResource(Resource):
+    """获取模块、集群节点ID列表"""
+
+    class RequestSerializer(serializers.Serializer):
+        bk_biz_ids = serializers.ListField(label="业务ID列表", child=serializers.IntegerField())
+        bk_obj_id = serializers.CharField(label="对象ID")
+        condition = serializers.JSONField(label="查询条件", required=False, default=dict)
+        OBJ_ID_CHOOSE = ("module", "set")
+
+        def validate(self, attrs):
+            if attrs["bk_obj_id"] not in ["module", "set"]:
+                raise ValidationError(f"bk_obj_id must be one of {self.OBJ_ID_CHOOSE}")
+            return attrs
+
+    def perform_request(self, validated_request_data):
+        bk_biz_ids = set(validated_request_data["bk_biz_ids"])
+        bk_biz_ids = set(b.bk_biz_id for b in api.cmdb.get_business() if b.bk_biz_id in bk_biz_ids)
+        bk_obj_id = validated_request_data["bk_obj_id"]
+        condition: dict = validated_request_data.get("condition")
+        fun_map = {"module": self.get_modules, "set": self.get_sets}
+
+        return fun_map[bk_obj_id](bk_biz_ids, condition)
+
+    def get_modules(self, bk_biz_ids: list[int], condition: dict):
+        module_list = []
+        fields = ["bk_module_id", "bk_module_name", "bk_biz_id"]
+        params = self._get_query_params(bk_biz_ids, fields, condition)
+        for modules in api.cmdb.get_module.bulk_request(params, ignore_exceptions=True):
+            for m in modules:
+                module_list.append(self._get_attr_value(m, fields))
+        return module_list
+
+    def get_sets(self, bk_biz_ids: list[int], condition: dict):
+        set_list = []
+        fields = ["bk_set_id", "bk_set_name", "bk_biz_id"]
+        params = self._get_query_params(bk_biz_ids, fields, condition)
+        for sets in api.cmdb.get_set.bulk_request(params, ignore_exceptions=True):
+            for s in sets:
+                set_list.append(self._get_attr_value(s, fields))
+        return set_list
+
+    def _get_query_params(self, bk_biz_ids: list[int], fields: list[str], condition: dict):
+        query_params = []
+        for biz_id in bk_biz_ids:
+            param = {"bk_biz_id": biz_id, "fields": fields}
+            if condition:
+                param["condition"] = condition
+            query_params.append(param)
+        return query_params
+
+    def _get_attr_value(self, obj, attr_names: list):
+        res = {}
+        for attr in attr_names:
+            if hasattr(obj, attr):
+                res[attr] = getattr(obj, attr)
+            else:
+                res[attr] = obj._extra_attr.get(attr)
+        return res

@@ -32,7 +32,7 @@ import i18n from './i18n/i18n';
 import { createApp } from 'vue';
 
 import Api from 'monitor-api/api';
-import { setVue } from 'monitor-api/utils/index';
+import { type VueInstance, setVue } from 'monitor-api/utils/index';
 import { immediateRegister } from 'monitor-common/service-worker/service-worker';
 import { getUrlParam, mergeSpaceList, setGlobalBizId } from 'monitor-common/utils';
 
@@ -43,6 +43,7 @@ import router from './router/router';
 import { useAuthorityStore } from './store/modules/authority';
 import store from './store/store';
 import 'monitor-pc/common/global-login';
+import 'monitor-pc/common/user-display-name';
 
 import './static/scss/global.scss';
 import 'monitor-pc/static/css/reset.scss';
@@ -59,7 +60,7 @@ if (process.env.NODE_ENV === 'development') {
 }
 if (window.__POWERED_BY_BK_WEWEB__) {
   const app = createApp(App);
-  setVue(app);
+  setVue(app as VueInstance);
   app.use(store).use(router).use(i18n).use(directives).mount('#app');
   app.config.globalProperties = {
     $api: Api,
@@ -67,7 +68,7 @@ if (window.__POWERED_BY_BK_WEWEB__) {
     $authorityStore: useAuthorityStore(),
   } as any;
   // 微前端模式下，主动卸载当前 vue 实例
-  window.__BK_WEWEB_DATA__.setUnmountCallback(() => app.unmount());
+  window.__BK_WEWEB_DATA__?.setUnmountCallback?.(() => app.unmount());
 } else {
   Api.model
     .enhancedContext({
@@ -84,7 +85,7 @@ if (window.__POWERED_BY_BK_WEWEB__) {
       window.bk_log_search_url = data.BKLOGSEARCH_HOST;
       setGlobalBizId();
       const app = createApp(App);
-      setVue(app);
+      setVue(app as VueInstance);
       app.use(store).use(router).use(i18n).use(directives).mount('#app');
       app.config.globalProperties = {
         $api: Api,

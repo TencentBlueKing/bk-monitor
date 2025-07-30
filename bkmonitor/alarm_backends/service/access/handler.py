@@ -40,7 +40,7 @@ class AccessBeater(MonitorBeater):
     def __init__(self, name, targets, service, entries=None):
         super().__init__(name, entries)
         self.targets = targets or []
-        self.max_access_data_period = 60
+        self.max_access_data_period = 58
         self.interval_map = {}
         self.service = service
         self.host_target = []
@@ -62,13 +62,15 @@ class AccessBeater(MonitorBeater):
         更新聚合策略分组周期
         """
 
-        def get_interval(s_ids):
+        def get_interval(s_ids: list[int]) -> tuple[list, bool]:
             """
             基于策略分组的策略获取item中的周期列表
-            :param s_ids:
-            :return:
+            如果命中qos, 则返回标记
+            :param s_ids: 策略ID列表
+            :return: (周期列表, 是否QoS标记)
             """
             _interval_list = []
+            _is_qos = False
             for s_id in s_ids:
                 strategy = StrategyCacheManager.get_strategy_by_id(s_id)
                 if strategy is None:
@@ -79,15 +81,32 @@ class AccessBeater(MonitorBeater):
                         for config in item["query_configs"]:
                             if config.get("agg_interval"):
                                 _interval_list.append(config["agg_interval"])
-            return _interval_list
+
+                            if (
+                                not _is_qos
+                                and [config.get("data_source_label"), config.get("data_type_label")] in qos_labels
+                            ):
+                                _is_qos = True
+            return _interval_list, _is_qos
 
         interval_map = defaultdict(set)
-
+        qos_labels = getattr(settings, "QOS_DATASOURCE_LABELS") or []
+        qos_interval_expand = getattr(settings, "QOS_INTERVAL_EXPAND", 3)
         strategy_groups = StrategyCacheManager.get_all_groups()
         targets = set(map(str, self.targets))
         for strategy_group_key, strategy_group in strategy_groups.items():
+            is_qos = False
             strategy_group = json.loads(strategy_group)
             interval_list = strategy_group.pop("interval_list", [])
+            # 获取策略对应数据源类型
+            strategy_source = strategy_group.pop("strategy_source", [])
+            strategy_source = strategy_source[0] if strategy_source else [None, None]
+            for qos_label in qos_labels:
+                data_source_label, data_type_label = qos_label
+                if (data_source_label, data_type_label) == tuple(strategy_source):
+                    is_qos = True
+                    break
+
             bk_biz_id = strategy_group.pop("bk_biz_id", None)
             strategy_ids = strategy_group.keys()
             if bk_biz_id is not None:
@@ -100,7 +119,7 @@ class AccessBeater(MonitorBeater):
 
             if not interval_list:
                 # 兼容方案，当策略缓存未存储interval_list时，去redis中获取策略中的interval
-                interval_list = get_interval(strategy_ids)
+                interval_list, is_qos = get_interval(strategy_ids)
 
             min_interval = self.max_access_data_period
             # 异常边界考虑，当没有interval_list的时候这个策略不处理
@@ -108,6 +127,12 @@ class AccessBeater(MonitorBeater):
                 min_interval = min(self.max_access_data_period, *interval_list)
             else:
                 logger.warning(f"strategy_group_key({strategy_group_key}) is invalid, will not processed")
+
+            if is_qos:
+                logger.warning(
+                    f"strategy_group_key({strategy_group_key}) is qos, interval will be expanded with {qos_interval_expand}"
+                )
+                min_interval *= qos_interval_expand
             interval_map[min_interval].add(strategy_group_key)
 
         self.interval_map = interval_map
@@ -152,7 +177,7 @@ class AccessHandler(base.BaseHandler):
         access_type = option.get("access_type")
         self.service = option.get("service")
         if access_type not in ACCESS_TYPE_TO_CLASS:
-            raise Exception("Unknown Access Type(%s)." % str(access_type))
+            raise Exception(f"Unknown Access Type({str(access_type)}).")
 
         self.access_type = access_type
         self.targets = targets or []

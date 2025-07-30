@@ -32,44 +32,44 @@ import {
   searchHostInfo,
   searchHostMetric,
 } from 'monitor-api/modules/performance';
-import { Action, Module, Mutation, VuexModule, getModule } from 'vuex-module-decorators';
+import { Action, getModule, Module, Mutation, VuexModule } from 'vuex-module-decorators';
 
 // import { savePanelOrder, deletePanelOrder } from 'monitor-api/modules/data_explorer';
 import store from '../store';
 
+export interface ICurNode {
+  bkInstId?: number | string;
+  bkObjId?: string;
+  cloudId?: number | string;
+  id: string; // ip + cloudId 或者 bkInstId + bkObjId
+  ip?: string;
+  osType?: number;
+  processId?: number | string;
+  type: 'host' | 'node'; // host类型时：IP、bkCloudId不为空；node类型时：bkInstId、bkObjId不为空
+}
+interface IConditionValue {
+  condition: '<' | '<=' | '=' | '>' | '>=';
+  value: number;
+}
+
 interface IHostData {
   hosts: any[];
 }
-interface IUserConfig {
-  id?: number;
-  value: string;
-  key: string;
-  username?: string;
-}
 
+interface ISearchItem {
+  id: string;
+  value: (number | string)[] | IConditionValue[] | number | string;
+}
 interface IUpdateConfig {
   id: number;
   value: string;
 }
 
-interface IConditionValue {
-  condition: '<' | '<=' | '=' | '>' | '>=';
-  value: number;
-}
-interface ISearchItem {
-  id: string;
-  value: (number | string)[] | IConditionValue[] | number | string;
-}
-
-export interface ICurNode {
-  id: string; // ip + cloudId 或者 bkInstId + bkObjId
-  ip?: string;
-  cloudId?: number | string;
-  bkInstId?: number | string;
-  bkObjId?: string;
-  type: 'host' | 'node'; // host类型时：IP、bkCloudId不为空；node类型时：bkInstId、bkObjId不为空
-  processId?: number | string;
-  osType?: number;
+interface IUserConfig {
+  id?: number;
+  key: string;
+  username?: string;
+  value: string;
 }
 // todo 老代码
 export const SET_PERFORMANCE_HOST = 'SET_PERFORMANCE_HOST';
@@ -88,11 +88,11 @@ class Performance extends VuexModule {
   public hostConfigList = [];
   // 主机仪表盘配置排序列表
   public hostOrderList = [];
-  // 主机拓扑树数据
-  public hostToppTreeData = [];
-
   // 主机列表
   public hosts: Readonly<any[]> = [];
+
+  // 主机拓扑树数据
+  public hostToppTreeData = [];
   // todo 老代码
   public list: any[] = [];
 
@@ -172,26 +172,6 @@ class Performance extends VuexModule {
     return this.type;
   }
 
-  @Mutation
-  public [SET_PERFORMANCE_HOST](hostList = []) {
-    this.list = hostList;
-  }
-
-  @Mutation
-  public [SET_PERFORMANCE_PROCESS](process = '') {
-    this.proc = process;
-  }
-
-  @Mutation
-  public [SET_PERFORMANCE_ROW](row) {
-    this.rows = row;
-  }
-
-  @Mutation
-  public [SET_PERFORMANCE_VIEWTYPE](viewType = 'performance') {
-    this.type = viewType;
-  }
-
   // 创建用户置顶配置
   @Action
   public async createUserConfig(params: IUserConfig) {
@@ -239,6 +219,7 @@ class Performance extends VuexModule {
     }));
     return data;
   }
+
   // 获取节点详情
   @Action
   public async getNodeDetail(params) {
@@ -258,6 +239,7 @@ class Performance extends VuexModule {
     this.setTopoTreeList(data);
     return data;
   }
+
   // 获取用户置顶配置
   @Action
   public async getUserConfigList(params): Promise<IUserConfig[]> {
@@ -269,6 +251,24 @@ class Performance extends VuexModule {
   public async searchHostMetric(params: any) {
     const hostsMap = await searchHostMetric(params).catch(() => []);
     return hostsMap;
+  }
+  @Mutation
+  public [SET_PERFORMANCE_HOST](hostList = []) {
+    this.list = hostList;
+  }
+
+  @Mutation
+  public [SET_PERFORMANCE_PROCESS](process = '') {
+    this.proc = process;
+  }
+  @Mutation
+  public [SET_PERFORMANCE_ROW](row) {
+    this.rows = row;
+  }
+
+  @Mutation
+  public [SET_PERFORMANCE_VIEWTYPE](viewType = 'performance') {
+    this.type = viewType;
   }
 
   @Mutation

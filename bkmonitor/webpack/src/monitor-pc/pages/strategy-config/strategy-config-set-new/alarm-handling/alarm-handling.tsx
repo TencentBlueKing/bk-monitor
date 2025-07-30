@@ -61,41 +61,41 @@ export const actionConfigGroupList = (actionConfigList: IActionConfig[]): IGroup
   return groupList;
 };
 
+export interface IAllDefense {
+  description?: string;
+  key: string;
+  name: string;
+}
+
 export interface IValue {
   config_id?: number;
+  signal?: string[];
   user_groups?: number[];
   options: {
     converge_config: {
       converge_func: string; // 防御动作
-      timedelta: number; // 防御窗口大小（秒），默认设置为 60
       count: number; // 执行次数，默认设置为 1
       is_enabled?: boolean; // 是否启用
+      timedelta: number; // 防御窗口大小（秒），默认设置为 60
     };
-    enable_delay: number; // 数据延迟秒数
+    skip_delay: number; // 数据延迟秒数
   };
-  signal?: string[];
-}
-
-export interface IAllDefense {
-  key: string;
-  name: string;
-  description?: string;
-}
-
-interface IAlarmHandlingNewProps {
-  value?: IValue;
-  allDefense?: IAllDefense[]; // 防御动作列表
-  allAction?: IGroupItem[]; // 套餐列表
-  readonly?: boolean;
-  strategyId?: number | string;
-  extCls?: string;
-  isSimple?: boolean; // 简洁模式(无预览，无回填)
-  list?: signalOptionsItem[];
 }
 
 interface IAlarmHandlingNewEvent {
   onChange?: IValue;
   onAddMeal?: () => void;
+}
+
+interface IAlarmHandlingNewProps {
+  allAction?: IGroupItem[]; // 套餐列表
+  allDefense?: IAllDefense[]; // 防御动作列表
+  extCls?: string;
+  isSimple?: boolean; // 简洁模式(无预览，无回填)
+  list?: signalOptionsItem[];
+  readonly?: boolean;
+  strategyId?: number | string;
+  value?: IValue;
 }
 
 interface signalOptionsItem {
@@ -119,7 +119,7 @@ export default class AlarmHandlingNew extends tsc<IAlarmHandlingNewProps, IAlarm
           count: 1, // 执行次数，默认设置为 1
           is_enabled: true,
         },
-        enable_delay: 1, // 数据延迟秒数
+        skip_delay: 0, // 数据延迟秒数
       },
     }),
   })
@@ -150,6 +150,11 @@ export default class AlarmHandlingNew extends tsc<IAlarmHandlingNewProps, IAlarm
     return this.allAction.filter(item => item.id !== 'notice');
   }
 
+  // 延迟时间校验的状态
+  get isSkipDelayValid() {
+    return this.enableSkipDelay && this.data.options.skip_delay <= 0;
+  }
+
   data: IValue = {
     config_id: 0,
     user_groups: [],
@@ -160,12 +165,15 @@ export default class AlarmHandlingNew extends tsc<IAlarmHandlingNewProps, IAlarm
         count: 1, // 执行次数，默认设置为 1
         is_enabled: true,
       },
-      enable_delay: 1, // 数据延迟秒数
+      skip_delay: 0, // 数据延迟秒数
     },
   };
   isShowDetail = false;
 
-  disableDelay = false; // 关闭数据延迟秒数输入
+  // 数据延迟开关
+  enableSkipDelay = false;
+  // 数据延迟秒数
+  delayTime = 0;
 
   @Watch('value', { immediate: true, deep: true })
   handleValue(data: IAlarmHandlingNewProps['value']) {
@@ -174,6 +182,11 @@ export default class AlarmHandlingNew extends tsc<IAlarmHandlingNewProps, IAlarm
   @Emit('change')
   handleChange() {
     return this.data;
+  }
+
+  mounted() {
+    this.delayTime = this.data.options.skip_delay;
+    this.enableSkipDelay = this.data.options.skip_delay > 0;
   }
 
   // 切换套餐
@@ -190,12 +203,29 @@ export default class AlarmHandlingNew extends tsc<IAlarmHandlingNewProps, IAlarm
   }
 
   // 数据延迟switch
-  handleChangeDelay(isSwitchOn: boolean) {
-    this.disableDelay = !isSwitchOn;
+  handleSwitchDelay(isSwitchOn: boolean) {
     if (!isSwitchOn) {
-      this.data.options.enable_delay = 0;
+      // 关闭状态 输入的分钟数不变，但提交给后端0分钟
+      this.data.options.skip_delay = 0;
+      // this.delayTime = 0;
       this.handleChange();
+      return;
     }
+    this.handleDelayChange(this.delayTime);
+  }
+
+  handleDelayChange(v) {
+    // const regex = /^(?!0$)(0*[1-9][0-9]*|[1-9][0-9]*)$/正整数
+    // 允许小数
+    const regex = /^(?!0(\.0+)?$)(\d+|\d*\.\d+)$/;
+    if (!regex.test(v)) {
+      // 后端只存储延迟时间，不记录开关状态。 -1：switch状态开，用于父组件校验不通过；0表示关闭可通过
+      this.data.options.skip_delay = this.enableSkipDelay ? -1 : 0;
+      this.handleChange();
+      return;
+    }
+    this.data.options.skip_delay = v;
+    this.handleChange();
   }
 
   handleToAddSetMeal() {
@@ -363,16 +393,16 @@ export default class AlarmHandlingNew extends tsc<IAlarmHandlingNewProps, IAlarm
         )}
         {this.data.options.converge_config.is_enabled && this.data.signal.includes(this.list[0].id) && (
           <CommonItem
-            class='no-label'
+            class='no-label skip-delay'
             title=''
           >
             <bk-switcher
               class='converge-config-option'
+              v-model={this.enableSkipDelay}
               disabled={this.readonly}
               size='small'
               theme='primary'
-              value
-              on-change={this.handleChangeDelay}
+              on-change={this.handleSwitchDelay}
             />
             <i18n
               class={`defense-wrap ${this.isSimple ? 'simple' : ''}`}
@@ -381,18 +411,27 @@ export default class AlarmHandlingNew extends tsc<IAlarmHandlingNewProps, IAlarm
               {!this.readonly ? (
                 <bk-input
                   class='small-input'
-                  v-model={this.data.options.enable_delay}
+                  v-model={this.delayTime}
+                  v-bk-tooltips={
+                    !this.enableSkipDelay
+                      ? { content: this.$t('先打开功能'), showOnInit: false, placements: ['top'] }
+                      : { disabled: true }
+                  }
                   behavior='simplicity'
-                  readonly={this.readonly || this.disableDelay}
+                  disabled={!this.enableSkipDelay}
+                  inputStyle={{ borderBottomColor: this.isSkipDelayValid ? '#ea3636' : '#c4c6cc' }}
+                  min={0}
+                  readonly={this.readonly || !this.enableSkipDelay}
                   showControls={false}
                   size='small'
                   type='number'
-                  on-change={this.handleChange}
+                  on-change={this.handleDelayChange}
                 />
               ) : (
-                <span>{this.data.options.enable_delay}</span>
+                <span>{`${this.delayTime}`}</span>
               )}
             </i18n>
+            {this.isSkipDelayValid && <span class='error-tips'>{this.$t('只能填写大于0的值')}</span>}
           </CommonItem>
         )}
 

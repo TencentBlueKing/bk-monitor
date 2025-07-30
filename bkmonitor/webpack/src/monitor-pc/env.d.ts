@@ -1,3 +1,7 @@
+type ServiceParameters<T extends (params: any) => Promise<any>> = Parameters<T>[number] extends 0
+  ? never
+  : Parameters<T>[0];
+
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -26,10 +30,6 @@
 type ServiceReturnType<T extends (...args: any) => Promise<any>> = T extends (...args: any) => Promise<infer R>
   ? R
   : any;
-
-type ServiceParameters<T extends (params: any) => Promise<any>> = Parameters<T>[number] extends 0
-  ? never
-  : Parameters<T>[0];
 
 type Writable<T> = {
   -readonly [P in keyof T]: T[P]; // 移除每个属性的 readonly

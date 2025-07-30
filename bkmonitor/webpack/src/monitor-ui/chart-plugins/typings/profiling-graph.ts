@@ -26,6 +26,11 @@
 
 import type { TranslateResult } from 'vue-i18n';
 
+export enum TextDirectionType {
+  Ltr = 'ltr',
+  Rtl = 'rtl',
+}
+
 export enum ViewModeType {
   Combine = 'combine',
   Flame = 'flame',
@@ -33,80 +38,75 @@ export enum ViewModeType {
   Topo = 'topo',
 }
 
-export enum TextDirectionType {
-  Ltr = 'ltr',
-  Rtl = 'rtl',
+export interface DataTypeItem {
+  default_agg_method?: string;
+  key: string;
+  name: string;
 }
 
-export interface ViewModeItem {
-  id: ViewModeType;
-  icon: string;
-  label: string;
+export interface IQueryParams {
+  agg_method?: string;
+  app_name?: string;
+  bk_biz_id?: number;
+  data_type?: string;
+  diagram_types?: string[];
+  diff_filter_labels?: any;
+  diff_profile_id?: string;
+  end?: number;
+  filter_labels?: Record<string, string>;
+  is_compared?: boolean;
+  offset?: number;
+  profile_id?: string;
+  service_name?: string;
+  sort?: string;
+  start?: number;
+}
+
+export interface ITableTipsDetail {
+  baseline?: number;
+  comparison?: number;
+  diff?: number;
+  diffDuration?: string;
+  diffValue?: number | string;
+  displaySelf?: string;
+  displayTotal?: string;
+  duration?: string;
+  id?: string;
+  left?: number; // 提示框左边距离画布左边的距离
+  mark?: string;
+  proportion?: number | string;
+  self?: number;
+  selfPercent?: string;
+  title?: string;
+  top?: number; // 提示框上边距离画布上边的距离
+  total?: number;
+  totalPercent?: string;
 }
 
 export interface ProfilingTableItem {
+  baseline?: number;
+  color?: string;
+  comparison?: number;
+  diff?: number;
+  displaySelf?: string;
+  displayTotal?: string;
   id: number;
+  location?: string;
+  mark?: string;
   name: string;
   self: number;
   total: number;
-  displaySelf?: string;
-  displayTotal?: string;
-  location?: string;
-  color?: string;
-  diff?: number;
-  baseline?: number;
-  comparison?: number;
-  mark?: string;
 }
 
 export interface TableColumn {
   id: string;
-  name: TranslateResult | string;
-  sort?: string;
   mode?: 'diff' | 'normal';
-}
-
-export interface ITableTipsDetail {
-  left?: number; // 提示框左边距离画布左边的距离
-  top?: number; // 提示框上边距离画布上边的距离
-  title?: string;
-  self?: number;
-  total?: number;
-  baseline?: number;
-  comparison?: number;
-  mark?: string;
-  displaySelf?: string;
-  displayTotal?: string;
-  selfPercent?: string;
-  totalPercent?: string;
-  proportion?: number | string;
-  duration?: string;
-  diffDuration?: string;
-  diffValue?: number | string;
-  id?: string;
-  diff?: number;
-}
-
-export interface IQueryParams {
-  bk_biz_id?: number;
-  app_name?: string;
-  service_name?: string;
-  start?: number;
-  end?: number;
-  data_type?: string;
-  agg_method?: string;
-  profile_id?: string;
-  diff_profile_id?: string;
-  offset?: number;
-  diagram_types?: string[];
+  name: string | TranslateResult;
   sort?: string;
-  filter_labels?: Record<string, string>;
-  diff_filter_labels?: any;
-  is_compared?: boolean;
 }
 
-export interface DataTypeItem {
-  key: string;
-  name: string;
-  default_agg_method?: string;
+export interface ViewModeItem {
+  icon: string;
+  id: ViewModeType;
+  label: string;
 }

@@ -68,8 +68,8 @@
                   <td width="50%">
                     <p
                       v-for="(reItem, reIndex) in getResource(action.related_resource_types)"
-                      class="resource-type-item"
                       :key="reIndex"
+                      class="resource-type-item"
                     >
                       {{ reItem }}
                     </p>

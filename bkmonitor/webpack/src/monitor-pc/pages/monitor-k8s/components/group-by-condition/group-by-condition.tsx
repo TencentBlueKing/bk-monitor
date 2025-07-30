@@ -24,6 +24,7 @@
  * IN THE SOFTWARE.
  */
 import { nextTick } from 'vue';
+
 import { Component, Emit, Prop, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
@@ -36,15 +37,15 @@ import type { K8sTableColumnResourceKey } from '../k8s-table-new/k8s-table-new';
 
 import './group-by-condition.scss';
 
-export interface GroupByConditionProps {
-  title: string;
-  groupInstance: K8sGroupDimension;
-  dimensionTotal: Partial<Record<K8sTableColumnResourceKey, number>>;
-  scene?: SceneEnum;
-}
-
 export interface GroupByConditionEvents {
   onChange: (id: K8sTableColumnResourceKey) => void;
+}
+
+export interface GroupByConditionProps {
+  dimensionTotal: Partial<Record<K8sTableColumnResourceKey, number>>;
+  groupInstance: K8sGroupDimension;
+  scene?: SceneEnum;
+  title: string;
 }
 @Component
 export default class GroupByCondition extends tsc<GroupByConditionProps, GroupByConditionEvents> {

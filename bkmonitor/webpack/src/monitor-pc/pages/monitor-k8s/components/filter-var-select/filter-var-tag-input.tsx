@@ -30,19 +30,19 @@ import { Debounce } from 'monitor-common/utils/utils';
 
 import './filter-var-tag-input.scss';
 
+interface IEvents {
+  onChange?: string | string[];
+}
+
 interface IListItem {
   id: string;
   name: string;
 }
 
 interface IProps {
+  clearable?: boolean;
   list?: IListItem[];
   multiple?: boolean;
-  clearable?: boolean;
-}
-
-interface IEvents {
-  onChange?: string | string[];
 }
 
 @Component

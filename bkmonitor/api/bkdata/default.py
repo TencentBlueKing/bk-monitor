@@ -1348,7 +1348,7 @@ class GetIncidentAnalysisResults(DataAccessAPIResource):
     获取故障根因定位快照数据
     """
 
-    action = "/v3/aiops/incident/{incident_id}/analysis_results/"
+    action = "/v3/aiops/incident/analysis_results/{incident_id}/"
     method = "GET"
 
     class RequestSerializer(CommonRequestSerializer):

@@ -24,12 +24,12 @@
  * IN THE SOFTWARE.
  */
 import { type Ref, computed, defineComponent, inject, nextTick, onMounted, ref, watch } from 'vue';
-import { useI18n } from 'vue-i18n';
 
 import { Exception, Input, Loading, Popover, Tree } from 'bkui-vue';
 import { CogShape } from 'bkui-vue/lib/icon';
 import dayjs from 'dayjs';
 import { incidentOperationTypes } from 'monitor-api/modules/incident';
+import { useI18n } from 'vue-i18n';
 
 import { useIncidentInject } from '../utils';
 import { renderMap } from './process';

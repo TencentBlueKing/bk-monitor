@@ -36,30 +36,30 @@ import type { TranslateResult } from 'vue-i18n';
 
 import './alert-analyze.scss';
 
+interface IAlertAnalyzeEvent {
+  onAppendQuery: { queryString: string; type: 'add' | 'del' };
+  onDetailFieldChange: string;
+  onFieldChange: string[];
+}
 interface IAlertAnalyzeProps {
-  loading: boolean;
   analyzeData: any;
   analyzeFields: string[];
-  detailFieldData: any;
-  detailField: string;
-  detailLoading: boolean;
   analyzeTagList: ICommonItem[];
   bizIds: number[];
-  searchType?: SearchType;
+  detailField: string;
+  detailFieldData: any;
+  detailLoading: boolean;
   hasSearchParams?: boolean;
+  loading: boolean;
+  searchType?: SearchType;
   clearSearch?: (type: EmptyStatusOperationType) => void;
 }
-interface IAlertAnalyzeEvent {
-  onFieldChange: string[];
-  onDetailFieldChange: string;
-  onAppendQuery: { type: 'add' | 'del'; queryString: string };
-}
-type tableType = 'field' | 'tag';
-
 interface ITabPanelItem {
   id: tableType;
-  name: TranslateResult | string;
+  name: string | TranslateResult;
 }
+
+type tableType = 'field' | 'tag';
 @Component
 export default class AlertAnalyze extends tsc<IAlertAnalyzeProps, IAlertAnalyzeEvent> {
   @Prop({ default: () => [], type: Array }) analyzeData: any;
@@ -342,6 +342,22 @@ export default class AlertAnalyze extends tsc<IAlertAnalyzeProps, IAlertAnalyzeE
     return this.$store.getters.bizIdMap.get(+bizId)?.name || bizId;
   }
   /**
+   * @description: 获取名称
+   * @param {string} field
+   * @param {any} item
+   * @return {*}
+   */
+  getNameByFiled(field, item) {
+    const renderUserName = item => <bk-user-display-name user-id={item.name} />;
+    const fieldMap = {
+      bk_cloud_id: this.getBizeName,
+      // 多租户改造
+      operator: renderUserName,
+      assignee: renderUserName,
+    };
+    return fieldMap[field] ? fieldMap[field](item) : item.name;
+  }
+  /**
    * @description: 列表组件
    * @param {any} item
    * @return {*}
@@ -361,7 +377,7 @@ export default class AlertAnalyze extends tsc<IAlertAnalyzeProps, IAlertAnalyzeE
                     class='process-title-text'
                     title={chart.name}
                   >
-                    {item.field === 'bk_biz_id' ? this.getBizeName(chart.id) : chart.name}
+                    {this.getNameByFiled(item.field, chart)}
                   </span>
                   <span class='title-percent'>
                     <span class='count'>{chart.count}</span>

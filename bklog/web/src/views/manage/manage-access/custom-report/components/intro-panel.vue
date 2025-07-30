@@ -47,7 +47,7 @@
       </div>
       <div class="html-container">
         <!-- eslint-disable-next-line vue/no-v-html -->
-        <div v-html="customTypeIntro"></div>
+        <div v-html="$xss(customTypeIntro)"></div>
       </div>
     </div>
   </div>

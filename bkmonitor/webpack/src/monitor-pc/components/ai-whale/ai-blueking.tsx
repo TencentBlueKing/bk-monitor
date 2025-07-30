@@ -23,10 +23,11 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Watch, Ref } from 'vue-property-decorator';
+import { Component, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import AIBlueking from '@blueking/ai-blueking/vue2';
+import { random } from 'monitor-common/utils/utils';
 
 import aiWhaleStore from '../../store/modules/ai-whale';
 
@@ -35,6 +36,9 @@ import '@blueking/ai-blueking/dist/vue2/style.css';
 @Component
 export default class AiBluekingWrapper extends tsc<object> {
   @Ref('aiBlueking') aiBluekingRef: typeof AIBlueking;
+  headers = {
+    Traceparent: `00-${random(32, 'abcdef0123456789')}-${random(16, 'abcdef0123456789')}-01`,
+  };
   get apiUrl() {
     return '/ai_agents/chat';
   }
@@ -43,6 +47,84 @@ export default class AiBluekingWrapper extends tsc<object> {
   }
   get message() {
     return aiWhaleStore.message;
+  }
+  get shortcuts() {
+    return [
+      {
+        id: 'explanation',
+        name: this.$t('解释'),
+        // icon: 'bkai-help',
+        components: [
+          {
+            type: 'textarea',
+            key: 'content',
+            name: this.$t('内容'),
+            fillBack: true,
+            placeholder: this.$t('请输入需要解释的内容'),
+          },
+        ],
+      },
+      {
+        id: 'translate',
+        name: this.$t('翻译'),
+        // icon: 'bkai-translate',
+        components: [
+          {
+            type: 'textarea',
+            key: 'content',
+            name: this.$t('待翻译文本'),
+            fillBack: true,
+            placeholder: this.$t('请输入需要翻译的内容'),
+          },
+          {
+            type: 'select',
+            key: 'language',
+            name: this.$t('语言'),
+            placeholder: this.$t('请选择语言'),
+            default: 'english',
+            options: [
+              { label: 'English', value: 'english' },
+              { label: '中文', value: 'chinese' },
+            ],
+          },
+        ],
+      },
+      {
+        id: 'promql_helper',
+        name: this.$t('PromQL助手'),
+        // icon: 'icon-monitor icon-mc-help-fill',
+        components: [
+          {
+            type: 'textarea',
+            key: 'promql',
+            fillBack: true,
+            name: this.$t('指标/PromQL语句'),
+            placeholder: this.$t('请输入指标/PromQL语句'),
+          },
+          {
+            type: 'textarea',
+            key: 'user_demand',
+            fillBack: false,
+            name: this.$t('用户指令'),
+            placeholder: this.$t('请输入用户指令'),
+          },
+        ],
+      },
+      // {
+      //   id: 'metadata_diagnosis',
+      //   name: this.$t('链路排障'),
+      //   // icon: 'bk-icon icon-monitors-cog',
+      //   components: [
+      //     {
+      //       type: 'textarea',
+      //       key: 'bk_data_id',
+      //       fillBack: true,
+      //       name: this.$t('数据源ID'),
+      //       placeholder: this.$t('请输入数据源ID'),
+      //     },
+      //   ],
+      // },
+    ];
   }
   @Watch('showDialog')
   handleShowDialogChange(newVal: boolean) {
@@ -65,11 +147,17 @@ export default class AiBluekingWrapper extends tsc<object> {
       <div class='ai-blueking-wrapper'>
         <AIBlueking
           ref='aiBlueking'
-          enablePopup={false}
+          requestOptions={{
+            headers: this.headers,
+          }}
+          enablePopup={true}
           hideNimbus={true}
           prompts={[]}
-          shortcuts={[]}
+          shortcuts={this.shortcuts}
           url={this.apiUrl}
+          on-send-message={() => {
+            this.headers.Traceparent = `00-${random(32, 'abcdef0123456789')}-${random(16, 'abcdef0123456789')}-01`;
+          }}
           onClose={() => {
             aiWhaleStore.setShowAIBlueking(false);
           }}

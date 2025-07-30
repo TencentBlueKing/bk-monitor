@@ -162,6 +162,10 @@
         type: Array,
         default: () => [],
       },
+      indexSetId: {
+        type: Number,
+        default: 0,
+      },
     },
     data() {
       const id = 'fields-config-tippy';
@@ -272,7 +276,7 @@
           this.isConfigLoading = true;
           const res = await this.$http.request('retrieve/getLogTableHead', {
             params: {
-              index_set_id: window.__IS_MONITOR_COMPONENT__ ? this.$route.query.indexId : this.$route.params.indexId,
+              index_set_id: this.indexSetId
             },
             query: {
               scope: 'search_context',
@@ -317,7 +321,7 @@
           this.logLoading = true;
           const res = await this.$http.request('retrieve/getContentLog', {
             params: {
-              index_set_id: window.__IS_MONITOR_COMPONENT__ ? this.$route.query.indexId : this.$route.params.indexId,
+              index_set_id: this.indexSetId
             },
             data,
           });
@@ -356,7 +360,7 @@
           console.warn(e);
         } finally {
           this.logLoading = false;
-          if (this.highlightList.length) this.$refs.viewControlRef.initLightItemList();
+          if (this.highlightList.length) this.$refs.viewControlRef.initLightItemList(undefined,direction);
           if (this.zero) {
             this.$nextTick(() => {
               this.initLogScrollPosition();
@@ -392,7 +396,7 @@
         try {
           const configRes = await this.$http.request('retrieve/getFieldsConfigByContextLog', {
             params: {
-              index_set_id: window.__IS_MONITOR_COMPONENT__ ? this.$route.query.indexId : this.$route.params.indexId,
+              index_set_id:this.indexSetId,
               config_id: this.currentConfigID,
             },
           });
@@ -400,7 +404,7 @@
             sort_list: configRes.data.sort_list,
             name: configRes.data.name,
             config_id: this.currentConfigID,
-            index_set_id: window.__IS_MONITOR_COMPONENT__ ? this.$route.query.indexId : this.$route.params.indexId,
+            index_set_id:this.indexSetId,
           });
           await this.$http.request('retrieve/updateFieldsConfig', {
             data,

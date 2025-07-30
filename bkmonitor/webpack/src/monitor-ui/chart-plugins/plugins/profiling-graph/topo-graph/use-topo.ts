@@ -49,7 +49,7 @@ export class UseTopoChart {
   }
 
   /** 获取缩放钱鼠标相对于图片原始比例（缩放为1）时的位置 */
-  getSourcePosition(mousePosition: { x: number; y: number; [key: string]: any }) {
+  getSourcePosition(mousePosition: { [key: string]: any; x: number; y: number }) {
     const unscaledMouseX = (mousePosition.x - this.imgX) / this.scale;
     const unscaledMouseY = (mousePosition.y - this.imgY) / this.scale;
     return { unscaledMouseX, unscaledMouseY };

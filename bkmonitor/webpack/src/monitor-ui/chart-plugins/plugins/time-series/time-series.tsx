@@ -28,7 +28,7 @@ import { ofType } from 'vue-tsx-support';
 
 import dayjs from 'dayjs';
 import deepmerge from 'deepmerge';
-import { CancelToken } from 'monitor-api/index';
+import { CancelToken } from 'monitor-api/cancel';
 import { deepClone, random } from 'monitor-common/utils/utils';
 import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
 import {
@@ -81,29 +81,29 @@ import type { TimeRangeType } from 'monitor-pc/components/time-range/time-range'
 
 import './time-series.scss';
 
-interface ITimeSeriesProps {
-  panel: PanelModel;
-  showHeaderMoreTool?: boolean;
-  showChartHeader?: boolean;
-  customTimeRange?: [string, string];
-  customMenuList?: ChartTitleMenuType[];
-  needSetEvent?: boolean;
-  isSingleChart?: boolean;
-}
 interface ITimeSeriesEvent {
-  onFullScreen: PanelModel;
-  onDataZoom: () => void;
-  onDblClick: () => void;
-  onCollectChart?: () => void; // 保存到仪表盘
-  onSelectLegend: ILegendItem[]; // 选择图例时
   onDimensionsOfSeries?: string[]; // 图表数据包含维度是派出
+  onFullScreen: PanelModel;
+  onSelectLegend: ILegendItem[]; // 选择图例时
   onSeriesData?: any;
   onZrClick: ZrClickEvent;
+  onCollectChart?: () => void; // 保存到仪表盘
+  onDataZoom: () => void;
+  onDblClick: () => void;
   onOptionsLoaded(): void;
+}
+interface ITimeSeriesProps {
+  customMenuList?: ChartTitleMenuType[];
+  customTimeRange?: [string, string];
+  isSingleChart?: boolean;
+  needSetEvent?: boolean;
+  panel: PanelModel;
+  showChartHeader?: boolean;
+  showHeaderMoreTool?: boolean;
 }
 @Component
 export class LineChart
-  extends Mixins<ResizeMixin & IntersectionMixin & ToolsMixin & LegendMixin & ChartLoadingMixin & ErrorMsgMixins>(
+  extends Mixins<ChartLoadingMixin & ErrorMsgMixins & IntersectionMixin & LegendMixin & ResizeMixin & ToolsMixin>(
     ResizeMixin,
     IntersectionMixin,
     ToolsMixin,
@@ -488,6 +488,7 @@ export class LineChart
         const { maxSeriesCount, maxXInterval } = getSeriesMaxInterval(series);
         /* 派出图表数据包含的维度*/
         this.emitDimensions(series);
+        series = series.toSorted((a, b) => b.name?.localeCompare?.(a?.name));
         this.series = Object.freeze(series) as any;
         if (this.onlyOneResult) {
           let hasResultSeries = false;
@@ -512,7 +513,6 @@ export class LineChart
           seriesResult.map((item, index) => ({
             name: item.name,
             cursor: 'auto',
-            // biome-ignore lint/style/noCommaOperator: <explanation>
             data: item.datapoints.reduce((pre: any, cur: any) => (pre.push(cur.reverse()), pre), []),
             stack: item.stack || random(10),
             unit: this.panel.options?.unit || item.unit,

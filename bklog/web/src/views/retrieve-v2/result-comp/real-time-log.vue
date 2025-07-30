@@ -154,6 +154,10 @@
         type: Array,
         default: () => [],
       },
+      indexSetId: {
+        type: Number,
+        default: 0,
+      },
     },
     data() {
       return {
@@ -236,7 +240,7 @@
         this.$http
           .request('retrieve/getRealTimeLog', {
             params: {
-              index_set_id: window.__IS_MONITOR_COMPONENT__ ? this.$route.query.indexId : this.$route.params.indexId,
+              index_set_id: this.indexSetId,
             },
             data: Object.assign(
               { order: '-', size: 50, zero: this.zero, dtEventTimeStamp: this.logParams.dtEventTimeStamp },

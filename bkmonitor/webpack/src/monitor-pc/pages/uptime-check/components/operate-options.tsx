@@ -31,26 +31,26 @@ import type { TranslateResult } from 'vue-i18n';
 import './operate-options.scss';
 
 export interface IOperateOption {
+  authority?: boolean;
+  authorityDetail?: string;
+  disable?: boolean;
   id: string;
   name?: string | TranslateResult;
-  authority?: boolean;
-  disable?: boolean;
-  authorityDetail?: string;
   tip?: string;
 }
-interface IOptions {
-  outside?: IOperateOption[];
-  popover?: IOperateOption[];
+interface IOperateOptionsEvents {
+  onOptionClick?: string;
 }
 
 interface IOperateOptionsProps {
-  options?: IOptions;
-  isMouseOverShow?: boolean;
   isClickShow?: boolean;
+  isMouseOverShow?: boolean;
+  options?: IOptions;
 }
 
-interface IOperateOptionsEvents {
-  onOptionClick?: string;
+interface IOptions {
+  outside?: IOperateOption[];
+  popover?: IOperateOption[];
 }
 
 @Component({

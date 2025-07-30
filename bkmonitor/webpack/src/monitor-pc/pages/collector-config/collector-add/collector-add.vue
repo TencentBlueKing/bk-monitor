@@ -29,6 +29,7 @@
       <ul class="step-list">
         <li
           v-for="(item, index) in stepConf.list"
+          :key="index"
           class="step-list-item"
           :class="[
             `step-list-item-${index + 1}`,
@@ -37,7 +38,6 @@
               'is-done': item.done,
             },
           ]"
-          :key="index"
         >
           <div
             :class="[
@@ -54,9 +54,9 @@
     </div>
     <div class="add-container">
       <component
+        :is="currentView"
         :config.sync="config"
         :hosts.sync="hosts"
-        :is="currentView"
         :is-clone="isClone"
         :password-input-change-set="passwordInputChangeSet"
         :type.sync="componentType"

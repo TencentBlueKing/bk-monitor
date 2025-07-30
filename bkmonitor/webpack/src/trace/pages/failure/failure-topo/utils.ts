@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import type { ITopoNode, IEntity } from './types';
+import type { IEntity, ITopoNode } from './types';
 
 /** 根因节点样式 */
 const rootNodeAttrs = {

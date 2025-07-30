@@ -26,25 +26,25 @@
 import { Component, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import draggable from 'vuedraggable';
 // import _ from 'lodash';
-import { deleteSceneView, bulkUpdateSceneViewOrderAndName } from 'monitor-api/modules/scene_view';
+import { bulkUpdateSceneViewOrderAndName, deleteSceneView } from 'monitor-api/modules/scene_view';
 import { deepClone } from 'monitor-common/utils';
+import draggable from 'vuedraggable';
 
 import './index.scss';
 
-interface IProps {
-  sceneId: string;
-  payload: Record<string, any>;
-  viewList: {
-    id: string;
-    name: string;
-    edit?: boolean;
-  }[];
-}
-
 interface IEmit {
   onSuccess: () => void;
+}
+
+interface IProps {
+  payload: Record<string, any>;
+  sceneId: string;
+  viewList: {
+    edit?: boolean;
+    id: string;
+    name: string;
+  }[];
 }
 
 @Component({
@@ -73,8 +73,8 @@ export default class ViewManage extends tsc<IProps, IEmit> {
   lastDragTime = null;
   delList = [];
   isLoading = false;
-  
-  @Watch('viewList', {immediate: true})
+
+  @Watch('viewList', { immediate: true })
   viewListChange() {
     this.pageList = deepClone(this.viewList);
   }
@@ -93,11 +93,11 @@ export default class ViewManage extends tsc<IProps, IEmit> {
     let handleRes = false;
     this.isLoading = true;
     /** 有修改操作才调用修改接口 */
-    if (this.isChange){
+    if (this.isChange) {
       handleRes = await this.handleUpdateNameOrSort();
     }
     /** 有删除操作才调用删除接口 */
-    if (this.isDelChange){
+    if (this.isDelChange) {
       handleRes = await this.handleDelView();
     }
     this.isLoading = false;
@@ -108,7 +108,7 @@ export default class ViewManage extends tsc<IProps, IEmit> {
       });
       this.isShowDialog = false;
       this.$emit('success');
-    } 
+    }
   }
   /** 修改排序或者名字 */
   handleUpdateNameOrSort() {
@@ -126,7 +126,9 @@ export default class ViewManage extends tsc<IProps, IEmit> {
       scene_id: this.sceneId,
       type: 'detail',
       config,
-    }).then(() => true).catch(() => false);
+    })
+      .then(() => true)
+      .catch(() => false);
   }
   /** 删除视图操作 */
   handleDelView() {
@@ -134,7 +136,9 @@ export default class ViewManage extends tsc<IProps, IEmit> {
       scene_id: this.sceneId,
       ids: this.delList,
       type: 'detail',
-    }).then(() => true).catch(() => false);
+    })
+      .then(() => true)
+      .catch(() => false);
   }
   /** 删除 */
   handleDel(item) {
@@ -151,7 +155,7 @@ export default class ViewManage extends tsc<IProps, IEmit> {
     this.lastDragTime = new Date().toLocaleTimeString();
     this.isChange = true;
   }
-  handleClose () {
+  handleClose() {
     this.isShowDialog = false;
   }
   render() {
@@ -164,13 +168,13 @@ export default class ViewManage extends tsc<IProps, IEmit> {
         <i class='icon-monitor icon-shezhi1' />
         <bk-dialog
           width={480}
+          class='metric-view-manage-dialog'
           v-model={this.isShowDialog}
           draggable={false}
           header-position='left'
           render-directive='if'
           scrollable={false}
           title={this.$t('视图管理')}
-          class='metric-view-manage-dialog'
         >
           <draggable
             v-model={this.pageList}
@@ -179,9 +183,9 @@ export default class ViewManage extends tsc<IProps, IEmit> {
             onStart={this.dragStart}
           >
             <transition-group
+              class='metric-view-drag-list'
               name={this.dragData.from !== null ? 'flip-list' : 'flip-list-none'}
               tag='ul'
-              class='metric-view-drag-list'
             >
               {this.pageList.map((item, index) => (
                 <li
@@ -192,7 +196,9 @@ export default class ViewManage extends tsc<IProps, IEmit> {
                   <bk-input
                     class='drag-input'
                     v-model={item.name}
-                    onChange={() => {this.isChange = true;}}
+                    onChange={() => {
+                      this.isChange = true;
+                    }}
                   />
                   <span class='icon-group'>
                     <i
@@ -205,16 +211,16 @@ export default class ViewManage extends tsc<IProps, IEmit> {
             </transition-group>
           </draggable>
           <div slot='footer'>
-          <bk-button
-            loading={this.isLoading}
-            style={{ marginRight: '5px' }}
-            theme='primary'
-            onClick={this.handleSave}
-          >
-            {this.$t('确定')}
-          </bk-button>
-          <bk-button onClick={this.handleClose}>{this.$t('取消')}</bk-button>
-        </div>
+            <bk-button
+              style={{ marginRight: '5px' }}
+              loading={this.isLoading}
+              theme='primary'
+              onClick={this.handleSave}
+            >
+              {this.$t('确定')}
+            </bk-button>
+            <bk-button onClick={this.handleClose}>{this.$t('取消')}</bk-button>
+          </div>
         </bk-dialog>
       </div>
     );

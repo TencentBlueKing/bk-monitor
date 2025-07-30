@@ -28,12 +28,12 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import './navigation-head.scss';
 
-interface IProps {
-  title?: string;
-  rightActive?: boolean;
-}
 interface IEvents {
   onRightClick?: boolean;
+}
+interface IProps {
+  rightActive?: boolean;
+  title?: string;
 }
 
 @Component

@@ -108,7 +108,7 @@ export default {
     itemWidth: 10,
     itemHeight: 10,
     itemGap: 20,
-    padding: [10, 10, 5, 10],
+    padding: [10, 10, 3, 10],
     animation: false,
     type: 'scroll',
     textStyle: {
@@ -136,6 +136,7 @@ export default {
     },
     extraCssText: 'border-radius: 4px',
     appendToBody: true,
+    formatter: null,
   },
   toolbox: {
     showTitle: false,

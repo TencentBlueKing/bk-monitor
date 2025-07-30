@@ -25,25 +25,25 @@
  */
 import type { ITableItemMap } from './table';
 
-interface Children {
-  name: string;
-  type: string;
-  value: string | string[];
-}
-
 export type CommonDetailType = 'kv' | 'link' | 'list' | 'number' | 'progress' | 'status' | 'string' | 'tag' | 'time';
 
 export interface IDetailItem {
-  name: string;
-  value: IDetailValItem<CommonDetailType>;
-  type: CommonDetailType;
+  children?: Children[];
+  count?: number; // 如果为 0 ，则不需要渲染展开数据
   isExpand?: boolean; // 是否展开显示
   isOverflow?: boolean; // 是否已溢出
+  name: string;
   need_copy?: boolean; // 是否需要复制文本按钮
-  count?: number; // 如果为 0 ，则不需要渲染展开数据
-  children?: Children[];
+  type: CommonDetailType;
+  value: IDetailValItem<CommonDetailType>;
 }
 
 export type IDetailItemMap = Pick<ITableItemMap, CommonDetailType>;
 
 export type IDetailValItem<T extends CommonDetailType> = Pick<IDetailItemMap, T>[T];
+
+interface Children {
+  name: string;
+  type: string;
+  value: string | string[];
+}

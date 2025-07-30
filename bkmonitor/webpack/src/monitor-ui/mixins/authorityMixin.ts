@@ -24,12 +24,13 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, ProvideReactive, Provide } from 'vue-property-decorator';
+import { Component, Provide, ProvideReactive } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
+import { getAuthById, setAuthById } from 'monitor-pc/common/auth-store';
 
 // @ts-ignore
 import authorityStore from '@store/modules/authority';
-import { getAuthById, setAuthById } from 'monitor-pc/common/auth-store';
 
 Component.registerHooks(['beforeRouteEnter']);
 

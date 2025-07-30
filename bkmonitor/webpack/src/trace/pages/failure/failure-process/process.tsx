@@ -24,6 +24,7 @@
  * IN THE SOFTWARE.
  */
 import { reactive } from 'vue';
+
 import { useI18n } from 'vue-i18n';
 
 import { LEVEL_LIST, STATUS_LIST } from '../constant';
@@ -64,6 +65,20 @@ export const renderHandlers = handles => {
       ))
     : '--';
 };
+
+/** 渲染人员相关tag */
+export const renderHandlersForUser = handles => {
+  return handles?.length
+    ? handles.map(tag => (
+        <bk-user-display-name
+          key={tag}
+          class='tag-item'
+          user-id={tag}
+        />
+      ))
+    : '--';
+};
+
 export const handleFun = (data, callback) => {
   callback?.(data);
   const node = JSON.parse(JSON.stringify({ ...data }));
@@ -154,7 +169,7 @@ export const renderMap = reactive({
               {extra_info.alert_count}
             </span>
           ),
-          assignees: () => <span class='tag-wrap'>{renderHandlers(extra_info.assignees)}</span>,
+          assignees: () => <span class='tag-wrap'>{renderHandlersForUser(extra_info.assignees)}</span>,
         }}
         keypath={typeTextMap.incident_create}
       />
@@ -177,7 +192,7 @@ export const renderMap = reactive({
     return (
       <i18n-t
         v-slots={{
-          receivers: () => <span class='tag-wrap'>{renderHandlers(extra_info.receivers)}</span>,
+          receivers: () => <span class='tag-wrap'>{renderHandlersForUser(extra_info.receivers)}</span>,
         }}
         keypath={typeTextMap.incident_notice}
       />
@@ -230,7 +245,7 @@ export const renderMap = reactive({
       <i18n-t
         v-slots={{
           alert_name: () => handleAlertName(extra_info, callback),
-          receivers: () => <span class='tag-wrap'>{renderHandlers(receivers)}</span>,
+          receivers: () => <span class='tag-wrap'>{renderHandlersForUser(receivers)}</span>,
         }}
         keypath={typeTextMap.alert_notice}
       />
@@ -332,7 +347,7 @@ export const renderMap = reactive({
       <i18n-t
         v-slots={{
           alert_name: () => handleAlertName(extra_info, callback),
-          handlers: () => <span class='tag-wrap'>{renderHandlers(handlers)}</span>,
+          handlers: () => <span class='tag-wrap'>{renderHandlersForUser(handlers)}</span>,
         }}
         keypath={typeTextMap.alert_dispatch}
       />

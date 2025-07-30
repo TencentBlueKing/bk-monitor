@@ -42,15 +42,15 @@
       <div
         v-for="(item, index) in files"
         ref="content"
-        class="dialog-content"
         :key="index"
+        class="dialog-content"
       >
         <span class="icon-monitor icon-CPU dialog-content-icon" />
         <div class="dialog-content-desc">
           <div class="desc-name">
             <div
-              class="item-name"
               v-bk-overflow-tips
+              class="item-name"
             >
               {{ item.name }}
             </div>
@@ -81,8 +81,8 @@
       </div>
       <div class="dialog-footer">
         <bk-button
-          class="dialog-footer-btn"
           v-show="isSuccess"
+          class="dialog-footer-btn"
           theme="primary"
           @click="handleDialogClose"
         >

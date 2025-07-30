@@ -24,38 +24,6 @@
  * IN THE SOFTWARE.
  */
 
-export type SceneType = 'host'; // host | k8s
-
-export type NotificationType = 'INSTANCE' | 'SERVICE_TEMPLATE' | 'SET_TEMPLATE' | 'TOPO';
-
-export type FieldType = 'host_service_template' | 'host_set_template' | 'host_topo_node' | 'ip';
-
-export interface SchemeItem {
-  id: number;
-  name: string;
-  ts_freq: number;
-  ts_depend: string;
-  visual_type: string;
-  description: string;
-  instruction: string;
-  is_default: boolean;
-  latest_release_id: number;
-}
-
-export interface AnomalyDetectionBase {
-  is_enabled?: boolean;
-  default_plan_id: number | undefined;
-  default_sensitivity?: number;
-  [key: string]: any;
-}
-
-export interface HostInfo {
-  subMessageCount: number;
-  messageCount: number;
-  message: string;
-  subMessage: string;
-}
-
 export interface AiSetting {
   kpi_anomaly_detection: AnomalyDetectionBase;
   multivariate_anomaly_detection: {
@@ -63,40 +31,72 @@ export interface AiSetting {
   };
 }
 
-export interface CheckedData {
-  type: NotificationType;
-  data: TopologyData[];
+export interface AnomalyDetectionBase {
+  [key: string]: any;
+  default_plan_id: number | undefined;
+  default_sensitivity?: number;
+  is_enabled?: boolean;
 }
 
-export interface TopologyData {
-  SERVICE_TEMPLATE?: number;
-  agent_error_count?: number;
-  count?: number;
-  all_host?: string[];
-  node_path?: string;
-  labels?: { first: string; second: string }[];
-  bk_biz_id?: number;
-  bk_inst_id?: number;
-  bk_inst_name?: string;
-  bk_obj_id?: string;
-  instances_count?: number;
-  nodes_count?: number;
+export interface CheckedData {
+  data: TopologyData[];
+  type: NotificationType;
+}
 
-  bk_cloud_id?: number;
-  agent_status?: string;
-  bk_cloud_name?: string;
-  bk_os_type?: string;
-  bk_supplier_id?: string;
-  is_external_ip?: boolean;
-  is_innerip?: boolean;
-  is_outerip?: false;
-  ip?: string;
+export type FieldType = 'host_service_template' | 'host_set_template' | 'host_topo_node' | 'ip';
+
+export interface HostInfo {
+  message: string;
+  messageCount: number;
+  subMessage: string;
+  subMessageCount: number;
 }
 
 export interface HostValueItem {
   field: FieldType;
-  value: TopologyData[];
   method: string;
+  value: TopologyData[];
+}
+
+export type NotificationType = 'INSTANCE' | 'SERVICE_TEMPLATE' | 'SET_TEMPLATE' | 'TOPO';
+
+export type SceneType = 'host'; // host | k8s
+
+export interface SchemeItem {
+  description: string;
+  id: number;
+  instruction: string;
+  is_default: boolean;
+  latest_release_id: number;
+  name: string;
+  ts_depend: string;
+  ts_freq: number;
+  visual_type: string;
+}
+
+export interface TopologyData {
+  agent_error_count?: number;
+  agent_status?: string;
+  all_host?: string[];
+  bk_biz_id?: number;
+  bk_cloud_id?: number;
+  bk_cloud_name?: string;
+  bk_inst_id?: number;
+  bk_inst_name?: string;
+  bk_obj_id?: string;
+  bk_os_type?: string;
+  bk_supplier_id?: string;
+  count?: number;
+
+  instances_count?: number;
+  ip?: string;
+  is_external_ip?: boolean;
+  is_innerip?: boolean;
+  is_outerip?: false;
+  labels?: { first: string; second: string }[];
+  node_path?: string;
+  nodes_count?: number;
+  SERVICE_TEMPLATE?: number;
 }
 
 export const targetFieldMap: { [key in NotificationType]: FieldType } = {

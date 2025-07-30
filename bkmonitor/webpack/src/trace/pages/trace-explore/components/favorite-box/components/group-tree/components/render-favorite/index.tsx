@@ -23,12 +23,12 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, type PropType, onMounted, shallowRef, onBeforeUnmount, computed } from 'vue';
-import { useI18n } from 'vue-i18n';
+import { type PropType, computed, defineComponent, onBeforeUnmount, onMounted, shallowRef } from 'vue';
 
 import { Message } from 'bkui-vue';
-import { createFavorite, updateFavorite, destroyFavorite } from 'monitor-api/modules/model';
-import tippy, { type SingleTarget, type Instance } from 'tippy.js';
+import { createFavorite, destroyFavorite, updateFavorite } from 'monitor-api/modules/model';
+import tippy, { type Instance, type SingleTarget } from 'tippy.js';
+import { useI18n } from 'vue-i18n';
 
 import EditFavorite from '../../../../components/edit-favorite';
 import useFavoriteType from '../../../../hooks/use-favorite-type';
@@ -166,12 +166,34 @@ export default defineComponent({
           'is-hover': isHover.value,
         }}
         v-bk-tooltips={{
-          content: [
-            `${t('收藏名')}: ${props.data.name}`,
-            `${t('创建人')}: ${props.data.create_user}`,
-            `${t('最近更新人')}: ${props.data.update_user}`,
-            `${t('最近更新时间')}: ${props.data.update_time}`,
-          ].join('\n'),
+          content: () => {
+            return (
+              <div>
+                <div>
+                  <span>
+                    {t('收藏名')}: {props.data.name}
+                  </span>
+                </div>
+                <div>
+                  <span>
+                    {t('创建人')}:{' '}
+                    {props.data.create_user ? <bk-user-display-name user-id={props.data.create_user} /> : '--'}
+                  </span>
+                </div>
+                <div>
+                  <span>
+                    {t('最近更新人')}:{' '}
+                    {props.data.update_user ? <bk-user-display-name user-id={props.data.update_user} /> : '--'}
+                  </span>
+                </div>
+                <div>
+                  <span>
+                    {t('最近更新时间')}: {props.data.update_time}
+                  </span>
+                </div>
+              </div>
+            );
+          },
           placement: 'right',
         }}
       >
