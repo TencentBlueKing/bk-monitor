@@ -66,9 +66,11 @@ class SpaceManager(models.Manager):
         :param page_size: 每页的数量
         :param exclude_platform_space: 过滤掉平台级的空间
         """
-        spaces = self.filter(bk_tenant_id=bk_tenant_id)
+        spaces = self.all()
         # 如果有过滤条件，则根据条件进行过滤
-        spaces = self._filter(spaces, space_name, space_id, space_type_id, id, is_exact, exclude_platform_space)
+        spaces = self._filter(
+            spaces, bk_tenant_id, space_name, space_id, space_type_id, id, is_exact, exclude_platform_space
+        )
         # 获取总量
         count = spaces.count()
         # NOTE: 当 page * page_size 大于等于 count，返回的数据为空
@@ -110,6 +112,7 @@ class SpaceManager(models.Manager):
     def _filter(
         self,
         spaces: QuerySet,
+        bk_tenant_id: str,
         space_name: str | None = None,
         space_id: str | None = None,
         space_type_id: str | None = None,
@@ -118,6 +121,7 @@ class SpaceManager(models.Manager):
         exclude_platform_space: bool | None = True,
     ) -> QuerySet:
         """根据条件进行过滤"""
+        spaces = spaces.filter(bk_tenant_id=bk_tenant_id)
         if exclude_platform_space:
             spaces = spaces.exclude(
                 space_type_id=constants.EXCLUDED_SPACE_TYPE_ID, space_id=constants.EXCLUDED_SPACE_ID
