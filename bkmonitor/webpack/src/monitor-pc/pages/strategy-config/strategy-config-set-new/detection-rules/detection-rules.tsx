@@ -33,6 +33,7 @@ import MonitorSelect from '../../../../components/monitor-select/monitor-select.
 import { THRESHOLD_METHOD_LIST } from '../../../../constant/constant';
 import AbnormalCluster from '../../../../static/images/svg/abnormal-cluster.svg';
 import IntelligentDetect from '../../../../static/images/svg/intelligent-detect.svg';
+import NewSeries from '../../../../static/images/svg/new-series.svg';
 import PartialNodes from '../../../../static/images/svg/partial-nodes.svg';
 import RingRatio from '../../../../static/images/svg/ring-ratio.svg';
 import Threshold from '../../../../static/images/svg/threshold.svg';
@@ -152,6 +153,17 @@ export default class DetectionRules extends tsc<IDetectionRules, IEvent> {
       disabledTip: '',
     },
     {
+      id: DetectionRuleTypeEnum.NewSeries,
+      type: 'ai',
+      name: window.i18n.tc('新维度值检测'),
+      icon: NewSeries,
+      data: undefined,
+      tip: '算法说明待产品补充',
+      modelData: undefined,
+      disabled: false,
+      disabledTip: '',
+    },
+    {
       id: DetectionRuleTypeEnum.Threshold,
       type: 'convention',
       name: window.i18n.tc('静态阈值'),
@@ -221,12 +233,7 @@ export default class DetectionRules extends tsc<IDetectionRules, IEvent> {
 
   /** 是否支持智能检测算法 时序预测条件一致 */
   get isCanSetAiops(): boolean {
-    const {
-      data_source_label: dataSourceLabel,
-      data_type_label: dataTypeLabel,
-      functions,
-      result_table_id,
-    } = this.metricData[0] || {};
+    const { data_type_label: dataTypeLabel } = this.metricData[0] || {};
 
     const isTimeSeries = dataTypeLabel === 'time_series' || this.dataTypeLabel === 'time_series'; // 数据类型是否为指标
     const isLogMetric = dataTypeLabel === 'log' || this.dataTypeLabel === 'log';
@@ -302,6 +309,7 @@ export default class DetectionRules extends tsc<IDetectionRules, IEvent> {
           DetectionRuleTypeEnum.IntelligentDetect,
           DetectionRuleTypeEnum.TimeSeriesForecasting,
           DetectionRuleTypeEnum.AbnormalCluster,
+          // DetectionRuleTypeEnum.NewSeries,
         ].includes(item.id)
       ) {
         if (!this.isCanSetAiops) {
@@ -454,8 +462,10 @@ export default class DetectionRules extends tsc<IDetectionRules, IEvent> {
   /**
    * @description: 算法规则数据变化
    */
-  handleRuleDataChange(val: IDetectionTypeRuleData, item: IDetectionTypeItem) {
+  handleRuleDataChange(val: IDetectionTypeRuleData, index: number) {
+    const item = this.addType[index];
     item.data = val;
+    this.addType.splice(index, 1, item);
     this.emitLocalValue();
   }
 
@@ -578,7 +588,7 @@ export default class DetectionRules extends tsc<IDetectionRules, IEvent> {
                 select-rule-data={this.localValue}
                 unit={this.unitDisplay}
                 onChartTypeChange={this.handleAiopsChartTypeChange}
-                onDataChange={val => this.handleRuleDataChange(val, item)}
+                onDataChange={val => this.handleRuleDataChange(val, index)}
                 onDelete={() => this.handleDeleteRule(index)}
                 onInitVM={val => this.ruleWrapVMInit(val, index)}
                 onModelChange={data => this.handleModelChange(data, item)}

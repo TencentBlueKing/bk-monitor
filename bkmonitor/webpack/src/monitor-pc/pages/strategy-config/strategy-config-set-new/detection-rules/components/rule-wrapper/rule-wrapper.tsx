@@ -34,6 +34,7 @@ import {
 } from '../../../typings';
 import AbnormalCluster from '../abnormal-cluster/abnormal-cluster';
 import IntelligentDetect, { type ChartType } from '../intelligent-detect/intelligent-detect';
+import NewSeries from '../new-series/new-series';
 import PartialNodes from '../partial-nodes/partial-nodes';
 import RingRatio from '../ring-ratio/ring-ratio';
 import Threshold from '../threshold/threshold';
@@ -95,6 +96,7 @@ export default class RuleWrapper extends tsc<RuleWrapperProps, RuleWrapperEvent>
 
   @Emit('dataChange')
   handleDataChange(val: IDetectionTypeRuleData) {
+    console.log(val);
     return val;
   }
 
@@ -238,6 +240,19 @@ export default class RuleWrapper extends tsc<RuleWrapperProps, RuleWrapperEvent>
             onDataChange={this.handleDataChange}
           />
         );
+      case DetectionRuleTypeEnum.NewSeries:
+        return (
+          <NewSeries
+            ref='ruleRef'
+            data={this.data}
+            metricData={this.metricData}
+            otherSelectRuleData={this.otherSelectRuleData}
+            readonly={this.readonly}
+            onDataChange={this.handleDataChange}
+          />
+        );
+      default:
+        return undefined;
     }
   }
 

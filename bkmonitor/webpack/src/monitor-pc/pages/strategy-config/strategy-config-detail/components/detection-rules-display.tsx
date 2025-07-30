@@ -33,16 +33,16 @@ import AbnormalCluster from '../../strategy-config-set-new/detection-rules/compo
 import IntelligentDetect, {
   type ChartType,
 } from '../../strategy-config-set-new/detection-rules/components/intelligent-detect/intelligent-detect';
+import NewSeries from '../../strategy-config-set-new/detection-rules/components/new-series/new-series';
 import TimeSeriesForecast, {
   type IModelData,
 } from '../../strategy-config-set-new/detection-rules/components/time-series-forecast/time-series-forecast';
-
-import type {
+import {
+  type ICommonItem,
+  type IDetectionType,
+  type IDetectionTypeRuleData,
+  type MetricDetail,
   DetectionRuleTypeEnum,
-  ICommonItem,
-  IDetectionType,
-  IDetectionTypeRuleData,
-  MetricDetail,
 } from '../../strategy-config-set-new/typings';
 
 import './detection-rules-display.scss';
@@ -101,6 +101,16 @@ export default class DetectionRulesDisplay extends tsc<IProps, IEvents> {
       default: {
         args: {},
         plan_id: '',
+      },
+    },
+    {
+      id: DetectionRuleTypeEnum.NewSeries,
+      name: window.i18n.t('新维度值检测'),
+      show: false,
+      default: {
+        detect_range: 86400,
+        effective_delay: 86400,
+        max_series: 100000,
       },
     },
     {
@@ -306,6 +316,7 @@ export default class DetectionRulesDisplay extends tsc<IProps, IEvents> {
       TimeSeriesForecasting: this.timeSeriesForecastingTpl,
       // 离群检测
       AbnormalCluster: this.handleOutlierDetecTpl,
+      [DetectionRuleTypeEnum.NewSeries]: this.handleNewSeriesTpl,
     };
     return contentMap[this.value.type]();
   }
@@ -361,6 +372,17 @@ export default class DetectionRulesDisplay extends tsc<IProps, IEvents> {
       />
     );
   }
+
+  handleNewSeriesTpl() {
+    return (
+      <NewSeries
+        data={this.value}
+        metricData={this.metricData}
+        readonly
+      />
+    );
+  }
+
   advancedYearRoundTpl(type) {
     return this.advancedYearRoundTplData.map((item, index) => {
       const template = {

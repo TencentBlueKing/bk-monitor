@@ -1,0 +1,78 @@
+.new-series-wrap {
+  .bk-select {
+    border: none;
+    border-bottom: 1px solid #c4c6cc;
+
+    &.is-focus {
+      box-shadow: none;
+    }
+  }
+
+  .level-select {
+    width: 400px;
+
+    .bk-select-prefix-icon {
+      top: 0;
+      left: 0;
+    }
+  }
+
+  .date-interval {
+    display: flex;
+
+    .date-input {
+      width: auto;
+
+      .bk-input-number {
+        width: 60px;
+      }
+    }
+
+    .unit-select {
+      min-width: 64px;
+      margin-left: 8px;
+    }
+  }
+
+  .select-method {
+    margin: 0 4px;
+  }
+
+  .dimension-alert {
+    margin-top: 10px;
+    background: #f5f7fa;
+    border: none;
+
+    .icon-info {
+      color: #979ba5;
+    }
+
+    .bk-alert-wraper {
+      align-items: center;
+    }
+
+    .bk-alert-title {
+      .dimension-list {
+        display: inline-flex;
+
+        .dimension-item {
+          min-width: 51px;
+          height: 22px;
+          line-height: 22px;
+          text-align: center;
+          background: #fafbfd;
+          border: 1px solid #dcdee5;
+          border-radius: 2px;
+
+          & + .dimension-item {
+            margin-left: 4px;
+          }
+        }
+      }
+
+      .count {
+        font-weight: 700;
+      }
+    }
+  }
+}
