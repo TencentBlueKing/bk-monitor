@@ -384,7 +384,6 @@ class ResultTable(models.Model):
             )
             raise ValueError(_("结果表ID在租户下已经存在，请确认"))
 
-        # TODO: 多租户 是否要变更RT命名标准
         # 校验biz_id是否符合要求
         if str(bk_biz_id) > "0":
             # 如果有指定表的对应业务信息，需要校验结果表的命名是否符合规范
