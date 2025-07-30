@@ -8,6 +8,8 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+import functools
+
 import arrow
 
 from bkmonitor.models import Shield
@@ -156,13 +158,12 @@ class ShieldDetectManager:
 
 
 class ShieldDisplayManager(BaseShieldDisplayManager):
-    def __init__(self, bk_biz_id=None):
+    def __init__(self, bk_biz_id):
         super().__init__()
         self.node_manager = CmdbUtil(bk_biz_id)
         self.dynamic_group_name_mapping: dict[int, dict[str, str]] = {}
         # 预先获取并缓存业务名称
-        business = resource.cc.get_app_by_id(bk_biz_id)
-        self._business_name = business.name if business else str(bk_biz_id)
+        self.get_business_name(bk_biz_id)
 
     def _get_dynamic_group_name_mapping(self, bk_biz_id: int):
         if bk_biz_id in self.dynamic_group_name_mapping:
@@ -188,6 +189,8 @@ class ShieldDisplayManager(BaseShieldDisplayManager):
             for dynamic_group in dynamic_group_list
         ]
 
+    @functools.lru_cache(maxsize=128)
     def get_business_name(self, bk_biz_id):
-        """根据 bk_biz_id 获取业务名，直接返回初始化时缓存的业务名称。"""
-        return self._business_name
+        """根据 bk_biz_id 获取业务名，使用缓存（基于 self 和 bk_biz_id）以提高性能。"""
+        business = resource.cc.get_app_by_id(bk_biz_id)
+        return business.name
