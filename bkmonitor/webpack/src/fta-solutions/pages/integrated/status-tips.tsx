@@ -28,6 +28,8 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import './status-tips.scss';
 
+export type MapType<T extends number | string> = { [key in T]?: any };
+
 // 已启用 ENABLED
 // 有更新 UPDATABLE
 // 无数据 NO_DATA
@@ -36,8 +38,6 @@ import './status-tips.scss';
 // 已停用 DISABLED
 // 可用 AVAILABLE
 export type StatusType = 'AVAILABLE' | 'DISABLED' | 'ENABLED' | 'NO_DATA' | 'REMOVE_SOON' | 'REMOVED' | 'UPDATABLE';
-
-export type MapType<T extends number | string> = { [key in T]?: any };
 
 interface StatusTipsProps {
   status: StatusType;

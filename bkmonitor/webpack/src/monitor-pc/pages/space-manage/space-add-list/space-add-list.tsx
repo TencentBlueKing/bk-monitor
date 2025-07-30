@@ -42,10 +42,10 @@ enum SpaceAddType {
   research = 0 /** 研发项目 */,
 }
 export interface IAddItemData {
+  desc: string;
+  icon: string;
   id: SpaceAddType;
   name: string;
-  icon: string;
-  desc: string;
 }
 
 interface IProps {

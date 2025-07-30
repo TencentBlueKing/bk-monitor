@@ -35,9 +35,10 @@
         </span>
         <span>{{ item.display || '--' }}</span>
         <span
-          class="separator"
           v-if="index !== data.length - 1"
-        >, </span>
+          class="separator"
+          >,
+        </span>
       </div>
       <div v-else-if="type === 1">
         <span :class="['status-mark', `status-${String(item.status).toLocaleLowerCase()}`]" />
@@ -45,11 +46,13 @@
       </div>
       <div v-else>
         <span class="status-merit">
-          <span> {{ $t('异常')}}:</span>
-          <span :class="['status-count', !!item.errorCount ? 'status-terminated' : 'status-2']"> {{ item.errorCount || 0 }}</span>
+          <span> {{ $t('异常') }}:</span>
+          <span :class="['status-count', !!item.errorCount ? 'status-terminated' : 'status-2']">
+            {{ item.errorCount || 0 }}</span
+          >
         </span>
         <span class="status-merit">
-          <span>{{ $t('总数')}}:</span>
+          <span>{{ $t('总数') }}:</span>
           <span class="status-total">{{ item.count || 0 }}</span>
         </span>
       </div>

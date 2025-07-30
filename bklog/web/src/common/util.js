@@ -32,6 +32,7 @@
 import { set } from 'vue';
 
 import dayjs from 'dayjs';
+import DOMPurify from 'dompurify';
 import JSONBigNumber from 'json-bignumber';
 
 import store from '../store';
@@ -446,31 +447,47 @@ export function setFieldsWidth(visibleFieldsList, fieldsWidthInfo, minWidth = 10
  * @return {String}
  */
 export function formatDate(val, isTimzone = true, formatMilliseconds = false) {
-  const date = new Date(val);
+  try {
+    const date = new Date(val);
+    if (isNaN(date.getTime())) {
+      console.warn('无效的时间');
+      return '';
+    }
 
-  if (isNaN(date.getTime())) {
-    console.warn('无效的时间');
-    return '';
+    // 如果是 2024-04-09T13:02:11.502064896Z 格式，则需要 formatDateNanos 转换
+    if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{9}Z$/.test(val)) {
+      return formatDateNanos(val);
+    }
+
+    if (isTimzone) {
+      let timestamp = val;
+
+      if (/^\d+\.?\d*$/.test(val)) {
+        // 将时间戳转换为毫秒级别，如果是10位时间戳则乘以1000
+        if (val.toString().length === 10) {
+          timestamp = Number(val) * 1000;
+        }
+      }
+
+      // 获取毫秒部分的最后三位
+      const milliseconds = timestamp % 1000;
+      // 创建 dayjs 对象
+      const date = dayjs.tz(timestamp);
+
+      // 如果毫秒部分不为 000，展示毫秒精度的时间
+      const formatStr = formatMilliseconds && milliseconds !== 0 ? 'YYYY-MM-DD HH:mm:ss.SSS' : 'YYYY-MM-DD HH:mm:ss';
+      return date.format(formatStr);
+    }
+
+    const yyyy = date.getFullYear();
+    const mm = `0${date.getMonth() + 1}`.slice(-2);
+    const dd = `0${date.getDate()}`.slice(-2);
+    const time = date.toTimeString().slice(0, 8);
+    return `${yyyy}-${mm}-${dd} ${time}`;
+  } catch (e) {
+    console.warn(e);
+    return val;
   }
-
-  if (isTimzone) {
-    // 将时间戳转换为毫秒级别，如果是10位时间戳则乘以1000
-    if (val.toString().length === 10) val *= 1000;
-    // 获取毫秒部分的最后三位
-    const milliseconds = val % 1000;
-    // 创建 dayjs 对象
-    const date = dayjs.tz(Number(val));
-
-    // 如果毫秒部分不为 000，展示毫秒精度的时间
-    const formatStr = formatMilliseconds && milliseconds !== 0 ? 'YYYY-MM-DD HH:mm:ss.SSS' : 'YYYY-MM-DD HH:mm:ss';
-    return date.format(formatStr);
-  }
-
-  const yyyy = date.getFullYear();
-  const mm = `0${date.getMonth() + 1}`.slice(-2);
-  const dd = `0${date.getDate()}`.slice(-2);
-  const time = date.toTimeString().slice(0, 8);
-  return `${yyyy}-${mm}-${dd} ${time}`;
 }
 
 /**
@@ -1132,20 +1149,7 @@ export const blobDownload = (data, fileName = 'default', type = 'text/plain') =>
 };
 
 export const xssFilter = str => {
-  return (
-    str?.replace?.(/[&<>"]/gi, function (match) {
-      switch (match) {
-        case '&':
-          return '&amp;';
-        case '<':
-          return '&lt;';
-        case '>':
-          return '&gt;';
-        case '"':
-          return '&quot;';
-      }
-    }) || str
-  );
+  return DOMPurify.sanitize(str);
 };
 /** 数字千分位处理 */
 export const formatNumberWithRegex = number => {

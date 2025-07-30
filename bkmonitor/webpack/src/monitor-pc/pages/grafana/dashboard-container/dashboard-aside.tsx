@@ -28,16 +28,16 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import { listStickySpaces } from 'monitor-api/modules/commons';
 import {
+  copyDashboardToFolder,
   createDashboardOrFolder,
   deleteDashboard,
   deleteFolder,
   getDashboardList,
   getDirectoryTree,
+  migrateDashboard,
   renameFolder,
   starDashboard,
   unstarDashboard,
-  copyDashboardToFolder,
-  migrateDashboard,
 } from 'monitor-api/modules/grafana';
 import bus from 'monitor-common/utils/event-bus';
 import { Debounce, deepClone, random } from 'monitor-common/utils/utils';
@@ -58,26 +58,6 @@ import type { ITreeMenuItem, TreeMenuItem } from './utils';
 import './dashboard-aside.scss';
 
 export const GRAFANA_HOME_ID = 'home';
-interface IProps {
-  bizIdList: ISpaceItem[];
-}
-interface ILinkItem {
-  icon: string;
-  tips: string;
-  router: string;
-  usePath?: boolean;
-}
-interface IEvents {
-  onSelectedFav: IFavListItem;
-  onSelectedDashboard: TreeMenuItem;
-  onBizChange: number;
-  onOpenSpaceManager?: () => void;
-}
-interface IFormData {
-  name: string;
-  dir: number | string;
-}
-
 export enum MoreType {
   copy = 9 /** 复制到 */,
   dashboard = 0 /** 仪表盘 */,
@@ -92,6 +72,26 @@ export enum MoreType {
   unfav = 6 /** 取消收藏 */,
 }
 type FormType = MoreType.copy | MoreType.dashboard | MoreType.dir;
+interface IEvents {
+  onBizChange: number;
+  onSelectedDashboard: TreeMenuItem;
+  onSelectedFav: IFavListItem;
+  onOpenSpaceManager?: () => void;
+}
+interface IFormData {
+  dir: number | string;
+  name: string;
+}
+
+interface ILinkItem {
+  icon: string;
+  router: string;
+  tips: string;
+  usePath?: boolean;
+}
+interface IProps {
+  bizIdList: ISpaceItem[];
+}
 @Component
 export default class DashboardAside extends tsc<IProps, IEvents> {
   @Prop({ type: Array, default: () => [] }) bizIdList: ISpaceItem[];

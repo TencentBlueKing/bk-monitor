@@ -27,25 +27,25 @@
 import { defineComponent, useTemplateRef, watch } from 'vue';
 import { shallowRef } from 'vue';
 import { computed } from 'vue';
-import { useI18n } from 'vue-i18n';
 
 import { useResizeObserver } from '@vueuse/core';
 import { Message, Popover } from 'bkui-vue';
 import { copyText, deepClone, random } from 'monitor-common/utils/utils';
 import { MODE_LIST } from 'monitor-pc/components/retrieval-filter/utils';
+import { useI18n } from 'vue-i18n';
 
 import { transformFieldName } from '../../pages/trace-explore/components/trace-explore-table/constants';
 import QsSelector from './qs-selector';
 import { useQueryStringParseErrorState } from './query-string-utils';
 import ResidentSetting from './resident-setting';
 import {
-  ECondition,
-  EFieldType,
   type EMethod,
-  EMode,
   type IFilterField,
   type IFilterItem,
   type IWhereItem,
+  ECondition,
+  EFieldType,
+  EMode,
   METHOD_MAP,
   RETRIEVAL_FILTER_EMITS,
   RETRIEVAL_FILTER_PROPS,
@@ -319,7 +319,7 @@ export default defineComponent({
       const uiCacheData = getCacheUIData();
       const localValue: IFilterItem[] = [];
       const uiCacheDataMap: Map<string, IFilterItem> = new Map();
-      const uiCacheDataHideList: { value: IFilterItem; index: number }[] = [];
+      const uiCacheDataHideList: { index: number; value: IFilterItem }[] = [];
       let index = -1;
       for (const item of uiCacheData) {
         index += 1;

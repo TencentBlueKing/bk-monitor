@@ -39,17 +39,17 @@ import './strategy-metric-table-event.scss';
 
 const { i18n } = window;
 
-interface IEventTable {
-  data: any;
-  type: string;
-  mode: string;
-  checked?: string[];
-  readonly?: boolean;
+interface IEvent {
+  onCheckedChange?: any;
+  onScrollToEnd?: boolean;
 }
 
-interface IEvent {
-  onScrollToEnd?: boolean;
-  onCheckedChange?: any;
+interface IEventTable {
+  checked?: string[];
+  data: any;
+  mode: string;
+  readonly?: boolean;
+  type: string;
 }
 
 @Component

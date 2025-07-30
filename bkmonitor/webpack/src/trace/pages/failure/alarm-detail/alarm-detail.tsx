@@ -26,17 +26,16 @@
 import {
   type Ref,
   computed,
+  ref as deepRef,
   defineComponent,
   inject,
   onBeforeMount,
   onMounted,
-  reactive,
-  ref as deepRef,
-  watch,
   onUnmounted,
+  reactive,
   shallowRef,
+  watch,
 } from 'vue';
-import { useI18n } from 'vue-i18n';
 
 import { PrimaryTable } from '@blueking/tdesign-ui';
 import { Exception, Loading, Message, Popover } from 'bkui-vue';
@@ -49,6 +48,7 @@ import {
   incidentValidateQueryString,
 } from 'monitor-api/modules/incident';
 import { random } from 'monitor-common/utils/utils.js';
+import { useI18n } from 'vue-i18n';
 
 import SetMealAdd from '../../../store/modules/set-meal-add';
 import StatusTag from '../components/status-tag';
@@ -66,27 +66,27 @@ import type { IFilterSearch, IIncident } from '../types';
 
 import './alarm-detail.scss';
 
-type TableColumn = Record<string, any>;
-
-type PopoverInstance = {
-  show: () => void;
-  hide: () => void;
-  close: () => void;
-  [key: string]: any;
-};
-
-interface IOpetateRow {
-  status?: string;
-  is_ack?: boolean;
-  ack_operator?: string;
-  is_shielded?: boolean;
-  shield_operator?: string[];
-}
 export enum EBatchAction {
   alarmConfirm = 'ack',
   alarmDispatch = 'dispatch',
   quickShield = 'shield',
 }
+
+interface IOpetateRow {
+  ack_operator?: string;
+  is_ack?: boolean;
+  is_shielded?: boolean;
+  shield_operator?: string[];
+  status?: string;
+}
+
+type PopoverInstance = {
+  [key: string]: any;
+  close: () => void;
+  hide: () => void;
+  show: () => void;
+};
+type TableColumn = Record<string, any>;
 export default defineComponent({
   props: {
     filterSearch: {

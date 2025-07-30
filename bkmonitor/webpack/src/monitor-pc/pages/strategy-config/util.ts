@@ -27,8 +27,8 @@ import Big from 'big.js';
 
 // drag触发
 interface IDragOption {
-  min: number;
   max: number;
+  min: number;
 }
 export const handleMouseDown = (e, tag: string, resetWidth = 200, option: IDragOption, setWidth) => {
   let { target } = e;

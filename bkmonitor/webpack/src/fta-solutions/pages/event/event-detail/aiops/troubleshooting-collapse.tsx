@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Prop, Emit } from 'vue-property-decorator';
+import { Component, Emit, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { AiopsTopo, createApp, h as vue2CreateElement } from '@blueking/aiops-topo/vue2';
@@ -36,13 +36,13 @@ import './troubleshooting-collapse.scss';
 import '@blueking/aiops-topo/vue2/vue2.css';
 interface IProps {
   data?: IIncidentDetail;
+  loading: boolean;
+  spaceId: string;
+  onToIncidentDetail: () => void;
   errorData?: {
     isError: boolean;
     message: string;
   };
-  loading: boolean;
-  onToIncidentDetail: () => void;
-  spaceId: string;
 }
 
 // 最大做小缩放倍率
@@ -140,12 +140,12 @@ export default class AiopsTroubleshootingCollapse extends tsc<IProps> {
   graphData: any = {};
   get zoomImage() {
     return this.$refs.zoomImage as unknown as {
-      showImg: () => void;
-      scrollImage: (e: Event) => any;
-      width: number;
       height: number;
       left: number;
+      scrollImage: (e: Event) => any;
+      showImg: () => void;
       top: number;
+      width: number;
     };
   }
   get imageStyle() {

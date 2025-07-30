@@ -1,5 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
-
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台社区版 (BlueKing PaaS Community Edition) available.
@@ -27,20 +25,20 @@
  */
 import { computed, defineComponent, inject, onMounted, watch, watchEffect } from 'vue';
 import { shallowRef } from 'vue';
-import { useI18n } from 'vue-i18n';
 
 import {
-  PrimaryTable,
+  type FilterValue,
+  type PrimaryTableCol,
   type SortInfo,
   type TableProps,
-  type PrimaryTableCol,
-  type FilterValue,
+  PrimaryTable,
 } from '@blueking/tdesign-ui';
 import { Loading, Message, Popover } from 'bkui-vue';
 import { AngleDownFill, AngleUpFill } from 'bkui-vue/lib/icon';
 import { traceDiagram, traceStatistics } from 'monitor-api/modules/apm_trace';
 import { random } from 'monitor-common/utils';
 import { debounce } from 'throttle-debounce';
+import { useI18n } from 'vue-i18n';
 
 import { statisticDiffTableSetting, statisticTableSetting } from '../../pages/main/inquire-content/table-settings';
 import { useTraceStore } from '../../store/modules/trace';
@@ -69,44 +67,44 @@ export interface IFilterItem {
   value: '' | number | string;
 }
 
-interface IServiceNameItem {
-  icon: string;
-  value: string;
-}
+type CustomSortChildField = '' | 'current' | 'difference' | 'refer';
+
+type CustomSortField = '' | 'count' | 'max_duration' | 'min_duration' | 'P95' | 'sum_duration';
 
 interface ICategoryItem {
   icon: string;
   value: string;
 }
 
-interface ITableDataItem {
-  isUseShow?: boolean;
-  span_name: string;
-  service_name: IServiceNameItem;
-  max_duration: number;
-  min_duration: number;
-  sum_duration: number;
-  P95: number;
-  count: number;
-  category: ICategoryItem;
-  'resource.sdk.name': string;
-  kind: { text: string; value: string; icon?: string };
-  mark: string;
-  comparison?: ITableDataItem;
-  'resource.service.name': {
-    value: string;
-    icon: string;
-  };
-  is_interval: boolean;
+interface IServiceNameItem {
+  icon: string;
+  value: string;
 }
 
+interface ITableDataItem {
+  category: ICategoryItem;
+  comparison?: ITableDataItem;
+  count: number;
+  is_interval: boolean;
+  isUseShow?: boolean;
+  kind: { icon?: string; text: string; value: string };
+  mark: string;
+  max_duration: number;
+  min_duration: number;
+  P95: number;
+  'resource.sdk.name': string;
+  service_name: IServiceNameItem;
+  span_name: string;
+  sum_duration: number;
+  'resource.service.name': {
+    icon: string;
+    value: string;
+  };
+}
 interface ITableFilter {
   text: string;
   value: string;
 }
-
-type CustomSortField = '' | 'count' | 'max_duration' | 'min_duration' | 'P95' | 'sum_duration';
-type CustomSortChildField = '' | 'current' | 'difference' | 'refer';
 type SortType = '' | 'asc' | 'desc';
 type StaticTableCol = PrimaryTableCol<ITableDataItem> & {
   isUseShow?: boolean;

@@ -42,40 +42,40 @@ import { DEFAULT_HEIGHT_OFFSET, statusMap } from './type';
 import './metric-table.scss';
 import '@blueking/search-select-v3/vue2/vue2.css';
 
-interface ILabel {
-  name: string;
-}
 interface IFunc {
   id: string;
   name: string;
 }
-interface IMetricDetail {
+interface ILabel {
   name: string;
-  alias: string;
-  labels?: ILabel[];
-  status: 'disable' | 'enable';
-  unit: string;
+}
+interface IListItem {
+  disable?: boolean;
+  id: string;
+  name: string;
+}
+
+interface IMetricDetail {
   aggregate_method: string;
+  alias: string;
+  create_time: number;
+  description: string;
+  dimensions?: string[];
   disabled?: boolean;
   function: IFunc[];
   hidden: boolean;
-  dimensions?: string[];
-  reportInterval: string;
-  create_time: number;
-  update_time: number;
-  last_time?: number;
-  latestData?: {
-    value: string;
-    timestamp: string;
-  };
-  description: string;
   interval: number;
-}
-
-interface IListItem {
-  id: string;
+  labels?: ILabel[];
+  last_time?: number;
   name: string;
-  disable?: boolean;
+  reportInterval: string;
+  status: 'disable' | 'enable';
+  unit: string;
+  update_time: number;
+  latestData?: {
+    timestamp: string;
+    value: string;
+  };
 }
 @Component
 export default class IndicatorTable extends tsc<any, any> {

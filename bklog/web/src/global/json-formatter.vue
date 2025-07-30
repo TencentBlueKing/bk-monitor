@@ -32,8 +32,7 @@
           :data-with-intersection="true"
           :data-field-name="item.name"
           :ref="item.formatter.ref"
-          v-html="item.formatter.stringValue"
-        ></span>
+        >{{ item.formatter.stringValue }}</span>
       </span>
     </template>
     <template v-if="showMoreTextAction && hasScrollY">
@@ -50,7 +49,7 @@
   import { computed, ref, watch, onBeforeUnmount, onMounted, inject } from 'vue';
 
   // @ts-ignore
-  import { parseTableRowData } from '@/common/util';
+  import { formatDate, formatDateNanos, parseTableRowData } from '@/common/util';
   import useFieldNameHook from '@/hooks/use-field-name';
 
   import useJsonRoot from '../hooks/use-json-root';
@@ -67,7 +66,7 @@
 
   const props = defineProps({
     jsonValue: {
-      type: [Object, String, Number],
+      type: [Object, String, Number, Boolean],
       default: () => ({}),
     },
     fields: {
@@ -233,12 +232,12 @@
 
   const getFieldFormatter = (field, formatDate) => {
     const [objValue, val] = getFieldValue(field);
-
+    const strVal = getDateFieldValue(field, getCellRender(val), formatDate);
     return {
       ref: ref(),
       isJson: typeof objValue === 'object' && objValue !== undefined,
       value: getDateFieldValue(field, objValue, formatDate),
-      stringValue: getDateFieldValue(field, getCellRender(val), formatDate),
+      stringValue: strVal?.replace?.(/<\/?mark>/igm, '') ?? strVal,
       field,
     };
   };
@@ -321,6 +320,7 @@
   .bklog-json-formatter-root {
     position: relative;
     width: 100%;
+    overflow: hidden;
     font-family: var(--table-fount-family);
     font-size: var(--table-fount-size);
     line-height: 20px;

@@ -24,11 +24,11 @@
  * IN THE SOFTWARE.
  */
 import { computed, defineComponent, onMounted, ref, watch } from 'vue';
-import { useI18n } from 'vue-i18n';
 
 import { PrimaryTable } from '@blueking/tdesign-ui';
 import { Button, Checkbox, Input, Radio, Select, Switcher } from 'bkui-vue';
 import { debounce, deepClone, transformDataKey } from 'monitor-common/utils/utils';
+import { useI18n } from 'vue-i18n';
 
 import CommonItem from '../components/common-item';
 import { localDataConvertToRequest } from '../components/http-editor/utils';

@@ -32,11 +32,11 @@ import renderIntoCanvas from './render-into-canvas';
 import './canvas-span-graph.scss';
 
 interface ComplexMessage {
-  valueWidth: number;
-  valueOffset: number;
-  serviceName: string;
   color: string;
   isVirtual: boolean;
+  serviceName: string;
+  valueOffset: number;
+  valueWidth: number;
 }
 
 const getColor = (hex: string) => colorGenerator.getRgbColorByKey(hex);

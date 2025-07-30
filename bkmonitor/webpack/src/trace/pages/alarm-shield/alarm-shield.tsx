@@ -23,28 +23,28 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, provide, reactive, ref as deepRef, shallowRef } from 'vue';
-import { useI18n } from 'vue-i18n';
-import { useRoute, useRouter } from 'vue-router';
+import { ref as deepRef, defineComponent, provide, reactive, shallowRef } from 'vue';
 
 import {
   type FilterValue,
-  PrimaryTable,
   type SortInfo,
   type TableFilterChangeContext,
   type TableRowData,
   type TableSort,
+  PrimaryTable,
 } from '@blueking/tdesign-ui';
 import { Button, DatePicker, InfoBox, Message, Pagination, SearchSelect } from 'bkui-vue';
 import { disableShield, frontendShieldList } from 'monitor-api/modules/shield';
 import { commonPageSizeGet, commonPageSizeSet } from 'monitor-common/utils';
+import { useI18n } from 'vue-i18n';
+import { useRoute, useRouter } from 'vue-router';
 
 import EmptyStatus, { type EmptyStatusType } from '../../components/empty-status/empty-status';
 import TableSkeleton from '../../components/skeleton/table-skeleton';
 import { getAuthorityMap, useAuthorityStore } from '../../store/modules/authority';
 import AlarmShieldDetail from './alarm-shield-detail';
 import * as authMap from './authority-map';
-import { type AlarmShieldTableItem, EColumn, type IColumn } from './typing';
+import { type AlarmShieldTableItem, type IColumn, EColumn } from './typing';
 
 import type { IAuthority } from '../../typings/authority';
 

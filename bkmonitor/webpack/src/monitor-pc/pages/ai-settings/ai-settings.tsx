@@ -40,16 +40,14 @@ import type { AnomalyDetectionBase, SchemeItem } from './types';
 
 import './ai-settings.scss';
 
-type DetectionType = 'sceneIntelligent' | 'singleMetric';
-
 interface DetectionItem {
-  name?: string;
   data: AnomalyDetectionBase;
+  name?: string;
   type?: string;
   excludeTargetDetail?: {
+    objType: string;
     targetTable: any[];
     targetType: string;
-    objType: string;
   };
   excludeTargetText?: {
     message: string;
@@ -58,6 +56,8 @@ interface DetectionItem {
     subMessageCount: number;
   };
 }
+
+type DetectionType = 'sceneIntelligent' | 'singleMetric';
 
 @Component
 export default class AiSettingsPage extends tsc<object> {

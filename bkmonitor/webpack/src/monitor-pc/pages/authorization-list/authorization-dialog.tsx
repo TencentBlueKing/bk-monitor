@@ -30,31 +30,31 @@ import dayjs from 'dayjs';
 import { createOrUpdateExternalPermission, getByAction } from 'monitor-api/modules/iam';
 import { deepClone } from 'monitor-common/utils';
 
-import { ACTION_MAP, type AngleType, type EditModel } from './authorization-list';
+import { type AngleType, type EditModel, ACTION_MAP } from './authorization-list';
 
 import './authorization-dialog.scss';
-interface IGrafanaDashboard {
-  id: number;
-  uid: string;
-  text: string;
-  folder_uid: string;
-  folder_title: string;
-  name: string;
-  is_starred: boolean;
-  url: string;
-  uri: string;
-}
-interface IProps {
-  value?: boolean;
-  rowData?: EditModel | null;
-  bizId: number | string;
-  viewType: AngleType;
-  authorizer: string;
-  defaultResources: IGrafanaDashboard[];
-}
-
 interface IEvents {
   onSuccess: boolean;
+}
+interface IGrafanaDashboard {
+  folder_title: string;
+  folder_uid: string;
+  id: number;
+  is_starred: boolean;
+  name: string;
+  text: string;
+  uid: string;
+  uri: string;
+  url: string;
+}
+
+interface IProps {
+  authorizer: string;
+  bizId: number | string;
+  defaultResources: IGrafanaDashboard[];
+  rowData?: EditModel | null;
+  value?: boolean;
+  viewType: AngleType;
 }
 
 @Component

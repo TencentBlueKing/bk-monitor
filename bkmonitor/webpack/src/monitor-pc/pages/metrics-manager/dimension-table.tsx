@@ -48,8 +48,8 @@ const dimensionsColumns: ITableColumn[] = [
 ];
 
 interface IProps {
-  show?: boolean;
   detail?: IMetricDetail;
+  show?: boolean;
 }
 
 @Component

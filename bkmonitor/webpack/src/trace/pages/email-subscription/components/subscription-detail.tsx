@@ -24,13 +24,13 @@
  * IN THE SOFTWARE.
  */
 import { type PropType, computed, defineComponent, onMounted, ref } from 'vue';
-import { useI18n } from 'vue-i18n';
 
 import dayjs from 'dayjs';
 import { logServiceRelationBkLogIndexSet } from 'monitor-api/modules/apm_service';
+import { useI18n } from 'vue-i18n';
 
 import { Scenario } from '../mapping';
-import { FrequencyType, type Report } from '../types';
+import { type Report, FrequencyType } from '../types';
 import { getDefaultReportData, getSendFrequencyText } from '../utils';
 import DetailRow from './detail-row';
 

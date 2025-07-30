@@ -27,8 +27,9 @@
 <template>
   <ip-selector
     ref="selector"
-    class="ip-selector"
+    :key="selectorKey"
     v-bkloading="{ isLoading }"
+    class="ip-selector"
     :active.sync="active"
     :cluster-table-config="templateTableConfig"
     :cluster-template-placeholder="$t('搜索集群名')"
@@ -43,7 +44,6 @@
     :get-search-result-selections="getSearchResultSelections"
     :get-search-table-data="handleGetSearchTableData"
     :height="height"
-    :key="selectorKey"
     :left-panel-width="leftPanelWidth"
     :panels="panels"
     :preview-data="previewData"
@@ -80,7 +80,7 @@ import { defaultSearch } from '../common/util';
 import AgentStatus from '../components/agent-status.vue';
 import IpSelector from '../index.vue';
 
-import type { IMenu, IPanel, IPreviewData, ITableCheckData, ITableConfig, IpType } from '../types/selector-type';
+import type { IMenu, IPanel, IPreviewData, IpType, ITableCheckData, ITableConfig } from '../types/selector-type';
 
 @Component({
   name: 'topo-selector',
@@ -486,7 +486,6 @@ export default class TopoSelector extends Vue {
   private getCheckedNodesIds(nodes: any[], checkedData: any[] = []) {
     if (!checkedData.length) return [];
     return nodes.reduce<(number | string)[]>((pre, item) => {
-      // eslint-disable-next-line @typescript-eslint/naming-convention
       const { children = [], bk_inst_id = '', bk_obj_id = '', id } = item;
       const exist = checkedData.some(
         checkedData => checkedData.bk_inst_id === bk_inst_id && checkedData.bk_obj_id === bk_obj_id
@@ -548,8 +547,8 @@ export default class TopoSelector extends Vue {
     params: any,
     type?: string
   ): Promise<{
-    total: number;
     data: any[];
+    total: number;
   }> {
     if (this.active === 'dynamic-topo') {
       return await this.getDynamicTopoTableData(params, type);
@@ -598,7 +597,6 @@ export default class TopoSelector extends Vue {
       const len = list.length;
       const nodeMap = {};
       while (i < len) {
-        // eslint-disable-next-line @typescript-eslint/naming-convention
         const { bk_cloud_id, ip } = list[i];
         const key = bk_cloud_id === undefined ? `${ip}|${bk_cloud_id}` : ip;
         nodeMap[key] = { bk_cloud_id, ip };
@@ -923,7 +921,7 @@ export default class TopoSelector extends Vue {
     return group?.data.some(item => data.bk_inst_id === item.bk_inst_id && data.bk_obj_id === item.bk_obj_id);
   }
   // 预览菜单点击事件
-  private handleMenuClick({ menu, item }: { menu: IMenu; item: IPreviewData }) {
+  private handleMenuClick({ menu, item }: { item: IPreviewData; menu: IMenu }) {
     if (menu.id === 'removeAll') {
       //   const group = this.previewData.find(data => data.id === item.id)
       //   group && (group.data = [])

@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { shallowRef, onBeforeUnmount } from 'vue';
+import { onBeforeUnmount, shallowRef } from 'vue';
 
 const localValue = shallowRef<string>();
 

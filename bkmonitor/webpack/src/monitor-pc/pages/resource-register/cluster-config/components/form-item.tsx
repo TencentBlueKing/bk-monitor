@@ -30,9 +30,9 @@ import { Component as tsc } from 'vue-tsx-support';
 import './form-item.scss';
 
 interface IProps {
-  title?: any | string;
   errMsg?: string;
   require?: boolean;
+  title?: any | string;
   width?: number;
 }
 

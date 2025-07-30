@@ -1,3 +1,12 @@
+import { Component, Emit, Inject, InjectReactive, Prop, Ref } from 'vue-property-decorator';
+import { Component as tsc } from 'vue-tsx-support';
+
+import dayjs from 'dayjs';
+import { connect, disconnect } from 'echarts/core';
+import bus from 'monitor-common/utils/event-bus';
+import { random } from 'monitor-common/utils/utils';
+import loadingIcon from 'monitor-ui/chart-plugins/icons/spinner.svg';
+import MiniTimeSeries from 'monitor-ui/chart-plugins/plugins/mini-time-series/mini-time-series';
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -24,15 +33,6 @@
  * IN THE SOFTWARE.
  */
 import JsonViewer from 'vue-json-viewer';
-import { Component, Emit, Inject, InjectReactive, Prop, Ref } from 'vue-property-decorator';
-import { Component as tsc } from 'vue-tsx-support';
-
-import dayjs from 'dayjs';
-import { connect, disconnect } from 'echarts/core';
-import bus from 'monitor-common/utils/event-bus';
-import { random } from 'monitor-common/utils/utils';
-import loadingIcon from 'monitor-ui/chart-plugins/icons/spinner.svg';
-import MiniTimeSeries from 'monitor-ui/chart-plugins/plugins/mini-time-series/mini-time-series';
 
 import { DEFAULT_TIME_RANGE } from '../../../components/time-range/utils';
 import { Storage } from '../../../utils';
@@ -57,71 +57,71 @@ import './common-table.scss';
 
 const HEADER_PRE_ICON_NAME = 'header_pre_icon';
 export interface ICommonTableProps {
-  // 表格loading
-  loading?: boolean;
-  scrollLoading?: boolean;
-  // 设置表头字段 存储到本地localstorage key值 默认不设置
-  storeKey?: string;
   // 是否可选择行
   checkable?: boolean;
-  // 是否显示表格列设置
-  hasColumnSetting?: boolean;
-  // 表格数据
-  data?: TableRow[];
   // 表格字段集合
   columns?: ITableColumn[];
+  // 表格数据
+  data?: TableRow[];
+  // 表格默认尺寸
+  defaultSize?: TableSizeType;
+  // 是否显示表格列设置
+  hasColumnSetting?: boolean;
+  // 表格高度 默认为自动高度  height为Number类型，单位px height为String类型，则高度会设置为 Table 的 style.height
+  height?: number | string;
+  // 是否高亮当前行
+  highlightCurrentRow?: boolean;
+  // jsonViewer 数据为空时提示文案
+  jsonViewerDataEmptyText?: string;
+  // jsonViewer 要展示数据的key showExpand = true生效
+  jsonViewerDataKey?: string;
+  // 表格loading
+  loading?: boolean;
+  // 表格最大高度
+  maxHeight?: number | string;
+  // 表格外边框
+  outerBorder?: boolean;
+  // 表格概览数据行
+  overviewData?: TableRow;
   // 分页设置
   pagination?: ITablePagination;
   // 分页的样式类型
   paginationType?: TablePaginationType;
-  // 表格默认尺寸
-  defaultSize?: TableSizeType;
+  scrollLoading?: boolean;
   // 是否可以展开
   showExpand?: boolean;
-  // 表格外边框
-  outerBorder?: boolean;
-  // 是否显示每页个数
-  showLimit?: boolean;
-  // jsonViewer 要展示数据的key showExpand = true生效
-  jsonViewerDataKey?: string;
-  // jsonViewer 数据为空时提示文案
-  jsonViewerDataEmptyText?: string;
-  // 表格概览数据行
-  overviewData?: TableRow;
-  // 是否为斑马纹
-  stripe?: boolean;
-  // 表格高度 默认为自动高度  height为Number类型，单位px height为String类型，则高度会设置为 Table 的 style.height
-  height?: number | string;
-  // 表格最大高度
-  maxHeight?: number | string;
   // 是否显示表头
   showHeader?: boolean;
-  // 是否高亮当前行
-  highlightCurrentRow?: boolean;
+  // 是否显示每页个数
+  showLimit?: boolean;
+  // 设置表头字段 存储到本地localstorage key值 默认不设置
+  storeKey?: string;
+  // 是否为斑马纹
+  stripe?: boolean;
   // 动态计算表格列宽度 需配合max_width属性使用
   calcColumnWidth?: (maxWidth: number) => number;
 }
 interface ICommonTableEvent {
-  // 页数事件
-  onPageChange: number;
-  // 页码事件
-  onLimitChange: number;
-  // 排序事件
-  onSortChange: { prop: string; sort: ColumnSort };
-  // 选择行数据事件
-  onSelectChange: TableRow[];
   // 表头字段设置事件
   onColumnSettingChange: string[];
+  // 表格列数据项筛选事件
+  onFilterChange: IFilterDict;
+  // 页码事件
+  onLimitChange: number;
+  // 页数事件
+  onPageChange: number;
+  // 选择行数据事件
+  onSelectChange: TableRow[];
+  // 排序事件
+  onSortChange: { prop: string; sort: ColumnSort };
+  onSwitchOverview: boolean;
   // 清空选择行事件
   onClearSelect: () => void;
   // 收藏事件（在外层调用接口）
   onCollect?: (value: ITableItem<'collect'>) => void;
-  // 表格列数据项筛选事件
-  onFilterChange: IFilterDict;
-  onSwitchOverview: boolean;
+  onRowClick: (row) => void;
   // 固定表头情况下 滚动至底部事件
   onScrollEnd: () => void;
-  onRowClick: (row) => void;
 }
 @Component
 export default class CommonTable extends tsc<ICommonTableProps, ICommonTableEvent> {

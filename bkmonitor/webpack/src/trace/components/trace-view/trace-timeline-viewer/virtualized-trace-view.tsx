@@ -68,10 +68,10 @@ import type { Span, TNil, Trace } from '../typings';
 import './virtualized-trace-view.scss';
 
 type RowState = {
+  bgColorIndex?: number;
   isDetail: boolean;
   span: Span;
   spanIndex: number;
-  bgColorIndex?: number;
 };
 
 const VirtualizedTraceViewProps = {
@@ -327,11 +327,11 @@ export default defineComponent({
           onToggleCollapse={this.handleToggleCollapse}
         />
         <SpanDetails
+          activeTab={this.activeTab}
           isFullscreen={this.isFullscreen}
           isShowPrevNextButtons={true}
           show={this.showSpanDetails}
           spanDetails={this.spanDetails as Span}
-          activeTab={this.activeTab}
           onPrevNextClicked={flag => {
             this.handlePrevNextClicked(flag);
           }}

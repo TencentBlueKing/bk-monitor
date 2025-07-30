@@ -33,11 +33,11 @@ import type { TranslateResult } from 'vue-i18n';
 import './notice-item.scss';
 
 interface IProps {
-  value: boolean;
-  title: string | TranslateResult;
   subTitle: string | TranslateResult;
-  onChange?: (v: boolean) => void;
+  title: string | TranslateResult;
+  value: boolean;
   clearError: () => void;
+  onChange?: (v: boolean) => void;
 }
 
 @Component({

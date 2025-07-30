@@ -25,9 +25,9 @@
  */
 
 import { computed, defineComponent, shallowRef, useTemplateRef, watch } from 'vue';
-import { useI18n } from 'vue-i18n';
 
 import tippy from 'tippy.js';
+import { useI18n } from 'vue-i18n';
 
 import useUserConfig from '../../hooks/useUserConfig';
 import ResidentSettingTransfer from './resident-setting-transfer';
@@ -35,14 +35,14 @@ import SettingKvInput from './setting-kv-input';
 import SettingKvSelector from './setting-kv-selector';
 import TimeConsuming from './time-consuming';
 import {
-  ECondition,
-  EMethod,
   type IFieldItem,
   type IFilterField,
   type IWhereItem,
+  type TGetValueFn,
+  ECondition,
+  EMethod,
   RESIDENT_SETTING_EMITS,
   RESIDENT_SETTING_PROPS,
-  type TGetValueFn,
 } from './typing';
 import { defaultWhereItem, DURATION_KEYS, EXISTS_KEYS, INPUT_TAG_KEYS } from './utils';
 
@@ -271,7 +271,7 @@ export default defineComponent({
      * @description 该函数将搜索参数转换为查询条件，通过props.getValueFn执行查询
      * 支持通配符搜索，并在发生错误时返回空结果集
      */
-    function getValueFnProxy(params: { search: string; limit: number; field: string }): any | TGetValueFn {
+    function getValueFnProxy(params: { field: string; limit: number; search: string }): any | TGetValueFn {
       return new Promise((resolve, _reject) => {
         props
           .getValueFn({

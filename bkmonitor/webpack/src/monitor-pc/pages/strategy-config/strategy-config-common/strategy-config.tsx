@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 import { Component, Mixins, Prop, Watch } from 'vue-property-decorator';
-import { ofType, modifiers } from 'vue-tsx-support';
+import { modifiers, ofType } from 'vue-tsx-support';
 
 import { addListener, removeListener } from '@blueking/fork-resize-detector';
 import SearchSelect from '@blueking/search-select-v3/vue2';
@@ -52,7 +52,6 @@ import authorityMixinCreate from '../../../mixins/authorityMixin';
 import UserConfigMixin from '../../../mixins/userStoreConfig';
 import AuthComponent from '../../../pages/exception-page/auth-component';
 import { downFile } from '../../../utils';
-
 // import StrategySetTarget from '../strategy-config-set/strategy-set-target/strategy-set-target.vue';
 import AlarmGroupDetail from '../../alarm-group/alarm-group-detail/alarm-group-detail';
 import AlarmShieldStrategy from '../../alarm-shield/quick-alarm-shield/quick-alarm-shield-strategy.vue';
@@ -225,6 +224,7 @@ class StrategyConfig extends Mixins(UserConfigMixin, authorityMixinCreate(strate
   isShowStrategy = false;
   isShowTableFilter = false;
   strategyId = 0;
+  strategyName = '';
   backDisplayMap: any = {};
   targetSet = {
     show: false,
@@ -1771,6 +1771,7 @@ class StrategyConfig extends Mixins(UserConfigMixin, authorityMixinCreate(strate
   handleShowStrategy() {
     this.isShowStrategy = true;
     this.strategyId = this.popover.data.id;
+    this.strategyName = this.popover.data.strategyName;
   }
   /**
    * @description: 屏蔽
@@ -2514,11 +2515,11 @@ class StrategyConfig extends Mixins(UserConfigMixin, authorityMixinCreate(strate
         ref='strategyTable'
         class='strategy-table'
         v-bkloading={{ isLoading: this.table.loading }}
-        empty-text={this.$t('无数据')}
         on={{
           'hook:mounted': this.handleTableMountedOrActivated,
           'hook:activated': this.handleTableMountedOrActivated,
         }}
+        empty-text={this.$t('无数据')}
         on-header-dragend={this.handleHeaderDragend}
         on-selection-change={this.handleSelectionChange}
         {...{
@@ -2759,7 +2760,7 @@ class StrategyConfig extends Mixins(UserConfigMixin, authorityMixinCreate(strate
                   : this.handleShowAuthorityDetail(this.authorityMap.MANAGE_AUTH)
               }
             >
-              {this.$t('快捷屏蔽')}
+              {this.$t('策略屏蔽')}
             </li>
           ) : (
             <li
@@ -2827,6 +2828,7 @@ class StrategyConfig extends Mixins(UserConfigMixin, authorityMixinCreate(strate
           },
         }}
         strategy-id={this.strategyId}
+        strategy-name={this.strategyName}
       />,
       <TableFilter
         key={4}

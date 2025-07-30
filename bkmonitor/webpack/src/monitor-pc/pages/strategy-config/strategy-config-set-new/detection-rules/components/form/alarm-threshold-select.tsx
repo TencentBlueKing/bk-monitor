@@ -31,33 +31,33 @@ import { getCookie } from 'monitor-common/utils';
 import SelectMenu from '../../../components/select-menu';
 
 import './alarm-threshold-select.scss';
+export type BoundType = 'lower' | 'middle' | 'upper';
+
+export type IAlarmThresholdSelectValue = Array<Array<{ method: string; threshold: number }>>;
+
 // const i18n = window.i18n
 export interface IItem {
   id: number | string;
   name: number | string;
 }
-
-export type BoundType = 'lower' | 'middle' | 'upper';
-
 export interface ILocalValueItem {
+  condition: string;
   method: string;
   value: number;
-  condition: string;
 }
-export type IAlarmThresholdSelectValue = Array<Array<{ method: string; threshold: number }>>;
 interface IAlarmThresholdSelect {
-  value?: IAlarmThresholdSelectValue;
+  autoAdd?: boolean;
   boundType?: BoundType;
+  label?: string;
   methodList?: IItem[];
   readonly?: boolean;
   unit: string;
-  label?: string;
-  autoAdd?: boolean;
+  value?: IAlarmThresholdSelectValue;
 }
 
 interface IEvent {
-  onChange?: any;
   onBoundTypeChange?: BoundType;
+  onChange?: any;
 }
 
 @Component({ name: 'AlarmThresholdSelect' })

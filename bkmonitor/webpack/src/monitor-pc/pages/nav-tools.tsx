@@ -52,11 +52,11 @@ import { getCmdShortcutKey } from 'monitor-common/utils/navigator';
 export const HANDLE_SHOW_SETTING = 'HANDLE_SHOW_SETTING';
 export const HANDLE_HIDDEN_SETTING = 'HANDLE_HIDDEN_SETTING';
 export const HANDLE_MENU_CHANGE = 'HANDLE_MENU_CHANGE';
-interface INavToolsProps {
-  show: boolean;
-}
 interface INavToolsEvents {
   onChange: boolean;
+}
+interface INavToolsProps {
+  show: boolean;
 }
 @Component({
   mixins: [LogVersionMixin],

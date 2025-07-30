@@ -30,14 +30,14 @@ interface RequireContext {
   (id: string): any;
 }
 
-declare const require: {
+declare const require: NodeRequire & {
   context(directory: string, useSubdirectories?: boolean, regExp?: RegExp): RequireContext;
-} & NodeRequire;
+};
 
 // 类型定义
 interface ApiModule {
-  default: any;
   [key: string]: any;
+  default: any;
 }
 
 interface ApiModules {

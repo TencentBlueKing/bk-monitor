@@ -32,17 +32,18 @@
   </span>
 </template>
 <script lang="ts">
-import { Component, Emit, Prop, Vue, Watch } from 'vue-property-decorator';
-
 import i18n from '../../i18n/i18n';
-import type MonitorVue from '../../types/index';
+
+import { Component, Emit, Prop, Vue, Watch } from 'vue-property-decorator';
 
 import LabelMenu from './label-menu.vue';
 
+import type MonitorVue from '../../types/index';
+
 interface IOption {
+  checked: boolean;
   id: string;
   name: string;
-  checked: boolean;
 }
 
 @Component({ name: 'filter-funnel' })

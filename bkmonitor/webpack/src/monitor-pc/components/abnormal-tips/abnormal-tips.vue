@@ -36,20 +36,25 @@
           v-if="$attrs['link-url'] && $attrs['link-text']"
           class="link"
           @click="handleOpenLink($attrs['link-url'])"
-        >{{ $attrs['link-text'] }}<span class="icon-monitor icon-mc-link" /></span>
+          >{{ $attrs['link-text'] }}<span class="icon-monitor icon-mc-link"
+        /></span>
         <span
           v-if="$attrs['doc-link']"
           class="link"
           @click="handleGotoLink($attrs['doc-link'])"
-        >{{ $t('查看文档') }}<span class="icon-monitor icon-mc-link" /></span>
+        >
+          {{ $t('查看文档') }}
+          <span class="icon-monitor icon-mc-link" />
+        </span>
       </div>
     </bk-popover>
   </div>
 </template>
 <script lang="ts">
+import { Component, Mixins, Prop } from 'vue-property-decorator';
+
 import { LANGUAGE_COOKIE_KEY } from 'monitor-common/utils/constant';
 import { docCookies } from 'monitor-common/utils/utils';
-import { Component, Mixins, Prop } from 'vue-property-decorator';
 
 import documentLinkMixin from '../../mixins/documentLinkMixin';
 

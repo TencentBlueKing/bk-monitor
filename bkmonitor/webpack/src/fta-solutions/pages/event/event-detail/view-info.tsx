@@ -47,20 +47,20 @@ import type { TimeRangeType } from 'monitor-pc/components/time-range/time-range'
 import './view-info.scss';
 
 const { i18n } = window;
-interface IViewInfoProp {
-  show: boolean;
-  isScrollEnd?: boolean;
-  alertId?: number | string;
-  detail?: IDetail;
+interface IDataZoomTimeRange {
+  timeRange: [] | TimeRangeType;
 }
 
 interface ILogData {
-  time: string;
   content: string;
+  time: string;
 }
 
-interface IDataZoomTimeRange {
-  timeRange: [] | TimeRangeType;
+interface IViewInfoProp {
+  alertId?: number | string;
+  detail?: IDetail;
+  isScrollEnd?: boolean;
+  show: boolean;
 }
 @Component({
   name: 'ViewInfo',
