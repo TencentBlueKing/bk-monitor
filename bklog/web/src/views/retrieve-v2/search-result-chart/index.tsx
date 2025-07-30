@@ -471,7 +471,7 @@ export default defineComponent({
         data-test-id='retrieve_div_generalTrendEcharts'
       >
         {/* 标题部分 */}
-        <div class='title-wrapper-new'>
+        <div class='title-wrapper'>
           {/* 1. 标题内容 */}
           {chartTitleContent()}
           {/* 2. 加载中动画 */}
@@ -480,7 +480,7 @@ export default defineComponent({
         {/* 图表部分 */}
         <div
           v-show={!isFold.value}
-          class='bklog-echart-wrap'
+          class='echart-wrapper'
           v-bkloading={{ isLoading: !isStart.value && loading.value, class: 'bk-loading', size: 'mini' }}
         >
           <div
