@@ -441,6 +441,10 @@ class CreateActionProcessor:
             desc = _("用户已确认当前告警，系统自动忽略所有的通知和处理套餐的执行")
             current_timestamp = int(time.time())
             if not alert.is_ack:
+                # 如果当前告警处理时延在1min以内，需要执行通知。
+                if alert.begin_time + CONST_SECOND * 60 < current_timestamp:
+                    return True
+
                 desc = _("当前告警状态发生变化，系统自动忽略{}的所有通知和处理套餐的执行").format(
                     ActionSignal.ACTION_SIGNAL_DICT.get(self.signal)
                 )

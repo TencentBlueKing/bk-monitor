@@ -33,7 +33,6 @@ import { useRoute } from "vue-router/composables";
 
 const { $bkPopover } = Vue.prototype;
 const store = useStore();
-const route = useRoute();
 
 let popoverInstance = null;
 const fieldSelectConfigRef = ref();
@@ -41,15 +40,7 @@ const dropdownListRef = ref();
 
 const isUnionSearch = computed(() => store.getters.isUnionSearch);
 const isExternal = computed(() => store.state.isExternal);
-// const indexSetList = computed(() => store.state.retrieve.indexSetList);
-// 如果不是采集下发和自定义上报则不展示
-// const hasCollectorConfigId = computed(() => {
-//   const indexSetId = route.params?.indexId;
-//   const currentIndexSet = indexSetList.value.find(
-//     (item) => item.index_set_id == indexSetId
-//   );
-//   return currentIndexSet?.collector_config_id;
-// });
+
 // 联合查询和外部环境不展示
 const isFieldSettingShow = computed(() => {
   return !store.getters.isUnionSearch && !isExternal.value;

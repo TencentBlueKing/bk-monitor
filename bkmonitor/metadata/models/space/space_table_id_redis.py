@@ -211,7 +211,7 @@ class SpaceTableIDRedis:
         @param bk_tenant_id: 租户ID
         """
         logger.info(
-            "push_es_table_id_detail： start to push table_id detail data, table_id_list: %sis_publish->[%s],"
+            "push_es_table_id_detail： start to push table_id detail data, table_id_list->[%s],is_publish->[%s],"
             "bk_tenant_id->[%s]",
             json.dumps(table_id_list),
             is_publish,
