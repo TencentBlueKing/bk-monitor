@@ -1147,5 +1147,19 @@ class LogGrepQuerySerializer(serializers.Serializer):
         return representation
 
 
+class AliasSettingsSerializer(serializers.Serializer):
+    alias_settings = AliasSettingSerializer(many=True, required=True)
+
+    def to_representation(self, instance):
+        representation = super().to_representation(instance)
+        # 根据 alias_settings 的内容创建 alias_mappings
+        alias_mappings = {
+            alias["query_alias"]: alias["field_name"] for alias in representation.get("alias_settings", [])
+        }
+        # 添加 alias_mappings 字段到序列化输出中
+        representation["alias_mappings"] = alias_mappings
+        return representation
+
+
 class QueryByDataIdSerializer(serializers.Serializer):
     bk_data_id = serializers.IntegerField(label=_("采集链路ID"), required=True)

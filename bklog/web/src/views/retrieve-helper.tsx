@@ -154,7 +154,10 @@ class RetrieveHelper extends RetrieveBase {
    */
   beforeSlashKeyKeyDown(event: KeyboardEvent, callback: () => void) {
     const target = event.target as HTMLElement;
-    if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') {
+    // 检查按下的键是否是斜杠 "/"（需兼容不同键盘布局）
+    const isSlashKey = event.key === '/' || event.keyCode === 191;
+    
+    if (isSlashKey && target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') {
       return;
     }
 
