@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { computed, defineComponent, ref, watch, nextTick } from 'vue';
+import { computed, defineComponent } from 'vue';
 
 import useLocale from '@/hooks/use-locale';
 import useStore from '@/hooks/use-store';
@@ -44,14 +44,19 @@ export default defineComponent({
     const isAllowEmptyField = computed(() => store.state.storage[BK_LOG_STORAGE.TABLE_ALLOW_EMPTY_FIELD]);
     const showRowIndex = computed(() => store.state.storage[BK_LOG_STORAGE.TABLE_SHOW_ROW_INDEX]);
     const expandTextView = computed(() => store.state.storage[BK_LOG_STORAGE.IS_LIMIT_EXPAND_VIEW]);
-    const showLogTime = ref(store.state.visibleFields.some(item => item?.field_name === 'dtEventTimeStamp'));
-    watch(
-      () => store.state.visibleFields,
-      newVisibleFields => {
-        showLogTime.value = newVisibleFields.some(item => item?.field_name === 'dtEventTimeStamp');
-      },
-      { deep: true },
-    );
+    const currentSortField = computed(() => store.state.indexItem.sort_list?.[0] || []);
+    const isSortShow = computed(() => {
+      return requiredFields.includes(currentSortField.value[0]);
+    });
+    const ascShow = computed(() => {
+      const isAsc = currentSortField.value[1] === 'asc';
+      return isSortShow.value && isAsc;
+    });
+    const descShow = computed(() => {
+      const isDesc = currentSortField.value[1] === 'desc';
+      return isSortShow.value && isDesc;
+    });
+    const requiredFields = ['gseIndex', 'iterationIndex', 'dtEventTimeStamp'];
     const handleStorageChange = (val, key) => {
       store.commit('updateStorage', { [key]: val });
     };
@@ -62,20 +67,42 @@ export default defineComponent({
       store.commit('updateStorage', { [BK_LOG_STORAGE.TABLE_JSON_FORMAT_DEPTH]: target });
     };
 
-    const handleShowLogTimeChange = async val => {
-      const displayFieldNames = [...store.state.visibleFields].map(field => field?.field_name);
-      if (val && !displayFieldNames.includes('dtEventTimeStamp')) {
-        displayFieldNames.unshift('dtEventTimeStamp');
-      } else if (!val && displayFieldNames.includes('dtEventTimeStamp')) {
-        displayFieldNames.splice(displayFieldNames.indexOf('dtEventTimeStamp'), 1);
-      }
-      store.dispatch('userFieldConfigChange', {
-        displayFields: displayFieldNames,
+    const handleShowLogTimeChange = event => {
+      let nextOrder = 'ascending';
+      const targets = event.currentTarget.childNodes;
+      targets.forEach(element => {
+        if (element.classList.contains('active')) {
+          element.classList.remove('active');
+          if (element.classList.contains('ascending')) {
+            nextOrder = 'descending';
+          }
+
+          if (element.classList.contains('descending')) {
+            nextOrder = null;
+          }
+        }
       });
-      await nextTick();
-      store.commit('resetVisibleFields', displayFieldNames);
-      store.commit('updateIsSetDefaultTableColumn');
+
+      const sortMap = {
+        ascending: 'asc',
+        descending: 'desc',
+      };
+      const sortList = sortMap[nextOrder] ? [['dtEventTimeStamp', sortMap[nextOrder]]] : [];
+      const updatedSortList = store.state.indexFieldInfo.sort_list.map(item => {
+        if (sortList.length > 0 && item[0] === 'dtEventTimeStamp') {
+          return sortList[0];
+        } else if (sortList.length === 0 && item[0] === 'dtEventTimeStamp') {
+          return ['dtEventTimeStamp', 'desc'];
+        }
+        return item;
+      });
+      const temporarySortList = sortMap[nextOrder] ? requiredFields.map(item => [item, sortMap[nextOrder]]) : [];
+      store.commit('updateLocalSort', true);
+      store.commit('updateIndexFieldInfo', { sort_list: updatedSortList });
+      store.commit('updateIndexItemParams', { sort_list: temporarySortList });
+      store.dispatch('requestIndexSetQuery');
     };
+
     return () => (
       <div class='bklog-v3-storage'>
         <bk-checkbox
@@ -97,15 +124,18 @@ export default defineComponent({
         >
           <span class='switch-label'>{$t('换行')}</span>
         </bk-checkbox>
-        <bk-checkbox
-          style='margin: 0 12px 0 0'
-          class='bklog-option-item'
-          theme='primary'
-          value={showLogTime.value}
-          on-change={val => handleShowLogTimeChange(val)}
-        >
-          <span class='switch-label'>{$t('日志时间')}</span>
-        </bk-checkbox>
+
+        <div class='switch-label log-sort'>
+          <span class='bklog-option-item'>{$t('日志排序')}</span>
+          <span
+            class='bk-table-caret-wrapper'
+            v-bk-tooltips={{ content: `${ascShow.value ? $t('升序') : $t('降序')}` }}
+            on-click={handleShowLogTimeChange}
+          >
+            <i class={['bk-table-sort-caret', 'ascending', { active: ascShow.value }]}></i>
+            <i class={['bk-table-sort-caret', 'descending', { active: descShow.value }]}></i>
+          </span>
+        </div>
 
         <bk-popover
           extCls='storage-more-popover'

@@ -820,5 +820,5 @@ export default {
   临时分享: 'Temporary Share',
   分享: 'Share',
   综合时间排序: 'Comprehensive Time Sorting',
-  日志时间: 'Log Time',
+  日志排序: 'Log Sorting',
 };
