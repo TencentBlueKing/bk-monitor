@@ -748,7 +748,6 @@ export default defineComponent({
             const scrollStep = event.deltaY || event.deltaX;
             const newScrollLeft = Math.max(0, Math.min(maxOffset, currentScrollLeft + scrollStep));
 
-            console.log('newScrollLeft', newScrollLeft, offsetWidth.value, scrollWidth.value);
             refScrollXBar.value.scrollLeft(newScrollLeft);
             scrollXOffsetLeft = newScrollLeft;
             setRowboxTransform();
