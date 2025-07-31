@@ -28,55 +28,55 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import './apm-common-nav-bar.scss';
 
-export interface ISelectItem {
-  id: any;
-  name: string;
-  [key: string]: any;
-}
-
 export interface INavItem {
+  class?: string;
   id: string;
   /** 展示名称 */
   name: string;
-  subName?: string;
-  query?: Record<string, any>;
-  class?: string;
   // 不需要文本点击跳转功能
   notLink?: boolean;
+  query?: Record<string, any>;
+  subName?: string;
   /** 下拉配置 */
   selectOption?: {
-    /** 下拉选择的值 */
-    value: string;
+    loading?: boolean;
     /** 下拉列表 */
     selectList: ISelectItem[];
-    loading?: boolean;
+    /** 下拉选择的值 */
+    value: string;
   };
 }
 
 // nav 导航栏设置数据item
 export interface IRouteBackItem {
   id?: string;
+  isBack?: boolean;
   name?: string;
   query?: Record<string, any>;
-  isBack?: boolean;
 }
 
-interface ICommonNavBarProps {
-  routeList?: INavItem[];
-  needBack?: boolean;
-  needShadow?: boolean;
-  needCopyLink?: boolean;
-  positionText?: string;
-  backGotoItem?: IRouteBackItem;
-  navMode?: NavBarMode;
-  callbackRouterBack?: () => void;
+export interface ISelectItem {
+  [key: string]: any;
+  id: any;
+  name: string;
 }
+
+export type NavBarMode = 'copy' | 'display' | 'share';
 
 interface ICommonNavBarEvents {
   onNavSelect: (item: ISelectItem, routeId: string) => void;
 }
 
-export type NavBarMode = 'copy' | 'display' | 'share';
+interface ICommonNavBarProps {
+  backGotoItem?: IRouteBackItem;
+  navMode?: NavBarMode;
+  needBack?: boolean;
+  needCopyLink?: boolean;
+  needShadow?: boolean;
+  positionText?: string;
+  routeList?: INavItem[];
+  callbackRouterBack?: () => void;
+}
 
 @Component({
   name: 'ApmCommonNavBar',

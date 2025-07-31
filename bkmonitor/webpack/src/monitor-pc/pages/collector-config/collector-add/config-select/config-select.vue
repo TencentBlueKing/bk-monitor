@@ -25,8 +25,8 @@
 -->
 <template>
   <div
-    class="config-select"
     v-bkloading="{ isLoading: loading }"
+    class="config-select"
   >
     <template v-if="config.set.data.collectType === 'SNMP'">
       <div style="margin-bottom: 10px">
@@ -100,8 +100,8 @@
         />
         <span class="hint-text"> {{ $t('使用远程运行主机') }} </span>
         <i
-          class="icon-monitor icon-tips hint-icon"
           v-bk-tooltips="remoteHostTooltips"
+          class="icon-monitor icon-tips hint-icon"
         />
       </div>
       <div
@@ -111,8 +111,8 @@
         {{ $t('采集器主机') }}
       </div>
       <div
-        class="remote-host"
         v-show="info.isUseRemoteHost"
+        class="remote-host"
       >
         <div class="host-input">
           <div
@@ -138,15 +138,15 @@
           class="host-pro"
         >
           <bk-checkbox
-            class="pro-checkbox"
             v-model="info.remoteCollectingHost.isCollectingOnly"
+            class="pro-checkbox"
             :disabled="!canSelectProHost"
           >
             {{ $t('采集专有主机') }}
           </bk-checkbox>
           <i
-            class="icon-monitor icon-tips host-hint-icon"
             v-bk-tooltips="proHostTooltips"
+            class="icon-monitor icon-tips host-hint-icon"
           />
         </div>
       </div>

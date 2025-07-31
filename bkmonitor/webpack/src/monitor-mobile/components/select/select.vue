@@ -27,8 +27,8 @@
   <transition name="fade">
     <div
       v-if="show"
-      class="bk-select"
       v-transfer-dom="'.bk-mobile-landscape'"
+      class="bk-select"
     >
       <!-- select内容 -->
       <div class="main">
@@ -68,18 +68,18 @@
   </transition>
 </template>
 <script lang="ts">
-import { Vue, Component, Prop, Emit, Model } from 'vue-property-decorator';
+import { Component, Emit, Model, Prop, Vue } from 'vue-property-decorator';
 
 import { Picker } from 'vant';
 
 import transferDom from '../../directives/transform-dom';
 
-type ValueType = number | string;
-
 interface IOptions {
   text: string;
   value: ValueType;
 }
+
+type ValueType = number | string;
 @Component({
   name: 'bk-select',
   components: {

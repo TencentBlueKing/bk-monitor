@@ -26,15 +26,11 @@
 
 import type { EFieldType } from './utils';
 
-interface IValue {
-  id: string;
-  name: string;
-}
 export interface IFieldItem {
-  /* 字段名 */
-  field: string;
   /* 字段别名 */
   alias: string;
+  /* 字段名 */
+  field: string;
   /* 是否含有可选项选项 */
   isEnableOptions: boolean;
   /* 包含的method */
@@ -42,12 +38,16 @@ export interface IFieldItem {
   type?: EFieldType;
 }
 export interface IGetValueFnParams {
-  search: string;
-  limit: number;
   field: string;
+  limit: number;
+  search: string;
 }
 export interface IOptionsInfo {
   count: 0;
   list: IValue[];
 }
 export type TGetValueFn = (params: IGetValueFnParams) => Promise<IOptionsInfo>;
+interface IValue {
+  id: string;
+  name: string;
+}

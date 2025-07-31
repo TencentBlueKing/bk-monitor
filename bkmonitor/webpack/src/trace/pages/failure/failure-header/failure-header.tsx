@@ -25,10 +25,10 @@
  */
 
 import { type Ref, computed, defineComponent, inject, onBeforeUnmount, onMounted, reactive, ref } from 'vue';
-import { useI18n } from 'vue-i18n';
 
 import { Dialog, Form, Input, Loading, Message, Popover, Progress, Tag } from 'bkui-vue';
 import { editIncident, incidentAlertAggregate } from 'monitor-api/modules/incident';
+import { useI18n } from 'vue-i18n';
 
 import ChatGroup from '../alarm-detail/chat-group/chat-group';
 import { LEVEL_LIST } from '../constant';
@@ -37,7 +37,7 @@ import FailureEditDialog from './failure-edit-dialog';
 
 import type { IIncident } from '../types';
 import type { IAggregationRoot } from '../types';
-
+import { useRoute } from 'vue-router'
 import './failure-header.scss';
 
 export default defineComponent({
@@ -45,6 +45,7 @@ export default defineComponent({
   emits: ['editSuccess'],
   setup(props, { emit }) {
     const { t } = useI18n();
+    const route = useRoute();
     const isShow = ref<boolean>(false);
     const isShowResolve = ref<boolean>(false);
     const listLoading = ref(false);
@@ -111,9 +112,15 @@ export default defineComponent({
         });
     };
     const handleBack = () => {
+      // 回退到告警列表是携带告警列表已经配置的时间范围，避免查询时间丢失
+      const { from, to } = route.query;
+      let timeRangText = '';
+      if (from && to) {
+        timeRangText = `&from=${from}&to=${to}`;
+      }
       const { bk_biz_id } = incidentDetail.value;
       const { origin, pathname } = location;
-      const url = `${origin}${pathname}?bizId=${bk_biz_id}#/event-center?searchType=incident&activeFilterId=incident`;
+      const url = `${origin}${pathname}?bizId=${bk_biz_id}#/event-center?searchType=incident&activeFilterId=incident${timeRangText}`;
       window.location.href = url;
     };
     /** 一期先不展示 */

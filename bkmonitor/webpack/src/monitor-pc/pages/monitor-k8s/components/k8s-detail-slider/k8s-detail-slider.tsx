@@ -39,19 +39,19 @@ import type { IViewOptions } from 'monitor-ui/chart-plugins/typings';
 import './k8s-detail-slider.scss';
 
 export interface K8sDetailSliderActiveTitle {
-  tag: K8sTableColumnResourceKey | string;
   field: string;
+  tag: K8sTableColumnResourceKey | string;
 }
 
-interface K8sDetailSliderProps {
-  /** 抽屉页是否显示 */
-  isShow?: boolean;
-  resourceDetail?: Partial<Record<K8sTableColumnKeysEnum, string>>;
-  metricList: IK8SMetricItem[];
-  hideMetrics: string[];
-}
 interface K8sDetailSliderEvent {
   onShowChange?: boolean;
+}
+interface K8sDetailSliderProps {
+  hideMetrics: string[];
+  /** 抽屉页是否显示 */
+  isShow?: boolean;
+  metricList: IK8SMetricItem[];
+  resourceDetail?: Partial<Record<K8sTableColumnKeysEnum, string>>;
 }
 
 @Component
@@ -67,7 +67,7 @@ export default class K8sDetailSlider extends tsc<K8sDetailSliderProps, K8sDetail
     type: Object,
     required: true,
   })
-  resourceDetail: Partial<{ externalParam: { isCluster: boolean } } & Record<K8sTableColumnKeysEnum, string>>;
+  resourceDetail: Partial<Record<K8sTableColumnKeysEnum, string> & { externalParam: { isCluster: boolean } }>;
   @ProvideReactive() viewOptions: IViewOptions = {
     filters: {},
     variables: {},

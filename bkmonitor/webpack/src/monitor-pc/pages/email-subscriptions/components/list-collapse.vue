@@ -40,7 +40,7 @@
             :class="[
               'icon-monitor',
               'icon-mc-triangle-down',
-              { 'icon-mc-triangle-down-hidden': activeName.indexOf('1') === -1 }
+              { 'icon-mc-triangle-down-hidden': activeName.indexOf('1') === -1 },
             ]"
           />
           <span class="title">{{ title }}</span>

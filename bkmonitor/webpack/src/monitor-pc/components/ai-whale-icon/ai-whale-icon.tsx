@@ -32,9 +32,9 @@ import aiWhaleStore from '../../store/modules/ai-whale';
 import './ai-whale-icon.scss';
 
 interface AIWhaleIconProps {
-  type: 'description' | 'explanation' | 'guideline';
   content: string;
   tip?: string;
+  type: 'description' | 'explanation' | 'guideline';
 }
 
 @Component

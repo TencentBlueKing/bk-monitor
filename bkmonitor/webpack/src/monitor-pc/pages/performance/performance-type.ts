@@ -33,57 +33,28 @@ import type { TimeRangeType } from '../../components/time-range/time-range';
  */
 import type { TranslateResult } from 'vue-i18n';
 
-export interface IHostData {
-  hosts: any[];
-}
+export type ChartType = 0 | 1 | 2;
 
-export interface IUserConfig {
-  id?: number;
-  value: string;
-  key: string;
-  username?: string;
-}
+export type CheckType = 'all' | 'current'; // current: 本页选择；all: 跨页选择
 
-export interface IPanelItem {
-  icon: string;
-  name: TranslateResult;
-  key: string;
-  num: number;
-}
-
-export interface IPanel {
-  list: Array<IPanelItem>;
-  active: string;
-}
-
-export interface IPanelStatistics {
-  unresolveData: number;
-  cpuData: number;
-  menmoryData: number;
-  diskData: number;
-}
+export type CheckValue = 0 | 1 | 2; // 0: 无选择 1: 半选 2: 全选
 
 export type Dictionary = {
   [prop: string]: any;
 };
 
-export interface ITableRow {
-  rowId: string; // 当前行ID
-  mark: boolean; // 是否有置顶标记
-  selection: boolean; // 当前行是否check
-  [prop: string]: any;
+export type FieldValue = (number | string)[] | (number | string)[][] | IConditionValue[] | number | string;
+
+export interface ICheck {
+  type: CheckType;
+  value: CheckValue;
 }
 
-export interface IOption {
-  name: any;
-  id?: number | string;
-  value?: number | string;
-  children?: IOption[];
-}
+export type ICompareChangeType = 'compare' | 'interval' | 'search' | 'timeRange';
 
-export interface ITableOptions {
-  stickyValue?: object;
-  panelKey?: string;
+export interface ICompareOption {
+  type: 'metric' | 'none' | 'target' | 'time';
+  value: boolean | string | string[];
 }
 
 export interface IConditionValue {
@@ -91,119 +62,96 @@ export interface IConditionValue {
   value: number;
 }
 
-export type FieldValue = (number | string)[] | (number | string)[][] | IConditionValue[] | number | string;
+export interface IDragItem {
+  groupId: string;
+  itemId: string;
+}
 
 export interface IFieldConfig {
-  name: TranslateResult; // 字段中文名称
-  id: string; // 字段
+  allowEmpt?: boolean; // 是否允许为空
   checked?: boolean; // 是否展示该列
+  conditions?: IOption[]; // 条件
   disable?: boolean; // 是否禁用操作
+  dynamic?: boolean; // 是否是动态字段
   filterChecked?: boolean; // 是否展示在筛选面板
   filterDisable?: boolean; // 是否禁用操作
-  options?: Array<IOption>; // 选项列表
-  conditions?: IOption[]; // 条件
-  value?: FieldValue; // 当前值
-  type: InputType; // 值类型
   fuzzySearch?: boolean; // 是否支持模糊搜索
+  id: string; // 字段
   multiple?: boolean; // 多选（select类型有效，如 集群和模块 字段）
+  name: TranslateResult; // 字段中文名称
+  options?: Array<IOption>; // 选项列表
   show?: boolean; // 筛选面板是否展示条件
-  dynamic?: boolean; // 是否是动态字段
-  allowEmpt?: boolean; // 是否允许为空
+  type: InputType; // 值类型
+  value?: FieldValue; // 当前值
 }
 
-export type CheckValue = 0 | 1 | 2; // 0: 无选择 1: 半选 2: 全选
-export type CheckType = 'all' | 'current'; // current: 本页选择；all: 跨页选择
-export interface ICheck {
-  type: CheckType;
-  value: CheckValue;
+export interface IGroupItem {
+  hidden: boolean;
+  id: string;
+  key?: string;
+  match_type?: ('auto' | 'manual')[];
+  title: string;
 }
 
-export interface IPageConfig {
-  page: number;
-  pageSize: number;
-  pageList: number[];
-  total: number;
+export interface IHostData {
+  hosts: any[];
+}
+export interface IHostDetailParams {
+  cloudId: string;
+  ip: string;
+  osType: number | string;
+  processId: string;
+}
+export interface IHostGroup {
+  auto_rules?: string[];
+  id: string;
+  manual_list?: string[];
+  panels: IGroupItem[];
+  title: string;
+  type?: string;
 }
 
-export interface ISort {
-  order: 'ascending' | 'descending';
-  prop: string;
+export interface IHostInfo {
+  copy?: boolean;
+  id: string;
+  link?: boolean;
+  title: TranslateResult;
+  value: string | string[];
 }
 
 export type InputType = 'cascade' | 'checkbox' | 'condition' | 'number' | 'select' | 'text' | 'textarea';
 
-export interface ISelectedValues {
-  selectedGroup: string[];
-  unSelectedGroup: string[];
+export interface IOption {
+  children?: IOption[];
+  id?: number | string;
+  name: any;
+  value?: number | string;
 }
 
-export interface ISearchItem {
-  id: string;
-  value: FieldValue;
+export interface IPageConfig {
+  page: number;
+  pageList: number[];
+  pageSize: number;
+  total: number;
 }
 
-export type View = 'host' | 'process';
-
-export interface IGroupItem {
-  id: string;
-  key?: string;
-  title: string;
-  hidden: boolean;
-  match_type?: ('auto' | 'manual')[];
-}
-export interface IHostGroup {
-  id: string;
-  title: string;
-  panels: IGroupItem[];
-  type?: string;
-  auto_rules?: string[];
-  manual_list?: string[];
+export interface IPanel {
+  active: string;
+  list: Array<IPanelItem>;
 }
 
-export interface IDragItem {
-  itemId: string;
-  groupId: string;
-}
-
-export interface IHostInfo {
-  title: TranslateResult;
-  value: string | string[];
-  id: string;
-  copy?: boolean;
-  link?: boolean;
-}
-
-export interface IHostDetailParams {
-  ip: string;
-  cloudId: string;
-  processId: string;
-  osType: number | string;
-}
-
-export interface ITag {
-  id: string;
+export interface IPanelItem {
+  icon: string;
+  key: string;
   name: TranslateResult;
-  value: any;
-  display: string;
-  count: number;
-  conditions?: IOption[];
-  // 原始值类型
-  originValue: FieldValue;
-  dynamic?: boolean;
+  num: number;
 }
 
-export type ViewType = 'host' | 'process';
-
-export type ChartType = 0 | 1 | 2;
-export interface ICompareOption {
-  type: 'metric' | 'none' | 'target' | 'time';
-  value: boolean | string | string[];
-}
-
-export interface IToolsOption {
-  timeRange: TimeRangeType;
-  refreshInterval: number | string[];
-  searchValue?: any;
+export interface IPanelStatistics {
+  cpuData: number;
+  diskData: number;
+  menmoryData: number;
+  unresolveData: number;
 }
 export interface IQueryOption {
   compare: ICompareOption;
@@ -211,18 +159,70 @@ export interface IQueryOption {
   type?: ICompareChangeType;
 }
 
-export interface ISearchTipsObj {
-  show: boolean;
-  time: number;
-  showSplit: boolean;
-  value: boolean;
-  showAddStrategy: boolean;
+export interface ISearchItem {
+  id: string;
+  value: FieldValue;
 }
 
 export interface ISearchSelectList {
-  name: string;
-  id: number | string;
   children?: ISearchSelectList[];
+  id: number | string;
+  name: string;
 }
 
-export type ICompareChangeType = 'compare' | 'interval' | 'search' | 'timeRange';
+export interface ISearchTipsObj {
+  show: boolean;
+  showAddStrategy: boolean;
+  showSplit: boolean;
+  time: number;
+  value: boolean;
+}
+
+export interface ISelectedValues {
+  selectedGroup: string[];
+  unSelectedGroup: string[];
+}
+
+export interface ISort {
+  order: 'ascending' | 'descending';
+  prop: string;
+}
+
+export interface ITableOptions {
+  panelKey?: string;
+  stickyValue?: object;
+}
+export interface ITableRow {
+  [prop: string]: any;
+  mark: boolean; // 是否有置顶标记
+  rowId: string; // 当前行ID
+  selection: boolean; // 当前行是否check
+}
+
+export interface ITag {
+  conditions?: IOption[];
+  count: number;
+  display: string;
+  dynamic?: boolean;
+  id: string;
+  name: TranslateResult;
+  // 原始值类型
+  originValue: FieldValue;
+  value: any;
+}
+export interface IToolsOption {
+  refreshInterval: number | string[];
+  searchValue?: any;
+  timeRange: TimeRangeType;
+}
+
+export interface IUserConfig {
+  id?: number;
+  key: string;
+  username?: string;
+  value: string;
+}
+
+export type View = 'host' | 'process';
+
+export type ViewType = 'host' | 'process';

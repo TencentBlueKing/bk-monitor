@@ -31,27 +31,27 @@ import { importEventPlugin } from 'monitor-api/modules/event_plugin';
 import type { TranslateResult } from 'vue-i18n';
 
 export type ViewType = 'card' | 'list';
+interface ContentHeaderEvents {
+  onImportSuccess: () => void;
+  onSearchValueChange: (value: string) => void;
+  onViewChange: (type: ViewType) => void;
+}
 interface ITypeData {
-  id: ViewType;
   icon: string;
+  id: ViewType;
   tips: TranslateResult;
 }
+
 interface IViewTypes {
   active: ViewType;
   list: ITypeData[];
-}
-
-interface ContentHeaderEvents {
-  onViewChange: (type: ViewType) => void;
-  onSearchValueChange: (value: string) => void;
-  onImportSuccess: () => void;
 }
 
 /**
  * 集成模块顶部操作组件
  */
 @Component({ name: 'ContentHeader' })
-export default class ContentHeader extends tsc<{ searchValue: string; filterWidth: number }, ContentHeaderEvents> {
+export default class ContentHeader extends tsc<{ filterWidth: number; searchValue: string }, ContentHeaderEvents> {
   @Prop({ default: '' }) searchValue: string;
   @Prop({ required: true }) filterWidth: number;
   viewTypes: IViewTypes = {

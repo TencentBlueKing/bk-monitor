@@ -1,3 +1,5 @@
+import { Component as tsc } from 'vue-tsx-support';
+
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -24,7 +26,6 @@
  * IN THE SOFTWARE.
  */
 import Component from 'vue-class-component';
-import { Component as tsc } from 'vue-tsx-support';
 
 import './monitor-tab.scss';
 
@@ -34,10 +35,10 @@ export default class MonitorTab extends tsc<object> {
     return (
       <bk-tab
         class='monitor-tab'
+        on={this.$listeners}
         props={this.$attrs}
         tab-position='top'
         type='unborder-card'
-        on={this.$listeners}
       >
         {this.$slots.default}
         {this.$slots.setting && <template slot='setting'>{this.$slots.setting}</template>}

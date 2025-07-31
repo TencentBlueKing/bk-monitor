@@ -50,22 +50,22 @@ import type {
 
 import './storage-state-trace.scss';
 
-interface IProps {
-  appInfo: IAppInfo;
-  indicesLoading: boolean;
-  fieldLoading: boolean;
-  dataLoading?: boolean;
-  indicesList: IndicesItem[];
-  fieldFilterList: IFieldFilterItem[];
-  fieldList: IFieldItem[];
-  setupData: any;
-  clusterList: IClusterItem[];
-  storageInfo?: ITracingStorageInfo;
-  telemetryDataType?: ETelemetryDataType;
-}
-
 interface IEvent {
   onChange?: (params: ITracingStorageInfo) => void;
+}
+
+interface IProps {
+  appInfo: IAppInfo;
+  clusterList: IClusterItem[];
+  dataLoading?: boolean;
+  fieldFilterList: IFieldFilterItem[];
+  fieldList: IFieldItem[];
+  fieldLoading: boolean;
+  indicesList: IndicesItem[];
+  indicesLoading: boolean;
+  setupData: any;
+  storageInfo?: ITracingStorageInfo;
+  telemetryDataType?: ETelemetryDataType;
 }
 @Component
 export default class Trace extends tsc<IProps, IEvent> {

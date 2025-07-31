@@ -36,7 +36,7 @@
   </span>
 </template>
 <script lang="ts">
-import { Vue, Component, Prop } from 'vue-property-decorator';
+import { Component, Prop, Vue } from 'vue-property-decorator';
 
 @Component({
   name: 'event-type',
@@ -53,49 +53,58 @@ export default class EventType extends Vue {
 }
 </script>
 <style lang="scss" scoped>
-@import '../../static/scss/variate.scss';
+@import '../../static/scss/variate';
+
 .event-button {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  height: 32px;
-  border-radius: 4px;
-  box-shadow: 0px 1px 0px 0px rgba(99, 101, 110, 0.05);
   box-sizing: border-box;
-  border: 1px solid #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 32px;
   background-color: #fff;
+  border: 1px solid #fff;
+  border-radius: 4px;
+  box-shadow: 0 1px 0 0 rgb(99 101 110 / 5%);
   transition: all 0.2s ease-in-out;
+
   .text {
-    color: $defaultFontColor;
-    line-height: 20px;
     font-size: 14px;
     font-weight: 400;
+    line-height: 20px;
+    color: $defaultFontColor;
   }
+
   .icon-monitor {
     display: flex;
-    justify-content: center;
     align-items: center;
+    justify-content: center;
     width: 16px;
     height: 20px;
     margin-right: 7px;
     font-size: 16px;
   }
+
   .icon-danger {
     color: #ea3636;
   }
+
   .icon-mind-fill {
     color: #ff9c01;
   }
+
   .icon-tips {
     color: #ffd000;
   }
+
   .icon-user {
     color: #3a84ff;
   }
 }
+
 .event-button-active {
-  border: 1px solid $primaryColor;
   background-color: #e1ecff;
+  border: 1px solid $primaryColor;
+
   .text {
     color: $primaryColor;
   }

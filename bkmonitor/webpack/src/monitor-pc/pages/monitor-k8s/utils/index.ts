@@ -30,8 +30,8 @@ import type { IBkSeachSelectValue, IQueryDataSearch, IWhere } from '../typings';
 /** 视图的设置页面的弹层层级 */
 export const SETTINGS_POP_Z_INDEX = 4100;
 
-export type VarWhereMap = Record<string, IWhere[]>;
 export type VarReferenceMap = Record<string, string[]>;
+export type VarWhereMap = Record<string, IWhere[]>;
 
 /**
  * @description: 有变量的where提取引用关系数据
@@ -162,7 +162,6 @@ export const handleReplaceVarData = (data: Record<string, any>, map: Map<string,
   }
   const srcStr = JSON.stringify(srcData);
   const resultStr = srcStr.replace(/\${?([a-zA-Z0-9_]+)}?/g, (...args) => {
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const [_, key] = args;
     const value = map.get(key);
     return typeof value === 'object' ? JSON.stringify(value) : value;

@@ -62,9 +62,9 @@
         >
           <bk-button
             v-for="(item, index) in bkGroup.list"
+            :key="index"
             class="scope-item"
             :class="{ 'is-selected': bkGroup.value === item.id }"
-            :key="index"
             @click.stop="handleScopeChange(item.id)"
           >
             {{ item.name }}
@@ -100,8 +100,8 @@
     <!-- 提示信息end -->
 
     <div
-      class="set-shield-config-item topo-selector"
       v-show="bkGroup.value !== 'biz' && !isEdit"
+      class="set-shield-config-item topo-selector"
     >
       <div class="item-label" />
       <div

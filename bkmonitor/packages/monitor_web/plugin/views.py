@@ -95,7 +95,7 @@ class CollectorPluginViewSet(PermissionMixin, viewsets.ModelViewSet):
         """
         根据租户ID过滤插件
         """
-        return super().get_queryset().filter(bk_tenant_id=self.request.user.tenant_id)
+        return super().get_queryset().filter(bk_tenant_id=get_request_tenant_id())
 
     def get_authenticators(self):
         authenticators = super().get_authenticators()

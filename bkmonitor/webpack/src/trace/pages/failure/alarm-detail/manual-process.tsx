@@ -24,16 +24,15 @@
  * IN THE SOFTWARE.
  */
 import { computed, defineComponent, ref, watch } from 'vue';
-import { useI18n } from 'vue-i18n';
-import { useRouter } from 'vue-router';
 
 import { Button, Dialog, Loading, Select } from 'bkui-vue';
-
 // , Option, Select
 import { batchCreate, getActionParams, getPluginTemplates } from 'monitor-api/modules/action';
 import { incidentRecordOperation } from 'monitor-api/modules/incident';
 import { listActionConfig } from 'monitor-api/modules/model';
 import { random, transformDataKey } from 'monitor-common/utils/utils';
+import { useI18n } from 'vue-i18n';
+import { useRouter } from 'vue-router';
 
 // import { actionConfigGroupList } from './alarm-handling/alarm-handling';
 import DynamicForm from './dynamic-form/dynamic-form';
@@ -61,14 +60,23 @@ const actionConfigGroupList = (actionConfigList): any[] => {
   return groupList;
 };
 
-interface IFormRule {
-  message: string;
-  required: boolean;
-  trigger: string;
+export interface IStatusRes {
+  is_finished: boolean;
+  status: string;
+  content: {
+    action_plugin_type: string;
+    text: string;
+    url: string;
+  };
 }
 interface IFormData {
+  formModel: { [propsName: string]: any };
+  formRules: { [propsName: string]: IFormRule };
+  name: string;
+  templateId: number | string;
+  timeout: number;
   formList: {
-    formChildProps?: { placeholder?: string; options?: [] };
+    formChildProps?: { options?: []; placeholder?: string };
     formItemProps?: {
       help_text?: string;
       label?: string;
@@ -78,21 +86,12 @@ interface IFormData {
     key?: string;
     rules?: IFormRule;
   }[];
-  formModel: { [propsName: string]: any };
-  formRules: { [propsName: string]: IFormRule };
-  name: string;
-  templateId: number | string;
-  timeout: number;
 }
 
-export interface IStatusRes {
-  content: {
-    action_plugin_type: string;
-    text: string;
-    url: string;
-  };
-  is_finished: boolean;
-  status: string;
+interface IFormRule {
+  message: string;
+  required: boolean;
+  trigger: string;
 }
 
 export default defineComponent({
@@ -137,24 +136,24 @@ export default defineComponent({
       {
         id: number | string;
         name: string;
-        plugin_type: string;
         plugin_id: number;
+        plugin_type: string;
       }[]
     >([]);
     const mealId = ref('');
-    const curMeal = ref<{
+    const curMeal = ref<null | {
+      bk_biz_id: number;
+      id: number;
       name: string;
       plugin_id: number;
-      id: number;
-      bk_biz_id: number;
       plugin_type: string;
-    } | null>(null);
+    }>(null);
     /* 当前执行方案 */
 
     const templateData = ref<{
-      name: string;
-      id: string;
       allList: { [pulginId: string]: any[] };
+      id: string;
+      name: string;
     }>({
       name: '',
       id: '',

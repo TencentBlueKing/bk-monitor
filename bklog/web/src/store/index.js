@@ -1340,7 +1340,7 @@ const store = new Vuex.Store({
 
                 if (!payload?.isPagination) {
                   commit('updateIsSetDefaultTableColumn', { list: logList });
-                  dispatch('requestSearchTotal');
+                  // dispatch('requestSearchTotal');
                 }
                 // 更新页数
                 commit('updateSqlQueryFieldList', logList);
@@ -1746,7 +1746,7 @@ const store = new Vuex.Store({
           },
         )
         .then(res => {
-          const { data, code } = res;
+          const { data } = res;
           if (res.result === true) state.searchTotal = data.total_count;
           return res;
         });

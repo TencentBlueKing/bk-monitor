@@ -33,7 +33,7 @@ import { random } from 'monitor-common/utils';
 import ClusterConfig from './cluster-config';
 // import InfluxdbChild from './influxdb-child';
 import ClusterDetails from './cluster-details';
-import { EClusterType, ETableColumn, FILTER_LIST, type ITableDataRow, type ITableRowConfig } from './type';
+import { type ITableDataRow, type ITableRowConfig, EClusterType, ETableColumn, FILTER_LIST } from './type';
 
 import './resource-register.scss';
 
@@ -69,7 +69,7 @@ export default class ResourceRegister extends tsc<object> {
   /* 关键字搜索 */
   searchValue = '';
   /* 表格数据 */
-  tableData: ITableData | any = {
+  tableData: any | ITableData = {
     data: [],
     columns: [
       { id: ETableColumn.name, name: window.i18n.tc('名称'), disabled: true, checked: true, width: 246 },

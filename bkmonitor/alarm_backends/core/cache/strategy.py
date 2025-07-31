@@ -48,6 +48,7 @@ from constants.strategy import (
     AGG_METHOD_REAL_TIME,
     AdvanceConditionMethod,
     TargetFieldType,
+    OS_RESTART_METRIC_ID,
 )
 from core.drf_resource import api
 from core.prometheus import metrics
@@ -287,7 +288,7 @@ class StrategyCacheManager(CacheManager):
 
             # 伪事件型策略的metric_id需要调整为事件型metric_id
             fake_event_metric_id_mapping = {
-                "bk_monitor.system.env.uptime": "bk_monitor.os_restart",
+                "bk_monitor.system.env.uptime": OS_RESTART_METRIC_ID,
                 "bk_monitor.pingserver.base.loss_percent": "bk_monitor.ping-gse",
                 "bk_monitor.system.proc_port.proc_exists": "bk_monitor.proc_port",
             }
@@ -297,7 +298,7 @@ class StrategyCacheManager(CacheManager):
             if query_config["metric_id"] in fake_event_metric_id_mapping.values():
                 query_config["agg_interval"] = query_config.get("agg_interval", cls.fake_event_agg_interval)
 
-            if query_config["metric_id"] == "bk_monitor.os_restart":
+            if query_config["metric_id"] == OS_RESTART_METRIC_ID:
                 # 主机重启优化
                 # alarm_backends/service/detect/strategy/os_restart.py:32
                 query_config["alias"] = "a"

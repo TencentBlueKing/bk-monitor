@@ -25,63 +25,63 @@
  */
 import type { TranslateResult } from 'vue-i18n';
 
-export interface IStrategyConfigProps {
-  fromRouteName?: string;
-  noticeName?: string;
-  serviceCategory?: string;
-  taskId?: number | string;
-  ip?: string;
-  bkCloudId?: number | string;
-  bkEventGroupId?: number;
-  timeSeriesGroupId?: number;
-  pluginId?: string;
-  metricId?: string;
-  bkStrategyId?: Array<{ id: number | string; name: number | string }>;
-  dataSource?: Array<any>;
-  isFta?: boolean;
-  actionName?: string;
-  keywords?: string[];
-  resultTableId?: string;
-  strategyLabels?: string;
-  strategyType?: string;
-}
 export interface IHeader {
-  value?: number;
-  dropdownShow?: boolean;
-  list?: Array<any>;
-  keyword?: string;
-  keywordObj?: IFilterData[];
   condition?: Array<any>;
   conditionList?: Array<any>;
+  dropdownShow?: boolean;
+  keyword?: string;
+  keywordObj?: IFilterData[];
+  list?: Array<any>;
+  value?: number;
   handleSearch: () => void;
 }
-export interface ITableInstance {
-  page?: number;
-  pageSize?: number;
-  keyword?: string;
-  data?: Array<any>;
-  pageList?: Array<string>;
-  total?: number;
-}
-
-export interface IPopover {
-  instance: any;
-  hover: number;
-  edit: boolean;
-  status: string;
-  data: any;
-  index?: number;
-}
 export interface ILabel {
-  target: any;
   isSelected: boolean;
+  noticeName: string;
   selectedLabels: any;
   serviceCategory: string;
-  noticeName: string;
+  target: any;
   value?: string;
+}
+export interface IPopover {
+  data: any;
+  edit: boolean;
+  hover: number;
+  index?: number;
+  instance: any;
+  status: string;
+}
+
+export interface IStrategyConfigProps {
+  actionName?: string;
+  bkCloudId?: number | string;
+  bkEventGroupId?: number;
+  bkStrategyId?: Array<{ id: number | string; name: number | string }>;
+  dataSource?: Array<any>;
+  fromRouteName?: string;
+  ip?: string;
+  isFta?: boolean;
+  keywords?: string[];
+  metricId?: string;
+  noticeName?: string;
+  pluginId?: string;
+  resultTableId?: string;
+  serviceCategory?: string;
+  strategyLabels?: string;
+  strategyType?: string;
+  taskId?: number | string;
+  timeSeriesGroupId?: number;
+}
+export interface ITableInstance {
+  data?: Array<any>;
+  keyword?: string;
+  page?: number;
+  pageList?: Array<string>;
+  pageSize?: number;
+  total?: number;
 }
 interface IFilterData {
   id: number | string; // 所属分组ID
-  values: any[]; // 勾选数据
   name: TranslateResult; // 分组名称
+  values: any[]; // 勾选数据
 }

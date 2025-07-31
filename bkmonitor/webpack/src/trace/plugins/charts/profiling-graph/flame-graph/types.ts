@@ -24,12 +24,12 @@
  * IN THE SOFTWARE.
  */
 export interface BaseRect {
-  preDepth?: number;
-  clickId?: number | string;
   clickDepth?: number;
-  startTime?: number;
+  clickId?: number | string;
   endTime?: number;
   highlightName?: string;
   keywords?: string[];
+  preDepth?: number;
+  startTime?: number;
   value?: number;
 }

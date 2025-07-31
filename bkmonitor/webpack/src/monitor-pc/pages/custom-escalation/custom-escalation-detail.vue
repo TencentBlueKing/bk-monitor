@@ -30,8 +30,8 @@
 -->
 <template>
   <div
-    class="custom-detail-page-component"
     v-bkloading="{ isLoading: loading }"
+    class="custom-detail-page-component"
   >
     <common-nav-bar
       class="common-nav-bar-single"
@@ -71,16 +71,16 @@
           <div class="detail-information-row">
             <span class="row-label">{{ $t('数据ID') }} : </span>
             <span
-              class="row-content"
               v-bk-overflow-tips
+              class="row-content"
               >{{ detailData.bk_data_id }}</span
             >
           </div>
           <div class="detail-information-row">
             <span class="row-label">Token : </span>
             <span
-              class="row-content"
               v-bk-overflow-tips
+              class="row-content"
               >{{ detailData.access_token }}</span
             >
           </div>
@@ -91,8 +91,8 @@
               style="display: flex; min-width: 0"
             >
               <span
-                class="row-content"
                 v-bk-overflow-tips
+                class="row-content"
                 >{{ detailData.name }}</span
               >
               <i
@@ -104,8 +104,8 @@
             <bk-input
               v-else
               ref="nameInput"
-              style="width: 240px"
               v-model="copyName"
+              style="width: 240px"
               @blur="handleEditName"
             />
           </div>
@@ -116,8 +116,8 @@
               style="display: flex; min-width: 0"
             >
               <span
-                class="row-content"
                 v-bk-overflow-tips
+                class="row-content"
                 >{{ detailData.data_label || '--' }}</span
               >
               <i
@@ -129,16 +129,16 @@
             <bk-input
               v-else
               ref="dataLabelInput"
-              style="width: 240px"
               v-model="copyDataLabel"
+              style="width: 240px"
               @blur="handleEditDataLabel"
             />
           </div>
           <div class="detail-information-row">
             <span class="row-label">{{ $t('监控对象') }} : </span>
             <span
-              class="row-content"
               v-bk-overflow-tips
+              class="row-content"
               >{{ scenario }}</span
             >
           </div>
@@ -149,8 +149,8 @@
             <span class="row-label">{{ $t('上报协议') }} : </span>
             <span
               v-if="detailData.protocol"
-              class="row-content"
               v-bk-overflow-tips
+              class="row-content"
             >
               {{ detailData.protocol === 'json' ? 'JSON' : 'Prometheus' }}
             </span>
@@ -169,8 +169,8 @@
             />
             <span
               v-else
-              class="row-content"
               v-bk-overflow-tips
+              class="row-content"
             >
               {{ copyIsPlatform === false ? $t('本业务') : $t('全平台') }}
             </span>
@@ -185,8 +185,8 @@
               style="display: flex; min-width: 0"
             >
               <span
-                class="row-content"
                 v-bk-overflow-tips
+                class="row-content"
                 >{{ detailData.desc || '--' }}</span
               >
               <i
@@ -198,9 +198,9 @@
             <bk-input
               v-else
               ref="describeInput"
+              v-model="copyDescribe"
               style="width: 440px"
               class="form-content-textarea"
-              v-model="copyDescribe"
               :rows="3"
               type="textarea"
               @blur="handleEditDescribe"
@@ -211,24 +211,24 @@
         <template v-if="type === 'customEvent'">
           <!-- 拉取的事件列表 -->
           <div
-            class="detail-information detail-list"
             v-bkloading="{ isLoading: eventDataLoading }"
+            class="detail-information detail-list"
           >
             <div class="list-header">
               <div class="list-header-title">
                 {{ $t('事件列表') }}
               </div>
               <bk-button
-                class="list-header-immediately"
                 v-bk-tooltips="{
                   content: $tc('刷新'),
                 }"
+                class="list-header-immediately"
                 icon="icon-monitor icon-mc-alarm-recovered"
                 @click="() => handleRefreshNow(true)"
               />
               <bk-select
-                class="list-header-refresh"
                 v-model="refreshList.value"
+                class="list-header-refresh"
                 :clearable="false"
                 @change="handleRefreshChange"
               >
@@ -240,8 +240,8 @@
                 />
               </bk-select>
               <bk-select
-                class="list-header-date"
                 v-model="shortcuts.value"
+                class="list-header-date"
                 :clearable="false"
                 :popover-min-width="110"
                 @change="handleTimeChange"
@@ -341,8 +341,8 @@
             :width="656"
           >
             <div
-              class="sideslider-title"
               slot="header"
+              class="sideslider-title"
             >
               <span>{{ sideslider.title + $t(' - 原始数据') }}</span>
               <span class="title-explain">{{ $t('（仅支持查看当前事件中最近一条的原始数据信息）') }}</span>
@@ -452,8 +452,8 @@
                 >
                   <div
                     v-if="!!selectionLeng"
-                    class="table-prepend"
                     slot="prepend"
+                    class="table-prepend"
                   >
                     <span class="add-msg">
                       <i18n path="当前已选择{0}条数据">
@@ -538,8 +538,8 @@
                               <div class="table-group-tags">
                                 <span
                                   v-for="item in scope.row.labels.map(item => item.name)"
-                                  class="table-group-tag"
                                   :key="item"
+                                  class="table-group-tag"
                                   @mouseenter="e => handleGroupTagTip(e, item)"
                                   @mouseleave="handleRemoveGroupTip"
                                 >
@@ -585,8 +585,8 @@
                   >
                     <template slot-scope="scope">
                       <div
-                        class="overflow-tips"
                         v-bk-overflow-tips
+                        class="overflow-tips"
                       >
                         {{ scope.row.name }}
                       </div>
@@ -691,14 +691,14 @@
                       }"
                       :type="emptyType"
                       @operation="handleEmptyOperation"
-                    ></empty-status>
+                    />
                   </div>
                 </bk-table>
               </div>
               <!-- 数据预览 -->
               <div
-                class="right-data"
                 v-show="isShowData"
+                class="right-data"
               >
                 <ul class="ul-head">
                   <li class="host-type">
@@ -714,8 +714,8 @@
                     />
                     <div
                       v-for="(item, index) in metricTable"
-                      class="data-preview"
                       :key="index"
+                      class="data-preview"
                     >
                       {{ allDataPreview[item.name] || $t('近5分钟无数据上报') }}
                     </div>
@@ -728,8 +728,8 @@
               </div>
             </div>
             <bk-pagination
-              class="list-pagination"
               v-show="metricTable.length"
+              class="list-pagination"
               :count="pagination.total"
               :current="pagination.page"
               :limit="pagination.pageSize"
@@ -745,17 +745,17 @@
         </template>
         <span
           v-if="type === 'customTimeSeries'"
-          class="submit-div"
           v-bk-tooltips="{
             content: $tc('非当前业务，不允许操作'),
             placements: ['top'],
             disabled: !isReadonly,
           }"
+          class="submit-div"
         >
           <bk-button
             v-if="type === 'customTimeSeries'"
-            class="mc-btn-add"
             v-authority="{ active: !authority.MANAGE_CUSTOM_METRIC }"
+            class="mc-btn-add"
             :disabled="isReadonly"
             theme="primary"
             @click="
@@ -883,7 +883,7 @@
                   class="content-copy-prometheus"
                   @click="handleCopyPrometheus('golangCopy')"
                 >
-                  <i class="icon-monitor icon-mc-copy"></i>
+                  <i class="icon-monitor icon-mc-copy" />
                 </div>
                 <textarea
                   ref="golangCopy"
@@ -911,7 +911,7 @@
                   class="content-copy-prometheus"
                   @click="handleCopyPrometheus('pythonCopy')"
                 >
-                  <i class="icon-monitor icon-mc-copy"></i>
+                  <i class="icon-monitor icon-mc-copy" />
                 </div>
                 <textarea
                   ref="pythonCopy"
@@ -932,7 +932,7 @@
               class="content-copy"
               @click="handleCopyData"
             >
-              <i class="icon-monitor icon-mc-copy"></i>
+              <i class="icon-monitor icon-mc-copy" />
             </div>
             <textarea
               ref="textCopy"
@@ -944,8 +944,8 @@
     </div>
     <group-manage-dialog
       v-if="type === 'customTimeSeries'"
-      :groups="groupList"
       :id="detailData.time_series_group_id"
+      :groups="groupList"
       :metric-list="metricList"
       :show="groupManage.show"
       @change="handleGroupListChange"
@@ -955,6 +955,8 @@
 </template>
 
 <script lang="ts">
+import type { CreateElement } from 'vue';
+
 import { Component, Mixins, Ref } from 'vue-property-decorator';
 
 import SearchSelect from '@blueking/search-select-v3/vue2';
@@ -962,10 +964,10 @@ import dayjs from 'dayjs';
 import {
   createOrUpdateGroupingRule,
   customTsGroupingRuleList,
+  modifyCustomTimeSeriesDesc,
   modifyCustomTsGroupingRuleList,
   validateCustomEventGroupLabel,
   validateCustomTsGroupLabel,
-  modifyCustomTimeSeriesDesc,
 } from 'monitor-api/modules/custom_report';
 
 import MonacoEditor from '../../components/editors/monaco-editor.vue';
@@ -992,17 +994,16 @@ import type {
   IShortcuts,
   ISideslider,
 } from '../../types/custom-escalation/custom-escalation-detail';
-import type { CreateElement } from 'vue';
 
 import '@blueking/search-select-v3/vue2/vue2.css';
 
 const NULL_LABEL = '__null_label__';
 
 interface IGroupListItem {
-  name: string;
-  matchRules: string[];
   manualList: string[];
+  matchRules: string[];
   matchRulesOfMetrics?: string[]; // 匹配规则匹配的指标数
+  name: string;
 }
 
 @Component({
@@ -2257,7 +2258,7 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
     downCsvFile(csvStr, `${this.detailData.name}-${dayjs.tz().format('YYYY-MM-DD HH-mm-ss')}.csv`);
   }
   /* 导入数据时不在分组管理的分组需要自动新建此分组 */
-  concatLabels(metricName: string, oldLabels: { name: string; match_type: string[] }[], target: string[]) {
+  concatLabels(metricName: string, oldLabels: { match_type: string[]; name: string }[], target: string[]) {
     /* 添加分组 */
     const addGroup = name => {
       this.groupList.push({

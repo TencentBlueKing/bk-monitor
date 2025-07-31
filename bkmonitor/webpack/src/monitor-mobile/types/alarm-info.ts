@@ -25,30 +25,32 @@
  */
 import type VueI18n from 'vue-i18n';
 
-export interface IHeaderItem {
-  id: 'alarmDate' | 'bkBizName' | 'message';
-  value: string;
-  title: VueI18n.TranslateResult;
+export type EventStatus = 'ABNORMAL' | 'CLOSED' | 'RECOVERED' | 'SHIELD_ABNORMAL';
+
+export interface IEventItem {
+  dimensionMessage: string;
+  duration: string;
+  eventId: string;
+  firstAnomalyTime: string;
+  id: number;
+  isAck: boolean;
+  isShielded: boolean;
+  latestAnomalyTime: string;
+  shieldType: string;
+  status: keyof IStatusMap;
+  strategyName: string;
+  title: string;
 }
 
 export interface IHeader {
-  list: IHeaderItem[];
   active: string[];
+  list: IHeaderItem[];
 }
 
-export interface IEventItem {
-  status: keyof IStatusMap;
-  dimensionMessage: string;
-  shieldType: string;
-  isAck: boolean;
-  duration: string;
-  id: number;
-  title: string;
-  eventId: string;
-  latestAnomalyTime: string;
-  isShielded: boolean;
-  strategyName: string;
-  firstAnomalyTime: string;
+export interface IHeaderItem {
+  id: 'alarmDate' | 'bkBizName' | 'message';
+  title: VueI18n.TranslateResult;
+  value: string;
 }
 
 export type IStatusMap = {
@@ -56,5 +58,3 @@ export type IStatusMap = {
 };
 
 export type ValueOf<T> = T[keyof T];
-
-export type EventStatus = 'ABNORMAL' | 'CLOSED' | 'RECOVERED' | 'SHIELD_ABNORMAL';

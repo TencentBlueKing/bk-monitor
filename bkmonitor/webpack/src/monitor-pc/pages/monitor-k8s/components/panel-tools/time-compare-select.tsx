@@ -28,7 +28,7 @@ import { modifiers, Component as tsc } from 'vue-tsx-support';
 
 import { deepClone } from 'monitor-common/utils/utils';
 
-import { COMPARE_TIME_OPTIONS, type PanelToolsType } from '../../typings/panel-tools';
+import { type PanelToolsType, COMPARE_TIME_OPTIONS } from '../../typings/panel-tools';
 
 import './time-compare-select.scss';
 

@@ -26,13 +26,13 @@
  */
 import { defineComponent, provide, reactive, shallowRef } from 'vue';
 import { shallowReactive } from 'vue';
-import { useI18n } from 'vue-i18n';
-import { useRouter } from 'vue-router';
 
-import { type FilterValue, PrimaryTable, type SortInfo, type TableSort } from '@blueking/tdesign-ui';
+import { type FilterValue, type SortInfo, type TableSort, PrimaryTable } from '@blueking/tdesign-ui';
 import { Button, InfoBox, Message, Pagination, Popover, SearchSelect, Switcher, Tag } from 'bkui-vue';
 import { destroyDutyRule, listDutyRule, switchDutyRule } from 'monitor-api/modules/model';
 import { commonPageSizeGet, commonPageSizeSet } from 'monitor-common/utils';
+import { useI18n } from 'vue-i18n';
+import { useRouter } from 'vue-router';
 
 import EmptyStatus from '../../components/empty-status/empty-status';
 import TableSkeleton from '../../components/skeleton/table-skeleton';
@@ -45,18 +45,6 @@ import { EStatus, getEffectiveStatus, statusMap } from './typings/common';
 import type { IAuthority } from '../../typings/authority';
 
 import './rotation.scss';
-
-function getTimeStr(time: string) {
-  if (time === 'null' || !time) {
-    return window.i18n.t('永久');
-  }
-  const date = new Date(time);
-  return `${date.getFullYear()}-${date.getMonth() + 1}-${date.getDate()} ${
-    date.getHours() < 10 ? `${0}${date.getHours()}` : date.getHours()
-  }:${date.getMinutes() < 10 ? `${0}${date.getMinutes()}` : date.getMinutes()}:${
-    date.getSeconds() < 10 ? `${0}${date.getSeconds()}` : date.getSeconds()
-  }`;
-}
 
 enum ECategory {
   handoff = 'handoff',
@@ -72,6 +60,18 @@ enum EColumn {
   scope = 'scope',
   status = 'status',
   type = 'type',
+}
+
+function getTimeStr(time: string) {
+  if (time === 'null' || !time) {
+    return window.i18n.t('永久');
+  }
+  const date = new Date(time);
+  return `${date.getFullYear()}-${date.getMonth() + 1}-${date.getDate()} ${
+    date.getHours() < 10 ? `${0}${date.getHours()}` : date.getHours()
+  }:${date.getMinutes() < 10 ? `${0}${date.getMinutes()}` : date.getMinutes()}:${
+    date.getSeconds() < 10 ? `${0}${date.getSeconds()}` : date.getSeconds()
+  }`;
 }
 
 export default defineComponent({

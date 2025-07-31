@@ -24,10 +24,10 @@
  * IN THE SOFTWARE.
  */
 import { type PropType, defineComponent, reactive, watch } from 'vue';
-import { useI18n } from 'vue-i18n';
 
 import { Button } from 'bkui-vue';
 import { random } from 'lodash';
+import { useI18n } from 'vue-i18n';
 
 import { RotationSelectTypeEnum } from '../typings/common';
 import ReplaceRotationTableItem, { type ReplaceItemDataModel } from './replace-rotation-table-item';

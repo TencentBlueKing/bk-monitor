@@ -84,7 +84,7 @@ class DataIdConfig(DataLinkResourceConfigBase):
         verbose_name = "数据源配置"
         verbose_name_plural = verbose_name
 
-    def compose_config(self) -> dict:
+    def compose_config(self, event_type="metric") -> dict:
         """
         数据源下发计算平台的资源配置
         """
@@ -103,7 +103,8 @@ class DataIdConfig(DataLinkResourceConfigBase):
                     "alias": "{{name}}",
                     "bizId": {{monitor_biz_id}},
                     "description": "{{name}}",
-                    "maintainers": {{maintainers}}
+                    "maintainers": {{maintainers}},
+                    "event_type": "{{event_type}}"
                 }
             }
             """
@@ -114,6 +115,7 @@ class DataIdConfig(DataLinkResourceConfigBase):
             "bk_biz_id": self.bk_biz_id,  # 数据实际归属的业务ID
             "monitor_biz_id": settings.DEFAULT_BKDATA_BIZ_ID,  # 接入者的业务ID
             "maintainers": json.dumps(maintainer),
+            "event_type": event_type,
         }
 
         # 现阶段仅在多租户模式下添加tenant字段

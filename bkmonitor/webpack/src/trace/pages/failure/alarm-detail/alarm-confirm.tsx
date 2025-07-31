@@ -25,12 +25,12 @@
  */
 
 import { defineComponent, ref, watch } from 'vue';
-import { useI18n } from 'vue-i18n';
 
 import { Alert, Button, Dialog, Input, Loading, Message } from 'bkui-vue';
 import { getActionConfigByAlerts } from 'monitor-api/modules/action';
 import { ackAlert } from 'monitor-api/modules/alert';
 import { incidentRecordOperation } from 'monitor-api/modules/incident';
+import { useI18n } from 'vue-i18n';
 
 import './alarm-confirm.scss';
 

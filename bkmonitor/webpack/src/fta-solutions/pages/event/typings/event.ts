@@ -26,98 +26,21 @@
 
 import type { TranslateResult } from 'vue-i18n';
 
-export interface ICommonTreeItem {
-  id: SearchType | string;
-  name: string;
-  count?: number;
-  children?: ICommonTreeItem[];
+export enum EBatchAction {
+  alarmConfirm = 'ack',
+  alarmDispatch = 'dispatch',
+  quickShield = 'shield',
 }
 
-export interface ICommonItem {
-  id: string;
-  name: TranslateResult | string;
-}
+export type ActionAnlyzeField =
+  | 'action_name'
+  | 'action_plugin_type'
+  | 'duration'
+  | 'operate_target_string'
+  | 'operator'
+  | 'strategy_name';
 
-export interface IDimensionItem {
-  value: string;
-  key: string;
-  display_value: string;
-  display_key: string;
-}
-export interface IEventItem {
-  alert_name: string;
-  assignee: string[];
-  begin_time: number;
-  bk_biz_id: number;
-  bizName: string;
-  bk_biz_name: string;
-  bk_cloud_id: number;
-  bk_service_instance_id: string;
-  category: string;
-  create_time: number;
-  dedupe_keys: string[];
-  dedupe_md5: string;
-  description: string;
-  dimension_message: string;
-  dimensions: IDimensionItem[];
-  duration: string;
-  end_time: number;
-  first_anomaly_time: number;
-  id: string;
-  ip: string;
-  is_ack: boolean;
-  is_shielded: boolean;
-  is_handled: boolean;
-  latest_time: number;
-  metric: string;
-  metric_display: { id: string; name: string }[];
-  seq_id: number;
-  severity: number;
-  status: string;
-  strategy_id: number;
-  tags: IDimensionItem[];
-  target: string;
-  target_type: string;
-  update_time: number;
-  extend_info?: Record<string, any>;
-  event_count?: number;
-  alert_count?: number;
-  alert_id?: string[];
-  stage_display: string;
-  content: any;
-  operator?: string[];
-  converge_id?: number;
-  converge_count?: number;
-  strategy_name?: string;
-  appointee?: string[];
-  labels?: string[];
-  shield_operator?: string[];
-  ack_operator?: string;
-  failure_type?: string;
-  follower?: string[];
-  followerDisabled?: boolean;
-}
-
-export interface IPagination {
-  current: number;
-  count: number;
-  limit: number;
-}
-
-export interface IChatGroupDialogOptions {
-  show: boolean;
-  isBatch?: boolean;
-  alertName?: string;
-  alertCount?: number;
-  assignee: string[];
-  alertIds?: string[];
-}
-
-export type SearchType = 'action' | 'alert' | 'event' | 'incident';
-export type FilterInputStatus = 'error' | 'success';
 export type anlyzeChartType = 'pie' | 'process';
-export type eventPanelType = 'analyze' | 'list';
-
 export type AnlyzeField =
   | 'alert_name'
   | 'assignee'
@@ -129,15 +52,92 @@ export type AnlyzeField =
   | 'metric'
   | 'plugin_id'
   | 'strategy_id';
-export type ActionAnlyzeField =
-  | 'action_name'
-  | 'action_plugin_type'
-  | 'duration'
-  | 'operate_target_string'
-  | 'operator'
-  | 'strategy_name';
-export enum EBatchAction {
-  alarmConfirm = 'ack',
-  alarmDispatch = 'dispatch',
-  quickShield = 'shield',
+
+export type eventPanelType = 'analyze' | 'list';
+
+export type FilterInputStatus = 'error' | 'success';
+
+export interface IChatGroupDialogOptions {
+  alertCount?: number;
+  alertIds?: string[];
+  alertName?: string;
+  assignee: string[];
+  isBatch?: boolean;
+  show: boolean;
 }
+export interface ICommonItem {
+  id: string;
+  name: string | TranslateResult;
+}
+export interface ICommonTreeItem {
+  children?: ICommonTreeItem[];
+  count?: number;
+  id: SearchType | string;
+  name: string;
+}
+export interface IDimensionItem {
+  display_key: string;
+  display_value: string;
+  key: string;
+  value: string;
+}
+
+export interface IEventItem {
+  ack_operator?: string;
+  alert_count?: number;
+  alert_id?: string[];
+  alert_name: string;
+  appointee?: string[];
+  assignee: string[];
+  begin_time: number;
+  bizName: string;
+  bk_biz_id: number;
+  bk_biz_name: string;
+  bk_cloud_id: number;
+  bk_service_instance_id: string;
+  category: string;
+  content: any;
+  converge_count?: number;
+  converge_id?: number;
+  create_time: number;
+  dedupe_keys: string[];
+  dedupe_md5: string;
+  description: string;
+  dimension_message: string;
+  dimensions: IDimensionItem[];
+  duration: string;
+  end_time: number;
+  event_count?: number;
+  extend_info?: Record<string, any>;
+  failure_type?: string;
+  first_anomaly_time: number;
+  follower?: string[];
+  followerDisabled?: boolean;
+  id: string;
+  ip: string;
+  is_ack: boolean;
+  is_handled: boolean;
+  is_shielded: boolean;
+  labels?: string[];
+  latest_time: number;
+  metric: string;
+  metric_display: { id: string; name: string }[];
+  operator?: string[];
+  seq_id: number;
+  severity: number;
+  shield_operator?: string[];
+  stage_display: string;
+  status: string;
+  strategy_id: number;
+  strategy_name?: string;
+  tags: IDimensionItem[];
+  target: string;
+  target_type: string;
+  update_time: number;
+}
+export interface IPagination {
+  count: number;
+  current: number;
+  limit: number;
+}
+export type SearchType = 'action' | 'alert' | 'event' | 'incident';

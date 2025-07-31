@@ -43,25 +43,25 @@ import { matchRuleFn } from '../group-manage-dialog';
 import DimensionTableSlide from './dimension-table-slide';
 import IndicatorTableSlide from './metric-table-slide';
 import TimeseriesDetailNew from './timeseries-detail';
-import { ALL_LABEL, type IGroupListItem, NULL_LABEL } from './type';
+import { type IGroupListItem, ALL_LABEL, NULL_LABEL } from './type';
 import { fuzzyMatch } from './utils';
 
 import type { IDetailData } from '../../../types/custom-escalation/custom-escalation-detail';
 
 import './custom-escalation-detail.scss';
 
-interface IMetricSearchObject {
-  name: string[];
-  description: string[];
-  unit: string[];
-  func: string[];
-  aggregate: string[];
-  show: string[];
-}
-
 interface IMetricGroupMapItem {
   groups: string[];
   matchType: Record<string, string[]>;
+}
+
+interface IMetricSearchObject {
+  aggregate: string[];
+  description: string[];
+  func: string[];
+  name: string[];
+  show: string[];
+  unit: string[];
 }
 
 interface ISDKData {

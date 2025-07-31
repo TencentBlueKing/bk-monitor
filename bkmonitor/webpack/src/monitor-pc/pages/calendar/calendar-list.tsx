@@ -37,10 +37,10 @@ import CommonStatus from '../monitor-k8s/components/common-status/common-status'
 import CalendarAddForm from './calendar-add-form';
 import CalendarInfo, { type IProps as CalendarInfoPrps } from './components/calendar-info/calendar-info';
 import {
-  EDelAndEditType,
-  ERepeatTypeId,
   type ICalendarTableItem,
   type IOptionsItem,
+  EDelAndEditType,
+  ERepeatTypeId,
   WORKING_DATE_LIST,
   Z_INDEX,
 } from './types';
@@ -57,14 +57,14 @@ const CALENDAR_TABLE_SIZE = 'CALENDAR_TABLE_SIZE';
 
 /** 表格数据达到15条是开启虚拟滚动 */
 const TABLE_ROW_COUNT = 15;
+interface IEvents {
+  onUpdateCalendarList: void;
+}
 interface IProps {
   calendarList: IOptionsItem[];
   checkedCalendarIds: number[];
   defaultCalendarIds: number[];
   timeZoneList: IOptionsItem[];
-}
-interface IEvents {
-  onUpdateCalendarList: void;
 }
 /**
  * 日历服务事项列表
@@ -133,7 +133,7 @@ export default class CalendarList extends tsc<IProps, IEvents> {
   tableData: ICalendarTableItem[] = [];
   virtualRender = false;
   selectedFields = [];
-  repeatNameMap: Record<ERepeatTypeId, (a: any) => TranslateResult | string> = {
+  repeatNameMap: Record<ERepeatTypeId, (a: any) => string | TranslateResult> = {
     [ERepeatTypeId.days]: () => window.i18n.tc('每天'),
     [ERepeatTypeId.weeks]: row => {
       if (WORKING_DATE_LIST.every(item => row.repeat.every.includes(item))) return this.$t('每个工作日');
@@ -147,7 +147,7 @@ export default class CalendarList extends tsc<IProps, IEvents> {
   storage: Storage = new Storage();
 
   /** 时间范围 */
-  get timeRange(): { startTime: number; endTime: number } {
+  get timeRange(): { endTime: number; startTime: number } {
     return {
       startTime: dayjs.tz().startOf(this.timeRangeId).unix(),
       endTime: dayjs.tz().endOf(this.timeRangeId).unix(),

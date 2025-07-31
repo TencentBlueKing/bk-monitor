@@ -29,8 +29,8 @@
     :title="$t('主机性能状态分布')"
   >
     <div
-      class="sub-title"
       slot="title"
+      class="sub-title"
     >
       {{ $t('（数据缓存2mins）') }}
     </div>
@@ -40,14 +40,14 @@
     >
       <template v-for="(optionList, index) in options">
         <div
-          class="radio-content-wrap"
           :key="index"
+          class="radio-content-wrap"
         >
           <div
             v-for="(option, key) in optionList"
+            :key="key"
             class="chart-item"
             :class="{ 'item-border': index === 0, 'border-left': !(key % 2) }"
-            :key="key"
           >
             <monitor-pie-echart
               class="chart-set"
@@ -57,8 +57,8 @@
               @chart-click="e => handleChartClick(e, option)"
             >
               <div
-                class="slot-center"
                 slot="chartCenter"
+                class="slot-center"
               >
                 <div
                   style="width: 56px; font-size: 14px; text-align: center"

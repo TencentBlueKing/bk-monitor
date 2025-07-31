@@ -39,7 +39,7 @@ export default class IncidentDetail extends tsc<{ id: string }> {
   @Ref('incidentDetailRef') incidentDetailRef: HTMLDivElement;
   @Prop({ default: '' }) readonly id!: string;
   // 侧栏详情信息
-  detailInfo: { isShow: boolean; id: string; type: 'eventDetail'; bizId: number } = {
+  detailInfo: { bizId: number; id: string; isShow: boolean; type: 'eventDetail' } = {
     isShow: false,
     id: '',
     type: 'eventDetail',
