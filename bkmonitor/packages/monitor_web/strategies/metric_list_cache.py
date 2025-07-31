@@ -1259,21 +1259,8 @@ class BkMonitorLogCacheManager(BaseMetricCacheManager):
         """
         获取监控日志的可用biz_id列表
         """
-        try:
-            # 获取有日志或SNMP Trap采集配置的业务ID
-            biz_ids = list(
-                CollectConfigMeta.objects.filter(
-                    Q(collect_type=CollectConfigMeta.CollectType.SNMP_TRAP)
-                    | Q(collect_type=CollectConfigMeta.CollectType.LOG),
-                    bk_tenant_id=bk_tenant_id,
-                )
-                .values_list("bk_biz_id", flat=True)
-                .distinct()
-            )
-            return biz_ids
-        except Exception as e:
-            logger.exception(f"Failed to get log collect biz ids: {e}")
-            return []
+        # 返回全量数据
+        return super().get_available_biz_ids(bk_tenant_id=bk_tenant_id)
 
 
 class BaseAlarmMetricCacheManager(BaseMetricCacheManager):
