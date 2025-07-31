@@ -33,8 +33,6 @@ from django.forms import model_to_dict
 from django.utils.translation import gettext as _
 from rest_framework.exceptions import ValidationError
 
-from bkm_space.api import SpaceApi
-from bkm_space.define import Space, SpaceTypeEnum
 from bkmonitor.aiops.alert.maintainer import AIOpsStrategyMaintainer
 from bkmonitor.dataflow.constant import (
     FLINK_KEY_WORDS,
@@ -65,7 +63,6 @@ from constants.common import DEFAULT_TENANT_ID
 from constants.data_source import DataSourceLabel, DataTypeLabel
 from constants.dataflow import ConsumingMode
 from core.drf_resource import api, resource
-from core.errors.api import BKAPIError
 from core.errors.bkmonitor.dataflow import DataFlowNotExists
 from core.prometheus import metrics
 from fta_web.tasks import run_init_builtin_action_config
@@ -281,7 +278,7 @@ def _update_metric_list(bk_tenant_id: str, period: int, offset: int):
     #         update_metric(source_type, 0)
 
     # 创建空的记录容器
-    k8s_biz_set = set()
+    # k8s_biz_set = set()
 
     # 根据数据源类型分别处理有效业务ID
     for source_type in source_type_use_biz + source_type_add_biz_0:
@@ -289,7 +286,7 @@ def _update_metric_list(bk_tenant_id: str, period: int, offset: int):
         manager_class = SOURCE_TYPE[source_type]
 
         # 获取有效的业务ID列表
-        available_biz_ids = manager_class.get_available_biz_id(bk_tenant_id)
+        available_biz_ids = manager_class.get_available_biz_ids(bk_tenant_id)
 
         # 分页处理
         total_biz_count = len(available_biz_ids)
@@ -303,20 +300,20 @@ def _update_metric_list(bk_tenant_id: str, period: int, offset: int):
             # 更新指标缓存
             update_metric(source_type, biz_id)
 
-            # 记录有容器集群的业务
-            if source_type == "BKMONITORK8S":
-                try:
-                    k8s_biz: Space = SpaceApi.get_related_space(
-                        SpaceApi.get_space(bk_biz_id=biz_id).space_uid, SpaceTypeEnum.BKCC.value
-                    )
-                    if k8s_biz:
-                        k8s_biz_set.add(k8s_biz.bk_biz_id)
-                except BKAPIError:
-                    pass
-
-    # 关联容器平台的业务，批量跑容器指标
-    for k8s_biz_id in k8s_biz_set:
-        update_metric("BKMONITORK8S", k8s_biz_id)
+            # 记录有容器集群的业务 [这个逻辑跑了两轮， 不知道为什么， 感觉是冗余的]
+    #         if source_type == "BKMONITORK8S":
+    #             try:
+    #                 k8s_biz: Space = SpaceApi.get_related_space(
+    #                     SpaceApi.get_space(bk_biz_id=biz_id).space_uid, SpaceTypeEnum.BKCC.value
+    #                 )
+    #                 if k8s_biz:
+    #                     k8s_biz_set.add(k8s_biz.bk_biz_id)
+    #             except BKAPIError:
+    #                 pass
+    #
+    # # 关联容器平台的业务，批量跑容器指标
+    # for k8s_biz_id in k8s_biz_set:
+    #     update_metric("BKMONITORK8S", k8s_biz_id)
 
     logger.info(f"$update metric list(round {offset}), cost: {time.time() - start}")
 
