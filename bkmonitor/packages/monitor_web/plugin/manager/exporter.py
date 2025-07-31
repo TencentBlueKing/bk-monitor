@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,7 +7,6 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-
 
 import logging
 import os
@@ -38,7 +36,7 @@ class ExporterPluginManager(PluginManager):
         file_dict = {}
         for os_type, exporter_info in list(self.version.config.file_config.items()):
             if os_type == "windows":
-                filename = "{}.exe".format(self.plugin.plugin_id)
+                filename = f"{self.plugin.plugin_id}.exe"
             else:
                 filename = self.plugin.plugin_id
             file_instance = PluginFileManager(exporter_info["file_id"])
@@ -47,7 +45,7 @@ class ExporterPluginManager(PluginManager):
 
     def make_package(self, **kwargs):
         kwargs.update(dict(add_files=self.fetch_collector_file()))
-        return super(ExporterPluginManager, self).make_package(**kwargs)
+        return super().make_package(**kwargs)
 
     def _get_debug_config_context(self, config_version, info_version, param, target_nodes):
         specific_version = self.plugin.get_version(config_version, info_version)
@@ -97,7 +95,7 @@ class ExporterPluginManager(PluginManager):
             # 使用采集器参数对变量进行渲染
             if isinstance(param_value, str):
                 for k, v in list(collector_data.items()):
-                    replace_key = "${%s}" % k
+                    replace_key = f"${{{k}}}"
                     if isinstance(v, str) and param_mode != ParamMode.DMS_INSERT:
                         param_value = param_value.replace(replace_key, v)
 
@@ -107,13 +105,13 @@ class ExporterPluginManager(PluginManager):
             elif param_mode == ParamMode.OPT_CMD:
                 if param["type"] == "switch":
                     if param_value == "true":
-                        cmd_args += "{opt_name} ".format(opt_name=param_name)
+                        cmd_args += f"{param_name} "
                 elif param_value:
-                    cmd_args += "{opt_name} {opt_value} ".format(opt_name=param_name, opt_value=param_value)
+                    cmd_args += f"{param_name} {param_value} "
 
             elif param_mode == ParamMode.POS_CMD:
                 # 位置参数，直接将参数值拼接进去
-                cmd_args += "{pos_value} ".format(pos_value=param_value)
+                cmd_args += f"{param_value} "
 
             elif param_mode == ParamMode.DMS_INSERT:
                 # 维度注入参数，更新至labels的模板中
@@ -147,7 +145,7 @@ class ExporterPluginManager(PluginManager):
             plugin_params["port"] = collector_params["port"]
         else:
             plugin_params["port"] = "{{ control_info.listen_port }}"
-            collector_params["port"] = "{{ step_data.%s.control_info.listen_port }}" % self.plugin.plugin_id
+            collector_params["port"] = f"{{{{ step_data.{self.plugin.plugin_id}.control_info.listen_port }}}}"
         collector_params["metric_url"] = "{}:{}/metrics".format(collector_params["host"], collector_params["port"])
         env_context = {}
         user_files = []
@@ -181,7 +179,7 @@ class ExporterPluginManager(PluginManager):
             # 使用采集器参数对变量进行渲染
             if isinstance(param_value, str):
                 for k, v in list(collector_params.items()):
-                    replace_key = "${%s}" % k
+                    replace_key = f"${{{k}}}"
                     if isinstance(v, str) and param_mode != ParamMode.DMS_INSERT:
                         param_value = param_value.replace(replace_key, v)
 
@@ -191,13 +189,13 @@ class ExporterPluginManager(PluginManager):
             elif param_mode == ParamMode.OPT_CMD:
                 if param["type"] == "switch":
                     if param_value == "true":
-                        cmd_args += "{opt_name} ".format(opt_name=param_name)
+                        cmd_args += f"{param_name} "
                 elif param_value:
-                    cmd_args += "{opt_name} {opt_value} ".format(opt_name=param_name, opt_value=param_value)
+                    cmd_args += f"{param_name} {param_value} "
 
             elif param_mode == ParamMode.POS_CMD:
                 # 位置参数，直接将参数值拼接进去
-                cmd_args += "{pos_value} ".format(pos_value=param_value)
+                cmd_args += f"{param_value} "
 
         env_context["cmd_args"] = cmd_args
 
@@ -231,7 +229,7 @@ class ExporterPluginManager(PluginManager):
         collector_file = {}
         for sys_name, sys_dir in list(OS_TYPE_TO_DIRNAME.items()):
             # 获取不同操作系统下的文件名
-            collector_name = "%s.exe" % self.plugin.plugin_id if sys_name == "windows" else self.plugin.plugin_id
+            collector_name = f"{self.plugin.plugin_id}.exe" if sys_name == "windows" else self.plugin.plugin_id
             collector_path = os.path.join(sys_dir, self.plugin.plugin_id, collector_name)
             # _path = collector_path.replace('\\', '/')
             if any([collector_path in i for i in self.filename_list]):
@@ -257,7 +255,7 @@ class ExporterPluginManager(PluginManager):
 class ExporterPluginFileManager(PluginFileManager):
     @classmethod
     def valid_file(cls, file_data, os_type):
-        getattr(cls, "valid_{}".format(os_type))(file_data)
+        getattr(cls, f"valid_{os_type}")(file_data)
 
     @classmethod
     def valid_windows(cls, file_data):
