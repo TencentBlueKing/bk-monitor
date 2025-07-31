@@ -213,7 +213,7 @@ class ProcessPluginManager(BuiltInPluginManager):
         for ts_name in self.metric_info:
             # 独立数据源模式
             if bk_biz_id in settings.PROCESS_INDEPENDENT_DATAID_BIZ_IDS:
-                table_id = ""
+                table_id = "process.perf"
                 data_label = f"process.{ts_name},process"
                 is_split_measurement = True
             else:
@@ -231,18 +231,20 @@ class ProcessPluginManager(BuiltInPluginManager):
             except BKAPIError:
                 pass
 
+            params = {
+                "bk_biz_id": bk_biz_id,
+                "name": f"process_{ts_name}",
+                "scenario": self.label,
+                "metric_info_list": self.get_metric_info_list(ts_name),
+                "data_label": data_label,
+                "is_split_measurement": is_split_measurement,
+            }
+
+            if table_id:
+                params["table_id"] = table_id
+
             # 创建自定义上报
-            resource.custom_report.create_custom_time_series(
-                {
-                    "bk_biz_id": bk_biz_id,
-                    "name": f"process_{ts_name}",
-                    "scenario": self.label,
-                    "table_id": table_id,
-                    "metric_info_list": self.get_metric_info_list(ts_name),
-                    "data_label": data_label,
-                    "is_split_measurement": is_split_measurement,
-                }
-            )
+            resource.custom_report.create_custom_time_series(params)
 
     def get_deploy_steps_params(self, plugin_version, param, target_nodes):
         match_type = param["process"]["match_type"]
