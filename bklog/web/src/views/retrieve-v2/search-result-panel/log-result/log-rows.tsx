@@ -892,6 +892,16 @@ export default defineComponent({
       });
     };
 
+    const handleRowMousedown = (e: MouseEvent, item: any) => {
+      const selection = window.getSelection();
+      console.log('----', selection, item);
+      if (!selection.isCollapsed && selection.containsNode(e.target as Node)) {
+        e.stopImmediatePropagation();
+        e.preventDefault();
+        e.stopPropagation();
+      }
+    };
+
     const renderRowVNode = () => {
       return renderList.map((row, rowIndex) => {
         const logLevel = gradeOption.value.disabled ? '' : RetrieveHelper.getLogLevel(row.item, gradeOption.value);
@@ -902,6 +912,7 @@ export default defineComponent({
             class={['bklog-row-container', logLevel ?? 'normal']}
             row-index={rowIndex}
             on-row-click={e => handleRowClick(e, row.item)}
+            on-row-mousedown={e => handleRowMousedown(e, row.item)}
           >
             {renderRowCells(row.item, rowIndex)}
           </RowRender>,
