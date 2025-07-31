@@ -67,27 +67,18 @@ export default defineComponent({
       store.commit('updateStorage', { [BK_LOG_STORAGE.TABLE_JSON_FORMAT_DEPTH]: target });
     };
 
-    const handleShowLogTimeChange = event => {
-      let nextOrder = 'ascending';
-      const targets = event.currentTarget.childNodes;
-      targets.forEach(element => {
-        if (element.classList.contains('active')) {
-          element.classList.remove('active');
-          if (element.classList.contains('ascending')) {
-            nextOrder = 'descending';
-          }
-
-          if (element.classList.contains('descending')) {
-            nextOrder = null;
-          }
-        }
-      });
-
+    const handleShowLogTimeChange = (e, sort) => {
+      const target = e.target;
       const sortMap = {
         ascending: 'asc',
         descending: 'desc',
       };
-      const sortList = sortMap[nextOrder] ? [['dtEventTimeStamp', sortMap[nextOrder]]] : [];
+      let timeSort = sortMap[sort];
+      if (target.classList.contains('active')) {
+        target.classList.remove('active');
+        timeSort = null;
+      }
+      const sortList = timeSort ? [['dtEventTimeStamp', timeSort]] : [];
       const updatedSortList = store.state.indexFieldInfo.sort_list.map(item => {
         if (sortList.length > 0 && item[0] === 'dtEventTimeStamp') {
           return sortList[0];
@@ -96,7 +87,7 @@ export default defineComponent({
         }
         return item;
       });
-      const temporarySortList = sortMap[nextOrder] ? requiredFields.map(item => [item, sortMap[nextOrder]]) : [];
+      const temporarySortList = timeSort ? requiredFields.map(item => [item, timeSort]) : [];
       store.commit('updateLocalSort', true);
       store.commit('updateIndexFieldInfo', { sort_list: updatedSortList });
       store.commit('updateIndexItemParams', { sort_list: temporarySortList });
@@ -127,13 +118,17 @@ export default defineComponent({
 
         <div class='switch-label log-sort'>
           <span class='bklog-option-item'>{$t('日志排序')}</span>
-          <span
-            class='bk-table-caret-wrapper'
-            v-bk-tooltips={{ content: `${ascShow.value ? $t('升序') : $t('降序')}` }}
-            on-click={handleShowLogTimeChange}
-          >
-            <i class={['bk-table-sort-caret', 'ascending', { active: ascShow.value }]}></i>
-            <i class={['bk-table-sort-caret', 'descending', { active: descShow.value }]}></i>
+          <span class='bk-table-caret-wrapper'>
+            <i
+              class={['bk-table-sort-caret', 'ascending', { active: ascShow.value }]}
+              v-bk-tooltips={{ content: `${$t('升序')}`, placement: 'right' }}
+              on-click={event => handleShowLogTimeChange(event, 'ascending')}
+            ></i>
+            <i
+              class={['bk-table-sort-caret', 'descending', { active: descShow.value }]}
+              v-bk-tooltips={{ content: `${$t('降序')}`, placement: 'right' }}
+              on-click={event => handleShowLogTimeChange(event, 'descending')}
+            ></i>
           </span>
         </div>
 
