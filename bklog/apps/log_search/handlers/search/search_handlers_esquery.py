@@ -34,7 +34,7 @@ from django.conf import settings
 from django.core.cache import cache
 from django.utils.translation import gettext as _
 
-from apps.api import BcsApi, BkLogApi, MonitorApi
+from apps.api import BcsApi, BkLogApi, MonitorApi, UnifyQueryApi
 from apps.api.base import DataApiRetryClass
 from apps.api.modules.utils import get_non_bkcc_space_related_bkcc_biz_id
 from apps.exceptions import ApiResultError
@@ -79,6 +79,7 @@ from apps.log_search.constants import (
     TimeEnum,
     TimeFieldTypeEnum,
     TimeFieldUnitEnum,
+    DEFAULT_QUERY_LIMIT,
 )
 from apps.log_search.exceptions import (
     BaseSearchIndexSetDataDoseNotExists,
@@ -140,6 +141,7 @@ from apps.utils.log import logger
 from apps.utils.lucene import EnhanceLuceneAdapter, generate_query_string
 from apps.utils.thread import MultiExecuteFunc
 from bkm_ipchooser.constants import CommonEnum
+from bkm_space.utils import space_uid_to_bk_biz_id
 
 max_len_dict = dict[str, int]  # pylint: disable=invalid-name
 
@@ -3279,3 +3281,114 @@ class UnionSearchHandler:
                     UnionSearchErrorException.MESSAGE.format(index_set_id=index_set_id, e=ret)
                 )
         return multi_result
+
+    @staticmethod
+    def _get_index_set_table_id(index_set_id: int) -> str:
+        """获取索引集的table_id"""
+        try:
+            from apps.log_search.handlers.index_set import BaseIndexSetHandler
+
+            index_set_obj = LogIndexSet.objects.get(index_set_id=index_set_id)
+            indexes = index_set_obj.get_indexes(has_applied=True)
+            if not indexes:
+                raise ValueError(f"索引集 {index_set_id} 没有可用的索引")
+            result_table_id = indexes[0]["result_table_id"]
+            table_id = BaseIndexSetHandler.get_rt_id(index_set_id, result_table_id)
+            logger.info(
+                f"[CodeCC] 索引集信息 - index_set_id: {index_set_id}, result_table_id: {result_table_id}, table_id: {table_id}"
+            )
+            return table_id
+        except LogIndexSet.DoesNotExist:
+            raise ValueError(f"索引集 {index_set_id} 不存在")
+        except Exception as e:
+            logger.exception(f"[CodeCC] 获取索引集信息失败: {str(e)}")
+            raise ValueError(f"获取索引集信息失败: {str(e)}")
+
+    @staticmethod
+    def _build_unifyquery_params(
+        table_id: str,
+        bk_biz_id: int,
+        query_string: str,
+        keep_columns: list,
+        start_time: str,
+        end_time: str,
+        limit: int = DEFAULT_QUERY_LIMIT,
+    ) -> dict:
+        """构建UnifyQuery查询参数"""
+        search_dict = {
+            "query_list": [
+                {
+                    "data_source": "bklog",
+                    "reference_name": "a",
+                    "dimensions": [],
+                    "time_field": "time",
+                    "conditions": {"field_list": [], "condition_list": []},
+                    "query_string": query_string,
+                    "function": [],
+                    "table_id": table_id,
+                    "field_name": "dtEventTimeStamp",
+                    "keep_columns": keep_columns,
+                }
+            ],
+            "metric_merge": "a",
+            "order_by": ["-dtEventTimeStamp"],
+            "step": "1h",
+            "start_time": start_time,
+            "end_time": end_time,
+            "down_sample_range": "",
+            "timezone": "UTC",
+            "bk_biz_id": bk_biz_id,
+            "from": 0,
+            "limit": limit,
+        }
+
+        logger.info(
+            f"[CodeCC] 构建查询参数 - query_string: {query_string}, keep_columns: {keep_columns}, time_range: {start_time} ~ {end_time}"
+        )
+
+        return search_dict
+
+    @staticmethod
+    def search_log_for_codecc_token(token_info: dict[str, Any], params: dict[str, Any]) -> dict[str, Any]:
+        """
+        根据codecc token查询日志
+        参数:
+            token_info (dict): token信息，包含space_uid、index_set_id等
+            params (dict): 查询参数，包含query_string、log_field、code_field等
+        返回值:
+            dict: 查询结果
+        """
+        try:
+            # 1. 获取基本信息
+            index_set_id = token_info["index_set_id"]
+            space_uid = token_info["space_uid"]
+            bk_biz_id = space_uid_to_bk_biz_id(space_uid) if space_uid else None
+
+            if not bk_biz_id:
+                raise ValueError(f"无法从space_uid {space_uid} 获取有效的bk_biz_id")
+
+            # 2. 获取索引集信息
+            table_id = UnionSearchHandler._get_index_set_table_id(index_set_id)
+
+            # 3. 构建查询参数
+            query_string = params.get("query_string", "")
+            keep_columns = [params["log_field"], params["code_field"]]
+            search_dict = UnionSearchHandler._build_unifyquery_params(
+                table_id,
+                bk_biz_id,
+                query_string,
+                keep_columns,
+                params["start_time"],
+                params["end_time"],
+                DEFAULT_QUERY_LIMIT,
+            )
+
+            # 4. 执行查询
+            result = UnifyQueryApi.query_ts_raw(search_dict)
+            return result
+        except ValueError as e:
+            logger.error(f"[CodeCC] 参数错误: {str(e)}")
+            raise
+        except Exception as e:
+            logger.exception(f"[CodeCC] 查询执行失败: {str(e)}")
+            raise Exception(f"查询执行失败: {str(e)}")

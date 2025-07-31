@@ -40,8 +40,18 @@ class ApiTokenAuthenticationMiddleware(LoginRequiredMiddleware):
                 user = auth.authenticate(username="system")
                 auth.login(request, user, backend="apps.middleware.api_token_middleware.ApiTokenAuthBackend")
                 request.skip_check = True
+            # 新增 codecc_token 支持
+            elif record.type.lower() == "codecc":
+                request.codecc_token_info = {
+                    "token": record.token,
+                    "space_uid": record.space_uid,
+                    "index_set_id": record.params.get("index_set_id"),
+                    "params": record.params,
+                    "expire_time": record.expire_time,
+                }
+                return
             else:
                 request.token = token
             return
 
-        return super(ApiTokenAuthenticationMiddleware, self).process_view(request, view, *args, **kwargs)
+        return super().process_view(request, view, *args, **kwargs)

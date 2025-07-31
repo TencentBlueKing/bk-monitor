@@ -81,5 +81,12 @@ class CreateOrUpdateTokenSerializer(serializers.Serializer):
     end_time = serializers.IntegerField(required=False, default=None, label="结束时间")
     data = serializers.DictField(required=False, default={}, label="鉴权参数")
 
+
 class GetShareParamsSerializer(serializers.Serializer):
     token = serializers.CharField(required=True, label="鉴权令牌")
+
+
+class GetCodeccTokenSerializer(serializers.Serializer):
+    space_uid = serializers.CharField(required=True, label="空间ID")
+    index_set_id = serializers.IntegerField(required=True, label="索引集ID")
+    type = serializers.CharField(required=False, default="codecc", label="鉴权类型")

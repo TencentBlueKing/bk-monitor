@@ -75,7 +75,6 @@ from apps.log_search.handlers.search.search_handlers_esquery import UnionSearchH
 from apps.log_search.models import AsyncTask, LogIndexSet
 from apps.log_search.permission import Permission
 from apps.log_search.serializers import (
-    AliasSettingsSerializer,
     BcsWebConsoleSerializer,
     ChartSerializer,
     CreateIndexSetFieldsConfigSerializer,
@@ -101,6 +100,9 @@ from apps.log_search.serializers import (
     UnionSearchSearchExportSerializer,
     UpdateIndexSetFieldsConfigSerializer,
     UserIndexSetCustomConfigSerializer,
+    AliasSettingsSerializer,
+    CodeccTokenInfoSerializer,
+    CodeccSearchRequestSerializer,
 )
 from apps.log_search.utils import create_download_response
 from apps.log_unifyquery.builder.context import build_context_params
@@ -135,7 +137,7 @@ class SearchViewSet(APIViewSet):
             if auth_info and auth_info["bk_app_code"] in settings.ESQUERY_WHITE_LIST:
                 return []
 
-        if self.action in ["operators", "user_search_history"]:
+        if self.action in ["operators", "user_search_history", "search_log_for_code"]:
             return []
 
         if self.action in [
@@ -2050,3 +2052,56 @@ class SearchViewSet(APIViewSet):
     def alias_settings(self, request, index_set_id):
         params = self.params_valid(AliasSettingsSerializer)
         return Response(IndexSetHandler(index_set_id=index_set_id).update_alias_settings(params["alias_settings"]))
+
+    @list_route(methods=["POST"], url_path="search_log_for_code")
+    def search_log_for_code(self, request):
+        """
+        @api {post} /search/index_set/search_log_for_code/ CodeCC日志搜索
+        @apiDescription 根据CodeCC token进行日志搜索
+        @apiName search_log_for_code
+        @apiGroup 11_Search
+        @apiParam {Array[Object]} 查询参数列表
+        @apiParam {String} optionName 参数名称 (code_field, log_field, query_string, start_time, end_time)
+        @apiParam {String} optionValue 参数值
+        @apiParamExample {Json} 请求参数
+        [
+            {"optionName": "code_field", "optionValue": "log"},
+            {"optionName": "log_field", "optionValue": "path"},
+            {"optionName": "query_string", "optionValue": "log:ession 170380"},
+            {"optionName": "start_time", "optionValue": "1753859263536"},
+            {"optionName": "end_time", "optionValue": "1753945663536"}
+        ]
+        @apiSuccessExample {json} 成功返回:
+        {
+                'result': True,
+                'data': {
+                    'total': 1,
+                    'list': [
+                        {
+                            'log': 'Jul 31 11:53:01 VM-6-xxx-centos systemd: Started Session 170380 of user root.',
+                            'path': '/var/log/xxxx'
+                        }
+                    ],
+                    'done': False,
+                    'trace_id': 'xxxxx',
+                    'result_table_options': {
+                        'bklog_index_set_xxx_bklog_codecc.__default__|http://10.x.x.x:xxxx': {
+                            'search_after': [xxxxxx]
+                        }
+                    }
+                },
+                'code': 0,
+                'message': ''
+            }
+        """
+        token_info = getattr(request, "codecc_token_info")
+        token_serializer = CodeccTokenInfoSerializer(data=token_info)
+        token_serializer.is_valid(raise_exception=True)
+
+        search_serializer = CodeccSearchRequestSerializer(data=request.data)
+        search_serializer.is_valid(raise_exception=True)
+
+        result = UnionSearchHandler.search_log_for_codecc_token(
+            token_serializer.validated_data, search_serializer.get_required_params()
+        )
+        return Response(result)
