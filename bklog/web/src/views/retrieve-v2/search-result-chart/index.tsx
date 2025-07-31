@@ -481,7 +481,7 @@ export default defineComponent({
         <div
           v-show={!isFold.value}
           class='echart-wrapper'
-          v-bkloading={{ isLoading: !isStart.value && loading.value, class: 'bk-loading', size: 'mini' }}
+          v-bkloading={{ isLoading: !isStart.value && loading.value, size: 'mini' }}
         >
           <div
             ref={trendChartCanvas}
