@@ -24,12 +24,13 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, ref as deepRef, watch, type PropType, computed } from 'vue';
+import { type PropType, computed, ref as deepRef, defineComponent, watch } from 'vue';
+
+import { useDebounceFn } from '@vueuse/core';
+import { type TreeNodeValue, Tree } from 'tdesign-vue-next';
 import { useI18n } from 'vue-i18n';
 
 import EmptyStatus from '@/components/empty-status/empty-status';
-import { useDebounceFn } from '@vueuse/core';
-import { Tree, type TreeNodeValue } from 'tdesign-vue-next';
 
 import type { CommonCondition, QuickFilterItem } from '../typings';
 
@@ -74,7 +75,8 @@ export default defineComponent({
         } else {
           localValue.value = {};
         }
-      }
+      },
+      { immediate: true }
     );
 
     const showFilterList = computed(() => {
@@ -192,6 +194,7 @@ export default defineComponent({
       handleClose,
       renderFilterTree,
       showFilterList,
+      localValue,
       handleClearFilter,
     };
   },

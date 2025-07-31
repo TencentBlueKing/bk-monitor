@@ -27,18 +27,19 @@
 import { actionTopN, searchAction } from 'monitor-api/modules/alert';
 import { listSearchFavorite } from 'monitor-api/modules/model';
 
+import {
+  type ActionTableItem,
+  type AlarmType,
+  type AnalysisFieldAggItem,
+  type AnalysisTopNDataResponse,
+  type CommonFilterParams,
+  type FilterTableResponse,
+  type QuickFilterItem,
+  type TableColumnItem,
+  ActionIconMap,
+} from '../typings';
 import { AlarmService } from './base';
 
-import type {
-  ActionTableItem,
-  AlarmType,
-  AnalysisFieldAggItem,
-  AnalysisTopNDataResponse,
-  CommonFilterParams,
-  FilterTableResponse,
-  QuickFilterItem,
-  TableColumnItem,
-} from '../typings';
 import type { IFilterField } from '@/components/retrieval-filter/typing';
 const ACTION_TABLE_COLUMNS = [
   {
@@ -197,6 +198,7 @@ export class ActionService extends AlarmService<AlarmType.ACTION> {
           {
             ...overview,
             name: window.i18n.t('执行状态'),
+            children: overview.children.map(item => ({ ...item, ...ActionIconMap[item.id] })),
           },
           ...aggs,
         ];

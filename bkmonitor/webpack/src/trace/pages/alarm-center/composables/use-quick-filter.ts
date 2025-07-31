@@ -45,7 +45,7 @@ export function useQuickFilter() {
         quickFilterLoading.value = false;
       });
   };
-  watchEffect(effectFunc);
+  watchEffect(effectFunc, { flush: 'post' });
   const updateQuickFilterValue = (value: CommonCondition[]) => {
     alarmStore.quickFilterValue = value;
   };
