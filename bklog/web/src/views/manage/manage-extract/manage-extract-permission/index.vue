@@ -41,7 +41,7 @@
         theme="primary"
         @click="handleCreateStrategy"
       >
-        {{ $t('新增') }}
+        {{ $t('新增111') }}
       </bk-button>
     </div>
     <bk-table
