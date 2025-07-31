@@ -19,8 +19,9 @@ from monitor_web.data_explorer.event.constants import EventSource, EventType
 from monitor_web.incident.utils import get_chinese_labels_dict, pascal_to_snake
 from bkmonitor.utils.thread_backend import InheritParentThread, run_threads
 from core.drf_resource import api
-from typing import Any, List, Set
+from typing import Any
 import copy
+
 
 class IncidentEventsSearchResource(Resource):
     """
@@ -33,9 +34,9 @@ class IncidentEventsSearchResource(Resource):
     DEFAULT_AGGREGATION_METHOD = "SUM"
     DEFAULT_INDEX_FIELD = "_index"
     DEFAULT_GROUP_BY_FIELDS = ["type", "source", "event_name"]
-    
+
     WHERE_SPECIAL_FILTER_VALUES = ["apm_application_name", "apm_service_name", "apm_service_category", "cluster_id"]
-    
+
     def __init__(self):
         super().__init__()
 
@@ -53,12 +54,12 @@ class IncidentEventsSearchResource(Resource):
         EntityType.APMService.value: DataTypeLabel.EVENT,
         EntityType.BkNodeHost.value: DataTypeLabel.EVENT,
     }
-    
+
     # dimension内一些特殊字段需要做映射处理
     WhereSpecialKeyMapping = {
         "inner_ip": "host",
     }
-    
+
     # ==================== 主要入口方法 ====================
     def perform_request(self, validated_request_data: dict) -> dict:
         """
@@ -114,9 +115,7 @@ class IncidentEventsSearchResource(Resource):
         data_type_label = self.EntityTypeDataTypeMapping.get(entity_type, "")
 
         # 构建基础查询配置
-        base_config = self._build_base_query_config(
-            data_source_label, data_type_label, bk_biz_id, start_time, end_time
-        )
+        base_config = self._build_base_query_config(data_source_label, data_type_label, bk_biz_id, start_time, end_time)
 
         # 应用过滤条件
         self._apply_dimension_filters(base_config, dimensions_filter)
@@ -128,7 +127,7 @@ class IncidentEventsSearchResource(Resource):
             request_copy = copy.deepcopy(base_config)
             request_copy["query_configs"][0]["table"] = table
             requests.append(request_copy)
-        
+
         validated_requests = []
         for request in requests:
             if entity_type == EntityType.APMService.value:
@@ -146,8 +145,10 @@ class IncidentEventsSearchResource(Resource):
         """
         # TODO: 实现Edge类型的查询请求配置
         return []
-        
-    def _build_base_query_config(self, data_source_label: str, data_type_label: str, bk_biz_id: int, start_time: int, end_time: int) -> dict:
+
+    def _build_base_query_config(
+        self, data_source_label: str, data_type_label: str, bk_biz_id: int, start_time: int, end_time: int
+    ) -> dict:
         """
         构建基础查询配置
         """
@@ -181,12 +182,13 @@ class IncidentEventsSearchResource(Resource):
         """
         根据集群ID获取BK_DATA_ID
         """
+        if not cluster_id:
+            return ""
         cluster_infos: list = api.metadata.list_bcs_cluster_info(cluster_ids=[cluster_id])
         cluster_to_data_id: dict = {
-            cluster_info["cluster_id"]: cluster_info["k8s_event_data_id"] 
-            for cluster_info in cluster_infos
+            cluster_info["cluster_id"]: cluster_info["k8s_event_data_id"] for cluster_info in cluster_infos
         }
-        return cluster_to_data_id.get(cluster_id)
+        return cluster_to_data_id.get(cluster_id, "")
 
     @classmethod
     def _get_event_prefix_by_table(cls, table: str) -> str:
@@ -198,7 +200,7 @@ class IncidentEventsSearchResource(Resource):
         return "bkmonitor_event"
 
     @classmethod
-    def _get_tables_by_entity_type(cls, entity_type: str, **kwargs) -> Set[str]:
+    def _get_tables_by_entity_type(cls, entity_type: str, **kwargs) -> set[str]:
         """
         根据实体类型获取对应的table名集合
         """
@@ -207,12 +209,12 @@ class IncidentEventsSearchResource(Resource):
             EntityType.APMService.value: cls._get_apm_service_tables,
             EntityType.BkNodeHost.value: cls._get_bk_node_host_tables,
         }
-        
+
         getter = table_getters.get(entity_type)
         return getter(**kwargs) if getter else set()
 
     @classmethod
-    def _get_bcs_pod_tables(cls, **kwargs) -> Set[str]:
+    def _get_bcs_pod_tables(cls, **kwargs) -> set[str]:
         """
         获取BcsPod类型的表名
         """
@@ -223,20 +225,20 @@ class IncidentEventsSearchResource(Resource):
         return set()
 
     @classmethod
-    def _get_apm_service_tables(cls, **kwargs) -> Set[str]:
+    def _get_apm_service_tables(cls, **kwargs) -> set[str]:
         """
         获取APMService类型的表名
         """
         return {"builtin"}
 
     @classmethod
-    def _get_bk_node_host_tables(cls, **kwargs) -> Set[str]:
+    def _get_bk_node_host_tables(cls, **kwargs) -> set[str]:
         """
         获取BkNodeHost类型的表名
         """
         bk_biz_id = kwargs.get("bk_biz_id", "")
         bk_data_id = cls._get_bk_data_id_by_cluster_id(kwargs.get("cluster_id", ""))
-        
+
         tables = {"gse_system_event"}
         if bk_data_id and bk_biz_id:
             tables.add(f"{bk_biz_id}_bkmonitor_event_{bk_data_id}")
@@ -255,7 +257,9 @@ class IncidentEventsSearchResource(Resource):
         for key, value in dimensions_filter.items():
             if not value or key in self.WHERE_SPECIAL_FILTER_VALUES:
                 continue
-            where_filters.append({"key": self.WhereSpecialKeyMapping.get(key, key), "method": "eq", "value": [value], "condition": "and"})
+            where_filters.append(
+                {"key": self.WhereSpecialKeyMapping.get(key, key), "method": "eq", "value": [value], "condition": "and"}
+            )
         time_series_request["query_configs"][0]["where"] = where_filters
 
         # 添加特殊参数
@@ -272,25 +276,22 @@ class IncidentEventsSearchResource(Resource):
         执行查询请求
         """
         events_search_response = base_response
-        
+
         # 不同数据源的数据统一聚合到响应内
         def _aggregation(req_data: dict[str, Any]):
-            query_configs: List[dict] = req_data.get("query_configs", [{}])
+            query_configs: list[dict] = req_data.get("query_configs", [{}])
             table = query_configs[0].get("table", "")
             resp = event_resources.EventTimeSeriesResource().perform_request(req_data)
             self._format_events_response(resp, events_search_response, table)
-        
+
         # 并发执行查询
         if validated_query_requests:
-            run_threads([
-                InheritParentThread(target=_aggregation, args=(req,))
-                for req in validated_query_requests
-            ])
+            run_threads([InheritParentThread(target=_aggregation, args=(req,)) for req in validated_query_requests])
 
         return events_search_response
 
     # ==================== 响应格式化器 ====================
-    def _format_events_response(self, time_series_response: dict, base_response: dict, table: str= None) -> dict:
+    def _format_events_response(self, time_series_response: dict, base_response: dict, table: str = None) -> dict:
         """
         格式化事件响应数据
         """
@@ -336,7 +337,7 @@ class IncidentEventsSearchResource(Resource):
         """
         source = dimensions.get("source", "")
         event_level = dimensions.get("type", "")
-        
+
         if event_level in base_response["statistics"]["event_level"]:
             base_response["statistics"]["event_level"][event_level] += 1
         if source in base_response["statistics"]["event_source"]:
