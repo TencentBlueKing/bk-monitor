@@ -707,7 +707,7 @@ class UploadPackageResource(Resource):
         if not any(list([x in os.listdir(self.parse_path) for x in DIRECTORY_LIST])):
             raise UploadPackageError({"msg": _("导入包目录结构不对")})
 
-    def new_parse_collect_config(self, collect_configs: dict[Path, dict], plugin_configs: dict[Path, str]):
+    def new_parse_collect_config(self, collect_configs: dict[Path, dict], plugin_configs: dict[Path, bytes]):
         for file_path, file_content in collect_configs.items():
             parse_manager = CollectConfigParse(
                 file_path=file_path, file_content=file_content, plugin_configs=plugin_configs
@@ -912,27 +912,36 @@ class UploadPackageResource(Resource):
                 file_id=self.file_id,
             )
 
-    def parse_package(self, file_list: dict[str, str]):
+    def parse_package(self, file_list: dict[str, bytes]):
         # 区分成四个配置目录
         # 并且去掉最外层配置类型的文件夹
         collect_configs: dict[Path, dict] = {}
-        plugin_configs: dict[Path, str] = {}
+        plugin_configs: dict[Path, bytes] = {}
         strategy_configs: dict[Path, dict] = {}
         view_configs: dict[Path, dict] = {}
         for file_name, content in file_list.items():
             config_directory_name, file_path = file_name.split("/", 1)
             file_path = Path(file_path)
+
+            # 过滤 dotfiles
+            if file_path.name.startswith("."):
+                continue
             match config_directory_name:
                 case ConfigDirectoryName.collect:
-                    collect_configs[file_path] = json.loads(content)
+                    if file_path.name.endswith(".json"):
+                        collect_configs[file_path] = json.loads(content.decode("utf-8"))
                 case ConfigDirectoryName.strategy:
-                    strategy_configs[file_path] = json.loads(content)
+                    if file_path.name.endswith(".json"):
+                        strategy_configs[file_path] = json.loads(content.decode("utf-8"))
                 case ConfigDirectoryName.view:
-                    view_configs[file_path] = json.loads(content)
+                    if file_path.name.endswith(".json"):
+                        view_configs[file_path] = json.loads(content.decode("utf-8"))
                 case ConfigDirectoryName.plugin:
                     # 因为插件文件含更多不同类型的文件，
                     # 所以不做特定类型解析
                     plugin_configs[file_path] = content
+                case _:
+                    pass
 
         self.new_parse_collect_config(collect_configs, plugin_configs)
         self.new_parse_strategy_config(strategy_configs)
@@ -944,12 +953,12 @@ class UploadPackageResource(Resource):
         """
 
         # 解压到内存中，获取文件的路径已经对应的内容
-        file_list: dict[str, str] = {}
+        file_list: dict[str, bytes] = {}
         if file.name.endswith(".zip"):
             with zipfile.ZipFile(file.file, "r") as package_file:
                 for file_info in package_file.infolist():
                     with package_file.open(file_info) as f:
-                        file_list[file_info.filename] = f.read().decode("utf-8")
+                        file_list[file_info.filename] = f.read()
         else:
             with tarfile.open(fileobj=file.file) as package_file:
                 for member in package_file.getmembers():
@@ -957,7 +966,7 @@ class UploadPackageResource(Resource):
                     if not member.isreg():
                         continue
                     with package_file.extractfile(member) as f:
-                        file_list[member.name] = f.read().decode("utf-8")
+                        file_list[member.name] = f.read()
 
         # 校验包目录结构
         if set(DIRECTORY_LIST) - set(filepath.split("/")[0] for filepath in file_list.keys()):
