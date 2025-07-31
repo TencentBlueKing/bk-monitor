@@ -15,7 +15,7 @@ from typing import Any
 from django.conf import settings
 from django.core.paginator import Paginator
 from django.db import transaction
-from django.db.models import Q, Max
+from django.db.models import Max, Q
 from django.utils.translation import gettext as _
 
 from bkm_space.api import SpaceApi
@@ -1125,7 +1125,7 @@ class SaveCollectConfigResource(Resource):
                 bk_tenant_id=bk_tenant_id, plugin="bkprocessbeat", plugin_type=PluginType.PROCESS
             )
             # 全局唯一
-            plugin_manager.touch()
+            plugin_manager.touch(bk_biz_id=data["bk_biz_id"])
             plugin_id = plugin_manager.plugin.plugin_id
         elif data["collect_type"] == CollectConfigMeta.CollectType.SNMP_TRAP:
             plugin_id = resource.collecting.get_trap_collector_plugin(data)

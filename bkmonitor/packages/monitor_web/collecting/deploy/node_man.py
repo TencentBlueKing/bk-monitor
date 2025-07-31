@@ -110,8 +110,8 @@ class NodeManInstaller(BaseInstaller):
                     # 采集超时时间
                     "timeout": f"{config_params['collector'].get('timeout', 60)}",
                     "max_timeout": f"{config_params['collector'].get('timeout', 60)}",
-                    "dataid": str(plugin_manager.perf_data_id),
-                    "port_dataid": str(plugin_manager.port_data_id),
+                    "dataid": str(plugin_manager.perf_data_id(self.collect_config.bk_biz_id)),
+                    "port_dataid": str(plugin_manager.port_data_id(self.collect_config.bk_biz_id)),
                     "match_pattern": config_params["process"]["match_pattern"],
                     "process_name": config_params["process"].get("process_name", ""),
                     "exclude_pattern": config_params["process"]["exclude_pattern"],
