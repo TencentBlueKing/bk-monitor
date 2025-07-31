@@ -35,7 +35,6 @@ from monitor_web.models.custom_report import (
     CustomTSGroupingRule,
     CustomTSTable,
 )
-from monitor_web.plugin.constant import PluginType
 from monitor_web.strategies.resources import GetMetricListV2Resource
 
 logger = logging.getLogger(__name__)
@@ -710,14 +709,9 @@ class ValidateCustomTsGroupLabel(Resource):
     def metric_data_label_pattern(self):
         """
         获取自定义指标数据名称的正则表达式
-        自定义指标数据名称仅允许包含字母、数字、下划线，且必须以字母开头，前缀不可与插件类型重名
+        自定义指标数据名称仅允许包含字母、数字、下划线，且必须以字母开头
         """
-        plugin_type_list = [
-            f"{getattr(PluginType, attr).lower()}_"
-            for attr in dir(PluginType)
-            if not callable(getattr(PluginType, attr)) and not attr.startswith("__") and attr != "PROCESS"
-        ]
-        return re.compile(r"^(?!" + "|".join(plugin_type_list) + r")[a-zA-Z][a-zA-Z0-9_]*$")
+        return re.compile(r"^[a-zA-Z][a-zA-Z0-9_]*$")
 
     def perform_request(self, params: dict):
         data_label = params["data_label"]
@@ -725,9 +719,7 @@ class ValidateCustomTsGroupLabel(Resource):
             raise CustomValidationLabelError(msg=_("自定义指标英文名不允许为空"))
 
         if not self.metric_data_label_pattern.match(data_label):
-            raise CustomValidationLabelError(
-                msg=_("自定义指标英文名仅允许包含字母、数字、下划线，且必须以字母开头，前缀不可与插件类型重名")
-            )
+            raise CustomValidationLabelError(msg=_("自定义指标英文名仅允许包含字母、数字、下划线，且必须以字母开头"))
 
         # 内置指标，不做校验
         if params["bk_biz_id"] == 0:
