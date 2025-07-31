@@ -196,8 +196,8 @@ export class ActionService extends AlarmService<AlarmType.ACTION> {
       .then(({ aggs, overview }) => {
         return [
           {
-            name: window.i18n.t('执行状态'),
             ...overview,
+            name: window.i18n.t('执行状态'),
             children: overview.children.map(item => ({ ...item, ...ActionIconMap[item.id] })),
           },
           ...aggs,

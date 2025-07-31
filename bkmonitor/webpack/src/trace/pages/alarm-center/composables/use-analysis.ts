@@ -28,8 +28,9 @@ import { computed, shallowRef, watchEffect } from 'vue';
 
 import { useStorage } from '@vueuse/core';
 
-import { type AnalysisListItem, type AnalysisTopNDataResponse, type QuickFilterItem, AlarmType } from '../typings';
 import { useAlarmCenterStore } from '@/store/modules/alarm-center';
+
+import type { AnalysisListItem, AnalysisTopNDataResponse, QuickFilterItem } from '../typings';
 
 export function useAlarmAnalysis() {
   const alarmStore = useAlarmCenterStore();
@@ -57,14 +58,9 @@ export function useAlarmAnalysis() {
   // 告警、故障、处理记录 展示的告警分析设置项
   const analysisSettings = useStorage<string[]>(storageAnalysisKey, [...alarmStore.alarmService.analysisFields]);
 
-  const effectFunc = async () => {
+  const effectFunc = () => {
     analysisFieldTopNLoading.value = true;
-    analysisDimensionFields.value = await alarmStore.alarmService.getAnalysisDimensionFields({
-      ...alarmStore.commonFilterParams,
-    });
-    if (analysisSettings.value.length) {
-      getAnalysisDimensionData(analysisDimensionFields.value.map(item => item.id));
-    }
+    getAnalysisDimensionFields({ ...alarmStore.commonFilterParams });
     getAnalysisFieldData(analysisFields.value);
   };
 
@@ -85,7 +81,13 @@ export function useAlarmAnalysis() {
       });
   };
 
-  /** 获取分析 dimension Tag列表 以及对应的TopN数据 */
+  /** 获取告警分析维度Tag列表 */
+  const getAnalysisDimensionFields = async params => {
+    analysisDimensionFields.value = await alarmStore.alarmService.getAnalysisDimensionFields(params);
+    getAnalysisDimensionData(analysisDimensionFields.value.map(item => item.id));
+  };
+
+  /** 获取分析 dimension Tag列表对应的TopN数据 */
   const getAnalysisDimensionData = async (fields: string[], isAll = false) => {
     analysisDimensionLoading.value = true;
     const data = await getAnalysisDataByFields(fields, isAll);
