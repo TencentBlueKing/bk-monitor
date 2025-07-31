@@ -75,7 +75,7 @@ export default defineComponent({
     let runningInterval = 'auto'; // 当前实际使用的 interval
 
     let logChartCancel: any = null; // 取消请求的方法
-    let isInit = true; // 是否为首次请求
+    // let isInit = true; // 是否为首次请求
     let runningTimer: any = null; // 定时器
 
     // 初始化、设置、重绘图表
@@ -329,7 +329,7 @@ export default defineComponent({
       // 开始拉取新一轮趋势数据
       runningTimer = setTimeout(async () => {
         finishPolling.value = false;
-        isInit = true;
+        // isInit = true;
         // 若未选择索引集（无索引集或索引集为空数组），则直接关闭loading 并终止后续流程
         if (!store.state.indexItem.ids || !store.state.indexItem.ids.length) {
           isStart.value = false;
@@ -481,7 +481,7 @@ export default defineComponent({
         <div
           v-show={!isFold.value}
           class='monitor-echart-wrap'
-          v-bkloading={{ isLoading: !isStart.value && loading.value, zIndex: 10, size: 'mini' }}
+          v-bkloading={{ isLoading: !isStart.value && loading.value, zIndex: 1, size: 'mini' }}
         >
           <div
             ref={trendChartCanvas}
