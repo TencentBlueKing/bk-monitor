@@ -894,7 +894,7 @@ export default defineComponent({
 
     const handleRowMousedown = (e: MouseEvent, item: any) => {
       const selection = window.getSelection();
-      console.log('----', selection, item);
+      console.log('----', selection, item, selection);
       if (!selection.isCollapsed && selection.containsNode(e.target as Node)) {
         e.stopImmediatePropagation();
         e.preventDefault();
