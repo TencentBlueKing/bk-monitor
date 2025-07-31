@@ -25,8 +25,8 @@
  */
 
 import {
-  ExploreTableColumnTypeEnum,
   type BaseTableColumn,
+  ExploreTableColumnTypeEnum,
 } from '../../../../trace-explore/components/trace-explore-table/typing';
 
 import type { TableEmpty } from '../../../typings';
@@ -39,6 +39,11 @@ export abstract class BaseScenario {
    * @readonly 场景标识
    */
   abstract readonly name: string;
+
+  /**
+   * @readonly 场景私有类名
+   */
+  abstract readonly privateClassName: string;
 
   /**
    * @description 场景清理（可选）

@@ -72,6 +72,7 @@ export function useTableCell({
     cellRenderHandleMap,
     isEnabledCellEllipsis,
     getRowId,
+    getTableCellRenderValue,
   };
 
   /**
@@ -116,12 +117,19 @@ export function useTableCell({
   }
 
   /**
+   * @description 判断值是否为空
+   */
+  function isEmpty(value: unknown) {
+    return value == null || value === '';
+  }
+
+  /**
    * @description 获取表格单元格渲染值（允许列通过 getRenderValue 自定义获取值逻辑）
    * @param row 当前行数据
    * @param {ExploreTableColumn} column 当前列配置项
    *
    */
-  function getTableCellRenderValue<T extends ExploreTableColumnTypeEnum>(
+  function getTableCellRenderValue<T extends ExploreTableColumnTypeEnum | string>(
     row,
     column: ExploreTableColumn<T>
   ): GetTableCellRenderValue<T> {
@@ -155,7 +163,7 @@ export function useTableCell({
     renderCtx: TableCellRenderContext<keyof typeof customCellRenderMap>
   ) {
     const alias = getTableCellRenderValue(row, column);
-    if (!alias) {
+    if (isEmpty(alias)) {
       return textColumnFormatter(
         row,
         column as unknown as ExploreTableColumn<ExploreTableColumnTypeEnum.TEXT>,
@@ -189,7 +197,7 @@ export function useTableCell({
   ) {
     const item = getTableCellRenderValue(row, column) || { alias: '', prefixIcon: '' };
     const { alias, prefixIcon } = item;
-    if (alias == null || alias === '') {
+    if (isEmpty(alias)) {
       const textColumn = {
         ...column,
         getRenderValue: () => alias,
@@ -386,7 +394,7 @@ export function useTableCell({
             data-col-id={column.colKey}
             data-row-id={getRowId(row)}
           >
-            {alias == null || alias === '' ? defaultTableConfig.emptyPlaceholder : alias}
+            {isEmpty(alias) ? defaultTableConfig.emptyPlaceholder : alias}
           </span>
         </div>
         {columnCellSuffixRender(row, column, renderCtx)}

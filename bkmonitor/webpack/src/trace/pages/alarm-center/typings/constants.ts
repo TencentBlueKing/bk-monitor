@@ -167,6 +167,7 @@ export const AlertTargetTypeMap = {
     prefixIcon: 'target-icon icon-monitor icon-APM',
     alias: window.i18n.t('服务'),
   },
+  // TODO 待确认icon
   // INSTANCE: {
   //   prefixIcon: 'target-icon icon-monitor icon-zidingyizhibiao',
   //   alias: window.i18n.t('自定义指标'),
@@ -202,6 +203,7 @@ export const ActionStatusIconMap = {
     alias: window.i18n.t('成功'),
   },
   running: {
+    // TODO 待确认icon
     prefixIcon: 'action-status-icon icon-monitor',
     alias: window.i18n.t('执行中'),
   },
@@ -218,6 +220,52 @@ export const ActionFailureTypeMap = {
   timeout: window.i18n.t('执行超时'),
   execute_failure: window.i18n.t('执行失败'),
   unknown: window.i18n.t('失败'),
+};
+
+export const IncidentLevelIconMap = {
+  WARN: {
+    icon: 'rect',
+    iconColor: '#E38B02',
+  },
+  ERROR: {
+    icon: 'rect',
+    iconColor: '#E71818',
+  },
+  INFO: {
+    icon: 'rect',
+    iconColor: '#3A84FF',
+  },
+};
+
+export const IncidentStatusIconMap = {
+  abnormal: {
+    alias: window.i18n.t('未恢复'),
+    prefixIcon: 'incident-status-icon icon-monitor icon-mind-fill',
+  },
+  recovering: {
+    alias: window.i18n.t('观察中'),
+    prefixIcon: 'incident-status-icon icon-monitor icon-mc-visual-fill',
+  },
+  recovered: {
+    alias: window.i18n.t('已恢复'),
+    prefixIcon: 'incident-status-icon icon-monitor icon-mc-check-fill',
+  },
+  closed: {
+    alias: window.i18n.t('已解决'),
+    prefixIcon: 'incident-status-icon icon-monitor icon-mc-solved',
+  },
+  ABNORMAL: {
+    alias: window.i18n.t('未恢复'),
+    prefixIcon: 'incident-status-icon icon-monitor icon-mind-fill',
+  },
+  RECOVERED: {
+    alias: window.i18n.t('已恢复'),
+    prefixIcon: 'incident-status-icon icon-monitor icon-mc-check-fill',
+  },
+  CLOSED: {
+    alias: window.i18n.t('已失效'),
+    prefixIcon: 'incident-status-icon icon-monitor icon-mc-solved',
+  },
 };
 
 /** 告警-关联信息不同类型提示信息 */

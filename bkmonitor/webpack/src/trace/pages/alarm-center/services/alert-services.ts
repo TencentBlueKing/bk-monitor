@@ -163,7 +163,7 @@ const ALERT_TABLE_COLUMNS = [
     colKey: 'extend_info',
     title: window.i18n.t('关联信息'),
     is_default: false,
-    is_locked: false,
+    is_locked: true,
     minWidth: 250,
   },
   {

@@ -23,19 +23,19 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, computed, type PropType, useTemplateRef, onMounted } from 'vue';
+import { type PropType, computed, defineComponent, onMounted, useTemplateRef } from 'vue';
 
-import { type BkUiSettings, PrimaryTable, type TableSort } from '@blueking/tdesign-ui';
+import { type BkUiSettings, type TableSort, PrimaryTable } from '@blueking/tdesign-ui';
 import { Exception, Pagination } from 'bkui-vue';
 
 import TableSkeleton from '../../../../../../components/skeleton/table-skeleton';
 import { useTableCell } from '../../../../../trace-explore/components/trace-explore-table/hooks/use-table-cell';
 import { useTableEllipsis } from '../../../../../trace-explore/components/trace-explore-table/hooks/use-table-popover';
 import {
-  COMMON_TABLE_ELLIPSIS_CLASS_NAME,
   type TableEmpty,
   type TablePagination,
   type TableRenderer,
+  COMMON_TABLE_ELLIPSIS_CLASS_NAME,
 } from '../../../../typings';
 import { DEFAULT_TABLE_CONFIG } from './table-constants';
 
@@ -67,7 +67,7 @@ export default defineComponent({
     },
     /** 表格渲染数据 */
     data: {
-      type: Array as PropType<Record<string, any>[]>,
+      type: Array as PropType<Record<string, unknown>[]>,
       default: () => [],
     },
     /** 表格行高主题 */
@@ -126,8 +126,8 @@ export default defineComponent({
     pageSizeChange: (pageSize: number) => typeof pageSize === 'number',
     sortChange: (sort: string | string[]) => typeof sort === 'string' || Array.isArray(sort),
     displayColFieldsChange: (displayColFields: string[]) => Array.isArray(displayColFields),
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    selectChange: (selectedRowKeys: (number | string)[], options: SelectOptions<any>) => Array.isArray(selectedRowKeys),
+    selectChange: (selectedRowKeys: (number | string)[], options: SelectOptions<unknown>) =>
+      Array.isArray(selectedRowKeys) && options,
   },
   setup(props, { emit }) {
     const tableRef = useTemplateRef<InstanceType<typeof PrimaryTable>>('tableRef');
@@ -237,7 +237,7 @@ export default defineComponent({
      * @param options.currentRowKey 当前操作行的 rowKey 值
      * @param options.currentRowData 当前操作行的 行数据
      */
-    function handleSelectChange(selectedRowKeys: (number | string)[], options: SelectOptions<any>) {
+    function handleSelectChange(selectedRowKeys: (number | string)[], options: SelectOptions<unknown>) {
       emit('selectChange', selectedRowKeys, options);
     }
 

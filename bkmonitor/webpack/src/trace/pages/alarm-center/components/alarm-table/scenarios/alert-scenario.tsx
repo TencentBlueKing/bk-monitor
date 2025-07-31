@@ -56,6 +56,7 @@ import type { TippyContent } from 'vue-tippy';
  */
 export class AlertScenario extends BaseScenario {
   readonly name = ALERT_STORAGE_KEY;
+  readonly privateClassName = 'alert-table';
 
   constructor(
     private readonly context: {
@@ -83,6 +84,7 @@ export class AlertScenario extends BaseScenario {
     const columns: Record<string, Partial<BaseTableColumn>> = {
       /** 告警状态(alert_status) 列 */
       alert_name: {
+        attrs: { class: 'alarm-first-col' },
         cellRenderer: row => this.renderAlertName(row),
       },
       /** 告警指标(metric) 列 */
@@ -92,6 +94,7 @@ export class AlertScenario extends BaseScenario {
       /** 关联事件(event_count) 列 */
       event_count: {
         renderType: ExploreTableColumnTypeEnum.CLICK,
+        getRenderValue: row => (row.event_count > 0 ? row.event_count : undefined),
         clickCallback: row => {
           this.context.handleAlertSliderShowDetail(row.id);
         },
@@ -228,7 +231,7 @@ export class AlertScenario extends BaseScenario {
         {window.enable_create_chat_group ? (
           <span
             class='operate-panel-item icon-monitor icon-we-com'
-            v-tippy={{ content: window.i18n.t('一键拉群'), delay: 200, appendTo: 'parent' }}
+            v-tippy={{ content: window.i18n.t('一键拉群'), delay: 200 }}
             onClick={() => this.context.handleAlertOperationClick('chart', row)}
           />
         ) : null}
@@ -243,7 +246,6 @@ export class AlertScenario extends BaseScenario {
                 ? this.askTipMsg(isAck, status, ackOperator, followerDisabled)
                 : window.i18n.t('告警确认'),
             delay: 200,
-            appendTo: 'parent',
             allowHTML: false,
           }}
           onClick={() =>
@@ -263,7 +265,6 @@ export class AlertScenario extends BaseScenario {
           v-tippy={{
             content: followerDisabled ? window.i18n.t('关注人禁用此操作') : window.i18n.t('手动处理'),
             delay: 200,
-            appendTo: 'parent',
           }}
           onClick={() => !followerDisabled && this.context.handleAlertOperationClick('manual', row)}
         />
@@ -391,7 +392,7 @@ export class AlertScenario extends BaseScenario {
    * @description 处理不同类型的跳转逻辑
    */
   private handleGotoMore(extendInfo: Record<string, any>, bizId: string) {
-    const origin = process.env.NODE_ENV === 'development' ? process.env.proxyUrl : location.origin;
+    const origin = process.env.NODE_ENV === 'development' ? process.env.proxyUrl.replace(/\/$/, '') : location.origin;
     switch (extendInfo.type) {
       // 监控主机监控详情
       case 'host': {

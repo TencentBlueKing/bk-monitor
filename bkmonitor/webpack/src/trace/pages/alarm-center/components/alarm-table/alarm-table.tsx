@@ -24,22 +24,27 @@
  * IN THE SOFTWARE.
  */
 import {
-  computed,
-  defineComponent,
-  ref as deepRef,
   type PropType,
-  useTemplateRef,
-  shallowRef,
-  watch,
-  onMounted,
+  computed,
+  ref as deepRef,
+  defineComponent,
   onBeforeUnmount,
+  onMounted,
+  shallowRef,
+  toValue,
+  useTemplateRef,
+  watch,
 } from 'vue';
 
+import { useRouter } from 'vue-router';
+
+import { ALERT_STORAGE_KEY } from '../../services/alert-services';
+import { INCIDENT_STORAGE_KEY } from '../../services/incident-services';
 import {
   type AlertTableItem,
-  CONTENT_SCROLL_ELEMENT_CLASS_NAME,
   type TableColumnItem,
   type TablePagination,
+  CONTENT_SCROLL_ELEMENT_CLASS_NAME,
 } from '../../typings';
 import { AlertSelectAction } from '../../typings/constants';
 import AlertContentDetail from './components/alert-content-detail/alert-content-detail';
@@ -95,6 +100,7 @@ export default defineComponent({
   },
   setup(props) {
     // const alarmStore = useAlarmCenterStore();
+    const router = useRouter();
     const tableRef = useTemplateRef<InstanceType<typeof CommonTable>>('tableRef');
     const alertContentDetailRef = useTemplateRef<InstanceType<typeof AlertContentDetail>>('alertContentDetailRef');
 
@@ -115,7 +121,8 @@ export default defineComponent({
     /** 滚动结束后回调逻辑执行计时器  */
     let scrollPointerEventsTimer = null;
     /** 创建场景上下文 */
-    const scenarioContext: AlertScenario['context'] & IncidentScenario['context'] & ActionScenario['context'] = {
+    const scenarioContext: ActionScenario['context'] & AlertScenario['context'] & IncidentScenario['context'] = {
+      router,
       handleAlertSliderShowDetail,
       hoverPopoverTools,
       handleAlertContentDetailShow,
@@ -123,9 +130,19 @@ export default defineComponent({
       handleActionSliderShowDetail,
     };
     // 使用场景渲染器
-    const { transformColumns, currentScenario, tableEmpty } = useScenarioRenderer(scenarioContext);
+    const { transformColumns, currentScenario, tableEmpty, tableScenarioClassName } =
+      useScenarioRenderer(scenarioContext);
     /** 转换后的列配置 */
     const transformedColumns = computed(() => transformColumns(props.columns));
+    /** 表格 setting 配置 */
+    const settings = computed(() =>
+      toValue(currentScenario).name !== INCIDENT_STORAGE_KEY
+        ? {
+            ...props.tableSettings,
+            hasCheckAll: true,
+          }
+        : null
+    );
 
     onMounted(() => {
       addScrollListener();
@@ -181,6 +198,8 @@ export default defineComponent({
      * @description 处理行选择变化(不传参数则清空选择)
      */
     const handleSelectionChange = (keys?: (number | string)[], options?: SelectOptions<any>) => {
+      // 表格空格键按下后会触发选择事件，此时需要禁止
+      if (keys?.length && toValue(currentScenario).name !== ALERT_STORAGE_KEY) return;
       selectedRowKeys.value = keys || [];
       isSelectedFollower.value = options?.selectedRowData?.some?.(item => item.followerDisabled);
     };
@@ -241,6 +260,8 @@ export default defineComponent({
       currentScenario,
       selectedRowKeys,
       tableEmpty,
+      tableScenarioClassName,
+      settings,
       isSelectedFollower,
       handleSelectionChange,
       handleAlertBatchSet,
@@ -251,17 +272,18 @@ export default defineComponent({
       <div class='alarm-table-container'>
         <CommonTable
           ref='tableRef'
-          class='alarm-table'
-          firstFullRow={() =>
+          class={`alarm-table ${this.tableScenarioClassName}`}
+          firstFullRow={
             this.selectedRowKeys?.length
-              ? ((
-                  <AlertSelectionToolbar
-                    class='alarm-table-first-full-row'
-                    isSelectedFollower={this.isSelectedFollower}
-                    selectedRowKeys={this.selectedRowKeys}
-                    onClickAction={this.handleAlertBatchSet}
-                  />
-                ) as unknown as SlotReturnValue)
+              ? () =>
+                  (
+                    <AlertSelectionToolbar
+                      class='alarm-table-first-full-row'
+                      isSelectedFollower={this.isSelectedFollower}
+                      selectedRowKeys={this.selectedRowKeys}
+                      onClickAction={this.handleAlertBatchSet}
+                    />
+                  ) as unknown as SlotReturnValue
               : null
           }
           headerAffixedTop={{
@@ -269,10 +291,6 @@ export default defineComponent({
           }}
           horizontalScrollAffixedBottom={{
             container: `.${CONTENT_SCROLL_ELEMENT_CLASS_NAME}`,
-          }}
-          tableSettings={{
-            ...this.tableSettings,
-            hasCheckAll: true,
           }}
           autoFillSpace={true}
           columns={this.transformedColumns}
@@ -282,6 +300,7 @@ export default defineComponent({
           pagination={this.pagination}
           selectedRowKeys={this.selectedRowKeys}
           sort={this.sort}
+          tableSettings={this.settings}
           onCurrentPageChange={page => this.$emit('currentPageChange', page)}
           onDisplayColFieldsChange={displayColFields => this.$emit('displayColFieldsChange', displayColFields)}
           onPageSizeChange={pageSize => this.$emit('pageSizeChange', pageSize)}
