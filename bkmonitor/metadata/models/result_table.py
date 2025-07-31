@@ -384,16 +384,10 @@ class ResultTable(models.Model):
             )
             raise ValueError(_("结果表ID在租户下已经存在，请确认"))
 
-        # TODO: 多租户 是否要变更RT命名标准
         # 校验biz_id是否符合要求
         if str(bk_biz_id) > "0":
             # 如果有指定表的对应业务信息，需要校验结果表的命名是否符合规范
-            # 若开启多租户模式，需要获取租户ID
-            if settings.ENABLE_MULTI_TENANT_MODE:
-                start_string = f"{bk_tenant_id}_{bk_biz_id}_"
-            else:  # 若未开启多租户模式，沿用此前的命名规范
-                start_string = f"{bk_biz_id}_"
-
+            start_string = f"{bk_biz_id}_"
             if not table_id.startswith(start_string):
                 logger.error(
                     "create_result_table: user->[%s] try to set table->[%s] under biz->[%s] in bk_tenant_id->[%s] but "
