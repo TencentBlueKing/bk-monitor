@@ -370,7 +370,6 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
 
   /** 获取隐藏的指标项 */
   getHideMetrics() {
-    if (this.scene === SceneEnum.Event) return;
     this.handleGetUserConfig(`${HIDE_METRICS_KEY}_${this.scene}`).then((res: string[]) => {
       if (this.scene === SceneEnum.Network && !res) {
         /** 网络场景初始化，默认隐藏丢包量指标 */
