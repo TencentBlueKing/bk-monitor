@@ -200,9 +200,6 @@ class ProcessPluginManager(BuiltInPluginManager):
         plugin_manager.release_collector_plugin(version)
         return version, need_debug
 
-    def data_name_suffix(self, ts_name: str):
-        return f"process_{ts_name}"
-
     def access(self, bk_biz_id: int):
         """
         接入数据源
