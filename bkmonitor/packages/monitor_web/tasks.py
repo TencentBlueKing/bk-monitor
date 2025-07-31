@@ -252,10 +252,6 @@ def _update_metric_list(bk_tenant_id: str, period: int, offset: int):
         """执行具体的指标列表更新操作"""
         try:
             m_class = SOURCE_TYPE[_source_type]
-            # 验证业务ID是否有效
-            if bk_biz_id is not None and not m_class.is_biz_id_valid(bk_tenant_id, bk_biz_id):
-                return
-
             m_class(bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id).run(delay=True)
         except BaseException as e:
             logger.exception(
@@ -304,7 +300,7 @@ def _update_metric_list(bk_tenant_id: str, period: int, offset: int):
         bizids_for_current_round = available_biz_ids[offset * biz_per_round : (offset + 1) * biz_per_round]
 
         for biz_id in bizids_for_current_round:
-            # 更新指标缓存(将校验当前是否需要更新的逻辑迁移到update_metric)
+            # 更新指标缓存
             update_metric(source_type, biz_id)
 
             # 记录有容器集群的业务
