@@ -17,13 +17,16 @@ import os
 import shutil
 import tarfile
 import uuid
+import zipfile
 from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor
+from pathlib import Path
 from uuid import uuid4
 
 from django.conf import settings
 from django.core.files.storage import default_storage
 from django.db.models import Q
+from django.db.models.fields.files import FieldFile
 from django.utils.translation import gettext as _
 from rest_framework.exceptions import ValidationError
 
@@ -48,6 +51,7 @@ from monitor_web.commons.file_manager import ExportImportManager
 from monitor_web.commons.report.resources import send_frontend_report_event
 from monitor_web.export_import.constant import (
     DIRECTORY_LIST,
+    ConfigDirectoryName,
     ConfigType,
     ImportDetailStatus,
     ImportHistoryStatus,
@@ -814,10 +818,58 @@ class UploadPackageResource(Resource):
                 file_id=self.file_id,
             )
 
-    def parse_package(self):
-        self.parse_collect_config()
-        self.parse_strategy_config()
-        self.parse_view_config()
+    def parse_package(self, file_list: dict[str, str]):
+        # 区分成四个配置目录
+        # 并且去掉最外层配置类型的文件夹
+        collect_configs: dict[Path, dict] = {}
+        plugin_configs: dict[Path, str] = {}
+        strategy_configs: dict[Path, dict] = {}
+        view_configs: dict[Path, dict] = {}
+        for file_name, content in file_list.items():
+            config_directory_name, file_path = file_name.split("/", 1)
+            file_path = Path(file_path)
+            match config_directory_name:
+                case ConfigDirectoryName.collect:
+                    collect_configs[file_path] = json.loads(content)
+                case ConfigDirectoryName.strategy:
+                    strategy_configs[file_path] = json.loads(content)
+                case ConfigDirectoryName.view:
+                    view_configs[file_path] = json.loads(content)
+                case ConfigDirectoryName.plugin:
+                    # 因为插件文件含更多不同类型的文件，
+                    # 所以不做特定类型解析
+                    plugin_configs[file_path] = content
+
+        self.new_parse_collect_config(collect_configs, plugin_configs)
+        self.new_parse_strategy_config(strategy_configs)
+        self.new_parse_view_config(view_configs)
+
+    def parse_package_without_decompress(self, file: FieldFile) -> None:
+        """
+        针对zip 和tar相关的压缩包进行处理
+        """
+
+        # 解压到内存中，获取文件的路径已经对应的内容
+        file_list: dict[str, str] = {}
+        if file.name.endswith(".zip"):
+            with zipfile.ZipFile(file.file, "r") as package_file:
+                for file_info in package_file.infolist():
+                    with package_file.open(file_info) as f:
+                        file_list[file_info.filename] = f.read().decode("utf-8")
+        else:
+            with tarfile.open(fileobj=file.file) as package_file:
+                for member in package_file.getmembers():
+                    # 取代 tarfile.extractall 的 filter="data"
+                    if not member.isreg():
+                        continue
+                    with package_file.extractfile(member) as f:
+                        file_list[member.name] = f.read().decode("utf-8")
+
+        # 校验包目录结构
+        if set(DIRECTORY_LIST) - set(filepath.split("/")[0] for filepath in file_list.keys()):
+            raise UploadPackageError({"msg": _("导入包目录结构不对")})
+
+        return file_list
 
     def handle_return_data(self, model_obj):
         if model_obj.type == ConfigType.VIEW:
@@ -857,11 +909,11 @@ class UploadPackageResource(Resource):
             validated_request_data.setdefault("file_name", file_name)
             self.file_manager = ExportImportManager.save_file(**validated_request_data)
             self.file_id = self.file_manager.file_obj.id
+
             if self.file_id not in upload_file_ids:
-                # 解压导入的文件包
-                self.un_tar_package()
-                # 解析插件包
-                self.parse_package()
+                file = self.file_manager.file_obj.file_data
+                file_list: dict[str, str] = self.parse_package_without_decompress(file)
+                self.parse_package(file_list)
 
             config_list = list(map(self.handle_return_data, ImportParse.objects.filter(file_id=self.file_id)))
             return {
