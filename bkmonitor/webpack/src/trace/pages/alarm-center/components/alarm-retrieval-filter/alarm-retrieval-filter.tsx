@@ -25,6 +25,7 @@
  */
 
 import { defineComponent } from 'vue';
+
 import { useI18n } from 'vue-i18n';
 
 import RetrievalFilter from '../../../../components/retrieval-filter/retrieval-filter';
@@ -62,6 +63,7 @@ export default defineComponent({
           }));
         }}
         commonWhere={this.residentCondition}
+        favoriteList={this.favoriteList}
         fields={this.fields}
         filterMode={this.filterMode}
         getValueFn={this.getRetrievalFilterValueData}

@@ -25,6 +25,7 @@
  */
 
 import { incidentList, incidentOverview, incidentTopN } from 'monitor-api/modules/incident';
+import { listSearchFavorite } from 'monitor-api/modules/model';
 
 import {
   type AlarmType,
@@ -159,6 +160,13 @@ export class IncidentService extends AlarmService<AlarmType.INCIDENT> {
     console.info('IncidentService getFilterTableList', data, '==========');
     return data;
   }
+  async getListSearchFavorite(params: Partial<{ search_type: AlarmType }>) {
+    const data = await listSearchFavorite(params).catch(() => {
+      return [];
+    });
+    return data;
+  }
+
   async getQuickFilterList(params: Partial<CommonFilterParams>): Promise<QuickFilterItem[]> {
     const data = await incidentOverview({
       ...params,

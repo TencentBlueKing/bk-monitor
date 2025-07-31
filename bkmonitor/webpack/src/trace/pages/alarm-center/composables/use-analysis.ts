@@ -26,10 +26,10 @@
 
 import { computed, shallowRef, watchEffect } from 'vue';
 
-import { useAlarmCenterStore } from '@/store/modules/alarm-center';
 import { useStorage } from '@vueuse/core';
 
-import type { AnalysisTopNDataResponse, AnalysisListItem, QuickFilterItem } from '../typings';
+import { type AnalysisListItem, type AnalysisTopNDataResponse, type QuickFilterItem, AlarmType } from '../typings';
+import { useAlarmCenterStore } from '@/store/modules/alarm-center';
 
 export function useAlarmAnalysis() {
   const alarmStore = useAlarmCenterStore();
