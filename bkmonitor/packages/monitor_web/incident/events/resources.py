@@ -57,7 +57,16 @@ class IncidentEventsSearchResource(Resource):
 
     # dimension内一些特殊字段需要做映射处理
     WhereSpecialKeyMapping = {
-        "inner_ip": "host",
+        EntityType.BcsPod.value: {
+            "inner_ip": "host",
+            "pod_name": "pod",
+            "namespace": "namespace",
+            "cluster_id": "bcs_cluster_id",
+        },
+        EntityType.BkNodeHost.value: {
+            "inner_ip": "bk_target_ip",
+        },
+        EntityType.APMService.value: {},
     }
 
     # ==================== 主要入口方法 ====================
@@ -118,7 +127,7 @@ class IncidentEventsSearchResource(Resource):
         base_config = self._build_base_query_config(data_source_label, data_type_label, bk_biz_id, start_time, end_time)
 
         # 应用过滤条件
-        self._apply_dimension_filters(base_config, dimensions_filter)
+        self._apply_dimension_filters(base_config, dimensions_filter, entity_type)
 
         # 生成多表查询请求
         tables = self._get_tables_by_entity_type(entity_type, bk_biz_id=bk_biz_id, **dimensions_filter)
@@ -245,7 +254,9 @@ class IncidentEventsSearchResource(Resource):
         return tables
 
     # ==================== 过滤条件处理器 ====================
-    def _apply_dimension_filters(self, time_series_request: dict, dimensions_filter: dict) -> None:
+    def _apply_dimension_filters(
+        self, time_series_request: dict, dimensions_filter: dict, entity_type: str = "BcsPod"
+    ) -> None:
         """
         应用维度过滤条件到查询配置
         """
@@ -255,10 +266,15 @@ class IncidentEventsSearchResource(Resource):
         # 添加Where过滤条件
         where_filters = []
         for key, value in dimensions_filter.items():
-            if not value or key in self.WHERE_SPECIAL_FILTER_VALUES:
+            if not value or key not in self.WhereSpecialKeyMapping.get(entity_type, {}):
                 continue
             where_filters.append(
-                {"key": self.WhereSpecialKeyMapping.get(key, key), "method": "eq", "value": [value], "condition": "and"}
+                {
+                    "key": self.WhereSpecialKeyMapping[entity_type][key],
+                    "method": "eq",
+                    "value": [value],
+                    "condition": "and",
+                }
             )
         time_series_request["query_configs"][0]["where"] = where_filters
 
