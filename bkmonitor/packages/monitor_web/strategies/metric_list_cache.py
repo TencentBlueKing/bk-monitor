@@ -2171,11 +2171,6 @@ class BkMonitorAlertCacheManager(BaseMetricCacheManager):
         yield metric_detail
 
     @classmethod
-    def is_biz_id_valid(cls, bk_tenant_id: str, bk_biz_id: int) -> bool:
-        """监控告警事件指标缓存仅支持更新大于0业务"""
-        return bk_biz_id > 0
-
-    @classmethod
     def get_available_biz_id(cls, bk_tenant_id: str) -> list:
         """获取有监控策略的业务ID列表"""
         # 只处理有策略的业务， 并且biz_id > 0
