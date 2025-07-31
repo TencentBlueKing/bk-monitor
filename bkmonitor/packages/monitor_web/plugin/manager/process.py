@@ -171,9 +171,13 @@ class ProcessPluginManager(BuiltInPluginManager):
         return api.metadata.get_data_id({"data_name": data_name, "with_rt_info": False})["bk_data_id"]
 
     def perf_data_id(self, bk_biz_id: int):
+        if bk_biz_id not in settings.PROCESS_INDEPENDENT_DATAID_BIZ_IDS:
+            bk_biz_id = 0
         return self.get_data_id(bk_biz_id, "perf")
 
     def port_data_id(self, bk_biz_id: int):
+        if bk_biz_id not in settings.PROCESS_INDEPENDENT_DATAID_BIZ_IDS:
+            bk_biz_id = 0
         return self.get_data_id(bk_biz_id, "port")
 
     def setup(self):
@@ -208,7 +212,7 @@ class ProcessPluginManager(BuiltInPluginManager):
             # 独立数据源模式
             if bk_biz_id in settings.PROCESS_INDEPENDENT_DATAID_BIZ_IDS:
                 table_id = ""
-                data_label = f"process.{ts_name}"
+                data_label = f"process.{ts_name},process"
                 is_split_measurement = True
             else:
                 bk_biz_id = 0
