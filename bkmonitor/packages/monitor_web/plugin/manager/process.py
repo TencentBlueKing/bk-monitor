@@ -213,7 +213,7 @@ class ProcessPluginManager(BuiltInPluginManager):
         for ts_name in self.metric_info:
             # 独立数据源模式
             if bk_biz_id in settings.PROCESS_INDEPENDENT_DATAID_BIZ_IDS:
-                table_id = "process.perf"
+                table_id = ""
                 data_label = f"process.{ts_name},process"
                 is_split_measurement = True
             else:
