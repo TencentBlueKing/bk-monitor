@@ -24,6 +24,7 @@
  * IN THE SOFTWARE.
  */
 
+import UserDisplayNameTags from '../../../../../components/collapse-tags/user-display-name-tags';
 import {
   type BaseTableColumn,
   type TableCellRenderContext,
@@ -38,7 +39,6 @@ import {
   ActionStatusIconMap,
 } from '../../../typings';
 import { BaseScenario } from './base-scenario';
-import UserDisplayNameTags from '@/components/collapse-tags/user-display-name-tags';
 
 import type { IUsePopoverTools } from '../hooks/use-popover';
 import type { SlotReturnValue } from 'tdesign-vue-next';

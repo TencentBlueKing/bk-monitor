@@ -84,13 +84,13 @@ const INCIDENT_TABLE_COLUMNS = [
     width: 174,
   },
   {
-    colKey: 'incident_duration',
+    colKey: 'duration',
     title: window.i18n.t('持续时间'),
     is_default: false,
     width: 100,
   },
   {
-    colKey: 'assignee',
+    colKey: 'assignees',
     title: window.i18n.t('负责人'),
     is_default: true,
     width: 150,

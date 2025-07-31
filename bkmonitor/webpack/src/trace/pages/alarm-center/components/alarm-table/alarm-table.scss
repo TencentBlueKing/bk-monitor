@@ -49,6 +49,12 @@
     .t-table {
       .t-table__content {
         .t-table__body {
+          .t-table__first-full-row {
+            td {
+              // 保证表格内容不足以撑满表格区域时，行高度不自适应增高
+              height: 0;
+            }
+          }
           tr:not(.t-table__row--full) {
             // 保证表格内容不足以撑满表格区域时，行高度不自适应增高
             td.alarm-first-col {

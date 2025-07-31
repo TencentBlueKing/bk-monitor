@@ -24,6 +24,8 @@
  * IN THE SOFTWARE.
  */
 
+import UserDisplayNameTags from '../../../../../components/collapse-tags/user-display-name-tags';
+import { formatTraceTableDate } from '../../../../../components/trace-view/utils/date';
 import {
   type BaseTableColumn,
   type TableCellRenderContext,
@@ -63,7 +65,7 @@ export class IncidentScenario extends BaseScenario {
   }
 
   getColumnsConfig(): Record<string, Partial<BaseTableColumn>> {
-    const columns = {
+    const columns: Record<string, Partial<BaseTableColumn>> = {
       /** 故障名称(incident_name) 列 */
       incident_name: {
         attrs: { class: 'alarm-first-col' },
@@ -79,6 +81,19 @@ export class IncidentScenario extends BaseScenario {
         getRenderValue: row => row?.alert_count,
         clickCallback: row => this.jumpToIncidentDetail(row.id, 'FailureView'),
         cellRenderer: (row, column, renderCtx) => this.renderCount(row, column, renderCtx),
+      },
+      /** 标签(labels) 列 */
+      labels: {
+        renderType: ExploreTableColumnTypeEnum.TAGS,
+        getRenderValue: row => this.formatterIncidentLabels(row?.labels),
+      },
+      /** 开始时间 / 结束时间(end_time) 列 */
+      end_time: {
+        cellRenderer: (row, column, renderCtx) => this.renderEndTime(row, column, renderCtx),
+      },
+      /** 负责人(assignees) 列 */
+      assignees: {
+        cellRenderer: row => this.renderAssignees(row),
       },
     };
 
@@ -124,6 +139,30 @@ export class IncidentScenario extends BaseScenario {
     }
     return renderCtx.cellRenderHandleMap?.[ExploreTableColumnTypeEnum.TEXT]?.(row, column, renderCtx);
   }
+
+  /**
+   * @description 开始时间 / 结束时间(end_time) 列渲染方法
+   */
+  private renderEndTime(row: IncidentTableItem, column: BaseTableColumn, renderCtx: TableCellRenderContext) {
+    const beginTime = row.begin_time ? formatTraceTableDate(row.begin_time) : '--';
+    const endTime = row.end_time ? formatTraceTableDate(row.end_time) : '--';
+    return (
+      <div class={'explore-col explore-text-col incident-end-time-col'}>
+        <div class={`${renderCtx.isEnabledCellEllipsis(column)}`}>
+          <span class={'explore-col-text'}>
+            {beginTime} / <br /> {endTime}
+          </span>
+        </div>
+      </div>
+    ) as unknown as SlotReturnValue;
+  }
+
+  /**
+   * @description 负责人(assignees) 列渲染方法
+   */
+  private renderAssignees(row: IncidentTableItem) {
+    return (<UserDisplayNameTags data={row.assignees} />) as unknown as SlotReturnValue;
+  }
   // ----------------- 故障场景私有逻辑方法 -----------------
   /**
    * @description 跳转至故障详情页面
@@ -137,6 +176,21 @@ export class IncidentScenario extends BaseScenario {
       query: {
         activeTab,
       },
+    });
+  }
+
+  /**
+   * @description 格式化故障标签数据
+   */
+  private formatterIncidentLabels(labels) {
+    return labels?.map?.(label => {
+      if (typeof label === 'string') {
+        return label.replace(/\//g, '');
+      }
+      if (label?.key) {
+        return `${label.key}: ${label.value.replace(/\//g, '')}`;
+      }
+      return '--';
     });
   }
 }

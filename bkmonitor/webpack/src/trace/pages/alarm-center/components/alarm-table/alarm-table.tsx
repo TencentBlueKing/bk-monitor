@@ -38,6 +38,7 @@ import {
 
 import { useRouter } from 'vue-router';
 
+import { ALERT_STORAGE_KEY } from '../../services/alert-services';
 import { INCIDENT_STORAGE_KEY } from '../../services/incident-services';
 import {
   type AlertTableItem,
@@ -197,6 +198,8 @@ export default defineComponent({
      * @description 处理行选择变化(不传参数则清空选择)
      */
     const handleSelectionChange = (keys?: (number | string)[], options?: SelectOptions<any>) => {
+      // 表格空格键按下后会触发选择事件，此时需要禁止
+      if (keys?.length && toValue(currentScenario).name !== ALERT_STORAGE_KEY) return;
       selectedRowKeys.value = keys || [];
       isSelectedFollower.value = options?.selectedRowData?.some?.(item => item.followerDisabled);
     };
