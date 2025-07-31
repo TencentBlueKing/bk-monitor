@@ -714,28 +714,16 @@ class ValidateCustomTsGroupLabel(Resource):
         return re.compile(r"^[a-zA-Z][a-zA-Z0-9_]*$")
 
     def perform_request(self, params: dict):
-        data_label = params["data_label"]
-        if data_label == "":
+        if params["data_label"].strip() == "":
             raise CustomValidationLabelError(msg=_("自定义指标英文名不允许为空"))
 
-        if not self.metric_data_label_pattern.match(data_label):
-            raise CustomValidationLabelError(msg=_("自定义指标英文名仅允许包含字母、数字、下划线，且必须以字母开头"))
-
-        # 内置指标，不做校验
-        if params["bk_biz_id"] == 0:
-            return True
-
-        queryset = CustomTSTable.objects.filter(
-            Q(bk_biz_id=params["bk_biz_id"]) | Q(is_platform=True),
-            data_label=data_label,
-            bk_tenant_id=get_request_tenant_id(),
-        )
-        if params.get("time_series_group_id"):
-            queryset = queryset.exclude(time_series_group_id=params["time_series_group_id"])
-
-        if queryset.exists():
-            raise CustomValidationLabelError(msg=_("自定义指标英文名已存在"))
-
+        data_labels = params["data_label"].strip().split(",")
+        for dl in data_labels:
+            if not self.metric_data_label_pattern.match(dl):
+                raise CustomValidationLabelError(
+                    msg=_("自定义指标英文名仅允许包含字母、数字、下划线，且必须以字母开头")
+                )
+        params["data_label"] = ",".join(data_labels)
         return True
 
 
