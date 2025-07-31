@@ -2,7 +2,7 @@ import copy
 import logging
 import re
 from collections import defaultdict
-from functools import lru_cache, reduce
+from functools import reduce
 
 from django.conf import settings
 from django.core.paginator import Paginator
@@ -704,14 +704,7 @@ class ValidateCustomTsGroupLabel(Resource):
         time_series_group_id = serializers.IntegerField(required=False)
         data_label = serializers.CharField(required=True)
 
-    @property
-    @lru_cache(maxsize=1)
-    def metric_data_label_pattern(self):
-        """
-        获取自定义指标数据名称的正则表达式
-        自定义指标数据名称仅允许包含字母、数字、下划线，且必须以字母开头
-        """
-        return re.compile(r"^[a-zA-Z][a-zA-Z0-9_]*$")
+    METRIC_DATA_LABEL_PATTERN = re.compile(r"^[a-zA-Z][a-zA-Z0-9_\.]*$")
 
     def perform_request(self, params: dict):
         if params["data_label"].strip() == "":
@@ -719,9 +712,9 @@ class ValidateCustomTsGroupLabel(Resource):
 
         data_labels = params["data_label"].strip().split(",")
         for dl in data_labels:
-            if not self.metric_data_label_pattern.match(dl):
+            if not self.METRIC_DATA_LABEL_PATTERN.match(dl):
                 raise CustomValidationLabelError(
-                    msg=_("自定义指标英文名仅允许包含字母、数字、下划线，且必须以字母开头")
+                    msg=_("自定义指标英文名仅允许包含字母、数字、下划线、点号，且必须以字母开头")
                 )
         params["data_label"] = ",".join(data_labels)
         return True
