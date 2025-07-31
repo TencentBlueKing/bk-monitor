@@ -167,6 +167,8 @@ class ProcessPluginManager(BuiltInPluginManager):
         self.access(bk_biz_id)
 
     def get_data_id(self, bk_biz_id: int, ts_name: str):
+        if bk_biz_id not in settings.PROCESS_INDEPENDENT_DATAID_BIZ_IDS:
+            bk_biz_id = 0
         data_name = resource.custom_report.create_custom_time_series.data_name(bk_biz_id, f"process_{ts_name}")
         return api.metadata.get_data_id({"data_name": data_name, "with_rt_info": False})["bk_data_id"]
 
