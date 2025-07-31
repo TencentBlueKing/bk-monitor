@@ -308,25 +308,9 @@ export default defineComponent({
         fixed: 'left',
         renderBodyCell: ({ row }) => {
           const config: RowConfig = tableRowConfig.get(row).value;
-
-          const hanldeExpandClick = event => {
-            event.stopPropagation();
-            event.preventDefault();
-            event.stopImmediatePropagation();
-
-            config.expand = !config.expand;
-            nextTick(() => {
-              if (config.expand) {
-                hanldeAfterExpandClick(event.target);
-              }
-            });
-          };
-
           return (
             <span
-              class={['bklog-expand-icon', { 'is-expaned': config.expand }]}
-              onClick={hanldeExpandClick}
-            >
+              class={['bklog-expand-icon', { 'is-expaned': config.expand }]}>
               <i
                 style={{ color: '#4D4F56', fontSize: '9px' }}
                 class='bk-icon icon-play-shape'
@@ -870,28 +854,17 @@ export default defineComponent({
       ];
     };
 
-    // 获取点击位置在节点中的偏移量
-    const getClickOffset = (event, node) => {
-      if (node.nodeType === Node.TEXT_NODE) {
-        // 对于文本节点，计算点击位置的字符偏移
-        const range = document.caretRangeFromPoint(event.clientX, event.clientY);
-        return range.startOffset;
-      } else {
-          // 对于元素节点，可能需要更复杂的处理
-          return 0; // 简化处理，实际可能需要更精确的计算
-      }
-    }
 
-    const handleRowClick = (e: MouseEvent, item: any) => {
-      const selection = window.getSelection();
+    const handleRowMouseup = (e: MouseEvent, item: any) => {
+      if (RetrieveHelper.isClickOnSelection(e, 1)) {
+        RetrieveHelper.stopEventPropagation(e);
+        return;
+      }
+      
       const target = e.target as HTMLElement;
       const expandCell = target.closest('.bklog-row-observe')?.querySelector('.expand-view-wrapper');
 
-      if (
-        target.classList.contains('valid-text') ||
-        expandCell?.contains(target) ||
-        (selection && !selection.isCollapsed && target.contains(selection.anchorNode))
-      ) {
+      if (target.classList.contains('valid-text') || expandCell?.contains(target)) {
         return;
       }
 
@@ -904,33 +877,6 @@ export default defineComponent({
       });
     };
 
-    const handleRowMousedown = (event: MouseEvent, item: any) => {
-      const selection = window.getSelection();
-    
-      // 检查是否有选中的文本
-      if (selection && !selection.isCollapsed) {
-          // 获取选中范围
-          const range = selection.getRangeAt(0);
-          
-          // 检查点击位置是否在选中范围内
-          const clickNode = event.target as Node;
-          const clickOffset = getClickOffset(event, clickNode);
-          
-          // 创建临时范围用于比较
-          const tempRange = document.createRange();
-          tempRange.selectNode(clickNode);
-          
-          // 比较点击位置和选中范围
-          if (
-              range.comparePoint(clickNode, clickOffset) >= 0 && 
-              range.comparePoint(clickNode, clickOffset) <= 0
-          ) {
-              // 点击在选中范围内，阻止默认行为
-              event.preventDefault();
-          }
-      }
-    };
-
     const renderRowVNode = () => {
       return renderList.map((row, rowIndex) => {
         const logLevel = gradeOption.value.disabled ? '' : RetrieveHelper.getLogLevel(row.item, gradeOption.value);
@@ -940,8 +886,7 @@ export default defineComponent({
             key={row[ROW_KEY]}
             class={['bklog-row-container', logLevel ?? 'normal']}
             row-index={rowIndex}
-            on-row-click={e => handleRowClick(e, row.item)}
-            on-row-mousedown={e => handleRowMousedown(e, row.item)}
+            on-row-mouseup={e => handleRowMouseup(e, row.item)}
           >
             {renderRowCells(row.item, rowIndex)}
           </RowRender>,

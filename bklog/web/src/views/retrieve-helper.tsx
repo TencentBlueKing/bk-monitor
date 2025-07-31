@@ -66,6 +66,71 @@ class RetrieveHelper extends RetrieveBase {
   }
 
   /**
+ * 判断当前鼠标点击位置是否在选中的文本区域
+ * 需要根据当前鼠标点击位置和当前选中文本区域进行对比
+ * 考虑文本换行，选择区域范围折行的区域需要进行详细判定
+ * @param e 鼠标事件
+ * @param lineSpacing 行间距，默认为0，如果 > 0，点击位置在行间距内也判定为点击在选择区域内
+ */
+  isClickOnSelection (e: MouseEvent, lineSpacing: number = 0) {
+    const selection = window.getSelection();
+    
+    // 如果没有选中文本，直接返回 false
+    if (!selection || selection.isCollapsed) {
+      return false;
+    }
+
+    const rangeCount = selection.rangeCount;
+    if (rangeCount === 0) {
+      return false;
+    }
+
+    // 获取鼠标点击位置
+    const clickPoint = {
+      x: e.clientX,
+      y: e.clientY
+    };
+
+    // 遍历所有选中的范围
+    for (let i = 0; i < rangeCount; i++) {
+      const range = selection.getRangeAt(i);
+      
+      // 获取范围的边界矩形
+      const rects = range.getClientRects();
+      
+      // 检查鼠标点击位置是否在任何一个矩形内
+      for (let j = 0; j < rects.length; j++) {
+        const rect = rects[j];
+        
+        // 检查点击位置是否在矩形范围内（包含行间距）
+        const expandedTop = rect.top - lineSpacing;
+        const expandedBottom = rect.bottom + lineSpacing;
+        
+        if (
+          clickPoint.x >= rect.left &&
+          clickPoint.x <= rect.right &&
+          clickPoint.y >= expandedTop &&
+          clickPoint.y <= expandedBottom
+        ) {
+          return true;
+        }
+      }
+    }
+
+    return false;
+  }
+
+  /**
+   * 阻止事件传播
+   * @param e 鼠标事件
+   */
+  stopEventPropagation(e: MouseEvent) {
+    e.preventDefault();
+    e.stopImmediatePropagation();
+    e.stopPropagation();
+  }
+
+  /**
    * 设置查询状态
    * @param isSearching
    */
