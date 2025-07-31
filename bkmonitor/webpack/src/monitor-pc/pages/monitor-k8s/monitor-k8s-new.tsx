@@ -402,6 +402,7 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
       this.initFilterBy();
       this.initGroupBy();
     }
+    this.getHideMetrics();
     this.getScenarioMetricList();
     this.setRouteParams();
     this.showCancelDrill = false;
