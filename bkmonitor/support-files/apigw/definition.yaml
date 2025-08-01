@@ -83,13 +83,13 @@ grant_permissions:
   - bk_app_code: bk_apigateway
     grant_dimension: "resource"
     resource_names:
-      - promql_query
+      - graph_promql_query
   - bk_app_code: bk_bcs_app
     grant_dimension: "resource"
     resource_names:
       - metadata_create_space
       - metadata_list_spaces
-      - promql_query
+      - graph_promql_query
       - query_bcs_metrics
       - metadata_query_bcs_related_data_link_info
       - metadata_query_data_source
