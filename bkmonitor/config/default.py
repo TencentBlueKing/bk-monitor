@@ -1399,9 +1399,6 @@ BCS_APIGW_BASE_URL = os.getenv("BKAPP_BCS_APIGW_BASE_URL", "")
 # 获取指标的间隔时间，默认为 2 hour
 FETCH_TIME_SERIES_METRIC_INTERVAL_SECONDS = 7200
 
-# 是否启用 metadata 新功能
-IS_ENABLE_METADATA_FUNCTION_CONTROLLER = True
-
 # 自定义指标过期时间
 TIME_SERIES_METRIC_EXPIRED_SECONDS = 30 * 24 * 3600
 
@@ -1460,6 +1457,8 @@ ENABLE_V2_BKDATA_GSE_RESOURCE = False
 # 是否启用新版的 vm 链路，默认不启用
 ENABLE_V2_VM_DATA_LINK = False
 ENABLE_V2_VM_DATA_LINK_CLUSTER_ID_LIST = []
+# 插件数据是否启用接入V4链路
+ENABLE_PLUGIN_ACCESS_V4_DATA_LINK = os.getenv("ENABLE_PLUGIN_ACCESS_V4_DATA_LINK", "false").lower() == "true"
 
 # 是否启用计算平台Kafka采样接口
 ENABLE_BKDATA_KAFKA_TAIL_API = False
@@ -1647,3 +1646,6 @@ ENABLE_AIOPS_EVENT_CENTER_BIZ_LIST = []
 
 # 用户管理web api地址
 BK_USER_WEB_API_URL = os.getenv("BK_USER_WEB_API_URL") or f"{BK_COMPONENT_API_URL}/api/bk-user-web/prod/"
+
+# 进程采集独立数据源模式业务ID列表
+PROCESS_INDEPENDENT_DATAID_BIZ_IDS = []

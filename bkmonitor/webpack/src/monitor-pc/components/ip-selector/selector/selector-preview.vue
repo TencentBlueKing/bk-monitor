@@ -25,9 +25,9 @@
 -->
 <template>
   <div
+    v-show="isNaN(preWidth) || preWidth > 0"
     class="selector-preview"
     :style="{ width: isNaN(preWidth) ? preWidth : `${preWidth}px` }"
-    v-show="isNaN(preWidth) || preWidth > 0"
   >
     <div class="selector-preview-title">
       <slot name="title">
@@ -38,10 +38,10 @@
       <bk-collapse v-model="activeName">
         <bk-collapse-item
           v-for="item in data"
+          v-show="item.data && item.data.length"
           :key="item.id"
           :name="item.id"
           hide-arrow
-          v-show="item.data && item.data.length"
         >
           <template #default>
             <div class="collapse-title">
@@ -85,8 +85,8 @@
                     {{ child[item.dataNameKey] || child.name || '--' }}
                   </span>
                   <span
-                    class="right"
                     v-show="hoverChild === child"
+                    class="right"
                     @click="removeNode(child, item)"
                   >
                     <i class="bk-icon icon-close-line" />
@@ -109,6 +109,7 @@ import { Component, Emit, Prop, Vue, Watch } from 'vue-property-decorator';
 
 import { Debounce } from '../common/util';
 import Menu from '../components/menu.vue';
+
 import type { IMenu, IPerateFunc, IPreviewData } from '../types/selector-type';
 
 // 预览区域
@@ -319,7 +320,7 @@ export default class SelectorPreview extends Vue {
         line-height: 32px;
         background: #fff;
         border-radius: 2px;
-        box-shadow: 0px 1px 2px 0px rgba(0, 0, 0, .06);
+        box-shadow: 0px 1px 2px 0px rgba(0, 0, 0, 0.06);
 
         .left {
           overflow: hidden;
@@ -341,7 +342,7 @@ export default class SelectorPreview extends Vue {
 
     .icon-angle-right {
       font-size: 24px;
-      transition: transform .2s ease-in-out;
+      transition: transform 0.2s ease-in-out;
 
       &.expand {
         transform: rotate(90deg);

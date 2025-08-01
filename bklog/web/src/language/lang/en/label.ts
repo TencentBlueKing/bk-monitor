@@ -819,5 +819,7 @@ export default {
     'It will keep the time like "last xxx" and load it according to the visitor\'s last xxx time',
   临时分享: 'Temporary Share',
   分享: 'Share',
-  综合时间排序:'Comprehensive Time Sorting',
+  综合时间排序: 'Comprehensive Time Sorting',
+  日志排序: 'Log Sorting',
+  '已选择{0}个动态组': 'Selected {0} dynamic groups',
 };

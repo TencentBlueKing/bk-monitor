@@ -46,18 +46,18 @@
       />
     </selector-tab>
     <div
-      class="preview-toggle"
       v-if="width === 0"
+      class="preview-toggle"
     >
       <div
-        class="open-preview"
         v-bk-tooltips="{
           content: $t('点击展开'),
           showOnInit: true,
           placements: ['left'],
           delay: 300,
-          boundary: 'window'
+          boundary: 'window',
         }"
+        class="open-preview"
         @click.stop="handleResetWidth"
       >
         <i class="bk-icon icon-angle-left" />
@@ -65,8 +65,8 @@
     </div>
     <selector-preview
       v-else
-      class="ip-selector-right"
       ref="preview"
+      class="ip-selector-right"
       :width.sync="width"
       :range="previewRange"
       :data="previewData"
@@ -83,6 +83,7 @@ import { Component, Emit, Prop, Ref, Vue, Watch } from 'vue-property-decorator';
 import SelectorContent from './selector/selector-content.vue';
 import SelectorPreview from './selector/selector-preview.vue';
 import SelectorTab from './selector/selector-tab.vue';
+
 import type { IEventsMap, IMenu, IPanel, IPerateFunc, IPreviewData } from './types/selector-type';
 
 @Component({
@@ -153,7 +154,7 @@ export default class IpSelector extends Vue {
   }
   // 预览面板操作(移除IP、复制IP等操作)
   @Emit('menu-click')
-  private handlePreviewMenuClick({ menu, item }: { menu: IMenu; item: IPreviewData }) {
+  private handlePreviewMenuClick({ menu, item }: { item: IPreviewData; menu: IMenu }) {
     return {
       menu,
       item,
@@ -167,7 +168,7 @@ export default class IpSelector extends Vue {
       item,
     };
   }
-  // eslint-disable-next-line @typescript-eslint/member-ordering
+
   public handleGetDefaultSelections() {
     try {
       (this.$refs.content as any).handleGetDefaultSelections();

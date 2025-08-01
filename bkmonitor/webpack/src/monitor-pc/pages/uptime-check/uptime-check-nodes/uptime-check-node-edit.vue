@@ -25,8 +25,8 @@
 -->
 <template>
   <div
-    class="node-edit"
     v-bkloading="{ isLoading: isInitLoading }"
+    class="node-edit"
   >
     <div v-if="isShow">
       <div class="node-edit-item">
@@ -37,9 +37,9 @@
           <div class="business-container">
             <verify-input :show-validate.sync="rules.bk_biz_id.validate">
               <bk-select
+                v-model="node.bk_biz_id"
                 :style="{ background: canSelectBusiness ? '#fafafa' : '#FFFFFF' }"
                 class="business-select"
-                v-model="node.bk_biz_id"
                 :clearable="false"
                 :disabled="canSelectBusiness"
                 :list="businessList"
@@ -106,8 +106,8 @@
         <div class="item-container">
           <div class="area-container">
             <bk-select
-              class="area-select"
               v-model="node.country"
+              class="area-select"
               :placeholder="$t('选择国家')"
               searchable
               @change="handleCountryChange"
@@ -124,8 +124,8 @@
               </bk-option>
             </bk-select>
             <bk-select
-              class="area-select"
               v-model="node.city"
+              class="area-select"
               :placeholder="$t('选择省份')"
               searchable
             >
@@ -137,8 +137,8 @@
               />
             </bk-select>
             <svg
-              class="hint-icon"
               v-bk-tooltips.right="$t('从配置平台过滤地区和运营商')"
+              class="hint-icon"
               viewBox="0 0 64 64"
             >
               <g>
@@ -178,8 +178,8 @@
             >
               <bk-radio
                 v-for="(item, index) in operatorList"
-                class="operator-radio"
                 :key="index"
+                class="operator-radio"
                 :value="item.cn"
               >
                 {{ isEn ? item.en : item.cn }}
@@ -197,8 +197,8 @@
                   >
                     <bk-input
                       ref="operatorInput"
-                      class="operator-input"
                       v-model.trim="customCarrieroperator"
+                      class="operator-input"
                       @blur="validateField(node.carrieroperator, rules.carrieroperator)"
                       @focus="handleOperatorFocus(...arguments, $event)"
                       @input="handleOperatorInput"
@@ -255,8 +255,8 @@
         <div class="item-label" />
         <div class="item-container">
           <bk-button
-            class="button-submit"
             v-authority="{ active: !authority.MANAGE_AUTH }"
+            class="button-submit"
             :disabled="isSubmitLoading"
             :icon="isSubmitLoading ? 'loading' : ''"
             theme="primary"
@@ -283,21 +283,21 @@
         class="operator-popover-container"
       >
         <ul
-          class="operator-popover"
           v-show="filterCustomOperatorList.length"
+          class="operator-popover"
         >
           <li
             v-for="item in filterCustomOperatorList"
-            class="operator-popover-item"
             :key="item"
+            class="operator-popover-item"
             @click.stop="handleOperatorOptClick(item)"
           >
             <span class="item-text">{{ item }}</span>
           </li>
         </ul>
         <div
-          class="no-data"
           v-show="!filterCustomOperatorList.length"
+          class="no-data"
         >
           {{ $t('无匹配选项') }}
         </div>

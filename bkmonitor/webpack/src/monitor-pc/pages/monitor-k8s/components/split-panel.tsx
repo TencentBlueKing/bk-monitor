@@ -34,43 +34,43 @@ import { LANGUAGE_COOKIE_KEY } from 'monitor-common/utils';
 import bus from 'monitor-common/utils/event-bus';
 import { docCookies, random } from 'monitor-common/utils/utils';
 import { DEFAULT_METHOD } from 'monitor-ui/chart-plugins/constants';
-import { BookMarkModel, type IPanelModel, type IViewOptions } from 'monitor-ui/chart-plugins/typings';
+import { type IPanelModel, type IViewOptions, BookMarkModel } from 'monitor-ui/chart-plugins/typings';
 
 import FilterVarSelectGroup from '../../monitor-k8s/components/filter-var-select/filter-var-select-group';
 import GroupSelect from '../../monitor-k8s/components/group-select/group-select';
-import { SPLIT_MAX_WIDTH, SPLIT_MIN_WIDTH, SPLIT_PANEL_LIST, type SceneType, type SplitPanelModel } from '../typings';
+import { type SceneType, type SplitPanelModel, SPLIT_MAX_WIDTH, SPLIT_MIN_WIDTH, SPLIT_PANEL_LIST } from '../typings';
 
 import type { IntervalType } from '../../../components/cycle-input/typings';
 import type { FilterDictType } from '../../performance/performance-detail/host-tree/host-tree';
 
 import './split-panel.scss';
 
-interface ISplitPanelProps {
-  // 分屏最大宽度
-  splitMaxWidth?: number;
-  // 分屏最小宽度
-  splitMinWidth?: number;
-  // 主框架上的menu是否缩进
-  toggleSet?: boolean;
-  // 是否需要拖拽
-  needDrag?: boolean;
-  // 默认分屏关联页面
-  defaultRelated?: string;
-  // 默认分屏dashboard ID
-  dashboardId?: string;
-  // 默认viewOptions
-  defaultViewOptions?: IViewOptions;
-  // 初始分屏宽度
-  splitWidth?: number;
-  // 图表布局
-  columns?: number;
-}
+type IDashbordMode = 'chart' | 'list';
 interface ISplitPanelEvent {
   // 拖拽时触发事件
   onDragMove: number;
 }
 
-type IDashbordMode = 'chart' | 'list';
+interface ISplitPanelProps {
+  // 图表布局
+  columns?: number;
+  // 默认分屏dashboard ID
+  dashboardId?: string;
+  // 默认分屏关联页面
+  defaultRelated?: string;
+  // 默认viewOptions
+  defaultViewOptions?: IViewOptions;
+  // 是否需要拖拽
+  needDrag?: boolean;
+  // 分屏最大宽度
+  splitMaxWidth?: number;
+  // 分屏最小宽度
+  splitMinWidth?: number;
+  // 初始分屏宽度
+  splitWidth?: number;
+  // 主框架上的menu是否缩进
+  toggleSet?: boolean;
+}
 @Component({
   components: {
     Event: () => import('fta-solutions/pages/event/event'),

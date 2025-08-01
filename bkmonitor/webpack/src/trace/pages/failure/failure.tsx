@@ -25,29 +25,29 @@
  */
 import {
   computed,
+  ref as deepRef,
   defineComponent,
+  nextTick,
+  onBeforeUnmount,
   onMounted,
   provide,
-  nextTick,
-  ref as deepRef,
-  onBeforeUnmount,
-  watch,
   shallowRef,
+  watch,
 } from 'vue';
-import { useI18n } from 'vue-i18n';
-import { useRoute, useRouter } from 'vue-router';
 
 import { ResizeLayout } from 'bkui-vue';
 import dayjs from 'dayjs';
 import { alertTopN, listAlertTags } from 'monitor-api/modules/alert';
 import {
   incidentDetail,
-  incidentOperationTypes,
   incidentOperations,
+  incidentOperationTypes,
   incidentResults,
 } from 'monitor-api/modules/incident';
-import { LANGUAGE_COOKIE_KEY, docCookies } from 'monitor-common/utils';
-import type { IAlertObj, IAlert, IAlertData } from './types';
+import { docCookies, LANGUAGE_COOKIE_KEY } from 'monitor-common/utils';
+import { useI18n } from 'vue-i18n';
+import { useRoute, useRouter } from 'vue-router';
+
 import FailureContent from './failure-content/failure-content';
 import FailureHeader from './failure-header/failure-header';
 import FailureNav from './failure-nav/failure-nav';
@@ -55,6 +55,7 @@ import { replaceStr, typeTextMap } from './failure-process/process';
 import FailureTags from './failure-tags/failure-tags';
 import { useIncidentProvider } from './utils';
 
+import type { IAlert, IAlertData, IAlertObj } from './types';
 import type { IFilterSearch, IIncident } from './types';
 import type { ITagInfoType } from './types';
 import type { AnlyzeField, ICommonItem } from 'fta-solutions/pages/event/typings/event';
@@ -456,13 +457,13 @@ export default defineComponent({
               <FailureContent
                 ref='refContent'
                 alertAggregateData={this.treeDataList}
+                alertList={this.currentAlertList}
                 currentNode={this.currentNode}
                 filterSearch={this.filterSearch}
                 incidentDetail={this.incidentDetailData}
                 scrollTop={this.scrollTopNum}
                 onChangeSelectNode={this.handleChangeSelectNode}
                 onRefresh={this.refresh}
-                alertList={this.currentAlertList}
               />
             ),
           }}

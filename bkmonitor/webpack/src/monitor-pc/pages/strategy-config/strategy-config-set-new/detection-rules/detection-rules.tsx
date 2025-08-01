@@ -40,13 +40,13 @@ import TimeSeriesForecasting from '../../../../static/images/svg/time-series-for
 import YearRound from '../../../../static/images/svg/year-round.svg';
 import { createOnlyId } from '../../../../utils';
 import {
-  DetectionRuleTypeEnum,
+  type dataModeType,
+  type EditModeType,
   type ICommonItem,
   type IDetectionTypeItem,
   type IDetectionTypeRuleData,
   type MetricDetail,
-  type dataModeType,
-  type EditModeType,
+  DetectionRuleTypeEnum,
 } from '../typings/index';
 import RuleWrapper from './components/rule-wrapper/rule-wrapper';
 import RulesSelect from './rules-select';
@@ -58,28 +58,28 @@ import type { IModelData } from './components/time-series-forecast/time-series-f
 import './detection-rules.scss';
 
 interface IDetectionRules {
-  unit: string;
-  connector: string;
-  value?: any;
   backfillData?: any;
-  readonly?: boolean;
-  metricData: MetricDetail[];
-  unitType: string;
-  isEdit?: boolean;
+  connector: string;
   dataMode?: dataModeType;
-  needShowUnit: boolean;
-  isKpiAnomalySdkEnabled: boolean;
   dataTypeLabel?: string;
   editMode?: EditModeType;
   intelligentDetect: Map<IntelligentModelsType, Array<Record<string, any>>>;
+  isEdit?: boolean;
+  isKpiAnomalySdkEnabled: boolean;
+  metricData: MetricDetail[];
+  needShowUnit: boolean;
+  readonly?: boolean;
+  unit: string;
+  unitType: string;
+  value?: any;
 }
 interface IEvent {
-  onUnitChange?: string;
+  onAiopsTypeChange?: ChartType;
   onChange?: any;
   onConnectorChange?: string;
-  onAiopsTypeChange?: ChartType;
   onModelChange: IModelData[];
   onRuleClick: number;
+  onUnitChange?: string;
 }
 
 @Component({ name: 'DetectionRules' })

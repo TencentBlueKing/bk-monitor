@@ -129,18 +129,19 @@
 </template>
 
 <script lang="ts">
+import { Component, Vue } from 'vue-property-decorator';
+
 import { fetchBusinessInfo } from 'monitor-api/modules/commons';
 import { getUrlParam } from 'monitor-common/utils';
-import { Component, Vue } from 'vue-property-decorator';
+interface IGetAccess {
+  businessName: string; // 业务ID对应的业务名（URL带ID时找到对应业务）
+  operator: string[]; // 业务ID对应的运维人员ID（没有接入权限中心时URL带ID找到运维人员）
+  url: string; // 权限申请链接（接入权限中心时必填）
+}
 // 20231205 代码还原，先保留原有部分
 // import { showAccessRequest } from '../../components/access-request-dialog';
 interface INewBusiness {
   url: string;
-}
-interface IGetAccess {
-  url: string; // 权限申请链接（接入权限中心时必填）
-  businessName: string; // 业务ID对应的业务名（URL带ID时找到对应业务）
-  operator: string[]; // 业务ID对应的运维人员ID（没有接入权限中心时URL带ID找到运维人员）
 }
 @Component({ name: 'NoBusiness' })
 export default class NoBusiness extends Vue {

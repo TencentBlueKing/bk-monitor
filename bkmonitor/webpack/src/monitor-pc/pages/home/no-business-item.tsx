@@ -39,9 +39,9 @@ interface IData {
   id: number | string;
   name: string;
   space_info?: {
-    space_type_id?: string;
     space_code?: any;
     space_id?: string;
+    space_type_id?: string;
   };
 }
 

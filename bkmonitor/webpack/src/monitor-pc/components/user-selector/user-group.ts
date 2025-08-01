@@ -24,9 +24,9 @@
  * IN THE SOFTWARE.
  */
 export interface IUserGroup {
+  hidden?: boolean;
   id: string;
   name: string;
-  hidden?: boolean;
   members: {
     id: string;
     name: string;

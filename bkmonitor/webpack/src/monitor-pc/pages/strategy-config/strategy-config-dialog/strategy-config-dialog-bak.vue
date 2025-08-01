@@ -83,9 +83,9 @@
             path="在{0}个周期内{1}满足{2}次检测算法触发异常告警"
           >
             <bk-input
+              v-model="data.triggerCondition.cycleOne"
               behavior="simplicity"
               class="number-input w56"
-              v-model="data.triggerCondition.cycleOne"
               type="number"
               :show-controls="false"
               :min="1"
@@ -106,9 +106,9 @@
               />
             </bk-select>
             <bk-input
+              v-model="data.triggerCondition.count"
               behavior="simplicity"
               class="number-input w56"
-              v-model="data.triggerCondition.count"
               type="number"
               :show-controls="false"
               :min="1"
@@ -151,9 +151,9 @@
         <div class="alarm-interval">
           {{ $t('若告警未恢复并且未确认，则每隔') }}
           <bk-input
+            v-model="data.notice.val"
             behavior="simplicity"
             class="number-input"
-            v-model="data.notice.val"
             type="number"
             :show-controls="false"
             :min="1"
@@ -183,8 +183,8 @@
               theme="primary"
             />
             <bk-input
-              behavior="simplicity"
               v-model="data.noDataAlarm.cycle"
+              behavior="simplicity"
               :disabled="!data.openAlarmNoData"
               class="number-input"
               type="number"

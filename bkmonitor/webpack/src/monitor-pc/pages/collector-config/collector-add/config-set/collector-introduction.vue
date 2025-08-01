@@ -76,8 +76,8 @@
         </div>
         <div
           v-for="item in introduction.osTypeList"
-          class="desc-tag"
           :key="item"
+          class="desc-tag"
         >
           <i :class="['icon-monitor tag-icon', `icon-${item}`]" />
           <span class="tag-text">{{ item }}</span>

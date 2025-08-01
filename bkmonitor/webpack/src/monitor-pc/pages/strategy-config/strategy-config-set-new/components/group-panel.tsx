@@ -31,14 +31,14 @@ import type { TranslateResult } from 'vue-i18n';
 import './group-panel.scss';
 
 interface IGroupPanelProps {
-  title?: TranslateResult | string;
-  subtitle?: TranslateResult | string;
-  showExpand?: boolean;
-  expand?: boolean;
   defaultExpand?: boolean;
-  readonly?: boolean;
-  validate?: boolean;
+  expand?: boolean;
   isPackUp?: boolean;
+  readonly?: boolean;
+  showExpand?: boolean;
+  subtitle?: string | TranslateResult;
+  title?: string | TranslateResult;
+  validate?: boolean;
 }
 @Component({ name: 'group-panel' })
 export default class GroupPanel extends tsc<IGroupPanelProps, { onExpand: { expand: boolean } }> {

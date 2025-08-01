@@ -23,12 +23,12 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { type PropType, type Ref, TransitionGroup, computed, defineComponent, inject, reactive, watch } from 'vue';
-import { useI18n } from 'vue-i18n';
+import { type PropType, type Ref, computed, defineComponent, inject, reactive, TransitionGroup, watch } from 'vue';
 
 import { Button, Input, Select } from 'bkui-vue';
 import { random } from 'lodash';
 import { isEn } from 'monitor-pc/i18n/lang';
+import { useI18n } from 'vue-i18n';
 
 import MemberSelect, { type TagItemModel } from '../../../components/member-select/member-select';
 import { RotationSelectTypeEnum } from '../typings/common';
@@ -40,8 +40,24 @@ import TimeTagPicker from './time-tag-picker';
 import WeekSelect from './week-select';
 
 import './replace-rotation-table-item.scss';
-type CustomTabType = 'classes' | 'duration';
-type WorkTimeType = 'datetime_range' | 'time_range';
+export interface ReplaceItemDataModel {
+  id?: number;
+  users: ReplaceRotationUsersModel;
+  date: {
+    /** 自定义：指定时长/指定班次 */
+    customTab: CustomTabType;
+    /** 自定义轮值有效日期 */
+    customWorkDays: number[];
+    /** 是否是自定义轮值类型 */
+    isCustom: boolean;
+    /** 单班时长 */
+    periodSettings: { duration: number; unit: 'day' | 'hour' };
+    type: RotationSelectTypeEnum;
+    value: ReplaceRotationDateModel[];
+    /** 每周、每月：时间范围/起止时间 */
+    workTimeType: WorkTimeType;
+  };
+}
 export interface ReplaceRotationDateModel {
   key: number;
   workDays?: number[];
@@ -50,27 +66,11 @@ export interface ReplaceRotationDateModel {
 export interface ReplaceRotationUsersModel {
   groupNumber?: number;
   groupType: 'auto' | 'specified';
-  value: { key: number; value: { type: 'group' | 'user'; id: string }[]; orderIndex: number }[];
+  value: { key: number; orderIndex: number; value: { id: string; type: 'group' | 'user' }[] }[];
 }
+type CustomTabType = 'classes' | 'duration';
 
-export interface ReplaceItemDataModel {
-  id?: number;
-  date: {
-    type: RotationSelectTypeEnum;
-    /** 每周、每月：时间范围/起止时间 */
-    workTimeType: WorkTimeType;
-    /** 是否是自定义轮值类型 */
-    isCustom: boolean;
-    /** 自定义：指定时长/指定班次 */
-    customTab: CustomTabType;
-    /** 自定义轮值有效日期 */
-    customWorkDays: number[];
-    /** 单班时长 */
-    periodSettings: { unit: 'day' | 'hour'; duration: number };
-    value: ReplaceRotationDateModel[];
-  };
-  users: ReplaceRotationUsersModel;
-}
+type WorkTimeType = 'datetime_range' | 'time_range';
 
 export default defineComponent({
   name: 'ReplaceRotationTableItem',
@@ -83,7 +83,7 @@ export default defineComponent({
   emits: ['change', 'drop'],
   setup(props, { emit }) {
     const { t } = useI18n();
-    const colorList = inject<{ value: string[]; setValue: (val: string[]) => void }>('colorList');
+    const colorList = inject<{ setValue: (val: string[]) => void; value: string[] }>('colorList');
 
     const defaultGroup = inject<Ref<any[]>>('defaultGroup');
     const labelWidth = computed(() => (isEn ? 110 : 70));

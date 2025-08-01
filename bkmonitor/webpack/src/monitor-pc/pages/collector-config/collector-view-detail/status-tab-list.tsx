@@ -28,23 +28,23 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import './status-tab-list.scss';
 
-interface ITab {
-  type: string;
-  name?: string;
-  tips?: string;
-  color?: string;
-}
 export interface IStatusData {
   [propsName: string]: { count?: number };
 }
-
-interface IStatusTablListProps {
-  type?: string;
-  statusData?: IStatusData;
-}
-
 interface IStatusTablListEvents {
   onChange?: string;
+}
+
+interface IStatusTablListProps {
+  statusData?: IStatusData;
+  type?: string;
+}
+
+interface ITab {
+  color?: string;
+  name?: string;
+  tips?: string;
+  type: string;
 }
 
 @Component({

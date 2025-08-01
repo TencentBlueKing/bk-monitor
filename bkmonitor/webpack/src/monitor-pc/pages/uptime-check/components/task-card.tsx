@@ -44,28 +44,28 @@ const contentItem = [
   { id: 'task_duration', alarmId: 'task_duration_alarm', unit: 'ms', name: window.i18n.t('平均响应时长') },
 ];
 
-interface ITaskCardProps {
-  data?: IData;
+export interface IData {
+  available?: number; // 可用率
+  available_alarm?: boolean; // 数字颜色是否变为红色
+  bk_biz_id?: number;
+  create_user?: string;
+  groups?: { id: number; name: string }[];
+  id?: number;
+  name?: string;
+  nodes?: { name?: string }[];
+  status?: string; // 状态
+  task_duration?: number; // 平均响应时长
+  task_duration_alarm?: boolean; // 数字颜色是否变为红色
+  url?: string[];
 }
 interface ITaskCardEvents {
-  onDragStatus?: IDragStatus;
   onCardClick?: number;
+  onDragStatus?: IDragStatus;
   onOperate?: IOptionTypes;
 }
 
-export interface IData {
-  id?: number;
-  name?: string;
-  url?: string[];
-  available?: number; // 可用率
-  available_alarm?: boolean; // 数字颜色是否变为红色
-  task_duration?: number; // 平均响应时长
-  task_duration_alarm?: boolean; // 数字颜色是否变为红色
-  status?: string; // 状态
-  bk_biz_id?: number;
-  groups?: { id: number; name: string }[];
-  nodes?: { name?: string }[];
-  create_user?: string;
+interface ITaskCardProps {
+  data?: IData;
 }
 @Component({
   name: 'TaskCard',

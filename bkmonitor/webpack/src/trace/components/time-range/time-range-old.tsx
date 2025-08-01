@@ -25,15 +25,15 @@
  */
 
 import { type PropType, defineComponent, ref, toRefs, watch } from 'vue';
-import { useI18n } from 'vue-i18n';
 
 import { Button, DatePicker, Input, Popover } from 'bkui-vue';
 import dayjs from 'dayjs';
+import { useI18n } from 'vue-i18n';
 
 import IconFont from '../icon-font/icon-font';
 import {
-  DEFAULT_TIME_RANGE,
   type TimeRangeType,
+  DEFAULT_TIME_RANGE,
   handleTransformTime,
   handleTransformToTimestamp,
   intTimestampStr,

@@ -34,11 +34,11 @@ import type { IDataRetrieval } from '../typings';
 
 import './expression-item.scss';
 
-interface IProps {
-  value: IDataRetrieval.IExpressionItem;
-}
 interface IEvents {
   onChange: IDataRetrieval.IExpressionItem;
+}
+interface IProps {
+  value: IDataRetrieval.IExpressionItem;
 }
 @Component
 export default class ExpressionItem extends tsc<IProps, IEvents> {

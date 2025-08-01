@@ -898,7 +898,6 @@ export default {
     handleExportMetric(cb) {
       typeof cb === 'function' &&
         cb(
-          // eslint-disable-next-line @typescript-eslint/no-unused-vars
           this.tableData
             .filter(item => item.table_name)
             .map(item => ({
