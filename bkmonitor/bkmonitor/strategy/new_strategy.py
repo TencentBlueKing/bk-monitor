@@ -80,6 +80,7 @@ from bkmonitor.strategy.serializers import (
     HostAnomalyDetectionSerializer,
     IntelligentDetectSerializer,
     MultivariateAnomalyDetectionSerializer,
+    NewSeriesSerializer,
     PrometheusTimeSeriesSerializer,
     QueryConfigSerializer,
     RingRatioAmplitudeSerializer,
@@ -929,6 +930,7 @@ class Algorithm(AbstractConfig):
     class Serializer(serializers.Serializer):
         AlgorithmSerializers = {
             "Threshold": partial(ThresholdSerializer, allow_empty=True),
+            "NewSeries": NewSeriesSerializer,
             "SimpleRingRatio": SimpleRingRatioSerializer,
             "AdvancedRingRatio": AdvancedRingRatioSerializer,
             "SimpleYearRound": SimpleYearRoundSerializer,
