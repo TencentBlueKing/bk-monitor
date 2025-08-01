@@ -17,28 +17,6 @@ from bkmonitor.utils.thread_backend import InheritParentThread, run_threads
 from core.drf_resource import resource
 import threading
 
-origin_requset = {
-    "bk_biz_id": 2,
-    "metric_type": "node",
-    "index_info": {
-        "index_type": "entity",    # 节点类型，需要带节点类型和节点name
-        "entity_type": "BkNodeHost",
-        "entity_name": "bkbase-datahubapi-676596b8b-ft2fk",
-        "is_anomaly": True,
-        "service_name": "cmdb_apiserver",
-        "app_name": "bk_cmdb",
-        "bcs_cluster_id": "BCS-K8S-00000",
-        "namespace": "blueking|bkbase|bkbase-flink",
-        "pod_name": "bk-datalink-transfer-bklog-sz-1-76bc5df79b-m7gzx",
-        "container_name": "POD",
-        "bk_target_ip": "9.146.100.255",
-        "bk_target_cloud_id": 0,
-    },
-    "start_time": 1754045214,
-    "end_time": 1754048814
-}
-
-
 class IncidentMetricsSearchResource(Resource):
     """
     故障告警指标查询接口
