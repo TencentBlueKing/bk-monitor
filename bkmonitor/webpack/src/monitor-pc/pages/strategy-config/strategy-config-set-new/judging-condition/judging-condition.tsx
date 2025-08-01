@@ -218,7 +218,6 @@ export default class JudgingCondition extends tsc<Idata, IEvent> {
     /* 策略编辑页的情况下不重置以下字段 */
     if (v) {
       if (!this.isStrategyEdit || this.isAddOnlyAiDetectRule) {
-        console.log('asdfasdfasdfasfasdfasd');
         this.localData.triggerConfig.checkWindow = 5;
         this.localData.triggerConfig.count = 1;
         this.localData.recoveryConfig.checkWindow = 5;
