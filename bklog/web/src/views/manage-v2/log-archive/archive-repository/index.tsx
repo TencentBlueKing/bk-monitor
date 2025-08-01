@@ -377,7 +377,7 @@ export default defineComponent({
           onHandleCancelSlider={handleCancelSlider}
           onHandleUpdatedTable={handleUpdatedTable}
           editClusterId={editClusterId.value}
-          show-slider={showSlider.value}
+          showSlider={showSlider.value}
         />
       </section>
     );
