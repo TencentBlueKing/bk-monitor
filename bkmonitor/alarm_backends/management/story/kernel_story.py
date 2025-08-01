@@ -12,13 +12,25 @@ import datetime
 import json
 import time
 from collections import defaultdict
+from typing import cast
 
 import arrow
 from django.conf import settings
 from kafka import KafkaConsumer, TopicPartition
 
 from alarm_backends.core.cache import key as cache_key
+from alarm_backends.core.cache.cmdb import (
+    BusinessManager,
+    HostManager,
+    ModuleManager,
+    ServiceInstanceManager,
+    ServiceTemplateManager,
+    SetManager,
+    SetTemplateManager,
+    TopoManager,
+)
 from alarm_backends.core.cache.cmdb.base import CMDBCacheManager
+from alarm_backends.core.cache.cmdb.host import HostAgentIDManager, HostIPManager
 from alarm_backends.core.cache.key import ALERT_HOST_DATA_ID_KEY
 from alarm_backends.core.cache.strategy import StrategyCacheManager
 from alarm_backends.core.storage.kafka import KafkaQueue
@@ -75,8 +87,9 @@ class PollEventDelayCheck(CheckStep):
 
     def check(self):
         threshold = 100000
-        from alarm_backends.service.access.event.event_poller import EventPoller
         from kafka.structs import TopicPartition
+
+        from alarm_backends.service.access.event.event_poller import EventPoller
 
         ep = EventPoller()
         consumer = ep.get_consumer()
@@ -147,37 +160,48 @@ class CacheCronJobCheck(CheckStep):
     name = "check cron job cache"
 
     def check(self):
-        cache = Cache("cache-cmdb")
         p_list = []
+
         # 1. cmdb
-        cmdb_cache_types = [
-            "host",
-            "service_instance",
-            "agent_id",
-            "host_ip",
-            "service_template",
-            "business",
-            "set_template",
-            "set",
-            "module",
-            "topo",
+        cmdb_cache_managers: list[type[CMDBCacheManager]] = [
+            HostManager,
+            ServiceInstanceManager,
+            HostAgentIDManager,
+            HostIPManager,
+            ServiceTemplateManager,
+            BusinessManager,
+            SetTemplateManager,
+            SetManager,
+            ModuleManager,
+            TopoManager,
         ]
-        for cmdb_cache_type in cmdb_cache_types:
-            key = f"{cache_key.KEY_PREFIX}.cache.cmdb.{cmdb_cache_type}"
-            ttl = cache.ttl(key)
+        bk_tenant_ids = [tenant["id"] for tenant in api.bk_login.list_tenant()]
+        for cmdb_cache_manager in cmdb_cache_managers:
+            cache_type = cmdb_cache_manager.cache_type
 
-            if not ttl:
-                p = CMDBCacheCronError(f"cmdb缓存任务{cmdb_cache_type}未正常运行, key: {key}", self.story)
-                p_list.append(p)
-                continue
+            # 检查所有租户的缓存
+            for bk_tenant_id in bk_tenant_ids:
+                key = cmdb_cache_manager.get_cache_key(bk_tenant_id)
+                ttl = cast(int, cmdb_cache_manager.cache.ttl(key))
 
-            last_cache_duration = CMDBCacheManager.CACHE_TIMEOUT - ttl
-            if last_cache_duration > 6 * 60 * 60:
-                p = CMDBCacheCronError(f"cmdb缓存任务{cmdb_cache_type}在6小时内未刷新, key: {key}", self.story)
-                p_list.append(p)
-                continue
+                # 如果缓存不存在，则认为缓存任务未正常运行
+                if ttl < 0:
+                    p = CMDBCacheCronError(
+                        f"cmdb缓存任务{cache_type}未正常运行, 租户: {bk_tenant_id}, key: {key}", self.story
+                    )
+                    p_list.append(p)
+                    continue
 
-            self.story.info(f"cmdb cron job {cmdb_cache_type} executed {last_cache_duration}s ago!")
+                # 检查缓存是否在6小时内未刷新
+                last_cache_duration = CMDBCacheManager.CACHE_TIMEOUT - ttl
+                if last_cache_duration > 6 * 60 * 60:
+                    p = CMDBCacheCronError(
+                        f"cmdb缓存任务{cache_type}在6小时内未刷新, 租户: {bk_tenant_id}, key: {key}", self.story
+                    )
+                    p_list.append(p)
+                    continue
+
+                self.story.info(f"cmdb cron job {cache_type} executed {last_cache_duration}s ago!")
 
         # 2. strategy
         # 随机抽取一条策略缓存
@@ -243,12 +267,12 @@ class DurationSpace(CheckStep):
                 start_time=now_ts.replace(minutes=-1).timestamp * 1000, end_time=now_ts.timestamp * 1000
             )
         except Exception as e:
-            return APIERROR("UnifyQuery.query_data Error: %s" % e, self.story)
+            return APIERROR(f"UnifyQuery.query_data Error: {e}", self.story)
 
         duration = time.time() - start
         if duration > self.warning_duration:
-            return APIPending("api worker duration cost %s" % duration, self.story)
-        self.story.info("api worker duration cost %s" % duration)
+            return APIPending(f"api worker duration cost {duration}", self.story)
+        self.story.info(f"api worker duration cost {duration}")
 
         if records and records[0]["_result_"] == 0:
             # 尝试从kafka拉取最新的一条数据。
@@ -268,7 +292,7 @@ class DurationSpace(CheckStep):
         }
         kafka_queue = KafkaQueue(kfk_conf=kfk_conf)
         try:
-            kafka_queue.set_topic(topic, group_prefix="%s.healthz.0" % get_local_ip())
+            kafka_queue.set_topic(topic, group_prefix=f"{get_local_ip()}.healthz.0")
             kafka_queue.reset_offset()
             result = kafka_queue.take(count=1, timeout=5)
             if not result:
@@ -285,7 +309,7 @@ class DurationSpace(CheckStep):
         message = result[0]
         raw_data = json.loads(message[:-1] if message[-1] == "\x00" or message[-1] == "\n" else message)
         report_time = raw_data["data"]["utctime"]
-        d = datetime.datetime.strptime("%s+0000" % report_time, "%Y-%m-%d %H:%M:%S%z")
+        d = datetime.datetime.strptime(f"{report_time}+0000", "%Y-%m-%d %H:%M:%S%z")
         offset = time.time() - d.timestamp()
         if offset > 10 * 60:
             return KafkaDataDelay(

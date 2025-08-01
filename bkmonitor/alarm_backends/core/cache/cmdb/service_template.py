@@ -9,56 +9,40 @@ specific language governing permissions and limitations under the License.
 """
 
 import json
-from collections import defaultdict
+from typing import cast
+
+from .base import CMDBCacheManager
 
 
-from alarm_backends.core.cache.cmdb.base import CMDBCacheManager, RefreshByBizMixin
-from core.drf_resource import api
-
-
-class ServiceTemplateManager(RefreshByBizMixin, CMDBCacheManager):
+class ServiceTemplateManager(CMDBCacheManager):
     """
     CMDB 服务模板缓存
     """
 
-    type = "service_template"
-    CACHE_KEY = f"{CMDBCacheManager.CACHE_KEY_PREFIX}.cmdb.service_template"
+    cache_type = "service_template"
 
     @classmethod
-    def key_to_internal_value(cls, service_template_id):
-        return str(service_template_id)
+    def mget(cls, *, bk_tenant_id: str, ids: list[int]) -> dict[int, list[int]]:
+        """
+        批量获取服务模板下的模块ID列表
+        :param bk_tenant_id: 租户ID
+        :param ids: 服务模板ID列表
+        """
+        if not ids:
+            return {id: [] for id in ids}
+
+        cache_key = cls.get_cache_key(bk_tenant_id)
+        id_list: list[str] = list(str(id) for id in ids)
+        result: list[str | None] = cast(list[str | None], cls.cache.hmget(cache_key, id_list))
+        return {id: json.loads(r) if r else [] for id, r in zip(ids, result)}
 
     @classmethod
-    def key_to_representation(cls, origin_key):
-        return int(origin_key)
-
-    @classmethod
-    def get(cls, service_template_id):
+    def get(cls, *, bk_tenant_id: str, id: int, **kwargs) -> list[int]:
         """
-        :param service_template_id: 服务模板ID
+        获取单个服务模板下的模块ID列表
+        :param bk_tenant_id: 租户ID
+        :param id: 服务模板ID
         """
-        return super().get(service_template_id)
-
-    @classmethod
-    def deserialize(cls, string):
-        """
-        反序列化数据
-        """
-        return json.loads(string) if string else []
-
-    @classmethod
-    def serialize(cls, obj):
-        return json.dumps(obj)
-
-    @classmethod
-    def refresh_by_biz(cls, bk_biz_id):
-        """
-        按业务ID刷新缓存
-        """
-        modules = api.cmdb.get_module(bk_biz_id=bk_biz_id)
-        service_template_to_module = defaultdict(list)
-
-        for module in modules:
-            service_template_to_module[str(module.service_template_id)].append(module.bk_module_id)
-
-        return service_template_to_module
+        cache_key = cls.get_cache_key(bk_tenant_id)
+        result = cast(str | None, cls.cache.hget(cache_key, str(id)))
+        return json.loads(result) if result else []
