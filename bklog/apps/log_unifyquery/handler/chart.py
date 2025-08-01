@@ -32,7 +32,7 @@ class UnifyQueryChartHandler(UnifyQueryHandler):
                 "conditions": self._transform_additions(index_info),
                 "query_string": self.query_string,
                 "sql": self.sql,
-                "table_id": f"bkdata_index_set_{self.index_set_ids[0]}",
+                "table_id": f"bklog_index_set_{index_info['index_set_id']}_analysis",
             }
 
             query_list.append(query_dict)
