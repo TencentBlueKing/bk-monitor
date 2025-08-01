@@ -275,6 +275,8 @@
         type: Boolean,
         required: true,
       },
+      onHandleUpdatedTable: { type: Function },
+      onHandleCancelSlider: { type: Function },
     },
     data() {
       // 避免后台造的数据为空数组
@@ -376,10 +378,10 @@
         }
       },
       handleCancel() {
-        this.$emit('confirm', null);
+        this.$emit('handleCancelSlider');
       },
       handleConfirm() {
-        this.$emit('confirm', this.manageStrategyData);
+        this.$emit('handleUpdatedTable', this.manageStrategyData);
       },
     },
   };

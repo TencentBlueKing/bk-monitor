@@ -153,12 +153,8 @@ export default defineComponent({
     };
 
     // 确认创建或编辑
-    const confirmCreateOrEdit = async (strategyData: any) => {
-      if (strategyData === null) {
-        showManageDialog.value = false;
-        return;
-      }
-
+    const handleUpdatedTable = async (strategyData: any) => {
+        
       isSliderLoading.value = true;
       const data = Object.assign(strategyData, {
         bk_biz_id: bkBizId.value,
@@ -218,7 +214,9 @@ export default defineComponent({
         subTitle: t('离开将会导致未保存信息丢失'),
         okText: t('离开'),
         cancelText: t('取消'),
-        confirmFn: () => {showManageDialog.value = false},
+        confirmFn: () => {
+          showManageDialog.value = false;
+        },
       });
     };
 
@@ -407,18 +405,15 @@ export default defineComponent({
           {/* 侧边栏内容区域 */}
           <template slot='content'>
             {/* 目录管理组件 */}
-            {/* <DirectoryManage
-                ref={directoryRef}
-                v-bkloading={{ isLoading: isSliderLoading.value }}
-                allow-create={allowCreate.value}
-                strategy-data={strategyData.value}
-                user-api={userApi.value}
-                {...{
-                    on: {
-                    confirm: confirmCreateOrEdit,
-                    },
-                }}
-                /> */}
+            <DirectoryManage
+              ref={directoryRef}
+              v-bkloading={{ isLoading: isSliderLoading.value }}
+              allowCreate={allowCreate.value}
+              strategyData={strategyData.value}
+              userApi={userApi.value}
+              onHandleUpdatedTable={handleUpdatedTable}
+              onHandleCancelSlider={handleCloseSidebar}
+            />
           </template>
         </bk-sideslider>
       </div>
