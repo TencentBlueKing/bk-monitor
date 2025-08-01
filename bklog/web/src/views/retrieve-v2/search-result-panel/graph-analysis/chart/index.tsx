@@ -25,7 +25,7 @@
  */
 import { computed, defineComponent, ref, watch } from 'vue';
 
-import { formatDateTimeField, getRegExp, formatDate } from '@/common/util';
+import { formatDateTimeField, getRegExp } from '@/common/util';
 import useLocale from '@/hooks/use-locale';
 import { debounce } from 'lodash';
 
@@ -74,7 +74,9 @@ export default defineComponent({
             {},
             item,
             timeFields.reduce((acc, cur) => {
-              return Object.assign({}, acc, { [cur.field_alias]: formatDateTimeField(item[cur.field_alias]) });
+              return Object.assign({}, acc, {
+                [cur.field_alias]: formatDateTimeField(item[cur.field_alias], cur.field_type),
+              });
             }, {}),
           );
         }),
@@ -202,27 +204,27 @@ export default defineComponent({
       return tableData.value.filter(data => columns.value.some(col => reg.test(data[col]))).slice(startIndex, endIndex);
     });
 
-    const formatTableData = computed(() => {
-      return filterTableData.value.map(row => {
-        return columns.value.reduce((acc, cur) => {
-          return Object.assign({}, acc, { [cur]: getDateTimeFormatValue(row, cur) });
-        }, {});
-      });
-    });
+    // const formatTableData = computed(() => {
+    //   return filterTableData.value.map(row => {
+    //     return columns.value.reduce((acc, cur) => {
+    //       return Object.assign({}, acc, { [cur]: getDateTimeFormatValue(row, cur) });
+    //     }, {});
+    //   });
+    // });
 
     const handleChartRootResize = debounce(() => {
       getChartInstance()?.resize();
     });
 
-    const getDateTimeFormatValue = (row, col) => {
-      let value = row[col];
-      if (!/data|time/i.test(col)) {
-        return value;
-      }
-      const timestamp = /^\d+$/.test(value) ? Number(value) : value;
-      const timeValue = formatDate(timestamp, /^\d+$/.test(value), true);
-      return timeValue || value;
-    };
+    // const getDateTimeFormatValue = (row, col) => {
+    //   let value = row[col];
+    //   if (!/data|time/i.test(col)) {
+    //     return value;
+    //   }
+    //   const timestamp = /^\d+$/.test(value) ? Number(value) : value;
+    //   const timeValue = formatDate(timestamp, /^\d+$/.test(value), true);
+    //   return timeValue || value;
+    // };
 
     const handleSearchClick = value => {
       searchValue.value = value;
@@ -269,12 +271,12 @@ export default defineComponent({
               location='right'
               show-total-count={true}
               size='small'
+              small={true}
               onChange={handlePageChange}
               onLimit-change={handlePageLimitChange}
-              small={true}
             ></bk-pagination>
           </div>,
-          <bk-table data={formatTableData.value}>
+          <bk-table data={filterTableData.value}>
             <bk-table-column
               width='60'
               label={$t('行号')}

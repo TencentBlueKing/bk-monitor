@@ -575,15 +575,19 @@ export default defineComponent({
       },
     );
 
+    const handleResultBoxResize = () => {
+      scrollXOffsetLeft = 0;
+      refScrollXBar.value?.scrollLeft(0);
+      computeRect(refResultRowBox.value);
+    };
+
     watch(
       () => [props.contentType],
       () => {
-        scrollXOffsetLeft = 0;
-        refScrollXBar.value?.scrollLeft(0);
         showCtxType.value = props.contentType;
         pageIndex.value = 1;
         setRenderList(50);
-        computeRect();
+        handleResultBoxResize();
       },
     );
 
@@ -594,9 +598,7 @@ export default defineComponent({
           setFullColumns();
         }
 
-        scrollXOffsetLeft = 0;
-        refScrollXBar.value?.scrollLeft(0);
-        computeRect(refResultRowBox.value);
+        handleResultBoxResize();
       },
     );
 
@@ -608,6 +610,16 @@ export default defineComponent({
       {
         immediate: true,
       },
+    );
+
+    RetrieveHelper.on(
+      [
+        RetrieveEvent.FAVORITE_WIDTH_CHANGE,
+        RetrieveEvent.LEFT_FIELD_SETTING_WIDTH_CHANGE,
+        RetrieveEvent.FAVORITE_SHOWN_CHANGE,
+        RetrieveEvent.LEFT_FIELD_SETTING_SHOWN_CHANGE,
+      ],
+      handleResultBoxResize,
     );
 
     const handleColumnWidthChange = (w, col) => {
@@ -1035,6 +1047,14 @@ export default defineComponent({
       popInstanceUtil.uninstallInstance();
       resetRowListState(-1);
       RetrieveHelper.off(RetrieveEvent.SEARCHING_CHANGE, handleSearchingChange);
+      [
+        RetrieveEvent.FAVORITE_WIDTH_CHANGE,
+        RetrieveEvent.LEFT_FIELD_SETTING_WIDTH_CHANGE,
+        RetrieveEvent.FAVORITE_SHOWN_CHANGE,
+        RetrieveEvent.LEFT_FIELD_SETTING_SHOWN_CHANGE,
+      ].forEach(event => {
+        RetrieveHelper.off(event, handleResultBoxResize);
+      });
     });
 
     return {
