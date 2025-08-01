@@ -32,10 +32,19 @@ import useStore from "@/hooks/use-store";
 
 const { $bkPopover } = Vue.prototype;
 const store = useStore();
+
 let popoverInstance = null;
 const fieldSelectConfigRef = ref();
 const dropdownListRef = ref();
+
 const isUnionSearch = computed(() => store.getters.isUnionSearch);
+const isExternal = computed(() => store.state.isExternal);
+
+// 联合查询和外部环境不展示
+const isFieldSettingShow = computed(() => {
+  return !store.getters.isUnionSearch && !isExternal.value;
+});
+
 const handleSetting = (e) => {
   if (popoverInstance) {
     return;
@@ -91,7 +100,9 @@ onBeforeUnmount(() => {
             @handle-popover-hide="handlePopoverHide"
           ></FieldSelectConfig>
         </li>
-        <!-- <li><FieldAlias @handle-popover-hide="handlePopoverHide"></FieldAlias></li> -->
+        <li v-if="isFieldSettingShow">
+          <FieldAlias @handle-popover-hide="handlePopoverHide"></FieldAlias>
+        </li>
       </ul>
     </div>
   </div>

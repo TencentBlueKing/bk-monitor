@@ -163,6 +163,7 @@
     refWrapper: refUlRoot,
     onHeightChange: handleHeightChange,
     formatModelValueItem,
+
     onShowFn: () => {
       setIsDocumentMousedown(true);
       refPopInstance.value?.beforeShowndFn?.();

@@ -41,6 +41,16 @@ import type {
   K8sTableSortContainer,
 } from './components/k8s-table-new/k8s-table-new';
 
+/** 场景别名映射表 */
+export const SceneAliasMap = {
+  [SceneEnum.Performance]: window.i18n.t('性能'),
+  [SceneEnum.Network]: window.i18n.t('网络'),
+  [SceneEnum.Capacity]: window.i18n.t('容量'),
+  [SceneEnum.Event]: window.i18n.t('事件'),
+  [SceneEnum.Storage]: window.i18n.t('存储'),
+  [SceneEnum.Cost]: window.i18n.t('成本'),
+};
+
 export const sceneDimensionMap = {
   [SceneEnum.Performance]: [
     EDimensionKey.namespace,
@@ -51,6 +61,24 @@ export const sceneDimensionMap = {
   [SceneEnum.Network]: [EDimensionKey.namespace, EDimensionKey.ingress, EDimensionKey.service, EDimensionKey.pod],
   [SceneEnum.Capacity]: [EDimensionKey.node],
 };
+
+/**
+ * 转换后的维度-场景映射表
+ * 结构: {维度: 场景数组}
+ */
+export const DimensionSceneMap = Object.entries(sceneDimensionMap).reduce(
+  (acc, [scene, dimensions]) => {
+    for (const dimension of dimensions) {
+      if (!acc[dimension]) {
+        acc[dimension] = [];
+      }
+      acc[dimension].push(scene as SceneEnum);
+    }
+    return acc;
+  },
+  // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
+  {} as Record<EDimensionKey, SceneEnum[]>
+);
 
 /**
  * @description K8S GroupFilter 基类
