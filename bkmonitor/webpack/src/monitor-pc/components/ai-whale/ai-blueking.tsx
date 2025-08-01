@@ -30,6 +30,7 @@ import AIBlueking from '@blueking/ai-blueking/vue2';
 import { random } from 'monitor-common/utils/utils';
 
 import aiWhaleStore from '../../store/modules/ai-whale';
+import { type AIBluekingShortcut, AI_BLUEKING_SHORTCUTS } from './types';
 
 import '@blueking/ai-blueking/dist/vue2/style.css';
 
@@ -48,83 +49,11 @@ export default class AiBluekingWrapper extends tsc<object> {
   get message() {
     return aiWhaleStore.message;
   }
+  get customFallbackShortcut() {
+    return aiWhaleStore.customFallbackShortcut;
+  }
   get shortcuts() {
-    return [
-      {
-        id: 'explanation',
-        name: this.$t('解释'),
-        // icon: 'bkai-help',
-        components: [
-          {
-            type: 'textarea',
-            key: 'content',
-            name: this.$t('内容'),
-            fillBack: true,
-            placeholder: this.$t('请输入需要解释的内容'),
-          },
-        ],
-      },
-      {
-        id: 'translate',
-        name: this.$t('翻译'),
-        // icon: 'bkai-translate',
-        components: [
-          {
-            type: 'textarea',
-            key: 'content',
-            name: this.$t('待翻译文本'),
-            fillBack: true,
-            placeholder: this.$t('请输入需要翻译的内容'),
-          },
-          {
-            type: 'select',
-            key: 'language',
-            name: this.$t('语言'),
-            placeholder: this.$t('请选择语言'),
-            default: 'english',
-            options: [
-              { label: 'English', value: 'english' },
-              { label: '中文', value: 'chinese' },
-            ],
-          },
-        ],
-      },
-      {
-        id: 'promql_helper',
-        name: this.$t('PromQL助手'),
-        // icon: 'icon-monitor icon-mc-help-fill',
-        components: [
-          {
-            type: 'textarea',
-            key: 'promql',
-            fillBack: true,
-            name: this.$t('指标/PromQL语句'),
-            placeholder: this.$t('请输入指标/PromQL语句'),
-          },
-          {
-            type: 'textarea',
-            key: 'user_demand',
-            fillBack: false,
-            name: this.$t('用户指令'),
-            placeholder: this.$t('请输入用户指令'),
-          },
-        ],
-      },
-      // {
-      //   id: 'metadata_diagnosis',
-      //   name: this.$t('链路排障'),
-      //   // icon: 'bk-icon icon-monitors-cog',
-      //   components: [
-      //     {
-      //       type: 'textarea',
-      //       key: 'bk_data_id',
-      //       fillBack: true,
-      //       name: this.$t('数据源ID'),
-      //       placeholder: this.$t('请输入数据源ID'),
-      //     },
-      //   ],
-      // },
-    ];
+    return [...AI_BLUEKING_SHORTCUTS];
   }
   @Watch('showDialog')
   handleShowDialogChange(newVal: boolean) {
@@ -141,6 +70,13 @@ export default class AiBluekingWrapper extends tsc<object> {
     }
     this.aiBluekingRef.handleStop();
     this.aiBluekingRef.handleSendMessage(newVal);
+  }
+  @Watch('customFallbackShortcut')
+  handleCustomFallbackShortcutChange(shortcut: AIBluekingShortcut) {
+    if (shortcut?.id) {
+      this.aiBluekingRef.handleShow();
+      this.aiBluekingRef.handleShortcutClick?.({ ...shortcut });
+    }
   }
   render() {
     return (
