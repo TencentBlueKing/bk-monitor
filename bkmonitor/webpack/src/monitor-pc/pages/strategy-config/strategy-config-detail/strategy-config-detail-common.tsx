@@ -1257,33 +1257,31 @@ export default class StrategyConfigDetailCommon extends tsc<object> {
                 <div class='analyzing-conditions'>
                   {this.isNeedJudgingCondition
                     ? [
-                        !this.isOnlyAiDetectRule
-                          ? commonItem(
-                              this.$t('触发条件'),
-                              <i18n path='在{0}个周期内{1}满足{2}次检测算法，触发告警通知'>
-                                <span class='bold-span'>{triggerConfig.checkWindow}</span>
-                                <span class='bold-span'>
-                                  {aggList.find(item => triggerConfig.checkType === item.id).name}
-                                </span>
-                                <span class='bold-span'>{triggerConfig.count}</span>
-                              </i18n>
-                            )
-                          : undefined,
-                        !this.isOnlyAiDetectRule
-                          ? commonItem(
-                              this.$t('恢复条件'),
-                              <i18n
-                                class='i18n-path'
-                                path='连续{0}个周期内不满足触发条件{1}'
-                              >
-                                <span class='bold-span'>{recoveryConfig.checkWindow}</span>
-                                {!isRecoveryDisable(this.metricData) &&
-                                isStatusSetterNoData(this.analyzingConditions?.recoveryConfig?.statusSetter) ? (
-                                  <span class='bold-span bold-span-no-left-margin'>{this.$t('或无数据')}</span>
-                                ) : null}
-                              </i18n>
-                            )
-                          : undefined,
+                        commonItem(
+                          this.$t('触发条件'),
+                          <i18n path='在{0}个周期内{1}满足{2}次检测算法，触发告警通知'>
+                            <span class='bold-span'>{triggerConfig.checkWindow}</span>
+                            <span class='bold-span'>
+                              {aggList.find(item => triggerConfig.checkType === item.id).name}
+                            </span>
+                            <span class='bold-span'>{triggerConfig.count}</span>
+                          </i18n>
+                        ),
+
+                        commonItem(
+                          this.$t('恢复条件'),
+                          <i18n
+                            class='i18n-path'
+                            path='连续{0}个周期内不满足触发条件{1}'
+                          >
+                            <span class='bold-span'>{recoveryConfig.checkWindow}</span>
+                            {!isRecoveryDisable(this.metricData) &&
+                            isStatusSetterNoData(this.analyzingConditions?.recoveryConfig?.statusSetter) ? (
+                              <span class='bold-span bold-span-no-left-margin'>{this.$t('或无数据')}</span>
+                            ) : null}
+                          </i18n>
+                        ),
+
                         commonItem(
                           this.$t('无数据'),
                           noDataConfig.isEnabled ? (

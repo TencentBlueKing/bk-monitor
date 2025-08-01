@@ -86,6 +86,7 @@ interface Idata {
   isDetailMode?: boolean;
   isFta?: boolean;
   isOnlyAiDetectRule?: boolean;
+  isStrategyEdit?: boolean;
   judgeTimeRange?: string[]; // 关联告警时只显示生效时间段
   legalDimensionList?: ICommonItem[];
   metricData: MetricDetail[];
@@ -145,6 +146,8 @@ export default class JudgingCondition extends tsc<Idata, IEvent> {
   @Prop({ type: String, default: 'Edit' }) editMode: EditModeType;
   /* 当前策略是否只选择了一个智能检测算法 */
   @Prop({ type: Boolean, default: false }) isOnlyAiDetectRule: boolean;
+  /* 当前策略页是否处于编辑态 */
+  @Prop({ type: Boolean, default: false }) isStrategyEdit: boolean;
   @Ref() calendarSelectRef: any;
 
   aggList = [];
@@ -210,11 +213,11 @@ export default class JudgingCondition extends tsc<Idata, IEvent> {
 
   @Watch('isOnlyAiDetectRule')
   handleWatchIsOnlyAiDetectRule(v: boolean) {
-    if(v) {
+    /* 策略编辑页的情况下不重置以下字段 */
+    if (v && !this.isStrategyEdit) {
       this.localData.triggerConfig.checkWindow = 5;
       this.localData.triggerConfig.count = 1;
       this.localData.recoveryConfig.checkWindow = 5;
-      this.localData.recoveryConfig.statusSetter = RecoveryConfigStatusSetter.RECOVERY;
       this.emitValueChange();
     }
   }
@@ -452,70 +455,70 @@ export default class JudgingCondition extends tsc<Idata, IEvent> {
     const { noticeTemplate } = this.localData;
     return (
       <div class='alarm-condition'>
-        {!this.isOnlyAiDetectRule ? (
-          <CommonItem
-            title={this.$t('触发条件')}
-            show-semicolon
-          >
-            <VerifyItem errorMsg={this.errMsg.triggerConfig}>
+        <CommonItem
+          title={this.$t('触发条件')}
+          show-semicolon
+        >
+          <VerifyItem errorMsg={this.errMsg.triggerConfig}>
+            <i18n
+              class='i18n-path'
+              path='在{0}个周期内{1}满足{2}次检测算法，触发告警通知'
+            >
+              <bk-input
+                class='small-input'
+                v-model={this.localData.triggerConfig.checkWindow}
+                behavior='simplicity'
+                disabled={this.isOnlyAiDetectRule}
+                size='small'
+                type='number'
+                on-change={this.emitValueChange}
+              />
+              {this.$t('累计')}
+              <bk-input
+                class='small-input'
+                v-model={this.localData.triggerConfig.count}
+                behavior='simplicity'
+                disabled={this.isOnlyAiDetectRule}
+                size='small'
+                type='number'
+                on-change={this.emitValueChange}
+              />
+            </i18n>
+          </VerifyItem>
+        </CommonItem>
+
+        <CommonItem
+          title={this.$t('恢复条件')}
+          show-semicolon
+        >
+          <VerifyItem errorMsg={this.errMsg.recoveryConfig}>
+            <div class='judging-recovery-config'>
               <i18n
                 class='i18n-path'
-                path='在{0}个周期内{1}满足{2}次检测算法，触发告警通知'
+                path='连续{0}个周期内不满足触发条件{1}'
               >
                 <bk-input
                   class='small-input'
-                  v-model={this.localData.triggerConfig.checkWindow}
+                  v-model={this.localData.recoveryConfig.checkWindow}
                   behavior='simplicity'
+                  disabled={this.isOnlyAiDetectRule}
                   size='small'
                   type='number'
                   on-change={this.emitValueChange}
                 />
-                {this.$t('累计')}
-                <bk-input
-                  class='small-input'
-                  v-model={this.localData.triggerConfig.count}
-                  behavior='simplicity'
-                  size='small'
-                  type='number'
-                  on-change={this.emitValueChange}
-                />
+                {!isRecoveryDisable(this.metricData) ? (
+                  <bk-checkbox
+                    value={isStatusSetterNoData(this.localData.recoveryConfig.statusSetter)}
+                    onChange={this.handleRecoveryConfigChange}
+                  >
+                    {this.$t('或无数据')}
+                  </bk-checkbox>
+                ) : null}
               </i18n>
-            </VerifyItem>
-          </CommonItem>
-        ) : undefined}
+            </div>
+          </VerifyItem>
+        </CommonItem>
 
-        {!this.isOnlyAiDetectRule ? (
-          <CommonItem
-            title={this.$t('恢复条件')}
-            show-semicolon
-          >
-            <VerifyItem errorMsg={this.errMsg.recoveryConfig}>
-              <div class='judging-recovery-config'>
-                <i18n
-                  class='i18n-path'
-                  path='连续{0}个周期内不满足触发条件{1}'
-                >
-                  <bk-input
-                    class='small-input'
-                    v-model={this.localData.recoveryConfig.checkWindow}
-                    behavior='simplicity'
-                    size='small'
-                    type='number'
-                    on-change={this.emitValueChange}
-                  />
-                  {!isRecoveryDisable(this.metricData) ? (
-                    <bk-checkbox
-                      value={isStatusSetterNoData(this.localData.recoveryConfig.statusSetter)}
-                      onChange={this.handleRecoveryConfigChange}
-                    >
-                      {this.$t('或无数据')}
-                    </bk-checkbox>
-                  ) : null}
-                </i18n>
-              </div>
-            </VerifyItem>
-          </CommonItem>
-        ) : undefined}
         <CommonItem
           title={this.$t('无数据')}
           show-semicolon

@@ -515,9 +515,12 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
 
   /* 是否只选择了智能检测算法 */
   get isOnlyAiDetectRule() {
-    return !!this.detectionConfig.data.length && this.detectionConfig.data.every(item => {
-      return AI_DETECT_RULE_TYPES.includes(item.type);
-    });
+    return (
+      !!this.detectionConfig.data.length &&
+      this.detectionConfig.data.every(item => {
+        return AI_DETECT_RULE_TYPES.includes(item.type);
+      })
+    );
   }
 
   /**
@@ -2784,6 +2787,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
                   isAlert={!this.isNeedJudgingCondition}
                   isDetailMode={this.isDetailMode}
                   isOnlyAiDetectRule={this.isOnlyAiDetectRule}
+                  isStrategyEdit={this.isEditMode}
                   // judgeTimeRange={this.judgeTimeRange}
                   legalDimensionList={this.legalDimensionList}
                   // onNoDataChange={this.handleNoDataChange}
