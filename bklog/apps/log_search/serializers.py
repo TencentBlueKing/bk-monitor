@@ -1163,3 +1163,23 @@ class AliasSettingsSerializer(serializers.Serializer):
 
 class QueryByDataIdSerializer(serializers.Serializer):
     bk_data_id = serializers.IntegerField(label=_("采集链路ID"), required=True)
+
+
+class CodeccQueryTsRawSerializer(serializers.Serializer):
+    """
+    CodeCC query_ts_raw 请求参数序列化器
+    """
+
+    query_list = serializers.ListField(
+        label=_("查询列表"), required=True, child=serializers.DictField(), allow_empty=False
+    )
+    order_by = serializers.ListField(
+        label=_("排序字段"), required=False, child=serializers.CharField(), default=["-dtEventTimeStamp"]
+    )
+    step = serializers.CharField(label=_("步长"), required=False, default="1h")
+    start_time = serializers.CharField(label=_("开始时间"), required=True)
+    end_time = serializers.CharField(label=_("结束时间"), required=True)
+    timezone = serializers.CharField(label=_("时区"), required=False, default="UTC")
+    bk_biz_id = serializers.CharField(label=_("业务ID"), required=False, allow_blank=True, default="")
+    from_index = serializers.IntegerField(label=_("起始位置"), required=False, default=0)
+    limit = serializers.IntegerField(label=_("限制条数"), required=False, default=10000)

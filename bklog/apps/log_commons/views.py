@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -19,6 +18,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+
 import time
 
 import requests
@@ -50,9 +50,12 @@ from apps.log_commons.serializers import (
     GetResourceByActionSLZ,
     ListExternalPermissionSLZ,
     ListMaintainersSLZ,
-    CreateOrUpdateTokenSerializer, GetShareParamsSerializer,
+    CreateOrUpdateTokenSerializer,
+    GetShareParamsSerializer,
+    GetApiTokenSerializer,
 )
 from apps.log_commons.share import ShareHandler
+from apps.log_commons.codecc import CodeccHandler
 from apps.utils.drf import list_route
 
 # 用户白皮书在文档中心的根路径
@@ -382,3 +385,27 @@ class ShareViewSet(APIViewSet):
         """
         data = self.params_valid(CreateOrUpdateTokenSerializer)
         return Response(ShareHandler.create_or_update(data))
+
+
+class CodeccViewSet(APIViewSet):
+    @list_route(methods=["get"], url_path="get_api_token")
+    def get_api_token(self, request):
+        """
+        @api {get} /codecc/get_api_token/ 获取 API 令牌
+        @apiName get_api_token
+        @apiGroup codecc
+        @apiParam {String} space_uid 空间ID
+        @apiParam {Integer} index_set_id 索引集ID
+        @apiSuccessExample {json} 成功返回:
+        {
+            "result": true,
+            "data": {
+                "token": "a1b2c3d4"
+            },
+            "code": 0,
+            "message": ""
+        }
+        @apiDescription 返回的 token 可直接用于请求头 X-BKLOG-TOKEN 进行 API 调用
+        """
+        data = self.params_valid(GetApiTokenSerializer)
+        return Response(CodeccHandler.get_codecc_token(**data))
