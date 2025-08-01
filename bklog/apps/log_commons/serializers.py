@@ -86,7 +86,7 @@ class GetShareParamsSerializer(serializers.Serializer):
     token = serializers.CharField(required=True, label="鉴权令牌")
 
 
-class GetCodeccTokenSerializer(serializers.Serializer):
+class GetApiTokenSerializer(serializers.Serializer):
     space_uid = serializers.CharField(required=True, label="空间ID")
     index_set_id = serializers.IntegerField(required=True, label="索引集ID")
     type = serializers.CharField(required=False, default="codecc", label="鉴权类型")

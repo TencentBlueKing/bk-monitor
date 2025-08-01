@@ -101,8 +101,7 @@ from apps.log_search.serializers import (
     UpdateIndexSetFieldsConfigSerializer,
     UserIndexSetCustomConfigSerializer,
     AliasSettingsSerializer,
-    CodeccTokenInfoSerializer,
-    CodeccSearchRequestSerializer,
+    CodeccQueryTsRawSerializer,
 )
 from apps.log_search.utils import create_download_response
 from apps.log_unifyquery.builder.context import build_context_params
@@ -2057,20 +2056,28 @@ class SearchViewSet(APIViewSet):
     def search_log_for_code(self, request):
         """
         @api {post} /search/index_set/search_log_for_code/ CodeCC日志搜索
-        @apiDescription 根据CodeCC token进行日志搜索
-        @apiName search_log_for_code
-        @apiGroup 11_Search
-        @apiParam {Array[Object]} 查询参数列表
-        @apiParam {String} optionName 参数名称 (code_field, log_field, query_string, start_time, end_time)
-        @apiParam {String} optionValue 参数值
+        @apiDescription 根据CodeCC token进行日志搜索，需要在请求头中传入 X-BKLOG-TOKEN
+        @apiParam 接口参数参考query_ts_raw
         @apiParamExample {Json} 请求参数
-        [
-            {"optionName": "code_field", "optionValue": "log"},
-            {"optionName": "log_field", "optionValue": "path"},
-            {"optionName": "query_string", "optionValue": "log:ession 170380"},
-            {"optionName": "start_time", "optionValue": "1753859263536"},
-            {"optionName": "end_time", "optionValue": "1753945663536"}
-        ]
+        {
+            "query_list": [
+                {
+                    "data_source": "bklog",
+                    "reference_name": "a",
+                    "time_field": "time",
+                    "query_string": "log:error AND path:/var/log/app/*",
+                    "table_id": "",
+                    "conditions": {"field_list": [], "condition_list": []},
+                    "field_name": "dtEventTimeStamp",
+                    "keep_columns": ["log", "path", "serverIp"]
+                }
+            ],
+            "start_time": "1753859263536",
+            "end_time": "1753945663536",
+            "timezone": "UTC",
+            "from_index": 0,
+            "limit": 10000
+        }
         @apiSuccessExample {json} 成功返回:
         {
                 'result': True,
@@ -2095,13 +2102,6 @@ class SearchViewSet(APIViewSet):
             }
         """
         token_info = getattr(request, "codecc_token_info")
-        token_serializer = CodeccTokenInfoSerializer(data=token_info)
-        token_serializer.is_valid(raise_exception=True)
-
-        search_serializer = CodeccSearchRequestSerializer(data=request.data)
-        search_serializer.is_valid(raise_exception=True)
-
-        result = UnionSearchHandler.search_log_for_codecc_token(
-            token_serializer.validated_data, search_serializer.get_required_params()
-        )
+        data = self.params_valid(CodeccQueryTsRawSerializer)
+        result = UnionSearchHandler.search_log_for_codecc_token(token_info, data)
         return Response(result)

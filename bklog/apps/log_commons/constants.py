@@ -23,5 +23,11 @@ the project delivered to anyone in the future.
 TOKEN_LENGTH = 8
 CODECC_TOKEN_EXPIRE_SECONDS = 24 * 3600  # 1天
 DEFAULT_TOKEN_EXPIRE_SECONDS = 7 * 24 * 3600  # 7天
-CODECC_TOKEN_TYPE = "codecc"
-DEFAULT_TOKEN_TYPE = "codecc"
+
+# Token申请频率限制常量
+TOKEN_REQUEST_LIMIT_COUNT = 5  # 60秒内最多申请5次
+TOKEN_REQUEST_LIMIT_SECONDS = 60  # 限制时间窗口为60秒
+
+# 时间周期常量
+EXPIRE_PERIOD_ONE_DAY = "1d"
+EXPIRE_PERIOD_SEVEN_DAYS = "7d"

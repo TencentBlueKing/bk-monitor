@@ -1165,120 +1165,21 @@ class QueryByDataIdSerializer(serializers.Serializer):
     bk_data_id = serializers.IntegerField(label=_("采集链路ID"), required=True)
 
 
-class CodeccTokenInfoSerializer(serializers.Serializer):
-    token = serializers.CharField(label="codecc_token", required=True)
-    space_uid = serializers.CharField(label="空间唯一标识", required=True)
-    index_set_id = serializers.IntegerField(label="日志索引集ID", required=True)
-    params = serializers.JSONField(label="token生成时附带的参数", required=True)
-    expire_time = serializers.DateTimeField(label="token过期时间", required=True)
-
-
-class CodeccSearchParamSerializer(serializers.Serializer):
+class CodeccQueryTsRawSerializer(serializers.Serializer):
     """
-    CodeCC搜索参数序列化器
-    用于处理CodeCC请求中的参数列表格式
+    CodeCC query_ts_raw 请求参数序列化器
     """
 
-    # 定义支持的参数选项
-    OPTION_CHOICES = [
-        ("code_field", "代码字段"),
-        ("log_field", "日志字段"),
-        ("query_string", "查询字符串"),
-        ("start_time", "开始时间"),
-        ("end_time", "结束时间"),
-    ]
-
-    optionName = serializers.ChoiceField(label=_("参数名称"), choices=OPTION_CHOICES, required=True)
-    optionValue = serializers.CharField(label=_("参数值"), required=True, allow_blank=True)
-
-    def validate_optionValue(self, value):
-        """验证参数值"""
-        option_name = self.initial_data.get("optionName")
-
-        # 对时间字段进行特殊验证和类型转换
-        if option_name in ["start_time", "end_time"]:
-            try:
-                return int(value)
-            except (ValueError, TypeError):
-                raise serializers.ValidationError(f"{option_name} 必须是有效的时间戳")
-
-        return value
-
-
-class CodeccSearchRequestSerializer(serializers.Serializer):
-    """
-    CodeCC搜索请求序列化器
-    用于验证和转换CodeCC请求的数据格式
-    """
-
-    params = serializers.ListField(
-        label=_("查询参数列表"), child=CodeccSearchParamSerializer(), required=True, min_length=1
+    query_list = serializers.ListField(
+        label=_("查询列表"), required=True, child=serializers.DictField(), allow_empty=False
     )
-
-    def validate(self, attrs):
-        """验证请求参数"""
-        params = attrs.get("params", [])
-
-        # 检查必需参数
-        required_params = ["code_field", "log_field", "start_time", "end_time"]
-        param_dict = {}
-
-        for param in params:
-            param_dict[param["optionName"]] = param["optionValue"]
-
-        missing_params = []
-        for required_param in required_params:
-            if required_param not in param_dict or not param_dict[required_param]:
-                missing_params.append(required_param)
-
-        if missing_params:
-            raise serializers.ValidationError(f"缺少必需参数: {', '.join(missing_params)}")
-
-        # 验证时间范围
-        start_time = int(param_dict["start_time"])
-        end_time = int(param_dict["end_time"])
-
-        if start_time >= end_time:
-            raise serializers.ValidationError("开始时间必须小于结束时间")
-
-        # 验证时间范围合理性（不超过30天）
-        time_diff = end_time - start_time
-        max_diff = 30 * 24 * 60 * 60 * 1000
-        if time_diff > max_diff:
-            raise serializers.ValidationError("查询时间范围不能超过30天")
-
-        return attrs
-
-    def to_internal_value(self, data):
-        # 如果输入是列表格式，直接使用
-        if isinstance(data, list):
-            return {"params": data}
-
-        # 如果输入是字典格式，尝试提取params字段
-        if isinstance(data, dict):
-            if "params" in data:
-                return data
-            else:
-                # 如果是直接的参数字典，转换为列表格式
-                params_list = []
-                for key, value in data.items():
-                    params_list.append({"optionName": key, "optionValue": str(value)})
-                return {"params": params_list}
-
-        return super().to_internal_value(data)
-
-    def get_param_dict(self):
-        """获取参数字典格式"""
-        params = self.validated_data.get("params", [])
-        return {param["optionName"]: param["optionValue"] for param in params}
-
-    def get_required_params(self):
-        """获取必需的参数"""
-        param_dict = self.get_param_dict()
-        return {
-            "code_field": param_dict.get("code_field"),
-            "log_field": param_dict.get("log_field"),
-            "query_string": param_dict.get("query_string", ""),
-            "start_time": param_dict.get("start_time"),
-            "end_time": param_dict.get("end_time"),
-        }
+    order_by = serializers.ListField(
+        label=_("排序字段"), required=False, child=serializers.CharField(), default=["-dtEventTimeStamp"]
+    )
+    step = serializers.CharField(label=_("步长"), required=False, default="1h")
+    start_time = serializers.CharField(label=_("开始时间"), required=True)
+    end_time = serializers.CharField(label=_("结束时间"), required=True)
+    timezone = serializers.CharField(label=_("时区"), required=False, default="UTC")
+    bk_biz_id = serializers.CharField(label=_("业务ID"), required=False, allow_blank=True, default="")
+    from_index = serializers.IntegerField(label=_("起始位置"), required=False, default=0)
+    limit = serializers.IntegerField(label=_("限制条数"), required=False, default=10000)

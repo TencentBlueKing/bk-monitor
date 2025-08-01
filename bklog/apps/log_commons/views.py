@@ -52,7 +52,7 @@ from apps.log_commons.serializers import (
     ListMaintainersSLZ,
     CreateOrUpdateTokenSerializer,
     GetShareParamsSerializer,
-    GetCodeccTokenSerializer,
+    GetApiTokenSerializer,
 )
 from apps.log_commons.share import ShareHandler
 from apps.log_commons.codecc import CodeccHandler
@@ -388,11 +388,11 @@ class ShareViewSet(APIViewSet):
 
 
 class CodeccViewSet(APIViewSet):
-    @list_route(methods=["get"], url_path="get_codecc_token")
-    def get_codecc_token(self, request):
+    @list_route(methods=["get"], url_path="get_api_token")
+    def get_api_token(self, request):
         """
-        @api {get} /codecc/get_codecc_token/ 获取 CodeCC 令牌
-        @apiName get_codecc_token
+        @api {get} /codecc/get_api_token/ 获取 API 令牌
+        @apiName get_api_token
         @apiGroup codecc
         @apiParam {String} space_uid 空间ID
         @apiParam {Integer} index_set_id 索引集ID
@@ -400,21 +400,12 @@ class CodeccViewSet(APIViewSet):
         {
             "result": true,
             "data": {
-                "token": "a1b2c3d4",
-                "space_uid": "space_uid",
-                "index_set_id": 123,
-                "type": "codecc",
-                "expire_time": 1640995200,
-                "expire_period": "7d",
-                "lock_search": false,
-                "default_time_range": ["now-1h", "now"],
-                "start_time": 1640991600,
-                "end_time": 1640995200,
-                "data": {}
+                "token": "a1b2c3d4"
             },
             "code": 0,
             "message": ""
         }
+        @apiDescription 返回的 token 可直接用于请求头 X-BKLOG-TOKEN 进行 API 调用
         """
-        data = self.params_valid(GetCodeccTokenSerializer)
+        data = self.params_valid(GetApiTokenSerializer)
         return Response(CodeccHandler.get_codecc_token(**data))
