@@ -9,7 +9,7 @@ specific language governing permissions and limitations under the License.
 """
 
 from rest_framework import serializers
-
+from monitor_web.incident.metrics.constants import MetricType
 
 class MetricsSearchSerializer(serializers.Serializer):
     bk_biz_id = serializers.IntegerField(label="业务ID", default=None)
@@ -23,6 +23,7 @@ class MetricsSearchSerializer(serializers.Serializer):
         if not isinstance(index_info, dict):
             raise serializers.ValidationError("index_info must be a json object")
         metric_type = attrs.get("metric_type")
-        if metric_type not in ["node", "dependency", "ebpf_call"]:
-            raise serializers.ValidationError("metric_type must be one of node, dependency, ebpf_call")
+        valid_metric_types = [choice[0] for choice in MetricType.choices()]
+        if metric_type not in valid_metric_types:
+            raise serializers.ValidationError(f"metric_type must be one of {valid_metric_types}")
         return attrs

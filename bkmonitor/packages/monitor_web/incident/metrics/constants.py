@@ -7,10 +7,124 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+from django.utils.functional import cached_property
+from django.utils.translation import gettext_lazy as _
+from constants.apm import CachedEnum
 
-# 指标名称
-METRIC_NAMES = ["apm.error_count", "apm.delay_count"]
-METRIC_ALIAS = {"apm.error_count": "错误请求数量", "apm.delay_count": "慢请求数量"}
-# time series原点时间戳，写死主要是方便后续events和metrics的时序对齐
-TIME_SECONDS_INTERVAL = 60  # 600s
-TIME_MILLISECONDS_INTERVAL = TIME_SECONDS_INTERVAL * 1000
+class EntityType(CachedEnum):
+    """
+    事件类型
+    """
+
+    BcsPod = "BcsPod"
+    APMService = "APMService"
+    BkNodeHost = "BkNodeHost"
+
+    @classmethod
+    def choices(cls):
+        return [
+            (cls.BcsPod.value, cls.BcsPod.value),
+            (cls.APMService.value, cls.APMService.value),
+            (cls.BkNodeHost.value, cls.BkNodeHost.value),
+        ]
+
+    @cached_property
+    def label(self):
+        return str(
+            {
+                EntityType.BcsPod: _("BCS Pod"),
+                EntityType.APMService: _("APM服务"),
+                EntityType.BkNodeHost: _("主机节点"),
+            }.get(self, self.value)
+        )
+
+    @classmethod
+    def get_default(cls, value):
+        default = super().get_default(value)
+        default.label = value
+        
+class MetricType(CachedEnum):
+    """
+    索引类型
+    """
+
+    NODE = "node"
+    EBPF_CALL = "ebpf_call"
+
+    @classmethod
+    def choices(cls):
+        return [(choice[0], choice[1]) for choice in cls.choices()]
+
+class IndexType(CachedEnum):
+    """
+    索引类型
+    """
+
+    ENTITY = "entity"
+    EDGE = "edge"
+
+class MetricName(CachedEnum):
+    # APM指标
+    APM_TOTAL_REQUEST_COUNT = "apm.total_request_count"
+    APM_ACTIVE_REQUEST_COUNT = "apm.active_request_count"
+    APM_PASSIVE_REQUEST_COUNT = "apm.passive_request_count"
+    APM_ERROR_COUNT = "apm.error_count"
+    APM_ERROR_RATE = "apm.error_rate"
+    APM_DURATION_AVG = "apm.duration_avg"
+    
+    # BCS指标
+    BCS_PERFORMANCE_CPU_USAGE = "bcs.performance_cpu_usage"
+    BCS_PERFORMANCE_CPU_REQUEST_USAGE_RATE = "bcs.performance_cpu_request_usage_rate"
+    BCS_PERFORMANCE_CPU_LIMIT_USAGE_RATE = "bcs.performance_cpu_limit_usage_rate"
+    
+    BCS_PERFORMANCE_MEMORY_USAGE = "bcs.performance_memory_usage"
+    BCS_PERFORMANCE_MEMORY_REQUEST_USAGE_RATE = "bcs.performance_memory_request_usage_rate"
+    BCS_PERFORMANCE_MEMORY_LIMIT_USAGE_RATE = "bcs.performance_memory_limit_usage_rate"
+    
+    BCS_TRAFFIC_IN = "bcs.traffic_in"
+    BCS_TRAFFIC_OUT = "bcs.traffic_out"
+    
+    # 主机指标
+    HOST_CPU_USAGE_RATE = "host.cpu_usage_rate"
+    HOST_CPU_FIVE_MINUTE_AVERAGE_LOAD = "host.cpu_five_minute_average_load"
+    
+    HOST_MEM_PHYSICAL_FREE = "host.mem_physical_free"
+    
+    HOST_NIC_IN_RATE = "host.nic_in_rate"
+    HOST_NIC_OUT_RATE = "host.nic_out_rate"
+    
+    HOST_DISK_USAGE_RATE = "host.disk_usage_rate"
+    
+    @cached_property
+    def label(self):
+        return str(
+            {
+                MetricName.APM_TOTAL_REQUEST_COUNT: "请求总数",
+                MetricName.APM_ACTIVE_REQUEST_COUNT: "主调请求数",
+                MetricName.APM_PASSIVE_REQUEST_COUNT: "被调请求数",
+                MetricName.APM_ERROR_COUNT: "错误请求数",
+                MetricName.APM_ERROR_RATE: "错误率",
+                MetricName.APM_DURATION_AVG: "平均耗时",
+                
+                MetricName.BCS_PERFORMANCE_CPU_USAGE: "CPU使用量",
+                MetricName.BCS_PERFORMANCE_CPU_REQUEST_USAGE_RATE: "CPU request使用率",
+                MetricName.BCS_PERFORMANCE_CPU_LIMIT_USAGE_RATE: "CPU limit使用率",
+                
+                MetricName.BCS_PERFORMANCE_MEMORY_USAGE: "内存使用量",
+                MetricName.BCS_PERFORMANCE_MEMORY_REQUEST_USAGE_RATE: "内存 request使用率",
+                MetricName.BCS_PERFORMANCE_MEMORY_LIMIT_USAGE_RATE: "内存 limit使用率",
+                
+                MetricName.BCS_TRAFFIC_IN: "网络入带宽",
+                MetricName.BCS_TRAFFIC_OUT: "网络出带宽",
+                
+                MetricName.HOST_CPU_USAGE_RATE: "CPU使用率",
+                MetricName.HOST_CPU_FIVE_MINUTE_AVERAGE_LOAD: "CPU五分钟平均负载",
+                
+                MetricName.HOST_MEM_PHYSICAL_FREE: "物理内存空闲量",
+                
+                MetricName.HOST_NIC_IN_RATE: "网卡入流量比特速率",
+                MetricName.HOST_NIC_OUT_RATE: "网卡出流量比特速率",
+                
+                MetricName.HOST_DISK_USAGE_RATE: "磁盘空间使用率",
+            }.get(self, self.value)
+        )
