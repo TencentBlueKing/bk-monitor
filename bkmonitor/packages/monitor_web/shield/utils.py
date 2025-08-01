@@ -11,6 +11,7 @@ specific language governing permissions and limitations under the License.
 import functools
 
 import arrow
+from django.utils.translation import gettext as _
 
 from bkmonitor.models import Shield
 from bkmonitor.utils.shield import BaseShieldDisplayManager
@@ -18,6 +19,14 @@ from bkmonitor.utils.time_tools import localtime, now, str2datetime
 from constants.shield import ShieldCategory, ShieldCycleType
 from core.drf_resource import api, resource
 from monitor_web.commons.cc.utils import CmdbUtil
+
+NODE_TYPE_MAP = {
+    "biz": _("业务"),
+    "set": _("集群"),
+    "module": _("模块"),
+    "other": _("其他"),
+}
+SERVICE = _("服务实例")
 
 
 class ShieldDetectManager:
@@ -190,13 +199,28 @@ class SimpleShieldDisplayManager(BaseShieldDisplayManager):
         if not service_instance_id_list:
             return []
         count = len(service_instance_id_list)
-        return [f"{count}个服务实例"]
+        return [f"{count} {SERVICE}"]
 
     def get_node_path_list(self, bk_biz_id, bk_topo_node_list):
         if not bk_topo_node_list:
             return []
-        count = len(bk_topo_node_list)
-        return [[f"{count}个节点"]]
+
+        node_counts = {"biz": 0, "set": 0, "module": 0, "other": 0}
+
+        for node in bk_topo_node_list:
+            obj_id = node.get("bk_obj_id", "")
+            if obj_id in node_counts:
+                node_counts[obj_id] += 1
+            else:
+                node_counts["other"] += 1
+
+        display_parts = []
+        for key, translated_name in NODE_TYPE_MAP.items():
+            count = node_counts.get(key, 0)
+            if count > 0:
+                display_parts.append(f"{count} {translated_name}")
+
+        return [display_parts] if display_parts else [[]]
 
     def get_dynamic_group_name_list(self, bk_biz_id: int, dynamic_group_list: list[dict]) -> list:
         return self.helper.get_dynamic_group_names(bk_biz_id, dynamic_group_list)
