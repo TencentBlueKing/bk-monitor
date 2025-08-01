@@ -49,7 +49,7 @@ from apps.log_search.models import (
 )
 from apps.log_search.permission import Permission
 from apps.log_search.utils import handle_es_query_error
-from apps.log_unifyquery.constants import BASE_OP_MAP, MAX_LEN_DICT, REFERENCE_ALIAS
+from apps.log_unifyquery.constants import BASE_OP_MAP, MAX_LEN_DICT
 from apps.log_unifyquery.utils import deal_time_format, transform_advanced_addition
 from apps.utils.cache import cache_five_minute
 from apps.utils.core.cache.cmdb_host import CmdbHostCache
@@ -519,6 +519,19 @@ class UnifyQueryHandler:
 
         return is_desensitize
 
+    @staticmethod
+    def generate_reference_name(n: int) -> str:
+        """
+        将数字转换为字母编号，如0->a, 1->b, 25->z, 26->aa, 27->ab等
+        """
+        result = []
+        while n >= 0:
+            result.append(chr(n % 26 + ord("a")))
+            n = n // 26 - 1
+
+        # 反转结果，因为是从最低位开始计算的
+        return "".join(reversed(result))
+
     def init_base_dict(self):
         # 自动周期处理
         if self.search_params.get("interval", "auto") == "auto":
@@ -531,7 +544,7 @@ class UnifyQueryHandler:
         for index, index_info in enumerate(self.index_info_list):
             query_dict = {
                 "data_source": settings.UNIFY_QUERY_DATA_SOURCE,
-                "reference_name": REFERENCE_ALIAS[index],
+                "reference_name": self.generate_reference_name(index),
                 "dimensions": [],
                 "time_field": "time",
                 "conditions": self._transform_additions(index_info),
