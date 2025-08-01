@@ -441,7 +441,8 @@ class IndexSetViewSet(ModelViewSet):
             "need_create_index": False,
         }
         for index_set in index_set_list:
-            if doris_result_table := index_set["doris_table_id"]:
+            if doris_table_id := index_set["doris_table_id"]:
+                doris_result_table = doris_table_id.split(".")[0]
                 base_doris_router.update(
                     {
                         "space_type": index_set["space_uid"].split("__")[0],

@@ -1938,7 +1938,6 @@ class SearchViewSet(APIViewSet):
         if FeatureToggleObject.switch(UNIFY_QUERY_SQL, bk_biz_id):
             params["index_set_ids"] = [index_set_id]
             params["bk_biz_id"] = bk_biz_id
-            params["doris_result_table"] = self.get_object().doris_table_id
             query_handler = UnifyQueryChartHandler(params)
             result = query_handler.get_chart_data()
         else:
