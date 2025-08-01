@@ -166,6 +166,8 @@ export default class JudgingCondition extends tsc<Idata, IEvent> {
   /* 手动输入的维度(promql模式专用) */
   promqlDimensions = [];
 
+  isAddOnlyAiDetectRule = false;
+
   get aggDimensionCollection() {
     return this.metricData.reduce((acc, cur) => {
       cur.agg_dimension.forEach(dim => {
@@ -214,11 +216,15 @@ export default class JudgingCondition extends tsc<Idata, IEvent> {
   @Watch('isOnlyAiDetectRule')
   handleWatchIsOnlyAiDetectRule(v: boolean) {
     /* 策略编辑页的情况下不重置以下字段 */
-    if (v && !this.isStrategyEdit) {
-      this.localData.triggerConfig.checkWindow = 5;
-      this.localData.triggerConfig.count = 1;
-      this.localData.recoveryConfig.checkWindow = 5;
-      this.emitValueChange();
+    if (v) {
+      if (!this.isStrategyEdit || this.isAddOnlyAiDetectRule) {
+        console.log('asdfasdfasdfasfasdfasd');
+        this.localData.triggerConfig.checkWindow = 5;
+        this.localData.triggerConfig.count = 1;
+        this.localData.recoveryConfig.checkWindow = 5;
+        this.emitValueChange();
+      }
+      this.isAddOnlyAiDetectRule = true;
     }
   }
 
