@@ -85,6 +85,8 @@ interface Idata {
   isAlert?: boolean; // 是否为关联告警
   isDetailMode?: boolean;
   isFta?: boolean;
+  isOnlyAiDetectRule?: boolean;
+  isStrategyEdit?: boolean;
   judgeTimeRange?: string[]; // 关联告警时只显示生效时间段
   legalDimensionList?: ICommonItem[];
   metricData: MetricDetail[];
@@ -142,6 +144,10 @@ export default class JudgingCondition extends tsc<Idata, IEvent> {
   @Prop({ type: Array, default: () => ['00:00:00', '23:59:59'] }) judgeTimeRange: string[];
   @Prop({ type: Array, default: () => [] }) calendarList: IOptionsItem[]; // 日历列表可选项
   @Prop({ type: String, default: 'Edit' }) editMode: EditModeType;
+  /* 当前策略是否只选择了一个智能检测算法 */
+  @Prop({ type: Boolean, default: false }) isOnlyAiDetectRule: boolean;
+  /* 当前策略页是否处于编辑态 */
+  @Prop({ type: Boolean, default: false }) isStrategyEdit: boolean;
   @Ref() calendarSelectRef: any;
 
   aggList = [];
@@ -159,6 +165,8 @@ export default class JudgingCondition extends tsc<Idata, IEvent> {
 
   /* 手动输入的维度(promql模式专用) */
   promqlDimensions = [];
+
+  isAddOnlyAiDetectRule = false;
 
   get aggDimensionCollection() {
     return this.metricData.reduce((acc, cur) => {
@@ -202,6 +210,20 @@ export default class JudgingCondition extends tsc<Idata, IEvent> {
     } else {
       this.curDimensions = [];
       this.localData.noDataConfig.dimensions = [];
+    }
+  }
+
+  @Watch('isOnlyAiDetectRule')
+  handleWatchIsOnlyAiDetectRule(v: boolean) {
+    /* 策略编辑页的情况下不重置以下字段 */
+    if (v) {
+      if (!this.isStrategyEdit || this.isAddOnlyAiDetectRule) {
+        this.localData.triggerConfig.checkWindow = 5;
+        this.localData.triggerConfig.count = 1;
+        this.localData.recoveryConfig.checkWindow = 5;
+        this.emitValueChange();
+      }
+      this.isAddOnlyAiDetectRule = true;
     }
   }
 
@@ -451,6 +473,7 @@ export default class JudgingCondition extends tsc<Idata, IEvent> {
                 class='small-input'
                 v-model={this.localData.triggerConfig.checkWindow}
                 behavior='simplicity'
+                disabled={this.isOnlyAiDetectRule}
                 size='small'
                 type='number'
                 on-change={this.emitValueChange}
@@ -460,6 +483,7 @@ export default class JudgingCondition extends tsc<Idata, IEvent> {
                 class='small-input'
                 v-model={this.localData.triggerConfig.count}
                 behavior='simplicity'
+                disabled={this.isOnlyAiDetectRule}
                 size='small'
                 type='number'
                 on-change={this.emitValueChange}
@@ -482,6 +506,7 @@ export default class JudgingCondition extends tsc<Idata, IEvent> {
                   class='small-input'
                   v-model={this.localData.recoveryConfig.checkWindow}
                   behavior='simplicity'
+                  disabled={this.isOnlyAiDetectRule}
                   size='small'
                   type='number'
                   on-change={this.emitValueChange}
@@ -498,6 +523,7 @@ export default class JudgingCondition extends tsc<Idata, IEvent> {
             </div>
           </VerifyItem>
         </CommonItem>
+
         <CommonItem
           title={this.$t('无数据')}
           show-semicolon
