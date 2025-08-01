@@ -24,7 +24,6 @@
  * IN THE SOFTWARE.
  */
 
-import UserDisplayNameTags from '../../../../../components/collapse-tags/user-display-name-tags';
 import { formatTraceTableDate } from '../../../../../components/trace-view/utils/date';
 import {
   type BaseTableColumn,
@@ -93,7 +92,7 @@ export class IncidentScenario extends BaseScenario {
       },
       /** 负责人(assignees) 列 */
       assignees: {
-        cellRenderer: row => this.renderAssignees(row),
+        renderType: ExploreTableColumnTypeEnum.USER_TAGS,
       },
     };
 
@@ -118,7 +117,7 @@ export class IncidentScenario extends BaseScenario {
         />
         <div
           class={`lever-rect-text ${renderCtx.isEnabledCellEllipsis(column)}`}
-          onClick={() => this.context.handleActionSliderShowDetail(row.id)}
+          onClick={() => this.jumpToIncidentDetail(row.id)}
         >
           <span>{row?.incident_name}</span>
         </div>
@@ -157,17 +156,11 @@ export class IncidentScenario extends BaseScenario {
     ) as unknown as SlotReturnValue;
   }
 
-  /**
-   * @description 负责人(assignees) 列渲染方法
-   */
-  private renderAssignees(row: IncidentTableItem) {
-    return (<UserDisplayNameTags data={row.assignees} />) as unknown as SlotReturnValue;
-  }
   // ----------------- 故障场景私有逻辑方法 -----------------
   /**
    * @description 跳转至故障详情页面
    */
-  private jumpToIncidentDetail(id: string, activeTab: string) {
+  private jumpToIncidentDetail(id: string, activeTab = '') {
     this.context.router.push({
       name: 'incident-detail',
       params: {

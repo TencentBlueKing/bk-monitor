@@ -28,6 +28,7 @@ import { type MaybeRef, get } from '@vueuse/core';
 
 import { formatDuration, formatTraceTableDate } from '../../../../../components/trace-view/utils/date';
 import TagsCell from '../components/table-cell/tags-cell';
+import UserTagsCell from '../components/table-cell/user-tags-cell';
 import {
   ENABLED_TABLE_CONDITION_MENU_CLASS_NAME,
   ENABLED_TABLE_ELLIPSIS_CELL_CLASS_NAME,
@@ -82,6 +83,7 @@ export function useTableCell({
   function initCellRenderHandleMap() {
     const defaultCellRenderHandleMap: Record<ExploreTableColumnTypeEnum, TableCellRenderer> = {
       [ExploreTableColumnTypeEnum.TAGS]: tagsColumnFormatter,
+      [ExploreTableColumnTypeEnum.USER_TAGS]: userTagsColumnFormatter,
       [ExploreTableColumnTypeEnum.CLICK]: clickColumnFormatter,
       [ExploreTableColumnTypeEnum.PREFIX_ICON]: iconColumnFormatter,
       [ExploreTableColumnTypeEnum.TIME]: timeColumnFormatter,
@@ -343,7 +345,7 @@ export function useTableCell({
   }
 
   /**
-   * @description ExploreTableColumnTypeEnum.TAGS 类型文本类型表格列渲染方法
+   * @description ExploreTableColumnTypeEnum.TAGS 类型 tag标签类型 表格列渲染方法
    * @param {ExploreTableColumn} column 当前列配置项
    *
    */
@@ -371,6 +373,39 @@ export function useTableCell({
         renderCtx={renderCtx}
         rowId={getRowId(row)}
         tags={tags}
+      />
+    ) as unknown as SlotReturnValue;
+  }
+
+  /**
+   * @description ExploreTableColumnTypeEnum.USER_TAGS 类型 用户名展示标签类型 表格列渲染方法(兼容多租户逻辑)
+   * @param {ExploreTableColumn} column 当前列配置项
+   *
+   */
+  function userTagsColumnFormatter(
+    row,
+    column: ExploreTableColumn<ExploreTableColumnTypeEnum.USER_TAGS>,
+    renderCtx: TableCellRenderContext<keyof typeof customCellRenderMap>
+  ) {
+    const userTags = getTableCellRenderValue(row, column);
+    if (!userTags?.length) {
+      const textColumn = {
+        ...column,
+        getRenderValue: () => defaultTableConfig.emptyPlaceholder,
+      };
+      return textColumnFormatter(
+        row,
+        textColumn as unknown as ExploreTableColumn<ExploreTableColumnTypeEnum.TEXT>,
+        renderCtx
+      );
+    }
+    return (
+      <UserTagsCell
+        colId={column.colKey}
+        column={column}
+        renderCtx={renderCtx}
+        rowId={getRowId(row)}
+        tags={userTags}
       />
     ) as unknown as SlotReturnValue;
   }

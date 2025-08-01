@@ -47,6 +47,7 @@ const ACTION_TABLE_COLUMNS = [
     title: window.i18n.t('ID'),
     is_default: true,
     is_locked: true,
+    fixed: 'left',
     width: 160,
   },
   {

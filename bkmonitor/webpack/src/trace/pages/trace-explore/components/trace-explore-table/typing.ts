@@ -44,6 +44,8 @@ export enum ExploreTableColumnTypeEnum {
   TEXT = 'text',
   /** 日期列 (将 时间戳 转换为 YYYY-MM-DD HH:mm:ss) */
   TIME = 'time',
+  /** 用户名展示标签列(已兼容多租户逻辑) */
+  USER_TAGS = 'user-tags',
 }
 
 /** 检索表格loading类型枚举 */
@@ -69,6 +71,7 @@ export interface BaseTableCellRenderValueType {
   [ExploreTableColumnTypeEnum.DURATION]: number;
   [ExploreTableColumnTypeEnum.TAGS]: string[] | TagCellItem[];
   [ExploreTableColumnTypeEnum.TIME]: number;
+  [ExploreTableColumnTypeEnum.USER_TAGS]: string[];
   [ExploreTableColumnTypeEnum.LINK]: {
     alias: string;
     url: string;
@@ -121,21 +124,6 @@ export interface ExploreConditionMenuItem {
 export type ExploreTableColumn<T extends ExploreTableColumnTypeEnum | string = ExploreTableColumnTypeEnum> =
   BaseTableColumn<T, BaseTableCellRenderValueType>;
 
-/** trace检索 表格列配置类型 */
-// export interface ExploreTableColumn<T extends ExploreTableColumnTypeEnum = ExploreTableColumnTypeEnum>
-//   extends PrimaryTableCol {
-//   /** 列描述(popover形式展现) **/
-//   headerDescription?: string;
-//   /** 字段类型 */
-//   renderType?: T;
-//   /** 点击列回调 -- 列类型为 ExploreTableColumnTypeEnum.CLICK 时可用 */
-//   clickCallback?: (row, column: ExploreTableColumn<ExploreTableColumnTypeEnum.CLICK>, event: MouseEvent) => void;
-//   /** 需要自定义定义 渲染值 时可用 */
-//   getRenderValue?: (row, column: ExploreTableColumn<T>) => GetTableCellRenderValue<T>;
-//   /** 单元格后置插槽（tag类型列暂未支持） */
-//   suffixSlot?: (row, column: ExploreTableColumn) => SlotReturnValue;
-// }
-
 /**
  * @description 获取 table表格列 渲染值类型 (默认为字符串)
  *
@@ -143,14 +131,6 @@ export type ExploreTableColumn<T extends ExploreTableColumnTypeEnum | string = E
 export type GetTableCellRenderValue<K, U = BaseTableCellRenderValueType> = K extends keyof U
   ? U[K]
   : string | string[] | unknown;
-
-// /**
-//  * @description 获取 table表格列 渲染值类型 (默认为字符串)
-//  *
-//  */
-// export type GetTableCellRenderValue<T> = T extends keyof TableCellRenderValueType
-//   ? TableCellRenderValueType[T]
-//   : string;
 
 export interface TableCellRenderContext<K extends string = string> {
   /** 开启省略文本省略的类名 */
@@ -177,26 +157,6 @@ export type TableCellRenderer<T extends BaseTableColumn<any, any> = BaseTableCol
   column: T,
   renderCtx: TableCellRenderContext
 ) => SlotReturnValue;
-
-/**  trace检索 table表格不同类型列 渲染值类型映射表 */
-export interface TableCellRenderValueType {
-  [ExploreTableColumnTypeEnum.DURATION]: number;
-  [ExploreTableColumnTypeEnum.TIME]: number;
-  [ExploreTableColumnTypeEnum.LINK]: {
-    alias: string;
-    url: string;
-  };
-  [ExploreTableColumnTypeEnum.PREFIX_ICON]: {
-    alias: string;
-    prefixIcon: ((row, column: ExploreTableColumn<ExploreTableColumnTypeEnum.PREFIX_ICON>) => SlotReturnValue) | string;
-  };
-  [ExploreTableColumnTypeEnum.TAGS]: {
-    alias: string;
-    tagBgColor: string;
-    tagColor: string;
-    value: string;
-  }[];
-}
 
 /** 表格筛选项类型 */
 export type TableFilterItem = OptionData;

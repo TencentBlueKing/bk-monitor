@@ -129,15 +129,15 @@ export class AlertScenario extends BaseScenario {
       },
       /** 负责人(appointee) 列 */
       appointee: {
-        renderType: ExploreTableColumnTypeEnum.TAGS,
+        renderType: ExploreTableColumnTypeEnum.USER_TAGS,
       },
       /** 通知人(assignee) 列 */
       assignee: {
-        renderType: ExploreTableColumnTypeEnum.TAGS,
+        renderType: ExploreTableColumnTypeEnum.USER_TAGS,
       },
       /** 关注人(follower) 列 */
       follower: {
-        renderType: ExploreTableColumnTypeEnum.TAGS,
+        renderType: ExploreTableColumnTypeEnum.USER_TAGS,
       },
       /** 策略名称(strategy_name) 列 */
       strategy_name: {
