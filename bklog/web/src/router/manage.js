@@ -56,7 +56,7 @@ const ArchiveList = () => import(/* webpackChunkName: 'sdk-track' */ '@/views/ma
 const ArchiveRestore = () => import(/* webpackChunkName: 'sdk-track' */ '@/views/manage/log-archive/archive-restore/list');
 const ReportManage = () => import(/* webpackChunkName: 'report-manage' */ '@/views/manage/report-management');
 // const ExtractPermission = () => import(/* webpackChunkName: 'manage-extract-permission' */ '@/views/manage/manage-extract/manage-extract-permission');
-const ExtractConfig = () => import(/* webpackChunkName: 'log-extract-config' */ '@/views/manage-v2/log-extract/extract-config/index.vue');
+const ExtractConfig = () => import(/* webpackChunkName: 'manage-extract-permission' */ '@/views/manage-v2/log-extract/extract-config/index.tsx');
 const extract = () => import(/* webpackChunkName: 'logExtract' */ '@/views/extract/index');
 const extractHome = () => import(/* webpackChunkName: 'extract-home' */ '@/views/extract/home');
 const extractCreate = () => import(/* webpackChunkName: 'extract-create' */ '@/views/extract/create');
