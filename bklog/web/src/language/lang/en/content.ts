@@ -1090,10 +1090,16 @@ export default {
   '请输入 索引集、采集项 搜索': 'Please enter index set, collection item to search',
   '如果CMDB的元数据无法满足您的需求，可以自行定义匹配想要的结果':
     'If the metadata of CMDB cannot meet your needs, you can define it yourself to match the results you want',
-  '自定义标签key与元数据key重复': 'Custom tag key and metadata key conflict',
+  自定义标签key与元数据key重复: 'Custom tag key and metadata key conflict',
   '指定清洗字段后可生效该配置，日志页面将会按照不同颜色清洗分类，最多六个字段':
     'This configuration takes effect after specifying the parsing field. Logs will be color-categorized by up to six fields.',
   '综合时间排序,是基于：dtEventTimeStamp、gesIndex、iterationIndex 3个字段的排序结果':
     'Comprehensive time sorting is based on the sorting results of the following 3 fields: dtEventTimeStamp, gesIndex, iterationIndex',
   object字段不支持编辑别名: 'object fields do not support editing aliases',
+  收藏项移动成功: 'Collection item moved successfully',
+  '解散后，该分组下的收藏项将统一挪动至[未分组]，请谨慎操作！':
+    'Dismissed, the collection items under this group will be moved to [ungrouped] uniformly. Please operate carefully.',
+  '确认解散该分组？': 'Confirm to dissolve this group?',
+  '删除后，无法恢复，请谨慎操作。': 'After deletion, it cannot be recovered. Please operate carefully.',
+  '确认删除该收藏项？': 'Confirm to delete this favorite item?',
 };
