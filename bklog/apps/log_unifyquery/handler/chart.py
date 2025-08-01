@@ -26,7 +26,6 @@ class UnifyQueryChartHandler(UnifyQueryHandler):
     def init_base_dict(self):
         # 拼接查询参数列表
         query_list = []
-        doris_result_table = self.index_set["index_set_obj"].doris_table_id.split(".")[0]
         for index, index_info in enumerate(self.index_info_list):
             query_dict = {
                 "data_source": settings.UNIFY_QUERY_DATA_SOURCE,
@@ -34,7 +33,7 @@ class UnifyQueryChartHandler(UnifyQueryHandler):
                 "conditions": self._transform_additions(index_info),
                 "query_string": self.query_string,
                 "sql": self.sql,
-                "table_id": f"bklog_index_set_{self.index_set_ids[0]}_{doris_result_table}.__default__",
+                "table_id": f"bklog_index_set_{index_info['index_set_id']}_analysis",
             }
 
             query_list.append(query_dict)
