@@ -821,4 +821,6 @@ export default {
   分享: 'Share',
   综合时间排序: 'Comprehensive Time Sorting',
   '已选择{0}个动态组': 'Selected {0} dynamic groups',
+  收藏排序: 'Favorite Sort',
+  解散: 'Dissolve',
 };
