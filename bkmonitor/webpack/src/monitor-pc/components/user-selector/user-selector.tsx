@@ -30,7 +30,7 @@ import BkUserSelectorOrigin, { type FormattedUser } from '@blueking/bk-user-sele
 
 import { getUserComponentConfig, USER_GROUP_TYPE } from '../../common/user-display-name';
 
-import type { IUserGroup } from './user-group';
+import type { IUserGroup, UserSelectorDragEvent } from './user-group';
 import type { ConfigOptions } from '@blueking/bk-user-display-name';
 
 import './user-selector.scss';
@@ -48,8 +48,10 @@ interface IBkUserSelectorProps {
   tenantId?: string;
   userGroup?: IUserGroup[];
   onChange?: (value: string[]) => void;
-  renderListItem?: (_, userInfo: FormattedUser) => JSX.Element;
-  renderTag?: (_, userInfo: FormattedUser) => JSX.Element;
+  onDragEnd?: (dragEndEvent: UserSelectorDragEvent) => void;
+  onDragStart?: (dragStartEvent: UserSelectorDragEvent) => void;
+  renderListItem?: (h: any, userInfo: FormattedUser) => JSX.Element;
+  renderTag?: (h: any, userInfo: FormattedUser) => JSX.Element;
 }
 
 const BkUserSelector: (props: IBkUserSelectorProps) => JSX.Element = BkUserSelectorOrigin as any as (
@@ -65,11 +67,17 @@ export default class UserSelector extends tsc<
     emptyText?: string;
     multiple?: boolean;
     placeholder?: string;
+    renderListItem: (h: any, userInfo: FormattedUser) => JSX.Element;
+    renderTag: (h: any, userInfo: FormattedUser) => JSX.Element;
     userGroup?: string[];
     userGroupList?: IUserGroup[];
     userIds: string | string[];
   },
-  { onChange: string[] }
+  {
+    onChange: string[];
+    onDragEnd: (dragEndEvent: UserSelectorDragEvent) => void;
+    onDragStart: (dragStartEvent: UserSelectorDragEvent) => void;
+  }
 > {
   @Prop({ type: Array, default: () => [] }) readonly userGroupList: IUserGroup[];
   @Prop({ type: Array, default: () => [] }) readonly userGroup: string[];
@@ -77,6 +85,8 @@ export default class UserSelector extends tsc<
   @Prop({ type: Boolean, default: false }) readonly draggable: boolean;
   @Prop({ type: String }) readonly placeholder: string;
   @Prop({ type: String }) readonly emptyText: string;
+  @Prop({ type: Function }) readonly renderTag: (h: any, userInfo: FormattedUser) => JSX.Element;
+  @Prop({ type: Function }) readonly renderListItem: (h: any, userInfo: FormattedUser) => JSX.Element;
   @Model('change', { type: [Array, String], default: () => [] }) userIds: string | string[];
   componentConfig: Partial<ConfigOptions> = {};
   get enableMultiTenantMode() {
@@ -87,6 +97,12 @@ export default class UserSelector extends tsc<
   }
   onChange(value: string[]) {
     this.$emit('change', value);
+  }
+  onDragEnd(dragEndEvent: UserSelectorDragEvent) {
+    this.$emit('dragEnd', dragEndEvent);
+  }
+  onDragStart(dragStartEvent: UserSelectorDragEvent) {
+    this.$emit('dragStart', dragStartEvent);
   }
 
   /**
@@ -111,6 +127,9 @@ export default class UserSelector extends tsc<
    *
    */
   listItemRender = (h, userInfo) => {
+    if (this.renderListItem) {
+      return this.renderListItem?.(h, userInfo);
+    }
     const prefixIcon = this.getPrefixIcon(h, userInfo);
     return h('div', { class: 'user-selector-list-item' }, [
       h('div', { class: 'user-selector-list-prefix' }, prefixIcon),
@@ -125,6 +144,9 @@ export default class UserSelector extends tsc<
    *
    */
   tagItemRender = (h, userInfo) => {
+    if (this.renderTag) {
+      return this.renderTag?.(h, userInfo);
+    }
     const prefixIcon = this.getPrefixIcon(h, userInfo);
     return h('div', { class: 'user-selector-tag-item' }, [
       h('div', { class: 'user-selector-tag-prefix' }, prefixIcon),
@@ -151,6 +173,8 @@ export default class UserSelector extends tsc<
         tenantId={this.componentConfig.tenantId}
         userGroup={this.userGroupList}
         onChange={this.onChange}
+        onDragEnd={this.onDragEnd}
+        onDragStart={this.onDragStart}
       />
     );
   }
