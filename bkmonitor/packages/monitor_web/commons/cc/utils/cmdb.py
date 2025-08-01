@@ -154,6 +154,9 @@ class CmdbUtil:
                 self.bk_host_innerip = bk_host_innerip
                 self.bk_cloud_id = bk_cloud_id
 
+            def __getitem__(self, key):
+                return getattr(self, key)
+
         host_list = [
             SimpleHost(bk_host_id, host_data["ip"], host_data["bk_cloud_id"])
             for bk_host_id, host_data in biz_data["host_info"].items()
