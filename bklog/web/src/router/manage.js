@@ -120,7 +120,7 @@ const getManageRoutes = () => [
               },
               // 查看采集项
               {
-                path: 'detail/:collectorId',
+                path: 'manage/:collectorId',
                 name: 'manage-collection',
                 meta: {
                   title: '日志采集',
@@ -235,7 +235,7 @@ const getManageRoutes = () => [
               },
               // 索引集详情
               {
-                path: 'detail/:indexSetId',
+                path: 'manage/:indexSetId',
                 name: 'log-index-set-manage',
                 meta: {
                   title: '日志采集',
