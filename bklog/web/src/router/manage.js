@@ -55,7 +55,8 @@ const ArchiveRepository = () => import(/* webpackChunkName: 'sdk-track' */ '@/vi
 const ArchiveList = () => import(/* webpackChunkName: 'sdk-track' */ '@/views/manage/log-archive/archive-list/list');
 const ArchiveRestore = () => import(/* webpackChunkName: 'sdk-track' */ '@/views/manage/log-archive/archive-restore/list');
 const ReportManage = () => import(/* webpackChunkName: 'report-manage' */ '@/views/manage/report-management');
-const ExtractPermission = () => import(/* webpackChunkName: 'manage-extract-permission' */ '@/views/manage/manage-extract/manage-extract-permission');
+// const ExtractPermission = () => import(/* webpackChunkName: 'manage-extract-permission' */ '@/views/manage/manage-extract/manage-extract-permission');
+const ExtractConfig = () => import(/* webpackChunkName: 'log-extract-config' */ '@/views/manage-v2/log-extract/extract-config/index.vue');
 const extract = () => import(/* webpackChunkName: 'logExtract' */ '@/views/extract/index');
 const extractHome = () => import(/* webpackChunkName: 'extract-home' */ '@/views/extract/home');
 const extractCreate = () => import(/* webpackChunkName: 'extract-create' */ '@/views/extract/create');
@@ -625,7 +626,7 @@ const getManageRoutes = () => [
       {
         path: 'manage-log-extract',
         name: 'manage-log-extract',
-        component: ExtractPermission,
+        component: ExtractConfig,
         meta: {
           title: '日志提取',
           navId: 'manage-log-extract',
