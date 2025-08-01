@@ -21,6 +21,7 @@ from bkmonitor.utils.thread_backend import InheritParentThread, run_threads
 from core.drf_resource import api
 from typing import Any
 import copy
+import threading
 
 
 class IncidentEventsSearchResource(Resource):
@@ -39,7 +40,8 @@ class IncidentEventsSearchResource(Resource):
 
     def __init__(self):
         super().__init__()
-
+        self._response_lock = threading.Lock()
+        
     RequestSerializer = EventsSearchSerializer
 
     # ==================== 数据源映射配置 ====================
@@ -298,7 +300,8 @@ class IncidentEventsSearchResource(Resource):
             query_configs: list[dict] = req_data.get("query_configs", [{}])
             table = query_configs[0].get("table", "")
             resp = event_resources.EventTimeSeriesResource().perform_request(req_data)
-            self._format_events_response(resp, events_search_response, table)
+            with self._response_lock:
+                self._format_events_response(resp, events_search_response, table)
 
         # 并发执行查询
         if validated_query_requests:
