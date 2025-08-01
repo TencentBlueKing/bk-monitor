@@ -24,7 +24,6 @@
  * IN THE SOFTWARE.
  */
 
-import UserDisplayNameTags from '../../../../../components/collapse-tags/user-display-name-tags';
 import {
   type BaseTableColumn,
   type TableCellRenderContext,
@@ -78,7 +77,7 @@ export class ActionScenario extends BaseScenario {
       },
       /** 负责人(operator) 列 */
       operator: {
-        cellRenderer: row => this.renderOperator(row),
+        renderType: ExploreTableColumnTypeEnum.USER_TAGS,
       },
       /** 触发告警数(alert_count) 列 */
       alert_count: {
@@ -129,13 +128,6 @@ export class ActionScenario extends BaseScenario {
         </div>
       </div>
     ) as unknown as SlotReturnValue;
-  }
-
-  /**
-   * @description 负责人(operator) 列渲染方法
-   */
-  private renderOperator(row: ActionTableItem) {
-    return (<UserDisplayNameTags data={row.operator} />) as unknown as SlotReturnValue;
   }
 
   /**
@@ -202,7 +194,7 @@ export class ActionScenario extends BaseScenario {
     const prefixItem = ActionStatusIconMap[row.status];
     let alias = prefixItem?.alias;
     if (row.status === 'failure') {
-      alias = ActionFailureTypeMap[row.failure_type];
+      alias = ActionFailureTypeMap[row.failure_type] ?? alias;
     }
     return {
       alias,
