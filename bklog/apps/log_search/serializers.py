@@ -40,11 +40,11 @@ from apps.log_search.constants import (
     FavoriteVisibleType,
     IndexSetType,
     InstanceTypeEnum,
-    QueryMode,
     SearchMode,
     SearchScopeEnum,
     TagColor,
     TemplateType,
+    QueryMode,
 )
 from apps.log_search.models import LogIndexSetData, ProjectInfo, Scenario
 from apps.log_unifyquery.constants import FIELD_TYPE_MAP
@@ -337,6 +337,7 @@ class UnionConfigSerializer(serializers.Serializer):
     index_set_id = serializers.IntegerField(label=_("索引集ID"), required=True)
     begin = serializers.IntegerField(required=False, default=0)
     is_desensitize = serializers.BooleanField(label=_("是否脱敏"), required=False, default=True)
+    custom_indices = serializers.CharField(required=False, allow_null=True, allow_blank=True, default="")
 
 
 class UnionSearchAttrSerializer(SearchAttrSerializer):
@@ -1132,6 +1133,32 @@ class LogGrepQuerySerializer(serializers.Serializer):
     grep_field = serializers.CharField(label=_("查询字段"), required=False, allow_null=True, allow_blank=True)
     begin = serializers.IntegerField(label=_("检索开始 offset"), required=False, default=0)
     size = serializers.IntegerField(label=_("检索结果大小"), required=False, default=10)
+    sort_list = serializers.ListField(required=False, allow_null=True, allow_empty=True, child=serializers.ListField())
+    alias_settings = AliasSettingSerializer(many=True, required=False, default=list)
+
+    def to_representation(self, instance):
+        representation = super().to_representation(instance)
+        # 根据 alias_settings 的内容创建 alias_mappings
+        alias_mappings = {
+            alias["query_alias"]: alias["field_name"] for alias in representation.get("alias_settings", [])
+        }
+        # 添加 alias_mappings 字段到序列化输出中
+        representation["alias_mappings"] = alias_mappings
+        return representation
+
+
+class AliasSettingsSerializer(serializers.Serializer):
+    alias_settings = AliasSettingSerializer(many=True, required=True)
+
+    def to_representation(self, instance):
+        representation = super().to_representation(instance)
+        # 根据 alias_settings 的内容创建 alias_mappings
+        alias_mappings = {
+            alias["query_alias"]: alias["field_name"] for alias in representation.get("alias_settings", [])
+        }
+        # 添加 alias_mappings 字段到序列化输出中
+        representation["alias_mappings"] = alias_mappings
+        return representation
 
 
 class QueryByDataIdSerializer(serializers.Serializer):

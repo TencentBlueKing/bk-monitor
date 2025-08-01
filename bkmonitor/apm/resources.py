@@ -67,14 +67,15 @@ from apm.models import (
     TraceDataSource,
 )
 from apm.models.profile import ProfileService
+from apm.serializers import FilterSerializer as TraceFilterSerializer
 from apm.serializers import (
+    TraceFieldStatisticsGraphRequestSerializer,
     TraceFieldStatisticsInfoRequestSerializer,
     TraceFieldsTopkRequestSerializer,
-    TraceFieldStatisticsGraphRequestSerializer,
 )
 from apm.task.tasks import create_or_update_tail_sampling, delete_application_async
+from apm.utils.ui_optimizations import HistogramNiceNumberGenerator
 from apm_web.constants import ServiceRelationLogTypeChoices
-
 from bkm_space.api import SpaceApi
 from bkm_space.utils import space_uid_to_bk_biz_id
 from bkmonitor.utils.cipher import transform_data_id_to_v1_token
@@ -93,7 +94,6 @@ from core.drf_resource import Resource, api, resource
 from core.drf_resource.exceptions import CustomException
 from metadata import models
 from metadata.models import DataSource
-from apm.serializers import FilterSerializer as TraceFilterSerializer
 
 logger = logging.getLogger("apm")
 
@@ -1313,9 +1313,7 @@ class QueryTraceByIdsResource(Resource):
         trace_ids = list(set(validated_request_data["trace_ids"]))
         if len(trace_ids) > settings.APM_APP_QUERY_TRACE_MAX_COUNT:
             logger.warning(
-                "QueryTraceByIdsResource len of trace_ids({}) has exceeded the maximum number({})".format(
-                    len(trace_ids), settings.APM_APP_QUERY_TRACE_MAX_COUNT
-                )
+                f"QueryTraceByIdsResource len of trace_ids({len(trace_ids)}) has exceeded the maximum number({settings.APM_APP_QUERY_TRACE_MAX_COUNT})"
             )
             validated_request_data["trace_ids"] = trace_ids[: settings.APM_APP_QUERY_TRACE_MAX_COUNT]
 
@@ -1372,9 +1370,7 @@ class QueryAppByTraceResource(Resource):
         trace_ids = validated_request_data["trace_ids"]
         if len(trace_ids) > settings.APM_APP_QUERY_TRACE_MAX_COUNT:
             logger.warning(
-                "QueryTraceByIdsResource len of trace_ids({}) has exceeded the maximum number({})".format(
-                    len(trace_ids), settings.APM_APP_QUERY_TRACE_MAX_COUNT
-                )
+                f"QueryTraceByIdsResource len of trace_ids({len(trace_ids)}) has exceeded the maximum number({settings.APM_APP_QUERY_TRACE_MAX_COUNT})"
             )
             trace_ids = trace_ids[: settings.APM_APP_QUERY_TRACE_MAX_COUNT]
 
@@ -1448,7 +1444,10 @@ class QueryLogRelationByIndexSetIdResource(Resource):
         # bk_data_id，bk_biz_id，start_time，end_time 等参数用来限定自动关联范围
         # 索引集对应采集ID, 不一定有，这里只做尽可能的关联
         bk_data_id = serializers.IntegerField(required=False, label=_("索引集对应采集ID"), default=None)
-        bk_biz_id = serializers.IntegerField(required=False, label="业务ID")
+        bk_biz_id = serializers.IntegerField(required=False, label="业务ID", default=0, allow_null=True)
+        related_bk_biz_id = serializers.IntegerField(
+            required=False, label="关联 CC 的业务ID", default=0, allow_null=True
+        )
         start_time = serializers.IntegerField(required=False, label="关联开始时间", default=None, allow_null=True)
         end_time = serializers.IntegerField(required=False, label="关联结束时间", default=None, allow_null=True)
 
@@ -1496,10 +1495,19 @@ class QueryLogRelationByIndexSetIdResource(Resource):
                 # 取最近一小时的关联关系
                 end_time = int(time.time())
                 start_time = end_time - one_hour_seconds
+            else:
+                # 从日志平台传过来的时间是毫秒的时间戳，需要转换一下
+                start_time = start_time // 1000
+                end_time = end_time // 1000
+
             if end_time - start_time > one_hour_seconds:
                 # 防止时间范围太大，导致接口查询过慢
                 start_time = end_time - one_hour_seconds
+
+            bk_data_id_bk_biz_id = data.get("bk_biz_id")
+            related_bk_biz_id = data.get("related_bk_biz_id")
             response = api.unify_query.query_multi_resource_range(
+                bk_biz_ids=[related_bk_biz_id or bk_data_id_bk_biz_id],
                 query_list=[
                     {
                         "start_time": start_time,
@@ -1510,13 +1518,18 @@ class QueryLogRelationByIndexSetIdResource(Resource):
                         "step": f"{end_time - start_time}s",
                         "path_resource": ["datasource", "pod", "apm_service_instance"],
                     }
-                ]
+                ],
             )
             if response:
                 for each_data in response.get("data", []):
                     for target in each_data.get("target_list", []):
                         for item in target.get("items", []):
-                            return {"bk_biz_id": data.get("bk_biz_id"), "app_name": item["apm_application_name"]}
+                            app_name = item["apm_application_name"]
+                            app = ApmApplication.objects.filter(
+                                app_name=app_name, bk_biz_id__in=[bk_data_id_bk_biz_id, related_bk_biz_id]
+                            ).first()
+                            if app:
+                                return {"bk_biz_id": app.bk_biz_id, "app_name": app_name}
 
         return {}
 
@@ -2039,6 +2052,7 @@ class QueryFieldStatisticsInfoResource(Resource):
                     StatisticsProperty.AVG.value,
                 ]
             )
+        statistics_properties = set(statistics_properties) - set(validated_data["exclude_property"])
 
         statistics_info = {}
         run_threads(
@@ -2109,16 +2123,15 @@ class QueryFieldStatisticsInfoResource(Resource):
             processed_statistics_info[statistics_property] = value
 
         # 计算百分比
-        processed_statistics_info["field_percent"] = (
-            round(
-                statistics_info[StatisticsProperty.FIELD_COUNT.value]
-                / statistics_info[StatisticsProperty.TOTAL_COUNT.value]
-                * 100,
-                2,
-            )
-            if statistics_info[StatisticsProperty.TOTAL_COUNT.value] > 0
-            else 0
-        )
+        if (
+            StatisticsProperty.FIELD_COUNT.value in statistics_info
+            and StatisticsProperty.TOTAL_COUNT.value in statistics_info
+        ):
+            field_percent = 0
+            total_count = statistics_info[StatisticsProperty.TOTAL_COUNT.value]
+            if total_count > 0:
+                field_percent = statistics_info[StatisticsProperty.FIELD_COUNT.value] / total_count * 100
+            processed_statistics_info["field_percent"] = format_percent(field_percent, 3, 3, 3)
         return processed_statistics_info
 
 
@@ -2151,15 +2164,21 @@ class QueryFieldStatisticsGraphResource(Resource):
                 {
                     "query_method": validated_data["query_method"],
                     "time_alignment": validated_data["time_alignment"],
+                    "null_as_zero": not validated_data["time_alignment"],
                     "start_time": config["start_time"] // 1000,
                     "end_time": config["end_time"] // 1000,
                 }
             )
             return resource.grafana.graph_unify_query(config)
 
-        # 字段枚举数量小于等于区间数量或者区间的最大数量小于等于区间数，直接查询枚举值返回
         min_value, max_value, distinct_count, interval_num = values[:4]
-        if distinct_count <= interval_num or (max_value - min_value + 1) <= interval_num:
+        if min_value is None or max_value is None:
+            return self.process_graph_info([])
+
+        # 字段枚举数量小于等于区间数量或者区间的最大数量小于等于区间数，直接查询枚举值返回
+        if distinct_count is not None and (
+            distinct_count <= interval_num or (max_value - min_value + 1) <= interval_num
+        ):
             field_topk = proxy.query_field_topk(**base_query_params, limit=distinct_count)
             return self.process_graph_info(
                 [
@@ -2186,23 +2205,19 @@ class QueryFieldStatisticsGraphResource(Resource):
         :return: List[Tuple[int, int]]
             返回各区间的元组列表，每个元组包含闭合区间 (最小值, 最大值)
         """
-        intervals = []
-        current_min = min_value
-        for i in range(interval_num):
-            # 闭区间，加上区间数后要 -1
-            current_max = current_min + (max_value - min_value + 1) // interval_num - 1
-            # 确保最后一个区间覆盖到 max_value
-            if i == interval_num - 1:
-                current_max = max_value
-            intervals.append((current_min, current_max))
-            current_min = current_max + 1
-        return intervals
+        left_x, _, bucket_size, num_buckets = HistogramNiceNumberGenerator.align_histogram_bounds(
+            min_value, max_value, interval_num
+        )
+        return [(left_x + i * bucket_size, left_x + (i + 1) * bucket_size) for i in range(num_buckets)]
 
     @classmethod
     def process_graph_info(cls, buckets):
         """
         处理数值趋势图格式，和时序趋势图保持一致
         """
+        # 如果只有一个 bucket，且数据为 0，则返回空数据
+        if len(buckets) == 1 and buckets[0][0] == 0:
+            buckets = []
         return {"series": [{"datapoints": buckets}]}
 
     @classmethod

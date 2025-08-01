@@ -26,25 +26,25 @@
 import { Component, Emit, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import AlarmHandling, { type IAllDefense, type IValue as IAlarmItem } from './alarm-handling';
+import AlarmHandling, { type IValue as IAlarmItem, type IAllDefense } from './alarm-handling';
 import SimpleSelect from './simple-select';
 
 import type { IGroupItem } from '../components/group-select';
 
 import './alarm-handling-list.scss';
 
-interface IProps {
-  value?: IAlarmItem[];
-  allAction?: IGroupItem[]; // 套餐列表
-  allDefense?: IAllDefense[]; // 防御动作列表
-  readonly?: boolean;
-  strategyId?: number | string;
-  isSimple?: boolean; // 简易模式（无预览, 无回填）
+interface IEvents {
+  onAddMeal?: number;
+  onChange?: IAlarmItem[];
 }
 
-interface IEvents {
-  onChange?: IAlarmItem[];
-  onAddMeal?: number;
+interface IProps {
+  allAction?: IGroupItem[]; // 套餐列表
+  allDefense?: IAllDefense[]; // 防御动作列表
+  isSimple?: boolean; // 简易模式（无预览, 无回填）
+  readonly?: boolean;
+  strategyId?: number | string;
+  value?: IAlarmItem[];
 }
 
 export const signalNames = {
@@ -106,7 +106,7 @@ export default class AlarmHandlingList extends tsc<IProps, IEvents> {
             timedelta: 1,
             count: 1,
           },
-          enable_delay: 1,
+          skip_delay: 0,
         },
       });
       this.addValue = [];
@@ -160,11 +160,15 @@ export default class AlarmHandlingList extends tsc<IProps, IEvents> {
     return new Promise((resolve, reject) => {
       const validate = this.data.some(item => !item.signal?.length);
       const configValidate = this.data.every(item => !!item.config_id);
+      const skipDelayValidate = this.data.some(item => item.options.skip_delay === -1);
       if (validate) {
         this.errMsg = window.i18n.tc('输入告警场景');
         reject();
       } else if (!configValidate) {
         this.errMsg = window.i18n.tc('选择处理套餐');
+      } else if (skipDelayValidate) {
+        // 后端只存储延迟时间，不记录开关状态。 -1：switch状态开但时间设置不正确
+        reject();
       } else {
         resolve(true);
       }

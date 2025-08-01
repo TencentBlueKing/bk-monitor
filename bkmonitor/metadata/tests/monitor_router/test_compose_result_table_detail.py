@@ -8,10 +8,15 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+from datetime import timedelta
+from django.utils import timezone
+
 import pytest
-from metadata.models.space.space_table_id_redis import SpaceTableIDRedis
 
 from metadata import models
+from metadata.models.space.space_table_id_redis import SpaceTableIDRedis
+
+base_time = timezone.datetime(2020, 1, 1, tzinfo=timezone.utc)
 
 
 @pytest.fixture
@@ -19,6 +24,18 @@ def create_or_delete_records(mocker):
     models.ESStorage.objects.create(table_id="1001_bklog.stdout", storage_cluster_id=11)
     models.ResultTable.objects.create(
         table_id="1001_bklog.stdout",
+        table_name_zh="stdout",
+        data_label="bklog_index_set_1001",
+        is_custom_table=False,
+    )
+
+    models.ESStorage.objects.create(
+        table_id="1001_bklog.stdout_fake",
+        storage_cluster_id=11,
+        origin_table_id="1001_bklog.stdout",
+    )
+    models.ResultTable.objects.create(
+        table_id="1001_bklog.stdout_fake",
         table_name_zh="stdout",
         data_label="bklog_index_set_1001",
         is_custom_table=False,
@@ -35,6 +52,33 @@ def create_or_delete_records(mocker):
         value='{"name": "dtEventTimeStamp", "type": "date", "unit": "millisecond"}',
     )
 
+    # 日志链路必备的两个查询Option： need_add_time & time_field
+    models.ResultTableOption.objects.create(
+        table_id="1001_bklog.stdout_fake", name="need_add_time", value_type="bool", value="true"
+    )
+    models.ResultTableOption.objects.create(
+        table_id="1001_bklog.stdout_fake",
+        name="time_field",
+        value_type="dict",
+        value='{"name": "dtEventTimeStamp", "type": "date", "unit": "millisecond"}',
+    )
+
+    models.StorageClusterRecord.objects.create(
+        table_id="1001_bklog.stdout",
+        cluster_id=11,
+        is_current=True,
+        enable_time=base_time - timedelta(days=30),
+        bk_tenant_id="system",
+    )
+    models.StorageClusterRecord.objects.create(
+        table_id="1001_bklog.stdout",
+        cluster_id=12,
+        is_current=False,
+        enable_time=base_time - timedelta(days=60),
+        disable_time=base_time - timedelta(days=30),
+        bk_tenant_id="system",
+    )
+
     # 创建一些字段查询别名
     models.ESFieldQueryAliasOption.objects.create(
         table_id="1001_bklog.stdout", field_path="__ext.pod_name", query_alias="pod_name", is_deleted=False
@@ -48,6 +92,18 @@ def create_or_delete_records(mocker):
         query_alias="container_name",
         is_deleted=True,  # 软删除的别名不会出现
     )
+    models.ESFieldQueryAliasOption.objects.create(
+        table_id="1001_bklog.stdout_fake", field_path="__ext.pod_name", query_alias="pod_name", is_deleted=False
+    )
+    models.ESFieldQueryAliasOption.objects.create(
+        table_id="1001_bklog.stdout_fake", field_path="__ext.pod_ip", query_alias="pod_ip", is_deleted=False
+    )
+    models.ESFieldQueryAliasOption.objects.create(
+        table_id="1001_bklog.stdout_fake",
+        field_path="__ext.container_name",
+        query_alias="container_name",
+        is_deleted=True,  # 软删除的别名不会出现
+    )
     yield
     models.ESStorage.objects.filter(table_id="1001_bklog.stdout").delete()
     models.ResultTable.objects.filter(table_id="1001_bklog.stdout").delete()
@@ -55,13 +111,13 @@ def create_or_delete_records(mocker):
     models.ESFieldQueryAliasOption.objects.filter(table_id="1001_bklog.stdout").delete()
 
 
-@pytest.mark.django_db(databases=["default", "monitor_api"])
+@pytest.mark.django_db(databases="__all__")
 def test_compose_es_table_detail(create_or_delete_records):
     """
     测试生成ES结果表详情路由
     """
     client = SpaceTableIDRedis()
-    res = client._compose_es_table_id_detail(table_id_list=["1001_bklog.stdout"])
+    res = client._compose_es_table_id_detail(table_id_list=["1001_bklog.stdout"], bk_tenant_id="system")
     expected = {
         "1001_bklog.stdout": {
             "storage_id": 11,
@@ -73,24 +129,49 @@ def test_compose_es_table_detail(create_or_delete_records):
                 "time_field": {"name": "dtEventTimeStamp", "type": "date", "unit": "millisecond"},
             },
             "storage_type": "elasticsearch",
-            "storage_cluster_records": [],
+            "storage_cluster_records": [
+                {"enable_time": 1572652800, "storage_id": 12},
+                {"enable_time": 1575244800, "storage_id": 11},
+            ],
             "data_label": "bklog_index_set_1001",
             "field_alias": {
                 "pod_name": "__ext.pod_name",
                 "pod_ip": "__ext.pod_ip",
-                "container_name": "__ext.container_name",
             },
         }
     }
 
-    assert expected
+    assert res == expected
 
-    expected_str = {
-        "1001_bklog.stdout": '{"storage_id":11,"db":null,"measurement":"__default__","source_type":"log",'
-        '"options":{"need_add_time":true,"time_field":{"name":"dtEventTimeStamp",'
-        '"type":"date","unit":"millisecond"}},"storage_type":"elasticsearch",'
-        '"storage_cluster_records":[],"data_label":"bklog_index_set_1001",'
-        '"field_alias":{"pod_name":"__ext.pod_name","pod_ip":"__ext.pod_ip"}}'
+
+@pytest.mark.django_db(databases="__all__")
+def test_compose_es_table_detail_for_fake_rt(create_or_delete_records):
+    """
+    测试虚拟RT的路由生成
+    """
+    client = SpaceTableIDRedis()
+    res = client._compose_es_table_id_detail(table_id_list=["1001_bklog.stdout_fake"], bk_tenant_id="system")
+    expected = {
+        "1001_bklog.stdout_fake": {
+            "storage_id": 11,
+            "db": None,
+            "measurement": "__default__",
+            "source_type": "log",
+            "options": {
+                "need_add_time": True,
+                "time_field": {"name": "dtEventTimeStamp", "type": "date", "unit": "millisecond"},
+            },
+            "storage_type": "elasticsearch",
+            "storage_cluster_records": [
+                {"enable_time": 1572652800, "storage_id": 12},
+                {"enable_time": 1575244800, "storage_id": 11},
+            ],
+            "data_label": "bklog_index_set_1001",
+            "field_alias": {
+                "pod_name": "__ext.pod_name",
+                "pod_ip": "__ext.pod_ip",
+            },
+        }
     }
 
-    assert res == expected_str
+    assert res == expected

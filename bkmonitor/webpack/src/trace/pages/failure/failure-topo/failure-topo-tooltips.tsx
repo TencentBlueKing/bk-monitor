@@ -24,27 +24,27 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { type PropType, defineComponent, getCurrentInstance, ref, watch, inject, type Ref } from 'vue';
-import { useI18n } from 'vue-i18n';
+import { type PropType, type Ref, defineComponent, getCurrentInstance, inject, ref, watch } from 'vue';
 
 import { OverflowTitle, Popover } from 'bkui-vue';
 import { Message } from 'bkui-vue';
 import dayjs from 'dayjs';
 import { copyText } from 'monitor-common/utils/utils';
 import { echarts } from 'monitor-ui/monitor-echarts/types/monitor-echarts';
+import { useI18n } from 'vue-i18n';
 
 import { NODE_TYPE_ICON } from './node-type-svg';
-import { getNodeAttrs, truncateText, getApmServiceType } from './utils';
+import { getApmServiceType, getNodeAttrs, truncateText } from './utils';
 
 import type { IEdge, ITopoNode } from './types';
 
 import './failure-topo-tooltips.scss';
 const { i18n } = window;
 type PopoverInstance = {
-  show?: () => void;
-  hide?: () => void;
-  close?: () => void;
   [key: string]: any;
+  close?: () => void;
+  hide?: () => void;
+  show?: () => void;
 };
 
 export default defineComponent({
@@ -259,6 +259,47 @@ export default defineComponent({
     };
     /** 不同类型的路由跳转逻辑处理 */
     const typeToLinkHandle = {
+      BcsService: {
+        title: 'pod详情页',
+        path: () => '/k8s-new',
+        beforeJumpVerify: () => true,
+        query: node => {
+          const { namespace, cluster_id, service_name, pod_name } = node.entity?.dimensions || {};
+          const filterBy = {
+            service: service_name ? [service_name] : [],
+            namespace: namespace ? [namespace] : [],
+            pod: pod_name ? [pod_name] : [],
+          };
+          return {
+            groupBy: JSON.stringify(['namespace', 'service']),
+            scene: 'network',
+            sceneId: 'kubernetes',
+            activeTab: 'list',
+            cluster: cluster_id ?? '',
+            filterBy: JSON.stringify(filterBy),
+          };
+        },
+      },
+      BcsWorkload: {
+        title: 'pod详情页',
+        path: () => '/k8s-new',
+        beforeJumpVerify: () => true,
+        query: node => {
+          const { namespace, pod_name, cluster_id, workload_name, workload_type } = node.entity?.dimensions || {};
+          const filterBy = {
+            workload: workload_name ? [`${workload_type}:${workload_name}`] : [],
+            namespace: namespace ? [namespace] : [],
+            pod: pod_name ? [pod_name] : [],
+          };
+          return {
+            sceneId: 'kubernetes',
+            groupBy: JSON.stringify(['namespace', 'workload']),
+            activeTab: 'list',
+            cluster: cluster_id ?? '',
+            filterBy: JSON.stringify(filterBy),
+          };
+        },
+      },
       BcsPod: {
         title: 'pod详情页',
         path: () => '/k8s-new',
@@ -270,6 +311,7 @@ export default defineComponent({
             pod: pod_name ? [pod_name] : [],
           };
           return {
+            groupBy: JSON.stringify(['namespace', 'pod']),
             sceneId: 'kubernetes',
             activeTab: 'detail',
             cluster: cluster_id ?? '',
@@ -357,7 +399,6 @@ export default defineComponent({
     const goDetailTab = node => {
       emit('toDetailTab', node);
     };
-
     return {
       popover,
       typeToLinkHandle,

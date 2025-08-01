@@ -509,3 +509,20 @@ class TestUnifyQueryHandler(TestCase):
         self.assertEqual(index_info_list["scenario_id"], "bkdata")
         self.assertEqual(index_info_list["using_clustering_proxy"], True)
         self.assertEqual(index_info_list["indices"], "2_bklog_1_clustered")
+
+    def test_generate_reference_name(self):
+        test_cases = [
+            (0, "a"),
+            (1, "b"),
+            (25, "z"),
+            (26, "aa"),
+            (27, "ab"),
+            (51, "az"),
+            (52, "ba"),
+            (701, "zz"),
+            (702, "aaa"),
+        ]
+
+        for number, expected in test_cases:
+            reference_name = UnifyQueryHandler.generate_reference_name(number)
+            self.assertEqual(reference_name, expected)

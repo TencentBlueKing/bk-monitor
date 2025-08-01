@@ -35,19 +35,17 @@ import {
   shallowRef,
   watch,
 } from 'vue';
-import { useI18n } from 'vue-i18n';
-import { useRouter } from 'vue-router';
 
 import {
-  Arrow,
-  Graph,
   type ICombo,
   type INode,
-  Tooltip,
+  Arrow,
+  Graph,
   registerBehavior,
   registerCombo,
   registerEdge,
   registerNode,
+  Tooltip,
 } from '@antv/g6';
 import { addListener, removeListener } from '@blueking/fork-resize-detector';
 import { Exception, Loading, Message, Popover, Slider } from 'bkui-vue';
@@ -56,6 +54,8 @@ import isEqual from 'lodash/isEqual';
 import { feedbackIncidentRoot, incidentTopology } from 'monitor-api/modules/incident';
 import { random } from 'monitor-common/utils/utils.js';
 import { debounce } from 'throttle-debounce';
+import { useI18n } from 'vue-i18n';
+import { useRouter } from 'vue-router';
 
 import ErrorImg from '../../../static/img/error.svg';
 import NoDataImg from '../../../static/img/no-data.svg';
@@ -68,9 +68,9 @@ import formatTopoData from './format-topo-data';
 import { NODE_TYPE_SVG } from './node-type-svg';
 import ServiceCombo from './service-combo';
 import TopoTools from './topo-tools';
-import { getNodeAttrs, truncateText, getApmServiceType } from './utils';
+import { getApmServiceType, getNodeAttrs, truncateText } from './utils';
 
-import type { IEdge, IEntity, ITopoData, ITopoNode, IncidentDetailData } from './types';
+import type { IEdge, IEntity, IncidentDetailData, ITopoData, ITopoNode } from './types';
 
 import './failure-topo.scss';
 
@@ -826,11 +826,11 @@ export default defineComponent({
         onMouseMove(e) {
           if (this.dragging) {
             const comboRect = this.comboRect as {
-              topCombo: ICombo;
               bottomCombo: ICombo;
-              xCombo: ICombo;
-              width: number;
               height: number;
+              topCombo: ICombo;
+              width: number;
+              xCombo: ICombo;
             };
             let { movementX, movementY } = e.originalEvent;
             // 大于零向上拖动
@@ -1452,6 +1452,8 @@ export default defineComponent({
         if (cfg.parentId) {
           // label宽度为cfg.width减去"反馈根因节点"文本宽度
           const labelWidth = cfg.width - (cfg.is_feedback_root ? 90 : 56);
+          const link = tooltipsRef.value?.canJumpByType?.(cfg);
+          const fill = link ? '#699DF4' : '#C4C6CC';
           return {
             ...model,
             type: 'service-combo',
@@ -1466,8 +1468,9 @@ export default defineComponent({
             },
             labelCfg: {
               style: {
-                fill: '#C4C6CC',
+                fill,
                 opacity: 1,
+                cursor: link ? 'pointer' : 'default',
               },
               // 启用 label 事件捕获
               triggerable: true,
@@ -1634,7 +1637,7 @@ export default defineComponent({
       }
 
       graph.on('combo:click', e => {
-        tooltipsRef.value.hide();
+        tooltipsRef.value?.hide?.();
         tooltips.hide();
         labelTooltip.style.visibility = 'hidden';
 
@@ -1642,6 +1645,10 @@ export default defineComponent({
         const { target, item } = e;
         const model = item.getModel();
         if (model.type !== 'service-combo') return;
+        if (target.get('name') === 'text-shape') {
+          tooltipsRef.value.handleToLink(model);
+          return;
+        }
         if (target.get('className') === 'sub-combo-label-feedback') {
           handleFeedBack(model);
         }
@@ -1713,7 +1720,7 @@ export default defineComponent({
     };
     /** 反馈新根因， 反馈后需要重新调用接口拉取数据 */
     const handleFeedBack = model => {
-      tooltipsRef.value.hide();
+      tooltipsRef.value?.hide?.();
       tooltips.hide();
       feedbackModel.value = model;
       if (model.is_feedback_root) {
@@ -2036,6 +2043,7 @@ export default defineComponent({
       () => props.selectNode,
       val => {
         if (val.length) {
+          if (!graph) return;
           /** 清除之前节点状态 */
           graph.findAllByState('node', 'running').forEach?.(node => {
             graph.setItemState(node, 'running', false);

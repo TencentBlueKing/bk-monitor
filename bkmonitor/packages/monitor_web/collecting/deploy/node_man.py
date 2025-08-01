@@ -110,8 +110,8 @@ class NodeManInstaller(BaseInstaller):
                     # 采集超时时间
                     "timeout": f"{config_params['collector'].get('timeout', 60)}",
                     "max_timeout": f"{config_params['collector'].get('timeout', 60)}",
-                    "dataid": str(plugin_manager.perf_data_id),
-                    "port_dataid": str(plugin_manager.port_data_id),
+                    "dataid": str(plugin_manager.perf_data_id(self.collect_config.bk_biz_id)),
+                    "port_dataid": str(plugin_manager.port_data_id(self.collect_config.bk_biz_id)),
                     "match_pattern": config_params["process"]["match_pattern"],
                     "process_name": config_params["process"].get("process_name", ""),
                     "exclude_pattern": config_params["process"]["exclude_pattern"],
@@ -393,6 +393,7 @@ class NodeManInstaller(BaseInstaller):
 
         # 创建新的部署记录
         params["collector"]["period"] = current_version.params["collector"]["period"]
+        params["collector"]["timeout"] = current_version.params["collector"].get("timeout", 60)
 
         release_version = self.plugin.packaged_release_version
         self._release_package(release_version)
@@ -714,7 +715,7 @@ class NodeManInstaller(BaseInstaller):
                 "bk_cloud_id": host["bk_cloud_id"],
                 "bk_host_id": host["bk_host_id"],
                 "bk_host_name": host["bk_host_name"],
-                "bk_supplier_id": host["bk_supplier_account"],
+                "bk_supplier_id": host.get("bk_supplier_account", "0"),
                 "task_id": instance_result["task_id"],
                 "status": instance_result["status"],
                 "plugin_version": self.collect_config.deployment_config.plugin_version.version,

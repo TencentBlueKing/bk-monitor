@@ -191,6 +191,26 @@ export default indexSetApi => {
         }
       }
 
+      const { addition, keyword, items } = store.state.indexItem;
+      // 初始化时，判断当前单选索引集是否有默认条件
+      if(items.length === 1 && !addition.length && !keyword) {
+        let searchMode = 'ui';
+        let defaultKeyword = '';
+        let defaultAddition = [];
+        if (items[0]?.query_string) {
+          defaultKeyword = items[0].query_string;
+          searchMode = 'sql';
+        } else if (items[0]?.addition) {
+          defaultAddition = [...items[0].addition];
+          searchMode = 'ui';
+        }
+        store.commit('updateStorage', { [BK_LOG_STORAGE.SEARCH_TYPE]: ['ui', 'sql'].indexOf(searchMode ?? 'ui') });
+        store.commit('updateIndexItem', { addition: defaultAddition, keyword: defaultKeyword, search_mode: searchMode });
+        router.replace({
+          query: { ...route.query, addition: JSON.stringify(defaultAddition), keyword: defaultKeyword, search_mode: searchMode}
+        })
+      }
+
       if (emptyIndexSetList.length === 0) {
         RetrieveHelper.setSearchingValue(true);
 

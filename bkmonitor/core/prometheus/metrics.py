@@ -100,6 +100,12 @@ METRIC_PUSH_COUNT = Counter(
     labelnames=("deployment",),
 )
 
+SPACE_QUERY_COUNT = Counter(
+    name="bkmonitor_space_query_count",
+    documentation="空间查询次数",
+    labelnames=("using_cache", "role"),
+)
+
 CRON_TASK_EXECUTE_TIME = Histogram(
     name="bkmonitor_cron_task_execute_time",
     documentation="周期任务执行时间",
@@ -1200,6 +1206,18 @@ API_REQUESTS_TOTAL = Counter(
     name="bkmonitor_api_requests_total",
     documentation="三方APi调用统计",
     labelnames=("action", "module", "code", "role"),
+)
+
+AI_AGENTS_REQUESTS_TOTAL = Counter(
+    name="bkmonitor_ai_agents_requests_total",
+    documentation="AI小鲸服务调用统计",
+    labelnames=("agent_code", "resource_name", "status", "username"),
+)
+
+AI_AGENTS_REQUESTS_COST_SECONDS = Gauge(
+    name="bkmonitor_ai_agents_requests_cost_seconds",
+    documentation="AI小鲸服务调用耗时统计",
+    labelnames=("agent_code", "resource_name", "status", "username"),
 )
 
 LOG_INDEX_ROTATE_TOTAL = Counter(

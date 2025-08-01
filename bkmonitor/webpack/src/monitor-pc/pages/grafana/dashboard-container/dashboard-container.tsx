@@ -39,12 +39,12 @@ import type { TreeMenuItem } from './utils';
 // import ResizeLayout from '../../../components/resize-layout/resize-layout';
 import './dashboard-container.scss';
 
-interface IProps {
-  bizIdList: ISpaceItem[];
-}
 interface IEvents {
   onBizChange: number;
   onOpenSpaceManager?: () => void;
+}
+interface IProps {
+  bizIdList: ISpaceItem[];
 }
 @Component
 class DashboardContainer extends Mixins(authorityMixinCreate(grafanaAuth, 'created')) {
@@ -75,7 +75,6 @@ class DashboardContainer extends Mixins(authorityMixinCreate(grafanaAuth, 'creat
         name: 'grafana-home',
       });
     } else {
-      // console.info(item.url, '+++++++++++++++++');
       // 新版首页最近使用埋点
       await addAccessRecord({
         function: 'dashboard',

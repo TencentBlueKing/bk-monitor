@@ -38,7 +38,6 @@ import {
   ref,
   watch,
 } from 'vue';
-import { useI18n } from 'vue-i18n';
 
 import { addListener, removeListener } from '@blueking/fork-resize-detector';
 import { Loading, Message } from 'bkui-vue';
@@ -50,6 +49,7 @@ import { copyText, hexToRgbA } from 'monitor-common/utils/utils';
 import EchartOptions from 'monitor-ui/monitor-echarts/options/echart-options';
 import { type MonitorEchartOptions, echarts } from 'monitor-ui/monitor-echarts/types/monitor-echarts';
 import { debounce } from 'throttle-debounce';
+import { useI18n } from 'vue-i18n';
 
 import ChartTitle from '../../components/chart-title';
 import CommonLegend from '../../components/common-legend';
@@ -215,8 +215,7 @@ export default defineComponent({
       return chartInfo?.is_feedback_root;
     });
     const isRoot = computed(() => {
-      const { is_root } = chartInfo?.entity;
-      return is_root;
+      return chartInfo?.entity?.is_root;
     });
     // 销毁时的逻辑处理
     onUnmounted(() => {
@@ -246,7 +245,7 @@ export default defineComponent({
         } else {
           noData.value = true;
         }
-      } catch (e) {
+      } catch {
         noData.value = true;
       } finally {
         chartTitle.value = props.title;
@@ -556,12 +555,12 @@ export default defineComponent({
         const series = deepMerge([], data || []);
         const hasSeries =
           (series && series.length > 0 && series.some(item => item?.datapoints?.length)) ||
-          (series && Object.prototype.hasOwnProperty.call(series, 'series') && series.series.length);
+          (series && Object.hasOwn(series, 'series') && series.series.length);
         noData.value = !hasSeries;
         if (!hasSeries) {
           return;
         }
-        const realSeries = Object.prototype.hasOwnProperty.call(series, 'series') ? series.series : series;
+        const realSeries = Object.hasOwn(series, 'series') ? series.series : series;
         if (props.chartType === 'line' && realSeries[0]?.metric) {
           const [
             {
@@ -588,7 +587,7 @@ export default defineComponent({
           legend.value.show = hasSeries && optionData.legendData.length > 0;
         } else {
           legend.value.show = optionData.options.lengend
-            ? Object.prototype.hasOwnProperty.call(optionData.options.lengend, 'show')
+            ? Object.hasOwn(optionData.options.lengend, 'show')
               ? optionData.options.lengend.show
               : true
             : false;

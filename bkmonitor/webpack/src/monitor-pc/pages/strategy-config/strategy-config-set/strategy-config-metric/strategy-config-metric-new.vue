@@ -32,8 +32,8 @@
     @change="handleShowChange"
   >
     <div
-      class="metric-set"
       v-bkloading="{ isLoading: loading }"
+      class="metric-set"
     >
       <!-- header 监控对象选项卡 -->
       <bk-tab
@@ -108,8 +108,8 @@
           </div>
           <!-- 指标卡片展示区域 -->
           <div
-            class="right-content"
             v-if="curData && curData.list.length"
+            class="right-content"
           >
             <div
               v-for="(item, index) in curData.list"
@@ -172,9 +172,9 @@
     </template>
     <div v-show="false">
       <div
-        @mouseleave="handleTipsLeave"
-        class="uptimecheck-tips"
         ref="uptimecheckTips"
+        class="uptimecheck-tips"
+        @mouseleave="handleTipsLeave"
       >
         {{ $t('该指标需设置期望返回码/期望响应信息后才可选取') }}
         <span
@@ -189,13 +189,15 @@
   </monitor-dialog>
 </template>
 <script lang="ts">
+import { Component, Mixins, Prop, Watch } from 'vue-property-decorator';
+
 import SearchSelect from '@blueking/search-select-v3/vue2';
 import { getMetricList } from 'monitor-api/modules/strategies';
 import MonitorDialog from 'monitor-ui/monitor-dialog/monitor-dialog.vue';
 import { debounce, throttle } from 'throttle-debounce';
-import { Component, Mixins, Prop, Watch } from 'vue-property-decorator';
 
 import documentLinkMixin from '../../../../mixins/documentLinkMixin';
+
 import type MonitorVue from '../../../../types/index';
 import type {
   IDataSource,
@@ -222,7 +224,7 @@ export default class StrategyConfigMetricNew extends Mixins(documentLinkMixin)<M
   @Prop() // 是否显示dialog
   readonly isShow: boolean;
   @Prop({ default: 0 }) //
-  readonly id: string | number;
+  readonly id: number | string;
   @Prop({ default: 'application_check' }) // 传进来的监控对象
   readonly monitorType: string;
   @Prop() // 编辑状态下选择的指标data
@@ -958,7 +960,7 @@ export default class StrategyConfigMetricNew extends Mixins(documentLinkMixin)<M
               cursor: pointer;
               background: #fff;
               border: 1px solid #3a84ff;
-              box-shadow: 0 1px 2px 0 rgba(0, 51, 136, .1);
+              box-shadow: 0 1px 2px 0 rgba(0, 51, 136, 0.1);
             }
 
             .card-text {
@@ -998,7 +1000,7 @@ export default class StrategyConfigMetricNew extends Mixins(documentLinkMixin)<M
             position: relative;
             background: #fff;
             border: 1px solid #3a84ff;
-            box-shadow: 0 1px 2px 0 rgba(0, 51, 136, .1);
+            box-shadow: 0 1px 2px 0 rgba(0, 51, 136, 0.1);
 
             &::before {
               position: absolute;

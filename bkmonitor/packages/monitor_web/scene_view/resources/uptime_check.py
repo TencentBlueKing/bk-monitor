@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -10,7 +9,6 @@ specific language governing permissions and limitations under the License.
 """
 
 from collections import defaultdict
-from typing import Dict, List
 
 from django.db.models import Q
 from django.utils.translation import gettext as _
@@ -21,6 +19,7 @@ from bkmonitor.data_source import UnifyQuery, load_data_source
 from bkmonitor.share.api_auth_resource import ApiAuthResource
 from bkmonitor.utils.request import get_request_tenant_id
 from bkmonitor.utils.time_tools import strftime_local
+from bkmonitor.utils.user import get_user_display_name
 from constants.data_source import DataSourceLabel, DataTypeLabel
 from core.drf_resource import Resource, api, resource
 from monitor.models import NODE_IP_TYPE_DICT
@@ -78,7 +77,7 @@ class GetUptimeCheckTaskInfo(ApiAuthResource):
         result.extend(
             [
                 {"name": _("状态"), "type": "string", "value": task.get_status_display()},
-                {"name": _("创建人"), "type": "string", "value": task.create_user},
+                {"name": _("创建人"), "type": "string", "value": get_user_display_name(task.create_user)},
                 {"name": _("创建时间"), "type": "string", "value": strftime_local(task.create_time)},
             ]
         )
@@ -102,7 +101,7 @@ class GetUptimeCheckTaskDataResource(ApiAuthResource):
         end_time = serializers.IntegerField(required=False, label="结束时间")
 
     @classmethod
-    def get_status_map(cls, params: Dict, series: List[Dict]):
+    def get_status_map(cls, params: dict, series: list[dict]):
         max_value = None
         min_value = None
         for row in series:
@@ -159,7 +158,7 @@ class GetUptimeCheckTaskDataResource(ApiAuthResource):
         }
 
     @classmethod
-    def get_percentage_bar(cls, params: Dict, series: List[Dict]):
+    def get_percentage_bar(cls, params: dict, series: list[dict]):
         if "top" in params:
             reverse = True
             limit = params["top"]
@@ -178,7 +177,7 @@ class GetUptimeCheckTaskDataResource(ApiAuthResource):
         return {"more_data_url": "", "data": series}
 
     @classmethod
-    def get_time_series_chart(cls, params: Dict, host_keys, host_to_node):
+    def get_time_series_chart(cls, params: dict, host_keys, host_to_node):
         task = UptimeCheckTask.objects.get(bk_biz_id=params["bk_biz_id"], id=params["task_id"])
         query_params = {
             "query_configs": [
@@ -191,7 +190,7 @@ class GetUptimeCheckTaskDataResource(ApiAuthResource):
                     "data_label": f"uptimecheck_{task.protocol.lower()}",
                     "table": "",
                     "metrics": [{"field": params["metric_field"], "method": "AVG", "alias": "A"}],
-                    "group_by": ["bk_host_id"] if is_ipv6_biz(params["bk_biz_id"]) else ["ip", "bk_cloud_id"],
+                    "group_by": ["bk_host_id", "ip", "bk_cloud_id"],
                 }
             ],
             "bk_biz_id": task.bk_biz_id,
@@ -203,7 +202,7 @@ class GetUptimeCheckTaskDataResource(ApiAuthResource):
         result = resource.grafana.graph_unify_query(query_params)
         series_list = []
         for series in result["series"]:
-            if is_ipv6_biz(params["bk_biz_id"]):
+            if series["dimensions"].get("bk_host_id"):
                 host_key = int(series["dimensions"]["bk_host_id"])
                 host_key_name = ["bk_host_id", str(host_key)]
             else:
@@ -237,7 +236,7 @@ class GetUptimeCheckTaskDataResource(ApiAuthResource):
             "table": "",
             "filter_dict": {"task_id": str(task.id)},
             "metrics": [{"field": params["metric_field"], "method": "AVG", "alias": "A"}],
-            "group_by": ["bk_host_id"] if is_ipv6_biz(params["bk_biz_id"]) else ["ip", "bk_cloud_id"],
+            "group_by": ["bk_host_id", "ip", "bk_cloud_id"],
         }
         # 通过independent_dataid判断是否是独立数据源
         if task.indepentent_dataid:
@@ -291,7 +290,7 @@ class GetUptimeCheckTaskDataResource(ApiAuthResource):
         node_values = defaultdict(list)
         host_keys = set()
         for record in records:
-            if is_ipv6_biz(params["bk_biz_id"]):
+            if record.get("bk_host_id"):
                 host_key = int(record["bk_host_id"])
             else:
                 host_key = (record["ip"], int(record["bk_cloud_id"]))

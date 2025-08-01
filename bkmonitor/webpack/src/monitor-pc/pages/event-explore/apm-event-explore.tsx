@@ -27,10 +27,10 @@
 import { Component } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { ECondition, EMode, type IWhereItem } from '../../components/retrieval-filter/utils';
+import { type IWhereItem, ECondition, EMode } from '../../components/retrieval-filter/utils';
 import { APIType } from './api-utils';
 import EventExplore from './event-explore';
-import { ExploreSourceTypeEnum, type IFormData } from './typing';
+import { type IFormData, ExploreSourceTypeEnum } from './typing';
 
 import './apm-event-explore.scss';
 const APM_EVENT_DATA_ID = 'builtin';
@@ -78,7 +78,7 @@ export default class ApmEventExplore extends tsc<object> {
             },
           },
         ] = targetsList;
-        this.dataTypeLabel = data_type_label;
+        this.dataTypeLabel = data_type_label || 'event';
         this.where = where || [];
         const hasSource = this.where.find(item => item.key === 'source');
         if (hasSource) {
@@ -99,7 +99,7 @@ export default class ApmEventExplore extends tsc<object> {
     }
   }
 
-  setRouteParams() {
+  setRouteParams(otherQuery = {}) {
     const where = [...this.where];
     if (!this.eventSourceType.includes(ExploreSourceTypeEnum.ALL)) {
       where.push({ key: 'source', method: 'eq', condition: ECondition.and, value: this.eventSourceType });
@@ -126,6 +126,7 @@ export default class ApmEventExplore extends tsc<object> {
       filterMode: this.filterMode,
       commonWhere: JSON.stringify(this.commonWhere),
       showResidentBtn: String(this.showResidentBtn),
+      ...otherQuery,
     };
 
     const targetRoute = this.$router.resolve({
@@ -191,6 +192,7 @@ export default class ApmEventExplore extends tsc<object> {
         onEventSourceTypeChange={this.handleEventSourceTypeChange}
         onFilterModeChange={this.handleFilterModelChange}
         onQueryStringChange={this.handleQueryStringChange}
+        onSetRouteParams={this.setRouteParams}
         onShowResidentBtnChange={this.handleShowResidentBtnChange}
         onWhereChange={this.handleWhereChange}
       />

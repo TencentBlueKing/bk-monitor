@@ -558,6 +558,7 @@
           },
         ],
         ownerList: [],
+        timer: null,
         // ownerLoading: false,
       };
     },
@@ -633,6 +634,13 @@
     },
     beforeDestroy() {
       this.scrollEvent('close');
+      if (this.timer) {
+        clearInterval(this.timer);
+      }
+      if (this.popoverInstance) {
+        this.popoverInstance?.destroy();
+        this.popoverInstance = null;
+      }
     },
     methods: {
       handleMenuClick(option, row, isLink = false) {
@@ -677,10 +685,11 @@
         this.$store.commit('updateClusterParams', null);
         this.$store.dispatch('setQueryCondition', additionList).then(([newSearchList, searchMode, isNewSearchPage]) => {
           if (isLink) {
-            const openUrl = getConditionRouterParams(newSearchList, searchMode, isNewSearchPage);
+            const openUrl = getConditionRouterParams(newSearchList, searchMode, isNewSearchPage, { tab: 'origin' });
             window.open(openUrl, '_blank');
             // 新开页后当前页面回填聚类参数
             this.$store.commit('updateClusterParams', this.requestData);
+            return
           } else {
             this.$emit('show-change', 'origin');
           }
@@ -689,12 +698,20 @@
 
           const resolver = new RetrieveUrlResolver({
             clusterParams: store.state.clusterParams,
+            addition: additionList,
+            searchMode,
           });
 
           Object.assign(query, resolver.resolveParamsToUrl());
 
-          router.replace({
-            query,
+          router.push({
+            params: { ...route.params },
+            query: { ...query, tab: 'origin', clusterParams: undefined },
+          });
+
+          // 触发索引集查询
+          this.$nextTick(() => {
+            store.dispatch('requestIndexSetQuery');
           });
         });
       },
@@ -851,7 +868,7 @@
       handleScroll() {
         if (this.throttle) return;
         this.throttle = true;
-        setTimeout(() => {
+        this.timer = setTimeout(() => {
           this.throttle = false;
           // scroll变化时判断是否展示返回顶部的Icon
           this.$emit('handle-scroll-is-show');

@@ -12,6 +12,7 @@ import datetime
 import json
 import logging
 import math
+import re
 import time
 
 from django.conf import settings
@@ -87,23 +88,19 @@ class TimeSeriesGroup(CustomGroupBase):
         }
     ]
 
+    FIELD_NAME_REGEX = re.compile(r"^[a-zA-Z0-9_]+$")
+
     # 组合一个默认的table_id
     @staticmethod
     def make_table_id(bk_biz_id, bk_data_id, table_name=None, bk_tenant_id=DEFAULT_TENANT_ID):
         if settings.ENABLE_MULTI_TENANT_MODE:  # 若启用多租户模式,则在结果表前拼接租户ID
             logger.info("make_table_id: enable multi-tenant mode")
             if str(bk_biz_id) != "0":
-                return "{}_{}_bkmonitor_time_series_{}.{}".format(
-                    bk_tenant_id, bk_biz_id, bk_data_id, TimeSeriesGroup.DEFAULT_MEASUREMENT
-                )
-            return "{}_bkmonitor_time_series_{}.{}".format(
-                bk_tenant_id, bk_data_id, TimeSeriesGroup.DEFAULT_MEASUREMENT
-            )
+                return f"{bk_tenant_id}_{bk_biz_id}_bkmonitor_time_series_{bk_data_id}.{TimeSeriesGroup.DEFAULT_MEASUREMENT}"
+            return f"{bk_tenant_id}_bkmonitor_time_series_{bk_data_id}.{TimeSeriesGroup.DEFAULT_MEASUREMENT}"
         else:
             if str(bk_biz_id) != "0":
-                return "{}_bkmonitor_time_series_{}.{}".format(
-                    bk_biz_id, bk_data_id, TimeSeriesGroup.DEFAULT_MEASUREMENT
-                )
+                return f"{bk_biz_id}_bkmonitor_time_series_{bk_data_id}.{TimeSeriesGroup.DEFAULT_MEASUREMENT}"
 
             return f"bkmonitor_time_series_{bk_data_id}.{TimeSeriesGroup.DEFAULT_MEASUREMENT}"
 
@@ -389,79 +386,19 @@ class TimeSeriesGroup(CustomGroupBase):
 
     @atomic(config.DATABASE_CONNECTION_NAME)
     def update_metrics(self, metric_info):
-        # 记录是否有指标更新
-        # 通过功能开关控制是否使用新的功能，避免未知问题
-        if settings.IS_ENABLE_METADATA_FUNCTION_CONTROLLER:
-            # 判断是否真的存在某个group_id
-            group_id = self.time_series_group_id
-            try:
-                group = TimeSeriesGroup.objects.get(time_series_group_id=group_id)
-            except TimeSeriesGroup.DoesNotExist:
-                logger.info("time_series_group_id->[%s] not exists, nothing will do.", group_id)
-                raise ValueError(f"ts group id: {group_id} not found")
-            # 刷新 ts 中指标和维度
-            is_updated = TimeSeriesMetric.bulk_refresh_ts_metrics(
-                group_id, group.table_id, metric_info, group.is_auto_discovery
-            )
-            # 刷新 rt 表中的指标和维度
-            self.bulk_refresh_rt_fields(group.table_id, metric_info)
-            return is_updated
-        else:
-            is_updated = TimeSeriesMetric.update_metrics(self.time_series_group_id, metric_info)
-
-        tag_set = set()
-        field_list = []
-        tag_total_list = []
-        update_description = True
-
-        for item in metric_info:
-            field_name = item["field_name"]
-            field_list.append(field_name)
-            # 兼容传入 tag_value_list/tag_list 的情况
-            if "tag_value_list" in item:
-                update_description = False
-                tag_list = [(k, "") for k in item["tag_value_list"].keys()]
-            else:
-                tag_list = [(tag["field_name"], tag["description"]) for tag in item.get("tag_list", [])]
-
-            # 捕获异常，然后添加额外信息，用于后续告警通知
-            # NOTE: 异常时，仅记录
-            try:
-                self.update_metric_field(field_name=field_name, is_disabled=not item.get("is_active", True))
-            except Exception as e:
-                logger.error(
-                    "update result table field failed, data_id: [%s], table_id: [%s], field: [%s], err: %s",
-                    self.bk_data_id,
-                    self.table_id,
-                    field_name,
-                    str(e),
-                )
-                continue
-
-            logger.info(f"table->[{self.table_id}] now make sure field->[{field_name}] metric is exists.")
-
-            # 否则，需要积累遍历所有的指标维度
-            for tag in tag_list:
-                name, _ = tag
-                if name in tag_set:
-                    continue
-                tag_set.add(name)
-                tag_total_list.append(tag)
-            logger.info("group->[%s] is not split add tag->[%s] to set.", self.time_series_group_name, tag_list)
-
-        # 如果是统一结果表，则统一创建维度字段，降低重复的DB请求
+        # 判断是否真的存在某个group_id
+        group_id = self.time_series_group_id
         try:
-            self.update_tag_fields(self.table_id, tag_total_list, update_description)
-        except Exception as e:
-            # 记录异常日志
-            logger.error(
-                "update update_metrics failed, data_id: [%s], table_id: [%s], err: %s",
-                self.bk_data_id,
-                self.table_id,
-                str(e),
-            )
-
-        logger.info(f"table->[{self.table_id}] now process metrics done.")
+            group = TimeSeriesGroup.objects.get(time_series_group_id=group_id)
+        except TimeSeriesGroup.DoesNotExist:
+            logger.info("time_series_group_id->[%s] not exists, nothing will do.", group_id)
+            raise ValueError(f"ts group id: {group_id} not found")
+        # 刷新 ts 中指标和维度
+        is_updated = TimeSeriesMetric.bulk_refresh_ts_metrics(
+            group_id, group.table_id, metric_info, group.is_auto_discovery()
+        )
+        # 刷新 rt 表中的指标和维度
+        self.bulk_refresh_rt_fields(group.table_id, metric_info)
         return is_updated
 
     @property
@@ -517,6 +454,12 @@ class TimeSeriesGroup(CustomGroupBase):
                     "last_update_time": d["update_time"],
                     "values": [v["value"] for v in d["values"]],
                 }
+
+            # 过滤非法的指标名
+            if not self.FIELD_NAME_REGEX.match(md["name"]):
+                logger.warning("invalid metric name: %s", md["name"])
+                continue
+
             item = {
                 "field_name": md["name"],
                 "last_modify_time": md["update_time"] // 1000,
@@ -583,6 +526,12 @@ class TimeSeriesGroup(CustomGroupBase):
                 field_name = metric_with_score[0]
                 if isinstance(field_name, bytes):
                     field_name = field_name.decode("utf-8")
+
+                # 过滤非法的指标名
+                if not self.FIELD_NAME_REGEX.match(field_name):
+                    logger.warning("invalid metric name: %s", field_name)
+                    continue
+
                 metrics_info.append(
                     {
                         "field_name": field_name,
@@ -612,9 +561,7 @@ class TimeSeriesGroup(CustomGroupBase):
         # 删除所有的metrics信息
         metrics_queryset = TimeSeriesMetric.objects.filter(group_id=self.time_series_group_id)
         logger.debug(
-            "going to delete all metrics->[{}] for {}->[{}] deletion.".format(
-                metrics_queryset.count(), self.__class__.__name__, self.time_series_group_id
-            )
+            f"going to delete all metrics->[{metrics_queryset.count()}] for {self.__class__.__name__}->[{self.time_series_group_id}] deletion."
         )
         metrics_queryset.delete()
         logger.info(f"all metrics about {self.__class__.__name__}->[{self.time_series_group_id}] is deleted.")
@@ -1000,7 +947,7 @@ class TimeSeriesMetric(models.Model):
     )
     # group_id来自于TimeSeriesGroup.time_series_group_id,类似于UUID用法
 
-    group_id = models.IntegerField(verbose_name="自定义时序所属分组ID")
+    group_id = models.IntegerField(verbose_name="自定义时序所属分组ID", db_index=True)
     table_id = models.CharField(verbose_name="table名", default="", max_length=255)
 
     field_id = models.AutoField(verbose_name="自定义时序字段ID", primary_key=True)
@@ -1009,7 +956,7 @@ class TimeSeriesMetric(models.Model):
     last_modify_time = models.DateTimeField(verbose_name="最后更新时间", auto_now=True)
     last_index = models.IntegerField(verbose_name="上次consul的modify_index", default=0)
 
-    label = models.CharField(verbose_name="指标监控对象", default="", max_length=255)
+    label = models.CharField(verbose_name="指标监控对象", default="", max_length=255, db_index=True)
 
     class Meta:
         # 同一个事件分组下，不可以存在同样的事件名称
@@ -1288,9 +1235,7 @@ class TimeSeriesMetric(models.Model):
 
             if created or last_modify_time > metric_obj.last_modify_time:
                 logger.info(
-                    "time_series_group_id->[{}],field_name->[{}] will change index from->[{}] to [{}]".format(
-                        group_id, metric_obj.field_name, metric_obj.last_index, last_modify_time
-                    )
+                    f"time_series_group_id->[{group_id}],field_name->[{metric_obj.field_name}] will change index from->[{metric_obj.last_index}] to [{last_modify_time}]"
                 )
                 # 如果指标被禁用
                 if not metric_info.get("is_active", True):
@@ -1320,9 +1265,7 @@ class TimeSeriesMetric(models.Model):
 
                 # 后续可以在此处追加其他修改内容
                 logger.info(
-                    "time_series_group_id->[{}] has update field_name->[{}] all tags->[{}]".format(
-                        group_id, metric_obj.field_name, metric_obj.tag_list
-                    )
+                    f"time_series_group_id->[{group_id}] has update field_name->[{metric_obj.field_name}] all tags->[{metric_obj.tag_list}]"
                 )
 
         if white_list_disabled_metric:

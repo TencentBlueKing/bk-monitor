@@ -24,20 +24,23 @@
  * IN THE SOFTWARE.
  */
 import {
-  defineComponent,
-  shallowRef,
-  computed,
-  reactive,
-  onMounted,
   type PropType,
-  watch,
-  onBeforeUnmount,
-  useTemplateRef,
+  computed,
   defineAsyncComponent,
+  defineComponent,
   KeepAlive,
+  onBeforeUnmount,
+  onMounted,
+  reactive,
+  readonly,
+  shallowRef,
+  toRef,
+  unref,
+  useTemplateRef,
+  watch,
 } from 'vue';
 
-import { PrimaryTable, type TableSort } from '@blueking/tdesign-ui';
+import { type SortInfo, type TableSort, PrimaryTable } from '@blueking/tdesign-ui';
 import { useDebounceFn } from '@vueuse/core';
 import { $bkPopover, Loading } from 'bkui-vue';
 
@@ -107,9 +110,10 @@ export default defineComponent({
   },
   emits: {
     backTop: () => true,
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+
     conditionChange: (val: ConditionChangeEvent) => true,
     clearRetrievalFilter: () => true,
+    setUrlParams: () => true,
   },
   setup(props, { emit }) {
     const store = useTraceExploreStore();
@@ -144,6 +148,8 @@ export default defineComponent({
       /** 表格触底加载更多 loading  */
       [ExploreTableLoadingEnum.SCROLL]: false,
     });
+    /** 表格列排序配置 */
+    const sortContainer = readonly<SortInfo>(unref(toRef(store, 'tableSortContainer')));
 
     /** 统计面板的 抽屉页展示状态 */
     let statisticsSliderShow = false;
@@ -231,7 +237,6 @@ export default defineComponent({
       tableColumns,
       displayColumnFields,
       tableDisplayColumns,
-      sortContainer,
       getCustomDisplayColumnFields,
       handleDisplayColumnFieldsChange,
       handleDisplayColumnResize,
@@ -239,10 +244,12 @@ export default defineComponent({
       props,
       isSpanVisual,
       rowKeyField: tableRowKeyField,
+      sortContainer,
       tableHeaderCellRender,
       tableCellRender,
       handleConditionMenuShow,
       handleSliderShowChange,
+      handleSortChange,
     });
 
     /** 当前是否进行了本地 "耗时" 的筛选操作 */
@@ -309,8 +316,10 @@ export default defineComponent({
         emit('backTop');
 
         if (nVal[0] !== oVal[0] || nVal[1] !== oVal[1]) {
-          sortContainer.sortBy = '';
-          sortContainer.descending = null;
+          handleSortChange({
+            sortBy: '',
+            descending: null,
+          });
           getCustomDisplayColumnFields();
         }
         debouncedGetExploreList();
@@ -319,7 +328,7 @@ export default defineComponent({
 
     onMounted(() => {
       getCustomDisplayColumnFields();
-      debouncedGetExploreList();
+      // debouncedGetExploreList();
       addScrollListener();
       setTimeout(() => {
         initEllipsisListeners();
@@ -334,6 +343,7 @@ export default defineComponent({
       abortController?.abort?.();
       abortController = null;
       store.updateTableList([]);
+      store.updateTableSortContainer({ sortBy: '', descending: null });
     });
 
     /**
@@ -431,6 +441,12 @@ export default defineComponent({
         tableLoading[ExploreTableLoadingEnum.SCROLL] = false;
         return;
       }
+      // 检测排序字段是否在字段列表中，不在则忽略该字段的排序规则
+      const shouldIgnoreSortField = sortContainer.sortBy && !tableColumns.value?.fieldMap?.[sortContainer.sortBy];
+      if (shouldIgnoreSortField) {
+        handleSortChange({ sortBy: '', descending: null });
+        return;
+      }
       if (loadingType === ExploreTableLoadingEnum.BODY_SKELETON) {
         store.updateTableList([]);
         clearCache();
@@ -512,14 +528,8 @@ export default defineComponent({
       if (Array.isArray(sortEvent)) {
         return;
       }
-      let sortBy = sortEvent?.sortBy;
-      let descending = sortEvent?.descending;
-      if (!sortBy) {
-        sortBy = '';
-        descending = null;
-      }
-      sortContainer.sortBy = sortBy;
-      sortContainer.descending = descending;
+      store.updateTableSortContainer(sortEvent);
+      emit('setUrlParams');
     }
 
     /**

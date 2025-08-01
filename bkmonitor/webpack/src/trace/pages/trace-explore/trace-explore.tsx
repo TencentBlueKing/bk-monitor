@@ -24,18 +24,16 @@
  * IN THE SOFTWARE.
  */
 import {
-  computed,
-  defineComponent,
-  ref as deepRef,
-  onMounted,
-  shallowRef,
-  watch,
-  onUnmounted,
-  useTemplateRef,
   type ComponentPublicInstance,
+  computed,
+  ref as deepRef,
+  defineComponent,
+  onMounted,
+  onUnmounted,
+  shallowRef,
+  useTemplateRef,
+  watch,
 } from 'vue';
-import { useI18n } from 'vue-i18n';
-import { useRoute, useRouter } from 'vue-router';
 
 import { Message } from 'bkui-vue';
 import { listApplicationInfo } from 'monitor-api/modules/apm_meta';
@@ -43,15 +41,17 @@ import { listTraceViewConfig, traceGenerateQueryString } from 'monitor-api/modul
 import { updateFavorite } from 'monitor-api/modules/model';
 import { copyText, random } from 'monitor-common/utils';
 import pinyin from 'tiny-pinyin';
+import { useI18n } from 'vue-i18n';
+import { useRoute, useRouter } from 'vue-router';
 
 import EmptyStatus from '../../components/empty-status/empty-status';
 import RetrievalFilter from '../../components/retrieval-filter/retrieval-filter';
 import {
-  EMode,
-  type IWhereItem,
   type IGetValueFnParams,
-  EMethod,
+  type IWhereItem,
   EFieldType,
+  EMethod,
+  EMode,
 } from '../../components/retrieval-filter/typing';
 import { useCandidateValue } from '../../components/retrieval-filter/use-candidate-value';
 import {
@@ -68,7 +68,7 @@ import { useIsEnabledProfilingProvider } from '../../plugins/hooks';
 import { useAppStore } from '../../store/modules/app';
 import { useTraceExploreStore } from '../../store/modules/explore';
 import DimensionFilterPanel from './components/dimension-filter-panel';
-import FavoriteBox, { EditFavorite, type IFavoriteGroup } from './components/favorite-box';
+import FavoriteBox, { type IFavoriteGroup, EditFavorite } from './components/favorite-box';
 import TraceExploreHeader from './components/trace-explore-header';
 import TraceExploreLayout from './components/trace-explore-layout';
 import TraceExploreView from './components/trace-explore-view/trace-explore-view';
@@ -317,6 +317,15 @@ export default defineComponent({
         query_string,
         filters,
       };
+
+      /** 携带traceId检索，展开详情侧栏 */
+      const hasIdFilter = filters.find(item => item.key === 'trace_id');
+      if (hasIdFilter) {
+        showSlideDetail.value = {
+          type: 'trace',
+          id: hasIdFilter.value[0],
+        };
+      }
       setUrlParams();
     };
 
@@ -344,7 +353,9 @@ export default defineComponent({
     async function getAllUserConfig() {
       isShowFavorite.value = JSON.parse(localStorage.getItem(TRACE_EXPLORE_SHOW_FAVORITE) || 'false');
       await Promise.all([
-        handleGetUserConfig<string>(TRACE_EXPLORE_DEFAULT_APPLICATION).then(res => (defaultApplication.value = res)),
+        handleGetUserConfig<string>(TRACE_EXPLORE_DEFAULT_APPLICATION).then(res => {
+          defaultApplication.value = res;
+        }),
         handleGetThumbtackUserConfig<string[]>(TRACE_EXPLORE_APPLICATION_ID_THUMBTACK).then(res => {
           thumbtackList.value = res || [];
         }),
@@ -355,8 +366,8 @@ export default defineComponent({
       getUrlParams();
       await getAllUserConfig();
       await getApplicationList();
-      handleQuery();
       await getViewConfig();
+      handleQuery();
     });
 
     onUnmounted(() => {
@@ -382,6 +393,8 @@ export default defineComponent({
         /** 兼容一下老版本的listType和query参数 */
         listType,
         query,
+        sortBy,
+        descending,
       } = route.query;
       try {
         store.init({
@@ -391,6 +404,10 @@ export default defineComponent({
           appName: app_name as string,
           refreshInterval: Number(refreshInterval) || -1,
           refreshImmediate: random(3),
+          tableSortContainer: {
+            sortBy: (sortBy as string) || '',
+            descending: descending === 'false' ? false : descending === 'true' ? true : null,
+          },
         });
         where.value = tryURLDecodeParse(queryWhere as string, []);
         commonWhere.value = tryURLDecodeParse(queryCommonWhere as string, []);
@@ -398,13 +415,11 @@ export default defineComponent({
         queryString.value = (query || queryQueryString) as string;
         showResidentBtn.value = tryURLDecodeParse<boolean>(queryShowResidentBtn as string, true);
         filterMode.value = (queryFilterMode as EMode) || EMode.ui;
-        favorite_id && (defaultFavoriteId.value = Number(favorite_id));
+        if (favorite_id) {
+          defaultFavoriteId.value = Number(favorite_id);
+        }
         if (trace_id) {
           where.value.push({ key: 'trace_id', operator: 'equal', value: [trace_id as string] });
-          showSlideDetail.value = {
-            type: 'trace',
-            id: trace_id,
-          };
         }
       } catch (error) {
         console.log('route query:', error);
@@ -427,6 +442,8 @@ export default defineComponent({
         showResidentBtn: String(showResidentBtn.value),
         filterMode: filterMode.value,
         selectedType: JSON.stringify(checkboxFilters.value),
+        sortBy: store.tableSortContainer?.sortBy || '',
+        descending: String(store.tableSortContainer?.descending),
       };
 
       const targetRoute = router.resolve({
@@ -568,6 +585,7 @@ export default defineComponent({
           timeRange: favoriteConfig?.componentData?.timeRange || DEFAULT_TIME_RANGE,
           refreshInterval: favoriteConfig?.componentData?.refreshInterval || -1,
         });
+        store.sortParamsToTableSortContainer(favoriteConfig?.queryParams?.sort || []);
       } else {
         where.value = [];
         queryString.value = '';
@@ -613,7 +631,7 @@ export default defineComponent({
             offset: 0,
             limit: 30,
             query: filterMode.value === EMode.queryString ? queryString.value : '',
-            sort: [],
+            sort: store.sortParams,
             mode: store.mode,
           },
         },
@@ -741,6 +759,7 @@ export default defineComponent({
       notSupportEnumKeys,
       showSlideDetail,
       retrievalFilterPlaceholder,
+      setUrlParams,
       handleQuery,
       handleAppNameChange,
       handleThumbtackChange,
@@ -868,6 +887,7 @@ export default defineComponent({
                         onCheckboxFiltersChange={this.handleCheckboxFiltersChange}
                         onClearRetrievalFilter={this.handleClearRetrievalFilter}
                         onConditionChange={this.handleConditionChange}
+                        onSetUrlParams={this.setUrlParams}
                       />
                     </div>
                   ),

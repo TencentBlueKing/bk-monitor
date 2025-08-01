@@ -37,16 +37,16 @@ import type { MonitorEchartOptions, MonitorEchartSeries } from 'monitor-ui/monit
 
 import './link-status-chart.scss';
 
-interface LinkStatusChartProps {
-  timeRange?: TimeRangeType;
-  type: 'hour' | 'minute';
-  data: [number, number][];
-  getChartData: () => any;
-}
-
 interface LinkStatusChartEvents {
   onRefresh: void;
   onTimeRangeChange: LinkStatusChartProps['timeRange'];
+}
+
+interface LinkStatusChartProps {
+  data: [number, number][];
+  timeRange?: TimeRangeType;
+  type: 'hour' | 'minute';
+  getChartData: () => any;
 }
 
 @Component

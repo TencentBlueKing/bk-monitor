@@ -1,3 +1,5 @@
+import type { VNode } from 'vue';
+
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -31,8 +33,6 @@ import authorityMixinCreate from '../../mixins/authorityMixin';
 import * as authorityMap from '../alarm-group/authority-map';
 import AlarmGroupList from './alarm-group-common/alarm-group';
 
-import type { VNode } from 'vue';
-
 Component.registerHooks(['beforeRouteEnter']);
 @Component({
   name: 'AlarmGroupListMonitor',
@@ -40,12 +40,12 @@ Component.registerHooks(['beforeRouteEnter']);
 export default class AlarmGroupListMonitor extends Mixins(authorityMixinCreate(authorityMap)) {
   fromRouterName = '';
 
-  needReflesh = false;
+  needRefresh = false;
 
   beforeRouteEnter(to, from, next) {
     next((vm: AlarmGroupListMonitor) => {
       vm.fromRouterName = `${from.name}-${random(8)}`;
-      vm.needReflesh = to.params.needReflesh || false;
+      vm.needRefresh = to.params.needRefresh || false;
     });
   }
   render(): VNode {
@@ -53,7 +53,7 @@ export default class AlarmGroupListMonitor extends Mixins(authorityMixinCreate(a
       <AlarmGroupList
         style={{ margin: '24px' }}
         fromRouterName={this.fromRouterName}
-        needReflesh={this.needReflesh}
+        needRefresh={this.needRefresh}
         type='monitor'
       />
     );

@@ -47,20 +47,20 @@ export const dataSourceLabels = [
   { id: 'bk_apm', name: window.i18n.tc('应用监控Trace指标') },
 ];
 
-interface IProps {
-  tableData?: IMetricDetail[];
-  pagination?: ITablePagination;
-  emptyStatusType?: EmptyStatusType;
-}
 interface IEvents {
-  onPageChange?: number;
-  onLimitChange?: number;
   onConditionChange?: { key: string; value: string }[];
   onDataRetrieval?: string;
   onDataSourceChange?: string[][];
-  onEnableChange?: (value: string) => void;
+  onLimitChange?: number;
+  onPageChange?: number;
   onClearFilter?: () => void;
+  onEnableChange?: (value: string) => void;
   onRefresh?: () => void;
+}
+interface IProps {
+  emptyStatusType?: EmptyStatusType;
+  pagination?: ITablePagination;
+  tableData?: IMetricDetail[];
 }
 
 const tableSettingsKey = 'METRICS_MANAGER_TABLE_SETTINGS';
@@ -90,10 +90,10 @@ export default class MetricsTable extends tsc<IProps, IEvents> {
   };
   /* 表头筛选弹出层 */
   filterPopover: {
-    instance: any;
-    list: { name: string; value: string; checked: string; cancel: string }[];
     checkedList: { column: string; list: string[]; tempList: string[] }[];
     column: string;
+    instance: any;
+    list: { cancel: string; checked: string; name: string; value: string }[];
   } = {
     instance: null,
     list: [], // 弹出的选项
@@ -102,8 +102,8 @@ export default class MetricsTable extends tsc<IProps, IEvents> {
   };
   /* 详情 */
   details: {
-    show: boolean;
     data: IMetricDetail;
+    show: boolean;
   } = {
     data: null,
     show: false,

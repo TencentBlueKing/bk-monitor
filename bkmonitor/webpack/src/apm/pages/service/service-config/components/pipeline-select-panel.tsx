@@ -24,78 +24,78 @@
  * IN THE SOFTWARE.
  */
 
-import { Component, Prop, Ref, Watch, Emit } from 'vue-property-decorator';
+import { Component, Emit, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { pipelineOverview, listPipeline } from 'monitor-api/modules/apm_service';
+import { listPipeline, pipelineOverview } from 'monitor-api/modules/apm_service';
 import { Debounce, random } from 'monitor-common/utils';
 
 import OverflowPrefixEllipsis from './overflow-prefix-ellipsis';
 
 import './pipeline-select-panel.scss';
 
-interface TreeNode {
-  // 子节点id
+interface ILocalValue {
   id: string;
-  name: string;
   key: string;
+  name: string;
+  projectId: string;
+}
+
+interface IParams {
+  appName: string;
+  bkBizId: number;
+}
+
+interface ISendValue {
+  pipeline_id: string;
+  pipeline_name: string;
+  project_id: string;
+}
+
+interface PipelineSelectPanelProps {
+  isEditing: boolean;
+  params: IParams;
+  value: ISendValue[];
+}
+
+interface TreeNode {
   // 流水线总数
   count: number;
+  // 子节点id
+  id: string;
+  key: string;
+  loading?: boolean;
+  name: string;
   // 子集页码
   page: number;
   // 一级项目id
   projectId?: string;
-  loading?: boolean;
   data?: {
     key: string;
-  };
-  state: {
-    checked: boolean;
   };
   parent?: {
     id: string;
   };
+  state: {
+    checked: boolean;
+  };
 }
 
 interface TreeNodeData {
-  // 节点id
-  id: string;
-  name: string;
-  key: string;
-  // 根节点
-  root?: boolean;
-  // 流水线总数
-  count?: number;
   // 子集
   children: TreeNode[];
+  // 流水线总数
+  count?: number;
+  // 节点id
+  id: string;
+  key: string;
+  name: string;
   // 一级项目id
   projectId?: string;
+  // 根节点
+  root?: boolean;
   // 子集页码
   // page: number;
-}
-
-interface IParams {
-  bkBizId: number;
-  appName: string;
-}
-
-interface ILocalValue {
-  id: string;
-  name: string;
-  key: string;
-  projectId: string;
-}
-
-interface ISendValue {
-  project_id: string;
-  pipeline_id: string;
-  pipeline_name: string;
-}
-
-interface PipelineSelectPanelProps {
-  value: ISendValue[];
-  isEditing: boolean;
-  params: IParams;
 }
 
 @Component
@@ -265,38 +265,41 @@ export default class PipelineSelectPanel extends tsc<
 
   // 数据转换TreeNode格式
   mapTreeData(data) {
-    return data.map(root => {
-      return {
-        id: root.project_id,
-        key: `${root.project_name}${root.project_id}`,
-        name: `(${root.project_name || ''})${root.project_id || ''}`,
-        root: true,
-        count: root.count,
-        children: root.items.flatMap((pipeline, index) => {
-          const treeNode = {
-            id: pipeline.pipeline_id,
-            key: pipeline.pipeline_id,
-            name: pipeline.pipeline_name,
-            parentId: pipeline.project_id,
-          };
-          // 加载更多选项
-          if (root.items.length - 1 === index && root.count > root.items.length) {
-            return [
-              treeNode,
-              {
-                id: `${pipeline.pipeline_id}/more_${random(5)}`,
-                projectId: root.project_id,
-                key: 'more',
-                name: '加载更多',
-                loading: false,
-                page: 2, // 查询父级接口已经给了一部分数据，加载更多从2开始
-              },
-            ];
-          }
-          return treeNode;
-        }),
-      };
-    });
+    // filter: 子元素没有节点的父级不展示
+    return data
+      .filter(root => root.count && root.items?.length)
+      .map(root => {
+        return {
+          id: root.project_id,
+          key: `${root.project_name}${root.project_id}`,
+          name: `(${root.project_name || ''})${root.project_id || ''}`,
+          root: true,
+          count: root.count,
+          children: root.items.flatMap((pipeline, index) => {
+            const treeNode = {
+              id: pipeline.pipeline_id,
+              key: pipeline.pipeline_id,
+              name: pipeline.pipeline_name,
+              parentId: pipeline.project_id,
+            };
+            // 加载更多选项
+            if (root.items.length - 1 === index && root.count > root.items.length) {
+              return [
+                treeNode,
+                {
+                  id: `${pipeline.pipeline_id}/more_${random(5)}`,
+                  projectId: root.project_id,
+                  key: 'more',
+                  name: '加载更多',
+                  loading: false,
+                  page: 2, // 查询父级接口已经给了一部分数据，加载更多从2开始
+                },
+              ];
+            }
+            return treeNode;
+          }),
+        };
+      });
   }
 
   // 转换流水线数据格式
@@ -395,38 +398,42 @@ export default class PipelineSelectPanel extends tsc<
               </div>
             ) : (
               <div class='pipeline-workload-tree'>
-                <bk-big-tree
-                  ref='tree'
-                  scopedSlots={{
-                    default: ({ data }) => {
-                      if (data.key === 'more') return this.renderLoadMore(data);
-                      return (
-                        <div class={['bk-tree-node', { root: data.root }]}>
-                          <span
-                            style='padding-right: 5px;'
-                            class='node-content'
-                          >
+                {!this.data.length ? (
+                  <div class='pipeline-empty'>{this.$t('暂无选项')}</div>
+                ) : (
+                  <bk-big-tree
+                    ref='tree'
+                    scopedSlots={{
+                      default: ({ data }) => {
+                        if (data.key === 'more') return this.renderLoadMore(data);
+                        return (
+                          <div class={['bk-tree-node', { root: data.root }]}>
                             <span
-                              class='item-name'
-                              v-bk-overflow-tips
+                              style='padding-right: 5px;'
+                              class='node-content'
                             >
-                              {this.getSearchNode(data.name, this.searchVal)}
+                              <span
+                                class='item-name'
+                                v-bk-overflow-tips
+                              >
+                                {this.getSearchNode(data.name, this.searchVal)}
+                              </span>
+                              {data.count ? <span class='item-count'>{data.count}</span> : undefined}
                             </span>
-                            {data.count ? <span class='item-count'>{data.count}</span> : undefined}
-                          </span>
-                        </div>
-                      );
-                    },
-                  }}
-                  check-on-click={true}
-                  check-strictly={false}
-                  data={this.data}
-                  default-checked-nodes={this.getDefaultCheckedIds()}
-                  default-expanded-nodes={this.getDefaultExpandedIds()}
-                  padding={0}
-                  show-checkbox={this.isShowCheckbox}
-                  on-check-change={this.handleCheckChange}
-                />
+                          </div>
+                        );
+                      },
+                    }}
+                    check-on-click={true}
+                    check-strictly={false}
+                    data={this.data}
+                    default-checked-nodes={this.getDefaultCheckedIds()}
+                    default-expanded-nodes={this.getDefaultExpandedIds()}
+                    padding={0}
+                    show-checkbox={this.isShowCheckbox}
+                    on-check-change={this.handleCheckChange}
+                  />
+                )}
               </div>
             )}
           </div>

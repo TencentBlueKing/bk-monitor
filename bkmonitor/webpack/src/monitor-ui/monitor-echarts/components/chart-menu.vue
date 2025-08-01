@@ -49,13 +49,13 @@
 import { Component, Emit, Prop, Vue } from 'vue-property-decorator';
 
 interface menuItem {
+  checked: boolean;
+  hasLink?: boolean;
+  icon: string;
   id: string;
   name: string;
-  nextName?: string;
-  checked: boolean;
-  icon: string;
-  hasLink?: boolean;
   nextIcon?: string;
+  nextName?: string;
 }
 @Component({
   name: 'chart-menu',

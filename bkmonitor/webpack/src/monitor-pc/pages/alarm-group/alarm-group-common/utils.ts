@@ -24,8 +24,6 @@
  * IN THE SOFTWARE.
  */
 const { i18n } = window;
-export type OperationType = 'noticeUser';
-
 export type IOperationTypeMap = {
   [key in OperationType]: {
     title: string;
@@ -33,9 +31,11 @@ export type IOperationTypeMap = {
   };
 };
 
+export type OperationType = 'noticeUser';
+
 export const OperationTypeMap: IOperationTypeMap = {
   noticeUser: {
-    title: i18n.t('编辑通知对象'),
-    width: 600,
+    title: i18n.t('批量编辑通知对象'),
+    width: 480,
   },
 };

@@ -23,22 +23,21 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Prop, Watch, InjectReactive, Inject, Ref } from 'vue-property-decorator';
+import { Component, Inject, InjectReactive, Prop, Ref, Watch } from 'vue-property-decorator';
 import { ofType } from 'vue-tsx-support';
 
-import customEscalationViewStore from '@store/modules/custom-escalation-view';
 import dayjs from 'dayjs';
 import deepmerge from 'deepmerge';
 import { toPng } from 'html-to-image';
-import { CancelToken } from 'monitor-api/index';
+import { CancelToken } from 'monitor-api/cancel';
 import { graphUnifyQuery } from 'monitor-api/modules/grafana';
 import { Debounce, deepClone, random } from 'monitor-common/utils/utils';
 import { generateFormatterFunc, handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
 import {
+  type IUnifyQuerySeriesItem,
   downCsvFile,
   transformSrcData,
   transformTableDataToCsvStr,
-  type IUnifyQuerySeriesItem,
 } from 'monitor-pc/pages/view-detail/utils';
 import ListLegend from 'monitor-ui/chart-plugins/components/chart-legend/common-legend';
 import ChartHeader from 'monitor-ui/chart-plugins/components/chart-title/chart-title';
@@ -52,16 +51,17 @@ import { getSeriesMaxInterval, getTimeSeriesXInterval } from 'monitor-ui/chart-p
 import { VariablesService } from 'monitor-ui/chart-plugins/utils/variable';
 import { getValueFormat } from 'monitor-ui/monitor-echarts/valueFormats';
 
-import { timeToDayNum, handleSetFormatterFunc, handleYAxisLabelFormatter, handleGetMinPrecision } from './utils';
+import { handleGetMinPrecision, handleSetFormatterFunc, handleYAxisLabelFormatter, timeToDayNum } from './utils';
+import customEscalationViewStore from '@store/modules/custom-escalation-view';
 
 import type { IMetricAnalysisConfig } from '../type';
 import type { IChartTitleMenuEvents } from 'monitor-ui/chart-plugins/components/chart-title/chart-title-menu';
 import type {
   DataQuery,
+  IExtendMetricData,
   ILegendItem,
   ITimeSeriesItem,
   PanelModel,
-  IExtendMetricData,
 } from 'monitor-ui/chart-plugins/typings';
 
 import './metric-chart.scss';
@@ -70,16 +70,16 @@ const APM_CUSTOM_METHODS = ['COUNT', 'SUM', 'AVG', 'MAX', 'MIN'];
 // 最小展示tooltips高度
 const MIN_SHOW_TOOLTIPS_HEIGHT = 200;
 
-interface INewMetricChartProps {
-  chartHeight?: number;
-  isToolIconShow?: boolean;
-  panel?: PanelModel;
-  isShowLegend?: boolean;
-}
 interface INewMetricChartEvents {
-  onMenuClick?: () => void;
   onDrillDown?: () => void;
   onLegendData?: (list: ILegendItem[], loading: boolean) => void;
+  onMenuClick?: () => void;
+}
+interface INewMetricChartProps {
+  chartHeight?: number;
+  isShowLegend?: boolean;
+  isToolIconShow?: boolean;
+  panel?: PanelModel;
 }
 /** 图表 - 曲线图 */
 @Component
@@ -161,7 +161,7 @@ class NewMetricChart extends CommonSimpleChart {
   /** 导出csv数据时候使用 */
   series: IUnifyQuerySeriesItem[];
   // 图例排序
-  legendSorts: { name: string; timeShift: string; tipsName: string; target: string }[] = [];
+  legendSorts: { name: string; target: string; timeShift: string; tipsName: string }[] = [];
   // 切换图例时使用
   seriesList = null;
   minBase = 0;
@@ -274,7 +274,7 @@ class NewMetricChart extends CommonSimpleChart {
       let hasValueLength = 0;
       let latestVal = 0;
       let latestInd = 0;
-      const data = item.data.map((seriesItem: any, seriesIndex: number) => {
+      const data = (item.data || []).map((seriesItem: any, seriesIndex: number) => {
         if (seriesItem?.length && typeof seriesItem[1] === 'number') {
           // 当前点数据
           const pre = item.data[seriesIndex - 1] as [number, number];
@@ -320,7 +320,9 @@ class NewMetricChart extends CommonSimpleChart {
 
       legendItem.avg = +(+legendItem.total / (hasValueLength || 1)).toFixed(2);
       legendItem.total = Number(legendItem.total).toFixed(2);
-      legendItem.latest = item.data[latestInd][1];
+      if (item.data.length > 0) {
+        legendItem.latest = item.data[latestInd][1];
+      }
       legendItem.latestTime = latestVal;
 
       // 获取y轴上可设置的最小的精确度
@@ -423,7 +425,7 @@ class NewMetricChart extends CommonSimpleChart {
       if (this.$refs.chart) {
         width = this.$refs.chart.clientWidth;
       } else {
-        width = this.$refs.chart!.clientWidth - (this.panel?.options?.legend?.placement === 'right' ? 320 : 0);
+        width = this.$el.clientWidth - (this.panel?.options?.legend?.placement === 'right' ? 320 : 0);
       }
       const size = ((timeRange[1] - timeRange[0]) / width) * 1.5;
       return size > 0 ? `${Math.ceil(size)}s` : undefined;
@@ -525,7 +527,9 @@ class NewMetricChart extends CommonSimpleChart {
       promiseList.push(...list);
       await Promise.all(promiseList).catch(() => false);
       this.metrics = metrics || [];
-      if (series.length) {
+      const length = series.length;
+      const dataLen = series.filter(item => item.datapoints?.length).length;
+      if (length && dataLen) {
         const { maxSeriesCount, maxXInterval } = getSeriesMaxInterval(series);
         /* 派出图表数据包含的维度*/
         this.series = Object.freeze(series) as any;
@@ -729,7 +733,7 @@ class NewMetricChart extends CommonSimpleChart {
     return copyPanel;
   }
   /** 工具栏各个icon的操作 */
-  handleIconClick(menuItem: { id: string; text: string; icon: string }, ind: number) {
+  handleIconClick(menuItem: { icon: string; id: string; text: string }, ind: number) {
     switch (menuItem.id) {
       /** 维度下钻 */
       case 'drillDown':
@@ -961,8 +965,11 @@ class NewMetricChart extends CommonSimpleChart {
                   height={this.chartHeight}
                   groupId={this.panel.groupId}
                   hoverAllTooltips={this.hoverAllTooltips}
+                  isContextmenuPreventDefault={true}
+                  needTooltips={true}
                   options={this.options}
                   showRestore={this.showRestore}
+                  sortTooltipsValue={false}
                   onDataZoom={this.dataZoom}
                   onRestore={this.handleRestore}
                   onUpdateAxisPointer={this.handleUpdateAxisPointer}

@@ -44,7 +44,7 @@ export const ONE_HOUR = 60 * ONE_MINUTE;
 export const ONE_DAY = 24 * ONE_HOUR;
 export const DEFAULT_MS_PRECISION = Math.log10(ONE_MILLISECOND);
 
-const UNIT_STEPS: { unit: string; microseconds: number; ofPrevious: number }[] = [
+const UNIT_STEPS: { microseconds: number; ofPrevious: number; unit: string }[] = [
   { unit: 'd', microseconds: ONE_DAY, ofPrevious: 24 },
   { unit: 'h', microseconds: ONE_HOUR, ofPrevious: 60 },
   { unit: 'm', microseconds: ONE_MINUTE, ofPrevious: 60 },
@@ -74,10 +74,8 @@ export function getPercentageOfDuration(duration: number, totalDuration: number)
 const quantizeDuration = (duration: number, floatPrecision: number, conversionFactor: number) =>
   toFloatPrecision(duration / conversionFactor, floatPrecision) * conversionFactor;
 
-export function formatTraceTableDate(duration: number | string) {
-  return dayjs
-    .tz(+duration.toString().slice(0, 13).padEnd(13, '0'))
-    .format(duration.toString().length > 13 ? 'YYYY-MM-DD HH:mm:ss.SSS' : 'YYYY-MM-DD HH:mm:ss');
+export function customFormatTime(duration: number, format = 'HH:mm') {
+  return dayjs.tz(duration / ONE_MILLISECOND).format(format);
 }
 /**
  * @param {number} duration (in microseconds)
@@ -91,38 +89,8 @@ export function formatDate(duration: number) {
  * @param {number} duration (in microseconds)
  * @return {string} formatted, unit-labelled string with time in milliseconds
  */
-export function formatTime(duration: number, isMs = false) {
-  return dayjs.tz(duration / ONE_MILLISECOND).format(isMs ? STANDARD_TIME_MS_FORMAT : STANDARD_TIME_FORMAT);
-}
-
-export function customFormatTime(duration: number, format = 'HH:mm') {
-  return dayjs.tz(duration / ONE_MILLISECOND).format(format);
-}
-
-/**
- * @param {number} duration (in microseconds)
- * @return {string} formatted, unit-labelled string with time in milliseconds
- */
 export function formatDatetime(duration: number) {
   return dayjs.tz(duration / ONE_MILLISECOND).format(STANDARD_DATETIME_FORMAT);
-}
-
-/**
- * @param {number} duration (in microseconds)
- * @return {string} formatted, unit-labelled string with time in milliseconds
- */
-export function formatMillisecondTime(duration: number) {
-  const targetDuration = quantizeDuration(duration, DEFAULT_MS_PRECISION, ONE_MILLISECOND);
-  return `${dayjs.duration(targetDuration / ONE_MILLISECOND).asMilliseconds()}ms`;
-}
-
-/**
- * @param {number} duration (in microseconds)
- * @return {string} formatted, unit-labelled string with time in seconds
- */
-export function formatSecondTime(duration: number) {
-  const targetDuration = quantizeDuration(duration, DEFAULT_MS_PRECISION, ONE_SECOND);
-  return `${dayjs.duration(targetDuration / ONE_MILLISECOND).asSeconds()}s`;
 }
 
 /**
@@ -134,9 +102,11 @@ export function formatSecondTime(duration: number) {
  * 183840s => 2d 3h
  *
  * @param {number} duration (in microseconds)
+ * @param {string} split 分隔符
+ * @param {number} precision 精度
  * @return {string} formatted duration
  */
-export function formatDuration(duration: number, split = ''): string {
+export function formatDuration(duration: number, split = '', precision = 2): string {
   // Drop all units that are too large except the last one
   const [primaryUnit, secondaryUnit] = _dropWhile(
     UNIT_STEPS,
@@ -145,14 +115,48 @@ export function formatDuration(duration: number, split = ''): string {
 
   if (primaryUnit.ofPrevious === 1000) {
     // If the unit is decimal based, display as a decimal
-    return `${_round(duration / primaryUnit.microseconds, 2)}${split}${primaryUnit.unit}`;
+    return `${_round(duration / primaryUnit.microseconds, precision)}${split}${primaryUnit.unit}`;
   }
 
   const primaryValue = Math.floor(duration / primaryUnit.microseconds);
+  const remainingMicroseconds = duration % primaryUnit.microseconds;
+  const secondaryValue = Math.round(remainingMicroseconds / secondaryUnit.microseconds);
+
+  // If secondaryValue equals primaryUnit.ofPrevious, it means we should carry over
+  if (secondaryValue >= primaryUnit.ofPrevious) {
+    return `${primaryValue + 1}${split}${primaryUnit.unit}`;
+  }
+
   const primaryUnitString = `${primaryValue}${split}${primaryUnit.unit}`;
-  const secondaryValue = Math.round((duration / secondaryUnit.microseconds) % primaryUnit.ofPrevious);
   const secondaryUnitString = `${secondaryValue}${split}${secondaryUnit.unit}`;
   return secondaryValue === 0 ? primaryUnitString : `${primaryUnitString} ${secondaryUnitString}`;
+}
+
+export function formatDurationWithUnit(duration: number, split = '') {
+  const units = _dropWhile(
+    UNIT_STEPS,
+    ({ microseconds }, index) => index < UNIT_STEPS.length - 1 && microseconds > duration
+  );
+  if (duration === 0) return '0μs';
+  let remainingMicroseconds = duration;
+  const durationUnits = units.reduce((pre, cur) => {
+    if (remainingMicroseconds >= cur.microseconds) {
+      const primaryValue = Math.floor(remainingMicroseconds / cur.microseconds);
+      remainingMicroseconds = remainingMicroseconds % cur.microseconds;
+      pre.push(`${primaryValue}${cur.unit}`);
+    }
+    return pre;
+  }, []);
+  return durationUnits.join(split);
+}
+
+/**
+ * @param {number} duration (in microseconds)
+ * @return {string} formatted, unit-labelled string with time in milliseconds
+ */
+export function formatMillisecondTime(duration: number) {
+  const targetDuration = quantizeDuration(duration, DEFAULT_MS_PRECISION, ONE_MILLISECOND);
+  return `${dayjs.duration(targetDuration / ONE_MILLISECOND).asMilliseconds()}ms`;
 }
 
 export function formatRelativeDate(value: any, fullMonthName = false) {
@@ -173,6 +177,29 @@ export function formatRelativeDate(value: any, fullMonthName = false) {
     return YESTERDAY;
   }
   return m.format(`${monthFormat} D`);
+}
+
+/**
+ * @param {number} duration (in microseconds)
+ * @return {string} formatted, unit-labelled string with time in seconds
+ */
+export function formatSecondTime(duration: number) {
+  const targetDuration = quantizeDuration(duration, DEFAULT_MS_PRECISION, ONE_SECOND);
+  return `${dayjs.duration(targetDuration / ONE_MILLISECOND).asSeconds()}s`;
+}
+
+/**
+ * @param {number} duration (in microseconds)
+ * @return {string} formatted, unit-labelled string with time in milliseconds
+ */
+export function formatTime(duration: number, isMs = false) {
+  return dayjs.tz(duration / ONE_MILLISECOND).format(isMs ? STANDARD_TIME_MS_FORMAT : STANDARD_TIME_FORMAT);
+}
+
+export function formatTraceTableDate(duration: number | string) {
+  return dayjs
+    .tz(+duration.toString().slice(0, 13).padEnd(13, '0'))
+    .format(duration.toString().length > 13 ? 'YYYY-MM-DD HH:mm:ss.SSS' : 'YYYY-MM-DD HH:mm:ss');
 }
 
 export const getSuitableTimeUnit = (microseconds: number): string => {

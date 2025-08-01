@@ -24,10 +24,11 @@
  * IN THE SOFTWARE.
  */
 
-import { computed, reactive, type VNode } from 'vue';
-import { useI18n } from 'vue-i18n';
+import { type VNode, computed, reactive } from 'vue';
+import type { DeepReadonly, MaybeRef } from 'vue';
 
 import { get } from '@vueuse/core';
+import { useI18n } from 'vue-i18n';
 
 import useUserConfig from '../../../../../hooks/useUserConfig';
 import { useTraceExploreStore } from '../../../../../store/modules/explore';
@@ -41,26 +42,27 @@ import {
   TABLE_DISPLAY_COLUMNS_FIELD_SUFFIX,
 } from '../constants';
 import {
-  ExploreTableColumnTypeEnum,
-  type GetTableCellRenderValue,
+  type ActiveConditionMenuTarget,
   type CustomDisplayColumnFieldsConfig,
   type ExploreTableColumn,
-  type ActiveConditionMenuTarget,
+  type GetTableCellRenderValue,
+  ExploreTableColumnTypeEnum,
 } from '../typing';
 
 import type { IDimensionField } from '../../../typing';
-import type { SortInfo } from '@blueking/tdesign-ui';
+import type { SortInfo, TableSort } from '@blueking/tdesign-ui';
 import type { SlotReturnValue } from 'tdesign-vue-next';
-import type { MaybeRef } from 'vue';
 
 interface UseExploreTableColumnConfig {
-  props: Record<string, any>;
   isSpanVisual: MaybeRef<boolean>;
+  props: Record<string, any>;
   rowKeyField: MaybeRef<string>;
-  tableHeaderCellRender: (title: string, tipText: string, column: ExploreTableColumn) => () => SlotReturnValue;
-  tableCellRender: (column: ExploreTableColumn, row: Record<string, any>) => SlotReturnValue;
+  sortContainer: DeepReadonly<SortInfo>;
   handleConditionMenuShow: (triggerDom: HTMLElement, conditionMenuTarget: ActiveConditionMenuTarget) => void;
   handleSliderShowChange: (mode: 'span' | 'trace', id: string) => void;
+  handleSortChange: (sortEvent: TableSort) => void;
+  tableCellRender: (column: ExploreTableColumn, row: Record<string, any>) => SlotReturnValue;
+  tableHeaderCellRender: (title: string, tipText: string, column: ExploreTableColumn) => () => SlotReturnValue;
 }
 
 /**
@@ -71,10 +73,12 @@ export function useExploreColumnConfig({
   props,
   isSpanVisual,
   rowKeyField,
+  sortContainer,
   tableHeaderCellRender,
   tableCellRender,
   handleConditionMenuShow,
   handleSliderShowChange,
+  handleSortChange,
 }: UseExploreTableColumnConfig) {
   /** table 默认配置项 */
   const { tableConfig: defaultTableConfig, traceConfig, spanConfig } = TABLE_DEFAULT_CONFIG;
@@ -88,14 +92,6 @@ export function useExploreColumnConfig({
     displayFields: [],
     /** 列宽度集合 */
     fieldsWidth: {},
-  });
-
-  /** 表格列排序配置 */
-  const sortContainer = reactive<SortInfo>({
-    /** 排序字段 */
-    sortBy: '',
-    /** 排序顺序 */
-    descending: null,
   });
 
   /** 过滤出 can_displayed 为 true 的 fieldList 及 kv 映射集合 */
@@ -182,24 +178,27 @@ export function useExploreColumnConfig({
           attrs: column.sorter
             ? {
                 // 扩大排序点击热区范围
-                onClick(e: MouseEvent & { target: Element; currentTarget: Element }) {
+                onClick(e: MouseEvent & { currentTarget: Element; target: Element }) {
                   if (
                     column.colKey &&
                     e.currentTarget.tagName.toLocaleLowerCase() === 'th' &&
                     !['svg', 'path'].includes(e.target.tagName.toLocaleLowerCase()) &&
                     e.currentTarget?.classList.contains(`t-table__th-${column.colKey}`)
                   ) {
-                    if (sortContainer.sortBy === column.colKey) {
-                      const sortDescValueList = [true, false, null];
-                      const sortIndex = sortDescValueList.findIndex(v => sortContainer.descending === v);
-                      sortContainer.descending = sortDescValueList.at((sortIndex + 1) % sortDescValueList.length);
-                      if (sortContainer.descending === null) {
-                        sortContainer.sortBy = '';
+                    let sortBy = sortContainer.sortBy;
+                    let descending = sortContainer.descending;
+                    if (sortBy === column.colKey) {
+                      const sortDescValueList = [false, true, null];
+                      const sortIndex = sortDescValueList.findIndex(v => descending === v);
+                      descending = sortDescValueList.at((sortIndex + 1) % sortDescValueList.length);
+                      if (descending === null) {
+                        sortBy = '';
                       }
-                      return;
+                    } else {
+                      sortBy = column.colKey;
+                      descending = false;
                     }
-                    sortContainer.sortBy = column.colKey;
-                    sortContainer.descending = true;
+                    handleSortChange({ sortBy, descending });
                   }
                 },
               }
@@ -579,7 +578,6 @@ export function useExploreColumnConfig({
     tableColumns,
     displayColumnFields,
     tableDisplayColumns,
-    sortContainer,
     getCustomDisplayColumnFields,
     handleDisplayColumnFieldsChange,
     handleDisplayColumnResize,

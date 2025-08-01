@@ -34,7 +34,7 @@ import type { IQueryData } from 'monitor-pc/pages/monitor-k8s/typings';
 
 @Component
 export class CommonSimpleChart
-  extends Mixins<IntersectionMixin & ChartLoadingMixin & ToolsMixin & ResizeMixin & LegendMixin & ErrorMsgMixins>(
+  extends Mixins<ChartLoadingMixin & ErrorMsgMixins & IntersectionMixin & LegendMixin & ResizeMixin & ToolsMixin>(
     IntersectionMixin,
     ChartLoadingMixin,
     ToolsMixin,
@@ -96,10 +96,10 @@ export class CommonSimpleChart
     if (this.refreshIntervalInstance) {
       window.clearInterval(this.refreshIntervalInstance);
     }
-    if (v <= 0) return;
+    if (!v || +v < 1000 * 60) return; // 最小间隔1分钟 刷新一次
     this.refreshIntervalInstance = window.setInterval(() => {
       this.initialized && this.getPanelData();
-    }, this.refreshInterval);
+    }, v);
   }
   @Watch('refreshImmediate')
   // 立刻刷新

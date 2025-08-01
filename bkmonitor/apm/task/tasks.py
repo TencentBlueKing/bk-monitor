@@ -43,6 +43,7 @@ from apm.models import (
 )
 from apm.utils.report_event import EventReportHelper
 from constants.apm import TelemetryDataType
+from core.drf_resource import api
 from core.errors.alarm_backends import LockError
 
 logger = logging.getLogger("apm")
@@ -158,7 +159,14 @@ def refresh_apm_config():
 
 
 def refresh_apm_platform_config():
-    PlatformConfig.refresh()
+    # 每个租户下发一份平台配置
+    for tenant in api.bk_login.list_tenant():
+        try:
+            PlatformConfig.refresh(tenant["id"])
+        except Exception as e:  # pylint: disable=broad-except
+            logger.error(f"[refresh_apm_platform_config]: refresh tenant_id({tenant}) platform config error({e})")
+
+    # 每个集群下发一份平台配置
     PlatformConfig.refresh_k8s()
 
 
@@ -274,7 +282,7 @@ def create_application_async(application_id, storage_config, options):
         EventReportHelper.report(f"[异步创建任务] 应用 ID {application_id} 异步创建失败，需要人工介入，错误详情：{e}")
 
     # 异步分派预计算任务
-    bmw_task_cron.delay(countdown=60)
+    bmw_task_cron.apply_async(countdown=60)
 
 
 @app.task(ignore_result=True, queue="celery_cron")

@@ -1,3 +1,10 @@
+export interface IDataItem {
+  // 标题
+  label: string;
+  // icon类型
+  status: StatusType;
+}
+
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -24,10 +31,3 @@
  * IN THE SOFTWARE.
  */
 export type StatusType = 'FAILD' | 'SUCCESS' | 'WARNING';
-
-export interface IDataItem {
-  // 标题
-  label: string;
-  // icon类型
-  status: StatusType;
-}

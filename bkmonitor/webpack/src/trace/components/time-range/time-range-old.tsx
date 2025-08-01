@@ -25,15 +25,15 @@
  */
 
 import { type PropType, defineComponent, ref, toRefs, watch } from 'vue';
-import { useI18n } from 'vue-i18n';
 
 import { Button, DatePicker, Input, Popover } from 'bkui-vue';
 import dayjs from 'dayjs';
+import { useI18n } from 'vue-i18n';
 
 import IconFont from '../icon-font/icon-font';
 import {
-  DEFAULT_TIME_RANGE,
   type TimeRangeType,
+  DEFAULT_TIME_RANGE,
   handleTransformTime,
   handleTransformToTimestamp,
   intTimestampStr,
@@ -158,7 +158,7 @@ export default defineComponent({
 
     /** 点击快捷时间选项 */
     const handleShortcutChange = data => {
-      if (!!data?.value) {
+      if (data?.value) {
         isPanelTimeRange.value = false;
         const value = [...data.value] as TimeRangeType;
         handleTransformTimeValue(value);

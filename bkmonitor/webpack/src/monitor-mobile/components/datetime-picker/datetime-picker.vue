@@ -63,9 +63,9 @@ import { Component, Emit, Prop, Ref, Vue } from 'vue-property-decorator';
 import { DatetimePicker } from 'vant';
 
 export interface ITimeObj {
-  timestamp: number;
-  datetime: string;
   dateObj: Date;
+  datetime: string;
+  timestamp: number;
 }
 
 @Component({
@@ -116,18 +116,15 @@ export default class TendencyChart extends Vue {
 }
 </script>
 <style lang="scss" scoped>
-@import '../../static/scss/variate.scss';
-@import '../../static/scss/mixin.scss';
+@import '../../static/scss/variate';
+@import '../../static/scss/mixin';
 
 .bk-datetime-picker {
   position: fixed;
-  top: 0;
-  right: 0;
-  bottom: 0;
-  left: 0;
+  inset: 0;
   z-index: 9999;
   padding: 1rem;
-  background-color: rgba(0, 0, 0, 0.1);
+  background-color: rgb(0 0 0 / 10%);
 
   :deep(.van-datetime-picker) {
     .van-picker__toolbar {

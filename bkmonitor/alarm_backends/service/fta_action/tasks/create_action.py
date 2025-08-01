@@ -2,6 +2,7 @@ import copy
 import logging
 import math
 import time
+import json
 
 from django.conf import settings
 from django.utils.translation import gettext as _
@@ -203,9 +204,7 @@ class CreateIntervalActionProcessor:
         self.create_interval_action()
 
         logger.info(
-            "check_create_poll_action need_polled_actions({}), polled_actions({}) finished_actions({})".format(
-                len(self.need_polled_actions.keys()), len(self.polled_actions), len(self.finished_actions)
-            )
+            f"check_create_poll_action need_polled_actions({len(self.need_polled_actions.keys())}), polled_actions({len(self.polled_actions)}) finished_actions({len(self.finished_actions)})"
         )
 
     def check_polled_actions(self):
@@ -442,6 +441,10 @@ class CreateActionProcessor:
             desc = _("用户已确认当前告警，系统自动忽略所有的通知和处理套餐的执行")
             current_timestamp = int(time.time())
             if not alert.is_ack:
+                # 如果当前告警处理时延在1min以内，需要执行通知。
+                if alert.begin_time + CONST_SECOND * 60 < current_timestamp:
+                    return True
+
                 desc = _("当前告警状态发生变化，系统自动忽略{}的所有通知和处理套餐的执行").format(
                     ActionSignal.ACTION_SIGNAL_DICT.get(self.signal)
                 )
@@ -647,6 +650,36 @@ class CreateActionProcessor:
                 if not self.is_action_config_valid(alert, action_config):
                     continue
                 action_plugin = action_plugins.get(str(action_config["plugin_id"]))
+                skip_delay = int(action["options"].get("skip_delay", 0))
+                current_time = int(time.time())
+                # 如果当前时间距离告警开始时间，大于skip_delay，则不处理改套餐
+                if ActionSignal.ABNORMAL in action["signal"] and current_time - alert["begin_time"] > skip_delay > 0:
+                    description = {
+                        "config_id": action["config_id"],
+                        "action_name": action_config["name"],
+                        "action_signal": action["signal"],
+                        "skip_delay": skip_delay,
+                        "content": f"告警开始时间距离当前时间大于{skip_delay}秒,不处理该套餐",
+                    }
+
+                    # 由于并没有实际创建ActionInstance,所以这里的action_instance_id为0
+                    action_log = dict(
+                        op_type=AlertLog.OpType.ACTION,
+                        alert_id=alert.id,
+                        description=json.dumps(description, ensure_ascii=False),
+                        time=current_time,
+                        create_time=current_time,
+                        event_id=f"{int(time.time() * 1000)}0",
+                    )
+                    AlertLog.bulk_create([AlertLog(**action_log)])
+                    logger.warning(
+                        "[fta_action] AlertID: %s, ActionName: %s, Reason: %s",
+                        alert.id,
+                        action_config["name"],
+                        f"告警开始时间距离当前时间大于{skip_delay}秒,不处理该套餐",
+                    )
+
+                    continue
                 action_instances.append(
                     self.do_create_action(
                         action_config,

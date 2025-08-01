@@ -27,13 +27,13 @@ import { Component, Emit, Inject, Prop, Ref, Watch } from 'vue-property-decorato
 import { Component as tsc } from 'vue-tsx-support';
 
 import ResizeContainer from 'fta-solutions/components/resize-container/resize-container';
+import SetMealDeail from 'fta-solutions/pages/setting/set-meal-detail/set-meal-detail';
 import AutoInput from 'fta-solutions/pages/setting/set-meal/set-meal-add/components/auto-input/auto-input';
 import CustomTab from 'fta-solutions/pages/setting/set-meal/set-meal-add/components/custom-tab';
 import {
   intervalModeTips,
   templateSignalName,
 } from 'fta-solutions/pages/setting/set-meal/set-meal-add/meal-content/meal-content-data';
-import SetMealDeail from 'fta-solutions/pages/setting/set-meal-detail/set-meal-detail';
 import SetMealAddStore from 'fta-solutions/store/modules/set-meal-add';
 import { deepClone } from 'monitor-common/utils/utils';
 
@@ -80,58 +80,58 @@ export const intervalModeList = [
 /* 包含排除选项的告警通知方式 */
 export const hasExcludeNoticeWayOptions = ['recovered', 'closed', 'ack'];
 
-interface IAdvancedConfig {
-  interval_notify_mode: string; // "standard" 间隔模式
-  notify_interval: number; // 通知间隔
-  template: { signal: string; message_tmpl: string; title_tmpl: string }[];
-}
-
-type AssignModeType = 'by_rule' | 'only_notice';
 export interface INoticeValue {
+  config?: IAdvancedConfig; //  高级配置
   config_id?: number; // 套餐id
-  user_groups?: number[]; // 告警组
   signal?: string[]; // 触发信号
+  user_group_list?: { id?: number; name?: string; users?: { display_name: string }[] }[];
+  user_groups?: number[]; // 告警组
   options?: {
+    assign_mode?: AssignModeType[];
+    chart_image_enabled?: boolean;
     converge_config: {
       need_biz_converge: boolean; // 告警风暴开关
     };
     exclude_notice_ways?: {
+      ack: string[];
+      closed: string[];
       // 排除通知
       recovered: string[];
-      closed: string[];
-      ack: string[];
     };
     noise_reduce_config?: {
-      /* 降噪设置 */ is_enabled: boolean;
-      count: number;
+      /* 降噪设置 */ count: number;
       dimensions: string[];
+      is_enabled: boolean;
     };
-    assign_mode?: AssignModeType[];
     upgrade_config?: {
       is_enabled: boolean;
-      user_groups: number[];
       upgrade_interval: number;
+      user_groups: number[];
     };
-    chart_image_enabled?: boolean;
   };
-  config?: IAdvancedConfig; //  高级配置
-  user_group_list?: { id?: number; name?: string; users?: { display_name: string }[] }[];
 }
 
-interface INoticeConfigNewProps {
-  value?: INoticeValue;
-  allAction?: IGroupItem[]; // 套餐列表
-  userList?: IAlarmGroupList[]; // 告警组
-  alarmGroupLoading?: boolean;
-  readonly?: boolean;
-  strategyId?: number | string;
-  isExecuteDisable?: boolean;
-  legalDimensionList?: ICommonItem[];
-  dataTypeLabel?: string;
+type AssignModeType = 'by_rule' | 'only_notice';
+interface IAdvancedConfig {
+  interval_notify_mode: string; // "standard" 间隔模式
+  notify_interval: number; // 通知间隔
+  template: { message_tmpl: string; signal: string; title_tmpl: string }[];
 }
 
 interface INoticeConfigNewEvent {
   onChange?: INoticeValue;
+}
+
+interface INoticeConfigNewProps {
+  alarmGroupLoading?: boolean;
+  allAction?: IGroupItem[]; // 套餐列表
+  dataTypeLabel?: string;
+  isExecuteDisable?: boolean;
+  legalDimensionList?: ICommonItem[];
+  readonly?: boolean;
+  strategyId?: number | string;
+  userList?: IAlarmGroupList[]; // 告警组
+  value?: INoticeValue;
 }
 
 @Component({
@@ -199,8 +199,8 @@ export default class NoticeConfigNew extends tsc<INoticeConfigNewProps, INoticeC
   };
 
   templateData: {
-    signal: string;
     message_tmpl: string;
+    signal: string;
     title_tmpl: string;
   } = { signal: 'abnormal', message_tmpl: '', title_tmpl: '' };
   templateActive = '';
@@ -364,10 +364,10 @@ export default class NoticeConfigNew extends tsc<INoticeConfigNewProps, INoticeC
         reject();
       }
       const templateValidate = this.data.config.template.some(template => {
-        if (!Boolean(template.title_tmpl)) {
+        if (!template.title_tmpl) {
           this.handleChangeTemplate(template.signal);
         }
-        return !Boolean(template.title_tmpl);
+        return !template.title_tmpl;
       });
       if (templateValidate) {
         this.errMsg.template = window.i18n.tc('必填项');
@@ -790,8 +790,8 @@ export default class NoticeConfigNew extends tsc<INoticeConfigNewProps, INoticeC
     return (
       <div class={['advanced-config', { readonly: this.readonly }]}>
         <div
-          v-en-style='width: 180px'
           class={['expan-title', { down: this.expanShow }]}
+          v-en-style='width: 180px'
           onClick={() => (this.expanShow = !this.expanShow)}
         >
           {this.$t('高级配置')} <i class='icon-monitor icon-double-down' />
@@ -810,14 +810,25 @@ export default class NoticeConfigNew extends tsc<INoticeConfigNewProps, INoticeC
                 >
                   {this.readonly
                     ? [
-                        <span class='bold'>{intervalModeNames[this.data.config.interval_notify_mode]}</span>,
-                        <span class='bold'>{this.data.config.notify_interval}</span>,
+                        <span
+                          key={'intervalModeNames'}
+                          class='bold'
+                        >
+                          {intervalModeNames[this.data.config.interval_notify_mode]}
+                        </span>,
+                        <span
+                          key={'notify_interval'}
+                          class='bold'
+                        >
+                          {this.data.config.notify_interval}
+                        </span>,
                       ]
                     : [
                         <bk-select
-                          v-en-style='width: 100px'
+                          key={'interval_notify_mode'}
                           class='select select-inline'
                           v-model={this.data.config.interval_notify_mode}
+                          v-en-style='width: 100px'
                           behavior='simplicity'
                           clearable={false}
                           size='small'
@@ -832,6 +843,7 @@ export default class NoticeConfigNew extends tsc<INoticeConfigNewProps, INoticeC
                           ))}
                         </bk-select>,
                         <bk-input
+                          key={'notify_interval'}
                           class='input-inline input-center'
                           v-model={this.data.config.notify_interval}
                           behavior='simplicity'
@@ -846,7 +858,7 @@ export default class NoticeConfigNew extends tsc<INoticeConfigNewProps, INoticeC
                   style={{ color: '#979ba5', marginTop: '-3px' }}
                   content={this.$t('通知间隔').toString()}
                   tip={intervalModeTips[this.data.config.interval_notify_mode]}
-                  type='translate'
+                  type='description'
                 />
               </span>
             </VerifyItem>
@@ -865,7 +877,7 @@ export default class NoticeConfigNew extends tsc<INoticeConfigNewProps, INoticeC
               />
               <AIWhaleIcon
                 content={this.$t('当防御的通知汇总也产生了大量的风暴时，会进行本业务的跨策略的汇总通知。').toString()}
-                type='translate'
+                type='description'
               />
               <span class='text'>
                 {this.$t('当防御的通知汇总也产生了大量的风暴时，会进行本业务的跨策略的汇总通知。')}

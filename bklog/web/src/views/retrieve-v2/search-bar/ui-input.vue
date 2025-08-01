@@ -147,9 +147,6 @@
     return false;
   };
 
-  // 是否为自动foucus到input
-  // 自动focus不用弹出选择提示
-  const isAutoFocus = ref(false);
   const { getFieldName } = useFieldNameHook({ store });
   const {
     modelValue,
@@ -166,6 +163,7 @@
     refWrapper: refUlRoot,
     onHeightChange: handleHeightChange,
     formatModelValueItem,
+
     onShowFn: () => {
       setIsDocumentMousedown(true);
       refPopInstance.value?.beforeShowndFn?.();
@@ -338,7 +336,7 @@
   };
 
   const handleInputTextClick = () => {
-    if (isInstanceShown() || isInputTextFocus.value || isAutoFocus.value) {
+    if (isInstanceShown() || isInputTextFocus.value) {
       return;
     }
 
@@ -665,6 +663,7 @@
     }
   }
   .match-value-popover{
+    // eslint-disable-next-line
     left: 15px !important;
   }
 </style>

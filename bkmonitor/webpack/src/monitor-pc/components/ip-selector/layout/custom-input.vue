@@ -30,17 +30,19 @@
       :style="{ width: isNaN(leftPanelWidth) ? leftPanelWidth : `${leftPanelWidth}px` }"
     >
       <bk-input
+        v-model="ipdata"
         class="ip-text"
         :placeholder="$t('多个IP以回车为分隔符')"
         type="textarea"
-        v-model="ipdata"
         @change="handleDataChange"
         @keydown.native="handleInputKeydown"
       />
       <div
-        class="err-tips"
         v-if="errList.length"
-      >{{ $t('IP格式有误或不存在，检查后重试！') }}</div>
+        class="err-tips"
+      >
+        {{ $t('IP格式有误或不存在，检查后重试！') }}
+      </div>
       <bk-button
         class="ip-parse"
         theme="primary"
@@ -62,13 +64,13 @@
       >
         <template #tab>
           <ul
-            class="table-tab"
             v-if="showTableTab"
+            class="table-tab"
           >
             <li
-              :class="['table-tab-item', { active: ipTab.active === item.id }]"
               v-for="item in ipTab.list"
               :key="item.id"
+              :class="['table-tab-item', { active: ipTab.active === item.id }]"
               @click="handleTabClick(item)"
             >
               {{ item.name }}
@@ -85,9 +87,9 @@ import { Component, Emit, Prop, Ref, Vue } from 'vue-property-decorator';
 
 import { defaultSearch } from '../common/util';
 import IpSelectorTable from '../components/ip-selector-table.vue';
-import type { IClassifyTab, ITableCheckData, ITableConfig, SearchDataFuncType } from '../types/selector-type';
-
 import IpListTable from './ip-list.vue';
+
+import type { IClassifyTab, ITableCheckData, ITableConfig, SearchDataFuncType } from '../types/selector-type';
 
 // 手动输入
 @Component({
@@ -213,11 +215,11 @@ export default class CustomInput extends Vue {
     // 分类数据
     this.tabData = res.data.reduce(
       (pre, next) => {
-        if (!!next.is_innerip) {
+        if (next.is_innerip) {
           pre.inner.push(next);
-        } else if (!!next.is_outerip) {
+        } else if (next.is_outerip) {
           pre.outer.push(next);
-        } else if (!!next.is_external_ip) {
+        } else if (next.is_external_ip) {
           pre.other.push(next);
         }
         return pre;
@@ -256,7 +258,6 @@ export default class CustomInput extends Vue {
     }
   }
 
-  // eslint-disable-next-line @typescript-eslint/member-ordering
   public handleGetDefaultSelections() {
     this.tableRef?.handleGetDefaultSelections();
   }

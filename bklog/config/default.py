@@ -411,6 +411,7 @@ BK_HOT_WARM_CONFIG_URL = (
 BK_COMPONENT_API_URL = os.environ.get("BK_COMPONENT_API_URL")
 DEPLOY_MODE = os.environ.get("DEPLOY_MODE", "")
 
+BK_IAM_APIGATEWAY_URL = os.getenv("BKAPP_IAM_API_BASE_URL") or f"{BK_COMPONENT_API_URL}/api/bk-iam/prod/"
 
 # ===============================================================================
 # 企业版登录重定向
@@ -955,6 +956,8 @@ ESQUERY_WHITE_LIST = [
     "paasv3cli",
     "bk_paas3",
     "kingeye-web_saas",
+    "apigw-dashboard",
+    "bk_apigateway",
 ] + ESQUERY_EXTRA_WHITE_LIST
 
 # BK repo conf

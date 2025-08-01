@@ -30,19 +30,20 @@ import { Component as tsc } from 'vue-tsx-support';
 import { bulkUpdateUserGroup } from 'monitor-api/modules/model';
 import { getReceiver } from 'monitor-api/modules/notice_group';
 
-import MemberSelector from '../alarm-group-add/member-selector.vue';
+import { getDefaultUserGroupListSync } from '../../../components/user-selector/user-group';
+import UserSelector from '../../../components/user-selector/user-selector';
 import { type OperationType, OperationTypeMap } from './utils';
 
 import './batch-operation-dialog.scss';
 
-interface BatchOperationDialogProps {
-  show: boolean;
-  operationType: string;
-  groupIds: number[];
-}
-
 interface BatchOperationDialogEvents {
   onCloseDialog: () => void;
+}
+
+interface BatchOperationDialogProps {
+  groupIds: number[];
+  operationType: string;
+  show: boolean;
 }
 
 @Component({
@@ -66,9 +67,13 @@ export default class BatchOperationDialog extends tsc<BatchOperationDialogProps,
   formModel = {
     noticeUser: {
       users: [],
+      addMethod: 'append',
     },
   };
-  btnType: 'append' | 'confirm' = 'confirm';
+
+  get defaultUserGroupList() {
+    return getDefaultUserGroupListSync(this.defaultGroupList[0]?.children || []);
+  }
 
   get formData() {
     return this.formModel[this.operationType] || {};
@@ -86,6 +91,13 @@ export default class BatchOperationDialog extends tsc<BatchOperationDialogProps,
             {
               required: true,
               message: this.$t('通知对象不能为空'),
+              trigger: 'change',
+            },
+          ],
+          addMethod: [
+            {
+              required: true,
+              message: this.$t('添加方式必填'),
               trigger: 'change',
             },
           ],
@@ -147,8 +159,8 @@ export default class BatchOperationDialog extends tsc<BatchOperationDialogProps,
   generateParams() {
     switch (this.operationType) {
       case 'noticeUser': {
-        const users = this.formModel.noticeUser.users;
-        if (this.btnType === 'append') {
+        const { users, addMethod } = this.formModel.noticeUser;
+        if (addMethod === 'append') {
           return {
             ids: this.groupIds,
             edit_data: {
@@ -167,11 +179,6 @@ export default class BatchOperationDialog extends tsc<BatchOperationDialogProps,
     }
   }
 
-  handleClick(type: 'append' | 'confirm' = 'confirm') {
-    this.btnType = type;
-    this.handleConfirm();
-  }
-
   handleConfirm() {
     this.formRef.validate(valid => {
       if (!valid) return;
@@ -179,6 +186,10 @@ export default class BatchOperationDialog extends tsc<BatchOperationDialogProps,
       const params = this.generateParams();
       bulkUpdateUserGroup(params)
         .then(() => {
+          this.$bkMessage({
+            message: this.$t('批量编辑成功'),
+            theme: 'success',
+          });
           this.handleCancel(true);
         })
         .finally(() => {
@@ -190,44 +201,34 @@ export default class BatchOperationDialog extends tsc<BatchOperationDialogProps,
   getCurrentOperationContent() {
     switch (this.operationType) {
       case 'noticeUser':
-        return (
+        return [
           <bk-form-item
-            error-display-type='normal'
+            key='users'
             label={this.$t('通知对象')}
-            label-width={100}
             property='users'
             required={true}
           >
-            <MemberSelector
+            <UserSelector
               class='user-selector'
-              v-model={this.formModel.noticeUser.users}
-              group-list={this.defaultGroupList}
+              userGroupList={this.defaultUserGroupList}
+              userIds={this.formModel.noticeUser.users}
+              onChange={users => (this.formModel.noticeUser.users = users)}
             />
-          </bk-form-item>
-        );
-    }
-  }
-
-  getFooterComponent() {
-    switch (this.operationType) {
-      case 'noticeUser':
-        return [
-          <bk-button
-            key='append'
-            loading={this.loading}
-            theme='primary'
-            onClick={() => this.handleClick('append')}
+          </bk-form-item>,
+          <bk-form-item
+            key='addMethod'
+            label={this.$t('添加方式')}
+            property='addMethod'
+            required={true}
           >
-            {this.$t('批量追加')}
-          </bk-button>,
-          <bk-button
-            key='replace'
-            loading={this.loading}
-            theme='primary'
-            onClick={() => this.handleClick('confirm')}
-          >
-            {this.$t('批量替换')}
-          </bk-button>,
+            <bk-radio-group
+              class='add-method-radio-group'
+              v-model={this.formModel.noticeUser.addMethod}
+            >
+              <bk-radio value='append'>{this.$t('批量追加')}</bk-radio>
+              <bk-radio value='replace'>{this.$t('批量替换')}</bk-radio>
+            </bk-radio-group>
+          </bk-form-item>,
         ];
     }
   }
@@ -253,6 +254,7 @@ export default class BatchOperationDialog extends tsc<BatchOperationDialogProps,
         <div class='alarm-group-batch-operation-wrap'>
           <bk-form
             ref='formRef'
+            form-type='vertical'
             {...{
               props: {
                 model: this.formData,
@@ -264,8 +266,20 @@ export default class BatchOperationDialog extends tsc<BatchOperationDialogProps,
           </bk-form>
         </div>
         <div slot='footer'>
-          {this.getFooterComponent()}
-          <bk-button onClick={() => this.handleCancel(false)}> {this.$t('取消')} </bk-button>
+          <bk-button
+            class='confirm-btn'
+            theme='primary'
+            onClick={this.handleConfirm}
+          >
+            {this.$t('确定')}
+          </bk-button>
+          <bk-button
+            class='cancel-btn'
+            onClick={() => this.handleCancel(false)}
+          >
+            {' '}
+            {this.$t('取消')}{' '}
+          </bk-button>
         </div>
       </bk-dialog>
     );

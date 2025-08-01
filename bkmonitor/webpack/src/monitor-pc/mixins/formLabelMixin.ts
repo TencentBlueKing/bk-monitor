@@ -27,8 +27,8 @@ import { Component, Vue } from 'vue-property-decorator';
 
 interface IFormLabelConfig {
   el?: HTMLElement;
-  safePadding?: number;
   labelClass?: string;
+  safePadding?: number;
 }
 
 @Component

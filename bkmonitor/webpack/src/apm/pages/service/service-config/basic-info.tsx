@@ -26,7 +26,7 @@
 import { Component, Inject, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { CMDBInfoList, applicationList, logList, serviceInfo } from 'monitor-api/modules/apm_base_info';
+import { applicationList, CMDBInfoList, logList, serviceInfo } from 'monitor-api/modules/apm_base_info';
 import {
   logServiceRelationBkLogIndexSet,
   serviceConfig,
@@ -39,15 +39,15 @@ import EditableFormItem from '../../../components/editable-form-item/editable-fo
 import PanelItem from '../../../components/panel-item/panel-item';
 import {
   type IAppInfoItem,
+  type IApplicationItem,
   type IBaseParams,
+  type IBaseServiceInfo,
   type ICmdbInfoItem,
   type ICmdbRelation,
   type IIndexSetItem,
-  type IApplicationItem,
   type ILocationRelation,
   type ILogInfoItem,
   type IServiceInfo,
-  type IBaseServiceInfo,
   RelationEventType,
 } from '../../../typings';
 import * as authorityMap from '../../home/authority-map';
@@ -1063,15 +1063,6 @@ export default class BasicInfo extends tsc<object> {
               <PipelineSelectPanel
                 isEditing={this.isEditing}
                 params={{ bkBizId: this.params.bk_biz_id, appName: this.params.app_name }}
-                // value={[{
-                //   "project_id": "bkee111",
-                //   "pipeline_id": "p-9a8b7c6d5e4f3a2b1c0d9e8f7a6b5c4",
-                //   "pipeline_name": "\u84dd\u76fe\u955c\u50cf\u63d0\u4ea4"
-                // },{
-                //   "project_id": "bkee111",
-                //   "pipeline_id": "p-9a8b7c6d5e4f3a2b1c0d9e8f7a6b5c422",
-                //   "pipeline_name": "aaa\u84dd\u76fe\u955c\u50cf\u63d0\u4ea4"
-                // },]}
                 value={this.eventRelation.relationPipeline}
                 onChange={this.handlePipelineChange}
               />
@@ -1261,7 +1252,7 @@ export default class BasicInfo extends tsc<object> {
       </div>,
       <div
         key='uri-source-content'
-        class='uri-source-content'
+        class={['uri-source-content', { 'is-editing': this.isEditing }]}
         v-bkloading={{ isLoading: this.urlListLoading }}
       >
         <div class='header-tool'>
@@ -1288,7 +1279,7 @@ export default class BasicInfo extends tsc<object> {
       </div>,
       <div
         key='uri-info'
-        class='uri-info'
+        class={['uri-info', { 'is-editing': this.isEditing }]}
       >
         <span class='uri-set-label'>{this.$t('URI配置')}</span>
         <transition-group

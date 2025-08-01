@@ -133,6 +133,7 @@ export default defineComponent({
         const processedChildren = children.map(child => ({
           ...child,
           is_shown_node: checkNodeShouldShow(child, listNodeOpenManager.value[parentNode.index_set_id] === 'opened'),
+          __unique_id__: `Child_${parentNode.index_set_id}_${child.index_set_id}`,
         }));
 
         // 对子节点进行排序
@@ -176,7 +177,8 @@ export default defineComponent({
           is_shown_node: is_shown_node || isOpenNode,
           is_children_open: isOpenNode,
           has_selected_child: hasSelectedChild,
-          has_no_data_child: item.children?.some(child => child.tags?.some(tag => tag.tag_id === 4)),
+          has_no_data_child: item.children?.every(child => child.tags?.some(tag => tag.tag_id === 4)),
+          __unique_id__: `Root_${item.index_set_id}`,
         };
       });
 
@@ -402,7 +404,7 @@ export default defineComponent({
               'no-authority': !hasPermission,
               'is-child': is_child,
               'has-child': has_child,
-              'is-empty': isEmptyNode,
+              // 'is-empty': isEmptyNode,
               'has-no-data-child': has_no_data_child,
               active: propValueStrList.value.includes(item.index_set_id),
             },
@@ -625,7 +627,7 @@ export default defineComponent({
           <div class='bklog-v3-search-input'>
             <bk-input
               clearable
-              placeholder='请输入 索引集、采集项 搜索'
+              placeholder={$t('请输入 索引集、采集项 搜索')}
               right-icon="'bk-icon icon-search'"
               style='width: 650px; margin-right: 12px;'
               value={searchText.value}
@@ -638,7 +640,7 @@ export default defineComponent({
               on-change={handleHiddenEmptyItemChange}
             >
               <span class='hidden-empty-icon'></span>
-              <span>隐藏无数据</span>
+              <span>{$t('隐藏无数据')}</span>
             </bk-checkbox>
           </div>
           <div class={['bklog-v3-tag-list', { 'is-empty': indexSetTagList.value.length === 0 }]}>

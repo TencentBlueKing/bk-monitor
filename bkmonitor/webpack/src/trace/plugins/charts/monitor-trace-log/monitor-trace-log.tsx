@@ -24,36 +24,36 @@
  * IN THE SOFTWARE.
  */
 import {
+  type ComputedRef,
+  type Ref,
+  computed,
   defineComponent,
   inject,
-  ref,
-  computed,
-  type Ref,
-  onUnmounted,
-  onMounted,
   nextTick,
+  onBeforeUnmount,
+  onMounted,
+  ref,
   watch,
-  type ComputedRef,
 } from 'vue';
 import { shallowRef } from 'vue';
-import { useI18n } from 'vue-i18n';
 
-import { useTraceExploreStore } from '@/store/modules/explore';
 import {
-  MonitorTraceLog as Log,
-  initMonitorState,
-  initGlobalComponents,
-  Vue2,
-  logStore,
   i18n,
+  initGlobalComponents,
+  initMonitorState,
+  MonitorTraceLog as Log,
+  logStore,
+  Vue2,
 } from '@blueking/monitor-trace-log/main';
 import { Button, Exception } from 'bkui-vue';
-import { serviceRelationList, serviceLogInfo } from 'monitor-api/modules/apm_log';
+import { serviceLogInfo, serviceRelationList } from 'monitor-api/modules/apm_log';
+import { useI18n } from 'vue-i18n';
 
 import { handleTransformToTimestamp } from '../../../components/time-range/utils';
 import { useAppStore } from '../../../store/modules/app';
 import { useSpanDetailQueryStore } from '../../../store/modules/span-detail-query';
 import { REFRESH_IMMEDIATE_KEY, REFRESH_INTERVAL_KEY, useTimeRangeInject } from '../../hooks';
+import { useTraceExploreStore } from '@/store/modules/explore';
 
 import './monitor-trace-log.scss';
 import '@blueking/monitor-trace-log/css/main.css';
@@ -76,6 +76,7 @@ export default defineComponent({
     const spanId = inject<Ref<string>>('spanId', ref(''));
 
     const mainRef = ref<HTMLDivElement>();
+    let logAppInstance: any;
     const customTimeProvider = inject<ComputedRef<string[]>>(
       'customTimeProvider',
       computed(() => traceStore.timeRange)
@@ -86,7 +87,7 @@ export default defineComponent({
       return customTimeProvider.value?.length ? customTimeProvider.value : defaultTimeRange?.value || [];
     });
 
-    let logInstance = null;
+    const logInstance = null;
     const unPropsWatch = watch([timeRange, refreshImmediate, refreshInterval], () => {
       logInstance?.$forceUpdate?.();
     });
@@ -129,7 +130,7 @@ export default defineComponent({
         };
         Vue2.prototype.$router = fakeRouter;
         Vue2.prototype.$route = fakeRoute;
-        const app: any = new Vue2({
+        logAppInstance = new Vue2({
           store: logStore,
           i18n,
           render: h => {
@@ -144,14 +145,13 @@ export default defineComponent({
             });
           },
         });
-        app.$router = fakeRouter;
-        app.$route = fakeRoute;
-        app._$route = fakeRoute;
-        app.$t = (...args) => i18n.t(...args);
+        logAppInstance.$router = fakeRouter;
+        logAppInstance.$route = fakeRoute;
+        logAppInstance._$route = fakeRoute;
+        logAppInstance.$t = (...args) => i18n.t(...args);
         await nextTick();
-        app.$mount(mainRef.value);
-        logInstance = app;
-        window.mainComponent = app;
+        logAppInstance.$mount(mainRef.value);
+        window.mainComponent = logAppInstance;
       } else {
         empty.value = true;
       }
@@ -159,6 +159,9 @@ export default defineComponent({
 
     async function indexSetApi() {
       const [startTime, endTime] = handleTransformToTimestamp(timeRange.value);
+      if (!startTime || !endTime) {
+        return [];
+      }
       const data = await serviceRelationList({
         app_name: appName.value,
         service_name: serviceName.value,
@@ -171,6 +174,9 @@ export default defineComponent({
 
     async function getServiceLogInfo() {
       const [startTime, endTime] = handleTransformToTimestamp(timeRange.value);
+      if (!startTime || !endTime) {
+        return [];
+      }
       const data = await serviceLogInfo({
         app_name: appName.value,
         service_name: serviceName.value,
@@ -208,12 +214,13 @@ export default defineComponent({
       init();
     });
 
-    onUnmounted(() => {
+    onBeforeUnmount(() => {
       if (!empty.value) {
         logStore.commit('resetState');
         window.mainComponent.$destroy();
         unPropsWatch?.();
       }
+      logAppInstance = null;
     });
 
     return {

@@ -23,30 +23,30 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 
 import useStore from '@/hooks/use-store';
-import RouteUrlResolver, { RetrieveUrlResolver } from '../../store/url-resolver';
 import { useRoute, useRouter } from 'vue-router/composables';
 
 import useResizeObserve from '../../hooks/use-resize-observe';
+import { getDefaultRetrieveParams, update_URL_ARGS } from '../../store/default-values';
+import { BK_LOG_STORAGE, RouteParams, SEARCH_MODE_DIC } from '../../store/store.type';
+import RouteUrlResolver, { RetrieveUrlResolver } from '../../store/url-resolver';
 import RetrieveHelper, { RetrieveEvent } from '../retrieve-helper';
 import $http from '@/api';
-import { BK_LOG_STORAGE, RouteParams, SEARCH_MODE_DIC } from '../../store/store.type';
-import { getDefaultRetrieveParams, update_URL_ARGS } from '../../store/default-values';
 
 export default () => {
   const store = useStore();
   const router = useRouter();
   const route = useRoute();
   const searchBarHeight = ref(0);
-  const leftFieldSettingWidth = ref(0);
-  const leftFieldSettingShown = ref(true);
   const isPreApiLoaded = ref(false);
 
   const favoriteWidth = ref(RetrieveHelper.favoriteWidth);
   const isFavoriteShown = ref(RetrieveHelper.isFavoriteShown);
   const trendGraphHeight = ref(0);
+
+  const leftFieldSettingWidth = computed(() => store.state.storage[BK_LOG_STORAGE.FIELD_SETTING].width);
 
   /**
    * 解析地址栏参数
@@ -81,24 +81,26 @@ export default () => {
 
   RetrieveHelper.setScrollSelector('.v3-bklog-content');
 
-  RetrieveHelper.on(RetrieveEvent.LEFT_FIELD_SETTING_SHOWN_CHANGE, isShown => {
-    leftFieldSettingShown.value = isShown;
-  })
-    .on(RetrieveEvent.SEARCHBAR_HEIGHT_CHANGE, height => {
-      searchBarHeight.value = height;
-    })
-    .on(RetrieveEvent.LEFT_FIELD_SETTING_WIDTH_CHANGE, width => {
-      leftFieldSettingWidth.value = width;
-    })
-    .on(RetrieveEvent.FAVORITE_WIDTH_CHANGE, width => {
-      favoriteWidth.value = width;
-    })
-    .on(RetrieveEvent.FAVORITE_SHOWN_CHANGE, isShown => {
-      isFavoriteShown.value = isShown;
-    })
-    .on(RetrieveEvent.TREND_GRAPH_HEIGHT_CHANGE, height => {
-      trendGraphHeight.value = height;
-    });
+  const handleSearchBarHeightChange = height => {
+    searchBarHeight.value = height;
+  };
+
+  const handleFavoriteWidthChange = width => {
+    favoriteWidth.value = width;
+  };
+
+  const hanldeFavoriteShown = isShown => {
+    isFavoriteShown.value = isShown;
+  };
+
+  const handleGraphHeightChange = height => {
+    trendGraphHeight.value = height;
+  };
+
+  RetrieveHelper.on(RetrieveEvent.SEARCHBAR_HEIGHT_CHANGE, handleSearchBarHeightChange)
+    .on(RetrieveEvent.FAVORITE_WIDTH_CHANGE, handleFavoriteWidthChange)
+    .on(RetrieveEvent.FAVORITE_SHOWN_CHANGE, hanldeFavoriteShown)
+    .on(RetrieveEvent.TREND_GRAPH_HEIGHT_CHANGE, handleGraphHeightChange);
 
   const spaceUid = computed(() => store.state.spaceUid);
   const bkBizId = computed(() => store.state.bkBizId);
@@ -109,7 +111,7 @@ export default () => {
   const stickyStyle = computed(() => {
     return {
       '--top-searchbar-height': `${searchBarHeight.value}px`,
-      '--left-field-setting-width': `${leftFieldSettingShown.value ? leftFieldSettingWidth.value : 0}px`,
+      '--left-field-setting-width': `${leftFieldSettingWidth.value}px`,
       '--left-collection-width': `${isFavoriteShown.value ? favoriteWidth.value : 0}px`,
       '--trend-graph-height': `${trendGraphHeight.value}px`,
       '--header-height': fromMonitor.value ? '0px' : '52px',
@@ -181,10 +183,31 @@ export default () => {
    * 拉取索引集列表
    */
   const getIndexSetList = () => {
+    store.commit('updateIndexSetQueryResult', {
+      origin_log_list: [],
+      list: [],
+      exception_msg: '',
+      is_error: false,
+    });
+
     return store
       .dispatch('retrieve/getIndexSetList', { spaceUid: spaceUid.value, bkBizId: bkBizId.value, is_group: true })
       .then(resp => {
         isPreApiLoaded.value = true;
+
+        // 在路由不带indexId的情况下 检查 unionList 和 tags 参数 是否存在联合查询索引集参数
+        // tags 是 BCS索引集注入内置标签特殊检索
+        if (!indexSetIdList.value.length && route.query.tags?.length) {
+          const tagList = Array.isArray(route.query.tags) ? route.query.tags : route.query.tags.split(',');
+          const indexSetMatch = resp[1]
+            .filter(item => item.tags.some(tag => tagList.includes(tag.name)))
+            .map(val => val.index_set_id);
+          if (indexSetMatch.length) {
+            store.commit('updateIndexItem', { ids: indexSetMatch, isUnionIndex: true, selectIsUnionSearch: true });
+            store.commit('updateUnionIndexItemList', tagList);
+            store.commit('updateStorage', { [BK_LOG_STORAGE.INDEX_SET_ACTIVE_TAB]: 'union' });
+          }
+        }
 
         // 如果当前地址参数没有indexSetId，则默认取第一个索引集
         // 同时，更新索引信息到store中
@@ -277,6 +300,7 @@ export default () => {
 
           store.dispatch('requestIndexSetFieldInfo').then(resp => {
             RetrieveHelper.fire(RetrieveEvent.TREND_GRAPH_SEARCH);
+            RetrieveHelper.fire(RetrieveEvent.LEFT_FIELD_INFO_UPDATE);
 
             if (
               route.query.tab === 'origin' ||

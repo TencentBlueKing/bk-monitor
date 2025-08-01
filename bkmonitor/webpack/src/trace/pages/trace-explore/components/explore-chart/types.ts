@@ -27,94 +27,94 @@ export interface DataPoint {
   [index: number]: number;
 }
 
-export interface SeriesItem {
-  dimensions?: Record<string, any>; // 也可以用更具体的类型替代 `any`，根据实际数据结构
-  target?: string;
-  metric_field?: string;
-  datapoints: Array<number>; // 数组包含多个数据点，每个数据点是一个含有两个数值的元组
-  alias?: string;
-  type?: string;
-  dimensions_translation?: Record<string, any>; // 同样可以用更具体的类型替代 `any`
-  unit?: string;
-  stack?: string;
+export interface DataZoomBatchItem {
+  batch: Array<DataZoomBatchItem> | null;
+  dataZoomId: string;
+  endValue: number;
+  from: string;
+  startValue: number;
+  type: string; // "datazoom"
 }
 
+export interface DataZoomEvent {
+  batch: Array<DataZoomBatchItem>;
+  type: string; // "datazoom"
+}
+
+export type DecimalCount = null | number | undefined;
 export interface EchartSeriesItem {
   data: number[];
   name: string;
+  raw_data: SeriesItem;
   stack?: string;
   type?: string;
+  unit?: string;
   xAxisIndex?: number;
   yAxisIndex?: number;
-  unit?: string;
-  raw_data: SeriesItem;
-}
-
-export interface ILegendItem {
-  name: string;
-  alias?: string;
-  min?: number | string;
-  max?: number | string;
-  avg?: number | string;
-  total?: number | string;
-  color: string;
-  show: boolean;
-  value?: number | string;
-  borderColor?: string;
-  hidden?: boolean;
-  minSource?: number;
-  maxSource?: number;
-  avgSource?: number;
-  totalSource?: number;
-  metricField?: string;
 }
 export interface FormattedValue {
-  text: string;
   prefix?: string;
   suffix?: string;
+  text: string;
 }
-export type DecimalCount = null | number | undefined;
+export type FormatterFunc = ((v: string) => string) | string;
+export interface ILegendItem {
+  alias?: string;
+  avg?: number | string;
+  avgSource?: number;
+  borderColor?: string;
+  color: string;
+  hidden?: boolean;
+  max?: number | string;
+  maxSource?: number;
+  metricField?: string;
+  min?: number | string;
+  minSource?: number;
+  name: string;
+  show: boolean;
+  total?: number | string;
+  totalSource?: number;
+  value?: number | string;
+}
+export interface ILegendItem {
+  alias?: string;
+  avg?: number | string;
+  avgSource?: number;
+  borderColor?: string;
+  color: string;
+  hidden?: boolean;
+  max?: number | string;
+  maxSource?: number;
+  metricField?: string;
+  min?: number | string;
+  minSource?: number;
+  name: string;
+  show: boolean;
+  total?: number | string;
+  totalSource?: number;
+  value?: number | string;
+}
+export type LegendActionType = 'click' | 'downplay' | 'highlight' | 'shift-click';
+
+export type Series = SeriesItem[];
+
+export interface SeriesItem {
+  alias?: string;
+  datapoints: Array<number>; // 数组包含多个数据点，每个数据点是一个含有两个数值的元组
+  dimensions?: Record<string, any>; // 也可以用更具体的类型替代 `any`，根据实际数据结构
+  dimensions_translation?: Record<string, any>; // 同样可以用更具体的类型替代 `any`
+  metric_field?: string;
+  stack?: string;
+  target?: string;
+  type?: string;
+  unit?: string;
+}
+
+export type TableLegendHeadType = 'Avg' | 'Max' | 'Min';
+
 export type ValueFormatter = (
   value: number,
   decimals?: DecimalCount,
   scaledDecimals?: DecimalCount,
   timeZone?
 ) => FormattedValue;
-export interface ILegendItem {
-  name: string;
-  alias?: string;
-  min?: number | string;
-  max?: number | string;
-  avg?: number | string;
-  total?: number | string;
-  color: string;
-  show: boolean;
-  value?: number | string;
-  borderColor?: string;
-  hidden?: boolean;
-  minSource?: number;
-  maxSource?: number;
-  avgSource?: number;
-  totalSource?: number;
-  metricField?: string;
-}
-export type TableLegendHeadType = 'Avg' | 'Max' | 'Min';
-export type LegendActionType = 'click' | 'downplay' | 'highlight' | 'shift-click';
-
-export type Series = SeriesItem[];
-
-export type FormatterFunc = ((v: string) => string) | string;
-
-export interface DataZoomEvent {
-  type: string; // "datazoom"
-  batch: Array<DataZoomBatchItem>;
-}
-
-export interface DataZoomBatchItem {
-  dataZoomId: string;
-  startValue: number;
-  endValue: number;
-  type: string; // "datazoom"
-  from: string;
-  batch: Array<DataZoomBatchItem> | null;
-}

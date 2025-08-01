@@ -1,3 +1,4 @@
+import RetrieveHelper from '@/views/retrieve-helper';
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -27,7 +28,7 @@ import { ref, watch, onMounted, getCurrentInstance, onUnmounted } from 'vue';
 
 // @ts-ignore
 import { getCharLength } from '@/common/util';
-import { debounce, isElement } from 'lodash';
+import { isElement } from 'lodash';
 import PopInstanceUtil from '../../../global/pop-instance-util';
 
 export default (
@@ -46,6 +47,7 @@ export default (
     addInputListener = true,
     handleWrapperClick = undefined,
     onInputFocus = undefined,
+    afterShowKeyEnter = undefined
   },
 ) => {
   const modelValue = ref([]);
@@ -198,34 +200,36 @@ export default (
   };
 
   const handleKeydown = event => {
-    const isModifierPressed = true;
+    RetrieveHelper.beforeSlashKeyKeyDown(event, () => {
+      // 检查按下的键是否是斜杠 "/"（需兼容不同键盘布局）
+      const isSlashKey = event.key === '/' || event.keyCode === 191;
+      const isEscKey = event.key === 'Escape' || event.keyCode === 27;
 
-    // 检查按下的键是否是斜杠 "/"（需兼容不同键盘布局）
-    const isSlashKey = event.key === '/' || event.keyCode === 191;
-    const isEscKey = event.key === 'Escape' || event.keyCode === 27;
+      if (isSlashKey && !popInstanceUtil.isShown()) {
+        // 阻止浏览器默认行为（如打开浏览器搜索栏）
+        event.preventDefault();
+        const targetElement = getPopTarget();
 
-    if (isModifierPressed && isSlashKey && !popInstanceUtil.isShown()) {
-      // 阻止浏览器默认行为（如打开浏览器搜索栏）
-      event.preventDefault();
-      const targetElement = getPopTarget();
+        if (refTarget?.value && isElement(refTarget.value)) {
+          delayShowInstance(targetElement);
+          setTimeout(() => {
+            afterShowKeyEnter?.();
+          });
+          return;
+        }
 
-      if (refTarget?.value && isElement(refTarget.value)) {
-        delayShowInstance(targetElement);
+        targetElement?.click?.();
+        setTimeout(() => {
+          afterShowKeyEnter?.();
+        });
         return;
       }
 
-      targetElement?.click?.();
-      return;
-    }
-
-    if (!isInputTextFocus.value) {
-      return;
-    }
-
-    if (isEscKey && popInstanceUtil.isShown()) {
-      setIsInputTextFocus(false);
-      popInstanceUtil.hide(100);
-    }
+      if (isEscKey && popInstanceUtil.isShown()) {
+        setIsInputTextFocus(false);
+        popInstanceUtil.hide(100);
+      }
+    })
   };
 
   onMounted(() => {

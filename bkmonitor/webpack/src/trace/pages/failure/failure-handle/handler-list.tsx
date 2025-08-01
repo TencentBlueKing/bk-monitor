@@ -23,23 +23,16 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, defineComponent, onMounted, ref } from 'vue';
-import { useI18n } from 'vue-i18n';
+import { computed, ref as deepRef, defineComponent, onMounted } from 'vue';
 
 import { Exception, Input, Loading, Popover } from 'bkui-vue';
 import { incidentHandlers } from 'monitor-api/modules/incident';
+import { useI18n } from 'vue-i18n';
 
 import { useIncidentInject } from '../utils';
 
 import './handler-list.scss';
 
-interface IHandleListItem {
-  alert_count?: number;
-  id?: string;
-  index?: number;
-  name?: string;
-  children?: Array<IHandleListItem>;
-}
 interface IHandleData {
   all: IHandleListItem;
   mine: IHandleListItem;
@@ -48,23 +41,31 @@ interface IHandleData {
     children?: any[];
   };
 }
+interface IHandleListItem {
+  alert_count?: number;
+  children?: Array<IHandleListItem>;
+  id?: string;
+  index?: number;
+  name?: string;
+}
 export default defineComponent({
   name: 'HandlerList',
   emits: ['click'],
   setup(props, { emit }) {
     const { t } = useI18n();
-    const handlersList = ref<IHandleData>({
+    const handlersList = deepRef<IHandleData>({
       all: {},
       mine: {},
       not_dispatch: {},
       other: {},
     });
-    const orderByType = ref('abnormal_alert_count');
-    const listLoading = ref<boolean>(false);
-    const sortRef = ref(null);
-    const searchText = ref<string>('');
+    const orderByType = deepRef('abnormal_alert_count');
+    const listLoading = deepRef<boolean>(false);
+    const sortRef = deepRef(null);
+    const searchText = deepRef<string>('');
     const incidentId = useIncidentInject();
-    const activeId = ref<string>(window.user_name || window.username);
+    // const activeId = ref<string>(window.user_name || window.username);
+    const activeId = deepRef<string>('all');
     const getIncidentHandlers = () => {
       listLoading.value = true;
       incidentHandlers({
@@ -130,15 +131,24 @@ export default defineComponent({
       }
       return list.map((item: IHandleListItem) => (
         <div
+          key={item.id}
           class={['list-item', { active: item.id === activeId.value }]}
           onClick={() => handleClickItem(item)}
         >
-          <span
-            class='item-name'
-            title={item.name}
-          >
-            {item.name}
-          </span>
+          {isShowEmpty ? (
+            <bk-user-display-name
+              class='item-name'
+              title={item.name}
+              user-id={item.name}
+            />
+          ) : (
+            <span
+              class='item-name'
+              title={item.name}
+            >
+              {item.name}
+            </span>
+          )}
           {item.alert_count === 0 ? (
             <i class='icon-monitor icon-mc-check-small item-icon' />
           ) : (

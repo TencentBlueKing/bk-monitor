@@ -25,23 +25,25 @@
  */
 import { defineStore } from 'pinia';
 
-import { DEFAULT_TIME_RANGE, type TimeRangeType } from '../../components/time-range/utils';
+import { type TimeRangeType, DEFAULT_TIME_RANGE } from '../../components/time-range/utils';
 import { getDefaultTimezone } from '../../i18n/dayjs';
 
 import type { IApplicationItem } from '../../pages/trace-explore/typing';
 import type { ISpanListItem, ITraceListItem } from '../../typings';
+import type { SortInfo } from '@blueking/tdesign-ui';
 
 export interface ITraceExploreState {
-  timeRange: TimeRangeType;
-  timezone: string;
-  mode: 'span' | 'trace';
-  appName: string;
-  refreshInterval: number;
-  refreshImmediate: string;
   appList: IApplicationItem[];
+  appName: string;
+  filterTableList: ISpanListItem[] | ITraceListItem[];
+  mode: 'span' | 'trace';
+  refreshImmediate: string;
+  refreshInterval: number;
   tableList: ISpanListItem[] | ITraceListItem[];
   tableLoading: boolean;
-  filterTableList: ISpanListItem[] | ITraceListItem[];
+  tableSortContainer: SortInfo;
+  timeRange: TimeRangeType;
+  timezone: string;
 }
 export const useTraceExploreStore = defineStore('explore', {
   state: (): ITraceExploreState => ({
@@ -55,9 +57,22 @@ export const useTraceExploreStore = defineStore('explore', {
     tableList: [],
     tableLoading: false,
     filterTableList: [],
+    tableSortContainer: {
+      /** 排序字段 */
+      sortBy: '',
+      /** 排序顺序 */
+      descending: null,
+    },
   }),
   getters: {
     currentApp: state => state.appList.find(app => app.app_name === state.appName),
+    sortParams: state => {
+      let sort = [];
+      if (state.tableSortContainer.sortBy) {
+        sort = [`${state.tableSortContainer.descending ? '-' : ''}${state.tableSortContainer.sortBy}`];
+      }
+      return sort;
+    },
   },
   actions: {
     updateTimeRange(timeRange: TimeRangeType) {
@@ -90,6 +105,16 @@ export const useTraceExploreStore = defineStore('explore', {
     updateFilterTableList(filterTableList: ISpanListItem[] | ITraceListItem[]) {
       this.filterTableList = filterTableList;
     },
+    updateTableSortContainer(sortEvent: SortInfo) {
+      let sortBy = sortEvent?.sortBy;
+      let descending = sortEvent?.descending;
+      if (!sortBy) {
+        sortBy = '';
+        descending = null;
+      }
+      this.tableSortContainer.sortBy = sortBy;
+      this.tableSortContainer.descending = descending;
+    },
     init(data: Partial<ITraceExploreState>) {
       this.timeRange = data.timeRange || DEFAULT_TIME_RANGE;
       this.timezone = data.timezone || getDefaultTimezone();
@@ -97,6 +122,26 @@ export const useTraceExploreStore = defineStore('explore', {
       this.appName = data.appName || '';
       this.refreshInterval = data.refreshInterval || -1;
       this.refreshImmediate = data.refreshImmediate;
+      this.tableSortContainer.sortBy = data.tableSortContainer?.sortBy || '';
+      this.tableSortContainer.descending = data.tableSortContainer?.descending || null;
+    },
+    sortParamsToTableSortContainer(sort: string[]) {
+      let descending = null;
+      let sortBy = '';
+      const str = sort?.[0] || '';
+      const match = str.match(/^-(.*)/);
+      const extractedString = match ? match[1] : '';
+      if (extractedString) {
+        descending = true;
+        sortBy = extractedString;
+      } else if (str) {
+        descending = false;
+        sortBy = str;
+      }
+      this.updateTableSortContainer({
+        descending,
+        sortBy,
+      });
     },
   },
 });

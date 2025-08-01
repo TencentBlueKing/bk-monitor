@@ -581,6 +581,7 @@
             item.field_type = 'string';
             item.previous_type = 'string';
           }
+          this.validateInput(item)
         });
         this.formData.tableList.splice(0, this.formData.tableList.length, ...arr);
       },
@@ -1081,7 +1082,23 @@
           return true;
         }
         return !row.alias_name
-      }
+      },
+      validateInput(row) {
+        if(!row.field_name ){
+          return
+        }
+        const quotedPattern = /^".*"$/;
+        // 定义正则，用于检测字段名称的合法性
+        const validFieldPattern = /^[A-Za-z_][0-9A-Za-z_]*$/;
+
+        if (!quotedPattern.test(row.field_name)) {
+          // 如果未被引号包裹
+          if (!validFieldPattern.test(row.field_name)) {
+            // 且不符合字段名称的合法性
+            row.field_name = `"${row.field_name}"`; // 则添加引号
+          }
+        }
+    }
     },
   };
 </script>

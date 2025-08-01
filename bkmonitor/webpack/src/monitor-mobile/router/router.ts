@@ -24,6 +24,7 @@
  * IN THE SOFTWARE.
  */
 import Vue from 'vue';
+
 import Router, { type RouteConfig } from 'vue-router';
 Vue.use(Router);
 const AlarmInfo = () => import(/* webpackChunkName: "alarm-info" */ '../pages/alarm-info/alarm-info.vue');

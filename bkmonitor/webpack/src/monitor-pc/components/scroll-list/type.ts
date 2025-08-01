@@ -1,3 +1,12 @@
+export enum ScrollPageMode {
+  /** 异步分页 */
+  Async = 'async',
+  /** 不分页 */
+  NoPaging = 'no-paging',
+  /** 同步步分页 */
+  Sync = 'sync',
+}
+
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -26,13 +35,4 @@
 export interface IScrollListItem {
   id: number | string;
   name: string;
-}
-
-export enum ScrollPageMode {
-  /** 异步分页 */
-  Async = 'async',
-  /** 不分页 */
-  NoPaging = 'no-paging',
-  /** 同步步分页 */
-  Sync = 'sync',
 }

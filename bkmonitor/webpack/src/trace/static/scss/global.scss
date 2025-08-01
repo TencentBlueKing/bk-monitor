@@ -114,6 +114,7 @@ body {
   }
 
   .tooltips-content {
+    max-width: 640px;
     padding: 0;
     margin: 0;
 
@@ -127,6 +128,7 @@ body {
 
       .item-series {
         display: flex;
+        flex-shrink: 0;
         align-items: center;
         justify-content: center;
         width: 6px;
@@ -140,12 +142,10 @@ body {
         min-width: 80px;
         max-width: calc(100% - 20px);
         margin-right: 5px;
-        // overflow: hidden;
-        // text-overflow: ellipsis;
+        overflow: hidden;
+        text-overflow: ellipsis;
         color: #f1f3fa;
-        word-break: break-all;
-        word-wrap: break-word;
-        white-space: pre-wrap;
+        white-space: nowrap;
       }
 
       .item-value {

@@ -58,6 +58,9 @@ AI_ASSISTANT = "ai_assistant"
 # unify_query_search查询的开关
 UNIFY_QUERY_SEARCH = "unify_query_search"
 
+# unify_query_sql 查询的开关
+UNIFY_QUERY_SQL = "unify_query_sql"
+
 # 日志聚类小型化配置
 # {
 #   "predict_cluster": {

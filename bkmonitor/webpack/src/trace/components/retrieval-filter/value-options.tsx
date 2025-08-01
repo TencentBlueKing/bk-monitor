@@ -24,11 +24,11 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, shallowRef, computed, watch, nextTick, useTemplateRef, onUnmounted } from 'vue';
-import { useI18n } from 'vue-i18n';
+import { computed, defineComponent, nextTick, onUnmounted, shallowRef, useTemplateRef, watch } from 'vue';
 
 import { useEventListener, watchDebounced } from '@vueuse/core';
 import { promiseTimeout } from '@vueuse/core';
+import { useI18n } from 'vue-i18n';
 
 import loadingImg from '../../static/img/spinner.svg';
 import EmptyStatus from '../empty-status/empty-status';

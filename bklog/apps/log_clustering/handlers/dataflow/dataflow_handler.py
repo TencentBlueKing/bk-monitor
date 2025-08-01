@@ -27,7 +27,8 @@ from dataclasses import asdict
 import arrow
 from django.conf import settings
 from django.utils.translation import gettext as _
-from jinja2 import Environment, FileSystemLoader
+from jinja2 import FileSystemLoader
+from jinja2.sandbox import SandboxedEnvironment as Environment
 from retrying import retry
 
 from apps.api import (
@@ -190,7 +191,6 @@ class DataFlowHandler(BaseAiopsHandler):
                 )
             )
             logger.info(f"check_and_start_clean_task: result_table_id -> {result_table_id}, result -> {result}")
-
 
     @classmethod
     def _init_filter_rule(cls, filter_rules, all_fields_dict, clustering_field):
@@ -1552,13 +1552,11 @@ class DataFlowHandler(BaseAiopsHandler):
                         "index_set": clustering_config.clustered_rt,
                         "source_type": Scenario.BKDATA,
                         "data_label": BaseIndexSetHandler.get_data_label(
-                            Scenario.BKDATA, index_set.index_set_id, clustered_rt=clustering_config.clustered_rt
+                            index_set.index_set_id, clustered_rt=clustering_config.clustered_rt
                         ),
                         "table_id": BaseIndexSetHandler.get_rt_id(
                             index_set.index_set_id,
-                            index_set.collector_config_id,
-                            [],
-                            clustered_rt=clustering_config.clustered_rt,
+                            clustering_config.clustered_rt,
                         ),
                         "space_id": index_set.space_uid.split("__")[-1],
                         "space_type": index_set.space_uid.split("__")[0],

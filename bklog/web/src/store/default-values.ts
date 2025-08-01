@@ -25,6 +25,7 @@
  */
 import VueRouter from 'vue-router';
 
+import { TimeRangeType } from '@/components/time-range/time-range';
 // @ts-ignore
 import { handleTransformToTimestamp } from '@/components/time-range/utils';
 
@@ -120,7 +121,6 @@ const getUrlArgs = (_route?) => {
       // #code return route.resolved.query.indexId ? `${route.resolved.query.indexId}` : '';
       // #endif
     });
-    urlResolver.setResolver('search_mode', () => route.resolved.query.search_mode);
   } else {
     urlResolver = new RouteUrlResolver({ route: _route });
     urlResolver.setResolver('index_id', () => {
@@ -130,7 +130,6 @@ const getUrlArgs = (_route?) => {
       // #code return _route.query.indexId ? `${_route.query.indexId}` : '';
       // #endif
     });
-    urlResolver.setResolver('search_mode', () => _route.query.search_mode);
   }
 
   const result = urlResolver.convertQueryToStore<RouteParams>();
@@ -169,7 +168,7 @@ export const getDefaultRetrieveParams = (defaultValue?) => {
 export const getDefaultDatePickerValue = () => {
   const datePickerValue = ['now-15m', 'now'];
   const format = localStorage.getItem('SEARCH_DEFAULT_TIME_FORMAT') ?? 'YYYY-MM-DD HH:mm:ss';
-  const [start_time, end_time] = handleTransformToTimestamp(datePickerValue, format);
+  const [start_time, end_time] = handleTransformToTimestamp(datePickerValue as TimeRangeType, format);
 
   return { datePickerValue, start_time, end_time, format };
 };
@@ -181,7 +180,6 @@ export const IndexSetQueryResult = {
   is_loading: false,
   exception_msg: '',
   is_error: false,
-  request_counter: 0,
   search_count: 0,
   aggregations: {},
   _shards: {},
@@ -195,7 +193,6 @@ export const IndexSetQueryResult = {
 
 export const IndexFieldInfo = {
   is_loading: false,
-  request_counter: 0,
   fields: [],
   display_fields: [],
   sort_list: [],
@@ -346,6 +343,7 @@ export const getStorageOptions = (values?: any) => {
         width: DEFAULT_FIELDS_WIDTH,
       },
       [BK_LOG_STORAGE.LAST_INDEX_SET_ID]: {},
+      [BK_LOG_STORAGE.COMMON_SPACE_ID_LIST]: [],
     },
     storage,
   );

@@ -26,16 +26,20 @@
 <template>
   <div class="checkbox-group-wrap">
     <bk-checkbox
-      :class="['list-item', { active: active === item.key }]"
       v-for="item in list"
-      @change="(v, ov) => handleChange(v, ov, item)"
+      :key="JSON.stringify(item)"
+      :class="['list-item', { active: active === item.key }]"
       :true-value="item.key"
       :false-value="''"
       :disabled="disabled && !localValue.includes(item.key)"
       :checked="isChecked(item.key)"
-      :key="JSON.stringify(item)"
+      @change="(v, ov) => handleChange(v, ov, item)"
     >
-      <span class="checkbox-item-title" v-bk-overflow-tips>{{ item.title }}</span>
+      <span
+        v-bk-overflow-tips
+        class="checkbox-item-title"
+        >{{ item.title }}</span
+      >
     </bk-checkbox>
   </div>
 </template>

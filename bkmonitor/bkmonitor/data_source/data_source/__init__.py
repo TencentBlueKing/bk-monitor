@@ -715,6 +715,24 @@ class DataSource(metaclass=ABCMeta):
                 if field in self.group_by:
                     continue
                 self.group_by.append(field)
+            # group by 去掉数值型字段，数值型的过滤依然留在self.where中
+            # 由于group by 去掉数值型类型， 所有数据中不会有对应数值型字段
+            # 但_advance_where中有对应key是数值型的condition，由于待匹配的数据没有对应字段， 所以这个condition不生效，符合预期
+            # con = [{'key': 'fail_user_num', 'value': [10], 'method': 'gte'}]
+            # In[1]: load_agg_condition_instance(con).is_match({})
+            # Out[1]: True
+            # In[2]: load_agg_condition_instance(con).is_match({"fail_user_num": 11})
+            # Out[2]: True
+            # In[3]: load_agg_condition_instance(con).is_match({"fail_user_num": 1})
+            # Out[3]: False
+            num_compare_method = ["gt", "gte", "lt", "lte"]
+            remove_num_fields = set()
+            for condition in self._advance_where:
+                if condition["method"] in num_compare_method:
+                    self.where.append(condition)
+                    remove_num_fields.add(condition["key"])
+            if remove_num_fields:
+                self.group_by = [field for field in self.group_by if field not in remove_num_fields]
 
     @property
     def metric_display(self):
@@ -888,7 +906,7 @@ class TimeSeriesDataSource(DataSource):
         index_set_id = query_config.get("index_set_id")
 
         return cls(
-            bk_tenant_id=bk_biz_id_to_bk_tenant_id(bk_biz_id),
+            bk_tenant_id=kwargs.get("bk_tenant_id") or bk_biz_id_to_bk_tenant_id(bk_biz_id),
             name=name,
             table=query_config.get("result_table_id", ""),
             metrics=metrics,
@@ -1282,6 +1300,14 @@ class BkMonitorTimeSeriesDataSource(TimeSeriesDataSource):
         if settings.IS_ACCESS_BK_DATA and cls.is_cmdb_level_query(
             where=agg_condition, filter_dict=where, group_by=group_by
         ):
+            # ！！！cmdb level 数据查询路由逻辑！！！
+            # 通过 is_cmdb_level_query 判定是否查询cmdb 层级表（和unify-query）判定逻辑保持一致
+            # 如果是层级表查询，则转到计算平台查询
+            # 将_cmdb_level 替换成去掉， 再转换成 bk_data 的结果表，直接使用 bk_sql 进行查询
+            # 后续次逻辑去掉。直接将结果表传递给unify-query即可。
+            # 在UnifyQuery.use_unify_query判定中，如果是cmdb-level查询，并且在白名单(settings.BKDATA_CMDB_LEVEL_TABLES)里
+            # 会走到这个逻辑
+
             raw_table, _, _ = table.partition("_cmdb_level")
             replace_table_id = to_bk_data_rt_id(raw_table, settings.BK_DATA_CMDB_SPLIT_TABLE_SUFFIX)
             return BkdataTimeSeriesDataSource._get_queryset(
@@ -1984,15 +2010,18 @@ class BkApmTraceDataSource(BkMonitorLogDataSource):
     EXTRA_DISTINCT_FIELD = None
     EXTRA_AGG_DIMENSIONS = []
 
-    # 对象字段，需要进行存在性校验，选用 Set 结构以提升效率。
-    OBJECT_FIELDS: set[str] = {
+    # Span 对象字段
+    SPAN_OBJECT_FIELDS: set[str] = {OtlpKey.ATTRIBUTES, OtlpKey.RESOURCE, OtlpKey.STATUS}
+
+    # 预计算对象字段
+    PRE_CALCULATE_OBJECT_FIELDS: set[str] = {
         PreCalculateSpecificField.CATEGORY_STATISTICS.value,
         PreCalculateSpecificField.KIND_STATISTICS.value,
         PreCalculateSpecificField.COLLECTIONS.value,
-        OtlpKey.ATTRIBUTES,
-        OtlpKey.RESOURCE,
-        OtlpKey.STATUS,
     }
+
+    # 对象字段，需要进行存在性校验，选用 Set 结构以提升效率。
+    OBJECT_FIELDS: set[str] = SPAN_OBJECT_FIELDS | PRE_CALCULATE_OBJECT_FIELDS
 
     NESTED_FIELDS: set[str] = {OtlpKey.EVENTS, OtlpKey.LINKS}
 
@@ -2062,7 +2091,11 @@ class BkApmTraceDataSource(BkMonitorLogDataSource):
         if self.query_string and self.query_string != "*":
             return True
 
-        return str(bk_biz_id) in settings.TRACE_V2_BIZ_LIST or bk_biz_id in settings.TRACE_V2_BIZ_LIST
+        # 如果业务在黑名单中，则不使用 UnifyQuery。
+        return (
+            bk_biz_id not in settings.APM_UNIFY_QUERY_BLACK_BIZ_LIST
+            and str(bk_biz_id) not in settings.APM_UNIFY_QUERY_BLACK_BIZ_LIST
+        )
 
     def _get_unify_query_table(self) -> str:
         table_mapping: dict[str, str] = settings.UNIFY_QUERY_TABLE_MAPPING_CONFIG or {}
@@ -2075,6 +2108,7 @@ class BkApmTraceDataSource(BkMonitorLogDataSource):
         processed_records: list[dict[str, Any]] = []
         for record in records:
             processed_record: dict[str, Any] = {}
+            exists_object_fields: set[str] = set()
             for field, value in record.items():
                 field = self.FIELD_MAPPING.get(field, field)
                 if field in ["_meta"]:
@@ -2098,9 +2132,30 @@ class BkApmTraceDataSource(BkMonitorLogDataSource):
                     # unify-query 将 object 字段打平返回，这里将其重新转为结构化数据，确保和之前的逻辑一致。
                     # events 等 nested 字段返回格式与之前一致，无需处理。
                     # 转换示例：resource.a.b / resource.a.c -> resource: {"a.b": "xxx", "a.c": "xxxx"}
+                    exists_object_fields.add(root_field)
                     processed_record.setdefault(root_field, {})[attr_field] = value
                 else:
                     processed_record[field] = value
+
+            # 对于 Object 类型的数据：
+            # 1）ES 返回结构化的数据，即：{"attributes": {"a": "xxx"}}
+            # 2）UnifyQuery 返回打平后的数据，例如 {"attributes.a": "xxx"}
+            # 如果 attributes 为 {}，UnifyQuery 将不会返回该字段，而在 Trace 场景，部分 object 字段是必需的，
+            # 例如 attributes、resource、status，下面逻辑将对上述情况，对标准字段进行补全。
+            if self.select:
+                # 指定某些字段进行返回，仅需确保这些字段存在。
+                select_object_fields: set[str] = set(self.select) & self.OBJECT_FIELDS
+            else:
+                # 如果没有指定 select，则需根据数据类型（Span or 预计算），确保返回的对象字段存在。
+                is_span: bool = OtlpKey.SPAN_ID in processed_record
+                select_object_fields: set[str] = self.PRE_CALCULATE_OBJECT_FIELDS
+                if is_span:
+                    select_object_fields = self.SPAN_OBJECT_FIELDS
+
+            for field in select_object_fields:
+                if field not in exists_object_fields:
+                    # 如果 select 中的对象字段不存在，则添加空对象。
+                    processed_record[field] = {}
 
             processed_records.append(processed_record)
 

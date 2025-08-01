@@ -3,15 +3,25 @@
     width: 100%;
   }
 
-  .bk-dialog-footer {
-    font-size: 0;
-
-    .bk-button {
-      margin-right: 10px;
-
-      &:last-child {
-        margin-right: 0;
+  .add-method-radio-group {
+    .bk-form-radio {
+      & + .bk-form-radio {
+        margin-left: 24px;
       }
+
+      input {
+        margin-right: 6px;
+      }
+
+      .bk-radio-text {
+        color: #4D4F56;
+      }
+    }
+  }
+
+  .bk-dialog-footer {
+    .confirm-btn {
+      margin-right: 8px;
     }
   }
 }

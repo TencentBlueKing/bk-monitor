@@ -52,11 +52,11 @@ import { getCmdShortcutKey } from 'monitor-common/utils/navigator';
 export const HANDLE_SHOW_SETTING = 'HANDLE_SHOW_SETTING';
 export const HANDLE_HIDDEN_SETTING = 'HANDLE_HIDDEN_SETTING';
 export const HANDLE_MENU_CHANGE = 'HANDLE_MENU_CHANGE';
-interface INavToolsProps {
-  show: boolean;
-}
 interface INavToolsEvents {
   onChange: boolean;
+}
+interface INavToolsProps {
+  show: boolean;
 }
 @Component({
   mixins: [LogVersionMixin],
@@ -463,7 +463,10 @@ class NavTools extends DocumentLinkMixin {
             placement='bottom'
             theme='light common-monitor'
           >
-            <span class='header-user-text'>{window.user_name || window.username}</span>
+            <bk-user-display-name
+              class='header-user-text'
+              user-id={window.user_name || window.username}
+            />
             <i class='bk-icon icon-down-shape' />
             <div slot='content'>
               {process.env.APP !== 'external' && (

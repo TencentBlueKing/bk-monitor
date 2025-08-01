@@ -23,14 +23,14 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Teleport, defineComponent, nextTick, onBeforeUnmount, ref, shallowRef, watch } from 'vue';
-import { useI18n } from 'vue-i18n';
+import { defineComponent, nextTick, onBeforeUnmount, ref, shallowRef, Teleport, watch } from 'vue';
 
 import { addListener, removeListener } from '@blueking/fork-resize-detector';
 import { Exception, Popover, ResizeLayout } from 'bkui-vue';
 import { traceDiagram } from 'monitor-api/modules/apm_trace';
 import { getValueFormat } from 'monitor-ui/monitor-echarts/valueFormats';
 import { debounce } from 'throttle-debounce';
+import { useI18n } from 'vue-i18n';
 
 import { getSingleDiffColor } from '../../../utils/compare';
 import GraphTools from '../flame-graph/graph-tools/graph-tools';
@@ -38,7 +38,6 @@ import ViewLegend from '../view-legend/view-legend';
 import FlameFilterList from './flame-filter-list';
 import {
   type BaseDataType,
-  CommonMenuList,
   type IAxisRect,
   type IBaseTraceInfo,
   type ICommonMenuItem,
@@ -46,6 +45,7 @@ import {
   type IOtherData,
   type ITipsDetail,
   type IZoomRect,
+  CommonMenuList,
   RootId,
 } from './types';
 import { FlameChart } from './use-flame';

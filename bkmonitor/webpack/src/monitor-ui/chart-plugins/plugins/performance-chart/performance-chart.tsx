@@ -27,7 +27,7 @@ import { Component } from 'vue-property-decorator';
 
 import dayjs from 'dayjs';
 import deepmerge from 'deepmerge';
-import { CancelToken } from 'monitor-api/index';
+import { CancelToken } from 'monitor-api/cancel';
 import { deepClone, random } from 'monitor-common/utils/utils';
 import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
 
@@ -369,7 +369,7 @@ export default class PerformanceChart extends TimeSeries {
   }
 
   handleRestore() {
-    if (!!this.enableSelectionRestoreAll) {
+    if (this.enableSelectionRestoreAll) {
       this.handleRestoreEvent();
     } else {
       this.dataZoom(undefined, undefined);

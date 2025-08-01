@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -28,83 +27,83 @@ def create_or_delete_records(mocker):
     )
     models.ResultTableField.objects.create(
         table_id=table_id,
-        field_name='dtEventTimeStamp',
-        field_type='timestamp',
-        description='数据时间',
-        tag='dimension',
+        field_name="dtEventTimeStamp",
+        field_type="timestamp",
+        description="数据时间",
+        tag="dimension",
         is_config_by_user=True,
     )
 
     models.ResultTableFieldOption.objects.create(
         table_id=table_id,
-        field_name='dtEventTimeStamp',
-        name='es_type',
-        value='date_nanos',
-        value_type='string',
+        field_name="dtEventTimeStamp",
+        name="es_type",
+        value="date_nanos",
+        value_type="string",
     )
 
     models.ResultTableFieldOption.objects.create(
         table_id=table_id,
-        field_name='dtEventTimeStamp',
-        name='es_format',
-        value='strict_date_optional_time_nanos',
-        value_type='string',
+        field_name="dtEventTimeStamp",
+        name="es_format",
+        value="strict_date_optional_time_nanos",
+        value_type="string",
     )
 
     models.ResultTableFieldOption.objects.create(
         table_id=table_id,
-        field_name='dtEventTimeStamp',
-        name='time_format',
-        value='yyyy-MM-dd HH:mm:ss.SSSSSS',
-        value_type='string',
+        field_name="dtEventTimeStamp",
+        name="time_format",
+        value="yyyy-MM-dd HH:mm:ss.SSSSSS",
+        value_type="string",
     )
 
     models.ResultTableFieldOption.objects.create(
         table_id=table_id,
-        field_name='dtEventTimeStamp',
-        name='time_zone',
-        value='8',
-        value_type='string',
+        field_name="dtEventTimeStamp",
+        name="time_zone",
+        value="8",
+        value_type="string",
     )
 
     models.ResultTableFieldOption.objects.create(
         table_id=table_id,
-        field_name='dtEventTimeStamp',
-        name='real_path',
-        value='bk_separator_object.log_time',
-        value_type='string',
+        field_name="dtEventTimeStamp",
+        name="real_path",
+        value="bk_separator_object.log_time",
+        value_type="string",
     )
 
     models.ResultTableFieldOption.objects.create(
         table_id=table_id,
-        field_name='dtEventTimeStamp',
-        name='field_index',
-        value='1',
-        value_type='string',
+        field_name="dtEventTimeStamp",
+        name="field_index",
+        value="1",
+        value_type="string",
     )
 
     models.ResultTableFieldOption.objects.create(
         table_id=table_id,
-        field_name='dtEventTimeStamp',
-        name='timestamp_unit',
-        value='µs',
-        value_type='string',
+        field_name="dtEventTimeStamp",
+        name="timestamp_unit",
+        value="µs",
+        value_type="string",
     )
 
     models.ResultTableFieldOption.objects.create(
         table_id=table_id,
-        field_name='dtEventTimeStamp',
-        name='default_function',
-        value='fn:timestamp_from_utctime',
-        value_type='string',
+        field_name="dtEventTimeStamp",
+        name="default_function",
+        value="fn:timestamp_from_utctime",
+        value_type="string",
     )
 
     models.ResultTableFieldOption.objects.create(
         table_id=table_id,
-        field_name='time',
-        name='es_format',
-        value='strict_date_optional_time_nanos',
-        value_type='string',
+        field_name="time",
+        name="es_format",
+        value="strict_date_optional_time_nanos",
+        value_type="string",
     )
 
     models.DataSource.objects.create(
@@ -150,149 +149,149 @@ def es_mapping_same(es_properties, current_mapping, alias_field_list):
     return True
 
 
-@pytest.mark.django_db(databases=["default", "monitor_api"])
+@pytest.mark.django_db(databases="__all__")
 def test_notify_es_data_link_adapt_nano(create_or_delete_records):
     data = NotifyEsDataLinkAdaptNano().request(table_id=table_id)
 
     expected = [
         {
-            'alias_name': '',
-            'default_value': None,
-            'description': '数据时间',
-            'field_name': 'dtEventTimeStamp',
-            'is_config_by_user': True,
-            'is_disabled': False,
-            'option': {
-                'default_function': 'fn:timestamp_from_utctime',
-                'es_format': 'strict_date_optional_time_nanos||epoch_millis',
-                'es_type': 'date',
-                'field_index': '1',
-                'real_path': 'bk_separator_object.log_time',
-                'time_format': 'yyyy-MM-dd HH:mm:ss.SSSSSS',
-                'time_zone': '8',
-                'timestamp_unit': 'µs',
+            "alias_name": "",
+            "default_value": None,
+            "description": "数据时间",
+            "field_name": "dtEventTimeStamp",
+            "is_config_by_user": True,
+            "is_disabled": False,
+            "option": {
+                "default_function": "fn:timestamp_from_utctime",
+                "es_format": "strict_date_optional_time_nanos||epoch_millis",
+                "es_type": "date",
+                "field_index": "1",
+                "real_path": "bk_separator_object.log_time",
+                "time_format": "yyyy-MM-dd HH:mm:ss.SSSSSS",
+                "time_zone": "8",
+                "timestamp_unit": "µs",
             },
-            'tag': 'dimension',
-            'type': 'timestamp',
-            'unit': '',
+            "tag": "dimension",
+            "type": "timestamp",
+            "unit": "",
         },
         {
-            'alias_name': '',
-            'default_value': None,
-            'description': '数据时间',
-            'field_name': 'dtEventTimeStampNanos',
-            'is_config_by_user': True,
-            'is_disabled': False,
-            'option': {
-                'default_function': 'fn:timestamp_from_utctime',
-                'es_format': 'strict_date_optional_time_nanos||epoch_millis',
-                'es_type': 'date_nanos',
-                'field_index': '1',
-                'real_path': 'bk_separator_object.log_time',
-                'time_format': 'yyyy-MM-dd HH:mm:ss.SSSSSS',
-                'time_zone': '8',
-                'timestamp_unit': 'µs',
+            "alias_name": "",
+            "default_value": None,
+            "description": "数据时间",
+            "field_name": "dtEventTimeStampNanos",
+            "is_config_by_user": True,
+            "is_disabled": False,
+            "option": {
+                "default_function": "fn:timestamp_from_utctime",
+                "es_format": "strict_date_optional_time_nanos||epoch_millis",
+                "es_type": "date_nanos",
+                "field_index": "1",
+                "real_path": "bk_separator_object.log_time",
+                "time_format": "yyyy-MM-dd HH:mm:ss.SSSSSS",
+                "time_zone": "8",
+                "timestamp_unit": "µs",
             },
-            'tag': 'dimension',
-            'type': 'timestamp',
-            'unit': '',
+            "tag": "dimension",
+            "type": "timestamp",
+            "unit": "",
         },
     ]
 
     assert data == expected
 
 
-@pytest.mark.django_db(databases=["default", "monitor_api"])
+@pytest.mark.django_db(databases="__all__")
 def test_es_mapping_same(create_or_delete_records):
     es_properties = {
-        '__ext': {'type': 'object'},
-        'bk_host_id': {'type': 'integer'},
-        'cloudId': {'type': 'integer'},
-        'dtEventTimeStamp': {'type': 'date', 'format': 'epoch_millis'},
-        'gseIndex': {'type': 'long'},
-        'iterationIndex': {'type': 'integer'},
-        'log': {'type': 'text', 'norms': False},
-        'path': {'type': 'keyword'},
-        'serverIp': {'type': 'keyword'},
-        'time': {'type': 'date', 'format': 'epoch_millis'},
-        'cluster_id': {'type': 'alias', 'path': '__ext.bk_bcs_cluster_id'},
-        'container_id': {'type': 'alias', 'path': '__ext.container_id'},
-        'image_name': {'type': 'alias', 'path': '__ext.container_image'},
-        'container_name': {'type': 'alias', 'path': '__ext.container_name'},
-        'pod_name': {'type': 'alias', 'path': '__ext.io_kubernetes_pod'},
-        'pod_ip': {'type': 'alias', 'path': '__ext.io_kubernetes_pod_ip'},
-        'namespace': {'type': 'alias', 'path': '__ext.io_kubernetes_pod_namespace'},
-        'pod_uid': {'type': 'alias', 'path': '__ext.io_kubernetes_pod_uid'},
-        'workload_name': {'type': 'alias', 'path': '__ext.io_kubernetes_workload_name'},
-        'workload_type': {'type': 'alias', 'path': '__ext.io_kubernetes_workload_type'},
-        '__ext.bk_bcs_cluster_id': {'type': 'keyword'},
-        '__ext.container_id': {'type': 'keyword'},
-        '__ext.container_image': {'type': 'keyword'},
-        '__ext.container_name': {'type': 'keyword'},
-        '__ext.io_kubernetes_pod': {'type': 'keyword'},
-        '__ext.io_kubernetes_pod_ip': {'type': 'keyword'},
-        '__ext.io_kubernetes_pod_namespace': {'type': 'keyword'},
-        '__ext.io_kubernetes_pod_uid': {'type': 'keyword'},
-        '__ext.io_kubernetes_workload_name': {'type': 'keyword'},
-        '__ext.io_kubernetes_workload_type': {'type': 'keyword'},
+        "__ext": {"type": "object"},
+        "bk_host_id": {"type": "integer"},
+        "cloudId": {"type": "integer"},
+        "dtEventTimeStamp": {"type": "date", "format": "epoch_millis"},
+        "gseIndex": {"type": "long"},
+        "iterationIndex": {"type": "integer"},
+        "log": {"type": "text", "norms": False},
+        "path": {"type": "keyword"},
+        "serverIp": {"type": "keyword"},
+        "time": {"type": "date", "format": "epoch_millis"},
+        "cluster_id": {"type": "alias", "path": "__ext.bk_bcs_cluster_id"},
+        "container_id": {"type": "alias", "path": "__ext.container_id"},
+        "image_name": {"type": "alias", "path": "__ext.container_image"},
+        "container_name": {"type": "alias", "path": "__ext.container_name"},
+        "pod_name": {"type": "alias", "path": "__ext.io_kubernetes_pod"},
+        "pod_ip": {"type": "alias", "path": "__ext.io_kubernetes_pod_ip"},
+        "namespace": {"type": "alias", "path": "__ext.io_kubernetes_pod_namespace"},
+        "pod_uid": {"type": "alias", "path": "__ext.io_kubernetes_pod_uid"},
+        "workload_name": {"type": "alias", "path": "__ext.io_kubernetes_workload_name"},
+        "workload_type": {"type": "alias", "path": "__ext.io_kubernetes_workload_type"},
+        "__ext.bk_bcs_cluster_id": {"type": "keyword"},
+        "__ext.container_id": {"type": "keyword"},
+        "__ext.container_image": {"type": "keyword"},
+        "__ext.container_name": {"type": "keyword"},
+        "__ext.io_kubernetes_pod": {"type": "keyword"},
+        "__ext.io_kubernetes_pod_ip": {"type": "keyword"},
+        "__ext.io_kubernetes_pod_namespace": {"type": "keyword"},
+        "__ext.io_kubernetes_pod_uid": {"type": "keyword"},
+        "__ext.io_kubernetes_workload_name": {"type": "keyword"},
+        "__ext.io_kubernetes_workload_type": {"type": "keyword"},
     }
 
     current_mapping = {
-        '__ext': {
-            'properties': {
-                'bk_bcs_cluster_id': {'type': 'keyword'},
-                'container_id': {'type': 'keyword'},
-                'container_image': {'type': 'keyword'},
-                'container_name': {'type': 'keyword'},
-                'io_kubernetes_pod': {'type': 'keyword'},
-                'io_kubernetes_pod_ip': {'type': 'keyword'},
-                'io_kubernetes_pod_namespace': {'type': 'keyword'},
-                'io_kubernetes_pod_uid': {'type': 'keyword'},
-                'io_kubernetes_workload_name': {'type': 'keyword'},
-                'io_kubernetes_workload_type': {'type': 'keyword'},
-                'labels': {
-                    'properties': {
-                        'agones_dev_gameserver': {'type': 'keyword'},
-                        'agones_dev_role': {'type': 'keyword'},
-                        'agones_dev_safe_to_evict': {'type': 'keyword'},
-                        'component': {'type': 'keyword'},
-                        'part_of': {'type': 'keyword'},
+        "__ext": {
+            "properties": {
+                "bk_bcs_cluster_id": {"type": "keyword"},
+                "container_id": {"type": "keyword"},
+                "container_image": {"type": "keyword"},
+                "container_name": {"type": "keyword"},
+                "io_kubernetes_pod": {"type": "keyword"},
+                "io_kubernetes_pod_ip": {"type": "keyword"},
+                "io_kubernetes_pod_namespace": {"type": "keyword"},
+                "io_kubernetes_pod_uid": {"type": "keyword"},
+                "io_kubernetes_workload_name": {"type": "keyword"},
+                "io_kubernetes_workload_type": {"type": "keyword"},
+                "labels": {
+                    "properties": {
+                        "agones_dev_gameserver": {"type": "keyword"},
+                        "agones_dev_role": {"type": "keyword"},
+                        "agones_dev_safe_to_evict": {"type": "keyword"},
+                        "component": {"type": "keyword"},
+                        "part_of": {"type": "keyword"},
                     }
                 },
             }
         },
-        'bk_host_id': {'type': 'integer'},
-        'cloudId': {'type': 'integer'},
-        'cluster_id': {'type': 'alias', 'path': '__ext.bk_bcs_cluster_id'},
-        'container_id': {'type': 'alias', 'path': '__ext.container_id'},
-        'container_name': {'type': 'alias', 'path': '__ext.container_name'},
-        'dtEventTimeStamp': {'type': 'date', 'format': 'epoch_millis'},
-        'gseIndex': {'type': 'long'},
-        'image_name': {'type': 'alias', 'path': '__ext.container_image'},
-        'iterationIndex': {'type': 'integer'},
-        'log': {'type': 'text', 'norms': False},
-        'namespace': {'type': 'alias', 'path': '__ext.io_kubernetes_pod_namespace'},
-        'path': {'type': 'keyword'},
-        'pod_ip': {'type': 'alias', 'path': '__ext.io_kubernetes_pod_ip'},
-        'pod_name': {'type': 'alias', 'path': '__ext.io_kubernetes_pod'},
-        'pod_uid': {'type': 'alias', 'path': '__ext.io_kubernetes_pod_uid'},
-        'serverIp': {'type': 'keyword'},
-        'time': {'type': 'date', 'format': 'epoch_millis'},
-        'workload_name': {'type': 'alias', 'path': '__ext.io_kubernetes_workload_name'},
-        'workload_type': {'type': 'alias', 'path': '__ext.io_kubernetes_workload_type'},
+        "bk_host_id": {"type": "integer"},
+        "cloudId": {"type": "integer"},
+        "cluster_id": {"type": "alias", "path": "__ext.bk_bcs_cluster_id"},
+        "container_id": {"type": "alias", "path": "__ext.container_id"},
+        "container_name": {"type": "alias", "path": "__ext.container_name"},
+        "dtEventTimeStamp": {"type": "date", "format": "epoch_millis"},
+        "gseIndex": {"type": "long"},
+        "image_name": {"type": "alias", "path": "__ext.container_image"},
+        "iterationIndex": {"type": "integer"},
+        "log": {"type": "text", "norms": False},
+        "namespace": {"type": "alias", "path": "__ext.io_kubernetes_pod_namespace"},
+        "path": {"type": "keyword"},
+        "pod_ip": {"type": "alias", "path": "__ext.io_kubernetes_pod_ip"},
+        "pod_name": {"type": "alias", "path": "__ext.io_kubernetes_pod"},
+        "pod_uid": {"type": "alias", "path": "__ext.io_kubernetes_pod_uid"},
+        "serverIp": {"type": "keyword"},
+        "time": {"type": "date", "format": "epoch_millis"},
+        "workload_name": {"type": "alias", "path": "__ext.io_kubernetes_workload_name"},
+        "workload_type": {"type": "alias", "path": "__ext.io_kubernetes_workload_type"},
     }
 
     alias_field_list = [
-        '__ext.bk_bcs_cluster_id',
-        '__ext.container_id',
-        '__ext.container_name',
-        '__ext.container_image',
-        '__ext.io_kubernetes_pod_namespace',
-        '__ext.io_kubernetes_pod_ip',
-        '__ext.io_kubernetes_pod',
-        '__ext.io_kubernetes_pod_uid',
-        '__ext.io_kubernetes_workload_name',
-        '__ext.io_kubernetes_workload_type',
+        "__ext.bk_bcs_cluster_id",
+        "__ext.container_id",
+        "__ext.container_name",
+        "__ext.container_image",
+        "__ext.io_kubernetes_pod_namespace",
+        "__ext.io_kubernetes_pod_ip",
+        "__ext.io_kubernetes_pod",
+        "__ext.io_kubernetes_pod_uid",
+        "__ext.io_kubernetes_workload_name",
+        "__ext.io_kubernetes_workload_type",
     ]
     assert es_mapping_same(
         es_properties=es_properties, current_mapping=current_mapping, alias_field_list=alias_field_list

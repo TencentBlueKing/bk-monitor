@@ -27,12 +27,12 @@
   <div class="selector-content">
     <keep-alive :include="include">
       <component
-        class="layout"
         :is="currentComponent"
-        :tree-height="treeHeight"
         v-bind="$attrs"
-        v-on="$listeners"
         ref="layout"
+        class="layout"
+        :tree-height="treeHeight"
+        v-on="$listeners"
       />
     </keep-alive>
   </div>

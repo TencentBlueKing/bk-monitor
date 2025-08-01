@@ -38,7 +38,7 @@ export type DraggableBounds = {
 export type DraggingUpdate = {
   event: MouseEvent;
   manager: DraggableManager;
-  tag: TNil | string;
+  tag: string | TNil;
   type: EUpdateTypes;
   value: number;
   x: number;

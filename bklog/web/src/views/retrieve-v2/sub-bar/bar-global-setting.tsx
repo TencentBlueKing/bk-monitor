@@ -160,8 +160,8 @@ export default defineComponent({
     function handleConfirm() {
       // 存入localstorage
       store.commit('updateStorage', {
-        showFieldAlias: showFieldAlias.value,
-        textEllipsisDir: textEllipsisDir.value,
+        [BK_LOG_STORAGE.SHOW_FIELD_ALIAS]: showFieldAlias.value,
+        [BK_LOG_STORAGE.TEXT_ELLIPSIS_DIR]: textEllipsisDir.value,
       });
       handlePopoverHide();
     }

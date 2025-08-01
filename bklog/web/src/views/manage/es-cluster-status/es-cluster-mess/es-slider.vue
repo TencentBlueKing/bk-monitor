@@ -594,7 +594,7 @@
 
   import EsDialog from './es-dialog';
 
-  export default {
+  export default { 
     components: {
       EsDialog,
       BkUserSelector,
@@ -1592,12 +1592,13 @@
       @include flex-center;
     }
   }
+
 </style>
 
 <style lang="scss">
   @import '@/scss/space-tag-option';
 
-  .bk-search-list {
-    margin: 0;
+  .tippy-tooltip{
+    padding: .3rem .6rem;
   }
 </style>

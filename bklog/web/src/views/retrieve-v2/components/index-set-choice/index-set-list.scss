@@ -2,37 +2,38 @@
   width: var(--index-set-ctx-width);
 
   .bklog-v3-content-filter {
+    position: relative;
     display: flex;
     flex-direction: column;
     padding: 8px 12px;
-    position: relative;
 
     .bklog-v3-search-input {
       display: flex;
       align-items: center;
 
       .hidden-empty-icon {
+        display: inline-block;
         width: 8px;
         height: 8px;
+        margin-right: 2px;
         background: #ffdddd;
         border: 1px solid #ea3636;
         border-radius: 50%;
-        display: inline-block;
-        margin-right: 2px;
       }
     }
+
     .bklog-v3-tag-list {
+      position: relative;
       display: flex;
       align-items: center;
-      margin-top: 8px;
-      padding-left: 20px;
       padding-right: 20px;
-      position: relative;
+      padding-left: 20px;
+      margin-top: 8px;
 
       .tag-scroll-container {
-        overflow-x: auto;
         flex-wrap: nowrap;
         width: 100%;
+        overflow-x: auto;
         white-space: nowrap;
 
         &::-webkit-scrollbar {
@@ -41,23 +42,23 @@
       }
 
       .tag-item {
-        padding: 0 8px;
-        height: 22px;
-        background: #f0f1f5;
-        border-radius: 2px;
-        font-size: 12px;
-        color: #4d4f56;
         display: inline-flex;
         align-items: center;
         justify-content: center;
+        height: 22px;
+        padding: 0 8px;
         margin-right: 4px;
+        font-size: 12px;
+        color: #4d4f56;
         white-space: nowrap;
         cursor: pointer;
+        background: #f0f1f5;
+        border-radius: 2px;
 
         &.is-active {
+          color: #1768ef;
           background: #e1ecff;
           border: 1px solid #a3c5fd;
-          color: #1768ef;
         }
       }
 
@@ -83,38 +84,38 @@
   }
 
   .bklog-v3-content-list {
-    width: 100%;
-    padding-top: 6px;
     position: relative;
     display: flex;
+    width: 100%;
+    padding-top: 6px;
     background: #fafcff;
 
     .bklog-v3-index-set-list {
       width: 100%;
-      max-height: 442px;
       min-height: 300px;
-      overflow-y: auto;
-      overflow-x: hidden;
-      border-right: solid 1px #dcdee5;
+      max-height: 442px;
       padding-bottom: 12px;
+      overflow-x: hidden;
+      overflow-y: auto;
+      border-right: solid 1px #dcdee5;
 
       .index-set-item {
-        height: 32px;
-        line-height: 32px;
-        font-size: 12px;
-        color: #4d4f56;
         display: flex;
         align-items: center;
         justify-content: space-between;
-        cursor: pointer;
+        height: 32px;
         padding-left: 3px;
+        font-size: 12px;
+        line-height: 32px;
+        color: #4d4f56;
+        cursor: pointer;
 
         .favorite-icon {
           visibility: hidden;
 
           &.is-favorite {
-            visibility: visible;
             color: #f8b64f;
+            visibility: visible;
           }
         }
 
@@ -151,10 +152,10 @@
             display: inline-block;
             width: 8px;
             height: 8px;
+            margin-right: 4px;
             background: #ffdddd;
             border: 1px solid #ea3636;
             border-radius: 50%;
-            margin-right: 4px;
           }
         }
 
@@ -165,39 +166,39 @@
             display: inline-block;
             width: 8px;
             height: 8px;
+            margin-right: 4px;
             background: #ffdddd;
             border: 1px solid #ea3636;
             border-radius: 50%;
-            margin-right: 4px;
           }
         }
 
         .index-set-name {
           position: relative;
-          white-space: nowrap;
-          text-overflow: ellipsis;
           overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
         }
 
         .index-set-tags {
-          max-width: 200px;
           min-width: fit-content;
+          max-width: 200px;
+          overflow: hidden;
 
           text-overflow: ellipsis;
           white-space: nowrap;
-          overflow: hidden;
 
           .index-set-tag-item {
-            height: 22px;
             display: inline-flex;
             align-items: center;
+            height: 22px;
+            padding: 0 8px;
+            margin-right: 4px;
+            font-size: 12px;
+            color: #4d4f56;
 
             background: #f0f1f5;
             border-radius: 2px;
-            padding: 0 8px;
-            font-size: 12px;
-            color: #4d4f56;
-            margin-right: 4px;
           }
         }
 
@@ -206,25 +207,26 @@
 
           .group-icon {
             position: relative;
+
             &::after {
-              content: '';
 
               position: absolute;
               top: 0;
-              left: 0;
               right: 0;
               bottom: 0;
+              left: 0;
+              content: '';
               background: url('@/images/cursor-lock.svg') no-repeat;
-              background-position: center left 4px;
               background-color: #fafcff;
+              background-position: center left 4px;
             }
           }
         }
 
         &.is-child {
           .node-open-arrow {
-            visibility: hidden;
             padding-right: 12px;
+            visibility: hidden;
           }
 
           .index-set-name {
@@ -257,13 +259,13 @@
         }
 
         &:hover {
-          background: #ebeff5;
           color: #4d4f56;
+          background: #ebeff5;
 
           .favorite-icon {
             &:not(.is-favorite) {
-              visibility: visible;
               color: #c4c6cc;
+              visibility: visible;
             }
           }
 
@@ -287,8 +289,8 @@
         }
 
         &.active {
-          background: #e1ecff;
           color: #3a84ff;
+          background: #e1ecff;
 
           .group-icon {
             &::after {
@@ -319,10 +321,10 @@
 
     .bklog-v3-item-info {
       width: 310px;
+      min-height: 150px;
+      max-height: 342px;
       padding-top: 6px;
       padding-bottom: 12px;
-      max-height: 442px;
-      min-height: 150px;
       overflow-y: auto;
 
       .item-row {
@@ -338,14 +340,14 @@
       width: 100%;
 
       .body {
-        width: 100%;
         display: flex;
+        width: 100%;
 
         .bklog-v3-index-set-list {
           .index-set-item {
             &.active {
-              background: #fafcff;
               color: #4d4f56;
+              background: #fafcff;
 
               .index-set-tags {
                 .index-set-tag-item {
@@ -354,13 +356,13 @@
               }
 
               &:hover {
-                background: #ebeff5;
                 color: #4d4f56;
+                background: #ebeff5;
 
                 .favorite-icon {
                   &:not(.is-favorite) {
-                    visibility: visible;
                     color: #c4c6cc;
+                    visibility: visible;
                   }
                 }
 
@@ -374,7 +376,7 @@
 
             &.is-child {
               .node-open-arrow {
-                padding-right: 34px;
+                padding-right: 33px;
               }
 
               &.is-empty {
@@ -395,29 +397,32 @@
 
       .footer {
         padding: 8px 12px;
-        border-top: solid 1px #dcdee5;
         background: #fff;
+        border-top: solid 1px #dcdee5;
 
         .row-lable {
-          line-height: 20px;
-          font-size: 12px;
           display: inline-flex;
-          width: 100%;
-          justify-content: space-between;
           align-items: center;
+          justify-content: space-between;
+          width: 100%;
+          font-size: 12px;
+          line-height: 20px;
         }
+
         .row-item-list {
+          max-height: 200px;
           padding: 8px 0 12px 0;
+          overflow-y: auto;
 
           .row-value-item {
+            display: inline-block;
             padding: 2px 8px 4px 8px;
-            background: #f0f1f5;
-            border-radius: 2px;
+            margin-top: 4px;
+            margin-right: 4px;
             font-size: 12px;
             color: #4d4f56;
-            margin-right: 4px;
-            margin-top: 4px;
-            display: inline-block;
+            background: #f0f1f5;
+            border-radius: 2px;
 
             .bklog-icon {
               margin-left: 4px;
@@ -429,15 +434,15 @@
     }
 
     &::after {
-      content: '';
       position: absolute;
-      left: 0;
-      right: 0;
       top: 0;
+      right: 0;
+      left: 0;
       height: 8px;
-      transform: scaleY(-1);
-      background-image: linear-gradient(180deg, #00000000 0%, #00000014 99%);
       pointer-events: none;
+      content: '';
+      background-image: linear-gradient(180deg, #00000000 0%, #00000014 99%);
+      transform: scaleY(-1);
     }
   }
 }

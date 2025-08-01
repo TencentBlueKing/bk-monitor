@@ -39,29 +39,29 @@ import './quick-shield.scss';
 
 const { i18n } = window;
 
-interface IQuickShieldProps {
-  show: boolean;
-  details: IDetail[];
-  ids?: Array<string>;
-  bizIds?: number[];
-  authority?: Record<string, boolean>;
-  handleShowAuthorityDetail?: (action: any) => void;
-}
 export interface IDetail {
-  severity: number;
-  dimension?: IDimensionItem[];
-  trigger?: string;
-  isModified?: boolean;
   alertId: string;
+  dimension?: IDimensionItem[];
+  isModified?: boolean;
+  severity: number;
+  trigger?: string;
   strategy?: {
-    name?: string;
     id?: number;
+    name?: string;
   };
 }
-
 interface DimensionConfig {
   alert_ids: string[];
   dimensions?: { [key: string]: string[] };
+}
+
+interface IQuickShieldProps {
+  authority?: Record<string, boolean>;
+  bizIds?: number[];
+  details: IDetail[];
+  ids?: Array<string>;
+  show: boolean;
+  handleShowAuthorityDetail?: (action: any) => void;
 }
 
 @Component({
@@ -81,11 +81,13 @@ export default class EventQuickShield extends tsc<IQuickShieldProps> {
   timeList = [
     { name: `0.5${i18n.t('小时')}`, id: 18 },
     { name: `1${i18n.t('小时')}`, id: 36 },
+    { name: `3${i18n.t('小时')}`, id: 108 },
     { name: `12${i18n.t('小时')}`, id: 432 },
     { name: `1${i18n.t('天')}`, id: 864 },
     { name: `7${i18n.t('天')}`, id: 6048 },
   ];
   timeValue = 18;
+  nextDayTime: number | string = 10; // 次日时间，默认次日10点
   customTime: any = ['', ''];
   options = {
     disabledDate(date) {
@@ -129,6 +131,7 @@ export default class EventQuickShield extends tsc<IQuickShieldProps> {
   handleDialogShow() {
     // this.loading = true
     this.timeValue = 18;
+    this.nextDayTime = 10;
     this.desc = '';
     this.customTime = '';
   }
@@ -168,6 +171,16 @@ export default class EventQuickShield extends tsc<IQuickShieldProps> {
       begin = new Date();
       const nowS = begin.getTime();
       end = new Date(nowS + this.timeValue * 100000);
+      if (this.timeValue === -1) {
+        // 次日时间点
+        if (this.nextDayTime === '') {
+          this.rule.customTime = true;
+          return false;
+        }
+        end = new Date();
+        end.setDate(end.getDate() + 1);
+        end.setHours(this.nextDayTime as number, 0, 0, 0);
+      }
       begin = this.handleformat(begin, 'yyyy-MM-dd hh:mm:ss');
       end = this.handleformat(end, 'yyyy-MM-dd hh:mm:ss');
     }
@@ -240,6 +253,7 @@ export default class EventQuickShield extends tsc<IQuickShieldProps> {
 
   @Emit('change')
   handleShowChange(v) {
+    this.rule.customTime = false;
     return v;
   }
   @Emit('time-change')
@@ -250,14 +264,13 @@ export default class EventQuickShield extends tsc<IQuickShieldProps> {
   handleScopeChange(e, type) {
     e.stopPropagation();
     this.timeValue = type;
-    if (type === 0) {
-      this.$nextTick(() => {
-        const refTime: any = this.$refs.time;
-        refTime.visible = true;
-      });
-    } else {
-      this.customTime = '';
-    }
+    const [beginTime, endTime] = this.customTime;
+    // 自定义时间异常状态
+    if (type === 0 && (beginTime === '' || endTime === '')) return;
+    // 至次日时间异常状态
+    if (type === -1 && this.nextDayTime === '') return;
+    // 校验状态通过
+    this.rule.customTime = false;
   }
 
   handleToStrategy(id: number) {
@@ -335,10 +348,10 @@ export default class EventQuickShield extends tsc<IQuickShieldProps> {
             </div>
           </div>
         )}
-        <div class='column-item'>
+        {/* <div class='column-item'>
           <div class='column-label'> {`${this.$t('告警级别')}：`} </div>
           <div class='column-content'>{this.levelMap[detail.severity]}</div>
-        </div>
+        </div> */}
         <div class='column-item'>
           <div class='column-label is-special'> {`${this.$t('维度信息')}：`} </div>
           <div class='column-content'>
@@ -394,6 +407,7 @@ export default class EventQuickShield extends tsc<IQuickShieldProps> {
           <div class='stratrgy-item'>
             <div class='item-label item-before'> {this.$t('屏蔽时间')} </div>
             <VerifyInput
+              errorTextTopMargin={80}
               show-validate={this.rule.customTime}
               {...{ on: { 'update: show-validate': val => (this.rule.customTime = val) } }}
               validator={{ content: this.$t('至少选择一种时间') }}
@@ -408,28 +422,57 @@ export default class EventQuickShield extends tsc<IQuickShieldProps> {
                     {item.name}
                   </bk-button>
                 ))}
-                {this.timeValue !== 0 ? (
-                  <bk-button
-                    class={['custom-width', { 'is-selected': this.timeValue === 0 }]}
-                    on-click={e => this.handleScopeChange(e, 0)}
-                  >
-                    {this.$t('button-自定义')}
-                  </bk-button>
-                ) : (
-                  <bk-date-picker
-                    ref='time'
-                    v-model={this.customTime}
-                    options={this.options}
-                    placeholder={this.$t('选择日期时间范围')}
-                    type={'datetimerange'}
-                  />
-                )}
+                <bk-button
+                  class={['width-item', { 'is-selected': this.timeValue === -1 }]}
+                  on-click={e => this.handleScopeChange(e, -1)}
+                >
+                  {this.$t('至次日')}
+                </bk-button>
+                <bk-button
+                  class={['width-item', { 'is-selected': this.timeValue === 0 }]}
+                  on-click={e => this.handleScopeChange(e, 0)}
+                >
+                  {this.$t('button-自定义')}
+                </bk-button>
               </div>
             </VerifyInput>
           </div>
         ) : undefined}
+        {this.timeValue <= 0 && (
+          <div class={['stratrgy-item', 'custom-time', !this.timeValue ? 'left-custom' : 'left-next-day']}>
+            {this.timeValue === -1 && [
+              this.$t('至次日'),
+              <bk-input
+                key='nextDayInput'
+                class='custom-input-time'
+                v-model={this.nextDayTime}
+                behavior='simplicity'
+                max={23}
+                min={0}
+                placeholder='0~23'
+                precision={0}
+                show-controls={false}
+                type='number'
+              />,
+              this.$t('点'),
+            ]}
+            {this.timeValue === 0 && [
+              this.$t('自定义'),
+              <bk-date-picker
+                key='customTime'
+                ref='time'
+                class='custom-select-time'
+                v-model={this.customTime}
+                behavior='simplicity'
+                options={this.options}
+                placeholder={this.$t('选择日期时间范围')}
+                type={'datetimerange'}
+              />,
+            ]}
+          </div>
+        )}
         <div class='stratrgy-item m0'>
-          <div class='item-label'> {this.$t('告警内容')} </div>
+          <div class='item-label'> {this.$t('屏蔽内容')} </div>
           <div class='item-tips'>
             <i class='icon-monitor icon-hint' />{' '}
             {this.$t('屏蔽的是告警内容的这类事件，不仅仅当前的事件还包括后续屏蔽时间内产生的事件。')}{' '}

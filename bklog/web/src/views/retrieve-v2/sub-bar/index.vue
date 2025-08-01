@@ -18,6 +18,7 @@
   // #if MONITOR_APP !== 'apm' && MONITOR_APP !== 'trace'
   import TimeSetting from './time-setting';
   import FieldSetting from '@/global/field-setting.vue';
+  import FildAlias from '../field-filter-comp/update/field-alias.vue'
   import VersionSwitch from '@/global/version-switch.vue';
   import ClusterSetting from '../setting-modal/index.vue';
   import BarGlobalSetting from './bar-global-setting.tsx';
@@ -37,6 +38,7 @@
   import { BK_LOG_STORAGE } from '@/store/store.type';
 
   import RetrieveHelper, { RetrieveEvent } from '../../retrieve-helper';
+  import ShareLink from './share-link.tsx';
 
   const props = defineProps({
     showFavorites: {
@@ -49,7 +51,7 @@
   const store = useStore();
 
   const fieldSettingRef = ref(null);
-
+  const fieldAliasRef  = ref(null);
   const isShowClusterSetting = ref(false);
   const indexSetParams = computed(() => store.state.indexItem);
 
@@ -93,7 +95,7 @@
 
   const setRouteParams = (ids, isUnionIndex) => {
     const queryTab = RetrieveHelper.routeQueryTabValueFix(indexSetParams.value.items[0], route.query.tab, isUnionIndex);
-
+    const { search_mode, keyword, addition } = indexSetParams.value;
     if (isUnionIndex) {
       router.replace({
         // #if MONITOR_APP !== 'apm' && MONITOR_APP !== 'trace'
@@ -108,6 +110,9 @@
           // #if MONITOR_APP === 'apm' || MONITOR_APP === 'trace'
           indexId: undefined,
           // #endif
+          search_mode,
+          keyword,
+          addition: JSON.stringify(addition),
           unionList: JSON.stringify(ids),
           clusterParams: undefined,
           [BK_LOG_STORAGE.HISTORY_ID]: store.state.storage[BK_LOG_STORAGE.HISTORY_ID],
@@ -131,6 +136,9 @@
         // #if MONITOR_APP === 'apm' || MONITOR_APP === 'trace'
         indexId: ids[0],
         // #endif
+        search_mode,
+        keyword,
+        addition: JSON.stringify(addition),
         unionList: undefined,
         clusterParams: undefined,
         [BK_LOG_STORAGE.HISTORY_ID]: store.state.storage[BK_LOG_STORAGE.HISTORY_ID],
@@ -163,10 +171,33 @@
 
   const handleIndexSetSelected = async payload => {
     if (!isEqual(indexSetParams.value.ids, payload.ids) || indexSetParams.value.isUnionIndex !== payload.isUnionIndex) {
-      RetrieveHelper.setIndexsetId(payload.ids, payload.isUnionIndex ? 'union' : 'single', false);
+      /** 索引集默认条件 */
+      let indexSetDefaultCondition = {};
+      /** 只选择一个索引集且ui模式和sql模式都没有值, 取索引集默认条件 */
+      if (payload.items.length === 1 && !indexSetParams.value.addition.length && !indexSetParams.value.keyword) {
+        if (payload.items[0]?.query_string) {
+          indexSetDefaultCondition = {
+            keyword: payload.items[0].query_string,
+            search_mode: 'sql',
+            addition: [],
+          };
+        } else if (payload.items[0]?.addition) {
+          indexSetDefaultCondition = {
+            addition: [...payload.items[0].addition],
+            search_mode: 'ui',
+            keyword: '',
+          };
+        }
+        if (indexSetDefaultCondition.search_mode) {
+          store.commit('updateStorage', {
+            [BK_LOG_STORAGE.SEARCH_TYPE]: ['ui', 'sql'].indexOf(indexSetDefaultCondition.search_mode),
+          });
+        }
+      }
 
+      RetrieveHelper.setIndexsetId(payload.ids, payload.isUnionIndex ? 'union' : 'single', false);
       store.commit('updateUnionIndexList', payload.isUnionIndex ? payload.ids ?? [] : []);
-      store.commit('updateIndexItem', payload);
+      store.commit('updateIndexItem', { ...payload, ...indexSetDefaultCondition });
 
       if (!payload.isUnionIndex) {
         store.commit('updateIndexId', payload.ids[0]);
@@ -176,11 +207,23 @@
       store.commit('updateIndexSetQueryResult', {
         origin_log_list: [],
         list: [],
+        exception_msg: '',
+        is_error: false,
       });
 
-      store.dispatch('requestIndexSetFieldInfo').then(() => {
+      store.dispatch('requestIndexSetFieldInfo').then(resp => {
         RetrieveHelper.fire(RetrieveEvent.TREND_GRAPH_SEARCH);
-        store.dispatch('requestIndexSetQuery');
+
+        if (resp?.data?.fields?.length) {
+          store.dispatch('requestIndexSetQuery');
+        }
+
+        if (!resp?.data?.fields?.length) {
+          store.commit('updateIndexSetQueryResult', {
+            is_error: true,
+            exception_msg: 'index-set-field-not-found',
+          });
+        }
       });
 
       setRouteParams(payload.ids, payload.isUnionIndex);
@@ -289,6 +332,7 @@
    */
   function handleIndexConfigSliderOpen() {
     if (isFieldSettingShow.value && store.state.spaceUid && hasCollectorConfigId.value) {
+      // fieldAliasRef.value?.handleOpenSidebar?.();
       fieldSettingRef.value?.handleShowSlider?.();
     } else {
       bkMessage({
@@ -328,11 +372,17 @@
       class="box-right-option"
     >
       <TimeSetting class="custom-border-right"></TimeSetting>
+      <ShareLink v-if="!isExternal"></ShareLink>
       <FieldSetting
         v-if="isFieldSettingShow && store.state.spaceUid && hasCollectorConfigId"
         ref="fieldSettingRef"
         class="custom-border-right"
       />
+      <!-- <FildAlias
+        v-if="false"
+        ref="fieldAliasRef"
+        class="custom-border-right"
+      ></FildAlias> -->
       <WarningSetting
         v-if="!isExternal"
         class="custom-border-right"

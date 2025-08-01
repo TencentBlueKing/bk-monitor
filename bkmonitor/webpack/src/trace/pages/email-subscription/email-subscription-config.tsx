@@ -25,10 +25,8 @@
  */
 import { computed, defineComponent, nextTick, onMounted, reactive, watch } from 'vue';
 import { shallowRef } from 'vue';
-import { useI18n } from 'vue-i18n';
-import { useRoute, useRouter } from 'vue-router';
 
-import { PrimaryTable, type SortInfo, type TableProps, type FilterValue } from '@blueking/tdesign-ui';
+import { type FilterValue, type SortInfo, type TableProps, PrimaryTable } from '@blueking/tdesign-ui';
 import {
   Button,
   Dialog,
@@ -54,8 +52,10 @@ import {
   getSendRecords,
   sendReport,
 } from 'monitor-api/modules/new_report';
-import { LANGUAGE_COOKIE_KEY, deepClone } from 'monitor-common/utils';
+import { deepClone, LANGUAGE_COOKIE_KEY } from 'monitor-common/utils';
 import { docCookies } from 'monitor-common/utils/utils';
+import { useI18n } from 'vue-i18n';
+import { useRoute, useRouter } from 'vue-router';
 
 import EmptyStatus from '../../components/empty-status/empty-status';
 import NavBar from '../../components/nav-bar/nav-bar';
@@ -64,7 +64,7 @@ import SubscriptionDetail from './components/subscription-detail';
 import TestSendSuccessDialog from './components/test-send-success-dialog';
 import CreateSubscription from './create-subscription';
 import { ChannelName, Scenario, SendMode, SendStatus } from './mapping';
-import { FrequencyType, type ITable, type TestSendingTarget } from './types';
+import { type ITable, type TestSendingTarget, FrequencyType } from './types';
 import { getDefaultReportData, getSendFrequencyText } from './utils';
 
 import './email-subscription-config.scss';
@@ -286,8 +286,8 @@ export default defineComponent({
     // 发送记录 里控制多个 tooltips 的显隐
     const toggleMapForSendRecord = reactive<TooltipsToggleMapping>({});
     const sendRecordTable = reactive<{
-      data: any[];
       columns: TableProps['columns'];
+      data: any[];
       isLoading: boolean;
     }>({
       data: [],
@@ -308,12 +308,11 @@ export default defineComponent({
           cell: (_, { row: data }) => {
             const content = data.send_results.map(item => item.id).toString();
             return (
-              <span
+              <bk-user-display-name
                 style='overflow: hidden;text-overflow: ellipsis;white-space: nowrap;'
                 v-overflow-tips
-              >
-                {content}
-              </span>
+                user-id={content}
+              />
             );
           },
         },
@@ -949,14 +948,15 @@ export default defineComponent({
           );
         }
         case 'create_user': {
-          return (
-            <span
+          return row.create_user ? (
+            <bk-user-display-name
               class={{
                 'gray-text': isGrayText,
               }}
-            >
-              {row.create_user}
-            </span>
+              user-id={row.create_user}
+            />
+          ) : (
+            '--'
           );
         }
         case 'is_enabled': {
@@ -1546,11 +1546,17 @@ export default defineComponent({
                             content: () => {
                               return (
                                 <div>
-                                  <div>{`${this.t('更新人')}: ${this.subscriptionDetail.update_user}`}</div>
+                                  <div>
+                                    <span>{`${this.t('更新人')}: `}</span>
+                                    <bk-user-display-name user-id={this.subscriptionDetail.update_user} />
+                                  </div>
                                   <div>{`${this.t('更新时间')}: ${dayjs(this.subscriptionDetail.update_time).format(
                                     'YYYY-MM-DD HH:mm:ss'
                                   )}`}</div>
-                                  <div>{`${this.t('创建人')}: ${this.subscriptionDetail.create_user}`}</div>
+                                  <div>
+                                    <span>{`${this.t('创建人')}: `}</span>
+                                    <bk-user-display-name user-id={this.subscriptionDetail.create_user} />
+                                  </div>
                                   <div>{`${this.t('创建时间')}: ${dayjs(this.subscriptionDetail.create_time).format(
                                     'YYYY-MM-DD HH:mm:ss'
                                   )}`}</div>

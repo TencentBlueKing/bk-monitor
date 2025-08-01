@@ -16,12 +16,15 @@ from django.utils.translation import gettext_lazy as _lazy
 from opentelemetry.semconv.resource import ResourceAttributes
 from rest_framework import serializers
 
+from apm.constants import StatisticsProperty
 from apm_web.constants import DEFAULT_DIFF_TRACE_MAX_NUM, CategoryEnum, QueryMode
-from apm_web.trace.constants import OperatorEnum
 from apm_web.handlers.trace_handler.base import (
     StatisticsHandler,
     StatusCodeAttributePredicate,
     TraceHandler,
+)
+from apm_web.handlers.trace_handler.dimension_statistics import (
+    DimensionStatisticsAPIHandler,
 )
 from apm_web.handlers.trace_handler.query import (
     QueryHandler,
@@ -31,6 +34,7 @@ from apm_web.handlers.trace_handler.query import (
 from apm_web.handlers.trace_handler.view_config import TraceFieldsHandler
 from apm_web.models import Application
 from apm_web.models.trace import TraceComparison
+from apm_web.trace.constants import EnabledStatisticsDimension, OperatorEnum
 from apm_web.trace.serializers import (
     BaseTraceRequestSerializer,
     GetFieldsOptionValuesRequestSerializer,
@@ -46,12 +50,12 @@ from apm_web.utils import flatten_es_dict_data
 from bkmonitor.utils.cache import CacheType, using_cache
 from bkmonitor.utils.elasticsearch.handler import QueryStringGenerator
 from constants.apm import (
+    OperatorGroupRelation,
     OtlpKey,
     PreCalculateSpecificField,
     SpanStandardField,
     TraceListQueryMode,
     TraceWaterFallDisplayKey,
-    OperatorGroupRelation,
 )
 from core.drf_resource import Resource, api
 from core.drf_resource.exceptions import CustomException
@@ -59,7 +63,6 @@ from core.errors.api import BKAPIError
 from core.prometheus.base import OPERATION_REGISTRY
 from core.prometheus.metrics import safe_push_to_gateway
 from monitor_web.statistics.v2.query import unify_query_count
-from apm_web.handlers.trace_handler.dimension_statistics import DimensionStatisticsAPIHandler
 
 from ..handlers.host_handler import HostHandler
 from .diagram import get_diagrammer
@@ -1343,6 +1346,13 @@ class TraceFieldStatisticsInfoResource(Resource):
     RequestSerializer = TraceFieldStatisticsInfoRequestSerializer
 
     def perform_request(self, validated_data):
+        if validated_data["field"]["field_name"] in {OtlpKey.ELAPSED_TIME, PreCalculateSpecificField.TRACE_DURATION}:
+            validated_data["exclude_property"] = [
+                StatisticsProperty.MEDIAN.value,
+                StatisticsProperty.TOTAL_COUNT.value,
+                StatisticsProperty.FIELD_COUNT.value,
+                StatisticsProperty.DISTINCT_COUNT.value,
+            ]
         return DimensionStatisticsAPIHandler.get_api_statistics_info_data(validated_data)
 
 
@@ -1351,7 +1361,20 @@ class TraceFieldStatisticsGraphResource(Resource):
 
     RequestSerializer = TraceFieldStatisticsGraphRequestSerializer
 
+    EMPTY_DATA = {"series": [{"datapoints": []}]}
+
     def perform_request(self, validated_data):
+        field_info = validated_data["field"]
+        # 边界场景，数值字段最小值，最大值为 None 时，直接返回空数据
+        if field_info["field_type"] in {
+            EnabledStatisticsDimension.INTEGER.value,
+            EnabledStatisticsDimension.LONG.value,
+            EnabledStatisticsDimension.DOUBLE.value,
+        }:
+            min_value, max_value, *_ = field_info["values"][:4]
+            if min_value is None or max_value is None:
+                return self.EMPTY_DATA
+
         return DimensionStatisticsAPIHandler.get_api_statistics_graph_data(validated_data)
 
 

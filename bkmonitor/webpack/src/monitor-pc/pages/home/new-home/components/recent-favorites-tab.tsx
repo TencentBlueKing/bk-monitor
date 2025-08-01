@@ -30,7 +30,7 @@ import draggable from 'vuedraggable';
 
 import UserConfigMixin from '../../../../mixins/userStoreConfig';
 import { HANDLE_MENU_CHANGE } from '../../../../pages/nav-tools';
-import { GLOBAL_FEATURE_LIST, type IRouteConfigItem } from '../../../../router/router-config';
+import { type IRouteConfigItem, GLOBAL_FEATURE_LIST } from '../../../../router/router-config';
 import aiWhaleStore from '../../../../store/modules/ai-whale';
 import { RECENT_FAVORITE_LIST_KEY } from '../utils';
 import QuickAccess from './quick-access';
@@ -230,11 +230,7 @@ export default class RecentFavoritesTab extends Mixins(UserConfigMixin) {
     }
     event.preventDefault();
     // 打开小鲸聊天框
-    aiWhaleStore.setShowAIBlueking(true);
-    console.info('send content: ', event.target.innerText);
-    aiWhaleStore.handleAiBluekingSend({
-      content: event.target.innerText,
-    });
+    aiWhaleStore.sendMessage(event.target.innerText);
     event.target.innerText = '';
   }
 

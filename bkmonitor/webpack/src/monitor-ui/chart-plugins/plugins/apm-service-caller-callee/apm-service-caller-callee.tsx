@@ -36,12 +36,12 @@ import CallerCalleeFilter from './components/caller-callee-filter';
 import CallerCalleeTableChart from './components/caller-callee-table-chart';
 import ChartView from './components/chart-view';
 import TabBtnGroup from './components/tab-btn-group';
-import { type CallOptions, type IFilterData, type IChartOption, type IFilterCondition, EKind } from './type';
+import { type CallOptions, type IChartOption, type IFilterCondition, type IFilterData, EKind } from './type';
 import {
   CALLER_CALLEE_TYPE,
+  formatPreviousDayAndWeekTimestamps,
   getRecordCallOptionKind,
   setRecordCallOptionKind,
-  formatPreviousDayAndWeekTimestamps,
 } from './utils';
 
 import type { PanelModel, ZrClickEvent } from '../../typings';
@@ -112,10 +112,10 @@ export default class ApmServiceCallerCallee extends tsc<IApmServiceCallerCalleeP
     if (this.refreshIntervalInstance) {
       window.clearInterval(this.refreshIntervalInstance);
     }
-    if (v <= 0) return;
+    if (!v || +v < 60 * 1000) return;
     this.refreshIntervalInstance = window.setInterval(() => {
       this.handleSetTimeStrShow();
-    }, this.refreshInterval);
+    }, v);
   }
   @Watch('refreshImmediate')
   handleRefleshImmediate() {

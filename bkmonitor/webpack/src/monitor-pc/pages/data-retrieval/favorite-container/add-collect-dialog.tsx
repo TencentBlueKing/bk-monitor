@@ -24,38 +24,38 @@
  * IN THE SOFTWARE.
  */
 
-import VueJsonPretty from 'vue-json-pretty';
 import { Component, Emit, Model, Prop, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { createFavoriteGroup, listFavoriteGroup } from 'monitor-api/modules/model';
+import VueJsonPretty from 'vue-json-pretty';
 
 import { mergeWhereList } from '../../../components/retrieval-filter/utils';
 
 import './add-collect-dialog.scss';
 import 'vue-json-pretty/lib/styles.css';
 
+interface IEvent {
+  onCancel: () => void;
+  onSubmit: {
+    hideCallback: () => void;
+    isEdit: boolean;
+    value: any;
+  };
+}
+
 interface IProps {
-  value?: boolean;
   editFavoriteData?: object;
-  keyword: object;
   favoriteSearchType: string;
   favStrList: string[];
+  keyword: object;
+  value?: boolean;
 }
 
 interface ISubmitData {
-  name: string;
-  group_id: number | string;
   create_user: string;
-}
-
-interface IEvent {
-  onSubmit: {
-    value: any;
-    hideCallback: () => void;
-    isEdit: boolean;
-  };
-  onCancel: () => void;
+  group_id: number | string;
+  name: string;
 }
 
 @Component

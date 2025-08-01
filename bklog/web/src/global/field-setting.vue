@@ -38,7 +38,7 @@
             ref="validateForm"
             class="field-setting-form"
             :class="!isEdit ? 'field-preview-form' : ''"
-            :label-width="94"
+            :label-width="labelWidth"
             :model="formData"
             :rules="basicRules"
           >
@@ -251,6 +251,7 @@
   import settingTable from './setting-table.vue';
   import http from '@/api';
   import RetrieveHelper, { RetrieveEvent } from '@/views/retrieve-helper'
+
   const { t } = useLocale();
   const store = useStore();
   const route = useRoute();
@@ -405,6 +406,9 @@
   const isShowAddFields = computed(() => {
     return cleanType.value === 'bk_log_json';
   });
+  const labelWidth = computed(() => {
+      return store.state.isEnLanguage ?  130 : 94;
+    });
   const indexfieldTable = ref(null);
   const addNewField = () => {
     const fields = deepClone(indexfieldTable.value.getData());
@@ -598,7 +602,7 @@
                   : '',
               },
               etl_config: formData.value.etl_config,
-              fields: indexfieldTable.value.getData().filter(item => !item.is_objectKey),
+              fields: indexfieldTable.value.getData().filter(item => !item.is_objectKey && !item.is_built_in),
               alias_settings: [
                 ...indexfieldTableData.map(item => {
                   return {
@@ -669,9 +673,9 @@
       display: flex;
       align-items: center;
       justify-content: center;
+      width: 90px;
       height: 52px;
       font-size: 12px;
-      width: 90px;
       cursor: pointer;
 
       span {

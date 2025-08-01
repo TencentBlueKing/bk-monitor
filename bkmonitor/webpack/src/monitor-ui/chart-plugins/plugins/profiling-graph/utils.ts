@@ -28,12 +28,12 @@ import { getValueFormat } from 'monitor-ui/monitor-echarts/valueFormats';
 
 import type VueI18n from 'vue-i18n';
 
-interface ProfileDataValue {
-  value: number | string;
-  text?: VueI18n.TranslateResult;
-}
-
 export type ProfileDataUnit = 'bytes' | 'count' | 'nanoseconds' | 'seconds'; // 字节 ｜ 计数 ｜ 纳秒 ｜ 秒
+
+interface ProfileDataValue {
+  text?: VueI18n.TranslateResult;
+  value: number | string;
+}
 
 /**
  * @desc 解析不同数据类型单位处理值

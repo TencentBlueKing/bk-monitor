@@ -20,10 +20,11 @@ class RenderDashboardConfig:
     渲染仪表盘配置
     """
 
+    bk_tenant_id: str
     bk_biz_id: int
     dashboard_uid: str
     width: int
-    height: int
+    height: int | None = None
     panel_id: str | None = None
     variables: dict[str, list[str]] = field(default_factory=dict)
     start_time: int = field(default_factory=lambda: int(time.time() - 10800))
@@ -102,6 +103,10 @@ async def render_dashboard_panel(config: RenderDashboardConfig, timeout: int = 6
     browser: Browser = await get_browser()
     # 打开仪表盘链接，等待网络请求完成
     page = await browser.newPage()
+
+    # 设置租户信息
+    await page.setExtraHTTPHeaders({"X-BK-TENANT-ID": config.bk_tenant_id})
+
     try:
         await page.goto(url, {"waitUntil": "networkidle0", "timeout": timeout * 1000})
     except TimeoutError:

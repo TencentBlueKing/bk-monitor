@@ -1,3 +1,5 @@
+import type { VNode } from 'vue';
+
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -41,19 +43,18 @@ import TableStore from '../store';
 import BatchOperationDialog from './batch-operation-dialog';
 
 import type { EmptyStatusOperationType, EmptyStatusType } from '../../../components/empty-status/types';
-import type { VNode } from 'vue';
 
 import './alarm-group.scss';
 import '@blueking/search-select-v3/vue2/vue2.css';
 
 const { i18n } = window;
 
-type TGroupType = 'fta' | 'monitor';
 interface IGroupList {
-  type?: TGroupType;
   fromRouterName?: string;
-  needReflesh?: boolean;
+  needRefresh?: boolean;
+  type?: TGroupType;
 }
+type TGroupType = 'fta' | 'monitor';
 
 @Component({
   name: 'AlarmGroupList',
@@ -65,7 +66,7 @@ export default class AlarmGroup extends tsc<IGroupList> {
   @Prop({ default: 'monitor', type: String, validator: (val: TGroupType) => ['monitor', 'fta'].includes(val) })
   type: TGroupType;
   @Prop({ default: '', type: String }) fromRouterName: string;
-  @Prop({ default: false, type: Boolean }) needReflesh: boolean; // 新增 编辑 取消操作 是否需要刷新列表数据
+  @Prop({ default: false, type: Boolean }) needRefresh: boolean; // 新增 编辑 取消操作 是否需要刷新列表数据
 
   loading = false;
   keyword = '';
@@ -145,7 +146,7 @@ export default class AlarmGroup extends tsc<IGroupList> {
       checked: true,
       width: 120,
       props: {},
-      formatter: row => row.update_user || '--',
+      formatter: row => (row.update_user ? <bk-user-display-name user-id={row.update_user} /> : '--'),
     },
     {
       label: i18n.t('最近更新时间'),
@@ -217,7 +218,7 @@ export default class AlarmGroup extends tsc<IGroupList> {
 
   @Watch('fromRouterName')
   fromRouterNameChange(fromName: string) {
-    if (['alarm-group-add', 'alarm-group-edit'].some(item => fromName.includes(item)) && this.needReflesh) {
+    if (['alarm-group-add', 'alarm-group-edit'].some(item => fromName.includes(item)) && this.needRefresh) {
       this.getNoticeGroupList();
     }
   }
@@ -623,6 +624,10 @@ export default class AlarmGroup extends tsc<IGroupList> {
                 <div
                   class={['batch-edit-dropdown-btn', { 'btn-disabled': !this.selectTableList.length }]}
                   slot='dropdown-trigger'
+                  v-bk-tooltips={{
+                    content: this.$t('请先勾选告警组'),
+                    disabled: this.selectTableList.length,
+                  }}
                 >
                   <span class='btn-name'> {this.$t('批量操作')} </span>
                   <i class={['icon-monitor', this.dropdownShow ? 'icon-arrow-up' : 'icon-arrow-down']} />

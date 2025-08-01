@@ -35,12 +35,12 @@ import { type ILegendItem, type IViewOptions, PanelModel } from 'monitor-ui/char
 import BackTop from '../../../components/back-top/back-top';
 import { APIType, getEventTimeSeries, getEventTotal } from '../api-utils';
 import {
-  ExploreSourceTypeEnum,
   type ConditionChangeEvent,
   type DimensionsTypeEnum,
   type ExploreEntitiesMap,
   type ExploreFieldMap,
   type IFormData,
+  ExploreSourceTypeEnum,
 } from '../typing';
 import { eventChartMap, ExploreSubject, getEventLegendColorByType } from '../utils';
 import EventExploreTable from './event-explore-table';
@@ -49,21 +49,22 @@ import type { TimeRangeType } from '../../../components/time-range/time-range';
 
 import './event-explore-view.scss';
 
-interface IEventExploreViewProps {
-  queryConfig: IFormData;
-  source: APIType;
-  timeRange: TimeRangeType;
-  refreshImmediate: string;
-  fieldMap: ExploreFieldMap;
-  eventSourceType?: ExploreSourceTypeEnum[];
-  entitiesMapList: ExploreEntitiesMap[];
-}
-
 interface IEventExploreViewEvents {
   onClearSearch: () => void;
-  onSearch: () => void;
   onConditionChange(e: ConditionChangeEvent): void;
+  onSearch: () => void;
+  onSetRouteParams(otherQuery: Record<string, any>): void;
   onShowEventSourcePopover(event: Event): void;
+}
+
+interface IEventExploreViewProps {
+  entitiesMapList: ExploreEntitiesMap[];
+  eventSourceType?: ExploreSourceTypeEnum[];
+  fieldMap: ExploreFieldMap;
+  queryConfig: IFormData;
+  refreshImmediate: string;
+  source: APIType;
+  timeRange: TimeRangeType;
 }
 
 @Component
@@ -153,6 +154,11 @@ export default class EventExploreView extends tsc<IEventExploreViewProps, IEvent
   @Emit('search')
   filterSearch() {
     return;
+  }
+
+  @Emit('setRouteParams')
+  setRouteParams(otherQuery = {}) {
+    return otherQuery;
   }
 
   created() {
@@ -359,6 +365,7 @@ export default class EventExploreView extends tsc<IEventExploreViewProps, IEvent
             onClearSearch={this.clearSearch}
             onConditionChange={this.conditionChange}
             onSearch={this.filterSearch}
+            onSetRouteParams={this.setRouteParams}
             onShowEventSourcePopover={this.handleShowEventSourcePopover}
           />
         </div>

@@ -101,8 +101,25 @@
   };
 
   const handleActive = panel => {
+    if (props.value === panel) return;
+
     emit('input', panel, panel === 'origin');
   };
+
+  watch(
+    () => [indexSetItem.value?.support_doris, isChartEnable.value, isAiopsToggle.value],
+    ([grepEnable, graphEnable, aiopsEnable]) => {
+      if (['clustering', 'graphAnalysis', 'grep'].includes(route.query.tab)) {
+        if (
+          (!grepEnable && route.query.tab === 'grep') ||
+          (!graphEnable && route.query.tab === 'graphAnalysis') ||
+          (!aiopsEnable && route.query.tab === 'clustering')
+        ) {
+          handleActive('origin');
+        }
+      }
+    },
+  );
 
   onMounted(() => {
     const tabName = route.query.tab ?? 'origin';

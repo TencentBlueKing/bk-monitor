@@ -34,18 +34,18 @@ import type { EmptyStatusOperationType, EmptyStatusType } from 'monitor-pc/compo
 
 import './list.scss';
 
+interface IListEvents {
+  onEmptyOperate?: (type: EmptyStatusOperationType) => void;
+  onOperate: (data: IOperateData) => void;
+}
+
 interface IListProps {
   data: IGroupData;
   emptyType?: EmptyStatusType;
 }
-
 interface IOperateData {
-  type: OperateType;
   item: IPluginDetail;
-}
-interface IListEvents {
-  onOperate: (data: IOperateData) => void;
-  onEmptyOperate?: (type: EmptyStatusOperationType) => void;
+  type: OperateType;
 }
 /**
  * 列表视图
@@ -177,7 +177,9 @@ export default class List extends tsc<IListProps, IListEvents> {
           scopedSlots={{
             default: ({ row }: { row: IPluginDetail }) => (
               <div>
-                <div>{row.create_user}</div>
+                <div>
+                  <bk-user-display-name user-id={row.create_user} />
+                </div>
                 <div>{row.create_time}</div>
               </div>
             ),
@@ -188,7 +190,9 @@ export default class List extends tsc<IListProps, IListEvents> {
           scopedSlots={{
             default: ({ row }: { row: IPluginDetail }) => (
               <div>
-                <div>{row.update_user}</div>
+                <div>
+                  <bk-user-display-name user-id={row.update_user} />
+                </div>
                 <div>{row.update_time}</div>
               </div>
             ),

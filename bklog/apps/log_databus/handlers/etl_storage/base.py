@@ -432,7 +432,6 @@ class EtlStorage:
         index_settings: dict = None,
         sort_fields: list = None,
         target_fields: list = None,
-        alias_settings: list = None,
         total_shards_per_node: int = None,
     ):
         """
@@ -451,7 +450,6 @@ class EtlStorage:
         :param index_settings: 索引配置
         :param sort_fields: 排序字段
         :param target_fields: 定位字段
-        :param alias_settings: 别名配置
         :param total_shards_per_node: 每个节点的分片总数
         """
         from apps.log_databus.handlers.collector import CollectorHandler
@@ -580,18 +578,6 @@ class EtlStorage:
             # 移除计分
             if "es_type" in field.get("option", {}) and field["option"]["es_type"] in ["text"]:
                 field["option"]["es_norms"] = False
-
-        # 别名配置
-        if alias_settings is not None:
-            query_alias_settings = []
-            for item in alias_settings:
-                field_alias = {
-                    "field_name": item["field_name"],
-                    "query_alias": item["query_alias"],
-                    "path_type": item["path_type"],
-                }
-                query_alias_settings.append(field_alias)
-            params.update({"query_alias_settings": query_alias_settings})
 
         # 时间默认为维度
         if "time_option" in params and "es_doc_values" in params["time_option"]:
@@ -821,7 +807,7 @@ class EtlStorage:
         if not key:
             key = field.get("field_name")
         return {
-            "key": "__all_keys__",
+            "key": key,
             "assign_to": key,
             "type": self.get_es_field_type(field),
         }
@@ -834,20 +820,11 @@ class EtlStorage:
         else:
             access_built_in_fields_type_object = [
                 {
-                    "type": "access",
-                    "subtype": "access_obj",
-                    "label": "label60f0af",
-                    "key": field.get("alias_name") if field.get("alias_name") else field.get("field_name"),
-                    "result": f"{field.get('alias_name') if field.get('alias_name') else field.get('field_name')}_json",
-                    "default_type": "text",
-                    "default_value": "",
-                    "next": {
-                        "type": "assign",
-                        "subtype": "assign_json",
-                        "label": "label2af98b",
-                        "assign": [self._to_bkdata_assign_obj(field)],
-                        "next": None,
-                    },
+                    "type": "assign",
+                    "subtype": "assign_json",
+                    "label": "label2af98b",
+                    "assign": [self._to_bkdata_assign_obj(field)],
+                    "next": None,
                 }
                 for field in built_in_fields_type_object
             ]

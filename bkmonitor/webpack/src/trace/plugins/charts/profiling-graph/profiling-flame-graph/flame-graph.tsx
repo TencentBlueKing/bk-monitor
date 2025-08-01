@@ -26,9 +26,8 @@
 
 import { computed, defineComponent, nextTick, onBeforeUnmount, ref, watch } from 'vue';
 import { shallowRef } from 'vue';
-import { useI18n } from 'vue-i18n';
 
-import { removeListener, addListener } from '@blueking/fork-resize-detector';
+import { addListener, removeListener } from '@blueking/fork-resize-detector';
 import { Exception, Message } from 'bkui-vue';
 import dayjs from 'dayjs';
 import { query } from 'monitor-api/modules/apm_profile';
@@ -39,9 +38,10 @@ import {
   recursionData,
 } from 'monitor-ui/chart-plugins/hooks/profiling-graph/use-profiling-flame-graph';
 import { COMPARE_DIFF_COLOR_LIST } from 'monitor-ui/chart-plugins/plugins/profiling-graph/flame-graph/utils';
-import { CommonMenuList, type ICommonMenuItem } from 'monitor-ui/chart-plugins/typings/flame-graph';
+import { type ICommonMenuItem, CommonMenuList } from 'monitor-ui/chart-plugins/typings/flame-graph';
 import { echarts } from 'monitor-ui/monitor-echarts/types/monitor-echarts';
 import { debounce } from 'throttle-debounce';
+import { useI18n } from 'vue-i18n';
 
 import type { IFlameGraphDataItem, IProfilingGraphData } from 'monitor-ui/chart-plugins/hooks/profiling-graph/types';
 import type { ProfileDataUnit } from 'monitor-ui/chart-plugins/plugins/profiling-graph/utils';

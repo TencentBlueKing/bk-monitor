@@ -25,21 +25,21 @@
  */
 import {
   eventDownloadTopK as apmEventDownloadTopK,
+  eventLogs as apmEventLogs,
+  eventStatisticsGraph as apmEventStatisticsGraph,
+  eventStatisticsInfo as apmEventStatisticsInfo,
   eventTopK as apmEventTopK,
   eventTotal as apmEventTotal,
   eventViewConfig as apmEventViewConfig,
-  eventLogs as apmEventLogs,
-  eventStatisticsInfo as apmEventStatisticsInfo,
-  eventStatisticsGraph as apmEventStatisticsGraph,
 } from 'monitor-api/modules/apm_event';
 import {
   eventDownloadTopK,
+  eventLogs,
+  eventStatisticsGraph,
+  eventStatisticsInfo,
   eventTopK,
   eventTotal,
   eventViewConfig,
-  eventLogs,
-  eventStatisticsInfo,
-  eventStatisticsGraph,
 } from 'monitor-api/modules/data_explorer';
 import { bkMessage, makeMessage } from 'monitor-api/utils';
 
@@ -105,9 +105,10 @@ export const getEventTotal = (params: ExploreTotalRequestParams, type = APIType.
   const apiFunc = type === APIType.APM ? apmEventTotal : eventTotal;
   const config = { needMessage: false, ...requestConfig };
   return apiFunc(params, config).catch(err => {
-    requestErrorMessage(err);
+    const isAborted = requestErrorMessage(err);
     return {
       total: 0,
+      isAborted,
     };
   });
 };
@@ -121,8 +122,8 @@ export const getEventLogs = (params: ExploreTableRequestParams, type = APIType.M
   const apiFunc = type === APIType.APM ? apmEventLogs : eventLogs;
   const config = { needMessage: false, ...requestConfig };
   return apiFunc(params, config).catch(err => {
-    requestErrorMessage(err);
-    return { list: [] };
+    const isAborted = requestErrorMessage(err);
+    return { list: [], isAborted };
   });
 };
 
@@ -136,26 +137,15 @@ export const getEventTimeSeries = (type = APIType.MONITOR) => {
   return api;
 };
 
-/**
- * @description 请求错误时消息提示处理逻辑（ cancel 类型报错不进行提示）
- * @param err
- *
- */
-function requestErrorMessage(err) {
-  const message = makeMessage(err.error_details || err.message);
-  if (message && err?.message !== 'canceled') {
-    bkMessage(message);
-  }
-}
-
 type ICandidateValueMap = Map<
   string,
   {
-    values: { id: string; name: string }[];
-    isEnd: boolean;
     count: number;
+    isEnd: boolean;
+    values: { id: string; name: string }[];
   }
 >;
+
 type TRetrievalFilterCandidateValueParams = any & {
   isInit__?: boolean;
 };
@@ -252,4 +242,19 @@ export class RetrievalFilterCandidateValue {
       queryConfig.table
     }____${params?.app_name}____${params?.service_name}____${params.fields.join('')}____`;
   }
+}
+/**
+ * @description 请求错误时消息提示处理逻辑（ cancel 类型报错不进行提示）
+ * @param err
+ *
+ */
+function requestErrorMessage(err) {
+  const message = makeMessage(err.error_details || err.message);
+  let isAborted = false;
+  if (message && err?.message !== 'canceled' && err?.message !== 'aborted') {
+    bkMessage(message);
+  } else {
+    isAborted = true;
+  }
+  return isAborted;
 }

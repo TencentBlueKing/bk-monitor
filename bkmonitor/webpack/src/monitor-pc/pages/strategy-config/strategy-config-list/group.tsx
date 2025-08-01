@@ -1,4 +1,11 @@
 /*
+ * @Date: 2021-06-14 15:39:58
+ * @LastEditTime: 2021-06-15 16:45:02
+ * @Description:
+ */
+import type { VNode } from 'vue';
+
+/*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
  *
@@ -26,33 +33,23 @@
 import { Component, Emit, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-/*
- * @Date: 2021-06-14 15:39:58
- * @LastEditTime: 2021-06-15 16:45:02
- * @Description:
- */
-import type { VNode } from 'vue';
 import type { TranslateResult } from 'vue-i18n';
 
 import './group.scss';
 
 export interface IGroupData {
+  data: any[]; // data为自定义分组数据
   id: number | string;
   name: TranslateResult;
-  data: any[]; // data为自定义分组数据
 }
-type themeType = 'bold' | 'filter';
-type titleSlotType = (item: IGroupData) => VNode;
-
-interface IGroupProps {
-  data?: IGroupData[]; // 数据源
-  theme?: themeType; // 主题
-  defaultActiveName?: string[]; // 默认展开项
-  customTitleSlot?: titleSlotType; // 自定义title
-}
-
 interface IGroupEvents {
   onClear: (item: IGroupData) => void;
+}
+interface IGroupProps {
+  customTitleSlot?: titleSlotType; // 自定义title
+  data?: IGroupData[]; // 数据源
+  defaultActiveName?: string[]; // 默认展开项
+  theme?: themeType; // 主题
 }
 
 interface IGroupSlots {
@@ -60,6 +57,10 @@ interface IGroupSlots {
 }
 
 type TActiveName = (number | string)[];
+
+type themeType = 'bold' | 'filter';
+
+type titleSlotType = (item: IGroupData) => VNode;
 
 /**
  * 插件分组信息
