@@ -114,21 +114,26 @@ class TransferEtlHandler(EtlHandler):
                             "is_built_in": True,
                             "is_time": False,
                             "is_analyzed": False,
-                            "is_dimension": False,
+                            "is_dimension": True,
                             "is_delete": False,
                         }
                     ],
                 )
 
-                # TODO: 补充 pattern 表创建逻辑
+                # 接入聚类小型化必须要创建 pattern 结果表
+                EtlStorage.update_or_create_pattern_result_table(
+                    instance=self.data,
+                    table_id=table_id,
+                    storage_cluster_id=storage_cluster_id,
+                    retention=retention,
+                    allocation_min_days=allocation_min_days,
+                    storage_replies=storage_replies,
+                    es_version=cluster_info["cluster_config"]["version"],
+                    hot_warm_config=cluster_info["cluster_config"].get("custom_option", {}).get("hot_warm_config"),
+                    es_shards=es_shards,
+                    total_shards_per_node=total_shards_per_node,
+                )
 
-        # 暂时去掉这个效验逻辑，底下的逻辑都是幂等的，可以继续也必须继续往下走
-        # # 判断是否已存在同result_table_id
-        # if is_add and CollectorConfig(table_id=table_id).get_result_table_by_id():
-        #     logger.error(f"result_table_id {table_id} already exists")
-        #     raise CollectorResultTableIDDuplicateException(
-        #         CollectorResultTableIDDuplicateException.MESSAGE.format(result_table_id=table_id)
-        #     )
         index_set_obj = LogIndexSet.objects.filter(index_set_id=self.data.index_set_id).first()
         if sort_fields is None and index_set_obj:
             sort_fields = index_set_obj.sort_fields

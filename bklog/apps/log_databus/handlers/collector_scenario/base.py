@@ -195,8 +195,8 @@ class CollectorScenario:
                 params["option"] = dict(params["option"], **option)
 
             # 聚类小型化链路配置更新
-            clustering_config = ClusteringConfig.objects.filter(use_mini_link=True, log_bk_data_id=bk_data_id).first()
-            if clustering_config:
+            clustering_config = ClusteringConfig.objects.filter(log_bk_data_id=bk_data_id).first()
+            if clustering_config and clustering_config.use_mini_link:
                 if clustering_config.signature_enable:
                     params["option"].update(
                         {
@@ -228,11 +228,12 @@ class CollectorScenario:
                 "address": feature_config.get("predict_cluster", {}).get(
                     clustering_config.predict_cluster
                 ),  # TODO: 需要根据集群名称转换
-                "timeout": "1m",
-                "batch_size": 2000,
-                "poll_interval": "1000-5000",
-                "retry": 1,
-                "retry_interval": "200ms",
+                # TODO: 以下配置需要把它放到每个 ClusteringConfig 中作为动态配置
+                "timeout": feature_config.get("timeout", "1m"),
+                "batch_size": feature_config.get("batch_size", 2000),
+                "poll_interval": feature_config.get("poll_interval", "1000-5000"),
+                "retry": feature_config.get("retry", 1),
+                "retry_interval": feature_config.get("retry_interval", "200ms"),
                 "clustering_field": clustering_config.clustering_fields,
             },
             "log_filter": [
