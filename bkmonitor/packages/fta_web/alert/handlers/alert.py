@@ -82,6 +82,22 @@ def readable_name_alias_to_id(node: SearchField):
     return
 
 
+def get_alert_ids_by_action_id(action_ids) -> list:
+    if not isinstance(action_ids, list):
+        action_ids = [action_ids]
+    try:
+        actions = ActionInstanceDocument.mget(action_ids)
+        if actions:
+            alert_ids = [action.alert_id for action in actions]
+        else:
+            action_ids = [int(str(action_id)[10:]) for action_id in action_ids]
+            alert_ids = ActionInstance.objects.filter(id__in=action_ids).values_list("alerts", flat=True)
+    except Exception:
+        alert_ids = []
+    alert_ids = set(chain.from_iterable(alert_ids))
+    return list(alert_ids)
+
+
 class AlertQueryTransformer(BaseQueryTransformer):
     NESTED_KV_FIELDS = {"tags": "event.tags"}
     VALUE_TRANSLATE_FIELDS = {
@@ -209,16 +225,7 @@ class AlertQueryTransformer(BaseQueryTransformer):
             "action_id",
             _("处理记录ID"),
         ]:
-            # 处理动作ID不是告警的标准字段，需要从动作ID中提取出告警ID，再将其作为查询条件
-            action_id = node.value
-            try:
-                action = ActionInstanceDocument.get(action_id)
-                if action:
-                    alert_ids = action.alert_id
-                else:
-                    alert_ids = ActionInstance.objects.get(id=str(action_id)[10:]).alerts
-            except Exception:
-                alert_ids = []
+            alert_ids = get_alert_ids_by_action_id(node.value)
             node = FieldGroup(OrOperation(*[Word(str(alert_id)) for alert_id in alert_ids or [0]]))
             context.update({"ignore_search_field": True, "ignore_word": True})
 
@@ -679,6 +686,12 @@ class AlertQueryHandler(BaseBizQueryHandler):
             )
         elif condition["key"] == "alert_name":
             condition["key"] = "alert_name.raw"
+        elif condition["key"] == "id" and condition["origin_key"] == "action_id":
+            # 处理动作ID不是告警的标准字段，需要从动作ID中提取出告警ID，再将其作为查询条件
+            alert_ids = get_alert_ids_by_action_id(condition["value"])
+            if not alert_ids:
+                alert_ids = [0]
+            return Q("ids", values=alert_ids)
         return super().parse_condition_item(condition)
 
     def add_biz_condition(self, search_object):
