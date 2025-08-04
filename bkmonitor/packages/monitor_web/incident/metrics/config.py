@@ -94,7 +94,10 @@ EntityTypeMetricConfigMapping = {
                     "metrics": [{"field": "bk_apm_count", "method": "SUM", "alias": "A"}],
                     "group_by": [],
                     "display": True,
-                    "where": []
+                    "where": [],
+                    "table": "{table}",
+                    "filter_dict": "{filter_dict}",
+                    "interval": "{interval}"
                 }
             ]
         },
@@ -109,7 +112,10 @@ EntityTypeMetricConfigMapping = {
                     "where": [
                         {"key": "kind", "method": "eq", "value": ["3"]},
                         {"condition": "or", "key": "kind", "method": "eq", "value": ["4"]}
-                    ]
+                    ],
+                    "table": "{table}",
+                    "filter_dict": "{filter_dict}",
+                    "interval": "{interval}"
                 }
             ]
         },
@@ -124,7 +130,10 @@ EntityTypeMetricConfigMapping = {
                     "where": [
                         {"key": "kind", "method": "eq", "value": ["2"]},
                         {"condition": "or", "key": "kind", "method": "eq", "value": ["5"]}
-                    ]
+                    ],
+                    "table": "{table}",
+                    "filter_dict": "{filter_dict}",
+                    "interval": "{interval}"
                 }
             ]
         },
@@ -138,7 +147,10 @@ EntityTypeMetricConfigMapping = {
                     "display": True,
                     "where": [
                         {"key": "status_code", "method": "eq", "value": ["2"], "condition": "and"}
-                    ]
+                    ],
+                    "table": "{table}",
+                    "filter_dict": "{filter_dict}",
+                    "interval": "{interval}"
                 }
             ]
         },
@@ -151,13 +163,19 @@ EntityTypeMetricConfigMapping = {
                     "group_by": [],
                     "where": [
                         {"key": "status_code", "method": "eq", "value": ["2"], "condition": "and"}
-                    ]
+                    ],
+                    "table": "{table}",
+                    "filter_dict": "{filter_dict}",
+                    "interval": "{interval}"
                 },
                 {
                     **APM_BASE_QUERY_CONFIG,
                     "metrics": [{"field": "bk_apm_count", "method": "SUM", "alias": "c"}],
                     "group_by": [],
-                    "where": []
+                    "where": [],
+                    "table": "{table}",
+                    "filter_dict": "{filter_dict}",
+                    "interval": "{interval}"
                 }
             ]
         },
@@ -169,17 +187,80 @@ EntityTypeMetricConfigMapping = {
                     "metrics": [{"field": "bk_apm_duration_sum", "method": "SUM", "alias": "a"}],
                     "group_by": [],
                     "where": [],
-                    "functions": [{"id": "increase", "params": [{"id": "window", "value": "2m"}]}]
+                    "functions": [{"id": "increase", "params": [{"id": "window", "value": "2m"}]}],
+                    "table": "{table}",
+                    "filter_dict": "{filter_dict}",
+                    "interval": "{interval}"
                 },
                 {
                     **APM_BASE_QUERY_CONFIG,
                     "metrics": [{"field": "bk_apm_total", "method": "SUM", "alias": "b"}],
                     "group_by": [],
                     "where": [],
-                    "functions": [{"id": "increase", "params": [{"id": "window", "value": "2m"}]}]
+                    "functions": [{"id": "increase", "params": [{"id": "window", "value": "2m"}]}],
+                    "table": "{table}",
+                    "filter_dict": {},
+                    "interval": "{interval}"
                 }
             ]
-        }
+        },
+        MetricName.APM_DURATION_P99.value: {
+            "expression": "A",
+            "query_configs": [
+                {
+                    **APM_BASE_QUERY_CONFIG,
+                    "table": "{table}",
+                    "metrics": [{"field": "bk_apm_duration_bucket", "method": "SUM", "alias": "A"}],
+                    "group_by": ["le"],
+                    "display": True,
+                    "where": [],
+                    "filter_dict": "{filter_dict}",
+                    "functions": [
+                        {"id": "rate", "params": [{"id": "window", "value": "2m"}]},
+                        {"id": "histogram_quantile", "params": [{"id": "scalar","value": 0.99}]}
+                    ],
+                    "interval": "{interval}"
+                }
+            ]
+        },
+        MetricName.APM_DURATION_P95.value:{ 
+            "expression": "A",
+            "query_configs": [
+                {
+                    **APM_BASE_QUERY_CONFIG,
+                    "table": "{table}",
+                    "metrics": [{"field": "bk_apm_duration_bucket", "method": "SUM", "alias": "A"}],
+                    "group_by": ["le"],
+                    "display": True,
+                    "where": [],
+                    "filter_dict": "{filter_dict}",
+                    "functions": [
+                        {"id": "rate", "params": [{"id": "window", "value": "2m"}]},
+                        {"id": "histogram_quantile", "params": [{"id": "scalar","value": 0.95}]}
+                    ],
+                    "interval": "{interval}"
+                }
+            ]
+        },
+        MetricName.APM_DURATION_P50.value: {
+            "expression": "A",
+            "query_configs": [
+                {
+                    **APM_BASE_QUERY_CONFIG,
+                    "table": "{table}",
+                    "metrics": [{"field": "bk_apm_duration_bucket", "method": "SUM", "alias": "A"}],
+                    "group_by": ["le"],
+                    "display": True,
+                    "where": [],
+                    "filter_dict": "{filter_dict}",
+                    "functions": [
+                        {"id": "rate", "params": [{"id": "window", "value": "2m"}]},
+                        {"id": "histogram_quantile", "params": [{"id": "scalar","value": 0.5}]}
+                    ],
+                    "interval": "{interval}"
+                }
+            ]
+        },
     },
     EntityType.BcsPod.value: {
         MetricName.BCS_PERFORMANCE_CPU_USAGE.value: {
@@ -393,7 +474,30 @@ EntityTypeMetricConfigMapping = {
     }
 }
 
+def _fill_query_config(query_config: dict,key:str,value:Any):
+    """
+    填充/覆盖查询配置占位符
+    
+    Args:
+        query_config: 查询配置
+        key: 需要填充的key
+        value: 需要填充的value
+    """
+    query_config[key] = value if query_config[key] == f"{{{key}}}" else query_config[key]
 
+def _replace_query_config(query_config: dict,key:str,pattern:str,value:Any):
+    """
+    替换查询配置占位符(替换所有)
+    
+    Args:
+        query_config: 查询配置
+        key: 需要替换的key
+        pattern: 需要替换的pattern
+        value: 需要替换的value
+    """
+    query_config[key] = query_config[key].replace(pattern,value)
+
+            
 def get_apm_config(index_info: dict[str, Any],**kwargs):
     """获取APM配置
     
@@ -408,6 +512,7 @@ def get_apm_config(index_info: dict[str, Any],**kwargs):
     Returns:
         填充后的APM所有指标配置
     """
+            
     # 获取APM配置模板
     apm_config = EntityTypeMetricConfigMapping[EntityType.APMService.value]
     
@@ -418,11 +523,9 @@ def get_apm_config(index_info: dict[str, Any],**kwargs):
         
         # 填充每个指标的查询配置
         for query_config in filled_config[metric_name]["query_configs"]:
-            query_config.update({
-                "table": kwargs.get("table"),
-                "filter_dict": {"service_name": index_info.get("service_name")},
-
-            })
+            _fill_query_config(query_config,"table",kwargs.get("table"))
+            _fill_query_config(query_config,"filter_dict",{"service_name": index_info.get("service_name")})
+            _fill_query_config(query_config,"interval",kwargs.get("interval", 120))
             
         filled_config[metric_name].update({
             "start_time": kwargs.get("start_time"),
@@ -466,7 +569,7 @@ def get_bcs_config(index_info: dict[str, Any],**kwargs):
         for query_config in filled_config[metric_name]["query_configs"]:
             # 替换PromQL中的bcs_filter占位符
             if "promql" in query_config:
-                query_config["promql"] = query_config["promql"].replace("{bcs_filter}", bcs_filter)
+                _replace_query_config(query_config,"promql","{bcs_filter}", bcs_filter)
             
         filled_config[metric_name].update({
                 "start_time": kwargs.get("start_time"),
@@ -503,8 +606,9 @@ def get_host_config(index_info: dict[str, Any],**kwargs):
         for query_config in filled_config[metric_name]["query_configs"]:
             # 替换目标参数
             if "filter_dict" in query_config and "targets" in query_config["filter_dict"]:
-                query_config["filter_dict"]["targets"][0]["bk_target_ip"] = index_info.get("bk_target_ip")
-                query_config["filter_dict"]["targets"][0]["bk_target_cloud_id"] = index_info.get("bk_target_cloud_id")
+                target = query_config["filter_dict"]["targets"][0]
+                target["bk_target_ip"] = index_info.get("bk_target_ip")
+                target["bk_target_cloud_id"] = index_info.get("bk_target_cloud_id")
             
         filled_config[metric_name].update({
                 "start_time": kwargs.get("start_time"),

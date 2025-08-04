@@ -53,7 +53,10 @@ class MetricType(CachedEnum):
 
     @classmethod
     def choices(cls):
-        return [(choice[0], choice[1]) for choice in cls.choices()]
+        return [
+            (cls.NODE.value, cls.NODE.value),
+            (cls.EBPF_CALL.value, cls.EBPF_CALL.value),
+        ]
 
 class IndexType(CachedEnum):
     """
@@ -71,6 +74,9 @@ class MetricName(CachedEnum):
     APM_ERROR_COUNT = "apm.error_count"
     APM_ERROR_RATE = "apm.error_rate"
     APM_DURATION_AVG = "apm.duration_avg"
+    APM_DURATION_P99 = "apm.duration_p99"
+    APM_DURATION_P95 = "apm.duration_p95"
+    APM_DURATION_P50 = "apm.duration_p50"
     
     # BCS指标
     BCS_PERFORMANCE_CPU_USAGE = "bcs.performance_cpu_usage"
@@ -105,6 +111,9 @@ class MetricName(CachedEnum):
                 MetricName.APM_ERROR_COUNT: "错误请求数",
                 MetricName.APM_ERROR_RATE: "错误率",
                 MetricName.APM_DURATION_AVG: "平均耗时",
+                MetricName.APM_DURATION_P99: "99% 耗时",
+                MetricName.APM_DURATION_P95: "95% 耗时",
+                MetricName.APM_DURATION_P50: "50% 耗时",
                 
                 MetricName.BCS_PERFORMANCE_CPU_USAGE: "CPU使用量",
                 MetricName.BCS_PERFORMANCE_CPU_REQUEST_USAGE_RATE: "CPU request使用率",

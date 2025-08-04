@@ -40,8 +40,6 @@ class IncidentMetricsSearchResource(Resource):
             return self._query_node_metrics(validated_request_data,base_response)
         elif metric_type == MetricType.EBPF_CALL.value:
             return self._query_ebpf_call_metrics(validated_request_data,base_response)
-        else:
-            raise ValueError(f"Invalid metric type: {metric_type}")
 
     def _query_node_metrics(self, validated_request_data: dict,base_response: dict) -> dict:
         """
@@ -61,7 +59,6 @@ class IncidentMetricsSearchResource(Resource):
         """
         执行指标查询
         """
-        print(query_requests)
         metric_type = validated_request_data.get("metric_type")
         metric_query_response = base_response
         
@@ -136,13 +133,13 @@ class IncidentMetricsSearchResource(Resource):
         """
         获取BcsPod类型的表名
         """
-        pass
+        return ""
     
     def _get_bk_node_host_tables(self, **kwargs) -> str:
         """
         获取BKNodeHost类型的表名
         """
-        pass
+        return ""
     
     def _format_metrics_response(self, unify_query_resp: dict[str, Any], metric_query_response: dict[str, Any], metric_name: str, **kwargs):
         """
