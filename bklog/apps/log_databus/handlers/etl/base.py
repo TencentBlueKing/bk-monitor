@@ -217,7 +217,6 @@ class EtlHandler:
             etl_params=etl_params,
             es_version=cluster_info["cluster_config"]["version"],
             hot_warm_config=cluster_info["cluster_config"].get("custom_option", {}).get("hot_warm_config"),
-            alias_settings=alias_settings,
         )
 
         if not view_roles:
