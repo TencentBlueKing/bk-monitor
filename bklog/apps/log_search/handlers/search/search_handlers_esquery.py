@@ -34,7 +34,7 @@ from django.conf import settings
 from django.core.cache import cache
 from django.utils.translation import gettext as _
 
-from apps.api import BcsApi, BkLogApi, MonitorApi, UnifyQueryApi
+from apps.api import BcsApi, BkLogApi, MonitorApi
 from apps.api.base import DataApiRetryClass
 from apps.api.modules.utils import get_non_bkcc_space_related_bkcc_biz_id
 from apps.exceptions import ApiResultError
@@ -139,11 +139,9 @@ from apps.utils.log import logger
 from apps.utils.lucene import EnhanceLuceneAdapter, generate_query_string
 from apps.utils.thread import MultiExecuteFunc
 from bkm_ipchooser.constants import CommonEnum
-from bkm_space.utils import space_uid_to_bk_biz_id
 from apps.log_search.models import (
     UserIndexSetSearchHistory,
 )
-from apps.log_commons.models import ApiAuthToken
 
 max_len_dict = dict[str, int]  # pylint: disable=invalid-name
 
@@ -3283,45 +3281,3 @@ class UnionSearchHandler:
                     UnionSearchErrorException.MESSAGE.format(index_set_id=index_set_id, e=ret)
                 )
         return multi_result
-
-    @staticmethod
-    def search_log_for_code(token: str, params: dict[str, Any]) -> dict[str, Any]:
-        """
-        根据codecc token查询日志
-        参数:
-            token (str): token
-            params (dict): 完整的查询参数，直接传给 query ts raw
-        返回值:
-            dict: 查询结果
-        """
-        from apps.log_search.handlers.index_set import BaseIndexSetHandler
-
-        # 1. 根据token查询token信息
-        try:
-            record = ApiAuthToken.objects.get(token=token)
-        except ApiAuthToken.DoesNotExist:
-            raise ValueError("Invalid token")
-
-        # 2. 从token记录中解析参数
-        index_set_id = record.params.get("index_set_id")
-        space_uid = record.space_uid
-        bk_biz_id = space_uid_to_bk_biz_id(space_uid) if space_uid else None
-        if not bk_biz_id:
-            raise ValueError(f"无法从space_uid {space_uid} 获取有效的bk_biz_id")
-
-        # 3. 获取table_id
-        table_id = BaseIndexSetHandler.get_data_label(index_set_id)
-
-        # 4. 直接使用传入的参数，填充必要的table_id和bk_biz_id参数信息
-        search_dict = params.copy()
-        search_dict["bk_biz_id"] = bk_biz_id
-        if "from_index" in search_dict:
-            search_dict["from"] = search_dict.pop("from_index")
-        if "query_list" in search_dict and search_dict["query_list"]:
-            for query_item in search_dict["query_list"]:
-                if isinstance(query_item, dict):
-                    query_item["table_id"] = table_id
-
-        # 5. 执行查询
-        result = UnifyQueryApi.query_ts_raw(search_dict)
-        return result

@@ -31,7 +31,7 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 
 from apps.api import BKLoginApi
-from apps.constants import ExternalPermissionActionEnum, ApiTokenAuthType
+from apps.constants import ExternalPermissionActionEnum
 from apps.generic import APIViewSet
 from apps.log_commons.cc import get_maintainers
 from apps.log_commons.exceptions import BaseCommonsException
@@ -57,6 +57,7 @@ from apps.log_commons.serializers import (
 from apps.log_commons.share import ShareHandler
 from apps.utils.drf import list_route
 from apps.log_commons.token import TokenHandlerFactory
+from apps.log_esquery.qos import ApiTokenThrottle
 
 # 用户白皮书在文档中心的根路径
 DOCS_USER_GUIDE_ROOT = f"LogSearch/{settings.VERSION[:3]}"
@@ -387,7 +388,9 @@ class ShareViewSet(APIViewSet):
         return Response(ShareHandler.create_or_update(data))
 
 
-class CodeccViewSet(APIViewSet):
+class GetApiTokenViewSet(APIViewSet):
+    throttle_classes = [ApiTokenThrottle]
+
     @list_route(methods=["get"], url_path="get_api_token")
     def get_api_token(self, request):
         """
@@ -409,6 +412,6 @@ class CodeccViewSet(APIViewSet):
         @apiDescription 返回的 token 可直接用于请求头 X-BKLOG-TOKEN 进行 API 调用
         """
         data = self.params_valid(GetApiTokenSerializer)
-        token_type = data.pop("type", ApiTokenAuthType.CODECC.value)
+        token_type = data.pop("type")
         handler = TokenHandlerFactory.get_handler(token_type)
         return Response(handler.generate_token(**data))

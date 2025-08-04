@@ -71,6 +71,8 @@ from apps.api import MonitorApi
 from apps.log_databus.models import CollectorConfig
 from apps.log_databus.constants import EtlConfig
 from apps.log_search.constants import ASYNC_SORTED
+from apps.log_commons.models import ApiAuthToken
+from bkm_space.utils import space_uid_to_bk_biz_id
 
 
 def fields_config(name: str, is_active: bool = False):
@@ -1297,3 +1299,51 @@ class UnifyQueryHandler:
                 "collector_config_id": self.index_set["index_set_obj"].collector_config_id,
             },
         )
+
+    @staticmethod
+    def search_log_for_code(token: str, params: dict[str, Any]) -> dict[str, Any]:
+        """
+        根据codecc token查询日志
+        参数:
+            token (str): token
+            params (dict): 完整的查询参数，直接传给 query ts raw
+        返回值:
+            dict: 查询结果
+        """
+        # 1. 根据token查询record
+        try:
+            record = ApiAuthToken.objects.get(token=token)
+        except ApiAuthToken.DoesNotExist:
+            raise ValueError("Invalid token")
+
+        # 2. 从token记录中解析参数
+        index_set_id = record.params.get("index_set_id")
+        space_uid = record.space_uid
+        bk_biz_id = space_uid_to_bk_biz_id(space_uid) if space_uid else None
+        if not bk_biz_id:
+            raise ValueError(f"无法从space_uid {space_uid} 获取有效的bk_biz_id")
+
+        # 3. 权限验证
+        from apps.iam import Permission, ActionEnum, ResourceEnum
+
+        permission = Permission(username=record.created_by)
+        permission.is_allowed(
+            action=ActionEnum.SEARCH_LOG,
+            resources=[ResourceEnum.INDICES.create_simple_instance(instance_id=index_set_id)],
+            raise_exception=True,
+        )
+
+        # 4. 获取table_id
+        table_id = BaseIndexSetHandler.get_data_label(index_set_id)
+
+        # 5. 直接使用传入的参数，填充必要的table_id和bk_biz_id参数信息
+        search_dict = params.copy()
+        search_dict["bk_biz_id"] = bk_biz_id
+        if "query_list" in search_dict and search_dict["query_list"]:
+            for query_item in search_dict["query_list"]:
+                if isinstance(query_item, dict):
+                    query_item["table_id"] = table_id
+
+        # 6. 执行查询
+        result = UnifyQueryApi.query_ts_raw(search_dict)
+        return result

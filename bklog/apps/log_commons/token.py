@@ -1,14 +1,9 @@
 import logging
 from abc import ABC, abstractmethod
 from typing import Any
-from datetime import timedelta
-
-from django.utils import timezone
-
 from apps.constants import ApiTokenAuthType
 from apps.log_commons.models import ApiAuthToken, TokenAccessRecord
-from apps.utils.local import get_request_username, get_request
-from apps.log_commons.constants import TOKEN_REQUEST_LIMIT_SECONDS, TOKEN_REQUEST_LIMIT_COUNT
+from apps.utils.local import get_request_username
 from apps.iam import Permission, ActionEnum, ResourceEnum
 
 logger = logging.getLogger()
@@ -22,19 +17,19 @@ class BaseTokenHandler(ABC):
     @abstractmethod
     def get_token_type(self) -> str:
         """获取token类型"""
-        pass
+        raise NotImplementedError
 
     @abstractmethod
     def create_token_params(self, **kwargs) -> dict[str, Any]:
         """创建token参数字典"""
-        pass
+        raise NotImplementedError
 
     @abstractmethod
     def check_permission(self, **kwargs) -> bool:
         """检查权限"""
-        pass
+        raise NotImplementedError
 
-    def get_or_create_token(self, space_uid: str, **kwargs) -> dict[str, Any]:
+    def get_or_create_token(self, space_uid: str, **kwargs) -> str:
         """获取或创建token"""
         username = get_request_username()
 
@@ -47,26 +42,16 @@ class BaseTokenHandler(ABC):
         ).first()
 
         if token_obj:
-            return {"token": token_obj.token}
+            return token_obj.token
 
         # 创建新 token
-        token_obj = ApiAuthToken.objects.create(
+        token_obj, created = ApiAuthToken.objects.update_or_create(
             space_uid=space_uid,
             type=self.get_token_type(),
             params=self.create_token_params(**kwargs),
+            defaults={"created_by": username},
         )
-        return {"token": token_obj.token}
-
-    def check_rate_limit(self, username: str) -> bool:
-        """检查频率限制"""
-        current_time = timezone.now()
-        limit_start_time = current_time - timedelta(seconds=TOKEN_REQUEST_LIMIT_SECONDS)
-
-        recent_requests = TokenAccessRecord.objects.filter(
-            created_by=username, created_at__gte=limit_start_time, created_at__lte=current_time
-        ).count()
-
-        return recent_requests < TOKEN_REQUEST_LIMIT_COUNT
+        return token_obj.token
 
     def record_access(self, username: str, token: str):
         """记录访问记录"""
@@ -75,26 +60,16 @@ class BaseTokenHandler(ABC):
             token=token,
         )
 
-    def generate_token(self, space_uid: str, **kwargs) -> dict[str, Any]:
+    def generate_token(self, space_uid: str, **kwargs) -> str:
         """生成token的完整流程"""
         username = get_request_username()
-
         # 检查权限
-        if not self.check_permission(space_uid=space_uid, **kwargs):
-            return {"token": None}
-
-        # 检查频率限制
-        if not self.check_rate_limit(username):
-            logger.warning("User %s exceeded rate limit for token requests in space %s", username, space_uid)
-            raise Exception(f"申请频率过高，请在 {TOKEN_REQUEST_LIMIT_SECONDS} 秒后再试")
-
+        self.check_permission(space_uid=space_uid, **kwargs)
         # 生成token
-        token_data = self.get_or_create_token(space_uid, **kwargs)
-
+        token = self.get_or_create_token(space_uid, **kwargs)
         # 记录申请记录
-        self.record_access(username, token_data["token"])
-
-        return {"token": token_data["token"]}
+        self.record_access(username, token)
+        return token
 
 
 class CodeccTokenHandler(BaseTokenHandler):
@@ -118,47 +93,40 @@ class CodeccTokenHandler(BaseTokenHandler):
         if not space_uid or not index_set_id:
             return False
 
-        request = get_request(peaceful=True)
-        if not request:
-            # request获取失败默认无权限
+        # 查找对应的token对象，获取创建人
+        token_obj = ApiAuthToken.objects.filter(
+            space_uid=space_uid,
+            type=self.get_token_type(),
+            params__contains=self.create_token_params(**kwargs),
+        ).first()
+
+        if not token_obj:
             return False
 
-        # 检查用户对指定索引集的检索权限
-        try:
-            permission = Permission(username=get_request_username())
-            permission_result = permission.is_allowed(
-                action=ActionEnum.SEARCH_LOG,
-                resources=[ResourceEnum.INDICES.create_simple_instance(instance_id=index_set_id)],
-            )
-            return permission_result
-        except Exception as e:
-            logger.error(
-                "Permission check failed for user %s on index_set %s: %s", get_request_username(), index_set_id, str(e)
-            )
-            return False
+        # 检查token创建人对指定索引集的检索权限
+        permission = Permission(username=token_obj.created_by)
+        permission_result = permission.is_allowed(
+            action=ActionEnum.SEARCH_LOG,
+            resources=[ResourceEnum.INDICES.create_simple_instance(instance_id=index_set_id)],
+            raise_exception=True,
+        )
+
+        return permission_result
 
 
 class TokenHandlerFactory:
     """Token处理器工厂类"""
 
-    _handlers = {
+    _HANDLERS = {
         ApiTokenAuthType.CODECC.value: CodeccTokenHandler,
     }
 
     @classmethod
     def get_handler(cls, token_type: str) -> BaseTokenHandler:
         """根据token类型获取对应的处理器实例"""
-        handler_class = cls._handlers.get(token_type)
+        handler_class = cls._HANDLERS.get(token_type)
         if not handler_class:
-            supported_types = list(cls._handlers.keys())
+            supported_types = list(cls._HANDLERS.keys())
             raise ValueError(f"Unsupported token type: {token_type}. Supported types: {supported_types}")
 
         return handler_class()
-
-    @classmethod
-    def register_handler(cls, token_type: str, handler_class: type):
-        """注册新的token处理器"""
-        if not issubclass(handler_class, BaseTokenHandler):
-            raise ValueError("Handler class must inherit from BaseTokenHandler")
-
-        cls._handlers[token_type] = handler_class

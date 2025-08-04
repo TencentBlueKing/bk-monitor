@@ -101,7 +101,7 @@ from apps.log_search.serializers import (
     UpdateIndexSetFieldsConfigSerializer,
     UserIndexSetCustomConfigSerializer,
     AliasSettingsSerializer,
-    QueryTsRawSerializer,
+    SearchLogForCodeSerializer,
 )
 from apps.log_search.utils import create_download_response
 from apps.log_unifyquery.builder.context import build_context_params
@@ -136,7 +136,7 @@ class SearchViewSet(APIViewSet):
             if auth_info and auth_info["bk_app_code"] in settings.ESQUERY_WHITE_LIST:
                 return []
 
-        if self.action in ["operators", "user_search_history", "search_log_for_code"]:
+        if self.action in ["operators", "user_search_history"]:
             return []
 
         if self.action in [
@@ -2102,6 +2102,6 @@ class SearchViewSet(APIViewSet):
             }
         """
         token = get_request_token()
-        data = self.params_valid(QueryTsRawSerializer)
-        result = UnionSearchHandler.search_log_for_code(token, data)
+        data = self.params_valid(SearchLogForCodeSerializer)
+        result = UnifyQueryHandler.search_log_for_code(token, data)
         return Response(result)

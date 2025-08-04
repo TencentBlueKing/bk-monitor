@@ -1167,7 +1167,7 @@ class QueryByDataIdSerializer(serializers.Serializer):
     bk_data_id = serializers.IntegerField(label=_("采集链路ID"), required=True)
 
 
-class QueryTsRawSerializer(serializers.Serializer):
+class SearchLogForCodeSerializer(serializers.Serializer):
     """
     CodeCC query_ts_raw 请求参数序列化器
     """
@@ -1180,5 +1180,9 @@ class QueryTsRawSerializer(serializers.Serializer):
     start_time = serializers.CharField(label=_("开始时间"), required=True)
     end_time = serializers.CharField(label=_("结束时间"), required=True)
     timezone = serializers.CharField(label=_("时区"), required=False, default="UTC")
-    from_index = serializers.IntegerField(label=_("起始位置"), required=False, default=DEFAULT_QUERY_OFFSET)
     limit = serializers.IntegerField(label=_("限制条数"), required=False, default=DEFAULT_QUERY_LIMIT)
+
+
+SearchLogForCodeSerializer._declared_fields["from"] = serializers.IntegerField(
+    label=_("起始位置"), required=False, default=DEFAULT_QUERY_OFFSET
+)

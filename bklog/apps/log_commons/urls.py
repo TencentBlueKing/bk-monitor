@@ -29,7 +29,7 @@ from apps.log_commons.views import FrontendEventViewSet
 router = routers.DefaultRouter(trailing_slash=True)
 router.register(r"external_permission", views.ExternalPermissionViewSet, basename="external_permission")
 router.register(r"share", views.ShareViewSet, basename="share")
-router.register(r"", views.CodeccViewSet, basename="api_token")
+router.register(r"", views.GetApiTokenViewSet, basename="api_token")
 router.register(r"frontend_event", FrontendEventViewSet, basename="frontend_event")
 
 urlpatterns = [
