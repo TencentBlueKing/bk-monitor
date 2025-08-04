@@ -86,6 +86,18 @@ ADVANCED_OP_MAP = {
         "condition": "and",
         "is_wildcard": True,
     },
+    OperatorEnum.CONTAINS_MATCH_PHRASE_PREFIX["operator"]: {"operator": "eq", "condition": "or", "is_prefix": True},
+    OperatorEnum.NOT_CONTAINS_MATCH_PHRASE_PREFIX["operator"]: {"operator": "ne", "condition": "or", "is_prefix": True},
+    OperatorEnum.ALL_CONTAINS_MATCH_PHRASE_PREFIX["operator"]: {
+        "operator": "eq",
+        "condition": "and",
+        "is_prefix": True,
+    },
+    OperatorEnum.ALL_NOT_CONTAINS_MATCH_PHRASE_PREFIX["operator"]: {
+        "operator": "ne",
+        "condition": "and",
+        "is_prefix": True,
+    },
     OperatorEnum.EXISTS["operator"]: {"operator": "ne", "condition": "or"},
     OperatorEnum.NOT_EXISTS["operator"]: {"operator": "eq", "condition": "or"},
     OperatorEnum.IS_TRUE["operator"]: {"operator": "eq", "condition": "or"},
