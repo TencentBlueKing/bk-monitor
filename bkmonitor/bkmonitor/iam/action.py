@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -10,7 +9,6 @@ specific language governing permissions and limitations under the License.
 """
 
 from typing import Dict, List, Union
-
 from django.conf import settings
 from django.utils.translation import gettext as _
 from iam import Action
@@ -504,6 +502,16 @@ class ActionEnum:
         version=1,
     )
 
+    VIEW_STRATEGY = ActionMeta(
+        id="view_strategy",
+        name=_("策略查看"),
+        name_en="view strategy",
+        type="strategy",
+        related_resource_types=[SPACE_RESOURCE],
+        related_actions=[VIEW_BUSINESS.id],
+        version=1,
+    )
+
 
 _all_actions = {action.id: action for action in ActionEnum.__dict__.values() if isinstance(action, ActionMeta)}
 
@@ -587,6 +595,7 @@ MINI_ACTION_IDS = [
     ActionEnum.MANAGE_APM_APPLICATION.id,
     ActionEnum.VIEW_INCIDENT.id,
     ActionEnum.MANAGE_INCIDENT.id,
+    ActionEnum.VIEW_STRATEGY.id,
 ]
 # CMDB（主机依赖）权限
 CMDB_REQUIRE_ACTION_IDS = [
