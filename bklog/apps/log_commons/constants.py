@@ -19,24 +19,15 @@ We undertake not to change the open source license (MIT license) applicable to t
 the project delivered to anyone in the future.
 """
 
-from django.conf.urls import include
-from django.urls import re_path
-from rest_framework import routers
+# CodeCC 相关常量
+TOKEN_LENGTH = 8
+CODECC_TOKEN_EXPIRE_SECONDS = 24 * 3600  # 1天
+DEFAULT_TOKEN_EXPIRE_SECONDS = 7 * 24 * 3600  # 7天
 
-from apps.log_commons import views
-from apps.log_commons.views import FrontendEventViewSet
+# Token申请频率限制常量
+TOKEN_REQUEST_LIMIT_COUNT = 5  # 60秒内最多申请5次
+TOKEN_REQUEST_LIMIT_SECONDS = 60  # 限制时间窗口为60秒
 
-router = routers.DefaultRouter(trailing_slash=True)
-router.register(r"external_permission", views.ExternalPermissionViewSet, basename="external_permission")
-router.register(r"share", views.ShareViewSet, basename="share")
-router.register(r"codecc", views.CodeccViewSet, basename="codecc")
-router.register(r"frontend_event", FrontendEventViewSet, basename="frontend_event")
-
-urlpatterns = [
-    # 获取文档链接地址
-    re_path(r"^get_docs_link/$", views.get_docs_link),
-    # 获取外部系统权限
-    re_path(r"^", include(router.urls)),
-    # 获取临时分享token
-    re_path(r"^", include(router.urls)),
-]
+# 时间周期常量
+EXPIRE_PERIOD_ONE_DAY = "1d"
+EXPIRE_PERIOD_SEVEN_DAYS = "7d"

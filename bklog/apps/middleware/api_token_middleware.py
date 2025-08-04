@@ -21,27 +21,41 @@ class ApiTokenAuthBackend(ModelBackend):
 
 class ApiTokenAuthenticationMiddleware(LoginRequiredMiddleware):
     def process_view(self, request, view, *args, **kwargs):
-        if "HTTP_X_BKLOG_SPACE_UID" in request.META and "HTTP_X_BKLOG_TOKEN" in request.META:
-            space_uid = request.META["HTTP_X_BKLOG_SPACE_UID"]
-            token = request.META["HTTP_X_BKLOG_TOKEN"]
-            try:
-                record = ApiAuthToken.objects.get(token=token, space_uid=space_uid)
-            except ApiAuthToken.DoesNotExist:
-                record = None
+        # 支持两种方式：1. 同时传 space_uid 和 token；2. 只传 token
+        if "HTTP_X_BKLOG_TOKEN" not in request.META:
+            return super().process_view(request, view, *args, **kwargs)
 
-            if not record:
-                return HttpResponseForbidden("not valid token")
+        token = request.META["HTTP_X_BKLOG_TOKEN"]
 
-            if record.is_expired():
-                return HttpResponseForbidden("token has expired")
+        # 构建查询条件
+        query_kwargs = {"token": token}
+        if "HTTP_X_BKLOG_SPACE_UID" in request.META:
+            query_kwargs["space_uid"] = request.META["HTTP_X_BKLOG_SPACE_UID"]
 
-            # grafana、as_code场景权限模式：替换请求用户为令牌创建者
-            if record.type.lower() in ["grafana"]:
-                user = auth.authenticate(username="system")
-                auth.login(request, user, backend="apps.middleware.api_token_middleware.ApiTokenAuthBackend")
-                request.skip_check = True
-            else:
-                request.token = token
+        # 统一查询逻辑
+        try:
+            record = ApiAuthToken.objects.get(**query_kwargs)
+        except ApiAuthToken.DoesNotExist:
+            return HttpResponseForbidden("not valid token")
+
+        if record.is_expired():
+            return HttpResponseForbidden("token has expired")
+
+        # grafana、as_code场景权限模式：替换请求用户为令牌创建者
+        if record.type.lower() in ["grafana"]:
+            user = auth.authenticate(username="system")
+            auth.login(request, user, backend="apps.middleware.api_token_middleware.ApiTokenAuthBackend")
+            request.skip_check = True
+        # 新增 codecc_token 支持
+        elif record.type.lower() == "codecc":
+            request.codecc_token_info = {
+                "token": record.token,
+                "space_uid": record.space_uid,
+                "index_set_id": record.params.get("index_set_id"),
+                "params": record.params,
+                "expire_time": record.expire_time,
+            }
             return
-
-        return super(ApiTokenAuthenticationMiddleware, self).process_view(request, view, *args, **kwargs)
+        else:
+            request.token = token
+        return
