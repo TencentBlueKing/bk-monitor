@@ -23,24 +23,68 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import CollectRoutes from './collector-config';
-import CustomRoutes from './custom-escalation';
-import CustomEvent from './custom-event';
-import CustomMetric from './custom-metric';
-import ExportImportRoutes from './export-import';
-import Fta from './fta';
-import PluginRoutes from './plugin-manager';
-import QueryTemplateRoutes from './query-template';
 
 import type { RouteConfig } from 'vue-router';
 
+const MetricTemplate = () =>
+  import(/* webpackChunkName: 'MetricTemplate' */ '../../pages/query-template/query-template');
+
+const MetricTemplateCreate = () =>
+  import(/* webpackChunkName: 'MetricTemplateCreate' */ '../../pages/query-template/create/template-create');
+
+const MetricTemplateEdit = () =>
+  import(/* webpackChunkName: 'MetricTemplateEdit' */ '../../pages/query-template/edit/template-edit');
+
 export default [
-  ...PluginRoutes,
-  ...ExportImportRoutes,
-  ...CustomRoutes,
-  ...CollectRoutes,
-  ...CustomEvent,
-  ...CustomMetric,
-  ...Fta,
-  ...QueryTemplateRoutes,
+  {
+    path: '/query-template',
+    name: 'query-template',
+    component: MetricTemplate,
+    meta: {
+      title: '指标模板',
+      navId: 'query-template',
+      // authority: {
+      //   map: customAuth,
+      //   page: customAuth.VIEW_CUSTOM_EVENT,
+      // },
+      route: {
+        parent: 'integrated',
+      },
+      noNavBar: false,
+    },
+  },
+  {
+    path: '/query-template/create',
+    name: 'query-template-create',
+    component: MetricTemplateCreate,
+    meta: {
+      title: '创建指标模板',
+      navId: 'query-template',
+      // authority: {
+      //   map: customAuth,
+      //   page: customAuth.VIEW_CUSTOM_EVENT,
+      // },
+      route: {
+        parent: 'integrated',
+      },
+      noNavBar: true,
+    },
+  },
+  {
+    path: '/query-template/edit/:id',
+    name: 'query-template-edit',
+    component: MetricTemplateEdit,
+    meta: {
+      title: '编辑指标模板',
+      navId: 'query-template',
+      // authority: {
+      //   map: customAuth,
+      //   page: customAuth.VIEW_CUSTOM_EVENT,
+      // },
+      route: {
+        parent: 'integrated',
+      },
+      noNavBar: true,
+    },
+  },
 ] as RouteConfig[];

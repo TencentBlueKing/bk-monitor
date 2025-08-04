@@ -23,24 +23,14 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import CollectRoutes from './collector-config';
-import CustomRoutes from './custom-escalation';
-import CustomEvent from './custom-event';
-import CustomMetric from './custom-metric';
-import ExportImportRoutes from './export-import';
-import Fta from './fta';
-import PluginRoutes from './plugin-manager';
-import QueryTemplateRoutes from './query-template';
+import { Component } from 'vue-property-decorator';
+import { Component as tsc } from 'vue-tsx-support';
 
-import type { RouteConfig } from 'vue-router';
+import './template-detail.scss';
 
-export default [
-  ...PluginRoutes,
-  ...ExportImportRoutes,
-  ...CustomRoutes,
-  ...CollectRoutes,
-  ...CustomEvent,
-  ...CustomMetric,
-  ...Fta,
-  ...QueryTemplateRoutes,
-] as RouteConfig[];
+@Component
+export default class TemplateDetail extends tsc<object> {
+  render() {
+    return <div class='template-detail' />;
+  }
+}

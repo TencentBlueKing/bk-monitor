@@ -144,6 +144,7 @@ export default {
   'route-编辑轮值': 'Edit Rotation',
   'route-新增轮值': 'Add Rotation',
   'route-故障': 'Incident',
+  'route-指标模板': 'Query Template',
 
   // 功能页面标题
 
