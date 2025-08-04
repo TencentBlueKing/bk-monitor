@@ -63,7 +63,6 @@ class IncidentMetricsSearchResource(Resource):
         metric_query_response = base_response
         
         def _aggregation(req_data: dict[str, Any],metric_name: str):
-            print(req_data)
             unify_query_resp = resource.grafana.graph_unify_query(req_data)
             with self._response_lock:
                 self._format_metrics_response(unify_query_resp, metric_query_response, metric_name, metric_type=metric_type)
