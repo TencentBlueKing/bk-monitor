@@ -75,7 +75,6 @@ from apps.log_search.handlers.search.search_handlers_esquery import UnionSearchH
 from apps.log_search.models import AsyncTask, LogIndexSet
 from apps.log_search.permission import Permission
 from apps.log_search.serializers import (
-    AliasSettingsSerializer,
     BcsWebConsoleSerializer,
     ChartSerializer,
     CreateIndexSetFieldsConfigSerializer,
@@ -101,6 +100,8 @@ from apps.log_search.serializers import (
     UnionSearchSearchExportSerializer,
     UpdateIndexSetFieldsConfigSerializer,
     UserIndexSetCustomConfigSerializer,
+    AliasSettingsSerializer,
+    QueryTsRawSerializer,
 )
 from apps.log_search.utils import create_download_response
 from apps.log_unifyquery.builder.context import build_context_params
@@ -114,7 +115,7 @@ from apps.log_unifyquery.handler.context import UnifyQueryContextHandler
 from apps.log_unifyquery.handler.chart import UnifyQueryChartHandler
 from apps.log_unifyquery.handler.tail import UnifyQueryTailHandler
 from apps.utils.drf import detail_route, list_route
-from apps.utils.local import get_request_external_username, get_request_username
+from apps.utils.local import get_request_external_username, get_request_username, get_request_token
 from bkm_space.utils import space_uid_to_bk_biz_id
 
 
@@ -135,7 +136,7 @@ class SearchViewSet(APIViewSet):
             if auth_info and auth_info["bk_app_code"] in settings.ESQUERY_WHITE_LIST:
                 return []
 
-        if self.action in ["operators", "user_search_history"]:
+        if self.action in ["operators", "user_search_history", "search_log_for_code"]:
             return []
 
         if self.action in [
@@ -2050,3 +2051,57 @@ class SearchViewSet(APIViewSet):
     def alias_settings(self, request, index_set_id):
         params = self.params_valid(AliasSettingsSerializer)
         return Response(IndexSetHandler(index_set_id=index_set_id).update_alias_settings(params["alias_settings"]))
+
+    @list_route(methods=["POST"], url_path="search_log_for_code")
+    def search_log_for_code(self, request):
+        """
+        @api {post} /search/index_set/search_log_for_code/ CodeCC日志搜索
+        @apiDescription 根据CodeCC token进行日志搜索，需要在请求头中传入 X-BKLOG-TOKEN
+        @apiParam 接口参数参考query_ts_raw
+        @apiParamExample {Json} 请求参数
+        {
+            "query_list": [
+                {
+                    "data_source": "bklog",
+                    "reference_name": "a",
+                    "time_field": "time",
+                    "query_string": "log:error AND path:/var/log/app/*",
+                    "table_id": "",
+                    "conditions": {"field_list": [], "condition_list": []},
+                    "field_name": "dtEventTimeStamp",
+                    "keep_columns": ["log", "path", "serverIp"]
+                }
+            ],
+            "start_time": "1753859263536",
+            "end_time": "1753945663536",
+            "timezone": "UTC",
+            "from_index": 0,
+            "limit": 10000
+        }
+        @apiSuccessExample {json} 成功返回:
+        {
+                'result': True,
+                'data': {
+                    'total': 1,
+                    'list': [
+                        {
+                            'log': 'Jul 31 11:53:01 VM-6-xxx-centos systemd: Started Session 170380 of user root.',
+                            'path': '/var/log/xxxx'
+                        }
+                    ],
+                    'done': False,
+                    'trace_id': 'xxxxx',
+                    'result_table_options': {
+                        'bklog_index_set_xxx_bklog_codecc.__default__|http://10.x.x.x:xxxx': {
+                            'search_after': [xxxxxx]
+                        }
+                    }
+                },
+                'code': 0,
+                'message': ''
+            }
+        """
+        token = get_request_token()
+        data = self.params_valid(QueryTsRawSerializer)
+        result = UnionSearchHandler.search_log_for_code(token, data)
+        return Response(result)
