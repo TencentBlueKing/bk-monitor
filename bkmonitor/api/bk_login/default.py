@@ -278,3 +278,16 @@ class ListTenantVariablesResource(BkUserApiResource):
 
     action = "/api/v3/open/tenant/common-variables/"
     method = "GET"
+
+
+class BatchQueryUserDisplayInfoResource(BkUserApiResource):
+    """
+    批量查询用户展示信息
+    """
+
+    cache_type = CacheType.USER
+    action = "/api/v3/open/tenant/users/-/display_info/"
+    method = "GET"
+
+    class RequestSerializer(serializers.Serializer):
+        bk_usernames = serializers.CharField(required=True)

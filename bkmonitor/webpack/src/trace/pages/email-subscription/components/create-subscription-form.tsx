@@ -45,9 +45,10 @@ import dayjs from 'dayjs';
 import { logServiceRelationBkLogIndexSet } from 'monitor-api/modules/apm_service';
 import { getExistReports, getVariables } from 'monitor-api/modules/new_report';
 import { copyText, deepClone, transformDataKey } from 'monitor-common/utils';
+import type { IUserInfo } from 'monitor-pc/components/user-selector/user-group';
 import { useI18n } from 'vue-i18n';
 
-import MemberSelect from '../../../components/member-select/member-select';
+import UserSelector from '../../../components/user-selector/user-selector';
 import { Scenario } from '../mapping';
 import { type Report, FrequencyType } from '../types';
 import { getDefaultReportData, switchReportDataForCreate, switchReportDataForUpdate } from '../utils';
@@ -582,6 +583,17 @@ export default defineComponent({
       }
     }
 
+    /** 人员选择器-邮件订阅人值改变后回调 */
+    function handleSubscriberUserChange(userInfos: IUserInfo[]) {
+      subscriberInput.user = userInfos.map(user => ({
+        id: user.id,
+        type: user?.type === 'userGroup' ? 'group' : 'user',
+      }));
+      nextTick(() => {
+        formDataRules.channels[0].validator();
+      });
+    }
+
     watch(
       dataRange,
       () => {
@@ -712,6 +724,7 @@ export default defineComponent({
       timerange,
       handleDatePickerOpen,
       effectiveEndRef,
+      handleSubscriberUserChange,
     };
   },
   render() {
@@ -1172,16 +1185,12 @@ export default defineComponent({
                   <br />
                   {/* 该自定义属性是用来避免正确的输入框显示警告颜色 */}
                   <div data-is-show-error-msg={this.errorTips.user.isShow}>
-                    <MemberSelect
+                    <UserSelector
                       id='user-input'
                       style='width: 465px;'
-                      v-model={this.subscriberInput.user}
+                      modelValue={this.subscriberInput.user.map(user => user.id)}
                       tabindex='1'
-                      onChange={() => {
-                        nextTick(() => {
-                          this.formDataRules.channels[0].validator();
-                        });
-                      }}
+                      onChange={this.handleSubscriberUserChange}
                     />
                     {this.errorTips.user.isShow && <div class='bk-form-error'>{this.errorTips.user.message}</div>}
                   </div>

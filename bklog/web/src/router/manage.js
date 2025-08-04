@@ -121,7 +121,7 @@ const getManageRoutes = () => [
               },
               // 查看采集项
               {
-                path: 'collection-item/manage/:collectorId',
+                path: 'manage/:collectorId',
                 name: 'manage-collection',
                 meta: {
                   title: '日志采集',
@@ -133,7 +133,7 @@ const getManageRoutes = () => [
               },
               // 新建采集项
               {
-                path: 'collection-item/add',
+                path: 'add',
                 name: 'collectAdd',
                 meta: {
                   title: '日志采集',
@@ -145,7 +145,7 @@ const getManageRoutes = () => [
               },
               // 编辑采集项
               {
-                path: 'collection-item/edit/:collectorId',
+                path: 'edit/:collectorId',
                 name: 'collectEdit',
                 meta: {
                   title: '日志采集',
@@ -157,7 +157,7 @@ const getManageRoutes = () => [
               },
               // 字段清洗
               {
-                path: 'collection-item/field/:collectorId',
+                path: 'field/:collectorId',
                 name: 'collectField',
                 meta: {
                   title: '日志采集',
@@ -169,7 +169,7 @@ const getManageRoutes = () => [
               },
               // 存储配置
               {
-                path: 'collection-item/storage/:collectorId',
+                path: 'storage/:collectorId',
                 name: 'collectStorage',
                 meta: {
                   title: '日志采集',
@@ -181,7 +181,7 @@ const getManageRoutes = () => [
               },
               // 脱敏配置
               {
-                path: 'collection-item/masking/:collectorId',
+                path: 'masking/:collectorId',
                 name: 'collectMasking',
                 meta: {
                   title: '日志采集',
@@ -193,7 +193,7 @@ const getManageRoutes = () => [
               },
               // 启用采集项
               {
-                path: 'collection-item/start/:collectorId',
+                path: 'start/:collectorId',
                 name: 'collectStart',
                 meta: {
                   title: '日志采集',
@@ -205,7 +205,7 @@ const getManageRoutes = () => [
               },
               // 停用采集项
               {
-                path: 'collection-item/stop/:collectorId',
+                path: 'stop/:collectorId',
                 name: 'collectStop',
                 meta: {
                   title: '日志采集',
