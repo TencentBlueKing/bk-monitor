@@ -74,6 +74,11 @@ def adapt_non_bkcc_for_bknode(params):
     """
     适配节点管理的space_id
     """
+    # 处理蓝盾业务
+    if scope_list := params.get("scope_list", []):
+        scope_list[0]["scope_id"] = get_non_bkcc_space_related_bkcc_biz_id(scope_list[0]["scope_id"])
+        return params
+
     bk_biz_id = params.get("scope", {}).get("bk_biz_id", 0)
     if not bk_biz_id:
         return params
