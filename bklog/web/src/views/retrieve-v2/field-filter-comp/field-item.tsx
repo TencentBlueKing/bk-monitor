@@ -29,9 +29,8 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import { blobDownload } from '@/common/util';
 
-import AggChart from './agg-chart';
 import { BK_LOG_STORAGE } from '../../../store/store.type';
-
+import AggChart from './agg-chart';
 import FieldAnalysis from './field-analysis';
 import { axiosInstance } from '@/api';
 
@@ -135,7 +134,10 @@ export default class FieldItem extends tsc<object> {
   handleClickAnalysisItem() {
     this.instanceDestroy();
     this.analysisActive = true;
-    this.fieldAnalysisInstance = new FieldAnalysis();
+    this.fieldAnalysisInstance = new FieldAnalysis({
+      router: this.$router,
+      store: this.$store,
+    });
     const indexSetIDs = this.isUnionSearch
       ? this.unionIndexList
       : [window.__IS_MONITOR_COMPONENT__ ? this.$route.query.indexId : this.$route.params.indexId];
@@ -231,7 +233,7 @@ export default class FieldItem extends tsc<object> {
     this.distinctCount = val;
   }
   retuanFieldName() {
-    let name = this[BK_LOG_STORAGE.SHOW_FIELD_ALIAS]
+    let name = this.$store.state.storage[BK_LOG_STORAGE.SHOW_FIELD_ALIAS]
       ? this.fieldItem.query_alias || this.fieldItem.alias_name || this.fieldItem.field_name
       : this.fieldItem.field_name;
     if (this.isFieldObject) {

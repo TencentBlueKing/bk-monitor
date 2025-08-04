@@ -26,9 +26,9 @@
 <template>
   <div :class="['drag-list', { 'is-check': isCheck }]">
     <transition-group
+      v-if="group.panels.length"
       :name="transitionName"
       tag="ul"
-      v-if="group.panels.length"
     >
       <li
         v-for="item in group.panels"
@@ -38,7 +38,8 @@
         :class="[
           { 'is-dragover': dragover.itemId === item.id },
           { 'content-item-check': isCheck },
-          { 'is-hidden': item.hidden }]"
+          { 'is-hidden': item.hidden },
+        ]"
         @dragstart.stop="handleDragStart(item, group, $event)"
         @dragend.stop="handleDragEnd"
         @dragover.stop="handleDragOver(item, group, $event)"
@@ -62,7 +63,7 @@
             :true-value="true"
             :false-value="false"
             :value="checkList.includes(item.id)"
-            @change="(v) => checkChange(v, item)"
+            @change="v => checkChange(v, item)"
           />
           <span class="item-title">{{ item.title }}</span>
           <span class="item-operate">
@@ -81,8 +82,8 @@
       </li>
     </transition-group>
     <div
-      class="content-empty"
       v-else
+      class="content-empty"
       @drop="handleDrop({}, group, $event)"
     >
       <i class="icon-monitor icon-mind-fill" />
@@ -150,7 +151,7 @@ export default class SortDragList extends Vue {
 </script>
 <style lang="scss" scoped>
 .flip-list-move {
-  transition: transform .5s;
+  transition: transform 0.5s;
 }
 
 .drag-list {
@@ -244,7 +245,7 @@ export default class SortDragList extends Vue {
       margin-right: 17px;
       color: #14a568;
       background: #e4faf0;
-      border: 1px solid rgba(20,165,104,.30);
+      border: 1px solid rgba(20, 165, 104, 0.3);
       border-radius: 2px;
     }
 

@@ -34,14 +34,14 @@ import './alarm-dispatch.scss';
 
 const reasonList = [window.i18n.tc('当前工作安排较多'), window.i18n.tc('不在职责范围内'), window.i18n.tc('无法处理')];
 
-interface IProps {
-  show?: boolean;
-  alertIds?: (number | string)[];
-  bizIds?: (number | string)[];
-}
 interface IEvents {
   onShow?: boolean;
   onSuccess?: { ids: string[]; users: string[] };
+}
+interface IProps {
+  alertIds?: (number | string)[];
+  bizIds?: (number | string)[];
+  show?: boolean;
 }
 @Component
 export default class AlarmDispatch extends tsc<IProps, IEvents> {

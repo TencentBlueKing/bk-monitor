@@ -73,9 +73,9 @@ export const initData = () => ({
 });
 
 interface IProps {
+  dutyList?: IDutyListItem[];
   renderKey?: string;
   value?: any;
-  dutyList?: IDutyListItem[];
   onChange?: (_v) => void;
 }
 

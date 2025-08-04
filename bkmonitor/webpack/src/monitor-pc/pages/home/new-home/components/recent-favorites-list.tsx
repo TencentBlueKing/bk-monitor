@@ -1,3 +1,7 @@
+import { Prop, Watch } from 'vue-property-decorator';
+import { Component as tsc } from 'vue-tsx-support';
+
+import { getFunctionShortcut } from 'monitor-api/modules/overview';
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -24,10 +28,6 @@
  * IN THE SOFTWARE.
  */
 import Component from 'vue-class-component';
-import { Prop, Watch } from 'vue-property-decorator';
-import { Component as tsc } from 'vue-tsx-support';
-
-import { getFunctionShortcut } from 'monitor-api/modules/overview';
 
 import emptyImageSrc from '../../../../static/images/png/empty.png';
 import dashboardSrc from '../../../../static/images/png/new-page/dashboard.png';
@@ -166,7 +166,7 @@ export default class RecentFavoritesList extends tsc<IRecentFavoritesListProps> 
   }
 
   // 最近使用列表
-  listItem({ item, title = '', tag = '', type }: { item: any; title?: string; tag?: string; type: string }) {
+  listItem({ item, title = '', tag = '', type }: { item: any; tag?: string; title?: string; type: string }) {
     if (!item) return null;
     return (
       <li

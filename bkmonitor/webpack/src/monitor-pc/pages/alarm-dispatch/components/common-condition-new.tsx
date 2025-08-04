@@ -31,17 +31,17 @@ import { Debounce, deepClone, random } from 'monitor-common/utils';
 
 import HorizontalScrollContainer from '../../../pages/strategy-config/strategy-config-set-new/components/horizontal-scroll-container';
 import { getEventPaths } from '../../../utils';
-import { CONDITIONS, type ICondtionItem, METHODS, type TContionType, type TMthodType, deepCompare } from '../typing';
+import { type ICondtionItem, type TContionType, type TMthodType, CONDITIONS, deepCompare, METHODS } from '../typing';
 import {
-  EKeyTags,
   type ISpecialOptions,
-  KEY_FILTER_TAGS,
-  KEY_TAG_MAPS,
-  NOTICE_USERS_KEY,
   type TGroupKeys,
   type TValueMap,
   conditionCompare,
   conditionsInclues,
+  EKeyTags,
+  KEY_FILTER_TAGS,
+  KEY_TAG_MAPS,
+  NOTICE_USERS_KEY,
 } from '../typing/condition';
 
 import type { TranslateResult } from 'vue-i18n';
@@ -49,42 +49,6 @@ import type { TranslateResult } from 'vue-i18n';
 import './common-condition-new.scss';
 
 const NULL_NAME = `-${window.i18n.t('空')}-`;
-
-interface IProps {
-  value: ICondtionItem[];
-  keyList?: IListItem[];
-  valueList?: IListItem[];
-  valueMap?: TValueMap;
-  groupKeys?: TGroupKeys;
-  groupKey?: string[];
-  readonly?: boolean;
-  specialOptions?: ISpecialOptions;
-  settingsValue?: ICondtionItem[];
-  loading?: boolean;
-  needValidate?: boolean;
-  isOnlyAdd?: boolean;
-  isFormMode?: boolean;
-  refreshStrategyList?: () => Promise<void>;
-  onChange?: (v: ICondtionItem[]) => void;
-  onSettingsChange?: () => void;
-  onValidate?: (v: boolean) => void;
-  onRepeat?: (v: boolean) => void;
-  onValueMapChange?: (v: { key: string; values: { id: string; name: string }[] }) => void;
-  replaceData?: IListItem[];
-}
-
-interface IListItem {
-  id: string;
-  name: string;
-  isCheck?: boolean;
-  isStrategyId?: boolean;
-  strategyIsEnabled?: boolean; // 策略是否开启
-  first_label_name?: string; // 适用于策略id
-  isGroupKey?: boolean; // 是否为二级选项
-  alias?: string; // 别名， 标签和维度的key 需要有别名
-  show?: boolean;
-  isCustomSearch?: boolean; // 是否自定义搜索
-}
 
 enum TypeEnum {
   condition = 'condition',
@@ -95,19 +59,55 @@ enum TypeEnum {
   value = 'value',
 }
 
+interface IListItem {
+  alias?: string; // 别名， 标签和维度的key 需要有别名
+  first_label_name?: string; // 适用于策略id
+  id: string;
+  isCheck?: boolean;
+  isCustomSearch?: boolean; // 是否自定义搜索
+  isGroupKey?: boolean; // 是否为二级选项
+  isStrategyId?: boolean;
+  name: string;
+  show?: boolean;
+  strategyIsEnabled?: boolean; // 策略是否开启
+}
+
+interface IProps {
+  groupKey?: string[];
+  groupKeys?: TGroupKeys;
+  isFormMode?: boolean;
+  isOnlyAdd?: boolean;
+  keyList?: IListItem[];
+  loading?: boolean;
+  needValidate?: boolean;
+  readonly?: boolean;
+  replaceData?: IListItem[];
+  settingsValue?: ICondtionItem[];
+  specialOptions?: ISpecialOptions;
+  value: ICondtionItem[];
+  valueList?: IListItem[];
+  valueMap?: TValueMap;
+  onChange?: (v: ICondtionItem[]) => void;
+  onRepeat?: (v: boolean) => void;
+  onSettingsChange?: () => void;
+  onValidate?: (v: boolean) => void;
+  onValueMapChange?: (v: { key: string; values: { id: string; name: string }[] }) => void;
+  refreshStrategyList?: () => Promise<void>;
+}
+
 interface ITag {
-  type: TypeEnum;
+  active?: boolean;
+  alias?: string; // 别名， 标签和维度的key 需要有别名
   id: string;
   name: string;
-  alias?: string; // 别名， 标签和维度的key 需要有别名
-  active?: boolean;
+  type: TypeEnum;
 }
 interface ITagItem {
   condition: ICondtionItem;
-  tags: ITag[];
+  isExpanded?: boolean;
   isReplace?: boolean;
   max?: number;
-  isExpanded?: boolean;
+  tags: ITag[];
 }
 
 const defaultCondition: ICondtionItem = {

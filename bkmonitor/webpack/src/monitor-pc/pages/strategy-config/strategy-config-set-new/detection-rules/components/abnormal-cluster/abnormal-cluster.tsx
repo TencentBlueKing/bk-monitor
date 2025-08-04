@@ -26,17 +26,17 @@
 import { Component, Emit, InjectReactive, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { CancelToken } from 'monitor-api/index';
+import { CancelToken } from 'monitor-api/cancel';
 import { getIntelligentDetectAccessStatus, getIntelligentModel } from 'monitor-api/modules/strategies';
 
 import IntelligentModelsStore, { IntelligentModelsType } from '../../../../../../store/modules/intelligent-models';
-import { DetectionRuleTypeEnum, type IDetectionTypeRuleData, type MetricDetail } from '../../../typings';
+import { type IDetectionTypeRuleData, type MetricDetail, DetectionRuleTypeEnum } from '../../../typings';
 import Form from '../form/form';
 import {
-  EFormItemValueType,
-  FormItem,
   type IFormDataItem,
   type ISelectOptionItem,
+  EFormItemValueType,
+  FormItem,
   handleCreateModelOptionsDetail,
 } from '../form/utils';
 
@@ -50,25 +50,25 @@ const LEVEL_FIELD = 'level'; /** 告警级别key */
 const MODEL_FIELD = 'plan_id'; /** 模型key */
 const GROUP_FIELD = 'group'; /** 分群key */
 
-interface IOutlierDetecValue {
-  [MODEL_FIELD]: number | string;
-  [GROUP_FIELD]: string[];
-  args?: {
-    [key: string]: any;
-  };
+interface AbnormalClusterEvents {
+  onDataChange: IDetectionTypeRuleData<IOutlierDetecValue>;
+  onModelChange: IModelData;
 }
 
 interface AbnormalClusterProps {
   data?: IDetectionTypeRuleData<IOutlierDetecValue>;
-  readonly?: boolean;
+  interval: number;
   isEdit?: boolean;
   metricData: MetricDetail[];
-  interval: number;
+  readonly?: boolean;
 }
 
-interface AbnormalClusterEvents {
-  onDataChange: IDetectionTypeRuleData<IOutlierDetecValue>;
-  onModelChange: IModelData;
+interface IOutlierDetecValue {
+  [GROUP_FIELD]: string[];
+  [MODEL_FIELD]: number | string;
+  args?: {
+    [key: string]: any;
+  };
 }
 
 @Component({})
@@ -243,10 +243,10 @@ export default class AbnormalCluster extends tsc<AbnormalClusterProps, AbnormalC
     });
     // 根据服务端返回的 is_default 字段 是否 默认选中 特定的模型。
     let defaultSelectModelId = null;
-    if (!!resData.length) {
+    if (resData.length) {
       this.modelList = resData;
       modelItem.options = resData.map(item => {
-        if (!!item.is_default) defaultSelectModelId = item.id;
+        if (item.is_default) defaultSelectModelId = item.id;
         return {
           id: item.id,
           name: item.name,

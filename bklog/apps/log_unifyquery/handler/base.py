@@ -48,7 +48,8 @@ from apps.log_search.models import (
     UserIndexSetSearchHistory,
 )
 from apps.log_search.permission import Permission
-from apps.log_unifyquery.constants import BASE_OP_MAP, MAX_LEN_DICT, REFERENCE_ALIAS
+from apps.log_search.utils import handle_es_query_error
+from apps.log_unifyquery.constants import BASE_OP_MAP, MAX_LEN_DICT
 from apps.log_unifyquery.utils import deal_time_format, transform_advanced_addition
 from apps.utils.cache import cache_five_minute
 from apps.utils.core.cache.cmdb_host import CmdbHostCache
@@ -56,7 +57,8 @@ from apps.utils.ipchooser import IPChooser
 from apps.utils.local import (
     get_local_param,
     get_request_external_username,
-    get_request_username, get_request,
+    get_request_username,
+    get_request,
 )
 from apps.utils.log import logger
 from apps.utils.lucene import EnhanceLuceneAdapter
@@ -203,7 +205,7 @@ class UnifyQueryHandler:
                 raise e
             return {"series": []}
 
-    def query_ts_raw(self, search_dict, raise_exception=False, pre_search=False):
+    def query_ts_raw(self, search_dict, raise_exception=True, pre_search=False):
         """
         查询时序型日志数据
         """
@@ -232,7 +234,7 @@ class UnifyQueryHandler:
         except Exception as e:  # pylint: disable=broad-except
             logger.exception("query ts raw error: %s, search params: %s", e, search_dict)
             if raise_exception:
-                raise e
+                raise handle_es_query_error(e)
             return {"list": []}
 
     def _enhance(self):
@@ -517,6 +519,19 @@ class UnifyQueryHandler:
 
         return is_desensitize
 
+    @staticmethod
+    def generate_reference_name(n: int) -> str:
+        """
+        将数字转换为字母编号，如0->a, 1->b, 25->z, 26->aa, 27->ab等
+        """
+        result = []
+        while n >= 0:
+            result.append(chr(n % 26 + ord("a")))
+            n = n // 26 - 1
+
+        # 反转结果，因为是从最低位开始计算的
+        return "".join(reversed(result))
+
     def init_base_dict(self):
         # 自动周期处理
         if self.search_params.get("interval", "auto") == "auto":
@@ -529,7 +544,7 @@ class UnifyQueryHandler:
         for index, index_info in enumerate(self.index_info_list):
             query_dict = {
                 "data_source": settings.UNIFY_QUERY_DATA_SOURCE,
-                "reference_name": REFERENCE_ALIAS[index],
+                "reference_name": self.generate_reference_name(index),
                 "dimensions": [],
                 "time_field": "time",
                 "conditions": self._transform_additions(index_info),
@@ -541,9 +556,7 @@ class UnifyQueryHandler:
             clustered_rt = None
             if index_info.get("using_clustering_proxy", False):
                 clustered_rt = index_info["indices"]
-            query_dict["table_id"] = BaseIndexSetHandler.get_data_label(
-                index_info["origin_scenario_id"], index_info["index_set_id"], clustered_rt
-            )
+            query_dict["table_id"] = BaseIndexSetHandler.get_data_label(index_info["index_set_id"], clustered_rt)
 
             if self.agg_field:
                 query_dict["field_name"] = self.agg_field

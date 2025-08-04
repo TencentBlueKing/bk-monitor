@@ -25,8 +25,8 @@
 -->
 <template>
   <div
-    class="config-delivery"
     v-bkloading="{ isLoading: loading }"
+    class="config-delivery"
     :class="{ 'need-loading': loading }"
   >
     <template v-if="!isTencentCloudPlugin">
@@ -90,7 +90,7 @@
   </div>
 </template>
 <script>
-import { CancelToken } from 'monitor-api/index';
+import { CancelToken } from 'monitor-api/cancel';
 import {
   collectTargetStatus,
   isTaskReady,
@@ -344,7 +344,7 @@ export default {
       }
     },
     async taskReadyStatusPromise(id) {
-      clearTimeout(timer);
+      clearTimeout(this.timer);
       let timer = null;
       // biome-ignore lint/suspicious/noAsyncPromiseExecutor: <explanation>
       return new Promise(async resolve => {

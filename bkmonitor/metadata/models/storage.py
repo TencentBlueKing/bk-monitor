@@ -699,9 +699,36 @@ class StorageResultTable:
                         new_record.cluster_id,
                     )
 
-                # 刷新RESULT_TABLE_DETAIL路由
-                logger.info("update_storage: table_id->[%s] try to refresh es_table_id_detail", self.table_id)
-                space_client.push_es_table_id_detail(table_id_list=[self.table_id], is_publish=True)
+                records_queryset = StorageClusterRecord.objects.filter(
+                    table_id=self.table_id, cluster_id=new_storage_cluster_id
+                )
+
+                # 若DB中不存在当前集群ID的记录,那么需要额外创建(避免非前端迁移行为导致的路由异常)
+                if not records_queryset.exists():
+                    logger.warning(
+                        "update_storage: table_id->[%s] update es_storage_cluster_id may be failed, no record found",
+                        self.table_id,
+                    )
+                    result_table = ResultTable.objects.get(table_id=self.table_id)
+                    # 先将存量记录的is_current更改为False
+                    StorageClusterRecord.objects.filter(table_id=self.table_id, is_current=True).update(
+                        is_current=False, disable_time=result_table.last_modify_time
+                    )
+
+                    correct_record, _ = StorageClusterRecord.objects.get_or_create(
+                        table_id=self.table_id,
+                        cluster_id=new_storage_cluster_id,
+                        is_current=True,
+                        defaults={"enable_time": result_table.last_modify_time},
+                    )
+
+                # 刷新RESULT_TABLE_DETAIL路由,需要先找到该RT关联的虚拟RT
+                virtual_rt_list = list(
+                    ESStorage.objects.filter(origin_table_id=self.table_id).values_list("table_id", flat=True)
+                )
+                table_ids = [self.table_id] + virtual_rt_list
+                logger.info("update_storage: table_id->[%s] try to refresh es_table_id_detail", json.dumps(table_ids))
+                space_client.push_es_table_id_detail(table_id_list=table_ids, is_publish=True)
             except Exception as e:  # pylint: disable=broad-except
                 logger.warning(
                     "update_storage: table_id->[%s] update es_storage_cluster_id failed,error->[%s]", self.table_id, e
@@ -1804,6 +1831,11 @@ class ESStorage(models.Model, StorageResultTable):
 
     # 对应ResultTable的table_id
     table_id = models.CharField("结果表名", max_length=128)
+
+    # 真实结果表名
+    # 日志平台为适配跨索引集查询,引入了虚拟RT的概念,虚拟RT关联有真实RT,是多对一关系,1个真实RT可以配置多个虚拟RT用于不同的索引集场景
+    # 虚拟RT具备ResultTable,ESStorage,ESFieldQueryAliasOption,但是不具备集群迁移记录,也不会创建物理索引
+    origin_table_id = models.CharField("原始结果表名", max_length=128, blank=True, null=True)
     # 格式化配置字符串，用于追加到table_id后，作为index的创建方案，默认格式类似为20190910194802
     date_format = models.CharField("日期格式化配置", max_length=64, default="%Y%m%d%H")
 
@@ -1939,6 +1971,7 @@ class ESStorage(models.Model, StorageResultTable):
         source_type=constants.EsSourceType.LOG.value,
         index_set=None,
         need_create_index=True,
+        origin_table_id=None,
         **kwargs,
     ):
         """
@@ -1960,6 +1993,7 @@ class ESStorage(models.Model, StorageResultTable):
         :param source_type: 数据源类型，默认日志自建
         :param index_set: 索引集
         :param need_create_index: 是否需要创建索引，默认为 True
+        :param origin_table_id: 原始结果表ID
         :param kwargs: 其他配置参数
         :return:
         """
@@ -2026,6 +2060,7 @@ class ESStorage(models.Model, StorageResultTable):
             source_type=source_type,
             index_set=index_set,
             need_create_index=need_create_index,
+            origin_table_id=origin_table_id,
         )
         logger.info(f"result_table->[{table_id}] now has es_storage will try to create index.")
 
@@ -5078,6 +5113,18 @@ class StorageClusterRecord(models.Model):
             table_id,
             bk_tenant_id,
         )
+
+        # FAKE_TABLE -> FIND ESStorage -> IF GOT REAL -> USE REAL
+        es_storage = ESStorage.objects.get(table_id=table_id, bk_tenant_id=bk_tenant_id)
+
+        if es_storage.origin_table_id:  # 若关联的Storage表记录了原始table_id,那么使用原始table_id去查询历史集群记录
+            logger.info(
+                "compose_table_id_storage_cluster_records: table_id->[%s] has origin_table_id->[%s],will use origin",
+                table_id,
+                es_storage.origin_table_id,
+            )
+            table_id = es_storage.origin_table_id
+
         # 过滤出指定 table_id 且未删除的记录，按 create_time 降序排列
         records = (
             cls.objects.filter(table_id=table_id, is_deleted=False, bk_tenant_id=bk_tenant_id)

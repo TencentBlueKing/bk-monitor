@@ -36,7 +36,7 @@ import DimensionTable from './dimension.table';
 import MetricsCollapse from './metrics-collapse';
 import MetricsView from './metrics-view';
 import TabTitle from './tab-title';
-import { ETabNames, EventReportType, type IAnomalyDimensions, type IInfo } from './types';
+import { type IAnomalyDimensions, type IInfo, ETabNames, EventReportType } from './types';
 
 import type { IDetail } from '../type';
 import type { IPanelModel } from 'monitor-ui/chart-plugins/typings';
@@ -45,24 +45,24 @@ import './aiops-container.scss';
 import '@blueking/functional-dependency/vue2/vue2.css';
 
 interface IPanel {
-  info?: IInfo;
+  [key: string]: any;
   anomaly_dimension_class?: string;
   anomaly_dimensions?: IAnomalyDimensions[];
-  recommended_metric?: IPanelModel[];
-  graph_panels?: IPanelModel[];
-  panels?: IPanelModel[];
   configured_metric?: IPanelModel[];
-  [key: string]: any;
+  graph_panels?: IPanelModel[];
+  info?: IInfo;
+  panels?: IPanelModel[];
+  recommended_metric?: IPanelModel[];
+}
+
+interface IProps {
+  detail?: IDetail;
+  show?: boolean;
 }
 
 interface ITabData {
   dimension?: IPanel;
   index?: IPanel;
-}
-
-interface IProps {
-  show?: boolean;
-  detail?: IDetail;
 }
 
 @Component({

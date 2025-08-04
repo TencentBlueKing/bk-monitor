@@ -26,6 +26,7 @@
 import { Component, Inject, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
+import dayjs from 'dayjs';
 import SetMealDetail from 'fta-solutions/pages/setting/set-meal-detail/set-meal-detail';
 import {
   createAssignGroup,
@@ -47,7 +48,7 @@ import AlarmDispatchAction from './components/alarm-dispatch-action';
 import AlarmUpdateContent from './components/alarm-update-content';
 import CommonCondition from './components/common-condition-new';
 import DebuggingResult from './components/debugging-result';
-import { GROUP_KEYS, type TGroupKeys, type TValueMap, allKVOptions } from './typing/condition';
+import { type TGroupKeys, type TValueMap, allKVOptions, GROUP_KEYS } from './typing/condition';
 import { RuleGroupData } from './typing/index';
 
 import type { EmptyStatusOperationType, EmptyStatusType } from '../../components/empty-status/types';
@@ -133,9 +134,9 @@ export default class AlarmDispatch extends tsc<object> {
 
   /* kv 选项数据 */
   conditionProps: {
+    groupKeys: TGroupKeys;
     keys: { id: string; name: string }[];
     valueMap: TValueMap;
-    groupKeys: TGroupKeys;
   } = {
     keys: [],
     valueMap: new Map(),
@@ -187,7 +188,7 @@ export default class AlarmDispatch extends tsc<object> {
     return this.ruleGroups.map(item => item.priority);
   }
   /** 增加告警组列的排序 */
-  get showRuleGroups() {
+  get showRuleGroups(): RuleGroupData[] {
     const list = deepClone(this.renderGroups || []);
     if (this.sortProp && this.sortOrder && list.length) {
       list.map(item => {
@@ -264,6 +265,8 @@ export default class AlarmDispatch extends tsc<object> {
             isExpan: true,
             ruleData: [],
             editAllowed: !!item?.edit_allowed,
+            updateTime: dayjs(item.update_time).format('YYYY-MM-DD HH:mm:ss'),
+            updateUser: item.update_user,
           })
       ) || [];
     this.loading = false;
@@ -702,6 +705,14 @@ export default class AlarmDispatch extends tsc<object> {
                         </div>
                         {this.renderEditAttribute(item.name, item.ruleData.length, 'name', item.id)}
                         {this.renderEditAttribute(`${this.$t('优先级')}:`, item.priority, 'priority', item.id)}
+                        <div class='expand-update-record'>
+                          <span class='label'>
+                            {`${this.$t('最近更新记录')}: `}
+                            <bk-user-display-name user-id={item.updateUser} />
+                          </span>
+                          <span class='separator' />
+                          <span class='update-time'>{item.updateTime}</span>
+                        </div>
                         <div
                           class={['edit-btn-wrap', { 'edit-btn-disabled': !item.editAllowed }]}
                           v-bk-tooltips={{

@@ -51,8 +51,8 @@
                 placement="top"
               >
                 <i
-                  class="icon-monitor icon-mind-fill"
                   v-show="rules.port.validate"
+                  class="icon-monitor icon-mind-fill"
                 />
                 <div slot="content">
                   {{ rules.port.message }}
@@ -64,8 +64,8 @@
                 :validator="{ content: '' }"
               >
                 <bk-input
-                  class="item-param-input"
                   v-model="info.port"
+                  class="item-param-input"
                   @blur="validatePort(info.port, 'port')"
                 />
               </verify-input>
@@ -80,8 +80,8 @@
             <div class="item-param readonly-container">
               <div class="item-param-name">${host}=</div>
               <bk-input
-                class="item-param-input"
                 v-model="info.url"
+                class="item-param-input"
                 readonly
               />
             </div>
@@ -103,9 +103,9 @@
           <template v-for="(item, index) in paramsList">
             <div
               v-if="!item.hasOwnProperty('visible') && !item.disabled"
+              :key="index"
               class="item-param"
               :class="{ 'input-verify': item.isError }"
-              :key="index"
             >
               <bk-popover
                 class="icon-popover"
@@ -113,8 +113,8 @@
                 placement="top"
               >
                 <i
-                  class="icon-monitor icon-mind-fill"
                   v-show="item.isError"
+                  class="icon-monitor icon-mind-fill"
                 />
                 <div slot="content">
                   {{ item.errorMessage }}
@@ -145,7 +145,7 @@
                   <bk-input
                     v-model="item.default"
                     :class="['item-param-input', { 'value-password': item.type === 'password' }]"
-                    :placeholder="$t('输入参数值')"
+                    :placeholder="$t(item.required ? '输入参数值' : '（选填）请输入参数值')"
                     :type="item.type === 'password' ? 'password' : 'text'"
                     @blur="validatePort(item.default, info.plugin_type === 'SNMP' ? 'snmpPort' : 'jmxPort')"
                   />
@@ -158,7 +158,7 @@
                     'item-param-input',
                     { 'value-password': item.type === 'password' || item.type === 'encrypt' },
                   ]"
-                  :placeholder="$t('输入参数值')"
+                  :placeholder="$t(item.required ? '输入参数值' : '（选填）请输入参数值')"
                   :type="item.type === 'password' || item.type === 'encrypt' ? 'password' : 'text'"
                 />
               </template>
@@ -204,16 +204,16 @@
               >
                 <bk-select
                   v-if="item.type === 'list'"
-                  class="params-select"
                   v-model="item.default"
+                  class="params-select"
                   :clearable="false"
                   @change="handelParamsSelect(item)"
                 >
                   <bk-option
                     v-for="(option, i) in item.election"
-                    :disabled="option.disabled"
                     :id="option.id"
                     :key="i"
+                    :disabled="option.disabled"
                     :name="option.name"
                   />
                 </bk-select>
@@ -221,7 +221,7 @@
                   v-if="item.type === 'text' || item.type === 'password' || item.type === 'encrypt'"
                   v-model="item.default"
                   :class="{ 'value-password': item.type === 'password' || item.type === 'encrypt' }"
-                  :placeholder="$t('输入参数值')"
+                  :placeholder="$t(item.required ? '输入参数值' : '（选填）请输入参数值')"
                   :type="item.type === 'password' || item.type === 'encrypt' ? 'password' : 'text'"
                   @blur="handleValidate(item)"
                 />
@@ -245,9 +245,9 @@
         </div>
         <div class="item-content">
           <bk-select
+            v-model="info.cycle"
             width="180"
             class="cycle-select"
-            v-model="info.cycle"
             :clearable="false"
           >
             <bk-option
@@ -269,8 +269,8 @@
         </div>
         <div class="item-content">
           <bk-tag-input
-            style="width: 940px"
             v-model="snmpTargets"
+            style="width: 940px"
             :allow-auto-match="true"
             :allow-create="true"
             :has-delete-icon="true"
@@ -291,8 +291,8 @@
         <div class="item-content param-container">
           <div
             v-for="(item, index) in info.host_info"
-            class="host-container"
             :key="index"
+            class="host-container"
             @click="debugStatus !== 'debugging' && selectHost(item, index)"
           >
             <span
@@ -322,9 +322,9 @@
       </div>
       <!-- 调试进度 -->
       <div
+        v-show="isShowDebug"
         style="height: 342px"
         class="step-test-item"
-        v-show="isShowDebug"
       >
         <div class="item-label item-label-norequired">
           {{ $t('调试进度') }}
@@ -336,8 +336,8 @@
                 <template v-for="(item, index) in debugHostList">
                   <li
                     v-if="item.ip"
-                    :class="['debug-tab', { 'debug-active': item.osType === activeTab }]"
                     :key="index"
+                    :class="['debug-tab', { 'debug-active': item.osType === activeTab }]"
                     @click="changeTab(index)"
                   >
                     <div class="tab-title">
@@ -371,8 +371,8 @@
                     </div>
                     <!-- 调试命令行 -->
                     <div
-                      :style="{ position: 'absolute', left: `-${index * 180 + 1}px` }"
                       v-show="item.osType === activeTab"
+                      :style="{ position: 'absolute', left: `-${index * 180 + 1}px` }"
                       :class="['debug-preview', { active: item.osType === activeTab }]"
                     >
                       <terminal-instance
@@ -407,8 +407,8 @@
         {{ $t('上一步') }}
       </bk-button>
       <bk-button
-        class="reset-btn mc-btn-add"
         v-show="debugStatus === 'setting' || debugStatus === 'finish'"
+        class="reset-btn mc-btn-add"
         :disabled="debugLoading || !canStartDebug"
         :theme="isFirstDebug ? 'success' : 'default'"
         @click="startDebug"
@@ -416,14 +416,14 @@
         {{ isFirstDebug ? $t('开始调试') : $t('重新调试') }}
       </bk-button>
       <bk-button
-        class="reset-btn btn-debugging mc-btn-add"
         v-show="debugStatus === 'debugging'"
+        class="reset-btn btn-debugging mc-btn-add"
       >
         {{ $t('button-调试中') }}
       </bk-button>
       <bk-button
-        class="mc-btn-add"
         v-authority="{ active: !authority.MANAGE_AUTH }"
+        class="mc-btn-add"
         :disabled="!canSavePlugin"
         theme="primary"
         @click="authority.MANAGE_AUTH ? savePlugin() : handleShowAuthorityDetail()"
@@ -454,7 +454,7 @@
   </div>
 </template>
 <script>
-import { CancelToken } from 'monitor-api/index';
+import { CancelToken } from 'monitor-api/cancel';
 // import MonitorDialog from 'monitor-ui/monitor-dialog/monitor-dialog.vue';
 // import MetricDimension from './metric-dimension/metric-dimension-dialog.vue';
 import {
@@ -609,7 +609,7 @@ export default {
     },
     //  是否显示参数
     isShowParam() {
-      return !!this.info.config_json.find(item => !Object.prototype.hasOwnProperty.call(item, 'visible'));
+      return !!this.info.config_json.find(item => !Object.hasOwn(item, 'visible'));
     },
     //  是否显示调试
     isShowDebug() {
@@ -1045,12 +1045,12 @@ export default {
           if (fieldsName.includes(metric.metric_name)) {
             /** 存在的指标 更新指标和维度*/
             const existItem = temp.find(tem => tem.name === newMetric.name || tem.sourceName === newMetric.name);
-            if (!!existItem) {
+            if (existItem) {
               existItem.value = newMetric.value;
             }
             dimensionsList.forEach(dim => {
               const existItem = temp.find(tem => tem.name === dim.name || tem.sourceName === dim.name);
-              if (!!existItem) {
+              if (existItem) {
                 existItem.value = dim.value;
               } else {
                 temp.push(dim);
@@ -1063,7 +1063,7 @@ export default {
             if (this.checkArrIntersection(groupDim, diemArr)) {
               dimensionsList.forEach(dim => {
                 const existItem = temp.find(tem => tem.name === dim.name || tem.sourceName === dim.name);
-                if (!!existItem) {
+                if (existItem) {
                   existItem.value = dim.value;
                 } else {
                   temp.push(dim);
@@ -1203,7 +1203,7 @@ export default {
           const temp = item.mode === 'collector' ? collector : plugin;
           temp[item.key] = item.default.trim();
           params.target_nodes = this.snmpTargets.map(item => ({ ip: item, bk_cloud_id: 0, bk_supplier_id: 0 }));
-        } else if (pluginType !== 'JMX' && !Object.prototype.hasOwnProperty.call(item, 'visible')) {
+        } else if (pluginType !== 'JMX' && !Object.hasOwn(item, 'visible')) {
           plugin[item.name] = this.getItemParam(item);
         }
       });
@@ -1636,9 +1636,9 @@ export default {
             max-width: 197px;
             padding: 0 10px;
             overflow: hidden;
+            text-overflow: ellipsis;
             line-height: 30px;
             text-align: center;
-            text-overflow: ellipsis;
             white-space: nowrap;
 
             &.param-label-required:after {

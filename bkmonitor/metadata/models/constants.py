@@ -24,7 +24,7 @@ DEFAULT_RP_NAME = "autogen"
 RP_RESOLUTION_MAP = {"1m": RP_1M_RESOLUTION, "5m": RP_5M_RESOLUTION, "1h": RP_1H_RESOLUTION, "12h": RP_12H_RESOLUTION}
 
 # Log Report Default QPS
-LOG_REPORT_MAX_QPS = 50000
+LOG_REPORT_MAX_QPS = 500
 
 # 针对计算平台指标类型默认为double
 METRIC_VALUE_TYPE = "double"
@@ -498,7 +498,6 @@ DT_TIME_STAMP_NANO = "dtEventTimeStampNanos"
 NANO_FORMAT = "date_nanos"
 STRICT_NANO_ES_FORMAT = "strict_date_optional_time_nanos"
 NON_STRICT_NANO_ES_FORMAT = "strict_date_optional_time_nanos||epoch_millis"
-
 
 BASEREPORT_RESULT_TABLE_FIELD_MAP = {
     "cpu_summary": [
@@ -3141,4 +3140,148 @@ BASEREPORT_RESULT_TABLE_FIELD_MAP = {
             "is_disabled": False,
         },
     ],
+}
+
+BASE_EVENT_RESULT_TABLE_FIELD_MAP = {
+    "base_event": [
+        {
+            "field_name": "dimensions",
+            "field_type": "object",
+            "description": "",
+            "unit": "",
+            "tag": "dimension",
+            "is_config_by_user": True,
+            "default_value": None,
+            "alias_name": "",
+            "is_disabled": False,
+        },
+        {
+            "field_name": "event",
+            "field_type": "object",
+            "description": "",
+            "unit": "",
+            "tag": "dimension",
+            "is_config_by_user": True,
+            "default_value": None,
+            "alias_name": "",
+            "is_disabled": False,
+        },
+        {
+            "field_name": "event_name",
+            "field_type": "string",
+            "description": "",
+            "unit": "",
+            "tag": "dimension",
+            "is_config_by_user": True,
+            "default_value": None,
+            "alias_name": "",
+            "is_disabled": False,
+        },
+        {
+            "field_name": "target",
+            "field_type": "string",
+            "description": "",
+            "unit": "",
+            "tag": "dimension",
+            "is_config_by_user": True,
+            "default_value": None,
+            "alias_name": "",
+            "is_disabled": False,
+        },
+        {
+            "field_name": "time",
+            "field_type": "timestamp",
+            "description": "数据上报时间",
+            "unit": "",
+            "tag": "timestamp",
+            "is_config_by_user": True,
+            "default_value": None,
+            "alias_name": "",
+            "is_disabled": False,
+        },
+    ]
+}
+
+BASE_EVENT_RESULT_TABLE_OPTION_MAP = {
+    "base_event": [
+        {
+            "name": "es_unique_field_list",
+            "creator": "system",
+            "value_type": "list",
+            "value": '["event","target","dimensions","event_name","time"]',
+        },
+        {
+            "name": "need_add_time",
+            "creator": "system",
+            "value_type": "bool",
+            "value": "true",
+        },
+        {
+            "name": "time_field",
+            "creator": "system",
+            "value_type": "dict",
+            "value": '{"name":"time","type":"date","unit":"millisecond"}',
+        },
+    ]
+}
+
+BASE_EVENT_RESULT_TABLE_FIELD_OPTION_MAP = {
+    "base_event": [
+        {
+            "value_type": "string",
+            "value": "date_nanos",
+            "creator": "system",
+            "field_name": "time",
+            "name": "es_type",
+        },
+        {
+            "value_type": "string",
+            "value": "epoch_millis",
+            "creator": "system",
+            "field_name": "time",
+            "name": "es_format",
+        },
+        {
+            "value_type": "string",
+            "value": "object",
+            "creator": "system",
+            "field_name": "event",
+            "name": "es_type",
+        },
+        {
+            "value_type": "dict",
+            "value": '{"content":{"type":"text"},"count":{"type":"integer"}}',
+            "creator": "system",
+            "field_name": "event",
+            "name": "es_properties",
+        },
+        {
+            "value_type": "string",
+            "value": "keyword",
+            "creator": "system",
+            "field_name": "target",
+            "name": "es_type",
+        },
+        {
+            "value_type": "string",
+            "value": "object",
+            "creator": "system",
+            "field_name": "dimensions",
+            "name": "es_type",
+        },
+        {
+            "value_type": "bool",
+            "value": "true",
+            "creator": "system",
+            "field_name": "dimensions",
+            "name": "es_dynamic",
+        },
+        {
+            "value_type": "string",
+            "value": "keyword",
+            "creator": "system",
+            "field_name": "event_name",
+            "name": "es_type",
+        },
+    ]
 }

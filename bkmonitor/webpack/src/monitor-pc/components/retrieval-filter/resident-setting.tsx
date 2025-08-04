@@ -30,11 +30,11 @@ import UserConfigMixin from '../../mixins/userStoreConfig';
 import ResidentSettingTransfer from './resident-setting-transfer';
 import SettingKvSelector from './setting-kv-selector';
 import {
-  defaultWhereItem,
-  type IGetValueFnParams,
-  type IWhereValueOptionsItem,
   type IFilterField,
+  type IGetValueFnParams,
   type IWhereItem,
+  type IWhereValueOptionsItem,
+  defaultWhereItem,
   ECondition,
   EFieldType,
 } from './utils';
@@ -49,10 +49,10 @@ export interface IResidentSetting {
 }
 interface IProps {
   fields: IFilterField[];
-  value?: IWhereItem[];
-  residentSettingOnlyId?: string;
   /** 是否根据onlyKey请求默认配置， 否则根据value生成配置 */
   isDefaultSetting?: boolean;
+  residentSettingOnlyId?: string;
+  value?: IWhereItem[];
   getValueFn?: (params: IGetValueFnParams) => Promise<IWhereValueOptionsItem>;
   onChange?: (v: IWhereItem[]) => void;
 }
@@ -230,7 +230,7 @@ class ResidentSetting extends Mixins(UserConfigMixin) {
     };
   }
 
-  getValueFnProxy(params: { search: string; limit: number; field: string }): any | TGetValueFn {
+  getValueFnProxy(params: { field: string; limit: number; search: string }): any | TGetValueFn {
     return new Promise((resolve, _reject) => {
       const fieldType = this.fieldNameMap?.[params.field]?.type;
       this.getValueFn({

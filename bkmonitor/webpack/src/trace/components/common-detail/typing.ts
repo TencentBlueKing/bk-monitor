@@ -1,3 +1,16 @@
+export type CommonDetailType = 'kv' | 'link' | 'list' | 'number' | 'progress' | 'status' | 'string' | 'tag' | 'time';
+
+export interface IDetailItem {
+  children?: Children[];
+  count?: number; // 如果为 0 ，则不需要渲染展开数据
+  isExpand?: boolean; // 是否展开显示
+  isOverflow?: boolean; // 是否已溢出
+  name: string;
+  need_copy?: boolean; // 是否需要复制文本按钮
+  type: CommonDetailType;
+  value: IDetailValItem<CommonDetailType>;
+}
+
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -25,25 +38,6 @@
  */
 export type IDetailValItem<T extends CommonDetailType> = Pick<IDetailItemMap, T>[T];
 
-export type CommonDetailType = 'kv' | 'link' | 'list' | 'number' | 'progress' | 'status' | 'string' | 'tag' | 'time';
-
-interface Children {
-  name: string;
-  type: string;
-  value: string | string[];
-}
-
-export interface IDetailItem {
-  name: string;
-  value: IDetailValItem<CommonDetailType>;
-  type: CommonDetailType;
-  isExpand?: boolean; // 是否展开显示
-  isOverflow?: boolean; // 是否已溢出
-  need_copy?: boolean; // 是否需要复制文本按钮
-  count?: number; // 如果为 0 ，则不需要渲染展开数据
-  children?: Children[];
-}
-
 export interface IStatusData {
   name: string;
   type: string;
@@ -52,6 +46,12 @@ export interface IStatusData {
 
 export interface IStatusDataSubValue {
   name: string;
-  type: string;
   text: string;
+  type: string;
+}
+
+interface Children {
+  name: string;
+  type: string;
+  value: string | string[];
 }

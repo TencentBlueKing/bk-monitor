@@ -36,30 +36,30 @@ import type { TranslateResult } from 'vue-i18n';
 
 import './alert-analyze.scss';
 
+interface IAlertAnalyzeEvent {
+  onAppendQuery: { queryString: string; type: 'add' | 'del' };
+  onDetailFieldChange: string;
+  onFieldChange: string[];
+}
 interface IAlertAnalyzeProps {
-  loading: boolean;
   analyzeData: any;
   analyzeFields: string[];
-  detailFieldData: any;
-  detailField: string;
-  detailLoading: boolean;
   analyzeTagList: ICommonItem[];
   bizIds: number[];
-  searchType?: SearchType;
+  detailField: string;
+  detailFieldData: any;
+  detailLoading: boolean;
   hasSearchParams?: boolean;
+  loading: boolean;
+  searchType?: SearchType;
   clearSearch?: (type: EmptyStatusOperationType) => void;
 }
-interface IAlertAnalyzeEvent {
-  onFieldChange: string[];
-  onDetailFieldChange: string;
-  onAppendQuery: { type: 'add' | 'del'; queryString: string };
-}
-type tableType = 'field' | 'tag';
-
 interface ITabPanelItem {
   id: tableType;
   name: string | TranslateResult;
 }
+
+type tableType = 'field' | 'tag';
 @Component
 export default class AlertAnalyze extends tsc<IAlertAnalyzeProps, IAlertAnalyzeEvent> {
   @Prop({ default: () => [], type: Array }) analyzeData: any;

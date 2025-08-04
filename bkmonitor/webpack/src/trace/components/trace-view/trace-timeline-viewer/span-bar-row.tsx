@@ -25,12 +25,12 @@
  */
 
 import { type PropType, computed, defineComponent } from 'vue';
-import { useI18n } from 'vue-i18n';
-import { Tippy } from 'vue-tippy';
 
 import { Message, Popover } from 'bkui-vue';
 import { bkTooltips } from 'bkui-vue/lib/directives';
 import { copyText } from 'monitor-common/utils';
+import { useI18n } from 'vue-i18n';
+import { Tippy } from 'vue-tippy';
 
 import CrossAppTag from '../../../static/img/cross-app-tag.png';
 import { SPAN_KIND_MAPS } from '../../../store/constant';

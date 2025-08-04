@@ -23,9 +23,9 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, defineComponent, ref, watch, h, Ref, onBeforeUnmount, nextTick, shallowRef } from 'vue';
+import { computed, defineComponent, ref, watch, h, Ref, onBeforeUnmount, nextTick } from 'vue';
 
-import { parseTableRowData, setDefaultTableWidth, TABLE_LOG_FIELDS_SORT_REGULAR } from '@/common/util';
+import { parseTableRowData, setDefaultTableWidth, TABLE_LOG_FIELDS_SORT_REGULAR, xssFilter } from '@/common/util';
 import JsonFormatter from '@/global/json-formatter.vue';
 import useLocale from '@/hooks/use-locale';
 import useResizeObserve from '@/hooks/use-resize-observe';
@@ -44,7 +44,6 @@ import LogResultException from './log-result-exception';
 import {
   LOG_SOURCE_F,
   ROW_EXPAND,
-  ROW_F_JSON,
   ROW_F_ORIGIN_CTX,
   ROW_F_ORIGIN_OPT,
   ROW_F_ORIGIN_TIME,
@@ -102,13 +101,15 @@ export default defineComponent({
     const tableRowConfig = new WeakMap();
     const hasMoreList = ref(true);
     const isPageLoading = ref(RetrieveHelper.isSearching);
+    // 前端本地分页loadmore触发器
+    // renderList 没有使用响应式，这里需要手动触发更新，所以这里使用一个计数器来触发更新
+    const localUpdateCounter = ref(0);
 
-    const renderList = shallowRef([]);
+    let renderList = Object.freeze([]);
     const indexFieldInfo = computed(() => store.state.indexFieldInfo);
     const indexSetQueryResult = computed(() => store.state.indexSetQueryResult);
     const visibleFields = computed(() => store.state.visibleFields);
     const indexSetOperatorConfig = computed(() => store.state.indexSetOperatorConfig);
-    const formatJson = computed(() => store.state.storage[BK_LOG_STORAGE.TABLE_JSON_FORMAT]);
     const tableShowRowIndex = computed(() => store.state.storage[BK_LOG_STORAGE.TABLE_SHOW_ROW_INDEX]);
     const unionIndexItemList = computed(() => store.getters.unionIndexItemList);
     const timeField = computed(() => indexFieldInfo.value.time_field);
@@ -117,7 +118,6 @@ export default defineComponent({
     const kvShowFieldsList = computed(() => indexFieldInfo.value?.fields.map(f => f.field_name));
     const userSettingConfig = computed(() => store.state.retrieve.catchFieldCustomConfig);
     const tableDataSize = computed(() => indexSetQueryResult.value?.list?.length ?? 0);
-    const fieldRequestCounter = computed(() => indexFieldInfo.value.request_counter);
     const isUnionSearch = computed(() => store.getters.isUnionSearch);
     const tableList = computed<Array<any>>(() => Object.freeze(indexSetQueryResult.value?.list ?? []));
     const gradeOption = computed(() => store.state.indexFieldInfo.custom_config?.grade_options ?? { disabled: false });
@@ -140,32 +140,17 @@ export default defineComponent({
     RetrieveHelper.on(RetrieveEvent.SEARCHING_CHANGE, handleSearchingChange);
 
     const setRenderList = (length?) => {
-      const targetLength = length ?? tableDataSize.value;
-      const inteval = 50;
+      const arr = [];
+      const endIndex = length ?? tableDataSize.value;
+      const lastIndex = endIndex <= tableList.value.length ? endIndex : tableList.value.length;
+      for (let i = 0; i < lastIndex; i++) {
+        arr.push({
+          item: tableList.value[i],
+          [ROW_KEY]: `${tableList.value[i].dtEventTimeStamp}_${i}`,
+        });
+      }
 
-      const appendChildNodes = () => {
-        const appendLength = targetLength - renderList.value.length;
-        const stepLength = appendLength > inteval ? inteval : appendLength;
-        const startIndex = renderList.value.length;
-
-        if (appendLength > 0) {
-          const arr = [];
-          const endIndex = startIndex + stepLength;
-          const lastIndex = endIndex <= tableList.value.length ? endIndex : tableList.value.length;
-          for (let i = 0; i < lastIndex; i++) {
-            arr.push({
-              item: tableList.value[i],
-              [ROW_KEY]: `${tableList.value[i].dtEventTimeStamp}_${i}`,
-            });
-          }
-
-          renderList.value = arr;
-          appendChildNodes();
-          return;
-        }
-      };
-
-      appendChildNodes();
+      renderList = arr;
     };
 
     const searchContainerHeight = ref(52);
@@ -192,7 +177,7 @@ export default defineComponent({
               {
                 class: 'time-field',
                 domProps: {
-                  innerHTML: RetrieveHelper.formatDateValue(row[timeField.value], timeFieldType.value),
+                  innerHTML: xssFilter(RetrieveHelper.formatDateValue(row[timeField.value], timeFieldType.value)),
                 },
               },
               [],
@@ -254,9 +239,10 @@ export default defineComponent({
                 }
                 return item;
               });
+              const temporarySortList = syncSpecifiedFieldSort(field.field_name, sortList);
               store.commit('updateLocalSort', true);
               store.commit('updateIndexFieldInfo', { sort_list: updatedSortList });
-              store.commit('updateIndexItemParams', { sort_list: sortList });
+              store.commit('updateIndexItemParams', { sort_list: temporarySortList });
               store.dispatch('requestIndexSetQuery');
             }
           });
@@ -506,7 +492,6 @@ export default defineComponent({
               ref({
                 [ROW_KEY]: rowKey,
                 [ROW_INDEX]: index,
-                [ROW_F_JSON]: formatJson.value,
                 ...getRowConfigWithCache(),
               }),
             );
@@ -560,6 +545,29 @@ export default defineComponent({
       }
     };
 
+    const syncSpecifiedFieldSort = (field_name, updatedSortList) => {
+      const requiredFields = ['gseIndex', 'iterationIndex', 'dtEventTimeStamp'];
+      if (!requiredFields.includes(field_name) || !updatedSortList.length) {
+        return updatedSortList;
+      }
+      const fields = store.state.indexFieldInfo.fields.map(item => item.field_name);
+      const currentSort = updatedSortList.find(([key]) => key === field_name)[1];
+
+      requiredFields.forEach(field => {
+        if (field === field_name) return;
+        if (fields.includes(field)) {
+          const index = updatedSortList.findIndex(([key]) => key === field);
+          const sortItem = [field, currentSort];
+
+          if (index !== -1) {
+            updatedSortList[index] = sortItem;
+          } else {
+            updatedSortList.push(sortItem);
+          }
+        }
+      });
+      return updatedSortList;
+    };
     watch(
       () => [tableShowRowIndex.value],
       () => {
@@ -574,17 +582,7 @@ export default defineComponent({
         refScrollXBar.value?.scrollLeft(0);
         showCtxType.value = props.contentType;
         pageIndex.value = 1;
-        renderList.value = [];
         setRenderList(50);
-        computeRect();
-      },
-    );
-
-    watch(
-      () => [fieldRequestCounter.value],
-      () => {
-        scrollXOffsetLeft = 0;
-        refScrollXBar.value?.scrollLeft(0);
         computeRect();
       },
     );
@@ -595,27 +593,10 @@ export default defineComponent({
         if (!visibleFields.value.length) {
           setFullColumns();
         }
-      },
-    );
 
-    watch(
-      () => isLoading.value,
-      () => {
-        if (!isRequesting.value) {
-          isRequesting.value = true;
-
-          if (isLoading.value) {
-            scrollToTop(0);
-            renderList.value = [];
-            return;
-          }
-
-          setRenderList();
-        }
-
-        if (!isLoading.value) {
-          debounceSetLoading();
-        }
+        scrollXOffsetLeft = 0;
+        refScrollXBar.value?.scrollLeft(0);
+        computeRect(refResultRowBox.value);
       },
     );
 
@@ -683,6 +664,7 @@ export default defineComponent({
         setRenderList(maxLength);
         debounceSetLoading(0);
         nextTick(RetrieveHelper.updateMarkElement.bind(RetrieveHelper));
+        localUpdateCounter.value++;
         return;
       }
 
@@ -713,14 +695,13 @@ export default defineComponent({
 
     const afterScrollTop = () => {
       pageIndex.value = 1;
-
       const maxLength = Math.min(pageSize.value * pageIndex.value, tableDataSize.value);
-      renderList.value = renderList.value.slice(0, maxLength);
+      renderList = renderList.slice(0, maxLength);
     };
 
     // 监听滚动条滚动位置
     // 判定是否需要拉取更多数据
-    const { offsetWidth, scrollWidth, computeRect, scrollToTop } = useLazyRender({
+    const { offsetWidth, scrollWidth, computeRect } = useLazyRender({
       loadMoreFn: loadMoreTableData,
       container: resultContainerIdSelector,
       rootElement: refRootElement,
@@ -731,6 +712,7 @@ export default defineComponent({
       if (refResultRowBox.value && refRootElement.value) {
         refResultRowBox.value.scrollLeft = scrollXOffsetLeft;
         if (refTableHead.value) {
+          refTableHead.value.style.setProperty('width', `${scrollWidth.value}px`);
           refTableHead.value.style.transform = `translateX(-${scrollXOffsetLeft}px)`;
           const fixedRight = refTableHead.value?.querySelector(
             '.bklog-list-row .bklog-row-cell.header-cell.right',
@@ -888,8 +870,30 @@ export default defineComponent({
       ];
     };
 
+    const handleRowClick = (e: MouseEvent, item: any) => {
+      const selection = window.getSelection();
+      const target = e.target as HTMLElement;
+      const expandCell = target.closest('.bklog-row-observe')?.querySelector('.expand-view-wrapper');
+
+      if (
+        target.classList.contains('valid-text') ||
+        expandCell?.contains(target) ||
+        (selection && !selection.isCollapsed && target.contains(selection.anchorNode))
+      ) {
+        return;
+      }
+
+      const config: RowConfig = tableRowConfig.get(item).value;
+      config.expand = !config.expand;
+      nextTick(() => {
+        if (config.expand) {
+          hanldeAfterExpandClick(target);
+        }
+      });
+    };
+
     const renderRowVNode = () => {
-      return renderList.value.map((row, rowIndex) => {
+      return renderList.map((row, rowIndex) => {
         const logLevel = gradeOption.value.disabled ? '' : RetrieveHelper.getLogLevel(row.item, gradeOption.value);
 
         return [
@@ -897,6 +901,7 @@ export default defineComponent({
             key={row[ROW_KEY]}
             class={['bklog-row-container', logLevel ?? 'normal']}
             row-index={rowIndex}
+            on-row-click={e => handleRowClick(e, row.item)}
           >
             {renderRowCells(row.item, rowIndex)}
           </RowRender>,
@@ -922,7 +927,7 @@ export default defineComponent({
 
     const loadingText = computed(() => {
       if (isLoading.value && !isRequesting.value) {
-        return;
+        return '';
       }
 
       if (hasMoreList.value && (isLoading.value || isRending.value)) {
@@ -936,13 +941,42 @@ export default defineComponent({
       return '';
     });
 
+    const updateLoader = () => {
+      if (refLoadMoreElement.value) {
+        const targetElement = refLoadMoreElement.value.firstElementChild as HTMLElement;
+        targetElement.style.width = `${offsetWidth.value}px`;
+        targetElement.textContent = loadingText.value;
+      }
+    };
+
+    const updateRootElementClass = () => {
+      if (refRootElement.value) {
+        refRootElement.value.classList.toggle('has-scroll-x', hasScrollX.value);
+        refRootElement.value.classList.toggle('show-header', showHeader.value);
+      }
+    };
+
+    watch(
+      () => [offsetWidth.value, loadingText.value],
+      () => {
+        updateLoader();
+      },
+    );
+
+    watch(
+      () => [hasScrollX.value, showHeader.value],
+      () => {
+        updateRootElementClass();
+      },
+    );
+
     const renderLoader = () => {
       return (
         <div
           ref={refLoadMoreElement}
-          class={['bklog-requsting-loading']}
+          class='bklog-requsting-loading'
         >
-          <div style={{ width: `${offsetWidth.value}px`, minWidth: '100%' }}>{loadingText.value}</div>
+          <div style='min-width: 100%'></div>
         </div>
       );
     };
@@ -997,37 +1031,6 @@ export default defineComponent({
       );
     };
 
-    const onRootClick = (e: MouseEvent) => {
-      const target = e.target as HTMLElement;
-
-      if (
-        (target?.hasAttribute('data-row-click') && target?.hasAttribute('data-row-index')) ||
-        !(
-          target?.classList.contains('segment-content') ||
-          target?.classList.contains('bklog-json-view-icon-expand') ||
-          target?.classList.contains('bklog-json-view-icon-text') ||
-          target?.classList.contains('black-mark') ||
-          target?.parentElement?.classList.contains('segment-content')
-        )
-      ) {
-        const row = target.hasAttribute('data-row-index') ? target : target.closest('[data-row-click]');
-        const index = parseInt(row?.getAttribute?.('data-row-index') ?? '-1', 10);
-
-        if (index >= 0) {
-          const { item } = renderList[index] ?? {};
-          if (item) {
-            const config: RowConfig = tableRowConfig.get(item).value;
-            config.expand = !config.expand;
-            nextTick(() => {
-              if (config.expand) {
-                hanldeAfterExpandClick(target);
-              }
-            });
-          }
-        }
-      }
-    };
-
     onBeforeUnmount(() => {
       popInstanceUtil.uninstallInstance();
       resetRowListState(-1);
@@ -1045,28 +1048,27 @@ export default defineComponent({
       renderLoader,
       renderHeadVNode,
       getExceptionRender,
-      onRootClick,
       tableDataSize,
       resultContainerId,
       hasScrollX,
       showHeader,
       isRequesting,
       exceptionMsg,
+      localUpdateCounter,
     };
   },
   render() {
     return (
       <div
         ref='refRootElement'
-        class={['bklog-result-container', { 'has-scroll-x': this.hasScrollX, 'show-header': this.showHeader }]}
-        v-bkloading={{ isLoading: this.isTableLoading, opacity: 0.1 }}
-        onClick={this.onRootClick}
+        class='bklog-result-container'
       >
         {this.renderHeadVNode()}
         <div
           id={this.resultContainerId}
           ref='refResultRowBox'
-          class={['bklog-row-box']}
+          class='bklog-row-box'
+          data-local-update-counter={this.localUpdateCounter}
         >
           {this.renderRowVNode()}
         </div>

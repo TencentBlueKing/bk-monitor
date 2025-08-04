@@ -25,17 +25,17 @@
 -->
 <template>
   <div
-    class="node-page-container"
     v-monitor-loading="{ isLoading: loading }"
+    class="node-page-container"
   >
     <div v-show="!showCreateCard">
       <div class="header">
         <div class="create-node">
           <bk-button
-            class="mc-btn-add"
             v-authority="{
               active: !authority.MANAGE_AUTH,
             }"
+            class="mc-btn-add"
             theme="primary"
             @click="authority.MANAGE_AUTH ? addNode() : handleShowAuthorityDetail(uptimeAuth.MANAGE_AUTH)"
           >
@@ -161,8 +161,8 @@
           </bk-table-column>
         </bk-table>
         <div
-          class="uptime-check-node-footer"
           v-show="table.total"
+          class="uptime-check-node-footer"
         >
           <bk-pagination
             class="list-pagination"
@@ -179,8 +179,8 @@
       </div>
     </div>
     <div
-      class="not-nodes"
       v-show="showCreateCard"
+      class="not-nodes"
     >
       <div class="desc">
         {{ $t('暂无拨测节点') }}
@@ -193,10 +193,10 @@
           {{ $t('创建一个私有或云拨测节点，用于探测服务的质量与可用性') }}
         </div>
         <span
-          class="create-btn"
           v-authority="{
             active: !authority.MANAGE_AUTH,
           }"
+          class="create-btn"
           @click="authority.MANAGE_AUTH ? addNode() : handleShowAuthorityDetail(uptimeAuth.MANAGE_AUTH)"
         >
           {{ $t('立即新建') }}

@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Watch, Ref } from 'vue-property-decorator';
+import { Component, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import AIBlueking from '@blueking/ai-blueking/vue2';
@@ -90,18 +90,40 @@ export default class AiBluekingWrapper extends tsc<object> {
         ],
       },
       {
-        id: 'metadata_diagnosis',
-        name: this.$t('链路排障'),
-        // icon: 'bk-icon icon-monitors-cog',
+        id: 'promql_helper',
+        name: this.$t('PromQL助手'),
+        // icon: 'icon-monitor icon-mc-help-fill',
         components: [
           {
             type: 'textarea',
-            key: 'bk_data_id',
-            name: this.$t('数据源ID'),
-            placeholder: this.$t('请输入数据源ID'),
+            key: 'promql',
+            fillBack: true,
+            name: this.$t('指标/PromQL语句'),
+            placeholder: this.$t('请输入指标/PromQL语句'),
+          },
+          {
+            type: 'textarea',
+            key: 'user_demand',
+            fillBack: false,
+            name: this.$t('用户指令'),
+            placeholder: this.$t('请输入用户指令'),
           },
         ],
       },
+      // {
+      //   id: 'metadata_diagnosis',
+      //   name: this.$t('链路排障'),
+      //   // icon: 'bk-icon icon-monitors-cog',
+      //   components: [
+      //     {
+      //       type: 'textarea',
+      //       key: 'bk_data_id',
+      //       fillBack: true,
+      //       name: this.$t('数据源ID'),
+      //       placeholder: this.$t('请输入数据源ID'),
+      //     },
+      //   ],
+      // },
     ];
   }
   @Watch('showDialog')

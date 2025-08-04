@@ -27,23 +27,25 @@
   <monitor-import
     :class="['import-file-wrap', { 'is-error': errMessage }]"
     :return-file-info="true"
-    @change="handleFileImport"
     :accept="accept"
     :base64="base64"
+    @change="handleFileImport"
   >
     <span
       v-show="!fileContent"
       class="placeholder"
-    >{{ localPlaceholder }}</span>
+      >{{ localPlaceholder }}</span
+    >
     <span
       v-show="fileContent"
       class="file-name"
-    >{{ fileName }}</span>
+      >{{ fileName }}</span
+    >
     <bk-icon
+      v-show="fileContent"
       class="clear-icon"
       type="close-circle-shape"
       style="font-size: 14px"
-      v-show="fileContent"
       @click.stop="handleDel"
     />
   </monitor-import>
@@ -54,8 +56,8 @@ import { Component, Emit, Prop, Vue } from 'vue-property-decorator';
 import MonitorImport from '../../../../../components/monitor-import/monitor-import.vue';
 
 interface IFileInfo {
-  name: string;
   fileStr: string;
+  name: string;
   size: number;
 }
 @Component({

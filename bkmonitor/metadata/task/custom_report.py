@@ -8,6 +8,7 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+import datetime
 import logging
 import time
 import traceback
@@ -177,24 +178,38 @@ refresh_all_custom_report_2_node_man = share_lock()(refresh_custom_report_2_node
 
 
 @share_lock()
+def refresh_all_log_config():
+    """
+    刷新所有自定义日志配置（将任务打散在 30 分钟内）
+    """
+    interval = 30
+
+    to_be_refreshed = list(models.LogGroup.objects.filter(is_enable=True).values_list("log_group_id", flat=True))
+    slug = datetime.datetime.now().minute % interval
+    for index, log_group_id in enumerate(to_be_refreshed):
+        if index % interval == slug:
+            logger.info(f"[refresh_custom_log_config]: publish log_group_id [{log_group_id}]")
+            refresh_custom_log_config(log_group_id)
+
+
+@share_lock()
 def refresh_custom_log_config(log_group_id=None):
     """
-    Refresh Custom Log Config to Bk Collector
+    下发单个自定义日志配置
     """
 
-    # Filter All Enabled Log Report Group
-    log_groups = models.LogGroup.objects.filter(is_enable=True)
-    if log_group_id:
-        log_groups = log_groups.filter(log_group_id=log_group_id)
+    if not log_group_id:
+        return
 
-    # Deploy Configs
-    for log_group in log_groups:
-        try:
-            models.LogSubscriptionConfig.refresh(log_group)
-        except Exception as err:
-            logger.exception(
-                "[RefreshCustomLogConfigFailed] Err => %s; LogGroup => %s", str(err), log_group.log_group_id
-            )
+    log_group = models.LogGroup.objects.filter(is_enable=True, log_group_id=log_group_id).first()
+    if log_group is None:
+        return
+
+    try:
+        models.LogSubscriptionConfig.refresh(log_group)
+        models.LogSubscriptionConfig.refresh_k8s(log_group)
+    except Exception as err:  # pylint: disable=broad-except
+        logger.exception("[RefreshCustomLogConfigFailed] Err => %s; LogGroup => %s", str(err), log_group.log_group_id)
 
 
 def check_custom_event_group_sleep():

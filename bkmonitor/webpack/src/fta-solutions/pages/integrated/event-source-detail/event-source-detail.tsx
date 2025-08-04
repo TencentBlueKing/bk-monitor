@@ -36,7 +36,6 @@ import DataStatus from './data-status/data-status';
 import HeaderFunctional from './detail-header/detail-header';
 import TestControl from './test-control/test-control';
 import {
-  EStatusMap,
   type IAlertConfigTable,
   type IBaseInfo,
   type INormalizationTable,
@@ -44,6 +43,7 @@ import {
   type ITabListItem,
   type StatusType,
   bgColorMap,
+  EStatusMap,
   fontColorMap,
   textMap,
 } from './types';
@@ -52,17 +52,17 @@ import './event-source-detail.scss';
 
 const { i18n } = window;
 
-interface IDetail {
-  value?: boolean;
-  id: string;
-  version?: string;
-  onInstall?: (data: IBaseInfo) => void;
-}
-
 enum ETabKey {
   config = 2,
   dataStatus = 3,
   desc = 1,
+}
+
+interface IDetail {
+  id: string;
+  value?: boolean;
+  version?: string;
+  onInstall?: (data: IBaseInfo) => void;
 }
 
 /**

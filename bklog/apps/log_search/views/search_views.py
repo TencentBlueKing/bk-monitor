@@ -34,7 +34,7 @@ from apps.constants import NotifyType, UserOperationActionEnum, UserOperationTyp
 from apps.decorators import user_operation_record
 from apps.exceptions import ValidationError
 from apps.feature_toggle.handlers.toggle import FeatureToggleObject
-from apps.feature_toggle.plugins.constants import LOG_DESENSITIZE, UNIFY_QUERY_SEARCH
+from apps.feature_toggle.plugins.constants import UNIFY_QUERY_SEARCH, UNIFY_QUERY_SQL
 from apps.generic import APIViewSet
 from apps.iam import ActionEnum, ResourceEnum
 from apps.iam.handlers.drf import (
@@ -52,8 +52,10 @@ from apps.log_search.constants import (
     ExportStatus,
     ExportType,
     IndexSetType,
-    QueryMode,
     SearchScopeEnum,
+    QueryMode,
+    SQL_PREFIX,
+    SQL_SUFFIX,
 )
 from apps.log_search.decorators import search_history_record
 from apps.log_search.exceptions import BaseSearchIndexSetException
@@ -73,6 +75,7 @@ from apps.log_search.handlers.search.search_handlers_esquery import UnionSearchH
 from apps.log_search.models import AsyncTask, LogIndexSet
 from apps.log_search.permission import Permission
 from apps.log_search.serializers import (
+    AliasSettingsSerializer,
     BcsWebConsoleSerializer,
     ChartSerializer,
     CreateIndexSetFieldsConfigSerializer,
@@ -108,6 +111,7 @@ from apps.log_unifyquery.handler.async_export_handlers import (
 )
 from apps.log_unifyquery.handler.base import UnifyQueryHandler
 from apps.log_unifyquery.handler.context import UnifyQueryContextHandler
+from apps.log_unifyquery.handler.chart import UnifyQueryChartHandler
 from apps.log_unifyquery.handler.tail import UnifyQueryTailHandler
 from apps.utils.drf import detail_route, list_route
 from apps.utils.local import get_request_external_username, get_request_username
@@ -1917,53 +1921,28 @@ class SearchViewSet(APIViewSet):
         {
           "result": true,
           "data": {
-            "total_records": 2,
-            "time_taken": 0.092,
-            "list": [
-              {
-                "aa": "aa",
-                "number": 16.3
-                "time": 1731260184
-              },
-              {
-                "aa": "bb",
-                "number": 20.56
-                "time": 1731260184
-              }
-            ],
-            "select_fields_order": [
-              "aa",
-              "number",
-              "time"
-            ],
-            "result_schema": [
-            {
-                "field_type": "string",
-                "field_name": "aa",
-                "field_alias": "aa",
-                "field_index": 0
-            },
-            {
-                "field_type": "double",
-                "field_name": "number",
-                "field_alias": "number",
-                "field_index": 1
-            },
-            {
-                "field_type": "long",
-                "field_name": "time",
-                "field_alias": "time",
-                "field_index": 2
-            }
-            ]
-          },
+            "list": [{
+              "__index": "1001.axa.aa",
+              "__result_table": "abcd.__default__",
+              "log": "xxx1",
+              "time": xxx,
+              ...
+              }],
           "code": 0,
           "message": ""
         }
         """
         params = self.params_valid(ChartSerializer)
-        instance = ChartHandler.get_instance(index_set_id=index_set_id, mode=params["query_mode"])
-        result = instance.get_chart_data(params)
+        bk_biz_id = space_uid_to_bk_biz_id(self.get_object().space_uid)
+
+        if FeatureToggleObject.switch(UNIFY_QUERY_SQL, bk_biz_id):
+            params["index_set_ids"] = [index_set_id]
+            params["bk_biz_id"] = bk_biz_id
+            query_handler = UnifyQueryChartHandler(params)
+            result = query_handler.get_chart_data()
+        else:
+            instance = ChartHandler.get_instance(index_set_id=index_set_id, mode=params["query_mode"])
+            result = instance.get_chart_data(params)
         return Response(result)
 
     @detail_route(methods=["POST"], url_path="generate_sql")
@@ -1984,14 +1963,23 @@ class SearchViewSet(APIViewSet):
         }
         """
         params = self.params_valid(UISearchSerializer)
-        data = ChartHandler.generate_sql(
-            addition=params["addition"],
-            start_time=params["start_time"],
-            end_time=params["end_time"],
-            sql_param=params["sql"],
-            keyword=params["keyword"],
-            alias_mappings=params["alias_mappings"],
-        )
+        params["sql"] = params["sql"] or f"{SQL_PREFIX} {SQL_SUFFIX}"
+        bk_biz_id = space_uid_to_bk_biz_id(self.get_object().space_uid)
+
+        if FeatureToggleObject.switch(UNIFY_QUERY_SQL, bk_biz_id):
+            params["index_set_ids"] = [index_set_id]
+            params["bk_biz_id"] = bk_biz_id
+            query_handler = UnifyQueryChartHandler(params)
+            data = query_handler.generate_sql()
+        else:
+            data = ChartHandler.generate_sql(
+                addition=params["addition"],
+                start_time=params["start_time"],
+                end_time=params["end_time"],
+                sql_param=params["sql"],
+                keyword=params["keyword"],
+                alias_mappings=params["alias_mappings"],
+            )
         return Response(data)
 
     @list_route(methods=["POST"], url_path="generate_querystring")
@@ -2057,3 +2045,8 @@ class SearchViewSet(APIViewSet):
         instance = ChartHandler.get_instance(index_set_id=index_set_id, mode=QueryMode.SQL.value)
         data = instance.fetch_grep_query_data(params)
         return Response(data)
+
+    @detail_route(methods=["POST"], url_path="alias_settings")
+    def alias_settings(self, request, index_set_id):
+        params = self.params_valid(AliasSettingsSerializer)
+        return Response(IndexSetHandler(index_set_id=index_set_id).update_alias_settings(params["alias_settings"]))

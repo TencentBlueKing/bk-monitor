@@ -32,7 +32,7 @@ import i18n from './i18n/i18n';
 import { createApp } from 'vue';
 
 import Api from 'monitor-api/api';
-import { setVue } from 'monitor-api/utils/index';
+import { type VueInstance, setVue } from 'monitor-api/utils/index';
 import { immediateRegister } from 'monitor-common/service-worker/service-worker';
 import { getUrlParam, mergeSpaceList, setGlobalBizId } from 'monitor-common/utils';
 
@@ -50,6 +50,7 @@ import 'monitor-pc/static/css/reset.scss';
 import 'monitor-static/icons/monitor-icons.css';
 import '@blueking/tdesign-ui/vue3/index.css';
 import { assignWindowField } from 'monitor-common/utils/assign-window';
+import { userDisplayNameConfigure } from 'monitor-pc/common/user-display-name';
 
 // import 'monitor-pc/tailwind.css';
 window.source_app = 'trace';
@@ -60,7 +61,7 @@ if (process.env.NODE_ENV === 'development') {
 }
 if (window.__POWERED_BY_BK_WEWEB__) {
   const app = createApp(App);
-  setVue(app);
+  setVue(app as VueInstance);
   app.use(store).use(router).use(i18n).use(directives).mount('#app');
   app.config.globalProperties = {
     $api: Api,
@@ -84,8 +85,9 @@ if (window.__POWERED_BY_BK_WEWEB__) {
       window.cc_biz_id = +window.bk_biz_id;
       window.bk_log_search_url = data.BKLOGSEARCH_HOST;
       setGlobalBizId();
+      userDisplayNameConfigure();
       const app = createApp(App);
-      setVue(app);
+      setVue(app as VueInstance);
       app.use(store).use(router).use(i18n).use(directives).mount('#app');
       app.config.globalProperties = {
         $api: Api,

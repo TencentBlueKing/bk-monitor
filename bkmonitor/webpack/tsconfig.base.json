@@ -11,7 +11,7 @@
     "sourceMap": true,
     "pretty": true,
     "jsx": "preserve",
-    "lib": ["ESNext.Array", "es2018", "dom"],
+    "lib": ["es2023", "dom"],
     "removeComments": false
   }
 }

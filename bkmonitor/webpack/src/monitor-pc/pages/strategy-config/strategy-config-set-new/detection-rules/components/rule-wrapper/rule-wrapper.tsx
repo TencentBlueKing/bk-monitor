@@ -27,10 +27,10 @@ import { Component, Emit, Prop, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import {
-  DetectionRuleTypeEnum,
   type IDetectionTypeItem,
   type IDetectionTypeRuleData,
   type MetricDetail,
+  DetectionRuleTypeEnum,
 } from '../../../typings';
 import AbnormalCluster from '../abnormal-cluster/abnormal-cluster';
 import IntelligentDetect, { type ChartType } from '../intelligent-detect/intelligent-detect';
@@ -42,25 +42,25 @@ import YearRound from '../year-round/year-round';
 
 import './rule-wrapper.scss';
 
+interface RuleWrapperEvent {
+  onChartTypeChange: ChartType;
+  onDataChange: IDetectionTypeRuleData;
+  onDelete: void;
+  onInitVM: RuleWrapper;
+  onModelChange: IModelData;
+}
+
 interface RuleWrapperProps {
-  rule: IDetectionTypeItem;
-  index: number;
   data?: IDetectionTypeRuleData;
-  selectRuleData?: IDetectionTypeRuleData[];
-  readonly?: boolean;
+  index: number;
   isEdit?: boolean;
   isRealtime?: boolean;
   metricData?: MetricDetail[];
-  unit?: string;
+  readonly?: boolean;
   resultTableId?: string;
-}
-
-interface RuleWrapperEvent {
-  onDelete: void;
-  onDataChange: IDetectionTypeRuleData;
-  onModelChange: IModelData;
-  onInitVM: RuleWrapper;
-  onChartTypeChange: ChartType;
+  rule: IDetectionTypeItem;
+  selectRuleData?: IDetectionTypeRuleData[];
+  unit?: string;
 }
 
 @Component({})

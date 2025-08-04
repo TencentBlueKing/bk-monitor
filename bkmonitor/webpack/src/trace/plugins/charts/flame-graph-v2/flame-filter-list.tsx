@@ -25,7 +25,7 @@
  */
 import { computed, defineComponent, ref, shallowRef } from 'vue';
 
-import { PrimaryTable, type SortInfo, type TableSort } from '@blueking/tdesign-ui';
+import { type SortInfo, type TableSort, PrimaryTable } from '@blueking/tdesign-ui';
 import { Select } from 'bkui-vue';
 import { getValueFormat } from 'monitor-ui/monitor-echarts/valueFormats';
 
@@ -36,20 +36,13 @@ const usFormat = getValueFormat('µs');
 export type FilterKey = 'kind' | 'name' | 'servce' | 'source';
 
 /**
- * 定义 FilterValueItem 接口，表示过滤器的值的项
- */
-export interface IFilterValueItem {
-  P95: number; // P95 值
-  avg_duration: number; // 平均持续时间
-  count: number; // 计数
-  max_duration: number; // 最大持续时间
-  min_duration: number; // 最小持续时间
-  sum_duration: number; // 总持续时间
-}
-/**
  * 定义 FilterValueKey 类型，表示过滤器的值的键
  */
 export type FilterValueKey = keyof IFilterValueItem;
+export interface IFilterColumnItem<D> {
+  id: D;
+  name: string;
+}
 
 /**
  * 定义 FilterData 接口，表示过滤器的数据
@@ -58,15 +51,22 @@ export interface IFilterData {
   aggregation_key: FilterKey; // 聚合键
   display_name: string; // 显示名称
   items: {
-    key: string; // 键
     display_name: string; // 显示名称
+    key: string; // 键
     values: IFilterValueItem; // 值
   }[];
 }
 
-export interface IFilterColumnItem<D> {
-  id: D;
-  name: string;
+/**
+ * 定义 FilterValueItem 接口，表示过滤器的值的项
+ */
+export interface IFilterValueItem {
+  avg_duration: number; // 平均持续时间
+  count: number; // 计数
+  max_duration: number; // 最大持续时间
+  min_duration: number; // 最小持续时间
+  P95: number; // P95 值
+  sum_duration: number; // 总持续时间
 }
 const FilterValueColumn = [
   {

@@ -37,9 +37,9 @@
         <ul class="preview-tab">
           <li
             v-for="(item, index) in renderData"
+            :key="index"
             class="preview-tab-item"
             :class="{ 'tab-active': tabActive === index }"
-            :key="index"
             @click="handleTabItemClick(item, index)"
           >
             {{ item.label }}
@@ -52,6 +52,7 @@
 </template>
 <script>
 import { renderNoticeTemplate } from 'monitor-api/modules/action';
+import { xssFilter } from 'monitor-common/utils/xss';
 import MonitorDialog from 'monitor-ui/monitor-dialog/monitor-dialog';
 import { createNamespacedHelpers } from 'vuex';
 
@@ -95,7 +96,7 @@ export default {
           ...item,
           tabActive: this.tabActive,
           message: (() => {
-            let sanitizedMessage = item.message.replace(/\n/gim, '</br>');
+            let sanitizedMessage = item.message;
             let previousMessage;
             do {
               previousMessage = sanitizedMessage;
@@ -121,14 +122,22 @@ export default {
             data = await this.getRenderNoticeTemplate({
               scenario: this.scenario,
               template: this.template,
-            }).finally(() => (this.loading = false));
+            }).finally(() => {
+              this.loading = false;
+            });
           } else {
             // 自愈套餐告警模版
-            data = await renderNoticeTemplate({ template: this.template }).finally(() => (this.loading = false));
+            data = await renderNoticeTemplate({ template: this.template }).finally(() => {
+              this.loading = false;
+            });
           }
-          if (data) {
-            this.renderData = data;
-          }
+          this.renderData =
+            data?.filter(item => {
+              if (item.type === 'mail') {
+                return this.template === xssFilter(this.template);
+              }
+              return true;
+            }) || [];
         }
       },
       immediate: true,

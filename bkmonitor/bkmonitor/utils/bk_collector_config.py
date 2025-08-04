@@ -15,6 +15,7 @@ import logging
 from django.conf import settings
 from kubernetes import client
 
+from bkm_space.utils import bk_biz_id_to_space_uid, is_bk_saas_space
 from bkmonitor.utils.bcs import BcsKubeClient
 from bkmonitor.utils.common_utils import safe_int
 from constants.bk_collector import BkCollectorComp
@@ -72,7 +73,16 @@ class BkCollectorConfig:
         """
         获取指定租户指定业务下所有 Proxy 机器列表
         """
-        proxies = api.node_man.get_proxies_by_biz(bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id)
+        space_uid = bk_biz_id_to_space_uid(bk_biz_id)
+        if is_bk_saas_space(space_uid):
+            return []
+
+        try:
+            proxies = api.node_man.get_proxies_by_biz(bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id)
+        except Exception as e:  # pylint: disable=broad-except
+            proxies = []
+            logger.info(f"get_proxies_by_biz({bk_biz_id}) error ({e})")
+
         proxy_biz_ids = {proxy["bk_biz_id"] for proxy in proxies}
         proxy_hosts = []
         for proxy_biz_id in proxy_biz_ids:

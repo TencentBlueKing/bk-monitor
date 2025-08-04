@@ -32,21 +32,21 @@ import type { ChartTitleMenuType, IExtendMetricData, IMenuChildItem, IMenuItem }
 
 import './chart-title-menu.scss';
 
+export interface IChartTitleMenuEvents {
+  onChildMenuToggle: boolean;
+  onMetricSelect?: IExtendMetricData;
+  onSelect?: IMenuItem;
+  onSelectChild: { child: IMenuChildItem; menu: IMenuItem };
+}
 interface IChartTitleProps {
+  drillDownOption?: IMenuChildItem[];
+  list: ChartTitleMenuType[];
   // 指标数据
   metrics?: IExtendMetricData[];
-  list: ChartTitleMenuType[];
   // 是否显示添加指标到策略选项
   showAddMetric?: boolean;
   // 菜单是否展示
   showMenu?: boolean;
-  drillDownOption?: IMenuChildItem[];
-}
-export interface IChartTitleMenuEvents {
-  onSelect?: IMenuItem;
-  onMetricSelect?: IExtendMetricData;
-  onChildMenuToggle: boolean;
-  onSelectChild: { menu: IMenuItem; child: IMenuChildItem };
 }
 @Component
 export default class ChartTitleMenu extends tsc<IChartTitleProps, IChartTitleMenuEvents> {

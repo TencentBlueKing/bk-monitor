@@ -23,10 +23,31 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-const moduleFiles = require.context('./modules', false, /\.js$/);
-const modules = moduleFiles.keys().reduce((modules, modulePath) => {
+
+// webpack require.context 类型定义
+interface RequireContext {
+  keys(): string[];
+  (id: string): any;
+}
+
+declare const require: NodeRequire & {
+  context(directory: string, useSubdirectories?: boolean, regExp?: RegExp): RequireContext;
+};
+
+// 类型定义
+interface ApiModule {
+  [key: string]: any;
+  default: any;
+}
+
+interface ApiModules {
+  [key: string]: any;
+}
+
+const moduleFiles: RequireContext = require.context('./modules', false, /\.js$/);
+const modules: ApiModules = moduleFiles.keys().reduce((modules: ApiModules, modulePath: string) => {
   const moduleName = modulePath.replace(/^\.\/(.*)\.\w+$/, '$1');
-  const value = moduleFiles(modulePath);
+  const value: ApiModule = moduleFiles(modulePath);
   modules[moduleName] = value.default;
   return modules;
 }, {});

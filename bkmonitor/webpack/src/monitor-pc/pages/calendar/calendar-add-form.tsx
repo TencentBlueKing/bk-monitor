@@ -33,29 +33,49 @@ import CalendarAddInput from './calendar-add-input';
 import CalendarInfo, { type IProps as CalendarInfoPrps } from './components/calendar-info/calendar-info';
 import DaysSelect from './components/days-select/days-select';
 import {
-  EDelAndEditType,
-  ERepeatKey,
-  ERepeatTypeId,
   type ICalendarTableItem,
   type IOptionsItem,
   type IRepeatConfig,
-  WORKING_DATE_LIST,
-  Z_INDEX,
+  EDelAndEditType,
+  ERepeatKey,
+  ERepeatTypeId,
   getTimezoneOffset,
   repeatParamsMap,
+  WORKING_DATE_LIST,
+  Z_INDEX,
 } from './types';
 
 import './calendar-add-form.scss';
 
-interface IProps {
-  value?: boolean;
-  calendarList: IOptionsItem[];
-  editData?: ICalendarTableItem;
+/** 表单数据 */
+interface IAddFormData {
+  calendar: number | string;
+  endDate: Date | string;
+  endTime: string;
+  isAllDay: boolean;
+  repeat: ERepeatKey;
+  startDate: Date | string;
+  startTime: string;
+  timeZone: string;
+  title: string;
 }
 interface IEvents {
   onShowChange: boolean;
-  onUpdateList: void;
   onUpdateCalendarList: void;
+  onUpdateList: void;
+}
+interface IProps {
+  calendarList: IOptionsItem[];
+  editData?: ICalendarTableItem;
+  value?: boolean;
+}
+/** 自定义重复表单数据 */
+interface IRepeatFormData {
+  endDate: string;
+  endDateNoRepeat: boolean;
+  repeatDays: Array<number>;
+  repeatNum: number;
+  repeatType: ERepeatTypeId;
 }
 // /** 自定义类型id */
 // export enum ERepeatTypeId {
@@ -67,26 +87,6 @@ interface IEvents {
 interface IRepeatTypeOption {
   id: ERepeatTypeId;
   name: string;
-}
-/** 自定义重复表单数据 */
-interface IRepeatFormData {
-  repeatType: ERepeatTypeId;
-  repeatDays: Array<number>;
-  repeatNum: number;
-  endDate: string;
-  endDateNoRepeat: boolean;
-}
-/** 表单数据 */
-interface IAddFormData {
-  title: string;
-  calendar: number | string;
-  timeZone: string;
-  startDate: Date | string;
-  startTime: string;
-  isAllDay: boolean;
-  endDate: Date | string;
-  endTime: string;
-  repeat: ERepeatKey;
 }
 /**
  * 日历服务新增事项表格
@@ -328,7 +328,7 @@ export default class CalendarAddForm extends tsc<IProps, IEvents> {
     this.addFormRef
       .validate()
       .then(async () => {
-        if (!!this.editData) {
+        if (this.editData) {
           if (this.editData.repeat.freq) {
             this.infoConfig.value = true;
             if (this.editData.is_first) {
@@ -446,7 +446,7 @@ export default class CalendarAddForm extends tsc<IProps, IEvents> {
       repeatType: freq,
       repeatNum: interval,
       repeatDays: every,
-      endDate: !!until ? dayjs.tz(until * 1000).format('YYYY-MM-DD HH:mm:ss') : '',
+      endDate: until ? dayjs.tz(until * 1000).format('YYYY-MM-DD HH:mm:ss') : '',
       endDateNoRepeat: !until,
     };
     if (!freq) {

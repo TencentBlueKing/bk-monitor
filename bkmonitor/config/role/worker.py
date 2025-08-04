@@ -225,6 +225,8 @@ DEFAULT_CRONTAB += [
     ("metadata.task.ping_server.refresh_ping_server_2_node_man", "*/10 * * * *", "global"),
     # metadata同步自定义上报配置到节点管理，完成配置订阅，理论上，在配置变更的时候，会执行一次，所以这里运行周期可以放大
     ("metadata.task.custom_report.refresh_all_custom_report_2_node_man", "*/5 * * * *", "global"),
+    # metadata同步自定义日志配置到节点管理，虽然 1 分钟一次，实际只会运行ID对30取模后和当前分钟对齐的任务
+    ("metadata.task.custom_report.refresh_all_log_config", "* * * * *", "global"),
     # metadata自动部署bkmonitorproxy
     ("metadata.task.auto_deploy_proxy", "30 */2 * * *", "global"),
     ("metadata.task.config_refresh.refresh_kafka_storage", "*/10 * * * *", "global"),
@@ -336,6 +338,10 @@ ANOMALY_RECORD_CONVERGED_ACTION_WINDOW = 3
 
 # access模块策略拉取耗时限制（每10分钟）
 ACCESS_TIME_PER_WINDOW = 30
+
+# access 模块流控数据源列表
+QOS_DATASOURCE_LABELS = []
+QOS_INTERVAL_EXPAND = 3
 
 # 环境变量
 PYTHON_HOME = sys.executable.rsplit("/", 1)[0]  # virtualenv path

@@ -90,7 +90,7 @@ import type { IOption } from '../../pages/performance/performance-type';
 
 @Component({ name: 'dropdown-menu' })
 export default class DropDownMenu extends Vue {
-  @Model('change', { default: '' }) readonly value: string | number;
+  @Model('change', { default: '' }) readonly value: number | string;
   @Prop({ default: () => [], type: Array }) readonly list: IOption[];
   @Prop({ default: '' }) readonly icon: string;
   @Prop({ default: true }) readonly showName: boolean;
@@ -100,7 +100,7 @@ export default class DropDownMenu extends Vue {
   @Prop({ default: false }) readonly isRefreshInterval: boolean;
 
   isDropdownShow = false;
-  active: string | number = '';
+  active: number | string = '';
 
   get currentActive() {
     if (this.list.length && this.active) {
@@ -129,7 +129,7 @@ export default class DropDownMenu extends Vue {
   }
 
   @Emit('change')
-  handleChangeActive(id: string | number) {
+  handleChangeActive(id: number | string) {
     this.active = id;
     return this.active;
   }

@@ -32,73 +32,6 @@ import { CP_METHOD_LIST, INTERVAL_LIST, METHOD_LIST } from '../../../../constant
 import type { IModelData } from '../detection-rules/components/time-series-forecast/time-series-forecast';
 import type { TranslateResult } from 'vue-i18n';
 
-export type unitType = 'm' | 's';
-export interface ICommonItem {
-  id: number | string;
-  name: string | TranslateResult;
-  type?: string;
-  is_dimension?: boolean;
-}
-export interface IMetricDetail {
-  alias?: string;
-  bk_biz_id: number | string;
-  category_display: string;
-  collect_config: string;
-  collect_config_ids: string;
-  collect_interval: number;
-  data_source_label: string;
-  data_target: string;
-  data_type_label: string;
-  default_condition: unknown[];
-  default_dimensions: string[];
-  default_trigger_config: { check_window: number; count: number };
-  description: string;
-  dimensions: ICommonItem[];
-  extend_fields: object;
-  id: number | string;
-  metric_id: number | string;
-  name?: string;
-  index_set_id?: number | string;
-  metric_description: string;
-  metric_field: string;
-  metric_field_name: string;
-  plugin_type: string;
-  related_id: string;
-  related_name: string;
-  result_table_id: string;
-  data_label?: string;
-  result_table_label: string;
-  result_table_label_name: string;
-  result_table_name: string;
-  unit: string;
-  unit_conversion: number;
-  unit_suffix_id: string;
-  unit_suffix_list: ICommonItem[];
-  use_frequency: number;
-  keywords_query_string?: string;
-  query_string?: string;
-  agg_method: string;
-  method_list: string[];
-  agg_interval: number;
-  agg_interval_list: { id: number; name: string }[];
-  level?: number;
-  remarks?: string[];
-  agg_dimension: string[];
-  agg_condition: ICommonItem[];
-  functions: unknown[];
-  objectType?: string;
-  targetType?: string;
-  localQueryString?: string;
-  time_field?: string;
-  intelligent_detect?: Record<string, any>;
-  custom_event_name?: string;
-  bkmonitor_strategy_id?: number;
-  key?: string;
-  index_set_name?: string;
-  metric_type?: MetricType;
-  logMetricList?: IMetricDetail[];
-  sceneConfig?: ISceneConfig;
-}
 export enum MetricType {
   ALERT = 'alert',
   EVENT = 'event',
@@ -108,6 +41,73 @@ export enum MetricType {
   MultivariateAnomalyDetection = 'MultivariateAnomalyDetection',
   TimeSeries = 'time_series',
 }
+export interface ICommonItem {
+  id: number | string;
+  is_dimension?: boolean;
+  name: string | TranslateResult;
+  type?: string;
+}
+export interface IMetricDetail {
+  agg_condition: ICommonItem[];
+  agg_dimension: string[];
+  agg_interval: number;
+  agg_interval_list: { id: number; name: string }[];
+  agg_method: string;
+  alias?: string;
+  bk_biz_id: number | string;
+  bkmonitor_strategy_id?: number;
+  category_display: string;
+  collect_config: string;
+  collect_config_ids: string;
+  collect_interval: number;
+  custom_event_name?: string;
+  data_label?: string;
+  data_source_label: string;
+  data_target: string;
+  data_type_label: string;
+  default_condition: unknown[];
+  default_dimensions: string[];
+  default_trigger_config: { check_window: number; count: number };
+  description: string;
+  dimensions: ICommonItem[];
+  extend_fields: object;
+  functions: unknown[];
+  id: number | string;
+  index_set_id?: number | string;
+  index_set_name?: string;
+  intelligent_detect?: Record<string, any>;
+  key?: string;
+  keywords_query_string?: string;
+  level?: number;
+  localQueryString?: string;
+  logMetricList?: IMetricDetail[];
+  method_list: string[];
+  metric_description: string;
+  metric_field: string;
+  metric_field_name: string;
+  metric_id: number | string;
+  metric_type?: MetricType;
+  name?: string;
+  objectType?: string;
+  plugin_type: string;
+  query_string?: string;
+  related_id: string;
+  related_name: string;
+  remarks?: string[];
+  result_table_id: string;
+  result_table_label: string;
+  result_table_label_name: string;
+  result_table_name: string;
+  sceneConfig?: ISceneConfig;
+  targetType?: string;
+  time_field?: string;
+  unit: string;
+  unit_conversion: number;
+  unit_suffix_id: string;
+  unit_suffix_list: ICommonItem[];
+  use_frequency: number;
+}
+export type unitType = 'm' | 's';
 
 // 系统或插件指标前缀（result_table_id）
 const sysOrPluginMetricsPrefix = [
@@ -127,6 +127,133 @@ const metricByType = {
   service: ['bk_target_service_instance_id'],
   node: ['bk_obj_id', 'bk_inst_id'],
 };
+// 检测规则算法类型枚举
+export enum DetectionRuleTypeEnum {
+  /** 离群检测 */
+  AbnormalCluster = 'AbnormalCluster',
+  /** 环比高级 */
+  AdvancedRingRatio = 'AdvancedRingRatio',
+  /** 同比高级 */
+  AdvancedYearRound = 'AdvancedYearRound',
+  /** 单指标异常检测 */
+  IntelligentDetect = 'IntelligentDetect',
+  /** 部分节点数 */
+  PartialNodes = 'PartialNodes',
+  /** 环比策略(大类) */
+  RingRatio = 'RingRatio',
+  /** 环比振幅 */
+  RingRatioAmplitude = 'RingRatioAmplitude',
+  /** 环比简易 */
+  SimpleRingRatio = 'SimpleRingRatio',
+  /** 同比简易 */
+  SimpleYearRound = 'SimpleYearRound',
+  /** 静态阈值 */
+  Threshold = 'Threshold',
+  /** 时序预测 */
+  TimeSeriesForecasting = 'TimeSeriesForecasting',
+  /** 同比策略(大类) */
+  YearRound = 'YearRound',
+  /** 同比振幅 */
+  YearRoundAmplitude = 'YearRoundAmplitude',
+  /** 同比区间 */
+  YearRoundRange = 'YearRoundRange',
+}
+
+export type dataModeType = 'converge' | 'realtime';
+
+export type EditModeType = 'Edit' | 'Source';
+export interface IBaseInfoRouteParams {
+  name: string; // 策略名
+  scenario: string; // 监控对象
+}
+
+export interface IDetectionConfig {
+  connector: 'and' | 'or';
+  data: any[];
+  query_configs?: any;
+  unit: string;
+  unitList: ICommonItem[];
+  unitType: string;
+}
+
+export interface IDetectionType {
+  default?: any;
+  disabled?: boolean;
+  id: string;
+  name: string | TranslateResult;
+  show: boolean;
+}
+
+// 检测规则算法类型结构
+export interface IDetectionTypeItem {
+  /** 算法类型中包含的子类型如: 简易,高级，振幅 */
+  child?: DetectionRuleTypeEnum[];
+  /** 算法类型所填写数据 */
+  data?: IDetectionTypeRuleData;
+  /** 算法是否禁用 */
+  disabled: boolean;
+  /** 算法禁用提示 */
+  disabledTip: string;
+  /** 算法icon */
+  icon: any;
+  /** 算法类型 */
+  id: DetectionRuleTypeEnum;
+  /** 前端生成的唯一key，没有特殊含义 */
+  key?: string;
+  /** 模型说明 */
+  modelData?: IModelData;
+  /** 算法名称 */
+  name: string;
+  /** 算法类型提示 */
+  tip: string;
+  /** 算法所属大类 ai 智能算法 convention 常规算法 */
+  type: 'ai' | 'convention';
+}
+
+export interface IDetectionTypeRuleData<T = any> {
+  config: T;
+  level: number;
+  type: DetectionRuleTypeEnum;
+}
+
+export interface IMetricMetaData {
+  dataSourceLabel: string;
+  dataTypeLabel: string;
+  objectType: string;
+}
+
+export interface IScenarioItem {
+  children?: IScenarioItem[];
+  id: string;
+  name: string;
+}
+
+/* 场景异常检测类型 此类型数据结构与其他几项数据结构不同 */
+export interface ISceneConfig {
+  algorithms: any[];
+  query_configs: any[];
+  scene_name?: string;
+}
+/* source模式下 sourceData */
+export interface ISourceData {
+  errorMsg?: string;
+  promqlError?: boolean;
+  sourceCode: string;
+  sourceCodeCache?: string;
+  step: number | string;
+}
+
+/** 条件类型 */
+export interface IWhereItem {
+  condition?: 'and' | 'or';
+  key: string;
+  method: string;
+  value: number[] | string[];
+}
+
+// 策略类型
+export type strategyType = 'fta' | 'monitor';
+
 export class MetricDetail {
   _agg_condition = [];
   agg_dimension: string[] = [];
@@ -447,131 +574,4 @@ export class MetricDetail {
   setMetricType(type: MetricType) {
     this.metric_type = type;
   }
-}
-
-export interface IMetricMetaData {
-  dataSourceLabel: string;
-  dataTypeLabel: string;
-  objectType: string;
-}
-
-export interface IScenarioItem {
-  id: string;
-  name: string;
-  children?: IScenarioItem[];
-}
-export type dataModeType = 'converge' | 'realtime';
-
-export interface IDetectionConfig {
-  unit: string;
-  unitType: string;
-  unitList: ICommonItem[];
-  connector: 'and' | 'or';
-  data: any[];
-  query_configs?: any;
-}
-
-// 检测规则算法类型枚举
-export enum DetectionRuleTypeEnum {
-  /** 离群检测 */
-  AbnormalCluster = 'AbnormalCluster',
-  /** 环比高级 */
-  AdvancedRingRatio = 'AdvancedRingRatio',
-  /** 同比高级 */
-  AdvancedYearRound = 'AdvancedYearRound',
-  /** 单指标异常检测 */
-  IntelligentDetect = 'IntelligentDetect',
-  /** 部分节点数 */
-  PartialNodes = 'PartialNodes',
-  /** 环比策略(大类) */
-  RingRatio = 'RingRatio',
-  /** 环比振幅 */
-  RingRatioAmplitude = 'RingRatioAmplitude',
-  /** 环比简易 */
-  SimpleRingRatio = 'SimpleRingRatio',
-  /** 同比简易 */
-  SimpleYearRound = 'SimpleYearRound',
-  /** 静态阈值 */
-  Threshold = 'Threshold',
-  /** 时序预测 */
-  TimeSeriesForecasting = 'TimeSeriesForecasting',
-  /** 同比策略(大类) */
-  YearRound = 'YearRound',
-  /** 同比振幅 */
-  YearRoundAmplitude = 'YearRoundAmplitude',
-  /** 同比区间 */
-  YearRoundRange = 'YearRoundRange',
-}
-
-export interface IDetectionType {
-  id: string;
-  name: string | TranslateResult;
-  show: boolean;
-  disabled?: boolean;
-  default?: any;
-}
-
-// 检测规则算法类型结构
-export interface IDetectionTypeItem {
-  /** 算法类型 */
-  id: DetectionRuleTypeEnum;
-  /** 算法类型中包含的子类型如: 简易,高级，振幅 */
-  child?: DetectionRuleTypeEnum[];
-  /** 算法所属大类 ai 智能算法 convention 常规算法 */
-  type: 'ai' | 'convention';
-  /** 前端生成的唯一key，没有特殊含义 */
-  key?: string;
-  /** 算法名称 */
-  name: string;
-  /** 算法icon */
-  icon: any;
-  /** 算法类型所填写数据 */
-  data?: IDetectionTypeRuleData;
-  /** 算法类型提示 */
-  tip: string;
-  /** 算法是否禁用 */
-  disabled: boolean;
-  /** 算法禁用提示 */
-  disabledTip: string;
-  /** 模型说明 */
-  modelData?: IModelData;
-}
-
-export interface IDetectionTypeRuleData<T = any> {
-  type: DetectionRuleTypeEnum;
-  level: number;
-  config: T;
-}
-
-export interface IBaseInfoRouteParams {
-  scenario: string; // 监控对象
-  name: string; // 策略名
-}
-
-// 策略类型
-export type strategyType = 'fta' | 'monitor';
-export type EditModeType = 'Edit' | 'Source';
-
-/** 条件类型 */
-export interface IWhereItem {
-  condition?: 'and' | 'or';
-  key: string;
-  method: string;
-  value: number[] | string[];
-}
-
-/* source模式下 sourceData */
-export interface ISourceData {
-  sourceCode: string;
-  step: number | string;
-  sourceCodeCache?: string;
-  promqlError?: boolean;
-  errorMsg?: string;
-}
-
-/* 场景异常检测类型 此类型数据结构与其他几项数据结构不同 */
-export interface ISceneConfig {
-  query_configs: any[];
-  algorithms: any[];
-  scene_name?: string;
 }
