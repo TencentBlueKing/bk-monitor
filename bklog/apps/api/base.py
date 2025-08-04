@@ -216,6 +216,7 @@ class DataAPI:
         default_timeout=60,
         data_api_retry_cls=None,
         use_superuser=False,
+        no_query_params=False,
         pagination_style=PaginationStyle.LIMIT_OFFSET.value,
         bk_tenant_id: str | Callable[[dict], str] = "",
     ):
@@ -271,6 +272,7 @@ class DataAPI:
 
         self.bk_tenant_id = bk_tenant_id
         self.headers = None
+        self.no_query_params = no_query_params
 
     def __call__(
         self,
@@ -543,6 +545,8 @@ class DataAPI:
 
         # 发出请求并返回结果
         query_params = {"bklog_request_id": request_id}
+        if self.no_query_params:
+            query_params = {}
         non_file_data, file_data = self._split_file_data(params)
         if self.method.upper() == "GET":
             params.update(query_params)

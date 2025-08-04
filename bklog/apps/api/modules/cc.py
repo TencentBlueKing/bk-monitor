@@ -101,6 +101,7 @@ class _CCApi:
             description="查询模块",
             url_keys=["bk_supplier_account", "bk_biz_id", "bk_set_id"],
             before_request=get_supplier_account_before,
+            no_query_params=True,
             use_superuser=True,
             bk_tenant_id=biz_to_tenant_getter(),
         )
