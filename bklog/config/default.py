@@ -543,7 +543,7 @@ REDIRECT_FIELD_NAME = "c_url"
 # 验证登录的cookie名
 BK_COOKIE_NAME = "bk_token"
 
-BK_SUPPLIER_ACCOUNT = os.getenv("BKAPP_BK_SUPPLIER_ACCOUNT", "")
+BK_SUPPLIER_ACCOUNT = os.getenv("BKAPP_BK_SUPPLIER_ACCOUNT", "0")
 
 # 数据库初始化 管理员列表
 ADMIN_USERNAME_LIST = ["admin"]
