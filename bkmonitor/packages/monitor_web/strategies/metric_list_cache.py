@@ -1258,9 +1258,27 @@ class BkMonitorLogCacheManager(BaseMetricCacheManager):
     def get_available_biz_ids(cls, bk_tenant_id: str) -> list:
         """
         获取监控日志的可用biz_id列表
+        只返回实际配置了日志采集或SNMP Trap的业务ID
         """
-        # 返回全量数据
-        return super().get_available_biz_ids(bk_tenant_id=bk_tenant_id)
+        # 查询所有日志和SNMP TRAP类型的采集配置
+        collect_configs = CollectConfigMeta.objects.filter(
+            Q(collect_type=CollectConfigMeta.CollectType.SNMP_TRAP) | Q(collect_type=CollectConfigMeta.CollectType.LOG),
+            bk_tenant_id=bk_tenant_id,
+        )
+
+        # 提取不同的业务ID
+        available_biz_ids = set()
+        for config in collect_configs:
+            if config.bk_biz_id is not None and config.bk_biz_id > 0:
+                available_biz_ids.add(config.bk_biz_id)
+
+        # 如果没有配置采集项，需要返回空列表
+        if not available_biz_ids:
+            logger.info("No log or SNMP trap collection configurations found, returning empty list")
+            return []
+
+        logger.info(f"Found {len(available_biz_ids)} business with log monitoring capabilities")
+        return list(available_biz_ids)
 
 
 class BaseAlarmMetricCacheManager(BaseMetricCacheManager):
