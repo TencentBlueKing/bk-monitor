@@ -25,8 +25,8 @@
 -->
 <template>
   <div
-    class="global-config"
     v-monitor-loading="{ isLoading: loading }"
+    class="global-config"
   >
     <bk-form v-bind="formProps">
       <bk-form-item
@@ -37,9 +37,9 @@
           <ul class="channel-list">
             <li
               v-for="item in staticForm.ENABLED_NOTICE_WAYS"
+              :key="item.id"
               class="channel-list-item"
               :class="{ 'is-checked': item.check }"
-              :key="item.id"
               @click="item.check = !item.check"
             >
               <bk-checkbox
@@ -63,9 +63,9 @@
               {{ $t('配置指引') }}
             </span>
             <div
+              v-show="validate.channel && isValidateChannel"
               style="bottom: -18px"
               class="error-message"
-              v-show="validate.channel && isValidateChannel"
             >
               {{ $t('选择消息通知渠道') }}
             </div>
@@ -76,16 +76,16 @@
         <ul class="notice-list">
           <li
             v-for="item in staticForm.MESSAGE_QUEUE_DSN"
-            class="notice-list-item"
             :key="item.id"
+            class="notice-list-item"
           >
             <bk-checkbox v-model="item.check">
               {{ item.name }}
             </bk-checkbox>
             <template v-if="item.id === 'message-queue'">
               <div
-                class="message-set"
                 v-show="item.check"
+                class="message-set"
               >
                 <bk-select
                   :style="{ marginBottom: item.check ? '5px' : '0px' }"
@@ -102,13 +102,13 @@
                   />
                 </bk-select>
                 <bk-input
-                  class="message-set-input"
                   v-model="item.value"
+                  class="message-set-input"
                   :placeholder="item.placeholder"
                 />
                 <div
-                  class="error-message"
                   v-show="validate.notice && isValidateNotice"
+                  class="error-message"
                 >
                   {{ $t('输入正确的格式') }}
                 </div>

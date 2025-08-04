@@ -24,9 +24,9 @@
  * IN THE SOFTWARE.
  */
 import { type PropType, defineComponent, ref } from 'vue';
-import { useI18n } from 'vue-i18n';
 
 import { TagInput } from 'bkui-vue';
+import { useI18n } from 'vue-i18n';
 
 import AngleLeftIcon from './icons/angle-left.svg';
 import AngleRightIcon from './icons/angle-right.svg';

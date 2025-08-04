@@ -1,6 +1,3 @@
-import { Component, Emit, Prop, Ref, Watch } from 'vue-property-decorator';
-import { Component as tsc } from 'vue-tsx-support';
-
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -28,6 +25,9 @@ import { Component as tsc } from 'vue-tsx-support';
  */
 import type { PropType } from 'vue';
 
+import { Component, Emit, Prop, Ref, Watch } from 'vue-property-decorator';
+import { Component as tsc } from 'vue-tsx-support';
+
 import './add-group-dialog.scss';
 
 enum EPreviewFlag {
@@ -36,15 +36,15 @@ enum EPreviewFlag {
   Preview_Started = 2,
 }
 
+interface IGroupConfig {
+  auto_rules?: string[];
+  manual_list?: string[];
+  name: string;
+}
 interface IGroupInfo {
+  manualList: string[];
   name: string;
   rules: string;
-  manualList: string[];
-}
-interface IGroupConfig {
-  name: string;
-  manual_list?: string[];
-  auto_rules?: string[];
 }
 
 @Component
@@ -86,7 +86,7 @@ export default class AddGroupDialog extends tsc<any> {
   /**
    * 获取指标名称列表
    */
-  get metricNameList(): Array<{ name: string; description: string }> {
+  get metricNameList(): Array<{ description: string; name: string }> {
     return this.metricList.map(item => ({ name: item.name, description: item.description }));
   }
 

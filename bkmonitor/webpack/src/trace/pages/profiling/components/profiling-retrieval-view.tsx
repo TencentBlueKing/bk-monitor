@@ -24,10 +24,10 @@
  * IN THE SOFTWARE.
  */
 import { type PropType, defineComponent, watch } from 'vue';
-import { ref, reactive, computed } from 'vue';
-import { useI18n } from 'vue-i18n';
+import { computed, reactive, ref } from 'vue';
 
 import { Button } from 'bkui-vue';
+import { useI18n } from 'vue-i18n';
 
 import ProfilingGraph from '../../../plugins/charts/profiling-graph/profiling-graph';
 import ComparisonChart from './comparison-chart';

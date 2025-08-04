@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 import logging
 
 from alarm_backends.core.alert import Alert
@@ -23,6 +22,14 @@ def check_action_and_composite(
     :param retry_times: 重试次数，最大为2
     :return:
     """
+    if retry_times > 2:
+        logger.info(
+            "[composite] alert(%s) strategy(%s) retry times exceed 2, skip it",
+            alert_key.alert_id,
+            alert_key.strategy_id,
+        )
+        return
+
     logger.info(
         "[composite] alert(%s) strategy(%s) begin: alert_key(%s)", alert_key.alert_id, alert_key.strategy_id, alert_key
     )
@@ -57,7 +64,10 @@ def check_action_and_composite(
     try:
         with metrics.COMPOSITE_PROCESS_TIME.labels(strategy_id=metrics.TOTAL_TAG).time():
             processor = CompositeProcessor(
-                alert=alert, alert_status=alert_status, composite_strategy_ids=composite_strategy_ids
+                alert=alert,
+                alert_status=alert_status,
+                composite_strategy_ids=composite_strategy_ids,
+                retry_times=retry_times,
             )
             processor.process()
     except Exception as e:

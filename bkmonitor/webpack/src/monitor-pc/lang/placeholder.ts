@@ -40,6 +40,7 @@ export default {
   输入子标题: 'Enter a subtitle',
   输入参数名: 'Enter parameter name',
   输入参数值: 'Enter parameter value',
+  '（选填）请输入参数值': '（Optional）Enter parameter value',
   输入关键字: 'Enter keywords',
   输入任务名称: 'Enter task name',
   输入合法端口: 'Enter a valid port',
@@ -331,4 +332,6 @@ export default {
   待翻译文本: 'Text to be translated',
   解释: 'Explanation',
   翻译: 'Translation',
+  '高度自适应，宽度最大值为': 'Adaptive height, maximum width of',
+  数值: 'Number',
 };

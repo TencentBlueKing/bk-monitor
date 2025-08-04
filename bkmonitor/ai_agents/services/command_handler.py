@@ -21,6 +21,9 @@ class CommandHandler(ABC):
     快捷指令处理器基类
     """
 
+    agent_code = None
+    command = None
+
     @abstractmethod
     def get_template(self) -> str:
         """获取命令对应的提示词模板"""
@@ -52,6 +55,8 @@ class CommandHandler(ABC):
 
 
 class TranslateCommandHandler(CommandHandler):
+    command = "translate"
+
     def get_template(self) -> str:
         return """
         请将以下内容翻译为{language}:
@@ -68,10 +73,32 @@ class TranslateCommandHandler(CommandHandler):
 
 
 class ExplanationCommandHandler(CommandHandler):
+    command = "explanation"
+
     def get_template(self) -> str:
         return """
         请解释以下内容{content}
         解释要求: 确保解释准确无误，无需冗余回答内容
+        """
+
+
+class MetadataDiagnosisCommandHandler(CommandHandler):
+    command = "metadata_diagnosis"
+
+    def get_template(self) -> str:
+        return """
+        请帮助我分析排障,数据源ID为{bk_data_id}
+        """
+
+
+class PromQLHelperCommandHandler(CommandHandler):
+    command = "promql_helper"
+
+    def get_template(self) -> str:
+        return """
+        请根据用户的需求,生成PromQL查询语句
+        指标/语句:{promql}
+        用户需求:{user_demand}
         """
 
 
@@ -102,3 +129,5 @@ class CommandProcessor:
 # 注册处理器
 CommandProcessor.register_handler("translate", TranslateCommandHandler)
 CommandProcessor.register_handler("explanation", ExplanationCommandHandler)
+CommandProcessor.register_handler("metadata_diagnosis", MetadataDiagnosisCommandHandler)
+CommandProcessor.register_handler("promql_helper", PromQLHelperCommandHandler)

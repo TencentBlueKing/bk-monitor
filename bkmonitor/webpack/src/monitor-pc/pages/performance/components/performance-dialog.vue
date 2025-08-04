@@ -26,8 +26,8 @@
 <template>
   <transition name="ease">
     <div
-      class="dialog"
       v-show="value"
+      class="dialog"
     >
       <div class="dialog-header">
         <slot name="header">
@@ -61,13 +61,15 @@
             :loading="loading"
             class="mr8"
             @click="handleCancel"
-          >{{ cancelText }}</bk-button>
+            >{{ cancelText }}</bk-button
+          >
           <bk-button
+            v-show="showUndo"
             :disabled="loading"
             :loading="loading"
-            v-show="showUndo"
             @click="handleUndo"
-          >{{ $t('还原默认') }}</bk-button>
+            >{{ $t('还原默认') }}</bk-button
+          >
         </slot>
       </div>
     </div>
@@ -111,7 +113,7 @@ export default class Dialog extends Vue {
   width: 360px;
   background: #fff;
   border-radius: 2px;
-  box-shadow: 0px 3px 6px 0px rgba(0, 0, 0, .1);
+  box-shadow: 0px 3px 6px 0px rgba(0, 0, 0, 0.1);
 
   &-header {
     display: flex;

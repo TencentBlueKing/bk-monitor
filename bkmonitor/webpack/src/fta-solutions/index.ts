@@ -30,20 +30,21 @@ import 'monitor-common/polyfill';
 import i18n from './i18n/i18n';
 import Vue from 'vue';
 
+import 'monitor-pc/common/import-magicbox-ui';
 import 'monitor-ui/directive/index';
 
 import Api from 'monitor-api/api';
-import { setVue } from 'monitor-api/utils/index';
+import { type VueInstance, setVue } from 'monitor-api/utils/index';
 import { immediateRegister } from 'monitor-common/service-worker/service-worker';
 import { getUrlParam, mergeSpaceList, setGlobalBizId } from 'monitor-common/utils';
 import { assignWindowField } from 'monitor-common/utils/assign-window';
+import { userDisplayNameConfigure } from 'monitor-pc/common/user-display-name';
 
 import App from './pages/app';
 import router from './router/router';
 import Authority from './store/modules/authority';
 import store from './store/store';
 import 'monitor-pc/common/global-login';
-import 'monitor-pc/common/import-magicbox-ui';
 
 import './static/scss/global.scss';
 import 'monitor-pc/static/css/reset.scss';
@@ -53,7 +54,7 @@ Vue.config.devtools = process.env.NODE_ENV === 'development';
 window.source_app = 'fta';
 const spaceUid = getUrlParam('space_uid');
 const bizId = getUrlParam('bizId')?.replace(/\//gim, '');
-setVue(Vue);
+setVue(Vue as VueInstance);
 if (process.env.NODE_ENV === 'development') {
   window.site_url = '/';
 }
@@ -93,6 +94,7 @@ if (window.__BK_WEWEB_APP_KEY__) {
       window.bk_log_search_url = data.BKLOGSEARCH_HOST;
       const bizId = setGlobalBizId();
       if (bizId === false) return;
+      userDisplayNameConfigure();
       store.commit('app/SET_APP_STATE', {
         userName: window.user_name,
         bizId: window.cc_biz_id,

@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { LANGUAGE_COOKIE_KEY, docCookies, xssFilter } from 'monitor-common/utils';
+import { docCookies, LANGUAGE_COOKIE_KEY, xssFilter } from 'monitor-common/utils';
 
 import type { ICommonChartTips, IExtendMetricData } from '../typings';
 

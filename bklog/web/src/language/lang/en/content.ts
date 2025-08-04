@@ -1093,4 +1093,7 @@ export default {
   '自定义标签key与元数据key重复': 'Custom tag key and metadata key conflict',
   '指定清洗字段后可生效该配置，日志页面将会按照不同颜色清洗分类，最多六个字段':
     'This configuration takes effect after specifying the parsing field. Logs will be color-categorized by up to six fields.',
+  '综合时间排序,是基于：dtEventTimeStamp、gesIndex、iterationIndex 3个字段的排序结果':
+    'Comprehensive time sorting is based on the sorting results of the following 3 fields: dtEventTimeStamp, gesIndex, iterationIndex',
+  object字段不支持编辑别名: 'object fields do not support editing aliases',
 };

@@ -26,21 +26,48 @@
 
 import type { EStatus } from '../../../../trace/pages/rotation/typings/common';
 
-export interface IDutyListItem {
-  id: number | string;
-  name: string;
-  category: string;
-  typeLabel: string;
-  labels: string[];
-  isCheck: boolean;
-  show: boolean;
-  status: EStatus;
+export interface DutyNotice {
+  hit_first_duty?: boolean; // api 生成的轮值数据
+  personal_notice?: PersonalNotice;
+  plan_notice?: PlanNotice;
+}
+
+// 添加类型定义
+export interface DutyRule {
+  // 根据实际使用情况补充字段
+  [key: string]: any;
 }
 
 export interface IDutyItem {
+  category: string;
   id: number | string;
   name: string;
-  typeLabel: string;
   status: EStatus;
+  typeLabel: string;
+}
+
+export interface IDutyListItem {
   category: string;
+  id: number | string;
+  isCheck: boolean;
+  labels: string[];
+  name: string;
+  show: boolean;
+  status: EStatus;
+  typeLabel: string;
+}
+
+export interface PersonalNotice {
+  duty_rules: DutyRule[];
+  enabled: boolean;
+  hours_ago: number;
+}
+
+export interface PlanNotice {
+  chat_ids: string[];
+  date: number;
+  days: number;
+  enabled: boolean;
+  time: string;
+  type: 'daily' | 'monthly' | 'weekly'; // 根据实际可能的值调整
 }

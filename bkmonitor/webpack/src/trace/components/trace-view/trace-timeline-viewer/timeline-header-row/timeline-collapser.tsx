@@ -25,9 +25,9 @@
  */
 
 import { type PropType, defineComponent } from 'vue';
-import { useI18n } from 'vue-i18n';
 
 import { Popover } from 'bkui-vue';
+import { useI18n } from 'vue-i18n';
 
 import AngleDoubleDownIcon from '../../icons/angle-double-down.svg';
 import AngleDoubleRightIcon from '../../icons/angle-double-right.svg';

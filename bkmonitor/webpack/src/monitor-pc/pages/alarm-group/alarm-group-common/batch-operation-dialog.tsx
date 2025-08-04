@@ -27,23 +27,23 @@
 import { Component, Emit, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { getDefaultUserGroupListSync } from '@/components/user-selector/user-group';
-import UserSelector from '@/components/user-selector/user-selector';
 import { bulkUpdateUserGroup } from 'monitor-api/modules/model';
 import { getReceiver } from 'monitor-api/modules/notice_group';
 
+import { getDefaultUserGroupListSync } from '../../../components/user-selector/user-group';
+import UserSelector from '../../../components/user-selector/user-selector';
 import { type OperationType, OperationTypeMap } from './utils';
 
 import './batch-operation-dialog.scss';
 
-interface BatchOperationDialogProps {
-  show: boolean;
-  operationType: string;
-  groupIds: number[];
-}
-
 interface BatchOperationDialogEvents {
   onCloseDialog: () => void;
+}
+
+interface BatchOperationDialogProps {
+  groupIds: number[];
+  operationType: string;
+  show: boolean;
 }
 
 @Component({

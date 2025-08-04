@@ -24,11 +24,12 @@
  * IN THE SOFTWARE.
  */
 
+import { Route } from 'vue-router';
+
 // @ts-ignore
 import { handleTransformToTimestamp, intTimestampStr } from '@/components/time-range/utils';
 
 import { ConditionOperator } from './condition-operator';
-import { Route } from 'vue-router';
 import { BK_LOG_STORAGE } from './store.type';
 
 /**
@@ -146,7 +147,7 @@ class RouteUrlResolver {
       return intTimestampStr(r);
     });
 
-    const result: number[] = handleTransformToTimestamp(decodeValue, this.timeFormatResolver(this.query.format));
+    const result: number[] = handleTransformToTimestamp(decodeValue as any, this.timeFormatResolver(this.query.format));
     return { start_time: result[0], end_time: result[1] };
   }
 
@@ -158,7 +159,7 @@ class RouteUrlResolver {
 
       return (JSON.parse(decodeURIComponent(value)) ?? []).map(val => {
         const instance = new ConditionOperator(val);
-        return instance.formatApiOperatorToFront();
+        return instance.formatApiOperatorToFront(true);
       });
     });
   }
@@ -174,6 +175,10 @@ class RouteUrlResolver {
     const hasAddition = this.query.keyword?.length;
     const hasKeyword = this.query.addition?.length;
     const defValue = ['sql', 'ui'].includes(this.query.search_mode) ? this.query.search_mode : 'ui';
+
+    if (['sql', 'ui'].includes(this.query.search_mode)) {
+      return this.query.search_mode;
+    }
 
     if (hasAddition && hasKeyword) {
       return defValue;

@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Ref, Prop, InjectReactive, Watch } from 'vue-property-decorator';
+import { Component, InjectReactive, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import dayjs from 'dayjs';
@@ -40,28 +40,28 @@ import NewMetricChart from './metric-chart';
 
 import type { IMetricAnalysisConfig } from '../type';
 import type { TimeRangeType } from 'monitor-pc/components/time-range/time-range';
-import type { IPanelModel, ILegendItem } from 'monitor-ui/chart-plugins/typings';
+import type { ILegendItem, IPanelModel } from 'monitor-ui/chart-plugins/typings';
 
 import './layout-chart-table.scss';
 interface IDragInfo {
   height: number;
-  minHeight: number;
   maxHeight: number;
+  minHeight: number;
+}
+interface ILayoutChartTableEvents {
+  onDrillDown?: void;
+  onResize?: number;
 }
 /** 图表 + 表格，支持拉伸 */
 interface ILayoutChartTableProps {
+  config?: IMetricAnalysisConfig;
   drag?: IDragInfo;
-  isToolIconShow?: boolean;
+  groupId?: string;
   height?: number;
+  isShowStatisticalValue?: boolean;
+  isToolIconShow?: boolean;
   minHeight?: number;
   panel?: IPanelModel;
-  config?: IMetricAnalysisConfig;
-  isShowStatisticalValue?: boolean;
-  groupId?: string;
-}
-interface ILayoutChartTableEvents {
-  onResize?: number;
-  onDrillDown?: void;
 }
 @Component
 export default class LayoutChartTable extends tsc<ILayoutChartTableProps, ILayoutChartTableEvents> {

@@ -25,8 +25,8 @@
 -->
 <template>
   <div
-    class="subscriptions-set-wrap"
     v-bkloading="{ isLoading }"
+    class="subscriptions-set-wrap"
   >
     <!-- 基本信息 -->
     <div class="content-wrap">
@@ -47,8 +47,8 @@
             :required="true"
           >
             <bk-input
-              class="input"
               v-model="formData.mailTitle"
+              class="input"
               :placeholder="$t('输入邮件标题')"
             />
           </bk-form-item>
@@ -65,8 +65,8 @@
                 </bk-checkbox>
               </div>
               <div
-                class="form-item-row"
                 v-show="formData.receiversEnabled"
+                class="form-item-row"
               >
                 <!-- 人员选择器 -->
                 <user-selector
@@ -84,19 +84,18 @@
                   {{ $t('外部邮件') }}
                 </bk-checkbox>
                 <span
-                  class="warning-hint"
                   v-show="formData.channels[0].isEnabled"
+                  class="warning-hint"
                 >
                   <i class="icon-monitor icon-remind" />
                   <span class="text">{{ $t('请遵守公司规范，切勿泄露敏感信息，后果自负！') }}</span>
                 </span>
               </div>
               <div
-                class="form-item-row"
                 v-show="formData.channels[0].isEnabled"
+                class="form-item-row"
               >
                 <bk-input
-                  style="width: 465px; height: 32px"
                   v-model="formData.channels[0].subscribers"
                   v-bk-tooltips.click="{
                     content: $t('多个邮箱使用逗号隔开'),
@@ -105,6 +104,7 @@
                     placements: ['right'],
                     theme: 'light',
                   }"
+                  style="width: 465px; height: 32px"
                 >
                   <template slot="prepend">
                     <div class="group-text">
@@ -121,11 +121,10 @@
                 </bk-checkbox>
               </div>
               <div
-                class="form-item-row"
                 v-show="formData.channels[1].isEnabled"
+                class="form-item-row"
               >
                 <bk-input
-                  style="width: 465px; height: 32px"
                   v-model="formData.channels[1].subscribers"
                   v-bk-tooltips.click="{
                     content: wxworkBotTips,
@@ -134,6 +133,7 @@
                     placements: ['right'],
                     theme: 'light',
                   }"
+                  style="width: 465px; height: 32px"
                 >
                   <template slot="prepend">
                     <div class="group-text">
@@ -142,7 +142,6 @@
                   </template>
                 </bk-input>
                 <i
-                  class="icon-monitor icon-mc-help-fill"
                   v-bk-tooltips="{
                     content: wxworkBotTips,
                     showOnInit: false,
@@ -150,6 +149,7 @@
                     placements: ['right'],
                     allowHTML: false,
                   }"
+                  class="icon-monitor icon-mc-help-fill"
                 />
               </div>
             </div>
@@ -169,13 +169,13 @@
                 @change="handleSelectManager"
               />
               <i
-                class="icon-monitor icon-tips"
                 v-bk-tooltips="{
                   content: $t('可以对本订阅内容进行修改的人员'),
                   showOnInit: false,
                   duration: 200,
                   placements: ['top'],
                 }"
+                class="icon-monitor icon-tips"
               />
               <div
                 ref="receiverTarget"
@@ -200,8 +200,8 @@
             property="timeRange"
           >
             <bk-select
-              class="time-range-select"
               v-model="formData.timeRange"
+              class="time-range-select"
               :clearable="false"
             >
               <bk-option
@@ -214,8 +214,8 @@
           </bk-form-item>
           <!-- 订阅内容的校验替身 -->
           <bk-form-item
-            ref="reportContentsFormItem"
             v-show="false"
+            ref="reportContentsFormItem"
             :error-display-type="'normal'"
             :property="'reportContents'"
             :required="true"
@@ -244,6 +244,7 @@
         @add="() => handleShowContent('add')"
         @del="index => handleDelContent(index)"
         @edit="({ row, index }) => handleShowContent('edit', row, index)"
+        @imgInputChange="({ index, inputVal, isHeightInput }) => handleImgsizeChange(index, inputVal, isHeightInput)"
         @typeChange="type => handleTabChange(type)"
         @viewSort="data => (formData.reportContents = data)"
       />
@@ -321,6 +322,7 @@ import { deepClone, transformDataKey } from 'monitor-common/utils/utils';
 import MonitorDialog from 'monitor-ui/monitor-dialog/monitor-dialog.vue';
 import { Sortable } from 'sortablejs';
 
+import { getDefaultUserGroupListSync } from '../../components/user-selector/user-group';
 import userSelector from '../../components/user-selector/user-selector';
 import { SET_NAV_ROUTE_LIST } from '../../store/modules/app';
 import addContent from './components/add-content.vue';
@@ -332,7 +334,6 @@ import { splitGraphId } from './utils';
 import type { IContentFormData, ITableColumnItem } from './types';
 import type VueI18n from 'vue-i18n';
 import type { TranslateResult } from 'vue-i18n';
-import { getDefaultUserGroupListSync } from '../../components/user-selector/user-group';
 /** 默认的图表数据时间范围 按照发送频率 */
 const DEFAULT_TIME_RANGE = 'none';
 
@@ -341,8 +342,8 @@ interface IOption {
   name: string | TranslateResult;
 }
 interface ITimeRangeObj {
-  timeLevel: 'days' | 'hours' | 'minutes';
   number: number;
+  timeLevel: 'days' | 'hours' | 'minutes';
 }
 /**
  * 邮件订阅新建/编辑页
@@ -709,7 +710,7 @@ export default class SubscriptionsSet extends Vue {
       }));
     }
     // this.
-    this.formData.timeRange = !!data.frequency.dataRange
+    this.formData.timeRange = data.frequency.dataRange
       ? this.getTimeRange(data.frequency.dataRange)
       : DEFAULT_TIME_RANGE;
     this.getReceiverId(data.receivers);
@@ -720,7 +721,7 @@ export default class SubscriptionsSet extends Vue {
       this.contentType = 'full';
       const ids = Array.from<string>(new Set(data.contents.map(item => splitGraphId(item.graphs[0]).bizId)));
       this.formData.fullReportContents = data.contents.map(content => {
-        const { contentDetails, contentTitle, rowPicturesNum } = content;
+        const { contentDetails, contentTitle, rowPicturesNum, width } = content;
         const graphData = splitGraphId(content.graphs[0]);
         return {
           contentDetails,
@@ -729,6 +730,7 @@ export default class SubscriptionsSet extends Vue {
           curBizId: graphData.bizId,
           curGrafana: graphData.dashboardId,
           curGrafanaName: '',
+          width,
         };
       });
       this.setFullReportContents(ids);
@@ -814,6 +816,21 @@ export default class SubscriptionsSet extends Vue {
       this.curEditContentData = null;
     }
     this.showAddContent = true;
+  }
+
+  /**
+   * 图片尺寸编辑, isHeightInput = false
+   * @params isHeightInput 修改的是否为高度input(非整屏截取才有高度设置选项)
+   * @params inputVal 修改的尺寸值
+   * @params index table行数
+   */
+  handleImgsizeChange(index, inputVal, isHeightInput) {
+    if (this.contentType === 'view') {
+      this.formData.reportContents[index][isHeightInput ? 'height' : 'width'] = inputVal;
+    }
+    if (this.contentType === 'full') {
+      this.formData.fullReportContents[index].width = inputVal; // 整屏截取没有高度设置选项
+    }
   }
 
   /**
@@ -916,16 +933,19 @@ export default class SubscriptionsSet extends Vue {
         if (this.contentType === 'view') {
           params.reportContents.forEach(content => {
             content.graphs = content.graphs.map(chart => chart.id);
+            content.width = Number(content.width);
+            content.height = Number(content.height);
           });
         }
         if (this.contentType === 'full') {
           params.reportContents = params.fullReportContents.map(content => {
-            const { contentDetails, contentTitle, rowPicturesNum, curBizId, curGrafana } = content;
+            const { contentDetails, contentTitle, rowPicturesNum, curBizId, curGrafana, width } = content;
             return {
               contentDetails,
               contentTitle,
               rowPicturesNum,
               graphs: [`${curBizId}-${curGrafana}-*`],
+              width: Number(width),
             };
           });
         }

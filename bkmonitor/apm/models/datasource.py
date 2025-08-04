@@ -177,6 +177,8 @@ class MetricDataSource(ApmDataSourceConfigBase):
 
     DEFAULT_MEASUREMENT = "__default__"
 
+    DEFAULT_DATA_LABEL = "APM"  # 数据标签，用来查询数据时三段式前缀(注意：不能随意更改)
+
     DATA_ID_PARAM = {
         "etl_config": "bk_standard_v2_time_series",
         "type_label": DataTypeLabel.TIME_SERIES,
@@ -227,6 +229,7 @@ class MetricDataSource(ApmDataSourceConfigBase):
             "time_series_group_name": self.event_group_name,
             "label": "application_check",
             "table_id": self.table_id,
+            "data_label": self.DEFAULT_DATA_LABEL,
             "is_split_measurement": True,
         }
         datalink = DataLink.get_data_link(self.bk_biz_id)
@@ -255,7 +258,7 @@ class MetricDataSource(ApmDataSourceConfigBase):
         )
         self.time_series_group_id = group_info["time_series_group_id"]
         self.result_table_id = group_info["table_id"]
-        self.data_label = group_info["label"]
+        self.data_label = group_info["data_label"]
         self.save()
 
     def update_fields(self, field_list):

@@ -34,12 +34,12 @@ interface IOption {
   name: string;
 }
 interface IProps {
-  value?: (number | string)[];
-  options?: IOption[];
   loading?: boolean;
-  onTagclick?: (v: number | string) => void;
-  onRefresh?: () => void;
+  options?: IOption[];
+  value?: (number | string)[];
   onChange?: (v: (number | string)[]) => void;
+  onRefresh?: () => void;
+  onTagclick?: (v: number | string) => void;
 }
 @Component
 export default class AlarmGroupSelect extends tsc<IProps> {

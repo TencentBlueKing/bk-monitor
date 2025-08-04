@@ -24,23 +24,23 @@
  * IN THE SOFTWARE.
  */
 
-import {
-  downCsvFile,
-  type IUnifyQuerySeriesItem,
-  transformSrcData,
-  transformTableDataToCsvStr,
-} from '@/plugins/utls/menu';
+import type { MaybeRef } from 'vue';
 
-import type { IDataQuery } from '@/plugins/typings';
-// import { handleAddStrategy } from '@/plugins/utls/menu';
-import { useTraceExploreStore } from '@/store/modules/explore';
 import { get } from '@vueuse/core';
 
 import { handleAddStrategy, handleExplore, handleRelateAlert, handleStoreImage } from './menu';
+import {
+  type IUnifyQuerySeriesItem,
+  downCsvFile,
+  transformSrcData,
+  transformTableDataToCsvStr,
+} from '@/plugins/utls/menu';
+// import { handleAddStrategy } from '@/plugins/utls/menu';
+import { useTraceExploreStore } from '@/store/modules/explore';
 
+import type { IDataQuery } from '@/plugins/typings';
 import type { IMenuItem, ITitleAlarm } from '@/plugins/typings/chart-title';
 import type { IExtendMetricData } from '@/plugins/typings/metric';
-import type { MaybeRef } from 'vue';
 
 export const useChartTitleEvent = (
   metrics: MaybeRef<Array<Record<string, any>>>,

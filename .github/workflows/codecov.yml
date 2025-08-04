@@ -1,4 +1,7 @@
 name: "[BKLog] CodeCov"
+permissions:
+  contents: read
+  actions: write
 
 defaults:
   run:
@@ -45,4 +48,4 @@ jobs:
         pip install pycryptodome
         coverage run manage.py test apps.tests
     - name: Upload Coverage to Codecov
-      uses: codecov/codecov-action@v1
+      uses: codecov/codecov-action@18283e04ce6e62d37312384ff67231eb8fd56d24

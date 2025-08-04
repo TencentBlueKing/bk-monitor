@@ -30,8 +30,8 @@
     @mouseleave="handleMouseLeave"
   >
     <i
-      class="icon-monitor icon-mc-close"
       v-show="isShowCloseIcon && hasCloseIcon"
+      class="icon-monitor icon-mc-close"
       @click="handleClickClose"
     />
     <div class="convergence-options-label">
@@ -41,13 +41,13 @@
       v-model="checkData"
       searchable
       :clearable="false"
-      @change="handleCheckedChange"
       :popover-options="{ appendTo: 'parent' }"
+      @change="handleCheckedChange"
     >
       <bk-option
         v-for="(option, index) in selectList"
-        :key="index"
         :id="option.id"
+        :key="index"
         :name="option.name"
       />
     </bk-select>
@@ -87,9 +87,9 @@ export default class ConvergenceOptions extends Vue {
       this.selectList.unshift({ id: 'all', name: this.$tc('全部') });
       this.checkData = 'all';
     }
-    if(this.defaultValue) {
-      for(const item of this.selectList) {
-        if(item.id === this.defaultValue) {
+    if (this.defaultValue) {
+      for (const item of this.selectList) {
+        if (item.id === this.defaultValue) {
           this.checkData = item.id;
           break;
         }

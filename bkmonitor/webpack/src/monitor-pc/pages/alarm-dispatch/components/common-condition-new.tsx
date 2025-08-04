@@ -31,17 +31,17 @@ import { Debounce, deepClone, random } from 'monitor-common/utils';
 
 import HorizontalScrollContainer from '../../../pages/strategy-config/strategy-config-set-new/components/horizontal-scroll-container';
 import { getEventPaths } from '../../../utils';
-import { CONDITIONS, type ICondtionItem, METHODS, type TContionType, type TMthodType, deepCompare } from '../typing';
+import { type ICondtionItem, type TContionType, type TMthodType, CONDITIONS, deepCompare, METHODS } from '../typing';
 import {
-  EKeyTags,
   type ISpecialOptions,
-  KEY_FILTER_TAGS,
-  KEY_TAG_MAPS,
-  NOTICE_USERS_KEY,
   type TGroupKeys,
   type TValueMap,
   conditionCompare,
   conditionsInclues,
+  EKeyTags,
+  KEY_FILTER_TAGS,
+  KEY_TAG_MAPS,
+  NOTICE_USERS_KEY,
 } from '../typing/condition';
 
 import type { TranslateResult } from 'vue-i18n';
@@ -49,40 +49,6 @@ import type { TranslateResult } from 'vue-i18n';
 import './common-condition-new.scss';
 
 const NULL_NAME = `-${window.i18n.t('空')}-`;
-
-interface IProps {
-  value: ICondtionItem[];
-  keyList?: IListItem[];
-  valueList?: IListItem[];
-  valueMap?: TValueMap;
-  groupKeys?: TGroupKeys;
-  groupKey?: string[];
-  readonly?: boolean;
-  specialOptions?: ISpecialOptions;
-  settingsValue?: ICondtionItem[];
-  loading?: boolean;
-  needValidate?: boolean;
-  isOnlyAdd?: boolean;
-  isFormMode?: boolean;
-  onChange?: (v: ICondtionItem[]) => void;
-  onSettingsChange?: () => void;
-  onValidate?: (v: boolean) => void;
-  onRepeat?: (v: boolean) => void;
-  onValueMapChange?: (v: { key: string; values: { id: string; name: string }[] }) => void;
-  replaceData?: IListItem[];
-}
-
-interface IListItem {
-  id: string;
-  name: string;
-  isCheck?: boolean;
-  isStrategyId?: boolean;
-  first_label_name?: string; // 适用于策略id
-  isGroupKey?: boolean; // 是否为二级选项
-  alias?: string; // 别名， 标签和维度的key 需要有别名
-  show?: boolean;
-  isCustomSearch?: boolean; // 是否自定义搜索
-}
 
 enum TypeEnum {
   condition = 'condition',
@@ -93,19 +59,55 @@ enum TypeEnum {
   value = 'value',
 }
 
+interface IListItem {
+  alias?: string; // 别名， 标签和维度的key 需要有别名
+  first_label_name?: string; // 适用于策略id
+  id: string;
+  isCheck?: boolean;
+  isCustomSearch?: boolean; // 是否自定义搜索
+  isGroupKey?: boolean; // 是否为二级选项
+  isStrategyId?: boolean;
+  name: string;
+  show?: boolean;
+  strategyIsEnabled?: boolean; // 策略是否开启
+}
+
+interface IProps {
+  groupKey?: string[];
+  groupKeys?: TGroupKeys;
+  isFormMode?: boolean;
+  isOnlyAdd?: boolean;
+  keyList?: IListItem[];
+  loading?: boolean;
+  needValidate?: boolean;
+  readonly?: boolean;
+  replaceData?: IListItem[];
+  settingsValue?: ICondtionItem[];
+  specialOptions?: ISpecialOptions;
+  value: ICondtionItem[];
+  valueList?: IListItem[];
+  valueMap?: TValueMap;
+  onChange?: (v: ICondtionItem[]) => void;
+  onRepeat?: (v: boolean) => void;
+  onSettingsChange?: () => void;
+  onValidate?: (v: boolean) => void;
+  onValueMapChange?: (v: { key: string; values: { id: string; name: string }[] }) => void;
+  refreshStrategyList?: () => Promise<void>;
+}
+
 interface ITag {
-  type: TypeEnum;
+  active?: boolean;
+  alias?: string; // 别名， 标签和维度的key 需要有别名
   id: string;
   name: string;
-  alias?: string; // 别名， 标签和维度的key 需要有别名
-  active?: boolean;
+  type: TypeEnum;
 }
 interface ITagItem {
   condition: ICondtionItem;
-  tags: ITag[];
+  isExpanded?: boolean;
   isReplace?: boolean;
   max?: number;
-  isExpanded?: boolean;
+  tags: ITag[];
 }
 
 const defaultCondition: ICondtionItem = {
@@ -168,6 +170,13 @@ export default class CommonCondition extends tsc<IProps> {
   @Prop({ default: true, type: Boolean }) isFormMode: boolean;
 
   @Prop({ default: () => [], type: Array }) replaceData: IListItem[];
+  /* 刷新策略列表函数 */
+  @Prop({
+    default: () => {
+      return Promise.resolve();
+    },
+  })
+  refreshStrategyList: () => Promise<void>;
 
   @Ref('input') inputRef: HTMLInputElement;
   @Ref('wrap') wrapRef: HTMLDivElement;
@@ -231,6 +240,7 @@ export default class CommonCondition extends tsc<IProps> {
   connectorMethods = [...METHODS, { id: 'issuperset', name: '⊇' }];
 
   tagContainerWidth = 0;
+  strategyListLoading = false;
 
   /* 是否不可点击(只读状态) */
   get canNotClick() {
@@ -241,11 +251,11 @@ export default class CommonCondition extends tsc<IProps> {
   handleReplaceData(value) {
     this.$nextTick(() => {
       this.tagList = this.tagList.map(item => {
-        value.forEach(config => {
+        for (const config of value) {
           if (deepCompare(deepClone(item.condition), deepClone(config))) {
             item.isReplace = true;
           }
-        });
+        }
         return item;
       });
     });
@@ -258,28 +268,27 @@ export default class CommonCondition extends tsc<IProps> {
       this.tagContainerWidth = this.commonConditionNewRef?.offsetWidth || 500;
       this.handleConditionToTagList();
       this.validateConditionsRepeatKey();
-      console.log(this.commonConditionNewRef?.offsetWidth, '===');
     });
   }
 
   /* condition => tags */
   handleConditionToTagList() {
     const keysMap: Map<string, IListItem> = new Map();
-    this.keyList.forEach(item => {
+    for (const item of this.keyList) {
       keysMap.set(item.id, item);
-    });
+    }
     for (const [key, value] of this.groupKeys) {
-      value?.forEach((item: any) => {
+      for (const item of value || []) {
         keysMap.set(item.id, { ...item, groupName: groupNamesMap[key] });
-      });
+      }
     }
     const tagList = [];
     this.locaLValue.forEach((condition, index) => {
       const valuesMap: Map<string, IListItem> = new Map();
       const valueList = this.valueMap.get(condition.field) || [];
-      valueList.forEach(item => {
+      for (const item of valueList) {
         valuesMap.set(item.id, item);
-      });
+      }
       const tempCondition = JSON.parse(JSON.stringify(condition || defaultCondition));
       const tempTags = [];
       if (condition.field) {
@@ -314,20 +323,20 @@ export default class CommonCondition extends tsc<IProps> {
             /* 此数据需要去重，以免引起意料之外的bug */
             const filterValues = [];
             const tempSet = new Set();
-            condition.value.forEach(v => {
+            for (const v of condition.value) {
               if (!tempSet.has(v)) {
                 !!v && filterValues.push(v);
               }
               tempSet.add(v);
-            });
-            filterValues.forEach(vItem => {
+            }
+            for (const vItem of filterValues) {
               const valueItem = valuesMap.get(vItem);
               tempTags.push({
                 id: String(valueItem?.id || vItem),
                 name: String(valueItem?.name || vItem),
                 type: TypeEnum.value,
               });
-            });
+            }
           }
         } else {
           tempTags.push({
@@ -569,7 +578,7 @@ export default class CommonCondition extends tsc<IProps> {
   handleSecondSearchChange(v) {
     this.secondSearch = v;
     if (this.curGroupKey === 'dimensions') {
-      this.handleSelectCustomDimension(v)
+      this.handleSelectCustomDimension(v);
     }
   }
 
@@ -830,7 +839,7 @@ export default class CommonCondition extends tsc<IProps> {
   }
   /* 根据key获取value可选项 */
   getCurValuesList(key: string) {
-    const isStrategyId = key === 'alert.strategy_id';
+    const isStrategyId = key === strategyField;
     const valueMap = this.getDimensionKeys(false) as TValueMap;
     // const { valueMap } = this;
     if (valueMap.get(key)?.length) {
@@ -838,6 +847,7 @@ export default class CommonCondition extends tsc<IProps> {
         return valueMap.get(key).map(item => ({
           ...item,
           isStrategyId,
+          strategyIsEnabled: !!(item as any)?.is_enabled, // 策略是否开启
         }));
       }
       return valueMap.get(key);
@@ -1197,13 +1207,33 @@ export default class CommonCondition extends tsc<IProps> {
         if (!curValues.includes(this.inputValue)) {
           const key = this.tagList[index].condition.field;
           const values = this.getCurValuesList(key);
-          const valueItem = values.find(vItem => vItem.id === this.inputValue);
-          this.tagList[index].condition.value.push(this.inputValue);
-          this.tagList[index].tags.splice(tagIndex, 0, {
-            id: valueItem?.id || this.inputValue,
-            name: valueItem?.name || this.inputValue,
-            type: TypeEnum.value,
-          });
+          // 是否包含换行符
+          const hasLineBreak = /\r\n|\n|\r/.test(this.inputValue);
+          if (hasLineBreak) {
+            const inputValueArr = this.inputValue.split(/\r\n|\n|\r/).filter(v => !!v && !curValues.includes(v));
+            const valueArr = Array.from(new Set(inputValueArr));
+            this.tagList[index].condition.value.push(...valueArr);
+            this.tagList[index].tags.splice(
+              tagIndex,
+              0,
+              ...valueArr.map(v => {
+                const valueItem = values.find(vItem => vItem.id === v);
+                return {
+                  id: valueItem?.id || v,
+                  name: valueItem?.name || v,
+                  type: TypeEnum.value,
+                };
+              })
+            );
+          } else {
+            const valueItem = values.find(vItem => vItem.id === this.inputValue);
+            this.tagList[index].condition.value.push(this.inputValue);
+            this.tagList[index].tags.splice(tagIndex, 0, {
+              id: valueItem?.id || this.inputValue,
+              name: valueItem?.name || this.inputValue,
+              type: TypeEnum.value,
+            });
+          }
           if (this.tagList[index].condition.value.includes(nullOption.id)) {
             /* 清除空选项 */
             const delIndex = this.tagList[index].condition.value.findIndex(v => v === nullOption.id);
@@ -1349,6 +1379,33 @@ export default class CommonCondition extends tsc<IProps> {
     return count;
   }
 
+  handleLinkToStrategy(e: MouseEvent, item: IListItem) {
+    e.stopPropagation();
+    const router = this.$router.resolve({
+      name: 'strategy-config-detail',
+      params: {
+        id: item.id,
+      },
+    });
+    window.open(router.href);
+  }
+
+  async handleRefreshStrategyList() {
+    if (!this.strategyListLoading) {
+      this.strategyListLoading = true;
+      await this.refreshStrategyList();
+      const values = this.getCurValuesList(strategyField);
+      this.curList = [
+        { ...nullOption, isCheck: this.tagList[this.curIndex[0]].condition.value.includes(nullOption.id) },
+        ...values.map(item => ({
+          ...item,
+          isCheck: this.tagList[this.curIndex[0]].condition.value.includes(item.id),
+        })),
+      ];
+    }
+    this.strategyListLoading = false;
+  }
+
   render() {
     return (
       <div
@@ -1462,10 +1519,12 @@ export default class CommonCondition extends tsc<IProps> {
                           class='input-wrap'
                         >
                           <span class='input-value'>{this.inputValue}</span>
-                          <input
+                          <textarea
                             ref='input'
                             class='input'
                             v-model={this.inputValue}
+                            rows={1}
+                            spellcheck={false}
                             onBlur={() => this.handBlur(index, tagIndex)}
                             onInput={this.handleInput}
                             onKeydown={e => this.handleInputKeydown(e, index, tagIndex)}
@@ -1657,7 +1716,29 @@ export default class CommonCondition extends tsc<IProps> {
                               <span class='strategy-name-info'>{`${item.first_label_name || ''} (#${item.id})`}</span>
                             )}
                           </span>
-                          {!!item?.isCheck && <span class='right icon-monitor icon-mc-check-small' />}
+                          <span class='list-item-right'>
+                            {!item?.strategyIsEnabled && item.id
+                              ? [
+                                  <span
+                                    key={'tag'}
+                                    class='no-enable-strategy'
+                                  >
+                                    {this.$t('未开启')}
+                                  </span>,
+                                  <span
+                                    key={'link'}
+                                    class='icon-monitor icon-fenxiang'
+                                    onMousedown={(e: MouseEvent) => this.handleLinkToStrategy(e, item)}
+                                  />,
+                                ]
+                              : undefined}
+                            {!!item?.isCheck && (
+                              <span
+                                class='right icon-monitor icon-mc-check-small'
+                                onMousedown={(e: MouseEvent) => e.stopPropagation()}
+                              />
+                            )}
+                          </span>
                         </div>
                       ))
                     ) : (
@@ -1686,7 +1767,12 @@ export default class CommonCondition extends tsc<IProps> {
                         onMousedown={() => this.handleSelectValue(item)}
                       >
                         <span>{item.name}</span>
-                        {!!item?.isCheck && <span class='right icon-monitor icon-mc-check-small' />}
+                        {!!item?.isCheck && (
+                          <span
+                            class='right icon-monitor icon-mc-check-small'
+                            onMousedown={(e: MouseEvent) => e.stopPropagation()}
+                          />
+                        )}
                       </div>
                     ))
                   ) : (
@@ -1705,6 +1791,24 @@ export default class CommonCondition extends tsc<IProps> {
                 <span class='del-text'>{this.$t('删除')}</span>
               </div>
             )}
+            {this.selectType === TypeEnum.value &&
+            this.tagList[this.curIndex[0]]?.condition?.field === strategyField ? (
+              <div
+                class='del-bottom'
+                v-bkloading={{
+                  isLoading: this.strategyListLoading,
+                  opacity: 1,
+                  zIndex: 10,
+                  theme: 'primary',
+                  mode: 'spin',
+                  size: 'mini',
+                }}
+                onClick={this.handleRefreshStrategyList}
+              >
+                <span class='icon-monitor icon-zhongzhi1' />
+                <span class='del-text'>{this.$t('刷新列表')}</span>
+              </div>
+            ) : undefined}
           </div>
         </div>
         {/* 二级选项列表 */}
@@ -1717,7 +1821,7 @@ export default class CommonCondition extends tsc<IProps> {
               <bk-input
                 behavior={'simplicity'}
                 left-icon='bk-icon icon-search'
-                placeholder={this.$t(`${this.curGroupKey === 'dimensions'? '搜索或直接输入' : '输入关键字搜索'}`)}
+                placeholder={this.$t(`${this.curGroupKey === 'dimensions' ? '搜索或直接输入' : '输入关键字搜索'}`)}
                 value={this.secondSearch}
                 onChange={this.handleSecondSearchChange}
               />
@@ -1742,8 +1846,9 @@ export default class CommonCondition extends tsc<IProps> {
                         <span>
                           {this.$t('直接输入')} "<span class='highlight'>{item.name}</span>"
                         </span>
-                      ) : <span>{this.getSearchNode(item.name, this.secondSearch)}</span>}
-
+                      ) : (
+                        <span>{this.getSearchNode(item.name, this.secondSearch)}</span>
+                      )}
                     </div>
                   ))}
               </div>

@@ -30,21 +30,21 @@ import MonitorDialog from 'monitor-ui/monitor-dialog';
 
 import UserConfigMixin from '../mixins/userStoreConfig';
 import {
+  type IRouteConfigItem,
   COMMON_ROUTE_LIST,
   COMMON_ROUTE_STORE_KEY,
   DEFAULT_ROUTE_LIST,
-  type IRouteConfigItem,
   getLocalStoreRoute,
 } from '../router/router-config';
 
 import './header-setting-modal.scss';
 
-interface IHeaderSettingModalProps {
-  show: boolean;
-}
 interface IHeaderSettingModalEvent {
   onChange: boolean;
   onStoreRoutesChange: IRouteConfigItem[];
+}
+interface IHeaderSettingModalProps {
+  show: boolean;
 }
 @Component
 class HeaderSettingModal extends Mixins(UserConfigMixin) {

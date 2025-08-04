@@ -482,7 +482,7 @@ export default {
             fn();
           }, this.table.interval);
         };
-        // eslint-disable-next-line @typescript-eslint/no-misused-promises
+
         this.table.timer = setTimeout(fn, this.table.interval);
       };
       interval(async () => {

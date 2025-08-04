@@ -20,7 +20,6 @@ from rest_framework.exceptions import ValidationError
 
 from bkmonitor.utils.request import get_request, get_request_tenant_id
 from bkmonitor.utils.user import get_local_username, get_request_username
-from constants.common import DEFAULT_TENANT_ID
 from core.drf_resource import Resource
 from core.errors.bkmonitor.space import SpaceNotFound
 from metadata.models import space
@@ -32,7 +31,6 @@ from metadata.service.space_redis import (
     get_space_config_from_redis,
 )
 from metadata.utils.redis_tools import RedisTools
-from django.conf import settings
 
 logger = logging.getLogger("metadata")
 
@@ -73,7 +71,7 @@ class ListSpacesResource(Resource):
         include_resource_id = serializers.BooleanField(label="过滤掉平台级的空间", required=False, default=False)
 
     def perform_request(self, request_data):
-        return utils.list_spaces(**request_data)
+        return utils.list_spaces(bk_tenant_id=get_request_tenant_id(), **request_data)
 
 
 class GetSpaceDetailResource(Resource):
@@ -145,15 +143,7 @@ class CreateSpaceResource(Resource):
             return data
 
     def perform_request(self, request_data):
-        # 若开启多租户模式，需要获取租户ID
-        if settings.ENABLE_MULTI_TENANT_MODE:
-            bk_tenant_id = get_request_tenant_id()
-            logger.info("CreateSpaceResource: enable multi tenant mode,bk_tenant_id->[%s]", bk_tenant_id)
-        else:
-            bk_tenant_id = DEFAULT_TENANT_ID
-
-        request_data["bk_tenant_id"] = bk_tenant_id
-
+        request_data["bk_tenant_id"] = get_request_tenant_id()
         space = utils.create_space(**request_data)
 
         # 空间信息刷新到 redis

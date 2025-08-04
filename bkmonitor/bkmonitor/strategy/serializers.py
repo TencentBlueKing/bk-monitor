@@ -137,6 +137,16 @@ class ThresholdSerializer(serializers.ListSerializer):
     child = AndSerializer(allow_empty=False)
 
 
+class NewSeriesSerializer(serializers.Serializer):
+    """
+    新序列算法serializer
+    """
+
+    effective_delay = serializers.IntegerField(label="生效延迟", required=False, default=86400)
+    max_series = serializers.IntegerField(label="最大序列数", required=False, default=100000)
+    detect_range = serializers.IntegerField(label="检测范围", required=True)
+
+
 class IntelligentDetectSerializer(serializers.Serializer):
     """
     智能异常检测算法serializer

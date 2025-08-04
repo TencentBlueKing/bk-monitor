@@ -1,3 +1,5 @@
+import type { VNode } from 'vue';
+
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -29,7 +31,6 @@ import { Component as tsc } from 'vue-tsx-support';
 import Group, { type IGroupData } from './group';
 import FilterListSkeleton from './skeleton/filter-list';
 
-import type { VNode } from 'vue';
 import type { TranslateResult } from 'vue-i18n';
 
 import './filter-panel.scss';
@@ -37,33 +38,33 @@ import './filter-panel.scss';
 // 勾选的数据（筛选表格）
 export interface IFilterData {
   id: number | string; // 所属分组ID
-  values?: any[]; // 勾选数据
   name: TranslateResult; // 分组名称
+  values?: any[]; // 勾选数据
 }
-interface ITreeNode {
-  children?: any[];
-  id: number | string;
-  data: any;
-}
-// 属性
-type FilterPanelProps = {
-  show: boolean;
-  data: IGroupData[];
-  checkedData: IFilterData[];
-  width?: number;
-  defaultActiveName?: string[];
-  showSkeleton?: boolean;
-};
-
 // 事件
 type FilterPanelEvents = {
   change?: (data: IFilterData[]) => void;
+};
+// 属性
+type FilterPanelProps = {
+  checkedData: IFilterData[];
+  data: IGroupData[];
+  defaultActiveName?: string[];
+  show: boolean;
+  showSkeleton?: boolean;
+  width?: number;
 };
 
 // 插槽
 type FilterPanelScopedSlots = {
   header?: () => VNode;
 };
+
+interface ITreeNode {
+  children?: any[];
+  data: any;
+  id: number | string;
+}
 
 /**
  * 策略配置列表左侧筛选面板

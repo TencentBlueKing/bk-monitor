@@ -26,8 +26,9 @@
 import { Component } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import UserSelector from '@/components/user-selector/user-selector';
 import { getAlarmConfig, updateAlarmConfig } from 'monitor-api/modules/healthz';
+
+import UserSelector from '../../components/user-selector/user-selector';
 
 import './healthz-alarm.scss';
 
@@ -125,7 +126,9 @@ export default class HealthzAlarm extends tsc<object> {
             <bk-checkbox-group
               class='healthz-alarm-type'
               value={this.formData.alarm_type}
-              onChange={v => (this.formData.alarm_type = v)}
+              onChange={v => {
+                this.formData.alarm_type = v;
+              }}
             >
               {['mail', 'wechat', 'sms', 'rtx', 'phone']
                 .filter(v => !!window.platform.te || v !== 'rtx')
@@ -149,7 +152,9 @@ export default class HealthzAlarm extends tsc<object> {
             <UserSelector
               style='width: 300px'
               userIds={this.formData.alarm_role}
-              onChange={v => (this.formData.alarm_role = v)}
+              onChange={v => {
+                this.formData.alarm_role = v;
+              }}
             />
             <span
               class='role-tips'

@@ -36,7 +36,7 @@
   </div>
 </template>
 <script lang="ts">
-import { Vue, Component, Emit, Model } from 'vue-property-decorator';
+import { Component, Emit, Model, Vue } from 'vue-property-decorator';
 
 export enum Screen {
   LANDSCAPE = 'landscape', // 横屏
@@ -99,18 +99,19 @@ export default class ScreenOrientation extends Vue {
 </script>
 <style lang="scss" scoped>
 .label-wrapper {
-  z-index: 999;
   position: fixed;
   right: 1.5rem;
   bottom: 1.5rem;
-  width: 3.5rem;
-  height: 3.5rem;
+  z-index: 999;
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 50%;
+  width: 3.5rem;
+  height: 3.5rem;
   background: #fff;
-  box-shadow: 0px 3px 6px 0px rgba(79, 85, 96, 0.3);
+  border-radius: 50%;
+  box-shadow: 0 3px 6px 0 rgb(79 85 96 / 30%);
+
   i {
     font-size: 1.6rem;
     color: #3a84ff;
