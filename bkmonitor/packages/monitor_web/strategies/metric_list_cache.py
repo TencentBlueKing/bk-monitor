@@ -80,6 +80,8 @@ from monitor_web.strategies.metric_cache.built_in_metrics import (
     PROCESS_PORT_METRIC_DIMENSIONS,
     SYSTEM_HOST_METRICS,
     UPTIMECHECK_METRICS,
+    BKCI_METRICS,
+    PINGSERVER_METRICS,
 )
 from monitor_web.tasks import run_metric_manager_async
 
@@ -1389,21 +1391,29 @@ class BkmonitorMetricCacheManager(BaseMetricCacheManager):
 
     data_sources = ((DataSourceLabel.BK_MONITOR_COLLECTOR, DataTypeLabel.TIME_SERIES),)
 
+    # 使用类变量做缓存去记录dimension_map映射
+    _dimension_map_cache = None
+
     def __init__(self, bk_tenant_id: str, bk_biz_id: int | None = None):
         super().__init__(bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id)
+        self.ts_db_name = []
 
-        # 添加默认维度映射
+        # 初次使用时才从数据库加载，后续直接使用缓存
+        if BkmonitorMetricCacheManager._dimension_map_cache is None:
+            BkmonitorMetricCacheManager._dimension_map_cache = self._init_dimension_map()
+        self.dimension_map = BkmonitorMetricCacheManager._dimension_map_cache
+
+    def _init_dimension_map(self):
+        dimension_map = {}
         default_dimension_list = (
             SnapshotHostIndex.objects.exclude(dimension_field="")
             .values_list("result_table_id", "dimension_field")
             .distinct()
         )
-        self.ts_db_name = []
-        self.dimension_map = dict()
-        # 将数据库中的表ID格式转化为结果表ID格式
         for result_table_id, dimension_field in default_dimension_list:
             map_key = result_table_id.replace("_", ".", 1)
-            self.dimension_map[map_key] = dimension_field.split(",")
+            dimension_map[map_key] = dimension_field.split(",")
+        return dimension_map
 
     def get_metric_pool(self):
         # 去掉进程采集相关,因为实际是自定义指标上报上来的。
@@ -1425,22 +1435,26 @@ class BkmonitorMetricCacheManager(BaseMetricCacheManager):
         if settings.ENABLE_MULTI_TENANT_MODE:
             yield {}
             return
+        # 直接返回监控结果表中的数据
         if self.bk_biz_id is None:
             yield from api.metadata.list_monitor_result_table(with_option=False)
         else:
             yield from api.metadata.list_monitor_result_table(bk_biz_id=self.bk_biz_id, with_option=False)
 
+        # 排除多种类型的插件
         plugin_data = (
             CollectorPluginMeta.objects.filter(bk_tenant_id=self.bk_tenant_id)
             .exclude(plugin_type__in=[PluginType.SNMP_TRAP, PluginType.LOG, PluginType.PROCESS])
             .filter(bk_biz_id=self.bk_biz_id)
             .values_list("plugin_type", "plugin_id")
         )
+        # 返回插件采集的数据
         if plugin_data.exists():
             # 获取全部的插件下的 ts 数据
             db_name_list = [f"{plugin[0]}_{plugin[1]}".lower() for plugin in plugin_data]
+            # 遍历每一个插件
             for name in db_name_list:
-                # 插件默认都是全局数据
+                # 获取每一个插件中的数据(插件默认都是全局数据)
                 group_list = api.metadata.query_time_series_group.request.refresh(
                     bk_tenant_id=self.bk_tenant_id, bk_biz_id=0, time_series_group_name=name
                 )
@@ -1576,7 +1590,10 @@ class BkmonitorMetricCacheManager(BaseMetricCacheManager):
                         "related_name": "system",
                     }
             # 拨测数据
+            # 遍历预定义的结果表结构(一种结果表)
             for result_table_info in copy.deepcopy(UPTIMECHECK_METRICS):
+                # 遍历特定结果表的指标字段
+                # 对于每一个结果表， 他的指标定义是固定的， 指标数据是需要实际数据的
                 for metric_info in result_table_info["metrics"]:
                     yield {
                         "bk_biz_id": 0,
@@ -1639,7 +1656,7 @@ class BkmonitorMetricCacheManager(BaseMetricCacheManager):
                 "related_name": "进程采集",
             }
 
-        # 插件采集
+        # 插件采集(每一个业务都不同， 需要分别处理)
         plugins = CollectorPluginMeta.objects.filter(bk_tenant_id=self.bk_tenant_id, bk_biz_id=self.bk_biz_id).exclude(
             plugin_type__in=CollectorPluginMeta.VIRTUAL_PLUGIN_TYPE
         )
@@ -1722,11 +1739,37 @@ class BkmonitorMetricCacheManager(BaseMetricCacheManager):
                 yield from self.get_bkci_metric(table)
             elif table.get("table_type") == "plugin":
                 yield from self.get_plugin_metric(table)
+            # 对于这个逻辑暂不改造
             elif influx_db_name.startswith("bkprecal_"):
                 # 预聚合表
                 yield from self.get_pre_calculate_metric(table)
         except BaseException:  # noqa
             logger.exception("get metrics error, table({})".format(table.get("table_id", "")))
+
+    def get_metrics_by_table_new(self) -> Generator[dict, None, None]:
+        """
+        处理不同类型的表数据
+        直接基于内置常量生成指标， 不再依赖table， 对于需要table的单独依赖， 直接在内部进行特殊处理
+        """
+        if self.bk_biz_id == 0:
+            # 1. 处理系统主机指标
+            yield from self._process_system_host_metrics()
+
+            # 2.处理拨测的数据
+            yield from self._process_uptimecheck_metircs()
+
+            # 3.处理进程指标
+            yield from self._process_process_metrics()
+
+            # 4.处理 PING 服务指标
+            yield from self._process_pingserver_metrics()
+
+            # 5. 处理蓝盾构建机
+            yield from self._process_bkci_metrics()
+
+        # 对于对于依赖biz的数据， 处理业务特点的指标插件(需要调用api/查询数据库)
+        if self.bk_biz_id > 0:
+            yield from self._process_biz_plugin_metrics()
 
     def get_pre_calculate_metric(self, table):
         base_metric = self.get_base_dict(table)
@@ -1736,10 +1779,12 @@ class BkmonitorMetricCacheManager(BaseMetricCacheManager):
         return self.get_field_metric_msg(table, base_metric)
 
     def get_base_dict(self, table):
+        # 获取表名和表id
         result_table_id = table["table_id"]
         result_table_name = table["table_name_zh"]
 
         dimensions = []
+        # 遍历表字段， 如果是dimension字段就加入结果
         for field in table["field_list"]:
             if field["tag"] == "dimension" and field["field_name"] not in FILTER_DIMENSION_LIST:
                 dimensions.append(
@@ -1749,8 +1794,10 @@ class BkmonitorMetricCacheManager(BaseMetricCacheManager):
                     }
                 )
 
+        # 根据数据源的标签详细，确认这个指标应该关联到哪种监控目标上
         data_target = DataTargetMapping().get_data_target(table["label"], table["source_label"], table["type_label"])
 
+        # 根据data_target获取默认维度
         default_dimensions = list([x["id"] for x in DEFAULT_DIMENSIONS_MAP[data_target]])
 
         return {
@@ -1769,6 +1816,9 @@ class BkmonitorMetricCacheManager(BaseMetricCacheManager):
         }
 
     def get_field_metric_msg(self, table, base_metric):
+        """
+        从表中筛选出 metric字段， 并将其与base_metric结合返回为一个字典
+        """
         field_list = []
         result_table_id = table["table_id"]
         for field in table["field_list"]:
@@ -1826,25 +1876,190 @@ class BkmonitorMetricCacheManager(BaseMetricCacheManager):
             yield metric_dict
 
     def get_pingserver_metric(self, table):
+        # 构建基础表(dimension)
         base_metric = self.get_base_dict(table)
+        # 添加特有逻辑
         base_metric.update(
             {"related_name": "pingserver", "related_id": "pingserver", "category_display": _("PING服务")}
         )
+        # 结合metrics和dimension
         return self.get_field_metric_msg(table, base_metric)
 
     def get_bkci_metric(self, table):
-        # 蓝盾构建机指标处理
+        """
+        蓝盾构建机指标处理
+        """
+        # 构建dimension
         base_metric = self.get_base_dict(table)
+        # 添加新的数据
         base_metric.update({"related_name": "bkci", "related_id": "bkci", "category_display": _("构建机")})
+        # 将dimension与metric结合起来
         return self.get_field_metric_msg(table, base_metric)
 
+    def _process_bkci_metrics(self) -> Generator[dict[str, Any], None, None]:
+        """处理蓝盾构建机指标"""
+        for bkci_metric in copy.deepcopy(BKCI_METRICS):
+            for metric_info in bkci_metric["metrics"]:
+                yield {
+                    "bk_biz_id": self.bk_biz_id if self.bk_biz_id is not None else 0,
+                    "result_table_id": bkci_metric["result_table_id"],
+                    "result_table_name": bkci_metric["result_table_name"],
+                    "metric_field": metric_info["metric_field"],
+                    "metric_field_name": metric_info["metric_field_name"],
+                    "unit": metric_info["unit"],
+                    "dimensions": bkci_metric["dimensions"],
+                    "default_dimensions": bkci_metric["default_dimensions"],
+                    "default_condition": [],
+                    "result_table_label": bkci_metric["result_table_label"],
+                    "result_table_label_name": self.get_label_name(bkci_metric["result_table_label"]),
+                    "data_source_label": DataSourceLabel.BK_MONITOR_COLLECTOR,
+                    "data_type_label": DataTypeLabel.TIME_SERIES,
+                    "data_target": DataTarget.HOST_TARGET,
+                    "data_label": bkci_metric["data_label"],
+                    "related_id": "bkci",
+                    "related_name": "bkci",
+                    "category_display": _("构建机"),
+                }
+
     def get_system_metric(self, table):
+        # 构建基础表结构(dimension)
         base_metric = self.get_base_dict(table)
+        # 补充节点类型和节点维度
         if settings.IS_ACCESS_BK_DATA and settings.IS_ENABLE_VIEW_CMDB_LEVEL:
             base_metric["dimensions"].append({"id": "bk_obj_id", "name": _("节点类型")})
             base_metric["dimensions"].append({"id": "bk_inst_id", "name": _("节点名称")})
+        # 补充相关名称和ID
         base_metric.update({"related_name": "system", "related_id": "system", "category_display": _("物理机")})
+        # 将dimension和metric结合起来
         return self.get_field_metric_msg(table, base_metric)
+
+    def _process_system_host_metrics(self) -> Generator[dict[str, Any], None, None]:
+        result_table_label_name_map = {"os": "操作系统", "host_process": "进程"}
+
+        for result_table_info in copy.deepcopy(SYSTEM_HOST_METRICS):
+            # 判断是否需要补充节点类型和节点名称维度
+            dimensions = result_table_info["dimensions"]
+            if settings.IS_ACCESS_BK_DATA and settings.IS_ENABLE_VIEW_CMDB_LEVEL:
+                dimensions.append({"id": "bk_obj_id", "name": _("节点类型")})
+                dimensions.append({"id": "bk_inst_id", "name": _("节点名称")})
+
+            for metric_info in result_table_info["metrics"]:
+                yield {
+                    "bk_biz_id": 0,
+                    "result_table_id": result_table_info["result_table_id"],
+                    "result_table_name": result_table_info["result_table_name"],
+                    "metric_field": metric_info["metric_field"],
+                    "metric_field_name": metric_info["metric_field_name"],
+                    "unit": metric_info["unit"],
+                    "dimensions": dimensions,
+                    "default_dimensions": result_table_info["default_dimensions"],
+                    "default_condition": [],
+                    "result_table_label": result_table_info["result_table_label"],
+                    "result_table_label_name": result_table_label_name_map[result_table_info["result_table_label"]],
+                    "data_source_label": DataSourceLabel.BK_MONITOR_COLLECTOR,
+                    "data_type_label": DataTypeLabel.TIME_SERIES,
+                    "data_target": DataTarget.HOST_TARGET,
+                    "data_label": result_table_info["data_label"],
+                    "related_id": "system",
+                    "related_name": "system",
+                }
+
+    def _process_uptimecheck_metircs(self) -> Generator[dict[str, Any], None, None]:
+        """
+        处理拨测指标
+        """
+        for result_table_info in copy.deepcopy(UPTIMECHECK_METRICS):
+            # 遍历特定结果表的指标字段
+            # 对于每一个结果表， 他的指标定义是固定的， 指标数据是需要实际数据的
+            for metric_info in result_table_info["metrics"]:
+                yield {
+                    "bk_biz_id": 0,
+                    "result_table_id": result_table_info["result_table_id"],
+                    "result_table_name": result_table_info["result_table_name"],
+                    "metric_field": metric_info["metric_field"],
+                    "metric_field_name": metric_info["metric_field_name"],
+                    "unit": metric_info["unit"],
+                    "dimensions": metric_info["dimensions"],
+                    "default_dimensions": ["task_id"],
+                    "default_condition": [],
+                    "result_table_label": "uptimecheck",
+                    "result_table_label_name": "服务拨测",
+                    "data_source_label": DataSourceLabel.BK_MONITOR_COLLECTOR,
+                    "data_type_label": DataTypeLabel.TIME_SERIES,
+                    "data_target": DataTarget.NONE_TARGET,
+                    "data_label": result_table_info["data_label"],
+                }
+
+    def _process_pingserver_metrics(self) -> Generator[dict[str, Any], None, None]:
+        """处理PING服务指标"""
+        for pingserver_metric in copy.deepcopy(PINGSERVER_METRICS):
+            # 基础信息处理
+            for metric_info in pingserver_metric["metrics"]:
+                yield {
+                    "bk_biz_id": self.bk_biz_id if self.bk_biz_id is not None else 0,
+                    "result_table_id": pingserver_metric["result_table_id"],
+                    "result_table_name": pingserver_metric["result_table_name"],
+                    "metric_field": metric_info["metric_field"],
+                    "metric_field_name": metric_info["metric_field_name"],
+                    "unit": metric_info["unit"],
+                    "dimensions": pingserver_metric["dimensions"],
+                    "default_dimensions": pingserver_metric["default_dimensions"],
+                    "default_condition": [],
+                    "result_table_label": pingserver_metric["result_table_label"],
+                    "result_table_label_name": self.get_label_name(pingserver_metric["result_table_label"]),
+                    "data_source_label": DataSourceLabel.BK_MONITOR_COLLECTOR,
+                    "data_type_label": DataTypeLabel.TIME_SERIES,
+                    "data_target": DataTarget.HOST_TARGET,
+                    "data_label": pingserver_metric["data_label"],
+                    "related_name": "pingserver",
+                    "related_id": "pingserver",
+                    "category_display": _("PING服务"),
+                }
+
+    def _process_process_metrics(self) -> Generator[dict[str, Any], None, None]:
+        """处理进程指标"""
+        # 进程性能指标
+        for metric_info in PROCESS_METRICS:
+            yield {
+                "bk_biz_id": self.bk_biz_id if self.bk_biz_id is not None else 0,
+                "result_table_id": "process.perf",
+                "result_table_name": "进程性能",
+                "metric_field": metric_info["metric_field"],
+                "metric_field_name": metric_info["metric_field_name"],
+                "unit": metric_info["unit"],
+                "dimensions": PROCESS_METRIC_DIMENSIONS,
+                "default_dimensions": [],
+                "default_condition": [],
+                "result_table_label": "host_process",
+                "result_table_label_name": "进程",
+                "data_source_label": DataSourceLabel.BK_MONITOR_COLLECTOR,
+                "data_type_label": DataTypeLabel.TIME_SERIES,
+                "data_target": DataTarget.HOST_TARGET,
+                "data_label": "",
+                "related_id": "process",
+                "related_name": "进程采集",
+            }
+
+        # 进程端口指标
+        yield {
+            "bk_biz_id": self.bk_biz_id if self.bk_biz_id is not None else 0,
+            "result_table_id": "process.port",
+            "result_table_name": "进程端口",
+            "metric_field": "alive",
+            "metric_field_name": "端口存活",
+            "unit": "none",
+            "dimensions": PROCESS_PORT_METRIC_DIMENSIONS,
+            "default_dimensions": [],
+            "default_condition": [],
+            "result_table_label": "host_process",
+            "result_table_label_name": "进程",
+            "data_source_label": DataSourceLabel.BK_MONITOR_COLLECTOR,
+            "data_type_label": DataTypeLabel.TIME_SERIES,
+            "data_target": DataTarget.HOST_TARGET,
+            "data_label": "",
+            "related_id": "process",
+            "related_name": "进程采集",
+        }
 
     def get_plugin_metric(self, table):
         base_metric = self.get_base_dict(table)

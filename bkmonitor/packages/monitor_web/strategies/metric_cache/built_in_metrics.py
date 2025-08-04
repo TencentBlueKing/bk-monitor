@@ -642,3 +642,55 @@ PROCESS_PORT_METRIC_DIMENSIONS: list[dict[str, str]] = [
     {"id": "bk_target_service_category_id", "name": "bk_target_service_category_id"},
     {"id": "pid", "name": "进程序号"},
 ]
+
+# PING服务指标预定义【后续根据实际的逻辑进行修改】
+PINGSERVER_METRICS: list[dict[str, str]] = [
+    {
+        "result_table_id": "pingserver.task",
+        "result_table_name": "PING服务",
+        "result_table_label": "ping_server",
+        "data_label": "pingserver_task",
+        "dimensions": [
+            {"id": "bk_target_ip", "name": "目标IP"},
+            {"id": "bk_target_cloud_id", "name": "云区域ID"},
+            {"id": "task_id", "name": "任务ID"},
+        ],
+        "default_dimensions": ["bk_target_ip", "bk_target_cloud_id", "task_id"],
+        "metrics": [
+            {"metric_field": "rtt_avg", "metric_field_name": "平均延迟", "unit": "ms"},
+            {"metric_field": "pkg_loss", "metric_field_name": "丢包率", "unit": "percent"},
+        ],
+    }
+]
+
+# BK CI盾构机指标预定义【后续根据实际的逻辑进行修改】
+BKCI_METRICS: list[dict[str, str]] = [
+    {
+        "result_table_id": "agentmetric.job",
+        "result_table_name": "构建机指标",
+        "result_table_label": "bkci",
+        "data_label": "bkci_job",
+        "dimensions": [{"id": "job_id", "name": "作业ID"}, {"id": "ip", "name": "构建机IP"}],
+        "default_dimensions": ["job_id", "ip"],
+        "metrics": [
+            {"metric_field": "cpu_usage", "metric_field_name": "CPU使用率", "unit": "percent"},
+            {"metric_field": "memory_usage", "metric_field_name": "内存使用率", "unit": "percent"},
+        ],
+    }
+]
+
+# 预聚合表指标预定义【后续根据实际的逻辑进行修改】
+PRECALCULATE_METRICS: list[dict[str, str]] = [...]
+
+# 插件表指标模板【后续根据实际的逻辑进行修改】
+PLUGIN_METRIC_TEMPLATES: list[dict[str, str]] = [...]
+
+# 定义表映射map
+TABLE_TYPE_MAPPING: dict[str, str] = {
+    "system": "system",
+    "dbm_system": "system",
+    "devx_system": "system",
+    "perforce_system": "uptimecheck",
+    "pingserver": "pingserver",
+    "agentmetric": "bkci",
+}
