@@ -32,6 +32,8 @@ def get_supplier_account_before(params):
     params = adapt_non_bkcc(params)
     if settings.BK_SUPPLIER_ACCOUNT != "":
         params["bk_supplier_account"] = settings.BK_SUPPLIER_ACCOUNT
+    if "bk_set_id" not in params:
+        params["bk_set_id"] = 0
     return params
 
 

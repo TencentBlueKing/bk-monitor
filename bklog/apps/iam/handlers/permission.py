@@ -82,7 +82,7 @@ class Permission:
             except Exception:  # pylint: disable=broad-except
                 self.username = get_request_username()
 
-        self.iam_client = self.get_iam_client(bk_tenant_id)
+        self.iam_client = self.get_iam_client(self.bk_tenant_id)
         # 是否跳过权限中心校验
         # 如果request header 中携带token，通过获取token中的鉴权类型type匹配action
         self.skip_check = getattr(settings, "SKIP_IAM_PERMISSION_CHECK", False)

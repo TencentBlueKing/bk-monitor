@@ -328,18 +328,19 @@ class DataAPI:
         return message
 
     def _send_request(self, params, timeout, request_id, request_cookies, bk_tenant_id):
+        # 请求前的参数清洗处理
+        origin_params = params.copy()
+        if self.before_request is not None:
+            params = self.before_request(params)
+
         # 缓存
         with ignored(Exception):
-            cache_key = self._build_cache_key(params)
+            cache_key = self._build_cache_key(params, origin_params)
             if self.cache_time:
                 result = self._get_cache(cache_key)
                 if result is not None:
                     # 有缓存时返回
                     return DataResponse(result, request_id)
-
-        # 请求前的参数清洗处理
-        if self.before_request is not None:
-            params = self.before_request(params)
 
         # 是否有默认返回，调试阶段可用
         if self.default_return_value is not None:
@@ -467,14 +468,14 @@ class DataAPI:
             else:
                 logger.exception(_log)
 
-    def _build_cache_key(self, params):
+    def _build_cache_key(self, params, origin_params=None):
         """
         缓存key的组装方式，保证URL和参数相同的情况下返回是一致的
         :param params:
         :return:
         """
         # 缓存
-        cache_str = f"url_{self.build_actual_url(params)}__params_{json.dumps(params, cls=LazyEncoder)}"
+        cache_str = f"url_{self.build_actual_url(params)}__params_{json.dumps(origin_params or params, cls=LazyEncoder)}"
         hash_md5 = hashlib.new("md5")
         hash_md5.update(cache_str.encode("utf-8"))
         cache_key = hash_md5.hexdigest()

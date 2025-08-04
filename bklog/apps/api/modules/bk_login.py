@@ -24,6 +24,7 @@ from django.utils.translation import gettext_lazy as _
 
 from apps.api.base import DataAPI
 from apps.api.modules.utils import add_esb_info_before_request
+from apps.utils.local import set_request_username
 from config.domains import USER_MANAGE_APIGATEWAY_ROOT
 
 
@@ -31,6 +32,11 @@ def get_all_user_before(params):
     params = add_esb_info_before_request(params)
     params["no_page"] = True
     params["fields"] = "username,display_name,time_zone,language"
+    return params
+
+
+def virtual_user_before(params):
+    set_request_username("admin")
     return params
 
 
@@ -89,10 +95,11 @@ class _BKLoginApi:
             self.list_tenant = lambda *args, **kwargs: [{"id": "system", "name": "Blueking", "status": "enabled"}]
 
         self.batch_lookup_virtual_user = DataAPI(
-                method="GET",
-                url=settings.PAAS_API_HOST + "/api/bk-user/prod/api/v3/open/tenant/virtual-users/-/lookup/",
-                module=self.MODULE,
-                description="获取虚拟用户",
+            method="GET",
+            url=settings.PAAS_API_HOST + "/api/bk-user/prod/api/v3/open/tenant/virtual-users/-/lookup/",
+            before_request=virtual_user_before,
+            module=self.MODULE,
+            description="获取虚拟用户",
         )
 
         self.list_department_profiles = DataAPI(
