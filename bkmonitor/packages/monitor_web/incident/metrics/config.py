@@ -51,35 +51,59 @@ HOST_BASE_QUERY_CONFIG = {
 BCS_PROMQL_TEMPLATE = {
     # CPU使用量
     MetricName.BCS_PERFORMANCE_CPU_USAGE.value: {
-        "promql": "sum by(pod)(rate(container_cpu_usage_seconds_total{ {bcs_filter} }[1m]  ))"
+        "promql": 'sum by(pod)(rate(container_cpu_usage_seconds_total{ \
+        bcs_cluster_id="{bcs_cluster_id}", namespace=~"^({namespace})$", pod_name=~"^({pod_name})$", container_name!="{container_name}" \
+        }[1m]  ))'
     },
     # CPU request使用率
     MetricName.BCS_PERFORMANCE_CPU_REQUEST_USAGE_RATE.value: {
-        "promql": "sum by(pod)(rate(container_cpu_usage_seconds_total{ {bcs_filter} }[1m]  )) / sum by(pod)(kube_pod_container_resource_requests_cpu_cores{ {bcs_filter} }  )"
+        "promql": 'sum by(pod)(rate(container_cpu_usage_seconds_total{ \
+        bcs_cluster_id="{bcs_cluster_id}", namespace=~"^({namespace})$", pod_name=~"^({pod_name})$", container_name!="{container_name}" \
+        }[1m]  )) / sum by(pod)(kube_pod_container_resource_requests_cpu_cores{ \
+        bcs_cluster_id="{bcs_cluster_id}", namespace=~"^({namespace})$", pod_name=~"^({pod_name})$", container_name!="{container_name}" \
+        }  )'
     },
     # CPU limit使用率
     MetricName.BCS_PERFORMANCE_CPU_LIMIT_USAGE_RATE.value: {
-        "promql": "sum by(pod)(rate(container_cpu_usage_seconds_total{ {bcs_filter} }[1m]  )) / sum by(pod)(kube_pod_container_resource_limits_cpu_cores{ {bcs_filter} }  )"
+        "promql": 'sum by(pod)(rate(container_cpu_usage_seconds_total{ \
+        bcs_cluster_id="{bcs_cluster_id}", namespace=~"^({namespace})$", pod_name=~"^({pod_name})$", container_name!="{container_name}" \
+        }[1m]  )) / sum by(pod)(kube_pod_container_resource_limits_cpu_cores{ \
+        bcs_cluster_id="{bcs_cluster_id}", namespace=~"^({namespace})$", pod_name=~"^({pod_name})$", container_name!="{container_name}" \
+        }  )'
     },
     # 内存使用量
     MetricName.BCS_PERFORMANCE_MEMORY_USAGE.value: {
-        "promql": "sum by(pod)(container_memory_working_set_bytes{ {bcs_filter} }  )"
+        "promql": 'sum by(pod)(container_memory_working_set_bytes{ \
+        bcs_cluster_id="{bcs_cluster_id}", namespace=~"^({namespace})$", pod_name=~"^({pod_name})$", container_name!="{container_name}" \
+        }  )'
     },
     # 内存 request使用率
     MetricName.BCS_PERFORMANCE_MEMORY_REQUEST_USAGE_RATE.value: {
-        "promql": "sum by(pod)(container_memory_working_set_bytes{ {bcs_filter} }  ) / sum by(pod)(kube_pod_container_resource_requests_memory_bytes{ {bcs_filter} }  )"
+        "promql": 'sum by(pod)(container_memory_working_set_bytes{ \
+        bcs_cluster_id="{bcs_cluster_id}", namespace=~"^({namespace})$", pod_name=~"^({pod_name})$", container_name!="{container_name}" \
+        }  ) / sum by(pod)(kube_pod_container_resource_requests_memory_bytes{ \
+        bcs_cluster_id="{bcs_cluster_id}", namespace=~"^({namespace})$", pod_name=~"^({pod_name})$", container_name!="{container_name}" \
+        }  )'
     },
     # 内存 limit使用率
     MetricName.BCS_PERFORMANCE_MEMORY_LIMIT_USAGE_RATE.value: {
-        "promql": "sum by(pod)(container_memory_working_set_bytes{ {bcs_filter} }  ) / sum by(pod)(kube_pod_container_resource_limits_memory_bytes{ {bcs_filter} }  )"
+        "promql": 'sum by(pod)(container_memory_working_set_bytes{ \
+        bcs_cluster_id="{bcs_cluster_id}", namespace=~"^({namespace})$", pod_name=~"^({pod_name})$", container_name!="{container_name}" \
+        }  ) / sum by(pod)(kube_pod_container_resource_limits_memory_bytes{ \
+        bcs_cluster_id="{bcs_cluster_id}", namespace=~"^({namespace})$", pod_name=~"^({pod_name})$", container_name!="{container_name}" \
+        }  )'
     },
     # 网络入带宽
     MetricName.BCS_TRAFFIC_IN.value: {
-        "promql": "sum by(pod)(rate(container_network_receive_bytes_total{ {bcs_filter} }[1m]  ))"
+        "promql": 'sum by(pod)(rate(container_network_receive_bytes_total{ \
+        bcs_cluster_id="{bcs_cluster_id}", namespace=~"^({namespace})$", pod_name=~"^({pod_name})$", \
+        }[1m]  ))'
     },
     # 网络出带宽
     MetricName.BCS_TRAFFIC_OUT.value: {
-        "promql": "sum by(pod)(rate(container_network_transmit_bytes_total{ {bcs_filter} }[1m]  ))"
+        "promql": 'sum by(pod)(rate(container_network_transmit_bytes_total{ \
+        bcs_cluster_id="{bcs_cluster_id}", namespace=~"^({namespace})$", pod_name=~"^({pod_name})$", \
+        }[1m]  ))'
     },
 }
 
@@ -553,13 +577,6 @@ def get_bcs_config(index_info: dict[str, Any],**kwargs):
     # 获取BCS配置模板
     bcs_config = EntityTypeMetricConfigMapping[EntityType.BcsPod.value]
     
-    # 构建BCS过滤条件
-    bcs_filter = f'\
-        bcs_cluster_id="{index_info.get("bcs_cluster_id","")}", \
-        namespace=~"^({index_info.get("namespace","")})$", \
-        pod_name=~"^({index_info.get("pod_name","")})$", \
-        container_name!="{index_info.get("container_name","POD")}"'
-    
     # 复制所有配置
     filled_config = {}
     for metric_name, metric_config in bcs_config.items():
@@ -569,7 +586,10 @@ def get_bcs_config(index_info: dict[str, Any],**kwargs):
         for query_config in filled_config[metric_name]["query_configs"]:
             # 替换PromQL中的bcs_filter占位符
             if "promql" in query_config:
-                _replace_query_config(query_config,"promql","{bcs_filter}", bcs_filter)
+                _replace_query_config(query_config,"promql","{namespace}", index_info.get("namespace"))
+                _replace_query_config(query_config,"promql","{pod_name}", index_info.get("pod_name"))
+                _replace_query_config(query_config,"promql","{container_name}", index_info.get("container_name","POD"))
+                _replace_query_config(query_config,"promql","{bcs_cluster_id}", index_info.get("bcs_cluster_id"))
             
         filled_config[metric_name].update({
                 "start_time": kwargs.get("start_time"),
