@@ -331,9 +331,10 @@
    * @description: 打开 索引集配置 抽屉页
    */
   function handleIndexConfigSliderOpen() {
-    if (isFieldSettingShow.value && store.state.spaceUid && hasCollectorConfigId.value) {
-      // fieldAliasRef.value?.handleOpenSidebar?.();
-      fieldSettingRef.value?.handleShowSlider?.();
+    if (isFieldSettingShow.value) {
+      console.log('fieldAliasRef', fieldAliasRef.value);
+      fieldAliasRef.value?.handleOpenSidebar?.();
+      // fieldSettingRef.value?.handleShowSlider?.();
     } else {
       bkMessage({
         theme: 'primary',
@@ -378,11 +379,11 @@
         ref="fieldSettingRef"
         class="custom-border-right"
       />
-      <!-- <FildAlias
-        v-if="false"
+      <FildAlias
+        v-show="false"
         ref="fieldAliasRef"
         class="custom-border-right"
-      ></FildAlias> -->
+      ></FildAlias>
       <WarningSetting
         v-if="!isExternal"
         class="custom-border-right"
