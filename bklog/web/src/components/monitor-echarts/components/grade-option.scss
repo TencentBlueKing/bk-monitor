@@ -1,0 +1,165 @@
+.bklog-v3-grade-setting {
+  width: 800px;
+  padding: 16px 0 0 0;
+  background: #ffffff;
+  border: 1px solid #dcdee5;
+  border-radius: 2px;
+  box-shadow: 0 2px 6px 0 #0000001a;
+
+  .grade-title {
+    height: 24px;
+    padding: 0 24px;
+    font-size: 16px;
+    line-height: 24px;
+    color: #313238;
+  }
+
+  .grade-row {
+    display: flex;
+    align-items: flex-start;
+    padding: 0 24px;
+    margin-top: 16px;
+
+    &.grade-switcher {
+      align-items: center;
+    }
+
+    .grade-label {
+      display: flex;
+      align-items: center;
+      height: 32px;
+      padding-right: 8px;
+      margin-right: 8px;
+      font-size: 12px;
+      line-height: 20px;
+      color: #4d4f56;
+      text-align: left;
+      white-space: nowrap;
+      &.required {
+        position: relative;
+
+        &::after {
+          position: absolute;
+          top: 8px;
+          right: 0px;
+          color: #ea3636;
+          content: '*';
+        }
+      }
+    }
+
+    .grade-field-setting {
+      display: flex;
+    }
+
+    .grade-field-des {
+      display: flex;
+      align-items: center;
+      font-size: 12px;
+      color: #979ba5;
+      line-height: 20px;
+
+      .bklog-icon {
+        margin: 0 4px;
+      }
+    }
+
+    .grade-table {
+      border-left: 1px solid #dcdee5;
+
+      .grade-table-header {
+        display: flex;
+
+        .grade-table-col {
+          border-top: 1px solid #dcdee5;
+          background: #f0f1f5;
+
+          &.col-color {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+          }
+        }
+      }
+
+      .grade-table-col {
+        display: flex;
+        align-items: center;
+        height: 42px;
+        padding: 8px;
+        border-right: 1px solid #dcdee5;
+        border-bottom: 1px solid #dcdee5;
+        font-size: 12px;
+
+        &.col-color {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+      }
+
+      .grade-table-row {
+        display: flex;
+
+        .grade-table-option {
+          display: flex;
+          align-items: center;
+
+          span {
+            width: 14px;
+            height: 14px;
+            margin-left: 10px;
+            display: inline-block;
+            position: relative;
+            color: #979ba5;
+            cursor: pointer;
+          }
+        }
+
+        &.readonly {
+          background: #fafbfd;
+
+          .grade-table-col {
+            color: #979ba5;
+            cursor: not-allowed;
+          }
+        }
+      }
+    }
+
+    &.grade-footer {
+      display: flex;
+      justify-content: flex-end;
+      height: 48px;
+      padding: 8px 24px;
+      background: #fafbfd;
+      box-shadow: 0 -1px 0 0 #dcdee5;
+      button{
+        width: 64px; 
+        height: 32px;
+      }
+    }
+  }
+
+  .bklog-v3-grade-color-select {
+    border: none;
+
+    .bk-select-name {
+      visibility: hidden;
+    }
+  }
+
+  .bklog-v3-grade-color-list {
+    .bk-options-wrapper {
+      .bk-options {
+        &.bk-options-single {
+          .bk-option {
+            .bk-option-content {
+              padding: 2px;
+            }
+          }
+        }
+      }
+    }
+  }
+}

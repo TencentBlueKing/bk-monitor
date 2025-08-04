@@ -8,28 +8,16 @@ repos:
       # 检查 private key
       - id: detect-private-key
 
-  # 将代码中的 python2 语法转换为 python3 语法
-  - repo: https://github.com/asottile/pyupgrade
-    rev: v1.21.0
+  # ruff
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    # Ruff version.
+    rev: v0.11.6
     hooks:
-      - id: pyupgrade
-
-  # black
-  - repo: https://github.com/psf/black
-    rev: 23.3.0
-    hooks:
-    - id: black
-      language_version: python3
-      args: [--config=pyproject.toml]
-
-  # isort
-  - repo: https://github.com/pycqa/isort
-    rev: 5.11.5
-    hooks:
-      - id: isort
-        name: isort
-        additional_dependencies: ["toml"]
-        args: [--settings-path=pyproject.toml]
+      # Run the linter.
+      - id: ruff
+        args: [ --fix ]
+      # Run the formatter.
+      - id: ruff-format
 
   # 本地检查
   - repo: local
@@ -41,14 +29,6 @@ repos:
         language: system
         stages: [ pre-push ]
         verbose: true
-
-      # flake8
-      - id: flake8
-        name: flak8
-        language: python
-        types: [python]
-        pass_filenames: true
-        entry: pflake8 --config=./pyproject.toml
 
       # PreCI 检查
       - id: check-pre-ci

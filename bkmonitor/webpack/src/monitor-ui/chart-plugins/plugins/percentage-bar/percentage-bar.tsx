@@ -59,12 +59,12 @@ class PercentageBarChart extends CommonSimpleChart {
 
   /** 图表类名 */
   tableClass = '';
-  inited = false;
-  refleshIntervalInstance = null;
+  initialized = false;
+  refreshIntervalInstance = null;
   /** 图表数据 */
   chartDataList: any[] = [];
   metrics: IExtendMetricData[];
-  emptyText = window.i18n.tc('查无数据');
+  emptyText = window.i18n.t('查无数据');
   empty = true;
   // 查看更多链接
   viewMoreLink = '';
@@ -95,7 +95,7 @@ class PercentageBarChart extends CommonSimpleChart {
   async getPanelData(start_time?: string, end_time?: string) {
     if (!this.isInViewPort()) {
       if (this.intersectionObserver) {
-        this.unregisterOberver();
+        this.unregisterObserver();
       }
       this.registerObserver(start_time, end_time);
       return;
@@ -103,9 +103,9 @@ class PercentageBarChart extends CommonSimpleChart {
     if (this.isFetchingData) return;
     this.isFetchingData = true;
     this.handleLoadingChange(true);
-    this.emptyText = window.i18n.tc('加载中...');
+    this.emptyText = window.i18n.t('加载中...');
     try {
-      this.unregisterOberver();
+      this.unregisterObserver();
       let moreDataUrl = '';
       let series = [];
       let metrics = [];
@@ -148,16 +148,16 @@ class PercentageBarChart extends CommonSimpleChart {
         this.updateChartData(series);
         this.metrics = metrics;
         this.viewMoreLink = moreDataUrl;
-        this.inited = true;
+        this.initialized = true;
         this.empty = false;
         this.$nextTick(this.handleResize);
       } else {
-        this.emptyText = window.i18n.tc('查无数据');
+        this.emptyText = window.i18n.t('查无数据');
         this.empty = true;
       }
     } catch (e) {
       this.empty = true;
-      this.emptyText = window.i18n.tc('出错了');
+      this.emptyText = window.i18n.t('出错了');
       console.error(e);
     }
     this.isFetchingData = false;
@@ -259,13 +259,13 @@ class PercentageBarChart extends CommonSimpleChart {
         <ChartHeader
           ref='chartHeaderRef'
           class='draggable-handle'
-          draging={this.panel.draging}
+          dragging={this.panel.dragging}
           isInstant={this.panel.instant}
           metrics={this.metrics}
           showMore={false}
           subtitle={this.panel.subTitle || ''}
           title={this.panel.title}
-          onUpdateDragging={() => this.panel.updateDraging(false)}
+          onUpdateDragging={() => this.panel.updateDragging(false)}
         />
         {!this.empty ? (
           <div class='avr-chart-main'>
@@ -273,7 +273,7 @@ class PercentageBarChart extends CommonSimpleChart {
               ref='tableRef'
               class={['avr-chart-table', this.tableClass]}
             >
-              {this.inited &&
+              {this.initialized &&
                 this.chartDataList.map((item, index) => (
                   <tr
                     key={index}

@@ -24,17 +24,18 @@
  * IN THE SOFTWARE.
  */
 
-import { Component, Provide, Mixins } from 'vue-property-decorator';
+import { Component, Mixins, Provide } from 'vue-property-decorator';
 
 import { deleteApplication, listApplication } from 'monitor-api/modules/apm_meta';
+import { addAccessRecord } from 'monitor-api/modules/overview';
 import introduceModule, { IntroduceRouteKey } from 'monitor-pc/common/introduce';
 import EmptyStatus from 'monitor-pc/components/empty-status/empty-status';
 import GuidePage from 'monitor-pc/components/guide-page/guide-page';
 import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
 // import AlarmTools from 'monitor-pc/pages/monitor-k8s/components/alarm-tools';
 import DashboardTools from 'monitor-pc/pages/monitor-k8s/components/dashboard-tools';
-import OperateOptions from 'monitor-pc/pages/uptime-check/components/operate-options';
 // import { PanelModel } from 'monitor-ui/chart-plugins/typings';
+import OperateOptions from 'monitor-pc/pages/uptime-check/components/operate-options';
 
 import authorityMixinCreate from '../../../apm/mixins/authorityMixin';
 // import ListMenu, { type IMenuItem } from '../../components/list-menu/list-menu';
@@ -53,7 +54,6 @@ import type { INavItem } from 'monitor-pc/pages/monitor-k8s/typings';
 
 import './apm-home.scss';
 import '@blueking/search-select-v3/vue2/vue2.css';
-import { addAccessRecord } from 'monitor-api/modules/overview';
 
 @Component({})
 export default class AppList extends Mixins(authorityMixinCreate(authorityMap)) {
@@ -139,6 +139,10 @@ export default class AppList extends Mixins(authorityMixinCreate(authorityMap)) 
         this.appName = (val || '').toString();
       }
     }
+    // 服务或者应用内点击了apm首页，时间同步
+    if (query.from && query.to) {
+      this.timeRange = [query.from as string, query.to as string];
+    }
   }
 
   /**
@@ -197,6 +201,8 @@ export default class AppList extends Mixins(authorityMixinCreate(authorityMap)) 
       query: {
         ...this.$route.query,
         ...serviceParams,
+        from: this.timeRange[0] || this.$route.query.from, // apm首页缺少from和to导致子页面时间范围选择器不同步
+        to: this.timeRange[1] || this.$route.query.to,
         app_keyword: this.searchCondition || undefined,
         app_name: this.appName,
         profiling_data_status: appSearchParams.profiling_data_status || undefined,
@@ -206,7 +212,7 @@ export default class AppList extends Mixins(authorityMixinCreate(authorityMap)) 
             : String(appSearchParams.is_enabled_profiling),
       },
     };
-    this.$router.replace(routerParams).catch(() => { });
+    this.$router.replace(routerParams).catch(() => {});
   }
   /**
    * @description 时间范围
@@ -365,8 +371,8 @@ export default class AppList extends Mixins(authorityMixinCreate(authorityMap)) 
                 isSplitPanel={false}
                 showListMenu={false}
                 timeRange={this.timeRange}
-                onImmediateReflesh={() => this.handleImmediateRefresh()}
-                onRefleshChange={this.handleRefreshChange}
+                onImmediateRefresh={() => this.handleImmediateRefresh()}
+                onRefreshChange={this.handleRefreshChange}
                 onTimeRangeChange={this.handleTimeRangeChange}
               />
               {/* <ListMenu

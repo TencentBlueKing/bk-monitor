@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -17,7 +16,6 @@ import operator
 import time
 from datetime import datetime
 from functools import reduce
-from typing import Dict, List, Optional, Tuple, Union
 
 from django.core.exceptions import EmptyResultSet
 from django.db.models import Count, Q
@@ -25,8 +23,6 @@ from django.db.models.aggregates import Avg, Sum
 from django.utils.translation import gettext as _
 from rest_framework import serializers
 
-from bkm_space.api import SpaceApi
-from bkm_space.define import SpaceTypeEnum
 from bkm_space.utils import bk_biz_id_to_space_uid, is_bk_ci_space
 from bkmonitor.commons.tools import is_ipv6_biz
 from bkmonitor.data_source import UnifyQuery, load_data_source
@@ -59,6 +55,7 @@ from bkmonitor.utils.kubernetes import (
     KubernetesServiceJsonParser,
     get_progress_value,
 )
+from bkmonitor.utils.request import get_request_tenant_id
 from bkmonitor.utils.thread_backend import ThreadPool
 from constants.data_source import DataSourceLabel, DataTypeLabel
 from constants.event import EventTypeNormal, EventTypeWarning
@@ -92,7 +89,7 @@ def params_to_conditions(params):
 
 class KubernetesResource(ApiAuthResource, abc.ABC):
     data = []
-    model_class: BCSBase = None
+    model_class: type[BCSBase]
     model_label_class = None
     query_set_list = []
 
@@ -337,7 +334,7 @@ class KubernetesResource(ApiAuthResource, abc.ABC):
                 overview_data[key] = overview_value
         return overview_data
 
-    def format_columns(self, params: Dict, columns: List) -> List:
+    def format_columns(self, params: dict, columns: list) -> list:
         """对列配置添加额外的属性，并添加列排序配置 ."""
         sort = params.get("sort")
         sort_column = None
@@ -380,7 +377,7 @@ class KubernetesResource(ApiAuthResource, abc.ABC):
             columns[0]["max_width"] = 400
         return new_columns
 
-    def get_column_filter_conf(self, bk_biz_id: int, field_name: str) -> List:
+    def get_column_filter_conf(self, bk_biz_id: int, field_name: str) -> list:
         """获得列排序配置 ."""
         space_related_cluster_ids = list(self.space_associated_clusters.keys())
         field_filter_list = self.model_class.get_column_filter_conf(
@@ -408,7 +405,7 @@ class KubernetesResource(ApiAuthResource, abc.ABC):
             return 0
         return self.model_class.objects.filter(*self.query_set_list).count()
 
-    def get_sort(self, params: Dict) -> str:
+    def get_sort(self, params: dict) -> str:
         """获得需要排序的列"""
         sort = params.get("sort")
         if not sort:
@@ -426,7 +423,7 @@ class KubernetesResource(ApiAuthResource, abc.ABC):
             return f"-{sort_field}"
         return sort_field
 
-    def pagination_data(self, params: Dict):
+    def pagination_data(self, params: dict):
         """获得分页后的数据 ."""
         if not self.query_set_list:
             # 如果label查询失败空
@@ -443,7 +440,7 @@ class KubernetesResource(ApiAuthResource, abc.ABC):
             result_data = self.model_class.objects.filter(*self.query_set_list)[offset : offset + page_size]
         self.data = result_data
 
-    def patch_status_filter_data_wrap(self, data: Dict) -> List:
+    def patch_status_filter_data_wrap(self, data: dict) -> list:
         return [
             {
                 "id": "success",
@@ -465,7 +462,7 @@ class KubernetesResource(ApiAuthResource, abc.ABC):
             },
         ]
 
-    def get_status_filter_data(self, params: Dict) -> List:
+    def get_status_filter_data(self, params: dict) -> list:
         """计算每种状态的资源数量 ."""
         status_summary = self.model_class.objects.count_monitor_status_quantity(self.query_set_list)
         return self.patch_status_filter_data_wrap(status_summary)
@@ -522,7 +519,7 @@ class KubernetesResource(ApiAuthResource, abc.ABC):
 
         return condition_list
 
-    def get_cluster_by_space_uid(self, space_uid) -> Dict:
+    def get_cluster_by_space_uid(self, space_uid) -> dict:
         """根据容器空间uid获得关联的集群."""
         if not is_bk_ci_space(space_uid):
             return {}
@@ -548,7 +545,7 @@ class KubernetesResource(ApiAuthResource, abc.ABC):
                 q_list.append(filter_q)
         self.query_set_list = q_list
 
-    def filtered_label(self, params: Dict) -> Optional[Q]:
+    def filtered_label(self, params: dict) -> Q | None:
         label_conditions = {k.replace("__label_", ""): v for k, v in params.items() if k.find("__label_") == 0}
         if not label_conditions:
             return Q()
@@ -557,7 +554,7 @@ class KubernetesResource(ApiAuthResource, abc.ABC):
             return None
         return filter_q
 
-    def filtered_cluster(self, params: Dict) -> Q:
+    def filtered_cluster(self, params: dict) -> Q:
         filter_q = Q()
         bcs_cluster_id = params.get("bcs_cluster_id")
         if bcs_cluster_id and hasattr(self.model_class, "bcs_cluster_id"):
@@ -567,7 +564,7 @@ class KubernetesResource(ApiAuthResource, abc.ABC):
                 filter_q &= Q(bcs_cluster_id=bcs_cluster_id)
         return filter_q
 
-    def filtered_biz_id(self, params: Dict) -> Q:
+    def filtered_biz_id(self, params: dict) -> Q:
         bk_biz_id = params["bk_biz_id"]
         space_uid = params.get("space_uid")
         filter_q = Q(bk_biz_id=bk_biz_id)
@@ -581,7 +578,7 @@ class KubernetesResource(ApiAuthResource, abc.ABC):
 
         return filter_q
 
-    def filtered_space_uid(self, params: Dict) -> Q:
+    def filtered_space_uid(self, params: dict) -> Q:
         bk_biz_id = params["bk_biz_id"]
         space_uid = params.get("space_uid")
         space_associated_clusters = self.get_cluster_by_space_uid(space_uid)
@@ -604,7 +601,7 @@ class KubernetesResource(ApiAuthResource, abc.ABC):
 
         return filter_q
 
-    def filtered_name(self, params: Dict) -> Q:
+    def filtered_name(self, params: dict) -> Q:
         filter_q = Q()
         else_conditions = {k: v for k, v in params.items() if k.find("__label_") != 0}
         query_params = {k: v for k, v in params.items()}
@@ -642,7 +639,7 @@ class KubernetesResource(ApiAuthResource, abc.ABC):
             for key, value in filter_dict.items():
                 self.query_set_list.append(Q(**{f"{key}__in": value}))
 
-    def aggregate_by_biz_id(self, bk_biz_id, params: Dict) -> Dict:
+    def aggregate_by_biz_id(self, bk_biz_id, params: dict) -> dict:
         """按业务ID聚合 ."""
         filter_q = Q(bk_biz_id=bk_biz_id)
         if isinstance(bk_biz_id, list):
@@ -675,7 +672,7 @@ class GetKubernetesGrafanaMetricRecords(ApiAuthResource, abc.ABC):
         start_time = serializers.IntegerField(required=False, label="start_time")
         end_time = serializers.IntegerField(required=False, label="end_time")
 
-    def validate_request_data(self, request_data: Dict) -> Dict:
+    def validate_request_data(self, request_data: dict) -> dict:
         bk_biz_id = int(request_data["bk_biz_id"])
         request_data["bk_biz_id"] = bk_biz_id
         start_time = request_data.get("start_time")
@@ -689,7 +686,7 @@ class GetKubernetesGrafanaMetricRecords(ApiAuthResource, abc.ABC):
         return request_data
 
     @staticmethod
-    def request_graph_unify_query(validated_request_data) -> Tuple:
+    def request_graph_unify_query(validated_request_data) -> tuple:
         bk_biz_id = validated_request_data["bk_biz_id"]
         start_time = validated_request_data["start_time"]
         end_time = validated_request_data["end_time"]
@@ -719,21 +716,21 @@ class GetKubernetesGrafanaMetricRecords(ApiAuthResource, abc.ABC):
         return result
 
     @staticmethod
-    def format_performance_data(validated_request_data: Dict, performance_data):
+    def format_performance_data(validated_request_data: dict, performance_data):
         data = {}
         for key_name, records in performance_data:
             data[key_name] = records
         return data
 
     @staticmethod
-    def is_shared_cluster(params: Dict) -> bool:
+    def is_shared_cluster(params: dict) -> bool:
         bk_biz_id = params["bk_biz_id"]
         bcs_cluster_id = params.get("bcs_cluster_id")
         if bcs_cluster_id and api.kubernetes.is_shared_cluster(bcs_cluster_id, bk_biz_id):
             return True
         return False
 
-    def request_performance_data(self, validated_request_data: Dict) -> List:
+    def request_performance_data(self, validated_request_data: dict) -> list:
         pool = ThreadPool()
         args = self.build_graph_unify_query_iterable(validated_request_data)
         performance_data = pool.map(self.request_graph_unify_query, args)
@@ -742,10 +739,9 @@ class GetKubernetesGrafanaMetricRecords(ApiAuthResource, abc.ABC):
         return performance_data
 
     @abc.abstractmethod
-    def build_graph_unify_query_iterable(self, validated_request_data: Dict) -> List:
-        ...
+    def build_graph_unify_query_iterable(self, validated_request_data: dict) -> list: ...
 
-    def perform_request(self, validated_request_data: Dict) -> Union[List, Dict]:
+    def perform_request(self, validated_request_data: dict) -> list | dict:
         performance_data = self.request_performance_data(validated_request_data)
         if not performance_data:
             return {}
@@ -768,7 +764,7 @@ class GetKubernetesMetricQueryRecords(ApiAuthResource, abc.ABC):
         start_time = serializers.IntegerField(required=False, label="start_time")
         end_time = serializers.IntegerField(required=False, label="end_time")
 
-    def validate_request_data(self, request_data: Dict) -> Dict:
+    def validate_request_data(self, request_data: dict) -> dict:
         bk_biz_id = int(request_data["bk_biz_id"])
         request_data["bk_biz_id"] = bk_biz_id
         start_time = request_data.get("start_time")
@@ -788,7 +784,7 @@ class GetKubernetesMetricQueryRecords(ApiAuthResource, abc.ABC):
         is_shared_cluster = cluster_info and cluster_info.get("cluster_type") == BcsClusterType.SHARED
         return is_shared_cluster
 
-    def request_unify_query(self, validated_request_data) -> Tuple:
+    def request_unify_query(self, validated_request_data) -> tuple:
         bk_biz_id = validated_request_data["bk_biz_id"]
         start_time = validated_request_data["start_time"]
         end_time = validated_request_data["end_time"]
@@ -820,7 +816,7 @@ class GetKubernetesMetricQueryRecords(ApiAuthResource, abc.ABC):
         result = (key_name, records)
         return result
 
-    def request_performance_data(self, validated_request_data: Dict) -> List:
+    def request_performance_data(self, validated_request_data: dict) -> list:
         pool = ThreadPool()
         args = self.build_unify_query_iterable(validated_request_data)
         performance_data = pool.map(self.request_unify_query, args)
@@ -828,14 +824,13 @@ class GetKubernetesMetricQueryRecords(ApiAuthResource, abc.ABC):
         pool.join()
         return performance_data
 
-    def format_performance_data(self, performance_data: List) -> List:
+    def format_performance_data(self, performance_data: list) -> list:
         return performance_data
 
     @abc.abstractmethod
-    def build_unify_query_iterable(self, validated_request_data: Dict) -> List:
-        ...
+    def build_unify_query_iterable(self, validated_request_data: dict) -> list: ...
 
-    def perform_request(self, validated_request_data: Dict):
+    def perform_request(self, validated_request_data: dict):
         bk_biz_id = validated_request_data["bk_biz_id"]
 
         self.space_associated_clusters = api.kubernetes.get_cluster_info_from_bcs_space({"bk_biz_id": bk_biz_id})
@@ -874,12 +869,12 @@ class GetKubernetesPod(ApiAuthResource):
 
 
 class GetKubernetesPodList(KubernetesResource):
-    model_class = BCSPod
+    model_class: type[BCSPod] = BCSPod
     model_label_class = BCSPodLabels
     RequestSerializer = KubernetesListRequestSerializer
 
     @staticmethod
-    def read_namespaced_service(params: Dict) -> Dict:
+    def read_namespaced_service(params: dict) -> dict:
         """获取服务的pod选择器 ."""
         selector = {}
         if "bcs_cluster_id" in params and "namespace" in params and "service_name" in params:
@@ -906,7 +901,7 @@ class GetKubernetesPodList(KubernetesResource):
 
         return selector
 
-    def filtered_label(self, params: Dict) -> Optional[Q]:
+    def filtered_label(self, params: dict) -> Q | None:
         if "service_name" in params:
             # 获取服务的pod选择器
             selector = self.read_namespaced_service(params)
@@ -1049,7 +1044,7 @@ class GetKubernetesContainer(ApiAuthResource):
 
 
 class GetKubernetesContainerList(KubernetesResource):
-    model_class = BCSContainer
+    model_class: type[BCSContainer] = BCSContainer
     model_label_class = BCSContainerLabels
     RequestSerializer = KubernetesListRequestSerializer
 
@@ -1095,7 +1090,7 @@ class GetKubernetesIngress(Resource):
         namespace: str = serializers.CharField(required=True)
         ingress_name: str = serializers.CharField(required=True)
 
-    def perform_request(self, params: Dict):
+    def perform_request(self, params: dict):
         bk_biz_id = params["bk_biz_id"]
         params["name"] = params.pop("ingress_name")
         item = BCSIngress.load_item(params)
@@ -1129,7 +1124,7 @@ class GetKubernetesService(Resource):
         }
         item.update_monitor_status(params)
 
-    def perform_request(self, params: Dict) -> List[Dict]:
+    def perform_request(self, params: dict) -> list[dict]:
         bk_biz_id = params["bk_biz_id"]
         params["name"] = params.pop("service_name")
         item = BCSService.load_item(params)
@@ -1245,6 +1240,7 @@ class GetKubernetesNode(ApiAuthResource):
         bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
         bcs_cluster_id = serializers.CharField(required=False, allow_null=True)
         node_ip = serializers.CharField(required=False, allow_null=True)
+        node_name = serializers.CharField(required=False, allow_null=True)
 
     @staticmethod
     def get_performance_data(bk_biz_id, bcs_cluster_id):
@@ -1310,9 +1306,12 @@ class GetKubernetesNode(ApiAuthResource):
         }
         item.update_monitor_status(params)
 
-    def perform_request(self, params: Dict) -> List[Dict]:
-        ip = params.pop("node_ip")
-        params["ip"] = ip
+    def perform_request(self, params: dict) -> list[dict]:
+        if params.get("node_ip"):
+            params["ip"] = params.pop("node_ip")
+        if params.get("node_name"):
+            params["name"] = params.pop("node_name")
+
         item = BCSNode.load_item(params)
         if item:
             self.refresh_monitor_status(item)
@@ -1341,7 +1340,7 @@ class GetKubernetesNodeList(KubernetesResource):
         super().__init__(*args, **kwargs)
         self.performance_data = {}
 
-    def filtered_space_uid(self, params: Dict) -> Q:
+    def filtered_space_uid(self, params: dict) -> Q:
         """根据空间uid过滤 ."""
         bk_biz_id = params["bk_biz_id"]
         filter_q = Q(bk_biz_id=bk_biz_id)
@@ -1359,7 +1358,7 @@ class GetKubernetesNodeList(KubernetesResource):
 
         return filter_q
 
-    def filtered_name(self, params: Dict) -> Q:
+    def filtered_name(self, params: dict) -> Q:
         control_plane_q = Q()
         if "roles" in params:
             roles_value = params.pop("roles")
@@ -1377,7 +1376,7 @@ class GetKubernetesNodeList(KubernetesResource):
             filter_q &= control_plane_q
         return filter_q
 
-    def pagination_data(self, params: Dict):
+    def pagination_data(self, params: dict):
         """获得分页后的数据 ."""
         if not self.query_set_list:
             return []
@@ -1531,11 +1530,12 @@ class GetKubernetesNamespaces(Resource):
         bcs_cluster_id = serializers.CharField(required=False, allow_null=True, allow_blank=True)
 
     def perform_request(self, params):
+        bk_tenant_id = get_request_tenant_id()
         bk_biz_id = params["bk_biz_id"]
         bcs_cluster = params.get("bcs_cluster_id", "")
 
         data = []
-        namespaces = api.kubernetes.fetch_k8s_namespace_list(params)
+        namespaces = api.kubernetes.fetch_k8s_namespace_list(bk_tenant_id=bk_tenant_id, **params)
         cluster_id_set = set()
         for namespace in namespaces:
             bcs_cluster_id = namespace["bcs_cluster_id"]
@@ -1591,7 +1591,7 @@ class GetKubernetesClusterList(KubernetesResource):
     model_label_class = BCSClusterLabels
     RequestSerializer = KubernetesListRequestSerializer
 
-    def rendered_data(self, params) -> List:
+    def rendered_data(self, params) -> list:
         for item in self.data:
             bcs_cluster_id = item.bcs_cluster_id
             if self.is_shared_cluster(bcs_cluster_id):
@@ -1604,7 +1604,7 @@ class GetKubernetesClusterList(KubernetesResource):
         data = super().rendered_data(params)
         return data
 
-    def aggregate_by_biz_id(self, bk_biz_id, params: Dict) -> Dict:
+    def aggregate_by_biz_id(self, bk_biz_id, params: dict) -> dict:
         """按业务ID聚合 ."""
         filter_q = Q(bk_biz_id=bk_biz_id)
         if isinstance(bk_biz_id, list):
@@ -1696,15 +1696,21 @@ class GetKubernetesClusterChoices(KubernetesResource):
 
     def perform_request(self, params):
         bk_biz_id = params["bk_biz_id"]
-        data = []
         if bk_biz_id < 0:
             space_uid = bk_biz_id_to_space_uid(bk_biz_id)
-            space = SpaceApi.get_related_space(space_uid, SpaceTypeEnum.BKCC.value)
-            if not space:
-                return data
-            bk_biz_id = space.bk_biz_id
+            cluster_id_list = []
+            clusters = api.kubernetes.get_cluster_info_from_bcs_space({"space_uid": space_uid})
+            for cluster_id in clusters:
+                if clusters[cluster_id].get("namespace_list"):
+                    # 共享集群暂时排除，后续针对共享集群进行二次处理
+                    continue
+                cluster_id_list.append(cluster_id)
+            cluster_list = BCSCluster.objects.filter(bcs_cluster_id__in=cluster_id_list).values(
+                "bcs_cluster_id", "name"
+            )
+        else:
+            cluster_list = BCSCluster.objects.filter(bk_biz_id=bk_biz_id).values("bcs_cluster_id", "name")
 
-        cluster_list = BCSCluster.objects.filter(bk_biz_id=bk_biz_id).values("bcs_cluster_id", "name")
         data = []
         for item in cluster_list:
             bcs_cluster_id = item["bcs_cluster_id"]
@@ -1713,12 +1719,9 @@ class GetKubernetesClusterChoices(KubernetesResource):
                 full_name = f"{name}({bcs_cluster_id})"
             else:
                 full_name = bcs_cluster_id
-            data.append(
-                {
-                    "id": bcs_cluster_id,
-                    "name": full_name,
-                }
-            )
+            cluster_type = BcsClusterType.SHARED if self.is_shared_cluster(bcs_cluster_id) else BcsClusterType.SINGLE
+
+            data.append({"id": bcs_cluster_id, "name": full_name, "cluster_type": cluster_type})
 
         return data
 
@@ -1754,7 +1757,7 @@ class GetKubernetesMonitor(Resource, abc.ABC):
         }
         item.update_monitor_status(params)
 
-    def perform_request(self, params: Dict) -> List[Dict]:
+    def perform_request(self, params: dict) -> list[dict]:
         bk_biz_id = params["bk_biz_id"]
         item = self.model_class.load_item(params)
         if item:
@@ -1774,7 +1777,7 @@ class GetKubernetesMonitorList(KubernetesResource, abc.ABC):
     def model_class(self):
         raise NotImplementedError
 
-    def get_status_filter_data(self, params) -> List:
+    def get_status_filter_data(self, params) -> list:
         """计算每种状态的资源数量 ."""
         # 判断up指标是否存在
         bk_biz_id = params["bk_biz_id"]
@@ -1934,11 +1937,11 @@ class GetKubernetesMonitorPanels(Resource, abc.ABC):
     def render_simple_panel_template(
         table_name: str,
         metrics_field: str,
-        where: List,
-        filter_dict: Dict,
+        where: list,
+        filter_dict: dict,
         data_source_label: str,
         data_type_label: str,
-    ) -> Dict:
+    ) -> dict:
         """构造一个panel ."""
         if not table_name:
             id_name = metrics_field
@@ -2045,7 +2048,7 @@ class GetKubernetesObjectCount(ApiAuthResource):
         bcs_cluster_id = serializers.CharField(required=False, allow_null=True)
         resources = serializers.ListField(required=False)
 
-    def perform_request(self, params: Dict):
+    def perform_request(self, params: dict):
         bk_biz_id = params.get("bk_biz_id")
         bcs_cluster_id = params.get("bcs_cluster_id")
         resources = params.get("resources", [])
@@ -2101,7 +2104,7 @@ class GetKubernetesObjectCount(ApiAuthResource):
                             search = [{"bcs_cluster_id": bcs_cluster_id}]
 
                     # 添加链接
-                    url = f"?bizId={bk_biz_id}#/k8s?dashboardId={dashboard_id}&sceneId=kubernetes&sceneType=overview" ""
+                    url = f"?bizId={bk_biz_id}#/k8s?dashboardId={dashboard_id}&sceneId=kubernetes&sceneType=overview"
                     if search:
                         query_data = json.dumps({"selectorSearch": search})
                         url = f"{url}&queryData={query_data}"
@@ -2123,7 +2126,7 @@ class GetKubernetesControlPlaneStatus(ApiAuthResource):
         bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
 
     @classmethod
-    def get_kubelet_node_config_error_count(cls, params: Dict) -> int:
+    def get_kubelet_node_config_error_count(cls, params: dict) -> int:
         metric_field = "kubelet_node_config_error"
         data_source = load_data_source(DataSourceLabel.CUSTOM, DataTypeLabel.TIME_SERIES)(
             bk_biz_id=params["bk_biz_id"],
@@ -2295,29 +2298,29 @@ class GetKubernetesUsageRatio(GetKubernetesGrafanaMetricRecords):
                 return []
             cpu_summary_promql = (
                 '(1 - avg(irate(node_cpu_seconds_total{mode="idle",'
-                'instance=~"%(instance)s", '
-                'bcs_cluster_id="%(bcs_cluster_id)s"}[5m]))) * 100'
+                'instance=~"{instance}", '
+                f'bcs_cluster_id="{bcs_cluster_id}"}}[5m]))) * 100'
             ) % {"bcs_cluster_id": bcs_cluster_id, "instance": instance}
             memory_summary_promql = (
-                '(SUM by(bcs_cluster_id)'
-                ' (node_memory_MemTotal_bytes{'
-                'instance=~"%(instance)s",bcs_cluster_id="%(bcs_cluster_id)s"})'
-                ' - on(bcs_cluster_id) group_right() SUM by(bcs_cluster_id)'
-                ' (node_memory_MemFree_bytes{'
-                'instance=~"%(instance)s",bcs_cluster_id="%(bcs_cluster_id)s"})'
-                ' - on(bcs_cluster_id) group_right() SUM by(bcs_cluster_id) '
-                '(node_memory_Cached_bytes{'
-                'instance=~"%(instance)s",bcs_cluster_id="%(bcs_cluster_id)s"})'
-                ' - on(bcs_cluster_id) group_right() SUM by(bcs_cluster_id) '
-                '(node_memory_Buffers_bytes{'
-                'instance=~"%(instance)s",bcs_cluster_id="%(bcs_cluster_id)s"})'
-                ' + on(bcs_cluster_id) group_right() SUM by(bcs_cluster_id) '
-                '(node_memory_Shmem_bytes{'
-                'instance=~"%(instance)s",bcs_cluster_id="%(bcs_cluster_id)s"}))'
-                ' / on(bcs_cluster_id) group_right() SUM by(bcs_cluster_id)'
-                ' (node_memory_MemTotal_bytes{'
-                'instance=~"%(instance)s",bcs_cluster_id="%(bcs_cluster_id)s"}) * 100'
-            ) % {"bcs_cluster_id": bcs_cluster_id, "instance": instance}
+                "(SUM by(bcs_cluster_id)"
+                " (node_memory_MemTotal_bytes{"
+                f'instance=~"{instance}",bcs_cluster_id="{bcs_cluster_id}"}})'
+                " - on(bcs_cluster_id) group_right() SUM by(bcs_cluster_id)"
+                " (node_memory_MemFree_bytes{"
+                f'instance=~"{instance}",bcs_cluster_id="{bcs_cluster_id}"}})'
+                " - on(bcs_cluster_id) group_right() SUM by(bcs_cluster_id) "
+                "(node_memory_Cached_bytes{"
+                f'instance=~"{instance}",bcs_cluster_id="{bcs_cluster_id}"}})'
+                " - on(bcs_cluster_id) group_right() SUM by(bcs_cluster_id) "
+                "(node_memory_Buffers_bytes{"
+                f'instance=~"{instance}",bcs_cluster_id="{bcs_cluster_id}"}})'
+                " + on(bcs_cluster_id) group_right() SUM by(bcs_cluster_id) "
+                "(node_memory_Shmem_bytes{"
+                f'instance=~"{instance}",bcs_cluster_id="{bcs_cluster_id}"}}))'
+                " / on(bcs_cluster_id) group_right() SUM by(bcs_cluster_id)"
+                " (node_memory_MemTotal_bytes{"
+                f'instance=~"{instance}",bcs_cluster_id="{bcs_cluster_id}"}}) * 100'
+            )
         else:
             try:
                 bcs_cluster_ids = list(
@@ -2330,16 +2333,16 @@ class GetKubernetesUsageRatio(GetKubernetesGrafanaMetricRecords):
 
             cpu_summary_promql = (
                 '(1 - avg(irate(node_cpu_seconds_total{mode="idle",'
-                'bcs_cluster_id=~"^(%(bcs_cluster_id)s)$"}[5m]))) * 100'
-            ) % {"bcs_cluster_id": "|".join(bcs_cluster_ids)}
+                f'bcs_cluster_id=~"^({"|".join(bcs_cluster_ids)})$"}}[5m]))) * 100'
+            )
             memory_summary_promql = (
-                '(SUM(node_memory_MemTotal_bytes{bcs_cluster_id=~"^(%(bcs_cluster_id)s)$"})'
-                '-SUM(node_memory_MemFree_bytes{bcs_cluster_id=~"^(%(bcs_cluster_id)s)$"})'
-                '-SUM(node_memory_Cached_bytes{bcs_cluster_id=~"^(%(bcs_cluster_id)s)$"})'
-                '-SUM(node_memory_Buffers_bytes{bcs_cluster_id=~"^(%(bcs_cluster_id)s)$"})'
-                '+SUM(node_memory_Shmem_bytes{bcs_cluster_id=~"^(%(bcs_cluster_id)s)$"}))'
-                '/(SUM(node_memory_MemTotal_bytes{bcs_cluster_id=~"^(%(bcs_cluster_id)s)$"})) *100'
-            ) % {"bcs_cluster_id": "|".join(bcs_cluster_ids)}
+                f'(SUM(node_memory_MemTotal_bytes{{bcs_cluster_id=~"^({"|".join(bcs_cluster_ids)})$"}})'
+                f'-SUM(node_memory_MemFree_bytes{{bcs_cluster_id=~"^({"|".join(bcs_cluster_ids)})$"}})'
+                f'-SUM(node_memory_Cached_bytes{{bcs_cluster_id=~"^({"|".join(bcs_cluster_ids)})$"}})'
+                f'-SUM(node_memory_Buffers_bytes{{bcs_cluster_id=~"^({"|".join(bcs_cluster_ids)})$"}})'
+                f'+SUM(node_memory_Shmem_bytes{{bcs_cluster_id=~"^({"|".join(bcs_cluster_ids)})$"}}))'
+                f'/(SUM(node_memory_MemTotal_bytes{{bcs_cluster_id=~"^({"|".join(bcs_cluster_ids)})$"}})) *100'
+            )
 
         data_source_param_map = [
             {"key_name": "cpu", "promql": cpu_summary_promql},
@@ -2363,7 +2366,7 @@ class GetKubernetesUsageRatio(GetKubernetesGrafanaMetricRecords):
         return args
 
     @staticmethod
-    def to_graph(params: Dict, data: Dict) -> List:
+    def to_graph(params: dict, data: dict) -> list:
         usage_type = params.get("usage_type")
         if usage_type == "cpu":
             target = _("CPU实际使用率(avg)")
@@ -2425,10 +2428,13 @@ class GetKubernetesWorkloadCountByNamespace(ApiAuthResource):
             },
         ]
 
-    def get_data(self, params: Dict):
+    def get_data(self, params: dict):
+        bk_tenant_id = get_request_tenant_id()
         bk_biz_id = params["bk_biz_id"]
         bcs_cluster_id = params["bcs_cluster_id"]
-        workloads = api.kubernetes.fetch_k8s_workload_list_by_cluster(params)
+        workloads = api.kubernetes.fetch_k8s_workload_list_by_cluster(
+            bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id, bcs_cluster_id=bcs_cluster_id
+        )
         shard_cluster = api.kubernetes.get_cluster_info_from_bcs_space({"bk_biz_id": bk_biz_id, "shard_only": True})
         filter_ns = shard_cluster.get(bcs_cluster_id, {}).get("namespace_list")
         namespace_counter = {}
@@ -2558,7 +2564,7 @@ class GetKubernetesEvents(ApiAuthResource):
         ]
 
     @classmethod
-    def get_chart_data(cls, data: List) -> Dict:
+    def get_chart_data(cls, data: list) -> dict:
         return {
             "metrics": [
                 {
@@ -2571,7 +2577,7 @@ class GetKubernetesEvents(ApiAuthResource):
         }
 
     @classmethod
-    def get_table_data(cls, data: Dict) -> Dict:
+    def get_table_data(cls, data: dict) -> dict:
         if not data:
             return {"columns": cls.get_columns(), "data": [], "total": 0}
         result = []
@@ -2687,7 +2693,7 @@ class GetKubernetesNetworkTimeSeries(Resource):
                     "key": "instance",
                     "method": "reg",
                     "value": [
-                        fr"^\[{node.ip}\]:" if is_v6(node.ip) else f"{node.ip}:" for node in node_list if node.ip
+                        rf"^\[{node.ip}\]:" if is_v6(node.ip) else f"{node.ip}:" for node in node_list if node.ip
                     ],
                 }
             )
@@ -3009,7 +3015,7 @@ class GetKubernetesEventCountByEventName(Resource):
         )
         top_n = serializers.IntegerField(required=False, label="前几名", min_value=1, default=10)
 
-    def to_graph(cls, params: Dict, event_result: Dict) -> Union[List, Dict]:
+    def to_graph(cls, params: dict, event_result: dict) -> list | dict:
         data_type = params["data_type"]
         top_n = params["top_n"]
         group_by = "event_name"
@@ -3028,7 +3034,7 @@ class GetKubernetesEventCountByEventName(Resource):
         return data
 
     @classmethod
-    def to_ratio_ring_graph(cls, params: Dict, buckets: List, top_n: int) -> Dict:
+    def to_ratio_ring_graph(cls, params: dict, buckets: list, top_n: int) -> dict:
         bcs_cluster_id = params.get("bcs_cluster_id")
         name = _("事件分布")
         if not bcs_cluster_id:
@@ -3066,7 +3072,7 @@ class GetKubernetesEventCountByEventName(Resource):
         return data
 
     @classmethod
-    def to_percentage_bar_graph(cls, buckets: List, top_n: int) -> Dict:
+    def to_percentage_bar_graph(cls, buckets: list, top_n: int) -> dict:
         graph_data = []
         if buckets:
             # 取最大值
@@ -3092,7 +3098,7 @@ class GetKubernetesEventCountByEventName(Resource):
         return data
 
     @classmethod
-    def to_column_bar_graph(cls, params: Dict, buckets: List, top_n: int) -> Dict:
+    def to_column_bar_graph(cls, params: dict, buckets: list, top_n: int) -> dict:
         bcs_cluster_id = params.get("bcs_cluster_id")
         if not bcs_cluster_id:
             return []
@@ -3125,7 +3131,7 @@ class GetKubernetesEventCountByEventName(Resource):
         return graph_data
 
     @classmethod
-    def to_number_chart_graph(cls, buckets: List) -> List:
+    def to_number_chart_graph(cls, buckets: list) -> list:
         graph_data = []
         for bucket in buckets:
             event_name = bucket["key"]
@@ -3139,7 +3145,7 @@ class GetKubernetesEventCountByEventName(Resource):
         return graph_data
 
     @classmethod
-    def to_number_resource_graph(cls, params: Dict, buckets: List) -> Dict:
+    def to_number_resource_graph(cls, params: dict, buckets: list) -> dict:
         bcs_cluster_id = params.get("bcs_cluster_id")
         event_names = params["event_names"]
         if not bcs_cluster_id:
@@ -3334,7 +3340,7 @@ class GetKubernetesEventTimeSeries(Resource):
         )
 
     @classmethod
-    def format_time_series_records(cls, data_points: List, end_time: int, time_scope: str, interval: int) -> List:
+    def format_time_series_records(cls, data_points: list, end_time: int, time_scope: str, interval: int) -> list:
         """格式化时间点数据 ."""
         # 转换为当前时间
         if time_scope == "last_day":
@@ -3457,7 +3463,7 @@ class GetKubernetesCpuAnalysis(GetKubernetesMetricQueryRecords):
         start_time = serializers.IntegerField(required=False, label="start_time")
         end_time = serializers.IntegerField(required=False, label="end_time")
 
-    def build_unify_query_iterable(self, params: Dict) -> List:
+    def build_unify_query_iterable(self, params: dict) -> list:
         bk_biz_id = params["bk_biz_id"]
         start_time = params.get("start_time")
         end_time = params.get("end_time")
@@ -3575,7 +3581,7 @@ class GetKubernetesCpuAnalysis(GetKubernetesMetricQueryRecords):
 
         return args
 
-    def to_graph(self, params: Dict, performance_data: Dict) -> List:
+    def to_graph(self, params: dict, performance_data: dict) -> list:
         data_type = params.get("data_type", GRAPH_RESOURCE)
         top_n = int(params.get("top_n", 5))
 
@@ -3587,7 +3593,7 @@ class GetKubernetesCpuAnalysis(GetKubernetesMetricQueryRecords):
         return graph_data
 
     @staticmethod
-    def to_percentage_bar_graph(params: Dict, performance_data: List, top_n: int) -> Dict:
+    def to_percentage_bar_graph(params: dict, performance_data: list, top_n: int) -> dict:
         result = {"data": []}
         usage_type = params.get("usage_type")
         if not usage_type:
@@ -3636,7 +3642,7 @@ class GetKubernetesCpuAnalysis(GetKubernetesMetricQueryRecords):
         }
         return result
 
-    def to_number_resource_graph(self, params: Dict, performance_data: Dict) -> List:
+    def to_number_resource_graph(self, params: dict, performance_data: dict) -> list:
         bcs_cluster_id = params.get("bcs_cluster_id")
         data = {}
         for key_name, records in performance_data:
@@ -3648,7 +3654,7 @@ class GetKubernetesCpuAnalysis(GetKubernetesMetricQueryRecords):
                 value = 0
             data[key_name] = value
 
-        pre_allocatable_usage_ratio = round(data.get('pre_allocatable_usage_ratio', 0), 2)
+        pre_allocatable_usage_ratio = round(data.get("pre_allocatable_usage_ratio", 0), 2)
         if pre_allocatable_usage_ratio > 80:
             color = "#f8c554"
         else:
@@ -3709,7 +3715,7 @@ class GetKubernetesMemoryAnalysis(GetKubernetesMetricQueryRecords):
         start_time = serializers.CharField(required=False, label="start_time")
         end_time = serializers.CharField(required=False, label="end_time")
 
-    def build_unify_query_iterable(self, params: Dict) -> List:
+    def build_unify_query_iterable(self, params: dict) -> list:
         bk_biz_id = params["bk_biz_id"]
         start_time = params.get("start_time")
         end_time = params.get("end_time")
@@ -3824,7 +3830,7 @@ class GetKubernetesMemoryAnalysis(GetKubernetesMetricQueryRecords):
 
         return args
 
-    def to_graph(self, params: Dict, performance_data: Dict) -> List:
+    def to_graph(self, params: dict, performance_data: dict) -> list:
         data_type = params.get("data_type", GRAPH_RESOURCE)
         top_n = int(params.get("top_n", 5))
 
@@ -3836,7 +3842,7 @@ class GetKubernetesMemoryAnalysis(GetKubernetesMetricQueryRecords):
         return graph_data
 
     @staticmethod
-    def to_percentage_bar_graph(params: Dict, performance_data: List, top_n: int) -> Dict:
+    def to_percentage_bar_graph(params: dict, performance_data: list, top_n: int) -> dict:
         result = {"data": []}
         usage_type = params.get("usage_type")
         if not usage_type:
@@ -3886,7 +3892,7 @@ class GetKubernetesMemoryAnalysis(GetKubernetesMetricQueryRecords):
         }
         return result
 
-    def to_number_resource_graph(self, params: Dict, performance_data: Dict) -> List:
+    def to_number_resource_graph(self, params: dict, performance_data: dict) -> list:
         bcs_cluster_id = params.get("bcs_cluster_id")
         data = {}
         for key_name, records in performance_data:
@@ -3902,7 +3908,7 @@ class GetKubernetesMemoryAnalysis(GetKubernetesMetricQueryRecords):
         requests_memory = data.get("requests_memory_bytes", 0)
         limits_memory = data.get("limits_memory_bytes", 0)
 
-        pre_allocatable_usage_ratio = round(data.get('pre_allocatable_usage_ratio', 0), 2)
+        pre_allocatable_usage_ratio = round(data.get("pre_allocatable_usage_ratio", 0), 2)
         if pre_allocatable_usage_ratio > 80:
             color = "#f8c554"
         else:
@@ -3912,11 +3918,11 @@ class GetKubernetesMemoryAnalysis(GetKubernetesMetricQueryRecords):
                 graph_data = [
                     {
                         "name": _("内存 request 量"),
-                        "value": "%s %s" % load_unit("bytes").auto_convert(requests_memory, decimal=2),
+                        "value": "{} {}".format(*load_unit("bytes").auto_convert(requests_memory, decimal=2)),
                     },
                     {
                         "name": _("内存 limit 量"),
-                        "value": "%s %s" % load_unit("bytes").auto_convert(limits_memory, decimal=2),
+                        "value": "{} {}".format(*load_unit("bytes").auto_convert(limits_memory, decimal=2)),
                     },
                 ]
                 return graph_data
@@ -3924,15 +3930,15 @@ class GetKubernetesMemoryAnalysis(GetKubernetesMetricQueryRecords):
         graph_data = [
             {
                 "name": _("内存总量"),
-                "value": "%s %s" % load_unit("bytes").auto_convert(allocatable_memory, decimal=2),
+                "value": "{} {}".format(*load_unit("bytes").auto_convert(allocatable_memory, decimal=2)),
             },
             {
                 "name": _("内存 request 量"),
-                "value": "%s %s" % load_unit("bytes").auto_convert(requests_memory, decimal=2),
+                "value": "{} {}".format(*load_unit("bytes").auto_convert(requests_memory, decimal=2)),
             },
             {
                 "name": _("内存 limit 量"),
-                "value": "%s %s" % load_unit("bytes").auto_convert(limits_memory, decimal=2),
+                "value": "{} {}".format(*load_unit("bytes").auto_convert(limits_memory, decimal=2)),
             },
             {
                 "name": _("内存预分配率"),
@@ -3965,7 +3971,7 @@ class GetKubernetesDiskAnalysis(GetKubernetesMetricQueryRecords):
         return data
 
     @staticmethod
-    def build_unify_query_iterable(params: Dict) -> List:
+    def build_unify_query_iterable(params: dict) -> list:
         bk_biz_id = int(params["bk_biz_id"])
         start_time = params.get("start_time")
         end_time = params.get("end_time")
@@ -4063,11 +4069,11 @@ class GetKubernetesDiskAnalysis(GetKubernetesMetricQueryRecords):
         return args
 
     @staticmethod
-    def to_graph(validated_request_data: Dict, performance_data: List) -> List:
+    def to_graph(validated_request_data: dict, performance_data: list) -> list:
         system_disk_total = performance_data.get("system_disk_total", 0)
         system_disk_used = performance_data.get("system_disk_used", 0)
 
-        disk_usage_ratio = round(performance_data.get('disk_usage_ratio', 0), 2)
+        disk_usage_ratio = round(performance_data.get("disk_usage_ratio", 0), 2)
         if disk_usage_ratio > 80:
             color = "#f8c554"
         else:
@@ -4075,11 +4081,11 @@ class GetKubernetesDiskAnalysis(GetKubernetesMetricQueryRecords):
         graph_data = [
             {
                 "name": _("磁盘总量"),
-                "value": "%s %s" % load_unit("bytes").auto_convert(system_disk_total, decimal=2),
+                "value": "{} {}".format(*load_unit("bytes").auto_convert(system_disk_total, decimal=2)),
             },
             {
                 "name": _("磁盘已使用量"),
-                "value": "%s %s" % load_unit("bytes").auto_convert(system_disk_used, decimal=2),
+                "value": "{} {}".format(*load_unit("bytes").auto_convert(system_disk_used, decimal=2)),
             },
             {
                 "name": _("磁盘使用率"),
@@ -4089,7 +4095,7 @@ class GetKubernetesDiskAnalysis(GetKubernetesMetricQueryRecords):
         ]
         return graph_data
 
-    def perform_request(self, validated_request_data: Dict):
+    def perform_request(self, validated_request_data: dict):
         bk_biz_id = validated_request_data["bk_biz_id"]
         bcs_cluster_id = validated_request_data.get("bcs_cluster_id")
 
@@ -4181,39 +4187,39 @@ class GetKubernetesOverCommitAnalysis(Resource):
                 return []
             node_ips = "|".join(node.name for node in node_list)
             cpu_over_commit_promql = (
-                'sum by(bcs_cluster_id)'
-                ' (kube_pod_container_resource_requests_cpu_cores{'
-                'node=~"^(%(node_ips)s)$",bcs_cluster_id="%(bcs_cluster_id)s",node!=""})'
-                ' / on(bcs_cluster_id) group_right()'
-                ' sum by(bcs_cluster_id) '
-                ' (kube_node_status_allocatable_cpu_cores{'
-                'node=~"^(%(node_ips)s)$",bcs_cluster_id="%(bcs_cluster_id)s",node!=""})'
-                ' - on(bcs_cluster_id) group_right()'
-                ' (count by(bcs_cluster_id) '
-                ' (kube_node_status_allocatable_cpu_cores{'
-                'node=~"^(%(node_ips)s)$",bcs_cluster_id="%(bcs_cluster_id)s",node!=""}) - 1) '
-                ' / on(bcs_cluster_id) group_right()'
-                ' count by(bcs_cluster_id) '
-                ' (kube_node_status_allocatable_cpu_cores{'
-                'node=~"^(%(node_ips)s)$",bcs_cluster_id="%(bcs_cluster_id)s",node!=""})'
+                "sum by(bcs_cluster_id)"
+                " (kube_pod_container_resource_requests_cpu_cores{"
+                f'node=~"^({node_ips})$",bcs_cluster_id="{bcs_cluster_id}",node!=""}})'
+                " / on(bcs_cluster_id) group_right()"
+                " sum by(bcs_cluster_id) "
+                " (kube_node_status_allocatable_cpu_cores{"
+                f'node=~"^({node_ips})$",bcs_cluster_id="{bcs_cluster_id}",node!=""}})'
+                " - on(bcs_cluster_id) group_right()"
+                " (count by(bcs_cluster_id) "
+                " (kube_node_status_allocatable_cpu_cores{"
+                f'node=~"^({node_ips})$",bcs_cluster_id="{bcs_cluster_id}",node!=""}}) - 1) '
+                " / on(bcs_cluster_id) group_right()"
+                " count by(bcs_cluster_id) "
+                " (kube_node_status_allocatable_cpu_cores{"
+                f'node=~"^({node_ips})$",bcs_cluster_id="{bcs_cluster_id}",node!=""}})'
             ) % {"bcs_cluster_id": bcs_cluster_id, "node_ips": node_ips}
             memory_over_commit_promql = (
-                'sum by(bcs_cluster_id) '
-                ' (kube_pod_container_resource_requests_memory_bytes{'
-                'node=~"^(%(node_ips)s)$",bcs_cluster_id="%(bcs_cluster_id)s",node!=""})'
-                ' / on(bcs_cluster_id) group_right() '
-                ' sum by(bcs_cluster_id) '
-                ' (kube_node_status_allocatable_memory_bytes{'
-                'node=~"^(%(node_ips)s)$",bcs_cluster_id="%(bcs_cluster_id)s",node!=""}) '
-                ' - on(bcs_cluster_id) group_right() '
-                ' (count by(bcs_cluster_id) '
-                ' (kube_node_status_allocatable_memory_bytes{'
-                'node=~"^(%(node_ips)s)$",bcs_cluster_id="%(bcs_cluster_id)s",node!=""}) - 1)'
-                ' / on(bcs_cluster_id) group_right() '
-                ' count by(bcs_cluster_id) '
-                ' (kube_node_status_allocatable_memory_bytes{'
-                'node=~"^(%(node_ips)s)$",bcs_cluster_id="%(bcs_cluster_id)s",node!=""})'
-            ) % {"bcs_cluster_id": bcs_cluster_id, "node_ips": node_ips}
+                "sum by(bcs_cluster_id) "
+                " (kube_pod_container_resource_requests_memory_bytes{"
+                f'node=~"^({node_ips})$",bcs_cluster_id="{bcs_cluster_id}",node!=""}})'
+                " / on(bcs_cluster_id) group_right() "
+                " sum by(bcs_cluster_id) "
+                " (kube_node_status_allocatable_memory_bytes{"
+                f'node=~"^({node_ips})$",bcs_cluster_id="{bcs_cluster_id}",node!=""}}) '
+                " - on(bcs_cluster_id) group_right() "
+                " (count by(bcs_cluster_id) "
+                " (kube_node_status_allocatable_memory_bytes{"
+                f'node=~"^({node_ips})$",bcs_cluster_id="{bcs_cluster_id}",node!=""}}) - 1)'
+                " / on(bcs_cluster_id) group_right() "
+                " count by(bcs_cluster_id) "
+                " (kube_node_status_allocatable_memory_bytes{"
+                f'node=~"^({node_ips})$",bcs_cluster_id="{bcs_cluster_id}",node!=""}})'
+            )
         else:
             try:
                 bcs_cluster_ids = list(
@@ -4225,25 +4231,25 @@ class GetKubernetesOverCommitAnalysis(Resource):
                 return []
             # CPU节流次数
             cpu_throttling_high = (
-                'sum'
-                ' (increase(container_cpu_cfs_throttled_periods_total{'
+                "sum"
+                " (increase(container_cpu_cfs_throttled_periods_total{"
                 'namespace!="bkmonitor-operator",'
                 'container!="tke-monitor-agent",'
-                'bcs_cluster_id=~"^(%(bcs_cluster_id)s)$"}[5m]))'
-                ' / on(bcs_cluster_id, namespace, pod, container)'
-                ' group_right()'
-                ' sum'
-                ' (increase(container_cpu_cfs_periods_total{'
+                f'bcs_cluster_id=~"^({"|".join(bcs_cluster_ids)})$"}}[5m]))'
+                " / on(bcs_cluster_id, namespace, pod, container)"
+                " group_right()"
+                " sum"
+                " (increase(container_cpu_cfs_periods_total{"
                 'namespace!="bkmonitor-operator",container!="tke-monitor-agent"}[5m])) * 100'
-            ) % {"bcs_cluster_id": "|".join(bcs_cluster_ids)}
+            )
             # 内存触顶次数
             memory_oom_times = (
-                'sum'
-                '(increase(kube_pod_container_status_terminated_reason{'
+                "sum"
+                "(increase(kube_pod_container_status_terminated_reason{"
                 'namespace!="",pod_name!="",reason="OOMKilled",namespace!="bkmonitor-operator",'
                 'container!="tke-monitor-agent",'
-                'bcs_cluster_id=~"^(%(bcs_cluster_id)s)$"}[2m]))'
-            ) % {"bcs_cluster_id": "|".join(bcs_cluster_ids)}
+                f'bcs_cluster_id=~"^({"|".join(bcs_cluster_ids)})$"}}[2m]))'
+            )
 
         if bcs_cluster_id:
             data_source_param_map = [
@@ -4280,7 +4286,7 @@ class GetKubernetesOverCommitAnalysis(Resource):
         return performance_data
 
     @classmethod
-    def format_value(cls, title: str, value: float, bcs_cluster_id: str) -> Dict:
+    def format_value(cls, title: str, value: float, bcs_cluster_id: str) -> dict:
         if bcs_cluster_id:
             if value >= 0:
                 color = "#6bd58f"
@@ -4302,7 +4308,7 @@ class GetKubernetesOverCommitAnalysis(Resource):
         return result
 
     @classmethod
-    def to_graph(cls, params: Dict, data: Dict) -> List:
+    def to_graph(cls, params: dict, data: dict) -> list:
         bcs_cluster_id = params.get("bcs_cluster_id")
 
         if bcs_cluster_id:
@@ -4322,7 +4328,7 @@ class GetKubernetesOverCommitAnalysis(Resource):
 
         return graph_data
 
-    def perform_request(self, params: Dict):
+    def perform_request(self, params: dict):
         bk_biz_id = int(params["bk_biz_id"])
         bcs_cluster_id = params.get("bcs_cluster_id")
         if bcs_cluster_id:
@@ -4349,7 +4355,7 @@ class GetKubernetesNodeUsageBase(GetKubernetesGrafanaMetricRecords):
         top_n = serializers.IntegerField(required=False, label="前几名", min_value=1, default=10)
 
     @staticmethod
-    def format_performance_data(validated_request_data: Dict, performance_data):
+    def format_performance_data(validated_request_data: dict, performance_data):
         """格式化数据 ."""
         data = {}
         if not performance_data:
@@ -4384,7 +4390,7 @@ class GetKubernetesNodeUsageBase(GetKubernetesGrafanaMetricRecords):
         url = f"{url}&queryData={query_data}"
         return url
 
-    def to_graph(self, validated_request_data: Dict, data: Dict) -> Dict:
+    def to_graph(self, validated_request_data: dict, data: dict) -> dict:
         """转换为指定格式的图表数据 ."""
         top_n = int(validated_request_data["top_n"])
         more_data_url = self.get_more_data_url(validated_request_data)
@@ -4410,7 +4416,7 @@ class GetKubernetesNodeUsageBase(GetKubernetesGrafanaMetricRecords):
 
         return response
 
-    def build_graph_unify_query_iterable(self, validated_request_data: Dict) -> List:
+    def build_graph_unify_query_iterable(self, validated_request_data: dict) -> list:
         bk_biz_id = validated_request_data["bk_biz_id"]
         start_time = validated_request_data.get("start_time")
         end_time = validated_request_data.get("end_time")
@@ -4435,10 +4441,9 @@ class GetKubernetesNodeUsageBase(GetKubernetesGrafanaMetricRecords):
 
         return args
 
-    def build_promql(self, validated_request_data: Dict) -> str:
-        ...
+    def build_promql(self, validated_request_data: dict) -> str: ...
 
-    def perform_request(self, validated_request_data: Dict) -> Dict:
+    def perform_request(self, validated_request_data: dict) -> dict:
         # 共享集群不返还信息
         if self.is_shared_cluster(validated_request_data):
             return {}
@@ -4455,13 +4460,13 @@ class GetKubernetesNodeUsageBase(GetKubernetesGrafanaMetricRecords):
 class GetKubernetesNodeCpuUsage(GetKubernetesNodeUsageBase):
     GRAPH_NAME = _("节点CPU使用率")
 
-    def build_promql(self, validated_request_data: Dict) -> str:
+    def build_promql(self, validated_request_data: dict) -> str:
         bcs_cluster_id = validated_request_data["bcs_cluster_id"]
         promql = (
-            '(1 - avg by(instance) '
-            '(irate(node_cpu_seconds_total{mode="idle", '
-            'bcs_cluster_id="%(bcs_cluster_id)s"}[5m]))) * 100'
-        ) % {"bcs_cluster_id": bcs_cluster_id}
+            "(1 - avg by(instance) "
+            f'(irate(node_cpu_seconds_total{{mode="idle", '
+            f'bcs_cluster_id="{bcs_cluster_id}"}}[5m]))) * 100'
+        )
 
         return promql
 
@@ -4469,22 +4474,22 @@ class GetKubernetesNodeCpuUsage(GetKubernetesNodeUsageBase):
 class GetKubernetesNodeMemoryUsage(GetKubernetesNodeUsageBase):
     GRAPH_NAME = _("节点内存使用率")
 
-    def build_promql(self, validated_request_data: Dict) -> str:
+    def build_promql(self, validated_request_data: dict) -> str:
         bcs_cluster_id = validated_request_data["bcs_cluster_id"]
         promql = (
-            '(SUM by(bcs_cluster_id,instance)'
-            ' (node_memory_MemTotal_bytes{bcs_cluster_id="%(bcs_cluster_id)s"})'
-            ' - on(bcs_cluster_id,instance) group_right() SUM by(bcs_cluster_id,instance)'
-            ' (node_memory_MemFree_bytes{bcs_cluster_id="%(bcs_cluster_id)s"})'
-            ' - on(bcs_cluster_id,instance) group_right() SUM by(bcs_cluster_id,instance) '
-            '(node_memory_Cached_bytes{bcs_cluster_id="%(bcs_cluster_id)s"})'
-            ' - on(bcs_cluster_id,instance) group_right() SUM by(bcs_cluster_id,instance) '
-            '(node_memory_Buffers_bytes{bcs_cluster_id="%(bcs_cluster_id)s"})'
-            ' + on(bcs_cluster_id,instance) group_right() SUM by(bcs_cluster_id,instance) '
-            '(node_memory_Shmem_bytes{bcs_cluster_id="%(bcs_cluster_id)s"}))'
-            ' / on(bcs_cluster_id,instance) group_right() SUM by(bcs_cluster_id,instance)'
-            ' (node_memory_MemTotal_bytes{bcs_cluster_id="%(bcs_cluster_id)s"}) * 100'
-        ) % {"bcs_cluster_id": bcs_cluster_id}
+            "(SUM by(bcs_cluster_id,instance)"
+            f' (node_memory_MemTotal_bytes{{bcs_cluster_id="{bcs_cluster_id}"}})'
+            " - on(bcs_cluster_id,instance) group_right() SUM by(bcs_cluster_id,instance)"
+            f' (node_memory_MemFree_bytes{{bcs_cluster_id="{bcs_cluster_id}"}})'
+            " - on(bcs_cluster_id,instance) group_right() SUM by(bcs_cluster_id,instance) "
+            f'(node_memory_Cached_bytes{{bcs_cluster_id="{bcs_cluster_id}"}})'
+            " - on(bcs_cluster_id,instance) group_right() SUM by(bcs_cluster_id,instance) "
+            f'(node_memory_Buffers_bytes{{bcs_cluster_id="{bcs_cluster_id}"}})'
+            " + on(bcs_cluster_id,instance) group_right() SUM by(bcs_cluster_id,instance) "
+            f'(node_memory_Shmem_bytes{{bcs_cluster_id="{bcs_cluster_id}"}}))'
+            " / on(bcs_cluster_id,instance) group_right() SUM by(bcs_cluster_id,instance)"
+            f' (node_memory_MemTotal_bytes{{bcs_cluster_id="{bcs_cluster_id}"}}) * 100'
+        )
 
         return promql
 
@@ -4492,19 +4497,19 @@ class GetKubernetesNodeMemoryUsage(GetKubernetesNodeUsageBase):
 class GetKubernetesNodeDiskSpaceUsage(GetKubernetesNodeUsageBase):
     GRAPH_NAME = _("硬盘空间使用率")
 
-    def build_promql(self, validated_request_data: Dict) -> str:
+    def build_promql(self, validated_request_data: dict) -> str:
         bcs_cluster_id = validated_request_data["bcs_cluster_id"]
         promql = (
-            '(sum by(bcs_cluster_id, instance)'
-            ' (node_filesystem_size_bytes{bcs_cluster_id="%(bcs_cluster_id)s",fstype=~"ext[234]|btrfs|xfs|zfs"})'
-            ' - on(bcs_cluster_id, instance) group_right()'
-            ' sum by(bcs_cluster_id, instance)'
-            ' (node_filesystem_free_bytes{bcs_cluster_id="%(bcs_cluster_id)s",fstype=~"ext[234]|btrfs|xfs|zfs"}))'
-            ' / on(bcs_cluster_id, instance) group_right()'
-            ' sum by(bcs_cluster_id, instance)'
-            ' (node_filesystem_size_bytes{bcs_cluster_id="%(bcs_cluster_id)s",fstype=~"ext[234]|btrfs|xfs|zfs"})'
-            ' * 100'
-        ) % {"bcs_cluster_id": bcs_cluster_id}
+            "(sum by(bcs_cluster_id, instance)"
+            f' (node_filesystem_size_bytes{{bcs_cluster_id="{bcs_cluster_id}",fstype=~"ext[234]|btrfs|xfs|zfs"}})'
+            " - on(bcs_cluster_id, instance) group_right()"
+            " sum by(bcs_cluster_id, instance)"
+            f' (node_filesystem_free_bytes{{bcs_cluster_id="{bcs_cluster_id}",fstype=~"ext[234]|btrfs|xfs|zfs"}}))'
+            " / on(bcs_cluster_id, instance) group_right()"
+            " sum by(bcs_cluster_id, instance)"
+            f' (node_filesystem_size_bytes{{bcs_cluster_id="{bcs_cluster_id}",fstype=~"ext[234]|btrfs|xfs|zfs"}})'
+            " * 100"
+        )
 
         return promql
 
@@ -4512,12 +4517,12 @@ class GetKubernetesNodeDiskSpaceUsage(GetKubernetesNodeUsageBase):
 class GetKubernetesNodeDiskIoUsage(GetKubernetesNodeUsageBase):
     GRAPH_NAME = _("硬盘IO使用率")
 
-    def build_promql(self, validated_request_data: Dict) -> str:
+    def build_promql(self, validated_request_data: dict) -> str:
         bcs_cluster_id = validated_request_data["bcs_cluster_id"]
         promql = (
-            'sum by(bcs_cluster_id, instance)'
-            ' (rate(node_disk_io_time_seconds_total{bcs_cluster_id="%(bcs_cluster_id)s"}[2m])) * 100'
-        ) % {"bcs_cluster_id": bcs_cluster_id}
+            "sum by(bcs_cluster_id, instance)"
+            f' (rate(node_disk_io_time_seconds_total{{bcs_cluster_id="{bcs_cluster_id}"}}[2m])) * 100'
+        )
 
         return promql
 
@@ -4535,6 +4540,7 @@ class GetKubernetesConsistencyCheck(Resource):
         name = serializers.CharField(required=False, allow_null=True)
 
     def perform_request(self, params):
+        bk_tenant_id = get_request_tenant_id()
         bk_biz_id = params.get("bk_biz_id")
         bcs_cluster_id = params.get("bcs_cluster_id")
         check_type = params.get("check_type")
@@ -4542,7 +4548,13 @@ class GetKubernetesConsistencyCheck(Resource):
         name = params.get("name")
 
         data = {}
-        params = {"bk_biz_id": bk_biz_id, "bcs_cluster_id": bcs_cluster_id, "data_type": data_type, "name": name}
+        params = {
+            "bk_tenant_id": bk_tenant_id,
+            "bk_biz_id": bk_biz_id,
+            "bcs_cluster_id": bcs_cluster_id,
+            "data_type": data_type,
+            "name": name,
+        }
         if check_type == "workload":
             data = api.kubernetes.fetch_kubernetes_workload_consistency_check(params)
         elif check_type == "pod":

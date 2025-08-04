@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,6 +7,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 from rest_framework import serializers
 
 from core.drf_resource import APIResource
@@ -16,6 +16,7 @@ from core.drf_resource import APIResource
 class SdkResource(APIResource):
     TIMEOUT = 300
     METRIC_REPORT_NOW = False
+    ignore_error_msg_list = ["SDK模型预测历史依赖"]
 
     # 模块名
     module_name = "aiops_sdk"
@@ -32,6 +33,7 @@ class SdkPredictResource(APIResource):
         predict_args = serializers.DictField(required=False, default=dict())
         interval = serializers.IntegerField(default=60)
         extra_data = serializers.DictField(default=dict())
+        serving_config = serializers.DictField(default=dict())
 
     action = "/api/aiops/default/"
     method = "POST"

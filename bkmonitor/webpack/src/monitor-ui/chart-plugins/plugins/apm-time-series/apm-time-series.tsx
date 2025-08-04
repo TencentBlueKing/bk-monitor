@@ -27,7 +27,7 @@ import { Component, Inject, InjectReactive } from 'vue-property-decorator';
 
 import dayjs from 'dayjs';
 import deepmerge from 'deepmerge';
-import { CancelToken } from 'monitor-api/index';
+import { CancelToken } from 'monitor-api/cancel';
 import { deepClone, random } from 'monitor-common/utils/utils';
 import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
 
@@ -36,7 +36,7 @@ import ListLegend from '../../components/chart-legend/common-legend';
 import TableLegend from '../../components/chart-legend/table-legend';
 import ChartHeader from '../../components/chart-title/chart-title';
 import { COLOR_LIST, MONITOR_LINE_OPTIONS } from '../../constants';
-import { createMenuList, type CustomChartConnector, reviewInterval } from '../../utils';
+import { type CustomChartConnector, createMenuList, reviewInterval } from '../../utils';
 import { getSeriesMaxInterval, getTimeSeriesXInterval } from '../../utils/axis';
 import { VariablesService } from '../../utils/variable';
 import BaseEchart from '../monitor-base-echart';
@@ -57,8 +57,8 @@ export default class ApmTimeSeries extends TimeSeries {
 
   contextmenuInfo = {
     options: [
-      // { id: 'details', name: window.i18n.tc('查看详情') },
-      { id: 'topo', name: window.i18n.tc('查看拓扑') },
+      // { id: 'details', name: window.i18n.t('查看详情') },
+      { id: 'topo', name: window.i18n.t('查看拓扑') },
     ],
     sliceStartTime: 0, // 当前切片起始时间
     sliceEndTime: 0,
@@ -145,19 +145,19 @@ export default class ApmTimeSeries extends TimeSeries {
     this.cancelTokens = [];
     if (!this.isInViewPort()) {
       if (this.intersectionObserver) {
-        this.unregisterOberver();
+        this.unregisterObserver();
       }
       this.registerObserver(start_time, end_time);
       return;
     }
-    if (this.inited) this.handleLoadingChange(true);
-    this.emptyText = window.i18n.tc('加载中...');
+    if (this.initialized) this.handleLoadingChange(true);
+    this.emptyText = window.i18n.t('加载中...');
     if (!this.enableSelectionRestoreAll) {
       this.showRestore = !!start_time;
     }
     try {
-      this.unregisterOberver();
-      const series = [];
+      this.unregisterObserver();
+      let series = [];
       const metrics = [];
       const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
       let params = {
@@ -184,7 +184,7 @@ export default class ApmTimeSeries extends TimeSeries {
         const noTransformVariables = !!this.panel?.options?.time_series?.noTransformVariables;
         const list = this.panel.targets.map(item => {
           const stack = item?.data?.stack || '';
-          const newPrarams = {
+          const newParams = {
             ...variablesService.transformVariables(
               item.data,
               {
@@ -205,7 +205,7 @@ export default class ApmTimeSeries extends TimeSeries {
             ),
           };
           return (this as any).$api[item.apiModule]
-            [item.apiFunc](newPrarams, {
+            [item.apiFunc](newParams, {
               cancelToken: new CancelToken((cb: () => void) => this.cancelTokens.push(cb)),
               needMessage: false,
             })
@@ -240,6 +240,7 @@ export default class ApmTimeSeries extends TimeSeries {
       this.metrics = metrics || [];
       if (series.length && series?.some(s => !!s?.datapoints?.length)) {
         const { maxSeriesCount, maxXInterval } = getSeriesMaxInterval(series);
+        series = series.toSorted((a, b) => b.name?.localeCompare?.(a?.name));
         /* 派出图表数据包含的维度*/
         this.emitDimensions(series);
         this.series = Object.freeze(series) as any;
@@ -311,7 +312,7 @@ export default class ApmTimeSeries extends TimeSeries {
           }
         }
         const formatterFunc = this.handleSetFormatterFunc(seriesList[0].data);
-        const { canScale, maxThreshold } = this.handleSetThreholds();
+        const { canScale, maxThreshold } = this.handleSetThresholds();
 
         let chartBaseOptions = MONITOR_LINE_OPTIONS;
         if (this.disableZoom) {
@@ -393,7 +394,7 @@ export default class ApmTimeSeries extends TimeSeries {
           })
         );
         this.handleDrillDownOption(this.metrics);
-        this.inited = true;
+        this.initialized = true;
         this.empty = false;
         if (!this.hasSetEvent && this.needSetEvent) {
           setTimeout(this.handleSetLegendEvent, 300);
@@ -404,18 +405,18 @@ export default class ApmTimeSeries extends TimeSeries {
           this.setChartInstance();
         }, 100);
       } else {
-        this.inited = this.metrics.length > 0;
-        this.emptyText = window.i18n.tc('暂无数据');
+        this.initialized = this.metrics.length > 0;
+        this.emptyText = window.i18n.t('暂无数据');
         this.empty = true;
       }
     } catch (e) {
       this.empty = true;
-      this.emptyText = window.i18n.tc('出错了');
+      this.emptyText = window.i18n.t('出错了');
       console.error(e);
     }
     // 初始化刷新定时器
-    if (!this.refleshIntervalInstance && this.refleshInterval) {
-      this.handleRefleshIntervalChange(this.refleshInterval);
+    if (!this.refreshIntervalInstance && this.refreshInterval) {
+      this.handleRefreshIntervalChange(this.refreshInterval);
     }
     this.cancelTokens = [];
     this.handleLoadingChange(false);
@@ -498,10 +499,10 @@ export default class ApmTimeSeries extends TimeSeries {
           <ChartHeader
             class='draggable-handle'
             customArea={this.detailsSideData.show}
-            descrition={this.panel.options?.header?.tips || ''}
-            draging={this.panel.draging}
+            description={this.panel.options?.header?.tips || ''}
+            dragging={this.panel.dragging}
             drillDownOption={this.drillDownOptions}
-            inited={this.inited}
+            initialized={this.initialized}
             isInstant={this.panel.instant}
             menuList={this.menuList}
             metrics={this.metrics}
@@ -514,7 +515,7 @@ export default class ApmTimeSeries extends TimeSeries {
             onMenuClick={this.handleMenuToolsSelect}
             onMetricClick={this.handleMetricClick}
             onSelectChild={this.handleSelectChildMenu}
-            onUpdateDragging={() => this.panel.updateDraging(false)}
+            onUpdateDragging={() => this.panel.updateDragging(false)}
           >
             {this.enableContextmenu && (
               <div class='context-menu-info'>
@@ -558,7 +559,7 @@ export default class ApmTimeSeries extends TimeSeries {
               onMouseenter={() => this.handleBaseChartMouseover(true)}
               onMouseleave={() => this.handleBaseChartMouseover(false)}
             >
-              {this.inited && (
+              {this.initialized && (
                 <BaseEchart
                   ref='baseChart'
                   width={this.width}

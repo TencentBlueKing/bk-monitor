@@ -164,8 +164,8 @@ class ExternalPermission(OperateRecordModel):
         """
         return (
             ExternalPermission.objects.filter(authorized_user=authorized_user, expire_time__gt=timezone.now())
-            .values_list("space_uid", flat=True)
-            .distinct()
+                .values_list("space_uid", flat=True)
+                .distinct()
         )
 
     @property
@@ -182,7 +182,7 @@ class ExternalPermission(OperateRecordModel):
                 # is_allowed_by_biz里针对bk_biz_id的判断, 当非BKCC的时候需要传入space_uid
                 bk_biz_id = self.bk_biz_id if self.bk_biz_id > 0 else self.space_uid
                 if not Permission(username=authorizer).is_allowed_by_biz(
-                    bk_biz_id=bk_biz_id, action=ActionEnum.MANAGE_EXTRACT_CONFIG, raise_exception=False
+                        bk_biz_id=bk_biz_id, action=ActionEnum.MANAGE_EXTRACT_CONFIG, raise_exception=False
                 ):
                     status = TokenStatusEnum.INVALID.value
             elif self.action_id == ExternalPermissionActionEnum.LOG_SEARCH.value:
@@ -210,7 +210,7 @@ class ExternalPermission(OperateRecordModel):
 
     @classmethod
     def create(
-        cls, authorized_users: List[str], space_uid: str, action_id: str, resources: List[str], expire_time: str
+            cls, authorized_users: List[str], space_uid: str, action_id: str, resources: List[str], expire_time: str
     ):
         """
         新增权限
@@ -220,9 +220,9 @@ class ExternalPermission(OperateRecordModel):
         """
         exist_authorized_users = set()
         for permission_obj in cls.objects.filter(
-            authorized_user__in=authorized_users,
-            action_id=action_id,
-            space_uid=space_uid,
+                authorized_user__in=authorized_users,
+                action_id=action_id,
+                space_uid=space_uid,
         ):
             exist_authorized_users.add(permission_obj.authorized_user)
             all_resources = set(resources) | set(permission_obj.resources)
@@ -271,9 +271,9 @@ class ExternalPermission(OperateRecordModel):
         """
         action_id = params["action_id"]
         space_uid = params["space_uid"]
-        space_info = {i.space_uid: i for i in SpaceApi.list_spaces()}
-        bk_biz_id = space_info[space_uid].bk_biz_id
-        bk_biz_name = space_info[space_uid].space_name
+        space_info = SpaceApi.get_space_detail(space_uid=space_uid)
+        bk_biz_id = space_info.bk_biz_id
+        bk_biz_name = space_info.space_name
         username = get_request_username() or get_local_username()
         ticket_data = {
             "creator": username,
@@ -330,8 +330,8 @@ class ExternalPermission(OperateRecordModel):
                 cls.objects.filter(
                     space_uid=validated_request_data["space_uid"],
                 )
-                .values_list("authorized_user", flat=True)
-                .distinct()
+                    .values_list("authorized_user", flat=True)
+                    .distinct()
             )
 
         view_type = validated_request_data.pop("view_type", ViewTypeEnum.USER.value)
@@ -351,8 +351,8 @@ class ExternalPermission(OperateRecordModel):
             origin_authorized_users = set(authorized_users)
             # 遍历与该实例相关的授权信息
             for permission in cls.objects.filter(
-                action_id=validated_request_data["action_id"],
-                space_uid=validated_request_data["space_uid"],
+                    action_id=validated_request_data["action_id"],
+                    space_uid=validated_request_data["space_uid"],
             ):
                 resource_id = resources[0]
                 if resource_id not in permission.resources:
@@ -416,9 +416,9 @@ class ExternalPermission(OperateRecordModel):
         if view_type == ViewTypeEnum.RESOURCE.value:
             resource_id = resources[0]
             for permission in cls.objects.filter(
-                authorized_user__in=authorized_users,
-                action_id=validated_request_data["action_id"],
-                space_uid=validated_request_data["space_uid"],
+                    authorized_user__in=authorized_users,
+                    action_id=validated_request_data["action_id"],
+                    space_uid=validated_request_data["space_uid"],
             ):
                 permission.resources = [
                     exist_resource for exist_resource in permission.resources if exist_resource != resource_id
@@ -445,7 +445,6 @@ class ExternalPermission(OperateRecordModel):
         2. 基于实例资源视角
         """
         authorizer = AuthorizerSettings.get_authorizer(space_uid=space_uid)
-        space_info = {i.space_uid: i.space_name for i in SpaceApi.list_spaces()}
         permission_qs = ExternalPermission.objects.all()
         if space_uid:
             permission_qs = permission_qs.filter(space_uid=space_uid)
@@ -460,7 +459,6 @@ class ExternalPermission(OperateRecordModel):
                     "expire_time": permission.expire_time,
                     "status": permission.status,
                     "space_uid": permission.space_uid,
-                    "space_name": space_info.get(permission.space_uid, ""),
                 }
                 for permission in permission_qs.iterator()
             ]
@@ -482,12 +480,21 @@ class ExternalPermission(OperateRecordModel):
             permission_list = list(resource_to_user.values())
             # 按创建时间倒序排列
             permission_list.sort(key=lambda x: x["created_at"], reverse=True)
+
+        # 获取所有的空间ID，构造空间名称映射
+        space_uids = {permission["space_uid"] for permission in permission_list}
+        space_names = {}
+        for space_uid in space_uids:
+            space_info = SpaceApi.get_space_detail(space_uid=space_uid)
+            if space_info:
+                space_names[space_uid] = space_info.space_name
+
         for permission in permission_list:
             if not space_uid:
                 permission["authorizer"] = AuthorizerSettings.get_authorizer(space_uid=permission["space_uid"])
             else:
                 permission["authorizer"] = authorizer
-            permission["space_name"] = space_info.get(permission["space_uid"], "")
+            permission["space_name"] = space_names.get(permission["space_uid"], "")
         return permission_list
 
     @classmethod
@@ -698,3 +705,17 @@ class ExternalPermissionApplyRecord(OperateRecordModel):
             }
             for record in qs.iterator()
         ]
+
+
+class TokenAccessRecord(OperateRecordModel):
+    """
+    API鉴权令牌访问记录
+    """
+
+    token = models.CharField("鉴权令牌", max_length=32)
+
+    class Meta:
+        verbose_name = "API鉴权令牌访问记录"
+        verbose_name_plural = "API鉴权令牌访问记录"
+        db_table = "token_access_record"
+        index_together = (("token", "created_by"),)

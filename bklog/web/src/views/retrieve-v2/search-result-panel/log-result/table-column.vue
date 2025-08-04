@@ -25,11 +25,7 @@
 -->
 
 <template>
-  <div
-    class="bklog-column-wrapper"
-    v-bk-tooltips="{ content: $t('查看调用链'), disabled: !hasClickEvent, delay: 500 }"
-    @click.stop="handleClickContent"
-  >
+  <div class="bklog-column-wrapper">
     <template v-if="isJsonFormat">
       <JsonFormatter
         :fields="field"
@@ -52,6 +48,7 @@
   import JsonFormatter from '@/global/json-formatter.vue';
   import { mapState } from 'vuex';
   import { formatDate, formatDateNanos } from '@/common/util';
+  import { BK_LOG_STORAGE } from '@/store/store.type';
 
   import TextSegmentation from './text-segmentation';
   export default {
@@ -68,10 +65,7 @@
         type: [String, Number, Boolean],
         required: true,
       },
-      hasClickEvent: {
-        type: Boolean,
-        default: false,
-      },
+
       field: {
         type: Object,
         required: true,
@@ -87,8 +81,7 @@
     },
     computed: {
       ...mapState({
-        // formatJson: state => state.tableJsonFormat,
-        tableLineIsWrap: state => state.tableLineIsWrap,
+        tableLineIsWrap: state => state.storage[BK_LOG_STORAGE.TABLE_LINE_IS_WRAP],
         isFormatDateField: state => state.isFormatDate,
       }),
 
@@ -111,10 +104,6 @@
       },
     },
     methods: {
-      handleClickContent() {
-        if (this.hasClickEvent) this.$emit('content-click');
-      },
-
       handleJsonSegmentClick({ isLink, option }) {
         // 为了兼容旧的逻辑，先这么写吧
         // 找时间梳理下这块，写的太随意了
@@ -130,7 +119,7 @@
   .bklog-column-wrapper {
     display: flex;
     align-items: flex-start;
-    height: 100%;
+    height: fit-content;
     padding: 0;
   }
 </style>

@@ -29,11 +29,11 @@ import './public-path.ts';
 import i18n from './i18n/i18n';
 import Vue from 'vue';
 
-import { register, unregister } from 'monitor-common/service-worker/service-wroker';
+import { register, unregister } from 'monitor-common/service-worker/service-worker';
 import { getUrlParam } from 'monitor-common/utils/utils';
 import Notify from 'vant/lib/notify';
 
-import { setVue } from '../monitor-api/utils/index';
+import { type VueInstance, setVue } from '../monitor-api/utils/index';
 import App from './pages/app.vue';
 import router from './router/router';
 import store from './store/store';
@@ -63,7 +63,7 @@ Vue.prototype.$bkMessage = (params: IMessageParam) => {
     message: params.message,
   });
 };
-setVue(Vue);
+setVue(Vue as VueInstance);
 window.i18n = i18n;
 store.commit('app/SET_APP_DATA', {
   bizId,

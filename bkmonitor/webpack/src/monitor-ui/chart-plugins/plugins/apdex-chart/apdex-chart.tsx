@@ -28,7 +28,7 @@ import { ofType } from 'vue-tsx-support';
 
 import dayjs from 'dayjs';
 import deepmerge from 'deepmerge';
-import { CancelToken } from 'monitor-api/index';
+import { CancelToken } from 'monitor-api/cancel';
 import { random } from 'monitor-common/utils/utils';
 import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
 
@@ -44,22 +44,22 @@ import type { ILegendItem, ITimeSeriesItem, PanelModel } from '../../typings';
 
 import './apdex-chart.scss';
 
-interface IApdexChartTipItem {
-  name: string;
-  color: string;
-  tips: string;
-}
 export enum APDEX_CHART_TYPE {
   APDEX = 'apdex',
   EVENT = 'event',
+}
+interface IApdexChartEvent {
+  onDataZoom: () => void;
+  onDblClick: () => void;
 }
 interface IApdexChartProps {
   panel: PanelModel;
   splitNumber?: number;
 }
-interface IApdexChartEvent {
-  onDataZoom: () => void;
-  onDblClick: () => void;
+interface IApdexChartTipItem {
+  color: string;
+  name: string;
+  tips: string;
 }
 @Component
 export class ApdexChart extends LineChart {
@@ -71,7 +71,7 @@ export class ApdexChart extends LineChart {
   ) => void;
 
   contextmenuInfo = {
-    options: [{ id: 'topo', name: window.i18n.tc('查看拓扑') }],
+    options: [{ id: 'topo', name: window.i18n.t('查看拓扑') }],
     sliceStartTime: 0, // 当前切片起始时间
     sliceEndTime: 0,
   };
@@ -90,17 +90,17 @@ export class ApdexChart extends LineChart {
     this.cancelTokens = [];
     if (!this.isInViewPort()) {
       if (this.intersectionObserver) {
-        this.unregisterOberver();
+        this.unregisterObserver();
       }
       this.registerObserver(start_time, end_time);
       return;
     }
     this.handleLoadingChange(true);
-    this.emptyText = window.i18n.tc('加载中...');
+    this.emptyText = window.i18n.t('加载中...');
     try {
-      this.unregisterOberver();
+      this.unregisterObserver();
       // const series = apdexData.series || [];
-      const series = [];
+      let series = [];
       // const metrics = apdexData.series || [];
       const metrics = [];
       const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
@@ -151,11 +151,11 @@ export class ApdexChart extends LineChart {
       }
       await Promise.all(promiseList).catch(() => false);
       if (series.length) {
+        series = series.toSorted((a, b) => b.name?.localeCompare?.(a?.name));
         const seriesList = this.handleTransformSeries(
           series.map(item => ({
             name: item.target,
             cursor: 'auto',
-            // biome-ignore lint/style/noCommaOperator: <explanation>
             data: item.datapoints.reduce((pre: any, cur: any) => (pre.push(cur.reverse()), pre), []),
             stack: item.stack || random(10),
             unit: item.unit,
@@ -188,19 +188,19 @@ export class ApdexChart extends LineChart {
           })
         );
         this.metrics = metrics || [];
-        this.inited = true;
+        this.initialized = true;
         this.empty = false;
         if (!this.hasSetEvent) {
           setTimeout(this.handleSetLegendEvent, 300);
           this.hasSetEvent = true;
         }
       } else {
-        this.emptyText = window.i18n.tc('查无数据');
+        this.emptyText = window.i18n.t('查无数据');
         this.empty = true;
       }
     } catch (e) {
       this.empty = true;
-      this.emptyText = window.i18n.tc('出错了');
+      this.emptyText = window.i18n.t('出错了');
       console.error(e);
     }
     this.cancelTokens = [];
@@ -210,7 +210,7 @@ export class ApdexChart extends LineChart {
     const legendData: ILegendItem[] = [];
     this.renderThresholds = false;
     const [{ dataType }] = this.panel.targets;
-    const tranformSeries = series.map(item => {
+    const transformSeries = series.map(item => {
       // 动态单位转换
       const unitFormatter = item.unit !== 'none' ? getValueFormat(item.unit || '') : (v: any) => ({ text: v });
       const data = item.data.map((seriesItem: any) => {
@@ -234,7 +234,7 @@ export class ApdexChart extends LineChart {
       };
     });
     this.legendData = legendData;
-    return tranformSeries;
+    return transformSeries;
   }
   handleSetItemStyle(v: number | number[], dataType: APDEX_CHART_TYPE) {
     const itemStyle = {
@@ -362,15 +362,15 @@ export class ApdexChart extends LineChart {
         {this.showChartHeader && (
           <ChartHeader
             class='draggable-handle'
-            descrition={this.panel.descrition}
-            draging={this.panel.draging}
+            description={this.panel.description}
+            dragging={this.panel.dragging}
             isInstant={this.panel.instant}
             metrics={this.metrics}
             showAddMetric={false}
             showMore={false}
             subtitle={this.panel.subTitle || ''}
             title={this.panel.title}
-            onUpdateDragging={() => this.panel.updateDraging(false)}
+            onUpdateDragging={() => this.panel.updateDragging(false)}
           >
             {this.enableContextmenu && this.showMouseTips && (
               <div class='context-menu-info'>
@@ -386,10 +386,14 @@ export class ApdexChart extends LineChart {
               ref='chart'
               class='chart-instance'
               onContextmenu={this.handleChartContextmenu}
-              onMouseenter={() => (this.showMouseTips = true)}
-              onMouseleave={() => (this.showMouseTips = false)}
+              onMouseenter={() => {
+                this.showMouseTips = true;
+              }}
+              onMouseleave={() => {
+                this.showMouseTips = false;
+              }}
             >
-              {this.inited && (
+              {this.initialized && (
                 <BaseEchart
                   ref='baseChart'
                   width={this.width}

@@ -31,17 +31,17 @@ import type { INavItem, IRouteBackItem } from '../typings';
 
 import './common-nav-bar.scss';
 
+export type NavBarMode = 'copy' | 'display' | 'share';
 interface ICommonNavBarProps {
-  routeList?: INavItem[];
-  needBack?: boolean;
-  needShadow?: boolean;
-  needCopyLink?: boolean;
-  positionText?: string;
   backGotoItem?: IRouteBackItem;
   navMode?: NavBarMode;
+  needBack?: boolean;
+  needCopyLink?: boolean;
+  needShadow?: boolean;
+  positionText?: string;
+  routeList?: INavItem[];
   callbackRouterBack?: () => void;
 }
-export type NavBarMode = 'copy' | 'display' | 'share';
 
 @Component({
   name: 'CommonNavBar',
@@ -85,15 +85,26 @@ export default class CommonNavBar extends tsc<ICommonNavBarProps> {
       this.$router.push({ name: this.backGotoItem.id, query: this.backGotoItem.query || {} });
       return;
     }
-    // 如果新窗口打开页面，点返回上一级跳转到策略列表
-    if (window.history.length <= 1) {
-      if (this.$route.name.includes('strategy-config')) {
-        this.$router.push({ path: '/strategy-config' });
-      }
-    } else {
+    // 如果新窗口打开页面
+    const historyLength = window.history.length;
+
+    if (historyLength > 1) {
       this.$router.back();
+      return;
+    }
+    const routeName = this.$route.name;
+    // 点返回上一级跳转到策略列表
+    if (routeName.includes('strategy-config')) {
+      this.$router.push({ name: 'strategy-config' });
+      return;
+    }
+    // 点返回上一级跳转到自定义指标列表
+    if (routeName.includes('custom-detail-timeseries')) {
+      this.$router.push({ name: 'custom-metric' });
+      return;
     }
   }
+
   render() {
     const len = this.routeList.length;
     return (

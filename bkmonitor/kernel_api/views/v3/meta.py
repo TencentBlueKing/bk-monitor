@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -287,6 +286,10 @@ class ModifyDatasourceResultTable(MetaViewSet):
     resource_routes = [ResourceRoute("POST", resource.ModifyDatasourceResultTable)]
 
 
+class GetOrCreateAgentEventDataId(MetaViewSet):
+    resource_routes = [ResourceRoute("GET", resource.GetOrCreateAgentEventDataIdResource)]
+
+
 class EsRouteViewSet(MetaViewSet):
     resource_routes = [ResourceRoute("POST", resource.EsRouteResource)]
 
@@ -403,6 +406,10 @@ class QueryDataLinkInfoViewSet(MetaViewSet):
     resource_routes = [ResourceRoute("GET", resource.QueryDataLinkInfoResource)]
 
 
+class SpaceDataLinkMetaReportViewSet(MetaViewSet):
+    resource_routes = [ResourceRoute("GET", resource.SpaceDataLinkMetaReport)]
+
+
 class IntelligentDiagnosisMetadataViewSet(MetaViewSet):
     resource_routes = [ResourceRoute("GET", resource.IntelligentDiagnosisMetadataResource)]
 
@@ -443,6 +450,10 @@ class NotifyDataLinkVmChangeViewSet(MetaViewSet):
     resource_routes = [ResourceRoute("GET", resource.NotifyDataLinkVmChange)]
 
 
+class QueryMetaInfoByVmrtViewSet(MetaViewSet):
+    resource_routes = [ResourceRoute("GET", resource.QueryMetaInfoByVmrt)]
+
+
 class QueryVmRtBySpaceViewSet(MetaViewSet):
     resource_routes = [ResourceRoute("GET", resource.QueryVmRtBySpace)]
 
@@ -455,13 +466,37 @@ class UpdateEsRouterViewSet(MetaViewSet):
     resource_routes = [ResourceRoute("POST", resource.UpdateEsRouter)]
 
 
+class CreateDorisRouterViewSet(MetaViewSet):
+    resource_routes = [ResourceRoute("POST", resource.CreateDorisRouter)]
+
+
+class UpdateDorisRouterViewSet(MetaViewSet):
+    resource_routes = [ResourceRoute("POST", resource.UpdateDorisRouter)]
+
+
 class AddBkDataTableIdsViewSet(MetaViewSet):
     resource_routes = [ResourceRoute("POST", resource.AddBkDataTableIdsResource)]
 
 
 class CreateOrUpdateEsRouterViewSet(MetaViewSet):
-    resource_routes = [ResourceRoute("POST", resource.CreateOrUpdateEsRouter)]
+    resource_routes = [ResourceRoute("POST", resource.CreateOrUpdateLogRouter)]
+
+
+class CreateOrUpdateLogRouterViewSet(MetaViewSet):
+    resource_routes = [ResourceRoute("POST", resource.CreateOrUpdateLogRouter)]
 
 
 class ModifyDataIdSourceViewSet(MetaViewSet):
     resource_routes = [ResourceRoute("POST", resource.ModifyDataIdSource)]
+
+
+class GetDataLabelsMapViewSet(MetaViewSet):
+    resource_routes = [ResourceRoute("POST", resource.GetDataLabelsMapResource)]
+
+
+class SyncBkBaseRtMetaByBizIdViewSet(MetaViewSet):
+    resource_routes = [ResourceRoute("GET", resource.SyncBkBaseRtMetaByBizIdResource)]
+
+
+class ListBkBaseRtInfoByBizIdViewSet(MetaViewSet):
+    resource_routes = [ResourceRoute("GET", resource.ListBkBaseRtInfoByBizIdResource)]

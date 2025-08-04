@@ -23,12 +23,12 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Emit, Prop, Ref, Mixins, Watch } from 'vue-property-decorator';
+import { Component, Emit, Mixins, Prop, Ref, Watch } from 'vue-property-decorator';
 import { ofType } from 'vue-tsx-support';
 
 import dayjs from 'dayjs';
 import deepmerge from 'deepmerge';
-import { CancelToken } from 'monitor-api/index';
+import { CancelToken } from 'monitor-api/cancel';
 import { alertDateHistogram } from 'monitor-api/modules/alert';
 import { Debounce } from 'monitor-common/utils/utils';
 import ListLegend from 'monitor-ui/chart-plugins/components/chart-legend/common-legend';
@@ -38,12 +38,12 @@ import {
   IntersectionMixin,
   LegendMixin,
   ResizeMixin,
-  ToolsMxin,
+  ToolsMixin,
 } from 'monitor-ui/chart-plugins/mixins';
 import BaseEchart from 'monitor-ui/chart-plugins/plugins/monitor-base-echart';
 
 import { generateFormatterFunc, handleTransformToTimestamp } from '../../../../components/time-range/utils';
-import { handleYAxisLabelFormatter, EStatusType, EAlertLevel, DEFAULT_SEVERITY_LIST } from '../utils';
+import { DEFAULT_SEVERITY_LIST, EAlertLevel, EStatusType, handleYAxisLabelFormatter } from '../utils';
 
 import type { TimeRangeType } from '../../../../components/time-range/time-range';
 import type { IAlarmGraphConfig } from '../type';
@@ -51,15 +51,15 @@ import type { MonitorEchartOptions } from 'monitor-ui/chart-plugins/typings';
 
 import './home-alarm-chart.scss';
 
-interface IHomeAlarmChartProps {
-  config: IAlarmGraphConfig;
-  timeRange: TimeRangeType;
-  currentActiveId: number;
-  severityProp?: Array<string>;
-}
 interface IHomeAlarmChartEvents {
   onMenuClick: any;
   onSeverityChange: any;
+}
+interface IHomeAlarmChartProps {
+  config: IAlarmGraphConfig;
+  currentActiveId: number;
+  severityProp?: Array<string>;
+  timeRange: TimeRangeType;
 }
 
 const handleSetTooltip = params => {
@@ -67,7 +67,7 @@ const handleSetTooltip = params => {
   const pointTime = dayjs.tz(Number(params[0].axisValue)).format('YYYY-MM-DD HH:mm:ss');
 
   // 构建每个数据点的 HTML 列表项
-  const liHtmls = params
+  const liHtmlList = params
     .map(item => {
       return `
           <li class="tooltips-content-item" style="--series-color: ${item.color}">
@@ -82,14 +82,14 @@ const handleSetTooltip = params => {
   return `
       <div class="monitor-chart-tooltips">
           <p class="tooltips-header">${pointTime}</p>
-          <ul class="tooltips-content">${liHtmls}</ul>
+          <ul class="tooltips-content">${liHtmlList}</ul>
       </div>`;
 };
 
 @Component
 class HomeAlarmChart extends Mixins<
-  ChartLoadingMixin & IntersectionMixin & ToolsMxin & ResizeMixin & LegendMixin & ErrorMsgMixins
->(IntersectionMixin, ChartLoadingMixin, ToolsMxin, ResizeMixin, LegendMixin, ErrorMsgMixins) {
+  ChartLoadingMixin & ErrorMsgMixins & IntersectionMixin & LegendMixin & ResizeMixin & ToolsMixin
+>(IntersectionMixin, ChartLoadingMixin, ToolsMixin, ResizeMixin, LegendMixin, ErrorMsgMixins) {
   @Prop({ default: () => ({}) }) config: IAlarmGraphConfig;
   @Prop() currentActiveId: number;
   @Prop({ default: () => ['', ''] }) timeRange: TimeRangeType;
@@ -215,7 +215,7 @@ class HomeAlarmChart extends Mixins<
     this.cancelTokens = [];
     if (!this.isInViewPort()) {
       if (this.intersectionObserver) {
-        this.unregisterOberver();
+        this.unregisterObserver();
       }
       this.registerObserver();
       return;
@@ -225,7 +225,7 @@ class HomeAlarmChart extends Mixins<
     this.emptyText = window.i18n.tc('加载中...');
     this.loading = true;
     try {
-      this.unregisterOberver();
+      this.unregisterObserver();
       const [start, end] = handleTransformToTimestamp(this.timeRange);
       const conditions = [{ key: 'strategy_id', value: this.config.strategy_ids || [] }];
       // 下拉切换告警级别筛选

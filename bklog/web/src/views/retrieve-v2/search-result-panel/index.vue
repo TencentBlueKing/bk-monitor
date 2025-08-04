@@ -1,22 +1,35 @@
 <script setup>
-  import { computed, ref, defineComponent, h } from 'vue';
+  import { computed, ref } from 'vue';
 
   import useStore from '@/hooks/use-store';
+  import { throttle } from 'lodash';
+  import { getCommonFilterAdditionWithValues } from '@/store/helper'
 
+  import RetrieveHelper from '../../retrieve-helper';
   import NoIndexSet from '../result-comp/no-index-set';
   // #if MONITOR_APP !== 'trace'
-  import SearchResultChart from '../search-result-chart/index.vue';
+  import SearchResultChart from '../search-result-chart/index.tsx';
+  // #else
+  // #code const SearchResultChart = () => null;
+  // #endif
+
+  // #if MONITOR_APP !== 'trace'
   import FieldFilter from './field-filter';
+  // #else
+  // #code const FieldFilter = () => null;
+  // #endif
+
+  // #if MONITOR_APP !== 'trace' && MONITOR_APP !== 'apm'
   import LogClustering from './log-clustering/index';
   // #else
-  // #code const SearchResultChart = defineComponent(() => h('div'));
-  // #code const FieldFilter = defineComponent(() => h('div'));
-  // #code const LogClustering = defineComponent(() => h('div'));
+  // #code const LogClustering = () => null;
   // #endif
+
+  import { BK_LOG_STORAGE } from '@/store/store.type';
 
   import LogResult from './log-result/index';
 
-  const DEFAULT_FIELDS_WIDTH = 220;
+  const DEFAULT_FIELDS_WIDTH = 200;
 
   const props = defineProps({
     activeTab: { type: String, default: '' },
@@ -37,9 +50,24 @@
   const totalCount = ref(0);
   const queueStatus = ref(false);
   const isTrendChartShow = ref(true);
-  const isShowFieldStatistics = ref(true);
-  const fieldFilterWidth = ref(DEFAULT_FIELDS_WIDTH);
   const heightNum = ref();
+
+  const fieldFilterWidth = computed(() => store.state.storage[BK_LOG_STORAGE.FIELD_SETTING].width);
+  const isShowFieldStatistics = computed(() => {
+    if(window.__IS_MONITOR_TRACE__) {
+      return false;
+    }
+    return store.state.storage[BK_LOG_STORAGE.FIELD_SETTING].show
+  });
+
+  const retrieveParamsWithCommonAddition = computed(() => {
+    return {
+      ...retrieveParams.value,
+      addition: [...retrieveParams.value.addition, ...getCommonFilterAdditionWithValues(store.state)]
+    }
+  })
+
+  RetrieveHelper.setLeftFieldSettingWidth(fieldFilterWidth.value);
 
   const changeTotalCount = count => {
     totalCount.value = count;
@@ -51,16 +79,33 @@
   const handleToggleChange = (isShow, height) => {
     isTrendChartShow.value = isShow;
     heightNum.value = height + 4;
+    RetrieveHelper.setTrendGraphHeight(heightNum.value);
   };
 
   const handleFieldsShowChange = status => {
-    if (status) fieldFilterWidth.value = DEFAULT_FIELDS_WIDTH;
-    isShowFieldStatistics.value = status;
+    if (status) {
+      RetrieveHelper.setLeftFieldSettingWidth(DEFAULT_FIELDS_WIDTH);
+    }
+    RetrieveHelper.setLeftFieldIsShown(!!status);
+    store.commit('updateStorage', {
+      [BK_LOG_STORAGE.FIELD_SETTING]: {
+        show: !!status,
+        width: DEFAULT_FIELDS_WIDTH,
+      },
+    });
   };
 
-  const handleFilterWidthChange = width => {
-    fieldFilterWidth.value = width;
-  };
+  const handleFilterWidthChange = throttle(width => {
+    if (width !== fieldFilterWidth.value) {
+      RetrieveHelper.setLeftFieldSettingWidth(width);
+      store.commit('updateStorage', {
+        [BK_LOG_STORAGE.FIELD_SETTING]: {
+          show: true,
+          width,
+        },
+      });
+    }
+  });
 
   const handleUpdateActiveTab = active => {
     emit('update:active-tab', active);
@@ -82,24 +127,20 @@
       padding: '8px 16px',
     };
   });
-
- 
-
 </script>
 
 <template>
-  <div :class="['search-result-panel', {'flex': !__IS_MONITOR_TRACE__}]">
+  <div :class="['search-result-panel', { flex: !__IS_MONITOR_TRACE__ }]">
     <!-- 无索引集 申请索引集页面 -->
     <NoIndexSet v-if="!pageLoading && isNoIndexSet" />
     <template v-else>
       <div :class="['field-list-sticky', { 'is-show': isShowFieldStatistics }]">
         <FieldFilter
-          v-model="isShowFieldStatistics"
           v-bkloading="{ isLoading: isFilterLoading && isShowFieldStatistics }"
           v-log-drag="{
             minWidth: 160,
             maxWidth: 500,
-            defaultWidth: DEFAULT_FIELDS_WIDTH,
+            defaultWidth: fieldFilterWidth,
             autoHidden: false,
             theme: 'dotted',
             placement: 'left',
@@ -109,15 +150,18 @@
           }"
           v-show="isOriginShow"
           :class="{ 'filet-hidden': !isShowFieldStatistics }"
+          :value="isShowFieldStatistics"
+          :width="fieldFilterWidth"
           @field-status-change="handleFieldsShowChange"
         ></FieldFilter>
       </div>
       <div
-        :class="['search-result-content', { 'field-list-show': isShowFieldStatistics }]"
         :style="__IS_MONITOR_TRACE__ ? undefined : rightContentStyle"
+        :class="['search-result-content', { 'field-list-show': isShowFieldStatistics }]"
       >
         <SearchResultChart
           v-show="isOriginShow"
+          :class="RetrieveHelper.randomTrendGraphClassName"
           @change-queue-res="changeQueueRes"
           @change-total-count="changeTotalCount"
           @toggle-change="handleToggleChange"
@@ -131,14 +175,14 @@
           <LogResult
             v-if="isOriginShow"
             :queue-status="queueStatus"
-            :retrieve-params="retrieveParams"
+            :retrieve-params="retrieveParamsWithCommonAddition"
             :total-count="totalCount"
           />
           <LogClustering
             v-if="activeTab === 'clustering'"
             :active-tab="activeTab"
             :height="heightNum"
-            :retrieve-params="retrieveParams"
+            :retrieve-params="retrieveParamsWithCommonAddition"
             @show-change="handleUpdateActiveTab"
           />
         </keep-alive>

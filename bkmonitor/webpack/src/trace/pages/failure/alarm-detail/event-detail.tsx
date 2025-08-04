@@ -27,6 +27,7 @@ import { computed, defineComponent, nextTick, onBeforeUnmount, onMounted, ref, w
 
 import { activated, deactivated, loadApp } from '@blueking/bk-weweb';
 import { Loading, Sideslider } from 'bkui-vue';
+import { useI18n } from 'vue-i18n';
 
 import './event-detail.scss';
 
@@ -42,7 +43,7 @@ export default defineComponent({
     },
   },
   emits: ['update:show'],
-  setup(props) {
+  setup(props, { emit }) {
     const loading = ref(false);
     // variables
     const detailRef = ref<HTMLDivElement>();
@@ -54,6 +55,8 @@ export default defineComponent({
       url.searchParams.set('bizId', props.eventDetail?.bk_biz_id);
       return url.toString();
     });
+
+    const { t } = useI18n();
 
     watch(
       () => props.show,
@@ -102,6 +105,7 @@ export default defineComponent({
       handleBeforeClose,
       handleShown,
       loading,
+      t,
     };
   },
   render() {
@@ -111,7 +115,7 @@ export default defineComponent({
           width={1280}
           beforeClose={this.handleBeforeClose}
           isShow={this.show}
-          title={this.$t('告警详情')}
+          title={this.t('告警详情')}
           onShown={this.handleShown}
           onUpdate:isShow={v => this.$emit('update:show', v)}
         >

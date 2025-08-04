@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -211,7 +210,7 @@ def create_or_delete_records(mocker):
     models.SpaceDataSource.objects.all().delete()
 
 
-@pytest.mark.django_db(databases=["default", "monitor_api"])
+@pytest.mark.django_db(databases="__all__")
 def test_discover_bcs_clusters_and_change_bk_biz_id(create_or_delete_records, mocker):
     """
     测试集群发现周期任务以及当集群业务发生迁移时，对应元数据是否能够被正常处理
@@ -232,25 +231,25 @@ def test_discover_bcs_clusters_and_change_bk_biz_id(create_or_delete_records, mo
     discover_bcs_clusters()
 
     # 结果表
-    assert models.ResultTable.objects.get(table_id='1001_bkmonitor_time_series_60010.__default__').bk_biz_id == 1002
-    assert models.ResultTable.objects.get(table_id='1001_bkmonitor_time_series_60019.__default__').bk_biz_id == 1002
-    assert models.ResultTable.objects.get(table_id='1001_bkmonitor_time_series_80001.__default__').bk_biz_id == 1002
+    assert models.ResultTable.objects.get(table_id="1001_bkmonitor_time_series_60010.__default__").bk_biz_id == 1002
+    assert models.ResultTable.objects.get(table_id="1001_bkmonitor_time_series_60019.__default__").bk_biz_id == 1002
+    assert models.ResultTable.objects.get(table_id="1001_bkmonitor_time_series_80001.__default__").bk_biz_id == 1002
 
     # 数据源
-    assert models.DataSource.objects.get(bk_data_id=60010).space_uid == 'bkcc__1002'
-    assert models.DataSource.objects.get(bk_data_id=60019).space_uid == 'bkcc__1002'
-    assert models.DataSource.objects.get(bk_data_id=80001).space_uid == 'bkcc__1002'
+    assert models.DataSource.objects.get(bk_data_id=60010).space_uid == "bkcc__1002"
+    assert models.DataSource.objects.get(bk_data_id=60019).space_uid == "bkcc__1002"
+    assert models.DataSource.objects.get(bk_data_id=80001).space_uid == "bkcc__1002"
 
     # 空间-数据源授权关系
     assert (
         models.SpaceDataSource.objects.filter(
-            bk_data_id__in=[60010, 60019, 80001], space_type_id='bkcc', space_id=1001
+            bk_data_id__in=[60010, 60019, 80001], space_type_id="bkcc", space_id=1001
         ).count()
         == 0
     )
     assert (
         models.SpaceDataSource.objects.filter(
-            bk_data_id__in=[60010, 60019, 80001], space_type_id='bkcc', space_id=1002
+            bk_data_id__in=[60010, 60019, 80001], space_type_id="bkcc", space_id=1002
         ).count()
         == 3
     )
@@ -259,97 +258,97 @@ def test_discover_bcs_clusters_and_change_bk_biz_id(create_or_delete_records, mo
     assert models.EventGroup.objects.get(bk_data_id=80001).bk_biz_id == 1002
 
 
-@pytest.mark.django_db(databases=["default", "monitor_api"])
+@pytest.mark.django_db(databases="__all__")
 def test_sync_federation_clusters(create_or_delete_records):
     """
     测试同步联邦拓扑信息
     """
-    bkbase_data_name_10002_fed = 'fed_bkm_bcs_BCS-K8S-10002_k8s_metric'
-    bkbase_vmrt_name_10002_fed = 'bkm_1001_bkmonitor_time_series_60011_fed'
-    bkbase_data_name_10003_fed = 'fed_bkm_bcs_BCS-K8S-10003_k8s_metric'
-    bkbase_vmrt_name_10003_fed = 'bkm_1001_bkmonitor_time_series_60012_fed'
+    bkbase_data_name_10002_fed = "fed_bkm_bcs_BCS-K8S-10002_k8s_metric"
+    bkbase_vmrt_name_10002_fed = "bkm_1001_bkmonitor_time_series_60011_fed"
+    bkbase_data_name_10003_fed = "fed_bkm_bcs_BCS-K8S-10003_k8s_metric"
+    bkbase_vmrt_name_10003_fed = "bkm_1001_bkmonitor_time_series_60012_fed"
     with patch.object(
-        models.DataLink, 'apply_data_link_with_retry', return_value={'status': 'success'}
+        models.DataLink, "apply_data_link_with_retry", return_value={"status": "success"}
     ) as mock_apply_with_retry:  # noqa
         bcs_api_fed_returns = {
-            'BCS-K8S-10001': {
-                'host_cluster_id': 'BCS-K8S-11111',  # host_cluster无需关注
-                'sub_clusters': {
-                    'BCS-K8S-10002': ['ns1', 'ns2', 'ns3'],
+            "BCS-K8S-10001": {
+                "host_cluster_id": "BCS-K8S-11111",  # host_cluster无需关注
+                "sub_clusters": {
+                    "BCS-K8S-10002": ["ns1", "ns2", "ns3"],
                 },
             },
-            'BCS-K8S-70001': {
-                'host_cluster_id': 'BCS-K8S-11111',  # host_cluster无需关注
-                'sub_clusters': {
-                    'BCS-K8S-10002': ['ns4', 'ns5', 'ns6'],
-                    'BCS-K8S-10003': ['nss1', 'nss2'],
+            "BCS-K8S-70001": {
+                "host_cluster_id": "BCS-K8S-11111",  # host_cluster无需关注
+                "sub_clusters": {
+                    "BCS-K8S-10002": ["ns4", "ns5", "ns6"],
+                    "BCS-K8S-10003": ["nss1", "nss2"],
                 },
             },
         }
         sync_federation_clusters(fed_clusters=bcs_api_fed_returns)
 
         fed_record_10002_part1 = models.BcsFederalClusterInfo.objects.get(
-            sub_cluster_id='BCS-K8S-10002', fed_cluster_id='BCS-K8S-10001', is_deleted=False
+            sub_cluster_id="BCS-K8S-10002", fed_cluster_id="BCS-K8S-10001", is_deleted=False
         )
-        assert fed_record_10002_part1.fed_cluster_id == 'BCS-K8S-10001'
-        assert fed_record_10002_part1.host_cluster_id == 'BCS-K8S-11111'
-        assert set(fed_record_10002_part1.fed_namespaces) == {'ns1', 'ns2', 'ns3'}
-        assert fed_record_10002_part1.fed_builtin_metric_table_id == '1001_bkmonitor_time_series_60010.__default__'
+        assert fed_record_10002_part1.fed_cluster_id == "BCS-K8S-10001"
+        assert fed_record_10002_part1.host_cluster_id == "BCS-K8S-11111"
+        assert set(fed_record_10002_part1.fed_namespaces) == {"ns1", "ns2", "ns3"}
+        assert fed_record_10002_part1.fed_builtin_metric_table_id == "1001_bkmonitor_time_series_60010.__default__"
 
         fed_record_10002_part2 = models.BcsFederalClusterInfo.objects.get(
-            sub_cluster_id='BCS-K8S-10002', fed_cluster_id='BCS-K8S-70001', is_deleted=False
+            sub_cluster_id="BCS-K8S-10002", fed_cluster_id="BCS-K8S-70001", is_deleted=False
         )
-        assert fed_record_10002_part2.fed_cluster_id == 'BCS-K8S-70001'
-        assert fed_record_10002_part2.host_cluster_id == 'BCS-K8S-11111'
-        assert set(fed_record_10002_part2.fed_namespaces) == {'ns4', 'ns5', 'ns6'}
-        assert fed_record_10002_part2.fed_builtin_metric_table_id == '1001_bkmonitor_time_series_70010.__default__'
+        assert fed_record_10002_part2.fed_cluster_id == "BCS-K8S-70001"
+        assert fed_record_10002_part2.host_cluster_id == "BCS-K8S-11111"
+        assert set(fed_record_10002_part2.fed_namespaces) == {"ns4", "ns5", "ns6"}
+        assert fed_record_10002_part2.fed_builtin_metric_table_id == "1001_bkmonitor_time_series_70010.__default__"
 
-        fed_record_10003 = models.BcsFederalClusterInfo.objects.get(sub_cluster_id='BCS-K8S-10003', is_deleted=False)
-        assert fed_record_10003.fed_cluster_id == 'BCS-K8S-70001'
-        assert fed_record_10003.host_cluster_id == 'BCS-K8S-11111'
-        assert set(fed_record_10003.fed_namespaces) == {'nss1', 'nss2'}
-        assert fed_record_10003.fed_builtin_metric_table_id == '1001_bkmonitor_time_series_70010.__default__'
+        fed_record_10003 = models.BcsFederalClusterInfo.objects.get(sub_cluster_id="BCS-K8S-10003", is_deleted=False)
+        assert fed_record_10003.fed_cluster_id == "BCS-K8S-70001"
+        assert fed_record_10003.host_cluster_id == "BCS-K8S-11111"
+        assert set(fed_record_10003.fed_namespaces) == {"nss1", "nss2"}
+        assert fed_record_10003.fed_builtin_metric_table_id == "1001_bkmonitor_time_series_70010.__default__"
 
         # 这里由于是异步触发，所以测试时需要去到sync_federation_clusters中将bulk_create_fed_data_link改为同步执行以便测试
         bkbase_rt_10002_fed = models.BkBaseResultTable.objects.get(data_link_name=bkbase_data_name_10002_fed)
-        assert bkbase_rt_10002_fed.monitor_table_id == '1001_bkmonitor_time_series_60011.__default__'
+        assert bkbase_rt_10002_fed.monitor_table_id == "1001_bkmonitor_time_series_60011.__default__"
         assert bkbase_rt_10002_fed.bkbase_rt_name == bkbase_vmrt_name_10002_fed
 
         conditional_sink_ins = models.ConditionalSinkConfig.objects.get(data_link_name=bkbase_data_name_10002_fed)
-        assert conditional_sink_ins.namespace == 'bkmonitor'
+        assert conditional_sink_ins.namespace == "bkmonitor"
         assert conditional_sink_ins.name == bkbase_vmrt_name_10002_fed
 
         databus_ins = models.DataBusConfig.objects.get(data_link_name=bkbase_data_name_10002_fed)
-        assert databus_ins.namespace == 'bkmonitor'
+        assert databus_ins.namespace == "bkmonitor"
         assert databus_ins.name == bkbase_vmrt_name_10002_fed
 
         # 10003 子集群对应的链路
 
         bkbase_rt_10003_fed = models.BkBaseResultTable.objects.get(data_link_name=bkbase_data_name_10003_fed)
-        assert bkbase_rt_10003_fed.monitor_table_id == '1001_bkmonitor_time_series_60012.__default__'
+        assert bkbase_rt_10003_fed.monitor_table_id == "1001_bkmonitor_time_series_60012.__default__"
         assert bkbase_rt_10003_fed.bkbase_rt_name == bkbase_vmrt_name_10003_fed
 
         conditional_sink_ins_10003 = models.ConditionalSinkConfig.objects.get(data_link_name=bkbase_data_name_10003_fed)
-        assert conditional_sink_ins_10003.namespace == 'bkmonitor'
+        assert conditional_sink_ins_10003.namespace == "bkmonitor"
         assert conditional_sink_ins_10003.name == bkbase_vmrt_name_10003_fed
 
         databus_ins_10003 = models.DataBusConfig.objects.get(data_link_name=bkbase_data_name_10003_fed)
-        assert databus_ins_10003.namespace == 'bkmonitor'
+        assert databus_ins_10003.namespace == "bkmonitor"
         assert databus_ins_10003.name == bkbase_vmrt_name_10003_fed
 
         # 发生变更操作
         # BCS-K8S-10002不再属于BCS-K8S-70001，所有namespace都被BCS-K8S-10001管理
         bcs_api_fed_returns_2 = {
-            'BCS-K8S-10001': {
-                'host_cluster_id': 'BCS-K8S-11111',  # host_cluster无需关注
-                'sub_clusters': {
-                    'BCS-K8S-10002': ['ns1', 'ns2', 'ns3', 'ns4', 'ns5', 'ns6'],
+            "BCS-K8S-10001": {
+                "host_cluster_id": "BCS-K8S-11111",  # host_cluster无需关注
+                "sub_clusters": {
+                    "BCS-K8S-10002": ["ns1", "ns2", "ns3", "ns4", "ns5", "ns6"],
                 },
             },
-            'BCS-K8S-70001': {
-                'host_cluster_id': 'BCS-K8S-11111',  # host_cluster无需关注
-                'sub_clusters': {
-                    'BCS-K8S-10003': ['nss1', 'nss2'],
+            "BCS-K8S-70001": {
+                "host_cluster_id": "BCS-K8S-11111",  # host_cluster无需关注
+                "sub_clusters": {
+                    "BCS-K8S-10003": ["nss1", "nss2"],
                 },
             },
         }
@@ -357,37 +356,36 @@ def test_sync_federation_clusters(create_or_delete_records):
         sync_federation_clusters(fed_clusters=bcs_api_fed_returns_2)
 
         fed_record_10002_after_part1 = models.BcsFederalClusterInfo.objects.get(
-            sub_cluster_id='BCS-K8S-10002', fed_cluster_id='BCS-K8S-10001', is_deleted=False
+            sub_cluster_id="BCS-K8S-10002", fed_cluster_id="BCS-K8S-10001", is_deleted=False
         )
-        assert fed_record_10002_after_part1.fed_cluster_id == 'BCS-K8S-10001'
-        assert fed_record_10002_after_part1.host_cluster_id == 'BCS-K8S-11111'
-        assert set(fed_record_10002_after_part1.fed_namespaces) == {'ns1', 'ns2', 'ns3', 'ns4', 'ns5', 'ns6'}
+        assert fed_record_10002_after_part1.fed_cluster_id == "BCS-K8S-10001"
+        assert fed_record_10002_after_part1.host_cluster_id == "BCS-K8S-11111"
+        assert set(fed_record_10002_after_part1.fed_namespaces) == {"ns1", "ns2", "ns3", "ns4", "ns5", "ns6"}
         assert (
-            fed_record_10002_after_part1.fed_builtin_metric_table_id == '1001_bkmonitor_time_series_60010'
-            '.__default__'
+            fed_record_10002_after_part1.fed_builtin_metric_table_id == "1001_bkmonitor_time_series_60010.__default__"
         )
 
         fed_record_10002_after_part2 = models.BcsFederalClusterInfo.objects.filter(
-            sub_cluster_id='BCS-K8S-10002', fed_cluster_id='BCS-K8S-70001'
+            sub_cluster_id="BCS-K8S-10002", fed_cluster_id="BCS-K8S-70001"
         )
         assert fed_record_10002_after_part2.first().is_deleted
 
         fed_record_10003_after = models.BcsFederalClusterInfo.objects.get(
-            sub_cluster_id='BCS-K8S-10003', is_deleted=False
+            sub_cluster_id="BCS-K8S-10003", is_deleted=False
         )
-        assert fed_record_10003_after.fed_cluster_id == 'BCS-K8S-70001'
-        assert fed_record_10003_after.host_cluster_id == 'BCS-K8S-11111'
-        assert set(fed_record_10003_after.fed_namespaces) == {'nss1', 'nss2'}
-        assert fed_record_10003_after.fed_builtin_metric_table_id == '1001_bkmonitor_time_series_70010.__default__'
+        assert fed_record_10003_after.fed_cluster_id == "BCS-K8S-70001"
+        assert fed_record_10003_after.host_cluster_id == "BCS-K8S-11111"
+        assert set(fed_record_10003_after.fed_namespaces) == {"nss1", "nss2"}
+        assert fed_record_10003_after.fed_builtin_metric_table_id == "1001_bkmonitor_time_series_70010.__default__"
 
         bkbase_rt_10002_fed = models.BkBaseResultTable.objects.get(data_link_name=bkbase_data_name_10002_fed)
-        assert bkbase_rt_10002_fed.monitor_table_id == '1001_bkmonitor_time_series_60011.__default__'
+        assert bkbase_rt_10002_fed.monitor_table_id == "1001_bkmonitor_time_series_60011.__default__"
         assert bkbase_rt_10002_fed.bkbase_rt_name == bkbase_vmrt_name_10002_fed
 
         conditional_sink_ins = models.ConditionalSinkConfig.objects.get(data_link_name=bkbase_data_name_10002_fed)
-        assert conditional_sink_ins.namespace == 'bkmonitor'
+        assert conditional_sink_ins.namespace == "bkmonitor"
         assert conditional_sink_ins.name == bkbase_vmrt_name_10002_fed
 
         databus_ins = models.DataBusConfig.objects.get(data_link_name=bkbase_data_name_10002_fed)
-        assert databus_ins.namespace == 'bkmonitor'
+        assert databus_ins.namespace == "bkmonitor"
         assert databus_ins.name == bkbase_vmrt_name_10002_fed

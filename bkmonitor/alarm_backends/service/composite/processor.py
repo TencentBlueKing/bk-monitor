@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,6 +7,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import json
 import logging
 import time
@@ -47,7 +47,7 @@ class CompositeProcessor:
     # 关联告警检测窗口大小（单位 s）
     COMPOSITE_CHECK_WINDOW_SIZE = 60 * 60
 
-    def __init__(self, alert: Alert, alert_status: str = "", composite_strategy_ids: list = None):
+    def __init__(self, alert: Alert, alert_status: str = "", composite_strategy_ids: list = None, retry_times: int = 0):
         self.alert: Alert = alert
         self.alert_status = alert_status or self.alert.status
         # 此处仅做告警关联，不需要重复清洗数据
@@ -57,6 +57,7 @@ class CompositeProcessor:
         self.actions = []
         self.events = []
         self._strategy_cache = {}
+        self.retry_times = retry_times
 
     def pull(self):
         if not self.strategy_ids:
@@ -557,11 +558,13 @@ class CompositeProcessor:
                 check_action_and_composite,
             )
 
+            self.retry_times += 2
             check_action_and_composite.apply_async(
                 kwargs={
                     "alert_key": self.alert.key,
                     "alert_status": self.alert_status,
                     "composite_strategy_ids": [strategy["id"]],
+                    "retry_times": self.retry_times,
                 },
                 countdown=1,
             )
@@ -610,7 +613,7 @@ class CompositeProcessor:
 
                 signal = None
 
-                if cached_result and not self.alert_status == EventStatus.ABNORMAL and not self.alert.is_no_data():
+                if cached_result and not self.alert_status == EventStatus.ABNORMAL:
                     # 当前有异常，但告警已经是非异常状态，需要发信号
                     # 注意：无数据告警不需要发送恢复和关闭信号
                     if self.alert_status == EventStatus.RECOVERED:
@@ -695,10 +698,12 @@ class CompositeProcessor:
                 check_action_and_composite,
             )
 
+            self.retry_times += 2
             check_action_and_composite.apply_async(
                 kwargs={
                     "alert_key": self.alert.key,
                     "alert_status": self.alert_status,
+                    "retry_times": self.retry_times,
                 },
                 countdown=1,
             )

@@ -6,7 +6,7 @@
   }
 
   .popover-title-content {
-    margin-bottom: 10px;
+    margin-bottom: 16px;
 
     .dialog-title {
       height: 24px;
@@ -38,6 +38,7 @@
           border: 0px;
 
           .bk-form-textarea[readonly] {
+            font-family: 'Roboto Mono';
             border: 0px;
           }
         }
@@ -50,13 +51,22 @@
     right: -16px;
     bottom: 0;
     width: 400px;
-    height: 42px;
-    padding: 8px 16px;
+    height: 48px;
+    padding: 0 16px;
     background: #fafbfd;
     box-shadow: 0 -1px 0 0 #dcdee5;
 
     .footer-button {
+      width: 100%;
+      height: 48px;
+      font-size: 0;
+      line-height: 48px;
       text-align: right;
+
+      .bk-button {
+        height: 32px;
+        margin-right: 8px;
+      }
     }
   }
 
@@ -69,19 +79,72 @@
 
     .bk-tooltip-content {
       height: auto;
+
+      .bk-select-search-wrapper {
+        max-height: 32px;
+      }
+
+      .bk-options {
+        .bk-option {
+          &-content {
+            padding: 0 12px;
+          }
+
+          .private-content {
+            color: #979BA5;
+          }
+
+          &.is-selected {
+            background-color: #E1ECFF;
+          }
+        }
+      }
+    }
+
+  }
+
+  .bk-form-vertical {
+    .bk-form-item {
+      .bk-label {
+        min-height: 0;
+        margin-bottom: 6px;
+        line-height: 20px;
+      }
+
+      &+.bk-form-item {
+        margin-top: 16px;
+      }
     }
   }
 }
 
 .favorite-group-extension {
+  height: 40px;
+
   .select-add-new-group {
-    cursor: pointer;
+    line-height: 40px;
+    text-align: center;
+    background-color: #FAFBFD;
+
+    &:hover {
+      cursor: pointer;
+      background-color: transparent;
+    }
+
+    .icon-plus-circle {
+      padding-right: 2px;
+      color: #979BA5;
+    }
+
+    .add-text {
+      color: #4D4F56;
+    }
   }
 
   .add-new-page-input {
     display: flex;
     align-items: center;
-    padding: 6px 0;
+    line-height: 40px;
 
     .operate-button {
       justify-content: space-between;

@@ -1,0 +1,8 @@
+{
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "outDir": "./dist"
+  },
+  "include": ["./*.js", "./public/**/*.js", "webpack/*.js", "eslint.config.mjs", "stylelint.config.mjs"],
+  "exclude": ["node_modules", "src/**"]
+}

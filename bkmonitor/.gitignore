@@ -94,6 +94,8 @@ celerybeat-schedule
 
 # Environments
 .env
+.env.access
+.env.leave
 
 # virtualenv
 ENV/
@@ -112,7 +114,6 @@ venv.bak/
 
 # mypy
 .mypy_cache/
-.vscode/
 .idea
 .history
 
@@ -226,7 +227,13 @@ static/external/
 
 # develop config
 conf/platform/ieod.py
-.vscode
+/.vscode/
 
 # ai_agent link
 ai_agent
+
+# ruff
+.ruff_cache/
+
+# Add .tico directory to ignore list
+.tico/

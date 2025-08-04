@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -19,7 +18,6 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
-import copy
 
 from django.conf import settings
 
@@ -37,7 +35,6 @@ from apps.log_databus.handlers.etl_storage import EtlStorage
 from apps.log_databus.handlers.storage import StorageHandler
 from apps.log_search.constants import CollectorScenarioEnum
 from apps.log_search.models import LogIndexSet
-from apps.utils.codecs import unicode_str_encode
 from apps.utils.local import get_request_username
 
 
@@ -57,7 +54,7 @@ class TransferEtlHandler(EtlHandler):
         sort_fields=None,
         target_fields=None,
         username="",
-        alias_settings=None,
+        total_shards_per_node=None,
         *args,
         **kwargs,
     ):
@@ -131,7 +128,7 @@ class TransferEtlHandler(EtlHandler):
             es_shards=es_shards,
             sort_fields=sort_fields,
             target_fields=target_fields,
-            alias_settings=alias_settings,
+            total_shards_per_node=total_shards_per_node,
         )
 
         if not view_roles:
@@ -174,24 +171,11 @@ class TransferEtlHandler(EtlHandler):
             custom_config = get_custom(self.data.custom_type)
             custom_config.after_etl_hook(self.data)
 
-        # create_clean_stash 直接集成到该接口，避免修改结果表失败导致 stash 数据不一致
-        # 在前面序列化器校验时，对字符做了转义，这里需要转回来
-        origin_etl_params = copy.deepcopy(etl_params)
-        if origin_etl_params.get("original_text_tokenize_on_chars"):
-            origin_etl_params["original_text_tokenize_on_chars"] = unicode_str_encode(
-                origin_etl_params["original_text_tokenize_on_chars"]
-            )
-
-        origin_fields = copy.deepcopy(fields)
-        for field in origin_fields:
-            if field.get("tokenize_on_chars"):
-                field["tokenize_on_chars"] = unicode_str_encode(field["tokenize_on_chars"])
-
         CollectorHandler(collector_config_id=self.collector_config_id).create_clean_stash(
             {
                 "clean_type": etl_config,
-                "etl_params": origin_etl_params,
-                "etl_fields": origin_fields,
+                "etl_params": etl_params,
+                "etl_fields": fields,
                 "bk_biz_id": self.data.bk_biz_id,
             }
         )

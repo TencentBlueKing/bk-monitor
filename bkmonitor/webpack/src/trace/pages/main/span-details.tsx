@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/naming-convention */
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台社区版 (BlueKing PaaS Community Edition) available.
@@ -24,15 +25,17 @@
  * IN THE SOFTWARE.
  */
 import { type PropType, computed, defineComponent, provide, reactive, ref, watch } from 'vue';
-import { useI18n } from 'vue-i18n';
-import VueJsonPretty from 'vue-json-pretty';
+import { shallowRef } from 'vue';
 
 import { Button, Exception, Loading, Message, Popover, Sideslider, Switcher, Tab } from 'bkui-vue';
 import { EnlargeLine } from 'bkui-vue/lib/icon';
 import dayjs from 'dayjs';
-import { CancelToken } from 'monitor-api/index';
+import { CancelToken } from 'monitor-api/cancel';
+import { query as apmProfileQuery } from 'monitor-api/modules/apm_profile';
 import { getSceneView } from 'monitor-api/modules/scene_view';
 import { copyText, deepClone, random } from 'monitor-common/utils/utils';
+import { useI18n } from 'vue-i18n';
+import VueJsonPretty from 'vue-json-pretty';
 
 import ExceptionGuide, { type IGuideInfo } from '../../components/exception-guide/exception-guide';
 import MonitorTab from '../../components/monitor-tab/monitor-tab';
@@ -44,19 +47,22 @@ import { BookMarkModel } from '../../plugins/typings';
 import EmptyEvent from '../../static/img/empty-event.svg';
 import { SPAN_KIND_MAPS } from '../../store/constant';
 import { useAppStore } from '../../store/modules/app';
+import { useSpanDetailQueryStore } from '../../store/modules/span-detail-query';
 import { useTraceStore } from '../../store/modules/trace';
 import {
-  EListItemType,
   type IInfo,
   type IStageTimeItem,
   type IStageTimeItemContent,
   type ITagContent,
   type ITagsItem,
+  EListItemType,
 } from '../../typings/trace';
 import { downFile, getSpanKindIcon } from '../../utils';
+import { safeParseJsonValueForWhere } from '../trace-explore/utils';
 import DashboardPanel from './dashboard-panel/dashboard-panel';
 
 import type { Span } from '../../components/trace-view/typings';
+import type { IFlameGraphDataItem } from 'monitor-ui/chart-plugins/hooks/profiling-graph/types';
 
 import './span-details.scss';
 import 'vue-json-pretty/lib/styles.css';
@@ -90,6 +96,7 @@ export default defineComponent({
   emits: ['show', 'prevNextClicked'],
   setup(props, { emit }) {
     const store = useTraceStore();
+    const spanDetailQueryStore = useSpanDetailQueryStore();
     const { t } = useI18n();
     /* 侧栏show */
     const localShow = ref(false);
@@ -113,7 +120,18 @@ export default defineComponent({
 
     /* 当前应用名称 */
     const appName = computed(() => store.traceData.appName);
-    console.log(appName);
+
+    const spanStatus = computed<{ alias: string; icon: string }>(() => {
+      const statusMap = {
+        0: { alias: t('未设置'), icon: 'warning' },
+        1: { alias: t('正常'), icon: 'normal' },
+        2: { alias: t('异常'), icon: 'failed' },
+      };
+      const status = props.spanDetails?.attributes?.find(item => item.query_key === 'status.code')?.query_value;
+      return statusMap[status];
+    });
+
+    const fullscreen = shallowRef(false);
 
     const ellipsisDirection = computed(() => store.ellipsisDirection);
 
@@ -121,11 +139,15 @@ export default defineComponent({
 
     const spans = computed(() => store.spanGroupTree);
 
+    const profilingFlameGraph = shallowRef<IFlameGraphDataItem>(null);
+
     /** 主机容器接口 */
     let hostAndContainerCancelToken = null;
 
     // const countOfInfo = ref<object | Record<TabName, number>>({});
     const enableProfiling = useIsEnabledProfilingInject();
+    const activeTab = shallowRef<TabName>('BasicInfo');
+
     /** 主机和容器的自定义时间，不走右上角的时间选择器 */
     const customTimeProvider = computed(() => {
       if (activeTab.value === 'Container' || activeTab.value === 'Host' || activeTab.value === 'Log') {
@@ -201,7 +223,11 @@ export default defineComponent({
           isInvokeOnceFlag = true;
           activeTab.value = 'BasicInfo';
           // countOfInfo.value = {};
+          fullscreen.value = false;
         }
+      },
+      {
+        immediate: true,
       }
     );
 
@@ -249,7 +275,7 @@ export default defineComponent({
     function getDetails() {
       const {
         span_id: originalSpanId,
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+
         spanID,
         app_name: appName,
         service_name: serviceName,
@@ -259,11 +285,7 @@ export default defineComponent({
         attributes,
         events,
         process,
-        icon,
         source,
-        error,
-        message,
-        /* eslint-disable-next-line @typescript-eslint/naming-convention */
         stage_duration,
       } = props.spanDetails as any | Span;
       // 服务、应用 名在日志 tab 里能用到
@@ -286,7 +308,7 @@ export default defineComponent({
       } = originalData.value as Record<string, any>;
       traceId.value = originTraceId;
 
-      info.title = `Span ID：${originalSpanId}`;
+      info.title = originalSpanId;
       /** 头部基本信息 */
       info.header = {
         title: operationName,
@@ -296,14 +318,11 @@ export default defineComponent({
             label: t('服务'),
             content: (
               <span
+                style='max-width: 168px'
                 class='link'
                 onClick={() => handleToServiceName(serviceName)}
               >
-                <img
-                  class='span-icon'
-                  alt=''
-                  src={icon}
-                />
+                <i class='icon-monitor icon-wangye' />
                 <span>{serviceName}</span>
                 <i class='icon-monitor icon-fenxiang' />
               </span>
@@ -314,6 +333,7 @@ export default defineComponent({
             label: t('应用'),
             content: (
               <span
+                style='max-width: 168px'
                 class='link'
                 onClick={() => handleToAppName(appName)}
               >
@@ -350,7 +370,7 @@ export default defineComponent({
             title: resource['telemetry.sdk.version'] || '',
           },
           {
-            label: t('所属Trace'),
+            label: t('所属 Trace'),
             content: (
               <span
                 class='link'
@@ -374,7 +394,7 @@ export default defineComponent({
           [EListItemType.tags]: {
             list:
               attributes.map(
-                (item: { key: string; value: string; type: string; query_key: string; query_value: any }) => ({
+                (item: { key: string; query_key: string; query_value: any; type: string; value: string }) => ({
                   label: item.key,
                   content: item.value || '--',
                   type: item.type,
@@ -383,68 +403,6 @@ export default defineComponent({
                   query_value: item.query_value,
                 })
               ) || [],
-          },
-        });
-      }
-      /** Events信息 来源：status_message & events */
-      if (error || events?.length) {
-        const eventList = [];
-        if (error) {
-          eventList.push({
-            isExpan: false,
-            header: {
-              date: `${formatDate(startTime)} ${formatTime(startTime)}`,
-              name: 'status_message',
-            },
-            content: [
-              {
-                label: 'span.status_message',
-                content: message || '--',
-                type: 'string',
-                isFormat: false,
-                // 这里固定写死
-                query_key: 'status.message',
-                query_value: message,
-              },
-            ],
-          });
-        }
-        if (events?.length) {
-          eventList.push(
-            ...events
-              .sort((a, b) => b.timestamp - a.timestamp)
-              .map(
-                (item: {
-                  timestamp: number;
-                  duration: number;
-                  name: any;
-                  attributes: { key: string; value: string; type: string; query_key?: string; query_value?: any }[];
-                }) => ({
-                  isExpan: false,
-                  header: {
-                    timestamp: item.timestamp,
-                    date: `${formatDate(item.timestamp)} ${formatTime(item.timestamp)}`,
-                    duration: formatDuration(item.duration),
-                    name: item.name,
-                  },
-                  content: item.attributes.map(attribute => ({
-                    label: attribute.key,
-                    content: attribute.value || '--',
-                    type: attribute.type,
-                    isFormat: false,
-                    query_key: attribute?.query_key || '',
-                    query_value: attribute?.query_value || '',
-                  })),
-                })
-              )
-          );
-        }
-        info.list.push({
-          type: EListItemType.events,
-          isExpan: true,
-          title: 'Events',
-          [EListItemType.events]: {
-            list: eventList,
           },
         });
       }
@@ -529,7 +487,7 @@ export default defineComponent({
           [EListItemType.tags]: {
             list:
               process?.tags.map(
-                (item: { key: any; value: any; type: string; query_key: string; query_value: any }) => ({
+                (item: { key: any; query_key: string; query_value: any; type: string; value: any }) => ({
                   label: item.key,
                   content: item.value || '--',
                   type: item.type,
@@ -538,6 +496,46 @@ export default defineComponent({
                   query_value: item.query_value,
                 })
               ) || [],
+          },
+        });
+      }
+      /** Events信息 来源：status_message & events */
+      if (events?.length) {
+        const eventList = [];
+        eventList.push(
+          ...events
+            .sort((a, b) => b.timestamp - a.timestamp)
+            .map(
+              (item: {
+                attributes: { key: string; query_key?: string; query_value?: any; type: string; value: string }[];
+                duration: number;
+                name: any;
+                timestamp: number;
+              }) => ({
+                isExpan: false,
+                header: {
+                  timestamp: item.timestamp,
+                  date: `${formatDate(item.timestamp)} ${formatTime(item.timestamp)}`,
+                  duration: formatDuration(item.duration),
+                  name: item.name,
+                },
+                content: item.attributes.map(attribute => ({
+                  label: attribute.key,
+                  content: attribute.value || '--',
+                  type: attribute.type,
+                  isFormat: false,
+                  query_key: attribute?.query_key || '',
+                  query_value: attribute?.query_value || '',
+                })),
+              })
+            )
+        );
+        info.list.push({
+          type: EListItemType.events,
+          isExpan: true,
+          title: 'Events',
+          [EListItemType.events]: {
+            list: eventList,
           },
         });
       }
@@ -602,17 +600,25 @@ export default defineComponent({
 
     /** 添加查询语句查询 */
     const handleKvQuery = (content: ITagContent) => {
-      const queryStr = `${content.query_key}: "${String(content.query_value)?.replace(/\"/g, '\\"') ?? ''}"`; // value转义双引号
+      const where = encodeURIComponent(
+        JSON.stringify([
+          {
+            key: content.query_key,
+            operator: 'equal',
+            value: safeParseJsonValueForWhere(content.query_value),
+          },
+        ])
+      );
       const url = location.href.replace(
         location.hash,
-        `#/trace/home?app_name=${appName.value}&search_type=scope&listType=span&query=${queryStr}`
+        `#/trace/home?app_name=${appName.value}&sceneMode=span&where=${where}&filterMode=ui`
       );
       window.open(url, '_blank');
     };
 
     /* 复制kv部分文本 */
     const handleCopy = (content: ITagContent) => {
-      const queryStr = `${content.query_key}: "${String(content.query_value)?.replace(/\"/g, '\\"') ?? ''}"`; // value转义双引号
+      const queryStr = `${content.query_key}: "${String(content.query_value)?.replace(/"/g, '\\"') ?? ''}"`; // value转义双引号
       copyText(
         queryStr,
         (msg: string) => {
@@ -634,7 +640,7 @@ export default defineComponent({
     /* event 错误链接 */
     function handleEventErrLink() {
       const { app_name: appName } = props.spanDetails;
-      const hash = `#/apm/application?filter-app_name=${appName}&method=AVG&interval=auto&dashboardId=error&from=now-1h&to=now&refleshInterval=-1`;
+      const hash = `#/apm/application?filter-app_name=${appName}&method=AVG&interval=auto&dashboardId=error&from=now-1h&to=now&refreshInterval=-1`;
       const url = location.href.replace(location.hash, hash);
       window.open(url, '_blank');
     }
@@ -642,7 +648,7 @@ export default defineComponent({
     /* 跳转到服务 */
     function handleToServiceName(serviceName: string) {
       const { app_name: appName } = props.spanDetails;
-      const hash = `#/apm/service?filter-service_name=${serviceName}&filter-app_name=${appName}&method=AVG&interval=auto&from=now-1h&to=now&refleshInterval=-1`;
+      const hash = `#/apm/service?filter-service_name=${serviceName}&filter-app_name=${appName}&method=AVG&interval=auto&from=now-1h&to=now&refreshInterval=-1`;
       const url = location.href.replace(location.hash, hash);
       window.open(url, '_blank');
     }
@@ -656,7 +662,7 @@ export default defineComponent({
 
     /** 跳转traceId精确查询 */
     function handleToTraceQuery(traceId: string) {
-      const hash = `#/trace/home?app_name=${appName.value}&search_type=accurate&trace_id=${traceId}`;
+      const hash = `#/trace/home?app_name=${appName.value}&sceneMode=trace&trace_id=${traceId}`;
       const url = location.href.replace(location.hash, hash);
       window.open(url, '_blank');
     }
@@ -664,6 +670,10 @@ export default defineComponent({
     /** 切换原始数据 */
     function handleOriginalDataChange(val: boolean) {
       showOriginalData.value = val;
+    }
+
+    function handleFullScreen(status = false) {
+      fullscreen.value = status;
     }
 
     // 复制操作
@@ -701,6 +711,25 @@ export default defineComponent({
       });
     }
 
+    async function getFlameGraphData() {
+      const { start_time, end_time } = getProfilingTimeRange();
+      const data: IFlameGraphDataItem = await apmProfileQuery(
+        {
+          bk_biz_id: bizId.value,
+          app_name: appName.value,
+          service_name: serviceNameProvider.value,
+          start: start_time,
+          end: end_time,
+          profile_id: originalData.value.span_id,
+          diagram_types: ['flamegraph'],
+        },
+        {
+          needCancel: true,
+        }
+      ).catch(() => null);
+      profilingFlameGraph.value = data?.flame_data || [];
+    }
+
     /* 折叠 */
     const expanItem = (
       isExpan: boolean,
@@ -715,7 +744,7 @@ export default defineComponent({
           class='expan-item-head'
           onClick={() => expanChange(isExpan)}
         >
-          <span class={['icon-monitor icon-mc-triangle-down', { active: isExpan }]} />
+          <span class={['icon-monitor icon-mc-arrow-down', { active: isExpan }]} />
           <span class='expan-item-title'>{title}</span>
           {subTitle || undefined}
         </div>
@@ -795,17 +824,23 @@ export default defineComponent({
               <span class='left'>
                 <span
                   class='left-title'
-                  v-bk-overflow-tips
+                  v-overflow-tips
                 >
                   {item.label}
                 </span>
                 <div class='operator'>
                   <EnlargeLine
                     class='icon-add-query'
+                    v-bk-tooltips={{
+                      content: t('检索'),
+                    }}
                     onClick={() => handleKvQuery(item)}
                   />
                   <span
                     class='icon-monitor icon-mc-copy'
+                    v-bk-tooltips={{
+                      content: t('复制'),
+                    }}
                     onClick={() => handleCopy(item)}
                   />
                 </div>
@@ -922,8 +957,6 @@ export default defineComponent({
       </div>
     );
 
-    const activeTab = ref<TabName>('BasicInfo');
-
     watch(
       () => props.activeTab,
       val => {
@@ -936,10 +969,10 @@ export default defineComponent({
         label: t('基础信息'),
         name: 'BasicInfo',
       },
-      {
-        label: t('事件'),
-        name: 'Event',
-      },
+      // {
+      //   label: t('事件'),
+      //   name: 'Event',
+      // },
       {
         label: t('日志'),
         name: 'Log',
@@ -966,6 +999,23 @@ export default defineComponent({
       //   name: 'Index'
       // }
     ];
+
+    // 快捷跳转文案
+    const exploreButtonName = computed(() => {
+      switch (activeTab.value) {
+        case 'Container':
+          return spanDetailQueryStore.queryData?.pod_name ? t('容器监控') : '';
+        case 'Host':
+          return spanDetailQueryStore.queryData?.bk_host_id ? t('主机监控') : '';
+        case 'Log':
+          return spanDetailQueryStore.queryData?.indexId || spanDetailQueryStore.queryData.unionList
+            ? t('日志检索')
+            : '';
+        case 'Profiling':
+          return spanId.value ? t('Profiling检索') : '';
+      }
+      return '';
+    });
 
     const sceneData = ref<BookMarkModel>({});
     const isSingleChart = computed<boolean>(() => {
@@ -1001,9 +1051,7 @@ export default defineComponent({
           apm_app_name: props.spanDetails.app_name,
           apm_service_name: props.spanDetails.service_name,
           apm_span_id: props.spanDetails.span_id,
-        })
-          .catch(console.log)
-          .finally(() => (isTabPanelLoading.value = false));
+        }).catch(console.log);
         if (result?.overview_panels?.length) {
           result.overview_panels[0] = {
             ...result.overview_panels[0],
@@ -1017,6 +1065,7 @@ export default defineComponent({
           };
         }
         sceneData.value = new BookMarkModel(result);
+        isTabPanelLoading.value = false;
       }
       if (activeTab.value === 'Host') {
         const result = await getSceneView(
@@ -1053,6 +1102,68 @@ export default defineComponent({
         ).catch(() => null);
         sceneData.value = new BookMarkModel(result);
         isTabPanelLoading.value = false;
+      }
+      if (activeTab.value === 'Profiling') {
+        if (enableProfiling.value) {
+          await getFlameGraphData();
+        }
+        isTabPanelLoading.value = false;
+      }
+    };
+    const getProfilingTimeRange = () => {
+      const halfHour = 18 * 10 ** 8;
+      return {
+        start_time: originalData.value?.start_time - halfHour,
+        end_time: originalData.value?.start_time + halfHour,
+      };
+    };
+    // 快捷跳转
+    const handleQuickJump = () => {
+      switch (activeTab.value) {
+        case 'Log': {
+          if (!spanDetailQueryStore.queryData?.indexId && !spanDetailQueryStore.queryData?.unionList) return;
+          const { indexId, unionList, start_time, end_time, addition } = spanDetailQueryStore.queryData;
+          let url = '';
+          if (unionList) {
+            url = `${window.bk_log_search_url}#/retrieve?bizId=${window.bk_biz_id}&search_mode=ui&start_time=${start_time ? dayjs(start_time).valueOf() : ''}&end_time=${end_time ? dayjs(end_time).valueOf() : ''}&addition=${addition || ''}&unionList=${unionList}`;
+          } else {
+            url = `${window.bk_log_search_url}#/retrieve/${indexId}?bizId=${window.bk_biz_id}&search_mode=ui&start_time=${start_time ? dayjs(start_time).valueOf() : ''}&end_time=${end_time ? dayjs(end_time).valueOf() : ''}&addition=${addition || ''}`;
+          }
+          window.open(url, '_blank');
+          return;
+        }
+        case 'Host': {
+          if (!spanDetailQueryStore.queryData?.bk_host_id) return;
+          window.open(`#/performance/detail/${spanDetailQueryStore.queryData.bk_host_id}`, '_blank');
+          return;
+        }
+        case 'Container': {
+          if (!spanDetailQueryStore.queryData?.pod_name) return;
+          const { pod_name, bcs_cluster_id, namespace } = spanDetailQueryStore.queryData;
+          window.open(
+            `#/k8s-new/?sceneId=kubernetes&cluster=${bcs_cluster_id}&filterBy=${encodeURIComponent(JSON.stringify({ namespace: [namespace], pod: [pod_name] }))}&groupBy=${encodeURIComponent(JSON.stringify(['namespace', 'pod']))}`
+          );
+          return;
+        }
+        case 'Profiling': {
+          const { app_name, service_name, span_id } = props.spanDetails;
+          if (!span_id) return;
+          const { start_time, end_time } = getProfilingTimeRange();
+          window.open(
+            `#/trace/profiling/?target=${encodeURIComponent(
+              JSON.stringify({
+                app_name,
+                service_name,
+                start: (start_time / 1000).toFixed(0),
+                end: (end_time / 1000).toFixed(0),
+                filter_labels: {
+                  span_id,
+                },
+              })
+            )}`
+          );
+          return;
+        }
       }
     };
 
@@ -1118,9 +1229,7 @@ export default defineComponent({
     }
     const detailsMain = () => {
       // profiling 查询起始时间根据 span 开始时间前后各推半小时
-      const halfHour = 18 * 10 ** 8;
-      const profilingRerieveStartTime = originalData.value?.start_time - halfHour;
-      const profilingRerieveEndTime = originalData.value?.start_time + halfHour;
+      const { start_time, end_time } = getProfilingTimeRange();
       return (
         <Loading
           style='height: 100%;'
@@ -1165,7 +1274,7 @@ export default defineComponent({
                 [
                   <div
                     key='header'
-                    class='header'
+                    class='details-header'
                   >
                     {props.withSideSlider ? (
                       <div class='title'>
@@ -1180,7 +1289,7 @@ export default defineComponent({
                     ) : (
                       titleInfoElem()
                     )}
-                    <div class='others'>
+                    <div class='details-others'>
                       {info.header.others.map((item, index) => (
                         <span
                           key={index}
@@ -1200,6 +1309,24 @@ export default defineComponent({
                   <MonitorTab
                     key='info-tab'
                     class='info-tab'
+                    v-slots={{
+                      setting: () => {
+                        return (
+                          exploreButtonName.value && (
+                            <Button
+                              class='quick-jump'
+                              size='small'
+                              theme='primary'
+                              outline
+                              onClick={handleQuickJump}
+                            >
+                              {exploreButtonName.value}
+                              <i class='icon-monitor icon-fenxiang' />
+                            </Button>
+                          )
+                        );
+                      },
+                    }}
                     active={activeTab.value}
                     onTabChange={v => {
                       activeTab.value = v;
@@ -1255,15 +1382,17 @@ export default defineComponent({
                           isExpan => handleExpanChange(isExpan, index)
                         );
                       }
-                      if (item.type === EListItemType.events && activeTab.value === 'Event') {
+                      if (item.type === EListItemType.events && activeTab.value === 'BasicInfo') {
                         const content = item[EListItemType.events];
                         const isException =
                           content?.list.some(val => val.header?.name === 'exception') && props.spanDetails?.error;
-                        return (
+                        return expanItem(
+                          item.isExpan,
+                          item.title,
                           <div>
                             {isException && (
                               <Button
-                                style='margin-top: 16px;'
+                                style='margin: 16px 0;'
                                 onClick={handleEventErrLink}
                               >
                                 {t('错误分析')}
@@ -1280,10 +1409,7 @@ export default defineComponent({
                                 handleSmallExpanChange(false, index, childIndex);
                               }
                               return (
-                                <div
-                                  key={childIndex}
-                                  style='margin-top: 16px;'
-                                >
+                                <div key={childIndex}>
                                   {expanItemSmall(
                                     child.isExpan,
                                     child.header.name,
@@ -1319,7 +1445,9 @@ export default defineComponent({
                                 </div>
                               );
                             })}
-                          </div>
+                          </div>,
+                          ` (${content.list.length})`,
+                          isExpan => handleExpanChange(isExpan, index)
                         );
                       }
                       if (item.type === EListItemType.stageTime && activeTab.value === 'BasicInfo') {
@@ -1412,27 +1540,31 @@ export default defineComponent({
                           style='height: 100%;'
                           loading={enableProfiling.value && isTabPanelLoading.value}
                         >
-                          {enableProfiling.value ? (
-                            <ProfilingFlameGraph
-                              appName={appName.value}
-                              bizId={bizId.value}
-                              end={profilingRerieveEndTime}
-                              profileId={originalData.value.span_id}
-                              serviceName={serviceNameProvider.value}
-                              start={profilingRerieveStartTime}
-                              textDirection={ellipsisDirection.value}
-                              onUpdate:loading={val => (isTabPanelLoading.value = val)}
-                            />
-                          ) : (
-                            <div class='exception-guide-wrap'>
-                              <Exception type='building'>
-                                <span>{t('暂未开启 Profiling 功能')}</span>
-                                <div class='text-wrap'>
-                                  <pre class='text-row'>{t('该服务所在 APM 应用未开启 Profiling 功能')}</pre>
-                                </div>
-                              </Exception>
-                            </div>
-                          )}
+                          {!isTabPanelLoading.value &&
+                            (enableProfiling.value ? (
+                              <ProfilingFlameGraph
+                                appName={appName.value}
+                                bizId={bizId.value}
+                                data={profilingFlameGraph.value}
+                                end={start_time}
+                                profileId={originalData.value.span_id}
+                                serviceName={serviceNameProvider.value}
+                                start={end_time}
+                                textDirection={ellipsisDirection.value}
+                                onUpdate:loading={val => {
+                                  isTabPanelLoading.value = val;
+                                }}
+                              />
+                            ) : (
+                              <div class='exception-guide-wrap'>
+                                <Exception type='building'>
+                                  <span>{t('暂未开启 Profiling 功能')}</span>
+                                  <div class='text-wrap'>
+                                    <pre class='text-row'>{t('该服务所在 APM 应用未开启 Profiling 功能')}</pre>
+                                  </div>
+                                </Exception>
+                              </div>
+                            ))}
                         </Loading>
                       )
                     }
@@ -1448,14 +1580,18 @@ export default defineComponent({
 
     const renderDom = () => (
       <Sideslider
-        width={1280}
+        width={fullscreen.value ? '100%' : '80%'}
         ext-cls={`span-details-sideslider ${props.isFullscreen ? 'full-screen' : ''}`}
         v-model={[localShow.value, 'isShow']}
         v-slots={{
           header: () => (
             <div class='sideslider-header'>
               <div class={['sideslider-hd', { 'show-flip-button': props.isShowPrevNextButtons }]}>
-                <span class='sideslider-title'>{info.title}</span>
+                <span class='sideslider-title'>
+                  <span class='text'>Span ID: </span>
+                  <span class={['status', spanStatus.value?.icon]} />
+                  <span class='name'>{info.title}</span>
+                </span>
                 {props.isShowPrevNextButtons ? (
                   <>
                     <div
@@ -1469,7 +1605,7 @@ export default defineComponent({
                         }
                       }}
                     >
-                      <span class='icon-monitor icon-arrow-up' />
+                      <span class='icon-monitor icon-a-mini-arrowxiaojiantou top' />
                     </div>
                     <div
                       class={['arrow-wrap', { disabled: isDisabledNext.value }]}
@@ -1482,27 +1618,42 @@ export default defineComponent({
                         }
                       }}
                     >
-                      <span class='icon-monitor icon-arrow-down' />
+                      <span class='icon-monitor icon-a-mini-arrowxiaojiantou' />
                     </div>
                   </>
                 ) : null}
               </div>
               <div class='header-tool'>
-                <Switcher
-                  class='switcher'
-                  v-model={showOriginalData.value}
-                  theme='primary'
-                  onChange={handleOriginalDataChange}
-                />
-                <span>{t('原始数据')}</span>
-                <Button
-                  class='download-btn'
-                  size='small'
-                  onClick={handleExportOriginData}
-                >
-                  <i class='icon-monitor icon-xiazai1' />
-                  <span>{t('下载')}</span>
-                </Button>
+                <div class='tool-item'>
+                  <div class='tool-item-content'>
+                    <Switcher
+                      class='switcher'
+                      v-model={showOriginalData.value}
+                      size='small'
+                      theme='primary'
+                      onChange={handleOriginalDataChange}
+                    />
+                    <span>{t('原始数据')}</span>
+                  </div>
+                </div>
+                <div class='tool-item'>
+                  <div
+                    class='tool-item-content'
+                    onClick={() => handleFullScreen(!fullscreen.value)}
+                  >
+                    <i class='icon-monitor icon-fullscreen' />
+                    <span>{t(fullscreen.value ? '退出全屏' : '全屏')}</span>
+                  </div>
+                </div>
+                <div class='tool-item'>
+                  <div
+                    class='tool-item-content'
+                    onClick={handleExportOriginData}
+                  >
+                    <i class='icon-monitor icon-xiazai2' />
+                    <span>{t('下载')}</span>
+                  </div>
+                </div>
               </div>
             </div>
           ),

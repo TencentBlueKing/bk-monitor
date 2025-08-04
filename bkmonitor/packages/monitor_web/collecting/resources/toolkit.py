@@ -7,6 +7,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import logging
 from collections import defaultdict
 from distutils.version import StrictVersion
@@ -20,7 +21,7 @@ from rest_framework import serializers
 
 from bkmonitor.models import MetricListCache, QueryConfigModel, StrategyModel
 from bkmonitor.utils.cipher import RSACipher
-from bkmonitor.utils.request import get_request
+from bkmonitor.utils.request import get_request, get_request_tenant_id
 from constants.cmdb import TargetNodeType
 from constants.data_source import DataSourceLabel, DataTypeLabel
 from core.drf_resource import Resource, api
@@ -112,11 +113,11 @@ class ListLegacySubscription(Resource):
             # 插件采集的 step_id 固定是 bkmonitorbeat
             # 其他有 bkmonitorproxy, bkmonitorbeat_http。需要特别注意不要把这些计算在内
             # 节点管理2.1及之后，新增category字段
-            all_monitor_subscription_query_sql = '''
+            all_monitor_subscription_query_sql = """
             select a.subscription_id from node_man_subscriptionstep as a
             inner join node_man_subscription as b on a.subscription_id = b.id
             where a.step_id IN ("bkmonitorbeat","bkmonitorlog") and b.is_deleted = 0
-            and config not like "%MAIN_%_PLUGIN%" and b.category is null;'''
+            and config not like "%MAIN_%_PLUGIN%" and b.category is null;"""
             cursor.execute(all_monitor_subscription_query_sql)
             all_monitor_subscription_ids = {item[0] for item in cursor.fetchall()}
 
@@ -266,12 +267,16 @@ class ListRelatedStrategy(Resource):
         collect_config_id = serializers.IntegerField(required=True, label="采集配置ID")
 
     def perform_request(self, validated_request_data):
-        collect_config = CollectConfigMeta.objects.get(id=validated_request_data["collect_config_id"])
+        collect_config = CollectConfigMeta.objects.get(
+            id=validated_request_data["collect_config_id"], bk_biz_id=validated_request_data["bk_biz_id"]
+        )
         result = {"fuzzy_strategies": [], "accurate_strategies": []}
 
         # 1.拿到所有指标的collect_config_ids
         related_metrics = []
-        metrics = MetricListCache.objects.filter(bk_biz_id__in=[0, validated_request_data["bk_biz_id"]])
+        metrics = MetricListCache.objects.filter(
+            bk_tenant_id=get_request_tenant_id(), bk_biz_id__in=[0, validated_request_data["bk_biz_id"]]
+        )
 
         # 2.找到要删除的采集配置对应的指标
         for metric in metrics:
@@ -331,7 +336,9 @@ class IsTaskReady(Resource):
 
     def perform_request(self, validated_request_data):
         config_id = validated_request_data["collect_config_id"]
-        config = CollectConfigMeta.objects.select_related("deployment_config").get(id=config_id)
+        config = CollectConfigMeta.objects.select_related("deployment_config").get(
+            id=config_id, bk_biz_id=validated_request_data["bk_biz_id"]
+        )
 
         # 兼容非节点管理部署的采集
         if not config.deployment_config.subscription_id:
@@ -394,7 +401,8 @@ class CheckAdjectiveCollect(Resource):
         clean = serializers.BooleanField(required=False, label="是否清理", default=False)
 
     def perform_request(self, validated_request_data):
-        configs = CollectConfigMeta.objects.filter(last_operation="STOP")
+        bk_tenant_id = get_request_tenant_id()
+        configs = CollectConfigMeta.objects.filter(bk_tenant_id=bk_tenant_id, last_operation="STOP")
         config_id_map = {config.id: config for config in configs}
         dcvs = dict(
             DeploymentConfigVersion.objects.filter(config_meta_id__in=list(config_id_map.keys())).values_list(

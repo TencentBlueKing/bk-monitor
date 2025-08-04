@@ -1,0 +1,94 @@
+:root {
+  --bklog-v3-row-tag-font: 'RobotoMono-Medium';
+  --bklog-v3-row-ctx-font: 'RobotoMono-Regular';
+  --bklog-v3-row-lbl-font: 'Roboto-Regular';
+}
+
+.v3-bklog-root {
+  display: flex;
+  width: 100%;
+  height: 100%;
+
+  .v3-bklog-content {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    height: 100%;
+    overflow-x: hidden;
+    overflow-y: auto;
+  }
+
+  .search-result-panel {
+    &.flex {
+      justify-content: flex-end;
+
+      .field-list-sticky {
+        top: 0;
+
+        &.is-show {
+          position: relative;
+          height: calc(100vh - var(--top-searchbar-height) - 150px);
+        }
+      }
+    }
+  }
+
+  &.is-sticky-top-result {
+    .search-result-panel {
+      &.flex {
+        .search-result-content {
+          .original-log-panel {
+            .bklog-result-box {
+              .bklog-result-container {
+                &.show-header {
+                  overflow: visible;
+                  .bklog-row-container {
+                    overflow: visible;
+                    &.row-header {
+                      position: sticky;
+                      top: calc(var(--top-searchbar-height));
+                      left: calc(var(--left-collection-width) + var(--left-field-setting-width) + 8px);
+
+                      .right {
+                        right: 8px;
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+
+  &.is-sticky-top {
+    .search-result-panel {
+      &.flex {
+        .field-list-sticky {
+          &.is-show {
+            position: fixed;
+            top: calc(var(--top-searchbar-height) + var(--header-height));
+            bottom: 0;
+            left: calc(var(--left-collection-width) + 8px);
+            height: calc(100vh - var(--top-searchbar-height) - var(--header-height));
+
+            .field-filter-box {
+              .field-filter-container-new {
+                height: calc(100vh - var(--top-searchbar-height) - 100px);
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+.is-start-text-ellipsis {
+  .rtl-text {
+    direction: rtl;
+    // unicode-bidi: bidi-override; // 会影响DOM顺序
+  }
+}

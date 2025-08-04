@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -9,16 +8,16 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-
 import logging
 
+from alarm_backends.constants import LATEST_NO_DATA_CHECK_POINT
 from alarm_backends.core.cache import key
 from alarm_backends.core.cache.key import (
     MD5_TO_DIMENSION_CACHE_KEY,
     OLD_MD5_TO_DIMENSION_CACHE_KEY,
 )
-from alarm_backends.core.control.strategy import Strategy, StrategyCacheManager
-from alarm_backends.core.detect_result import CONST_MAX_LEN_CHECK_RESULT
+from alarm_backends.core.control.item import detect_result_point_required
+from alarm_backends.core.control.strategy import StrategyCacheManager
 
 DUMMY_DIMENSIONS_MD5 = "dummy_dimensions_md5"
 CLEAN_EXPIRED_ARROW_REPLACE_TIME = {"hours": -5}
@@ -26,7 +25,7 @@ CLEAN_EXPIRED_ARROW_REPLACE_TIME = {"hours": -5}
 logger = logging.getLogger("core.detect_result")
 
 
-class CleanResult(object):
+class CleanResult:
     @staticmethod
     def clean_expired_detect_result(strategy_range=None):
         """
@@ -86,6 +85,8 @@ class CleanResult(object):
                     if check_result_length > 0:
                         continue
                     *_, dimension_md5, level = check_result_cache_key.split(".")
+                    if dimension_md5 == LATEST_NO_DATA_CHECK_POINT:
+                        continue
                     last_checkpoints_cache_field = key.LAST_CHECKPOINTS_CACHE_KEY.get_field(
                         dimensions_md5=dimension_md5, level=level
                     )
@@ -125,19 +126,3 @@ class CleanResult(object):
                 if index % 5000 == 4999:
                     pipeline.execute()
         pipeline.execute()
-
-
-def detect_result_point_required(strategy) -> int:
-    """
-    检测结果需要保留多少个检测结果点
-    """
-    # 计算恢复窗口时间偏移量
-    recovery_configs = Strategy.get_recovery_configs(strategy)
-    trigger_configs = Strategy.get_trigger_configs(strategy)
-
-    point_remind = CONST_MAX_LEN_CHECK_RESULT
-    for level in trigger_configs:
-        trigger_window_size = trigger_configs[level].get("check_window_size", 5)
-        recovery_window_size = recovery_configs[level].get("check_window_size", 5)
-        point_remind = max([point_remind, (trigger_window_size + recovery_window_size) * 2])
-    return point_remind

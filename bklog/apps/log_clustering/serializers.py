@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -19,6 +18,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+
 from django.utils.translation import gettext_lazy as _
 from rest_framework import serializers
 
@@ -32,6 +32,7 @@ from apps.log_clustering.constants import (
     StrategiesAlarmLevelEnum,
     StrategiesType,
 )
+from apps.log_clustering.handlers.dataflow.constants import OnlineTaskTrainingArgs
 from apps.utils.drf import DateTimeFieldWithEpoch
 from bkm_space.serializers import SpaceUIDField
 
@@ -67,10 +68,28 @@ class PatternSearchSerlaizer(serializers.Serializer):
         return attrs
 
 
+class StringOrListField(serializers.Field):
+    def to_internal_value(self, data):
+        if isinstance(data, str):
+            return [data]
+
+        if isinstance(data, list):
+            if not data:
+                raise serializers.ValidationError("The list cannot be empty.")
+            if not all(isinstance(item, str) for item in data):
+                raise serializers.ValidationError("All items in the list must be strings.")
+            return data
+
+        raise serializers.ValidationError("Invalid data type. Must be a string or a list of strings.")
+
+    def to_representation(self, value):
+        return value
+
+
 class FilerRuleSerializer(serializers.Serializer):
-    fields_name = serializers.CharField(required=False)
-    op = serializers.CharField(required=False)
-    value = serializers.CharField(required=False)
+    fields_name = serializers.CharField()
+    op = serializers.CharField()
+    value = StringOrListField()
     logic_operator = serializers.CharField(required=False, allow_blank=True, allow_null=True)
 
 
@@ -93,7 +112,9 @@ class ClusteringConfigSerializer(serializers.Serializer):
 
 class ClusteringDebugSerializer(serializers.Serializer):
     input_data = serializers.CharField()
-    predefined_varibles = serializers.CharField()
+    predefined_varibles = serializers.CharField(default=OnlineTaskTrainingArgs.PREDEFINED_VARIBLES)
+    delimeter = serializers.CharField(default=OnlineTaskTrainingArgs.DELIMETER)
+    max_log_length = serializers.IntegerField(default=OnlineTaskTrainingArgs.MAX_LOG_LENGTH)
 
 
 class SetRemarkSerializer(serializers.Serializer):
@@ -125,6 +146,13 @@ class SetOwnerSerializer(serializers.Serializer):
     owners = serializers.ListField(child=serializers.CharField(), allow_empty=True)
     origin_pattern = serializers.CharField(allow_blank=True, allow_null=True)
     groups = serializers.DictField(default=dict)
+
+
+class PatternStrategySerializer(serializers.Serializer):
+    signature = serializers.CharField()
+    origin_pattern = serializers.CharField(allow_blank=True, allow_null=True)
+    groups = serializers.DictField(default=dict)
+    strategy_enabled = serializers.BooleanField(default=False)
 
 
 class UpdateGroupFieldsSerializer(serializers.Serializer):

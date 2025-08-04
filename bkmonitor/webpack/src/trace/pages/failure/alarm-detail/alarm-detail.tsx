@@ -26,27 +26,35 @@
 import {
   type Ref,
   computed,
+  ref as deepRef,
   defineComponent,
   inject,
   onBeforeMount,
   onMounted,
-  reactive,
-  ref,
-  watch,
   onUnmounted,
+  reactive,
+  shallowRef,
+  watch,
 } from 'vue';
-import { useI18n } from 'vue-i18n';
 
-import { Exception, Loading, Message, Popover, Table } from 'bkui-vue';
+import { PrimaryTable } from '@blueking/tdesign-ui';
+import { Exception, Loading, Message, Popover } from 'bkui-vue';
 import { $bkPopover } from 'bkui-vue/lib/popover';
 import dayjs from 'dayjs';
-import { feedbackIncidentRoot, incidentAlertList, incidentRecordOperation } from 'monitor-api/modules/incident';
+import {
+  feedbackIncidentRoot,
+  incidentAlertList,
+  incidentRecordOperation,
+  incidentValidateQueryString,
+} from 'monitor-api/modules/incident';
 import { random } from 'monitor-common/utils/utils.js';
+import { useI18n } from 'vue-i18n';
 
 import SetMealAdd from '../../../store/modules/set-meal-add';
 import StatusTag from '../components/status-tag';
 import FeedbackCauseDialog from '../failure-topo/feedback-cause-dialog';
 import { useIncidentInject } from '../utils';
+import { replaceSpecialCondition } from '../utils';
 import AlarmConfirm from './alarm-confirm';
 import AlarmDispatch from './alarm-dispatch';
 import ChatGroup from './chat-group/chat-group';
@@ -55,29 +63,30 @@ import ManualProcess from './manual-process';
 import QuickShield from './quick-shield';
 
 import type { IFilterSearch, IIncident } from '../types';
-import type { TableIColumn, TableSettings } from 'bkui-vue/lib/table';
 
 import './alarm-detail.scss';
 
-type PopoverInstance = {
-  show: () => void;
-  hide: () => void;
-  close: () => void;
-  [key: string]: any;
-};
-
-interface IOpetateRow {
-  status?: string;
-  is_ack?: boolean;
-  ack_operator?: string;
-  is_shielded?: boolean;
-  shield_operator?: string[];
-}
 export enum EBatchAction {
   alarmConfirm = 'ack',
   alarmDispatch = 'dispatch',
   quickShield = 'shield',
 }
+
+interface IOpetateRow {
+  ack_operator?: string;
+  is_ack?: boolean;
+  is_shielded?: boolean;
+  shield_operator?: string[];
+  status?: string;
+}
+
+type PopoverInstance = {
+  [key: string]: any;
+  close: () => void;
+  hide: () => void;
+  show: () => void;
+};
+type TableColumn = Record<string, any>;
 export default defineComponent({
   props: {
     filterSearch: {
@@ -99,14 +108,15 @@ export default defineComponent({
     const bkzIds = inject<Ref<string[]>>('bkzIds');
     const setMealAddModule = SetMealAdd();
     onBeforeMount(async () => await setMealAddModule.getVariableDataList());
-    const scrollLoading = ref(false);
+    const scrollLoading = deepRef(false);
     const incidentId = useIncidentInject();
-    const tableLoading = ref(false);
-    const tableData = ref([]);
-    const alertData = ref([]);
-    const currentData = ref({});
-    const currentIds = ref([]);
-    const currentBizIds = ref([]);
+    const tableLoading = deepRef(false);
+    const tableData = deepRef([]);
+    const alertData = deepRef([]);
+    const currentData = deepRef({});
+    const currentIds = deepRef([]);
+    const currentBizIds = deepRef([]);
+    const disableKey = ['serial-number', 'project', 'category_display'];
     const dialog = reactive({
       quickShield: {
         show: false,
@@ -162,21 +172,24 @@ export default defineComponent({
       assignee: [],
       alertIds: [],
     });
-    const collapseId = ref('');
-    const moreItems = ref<HTMLDivElement>();
-    const popoperOperateInstance = ref<PopoverInstance>(null);
-    const opetateRow = ref<IOpetateRow>({});
-    const popoperOperateIndex = ref(-1);
-    const hoverRowIndex = ref(999999);
-    const tableToolList = ref([]);
-    const enableCreateChatGroup = ref((window as any).enable_create_chat_group || false);
-    const alertIdsData = ref(props.alertIdsObject);
+    const collapseId = deepRef('');
+    const moreItems = deepRef<HTMLDivElement>();
+    const popoperOperateInstance = deepRef<PopoverInstance>(null);
+    const opetateRow = deepRef<IOpetateRow>({});
+    const popoperOperateIndex = deepRef(-1);
+    const hoverRowIndex = deepRef(999999);
+    const tableToolList = deepRef([]);
+    const enableCreateChatGroup = deepRef(window.enable_create_chat_group || false);
+    const alertIdsData = deepRef(props.alertIdsObject);
+    const alarmDetailRef = deepRef(null);
+    const alarmDetailHeight = deepRef(0);
     if (enableCreateChatGroup.value) {
       tableToolList.value.push({
         id: 'chat',
         name: t('一键拉群'),
       });
     }
+
     const formatterTime = (time: number | string): string => {
       if (!time) return '--';
       if (typeof time !== 'number') return time;
@@ -299,7 +312,7 @@ export default defineComponent({
       setDialogData(v);
       handleAlarmDispatchShowChange(true);
     };
-    const handleEnter = (e, row, index) => {
+    const handleEnter = ({ index }) => {
       hoverRowIndex.value = index;
     };
     /* 告警确认文案 */
@@ -313,24 +326,37 @@ export default defineComponent({
       }
       return `${ackOperator || ''}${t('已确认')}`;
     };
-    const columns = reactive<TableIColumn[]>([
+    const columns = shallowRef<TableColumn[]>([
       {
-        label: '#',
-        type: 'index',
-        prop: 'index',
-        width: 40,
+        title: '#',
+        type: 'seq',
+        colKey: 'serial-number',
         minWidth: 40,
-        render: ({ index }) => {
-          return index + 1;
-        },
+        disabled: true,
+        checked: true,
       },
       {
-        label: t('告警ID'),
-        prop: 'id',
-        width: 'auto',
-        render: ({ data }) => {
+        title: t('告警ID'),
+        colKey: 'id',
+        minWidth: 134,
+        ellipsis: {
+          popperOptions: {
+            strategy: 'fixed',
+          },
+        },
+        fixed: 'left',
+        disabled: true,
+        cell: (_, { row: data }) => {
           return (
-            <div class='name-column'>
+            <div
+              class='name-column'
+              v-bk-tooltips={{
+                content: data.id,
+                delay: 200,
+                boundary: 'window',
+                extCls: 'alarm-detail-table-tooltip',
+              }}
+            >
               <span
                 class={`event-status status-${data.severity} id-column`}
                 onClick={() => handleShowDetail(data)}
@@ -342,14 +368,28 @@ export default defineComponent({
         },
       },
       {
-        width: 'auto',
-        label: t('告警名称'),
-        prop: 'alert_name',
-        render: ({ data }) => {
+        title: t('告警名称'),
+        colKey: 'alert_name',
+        minWidth: 134,
+        fixed: 'left',
+        ellipsis: {
+          popperOptions: {
+            strategy: 'fixed',
+          },
+        },
+        cell: (_, { row: data }) => {
           const { entity } = data;
-          const isRoot = entity.is_root || data.is_feedback_root;
+          const isRoot = entity?.is_root || data.is_feedback_root;
           return (
-            <div class='name-column'>
+            <div
+              class='name-column'
+              v-bk-tooltips={{
+                content: data.alert_name,
+                delay: 200,
+                boundary: 'window',
+                extCls: 'alarm-detail-table-tooltip',
+              }}
+            >
               <span class={`name-info ${isRoot ? 'name-info-root' : ''}`}>{data.alert_name}</span>
               {isRoot && <span class={`${entity.is_root ? 'root-cause' : 'root-feed'}`}>{t('根因')}</span>}
             </div>
@@ -357,26 +397,43 @@ export default defineComponent({
         },
       },
       {
-        width: 'auto',
-        label: t('业务名称'),
-        prop: 'project',
-        render: ({ data }) => {
-          return `[${data.bk_biz_id}] ${data.bk_biz_name || '--'}`;
+        title: t('业务名称'),
+        colKey: 'project',
+        width: 157,
+        ellipsis: {
+          popperOptions: {
+            strategy: 'fixed',
+          },
+        },
+        minWidth: 60,
+        cell: (_, { row: data }) => {
+          return data.bk_biz_name || '--';
         },
       },
       {
-        width: 'auto',
-        label: t('分类'),
-        prop: 'category_display',
-        render: ({ data }) => {
+        title: t('分类'),
+        colKey: 'category_display',
+        width: 134,
+        minWidth: 60,
+        ellipsis: {
+          popperOptions: {
+            strategy: 'fixed',
+          },
+        },
+        cell: (_, { row: data }) => {
           return data.category_display;
         },
       },
       {
-        label: t('告警指标'),
-        prop: 'index',
-        width: 'auto',
-        render: ({ data }) => {
+        title: t('告警指标'),
+        colKey: 'index',
+        minWidth: 134,
+        ellipsis: {
+          popperOptions: {
+            strategy: 'fixed',
+          },
+        },
+        cell: (_, { row: data }) => {
           const isEmpty = !data?.metric_display?.length;
           if (isEmpty) return '--';
           const key = random(10);
@@ -414,11 +471,15 @@ export default defineComponent({
         },
       },
       {
-        label: t('告警状态'),
-        prop: 'status',
+        title: t('告警状态'),
+        colKey: 'status',
         minWidth: 134,
-        width: '134',
-        render: ({ data }) => {
+        ellipsis: {
+          popperOptions: {
+            strategy: 'fixed',
+          },
+        },
+        cell: (_, { row: data }) => {
           const { status } = data;
           return (
             <div class='status-column'>
@@ -428,19 +489,28 @@ export default defineComponent({
         },
       },
       {
-        label: t('告警阶段'),
-        width: 'auto',
-        prop: 'stage_display',
-        render: ({ data }) => {
+        title: t('告警阶段'),
+        colKey: 'stage_display',
+        minWidth: 80,
+        ellipsis: {
+          popperOptions: {
+            strategy: 'fixed',
+          },
+        },
+        cell: (_, { row: data }) => {
           return data?.stage_display ?? '--';
         },
       },
       {
-        label: t('告警开始/结束时间'),
-        prop: 'time',
+        title: t('告警开始/结束时间'),
+        colKey: 'time',
         minWidth: 145,
-        width: '145',
-        render: ({ data }) => {
+        ellipsis: {
+          popperOptions: {
+            strategy: 'fixed',
+          },
+        },
+        cell: (_, { row: data }) => {
           return (
             <span class='time-column'>
               {formatterTime(data.begin_time)} / <br />
@@ -450,10 +520,17 @@ export default defineComponent({
         },
       },
       {
-        label: t('持续时间'),
-        prop: 'duration',
-        width: 136,
-        render: ({ data, index: $index }) => {
+        title: t('持续时间'),
+        colKey: 'duration',
+        width: 155,
+        minWidth: 155,
+        fixed: 'right',
+        ellipsis: (_, { row: data }) => {
+          return data.duration;
+        },
+        resizable: false,
+        className: 'duration-class',
+        cell: (_, { row: data, rowIndex: $index }) => {
           return (
             <div class='status-column'>
               <span>{data.duration}</span>
@@ -469,23 +546,25 @@ export default defineComponent({
                 }}
                 class='operate-panel'
               >
-                <span
-                  class={['operate-panel-item', { 'is-disable': data.entity.is_root }]}
-                  v-bk-tooltips={{
-                    content: t(data.is_feedback_root ? '取消反馈根因' : '反馈根因'),
-                    trigger: 'hover',
-                    delay: 200,
-                    disabled: data.entity.is_root,
-                  }}
-                  onClick={() => handleRootCauseConfirm(data)}
-                >
-                  <i
-                    class={[
-                      'icon-monitor',
-                      !data.is_feedback_root ? 'icon-fankuixingenyin' : 'icon-mc-cancel-feedback',
-                    ]}
-                  />
-                </span>
+                {!!data.entity && (
+                  <span
+                    class={['operate-panel-item', { 'is-disable': data.entity?.is_root }]}
+                    v-bk-tooltips={{
+                      content: t(data.is_feedback_root ? '取消反馈根因' : '反馈根因'),
+                      trigger: 'hover',
+                      delay: 200,
+                      disabled: data.entity?.is_root,
+                    }}
+                    onClick={() => handleRootCauseConfirm(data)}
+                  >
+                    <i
+                      class={[
+                        'icon-monitor',
+                        !data.is_feedback_root ? 'icon-fankuixingenyin' : 'icon-mc-cancel-feedback',
+                      ]}
+                    />
+                  </span>
+                )}
                 <span
                   class='operate-panel-item'
                   v-bk-tooltips={{ content: t('告警分派'), delay: 200, appendTo: 'parent' }}
@@ -506,18 +585,6 @@ export default defineComponent({
       },
     ]);
 
-    const settings = ref<TableSettings>({
-      fields: columns.slice(1, columns.length - 1).map(data => {
-        const { label, prop } = data as { label: string; prop: string };
-        return {
-          label,
-          disabled: prop === 'id',
-          field: prop,
-        };
-      }),
-      checked: columns.slice(1, columns.length - 1).map(({ prop }) => prop as string),
-      trigger: 'manual' as const,
-    });
     const getMoreOperate = () => {
       const { status, is_ack: isAck, ack_operator: ackOperator } = opetateRow.value;
       return (
@@ -575,6 +642,7 @@ export default defineComponent({
         </div>
       );
     };
+
     const handleHideMoreOperate = (e?: Event) => {
       if (!popoperOperateInstance.value) {
         return;
@@ -612,8 +680,8 @@ export default defineComponent({
           allowHtml: false,
           renderType: 'auto',
           padding: 0,
-          offset: 0,
-          zIndex: 10,
+          offset: 10,
+          zIndex: 100,
           disableTeleport: false,
           autoPlacement: false,
           autoVisibility: false,
@@ -661,7 +729,7 @@ export default defineComponent({
      * @param {boolean} v
      * @return {*}
      */
-    const quickShieldSucces = (v: boolean) => {
+    const quickShieldSuccess = (v: boolean) => {
       if (v) {
         // tableData.value.value.forEach(item => {
         //   if (dialog.quickShield.ids.includes(item.id)) {
@@ -683,7 +751,7 @@ export default defineComponent({
     const quickShieldChange = (v: boolean) => {
       dialog.quickShield.show = v;
     };
-    const handleGetTable = async () => {
+    const handleGetTable = () => {
       tableLoading.value = true;
       const queryString = typeof alertIdsData.value === 'object' ? alertIdsData.value?.ids || '' : alertIdsData.value;
       const params = {
@@ -691,14 +759,24 @@ export default defineComponent({
         id: incidentId.value,
         query_string: queryString,
       };
-      const data = await incidentAlertList(params);
+      incidentAlertList(params)
+        .then(res => {
+          tableLoading.value = false;
+          alertData.value = res;
+        })
+        .catch(() => {
+          tableLoading.value = false;
+          alertData.value = [];
+        });
       // const data = await incidentAlertList(Object.assign(params, props.filterSearch));
-      tableLoading.value = false;
-      alertData.value = data;
+
       // const list = alertData.value.find(item => item.alerts.length > 0);
       // collapseId.value = list ? list.id : '';n
     };
     onMounted(() => {
+      if (alarmDetailRef.value) {
+        alarmDetailHeight.value = alarmDetailRef.value.offsetHeight;
+      }
       props.searchValidate && handleGetTable();
       document.body.addEventListener('click', handleHideMoreOperate);
     });
@@ -715,9 +793,6 @@ export default defineComponent({
       collapseId.value = id;
     };
 
-    const handleSettingChange = ({ checked }) => {
-      console.log(checked, settings.value);
-    };
     const handleFeedbackChange = (val: boolean) => {
       dialog.rootCauseConfirm.show = val;
     };
@@ -730,9 +805,15 @@ export default defineComponent({
     };
     watch(
       () => props.alertIdsObject,
-      val => {
+      async val => {
         alertIdsData.value = val;
-        props.searchValidate && handleGetTable();
+        const validate = await incidentValidateQueryString(
+          { query_string: replaceSpecialCondition(alertIdsData.value?.ids), search_type: 'incident' },
+          { needMessage: false, needRes: true }
+        )
+          .then(res => res.result)
+          .catch(() => false);
+        validate && handleGetTable();
       },
       { deep: true }
     );
@@ -749,13 +830,11 @@ export default defineComponent({
       tableData,
       scrollLoading,
       chatGroupDialog,
-      settings,
-      handleSettingChange,
       quickShieldChange,
       getMoreOperate,
       handleChangeCollapse,
       alarmConfirmChange,
-      quickShieldSucces,
+      quickShieldSuccess,
       handleConfirmAfter,
       handleFeedbackChange,
       handleRootCauseConfirm,
@@ -775,15 +854,23 @@ export default defineComponent({
       currentIds,
       currentBizIds,
       refresh,
+      disableKey,
+      alarmDetailRef,
+      alarmDetailHeight,
     };
   },
   render() {
     const alertData = this.alertData.filter(item => item.alerts.length > 0);
     return (
-      <>
-        <Loading loading={this.tableLoading}>
-          <div class='alarm-detail bk-scroll-y'>
-            {/* {this.alertIdsData?.label && (
+      <Loading
+        class='alarm-detail-loading'
+        loading={this.tableLoading}
+      >
+        <div
+          ref='alarmDetailRef'
+          class='alarm-detail bk-scroll-y'
+        >
+          {/* {this.alertIdsData?.label && (
               <Tag
                 style={{ marginBottom: '10px' }}
                 theme='info'
@@ -793,102 +880,105 @@ export default defineComponent({
                 {this.alertIdsData.label}
               </Tag>
             )} */}
-            <FeedbackCauseDialog
-              data={this.currentData}
-              visible={this.dialog.rootCauseConfirm.show}
-              onEditSuccess={this.handleGetTable}
-              onRefresh={this.refresh}
-              onUpdate:isShow={this.handleFeedbackChange}
+          <FeedbackCauseDialog
+            data={this.currentData}
+            visible={this.dialog.rootCauseConfirm.show}
+            onEditSuccess={this.handleGetTable}
+            onRefresh={this.refresh}
+            onUpdate:isShow={this.handleFeedbackChange}
+          />
+          <ChatGroup
+            alarmEventName={this.chatGroupDialog.alertName}
+            alertIds={this.chatGroupDialog.alertIds}
+            assignee={this.chatGroupDialog.assignee}
+            data={this.currentData}
+            show={this.chatGroupDialog.show}
+            onRefresh={this.refresh}
+            onShowChange={this.chatGroupShowChange}
+          />
+          <QuickShield
+            bizIds={this.currentBizIds}
+            data={this.currentData}
+            details={this.dialog.quickShield.details}
+            ids={this.currentIds}
+            show={this.dialog.quickShield.show}
+            onChange={this.quickShieldChange}
+            onRefresh={this.refresh}
+            onSuccess={this.quickShieldSuccess}
+          />
+          <ManualProcess
+            alertIds={this.currentIds}
+            bizIds={this.currentBizIds}
+            data={this.currentData}
+            show={this.dialog.manualProcess.show}
+            onDebugStatus={this.handleDebugStatus}
+            onMealInfo={this.handleMealInfo}
+            onRefresh={this.refresh}
+            onShowChange={this.manualProcessShowChange}
+          />
+          <AlarmDispatch
+            alertIds={this.currentIds}
+            bizIds={this.currentBizIds}
+            data={this.currentData}
+            show={this.dialog.alarmDispatch.show}
+            onRefresh={this.refresh}
+            onShow={this.handleAlarmDispatchShowChange}
+            onSuccess={this.handleAlarmDispatchSuccess}
+          />
+          <AlarmConfirm
+            bizIds={this.currentBizIds}
+            data={this.currentData}
+            ids={this.currentIds}
+            show={this.dialog.alarmConfirm.show}
+            onChange={this.alarmConfirmChange}
+            onConfirm={this.handleConfirmAfter}
+            onRefresh={this.refresh}
+          />
+          {this.getMoreOperate()}
+          {this.alertData.map(item => {
+            return item.alerts.length > 0 ? (
+              <Collapse
+                id={item.id}
+                key={item.id}
+                collapse={this.collapseId !== item.id}
+                num={item.alerts.length}
+                title={item.name}
+                onChangeCollapse={this.handleChangeCollapse}
+              >
+                <div class='alarm-detail-table'>
+                  <PrimaryTable
+                    key={item.id}
+                    bkUiSettings={{
+                      checked: this.columns
+                        .filter(item => !this.disableKey.includes(item.colKey))
+                        .map(item => item.colKey),
+                    }}
+                    // autoResize={true}
+                    // bordered={true}
+                    columns={this.columns}
+                    data={item.alerts}
+                    maxHeight={alertData.length > 1 ? 616 : this.alarmDetailHeight - 100}
+                    tooltip-config={{ showAll: false }}
+                    onRowMouseenter={this.handleEnter}
+                    onRowMouseleave={() => {
+                      this.hoverRowIndex = -1;
+                    }}
+                  />
+                </div>
+              </Collapse>
+            ) : (
+              ''
+            );
+          })}
+          {alertData.length === 0 && (
+            <Exception
+              description={this.t('搜索数据为空')}
+              scene='part'
+              type='empty'
             />
-            <ChatGroup
-              alarmEventName={this.chatGroupDialog.alertName}
-              alertIds={this.chatGroupDialog.alertIds}
-              assignee={this.chatGroupDialog.assignee}
-              data={this.currentData}
-              show={this.chatGroupDialog.show}
-              onRefresh={this.refresh}
-              onShowChange={this.chatGroupShowChange}
-            />
-            <QuickShield
-              bizIds={this.currentBizIds}
-              data={this.currentData}
-              details={this.dialog.quickShield.details}
-              ids={this.currentIds}
-              show={this.dialog.quickShield.show}
-              onChange={this.quickShieldChange}
-              onRefresh={this.refresh}
-              onSuccess={this.quickShieldSucces}
-            />
-            <ManualProcess
-              alertIds={this.currentIds}
-              bizIds={this.currentBizIds}
-              data={this.currentData}
-              show={this.dialog.manualProcess.show}
-              onDebugStatus={this.handleDebugStatus}
-              onMealInfo={this.handleMealInfo}
-              onRefresh={this.refresh}
-              onShowChange={this.manualProcessShowChange}
-            />
-            <AlarmDispatch
-              alertIds={this.currentIds}
-              bizIds={this.currentBizIds}
-              data={this.currentData}
-              show={this.dialog.alarmDispatch.show}
-              onRefresh={this.refresh}
-              onShow={this.handleAlarmDispatchShowChange}
-              onSuccess={this.handleAlarmDispatchSuccess}
-            />
-            <AlarmConfirm
-              bizIds={this.currentBizIds}
-              data={this.currentData}
-              ids={this.currentIds}
-              show={this.dialog.alarmConfirm.show}
-              onChange={this.alarmConfirmChange}
-              onConfirm={this.handleConfirmAfter}
-              onRefresh={this.refresh}
-            />
-            {this.getMoreOperate()}
-            {this.alertData.map(item => {
-              return item.alerts.length > 0 ? (
-                <Collapse
-                  id={item.id}
-                  key={item.id}
-                  collapse={this.collapseId !== item.id}
-                  num={item.alerts.length}
-                  title={item.name}
-                  onChangeCollapse={this.handleChangeCollapse}
-                >
-                  <div class='alarm-detail-table'>
-                    <Table
-                      columns={this.columns}
-                      data={item.alerts}
-                      max-height={616}
-                      scroll-loading={this.scrollLoading}
-                      settings={this.settings}
-                      show-overflow-tooltip={true}
-                      onRowMouseEnter={this.handleEnter}
-                      onRowMouseLeave={() => {
-                        this.hoverRowIndex = -1;
-                      }}
-                      onSettingChange={this.handleSettingChange}
-                      // onScrollBottom={this.handleLoadData}
-                    />
-                  </div>
-                </Collapse>
-              ) : (
-                ''
-              );
-            })}
-            {alertData.length === 0 && (
-              <Exception
-                description={this.t('搜索数据为空')}
-                scene='part'
-                type='empty'
-              />
-            )}
-          </div>
-        </Loading>
-      </>
+          )}
+        </div>
+      </Loading>
     );
   },
 });

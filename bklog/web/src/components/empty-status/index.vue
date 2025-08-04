@@ -49,13 +49,13 @@
             path="可以尝试{0}或{1}"
           >
             <span style="margin: 0 3px">{{ $t('调整关键词') }}</span>
-            <span
+            <div
               style="margin-left: 3px"
               class="operation-btn"
               @click="handleOperation('clear-filter')"
             >
               {{ $t('清空筛选条件') }}
-            </span>
+            </div>
           </i18n>
           <span
             v-if="emptyType === '500'"

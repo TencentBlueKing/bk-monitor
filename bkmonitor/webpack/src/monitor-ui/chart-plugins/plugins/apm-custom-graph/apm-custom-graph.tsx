@@ -201,10 +201,10 @@ export default class CustomChart extends TimeSeries {
           <ChartHeader
             class='draggable-handle'
             collectIntervalDisplay={this.collectIntervalDisplay}
-            descrition={this.panel.options?.header?.tips || ''}
-            draging={this.panel.draging}
+            description={this.panel.options?.header?.tips || ''}
+            dragging={this.panel.dragging}
             drillDownOption={this.drillDownOptions}
-            inited={this.inited}
+            initialized={this.initialized}
             isInstant={this.panel.instant}
             menuList={this.menuList}
             metrics={this.metrics}
@@ -217,7 +217,7 @@ export default class CustomChart extends TimeSeries {
             onMenuClick={this.handleMenuToolsSelect}
             onMetricClick={this.handleMetricClick}
             onSelectChild={this.handleSelectChildMenu}
-            onUpdateDragging={() => this.panel.updateDraging(false)}
+            onUpdateDragging={() => this.panel.updateDragging(false)}
           >
             <div
               class='custom-method-list'
@@ -238,7 +238,7 @@ export default class CustomChart extends TimeSeries {
               ref='chart'
               class={`chart-instance ${legend?.displayMode === 'table' ? 'is-table-legend' : ''}`}
             >
-              {this.inited && (
+              {this.initialized && (
                 <BaseEchart
                   ref='baseChart'
                   width={this.width}

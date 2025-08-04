@@ -49,7 +49,7 @@
       <ul>
         <li
           v-for="menu in menuList"
-          :class="['menu-item', { active: activeTopMenu.id === menu.id }]"
+          :class="['menu-item', { active: navMenu.activeTopMenu.id === menu.id }]"
           :data-test-id="`topNavBox_li_${menu.id}`"
           :id="`${menu.id}MenuGuide`"
           :key="menu.id"
@@ -69,8 +69,8 @@
       <bk-dropdown-menu
         v-if="isShowGlobalSetIcon"
         align="center"
-        @hide="dropdownGlobalHide"
-        @show="dropdownGlobalShow"
+        @hide="isShowGlobalDropdown = false"
+        @show="isShowGlobalDropdown = true"
       >
         <template #dropdown-trigger>
           <div class="icon-language-container">
@@ -102,8 +102,8 @@
       <!-- 语言 -->
       <bk-dropdown-menu
         align="center"
-        @hide="dropdownLanguageHide"
-        @show="dropdownLanguageShow"
+        @hide="isShowLanguageDropdown = false"
+        @show="isShowLanguageDropdown = true"
       >
         <template #dropdown-trigger>
           <div class="icon-language-container">
@@ -143,8 +143,8 @@
       <bk-dropdown-menu
         ref="dropdownHelp"
         align="center"
-        @hide="dropdownHelpHide"
-        @show="dropdownHelpShow"
+        @hide="isShowHelpDropdown = false"
+        @show="isShowHelpDropdown = true"
       >
         <template #dropdown-trigger>
           <div
@@ -188,8 +188,8 @@
       <log-version :dialog-show.sync="showLogVersion" />
       <bk-dropdown-menu
         align="center"
-        @hide="dropdownLogoutHide"
-        @show="dropdownLogoutShow"
+        @hide="isShowLogoutDropdown = false"
+        @show="isShowLogoutDropdown = true"
       >
         <template #dropdown-trigger>
           <div
@@ -252,14 +252,14 @@
   import { useJSONP } from '@/common/jsonp';
   import GlobalDialog from '@/components/global-dialog';
   import logoImg from '@/images/log-logo.png';
-  import navMenuMixin from '@/mixins/nav-menu-mixin';
+  import { useNavMenu } from '@/hooks/use-nav-menu';
   import platformConfigStore from '@/store/modules/platform-config';
   import jsCookie from 'js-cookie';
   import { mapState, mapGetters } from 'vuex';
 
   import { menuArr } from './complete-menu';
   import LogVersion from './log-version';
-  import BizMenuSelect from '@/components/biz-menu';
+  import BizMenuSelect from '@/global/bk-space-choice/index'
 
   export default {
     name: 'HeaderNav',
@@ -268,7 +268,6 @@
       GlobalDialog,
       BizMenuSelect,
     },
-    mixins: [navMenuMixin],
     props: {
       welcomeData: {
         type: Object,
@@ -277,6 +276,7 @@
     },
     data() {
       return {
+        navMenu: null,
         isFirstLoad: true,
         isOpenVersion: window.RUN_VER.indexOf('open') !== -1,
         username: '',
@@ -305,6 +305,7 @@
         isExternal: state => state.isExternal,
         isShowGlobalDialog: state => state.isShowGlobalDialog,
         globalSettingList: state => state.globalSettingList,
+        externalMenu: state => state.externalMenu,
       }),
       ...mapGetters('globals', ['globalsData']),
       platformData() {
@@ -327,7 +328,7 @@
         let current;
         if (this.currentMenu.dropDown && this.currentMenu.children) {
           const routeName = this.$route.name;
-          current = this.activeTopMenu(this.currentMenu.children, routeName);
+          current = this.navMenu.activeTopMenu(this.currentMenu.children, routeName);
         }
         return current || {};
       },
@@ -335,7 +336,7 @@
         return Boolean(this.$route.name === 'trace' && this.$route.query.traceId);
       },
       menuList() {
-        const list = this.topMenu.filter(menu => {
+        const list = this.navMenu.topMenu.filter(menu => {
           return menu.feature === 'on' && (this.isExternal ? this.externalMenu.includes(menu.id) : true);
         });
         // #if MONITOR_APP === 'apm'
@@ -363,7 +364,17 @@
     async created() {
       this.language = jsCookie.get('blueking_language') || 'zh-cn';
       this.$store.commit('updateMenuList', menuArr);
-      setTimeout(() => this.requestMySpaceList(), 10);
+
+      // 初始化 navMenu 并保存到组件数据
+      this.navMenu = useNavMenu({
+        t: $t,
+        bkInfo: window.$bkInfo,
+        http: window.$http,
+        emit: window.$emit
+      });
+
+      this.navMenu.requestMySpaceList();
+      
       this.getGlobalsData();
       this.getUserInfo();
       window.bus.$on('showGlobalDialog', this.handleGoToMyReport);
@@ -371,15 +382,16 @@
     beforeUnmount() {
       window.bus.$off('showGlobalDialog', this.handleGoToMyReport);
     },
+
     methods: {
       async getUserInfo() {
         try {
-          const res = await this.$http.request('userInfo/getUsername');
-          this.username = res.data.username;
-          this.$store.commit('updateUserMeta', res.data);
+          const res = this.$store.state.userMeta;
+          this.username = res.username;
+          // this.$store.commit('updateUserMeta', res.data);
           if (window.__aegisInstance) {
             window.__aegisInstance.setConfig({
-              uin: res.data.username,
+              uin: res.username,
             });
           }
         } catch (e) {
@@ -390,18 +402,30 @@
       },
       // 获取全局数据和 判断是否可以保存 已有的日志聚类
       getGlobalsData() {
-        if (Object.keys(this.globalsData).length) return;
-        this.$http
-          .request('collect/globals')
-          .then(res => {
-            this.$store.commit('globals/setGlobalsData', res.data);
-          })
-          .catch(e => {
-            console.warn(e);
-          });
+        // if (Object.keys(this.globalsData).length) return;
+        // this.$http
+        //   .request('collect/globals')
+        //   .then(res => {
+        //     this.$store.commit('globals/setGlobalsData', res.data);
+        //   })
+        //   .catch(e => {
+        //     console.warn(e);
+        //   });
       },
       jumpToHome() {
         this.$store.commit('updateIsShowGlobalDialog', false);
+
+        if (window.IS_EXTERNAL) {
+          this.$router.push({
+            name: 'manage',
+            query: {
+              spaceUid: this.$store.state.spaceUid,
+              bizId: this.$store.state.bizId,
+            },
+          });
+
+          return;
+        }
         this.$router.push({
           name: 'retrieve',
           query: {
@@ -415,7 +439,7 @@
       routerHandler(menu) {
         // 关闭全局设置弹窗
         this.$store.commit('updateIsShowGlobalDialog', false);
-        if (menu.id === this.activeTopMenu.id) {
+        if (menu.id === this.navMenu.activeTopMenu.id) {
           if (menu.id === 'retrieve') {
             this.$router.push({
               name: menu.id,
@@ -507,28 +531,6 @@
         }
       },
       async changeLanguage(value) {
-        // const domainList = location.hostname.split('.');
-
-        // // 本项目开发环境因为需要配置了 host 域名比联调环境多 1 级
-        // if (process.env.NODE_ENV === 'development') {
-        //   domainList.splice(0, 1);
-        // }
-
-        // // handle duplicate cookie names
-        // for (let i = 0; i < domainList.length - 1; i++) {
-        //   jsCookie.remove('blueking_language', {
-        //     domain: domainList.slice(i).join('.'),
-        //   });
-        // }
-
-        // jsCookie.set('blueking_language', value, {
-        //   expires: 30,
-        //   // 和平台保持一致，cookie 种在上级域名
-        //   domain: domainList.length > 2 ? domainList.slice(1).join('.') : domainList.join('.'),
-        // });
-
-        // window.location.reload();
-
         jsCookie.remove('blueking_language', { path: '' });
         jsCookie.set('blueking_language', value, {
           expires: 3600,
@@ -557,30 +559,7 @@
         }
         location.reload();
       },
-      dropdownLanguageShow() {
-        this.isShowLanguageDropdown = true;
-      },
-      dropdownLanguageHide() {
-        this.isShowLanguageDropdown = false;
-      },
-      dropdownGlobalShow() {
-        this.isShowGlobalDropdown = true;
-      },
-      dropdownGlobalHide() {
-        this.isShowGlobalDropdown = false;
-      },
-      dropdownHelpShow() {
-        this.isShowHelpDropdown = true;
-      },
-      dropdownHelpHide() {
-        this.isShowHelpDropdown = false;
-      },
-      dropdownLogoutShow() {
-        this.isShowLogoutDropdown = true;
-      },
-      dropdownLogoutHide() {
-        this.isShowLogoutDropdown = false;
-      },
+
       dropdownHelpTriggerHandler(type) {
         this.$refs.dropdownHelp.hide();
         if (type === 'logVersion') {

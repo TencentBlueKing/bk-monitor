@@ -491,11 +491,11 @@ class Host(BaseNode):
 
     @cached_property
     def ignore_monitoring(self):
-        return self.bk_state in settings.HOST_DISABLE_MONITOR_STATES
+        return any([state in self.bk_state for state in settings.HOST_DISABLE_MONITOR_STATES])
 
     @cached_property
     def is_shielding(self):
-        return self.bk_state in settings.HOST_DISABLE_NOTICE_STATES
+        return any([state in self.bk_state for state in settings.HOST_DISABLE_NOTICE_STATES])
 
     @cached_property
     def bk_province_name(self):

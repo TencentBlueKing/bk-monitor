@@ -25,22 +25,20 @@
 -->
 <template>
   <div
+    v-bkloading="{ isLoading: loading }"
     class="monitor-echart-wrap"
     :style="{ 'background-image': backgroundUrl }"
-    v-bkloading="{ isLoading: loading }"
   >
     <div
-      class="echart-header"
       v-if="chartTitle || $slots.title"
+      class="echart-header"
     >
       <slot name="title">
-        <div class="header-title">
-          {{ chartTitle }}{{ chartUnit ? `（${chartUnit}）` : '' }}
-        </div>
+        <div class="header-title">{{ chartTitle }}{{ chartUnit ? `（${chartUnit}）` : '' }}</div>
       </slot>
       <div
-        class="header-tools"
         v-if="chartOption.tool.show && !!chart && !noData"
+        class="header-tools"
       >
         <slot name="tools">
           <chart-tools
@@ -55,37 +53,37 @@
       </div>
     </div>
     <div
+      ref="charWrapRef"
       class="chart-wrapper"
       tabindex="-1"
-      ref="charWrapRef"
       :style="{
         flexDirection: !chartOption.legend.toTheRight ? 'column' : 'row',
         minHeight: height - (chartTitle ? 36 : 0) + 'px',
-        maxHeight: height - (chartTitle ? 36 : 0) + 'px'
+        maxHeight: height - (chartTitle ? 36 : 0) + 'px',
       }"
       @blur="handleCharBlur"
       @dblclick="handleChartDblClick"
       @click="handleChartClick"
     >
       <div
-        class="echart-instance"
         ref="chartRef"
+        class="echart-instance"
         :style="{ minHeight: chartHeight + 'px', maxHeight: chartHeight + 'px' }"
       />
       <div
         class="echart-legend"
         :style="{
           maxHeight: (chartOption.legend.toTheRight ? height - (chartTitle ? 36 : 0) - 5 : 30) + 'px',
-          marginRight: chartOption.legend.toTheRight ? '20px' : '2px'
+          marginRight: chartOption.legend.toTheRight ? '20px' : '2px',
         }"
       >
         <chart-legend
-          :legend-data="legend.list"
           v-if="legend.show"
+          :legend-data="legend.list"
           class="fix-same-code"
           :legend-type="chartOption.legend.asTable ? 'table' : 'common'"
-          @legend-event="handleLegendEvent"
           :to-the-right="chartOption.legend.toTheRight"
+          @legend-event="handleLegendEvent"
         />
       </div>
       <div
@@ -95,15 +93,15 @@
         <slot name="chartCenter" />
       </div>
       <chart-annotation
-        class="fix-same-code"
         v-if="chartOption.annotation.show"
+        class="fix-same-code"
         :annotation="annotation"
       />
     </div>
     <div
-      class="echart-content"
       v-if="setNoData"
       v-show="noData"
+      class="echart-content"
     >
       <slot name="noData">
         {{ emptyText }}
@@ -131,6 +129,8 @@
   </div>
 </template>
 <script lang="ts">
+import { Component, Prop, Ref, Vue, Watch } from 'vue-property-decorator';
+
 import { type ResizeCallback, addListener, removeListener } from '@blueking/fork-resize-detector';
 import dayjs from 'dayjs';
 import deepMerge from 'deepmerge';
@@ -138,25 +138,24 @@ import { toBlob, toPng } from 'html-to-image';
 import { hexToRgbA } from 'monitor-common/utils/utils';
 import MonitorDialog from 'monitor-ui/monitor-dialog/monitor-dialog.vue';
 import { debounce } from 'throttle-debounce';
-import { Component, Prop, Ref, Vue, Watch } from 'vue-property-decorator';
-
-import './map/china';
 
 import ChartAnnotation from './components/chart-annotation.vue';
 import ChartLegend from './components/chart-legend.vue';
 import ChartTools from './components/chart-tools.vue';
+import './map/china';
 import EchartOptions from './options/echart-options';
-import type { IAnnotation, ILegendItem, IMoreToolItem } from './options/type-interface';
 import { type MonitorEchartOptions, type MonitorEchartSeries, echarts } from './types/monitor-echarts';
 import watermarkMaker from './utils/watermarkMaker';
 
+import type { IAnnotation, ILegendItem, IMoreToolItem } from './options/type-interface';
+
 interface ICurValue {
-  xAxis: string | number;
-  yAxis: string | number;
-  dataIndex: number;
   color: string;
+  dataIndex: number;
   name: string;
   seriesIndex: number;
+  xAxis: number | string;
+  yAxis: number | string;
 }
 
 @Component({
@@ -187,10 +186,10 @@ export default class MonitorEcharts extends Vue {
   childProps = {};
   annotation: IAnnotation = { x: 0, y: 0, show: false, title: '', name: '', color: '' };
   curValue: ICurValue = { xAxis: '', yAxis: '', dataIndex: -1, color: '', name: '', seriesIndex: -1 };
-  refleshIntervalInstance = 0;
+  refreshIntervalInstance = 0;
   chartOptionInstance = null;
   hasInitChart = false;
-  legend: { show: boolean; list: ILegendItem[] } = {
+  legend: { list: ILegendItem[]; show: boolean } = {
     show: false,
     list: [],
   };
@@ -209,9 +208,9 @@ export default class MonitorEcharts extends Vue {
   // 是使用组件内的无数据设置
   @Prop({ default: true }) setNoData: boolean;
   // 图表刷新间隔
-  @Prop({ default: 0 }) refleshInterval: number;
+  @Prop({ default: 0 }) refreshInterval: number;
   // 图表类型
-  @Prop({ default: 'line' }) chartType: 'line' | 'bar' | 'pie' | 'map';
+  @Prop({ default: 'line' }) chartType: 'bar' | 'line' | 'map' | 'pie';
   // 背景图
   @Prop({
     type: String,
@@ -330,15 +329,15 @@ export default class MonitorEcharts extends Vue {
   onHeightChange() {
     this.chart?.resize();
   }
-  @Watch('refleshInterval', { immediate: true })
-  onRefleshIntervalChange(v) {
-    if (this.refleshIntervalInstance) {
-      window.clearInterval(this.refleshIntervalInstance);
+  @Watch('refreshInterval', { immediate: true })
+  onRefreshIntervalChange(v) {
+    if (this.refreshIntervalInstance) {
+      window.clearInterval(this.refreshIntervalInstance);
     }
-    if (v <= 0 || !this.getSeriesData) return;
-    this.refleshIntervalInstance = window.setInterval(() => {
+    if (!v || +v < 60 * 1000 || !this.getSeriesData) return;
+    this.refreshIntervalInstance = window.setInterval(() => {
       this.handleSeriesData();
-    }, this.refleshInterval);
+    }, v);
   }
   @Watch('series')
   onSeriesChange(v) {
@@ -373,7 +372,7 @@ export default class MonitorEcharts extends Vue {
       this.intersectionObserver.disconnect();
     }
     this.annotation.show = false;
-    this.refleshIntervalInstance && window.clearInterval(this.refleshIntervalInstance);
+    this.refreshIntervalInstance && window.clearInterval(this.refreshIntervalInstance);
   }
   destroyed() {
     this.chart && this.destroy();
@@ -465,15 +464,12 @@ export default class MonitorEcharts extends Vue {
       } as any);
       const optionData = this.chartOptionInstance.getOptions(this.handleTransformSeries(data), {});
       const legendShow =
-        this.options?.legend && Object.prototype.hasOwnProperty.call(this.options.legend, 'show')
-          ? this.options.legend.show
-          : true;
+        this.options?.legend && Object.hasOwn(this.options.legend, 'show') ? this.options.legend.show : true;
       if (['bar', 'line'].includes(this.chartType)) {
         this.legend.show = legendShow && hasSeries && optionData.legendData.length > 0;
       } else {
-        // eslint-disable-next-line no-nested-ternary
         this.legend.show = optionData.options.lengend
-          ? Object.prototype.hasOwnProperty.call(optionData.options.lengend, 'show')
+          ? Object.hasOwn(optionData.options.lengend, 'show')
             ? optionData.options.lengend.show
             : true
           : false;
@@ -536,7 +532,7 @@ export default class MonitorEcharts extends Vue {
       .map(item => ({ color: item.color, seriesName: item.seriesName, value: item.value[1] }))
       .sort((a, b) => Math.abs(a.value - +this.curValue.yAxis) - Math.abs(b.value - +this.curValue.yAxis));
 
-    const liHtmls = params.map(item => {
+    const liHtmlList = params.map(item => {
       let markColor = "color: '#fafbfd';";
       if (data[0].value === item.value[1]) {
         markColor = "color: '#ffffff';font-weight: bold;";
@@ -565,7 +561,7 @@ export default class MonitorEcharts extends Vue {
                 ${pointTime}
             </p>
             <ul style="padding: 0;margin: 0;">
-                ${liHtmls.join('')}
+                ${liHtmlList.join('')}
             </ul>
             </div>`;
   }

@@ -23,13 +23,14 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Teleport, defineComponent, nextTick, onBeforeUnmount, ref, shallowRef, watch } from 'vue';
+import { defineComponent, nextTick, onBeforeUnmount, ref, shallowRef, Teleport, watch } from 'vue';
 
 import { addListener, removeListener } from '@blueking/fork-resize-detector';
 import { Exception, Popover, ResizeLayout } from 'bkui-vue';
 import { traceDiagram } from 'monitor-api/modules/apm_trace';
 import { getValueFormat } from 'monitor-ui/monitor-echarts/valueFormats';
 import { debounce } from 'throttle-debounce';
+import { useI18n } from 'vue-i18n';
 
 import { getSingleDiffColor } from '../../../utils/compare';
 import GraphTools from '../flame-graph/graph-tools/graph-tools';
@@ -37,7 +38,6 @@ import ViewLegend from '../view-legend/view-legend';
 import FlameFilterList from './flame-filter-list';
 import {
   type BaseDataType,
-  CommonMenuList,
   type IAxisRect,
   type IBaseTraceInfo,
   type ICommonMenuItem,
@@ -45,6 +45,7 @@ import {
   type IOtherData,
   type ITipsDetail,
   type IZoomRect,
+  CommonMenuList,
   RootId,
 } from './types';
 import { FlameChart } from './use-flame';
@@ -90,6 +91,7 @@ export default defineComponent({
   },
   emits: ['update:loading', 'showSpanDetail', 'diffTraceSuccess'],
   setup(props, { emit }) {
+    const { t } = useI18n();
     const chartRef = ref<HTMLElement>(null);
     const wrapperRef = ref<HTMLElement>(null);
     const flameToolsPopoverContent = ref<HTMLElement>(null);
@@ -476,13 +478,14 @@ export default defineComponent({
       flameToolsPopoverContent,
       showLegend,
       handleShowLegend,
+      t,
     };
   },
   render() {
     if (this.showException)
       return (
         <Exception
-          description={this.$t('暂无数据')}
+          description={this.t('暂无数据')}
           type='empty'
         />
       );
@@ -521,19 +524,19 @@ export default defineComponent({
                       {this.diffTraceId && (
                         <thead>
                           <th />
-                          <th>{this.$t('当前')}</th>
-                          {this.tipDetail.id !== RootId && [<th>{this.$t('参照')}</th>, <th>{this.$t('差异')}</th>]}
+                          <th>{this.t('当前')}</th>
+                          {this.tipDetail.id !== RootId && [<th>{this.t('参照')}</th>, <th>{this.t('差异')}</th>]}
                         </thead>
                       )}
                       <tbody>
                         {!this.diffTraceId && (
                           <tr>
-                            <td>{this.$t('占比')}</td>
+                            <td>{this.t('占比')}</td>
                             <td>{this.tipDetail.proportion}%</td>
                           </tr>
                         )}
                         <tr>
-                          <td>{this.$t('耗时')}</td>
+                          <td>{this.t('耗时')}</td>
                           <td>{this.tipDetail.duration}</td>
                           {this.diffTraceId &&
                             this.tipDetail.id !== RootId && [
@@ -551,7 +554,7 @@ export default defineComponent({
                     </table>,
                     <div class='tips-info'>
                       <span class='icon-monitor icon-mc-mouse tips-info-icon' />
-                      {this.$t('鼠标右键有更多菜单')}
+                      {this.t('鼠标右键有更多菜单')}
                     </div>,
                   ]}
                 </div>

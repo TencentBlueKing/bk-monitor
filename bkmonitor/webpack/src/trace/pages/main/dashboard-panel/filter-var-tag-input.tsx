@@ -24,13 +24,13 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, getCurrentInstance, inject, type PropType, type Ref, ref } from 'vue';
+import { type PropType, type Ref, defineComponent, getCurrentInstance, inject, ref } from 'vue';
 import { shallowRef } from 'vue';
 import { computed } from 'vue';
-import { useI18n } from 'vue-i18n';
 
 import { Select } from 'bkui-vue';
 import dayjs from 'dayjs';
+import { useI18n } from 'vue-i18n';
 
 import { handleTransformToTimestamp } from '../../../components/time-range/utils';
 import { useViewOptionsInject } from '../../../plugins/hooks';
@@ -51,8 +51,8 @@ export default defineComponent({
   setup(props, { emit }) {
     const { t } = useI18n();
     const currentInstance = getCurrentInstance();
-    const startTime = inject<Ref>('startTime') || ref('');
-    const endTime = inject<Ref>('endTime') || ref('');
+    const startTime = inject<Ref>('startTime', ref(''));
+    const endTime = inject<Ref>('endTime', ref(''));
     const startTimeMinusOneHour = dayjs
       .tz(startTime.value || undefined)
       .subtract(1, 'hour')

@@ -28,8 +28,8 @@ import './timeline-row.scss';
 
 interface ITimelineRowCellProps {
   className?: string;
-  width: number;
   style?: object;
+  width: number;
 }
 
 const TimelineRowCell = (props: ITimelineRowCellProps, { slots }) => {

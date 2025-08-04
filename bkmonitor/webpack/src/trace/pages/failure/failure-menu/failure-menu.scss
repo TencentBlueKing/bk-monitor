@@ -15,21 +15,23 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      width: 120px;
-      height: 40px;
-      margin-right: 6px;
-      font-size: 14px;
+      width: 76px;
+      height: 32px;
+      margin-right: 8px;
+      font-size: 13px;
       line-height: 22px;
-      color: #63656e;
+      color: #313238;
+      font-family: 'MicrosoftYaHei';
       letter-spacing: 0;
       cursor: pointer;
-      background: #eaebf0;
+      background: #dcdee5;
       border-radius: 4px 4px 0 0;
       border-radius: 4px 4px 0 0;
 
       &.active {
         color: #3a84ff;
         background: white;
+        font-weight: 700;
       }
     }
   }

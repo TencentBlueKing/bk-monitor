@@ -30,15 +30,15 @@ import type { ITableFilterItem } from 'monitor-pc/pages/monitor-k8s/typings';
 
 import './status-tab.scss';
 
-interface IProps {
-  value?: string;
-  needAll?: boolean;
-  statusList: ITableFilterItem[];
-  disabledClickZero?: boolean;
-  needExpand?: boolean;
-}
 interface IEvents {
   onChange: string;
+}
+interface IProps {
+  disabledClickZero?: boolean;
+  needAll?: boolean;
+  needExpand?: boolean;
+  statusList: ITableFilterItem[];
+  value?: string;
 }
 @Component
 export default class StatusTab extends tsc<IProps, IEvents> {
@@ -54,7 +54,7 @@ export default class StatusTab extends tsc<IProps, IEvents> {
   defaultList: ITableFilterItem[] = [
     {
       id: 'all',
-      name: window.i18n.tc('全部'),
+      name: window.i18n.t('全部'),
     },
   ];
 

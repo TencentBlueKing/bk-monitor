@@ -25,6 +25,7 @@ import requests
 from blueapps.account.decorators import login_exempt
 from django.conf import settings
 from django.http import JsonResponse
+from django.utils import translation
 from django.utils.translation import gettext_lazy as _
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -49,13 +50,15 @@ from apps.log_commons.serializers import (
     GetResourceByActionSLZ,
     ListExternalPermissionSLZ,
     ListMaintainersSLZ,
+    CreateOrUpdateTokenSerializer, GetShareParamsSerializer,
 )
+from apps.log_commons.share import ShareHandler
 from apps.utils.drf import list_route
 
 # 用户白皮书在文档中心的根路径
-DOCS_USER_GUIDE_ROOT = "日志平台"
+DOCS_USER_GUIDE_ROOT = f"LogSearch/{settings.VERSION[:3]}"
 
-DOCS_LIST = ["产品白皮书", "应用运维文档", "开发架构文档"]
+DOCS_LIST = ["UserGuide", "应用运维文档", "开发架构文档"]
 
 DEFAULT_DOC = DOCS_LIST[0]
 
@@ -65,6 +68,7 @@ def get_docs_link(request):
     if settings.BK_DOC_STATIC_URL:
         return JsonResponse({"result": True, "code": 0, "message": "OK", "data": settings.BK_DOC_STATIC_URL})
 
+    LANGUAGE = translation.get_language().upper()[:2] or "ZH"
     md_path = request.GET.get("md_path", "").strip("/")
     if not md_path:
         e = BaseCommonsException(_("md_path参数不能为空"))
@@ -73,9 +77,9 @@ def get_docs_link(request):
     docs_list = [str(i) for i in DOCS_LIST]
     if md_path.split("/", 1)[0] in docs_list:
         if not md_path.startswith(DOCS_USER_GUIDE_ROOT):
-            md_path = "/".join([DOCS_USER_GUIDE_ROOT, md_path])
+            md_path = "/".join([LANGUAGE, DOCS_USER_GUIDE_ROOT, md_path])
     else:
-        md_path = "/".join([DOCS_USER_GUIDE_ROOT, DEFAULT_DOC, md_path])
+        md_path = "/".join([LANGUAGE, DOCS_USER_GUIDE_ROOT, DEFAULT_DOC, md_path])
 
     doc_url = f"{settings.BK_DOC_URL.rstrip('/')}/markdown/{md_path.lstrip('/')}"
     return JsonResponse({"result": True, "code": 0, "message": "OK", "data": doc_url})
@@ -340,3 +344,41 @@ class FrontendEventViewSet(APIViewSet):
         }
         r = requests.post(url, json=report_data, timeout=3)
         return Response(r.json())
+
+
+class ShareViewSet(APIViewSet):
+    @list_route(methods=["get"], url_path="get_share_params")
+    def get_share_params(self, request):
+        """
+        @api {get} /share/get_share_params/ 获取临时分享参数
+        @apiName get_share_params
+        @apiGroup share
+        @apiParam {String} space_uid 空间ID
+        @apiSuccessExample {json} 成功返回:
+        {
+            "result": true,
+            "data": "authorizer_1",
+            "code": 0,
+            "message": ""
+        }
+        """
+        data = self.params_valid(GetShareParamsSerializer)
+        return Response(ShareHandler.get_share_params(**data))
+
+    @list_route(methods=["post"], url_path="create_or_update_token")
+    def create_or_update_token(self, request):
+        """
+        @api {get} /share/create_or_update_token/ 创建或更新临时分享令牌
+        @apiName create_or_update_token
+        @apiGroup share
+        @apiParam {String} space_uid 空间ID
+        @apiSuccessExample {json} 成功返回:
+        {
+            "result": true,
+            "data": "authorizer_1",
+            "code": 0,
+            "message": ""
+        }
+        """
+        data = self.params_valid(CreateOrUpdateTokenSerializer)
+        return Response(ShareHandler.create_or_update(data))

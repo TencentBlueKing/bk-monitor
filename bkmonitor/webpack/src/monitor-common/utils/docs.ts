@@ -77,6 +77,7 @@ export const DOCS_LINK_MAP = {
     log: 'UserGuide/ProductFeatures/alarm-configurations/log_monitor.md', // 如何监控日志平台的数据
     alert: 'UserGuide/ProductFeatures/alarm-configurations/composite_monitor.md', // 关联告警策略文档
     grafanaFeatures: 'UserGuide/Appendix/grafana10.md', // grafana 功能说明文档
+    queryString: 'UserGuide/ProductFeatures/data-visualization/query_string.md', // 事件检索语句模式文档
   },
   BKOther: {
     bkLogQueryString: '日志平台/产品白皮书/data-visualization/query_string.md', // 日志平台 查询语句语法
@@ -87,6 +88,15 @@ export const DOCS_LINK_MAP = {
 const isEn = docCookies.getItem(LANGUAGE_COOKIE_KEY) === 'en';
 
 /**
+ * @description 拼接监控外其他项目文档（如日志等）链接
+ * @param path 需要跳转的文档路径
+ * @returns docs链接
+ */
+export function concatBKOtherDocsUrl(path: string) {
+  return `${rstrip(window.bk_docs_site_url, '/')}/markdown/${path}`;
+}
+
+/**
  * @description 拼接监控项目文档链接
  * @param path 需要跳转的文档路径
  * @returns docs链接
@@ -95,15 +105,6 @@ export function concatMonitorDocsUrl(path: string) {
   const lang = isEn ? 'EN' : 'ZH';
   const docsVersion = window.bk_doc_version || 4.7;
   return `${rstrip(window.bk_docs_site_url, '/')}/markdown/${lang}/Monitor/${docsVersion}/${path}`;
-}
-
-/**
- * @description 拼接监控外其他项目文档（如日志等）链接
- * @param path 需要跳转的文档路径
- * @returns docs链接
- */
-export function concatBKOtherDocsUrl(path: string) {
-  return `${rstrip(window.bk_docs_site_url, '/')}/markdown/${path}`;
 }
 
 /**
@@ -124,7 +125,6 @@ export function linkJump(type: DocLinkType, path: string) {
       url = concatMonitorDocsUrl(path);
       break;
   }
-  console.info(url, '=========');
   window.open(url, '_blank');
 }
 

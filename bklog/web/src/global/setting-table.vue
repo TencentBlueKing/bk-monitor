@@ -64,19 +64,19 @@
                   v-bk-overflow-tips
                 >
                   <span 
-                    v-if="props.row.field_name === 'ext' && !props.row.expand" 
+                    v-if="props.row.children?.length && !props.row.expand" 
                     @click="expandObject(props.row,true)" 
                     class="ext-btn rotate bklog-icon bklog-arrow-down-filled">
                   </span>
                   <span 
-                    v-if="props.row.field_name === 'ext' && props.row.expand" 
+                    v-if="props.row.children?.length && props.row.expand" 
                     @click="expandObject(props.row,false)" 
                     class="ext-btn bklog-icon bklog-arrow-down-filled">
                   </span>
                  
                   <!-- 如果为内置字段且有alias_name则优先展示alias_name -->
                   <div 
-                    v-if="!props.row.alias_name" 
+                    v-if="aliasShow(props.row)" 
                     v-bk-tooltips.top="$t('字段名不支持快速修改')"
                     class="field-name">
                     <span v-if="props.row.is_objectKey" class="bklog-icon bklog-subnode"></span>
@@ -95,7 +95,15 @@
                     ></i>
                     </div>
                     <div class="alias-name" v-if="isPreviewMode || props.row.is_built_in">{{ props.row.alias_name}}</div>
-                    <bk-input class="alias-name" v-else v-model.trim="props.row.alias_name"></bk-input>
+                    <bk-input class="alias-name" v-else v-model.trim="props.row.alias_name" @blur="checkAliasNameItem(props.row)"></bk-input>
+                    <template v-if="props.row.fieldErr">
+                    <i
+                      style="right: 8px"
+                      class="bk-icon icon-exclamation-circle-shape tooltips-icon"
+                      v-bk-tooltips.top="props.row.fieldErr"
+                    >
+                    </i>
+                  </template>
                   </div>
                 </div>
                 <bk-form-item
@@ -218,9 +226,9 @@
                     style="width: 85%; margin-left: 15px"
                   >
                     <div>
-                      {{ props.row.participleState === 'custom' ? props.row.tokenize_on_chars : '自然语言分词' }}
+                      {{ props.row.participleState === 'custom' ? props.row.tokenize_on_chars :  $t('自然语言分词') }}
                     </div>
-                    <div>{{ $t('大小写敏感') }}: {{ props.row.is_case_sensitive ? '是' : '否' }}</div>
+                    <div>{{ $t('大小写敏感') }}: {{ props.row.is_case_sensitive ? $t('是') : $t('否') }}</div>
                   </div>
                   <div
                     v-else-if="props.row.is_built_in"
@@ -311,9 +319,9 @@
                           style="width: 85%"
                         >
                           <div>
-                            {{ props.row.participleState === 'custom' ? props.row.tokenize_on_chars : '自然语言分词' }}
+                            {{ props.row.participleState === 'custom' ? props.row.tokenize_on_chars : $t('自然语言分词') }}
                           </div>
-                          <div>{{ $t('大小写敏感') }}: {{ props.row.is_case_sensitive ? '是' : '否' }}</div>
+                          <div>{{ $t('大小写敏感') }}: {{ props.row.is_case_sensitive ? $t('是') : $t('否') }}</div>
                         </div>
                         <div
                           v-else
@@ -546,7 +554,10 @@
           errTemp.aliasErr = false;
         }
         copyFields.reduce((list, item) => {
-          list.push(Object.assign({}, errTemp, item));
+          // 采集路径分割正则不展示
+          if(item.option?.metadata_type !== 'path'){
+            list.push(Object.assign({}, errTemp, item));
+          }
           return list;
         }, arr);
         arr.forEach(item => (item.previous_type = item.field_type));
@@ -570,6 +581,7 @@
             item.field_type = 'string';
             item.previous_type = 'string';
           }
+          this.validateInput(item)
         });
         this.formData.tableList.splice(0, this.formData.tableList.length, ...arr);
       },
@@ -577,7 +589,6 @@
         this.$emit('reset');
       },
       batchAddField() {
-        console.log(this.collectorConfigId, 'collectorConfigId');
         const indexSetList = this.$store.state.retrieve.indexSetList;
         const indexSetId = this.$route.params?.indexId;
         const currentIndexSet = indexSetList.find(item => `${item.index_set_id}` == indexSetId);
@@ -589,7 +600,7 @@
             collectorId: this.collectorConfigId,
           },
           query: {
-            spaceUid: currentIndexSet?.spaceUid,
+            spaceUid: currentIndexSet?.space_uid,
           },
         });
         window.open(newURL.href, '_blank');
@@ -690,7 +701,7 @@
         return value && value !== ' ' ? isNaN(value) : true;
       },
       getData() {
-        const data = cloneDeep(this.formData.tableList);
+        const data = cloneDeep(this.changeTableList);
 
         data.forEach(item => {
           if (item.hasOwnProperty('fieldErr')) {
@@ -763,10 +774,9 @@
         });
       },
       checkFieldNameItem(row) {
-        const { field_name, is_delete, field_index } = row;
+        const { field_name, is_delete, field_index, is_built_in, alias_name } = row;
         let result = '';
-
-        if (!is_delete) {
+        if (!is_delete && !is_built_in && !alias_name) {
           if (!field_name) {
             result = this.$t('必填项');
           } else if (this.extractMethod !== 'bk_log_json' && !/^(?!_)(?!.*?_$)^[A-Za-z0-9_]+$/gi.test(field_name)) {
@@ -789,7 +799,6 @@
         }
         row.fieldErr = result;
         this.$emit('handle-table-data', this.changeTableList);
-
         return result;
       },
       checkFieldName() {
@@ -797,9 +806,13 @@
           try {
             let result = true;
             this.formData.tableList.forEach(row => {
-              if (this.checkFieldNameItem(row)) {
-                // 返回 true 的时候未通过
-                result = false;
+              // 如果有重命名，不判断字段名，判断重命名，如果为内置字段不判断
+              if (!row.is_built_in) {
+                const hasAliasNameIssue = row.alias_name && !this.checkAliasNameItem(row);
+                const hasFieldNameIssue = this.checkFieldNameItem(row);
+                if (hasAliasNameIssue || hasFieldNameIssue) {
+                  result = false;
+                }
               }
             });
             if (result) {
@@ -815,29 +828,25 @@
         });
       },
       checkAliasNameItem(row) {
-        const { field_name: fieldName, query_alias: aliasName, is_delete: isDelete } = row;
+        const { field_name: fieldName, alias_name: aliasName, is_delete: isDelete } = row;
         if (isDelete) {
           return true;
         }
         if (aliasName) {
-          // 设置了别名
-          if (!/^(?!^\d)[\w]+$/gi.test(aliasName)) {
-            // 别名只支持【英文、数字、下划线】，并且不能以数字开头
-            row.aliasErr = this.$t('别名只支持【英文、数字、下划线】，并且不能以数字开头');
+          // 设置了重命名
+          if (!/^[A-Za-z0-9_]+$/g.test(aliasName)) {
+            row.fieldErr = this.$t('重命名只能包含a-z、A-Z、0-9和_');
             return false;
+          }else if (aliasName === fieldName) {
+            row.fieldErr = this.$t('重命名与字段名重复');
           }
           if (this.globalsData.field_built_in.find(item => item.id === aliasName.toLocaleLowerCase())&&this.tableType !== 'originLog') {
-            // 别名不能与内置字段名相同
-            row.aliasErr = this.$t('别名不能与内置字段名相同');
+            row.fieldErr = this.$t('重命名不能与内置字段名相同');
             return false;
           }
-        } else if (this.globalsData.field_built_in.find(item => item.id === fieldName.toLocaleLowerCase())&&this.tableType !== 'originLog') {
-          // 字段名与内置字段冲突，必须设置别名
-          row.aliasErr = this.$t('字段名与内置字段冲突，必须设置别名');
-          return false;
-        }
+        } 
 
-        row.aliasErr = '';
+        row.fieldErr = '';
         return true;
       },
       checkAliasName() {
@@ -845,7 +854,7 @@
           try {
             let result = true;
             this.formData.tableList.forEach(row => {
-              if (!this.checkAliasNameItem(row)) {
+              if (!row.is_built_in && !this.checkAliasNameItem(row)) {
                 result = false;
               }
             });
@@ -862,7 +871,7 @@
         });
       },
       checkQueryAliasItem(row) {
-        const { field_name: fieldName, query_alias: queryAlias, is_delete: isDelete } = row;
+        const { field_name: fieldName, query_alias: queryAlias, alias_name: aliasName, is_delete: isDelete } = row;
         if (isDelete) {
           return true;
         }
@@ -871,6 +880,12 @@
           // 设置了别名
           if (!/^(?!^\d)[\w]+$/gi.test(queryAlias)) {
             row.aliasErr = this.$t('别名只支持【英文、数字、下划线】，并且不能以数字开头');
+            return false;
+          }else if (queryAlias === fieldName) {
+            row.aliasErr = this.$t('别名与字段名重复');
+            return false;
+          }else if (queryAlias === aliasName) {
+            row.aliasErr = this.$t('别名与重命名重复');
             return false;
           }
           if (this.globalsData.field_built_in.find(item => item.id === queryAlias.toLocaleLowerCase())) {
@@ -913,6 +928,7 @@
       },
       validateFieldTable() {
         const promises = [];
+        promises.push(this.checkAliasName());
         promises.push(this.checkFieldName());
         promises.push(this.checkQueryAlias());
         promises.push(this.checkType());
@@ -1048,10 +1064,10 @@
       addObject(){
         const fieldsObjectData = cloneDeep(this.$store.state.indexFieldInfo.fields.filter(item => item.field_name.includes('.')))
         fieldsObjectData.forEach(item => {
-          let name = item.field_name.split('.')[0]
+          let name = item.field_name?.split('.')[0].replace(/^_+|_+$/g, '');
           item.is_objectKey = true
           this.tableAllList.forEach( builtField => {
-            if(builtField.field_type === "object" && name.includes(builtField.field_name)){
+            if(builtField.field_type === "object" && name === builtField.field_name?.split('.')[0]){
               if (!Array.isArray(builtField.children)) {
                 builtField.children = [];
                 this.$set(builtField, 'expand', false);
@@ -1060,7 +1076,29 @@
             }
           } )
         })
-      }
+      },
+      aliasShow(row){
+        if (row.is_built_in) {
+          return true;
+        }
+        return !row.alias_name
+      },
+      validateInput(row) {
+        if(!row.field_name ){
+          return
+        }
+        const quotedPattern = /^".*"$/;
+        // 定义正则，用于检测字段名称的合法性
+        const validFieldPattern = /^[A-Za-z_][0-9A-Za-z_]*$/;
+
+        if (!quotedPattern.test(row.field_name)) {
+          // 如果未被引号包裹
+          if (!validFieldPattern.test(row.field_name)) {
+            // 且不符合字段名称的合法性
+            row.field_name = `"${row.field_name}"`; // 则添加引号
+          }
+        }
+    }
     },
   };
 </script>
@@ -1139,6 +1177,13 @@
               }
               .participle-icon-color{
                 background-color: rgb(250, 251, 253) !important;
+              }
+              .tooltips-icon{
+                position: absolute;
+                z-index: 10;
+                color: #ea3636;
+                cursor: pointer;
+                font-size: 16px;
               }
             }
           }

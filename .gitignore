@@ -12,7 +12,6 @@ sites/
 ## Project Part
 .idea
 .tmp/
-.vscode
 
 ## Python Part
 
@@ -192,8 +191,13 @@ build.yml
 .gtmproject.yaml
 
 .idea
-.vscode
+/.vscode/
 .fleet
 
 pre-*-bkcodeai
 bkcodeai.json
+
+# ruff
+.ruff_cache/
+
+.cursor/

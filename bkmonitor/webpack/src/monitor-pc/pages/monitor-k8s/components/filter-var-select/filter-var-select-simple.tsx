@@ -31,18 +31,18 @@ import type { TranslateResult } from 'vue-i18n';
 
 import './filter-var-select-simple.scss';
 
-type ValueType = number | string | string[];
+export interface IEvents {
+  onChange: string | string[];
+}
 export interface IProps {
-  label: string | TranslateResult;
   field: string;
+  label: string | TranslateResult;
   multiple?: boolean;
   options: IOption[];
   value?: ValueType;
 }
 
-export interface IEvents {
-  onChange: string | string[];
-}
+type ValueType = number | string | string[];
 @Component
 export default class FilterVarSelectSimple extends tsc<IProps, IEvents> {
   /** 组件标题 */

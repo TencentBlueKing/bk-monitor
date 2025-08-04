@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -19,24 +18,23 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+
 import copy
 import json
 import math
-from urllib import parse
 
 from django.conf import settings
-from django.http import HttpResponse
 from django.utils import timezone
 from django.utils.translation import gettext as _
 from rest_framework import serializers
 from rest_framework.response import Response
-from six import StringIO
+from io import BytesIO
 
 from apps.constants import NotifyType, UserOperationActionEnum, UserOperationTypeEnum
 from apps.decorators import user_operation_record
 from apps.exceptions import ValidationError
 from apps.feature_toggle.handlers.toggle import FeatureToggleObject
-from apps.feature_toggle.plugins.constants import LOG_DESENSITIZE
+from apps.feature_toggle.plugins.constants import UNIFY_QUERY_SEARCH, UNIFY_QUERY_SQL
 from apps.generic import APIViewSet
 from apps.iam import ActionEnum, ResourceEnum
 from apps.iam.handlers.drf import (
@@ -44,7 +42,6 @@ from apps.iam.handlers.drf import (
     InstanceActionForDataPermission,
     InstanceActionPermission,
     ViewBusinessPermission,
-    insert_permission_field,
 )
 from apps.log_search.constants import (
     FEATURE_ASYNC_EXPORT_COMMON,
@@ -56,16 +53,20 @@ from apps.log_search.constants import (
     ExportType,
     IndexSetType,
     SearchScopeEnum,
+    QueryMode,
+    SQL_PREFIX,
+    SQL_SUFFIX,
 )
 from apps.log_search.decorators import search_history_record
 from apps.log_search.exceptions import BaseSearchIndexSetException
 from apps.log_search.handlers.es.querystring_builder import QueryStringBuilder
 from apps.log_search.handlers.index_set import (
+    IndexSetCustomConfigHandler,
     IndexSetFieldsConfigHandler,
     IndexSetHandler,
     UserIndexSetConfigHandler,
 )
-from apps.log_search.handlers.search.async_export_handlers import AsyncExportHandlers
+from apps.log_search.handlers.search.async_export_handlers import AsyncExportHandlers, UnionAsyncExportHandlers
 from apps.log_search.handlers.search.chart_handlers import ChartHandler
 from apps.log_search.handlers.search.search_handlers_esquery import (
     SearchHandler as SearchHandlerEsquery,
@@ -74,11 +75,14 @@ from apps.log_search.handlers.search.search_handlers_esquery import UnionSearchH
 from apps.log_search.models import AsyncTask, LogIndexSet
 from apps.log_search.permission import Permission
 from apps.log_search.serializers import (
+    AliasSettingsSerializer,
     BcsWebConsoleSerializer,
     ChartSerializer,
     CreateIndexSetFieldsConfigSerializer,
     GetExportHistorySerializer,
+    IndexSetCustomConfigSerializer,
     IndexSetFieldsConfigListSerializer,
+    LogGrepQuerySerializer,
     OriginalSearchAttrSerializer,
     QueryStringSerializer,
     SearchAttrSerializer,
@@ -90,6 +94,7 @@ from apps.log_search.serializers import (
     SearchUserIndexSetOptionHistorySerializer,
     UISearchSerializer,
     UnionSearchAttrSerializer,
+    UnionSearchExportSerializer,
     UnionSearchFieldsSerializer,
     UnionSearchGetExportHistorySerializer,
     UnionSearchHistorySerializer,
@@ -97,8 +102,20 @@ from apps.log_search.serializers import (
     UpdateIndexSetFieldsConfigSerializer,
     UserIndexSetCustomConfigSerializer,
 )
+from apps.log_search.utils import create_download_response
+from apps.log_unifyquery.builder.context import build_context_params
+from apps.log_unifyquery.builder.tail import build_tail_params
+from apps.log_unifyquery.handler.async_export_handlers import (
+    UnifyQueryAsyncExportHandlers,
+    UnifyQueryUnionAsyncExportHandlers,
+)
+from apps.log_unifyquery.handler.base import UnifyQueryHandler
+from apps.log_unifyquery.handler.context import UnifyQueryContextHandler
+from apps.log_unifyquery.handler.chart import UnifyQueryChartHandler
+from apps.log_unifyquery.handler.tail import UnifyQueryTailHandler
 from apps.utils.drf import detail_route, list_route
 from apps.utils.local import get_request_external_username, get_request_username
+from bkm_space.utils import space_uid_to_bk_biz_id
 
 
 class SearchViewSet(APIViewSet):
@@ -149,14 +166,9 @@ class SearchViewSet(APIViewSet):
 
         return [ViewBusinessPermission()]
 
-    @insert_permission_field(
-        actions=[ActionEnum.SEARCH_LOG],
-        resource_meta=ResourceEnum.INDICES,
-        id_field=lambda d: d["index_set_id"],
-    )
     def list(self, request, *args, **kwargs):
         """
-        @api {get} /search/index_set/?space_uid=$space_uid 01_搜索-索引集列表
+        @api {get} /search/index_set/?space_uid=$space_uid&is_group=false 01_搜索-索引集列表
         @apiDescription 用户有权限的索引集列表
         @apiName search_index_set
         @apiGroup 11_Search
@@ -193,7 +205,50 @@ class SearchViewSet(APIViewSet):
         }
         """
         data = self.params_valid(SearchIndexSetScopeSerializer)
-        return Response(IndexSetHandler().get_user_index_set(data["space_uid"]))
+        result_list = IndexSetHandler().get_user_index_set(data["space_uid"], data["is_group"])
+
+        # 构建一个包含所有子项的列表，利用引用赋值特性
+        all_items = []
+        for item in result_list:
+            all_items.append(item)
+            if "children" in item and isinstance(item["children"], list):
+                all_items.extend(item["children"])
+
+        # 获取资源
+        resources = []
+        for item in all_items:
+            attribute = {}
+            if "bk_biz_id" in item:
+                attribute["bk_biz_id"] = item["bk_biz_id"]
+            if "space_uid" in item:
+                attribute["space_uid"] = item["space_uid"]
+            resources.append(
+                [ResourceEnum.INDICES.create_simple_instance(instance_id=item["index_set_id"], attribute=attribute)]
+            )
+
+        if not resources:
+            return Response(result_list)
+
+        # 权限处理
+        if settings.IGNORE_IAM_PERMISSION:
+            for item in all_items:
+                item.setdefault("permission", {})
+                item["permission"].update({ActionEnum.SEARCH_LOG.id: True})
+            return Response(result_list)
+
+        from apps.iam.handlers.permission import Permission
+
+        permission_result = Permission().batch_is_allowed([ActionEnum.SEARCH_LOG], resources)
+        for item in all_items:
+            origin_instance_id = item["index_set_id"]
+            if not origin_instance_id:
+                # 如果拿不到实例ID，则不处理
+                continue
+            instance_id = str(origin_instance_id)
+            item.setdefault("permission", {})
+            item["permission"].update(permission_result[instance_id])
+
+        return Response(result_list)
 
     @detail_route(methods=["GET"], url_path="bizs")
     def bizs(self, request, *args, **kwargs):
@@ -305,25 +360,16 @@ class SearchViewSet(APIViewSet):
         }
         """
         data = self.params_valid(SearchAttrSerializer)
-        if not data.get("is_desensitize"):
-            # 只针对白名单中的APP_CODE开放不脱敏的权限
-            auth_info = Permission.get_auth_info(self.request, raise_exception=False)
-            if not auth_info or auth_info["bk_app_code"] not in settings.ESQUERY_WHITE_LIST:
-                data["is_desensitize"] = True
-        if data.get("is_desensitize"):
-            # 对脱敏白名单中的用户开放不脱敏的权限
-            bk_biz_id = data.get("bk_biz_id", "")
-            request_user = get_request_username()
-            feature_toggle = FeatureToggleObject.toggle(LOG_DESENSITIZE)
-            if feature_toggle and isinstance(feature_toggle.feature_config, dict):
-                user_white_list = feature_toggle.feature_config.get("user_white_list", {})
-                if request_user in user_white_list.get(str(bk_biz_id), []):
-                    # 用户在脱敏白名单中,开放不脱敏权限
-                    data["is_desensitize"] = False
         search_handler = SearchHandlerEsquery(index_set_id, data)
         if data.get("is_scroll_search"):
             return Response(search_handler.scroll_search())
-        return Response(search_handler.search())
+
+        if FeatureToggleObject.switch(UNIFY_QUERY_SEARCH, data.get("bk_biz_id")):
+            data["index_set_ids"] = [index_set_id]
+            query_handler = UnifyQueryHandler(data)
+            return Response(query_handler.search())
+        else:
+            return Response(search_handler.search())
 
     @detail_route(methods=["POST"], url_path="search/original")
     def original_search(self, request, index_set_id=None):
@@ -439,8 +485,19 @@ class SearchViewSet(APIViewSet):
         """
         data = request.data
         data.update({"search_type_tag": "context"})
-        search_handler = SearchHandlerEsquery(index_set_id, data)
-        return Response(search_handler.search_context())
+        # 获取所属业务id
+        index_set_obj = LogIndexSet.objects.filter(index_set_id=index_set_id).first()
+        if index_set_obj:
+            data["bk_biz_id"] = space_uid_to_bk_biz_id(index_set_obj.space_uid)
+        if FeatureToggleObject.switch(UNIFY_QUERY_SEARCH, data.get("bk_biz_id")):
+            data.update({"index_set_id": index_set_id})
+            params = build_context_params(data)
+            query_handler = UnifyQueryContextHandler(params)
+            return Response(query_handler.search())
+        else:
+            data.update({"search_type_tag": "context"})
+            query_handler = SearchHandlerEsquery(index_set_id, data)
+            return Response(query_handler.search_context())
 
     @detail_route(methods=["POST"], url_path="tail_f")
     def tailf(self, request, index_set_id=None):
@@ -492,10 +549,19 @@ class SearchViewSet(APIViewSet):
         }
         """
         data = request.data
-        data.update({"search_type_tag": "tail"})
-        # search_handler = SearchHandler(index_set_id, data)
-        search_handler = SearchHandlerEsquery(index_set_id, data)
-        return Response(search_handler.search_tail_f())
+        # 获取所属业务id
+        index_set_obj = LogIndexSet.objects.filter(index_set_id=index_set_id).first()
+        if index_set_obj:
+            data["bk_biz_id"] = space_uid_to_bk_biz_id(index_set_obj.space_uid)
+        if FeatureToggleObject.switch(UNIFY_QUERY_SEARCH, data.get("bk_biz_id")):
+            data.update({"index_set_id": index_set_id})
+            params = build_tail_params(data)
+            query_handler = UnifyQueryTailHandler(params)
+            return Response(query_handler.search())
+        else:
+            data.update({"search_type_tag": "tail"})
+            query_handler = SearchHandlerEsquery(index_set_id, data)
+            return Response(query_handler.search_tail_f())
 
     @detail_route(methods=["POST"], url_path="export")
     def export(self, request, index_set_id=None):
@@ -559,21 +625,24 @@ class SearchViewSet(APIViewSet):
         else:
             raise BaseSearchIndexSetException(BaseSearchIndexSetException.MESSAGE.format(index_set_id=index_set_id))
 
-        output = StringIO()
-        export_fields = data.get("export_fields", [])
-        search_handler = SearchHandlerEsquery(
-            index_set_id, search_dict=data, export_fields=export_fields, export_log=True
-        )
-        result = search_handler.search(is_export=True)
+        output = BytesIO()
+        if FeatureToggleObject.switch(UNIFY_QUERY_SEARCH, data.get("bk_biz_id")):
+            data["index_set_ids"] = [index_set_id]
+            query_handler = UnifyQueryHandler(data)
+            result = query_handler.search(is_export=True)
+        else:
+            export_fields = data.get("export_fields", [])
+            search_handler = SearchHandlerEsquery(
+                index_set_id, search_dict=data, export_fields=export_fields, export_log=True
+            )
+            result = search_handler.search(is_export=True)
         result_list = result.get("origin_log_list")
         for item in result_list:
-            output.write(f"{json.dumps(item, ensure_ascii=False)}\n")
-        response = HttpResponse(output.getvalue())
-        response["Content-Type"] = "application/x-msdownload"
+            json_data = json.dumps(item, ensure_ascii=False).encode("utf8")
+            output.write(json_data + b"\n")
         file_name = f"bk_log_search_{index}.log"
-        file_name = parse.quote(file_name, encoding="utf8")
-        file_name = parse.unquote(file_name, encoding="ISO8859_1")
-        response["Content-Disposition"] = 'attachment;filename="{}"'.format(file_name)
+        response = create_download_response(output, file_name)
+
         AsyncTask.objects.create(
             request_param=request_data,
             scenario_id=data["scenario_id"],
@@ -710,17 +779,120 @@ class SearchViewSet(APIViewSet):
         notify_type_name = NotifyType.get_choice_label(
             FeatureToggleObject.toggle(FEATURE_ASYNC_EXPORT_COMMON).feature_config.get(FEATURE_ASYNC_EXPORT_NOTIFY_TYPE)
         )
-        task_id, size = AsyncExportHandlers(
-            index_set_id=int(index_set_id),
-            bk_biz_id=data["bk_biz_id"],
-            search_dict=data,
-            export_fields=data["export_fields"],
-            export_file_type=data["file_type"],
-        ).async_export(is_quick_export=is_quick_export)
+
+        if FeatureToggleObject.switch(UNIFY_QUERY_SEARCH, data.get("bk_biz_id")):
+            task_id, size = UnifyQueryAsyncExportHandlers(
+                index_set_id=int(index_set_id),
+                bk_biz_id=data["bk_biz_id"],
+                search_dict=data,
+                export_fields=data["export_fields"],
+                export_file_type=data["file_type"],
+            ).async_export(is_quick_export=is_quick_export)
+        else:
+            task_id, size = AsyncExportHandlers(
+                index_set_id=int(index_set_id),
+                bk_biz_id=data["bk_biz_id"],
+                search_dict=data,
+                export_fields=data["export_fields"],
+                export_file_type=data["file_type"],
+            ).async_export(is_quick_export=is_quick_export)
         return Response(
             {
                 "task_id": task_id,
-                "prompt": _("任务提交成功，预估等待时间{time}分钟,系统处理后将通过{notify_type_name}通知，请留意！").format(
+                "prompt": _(
+                    "任务提交成功，预估等待时间{time}分钟,系统处理后将通过{notify_type_name}通知，请留意！"
+                ).format(
+                    time=math.ceil(size / MAX_RESULT_WINDOW * RESULT_WINDOW_COST_TIME),
+                    notify_type_name=notify_type_name,
+                ),
+            }
+        )
+
+    @list_route(methods=["POST"], url_path="union_async_export")
+    def union_async_export(self, request, *args, **kwargs):
+        """
+        @api /search/index_set/$index_set_id/union_async_export/
+        @apiDescription 联合查询异步下载检索日志
+        @apiName union_async_export
+        @apiGroup 11_Search
+        @apiParam bk_biz_id [Int] 业务id
+        @apiParam keyword [String] 搜索关键字
+        @apiParam time_range [String] 时间范围
+        @apiParam start_time [String] 起始时间
+        @apiParam end_time [String] 结束时间
+        @apiParam begin [Int] 检索开始 offset
+        @apiParam size [Int]  检索结果大小
+        @apiParam addition [List]  搜索条件
+        @apiParam ip_chooser [Dict]  检索IP条件
+        @apiParam is_quick_export [Bool] 是否快速导出 默认为False
+        @apiParam {Array[Json]} union_configs 联合检索索引集配置
+        @apiParam {Int} union_configs.index_set_id 索引集ID
+        @apiParam {Int} union_configs.begin 索引对应的滚动条数
+        @apiParam {Bool} union_configs.is_desensitize 是否脱敏 默认为True（只针对白名单SaaS开放此参数）
+        @apiParamExample {Json} 请求参数
+        {
+        "bk_biz_id": "2",
+        "size": 12699,
+        "start_time": 1747234800000,
+        "end_time": 1747238399999,
+        "addition": [],
+        "begin": 0,
+        "ip_chooser": {},
+        "keyword": "*",
+        "union_configs": [
+            {
+                "begin": 0,
+                "index_set_id": "66"
+            },
+            {
+                "begin": 0,
+                "index_set_id": "53"
+            }
+        ],
+        "is_quick_export": true
+        }
+        @apiSuccessExample {json} 成功返回:
+        {
+            "result": true,
+            "data": {
+                "task_id": 1,
+                "prompt": "任务提交成功，系统处理后将通过邮件通知，请留意！"
+            },
+            "code": 0,
+            "message": ""
+        }
+        """
+        data = self.params_valid(UnionSearchExportSerializer)
+        auth_info = Permission.get_auth_info(self.request, raise_exception=False)
+        is_verify = False if not auth_info or auth_info["bk_app_code"] not in settings.ESQUERY_WHITE_LIST else True
+        for info in data.get("union_configs", []):
+            if not info.get("is_desensitize") and not is_verify:
+                info["is_desensitize"] = True
+        notify_type_name = NotifyType.get_choice_label(
+            FeatureToggleObject.toggle(FEATURE_ASYNC_EXPORT_COMMON).feature_config.get(FEATURE_ASYNC_EXPORT_NOTIFY_TYPE)
+        )
+        is_quick_export = data.pop("is_quick_export")
+        if FeatureToggleObject.switch(UNIFY_QUERY_SEARCH, data.get("bk_biz_id")):
+            task_id, size = UnifyQueryUnionAsyncExportHandlers(
+                index_set_ids=data["index_set_ids"],
+                bk_biz_id=data["bk_biz_id"],
+                search_dict=data,
+                export_fields=data["export_fields"],
+                export_file_type=data["file_type"],
+            ).async_export(is_quick_export=is_quick_export)
+        else:
+            task_id, size = UnionAsyncExportHandlers(
+                bk_biz_id=data["bk_biz_id"],
+                search_dict=data,
+                index_set_ids=data["index_set_ids"],
+                export_file_type=data["file_type"],
+            ).async_export(is_quick_export=is_quick_export)
+        return Response(
+            {
+                "task_id": task_id,
+                "prompt": _(
+                    "任务提交成功，预估等待时间{time}分钟,系统处理后将通过{notify_type_name}通知，请留意！"
+                ).format(
                     time=math.ceil(size / MAX_RESULT_WINDOW * RESULT_WINDOW_COST_TIME),
                     notify_type_name=notify_type_name,
                 ),
@@ -907,6 +1079,10 @@ class SearchViewSet(APIViewSet):
         # 添加用户索引集自定义配置
         index_set_config = UserIndexSetConfigHandler(index_set_id=int(index_set_id)).get_index_set_config()
         fields.update({"user_custom_config": index_set_config})
+
+        # 添加索引集自定义配置
+        custom_config = IndexSetCustomConfigHandler(index_set_id=int(index_set_id)).get_index_set_config()
+        fields.update({"custom_config": custom_config})
         return Response(fields)
 
     @detail_route(methods=["GET"], url_path="bcs_web_console")
@@ -1387,6 +1563,8 @@ class SearchViewSet(APIViewSet):
         for info in data.get("union_configs", []):
             if not info.get("is_desensitize") and not is_verify:
                 info["is_desensitize"] = True
+        if FeatureToggleObject.switch(UNIFY_QUERY_SEARCH, data.get("bk_biz_id")):
+            return Response(UnionSearchHandler(data).unifyquery_union_search())
         return Response(UnionSearchHandler(data).union_search())
 
     @list_route(methods=["POST"], url_path="union_search/fields")
@@ -1500,19 +1678,15 @@ class SearchViewSet(APIViewSet):
         request_data = copy.deepcopy(data)
         index_set_ids = sorted(data.get("index_set_ids", []))
 
-        output = StringIO()
+        output = BytesIO()
         search_handler = UnionSearchHandler(search_dict=data)
         result = search_handler.union_search(is_export=True)
         result_list = result.get("origin_log_list")
         for item in result_list:
-            output.write(f"{json.dumps(item, ensure_ascii=False)}\n")
-        response = HttpResponse(output.getvalue())
-        response["Content-Type"] = "application/x-msdownload"
-
-        file_name = "bk_log_union_search_{}.txt".format("_".join([str(i) for i in index_set_ids]))
-        file_name = parse.quote(file_name, encoding="utf8")
-        file_name = parse.unquote(file_name, encoding="ISO8859_1")
-        response["Content-Disposition"] = 'attachment;filename="{}"'.format(file_name)
+            json_data = json.dumps(item, ensure_ascii=False).encode("utf8")
+            output.write(json_data + b"\n")
+        file_name = "bk_log_union_search_{}.log".format("_".join([str(i) for i in index_set_ids]))
+        response = create_download_response(output, file_name)
 
         # 保存下载历史
         AsyncTask.objects.create(
@@ -1700,6 +1874,42 @@ class SearchViewSet(APIViewSet):
             ).update_or_create(index_set_config=data["index_set_config"])
         )
 
+    @list_route(methods=["POST"], url_path="custom_config")
+    def update_or_create_index_set_config(self, request):
+        """
+        @api {post} /search/index_set/custom_config/ 更新或创建索引集自定义配置
+        @apiDescription 更新或创建索引集自定义配置
+        @apiName custom_config
+        @apiGroup 11_Search
+        @apiSuccessExample {json} 成功返回:
+        {
+            "result": true,
+            "data": {
+                "id": 7,
+                "index_set_id": 495,
+                "index_set_ids": [],
+                "index_set_hash": "35051070e572e47d2c26c241ab88307f",
+                "index_set_config": {
+                    "fields_width": {
+                        "dtEventTimeStamp": 12,
+                        "serverIp": 15,
+                        "log": 80
+                    }
+                }
+            },
+            "code": 0,
+            "message": ""
+        }
+        """
+        data = self.params_valid(IndexSetCustomConfigSerializer)
+        return Response(
+            IndexSetCustomConfigHandler(
+                index_set_id=data.get("index_set_id"),
+                index_set_ids=data.get("index_set_ids"),
+                index_set_type=data["index_set_type"],
+            ).update_or_create(index_set_config=data["index_set_config"])
+        )
+
     @detail_route(methods=["POST"], url_path="chart")
     def chart(self, request, index_set_id=None):
         """
@@ -1711,53 +1921,28 @@ class SearchViewSet(APIViewSet):
         {
           "result": true,
           "data": {
-            "total_records": 2,
-            "time_taken": 0.092,
-            "list": [
-              {
-                "aa": "aa",
-                "number": 16.3
-                "time": 1731260184
-              },
-              {
-                "aa": "bb",
-                "number": 20.56
-                "time": 1731260184
-              }
-            ],
-            "select_fields_order": [
-              "aa",
-              "number",
-              "time"
-            ],
-            "result_schema": [
-            {
-                "field_type": "string",
-                "field_name": "aa",
-                "field_alias": "aa",
-                "field_index": 0
-            },
-            {
-                "field_type": "double",
-                "field_name": "number",
-                "field_alias": "number",
-                "field_index": 1
-            },
-            {
-                "field_type": "long",
-                "field_name": "time",
-                "field_alias": "time",
-                "field_index": 2
-            }
-            ]
-          },
+            "list": [{
+              "__index": "1001.axa.aa",
+              "__result_table": "abcd.__default__",
+              "log": "xxx1",
+              "time": xxx,
+              ...
+              }],
           "code": 0,
           "message": ""
         }
         """
         params = self.params_valid(ChartSerializer)
-        instance = ChartHandler.get_instance(index_set_id=index_set_id, mode=params["query_mode"])
-        result = instance.get_chart_data(params)
+        bk_biz_id = space_uid_to_bk_biz_id(self.get_object().space_uid)
+
+        if FeatureToggleObject.switch(UNIFY_QUERY_SQL, bk_biz_id):
+            params["index_set_ids"] = [index_set_id]
+            params["bk_biz_id"] = bk_biz_id
+            query_handler = UnifyQueryChartHandler(params)
+            result = query_handler.get_chart_data()
+        else:
+            instance = ChartHandler.get_instance(index_set_id=index_set_id, mode=params["query_mode"])
+            result = instance.get_chart_data(params)
         return Response(result)
 
     @detail_route(methods=["POST"], url_path="generate_sql")
@@ -1778,13 +1963,23 @@ class SearchViewSet(APIViewSet):
         }
         """
         params = self.params_valid(UISearchSerializer)
-        data = ChartHandler.generate_sql(
-            addition=params["addition"],
-            start_time=params["start_time"],
-            end_time=params["end_time"],
-            sql_param=params["sql"],
-            keyword=params["keyword"],
-        )
+        params["sql"] = params["sql"] or f"{SQL_PREFIX} {SQL_SUFFIX}"
+        bk_biz_id = space_uid_to_bk_biz_id(self.get_object().space_uid)
+
+        if FeatureToggleObject.switch(UNIFY_QUERY_SQL, bk_biz_id):
+            params["index_set_ids"] = [index_set_id]
+            params["bk_biz_id"] = bk_biz_id
+            query_handler = UnifyQueryChartHandler(params)
+            data = query_handler.generate_sql()
+        else:
+            data = ChartHandler.generate_sql(
+                addition=params["addition"],
+                start_time=params["start_time"],
+                end_time=params["end_time"],
+                sql_param=params["sql"],
+                keyword=params["keyword"],
+                alias_mappings=params["alias_mappings"],
+            )
         return Response(data)
 
     @list_route(methods=["POST"], url_path="generate_querystring")
@@ -1807,3 +2002,51 @@ class SearchViewSet(APIViewSet):
         params = self.params_valid(QueryStringSerializer)
         querystring = QueryStringBuilder.to_querystring(params)
         return Response({"querystring": querystring})
+
+    @detail_route(methods=["POST"], url_path="grep_query")
+    def grep_query(self, request, index_set_id):
+        """
+        @api {post} /search/index_set/$index_set_id/grep_query/
+        @apiDescription grep语法查询
+        @apiName grep_query
+        @apiGroup 11_Search
+        @apiParam start_time [String] 起始时间
+        @apiParam end_time [String] 结束时间
+        @apiParam keyword [String] 搜索关键字
+        @apiParam addition [List[dict]] 搜索条件
+        @apiParam grep_query [String] grep查询条件
+        @apiParam grep_field [String] 高亮字段
+        @apiParam begin [Int] 检索开始 offset
+        @apiParam size [Int]  检索结果大小
+        @apiSuccessExample {json} 成功返回:
+        {
+            "result": true,
+            "data": {
+                "total": 2,
+                "took" 0.88,
+                "list": [
+                    {
+                        "thedate": 20250416,
+                        "dteventtimestamp": 1744788480000,
+                        "log": "[2025.04.16-15.27.59:459][290]RPC",
+                    },
+                    {
+                        "thedate": 20250416,
+                        "dteventtimestamp": 1744788480000,
+                        "log": "[2025.04.16-15.27.59:124][280]RPC",
+                    }
+                ],
+            },
+            "code": 0,
+            "message": ""
+        }
+        """
+        params = self.params_valid(LogGrepQuerySerializer)
+        instance = ChartHandler.get_instance(index_set_id=index_set_id, mode=QueryMode.SQL.value)
+        data = instance.fetch_grep_query_data(params)
+        return Response(data)
+
+    @detail_route(methods=["POST"], url_path="alias_settings")
+    def alias_settings(self, request, index_set_id):
+        params = self.params_valid(AliasSettingsSerializer)
+        return Response(IndexSetHandler(index_set_id=index_set_id).update_alias_settings(params["alias_settings"]))

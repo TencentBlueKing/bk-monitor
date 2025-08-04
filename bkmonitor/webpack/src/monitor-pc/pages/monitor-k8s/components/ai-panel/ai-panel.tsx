@@ -42,31 +42,31 @@ import type { IViewOptions, PanelModel } from 'monitor-ui/chart-plugins/typings'
 
 import './ai-panel.scss';
 
-interface IAiPanelTableItem {
-  id?: string;
-  metric_id?: string;
-  score: number;
-  value: number | string;
-  dtEventTime: number | string;
-  name: string;
-  panel?: any;
-}
 interface IAiPanelResData {
   anomaly_info: Omit<IAiPanelTableItem, 'name'>[];
   metrics: {
-    metric_id: string;
-    metric_field_name: string;
     data_source_label: string;
     data_type_label: string;
-    result_table_id: string;
     metric_field: string;
+    metric_field_name: string;
+    metric_id: string;
+    result_table_id: string;
     unit?: string;
   }[];
 }
+interface IAiPanelTableItem {
+  dtEventTime: number | string;
+  id?: string;
+  metric_id?: string;
+  name: string;
+  panel?: any;
+  score: number;
+  value: number | string;
+}
 interface ICommonListProps {
+  allPanelId?: string[];
   // panel实例
   panel: PanelModel;
-  allPanelId?: string[];
 }
 
 @Component
@@ -82,7 +82,7 @@ export default class Aipanel extends tsc<ICommonListProps> {
   @InjectReactive('timeRange') readonly timeRange!: TimeRangeType;
   @InjectReactive('viewOptions') readonly viewOptions!: IViewOptions;
   // 图表刷新间隔
-  @InjectReactive('refleshInterval') readonly refleshInterval!: number;
+  @InjectReactive('refreshInterval') readonly refreshInterval!: number;
   // 时间对比的偏移量
   @InjectReactive('timeOffset') readonly timeOffset: string[];
   // 对比类型
@@ -151,7 +151,7 @@ export default class Aipanel extends tsc<ICommonListProps> {
       },
       tools: {
         timeRange: this.timeRange,
-        refleshInterval: this.refleshInterval,
+        refreshInterval: this.refreshInterval,
         searchValue: [],
       },
     };

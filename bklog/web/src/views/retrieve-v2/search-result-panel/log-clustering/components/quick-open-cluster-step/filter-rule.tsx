@@ -26,12 +26,14 @@
 
 import { Component, Prop, Emit, Ref, ModelSync, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import useFieldNameHook from '@/hooks/use-field-name';
 import { From } from 'bk-magic-vue';
 
 import $http from '../../../../../../api';
 import { formatDate } from '../../../../../../common/util';
 import { handleTransformToTimestamp } from '../../../../../../components/time-range/utils';
+import { BK_LOG_STORAGE } from '../../../../../../store/store.type';
 
 import './filter-rule.scss';
 
@@ -95,7 +97,7 @@ export default class FilterRule extends tsc<IProps> {
     return false;
   }
   get showFieldAlias() {
-    return this.$store.state.showFieldAlias;
+    return this.$store.state.storage[BK_LOG_STORAGE.SHOW_FIELD_ALIAS];
   }
   // 优先展示选中字段名
   get filterSelectList() {
@@ -294,7 +296,6 @@ export default class FilterRule extends tsc<IProps> {
                       v-model={item.value}
                       content-width={232}
                       list={item.valueList}
-                      max-data={1}
                       placeholder={$i18n.t('请输入')}
                       trigger='focus'
                       allow-auto-match

@@ -24,10 +24,10 @@
  * IN THE SOFTWARE.
  */
 import { type PropType, defineComponent, onMounted, ref, watch } from 'vue';
-import { useI18n } from 'vue-i18n';
 
 import { Input, Slider } from 'bkui-vue';
 import { debounce } from 'monitor-common/utils/utils';
+import { useI18n } from 'vue-i18n';
 
 import { formatDuration } from '../../../components/trace-view/utils/date';
 
@@ -199,6 +199,7 @@ export default defineComponent({
       handleExchange,
       handleRangeChange,
       handleChangeDebounce,
+      t,
     };
   },
   render() {
@@ -239,7 +240,7 @@ export default defineComponent({
                 class='exchange-btn'
                 onClick={this.handleExchange}
               >
-                {this.$t('数值互换')}
+                {this.t('数值互换')}
               </span>
             )}
           </div>

@@ -33,32 +33,32 @@ import type { IViewOptions, PanelModel } from 'monitor-ui/chart-plugins/typings'
 
 import './task-list.scss';
 
-interface TaskDataItem {
-  id: number | string;
-  name: string;
+export interface IEvents {
+  onChange: IViewOptions;
+  onListChange?: { id: string; name: string }[];
+  onOverviewChange?: void;
+  onTitleChange: string;
+}
+
+export interface IProps {
+  isStatusFilter?: boolean;
+  isTargetCompare?: boolean;
+  panel: PanelModel;
+  showOverview?: boolean;
+  viewOptions: IViewOptions;
 }
 
 export interface IViewOption {
   filter_dict?: Record<string, any>;
   group_by?: string[];
-  method?: string;
   interval?: string;
+  method?: string;
   time_shift?: string;
 }
 
-export interface IProps {
-  panel: PanelModel;
-  viewOptions: IViewOptions;
-  isStatusFilter?: boolean;
-  showOverview?: boolean;
-  isTargetCompare?: boolean;
-}
-
-export interface IEvents {
-  onTitleChange: string;
-  onChange: IViewOptions;
-  onListChange?: { id: string; name: string }[];
-  onOverviewChange?: void;
+interface TaskDataItem {
+  id: number | string;
+  name: string;
 }
 
 @Component({})
@@ -71,7 +71,7 @@ export default class TaskList extends tsc<IProps, IEvents> {
   @Prop({ default: false, type: Boolean }) isTargetCompare: boolean;
 
   loading = false;
-  inited = false;
+  initialized = false;
   /** 搜索关键字 */
   searchKeyword = '';
   activeTask = '';
@@ -130,10 +130,10 @@ export default class TaskList extends tsc<IProps, IEvents> {
         this.taskData = res;
         this.handleSearch();
         this.handleListChange(res);
-        if (!this.inited) {
+        if (!this.initialized) {
           const curData = this.taskData.find(data => String(data.id) === String(this.activeTask));
           Boolean(curData) && this.handleTitleChange(curData);
-          this.inited = true;
+          this.initialized = true;
         }
       })
       .finally(() => (this.loading = false));

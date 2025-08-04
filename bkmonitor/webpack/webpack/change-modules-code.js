@@ -1,7 +1,8 @@
-const { resolve } = require('node:path');
-const { readFile, access, writeFile } = require('node:fs/promises');
 const { constants } = require('node:fs');
+const { readFile, access, writeFile } = require('node:fs/promises');
+const { resolve } = require('node:path');
 
+// biome-ignore lint/complexity/noStaticOnlyClass: <explanation>
 class ChangeCode {
   /**
    * @description: 修改echarts
@@ -18,11 +19,11 @@ class ChangeCode {
     chunk = chunk
       .replace(
         'height = (height <= 0 ? -1 : 1) * barMinHeight;',
-        'height = height ? (height < 0 ? -1 : 1) * barMinHeight : -1 * barMinHeight;',
+        'height = height ? (height < 0 ? -1 : 1) * barMinHeight : -1 * barMinHeight;'
       )
       .replace(
         'width = (width < 0 ? -1 : 1) * barMinHeight;',
-        'width = width ? (width < 0 ? -1 : 1) * barMinHeight : -1 * barMinHeight;',
+        'width = width ? (width < 0 ? -1 : 1) * barMinHeight : -1 * barMinHeight;'
       );
     await writeFile(codeUrl, chunk, 'utf-8').catch(e => {
       console.error(e.message || 'change echarts code error');

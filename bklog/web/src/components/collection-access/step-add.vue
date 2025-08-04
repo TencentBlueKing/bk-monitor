@@ -325,33 +325,25 @@
             v-if="formData.target_nodes.length"
             class="count"
           >
-            <!-- <span>{{ collectTargetTarget[formData.target_node_type + '1'] }}</span>
-              <span class="font-blue">{{ formData.target_nodes.length }}</span>
-              <span>{{ collectTargetTarget[formData.target_node_type + '2'] }}</span> -->
             <i18n :path="collectTargetTarget[formData.target_node_type]">
               <span class="font-blue">{{ formData.target_nodes.length }}</span>
             </i18n>
           </div>
-          <!-- 目标选择器 -->
-          <log-ip-selector
-            :height="670"
-            :key="bkBizId"
-            :original-value="ipSelectorOriginalValue"
-            :panel-list="ipSelectorPanelList"
-            :show-dialog.sync="showIpSelectorDialog"
-            :show-view-diff="isUpdate"
-            :value="selectorNodes"
-            mode="dialog"
-            allow-host-list-miss-host-id
-            @change="handleTargetChange"
-          />
-          <!-- <ip-selector-dialog
+          <template v-if="formData.category_id">
+            <!-- 目标选择器 -->
+            <log-ip-selector
+              :height="670"
+              :key="bkBizId"
+              :original-value="ipSelectorOriginalValue"
               :show-dialog.sync="showIpSelectorDialog"
-              :target-object-type="formData.target_object_type"
-              :target-node-type="formData.target_node_type"
-              :target-nodes="formData.target_nodes"
-              @target-change="targetChange">
-            </ip-selector-dialog> -->
+              :show-view-diff="isUpdate"
+              :value="selectorNodes"
+              :panel-list="ipSelectorPanelList"
+              mode="dialog"
+              allow-host-list-miss-host-id
+              @change="handleTargetChange"
+            />
+          </template>
         </div>
         <!-- 物理环境 配置项 -->
         <config-log-set-item
@@ -753,6 +745,7 @@
           TOPO: '已动态选择{0}个节点',
           SERVICE_TEMPLATE: '已选择{0}个服务模板',
           SET_TEMPLATE: '已选择{0}个集群模板',
+          DYNAMIC_GROUP: '已选择{0}个动态组',
         },
         configBaseObj: {}, // 新增配置项的基础对象
         isYaml: false, // 是否是yaml模式
@@ -794,7 +787,7 @@
         isExtraError: false, // 附加标签是否有出错
         uiconfigToYamlData: {}, // 切换成yaml时当前保存的ui配置
         // ip选择器面板
-        ipSelectorPanelList: ['staticTopo', 'dynamicTopo', 'serviceTemplate', 'setTemplate', 'manualInput'],
+        ipSelectorPanelList: ['staticTopo', 'dynamicTopo', 'dynamicGroup', 'serviceTemplate', 'setTemplate', 'manualInput'],
         // 编辑态ip选择器初始值
         ipSelectorOriginalValue: null,
         enLabelWidth: 180,
@@ -1163,7 +1156,10 @@
         if (this.$refs.formConfigRef?.winCannotPass && this.isWinEventLog) return false;
         // 物理环境验证
         if (this.isPhysicsEnvironment) {
-          return await this.$refs.formConfigRef.logFilterValidate();
+          return (
+            (await this.$refs.formConfigRef.logFilterValidate()) &&
+            (await this.$refs.formConfigRef.extraLabelsValidate())
+          );
         }
         // 容器环境并且打开yaml模式时进行yaml语法检测
         if (this.isYaml && !this.isPhysicsEnvironment) {
@@ -1497,6 +1493,7 @@
           node_list: nodeList,
           service_template_list: serviceTemplateList,
           set_template_list: setTemplateList,
+          dynamic_group_list: dynamicGroupList,
         } = value;
         let type = '';
         let nodes = [];
@@ -1515,6 +1512,10 @@
         if (setTemplateList?.length) {
           type = 'SET_TEMPLATE';
           nodes = setTemplateList;
+        }
+        if (dynamicGroupList?.length) {
+          type = 'DYNAMIC_GROUP';
+          nodes = dynamicGroupList;
         }
         if (!type) return;
 
@@ -1706,6 +1707,7 @@
           node_list: type === 'TOPO' ? targetList : [],
           service_template_list: type === 'SERVICE_TEMPLATE' ? targetList : [],
           set_template_list: type === 'SET_TEMPLATE' ? targetList : [],
+          dynamic_group_list: type === 'DYNAMIC_GROUP' ? targetList : [],
         };
       },
       // 获取config里添加范围的列表

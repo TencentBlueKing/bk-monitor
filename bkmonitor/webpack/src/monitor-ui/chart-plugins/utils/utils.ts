@@ -209,7 +209,7 @@ export const getThresholds = async (detectionsConfig: IDetectionConfig, yAxisNee
         ...list,
         ...handleThresholdOption(config?.thresholds?.[0], level, unitConversion, val => {
           const value = unitConversion ? unitConversion.unit_conversion * val.threshold : val.threshold;
-          return `${window.i18n.tc('阈值')}(${methodMap[val.method]}${value})`;
+          return `${window.i18n.t('阈值')}(${methodMap[val.method]}${value})`;
         }),
       ];
       // config?.[0].forEach((cfg) => {
@@ -293,7 +293,7 @@ const getMarkArea = (thresholdLine: any[]) => {
       const current = threshold[index];
       const nextThreshold = threshold[index + 1];
       // 判断是否为一个闭合区间
-      let yAxis = undefined;
+      let yAxis;
       if (
         openInterval.includes(current.method) &&
         nextThreshold &&
@@ -587,14 +587,6 @@ export const flattenObj = obj => {
   return res;
 };
 
-function getTextWidth(text: string, fontSize: number): number {
-  const canvas = document.createElement('canvas');
-  const context = canvas.getContext('2d');
-  context.font = `${fontSize}px sans-serif`; // 设置字体样式
-  const metrics = context.measureText(text); // 测量文本的宽度
-  return metrics.width; // 返回文本的宽度
-}
-
 /**
  * @description 将文字填充到指定宽度
  * @param targetText
@@ -613,6 +605,14 @@ export function padTextToWidth(targetText: string, widthInPx: number): string {
   const padLength = Math.round((widthInPx - textWidth) / 3.56); // 假设字符的宽度为 3.56px
   const paddedText = String(targetText).padStart(padLength + String(targetText).length, ' '); // 向前填充空格
   return paddedText;
+}
+
+function getTextWidth(text: string, fontSize: number): number {
+  const canvas = document.createElement('canvas');
+  const context = canvas.getContext('2d');
+  context.font = `${fontSize}px sans-serif`; // 设置字体样式
+  const metrics = context.measureText(text); // 测量文本的宽度
+  return metrics.width; // 返回文本的宽度
 }
 
 /**
@@ -671,7 +671,8 @@ export const createMenuList = (
   menuList: { id: string; name: string }[],
   position: { x: number; y: number },
   clickHandler: (id: string) => void,
-  instance: any
+  instance: any,
+  className?: string
 ) => {
   const id = 'contextmenu-list-pop-wrapper';
   const removeEl = () => {
@@ -693,7 +694,7 @@ export const createMenuList = (
   };
   removeEl();
   const el = document.createElement('div');
-  el.className = id;
+  el.className = `${id} ${className || ''}`;
   el.id = id;
   el.style.left = `${(() => {
     const { clientWidth } = document.body;

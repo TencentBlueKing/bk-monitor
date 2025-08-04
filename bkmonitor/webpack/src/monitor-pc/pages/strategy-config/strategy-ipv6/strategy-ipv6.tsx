@@ -37,24 +37,24 @@ import {
 } from '../../../components/monitor-ip-selector/utils';
 
 import type {
-  CoutIntanceName,
+  CountInstanceName,
   IIpV6Value,
   INodeType,
   TargetObjectType,
 } from '../../../components/monitor-ip-selector/typing';
 
-interface IStrategyIpv6Props {
-  showDialog: boolean;
-  strategyIds?: string[];
-  objectType?: TargetObjectType;
-  nodeType?: INodeType;
-  bizId?: number | string;
-  checkedNodes?: any[];
-}
 interface IStrategyIpv6Events {
+  onChange: { nodeType: INodeType; objectType: TargetObjectType; value: IIpV6Value };
   onCloseDialog: boolean;
   onSave: boolean;
-  onChange: { value: IIpV6Value; nodeType: INodeType; objectType: TargetObjectType };
+}
+interface IStrategyIpv6Props {
+  bizId?: number | string;
+  checkedNodes?: any[];
+  nodeType?: INodeType;
+  objectType?: TargetObjectType;
+  showDialog: boolean;
+  strategyIds?: string[];
 }
 const HostTargetFieldMap = {
   TOPO: 'host_topo_node',
@@ -83,9 +83,9 @@ export default class StrategyIpv6 extends tsc<IStrategyIpv6Props, IStrategyIpv6E
   ipNodeType: INodeType = 'TOPO';
   ipObjectType: TargetObjectType = null;
   loading = false;
-  inited = false;
+  initialized = false;
   originValue: IIpV6Value = undefined;
-  countInstanceType: CoutIntanceName = 'host';
+  countInstanceType: CountInstanceName = 'host';
   get hasStrategy() {
     return this.strategyIds?.length > 0;
   }
@@ -108,7 +108,7 @@ export default class StrategyIpv6 extends tsc<IStrategyIpv6Props, IStrategyIpv6E
   @Watch('showDialog', { immediate: true })
   async onShowDialogChange(v: boolean) {
     if (v) {
-      this.inited = false;
+      this.initialized = false;
       if (this.hasStrategy) {
         // 策略增删目标
         await this.getStrategyConfigTargets();
@@ -123,7 +123,9 @@ export default class StrategyIpv6 extends tsc<IStrategyIpv6Props, IStrategyIpv6E
       }
       this.countInstanceType = this.ipObjectType === 'SERVICE' ? 'service_instance' : 'host';
       this.panelList = getPanelListByObjectType(this.ipObjectType);
-      setTimeout(() => (this.inited = true), 100);
+      setTimeout(() => {
+        this.initialized = true;
+      }, 100);
     }
   }
   @Emit('closeDialog')
@@ -189,12 +191,14 @@ export default class StrategyIpv6 extends tsc<IStrategyIpv6Props, IStrategyIpv6E
             mode={'dialog'}
             originalValue={this.originValue}
             panelList={this.panelList}
-            showDialog={this.inited && this.showDialog}
+            showDialog={this.initialized && this.showDialog}
             showViewDiff={!!this.originValue}
             value={this.ipCheckValue}
             onChange={this.handleIpChange}
             onCloseDialog={this.closeDialog}
-            onTargetTypeChange={v => (this.ipNodeType = v)}
+            onTargetTypeChange={v => {
+              this.ipNodeType = v;
+            }}
           />
         )}
       </div>

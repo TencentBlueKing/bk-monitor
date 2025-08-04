@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -10,6 +9,7 @@ specific language governing permissions and limitations under the License.
 """
 
 import copy
+import logging
 import re
 
 from django.core.exceptions import EmptyResultSet
@@ -17,6 +17,9 @@ from django.db.models import Q
 from django.utils import timezone
 
 from bkmonitor.data_source.backends.base import compiler
+from constants.common import DEFAULT_TENANT_ID
+
+logger = logging.getLogger("bkmonitor.data_source.log_search")
 
 
 class SQLCompiler(compiler.SQLCompiler):
@@ -24,6 +27,9 @@ class SQLCompiler(compiler.SQLCompiler):
     SELECT_RE = re.compile(
         r"(?P<agg_method>[^\( ]+)[\( ]+" r"(?P<metric_field>[^\) ]+)[\) ]+" r"([ ]?as[ ]+(?P<metric_alias>[^ ]+))?"
     )
+    SPECIAL_CHARS = re.compile(r'([+\-=&|><!(){}[\]^"~*?\\:\/ ])')
+    ESCAPED_SPECIAL_CHARS = re.compile(r'\\([+\-=&|><!(){}[\]^"~*?\\:\/ ])')
+
     DEFAULT_AGG_METHOD = "count"
     DEFAULT_METRIC_FIELD = "_index"
     DEFAULT_METRIC_ALIAS = "count"
@@ -78,6 +84,10 @@ class SQLCompiler(compiler.SQLCompiler):
                 if not values:
                     continue
 
+                # 转义特殊字符
+                values = [self.escape_char(value) for value in values]
+
+                # 映射操作符到查询语法模板
                 connector = "OR"
                 if method == "eq":
                     expr_template = '{}: "{}"'
@@ -121,8 +131,26 @@ class SQLCompiler(compiler.SQLCompiler):
 
         return query_string
 
+    def escape_char(self, s):
+        """
+        转义query string中的特殊字符
+        """
+        if not isinstance(s, str):
+            return s
+
+        # 避免双重转义：先移除已有转义
+        s = self.ESCAPED_SPECIAL_CHARS.sub(r"\1", s)
+        return self.SPECIAL_CHARS.sub(r"\\\1", str(s))
+
     def as_sql(self):
-        result = {}
+        bk_tenant_id = self.query.bk_tenant_id
+        if not bk_tenant_id:
+            logger.warning(
+                f"get_query_tenant_id is empty, log query: {self.query.index_set_id or self.query.table_name or self.query.raw_query_string}"
+            )
+            bk_tenant_id = DEFAULT_TENANT_ID
+
+        result = {"bk_tenant_id": bk_tenant_id}
         time_field = self._get_time_field()
 
         # 0. parse select field(metric_field)
@@ -167,9 +195,9 @@ class SQLCompiler(compiler.SQLCompiler):
             if not (isinstance(i, tuple) and len(i) == 2 and i[0] in time_field_list)
         ]
 
-        gte_field = "{}__gte".format(time_field)
-        lte_field = "{}__lte".format(time_field)
-        lt_field = "{}__lt".format(time_field)
+        gte_field = f"{time_field}__gte"
+        lte_field = f"{time_field}__lte"
+        lt_field = f"{time_field}__lt"
         start_time = where_dict.get(gte_field)
         end_time = where_dict.get(lte_field) or where_dict.get(lt_field)
         if start_time:
@@ -280,7 +308,7 @@ class SQLCompiler(compiler.SQLCompiler):
             time_field: {
                 "date_histogram": {
                     "field": time_field,
-                    "interval": "%ss" % agg_interval,
+                    "interval": f"{agg_interval}s",
                     "time_zone": timezone.get_current_timezone().zone,
                 },
                 "aggregations": metric_aggragations,

@@ -6,10 +6,10 @@
 .failure-topo-tooltips {
   position: relative;
   z-index: 999;
-  background: #454547;
+  background: #2d2f33;
   border: 1px solid #454547;
   border-radius: 2px;
-  box-shadow: 0 2px;
+  box-shadow: 0 2px 24px 0 #000000;
 
   .node-tooltip-header-icon-wrap {
     display: flex;
@@ -141,7 +141,7 @@
         padding: 0px 16px;
         color: #fff;
         cursor: pointer;
-        background: #454547;
+        background: #2d2f33;
 
         i {
           font-size: 16px;
@@ -317,8 +317,6 @@
         border-radius: 50%;
       }
 
-
-
       .node-name {
         margin: 0 4px;
         overflow: hidden;
@@ -330,7 +328,7 @@
       .node-link-name {
         color: rgba(105, 157, 244, 1);
         cursor: pointer;
-      } 
+      }
     }
 
     .node-source-anomaly {
@@ -394,7 +392,7 @@
         top: 0px;
         left: 0px;
         width: auto !important;
-        background-color: #454547 !important;
+        background-color: #2d2f33 !important;
         transform: translate(0, 0);
       }
     }
@@ -571,7 +569,7 @@
     width: 20px !important;
     min-width: 20px;
     height: 20px;
-    margin-right: 6px;
+    margin-right: 8px;
     font-size: 16px;
     border-radius: 100%;
 
@@ -603,12 +601,15 @@
     &-header {
       display: flex;
       align-items: center;
-      height: 22px;
+      height: 28px;
       margin-top: 12px;
+      padding-bottom: 6px;
+      border-bottom: 1px solid #63656e;
 
       .header-name {
         height: 20px;
-        margin-right: 5px;
+        line-height: 20px;
+        margin-right: 4px;
         overflow: hidden;
         font-size: 14px;
         font-weight: 700;
@@ -643,7 +644,6 @@
       display: flex;
       flex-direction: column;
       width: 100%;
-      margin-top: 5px;
 
       .content-form {
         display: flex;
@@ -671,7 +671,7 @@
           height: 28px;
           margin-left: 5px;
           margin-left: 4px;
-          color: #fff;
+          color: #eaebf0;
 
           .flex-label {
             overflow: hidden;
@@ -692,8 +692,8 @@
           }
         }
 
-        &:nth-child(2n + 1) {
-          background-color: #4f4f52;
+        &:nth-child(2n) {
+          background-color: #242629;
         }
       }
 
@@ -713,6 +713,7 @@
 
         .except-icon {
           padding-right: 8px;
+          font-size: 12px;
           color: #699df4;
         }
       }
@@ -739,7 +740,7 @@
     }
 
     .btn-text {
-      margin-left: 2px;
+      margin-left: 5px;
       font-size: 12px;
       color: #699df4;
       white-space: nowrap;

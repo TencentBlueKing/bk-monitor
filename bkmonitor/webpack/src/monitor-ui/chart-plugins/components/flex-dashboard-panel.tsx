@@ -33,11 +33,11 @@ import EmptyStatus from 'monitor-pc/components/empty-status/empty-status';
 
 import {
   type DashboardColumnType,
+  type IDataItem,
   type IPanelModel,
   type ObservablePanelField,
-  type IDataItem,
-  PanelModel,
   type ZrClickEvent,
+  PanelModel,
 } from '../typings';
 import ChartCollect from './chart-collect/chart-collect';
 import ChartWrapper from './chart-wrapper';
@@ -47,30 +47,30 @@ import type { ITableItem, SceneType } from 'monitor-pc/pages/monitor-k8s/typings
 import './dashboard-panel.scss';
 /** 接收图表当前页面跳转事件 */
 export const UPDATE_SCENES_TAB_DATA = 'UPDATE_SCENES_TAB_DATA';
+interface IDashboardPanelEvents {
+  onLintToDetail: ITableItem<'link'>;
+  onBackToOverview: () => void;
+  /** 图表鼠标右击事件的回调方法 */
+  onMenuClick?: (data: IDataItem) => void;
+  onZrClick?: (event: ZrClickEvent) => void;
+}
 interface IDashboardPanelProps {
-  // 视图集合
-  panels: IPanelModel[];
-  // dashboard id
-  id: string;
+  backToType?: SceneType;
   // 自动展示初始化列数
   column?: DashboardColumnType;
-  // 是否在分屏展示
-  isSplitPanel?: boolean;
-  isSingleChart?: boolean;
-  needOverviewBtn?: boolean;
-  backToType?: SceneType;
   /** 根据column */
   customHeightFn?: ((a: any) => number) | null;
   dashboardId?: string;
+  // dashboard id
+  id: string;
+  isSingleChart?: boolean;
+  // 是否在分屏展示
+  isSplitPanel?: boolean;
   matchFields?: Record<string, any>;
   needCheck?: boolean;
-}
-interface IDashboardPanelEvents {
-  onBackToOverview: () => void;
-  onLintToDetail: ITableItem<'link'>;
-  onZrClick?: (event: ZrClickEvent) => void;
-  /** 图表鼠标右击事件的回调方法 */
-  onMenuClick?: (data: IDataItem) => void;
+  needOverviewBtn?: boolean;
+  // 视图集合
+  panels: IPanelModel[];
 }
 @Component
 export default class FlexDashboardPanel extends tsc<IDashboardPanelProps, IDashboardPanelEvents> {
@@ -114,7 +114,7 @@ export default class FlexDashboardPanel extends tsc<IDashboardPanelProps, IDashb
   @Watch('panels', { immediate: true })
   handlePanelsChange() {
     if (!this.panels) return;
-    this.handleInitPanelsGridpos(this.panels);
+    this.handleInitPanelsGridPosition(this.panels);
     (this as any).localPanels = this.handleInitLocalPanels(this.panels.slice());
     this.observablePanelsField = (this as any).localPanels.reduce((pre, cur) => {
       pre[cur.id] = { show: cur.show, collapsed: cur.collapsed, checked: cur.checked };
@@ -124,14 +124,14 @@ export default class FlexDashboardPanel extends tsc<IDashboardPanelProps, IDashb
   @Watch('column')
   handleColumnChange() {
     disconnect(this.id.toString());
-    this.handleInitPanelsGridpos((this as any).localPanels);
-    this.handleConentEcharts();
+    this.handleInitPanelsGridPosition((this as any).localPanels);
+    this.handleConnectEcharts();
   }
   mounted() {
     // 等待所以子视图实例创建完进行视图示例的关联 暂定5000ms 后期进行精细化配置
-    this.handleConentEcharts();
+    this.handleConnectEcharts();
     bus.$on(UPDATE_SCENES_TAB_DATA, this.handleLinkTo);
-    bus.$on('switch_scenes_type', this.handleToSceneDetil);
+    bus.$on('switch_scenes_type', this.handleToSceneDetail);
     bus.$on('switch_to_overview', this.handleToSceneOverview);
   }
   beforeDestroy() {
@@ -142,7 +142,7 @@ export default class FlexDashboardPanel extends tsc<IDashboardPanelProps, IDashb
     bus.$off('switch_scenes_type');
     bus.$off('switch_to_overview');
   }
-  handleConentEcharts() {
+  handleConnectEcharts() {
     setTimeout(() => {
       if ((this as any).localPanels?.length < 300) {
         connect(this.id.toString());
@@ -160,7 +160,7 @@ export default class FlexDashboardPanel extends tsc<IDashboardPanelProps, IDashb
 
   /** 处理跳转视图详情 */
   @Emit('lintToDetail')
-  handleToSceneDetil(data: ITableItem<'link'>) {
+  handleToSceneDetail(data: ITableItem<'link'>) {
     return data;
   }
   /**
@@ -168,14 +168,14 @@ export default class FlexDashboardPanel extends tsc<IDashboardPanelProps, IDashb
    * @param {*}
    * @return {*}
    */
-  handleInitPanelsGridpos(panels: IPanelModel[]) {
+  handleInitPanelsGridPosition(panels: IPanelModel[]) {
     if (!panels) return;
-    const updatePanelsGridpos = (list: IPanelModel[]) => {
+    const updatePanelsGridPosition = (list: IPanelModel[]) => {
       // biome-ignore lint/complexity/noForEach: <explanation>
       list.forEach(item => {
         if (item.type === 'row') {
           if (item.panels?.length) {
-            updatePanelsGridpos(item.panels);
+            updatePanelsGridPosition(item.panels);
           }
         } else {
           const commonLegendOptions = {
@@ -194,7 +194,7 @@ export default class FlexDashboardPanel extends tsc<IDashboardPanelProps, IDashb
         }
       });
     };
-    updatePanelsGridpos(panels);
+    updatePanelsGridPosition(panels);
   }
   getUnGroupPanel(y: number): IPanelModel {
     return {

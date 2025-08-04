@@ -24,16 +24,21 @@
  * IN THE SOFTWARE.
  */
 export interface IRouteConfig {
+  children?: any[];
   id: string;
   name: string;
   route: string;
-  children?: any[];
 }
 export const allRouteConfig: IRouteConfig[] = [
   {
     id: 'home',
     name: 'route-首页',
     route: 'home',
+  },
+  {
+    id: 'trace-old',
+    name: 'Trace 检索',
+    route: 'trace-old',
   },
   {
     id: 'rotation',

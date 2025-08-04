@@ -32,7 +32,7 @@ import { deepClone, random } from 'monitor-common/utils/utils';
 import CompareSelect from '../../monitor-k8s/components/panel-tools/compare-select';
 import PanelsTools from '../../monitor-k8s/components/panel-tools/panel-tools';
 // import PanelHeader from '../../monitor-k8s/components/panel-header/panel-header';
-import { DASHBOARD_PANEL_COLUMN_KEY, type OptionsItem, type PanelToolsType } from '../../monitor-k8s/typings';
+import { type OptionsItem, type PanelToolsType, DASHBOARD_PANEL_COLUMN_KEY } from '../../monitor-k8s/typings';
 import DashboardPanels from '../../performance/performance-detail/dashboard-panels.vue';
 import EventRetrievalView from '../event-retrieval/event-retrieval-view';
 import IndexList, { type IIndexListItem } from '../index-list/index-list';
@@ -67,7 +67,7 @@ export default class DataRetrievalView extends tsc<IDataRetrievalView.IProps, ID
         value: true,
       },
       tools: {
-        refleshInterval: -1,
+        refreshInterval: -1,
         timeRange: 3600000,
       },
     }),
@@ -111,7 +111,7 @@ export default class DataRetrievalView extends tsc<IDataRetrievalView.IProps, ID
   localCompareValue: IDataRetrievalView.ICompareValue = null;
 
   /** 图表配置 */
-  chartOption: Object = {
+  chartOption: object = {
     tool: {
       list: ['save', 'more', 'fullscreen', 'set', 'strategy', 'area', 'relate-alert'], // 要显示的工具栏的配置id 空数组则为不显示
     },
@@ -291,8 +291,8 @@ export default class DataRetrievalView extends tsc<IDataRetrievalView.IProps, ID
     return timeRange;
   }
 
-  @Emit('refleshIntervalChange')
-  handleRefleshChange(val: number) {
+  @Emit('refreshIntervalChange')
+  handleRefreshChange(val: number) {
     return val;
   }
 
@@ -440,7 +440,7 @@ export default class DataRetrievalView extends tsc<IDataRetrievalView.IProps, ID
    * @description: 强制刷新图表
    */
   @Watch('refleshNumber')
-  handleImmediateReflesh() {
+  handleImmediateRefresh() {
     if (this.retrievalType === 'monitor') this.dashboardPanelsKey = random(8);
     if (this.retrievalType === 'event') this.eventRetrievalViewRef.updateViewData();
   }
@@ -510,7 +510,7 @@ export default class DataRetrievalView extends tsc<IDataRetrievalView.IProps, ID
             favCheckedValue={this.favCheckedValue}
             compareHide={this.retrievalType === 'event'}
             hasViewChangeIcon={this.retrievalType !== 'event'}
-            on-on-immediate-reflesh={this.handleImmediateReflesh}
+            on-on-immediate-refresh={this.handleImmediateRefresh}
             on-select-fav={this.emitSelectFav}
             on-delete-fav={this.handleDeleteFav}
             on-change={this.handleComparePanelChange}
@@ -525,15 +525,15 @@ export default class DataRetrievalView extends tsc<IDataRetrievalView.IProps, ID
           {/* <PanelHeader
             // timeRangeList={this.timeRangeListFormatter}
             timeRange={this.compareValue.tools?.timeRange}
-            refleshInterval={this.compareValue.tools.refleshInterval}
+            refreshInterval={this.compareValue.tools.refreshInterval}
             favoritesList={this.favoritesList}
             favCheckedValue={this.favCheckedValue}
             showDownSample={false}
             downSampleRange={this.downSampleRange}
             onDownSampleChange={this.handleDownSampleChange}
-            onImmediateReflesh={this.handleImmediateReflesh}
+            onImmediateRefresh={this.handleImmediateRefresh}
             onTimeRangeChange={this.handelTimeRangeChange}
-            onRefleshIntervalChange={this.handleRefleshChange}
+            onRefreshIntervalChange={this.handleRefreshChange}
             onSelectFav={this.emitSelectFav}
             onDeleteFav={this.handleDeleteFav}>
             {this.leftShow ? undefined : (
@@ -544,7 +544,10 @@ export default class DataRetrievalView extends tsc<IDataRetrievalView.IProps, ID
           </PanelHeader> */}
         </div>
         <div
-          class={['charts-view-wrapper', { 'is-event': this.retrievalType === 'event', 'is-full-screen': !this.needMenu }]}
+          class={[
+            'charts-view-wrapper',
+            { 'is-event': this.retrievalType === 'event', 'is-full-screen': !this.needMenu },
+          ]}
           v-bkloading={{ isLoading: this.loading }}
         >
           {this.hasTips ? (
@@ -647,8 +650,8 @@ export default class DataRetrievalView extends tsc<IDataRetrievalView.IProps, ID
                   onAddStrategy={this.handleAddEventStrategy}
                   onDrillSearch={this.handleDrillSearch}
                   onIntervalChange={this.handleEventChartIntervalChange}
-                  onTimeRangeChange={this.handleTimeRangeChange}
                   onNeedMenuChange={this.handleNeedMenuChange}
+                  onTimeRangeChange={this.handleTimeRangeChange}
                 />
               ) : undefined}
             </div>

@@ -23,10 +23,10 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, defineComponent, ref } from 'vue';
+import { computed, defineComponent, ref, shallowRef } from 'vue';
 
-import { Select, Table } from 'bkui-vue';
-import random from 'lodash/random';
+import { type SortInfo, type TableSort, PrimaryTable } from '@blueking/tdesign-ui';
+import { Select } from 'bkui-vue';
 import { getValueFormat } from 'monitor-ui/monitor-echarts/valueFormats';
 
 import './flame-filter-list.scss';
@@ -36,20 +36,13 @@ const usFormat = getValueFormat('µs');
 export type FilterKey = 'kind' | 'name' | 'servce' | 'source';
 
 /**
- * 定义 FilterValueItem 接口，表示过滤器的值的项
- */
-export interface IFilterValueItem {
-  P95: number; // P95 值
-  avg_duration: number; // 平均持续时间
-  count: number; // 计数
-  max_duration: number; // 最大持续时间
-  min_duration: number; // 最小持续时间
-  sum_duration: number; // 总持续时间
-}
-/**
  * 定义 FilterValueKey 类型，表示过滤器的值的键
  */
 export type FilterValueKey = keyof IFilterValueItem;
+export interface IFilterColumnItem<D> {
+  id: D;
+  name: string;
+}
 
 /**
  * 定义 FilterData 接口，表示过滤器的数据
@@ -58,15 +51,22 @@ export interface IFilterData {
   aggregation_key: FilterKey; // 聚合键
   display_name: string; // 显示名称
   items: {
-    key: string; // 键
     display_name: string; // 显示名称
+    key: string; // 键
     values: IFilterValueItem; // 值
   }[];
 }
 
-export interface IFilterColumnItem<D> {
-  id: D;
-  name: string;
+/**
+ * 定义 FilterValueItem 接口，表示过滤器的值的项
+ */
+export interface IFilterValueItem {
+  avg_duration: number; // 平均持续时间
+  count: number; // 计数
+  max_duration: number; // 最大持续时间
+  min_duration: number; // 最小持续时间
+  P95: number; // P95 值
+  sum_duration: number; // 总持续时间
 }
 const FilterValueColumn = [
   {
@@ -115,11 +115,16 @@ export default defineComponent({
   setup(props) {
     const columnKey = ref<FilterKey>('name'); // 默认选中第一列
     const columnValueKey = ref<FilterValueKey>('avg_duration'); // 默认选中第一列
+    const sortInfo = shallowRef<SortInfo>({
+      sortBy: '', // 排序字段
+      descending: false, // 是否降序
+    });
     // 表格数据
     const tableData = computed(() => {
       const data = props.data.find(item => item.aggregation_key === columnKey.value)?.items;
       if (!data) return [];
-      return data.map(item => {
+      let list = [];
+      const tableData = data.map(item => {
         let value: number | string = item.values[columnValueKey.value];
         if (value && columnValueKey.value.match(/(_duration|P9)/)) {
           const { text, suffix } = usFormat(value);
@@ -132,6 +137,19 @@ export default defineComponent({
           raw: item.values[columnValueKey.value],
         };
       });
+      if (sortInfo.value.sortBy) {
+        list = tableData.slice().sort((a, b) => {
+          const aVal = a.raw;
+          const bVal = b.raw;
+          return aVal === bVal ? 0 : aVal > bVal ? 1 : -1;
+        });
+        if (sortInfo.value.descending) {
+          list.reverse();
+        }
+      } else {
+        return tableData;
+      }
+      return list;
     });
     /**
      *
@@ -144,81 +162,154 @@ export default defineComponent({
     function handleColumnValueChange(value: FilterValueKey) {
       columnValueKey.value = value;
     }
+    function handleSortChange(info: TableSort) {
+      sortInfo.value = info
+        ? (info as SortInfo)
+        : {
+            sortBy: '', // 排序字段
+            descending: false, // 是否降序
+          };
+    }
     return {
       columnKey,
       columnValueKey,
       tableData,
       handleSelectLabelChange,
       handleColumnValueChange,
+      handleSortChange,
     };
   },
   render() {
     if (!this.data?.length) return <div />;
-    const columns = [
-      {
-        label: () => (
-          <div class='col-label'>
-            <Select
-              behavior='simplicity'
-              clearable={false}
-              modelValue={this.columnKey}
-              size='small'
-              onChange={this.handleSelectLabelChange}
-            >
-              {this.data.map(item => (
-                <Select.Option
-                  key={item.aggregation_key}
-                  label={item.display_name}
-                  value={item.aggregation_key}
-                />
-              ))}
-            </Select>
-          </div>
-        ),
-        field: 'display_name',
-        sort: false,
-      },
-      {
-        label: () => (
-          <div class='col-value'>
-            <Select
-              behavior='simplicity'
-              clearable={false}
-              modelValue={this.columnValueKey}
-              size='small'
-              onChange={this.handleColumnValueChange}
-              onClick={e => e.stopPropagation()}
-            >
-              {FilterValueColumn.map(item => (
-                <Select.Option
-                  key={item.id}
-                  label={item.name}
-                  value={item.id}
-                />
-              ))}
-            </Select>
-          </div>
-        ),
-        field: 'value',
-        sort: {
-          value: 'asc',
-          sortFn: (a, b) => {
-            return a.raw - b.raw;
-          },
-        },
-        align: 'right',
-      },
-    ];
     return (
       <div>
-        <Table
+        <PrimaryTable
           class='flame-filter-list'
-          columns={columns}
+          columns={[
+            {
+              sorter: false,
+              colKey: 'display_name',
+              ellipsis: {
+                popperOptions: {
+                  strategy: 'fixed',
+                },
+              },
+              title: () => (
+                <div class='col-label'>
+                  <Select
+                    behavior='simplicity'
+                    clearable={false}
+                    modelValue={this.columnKey}
+                    size='small'
+                    onChange={this.handleSelectLabelChange}
+                  >
+                    {this.data.map(item => (
+                      <Select.Option
+                        id={item.aggregation_key}
+                        key={item.aggregation_key}
+                        name={item.display_name}
+                      />
+                    ))}
+                  </Select>
+                </div>
+              ),
+            },
+            {
+              colKey: 'value',
+              align: 'right',
+              ellipsis: {
+                popperOptions: {
+                  strategy: 'fixed',
+                },
+              },
+              title: () => (
+                <div class='col-value'>
+                  <Select
+                    behavior='simplicity'
+                    clearable={false}
+                    modelValue={this.columnValueKey}
+                    size='small'
+                    onChange={this.handleColumnValueChange}
+                    onClick={e => e.stopPropagation()}
+                  >
+                    {FilterValueColumn.map(item => (
+                      <Select.Option
+                        id={item.id}
+                        key={item.id}
+                        name={item.name}
+                      />
+                    ))}
+                  </Select>
+                </div>
+              ),
+              sorter: true,
+            },
+          ]}
           data={this.tableData || []}
           maxHeight={this.maxHeight}
-          rowKey={random(10).toString()}
-          showOverflowTooltip={true}
-        />
+          resizable={true}
+          rowKey='display_name'
+          stripe={false}
+          onSortChange={this.handleSortChange}
+        >
+          {/* <TableColumn
+            width={'66%'}
+            v-slots={{
+              header: () => (
+                <div class='col-label'>
+                  <Select
+                    behavior='simplicity'
+                    clearable={false}
+                    modelValue={this.columnKey}
+                    size='small'
+                    onChange={this.handleSelectLabelChange}
+                  >
+                    {this.data.map(item => (
+                      <Select.Option
+                        id={item.aggregation_key}
+                        key={item.aggregation_key}
+                        name={item.display_name}
+                      />
+                    ))}
+                  </Select>
+                </div>
+              ),
+            }}
+            field='display_name'
+            show-overflow='tooltip'
+          />
+          <TableColumn
+            width={'33%'}
+            v-slots={{
+              header: () => (
+                <div class='col-value'>
+                  <Select
+                    behavior='simplicity'
+                    clearable={false}
+                    modelValue={this.columnValueKey}
+                    size='small'
+                    onChange={this.handleColumnValueChange}
+                    onClick={e => e.stopPropagation()}
+                  >
+                    {FilterValueColumn.map(item => (
+                      <Select.Option
+                        id={item.id}
+                        key={item.id}
+                        name={item.name}
+                      />
+                    ))}
+                  </Select>
+                </div>
+              ),
+            }}
+            align='right'
+            field='value'
+            headerClassName={'col-value-header'}
+            sortable={true}
+            sortBy={'raw'}
+            sortType='number'
+          /> */}
+        </PrimaryTable>
       </div>
     );
   },

@@ -1,0 +1,22 @@
+.trace-explore-dimension-echarts-e {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  min-height: 56px;
+
+  .event-explore-dimension-echarts-content {
+    display: flex;
+  }
+
+  .page-legend-box-component {
+    flex-shrink: 0;
+  }
+
+  .empty-chart {
+    display: flex;
+    flex: 1;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+  }
+}

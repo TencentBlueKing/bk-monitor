@@ -13,6 +13,7 @@ specific language governing permissions and limitations under the License.
 from rest_framework import serializers
 
 from bkmonitor.models import ApiAuthToken
+from bkmonitor.utils.request import get_request_tenant_id
 from core.drf_resource import Resource
 
 
@@ -26,7 +27,13 @@ class GetApiTokenResource(Resource):
         type = serializers.ChoiceField(label="Token类型", default="as_code", choices=("as_code", "grafana"))
 
     def perform_request(self, params):
-        token = ApiAuthToken.objects.filter(namespaces__contains=f"biz#{params['bk_biz_id']}", type=params["type"])
+        # 获取当前租户
+        bk_tenant_id = get_request_tenant_id()
+        token = ApiAuthToken.objects.filter(
+            namespaces__contains=f"biz#{params['bk_biz_id']}",
+            type=params["type"],
+            bk_tenant_id=bk_tenant_id,
+        )
 
         if token:
             return token[0].token
@@ -35,5 +42,6 @@ class GetApiTokenResource(Resource):
             name=f"{params['bk_biz_id']}_{params['type']}",
             type=params["type"],
             namespaces=[f"biz#{params['bk_biz_id']}"],
+            bk_tenant_id=bk_tenant_id,
         )
         return token.token

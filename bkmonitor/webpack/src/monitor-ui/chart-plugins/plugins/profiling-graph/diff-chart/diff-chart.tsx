@@ -32,17 +32,17 @@ import { ResizeMixin } from '../../../mixins';
 import MonitorBaseEchart from '../../monitor-base-echart';
 
 import './diff-chart.scss';
-interface IDiffChartProps {
-  title?: string;
-  brushRect?: number[];
-  data?: Record<string, any>;
-  colorIndex?: number;
-  loading?: boolean;
-}
-
 type IDiffChartEvents = {
   onBrushEnd(val): void;
 };
+
+interface IDiffChartProps {
+  brushRect?: number[];
+  colorIndex?: number;
+  data?: Record<string, any>;
+  loading?: boolean;
+  title?: string;
+}
 
 @Component
 class DiffChart extends Mixins<ResizeMixin>(ResizeMixin) {
@@ -131,7 +131,7 @@ class DiffChart extends Mixins<ResizeMixin>(ResizeMixin) {
             return v;
           },
         },
-        splitNumber: 4,
+        splitNumber: 2,
         minInterval: 1,
         position: 'left',
       },

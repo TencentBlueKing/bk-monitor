@@ -57,7 +57,7 @@ import PercentageBarChart from '../plugins/percentage-bar/percentage-bar';
 import PerformanceChart from '../plugins/performance-chart/performance-chart';
 import PieEcharts from '../plugins/pie-echart/pie-echart';
 import PortStatusChart from '../plugins/port-status-chart/port-status-chart';
-import ProfilinGraph from '../plugins/profiling-graph/profiling-graph';
+import ProfilingGraph from '../plugins/profiling-graph/profiling-graph';
 import RatioRingChart from '../plugins/ratio-ring-chart/ratio-ring-chart';
 import RelatedLogChart from '../plugins/related-log-chart/related-log-chart';
 // import RelationGraph from '../plugins/relation-graph/relation-graph';
@@ -68,9 +68,9 @@ import TableBarChart from '../plugins/table-bar-chart/table-bar-chart';
 import TableChart from '../plugins/table-chart/table-chart';
 import TagChart from '../plugins/tag-chart/tag-chart';
 import TextUnit from '../plugins/text-unit/text-unit';
-import LineEcharts from '../plugins/time-series/time-series';
 import TimeSeriesForecast from '../plugins/time-series-forecast/time-series-forecast';
 import TimeSeriesOutlier from '../plugins/time-series-outlier/time-series-outlier';
+import LineEcharts from '../plugins/time-series/time-series';
 import { initLogRetrieveWindowsFields } from '../utils/init-windows';
 
 import type { ChartTitleMenuType, IDataItem, PanelModel, ZrClickEvent } from '../typings';
@@ -81,26 +81,25 @@ import type { IDetectionConfig } from 'monitor-pc/pages/strategy-config/strategy
 
 import './chart-wrapper.scss';
 
-interface IChartWrapperProps {
-  panel: PanelModel;
-  chartChecked?: boolean;
-  collapse?: boolean;
-  detectionConfig?: IDetectionConfig;
-  needHoverStryle?: boolean;
-  needCheck?: boolean;
-  customMenuList?: ChartTitleMenuType[];
-  isSingleChart?: boolean;
-}
 interface IChartWrapperEvent {
   onChartCheck: boolean;
   onCollapse: boolean;
-  onCollectChart?: () => void;
-  onChangeHeight?: (height: number) => void;
-  onDblClick?: () => void;
-  onZrClick?: (event: ZrClickEvent) => void;
   onDimensionsOfSeries?: string[];
+  onChangeHeight?: (height: number) => void;
+  onCollectChart?: () => void;
+  onDblClick?: () => void;
   /** 图表鼠标右击事件的回调方法 */
   onMenuClick?: (data: IDataItem) => void;
+  onZrClick?: (event: ZrClickEvent) => void;
+}
+interface IChartWrapperProps {
+  chartChecked?: boolean;
+  collapse?: boolean;
+  customMenuList?: ChartTitleMenuType[];
+  detectionConfig?: IDetectionConfig;
+  isSingleChart?: boolean;
+  needCheck?: boolean;
+  panel: PanelModel;
 }
 
 @Component({
@@ -108,6 +107,8 @@ interface IChartWrapperEvent {
     RelationGraph: () => import(/* webpackChunkName: "RelationGraph" */ '../plugins/relation-graph/relation-graph'),
     MonitorRetrieve: () =>
       import(/* webpackChunkName: "MonitorRetrieve" */ '../plugins/monitor-retrieve/monitor-retrieve'),
+    ApmEventExplore: () =>
+      import(/* webpackChunkName: "ApmEventExplore" */ 'monitor-pc/pages/event-explore/apm-event-explore'),
   },
 })
 export default class ChartWrapper extends tsc<IChartWrapperProps, IChartWrapperEvent> {
@@ -125,7 +126,7 @@ export default class ChartWrapper extends tsc<IChartWrapperProps, IChartWrapperE
   // 图表的数据时间间隔
   @InjectReactive('timeRange') readonly timeRange!: TimeRangeType;
   // 图表刷新间隔
-  @InjectReactive('refleshInterval') readonly refleshInterval!: number;
+  @InjectReactive('refreshInterval') readonly refreshInterval!: number;
   // 时间对比的偏移量
   @InjectReactive('timeOffset') readonly timeOffset: string[];
   // 对比类型
@@ -155,14 +156,14 @@ export default class ChartWrapper extends tsc<IChartWrapperProps, IChartWrapperE
       },
       tools: {
         timeRange: this.timeRange,
-        refleshInterval: this.refleshInterval,
+        refreshInterval: this.refreshInterval,
         searchValue: [],
       },
     };
   }
 
   /** hover样式 */
-  get needHoverStryle() {
+  get needHoverStyle() {
     const { time_series_forecast, time_series_list } = this.panel?.options || {};
     return (time_series_list?.need_hover_style ?? true) && (time_series_forecast?.need_hover_style ?? true);
   }
@@ -175,7 +176,7 @@ export default class ChartWrapper extends tsc<IChartWrapperProps, IChartWrapperE
     return this.collapse === undefined ? this.panel.collapsed : this.collapse;
   }
   get needWaterMask() {
-    return !['log-retrieve'].includes(this.panel?.type);
+    return !['log-retrieve', 'event-explore'].includes(this.panel?.type);
   }
   beforeCreate() {
     initLogRetrieveWindowsFields();
@@ -463,7 +464,7 @@ export default class ChartWrapper extends tsc<IChartWrapperProps, IChartWrapperE
         );
       case 'profiling':
         return (
-          <ProfilinGraph
+          <ProfilingGraph
             clearErrorMsg={this.handleClearErrorMsg}
             panel={this.panel}
             onErrorMsg={this.handleErrorMsgChange}
@@ -618,6 +619,8 @@ export default class ChartWrapper extends tsc<IChartWrapperProps, IChartWrapperE
             onLoading={this.handleChangeLoading}
           />
         );
+      case 'event-explore':
+        return <apm-event-explore />;
       // 不需要报错显示
       // case 'graph':
       default:
@@ -646,7 +649,7 @@ export default class ChartWrapper extends tsc<IChartWrapperProps, IChartWrapperE
           'grafana-check': this.panel.canSetGrafana,
           'is-checked': this.isChecked,
           'is-collapsed': this.isCollapsed,
-          'hover-style': this.needCheck && this.needHoverStryle,
+          'hover-style': this.needCheck && this.needHoverStyle,
           'row-chart': this.panel.type === 'row',
         }}
         // onMouseenter={() => (this.showHeaderMoreTool = true)}

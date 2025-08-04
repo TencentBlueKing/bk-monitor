@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,9 +7,19 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 from enum import Enum
 
 from apps.log_search.constants import OperatorEnum
+
+MAX_LEN_DICT = dict[str, int]
+
+BODY_DATA_FOR_CONTEXT = {
+    "query": {"bool": {"should": [], "minimum_should_match": 1, "must": []}},
+    "size": "",
+    "from": "",
+    "sort": [],
+}
 
 
 class AggTypeEnum(Enum):
@@ -23,8 +32,6 @@ class AggTypeEnum(Enum):
     AVG = "avg"
     MEDIAN = "median"
 
-
-REFERENCE_ALIAS = "abcdefghijklmnopqrstuvwx"
 
 # 字段类型映射表
 FIELD_TYPE_MAP = {
@@ -57,9 +64,13 @@ BASE_OP_MAP = {
 ADVANCED_OP_MAP = {
     OperatorEnum.CONTAINS_MATCH_PHRASE["operator"]: {"operator": "eq", "condition": "or"},
     OperatorEnum.NOT_CONTAINS_MATCH_PHRASE["operator"]: {"operator": "ne", "condition": "or"},
-    OperatorEnum.CONTAINS_MATCH_PHRASE["wildcard_operator"]: {"operator": "eq", "condition": "or", "is_wildcard": True},
+    OperatorEnum.CONTAINS_MATCH_PHRASE["wildcard_operator"]: {
+        "operator": "contains",
+        "condition": "or",
+        "is_wildcard": True,
+    },
     OperatorEnum.NOT_CONTAINS_MATCH_PHRASE["wildcard_operator"]: {
-        "operator": "ne",
+        "operator": "ncontains",
         "condition": "or",
         "is_wildcard": True,
     },
@@ -75,8 +86,8 @@ ADVANCED_OP_MAP = {
         "condition": "and",
         "is_wildcard": True,
     },
-    OperatorEnum.EXISTS["operator"]: {"operator": "eq", "condition": "or"},
-    OperatorEnum.NOT_EXISTS["operator"]: {"operator": "ne", "condition": "or"},
+    OperatorEnum.EXISTS["operator"]: {"operator": "ne", "condition": "or"},
+    OperatorEnum.NOT_EXISTS["operator"]: {"operator": "eq", "condition": "or"},
     OperatorEnum.IS_TRUE["operator"]: {"operator": "eq", "condition": "or"},
     OperatorEnum.IS_FALSE["operator"]: {"operator": "eq", "condition": "or"},
 }

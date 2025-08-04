@@ -38,14 +38,15 @@ export interface IFunctionsValue {
   id: string;
   params: { id: string; value: any }[];
 }
-interface IFunctionProps {
-  value?: IFunctionsValue[];
-  placeholder?: string;
-  readonly?: boolean;
-  isExpSupport?: boolean;
-}
 interface IEvent {
   onValueChange?: IFunctionsValue[];
+}
+interface IFunctionProps {
+  isExpSupport?: boolean;
+  isMultiple?: boolean;
+  placeholder?: string;
+  readonly?: boolean;
+  value?: IFunctionsValue[];
 }
 @Component
 export default class FunctionSelect extends tsc<IFunctionProps, IEvent> {
@@ -54,6 +55,8 @@ export default class FunctionSelect extends tsc<IFunctionProps, IEvent> {
   @Prop({ default: false, type: Boolean }) readonly readonly: boolean;
   /** 只展示支持表达式的函数 */
   @Prop({ type: Boolean }) readonly isExpSupport: boolean;
+  /** 是否支持多选 */
+  @Prop({ type: Boolean, default: true }) readonly isMultiple: boolean;
   @Ref('menuList') menuListRef: HTMLDivElement;
   @InjectReactive('metricFunctions') metricFunctions;
   localValue: IFunctionItem[] = [];
@@ -72,7 +75,7 @@ export default class FunctionSelect extends tsc<IFunctionProps, IEvent> {
       this.metricFunctions.forEach(item => {
         this.value.forEach(vItem => {
           const funcItem = item?.children?.find(set => set.id === vItem.id);
-          if (!!funcItem) {
+          if (funcItem) {
             this.localValue.push({
               ...funcItem,
               key: random(10),
@@ -239,6 +242,7 @@ export default class FunctionSelect extends tsc<IFunctionProps, IEvent> {
         <FunctionMenu
           class='init-add'
           isExpSupport={this.isExpSupport}
+          isMultiple={this.isMultiple}
           list={this.metricFunctions}
           onFuncSelect={this.handleFuncSelect}
         >

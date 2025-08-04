@@ -24,17 +24,17 @@
  * IN THE SOFTWARE.
  */
 import { computed, defineComponent, onMounted, ref, watch } from 'vue';
-import { useI18n } from 'vue-i18n';
 
 import { Button, Form, Input, Message, Popover } from 'bkui-vue';
 import { applyTraceComparison, deleteTraceComparison, listTraceComparison } from 'monitor-api/modules/apm_trace';
+import { useI18n } from 'vue-i18n';
 
 import './compare-select.scss';
 
 interface ICommonUsedItem {
   id: string;
-  trace_id: string;
   name: string;
+  trace_id: string;
 }
 
 export default defineComponent({
@@ -291,6 +291,7 @@ export default defineComponent({
       handleMouseEnterHeader,
       submitLoading,
       isEditCommonUsed,
+      t,
     };
   },
   render() {
@@ -317,7 +318,7 @@ export default defineComponent({
                 />
               </Form.FormItem>
               <Form.FormItem
-                label={this.$t('参照名称')}
+                label={this.t('参照名称')}
                 property='name'
               >
                 <Input
@@ -333,13 +334,13 @@ export default defineComponent({
                   theme='primary'
                   onClick={this.handleSubmitCommonUsed}
                 >
-                  {this.$t('确定')}
+                  {this.t('确定')}
                 </Button>
                 <Button
                   size='small'
                   onClick={this.handleCloseCommonUsed}
                 >
-                  {this.$t('取消')}
+                  {this.t('取消')}
                 </Button>
               </Form.FormItem>
             </Form>
@@ -362,7 +363,7 @@ export default defineComponent({
             onClick={e => e.stopPropagation()}
           />
         ) : (
-          <span class='common-used'>{this.$t('设为常用')}</span>
+          <span class='common-used'>{this.t('设为常用')}</span>
         )}
       </Popover>
     );
@@ -387,11 +388,11 @@ export default defineComponent({
                         class='suffix-btn'
                         onClick={this.handleCompare}
                       >
-                        {this.$t('对比')}
+                        {this.t('对比')}
                       </span>
                     ),
                   }}
-                  placeholder={this.$t('请输入Trace ID')}
+                  placeholder={this.t('请输入Trace ID')}
                   showOverflowTooltips={false}
                   onChange={this.handleMouseEnterHeader}
                   onEnter={this.handleCompare}
@@ -399,10 +400,10 @@ export default defineComponent({
                 {}
                 {this.commonUsedList.length === 5 ? ( // 常用参照数量上限为 5
                   <Popover
-                    content={this.$t('已达上限，请先删除后再新增')}
+                    content={this.t('已达上限，请先删除后再新增')}
                     placement='top'
                   >
-                    <span class='disable-text'>{this.$t('设为常用')}</span>
+                    <span class='disable-text'>{this.t('设为常用')}</span>
                   </Popover>
                 ) : this.compareTraceId.trim?.().length ? (
                   setCommonUsed(false)
@@ -412,7 +413,7 @@ export default defineComponent({
                     disabled
                     text
                   >
-                    {this.$t('设为常用')}
+                    {this.t('设为常用')}
                   </Button>
                 )}
               </div>
@@ -420,13 +421,13 @@ export default defineComponent({
                 {this.temporaryList.length ? (
                   <div class='id-list temporary-list'>
                     <div class='id-list-header'>
-                      <span onClick={this.closeSelect}>{this.$t('临时对比')}</span>
+                      <span onClick={this.closeSelect}>{this.t('临时对比')}</span>
                       <div
                         class='tools'
                         onClick={this.handleClearTemporary}
                       >
                         <i class='icon-monitor icon-mc-clear-query' />
-                        <span>{this.$t('清空')}</span>
+                        <span>{this.t('清空')}</span>
                       </div>
                     </div>
                     {this.temporaryList.map(item => (
@@ -446,11 +447,11 @@ export default defineComponent({
                         {!this.isHoverCommonList && item === this.curHoverTraceID ? (
                           this.commonUsedList.length === 5 ? (
                             <Popover
-                              content={this.$t('已达上限，请先删除后再新增')}
+                              content={this.t('已达上限，请先删除后再新增')}
                               placement='top'
                               popoverDelay={[500, 0]}
                             >
-                              <span class='disable-text'>{this.$t('设为常用')}</span>
+                              <span class='disable-text'>{this.t('设为常用')}</span>
                             </Popover>
                           ) : (
                             setCommonUsed(false)
@@ -468,7 +469,7 @@ export default defineComponent({
                 {this.commonUsedList.length ? (
                   <div class='id-list common-used-list'>
                     <div class='id-list-header'>
-                      <span>{this.$t('常用参照')}</span>
+                      <span>{this.t('常用参照')}</span>
                       <div class='tools'>{`${this.commonUsedList.length}/5`}</div>
                     </div>
                     {this.commonUsedList.map(item => (
@@ -492,7 +493,7 @@ export default defineComponent({
                             v-slots={{
                               content: () => (
                                 <div class='delete-confirm'>
-                                  <div class='content'>{this.$t('确认删除该常用参照吗？')}</div>
+                                  <div class='content'>{this.t('确认删除该常用参照吗？')}</div>
                                   <div class='footer'>
                                     <Button
                                       class='confirm'
@@ -501,13 +502,13 @@ export default defineComponent({
                                       theme='primary'
                                       onClick={() => this.handleDeleteCommon(item.trace_id)}
                                     >
-                                      {this.$t('确定')}
+                                      {this.t('确定')}
                                     </Button>
                                     <Button
                                       size='small'
                                       onClick={this.handleCloseDeleteConfirm}
                                     >
-                                      {this.$t('取消')}
+                                      {this.t('取消')}
                                     </Button>
                                   </div>
                                 </div>
@@ -552,7 +553,7 @@ export default defineComponent({
         onAfterShow={this.handleSelectShow}
       >
         <div class='trace-compare-select-trigger'>
-          <div class='prefix'>{this.$t('对比')}</div>
+          <div class='prefix'>{this.t('对比')}</div>
           <div class={['compare-target', { active: this.showSelect }]}>
             {this.compareTarget.trim?.().length ? (
               [
@@ -570,7 +571,7 @@ export default defineComponent({
                 />,
               ]
             ) : (
-              <span class='empty-compare-text'>{this.$t('暂不对比')}</span>
+              <span class='empty-compare-text'>{this.t('暂不对比')}</span>
             )}
           </div>
         </div>

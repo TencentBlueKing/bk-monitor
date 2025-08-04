@@ -35,14 +35,14 @@ import {
   toRefs,
   watch,
 } from 'vue';
-import { useI18n } from 'vue-i18n';
-import { useRoute } from 'vue-router';
 
-import { Checkbox, Loading, Message, Popover, ResizeLayout, Tab, Switcher } from 'bkui-vue';
+import { Checkbox, Loading, Message, Popover, ResizeLayout, Switcher, Tab } from 'bkui-vue';
 import dayjs from 'dayjs';
-import { CancelToken } from 'monitor-api/index';
+import { CancelToken } from 'monitor-api/cancel';
 import { traceDetail } from 'monitor-api/modules/apm_trace';
 import { typeTools } from 'monitor-common/utils/utils';
+import { useI18n } from 'vue-i18n';
+import { useRoute } from 'vue-router';
 
 import CompareSelect from '../../../components/compare-select/compare-select';
 import MonitorTab from '../../../components/monitor-tab/monitor-tab';
@@ -64,10 +64,10 @@ import {
 import { useTraceStore } from '../../../store/modules/trace';
 import {
   type DirectionType,
-  ETopoType,
   type ISpanClassifyItem,
   type ITraceData,
   type ITraceTree,
+  ETopoType,
 } from '../../../typings';
 import { COMPARE_DIFF_COLOR_LIST, updateTemporaryCompareTrace } from '../../../utils/compare';
 import SpanDetails from '../span-details';
@@ -97,26 +97,26 @@ const TraceDetailProps = {
 
 type IPanelEnum = 'flame' | 'sequence' | 'statistics' | 'timeline' | 'topo';
 
-interface ITabItem {
-  id: string; // id
-  name: string;
-  icon: string;
-}
-
 interface IState {
   activePanel: IPanelEnum;
+  compareSpanList: Span[];
+  compareTraceID: string;
+  filterSpanIds: string[];
+  filterSpanSubTitle: string;
+  isClassifyFilter: boolean;
+  isCollapsefilter: boolean;
+  isCompareView: boolean;
+  matchedSpanIds: number;
   searchKeywords: string[];
   selectClassifyFilters: { [key: string]: number | string };
   tabPanels: ITabItem[];
-  matchedSpanIds: number;
   traceMainStyle: string;
-  isClassifyFilter: boolean;
-  filterSpanIds: string[];
-  filterSpanSubTitle: string;
-  isCollapsefilter: boolean;
-  isCompareView: boolean;
-  compareTraceID: string;
-  compareSpanList: Span[];
+}
+
+interface ITabItem {
+  icon: string;
+  id: string; // id
+  name: string;
 }
 
 const TOOLS_ROW_HEIGHT = 90; // 工具栏高度 90 第三期功能不显示 暂时改为 58
@@ -125,7 +125,6 @@ const VIEW_CONTAINER_MIN_HEIGHT = 620; // 详情面板最小高度
 export default defineComponent({
   name: 'TraceDetail',
   props: TraceDetailProps,
-  emits: ['close'],
   setup(props) {
     const route = useRoute();
     /** 取消请求方法 */
@@ -171,7 +170,7 @@ export default defineComponent({
     const traceMainElem = ref(null);
     const relationTopo = ref(null);
     const statisticsElem = ref(null);
-    const searchBarElem = ref(null);
+    const searchBarElem = ref<InstanceType<typeof SearchBar>>(null);
     const baseMessage = ref<HTMLDivElement>();
     const isbaseMessageWrap = ref<boolean>(false);
     const isSticky = ref<boolean>(false); // 工具栏是否吸顶
@@ -253,7 +252,7 @@ export default defineComponent({
         state.searchKeywords.splice(0, state.searchKeywords.length);
         state.searchKeywords = [];
         state.selectClassifyFilters = {};
-        await (searchBarElem.value as any)?.handleChange([]);
+        await searchBarElem.value?.handleChange([]);
         clearSearch();
         return;
       }
@@ -329,7 +328,7 @@ export default defineComponent({
         state.selectClassifyFilters.app_name = classify.app_name;
       }
       state.isClassifyFilter = true;
-      await (searchBarElem.value as any)?.handleChange([keyword]);
+      await searchBarElem.value?.handleChange([keyword]);
 
       if (state.activePanel === 'statistics') {
         // 统计过滤参数
@@ -337,7 +336,7 @@ export default defineComponent({
           type: classify.type,
           value: classify.type === 'service' ? classify.filter_value : '',
         };
-        (statisticsElem.value as any).handleKeywordFliter(filterDict);
+        (statisticsElem.value as any).handleKeywordFilter(filterDict);
       } else if (['timeline', 'topo'].includes(state.activePanel)) {
         const comps = curViewElem.value;
         const isTopo = state.activePanel === 'topo';
@@ -390,7 +389,7 @@ export default defineComponent({
     const cancelFilter = async () => {
       state.searchKeywords = [];
       state.selectClassifyFilters = {};
-      await (searchBarElem.value as any)?.handleChange([]);
+      await searchBarElem.value?.handleChange([]);
       clearSearch();
     };
     // 搜索结果选择下一个
@@ -410,7 +409,8 @@ export default defineComponent({
       state.matchedSpanIds = 0;
       const comps = curViewElem.value;
       if (state.activePanel === 'statistics') {
-        comps?.handleKeywordFliter(null);
+        searchBarElem.value?.handleChange([]);
+        comps?.handleKeywordFilter(null);
       } else {
         comps?.clearSearch();
         if (state.activePanel === 'topo') {
@@ -439,7 +439,7 @@ export default defineComponent({
           comps?.trackFilter(val);
           break;
         case 'topo':
-          comps?.handleKeywordFliter(val);
+          comps?.handleKeywordFilter(val);
           break;
         case 'statistics':
           {
@@ -450,7 +450,7 @@ export default defineComponent({
                 value: val.toString(),
               };
             }
-            comps?.handleKeywordFliter(filterDict);
+            comps?.handleKeywordFilter(filterDict);
           }
           break;
         default:
@@ -776,7 +776,7 @@ export default defineComponent({
      * @param _keys
      */
     async function handleServiceTopoClickItem(_keys) {
-      await (searchBarElem.value as any)?.handleChange([]);
+      await searchBarElem.value?.handleChange([]);
       clearSearch();
     }
     async function handleChangeEnableTimeALignment(v: boolean) {
@@ -850,18 +850,18 @@ export default defineComponent({
       handleServiceTopoClickItem,
       handleChangeEnableTimeALignment,
       disabledSpanKindById,
+      t,
     };
   },
 
   render() {
-    const { isInTable, appName } = this.$props;
     const { trace_id: traceId, trace_info: traceInfo, span_classify: spanClassify } = this.traceData;
     const isStatisticsPanel = this.activePanel === 'statistics';
 
     return (
       <Loading
         ref='traceDetailElem'
-        class={`trace-detail-wrapper is-fix ${isInTable ? 'is-table-detail' : ''} ${this.isSticky ? 'is-sticky' : ''}`}
+        class={`trace-detail-wrapper is-fix ${this.isInTable ? 'is-table-detail' : ''} ${this.isSticky ? 'is-sticky' : ''}`}
         loading={this.isLoading}
         zIndex={99999}
       >
@@ -876,8 +876,9 @@ export default defineComponent({
         )} */}
         {!this.isInTable && (
           <TraceDetailHeader
-            appName={appName}
-            traceId={traceId}
+            appName={this.appName}
+            hasFullscreen={false}
+            traceId={this.traceID || traceId}
           />
         )}
 
@@ -886,11 +887,11 @@ export default defineComponent({
           class={['base-message', { 'is-wrap': this.isbaseMessageWrap }]}
         >
           <div class='message-item'>
-            <span>{this.$t('产生时间')}</span>
+            <span>{this.t('产生时间')}</span>
             <span>{dayjs.tz(traceInfo?.product_time / 1e3).format('YYYY-MM-DD HH:mm:ss')}</span>
           </div>
           <div class='message-item'>
-            <span>{this.$t('总耗时')}</span>
+            <span>{this.t('总耗时')}</span>
             <span>{formatDuration(traceInfo?.trace_duration)}</span>
             {traceInfo?.time_error && [
               this.enabledTimeAlignment ? (
@@ -906,7 +907,7 @@ export default defineComponent({
                   default: () => <span class='icon-monitor icon-tips' />,
                   content: () => (
                     <div class='trace-duration-pop'>
-                      <span style='color: #313238'>{this.$t('时间校准')}</span>
+                      <span style='color: #313238'>{this.t('时间校准')}</span>
                       <Switcher
                         modelValue={this.enabledTimeAlignment}
                         size='small'
@@ -914,7 +915,7 @@ export default defineComponent({
                         onChange={this.handleChangeEnableTimeALignment}
                       />
                       <span class='icon-monitor icon-hint' />
-                      {this.$t('开启时间校准，可同步服务所在时钟')}
+                      {this.t('开启时间校准，可同步服务所在时钟')}
                     </div>
                   ),
                 }}
@@ -924,19 +925,19 @@ export default defineComponent({
             ]}
           </div>
           <div class='message-item'>
-            <span>{this.$t('耗时分布')}</span>
+            <span>{this.t('耗时分布')}</span>
             <span>{`${formatDuration(traceInfo?.min_duration)} - ${formatDuration(traceInfo?.max_duration)}`}</span>
           </div>
           <div class='message-item'>
-            <span>{this.$t('服务数')}</span>
+            <span>{this.t('服务数')}</span>
             <span>{this.serviceCount}</span>
           </div>
           <div class='message-item'>
-            <span>{this.$t('层级数')}</span>
+            <span>{this.t('层级数')}</span>
             <span>{this.spanDepth}</span>
           </div>
           <div class='message-item'>
-            <span>{this.$t('span总数')}</span>
+            <span>{this.t('span总数')}</span>
             <span>{this.traceTree?.spans?.length}</span>
           </div>
         </div>
@@ -1079,7 +1080,7 @@ export default defineComponent({
                 }`}
               >
                 <span class={`label ${isStatisticsPanel ? 'is-required' : ''}`}>
-                  {`${isStatisticsPanel ? this.$t('分组') : this.$t('显示')}`}
+                  {`${isStatisticsPanel ? this.t('分组') : this.t('显示')}`}
                 </span>
                 :
                 <Checkbox.Group
@@ -1172,9 +1173,10 @@ export default defineComponent({
                   <div class='statistics-container'>
                     <StatisticsTable
                       ref='statisticsElem'
-                      appName={appName}
+                      appName={this.appName}
                       compareTraceID={this.compareTraceID}
-                      traceId={traceId}
+                      traceId={this.traceID || traceId}
+                      onClearKeyword={() => this.clearSearch()}
                       onUpdate:loading={this.contentLoadingChange}
                     />
                   </div>
@@ -1182,12 +1184,12 @@ export default defineComponent({
                 {/* 火焰图 */}
                 {this.activePanel === 'flame' && (
                   <FlameGraphV2
-                    appName={appName}
+                    appName={this.appName}
                     diffTraceId={this.compareTraceID}
                     filterKeywords={this.filterKeywords}
                     filters={this.traceViewFilters}
                     textDirection={this.ellipsisDirection}
-                    traceId={traceId}
+                    traceId={this.traceID || traceId}
                     onDiffTraceSuccess={this.updateCompareStatus}
                     onShowSpanDetail={this.handleShowSpanDetails}
                     onUpdate:loading={this.contentLoadingChange}
@@ -1195,9 +1197,9 @@ export default defineComponent({
                 )}
                 {this.activePanel === 'sequence' && (
                   <SequenceGraph
-                    appName={appName}
+                    appName={this.appName}
                     filters={this.traceViewFilters}
-                    traceId={traceId}
+                    traceId={this.traceID || traceId}
                     onShowSpanDetail={this.handleShowSpanDetails}
                     onSpanListChange={this.handleSpanListFilter}
                     onUpdate:loading={this.contentLoadingChange}

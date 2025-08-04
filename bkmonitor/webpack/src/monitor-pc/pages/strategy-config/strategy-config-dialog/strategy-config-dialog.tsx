@@ -39,7 +39,6 @@ import { deepClone } from 'monitor-common/utils/utils';
 
 import MultiLabelSelect from '../../../components/multi-label-select/multi-label-select';
 import TimePickerMultiple from '../../../components/time-picker-multiple/time-picker-multiple';
-import TemplateInput from '../strategy-config-set/strategy-template-input/strategy-template-input.vue';
 import {
   type IValue as IAlarmItem,
   type IAllDefense,
@@ -52,6 +51,7 @@ import VerifyItem from '../strategy-config-set-new/components/verify-item';
 import DetectionRules from '../strategy-config-set-new/detection-rules/detection-rules';
 import { DEFAULT_TIME_RANGES } from '../strategy-config-set-new/judging-condition/judging-condition';
 import { actionOption, intervalModeList, noticeOptions } from '../strategy-config-set-new/notice-config/notice-config';
+import TemplateInput from '../strategy-config-set/strategy-template-input/strategy-template-input.vue';
 
 import type { IGroupItem } from '../strategy-config-set-new/components/group-select';
 import type { MetricDetail } from '../strategy-config-set-new/typings';
@@ -145,24 +145,24 @@ interface IAlarmGroupList {
   receiver: string[];
 }
 
-interface IGroup {
-  count?: number;
-  name?: string;
-  id?: number;
+interface IEvents {
+  onConfirm?: () => void;
+  onGetGroupList?: () => void;
+  onHideDialog?: () => void;
 }
 
-interface IProps {
-  loading?: boolean;
-  checkedList?: number[];
-  groupList?: IGroup[];
-  dialogShow?: boolean;
-  setType?: number;
-  selectMetricData?: MetricDetail[];
+interface IGroup {
+  count?: number;
+  id?: number;
+  name?: string;
 }
-interface IEvents {
-  onGetGroupList?: () => void;
-  onConfirm?: () => void;
-  onHideDialog?: () => void;
+interface IProps {
+  checkedList?: number[];
+  dialogShow?: boolean;
+  groupList?: IGroup[];
+  loading?: boolean;
+  selectMetricData?: MetricDetail[];
+  setType?: number;
 }
 
 @Component
@@ -178,6 +178,10 @@ export default class StrategyConfigDialog extends tsc<IProps, IEvents> {
   @Ref('detection-rules') readonly detectionRulesEl: DetectionRules;
 
   isLoading = false;
+
+  /* 全局设置蓝鲸监控机器人发送图片是否开启， 如果关闭则禁用是否附带图片选项 */
+  wxworkBotSendImage = false;
+
   data = {
     labels: [],
     alarmGroup: '',
@@ -223,6 +227,7 @@ export default class StrategyConfigDialog extends tsc<IProps, IEvents> {
       { signal: 'recovered', message_tmpl: DEFAULT_MESSAGE_TMPL, title_tmpl: DEFAULT_TITLE_TMPL },
       { signal: 'closed', message_tmpl: DEFAULT_MESSAGE_TMPL, title_tmpl: DEFAULT_TITLE_TMPL },
     ],
+    chartImageEnabled: true, // 告警通知模板是否附带图片
     templateActive: 'abnormal', // 当前模板类型
     templateData: { signal: 'abnormal', message_tmpl: '', title_tmpl: '' }, // 当前模板数据
     templateError: '',
@@ -266,6 +271,7 @@ export default class StrategyConfigDialog extends tsc<IProps, IEvents> {
   // 重置数据
   created() {
     this.cachInitData = JSON.parse(JSON.stringify(this.data));
+    this.wxworkBotSendImage = !!window?.wxwork_bot_send_image;
   }
 
   @Watch('dialogShow')
@@ -516,7 +522,12 @@ export default class StrategyConfigDialog extends tsc<IProps, IEvents> {
         if (templateValidate) {
           this.data.templateError = window.i18n.tc('必填项');
         } else {
-          return { notice: { config: { template: this.data.template } } };
+          return {
+            notice: {
+              config: { template: this.data.template },
+              options: { chart_image_enabled: this.data.chartImageEnabled },
+            },
+          };
         }
       },
       /* 修改告警风暴开关 */
@@ -992,6 +1003,19 @@ export default class StrategyConfigDialog extends tsc<IProps, IEvents> {
                 class='label-wrap'
               >
                 <span class='label'>{this.$t('告警通知模板')}</span>
+                <bk-checkbox
+                  ext-cls='notice-template-checkbox'
+                  v-model={this.data.chartImageEnabled}
+                  v-bk-tooltips={{
+                    content: this.$t('蓝鲸监控机器人发送图片全局设置已关闭'),
+                    placements: ['top'],
+                    disabled: this.wxworkBotSendImage,
+                  }}
+                  disabled={!this.wxworkBotSendImage}
+                  on-change={this.templateChange}
+                >
+                  {this.$t('是否附带图片')}
+                </bk-checkbox>
               </div>
               <ResizeContainer
                 style='margin-top: 8px'

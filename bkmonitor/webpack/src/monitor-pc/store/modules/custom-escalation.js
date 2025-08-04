@@ -24,16 +24,22 @@
  * IN THE SOFTWARE.
  */
 import {
+  createOrUpdateGroupingRule,
   customTimeSeriesDetail,
   customTimeSeriesList,
   deleteCustomEventGroup,
   deleteCustomTimeSeries,
+  deleteGroupingRule,
   getCustomEventGroup,
   getCustomTimeSeriesLatestDataByFields,
+  getCustomTsFields,
   modifyCustomEventGroup,
   modifyCustomTimeSeries,
+  modifyCustomTsFields,
+  previewGroupingRule,
   proxyHostInfo,
   queryCustomEventGroup,
+  updateGroupingRuleOrder,
   validateCustomEventGroupName,
   validateCustomTsGroupName,
 } from 'monitor-api/modules/custom_report';
@@ -58,10 +64,26 @@ const actions = {
     const data = await customTimeSeriesDetail(params).catch(() => ({}));
     return data;
   },
+  //  获取自定义指标详情
+  async getCustomTSFields(_, params) {
+    const data = await getCustomTsFields(params).catch(() => ({}));
+    return data;
+  },
+  //  修改自定义指标详情
+  async modifyCustomTsFields(_, params) {
+    const data = await modifyCustomTsFields(params).catch(() => ({}));
+    return data;
+  },
+
+  //  保存指标分组排序
+  async saveGroupingRuleOrder(_, params) {
+    const data = await updateGroupingRuleOrder(params).catch(() => ({}));
+    return data;
+  },
 
   //  编辑自定义指标配置
   async editCustomTime(_, params) {
-    const data = await modifyCustomTimeSeries(params).catch(() => false);
+    const data = await modifyCustomTimeSeries(params, { needMessage: false }).catch(() => []);
     return transformDataKey(data);
   },
 
@@ -116,6 +138,24 @@ const actions = {
   },
   async getCustomTimeSeriesLatestDataByFields(_, params) {
     const data = await getCustomTimeSeriesLatestDataByFields(params).catch(() => false);
+    return data;
+  },
+
+  /* 根据分组规则获取预览信息 */
+  async getGroupRulePreviews(_, params) {
+    const data = await previewGroupingRule(params).catch(() => false);
+    return data;
+  },
+
+  /* 删除分组 */
+  async deleteGroupingRule(_, params) {
+    const data = await deleteGroupingRule(params).catch(() => false);
+    return data;
+  },
+
+  /* 创建/更新分组 */
+  async createOrUpdateGroupingRule(_, params) {
+    const data = await createOrUpdateGroupingRule(params).catch(() => false);
     return data;
   },
 };

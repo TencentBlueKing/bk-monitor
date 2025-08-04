@@ -24,17 +24,17 @@
  * IN THE SOFTWARE.
  */
 import { type Ref, type VNode, computed, defineComponent, ref } from 'vue';
-import { type TranslateResult, useI18n } from 'vue-i18n';
-import { useRoute } from 'vue-router';
 
-import { Button, Dialog, InfoBox, Message, Switcher, bkTooltips } from 'bkui-vue';
+import { bkTooltips, Button, Dialog, InfoBox, Message, Switcher } from 'bkui-vue';
 import dayjs from 'dayjs';
 import { createShareToken, deleteShareToken, updateShareToken } from 'monitor-api/modules/share';
 import { copyText } from 'monitor-common/utils/utils';
+import { type TranslateResult, useI18n } from 'vue-i18n';
+import { useRoute } from 'vue-router';
 
 import { useAppStore } from '../../store/modules/app';
 import TimeRangeComp from '../time-range/time-range';
-import { TimeRange, type TimeRangeType } from '../time-range/utils';
+import { type TimeRangeType, TimeRange } from '../time-range/utils';
 
 import './temporary-share.scss';
 
@@ -46,7 +46,7 @@ export default defineComponent({
   props: {
     onlyCopy: Boolean,
   },
-  setup(props) {
+  setup(props, { emit }) {
     const route = useRoute();
     const show = ref(false);
     const token = ref('');
@@ -91,7 +91,6 @@ export default defineComponent({
       const period = validityPeriod.value.match(/([0-9]+)/)?.[0] || 1;
       let weWebData = {};
       if (window.__BK_WEWEB_DATA__) {
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
         const { $baseStore = null, ...data } = { ...window.__BK_WEWEB_DATA__ };
         weWebData = { ...data };
       }
@@ -245,11 +244,12 @@ export default defineComponent({
       lockTimeRange,
       handleDeleteAuth,
       shareDeadline,
+      t,
     };
   },
   render() {
     const tipsOpts = {
-      content: !this.onlyCopy ? this.$t('临时分享') : this.$t('复制链接'),
+      content: !this.onlyCopy ? this.t('临时分享') : this.t('复制链接'),
       delay: 200,
       placement: 'right',
     };
@@ -265,23 +265,23 @@ export default defineComponent({
           <Dialog
             width={700}
             class='temporary-share'
-            appendToBody={true}
             dialogType='show'
             isShow={this.show}
-            title={this.$t('临时分享').toString()}
+            title={this.t('临时分享').toString()}
+            transfer={true}
             onClosed={this.handleHideDialog}
           >
             <div
               style='margin-top: 18px'
               class='share-wrap'
             >
-              {this.commonItem(this.$t('分享链接'), this.shareLink())}
+              {this.commonItem(this.t('分享链接'), this.shareLink())}
             </div>
             <div class='share-wrap'>
-              {this.commonItem(this.$t('查询时间段'), this.shareTimeRange(), { flex: 1.5, marginRight: '16px' })}
-              {this.commonItem(this.$t('锁定查询时间'), this.lockTimeRange())}
+              {this.commonItem(this.t('查询时间段'), this.shareTimeRange(), { flex: 1.5, marginRight: '16px' })}
+              {this.commonItem(this.t('锁定查询时间'), this.lockTimeRange())}
             </div>
-            <div class='share-wrap'>{this.commonItem(this.$t('链接有效期'), this.shareDeadline())}</div>
+            <div class='share-wrap'>{this.commonItem(this.t('链接有效期'), this.shareDeadline())}</div>
           </Dialog>
         )}
       </div>

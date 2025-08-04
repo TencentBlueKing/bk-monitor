@@ -23,20 +23,23 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, defineComponent, Ref, ref, watch } from 'vue';
+import { computed, defineComponent, Ref, ref, onMounted } from 'vue';
 
 import $http from '@/api/index.js';
+import useFieldAliasRequestParams from '@/hooks/use-field-alias-request-params';
 import useLocale from '@/hooks/use-locale';
 import useResizeObserve from '@/hooks/use-resize-observe';
 import useStore from '@/hooks/use-store';
 import RequestPool from '@/store/request-pool';
-import { axiosInstance } from '@/api';
 import { debounce } from 'lodash';
 import screenfull from 'screenfull';
-import { format } from 'sql-formatter';
+import { transactsql, formatDialect } from 'sql-formatter';
 
+import { getCommonFilterAdditionWithValues } from '../../../../../store/helper';
+import RetrieveHelper, { RetrieveEvent } from '../../../../retrieve-helper';
 import BookmarkPop from '../../../search-bar/bookmark-pop.vue';
 import useEditor from './use-editor';
+import { axiosInstance } from '@/api';
 
 import './index.scss';
 
@@ -70,22 +73,23 @@ export default defineComponent({
     };
     const { $t } = useLocale();
     const { editorInstance } = useEditor({ refRootElement, sqlContent, onValueChange });
+    const { alias_settings } = useFieldAliasRequestParams();
 
     const indexSetId = computed(() => store.state.indexId);
     const retrieveParams = computed(() => store.getters.retrieveParams);
+    const filter_addition = computed(() => getCommonFilterAdditionWithValues(store.state));
 
     const requestId = 'graphAnalysis_searchSQL';
 
     const handleQueryBtnClick = () => {
       const sql = editorInstance?.value?.getValue();
-
       if (!sql || isRequesting.value) {
         return;
       }
 
       isRequesting.value = true;
       emit('change', undefined, isRequesting.value);
-
+      RequestPool.execCanceToken(requestId);
       const requestCancelToken = RequestPool.getCancelToken(requestId);
       const baseUrl = process.env.NODE_ENV === 'development' ? 'api/v1' : (window as any).AJAX_URL_PREFIX;
       const { start_time, end_time, keyword, addition } = retrieveParams.value;
@@ -103,6 +107,7 @@ export default defineComponent({
           keyword,
           addition,
           sql, // 使用获取到的内容
+          alias_settings: alias_settings.value,
         },
       };
 
@@ -117,6 +122,11 @@ export default defineComponent({
             emit('error', resp);
           }
         })
+        .catch(err => {
+          if (err.code === 'ERR_CANCELED') {
+            console.log('请求被取消');
+          }
+        })
         .finally(() => {
           isRequesting.value = false;
           emit('change', undefined, isRequesting.value);
@@ -128,7 +138,39 @@ export default defineComponent({
       isRequesting.value = false;
     };
 
-    const handleSyncAdditionToSQL = () => {
+    // 创建类型安全的自定义方言
+    const createExtendedTSQL = () =>
+      ({
+        ...transactsql,
+        name: 'extended-transactsql',
+        tokenizerOptions: {
+          ...transactsql.tokenizerOptions,
+          // 添加反引号标识符支持，同时保留原有的双引号和方括号支持
+          identTypes: [
+            ...transactsql.tokenizerOptions.identTypes,
+            '``', // 添加反引号支持
+          ],
+          // 允许标识符以数字开头，这是 MySQL 反引号标识符的特性
+          identChars: {
+            ...transactsql.tokenizerOptions.identChars,
+            allowFirstCharNumber: true,
+          },
+        },
+      }) as const;
+
+    // 使用示例
+    const extendedTsql = createExtendedTSQL();
+
+    const getFormatValue = sql => {
+      try {
+        return formatDialect(sql, { dialect: extendedTsql });
+      } catch (err) {
+        console.error(err);
+        return sql;
+      }
+    };
+
+    const handleSyncAdditionToSQL = (callback?) => {
       const { addition, start_time, end_time, keyword } = retrieveParams.value;
       isSyncSqlRequesting.value = true;
       return $http
@@ -137,11 +179,12 @@ export default defineComponent({
             index_set_id: indexSetId.value,
           },
           data: {
-            addition,
+            addition: [...addition, ...(filter_addition.value ?? []).filter(a => a.value?.length)],
             start_time,
             end_time,
             keyword,
             sql: sqlContent.value,
+            alias_settings: alias_settings.value,
           },
         })
         .then(resp => {
@@ -151,11 +194,20 @@ export default defineComponent({
           setTimeout(() => {
             formatMonacoSqlCode();
           });
+
+          previewSqlContent.value = getFormatValue(resp.data.additional_where_clause);
+          isPreviewSqlShow.value = true;
+          callback?.();
+        })
+        .catch(err => {
+          console.error(err);
         })
         .finally(() => {
           isSyncSqlRequesting.value = false;
         });
     };
+
+    const debounceSyncAdditionToSQL = debounce(handleSyncAdditionToSQL, 500);
 
     const handleFullscreenClick = () => {
       if (!screenfull.isEnabled) return;
@@ -165,7 +217,7 @@ export default defineComponent({
     };
 
     const formatMonacoSqlCode = (value?: string) => {
-      const val = format(value ?? editorInstance.value?.getValue() ?? '', { language: 'transactsql' });
+      const val = getFormatValue(value ?? editorInstance.value?.getValue() ?? '');
       editorInstance.value?.setValue([val].join('\n'));
     };
 
@@ -181,7 +233,6 @@ export default defineComponent({
             onClick={handleQueryBtnClick}
           >
             <i class='bklog-icon bklog-bofang'></i>
-            {/* <span class='ml-min'>{$t('查询')}</span> */}
           </bk-button>
           <bk-button
             class='sql-editor-view-button'
@@ -191,23 +242,8 @@ export default defineComponent({
             onClick={handleStopBtnClick}
           >
             <i class='bk-icon icon-stop-shape' />
-            {/* <span>{$t('中止')}</span> */}
           </bk-button>
-          {/* <bk-popconfirm
-            width='288'
-            content={$t('此操作将根据当前日志查询条件覆盖当前SQL查询语句，请谨慎操作')}
-            trigger='click'
-            onConfirm={handleSyncAdditionToSQL}
-          >
-            <bk-button
-              class='sql-editor-view-button'
-              v-bk-tooltips={{ content: $t('同步查询条件到SQL'), theme: 'light' }}
-              loading={isSyncSqlRequesting.value}
-              size='small'
-            >
-              <i class='bklog-icon bklog-tongbu'></i>
-            </bk-button>
-          </bk-popconfirm> */}
+
           <BookmarkPop
             class='bklog-sqleditor-bookmark'
             v-bk-tooltips={{ content: ($t('button-收藏') as string).replace('button-', ''), theme: 'light' }}
@@ -259,12 +295,12 @@ export default defineComponent({
     const renderSqlPreview = () => {
       return (
         <div
-          class={['sql-preview-root', { 'is-show': isPreviewSqlShow.value }]}
           ref={refSqlPreviewElement}
+          class={['sql-preview-root', { 'is-show': isPreviewSqlShow.value }]}
         >
           <div class='sql-preview-title'>
-            <span class='bklog-icon bklog-circle-alert-filled'></span>检测到「顶部查询条件」，已自动补充 SQL（与已输入
-            SQL 语句叠加生效）：
+            <span class='bklog-icon bklog-circle-alert-filled'></span>
+            {$t('检测到「顶部查询条件」，已自动补充 SQL（与已输入 SQL 语句叠加生效）：')}
           </div>
           <div class='sql-preview-text'>{previewSqlContent.value}</div>
         </div>
@@ -281,65 +317,42 @@ export default defineComponent({
       sqlPreviewHeight.value = refSqlPreviewElement.value.offsetHeight;
     });
 
+    /**
+     * 监听关联数据变化
+     */
+    const onRefereceChange = async args => {
+      // 这里表示数据来自图表分析收藏点击回填数据
+      if (args?.params?.chart_params?.sql?.length) {
+        const old = editorInstance.value?.getValue();
+        if (old != args?.params?.chart_params?.sql) {
+          editorInstance.value?.setValue(args?.params?.chart_params?.sql);
+        }
+        debounceQuery();
+        return;
+      }
+
+      // 这里表示来自原始日志收藏或者查询参数相关改变时触发
+      debounceSyncAdditionToSQL(handleQueryBtnClick);
+    };
+
+    // @ts-ignore
+    RetrieveHelper.on(
+      [
+        RetrieveEvent.SEARCH_VALUE_CHANGE,
+        RetrieveEvent.FAVORITE_ACTIVE_CHANGE,
+        RetrieveEvent.SEARCH_TIME_CHANGE,
+        RetrieveEvent.LEFT_FIELD_INFO_UPDATE,
+      ],
+      // eslint-disable-next-line @typescript-eslint/no-misused-promises
+      onRefereceChange,
+    );
     useResizeObserve(refSqlPreviewElement, debounceUpdateHeight);
 
-    // 如果是来自收藏跳转，retrieveParams.value.chart_params 会保存之前的收藏查询
-    // 这里会回填收藏的查询
-    watch(
-      () => [sqlContent.value],
-      async (val, oldVal) => {
-        if (!val[0] && !oldVal?.[0]) {
-          await handleSyncAdditionToSQL();
-          debounceQuery();
-          return;
-        }
-
-        if (val[0] !== (editorInstance.value?.getValue() ?? '')) {
-          editorInstance.value?.setValue(sqlContent.value);
-          debounceQuery();
-        }
-      },
-      {
-        immediate: true,
-      },
-    );
-
-    const debounceSyncAdditionToSQL = debounce(() => {
-      const { addition, start_time, end_time, keyword } = retrieveParams.value;
-      $http
-        .request('graphAnalysis/generateSql', {
-          params: {
-            index_set_id: indexSetId.value,
-          },
-          data: {
-            addition,
-            start_time,
-            end_time,
-            sql: sqlContent.value,
-            keyword,
-          },
-        })
-        .then(resp => {
-          previewSqlContent.value = format(resp.data.additional_where_clause, { language: 'transactsql' });
-          isPreviewSqlShow.value = true;
-        })
-        .catch(err => {
-          console.error('generate-sql error: ', err);
-        });
-    }, 500);
-
-    watch(
-      () => [
-        retrieveParams.value.addition,
-        retrieveParams.value.keyword,
-        retrieveParams.value.start_time,
-        retrieveParams.value.end_time,
-      ],
-      () => {
-        debounceSyncAdditionToSQL();
-      },
-      { deep: true, immediate: true },
-    );
+    onMounted(() => {
+      if (!RetrieveHelper.isSearching) {
+        debounceSyncAdditionToSQL(debounceQuery);
+      }
+    });
 
     expose({
       handleQueryBtnClick,
@@ -367,8 +380,8 @@ export default defineComponent({
     return (
       <div
         ref='refSqlBox'
-        class='bklog-sql-editor-root'
         style={this.sqlRootStyle}
+        class='bklog-sql-editor-root'
       >
         <div
           ref='refRootElement'

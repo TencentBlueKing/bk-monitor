@@ -37,7 +37,7 @@ import {
   updateUptimeCheckGroup,
 } from 'monitor-api/modules/model';
 import { commonPageSizeSet } from 'monitor-common/utils';
-import { Debounce } from 'monitor-common/utils/utils';
+import { Debounce, deepClone } from 'monitor-common/utils/utils';
 
 import EmptyStatus from '../../components/empty-status/empty-status';
 import TableSkeleton from '../../components/skeleton/table-skeleton';
@@ -48,7 +48,7 @@ import CardsContainer from './components/cards-container';
 import GroupCard, { type IOptionType as IGroupCardOperate } from './components/group-card';
 import HeaderTools, { type IClickType } from './components/header-tools';
 import OperateOptions from './components/operate-options';
-import TaskCard, { type IData as ItaskItem, type IOptionTypes as ITaskCardOperate } from './components/task-card';
+import TaskCard, { type IOptionTypes as ITaskCardOperate, type IData as ItaskItem } from './components/task-card';
 import UploadContent from './components/upload-content';
 import TaskCardSkeleton from './skeleton/task-card-skeleton';
 import {
@@ -82,17 +82,17 @@ import type { IActive as IUptimeCheckType } from './uptime-check';
 
 import './uptime-check-task.scss';
 
+interface IUptimeCheckTaskEvents {
+  onLoading?: boolean;
+  onRefresh?: IUptimeCheckType;
+  onGroupStatus?: (v: boolean) => void;
+  onNodeNameChange?: (v: string) => void;
+}
+
 interface IUptimeCheckTaskProps {
   isCard?: boolean;
   nodeName?: string;
   refreshKey?: string;
-}
-
-interface IUptimeCheckTaskEvents {
-  onLoading?: boolean;
-  onRefresh?: IUptimeCheckType;
-  onNodeNameChange?: (v: string) => void;
-  onGroupStatus?: (v: boolean) => void;
 }
 
 @Component({
@@ -133,6 +133,8 @@ export default class UptimeCheckTask extends tsc<IUptimeCheckTaskProps, IUptimeC
   emptyStatusType: EmptyStatusType = 'empty';
 
   loading = false;
+
+  filterList = Object.keys(taskStatusMap);
 
   // 搜索数据
   get searchTaskData(): ITaskData['task_data'] {
@@ -578,7 +580,7 @@ export default class UptimeCheckTask extends tsc<IUptimeCheckTaskProps, IUptimeC
   }
 
   // 列表排序
-  handleSortChange(v: { prop: string; order: 'ascending' | 'descending' | null }) {
+  handleSortChange(v: { order: 'ascending' | 'descending' | null; prop: string }) {
     const columnId = v.prop;
     const { order } = v; // ascending: 升序
     let taskData = [];
@@ -615,6 +617,19 @@ export default class UptimeCheckTask extends tsc<IUptimeCheckTaskProps, IUptimeC
     }
     this.taskTableData.pagination = pagination;
     this.taskTableData.data = taskDataToTableData(paginationUtil(pagination, taskData));
+  }
+
+  // 列表状态过滤
+  handleFilterChange(data) {
+    const { status_text } = data;
+    this.filterList = status_text || Object.keys(taskStatusMap);
+    const filter = this.data.task_data.filter(item => this.filterList.includes(item.status));
+    const pagination = {
+      count: filter.length,
+      current: 1,
+      limit: 10,
+    };
+    this.taskTableData.pagination = pagination;
   }
 
   handleEmptyCreate(v: 'create' | 'createNode' | 'import') {
@@ -692,6 +707,7 @@ export default class UptimeCheckTask extends tsc<IUptimeCheckTaskProps, IUptimeC
                   onOptionClick={(v: ITaskCardOperate) => this.handleTaskCardOperate(v, row.id)}
                 />
               ),
+              create_user: (row: ItaskItem) => <bk-user-display-name user-id={row?.create_user || '--'} />,
               name: (row: ItaskItem) => (
                 <span
                   class='task-name'
@@ -725,8 +741,9 @@ export default class UptimeCheckTask extends tsc<IUptimeCheckTaskProps, IUptimeC
                 </div>
               ),
             }}
-            data={this.taskTableData.data}
+            data={this.taskTableData.data.filter(item => this.filterList.includes(item.status))}
             pagination={this.taskTableData.pagination}
+            onFilterChange={this.handleFilterChange}
             onLimitChange={this.handleTaskTableLimitChange}
             onPageChange={this.handleTaskTablePageChange}
             onSortChange={this.handleSortChange}

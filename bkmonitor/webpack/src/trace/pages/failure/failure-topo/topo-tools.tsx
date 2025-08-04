@@ -24,10 +24,10 @@
  * IN THE SOFTWARE.
  */
 import { type PropType, defineComponent, onMounted, ref, shallowRef } from 'vue';
-import { useI18n } from 'vue-i18n';
 
 import { incidentTopologyMenu } from 'monitor-api/modules/incident';
 import { random } from 'monitor-common/utils/utils';
+import { useI18n } from 'vue-i18n';
 
 import { useIncidentInject } from '../utils';
 import AggregationSelect from './aggregation-select';
@@ -266,6 +266,7 @@ export default defineComponent({
       handleChangeRefleshTime,
       handleTimelineChange,
       handlePlay,
+      t,
     };
   },
   render() {
@@ -290,11 +291,11 @@ export default defineComponent({
         />
         <div
           class='topo-tools-list'
-          v-bk-tooltips={{ content: this.$t('全屏'), disabled: this.isFullscreen }}
+          v-bk-tooltips={{ content: this.t('全屏'), disabled: this.isFullscreen }}
           onClick={this.handleFullscreen}
         >
           <span class='fullscreen'>
-            <i class={['icon-monitor', !this.isFullscreen ? 'icon-zhankai1' : 'icon-shouqi1']} />
+            <i class={['icon-monitor', !this.isFullscreen ? 'icon-mc-full-screen' : 'icon-shouqi1']} />
           </span>
         </div>
       </div>

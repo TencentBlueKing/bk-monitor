@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,14 +7,13 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import logging
 import time
 from collections import defaultdict
-from typing import Dict, List, Optional, Tuple, Union
 
 from api.cmdb.define import Host, ServiceInstance, TopoTree
 from bkm_ipchooser import constants
-from bkmonitor.commons.tools import is_ipv6_biz
 from bkmonitor.data_source import UnifyQuery, load_data_source
 from bkmonitor.documents import AlertDocument
 from bkmonitor.utils.common_utils import to_dict
@@ -40,14 +38,14 @@ def topo_tree(bk_biz_id):
 # 主机相关的信息及数据需要支持IPv6及DHCP
 # 如果相关信息的获取需要保证兼容性，那么使用Host对象作为参数，否则直接使用特定字段作为参数
 # 如果相关信息的获取需要保证兼容性，那么使用bk_host_id作为返回值，否则直接使用特定字段作为返回值
-def get_agent_status(bk_biz_id: int, hosts: List[Host]) -> Dict[int, int]:
+def get_agent_status(bk_biz_id: int, hosts: list[Host]) -> dict[int, int]:
     """
     :summary 获取主机Agent状态及数据状态
     :param bk_biz_id: 业务ID
     :param hosts: 主机列表（如果在外部已经获取了数据，可以只传入没有数据的主机）
     :return {bk_host_id: AGENT_STATUS}
     """
-    status: Dict[int, int] = {}
+    status: dict[int, int] = {}
 
     # 获取主机数据状态，查询最近三分钟
     data_source_class = load_data_source(DataSourceLabel.BK_MONITOR_COLLECTOR, DataTypeLabel.TIME_SERIES)
@@ -56,22 +54,22 @@ def get_agent_status(bk_biz_id: int, hosts: List[Host]) -> Dict[int, int]:
         interval=60,
         metrics=[{"field": "usage", "method": "AVG", "alias": "A"}],
         table="system.cpu_summary",
-        group_by=["bk_host_id"] if is_ipv6_biz(bk_biz_id) else ["bk_target_ip", "bk_target_cloud_id"],
+        group_by=["bk_host_id", "bk_target_ip", "bk_target_cloud_id"],
     )
     query = UnifyQuery(data_sources=[data_source], bk_biz_id=bk_biz_id, expression="a")
     now = int(time.time()) * 1000
     records = query.query_data(start_time=now - 180000, end_time=now)
 
     # 统计已经存在数据的主机并设置状态为正常
-    ip_to_host_id: Dict[Tuple, int] = {(host.bk_host_innerip, host.bk_cloud_id): host.bk_host_id for host in hosts}
+    ip_to_host_id: dict[tuple, int] = {(host.bk_host_innerip, host.bk_cloud_id): host.bk_host_id for host in hosts}
     for record in records:
         if record["_result_"] is None:
             continue
 
         bk_host_id = None
-        if is_ipv6_biz(bk_biz_id) and record.get("bk_host_id"):
+        if record.get("bk_host_id"):
             bk_host_id = int(record["bk_host_id"])
-        elif not is_ipv6_biz(bk_biz_id) and record.get("bk_target_ip") and record.get("bk_target_cloud_id") is not None:
+        elif record.get("bk_target_ip") and record.get("bk_target_cloud_id") is not None:
             bk_host_id = ip_to_host_id.get((record["bk_target_ip"], int(record["bk_target_cloud_id"])))
 
         if bk_host_id:
@@ -134,7 +132,7 @@ def _parse_cc_ports(ports):
     return arr_ports
 
 
-def get_process_info(bk_biz_id: int, hosts: List[Host], limit_port_num: int = None) -> Dict[int, List[Dict]]:
+def get_process_info(bk_biz_id: int, hosts: list[Host], limit_port_num: int = None) -> dict[int, list[dict]]:
     """
     :summary 通过主机ID列表获取主机进程信息
     :param bk_biz_id: 业务ID
@@ -152,7 +150,7 @@ def get_process_info(bk_biz_id: int, hosts: List[Host], limit_port_num: int = No
     result = api.cmdb.get_process(bk_biz_id=bk_biz_id, bk_host_id=bk_host_id)
 
     # 查询进程状态数据
-    statuses: Dict[int, Dict[str, int]] = get_process_status(bk_biz_id, hosts)
+    statuses: dict[int, dict[str, int]] = get_process_status(bk_biz_id, hosts)
 
     bk_host_ids = {host.bk_host_id for host in hosts}
     for pp in result:
@@ -183,7 +181,7 @@ def get_process_info(bk_biz_id: int, hosts: List[Host], limit_port_num: int = No
     return pp_info
 
 
-def get_process_status(bk_biz_id: int, hosts: List[Host]) -> Dict[int, Dict[str, int]]:
+def get_process_status(bk_biz_id: int, hosts: list[Host]) -> dict[int, dict[str, int]]:
     """
     查询进程状态
     """
@@ -197,8 +195,7 @@ def get_process_status(bk_biz_id: int, hosts: List[Host]) -> Dict[int, Dict[str,
         interval=60,
         metrics=[{"field": "proc_exists", "method": "AVG", "alias": "A"}],
         table="system.proc_port",
-        group_by=(["bk_host_id"] if is_ipv6_biz(bk_biz_id) else ["bk_target_ip", "bk_target_cloud_id"])
-        + ["display_name"],
+        group_by=(["bk_host_id", "bk_target_ip", "bk_target_cloud_id", "display_name"]),
     )
     query = UnifyQuery(data_sources=[data_source], bk_biz_id=bk_biz_id, expression="a")
     now = int(time.time()) * 1000
@@ -220,7 +217,7 @@ def get_process_status(bk_biz_id: int, hosts: List[Host]) -> Dict[int, Dict[str,
     return result
 
 
-def get_host_performance_data(bk_biz_id: int, hosts: List[Host] = None) -> Union[Dict[int, Dict], Dict[Tuple, Dict]]:
+def get_host_performance_data(bk_biz_id: int, hosts: list[Host] = None) -> dict[int, dict] | dict[tuple, dict]:
     """
     :summary 按主机查询主机性能信息(五分钟负载/CPU使用率/磁盘空间使用率/磁盘IO使用率/应用内存使用率)
              需要兼容基于bk_host_id或bk_target_ip的数据查询
@@ -249,7 +246,7 @@ def get_host_performance_data(bk_biz_id: int, hosts: List[Host] = None) -> Union
             interval=60,
             metrics=[{"field": metric["metric_field"], "method": "MAX", "alias": "A"}],
             table=metric["result_table_id"],
-            group_by=["bk_host_id"] if is_ipv6_biz(bk_biz_id) else ["bk_target_ip", "bk_target_cloud_id"],
+            group_by=["bk_host_id", "bk_target_ip", "bk_target_cloud_id"],
         )
         query = UnifyQuery(data_sources=[data_source], bk_biz_id=bk_biz_id, expression="a")
         now = int(time.time()) * 1000
@@ -285,7 +282,7 @@ def get_host_performance_data(bk_biz_id: int, hosts: List[Host] = None) -> Union
     return data
 
 
-def _get_host_strategy_target(bk_biz_id: int, scenario_list: List[str]) -> Dict[int, Dict]:
+def _get_host_strategy_target(bk_biz_id: int, scenario_list: list[str]) -> dict[int, dict]:
     """
     查询策略目标配置
     @param bk_biz_id: 业务ID
@@ -308,7 +305,7 @@ def _get_host_strategy_target(bk_biz_id: int, scenario_list: List[str]) -> Dict[
     return strategy_configs
 
 
-def get_topo_strategy_count(bk_biz_id: int, bk_obj_id: str, bk_inst_id: int) -> Tuple[int, int]:
+def get_topo_strategy_count(bk_biz_id: int, bk_obj_id: str, bk_inst_id: int) -> tuple[int, int]:
     """
     查询拓扑节点关联策略数量
     """
@@ -334,7 +331,7 @@ def get_topo_strategy_count(bk_biz_id: int, bk_obj_id: str, bk_inst_id: int) -> 
             target_field = target[0][0]["field"]
             if target_field in [TargetFieldType.host_topo, TargetFieldType.service_topo]:
                 # 主机/服务拓扑
-                target_topos = {f'{obj["bk_obj_id"]}|{obj["bk_inst_id"]}' for obj in target[0][0]["value"]}
+                target_topos = {f"{obj['bk_obj_id']}|{obj['bk_inst_id']}" for obj in target[0][0]["value"]}
                 if topo_node_id in target_topos:
                     is_matched = True
             elif (
@@ -363,7 +360,7 @@ def get_topo_strategy_count(bk_biz_id: int, bk_obj_id: str, bk_inst_id: int) -> 
     return enable_count, disabled_count
 
 
-def get_host_strategy_count(bk_biz_id: int, host: Host = None) -> Tuple[int, int]:
+def get_host_strategy_count(bk_biz_id: int, host: Host = None) -> tuple[int, int]:
     """
     :summary 获取主机关联策略
     :param bk_biz_id: 业务ID
@@ -392,7 +389,7 @@ def get_host_strategy_count(bk_biz_id: int, host: Host = None) -> Tuple[int, int
             is_matched = False
             if target[0][0]["field"] == TargetFieldType.host_topo:
                 # 动态拓扑匹配
-                target_topos = {f'{obj["bk_obj_id"]}|{obj["bk_inst_id"]}' for obj in target[0][0]["value"]}
+                target_topos = {f"{obj['bk_obj_id']}|{obj['bk_inst_id']}" for obj in target[0][0]["value"]}
                 if target_topos.intersection(topo_set):
                     is_matched = True
             elif "template" in target[0][0]["field"]:
@@ -445,7 +442,7 @@ def get_host_strategy_count(bk_biz_id: int, host: Host = None) -> Tuple[int, int
 
 
 # 获取主机告警事件
-def get_host_alarm_count(bk_biz_id: int, hosts: List[Host], days: int = 7) -> Dict[int, Dict[int, int]]:
+def get_host_alarm_count(bk_biz_id: int, hosts: list[Host], days: int = 7) -> dict[int, dict[int, int]]:
     """
     获取主机关联告警数量，当不传主机时，统计所有主机数据
     todo: 在ipv6改造后，alert需要添加bk_host_id，该函数需要额外适配
@@ -477,7 +474,7 @@ def get_host_alarm_count(bk_biz_id: int, hosts: List[Host], days: int = 7) -> Di
     return alarm_count_info
 
 
-def parse_topo_target(bk_biz_id: int, dimensions: List[str], target: List[Dict]) -> Optional[List[Dict]]:
+def parse_topo_target(bk_biz_id: int, dimensions: list[str], target: list[dict]) -> list[dict] | None:
     """
     根据维度解析监控目标
     :param bk_biz_id: 业务ID
@@ -548,7 +545,7 @@ def parse_topo_target(bk_biz_id: int, dimensions: List[str], target: List[Dict])
         node_query_func = api.cmdb.get_host_by_topo_node
         template_query_func = api.cmdb.get_host_by_template
 
-    instance_nodes: List[Union[ServiceInstance, Host]] = []
+    instance_nodes: list[ServiceInstance | Host] = []
     # 根据拓扑节点查询实例
     if topo_nodes:
         instance_nodes.extend(node_query_func(bk_biz_id=bk_biz_id, topo_nodes=topo_nodes))

@@ -51,9 +51,9 @@
           >
             <monitor-pie-echart
               class="chart-set"
-              chart-type="pie"
               :height="200"
               :options="option"
+              chart-type="pie"
               @chart-click="e => handleChartClick(e, option)"
             >
               <div
@@ -61,8 +61,8 @@
                 class="slot-center"
               >
                 <div
-                  class="slot-center-name"
                   style="width: 56px; font-size: 14px; text-align: center"
+                  class="slot-center-name"
                 >
                   {{ option.name }}
                 </div>
@@ -316,7 +316,7 @@ export default {
     },
     handleChartClick(params, option) {
       if (params.data.ip_list?.length) {
-        const scopes = params.name.replace(/\s+/g, '').replace('%', '').split('~');
+        const scopes = params.name.replace(/\s+/g, '').replace(/%/g, '').split('~');
         this.gotoPerformace({
           id: this.chartIdMap[option.name],
           value: [

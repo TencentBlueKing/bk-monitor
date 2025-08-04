@@ -1,19 +1,22 @@
 <script setup>
-  import { defineEmits, defineProps, computed, watch, ref } from 'vue';
+  import { defineEmits, defineProps, computed, watch, ref, onMounted } from 'vue';
   import useStore from '@/hooks/use-store';
   import useLocale from '@/hooks/use-locale';
+  import { useRoute } from 'vue-router/composables';
   import $http from '@/api';
 
-  const { $t } = useLocale();
-  const store = useStore();
   const props = defineProps({
     value: {
       type: String,
       required: true,
     },
   });
+
+  const { $t } = useLocale();
+  const store = useStore();
+  const route = useRoute();
+
   const emit = defineEmits(['input']);
-  const isUserAction = ref(false);
 
   const indexSetId = computed(() => store.state.indexId);
 
@@ -22,8 +25,6 @@
   );
 
   const retrieveParams = computed(() => store.getters.retrieveParams);
-
-  const chartParams = computed(() => store.state.indexItem.chart_params);
 
   const isAiopsToggle = computed(() => {
     return (
@@ -34,66 +35,18 @@
 
   const isChartEnable = computed(() => indexSetItem.value?.support_doris && !store.getters.isUnionSearch);
 
+  const isExternal = computed(() => window.IS_EXTERNAL === true);
   // 可切换Tab数组
   const panelList = computed(() => {
     return [
       { name: 'origin', label: $t('原始日志'), disabled: false },
       { name: 'clustering', label: $t('日志聚类'), disabled: !isAiopsToggle.value },
       { name: 'graphAnalysis', label: $t('图表分析'), disabled: !isChartEnable.value },
+      { name: 'grep', label: $t('Grep模式'), disabled: !indexSetItem.value?.support_doris },
     ];
   });
 
   const renderPanelList = computed(() => panelList.value.filter(item => !item.disabled));
-
-  watch(
-    () => indexSetId,
-    () => {
-      isUserAction.value = false;
-    },
-  );
-
-  watch(
-    () => isAiopsToggle.value,
-    () => {
-      if (!isAiopsToggle.value && props.value === 'clustering') {
-        emit('input', 'origin');
-      }
-    },
-    { immediate: true },
-  );
-
-  watch(
-    () => isChartEnable.value,
-    () => {
-      if (!isChartEnable.value && props.value === 'graphAnalysis') {
-        emit('input', 'origin');
-      }
-    },
-    {
-      immediate: true,
-    },
-  );
-
-  watch(
-    () => chartParams.value,
-    () => {
-      if (chartParams.value.fromCollectionActiveTab === 'unused') {
-        isUserAction.value = false;
-        store.commit('updateChartParams', { fromCollectionActiveTab: 'used' });
-      }
-
-      if (
-        // isUserAction 判定用于避免图表分析页面延迟更新 chartParams 导致触发这里的Tab切换
-        !isUserAction.value &&
-        isChartEnable.value &&
-        props.value !== 'graphAnalysis' &&
-        chartParams.value.sql?.length > 0
-      ) {
-        emit('input', 'graphAnalysis');
-      }
-    },
-    { deep: true, immediate: true },
-  );
 
   const tabClassList = computed(() => {
     return renderPanelList.value.map((item, index) => {
@@ -148,15 +101,35 @@
   };
 
   const handleActive = panel => {
-    isUserAction.value = true;
-    emit('input', panel);
+    if (props.value === panel) return;
+
+    emit('input', panel, panel === 'origin');
   };
+
+  watch(
+    () => [indexSetItem.value?.support_doris, isChartEnable.value, isAiopsToggle.value],
+    ([grepEnable, graphEnable, aiopsEnable]) => {
+      if (['clustering', 'graphAnalysis', 'grep'].includes(route.query.tab)) {
+        if (
+          (!grepEnable && route.query.tab === 'grep') ||
+          (!graphEnable && route.query.tab === 'graphAnalysis') ||
+          (!aiopsEnable && route.query.tab === 'clustering')
+        ) {
+          handleActive('origin');
+        }
+      }
+    },
+  );
+
+  onMounted(() => {
+    const tabName = route.query.tab ?? 'origin';
+    if (panelList.value.find(item => item.name === tabName)?.disabled ?? true) {
+      handleActive(panelList.value[0].name);
+    }
+  });
 </script>
 <template>
-  <div
-    class="retrieve-tab"
-    style="position: relative"
-  >
+  <div class="retrieve2-tab">
     <span
       v-for="(item, index) in renderPanelList"
       :key="item.label"
@@ -167,6 +140,7 @@
     <div
       class="btn-alert-policy"
       @click="handleAddAlertPolicy"
+      v-if="!isExternal"
     >
       <span
         class="bklog-icon bklog--celve"

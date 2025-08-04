@@ -203,7 +203,7 @@ class EsQueryBuilder(object):
     @classmethod
     def build_wildcard(cls, field: str, value: Any, is_contains: bool = False) -> type_wildcard:
         if is_contains:
-            return {"wildcard": {field: f"*{value}*"}}
+            return {"wildcard": {field: "*{value}*".format(value=value.replace("*", r"\*").replace("?", r"\?"))}}
         return {"wildcard": {field: value}}
 
     @classmethod

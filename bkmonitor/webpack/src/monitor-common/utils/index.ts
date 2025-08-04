@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { LOCAL_BIZ_STORE_KEY, COMMON_PAGE_SIZE_KEY } from './constant';
+import { COMMON_PAGE_SIZE_KEY, LOCAL_BIZ_STORE_KEY } from './constant';
 import { getUrlParam } from './utils';
 
 import type { ISpaceItem } from '../typings';
@@ -46,10 +46,10 @@ export function mergeSpaceList(spaceList: ISpaceItem[]) {
 }
 // 设置全局业务ID
 export const setGlobalBizId = () => {
-  let bizId = +getUrlParam('bizId')?.replace(/\//gim, '');
+  let bizId: number | string = +getUrlParam('bizId')?.replace(/\//gim, '');
   const hasRouteHash = getUrlParam('routeHash');
   const isEmailSubscriptions = location.hash.indexOf('email-subscriptions') > -1;
-  const isSpicialEvent = !!getUrlParam('specEvent');
+  const isSpacialEvent = !!getUrlParam('specEvent');
   const isNoBusiness = location.hash.indexOf('no-business') > -1;
 
   const localBizId = localStorage.getItem(LOCAL_BIZ_STORE_KEY);
@@ -76,14 +76,20 @@ export const setGlobalBizId = () => {
     !isDemo(id) && localStorage.setItem(LOCAL_BIZ_STORE_KEY, id.toString());
   };
   const setLocationSearch = (bizId: number | string) => {
-    if (location.search) {
+    if (location.search.match(/(space_uid|bizId)=([^#&/]+)/gim)) {
       location.search = location.search.replace(/(space_uid|bizId)=([^#&/]+)/gim, `bizId=${bizId}`);
     } else {
       location.href = `${location.origin}${location.pathname}?bizId=${bizId}${location.hash}`;
     }
     return false;
   };
-  if (bizId !== window.bk_biz_id && !isInSpaceList(bizId) && hasAuth(window.bk_biz_id)) {
+  // 如果bizId不在空间列表中 几没有权限或者是不存在的 bizId，则返回到无权限页面进行申请
+  if (bizId && !isInSpaceList(bizId)) {
+    location.href = `${location.origin}${location.pathname}?${`bizId=${bizId}`}#/no-business`;
+    return true;
+  }
+
+  if (bizId && bizId !== window.bk_biz_id && hasAuth(window.bk_biz_id)) {
     const newBizId = defaultBizId || localBizId;
     if (hasAuth(newBizId)) {
       window.bk_biz_id = +newBizId;
@@ -95,7 +101,7 @@ export const setGlobalBizId = () => {
     url.search = searchParams.toString();
     url.hash = '#/';
     history.replaceState({}, '', url.toString());
-    bizId = window.bk_biz_id;
+    bizId = +window.bk_biz_id;
   }
   if (!isCanAllIn && !bizList?.length && !isNoBusiness) {
     location.href = `${location.origin}${location.pathname}#/no-business`;
@@ -122,10 +128,9 @@ export const setGlobalBizId = () => {
       location.href = `${location.origin}${location.pathname}?${`bizId=${newBizId}`}#/no-business`;
       return ['#/no-business'].includes(location.hash.replace(/\?.*/, '')) ? newBizId : false;
     }
-
     bizId = newBizId;
   }
-  if (!isSpicialEvent && !hasRouteHash && !isEmailSubscriptions) {
+  if (!isSpacialEvent && !hasRouteHash && !isEmailSubscriptions) {
     const isDemoBizId = isDemo(bizId);
     if (!isDemoBizId && (!bizId || !hasAuth(bizId))) {
       if (!hasBizId() && localBizId && bizList.length && hasAuth(localBizId)) {
@@ -233,6 +238,101 @@ export const commonPageSizeGet = () => {
   return 10;
 };
 
+export const downloadFile = (data, type, filename) => {
+  const blob = new Blob([data], { type: type });
+  const url = window.URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  window.URL.revokeObjectURL(url);
+};
+
+export const detectOS = (): 'Mac' | 'Unknown' | 'Windows' => {
+  const platform = navigator.platform;
+  if (platform.startsWith('Win')) return 'Windows';
+  if (platform.startsWith('Mac')) return 'Mac';
+
+  const userAgent = navigator.userAgent;
+  if (userAgent.includes('Windows NT')) return 'Windows';
+  if (userAgent.includes('Mac OS X') || userAgent.includes('macOS')) return 'Mac';
+  return 'Unknown';
+};
+
+/**
+ * 格式化百分比数值，使其在不同情况下都能合理显示，避免精度问题导致的数据失真
+ * 如果数值小数过大，toFixed函数会导致精度丢失，
+ * @param {number} value - 要格式化的百分比数值（可以是整数或浮点数）
+ * @param {number} [precision=2] - 普通情况下小数点后保留的位数（默认2位）
+ * @param {number} [sigFigCnt=2] - 当数值极小时，保留的有效数字位数（默认2位）
+ * @param {number} [readablePrecision=6] - 当数值极小时，返回可读的最小值（默认1e-6）
+ * @returns number格式化后的数值
+ */
+export function formatPercent(value, precision = 2, sigFigCnt = 2, readablePrecision = 6) {
+  let percent = value;
+  // 1. 如果是整数，直接返回（不处理）
+  if (Number.isInteger(percent)) {
+    return percent;
+  }
+
+  // 2. 记录数值的正负号，并取绝对值进行计算
+  const sign = percent >= 0 ? 1 : -1;
+  percent = Math.abs(percent);
+
+  // 辅助函数：恢复数值的原始符号
+  const withSign = f => sign * f;
+
+  // 3. 处理极小数值（低于可读精度的情况）
+  // 例如：percent = 0.000000123（1.23e-7），readablePrecision=6 → 返回1e-6
+  if (0.0 < percent && percent < 10 ** -readablePrecision) {
+    return withSign(10 ** -readablePrecision);
+  }
+
+  // 4. 处理较小数值（低于普通精度的情况）
+  // 例如：percent = 0.000123（1.23e-4），precision=2 → 使用有效数字位数格式化
+  if (percent < 10 ** -precision) {
+    return withSign(Number.parseFloat(percent.toPrecision(sigFigCnt)));
+  }
+
+  // 5. 普通情况：四舍五入到指定精度
+  // 例如：percent = 0.123456，precision=2 → 0.12
+  const roundedPercent = Number.parseFloat(percent.toFixed(precision));
+
+  // 6. 检查四舍五入是否会导致失真（如99.9999变成100.00）
+  // 如果四舍五入的误差较大，则改用截断法
+  if (roundedPercent - percent < 10 ** -(precision + 1) * 5) {
+    const factor = 10 ** precision;
+    return withSign(Math.trunc(percent * factor) / factor);
+  }
+
+  // 7. 默认返回四舍五入后的值
+  return withSign(roundedPercent);
+}
+
+/**
+ * URL解码并转化
+ * @param str 需要解析的字符串
+ * @param defaultValue 默认值
+ * @returns 解析后的值
+ */
+export function tryURLDecodeParse<T>(str: string, defaultValue: T) {
+  let result: T;
+  try {
+    result = JSON.parse(str);
+  } catch {
+    try {
+      result = JSON.parse(decodeURIComponent(str));
+    } catch {
+      result = defaultValue;
+    }
+  }
+  return result || defaultValue;
+}
+
+export * from './colorHelpers';
 export * from './constant';
+export * from './equal';
 export * from './utils';
 export * from './xss';

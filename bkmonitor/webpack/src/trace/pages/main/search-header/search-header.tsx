@@ -26,6 +26,9 @@
 
 import { type PropType, defineComponent } from 'vue';
 
+import { useI18n } from 'vue-i18n';
+import { useRoute, useRouter } from 'vue-router';
+
 import RefreshRate from '../../../components/refresh-rate/refresh-rate';
 import SelectMenu, { type ISelectMenuOption } from '../../../components/select-menu/select-menu';
 import TimeRange from '../../../components/time-range/time-range';
@@ -60,7 +63,7 @@ export default defineComponent({
       type: Array as PropType<ISelectMenuOption[]>,
       default: () => [],
     },
-    refleshInterval: {
+    refreshInterval: {
       type: Number,
       default: -1,
     },
@@ -71,16 +74,19 @@ export default defineComponent({
   },
   emits: [
     'update:showLeft',
-    'update:refleshInterval',
+    'update:refreshInterval',
     'deleteCollect',
     'selectCollect',
     'timeRangeChange',
     'timezoneChange',
-    'refleshIntervalChange',
+    'refreshIntervalChange',
     'menuSelectChange',
-    'immediateReflesh',
+    'immediateRefresh',
   ],
   setup(props, { emit }) {
+    const { t } = useI18n();
+    const router = useRouter();
+    const route = useRoute();
     function handleDeleteCollect(id: number | string) {
       emit('deleteCollect', id);
     }
@@ -92,6 +98,12 @@ export default defineComponent({
     }
     function handleTimezoneChange(timezone: string) {
       emit('timezoneChange', timezone);
+    }
+    function handleGotoOld() {
+      router.push({
+        name: 'home',
+        query: route.query,
+      });
     }
     return () => (
       <div class='inquire-header-wrap'>
@@ -128,11 +140,11 @@ export default defineComponent({
           </span>
           <span class='inquire-header-append-item'>
             <RefreshRate
-              value={props.refleshInterval}
-              onImmediate={() => emit('immediateReflesh')}
+              value={props.refreshInterval}
+              onImmediate={() => emit('immediateRefresh')}
               onSelect={val => {
-                emit('update:refleshInterval', val);
-                emit('refleshIntervalChange', val);
+                emit('update:refreshInterval', val);
+                emit('refreshIntervalChange', val);
               }}
             />
             <SelectMenu
@@ -142,6 +154,25 @@ export default defineComponent({
               <i class='icon-monitor icon-mc-more-tool' />
             </SelectMenu>
           </span>
+          <div
+            style='padding-right: 0px'
+            class='goto-old'
+          >
+            <div
+              class='goto-old-wrap'
+              v-bk-tooltips={{
+                content: t('返回新版'),
+                placements: ['bottom-end'],
+                zIndex: 9999,
+              }}
+              onClick={handleGotoOld}
+            >
+              <div class='icon'>
+                <i class='icon-monitor icon-zhuanhuan' />
+              </div>
+              <span>{t('返回新版')}</span>
+            </div>
+          </div>
         </div>
       </div>
     );

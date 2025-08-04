@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -9,15 +8,13 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-
 import json
 from collections import defaultdict
 
-from django.conf import settings
 
 from alarm_backends.core.cache.cmdb import HostManager
 from alarm_backends.core.cache.cmdb.base import CMDBCacheManager, RefreshByBizMixin
-from api.cmdb.define import ServiceInstance, TopoTree
+from api.cmdb.define import ServiceInstance
 from core.drf_resource import api
 
 
@@ -27,7 +24,7 @@ class ServiceInstanceManager(RefreshByBizMixin, CMDBCacheManager):
     """
 
     type = "service_instance"
-    CACHE_KEY = "{prefix}.cmdb.service_instance".format(prefix=CMDBCacheManager.CACHE_KEY_PREFIX)
+    CACHE_KEY = f"{CMDBCacheManager.CACHE_KEY_PREFIX}.cmdb.service_instance"
     HOST_TO_SERVICE_INSTANCE_ID_CACHE_KEY = "{prefix}.cmdb.host_to_service_instance_id".format(
         prefix=CMDBCacheManager.CACHE_KEY_PREFIX
     )
@@ -47,7 +44,7 @@ class ServiceInstanceManager(RefreshByBizMixin, CMDBCacheManager):
         :param service_instance_id: 服务实例ID
         :rtype: ServiceInstance
         """
-        return super(ServiceInstanceManager, cls).get(service_instance_id)
+        return super().get(service_instance_id)
 
     @classmethod
     def refresh_by_biz(cls, bk_biz_id):
@@ -61,7 +58,7 @@ class ServiceInstanceManager(RefreshByBizMixin, CMDBCacheManager):
         host_to_service_instance = defaultdict(list)
 
         for instance in instances:
-            key = "module|{}".format(instance.bk_module_id)
+            key = f"module|{instance.bk_module_id}"
             instance.topo_link = {key: topo_link_dict.get(key, [])}
 
             # 从缓存中补全主机IP信息
@@ -84,9 +81,3 @@ class ServiceInstanceManager(RefreshByBizMixin, CMDBCacheManager):
         result = cls.cache.hget(cls.HOST_TO_SERVICE_INSTANCE_ID_CACHE_KEY, str(bk_host_id)) or "[]"
         service_instance_ids = json.loads(result)
         return service_instance_ids
-
-
-def main():
-    if "service_instance" in settings.DISABLE_ALARM_CMDB_CACHE_REFRESH:
-        return
-    ServiceInstanceManager.refresh()

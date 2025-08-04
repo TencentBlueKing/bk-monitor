@@ -40,13 +40,11 @@
         </bk-button>
       </div>
       <!-- 各种选择器的提示 -->
-      <div class="tips-text">
-        <i class="icon-monitor icon-tips item-icon" />{{ tips[targetType] }}
-      </div>
+      <div class="tips-text"><i class="icon-monitor icon-tips item-icon" />{{ tips[targetType] }}</div>
       <!-- 3种选择器  实例  IP  节点 -->
       <div class="target-selector">
         <alarm-shield-ipv6
-          v-if="inited"
+          v-if="initialized"
           :show-dialog="showIpv6Dialog"
           :shield-dimension="targetType"
           :checked-value="ipv6Value"
@@ -58,13 +56,15 @@
         <div
           v-if="targetError"
           class="target-selector-error"
-        >{{ $t('选择屏蔽目标') }}</div>
+        >
+          {{ $t('选择屏蔽目标') }}
+        </div>
       </div>
     </template>
     <!-- 编辑勾选展示 -->
     <bk-table
-      class="static-table"
       v-else-if="targetType !== 'biz' && isEdit"
+      class="static-table"
       :data="targetData"
       :max-height="450"
     >
@@ -78,9 +78,9 @@
 </template>
 
 <script lang="ts">
-import { deepClone } from 'monitor-common/utils';
-import type { TranslateResult } from 'vue-i18n/types/index';
 import { Component, Prop, Vue } from 'vue-property-decorator';
+
+import { deepClone } from 'monitor-common/utils';
 
 import { transformMonitorToValue, transformValueToMonitor } from '../../../components/monitor-ip-selector/utils';
 import AlarmShieldIpv6, {
@@ -88,6 +88,8 @@ import AlarmShieldIpv6, {
   ShieldDetailTargetFieldMap,
   ShieldDimension2NodeType,
 } from '../alarm-shield-set/alarm-shield-scope/alarm-shield-ipv6';
+
+import type { TranslateResult } from 'vue-i18n/types/index';
 
 @Component({
   components: {
@@ -99,12 +101,12 @@ export default class AlarmShieldTarget extends Vue {
   targetType = 'ip'; //  当前选择器类型
 
   //  选择器类型btn
-  btnList: { name: TranslateResult; id: string }[] = [];
+  btnList: { id: string; name: TranslateResult }[] = [];
   //  不同选择器提示语
   tips: { instance: TranslateResult; ip: TranslateResult; node: TranslateResult };
   //  不同类型的展示标签
-  labelMap: { ip: TranslateResult; instance: TranslateResult; node: TranslateResult };
-  inited = true;
+  labelMap: { instance: TranslateResult; ip: TranslateResult; node: TranslateResult };
+  initialized = true;
   showIpv6Dialog = false;
   ipv6Value = {};
   originIpv6Value = {};
@@ -158,10 +160,10 @@ export default class AlarmShieldTarget extends Vue {
     };
 
     if (this.isClone) {
-      this.inited = false;
+      this.initialized = false;
       this.targetType = this.type;
       this.cloneDefaultData();
-      this.$nextTick(() => (this.inited = true));
+      this.$nextTick(() => (this.initialized = true));
     }
   }
 

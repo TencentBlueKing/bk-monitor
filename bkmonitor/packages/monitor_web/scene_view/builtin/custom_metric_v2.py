@@ -36,7 +36,7 @@ class CustomMetricV2BuiltinProcessor(BuiltinProcessor):
         return {
             "id": view.id,
             "name": view.name,
-            "mode": SceneViewModel.SceneViewType.auto,
+            "mode": SceneViewModel.SceneViewType.auto.value,
             "variables": [],
             "order": [],
             "panels": [],
@@ -50,39 +50,20 @@ class CustomMetricV2BuiltinProcessor(BuiltinProcessor):
     ) -> Optional[SceneViewModel]:
         """
         创建或更新视图
-        options: {
-            # 显示的指标
-            "show_metrics": [],
-            # 指标过滤条件，[{"condition": "and", "key": "xxx", "method": "eq", "value": ["v1"]}]
-            "condition": [],
-            # 聚合维度，[{"field": "xxxx", "split": True}, {"field": "yyy", "split": False}]
-            "group_by": [],
-            # 限制返回的series数量，top/bottom，limit=0表示不限制
-            "limit": {"function": "top", "limit": 0},
-            # 对比配置, 对比模式, time: 时间对比, metric: 指标对比。offset: 对比偏移量
-            "compare": {"type": "time", "offset": "1d"},
-            # 图表配置
-            "chart_config": {
-                # 是否展示统计信息
-                "show_statistic": False,
-                # 是否展示峰值和谷值
-                "show_peakand_valley": False,
-                # 是否展示常用维度
-                "show_common_dimensions": False,
-                # 图表列数
-                "column_number": 1,
-            },
-        }
         """
+        update_params = {
+            "name": view_config["name"],
+            "mode": SceneViewModel.SceneViewType.auto.value,
+        }
+
+        if "options" in view_config:
+            update_params["options"] = view_config["options"]
+
         view, _ = SceneViewModel.objects.update_or_create(
             bk_biz_id=bk_biz_id,
             scene_id=scene_id,
             type=view_type,
             id=view_id,
-            defaults={
-                "name": view_config["name"],
-                "mode": SceneViewModel.SceneViewType.auto,
-                "options": view_config["options"],
-            },
+            defaults=update_params,
         )
         return view

@@ -24,17 +24,18 @@
  * IN THE SOFTWARE.
  */
 import Vue from 'vue';
-import { Component, InjectReactive, Inject } from 'vue-property-decorator';
+
+import { Component, Inject, InjectReactive } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import {
-  MonitorRetrieve as Log,
-  initMonitorState,
-  initGlobalComponents,
-  logStore,
   i18n,
+  initGlobalComponents,
+  initMonitorState,
+  MonitorApmLog as Log,
+  logStore,
 } from '@blueking/monitor-apm-log/main';
-import { serviceRelationList, serviceLogInfo } from 'monitor-api/modules/apm_log';
+import { serviceLogInfo, serviceRelationList } from 'monitor-api/modules/apm_log';
 import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
 
 import type { IViewOptions } from '../../typings';
@@ -43,13 +44,13 @@ import type { TimeRangeType } from 'monitor-pc/components/time-range/time-range'
 import './monitor-retrieve.scss';
 import '@blueking/monitor-apm-log/css/main.css';
 
-export const APM_LOG_ROUTER_QUERY_KEYS = ['search_mode', 'addition', 'keyword', 'indexId'];
+export const APM_LOG_ROUTER_QUERY_KEYS = ['search_mode', 'addition', 'keyword', 'indexId', 'unionList'];
 @Component
 export default class MonitorRetrieve extends tsc<void> {
   @InjectReactive('timeRange') readonly timeRange!: TimeRangeType;
   @InjectReactive('timezone') readonly timezone: string;
   // 是否立即刷新
-  @InjectReactive('refleshImmediate') readonly refleshImmediate: string;
+  @InjectReactive('refreshImmediate') readonly refreshImmediate: string;
   // 视图变量
   @InjectReactive('viewOptions') readonly viewOptions!: IViewOptions;
   // 当前使用的业务id
@@ -94,7 +95,7 @@ export default class MonitorRetrieve extends tsc<void> {
               indexSetApi: this.indexSetApi,
               timeRange: this.timeRange,
               timezone: this.timezone,
-              refleshImmediate: this.refleshImmediate,
+              refreshImmediate: this.refreshImmediate,
               handleChartDataZoom: this.handleChartDataZoom,
             },
           }),
@@ -151,7 +152,7 @@ export default class MonitorRetrieve extends tsc<void> {
         {this.empty ? (
           <div class='empty-chart-log'>
             {this.loading ? (
-              window.i18n.tc('加载中...')
+              window.i18n.t('加载中...')
             ) : (
               <bk-exception type='building'>
                 <span>{this.$t('暂无关联日志')}</span>

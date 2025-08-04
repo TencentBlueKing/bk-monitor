@@ -828,7 +828,7 @@
       .continue-list-item.list-item {
         /* stylelint-disable-next-line no-descending-specificity */
         .item-type-icon {
-          color: #7800a6;
+          color: #7c609e;
           background-color: #f2e6f6;
         }
 

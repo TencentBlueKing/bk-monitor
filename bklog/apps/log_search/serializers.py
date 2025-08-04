@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -29,6 +28,7 @@ from django.utils.translation import gettext_lazy as _
 from rest_framework import serializers
 
 from apps.exceptions import ValidationError
+from apps.log_databus.serializers import AliasSettingSerializer
 from apps.log_desensitize.constants import DesensitizeOperator, DesensitizeRuleStateEnum
 from apps.log_desensitize.handlers.desensitize_operator import OPERATOR_MAPPING
 from apps.log_esquery.constants import WILDCARD_PATTERN
@@ -40,11 +40,11 @@ from apps.log_search.constants import (
     FavoriteVisibleType,
     IndexSetType,
     InstanceTypeEnum,
-    QueryMode,
     SearchMode,
     SearchScopeEnum,
     TagColor,
     TemplateType,
+    QueryMode,
 )
 from apps.log_search.models import LogIndexSetData, ProjectInfo, Scenario
 from apps.log_unifyquery.constants import FIELD_TYPE_MAP
@@ -322,7 +322,9 @@ class SearchAttrSerializer(serializers.Serializer):
             for sort_info in attrs.get("sort_list"):
                 field_name, order = sort_info
                 if order not in ["desc", "asc"]:
-                    raise ValidationError(_("字段名【{}】的排序规则指定错误, 支持('desc', 降序）,('asc', 升序）").format(field_name))
+                    raise ValidationError(
+                        _("字段名【{}】的排序规则指定错误, 支持('desc', 降序）,('asc', 升序）").format(field_name)
+                    )
         return attrs
 
 
@@ -335,6 +337,7 @@ class UnionConfigSerializer(serializers.Serializer):
     index_set_id = serializers.IntegerField(label=_("索引集ID"), required=True)
     begin = serializers.IntegerField(required=False, default=0)
     is_desensitize = serializers.BooleanField(label=_("是否脱敏"), required=False, default=True)
+    custom_indices = serializers.CharField(required=False, allow_null=True, allow_blank=True, default="")
 
 
 class UnionSearchAttrSerializer(SearchAttrSerializer):
@@ -348,6 +351,35 @@ class UnionSearchAttrSerializer(SearchAttrSerializer):
 
         attrs["index_set_ids"] = sorted([config["index_set_id"] for config in attrs.get("union_configs", [])])
 
+        return attrs
+
+
+class UnionSearchExportSerializer(serializers.Serializer):
+    union_configs = serializers.ListField(
+        label=_("联合检索参数"), required=True, allow_empty=False, child=UnionConfigSerializer()
+    )
+    index_set_ids = serializers.ListField(label=_("索引集列表"), required=False, default=[])
+    bk_biz_id = serializers.IntegerField(label=_("业务ID"), required=True)
+    ip_chooser = serializers.DictField(default={}, required=False)
+    addition = serializers.ListField(allow_empty=True, required=False, default="")
+    start_time = DateTimeFieldWithEpoch(required=True)
+    end_time = DateTimeFieldWithEpoch(required=True)
+    time_range = serializers.CharField(label=_("时间范围"), required=False)
+    keyword = serializers.CharField(required=False, allow_null=True, allow_blank=True)
+    begin = serializers.IntegerField(required=False, default=0)
+    size = serializers.IntegerField(required=False, default=10)
+    is_desensitize = serializers.BooleanField(label=_("是否脱敏"), required=False, default=True)
+    export_fields = serializers.ListField(label=_("导出字段"), required=False, default=[])
+    file_type = serializers.ChoiceField(
+        label=_("下载文件类型"), required=False, choices=ExportFileType.get_choices(), default=ExportFileType.LOG.value
+    )
+    is_quick_export = serializers.BooleanField(label=_("是否快速下载"), required=False, default=False)
+
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+        if attrs.get("keyword") and attrs["keyword"].strip() == "":
+            attrs["keyword"] = WILDCARD_PATTERN
+        attrs["index_set_ids"] = sorted([config["index_set_id"] for config in attrs.get("union_configs", [])])
         return attrs
 
 
@@ -396,6 +428,7 @@ class SearchIndexSetScopeSerializer(serializers.Serializer):
     """
 
     space_uid = SpaceUIDField(label=_("空间唯一标识"), required=True)
+    is_group = serializers.BooleanField(label=_("是否分组展示"), required=False, default=False)
 
 
 class IndexSetFieldsConfigBaseSerializer(serializers.Serializer):
@@ -468,7 +501,9 @@ class SearchUserIndexSetOptionHistoryDeleteSerializer(serializers.Serializer):
         label=_("索引集类型"), required=False, choices=IndexSetType.get_choices(), default=IndexSetType.SINGLE.value
     )
     history_id = serializers.IntegerField(label=_("历史记录ID"), required=False)
-    is_delete_all = serializers.BooleanField(label=_("是否删除用户当前空间下所有历史记录"), required=False, default=False)
+    is_delete_all = serializers.BooleanField(
+        label=_("是否删除用户当前空间下所有历史记录"), required=False, default=False
+    )
 
     def validate(self, attrs):
         attrs = super().validate(attrs)
@@ -500,7 +535,9 @@ class SearchExportSerializer(serializers.Serializer):
 
 
 class UnionSearchSearchExportSerializer(SearchExportSerializer):
-    index_set_ids = serializers.ListField(label=_("联合检索索引集ID列表"), child=serializers.IntegerField(), required=True)
+    index_set_ids = serializers.ListField(
+        label=_("联合检索索引集ID列表"), child=serializers.IntegerField(), required=True
+    )
 
     def validate(self, attrs):
         attrs["index_set_ids"] = sorted(attrs["index_set_ids"])
@@ -833,13 +870,17 @@ class TemplateSerializer(serializers.Serializer):
 
 
 class DynamicGroupSerializer(serializers.Serializer):
-    dynamic_group_id_list = serializers.ListField(label=_("动态分组ID列表"), child=serializers.CharField(label=_("动态分组ID")))
+    dynamic_group_id_list = serializers.ListField(
+        label=_("动态分组ID列表"), child=serializers.CharField(label=_("动态分组ID"))
+    )
 
 
 class HostInfoSerializer(serializers.Serializer):
     cloud_id = serializers.IntegerField(help_text=_("云区域 ID"), required=False)
     ip = serializers.IPAddressField(help_text=_("IPv4 协议下的主机IP"), required=False, protocol="ipv4")
-    host_id = serializers.IntegerField(help_text=_("主机 ID，优先取 `host_id`，否则取 `ip` + `cloud_id`"), required=False)
+    host_id = serializers.IntegerField(
+        help_text=_("主机 ID，优先取 `host_id`，否则取 `ip` + `cloud_id`"), required=False
+    )
 
     def validate(self, attrs):
         if not ("host_id" in attrs or ("ip" in attrs and "cloud_id" in attrs)):
@@ -943,18 +984,22 @@ class UserIndexSetCustomConfigSerializer(serializers.Serializer):
         label=_("索引集ID列表"), required=False, allow_empty=False, child=serializers.IntegerField()
     )
     index_set_type = serializers.ChoiceField(label=_("索引集类型"), required=True, choices=IndexSetType.get_choices())
-    index_set_config = serializers.JSONField(label=_("索引集字段宽度配置"), required=True)
+    index_set_config = serializers.JSONField(label=_("索引集自定义配置"), required=True)
 
     def validate(self, attrs):
-        index_set_id = attrs.get('index_set_id')
-        index_set_ids = attrs.get('index_set_ids')
-        index_set_type = attrs.get('index_set_type')
+        index_set_id = attrs.get("index_set_id")
+        index_set_ids = attrs.get("index_set_ids")
+        index_set_type = attrs.get("index_set_type")
 
         if index_set_type == IndexSetType.SINGLE.value and not index_set_id:
             raise serializers.ValidationError(_("参数校验失败: index_set_id 必须被提供"))
         elif index_set_type == IndexSetType.UNION.value and not index_set_ids:
             raise serializers.ValidationError(_("参数校验失败: index_set_ids 必须被提供"))
         return attrs
+
+
+class IndexSetCustomConfigSerializer(UserIndexSetCustomConfigSerializer):
+    pass
 
 
 class SearchConditionSerializer(serializers.Serializer):
@@ -976,6 +1021,17 @@ class ChartSerializer(serializers.Serializer):
     query_mode = serializers.ChoiceField(
         label=_("查询模式"), required=False, choices=QueryMode.get_choices(), default=QueryMode.SQL.value
     )
+    alias_settings = AliasSettingSerializer(many=True, required=False, default=list)
+
+    def to_representation(self, instance):
+        representation = super().to_representation(instance)
+        # 根据 alias_settings 的内容创建 alias_mappings
+        alias_mappings = {
+            alias["query_alias"]: alias["field_name"] for alias in representation.get("alias_settings", [])
+        }
+        # 添加 alias_mappings 字段到序列化输出中
+        representation["alias_mappings"] = alias_mappings
+        return representation
 
 
 class UISearchSerializer(serializers.Serializer):
@@ -988,6 +1044,17 @@ class UISearchSerializer(serializers.Serializer):
         default=list,
         child=SearchConditionSerializer(label=_("搜索条件"), required=False),
     )
+    alias_settings = AliasSettingSerializer(many=True, required=False, default=list)
+
+    def to_representation(self, instance):
+        representation = super().to_representation(instance)
+        # 根据 alias_settings 的内容创建 alias_mappings
+        alias_mappings = {
+            alias["query_alias"]: alias["field_name"] for alias in representation.get("alias_settings", [])
+        }
+        # 添加 alias_mappings 字段到序列化输出中
+        representation["alias_mappings"] = alias_mappings
+        return representation
 
 
 class QueryStringSerializer(serializers.Serializer):
@@ -1051,3 +1118,48 @@ class AlertRecordSerializer(StrategyRecordSerializer):
 
 class LogRelatedInfoSerializer(serializers.Serializer):
     alert_id = serializers.IntegerField(label=_("告警ID"))
+
+
+class LogGrepQuerySerializer(serializers.Serializer):
+    start_time = serializers.IntegerField(label=_("起始时间"), required=True)
+    end_time = serializers.IntegerField(label=_("结束时间"), required=True)
+    keyword = serializers.CharField(label=_("搜索关键字"), required=False, allow_null=True, allow_blank=True)
+    addition = serializers.ListField(
+        required=False,
+        default=list,
+        child=SearchConditionSerializer(label=_("搜索条件"), required=False),
+    )
+    grep_query = serializers.CharField(label=_("grep查询条件"), required=False, allow_null=True, allow_blank=True)
+    grep_field = serializers.CharField(label=_("查询字段"), required=False, allow_null=True, allow_blank=True)
+    begin = serializers.IntegerField(label=_("检索开始 offset"), required=False, default=0)
+    size = serializers.IntegerField(label=_("检索结果大小"), required=False, default=10)
+    sort_list = serializers.ListField(required=False, allow_null=True, allow_empty=True, child=serializers.ListField())
+    alias_settings = AliasSettingSerializer(many=True, required=False, default=list)
+
+    def to_representation(self, instance):
+        representation = super().to_representation(instance)
+        # 根据 alias_settings 的内容创建 alias_mappings
+        alias_mappings = {
+            alias["query_alias"]: alias["field_name"] for alias in representation.get("alias_settings", [])
+        }
+        # 添加 alias_mappings 字段到序列化输出中
+        representation["alias_mappings"] = alias_mappings
+        return representation
+
+
+class AliasSettingsSerializer(serializers.Serializer):
+    alias_settings = AliasSettingSerializer(many=True, required=True)
+
+    def to_representation(self, instance):
+        representation = super().to_representation(instance)
+        # 根据 alias_settings 的内容创建 alias_mappings
+        alias_mappings = {
+            alias["query_alias"]: alias["field_name"] for alias in representation.get("alias_settings", [])
+        }
+        # 添加 alias_mappings 字段到序列化输出中
+        representation["alias_mappings"] = alias_mappings
+        return representation
+
+
+class QueryByDataIdSerializer(serializers.Serializer):
+    bk_data_id = serializers.IntegerField(label=_("采集链路ID"), required=True)

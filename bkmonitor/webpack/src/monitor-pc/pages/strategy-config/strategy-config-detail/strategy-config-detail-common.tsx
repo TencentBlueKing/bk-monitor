@@ -46,9 +46,6 @@ import HistoryDialog from '../../../components/history-dialog/history-dialog';
 import AlarmGroupDetail from '../../alarm-group/alarm-group-detail/alarm-group-detail';
 import CommonNavBar from '../../monitor-k8s/components/common-nav-bar';
 import { handleSetTargetDesc, isRecoveryDisable, isStatusSetterNoData } from '../common';
-import StrategyTemplatePreview from '../strategy-config-set/strategy-template-preview/strategy-template-preview.vue';
-import StrategyVariateList from '../strategy-config-set/strategy-variate-list/strategy-variate-list.vue';
-import StrategyView from '../strategy-config-set/strategy-view/strategy-view';
 import { signalNames } from '../strategy-config-set-new/alarm-handling/alarm-handling-list';
 import { RecoveryConfigStatusSetter } from '../strategy-config-set-new/judging-condition/judging-condition';
 import AiopsMonitorData from '../strategy-config-set-new/monitor-data/aiops-monitor-data';
@@ -59,12 +56,15 @@ import {
 } from '../strategy-config-set-new/notice-config/notice-config';
 import { levelList, noticeMethod } from '../strategy-config-set-new/type';
 import {
+  type dataModeType,
   type IDetectionConfig,
   type IScenarioItem,
   MetricDetail,
   MetricType,
-  type dataModeType,
 } from '../strategy-config-set-new/typings';
+import StrategyTemplatePreview from '../strategy-config-set/strategy-template-preview/strategy-template-preview.vue';
+import StrategyVariateList from '../strategy-config-set/strategy-variate-list/strategy-variate-list.vue';
+import StrategyView from '../strategy-config-set/strategy-view/strategy-view';
 import DetectionRulesDisplay from './components/detection-rules-display';
 import MetricListItem from './components/metric-list-item';
 import StrategyTargetTable from './strategy-config-detail-table.vue';
@@ -78,39 +78,39 @@ import type { IFunctionsValue } from '../strategy-config-set-new/monitor-data/fu
 
 import './strategy-config-detail-common.scss';
 
+type BaseInfoRequire = {
+  key: keyof Omit<IBaseInfo, 'labels'>;
+  name: string;
+};
+
+type EditModeType = 'Edit' | 'Source';
 interface IAnalyzingConditions {
-  triggerConfig: {
-    count: number;
-    checkWindow: number;
-    checkType: string;
+  timeRange: string[];
+  noDataConfig: {
+    continuous: number;
+    dimensions: unknown[];
+    isEnabled: boolean;
+    level: number;
   };
   recoveryConfig: {
     checkWindow: number;
     statusSetter: RecoveryConfigStatusSetter;
   };
-  noDataConfig: {
-    continuous: number;
-    isEnabled: boolean;
-    dimensions: unknown[];
-    level: number;
+  triggerConfig: {
+    checkType: string;
+    checkWindow: number;
+    count: number;
   };
-  timeRange: string[];
 }
 
 interface IBaseInfo {
-  name: string; // 策略名
   bizName: string; // 业务名
   enabled: string; // 是否启用
-  scenario: string; // 监控对象
   labels: string[]; // 标签
+  name: string; // 策略名
   priority: null | number | string; // 优先级
+  scenario: string; // 监控对象
 }
-type BaseInfoRequire = {
-  name: string;
-  key: keyof Omit<IBaseInfo, 'labels'>;
-};
-
-type EditModeType = 'Edit' | 'Source';
 
 @Component({
   components: {
@@ -128,7 +128,7 @@ export default class StrategyConfigDetailCommon extends tsc<object> {
   @Inject('authorityMap') authorityMap;
   @ProvideReactive('strategyId') strategyId = 0;
 
-  strategyView: { rightWidth: number | string; range: number[]; isActive: boolean; show: boolean } = {
+  strategyView: { isActive: boolean; range: number[]; rightWidth: number | string; show: boolean } = {
     rightWidth: '33%',
     range: [300, 1200],
     isActive: false,
@@ -295,8 +295,8 @@ export default class StrategyConfigDetailCommon extends tsc<object> {
   templateActive = '';
   // 告警模板数据
   templateData: {
-    signal: string;
     message_tmpl: string;
+    signal: string;
     title_tmpl: string;
   } = { signal: 'abnormal', message_tmpl: '', title_tmpl: '' };
   // 告警组想详情
@@ -342,7 +342,7 @@ export default class StrategyConfigDetailCommon extends tsc<object> {
   isMultivariateAnomalyDetection = false;
   multivariateAnomalyDetectionParams = {
     metrics: [],
-    refleshKey: '',
+    refreshKey: '',
   };
 
   targetDetailLoading = false;
@@ -426,6 +426,11 @@ export default class StrategyConfigDetailCommon extends tsc<object> {
       return false;
     }
     return this.metricData[0]?.canSetDetEctionRules || this.editMode === 'Source';
+  }
+
+  // 是否显示判断条件
+  get isNeedJudgingCondition() {
+    return this.metricData?.[0]?.data_type_label !== 'alert';
   }
 
   created() {
@@ -724,7 +729,7 @@ export default class StrategyConfigDetailCommon extends tsc<object> {
     // 策略快照start
     this.strategyId = 0;
     const { fromEvent } = this.$route.query;
-    let snapshotRes: { strategy_status?: string; name?: string; id?: number } = {};
+    let snapshotRes: { id?: number; name?: string; strategy_status?: string } = {};
     if (fromEvent) {
       snapshotRes = await strategySnapshot({ id });
       this.strategyStatus = snapshotRes.strategy_status;
@@ -839,6 +844,7 @@ export default class StrategyConfigDetailCommon extends tsc<object> {
           ...item.options.converge_config,
           timedelta: item.options.converge_config.timedelta / 60,
         },
+        skip_delay: item.options?.skip_delay ? item.options?.skip_delay / 60 : 0,
       },
     }));
   }
@@ -973,7 +979,7 @@ export default class StrategyConfigDetailCommon extends tsc<object> {
   }
   handleMultivariateAnomalyRefreshView() {
     /* refleshKey用于控制图表数据刷新 */
-    this.multivariateAnomalyDetectionParams.refleshKey = random(8);
+    this.multivariateAnomalyDetectionParams.refreshKey = random(8);
   }
 
   render() {
@@ -996,8 +1002,8 @@ export default class StrategyConfigDetailCommon extends tsc<object> {
         class='comm-item'
       >
         <div
-          v-en-style='min-width: 130px'
           class='comm-item-title'
+          v-en-style='min-width: 130px'
         >
           {title}:
         </div>
@@ -1238,52 +1244,60 @@ export default class StrategyConfigDetailCommon extends tsc<object> {
               {panelItem(
                 this.$tc('判断条件'),
                 <div class='analyzing-conditions'>
-                  {commonItem(
-                    this.$t('触发条件'),
-                    <i18n path='在{0}个周期内{1}满足{2}次检测算法，触发告警通知'>
-                      <span class='bold-span'>{triggerConfig.checkWindow}</span>
-                      <span class='bold-span'>{aggList.find(item => triggerConfig.checkType === item.id).name}</span>
-                      <span class='bold-span'>{triggerConfig.count}</span>
-                    </i18n>
-                  )}
-                  {commonItem(
-                    this.$t('恢复条件'),
-                    <i18n
-                      class='i18n-path'
-                      path='连续{0}个周期内不满足触发条件{1}'
-                    >
-                      <span class='bold-span'>{recoveryConfig.checkWindow}</span>
-                      {!isRecoveryDisable(this.metricData) &&
-                      isStatusSetterNoData(this.analyzingConditions?.recoveryConfig?.statusSetter) ? (
-                        <span class='bold-span bold-span-no-left-margin'>{this.$t('或无数据')}</span>
-                      ) : null}
-                    </i18n>
-                  )}
-                  {commonItem(
-                    this.$t('无数据'),
-                    noDataConfig.isEnabled ? (
-                      <i18n
-                        path={
-                          noDataConfig.dimensions.length
-                            ? '{0}当数据连续丢失{1}个周期时，触发告警通知基于以下维度{2}进行判断，告警级别{3}'
-                            : '{0}当数据连续丢失{1}个周期时，触发告警通知，告警级别{2}'
-                        }
-                      >
-                        <span />
-                        <span class='bold-span'>{noDataConfig.continuous}</span>
-                        {noDataConfig.dimensions.length ? (
-                          <span class='bold-span'>
-                            {noDataConfig.dimensions
-                              .map(id => this.dimensionsMap?.[id as string]?.name || id)
-                              .join(',')}
-                          </span>
-                        ) : undefined}
-                        <span class='bold-span'>{levelList.find(item => noDataConfig.level === item.id).name}</span>
-                      </i18n>
-                    ) : (
-                      '--'
-                    )
-                  )}
+                  {this.isNeedJudgingCondition
+                    ? [
+                        commonItem(
+                          this.$t('触发条件'),
+                          <i18n path='在{0}个周期内{1}满足{2}次检测算法，触发告警通知'>
+                            <span class='bold-span'>{triggerConfig.checkWindow}</span>
+                            <span class='bold-span'>
+                              {aggList.find(item => triggerConfig.checkType === item.id).name}
+                            </span>
+                            <span class='bold-span'>{triggerConfig.count}</span>
+                          </i18n>
+                        ),
+                        commonItem(
+                          this.$t('恢复条件'),
+                          <i18n
+                            class='i18n-path'
+                            path='连续{0}个周期内不满足触发条件{1}'
+                          >
+                            <span class='bold-span'>{recoveryConfig.checkWindow}</span>
+                            {!isRecoveryDisable(this.metricData) &&
+                            isStatusSetterNoData(this.analyzingConditions?.recoveryConfig?.statusSetter) ? (
+                              <span class='bold-span bold-span-no-left-margin'>{this.$t('或无数据')}</span>
+                            ) : null}
+                          </i18n>
+                        ),
+                        commonItem(
+                          this.$t('无数据'),
+                          noDataConfig.isEnabled ? (
+                            <i18n
+                              path={
+                                noDataConfig.dimensions.length
+                                  ? '{0}当数据连续丢失{1}个周期时，触发告警通知基于以下维度{2}进行判断，告警级别{3}'
+                                  : '{0}当数据连续丢失{1}个周期时，触发告警通知，告警级别{2}'
+                              }
+                            >
+                              <span />
+                              <span class='bold-span'>{noDataConfig.continuous}</span>
+                              {noDataConfig.dimensions.length ? (
+                                <span class='bold-span'>
+                                  {noDataConfig.dimensions
+                                    .map(id => this.dimensionsMap?.[id as string]?.name || id)
+                                    .join(',')}
+                                </span>
+                              ) : undefined}
+                              <span class='bold-span'>
+                                {levelList.find(item => noDataConfig.level === item.id).name}
+                              </span>
+                            </i18n>
+                          ) : (
+                            '--'
+                          )
+                        ),
+                      ]
+                    : undefined}
                   {commonItem(
                     this.$t('生效时间段'),
                     this.timeRanges.length
@@ -1338,6 +1352,14 @@ export default class StrategyConfigDetailCommon extends tsc<object> {
                                   {this.defenseMap[item.options.converge_config.converge_func]?.name || ''}
                                 </span>
                               </i18n>
+                              {item.options?.skip_delay > 0 ? (
+                                <i18n
+                                  class='bold-span enable-delay'
+                                  path='当首次异常时间超过{0}分钟时不执行该套餐'
+                                >
+                                  {item.options.skip_delay}
+                                </i18n>
+                              ) : undefined}
                             </span>
                           ) : (
                             window.i18n.t('关闭')

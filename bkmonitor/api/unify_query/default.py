@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,6 +7,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import json
 import logging
 import time
@@ -19,7 +19,8 @@ from rest_framework import serializers
 
 from bkm_space.utils import bk_biz_id_to_space_uid, parse_space_uid
 from bkmonitor.utils.local import local
-from bkmonitor.utils.request import get_request
+from bkmonitor.utils.request import get_request, get_request_tenant_id
+from bkmonitor.utils.tenant import space_uid_to_bk_tenant_id
 from core.drf_resource import Resource
 from core.errors.api import BKAPIError
 
@@ -49,7 +50,7 @@ def get_unify_query_url(space_uid: str):
         for key, value in match_keys.items():
             match_values = routing_rule.get(key)
             if match_values:
-                if isinstance(match_values, (int, str)):
+                if isinstance(match_values, int | str):
                     # 匹配条件是数字或者字符串，转换成列表
                     match_values = [str(match_values)]
                 elif not isinstance(match_values, list):
@@ -104,6 +105,23 @@ class UnifyQueryAPIResource(Resource):
         elif space_uid:
             requests_params["headers"]["X-Bk-Scope-Space-Uid"] = space_uid
 
+        # 设置租户ID
+        bk_tenant_id = None
+        if params.get("bk_tenant_id"):
+            bk_tenant_id = params["bk_tenant_id"]
+        elif space_uid:
+            try:
+                bk_tenant_id = space_uid_to_bk_tenant_id(space_uid)
+            except ValueError:
+                pass
+
+        # 如果租户ID不存在，则使用请求的租户ID
+        if not bk_tenant_id:
+            bk_tenant_id = get_request_tenant_id(peaceful=True)
+
+        if bk_tenant_id:
+            requests_params["headers"]["X-Bk-Tenant-Id"] = bk_tenant_id
+
         if self.method in ["PUT", "POST", "PATCH"]:
             requests_params["json"] = params
         elif self.method in ["GET", "HEAD", "DELETE"]:
@@ -136,6 +154,54 @@ class QueryDataResource(UnifyQueryAPIResource):
         down_sample_range = serializers.CharField(allow_blank=True)
         timezone = serializers.CharField(required=False)
         instant = serializers.BooleanField(required=False)
+
+
+class QueryRawResource(UnifyQueryAPIResource):
+    """
+    查询原始数据
+    """
+
+    method = "POST"
+    path = "/query/ts/raw"
+
+    class RequestSerializer(serializers.Serializer):
+        query_list = serializers.ListField()
+        metric_merge = serializers.CharField()
+        start_time = serializers.CharField()
+        end_time = serializers.CharField()
+        step = serializers.CharField()
+        limit = serializers.IntegerField(required=False, default=1)
+        # from 是 Python 关键字，此处加下划线，真正请求时转回 _from
+        _from = serializers.IntegerField(required=False, default=0)
+        space_uid = serializers.CharField(allow_null=True)
+        timezone = serializers.CharField(required=False)
+        instant = serializers.BooleanField(required=False)
+        order_by = serializers.ListField(allow_null=True, required=False, allow_empty=True)
+
+    def perform_request(self, params):
+        params["from"] = params.pop("_from", 0)
+        return super().perform_request(params)
+
+
+class QueryReferenceResource(UnifyQueryAPIResource):
+    """
+    查询原始数据
+    """
+
+    method = "POST"
+    path = "/query/ts/reference"
+
+    class RequestSerializer(serializers.Serializer):
+        query_list = serializers.ListField()
+        metric_merge = serializers.CharField()
+        start_time = serializers.CharField()
+        end_time = serializers.CharField()
+        step = serializers.CharField()
+        space_uid = serializers.CharField(allow_null=True)
+        timezone = serializers.CharField(required=False)
+        instant = serializers.BooleanField(required=False)
+        order_by = serializers.ListField(allow_null=True, required=False, allow_empty=True)
+        look_back_delta = serializers.CharField(required=False, default="1m")
 
 
 class QueryClusterMetricsDataResource(UnifyQueryAPIResource):
@@ -178,6 +244,28 @@ class QueryDataByPromqlResource(UnifyQueryAPIResource):
         step = serializers.RegexField(required=False, regex=r"^\d+(ms|s|m|h|d|w|y)$")
         timezone = serializers.CharField(required=False)
         down_sample_range = serializers.CharField(allow_blank=True, required=False)
+        # 背景：默认情况下，unify-query 会对查询结果进行时序对齐，叠加上 SaaS 默认 drop 最后一个数据点逻辑，会导致数据不准确，
+        # 该默认行为对基于一段时间配置汇总数据的视图非常不友好，会出现较大的误差，或者直接无数据。
+        #
+        # e.g. 按流水线统计一段时间（近 3h）内（2025-07-14 18:48:39 ～ 2025-07-14 21:48:39）的运行次数：
+        # 1）queryTs：
+        # - ES 过滤时间范围：2025-07-14 17:59:59 ～ 2025-07-15 00:48:38
+        # - 按 3h 进行分桶
+        #
+        # 返回数据点：
+        # - 1752487200000（2025-07-14 18:00:00）, 130
+        # - 1752498000000（2025-07-14 21:00:00）, 0（❌不完整周期，对齐后无数据。）
+        #
+        # 2）queryReference
+        # - ES 过滤时间范围：2025-07-14 18:48:39 ～ 2025-07-14 21:48:39
+        #
+        # 返回数据点：
+        # - 1752487200000（2025-07-14 18:00:00）, 130
+        # - 1752498000000（2025-07-14 21:00:00）, 31（✅不完整周期，也能得到当前数量。）
+        #
+        # 在日志场景，如果希望保证数据准确性，且保留最新数据点，设置 reference=True 取消对数据的时序对齐，配合 SaaS 侧提供的
+        # time_alignment=False 参数。
+        reference = serializers.BooleanField(default=False, required=False)
 
         def validate(self, attrs):
             logger.info(f"PROMQL_QUERY: {json.dumps(attrs)}")
@@ -244,8 +332,8 @@ class GetPromqlLabelValuesResource(UnifyQueryAPIResource):
         match = serializers.ListField(child=serializers.CharField())
         label = serializers.CharField()
         bk_biz_ids = serializers.ListField(child=serializers.IntegerField(), allow_empty=True)
-        start_time = serializers.CharField(required=False)
-        end_time = serializers.CharField(required=False)
+        start = serializers.CharField(required=False)
+        end = serializers.CharField(required=False)
 
         def validate(self, attrs):
             attrs["match[]"] = attrs.pop("match")
@@ -318,7 +406,7 @@ class GetKubernetesRelationResource(UnifyQueryAPIResource):
         source_info_list = serializers.ListField(child=serializers.DictField(), required=True)
 
     def validate_request_data(self, request_data):
-        request_data = super(GetKubernetesRelationResource, self).validate_request_data(request_data)
+        request_data = super().validate_request_data(request_data)
         query_list = []
         for source_info in request_data.pop("source_info_list", []):
             data_timestamp = source_info.pop("data_timestamp", int(time.time()))

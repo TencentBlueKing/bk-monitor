@@ -36,11 +36,13 @@ import 'monitor-ui/directive/index';
 
 import Api from 'monitor-api/api';
 import Axios from 'monitor-api/axios/axios';
-import { setVue } from 'monitor-api/utils/index';
-import { immediateRegister } from 'monitor-common/service-worker/service-wroker';
+import { type VueInstance, setVue } from 'monitor-api/utils/index';
+import { immediateRegister } from 'monitor-common/service-worker/service-worker';
 import { getUrlParam, mergeSpaceList, setGlobalBizId } from 'monitor-common/utils';
+import { assignWindowField } from 'monitor-common/utils/assign-window';
 
 import './common/global-login';
+import { userDisplayNameConfigure } from './common/user-display-name';
 import App from './pages/app';
 import router from './router/router';
 import Authority from './store/modules/authority';
@@ -58,7 +60,7 @@ window.source_app = 'monitor';
 window.slimit = 500;
 window.AJAX_URL_PREFIX = '/apm_log_forward/bklog/api/v1';
 Vue.config.ignoredElements = ['custom-incident-detail'];
-setVue(Vue);
+setVue(Vue as VueInstance);
 const hasRouteHash = getUrlParam('routeHash');
 const spaceUid = getUrlParam('space_uid');
 const bizId = getUrlParam('bizId')?.replace(/\//gim, '');
@@ -91,9 +93,7 @@ if (hasRouteHash) {
       })
       .then(data => {
         appLoadingNode && (appLoadingNode.style.display = 'none');
-        for (const [key, value] of Object.entries(data)) {
-          window[key.toLocaleLowerCase()] = value;
-        }
+        assignWindowField(data);
         mergeSpaceList(window.space_list);
         window.user_name = window.uin;
         window.username = window.uin;
@@ -102,6 +102,7 @@ if (hasRouteHash) {
         window.bk_log_search_url = data.BKLOGSEARCH_HOST;
         const bizId = setGlobalBizId();
         if (bizId === false) return;
+        userDisplayNameConfigure();
         // document.title = window.page_title;
         store.commit('app/SET_APP_STATE', {
           userName: window.user_name,
@@ -114,14 +115,14 @@ if (hasRouteHash) {
           cmdbUrl: window.bk_cc_url,
           bkLogSearchUrl: window.bk_log_search_url,
           bkUrl: window.bk_url,
-          bkNodemanHost: window.bk_nodeman_host,
+          bkNodeManHost: window.bk_nodeman_host,
           enable_cmdb_level: !!window.enable_cmdb_level,
           bkPaasHost: window.bk_paas_host,
           jobUrl: window.bk_job_url,
           k8sV2EnableList: (!data.K8S_V2_BIZ_LIST?.length ? [] : data.K8S_V2_BIZ_LIST).slice(),
           defaultBizId: window.default_biz_id || '',
         });
-        window.mainComponent = new Vue({
+        new Vue({
           el: '#app',
           router,
           store,
@@ -141,9 +142,7 @@ if (hasRouteHash) {
             context_type: 'extra',
           })
           .then(data => {
-            for (const [key, value] of Object.entries(data)) {
-              window[key.toLocaleLowerCase()] = value;
-            }
+            assignWindowField(data);
             store.commit('app/SET_APP_STATE', {
               collectingConfigFileMaxSize: data.COLLECTING_CONFIG_FILE_MAXSIZE,
             });

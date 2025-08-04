@@ -40,15 +40,16 @@ STRATEGY = {
 
 
 class TestStrategy(TestCase):
-    # @classmethod
-    # def setUpClass(cls):
-    #     cls.StrategyCacheManager = mock.patch("alarm_backends.core.control.strategy.StrategyCacheManager")
-    #     StrategyCacheManager = cls.StrategyCacheManager.start()
-    #     StrategyCacheManager.get_strategy_by_id.return_value = STRATEGY
-    #
-    # @classmethod
-    # def tearDownClass(cls):
-    #     cls.StrategyCacheManager.stop()
+    @classmethod
+    def setUpClass(cls):
+        cls.BusinessManager = mock.patch(
+            "alarm_backends.core.control.strategy.BusinessManager.get_tenant_id", return_value="system"
+        )
+        cls.BusinessManager.start()
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.BusinessManager.stop()
 
     def test_in_alarm_time__no_calendar(self):
         strategy = Strategy(1, STRATEGY)

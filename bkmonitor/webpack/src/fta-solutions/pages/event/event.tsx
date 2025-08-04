@@ -30,6 +30,7 @@ import { ofType } from 'vue-tsx-support';
 
 import dayjs from 'dayjs';
 import difference from 'lodash/difference';
+import intersection from 'lodash/intersection';
 import {
   actionDateHistogram,
   actionTopN,
@@ -48,7 +49,7 @@ import {
   incidentValidateQueryString,
 } from 'monitor-api/modules/incident';
 import { promqlToQueryConfig } from 'monitor-api/modules/strategies';
-import { commonPageSizeSet, commonPageSizeGet, LANGUAGE_COOKIE_KEY, docCookies } from 'monitor-common/utils';
+import { commonPageSizeGet, commonPageSizeSet, docCookies, LANGUAGE_COOKIE_KEY } from 'monitor-common/utils';
 import { random } from 'monitor-common/utils/utils';
 // 20231205 代码还原，先保留原有部分
 import SpaceSelect from 'monitor-pc/components/space-select/space-select';
@@ -70,7 +71,6 @@ import EmptyTable from './empty-table';
 import EventChart from './event-chart';
 import AlarmConfirm from './event-detail/alarm-confirm';
 import AlarmDispatch from './event-detail/alarm-dispatch';
-
 // import EventDetailSlider from './event-detail/event-detail-slider';
 import ManualDebugStatus from './event-detail/manual-debug-status';
 import ManualProcess from './event-detail/manual-process';
@@ -82,19 +82,18 @@ import MonitorDrag from './monitor-drag';
 import AdvancedFilterSkeleton from './skeleton/advanced-filter-skeleton';
 import {
   type AnlyzeField,
-  EBatchAction,
+  type eventPanelType,
   type FilterInputStatus,
   type IChatGroupDialogOptions,
   type ICommonItem,
   type ICommonTreeItem,
   type IEventItem,
   type SearchType,
-  type eventPanelType,
+  EBatchAction,
 } from './typings/event';
-import { INIT_COMMON_FILTER_DATA, getOperatorDisabled } from './utils';
+import { getOperatorDisabled, INIT_COMMON_FILTER_DATA } from './utils';
 
 import type { TType as TSliderType } from './event-detail/event-detail-slider';
-
 // import { showAccessRequest } from 'monitor-pc/components/access-request-dialog';
 import type { EmptyStatusOperationType, EmptyStatusType } from 'monitor-pc/components/empty-status/types';
 import type { TimeRangeType } from 'monitor-pc/components/time-range/time-range';
@@ -235,13 +234,13 @@ const commonIncidentFieldMap = {
 };
 // 监控环境下侧栏初始宽度
 const filterWidth = 240;
+interface IEventProps {
+  defaultParams?: Record<string, any>;
+  isSplitEventPanel?: boolean;
+  toggleSet?: boolean;
+}
 interface IPanelItem extends ICommonItem {
   id: eventPanelType;
-}
-interface IEventProps {
-  toggleSet?: boolean;
-  isSplitEventPanel?: boolean;
-  defaultParams?: Record<string, any>;
 }
 Component.registerHooks(['beforeRouteEnter', 'beforeRouteLeave']);
 const filterIconMap = {
@@ -326,9 +325,9 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
   // 图表的数据时间间隔
   @InjectReactive('timeRange') readonly panelTimeRange!: number;
   // 图表刷新间隔
-  @InjectReactive('refleshInterval') readonly panleRefleshInterval!: number;
+  @InjectReactive('refreshInterval') readonly panleRefleshInterval!: number;
   // 立即刷新图表
-  @InjectReactive('refleshImmediate') readonly panelRefleshImmediate: string;
+  @InjectReactive('refreshImmediate') readonly panelRefleshImmediate: string;
 
   @Ref('filterInput') filterInputRef: FilterInput;
   commonFilterData: ICommonTreeItem[] = INIT_COMMON_FILTER_DATA;
@@ -337,7 +336,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
   timeRange: TimeRangeType = ['now-7d', 'now'] || DEFAULT_TIME_RANGE;
   /* 时区 */
   timezone: string = getDefaultTimezone();
-  refleshInterval = 5 * 60 * 1000;
+  refreshInterval = 5 * 60 * 1000;
   refleshInstance = null;
   allowedBizList = [];
   bizIds = [this.$store.getters.bizId];
@@ -401,7 +400,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
   filterWidth = 320;
   filterInputStatus: FilterInputStatus = 'success';
   // 侧栏详情信息
-  detailInfo: { isShow: boolean; id: string; type: TSliderType; activeTab: string; bizId: number } = {
+  detailInfo: { activeTab: string; bizId: number; id: string; isShow: boolean; type: TSliderType } = {
     isShow: false,
     id: '',
     type: 'eventDetail',
@@ -511,12 +510,12 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
   @Watch('panelRefleshInterval')
   // 数据刷新间隔
   handlePanelRefleshIntervalChange(v: number) {
-    this.handleRefleshChange(v);
+    this.handleRefreshChange(v);
   }
   @Watch('panelRefleshImmediate')
   // 立刻刷新
   handlePanelRefleshImmediateChange(v: string) {
-    if (v) this.handleImmediateReflesh();
+    if (v) this.handleImmediateRefresh();
   }
   @Watch('defaultParams', { immediate: true })
   async handleDefaultParamsChange(v: Record<string, any>) {
@@ -524,7 +523,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
       this.routeStateKeyList = [];
       Object.keys(v).forEach(key => (this[key] = v[key]));
       await Promise.all([this.handleGetFilterData(), this.handleGetTableData(true)]);
-      this.handleRefleshChange(this.refleshInterval);
+      this.handleRefreshChange(this.refreshInterval);
     }
   }
   async created() {
@@ -600,7 +599,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
         }
       }
       await Promise.all([vm.handleGetFilterData(), vm.handleGetTableData(true)]);
-      vm.handleRefleshChange(vm.refleshInterval);
+      vm.handleRefreshChange(vm.refreshInterval);
       // 批量弹窗 (batchAction=xxx并且queryString 包含action_id 搜索 则弹出弹窗)
       if (
         [EBatchAction.alarmConfirm, EBatchAction.quickShield].includes(params.batchAction) &&
@@ -777,7 +776,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
       this.chartKey = random(10);
       await Promise.all([this.handleGetFilterData(), this.handleGetTableData(true)]);
       this.isRouteBack = false;
-      this.handleRefleshChange(this.refleshInterval);
+      this.handleRefreshChange(this.refreshInterval);
     }
   }
   /**
@@ -1291,7 +1290,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
           actionOverview,
           faultOverview,
           ...(overview?.children || []),
-          ...actionOverview.children,
+          ...(actionOverview?.children || []),
           ...(faultOverview.children ? faultOverview.children : []),
         ].find(item => item.id === this.activeFilterId)?.name || '';
       if (!this.activeFilterName) {
@@ -1423,6 +1422,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
           } else {
             const diffBizIds = difference(this.bizIds, greyed_spaces);
             if (diffBizIds?.length) {
+              const intersectionBizIds = intersection(this.bizIds, greyed_spaces);
               const spaces = this.$store.getters.bizList
                 .filter(({ bk_biz_id }) => diffBizIds.includes(bk_biz_id))
                 .map(({ name, space_id }) => `${name} (#${space_id})`);
@@ -1430,6 +1430,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
                 text: spaces.join(','),
                 path: '{count} 空间未开启故障分析功能，请联系 {link}',
               };
+              this.noDataType = intersectionBizIds.length === 0 ? 'incidentNotEnabled' : this.noDataType;
               this.noDataString = 'incidentRenderAssistant';
             }
           }
@@ -1499,7 +1500,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
       from: 'now-30d',
       to: 'now',
       timezone: getDefaultTimezone(),
-      refleshInterval: 300000,
+      refreshInterval: 300000,
       activePanel: 'list',
       chartInterval: 'auto',
       condition: {},
@@ -1640,6 +1641,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
    */
   handleShowDetail({ id, type, activeTab, bizId }: IShowDetail) {
     if (this.searchType === 'incident') {
+      // 携带当前已经配置的时间范围，避免回调时间范围重置
       this.$router.push({
         name: 'incident-detail',
         params: {
@@ -1647,6 +1649,8 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
         },
         query: {
           activeTab,
+          from: this.timeRange[0],
+          to: this.timeRange[1] ,
         },
       });
     } else {
@@ -1663,26 +1667,26 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
    * @param {number} v 刷新周期
    * @return {*}
    */
-  handleRefleshChange(v: number) {
+  handleRefreshChange(v: number) {
     window.clearInterval(this.refleshInstance);
-    this.refleshInterval = v;
+    this.refreshInterval = v;
     if (v <= 0) return;
     this.refleshInstance = setInterval(() => {
       this.chartKey = random(10);
       this.handleGetFilterData();
       this.handleGetTableData();
-    }, this.refleshInterval);
+    }, this.refreshInterval);
   }
   /**
    * @description: 点击立刻刷新图标触发
    * @param {*}
    * @return {*}
    */
-  handleImmediateReflesh() {
+  handleImmediateRefresh() {
     this.chartKey = random(10);
     this.handleGetFilterData();
     this.handleGetTableData();
-    this.refleshInterval > 0 && this.handleRefleshChange(this.refleshInterval);
+    this.refreshInterval > 0 && this.handleRefreshChange(this.refreshInterval);
   }
   /**
    * @description: 数据间隔改变时触发
@@ -1707,7 +1711,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
     this.chartKey = random(10);
     this.handleGetFilterData();
     this.handleGetTableData();
-    this.handleRefleshChange(this.refleshInterval);
+    this.handleRefreshChange(this.refreshInterval);
   }
   handleBizIdsChange(v: number[]) {
     this.bizIds = v;
@@ -2189,7 +2193,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
    * @param {object} obj 子查询语句
    * @return {*}
    */
-  async handleAppendQuery(obj: { type: 'add' | 'del'; queryString: string }) {
+  async handleAppendQuery(obj: { queryString: string; type: 'add' | 'del' }) {
     let str = '';
     if (obj.type === 'add') {
       str = this.queryString ? `(${this.queryString}) AND ${obj.queryString}` : obj.queryString;
@@ -2539,13 +2543,13 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
             <DashboardTools
               class='header-tools'
               isSplitPanel={this.isSplitPanel}
-              refleshInterval={this.refleshInterval}
+              refreshInterval={this.refreshInterval}
               showListMenu={false}
               timeRange={this.timeRange}
               timezone={this.timezone}
               onFullscreenChange={this.handleFullscreen}
-              onImmediateReflesh={this.handleImmediateReflesh}
-              onRefleshChange={this.handleRefleshChange}
+              onImmediateRefresh={this.handleImmediateRefresh}
+              onRefreshChange={this.handleRefreshChange}
               onSplitPanelChange={this.handleSplitPanel}
               onTimeRangeChange={this.handleTimeRangeChange}
               onTimezoneChange={this.handleTimezoneChange}
@@ -2611,8 +2615,9 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
               </div> */}
               <SpaceSelect
                 class='mr-16'
-                currentSpace={this.$store.getters.bizId}
+                // currentSpace={this.$store.getters.bizId}
                 hasAuthApply={true}
+                isAutoSelectCurrentSpace={true}
                 // needAlarmOption={!this.isIncident}
                 needIncidentOption={this.isIncident}
                 spaceList={this.$store.getters.bizList}
@@ -2622,6 +2627,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
               />
               <FilterInput
                 ref='filterInput'
+                bkBizIds={this.bizIds}
                 inputStatus={this.filterInputStatus}
                 isFillId={true}
                 searchType={this.searchType}

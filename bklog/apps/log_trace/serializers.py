@@ -28,6 +28,7 @@ from rest_framework import serializers
 
 from apps.exceptions import ValidationError
 from apps.log_search.handlers.search.aggs_handlers import AggsHandlers
+from apps.log_search.serializers import UnionConfigSerializer
 from apps.log_trace.constants import TIME_DIMENSION_VALUE, MetricTypeEnum
 from apps.utils.drf import DateTimeFieldWithEpoch
 from apps.utils.local import get_local_param
@@ -128,15 +129,23 @@ class DateHistogramSerializer(TraceSearchAttrSerializer):
 
     # 自定义索引列表 Eg. -> "2_bklog.0001,2_bklog.0002"
     custom_indices = serializers.CharField(required=False, allow_null=True, allow_blank=True, default="")
+    group_field = serializers.CharField(required=False, allow_null=True, allow_blank=True)
 
 
 class UnionSearchDateHistogramSerializer(DateHistogramSerializer):
     index_set_ids = serializers.ListField(
         label=_("索引集ID列表"), required=True, allow_empty=False, child=serializers.IntegerField()
     )
+    union_configs = serializers.ListField(
+        label=_("索引集配置"), required=False, default=[], child=UnionConfigSerializer()
+    )
+
 
 
 class UnionSearchAggsTermsSerializer(AggsTermsSerializer):
     index_set_ids = serializers.ListField(
         label=_("索引集ID列表"), required=True, allow_empty=False, child=serializers.IntegerField()
+    )
+    union_configs = serializers.ListField(
+        label=_("索引集配置"), required=False, default=[], child=UnionConfigSerializer()
     )

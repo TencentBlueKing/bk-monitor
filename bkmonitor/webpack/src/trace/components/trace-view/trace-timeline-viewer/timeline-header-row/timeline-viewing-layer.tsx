@@ -60,26 +60,31 @@ type TOutOfViewLayout = {
   isOutOfView: true;
 };
 
-function isOutOfView(layout: TDraggingLeftLayout | TOutOfViewLayout): layout is TOutOfViewLayout {
-  return Reflect.has(layout, 'isOutOfView');
-}
-
 /**
- * Map from a sub range to the greater view range, e.g, when the view range is
- * the middle half ([0.25, 0.75]), a value of 0.25 befomes 3/8.
- * @returns {number}
+ * Render the visual indication of the "next" view range.
  */
-function mapFromViewSubRange(viewStart: number, viewEnd: number, value: number) {
-  return viewStart + value * (viewEnd - viewStart);
-}
-
-/**
- * Map a value from the view ([0, 1]) to a sub-range, e.g, when the view range is
- * the middle half ([0.25, 0.75]), a value of 3/8 becomes 1/4.
- * @returns {number}
- */
-function mapToViewSubRange(viewStart: number, viewEnd: number, value: number) {
-  return (value - viewStart) / (viewEnd - viewStart);
+function getMarkers(viewStart: number, viewEnd: number, from: number, to: number, isShift: boolean) {
+  const mappedFrom = mapToViewSubRange(viewStart, viewEnd, from);
+  const mappedTo = mapToViewSubRange(viewStart, viewEnd, to);
+  const layout = getNextViewLayout(mappedFrom, mappedTo);
+  if (isOutOfView(layout)) {
+    return null;
+  }
+  const { isDraggingLeft, left, width } = layout;
+  return (
+    <div
+      style={{ left, width }}
+      class={[
+        'timeline-viewing-layer-dragged',
+        {
+          isDraggingLeft,
+          isDraggingRight: !isDraggingLeft,
+          isReframeDrag: !isShift,
+          isShiftDrag: isShift,
+        },
+      ]}
+    />
+  );
 }
 
 /**
@@ -106,31 +111,26 @@ function getNextViewLayout(start: number, position: number): TDraggingLeftLayout
   };
 }
 
+function isOutOfView(layout: TDraggingLeftLayout | TOutOfViewLayout): layout is TOutOfViewLayout {
+  return Reflect.has(layout, 'isOutOfView');
+}
+
 /**
- * Render the visual indication of the "next" view range.
+ * Map from a sub range to the greater view range, e.g, when the view range is
+ * the middle half ([0.25, 0.75]), a value of 0.25 befomes 3/8.
+ * @returns {number}
  */
-function getMarkers(viewStart: number, viewEnd: number, from: number, to: number, isShift: boolean) {
-  const mappedFrom = mapToViewSubRange(viewStart, viewEnd, from);
-  const mappedTo = mapToViewSubRange(viewStart, viewEnd, to);
-  const layout = getNextViewLayout(mappedFrom, mappedTo);
-  if (isOutOfView(layout)) {
-    return null;
-  }
-  const { isDraggingLeft, left, width } = layout;
-  return (
-    <div
-      style={{ left, width }}
-      class={[
-        'timeline-viewing-layer-dragged',
-        {
-          isDraggingLeft,
-          isDraggingRight: !isDraggingLeft,
-          isReframeDrag: !isShift,
-          isShiftDrag: isShift,
-        },
-      ]}
-    />
-  );
+function mapFromViewSubRange(viewStart: number, viewEnd: number, value: number) {
+  return viewStart + value * (viewEnd - viewStart);
+}
+
+/**
+ * Map a value from the view ([0, 1]) to a sub-range, e.g, when the view range is
+ * the middle half ([0.25, 0.75]), a value of 3/8 becomes 1/4.
+ * @returns {number}
+ */
+function mapToViewSubRange(viewStart: number, viewEnd: number, value: number) {
+  return (value - viewStart) / (viewEnd - viewStart);
 }
 
 export default defineComponent({
@@ -223,7 +223,7 @@ export default defineComponent({
     const [viewStart, viewEnd] = this.spanBarCurrentStore?.current.value as [number, number];
 
     const haveNextTimeRange = reframe != null || shiftEnd != null || shiftStart != null;
-    let cusrorPosition: TNil | string;
+    let cusrorPosition: string | TNil;
 
     if (!haveNextTimeRange && cursor != null && cursor >= viewStart && cursor <= viewEnd) {
       cusrorPosition = `${mapToViewSubRange(viewStart, viewEnd, cursor) * 100}%`;

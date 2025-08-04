@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2022 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,15 +7,15 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-import datetime
+
 import itertools
+import time
 from collections import defaultdict
 
-from django.utils import timezone
 
 from apm_web.constants import DataStatus, ServiceRelationLogTypeChoices
 from apm_web.handlers.host_handler import HostHandler
-from apm_web.models import Application, LogServiceRelation
+from apm_web.models import LogServiceRelation
 from apm_web.topo.handle.relation.define import (
     SourceDatasource,
     SourceK8sPod,
@@ -24,10 +23,15 @@ from apm_web.topo.handle.relation.define import (
     SourceSystem,
 )
 from apm_web.topo.handle.relation.query import RelationQ
-from bkm_space.api import SpaceApi
-from bkmonitor.utils.cache import CacheType, using_cache
 from bkmonitor.utils.thread_backend import ThreadPool
+from bkmonitor.utils.cache import CacheType, using_cache
+from constants.apm import FIVE_MIN_SECONDS
 from core.drf_resource import api
+
+
+@using_cache(CacheType.APM(FIVE_MIN_SECONDS))
+def get_biz_index_sets_with_cache(bk_biz_id):
+    return api.log_search.search_index_set(bk_biz_id=bk_biz_id)
 
 
 class ServiceLogHandler:
@@ -46,6 +50,8 @@ class ServiceLogHandler:
     # log 默认查询语句最大 value 数量
     LOG_DEFAULT_QUERY_CONDITION_MAX_SIZE = 20
 
+    ONE_HOUR_SECONDS = 3600
+
     @classmethod
     def get_log_count_mapping(cls, bk_biz_id, app_name, start_time, end_time):
         """获取所有服务的关联日志的数据量"""
@@ -61,7 +67,7 @@ class ServiceLogHandler:
         pool = ThreadPool()
         futures = []
         for i in {j["bk_biz_id"] for j in service_mapping.values()}:
-            futures.append(pool.apply_async(api.log_search.search_index_set, kwds={"bk_biz_id": i}))
+            futures.append(pool.apply_async(get_biz_index_sets_with_cache, kwds={"bk_biz_id": i}))
         index_set = list(itertools.chain(*[i.get() for i in futures]))
 
         # Step3: 根据 index_set_id 进行匹配
@@ -76,37 +82,48 @@ class ServiceLogHandler:
         # Step4: 对没有数据的服务进行自定义上报查询
         log_datasource = cls.get_log_datasource(bk_biz_id, app_name)
         if log_datasource:
-            table_id = log_datasource['result_table_id'].replace('-', '_').replace(".", "_")
-            response = api.log_search.es_query_dsl(
-                indices=f"{table_id}*",
-                body={
-                    "size": 0,
-                    "query": {
-                        "range": {
-                            "time": {
-                                "gte": datetime.datetime.fromtimestamp(
-                                    start_time, tz=timezone.get_current_timezone()
-                                ).isoformat(),
-                                "lte": datetime.datetime.fromtimestamp(
-                                    end_time, tz=timezone.get_current_timezone()
-                                ).isoformat(),
-                            }
-                        }
-                    },
-                    "aggs": {
-                        "service_names": {
-                            "terms": {
-                                "field": "resource.service.name",
-                            }
-                        }
-                    },
-                },
-            )
-            if response:
-                for svr in response.get("aggregations", {}).get("service_names", {}).get("buckets", []):
-                    res[svr["key"]] = DataStatus.NORMAL
+            table_id = log_datasource["result_table_id"].replace("-", "_").replace(".", "_")
+            futures = []
+            service_name_field_list = ["resource.service.name", "resource.server"]
+            for label in service_name_field_list:
+                futures.append(
+                    pool.apply_async(cls.get_label_values_in_table, args=(table_id, label, start_time, end_time))
+                )
+            has_data_service_list = list(itertools.chain(*[f.get() for f in futures]))
+            res.update({s: DataStatus.NORMAL for s in has_data_service_list})
 
         return res
+
+    @classmethod
+    def get_label_values_in_table(cls, table_id, label, start_time, end_time) -> list:
+        response = api.log_search.es_query_dsl(
+            indices=f"{table_id}*",
+            body={
+                "size": 0,
+                "query": {
+                    "range": {
+                        "time": {
+                            "format": "epoch_second",
+                            "gte": start_time,
+                            "lte": end_time,
+                        }
+                    }
+                },
+                "aggs": {
+                    "service_names": {
+                        "terms": {
+                            "field": label,
+                        }
+                    }
+                },
+            },
+        )
+
+        ret = []
+        if response:
+            for svr in response.get("aggregations", {}).get("service_names", {}).get("buckets", []):
+                ret.append(svr["key"])
+        return ret
 
     @classmethod
     def get_and_check_datasource_index_set_id(cls, bk_biz_id, app_name, full_indexes=None):
@@ -117,7 +134,7 @@ class ServiceLogHandler:
             return None
         index_set_id = ds["index_set_id"]
         if not full_indexes:
-            full_indexes = api.log_search.search_index_set(bk_biz_id=bk_biz_id)
+            full_indexes = get_biz_index_sets_with_cache(bk_biz_id=bk_biz_id)
 
         index_set_info = next(
             (i for i in full_indexes if str(i.get("index_set_id", "")) == str(index_set_id)),
@@ -131,8 +148,7 @@ class ServiceLogHandler:
 
     @classmethod
     def get_log_datasource(cls, bk_biz_id, app_name):
-        application = Application.objects.get(bk_biz_id=bk_biz_id, app_name=app_name)
-        application_info = api.apm_api.detail_application({"application_id": application.application_id})
+        application_info = api.apm_api.detail_application(bk_biz_id=bk_biz_id, app_name=app_name)
         if not application_info.get("log_config"):
             return None
         return application_info["log_config"]
@@ -187,10 +203,8 @@ class ServiceLogHandler:
         通过关联查询获取服务的 dataId 关联并拼接默认查询
         """
         if not start_time or not end_time:
-            start_time, end_time = Application.objects.get(
-                bk_biz_id=bk_biz_id,
-                app_name=app_name,
-            ).list_retention_time_range()
+            end_time = int(time.time())
+            start_time = end_time - cls.ONE_HOUR_SECONDS
 
         datasource_infos = defaultdict(list)
         data_ids = set()
@@ -222,63 +236,19 @@ class ServiceLogHandler:
         if not datasource_infos:
             return []
 
-        # 使用 bk_data_id 获取关联的 Pod / System
-        qs = []
-        for path_item, source_infos in datasource_infos.items():
-            qs += RelationQ.generate_multi_q(
-                bk_biz_id=bk_biz_id,
-                source_infos=source_infos,
-                target_type=path_item[-1],
-                start_time=start_time,
-                end_time=end_time,
-                path_resource=path_item,
-            )
+        # 这里直接从 metadata 查询，是为了解决跨业务关联的场景
+        # data_id -> table_id -> index_set_id
+        # 这里待 metadata 有相关接口后，需要改为走 api 形式查询，去掉模块之间的依赖
+        from metadata import models
 
-        data_id_query_mapping = defaultdict(lambda: defaultdict(set))
-        for r in RelationQ.query(qs):
-            data_id = r.source_info.get("bk_data_id")
-            if not data_id:
-                continue
-
-            for n in r.nodes:
-                source_info = n.source_info.to_source_info()
-                pod = source_info.get("pod")
-                bk_target_ip = source_info.get("bk_target_ip")
-
-                if pod:
-                    if (
-                        len(data_id_query_mapping[data_id]["__ext.io_kubernetes_pod"])
-                        >= cls.LOG_DEFAULT_QUERY_CONDITION_MAX_SIZE
-                    ):
-                        continue
-                    else:
-                        data_id_query_mapping[data_id]["__ext.io_kubernetes_pod"].add(pod)
-                elif bk_target_ip:
-                    if len(data_id_query_mapping[data_id]["serverIp"]) >= cls.LOG_DEFAULT_QUERY_CONDITION_MAX_SIZE:
-                        continue
-                    else:
-                        data_id_query_mapping[data_id]["serverIp"].add(pod)
-
-        def log_list_collectors(_bk_biz_id):
-            return api.log_search.list_collectors(
-                space_uid=SpaceApi.get_space_detail(bk_biz_id=_bk_biz_id).space_uid,
-            )
-
-        full_collectors = using_cache(CacheType.APM(10 * 60))(log_list_collectors)(bk_biz_id)
+        table_id_list = list(
+            models.DataSourceResultTable.objects.filter(bk_data_id__in=data_ids).values_list("table_id", flat=True)
+        )
 
         res = []
-        for i in list(data_ids)[: cls.LOG_RELATION_BY_UNIFY_QUERY]:
-            info = next((j for j in full_collectors if str(j["bk_data_id"]) == i), None)
-            if info:
-                res.append(
-                    {
-                        "index_set_id": info["index_set_id"],
-                        "addition": [
-                            {"field": k, "operator": "=", "value": v} for k, v in data_id_query_mapping[i].items()
-                        ]
-                        if i in data_id_query_mapping
-                        else [],
-                    }
-                )
-
+        full_indexes = get_biz_index_sets_with_cache(bk_biz_id=bk_biz_id)  # 这里也会返回业务下关联项目的索引集
+        for index in full_indexes:
+            indices = index.get("indices") or []
+            if indices and len(indices) == 1 and indices[0].get("result_table_id") in table_id_list:
+                res.append({"index_set_id": index["index_set_id"], "addition": []})
         return res

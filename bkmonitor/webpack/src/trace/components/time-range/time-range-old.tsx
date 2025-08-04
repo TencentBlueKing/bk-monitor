@@ -28,11 +28,12 @@ import { type PropType, defineComponent, ref, toRefs, watch } from 'vue';
 
 import { Button, DatePicker, Input, Popover } from 'bkui-vue';
 import dayjs from 'dayjs';
+import { useI18n } from 'vue-i18n';
 
 import IconFont from '../icon-font/icon-font';
 import {
-  DEFAULT_TIME_RANGE,
   type TimeRangeType,
+  DEFAULT_TIME_RANGE,
   handleTransformTime,
   handleTransformToTimestamp,
   intTimestampStr,
@@ -56,6 +57,7 @@ export default defineComponent({
   },
   setup(props, { emit }) {
     const { modelValue } = toRefs(props);
+    const { t } = useI18n();
 
     /** 日历组件的值 */
     const timestamp = ref<TimeRangeType>(['', '']);
@@ -156,7 +158,7 @@ export default defineComponent({
 
     /** 点击快捷时间选项 */
     const handleShortcutChange = data => {
-      if (!!data?.value) {
+      if (data?.value) {
         isPanelTimeRange.value = false;
         const value = [...data.value] as TimeRangeType;
         handleTransformTimeValue(value);
@@ -188,6 +190,7 @@ export default defineComponent({
       handleCustomInput,
       handleShortcutChange,
       handleTransformTimeValue,
+      t,
     };
   },
   render() {
@@ -230,7 +233,7 @@ export default defineComponent({
                 theme='primary'
                 onClick={this.handleConfirm}
               >
-                {this.$t('确定')}
+                {this.t('确定')}
               </Button>
             </div>
           ),

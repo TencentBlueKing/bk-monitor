@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -19,6 +18,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+
 import json
 
 from django.conf import settings
@@ -35,10 +35,11 @@ from apps.iam.handlers.drf import (
     ViewBusinessPermission,
     insert_permission_field,
 )
+from apps.log_clustering.models import ClusteringConfig
 from apps.log_search.constants import TimeFieldTypeEnum, TimeFieldUnitEnum
 from apps.log_search.exceptions import BkJwtVerifyException, IndexSetNotEmptyException
 from apps.log_search.handlers.index_set import BaseIndexSetHandler, IndexSetHandler
-from apps.log_search.models import LogIndexSet, LogIndexSetData, Scenario, SpaceApi
+from apps.log_search.models import LogIndexSet, LogIndexSetData, Scenario
 from apps.log_search.permission import Permission
 from apps.log_search.serializers import (
     CreateIndexSetTagSerializer,
@@ -50,6 +51,7 @@ from apps.log_search.serializers import (
     StorageUsageSerializer,
     UserFavoriteSerializer,
     UserSearchSerializer,
+    QueryByDataIdSerializer,
 )
 from apps.log_search.tasks.bkdata import sync_auth_status
 from apps.utils.drf import detail_route, list_route
@@ -65,7 +67,7 @@ class IndexSetViewSet(ModelViewSet):
     model = LogIndexSet
     search_fields = ("index_set_name",)
     lookup_value_regex = "[^/]+"
-    filter_fields_exclude = ["target_fields", "sort_fields"]
+    filter_fields_exclude = ["target_fields", "sort_fields", "query_alias_settings"]
 
     def get_permissions(self):
         try:
@@ -75,7 +77,14 @@ class IndexSetViewSet(ModelViewSet):
                 return []
         except Exception:  # pylint: disable=broad-except
             pass
-        if self.action in ["mark_favorite", "cancel_favorite", "user_search", "user_favorite"]:
+        if self.action in [
+            "mark_favorite",
+            "cancel_favorite",
+            "user_search",
+            "user_favorite",
+            "space",
+            "query_by_dataid",
+        ]:
             return []
         if self.action in ["create", "replace"]:
             return [BusinessActionPermission([ActionEnum.CREATE_INDICES])]
@@ -289,24 +298,38 @@ class IndexSetViewSet(ModelViewSet):
         params = self.params_valid(ESRouterListSerializer)
         router_list = []
         qs = LogIndexSet.objects.all()
+        clustered_qs = ClusteringConfig.objects.exclude(clustered_rt="")
         if params.get("scenario_id", ""):
             qs = qs.filter(scenario_id=params["scenario_id"])
+            if params["scenario_id"] != Scenario.BKDATA:
+                clustered_qs = clustered_qs.none()
 
         if params.get("space_uid", ""):
             qs = qs.filter(space_uid=params["space_uid"])
-        else:
-            space_uids = [i.space_uid for i in SpaceApi.list_spaces()]
-            qs = qs.filter(space_uid__in=space_uids)
 
-        total = qs.count()
+        clustering_config_list = list(clustered_qs.values("index_set_id", "clustered_rt"))
+        total = qs.count() + len(clustering_config_list)
         qs = qs[(params["page"] - 1) * params["pagesize"] : params["page"] * params["pagesize"]]
+
         index_set_ids = list(qs.values_list("index_set_id", flat=True))
+        clustering_index_set_ids = [clustering_config["index_set_id"] for clustering_config in clustering_config_list]
+
         index_set_list = list(qs.values())
+        clustering_index_set_list = list(LogIndexSet.objects.filter(index_set_id__in=clustering_index_set_ids).values())
+
         index_set_dict = {
             index_set["index_set_id"]: index_set for index_set in index_set_list if index_set.get("index_set_id")
         }
+        clustering_index_set_dict = {
+            index_set["index_set_id"]: index_set
+            for index_set in clustering_index_set_list
+            if index_set.get("index_set_id")
+        }
         index_list = list(
-            LogIndexSetData.objects.filter(index_set_id__in=index_set_ids).values("index_set_id", "result_table_id")
+            LogIndexSetData.objects.filter(index_set_id__in=index_set_ids).values(
+                "index_set_id", "result_table_id", "scenario_id", "storage_cluster_id",
+                "time_field", "time_field_type", "time_field_unit"
+            )
         )
         for index in index_list:
             index_set = index_set_dict.get(index["index_set_id"], {})
@@ -316,45 +339,96 @@ class IndexSetViewSet(ModelViewSet):
                 else:
                     index_set["indexes"] = [index]
 
+        # 普通索引路由创建
         for index_set_id, index_set in index_set_dict.items():
             if not index_set.get("indexes", []):
                 continue
-            origin_index_set = ",".join([index["result_table_id"] for index in index_set["indexes"]])
-            if index_set["scenario_id"] == Scenario.LOG:
-                origin_index_set = origin_index_set.replace(".", "_")
-            router_list.append(
-                {
-                    "cluster_id": index_set["storage_cluster_id"],
-                    "index_set": origin_index_set,
-                    "source_type": index_set["scenario_id"],
-                    "data_label": BaseIndexSetHandler.get_data_label(index_set["scenario_id"], index_set_id),
-                    "table_id": BaseIndexSetHandler.get_rt_id(
-                        index_set_id, index_set["collector_config_id"], index_set["indexes"]
-                    ),
-                    "space_uid": index_set["space_uid"],
-                    "need_create_index": True if index_set["collector_config_id"] else False,
-                    "options": [
-                        {
-                            "name": "time_field",
-                            "value_type": "dict",
-                            "value": json.dumps(
-                                {
-                                    "name": index_set["time_field"],
-                                    "type": index_set["time_field_type"],
-                                    "unit": index_set["time_field_unit"]
-                                    if index_set["time_field_type"] != TimeFieldTypeEnum.DATE.value
-                                    else TimeFieldUnitEnum.MILLISECOND.value,
-                                }
-                            ),
-                        },
-                        {
-                            "name": "need_add_time",
-                            "value_type": "bool",
-                            "value": json.dumps(index_set["scenario_id"] != Scenario.ES),
-                        },
-                    ],
-                }
-            )
+            indexes = index_set["indexes"]
+            base_es_router = {
+                "data_label": BaseIndexSetHandler.get_data_label(index_set_id),
+                "space_uid": index_set["space_uid"],
+                "need_create_index": False,
+            }
+
+            for index in indexes:
+                time_field = index.get("time_field") or index_set["time_field"]
+                time_field_type = index.get("time_field_type", index_set["time_field_type"])
+                time_field_unit = index.get("time_field_unit", index_set["time_field_unit"])
+                es_router = base_es_router.copy()
+                es_router.update(
+                    {
+                        "table_id": BaseIndexSetHandler.get_rt_id(index_set_id, index["result_table_id"]),
+                        "index_set": index["result_table_id"].replace(".", "_"),
+                        "source_type": index.get("scenario_id", index_set["scenario_id"]),
+                        "cluster_id": index.get("storage_cluster_id", index_set["storage_cluster_id"]),
+                        "options": [
+                            {
+                                "name": "time_field",
+                                "value_type": "dict",
+                                "value": json.dumps(
+                                    {
+                                        "name": time_field,
+                                        "type": time_field_type,
+                                        "unit": time_field_unit
+                                        if time_field_type != TimeFieldTypeEnum.DATE.value
+                                        else TimeFieldUnitEnum.MILLISECOND.value,
+                                    }
+                                ),
+                            },
+                            {
+                                "name": "need_add_time",
+                                "value_type": "bool",
+                                "value": json.dumps(index.get("scenario_id", index_set["scenario_id"]) != Scenario.ES),
+                            },
+                        ],
+                    }
+                )
+                if es_router["source_type"] == Scenario.LOG:
+                    es_router["origin_table_id"] = index["result_table_id"]
+                router_list.append(es_router)
+
+        # 聚类索引路由创建，追加至列表末尾，不支持space过滤
+        if qs.count() < params["pagesize"]:
+            for clustering_config in clustering_config_list:
+                clustered_rt = clustering_config["clustered_rt"]
+                index_set_id = clustering_config["index_set_id"]
+                index_set = clustering_index_set_dict.get(index_set_id, None)
+                if not clustered_rt or not index_set:
+                    continue
+                router_list.append(
+                    {
+                        "cluster_id": index_set["storage_cluster_id"],
+                        "index_set": clustered_rt,
+                        "source_type": Scenario.BKDATA,
+                        "data_label": BaseIndexSetHandler.get_data_label(index_set_id, clustered_rt=clustered_rt),
+                        "table_id": BaseIndexSetHandler.get_rt_id(
+                            index_set_id,
+                            clustered_rt,
+                        ),
+                        "space_uid": index_set["space_uid"],
+                        "need_create_index": False,
+                        "options": [
+                            {
+                                "name": "time_field",
+                                "value_type": "dict",
+                                "value": json.dumps(
+                                    {
+                                        "name": index_set["time_field"],
+                                        "type": index_set["time_field_type"],
+                                        "unit": index_set["time_field_unit"]
+                                        if index_set["time_field_type"] != TimeFieldTypeEnum.DATE.value
+                                        else TimeFieldUnitEnum.MILLISECOND.value,
+                                    }
+                                ),
+                            },
+                            {
+                                "name": "need_add_time",
+                                "value_type": "bool",
+                                "value": "true",
+                            },
+                        ],
+                    }
+                )
         return Response({"total": total, "list": router_list})
 
     def retrieve(self, request, *args, **kwargs):
@@ -508,19 +582,18 @@ class IndexSetViewSet(ModelViewSet):
         else:
             storage_cluster_id = IndexSetHandler.get_storage_by_table_list(data["indexes"])
         # 获取调用方APP CODE
-        data = self.validated_data
         auth_info = Permission.get_auth_info(request, raise_exception=False)
         if auth_info:
             data["bk_app_code"] = auth_info["bk_app_code"]
 
         index_set = IndexSetHandler.create(
-            data["index_set_name"],
-            data["space_uid"],
-            storage_cluster_id,
-            data["scenario_id"],
-            data["view_roles"],
-            data["indexes"],
-            data["category_id"],
+            index_set_name=data["index_set_name"],
+            space_uid=data["space_uid"],
+            scenario_id=data["scenario_id"],
+            view_roles=data["view_roles"],
+            indexes=data["indexes"],
+            storage_cluster_id=storage_cluster_id,
+            category_id=data["category_id"],
             is_trace_log=data["is_trace_log"],
             time_field=data["time_field"],
             time_field_type=data["time_field_type"],
@@ -591,11 +664,11 @@ class IndexSetViewSet(ModelViewSet):
             data["view_roles"],
             data["indexes"],
             data["category_id"],
+            storage_cluster_id=storage_cluster_id,
             is_trace_log=data["is_trace_log"],
             time_field=data["time_field"],
             time_field_type=data["time_field_type"],
             time_field_unit=data["time_field_unit"],
-            storage_cluster_id=storage_cluster_id,
             target_fields=data.get("target_fields", []),
             sort_fields=data.get("sort_fields", []),
         )
@@ -1264,3 +1337,52 @@ class IndexSetViewSet(ModelViewSet):
         """
         data = self.params_valid(StorageUsageSerializer)
         return Response(IndexSetHandler.get_storage_usage_info(data["bk_biz_id"], data["index_set_ids"]))
+
+    @detail_route(methods=["GET"], url_path="space")
+    def space(self, request, index_set_id, *args, **kwargs):
+        """
+        @api {GET} /index_set/$index_set_id/space/ 根据索引集ID获取空间信息
+        @apiDescription 根据索引集ID获取空间信息
+        @apiName space
+        @apiSuccessExample {json} 成功返回:
+        {
+            "result": true,
+            "data": {
+                "id": 2,
+                "space_type_id": "bkcc",
+                "space_id": "2",
+                "space_name": "蓝鲸",
+                "space_uid": "bkcc__2",
+                "space_code": "2",
+                "bk_biz_id": 2,
+                "time_zone": "Asia/Shanghai",
+                "bk_tenant_id": "system"
+            },
+            "code": 0,
+            "message": ""
+        }
+        """
+        return Response(IndexSetHandler.get_space_info(int(index_set_id)))
+
+    @list_route(methods=["GET"], url_path="query_by_dataid")
+    def query_by_dataid(self, request):
+        """
+        @api {GET} /index_set/query_by_dataid/?bk_data_id=xxx 根据 bk_data_id 获取采集项和索引集信息的接口
+        @apiDescription 根据 bk_data_id 获取采集项和索引集信息的接口
+        @apiName query_by_dataid
+        @apiSuccessExample {json} 成功返回:
+        {
+            'result': True,
+            'data': {
+                'index_set_id': 39,
+                'index_set_name': 'xxxx',
+                'space_uid': 'bkcc__2',
+                'collector_config_id': 131,
+                'collector_config_name': 'xxxxxx'
+            },
+            'code': 0,
+            'message': ''
+        }
+        """
+        params = self.params_valid(QueryByDataIdSerializer)
+        return Response(IndexSetHandler.query_by_bk_data_id(bk_data_id=params["bk_data_id"]))

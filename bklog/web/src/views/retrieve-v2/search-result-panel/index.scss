@@ -13,19 +13,18 @@
         top: var(--offset-search-bar);
         z-index: 3;
         align-self: start;
-        height: calc(100vh - var(--offset-search-bar) - 150px);
+        height: calc(100vh - var(--offset-search-bar) - var(--header-height) - 100px);
       }
     }
 
     .split-line {
       width: 100%;
-      margin: 3px 0 6px;
+      margin: 0 0 6px;
       border-bottom: solid 1px #dcdee5;
     }
 
     .search-result-content {
       position: relative;
-      border-left: solid 1px #dcdee5;
 
       .monitor-echarts-container {
         padding-left: 16px;
@@ -33,7 +32,6 @@
         .title-wrapper-new {
           z-index: 3;
           width: calc(100% - 110px);
-          margin-left: 110px;
         }
       }
 

@@ -54,26 +54,26 @@ import type {
 
 import './relation-graph.scss';
 
-interface IRelationGraphProps {
-  panel: PanelModel;
-  showChartHeader?: boolean;
-}
-
 interface ILayout {
-  type?: string;
   center?: number[];
   linkDistance?: number;
   maxIteration?: number;
   maxPreventOverlapIteration?: number;
-  unitRadius?: number;
-  preventOverlap?: boolean;
-  nodeSize?: number;
-  strictRadial?: boolean;
-  nodeSpacing?: number;
-  rankdir?: string; // 布局的方向 从左至右
   nodesep?: number; // 节点的间距
+  nodeSize?: number;
+  nodeSpacing?: number;
+  preventOverlap?: boolean;
+  rankdir?: string; // 布局的方向 从左至右
   ranksep?: number; // 层间距
+  strictRadial?: boolean;
+  type?: string;
+  unitRadius?: number;
   workerEnabled?: boolean; // 可选，开启 web-worker
+}
+
+interface IRelationGraphProps {
+  panel: PanelModel;
+  showChartHeader?: boolean;
 }
 
 const LIMIT_RADIAL_LAYOUT_COUNT = 700;
@@ -290,11 +290,11 @@ export class RelationGraph extends CommonSimpleChart {
         avg_duration: [],
       };
     }
-    this.emptyText = window.i18n.tc('加载中...');
+    this.emptyText = window.i18n.t('加载中...');
     this.empty = true;
     this.isRendered = false;
     try {
-      this.unregisterOberver();
+      this.unregisterObserver();
       const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
       const params = {
         start_time: start_time ? dayjs.tz(start_time).unix() : startTime,
@@ -414,24 +414,24 @@ export class RelationGraph extends CommonSimpleChart {
       const res = await Promise.all(promiseList).catch(() => false);
 
       if (res) {
-        this.inited = true;
+        this.initialized = true;
         if (this.isOverview) {
           this.empty = !this.graphData.nodes.length;
-          this.emptyText = !this.graphData.nodes.length ? window.i18n.tc('查无数据') : '';
+          this.emptyText = !this.graphData.nodes.length ? window.i18n.t('查无数据') : '';
           if (!this.empty) {
             this.initGraph();
           }
         } else {
           this.empty = !this.tableData.length;
-          this.emptyText = !this.tableData.length ? window.i18n.tc('查无数据') : '';
+          this.emptyText = !this.tableData.length ? window.i18n.t('查无数据') : '';
         }
       } else {
         this.empty = true;
-        this.emptyText = window.i18n.tc('出错了');
+        this.emptyText = window.i18n.t('出错了');
       }
     } catch (e) {
       this.empty = true;
-      this.emptyText = window.i18n.tc('出错了');
+      this.emptyText = window.i18n.t('出错了');
       if (this.isOverview) {
         this.emptyStatusType = '500';
       }
@@ -1012,7 +1012,7 @@ export class RelationGraph extends CommonSimpleChart {
   /* 切换总览/列表 */
   handleOverview(value: boolean) {
     this.empty = true;
-    this.emptyText = window.i18n.tc('加载中...');
+    this.emptyText = window.i18n.t('加载中...');
     this.isOverview = value;
     this.tableFilterDict = {};
     if (!this.isOverview) {

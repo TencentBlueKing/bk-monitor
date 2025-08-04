@@ -31,12 +31,12 @@ import aiWhaleSrc from '../../../../static/images/png/new-page/aiWhale.png';
 
 import './ai-whale-input.scss';
 
-interface IAiWhaleInputProps {
-  categoriesHasTwoRows: boolean;
-}
-
 interface IAiWhaleInputEvent {
   onKeyDown: KeyboardEvent;
+}
+
+interface IAiWhaleInputProps {
+  categoriesHasTwoRows: boolean;
 }
 
 @Component

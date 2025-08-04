@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -19,6 +18,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+
 import hashlib
 import json
 
@@ -38,6 +38,7 @@ from apps.log_clustering.constants import (
 )
 from apps.log_clustering.exceptions import ClusteringConfigNotExistException
 from apps.models import SoftDeleteModel
+from apps.utils.local import get_external_app_code
 
 
 class SampleSet(SoftDeleteModel):
@@ -58,11 +59,6 @@ class AiopsModelExperiment(SoftDeleteModel):
     status = models.CharField(_("实验状态"), null=True, blank=True, max_length=128)
     basic_model_id = models.CharField(_("最新模型实例id"), null=True, blank=True, max_length=128)
     node_id_list = models.JSONField(_("节点列表"), null=True, blank=True)
-
-    @classmethod
-    def get_experiment(cls, model_name: str, experiment_alias: str):
-        model_id = AiopsModel.objects.get(model_name=model_name).model_id
-        return AiopsModelExperiment.objects.filter(model_id=model_id, experiment_alias=experiment_alias).first()
 
 
 class AiopsSignatureAndPattern(SoftDeleteModel):
@@ -86,6 +82,12 @@ class ClusteringRemark(SoftDeleteModel):
     group_hash = models.CharField(_("分组hash"), max_length=256)
     remark = models.JSONField(_("备注信息"), default=list, null=True, blank=True)
     owners = models.JSONField(_("负责人"), default=list, null=True, blank=True)
+    strategy_id = models.IntegerField(_("策略id"), default=0)
+    strategy_enabled = models.BooleanField(_("策略是否启用"), default=False)
+    source_app_code = models.CharField(
+        verbose_name=_("来源系统"), default=get_external_app_code, max_length=32, blank=True
+    )
+    notice_group_id = models.IntegerField(_("告警组id"), default=0)
 
     class Meta:
         index_together = ["signature", "group_hash"]
@@ -156,9 +158,13 @@ class ClusteringConfig(SoftDeleteModel):
     log_count_aggregation_flow = models.JSONField(_("日志数量聚合flow配置"), null=True, blank=True)
     log_count_aggregation_flow_id = models.IntegerField(_("日志数量聚合flow_id"), null=True, blank=True)
     new_cls_strategy_enable = models.BooleanField(_("是否开启新类告警"), default=False)
-    new_cls_strategy_output = models.CharField(_("日志新类告警输出结果表"), max_length=255, default="", null=True, blank=True)
+    new_cls_strategy_output = models.CharField(
+        _("日志新类告警输出结果表"), max_length=255, default="", null=True, blank=True
+    )
     normal_strategy_enable = models.BooleanField(_("是否开启数量突增告警"), default=False)
-    normal_strategy_output = models.CharField(_("日志数量告警输出结果表"), max_length=255, default="", null=True, blank=True)
+    normal_strategy_output = models.CharField(
+        _("日志数量告警输出结果表"), max_length=255, default="", null=True, blank=True
+    )
     access_finished = models.BooleanField(_("是否接入完成"), default=True)
 
     regex_rule_type = models.CharField(
@@ -286,7 +292,10 @@ class ClusteringSubscription(SoftDeleteModel):
     )
     log_display_count = models.IntegerField(_("日志条数"), default=5)
     log_col_show_type = models.CharField(
-        _("日志列显示"), choices=LogColShowTypeEnum.get_choices(), max_length=64, default=LogColShowTypeEnum.PATTERN.value
+        _("日志列显示"),
+        choices=LogColShowTypeEnum.get_choices(),
+        max_length=64,
+        default=LogColShowTypeEnum.PATTERN.value,
     )
     group_by = models.JSONField(_("统计维度"), default=[], null=True, blank=True)
     year_on_year_hour = models.IntegerField(

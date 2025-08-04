@@ -45,7 +45,7 @@ export default class MonitorLineSeries extends MonitorBaseSeries implements ICha
           yAxis: {
             axisLabel: {
               color: '#979BA5',
-              formatter: this.handleYxisLabelFormatter,
+              formatter: this.handleYAxisLabelFormatter,
             },
           },
         },
@@ -100,7 +100,7 @@ export default class MonitorLineSeries extends MonitorBaseSeries implements ICha
       legendData.push(...cover.map((item: any) => ({ name: item.name, hidden: true })));
     }
     const [firstSery] = newSeries || [];
-    const { canScale, minThreshold, maxThreshold } = this.handleSetThreholds(series);
+    const { canScale, minThreshold, maxThreshold } = this.handleSetThresholds(series);
     const yAxis = [];
     yAxis.push({
       ...this.defaultOption.yAxis,
@@ -115,10 +115,10 @@ export default class MonitorLineSeries extends MonitorBaseSeries implements ICha
               }
               return v;
             }
-          : (v: number) => this.handleYxisLabelFormatter(v - minBase),
+          : (v: number) => this.handleYAxisLabelFormatter(v - minBase),
       },
-      max: (v: { min: number; max: number }) => Math.max(v.max, maxThreshold),
-      min: (v: { min: number; max: number }) => Math.min(v.min, minThreshold),
+      max: (v: { max: number; min: number }) => Math.max(v.max, maxThreshold),
+      min: (v: { max: number; min: number }) => Math.min(v.min, minThreshold),
       splitNumber: 4,
       minInterval: 1,
       axisPointer: {
@@ -146,10 +146,10 @@ export default class MonitorLineSeries extends MonitorBaseSeries implements ICha
                 }
                 return v;
               }
-            : (v: number) => this.handleYxisLabelFormatter(v - minBase),
+            : (v: number) => this.handleYAxisLabelFormatter(v - minBase),
         },
-        max: (v: { min: number; max: number }) => v.max,
-        min: (v: { min: number; max: number }) => v.min,
+        max: (v: { max: number; min: number }) => v.max,
+        min: (v: { max: number; min: number }) => v.min,
         splitNumber: 4,
         minInterval: 1,
         axisPointer: {
@@ -386,17 +386,17 @@ export default class MonitorLineSeries extends MonitorBaseSeries implements ICha
       return [];
     }
     const resultData: {
+      itemStyle: {
+        borderColor: any;
+        borderWidth: number;
+        color: string;
+        enabled: boolean;
+        opacity: number;
+        shadowBlur: number;
+      };
       symbol: string;
       symbolSize: number;
       value: any[];
-      itemStyle: {
-        borderWidth: number;
-        borderColor: any;
-        enabled: boolean;
-        shadowBlur: number;
-        color: string;
-        opacity: number;
-      };
     }[] = [];
     // 暂时只做一个上下边界 后期需求再实现
     const [{ upBoundary, lowBoundary }] = boundary;
@@ -516,7 +516,7 @@ export default class MonitorLineSeries extends MonitorBaseSeries implements ICha
     };
   }
 
-  handleGetMinPrecision(data: number[], formattter: ValueFormatter, unit: string) {
+  handleGetMinPrecision(data: number[], formatter: ValueFormatter, unit: string) {
     if (!data || data.length === 0) {
       return 0;
     }
@@ -538,7 +538,7 @@ export default class MonitorLineSeries extends MonitorBaseSeries implements ICha
     sampling = Array.from(new Set(sampling.filter(n => n !== undefined)));
     while (precision < 5) {
       const samp = sampling.reduce((pre, cur) => {
-        pre[formattter(cur, precision).text] = 1;
+        pre[formatter(cur, precision).text] = 1;
         return pre;
       }, {});
       if (Object.keys(samp).length >= sampling.length) {
@@ -547,22 +547,6 @@ export default class MonitorLineSeries extends MonitorBaseSeries implements ICha
       precision += 1;
     }
     return precision;
-  }
-
-  handleSetThreholds(series: any) {
-    let thresholdList = series.filter((set: any) => set?.thresholds?.length).map((set: any) => set.thresholds);
-    thresholdList = thresholdList.reduce((pre: any, cur: any, index: number) => {
-      pre.push(...cur.map((set: any) => set.yAxis));
-      if (index === thresholdList.length - 1) {
-        return Array.from(new Set(pre));
-      }
-      return pre;
-    }, []);
-    return {
-      canScale: thresholdList.every((set: number) => set > 0),
-      minThreshold: Math.min(...thresholdList),
-      maxThreshold: Math.max(...thresholdList),
-    };
   }
 
   handleSetThresholdArea(thresholdLine: any[]) {
@@ -574,6 +558,7 @@ export default class MonitorLineSeries extends MonitorBaseSeries implements ICha
       data,
     };
   }
+
   /**
    * @description:
    * @param {any} thresholdLine
@@ -591,7 +576,7 @@ export default class MonitorLineSeries extends MonitorBaseSeries implements ICha
       const current = threshold[index];
       const nextThreshold = threshold[index + 1];
       // 判断是否为一个闭合区间
-      let yAxis = undefined;
+      let yAxis;
       if (
         openInterval.includes(current.method) &&
         nextThreshold &&
@@ -630,7 +615,7 @@ export default class MonitorLineSeries extends MonitorBaseSeries implements ICha
     return data;
   }
   // 设置阈值面板
-  handleSetThresholdBand(plotBands: { to: number; from: number }[]) {
+  handleSetThresholdBand(plotBands: { from: number; to: number }[]) {
     return {
       silent: true,
       show: true,
@@ -689,6 +674,21 @@ export default class MonitorLineSeries extends MonitorBaseSeries implements ICha
           },
         },
       })),
+    };
+  }
+  handleSetThresholds(series: any) {
+    let thresholdList = series.filter((set: any) => set?.thresholds?.length).map((set: any) => set.thresholds);
+    thresholdList = thresholdList.reduce((pre: any, cur: any, index: number) => {
+      pre.push(...cur.map((set: any) => set.yAxis));
+      if (index === thresholdList.length - 1) {
+        return Array.from(new Set(pre));
+      }
+      return pre;
+    }, []);
+    return {
+      canScale: thresholdList.every((set: number) => set > 0),
+      minThreshold: Math.min(...thresholdList),
+      maxThreshold: Math.max(...thresholdList),
     };
   }
   segmentsIntr({ a, b, c, d }: any) {

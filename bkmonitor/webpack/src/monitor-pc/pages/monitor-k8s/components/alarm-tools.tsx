@@ -33,10 +33,10 @@ import type { PanelModel } from 'monitor-ui/chart-plugins/typings';
 import './alarm-tools.scss';
 
 interface IAlarmToolProps {
-  panel?: PanelModel;
   filters?: Record<string, any>;
-  variables?: Record<string, any>;
   isShowStrategy?: boolean;
+  panel?: PanelModel;
+  variables?: Record<string, any>;
 }
 @Component
 export default class AlarmTools extends tsc<IAlarmToolProps> {

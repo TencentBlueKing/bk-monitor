@@ -298,6 +298,7 @@ export default {
   您没有相应资源的访问权限: 'You do not have access to the corresponding resources',
   '已选择 {0} 个{1}': 'Selected {0} {1}',
   别名不能与内置字段名相同: 'The alias cannot be the same as the built-in field name',
+  重命名不能与内置字段名相同: 'The rename cannot be the same as the built-in field name',
   '采集目标未变更，无需下发': 'The collection target has not changed, and no distribution is required',
   同步计算平台的结果表失败: 'Failed to synchronize the result table of the BK-Base',
   同步计算平台的结果表成功: 'Successfully synchronized the result table of the BK-Base',
@@ -450,6 +451,8 @@ export default {
     'Setting this column as time will cancel the column that has already been set as time. do you want to continue?',
   '别名只支持【英文、数字、下划线】，并且不能以数字开头':
     'Aliases only support [english, numbers, underscores], and cannot start with a number.',
+  '重命名只支持【英文、数字、下划线】，并且不能以数字开头':
+    'Renaming only supports [English, numbers, and underscores], and cannot start with a number.',
   '勾选需要审批后需等待审批通过后，才会继续进行存储流程':
     'Checking requires approval and storage process will continue only after approval is passed.',
   '暂时未开放聚类关闭功能，如有关闭需求，可联系平台管理员':
@@ -457,9 +460,9 @@ export default {
   可以通过企业微信将需求的相关人员邀请到一个群里进行讨论:
     'You can invite relevant personnel to a group for discussion through enterprise wechat.',
   '通过字段清洗，可以格式化日志内容方便检索、告警和分析。':
-    'By field parsing, log content can be formatted for easy search, alarm and analysis.',
+    'By field parsing, log content can be formatted for easy search, alert and analysis.',
   '关键字范围: 从匹配{0}开始到匹配{1}之间的所有行': 'Keyword range: all rows from matching {0} to matching {1}',
-  '检索结果（找到 {0} 条结果，用时{1}毫秒) {2}': 'Search results (found {0} results, took {1} milliseconds) {2}',
+  '（找到 {0} 条结果，用时 {1} 毫秒) {2}': '(found {0} results, took {1} milliseconds) {2}',
   '只能包含a-z、A-Z、0-9和_，且不能以_开头和结尾':
     'Can only contain a-z, a-z, 0-9 and _, and cannot start or end with _',
   '请输入不带点号(.)的后缀名，匹配任意文件可填写星号(*)':
@@ -504,7 +507,7 @@ export default {
     "Clustering can only be based on one field, and the field must be of text tokenization type, defaulting to 'log' field",
   ' - 日志内容：[2006-01-02 15:04:05] content': ' - Log content: [2006-01-02 15:04:05] content',
   '容量计算公式：单机日志增量主机数量存储转化率分片数（日志保留天数 + 1）':
-    'Capacity calculation formula: single machine log incremental host number storage conversion rate number of shards (log retention days + 1)',
+    'Capacity calculation formula: single machine log incremental host number storage conversion rate number of shards (Expiration Time + 1)',
   '将过滤后的日志采集上来后，日志检索模块可进行日志内容格式化，方便检索和分析。':
     'After collecting the filtered logs, the log retrieval module can format the log content for easy search and analysis.',
   '快捷键 Esc:退出; PageUp: 向上翻页; PageDn: 向下翻页': 'Shortcut key Esc: exit; PageUp: page up; PageDn: page down',
@@ -604,7 +607,6 @@ export default {
   正则调试: 'Regex debugging',
   调试日志: 'Debug log',
   匹配结果: 'Match result',
-  全局设置: 'Global settings',
   原规则: 'Original rule',
   现规则: 'Current rule',
   匹配字段: 'Matching field',
@@ -612,7 +614,7 @@ export default {
   脱敏规则: 'Desensitization rule',
   // "规则名称": "Rule name",
   同步所有变更: 'Synchronize all changes',
-  内置字段: 'Built-in field',
+  内置字段: 'System fields',
   清洗字段: 'Cleaning field',
   '无对应采样日志，无法输出预览': 'No corresponding sample logs, unable to output preview',
   '该字段为原文字段，为防止脱敏规则遗漏，系统已帮您自动同步其他脱敏结果':
@@ -686,7 +688,7 @@ export default {
   已有同名标签: 'A tag with the same name already exists',
   '你可能想输入：{0} 点击 {1}': 'You may want to enter: {0} Click {1}',
   '修改维度字段会影响已有备注、告警配置，如无必要，请勿随意变动。请确定是否修改？':
-    'Modifying dimension fields will affect existing notes and alarm configurations. Please do not change them unless necessary. Are you sure you want to modify it?',
+    'Modifying dimension fields will affect existing notes and alert configurations. Please do not change them unless necessary. Are you sure you want to modify it?',
   '未匹配到对应字段，请手动指定字段后提交':
     'The corresponding field was not matched, please specify the field manually before submitting.',
   用于标识日志文件来源及唯一性: 'Used to identify the source and uniqueness of log files.',
@@ -773,9 +775,9 @@ export default {
   '最大自定义副本数为: {n}': 'The maximum number of custom replies is: {n}',
   '是否保存本次操作？': 'Do you want to save this operation?',
   '容量审核中，请等待': 'Capacity review is in progress, please wait.',
-  总行数: 'Total number of lines',
-  出现行数: 'Number of occurrences',
-  日志条数: 'Number of log entries',
+  总行数: 'Total',
+  出现行数: 'Occurred Lines',
+  日志条数: 'Log Completeness',
   次: 'Times',
   去重后条数: 'Real after the number',
   最大值: 'Maximum value',
@@ -783,7 +785,7 @@ export default {
   平均值: 'Average value',
   中位数: 'Median value',
   时序图: 'Related Pictures',
-  数值分布直方图: 'Numeric Distribution Histogram',
+  数值分布直方图: 'bar graph',
   该字段暂无匹配日志: 'There is no matching log for this field yet.',
   查询异常: 'Query abnormal',
   图表分析: 'Chart analysis',
@@ -833,10 +835,10 @@ export default {
   '策略：': 'Strategy: ',
   '是否删除该策略？': 'Has this policy been deleted?',
   '聚类告警已开启，请点击右侧入口编辑策略':
-    'Clustering alarms have been enabled. Please click the entry on the right to edit the policy.',
+    'Clustering alerts have been enabled. Please click the entry on the right to edit the policy.',
   '每隔 n（整数）天数，再次产生的日志模式将视为新类':
     'Every n (integer) days, the log pattern generated again will be treated as a new class.',
-  新类对应日志触发告警的条数: 'The number of alarms triggered by logs corresponding to the new category',
+  新类对应日志触发告警的条数: 'The number of alerts triggered by logs corresponding to the new category',
   请先新建新类告警策略: 'Please create a new category strategy first',
   '大量的日志会导致聚类结果过多，建议使用过滤规则将重要日志进行聚类；如：仅聚类 warn 日志':
     'A large number of logs can lead to excessive clustering results. It is recommended to use filtering rules to cluster important logs; for example, cluster only warn logs.',
@@ -887,16 +889,19 @@ export default {
   配置项命名空间不能为空: 'Configuration item namespace cannot be empty',
   收藏夹: 'Favorite',
   UI查询: 'UI',
-  语句查询: 'Lucene',
+  语句模式: 'Lucene',
   历史查询: 'History Query',
   请输入关键字: 'Please enter keywords',
   请搜索: 'Please search',
-  '输入文本后按 [Enter] 键进行检索': 'Enter text and press [Enter] to search',
+  '请选择 或 输入': 'Enter or input',
+  输入文本后按: 'Enter text and press',
+  键进行检索: 'to search',
   可通过上下键快速切换选择字段值: 'You can quickly switch the fields value through the up and down keys',
+  '快速定位到搜索，请输入关键词...': 'Quickly locate the search, please enter keywords...',
   'Enter 键': 'Enter key',
   上下键: 'Up and down keys',
-  移动光标: 'Move the cursor',
-  '选中/检索': 'Confirm / Search',
+  移动光标: 'Move',
+  选中: 'Confirm',
   '请选择或直接输入，Enter分隔': 'Please select or enter directly, Enter to separate',
   搜索名称: 'Search for name',
   '导入的集群已被删除，请手动选择集群。': 'Imported cluster has been deleted, please manually select a cluster.',
@@ -927,7 +932,8 @@ export default {
   确认结果: 'Confirmation',
   副本: 'copy',
   新建检索: 'New search',
-  '收起查询/弹出选项': 'Collapse query/Popup options',
+  收起查询: 'Collapse',
+  提交查询: 'Submit',
   '导入{0}的权限配置': 'Import the permission configuration of {0}',
   至少选择一个操作权限: 'Select at least one operation permission',
   '平台上报日志的时间，默认选择该设置': 'Time to report logs on the platform, select this setting by default',
@@ -998,7 +1004,7 @@ export default {
   '当前缺少维度/时间维度': 'Current dimensions/time dimensions are missing',
   当前缺少指标: 'Current metrics are missing',
   字段名不支持快速修改: 'Field name does not support quick modification',
-  去重后字段统计: 'Field statistics after deduplication',
+  去重后字段统计: 'Deduplicated content stats',
   请选择常用过滤字段: 'Please select a common filter fields',
   常用过滤字段: 'Common Filter Fields',
   自动清空条件: 'Automatic Clearing Conditions',
@@ -1019,12 +1025,75 @@ export default {
     'Can exclude matching items that meet the conditions through regular expression syntax. Reference: ',
   正则语法说明: 'expression syntax description',
   '。如：匹配任意字符：.*': 'For example: Match any character: .*',
-  暂未匹配到符合条件的收藏项: 'No matching favorites have been found yet',
+  暂无匹配的收藏项: 'No matching favorites have been found yet',
   '暂未设置常驻筛选，请点击左侧设置按钮':
     'No permanent filtering has been set, please click the settings button on the left',
-  展示空字段: 'Display empty fields',
+  展示空字段: 'Display Empty Field',
   '在日志采集中，若您的日志中产生新的JSON字段，我们会自动采集并合入 __ext_json 字段中，您可以通过 __ext_json.xxx 检索该数据':
     'When collecting logs, if new JSON fields are generated in your logs, we will automatically collect and merge them into the __ext_json field, and you can use __ext_json.xxx to retrieve the data',
   过期时间不能大于存储天数: 'The expiration time cannot be greater than the storage days',
+  '确定 ⌘/Ctrl + Enter': 'Confirm Ctrl + Enter',
   收藏成功: 'Favorite successfully',
+  '请输入关键词...': 'Please enter keywords',
+  '请输入 或 选择': 'Please enter or select',
+  '“常驻筛选”面板被折叠，过滤条件已填充到上方搜索框。':
+    '"Permanent filtering" panel is collapsed, filter conditions are filled in the search box above.',
+  '请导入正确的JSON格式文件~': 'Please import the correct JSON format file~',
+  '前往 "索引配置" 批量修改别名': 'Go to "Index Configuration" to modify the alias in batches',
+  '勾选后，基于聚类结果为责任人创建关键字告警。持续监测您的异常问题。通过开关可控制告警策略启停。':
+    'After checking, create a keyword alert for the responsible person based on the clustering result. Continue to monitor your abnormal problems. The alert strategy can be started and stopped through the switch.',
+  '删除失败，开启告警时，需要至少一个责任人':
+    'Failed to delete. When the alert is turned on, at least one responsible person is required',
+  重命名与字段名重复: 'Rename and field name duplicate',
+  别名与字段名重复: 'Alias and field name duplicate',
+  别名与重命名重复: 'Alias and rename duplicate',
+  '第三方ES、计算平台索引集类型不支持自定义分词':
+    'Third-party ES, calculation platform index set type does not support custom tokenization',
+  '复制分享链接成功，通过链接，可直接查询对应收藏日志。':
+    'The share link was copied successfully, and through the link, you can directly access the corresponding bookmarked logs.',
+  联想到以下: 'Associated with the following:',
+  个收藏: 'favorite items',
+  '暂无配置责任人，无法自动创建告警策略':
+    'No configured responsible person, unable to automatically create alert strategy',
+  '重命名只能包含a-z、A-Z、0-9和_': 'Rename can only contain a-z, A-Z, 0-9, and _',
+  检索中: 'Searching',
+  组名不规范: 'Group name is not standard',
+  名称冲突: 'Name conflict',
+  最大30字符: 'Up to 30 characters',
+  '确定删除选中的收藏项?': 'Are you sure you want to delete the selected favorites?',
+  '删除后，无法恢复，请谨慎操作!': 'After deletion, it cannot be restored. Please operate with caution!',
+  '已选择以下{0}个收藏对象': 'The following {0} favorite objects have been selected',
+  批量删除成功: 'Batch deletion succeeded',
+  '组名不规范, 包含了特殊符号.': 'The group name is not standard, and special symbols are included.',
+  '注意: 名字冲突': 'Note: name conflict',
+  '注意：最大值为30个字符': 'Note: the maximum value is 30 characters',
+  '当前设置仅对个人生效，可以': 'The current setting only takes effect for individuals, and can',
+  '输入后按 Enter...': 'Press Enter after input...',
+  您可按照以下顺序调整检索方式: 'You can adjust the retrieval method according to the following order',
+  查询范围: 'Query range',
+  使用通配符: 'Use wildcard',
+  精准匹配: 'Precise match',
+  检查是否为分词问题: 'Check if it is a tokenization problem',
+  '当您的鼠标移动至对应日志内容上时，该日志单词将展示为蓝色。':
+    'When your mouse moves to the corresponding log content, the log word will be displayed in blue.',
+  '若目标内容为整段蓝色，或中间存在字符粘连的情况。':
+    'If the target content is blue all over or there is character adhesion in the middle.',
+  可能是因为分词导致的问题: 'It may be a problem caused by tokenization.',
+  点击设置自定义分词: 'Click to set custom tokenization',
+  '将字符粘连的字符设置至自定义分词中，等待 3～5 分钟，新上报的日志即可生效设置。':
+    'Set the character adhesion character to the custom tokenization, wait for 3-5 minutes, and the new reported logs can take effect.',
+  一键反馈: 'One-click feedback',
+  '若您仍无法确认问题原因，请点击下方反馈按钮与我们联系，平台将第一时间响应处理。':
+    'If you still cannot confirm the cause of the problem, please click the feedback button below to contact us. The platform will respond and handle it in a timely manner.',
+  '检测到「顶部查询条件」，已自动补充 SQL（与已输入 SQL 语句叠加生效）：':
+    'Top query conditions detected, automatically supplemented SQL (takes effect叠加 with existing SQL statements):',
+  '请输入 索引集、采集项 搜索': 'Please enter index set, collection item to search',
+  '如果CMDB的元数据无法满足您的需求，可以自行定义匹配想要的结果':
+    'If the metadata of CMDB cannot meet your needs, you can define it yourself to match the results you want',
+  '自定义标签key与元数据key重复': 'Custom tag key and metadata key conflict',
+  '指定清洗字段后可生效该配置，日志页面将会按照不同颜色清洗分类，最多六个字段':
+    'This configuration takes effect after specifying the parsing field. Logs will be color-categorized by up to six fields.',
+  '综合时间排序,是基于：dtEventTimeStamp、gesIndex、iterationIndex 3个字段的排序结果':
+    'Comprehensive time sorting is based on the sorting results of the following 3 fields: dtEventTimeStamp, gesIndex, iterationIndex',
+  object字段不支持编辑别名: 'object fields do not support editing aliases',
 };

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -22,6 +21,7 @@ from .custom_report import *  # noqa
 from .event import *  # noqa
 from .event_plugin import *  # noqa
 from .grafana import *  # noqa
+from .import_export import *  # noqa
 from .mail_report import *  # noqa
 from .metrics import *  # noqa
 from .new_report import *  # noqa
@@ -31,3 +31,4 @@ from .shield import *  # noqa
 from .strategy import *  # noqa
 from .strategy_v2 import *  # noqa
 from .strategy_v3 import *  # noqa
+from .event_v2 import *  # noqa

@@ -24,19 +24,19 @@
  * IN THE SOFTWARE.
  */
 import { type Ref, computed, defineComponent, inject, onMounted, ref, watch } from 'vue';
-import { useI18n } from 'vue-i18n';
 
 import dayjs from 'dayjs';
 import { alertGraphQuery } from 'monitor-api/modules/alert';
 import { transformDataKey } from 'monitor-common/utils/utils';
+import { useI18n } from 'vue-i18n';
 
 import FailureChart from './failure-chart';
 
-export const createAutoTimerange = (
+export const createAutoTimeRange = (
   startTime: number,
   endTime: number,
   interval = 60
-): { startTime: string; endTime: string } => {
+): { endTime: string; startTime: string } => {
   const INTERVAL_5 = 5 * interval * 1000;
   const INTERVAL_1440 = 1440 * interval * 1000;
   const INTERVAL_60 = 60 * interval * 1000;
@@ -67,6 +67,10 @@ export default defineComponent({
       type: Object,
       default: () => ({}),
       required: true,
+    },
+    groupId: {
+      type: String,
+      default: '',
     },
   },
   emits: ['successLoad'],
@@ -294,7 +298,7 @@ export default defineComponent({
         }));
         if (hasTraceSeries.value) {
           const interval = props.detail.extra_info?.strategy?.items?.[0]?.query_configs?.[0]?.agg_interval || 60;
-          const { startTime, endTime } = createAutoTimerange(props.detail.begin_time, props.detail.end_time, interval);
+          const { startTime, endTime } = createAutoTimeRange(props.detail.begin_time, props.detail.end_time, interval);
           traceInfoTimeRange.value = {
             start_time: dayjs.tz(startTime).unix(),
             end_time: dayjs.tz(endTime).unix(),
@@ -405,6 +409,7 @@ export default defineComponent({
         empty-text={this.errorMsg?.length ? this.t('查询数据错误') : this.t('无数据')}
         errorMsg={this.errorMsg}
         getSeriesData={this.handleGetSeriesData}
+        groupId={this.$props.groupId}
         hasTraceInfo={this.hasTraceSeries}
         options={this.chartOption}
         subtitle={this.chart.subtitle}

@@ -24,15 +24,15 @@
  * IN THE SOFTWARE.
  */
 import { type PropType, computed, defineComponent, reactive, ref } from 'vue';
-import { useI18n } from 'vue-i18n';
 
 import { Button, Exception, Select } from 'bkui-vue';
 import { Upload as UploadIcon } from 'bkui-vue/lib/icon';
 import { listProfileUploadRecord } from 'monitor-api/modules/apm_profile';
 import { LANGUAGE_COOKIE_KEY } from 'monitor-common/utils/constant';
 import { docCookies } from 'monitor-common/utils/utils';
+import { useI18n } from 'vue-i18n';
 
-import { ConditionType, type DataTypeItem, type RetrievalFormData } from '../typings';
+import { type DataTypeItem, type RetrievalFormData, ConditionType } from '../typings';
 import { EFileStatus, fileStatusMap } from '../typings/profiling-file';
 import ProfilingFileUpload from './profiling-file-upload';
 import ProfilingRetrievalView from './profiling-retrieval-view';
@@ -59,6 +59,14 @@ export default defineComponent({
     dataType: {
       type: String,
       default: 'cpu',
+    },
+    aggMethodList: {
+      type: Array as PropType<DataTypeItem[]>,
+      default: () => [],
+    },
+    aggMethod: {
+      type: String,
+      default: 'AVG',
     },
   },
   emits: ['showFileDetail', 'selectFile', 'dataTypeChange'],
@@ -137,8 +145,8 @@ export default defineComponent({
       }
     }
 
-    function handleDataTypeChange(v: string) {
-      emit('dataTypeChange', v);
+    function handleDataTypeChange(v: string, type?: string) {
+      emit('dataTypeChange', v, type);
     }
 
     /**
@@ -305,11 +313,9 @@ export default defineComponent({
                 class='loading-wrap'
                 type='search-empty'
               >
-                <div class='text'>
-                  {!!this.searchObj.selectFile ? `${this.t('文件解析中')}...` : this.t('暂无数据')}
-                </div>
+                <div class='text'>{this.searchObj.selectFile ? `${this.t('文件解析中')}...` : this.t('暂无数据')}</div>
                 <div class='desc'>
-                  {!!this.searchObj.selectFile
+                  {this.searchObj.selectFile
                     ? this.t('文件解析可能耗费较长时间，可先选择已解析文件查看')
                     : this.t('请上传文件后查看')}
                 </div>
@@ -317,9 +323,12 @@ export default defineComponent({
             </div>
           ) : (
             <ProfilingRetrievalView
+              aggMethod={this.aggMethod}
+              aggMethodList={this.aggMethodList}
               dataType={this.dataType}
               dataTypeList={this.dataTypeList}
               queryParams={this.queryParams}
+              onUpdate:aggMethod={event => this.handleDataTypeChange(event, 'agg')}
               onUpdate:dataType={this.handleDataTypeChange}
             />
           )}

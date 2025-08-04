@@ -7,17 +7,17 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import logging
 import time
 from collections import defaultdict
-from typing import Any, Dict, List, Set
+from typing import Any
 
 from django.utils.translation import gettext as _
 from rest_framework import serializers
 
 from api.cmdb.define import TopoNode, TopoTree
 from bkmonitor.data_source import BkMonitorLogDataSource
-from bkmonitor.utils.local import local
 from constants.cmdb import TargetNodeType
 from core.drf_resource import Resource, api
 from core.errors.api import BKAPIError
@@ -25,11 +25,11 @@ from monitor_web.collecting.constant import CollectStatus
 from monitor_web.collecting.deploy import get_collect_installer
 from monitor_web.collecting.utils import fetch_sub_statistics
 from monitor_web.commons.data_access import ResultTable
+from monitor_web.constants import EVENT_TYPE
 from monitor_web.models import CollectConfigMeta, CustomEventGroup
 from monitor_web.models.plugin import PluginVersionHistory
 from monitor_web.plugin.constant import PluginType
 from monitor_web.plugin.manager import PluginManagerFactory
-from utils import business
 from utils.query_data import TSDataBase
 
 logger = logging.getLogger(__name__)
@@ -41,12 +41,15 @@ class CollectTargetStatusResource(Resource):
     """
 
     class RequestSerializer(serializers.Serializer):
+        bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
         id = serializers.IntegerField(required=True, label="采集配置id")
         diff = serializers.BooleanField(required=False, label="是否只返回差异", default=True)
         auto_running_tasks = serializers.ListField(required=False, label="自动运行的任务")
 
-    def perform_request(self, params: Dict[str, Any]) -> Dict[str, Any]:
-        collect_config = CollectConfigMeta.objects.select_related("deployment_config").get(id=params["id"])
+    def perform_request(self, params: dict[str, Any]) -> dict[str, Any]:
+        collect_config = CollectConfigMeta.objects.select_related("deployment_config").get(
+            bk_biz_id=params["bk_biz_id"], id=params["id"]
+        )
         installer = get_collect_installer(collect_config)
         return {
             "config_info": collect_config.get_info(),
@@ -61,6 +64,7 @@ class CollectRunningStatusResource(CollectTargetStatusResource):
     """
 
     class RequestSerializer(serializers.Serializer):
+        bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
         id = serializers.IntegerField(required=True, label="采集配置id")
         diff = serializers.BooleanField(required=False, label="是否只返回差异", default=False)
 
@@ -71,6 +75,7 @@ class CollectInstanceStatusResource(CollectTargetStatusResource):
     """
 
     class RequestSerializer(serializers.Serializer):
+        bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
         id = serializers.IntegerField(required=True, label="采集配置id")
         diff = serializers.BooleanField(required=False, label="是否只返回差异", default=False)
 
@@ -94,12 +99,15 @@ class CollectTargetStatusTopoResource(Resource):
         """
         config_version = collect_config.deployment_config.plugin_version.config_version
         latest_info_version = PluginVersionHistory.objects.filter(
-            plugin=collect_config.plugin, config_version=config_version, stage=PluginVersionHistory.Stage.RELEASE
+            bk_tenant_id=collect_config.bk_tenant_id,
+            plugin_id=collect_config.plugin_id,
+            config_version=config_version,
+            stage=PluginVersionHistory.Stage.RELEASE,
         ).latest("info_version")
         return latest_info_version
 
     @classmethod
-    def nodata_test(cls, collect_config: CollectConfigMeta, target_list: List[Dict[str, Any]]) -> Dict[str, bool]:
+    def nodata_test(cls, collect_config: CollectConfigMeta, target_list: list[dict[str, Any]]) -> dict[str, bool]:
         """
         无数据检测
         """
@@ -117,8 +125,10 @@ class CollectTargetStatusTopoResource(Resource):
             or collect_config.plugin.plugin_type == PluginType.SNMP_TRAP
         ):
             version = collect_config.deployment_config.plugin_version
-            event_group_name = "{}_{}".format(version.plugin.plugin_type, version.plugin_id)
-            group_info = CustomEventGroup.objects.get(name=event_group_name)
+            event_group_name = f"{version.plugin.plugin_type}_{version.plugin_id}"
+            group_info = CustomEventGroup.objects.get(
+                bk_biz_id=collect_config.bk_biz_id, type=EVENT_TYPE.KEYWORDS, name=event_group_name
+            )
 
             if "bk_target_ip" in target_list[0]:
                 group_by = ["bk_target_ip", "bk_target_cloud_id"]
@@ -151,9 +161,7 @@ class CollectTargetStatusTopoResource(Resource):
         else:
             if collect_config.plugin.plugin_type == PluginType.PROCESS:
                 db_name = "process:perf"
-                metric_json = PluginManagerFactory.get_manager(
-                    plugin=collect_config.plugin.plugin_id, plugin_type=collect_config.plugin.plugin_type
-                ).gen_metric_info()
+                metric_json = PluginManagerFactory.get_manager(plugin=collect_config.plugin).gen_metric_info()
 
                 metric_json = [table for table in metric_json if table["table_name"] == "perf"]
             else:
@@ -186,7 +194,7 @@ class CollectTargetStatusTopoResource(Resource):
         return target_status
 
     @staticmethod
-    def get_instance_info(instance: Dict) -> Dict:
+    def get_instance_info(instance: dict) -> dict:
         """
         获取实例信息
         """
@@ -213,8 +221,8 @@ class CollectTargetStatusTopoResource(Resource):
 
     @classmethod
     def create_topo_tree(
-        cls, topo_node: TopoNode, module_mapping: Dict[int, List[Dict[str, Any]]], result: List[Dict[str, Any]]
-    ) -> List[Dict[str, Any]]:
+        cls, topo_node: TopoNode, module_mapping: dict[int, list[dict[str, Any]]], result: list[dict[str, Any]]
+    ) -> list[dict[str, Any]]:
         """
         创建拓扑树
         """
@@ -244,7 +252,7 @@ class CollectTargetStatusTopoResource(Resource):
         if sub_nodes:
             result.extend(sub_nodes)
 
-    def perform_request(self, params: Dict[str, Any]):
+    def perform_request(self, params: dict[str, Any]):
         collect_config = CollectConfigMeta.objects.select_related("deployment_config").get(
             id=params["id"], bk_biz_id=params["bk_biz_id"]
         )
@@ -263,9 +271,9 @@ class CollectTargetStatusTopoResource(Resource):
 
         # 获取实例采集状态并搜集节点信息，避免服务模板还需要进行转换
         collect_status = installer.status(diff=False)
-        topo_nodes: Set[str] = set()
-        instance_status: Dict[str, Dict[str, Any]] = {}
-        targets: List[Dict[str, Any]] = []
+        topo_nodes: set[str] = set()
+        instance_status: dict[str, dict[str, Any]] = {}
+        targets: list[dict[str, Any]] = []
         for node in collect_status:
             # 记录节点信息
             if node.get("bk_obj_id"):
@@ -325,47 +333,16 @@ class UpdateConfigInstanceCountResource(Resource):
     更新启用中的采集配置的主机总数和异常数
     """
 
-    def perform_request(self, data):
-        if data.get("id"):
-            logger.info("start async celery task: update config instance count")
-            collect_config = CollectConfigMeta.objects.select_related("deployment_config").get(id=data.get("id"))
-            config_list = [collect_config]
-        else:
-            logger.info("start period celery task: update config instance count")
-            config_list = list(CollectConfigMeta.objects.select_related("deployment_config").all())
+    class RequestSerializer(serializers.Serializer):
+        bk_biz_id = serializers.IntegerField(required=True)
+        id = serializers.IntegerField(required=True)
 
-        if config_list:
-            local.username = business.maintainer(str(config_list[0].bk_biz_id))
-        else:
-            return
+    def perform_request(self, params: dict):
+        collect_config = CollectConfigMeta.objects.select_related("deployment_config").get(
+            bk_biz_id=params["bk_biz_id"], id=params["id"]
+        )
 
-        try:
-            __, collect_statistics_data = fetch_sub_statistics(config_list)
-        except BKAPIError as e:
-            logger.error("请求节点管理状态统计接口失败: {}".format(e))
-            return
-
-        # 统计节点管理订阅的正常数、异常数
-        result_dict = {}
-        for item in collect_statistics_data:
-            status_number = {}
-            for status_result in item.get("status", []):
-                status_number[status_result["status"]] = status_result["count"]
-            result_dict[item["subscription_id"]] = {
-                "total_instance_count": item.get("instances", 0),
-                "error_instance_count": status_number.get(CollectStatus.FAILED, 0),
-            }
-
-        for config in config_list:
-            cache_data = result_dict.get(config.deployment_config.subscription_id)
-            CollectConfigMeta.objects.filter(id=config.id).update(cache_data=cache_data)
-
-        # 更新k8s插件采集配置的状态
-        for collect_config in config_list:
-            # 跳过非k8s插件
-            if collect_config.plugin.plugin_type != PluginType.K8S:
-                continue
-
+        if collect_config.plugin.plugin_type == PluginType.K8S:
             error_count, total_count = 0, 0
             installer = get_collect_installer(collect_config)
             for node in installer.status():
@@ -374,11 +351,28 @@ class UpdateConfigInstanceCountResource(Resource):
                         error_count += 1
                     total_count += 1
 
-            # 更新缓存
-            cache_data = {
-                "error_instance_count": error_count,
-                "total_instance_count": total_count,
-            }
-            if collect_config.cache_data != cache_data:
-                collect_config.cache_data = cache_data
-                collect_config.save(not_update_user=True, update_fields=["cache_data"])
+            cache_data = {"error_instance_count": error_count, "total_instance_count": total_count}
+        else:
+            try:
+                _, collect_statistics_data = fetch_sub_statistics([collect_config])
+            except BKAPIError as e:
+                logger.error(f"请求节点管理状态统计接口失败: {e}")
+                return
+
+            # 统计节点管理订阅的正常数、异常数
+            result_dict = {}
+            for item in collect_statistics_data:
+                status_number = {}
+                for status_result in item.get("status", []):
+                    status_number[status_result["status"]] = status_result["count"]
+                result_dict[item["subscription_id"]] = {
+                    "total_instance_count": item.get("instances", 0),
+                    "error_instance_count": status_number.get(CollectStatus.FAILED, 0),
+                }
+
+            cache_data = result_dict.get(collect_config.deployment_config.subscription_id)
+
+        # 更新缓存数据
+        if collect_config.cache_data != cache_data:
+            collect_config.cache_data = cache_data
+            collect_config.save(not_update_user=True, update_fields=["cache_data"])

@@ -27,6 +27,7 @@
 import { computed, defineComponent, ref, watch } from 'vue';
 
 import { Button, Dialog, Loading } from 'bkui-vue';
+import { useI18n } from 'vue-i18n';
 
 import lockImg from '../../static/img/lock-radius.svg';
 import { useAuthorityStore } from '../../store/modules/authority';
@@ -37,6 +38,7 @@ export default defineComponent({
   name: 'AuthorityModal',
   setup() {
     const authorityStore = useAuthorityStore();
+    const { t } = useI18n();
 
     const isModalShow = ref<boolean>(false);
 
@@ -92,6 +94,7 @@ export default defineComponent({
       handleCloseDialog,
       getResource,
       goToApply,
+      t,
     };
   },
   render() {
@@ -106,13 +109,13 @@ export default defineComponent({
                 src={lockImg}
               />
             </span>
-            <h3>{this.$t('该操作需要以下权限')}</h3>
+            <h3>{this.t('该操作需要以下权限')}</h3>
           </div>
           <table class='permission-table table-header'>
             <thead>
               <tr>
-                <th>{this.$t('需要申请的权限')}</th>
-                <th>{this.$t('关联的资源实例')}</th>
+                <th>{this.t('需要申请的权限')}</th>
+                <th>{this.t('关联的资源实例')}</th>
               </tr>
             </thead>
           </table>
@@ -141,7 +144,7 @@ export default defineComponent({
                       class='no-data'
                       colspan='2'
                     >
-                      {this.$t('无数据')}
+                      {this.t('无数据')}
                     </td>
                   </tr>
                 )}
@@ -159,9 +162,9 @@ export default defineComponent({
             theme='primary'
             onClick={() => this.goToApply()}
           >
-            {this.$t('去申请')}
+            {this.t('去申请')}
           </Button>
-          <Button onClick={() => this.handleCloseDialog()}>{this.$t('取消')}</Button>
+          <Button onClick={() => this.handleCloseDialog()}>{this.t('取消')}</Button>
         </div>
       </div>
     );

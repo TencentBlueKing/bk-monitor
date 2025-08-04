@@ -55,33 +55,21 @@ const levelMap = {
   3: window.i18n.tc('提醒'),
 };
 
-interface IRelatedEventsProps {
-  show?: boolean;
-  params?: IParams;
-  alertId?: number | string;
-  detail: IDetail;
-}
-interface IParams {
-  end_time: number;
-  start_time: number;
-}
-
 interface IColumnItem {
+  checked: boolean;
+  disabled: boolean;
   id: string;
   name: string;
-  disabled: boolean;
-  checked: boolean;
   props?: {
-    width?: number | string;
     fixed?: 'left' | 'right';
+    formatter?: (value: any, row: any, index: number) => any;
     minWidth?: number | string;
     resizable?: boolean;
-    formatter?: (value: any, row: any, index: number) => any;
-    sortable?: 'custom' | boolean;
     showOverflowTooltip?: boolean;
+    sortable?: 'custom' | boolean;
+    width?: number | string;
   };
 }
-
 interface IEventItem {
   // 关联事件列表字段
   alert_name?: string;
@@ -105,10 +93,22 @@ interface IEventItem {
   severity?: number;
   status?: string;
   strategy_id?: number;
-  tags?: { key: string; value: string }[] | null;
+  tags?: null | { key: string; value: string }[];
   target: string;
   target_type: string;
   time: number;
+}
+
+interface IParams {
+  end_time: number;
+  start_time: number;
+}
+
+interface IRelatedEventsProps {
+  alertId?: number | string;
+  detail: IDetail;
+  params?: IParams;
+  show?: boolean;
 }
 
 @Component({
@@ -133,7 +133,7 @@ export default class RelatedEvents extends tsc<IRelatedEventsProps> {
 
   tableColumns: IColumnItem[] = []; // 表格字段
 
-  isLoading = true;
+  isLoading = false;
 
   queryString = '';
   searchType: SearchType = 'event';
@@ -211,7 +211,19 @@ export default class RelatedEvents extends tsc<IRelatedEventsProps> {
         props: {
           minWidth: 130,
           sortable: 'custom',
-          formatter: (row: IEventItem) => <span>{row?.assignee?.join(',') || '--'}</span>,
+          formatter: (row: IEventItem) => (
+            <span>
+              {row?.assignee?.length
+                ? row?.assignee.map((v, index, arr) => [
+                    <bk-user-display-name
+                      key={`user-display-${v}`}
+                      user-id={v}
+                    />,
+                    index !== arr.length - 1 ? <span key={`span-colon-${v}`}>{','}</span> : null,
+                  ])
+                : '--'}
+            </span>
+          ),
         },
       },
       {
@@ -342,7 +354,7 @@ export default class RelatedEvents extends tsc<IRelatedEventsProps> {
     ];
   }
 
-  @Watch('show')
+  @Watch('show', { immediate: true })
   handleShow(v) {
     if (v) {
       this.queryString = '';
@@ -458,7 +470,7 @@ export default class RelatedEvents extends tsc<IRelatedEventsProps> {
    * @param {object} obj
    * @return {*}
    */
-  handleSortChange(obj: { column: any; prop: string; order: string }) {
+  handleSortChange(obj: { column: any; order: string; prop: string }) {
     let sort = [];
     const sortType = ['ascending', 'descending'];
     if (sortType[0] === obj.order) {
@@ -521,7 +533,18 @@ export default class RelatedEvents extends tsc<IRelatedEventsProps> {
       },
       {
         children: [
-          { title: this.$t('负责人'), content: child?.assignee?.join(',') || '--' },
+          {
+            title: this.$t('负责人'),
+            content: child?.assignee?.length
+              ? child?.assignee.map((v, index, arr) => [
+                  <bk-user-display-name
+                    key={`user-display-${v}`}
+                    user-id={v}
+                  />,
+                  index !== arr.length - 1 ? <span key={`span-colon-${v}`}>{','}</span> : null,
+                ])
+              : '--',
+          },
           { title: this.$t('平台事件ID'), content: child.id },
         ],
       },
@@ -583,10 +606,16 @@ export default class RelatedEvents extends tsc<IRelatedEventsProps> {
     return (
       <div class='detail-form'>
         <div class='detail-form-top'>
-          {topItems.map(child => (
-            <div class='top-form-item'>
+          {topItems.map((child, index) => (
+            <div
+              key={index}
+              class='top-form-item'
+            >
               {child.children.map(item => (
-                <div class='item-col'>
+                <div
+                  key={item.title}
+                  class='item-col'
+                >
                   <div class='item-label'>{item.title}</div>
                   <div class='item-content'>{item.content}</div>
                 </div>
@@ -640,9 +669,9 @@ export default class RelatedEvents extends tsc<IRelatedEventsProps> {
           },
         }}
         ref='eventTabel'
-        header-cell-style={{ background: '#f5f6fa' }}
         class='related-events-table'
         header-border={false}
+        header-cell-style={{ background: '#f5f6fa' }}
         outer-border={false}
         pagination={this.pagination}
         on-page-change={this.handlePageChange}

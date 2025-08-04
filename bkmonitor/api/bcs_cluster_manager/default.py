@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,6 +7,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import logging
 from urllib.parse import urljoin
 
@@ -32,11 +32,7 @@ class BcsClusterManagerBaseResource(BcsApiGatewayBaseResource):
     IS_STANDARD_FORMAT = False
 
     def get_request_url(self, validated_request_data):
-        return (
-            super(BcsClusterManagerBaseResource, self)
-            .get_request_url(validated_request_data)
-            .format(**validated_request_data)
-        )
+        return super().get_request_url(validated_request_data).format(**validated_request_data)
 
     def render_response_data(self, validated_request_data, response_data):
         return response_data.get("data", [])
@@ -49,6 +45,7 @@ class FetchClustersResource(BcsClusterManagerBaseResource):
     method = "GET"
 
     class RequestSerializer(serializers.Serializer):
+        bk_tenant_id = serializers.CharField(label="集群类型")
         cluster_id = serializers.CharField(required=False, label="集群ID")
         businessID = serializers.CharField(required=False, label="集群类型")
         engineType = serializers.CharField(required=False, label="集群类型", default="k8s")
@@ -68,7 +65,7 @@ class FetchClustersResource(BcsClusterManagerBaseResource):
         return cluster_id_mapping_biz_id
 
     def perform_request(self, params):
-        clusters = super(FetchClustersResource, self).perform_request(params)
+        clusters = super().perform_request(params)
         cluster_id_mapping_biz_id = self.get_cluster_id_mapping_biz_id()
         for cluster in clusters:
             # 标记需要同步的业务集群列表
@@ -85,13 +82,12 @@ class GetProjectClustersResource(BcsClusterManagerBaseResource):
     method = "GET"
 
     class RequestSerializer(serializers.Serializer):
+        bk_tenant_id = serializers.CharField(label="租户ID")
         project_id = serializers.CharField(required=False, label="项目 ID", default="")
         exclude_shared_cluster = serializers.BooleanField(required=False, label="是否过滤掉共享集群", default=False)
 
     def perform_request(self, validated_request_data):
-        clusters = super(GetProjectClustersResource, self).perform_request(
-            {"projectID": validated_request_data["project_id"]}
-        )
+        clusters = super().perform_request({"projectID": validated_request_data["project_id"]})
         # 过滤掉共享集群
         if validated_request_data["exclude_shared_cluster"]:
             return [
@@ -124,12 +120,11 @@ class GetProjectK8sNonSharedClustersResource(BcsClusterManagerBaseResource):
     method = "GET"
 
     class RequestSerializer(serializers.Serializer):
+        bk_tenant_id = serializers.CharField(label="租户ID")
         project_id = serializers.CharField(required=False, label="项目 ID", default="")
 
     def perform_request(self, validated_request_data):
-        clusters = super(GetProjectK8sNonSharedClustersResource, self).perform_request(
-            {"projectID": validated_request_data["project_id"]}
-        )
+        clusters = super().perform_request({"projectID": validated_request_data["project_id"]})
         # 过滤掉共享集群
         return [
             {
@@ -148,7 +143,12 @@ class GetSharedClustersResource(BcsClusterManagerBaseResource):
     action = "sharedclusters"
     method = "GET"
 
+    class RequestSerializer(serializers.Serializer):
+        bk_tenant_id = serializers.CharField(label="租户ID")
+
     def render_response_data(self, validated_request_data, response_data):
+        if isinstance(response_data, dict):
+            response_data = response_data.get("data", [])
         return [
             {"project_id": c["projectID"], "cluster_id": c["clusterID"], "bk_biz_id": c["businessID"]}
             for c in response_data or []

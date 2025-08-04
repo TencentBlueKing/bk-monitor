@@ -23,16 +23,16 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, onMounted, onBeforeUnmount, ref } from 'vue';
+import { computed, onMounted, Ref, ref } from 'vue';
 
-import useResizeObserve from '@/hooks/use-resize-observe';
+// import useResizeObserve from '@/hooks/use-resize-observe';
 import { debounce } from 'lodash';
 
-import { GLOBAL_SCROLL_SELECTOR } from './log-row-attributes';
 import useIntersectionObserver from '../../../../hooks/use-intersection-observer';
+import RetrieveHelper from '../../../retrieve-helper';
 function deepQueryShadowSelector(selector) {
   // 搜索当前根下的元素
-  const searchInRoot = root => {
+  const searchInRoot = (root: HTMLElement | ShadowRoot) => {
     // 尝试直接查找
     const el = root.querySelector(selector);
     if (el) return el;
@@ -53,11 +53,21 @@ function deepQueryShadowSelector(selector) {
   return searchInRoot(document.body);
 }
 
-export default ({ loadMoreFn, container, rootElement, refLoadMoreElement }) => {
+export default ({
+  loadMoreFn,
+  container,
+  refLoadMoreElement,
+}: {
+  rootElement?: Ref<HTMLElement>;
+  loadMoreFn?: () => void;
+  container: string;
+  refLoadMoreElement: Ref<HTMLElement>;
+}) => {
   // const searchBarHeight = ref(0);
   const offsetWidth = ref(0);
   const scrollWidth = ref(0);
   const scrollDirection = ref('down');
+  const GLOBAL_SCROLL_SELECTOR = RetrieveHelper.getScrollSelector();
 
   // let scrollElementOffset = 0;
   let isComputingCalcOffset = false;
@@ -84,41 +94,19 @@ export default ({ loadMoreFn, container, rootElement, refLoadMoreElement }) => {
     }
   };
 
-  let lastPosition = 0;
-
-  const handleScrollEvent = (event: MouseEvent) => {
-    const target = event.target as HTMLDivElement;
-    requestAnimationFrame(() => {
-      if (target) {
-        const scrollDiff = target.scrollHeight - (target.scrollTop + target.offsetHeight);
-        if (target.scrollTop > lastPosition && scrollDiff < 80) {
-          loadMoreFn?.();
-        }
-
-        scrollDirection.value = target.scrollTop > lastPosition ? 'down' : 'up';
-        lastPosition = target.scrollTop;
-      }
-    });
-  };
-
   const scrollToTop = (top = 0, smooth = true) => {
     getScrollElement()?.scrollTo({ left: 0, top: top, behavior: smooth ? 'smooth' : 'instant' });
   };
 
   const hasScrollX = computed(() => scrollWidth.value > offsetWidth.value);
 
-  const getParentContainer = () => {
-    return rootElement.value as HTMLElement;
+  const computeRect = (targetElement?: HTMLElement) => {
+    const current = targetElement ?? getCurrentElement();
+    scrollWidth.value = (current?.scrollWidth ?? 2) - 2;
+    offsetWidth.value = current?.offsetWidth ?? 0;
   };
 
-  const computeRect = () => {
-    const current = getCurrentElement();
-    const scrollElement = getParentContainer() as HTMLElement;
-    scrollWidth.value = (current?.scrollWidth ?? 6) - 6;
-    offsetWidth.value = scrollElement?.offsetWidth ?? 0;
-  };
-
-  const debounceComputeRect = debounce(computeRect, 120);
+  const debounceComputeRect = debounce(computeRect, 300);
 
   useIntersectionObserver(refLoadMoreElement, inter => {
     if (inter.isIntersecting) {
@@ -126,27 +114,14 @@ export default ({ loadMoreFn, container, rootElement, refLoadMoreElement }) => {
     }
   });
 
-  useResizeObserve(getCurrentElement, () => {
-    debounceComputeRect();
-  });
-
-  useResizeObserve(getParentContainer, () => {
-    debounceComputeRect();
-  });
-
   onMounted(() => {
-    // getScrollElement()?.addEventListener('scroll', handleScrollEvent);
     calculateOffsetTop();
-  });
-
-  onBeforeUnmount(() => {
-    // getScrollElement()?.removeEventListener('scroll', handleScrollEvent);
   });
 
   return {
     scrollToTop,
     hasScrollX,
-    computeRect,
+    computeRect: debounceComputeRect,
     scrollDirection,
     offsetWidth,
     scrollWidth,

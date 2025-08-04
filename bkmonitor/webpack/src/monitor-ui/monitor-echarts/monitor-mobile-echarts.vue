@@ -106,17 +106,18 @@ import { debounce } from 'throttle-debounce';
 import ChartLegend from './components/chart-legend.vue';
 import { colorList } from './options/constant';
 import EchartOptions from './options/echart-options';
-import type { ILegendItem } from './options/type-interface';
 import { type MonitorEchartOptions, type MonitorEchartSeries, echarts } from './types/monitor-echarts';
 import watermarkMaker from './utils/watermarkMaker';
 
+import type { ILegendItem } from './options/type-interface';
+
 interface ICurValue {
-  xAxis: number | string;
-  yAxis: number | string;
-  dataIndex: number;
   color: string;
+  dataIndex: number;
   name: string;
   seriesIndex: number;
+  xAxis: number | string;
+  yAxis: number | string;
 }
 
 @Component({
@@ -141,10 +142,10 @@ export default class MonitorMobileEcharts extends Vue {
   noData = false;
   timeRange: string[] = [];
   curValue: ICurValue = { xAxis: '', yAxis: '', dataIndex: -1, color: '', name: '', seriesIndex: -1 };
-  refleshIntervalInstance = 0;
+  refreshIntervalInstance = 0;
   chartOptionInstance = null;
   hasInitChart = false;
-  legend: { show: boolean; list: ILegendItem[] } = {
+  legend: { list: ILegendItem[]; show: boolean } = {
     show: false,
     list: [],
   };
@@ -160,7 +161,7 @@ export default class MonitorMobileEcharts extends Vue {
   // 是否显示极值
   @Prop({ default: false }) readonly showExtremum: boolean;
   // 图表刷新间隔
-  @Prop({ default: 0 }) readonly refleshInterval: number;
+  @Prop({ default: 0 }) readonly refreshInterval: number;
   // 图表类型
   @Prop({ default: 'line' }) readonly chartType: 'bar' | 'line';
   // 图表title
@@ -243,15 +244,15 @@ export default class MonitorMobileEcharts extends Vue {
     }
     return height;
   }
-  @Watch('refleshInterval', { immediate: true })
-  onRefleshIntervalChange(v: number) {
-    if (this.refleshIntervalInstance) {
-      window.clearInterval(this.refleshIntervalInstance);
+  @Watch('refreshInterval', { immediate: true })
+  onRefreshIntervalChange(v: number) {
+    if (this.refreshIntervalInstance) {
+      window.clearInterval(this.refreshIntervalInstance);
     }
-    if (!this.getSeriesData || v <= 0) return;
-    this.refleshIntervalInstance = window.setInterval(() => {
+    if (!this.getSeriesData || !v || +v < 60 * 1000) return;
+    this.refreshIntervalInstance = window.setInterval(() => {
       this.handleSeriesData();
-    }, this.refleshInterval);
+    }, v);
   }
   @Watch('height')
   onHeightChange() {
@@ -296,7 +297,7 @@ export default class MonitorMobileEcharts extends Vue {
       this.intersectionObserver.unobserve(this.$el);
       this.intersectionObserver.disconnect();
     }
-    this.refleshIntervalInstance && window.clearInterval(this.refleshIntervalInstance);
+    this.refreshIntervalInstance && window.clearInterval(this.refreshIntervalInstance);
   }
   destroyed() {
     this.chart && this.destroy();
@@ -387,7 +388,7 @@ export default class MonitorMobileEcharts extends Vue {
       this.chartUnit = unit || this.unit || '';
       const hasSeries =
         (series && series.length > 0 && series.some(item => item.datapoints?.length)) ||
-        (series && Object.prototype.hasOwnProperty.call(series, 'series') && series.series.length);
+        (series && Object.hasOwn(series, 'series') && series.series.length);
       this.chartOptionInstance = new EchartOptions({
         chartType: this.chartType,
         colors: this.colors,
@@ -400,7 +401,7 @@ export default class MonitorMobileEcharts extends Vue {
         this.legend.show = this.showLegend && hasSeries && optionData.legendData.length > 0;
       } else {
         this.legend.show = optionData.options.lengend
-          ? Object.prototype.hasOwnProperty.call(optionData.options.lengend, 'show')
+          ? Object.hasOwn(optionData.options.lengend, 'show')
             ? optionData.options.lengend.show
             : true
           : false;
@@ -463,7 +464,7 @@ export default class MonitorMobileEcharts extends Vue {
       .map(item => ({ color: item.color, seriesName: item.seriesName, value: item.value[1] }))
       .sort((a, b) => Math.abs(a.value - +this.curValue.yAxis) - Math.abs(b.value - +this.curValue.yAxis));
 
-    const liHtmls = params
+    const liHtmlList = params
       .filter(item => !item.seriesName.match(/-no-tips$/))
       .map(item => {
         let markColor = "color: '#fafbfd';";
@@ -481,10 +482,10 @@ export default class MonitorMobileEcharts extends Vue {
         }
         if (item.value[1] === null) return '';
         const curSeries = this.curChartOption.series[item.seriesIndex];
-        const unitFormater = curSeries.unitFormatter || (v => ({ text: v }));
+        const unitFormatter = curSeries.unitFormatter || (v => ({ text: v }));
         const minBase = curSeries.minBase || 0;
         const precision = curSeries.unit !== 'none' && +curSeries.precision < 1 ? 2 : +curSeries.precision;
-        const valueObj = unitFormater(item.value[1] - minBase, precision);
+        const valueObj = unitFormatter(item.value[1] - minBase, precision);
         return `<li style="display: flex;align-items: center;">
                 <span
                  style="background-color:${item.color};margin-right: 10px;width: 6px;height: 6px; border-radius: 50%;">
@@ -499,7 +500,7 @@ export default class MonitorMobileEcharts extends Vue {
                 ${pointTime}
             </p>
             <ul style="padding: 0;margin: 0;">
-                ${liHtmls.join('')}
+                ${liHtmlList.join('')}
             </ul>
             </div>`;
   }

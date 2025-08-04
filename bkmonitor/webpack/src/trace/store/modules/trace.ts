@@ -53,16 +53,16 @@ import type {
   OriginCrossAppSpanMap,
 } from '../../typings';
 
-export type ListType = 'interfaceStatistics' | 'serviceStatistics' | 'span' | 'trace' | string;
-export type TraceListMode = 'origin' | 'pre_calculation';
-
 export type IInterfaceStatisticsType = {
   selectedInterfaceStatisticsType?: [];
   selectedInterfaceTypeInInterfaceStatistics?: [];
   selectedSourceTypeInInterfaceStatistics?: [];
 };
-
 export type IServiceStatisticsType = { contain: any[]; interfaceType: any[] };
+
+export type ListType = 'interfaceStatistics' | 'serviceStatistics' | 'span' | 'trace' | string;
+
+export type TraceListMode = 'origin' | 'pre_calculation';
 
 export const useTraceStore = defineStore('trace', () => {
   const loading = ref(false);
@@ -102,7 +102,7 @@ export const useTraceStore = defineStore('trace', () => {
   const serviceSpanList = shallowRef<IServiceSpanListItem[]>([]);
 
   /** 更新页面 loading */
-  function setPageLoaidng(v: boolean) {
+  function setPageLoading(v: boolean) {
     loading.value = v;
   }
   /** 更新 trace detail loading */
@@ -355,7 +355,7 @@ export const useTraceStore = defineStore('trace', () => {
     originCrossAppSpanMaps,
     serviceSpanList,
     setServiceSpanList,
-    setPageLoaidng,
+    setPageLoading,
     setTraceLoaidng,
     setTraceDetail,
     setTraceData,

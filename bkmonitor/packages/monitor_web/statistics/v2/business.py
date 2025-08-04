@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,6 +7,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import arrow
 from django.db.models import Q
 from django.utils.functional import cached_property
@@ -23,6 +23,7 @@ from bkmonitor.models import (
     StrategyActionConfigRelation,
     StrategyModel,
 )
+from constants.common import DEFAULT_TENANT_ID
 from constants.data_source import DataSourceLabel, DataTypeLabel
 from core.statistics.metric import Metric, register
 from metadata.models import TimeSeriesGroup
@@ -108,7 +109,7 @@ class BusinessCollector(BaseCollector):
             interval=60,
             group_by=["bk_biz_id"],
         )
-        query = UnifyQuery(bk_biz_id=None, data_sources=[data_source], expression="")
+        query = UnifyQuery(bk_biz_id=None, bk_tenant_id=DEFAULT_TENANT_ID, data_sources=[data_source], expression="")
         try:
             records = query.query_data(
                 start_time=now_ts.replace(minutes=-3).timestamp * 1000, end_time=now_ts.timestamp * 1000
@@ -137,7 +138,7 @@ class BusinessCollector(BaseCollector):
             interval=60,
             group_by=["bk_biz_id"],
         )
-        query = UnifyQuery(bk_biz_id=None, data_sources=[data_source], expression="")
+        query = UnifyQuery(bk_biz_id=None, bk_tenant_id=DEFAULT_TENANT_ID, data_sources=[data_source], expression="")
         try:
             records = query.query_data(
                 start_time=now_ts.replace(minutes=-3).timestamp * 1000, end_time=now_ts.timestamp * 1000
@@ -208,7 +209,7 @@ class BusinessCollector(BaseCollector):
 
             metric.labels(time_range=le_en).set(len(active_business_list))
 
-    @register(labelnames=("function",))
+    @register(labelnames=("function",), run_every=60 * 60)
     def biz_usage_count(self, metric: Metric):
         """功能使用的业务数"""
 

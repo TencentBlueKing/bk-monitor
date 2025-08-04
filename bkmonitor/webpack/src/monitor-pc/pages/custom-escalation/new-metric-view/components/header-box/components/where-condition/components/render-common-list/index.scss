@@ -1,0 +1,30 @@
+.filter-conditions-common-list {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  min-height: 40px;
+  padding: 0 6px;
+  padding-bottom: 4px;
+  background: #ebeef566;
+  position: relative;
+
+  .selector-item {
+    margin-top: 4px;
+    margin-right: 4px;
+    background: #ffffff;
+  }
+  .filter-conditions-setting {
+    color: #3A84FF;
+    cursor: pointer;
+    position: absolute;
+    top: 12px;
+    right: 15px;
+    display: flex;
+    align-items: center;
+    .setting-icon {
+      font-size: 14px;
+      margin-left: 4px;
+      margin-top: 1px;
+    }
+  }
+}

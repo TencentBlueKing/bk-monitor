@@ -237,6 +237,7 @@
             }"
           >
             <bk-user-selector
+              v-if="!isExternal"
               style="margin-top: 4px"
               class="principal-input"
               :api="userApi"
@@ -247,10 +248,54 @@
               @change="val => handleChangePrincipal(val, row)"
             >
             </bk-user-selector>
+            <bk-tag-input
+              v-else
+              style="margin-top: 4px"
+              v-model="row.owners"
+              placeholder=" "
+              :allow-create="true"
+              :clearable="false"
+              :has-delete-icon="true"
+              @blur="val => handleChangePrincipal(null, row)"
+            >
+            </bk-tag-input>
           </div>
         </template>
       </bk-table-column>
 
+      <bk-table-column
+        v-if="!isExternal"
+        width="200"
+        :label="$t('创建告警策略')"
+        :render-header="renderAlertPolicyHeader"
+      >
+        <template #default="{ row }">
+          <div>
+            <div
+              v-if="row.owners.length"
+              theme="primary"
+            >
+              <bk-switcher
+                v-model="row.strategy_enabled"
+                @change="val => changeStrategy(val, row)"
+              ></bk-switcher>
+              <span
+                class="button-view"
+                @click="handleStrategyInfoClick(row)"
+                v-if="row.strategy_id"
+                >{{ $t('前往查看') }} <span class="bklog-icon bklog-jump"></span
+              ></span>
+            </div>
+            <bk-switcher
+              v-else
+              v-model="row.strategy_enabled"
+              theme="primary"
+              :disabled="true"
+              v-bk-tooltips="$t('暂无配置责任人，无法自动创建告警策略')"
+            ></bk-switcher>
+          </div>
+        </template>
+      </bk-table-column>
       <bk-table-column
         width="260"
         :label="$t('备注')"
@@ -401,6 +446,8 @@
   import fingerSelectColumn from './components/finger-select-column';
   import { getConditionRouterParams } from '../panel-util';
   import { RetrieveUrlResolver } from '@/store/url-resolver';
+  import { BK_LOG_STORAGE } from '@/store/store.type';
+  import RetrieveHelper from '@/views/retrieve-helper';
 
   export default {
     components: {
@@ -511,6 +558,7 @@
           },
         ],
         ownerList: [],
+        timer: null,
         // ownerLoading: false,
       };
     },
@@ -519,7 +567,7 @@
         return this.$store.state.bkBizId;
       },
       isLimitExpandView() {
-        return this.$store.state.isLimitExpandView;
+        return this.$store.state.storage[BK_LOG_STORAGE.IS_LIMIT_EXPAND_VIEW];
       },
       isShowBottomTips() {
         return this.fingerList.length >= 50 && this.fingerList.length === this.allFingerList.length;
@@ -544,6 +592,9 @@
       },
       username() {
         return this.$store.state.userMeta?.username;
+      },
+      isExternal() {
+        return window.IS_EXTERNAL === true;
       },
     },
     watch: {
@@ -583,6 +634,13 @@
     },
     beforeDestroy() {
       this.scrollEvent('close');
+      if (this.timer) {
+        clearInterval(this.timer);
+      }
+      if (this.popoverInstance) {
+        this.popoverInstance?.destroy();
+        this.popoverInstance = null;
+      }
     },
     methods: {
       handleMenuClick(option, row, isLink = false) {
@@ -627,10 +685,11 @@
         this.$store.commit('updateClusterParams', null);
         this.$store.dispatch('setQueryCondition', additionList).then(([newSearchList, searchMode, isNewSearchPage]) => {
           if (isLink) {
-            const openUrl = getConditionRouterParams(newSearchList, searchMode, isNewSearchPage);
+            const openUrl = getConditionRouterParams(newSearchList, searchMode, isNewSearchPage, { tab: 'origin' });
             window.open(openUrl, '_blank');
             // 新开页后当前页面回填聚类参数
             this.$store.commit('updateClusterParams', this.requestData);
+            return
           } else {
             this.$emit('show-change', 'origin');
           }
@@ -639,12 +698,20 @@
 
           const resolver = new RetrieveUrlResolver({
             clusterParams: store.state.clusterParams,
+            addition: additionList,
+            searchMode,
           });
 
           Object.assign(query, resolver.resolveParamsToUrl());
 
-          router.replace({
-            query,
+          router.push({
+            params: { ...route.params },
+            query: { ...query, tab: 'origin', clusterParams: undefined },
+          });
+
+          // 触发索引集查询
+          this.$nextTick(() => {
+            store.dispatch('requestIndexSetQuery');
           });
         });
       },
@@ -673,7 +740,7 @@
        * @param { String } state 新增或删除
        */
       scrollEvent(state = 'add') {
-        const scrollEl = document.querySelector('.finger-container');
+        const scrollEl = document.querySelector(RetrieveHelper.globalScrollSelector);
         if (!scrollEl) return;
         if (state === 'add') {
           scrollEl.addEventListener('scroll', this.handleScroll, { passive: true });
@@ -801,7 +868,7 @@
       handleScroll() {
         if (this.throttle) return;
         this.throttle = true;
-        setTimeout(() => {
+        this.timer = setTimeout(() => {
           this.throttle = false;
           // scroll变化时判断是否展示返回顶部的Icon
           this.$emit('handle-scroll-is-show');
@@ -864,6 +931,19 @@
       },
       /** 设置负责人 */
       handleChangePrincipal(val, row) {
+        // 当创建告警策略开启时，不允许删掉最后一个责任人
+        if (row.strategy_enabled && !val.length) {
+          this.$bkMessage({
+            theme: 'error',
+            message: this.$t('删除失败，开启告警时，需要至少一个责任人'),
+          });
+          return;
+        }
+
+        // if (!row.owners.length) {
+        //   return;
+        // }
+
         this.curEditUniqueVal = {
           signature: row.signature,
           group: row.group,
@@ -875,7 +955,7 @@
             },
             data: {
               signature: this.getHoverRowValue.signature,
-              owners: val,
+              owners: val ?? row.owners,
               origin_pattern: this.getHoverRowValue.origin_pattern,
               groups: this.getGroupsValue(row.group),
             },
@@ -1137,6 +1217,24 @@
           },
         });
       },
+      renderAlertPolicyHeader(h, { column }) {
+        const directive = {
+          name: 'bkTooltips',
+          content: this.$t(
+            '勾选后，基于聚类结果为责任人创建关键字告警。持续监测您的异常问题。通过开关可控制告警策略启停。',
+          ),
+          placement: 'top',
+        };
+        return (
+          <p class='custom-header-cell'>
+            {column.label}{' '}
+            <span
+              class='bklog-icon bklog-help'
+              v-bk-tooltips={directive}
+            ></span>
+          </p>
+        );
+      },
       renderRemarkHeader(h, { column }) {
         const isActive = this.remarkSelect.length && !this.remarkSelect.includes('all');
         return h(ClusterFilter, {
@@ -1165,8 +1263,45 @@
         }, {});
       },
       getLimitState(index) {
-        if (this.isLimitExpandView) return false;
+        if (this[BK_LOG_STORAGE.IS_LIMIT_EXPAND_VIEW]) return false;
         return !this.cacheExpandStr.includes(index);
+      },
+      changeStrategy(val, row) {
+        this.curEditUniqueVal = {
+          signature: row.signature,
+          origin_pattern: row.origin_pattern,
+          group: row.group,
+          strategy_enabled: val,
+        };
+        this.$http
+          .request('/logClustering/updatePatternStrategy', {
+            params: {
+              index_set_id: window.__IS_MONITOR_COMPONENT__ ? this.$route.query.indexId : this.$route.params.indexId,
+            },
+            data: {
+              signature: this.getHoverRowValue.signature,
+              origin_pattern: this.getHoverRowValue.origin_pattern,
+              strategy_enabled: this.getHoverRowValue.strategy_enabled,
+              groups: this.getGroupsValue(row.group),
+            },
+          })
+          .then(res => {
+            if (res.result) {
+              const { strategy_id } = res.data;
+              this.$bkMessage({
+                theme: 'success',
+                message: this.$t('操作成功'),
+              });
+              this.$set(row, 'strategy_id', strategy_id);
+            }
+          })
+          .finally(() => (this.curEditUniqueVal = {}));
+      },
+      handleStrategyInfoClick(row) {
+        window.open(
+          `${window.MONITOR_URL}/?bizId=${this.$store.state.bkBizId}#/strategy-config/detail/${row.strategy_id}`,
+          '_blank',
+        );
       },
     },
   };
@@ -1311,6 +1446,17 @@
         }
       }
 
+      .button-view {
+        margin-left: 5px;
+        font-size: 12px;
+        color: #3a84ff;
+        cursor: pointer;
+
+        .bklog-jump {
+          font-size: 14px;
+        }
+      }
+
       .hover-row {
         .show-whole-btn {
           background-color: #f5f7fa;
@@ -1323,6 +1469,23 @@
               background: #eaebf0 !important;
             }
           }
+        }
+      }
+
+      :deep(.bk-tag-input) {
+        background-color: transparent;
+        border: none;
+
+        .input {
+          background-color: transparent;
+        }
+      }
+
+      :deep(.bk-tag-input):hover {
+        background-color: #eaebf0;
+
+        .input {
+          background-color: #eaebf0;
         }
       }
 

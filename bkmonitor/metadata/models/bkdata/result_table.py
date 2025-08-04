@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -19,6 +18,11 @@ from metadata.models.storage import ClusterInfo
 logger = logging.getLogger("metadata")
 
 
+# ------------------------------------------------------ #
+# ------------------ BkBase相关暂不修改 ------------------ #
+# ------------------------------------------------------ #
+
+
 class BkBaseResultTable(models.Model):
     """
     计算平台结果表
@@ -35,8 +39,12 @@ class BkBaseResultTable(models.Model):
     )
 
     # 在V3->V4迁移场景中，data_link_name和bkbase_data_name不一定相同，故需设计为分别全局唯一
-    data_link_name = models.CharField(verbose_name="链路名称", max_length=255, primary_key=True, db_index=True, unique=True)
-    bkbase_data_name = models.CharField(verbose_name="计算平台数据源名称", max_length=128, unique=True, null=True, blank=True)
+    data_link_name = models.CharField(
+        verbose_name="链路名称", max_length=255, primary_key=True, db_index=True, unique=True
+    )
+    bkbase_data_name = models.CharField(
+        verbose_name="计算平台数据源名称", max_length=128, unique=True, null=True, blank=True
+    )
     storage_type = models.CharField(
         "存储类型", max_length=32, choices=ClusterInfo.CLUSTER_TYPE_CHOICES, default=ClusterInfo.TYPE_VM
     )  # 存储类型
@@ -53,7 +61,10 @@ class BkBaseResultTable(models.Model):
     # 计算平台结果表ID，只有在实际创建后才进行赋值
     bkbase_table_id = models.CharField(verbose_name="计算平台结果表ID", max_length=128, null=True, blank=True)
     # 计算平台结果表名称，通常作为databus、vmstorage、vmstoragebinding等的name
-    bkbase_rt_name = models.CharField(verbose_name="计算平台结果表名称", max_length=128, unique=True, null=True, blank=True)
+    bkbase_rt_name = models.CharField(
+        verbose_name="计算平台结果表名称", max_length=128, unique=True, null=True, blank=True
+    )
+    bk_tenant_id = models.CharField("租户ID", max_length=256, null=True, default="system")
 
     class Meta:
         verbose_name = "接入计算平台记录表"
@@ -68,7 +79,7 @@ class BkBaseResultTable(models.Model):
 
         try:
             databus_config_ins = DataBusConfig.objects.get(name=self.bkbase_rt_name)
-            return databus_config_ins.namespace + '-' + databus_config_ins.name
+            return databus_config_ins.namespace + "-" + databus_config_ins.name
         except DataBusConfig.DoesNotExist:
             logger.error("data_link->[%s],do not have databus->[%s]", self.data_link_name, self.bkbase_rt_name)
             return None

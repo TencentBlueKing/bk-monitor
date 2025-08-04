@@ -24,7 +24,8 @@
  * IN THE SOFTWARE.
  */
 import { computed, defineComponent, inject } from 'vue';
-import { useRouter } from 'vue-router';
+
+import { useRoute, useRouter } from 'vue-router';
 
 import type { ICommonNavBarProps, INavItem } from './type';
 
@@ -66,8 +67,9 @@ export default defineComponent({
       default: undefined,
     },
   },
-  setup(props: ICommonNavBarProps | any, { slots }) {
+  setup(props: any | ICommonNavBarProps, { slots }) {
     const router = useRouter();
+    const route = useRoute();
     const readonly = inject('readonly');
     const navList = computed(() => {
       if (window.__POWERED_BY_BK_WEWEB__ && window.token) {
@@ -80,7 +82,7 @@ export default defineComponent({
       if (readonly) return;
       const targetRoute = router.resolve({ name: item.id, query: item.query || {} });
       /** 防止出现跳转当前地址导致报错 */
-      if (targetRoute.resolved.fullPath !== this.$route.fullPath) {
+      if (targetRoute.fullPath !== route.fullPath) {
         router.push({ name: item.id, query: item.query || {} });
       }
     }
@@ -107,7 +109,7 @@ export default defineComponent({
               onClick={() => handleBackGotoPage()}
             />
           )}
-          {!!slots.custom ? (
+          {slots.custom ? (
             <div class='navigation-bar-list'>{slots.custom()}</div>
           ) : (
             <ul class='navigation-bar-list'>

@@ -29,6 +29,22 @@ class DataSourceLabel(object):
     PROMETHEUS = "prometheus"
     DASHBOARD = "dashboard"
 
+    # UnifyQuery 灰度标签
+    BK_MONITOR_COLLECTOR_NEW = "bk_monitor_new"
+
+
+DATA_SOURCE_LABEL_ALIAS={
+    DataSourceLabel.BK_MONITOR_COLLECTOR: _lazy("监控采集指标"),
+    DataSourceLabel.BK_DATA: _lazy("计算平台指标"),
+    DataSourceLabel.CUSTOM: _lazy("自定义指标"),
+    DataSourceLabel.BK_LOG_SEARCH: _lazy("日志平台指标"),
+    DataSourceLabel.BK_FTA: _lazy("关联告警"),
+    DataSourceLabel.BK_APM: _lazy("Trace明细指标"),
+    DataSourceLabel.PROMETHEUS: _lazy("Prometheus"),
+    DataSourceLabel.DASHBOARD: _lazy("DASHBOARD"),
+    DataSourceLabel.BK_MONITOR_COLLECTOR_NEW: _lazy("BK_MONITOR_COLLECTOR_NEW"),
+}
+
 
 # 数据类型标签，例如：时序数据(time_series)，事件数据(event)，日志数据(log)
 class DataTypeLabel(object):
@@ -37,6 +53,15 @@ class DataTypeLabel(object):
     LOG = "log"
     ALERT = "alert"
     TRACE = "trace"
+
+
+DATA_TYPE_LABEL_ALIAS = {
+    DataTypeLabel.TIME_SERIES: _lazy("时序数据"),
+    DataTypeLabel.EVENT: _lazy("事件数据"),
+    DataTypeLabel.LOG: _lazy("日志数据"),
+    DataTypeLabel.ALERT: _lazy("关联告警"),
+    DataTypeLabel.TRACE: _lazy("Trace数据"),
+}
 
 
 DATA_SOURCE_LABEL_CHOICE = (
@@ -208,10 +233,13 @@ RECOVERY = "recovery"
 UnifyQueryDataSources = [
     (DataSourceLabel.BK_MONITOR_COLLECTOR, DataTypeLabel.TIME_SERIES),
     (DataSourceLabel.CUSTOM, DataTypeLabel.TIME_SERIES),
+    (DataSourceLabel.BK_APM, DataTypeLabel.EVENT),
+    (DataSourceLabel.BK_MONITOR_COLLECTOR_NEW, DataTypeLabel.LOG),
 ]
 # 灰度统一查询模块数据源
 GrayUnifyQueryDataSources = [
     (DataSourceLabel.BK_DATA, DataTypeLabel.TIME_SERIES),
+    (DataSourceLabel.BK_APM, DataTypeLabel.LOG),
 ]
 
 # V3链路版本

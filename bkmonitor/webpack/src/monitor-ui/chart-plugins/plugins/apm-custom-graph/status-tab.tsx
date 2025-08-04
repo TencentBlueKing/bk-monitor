@@ -33,9 +33,9 @@ import type { ITableFilterItem } from 'monitor-pc/pages/monitor-k8s/typings';
 import './status-tab.scss';
 
 interface IProps {
+  maxWidth?: number;
   statusList: ITableFilterItem[];
   value?: string;
-  maxWidth?: number;
   onChange?: (va: string) => void;
 }
 
@@ -60,7 +60,7 @@ export default class StatusTab extends tsc<IProps> {
     this.moreList = [];
     this.moreText = '';
     this.throttleSetList = throttle(400, this.setList, {
-      debounceMode: true,
+      debounceMode: false,
     });
   }
 
@@ -91,21 +91,21 @@ export default class StatusTab extends tsc<IProps> {
   setList() {
     try {
       const moreWidth = 56; // 更多按钮宽度
-      const visibleWraps = this.$el.querySelector('.more-status-tab-wrap-visible');
-      if (!visibleWraps || !this.maxWidth) {
+      if (!this.maxWidth) {
         this.tabList = [...this.statusList];
         return;
       }
       let totalWidth = 0;
       let index = 0;
-      for (const item of Array.from(visibleWraps.children)) {
+      for (const item of this.statusList) {
         if (totalWidth > this.maxWidth - moreWidth) {
           break;
         }
         index += 1;
-        const w = item.clientWidth;
+        const w = item.name.toString().length * 10;
         totalWidth += w;
       }
+
       this.tabList = this.statusList.slice(0, index);
       this.moreList = this.statusList.slice(index, this.statusList.length);
       this.moreText = this.moreList.find(item => this.localValue === item.id)?.name || '';

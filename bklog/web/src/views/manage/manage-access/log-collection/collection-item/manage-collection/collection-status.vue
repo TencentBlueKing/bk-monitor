@@ -212,7 +212,7 @@
             <div
               class="p20 detail-content"
               v-bkloading="{ isLoading: detail.loading }"
-              v-html="detail.content"
+              v-html="$xss(detail.content)"
             ></div>
           </template>
         </bk-sideslider>
@@ -336,7 +336,7 @@
       if (this.isContainer) return;
       this.getCollectList();
     },
-    beforeUnmount() {
+    beforeDestroy() {
       // 清除定时器
       this.timer && clearInterval(this.timer);
     },
@@ -360,9 +360,11 @@
         this.scrollontentEl.addEventListener('scroll', this.handleScroll, { passive: true });
       },
       // 获取采集状态
-      getCollectList() {
-        this.reloadTable = true;
-        this.basicLoading = true;
+      getCollectList(isLoading = true) {
+        if (isLoading) {
+          this.reloadTable = true;
+          this.basicLoading = true;
+        }
         this.dataAll = { totalLenght: 0 };
         this.dataSec = { totalLenght: 0 };
         this.dataFal = { totalLenght: 0 };
@@ -442,7 +444,7 @@
                   return 1;
                 }
                 this.timer = setInterval(() => {
-                  this.getCollectList();
+                  this.getCollectList(false);
                 }, 10000);
               }
             }
@@ -541,6 +543,7 @@
           })
           .catch(e => {
             console.warn(e);
+            this.reloadTable = false
           });
       },
       viewDetail(row) {

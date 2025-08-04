@@ -27,58 +27,96 @@
 import './public-path';
 
 import Vue from 'vue';
+import VueVirtualScroller from 'vue-virtual-scroller';
 
 import LogButton from '@/components/log-button';
 import i18n from '@/language/i18n';
 import docsLinkMixin from '@/mixins/docs-link-mixin';
-
 import { debounce } from 'lodash';
 
 import App from './App';
 import http from './api';
 import { bus } from './common/bus';
-import { renderHeader } from './common/util';
+import { renderHeader, xssFilter } from './common/util';
 import './directives/index';
 import JsonFormatWrapper from './global/json-format-wrapper.vue';
 import methods from './plugins/methods';
-import router from './router';
+import preload, { getExternalMenuListBySpace } from './preload';
+import getRouter from './router';
 import store from './store';
+import { BK_LOG_STORAGE } from './store/store.type';
 
+import './scss/theme/theme-dark.scss';
+import './scss/theme/theme-light.scss';
+import './static/font-face/index.css';
 import './static/style.css';
+import 'vue-virtual-scroller/dist/vue-virtual-scroller.css';
 
 Vue.prototype.$renderHeader = renderHeader;
+Vue.prototype.$xss = xssFilter;
 
-try {
-  const id = window.TAM_AEGIS_KEY;
-  if (id) {
-    const aegis = new window.Aegis({
-      id, // 项目key
-      reportApiSpeed: true, // 接口测速
-      reportAssetSpeed: true, // 静态资源测速
-      spa: true,
-    });
-    window.__aegisInstance = aegis;
-    Vue.config.errorHandler = function (err, vm, info) {
-      aegis.error(`Error: ${err.toString()}\nInfo: ${info}`);
-    };
-  }
-} catch (e) {
-  console.warn('前端监控接入出错', e);
-}
-
-router.onError(err => {
-  const pattern = /Loading (CSS chunk|chunk) (\d)+ failed/g;
-  const isChunkLoadFailed = err.message.match(pattern);
-  const targetPath = router.history.pending.fullPath;
-  if (isChunkLoadFailed) {
-    router.replace(targetPath);
-  }
-});
+const setRouterErrorHandle = router => {
+  router.onError(err => {
+    const pattern = /Loading (CSS chunk|chunk) (\d)+ failed/g;
+    const isChunkLoadFailed = err.message.match(pattern);
+    const targetPath = router.history?.pending?.fullPath;
+    if (isChunkLoadFailed) {
+      router.replace(targetPath);
+    }
+  });
+};
 
 Vue.component('JsonFormatWrapper', JsonFormatWrapper);
 Vue.component('LogButton', LogButton);
 Vue.mixin(docsLinkMixin);
 Vue.use(methods);
+Vue.use(VueVirtualScroller);
+
+const mountedVueInstance = () => {
+  window.mainComponent = {
+    $t: function (key, params) {
+      return i18n.t(key, params);
+    },
+  };
+  preload({ http, store }).then(([space]) => {
+    const spaceUid = store.state.storage[BK_LOG_STORAGE.BK_SPACE_UID];
+    const bkBizId = store.state.storage[BK_LOG_STORAGE.BK_BIZ_ID];
+
+    let externalMenu = [];
+    if (window.IS_EXTERNAL && space) {
+      externalMenu = getExternalMenuListBySpace(space) ?? [];
+      store.commit('updateExternalMenu', externalMenu);
+    }
+
+    store.dispatch('requestMenuList', spaceUid);
+    const router = getRouter(spaceUid, bkBizId, externalMenu);
+    setRouterErrorHandle(router);
+
+    window.mainComponent = new Vue({
+      el: '#app',
+      router,
+      store,
+      i18n,
+      components: {
+        App,
+      },
+      mounted() {
+        // 对于手动输入URL，直接刷新页面重置所有参数和状态
+        window.addEventListener('hashchange', this.reset);
+      },
+      beforeUnmount() {
+        window.removeEventListener('hashchange', this.reset);
+      },
+      methods: {
+        reset() {
+          window.location.reload();
+        },
+      },
+      template: '<App/>',
+    });
+  });
+};
+window.bus = bus;
 
 if (process.env.NODE_ENV === 'development') {
   http.request('meta/getEnvConstant').then(res => {
@@ -90,31 +128,11 @@ if (process.env.NODE_ENV === 'development') {
     window.FEATURE_TOGGLE_WHITE_LIST = JSON.parse(data.FEATURE_TOGGLE_WHITE_LIST);
     window.SPACE_UID_WHITE_LIST = JSON.parse(data.SPACE_UID_WHITE_LIST);
     window.FIELD_ANALYSIS_CONFIG = JSON.parse(data.FIELD_ANALYSIS_CONFIG);
-    window.bus = bus;
-    window.mainComponent = new Vue({
-      el: '#app',
-      router,
-      store,
-      i18n,
-      components: {
-        App,
-      },
-      template: '<App/>',
-    });
+    mountedVueInstance();
     Vue.config.devtools = true;
   });
 } else {
-  window.bus = bus;
-  window.mainComponent = new Vue({
-    el: '#app',
-    router,
-    store,
-    i18n,
-    components: {
-      App,
-    },
-    template: '<App/>',
-  });
+  mountedVueInstance();
   Vue.config.devtools = true;
 }
 

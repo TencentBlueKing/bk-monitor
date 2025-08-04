@@ -28,7 +28,6 @@ import type { MonitorEchartOptions } from '../typings';
 export const COLOR_LIST = [
   '#F0AE69',
   '#689DF3',
-  '#6ED0E0',
   '#EF843C',
   '#E24D42',
   '#1F78C1',
@@ -82,6 +81,7 @@ export const COLOR_LIST = [
   '#BADFF4',
   '#F9D9F9',
   '#DEDAF7',
+  '#6ED0E0',
 ];
 
 export const COLOR_LIST_BAR = ['#4051A3', ...COLOR_LIST];
@@ -103,6 +103,31 @@ export const COLOR_LIST_OUTLIER = [
   '#DBD84D',
   '#4E76B1',
   '#BF92CB',
+  ...COLOR_LIST,
+];
+
+/** 自定义指标图表颜色组 */
+export const COLOR_LIST_METRIC = [
+  '#FFB43D',
+  '#3A96FF',
+  '#8CC97D',
+  '#F67056',
+  '#6562DF',
+  '#FF669B',
+  '#7FC4E7',
+  '#C75548',
+  '#46A390',
+  '#FFA065',
+  '#4D59FF',
+  '#8EB6A5',
+  '#C793E6',
+  '#7EC2BD',
+  '#F1CE1A',
+  '#F68772',
+  '#55C193',
+  '#C3798F',
+  '#3754B0',
+  '#EB768F',
   ...COLOR_LIST,
 ];
 

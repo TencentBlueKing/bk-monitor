@@ -28,33 +28,34 @@ import { type PropType, computed, defineComponent, onBeforeMount, ref } from 'vu
 
 import { Checkbox, Form, Input, Radio, Select } from 'bkui-vue';
 import { deepClone } from 'monitor-common/utils/utils';
+import { useI18n } from 'vue-i18n';
 
 import SetMealAdd from '../../../../store/modules/set-meal-add';
 import AutoInput from '../auto-input/auto-input';
 
 import './dynamic-form.scss';
 
-interface FormItemProps {
-  property?: string;
-  required?: boolean;
-  sensitive?: boolean;
-  help_text?: string;
-}
 interface FormChildProps {
-  property?: string;
-  placeholder?: string;
   help_text?: string;
   label?: string;
+  placeholder?: string;
+  property?: string;
   required?: boolean;
   options?: {
     id: string;
-    value: string;
     name: string;
+    value: string;
   }[];
 }
+interface FormItemProps {
+  help_text?: string;
+  property?: string;
+  required?: boolean;
+  sensitive?: boolean;
+}
 interface FormListItem {
-  formItemProps?: FormItemProps;
   formChildProps?: FormChildProps;
+  formItemProps?: FormItemProps;
   type?: string;
 }
 
@@ -84,6 +85,7 @@ export default defineComponent({
   emits: ['change'],
   setup(props, { emit }) {
     const setMealAddModule = SetMealAdd();
+    const { t } = useI18n();
 
     const getMessageTemplateList = computed(() =>
       props.noAutoInput ? [] : setMealAddModule.getMessageTemplateList.filter(item => item.group !== 'CONTENT_VAR')
@@ -109,6 +111,7 @@ export default defineComponent({
       createFormEl,
       getMessageTemplateList,
       validator,
+      t,
     };
   },
   render() {
@@ -183,7 +186,7 @@ export default defineComponent({
                             <Input
                               v-model={this.formModel[item.formItemProps.property]}
                               behavior={'simplicity'}
-                              placeholder={item.formChildProps.placeholder || this.$t('请输入')}
+                              placeholder={item.formChildProps.placeholder || this.t('请输入')}
                               type={'password'}
                               onChange={this.emitModel}
                             />
@@ -192,7 +195,7 @@ export default defineComponent({
                         return (
                           <AutoInput
                             v-model={this.formModel[item.formItemProps.property]}
-                            placeholder={item.formChildProps.placeholder || this.$t('请输入')}
+                            placeholder={item.formChildProps.placeholder || this.t('请输入')}
                             tipsList={this.getMessageTemplateList}
                             on-change={this.emitModel}
                           />

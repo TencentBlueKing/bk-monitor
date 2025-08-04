@@ -39,19 +39,19 @@ import type { IViewOptions } from 'monitor-ui/chart-plugins/typings';
 import './k8s-detail-slider.scss';
 
 export interface K8sDetailSliderActiveTitle {
-  tag: K8sTableColumnResourceKey | string;
   field: string;
+  tag: K8sTableColumnResourceKey | string;
 }
 
-interface K8sDetailSliderProps {
-  /** 抽屉页是否显示 */
-  isShow?: boolean;
-  resourceDetail?: Partial<Record<K8sTableColumnKeysEnum, string>>;
-  metricList: IK8SMetricItem[];
-  hideMetrics: string[];
-}
 interface K8sDetailSliderEvent {
   onShowChange?: boolean;
+}
+interface K8sDetailSliderProps {
+  hideMetrics: string[];
+  /** 抽屉页是否显示 */
+  isShow?: boolean;
+  metricList: IK8SMetricItem[];
+  resourceDetail?: Partial<Record<K8sTableColumnKeysEnum, string>>;
 }
 
 @Component
@@ -67,7 +67,7 @@ export default class K8sDetailSlider extends tsc<K8sDetailSliderProps, K8sDetail
     type: Object,
     required: true,
   })
-  resourceDetail: Partial<{ externalParam: { isCluster: boolean } } & Record<K8sTableColumnKeysEnum, string>>;
+  resourceDetail: Partial<Record<K8sTableColumnKeysEnum, string> & { externalParam: { isCluster: boolean } }>;
   @ProvideReactive() viewOptions: IViewOptions = {
     filters: {},
     variables: {},
@@ -89,7 +89,10 @@ export default class K8sDetailSlider extends tsc<K8sDetailSliderProps, K8sDetail
   get groupByField() {
     if (this.resourceDetail.container) return K8sTableColumnKeysEnum.CONTAINER;
     if (this.resourceDetail.pod) return K8sTableColumnKeysEnum.POD;
+    if (this.resourceDetail.ingress) return K8sTableColumnKeysEnum.INGRESS;
+    if (this.resourceDetail.service) return K8sTableColumnKeysEnum.SERVICE;
     if (this.resourceDetail.workload) return K8sTableColumnKeysEnum.WORKLOAD;
+    if (this.resourceDetail.node) return K8sTableColumnKeysEnum.NODE;
     if (this.resourceDetail?.externalParam?.isCluster) {
       return K8sTableColumnKeysEnum.CLUSTER;
     }
@@ -153,7 +156,7 @@ export default class K8sDetailSlider extends tsc<K8sDetailSliderProps, K8sDetail
 
   /** 更新 详情接口 配置 */
   updateDetailPanel() {
-    const [workload_type, workload_name] = this.resourceDetail.workload?.split(':') || [];
+    const [workload_kind, workload_name] = this.resourceDetail.workload?.split(':') || [];
     this.panel = new PanelModel({
       targets: [
         {
@@ -166,9 +169,12 @@ export default class K8sDetailSlider extends tsc<K8sDetailSliderProps, K8sDetail
               namespace: this.resourceDetail?.namespace,
               resource_type: this.groupByField,
               workload_name: workload_name,
-              workload_type: workload_type,
+              workload_type: workload_kind,
               pod_name: this.resourceDetail?.pod,
               container_name: this.resourceDetail?.container,
+              service_name: this.resourceDetail?.service,
+              ingress_name: this.resourceDetail?.ingress,
+              node_name: this.resourceDetail?.node,
             }).filter(([, v]) => !!v)
           ),
         },

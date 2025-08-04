@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2022 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,10 +7,19 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import datetime
 import math
+import csv
+from urllib import parse
+from typing import Any
+from collections.abc import Iterable
+from collections import deque
+
+from django.http import HttpResponse
 
 from core.drf_resource import api
+from bkmonitor.utils.time_tools import time_interval_align
 
 
 def list_remote_service_callers(bk_biz_id, app_name, remote_service_name):
@@ -31,7 +39,7 @@ def get_time_period(start_time, end_time):
 
 
 def span_time_strft(timestamp) -> str:
-    return datetime.datetime.fromtimestamp(int(timestamp // 1000000)).strftime('%Y-%m-%d %H:%M:%S')
+    return datetime.datetime.fromtimestamp(int(timestamp // 1000000)).strftime("%Y-%m-%d %H:%M:%S")
 
 
 def handle_filter_fields(data, filter_fields, value_getter=lambda k, i: i):
@@ -144,6 +152,22 @@ def split_by_size(start_time, end_time, size=30):
         segments.append((int(segment_start.timestamp()), int(segment_end.timestamp())))
 
     return segments
+
+
+def split_by_interval_number(start_time: int, end_time: int, interval: int = 60):
+    """根据 interval 对开始时间和结束时间进行分割
+
+    丢弃最后一个覆盖不全的点
+    start_time,end_time: 10位时间戳
+    interval: 单位秒
+    """
+    segments = []
+    while start_time <= end_time:
+        segments.append((start_time, start_time + interval))
+        start_time += interval
+
+    # 遗弃最后一个覆盖不全的点，因为unify_query也是这么处理的
+    return segments[:-1]
 
 
 def split_by_interval(start_time, end_time, interval):
@@ -268,3 +292,113 @@ def fill_series(series, start_time, end_time, interval):
         )
 
     return res
+
+
+def fill_unify_query_series(series: list, start_time: int, end_time: int, interval: int):
+    """
+    调整时间戳 将无数据的柱子值设置为 None (适用于柱状图查询)
+    """
+
+    start_time = time_interval_align(start_time, interval)
+    end_time = time_interval_align(end_time, interval)
+    # 转换为 13 位毫秒时间戳
+    timestamp_range = [
+        (t_s * 1000, t_e * 1000) for t_s, t_e in split_by_interval_number(start_time, end_time, interval)
+    ]
+    first_start_time_ms = timestamp_range and timestamp_range[0][0]
+
+    res = []
+
+    for i in series:
+        dps = [[None, t_s] for t_s, t_e in timestamp_range]
+        dps_len = len(dps)
+        for dp, dp_timestamp_ms in i["datapoints"]:
+            # 计算列表 index 位置
+            result_index = (dp_timestamp_ms - first_start_time_ms) // (interval * 1000)
+            # 确保不超过边界
+            if 0 <= result_index < dps_len:
+                dps_result_data = dps[result_index][0]
+                dps[result_index][0] = dp if dps_result_data is None else dps_result_data + (dp or 0)
+
+        res.append(
+            {
+                **i,
+                "datapoints": dps,
+            }
+        )
+
+    return res or [{"datapoints": [[None, t_s] for t_s, t_e in timestamp_range]}]
+
+
+def generate_csv_file_download_response(file_name: str, file_content: Iterable[Iterable[Any]]) -> HttpResponse:
+    """生成一个带有文件内容和文件名的 HTTP 响应"""
+
+    # 确保文件名以 .csv 结尾
+    if file_name[-4:].lower() != ".csv":
+        file_name += ".csv"
+    # ISO8859_1 是 ASCII 的超集（一种8位的字符编码），实现最大兼容性
+    # 部分浏览器不支持解析参数值的 %，所以这里直接不做 URL 编码，然后用双引号包裹起来
+    iso8859_1_file_name = file_name.encode("utf-8").decode("ISO8859_1")
+
+    # 需要替换掉不符合操作系统文件名要求和会影响请求头读取的字符
+    prohibited_chars = "\\/?:*\"<>|';="
+    for char in prohibited_chars:
+        iso8859_1_file_name = iso8859_1_file_name.replace(char, "_")
+
+    # 使用 parse.quote 进行 URL 编码，确保文件名中的特殊字符被正确编码
+    # 现代浏览器会自动将不符合操作系统文件名要求的字符替换为下划线，这里 utf8_file_name 不做处理
+    utf8_file_name = parse.quote(file_name, encoding="utf8")
+
+    # 现代浏览器会自动将文件名截取到符合操作系统文件名要求的长度，这里只返回最多 240 个字符
+    iso8859_1_file_name = iso8859_1_file_name[-240:]
+    utf8_file_name = utf8_file_name[-240:]
+
+    # filename* 优先级更高，用于支持现代浏览器和系统，可以正确显示Unicode文件名
+    response = HttpResponse(
+        content_type="text/csv",
+        headers={
+            "Content-Disposition": f"attachment;filename=\"{iso8859_1_file_name}\";filename*=UTF-8''{utf8_file_name}"
+        },
+    )
+
+    writer = csv.writer(response)
+    for row_list in file_content:
+        # 例子：row_list => ["a", "b", "c"]
+        writer.writerow(row_list)
+    return response
+
+
+def flatten_es_dict_data(data_dict: dict) -> dict:
+    """将 ES 查询结果扁平化处理"""
+
+    def update_result_dict(result_dict: dict, key: str, value):
+        if key not in result_dict:
+            result_dict[key] = value
+        else:
+            if isinstance(result_dict[key], list):
+                result_dict[key].append(value)
+            else:
+                result_dict[key] = [result_dict[key], value]
+
+    result_dict = {}
+    q = deque()
+    q.append(("", data_dict))
+    while q:
+        name_prefix, data = q.popleft()
+        for field_name, field_value in data.items():
+            field_key = f"{name_prefix}.{field_name}" if name_prefix else field_name
+            if not field_value:
+                update_result_dict(result_dict, field_key, field_value)
+                continue
+
+            if isinstance(field_value, dict):
+                q.append((field_key, field_value))
+            elif isinstance(field_value, list):
+                for value in field_value:
+                    if isinstance(value, dict):
+                        q.append((field_key, value))
+                    else:
+                        update_result_dict(result_dict, field_key, value)
+            else:
+                update_result_dict(result_dict, field_key, field_value)
+    return result_dict

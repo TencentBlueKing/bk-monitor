@@ -28,12 +28,12 @@ import { getValueFormat } from 'monitor-ui/monitor-echarts/valueFormats';
 
 import type VueI18n from 'vue-i18n';
 
-interface ProfileDataValue {
-  value: number | string;
-  text?: VueI18n.TranslateResult;
-}
-
 export type ProfileDataUnit = 'bytes' | 'count' | 'nanoseconds' | 'seconds'; // 字节 ｜ 计数 ｜ 纳秒 ｜ 秒
+
+interface ProfileDataValue {
+  text?: VueI18n.TranslateResult;
+  value: number | string;
+}
 
 /**
  * @desc 解析不同数据类型单位处理值
@@ -56,7 +56,7 @@ export const parseProfileDataTypeValue = (
       const { text, suffix } = timeFormat(data);
       return {
         value: percent ? `(${percent}, ${text}${suffix})` : text + suffix,
-        ...(needDataText ? { text: window.i18n.tc('耗时') } : {}),
+        ...(needDataText ? { text: window.i18n.t('耗时') } : {}),
       };
     }
     case 'bytes': {
@@ -64,13 +64,13 @@ export const parseProfileDataTypeValue = (
       const { text, suffix } = bytesFormat(data);
       return {
         value: percent ? `(${percent}, ${text}${suffix})` : text + suffix,
-        ...(needDataText ? { text: window.i18n.tc('大小') } : {}),
+        ...(needDataText ? { text: window.i18n.t('大小') } : {}),
       };
     }
     case 'count': {
       return {
         value: percent ? `(${percent}, ${data})` : data,
-        ...(needDataText ? { text: window.i18n.tc('数量') } : {}),
+        ...(needDataText ? { text: window.i18n.t('数量') } : {}),
       };
     }
     default:

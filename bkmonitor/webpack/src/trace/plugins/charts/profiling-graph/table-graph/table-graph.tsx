@@ -26,13 +26,13 @@
 
 import {
   type PropType,
-  Teleport,
   defineComponent,
   nextTick,
   onBeforeUnmount,
   onMounted,
   ref,
   shallowRef,
+  Teleport,
   watch,
 } from 'vue';
 
@@ -43,6 +43,7 @@ import {
   parseProfileDataTypeValue,
 } from 'monitor-ui/chart-plugins/plugins/profiling-graph/utils';
 import { getSpanColorByName } from 'monitor-ui/chart-plugins/typings';
+import { useI18n } from 'vue-i18n';
 
 import type { DirectionType } from '../../../../typings';
 import type {
@@ -117,6 +118,7 @@ export default defineComponent({
     let intersectionObserver: IntersectionObserver = null;
     const renderTableData = shallowRef([]);
     const hiddenLoading = ref(false);
+    const { t } = useI18n();
     watch(
       () => props.data,
       (val: ProfilingTableItem[]) => {
@@ -202,7 +204,7 @@ export default defineComponent({
           sortType.value = 'asc';
           sortKey.value = col.id;
       }
-      emit('sortChange', sortKey);
+      emit('sortChange', sortKey.value);
       getTableData();
       tableColumns.value = tableColumns.value.map(item => {
         return {
@@ -303,6 +305,7 @@ export default defineComponent({
       tabelLoadingRef,
       hiddenLoading,
       renderTableData,
+      t,
     };
   },
   render() {
@@ -390,7 +393,7 @@ export default defineComponent({
                 <td colspan='3'>
                   <Exception
                     class='empty-table-exception'
-                    description={this.$t('搜索为空')}
+                    description={this.t('搜索为空')}
                     scene='part'
                     type='search-empty'
                   />
@@ -407,7 +410,7 @@ export default defineComponent({
                   }}
                   class='table-loading'
                 >
-                  {this.$t('加载中...')}
+                  {this.t('加载中...')}
                 </div>
               </td>
             </tr>
@@ -437,9 +440,9 @@ export default defineComponent({
                   ? [
                       <thead key={1}>
                         <th />
-                        <th>{this.$t('当前')}</th>
-                        <th>{this.$t('参照')}</th>
-                        <th>{this.$t('差异')}</th>
+                        <th>{this.t('当前')}</th>
+                        <th>{this.t('参照')}</th>
+                        <th>{this.t('差异')}</th>
                       </thead>,
                     ]
                   : [

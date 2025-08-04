@@ -29,7 +29,6 @@ import { Component as tsc } from 'vue-tsx-support';
 import { DEFAULT_TIME_RANGE } from 'monitor-pc/components/time-range/utils';
 import { MetricType } from 'monitor-pc/pages/strategy-config/strategy-config-set-new/typings';
 
-import AiopsContainer from './aiops/aiops-container';
 import CirculationRecord from './circulation-record';
 import HandleExperiences from './handle-experiences';
 import LogInfo from './log-info';
@@ -58,20 +57,20 @@ enum EPanelsNames {
 
 const { i18n } = window;
 
-interface ITabContainerProps {
-  isScrollEnd?: boolean;
-  alertId?: number | string;
-  show?: boolean;
-  detail?: IDetail;
-  activeTab?: string;
-  actions?: any[];
-  traceIds?: string[];
-  sceneId?: string;
-  sceneName?: string;
-}
-
 interface IDataZoomTimeRange {
   timeRange: [] | TimeRangeType;
+}
+
+interface ITabContainerProps {
+  actions?: any[];
+  activeTab?: string;
+  alertId?: number | string;
+  detail?: IDetail;
+  isScrollEnd?: boolean;
+  sceneId?: string;
+  sceneName?: string;
+  show?: boolean;
+  traceIds?: string[];
 }
 
 @Component({
@@ -385,62 +384,64 @@ export default class TabContainer extends tsc<ITabContainerProps> {
           ))}
         </bk-tab>
         {this.active === EPanelsNames.circulationRecord ? this.getCirculationFilterComponent() : undefined}
-        <ViewInfo
-          alertId={this.alertId}
-          detail={this.detail}
-          isScrollEnd={this.isScrollEnd}
-          show={this.active === EPanelsNames.viewInfo}
-        />
-        {!!(window as any).enable_aiops && !this.isHostAnomalyDetection && !this.checkPromqlPanel && (
-          <AiopsContainer
+        <div class='tab-panel-main'>
+          <ViewInfo
+            alertId={this.alertId}
             detail={this.detail}
+            isScrollEnd={this.isScrollEnd}
             show={this.active === EPanelsNames.viewInfo}
           />
-        )}
-        <HandleExperiences
-          detail={this.detail}
-          show={this.active === EPanelsNames.handleExperience}
-        />
-        <CirculationRecord
-          actions={this.actions}
-          conditions={this.getConditions}
-          detail={this.detail}
-          isScrollEnd={this.isScrollEnd}
-          show={this.active === EPanelsNames.circulationRecord}
-          on-related-events={this.handleRelatedEvents}
-        />
-        <RelatedEvents
-          alertId={this.alertId}
-          detail={this.detail}
-          params={this.relatedEventsParams}
-          show={this.active === EPanelsNames.relatedEvents}
-        />
-        <PerformanceView
-          detail={this.detail}
-          show={this.active === EPanelsNames.performance}
-        />
-        <PerformanceView
-          detail={this.detail}
-          isProcess={true}
-          show={this.active === EPanelsNames.hostProcess}
-        />
-        {/* 日志 tab */}
-        <LogInfo
-          detail={this.detail}
-          show={this.active === EPanelsNames.logInfo}
-        />
-        {/* trace tab */}
-        <TraceInfo
-          detail={this.detail}
-          show={this.active === EPanelsNames.traceInfo}
-          traceIds={this.traceIds}
-        />
-        <SceneView
-          detail={this.detail}
-          sceneId={this.sceneId}
-          sceneName={this.sceneName}
-          show={this.active === EPanelsNames.sceneView}
-        />
+          {/* {!!window.enable_aiops && !this.isHostAnomalyDetection && !this.checkPromqlPanel && (
+            <AiopsContainer
+              detail={this.detail}
+              show={this.active === EPanelsNames.viewInfo}
+            />
+          )} */}
+          <HandleExperiences
+            detail={this.detail}
+            show={this.active === EPanelsNames.handleExperience}
+          />
+          <CirculationRecord
+            actions={this.actions}
+            conditions={this.getConditions}
+            detail={this.detail}
+            isScrollEnd={this.isScrollEnd}
+            show={this.active === EPanelsNames.circulationRecord}
+            on-related-events={this.handleRelatedEvents}
+          />
+          <RelatedEvents
+            alertId={this.alertId}
+            detail={this.detail}
+            params={this.relatedEventsParams}
+            show={this.active === EPanelsNames.relatedEvents}
+          />
+          <PerformanceView
+            detail={this.detail}
+            show={this.active === EPanelsNames.performance}
+          />
+          <PerformanceView
+            detail={this.detail}
+            isProcess={true}
+            show={this.active === EPanelsNames.hostProcess}
+          />
+          {/* 日志 tab */}
+          <LogInfo
+            detail={this.detail}
+            show={this.active === EPanelsNames.logInfo}
+          />
+          {/* trace tab */}
+          <TraceInfo
+            detail={this.detail}
+            show={this.active === EPanelsNames.traceInfo}
+            traceIds={this.traceIds}
+          />
+          <SceneView
+            detail={this.detail}
+            sceneId={this.sceneId}
+            sceneName={this.sceneName}
+            show={this.active === EPanelsNames.sceneView}
+          />
+        </div>
       </div>
     );
   }

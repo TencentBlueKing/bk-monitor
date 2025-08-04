@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,6 +7,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import datetime
 
 import pytz
@@ -22,6 +22,7 @@ from bkmonitor.utils.time_tools import (
 )
 from bkmonitor.utils.user import get_global_user
 from calendars.constants import ItemFreq
+from constants.common import DEFAULT_TENANT_ID
 
 
 class AbstractModel(models.Model):
@@ -51,7 +52,7 @@ class AbstractModel(models.Model):
         if self.pk is None:
             self.create_user = username
             self.create_time = now
-        return super(AbstractModel, self).save(*args, **kwargs)
+        return super().save(*args, **kwargs)
 
 
 class CalendarModel(AbstractModel):
@@ -60,10 +61,9 @@ class CalendarModel(AbstractModel):
     """
 
     CALENDAR_CLASSIFY_CHOICES = (("default", _lazy("内置")), ("custom", _lazy("自定义")))
-    name = models.CharField(
-        "日历名称",
-        max_length=15,
-    )
+
+    bk_tenant_id = models.CharField("租户ID", max_length=128, default=DEFAULT_TENANT_ID)
+    name = models.CharField("日历名称", max_length=15)
     classify = models.CharField("日历分类", choices=CALENDAR_CLASSIFY_CHOICES, max_length=12)
     deep_color = models.CharField("日历深色底色", max_length=7, default="#3A84FF")
     light_color = models.CharField("日历浅色底色", max_length=7, default="#E1ECFF")
@@ -92,10 +92,8 @@ class CalendarItemModel(AbstractModel):
     日历事项模型
     """
 
-    name = models.CharField(
-        "日历事项名称",
-        max_length=15,
-    )
+    bk_tenant_id = models.CharField("租户ID", max_length=128, default=DEFAULT_TENANT_ID)
+    name = models.CharField("日历事项名称", max_length=15)
     calendar_id = models.IntegerField("日历ID")
     start_time = models.IntegerField("事项开始时间")
     end_time = models.IntegerField("事项结束时间")
@@ -108,8 +106,11 @@ class CalendarItemModel(AbstractModel):
         verbose_name_plural = verbose_name
         db_table = "calendar_item"
 
-    def to_json(self, start_time=None, end_time=None, time_zone=None, is_first=True):
-        calendar = CalendarModel.objects.get(id=self.calendar_id)
+    def to_json(self, start_time=None, end_time=None, time_zone=None, is_first=True, calendars_mapping=None):
+        if calendars_mapping and self.calendar_id in calendars_mapping:
+            calendar = calendars_mapping.get(self.calendar_id)
+        else:
+            calendar = CalendarModel.objects.get(id=self.calendar_id)
         time_zone = time_zone if time_zone else self.time_zone
         offset = datetime.datetime.now(pytz.timezone(time_zone)).utcoffset().seconds // 3600
         if offset > 12:
@@ -162,4 +163,4 @@ class CalendarItemModel(AbstractModel):
             # 对every进行排序
             self.repeat["every"].sort()
 
-        return super(CalendarItemModel, self).save(*args, **kwargs)
+        return super().save(*args, **kwargs)

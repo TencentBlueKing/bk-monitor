@@ -36,15 +36,16 @@ import {
 } from 'vue';
 
 import { debounce, deepClone } from 'monitor-common/utils/utils';
+import { useI18n } from 'vue-i18n';
 
 import type { IFavList, IFavoriteItem } from '../../../typings';
 
 import './favorites-list.scss';
 
 interface IState {
-  localValue: IFavList.favList[];
-  isExpand: boolean;
   allowScroll: boolean;
+  isExpand: boolean;
+  localValue: IFavList.favList[];
 }
 
 const IProps = {
@@ -76,6 +77,7 @@ export default defineComponent({
     const favoritesList = ref<HTMLDivElement>();
     const favListRef = ref<HTMLDivElement>();
     const resizeObserver = ref<any>(null);
+    const { t } = useI18n();
 
     onMounted(() => {
       favMain.value?.addEventListener('transitionend', handleExpandEnd, false);
@@ -211,6 +213,7 @@ export default defineComponent({
       handleSelectFav,
       handleDeleteItem,
       favListRef,
+      t,
     };
   },
 
@@ -228,7 +231,7 @@ export default defineComponent({
           class='fav-main'
         >
           <div class='box-shadow' />
-          <span class='fav-label'>{this.$t('收藏')}</span>
+          <span class='fav-label'>{this.t('收藏')}</span>
           <div
             ref='scroll'
             class={['fav-list-wrap', { 'allow-scroll': this.allowScroll && this.isExpand }]}

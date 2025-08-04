@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -19,12 +18,13 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+
 import copy
 import datetime
 import functools
 import re
 from collections import defaultdict
-from typing import Any, Dict, List
+from typing import Any
 
 import arrow
 import pytz
@@ -64,6 +64,7 @@ from apps.log_search.models import (
     StorageClusterRecord,
     UserIndexSetFieldsConfig,
 )
+from apps.log_search.utils import split_object_fields
 from apps.utils.cache import cache_one_minute, cache_ten_minute
 from apps.utils.codecs import unicode_str_encode
 from apps.utils.drf import custom_params_valid
@@ -92,7 +93,7 @@ TIME_TYPE = ["date"]
 TRACE_SCOPE = ["trace", "trace_detail", "trace_detail_log"]
 
 
-class MappingHandlers(object):
+class MappingHandlers:
     def __init__(
         self,
         indices,
@@ -318,6 +319,8 @@ class MappingHandlers(object):
             else:
                 # 检查display_fields每个字段是否存在
                 final_fields = [i["field_name"].lower() for i in final_fields_list]
+                # 对object类型的字段进行拆分
+                final_fields = split_object_fields(final_fields)
                 display_fields_list = [
                     _filed_obj for _filed_obj in display_fields if _filed_obj.lower() in final_fields
                 ]
@@ -498,7 +501,7 @@ class MappingHandlers(object):
         if self.start_time:
             try:
                 tz_info = pytz.timezone(get_local_param("time_zone", settings.TIME_ZONE))
-                if isinstance(self.start_time, (int, float)) or (
+                if isinstance(self.start_time, int | float) or (
                     isinstance(self.start_time, str) and self.start_time.isdigit()
                 ):
                     start_datetime = arrow.get(int(self.start_time)).to(tz=tz_info).datetime
@@ -521,7 +524,6 @@ class MappingHandlers(object):
         }
         if not storage_cluster_record_objs.exists():
             return self._direct_latest_mapping(params)
-
         multi_execute_func = MultiExecuteFunc()
         multi_num = 1
         storage_cluster_ids = {self.storage_cluster_id}
@@ -552,7 +554,6 @@ class MappingHandlers(object):
         except Exception as e:
             logger.error(f"[_multi_get_latest_mapping] error -> e: {e}")
             raise MultiFieldsErrorException()
-
         return merge_result
 
     @staticmethod
@@ -564,7 +565,7 @@ class MappingHandlers(object):
         return final_fields_list, []
 
     @classmethod
-    def is_case_sensitive(cls, field_dict: Dict[str, Any]) -> bool:
+    def is_case_sensitive(cls, field_dict: dict[str, Any]) -> bool:
         # 历史清洗的格式内, 未配置大小写敏感和分词器的字段, 所以不存在analyzer和analyzer_details
         if not field_dict.get("analyzer"):
             return False
@@ -573,25 +574,27 @@ class MappingHandlers(object):
         return "lowercase" not in field_dict["analyzer_details"].get("filter", [])
 
     @classmethod
-    def tokenize_on_chars(cls, field_dict: Dict[str, Any]) -> str:
+    def tokenize_on_chars(cls, field_dict: dict[str, Any]) -> str:
         # 历史清洗的格式内, 未配置大小写敏感和分词器的字段, 所以不存在analyzer,analyzer_details,tokenizer_details
-        if not field_dict.get("analyzer"):
-            return ""
         if not field_dict.get("analyzer_details"):
             return ""
         # tokenizer_details在analyzer_details中
         if not field_dict["analyzer_details"].get("tokenizer_details", {}):
             return ""
+        if not field_dict.get("analyzer"):
+            return ""
+        elif field_dict.get("analyzer") == "bkbase_custom":
+            return field_dict["analyzer_details"].get("tokenizer_details", {}).get("tokenize_on_chars", "")
         result = "".join(field_dict["analyzer_details"].get("tokenizer_details", {}).get("tokenize_on_chars", []))
         return unicode_str_encode(result)
 
     @classmethod
-    def get_all_index_fields_by_mapping(cls, properties_dict: Dict) -> List:
+    def get_all_index_fields_by_mapping(cls, properties_dict: dict) -> list:
         """
         通过mapping集合获取所有的index下的fields
         :return:
         """
-        fields_result: List = list()
+        fields_result: list = list()
         for key in properties_dict.keys():
             k_keys: list = properties_dict[key].keys()
             if "properties" in k_keys:
@@ -620,7 +623,7 @@ class MappingHandlers(object):
                 elif es_doc_values:
                     tag = "dimension"
 
-                data: Dict[str, Any] = dict()
+                data: dict[str, Any] = dict()
                 data.update(
                     {
                         "field_type": field_type,
@@ -646,7 +649,7 @@ class MappingHandlers(object):
         return field_type == "text"
 
     @classmethod
-    def get_fields_recursively(cls, p_key, properties_dict: Dict, field_types=None) -> List:
+    def get_fields_recursively(cls, p_key, properties_dict: dict, field_types=None) -> list:
         """
         递归拿取mapping集合获取所有的index下的fields
         :param p_key:
@@ -654,7 +657,7 @@ class MappingHandlers(object):
         :param field_types:
         :return:
         """
-        fields_result: List = list()
+        fields_result: list = list()
         common_index: int = 1
         for key in properties_dict.keys():
             if "properties" in key:
@@ -662,8 +665,8 @@ class MappingHandlers(object):
             else:
                 if key in ["include_in_all"] or not isinstance(properties_dict[key], dict):
                     continue
-                k_keys: List = properties_dict[key].keys()
-                filed_name: str = "{}.{}".format(p_key, key)
+                k_keys: list = properties_dict[key].keys()
+                filed_name: str = f"{p_key}.{key}"
                 if "type" in k_keys:
                     field_type: str = properties_dict[key]["type"]
                     if field_types and field_type not in field_types:
@@ -701,9 +704,7 @@ class MappingHandlers(object):
                     fields_result.append(data)
                 elif "properties" in k_keys:
                     fields_result.extend(
-                        cls.get_fields_recursively(
-                            p_key="{}.{}".format(p_key, key), properties_dict=properties_dict[key]
-                        )
+                        cls.get_fields_recursively(p_key=f"{p_key}.{key}", properties_dict=properties_dict[key])
                     )
         return fields_result
 
@@ -778,7 +779,7 @@ class MappingHandlers(object):
         return mapping_group
 
     @classmethod
-    def find_property_dict(cls, result_list: list) -> Dict:
+    def find_property_dict(cls, result_list: list) -> dict:
         """
         获取最新索引mapping
         :param result_list:
@@ -821,9 +822,11 @@ class MappingHandlers(object):
             if _field_name:
                 schema_dict.update({_field_name: temp_dict})
 
-        alias_dict = {
-            _field["origin_field"]: _field["field_name"] for _field in fields_list if _field.get("origin_field")
-        }
+        alias_dict = {}
+        if query_alias_settings := self.index_set.query_alias_settings:
+            for item in query_alias_settings:
+                alias_dict[item["field_name"]] = item["query_alias"]
+
         remove_field_list = list()
         # 增加description别名字段
         for _field in fields_list:
@@ -894,12 +897,29 @@ class MappingHandlers(object):
         try:
             all_field_list = list()
             all_field_set = set()
+
+            multi_execute_func = MultiExecuteFunc()
+
             for index in indices:
-                data: dict = TransferApi.get_result_table({"table_id": index})
+                multi_execute_func.append(
+                    result_key=f"get_result_table_{index}",
+                    func=TransferApi.get_result_table,
+                    params={"params": {"table_id": index}},
+                    multi_func_params=True,
+                )
+
+            multi_result = multi_execute_func.run()
+
+            for index in indices:
+                data = multi_result.get(f"get_result_table_{index}")
+                if not data:
+                    continue
+
                 for field_info in data["field_list"]:
                     if field_info["field_name"] not in all_field_set:
                         all_field_set.add(field_info["field_name"])
                         all_field_list.append(field_info)
+
             return all_field_list
         except Exception:  # pylint: disable=broad-except
             return []
@@ -1042,7 +1062,7 @@ class MappingHandlers(object):
         return True
 
     @classmethod
-    def analyze_fields(cls, final_fields_list: List[Dict[str, Any]]) -> dict:
+    def analyze_fields(cls, final_fields_list: list[dict[str, Any]]) -> dict:
         """
         analyze_fields
         @param final_fields_list:
@@ -1096,7 +1116,7 @@ class MappingHandlers(object):
         }
 
     @classmethod
-    def _analyze_fields_type(cls, final_fields_list: List[Dict[str, Any]]):
+    def _analyze_fields_type(cls, final_fields_list: list[dict[str, Any]]):
         # 上下文实时日志校验字段类型
         fields_type = {
             "gseindex": ["integer", "long"],
@@ -1155,7 +1175,7 @@ class MappingHandlers(object):
                 for key, info in property_dict.items():
                     field_type = info.get("type", "")
                     if field_type in settings.FEATURE_TOGGLE.get("es_date_candidate", ["date", "long"]):
-                        item_data_field.append("{}:{}".format(key, field_type))
+                        item_data_field.append(f"{key}:{field_type}")
                 # 校验是否有相同的时间字段（long和date类型)
                 if not date_field_list:
                     date_field_list = item_data_field
@@ -1182,7 +1202,7 @@ class MappingHandlers(object):
             for k, v in property_dict.items():
                 p_key = k
                 if prefix_key:
-                    p_key = "{}.{}".format(prefix_key, k)
+                    p_key = f"{prefix_key}.{k}"
                 if match_key in v:
                     result.update(cls.get_property_dict(v, prefix_key=p_key, match_key=match_key))
                 else:
@@ -1197,7 +1217,7 @@ class MappingHandlers(object):
         return None
 
     @classmethod
-    def async_export_fields(cls, final_fields_list: List[Dict[str, Any]], scenario_id: str, sort_fields: list) -> dict:
+    def async_export_fields(cls, final_fields_list: list[dict[str, Any]], scenario_id: str, sort_fields: list) -> dict:
         """
         判断是否可以支持大额导出
         """

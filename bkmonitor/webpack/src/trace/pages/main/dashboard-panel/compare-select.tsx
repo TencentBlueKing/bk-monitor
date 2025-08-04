@@ -27,6 +27,7 @@ import { defineComponent, ref } from 'vue';
 import { computed } from 'vue';
 
 import { Select } from 'bkui-vue';
+import { useI18n } from 'vue-i18n';
 
 import TargetCompareSelect from './target-compare-select';
 import TimeCompareSelect from './time-compare-select';
@@ -70,6 +71,7 @@ export default defineComponent({
   },
   emits: ['timeChange', 'targetChange', 'typeChange'],
   setup(props, { emit }) {
+    const { t } = useI18n();
     const localType = ref(CompareId.none);
 
     const localTargetValue = ref<string[]>([]);
@@ -115,6 +117,7 @@ export default defineComponent({
       handleTargetChange,
       handleTimeChange,
       handleTypeChange,
+      t,
     };
   },
   render() {
@@ -136,7 +139,7 @@ export default defineComponent({
             {this.curTarget && (
               <span
                 class='compare-target-ip'
-                v-bk-overflow-tips
+                v-overflow-tips
               >
                 {this.curTarget}
               </span>
@@ -155,7 +158,7 @@ export default defineComponent({
     };
     return (
       <div class='dashboard-panel__compare-select'>
-        <span class='compare-select-label'>{this.$t('对比方式')}</span>
+        <span class='compare-select-label'>{this.t('对比方式')}</span>
         <Select
           class='compare-select'
           v-model={this.localType}

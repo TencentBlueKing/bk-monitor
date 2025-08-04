@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,14 +7,13 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import logging
 import os
 
-import six
 from blueapps.conf.log import get_logging_config_dict
 from blueapps.patch.log import get_paas_v2_logging_config_dict
 
-from config.tools.rabbitmq import get_rabbitmq_settings
 
 from ..tools.environment import (
     DJANGO_CONF_MODULE,
@@ -27,7 +25,7 @@ from ..tools.environment import (
 )
 
 # fmt: off
-for k, v in six.iteritems(os.environ):
+for k, v in os.environ.items():
     for prefix in ("BK_", "BKAPP_"):
         k = k.upper()
         if k.startswith(prefix) and k[len(prefix):]:
@@ -39,7 +37,7 @@ try:
     _module = __import__(f"config.{NEW_ENV}", globals(), locals(), ["*"])
 except ImportError as e:
     logging.exception(e)
-    raise ImportError("Could not import config '{}' (Is it on sys.path?): {}".format(DJANGO_CONF_MODULE, e))
+    raise ImportError(f"Could not import config '{DJANGO_CONF_MODULE}' (Is it on sys.path?): {e}")
 
 for _setting in dir(_module):
     if _setting == _setting.upper():
@@ -75,7 +73,8 @@ INSTALLED_APPS += (
     "fta_web",
     "audit",
     "apigw_manager",
-    'bk_notice_sdk',
+    "bk_notice_sdk",
+    "ai_agents",
 )
 
 # 切换session的backend后， 需要设置该中间件，确保新的 csrftoken 被设置到新的session中
@@ -98,7 +97,7 @@ MIDDLEWARE = (
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.security.SecurityMiddleware",
     # 静态资源
-    'whitenoise.middleware.WhiteNoiseMiddleware',
+    "whitenoise.middleware.WhiteNoiseMiddleware",
     # Auth middleware
     "weixin.core.middlewares.WeixinAuthenticationMiddleware",
     "weixin.core.middlewares.WeixinLoginMiddleware",
@@ -208,10 +207,10 @@ CACHES = {
     "space": {
         "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
         "LOCATION": "space",
-        'OPTIONS': {
+        "OPTIONS": {
             # 5w空间支持
-            'MAX_ENTRIES': 50000,
-            'CULL_FREQUENCY': 0,
+            "MAX_ENTRIES": 50000,
+            "CULL_FREQUENCY": 0,
         },
     },
 }
@@ -264,37 +263,36 @@ SESSION_COOKIE_NAME = APP_CODE + "_sessionid"
 #
 AUTH_USER_MODEL = "account.User"
 
-LOG_LEVEL = os.environ.get("BKAPP_LOG_LEVEL", "INFO")
-
-if PAAS_VERSION == "V2":
-    LOGGING = get_paas_v2_logging_config_dict(is_local=ENVIRONMENT == "dev", bk_log_dir=LOG_PATH, log_level=LOG_LEVEL)
-else:
-    LOGGING = get_logging_config_dict(locals())
-
-LOGGING["loggers"].update(
-    {
-        "monitor_web": {"handlers": ["root"], "level": LOG_LEVEL, "propagate": True},
-        "monitor_api": {"handlers": ["root"], "level": LOG_LEVEL, "propagate": True},
-        "apm": {"handlers": ["root"], "level": LOG_LEVEL, "propagate": True},
-        "apm_ebpf": {"handlers": ["root"], "level": LOG_LEVEL, "propagate": True},
-        "utils": {"handlers": ["root"], "level": LOG_LEVEL, "propagate": True},
-        "core": {"handlers": ["root"], "level": LOG_LEVEL, "propagate": True},
-        "common": {"handlers": ["root"], "level": LOG_LEVEL, "propagate": True},
-        "monitor_adapter": {"handlers": ["root"], "level": LOG_LEVEL, "propagate": True},
-        "root": {"handlers": ["root"], "level": LOG_LEVEL, "propagate": True},
-        "account": {"handlers": ["root"], "level": LOG_LEVEL, "propagate": True},
-        "bkmonitor": {"handlers": ["root"], "level": LOG_LEVEL, "propagate": True},
-        "metadata": {"handlers": ["root"], "level": LOG_LEVEL, "propagate": True},
-        "kubernetes": {"handlers": ["root"], "level": LOG_LEVEL, "propagate": True},
-        "calendars": {"handlers": ["root"], "level": LOG_LEVEL, "propagate": True},
-        "iam": {"handlers": ["root"], "level": "ERROR", "propagate": True},
+LOGGER_LEVEL = os.environ.get("BKAPP_LOG_LEVEL", "INFO")
+if IS_CONTAINER_MODE or ENVIRONMENT == "dev":
+    LOGGING = {
+        "version": 1,
+        "disable_existing_loggers": False,
+        "handlers": {
+            "console": {
+                "class": "logging.StreamHandler",
+                "level": LOGGER_LEVEL,
+                "formatter": "standard",
+            },
+        },
+        "formatters": {
+            "standard": {
+                "format": "%(asctime)s %(levelname)-8s %(process)-8d %(name)-15s %(filename)20s[%(lineno)03d] %(message)s",
+                "datefmt": "%Y-%m-%d %H:%M:%S",
+            },
+        },
+        "loggers": {
+            "": {"level": LOGGER_LEVEL, "handlers": ["console"]},
+            **{k: {"level": v, "handlers": ["console"], "propagate": False} for k, v in LOG_LEVEL_MAP.items()},
+        },
     }
-)
-
-if IS_CONTAINER_MODE:
-    for logger in LOGGING["loggers"]:
-        if "null" not in LOGGING["loggers"][logger]["handlers"]:
-            LOGGING["loggers"][logger]["handlers"] = ["console"]
+else:
+    if PAAS_VERSION == "V2":
+        LOGGING = get_paas_v2_logging_config_dict(
+            is_local=ENVIRONMENT == "dev", bk_log_dir=LOG_PATH, log_level=LOG_LEVEL
+        )
+    else:
+        LOGGING = get_logging_config_dict(locals())
 
 #
 # Django Rest Framework Settings
@@ -340,7 +338,7 @@ SIGNATURE_FONT_PATH = os.getenv("BKAPP_SIGNATURE_FONT_PATH", "/usr/share/fonts/t
 CLEAR_CACHE_ON_RESTART = False
 
 # csrf token name
-CSRF_COOKIE_NAME = "%s_monitor_csrftoken" % BKAPP_DEPLOY_PLATFORM
+CSRF_COOKIE_NAME = f"{BKAPP_DEPLOY_PLATFORM}_monitor_csrftoken"
 
 # 主机任务状态码: 1.Agent异常; 3.上次已成功; 5.等待执行; 7.正在执行;
 # 9.执行成功; 11.任务失败; 12.任务下发失败; 13.任务超时; 15.任务日志错误;
@@ -403,42 +401,8 @@ GRAFANA = {
     "PERMISSION_CLASSES": ["monitor_web.grafana.permissions.DashboardPermission"],
     "CODE_INJECTIONS": {
         "<head>": """<head>
-<style>
-      .sidemenu {
-        display: none !important;
-      }
-      .navbar-page-btn .gicon-dashboard {
-        display: none !important;
-      }
-      .navbar .navbar-buttons--tv {
-        display: none !important;
-      }
-    .css-1jrggg2 {
-          left: 0 !important;
-      }
-      .css-9nwlx8 {
-        display: none;
-      }
-</style>
 <script>
 var is_external = false;
-var _wr = function(type) {
-    var orig = history[type];
-    return function() {
-        var rv = orig.apply(this, arguments);
-        var e = new Event(type);
-        e.arguments = arguments;
-        window.dispatchEvent(e);
-        return rv;
-    };
-};
-   history.pushState = _wr('pushState');
-   history.replaceState = _wr('replaceState');
-  ["popstate", "replaceState", "pushState"].forEach(function(eventName) {
-    window.addEventListener(eventName, function() {
-      window.parent.postMessage({ pathname: this.location.pathname, search: this.location.search }, "*");
-    });
-  });
 </script>
 """,
     },

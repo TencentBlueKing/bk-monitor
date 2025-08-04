@@ -24,14 +24,14 @@
  * IN THE SOFTWARE.
  */
 import { computed, defineComponent, onMounted, provide, reactive, readonly, ref } from 'vue';
-import { useI18n } from 'vue-i18n';
-import { useRoute, useRouter } from 'vue-router';
 
 import { Button, DatePicker, Input, Popover, Switcher, TagInput } from 'bkui-vue';
 import dayjs from 'dayjs';
 import { createDutyRule, retrieveDutyRule, updateDutyRule } from 'monitor-api/modules/model';
 import { getReceiver } from 'monitor-api/modules/notice_group';
 import { previewDutyRulePlan } from 'monitor-api/modules/user_groups';
+import { useI18n } from 'vue-i18n';
+import { useRoute, useRouter } from 'vue-router';
 
 import NavBar from '../../components/nav-bar/nav-bar';
 import {
@@ -56,8 +56,8 @@ import {
 import './rotation-config.scss';
 
 interface RotationTypeData {
-  [RotationTabTypeEnum.REGULAR]: FixedDataModel[];
   [RotationTabTypeEnum.HANDOFF]: ReplaceDataModel[];
+  [RotationTabTypeEnum.REGULAR]: FixedDataModel[];
 }
 
 export default defineComponent({
@@ -555,6 +555,7 @@ export default defineComponent({
             require
           >
             <DatePicker
+              appendToBody={true}
               clearable={false}
               disabledDate={this.disabledDateFn}
               modelValue={this.formData.effective.startTime}
@@ -566,6 +567,7 @@ export default defineComponent({
             <DatePicker
               ref='effectiveEndRef'
               class='effective-end'
+              appendToBody={true}
               disabledDate={this.disabledDateFn}
               modelValue={this.formData.effective.endTime}
               placeholder={this.t('永久')}

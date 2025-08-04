@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -19,6 +18,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+
 from enum import Enum
 
 from django.apps import apps
@@ -29,6 +29,15 @@ from apps.log_databus.constants import (
     ETL_DELIMITER_DELETE,
     ETL_DELIMITER_END,
     ETL_DELIMITER_IGNORE,
+)
+from apps.log_search.exceptions import (
+    ESQuerySyntaxException,
+    FieldNoMappingException,
+    HighlightException,
+    UnsupportedOperationException,
+    QueryServerUnavailableException,
+    IndexMappingEmptyException,
+    TooManyBucketsException,
 )
 from apps.utils import ChoicesEnum
 from apps.utils.custom_report import render_otlp_report_config
@@ -173,7 +182,7 @@ FILTER_KEY_LIST = ["gettext", "_", "LANGUAGES"]
 MAX_GET_ATTENTION_SIZE = 10
 
 
-class SearchConditionFieldType(object):
+class SearchConditionFieldType:
     INTEGER = "integer"
     LONG = "long"
     TEXT = "text"
@@ -193,13 +202,13 @@ CHECK_FIELD_MIN_VALUE_MAPPING = {
 
 
 # 导出类型
-class ExportType(object):
+class ExportType:
     ASYNC = "async"
     SYNC = "sync"
 
 
 # 导出状态
-class ExportStatus(object):
+class ExportStatus:
     DOWNLOAD_LOG = "download_log"
     EXPORT_PACKAGE = "export_package"
     EXPORT_UPLOAD = "export_upload"
@@ -210,13 +219,13 @@ class ExportStatus(object):
 
 
 # 消息模式
-class MsgModel(object):
+class MsgModel:
     NORMAL = "normal"
     ABNORMAL = "abnormal"
 
 
 # 数据平台mapping返回错误
-class BkDataErrorCode(object):
+class BkDataErrorCode:
     COULD_NOT_GET_METADATA_ERROR = 1532013
     STORAGE_TYPE_ERROR = 1532007
 
@@ -957,7 +966,7 @@ class FieldDateFormatEnum(ChoicesEnum):
         :return: list[dict{id, name, description}]
         """
         # 解决循环引用问题
-        FieldDateFormat = apps.get_model('log_databus', 'FieldDateFormat')
+        FieldDateFormat = apps.get_model("log_databus", "FieldDateFormat")
         # 加入自定义时间格式
         custom_time_format = FieldDateFormat.get_field_date_format()
         return [
@@ -1337,7 +1346,7 @@ RT_RESERVED_WORD_EXAC = [
 ]
 
 
-class FieldBuiltInEnum(object):
+class FieldBuiltInEnum:
     """
     系统内置字段
     """
@@ -1385,7 +1394,7 @@ CMDB_SET_INFO_FIELDS = ["bk_set_id", "bk_chn_name"]
 GET_SET_INFO_FILEDS_MAX_IDS_LEN = 500
 
 
-class UserMetaConfType(object):
+class UserMetaConfType:
     """
     用户元数据配置类型
     """
@@ -1531,7 +1540,11 @@ class FavoriteType(ChoicesEnum):
 # 用户指引步骤
 USER_GUIDE_STEP_LIST = [
     {"title": _("业务选择框"), "target": "#bizSelectorGuide", "content": _("业务选择框的位置全部换到左侧导航")},
-    {"title": _("管理能力增强"), "target": "#manageMenuGuide", "content": _("日志提取任务挪到管理；增加数据存储、使用等状态管理")},
+    {
+        "title": _("管理能力增强"),
+        "target": "#manageMenuGuide",
+        "content": _("日志提取任务挪到管理；增加数据存储、使用等状态管理"),
+    },
 ]
 
 INDEX_SET_NOT_EXISTED = _("索引集不存在")
@@ -1543,8 +1556,18 @@ class OperatorEnum:
 
     EQ = {"operator": "=", "label": "=", "placeholder": _("请选择或直接输入，Enter分隔")}
     NE = {"operator": "!=", "label": "!=", "placeholder": _("请选择或直接输入，Enter分隔")}
-    EQ_WILDCARD = {"operator": "=", "label": "=", "placeholder": _("请选择或直接输入，Enter分隔"), "wildcard_operator": "=~"}
-    NE_WILDCARD = {"operator": "!=", "label": "!=", "placeholder": _("请选择或直接输入，Enter分隔"), "wildcard_operator": "!=~"}
+    EQ_WILDCARD = {
+        "operator": "=",
+        "label": "=",
+        "placeholder": _("请选择或直接输入，Enter分隔"),
+        "wildcard_operator": "=~",
+    }
+    NE_WILDCARD = {
+        "operator": "!=",
+        "label": "!=",
+        "placeholder": _("请选择或直接输入，Enter分隔"),
+        "wildcard_operator": "!=~",
+    }
     LT = {"operator": "<", "label": "<", "placeholder": _("请选择或直接输入")}
     GT = {"operator": ">", "label": ">", "placeholder": _("请选择或直接输入")}
     LTE = {"operator": "<=", "label": "<=", "placeholder": _("请选择或直接输入")}
@@ -1689,6 +1712,8 @@ SQL_CONDITION_MAPPINGS = {
     "is false": "IS FALSE",
 }
 
+# 图表分析
+
 # es保留字符
 ES_RESERVED_CHARACTERS = [
     "\\",
@@ -1707,7 +1732,7 @@ ES_RESERVED_CHARACTERS = [
     "[",
     "]",
     "^",
-    "\"",
+    '"',
     "~",
     "*",
     "?",
@@ -1717,7 +1742,7 @@ ES_RESERVED_CHARACTERS = [
 ]
 
 
-class DataFlowResourceUsageType(object):
+class DataFlowResourceUsageType:
     online = "log_clustering_online"
     agg = "log_clustering_agg"
 
@@ -1735,3 +1760,30 @@ class AlertStatusEnum(ChoicesEnum):
 
 
 MAX_WORKERS = 5
+
+
+class DateFormat:
+    """
+    datetime库和arrow库的日期时间格式
+    """
+
+    DATETIME_FORMAT = "%Y-%m-%d %H:%M:%S.%f"
+    ARROW_FORMAT = "YYYY-MM-DD HH:mm:ss.SSSSSS"
+
+
+class HighlightConfig:
+    PRE_TAG = "<mark>"
+    POST_TAG = "</mark>"
+
+
+ES_ERROR_PATTERNS = [
+    (r"ERROR DSL is|Lexical error at line|Failed to parse query", ESQuerySyntaxException),
+    (r"No mapping found for \[(?P<field_name>.*?)] in order to sort on", FieldNoMappingException),
+    (r"The length of \[(?P<field_name>.*?)] field.*?analyzed for highlighting", HighlightException),
+    (r"The length \[\d+] of field \[(?P<field_name>.*?)].*?highlight", HighlightException),
+    (r"Can't load fielddata on \[(?P<field_name>.*?)]", UnsupportedOperationException),
+    (r"Set fielddata=true on \[(?P<field_name>.*?)] in order to load fielddata", UnsupportedOperationException),
+    (r"connect_timeout\[.*?]|timed out after|HTTPConnectionPool.*?Read timed out", QueryServerUnavailableException),
+    (r"index is empty with \[(?P<result_table_id>.*?)]", IndexMappingEmptyException),
+    (r"too_many_buckets_exception.*?Trying to create too many buckets", TooManyBucketsException),
+]

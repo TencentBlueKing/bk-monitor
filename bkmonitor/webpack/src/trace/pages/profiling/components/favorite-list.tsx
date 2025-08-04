@@ -24,10 +24,10 @@
  * IN THE SOFTWARE.
  */
 import { type PropType, computed, defineComponent, ref, watch } from 'vue';
-import { useI18n } from 'vue-i18n';
 
 import { Button, Input, Popover, Radio } from 'bkui-vue';
 import { EnlargeLine, Transfer } from 'bkui-vue/lib/icon';
+import { useI18n } from 'vue-i18n';
 
 import type { IFavList } from '../typings/favorite-list';
 
@@ -67,7 +67,7 @@ export default defineComponent({
     const searchVal = ref('');
     const filterFavoriteList = ref([]);
     const favoriteCount = computed(() =>
-      props.favoriteList.reduce((pre: number, cur) => ((pre += cur.favorites.length), pre), 0)
+      props.favoriteList.reduce((pre: number, cur) => pre + cur.favorites.length, 0)
     );
     watch(
       () => props.favoriteList,
@@ -95,6 +95,7 @@ export default defineComponent({
       groupSortList,
       handleSearchFavorite,
       isShowManageDialog,
+      t,
     };
   },
   render() {
@@ -103,7 +104,7 @@ export default defineComponent({
         <div class='header-container'>
           <div class='search-title jsac'>
             <span class='title'>
-              {this.$t('收藏查询')}
+              {this.t('收藏查询')}
               <span class='favorite-number'>{this.favoriteCount}</span>
             </span>
             <span
@@ -114,7 +115,7 @@ export default defineComponent({
           <div class='search-tools jsac'>
             <Input
               v-model={this.searchVal}
-              placeholder={this.$t('搜索收藏名')}
+              placeholder={this.t('搜索收藏名')}
               type='search'
               onEnter={this.handleSearchFavorite}
             />
@@ -130,8 +131,8 @@ export default defineComponent({
                   default: () => <span class='icon-monitor icon-jia' />,
                   content: () => (
                     <div class='operate-button'>
-                      <Button text>{this.$t('确定')}</Button>
-                      <span>{this.$t('取消')}</span>
+                      <Button text>{this.t('确定')}</Button>
+                      <span>{this.t('取消')}</span>
                     </div>
                   ),
                 }}
@@ -151,18 +152,23 @@ export default defineComponent({
                   ),
                   content: () => (
                     <div>
-                      <span style={{ fontSize: '14px', marginTop: '8px' }}>{this.$t('收藏排序')}</span>
+                      <span style={{ fontSize: '14px', marginTop: '8px' }}>{this.t('收藏排序')}</span>
                       <Radio.Group
                         class='sort-group-container'
                         v-model={this.sortType}
                       >
                         {this.groupSortList.map(item => (
-                          <Radio label={item.id}>{item.name}</Radio>
+                          <Radio
+                            key={item.id}
+                            label={item.id}
+                          >
+                            {item.name}
+                          </Radio>
                         ))}
                       </Radio.Group>
                       <div class='operate-button'>
-                        <Button theme='primary'>{this.$t('确定')}</Button>
-                        <Button>{this.$t('取消')}</Button>
+                        <Button theme='primary'>{this.t('确定')}</Button>
+                        <Button>{this.t('取消')}</Button>
                       </div>
                     </div>
                   ),
@@ -173,7 +179,7 @@ export default defineComponent({
         </div>
         <div class='new-search'>
           <EnlargeLine class='icon' />
-          <span>{this.$t('新检索')}</span>
+          <span>{this.t('新检索')}</span>
         </div>
         <div class='group-container' />
       </div>

@@ -8,6 +8,8 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+from dateutil import parser
+
 from apps.log_search.constants import OperatorEnum
 from apps.log_unifyquery.constants import ADVANCED_OP_MAP
 
@@ -36,3 +38,17 @@ def transform_advanced_addition(addition: dict):
         condition_list = [condition] * (len(value) - 1)
 
     return field_list, condition_list
+
+
+def deal_time_format(start_time, end_time):
+    """
+    处理时间戳信息
+    """
+    if isinstance(start_time, int) and isinstance(end_time, int):
+        return start_time, end_time
+
+    dt1 = parser.parse(start_time)
+    dt2 = parser.parse(end_time)
+    start_time = int(dt1.timestamp() * 1000)
+    end_time = int(dt2.timestamp() * 1000)
+    return start_time, end_time

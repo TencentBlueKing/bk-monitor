@@ -50,8 +50,6 @@ import './authorization-list.scss';
 
 const { i18n } = window;
 
-export type AngleType = 'approval' | 'resource' | 'user';
-type StatusType = 'all' | 'approval' | 'available' | 'expired' | 'failed' | 'invalid' | 'success';
 enum TableColumnEnum {
   action_id = 'action_id',
   authorized_user = 'authorized_user',
@@ -63,40 +61,42 @@ enum TableColumnEnum {
   space_name = 'space_name',
   status = 'status',
 }
+export type AngleType = 'approval' | 'resource' | 'user';
+export interface EditModel {
+  action_id: string;
+  authorized_users: string[];
+  expire_time?: string;
+  resources: number[];
+}
 
 interface ColumnItem {
-  prop: TableColumnEnum;
-  name: string;
-  hidden?: boolean;
   authHidden?: boolean;
+  hidden?: boolean;
+  name: string;
+  prop: TableColumnEnum;
   props?: any;
 }
 
-interface UserListItem {
-  authorized_user: string;
-  authorizer: string;
-  space_name: string;
-  action_id: string;
-  bk_biz_id: number;
-  expire_time: string;
-  resources: string[];
-  status: Exclude<StatusType, 'all'>;
-}
 interface ResourceListItem {
   action_id: string;
   authorized_users: string[];
   authorizer: string;
-  space_name: string;
+  expire_time?: string;
   resource_id: string;
+  space_name: string;
   status: Exclude<StatusType, 'all'>;
-  expire_time?: string;
 }
+type StatusType = 'all' | 'approval' | 'available' | 'expired' | 'failed' | 'invalid' | 'success';
 
-export interface EditModel {
+interface UserListItem {
   action_id: string;
-  authorized_users: string[];
-  resources: number[];
-  expire_time?: string;
+  authorized_user: string;
+  authorizer: string;
+  bk_biz_id: number;
+  expire_time: string;
+  resources: string[];
+  space_name: string;
+  status: Exclude<StatusType, 'all'>;
 }
 
 export const STATUS_LIST = [
@@ -564,7 +564,9 @@ export default class AuthorizationList extends tsc<object> {
           scopedSlots={{
             default: ({ row }) => (
               <div v-bk-overflow-tips={{ content: row.authorized_users?.join(',') }}>
-                {row.authorized_users?.map((item, index) => <bk-tag key={index}>{item}</bk-tag>)}
+                {row.authorized_users?.map((item, index) => (
+                  <bk-tag key={index}>{item ? <bk-user-display-name user-id={item} /> : '--'}</bk-tag>
+                ))}
               </div>
             ),
           }}
@@ -614,6 +616,22 @@ export default class AuthorizationList extends tsc<object> {
                 </div>
               );
             },
+          }}
+        />
+      );
+    }
+
+    if (column.prop === TableColumnEnum.authorized_user) {
+      return (
+        <bk-table-column
+          key={column.prop}
+          label={column.name}
+          prop={column.prop}
+          {...{
+            props: column.props,
+          }}
+          scopedSlots={{
+            default: ({ row }) => (row.authorized_user ? <bk-user-display-name user-id={row.authorized_user} /> : '--'),
           }}
         />
       );
@@ -725,6 +743,7 @@ export default class AuthorizationList extends tsc<object> {
             <p class='page-title'>{this.$t('route-外部授权列表')}</p>
             <BizSelect
               bizList={this.bizIdList}
+              canSetDefaultSpace={false}
               isShowCommon={false}
               minWidth={310}
               theme='light'
@@ -946,8 +965,9 @@ export default class AuthorizationList extends tsc<object> {
 
         <AuthorizationDialog
           v-model={this.visible}
-          authorizer={this.memberSelect}
+          authorizer={this.memberSelect || '--'}
           bizId={this.bizId}
+          defaultResources={this.resourceList}
           rowData={this.rowData}
           viewType={this.angleType}
           onSuccess={this.handleSuccess}

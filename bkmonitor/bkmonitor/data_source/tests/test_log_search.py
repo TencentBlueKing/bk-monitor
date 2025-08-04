@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -9,25 +8,24 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-
 import sys
 
 from bkmonitor.data_source.handler import DataQueryHandler
 
 
-class TestLogSearch(object):
+class TestLogSearch:
     def setup_method(self, method):
         self.q_obj = DataQueryHandler("bk_log_search", "time_series")
         print("before {}: {}".format(method, self.q_obj), file=sys.stderr)  # noqa
 
     def teardown_method(self, method):
-        self.q_obj = None
         print("after {}: {}".format(method, self.q_obj), file=sys.stderr)  # noqa
 
     def test_table_name(self):
         qs = self.q_obj.table("2_bklog_test")
         sql, params = qs.query.sql_with_params()
         assert params == {
+            "bk_tenant_id": "system",
             "indices": "2_bklog_test",
             "time_field": "dtEventTimeStamp",
             "aggs": {

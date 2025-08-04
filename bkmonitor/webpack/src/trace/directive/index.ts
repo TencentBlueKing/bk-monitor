@@ -24,26 +24,29 @@
  * IN THE SOFTWARE.
  */
 
-import { bkTooltips } from 'bkui-vue';
+import type { App } from 'vue';
+
+import { bkTooltips, clickoutside } from 'bkui-vue';
+import { directive } from 'vue-tippy';
 
 import authority from './authority';
-import overflowText from './overflow-text';
+import overflowTips from './overflow-tips';
 import watermark from './watermark';
-
-import type { App } from 'vue';
 
 const directives: Record<string, any> = {
   // 指令对象
   authority,
   bkTooltips,
+  clickoutside,
   watermark,
-  overflowText,
+  overflowTips,
+  tippy: directive,
 };
 
 export default {
   install(app: App) {
-    Object.keys(directives).forEach(key => {
-      app.directive(key, directives[key]);
-    });
+    for (const [key, directive] of Object.entries(directives)) {
+      app.directive(key, directive);
+    }
   },
 };

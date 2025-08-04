@@ -28,8 +28,14 @@ import { Ref } from 'vue';
 import JsonView from '../global/json-view';
 // import jsonEditorTask, { EditorTask } from '../global/utils/json-editor-task';
 import segmentPopInstance from '../global/utils/segment-pop-instance';
+import {
+  getClickTargetElement,
+  optimizedSplit,
+  setPointerCellClickTargetHandler,
+  setScrollLoadCell,
+} from './hooks-helper';
+import LuceneSegment from './lucene.segment';
 import UseSegmentPropInstance from './use-segment-pop';
-import { optimizedSplit, setScrollLoadCell } from './hooks-helper';
 
 export type FormatterConfig = {
   target: Ref<HTMLElement | null>;
@@ -65,22 +71,41 @@ export default class UseJsonFormatter {
     return this.config.fields.find(item => item.field_name === fieldName);
   }
 
-  onSegmentEnumClick(val, isLink) {
+  getFieldNameValue() {
     const tippyInstance = segmentPopInstance.getInstance();
-    const currentValue = tippyInstance.reference.innerText;
-    const valueElement = tippyInstance.reference.closest('.field-value') as HTMLElement;
-    const depth = tippyInstance.reference.closest('[data-depth]')?.getAttribute('data-depth');
+    const target = tippyInstance.reference;
+    let name = target.getAttribute('data-field-name');
+    let value = target.getAttribute('data-field-value');
+    let depth = target.getAttribute('data-field-dpth');
 
-    const fieldName = valueElement?.getAttribute('data-field-name');
-    const activeField = this.getField(fieldName);
+    if (value === undefined) {
+      value = target.textContent;
+    }
+
+    if (name === undefined) {
+      const valueElement = tippyInstance.reference.closest('.field-value') as HTMLElement;
+      name = valueElement?.getAttribute('data-field-name');
+    }
+
+    if (depth === undefined) {
+      depth = target.closest('[data-depth]')?.getAttribute('data-depth');
+    }
+
+    return { value, name, depth };
+  }
+
+  onSegmentEnumClick(val, isLink) {
+    const { name, value, depth } = this.getFieldNameValue();
+    const activeField = this.getField(name);
     const target = ['date', 'date_nanos'].includes(activeField?.field_type)
       ? this.config.jsonValue?.[activeField?.field_name]
-      : currentValue;
+      : value;
 
     const option = {
       fieldName: activeField?.field_name,
+      fieldType: activeField?.field_type,
       operation: val === 'not' ? 'is not' : val,
-      value: target ?? currentValue,
+      value: target ?? value,
       depth,
     };
 
@@ -93,22 +118,24 @@ export default class UseJsonFormatter {
     return traceIdPattern.test(traceId);
   }
 
-  handleSegmentClick(e, value) {
+  handleSegmentClick(e: MouseEvent, value) {
     if (!value.toString() || value === '--') return;
     const content = this.getSegmentContent(this.keyRef, this.onSegmentEnumClick.bind(this));
     const traceView = content.value.querySelector('.bklog-trace-view')?.closest('.segment-event-box') as HTMLElement;
     traceView?.style.setProperty('display', this.isValidTraceId(value) ? 'inline-flex' : 'none');
-    segmentPopInstance.show(e.target, this.getSegmentContent(this.keyRef, this.onSegmentEnumClick.bind(this)));
-  }
 
-  getCurrentFieldRegStr(field: any) {
-    /** 默认分词字符串 */
-    const segmentRegStr = ',&*+:;?^=!$<>\'"{}()|[]\\/\\s\\r\\n\\t';
-    if (field.tokenize_on_chars) {
-      return field.tokenize_on_chars;
-    }
+    const { offsetX, offsetY } = getClickTargetElement(e);
+    const target = setPointerCellClickTargetHandler(e, { offsetX, offsetY });
 
-    return segmentRegStr;
+    const valueElement = (e.target as HTMLElement).closest('.field-value') as HTMLElement;
+    const fieldName = valueElement?.getAttribute('data-field-name');
+    const depth = valueElement.closest('[data-depth]')?.getAttribute('data-depth');
+
+    target.setAttribute('data-field-value', value);
+    target.setAttribute('data-field-name', fieldName);
+    target.setAttribute('data-field-dpth', depth);
+
+    segmentPopInstance.show(target, this.getSegmentContent(this.keyRef, this.onSegmentEnumClick.bind(this)));
   }
 
   isTextField(field: any) {
@@ -138,8 +165,12 @@ export default class UseJsonFormatter {
     const markRegStr = '<mark>(.*?)</mark>';
     const value = this.escapeString(`${content}`);
     if (this.isAnalyzed(field)) {
-      // 这里进来的都是开了分词的情况
-      return optimizedSplit(value, this.getCurrentFieldRegStr(field));
+      if (field.tokenize_on_chars) {
+        // 这里进来的都是开了分词的情况
+        return optimizedSplit(value, field.tokenize_on_chars);
+      }
+
+      return LuceneSegment.split(value, 1000);
     }
 
     return [
@@ -147,6 +178,7 @@ export default class UseJsonFormatter {
         text: value.replace(/<mark>/g, '').replace(/<\/mark>/g, ''),
         isNotParticiple: this.isTextField(field),
         isMark: new RegExp(markRegStr).test(value),
+        isCursorText: true,
       },
     ];
   }
@@ -159,21 +191,23 @@ export default class UseJsonFormatter {
 
     if (item.isMark) {
       const mrkNode = document.createElement('mark');
-      mrkNode.innerHTML = item.text.replace(/<mark>/g, '').replace(/<\/mark>/g, '');
+      mrkNode.textContent = item.text.replace(/<mark>/g, '').replace(/<\/mark>/g, '');
       mrkNode.classList.add('valid-text');
       return mrkNode;
     }
 
     if (!item.isNotParticiple && !item.isBlobWord) {
       const validTextNode = document.createElement('span');
-      validTextNode.classList.add('valid-text');
-      validTextNode.innerText = item.text;
+      if (item.isCursorText) {
+        validTextNode.classList.add('valid-text');
+      }
+      validTextNode.textContent = item.text?.length ? item.text : '""';
       return validTextNode;
     }
 
     const textNode = document.createElement('span');
     textNode.classList.add('others-text');
-    textNode.innerText = item.text;
+    textNode.textContent = item.text?.length ? item.text : '""';
     return textNode;
   }
 
@@ -202,7 +236,7 @@ export default class UseJsonFormatter {
       root.setAttribute('data-word-segment-click', '1');
       root.addEventListener('click', e => {
         if ((e.target as HTMLElement).classList.contains('valid-text')) {
-          this.handleSegmentClick(e, (e.target as HTMLElement).innerHTML);
+          this.handleSegmentClick(e, (e.target as HTMLElement).textContent);
         }
       });
     }
@@ -218,11 +252,16 @@ export default class UseJsonFormatter {
     this.addWordSegmentClick(target);
     target.querySelectorAll(valueSelector).forEach((element: HTMLElement) => {
       if (!element.getAttribute('data-has-word-split')) {
-        const text = textValue ?? element.innerHTML;
+        const text = textValue ?? element.textContent;
         const field = this.getField(fieldName);
         const vlaues = this.getSplitList(field, text);
         element?.setAttribute('data-has-word-split', '1');
         element?.setAttribute('data-field-name', fieldName);
+
+        if (element.hasAttribute('data-with-intersection')) {
+          element.style.setProperty('min-height', `${element.offsetHeight}px`);
+        }
+
         element.innerHTML = '';
 
         const segmentContent = this.creatSegmentNodes();
@@ -236,11 +275,11 @@ export default class UseJsonFormatter {
         removeScrollEvent();
 
         element.append(segmentContent);
-        setListItem(600);
+        setListItem(1000);
 
         if (appendText) {
           const appendElement = document.createElement('span');
-          appendElement.innerText = appendText.text;
+          appendElement.textContent = appendText.text;
           if (appendText.onClick) {
             appendElement.addEventListener('click', appendText.onClick);
           }
@@ -251,6 +290,10 @@ export default class UseJsonFormatter {
 
           element.firstChild.appendChild(appendElement);
         }
+
+        requestAnimationFrame(() => {
+          element.style.removeProperty('min-height');
+        });
       }
     });
   }
@@ -312,7 +355,7 @@ export default class UseJsonFormatter {
 
       this.editor.initClickEvent(e => {
         if ((e.target as HTMLElement).classList.contains('valid-text')) {
-          this.handleSegmentClick(e, (e.target as HTMLElement).innerHTML);
+          this.handleSegmentClick(e, (e.target as HTMLElement).textContent);
         }
       });
     }
@@ -358,7 +401,7 @@ export default class UseJsonFormatter {
       }
 
       if (target && typeof this.config.jsonValue === 'string') {
-        target.innerHTML = this.config.jsonValue;
+        target.textContent = this.config.jsonValue;
       }
     }
   }

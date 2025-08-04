@@ -34,7 +34,7 @@ def batch_request(
     :param thread_num: 线程数
     :return: 请求结果
     """
-
+    params = params.copy()
     refresh_params = {
         "cmdb": lambda origin_params, _start, _limit: origin_params.update(
             {"page": {"start": _start, "limit": _limit}}
@@ -42,11 +42,13 @@ def batch_request(
         "nodeman": lambda origin_params, _start, _limit: origin_params.update({"page": _start, "pagesize": _limit}),
         "metadata": lambda origin_params, _start, _limit: origin_params.update({"page": _start, "page_size": _limit}),
         "bcs_cc": lambda origin_params, _start, _limit: origin_params.update({"offset": _start, "limit": _limit}),
+        "bk_login": lambda origin_params, _start, _limit: origin_params.update({"page": _start, "page_size": _limit}),
+        "job": lambda origin_params, _start, _limit: origin_params.update({"start": _start, "length": _limit}),
     }
 
     data = []
     # 标识使用偏移量的系统
-    use_offset_app_list = ["cmdb", "bcs_cc"]
+    use_offset_app_list = ["cmdb", "bcs_cc", "job"]
     start = 0 if app in use_offset_app_list else 1
 
     # 请求第一次获取总数
@@ -65,7 +67,7 @@ def batch_request(
     futures = []
     while start <= (count if app in use_offset_app_list else math.ceil(count / limit)):
         refresh_params[app](params, start, limit)
-        futures.append(pool.apply_async(func, kwds=params.copy()))
+        futures.append(pool.apply_async(func, args=(params.copy(),)))
         start += limit if app in use_offset_app_list else 1
 
     pool.close()

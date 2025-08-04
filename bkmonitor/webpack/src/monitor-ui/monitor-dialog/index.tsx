@@ -28,24 +28,24 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import './monitor-dialog.scss';
 
-interface IMonitorDialogProps {
-  value: boolean;
-  title?: string;
-  width?: number | string;
-  appendToBody?: boolean;
-  maskClose?: boolean;
-  zIndex?: number;
-  needFooter?: boolean;
-  fullScreen?: boolean;
-  beforeClose?: (args: any) => void;
-  needHeader?: boolean;
-  showConfirmBtn?: boolean;
-  needCloseIcon?: boolean;
-}
 interface IMonitorDialogEvent {
+  onCancel: void;
   onChange: boolean;
   onConfirm: void;
-  onCancel: void;
+}
+interface IMonitorDialogProps {
+  appendToBody?: boolean;
+  fullScreen?: boolean;
+  maskClose?: boolean;
+  needCloseIcon?: boolean;
+  needFooter?: boolean;
+  needHeader?: boolean;
+  showConfirmBtn?: boolean;
+  title?: string;
+  value: boolean;
+  width?: number | string;
+  zIndex?: number;
+  beforeClose?: (args: any) => void;
 }
 @Component
 export default class MonitorDialog extends tsc<IMonitorDialogProps, IMonitorDialogEvent> {
@@ -231,13 +231,13 @@ export default class MonitorDialog extends tsc<IMonitorDialogProps, IMonitorDial
                 theme='primary'
                 onClick={this.handleClickConfirm}
               >
-                {window.i18n.tc('确定')}
+                {window.i18n.t('确定')}
               </bk-button>,
               <bk-button
                 theme='default'
                 onClick={this.handleClickCancel}
               >
-                {window.i18n.tc('取消')}
+                {window.i18n.t('取消')}
               </bk-button>,
             ]}
           </div>

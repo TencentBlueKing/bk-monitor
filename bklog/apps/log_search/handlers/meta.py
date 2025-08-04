@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -19,6 +18,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+
 import copy
 from collections import defaultdict
 
@@ -38,7 +38,7 @@ from apps.log_search.constants import (
 from apps.log_search.exceptions import FunctionGuideException
 from apps.log_search.models import ProjectInfo, Space, UserMetaConf
 from apps.utils import APIModel
-from apps.utils.local import get_request
+from apps.utils.local import get_request, get_request_tenant_id, get_request_username
 from apps.utils.log import logger
 from bkm_space.define import SpaceTypeEnum
 from bkm_space.utils import space_uid_to_bk_biz_id
@@ -46,15 +46,19 @@ from bkm_space.utils import space_uid_to_bk_biz_id
 
 class MetaHandler(APIModel):
     @classmethod
-    def get_user_spaces(cls, username):
+    def get_user_spaces(cls):
+        username = get_request_username()
+        bk_tenant_id = get_request_tenant_id()
         # 获取业务列表
-        spaces = Space.get_all_spaces()
-        allowed_spaces = Permission(username).filter_space_list_by_action(ActionEnum.VIEW_BUSINESS, spaces)
+        spaces = Space.get_all_spaces(bk_tenant_id=bk_tenant_id)
+        allowed_spaces = Permission(username).filter_space_list_by_action(
+            ActionEnum.VIEW_BUSINESS, bk_tenant_id, spaces
+        )
         allowed_space_mapping = {space["bk_biz_id"] for space in allowed_spaces}
         # 获取置顶空间列表
         # 返回格式： space_uid 的列表
         try:
-            sticky_spaces = TransferApi.list_sticky_spaces({"username": username})
+            sticky_spaces = TransferApi.list_sticky_spaces({"username": username}, bk_tenant_id=bk_tenant_id)
         except Exception as e:  # pylint: disable=broad-except
             logger.error(f"Get sticky space by user({username}), error({e})")
             sticky_spaces = []
@@ -90,9 +94,10 @@ class MetaHandler(APIModel):
                     "space_uid": space["space_uid"],
                     "space_code": space["space_code"],
                     "bk_biz_id": space["bk_biz_id"],
-                    "time_zone": (space["time_zone"] or "Asia/Shanghai").strip("\""),
+                    "time_zone": (space["time_zone"] or "Asia/Shanghai").strip('"'),
                     "is_sticky": space["space_uid"] in sticky_spaces,
                     "permission": {ActionEnum.VIEW_BUSINESS.id: space["bk_biz_id"] in allowed_space_mapping},
+                    "bk_tenant_id": space["bk_tenant_id"],
                 }
             )
         return result

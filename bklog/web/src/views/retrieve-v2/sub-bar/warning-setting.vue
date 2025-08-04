@@ -9,9 +9,9 @@
     ></span
     >{{ $t('告警') }}
     <bk-badge
-      v-if="badgeCount !== 0"
+      v-if="ownPendingCount !== 0"
       style="margin-top: -12px; margin-left: -3px"
-      :count="badgeCount"
+      :val="ownPendingCount"
       theme="danger"
     />
 
@@ -21,14 +21,25 @@
         class="bklog-warning-wrapper"
       >
         <bk-tab
-          style="width: 580px; min-height: 200px; background-color: #fff"
+          style="width: 580px; background-color: #fff"
           :active.sync="active"
           :active-bar="activeBar"
-          @tab-change="handleTabChange"
           type="card"
+          @tab-change="handleTabChange"
         >
           <template #setting>
             <div style="display: flex; align-items: center; justify-content: center; background-color: #f0f1f5">
+              <div
+                class="selector-owner"
+                v-if="active === 'mission'"
+              >
+                {{ $t('我的') }}
+                <bk-switcher
+                  class="selector-owner-switch"
+                  size="small"
+                  v-model="filterOwner"
+                ></bk-switcher>
+              </div>
               <div
                 v-if="active === 'mission'"
                 class="selector-container"
@@ -44,6 +55,7 @@
                 </span>
               </div>
               <div
+                class="selector-more"
                 style="margin: 0 12px; color: #3a84ff; cursor: pointer"
                 @click="handleJumpMonitor()"
               >
@@ -80,7 +92,7 @@
             <bk-table
               v-if="active === 'mission'"
               v-bkloading="{ isLoading: loading }"
-              :data="recordList"
+              :data="recordListshow"
               :empty-text="$t('暂无内容')"
               :key="tableKey"
               :max-height="200"
@@ -88,6 +100,7 @@
               :outer-border="false"
               :row-border="false"
               @sort-change="handleSortChange"
+              :stripe="true"
             >
               <bk-table-column
                 :label="$t('告警名称')"
@@ -102,6 +115,7 @@
                       '--severity-color': getLevelColor(row.severity),
                     }"
                     @click="handleViewWarningDetail(row)"
+                    v-bk-overflow-tips="row.alert_name"
                   >
                     <span class="severity-level"></span>{{ row.alert_name }}
                   </div>
@@ -109,7 +123,7 @@
               </bk-table-column>
               <bk-table-column
                 :label="$t('首次发生时间')"
-                min-width="115"
+                min-width="140"
                 sortable="true"
               >
                 <template #default="{ row }">
@@ -170,6 +184,7 @@
               :max-height="200"
               :outer-border="false"
               :row-border="false"
+              :stripe="true"
             >
               <bk-table-column :label="$t('策略')">
                 <template #default="{ row }">
@@ -200,14 +215,17 @@
 <script setup lang="ts">
   import { computed, onMounted, ref, watch } from 'vue';
   import $http from '@/api';
-  import useLocale from '@/hooks/use-locale';
   import { formatDate } from '@/common/util';
+  import PopInstanceUtil from '@/global/pop-instance-util';
+  import useLocale from '@/hooks/use-locale';
   import useStore from '@/hooks/use-store';
-  import PopInstanceUtil from '../search-bar/pop-instance-util';
   import { bkMessage } from 'bk-magic-vue';
+
   import { ConditionOperator } from '../../../store/condition-operator';
   import useRetrieveHook from '../use-retrieve-hook';
-  // import label from '../../../language/lang/en/label';
+  import { BK_LOG_STORAGE } from '../../../store/store.type';
+  import RetrieveHelper, { RetrieveEvent } from '@/views/retrieve-helper';
+
   const { t } = useLocale();
   const store = useStore();
 
@@ -227,12 +245,12 @@
       appendTo: document.body,
     },
   });
-
   const panels = ref([
     { name: 'mission', label: '最近告警记录', count: 0 },
     { name: 'config', label: '策略', count: 0 },
   ]);
   const indexId = computed(() => store.state.indexId);
+  const userMeta = computed(() => store.state.userMeta);
   // const alertText = computed(() => {
   //   if (active.value === 'mission') {
   //     return t('最多展示近10条告警，点击查看更多');
@@ -241,12 +259,17 @@
   //   return t('最多展示近10条策略，点击查看更多');
   // });
 
+  // 告警数量
   const badgeCount = ref(0);
+  // 本人待处理数量
+  const ownPendingCount = ref(0);
+
   const activeBar = {
     position: 'top',
     height: '6px',
   };
   const loading = ref(false);
+  const filterOwner = ref(true);
   const active = ref('mission');
   const typeMap = {
     all: 'ALL',
@@ -264,6 +287,17 @@
   const recordList = ref([]);
   const originRecordList = ref([]);
   const strategyList = ref([]);
+  const recordListshow = computed(() => {
+    if (filterOwner.value) {
+      return recordList.value.filter(
+        (item: any) =>
+          item.assignee?.some(assignee => assignee === userMeta.value.username) ||
+          item.appointee?.some(appointee => appointee === userMeta.value.username),
+      );
+    } else {
+      return recordList.value;
+    }
+  });
 
   const pageSize = 10;
 
@@ -339,34 +373,10 @@
   };
 
   const getQueryString = () => {
-    const { addition, keyword } = store.getters.retrieveParams;
     const timezone = store.state.indexItem.timezone;
     const [start_time, end_time] = store.state.indexItem.datePickerValue;
 
-    if (addition.length > 0) {
-      return $http
-        .request('retrieve/generateQueryString', {
-          data: {
-            addition,
-          },
-        })
-        .then(res => {
-          if (res.result) {
-            const result = [keyword, res.data?.querystring]
-              .filter(item => item.length > 0 && item !== '*')
-              .join(' AND ');
-            return `queryString=${result}&from=${start_time}&to=${end_time}&timezone=${timezone}`;
-          }
-
-          return `from=${start_time}&to=${end_time}&timezone=${timezone}`;
-        });
-    }
-
-    if (keyword.length > 0 && keyword !== '*') {
-      return Promise.resolve(`queryString=${keyword}&from=${start_time}&to=${end_time}&timezone=${timezone}`);
-    }
-
-    return Promise.resolve(`from=${start_time}&to=${end_time}&timezone=${timezone}`);
+    return `queryString=metric:bk_log_search.index_set.${store.state.indexId}&from=${start_time}&to=${end_time}&timezone=${timezone}`;
   };
 
   const handleJumpMonitor = () => {
@@ -374,19 +384,16 @@
       mission: 'event-center',
       config: 'strategy-config',
     };
-
     if (active.value === 'mission') {
-      getQueryString().then(res => {
-        window.open(
-          `${window.MONITOR_URL}/?bizId=${store.state.bkBizId}#/${addressMap[active.value]}?${res}`,
-          '_blank',
-        );
-      });
-
+      const res = getQueryString();
+      window.open(`${window.MONITOR_URL}/?bizId=${store.state.bkBizId}#/${addressMap[active.value]}?${res}`, '_blank');
       return;
     }
 
-    window.open(`${window.MONITOR_URL}/?bizId=${store.state.bkBizId}#/${addressMap[active.value]}`, '_blank');
+    window.open(
+      `${window.MONITOR_URL}/?bizId=${store.state.bkBizId}#/${addressMap[active.value]}?filters=[{"key":"metric_id","value":["bk_log_search.index_set.${store.state.indexId}"]}]`,
+      '_blank',
+    );
   };
 
   const handleViewWarningDetail = row => {
@@ -427,11 +434,17 @@
 
       if (val === 'NOT_SHIELDED_ABNORMAL') {
         badgeCount.value = res?.data.length;
+        ownPendingCount.value = res?.data.filter(item => {
+          return (
+            item.assignee?.some(assignee => assignee === userMeta.value.username) ||
+            item.appointee?.some(appointee => appointee === userMeta.value.username)
+          );
+        }).length;
       }
 
       recordList.value = res?.data || [];
       originRecordList.value = recordList.value;
-      panels.value[0].count = res?.data.length || 0;
+      // panels.value[0].count = res?.data.length || 0;
       tableKey.value += 1;
     } catch (e) {
       console.warn(e);
@@ -481,6 +494,9 @@
   };
 
   const handleViewLogInfo = row => {
+    const startTime = row.first_anomaly_time * 1000;
+    const endTime = row.end_time * 1000 || Date.now();
+
     loading.value = true;
     $http
       .request('alertStrategy/getLogRelatedInfo', {
@@ -508,13 +524,22 @@
             }),
             keyword: query_string,
           };
-          resolveCommonParams(params);
-          resolveQueryParams(params, true).then(res => {
-            if (res) {
-              store.dispatch('requestIndexSetQuery', { isPagination: false });
-              PopInstanceUtilInstance.hide();
-            }
+          resolveCommonParams(params).then(() => {
+            resolveQueryParams(params, true).then(res => {
+              if (res) {
+                store.commit('updateStorage', { [BK_LOG_STORAGE.SEARCH_TYPE]: 1 });
+                store.commit('updateIndexItemParams', {
+                  start_time: startTime,
+                  end_time: endTime,
+                  datePickerValue: [startTime, endTime],
+                });
+                store.dispatch('requestIndexSetQuery', { isPagination: false });
+                RetrieveHelper.fire(RetrieveEvent.TREND_GRAPH_SEARCH);
+                PopInstanceUtilInstance.hide();
+              }
+            });
           });
+
           return;
         }
 
@@ -559,6 +584,12 @@
       }
     },
   );
+  watch(
+    () => recordListshow.value.length,
+    newLength => {
+      panels.value[0].count = newLength;
+    },
+  );
 </script>
 <style lang="scss">
   .warn-table-wrap {
@@ -568,13 +599,12 @@
     justify-content: center;
     width: 70px;
     height: 32px;
-    margin-left: 10px;
-    font-size: 14px;
-    color: #63656e;
+    font-size: 12px;
     cursor: pointer;
 
     .bklog-icon {
-      margin: 3px 6px 0 0;
+      margin: 0 6px 0 0;
+      font-size: 16px;
     }
   }
 
@@ -584,6 +614,7 @@
 
       .bk-tab-section {
         padding: 0px;
+        border: none;
       }
 
       .bk-tab-header {
@@ -608,10 +639,12 @@
           }
 
           .bk-tab-label-item {
-            font-size: 13px;
-
             /* stylelint-disable-next-line declaration-no-important */
             line-height: 42px !important;
+
+            .panel-name {
+              font-size: 13px;
+            }
           }
 
           .active-box {
@@ -637,6 +670,14 @@
           height: 32px;
           border-bottom: none;
         }
+
+        .bk-table-empty-text {
+          padding: 20px 0;
+        }
+
+        .bk-table-row-striped td {
+          background-color: #fafbfd;
+        }
       }
     }
 
@@ -646,14 +687,24 @@
 
       .severity-level {
         position: absolute;
-        left: 0;
         top: 2px;
+        left: 0;
         display: inline-block;
         min-width: 2px;
         min-height: 14px;
-        background-color: var(--severity-color);
         margin-right: 2px;
+        background-color: var(--severity-color);
       }
+    }
+  }
+
+  .selector-owner {
+    display: flex;
+    align-items: center;
+    margin-right: 10px;
+
+    .selector-owner-switch {
+      margin-left: 5px;
     }
   }
 
@@ -666,8 +717,11 @@
     padding: 4px 4px;
     font-size: 12px;
     background-color: #dcdee5;
-    border: 1px solid #dcdcdc;
     border-radius: 4px;
+  }
+
+  .selector-more {
+    font-size: 12px;
   }
 
   .option {
@@ -679,6 +733,7 @@
     height: 100%;
     color: #4d4f56;
     cursor: pointer;
+    border-radius: 2px;
     transition: background-color 0.3s;
   }
 

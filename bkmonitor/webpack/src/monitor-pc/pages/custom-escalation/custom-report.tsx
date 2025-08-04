@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Mixins, Provide } from 'vue-property-decorator';
+import { Component, Mixins, Provide, Ref } from 'vue-property-decorator';
 import * as tsx from 'vue-tsx-support';
 
 import {
@@ -115,21 +115,23 @@ interface IEventItem {
   bk_biz_id?: number;
   bk_data_id?: number;
   bk_event_group_id?: number;
-  time_series_group_id?: number;
   create_time?: string;
   create_user?: string;
   is_deleted?: boolean;
+  is_edit?: boolean; // 是否为编辑态
   is_enable?: boolean;
+  is_platform?: boolean; // 是否为公共
+  is_readonly?: boolean; // 是否只读
   name?: string;
+  oldName?: string; // 修改之前的名字
   related_strategy_count?: number;
   scenario?: string;
   scenario_display?: string[];
   table_id: string;
+  time_series_group_id?: number;
   type: string;
   update_time: string;
   update_user: string;
-  is_readonly?: boolean; // 是否只读
-  is_platform?: boolean; // 是否为公共
 }
 
 const commonTableProps: ICommonTableProps = {
@@ -158,6 +160,8 @@ const dataTransform = (data: IEventItem[]) =>
     create: { slotId: 'create' },
     update: { slotId: 'update' },
     opreate: { slotId: 'opreate' },
+    is_edit: false,
+    oldName: item.name,
   }));
 
 Component.registerHooks(['beforeRouteEnter', 'beforeRouteLeave']);
@@ -167,7 +171,7 @@ Component.registerHooks(['beforeRouteEnter', 'beforeRouteLeave']);
 })
 class CustomReport extends Mixins(authorityMixinCreate(customAuth)) {
   @Provide('handleShowAuthorityDetail') handleShowAuthorityDetail;
-
+  @Ref('nameInput') readonly nameInput!: HTMLInputElement;
   tableData = {
     ...commonTableProps,
     pagination: {
@@ -189,6 +193,8 @@ class CustomReport extends Mixins(authorityMixinCreate(customAuth)) {
 
   /* 当前筛选项 */
   filterType = EFilterType.current;
+
+  isEnterKey = false;
 
   get getRouterName(): pageType {
     return this.$route.name as pageType;
@@ -250,8 +256,8 @@ class CustomReport extends Mixins(authorityMixinCreate(customAuth)) {
       2,
       0,
       ...([
-        { id: 'data_label', name: window.i18n.tc('英文名'), type: 'string', props: { minWidth: 100 } },
-        { id: 'desc', name: window.i18n.tc('说明'), type: 'string', props: { minWidth: 100 } },
+        { id: 'data_label', name: window.i18n.tc('数据标签'), type: 'string', props: { minWidth: 100 } },
+        { id: 'desc', name: window.i18n.tc('描述'), type: 'string', props: { minWidth: 100 } },
         { id: 'protocol', name: window.i18n.tc('上报协议'), type: 'string', props: { minWidth: 100 } },
       ] as ITableColumn[])
     );
@@ -377,7 +383,7 @@ class CustomReport extends Mixins(authorityMixinCreate(customAuth)) {
    * @param {IEventItem} row
    * @return {*}
    */
-  handleOperate(v: 'delete' | 'view', row: IEventItem) {
+  handleOperate(v: 'delete' | 'manage' | 'view', row: IEventItem) {
     const toView = {
       [CUSTOM_EVENT]: () => {
         this.$router.push({
@@ -417,6 +423,9 @@ class CustomReport extends Mixins(authorityMixinCreate(customAuth)) {
     switch (v) {
       case 'view':
         toView[this.getRouterName]();
+        break;
+      case 'manage':
+        this.handleGotoDetail(row);
         break;
       case 'delete':
         this.$bkInfo({
@@ -502,12 +511,57 @@ class CustomReport extends Mixins(authorityMixinCreate(customAuth)) {
       this.init();
     }
   }
+  // 验证名字是否重复的函数
+  async validateName(row: IEventItem) {
+    try {
+      const res = await this.$store.dispatch('custom-escalation/validateCustomTimetName', {
+        params: { name: row.name, time_series_group_id: row.time_series_group_id },
+      });
+      return res.result ?? true;
+    } catch (error) {
+      console.log(error);
+      return false;
+    }
+  }
+  /** 编辑名称 */
+  async handleNameBlur(row: IEventItem) {
+    /** 没有做修改 */
+    if (row.name === row.oldName) {
+      row.is_edit = false;
+      return;
+    }
+    // 验证名字是否重复
+    const isNameValid = await this.validateName(row);
+    if (!isNameValid) {
+      row.name = row.oldName;
+      this.$nextTick(() => {
+        this.nameInput.focus();
+      });
+      return;
+    }
+
+    row.is_edit = false;
+    this.loading = true;
+    try {
+      const params = {
+        time_series_group_id: row.time_series_group_id,
+        name: row.name,
+      };
+      const data = await this.$store.dispatch('custom-escalation/editCustomTime', params);
+      if (data) {
+        this.$bkMessage({ theme: 'success', message: this.$t('修改成功') });
+        this.init();
+      }
+    } finally {
+      this.loading = false;
+    }
+  }
 
   render() {
     return (
       <div
         class='custom-report-page'
-        // v-bkloading={{ isLoading: this.loading }}
+        v-bkloading={{ isLoading: this.loading }}
       >
         <div class='content-left'>
           <PageTips
@@ -517,7 +571,7 @@ class CustomReport extends Mixins(authorityMixinCreate(customAuth)) {
             )}
             doc-link={'fromCustomRreporting'}
             link-text={this.$t('采集器安装前往节点管理')}
-            link-url={`${this.$store.getters.bkNodemanHost}#/plugin-manager/list`}
+            link-url={`${this.$store.getters.bkNodeManHost}#/plugin-manager/list`}
           />
           <div class='custom-report-page-content'>
             <div class='content-left-operator'>
@@ -534,15 +588,19 @@ class CustomReport extends Mixins(authorityMixinCreate(customAuth)) {
                 <span class='icon-monitor icon-plus-line mr-6' />
                 {this.$t('新建')}
               </bk-button>
-              <div class='bk-button-group'>
+              <div class='bk-button-group bk-button-group-capsule'>
                 {filterTypes.map(item => (
-                  <bk-button
+                  <div
                     key={item.id}
-                    class={this.filterType === item.id ? 'is-selected' : ''}
-                    onClick={() => this.handleFilterTypeChange(item.id)}
+                    class='bk-button-container'
                   >
-                    {item.name}
-                  </bk-button>
+                    <bk-button
+                      class={this.filterType === item.id ? 'is-selected' : ''}
+                      onClick={() => this.handleFilterTypeChange(item.id)}
+                    >
+                      {item.name}
+                    </bk-button>
+                  </div>
                 ))}
               </div>
               <bk-input
@@ -564,18 +622,46 @@ class CustomReport extends Mixins(authorityMixinCreate(customAuth)) {
                 {...{ props: this.tableData }}
                 scopedSlots={{
                   name: (row: IEventItem) => (
-                    <span>
+                    <span class='table-name-cell'>
                       {row?.is_readonly ? (
                         <span>{row.name}</span>
+                      ) : row.is_edit ? (
+                        <bk-input
+                          ref='nameInput'
+                          class='table-name-input'
+                          v-model={row.name}
+                          placeholder={this.$t('请输入')}
+                          onBlur={() => {
+                            if (!this.isEnterKey) {
+                              this.handleNameBlur(row);
+                            }
+                            this.isEnterKey = false;
+                          }}
+                          onEnter={(val, e) => {
+                            this.isEnterKey = true;
+                            e.preventDefault();
+                            this.handleNameBlur(row);
+                          }}
+                        />
                       ) : (
                         <span
                           class='col-btn'
-                          onClick={() => this.handleGotoDetail(row)}
+                          onClick={() => this.handleOperate('view', row)}
                         >
                           {row.name}
                         </span>
                       )}
-                      {row?.is_platform ? <span class='platform-tag'>{this.$t('公共')}</span> : undefined}
+                      {!row.is_edit && row?.is_platform ? (
+                        <span class='platform-tag'>{this.$t('公共')}</span>
+                      ) : undefined}
+                      {/* {!row.is_edit && (
+                        <i
+                          class='icon-monitor icon-bianji edit-btn'
+                          onClick={() => {
+                            row.is_edit = !row.is_edit;
+                          }}
+                        />
+                      )} */}
                     </span>
                   ),
                   related: (row: IEventItem) => (
@@ -590,14 +676,20 @@ class CustomReport extends Mixins(authorityMixinCreate(customAuth)) {
                   ),
                   create: (row: IEventItem) => (
                     <div class='col-change'>
-                      <span class='col-change-author'>{row.create_user}</span>
+                      <bk-user-display-name
+                        class='col-change-author'
+                        user-id={row.create_user}
+                      />
                       <span>{row.create_time}</span>
                     </div>
                   ),
                   update: (row: IEventItem) =>
                     row.update_time && row.update_user ? (
                       <div class='col-change'>
-                        <span class='col-change-author'>{row.update_user}</span>
+                        <bk-user-display-name
+                          class='col-change-author'
+                          user-id={row.update_user}
+                        />
                         <span>{row.update_time}</span>
                       </div>
                     ) : (
@@ -608,6 +700,7 @@ class CustomReport extends Mixins(authorityMixinCreate(customAuth)) {
                       options={{
                         outside: [
                           { id: 'view', name: window.i18n.tc('可视化'), authority: true },
+                          { id: 'manage', name: window.i18n.tc('管理'), authority: true },
                           {
                             id: 'delete',
                             name: window.i18n.tc('删除'),
@@ -618,7 +711,7 @@ class CustomReport extends Mixins(authorityMixinCreate(customAuth)) {
                           },
                         ],
                       }}
-                      onOptionClick={(v: 'delete' | 'view') => this.handleOperate(v, row)}
+                      onOptionClick={(v: 'delete' | 'manage' | 'view') => this.handleOperate(v, row)}
                     />
                   ),
                 }}

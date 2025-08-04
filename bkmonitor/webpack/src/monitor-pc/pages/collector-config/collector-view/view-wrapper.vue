@@ -27,8 +27,8 @@
 <template>
   <div class="view-wrapper">
     <view-settings
-      :order-list="defaultOrderList"
       :id="id"
+      :order-list="defaultOrderList"
       :scene-list="sceneList"
       :route-type="routeType"
       :view-setting-params="viewSettingParams"
@@ -46,7 +46,7 @@
       :need-split="false"
       :search-select-list="searchSelectList"
       :value="compareValue"
-      :reflesh-list="refleshList"
+      :refresh-list="refreshList"
       :timerange-list="timerangeList"
       :chart-type="chartType"
       :target-list="targetList"
@@ -59,7 +59,7 @@
       @add-timeshift-option="addTimeshiftOption"
       @change="handleChangeCompare"
       @chart-change="handleChartChange"
-      @on-immediate-reflesh="handleImmediateReflesh"
+      @on-immediate-refresh="handleImmediateRefresh"
     >
       <template #append>
         <span
@@ -72,15 +72,15 @@
       </template>
       <template #pre>
         <span
-          class="tool-icon right"
           v-show="!leftShow"
+          class="tool-icon right"
           @click="handleLeftShow"
         >
           <i class="arrow-right icon-monitor icon-double-up" />
         </span>
         <div
-          class="tool-method"
           v-if="['overview', 'topo_node'].includes(viewType) && !hideOption.convergeHide"
+          class="tool-method"
         >
           <span class="label">{{ $t('汇聚') }}：</span>
           <drop-down-menu
@@ -94,29 +94,30 @@
     </compare-panel>
     <div :class="['dashboard-wrapper', { 'no-dashboard': hideOption.dashboardHide }]">
       <variable-settings
-        :style="{ marginRight: `${precisionFilterWidth}px` }"
         v-if="!hideOption.dashboardHide"
+        :id="parseInt(id)"
         ref="variableSettings"
+        :style="{ marginRight: `${precisionFilterWidth}px` }"
         :metric-dimension="metricDimension"
         :scene-name="sceneName"
         :scene-list="sceneList"
         :order-list="orderList"
-        :id="parseInt(id)"
         :route-type="routeType"
         @resultChange="handleVariableResult"
         @saveChange="handleVariableSave"
       />
       <div
         v-if="needPrecisionFilter"
-        class="precision-filter"
         ref="precisionFilter"
         v-bk-tooltips="{ content: $t('勾选后会精准过滤，不会显示没有该维度的指标图表。'), boundary: 'window' }"
+        class="precision-filter"
       >
         <bk-checkbox
+          v-model="isPrecisionFilter"
           :true-value="true"
           :false-value="false"
-          v-model="isPrecisionFilter"
-        >{{ $t('精准过滤') }}</bk-checkbox>
+          >{{ $t('精准过滤') }}</bk-checkbox
+        >
       </div>
       <!-- 图表组件 -->
       <dashboard-panels
@@ -140,18 +141,18 @@
         :screenshot="['screenshot']"
         :more-checked="['explore', 'strategy']"
         need-tools
-        @intervalChange="(interval) => chartInterval = interval"
+        @intervalChange="interval => (chartInterval = interval)"
         @addStrategy="handleAddStrategyOfEvent"
         @exportDataRetrieval="handleExportToRetrievalOfEvent"
       >
         <template #header>
           <variable-settings
+            :id="parseInt(id)"
             ref="variableSettings"
             :metric-dimension="metricDimension"
             :scene-name="sceneName"
             :scene-list="sceneList"
             :order-list="orderList"
-            :id="parseInt(id)"
             :route-type="routeType"
             @resultChange="handleVariableResult"
             @saveChange="handleVariableSave"
@@ -169,10 +170,10 @@
       @undo="handleUndo">
     </sort-panel> -->
     <view-settings-side
+      :id="id"
       :is-edit="true"
       :show="showChartSort"
       :order-list="orderList"
-      :id="id"
       :route-type="routeType"
       :scene-list="sceneList"
       :scene-name="sceneName"
@@ -186,18 +187,24 @@
 </template>
 
 <script lang="ts">
+import { Component, Emit, Inject, Prop, Ref, Vue, Watch } from 'vue-property-decorator';
+
 import { saveScenePanelConfig } from 'monitor-api/modules/data_explorer';
 // import PerformanceModule from '../../../store/modules/performance'
 import { deepClone } from 'monitor-common/utils/utils';
-import { Component, Emit, Inject, Prop, Ref, Vue, Watch } from 'vue-property-decorator';
 
 import { COLLECT_CHART_TYPE } from '../../../constant/constant';
 import EventRetrievalView from '../../data-retrieval/event-retrieval/event-retrieval-view';
-import type { IFilterCondition } from '../../data-retrieval/typings';
 import ComparePanel from '../../performance/performance-detail/compare-panel.vue';
 import DashboardPanels from '../../performance/performance-detail/dashboard-panels.vue';
 import DropDownMenu from '../../performance/performance-detail/dropdown-menu.vue';
 import SortPanel from '../../performance/performance-detail/sort-panel.vue';
+import { type hideOptions, logEventRetrievalParams } from './log-handle';
+import VariableSettings from './variable-settings';
+import ViewSettings from './view-settings';
+import ViewSettingsSide from './view-settings-side';
+
+import type { IFilterCondition } from '../../data-retrieval/typings';
 import type {
   ChartType,
   ICompareOption,
@@ -207,12 +214,7 @@ import type {
   ISearchSelectList,
 } from '../../performance/performance-type';
 import type { IDetailInfo, IVariableData } from '../collector-config-type';
-
-import { type hideOptions, logEventRetrievalParams } from './log-handle';
 import type { addSceneResult, metric, orderList } from './type';
-import VariableSettings from './variable-settings';
-import ViewSettings from './view-settings';
-import ViewSettingsSide from './view-settings-side';
 
 @Component({
   name: 'view-wrapper',
@@ -248,14 +250,14 @@ export default class ViewWrapper extends Vue {
   // 当前调用的路由页面
   @Prop({ type: String }) readonly routeType: 'collect' | 'custom';
   @Prop({ type: Object }) readonly curHost;
-  @Prop({ default: 'leaf_node', type: String }) readonly viewType: 'leaf_node' | 'topo_node' | 'overview';
+  @Prop({ default: 'leaf_node', type: String }) readonly viewType: 'leaf_node' | 'overview' | 'topo_node';
   @Prop({ default: 'avg', type: String }) readonly defaultMethod!: string;
   @Prop({ default: () => [], type: Array }) sceneList: any[];
   @Prop({ default: () => '', type: String }) sceneName: string;
   @Prop({ default: () => ({}), type: Object }) metricDimension: {
-    variableParams?: any;
-    metricList: { id: string; metrics: metric[] }[];
     dimensionList: metric[];
+    metricList: { id: string; metrics: metric[] }[];
+    variableParams?: any;
   };
   @Prop({ default: () => [], type: Array }) defaultOrderList: any[];
   // 日志采集及自定义事件特殊处理(需隐藏部分)
@@ -284,7 +286,7 @@ export default class ViewWrapper extends Vue {
     compare: { type: 'none', value: '' },
     tools: {
       timeRange: 1 * 60 * 60 * 1000,
-      refleshInterval: -1,
+      refreshInterval: -1,
       searchValue: [],
     },
   };
@@ -297,10 +299,10 @@ export default class ViewWrapper extends Vue {
     },
   };
 
-  private showChartSort: boolean = false;
+  private showChartSort = false;
 
   private timerangeList: IOption[] = [];
-  private refleshList: IOption[] = [
+  private refreshList: IOption[] = [
     {
       name: window.i18n.t('刷新'),
       id: -1,
@@ -399,7 +401,7 @@ export default class ViewWrapper extends Vue {
         compare: { type: 'none', value: '' },
         tools: {
           timeRange: 1 * 60 * 60 * 1000,
-          refleshInterval: -1,
+          refreshInterval: -1,
           searchValue: [],
         },
       };
@@ -669,10 +671,10 @@ export default class ViewWrapper extends Vue {
    * @param {*} groupId 所属指标集
    * @return {*}
    */
-  handleVariableResult(val: { key: string; value: string[]; groupId: string; name: string }[]) {
+  handleVariableResult(val: { groupId: string; key: string; name: string; value: string[] }[]) {
     if (JSON.stringify(val) === JSON.stringify(this.variableResult)) return;
     this.variableResult = JSON.parse(JSON.stringify(val));
-    this.handleImmediateReflesh();
+    this.handleImmediateRefresh();
   }
   /**
    * @description: 是否显示侧栏
@@ -683,8 +685,8 @@ export default class ViewWrapper extends Vue {
     this.showChartSort = val;
   }
 
-  @Emit('on-immediate-reflesh')
-  handleImmediateReflesh() {}
+  @Emit('on-immediate-refresh')
+  handleImmediateRefresh() {}
   @Emit('method-change')
   handleAggMethodChange(method) {
     return method;
@@ -772,7 +774,7 @@ export default class ViewWrapper extends Vue {
       expression: 'a',
       query_configs: queryConfigs,
     };
-    // eslint-disable-next-line vue/max-len
+
     window.open(
       `${location.href.replace(location.hash, '#/strategy-config/add')}?data=${encodeURIComponent(JSON.stringify(queryData))}`
     );
@@ -813,7 +815,7 @@ export default class ViewWrapper extends Vue {
         },
       },
     ];
-    // eslint-disable-next-line vue/max-len
+
     window.open(
       `${location.href.replace(location.hash, '#/data-retrieval')}?targets=${encodeURIComponent(JSON.stringify(targets))}&type=event`
     );

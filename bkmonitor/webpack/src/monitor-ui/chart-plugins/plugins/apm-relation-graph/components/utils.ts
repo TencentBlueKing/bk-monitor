@@ -45,19 +45,19 @@ export const DATA_TYPE_LIST = [
   },
   {
     id: EDataType.Alert,
-    name: window.i18n.tc('告警事件'),
+    name: window.i18n.t('告警事件'),
   },
   {
     id: EDataType.ErrorRateCaller,
-    name: window.i18n.tc('主调错误率'),
+    name: window.i18n.t('主调错误率'),
   },
   {
     id: EDataType.ErrorRateCallee,
-    name: window.i18n.tc('被调错误率'),
+    name: window.i18n.t('被调错误率'),
   },
   {
     id: EDataType.ErrorRate,
-    name: window.i18n.tc('总调用错误率'),
+    name: window.i18n.t('总调用错误率'),
   },
 ];
 
@@ -86,8 +86,8 @@ export const alarmColorMap = {
 };
 
 export interface IAlarmDataItem {
-  type: EAlarmType;
   time: number;
+  type: EAlarmType;
   value: number;
 }
 export const alarmBarChartDataTransform = (dataType: EDataType, series: any[]) => {
@@ -191,9 +191,9 @@ export const getAlarmItemStatusTips = (dataType: EDataType, item: IAlarmDataItem
     };
   }
   const textMap = {
-    [EAlarmType.green]: `${window.i18n.tc('错误率')}：${toFixedSixDecimalPlaces(item.value)}%`,
-    [EAlarmType.yellow]: `${window.i18n.tc('错误率')}：${toFixedSixDecimalPlaces(item.value)}%`,
-    [EAlarmType.red]: `${window.i18n.tc('错误率')}：${toFixedSixDecimalPlaces(item.value)}%`,
+    [EAlarmType.green]: `${window.i18n.t('错误率')}：${toFixedSixDecimalPlaces(item.value)}%`,
+    [EAlarmType.yellow]: `${window.i18n.t('错误率')}：${toFixedSixDecimalPlaces(item.value)}%`,
+    [EAlarmType.red]: `${window.i18n.t('错误率')}：${toFixedSixDecimalPlaces(item.value)}%`,
     [EAlarmType.gray]: window.i18n.t('无请求数据'),
   };
   return {

@@ -49,25 +49,25 @@ import type {
 
 import './strategy-chart.scss';
 const CustomEventMetricAll = '__INDEX__';
-interface IProps {
-  metricData?: MetricDetail[];
-  detectionConfig?: IDetectionConfig;
-  expression?: string;
-  dataMode?: string;
-  dimensions?: Record<string, any>;
-  aiopsChartType?: ChartType;
-  needConnect?: boolean;
-  chartType?: 'bar' | 'line';
-  expFunctions: IFunctionsValue[];
-  editMode?: EditModeType;
-  sourceData?: ISourceData;
-  nearNum?: number;
-  /** 策略目标 */
-  strategyTarget?: any[];
-  shortcutsType?: EShortcutsType;
-}
 interface IEvent {
   onLogQuery: () => void;
+}
+interface IProps {
+  aiopsChartType?: ChartType;
+  chartType?: 'bar' | 'line';
+  dataMode?: string;
+  detectionConfig?: IDetectionConfig;
+  dimensions?: Record<string, any>;
+  editMode?: EditModeType;
+  expFunctions: IFunctionsValue[];
+  expression?: string;
+  metricData?: MetricDetail[];
+  nearNum?: number;
+  needConnect?: boolean;
+  shortcutsType?: EShortcutsType;
+  sourceData?: ISourceData;
+  /** 策略目标 */
+  strategyTarget?: any[];
 }
 
 @Component
@@ -104,7 +104,7 @@ export default class StrategyChart extends tsc<IProps, IEvent> {
   // 图表的数据时间间隔
   @InjectReactive('timeRange') readonly timeRange!: any;
   // 立即刷新图表
-  @InjectReactive('refleshImmediate') readonly refleshImmediate: string;
+  @InjectReactive('refreshImmediate') readonly refreshImmediate: string;
   // yAxis是否需要展示单位
   @InjectReactive('yAxisNeedUnit') readonly yAxisNeedUnit: boolean;
 
@@ -202,7 +202,7 @@ export default class StrategyChart extends tsc<IProps, IEvent> {
   @Watch('dimensions')
   @Watch('timeRange')
   @Watch('detectionConfig', { deep: true })
-  @Watch('refleshImmediate')
+  @Watch('refreshImmediate')
   watchDetectionConfig() {
     this.initPanel();
   }
@@ -577,7 +577,7 @@ export default class StrategyChart extends tsc<IProps, IEvent> {
       <div class={['aiops-chart-strategy-wrap', { 'time-series-forecast': this.hasTimeSeriesForecast }]}>
         {!!this.panel && (
           <ChartWrapper
-            needHoverStryle={false}
+            needHoverStyle={false}
             panel={this.panel}
             onDimensionsOfSeries={this.handleDimensionsOfSeries}
           />

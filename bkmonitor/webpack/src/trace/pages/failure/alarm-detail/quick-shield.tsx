@@ -24,12 +24,12 @@
  * IN THE SOFTWARE.
  */
 import { type PropType, defineComponent, nextTick, reactive, ref, watch } from 'vue';
-import { useI18n } from 'vue-i18n';
 
 import { Button, DatePicker, Dialog, Input, Loading, Message } from 'bkui-vue';
 import dayjs from 'dayjs';
 import { incidentRecordOperation } from 'monitor-api/modules/incident';
 import { bulkAddAlertShield } from 'monitor-api/modules/shield';
+import { useI18n } from 'vue-i18n';
 
 import VerifyInput from './verify-input/verify-input';
 
@@ -291,6 +291,7 @@ export default defineComponent({
                       <DatePicker
                         ref='timeRef'
                         v-model={customTime.value}
+                        appendToBody={true}
                         options={options.value}
                         placeholder={t('选择日期时间范围')}
                         type={'datetimerange'}
@@ -333,6 +334,7 @@ export default defineComponent({
       getAuthority,
       getContentComponent,
       handleShowChange,
+      t,
     };
   },
   render() {
@@ -351,19 +353,19 @@ export default defineComponent({
               theme='primary'
               onClick={this.handleSubmit}
             >
-              {this.$t('确定')}
+              {this.t('确定')}
             </Button>,
             <Button
               key='change'
               onClick={() => this.handleShowChange(false)}
             >
-              {this.$t('取消')}
+              {this.t('取消')}
             </Button>,
           ],
         }}
         header-position={'left'}
         is-show={this.show}
-        title={this.$t('快捷屏蔽告警')}
+        title={this.t('快捷屏蔽告警')}
         onClosed={this.handleShowChange}
         onValue-change={this.handleShowChange}
       />

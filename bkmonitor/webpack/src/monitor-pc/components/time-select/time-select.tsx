@@ -29,17 +29,17 @@ import { Component as tsc } from 'vue-tsx-support';
 import './time-select.scss';
 
 export interface ITimeListItem {
-  name: string;
   id: string;
+  name: string;
+}
+interface IITimeSelectEvent {
+  onAddItem: ITimeListItem;
+  onChange: string;
 }
 interface ITimeSelectProps {
   list: ITimeListItem[];
-  value: string;
   tip?: string;
-}
-interface IITimeSelectEvent {
-  onChange: string;
-  onAddItem: ITimeListItem;
+  value: string;
 }
 @Component
 export default class TimeSelect extends tsc<ITimeSelectProps, IITimeSelectEvent> {
@@ -59,7 +59,7 @@ export default class TimeSelect extends tsc<ITimeSelectProps, IITimeSelectEvent>
    * @return {*}
    */
   handleKeyDown(v: string, e: any) {
-    if (/enter/i.test(e.code) && /^([1-9][0-9]*)+(m|h|d|w|M|y)$/.test(this.customTimeVal)) {
+    if (/enter/i.test(e.code) && /^([1-9][0-9]+)+(m|h|d|w|M|y)$/.test(this.customTimeVal)) {
       if (this.list.every(item => item.id !== this.customTimeVal)) {
         this.$emit('addItem', {
           id: this.customTimeVal,

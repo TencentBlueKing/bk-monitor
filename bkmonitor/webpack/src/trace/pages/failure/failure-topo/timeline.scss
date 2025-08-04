@@ -2,14 +2,14 @@
 
 /* stylelint-disable declaration-no-important */
 .failure-topo-timeline {
-  //   padding-right: 16px;
+  width: 480px;
+  height: 100%;
   display: flex;
   align-items: center;
-  width: 480px;
   padding-left: 17px;
   margin-left: 16px;
   color: #c4c6cc;
-  border-left: 1px solid #313238;
+  border-left: 1px solid #14161a;
 
   .color {
     color: #c4c6cc;
@@ -25,7 +25,6 @@
 
   .disabled-refresh {
     cursor: not-allowed !important;
-
   }
 
   .bk-date-picker-cells-header span,
@@ -75,11 +74,11 @@
     }
 
     .bk-date-picker-cells-cell-disabled {
-      color: #979BA5 !important;
-      background-color: #59595C !important;
+      color: #979ba5 !important;
+      background-color: #59595c !important;
 
       em {
-        color: #979BA5 !important;
+        color: #979ba5 !important;
       }
     }
 
@@ -137,7 +136,7 @@
 
     input {
       color: #c4c6cc;
-      background: #454547;
+      background: #494d52;
       border-color: #7a7a7a;
 
       @extend .icon-wrapper;

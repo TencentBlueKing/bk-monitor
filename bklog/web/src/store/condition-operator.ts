@@ -24,14 +24,8 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-export type ConsitionItem = {
-  field: string;
-  operator: string;
-  value: string[];
-  relation?: 'AND' | 'OR';
-  isInclude?: boolean;
-  field_type?: string;
-};
+
+import { ConsitionItem } from './store.type';
 
 class ConditionOperator {
   item: ConsitionItem;
@@ -133,10 +127,10 @@ class ConditionOperator {
     // 这些类型需要反向解析 FormatOpetatorFrontToApi 方法生成的语法
     if (!this.isFulltextField && this.allContainsStrList.includes(this.item.operator)) {
       const value = this.allContainsStrList.find(value => value === this.item.operator);
-
       // this.containOperatorList 列表中所包含的操作关系说明是 OR 操作
-      // OR 操作才支持这些查询
-      const relation = this.containOperatorList.includes(value) ? 'OR' : 'AND';
+      // OR 操作才支持这些查询,已有组间关系则不通过操作符判断
+      const relation = (['AND', 'OR'].includes(this.item.relation?.toLocaleUpperCase()))
+      ? this.item.relation : (this.containOperatorList.includes(value) ? 'OR' : 'AND');
 
       // 包含和不包含操作符只有这两种，其他逻辑不走这个分支
       const operator = this.containsStrList.includes(value) ? 'contains match phrase' : 'not contains match phrase';
@@ -153,9 +147,10 @@ class ConditionOperator {
 
   /**
    * 格式化接口拿到的查询关系解析成组件可以适配的数据结构
+   * @param isInitializing 是否为初始化,初始化不改变operator
    * @returns
    */
-  formatApiOperatorToFront() {
+  formatApiOperatorToFront( isInitializing = false) {
     // allContainsStrList 列表中包含的操作关系说明是 string | text 字段类型
     // 这些类型需要反向解析 FormatOpetatorFrontToApi 方法生成的语法
     if (!this.isFulltextField && this.allContainsStrList.includes(this.item.operator)) {
@@ -163,10 +158,11 @@ class ConditionOperator {
 
       // this.containOperatorList 列表中所包含的操作关系说明是 OR 操作
       // OR 操作才支持这些查询
-      const relation = this.containOperatorList.includes(value) ? 'OR' : 'AND';
+      const relation = (['AND', 'OR'].includes(this.item.relation?.toLocaleUpperCase()))
+      ? this.item.relation : (this.containOperatorList.includes(value) ? 'OR' : 'AND');
 
       // 如果是通配符这里不做转换
-      if (this.wildcardList.includes(value)) {
+      if (this.wildcardList.includes(value) || isInitializing) {
         return {
           operator: value,
           relation,

@@ -23,20 +23,19 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, defineComponent, ref, watch, inject, type Ref } from 'vue';
-import { useI18n } from 'vue-i18n';
+import { type Ref, computed, defineComponent, inject, ref, watch } from 'vue';
 
 import { Input, Message, Popover } from 'bkui-vue';
 import { listSearchHistory } from 'monitor-api/modules/alert';
 import { listSearchFavorite } from 'monitor-api/modules/model';
 import { createSearchFavorite, destroySearchFavorite, partialUpdateSearchFavorite } from 'monitor-api/modules/model';
-import { LANGUAGE_COOKIE_KEY, docCookies } from 'monitor-common/utils';
+import { docCookies, LANGUAGE_COOKIE_KEY } from 'monitor-common/utils';
+import { useI18n } from 'vue-i18n';
 
 import debounceDecorator from '../../common/debounce-decorator';
 
 import type { ICommonItem } from '../../../../fta-solutions/pages/event/typings/event';
 const isEn = docCookies.getItem(LANGUAGE_COOKIE_KEY) === 'en';
-import { getCookie } from 'monitor-common/utils';
 
 import './filter-search-input.scss';
 
@@ -44,46 +43,46 @@ export const commonAlertFieldMap = {
   status: [
     {
       id: isEn ? 'ABNORMAL' : '未恢复',
-      name: window.i18n.tc('未恢复'),
+      name: window.i18n.t('未恢复'),
     },
     {
       id: isEn ? 'RECOVERED' : '已恢复',
-      name: window.i18n.tc('已恢复'),
+      name: window.i18n.t('已恢复'),
     },
     {
       id: isEn ? 'CLOSED' : '已失效',
-      name: window.i18n.tc('已失效'),
+      name: window.i18n.t('已失效'),
     },
   ],
   severity: [
     {
       id: isEn ? 1 : '致命',
-      name: window.i18n.tc('致命'),
+      name: window.i18n.t('致命'),
     },
     {
       id: isEn ? 2 : '预警',
-      name: window.i18n.tc('预警'),
+      name: window.i18n.t('预警'),
     },
     {
       id: isEn ? 3 : '提醒',
-      name: window.i18n.tc('提醒'),
+      name: window.i18n.t('提醒'),
     },
   ],
 };
-type PanelType = 'favorite' | 'field' | 'history';
-type PanelShowType = 'condition' | 'field' | 'method' | 'value' | false;
 interface IFocusData {
-  show?: PanelShowType;
-  replaceStart?: number;
-  nextText?: string;
   filedId?: string;
+  nextText?: string;
+  replaceStart?: number;
+  show?: PanelShowType;
 }
 interface IListItem extends ICommonItem {
-  queryString?: string;
   edit?: boolean;
   fakeName?: string;
+  queryString?: string;
   special?: boolean;
 }
+type PanelShowType = 'condition' | 'field' | 'method' | 'value' | false;
+type PanelType = 'favorite' | 'field' | 'history';
 /* 处理字符串数组不能连续两个冒号 */
 const valueListTidy = (list: string[]) => {
   const tempList = [];
@@ -1178,19 +1177,14 @@ export default defineComponent({
                       suffix: () => (
                         <span
                           class={['filter-favorites', { 'is-disable': this.favoriteDisable }]}
-                          v-bk-tooltips={{
-                            content: this.t('收藏'),
-                            disabled: getCookie('blueking_language') !== 'en',
-                          }}
                           onMousedown={!this.favoriteDisable && this.handleSetFavorite}
                         >
                           <i class='icon-monitor icon-mc-uncollect favorite-icon' />
-                          {this.t('收藏')}
                         </span>
                       ),
                     }}
                     clearable={true}
-                    placeholder={String(this.t('输入搜索条件'))}
+                    placeholder={String(this.t('请输入搜索条件'))}
                     onBlur={this.handleBlur}
                     onClear={this.handleClear}
                     onEnter={this.handleBlur}

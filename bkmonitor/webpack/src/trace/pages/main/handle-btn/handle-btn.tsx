@@ -27,6 +27,7 @@ import { computed, defineComponent, ref, toRefs } from 'vue';
 
 import { Button, Input, Loading, Popover } from 'bkui-vue';
 import loadingImg from 'monitor-pc/static/images/svg/spinner.svg';
+import { useI18n } from 'vue-i18n';
 
 import { useTraceStore } from '../../../store/modules/trace';
 
@@ -56,6 +57,7 @@ export default defineComponent({
   emits: ['query', 'clear', 'add', 'changeAutoQuery'],
   setup(props, { emit }) {
     const store = useTraceStore();
+    const { t } = useI18n();
 
     const favDescInput = ref('');
     const favLoading = ref(false);
@@ -116,6 +118,7 @@ export default defineComponent({
       favDescInput,
       handleChangeAutoQuery,
       isLoading,
+      t,
     };
   },
 
@@ -126,7 +129,7 @@ export default defineComponent({
         <span style='display:flex;'>
           <Popover
             autoVisibility={false}
-            content={`${this.autoQuery ? this.$t('切换手动查询') : this.$t('切换自动查询')}`}
+            content={`${this.autoQuery ? this.t('切换手动查询') : this.t('切换自动查询')}`}
           >
             <Button
               class='toggle-auto-button'
@@ -149,7 +152,7 @@ export default defineComponent({
             theme='primary'
             onClick={this.handleQuery}
           >
-            {`${this.autoQuery ? this.$t('自动查询') : this.$t('查询')}`}
+            {`${this.autoQuery ? this.t('自动查询') : this.t('查询')}`}
           </Button>
         </span>
         {!accurateQuery && (
@@ -164,11 +167,11 @@ export default defineComponent({
                   }}
                 >
                   <Loading loading={this.favLoading}>
-                    <div class='fav-title'>{this.$t('收藏描述')} : </div>
+                    <div class='fav-title'>{this.t('收藏描述')} : </div>
                     <div class='fav-main'>
                       <Input
                         v-model={this.favDescInput}
-                        placeholder={this.$t('输入')}
+                        placeholder={this.t('输入')}
                       />
                       <span
                         class='fav-btn'
@@ -193,13 +196,13 @@ export default defineComponent({
           >
             <Button>
               <i class='icon-monitor icon-mc-uncollect' />
-              {this.$t('收藏')}
+              {this.t('收藏')}
             </Button>
           </Popover>
         )}
         <Popover
           autoVisibility={false}
-          content={this.$t('清空')}
+          content={this.t('清空')}
         >
           <Button
             class='clear-button'

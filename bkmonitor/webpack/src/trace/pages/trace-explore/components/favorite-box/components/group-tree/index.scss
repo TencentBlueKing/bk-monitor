@@ -1,0 +1,57 @@
+.favorite-group-tree {
+  height: 100%;
+  font-size: 12px;
+  color: #4d4f56;
+
+  .favorite-group-split-line {
+    height: 1px;
+    margin: 0 12px;
+    background: #dcdee5;
+  }
+
+  .favorite-create {
+    display: flex;
+    align-items: center;
+    height: 34px;
+    padding-left: 4px;
+    margin: 0 8px;
+    color: #3a84ff;
+    cursor: pointer;
+    transition: all 0.15s;
+    transition: all 0.15s;
+
+    .icon-monitor {
+      color: #3a84ff;
+    }
+
+    &:hover,
+    &.is-active {
+      background: #ffffff;
+      border-radius: 4px;
+      box-shadow: 0 1px 2px 0 #00000014;
+    }
+  }
+
+  .favorite-group-wrapper {
+    height: calc(100% - 54px);
+    overflow-y: auto;
+    scrollbar-gutter: stable;
+  }
+
+  .favorite-group-item {
+    .favorite-wrapper {
+      position: relative;
+      padding: 0 12px;
+
+      &:after {
+        position: absolute;
+        top: 0px;
+        bottom: 0;
+        left: 20px;
+        width: 1px;
+        content: '';
+        background: #a3b1cc99;
+      }
+    }
+  }
+}

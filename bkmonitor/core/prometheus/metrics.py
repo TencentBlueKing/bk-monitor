@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -38,7 +37,7 @@ DEPLOYMENT = DeploymentNotSet
 
 def refresh_deployment():
     try:
-        with open('/etc/hostname', 'r') as f:
+        with open("/etc/hostname") as f:
             hostname = f.read().strip()
         if hostname.count("-") < 2:
             return ""
@@ -99,6 +98,12 @@ METRIC_PUSH_COUNT = Counter(
     name="bkmonitor_metric_push_count",
     documentation="metric 推送次数",
     labelnames=("deployment",),
+)
+
+SPACE_QUERY_COUNT = Counter(
+    name="bkmonitor_space_query_count",
+    documentation="空间查询次数",
+    labelnames=("using_cache", "role"),
 )
 
 CRON_TASK_EXECUTE_TIME = Histogram(
@@ -327,25 +332,25 @@ DETECT_PROCESS_LATENCY = Histogram(
 AIOPS_DETECT_ERROR_COUNT = Gauge(
     name="bkmonitor_aiops_detect_error_count",
     documentation="AIOPS SDK检测异常类型统计",
-    labelnames=("strategy_id", "strategy_name", "error_code"),
+    labelnames=("strategy_id", "strategy_name", "bk_biz_id", "error_code"),
 )
 
 AIOPS_DETECT_DIMENSION_COUNT = Gauge(
     name="bkmonitor_aiops_detect_dimension_count",
     documentation="AIOPS SDK策略覆盖维度数量",
-    labelnames=("strategy_id", "strategy_name"),
+    labelnames=("strategy_id", "strategy_name", "bk_biz_id"),
 )
 
 AIOPS_DETECT_INVALID_DIMENSION_RATE = Gauge(
     name="bkmonitor_aiops_detect_invalid_dimension_rate",
     documentation="AIOPS SDK策略无效维度比例",
-    labelnames=("strategy_id", "strategy_name"),
+    labelnames=("strategy_id", "strategy_name", "bk_biz_id"),
 )
 
 AIOPS_PRE_DETECT_LATENCY = Gauge(
     name="bkmonitor_aiops_pre_detect_latency",
     documentation="AIOPS SDK策略预检测耗时",
-    labelnames=("strategy_id", "strategy_name"),
+    labelnames=("strategy_id", "strategy_name", "bk_biz_id"),
 )
 
 TRIGGER_PROCESS_LATENCY = Histogram(
@@ -1194,13 +1199,25 @@ METADATA_CRON_TASK_STATUS_TOTAL = Counter(
 METADATA_DATA_LINK_ACCESS_TOTAL = Counter(
     name="bkmonitor_metadata_data_link_access_total",
     documentation="监控元数据数据链路接入统计",
-    labelnames=("version", "biz_id", 'strategy', 'status'),
+    labelnames=("version", "biz_id", "strategy", "status"),
 )
 
 API_REQUESTS_TOTAL = Counter(
     name="bkmonitor_api_requests_total",
     documentation="三方APi调用统计",
     labelnames=("action", "module", "code", "role"),
+)
+
+AI_AGENTS_REQUESTS_TOTAL = Counter(
+    name="bkmonitor_ai_agents_requests_total",
+    documentation="AI小鲸服务调用统计",
+    labelnames=("agent_code", "resource_name", "status", "username"),
+)
+
+AI_AGENTS_REQUESTS_COST_SECONDS = Gauge(
+    name="bkmonitor_ai_agents_requests_cost_seconds",
+    documentation="AI小鲸服务调用耗时统计",
+    labelnames=("agent_code", "resource_name", "status", "username"),
 )
 
 LOG_INDEX_ROTATE_TOTAL = Counter(

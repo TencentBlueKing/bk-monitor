@@ -23,9 +23,10 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, type PropType, ref, watch, computed } from 'vue';
+import { type PropType, computed, defineComponent, ref, watch } from 'vue';
 
 import { Checkbox, Input, Select } from 'bkui-vue';
+import { useI18n } from 'vue-i18n';
 
 import { useAppStore } from '../../../../../../store/modules/app';
 
@@ -36,29 +37,29 @@ export const robot = {
   wxworkBot: 'wxwork-bot',
 };
 
-interface INoticeWay {
-  type: string;
-  label: string;
-  icon?: string;
-  tip?: string;
-  width?: number;
-  channel?: string;
-}
 export interface INoticeWayValue {
-  type?: string[];
-  phase?: number;
+  chatid?: string; // 可选
   level?: number;
   notice_ways?: INoticeWays[];
-  chatid?: string; // 可选
-}
-interface INoticeWays {
-  name: string;
-  receivers?: string | string[];
+  phase?: number;
+  type?: string[];
 }
 interface IBkchat {
   [x: string]: any;
   id: string;
   name: string;
+}
+interface INoticeWay {
+  channel?: string;
+  icon?: string;
+  label: string;
+  tip?: string;
+  type: string;
+  width?: number;
+}
+interface INoticeWays {
+  name: string;
+  receivers?: string | string[];
 }
 
 export default defineComponent({
@@ -109,7 +110,7 @@ export default defineComponent({
       default: () => [],
     },
   },
-  setup(props) {
+  setup(props, { emit }) {
     const newNoticeWay = ref<INoticeWay[]>([]);
     const noticeData = ref<any[]>([]);
     const errMsg = ref('');
@@ -121,6 +122,7 @@ export default defineComponent({
       [window.i18n.t('失败时'), window.i18n.t('成功时'), window.i18n.t('执行前')],
     ];
     const store = useAppStore();
+    const { t } = useI18n();
 
     const levelMap = computed(() => titleMap[props.type]);
 
@@ -226,8 +228,8 @@ export default defineComponent({
 
     const validator = (isStrict = true) => {
       const msg = [
-        window.i18n.tc('每个告警级别至少选择一种通知方式'),
-        window.i18n.tc('每个执行阶段至少选择一种通知方式'),
+        window.i18n.t('每个告警级别至少选择一种通知方式'),
+        window.i18n.t('每个执行阶段至少选择一种通知方式'),
       ];
       const res = handleParams();
       const isPass = res.every(item => {
@@ -253,6 +255,7 @@ export default defineComponent({
       handleParams,
       validator,
       handleJumpAddGroup,
+      t,
     };
   },
   render() {
@@ -260,8 +263,8 @@ export default defineComponent({
       <div class={['meal-notice-mode']}>
         {this.type !== 1 && !this.readonly && this.showHeader && (
           <div class='title'>
-            <span class='main'>{this.$t('通知方式')}</span>
-            <span class='tip'>({this.$t('每个告警级别至少选择一种通知方式')})</span>
+            <span class='main'>{this.t('通知方式')}</span>
+            <span class='tip'>({this.t('每个告警级别至少选择一种通知方式')})</span>
           </div>
         )}
         <div class='content-table'>
@@ -331,7 +334,7 @@ export default defineComponent({
                           <Checkbox
                             v-model={notice.checked}
                             v-bk-tooltips={{
-                              content: `${this.$t('电话按通知对象顺序依次拨打,用户组里无法保证顺序')}`,
+                              content: `${this.t('电话按通知对象顺序依次拨打,用户组里无法保证顺序')}`,
                               placements: ['top'],
                               boundary: 'window',
                               disabled: notice.type !== 'voice',
@@ -347,7 +350,7 @@ export default defineComponent({
                             ) : (
                               <Input
                                 v-model={notice.receivers}
-                                placeholder={this.$t('输入群ID')}
+                                placeholder={this.t('输入群ID')}
                                 type='textarea'
                                 on-change={v => {
                                   notice.checked = !!v;
@@ -389,7 +392,7 @@ export default defineComponent({
                                   style={{ marginRight: '5px' }}
                                   class='bk-icon icon-plus-circle'
                                 />
-                                {this.$tc('新增群组')}
+                                {this.t('新增群组')}
                               </div>
                             </Select>
                           </div>

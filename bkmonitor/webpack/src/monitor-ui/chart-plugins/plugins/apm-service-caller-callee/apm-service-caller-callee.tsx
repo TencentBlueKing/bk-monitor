@@ -36,12 +36,12 @@ import CallerCalleeFilter from './components/caller-callee-filter';
 import CallerCalleeTableChart from './components/caller-callee-table-chart';
 import ChartView from './components/chart-view';
 import TabBtnGroup from './components/tab-btn-group';
-import { type CallOptions, type IFilterData, type IChartOption, type IFilterCondition, EKind } from './type';
+import { type CallOptions, type IChartOption, type IFilterCondition, type IFilterData, EKind } from './type';
 import {
   CALLER_CALLEE_TYPE,
+  formatPreviousDayAndWeekTimestamps,
   getRecordCallOptionKind,
   setRecordCallOptionKind,
-  formatPreviousDayAndWeekTimestamps,
 } from './utils';
 
 import type { PanelModel, ZrClickEvent } from '../../typings';
@@ -68,8 +68,8 @@ export default class ApmServiceCallerCallee extends tsc<IApmServiceCallerCalleeP
   @InjectReactive('viewOptions') viewOptions;
 
   @InjectReactive('timeRange') readonly timeRange!: TimeRangeType;
-  @InjectReactive('refleshInterval') readonly refleshInterval!: number;
-  @InjectReactive('refleshImmediate') readonly refleshImmediate: string;
+  @InjectReactive('refreshInterval') readonly refreshInterval!: number;
+  @InjectReactive('refreshImmediate') readonly refreshImmediate: string;
 
   panelsData = [];
   tabList = CALLER_CALLEE_TYPE;
@@ -106,18 +106,18 @@ export default class ApmServiceCallerCallee extends tsc<IApmServiceCallerCalleeP
   timeStrShow = {};
   // 自动刷新定时任务
   refreshIntervalInstance = null;
-  @Watch('refleshInterval', { immediate: true })
+  @Watch('refreshInterval', { immediate: true })
   // 数据刷新间隔
   handleRefreshIntervalChange(v: number) {
     if (this.refreshIntervalInstance) {
       window.clearInterval(this.refreshIntervalInstance);
     }
-    if (v <= 0) return;
+    if (!v || +v < 60 * 1000) return;
     this.refreshIntervalInstance = window.setInterval(() => {
       this.handleSetTimeStrShow();
-    }, this.refleshInterval);
+    }, v);
   }
-  @Watch('refleshImmediate')
+  @Watch('refreshImmediate')
   handleRefleshImmediate() {
     this.handleSetTimeStrShow();
   }

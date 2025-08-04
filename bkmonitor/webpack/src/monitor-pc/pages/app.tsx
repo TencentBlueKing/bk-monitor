@@ -28,19 +28,19 @@ import { Component, ProvideReactive, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { addListener, removeListener } from '@blueking/fork-resize-detector';
-import { listStickySpaces, getLinkMapping } from 'monitor-api/modules/commons';
+import { getLinkMapping, listStickySpaces } from 'monitor-api/modules/commons';
 import { getDashboardList } from 'monitor-api/modules/grafana';
 import { APP_NAV_COLORS, LANGUAGE_COOKIE_KEY } from 'monitor-common/utils';
 import debounce from 'monitor-common/utils/debounce-decorator';
 import bus from 'monitor-common/utils/event-bus';
-import { docCookies, getUrlParam, random } from 'monitor-common/utils/utils';
+import { docCookies, random } from 'monitor-common/utils/utils';
 import AuthorityModal from 'monitor-ui/authority-modal';
 
 import OverseasLogo from '../components/overseas-logo/overseas-logo';
 import introduce from '../common/introduce';
 import UserConfigMixin from '../mixins/userStoreConfig';
 import { isAuthority } from '../router/router';
-import { GLOBAL_FEATURE_LIST, type IRouteConfigItem, getRouteConfig } from '../router/router-config';
+import { type IRouteConfigItem, getRouteConfig, GLOBAL_FEATURE_LIST } from '../router/router-config';
 import { SET_NAV_ROUTE_LIST } from '../store/modules/app';
 import type { IOverseasConfig, ISpaceItem } from '../types';
 import { useCheckVersion } from './check-version';
@@ -62,7 +62,8 @@ import './app.scss';
 // import NoticeComponent from '@blueking/notice-component-vue2';
 import '@blueking/notice-component-vue2/dist/style.css';
 import GlobalConfigMixin from '../mixins/globalConfig';
-import aiwhaleStore from '../store/modules/ai-whale';
+import aiWhaleStore from '../store/modules/ai-whale';
+import { globalUrlFeatureMap } from 'monitor-common/utils/global-feature-map';
 const changeNoticeRouteList = [
   'strategy-config-add',
   'strategy-config-edit',
@@ -99,12 +100,13 @@ if (currentLang === 'en') {
 export default class App extends tsc<object> {
   @Ref('navHeader') navHeaderRef: HTMLDivElement;
   @Ref('headerDropdownMenu') headerDropdownMenuRef: { hide: () => void };
+  @ProvideReactive('needMenu') needMenu = true;
   routeList = getRouteConfig();
   showBizList = false;
   keyword = '';
   localMenuList = [];
   footerHtml = '';
-  needMenu = false;
+
   menuToggle = false;
   noticeStepList: IStepItem[] = [];
   needNewUserGuide = false;
@@ -116,18 +118,18 @@ export default class App extends tsc<object> {
   overseaGlobalList: IOverseasConfig[] = [];
   menuStore = '';
   hideNavCount = 0;
-  spacestickyList: string[] = []; /** 置顶的空间列表 */
+  spaceStickyList: string[] = []; /** 置顶的空间列表 */
   headerSettingShow = false;
   userStoreRoutes: IRouteConfigItem[] = [];
   showAlert = false; // 是否展示跑马灯
   // 全局设置弹窗
   globalSettingShow = false;
-  @ProvideReactive('toggleSet') toggleSet: boolean = localStorage.getItem('navigationToogle') === 'true';
-  @ProvideReactive('readonly') readonly: boolean = !!window.__BK_WEWEB_DATA__?.readonly || !!getUrlParam('readonly');
+  @ProvideReactive('toggleSet') toggleSet: boolean = localStorage.getItem('navigationToggle') === 'true';
+  @ProvideReactive('readonly') readonly: boolean = window.__BK_WEWEB_DATA__?.readonly ?? globalUrlFeatureMap.READONLY;
   routeViewKey = random(10);
   // 是否显示AI智能助手
   get enableAiAssistant() {
-    return aiwhaleStore.enableAiAssistant;
+    return aiWhaleStore.enableAiAssistant;
   }
   get bizId() {
     return this.$store.getters.bizId;
@@ -164,12 +166,12 @@ export default class App extends tsc<object> {
     if (this.$route.path.includes('exception/403')) this.headerNav = this.$route.query.parentRoute as string;
     if (!this.navActive) {
       list = this.routeList.find(item => item.id === this.headerNav)?.children || [];
-      // ai 设置 enable_aiops为true 则ai设置不展示 fasle 则ai设置页面展示
+      // ai 设置 enable_aiops为true 则ai设置不展示 false 则ai设置页面展示
       list = list.filter(item => !(item.id === 'ai' && !window.enable_aiops));
       return list;
     }
     list = this.routeList.find(item => item.id === this.navActive)?.children || [];
-    // ai 设置 enable_aiops为true 则ai设置不展示 fasle 则ai设置页面展示
+    // ai 设置 enable_aiops为true 则ai设置不展示 false 则ai设置页面展示
     list = list.filter(item => !(item.id === 'ai' && !window.enable_aiops));
     return list;
   }
@@ -218,7 +220,7 @@ export default class App extends tsc<object> {
 
   created() {
     this.handleSetNeedMenu();
-    this.menuToggle = localStorage.getItem('navigationToogle') === 'true';
+    this.menuToggle = localStorage.getItem('navigationToggle') === 'true';
     this.noticeStepList = [
       {
         target: '#head-nav-performance',
@@ -259,12 +261,11 @@ export default class App extends tsc<object> {
     this.handleGetNewUserGuide();
     this.needMenu && this.handleNavHeaderResize();
     this.needMenu && addListener(this.navHeaderRef, this.handleNavHeaderResize);
-    addListener(this.navHeaderRef, this.handleNavHeaderResize);
     this.handleFetchStickyList();
     bus.$on(WATCH_SPACE_STICKY_LIST, this.handleWatchSpaceStickyList);
     process.env.NODE_ENV === 'production' && process.env.APP === 'pc' && useCheckVersion();
     this.getGlobalConfig();
-    this.getAiUserConfig();
+    aiWhaleStore.setEnableAiAssistantAction();
   }
   beforeDestroy() {
     this.needMenu && removeListener(this.navHeaderRef, this.handleNavHeaderResize);
@@ -293,7 +294,7 @@ export default class App extends tsc<object> {
    * @param list 空间uid
    */
   handleWatchSpaceStickyList(list: string[]) {
-    this.spacestickyList = list;
+    this.spaceStickyList = list;
   }
   /**
    * 获取置顶列表
@@ -303,7 +304,7 @@ export default class App extends tsc<object> {
       username: this.$store.getters.userName,
     };
     const res = await listStickySpaces(params).catch(() => []);
-    this.spacestickyList = res;
+    this.spaceStickyList = res;
   }
   /**
    * 处理路由面包屑数据
@@ -333,9 +334,9 @@ export default class App extends tsc<object> {
   }
   // 设置是否需要menu
   handleSetNeedMenu() {
-    const needMenu = getUrlParam('needMenu');
-    this.readonly = !!window.__BK_WEWEB_DATA__?.readonly || !!getUrlParam('readonly');
-    this.needMenu = `${needMenu}` !== 'false' && this.$route?.name !== 'share' && !window.__BK_WEWEB_DATA__?.readonly;
+    this.readonly = window.__BK_WEWEB_DATA__?.readonly ?? globalUrlFeatureMap.READONLY;
+    this.needMenu =
+      globalUrlFeatureMap.NEED_MENU && this.$route?.name !== 'share' && !window.__BK_WEWEB_DATA__?.readonly;
   }
   handleGotoPage(name: string) {
     this.$router.push({ name });
@@ -380,7 +381,7 @@ export default class App extends tsc<object> {
   async handleMenuItemClick(item) {
     let hasRouteChange = this.$route.path !== item.path;
     const isMicroApp = microRouteNameList.includes(item.id);
-    // const isPeddingMicroApp = microRouteNameList.includes((this.$router as any).history?.pending?.name);
+    // const isPendingMicroApp = microRouteNameList.includes((this.$router as any).history?.pending?.name);
     // 屏蔽是微应用 需特殊处理
     if (isMicroApp) {
       hasRouteChange = location.hash !== item.href;
@@ -446,14 +447,14 @@ export default class App extends tsc<object> {
         const hasDashboard = list.some(item => item.uid === dashboardId);
         path = hasDashboard ? `grafana/d/${dashboardId}` : 'grafana/home';
       }
-      this.$store.commit('app/SET_BIZ_CHANGE_PEDDING', path);
+      this.$store.commit('app/SET_BIZ_CHANGE_PENDING', path);
       await this.handleUpdateRoute({ bizId: `${v}` }, promise, path).then(async hasAuth => {
         if (hasAuth) {
           this.routeViewKey = random(10);
         }
       });
       setTimeout(() => {
-        this.$store.commit('app/SET_BIZ_CHANGE_PEDDING', '');
+        this.$store.commit('app/SET_BIZ_CHANGE_PENDING', '');
       }, 32);
     } else if (navId !== this.$route.name || isErrorPage) {
       let newNavId = navId;
@@ -464,15 +465,15 @@ export default class App extends tsc<object> {
       // 所有页面的子路由在切换业务的时候都统一返回到父级页面
       const parentRoute = this.$router.options.routes.find(item => item.name === newNavId);
       if (parentRoute) {
-        this.$store.commit('app/SET_BIZ_CHANGE_PEDDING', parentRoute.name);
+        this.$store.commit('app/SET_BIZ_CHANGE_PENDING', parentRoute.name);
         const hasAuth = await this.handleUpdateRoute({ bizId: `${v}` }, promise);
         hasAuth &&
           this.$router.push({ name: parentRoute.name, params: { bizId: `${v}` } }, () => {
             this.routeViewKey = random(10);
-            this.$store.commit('app/SET_BIZ_CHANGE_PEDDING', '');
+            this.$store.commit('app/SET_BIZ_CHANGE_PENDING', '');
           });
         if (!hasAuth) {
-          this.$store.commit('app/SET_BIZ_CHANGE_PEDDING', '');
+          this.$store.commit('app/SET_BIZ_CHANGE_PENDING', '');
         }
         setTimeout(() => this.$store.commit('app/SET_ROUTE_CHANGE_LOADING', false), 20);
         return;
@@ -482,15 +483,19 @@ export default class App extends tsc<object> {
           this.routeViewKey = random(10);
         }
       });
-    } else if (navId === 'k8s' || navId === 'k8s-new') {
+    } else if (['k8s', 'k8s-new', 'event-retrieval'].includes(navId)) {
       setTimeout(async () => {
         await this.handleUpdateRoute({ bizId: `${v}` }, promise).then(hasAuth => {
           if (hasAuth) {
-            this.$router
-              .push({ name: this.$store.getters.isEnableK8sV2 ? 'k8s-new' : 'k8s', query: {} })
-              .finally(() => {
-                this.routeViewKey = random(10);
-              });
+            let routeName = '';
+            if (navId.startsWith('k8s')) {
+              routeName = this.$store.getters.isEnableK8sV2 ? 'k8s-new' : 'k8s';
+            } else {
+              routeName = 'event-explore';
+            }
+            this.$router.push({ name: routeName, query: {} }).finally(() => {
+              this.routeViewKey = random(10);
+            });
           }
         });
         window.requestIdleCallback(() => introduce.initIntroduce(this.$route));
@@ -512,8 +517,8 @@ export default class App extends tsc<object> {
     const promiseList = [];
     promiseList.push(promise);
     const { authority } = this.$route.meta;
-    const serachParams = new URLSearchParams(params);
-    const newUrl = `${window.location.pathname}?${serachParams.toString()}#${path || this.$route.path}`;
+    const searchParams = new URLSearchParams(params);
+    const newUrl = `${window.location.pathname}?${searchParams.toString()}#${path || this.$route.path}`;
     history.replaceState({}, '', newUrl);
     // 判断页面权限
     let hasAuthority = false;
@@ -550,10 +555,10 @@ export default class App extends tsc<object> {
   }
   handleToggleClick(v: boolean) {
     this.toggleSet = v;
-    localStorage.setItem('navigationToogle', String(v));
+    localStorage.setItem('navigationToggle', String(v));
   }
   handleNoticeDone() {
-    // NEW_UER_GUDE_KEY新手指引字段存储到后台
+    // NEW_UER_GUIDE_KEY新手指引字段存储到后台
     userConfigModal.handleSetUserConfig(NEW_UER_GUDE_KEY, JSON.stringify(['done']));
   }
   handleHeaderNavClick(id: string) {
@@ -704,9 +709,6 @@ export default class App extends tsc<object> {
   async getGlobalConfig() {
     this.overseaGlobalList = await globalConfigModal.handleGetGlobalConfig<IOverseasConfig[]>(OVERSEAS_SITES_MENU);
   }
-  async getAiUserConfig() {
-    aiwhaleStore.setEnableAiAssistantAction();
-  }
 
   render() {
     /** 页面内容部分 */
@@ -856,7 +858,7 @@ export default class App extends tsc<object> {
                     bizList={this.bizIdList}
                     isShrink={!this.menuToggle}
                     minWidth={380}
-                    stickyList={this.spacestickyList}
+                    stickyList={this.spaceStickyList}
                     theme='dark'
                     value={+this.bizId}
                     onChange={this.handleBizChange}
@@ -871,7 +873,17 @@ export default class App extends tsc<object> {
                   {...{ props: APP_NAV_COLORS }}
                 >
                   {this.menuList
-                    .filter(item => !item.hidden)
+                    .filter(item => {
+                      if (item.hidden) return false;
+                      if (item.id === 'event-retrieval' || item.id === 'event-explore') {
+                        if (['event-retrieval', 'event-explore'].includes(this.$route.name)) {
+                          return this.$route.name === item.id;
+                        }
+                        if (item.id === 'event-explore') return true;
+                        return false;
+                      }
+                      return true;
+                    })
                     .map(item =>
                       item?.children?.length ? (
                         <bk-navigation-menu-group

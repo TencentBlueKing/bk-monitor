@@ -24,10 +24,10 @@
  * IN THE SOFTWARE.
  */
 import { type PropType, type Ref, computed, defineComponent, inject, ref, watch } from 'vue';
-import { type TranslateResult, useI18n } from 'vue-i18n';
 
 import { Select, Tag } from 'bkui-vue';
 import { incidentValidateQueryString } from 'monitor-api/modules/incident';
+import { type TranslateResult, useI18n } from 'vue-i18n';
 
 import { SPACE_TYPE_MAP } from '../../common/constant';
 import FilterSearchInput from './filter-search-input';
@@ -55,7 +55,7 @@ export type AnlyzeField =
   | 'strategy_id';
 export interface ICommonItem {
   id: string;
-  name: TranslateResult | string;
+  name: string | TranslateResult;
 }
 interface TagInfoType {
   bk_biz_id: number;
@@ -79,13 +79,14 @@ export default defineComponent({
     const searchType = ref('incident');
     const queryString = ref('');
     const spaceData = ref(null);
-    const valueMap = ref<Record<Partial<AnlyzeField>, ICommonItem[]> | null>(null);
+    const valueMap = ref<null | Record<Partial<AnlyzeField>, ICommonItem[]>>(null);
     const tagInfoData = computed(() => {
       return props.tagInfo || [];
     });
     const inputStatus = ref<string>('success');
     const isErr = ref(false);
     const selectRef = ref();
+    const showPopover = ref(false);
     const trigger = ref('default');
     const handleBiz = (data: any) => {
       const list = JSON.parse(JSON.stringify(spaceFilter.value));
@@ -112,6 +113,9 @@ export default defineComponent({
       val => {
         const { current_snapshot } = val;
         spaceFilter.value = (current_snapshot?.bk_biz_ids || []).map(item => item.bk_biz_id);
+      },
+      {
+        immediate: true,
       }
     );
     const currentBizList = computed(() => {
@@ -191,6 +195,7 @@ export default defineComponent({
       isErr,
       selectRef,
       trigger,
+      showPopover,
     };
   },
   render() {
@@ -199,18 +204,32 @@ export default defineComponent({
         <div class='main-top'>
           <Select
             ref='selectRef'
-            selected-style='checkbox'
             class={['main-select', { error: this.isErr }]}
-            trigger={this.trigger}
             v-model={this.spaceFilter}
+            v-slots={{
+              prefix: () => {
+                return (
+                  <>
+                    <span class='main-select-prefix'>{this.t('业务筛选:')}</span>
+                    <span class='main-select-suffix'>
+                      <i class={['icon-monitor icon-mc-arrow-down', this.showPopover ? 'rotate-icon' : '']} />
+                    </span>
+                  </>
+                );
+              },
+            }}
             clearable={false}
             inputSearch={false}
-            prefix={this.t('空间筛选')}
+            selected-style='checkbox'
+            trigger={this.trigger}
             filterable
             multiple
-            onChange={this.changeSpace}
             onBlur={() => {
               this.isErr && this.selectRef.showPopover();
+            }}
+            onChange={this.changeSpace}
+            onToggle={() => {
+              this.showPopover = !this.showPopover;
             }}
           >
             {this.spaceDataList.map(item => (

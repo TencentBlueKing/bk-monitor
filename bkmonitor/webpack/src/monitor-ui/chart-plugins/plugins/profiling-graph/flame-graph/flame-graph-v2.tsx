@@ -26,7 +26,7 @@
 import { computed, defineComponent, nextTick, onBeforeUnmount, ref, watch } from 'vue';
 import { shallowRef } from 'vue';
 
-import { removeListener, addListener } from '@blueking/fork-resize-detector';
+import { addListener, removeListener } from '@blueking/fork-resize-detector';
 import dayjs from 'dayjs';
 import { query } from 'monitor-api/modules/apm_profile';
 import { copyText } from 'monitor-common/utils/utils';
@@ -38,7 +38,7 @@ import {
   getGraphOptions,
   recursionData,
 } from '../../../hooks/profiling-graph/use-profiling-flame-graph';
-import { CommonMenuList, type ICommonMenuItem } from '../../../typings/flame-graph';
+import { type ICommonMenuItem, CommonMenuList } from '../../../typings/flame-graph';
 import { COMPARE_DIFF_COLOR_LIST } from '../flame-graph/utils';
 
 import type { IFlameGraphDataItem, IProfilingGraphData } from '../../../hooks/profiling-graph/types';

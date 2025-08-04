@@ -55,23 +55,23 @@ const bindList = [
   { id: EType.DIMENSION, name: window.i18n.tc('维度') },
 ];
 
+interface IExperience {
+  alert_name?: string;
+  conditions?: IConditionItem[];
+  create_time?: string;
+  create_user?: string;
+  description: string;
+  id?: string; // 仅用于删除
+  is_match?: boolean; // 是否命中；只作为标识
+  metric?: any[];
+  type: EType;
+  update_time?: string;
+  update_user?: string;
+}
 interface IHandleExperienceProps {
-  show?: boolean;
   detail?: IDetail;
   metricData?: IMetricDetail;
-}
-interface IExperience {
-  type: EType;
-  conditions?: IConditionItem[];
-  metric?: any[];
-  description: string;
-  create_user?: string;
-  create_time?: string;
-  update_user?: string;
-  update_time?: string;
-  is_match?: boolean; // 是否命中；只作为标识
-  id?: string; // 仅用于删除
-  alert_name?: string;
+  show?: boolean;
 }
 
 @Component({
@@ -98,7 +98,7 @@ export default class HandleExperience extends tsc<IHandleExperienceProps> {
   // 当前指标标题
   curMetricTitle = window.i18n.tc('指标名');
   // 编辑/新增页时当前更新时间
-  curUpdateInfo = '';
+  curUpdateInfo: IExperience | string = '';
   // 获取变量值的参数
   metricMeta = null;
   // 维度列表
@@ -113,7 +113,7 @@ export default class HandleExperience extends tsc<IHandleExperienceProps> {
   errConditions = '';
   selectKey = random(8);
   /* 默认填充维度维度 */
-  defalutDimensionValue: { [propName: string]: string[] } = {};
+  defaultDimensionValue: { [propName: string]: string[] } = {};
 
   @Watch('show')
   async handleShow(v) {
@@ -126,10 +126,10 @@ export default class HandleExperience extends tsc<IHandleExperienceProps> {
   /* 通过指标id获取维度交集 */
   async init() {
     this.isLoading = true;
-    if (!Object.keys(this.defalutDimensionValue).length) {
-      this.metricData.dimensions.forEach(item => {
-        if (item.is_dimension) this.defalutDimensionValue[item.id] = [];
-      });
+    if (!Object.keys(this.defaultDimensionValue).length) {
+      for (const item of this.metricData.dimensions) {
+        if (item.is_dimension) this.defaultDimensionValue[item.id] = [];
+      }
     }
     this.metricNameMap[this.metricData.metric_id] = this.metricData.name;
     this.dimensionList = this.metricData.dimensions.filter(item => !!item.is_dimension);
@@ -222,7 +222,7 @@ export default class HandleExperience extends tsc<IHandleExperienceProps> {
       const metricItem = this.experienceList.find(item => item.type === EType.METRIC);
       this.curDescription = metricItem.description;
       this.curMetricName = metricItem.alert_name || this.metricData.metric_field_name || this.getMetricName();
-      this.curUpdateInfo = this.getUpdataInfo(metricItem) as string;
+      this.curUpdateInfo = metricItem;
     } else {
       this.curMetricName = this.metricData.metric_field_name;
       this.curUpdateInfo = '';
@@ -235,7 +235,7 @@ export default class HandleExperience extends tsc<IHandleExperienceProps> {
     );
     const confirm = () => {
       this.curDescription = this.experienceList[index].description;
-      this.curUpdateInfo = this.getUpdataInfo(this.experienceList[index]) as string;
+      this.curUpdateInfo = this.experienceList[index];
       this.errMsg = '';
     };
     if (index > -1) {
@@ -266,7 +266,7 @@ export default class HandleExperience extends tsc<IHandleExperienceProps> {
   handleEdit(v: IExperience) {
     this.curBind = v.type;
     this.curDescription = v.description;
-    this.curUpdateInfo = this.getUpdataInfo(v) as string;
+    this.curUpdateInfo = v;
     if (v.type === EType.METRIC) {
       this.curMetricName = v.metric.map(id => this.metricNameMap[id] || id).join(',') || this.getMetricName();
       this.curMetricTitle = this.$tc('指标名');
@@ -364,17 +364,27 @@ export default class HandleExperience extends tsc<IHandleExperienceProps> {
   }
   /* 输入md文档 */
   handleInputContent(v: string) {
-    this.errMsg = !!v ? '' : this.$tc('注意: 必填字段不能为空');
+    this.errMsg = v ? '' : this.$tc('注意: 必填字段不能为空');
     this.curDescription = v;
   }
 
   getUpdataInfo(item: IExperience) {
+    if (!item) return null;
     if (item.update_user) {
-      return this.$t('{0} 于 {1} 更新', [item.update_user, dayjs.tz(item.update_time).format('YYYY-MM-DD HH:mm:ss')]);
+      return (
+        <div>
+          <bk-user-display-name user-id={item.update_user} />
+          {this.$t(' 于 {0} 更新', [dayjs.tz(item.update_time).format('YYYY-MM-DD HH:mm:ss')])},
+        </div>
+      );
     }
-    return this.$t('{0} 于 {1} 创建', [item.create_user, dayjs.tz(item.create_time).format('YYYY-MM-DD HH:mm:ss')]);
+    return (
+      <div>
+        <bk-user-display-name user-id={item.create_user} />,
+        {this.$t(' 于 {0} 创建', [dayjs.tz(item.create_time).format('YYYY-MM-DD HH:mm:ss')])}
+      </div>
+    );
   }
-
   render() {
     return (
       <div
@@ -508,7 +518,7 @@ export default class HandleExperience extends tsc<IHandleExperienceProps> {
                   ) : (
                     <ConditionInput
                       conditionList={this.conditionList}
-                      defaultValue={this.defalutDimensionValue}
+                      defaultValue={this.defaultDimensionValue}
                       dimensionsList={this.dimensionList}
                       metricMeta={transformDataKey(this.metricMeta)}
                       on-change={this.handleCondition}
@@ -518,7 +528,9 @@ export default class HandleExperience extends tsc<IHandleExperienceProps> {
                   <div class='err-red'>{this.errConditions}</div>
                 ) : undefined}
               </div>
-              <div class='updata-time'>{this.curUpdateInfo}</div>
+              <div class='updata-time'>
+                {this.curUpdateInfo ? this.getUpdataInfo(this.curUpdateInfo as IExperience) : ''}
+              </div>
             </div>
             <div class='content-md'>
               <Editor

@@ -315,6 +315,8 @@ class Alarm(BaseContextObject):
                 for key in self.origin_dimensions:
                     if key not in dimension_fields:
                         continue
+                    if self.origin_dimensions[key] is None:
+                        continue
                     data_source.filter_dict[key] = self.origin_dimensions[key]
 
             # 若告警状态为Abnormal，则alert_time为alert.latest_time，否则为alert.end_time

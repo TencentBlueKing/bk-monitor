@@ -23,24 +23,18 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import type { DirectiveBinding } from 'vue';
+
+import type { ObjectDirective } from 'vue';
 
 interface WatermarkOptions {
-  text: string; // 文本
   font: string; // canvas font
+  text: string; // 文本
   textColor: string; // 文本颜色
 }
-
-export default {
-  mounted(el: HTMLElement, binding: DirectiveBinding<WatermarkOptions>): void {
+const Watermark: ObjectDirective<HTMLElement, WatermarkOptions> = {
+  mounted(el, binding) {
     if (!binding.value) return;
-    // 默认值
-    const defaults: WatermarkOptions = {
-      text: '',
-      font: '14px Arial',
-      textColor: '#f1f1f1',
-    };
-    const options: WatermarkOptions = { ...defaults, ...binding.value };
+    const options: WatermarkOptions = { text: '', font: '14px Arial', textColor: '#f1f1f1', ...binding.value };
     const canvas: HTMLCanvasElement = document.createElement('canvas');
     const ctx: CanvasRenderingContext2D | null = canvas.getContext('2d');
     canvas.style.display = 'none';
@@ -62,3 +56,4 @@ export default {
     el.style.backgroundImage = `url(${canvas.toDataURL('image/png')})`;
   },
 };
+export default Watermark;

@@ -24,19 +24,18 @@
  * IN THE SOFTWARE.
  */
 
-import { Component, Prop, Ref, Watch } from 'vue-property-decorator';
+import { Component, Prop, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import AiBlueking, { RoleType, type AIBluekingExpose } from '@blueking/ai-blueking/vue2';
 import { fetchRobotInfo } from 'monitor-api/modules/commons';
 import { copyText } from 'monitor-common/utils/utils';
 import { throttle } from 'throttle-debounce';
 
 import aiWhaleStore from '../../store/modules/ai-whale';
 import { getEventPaths } from '../../utils';
+import AiBlueking from './ai-blueking';
 
 import './ai-whale.scss';
-import '@blueking/ai-blueking/dist/vue2/style.css';
 
 /* 最近n天 枚举 1h, 3h, 6h, 12h,1d */
 const fetchRangeOfStr = {
@@ -59,32 +58,21 @@ const levelOfColor = {
 //   ['event-center', 'event-action', 'event-center-detail', 'event-center-action-detail'];
 export const AI_WHALE_EXCLUDE_ROUTES = ['no-business', 'error-exception', 'share']; // 告警页也可显示ai小鲸
 
-interface IHostPreviewListItem {
-  ip: string;
-  exception_metric_count: number;
-  other_metric_count?: number;
-  bk_cloud_id?: number;
-}
-interface IWhaleHelperListItem {
-  icon_name?: string;
-  link: string;
-  name: string;
-}
-
-type ThemeType = 'blue' | 'red' | 'yellow';
-
 export type AIQuickActionData = {
-  type: 'explanation' | 'translate';
   content: string;
+  type: 'explanation' | 'translate';
 };
-
 interface IData {
+  fetch_range?: string;
+  link: IWhaleHelperListItem[];
+  need_notice: boolean;
+  robot_level?: number;
   alert: {
     abnormal_count: number; // 空间告警
     emergency_count: number;
-    recent_count: number;
     latest_person_abnormal_count?: number; // 个人最近新增告警
     person_abnormal_count?: number; // 个人最近告警
+    recent_count: number;
   };
   intelligent_detect: {
     host: {
@@ -96,28 +84,32 @@ interface IData {
       }[];
     };
   };
-  link: IWhaleHelperListItem[];
-  need_notice: boolean;
-  fetch_range?: string;
-  robot_level?: number;
 }
+
+interface IHostPreviewListItem {
+  bk_cloud_id?: number;
+  exception_metric_count: number;
+  ip: string;
+  other_metric_count?: number;
+}
+
+interface IWhaleHelperListItem {
+  icon_name?: string;
+  link: string;
+  name: string;
+}
+
+type ThemeType = 'blue' | 'red' | 'yellow';
 
 const robotWidth = 64;
 
 const tipClassName = 'ai-small-whale-tip-content';
-const questions = [
-  '蓝鲸监控的告警包含哪几个级别？',
-  '如何在仪表盘中进行指标计算？',
-  '主机监控场景包含哪些指标？',
-  '如何接入第三方告警源？',
-  '智能检测目前能支持哪些场景？',
-];
+
 @Component
 export default class AiWhale extends tsc<{
   enableAiAssistant: boolean;
 }> {
   @Ref('robot') robotRef: HTMLDivElement;
-  @Ref('aiAssistant') aiAssistantRef: AIBluekingExpose;
   @Prop({ default: false }) enableAiAssistant: boolean;
   type: ThemeType = 'blue';
   /* 机器人位置 */
@@ -149,56 +141,17 @@ export default class AiWhale extends tsc<{
   /* 10分钟已弹出则不再主动弹出 */
   lastRecordTime = 0;
 
-  /* AI Blueking */
-  prompts = questions.map((v, index) => ({ id: index + 1, content: window.i18n.tc(v) }));
-  background = '#f5f7fa';
-  headBackground = 'linear-gradient(267deg, #2dd1f4 0%, #1482ff 95%)';
-  positionLimit = {
-    top: 0,
-    bottom: 0,
-    left: 0,
-    right: 0,
-  };
-  startPosition = {
-    right: 10,
-    left: window.innerWidth - 480 - 10,
-    bottom: 20,
-    top: window.innerHeight - 600 - 20,
-  };
   mousemoveFn: (event: MouseEvent) => void;
   resizeFn = () => {};
 
-  get showAIBlueking() {
-    return aiWhaleStore.showAIBlueking;
-  }
-
-  get messages() {
-    return aiWhaleStore.messages;
-  }
-
-  get loading() {
-    return aiWhaleStore.loading;
-  }
   get space() {
     const { bizId } = this.$store.getters;
     return this.$store.getters.bizList.find(item => item.id === bizId) || { name: '', type_name: '' };
   }
-  @Watch('enableAiAssistant', { immediate: true })
-  enableAiAssistantChange() {
-    this.enableAiAssistant && aiWhaleStore.initStreamChatHelper();
-  }
 
-  @Watch('$store.state.aiWhale.aiQuickActionData')
-  handleIsTypeChange(newVal: AIQuickActionData, oldVal: AIQuickActionData) {
-    // 检查新值是否有 type 和 content
-    if (newVal.type && newVal.content && (newVal.type !== oldVal.type || newVal.content !== oldVal.content)) {
-      this.aiAssistantRef.quickActions(newVal.type, newVal.content);
-    }
-  }
   created() {
     this.mousemoveFn = throttle(50, this.handleMousemove);
     this.resizeFn = throttle(50, this.handleWindowResize);
-    aiWhaleStore.setDefaultMessage();
     window.addEventListener('resize', this.resizeFn);
   }
 
@@ -218,14 +171,7 @@ export default class AiWhale extends tsc<{
     window.clearTimeout(this.hoverTimer);
     this.handlePopoverHidden();
   }
-  getDefaultMessage() {
-    return [
-      {
-        content: `${this.$t('你好，我是AI小鲸，你可以向我提问蓝鲸监控产品使用相关的问题。')}<br/>${this.$t('例如')}：<a href="javascript:;" data-ai='${JSON.stringify({ type: 'send', content: this.$t('监控策略如何使用？') })}' class="ai-clickable">${this.$t('监控策略如何使用？')}</a>`,
-        role: RoleType.Assistant,
-      },
-    ];
-  }
+
   handleWindowResize() {
     this.width = document.querySelector('.bk-monitor').clientWidth;
     this.height = document.querySelector('.bk-monitor').clientHeight;
@@ -457,26 +403,8 @@ export default class AiWhale extends tsc<{
     }#/strategy-config/add`;
     window.open(url);
   }
-  handleAiBluekingClear() {
-    aiWhaleStore.setDefaultMessage();
-  }
-  handleAiBluekingStop() {
-    aiWhaleStore.stopChatHelper();
-  }
-  handleAiBluekingClose() {
-    aiWhaleStore.setShowAIBlueking(false);
-  }
-  handleAiBluekingChoosePrompt(prompt) {
-    console.log('choose prompt', prompt);
-  }
   handleToggleAiBlueking() {
-    aiWhaleStore.setShowAIBlueking(!this.showAIBlueking);
-    // this.startPosition.left = this.whalePosition.left +;
-  }
-  handleAiBluekingClick(v: string) {
-    const data = JSON.parse(v);
-    if (data?.type !== 'send') return;
-    aiWhaleStore.handleAiBluekingSend(data);
+    aiWhaleStore.setShowAIBlueking(!aiWhaleStore.showAIBlueking);
   }
   createAIContent() {
     const countSpan = count => {
@@ -712,32 +640,6 @@ export default class AiWhale extends tsc<{
       </div>
     );
   }
-  createAiBlueking() {
-    return (
-      <AiBlueking
-        ref='aiAssistant'
-        class='ai-blueking'
-        background={this.background}
-        head-background={this.headBackground}
-        isShow={this.showAIBlueking}
-        loading={this.loading}
-        messages={this.messages}
-        placeholder={this.$t('您可以键入“/”查看更多提问示例')}
-        position-limit={this.positionLimit}
-        prompts={this.prompts}
-        start-position={this.startPosition}
-        on-ai-click={this.handleAiBluekingClick}
-        onChoose-prompt={this.handleAiBluekingChoosePrompt}
-        onClear={this.handleAiBluekingClear}
-        onClose={this.handleAiBluekingClose}
-        onSend={aiWhaleStore.handleAiBluekingSend}
-        onShowDialog={(v: boolean) => {
-          aiWhaleStore.setShowAIBlueking(v);
-        }}
-        onStop={this.handleAiBluekingStop}
-      />
-    );
-  }
   createAIDialogFooter() {
     return (
       <div
@@ -745,7 +647,7 @@ export default class AiWhale extends tsc<{
         onClick={this.handleToggleAiBlueking}
       >
         <span class='ai-icon' />
-        {this.showAIBlueking ? this.$t('关闭 AI 小鲸会话') : this.$t('打开 AI 小鲸会话')}
+        {aiWhaleStore.showAIBlueking ? this.$t('关闭 AI 小鲸会话') : this.$t('打开 AI 小鲸会话')}
       </div>
     );
   }
@@ -776,7 +678,7 @@ export default class AiWhale extends tsc<{
             </div>
           )}
         </div>
-        {this.enableAiAssistant && this.createAiBlueking()}
+        {this.enableAiAssistant && <AiBlueking />}
       </div>
     );
   }

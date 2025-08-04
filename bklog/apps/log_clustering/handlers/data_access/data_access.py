@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -19,6 +18,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+
 import copy
 import json
 
@@ -26,7 +26,6 @@ from django.utils.translation import gettext_lazy as _
 
 import settings
 from apps.api import (
-    BkDataAccessApi,
     BkDataAuthApi,
     BkDataDatabusApi,
     BkDataMetaApi,
@@ -38,7 +37,6 @@ from apps.log_databus.constants import BKDATA_ES_TYPE_MAP, PARSE_FAILURE_FIELD
 from apps.log_databus.handlers.collector_scenario import CollectorScenario
 from apps.log_databus.handlers.etl_storage import EtlStorage
 from apps.log_databus.models import CollectorConfig
-from apps.utils.log import logger
 from bkm_space.api import SpaceApi
 from bkm_space.define import SpaceTypeEnum
 from bkm_space.errors import NoRelatedResourceError
@@ -47,7 +45,7 @@ from bkm_space.utils import bk_biz_id_to_space_uid
 
 class DataAccessHandler(BaseAiopsHandler):
     def __init__(self, raw_data_id: int = None):
-        super(DataAccessHandler, self).__init__()
+        super().__init__()
         self.raw_data_id = raw_data_id
 
     def get_deploy_plan(self):
@@ -56,62 +54,6 @@ class DataAccessHandler(BaseAiopsHandler):
     @classmethod
     def get_fields(cls, result_table_id: str):
         return BkDataMetaApi.result_tables.fields({"result_table_id": result_table_id})
-
-    def create_bkdata_access(self, collector_config_id):
-        collector_config = CollectorConfig.objects.get(collector_config_id=collector_config_id)
-        clustering_config = ClusteringConfig.objects.get(collector_config_id=collector_config_id)
-
-        if clustering_config.bkdata_data_id:
-            logger.info("bkdata access has exists")
-            return
-
-        kafka_config = collector_config.get_result_table_kafka_config()
-
-        # 计算平台要求，raw_data_name不能超过50个字符
-        raw_data_name = "{}_{}".format("bk_log", collector_config.collector_config_name_en)[:50]
-        params = {
-            "bk_username": self.conf.get("bk_username"),
-            "data_scenario": "queue",
-            "bk_biz_id": self.conf.get("bk_biz_id"),
-            "description": "",
-            "access_raw_data": {
-                "raw_data_name": raw_data_name,
-                "maintainer": self.conf.get("bk_username"),
-                "raw_data_alias": collector_config.collector_config_name,
-                "data_source": "kafka",
-                "data_encoding": "UTF-8",
-                "sensitivity": "private",
-                "description": _("接入配置 ({description})").format(description=collector_config.description),
-                "tags": [],
-                "data_source_tags": ["src_kafka"],
-            },
-            "access_conf_info": {
-                "collection_model": {"collection_type": "incr", "start_at": 1, "period": "-1"},
-                "resource": {
-                    "type": "kafka",
-                    "scope": [
-                        {
-                            "master": f"{self._get_kafka_broker_url(kafka_config['cluster_config']['domain_name'])}"
-                            f":{kafka_config['cluster_config']['port']}",
-                            "group": f"{self.conf.get('kafka_consumer_group_prefix', 'bkmonitorv3_transfer')}"
-                            f"{kafka_config['storage_config']['topic']}",
-                            "topic": kafka_config["storage_config"]["topic"],
-                            "tasks": kafka_config["storage_config"]["partition"],
-                            "use_sasl": kafka_config["cluster_config"]["is_ssl_verify"],
-                            "security_protocol": "SASL_PLAINTEXT",
-                            "sasl_mechanism": "SCRAM-SHA-512",
-                            "user": kafka_config["auth_info"]["password"],
-                            "password": kafka_config["auth_info"]["username"],
-                            "auto_offset_reset": "latest",
-                        }
-                    ],
-                },
-            },
-        }
-        result = BkDataAccessApi.deploy_plan_post(params)
-        logger.info(f"access to bkdata, result: {result}")
-        clustering_config.bkdata_data_id = result["raw_data_id"]
-        clustering_config.save()
 
     def _get_kafka_broker_url(self, broker):
         if "consul" in broker and settings.DEFAULT_KAFKA_HOST:
@@ -134,7 +76,11 @@ class DataAccessHandler(BaseAiopsHandler):
         if space:
             return space.bk_biz_id
         # 无业务关联的空间，不允许创建清洗任务
-        raise NoRelatedResourceError(_(f"当前业务:{bk_biz_id}通过Space关系查询不到关联的真实业务ID，不允许创建清洗任务").format(bk_biz_id=bk_biz_id))
+        raise NoRelatedResourceError(
+            _(f"当前业务:{bk_biz_id}通过Space关系查询不到关联的真实业务ID，不允许创建清洗任务").format(
+                bk_biz_id=bk_biz_id
+            )
+        )
 
     def sync_bkdata_etl(self, collector_config_id):
         clustering_config = ClusteringConfig.objects.get(collector_config_id=collector_config_id)
@@ -263,13 +209,14 @@ class DataAccessHandler(BaseAiopsHandler):
             params["consume_position"] = "tail"
         return BkDataDatabusApi.post_tasks(params=params)
 
-    def add_cluster_group(self, result_table_id):
+    def add_cluster_group(self, result_table_id, bk_biz_id):
         storage_config = BkDataMetaApi.result_tables.storages({"result_table_id": result_table_id})
         cluster_resource_groups = BkDataResourceCenterApi.cluster_query_digest(
             params={
                 "resource_type": "storage",
                 "service_type": "es",
                 "cluster_name": storage_config["es"]["storage_cluster"]["cluster_name"],
+                "bk_biz_id": bk_biz_id,
             }
         )
         cluster_resource_group, *_ = cluster_resource_groups
@@ -277,6 +224,7 @@ class DataAccessHandler(BaseAiopsHandler):
             params={
                 "project_id": self.conf.get("project_id"),
                 "cluster_group_id": cluster_resource_group["resource_group_id"],
+                "bk_biz_id": bk_biz_id,
             }
         )
 

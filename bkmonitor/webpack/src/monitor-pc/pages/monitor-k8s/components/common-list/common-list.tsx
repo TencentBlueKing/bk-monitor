@@ -49,28 +49,28 @@ import type { IViewOptions, PanelModel } from 'monitor-ui/chart-plugins/typings'
 import './common-list.scss';
 import '@blueking/search-select-v3/vue2/vue2.css';
 
-interface ICommonListProps {
-  // 场景id
-  sceneId: string;
-  // panel实例
-  panel: PanelModel;
-  // 视图数据参数配置
-  viewOptions: IViewOptions;
-  // 是否为目标对比
-  isTargetCompare: boolean;
-  height?: number;
-  isCustomGePanelData?: boolean;
-}
-
 interface ICommonListEvent {
   // 选中列表行数据触发
   onChange: IViewOptions;
-  // 标题修改触发
-  onTitleChange: string;
-  // get list
-  onListChange: Record<string, any>[];
   // 选中一个item
   onCheckedChange: void;
+  // get list
+  onListChange: Record<string, any>[];
+  // 标题修改触发
+  onTitleChange: string;
+}
+
+interface ICommonListProps {
+  height?: number;
+  isCustomGePanelData?: boolean;
+  // 是否为目标对比
+  isTargetCompare: boolean;
+  // panel实例
+  panel: PanelModel;
+  // 场景id
+  sceneId: string;
+  // 视图数据参数配置
+  viewOptions: IViewOptions;
 }
 
 @Component

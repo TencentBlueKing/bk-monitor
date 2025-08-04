@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,9 +7,12 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
+import copy
 import itertools
 import logging
-from typing import Any, Callable, Dict, List, Optional, Tuple, Type
+from typing import Any
+from collections.abc import Callable
 
 from bkmonitor.data_source import load_data_source
 from bkmonitor.data_source.backends.base.compiler import SQLCompiler
@@ -50,37 +52,42 @@ logger = logging.getLogger(__name__)
 
 
 class QueryConfig(Query):
-    def __init__(self, using: Tuple[str, str], where: Type[WhereNode] = WhereNode):
+    def __init__(self, using: tuple[str, str], where: type[WhereNode] = WhereNode):
         super().__init__(using, where)
 
         self.reference_name: str = ""
         # unit：seconds
-        self.interval: Optional[int] = None
-        self.metrics: List[Dict[str, Any]] = []
-        self.dimension_fields: List[str] = []
-        self.functions: List[Dict[str, Any]] = []
+        self.interval: int | None = None
+        self.metrics: list[dict[str, Any]] = []
+        self.dimension_fields: list[str] = []
+        self.functions: list[dict[str, Any]] = []
+        self.conditions: list[dict[str, Any]] = []
 
     def clone(self) -> "QueryConfig":
-        obj: "QueryConfig" = super().clone()
+        obj: QueryConfig = super().clone()
         obj.reference_name = self.reference_name
         obj.interval = self.interval
         obj.metrics = self.metrics[:]
         obj.functions = self.functions[:]
+        obj.conditions = self.conditions[:]
         obj.dimension_fields = self.dimension_fields[:]
         return obj
 
-    def set_reference_name(self, reference_name: Optional[str]):
+    def set_reference_name(self, reference_name: str | None):
         if reference_name:
             self.reference_name = reference_name
 
     def set_interval(self, interval: int):
         self.interval = interval
 
-    def add_metric(self, field: str, method: str, alias: Optional[str] = ""):
+    def add_metric(self, field: str, method: str, alias: str | None = ""):
         self.metrics.append({"field": field, "alias": alias or method, "method": method})
 
-    def add_func(self, _id: str, params: List[Dict[str, Any]]):
+    def add_func(self, _id: str, params: list[dict[str, Any]]):
         self.functions.append({"id": _id, "params": params})
+
+    def add_condition(self, condition: dict[str, Any]):
+        self.conditions.append(copy.deepcopy(condition))
 
     def add_dimension_fields(self, field: str):
         if field not in self.dimension_fields:
@@ -90,19 +97,25 @@ class QueryConfig(Query):
 class QueryConfigBuilder(BaseDataQuery, QueryMixin, DslMixin):
     QUERY_CLASS = QueryConfig
 
-    def alias(self, alias: Optional[str]) -> "QueryConfigBuilder":
+    def alias(self, alias: str | None) -> "QueryConfigBuilder":
         clone = self._clone()
         clone.query.set_reference_name(alias)
         return clone
 
-    def metric(self, field: str, method: str, alias: Optional[str] = "") -> "QueryConfigBuilder":
+    def metric(self, field: str, method: str, alias: str | None = "") -> "QueryConfigBuilder":
         clone = self._clone()
         clone.query.add_metric(field, method, alias)
         return clone
 
-    def func(self, _id: str, params: List[Dict[str, Any]]) -> "QueryConfigBuilder":
+    def func(self, _id: str, params: list[dict[str, Any]]) -> "QueryConfigBuilder":
         clone = self._clone()
         clone.query.add_func(_id, params)
+        return clone
+
+    def conditions(self, conditions: list[dict[str, Any]]) -> "QueryConfigBuilder":
+        clone = self._clone()
+        for cond in conditions:
+            clone.query.add_condition(cond)
         return clone
 
     def tag_values(self, *fields) -> "QueryConfigBuilder":
@@ -136,24 +149,26 @@ class QueryConfigBuilder(BaseDataQuery, QueryMixin, DslMixin):
     def time_field(self, field: str) -> "QueryConfigBuilder":
         return super().time_field(field)
 
-    def query_string(self, query_string: str, nested_paths: Optional[Dict[str, str]] = None) -> "QueryConfigBuilder":
+    def query_string(self, query_string: str, nested_paths: dict[str, str] | None = None) -> "QueryConfigBuilder":
         return super().dsl_raw_query_string(query_string, nested_paths)
 
 
 class QueryHelper:
     @classmethod
-    def _query_log(cls, unify_query: UnifyQuery, query_body: Dict[str, Any]) -> List[Dict[str, Any]]:
+    def _query_log(cls, unify_query: UnifyQuery, query_body: dict[str, Any]) -> list[dict[str, Any]]:
         data, __ = unify_query.query_log(
             start_time=query_body["start_time"],
             end_time=query_body["end_time"],
             limit=query_body["limit"],
+            order_by=query_body["order_by"],
             offset=query_body["offset"],
             search_after_key=query_body["search_after_key"],
+            time_alignment=query_body["is_time_align"],
         )
         return data
 
     @classmethod
-    def _query_data(cls, unify_query: UnifyQuery, query_body: Dict[str, Any]) -> List[Dict[str, Any]]:
+    def _query_data(cls, unify_query: UnifyQuery, query_body: dict[str, Any]) -> list[dict[str, Any]]:
         data = unify_query.query_data(
             start_time=query_body["start_time"],
             end_time=query_body["end_time"],
@@ -161,12 +176,26 @@ class QueryHelper:
             offset=query_body["offset"],
             search_after_key=query_body["search_after_key"],
             instant=query_body["instant"],
+            time_alignment=query_body["is_time_align"],
         )
         return data
 
     @classmethod
-    def _query_dimensions(cls, unify_query: UnifyQuery, query_body: Dict[str, Any]) -> List[Dict[str, Any]]:
-        dimension_fields: List[str] = query_body["dimension_fields"]
+    def _query_reference(cls, unify_query: UnifyQuery, query_body: dict[str, Any]) -> list[dict[str, Any]]:
+        data = unify_query.query_reference(
+            start_time=query_body["start_time"],
+            end_time=query_body["end_time"],
+            limit=query_body["limit"],
+            offset=query_body["offset"],
+            instant=query_body["instant"],
+            order_by=query_body["order_by"],
+            time_alignment=query_body["is_time_align"],
+        )
+        return data
+
+    @classmethod
+    def _query_dimensions(cls, unify_query: UnifyQuery, query_body: dict[str, Any]) -> list[dict[str, Any]]:
+        dimension_fields: list[str] = query_body["dimension_fields"]
         data = unify_query.query_dimensions(
             dimension_field=dimension_fields,
             start_time=query_body["start_time"],
@@ -176,13 +205,13 @@ class QueryHelper:
             space_uid=None,
         )
 
-        values_list: List[List[str]] = []
-        dimension_field_values_mapping: Dict[str] = data.get("values") or {}
+        values_list: list[list[str]] = []
+        dimension_field_values_mapping: dict[str] = data.get("values") or {}
         for dimension_field in dimension_fields:
             values_list.append(dimension_field_values_mapping.get(dimension_field) or [])
 
         # ["a", "b", "c"] + [["a1", "b2", "b3"]] -> [{"a": "a1", "b": "b1", "c": "c1"}]
-        dimensions: List[Dict[str, Any]] = []
+        dimensions: list[dict[str, Any]] = []
         for dimension_values in itertools.product(*values_list):
             # refer: https://stackoverflow.com/questions/209840
             dimensions.append(dict(zip(dimension_fields, dimension_values)))
@@ -190,8 +219,8 @@ class QueryHelper:
 
     @classmethod
     def _get_query_func(
-        cls, query_body: Dict[str, Any]
-    ) -> Callable[[UnifyQuery, Dict[str, Any]], List[Dict[str, Any]]]:
+        cls, query_body: dict[str, Any]
+    ) -> Callable[[UnifyQuery, dict[str, Any]], list[dict[str, Any]]]:
         # 1. Dimensions
         if query_body.get("dimension_fields"):
             return cls._query_dimensions
@@ -199,17 +228,18 @@ class QueryHelper:
         # 2. Data
         for query_config in query_body.get("query_configs") or []:
             if query_config.get("metrics"):
-                return cls._query_data
+                if query_config["is_time_agg"]:
+                    return cls._query_data
+                return cls._query_reference
 
         # 3. Log
         return cls._query_log
 
     @classmethod
-    def query(cls, table_id: str, query_body: Dict[str, Any]) -> List[Dict[str, Any]]:
-
+    def query(cls, table_id: str, query_body: dict[str, Any]) -> list[dict[str, Any]]:
         logger.info("[QueryHelper] table_id -> %s query_body -> %s", table_id, query_body)
 
-        data_sources: List[DataSource] = []
+        data_sources: list[DataSource] = []
         for query_config in query_body["query_configs"]:
             data_source_class = load_data_source(query_config["data_source_label"], query_config["data_type_label"])
             data_source = data_source_class(
@@ -228,8 +258,8 @@ class QueryHelper:
 
 
 class UnifyQueryCompiler(SQLCompiler):
-    def as_sql(self) -> Tuple[str, Dict[str, Any]]:
-        query_configs: List[Dict[str, Any]] = []
+    def as_sql(self) -> tuple[str, dict[str, Any]]:
+        query_configs: list[dict[str, Any]] = []
         for query_config_obj in self.query.query_configs:
             query_config = {
                 "data_type_label": query_config_obj.using[0],
@@ -239,7 +269,7 @@ class UnifyQueryCompiler(SQLCompiler):
                 "time_field": query_config_obj.time_field,
                 "select": query_config_obj.select,
                 "distinct": query_config_obj.distinct,
-                "where": [],
+                "where": query_config_obj.conditions,
                 "metrics": query_config_obj.metrics,
                 "functions": query_config_obj.functions,
                 "group_by": query_config_obj.group_by,
@@ -248,13 +278,24 @@ class UnifyQueryCompiler(SQLCompiler):
                 "query_string": query_config_obj.raw_query_string or "*",
                 "nested_paths": query_config_obj.nested_paths,
                 "order_by": query_config_obj.order_by,
+                "is_time_agg": self.query.is_time_agg,
             }
             if query_config_obj.interval:
                 query_config["interval"] = query_config_obj.interval
             query_configs.append(query_config)
 
+        query_configs = query_configs or [{"order_by": "", "reference_name": "a", "dimension_fields": []}]
+
+        order_by: list[str] = []
+        for ordering in query_configs[0]["order_by"]:
+            if len(ordering.split()) == 1:
+                field, order = ordering, "asc"
+            else:
+                field, order = ordering.split(maxsplit=1)
+            order_by.append({"asc": "", "desc": "-"}[order.lower()] + field)
+
         return "unifyquery", {
-            "bk_biz_id": None,
+            "bk_biz_id": self.query.bk_biz_id,
             "query_configs": query_configs,
             "dimension_fields": query_configs[0]["dimension_fields"],
             "functions": self.query.functions,
@@ -262,9 +303,11 @@ class UnifyQueryCompiler(SQLCompiler):
             "expression": self.query.expression or query_configs[0]["reference_name"],
             "limit": self.query.get_limit(),
             "offset": self.query.offset,
+            "order_by": order_by,
             "start_time": self.query.start_time,
             "end_time": self.query.end_time,
             "search_after_key": self.query.search_after_key,
+            "is_time_align": self.query.is_time_align,
         }
 
 
@@ -280,32 +323,37 @@ class DatabaseConnection(BaseDatabaseConnection):
         self.query_func = query_func
         self.ops = DatabaseOperations(self)
 
-    def execute(self, table_id: str, query_body: Dict[str, Any]):
+    def execute(self, table_id: str, query_body: dict[str, Any]):
         return self.query_func(table_id=table_id, query_body=query_body)
 
 
 class UnifyQueryConfig:
-
     compiler = "UnifyQueryCompiler"
 
     def __init__(self):
         # 是否返回瞬时量
+        self.bk_biz_id: int | None = None
         self.instant: bool = False
+        self.is_time_agg: bool = True
+        self.is_time_align: bool = True
         self.expression: str = ""
-        self.functions: List[Dict[str, Any]] = []
-        self.query_configs: List[QueryConfig] = []
+        self.functions: list[dict[str, Any]] = []
+        self.query_configs: list[QueryConfig] = []
         self.start_time: int = 0
         self.end_time: int = 0
         self.offset: int = 0
         self.low_mark: int = 0
-        self.high_mark: Optional[int] = None
+        self.high_mark: int | None = None
 
         # to be deprecation
-        self.search_after_key: Optional[Dict[str, Any]] = None
+        self.search_after_key: dict[str, Any] | None = None
 
     def clone(self) -> "UnifyQueryConfig":
-        obj: "UnifyQueryConfig" = self.__class__()
+        obj: UnifyQueryConfig = self.__class__()
+        obj.bk_biz_id = self.bk_biz_id
         obj.instant = self.instant
+        obj.is_time_agg = self.is_time_agg
+        obj.is_time_align = self.is_time_align
         obj.expression = self.expression
         obj.functions = self.functions[:]
         obj.query_configs = self.query_configs[:]
@@ -320,43 +368,54 @@ class UnifyQueryConfig:
 
         return obj
 
-    def set_search_after_key(self, search_after_key: Optional[Dict[str, Any]]):
+    def set_search_after_key(self, search_after_key: dict[str, Any] | None):
         # None 表示重置
         self.search_after_key = search_after_key
+
+    def set_scope(self, bk_biz_id: int):
+        self.bk_biz_id = bk_biz_id
 
     def set_instant(self, instant: bool):
         self.instant = instant
 
-    def set_expression(self, expression: Optional[str]):
+    def set_time_agg(self, is_time_agg: bool):
+        self.is_time_agg = is_time_agg
+
+    def set_time_align(self, is_time_align: bool):
+        self.is_time_align = is_time_align
+
+    def set_expression(self, expression: str | None):
         if expression:
             self.expression = expression
 
-    def add_func(self, _id: str, params: List[Dict[str, Any]]):
+    def add_func(self, _id: str, params: list[dict[str, Any]]):
         self.functions.append({"id": _id, "params": params})
 
-    def add_q(self, query_config: Optional[QueryConfig]):
+    def add_q(self, query_config: QueryConfig | None):
         if query_config:
             self.query_configs.append(query_config)
 
-    def set_start_time(self, start_time: Optional[int]):
+    def set_start_time(self, start_time: int | None):
         if start_time:
             self.start_time = start_time
 
-    def set_end_time(self, end_time: Optional[int]):
+    def set_end_time(self, end_time: int | None):
         if end_time:
             self.end_time = end_time
 
-    def set_offset(self, offset: Optional[int]):
+    def set_offset(self, offset: int | None):
         if offset:
             self.offset = offset
 
-    def set_limits(self, low: Optional[int] = None, high: Optional[int] = None):
+    def set_limits(self, low: int | None = None, high: int | None = None):
         self.low_mark, self.high_mark = get_limit_range(low, high, self.low_mark, self.high_mark)
 
     def get_limit(self) -> int:
-        return (self.high_mark - self.low_mark, 0)[self.high_mark is None]
+        if self.high_mark is None:
+            return 0
+        return self.high_mark - self.low_mark
 
-    def get_compiler(self, using: Optional[Tuple[str, str]] = None) -> SQLCompiler:
+    def get_compiler(self, using: tuple[str, str] | None = None) -> SQLCompiler:
         connection: DatabaseConnection = DatabaseConnection(QueryHelper.query)
         return connection.ops.compiler(self.compiler)(self, connection, using)
 
@@ -367,7 +426,7 @@ class CompilerMixin:
         """导出数据查询配置"""
         compiler = self.query.get_compiler(using=self.using)
         __, params = compiler.as_sql()
-        query_configs: List[Dict[str, Any]] = []
+        query_configs: list[dict[str, Any]] = []
         for query_config in params["query_configs"]:
             query_configs.append(
                 {
@@ -389,6 +448,20 @@ class CompilerMixin:
         conf = {"expression": params["expression"], "query_configs": query_configs, "functions": []}
         return conf
 
+    @property
+    def config(self) -> dict[str, Any]:
+        """导出 UnifyQuery 查询配置"""
+        compiler = self.query.get_compiler(using=self.using)
+        __, params = compiler.as_sql()
+        return {
+            "bk_biz_id": params["bk_biz_id"],
+            "query_configs": params["query_configs"],
+            "expression": params["expression"],
+            "start_time": params["start_time"],
+            "end_time": params["end_time"],
+            "time_alignment": params.get("time_alignment", True),
+        }
+
 
 class UnifyQuerySet(IterMixin, CompilerMixin):
     def __init__(self, query: UnifyQueryConfig = None):
@@ -401,15 +474,19 @@ class UnifyQuerySet(IterMixin, CompilerMixin):
         clone = self.__class__(query=query)
         return clone
 
-    def after(self, after_key: Optional[Dict[str, Any]] = None) -> "UnifyQuerySet":
+    def scope(self, bk_biz_id: int) -> "UnifyQuerySet":
+        clone = self._clone()
+        clone.query.set_scope(bk_biz_id)
+        return clone
+
+    def after(self, after_key: dict[str, Any] | None = None) -> "UnifyQuerySet":
         clone = self._clone()
         clone.query.set_search_after_key(after_key)
         return clone
 
-    def instant(self, instant: bool = True, align_interval: Optional[int] = None) -> "UnifyQuerySet":
+    def instant(self, instant: bool = True, align_interval: int | None = None) -> "UnifyQuerySet":
         clone = self._clone()
         clone.query.set_instant(instant)
-        clone.query.set_limits(high=1)
 
         if not align_interval:
             return clone
@@ -420,12 +497,23 @@ class UnifyQuerySet(IterMixin, CompilerMixin):
         clone.query.set_end_time(clone.query.end_time - align_interval)
         return clone
 
-    def func(self, _id: str, params: List[Dict[str, Any]]) -> "UnifyQuerySet":
+    def time_agg(self, is_time_agg: bool = True) -> "UnifyQuerySet":
+        clone = self._clone()
+        clone.query.set_time_agg(is_time_agg)
+        return clone
+
+    def time_align(self, is_time_align: bool = True) -> "UnifyQuerySet":
+        """"""
+        clone = self._clone()
+        clone.query.set_time_align(is_time_align)
+        return clone
+
+    def func(self, _id: str, params: list[dict[str, Any]]) -> "UnifyQuerySet":
         clone = self._clone()
         clone.query.add_func(_id, params)
         return clone
 
-    def expression(self, expression: Optional[str]) -> "UnifyQuerySet":
+    def expression(self, expression: str | None) -> "UnifyQuerySet":
         clone = self._clone()
         clone.query.set_expression(expression)
         return clone

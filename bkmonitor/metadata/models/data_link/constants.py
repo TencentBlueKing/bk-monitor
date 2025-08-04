@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -18,21 +17,25 @@ class DataLinkKind(Enum):
     DATAID = "DataId"
     RESULTTABLE = "ResultTable"
     VMSTORAGEBINDING = "VmStorageBinding"
+    ESSTORAGEBINDING = "ElasticSearchBinding"
     DATABUS = "Databus"
     CONDITIONALSINK = "ConditionalSink"
     SINK = "Sink"
     VMSTORAGE = "VmStorage"
     ELASTICSEARCH = "ElasticSearch"
+    DORIS = "Doris"
 
     choices_labels = (
         (DATAID, "dataids"),
         (RESULTTABLE, "resulttables"),
         (VMSTORAGEBINDING, "vmstoragebindings"),
+        (ESSTORAGEBINDING, "elasticsearchbindings"),
         (DATABUS, "databuses"),
         (CONDITIONALSINK, "conditionalsinks"),
         (SINK, "sinks"),
         (VMSTORAGE, "vmstorages"),
         (ELASTICSEARCH, "elasticsearchs"),
+        (DORIS, "dorises"),
     )
 
     @classmethod
@@ -84,10 +87,43 @@ class DataLinkResourceStatus(Enum):
         return -1
 
 
+# 基础采集链路用途
+BASEREPORT_USAGES = [
+    "cpu_summary",
+    "cpu_detail",
+    "disk",
+    "env",
+    "inode",
+    "io",
+    "load",
+    "mem",
+    "net",
+    "netstat",
+    "swap",
+]
+
+BASEREPORT_DATABUS_FORMAT = "bkmonitor_basereport_v1"
+
+
+# 基础采集数据链路来源 -- 主机系统、DBM、DEVX、Perforce
+BASEREPORT_SOURCE_SYSTEM = "sys"
+BASEREPORT_SOURCE_DBM = "dbm"
+BASEREPORT_SOURCE_DEVX = "devx"
+BASEREPORT_SOURCE_PERFORCE = "perforce"
+
 # 默认转换器及对应的处理格式
 DEFAULT_METRIC_TRANSFORMER_KIND = "PreDefinedLogic"
 DEFAULT_METRIC_TRANSFORMER = "log_to_metric"
 DEFAULT_METRIC_TRANSFORMER_FORMAT = "bkmonitor_standard_v2"
 
+# 采集插件对应的 TRANSFORM FORMAT
+BK_STANDARD_TRANSFORMER_FORMAT = "bkmonitor_standard"
+BK_EXPORTER_TRANSFORMER_FORMAT = "bkmonitor_exporter_v1"
+
 # 针对数据源名称需要替换的正则
 MATCH_DATA_NAME_PATTERN = r"[\u4e00-\u9fa5\.\!\:\*\+\?\^\$\{\}\[\]\(\)\|\\]"
+
+
+BKBASE_NAMESPACE_BK_MONITOR = "bkmonitor"
+BKBASE_NAMESPACE_BK_LOG = "bklog"
+BKBASE_NAMESPACE_BK_APM = "bkapm"

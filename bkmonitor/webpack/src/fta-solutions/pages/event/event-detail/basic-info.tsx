@@ -1,4 +1,11 @@
 /* eslint-disable @typescript-eslint/naming-convention */
+import { Component, Emit, InjectReactive, Prop } from 'vue-property-decorator';
+import { Component as tsc } from 'vue-tsx-support';
+
+import dayjs from 'dayjs';
+import { copyText } from 'monitor-common/utils';
+import { ETagsType } from 'monitor-pc/components/biz-select/list';
+import { TabEnum as CollectorTabEnum } from 'monitor-pc/pages/collector-config/collector-detail/typings/detail';
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -24,19 +31,16 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Emit, InjectReactive, Prop } from 'vue-property-decorator';
-import { Component as tsc } from 'vue-tsx-support';
+import VueJsonPretty from 'vue-json-pretty';
 
-import dayjs from 'dayjs';
-import { TabEnum as CollectorTabEnum } from 'monitor-pc/pages/collector-config/collector-detail/typings/detail';
-
-import { toPerformanceDetail } from '../../../common/go-link';
+import { toBcsDetail, toPerformanceDetail } from '../../../common/go-link';
+import EventDetail from '../../../store/modules/event-detail';
 import { getOperatorDisabled } from '../utils';
 
 import type { IDetail } from './type';
-import EventDetail from '../../../store/modules/event-detail';
 
 import './basic-info.scss';
+import 'vue-json-pretty/lib/styles.css';
 
 interface IBasicInfoProps {
   basicInfo: IDetail;
@@ -52,30 +56,69 @@ export default class MyComponent extends tsc<IBasicInfoProps, IEvents> {
   // 是否是只读模式
   @InjectReactive('readonly') readonly readonly: boolean;
   cloudIdMap = ['bk_target_cloud_id', 'bk_cloud_id'];
-  ipMap = ['bk_target_ip', 'ip', 'bk_host_id'];
+  ipMap = ['bk_target_ip', 'ip', 'bk_host_id', 'tags.bcs_cluster_id'];
   operateDesc = null;
   showReason = false;
   get bizList() {
     return this.$store.getters.bizList;
   }
-
   get handleStatusString() {
+    // 从 this.basicInfo 中获取总计数，如果不存在则返回 '--'
     const total = this.basicInfo?.overview?.count;
     if (!total) return '--';
-    let successCount = 0;
-    let failCount = 0;
-    let partialFailureCount = 0;
-    successCount = this.basicInfo.overview?.children?.find?.(item => item.id === 'success')?.count || 0;
-    failCount = this.basicInfo.overview?.children?.find?.(item => item.id === 'failure')?.count || 0;
-    partialFailureCount = this.basicInfo.overview?.children?.find?.(item => item.id === 'partial_failure')?.count || 0;
-    return `${this.$t(' {0} 次', [total])}(${successCount ? this.$t('{0}次成功', [successCount]) : ''}${
-      failCount ? `${successCount ? ', ' : ''}${this.$t('{0}次失败', [failCount])}` : ''
-    }${
-      partialFailureCount
-        ? `${successCount || failCount ? ', ' : ''}${this.$t('{0}次部分失败', [partialFailureCount])}`
-        : ''
-    })`;
+
+    // 定义需要统计的状态及其初始计数
+    const statusKeys = ['success', 'failure', 'partial_failure'];
+    const statusCounts = Object.fromEntries(statusKeys.map(key => [key, 0]));
+
+    // 遍历 children 数组，更新对应状态的计数
+    const children = this.basicInfo.overview?.children || [];
+    children.map(item => {
+      if (statusKeys.includes(item.id)) {
+        statusCounts[item.id] = item.count;
+      }
+    });
+
+    // 生成每种状态的描述字符串数组
+    const statusDescriptions = statusKeys
+      .map(key => {
+        const count = statusCounts[key];
+        if (count) {
+          const statusText = {
+            success: '次成功',
+            failure: '次失败',
+            partial_failure: '次部分失败',
+          }[key];
+          return this.$t(`{0}${statusText}`, [count]);
+        }
+        return null;
+      })
+      .filter(description => description !== null);
+    // 拼接所有状态描述字符串
+    const details = statusDescriptions.join(', ');
+
+    // 生成最终的状态字符串
+    return `${this.$t(' {0} 次', [total])}(${details})`;
   }
+
+  // get handleStatusString() {
+  //   const total = this.basicInfo?.overview?.count;
+  //   if (!total) return '--';
+  //   let successCount = 0;
+  //   let failCount = 0;
+  //   let partialFailureCount = 0;
+  //   successCount = this.basicInfo.overview?.children?.find?.(item => item.id === 'success')?.count || 0;
+  //   failCount = this.basicInfo.overview?.children?.find?.(item => item.id === 'failure')?.count || 0;
+  //   partialFailureCount =
+  //     this.basicInfo.overview?.children?.find?.(item => item.id === 'partial_failure')?.count || 0;
+  //   return `${this.$t(' {0} 次', [total])}(${successCount ? this.$t('{0}次成功', [successCount]) : ''}${
+  //     failCount ? `${successCount ? ', ' : ''}${this.$t('{0}次失败', [failCount])}` : ''
+  //   }${
+  //     partialFailureCount
+  //       ? `${successCount || failCount ? ', ' : ''}${this.$t('{0}次部分失败', [partialFailureCount])}`
+  //       : ''
+  //   })`;
+  // }
 
   get filterDimensions() {
     return this.basicInfo.dimensions?.filter(item => !(this.cloudIdMap.includes(item.key) && item.value === 0));
@@ -96,10 +139,6 @@ export default class MyComponent extends tsc<IBasicInfoProps, IEvents> {
     return getOperatorDisabled(this.basicInfo.follower, this.basicInfo.assignee);
   }
 
-  @Emit('strategy-detail')
-  toStrategyDetail() {
-    return true;
-  }
   @Emit('processing-status')
   processingStatus() {
     return true;
@@ -122,26 +161,53 @@ export default class MyComponent extends tsc<IBasicInfoProps, IEvents> {
       `${location.origin}${location.pathname}?bizId=${this.basicInfo.bk_biz_id}/#/trace/alarm-shield/edit/${this.basicInfo.shield_id[0]}`
     );
   }
-
+  /** 不同情况下的跳转逻辑 */
   handleToPerformance(item) {
-    if (this.ipMap.includes(item.key)) {
-      if (item.key === 'bk_host_id') {
-        toPerformanceDetail(this.basicInfo.bk_biz_id, item.value);
-      } else {
-        const cloudId = this.basicInfo.dimensions.find(item => this.cloudIdMap.includes(item.key)).value;
-        toPerformanceDetail(this.basicInfo.bk_biz_id, `${item.value}-${cloudId}`);
+    const { ipMap, cloudIdMap, basicInfo } = this;
+    const isKeyInIpMap = ipMap.includes(item.key);
+
+    if (!isKeyInIpMap) {
+      return;
+    }
+
+    switch (item.key) {
+      /** 增加集群跳转到BCS */
+      case 'tags.bcs_cluster_id':
+        toBcsDetail(item.project_name, item.value);
+        break;
+
+      /** 跳转到主机监控 */
+      case 'bk_host_id':
+        toPerformanceDetail(basicInfo.bk_biz_id, item.value);
+        break;
+
+      default: {
+        const cloudIdItem = basicInfo.dimensions.find(dim => cloudIdMap.includes(dim.key));
+        if (!cloudIdItem) {
+          return;
+        }
+        const cloudId = cloudIdItem.value;
+        toPerformanceDetail(basicInfo.bk_biz_id, `${item.value}-${cloudId}`);
+        break;
       }
     }
   }
+
   // 头部彩色条形
-  getHeaderBarComponent(eventStatus: string, isShielded: boolean) {
+  getHeaderBarComponent(eventStatus: string, isShielded: boolean, isAck: boolean) {
     const classList = {
       RECOVERED: 'bar-recovered',
       ABNORMAL: 'bar-abnormal',
       CLOSED: 'bar-closed',
     };
     const className = eventStatus ? classList[eventStatus] : '';
-    return <div class={[className, { 'bar-small': isShielded }]} />;
+    return (
+      <div
+        class={[className, { 'bar-small': isShielded }, { 'bar-shielded': eventStatus === 'ABNORMAL' && isShielded }]}
+      >
+        {this.getRightStatusComponent(eventStatus, isAck, isShielded)}
+      </div>
+    );
   }
   // 告警级别标签
   getTagComponent(severity) {
@@ -156,25 +222,97 @@ export default class MyComponent extends tsc<IBasicInfoProps, IEvents> {
   }
   getDimensionsInfo() {
     return this.filterDimensions?.length
-      ? this.filterDimensions?.map((item, index) => [
-          index !== 0 && <span>&nbsp;,&nbsp;</span>,
+      ? this.filterDimensions?.map(item => [
           <span
+            key={item.display_key}
             style={{
               cursor: this.ipMap.includes(item.key) ? 'pointer' : 'auto',
             }}
+            class='dimensions-item'
             onClick={() => !this.readonly && this.handleToPerformance(item)}
           >
-            <span>{item.display_key}</span>
-            <span>=</span>
+            <span class='name'>{item.display_key}</span>
+            <span class='eq'>=</span>
             <span
-              style='margin-left: 0;'
-              class={{ 'info-check': this.ipMap.includes(item.key) }}
+              style='margin-left: 0; display: block'
+              class={['content', { 'info-check': this.ipMap.includes(item.key) }]}
             >
               {item.display_value}
             </span>
           </span>,
         ])
       : '--';
+  }
+
+  // 关联信息渲染方式
+  getRelationInfo(relationInfo: string) {
+    try {
+      const parsedInfo = JSON.parse(relationInfo);
+      return (
+        <span
+          class='relation-log-btn'
+          onClick={() => this.handleRelationInfoDialog(parsedInfo)}
+        >
+          <span class='icon-monitor icon-guanlian' /> {this.$t('关联日志')}
+        </span>
+      );
+    } catch {
+      return relationInfo;
+    }
+  }
+
+  // 关联日志的渲染方式
+  handleRelationInfoDialog(relationInfo) {
+    const h = this.$createElement;
+    this.$bkInfo({
+      width: 960,
+      cancelText: this.$t('关闭'),
+      extCls: 'event-relation-dialog',
+      title: this.$t('关联日志'),
+      subHeader: h(
+        'div', // 使用 div 元素包装整个内容
+        { class: 'json-view-content' },
+        [
+          h('i', {
+            class: 'icon-monitor icon-mc-copy',
+            directives: [
+              {
+                name: 'bk-tooltips',
+                value: this.$t('复制'),
+                arg: 'distance',
+                modifiers: { '5': true },
+              },
+            ],
+            on: {
+              click: () => this.handleCopy(relationInfo),
+            },
+          }),
+          h(VueJsonPretty, {
+            props: {
+              collapsedOnClickBrackets: false,
+              data: relationInfo,
+              deep: 5,
+              showIcon: true,
+              // showLine: false
+            },
+          }),
+        ]
+      ),
+    });
+  }
+
+  handleCopy(str) {
+    copyText(JSON.stringify(str, null, 4), msg => {
+      this.$bkMessage({
+        message: msg,
+        theme: 'error',
+      });
+      return;
+    });
+    this.$bkMessage({
+      message: this.$t('复制成功'),
+      theme: 'success',
+    });
   }
 
   handleToCollectDetail() {
@@ -186,7 +324,15 @@ export default class MyComponent extends tsc<IBasicInfoProps, IEvents> {
   getFollowerInfo() {
     return (
       <span class='follower-info'>
-        <span>{this.basicInfo?.follower?.join(',') || '--'}</span>
+        {this.basicInfo?.follower?.length
+          ? this.basicInfo?.follower.map((v, index, arr) => [
+              <bk-user-display-name
+                key={v}
+                user-id={v}
+              />,
+              index !== arr.length - 1 ? <span key={`${v}-${index}`}>{','}</span> : null,
+            ])
+          : '--'}
         {!!this.basicInfo?.follower?.length && !!this.bkCollectConfigId && (
           <span
             class='fenxiang-btn'
@@ -217,6 +363,9 @@ export default class MyComponent extends tsc<IBasicInfoProps, IEvents> {
       stage_display, // 处理阶段
       appointee,
     } = this.basicInfo;
+    const bizItem = this.bizList?.find(item => item.id === bk_biz_id);
+    const bizIdName =
+      bizItem?.space_type_id === ETagsType.BKCC ? `#${bizItem?.id}` : bizItem?.space_id || bizItem?.space_code || '';
     // 处理阶段 优先级: is_shielded > is_ack > is_handled
     // const handleStatus = () => (is_shielded ? this.$t('已屏蔽') : false)
     //   || (is_ack ? this.$t('已确认') : false)
@@ -227,47 +376,64 @@ export default class MyComponent extends tsc<IBasicInfoProps, IEvents> {
         {stage_display || '--'}
         {!this.readonly && [
           <span
-            class='icon-monitor icon-chuli'
-            v-bk-tooltips={{ content: this.$t('手动处理') }}
+            key='manual-process'
             onClick={() => this.$emit('manual-process')}
-          />,
+          >
+            <span class='icon-monitor icon-chuli' />
+            <span class='blue-txt'>{this.$t('手动处理')}</span>
+          </span>,
           <span
-            class='alarm-dispatch'
-            v-bk-tooltips={{ content: this.$t('告警分派') }}
+            key='manual-dispatch'
             onClick={this.handleAlarmDispatch}
           >
-            <span class='icon-monitor icon-fenpai' />
+            <span class='alarm-dispatch'>
+              <span class='icon-monitor icon-fenpai' />
+            </span>
+            <span class='blue-txt'>{this.$t('告警分派')}</span>
           </span>,
         ]}
       </span>
     );
     let alertInfoList: any = [];
+    const messageMap = {
+      failed_count: '{count}次失败',
+      partial_count: '{count}次部分失败',
+      success_count: '{count}次成功',
+      shielded_count: '{count}次被屏蔽',
+      empty_receiver_count: '{count}次通知状态为空',
+    };
+    // biome-ignore lint/complexity/noForEach: <explanation>
     Object.keys(alert_info || {}).forEach(key => {
       const count = alert_info[key];
       if (count > 0) {
-        if (key === 'failed_count') {
-          alertInfoList.push(this.$t('{count}次失败', { count }));
-        } else if (key === 'partial_count') {
-          alertInfoList.push(this.$t('{count}次部分失败', { count }));
-        } else if (key === 'success_count') {
-          alertInfoList.push(this.$t('{count}次成功', { count }));
-        } else if (key === 'shielded_count') {
-          alertInfoList.push(this.$t('{count}次被屏蔽', { count }));
-        } else if (key === 'empty_receiver_count') {
-          alertInfoList.push(this.$t('{count}次通知状态为空', { count }));
+        const message = messageMap[key];
+        if (message) {
+          alertInfoList.push(this.$t(message, { count }));
         }
+        // if (key === 'failed_count') {
+        //   alertInfoList.push(this.$t('{count}次失败', { count }));
+        // } else if (key === 'partial_count') {
+        //   alertInfoList.push(this.$t('{count}次部分失败', { count }));
+        // } else if (key === 'success_count') {
+        //   alertInfoList.push(this.$t('{count}次成功', { count }));
+        // } else if (key === 'shielded_count') {
+        //   alertInfoList.push(this.$t('{count}次被屏蔽', { count }));
+        // } else if (key === 'empty_receiver_count') {
+        //   alertInfoList.push(this.$t('{count}次通知状态为空', { count }));
+        // }
       }
     });
     alertInfoList = this.handleStatusString;
     const topItems = [
       {
         children: [
-          { title: this.$t('所属空间'), content: this.bizList?.find(item => item.id === bk_biz_id)?.text },
+          { title: this.$t('所属空间'), content: bizItem ? `${bizItem?.text} (${bizIdName})` : '--' },
           {
             title: this.$t('处理状态'),
             content: alertInfoList,
-            icon: alertInfoList === '--' ? '' : 'icon-tishi',
+            icon: alertInfoList === '--' ? '' : 'icon-xiangqing1',
             iconTip: this.$t('处理详情'),
+            iconText: this.$t('处理详情'),
             click: this.processingStatus,
           },
           // {
@@ -298,7 +464,7 @@ export default class MyComponent extends tsc<IBasicInfoProps, IEvents> {
       {
         children: [
           {
-            title: this.$t('首次异常时间'),
+            title: this.$t('异常时间'),
             content: dayjs.tz(first_anomaly_time * 1000).format('YYYY-MM-DD HH:mm:ss'),
             timeZone: dayjs.tz(first_anomaly_time * 1000).format('Z'),
           },
@@ -308,13 +474,22 @@ export default class MyComponent extends tsc<IBasicInfoProps, IEvents> {
       {
         children: [
           {
-            title: this.$t('告警产生时间'),
+            title: this.$t('告警产生'),
             content: dayjs.tz(create_time * 1000).format('YYYY-MM-DD HH:mm:ss'),
             timeZone: dayjs.tz(create_time * 1000).format('Z'),
           },
           {
             title: this.$t('负责人'),
-            content: appointee?.join(',') || '--',
+            extCls: 'flex-wrap',
+            content: appointee?.length
+              ? appointee.map((v, index, arr) => [
+                  <bk-user-display-name
+                    key={v}
+                    user-id={v}
+                  />,
+                  index !== arr.length - 1 ? <span key={`${v}-${index}`}>{','}</span> : null,
+                ])
+              : '--',
           },
         ],
       },
@@ -329,22 +504,28 @@ export default class MyComponent extends tsc<IBasicInfoProps, IEvents> {
       {
         title: this.$t('维度信息'),
         content: this.getDimensionsInfo() || '--',
-        extCls: 'flex-wrap',
+        extCls: this.getDimensionsInfo() === '--' ? 'flex-wrap' : 'flex-wrap dimensions-wrap',
       },
       { title: this.$t('告警内容'), content: description, extCls: 'flex-wrap content-break-spaces' },
       {
         title: this.$t('关联信息'),
-        content: relation_info || '--',
+        content: relation_info?.trim() ? this.getRelationInfo(relation_info) : '--',
         extCls: 'no-flex',
       },
     ] as any;
     return (
       <div class='detail-form'>
         <div class='detail-form-top'>
-          {topItems.map(child => (
-            <div class='top-form-item'>
-              {child.children.map(item => (
-                <div class='item-col'>
+          {topItems.map((child, index) => (
+            <div
+              key={index}
+              class='top-form-item'
+            >
+              {child.children.map((item, ind) => (
+                <div
+                  key={ind}
+                  class={['item-col', item.extCls]}
+                >
                   <div
                     class='item-label'
                     v-en-class='fb-146'
@@ -370,8 +551,11 @@ export default class MyComponent extends tsc<IBasicInfoProps, IEvents> {
           ))}
         </div>
         <div class='detail-form-bottom'>
-          {bottomItems.map(item => (
-            <div class={['item-col', item.extCls]}>
+          {bottomItems.map((item, ind) => (
+            <div
+              key={`item${ind}`}
+              class={['item-col', item.extCls]}
+            >
               <div
                 class='item-label'
                 v-en-class='fb-146'
@@ -397,7 +581,7 @@ export default class MyComponent extends tsc<IBasicInfoProps, IEvents> {
     );
   }
   getEventLog() {
-    return EventDetail.getlistEventLog({
+    return EventDetail.getListEventLog({
       bk_biz_id: this.basicInfo.bk_biz_id,
       id: this.basicInfo.id,
       offset: 0,
@@ -407,7 +591,7 @@ export default class MyComponent extends tsc<IBasicInfoProps, IEvents> {
   }
   // 右侧状态操作区域
   getRightStatusComponent(eventStatus: string, isAck: boolean, isShielded: boolean) {
-    const { shield_left_time } = this.basicInfo;
+    const { shield_left_time, duration } = this.basicInfo;
     // eventStatus 已/未恢复/关闭 isAck 已确认 isShielded 已屏蔽
     const status = ['RECOVERED', 'ABNORMAL', 'CLOSED'];
     let iconName = '';
@@ -416,20 +600,17 @@ export default class MyComponent extends tsc<IBasicInfoProps, IEvents> {
     let operateDom = null;
     const shieldedDom = () =>
       this.readonly ? undefined : (
-        <bk-button
-          class='mr10'
-          outline={true}
-          size='small'
-          theme='primary'
+        <span
+          class='shielded-link mr10'
           on-click={this.handleQuickShield}
         >
+          <i class='icon-monitor icon-mc-notice-shield' />
           {this.$t('快捷屏蔽')}
-        </bk-button>
+        </span>
       );
     const confirmDom = () =>
       this.readonly ? undefined : (
         <bk-button
-          outline={true}
           size='small'
           theme='primary'
           on-click={this.handleAlarmConfirm}
@@ -451,7 +632,7 @@ export default class MyComponent extends tsc<IBasicInfoProps, IEvents> {
         iconColor = '#ff5656';
         iconText = `${this.$t('未恢复')}`;
         operateDom = (
-          <div class='status-operate'>
+          <div class='status-operate-btn'>
             {shieldedDom()}
             {confirmDom()}
           </div>
@@ -460,19 +641,28 @@ export default class MyComponent extends tsc<IBasicInfoProps, IEvents> {
         /* 未恢复已屏蔽 */
         iconName = 'icon-menu-shield';
         iconColor = '#979ba5';
-        iconText = `${this.$t('未恢复')}（${this.$t('已屏蔽')}）`;
+        iconText = `${this.$t('未恢复')}(${this.$t('已屏蔽')})`;
         operateDom = this.basicInfo.shield_id && [
-          <div class='status-operate'>
-            <span class='shielded-text'>{this.$t('屏蔽时间剩余')}</span>
+          <div
+            key={'status-operate'}
+            class='status-operate'
+          >
+            <span class='status-operate-line' />
+            <span class='shielded-text'>{this.$t('屏蔽时间剩余')}：</span>
             <span class='shielded-time'>{shield_left_time}</span>
           </div>,
           !this.readonly ? (
             <div
-              class='shielded-link'
-              onClick={this.handleToShield}
+              key={'status-operate-btn'}
+              class='status-operate-btn'
             >
-              {this.$t('屏蔽策略')}
-              <span class='icon-monitor icon-fenxiang' />
+              <div
+                class='shielded-link'
+                onClick={this.handleToShield}
+              >
+                <span class='icon-monitor icon-fenxiang' />
+                {this.$t('屏蔽策略')}
+              </div>
             </div>
           ) : undefined,
         ];
@@ -486,11 +676,11 @@ export default class MyComponent extends tsc<IBasicInfoProps, IEvents> {
     } else if (eventStatus === status[2]) {
       /* 已关闭 */
       iconName = 'icon-mc-close-fill';
-      iconColor = '#dcdee5';
+      iconColor = '#979BA5';
       iconText = `${this.$t('已失效')}`;
       operateDom = null;
       this.getEventLog().then(res => {
-        this.operateDesc = res[0]?.contents && res[0]?.contents[0] ? res[0].contents[0] : this.$t('告警已失效');
+        this.operateDesc = res[0]?.contents?.[0] ? res[0].contents[0] : this.$t('告警已失效');
         this.showReason = true;
       });
     }
@@ -502,14 +692,21 @@ export default class MyComponent extends tsc<IBasicInfoProps, IEvents> {
             class={['icon-monitor', iconName]}
           />
           <div class='status-text'>
-            {iconText}
-            {this.showReason ? (
-              <span
-                class={['right-icon', 'icon-monitor', 'icon-tishi']}
-                v-bk-tooltips={{ content: this.operateDesc, placement: 'bottom' }}
-              ></span>
-            ) : undefined}
+            <span>{iconText}</span>
           </div>
+          {this.showReason ? (
+            <div class='status-operate'>
+              <span class='status-operate-line' />
+              <span class='close-tips'>{this.operateDesc}</span>
+            </div>
+          ) : undefined}
+          {eventStatus !== status[2] && this.basicInfo?.duration && !isShielded && (
+            <div class='status-operate'>
+              <span class='status-operate-line' />
+              <span class='shielded-text'>{this.$t('持续时间')}：</span>
+              <span>{duration}</span>
+            </div>
+          )}
         </div>
         {!this.followerDisabled ? operateDom || undefined : undefined}
       </div>
@@ -517,38 +714,12 @@ export default class MyComponent extends tsc<IBasicInfoProps, IEvents> {
   }
 
   render() {
-    const { severity, is_shielded, is_ack, status, alert_name } = this.basicInfo;
+    const { is_shielded, is_ack, status } = this.basicInfo;
     return (
       <div class='event-detail-basic'>
-        {this.getHeaderBarComponent(status, is_shielded)}
+        {this.getHeaderBarComponent(status, is_shielded, is_ack)}
         <div class='basic-detail'>
-          <div class='basic-left'>
-            <div class='basic-title'>
-              {this.getTagComponent(severity)}
-              <span
-                class='basic-title-name'
-                v-bk-tooltips={{ content: alert_name, allowHTML: false }}
-              >
-                {alert_name}
-              </span>
-              {!this.readonly && this.basicInfo.plugin_id ? (
-                <span
-                  class='btn-strategy-detail'
-                  onClick={this.toStrategyDetail}
-                >
-                  <span>{this.$t('来源：{0}', [this.basicInfo.plugin_display_name])}</span>
-                  <i class='icon-monitor icon-fenxiang icon-float' />
-                </span>
-              ) : undefined}
-            </div>
-            {this.getDetailFormComponent()}
-          </div>
-          <div
-            class='basic-right'
-            v-en-class='en-lang'
-          >
-            {this.getRightStatusComponent(status, is_ack, is_shielded)}
-          </div>
+          <div class='basic-left'>{this.getDetailFormComponent()}</div>
         </div>
       </div>
     );

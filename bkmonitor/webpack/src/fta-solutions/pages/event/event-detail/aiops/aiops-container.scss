@@ -1,6 +1,6 @@
+/* stylelint-disable declaration-no-important */
 .aiops-container {
-  display: none;
-  margin-top: 40px;
+  background-color: #f0f3fa;
 
   &.aiops-container-show {
     display: flex;
@@ -18,5 +18,129 @@
 
   .bk-functional-dependency {
     padding: 16px;
+  }
+
+  .aiops-container-menu {
+    width: 100%;
+
+    .bk-collapse-item .bk-collapse-item-hover:hover {
+      color: #4d4f56 !important;
+    }
+
+    .aiops-container-menu-item-head {
+      display: flex;
+    }
+
+    .bk-collapse-item-header {
+      height: 52px;
+      padding-right: 4px;
+      line-height: 20px;
+      background: #dfe4f0;
+
+      .bk-icon {
+        font-size: 30px;
+        color: #a3b1cc;
+      }
+
+      .fr {
+        margin-top: 10px;
+      }
+    }
+
+    .bk-collapse-item-content {
+      width: 100%;
+      padding: 0;
+    }
+
+    .aiops-container-menu-item {
+      width: 100%;
+      margin-bottom: 5px;
+
+      .aiops-tab-title-icon {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 40px;
+        height: 40px;
+        margin-top: 6px;
+        background: #ffffff;
+        border-radius: 2px;
+
+        &.disabled {
+          cursor: not-allowed;
+          opacity: 0.5;
+        }
+      }
+
+      .aiops-tab-icon {
+        font-size: 26px;
+        color: #a3b1cc;
+      }
+
+      .aiops-tab-title-text {
+        display: inline-block;
+        margin-top: 6px;
+        font-size: 12px;
+      }
+    }
+
+    .cursor-allowed .bk-collapse-item-header {
+      cursor: not-allowed !important;
+
+      .icon-angle-right {
+        display: none;
+      }
+
+      .bk-collapse-item-header {
+        pointer-events: none;
+      }
+    }
+
+    .aiops-tab-title-message {
+      display: block;
+      font-size: 12px;
+      line-height: 20px;
+      color: #4d4f56;
+
+      font {
+        font-size: 12px;
+        font-weight: 700;
+        color: rgba(234, 54, 54, 1);
+      }
+
+      .diagnosis-info-text {
+        display: flex;
+        align-items: center;
+
+        .diagnosis-text_blue {
+          display: inline-block;
+          max-width: 174px;
+          padding: 0 4px;
+          overflow: hidden;
+          color: #3a84ff;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+      }
+    }
+
+    .aiops-tab-title-index-message {
+      font {
+        color: #3a84ff;
+      }
+    }
+
+    .aiops-tab-title-no-auth {
+      .bk-assistant-link {
+        padding-left: 2px;
+        color: #3a84ff;
+        cursor: pointer;
+      }
+    }
+
+    .aiops-container-menu-item-content {
+      // max-height: calc(100vh - 228px);
+      padding: 0 10px;
+    }
   }
 }

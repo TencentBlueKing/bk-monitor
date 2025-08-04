@@ -37,17 +37,17 @@ interface IItem {
   id: string;
   name: string;
 }
-interface IProps {
-  value: string[];
-  list: IItem[];
-  filterList?: IItem[];
-  onChange?: (v: string[]) => void;
-}
 interface ILocalListItem extends IItem {
-  type?: 'input';
-  lightContent?: any;
   isCheck?: boolean;
+  lightContent?: any;
   show?: boolean;
+  type?: 'input';
+}
+interface IProps {
+  filterList?: IItem[];
+  list: IItem[];
+  value: string[];
+  onChange?: (v: string[]) => void;
 }
 
 const INPUT_ITEM = {
@@ -82,7 +82,7 @@ export default class TargetCompareSelect extends tsc<IProps> {
   /* controller */
   controller = null;
   /* 刷新 */
-  refleshKey = random(8);
+  refreshKey = random(8);
   /* 当前可选项选中位置 按上键减一， 按下键加一 */
   activeIndex = -1;
   /* 监听容器宽度的变化 */
@@ -91,10 +91,10 @@ export default class TargetCompareSelect extends tsc<IProps> {
   classId = random(8);
   /* 当前分页数据 */
   pagination: {
-    current: number;
     count: number;
-    limit: number;
+    current: number;
     data: ILocalListItem[];
+    limit: number;
   } = {
     current: 1,
     count: 0,
@@ -167,7 +167,7 @@ export default class TargetCompareSelect extends tsc<IProps> {
       const delIndex = this.localValue.findIndex(item => item?.type === 'input');
       if (delIndex > -1) {
         this.localValue.splice(delIndex, 1);
-        this.refleshKey = random(8);
+        this.refreshKey = random(8);
         this.getFilterLocalList();
         setTimeout(() => {
           this.handleOverflow();
@@ -380,7 +380,7 @@ export default class TargetCompareSelect extends tsc<IProps> {
   }
   /* 选择 */
   handleSelectItem(item) {
-    if (!!item?.isCheck) {
+    if (item?.isCheck) {
       const delIndex = this.localValue.findIndex(v => v.id === item.id);
       if (delIndex >= 0) {
         this.localValue.splice(delIndex, 1);
@@ -430,7 +430,7 @@ export default class TargetCompareSelect extends tsc<IProps> {
       }
     } else if (event.code === 'Enter' || event.code === 'NumpadEnter') {
       const item = this.pagination.data?.[this.activeIndex];
-      if (!!item) {
+      if (item) {
         this.handleSelectItem(item);
       }
     }
@@ -477,7 +477,7 @@ export default class TargetCompareSelect extends tsc<IProps> {
   render() {
     return (
       <div
-        key={this.refleshKey}
+        key={this.refreshKey}
         class={['target-compare-select-component', { 'is-expand': this.isExpand }]}
         onClick={this.handleClickWrap}
       >

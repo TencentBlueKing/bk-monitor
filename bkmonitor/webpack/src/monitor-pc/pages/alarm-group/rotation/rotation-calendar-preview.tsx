@@ -68,7 +68,7 @@ export default class RotationCalendarPreview extends tsc<IProps> {
   observer = null;
 
   popover = {
-    users: '',
+    users: [],
     time: '',
   };
   popoverInstance = null;
@@ -156,7 +156,7 @@ export default class RotationCalendarPreview extends tsc<IProps> {
                 </div>
               ))}
               {item.data.map((data, _index) =>
-                !!data.users.length ? (
+                data.users.length ? (
                   <div
                     style={{
                       top: `${48 + data.row * 22}px`,
@@ -176,7 +176,12 @@ export default class RotationCalendarPreview extends tsc<IProps> {
                       style={{ color: data.color }}
                       class='user-content'
                     >
-                      <span>{data.users.map(u => u.name || u.id).join(',')}</span>
+                      <span>
+                        {data.users.map((u, index, arr) => [
+                          <bk-user-display-name user-id={u.name} />,
+                          index !== arr.length - 1 && ',',
+                        ])}
+                      </span>
                     </div>
                   </div>
                 ) : (
@@ -202,7 +207,14 @@ export default class RotationCalendarPreview extends tsc<IProps> {
           >
             <div class='user-item'>
               <div class='time'>{this.popover.time}</div>
-              <div class='users'>{this.popover.users}</div>
+              <div class='users'>
+                {this.popover.users.map((u, index, arr) => [
+                  `${u.id}(`,
+                  <bk-user-display-name user-id={u.name} />,
+                  ')',
+                  index !== arr.length - 1 && ',',
+                ])}
+              </div>
             </div>
           </div>
         </div>

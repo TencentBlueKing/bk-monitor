@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2022 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,10 +7,14 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
+import copy
 import datetime
 import logging
 import math
-from typing import Any, Dict, Iterable, List, Optional, Set, Tuple
+import time
+from typing import Any
+from collections.abc import Iterable
 
 import arrow
 from django.db.models import Q
@@ -25,6 +28,7 @@ from bkmonitor.utils.time_tools import (
     parse_time_compare_abbreviation,
     time_interval_align,
 )
+from constants.apm import CUSTOM_METRICS_PROMQL_FILTER
 from constants.data_source import DataSourceLabel, DataTypeLabel
 from core.drf_resource import resource
 
@@ -44,7 +48,7 @@ class MetricHelper:
 
     MAX_DATA_LIMIT: int = 24 * 60 * 30
 
-    USING: Tuple[str, str] = (DataTypeLabel.TIME_SERIES, DataSourceLabel.CUSTOM)
+    USING: tuple[str, str] = (DataTypeLabel.TIME_SERIES, DataSourceLabel.CUSTOM)
 
     TIME_FIELD: str = "time"
 
@@ -55,7 +59,7 @@ class MetricHelper:
     def q(self) -> QueryConfigBuilder:
         return QueryConfigBuilder(self.USING).table(self.table_id).time_field(self.TIME_FIELD)
 
-    def time_range_qs(self, start_time: Optional[int] = None, end_time: Optional[int] = None) -> UnifyQuerySet:
+    def time_range_qs(self, start_time: int | None = None, end_time: int | None = None) -> UnifyQuerySet:
         start_time, end_time = self.get_time_range(start_time, end_time)
         return UnifyQuerySet().start_time(start_time).end_time(end_time)
 
@@ -63,22 +67,22 @@ class MetricHelper:
         self,
         metric_field: str,
         field: str,
-        filter_dict: Optional[Dict[str, Any]] = None,
+        filter_dict: dict[str, Any] | None = None,
         limit: int = MAX_OPTION_LIMIT,
-        start_time: Optional[int] = None,
-        end_time: Optional[int] = None,
-    ) -> List[str]:
+        start_time: int | None = None,
+        end_time: int | None = None,
+    ) -> list[str]:
         q: QueryConfigBuilder = (
             self.q.filter(dict_to_q(filter_dict or {}) or Q())
             .metric(field=metric_field, method="count")
             .tag_values(field)
         )
 
-        option_values: Set[str] = set()
+        option_values: set[str] = set()
         qs: UnifyQuerySet = self.time_range_qs(start_time, end_time).add_query(q).limit(limit)
         try:
             for bucket in qs:
-                value: Optional[str] = bucket.get(field)
+                value: str | None = bucket.get(field)
                 if value:
                     option_values.add(value)
         except Exception:  # noqa
@@ -88,24 +92,24 @@ class MetricHelper:
         return list(option_values)
 
     def fetch_field_option_values(
-        self, params_list: List[Dict[str, Any]], start_time: Optional[int] = None, end_time: Optional[int] = None
-    ) -> Dict[Tuple[str, str], List[str]]:
-        def _collect(_metric_field: str, _field: str, _filter_dict: Optional[Dict[str, Any]] = None):
+        self, params_list: list[dict[str, Any]], start_time: int | None = None, end_time: int | None = None
+    ) -> dict[tuple[str, str], list[str]]:
+        def _collect(_metric_field: str, _field: str, _filter_dict: dict[str, Any] | None = None):
             group_option_values_map[(_metric_field, _field)] = self.get_field_option_values(
                 _metric_field, _field, filter_dict=_filter_dict, start_time=start_time, end_time=end_time
             )
 
-        group_option_values_map: Dict[Tuple[str, str], List[str]] = {}
+        group_option_values_map: dict[tuple[str, str], list[str]] = {}
         ThreadPool().map_ignore_exception(
             _collect, [(params["metric_field"], params["field"], params.get("filter_dict")) for params in params_list]
         )
         return group_option_values_map
 
     def get_field_option_values_by_groups(
-        self, params_list: List[Dict[str, Any]], start_time: Optional[int] = None, end_time: Optional[int] = None
-    ) -> List[str]:
-        option_values: Set[str] = set()
-        group_option_values_map: Dict[Tuple[str, str], List[str]] = self.fetch_field_option_values(
+        self, params_list: list[dict[str, Any]], start_time: int | None = None, end_time: int | None = None
+    ) -> list[str]:
+        option_values: set[str] = set()
+        group_option_values_map: dict[tuple[str, str], list[str]] = self.fetch_field_option_values(
             params_list, start_time, end_time
         )
         for params in params_list:
@@ -113,9 +117,7 @@ class MetricHelper:
         return list(option_values)
 
     @classmethod
-    def get_time_range(
-        cls, start_time: Optional[int] = None, end_time: Optional[int] = None, with_accuracy: bool = True
-    ):
+    def get_time_range(cls, start_time: int | None = None, end_time: int | None = None, with_accuracy: bool = True):
         now: int = int(datetime.datetime.now().timestamp())
         # 最早查询起始时间
         earliest_start_time: int = now - int(cls.MAX_TIME_DURATION.total_seconds())
@@ -138,7 +140,7 @@ class MetricHelper:
         return start_time * cls.TIME_FIELD_ACCURACY, end_time * cls.TIME_FIELD_ACCURACY
 
     @classmethod
-    def get_interval(cls, start_time: Optional[int] = None, end_time: Optional[int] = None):
+    def get_interval(cls, start_time: int | None = None, end_time: int | None = None):
         start_time, end_time = cls.get_time_range(start_time, end_time)
         return (end_time - start_time) // cls.TIME_FIELD_ACCURACY
 
@@ -191,42 +193,25 @@ class MetricHelper:
             "start_time": start_time,
             "end_time": end_time,
         }
-        metric_table_id = result_table_id.replace('.', ':')
+        metric_table_id = result_table_id.replace(".", ":")
         monitor_info_mapping = {}
         try:
-
             # 指定service_name
             if service_name is not None:
                 promql = (
                     f"count by (metric_name, {monitor_name_key}) (count_over_time(label_replace("
-                    f"{{__name__=~\"custom:{metric_table_id}:.*\", "
-                    f"__name__!=\"rpc_client_handled_total\", "
-                    f"__name__!=\"rpc_client_handled_seconds_sum\", "
-                    f"__name__!=\"rpc_client_handled_seconds_count\", "
-                    f"__name__!=\"rpc_client_handled_seconds_bucket\", "
-                    f"__name__!=\"rpc_server_handled_total\", "
-                    f"__name__!=\"rpc_server_handled_seconds_sum\", "
-                    f"__name__!=\"rpc_server_handled_seconds_count\", "
-                    f"__name__!=\"rpc_server_handled_seconds_bucket\", "
-                    f"__name__!~\"^(bk_apm_|apm_).*\", "
-                    f"{service_name_key}=\"{service_name}\"}}, "
-                    f"\"metric_name\", \"$1\", \"__name__\", \"(.*)\")[{count_win}:]))"
+                    f'{{__name__=~"custom:{metric_table_id}:.*", '
+                    f"{CUSTOM_METRICS_PROMQL_FILTER}, "
+                    f'{service_name_key}="{service_name}"}}, '
+                    f'"metric_name", "$1", "__name__", "(.*)")[{count_win}:]))'
                 )
 
             else:
                 promql = (
                     f"count by (metric_name, {monitor_name_key}, {service_name_key}) (count_over_time(label_replace("
-                    f"{{__name__=~\"custom:{metric_table_id}:.*\", "
-                    f"__name__!=\"rpc_client_handled_total\", "
-                    f"__name__!=\"rpc_client_handled_seconds_sum\", "
-                    f"__name__!=\"rpc_client_handled_seconds_count\", "
-                    f"__name__!=\"rpc_client_handled_seconds_bucket\", "
-                    f"__name__!=\"rpc_server_handled_total\", "
-                    f"__name__!=\"rpc_server_handled_seconds_sum\", "
-                    f"__name__!=\"rpc_server_handled_seconds_count\", "
-                    f"__name__!=\"rpc_server_handled_seconds_bucket\", "
-                    f"__name__!~\"^(bk_apm_|apm_).*\"}}, "
-                    f"\"metric_name\", \"$1\", \"__name__\", \"(.*)\")[{count_win}:]))"
+                    f'{{__name__=~"custom:{metric_table_id}:.*", '
+                    f"{CUSTOM_METRICS_PROMQL_FILTER}}}, "
+                    f'"metric_name", "$1", "__name__", "(.*)")[{count_win}:]))'
                 )
 
             request_params["query_configs"][0]["promql"] = promql
@@ -238,16 +223,91 @@ class MetricHelper:
                     if metric_service_name not in monitor_info_mapping:
                         monitor_info_mapping[metric_service_name] = {}
                     if metric_field not in monitor_info_mapping[metric_service_name]:
-                        monitor_info_mapping[metric_service_name][metric_field] = {"monitor_name_list": []}
-                    monitor_name = metric["dimensions"].get(monitor_name_key) or "default"
-                    if monitor_name not in monitor_info_mapping[metric_service_name][metric_field]["monitor_name_list"]:
-                        monitor_info_mapping[metric_service_name][metric_field]["monitor_name_list"].append(
-                            monitor_name
-                        )
+                        monitor_info_mapping[metric_service_name][metric_field] = {
+                            "monitor_name_list": [],
+                            "update_at": int(time.time()),
+                        }
+                    monitor_name = metric["dimensions"].get(monitor_name_key) or ""
+                    monitor_name_list = monitor_info_mapping[metric_service_name][metric_field]["monitor_name_list"]
+                    if monitor_name not in monitor_name_list:
+                        monitor_name_list.append(monitor_name)
+                    monitor_info_mapping[metric_service_name][metric_field]["update_at"] = int(time.time())
+
         except Exception as e:  # pylint: disable=broad-except
             logger.warning(f"查询自定义指标关键维度信息失败: {e} ")
 
         return monitor_info_mapping
+
+    @classmethod
+    def merge_monitor_info(cls, new_monitor_info, old_monitor_info=None):
+        """
+        合并规则：
+            - 新增：新增新发现的指标
+            - 存量：已有的指标只补充新的分组信息
+            - 删除：超过 30 天的记录
+
+        monitor_info format:
+            {
+              "service_name1": {
+                "metric1": {"monitor_name_list", [], "update_at": 1747551642},
+                "metric2": {"monitor_name_list", [], "update_at": 1747551642},
+              },
+              "service_name2": {
+                "metric3": {"monitor_name_list", [], "update_at": 1747551642},
+              },
+            }
+        """
+        if old_monitor_info is None:
+            return copy.deepcopy(new_monitor_info)
+
+        now = int(time.time())
+        MONTH_SECONDS = 30 * 24 * 60 * 60
+        merged_monitor_info = {}
+        for service_name, new_metric_info_dict in new_monitor_info.items():
+            old_metric_info_dict = old_monitor_info.get(service_name) or {}
+            if not old_metric_info_dict:
+                # 新的服务，直接全部新增
+                merged_monitor_info[service_name] = new_metric_info_dict
+                continue
+
+            merged_metric_info = {}
+            for metric_name, metric_info in new_metric_info_dict.items():
+                monitor_name_list = metric_info.get("monitor_name_list") or []
+                if metric_name in old_metric_info_dict:
+                    # 如果该指标都有，则更新分组信息
+                    old_monitor_name_list = old_metric_info_dict[metric_name].get("monitor_name_list") or []
+                    merged_metric_info[metric_name] = {
+                        "monitor_name_list": list(set(old_monitor_name_list + monitor_name_list)),
+                        "update_at": metric_info.get("update_at") or now,
+                    }
+                else:
+                    # 如果指标只有新的，那直接使用新的
+                    merged_metric_info[metric_name] = metric_info
+
+            for metric_name, metric_info in old_metric_info_dict.items():
+                # 如果指标只有旧的，也是直接使用旧的(仅保留 30 天内的)
+                if metric_name in merged_metric_info:
+                    continue
+
+                if now - metric_info.get("update_at", 0) < MONTH_SECONDS:
+                    merged_metric_info[metric_name] = metric_info
+
+            merged_monitor_info[service_name] = merged_metric_info
+
+        # 如果服务只有旧的，也是直接使用(仅保留 30 天内的)
+        for service_name, old_metric_info_dict in old_monitor_info.items():
+            if service_name in merged_monitor_info:
+                continue
+
+            merged_metric_info = {}
+            for metric_name, metric_info in old_metric_info_dict.items():
+                if now - metric_info.get("update_at", 0) < MONTH_SECONDS:
+                    merged_metric_info[metric_name] = metric_info
+
+            if merged_metric_info:
+                merged_monitor_info[service_name] = merged_metric_info
+
+        return merged_monitor_info
 
 
 class PreCalculateHelper:
@@ -283,14 +343,14 @@ class PreCalculateHelper:
     }
     """
 
-    def __init__(self, config: Dict[str, Any]):
-        self._config: Dict[str, Any] = config
+    def __init__(self, config: dict[str, Any]):
+        self._config: dict[str, Any] = config
 
     def _is_enabled(self) -> bool:
         """启用预计算时返回 True，默认启用"""
         return self._config.get("enabled", True)
 
-    def adjust_time_shift(self, origin_time_shift: Optional[str]) -> str:
+    def adjust_time_shift(self, origin_time_shift: str | None) -> str:
         """指标时间戳对齐"""
         time_shift: str = self._config.get("time_shift", "-1m")
         if origin_time_shift is None:
@@ -300,7 +360,7 @@ class PreCalculateHelper:
         origin_sec_time_shift: int = -1 * parse_time_compare_abbreviation(origin_time_shift)
         return f"{sec_time_shift + origin_sec_time_shift}s"
 
-    def adjust_time_range(self, start_time: int, end_time: int) -> Tuple[int, int]:
+    def adjust_time_range(self, start_time: int, end_time: int) -> tuple[int, int]:
         """调整查询数据范围
         背景：预计算存在一定的数据延迟，如果查询时间临近当前时间，按数据延迟进行截断，避免最后一个点数据存在较大误差影响观测
         """
@@ -314,16 +374,16 @@ class PreCalculateHelper:
 
     def _is_time_shield(
         self,
-        metric_info: Dict[str, Any],
-        start_time: Optional[int] = None,
-        end_time: Optional[int] = None,
-        time_shift: Optional[str] = None,
+        metric_info: dict[str, Any],
+        start_time: int | None = None,
+        end_time: int | None = None,
+        time_shift: str | None = None,
     ) -> bool:
         """判断是否屏蔽预计算
         - 规则-1：查询时长 >= min_duration
         - 规则-2: 查询时间范围不在屏蔽时间范围内
         """
-        min_duration: Optional[str] = metric_info.get("min_duration") or self._config.get("min_duration")
+        min_duration: str | None = metric_info.get("min_duration") or self._config.get("min_duration")
         start_time, end_time = self.shift_time_range(start_time, end_time, time_shift)
         duration: int = end_time - start_time
         # 判断查询时间是否小于等于最小路由间隔
@@ -368,10 +428,10 @@ class PreCalculateHelper:
         table_id: str,
         metric: str,
         used_labels: Iterable[str],
-        start_time: Optional[int] = None,
-        end_time: Optional[int] = None,
-        time_shift: Optional[str] = None,
-    ) -> Dict[str, Any]:
+        start_time: int | None = None,
+        end_time: int | None = None,
+        time_shift: str | None = None,
+    ) -> dict[str, Any]:
         """将原始指标路由到预计算指标
         :param table_id: 原结果表
         :param metric: 原指标
@@ -381,18 +441,18 @@ class PreCalculateHelper:
         :param time_shift: 时间偏移
         :return:
         """
-        result: Dict[str, Any] = {"table_id": table_id, "metric": metric, "is_hit": False}
+        result: dict[str, Any] = {"table_id": table_id, "metric": metric, "is_hit": False}
         if not self._is_enabled():
             return result
 
         try:
-            pre_cal_metric_infos: List[Dict[str, Any]] = self._config["metrics"][metric]
+            pre_cal_metric_infos: list[dict[str, Any]] = self._config["metrics"][metric]
         except KeyError:
             return result
 
-        used_labels: Set[str] = set(used_labels)
+        used_labels: set[str] = set(used_labels)
         for metric_info in pre_cal_metric_infos:
-            drop_labels: Set[str] = set(metric_info.get("drop_labels") or [])
+            drop_labels: set[str] = set(metric_info.get("drop_labels") or [])
             if used_labels & drop_labels:
                 continue
 
@@ -410,8 +470,8 @@ class PreCalculateHelper:
 
     @classmethod
     def shift_time_range(
-        cls, start_time: Optional[int] = None, end_time: Optional[int] = None, time_shift: Optional[str] = None
-    ) -> Tuple[int, int]:
+        cls, start_time: int | None = None, end_time: int | None = None, time_shift: str | None = None
+    ) -> tuple[int, int]:
         start_time, end_time = MetricHelper.get_time_range(start_time, end_time, with_accuracy=False)
         if not time_shift:
             return start_time, end_time

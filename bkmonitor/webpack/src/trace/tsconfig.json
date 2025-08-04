@@ -11,11 +11,12 @@
     "strictPropertyInitialization": false,
     "noImplicitAny": false,
     "noImplicitThis": true,
+    "baseUrl": ".",
     "paths": {
       "@/*": ["./*"],
       "@router/*": ["./router/*"],
       "@store/*": ["./store/*"],
-      "@page/*": ["./page/*"],
+      "@page/*": ["./pages/*"],
       "@static/*": ["./static/*"]
     }
   }

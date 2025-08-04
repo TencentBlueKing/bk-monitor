@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,12 +7,12 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import copy
 import datetime
 import re
 from abc import abstractmethod
 from copy import deepcopy
-from typing import Dict, List, Optional, Tuple
 
 from django.conf import settings
 from rest_framework.exceptions import ValidationError
@@ -45,6 +44,7 @@ from bkmonitor.as_code.utils import (
 from bkmonitor.models import ActionPlugin, AlgorithmModel, DutyRule, MetricListCache
 from bkmonitor.strategy.new_strategy import Algorithm
 from bkmonitor.utils.dict import nested_diff, nested_update
+from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id
 from constants.action import DEFAULT_CONVERGE_CONFIG, NoticeChannel, NoticeWay
 from constants.common import DutyCategory, DutyGroupType
 from constants.data_source import DataSourceLabel, DataTypeLabel
@@ -61,7 +61,7 @@ class SnippetRenderer:
     """
 
     @classmethod
-    def render(cls, config: Dict, snippets: Dict[str, Dict]) -> Tuple[bool, str, Optional[Dict]]:
+    def render(cls, config: dict, snippets: dict[str, dict]) -> tuple[bool, str, dict | None]:
         """
         片段渲染
         """
@@ -78,7 +78,7 @@ class SnippetRenderer:
         return True, "", nested_update(snippet, config)
 
     @classmethod
-    def unrender(cls, config: Dict, snippet_name: str, snippet: Dict):
+    def unrender(cls, config: dict, snippet_name: str, snippet: dict):
         """
         片段逆渲染
         """
@@ -96,19 +96,19 @@ class BaseConfigParser:
         self.bk_biz_id = bk_biz_id
 
     @abstractmethod
-    def check(self, config: Dict) -> Tuple[bool, Optional[Dict]]:
+    def check(self, config: dict) -> tuple[bool, dict | None]:
         """
         配置正确性校验
         """
 
     @abstractmethod
-    def parse(self, config: Dict) -> Dict:
+    def parse(self, config: dict) -> dict:
         """
         配置解析
         """
 
     @abstractmethod
-    def unparse(self, config: Dict) -> Dict:
+    def unparse(self, config: dict) -> dict:
         """
         配置反解析
         """
@@ -122,14 +122,14 @@ class StrategyConfigParser(BaseConfigParser):
     def __init__(
         self,
         bk_biz_id: int,
-        notice_group_ids: Dict[str, int],
-        action_ids: Dict[str, int],
-        topo_nodes: Dict[str, Dict],
-        service_templates: Dict[str, Dict],
-        set_templates: Dict[str, Dict],
-        dynamic_groups: Dict[str, Dict],
+        notice_group_ids: dict[str, int],
+        action_ids: dict[str, int],
+        topo_nodes: dict[str, dict],
+        service_templates: dict[str, dict],
+        set_templates: dict[str, dict],
+        dynamic_groups: dict[str, dict],
     ):
-        super(StrategyConfigParser, self).__init__(bk_biz_id)
+        super().__init__(bk_biz_id)
 
         self.topo_nodes = topo_nodes
         self.service_templates = service_templates
@@ -146,7 +146,7 @@ class StrategyConfigParser(BaseConfigParser):
         self.reverse_action_ids = {v: k for k, v in action_ids.items()}
 
     @classmethod
-    def parse_algorithm(cls, config: Dict) -> Dict:
+    def parse_algorithm(cls, config: dict) -> dict:
         algorithm_type = config["type"]
         algorithm_config = {}
         if algorithm_type == AlgorithmModel.AlgorithmChoices.Threshold:
@@ -160,7 +160,7 @@ class StrategyConfigParser(BaseConfigParser):
         return {"type": algorithm_type, "config": algorithm_config, "unit_prefix": "", "level": 0}
 
     @staticmethod
-    def get_time_ranges(config: Dict) -> list:
+    def get_time_ranges(config: dict) -> list:
         time_ranges = []
         for time_range in config["active_time"].split(","):
             if not time_range:
@@ -170,7 +170,7 @@ class StrategyConfigParser(BaseConfigParser):
 
         return time_ranges
 
-    def get_query_configs_n_name(self, config: dict, detect: dict) -> Tuple[list, str, str]:
+    def get_query_configs_n_name(self, config: dict, detect: dict) -> tuple[list, str, str]:
         # 查询配置
         query_configs = []
 
@@ -240,7 +240,9 @@ class StrategyConfigParser(BaseConfigParser):
             # 只查询时序型或日志型指标
             if metric_query_params.get("related_id") or metric_query_params.get("metric_field"):
                 metric = MetricListCache.objects.filter(
-                    bk_biz_id__in=[0, self.bk_biz_id], **metric_query_params
+                    bk_tenant_id=bk_biz_id_to_bk_tenant_id(self.bk_biz_id),
+                    bk_biz_id__in=[0, self.bk_biz_id],
+                    **metric_query_params,
                 ).first()
             else:
                 metric = None
@@ -263,7 +265,7 @@ class StrategyConfigParser(BaseConfigParser):
             name = " ".join(expression_tokens)
         return query_configs, name, scenario
 
-    def parse(self, config: Dict) -> Dict:
+    def parse(self, config: dict) -> dict:
         # 生效时间段解析 yaml -> config
         time_ranges = self.get_time_ranges(config)
 
@@ -489,7 +491,7 @@ class StrategyConfigParser(BaseConfigParser):
         return strategy
 
     @staticmethod
-    def update_active_time(config: Dict, code_config: Dict):
+    def update_active_time(config: dict, code_config: dict):
         uptime = config["detects"][0]["trigger_config"].get("uptime")
         if uptime:
             active_times = []
@@ -650,7 +652,7 @@ class StrategyConfigParser(BaseConfigParser):
 
         code_config["notice"] = notice
 
-    def unparse(self, config: Dict) -> Dict:
+    def unparse(self, config: dict) -> dict:
         # config --> yaml
         code_config = {"name": config["name"], "version": MaxVersion.STRATEGY}
 
@@ -792,7 +794,7 @@ class StrategyConfigParser(BaseConfigParser):
 
         return code_config
 
-    def check(self, config: Dict) -> Dict:
+    def check(self, config: dict) -> dict:
         """
         scenario&指标类型检查自动补充
         name唯一性检查
@@ -814,7 +816,7 @@ class NoticeGroupConfigParser(BaseConfigParser):
         self.overwrite = overwrite
         self.duty_rules = duty_rules
         self.reverse_duty_rules = {v: k for k, v in duty_rules.items()}
-        super(NoticeGroupConfigParser, self).__init__(bk_biz_id)
+        super().__init__(bk_biz_id)
 
     @staticmethod
     def translate_notice_ways(notice_way_config):
@@ -890,12 +892,12 @@ class NoticeGroupConfigParser(BaseConfigParser):
                 rule_instance = None
         rule_slz = DutyRuleDetailSlz(data=duty_rule, instance=rule_instance)
         rule_slz.is_valid(raise_exception=True)
-        if rule_instance and rule_slz.data["hash"] != rule_instance.hash and not self.overwrite:
+        if rule_instance and rule_slz.validated_data["hash"] != rule_instance.hash and not self.overwrite:
             raise ValidationError("Duty rule is existed but overwrite if not allowed")
         rule_instance = rule_slz.save()
         notice_group["duty_rules"] = [rule_instance.id]
 
-    def parse(self, config: Dict) -> Dict:
+    def parse(self, config: dict) -> dict:
         #  yaml -> config
         notice_group = {
             "bk_biz_id": self.bk_biz_id,
@@ -984,7 +986,7 @@ class NoticeGroupConfigParser(BaseConfigParser):
 
         return notice_group
 
-    def unparse(self, config: Dict) -> Dict:
+    def unparse(self, config: dict) -> dict:
         # config -> yaml
         notice_group = {
             "name": config["name"],
@@ -1065,7 +1067,7 @@ class NoticeGroupConfigParser(BaseConfigParser):
         ]
         return notice_group
 
-    def check(self, config: Dict) -> Dict:
+    def check(self, config: dict) -> dict:
         return UserGroupSchema.validate(config)
 
 
@@ -1074,13 +1076,13 @@ class ActionConfigParser(BaseConfigParser):
     处理套餐配置解析器
     """
 
-    def __init__(self, bk_biz_id: int, action_plugins: List[ActionPlugin]):
-        super(ActionConfigParser, self).__init__(bk_biz_id)
+    def __init__(self, bk_biz_id: int, action_plugins: list[ActionPlugin]):
+        super().__init__(bk_biz_id)
 
         self.plugin_key_to_id = {plugin.plugin_key: plugin.id for plugin in action_plugins}
         self.plugin_id_to_key = {plugin.id: plugin.plugin_key for plugin in action_plugins}
 
-    def parse(self, config: Dict) -> Dict:
+    def parse(self, config: dict) -> dict:
         result = {
             "bk_biz_id": self.bk_biz_id,
             "is_enabled": config["enabled"],
@@ -1097,7 +1099,7 @@ class ActionConfigParser(BaseConfigParser):
             result["execute_config"]["template_id"] = config["template_id"]
         return result
 
-    def unparse(self, config: Dict) -> Dict:
+    def unparse(self, config: dict) -> dict:
         # config -> yaml
         code_config = {
             "name": config["name"],
@@ -1118,7 +1120,7 @@ class ActionConfigParser(BaseConfigParser):
 
         return code_config
 
-    def check(self, config: Dict) -> Dict:
+    def check(self, config: dict) -> dict:
         return ActionSchema.validate(config)
 
 
@@ -1127,15 +1129,15 @@ class AssignGroupRuleParser(BaseConfigParser):
     处理套餐配置解析器
     """
 
-    def __init__(self, bk_biz_id: int, notice_group_ids: Dict[str, int], action_ids: Dict[str, int]):
-        super(AssignGroupRuleParser, self).__init__(bk_biz_id)
+    def __init__(self, bk_biz_id: int, notice_group_ids: dict[str, int], action_ids: dict[str, int]):
+        super().__init__(bk_biz_id)
 
         self.notice_group_ids = notice_group_ids
         self.reverse_notice_group_ids = {v: k for k, v in notice_group_ids.items()}
         self.action_ids = action_ids
         self.reverse_action_ids = {v: k for k, v in action_ids.items()}
 
-    def parse(self, config: Dict) -> Dict:
+    def parse(self, config: dict) -> dict:
         # yaml -> config
         config["bk_biz_id"] = self.bk_biz_id
         for rule in config["rules"]:
@@ -1166,7 +1168,7 @@ class AssignGroupRuleParser(BaseConfigParser):
 
         return config
 
-    def unparse(self, config: Dict) -> Dict:
+    def unparse(self, config: dict) -> dict:
         # config -> yaml
         # 原参数需要的path剔除
         config.pop("path", "")
@@ -1219,7 +1221,7 @@ class AssignGroupRuleParser(BaseConfigParser):
                 raise Exception(f"notice_group_name({group_name}) in assign rule not exists")
         return group_ids
 
-    def check(self, config: Dict) -> Dict:
+    def check(self, config: dict) -> dict:
         return AssignGroupRuleSchema.validate(config)
 
 
@@ -1229,9 +1231,9 @@ class DutyRuleParser(BaseConfigParser):
     """
 
     def __init__(self, bk_biz_id: int):
-        super(DutyRuleParser, self).__init__(bk_biz_id)
+        super().__init__(bk_biz_id)
 
-    def parse(self, config: Dict) -> Dict:
+    def parse(self, config: dict) -> dict:
         # yaml -> config
         config["bk_biz_id"] = self.bk_biz_id
         config["duty_arranges"] = []
@@ -1271,7 +1273,7 @@ class DutyRuleParser(BaseConfigParser):
             )
         return config
 
-    def unparse(self, config: Dict) -> Dict:
+    def unparse(self, config: dict) -> dict:
         # config -> yaml
         parsed_config = {
             "category": config["category"],
@@ -1311,5 +1313,5 @@ class DutyRuleParser(BaseConfigParser):
             parsed_config["arranges"].append(arrange)
         return parsed_config
 
-    def check(self, config: Dict) -> Dict:
+    def check(self, config: dict) -> dict:
         return DutyRuleSchema.validate(config)

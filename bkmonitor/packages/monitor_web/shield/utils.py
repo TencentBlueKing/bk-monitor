@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,8 +7,8 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import functools
-from typing import Dict, List
 
 import arrow
 
@@ -21,7 +20,7 @@ from core.drf_resource import api, resource
 from monitor_web.commons.cc.utils import CmdbUtil
 
 
-class ShieldDetectManager(object):
+class ShieldDetectManager:
     """
     检查是否被屏蔽
     """
@@ -105,17 +104,17 @@ class ShieldDetectManager(object):
             ip_value = data.get("bk_target_ip", "")
 
             first_value = ip_value
-            if ip_value and isinstance(ip_value, (list, tuple)):
+            if ip_value and isinstance(ip_value, list | tuple):
                 first_value = ip_value[0]
 
             if isinstance(first_value, dict):
                 ip_value = first_value.get("bk_target_ip")
                 bk_cloud_id = first_value.get("bk_target_cloud_id", first_value.get("bk_cloud_id", "0"))
-                return ["{}|{}".format(ip_value, bk_cloud_id)]
+                return [f"{ip_value}|{bk_cloud_id}"]
 
             if first_value:
                 bk_cloud_id = data.get("bk_target_cloud_id", data.get("bk_cloud_id", "0"))
-                return ["{}|{}".format(ip_value, bk_cloud_id)]
+                return [f"{ip_value}|{bk_cloud_id}"]
 
         return self.get_list(data.get(key, []))
 
@@ -159,10 +158,12 @@ class ShieldDetectManager(object):
 
 
 class ShieldDisplayManager(BaseShieldDisplayManager):
-    def __init__(self, bk_biz_id=None):
-        super(ShieldDisplayManager, self).__init__()
+    def __init__(self, bk_biz_id):
+        super().__init__()
         self.node_manager = CmdbUtil(bk_biz_id)
-        self.dynamic_group_name_mapping: Dict[int, Dict[str, str]] = {}
+        self.dynamic_group_name_mapping: dict[int, dict[str, str]] = {}
+        # 预先获取并缓存业务名称
+        self.get_business_name(bk_biz_id)
 
     def _get_dynamic_group_name_mapping(self, bk_biz_id: int):
         if bk_biz_id in self.dynamic_group_name_mapping:
@@ -181,7 +182,7 @@ class ShieldDisplayManager(BaseShieldDisplayManager):
     def get_node_path_list(self, bk_biz_id, bk_topo_node_list):
         return self.node_manager.get_node_path(bk_biz_id, bk_topo_node_list)
 
-    def get_dynamic_group_name_list(self, bk_biz_id: int, dynamic_group_list: List[Dict]) -> List:
+    def get_dynamic_group_name_list(self, bk_biz_id: int, dynamic_group_list: list[dict]) -> list:
         dynamic_group_name_mapping = self._get_dynamic_group_name_mapping(bk_biz_id)
         return [
             dynamic_group_name_mapping.get(dynamic_group["dynamic_group_id"], dynamic_group["dynamic_group_id"])

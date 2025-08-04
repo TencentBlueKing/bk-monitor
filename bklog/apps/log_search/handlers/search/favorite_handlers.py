@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -19,9 +18,10 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+
 from collections import defaultdict
 from dataclasses import asdict
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from django.db.transaction import atomic
 
@@ -64,8 +64,8 @@ from apps.utils.lucene import (
 )
 
 
-class FavoriteHandler(object):
-    data: Optional[Favorite] = None
+class FavoriteHandler:
+    data: Favorite | None = None
 
     def __init__(self, favorite_id: int = None, space_uid: str = None) -> None:
         self.favorite_id = favorite_id
@@ -75,7 +75,7 @@ class FavoriteHandler(object):
         if favorite_id:
             try:
                 self.data = Favorite.objects.get(pk=favorite_id)
-                user_groups: List[Dict[str, Any]] = FavoriteGroup.get_user_groups(self.data.space_uid, self.username)
+                user_groups: list[dict[str, Any]] = FavoriteGroup.get_user_groups(self.data.space_uid, self.username)
                 if self.data.group_id not in [i["id"] for i in user_groups]:
                     raise FavoriteNotAllowedAccessException()
             except Favorite.DoesNotExist:
@@ -119,9 +119,17 @@ class FavoriteHandler(object):
         """收藏栏分组后且排序后的收藏列表"""
         # 获取排序后的分组
         groups = FavoriteGroupHandler(space_uid=self.space_uid).list()
-        group_info = {i["id"]: i for i in groups}
+        public_group_ids = []
+        group_info = {}
+        for i in groups:
+            group_info[i["id"]] = i
+            if i["group_type"] in [FavoriteGroupType.PUBLIC.value, FavoriteGroupType.UNGROUPED.value]:
+                # UNGROUPED在favorites表中也是public
+                public_group_ids.append(i["id"])
         # 将收藏分组
-        favorites = Favorite.get_user_favorite(space_uid=self.space_uid, username=self.username, order_type=order_type)
+        favorites = Favorite.get_user_favorite(
+            space_uid=self.space_uid, username=self.username, order_type=order_type, public_group_ids=public_group_ids
+        )
         favorites_by_group = defaultdict(list)
         for favorite in favorites:
             favorites_by_group[favorite["group_id"]].append(favorite)
@@ -139,8 +147,19 @@ class FavoriteHandler(object):
         """管理界面列出根据name A-Z排序的所有收藏"""
         # 获取排序后的分组
         groups = FavoriteGroupHandler(space_uid=self.space_uid).list()
-        group_info = {i["id"]: i for i in groups}
-        favorites = Favorite.get_user_favorite(space_uid=self.space_uid, username=self.username, order_type=order_type)
+        public_group_ids = []
+        group_info = {}
+        for i in groups:
+            group_info[i["id"]] = i
+            if i["group_type"] in [FavoriteGroupType.PUBLIC.value, FavoriteGroupType.UNGROUPED.value]:
+                # UNGROUPED在favorites表中也是public
+                public_group_ids.append(i["id"])
+        favorites = Favorite.get_user_favorite(
+            space_uid=self.space_uid,
+            username=self.username,
+            order_type=order_type,
+            public_group_ids=public_group_ids,
+        )
 
         ret = list()
         for fi in favorites:
@@ -215,14 +234,13 @@ class FavoriteHandler(object):
 
         if self.data:
             # 公开收藏转个人收藏仅限于自己创建的
-            if (
-                self.data.visible_type == FavoriteVisibleType.PUBLIC.value
-                and visible_type == FavoriteVisibleType.PRIVATE.value
-            ):
+            favorite_group = FavoriteGroup.objects.get(id=group_id)
+            # 当前传入的收藏组ID是个人收藏
+            if favorite_group.group_type == FavoriteGroupType.PRIVATE.value:
                 if self.data.created_by != self.username:
                     raise FavoriteVisibleTypeNotAllowedModifyException()
                 else:
-                    group_id = FavoriteGroup.get_or_create_private_group(space_uid=space_uid, username=self.username).id
+                    visible_type = FavoriteVisibleType.PRIVATE.value
             # 名称检查
             if (self.data.name != name or self.data.group_id != group_id) and Favorite.objects.filter(
                 name=name,
@@ -314,12 +332,12 @@ class FavoriteHandler(object):
         return LuceneTransformer().transform(keyword=keyword, params=params)
 
     @staticmethod
-    def inspect(keyword: str, fields: List[Dict[str, Any]] = None) -> dict:
+    def inspect(keyword: str, fields: list[dict[str, Any]] = None) -> dict:
         return LuceneChecker(query_string=keyword, fields=fields).resolve()
 
 
-class FavoriteGroupHandler(object):
-    data: Optional[FavoriteGroup] = None
+class FavoriteGroupHandler:
+    data: FavoriteGroup | None = None
 
     def __init__(self, group_id: int = None, space_uid: str = None) -> None:
         self.group_id = group_id
@@ -373,8 +391,8 @@ class FavoriteGroupHandler(object):
         self.data.delete()
 
 
-class FavoriteUnionSearchHandler(object):
-    data: Optional[FavoriteUnionSearch] = None
+class FavoriteUnionSearchHandler:
+    data: FavoriteUnionSearch | None = None
 
     def __init__(self, favorite_union_id: int = None, space_uid: str = None) -> None:
         self.favorite_union_id = favorite_union_id
@@ -386,7 +404,7 @@ class FavoriteUnionSearchHandler(object):
             except FavoriteUnionSearch.DoesNotExist:
                 raise FavoriteUnionSearchNotExistException()
 
-    def list(self) -> List[dict]:
+    def list(self) -> list[dict]:
         """联合检索获取指定空间下用户搜索组合收藏列表"""
         objs = FavoriteUnionSearch.objects.filter(space_uid=self.space_uid, username=self.username)
         ret = [model_to_dict(obj) for obj in objs]

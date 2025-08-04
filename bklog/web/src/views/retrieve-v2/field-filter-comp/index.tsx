@@ -28,12 +28,16 @@ import { Component, Prop, Watch, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { TABLE_LOG_FIELDS_SORT_REGULAR, getRegExp } from '@/common/util';
+import { builtInInitHiddenList } from '@/const/index.js';
 import VueDraggable from 'vuedraggable';
 
 import EmptyStatus from '../../../components/empty-status/index.vue';
-import FieldSelectConfig from './components/field-select-config.vue';
+import { BK_LOG_STORAGE } from '../../../store/store.type';
 import FieldItem from './field-item';
-import { builtInInitHiddenList } from '@/const/index.js'
+// import FieldSelectConfig from './components/field-select-config.vue';
+
+import FieldSetting from './update/field-setting.vue';
+
 import './index.scss';
 
 @Component
@@ -61,8 +65,8 @@ export default class FieldFilterComp extends tsc<object> {
   dragVisibleFields = [];
   expandedNodes = {}; // 用于存储展开节点的 key
   builtInHeaderList = ['log', 'ip', 'utctime', 'path'];
-  builtInInitHiddenList = builtInInitHiddenList ;
-  
+  builtInInitHiddenList = builtInInitHiddenList;
+
   isShowAllBuiltIn = false;
   isShowAllIndexSet = false;
 
@@ -240,12 +244,11 @@ export default class FieldFilterComp extends tsc<object> {
       // 若没找到初始隐藏的内置字段且内置字段不足10条则不展示展开按钮
       isShowBuiltExpandBtn: visibleBuiltLength || hiddenFieldVisible,
       // 非初始隐藏的字段展示小于10条的 并且不把初始隐藏的字段带上
-      builtInShowFields:
-        this.isShowAllBuiltIn || this.searchKeyword ? [...otherList, ...initHiddenList] : [],
+      builtInShowFields: this.isShowAllBuiltIn || this.searchKeyword ? [...otherList, ...initHiddenList] : [],
     };
   }
-  getIsShowIndexSetExpand() { 
-    return this.indexSetFields().filter(item => item.filterVisible && !item.field_name.includes('.') ).length > 10;
+  getIsShowIndexSetExpand() {
+    return this.indexSetFields().filter(item => item.filterVisible && !item.field_name.includes('.')).length > 10;
   }
   /** 展示的可选字段 */
   get showIndexSetFields() {
@@ -349,7 +352,7 @@ export default class FieldFilterComp extends tsc<object> {
       Object.keys(this.$refs).forEach(refName => {
         if (refName.startsWith('bigTreeRef-')) {
           const bigTreeRef = this.$refs[refName];
-          bigTreeRef.filter(searchKeyword);
+          bigTreeRef?.filter(searchKeyword);
         }
       });
     });
@@ -462,7 +465,7 @@ export default class FieldFilterComp extends tsc<object> {
           is-front-statistics={this.isFrontStatistics}
           isFieldObject={true}
           retrieve-params={this.retrieveParams}
-          show-field-alias={this.showFieldAlias}
+          show-field-alias={this[BK_LOG_STORAGE.SHOW_FIELD_ALIAS]}
           statistical-field-data={this.statisticalFieldsData[data.field_name]}
           type={index.includes('show') ? 'visible' : 'hidden'}
           onToggleItem={({ type, fieldItem }) => this.handleToggleItem(type, fieldItem)}
@@ -492,7 +495,7 @@ export default class FieldFilterComp extends tsc<object> {
             class='king-input'
             v-model={this.searchKeyword}
             data-test-id='fieldFilter_input_searchFieldName'
-            placeholder={this.$t('搜索字段名')}
+            placeholder={this.$t('搜索 字段名')}
             right-icon='icon-search'
             clearable
             onChange={() => this.filterListByCondition()}
@@ -503,7 +506,7 @@ export default class FieldFilterComp extends tsc<object> {
           ref='fieldFilter'
           class='field-filter-container-new'
         >
-          {!this.totalFields.length && (
+          {!this.totalFields.filter(item => item.filterVisible).length && (
             <EmptyStatus
               style={{ marginTop: '20%' }}
               emptyType={this.searchKeyword ? 'search-empty' : '500'}
@@ -530,13 +533,13 @@ export default class FieldFilterComp extends tsc<object> {
               )}
             </EmptyStatus>
           )}
-          {!!this.totalFields.length && (
+          {!!this.totalFields.filter(item => item.filterVisible).length && (
             <div class='fields-container is-selected'>
               <div class='title'>
                 <span>{this.$t('显示字段')}</span>
-                <FieldSelectConfig />
+                <FieldSetting />
               </div>
-              {!!this.visibleFields.length ? (
+              {!!this.visibleFields.filter(item => item.filterVisible).length ? (
                 <VueDraggable
                   class='filed-list'
                   v-model={this.dragVisibleFields}
@@ -555,7 +558,7 @@ export default class FieldFilterComp extends tsc<object> {
                         field-item={item}
                         is-front-statistics={this.isFrontStatistics}
                         retrieve-params={this.retrieveParams}
-                        show-field-alias={this.showFieldAlias}
+                        show-field-alias={this[BK_LOG_STORAGE.SHOW_FIELD_ALIAS]}
                         statistical-field-data={this.statisticalFieldsData[item.field_name]}
                         type='visible'
                         visible-fields={this.visibleFields}
@@ -570,8 +573,8 @@ export default class FieldFilterComp extends tsc<object> {
             </div>
           )}
           <div class='field-filter-roll'>
-            {!!this.indexSetFields().length && (
-              <div class='fields-container not-selected'>
+            {!!this.indexSetFields().filter(item => item.filterVisible).length && (
+              <div class='fields-container not-selected optional-field'>
                 <div class='title'>{this.$t('可选字段')}</div>
                 <ul class='filed-list'>
                   {this.showIndexSetFields.map((item, index) =>
@@ -585,7 +588,7 @@ export default class FieldFilterComp extends tsc<object> {
                         field-item={item}
                         is-front-statistics={this.isFrontStatistics}
                         retrieve-params={this.retrieveParams}
-                        show-field-alias={this.showFieldAlias}
+                        show-field-alias={this[BK_LOG_STORAGE.SHOW_FIELD_ALIAS]}
                         statistical-field-data={this.statisticalFieldsData[item.field_name]}
                         type='hidden'
                         onToggleItem={({ type, fieldItem }) => this.handleToggleItem(type, fieldItem)}
@@ -604,9 +607,17 @@ export default class FieldFilterComp extends tsc<object> {
               </div>
             )}
             {/* 内置字段 */}
-            {!!this.builtInFields().length && (
-              <div class='fields-container not-selected'>
-                <div class='title'>{(this.$t('label-内置字段') as string).replace('label-', '')}</div>
+            {!!this.builtInFields().filter(item => item.filterVisible).length && (
+              <div class='fields-container not-selected inside-fields'>
+                <div
+                  class='title'
+                  onClick={() => (this.isShowAllBuiltIn = !this.isShowAllBuiltIn)}
+                >
+                  <span
+                    class={['bklog-icon bklog-arrow-down-filled-2', { 'is-expand-all': this.isShowAllBuiltIn }]}
+                  ></span>
+                  {(this.$t('label-内置字段') as string).replace('label-', '')}
+                </div>
                 <ul class='filed-list'>
                   {this.builtInFieldsShowObj().builtInShowFields.map((item, index) =>
                     item.children?.length ? (
@@ -619,21 +630,21 @@ export default class FieldFilterComp extends tsc<object> {
                         field-item={item}
                         is-front-statistics={this.isFrontStatistics}
                         retrieve-params={this.retrieveParams}
-                        show-field-alias={this.showFieldAlias}
+                        show-field-alias={this[BK_LOG_STORAGE.SHOW_FIELD_ALIAS]}
                         statistical-field-data={this.statisticalFieldsData[item.field_name]}
                         type='hidden'
                         onToggleItem={({ type, fieldItem }) => this.handleToggleItem(type, fieldItem)}
                       />
                     ),
                   )}
-                  {this.builtInFieldsShowObj().isShowBuiltExpandBtn && (
+                  {/* {this.builtInFieldsShowObj().isShowBuiltExpandBtn && (
                     <div
                       class='expand-all'
                       onClick={() => (this.isShowAllBuiltIn = !this.isShowAllBuiltIn)}
                     >
                       {!this.isShowAllBuiltIn ? this.$t('展开全部') : this.$t('收起')}
                     </div>
-                  )}
+                  )} */}
                 </ul>
               </div>
             )}

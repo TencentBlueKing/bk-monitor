@@ -30,10 +30,10 @@
       <div class="select-btn">
         <select-button
           v-for="(item, index) in selectGroup.list"
+          :key="index"
           class="select-btn-item"
           :active="item.value === selectGroup.active"
           :class="orientation"
-          :key="index"
           :text="item.text"
           @click="changeTime(item.value)"
         />
@@ -48,10 +48,10 @@
     <!-- 趋势图 -->
     <monitor-echarts
       v-if="series.length"
+      :key="chartKey"
       :style="{ backgroundColor: '#f0f1f5' }"
       :colors="['#7EB26D', '#EAB839']"
       :height="isLandscape ? 311 : 247"
-      :key="chartKey"
       :series="series"
       :show-legend="true"
       :unit="unit"
@@ -73,8 +73,8 @@
     <!-- 数据对比 -->
     <van-popup
       v-if="isLandscape"
-      :style="popupStyle"
       v-model="showPopup"
+      :style="popupStyle"
       :overlay="false"
       position="right"
     >
@@ -98,26 +98,27 @@
     />
     <!-- 横屏和竖屏 -->
     <screen-orientation
-      v-model="orientation"
       v-show="showOrienBtn"
+      v-model="orientation"
     />
   </div>
 </template>
 <script lang="ts">
 import { Component, Mixins, Prop, Watch } from 'vue-property-decorator';
-import { Route } from 'vue-router';
 
 import dayjs from 'dayjs';
 import { Popup } from 'vant';
 
 import MonitorEcharts from '../../../monitor-ui/monitor-echarts/monitor-mobile-echarts.vue';
-import DatetimePicker, { ITimeObj } from '../../components/datetime-picker/datetime-picker.vue';
+import DatetimePicker, { type ITimeObj } from '../../components/datetime-picker/datetime-picker.vue';
 import ScreenOrientation, { Screen } from '../../components/screen-orientation/screen-orientation.vue';
 import SelectButton from '../../components/select-button/select-button.vue';
 import HideChartTooltipMixin from '../../mixins/hideChartTooltipMixin';
 import EventModule from '../../store/modules/event-detail';
-import { ICompare, ICompareData, ISelectGroup, ISeriesData } from '../../types/tendency-chart';
 import DataCompare from './data-compare.vue';
+
+import type { ICompare, ICompareData, ISelectGroup, ISeriesData } from '../../types/tendency-chart';
+import type { Route } from 'vue-router';
 
 Component.registerHooks(['beforeRouteLeave']);
 
@@ -399,18 +400,18 @@ export default class TendencyChart extends Mixins(HideChartTooltipMixin) {
 }
 </script>
 <style lang="scss" scoped>
-@import '../../static/scss/variate.scss';
+@import '../../static/scss/variate';
 
 .tendency-chart {
   box-sizing: border-box;
   max-height: 100vh;
-  padding: 1rem 0 0 0;
+  padding: 1rem 0 0;
   background-color: #f0f1f5;
 
   .select-btn-group {
     display: flex;
     justify-content: space-between;
-    padding: 0 1.5rem 1rem 1.5rem;
+    padding: 0 1.5rem 1rem;
 
     .select-btn {
       display: flex;
@@ -461,7 +462,7 @@ export default class TendencyChart extends Mixins(HideChartTooltipMixin) {
     height: 3rem;
     background: #fff;
     border-radius: 4px 0 0 4px;
-    box-shadow: -1px 1px 2px 0 rgba(79, 85, 96, 0.3);
+    box-shadow: -1px 1px 2px 0 rgb(79 85 96 / 30%);
     transform: translate(-1.2rem, -50%);
 
     i {

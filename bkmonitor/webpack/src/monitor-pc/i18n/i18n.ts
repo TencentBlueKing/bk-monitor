@@ -24,11 +24,11 @@
  * IN THE SOFTWARE.
  */
 import Vue from 'vue';
-import VueI18n from 'vue-i18n';
 
 import { lang, locale } from 'bk-magic-vue';
+import VueI18n from 'vue-i18n';
 
-import { mergeI18nJson } from './commmon';
+import { mergeI18nJson } from './common';
 import './dayjs';
 import { currentLang, isEn } from './lang';
 document.documentElement.setAttribute('lang', currentLang);

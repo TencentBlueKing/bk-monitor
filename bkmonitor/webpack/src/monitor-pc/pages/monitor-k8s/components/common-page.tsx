@@ -34,10 +34,10 @@ import DashboardPanel from 'monitor-ui/chart-plugins/components/dashboard-panel'
 import FlexDashboardPanel from 'monitor-ui/chart-plugins/components/flex-dashboard-panel';
 import { DEFAULT_INTERVAL, DEFAULT_METHOD } from 'monitor-ui/chart-plugins/constants/dashbord';
 import {
-  BookMarkModel,
   type DashboardMode,
   type IPanelModel,
   type IViewOptions,
+  BookMarkModel,
   PanelModel,
 } from 'monitor-ui/chart-plugins/typings';
 import { VariablesService } from 'monitor-ui/chart-plugins/utils/variable';
@@ -67,7 +67,6 @@ import HostTree, {
 import SettingModal from '../../setting-modal';
 import GroupSelect from '../components/group-select/group-select';
 import {
-  DASHBOARD_PANEL_COLUMN_KEY,
   type IBookMark,
   type IMenuId,
   type IMenuItem,
@@ -77,15 +76,16 @@ import {
   type ISearchItem,
   type ITabItem,
   type ITableItem,
-  METHOD_LIST,
   type PanelToolsType,
+  type SearchType,
+  DASHBOARD_PANEL_COLUMN_KEY,
+  METHOD_LIST,
   SPLIT_MAX_WIDTH,
   SPLIT_MIN_WIDTH,
-  type SearchType,
 } from '../typings';
-import { SETTINGS_POP_ZINDEX } from '../utils';
-import CommonList from './common-list/common-list';
+import { SETTINGS_POP_Z_INDEX } from '../utils';
 import CommonListK8s from './common-list-k8s/common-list-k8s';
+import CommonList from './common-list/common-list';
 import CommonSelectTable from './common-select-table/common-select-table';
 import CommonTree from './common-tree/common-tree';
 import ApmApiPanel from './select-panel/apm-api-panel';
@@ -108,38 +108,38 @@ const DEFAULT_QUERY_DATA = {
   filter: '',
 };
 
+interface ICommonPageEvent {
+  onSceneTypeChange: SceneType;
+  onTabChange: string;
+  onTimeRangeChange: TimeRangeType;
+  onTitleChange: string;
+  onMenuSelect: (data: { id: number; param?: { taskId?: string } }) => void;
+  onPageTitleChange: (a: string, b?: Record<string, any>) => void;
+}
 interface ICommonPageProps {
+  // 详情返回操作
+  backToOverviewKey?: string;
+  // 默认汇聚方法
+  defalutMethod?: string;
+  // 默认viewoptions 视图变量等
+  defaultViewOptions: IViewOptions;
+  // 是否合并菜单列表
+  isMergeMenuList?: boolean;
+  // 是否展示分屏按钮
+  isShowSplitPanel?: boolean;
+  // 菜单列表
+  menuList?: IMenuItem[];
   // 场景id
   sceneId: string;
   // 场景类型
   sceneType: SceneType;
-  // 是否合并菜单列表
-  isMergeMenuList?: boolean;
-  // 默认viewoptions 视图变量等
-  defaultViewOptions: IViewOptions;
-  // 标题
-  title?: string;
-  // 是否展示分屏按钮
-  isShowSplitPanel?: boolean;
-  // 详情返回操作
-  backToOverviewKey?: string;
+  showListMenu?: boolean;
   // tab切换是否转换为overview
   tab2SceneType?: boolean;
+  // 标题
+  title?: string;
   // 表格搜索条件需要保留的字段
   toggleTabSearchFilterKeys?: string[];
-  // 默认汇聚方法
-  defalutMethod?: string;
-  // 菜单列表
-  menuList?: IMenuItem[];
-  showListMenu?: boolean;
-}
-interface ICommonPageEvent {
-  onTitleChange: string;
-  onPageTitleChange: (a: string, b?: Record<string, any>) => void;
-  onTabChange: string;
-  onTimeRangeChange: TimeRangeType;
-  onSceneTypeChange: SceneType;
-  onMenuSelect: (data: { id: number; param?: { taskId?: string } }) => void;
 }
 @Component({
   components: {
@@ -499,11 +499,11 @@ export default class CommonPage extends tsc<ICommonPageProps, ICommonPageEvent> 
   // 时区
   @ProvideReactive('timezone') timezone: string = getDefaultTimezone();
   // 刷新间隔
-  @ProvideReactive('refleshInterval') refleshInterval = -1;
+  @ProvideReactive('refreshInterval') refreshInterval = -1;
   // 视图变量
   @ProvideReactive('viewOptions') viewOptions: IViewOptions = {};
   // 是否立即刷新
-  @ProvideReactive('refleshImmediate') refleshImmediate = '';
+  @ProvideReactive('refreshImmediate') refreshImmediate = '';
   // 对比的时间
   @ProvideReactive('timeOffset') timeOffset: string[] = [];
   // 对比类型
@@ -941,7 +941,7 @@ export default class CommonPage extends tsc<ICommonPageProps, ICommonPageEvent> 
     if (this.settingsWrapRef?.hasDiff) {
       const res = await new Promise((resolve, reject) => {
         this.$bkInfo({
-          zIndex: SETTINGS_POP_ZINDEX,
+          zIndex: SETTINGS_POP_Z_INDEX,
           title: this.$t('是否放弃本次操作？'),
           confirmFn: () => resolve(true),
           cancelFn: () => reject(false),
@@ -1059,8 +1059,8 @@ export default class CommonPage extends tsc<ICommonPageProps, ICommonPageEvent> 
     this.infoActive = this.isSplitPanel ? false : v;
   }
   // 立刻刷新
-  handleImmediateReflesh() {
-    this.refleshImmediate = random(10);
+  handleImmediateRefresh() {
+    this.refreshImmediate = random(10);
   }
   // 图表布局方式变更
   handleChartChange(layoutId: number) {
@@ -1250,7 +1250,7 @@ export default class CommonPage extends tsc<ICommonPageProps, ICommonPageEvent> 
         from: this.timeRange[0],
         to: this.timeRange[1],
         timezone: this.timezone,
-        refleshInterval: this.refleshInterval.toString(),
+        refreshInterval: this.refreshInterval.toString(),
         // selectorSearchCondition: encodeURIComponent(JSON.stringify(this.selectorSearchCondition)),
         queryData: queryDataStr,
         key: random(10),
@@ -1312,8 +1312,8 @@ export default class CommonPage extends tsc<ICommonPageProps, ICommonPageEvent> 
   handleResizeCollapse() {
     this.$nextTick(() => this.collapseRef?.handleContentResize());
   }
-  handleRefleshChange(v: number) {
-    this.refleshInterval = v;
+  handleRefreshChange(v: number) {
+    this.refreshInterval = v;
     this.handleResetRouteQuery();
   }
   handleTimeRangeChange(v: TimeRangeType) {
@@ -1676,7 +1676,7 @@ export default class CommonPage extends tsc<ICommonPageProps, ICommonPageEvent> 
                 downSampleRange={this.downSampleRange}
                 isSplitPanel={this.isSplitPanel}
                 menuList={this.mergeMenuList}
-                refleshInterval={this.refleshInterval}
+                refreshInterval={this.refreshInterval}
                 showDownSampleRange={false}
                 showListMenu={this.showListMenu && !this.readonly && this.localSceneType !== 'overview'}
                 showSplitPanel={!this.readonly && this.isShowSplitPanel}
@@ -1684,8 +1684,8 @@ export default class CommonPage extends tsc<ICommonPageProps, ICommonPageEvent> 
                 timezone={this.timezone}
                 onDownSampleRangeChange={this.handleDownSampleRangeChange}
                 onFullscreenChange={this.handleFullscreen}
-                onImmediateReflesh={this.handleImmediateReflesh}
-                onRefleshChange={this.handleRefleshChange}
+                onImmediateRefresh={this.handleImmediateRefresh}
+                onRefreshChange={this.handleRefreshChange}
                 onSelectedMenu={this.handleShowSettingModel}
                 onSplitPanelChange={this.handleSplitPanel}
                 onTimeRangeChange={this.handleTimeRangeChange}

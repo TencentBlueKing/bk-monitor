@@ -25,7 +25,7 @@
   }
 
   .custom-report-page-content {
-    padding: 24px 16px 16px 16px;
+    padding: 16px 16px 16px 16px;
     margin-top: 8px;
     background: #fff;
     border-radius: 2px;
@@ -44,7 +44,7 @@
       align-items: center;
 
       .operator-input {
-        width: 360px;
+        width: 480px;
         margin: 0 0 0 auto;
       }
     }
@@ -92,8 +92,15 @@
 
       .bk-table-pagination-wrapper {
         /* stylelint-disable-next-line declaration-no-important */
-        padding: 15px !important;
+        padding: 14px !important;
       }
+      // .table-name-cell {
+      //   &:hover {
+      //     .edit-btn {
+      //       visibility: inherit;
+      //     }
+      //   }
+      // }
 
       .platform-tag {
         display: inline-flex;
@@ -108,6 +115,29 @@
         background: #979ba5;
         border-radius: 2px;
       }
+      // .edit-btn {
+      //   visibility: hidden;
+      //   font-size: 24px;
+      //   color: #979ba5;
+      //   margin-left: 2px;
+      //   cursor: pointer;
+      //   vertical-align: middle;
+      //   &:hover {
+      //     color: #3a84ff;
+      //   }
+      // }
+    }
+  }
+
+  .content-left {
+    flex-basis: 680px;
+    background: $whiteColor;
+    border-radius: 2px;
+    .content-left-header {
+      padding: 16px 24px;
+      border-bottom: 1px solid $defaultBorderColor;
+      .header-title {
+      }
     }
   }
 
@@ -116,5 +146,54 @@
     background: $whiteColor;
     border-left: 1px solid $defaultBorderColor;
     border-radius: 0 0 2px 2px;
+  }
+  .content-left-operator {
+    .bk-button-group-capsule {
+      background: #f0f1f5;
+      border-radius: 2px;
+      width: 152px;
+      height: 32px;
+      display: flex;
+      flex-direction: row;
+      justify-content: center;
+      align-items: center;
+      .bk-button-container {
+        display: flex;
+        flex-direction: row;
+        justify-content: flex-start;
+        align-items: center;
+        flex: 1;
+      }
+      .bk-button-container:first-child {
+        justify-content: flex-end;
+      }
+      .bk-button {
+        background-color: transparent;
+        border: 0;
+        width: 72px;
+        height: 24px;
+        display: flex;
+        flex-direction: row;
+        justify-content: center;
+        align-items: center;
+        div {
+          span {
+            font-size: 12px;
+            color: #4d4f56;
+            letter-spacing: 0;
+            line-height: 20px;
+          }
+        }
+      }
+      .bk-button.is-selected {
+        background: #ffffff;
+        border-radius: 2px;
+        div {
+          span {
+            color: #3a84ff;
+          }
+        }
+      }
+    }
   }
 }

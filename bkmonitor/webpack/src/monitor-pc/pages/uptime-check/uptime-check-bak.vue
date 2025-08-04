@@ -28,9 +28,9 @@
     <div class="uptime-check-tab">
       <div
         v-for="item in tabList"
+        :key="item.id"
         class="tab-item"
         :class="{ 'tab-active': active === item.id }"
-        :key="item.id"
         @click="handleTabChange(item.id)"
       >
         {{ item.name }}
@@ -44,7 +44,7 @@
             )
           "
           :link-text="$t('采集器安装前往节点管理')"
-          :link-url="`${$store.getters.bkNodemanHost}#/plugin-manager/list`"
+          :link-url="`${$store.getters.bkNodeManHost}#/plugin-manager/list`"
           doc-link="quickStartDial"
         />
         <keep-alive v-if="active">
@@ -61,19 +61,19 @@
   </div>
 </template>
 <script lang="ts">
-import type { TranslateResult } from 'vue-i18n';
 import { Component, Mixins, Prop, Provide, ProvideReactive } from 'vue-property-decorator';
 
 import pageTips from '../../components/pageTips/pageTips.vue';
 import authorityMixinCreate from '../../mixins/authorityMixin';
-
 import * as uptimeAuth from './authority-map';
 import UptimeCheckNode from './uptime-check-nodes/uptime-check-nodes.vue';
 import UptimeCheckTask from './uptime-check-task/uptime-check-task.vue';
 
+import type { TranslateResult } from 'vue-i18n';
+
 enum UptimeCheckType {
-  task = 'uptime-check-task',
   node = 'uptime-check-node',
+  task = 'uptime-check-task',
 }
 interface ITabItem {
   id: UptimeCheckType;
@@ -139,7 +139,7 @@ export default class UptimeCheck extends Mixins(authorityMixinCreate(uptimeAuth)
     padding-left: 24px;
     background: #fff;
     border-bottom: 1px solid #dcdee5;
-    box-shadow: 0 3px 4px 0 rgba(64, 112, 203, .06);
+    box-shadow: 0 3px 4px 0 rgba(64, 112, 203, 0.06);
 
     .tab-item {
       display: inline-block;

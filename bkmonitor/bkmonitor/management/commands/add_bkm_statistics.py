@@ -11,6 +11,7 @@ specific language governing permissions and limitations under the License.
 from django.conf import settings
 from django.core.management import BaseCommand
 
+from constants.common import DEFAULT_TENANT_ID
 from core.drf_resource import api
 from metadata.models import TimeSeriesGroup
 
@@ -27,6 +28,7 @@ class Command(BaseCommand):
         _, created = CustomTSTable.objects.get_or_create(
             time_series_group_id=tsg.time_series_group_id,
             defaults=dict(
+                bk_tenant_id=DEFAULT_TENANT_ID,
                 bk_biz_id=bk_biz_id,
                 scenario="application_check",
                 name="bkm_statistics",

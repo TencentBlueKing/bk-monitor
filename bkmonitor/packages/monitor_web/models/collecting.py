@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -12,11 +11,13 @@ specific language governing permissions and limitations under the License.
 from typing import Optional
 
 from django.db import models
+from django.conf import settings
 from django.utils.translation import gettext as _
 from django.utils.translation import gettext_lazy as _lazy
 
 from bkmonitor.utils.db.fields import JsonField, SymmetricJsonField
 from constants.cmdb import TargetNodeType, TargetObjectType
+from constants.common import DEFAULT_TENANT_ID
 from core.drf_resource import resource
 from monitor_web.collecting.constant import (
     OperationResult,
@@ -73,14 +74,13 @@ class CollectConfigMeta(OperateRecordModelBase):
         (TargetObjectType.CLUSTER, _lazy("集群")),
     )
 
+    bk_tenant_id = models.CharField("租户ID", max_length=128, default=DEFAULT_TENANT_ID)
     bk_biz_id = models.IntegerField("业务ID", db_index=True)
     name = models.CharField("配置名称", max_length=128)
 
     # 采集插件相关配置
     collect_type = models.CharField("采集方式", max_length=32, choices=COLLECT_TYPE_CHOICES, db_index=True)
-    plugin = models.ForeignKey(
-        CollectorPluginMeta, verbose_name="关联插件", related_name="collect_configs", on_delete=models.CASCADE
-    )
+    plugin_id = models.CharField("插件ID", max_length=64)
 
     # 采集目标相关配置
     # 取值范围
@@ -90,12 +90,21 @@ class CollectConfigMeta(OperateRecordModelBase):
     # HOST                   INSTANCE             主机实例
     target_object_type = models.CharField("采集对象类型", max_length=32, choices=TARGET_OBJECT_TYPE_CHOICES)
 
-    deployment_config = models.ForeignKey("DeploymentConfigVersion", verbose_name="当前的部署配置", on_delete=models.CASCADE)
+    deployment_config = models.ForeignKey(
+        "DeploymentConfigVersion", verbose_name="当前的部署配置", on_delete=models.CASCADE
+    )
     cache_data = JsonField("缓存数据", default=None)
     last_operation = models.CharField("最近一次操作", max_length=32, choices=OPERATION_TYPE_CHOICES)
     operation_result = models.CharField("最近一次任务结果", max_length=32, choices=OPERATION_RESULT_CHOICES)
 
     label = models.CharField("二级标签", max_length=64, default="")
+
+    @property
+    def plugin(self) -> CollectorPluginMeta:
+        """
+        获取插件（注意不要在循环中使用，否则会触发N+1问题）
+        """
+        return CollectorPluginMeta.objects.get(bk_tenant_id=self.bk_tenant_id, plugin_id=self.plugin_id)
 
     def check_task_is_ready(self, deploying_mapping):
         """
@@ -221,18 +230,25 @@ class CollectConfigMeta(OperateRecordModelBase):
     def operate_type(self, diff_result):
         if self.collect_type == self.CollectType.LOG or self.collect_type == self.CollectType.SNMP_TRAP:
             return "update"
-        if (
-            diff_result["plugin_version"]["is_modified"]
-            or diff_result["remote_collecting_host"]["is_modified"]
-            or (not self.deployment_config.subscription_id)
-        ):
+
+        if diff_result["remote_collecting_host"]["is_modified"] or (not self.deployment_config.subscription_id):
             return "rebuild"
-        elif (
+
+        if diff_result["plugin_version"]["is_modified"]:
+            # 判断是否需要使用update模式进行插件升级
+
+            if self.bk_biz_id in settings.COLLECTING_UPGRADE_WITH_UPDATE_BIZ:
+                return "update"
+            return "rebuild"
+
+        if (
             diff_result["params"]["is_modified"]
             or diff_result["nodes"]["is_modified"]
             or self.deployment_config.target_nodes
         ):
             return "update"
+
+        return None
 
     @property
     def data_id(self):
@@ -249,7 +265,7 @@ class CollectConfigMeta(OperateRecordModelBase):
         version = self.deployment_config.plugin_version
         plugin_type = version.plugin.plugin_type
         if plugin_type in version.plugin.VIRTUAL_PLUGIN_TYPE:
-            plugin_manager = PluginManagerFactory.get_manager(version.plugin, plugin_type)
+            plugin_manager = PluginManagerFactory.get_manager(plugin=version.plugin)
             plugin_manager.delete_result_table(version)
 
     def get_info(self):
@@ -360,7 +376,7 @@ class DeploymentConfigVersion(OperateRecordModelBase):
         获取表结构
         """
         if self.plugin_version.plugin.plugin_id == "bkprocessbeat":
-            return PluginManagerFactory.get_manager(plugin="bkprocessbeat").gen_metric_info()
+            return PluginManagerFactory.get_manager(plugin=self.plugin_version.plugin).gen_metric_info()
         last_version = self.plugin_version.plugin.get_release_ver_by_config_ver(self.plugin_version.config_version)
         return last_version.info.metric_json
 

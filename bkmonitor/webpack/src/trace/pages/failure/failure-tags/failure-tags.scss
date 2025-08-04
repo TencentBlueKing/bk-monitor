@@ -36,11 +36,11 @@
     margin-right: 5px;
     line-height: 20px;
     color: white;
-    background: #E71818;
+    background: #e71818;
     border-radius: 2px;
 
     &:hover {
-      background: #E71818;
+      background: #e71818;
     }
   }
 
@@ -49,7 +49,7 @@
     grid-template-columns: 1fr calc(var(--icon-size) + var(--icon-padding-right));
     width: 100%;
     overflow: hidden;
-    background: #f0f1f5;
+    background: #ebeef5;
     box-shadow: 0 1px 2px 0 #0000001f;
     transition: calc(var(--animation-timeline) * 1s);
     transition-timing-function: ease-in-out;
@@ -61,6 +61,7 @@
       width: 100%;
       height: 100%;
       min-height: 40px;
+      min-width: 0;
       padding: 8px 16px 8px 40px;
 
       .failure-tags-item {
@@ -105,8 +106,8 @@
           line-height: 24px;
 
           .link-span {
-            margin-left:10px;
-            color: #3a84ff; 
+            margin-left: 10px;
+            color: #3a84ff;
             cursor: pointer;
 
             i {
@@ -131,7 +132,7 @@
         display: inline-block;
         font-size: var(--icon-size);
         font-weight: 500;
-        color: #979ba5;
+        color: #63656e;
         transition: transform calc(var(--animation-timeline) * 1s);
         transform: rotate(0deg);
       }
@@ -151,8 +152,7 @@
       }
     }
 
-    .business-tag,
-    .principal-tag {
+    .business-tag {
       color: #3a84ff;
       background: transparent;
     }
@@ -166,46 +166,9 @@
     }
 
     .principal-tag {
-      .bk-select-tag {
-        height: auto;
-        min-height: auto !important;
-        padding-top: 1px;
-        padding-right: 0px;
-        background: transparent !important;
-        border: 0;
-
-        &.is-disabled {
-          cursor: default !important;
-        }
-
-        .bk-select-tag-wrapper {
-          height: auto !important;
-          padding: 0;
-        }
-
-        .bk-tag {
-          cursor: default !important;
-        }
-
-        .bk-tag--default {
-          background-color: #fafbfd !important;
-
-          &:hover {
-            background-color: #fafbfd !important;
-          }
-        }
-      }
-
-      .bk-tag-close {
-        display: none !important;
-      }
-
-      .angle-up {
-        display: none !important;
-      }
-
-      .angle-down {
-        display: none !important;
+      .bk-tag.bk-tag--default {
+        padding: 0 4px;
+        background-color: #fafbfd;
       }
     }
   }

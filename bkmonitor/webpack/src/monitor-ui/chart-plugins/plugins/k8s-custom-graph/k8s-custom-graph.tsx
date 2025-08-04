@@ -30,14 +30,15 @@ import { ofType } from 'vue-tsx-support';
 import dayjs from 'dayjs';
 import deepmerge from 'deepmerge';
 import { toPng } from 'html-to-image';
-import { CancelToken } from 'monitor-api/index';
+import { CancelToken } from 'monitor-api/cancel';
 import { Debounce, deepClone, random } from 'monitor-common/utils/utils';
 import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
+import K8sQuickTools from 'monitor-pc/pages/monitor-k8s/components/k8s-quick-tools/k8s-quick-tools';
 import {
+  type IUnifyQuerySeriesItem,
   downCsvFile,
   transformSrcData,
   transformTableDataToCsvStr,
-  type IUnifyQuerySeriesItem,
 } from 'monitor-pc/pages/view-detail/utils';
 
 import { type ValueFormatter, getValueFormat } from '../../../monitor-echarts/valueFormats';
@@ -49,7 +50,6 @@ import { getSeriesMaxInterval, getTimeSeriesXInterval } from '../../utils/axis';
 import { VariablesService } from '../../utils/variable';
 import { CommonSimpleChart } from '../common-simple-chart';
 import BaseEchart from '../monitor-base-echart';
-import K8sDimensionDrillDown from './k8s-dimension-drilldown';
 
 import type {
   DataQuery,
@@ -57,46 +57,32 @@ import type {
   ILegendItem,
   IMenuChildItem,
   IMenuItem,
-  ITitleAlarm,
   ITimeSeriesItem,
+  ITitleAlarm,
   PanelModel,
 } from '../../../chart-plugins/typings';
 import type { IChartTitleMenuEvents } from '../../components/chart-title/chart-title-menu';
 
 import './k8s-custom-graph.scss';
-
+const SpecialSeriesColorMap = {
+  request: {
+    color: '#FEA56B',
+    labelColor: '#E38B02',
+    itemColor: '#FDEED8',
+  },
+  limit: {
+    color: '#FF5656',
+    labelColor: '#E71818',
+    itemColor: '#FFEBEB',
+  },
+  capacity: {
+    color: '#4DA6FF', // 明亮的蓝色
+    labelColor: '#0073E6', // 稍深的蓝色，用于标签
+    itemColor: '#E6F2FF', // 非常浅的蓝色，用于背景
+  },
+};
 interface IProps {
   panel: PanelModel;
-}
-
-function removeTrailingZeros(num) {
-  if (num && num !== '0') {
-    return num
-      .toString()
-      .replace(/(\.\d*?)0+$/, '$1')
-      .replace(/\.$/, '');
-  }
-  return num;
-}
-
-function getNumberAndUnit(str) {
-  const match = str.match(/^(\d+)([a-zA-Z])$/);
-  return match ? { number: Number.parseInt(match[1], 10), unit: match[2] } : null;
-}
-
-function timeToDayNum(t) {
-  const regex = /^\d{4}-\d{2}-\d{2}$/;
-  if (regex.test(t)) {
-    return dayjs().diff(dayjs(t), 'day');
-  }
-  const timeInfo = getNumberAndUnit(t);
-  if (timeInfo?.unit === 'd') {
-    return timeInfo.number;
-  }
-  if (timeInfo?.unit === 'w') {
-    return timeInfo.number * 7;
-  }
-  return 0;
 }
 
 @Component
@@ -110,7 +96,6 @@ class K8SCustomChart extends CommonSimpleChart {
   @Inject({ from: 'enableSelectionRestoreAll', default: false }) readonly enableSelectionRestoreAll: boolean;
   @Inject({ from: 'handleChartDataZoom', default: () => null }) readonly handleChartDataZoom: (value: any) => void;
   @Inject({ from: 'handleRestoreEvent', default: () => null }) readonly handleRestoreEvent: () => void;
-  @Inject({ from: 'onDrillDown', default: () => null }) readonly onDrillDown: (group: string, name: string) => void;
   @Inject({ from: 'onShowDetail', default: () => null }) readonly onShowDetail: (
     dimensions: Record<string, string>
   ) => void;
@@ -120,7 +105,7 @@ class K8SCustomChart extends CommonSimpleChart {
   metrics = [];
   options = {};
   empty = true;
-  emptyText = window.i18n.tc('暂无数据');
+  emptyText = window.i18n.t('暂无数据');
   cancelTokens = [];
 
   /** 导出csv数据时候使用 */
@@ -181,21 +166,22 @@ class K8SCustomChart extends CommonSimpleChart {
     if (!(await this.beforeGetPanelData())) {
       return;
     }
+    if (!this.$el?.clientWidth) return;
     this.cancelTokens.forEach(cb => cb?.());
     this.cancelTokens = [];
-    if (this.inited) this.handleLoadingChange(true);
-    this.emptyText = window.i18n.tc('加载中...');
+    if (this.initialized) this.handleLoadingChange(true);
+    this.emptyText = window.i18n.t('加载中...');
     if (
       this.panel.targets.some(item =>
         item.data?.query_configs?.some(q => q.data_source_label === 'prometheus' && !q.promql)
       )
     ) {
       this.empty = true;
-      this.emptyText = window.i18n.tc('暂不支持');
+      this.emptyText = window.i18n.t('暂无数据');
     } else {
       try {
-        this.unregisterOberver();
-        const series = [];
+        this.unregisterObserver();
+        let series = [];
         const metrics = [];
         this.legendSorts = [];
         const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
@@ -259,10 +245,10 @@ class K8SCustomChart extends CommonSimpleChart {
                         if (this.timeOffset.length) {
                           timeShiftName = this.handleTransformTimeShift(timeShift || 'current');
                           name = `${timeShiftName}-${name}`;
-                        } else if (['limit', 'request'].includes(newParams.query_configs?.[0]?.alias)) {
+                        } else if (['limit', 'request', 'capacity'].includes(newParams.query_configs?.[0]?.alias)) {
                           name = newParams.query_configs?.[0]?.alias;
                         }
-                        name = name.replace(/\|/, ':');
+                        name = name.replace(/\|/g, ':');
                         this.legendSorts.push({
                           name: name,
                           timeShift: timeShift,
@@ -296,6 +282,7 @@ class K8SCustomChart extends CommonSimpleChart {
         await Promise.all(promiseList).catch(() => false);
         this.metrics = metrics || [];
         if (series.length) {
+          series = series.toSorted((a, b) => b.name?.localeCompare?.(a?.name));
           const { maxSeriesCount, maxXInterval } = getSeriesMaxInterval(series);
           /* 派出图表数据包含的维度*/
           this.series = Object.freeze(series) as any;
@@ -310,7 +297,6 @@ class K8SCustomChart extends CommonSimpleChart {
             seriesResult.map(item => ({
               name: item.name,
               cursor: 'auto',
-              // biome-ignore lint/style/noCommaOperator: <explanation>
               data: item.datapoints.reduce((pre: any, cur: any) => (pre.push(cur.reverse()), pre), []),
               stack: item.stack || random(10),
               unit: this.viewOptions.unit || this.panel.options?.unit || item.unit,
@@ -322,25 +308,30 @@ class K8SCustomChart extends CommonSimpleChart {
           );
           let limitFirstY = 0;
           let requestFirstY = 0;
+          let capacityFirstY = 0;
           seriesList = seriesList.map((item: any) => {
             const isSpecialSeries = this.isSpecialSeries(item.name);
             let color = item.lineStyle?.color;
             let markPoint = {};
             if (isSpecialSeries) {
               const isLimit = item.name === 'limit';
-              color = !isLimit ? '#FEA56B' : '#FF5656';
-              const labelColor = item.name === 'limit' ? '#E71818' : '#E38B02';
-              const itemColor = item.name === 'limit' ? '#FFEBEB' : '#FDEED8';
+              const isCapacity = item.name === 'capacity';
+              const colorMap = SpecialSeriesColorMap[item.name];
+              color = colorMap.color;
+              const labelColor = colorMap.labelColor;
+              const itemColor = colorMap.itemColor;
               const firstValue = item.data?.find(item => item.value?.[1]);
               const firstValueY = firstValue?.value?.[1] || 0;
               if (isLimit) {
                 limitFirstY = firstValueY;
+              } else if (item.name === 'capacity') {
+                capacityFirstY = firstValueY;
               } else {
                 requestFirstY = firstValueY;
               }
               markPoint = {
                 symbol: 'rect',
-                symbolSize: [isLimit ? 30 : 46, 16],
+                symbolSize: [isLimit ? 30 : isCapacity ? 52 : 46, 16],
                 symbolOffset: ['50%', 0],
                 label: {
                   show: true,
@@ -367,6 +358,7 @@ class K8SCustomChart extends CommonSimpleChart {
             return {
               ...item,
               minBase: this.minBase,
+              color: isSpecialSeries ? color : undefined,
               data: item.data.map((set: any) => {
                 if (set?.length) {
                   return [set[0], set[1] !== null ? set[1] + this.minBase : null];
@@ -404,9 +396,12 @@ class K8SCustomChart extends CommonSimpleChart {
               max = maxValue;
             }
           }
-          const limitEqualRequest = Math.abs(limitFirstY - requestFirstY) / (max - min) < 16 / (this.height - 26);
+          const limitEqualRequest =
+            Math.abs(limitFirstY - requestFirstY) / (max - min) < 16 / (this.height - 26) ||
+            Math.abs(capacityFirstY - requestFirstY) / (max - min) < 16 / (this.height - 26);
+          const capacityEqualRequest = Math.abs(limitFirstY - capacityFirstY) / (max - min) < 16 / (this.height - 26);
           seriesList = seriesList.map(item => {
-            if (limitEqualRequest && item.name === 'request') {
+            if ((limitEqualRequest && item.name === 'request') || (capacityEqualRequest && item.name === 'capacity')) {
               return {
                 ...item,
                 markPoint: {},
@@ -465,7 +460,7 @@ class K8SCustomChart extends CommonSimpleChart {
                         }
                         return v;
                       }
-                    : (v: number) => this.handleYxisLabelFormatter(v - this.minBase),
+                    : (v: number) => this.handleYAxisLabelFormatter(v - this.minBase),
                 },
                 splitNumber: this.height < 120 ? 2 : 4,
                 minInterval: 1,
@@ -492,7 +487,7 @@ class K8SCustomChart extends CommonSimpleChart {
             })
           );
           this.handleDrillDownOption(this.metrics);
-          this.inited = true;
+          this.initialized = true;
           this.empty = false;
           if (!this.hasSetEvent) {
             setTimeout(this.handleSetLegendEvent, 300);
@@ -502,23 +497,23 @@ class K8SCustomChart extends CommonSimpleChart {
             this.handleResize();
           }, 100);
         } else {
-          this.inited = this.metrics.length > 0;
-          this.emptyText = window.i18n.tc('暂无数据');
+          this.initialized = this.metrics.length > 0;
+          this.emptyText = window.i18n.t('暂无数据');
           this.empty = true;
         }
       } catch (e) {
         console.error(e);
         this.empty = true;
-        this.emptyText = window.i18n.tc('出错了');
+        this.emptyText = window.i18n.t('出错了');
       }
     }
 
     this.cancelTokens = [];
     this.handleLoadingChange(false);
-    this.unregisterOberver();
+    this.unregisterObserver();
   }
   isSpecialSeries(name: string) {
-    return ['request', 'limit'].includes(name);
+    return ['request', 'limit', 'capacity'].includes(name);
   }
   // 转换time_shift显示
   handleTransformTimeShift(val: string) {
@@ -536,7 +531,7 @@ class K8SCustomChart extends CommonSimpleChart {
     }
     return hasMatch
       ? (dayjs() as any).add(-timeMatch[1], timeMatch[2]).fromNow().replace(/\s*/g, '')
-      : val.replace('current', window.i18n.tc('当前'));
+      : val.replace('current', window.i18n.t('当前'));
   }
 
   handleSeriesName(item: DataQuery, set) {
@@ -575,9 +570,10 @@ class K8SCustomChart extends CommonSimpleChart {
    */
   handleTransformSeries(series: ITimeSeriesItem[], colors?: string[]) {
     const legendData: ILegendItem[] = [];
-    const tranformSeries = series.map((item, index) => {
+    const specialSeriesCount = series.filter(item => item.name in SpecialSeriesColorMap)?.length || 0;
+    const transformSeries = series.map((item, index) => {
       const colorList = this.panel.options?.time_series?.type === 'bar' ? COLOR_LIST_BAR : COLOR_LIST;
-      const color = item.color || (colors || colorList)[index % colorList.length];
+      const color = item.color || (colors || colorList)[Math.max(index - specialSeriesCount, 0) % colorList.length];
       let showSymbol = false;
       const legendItem: ILegendItem = {
         name: String(item.name),
@@ -677,7 +673,7 @@ class K8SCustomChart extends CommonSimpleChart {
       }
     }
     this.legendData = result;
-    return tranformSeries;
+    return transformSeries;
   }
 
   // 设置x轴label formatter方法
@@ -722,7 +718,7 @@ class K8SCustomChart extends CommonSimpleChart {
    * @param {number} num
    * @return {*}
    */
-  handleYxisLabelFormatter(num: number): string {
+  handleYAxisLabelFormatter(num: number): string {
     const si = [
       { value: 1, symbol: '' },
       { value: 1e3, symbol: 'K' },
@@ -745,11 +741,11 @@ class K8SCustomChart extends CommonSimpleChart {
   /**
    * @description: 设置精确度
    * @param {number} data
-   * @param {ValueFormatter} formattter
+   * @param {ValueFormatter} formatter
    * @param {string} unit
    * @return {*}
    */
-  handleGetMinPrecision(data: number[], formattter: ValueFormatter, unit: string) {
+  handleGetMinPrecision(data: number[], formatter: ValueFormatter, unit: string) {
     if (!data || data.length === 0) {
       return 0;
     }
@@ -771,7 +767,7 @@ class K8SCustomChart extends CommonSimpleChart {
     sampling = Array.from(new Set(sampling.filter(n => n !== undefined)));
     while (precision < 5) {
       const samp = sampling.reduce((pre, cur) => {
-        pre[Number(formattter(cur, precision).text)] = 1;
+        pre[Number(formatter(cur, precision).text)] = 1;
         return pre;
       }, {});
       if (Object.keys(samp).length >= sampling.length) {
@@ -1033,8 +1029,8 @@ class K8SCustomChart extends CommonSimpleChart {
         <ChartHeader
           collectIntervalDisplay={this.collectIntervalDisplay}
           customArea={true}
-          descrition={this.panel.descrition}
-          draging={this.panel.draging}
+          description={this.panel.description}
+          dragging={this.panel.dragging}
           isInstant={this.panel.instant}
           menuList={this.menuList as any}
           metrics={this.metrics || this.panel.externalData?.metrics}
@@ -1054,7 +1050,7 @@ class K8SCustomChart extends CommonSimpleChart {
               ref='chart'
               class={`chart-instance ${showLegend ? 'is-table-legend' : ''}`}
             >
-              {this.inited && (
+              {this.initialized && (
                 <BaseEchart
                   ref='baseChart'
                   width={this.width}
@@ -1091,11 +1087,17 @@ class K8SCustomChart extends CommonSimpleChart {
                           {item.name}
                         </span>
                         {!this.isSpecialSeries(item.name) && (
-                          <K8sDimensionDrillDown
-                            dimension={this.panel.externalData?.groupByField}
-                            value={this.panel.externalData?.groupByField}
-                            onHandleDrillDown={({ dimension }) => this.onDrillDown(dimension, item.name)}
+                          <K8sQuickTools
+                            class='k8s-graph-quick-tools'
+                            filterCommonParams={this.panel.externalData?.filterCommonParams}
+                            groupByField={this.panel.externalData?.groupByField}
+                            value={item.name}
                           />
+                          // <K8sDimensionDrillDown
+                          //   dimension={this.panel.externalData?.groupByField}
+                          //   value={this.panel.externalData?.groupByField}
+                          //   onHandleDrillDown={({ dimension }) => this.onDrillDown(dimension, item.name)}
+                          // />
                         )}
                       </div>
                     ),
@@ -1113,6 +1115,36 @@ class K8SCustomChart extends CommonSimpleChart {
       </div>
     );
   }
+}
+
+function getNumberAndUnit(str) {
+  const match = str.match(/^(\d+)([a-zA-Z])$/);
+  return match ? { number: Number.parseInt(match[1], 10), unit: match[2] } : null;
+}
+
+function removeTrailingZeros(num) {
+  if (num && num !== '0') {
+    return num
+      .toString()
+      .replace(/(\.\d*?)0+$/, '$1')
+      .replace(/\.$/, '');
+  }
+  return num;
+}
+
+function timeToDayNum(t) {
+  const regex = /^\d{4}-\d{2}-\d{2}$/;
+  if (regex.test(t)) {
+    return dayjs().diff(dayjs(t), 'day');
+  }
+  const timeInfo = getNumberAndUnit(t);
+  if (timeInfo?.unit === 'd') {
+    return timeInfo.number;
+  }
+  if (timeInfo?.unit === 'w') {
+    return timeInfo.number * 7;
+  }
+  return 0;
 }
 
 export default ofType<IProps>().convert(K8SCustomChart);

@@ -27,25 +27,25 @@
 
 import dayjs from 'dayjs';
 
-import { EKind, type ITabItem } from './type';
+import { type ITabItem, EKind } from './type';
 export const CALLER_CALLEE_TYPE: ITabItem[] = [
   {
-    label: window.i18n.tc('主调'),
+    label: window.i18n.t('主调'),
     id: EKind.caller,
   },
   {
-    label: window.i18n.tc('被调'),
+    label: window.i18n.t('被调'),
     id: EKind.callee,
   },
 ];
 export type CallerCalleeType = (typeof CALLER_CALLEE_TYPE)[number]['id'];
 export const PERSPECTIVE_TYPE = [
   {
-    label: window.i18n.tc('单视角'),
+    label: window.i18n.t('单视角'),
     id: 'single',
   },
   {
-    label: window.i18n.tc('多视角'),
+    label: window.i18n.t('多视角'),
     id: 'multiple',
   },
 ];
@@ -74,17 +74,17 @@ export const TAB_TABLE_REQUEST_COLUMN = [
 
 export const TAB_TABLE_TYPE = [
   {
-    label: window.i18n.tc('请求量'),
+    label: window.i18n.t('请求量'),
     id: 'request',
     columns: TAB_TABLE_REQUEST_COLUMN,
   },
   {
-    label: window.i18n.tc('成功/异常/超时率'),
+    label: window.i18n.t('成功/异常/超时率'),
     id: 'timeout',
     columns: [],
   },
   {
-    label: window.i18n.tc('耗时（ms）'),
+    label: window.i18n.t('耗时（ms）'),
     id: 'consuming',
     columns: [],
   },
@@ -93,31 +93,31 @@ export const TAB_TABLE_TYPE = [
 export const SYMBOL_LIST = [
   {
     value: 'eq',
-    label: window.i18n.tc('等于'),
+    label: window.i18n.t('等于'),
   },
   {
     value: 'neq',
-    label: window.i18n.tc('不等于'),
+    label: window.i18n.t('不等于'),
   },
   {
     value: 'before_req',
-    label: window.i18n.tc('前匹配'),
+    label: window.i18n.t('前匹配'),
   },
   {
     value: 'after_req',
-    label: window.i18n.tc('后匹配'),
+    label: window.i18n.t('后匹配'),
   },
   {
     value: 'include',
-    label: window.i18n.tc('包含'),
+    label: window.i18n.t('包含'),
   },
   {
     value: 'exclude',
-    label: window.i18n.tc('不包含'),
+    label: window.i18n.t('不包含'),
   },
   {
     value: 'reg',
-    label: window.i18n.tc('正则'),
+    label: window.i18n.t('正则'),
   },
 ];
 const CALL_INTERVAL_LIST = [1, 2, 3, 4, 5, 6, 10, 12, 15, 20, 30, 60, 120, 180, 240, 300, 600];
@@ -140,6 +140,108 @@ export enum EChartType {
 const recordCallOptionKindKey = '____apm-service-caller-callee-kind____';
 const recordCallOptionChartKey = '____apm-service-caller-callee-chart____';
 
+export function formatDateRange(start: number, end: number) {
+  const formatStr = 'MM-DD HH:mm:ss';
+  const year = new Date(start).getFullYear();
+  return `${year}（${dayjs(start).format(formatStr)} ~ ${dayjs(end).format(formatStr)}）`;
+}
+
+/**
+ * @description 处理时间要展示的格式 2024（11-21  18:00:00 ～ 11-22  18:00:00）
+ * @param timeArr
+ * @returns
+ */
+export function formatPreviousDayAndWeekTimestamps(timeArr: number[]) {
+  const start = getPreviousDayAndWeekTimestamps(timeArr[0]);
+  const end = getPreviousDayAndWeekTimestamps(timeArr[1]);
+
+  return {
+    '1d': formatDateRange(start.yesterday, end.yesterday),
+    '1w': formatDateRange(start.lastWeek, end.lastWeek),
+  };
+}
+
+/**
+ * @description 计算某个时间的前一天/前一周
+ * @param timestamp
+ * @returns
+ */
+export function getPreviousDayAndWeekTimestamps(timestamp) {
+  const oneDayInMilliseconds = 24 * 60 * 60; // 一天的毫秒数
+  const oneWeekInMilliseconds = 7 * oneDayInMilliseconds; // 一周的毫秒数
+
+  const previousDayTimestamp = timestamp - oneDayInMilliseconds;
+  const previousWeekTimestamp = timestamp - oneWeekInMilliseconds;
+
+  return {
+    yesterday: previousDayTimestamp * 1000,
+    lastWeek: previousWeekTimestamp * 1000,
+  };
+}
+
+/**
+ * @description 获取调用者调用被调用者的图表
+ * @param keyObject
+ * @returns
+ */
+export function getRecordCallOptionChart(keyObject) {
+  return getRecord(recordCallOptionChartKey, keyObject, EChartType.exceptionRate);
+}
+
+/**
+ * @description 获取调用者调用被调用者的类型
+ * @param keyObject
+ * @returns
+ */
+export function getRecordCallOptionKind(keyObject) {
+  return getRecord(recordCallOptionKindKey, keyObject, EKind.callee);
+}
+
+/**
+ * @description 记录调用者调用被调用者的图表
+ * @param keyObject
+ * @param chart
+ */
+export function setRecordCallOptionChart(keyObject, chart) {
+  setRecord(recordCallOptionChartKey, keyObject, chart);
+}
+
+/**
+ * @description 记录调用者调用被调用者的类型
+ * @param keyObject
+ * @param kind
+ */
+export function setRecordCallOptionKind(keyObject, kind) {
+  setRecord(recordCallOptionKindKey, keyObject, kind);
+}
+
+/**
+ * @description 通用检索函数，用于获取服务调用信息
+ * @param storageKey 存储键
+ * @param keyObject 服务的键对象
+ * @param defaultValue 默认值
+ * @returns
+ */
+function getRecord(storageKey, keyObject, defaultValue) {
+  if (!(keyObject?.app_name && keyObject?.service_name)) {
+    return defaultValue;
+  }
+  try {
+    const key = `__${keyObject.app_name}__${keyObject.service_name}__`;
+    const listStr = localStorage.getItem(storageKey);
+    if (listStr) {
+      const list = JSON.parse(listStr);
+      for (const item of list) {
+        if (item.key === key) {
+          return item.value || defaultValue;
+        }
+      }
+    }
+  } catch (err) {
+    console.log(err);
+  }
+  return defaultValue;
+}
 /**
  * @description 通用存储函数，用于存储服务调用信息
  * @param storageKey 存储键
@@ -170,110 +272,8 @@ function setRecord(storageKey, keyObject, value) {
   }
 }
 
-/**
- * @description 通用检索函数，用于获取服务调用信息
- * @param storageKey 存储键
- * @param keyObject 服务的键对象
- * @param defaultValue 默认值
- * @returns
- */
-function getRecord(storageKey, keyObject, defaultValue) {
-  if (!(keyObject?.app_name && keyObject?.service_name)) {
-    return defaultValue;
-  }
-  try {
-    const key = `__${keyObject.app_name}__${keyObject.service_name}__`;
-    const listStr = localStorage.getItem(storageKey);
-    if (listStr) {
-      const list = JSON.parse(listStr);
-      for (const item of list) {
-        if (item.key === key) {
-          return item.value || defaultValue;
-        }
-      }
-    }
-  } catch (err) {
-    console.log(err);
-  }
-  return defaultValue;
-}
-
-/**
- * @description 记录调用者调用被调用者的类型
- * @param keyObject
- * @param kind
- */
-export function setRecordCallOptionKind(keyObject, kind) {
-  setRecord(recordCallOptionKindKey, keyObject, kind);
-}
-
-/**
- * @description 获取调用者调用被调用者的类型
- * @param keyObject
- * @returns
- */
-export function getRecordCallOptionKind(keyObject) {
-  return getRecord(recordCallOptionKindKey, keyObject, EKind.callee);
-}
-
-/**
- * @description 记录调用者调用被调用者的图表
- * @param keyObject
- * @param chart
- */
-export function setRecordCallOptionChart(keyObject, chart) {
-  setRecord(recordCallOptionChartKey, keyObject, chart);
-}
-
-/**
- * @description 获取调用者调用被调用者的图表
- * @param keyObject
- * @returns
- */
-export function getRecordCallOptionChart(keyObject) {
-  return getRecord(recordCallOptionChartKey, keyObject, EChartType.exceptionRate);
-}
-
-/**
- * @description 计算某个时间的前一天/前一周
- * @param timestamp
- * @returns
- */
-export function getPreviousDayAndWeekTimestamps(timestamp) {
-  const oneDayInMilliseconds = 24 * 60 * 60; // 一天的毫秒数
-  const oneWeekInMilliseconds = 7 * oneDayInMilliseconds; // 一周的毫秒数
-
-  const previousDayTimestamp = timestamp - oneDayInMilliseconds;
-  const previousWeekTimestamp = timestamp - oneWeekInMilliseconds;
-
-  return {
-    yesterday: previousDayTimestamp * 1000,
-    lastWeek: previousWeekTimestamp * 1000,
-  };
-}
-
-export function formatDateRange(start: number, end: number) {
-  const formatStr = 'MM-DD HH:mm:ss';
-  const year = new Date(start).getFullYear();
-  return `${year}（${dayjs(start).format(formatStr)} ~ ${dayjs(end).format(formatStr)}）`;
-}
-/**
- * @description 处理时间要展示的格式 2024（11-21  18:00:00 ～ 11-22  18:00:00）
- * @param timeArr
- * @returns
- */
-export function formatPreviousDayAndWeekTimestamps(timeArr: number[]) {
-  const start = getPreviousDayAndWeekTimestamps(timeArr[0]);
-  const end = getPreviousDayAndWeekTimestamps(timeArr[1]);
-
-  return {
-    '1d': formatDateRange(start.yesterday, end.yesterday),
-    '1w': formatDateRange(start.lastWeek, end.lastWeek),
-  };
-}
-
 export const createDrillDownList = (
-  menuList: { id: string; name: string; disabled: boolean; selected: boolean }[],
+  menuList: { disabled: boolean; id: string; name: string; selected: boolean }[],
   position: { x: number; y: number },
   clickHandler: (id: string) => void,
   instance: any
@@ -327,12 +327,12 @@ export const createDrillDownList = (
   const listEl = menuList
     .map(
       item =>
-        `<div class="${item.disabled ? 'contextmenu-list-item-disabled' : 'contextmenu-list-item'} ${item.selected ? 'active' : ''}" data-id="${item.id}" data-disabled="${item.disabled}" title="${item.disabled ? window.i18n.tc('当前维度外层已选中') : ''}">${item.name}</div>`
+        `<div class="${item.disabled ? 'contextmenu-list-item-disabled' : 'contextmenu-list-item'} ${item.selected ? 'active' : ''}" data-id="${item.id}" data-disabled="${item.disabled}" title="${item.disabled ? window.i18n.t('当前维度外层已选中') : ''}">${item.name}</div>`
     )
     .join('');
   el.innerHTML = `
   <div class="contextmenu-list-item-title">
-    ${window.i18n.tc('下钻至')}
+    ${window.i18n.t('下钻至')}
   </div>
   ${listEl}
 `;

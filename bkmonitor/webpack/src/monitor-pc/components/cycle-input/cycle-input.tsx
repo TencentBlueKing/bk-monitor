@@ -28,7 +28,7 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import { defaultCycleOptionMin, defaultCycleOptionSec, timeToSec } from './utils';
 
-import type { IEvent, IOption, IProps, IntervalType, unitType } from './typings';
+import type { IEvent, IntervalType, IOption, IProps, unitType } from './typings';
 
 import './cycle-input.scss';
 
@@ -49,7 +49,7 @@ export default class CycleInput extends tsc<IProps, IEvent> {
   @Prop({ default: 'body', type: String }) appendTo: string; // 默认挂在到body
   @Prop({ default: true, type: Boolean }) needAuto: boolean; // 是否需要自动周期
   // @Prop({ default: 's', type: String }) defaultUnit: unitType; // 默认秒
-
+  @Prop({ default: false, type: Boolean }) isNeedDefaultVal: boolean; // 是否需要设置默认值
   @Ref('cyclePopover') cyclePopoverRef: any;
   @Ref('unitPopover') unitPopoverRef: any;
 
@@ -97,6 +97,11 @@ export default class CycleInput extends tsc<IProps, IEvent> {
       this.unit = 'm';
       this.localValue = +timeVal[1] / 60;
     } else {
+      if (this.isNeedDefaultVal && val === 0) {
+        this.localValue = 0;
+        this.unit = 's';
+        return;
+      }
       this.localValue = +timeVal[1] || Math.max(this.minSec, 60);
       this.unit = (timeVal[2] || 's') as unitType;
     }
@@ -221,6 +226,7 @@ export default class CycleInput extends tsc<IProps, IEvent> {
         </bk-popover>
         <bk-popover
           ref='unitPopover'
+          class='cycle-unit-popover'
           animation='slide-toggle'
           arrow={false}
           disabled={this.localValue === 'auto'}
@@ -233,8 +239,8 @@ export default class CycleInput extends tsc<IProps, IEvent> {
           onHide={() => (this.unitActive = false)}
         >
           <span
-            v-en-style='min-width: 60px'
             class={['cycle-unit', { 'line-active': this.unitActive, 'unit-active': this.unitActive }]}
+            v-en-style='min-width: 60px'
             onClick={() => (this.unitActive = true)}
           >
             {this.unitName}

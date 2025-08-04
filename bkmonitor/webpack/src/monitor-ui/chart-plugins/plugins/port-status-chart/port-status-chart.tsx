@@ -39,14 +39,14 @@ import type { PanelModel } from '../../typings';
 import './port-status-chart.scss';
 
 export interface IStatusChartItem {
-  // 值
-  value: string;
+  // 状态名
+  name: string;
   // 背景色
   statusBgColor: string;
   // 状态色
   statusColor: string;
-  // 状态名
-  name: string;
+  // 值
+  value: string;
 }
 interface IPortStatusChartProps {
   panel?: PanelModel;
@@ -64,9 +64,9 @@ class PortStatusChart extends CommonSimpleChart {
     if (this.isFetchingData) return;
     this.isFetchingData = true;
     this.handleLoadingChange(true);
-    this.emptyText = window.i18n.tc('加载中...');
+    this.emptyText = window.i18n.t('加载中...');
     try {
-      this.unregisterOberver();
+      this.unregisterObserver();
       const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
       const params = {
         start_time: start_time ? dayjs.tz(start_time).unix() : startTime,
@@ -101,16 +101,16 @@ class PortStatusChart extends CommonSimpleChart {
       );
       const res = await Promise.all(promiseList).catch(() => false);
       if (res) {
-        this.inited = true;
+        this.initialized = true;
         this.empty = false;
-        this.emptyText = window.i18n.tc('查无数据');
+        this.emptyText = window.i18n.t('查无数据');
       } else {
-        this.emptyText = window.i18n.tc('查无数据');
+        this.emptyText = window.i18n.t('查无数据');
         this.empty = true;
       }
     } catch (e) {
       this.empty = true;
-      this.emptyText = window.i18n.tc('出错了');
+      this.emptyText = window.i18n.t('出错了');
       console.error(e);
     }
     this.isFetchingData = false;
@@ -121,11 +121,11 @@ class PortStatusChart extends CommonSimpleChart {
       <ul class='port-status-chart'>
         <ChartTitle
           class='draggable-handle'
-          draging={this.panel.draging}
+          dragging={this.panel.dragging}
           isInstant={this.panel.instant}
           showMore={false}
           title={this.panel.title}
-          onUpdateDragging={() => this.panel.updateDraging(false)}
+          onUpdateDragging={() => this.panel.updateDragging(false)}
         />
         {!this.empty && this.series?.length ? (
           this.series.map(item => (

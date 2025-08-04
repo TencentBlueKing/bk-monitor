@@ -7,7 +7,7 @@
   height: 100%;
   min-height: 22px;
   padding: 6px 0;
-  
+
   &.is-err {
     padding-right: 40px;
     background: #fff2f2;
@@ -82,7 +82,7 @@
       &.tag-key {
         background: #e8eee4;
         // border: 1px solid #eaebf0;
-    
+
         &:hover {
           background: #d5dccf;
           // border: 1px solid #dcdee5;
@@ -93,7 +93,7 @@
         color: #3a84ff;
         background: #f0f5ff;
         // border: 1px solid #e1ecff;
-    
+
         &:hover {
           background: #cedffb;
           //border: 1px solid #cedffb;
@@ -103,27 +103,41 @@
       &.tag-value {
         background: #f0f1f5;
         // border: 1px solid #eaebf0;
-    
+
         &:hover {
           background: #dcdee5;
           // border: 1px solid #dcdee5;
         }
-    
+
         .tag-value-name {
           max-width: 800px;
           overflow: hidden;
           text-overflow: ellipsis;
         }
-    
+
         .icon-mc-close {
           margin-left: 2px;
           font-size: 16px;
           color: #979ba5;
           cursor: pointer;
-    
+
           &:hover {
             color: #3a84ff;
           }
+        }
+      }
+
+      &.tag-more {
+        margin-left: 4px;
+        cursor: pointer;
+        background: #f0f1f5;
+
+        .more-icon {
+          margin-left: 2px;
+        }
+
+        &:hover {
+          background: #cedffb;
         }
       }
 
@@ -131,7 +145,7 @@
         color: #ff9c01;
         background: #fff1dc;
         border: 1px solid #ffe9c5;
-    
+
         &:hover {
           background: #ffe8c3;
           border: 1px solid #ffe8c3;
@@ -139,9 +153,9 @@
       }
 
       &.tag-del {
-        color: #979ba5;
         // display: none;
         visibility: hidden;
+        color: #979ba5;
         background: #fff;
         border: 1px solid #eaebf0;
 
@@ -174,7 +188,7 @@
 
       &.active {
         display: block;
-  
+
         .icon-plus-line {
           color: #3a84ff;
         }
@@ -230,8 +244,6 @@
 
       &.no-dispaly-none {
         display: block;
-
-        
       }
     }
   }
@@ -248,27 +260,33 @@
 
     .input-value {
       display: inline-block;
+      visibility: hidden;
       padding: 0 2px;
       font-family: inherit;
       font-size: inherit;
       line-height: normal;
-      visibility: hidden;
     }
 
     .input {
       position: absolute;
       box-sizing: border-box;
       width: 100%;
+      max-width: 100%;
       height: inherit;
-      padding: 0;
+      max-height: 22px;
       padding: 0 2px;
+      overflow-x: hidden;
+      overflow-y: auto;
       font-family: inherit;
       font-size: inherit;
-      border: 0;
+      line-height: 22px;
+      white-space: nowrap;
+      // 改为textarea输入框
+      resize: none;
       outline: none;
+      border: 0;
     }
   }
-
 }
 
 .common-condition-component-pop-wrap {
@@ -279,7 +297,7 @@
   }
 
   .search-wrap {
-    input { 
+    input {
       border: none;
     }
   }
@@ -335,7 +353,6 @@
     overflow-y: auto;
     border-top: 1px solid #dcdee5;
     border-radius: 2px;
-    box-shadow: 0 2px 6px 0 #0000001a;
 
     .list-item {
       display: flex;
@@ -378,9 +395,36 @@
         color: rgb(196, 198, 204);
       }
 
+      .list-item-right {
+        display: flex;
+        align-items: center;
+        margin-left: 16px;
+
+        .no-enable-strategy {
+          height: 22px;
+          padding: 0 8px;
+          margin-right: 10px;
+          line-height: 22px;
+          color: #4D4F56;
+          background: #F0F1F5;
+          border-radius: 2px;
+        }
+
+        .icon-fenxiang {
+          font-size: 12px;
+          color: #3A84FF;
+          cursor: pointer;
+        }
+
+        .icon-mc-check-small {
+          margin: 0 -5px 0 10px;
+        }
+      }
+
       &.mt1 {
         margin-top: 1px;
       }
+      
     }
 
     .no-data-item {
@@ -402,11 +446,16 @@
     height: 40px;
     cursor: pointer;
     background: #fafbfd;
-    border: 1px solid #dcdee5;
+    border-top: 1px solid #dcdee5;
     border-radius: 0 0 2px 2px;
 
     .icon-mc-delete-line {
       font-size: 16px;
+    }
+
+    .icon-zhongzhi1 {
+      font-size: 12px;
+      color: #4D4F56;
     }
 
     .del-text {
@@ -446,6 +495,10 @@
 
       &.no-data {
         cursor: auto;
+      }
+
+      .highlight {
+        color: #3a84ff;
       }
     }
   }

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -19,6 +18,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+
 from collections import namedtuple
 
 from apps.feature_toggle.handlers.toggle import FeatureToggleObject
@@ -89,7 +89,7 @@ class CleanFilterUtils:
                 collector_config_id=bk_data_clean.collector_config_id
             ).first()
             if not collector_config:
-                logger.error("can not find this collector_config {}".format(bk_data_clean.collector_config_id))
+                logger.error(f"can not find this collector_config {bk_data_clean.collector_config_id}")
                 continue
 
             self.cleans.append(
@@ -141,11 +141,11 @@ class CleanFilterUtils:
 
     @staticmethod
     def delete(collector_config_id: int):
-        from apps.log_databus.handlers.collector import CollectorHandler
+        from apps.log_databus.handlers.collector import HostCollectorHandler
         from apps.log_databus.serializers import FastCollectorUpdateSerializer
 
         params = {"etl_config": EtlConfig.BK_LOG_TEXT, "etl_params": {}}
         ser = FastCollectorUpdateSerializer(data=params)
         ser.is_valid(raise_exception=True)
-        CollectorHandler(collector_config_id=collector_config_id).fast_update(ser.data)
+        HostCollectorHandler(collector_config_id).fast_update(ser.data)
         return True

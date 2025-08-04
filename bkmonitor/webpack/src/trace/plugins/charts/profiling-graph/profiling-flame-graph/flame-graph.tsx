@@ -26,9 +26,8 @@
 
 import { computed, defineComponent, nextTick, onBeforeUnmount, ref, watch } from 'vue';
 import { shallowRef } from 'vue';
-import { useI18n } from 'vue-i18n';
 
-import { removeListener, addListener } from '@blueking/fork-resize-detector';
+import { addListener, removeListener } from '@blueking/fork-resize-detector';
 import { Exception, Message } from 'bkui-vue';
 import dayjs from 'dayjs';
 import { query } from 'monitor-api/modules/apm_profile';
@@ -39,13 +38,13 @@ import {
   recursionData,
 } from 'monitor-ui/chart-plugins/hooks/profiling-graph/use-profiling-flame-graph';
 import { COMPARE_DIFF_COLOR_LIST } from 'monitor-ui/chart-plugins/plugins/profiling-graph/flame-graph/utils';
-import { CommonMenuList, type ICommonMenuItem } from 'monitor-ui/chart-plugins/typings/flame-graph';
+import { type ICommonMenuItem, CommonMenuList } from 'monitor-ui/chart-plugins/typings/flame-graph';
 import { echarts } from 'monitor-ui/monitor-echarts/types/monitor-echarts';
 import { debounce } from 'throttle-debounce';
+import { useI18n } from 'vue-i18n';
 
 import type { IFlameGraphDataItem, IProfilingGraphData } from 'monitor-ui/chart-plugins/hooks/profiling-graph/types';
 import type { ProfileDataUnit } from 'monitor-ui/chart-plugins/plugins/profiling-graph/utils';
-import type { BaseDataType } from 'monitor-ui/chart-plugins/typings/flame-graph';
 
 import './flame-graph.scss';
 
@@ -54,7 +53,7 @@ export default defineComponent({
   name: 'FlameGraph',
   props: {
     data: {
-      type: Object as () => BaseDataType,
+      type: Object as () => IFlameGraphDataItem,
       default: () => {},
     },
     appName: {
@@ -144,10 +143,17 @@ export default defineComponent({
         isCompared: localIsCompared.value,
       });
     }
+    function hiddenLoading() {
+      nextTick(() => {
+        emit('update:loading', false);
+      });
+    }
     watch(
       [() => props.data, () => props.appName],
       debounce(16, async () => {
-        emit('update:loading', true);
+        if (!props.data) {
+          emit('update:loading', true);
+        }
         showException.value = false;
         chartInstance?.clear();
         chartInstance?.dispose();
@@ -177,7 +183,10 @@ export default defineComponent({
             }
             showException.value = false;
             await nextTick();
-            if (!chartRef.value?.clientWidth) return;
+            if (!chartRef.value?.clientWidth) {
+              hiddenLoading();
+              return;
+            }
             localIsCompared.value = props.isCompared;
             showException.value = false;
             profilingData.value = recursionData(data);
@@ -228,23 +237,22 @@ export default defineComponent({
                 });
               });
               chartInstance.on('contextmenu', (params: any) => {
-                console.info(params);
                 highlightNode.value = params.value[3];
                 contextMenuRect.value = { left: params.event.offsetX, top: params.event.offsetY };
                 showContextMenu.value = true;
               });
-              emit('update:loading', false);
+              hiddenLoading();
             }, 16);
             nextTick(() => {
-              emit('update:loading', false);
+              hiddenLoading();
             });
             return;
           }
           showException.value = true;
-          emit('update:loading', false);
+          hiddenLoading();
         } catch (e) {
-          console.error(e);
-          emit('update:loading', false);
+          console.warn(e);
+          hiddenLoading();
           showException.value = true;
         }
       }),
@@ -307,7 +315,9 @@ export default defineComponent({
       }
     );
     onBeforeUnmount(() => {
-      removeListener(wrapperRef.value, handleResizeGraph);
+      if (wrapperRef.value) {
+        removeListener(wrapperRef.value, handleResizeGraph);
+      }
     });
     return {
       chartRef,
@@ -324,6 +334,7 @@ export default defineComponent({
       showContextMenu,
       handleContextMenuClick,
       handleClickWrapper,
+      t,
     };
   },
   render() {
@@ -331,7 +342,7 @@ export default defineComponent({
       return (
         <Exception
           style='flex: 1'
-          description={this.$t('暂无数据')}
+          description={this.t('暂无数据')}
           type='empty'
         />
       );

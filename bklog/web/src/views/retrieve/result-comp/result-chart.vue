@@ -107,6 +107,7 @@
   import axios from 'axios';
   import { debounce } from 'throttle-debounce';
   import { mapGetters } from 'vuex';
+  import { BK_LOG_STORAGE } from '@/store/store.type.ts';
 
   const CancelToken = axios.CancelToken;
 
@@ -134,7 +135,6 @@
       return {
         timeRange: [],
         timer: null,
-        isFold: localStorage.getItem('chartIsFold') === 'true',
         intervalArr: [
           { id: 'auto', name: 'auto' },
           { id: '1m', name: '1 min' },
@@ -183,6 +183,10 @@
       };
     },
     computed: {
+      isFold() {
+        return this.$store.state.storage[BK_LOG_STORAGE.TREND_CHART_IS_FOLD]
+      },
+
       chartKey() {
         this.getInterval();
         return this.$store.state.retrieve.chartKey;
@@ -419,8 +423,7 @@
         }
       },
       toggleExpand(isFold) {
-        this.isFold = isFold;
-        localStorage.setItem('chartIsFold', isFold);
+        this.$store.commit('updateStorage', { [BK_LOG_STORAGE.TREND_CHART_IS_FOLD]: isFold });
         this.$refs.chartRef.handleToggleExpand(isFold);
       },
       handleMoreToolItemSet(event) {
@@ -469,7 +472,7 @@
 <style lang="scss">
   .monitor-echarts-container {
     position: relative;
-    height: 160px;
+    // height: 160px;
     overflow: hidden;
     background-color: #fff;
 
@@ -489,7 +492,7 @@
       display: inline-block;
       margin-left: 24px;
       font-size: 12px;
-      color: #63656e;
+      color: #4d4f56;
 
       .select-custom {
         display: inline-block;
@@ -526,7 +529,7 @@
     }
 
     .monitor-echart-wrap {
-      height: 116px;
+      // height: 116px;
       padding-top: 0;
       padding-bottom: 0;
 

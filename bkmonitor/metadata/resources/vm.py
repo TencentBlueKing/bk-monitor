@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,9 +7,9 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import logging
 from collections import OrderedDict
-from typing import Dict
 
 from django.conf import settings
 from django.db import transaction
@@ -18,6 +17,8 @@ from django.db.transaction import atomic
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
+from bkmonitor.utils.request import get_request_tenant_id
+from constants.common import DEFAULT_TENANT_ID
 from core.drf_resource import Resource
 from metadata import config, models
 from metadata.models.space.constants import SpaceTypes
@@ -25,7 +26,7 @@ from metadata.service.data_source import query_biz_plugin_data_id_list
 from metadata.service.vm_storage import (
     get_table_id_from_vm,
     query_bcs_cluster_vm_rts,
-    query_vm_datalink,
+    query_vm_datalink_all,
 )
 
 logger = logging.getLogger("metadata")
@@ -39,7 +40,7 @@ class CreateVmCluster(Resource):
         description = serializers.CharField(required=False, label="集群描述", default="vm 集群")
         is_default_cluster = serializers.BooleanField(required=False, label="是否设置为默认集群", default=False)
 
-    def perform_request(self, data: OrderedDict) -> Dict:
+    def perform_request(self, data: OrderedDict) -> dict:
         # 如果不设置为默认集群，则直接创建记录即可
         data["cluster_type"] = models.ClusterInfo.TYPE_VM
         if not data["is_default_cluster"]:
@@ -65,8 +66,8 @@ class QueryVmDatalink(Resource):
     class RequestSerializer(serializers.Serializer):
         bk_data_id = serializers.IntegerField(required=True, label="数据源 ID")
 
-    def perform_request(self, data: OrderedDict) -> Dict:
-        return query_vm_datalink(data["bk_data_id"])
+    def perform_request(self, data: OrderedDict) -> dict:
+        return query_vm_datalink_all(data["bk_data_id"])
 
 
 class QueryVmRtBySpace(Resource):
@@ -74,7 +75,7 @@ class QueryVmRtBySpace(Resource):
         space_type = serializers.CharField(required=True, label="空间类型")
         space_id = serializers.CharField(required=True, label="空间 ID")
 
-    def perform_request(self, data: OrderedDict) -> Dict:
+    def perform_request(self, data: OrderedDict) -> dict:
         # 通过空间转换业务ID
         biz_id = models.Space.objects.get_biz_id_by_space(space_type=data["space_type"], space_id=data["space_id"])
         if not biz_id:
@@ -111,7 +112,7 @@ class QueryBcsClusterVmTableIds(Resource):
     class RequestSerializer(serializers.Serializer):
         bcs_cluster_id = serializers.CharField(required=True, label="BCS 集群ID")
 
-    def perform_request(self, data: OrderedDict) -> Dict:
+    def perform_request(self, data: OrderedDict) -> dict:
         return query_bcs_cluster_vm_rts(data["bcs_cluster_id"])
 
 
@@ -122,7 +123,7 @@ class SwitchKafkaCluster(Resource):
         vm_table_id = serializers.CharField(required=False, allow_blank=True, label="VM结果表ID")
         kafka_cluster_id = serializers.IntegerField(required=True, label="要切换的kafka集群ID")
 
-        def validate(self, attrs: OrderedDict) -> Dict:
+        def validate(self, attrs: OrderedDict) -> dict:
             # 三个字段不能全为空， table_id 优先级最高，bk_base_data_id次之，最后是 vm 的结果表 id
             if not (attrs.get("table_id") or attrs.get("bk_base_data_id") or attrs.get("vm_table_id")):
                 raise ValidationError("params [table_id], [bk_base_data_id]及[vm_table_id] is null")
@@ -137,8 +138,17 @@ class SwitchKafkaCluster(Resource):
             return data
 
     def perform_request(self, validated_request_data: OrderedDict) -> None:
+        # 若开启多租户模式，需要获取租户ID
+        if settings.ENABLE_MULTI_TENANT_MODE:
+            bk_tenant_id = get_request_tenant_id()
+            logger.info("SwitchKafkaCluster: enable multi tenant mode,bk_tenant_id->[%s]", bk_tenant_id)
+        else:
+            bk_tenant_id = DEFAULT_TENANT_ID
+
         try:
-            obj = models.KafkaStorage.objects.get(table_id=validated_request_data["table_id"])
+            obj = models.KafkaStorage.objects.get(
+                table_id=validated_request_data["table_id"], bk_tenant_id=bk_tenant_id
+            )
         except models.KafkaStorage.DoesNotExist:
             raise ValidationError(f"not found kafka storage by table_id: {validated_request_data['table_id']}")
 
@@ -152,7 +162,7 @@ class SwitchKafkaCluster(Resource):
         # 获取数据源
         try:
             bk_data_id = models.DataSourceResultTable.objects.get(
-                table_id=validated_request_data["table_id"]
+                table_id=validated_request_data["table_id"], bk_tenant_id=bk_tenant_id
             ).bk_data_id
         except models.DataSourceResultTable.DoesNotExist:
             raise ValidationError(f"not found data source by table_id: {validated_request_data['table_id']}")
@@ -194,3 +204,33 @@ class NotifyDataLinkVmChange(Resource):
             vm_records.update(vm_cluster_id=vm_cluster.cluster_id)
 
         logger.info("NotifyDataLinkChangeStorageCluster: vmrt->[%s] has changed to cluster->[%s]", vmrt, cluster_name)
+
+
+class QueryMetaInfoByVmrt(Resource):
+    """
+    根据VMRT查询关联的元信息,包含DataId、TableId、DataName、BkBizId
+    """
+
+    class RequestSerializer(serializers.Serializer):
+        vmrt = serializers.CharField(required=True, label="VM结果表ID")
+
+    def perform_request(self, validated_request_data):
+        vmrt = validated_request_data.get("vmrt")
+
+        try:
+            vm_record = models.AccessVMRecord.objects.get(vm_result_table_id=vmrt)
+        except models.AccessVMRecord.DoesNotExist:
+            raise (ValidationError(f"not found vm record by vmrt: {vmrt}"))
+
+        result_table_id = vm_record.result_table_id
+        result_table = models.ResultTable.objects.get(table_id=result_table_id)
+        data_id = models.DataSourceResultTable.objects.get(table_id=result_table_id).bk_data_id
+        data_source = models.DataSource.objects.get(bk_data_id=data_id)
+
+        return {
+            "bk_data_id": data_id,
+            "data_name": data_source.data_name,
+            "monitor_table_id": result_table.table_id,
+            "vm_result_table_id": vmrt,
+            "bk_biz_id": result_table.bk_biz_id,
+        }

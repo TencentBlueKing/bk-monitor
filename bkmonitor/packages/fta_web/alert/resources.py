@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,11 +7,13 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import bisect
 import copy
 import csv
 import json
 import logging
+import re
 import time
 from abc import ABCMeta
 from collections import defaultdict, namedtuple
@@ -20,7 +21,7 @@ from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta
 from functools import reduce
 from io import StringIO
-from typing import Any, Dict, List, Tuple
+from typing import Any
 
 from django.conf import settings
 from django.core.cache import cache
@@ -55,12 +56,13 @@ from bkmonitor.models import (
     MetricListCache,
     StrategyModel,
 )
+from bkmonitor.models.bcs_cluster import BCSCluster
 from bkmonitor.share.api_auth_resource import ApiAuthResource
 from bkmonitor.strategy.new_strategy import Strategy, parse_metric_id
 from bkmonitor.utils.common_utils import count_md5
 from bkmonitor.utils.event_related_info import get_alert_relation_info
 from bkmonitor.utils.range import load_agg_condition_instance
-from bkmonitor.utils.request import get_request
+from bkmonitor.utils.request import get_request, get_request_tenant_id
 from bkmonitor.utils.time_tools import (
     datetime2timestamp,
     now,
@@ -89,7 +91,7 @@ from fta_web import constants
 from fta_web.alert.handlers.action import ActionQueryHandler
 from fta_web.alert.handlers.alert import AlertQueryHandler
 from fta_web.alert.handlers.alert_log import AlertLogHandler
-from fta_web.alert.handlers.base import BaseQueryHandler, query_cache
+from fta_web.alert.handlers.base import BaseQueryHandler
 from fta_web.alert.handlers.event import EventQueryHandler
 from fta_web.alert.handlers.translator import PluginTranslator
 from fta_web.alert.serializers import (
@@ -162,9 +164,9 @@ class GetFourMetricsData(Resource):
             for scenario_name, scenario_list in scenario.items():
                 page, page_size, fetched, total = 1, 1000, 0, 1
                 # 分页处理
-                conditions = ' OR '.join(f'告警名称 : "{item}"' for item in scenario_list)
+                conditions = " OR ".join(f'告警名称 : "{item}"' for item in scenario_list)
                 # 将生成的条件括在括号内
-                query_string = f'({conditions})'
+                query_string = f"({conditions})"
                 # 查询条件
                 while fetched < total:
                     request_body = {
@@ -179,12 +181,12 @@ class GetFourMetricsData(Resource):
                     }
                     handler = AlertQueryHandler(**request_body)
                     result = handler.search()
-                    total = result['total']
-                    fetched += len(result['alerts'])
+                    total = result["total"]
+                    fetched += len(result["alerts"])
                     page += 1
                     # 更新结果总数 供后面判断
-                    for alert in result['alerts']:
-                        scenario_totals[scenario_name][alert['bk_biz_id']] += 1
+                    for alert in result["alerts"]:
+                        scenario_totals[scenario_name][alert["bk_biz_id"]] += 1
                         # 日期 业务 告警指标
             for biz_id, biz in biz_info.items():
                 # 最后按业务插入当天的告警数据统计
@@ -203,7 +205,7 @@ class GetFourMetricsData(Resource):
             filename = f"data_{timestamp}.csv"
             output = StringIO()
             # 在内存读写文件 避免污染 Pod 的 OS 文件
-            output.write('\ufeff')
+            output.write("\ufeff")
             # 写入 utf-8 bom 避免纯文本乱码
             fieldnames = ["日期", "业务"] + list(scenario.keys())
             writer = csv.DictWriter(output, fieldnames=fieldnames)
@@ -211,8 +213,8 @@ class GetFourMetricsData(Resource):
             for row in ret:
                 writer.writerow(row)
             output.seek(0)
-            response = HttpResponse(output.getvalue().encode("utf-8"), content_type='text/csv; charset=utf-8')
-            response['Content-Disposition'] = f'attachment; filename={filename}'
+            response = HttpResponse(output.getvalue().encode("utf-8"), content_type="text/csv; charset=utf-8")
+            response["Content-Disposition"] = f"attachment; filename={filename}"
             return response
         else:
             return ret
@@ -225,8 +227,9 @@ class GetTmpData(Resource):
 
     def perform_request(self, validated_request_data):
         results_format = validated_request_data.get("results", "json")
-        start_time, end_time = validated_request_data.get("start_time", None), validated_request_data.get(
-            "end_time", None
+        start_time, end_time = (
+            validated_request_data.get("start_time", None),
+            validated_request_data.get("end_time", None),
         )
         biz_ids = validated_request_data.get("biz_ids", "")
         thedate = validated_request_data.get("thedate", None)
@@ -243,15 +246,15 @@ class GetTmpData(Resource):
             biz_info = {biz.bk_biz_id: biz for biz in biz_list if biz.bk_biz_id in target_biz_ids}
         else:
             tmp_biz_params = {
-                'bk_biz_ids': [-1],
-                'status': [],
-                'conditions': [],
-                'query_string': "",
-                'start_time': start_time,
-                'end_time': end_time,
-                'fields': ['bk_biz_id'],
-                'size': 100,
-                'bk_biz_id': -4228445,
+                "bk_biz_ids": [-1],
+                "status": [],
+                "conditions": [],
+                "query_string": "",
+                "start_time": start_time,
+                "end_time": end_time,
+                "fields": ["bk_biz_id"],
+                "size": 100,
+                "bk_biz_id": -4228445,
             }
             biz_ids = [int(i["id"]) for i in resource.alert.alert_top_n(tmp_biz_params)["fields"][0]["buckets"]]
             biz_info = {biz.bk_biz_id: biz for biz in biz_list if biz.bk_biz_id in biz_ids}
@@ -263,15 +266,15 @@ class GetTmpData(Resource):
         # 时间范围需要调整
         for biz in biz_info:
             params = {
-                'bk_biz_ids': [biz],
-                'status': [],
-                'conditions': constants.CONDITIONS_REQ,
-                'query_string': "",
-                'start_time': start_time,
-                'end_time': end_time,
-                'fields': ['plugin_id'],
-                'size': 10,
-                'bk_biz_id': biz,
+                "bk_biz_ids": [biz],
+                "status": [],
+                "conditions": constants.CONDITIONS_REQ,
+                "query_string": "",
+                "start_time": start_time,
+                "end_time": end_time,
+                "fields": ["plugin_id"],
+                "size": 10,
+                "bk_biz_id": biz,
             }
             ret[biz] = {i["id"]: i["count"] for i in resource.alert.alert_top_n(params)["fields"][0]["buckets"]}
         for biz, alert in ret.items():
@@ -292,7 +295,7 @@ class GetTmpData(Resource):
             filename = f"data_{timestamp}.csv"
             output = StringIO()
             # 在内存读写文件 避免污染 Pod 的 OS 文件
-            output.write('\ufeff')
+            output.write("\ufeff")
             # 写入 utf-8 bom 避免纯文本乱码
             fieldnames = constants.TMP_HEADERS
             writer = csv.DictWriter(output, fieldnames=fieldnames)
@@ -300,8 +303,8 @@ class GetTmpData(Resource):
             for row in results:
                 writer.writerow(row)
             output.seek(0)
-            response = HttpResponse(output.getvalue().encode("utf-8"), content_type='text/csv; charset=utf-8')
-            response['Content-Disposition'] = f'attachment; filename={filename}'
+            response = HttpResponse(output.getvalue().encode("utf-8"), content_type="text/csv; charset=utf-8")
+            response["Content-Disposition"] = f"attachment; filename={filename}"
             return response
         else:
             return results
@@ -333,7 +336,7 @@ class GetFourMetricsStrategy(Resource):
             )
             query = query.filter(is_enabled=True)
             # 使用 values 和 annotate 来按 bk_biz_id 分组，然后计算每组的数量
-            result = query.values("bk_biz_id").annotate(count=Count('id'))
+            result = query.values("bk_biz_id").annotate(count=Count("id"))
             # 整理结果
             for item in result:
                 bk_biz_id = int(item["bk_biz_id"])
@@ -354,7 +357,7 @@ class GetFourMetricsStrategy(Resource):
             filename = f"data_{timestamp}.csv"
             output = StringIO()
             # 在内存读写文件 避免污染 Pod 的 OS 文件
-            output.write('\ufeff')
+            output.write("\ufeff")
             # 写入 utf-8 bom 避免纯文本乱码
             fieldnames = ["业务"] + list(scenario.keys())
             writer = csv.DictWriter(output, fieldnames=fieldnames)
@@ -362,8 +365,8 @@ class GetFourMetricsStrategy(Resource):
             for row in results:
                 writer.writerow(row)
             output.seek(0)
-            response = HttpResponse(output.getvalue().encode("utf-8"), content_type='text/csv; charset=utf-8')
-            response['Content-Disposition'] = f'attachment; filename={filename}'
+            response = HttpResponse(output.getvalue().encode("utf-8"), content_type="text/csv; charset=utf-8")
+            response["Content-Disposition"] = f"attachment; filename={filename}"
             return response
         else:
             return results
@@ -410,7 +413,7 @@ class AlertPermissionResource(Resource):
         return False
 
     @classmethod
-    def filter_alert_ids(cls, alert_ids: List[int]):
+    def filter_alert_ids(cls, alert_ids: list[int]):
         """
         过滤出有权限的事件ID
         """
@@ -472,7 +475,7 @@ class AlertPermissionResource(Resource):
 
 class QuickActionTokenResource(AlertPermissionResource):
     def validate_request_data(self, request_data):
-        validated_data = super(QuickActionTokenResource, self).validate_request_data(request_data)
+        validated_data = super().validate_request_data(request_data)
         validated_data["alert_ids"] = self.validate_token(str(validated_data["action_id"]), validated_data["token"])
         return validated_data
 
@@ -484,11 +487,15 @@ class QuickActionTokenResource(AlertPermissionResource):
         except ActionInstance.DoesNotExist:
             action_doc = ActionInstanceDocument.get(action_id)
             if not action_doc:
-                raise CustomException(_("Resource[{}] 请求参数格式错误, 请求的通知ID不存在").format(self.get_resource_name()))
+                raise CustomException(
+                    _("Resource[{}] 请求参数格式错误, 请求的通知ID不存在").format(self.get_resource_name())
+                )
             create_timestamp = action_doc.create_time
             alert_ids = action_doc.alert_id
         if count_md5([action_id, create_timestamp]) != token:
-            raise CustomException(_("Resource[{}] 请求参数格式错误, 请求的token不正确").format(self.get_resource_name()))
+            raise CustomException(
+                _("Resource[{}] 请求参数格式错误, 请求的token不正确").format(self.get_resource_name())
+            )
         return alert_ids
 
     @staticmethod
@@ -529,7 +536,7 @@ class ListSearchHistoryResource(Resource):
             create_user=username, search_type=validated_request_data["search_type"]
         ).order_by("-create_time")
 
-        result: List[SearchHistory] = []
+        result: list[SearchHistory] = []
         params_set = set()
         for history in histories.iterator():
             query_string = history.params.get("query_string")
@@ -580,7 +587,6 @@ class AlertDateHistogramResource(Resource):
                 for sliced_start_time, sliced_end_time in slice_time_interval(start_time, end_time)
             ]
         )
-        query_cache.clear()
 
         data = {status: {} for status in EVENT_STATUS_DICT}
         for result in results:
@@ -626,11 +632,11 @@ class AlertDetailResource(Resource):
         id = AlertIDField(required=True, label="告警ID")
 
     @classmethod
-    def get_relation_info(cls, alert: AlertDocument):
+    def get_relation_info(cls, alert: AlertDocument, length_limit=True):
         """
         获取告警最近的日志
         """
-        return get_alert_relation_info(alert)
+        return get_alert_relation_info(alert, length_limit)
 
     def perform_request(self, validated_request_data):
         alert_id = validated_request_data["id"]
@@ -638,7 +644,7 @@ class AlertDetailResource(Resource):
         alert = AlertDocument.get(alert_id)
 
         graph_panel = AIOPSManager.get_graph_panel(alert)
-        relation_info = self.get_relation_info(alert)
+        relation_info = self.get_relation_info(alert, False)
 
         result = AlertQueryHandler.clean_document(alert)
         result["plugin_display_name"] = PluginTranslator().translate([result["plugin_id"]])[result["plugin_id"]]
@@ -647,8 +653,34 @@ class AlertDetailResource(Resource):
 
         topo_info = result["extend_info"].get("topo_info", "")
         result["relation_info"] = f"{topo_info} {relation_info}"
+        self.add_project_name(result)
 
         return result
+
+    @classmethod
+    def add_project_name(cls, data):
+        """
+        如果维度中存在key=tags.bcs_cluster_id，则在维度中增加project_name字段
+        用于前端进行集群跳转
+
+        data["dimensions"]:[
+            {
+              "display_value": "BCS-K8S-00000(蓝鲸7.0)",
+              "display_key": "bcs_cluster_id",
+              "value": "BCS-K8S-00000",
+              "key": "tags.bcs_cluster_id"
+            }
+        ]
+        """
+        for d in data["dimensions"]:
+            if d["key"].replace("tags.", "") != "bcs_cluster_id":
+                continue
+
+            cluster = BCSCluster.objects.filter(bcs_cluster_id=d["value"]).first()
+            if cluster and cluster.space_uid:
+                d["project_name"] = cluster.space_uid.split("__")[1]
+            else:
+                d["project_name"] = ""
 
 
 class GetExperienceResource(ApiAuthResource):
@@ -719,7 +751,9 @@ class SaveExperienceResource(Resource):
 
         description = serializers.CharField(required=True, label="处理描述")
         type = serializers.ChoiceField(label="类型", choices=AlertSuggestion.TYPE_CHOICES)
-        conditions = serializers.ListField(default=[], label="查询条件", allow_empty=True, child=serializers.DictField())
+        conditions = serializers.ListField(
+            default=[], label="查询条件", allow_empty=True, child=serializers.DictField()
+        )
 
         def validate(self, attrs):
             if "alert_id" not in attrs and "metric_id" not in attrs:
@@ -892,7 +926,7 @@ class AlertRelatedInfoResource(Resource):
             return attrs
 
     @staticmethod
-    def get_cmdb_related_info(alerts: List[AlertDocument]) -> Dict[str, Dict]:
+    def get_cmdb_related_info(alerts: list[AlertDocument]) -> dict[str, dict]:
         """
         查询事件拓扑信息
 
@@ -945,15 +979,17 @@ class AlertRelatedInfoResource(Resource):
 
         set_template = _("集群({}) ")
         module_template = _("模块({})")
+        environment_template = _(" 环境类型({})")
+        environment_mapping = {"1": _("测试"), "2": _("体验"), "3": _("正式")}
 
         def enrich_related_infos(bk_biz_id, instances):
             ips = instances["ips"]
             service_instance_ids = instances["service_instance_ids"]
             host_ids = instances["host_ids"]
             # 查询主机和服务实例信息
-            hosts: List[Host] = api.cmdb.get_host_by_ip(bk_biz_id=bk_biz_id, ips=list(ips.values()))
+            hosts: list[Host] = api.cmdb.get_host_by_ip(bk_biz_id=bk_biz_id, ips=list(ips.values()))
             hosts.extend(api.cmdb.get_host_by_id(bk_biz_id=bk_biz_id, bk_host_ids=list(host_ids.values())))
-            service_instances: List[ServiceInstance] = api.cmdb.get_service_instance_by_id(
+            service_instances: list[ServiceInstance] = api.cmdb.get_service_instance_by_id(
                 bk_biz_id=bk_biz_id, service_instance_ids=list(service_instance_ids.values())
             )
 
@@ -976,6 +1012,7 @@ class AlertRelatedInfoResource(Resource):
             sets = api.cmdb.get_set(bk_biz_id=bk_biz_id, bk_set_ids=list(module_to_set.values()))
             module_names = {module.bk_module_id: module.bk_module_name for module in modules}
             set_names = {s.bk_set_id: s.bk_set_name for s in sets}
+            environment_types = {s.bk_set_id: s.bk_set_env for s in sets}
 
             # 事件对应到模块ID
             alert_to_module_ids = {}
@@ -1012,6 +1049,18 @@ class AlertRelatedInfoResource(Resource):
                         [module_names[bk_module_id] for bk_module_id in bk_module_ids if bk_module_id in module_names]
                     )
                 )
+
+                if environment_types and bk_set_ids:
+                    environments = []
+                    for bk_set_id in bk_set_ids:
+                        environment_type_id = environment_types.get(bk_set_id)
+                        if environment_type_id is not None:
+                            environment = environment_mapping.get(environment_type_id, str(environment_type_id))
+                            environments.append(environment)
+
+                    if environments:
+                        topo_info += environment_template.format(",".join(environments))
+
                 related_infos[alert_id]["topo_info"] = topo_info
 
         # 多线程处理每个业务的主机和服务实例信息
@@ -1021,7 +1070,7 @@ class AlertRelatedInfoResource(Resource):
         return related_infos
 
     @staticmethod
-    def get_log_related_info(alerts: List[AlertDocument]) -> Dict[str, Dict]:
+    def get_log_related_info(alerts: list[AlertDocument]) -> dict[str, dict]:
         """
         日志平台关联信息
 
@@ -1056,7 +1105,7 @@ class AlertRelatedInfoResource(Resource):
         return related_infos
 
     @staticmethod
-    def get_custom_event_related_info(alerts: List[AlertDocument]) -> Dict[str, Dict]:
+    def get_custom_event_related_info(alerts: list[AlertDocument]) -> dict[str, dict]:
         """
         自定义事件关联信息
 
@@ -1094,7 +1143,7 @@ class AlertRelatedInfoResource(Resource):
         return related_infos
 
     @staticmethod
-    def get_bkdata_related_info(alerts: List[AlertDocument]) -> Dict[str, Dict]:
+    def get_bkdata_related_info(alerts: list[AlertDocument]) -> dict[str, dict]:
         """
         数据平台关联信息
         {
@@ -1255,9 +1304,13 @@ class AlertGraphQueryResource(ApiAuthResource):
             index_set_id = serializers.IntegerField(required=False, label="索引集ID")
             functions = serializers.ListField(label="查询函数", default=[])
 
-            def validate(self, attrs: Dict) -> Dict:
+            def validate(self, attrs: dict) -> dict:
                 if attrs["data_source_label"] == DataSourceLabel.BK_LOG_SEARCH and not attrs.get("index_set_id"):
                     raise ValidationError("index_set_id can not be empty.")
+                for condition in attrs["where"]:
+                    if isinstance(condition["value"], list):
+                        if len(condition["value"]) == 1 and None in condition["value"]:
+                            condition["value"].remove(None)
                 return attrs
 
         id = serializers.IntegerField(label="事件ID")
@@ -1269,7 +1322,7 @@ class AlertGraphQueryResource(ApiAuthResource):
         start_time = serializers.IntegerField(required=False, label="开始时间")
         end_time = serializers.IntegerField(required=False, label="结束时间")
 
-    def perform_request(self, params: Dict):
+    def perform_request(self, params: dict):
         alert = AlertDocument.get(params["id"])
         if not params.get("query_configs"):
             graph_query_config = AIOPSManager.get_graph_panel(alert, compare_function={})
@@ -1430,12 +1483,17 @@ class SearchAlertResource(Resource):
         show_dsl = serializers.BooleanField(label="展示DSL", default=False)
         record_history = serializers.BooleanField(label="是否保存收藏历史", default=False)
         must_exists_fields = serializers.ListField(label="必要字段", child=serializers.CharField(), default=[])
+        replace_time_range = serializers.BooleanField(label="是否替换时间范围", default=False)
 
     def perform_request(self, validated_request_data):
         show_overview = validated_request_data.pop("show_overview")
         show_aggs = validated_request_data.pop("show_aggs")
         show_dsl = validated_request_data.pop("show_dsl")
         record_history = validated_request_data.pop("record_history")
+
+        # 替换时间范围
+        if validated_request_data.get("replace_time_range"):
+            validated_request_data = self.replace_time(validated_request_data)
 
         handler = AlertQueryHandler(**validated_request_data)
 
@@ -1448,6 +1506,35 @@ class SearchAlertResource(Resource):
 
         return result
 
+    @staticmethod
+    def replace_time(request_data: dict) -> dict:
+        """
+        根据查询字符串中的告警ID/处理记录ID，动态调整时间范围
+        规则：提取所有ID的前10位作为基准时间戳，前后扩展1小时
+        """
+
+        one_hour_in_seconds = 3600  # 一小时的秒数
+        timestamp_length = 10  # 时间戳位数
+
+        query_string = request_data.get("query_string", "")
+
+        # 匹配所有告警ID/处理记录ID
+        id_matches = re.findall(r"(告警ID|处理记录ID)\s*:\s*(\d+)", query_string)
+        if not id_matches:
+            return request_data
+
+        # 提取出所有的时间戳
+        timestamps = [int(match[1][:timestamp_length]) for match in id_matches]
+
+        min_timestamp = min(timestamps)  # 最小时间戳
+        max_timestamp = max(timestamps)  # 最大时间戳
+
+        # 计算新的时间范围，确保原本提供的时间范围也被包含，以确保如果存在其他查询条件时，新的范围能够覆盖所有情况
+        request_data["start_time"] = min(min_timestamp - one_hour_in_seconds, request_data["start_time"])
+        request_data["end_time"] = max(max_timestamp + one_hour_in_seconds, request_data["end_time"])
+
+        return request_data
+
 
 class ExportAlertResource(Resource):
     """
@@ -1456,6 +1543,7 @@ class ExportAlertResource(Resource):
 
     class RequestSerializer(AlertSearchSerializer):
         ordering = serializers.ListField(label="排序", child=serializers.CharField(), default=[])
+        bk_biz_id = serializers.IntegerField(label="业务ID", required=True)
 
     def perform_request(self, validated_request_data):
         handler = AlertQueryHandler(**validated_request_data)
@@ -1467,7 +1555,7 @@ class ExportAlertResource(Resource):
             # 更新关联信息
             alert.update({AlertFieldDisplay.RELATED_INFO: related_infos.get(alert[id_key], {})})
 
-        return resource.export_import.export_package(list_data=alerts)
+        return resource.export_import.export_package(list_data=alerts, bk_biz_id=validated_request_data["bk_biz_id"])
 
 
 class SearchEventResource(ApiAuthResource):
@@ -1483,7 +1571,7 @@ class SearchEventResource(ApiAuthResource):
         show_raw = serializers.BooleanField(label="是否展示原始事件", default=False)
 
     @staticmethod
-    def get_dedupe_md5_set(alert, start_time, end_time, interval):
+    def get_dedupe_md5_set(alert: AlertDocument, start_time: int, end_time: int, interval: int):
         dedupe_md5_set = set()
         for query_config in alert.strategy["items"][0]["query_configs"]:
             query_config["agg_dimension"] = ["dedupe_md5"]
@@ -1659,7 +1747,7 @@ class SubActionDetailResource(ApiAuthResource):
                 continue
             for action_id in action["outputs"].get("related_actions", []):
                 notice_way, notice_receiver = self.get_action_notice_info(action)
-                action_relation["{}_{}_{}".format(str(action_id), notice_way, notice_receiver)] = action
+                action_relation[f"{str(action_id)}_{notice_way}_{notice_receiver}"] = action
 
         for action in sub_actions:
             notice_way, notice_receiver = self.get_action_notice_info(action)
@@ -1810,7 +1898,6 @@ class ValidateQueryString(Resource):
         }
         search_type = validated_request_data["search_type"]
         ret = transformer_cls[search_type].transform_query_string(query_string=validated_request_data["query_string"])
-        query_cache.clear()
         return ret
 
 
@@ -1867,7 +1954,6 @@ class AlertTopNResource(Resource):
                 for index, (sliced_start_time, sliced_end_time) in enumerate(slice_times)
             ]
         )
-        query_cache.clear()
 
         result = {
             "doc_count": 0,
@@ -1982,9 +2068,9 @@ class ListAlertTagsResource(Resource):
         id_map = {}
         for sliced_result in results:
             for tag in sliced_result:
-                if tag['id'] not in id_map:
+                if tag["id"] not in id_map:
                     result.append(copy.deepcopy(tag))
-                    id_map[tag['id']] = len(result) - 1
+                    id_map[tag["id"]] = len(result) - 1
                 else:
                     index = id_map[tag["id"]]
                     result[index]["count"] += tag["count"]
@@ -1996,7 +2082,7 @@ class StrategySnapshotResource(Resource):
     获取策略快照
     """
 
-    class ConfigChangedStatus(object):
+    class ConfigChangedStatus:
         """
         策略配置变更状态
         """
@@ -2069,7 +2155,7 @@ class SearchAlertByEventResource(Resource):
         if alert.strategy_id is None:
             # 如果策略ID不存在，通过target， create_time, 告警名称事件查询
             # 告警ID不存在的，都是通过fta接入
-            metric_id = ["bk_fta.event.{}".format(alert.alert_name), "bk_fta.alert.{}".format(alert.alert_name)]
+            metric_id = [f"bk_fta.event.{alert.alert_name}", f"bk_fta.alert.{alert.alert_name}"]
             new_event = None
             try:
                 new_event = EventDocument.get_by_metric_id_and_target(metric_id, event.target, event.time)
@@ -2079,7 +2165,7 @@ class SearchAlertByEventResource(Resource):
                 try:
                     alert = AlertDocument.get_by_dedupe_md5(new_event.dedupe_md5, new_event.time)
                 except AlertNotFoundError:
-                    logger.info("no handle alert for event(%s)" % event.event_id)
+                    logger.info(f"no handle alert for event({event.event_id})")
 
         all_actions = ActionInstanceDocument.mget_by_alert(alert_ids=[alert.id])
 
@@ -2127,7 +2213,7 @@ class SearchAlertByEventResource(Resource):
             "status": alert.status,
             "plugin_id": getattr(alert.event, "plugin_id", None),
             "is_builtin_assign": is_builtin_assign,
-            "target_key": "{}|{}".format(event.target_type.lower(), event.target),
+            "target_key": f"{event.target_type.lower()}|{event.target}",
             "assignee": [assignee for assignee in alert.assignee],
             "event": event_info,
             "is_shielded": alert.is_shielded is True,
@@ -2246,7 +2332,7 @@ class AIOpsBaseResource(Resource, metaclass=ABCMeta):
     class RequestSerializer(serializers.Serializer):
         alert_id = AlertIDField(required=True, label="告警ID")
 
-    def get_cache_results(self, alert_id: str) -> Dict:
+    def get_cache_results(self, alert_id: str) -> dict:
         """获取缓存的AIOps类数据的缓存.
 
         :param alert_id: 告警ID
@@ -2254,7 +2340,7 @@ class AIOpsBaseResource(Resource, metaclass=ABCMeta):
         cache_key = f"{alert_id}_{self.CACHE_SCOPE}_cache"
         return cache.get(cache_key)
 
-    def set_cache_results(self, alert_id: str, cache_result: Dict, timeout: int = 86400) -> Dict:
+    def set_cache_results(self, alert_id: str, cache_result: dict, timeout: int = 86400) -> dict:
         """把AIOps类数据缓存到cache中.
 
         :param alert_id: 告警ID
@@ -2262,7 +2348,7 @@ class AIOpsBaseResource(Resource, metaclass=ABCMeta):
         cache_key = f"{alert_id}_{self.CACHE_SCOPE}_cache"
         return cache.set(cache_key, cache_result, timeout=timeout)
 
-    def cache_valid(self, alert: AlertDocument, cache_result: Dict) -> bool:
+    def cache_valid(self, alert: AlertDocument, cache_result: dict) -> bool:
         """判断当前cache是否还在有效期内.
 
         :param alert: 告警详情
@@ -2294,9 +2380,9 @@ class DimensionDrillDownResource(AIOpsBaseResource):
     维度下钻详情
     """
 
-    CACHE_SCOPE = 'drill_down'
+    CACHE_SCOPE = "drill_down"
 
-    def cache_valid(self, alert: AlertDocument, cache_result: Dict) -> bool:
+    def cache_valid(self, alert: AlertDocument, cache_result: dict) -> bool:
         """判断当前cache是否还在有效期内.
 
         :param cache_result: 缓存的内容
@@ -2312,13 +2398,13 @@ class MetricRecommendationResource(AIOpsBaseResource):
     指标推荐详情
     """
 
-    CACHE_SCOPE = 'metric_recommend'
+    CACHE_SCOPE = "metric_recommend"
 
-    def fetch_aiops_result(self, alert: AlertDocument) -> Dict:
+    def fetch_aiops_result(self, alert: AlertDocument) -> dict:
         return RecommendMetricManager(alert).fetch_aiops_result()
 
     def perform_request(self, validated_request_data):
-        result = super(MetricRecommendationResource, self).perform_request(validated_request_data)
+        result = super().perform_request(validated_request_data)
 
         # 参数列表,每个列表同位置的元素一一对应，共同组成一对查询参数
         alert_metric_ids = []
@@ -2408,7 +2494,7 @@ class MetricRecommendationFeedbackResource(Resource):
         return good_count, bad_count
 
     @staticmethod
-    def get_feedback_count_batch(alert_metric_ids: List, rec_metric_hashs: List, bk_biz_ids: List) -> Dict:
+    def get_feedback_count_batch(alert_metric_ids: list, rec_metric_hashs: list, bk_biz_ids: list) -> dict:
         """批量获取业务下，告警指标,被推荐指标关系下的点赞和点踩数
         每个参数列表同位置的元素一一对应，共同组成一对查询参数。
         非批量查询时，model.objects.filter(alert_metric_id=alert_metric_ids[0],
@@ -2432,7 +2518,7 @@ class MetricRecommendationFeedbackResource(Resource):
             DQ(alert_metric_id__in=alert_metric_ids)
             & DQ(bk_biz_id__in=bk_biz_ids)
             & DQ(recommendation_metric_hash__in=rec_metric_hashs)
-        ).values_list('alert_metric_id', 'recommendation_metric_hash', 'bk_biz_id', 'feedback')
+        ).values_list("alert_metric_id", "recommendation_metric_hash", "bk_biz_id", "feedback")
 
         # 统计每个组合的点赞和点踩数
         for alert_id, rec_metric_hash, bk_biz_id, feedback in feedback_data:
@@ -2475,8 +2561,8 @@ class MetricRecommendationFeedbackResource(Resource):
 
     @classmethod
     def get_feedback_batch(
-        cls, alert_metric_ids: List, rec_metric_hashs: List, bk_biz_ids: List, usernames: List
-    ) -> Dict:
+        cls, alert_metric_ids: list, rec_metric_hashs: list, bk_biz_ids: list, usernames: list
+    ) -> dict:
         """批量获取用户的反馈
         每个参数列表同位置的元素一一对应，共同组成一对查询参数。
         非批量查询时，model.objects.filter(alert_metric_id=alert_metric_ids[0],
@@ -2499,12 +2585,12 @@ class MetricRecommendationFeedbackResource(Resource):
             & DQ(recommendation_metric_hash__in=rec_metric_hashs)
             & DQ(bk_biz_id__in=bk_biz_ids)
             & DQ(create_user__in=usernames)
-        ).values('alert_metric_id', 'recommendation_metric_hash', 'bk_biz_id', 'create_user', 'feedback')
+        ).values("alert_metric_id", "recommendation_metric_hash", "bk_biz_id", "create_user", "feedback")
 
         # 构建字典，用于快速查找反馈对象
         feedback_dict = {
-            (fo['alert_metric_id'], fo['recommendation_metric_hash'], fo['bk_biz_id'], fo['create_user']): fo[
-                'feedback'
+            (fo["alert_metric_id"], fo["recommendation_metric_hash"], fo["bk_biz_id"], fo["create_user"]): fo[
+                "feedback"
             ]
             for fo in feedback_objects
         }
@@ -2632,7 +2718,7 @@ class MultiAnomalyDetectGraphResource(AIOpsBaseResource):
 
         return graph_panels
 
-    def generate_metric_graph_panel(self, base_graph_panel: Dict, anomaly_metric: List) -> Dict:
+    def generate_metric_graph_panel(self, base_graph_panel: dict, anomaly_metric: list) -> dict:
         """根据图表基础配置和指标ID生成指标图表配置
 
         :param base_graph_panel: 基础图表配置
@@ -2648,7 +2734,7 @@ class MultiAnomalyDetectGraphResource(AIOpsBaseResource):
         if not metric_info:
             return {}
 
-        metric = MetricListCache.objects.filter(**metric_info).first()
+        metric = MetricListCache.objects.filter(bk_tenant_id=get_request_tenant_id(), **metric_info).first()
         if not metric:
             return {}
 
@@ -2749,7 +2835,8 @@ class QuickAlertAck(QuickActionTokenResource):
             return self.redirect(validated_data["bk_biz_id"], validated_data["action_id"])
 
         return _(
-            "完成快捷确认, 成功({success_alerts})，失败({failed_alerts})，" "已确认({alerts_already_ack})，已结束({alerts_not_abnormal})"
+            "完成快捷确认, 成功({success_alerts})，失败({failed_alerts})，"
+            "已确认({alerts_already_ack})，已结束({alerts_not_abnormal})"
         ).format(
             success_alerts=len(result["alerts_ack_success"]),
             failed_alerts=len(result["alerts_not_exist"]),
@@ -2781,7 +2868,7 @@ class GetAlertDataRetrievalResource(Resource):
         alert_id = AlertIDField(required=True, label="告警ID")
 
     @classmethod
-    def metric_query_config_to_query(cls, query_config: Dict, filter_dict: Dict) -> Dict:
+    def metric_query_config_to_query(cls, query_config: dict, filter_dict: dict) -> dict:
         """
         将query_config转换为图标查询配置
         """
@@ -2823,14 +2910,14 @@ class GetAlertDataRetrievalResource(Resource):
         return query
 
     @classmethod
-    def generate_event_query_params(cls, item: Dict, filter_dict: Dict) -> Dict:
+    def generate_event_query_params(cls, item: dict, filter_dict: dict) -> dict:
         """
         TODO: 事件检索跳转参数
         """
         return {}
 
     @classmethod
-    def generate_metric_query_params(cls, item: Dict, filter_dict: Dict) -> List[Dict]:
+    def generate_metric_query_params(cls, item: dict, filter_dict: dict) -> list[dict]:
         """
         指标检索跳转参数
         """
@@ -2880,7 +2967,7 @@ class GetAlertDataRetrievalResource(Resource):
 
         return [{"data": {"mode": "ui", "query_configs": queries, "expressionList": expressions}}]
 
-    def perform_request(self, params: Dict[str, Any]):
+    def perform_request(self, params: dict[str, Any]):
         alert_id = params["alert_id"]
         alert = AlertDocument.get(alert_id)
         if not alert.strategy:
@@ -2891,7 +2978,7 @@ class GetAlertDataRetrievalResource(Resource):
         if not query_configs:
             return []
 
-        data_source: Tuple[str, str] = (query_configs[0]["data_source_label"], query_configs[0]["data_type_label"])
+        data_source: tuple[str, str] = (query_configs[0]["data_source_label"], query_configs[0]["data_type_label"])
 
         # 根据告警维度生成过滤条件
         filter_dict = {}

@@ -38,9 +38,9 @@ import type { IFavList } from '../../typings';
 import './shared-dialog.scss';
 
 interface IProps {
-  value?: boolean;
   favoriteConfig: IFavList.favList;
   favoriteSearchType: string;
+  value?: boolean;
 }
 
 @Component
@@ -119,7 +119,7 @@ export default class SharedDialog extends tsc<IProps> {
       }
     });
     const allList: IListItem[] = [];
-    if (!!list.children.length) {
+    if (list.children.length) {
       list.children = list.children.slice(0, 500);
       allList.push(list);
     }

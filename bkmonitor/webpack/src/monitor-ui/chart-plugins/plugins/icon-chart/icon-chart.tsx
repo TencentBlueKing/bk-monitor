@@ -35,14 +35,14 @@ import type { PanelModel } from '../../typings';
 
 import './icon-chart.scss';
 
-interface IIconChartProps {
-  panel: PanelModel;
-}
-
 enum StatusIconEnum {
   FAILD = 'minus-line',
   SUCCESS = 'check-line',
   WARNING = 'close-line-2',
+}
+
+interface IIconChartProps {
+  panel: PanelModel;
 }
 
 type StatusType = 'FAILD' | 'SUCCESS' | 'WARNING';
@@ -51,8 +51,8 @@ type StatusType = 'FAILD' | 'SUCCESS' | 'WARNING';
 class IconChart extends CommonSimpleChart {
   /** 图表数据 */
   chartDataList: any[] = [];
-  inited = false;
-  emptyText = window.i18n.tc('查无数据');
+  initialized = false;
+  emptyText = window.i18n.t('查无数据');
   empty = true;
 
   /**
@@ -61,15 +61,15 @@ class IconChart extends CommonSimpleChart {
   async getPanelData(start_time?: string, end_time?: string) {
     if (!this.isInViewPort()) {
       if (this.intersectionObserver) {
-        this.unregisterOberver();
+        this.unregisterObserver();
       }
       this.registerObserver(start_time, end_time);
       return;
     }
     this.handleLoadingChange(true);
-    this.emptyText = window.i18n.tc('加载中...');
+    this.emptyText = window.i18n.t('加载中...');
     try {
-      this.unregisterOberver();
+      this.unregisterObserver();
       const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
       const params = {
         start_time: start_time ? dayjs.tz(start_time).unix() : startTime,
@@ -102,16 +102,16 @@ class IconChart extends CommonSimpleChart {
       data && this.updateChartData(data);
       if (data) {
         this.updateChartData(data);
-        this.inited = true;
+        this.initialized = true;
         this.empty = false;
         if (!data.length) {
-          this.emptyText = window.i18n.tc('查无数据');
+          this.emptyText = window.i18n.t('查无数据');
           this.empty = true;
         }
       }
     } catch (e) {
       this.empty = true;
-      this.emptyText = window.i18n.tc('出错了');
+      this.emptyText = window.i18n.t('出错了');
       console.error(e);
     }
     this.handleLoadingChange(false);
@@ -122,7 +122,7 @@ class IconChart extends CommonSimpleChart {
    */
   updateChartData(srcData) {
     this.chartDataList = srcData.reduce((total, cur) => {
-      if (!!cur) return total.concat(cur);
+      if (cur) return total.concat(cur);
       return total;
     }, []);
   }

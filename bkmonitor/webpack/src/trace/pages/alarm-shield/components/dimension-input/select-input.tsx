@@ -23,12 +23,12 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { type PropType, computed, defineComponent, nextTick, reactive, ref, watch } from 'vue';
-import { useI18n } from 'vue-i18n';
+import { type PropType, computed, defineComponent, nextTick, reactive, shallowRef, watch } from 'vue';
 
-import { Input, Loading, OverflowTitle, Popover, Radio, bkTooltips } from 'bkui-vue';
+import { bkTooltips, Input, Loading, OverflowTitle, Popover, Radio } from 'bkui-vue';
 import { getMetricListV2, getStrategyListV2, promqlToQueryConfig } from 'monitor-api/modules/strategies';
 import { debounce } from 'monitor-common/utils';
+import { useI18n } from 'vue-i18n';
 
 import EmptyStatus from '../../../../components/empty-status/empty-status';
 
@@ -37,6 +37,7 @@ import type { IDimensionItem } from '../../typing';
 import './select-input.scss';
 
 export const ALL = 'ALL';
+const changeDebounceTime = 300;
 
 interface IListItem {
   id: string;
@@ -105,11 +106,11 @@ export default defineComponent({
     },
   },
   setup(props) {
-    const popoverRef = ref(null);
-    const strategySearchRef = ref(null);
+    const popoverRef = shallowRef(null);
+    const strategySearchRef = shallowRef(null);
     const { t } = useI18n();
-    const localValue = ref('');
-    const localList = ref([]);
+    const localValue = shallowRef('');
+    const localList = shallowRef([]);
 
     /* 维度选择框面板数据 */
     const selectData = reactive({
@@ -131,9 +132,10 @@ export default defineComponent({
       rightLoading: false,
       leftLoading: false,
     });
-    const curMetricMeta = ref(null);
+    const curMetricMeta = shallowRef(null);
+    const notChange = shallowRef(false);
 
-    const debounceHandleChange = debounce(handleChange, 300, false);
+    const debounceHandleChange = debounce(handleChange, changeDebounceTime, false);
     const debounceHandleStrategySearch = debounce(handleStrategySearch, 300, false);
     const debounceHandleOptionSearch = debounce(handleOptionSearch, 300, false);
 
@@ -154,7 +156,9 @@ export default defineComponent({
     watch(
       () => props.value,
       v => {
-        localValue.value = v;
+        if (v !== localValue.value) {
+          localValue.value = v;
+        }
       },
       {
         immediate: true,
@@ -199,7 +203,21 @@ export default defineComponent({
     const searchList = computed(() => {
       if (localValue.value) {
         const isCheck = localList.value.some(item => item.name === localValue.value || item.id === localValue.value);
-        return localList.value.filter(item => item.name.indexOf(localValue.value) >= 0 || isCheck);
+        const lowerSearch = localValue.value.toLocaleLowerCase();
+        return localList.value.filter(item => {
+          const idLower = `${item.id}`.toLocaleLowerCase();
+          const nameLower = `${item.name}`.toLocaleLowerCase();
+          if (isCheck) {
+            return true;
+          }
+          if (idLower.includes(lowerSearch)) {
+            return true;
+          }
+          if (nameLower.includes(lowerSearch)) {
+            return true;
+          }
+          return false;
+        });
       }
       return localList.value;
     });
@@ -225,13 +243,11 @@ export default defineComponent({
      * @param v
      */
     function handleChange(v: string) {
-      props.onChange(v);
+      if (!notChange.value) {
+        props.onChange(v);
+      }
     }
-    /**
-     * @description 输入时
-     * @param v
-     */
-    function handleInput(v) {
+    function handleInputChange(v) {
       debounceHandleChange(v);
     }
     /**
@@ -381,7 +397,11 @@ export default defineComponent({
      * @param item
      */
     function handleSelectDimension(item: IDimensionItem) {
+      notChange.value = true;
       localValue.value = item.name;
+      setTimeout(() => {
+        notChange.value = false;
+      }, changeDebounceTime + 50);
       popoverRef.value?.hide();
       props.onSelectDimension(item, curMetricMeta.value, selectData.strategy);
     }
@@ -442,7 +462,7 @@ export default defineComponent({
       strategySearchRef,
       optionsFilter,
       t,
-      handleInput,
+      handleInputChange,
       handleSelect,
       handleDelete,
       handleShowStrategySearch,
@@ -479,10 +499,9 @@ export default defineComponent({
             {{
               default: () => (
                 <Input
-                  modelValue={this.localValue}
+                  v-model={this.localValue}
                   placeholder={this.t('请选择维度')}
-                  onInput={this.handleInput}
-                  onUpdate:modelValue={v => (this.localValue = v)}
+                  onChange={this.handleInputChange}
                 />
               ),
               content: () =>
@@ -532,7 +551,7 @@ export default defineComponent({
                               size='small'
                               onChange={v => this.handleStrategyChange(v)}
                             >
-                              {[{ id: ALL, name: this.$t('全部') }, ...this.selectData.strategyList].map(item => (
+                              {[{ id: ALL, name: this.t('全部') }, ...this.selectData.strategyList].map(item => (
                                 <Radio
                                   key={item.id}
                                   label={item.id}
@@ -589,7 +608,7 @@ export default defineComponent({
                             <div class='no-data'>
                               <EmptyStatus
                                 scene='part'
-                                type={!!this.selectData.optionsSearch ? 'search-empty' : 'empty'}
+                                type={this.selectData.optionsSearch ? 'search-empty' : 'empty'}
                                 onOperation={this.handleNoDataOperation}
                               />
                             </div>
@@ -602,7 +621,7 @@ export default defineComponent({
                         onClick={() => this.handleDelete()}
                       >
                         <span class='icon-monitor icon-mc-delete-line' />
-                        <span>{this.$t('删除')}</span>
+                        <span>{this.t('删除')}</span>
                       </div>
                     </div>
                   </div>

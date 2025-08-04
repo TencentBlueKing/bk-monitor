@@ -26,7 +26,7 @@
 import { Component, Inject, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { CMDBInfoList, applicationList, logList, serviceInfo } from 'monitor-api/modules/apm_base_info';
+import { applicationList, CMDBInfoList, logList, serviceInfo } from 'monitor-api/modules/apm_base_info';
 import {
   logServiceRelationBkLogIndexSet,
   serviceConfig,
@@ -373,7 +373,7 @@ export default class BasicInfo extends tsc<object> {
   /**
    * @desc uri调试
    */
-  async handlDebugger() {
+  async handleDebugger() {
     const uris = this.uriList.filter(item => item.trim?.());
     const urlSourceList = this.urlResource.split(/[(\r\n)\r\n]+/).filter(val => val) || [];
     const params = {
@@ -962,7 +962,7 @@ export default class BasicInfo extends tsc<object> {
                     size='small'
                     theme='primary'
                     outline
-                    onClick={() => this.handlDebugger()}
+                    onClick={() => this.handleDebugger()}
                   >
                     {this.$t('调试')}
                   </bk-button>

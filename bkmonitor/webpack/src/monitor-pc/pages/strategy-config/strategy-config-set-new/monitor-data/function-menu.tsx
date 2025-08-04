@@ -31,37 +31,40 @@ import { deepClone } from 'monitor-common/utils/utils';
 
 import './function-menu.scss';
 
-export interface IFunctionParam {
-  id?: string;
-  name?: string;
-  default: number | string;
-  value?: number | string;
-  edit?: boolean;
-  shortlist: number[] | string[];
-}
-
 export interface IFunctionItem {
-  id: string;
-  name: string;
   children?: IFunctionItem[];
-  params?: IFunctionParam[];
   description?: string;
+  id: string;
   key?: string;
+  name: string;
+  params?: IFunctionParam[];
   support_expression?: boolean;
 }
 
-interface IFunctionMenuProps {
-  list: IFunctionItem[];
-  isExpSupport?: boolean;
+export interface IFunctionParam {
+  default: number | string;
+  edit?: boolean;
+  id?: string;
+  name?: string;
+  shortlist: number[] | string[];
+  value?: number | string;
 }
+
 interface IFunctionMenuEvent {
   onFuncSelect: IFunctionItem;
+}
+interface IFunctionMenuProps {
+  isExpSupport?: boolean;
+  isMultiple?: boolean;
+  list: IFunctionItem[];
 }
 @Component
 export default class FunctionMenu extends tsc<IFunctionMenuProps, IFunctionMenuEvent> {
   @Prop({ type: Array, default: () => [] }) list: IFunctionItem[];
   /** 只展示支持表达式的函数 */
   @Prop({ default: false, type: Boolean }) readonly isExpSupport: boolean;
+  /** 是否支持多选 */
+  @Prop({ type: Boolean, default: true }) readonly isMultiple: boolean;
   @Ref('menuPanel') menuPanelRef: HTMLDivElement;
   activeFuncType = '';
   activeFuncId = '';
@@ -153,7 +156,7 @@ export default class FunctionMenu extends tsc<IFunctionMenuProps, IFunctionMenuE
           class='function-menu-anchor'
           on-click={this.handleClickMenuAnchor}
         >
-          {this.$slots.default || <span class='icon-monitor icon-mc-add menu-icon' />}
+          {this.$slots.default || (this.isMultiple && <span class='icon-monitor icon-mc-add menu-icon' />)}
         </div>
         <div style='display: none;'>
           <div

@@ -33,7 +33,7 @@ import { DEFAULT_TIME_RANGE } from 'monitor-pc/components/time-range/utils';
 import ChartWrapper from 'monitor-ui/chart-plugins/components/chart-wrapper';
 import { type IViewOptions, PanelModel } from 'monitor-ui/chart-plugins/typings';
 
-import { createAutoTimerange } from './aiops-chart';
+import { createAutoTimeRange } from './aiops-chart';
 
 import type { TimeRangeType } from 'monitor-pc/components/time-range/time-range';
 
@@ -84,7 +84,7 @@ export default class IntelligenceScene extends tsc<IProps> {
 
   timeRangeInit() {
     const interval = this.params.extra_info?.strategy?.items?.[0]?.query_configs?.[0]?.agg_interval || 60;
-    const { startTime, endTime } = createAutoTimerange(this.params.begin_time, this.params.end_time, interval);
+    const { startTime, endTime } = createAutoTimeRange(this.params.begin_time, this.params.end_time, interval);
     const currentTarget: Record<string, any> = {
       bk_target_ip: '0.0.0.0',
       bk_target_cloud_id: '0',

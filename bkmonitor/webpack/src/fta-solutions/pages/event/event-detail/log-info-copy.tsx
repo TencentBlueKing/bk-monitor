@@ -55,8 +55,8 @@ const logTableColumns: ITableColumn[] = [
 ];
 
 interface IProps {
-  show?: boolean;
   detail?: IDetail;
+  show?: boolean;
 }
 
 @Component

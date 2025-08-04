@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2022 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,11 +7,13 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import json
 import logging
+from typing import Any
 
+from django.db.models import Q
 from django.utils.translation import gettext_lazy as _
-from elasticsearch_dsl import Q
 from opentelemetry.semconv.resource import ResourceAttributes
 from opentelemetry.semconv.trace import SpanAttributes
 
@@ -117,7 +118,7 @@ class ComponentHandler:
         )
 
         if not rules:
-            raise ValueError(f"拓扑发现规则为空")
+            raise ValueError("拓扑发现规则为空")
 
         rule = rules[0]
         res = []
@@ -184,7 +185,7 @@ class ComponentHandler:
         )
 
         if not rules:
-            raise ValueError(f"拓扑发现规则为空")
+            raise ValueError("拓扑发现规则为空")
 
         rule = rules[0]
         res = {}
@@ -197,10 +198,15 @@ class ComponentHandler:
         return res
 
     @classmethod
-    def build_component_filter_es_query_dict(
-        cls, query, bk_biz_id, app_name, service_name, filter_params, component_instance_id=None
-    ):
-        """构建组件的 ES 查询参数"""
+    def build_component_filter(
+        cls,
+        bk_biz_id: int,
+        app_name: str,
+        service_name: str,
+        filter_params: list[dict[str, Any]],
+        component_instance_id: list[str] | str | None,
+    ) -> Q:
+        """构建组件查询条件"""
         cls.build_component_filter_params(
             bk_biz_id,
             app_name,
@@ -208,11 +214,10 @@ class ComponentHandler:
             filter_params,
             component_instance_id=component_instance_id,
         )
-
-        for f in filter_params:
-            query = query.query("bool", filter=[Q("terms", **{f["key"]: f["value"]})])
-
-        return query
+        q: Q = Q()
+        for filter_param in filter_params:
+            q &= Q(**{filter_param["key"]: filter_param["value"]})
+        return q
 
     @classmethod
     def get_component_metric_filter_params(cls, bk_biz_id, app_name, service_name, component_instance_id=None):
@@ -244,7 +249,7 @@ class ComponentHandler:
         构件组件节点的APM API查询参数
         filter_params: [{key: "", op: "", value:[]}]
         """
-        component_node = ServiceHandler.get_node(bk_biz_id, app_name, service_name)
+        component_node = ServiceHandler.get_node(bk_biz_id, app_name, service_name, raise_exception=False)
 
         if not cls.is_component_by_node(component_node):
             return
@@ -267,7 +272,7 @@ class ComponentHandler:
         else:
             # 没有指定组件实例 单独添加组件类型条件
             if extra_data["category"] not in cls.component_filter_params_mapping:
-                raise ValueError(_("不支持查询此分类的统计数据: {}").format(extra_data['category']))
+                raise ValueError(_("不支持查询此分类的统计数据: {}").format(extra_data["category"]))
 
             where = cls.component_filter_params_mapping[extra_data["category"]]
             if extra_data["predicate_value"]:
@@ -359,7 +364,7 @@ class ComponentHandler:
         )
 
         if not rules:
-            raise ValueError(f"拓扑发现规则为空")
+            raise ValueError("拓扑发现规则为空")
 
         rule = rules[0]
 

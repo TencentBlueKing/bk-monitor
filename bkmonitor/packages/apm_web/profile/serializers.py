@@ -7,6 +7,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 from rest_framework import serializers
 
 from apm_web.models import ProfileUploadRecord
@@ -69,6 +70,7 @@ class ProfileQuerySerializer(QueryBaseSerializer):
     is_compared = serializers.BooleanField(label="是否开启对比模式", required=False, default=False)
     diff_profile_id = serializers.CharField(label="diff profile ID", required=False, default="", allow_blank=True)
     diff_filter_labels = serializers.DictField(label="标签过滤", default={}, required=False)
+    agg_method = serializers.CharField(max_length=64, label="聚合方法", default=None, allow_null=True)
 
 
 class ProfileQueryExportSerializer(ProfileQuerySerializer):

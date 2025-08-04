@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,8 +7,8 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import logging
-from typing import Dict, Optional
 
 from django.conf import settings
 from django.db.transaction import atomic
@@ -56,15 +55,24 @@ def apply_data_id_v2(
     data_name: str,
     namespace: str = settings.DEFAULT_VM_DATA_LINK_NAMESPACE,
     bk_biz_id: int = settings.DEFAULT_BKDATA_BIZ_ID,
+    is_base: bool = False,
+    event_type: str = "metric",
 ) -> bool:
     """
     下发 data_id 资源，并记录对应的资源及配置
     @param data_name: 数据源名称
     @param namespace: 资源命名空间
     @param bk_biz_id: 业务ID
+    @param is_base: 是否是基础数据源
+    @param event_type: 数据类型
     """
-    logger.info("apply_data_id_v2:apply data_id for data_name: %s", data_name)
-    bkbase_data_name = utils.compose_bkdata_data_id_name(data_name)
+    logger.info("apply_data_id_v2:apply data_id for data_name: %s,event_type: %s", data_name, event_type)
+
+    if is_base:  # 如果是基础数据源（1000,1001）,那么沿用固定格式的data_name，会以此name作为bkbase申请时的唯一键
+        bkbase_data_name = data_name
+    else:  # 用户自定义数据源，需要进行二次处理，主要为避免超过meta长度限制和特殊字符
+        bkbase_data_name = utils.compose_bkdata_data_id_name(data_name)
+
     logger.info("apply_data_id_v2:bkbase_data_name: %s", bkbase_data_name)
     if not bk_biz_id:
         logger.info("apply_data_id_v2:data_name->[%s], bk_biz_id is None,will use default", data_name)
@@ -73,14 +81,14 @@ def apply_data_id_v2(
     data_id_config_ins, _ = DataIdConfig.objects.get_or_create(
         name=bkbase_data_name, namespace=namespace, bk_biz_id=bk_biz_id
     )
-    data_id_config = data_id_config_ins.compose_config()
+    data_id_config = data_id_config_ins.compose_config(event_type=event_type)
 
     api.bkdata.apply_data_link({"config": [data_id_config]})
     logger.info("apply_data_id_v2:apply data_id for data_name: %s success", data_name)
     return True
 
 
-def get_data_id(data_name: str, namespace: Optional[str] = settings.DEFAULT_VM_DATA_LINK_NAMESPACE) -> Dict:
+def get_data_id(data_name: str, namespace: str | None = settings.DEFAULT_VM_DATA_LINK_NAMESPACE) -> dict:
     """
     获取数据源对应的 data_id
     TODO: 待改造为通用查询状态方法
@@ -107,14 +115,19 @@ def get_data_id(data_name: str, namespace: Optional[str] = settings.DEFAULT_VM_D
 
 def get_data_id_v2(
     data_name: str,
-    namespace: Optional[str] = settings.DEFAULT_VM_DATA_LINK_NAMESPACE,
+    namespace: str | None = settings.DEFAULT_VM_DATA_LINK_NAMESPACE,
     bk_biz_id: int = settings.DEFAULT_BKDATA_BIZ_ID,
-) -> Dict:
+    is_base: bool = False,
+) -> dict:
     """
     获取数据源对应的 data_id
     """
     logger.info("get_data_id: data_name->[%s]", data_name)
-    data_id_name = utils.compose_bkdata_data_id_name(data_name)
+    if is_base:  # 如果是基础数据源（1000,1001）,那么沿用固定格式的data_name，会以此name作为bkbase申请时的唯一键
+        data_id_name = data_name
+    else:  # 用户自定义数据源，需要进行二次处理，主要为避免超过meta长度限制和特殊字符
+        data_id_name = utils.compose_bkdata_data_id_name(data_name)
+
     data_id_config = api.bkdata.get_data_link(
         kind=DataLinkKind.get_choice_value(DataLinkKind.DATAID.value), namespace=namespace, name=data_id_name
     )
@@ -139,7 +152,7 @@ def get_data_id_v2(
 def get_data_link_component_config(
     kind: str,
     component_name: str,
-    namespace: Optional[str] = settings.DEFAULT_VM_DATA_LINK_NAMESPACE,
+    namespace: str | None = settings.DEFAULT_VM_DATA_LINK_NAMESPACE,
 ):
     """
     获取数据链路组件状态
@@ -175,7 +188,7 @@ def get_data_link_component_config(
 def get_data_link_component_status(
     kind: str,
     component_name: str,
-    namespace: Optional[str] = settings.DEFAULT_VM_DATA_LINK_NAMESPACE,
+    namespace: str | None = settings.DEFAULT_VM_DATA_LINK_NAMESPACE,
 ):
     """
     获取数据链路组件状态
@@ -235,7 +248,7 @@ def get_bkbase_component_status_with_retry(
         return bkbase_status
     except Exception as e:  # pylint: disable=broad-except
         logger.error(
-            "get_bkbase_component_status_with_retry: get component status failed,kind->[%s],name->[%s]," "error->[%s]",
+            "get_bkbase_component_status_with_retry: get component status failed,kind->[%s],name->[%s],error->[%s]",
             kind,
             name,
             e,
@@ -248,8 +261,8 @@ def create_vm_data_link(
     table_id: str,
     data_source: DataSource,
     vm_cluster_name: str,
-    vm_cluster_id: Optional[int] = None,
-    bcs_cluster_id: Optional[str] = None,
+    vm_cluster_id: int | None = None,
+    bcs_cluster_id: str | None = None,
 ):
     """
     接入计算平台VM，创建V4链路
@@ -367,8 +380,8 @@ def create_fed_vm_data_link(
     table_id: str,
     data_source: DataSource,
     vm_cluster_name: str,
-    vm_cluster_id: Optional[int] = None,
-    bcs_cluster_id: Optional[str] = None,
+    vm_cluster_id: int | None = None,
+    bcs_cluster_id: str | None = None,
 ):
     """
     针对联邦集群，创建联邦子集群->联邦代理集群的汇聚（复制）链路，只有联邦集群子集群需要创建
@@ -448,17 +461,19 @@ def create_fed_vm_data_link(
     # 针对联邦做处理
     config_list, data_links, conditions = [], [], []
     for obj in objs:
-        builtin_name = utils.get_bkdata_table_id(obj.fed_builtin_metric_table_id)  # 该联邦拓扑的代理集群的内置（K8S指标）指标RT
-        match_labels = [{"name": "namespace", "value": ns} for ns in obj.fed_namespaces]  # 该子集群被联邦纳管的命名空间列表
+        builtin_name = utils.get_bkdata_table_id(
+            obj.fed_builtin_metric_table_id
+        )  # 该联邦拓扑的代理集群的内置（K8S指标）指标RT
+        match_labels = [
+            {"name": "namespace", "value": ns} for ns in obj.fed_namespaces
+        ]  # 该子集群被联邦纳管的命名空间列表
         relabels = [{"name": "bcs_cluster_id", "value": obj.fed_cluster_id}]
         sinks = [
             {"kind": "VmStorageBinding", "name": builtin_name, "namespace": settings.DEFAULT_VM_DATA_LINK_NAMESPACE}
         ]
         conditions.append({"match_labels": match_labels, "relabels": relabels, "sinks": sinks})
         logger.info(
-            "composed datalink config,name->{},builtin_name->{},match_labels->{},relabels->{},sinks->{}".format(
-                name, builtin_name, match_labels, relabels, sinks
-            )
+            f"composed datalink config,name->{name},builtin_name->{builtin_name},match_labels->{match_labels},relabels->{relabels},sinks->{sinks}"
         )
         # 添加rt及和存储的关联
         rt_config = DataLinkResourceConfig.compose_vm_table_id_config(builtin_name)

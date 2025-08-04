@@ -26,6 +26,7 @@
 import { Component, Inject, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
+import dayjs from 'dayjs';
 import SetMealDetail from 'fta-solutions/pages/setting/set-meal-detail/set-meal-detail';
 import {
   createAssignGroup,
@@ -36,6 +37,7 @@ import {
   partialUpdateAssignGroup,
 } from 'monitor-api/modules/model';
 import { Debounce, random } from 'monitor-common/utils';
+import { deepClone } from 'monitor-common/utils/utils';
 
 import EmptyStatus from '../../components/empty-status/empty-status';
 import TableSkeleton from '../../components/skeleton/table-skeleton';
@@ -46,7 +48,7 @@ import AlarmDispatchAction from './components/alarm-dispatch-action';
 import AlarmUpdateContent from './components/alarm-update-content';
 import CommonCondition from './components/common-condition-new';
 import DebuggingResult from './components/debugging-result';
-import { GROUP_KEYS, type TGroupKeys, type TValueMap, allKVOptions } from './typing/condition';
+import { type TGroupKeys, type TValueMap, allKVOptions, GROUP_KEYS } from './typing/condition';
 import { RuleGroupData } from './typing/index';
 
 import type { EmptyStatusOperationType, EmptyStatusType } from '../../components/empty-status/types';
@@ -132,9 +134,9 @@ export default class AlarmDispatch extends tsc<object> {
 
   /* kv 选项数据 */
   conditionProps: {
+    groupKeys: TGroupKeys;
     keys: { id: string; name: string }[];
     valueMap: TValueMap;
-    groupKeys: TGroupKeys;
   } = {
     keys: [],
     valueMap: new Map(),
@@ -148,6 +150,9 @@ export default class AlarmDispatch extends tsc<object> {
   isExpandAll = false;
   intersectionObserver: IntersectionObserver | null = null;
   hiddenFooter = false;
+  sortProp: null | string = null;
+  sortOrder: 'ascending' | 'descending' | null = null;
+
   handleToConfig(id: number) {
     this.$router.push({
       name: 'alarm-dispatch-config',
@@ -181,6 +186,30 @@ export default class AlarmDispatch extends tsc<object> {
   /** 优先级列表 */
   get priorityList() {
     return this.ruleGroups.map(item => item.priority);
+  }
+  /** 增加告警组列的排序 */
+  get showRuleGroups(): RuleGroupData[] {
+    const list = deepClone(this.renderGroups || []);
+    if (this.sortProp && this.sortOrder && list.length) {
+      list.map(item => {
+        const { ruleData } = item;
+        ruleData.map(rule => {
+          rule.groupAliasList = [];
+          rule[this.sortProp].map(groupId => rule.groupAliasList.push(this.getAlarmGroupByID(groupId)));
+        });
+        const newRuleData = ruleData.toSorted((a, b) => {
+          const aliasA = a.groupAliasList[0] || '';
+          const aliasB = b.groupAliasList[0] || '';
+          if (this.sortOrder === 'ascending') {
+            return aliasA > aliasB ? 1 : -1;
+          }
+          return aliasA < aliasB ? 1 : -1;
+        });
+        item.ruleData = newRuleData;
+      });
+      return list;
+    }
+    return this.renderGroups;
   }
 
   created() {
@@ -236,6 +265,8 @@ export default class AlarmDispatch extends tsc<object> {
             isExpan: true,
             ruleData: [],
             editAllowed: !!item?.edit_allowed,
+            updateTime: dayjs(item.update_time).format('YYYY-MM-DD HH:mm:ss'),
+            updateUser: item.update_user,
           })
       ) || [];
     this.loading = false;
@@ -556,7 +587,7 @@ export default class AlarmDispatch extends tsc<object> {
         this.intersectionObserver.observe(this.itemFooterRef);
         this.handleTriggerObserver();
       }
-    })
+    });
   }
 
   handleShowChange(v: boolean) {
@@ -612,6 +643,11 @@ export default class AlarmDispatch extends tsc<object> {
       this.handleSearch();
     }
   }
+  /** 排序 */
+  handleSort({ prop, order }) {
+    this.sortProp = prop;
+    this.sortOrder = order;
+  }
 
   render() {
     return (
@@ -655,7 +691,7 @@ export default class AlarmDispatch extends tsc<object> {
           <div class='wrap-content'>
             {this.ruleGroups.length > 0
               ? [
-                  this.renderGroups.map((item, index) => (
+                  this.showRuleGroups.map((item, index) => (
                     <div
                       key={index}
                       class='expan-item'
@@ -669,6 +705,14 @@ export default class AlarmDispatch extends tsc<object> {
                         </div>
                         {this.renderEditAttribute(item.name, item.ruleData.length, 'name', item.id)}
                         {this.renderEditAttribute(`${this.$t('优先级')}:`, item.priority, 'priority', item.id)}
+                        <div class='expand-update-record'>
+                          <span class='label'>
+                            {`${this.$t('最近更新记录')}: `}
+                            <bk-user-display-name user-id={item.updateUser} />
+                          </span>
+                          <span class='separator' />
+                          <span class='update-time'>{item.updateTime}</span>
+                        </div>
                         <div
                           class={['edit-btn-wrap', { 'edit-btn-disabled': !item.editAllowed }]}
                           v-bk-tooltips={{
@@ -705,6 +749,7 @@ export default class AlarmDispatch extends tsc<object> {
                             v-bkloading={{ isLoading: this.groupLoading }}
                             data={item.ruleData}
                             stripe
+                            on-sort-change={this.handleSort}
                           >
                             <bk-table-column
                               scopedSlots={{
@@ -728,6 +773,8 @@ export default class AlarmDispatch extends tsc<object> {
                               label={this.$t('告警组')}
                               min-width={100}
                               prop='user_groups'
+                              sort-by='user_groups'
+                              sortable='custom'
                             />
                             <bk-table-column
                               scopedSlots={{

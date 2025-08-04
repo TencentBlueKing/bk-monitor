@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -21,7 +20,6 @@ from django.db.transaction import atomic
 from django.utils.functional import cached_property
 from django.utils.translation import gettext as _
 from django.utils.translation import gettext_lazy as _lazy
-from six import string_types
 
 from bkmonitor.middlewares.source import get_source_app_code
 from bkmonitor.utils import event_target, time_tools
@@ -32,6 +30,7 @@ from bkmonitor.utils.db.fields import (
     ReadWithUnderscoreField,
 )
 from bkmonitor.utils.model_manager import AbstractRecordModel, Model
+from constants.common import DEFAULT_TENANT_ID
 from constants.data_source import DataSourceLabel, DataTypeLabel
 from constants.report import StaffChoice
 from constants.shield import ShieldStatus, ShieldType
@@ -292,7 +291,7 @@ class DetectAlgorithm(AbstractRecordModel):
         不同的算法有不同的配置内容
     """
 
-    class AlgorithmChoices(object):
+    class AlgorithmChoices:
         Threshold = "Threshold"
         SimpleRingRatio = "SimpleRingRatio"
         AdvancedRingRatio = "AdvancedRingRatio"
@@ -471,7 +470,7 @@ class Event(Model):
     经过检测范围匹配，收敛等判断后，生成事件
     """
 
-    class TargetKeyGenerator(object):
+    class TargetKeyGenerator:
         Host = event_target.HostKeyGenerator
         ServiceInstance = event_target.ServiceInstanceKeyGenerator
         Topo = event_target.TopoKeyGenerator
@@ -494,7 +493,7 @@ class Event(Model):
 
     DEFAULT_END_TIME = datetime.datetime(1980, 1, 1, 8, tzinfo=pytz.UTC)
 
-    class EventStatus(object):
+    class EventStatus:
         CLOSED = "CLOSED"  # 已关闭，对应数据表 10
         RECOVERED = "RECOVERED"  # 已恢复，对应数据表 20
         ABNORMAL = "ABNORMAL"  # 异常事件，对应数据表 30
@@ -514,9 +513,13 @@ class Event(Model):
     origin_alarm = JsonField(verbose_name="原始的异常内容", default=None)
     origin_config = JsonField(verbose_name="告警策略原始配置", default=None)
     level = models.IntegerField(verbose_name="级别", choices=EVENT_LEVEL, default=0)
-    status = EventStatusField(verbose_name="状态", choices=EVENT_STATUS, default=EventStatus.ABNORMAL)  # 异常中、已恢复、已失效
+    status = EventStatusField(
+        verbose_name="状态", choices=EVENT_STATUS, default=EventStatus.ABNORMAL
+    )  # 异常中、已恢复、已失效
     is_ack = models.BooleanField(verbose_name="是否确认", default=False)
-    p_event_id = models.CharField(verbose_name="父事件ID", default="", blank=True, max_length=255)  # 保留字段，给事件关联用
+    p_event_id = models.CharField(
+        verbose_name="父事件ID", default="", blank=True, max_length=255
+    )  # 保留字段，给事件关联用
     is_shielded = models.BooleanField(verbose_name="是否处于屏蔽状态", default=False)
     shield_type = models.CharField(verbose_name="屏蔽类型", default="", blank=True, max_length=16)
 
@@ -572,7 +575,7 @@ class Event(Model):
             else:
                 message = self.origin_alarm["anomaly"][str(self.level)]["anomaly_message"]
         except KeyError:
-            return "anomaly_message not found in %s" % self.origin_alarm["anomaly"]
+            return "anomaly_message not found in {}".format(self.origin_alarm["anomaly"])
         return message
 
     @cached_property
@@ -612,7 +615,7 @@ class EventAction(Model):
     4. 事件关闭
     """
 
-    class Operate(object):
+    class Operate:
         ACK = "ACK"
         ANOMALY_NOTICE = "ANOMALY_NOTICE"
         RECOVERY_NOTICE = "RECOVERY_NOTICE"
@@ -655,7 +658,7 @@ class EventAction(Model):
         },
     }
 
-    class Status(object):
+    class Status:
         RUNNING = "RUNNING"
         SUCCESS = "SUCCESS"
         PARTIAL_SUCCESS = "PARTIAL_SUCCESS"
@@ -697,7 +700,7 @@ class EventAction(Model):
         if self.status != self.Status.SHIELDED:
             return {}
 
-        if isinstance(self.extend_info.get("shield"), string_types):
+        if isinstance(self.extend_info.get("shield"), str):
             # 兼容旧版字段
             data = {"type": ShieldType.SAAS_CONFIG, "detail": self.extend_info["shield"]}
         else:
@@ -1031,6 +1034,7 @@ class ReportItems(AbstractRecordModel):
     订阅报表
     """
 
+    bk_tenant_id = models.CharField(verbose_name="租户ID", max_length=128, default=DEFAULT_TENANT_ID)
     mail_title = models.CharField(verbose_name="邮件标题", max_length=512)
     channels = models.JSONField(verbose_name="订阅渠道", default=list)
     receivers = models.JSONField(verbose_name="接收者", default=dict)
@@ -1078,11 +1082,14 @@ class ReportContents(Model):
     报表内容
     """
 
+    bk_tenant_id = models.CharField(verbose_name="租户ID", max_length=128, default=DEFAULT_TENANT_ID)
     report_item = models.IntegerField(verbose_name="订阅报表ID", db_index=True)
     content_title = models.CharField(verbose_name="内容标题", max_length=512)
     content_details = models.TextField(verbose_name="内容说明", max_length=512)
     row_pictures_num = models.IntegerField(verbose_name="一行几幅图", default=0)
     graphs = models.JSONField(verbose_name="图表Panels信息", default=dict)
+    width = models.IntegerField(verbose_name="单图宽度", null=True, blank=True)
+    height = models.IntegerField(verbose_name="单图高度", null=True, blank=True)
 
 
 class ReportStatus(Model):
@@ -1090,6 +1097,7 @@ class ReportStatus(Model):
     报表发送状态
     """
 
+    bk_tenant_id = models.CharField(verbose_name="租户ID", max_length=128, default=DEFAULT_TENANT_ID)
     report_item = models.IntegerField(verbose_name="订阅报表ID", db_index=True)
     mail_title = models.CharField(verbose_name="邮件标题", max_length=512)
     create_time = models.DateTimeField(verbose_name="发送时间", db_index=True)

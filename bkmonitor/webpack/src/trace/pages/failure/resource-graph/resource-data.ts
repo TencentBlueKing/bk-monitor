@@ -27,20 +27,20 @@
 import { random } from 'monitor-common/utils/utils.js';
 
 import type { IEdge, IRank, ITopoData } from '../failure-topo/types';
-export enum NodeStatus {
-  Error = 'error',
-  Normal = 'normal',
-  Root = 'root',
+export enum ComboStatus {
+  DataCenter = '数据中心',
+  Host = '主机',
+  Instance = '服务',
 }
 
 export enum EdgeStatus {
   Include = 'include',
   Invoke = 'invoke',
 }
-export enum ComboStatus {
-  DataCenter = '数据中心',
-  Host = '主机',
-  Instance = '服务',
+export enum NodeStatus {
+  Error = 'error',
+  Normal = 'normal',
+  Root = 'root',
 }
 export interface IRanksMap {
   [key: string]: IRank[];
@@ -50,7 +50,7 @@ export const createGraphData = (ranksMap: IRanksMap, edges: IEdge[]): ITopoData 
   const combos = [];
   let nodeDatas = [];
   Object.keys(ranksMap).forEach((ranks, index) => {
-    const fillColor = index % 2 === 1 ? '#292A2B' : '#1B1C1F';
+    const fillColor = '#34383c';
     if (ranksMap[ranks].length > 0) {
       ranksMap[ranks].forEach((rank, index) => {
         const { rank_category, rank_name, rank_alias, nodes, anomaly_count, total, is_sub_rank } = rank;

@@ -37,10 +37,10 @@ import CommonSimpleChart from '../common-simple-chart';
 import './text-unit.scss';
 
 interface ITextUnitSeriesItem {
-  // 值
-  value: number | string;
   // 单位
   unit: number | string;
+  // 值
+  value: number | string;
 }
 @Component
 export default class TextUnit extends CommonSimpleChart {
@@ -51,11 +51,11 @@ export default class TextUnit extends CommonSimpleChart {
   async getPanelData(start_time?: string, end_time?: string) {
     const res = await this.beforeGetPanelData(start_time, end_time);
     if (!res) return;
-    this.unregisterOberver();
+    this.unregisterObserver();
     if (this.isFetchingData) return;
     this.isFetchingData = true;
     this.handleLoadingChange(true);
-    this.emptyText = window.i18n.tc('加载中...');
+    this.emptyText = window.i18n.t('加载中...');
     try {
       const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
       const params = {
@@ -96,16 +96,16 @@ export default class TextUnit extends CommonSimpleChart {
       );
       const res = await Promise.all(promiseList).catch(() => false);
       if (res) {
-        this.inited = true;
+        this.initialized = true;
         this.empty = false;
-        this.emptyText = window.i18n.tc('查无数据');
+        this.emptyText = window.i18n.t('查无数据');
       } else {
-        this.emptyText = window.i18n.tc('查无数据');
+        this.emptyText = window.i18n.t('查无数据');
         this.empty = true;
       }
     } catch (e) {
       this.empty = true;
-      this.emptyText = window.i18n.tc('出错了');
+      this.emptyText = window.i18n.t('出错了');
       console.error(e);
     }
     this.isFetchingData = false;
@@ -116,11 +116,11 @@ export default class TextUnit extends CommonSimpleChart {
       <div class='text-unit'>
         <ChartTitle
           class='draggable-handle text-header'
-          draging={this.panel.draging}
+          dragging={this.panel.dragging}
           isInstant={this.panel.instant}
           showMore={false}
           title={this.panel.title}
-          onUpdateDragging={() => this.panel.updateDraging(false)}
+          onUpdateDragging={() => this.panel.updateDragging(false)}
         />
         <div class='text-wrapper'>
           {!this.empty && this.series?.value ? (

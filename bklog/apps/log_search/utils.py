@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -19,15 +18,22 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
-import functools
-import operator
-from typing import Any, Dict, List
 
-from apps.log_search.constants import DEFAULT_TIME_FIELD
+import functools
+import json
+import operator
+from io import BytesIO
+from typing import Any
+
+from django.http import FileResponse
+import re
+
+from apps.log_search.constants import DEFAULT_TIME_FIELD, HighlightConfig, ES_ERROR_PATTERNS
+from apps.log_search.exceptions import LogSearchException
 from apps.utils.local import get_request_external_username, get_request_username
 
 
-def sort_func(data: List[Dict[str, Any]], sort_list: List[List[str]], key_func=lambda x: x) -> List[Dict[str, Any]]:
+def sort_func(data: list[dict[str, Any]], sort_list: list[list[str]], key_func=lambda x: x) -> list[dict[str, Any]]:
     """
     排序函数 提供复杂嵌套的数据结构排序能力
     params data 源数据  [{"a": {"b": 3}}, {"a": {"b": 7}}, {"a": {"b": 2}}]
@@ -35,11 +41,11 @@ def sort_func(data: List[Dict[str, Any]], sort_list: List[List[str]], key_func=l
     params key_func 排序字段值获取函数
     """
 
-    def _sort_compare(x: Dict[str, Any], y: Dict[str, Any]) -> int:
+    def _sort_compare(x: dict[str, Any], y: dict[str, Any]) -> int:
         x = key_func(x)
         y = key_func(y)
 
-        def _get_value(keys: str, _data: Dict[str, Any]) -> Any:
+        def _get_value(keys: str, _data: dict[str, Any]) -> Any:
             try:
                 _value = functools.reduce(operator.getitem, keys.split("."), _data)
             except (KeyError, TypeError):
@@ -147,3 +153,108 @@ def fetch_request_username():
     else:
         request_username = get_request_username()
     return request_username
+
+
+def add_highlight_mark(data_list: list[dict], match_field: str, pattern: str, ignore_case: bool = False):
+    """
+    添加高亮标记
+    :param data_list: 数据列表
+    :param match_field: data中需要进行高亮的字段
+    :param pattern: 高亮内容的正则表达式
+    :param ignore_case: 是否忽略大小写
+    """
+    if not data_list or not match_field or not pattern or ("." not in match_field and match_field not in data_list[0]):
+        return data_list
+
+    for data in data_list:
+        # 对 grep_field 字段 pattern 内容进行高亮处理
+        if "." in match_field:
+            json_data = json.loads(data[match_field.split(".")[0]])
+            tmp_dic = json_data
+            keys = match_field.split(".")
+            first_key = keys[0]
+            last_key = keys[-1]
+            for key in keys[1:]:
+                if isinstance(json_data, dict) and key in json_data:
+                    if key == last_key:
+                        value = json_data[last_key]
+                    else:
+                        json_data = json_data[key]
+                else:
+                    continue
+            if not isinstance(value, str):
+                value = str(value)
+            json_data[last_key] = re.sub(
+                pattern,
+                lambda x: HighlightConfig.PRE_TAG + x.group() + HighlightConfig.POST_TAG,
+                value,
+                flags=re.I if ignore_case else 0,
+            )
+            data[first_key] = json.dumps(tmp_dic)
+        else:
+            value = data[match_field]
+            if not isinstance(value, str):
+                value = str(value)
+            data[match_field] = re.sub(
+                pattern,
+                lambda x: HighlightConfig.PRE_TAG + x.group() + HighlightConfig.POST_TAG,
+                value,
+                flags=re.I if ignore_case else 0,
+            )
+
+    return data_list
+
+
+def split_object_fields(fields_list: list[str]):
+    """
+    把列表中包含逗号的字符串进行分割
+    """
+    result_list = []
+    for field in fields_list:
+        result_list.append(field)
+        parts = field.split(".")
+        for i in range(1, len(parts)):
+            result_list.append(".".join(parts[:i]))
+
+    return result_list
+
+
+def create_download_response(buffer: BytesIO, file_name: str, content_type: str = "text/plain") -> FileResponse:
+    """
+    创建一个通用的文件下载响应。
+
+    :param buffer: 一个包含文件内容的 BytesIO 对象。
+    :param file_name: 文件的名称。
+    :param content_type: 文件的 MIME 类型，默认为 "text/plain"。
+    :return: 配置完毕的 FileResponse 对象。
+    """
+    # 重置指针回到流的开始位置
+    buffer.seek(0)
+
+    # 创建文件下载响应
+    response = FileResponse(
+        buffer,
+        as_attachment=True,  # 将内容作为附件下载而不是直接打开
+        filename=file_name,
+        content_type=content_type,
+    )
+
+    return response
+
+
+def handle_es_query_error(exc: Exception) -> Exception:
+    """
+    处理ES查询错误
+    :param exc: 异常对象
+    """
+    for pattern, exception in ES_ERROR_PATTERNS:
+        match = re.search(pattern, str(exc))
+        if match:
+            try:
+                message = exception.MESSAGE.format_map(match.groupdict())
+            except Exception:
+                # 如果格式化失败，则抛出原始异常
+                return LogSearchException(LogSearchException.MESSAGE.format(e=exc))
+            return exception(message)
+    # 如果没有匹配到任何错误模式，则抛出原始异常
+    return LogSearchException(LogSearchException.MESSAGE.format(e=exc))

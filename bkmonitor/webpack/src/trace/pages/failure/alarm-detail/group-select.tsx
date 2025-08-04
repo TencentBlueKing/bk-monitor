@@ -29,6 +29,7 @@ import { Exception, Input, Popover } from 'bkui-vue';
 import { Search } from 'bkui-vue/lib/icon';
 // import { $bkPopover } from 'bkui-vue/lib/popover';
 import { debounce } from 'monitor-common/utils';
+import { useI18n } from 'vue-i18n';
 
 import './group-select.scss';
 
@@ -40,10 +41,10 @@ import './group-select.scss';
 // }
 
 export interface IGroupItem {
-  id: string;
-  name: string;
   children?: IGroupItem[];
   fatherName?: string;
+  id: string;
+  name: string;
 }
 
 export default defineComponent({
@@ -62,7 +63,7 @@ export default defineComponent({
     },
     placeholder: {
       type: String,
-      default: window.i18n.tc('选择'),
+      default: window.i18n.t('选择'),
     },
   },
   emits: ['clear', 'change'],
@@ -85,6 +86,8 @@ export default defineComponent({
     const activeList = computed(() => {
       return filterList.value.find(item => item.id === activeGroupId.value)?.children || [];
     });
+
+    const { t } = useI18n();
 
     watch(
       () => props.value,
@@ -162,6 +165,7 @@ export default defineComponent({
       handleGroupMouseenter,
       handleKeywordChange,
       handleClear,
+      t,
     };
   },
   render() {
@@ -217,7 +221,7 @@ export default defineComponent({
                       ),
                     }}
                     behavior='simplicity'
-                    placeholder={this.$t('输入关键字')}
+                    placeholder={this.t('输入关键字')}
                     prefixIcon='bk-icon icon-search'
                     onInput={this.handleKeywordChange}
                   />
@@ -274,7 +278,7 @@ export default defineComponent({
                       <div style='width: 100%;'>
                         <Exception
                           class='exception-wrap-item exception-part'
-                          description={this.$t('暂无数据')}
+                          description={this.t('暂无数据')}
                           scene='part'
                           type='empty'
                         >

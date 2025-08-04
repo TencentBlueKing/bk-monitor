@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,9 +7,15 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-from typing import Dict, List, Optional, Tuple
 
 from django.utils.translation import gettext as _
+
+from bkmonitor.commons.tools import is_ipv6_biz
+from bkmonitor.models import MetricListCache
+from bkmonitor.utils.request import get_request_tenant_id
+from constants.cmdb import TargetNodeType, TargetObjectType
+from constants.data_source import DataSourceLabel, DataTypeLabel
+from core.drf_resource import api
 from monitor_web.models import (
     CollectConfigMeta,
     CollectorPluginMeta,
@@ -22,14 +27,8 @@ from monitor_web.plugin.manager import PluginManagerFactory
 from monitor_web.scene_view.builtin import BuiltinProcessor
 from monitor_web.scene_view.builtin.utils import get_variable_filter_dict, sort_panels
 
-from bkmonitor.commons.tools import is_ipv6_biz
-from bkmonitor.models import MetricListCache
-from constants.cmdb import TargetNodeType, TargetObjectType
-from constants.data_source import DataSourceLabel, DataTypeLabel
-from core.drf_resource import api
 
-
-def get_order_config(view: SceneViewModel) -> List:
+def get_order_config(view: SceneViewModel) -> list:
     """
     获取排序配置
     """
@@ -38,11 +37,13 @@ def get_order_config(view: SceneViewModel) -> List:
 
     if view.scene_id.startswith("collect_"):
         collect_config_id = int(view.scene_id.lstrip("collect_"))
-        collect_config = CollectConfigMeta.objects.get(id=collect_config_id)
+        collect_config = CollectConfigMeta.objects.get(bk_biz_id=view.bk_biz_id, id=collect_config_id)
         plugin = collect_config.plugin
     else:
         plugin_id = view.scene_id.split("plugin_", 1)[-1]
-        plugin = CollectorPluginMeta.objects.get(plugin_id=plugin_id, bk_biz_id__in=[0, view.bk_biz_id])
+        plugin = CollectorPluginMeta.objects.get(
+            bk_tenant_id=get_request_tenant_id(), plugin_id=plugin_id, bk_biz_id__in=[0, view.bk_biz_id]
+        )
 
     if plugin.plugin_type in [PluginType.LOG, PluginType.SNMP_TRAP]:
         return []
@@ -72,18 +73,21 @@ def get_order_config(view: SceneViewModel) -> List:
     return order
 
 
-def get_panels(view: SceneViewModel) -> List[Dict]:
+def get_panels(view: SceneViewModel) -> list[dict]:
     """
     获取指标信息，包含指标信息及该指标需要使用的聚合方法、聚合维度、聚合周期等
     """
+    bk_tenant_id = get_request_tenant_id()
     if view.scene_id.startswith("collect_"):
         collect_config_id = int(view.scene_id.lstrip("collect_"))
-        collect_config = CollectConfigMeta.objects.get(id=collect_config_id)
+        collect_config = CollectConfigMeta.objects.get(bk_biz_id=view.bk_biz_id, id=collect_config_id)
         plugin = collect_config.plugin
     else:
         plugin_id = view.scene_id.split("plugin_", 1)[-1]
-        plugin = CollectorPluginMeta.objects.get(plugin_id=plugin_id, bk_biz_id__in=[0, view.bk_biz_id])
-        collect_config = CollectConfigMeta.objects.filter(plugin=plugin, bk_biz_id=view.bk_biz_id).first()
+        plugin = CollectorPluginMeta.objects.get(
+            bk_tenant_id=bk_tenant_id, plugin_id=plugin_id, bk_biz_id__in=[0, view.bk_biz_id]
+        )
+        collect_config = CollectConfigMeta.objects.filter(plugin_id=plugin_id, bk_biz_id=view.bk_biz_id).first()
 
     if not collect_config:
         return []
@@ -93,7 +97,7 @@ def get_panels(view: SceneViewModel) -> List[Dict]:
     panels = []
     if plugin.plugin_type == CollectorPluginMeta.PluginType.PROCESS:
         metric_json = PluginManagerFactory.get_manager(
-            plugin=plugin.plugin_id, plugin_type=plugin.plugin_type
+            bk_tenant_id=bk_tenant_id, plugin=plugin.plugin_id, plugin_type=plugin.plugin_type
         ).gen_metric_info()
     else:
         metric_json = collect_config.deployment_config.metrics
@@ -106,7 +110,8 @@ def get_panels(view: SceneViewModel) -> List[Dict]:
         table_id = PluginVersionHistory.get_result_table_id(plugin, table_name).lower()
 
         # 查询所有维度字段
-        metric_cache: Optional[MetricListCache] = MetricListCache.objects.filter(
+        metric_cache: MetricListCache | None = MetricListCache.objects.filter(
+            bk_tenant_id=bk_tenant_id,
             data_source_label=DataSourceLabel.BK_MONITOR_COLLECTOR,
             data_type_label=DataTypeLabel.TIME_SERIES,
             result_table_id=table_id,
@@ -238,7 +243,7 @@ class CollectBuiltinProcessor(BuiltinProcessor):
     OptionFields = ["show_panel_count"]
 
     @classmethod
-    def get_auto_view_panels(cls, view: SceneViewModel) -> Tuple[List[Dict], List[Dict]]:
+    def get_auto_view_panels(cls, view: SceneViewModel) -> tuple[list[dict], list[dict]]:
         """
         获取平铺视图配置
         """
@@ -308,8 +313,10 @@ class CollectBuiltinProcessor(BuiltinProcessor):
         else:
             # 自定义场景视图
             plugin_id = scene_id.split("plugin_", 1)[-1]
-            plugin = CollectorPluginMeta.objects.get(plugin_id=plugin_id, bk_biz_id__in=[0, bk_biz_id])
-            collect_config = CollectConfigMeta.objects.filter(plugin=plugin, bk_biz_id=bk_biz_id).first()
+            plugin = CollectorPluginMeta.objects.get(
+                bk_tenant_id=get_request_tenant_id(), plugin_id=plugin_id, bk_biz_id__in=[0, bk_biz_id]
+            )
+            collect_config = CollectConfigMeta.objects.filter(plugin_id=plugin_id, bk_biz_id=bk_biz_id).first()
 
             selector_panel = {
                 "title": _("对象列表"),
@@ -397,12 +404,12 @@ class CollectBuiltinProcessor(BuiltinProcessor):
 
     @classmethod
     def create_or_update_view(
-        cls, bk_biz_id: int, scene_id: str, view_type: str, view_id: str, view_config: Dict
-    ) -> Optional[SceneViewModel]:
+        cls, bk_biz_id: int, scene_id: str, view_type: str, view_id: str, view_config: dict
+    ) -> SceneViewModel | None:
         if view_type == "overview":
             return
 
-        view: Optional[SceneViewModel] = SceneViewModel.objects.filter(
+        view: SceneViewModel | None = SceneViewModel.objects.filter(
             bk_biz_id=bk_biz_id, scene_id=scene_id, type=view_type, id=view_id
         ).first()
         if view:
@@ -431,7 +438,7 @@ class CollectBuiltinProcessor(BuiltinProcessor):
         return view
 
     @classmethod
-    def get_view_config(cls, view: SceneViewModel, *args, **kwargs) -> Dict:
+    def get_view_config(cls, view: SceneViewModel, *args, **kwargs) -> dict:
         default_config = cls.get_default_view_config(view.bk_biz_id, view.scene_id)
         panels, order = cls.get_auto_view_panels(view)
 

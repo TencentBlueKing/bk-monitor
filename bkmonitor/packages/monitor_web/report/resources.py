@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -13,7 +12,6 @@ import copy
 import datetime
 import logging
 from collections import defaultdict
-from typing import Dict, Tuple
 
 from django.apps import apps
 from django.conf import settings
@@ -34,7 +32,7 @@ from bkmonitor.models import Strategy
 from bkmonitor.models.base import ReportContents, ReportItems, ReportStatus
 from bkmonitor.utils.cache import CacheType
 from bkmonitor.utils.grafana import fetch_biz_panels, fetch_panel_title_ids
-from bkmonitor.utils.request import get_request
+from bkmonitor.utils.request import get_request, get_request_tenant_id
 from constants.report import GRAPH_ID_REGEX, GroupId, StaffChoice
 from core.drf_resource import CacheResource, api, resource
 from core.drf_resource.base import Resource
@@ -56,7 +54,8 @@ class ReportListResource(Resource):
     def get_request_user():
         return get_request().user
 
-    def perform_request(self, validated_request_data):
+    def perform_request(self, params: dict):
+        bk_tenant_id = get_request_tenant_id()
         # 提取用户有权限读取的订阅
         target_groups = []
 
@@ -64,10 +63,12 @@ class ReportListResource(Resource):
         request_user = self.get_request_user()
         username = request_user.username
         is_superuser = request_user.is_superuser
-        if validated_request_data.get("id"):
-            report_queryset = ReportItems.objects.filter(id=validated_request_data["id"]).order_by("-update_time")
+        if params.get("id"):
+            report_queryset = ReportItems.objects.filter(id=params["id"], bk_tenant_id=bk_tenant_id).order_by(
+                "-update_time"
+            )
         else:
-            report_queryset = ReportItems.objects.all().order_by("-update_time")
+            report_queryset = ReportItems.objects.filter(bk_tenant_id=bk_tenant_id).order_by("-update_time")
 
         if not is_superuser:
             # 找到用户所属的组别
@@ -100,7 +101,7 @@ class ReportListResource(Resource):
         # 补充用户最后一次发送时间
         # 取最近1000条发送状态数据
         user_last_send_time = defaultdict(dict)
-        for status in ReportStatus.objects.all().order_by("-create_time").values()[:1000]:
+        for status in ReportStatus.objects.filter(bk_tenant_id=bk_tenant_id).order_by("-create_time").values()[:1000]:
             for receiver in status["details"]["receivers"]:
                 if receiver not in user_last_send_time[status["report_item"]]:
                     user_last_send_time[status["report_item"]][receiver] = status["create_time"]
@@ -125,24 +126,25 @@ class ReportContentResource(Resource):
     class RequestSerializer(serializers.Serializer):
         report_item_id = serializers.IntegerField(required=True)
 
-    def perform_request(self, validated_request_data):
+    def perform_request(self, params: dict):
+        bk_tenant_id = get_request_tenant_id()
         username = get_request().user.username
         is_superuser = get_request().user.is_superuser
 
-        report_item = ReportItems.objects.get(id=validated_request_data["report_item_id"])
+        report_item = ReportItems.objects.get(id=params["report_item_id"], bk_tenant_id=bk_tenant_id)
         # 检查用户是否有权限
         if not is_superuser:
             managers = report_item.format_managers
             if username not in managers:
                 raise PermissionError(_("您无权限访问此页面"))
 
-        ret_data = model_to_dict(ReportItems.objects.get(pk=validated_request_data["report_item_id"]))
+        ret_data = model_to_dict(report_item)
         ret_data["contents"] = list(
-            ReportContents.objects.filter(report_item=validated_request_data["report_item_id"]).values()
+            ReportContents.objects.filter(report_item=params["report_item_id"], bk_tenant_id=bk_tenant_id).values()
         )
 
         # 补充图表名称
-        panel_names: Dict[Tuple[int, str], Dict[str, str]] = {}
+        panel_names: dict[tuple[int, str], dict[str, str]] = {}
         for content in ret_data["contents"]:
             content["graph_name"] = []
             for graph in content["graphs"]:
@@ -183,16 +185,17 @@ class ReportCloneResource(Resource):
     class RequestSerializer(serializers.Serializer):
         report_item_id = serializers.IntegerField(required=True)
 
-    def perform_request(self, validated_request_data):
-        report_item = ReportItems.objects.filter(id=validated_request_data["report_item_id"]).values()
+    def perform_request(self, params: dict):
+        bk_tenant_id = get_request_tenant_id()
+        report_item = ReportItems.objects.filter(id=params["report_item_id"], bk_tenant_id=bk_tenant_id).values()
         if not report_item:
-            raise CustomException(f"[mail_report] item id: {validated_request_data['report_item_id']} not exists.")
+            raise CustomException(f"[mail_report] item id: {params['report_item_id']} not exists.")
         report_item = report_item[0]
-        new_mail_title = f'{report_item["mail_title"]}_copy'
+        new_mail_title = f"{report_item['mail_title']}_copy"
 
         # 判断重名
         i = 1
-        while ReportItems.objects.filter(mail_title=new_mail_title):
+        while ReportItems.objects.filter(mail_title=new_mail_title, bk_tenant_id=bk_tenant_id):
             new_mail_title = f"{new_mail_title}({i})"  # noqa
             i += 1
 
@@ -200,14 +203,15 @@ class ReportCloneResource(Resource):
         report_item["mail_title"] = new_mail_title
         report_content_to_create = []
         report_contents = list(
-            ReportContents.objects.filter(report_item=validated_request_data["report_item_id"]).values()
+            ReportContents.objects.filter(report_item=params["report_item_id"], bk_tenant_id=bk_tenant_id).values()
         )
 
         with transaction.atomic():
-            created_item = ReportItems.objects.create(**report_item)
+            created_item = ReportItems.objects.create(**report_item, bk_tenant_id=bk_tenant_id)
             for content in report_contents:
                 content.pop("id")
                 content["report_item"] = created_item.id
+                content["bk_tenant_id"] = bk_tenant_id
                 report_content_to_create.append(ReportContents(**content))
             ReportContents.objects.bulk_create(report_content_to_create)
         return True
@@ -221,10 +225,11 @@ class StatusListResource(Resource):
     class RequestSerializer(serializers.Serializer):
         id = serializers.IntegerField(required=False, allow_null=True)
 
-    def perform_request(self, validated_request_data):
+    def perform_request(self, params: dict):
+        bk_tenant_id = get_request_tenant_id()
         # 提取用户有权限读取的订阅
-        if validated_request_data.get("id"):
-            report_items = resource.report.report_list(id=validated_request_data["id"])
+        if params.get("id"):
+            report_items = resource.report.report_list(id=params["id"])
         else:
             report_items = resource.report.report_list()
 
@@ -234,7 +239,7 @@ class StatusListResource(Resource):
         # 近2周
         two_weeks_ago = cur_date - datetime.timedelta(weeks=2)
         status_queryset = ReportStatus.objects.filter(
-            report_item__in=list(items.keys()), create_time__gte=two_weeks_ago
+            report_item__in=list(items.keys()), create_time__gte=two_weeks_ago, bk_tenant_id=bk_tenant_id
         ).order_by("-create_time")
         statuses = status_queryset.values()
         for status in statuses:
@@ -267,7 +272,7 @@ class GetPanelsByDashboardResource(Resource):
         bk_biz_id = serializers.IntegerField(required=True)
         uid = serializers.CharField(required=True)
 
-    def perform_request(self, params: Dict):
+    def perform_request(self, params: dict):
         return fetch_panel_title_ids(params["bk_biz_id"], params["uid"])
 
 
@@ -334,10 +339,13 @@ class ReportCreateOrUpdateResource(Resource):
         return new_staff_list
 
     def perform_request(self, validated_request_data):
+        bk_tenant_id = get_request_tenant_id()
         current_time = datetime.datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
         if validated_request_data.get("report_item_id"):
             # 编辑则提取订阅项
-            report_item = ReportItems.objects.filter(id=validated_request_data["report_item_id"])
+            report_item = ReportItems.objects.filter(
+                id=validated_request_data["report_item_id"], bk_tenant_id=bk_tenant_id
+            )
             if not report_item:
                 raise CustomException(_("此订阅不存在"))
 
@@ -365,7 +373,7 @@ class ReportCreateOrUpdateResource(Resource):
             report_item = report_item.first()
         else:
             # 创建
-            report_item = ReportItems()
+            report_item = ReportItems(bk_tenant_id=bk_tenant_id)
             create_info = {"create_time": current_time, "last_send_time": ""}
             # 人员信息补充
             receivers = self.fetch_group_members(validated_request_data["receivers"], "receiver")
@@ -386,7 +394,7 @@ class ReportCreateOrUpdateResource(Resource):
         with transaction.atomic():
             # 如果需要修改子内容
             if validated_request_data.get("report_contents"):
-                ReportContents.objects.filter(report_item=report_item.id).delete()
+                ReportContents.objects.filter(report_item=report_item.id, bk_tenant_id=bk_tenant_id).delete()
                 report_contents = []
                 for content in validated_request_data["report_contents"]:
                     report_contents.append(
@@ -396,6 +404,9 @@ class ReportCreateOrUpdateResource(Resource):
                             content_details=content["content_details"],
                             row_pictures_num=content["row_pictures_num"],
                             graphs=content["graphs"],
+                            width=content["width"],
+                            height=content["height"],
+                            bk_tenant_id=bk_tenant_id,
                         )
                     )
                 ReportContents.objects.bulk_create(report_contents)
@@ -410,10 +421,11 @@ class ReportDeleteResource(Resource):
     class RequestSerializer(serializers.Serializer):
         report_item_id = serializers.IntegerField(required=True)
 
-    def perform_request(self, validated_request_data):
+    def perform_request(self, params: dict):
+        bk_tenant_id = get_request_tenant_id()
         try:
-            ReportItems.objects.filter(id=validated_request_data["report_item_id"]).delete()
-            ReportContents.objects.filter(report_item=validated_request_data["report_item_id"]).delete()
+            ReportItems.objects.filter(id=params["report_item_id"], bk_tenant_id=bk_tenant_id).delete()
+            ReportContents.objects.filter(report_item=params["report_item_id"], bk_tenant_id=bk_tenant_id).delete()
             return "success"
         except Exception as e:
             logger.error(e)

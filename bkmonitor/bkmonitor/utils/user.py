@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -9,12 +8,15 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+from functools import lru_cache
 
 from django.conf import settings
 from django.utils.translation import gettext as _
 
 from bkmonitor.utils.local import local
-from bkmonitor.utils.request import get_request
+from bkmonitor.utils.request import get_request, get_request_tenant_id
+from constants.common import DEFAULT_TENANT_ID
+from core.errors.api import BKAPIError
 from core.errors.common import UserInfoMissing
 
 
@@ -43,21 +45,55 @@ def get_local_username():
             return username
 
 
-def get_backend_username():
-    """从配置中获取用户信息"""
-    return getattr(settings, "COMMON_USERNAME", None)
-
-
 def set_local_username(username):
     local.username = username
 
 
-def get_global_user(peaceful=True):
+@lru_cache(maxsize=1000)
+def get_admin_username(bk_tenant_id: str) -> str | None:
+    if not settings.ENABLE_MULTI_TENANT_MODE:
+        return getattr(settings, "COMMON_USERNAME", None)
+
+    from core.drf_resource import api
+
+    # 获取管理员用户
+    result = api.bk_login.batch_lookup_virtual_user(
+        bk_tenant_id=bk_tenant_id, lookup_field="login_name", lookups="bk_admin", bk_username="admin"
+    )
+    if result:
+        return result[0].get("bk_username")
+    else:
+        raise ValueError(_("get_admin_username: 获取管理员用户失败"))
+
+
+def get_backend_username(peaceful=True, bk_tenant_id: str = "") -> str | None:
+    """从配置中获取用户信息"""
+
+    if settings.ENABLE_MULTI_TENANT_MODE:
+        if not bk_tenant_id:
+            bk_tenant_id = get_request_tenant_id(peaceful=peaceful)
+
+        if not bk_tenant_id:
+            if not peaceful:
+                raise ValueError(_("get_backend_username: 获取租户ID失败"))
+            return None
+
+        return get_admin_username(bk_tenant_id)
+    else:
+        return getattr(settings, "COMMON_USERNAME", None)
+
+
+def get_global_user(peaceful=True, bk_tenant_id: str = ""):
     # 1. 用户信息： 获取顺序：
     # 1.1 用户访问的request对象中的用户凭证
     # 1.2 local获取用户名
     # 1.3 系统配置的后台用户
-    username = get_request_username() or get_local_username() or get_backend_username()
+
+    username = (
+        get_request_username()
+        or get_local_username()
+        or get_backend_username(peaceful=peaceful, bk_tenant_id=bk_tenant_id)
+    )
 
     if username:
         return username
@@ -66,9 +102,29 @@ def get_global_user(peaceful=True):
         raise UserInfoMissing
 
 
-def make_userinfo():
-    username = get_global_user()
+def make_userinfo(bk_tenant_id: str = DEFAULT_TENANT_ID):
+    username = get_global_user(bk_tenant_id=bk_tenant_id)
     if username:
         return {"bk_username": username}
 
     raise ValueError(_("make_userinfo: 获取用户信息失败"))
+
+
+def get_user_display_name(username: str):
+    """
+    获取用户展示名
+    """
+    if not settings.ENABLE_MULTI_TENANT_MODE:
+        return username
+
+    from core.drf_resource import api
+
+    try:
+        user_display_info = api.bk_login.batch_query_user_display_info(bk_usernames=[username])
+    except BKAPIError:
+        user_display_info = None
+
+    if user_display_info:
+        username = user_display_info[0]["display_name"]
+
+    return username

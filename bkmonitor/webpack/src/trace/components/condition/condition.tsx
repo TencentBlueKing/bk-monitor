@@ -25,9 +25,9 @@
  * IN THE SOFTWARE.
  */
 import { type PropType, defineComponent, ref, watch } from 'vue';
-import { useI18n } from 'vue-i18n';
 
 import { Cascader, Dropdown, Select, Switcher } from 'bkui-vue';
+import { useI18n } from 'vue-i18n';
 
 import DurationFilter from '../../pages/main/duration-filter/duration-filter';
 
@@ -78,7 +78,7 @@ export default defineComponent({
       type: Array as PropType<Array<IConditionValueList>>,
       default: () => [],
     },
-    durantionRange: {
+    durationRange: {
       type: Array as PropType<Array<number>>,
       default: () => [],
     },
@@ -260,7 +260,7 @@ export default defineComponent({
         {props.conditionType === 'duration' && (
           <DurationFilter
             style='margin-top: 4px;'
-            range={props.durantionRange ?? undefined}
+            range={props.durationRange ?? undefined}
             onChange={(v: number[]) => emit('durationRangeChange', v)}
           />
         )}

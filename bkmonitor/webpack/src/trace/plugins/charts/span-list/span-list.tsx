@@ -27,6 +27,7 @@
 import { type PropType, computed, defineComponent, reactive, ref, watch } from 'vue';
 
 import { Pagination, Popover } from 'bkui-vue';
+import { useI18n } from 'vue-i18n';
 
 import { customFormatTime, formatDate, formatDuration } from '../../../components/trace-view/utils/date';
 import { getSpanKindIcon } from '../../../utils';
@@ -34,18 +35,18 @@ import { getSpanKindIcon } from '../../../utils';
 import './span-list.scss';
 
 export interface SpanListItem {
-  icon: string;
-  kind: number;
-  name: string;
-  operationName: string;
-  duration: number;
+  bgColor?: string;
   collapsed?: boolean;
   collapsedSpanNum?: number;
-  spanIds?: string[];
-  spanId: string;
   color: string;
-  bgColor?: string;
+  duration: number;
+  icon: string;
+  kind: number;
   mark?: string;
+  name: string;
+  operationName: string;
+  spanId: string;
+  spanIds?: string[];
   startTime: number;
 }
 
@@ -70,6 +71,7 @@ export default defineComponent({
   },
   emits: ['viewDetail', 'listChange'],
   setup(props, { emit }) {
+    const { t } = useI18n();
     /** 每页显示条数 */
     const pageLimit = 30;
     /** 当前页 */
@@ -102,7 +104,7 @@ export default defineComponent({
     const handleSortChange = (type: 'show' | 'sort' | 'type', value?) => {
       if (type === 'sort') {
         sortOrder.sort = sortOrder.sort === 'desc' ? 'asc' : 'desc';
-      } else if (type == 'show') {
+      } else if (type === 'show') {
         sortOrder.popoverShow = value;
       }
     };
@@ -142,6 +144,7 @@ export default defineComponent({
       handlePageChange,
       spanListBody,
       isScrollBody,
+      t,
     };
   },
   render() {
@@ -188,13 +191,13 @@ export default defineComponent({
               {{
                 default: () => (
                   <div class='sort-select'>
-                    <span class='text'>{this.$t('产生时间')}</span>
+                    <span class='text'>{this.t('产生时间')}</span>
                     <i class={['icon-monitor', this.sortOrder.popoverShow ? 'icon-arrow-up' : 'icon-arrow-down']} />
                   </div>
                 ),
                 content: () => (
                   <div class=''>
-                    <div class='select-item'>{this.$t('产生时间')}</div>
+                    <div class='select-item'>{this.t('产生时间')}</div>
                   </div>
                 ),
               }}
@@ -225,9 +228,7 @@ export default defineComponent({
                   )}
                   <span
                     class='span-name'
-                    v-overflow-text={{
-                      text: original.name,
-                    }}
+                    v-overflow-tips
                   >
                     {original.name}
                   </span>
@@ -247,14 +248,12 @@ export default defineComponent({
                     alt=''
                     src={original.icon}
                   />
-                  <span
+                  <div
                     class='service-name'
-                    v-overflow-text={{
-                      text: original.operationName,
-                    }}
+                    v-overflow-tips
                   >
                     {original.operationName}
-                  </span>
+                  </div>
                   <span class='start-time'>
                     {`${formatDate(original.startTime)} ${customFormatTime(original.startTime, 'HH:mm:ss')}`}
                   </span>

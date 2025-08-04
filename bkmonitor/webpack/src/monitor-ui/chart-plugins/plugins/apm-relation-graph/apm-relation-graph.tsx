@@ -28,7 +28,7 @@ import { Component, Inject, InjectReactive, ProvideReactive, Ref, Watch } from '
 
 // import { Component as tsc } from 'vue-tsx-support';
 import dayjs from 'dayjs';
-import { CancelToken } from 'monitor-api/index';
+import { CancelToken } from 'monitor-api/cancel';
 // import type { PanelModel } from '../../typings';
 import { dataTypeBarQuery } from 'monitor-api/modules/apm_topo';
 import { topoView } from 'monitor-api/modules/apm_topo';
@@ -46,12 +46,12 @@ import BarAlarmChart from './components/bar-alarm-chart';
 // import ResourceTopo from './components/resource-topo/resource-topo';
 import ServiceOverview from './components/service-overview';
 import {
+  type EdgeDataType,
   alarmBarChartDataTransform,
   CategoryEnum,
   DATA_TYPE_LIST,
   EDataType,
   nodeIconClass,
-  type EdgeDataType,
 } from './components/utils';
 
 import type { IFilterDict, ITableColumn, ITablePagination } from 'monitor-pc/pages/monitor-k8s/typings/table';
@@ -219,18 +219,18 @@ export default class ApmRelationGraph extends CommonSimpleChart {
         id: 'topo',
         tips: this.resourceDisable
           ? this.selectedEndpoint
-            ? window.i18n.tc('请选择非接口节点')
-            : window.i18n.tc('请选择节点')
-          : window.i18n.tc('资源拓扑'),
+            ? window.i18n.t('请选择非接口节点')
+            : window.i18n.t('请选择节点')
+          : window.i18n.t('资源拓扑'),
         icon: 'icon-ziyuan',
       },
       {
         id: 'overview',
         tips: this.overviewDisable
-          ? window.i18n.tc('请选择节点')
+          ? window.i18n.t('请选择节点')
           : this.selectedEndpoint
-            ? window.i18n.tc('接口概览')
-            : window.i18n.tc('服务概览'),
+            ? window.i18n.t('接口概览')
+            : window.i18n.t('服务概览'),
         icon: 'icon-mc-overview',
       },
     ];
@@ -324,24 +324,24 @@ export default class ApmRelationGraph extends CommonSimpleChart {
     this.getPanelData();
   }
 
-  @Watch('refleshInterval')
+  @Watch('refreshInterval')
   // 数据刷新间隔
   handleRefreshIntervalChange(v: number) {
-    if (this.refleshIntervalInstance) {
-      window.clearInterval(this.refleshIntervalInstance);
+    if (this.refreshIntervalInstance) {
+      window.clearInterval(this.refreshIntervalInstance);
     }
-    if (v <= 0) return;
-    this.refleshIntervalInstance = window.setInterval(() => {
-      if (this.inited) {
+    if (!v || +v < 60 * 1000) return;
+    this.refreshIntervalInstance = window.setInterval(() => {
+      if (this.initialized) {
         this.refreshTopoLayout = false;
         this.needCache = false;
         this.selectedServiceName = '';
         this.expanded = [];
         this.getPanelData();
       }
-    }, this.refleshInterval);
+    }, v);
   }
-  @Watch('refleshImmediate')
+  @Watch('refreshImmediate')
   // 立刻刷新
   handleRefreshImmediateChange(v: string) {
     if (v) {
@@ -361,7 +361,7 @@ export default class ApmRelationGraph extends CommonSimpleChart {
     this.beforeGetPanelData(start_time, end_time);
     this.handleLoadingChange(true);
     try {
-      this.unregisterOberver();
+      this.unregisterObserver();
       const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
       const params = {
         start_time: start_time ? dayjs.tz(start_time).unix() : startTime,

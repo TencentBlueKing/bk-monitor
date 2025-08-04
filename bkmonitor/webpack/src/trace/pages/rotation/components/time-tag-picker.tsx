@@ -24,20 +24,20 @@
  * IN THE SOFTWARE.
  */
 import { type PropType, computed, defineComponent, nextTick, onUnmounted, reactive, ref, watch } from 'vue';
-import { useI18n } from 'vue-i18n';
 
 import { Tag, TimePicker } from 'bkui-vue';
 import dayjs from 'dayjs';
 import { getEventPaths } from 'monitor-pc/utils';
+import { useI18n } from 'vue-i18n';
 
 import './time-tag-picker.scss';
 
 interface CurrentTimeModel {
-  value: string[];
   index: number;
-  show: boolean;
   inputValue: string;
+  show: boolean;
   showInput: boolean;
+  value: string[];
 }
 
 export default defineComponent({
@@ -140,6 +140,7 @@ export default defineComponent({
     function handleTagClose(ind: number) {
       sourceValue.value = JSON.parse(JSON.stringify(localValue));
       localValue.splice(ind, 1);
+      currentTime.show = false;
       handleEmitData();
     }
 
@@ -167,7 +168,7 @@ export default defineComponent({
      */
     function handleConfirm(e: Event) {
       isShowMsg.value = false;
-      if (getEventPaths(e, '.time-picker-popover').length) return;
+      if (getEventPaths(e, '.time-tag-picker-popover').length) return;
       if (!currentTime.value.length && !currentTime.inputValue) {
         initCurrentTime();
         return;
@@ -180,6 +181,9 @@ export default defineComponent({
         }
         const match = currentTime.inputValue.match(reg);
         currentTime.value = [match[1], match[3]];
+      } else {
+        initCurrentTime();
+        return;
       }
 
       // 新增时间
@@ -240,7 +244,7 @@ export default defineComponent({
         <TimePicker
           class='time-picker'
           v-model={this.currentTime.value}
-          ext-popover-cls='time-picker-popover'
+          ext-popover-cls='time-tag-picker-popover'
           format='HH:mm'
           open={this.currentTime.show}
           type='timerange'
@@ -258,6 +262,7 @@ export default defineComponent({
                 <div class='time-tag-list'>
                   {this.localValue.map((item, ind) => (
                     <Tag
+                      key={`${item.join('_')}_${ind}`}
                       class='time-tag'
                       closable
                       onClick={e => this.handleShowTime(e, item, ind)}

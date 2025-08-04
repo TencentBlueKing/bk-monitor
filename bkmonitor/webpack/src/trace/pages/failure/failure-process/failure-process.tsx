@@ -29,6 +29,7 @@ import { Exception, Input, Loading, Popover, Tree } from 'bkui-vue';
 import { CogShape } from 'bkui-vue/lib/icon';
 import dayjs from 'dayjs';
 import { incidentOperationTypes } from 'monitor-api/modules/incident';
+import { useI18n } from 'vue-i18n';
 
 import { useIncidentInject } from '../utils';
 import { renderMap } from './process';
@@ -47,6 +48,7 @@ export default defineComponent({
   },
   emits: ['chooseOperation', 'changeTab'],
   setup(props, { emit }) {
+    const { t } = useI18n();
     const failureProcessListRef = ref<HTMLDivElement>();
     const renderStep = () => {};
     const handleSetting = () => {};
@@ -187,6 +189,7 @@ export default defineComponent({
       incidentDetail,
       operationsLoading,
       handleCallback,
+      t,
     };
   },
   render() {
@@ -195,7 +198,7 @@ export default defineComponent({
         <div class='failure-process-search'>
           <Input
             v-model={this.queryString}
-            placeholder={this.$t('搜索 流转记录')}
+            placeholder={this.t('搜索 流转记录')}
           />
 
           <Popover
@@ -211,7 +214,7 @@ export default defineComponent({
               default: (
                 <span
                   class='failure-process-search-setting'
-                  v-bk-tooltips={{ content: this.$t('设置展示类型') }}
+                  v-bk-tooltips={{ content: this.t('设置展示类型') }}
                   onClick={this.handleSetting}
                 >
                   <CogShape />
@@ -247,7 +250,7 @@ export default defineComponent({
                                 ]}
                               />
                             )}
-                            {data.name}
+                            <span class='setting-tree-node-name'>{data.name}</span>
                             {data.isAddLine ? <span class='node-line' /> : ''}
                           </span>
                         );
@@ -273,7 +276,6 @@ export default defineComponent({
                     onClick={e => this.handleOperationId(e, operation)}
                   >
                     <div class='failure-process-item-avatar'>
-                      {index !== this.searchOperations.length - 1 && <span class='failure-process-list-line' />}
                       <i
                         class={[
                           'icon-monitor item-icon',
@@ -286,6 +288,7 @@ export default defineComponent({
                       />
                     </div>
                     <div class='failure-process-item-content'>
+                      {index !== this.searchOperations.length - 1 && <span class='failure-process-list-line' />}
                       <p>
                         <span class='failure-process-item-time'>{this.formatterTime(operation.create_time)}</span>
                         <span class='failure-process-item-title'>
@@ -308,7 +311,7 @@ export default defineComponent({
           ) : (
             <Exception
               description={
-                this.checkedNodes.length || this.queryString !== '' ? this.$t('搜索数据为空') : this.$t('暂无数据')
+                this.checkedNodes.length || this.queryString !== '' ? this.t('搜索数据为空') : this.t('暂无数据')
               }
               scene='part'
               type='empty'
@@ -318,7 +321,7 @@ export default defineComponent({
                   class='link cursor'
                   onClick={this.handleClearSearch}
                 >
-                  {this.$t('清空筛选条件')}
+                  {this.t('清空筛选条件')}
                 </span>
               ) : (
                 ''

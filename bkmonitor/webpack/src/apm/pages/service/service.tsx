@@ -27,6 +27,7 @@ import { Component, InjectReactive, Prop, Provide, Ref } from 'vue-property-deco
 import { Component as tsc } from 'vue-tsx-support';
 
 import { listApplicationInfo, simpleServiceList } from 'monitor-api/modules/apm_meta';
+import { globalUrlFeatureMap } from 'monitor-common/utils/global-feature-map';
 import { random } from 'monitor-common/utils/utils';
 import { destroyTimezone } from 'monitor-pc/i18n/dayjs';
 import CommonPage, { type SceneType } from 'monitor-pc/pages/monitor-k8s/components/common-page-new';
@@ -56,8 +57,7 @@ export default class Service extends tsc<object> {
   @Prop({ type: String, default: '' }) id: string;
 
   @Ref() commonPageRef: CommonPage;
-  @InjectReactive('readonly') readonly readonly: boolean;
-
+  @InjectReactive('readonly') readonly: boolean;
   viewOptions: IViewOptions = {};
   // 导航条设置
   routeList: INavItem[] = [];
@@ -97,7 +97,7 @@ export default class Service extends tsc<object> {
     return this.$store.getters.bizId;
   }
 
-  get positonText() {
+  get positionText() {
     const label = this.tabName;
 
     const value =
@@ -213,24 +213,25 @@ export default class Service extends tsc<object> {
 
   /** 导航栏下拉选择 */
   async handleNavSelect(item: ISelectItem, navId) {
+    const { to, from, interval, timezone, refreshInterval, dashboardId } = this.$route.query;
     // 选择应用
     if (navId === 'application') {
       const { id } = this.routeList[1];
       this.appName = item.id;
       const targetRoute = this.$router.resolve({
         name: id,
-        query: { 'filter-app_name': this.appName, dashboardId: this.$route.query.dashboardId || this.dashboardId },
+        query: { 'filter-app_name': this.appName, dashboardId: dashboardId || this.dashboardId, to, from },
       });
       /** 防止出现跳转当前地址导致报错 */
       if (targetRoute.resolved.fullPath !== this.$route.fullPath) {
         this.$router.push({
           name: id,
-          query: { 'filter-app_name': this.appName, dashboardId: this.$route.query.dashboardId || this.dashboardId },
+          query: { 'filter-app_name': this.appName, dashboardId: dashboardId || this.dashboardId, to, from },
         });
       }
     } else {
       this.serviceName = item.id;
-      const { to, from, interval, timezone, refleshInterval, dashboardId } = this.$route.query;
+      // const { to, from, interval, timezone, refreshInterval, dashboardId } = this.$route.query;
       this.$router.replace({
         name: this.$route.name,
         query: {
@@ -238,7 +239,7 @@ export default class Service extends tsc<object> {
           from,
           interval,
           timezone,
-          refleshInterval,
+          refreshInterval,
           dashboardId,
           'filter-app_name': item.app_name,
           'filter-service_name': item.service_name,
@@ -315,15 +316,17 @@ export default class Service extends tsc<object> {
             onTabChange={this.handleUpdateAppName}
             onTitleChange={this.handleTitleChange}
           >
-            <ApmCommonNavBar
-              slot='nav'
-              needBack={false}
-              needShadow={true}
-              positionText={this.positonText}
-              routeList={this.routeList}
-              needCopyLink
-              onNavSelect={this.handleNavSelect}
-            />
+            {globalUrlFeatureMap.APM_SUBMENU && (
+              <ApmCommonNavBar
+                slot='nav'
+                needBack={false}
+                needShadow={true}
+                positionText={this.positionText}
+                routeList={this.routeList}
+                needCopyLink
+                onNavSelect={this.handleNavSelect}
+              />
+            )}
             {!this.readonly && !!this.appName && (
               <div
                 class='service-tools'

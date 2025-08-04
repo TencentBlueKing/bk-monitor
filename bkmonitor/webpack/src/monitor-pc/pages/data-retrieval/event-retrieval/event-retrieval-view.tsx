@@ -29,7 +29,8 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import { toPng } from 'html-to-image';
 import { graphUnifyQuery, logQuery } from 'monitor-api/modules/grafana';
-import { Debounce, deepClone, random, getUrlParam } from 'monitor-common/utils/utils';
+import { globalUrlFeatureMap } from 'monitor-common/utils/global-feature-map';
+import { Debounce, deepClone, random } from 'monitor-common/utils/utils';
 import MonitorEcharts from 'monitor-ui/monitor-echarts/monitor-echarts-new.vue';
 
 import BackTop from '../../../components/back-top/back-top';
@@ -291,7 +292,7 @@ export default class EventRetrievalView extends tsc<EventRetrievalViewType.IProp
    * @description: 更新图表和表格的数据
    */
   async updateViewData() {
-    await this.backTopRef.handleBackTop();
+    await this.backTopRef?.handleBackTop();
     // this.handleGetTableData()
     this.chartKey = random(8);
     this.noData = false;
@@ -335,10 +336,10 @@ export default class EventRetrievalView extends tsc<EventRetrievalViewType.IProp
    * @description: 操作图表切换时间范围 timeRange ["2021-09-04 14:49", "2021-09-04 15:18"]
    */
   @Emit('timeRangeChange')
-  handleTimeRangeChange(timeRange: [string, string] | { start_time: number; end_time: number }) {
+  handleTimeRangeChange(timeRange: [string, string] | { end_time: number; start_time: number }) {
     let time = null;
 
-    const temp = timeRange as { start_time: number; end_time: number };
+    const temp = timeRange as { end_time: number; start_time: number };
     if (timeRange && Array.isArray(timeRange)) {
       // time = handleTimeRange(timeRange);
       time = handleTransformToTimestamp(timeRange || this.compareValue.tools.timeRange);
@@ -361,8 +362,7 @@ export default class EventRetrievalView extends tsc<EventRetrievalViewType.IProp
    * @description: needMenu相关处理
    */
   handleSetNeedMenu() {
-    const needMenu = getUrlParam('needMenu');
-    this.needMenu = `${needMenu}` !== 'false';
+    this.needMenu = globalUrlFeatureMap.NEED_MENU;
     !this.needMenu && this.handleMergeUrlColumns();
     this.handleNeedMenuChange();
   }
@@ -566,7 +566,7 @@ export default class EventRetrievalView extends tsc<EventRetrievalViewType.IProp
                     chart-type='bar'
                     get-series-data={this.getSeriesData}
                     hasResize={true}
-                    reflesh-interval={this.compareValue.tools.refleshInterval}
+                    refresh-interval={this.compareValue.tools.refreshInterval}
                     on-add-strategy={this.handleAddStrategy}
                     on-export-data-retrieval={this.handleToRetrieval}
                     on-no-data-change={this.handleNoData}

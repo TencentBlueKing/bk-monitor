@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,6 +7,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 from django.conf import settings
 from django.utils.module_loading import import_string
 
@@ -59,7 +59,7 @@ class GrafanaSettings:
 
     def __getattr__(self, attr):
         if attr not in self.defaults:
-            raise AttributeError("Invalid Grafana setting: '%s'" % attr)
+            raise AttributeError(f"Invalid Grafana setting: '{attr}'")
 
         try:
             # Check if present in user settings
@@ -72,7 +72,7 @@ class GrafanaSettings:
         if attr in self.import_strings:
             if isinstance(val, str):
                 val = import_string(val)
-            elif isinstance(val, (list, tuple)):
+            elif isinstance(val, list | tuple):
                 val = [import_string(item) for item in val]
         return val
 

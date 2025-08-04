@@ -35,13 +35,13 @@ import {
   toRefs,
   watch,
 } from 'vue';
-import { useI18n } from 'vue-i18n';
 
 import G6, { type Graph, type IEdge, type INode } from '@antv/g6';
 import { addListener, removeListener } from '@blueking/fork-resize-detector';
 import { Alert, Popover } from 'bkui-vue';
 import dayjs from 'dayjs';
 import { traceDiagram } from 'monitor-api/modules/apm_trace';
+import { useI18n } from 'vue-i18n';
 
 import { formatDuration } from '../../components/trace-view/utils/date';
 import GraphTools from '../../plugins/charts/flame-graph/graph-tools/graph-tools';
@@ -66,16 +66,16 @@ import type { Span } from '../trace-view/typings';
 import './relation-topo.scss';
 
 interface IState {
-  keyword: string[];
-  canvasWidth: number;
   canvasHeight: number;
-  zoomValue: number;
-  minZoomVal: number;
-  maxZoomVal: number;
-  matchesNodeIds: string[];
+  canvasWidth: number;
   curMathesFocusIndex: number;
   curSelectedSpanId: string;
   isCompareView: boolean;
+  keyword: string[];
+  matchesNodeIds: string[];
+  maxZoomVal: number;
+  minZoomVal: number;
+  zoomValue: number;
 }
 
 const RelationTopoProps = {
@@ -204,7 +204,7 @@ export default defineComponent({
     /** 拓扑图事件监听 */
     const bindListener = (graph: Graph) => {
       graph.on('node:mouseenter', e => {
-        const { id } = e.item?.get('model');
+        const { id } = e.item.get('model');
         const activeNode = graph.getNodes().find((node: any) => node.get('model').id === id);
         activeNode && graph.setItemState(activeNode, 'active', true);
       });
@@ -689,7 +689,7 @@ export default defineComponent({
       const allNodes = graph?.getNodes() || []; // 所有节点
       const matches: string[] = []; // 搜索关键字匹配
 
-      allNodes.forEach((node: { getModel: () => any; getEdges: () => any[] }) => {
+      allNodes.forEach((node: { getEdges: () => any[]; getModel: () => any }) => {
         const model = node.getModel();
         // 关键字搜索匹配
         const isKeywordMatch = classifyIds
@@ -902,7 +902,7 @@ export default defineComponent({
       // graph.fitCenter();
       // graph.fitView();
     };
-    const handleKeywordFliter = (value: string[]) => {
+    const handleKeywordFilter = (value: string[]) => {
       state.keyword = value;
       handleHighlightNode();
     };
@@ -1080,11 +1080,11 @@ export default defineComponent({
     };
 
     onMounted(() => {
-      state.isCompareView = !!props.compareTraceID ?? false;
+      state.isCompareView = !!(props.compareTraceID ?? false);
       setTimeout(() => {
         try {
           if (!state.isCompareView) initGraph();
-        } catch (error) {
+        } catch {
           empty.value = false;
         }
       }, 100);
@@ -1100,7 +1100,7 @@ export default defineComponent({
       nextResult,
       prevResult,
       clearSearch,
-      handleKeywordFliter,
+      handleKeywordFilter,
       handleClassifyFilter,
       viewCompare,
     });

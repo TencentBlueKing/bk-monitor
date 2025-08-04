@@ -38,40 +38,40 @@ import type { TranslateResult } from 'vue-i18n';
 
 import './header-tools.scss';
 
-interface ITimeRangeItem {
-  name: TranslateResult | string;
-  value: number | string;
-}
-interface IRefleshItem {
-  name: TranslateResult | string;
-  id: number | string;
+interface IHeadToolEvent {
+  onRefreshChange: number;
+  onTimeRangeChange: number;
+  onImmediateRefresh: () => void;
 }
 interface IHeadToolProps {
+  refreshInterval: number;
   timeRange: number | string | string[];
-  refleshInterval: number;
+}
+interface IRefreshItem {
+  id: number | string;
+  name: string | TranslateResult;
 }
 
-interface IHeadToolEvent {
-  onTimeRangeChange: number;
-  onRefleshChange: number;
-  onImmediateReflesh: () => void;
+interface ITimeRangeItem {
+  name: string | TranslateResult;
+  value: number | string;
 }
 @Component
 export default class HeaderTool extends tsc<IHeadToolProps, IHeadToolEvent> {
   @Prop({ default: 1 * 60 * 60 * 1000, type: [Number, Array, String] }) timeRange: number | string | string[];
-  @Prop({ default: -1 }) refleshInterval: number;
+  @Prop({ default: -1 }) refreshInterval: number;
   timerangeList: ITimeRangeItem[] = [];
-  refleshList: IRefleshItem[] = [];
+  refreshList: IRefreshItem[] = [];
   timeRangeValue: number = 1 * 60 * 60 * 1000;
-  refleshIntervalValue = -1;
+  refreshIntervalValue = -1;
 
   @Watch('timeRange', { immediate: true })
   onTimeRangeChange(v) {
     this.timeRangeValue = v;
   }
-  @Watch('refleshInterval', { immediate: true })
-  onRefleshIntervalChange(v) {
-    this.refleshIntervalValue = v;
+  @Watch('refreshInterval', { immediate: true })
+  onRefreshIntervalChange(v) {
+    this.refreshIntervalValue = v;
   }
   created() {
     this.timerangeList = [
@@ -136,7 +136,7 @@ export default class HeaderTool extends tsc<IHeadToolProps, IHeadToolEvent> {
         value: 'thisWeek',
       },
     ];
-    this.refleshList = [
+    this.refreshList = [
       // 刷新间隔列表
       {
         name: 'off',
@@ -176,9 +176,9 @@ export default class HeaderTool extends tsc<IHeadToolProps, IHeadToolEvent> {
   handleTimeRangeChange() {
     return this.timeRangeValue;
   }
-  @Emit('refleshChange')
-  handleRefleshChange() {
-    return this.refleshIntervalValue;
+  @Emit('refreshChange')
+  handleRefreshChange() {
+    return this.refreshIntervalValue;
   }
   handleAddOption(item) {
     this.timerangeList.push(item);
@@ -198,13 +198,13 @@ export default class HeaderTool extends tsc<IHeadToolProps, IHeadToolEvent> {
         />
         <DropDownMenu
           class='time-interval'
-          v-model={this.refleshIntervalValue}
+          v-model={this.refreshIntervalValue}
           icon={'icon-zidongshuaxin'}
-          is-reflesh-interval={true}
-          list={this.refleshList}
-          text-active={this.refleshInterval !== -1}
-          on-change={this.handleRefleshChange}
-          on-on-icon-click={() => this.$emit('immediateReflesh')}
+          is-refresh-interval={true}
+          list={this.refreshList}
+          text-active={this.refreshInterval !== -1}
+          on-change={this.handleRefreshChange}
+          on-on-icon-click={() => this.$emit('immediateRefresh')}
         />
       </div>
     );

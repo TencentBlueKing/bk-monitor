@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -19,6 +18,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+
 import re
 
 from pipeline.service import task_service
@@ -43,6 +43,15 @@ class ClusteringConfigViewSet(APIViewSet):
 
     def get_permissions(self):
         return []
+
+    @list_route(methods=["GET"], url_path="list_configs")
+    def list_configs(self, request, *args, **kwargs):
+        """
+        获取聚类配置列表
+        """
+        if not request.user.is_superuser:
+            return Response([])
+        return Response(ClusteringConfigHandler.list_all_configs())
 
     @detail_route(methods=["GET"], url_path="config")
     def get_config(self, request, *args, index_set_id=None, **kwargs):
@@ -95,10 +104,6 @@ class ClusteringConfigViewSet(APIViewSet):
     @detail_route(methods=["GET"], url_path="start")
     def start(self, request, *args, index_set_id=None, **kwargs):
         return Response(ClusteringConfigHandler(index_set_id=index_set_id).online_start())
-
-    @detail_route(methods=["GET"], url_path="offline_start")
-    def offline_start(self, request, *args, index_set_id=None, **kwargs):
-        return Response(ClusteringConfigHandler(index_set_id=index_set_id).start())
 
     @list_route(methods=["GET"], url_path="pipeline/state")
     def get_pipeline_state(self, request, *args, **kwargs):
@@ -322,6 +327,8 @@ class ClusteringConfigViewSet(APIViewSet):
             ClusteringConfigHandler().debug(
                 input_data=params["input_data"],
                 predefined_varibles=params["predefined_varibles"],
+                delimeter=params["delimeter"],
+                max_log_length=params["max_log_length"],
             )
         )
 

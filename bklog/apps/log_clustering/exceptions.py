@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -19,6 +18,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+
 from django.utils.translation import gettext_lazy as _
 
 from apps.exceptions import BaseException, ErrorCode
@@ -36,21 +36,6 @@ class BaseClusteringException(BaseException):
 class ClusteringClosedException(BaseClusteringException):
     ERROR_CODE = "001"
     MESSAGE = _("聚类未开放")
-
-
-class NodeConfigException(BaseClusteringException):
-    ERROR_CODE = "002"
-    MESSAGE = _("获取node config异常{steps}")
-
-
-class NotSupportStepNameQueryException(BaseClusteringException):
-    ERROR_CODE = "003"
-    MESSAGE = _("不支持的step_name状态获取: {step_name}")
-
-
-class EvaluationStatusResponseException(BaseClusteringException):
-    ERROR_CODE = "004"
-    MESSAGE = _("evaluation_status返回异常: {evaluation_status}")
 
 
 class ClusteringConfigNotExistException(BaseClusteringException):
@@ -146,3 +131,8 @@ class RegexTemplateNotExistException(BaseClusteringException):
 class RegexTemplateReferencedException(BaseClusteringException):
     ERROR_CODE = "024"
     MESSAGE = _("该模板已被其他索引集引用，不允许删除: {regex_template_id}")
+
+
+class ClusteringOwnersNotExistException(BaseClusteringException):
+    ERROR_CODE = "025"
+    MESSAGE = _("日志聚类-告警创建责任人不存在")

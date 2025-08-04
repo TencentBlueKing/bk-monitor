@@ -1,3 +1,4 @@
+/* eslint-disable perfectionist/sort-imports */
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台社区版 (BlueKing PaaS Community Edition) available.
@@ -31,8 +32,8 @@ import i18n from './i18n/i18n';
 import { createApp } from 'vue';
 
 import Api from 'monitor-api/api';
-import { setVue } from 'monitor-api/utils/index';
-import { immediateRegister } from 'monitor-common/service-worker/service-wroker';
+import { type VueInstance, setVue } from 'monitor-api/utils/index';
+import { immediateRegister } from 'monitor-common/service-worker/service-worker';
 import { getUrlParam, mergeSpaceList, setGlobalBizId } from 'monitor-common/utils';
 
 import { bkUiMessage } from './common/message';
@@ -42,10 +43,15 @@ import router from './router/router';
 import { useAuthorityStore } from './store/modules/authority';
 import store from './store/store';
 import 'monitor-pc/common/global-login';
+import 'monitor-pc/common/user-display-name';
 
 import './static/scss/global.scss';
-import 'monitor-static/icons/monitor-icons.css';
 import 'monitor-pc/static/css/reset.scss';
+import 'monitor-static/icons/monitor-icons.css';
+import '@blueking/tdesign-ui/vue3/index.css';
+import { assignWindowField } from 'monitor-common/utils/assign-window';
+import { userDisplayNameConfigure } from 'monitor-pc/common/user-display-name';
+
 // import 'monitor-pc/tailwind.css';
 window.source_app = 'trace';
 const spaceUid = getUrlParam('space_uid');
@@ -55,13 +61,15 @@ if (process.env.NODE_ENV === 'development') {
 }
 if (window.__POWERED_BY_BK_WEWEB__) {
   const app = createApp(App);
-  setVue(app);
+  setVue(app as VueInstance);
   app.use(store).use(router).use(i18n).use(directives).mount('#app');
   app.config.globalProperties = {
     $api: Api,
     $Message: bkUiMessage,
     $authorityStore: useAuthorityStore(),
   } as any;
+  // 微前端模式下，主动卸载当前 vue 实例
+  window.__BK_WEWEB_DATA__?.setUnmountCallback?.(() => app.unmount());
 } else {
   Api.model
     .enhancedContext({
@@ -70,17 +78,16 @@ if (window.__POWERED_BY_BK_WEWEB__) {
       context_type: 'basic',
     })
     .then(data => {
-      Object.keys(data).forEach(key => {
-        window[key.toLocaleLowerCase()] = data[key];
-      });
+      assignWindowField(data);
       mergeSpaceList(window.space_list);
       window.username = window.uin;
       window.user_name = window.uin;
       window.cc_biz_id = +window.bk_biz_id;
       window.bk_log_search_url = data.BKLOGSEARCH_HOST;
       setGlobalBizId();
+      userDisplayNameConfigure();
       const app = createApp(App);
-      setVue(app);
+      setVue(app as VueInstance);
       app.use(store).use(router).use(i18n).use(directives).mount('#app');
       app.config.globalProperties = {
         $api: Api,
@@ -94,9 +101,7 @@ if (window.__POWERED_BY_BK_WEWEB__) {
           context_type: 'extra',
         })
         .then(data => {
-          Object.keys(data).forEach(key => {
-            window[key.toLocaleLowerCase()] = data[key];
-          });
+          assignWindowField(data);
         });
     })
     .catch(e => console.error(e))

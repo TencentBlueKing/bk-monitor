@@ -24,6 +24,7 @@
  * IN THE SOFTWARE.
  */
 import { random } from '@/common/util';
+import { throttle } from 'lodash';
 
 import type { VueConstructor } from 'vue';
 import type { DirectiveBinding, DirectiveOptions } from 'vue/types/options';
@@ -66,7 +67,7 @@ const getBindValue = (data: IBindValue): IBindValue => {
   };
 };
 
-const handleMouseMove = (event: MouseEvent) => {
+const handleMouseMove = throttle((event: MouseEvent) => {
   if (!insertedEl) return;
   const { maxWidth, minWidth, placement, autoHidden, onHidden, onWidthChange } = getBindValue(
     insertedEl._bk_log_drag.value as IBindValue,
@@ -92,10 +93,10 @@ const handleMouseMove = (event: MouseEvent) => {
     onWidthChange?.(0);
   } else {
     insertedEl.style.width = `${width}px`;
-    insertedEl._bk_log_drag.el.style.left = `${width - 3}px`;
+    insertedEl._bk_log_drag.el.style.left = `${width - 10}px`;
     onWidthChange?.(width);
   }
-};
+}, 60);
 
 const handleMouseUp = () => {
   document.body.style.cursor = '';
@@ -137,7 +138,7 @@ const logDrag: DirectiveOptions = {
       pre += `${key}: ${style[key]};`;
       return pre;
     }, '');
-    dragEle.style.left = `${insertedEl.getBoundingClientRect().width - 3}px`;
+    dragEle.style.left = `${insertedEl.getBoundingClientRect().width - 10}px`;
     el.appendChild(dragEle);
 
     // 绑定事件
@@ -159,7 +160,7 @@ const logDrag: DirectiveOptions = {
     if (defaultWidth <= maxWidth && defaultWidth >= minWidth && isShow && isHidden === 'true') {
       curInsertedEl.style.width = `${defaultWidth}px`;
       curInsertedEl.setAttribute('is-hidden', 'false');
-      el._bk_log_drag.el.style.left = `${insertedEl.getBoundingClientRect().width - 3}px`;
+      el._bk_log_drag.el.style.left = `${insertedEl.getBoundingClientRect().width - 10}px`;
       onWidthChange?.(defaultWidth);
     }
     if (!isShow) {

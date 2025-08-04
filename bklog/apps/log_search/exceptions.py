@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -19,6 +18,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+
 from django.utils.translation import gettext_lazy as _
 
 from apps.exceptions import BaseException, ErrorCode
@@ -491,6 +491,46 @@ class MultiFieldsErrorException(BaseSearchException):
 class LogSearchException(BaseSearchException):
     ERROR_CODE = "447"
     MESSAGE = _("日志检索异常, 原因: {e}")
+
+
+class DataIDNotExistException(BaseException):
+    ERROR_CODE = "448"
+    MESSAGE = _("DataID({bk_data_id}) 未能找到关联的索引集")
+
+
+class ESQuerySyntaxException(BaseSearchException):
+    ERROR_CODE = "449"
+    MESSAGE = _("日志检索失败，请检查检索语句是否正确")
+
+
+class HighlightException(BaseSearchException):
+    ERROR_CODE = "450"
+    MESSAGE = _("日志检索失败，字段({field_name})内容过长导致高亮异常，请联系 BK 助手处理")
+
+
+class FieldNoMappingException(BaseSearchException):
+    ERROR_CODE = "451"
+    MESSAGE = _("日志检索失败，排序字段({field_name})不存在，请调整排序配置后重试")
+
+
+class UnsupportedOperationException(BaseSearchException):
+    ERROR_CODE = "452"
+    MESSAGE = _("日志检索失败，字段({field_name})不支持排序和聚合，请确保该字段已被设置为聚合字段")
+
+
+class QueryServerUnavailableException(BaseSearchException):
+    ERROR_CODE = "453"
+    MESSAGE = _("日志检索失败，存储集群请求超时，请稍后重试或联系 BK 助手确认集群状态")
+
+
+class IndexMappingEmptyException(BaseSearchException):
+    ERROR_CODE = "454"
+    MESSAGE = _("日志检索失败，索引({result_table_id}) mapping 信息为空")
+
+
+class TooManyBucketsException(BaseSearchException):
+    ERROR_CODE = "455"
+    MESSAGE = _("日志检索失败，维度组合数量过多，请减少维度字段数量或缩短查询时间范围后重试")
 
 
 # =================================================

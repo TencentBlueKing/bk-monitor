@@ -34,6 +34,7 @@ import $http from '@/api';
 import store from '@/store';
 
 import './agg-chart.scss';
+import RetrieveHelper, { RetrieveEvent } from '@/views/retrieve-helper';
 
 @Component
 export default class AggChart extends tsc<object> {
@@ -44,6 +45,7 @@ export default class AggChart extends tsc<object> {
   @Prop({ type: Boolean, default: false }) isFrontStatistics: boolean;
   @Prop({ type: Object, default: () => ({}) }) statisticalFieldData: any;
   @Prop({ type: Number, default: 5 }) limit: number;
+  @Prop({ type: Array }) colorList: string[];
   showAllList = false;
   listLoading = false;
   mappingKay = {
@@ -109,6 +111,13 @@ export default class AggChart extends tsc<object> {
     if (!this.isFrontStatistics) this.queryFieldFetchTopList(this.limit);
   }
 
+  getCssVar(index) {
+    return {
+      '--bar-bg-color': this.colorList?.[index] || '#5AB8A8',
+      '--percent-text-color': this.colorList?.length ? '#979ba5' : '#5AB8A8',
+    };
+  }
+
   // 计算百分比
   computePercent(count) {
     const percentageNum = count / this.showTotalCount;
@@ -135,6 +144,8 @@ export default class AggChart extends tsc<object> {
 
       router.replace({
         query,
+      }).then(() => {
+        RetrieveHelper.fire(RetrieveEvent.TREND_GRAPH_SEARCH);
       });
     });
   }
@@ -196,8 +207,23 @@ export default class AggChart extends tsc<object> {
           <div>
             {/* <div class='title'>{this.t('字段内容分布')}</div> */}
             <ul class='chart-list'>
-              {this.showFiveList.map(item => (
-                <li class='chart-item'>
+              {this.showFiveList.map((item, index) => (
+                <li
+                  class='chart-item'
+                  style={this.getCssVar(index)}
+                >
+                  <div class='operation-container'>
+                    <span
+                      class={['bk-icon icon-enlarge-line', this.filterIsExist('is', item[0]) ? 'disable' : '']}
+                      v-bk-tooltips={this.getIconPopover('=', item[0])}
+                      onClick={() => this.addCondition('is', item[0])}
+                    ></span>
+                    <span
+                      class={['bk-icon icon-narrow-line', this.filterIsExist('is not', item[0]) ? 'disable' : '']}
+                      v-bk-tooltips={this.getIconPopover('!=', item[0])}
+                      onClick={() => this.addCondition('is not', item[0])}
+                    ></span>
+                  </div>
                   <div class='chart-content'>
                     <div class='text-container'>
                       <div
@@ -216,18 +242,6 @@ export default class AggChart extends tsc<object> {
                         class='percent-bar'
                       ></div>
                     </div>
-                  </div>
-                  <div class='operation-container'>
-                    <span
-                      class={['bk-icon icon-enlarge-line', this.filterIsExist('is', item[0]) ? 'disable' : '']}
-                      v-bk-tooltips={this.getIconPopover('=', item[0])}
-                      onClick={() => this.addCondition('is', item[0])}
-                    ></span>
-                    <span
-                      class={['bk-icon icon-narrow-line', this.filterIsExist('is not', item[0]) ? 'disable' : '']}
-                      v-bk-tooltips={this.getIconPopover('!=', item[0])}
-                      onClick={() => this.addCondition('is not', item[0])}
-                    ></span>
                   </div>
                 </li>
               ))}

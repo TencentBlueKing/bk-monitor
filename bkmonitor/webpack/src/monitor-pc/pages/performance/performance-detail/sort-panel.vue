@@ -54,8 +54,8 @@
         <bk-input
           ref="groupInput"
           v-model="newGroupName"
-          @enter="() => handleSaveNewGroup(false)"
           :maxlength="30"
+          @enter="() => handleSaveNewGroup(false)"
         />
         <i
           class="ml5 bk-icon icon-check-1"
@@ -70,21 +70,21 @@
     <template v-for="(group, index) in groups">
       <bk-collapse
         v-if="needGroup"
-        v-model="activeName"
         :key="group.id"
+        v-model="activeName"
       >
         <transition-group
           :name="transitionName"
           tag="div"
         >
           <bk-collapse-item
+            :key="group.id"
             class="group-item"
             :class="{ 'is-dragover': dragover.groupId === group.id }"
             :style="{
-              'border-top-color': dragover.groupId === group.id ? '#a3c5fd' : index === 0 ? '#f0f1f5' : 'transparent'
+              'border-top-color': dragover.groupId === group.id ? '#a3c5fd' : index === 0 ? '#f0f1f5' : 'transparent',
             }"
             hide-arrow
-            :key="group.id"
             :name="group.id"
             :draggable="group.id !== '__UNGROUP__' && !editId"
             @dragstart.native="handleDragGroupStart(group, $event)"
@@ -93,29 +93,31 @@
             @drop.native="group.id !== '__UNGROUP__' && handleGroupDrop(group, $event)"
           >
             <div
-              :class="['group-item-title',
-                       { 'enable-auto-grouping': enableAutoGrouping && group.id !== '__UNGROUP__' }]"
+              :class="[
+                'group-item-title',
+                { 'enable-auto-grouping': enableAutoGrouping && group.id !== '__UNGROUP__' },
+              ]"
               @mouseenter="handleMouseEnter(group)"
               @mouseleave="handleMouseLeave"
             >
               <div class="title-left">
                 <span
-                  class="icon-monitor icon-mc-tuozhuai"
                   v-if="group.id !== '__UNGROUP__' && !editId"
+                  class="icon-monitor icon-mc-tuozhuai"
                 />
                 <i
-                  :class="['icon-monitor icon-mc-triangle-down', { expand: activeName.includes(group.id) }]"
                   v-if="group.id !== '__UNGROUP__' || isNotDialog"
+                  :class="['icon-monitor icon-mc-triangle-down', { expand: activeName.includes(group.id) }]"
                 />
                 <!-- 分组名称 -->
                 <span
+                  v-if="group.id !== editId"
                   class="ml5 text-ellipsis"
                   :title="group.title"
-                  v-if="group.id !== editId"
-                >{{ group.title
-                 }}<span style="color: #979ba5">{{
-                   group.id === '__UNGROUP__' ? `（${group.panels.length}）` : ''
-                 }}</span>
+                  >{{ group.title
+                  }}<span style="color: #979ba5">{{
+                    group.id === '__UNGROUP__' ? `（${group.panels.length}）` : ''
+                  }}</span>
                   <span
                     v-if="enableAutoGrouping && group.id !== '__UNGROUP__'"
                     class="icon-monitor icon-bianji"
@@ -124,8 +126,8 @@
                 </span>
                 <!-- 分组编辑态 -->
                 <div
-                  class="title-edit"
                   v-else
+                  class="title-edit"
                   @click.stop="() => {}"
                 >
                   <bk-input
@@ -156,10 +158,10 @@
                 </span>
                 <!-- 匹配规则 -->
                 <span
-                  class="auto-rules"
                   v-if="enableAutoGrouping && group.id !== '__UNGROUP__' && group.id !== editId"
+                  class="auto-rules"
                 >
-                  <span class="auto-rules-title">{{$t('匹配规则')}}</span>
+                  <span class="auto-rules-title">{{ $t('匹配规则') }}</span>
                   <span
                     class="auto-rules-content"
                     @click.stop="() => {}"
@@ -167,7 +169,7 @@
                     <more-list
                       :key="`${group.id}_${JSON.stringify(group.auto_rules)}`"
                       :list="group.auto_rules"
-                      @change="(value) => handleAtuoRulesChange(value, index)"
+                      @change="value => handleAtuoRulesChange(value, index)"
                     />
                   </span>
                 </span>
@@ -175,8 +177,8 @@
               <!-- 分组操作项（未分组和编辑态时不显示） -->
               <template v-if="group.id !== '__UNGROUP__' && group.id !== editId">
                 <div
-                  class="title-right"
                   v-show="hoverGroupId === group.id && !isDashboardPanel"
+                  class="title-right"
                 >
                   <!-- 编辑分组 -->
                   <i
@@ -192,8 +194,8 @@
                   <i class="ml10 icon-drag" />
                 </div>
                 <div
-                  class="title-right last-right"
                   v-show="isDashboardPanel"
+                  class="title-right last-right"
                 >
                   <!-- 删除分组 -->
                   <i
@@ -210,9 +212,9 @@
                 class="group-item-content"
               >
                 <transition-group
+                  v-if="group.panels.length"
                   :name="transitionName"
                   tag="ul"
-                  v-if="group.panels.length"
                 >
                   <li
                     v-for="item in group.panels"
@@ -236,8 +238,8 @@
                   </li>
                 </transition-group>
                 <div
-                  class="content-empty"
                   v-else
+                  class="content-empty"
                   @drop="handleItemDrop({}, group, $event)"
                 >
                   <i class="icon-monitor icon-mind-fill" />
@@ -265,8 +267,8 @@
       </bk-collapse>
       <template v-else>
         <sort-drag-list
-          :style="{ 'margin-top': index === 0 ? '20px' : '0' }"
           :key="group.id"
+          :style="{ 'margin-top': index === 0 ? '20px' : '0' }"
           :group="group"
           :dragover="dragover"
           :transition-name="transitionName"
@@ -283,16 +285,17 @@
   </performance-dialog>
 </template>
 <script lang="ts">
-import { deepClone, typeTools } from 'monitor-common/utils/utils';
 import { Component, Emit, Model, Prop, Vue, Watch } from 'vue-property-decorator';
 
-import type { orderList } from '../../collector-config/collector-view/type';
+import { deepClone, typeTools } from 'monitor-common/utils/utils';
+
 import MoreList from '../../custom-escalation/more-list.tsx';
 import { matchRuleFn } from '../../monitor-k8s/utils';
 import PerformanceDialog from '../components/performance-dialog.vue';
-import type { IDragItem, IGroupItem, IHostGroup } from '../performance-type';
-
 import SortDragList from './sort-drag-list.vue';
+
+import type { orderList } from '../../collector-config/collector-view/type';
+import type { IDragItem, IGroupItem, IHostGroup } from '../performance-type';
 
 @Component({
   name: 'sort-panel',
@@ -329,7 +332,7 @@ export default class SortPanel extends Vue {
     groupId: '',
     itemId: '',
   };
-  private draging = {
+  private dragging = {
     groupId: '',
     itemId: '',
   };
@@ -454,7 +457,6 @@ export default class SortPanel extends Vue {
     // group.panels.push(...addPanels);
     this.groupsChecked = [];
     this.groups.forEach((item, index) => {
-      // eslint-disable-next-line prefer-destructuring
       const sortRef: any = this.$refs[`sortDragList${index}`]?.[0];
       sortRef?.clearChecked?.();
     });
@@ -527,7 +529,6 @@ export default class SortPanel extends Vue {
     });
     this.groupsChecked = [];
     this.groups.forEach((item, index) => {
-      // eslint-disable-next-line prefer-destructuring
       const sortRef: any = this.$refs[`sortDragList${index}`]?.[0];
       sortRef?.clearChecked?.();
     });
@@ -609,7 +610,7 @@ export default class SortPanel extends Vue {
   // 分组拖拽开始事件
   handleDragGroupStart(group: IHostGroup, e: DragEvent) {
     e.dataTransfer.setData('groupId', group.id);
-    this.draging = {
+    this.dragging = {
       groupId: group.id,
       itemId: '',
     };
@@ -664,7 +665,7 @@ export default class SortPanel extends Vue {
       groupId: '',
       itemId: '',
     };
-    this.draging = {
+    this.dragging = {
       groupId: '',
       itemId: '',
     };
@@ -678,7 +679,7 @@ export default class SortPanel extends Vue {
         groupId: group.id,
       })
     );
-    this.draging = {
+    this.dragging = {
       itemId: item.id,
       groupId: group.id,
     };
@@ -861,7 +862,7 @@ export default class SortPanel extends Vue {
 }
 
 .flip-list-move {
-  transition: transform .5s;
+  transition: transform 0.5s;
 }
 
 .create-group {
@@ -950,7 +951,7 @@ export default class SortPanel extends Vue {
 
       .icon-mc-triangle-down {
         color: #c4c6cc;
-        transition: transform .2s ease-in-out;
+        transition: transform 0.2s ease-in-out;
         transform: rotate(-90deg);
 
         &.expand {

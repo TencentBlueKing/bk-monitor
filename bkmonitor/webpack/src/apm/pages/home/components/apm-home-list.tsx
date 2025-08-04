@@ -23,12 +23,12 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Ref, Prop, Watch, Emit, Provide } from 'vue-property-decorator';
+import { Component, Emit, Prop, Provide, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import axios from 'axios';
 import { serviceList, serviceListAsync } from 'monitor-api/modules/apm_metric';
-import { commonPageSizeSet, commonPageSizeGet } from 'monitor-common/utils';
+import { commonPageSizeGet, commonPageSizeSet } from 'monitor-common/utils';
 import { Debounce } from 'monitor-common/utils/utils';
 import EmptyStatus from 'monitor-pc/components/empty-status/empty-status';
 import TableSkeleton from 'monitor-pc/components/skeleton/table-skeleton';
@@ -48,8 +48,8 @@ import type { IGroupData } from 'monitor-pc/pages/strategy-config/strategy-confi
 
 import './apm-home-list.scss';
 interface IProps {
-  appName: string;
   appData: Partial<IAppListItem>;
+  appName: string;
   authority: boolean;
   authorityDetail: string;
   timeRange?: TimeRangeType;
@@ -61,8 +61,8 @@ interface IProps {
 export default class ApmServiceList extends tsc<
   IProps,
   {
-    onRouteUrlChange: (params: Record<string, any>) => void;
     onGoToServiceByLink?: () => void;
+    onRouteUrlChange: (params: Record<string, any>) => void;
   }
 > {
   @Prop() appData: Partial<IAppListItem>;
@@ -140,8 +140,8 @@ export default class ApmServiceList extends tsc<
       filters: JSON.stringify(this.filterCondition),
       service_keyword: this.searchKeyWord,
       app_name: this.appName,
-      start_time: this.timeRange[0],
-      end_time: this.timeRange[1],
+      from: this.timeRange[0],
+      to: this.timeRange[1],
     };
   }
   handleGotoAppOverview() {
@@ -411,9 +411,9 @@ export default class ApmServiceList extends tsc<
       }, {});
       return { field, data };
     });
-    newData.forEach(item => {
+    for (const item of newData) {
       this.renderTableBatchByBatch(item.field, item.data);
-    });
+    }
     if (this.filterLoading) {
       const { filter: filterDataPart2 = [] } = serviceData;
       this.mergeServiceFilterData(filterDataPart2);
@@ -429,16 +429,18 @@ export default class ApmServiceList extends tsc<
     const setData = (currentIndex = 0) => {
       let needBreak = false;
       if (currentIndex <= this.tableData.length && this.tableData.length) {
-        const endIndex = Math.min(currentIndex + 2, this.tableData.length);
+        const endIndex = Math.min(currentIndex + 1, this.tableData.length);
         for (let i = currentIndex; i < endIndex; i++) {
           const item = this.tableData[i];
           item[field] = dataMap[String(item.service_name.value || '')] || null;
           needBreak = i === this.tableData.length - 1;
         }
         if (!needBreak) {
-          window.requestIdleCallback(() => {
-            window.requestAnimationFrame(() => setData(endIndex));
-          });
+          setTimeout(() => {
+            window.requestAnimationFrame(() => {
+              setData(endIndex);
+            });
+          }, 300);
         } else {
           this.tableColumns.find(col => col.id === field).asyncable = false;
         }

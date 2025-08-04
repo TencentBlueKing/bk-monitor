@@ -38,7 +38,6 @@ import {
   ref,
   watch,
 } from 'vue';
-import { useI18n } from 'vue-i18n';
 
 import { addListener, removeListener } from '@blueking/fork-resize-detector';
 import { Loading, Message } from 'bkui-vue';
@@ -50,6 +49,7 @@ import { copyText, hexToRgbA } from 'monitor-common/utils/utils';
 import EchartOptions from 'monitor-ui/monitor-echarts/options/echart-options';
 import { type MonitorEchartOptions, echarts } from 'monitor-ui/monitor-echarts/types/monitor-echarts';
 import { debounce } from 'throttle-debounce';
+import { useI18n } from 'vue-i18n';
 
 import ChartTitle from '../../components/chart-title';
 import CommonLegend from '../../components/common-legend';
@@ -87,7 +87,7 @@ export default defineComponent({
       type: Boolean,
       default: true,
     },
-    refleshInterval: {
+    refreshInterval: {
       type: Number,
       default: 0,
     },
@@ -175,7 +175,7 @@ export default defineComponent({
     const chartSubTitle = ref('');
     const chartOptionInstance = ref(null);
     const hasInitChart = ref(false);
-    const refleshIntervalInstance = ref(0);
+    const refreshIntervalInstance = ref(0);
     const legend = ref({ show: false, list: [] });
     const curChartOption = ref(null);
     let chart = null;
@@ -215,8 +215,7 @@ export default defineComponent({
       return chartInfo?.is_feedback_root;
     });
     const isRoot = computed(() => {
-      const { is_root } = chartInfo?.entity;
-      return is_root;
+      return chartInfo?.entity?.is_root;
     });
     // 销毁时的逻辑处理
     onUnmounted(() => {
@@ -246,7 +245,7 @@ export default defineComponent({
         } else {
           noData.value = true;
         }
-      } catch (e) {
+      } catch {
         noData.value = true;
       } finally {
         chartTitle.value = props.title;
@@ -262,20 +261,21 @@ export default defineComponent({
       if (props.chartType === 'bar' || props.chartType === 'line') {
         return {
           tooltip: {
+            className: 'failure-chart-tooltips-box',
             axisPointer: {
               axis: 'auto',
               type: 'cross',
               label: {
                 show: false,
-                formatter: params => {
-                  if (props.chartType !== 'line') return;
-                  if (params.axisDimension === 'y') {
-                    curValue.value.yAxis = params.value;
-                  } else {
-                    curValue.value.xAxis = params.value;
-                    curValue.value.dataIndex = params.seriesData?.length ? params.seriesData[0].dataIndex : -1;
-                  }
-                },
+                // formatter: params => {
+                //   if (props.chartType !== 'line') return;
+                //   if (params.axisDimension === 'y') {
+                //     curValue.value.yAxis = params.value;
+                //   } else {
+                //     curValue.value.xAxis = params.value;
+                //     curValue.value.dataIndex = params.seriesData?.length ? params.seriesData[0].dataIndex : -1;
+                //   }
+                // },
               },
               crossStyle: {
                 opacity: 0,
@@ -283,7 +283,7 @@ export default defineComponent({
                 color: 'transparent',
               },
             },
-            formatter: handleSetTooltip,
+            // formatter: handleSetTooltip,
             appendToBody: true,
             position: (pos, params, dom, rect, size: any) => {
               const { contentSize } = size;
@@ -296,11 +296,11 @@ export default defineComponent({
                 top: 0,
                 left: 0,
               };
-              const canSetBootom = window.innerHeight - posRect.y - contentSize[1];
-              if (canSetBootom) {
-                position.top = +pos[1] - Math.min(20, canSetBootom);
+              const canSetBottom = window.innerHeight - posRect.y - contentSize[1];
+              if (canSetBottom) {
+                position.top = +pos[1] - Math.min(20, canSetBottom);
               } else {
-                position.top = +pos[1] + canSetBootom - 20;
+                position.top = +pos[1] + canSetBottom - 20;
               }
               const canSetLeft = window.innerWidth - posRect.x - contentSize[0];
               if (canSetLeft) {
@@ -321,6 +321,10 @@ export default defineComponent({
     const chartOption = computed(() => {
       return deepMerge(
         {
+          tooltip: {
+            trigger: 'axis',
+            triggerOn: 'mousemove|click',
+          },
           legend: {
             asTable: false, // 是否转换为table图例
             toTheRight: false, // 图例位置在右侧
@@ -384,23 +388,23 @@ export default defineComponent({
       },
       { immediate: true }
     );
-    const onRefleshIntervalChange = newVal => {
-      if (refleshIntervalInstance.value) {
-        window.clearInterval(refleshIntervalInstance.value);
+    const onRefreshIntervalChange = newVal => {
+      if (refreshIntervalInstance.value) {
+        window.clearInterval(refreshIntervalInstance.value);
       }
       if (newVal <= 0 || !props.getSeriesData) return;
-      refleshIntervalInstance.value = window.setInterval(() => {
+      refreshIntervalInstance.value = window.setInterval(() => {
         // 当loading为false且chart存在时，执行某些操作（如更新序列数据）
         if (!loading.value && chart) {
           handleSeriesData();
         }
-      }, props.refleshInterval);
+      }, props.refreshInterval);
     };
-    // 观察`refleshInterval`的变化
+    // 观察`refreshInterval`的变化
     watch(
-      () => props.refleshInterval,
+      () => props.refreshInterval,
       newVal => {
-        onRefleshIntervalChange(newVal);
+        onRefreshIntervalChange(newVal);
       },
       { immediate: true }
     );
@@ -436,7 +440,7 @@ export default defineComponent({
 
     // 使用onActivated替代activated生命周期钩子
     onActivated(() => {
-      onRefleshIntervalChange(props.refleshInterval);
+      onRefreshIntervalChange(props.refreshInterval);
       if (props.autoresize && chart?.resize) {
         chart.resize();
       }
@@ -444,7 +448,7 @@ export default defineComponent({
 
     // 使用onDeactivated替代deactivated生命周期钩子
     onDeactivated(() => {
-      refleshIntervalInstance.value && window.clearInterval(refleshIntervalInstance.value);
+      refreshIntervalInstance.value && window.clearInterval(refreshIntervalInstance.value);
     });
 
     // 使用onBeforeUnmount替代beforeDestroy生命周期钩子
@@ -458,7 +462,7 @@ export default defineComponent({
         intersectionObserver.value.disconnect();
       }
       annotation.value.show = false;
-      refleshIntervalInstance.value && window.clearInterval(refleshIntervalInstance.value);
+      refreshIntervalInstance.value && window.clearInterval(refreshIntervalInstance.value);
     });
 
     // 使用onUnmounted替代destroyed生命周期钩子
@@ -551,12 +555,12 @@ export default defineComponent({
         const series = deepMerge([], data || []);
         const hasSeries =
           (series && series.length > 0 && series.some(item => item?.datapoints?.length)) ||
-          (series && Object.prototype.hasOwnProperty.call(series, 'series') && series.series.length);
+          (series && Object.hasOwn(series, 'series') && series.series.length);
         noData.value = !hasSeries;
         if (!hasSeries) {
           return;
         }
-        const realSeries = Object.prototype.hasOwnProperty.call(series, 'series') ? series.series : series;
+        const realSeries = Object.hasOwn(series, 'series') ? series.series : series;
         if (props.chartType === 'line' && realSeries[0]?.metric) {
           const [
             {
@@ -583,7 +587,7 @@ export default defineComponent({
           legend.value.show = hasSeries && optionData.legendData.length > 0;
         } else {
           legend.value.show = optionData.options.lengend
-            ? Object.prototype.hasOwnProperty.call(optionData.options.lengend, 'show')
+            ? Object.hasOwn(optionData.options.lengend, 'show')
               ? optionData.options.lengend.show
               : true
             : false;
@@ -672,7 +676,7 @@ export default defineComponent({
         .map(item => ({ color: item.color, seriesName: item.seriesName, value: item.value[1] }))
         .sort((a, b) => Math.abs(a.value - +curValue.value.yAxis) - Math.abs(b.value - +curValue.value.yAxis));
       const list = params.filter(item => !item.seriesName.match(/-no-tips$/));
-      const liHtmls = list
+      const liHtmlList = list
         .slice(0, 50)
         .sort((a, b) => b.value[1] - a.value[1])
         .map(item => {
@@ -693,10 +697,10 @@ export default defineComponent({
           }
           if (item.value[1] === null) return '';
           const curSeries = curChartOption.value.series[item.seriesIndex];
-          const unitFormater = curSeries.unitFormatter || (v => ({ text: v }));
+          const unitFormatter = curSeries.unitFormatter || (v => ({ text: v }));
           const minBase = curSeries.minBase || 0;
           const precision = curSeries.unit !== 'none' && +curSeries.precision < 1 ? 2 : +curSeries.precision;
-          const valueObj = unitFormater(item.value[1] - minBase, precision);
+          const valueObj = unitFormatter(item.value[1] - minBase, precision);
           return `<li class="tooltips-content-item">
                         <span class="item-series"
                          style="background-color:${item.color};">
@@ -706,7 +710,7 @@ export default defineComponent({
                         ${valueObj.text} ${valueObj.suffix || ''}</span>
                         </li>`;
         });
-      if (liHtmls?.length < 1) return '';
+      if (liHtmlList?.length < 1) return '';
       let ulStyle = '';
       const maxLen = Math.ceil((window.innerHeight - 100) / 20);
       if (list.length > maxLen && tooltipSize.value) {
@@ -725,7 +729,7 @@ export default defineComponent({
                         ${pointTime}
                     </p>
                     <ul class="tooltips-content" style="${ulStyle}">
-                        ${liHtmls?.join('')}
+                        ${liHtmlList?.join('')}
                     </ul>
                     </div>`;
     };
@@ -775,6 +779,7 @@ export default defineComponent({
           break;
         case 'relate-alert':
           emit('relate-alert');
+          break;
         default:
           break;
       }
@@ -970,9 +975,9 @@ export default defineComponent({
             scatterTips.value.top = top;
             scatterTips.value.show = true;
             const { series } = chartOptions;
-            series.forEach(item => {
+            series.map(item => {
               if (item.type === 'scatter' && item.name === 'bk_trace_value') {
-                item.data.forEach(d => {
+                item.data.map(d => {
                   if (JSON.stringify(d.value) === JSON.stringify(e.data.value)) {
                     d.itemStyle.color = '#699DF4';
                   }
@@ -1190,7 +1195,10 @@ export default defineComponent({
             <div class='time'>{this.scatterTips.data.time}</div>
             <div class='bottom'>
               {this.scatterTips.data.list.map(item => (
-                <div class='info-item'>
+                <div
+                  key={item.label}
+                  class='info-item'
+                >
                   <span class='label'>{item.label}: </span>
                   {item.type === 'link' && (
                     <span class='content'>

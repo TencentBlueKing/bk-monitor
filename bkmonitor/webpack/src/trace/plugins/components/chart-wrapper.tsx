@@ -23,19 +23,21 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { type PropType, computed, defineComponent, provide, ref } from 'vue';
+import { type PropType, computed, defineAsyncComponent, defineComponent, onBeforeMount, provide, ref } from 'vue';
 
 import { bkTooltips } from 'bkui-vue';
 import loadingIcon from 'monitor-ui/chart-plugins/icons/spinner.svg';
+import { initLogRetrieveWindowsFields } from 'monitor-ui/chart-plugins/utils/init-windows';
 
 import ChartRow from '../charts/chart-row/chart-row';
 import ExceptionGuide from '../charts/exception-guide/exception-guide';
 import FailureAlarmChart from '../charts/failure-chart/failure-alarm-chart';
-import MonitorTraceLog from '../charts/monitor-trace-log/monitor-trace-log';
 import RelatedLogChart from '../charts/related-log-chart/related-log-chart';
 import TimeSeries from '../charts/time-series/time-series';
 import { chartDetailProvideKey, useReadonlyInject } from '../hooks';
-
+const MonitorTraceLog = defineAsyncComponent(
+  () => import(/* webpackChunkName: "monitor-trace-log" */ '../charts/monitor-trace-log/monitor-trace-log')
+);
 import type * as PanelModelTraceVersion from '../typings';
 import type { IDetectionConfig } from 'monitor-pc/pages/strategy-config/strategy-config-set-new/typings';
 import type { PanelModel } from 'monitor-ui/chart-plugins/typings';
@@ -55,6 +57,7 @@ export default defineComponent({
     needCheck: { type: Boolean, default: false },
     /** 是否显示告警视图图表 */
     isAlarmView: { type: Boolean, default: false },
+    groupId: { type: String, default: '' },
   },
   emits: ['chartCheck', 'collectChart', 'collapse', 'changeHeight', 'dimensionsOfSeries', 'successLoad'],
   setup(props, { emit }) {
@@ -80,7 +83,7 @@ export default defineComponent({
     });
 
     /** hover样式 */
-    const needHoverStryle = computed(() => {
+    const needHoverStyle = computed(() => {
       // eslint-disable-next-line @typescript-eslint/naming-convention
       const { time_series_forecast, time_series_list } = props.panel?.options || {};
       return (time_series_list?.need_hover_style ?? true) && (time_series_forecast?.need_hover_style ?? true);
@@ -101,6 +104,10 @@ export default defineComponent({
     function handleErrorMsgChange(msg: string) {
       errorMsg.value = msg;
     }
+
+    onBeforeMount(() => {
+      initLogRetrieveWindowsFields();
+    });
 
     /**
      * @description: 清除错误
@@ -134,6 +141,7 @@ export default defineComponent({
           <FailureAlarmChart
             clearErrorMsg={handleClearErrorMsg}
             detail={props.panel}
+            groupId={props.groupId}
             onErrorMsg={handleErrorMsgChange}
             onLoading={handleChangeLoading}
             onSuccessLoad={handleSuccessLoad}
@@ -176,7 +184,7 @@ export default defineComponent({
     }
 
     return {
-      needHoverStryle,
+      needHoverStyle,
       showHeaderMoreTool,
       handlePanel2Chart,
       loading,
@@ -199,7 +207,7 @@ export default defineComponent({
           'grafana-check': this.panel.canSetGrafana,
           'is-checked': this.panel.checked,
           'is-collapsed': this.panel.collapsed,
-          'hover-style': this.needCheck && this.needHoverStryle,
+          'hover-style': this.needCheck && this.needHoverStyle,
           'row-chart': this.panel.type === 'row',
         }}
       >

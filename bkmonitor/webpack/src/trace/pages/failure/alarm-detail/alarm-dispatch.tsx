@@ -24,19 +24,19 @@
  * IN THE SOFTWARE.
  */
 import { computed, defineComponent, reactive, ref, watch } from 'vue';
-import { useI18n } from 'vue-i18n';
 
 import { Button, Checkbox, Dialog, Input, Loading, Message } from 'bkui-vue';
 import { BkCheckboxGroup } from 'bkui-vue/lib/checkbox';
 import { assignAlert } from 'monitor-api/modules/action';
 import { incidentRecordOperation } from 'monitor-api/modules/incident';
 import { getNoticeWay } from 'monitor-api/modules/notice_group';
+import { useI18n } from 'vue-i18n';
 
-import BkUserSelector from '../../alarm-shield/components/member-selector';
+import UserSelector from '../../../components/user-selector/user-selector';
 
 import './alarm-dispatch.scss';
 
-const reasonList = [window.i18n.tc('当前工作安排较多'), window.i18n.tc('不在职责范围内'), window.i18n.tc('无法处理')];
+const reasonList = [window.i18n.t('当前工作安排较多'), window.i18n.t('不在职责范围内'), window.i18n.t('无法处理')];
 
 export default defineComponent({
   props: {
@@ -60,7 +60,7 @@ export default defineComponent({
   emits: ['show', 'success', 'refresh'],
   setup(props, { emit }) {
     const { t } = useI18n();
-    const users = ref([]);
+    const users = ref<string[]>([]);
     const noticeWay = ref([]);
     const noticeWayList = ref<{ label: string; type: string }[]>([]);
     const reason = ref('');
@@ -76,6 +76,7 @@ export default defineComponent({
       () => props.show,
       async v => {
         if (v) {
+          users.value = [];
           loading.value = true;
           handleFocus();
           await getNoticeWayList();
@@ -83,6 +84,7 @@ export default defineComponent({
         }
       }
     );
+
     /* 通知方式列表 */
     const getNoticeWayList = async () => {
       if (!noticeWayList.value.length) {
@@ -187,42 +189,43 @@ export default defineComponent({
       handleShowChange,
       handleSubmit,
       handleCancel,
+      t,
     };
   },
   render() {
     return (
       <Dialog
         width={480}
-        extCls={'alarm-dispatch-component-dialog'}
+        class='alarm-dispatch-component-dialog'
         v-slots={{
           default: () => (
             <Loading loading={this.loading}>
               <div class='alarm-dispatch'>
                 <div class='tips'>
                   <span class='icon-monitor icon-hint' />
-                  {this.$t('您一共选择了{0}条告警', [this.alertIds.length])}
+                  {this.t('您一共选择了{0}条告警', [this.alertIds.length])}
                 </div>
                 <div class='form-item'>
-                  <div class='label require'>{this.$t('分派人员')}</div>
+                  <div class='label require'>{this.t('分派人员')}</div>
                   <div
                     class='content'
                     onClick={this.handleFocus}
                   >
-                    <BkUserSelector
+                    <UserSelector
                       class='content-user-selector'
                       v-model={this.users}
-                      api={this.bkUrl}
-                      empty-text={this.$t('搜索结果为空')}
+                      empty-text={this.t('搜索结果为空')}
                     />
                   </div>
                   {!!this.errorMsg.users && <div class='err-msg'>{this.errorMsg.users}</div>}
                 </div>
                 <div class='form-item'>
                   <div class='label'>
-                    <div class='title require'>{this.$t('分派原因')}</div>
+                    <div class='title require'>{this.t('分派原因')}</div>
                     <div class='tags'>
                       {reasonList.map(tag => (
                         <span
+                          key={tag}
                           class='tag'
                           onClick={() => this.handleTagClick(tag)}
                         >
@@ -238,7 +241,7 @@ export default defineComponent({
                     <Input
                       v-model={this.reason}
                       maxlength={100}
-                      placeholder={this.$t('请输入')}
+                      placeholder={this.t('请输入')}
                       rows={3}
                       type={'textarea'}
                     />
@@ -246,14 +249,19 @@ export default defineComponent({
                   {!!this.errorMsg.reason && <div class='err-msg'>{this.errorMsg.reason}</div>}
                 </div>
                 <div class='form-item'>
-                  <div class='label require'>{this.$t('通知方式')}</div>
+                  <div class='label require'>{this.t('通知方式')}</div>
                   <div
                     class='content'
                     onClick={this.handleFocus}
                   >
                     <BkCheckboxGroup v-model={this.noticeWay}>
                       {this.noticeWayList.map(item => (
-                        <Checkbox label={item.type}>{item.label}</Checkbox>
+                        <Checkbox
+                          key={item.type}
+                          label={item.type}
+                        >
+                          {item.label}
+                        </Checkbox>
                       ))}
                     </BkCheckboxGroup>
                   </div>
@@ -264,20 +272,27 @@ export default defineComponent({
           ),
           footer: () => [
             <Button
+              key='submit'
               style={{ 'margin-right': '8px' }}
               disabled={this.loading}
               theme='primary'
               onClick={this.handleSubmit}
             >
-              {this.$t('确定')}
+              {this.t('确定')}
             </Button>,
-            <Button onClick={this.handleCancel}>{this.$t('取消')}</Button>,
+            <Button
+              key={'cancel'}
+              onClick={this.handleCancel}
+            >
+              {this.t('取消')}
+            </Button>,
           ],
         }}
         header-position='left'
         is-show={this.show}
         mask-close={true}
-        title={this.$t('告警分派')}
+        render-directive='if'
+        title={this.t('告警分派')}
         onClosed={this.handleShowChange}
         onValue-change={this.handleShowChange}
       />

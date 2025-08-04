@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 # pylint: disable=invalid-name
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
@@ -20,8 +19,9 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+
 import json
-from typing import Any, Dict
+from typing import Any
 
 from django.conf import settings
 from elasticsearch.client import _make_path
@@ -38,20 +38,21 @@ from apps.utils.thread import MultiExecuteFunc
 
 class QueryClientBkData(QueryClientTemplate):  # pylint: disable=invalid-name
     def __init__(self, bkdata_authentication_method: str = "", bkdata_data_token: str = ""):
-        super(QueryClientBkData, self).__init__()
+        super().__init__()
         self._client = BkDataQueryApi
         self.bkdata_authentication_method = bkdata_authentication_method
         self.bkdata_data_token = bkdata_data_token
 
-    def query(self, index: str, body: Dict[str, Any], scroll=None, track_total_hits=False):
+    def query(self, index: str, body: dict[str, Any], scroll=None, track_total_hits=False):
         try:
             tracer = trace.get_tracer(__name__)
             with tracer.start_as_current_span("bkdata_es_query") as span:
                 # bkdata情景下,当且仅当用户主动传了 track_total_hits: true 时，才允许往 body 中注入该参数
                 if track_total_hits:
                     body.update({"track_total_hits": True})
-                params = {"prefer_storage": "es", "sql": json.dumps({"index": index, "body": body})}
-                span.set_attribute("db.statement", str(params))
+                sql = json.dumps({"index": index, "body": body})
+                params = {"prefer_storage": "es", "sql": sql}
+                span.set_attribute("db.statement", sql)
                 span.set_attribute("db.system", "elasticsearch")
 
                 if self.bkdata_authentication_method:
@@ -75,16 +76,18 @@ class QueryClientBkData(QueryClientTemplate):  # pylint: disable=invalid-name
                 code=getattr(e, "code", EsClientSearchException.ERROR_CODE),
             )
 
-    def mapping(self, index: str, add_settings_details: bool = False) -> Dict:
+    def mapping(self, index: str, add_settings_details: bool = False) -> dict:
         index_list: list = index.split(",")
         new_index_list: list = []
         has_wildcard = False
+        result_table_ids = []
         for _index in index_list:
             if not _index.endswith("*"):
                 _index = _index + "_*"
             else:
                 has_wildcard = True
             new_index_list.append(_index)
+            result_table_ids.append(_index.rsplit("_", maxsplit=1)[0])
         index = ",".join(new_index_list)
 
         params = {
@@ -99,7 +102,56 @@ class QueryClientBkData(QueryClientTemplate):  # pylint: disable=invalid-name
 
         mapping_dict: type_mapping_dict = self._client.query(params)
         result_dict: dict = mapping_dict.get("list", {})
-        return self.filter_mapping(index_list, result_dict) if not has_wildcard else result_dict
+        data = self.filter_mapping(index_list, result_dict) if not has_wildcard else result_dict
+        if add_settings_details:
+            # 添加自定义分词信息
+            data = self.add_analyzer_details(result_table_ids, data)
+        return data
+
+    @staticmethod
+    def add_analyzer_details(result_table_ids, mapping):
+        """
+        为bkdata的索引集添加自定义分词
+        """
+        result_tables = BkDataMetaApi.result_tables.list(
+            {"result_table_ids": result_table_ids, "related": ["storages"]}
+        )
+        result_table_mappings = {}
+        for item in result_tables:
+            tokenizers = json.loads(item.get("storages", {}).get("es", {}).get("storage_config", "{}")).get(
+                "tokenizers", {}
+            )
+            if not tokenizers:
+                continue
+            result_table_mappings[item["result_table_id"]] = tokenizers
+        if not result_table_mappings:
+            return mapping
+
+        for result_table_id, result_table_config in mapping.items():
+            if not result_table_config["mappings"]:
+                continue
+
+            result_table_id_bkbase = result_table_id.rsplit("_", maxsplit=1)[0]
+            tokenizers_config = result_table_mappings.get(result_table_id_bkbase)
+            if not tokenizers_config:
+                continue
+
+            if "properties" in result_table_config["mappings"]:
+                field_configs = result_table_config["mappings"]["properties"]
+            else:
+                # ES 5.X 的情况
+                field_configs = list(result_table_config["mappings"].values())[0].get("properties", [])
+            for field_name, field_config in field_configs.items():
+                if field_name in tokenizers_config:
+                    field_config.update(
+                        {
+                            "analyzer": "bkbase_custom",
+                            "analyzer_details": {
+                                "tokenizer_details": {"tokenize_on_chars": tokenizers_config[field_name]}
+                            },
+                        }
+                    )
+        return mapping
 
     @staticmethod
     def filter_mapping(indices: list, indices_mapping: dict):

@@ -30,20 +30,31 @@ import dayjs from 'dayjs';
 import { createOrUpdateExternalPermission, getByAction } from 'monitor-api/modules/iam';
 import { deepClone } from 'monitor-common/utils';
 
-import { ACTION_MAP, type AngleType, type EditModel } from './authorization-list';
+import { type AngleType, type EditModel, ACTION_MAP } from './authorization-list';
 
 import './authorization-dialog.scss';
-
-interface IProps {
-  value?: boolean;
-  rowData?: EditModel | null;
-  bizId: number | string;
-  viewType: AngleType;
-  authorizer: string;
-}
-
 interface IEvents {
   onSuccess: boolean;
+}
+interface IGrafanaDashboard {
+  folder_title: string;
+  folder_uid: string;
+  id: number;
+  is_starred: boolean;
+  name: string;
+  text: string;
+  uid: string;
+  uri: string;
+  url: string;
+}
+
+interface IProps {
+  authorizer: string;
+  bizId: number | string;
+  defaultResources: IGrafanaDashboard[];
+  rowData?: EditModel | null;
+  value?: boolean;
+  viewType: AngleType;
 }
 
 @Component
@@ -53,6 +64,7 @@ export default class AuthorizationDialog extends tsc<IProps, IEvents> {
   @Prop({ required: true, type: String }) viewType: AngleType;
   @Prop({ required: true, type: String }) authorizer: string;
   @Prop({ required: false, type: Object, default: null }) rowData: EditModel | null;
+  @Prop({ required: false, type: Array, default: [] }) defaultResources: IGrafanaDashboard[];
   @Ref() formRef: any;
 
   resourceList = [];
@@ -85,6 +97,7 @@ export default class AuthorizationDialog extends tsc<IProps, IEvents> {
           expire_time: '',
         };
       }
+      this.resourceList = this.defaultResources;
     }
   }
 

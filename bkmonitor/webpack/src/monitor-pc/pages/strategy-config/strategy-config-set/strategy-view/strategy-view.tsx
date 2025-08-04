@@ -43,6 +43,7 @@ import { type ILogUrlParams, transformLogUrlQuery } from '../../../../utils/inde
 import CollectChart from '../../../data-retrieval/components/collect-chart.vue';
 import GroupPanel from '../../strategy-config-set-new/components/group-panel';
 import {
+  type dataModeType,
   type EditModeType,
   type ICommonItem,
   type IDetectionConfig,
@@ -50,7 +51,6 @@ import {
   type IWhereItem,
   type MetricDetail,
   MetricType,
-  type dataModeType,
 } from '../../strategy-config-set-new/typings/index';
 import { allDescription } from './description';
 import MultipleMetricView from './multiple-metric-view';
@@ -80,22 +80,22 @@ const windowHostDataFieldsForDimensionNameMap = {
 const defaultHostDataFields = ['bk_target_ip', 'bk_target_cloud_id'];
 
 interface IStrateViewProps {
-  metricData: MetricDetail[];
-  detectionConfig: IDetectionConfig;
-  expression: string;
-  legalDimensionList: ICommonItem[];
-  dataMode: dataModeType;
+  activeModelMd?: number;
   aiopsChartType: ChartType;
   aiopsModelMdList?: IModelData[];
-  activeModelMd?: number;
-  expFunctions: IFunctionsValue[];
+  dataMode: dataModeType;
   descriptionType?: string;
+  detectionConfig: IDetectionConfig;
   editMode?: EditModeType;
-  sourceData?: ISourceData;
+  expFunctions: IFunctionsValue[];
+  expression: string;
   isMultivariateAnomalyDetection?: boolean;
+  legalDimensionList: ICommonItem[];
+  metricData: MetricDetail[];
+  multivariateAnomalyDetectionParams?: IMultivariateAnomalyDetectionParams;
+  sourceData?: ISourceData;
   /** 策略目标 */
   strategyTarget?: any[];
-  multivariateAnomalyDetectionParams?: IMultivariateAnomalyDetectionParams;
   onMultivariateAnomalyRefreshView: () => void;
 }
 @Component({
@@ -113,11 +113,11 @@ interface IStrateViewProps {
 export default class StrategyView extends tsc<IStrateViewProps> {
   @ProvideReactive('timeRange') timeRange: TimeRangeType = ['now-1h', 'now'];
   // 刷新间隔
-  @ProvideReactive('refleshInterval') refleshInterval = -1;
+  @ProvideReactive('refreshInterval') refreshInterval = -1;
   // 视图变量
   @ProvideReactive('viewOptions') viewOptions: IViewOptions = {};
   // 是否立即刷新
-  @ProvideReactive('refleshImmediate') refleshImmediate = '';
+  @ProvideReactive('refreshImmediate') refreshImmediate = '';
   // 对比的时间
   @ProvideReactive('timeOffset') timeOffset: string[] = [];
   // 对比类型
@@ -171,9 +171,9 @@ export default class StrategyView extends tsc<IStrateViewProps> {
 
   @Ref('tool') toolRef!: StrategyViewTool;
 
-  private tools: { timeRange: TimeRangeType; refleshInterval: number } = {
+  private tools: { refreshInterval: number; timeRange: TimeRangeType } = {
     timeRange: ['now-3h', 'now'],
-    refleshInterval: 5 * 60 * 1000,
+    refreshInterval: 5 * 60 * 1000,
   };
   // 原始时间范围，用于图表双击还原
   private lastTimeRange: TimeRangeType = ['now-1h', 'now'];
@@ -289,7 +289,7 @@ export default class StrategyView extends tsc<IStrateViewProps> {
     return metricData.filter(item => !item.isNullMetric);
   }
 
-  private get chartTitile() {
+  private get chartTitle() {
     if (this.isAlertStrategy) {
       return this.$t('事件数量');
     }
@@ -309,7 +309,7 @@ export default class StrategyView extends tsc<IStrateViewProps> {
     return '';
   }
   /** 多指标 */
-  private get isMultipleMetrice() {
+  private get isMultipleMetrics() {
     return this.metricData.length > 1;
   }
 
@@ -365,7 +365,7 @@ export default class StrategyView extends tsc<IStrateViewProps> {
     if (!metricData?.some?.(item => item.alias === this.alertTabActive)) {
       this.alertTabActive = metricData?.[0]?.alias || '';
     }
-    const queryData = this.handleGetQetricQueryData(metricData || []);
+    const queryData = this.handleGetMetricQueryData(metricData || []);
     if (queryData.some(item => item.agg_interval < 1)) return;
     const curQueryString = JSON.stringify(queryData);
     if (curQueryString !== this.metricQueryString) {
@@ -401,7 +401,7 @@ export default class StrategyView extends tsc<IStrateViewProps> {
     this.handleMultivariateAnomalyDetectionDimensionsQueryChart();
   }
 
-  handleGetQetricQueryData(data: MetricDetail[]) {
+  handleGetMetricQueryData(data: MetricDetail[]) {
     return data.map(
       ({ agg_dimension, agg_interval, agg_method, agg_condition, keywords_query_string, index_set_id, functions }) => ({
         agg_dimension,
@@ -420,11 +420,13 @@ export default class StrategyView extends tsc<IStrateViewProps> {
     if (type === 'timeRange') {
       this.timeRange = this.tools.timeRange;
       this.handleRefreshView();
+    } else if (type === 'interval') {
+      this.refreshInterval = tools.refreshInterval || -1;
     }
   }
   // 刷新策略视图
   handleRefreshView() {
-    this.refleshImmediate = random(10);
+    this.refreshImmediate = random(10);
     // this.metricViewChartKey = random(10);
   }
   // 触发图表查询
@@ -442,11 +444,11 @@ export default class StrategyView extends tsc<IStrateViewProps> {
       const keys = this.dimensionData.map(item => item.id);
       const temp = deepClone(this.dimensions);
       const dimensions = {};
-      keys.forEach(key => {
+      for (const key of keys) {
         if (temp[key]) {
           dimensions[key] = temp[key];
         }
-      });
+      }
       this.dimensions = dimensions;
       // 重置数据
       this.currentDimensionScopeMap = {};
@@ -499,7 +501,7 @@ export default class StrategyView extends tsc<IStrateViewProps> {
     const [startTime, endTime] = handleTransformToTimestamp(this.tools.timeRange);
     const commonParams = this.getQueryParams(startTime, endTime);
     // 接口不支持批量，需要逐个发请求拿维度可选值信息
-    this.dimensionList.forEach(item => {
+    for (const item of this.dimensionList) {
       const queryConfigs = commonParams.query_configs.map(queryConfig => {
         const filter_dict = this.dimensions?.[item.id] ? queryConfig.filter_dict : {};
         return {
@@ -516,7 +518,7 @@ export default class StrategyView extends tsc<IStrateViewProps> {
       if (this.editMode !== 'Source') {
         promiseList.push(dimensionUnifyQuery(params));
       }
-    });
+    }
     const data = await Promise.all(promiseList).catch(() => []);
     this.dimensionList.forEach((dimension, index) => {
       if (data[index] && Array.isArray(data[index])) {
@@ -557,7 +559,7 @@ export default class StrategyView extends tsc<IStrateViewProps> {
       params.start_time = startTime;
       params.end_time = endTime;
     }
-    let firstData = undefined;
+    let firstData;
     const { series: queryData } = await graphUnifyQuery(params).catch(() => ({ series: [] }));
     if (hasIntelligentDetect) {
       firstData = queryData.find(item => item.alias === 'value') || [];
@@ -928,7 +930,7 @@ export default class StrategyView extends tsc<IStrateViewProps> {
       const targets = [
         {
           data: {
-            expression: this.isMultipleMetrice ? this.expression : '',
+            expression: this.isMultipleMetrics ? this.expression : '',
             query_configs: this.metricQueryData.map(item => {
               const metricData = this.getTargetParams([item]);
               return {
@@ -972,7 +974,7 @@ export default class StrategyView extends tsc<IStrateViewProps> {
             },
           },
         ],
-        title: this.chartTitile,
+        title: this.chartTitle,
         type: 'graph',
       },
     ];
@@ -1011,7 +1013,7 @@ export default class StrategyView extends tsc<IStrateViewProps> {
                 key='tool'
                 ref='tool'
                 on-change={this.handleToolPanelChange}
-                on-on-immediate-reflesh={this.handleRefreshView}
+                on-on-immediate-refresh={this.handleRefreshView}
                 onTimezoneChange={this.handleRefreshView}
               />,
               <div
@@ -1196,7 +1198,7 @@ export default class StrategyView extends tsc<IStrateViewProps> {
                       key='tool'
                       ref='tool'
                       on-change={this.handleToolPanelChange}
-                      on-on-immediate-reflesh={this.handleRefreshView}
+                      on-on-immediate-refresh={this.handleRefreshView}
                       onTimezoneChange={this.handleRefreshView}
                     />
                     <ViewDimensions
@@ -1211,7 +1213,7 @@ export default class StrategyView extends tsc<IStrateViewProps> {
                     key='multiple'
                     dimensions={this.dimensions}
                     metrics={this.multivariateAnomalyDetectionParams.metrics}
-                    refleshKey={this.multivariateAnomalyDetectionParams.refleshKey}
+                    refreshKey={this.multivariateAnomalyDetectionParams.refreshKey}
                     strategyTarget={this.strategyTarget}
                     onRefreshCharKey={this.handleRefreshView}
                   />,

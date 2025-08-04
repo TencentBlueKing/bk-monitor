@@ -15,7 +15,7 @@ from django.utils.translation import gettext as _
 from rest_framework import serializers
 
 from bkm_space.validate import validate_bk_biz_id
-from bkmonitor.utils.request import get_request
+from bkmonitor.utils.request import get_request, get_request_tenant_id
 from bkmonitor.utils.serializers import (
     MetricJsonBaseSerializer,
     MetricJsonSerializer,
@@ -56,7 +56,7 @@ class CollectorPluginMixin(MetricJsonBaseSerializer):
         mode = serializers.ChoiceField(required=True, choices=PARAM_MODE_CHOICES, label="模式")
         type = serializers.ChoiceField(
             required=True,
-            choices=["text", "password", "switch", "file", "encrypt", "host", "service", "code", "list"],
+            choices=["text", "password", "switch", "file", "encrypt", "host", "service", "code", "list", "custom"],
             label="类型",
         )
         name = serializers.CharField(required=True, label="名称")
@@ -107,7 +107,7 @@ class CollectorMetaSerializer(serializers.ModelSerializer, CollectorPluginMixin)
         create_data = {
             key: validated_data.get(key) for key in self.COLLECTOR_PLUGIN_META_FIELDS if validated_data.get(key)
         }
-        plugin = CollectorPluginMeta.objects.create(**create_data)
+        plugin = CollectorPluginMeta.objects.create(bk_tenant_id=get_request_tenant_id(), **create_data)
         return plugin
 
     def update(self, instance, validated_data):

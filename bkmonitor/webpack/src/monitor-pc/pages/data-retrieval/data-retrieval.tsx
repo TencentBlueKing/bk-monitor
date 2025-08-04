@@ -29,7 +29,7 @@
 import { Component, Provide, ProvideReactive, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { CancelToken } from 'monitor-api/index';
+import { CancelToken } from 'monitor-api/cancel';
 import { getMainlineObjectTopo } from 'monitor-api/modules/commons';
 import { getGraphQueryConfig } from 'monitor-api/modules/data_explorer';
 import { getFunctions } from 'monitor-api/modules/grafana';
@@ -49,13 +49,11 @@ import {
   queryConfigToPromql,
 } from 'monitor-api/modules/strategies';
 import { monitorDrag } from 'monitor-common/utils/drag-directive';
-import { Debounce, copyText, deepClone, getUrlParam, random } from 'monitor-common/utils/utils';
+import { copyText, Debounce, deepClone, getUrlParam, random } from 'monitor-common/utils/utils';
 
 import MetricSelector from '../../components/metric-selector/metric-selector';
 import { transformValueToMonitor } from '../../components/monitor-ip-selector/utils';
 import NotifyBox from '../../components/notify-box/notify-box';
-import { LETTERS } from '../../constant/constant';
-
 // import PromqlEditor from 'monitor-ui/promql-editor/promql-editor';
 import PromqlEditor from '../../components/promql-editor/promql-editor';
 import {
@@ -63,6 +61,7 @@ import {
   handleTransformToTimestamp,
   timestampTransformStr,
 } from '../../components/time-range/utils';
+import { LETTERS } from '../../constant/constant';
 import { getDefaultTimezone, updateTimezone } from '../../i18n/dayjs';
 import { MetricDetail, MetricType } from '../../pages/strategy-config/strategy-config-set-new/typings';
 import { validateExpression } from '../../utils/index';
@@ -78,8 +77,6 @@ import FavoriteIndex from './favorite-container/collect-index';
 import FilterDict from './filter-dict';
 import HandleBtn from './handle-btn/handle-btn';
 import {
-  DataRetrievalPromqlItem,
-  DataRetrievalQueryItem,
   type EventRetrievalViewType,
   type IDataRetrieval,
   type IDataRetrievalItem,
@@ -87,6 +84,8 @@ import {
   type IFavList,
   type IFilterCondition,
   type TEditMode,
+  DataRetrievalPromqlItem,
+  DataRetrievalQueryItem,
 } from './typings';
 
 // import PromqlEditor from 'monitor-ui/promql-editor/promql-editor';
@@ -209,7 +208,7 @@ export default class DataRetrieval extends tsc<object> {
       value: true,
     },
     tools: {
-      refleshInterval: -1,
+      refreshInterval: -1,
       timeRange: DEFAULT_TIME_RANGE,
       timezone: getDefaultTimezone(),
     },
@@ -315,7 +314,6 @@ export default class DataRetrieval extends tsc<object> {
 
   // 自动刷新
   refreshInstance = null;
-
   // 是否开启（框选/复位）全部操作
   @Provide('enableSelectionRestoreAll') enableSelectionRestoreAll = true;
   // 框选图表事件范围触发（触发后缓存之前的时间，且展示复位按钮）
@@ -521,6 +519,11 @@ export default class DataRetrieval extends tsc<object> {
         .every(item => ['custom', 'bk_monitor', 'bk_data'].includes(item.data_source_label));
     }
     return true;
+  }
+
+  get dataId() {
+    if (this.tabActive === 'event') return this.eventMetricParams?.result_table_id;
+    return '';
   }
 
   beforeRouteEnter(to: Route, from: Route, next: (to?: ((vm: any) => any) | false | RawLocation) => void) {
@@ -773,6 +776,7 @@ export default class DataRetrieval extends tsc<object> {
       };
     });
     this.filterQueryResult = isExist ? result : [];
+    this.routerParamsUpdate();
   }
 
   /**
@@ -1150,7 +1154,7 @@ export default class DataRetrieval extends tsc<object> {
    * @description: 保存选中目标
    * @param {*} data 目标数据
    */
-  handleTargetChange(data: { value: IIpV6Value; nodeType: INodeType }) {
+  handleTargetChange(data: { nodeType: INodeType; value: IIpV6Value }) {
     const value = transformValueToMonitor(data.value, data.nodeType);
     this.target.value = value;
     this.target.targetType = data.nodeType;
@@ -1269,9 +1273,9 @@ export default class DataRetrieval extends tsc<object> {
     }
     data.tools && (this.compareValue.tools = data.tools);
     const compareMap: { [key in IDataRetrievalView.compareType]: (params: any) => any } = {
-      none: ({ type, split }: { type: IDataRetrievalView.compareType; split: boolean }) => ({ type, value: split }),
+      none: ({ type, split }: { split: boolean; type: IDataRetrievalView.compareType }) => ({ type, value: split }),
       target: ({ type }: { type: IDataRetrievalView.compareType }) => ({ type }),
-      time: ({ type, timeOffset }: { type: IDataRetrievalView.compareType; timeOffset: string[] }) => ({
+      time: ({ type, timeOffset }: { timeOffset: string[]; type: IDataRetrievalView.compareType }) => ({
         type,
         value: timeOffset,
       }),
@@ -1514,7 +1518,7 @@ export default class DataRetrieval extends tsc<object> {
   async handleSubmitFavorite({ value, hideCallback, isEdit }) {
     const type = this.tabActive === 'event' ? 'event' : 'metric';
     const { group_id, name, id } = value;
-    let config = undefined;
+    let config;
     // 若是当前是编辑收藏, 且非更新收藏config的情况下 不改变config
     if (this.isUpdateFavoriteConfig) {
       if (this.tabActive === 'event') {
@@ -1734,6 +1738,7 @@ export default class DataRetrieval extends tsc<object> {
             group_by: item.agg_dimension,
             where: item.agg_condition.filter(item => item.value.length).filter(item => item.key),
             functions: item.functions,
+            display: !!item.enable,
             metrics: [{ alias: item.alias, field: item.metric_field, method: item.agg_method }],
           };
           item.index_set_id && (queryConfigItem.index_set_id = item.index_set_id);
@@ -1762,7 +1767,7 @@ export default class DataRetrieval extends tsc<object> {
       }
     } else if (this.editMode === 'PromQL') {
       for (const promqlItem of this.promqlData) {
-        if (!!promqlItem.code && promqlItem.enable) {
+        if (promqlItem.code) {
           const temp = {
             data: {
               query_configs: [
@@ -1772,6 +1777,7 @@ export default class DataRetrieval extends tsc<object> {
                   promql: promqlItem.code,
                   interval: promqlItem.step || 'auto',
                   alias: promqlItem.alias,
+                  hidden: !promqlItem.enable,
                 },
               ],
             },
@@ -2004,9 +2010,9 @@ export default class DataRetrieval extends tsc<object> {
   getCompare() {
     type type = IDataRetrievalView.compareType;
     type CompareFunction = (compare: { type: type; value?: boolean | string[] }) => {
-      type: type;
       split?: boolean;
       time_offset?: string[];
+      type: type;
     };
     const compareMap: { [key in type]: CompareFunction } = {
       none: ({ type, value }: { type: type; value: boolean }) => ({ type, split: value }),
@@ -2289,6 +2295,7 @@ export default class DataRetrieval extends tsc<object> {
           alias: t.data.promqlAlias,
           step: t.data.step,
           filter_dict: t.data.filter_dict,
+          enable: !t.data.hidden,
         };
         promqlData.push(new DataRetrievalPromqlItem(temp as any));
       }
@@ -2303,6 +2310,7 @@ export default class DataRetrieval extends tsc<object> {
           filter_dict: q.filter_dict,
           step: q.interval || q.agg_interval || 'auto',
           alias: q.alias || LETTERS.at(i),
+          enable: !q.hidden,
         };
         promqlData.push(new DataRetrievalPromqlItem(temp as any));
       }
@@ -2378,7 +2386,7 @@ export default class DataRetrieval extends tsc<object> {
       },
       tools: {
         ...this.compareValue.tools,
-        refleshInterval: -1,
+        refreshInterval: -1,
       },
     };
   }
@@ -2909,8 +2917,11 @@ export default class DataRetrieval extends tsc<object> {
       const promiseList = [];
       const localValueFilter = this.localValue.filter((item: DataRetrievalQueryItem) => !!item.metric_id);
       for (const item of localValueFilter as DataRetrievalQueryItem[]) {
+        const queryConfigs = this.getQueryConfgs(undefined, item);
+        if (!queryConfigs?.length) {
+          continue;
+        }
         const promiseItem = new Promise((resolve, reject) => {
-          const queryConfigs = this.getQueryConfgs(undefined, item);
           const params = {
             query_config_format: 'graph',
             expression: queryConfigs[0].alias || 'a',
@@ -3078,7 +3089,14 @@ export default class DataRetrieval extends tsc<object> {
       this.refleshNumber += 1;
     }, v);
   }
-
+  handleGotoNew() {
+    this.$router.push({
+      name: 'event-explore',
+      query: {
+        ...this.$route.query,
+      },
+    });
+  }
   destroyed() {
     window.clearInterval(this.refreshInstance);
     this.refreshInstance = null;
@@ -3472,54 +3490,65 @@ export default class DataRetrieval extends tsc<object> {
               {!this.onlyShowView && this.needMenu && (
                 <PanelHeader
                   eventSelectTimeRange={this.eventSelectTimeRange}
-                  refleshInterval={this.compareValue.tools.refleshInterval}
+                  refreshInterval={this.compareValue.tools.refreshInterval}
                   showDownSample={false}
                   timeRange={this.compareValue.tools?.timeRange}
                   timezone={this.compareValue.tools?.timezone}
-                  onImmediateReflesh={() => (this.refleshNumber += 1)}
-                  onRefleshIntervalChange={v => this.handleRefreshChange(v)}
+                  onImmediateRefresh={() => (this.refleshNumber += 1)}
+                  onRefreshIntervalChange={v => this.handleRefreshChange(v)}
                   onTimeRangeChange={this.handleToolsTimeRangeChange}
                   onTimezoneChange={this.handleTimezoneChange}
                 >
-                  {
-                    // url 带有 onlyShowView=false 的时候，不显示该按钮
-                    <div
-                      class='left-show-icon-container'
-                      slot='pre'
-                    >
-                      <div class='icon-container'>
-                        <div
-                          class={[
-                            'result-icon-box',
-                            {
-                              'light-icon': !this.isShowFavorite,
-                              'disable-icon': this.needUseCollectGuide,
-                            },
-                          ]}
-                          v-bk-tooltips={{
-                            content: this.isShowFavorite ? this.$t('点击收起收藏') : this.$t('点击展开收藏'),
-                            placements: ['bottom'],
-                            delay: 200,
-                            disabled: this.needUseCollectGuide,
-                          }}
-                          onClick={() => this.handleClickResultIcon('favorite')}
-                        >
-                          <span class='bk-icon icon-star' />
-                        </div>
-                        <div
-                          class={['result-icon-box', { 'light-icon': !this.isShowLeft }]}
-                          v-bk-tooltips={{
-                            content: this.isShowLeft ? this.$t('点击收起检索') : this.$t('点击展开检索'),
-                            placements: ['bottom'],
-                            delay: 200,
-                          }}
-                          onClick={() => this.handleClickResultIcon('search')}
-                        >
-                          <span class='bk-icon icon-monitor icon-mc-search-favorites' />
-                        </div>
+                  {/* // url 带有 onlyShowView=false 的时候，不显示该按钮 */}
+                  <div
+                    class='left-show-icon-container'
+                    slot='pre'
+                  >
+                    <div class='icon-container'>
+                      <div
+                        class={[
+                          'result-icon-box',
+                          {
+                            'light-icon': !this.isShowFavorite,
+                            'disable-icon': this.needUseCollectGuide,
+                          },
+                        ]}
+                        v-bk-tooltips={{
+                          content: this.isShowFavorite ? this.$t('点击收起收藏') : this.$t('点击展开收藏'),
+                          placements: ['bottom'],
+                          delay: 200,
+                          disabled: this.needUseCollectGuide,
+                        }}
+                        onClick={() => this.handleClickResultIcon('favorite')}
+                      >
+                        <span class='bk-icon icon-star' />
+                      </div>
+                      <div
+                        class={['result-icon-box', { 'light-icon': !this.isShowLeft }]}
+                        v-bk-tooltips={{
+                          content: this.isShowLeft ? this.$t('点击收起检索') : this.$t('点击展开检索'),
+                          placements: ['bottom'],
+                          delay: 200,
+                        }}
+                        onClick={() => this.handleClickResultIcon('search')}
+                      >
+                        <span class='bk-icon icon-monitor icon-mc-search-favorites' />
                       </div>
                     </div>
-                  }
+                  </div>
+                  {this.$route.name === 'event-retrieval' && (
+                    <bk-button
+                      style={{ marginTop: '8px' }}
+                      slot='center'
+                      onClick={this.handleGotoNew}
+                    >
+                      <i
+                        style={{ margin: '4px 5px 0 0' }}
+                        class='icon-monitor icon-mc-change-version'
+                      />
+                      {this.$t('切换新版')}
+                    </bk-button>
+                  )}
                 </PanelHeader>
               )}
               <div class='data-retrieval-main'>
@@ -3541,11 +3570,15 @@ export default class DataRetrieval extends tsc<object> {
                 >
                   <FavoriteIndex
                     ref='favoriteIndex'
+                    dataId={this.dataId}
                     favCheckedValue={this.favCheckedValue}
                     favoriteLoading={this.favoriteLoading}
                     favoriteSearchType={this.favoriteSearchType}
                     favoritesList={this.curFavList}
                     isShowFavorite={this.isShowFavorite}
+                    onClose={() => {
+                      this.isShowFavorite = false;
+                    }}
                     onGetFavoritesList={this.getListByGroupFavorite}
                     onOperateChange={({ operate, value }) => this.handleFavoriteOperate(operate, value)}
                   />

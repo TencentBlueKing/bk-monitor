@@ -157,5 +157,38 @@ export default {
   例如: 'For example',
   // 调用分析
   维度值分布: 'Dimension value distribution',
-  K8S对象: 'K8S object',
+  K8S对象: 'K8s object',
+
+  去重后的字段统计: 'Field statistics after deduplication',
+  '联想到以下 {0} 个收藏：': 'Associated with {0} favorites:',
+  待选列表: 'To be selected list',
+  全部添加: 'Add all',
+  检索内容: 'Retrieval content',
+  分组名称: 'Group name',
+  收藏管理: 'Favorite Management',
+  全部收藏: 'All Favorites',
+  '已选择以下{0}个收藏对象': 'You have selected {0} favorite objects',
+  维度数: 'Dimension number',
+  维度值: 'Dimension value',
+  选择维度信息: 'Select dimension information',
+  已选列表: 'Selected list',
+  全部移除: 'Remove all',
+
+  数值分布直方图: 'Numerical distribution histogram',
+  'TOP 5 时序图': 'TOP 5 Time Series Chart',
+
+  监控版本已更新: 'The BKMonitor version has been updated',
+  刷新页面: 'Refresh page',
+  暂不刷新: 'Do not refresh',
+  查看新特性: 'View new features',
+  '建议「刷新页面」体验新的特性，「暂不刷新」可能会遇到未知异常，可手动刷新解决。':
+    'It is recommended to "refresh the page" to experience the new features. If you choose "Do not refresh", you may encounter unknown exceptions. You can manually refresh to solve the problem.',
+  'Trace 检索': 'Trace Search',
+  'Tracing 检索': 'Tracing Search',
+
+  流水线事件: 'Pipeline Event',
+  '关联后，会自动获取相关观测数据，包括事件等。注意：流水线选择完成之后，必须同步配置启动参数。':
+    'After association, related observation data will be automatically obtained, including events, etc. Note: After the pipeline is selected, the startup parameters must be synchronized to configure.',
+  新增流水线: 'Add Pipeline',
+  批量编辑通知对象: 'Batch edit notification object',
 };

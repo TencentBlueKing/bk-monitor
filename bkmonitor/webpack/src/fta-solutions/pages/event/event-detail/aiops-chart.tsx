@@ -42,17 +42,17 @@ import type { IDetectionConfig } from 'monitor-pc/pages/strategy-config/strategy
  * 3、结束时间一直到事件结束后的五个周期，或最多不超过1440个周期
  */
 
-export const createAutoTimerange = (
+export const createAutoTimeRange = (
   startTime: number,
   endTime: number,
   interval = 60
-): { startTime: string; endTime: string } => {
+): { endTime: string; startTime: string } => {
   // const interval = this.detail.extra_info?.strategy?.items?.[0]?.query_configs?.[0]?.agg_interval || 60;
   const INTERVAL_5 = 5 * interval * 1000;
   const INTERVAL_1440 = 1440 * interval * 1000;
   const INTERVAL_60 = 60 * interval * 1000;
   let newStartTime = startTime * 1000;
-  let newEndTime = !!endTime ? endTime * 1000 : +new Date();
+  let newEndTime = endTime ? endTime * 1000 : +new Date();
   newEndTime = Math.min(newEndTime + INTERVAL_5, newStartTime + INTERVAL_1440);
   let diff = INTERVAL_1440 - (newEndTime - newStartTime);
   if (diff < INTERVAL_5) {
@@ -78,11 +78,11 @@ export default class AiopsChartEvent extends tsc<IProps> {
 
   @ProvideReactive('timeRange') timeRange: any = 1 * 60 * 60 * 1000;
   // 刷新间隔
-  @ProvideReactive('refleshInterval') refleshInterval = -1;
+  @ProvideReactive('refreshInterval') refreshInterval = -1;
   // 视图变量
   @ProvideReactive('viewOptions') viewOptions: IViewOptions = {};
   // 是否立即刷新
-  @ProvideReactive('refleshImmediate') refleshImmediate = '';
+  @ProvideReactive('refreshImmediate') refreshImmediate = '';
   // 对比的时间
   @ProvideReactive('timeOffset') timeOffset: string[] = [];
   // 对比类型
@@ -147,7 +147,7 @@ export default class AiopsChartEvent extends tsc<IProps> {
     };
     this.panel = new PanelModel(panelData as any);
 
-    const { startTime, endTime } = createAutoTimerange(
+    const { startTime, endTime } = createAutoTimeRange(
       this.detail.begin_time,
       this.detail.end_time,
       this.detail.extra_info?.strategy?.items?.[0]?.query_configs?.[0]?.agg_interval
