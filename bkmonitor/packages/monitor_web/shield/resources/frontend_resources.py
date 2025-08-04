@@ -24,7 +24,7 @@ from constants.shield import (
 )
 from core.drf_resource import resource
 from core.drf_resource.base import Resource
-from monitor_web.shield.utils import ShieldDisplayManager
+from monitor_web.shield.utils import ShieldDisplayManager, SimpleShieldDisplayManager
 
 from .backend_resources import ShieldListSerializer
 
@@ -141,7 +141,7 @@ class FrontendShieldListResource(Resource):
         if not shields:
             return []
 
-        manager = ShieldDisplayManager(bk_biz_id)
+        manager = SimpleShieldDisplayManager()
 
         # 过滤策略id
         strategy_ids = set(strategy_ids)
