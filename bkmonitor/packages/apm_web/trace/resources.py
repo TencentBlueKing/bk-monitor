@@ -46,7 +46,7 @@ from apm_web.trace.serializers import (
     TraceFieldsTopkRequestSerializer,
     TraceGenerateQueryStringRequestSerializer,
 )
-from apm_web.utils import flatten_es_dict_data
+from apm_web.utils import check_app_integration_status, flatten_es_dict_data
 from bkmonitor.utils.cache import CacheType, using_cache
 from bkmonitor.utils.elasticsearch.handler import QueryStringGenerator
 from constants.apm import (
@@ -84,6 +84,8 @@ class TraceChatsResource(Resource):
             )
         except Application.DoesNotExist:
             raise ValueError(_lazy("应用不存在"))
+        if check_app_integration_status(app) is False:
+            return []
         database, _ = app.metric_result_table_id.split(".")
         return [
             {

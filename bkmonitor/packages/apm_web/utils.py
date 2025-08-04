@@ -8,18 +8,21 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+import csv
 import datetime
 import math
-import csv
-from urllib import parse
-from typing import Any
-from collections.abc import Iterable
 from collections import deque
+from collections.abc import Iterable
+from typing import Any
+from urllib import parse
 
 from django.http import HttpResponse
+from opentelemetry import trace
 
-from core.drf_resource import api
 from bkmonitor.utils.time_tools import time_interval_align
+from core.drf_resource import api
+
+tracer = trace.get_tracer(__name__)
 
 
 def list_remote_service_callers(bk_biz_id, app_name, remote_service_name):
@@ -402,3 +405,24 @@ def flatten_es_dict_data(data_dict: dict) -> dict:
             else:
                 update_result_dict(result_dict, field_key, field_value)
     return result_dict
+
+
+def check_app_integration_status(app) -> bool:
+    """检查 application 是否接入成功"""
+
+    with tracer.start_as_current_span("check_app_integration_status") as span:
+        try:
+            if not app:
+                raise ValueError("应用不存在")
+            if (
+                hasattr(app, "trace_result_table_id")
+                and hasattr(app, "metric_result_table_id")
+                and app.is_create_finished
+            ):
+                return True
+            elif isinstance(app, dict) and app.get("trace_result_table_id") and app.get("metric_result_table_id"):
+                return True
+            raise ValueError("应用未接入成功，Application trace_result_table_id or metric_result_table_id is None")
+        except Exception as e:
+            span.record_exception(e)
+            return False
