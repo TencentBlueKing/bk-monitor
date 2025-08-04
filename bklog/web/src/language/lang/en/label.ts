@@ -820,5 +820,6 @@ export default {
   临时分享: 'Temporary Share',
   分享: 'Share',
   综合时间排序: 'Comprehensive Time Sorting',
+  日志排序: 'Log Sorting',
   '已选择{0}个动态组': 'Selected {0} dynamic groups',
 };

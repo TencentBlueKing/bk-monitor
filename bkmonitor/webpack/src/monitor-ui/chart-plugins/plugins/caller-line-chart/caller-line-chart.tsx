@@ -209,7 +209,7 @@ class CallerLineChart extends CommonSimpleChart {
     this.emptyText = window.i18n.t('加载中...');
     try {
       this.unregisterObserver();
-      const series = [];
+      let series = [];
       const metrics = [];
       this.legendSorts = [];
       const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
@@ -344,7 +344,7 @@ class CallerLineChart extends CommonSimpleChart {
         });
         promiseList.push(...list);
       }
-      let customEventScatterSeries = null;
+      let customEventScatterSeries: IUnifyQuerySeriesItem[] = null;
       // 初始化事件分析配置
       if (!this.eventColumns.length) {
         const { config, columns } = await getCustomEventAnalysisConfig({
@@ -376,6 +376,7 @@ class CallerLineChart extends CommonSimpleChart {
       this.metrics = metrics || [];
       if (series.length) {
         const { maxSeriesCount, maxXInterval } = getSeriesMaxInterval(series);
+        series = series.toSorted((a, b) => b.name?.localeCompare?.(a?.name));
         /* 派出图表数据包含的维度*/
         this.series = Object.freeze(series) as any;
         const seriesResult = series

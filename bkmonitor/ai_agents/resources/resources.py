@@ -26,6 +26,7 @@ from ai_agents.services.api_client import AidevApiClientBuilder
 import logging
 from django.conf import settings
 from bkmonitor.utils.user import get_request_username
+from rest_framework.views import Response
 
 logger = logging.getLogger("ai_agents")
 
@@ -47,18 +48,16 @@ class CreateChatSessionResource(Resource):
     def perform_request(self, validated_request_data):
         session_code = validated_request_data.get("session_code")
         session_name = validated_request_data.get("session_name")
+        username = get_request_username()
         logger.info(
             "CreateChatSessionResource: try to create session with session_code->[%s], session_name->[%s]",
             session_code,
             session_name,
         )
-
-        # agent_code = validated_request_data.get("agent_code")
-
         api_client = AidevApiClientBuilder.get_client(
             bk_app_code=settings.AIDEV_AGENT_APP_CODE, bk_app_secret=settings.AIDEV_AGENT_APP_SECRET
         )
-        res = api_client.api.create_chat_session(json=validated_request_data)
+        res = api_client.api.create_chat_session(json=validated_request_data, headers={"X-BKAIDEV-USER": username})
         return res
 
 
@@ -68,18 +67,25 @@ class RetrieveChatSessionResource(Resource):
     """
 
     class RequestSerializer(serializers.Serializer):
-        session_code = serializers.CharField(label="会话代码", required=True)
+        session_code = serializers.CharField(label="会话代码", required=False, default=None)
 
     @ai_metrics_decorator()
     def perform_request(self, validated_request_data):
-        session_code = validated_request_data.get("session_code")
+        session_code = validated_request_data.get("session_code", None)
+        username = get_request_username()
 
         logger.info("RetrieveChatSessionResource: try to retrieve session with session_code->[%s]", session_code)
 
         api_client = AidevApiClientBuilder.get_client(
             bk_app_code=settings.AIDEV_AGENT_APP_CODE, bk_app_secret=settings.AIDEV_AGENT_APP_SECRET
         )
-        res = api_client.api.retrieve_chat_session(path_params={"session_code": session_code})
+        if session_code:
+            logger.info("RetrieveChatSessionResource: try to retrieve session with session_code->[%s]", session_code)
+            res = api_client.api.retrieve_chat_session(path_params={"session_code": session_code})
+        else:  # 当前仅支持拉取主Agent的历史会话
+            logger.info("RetrieveChatSessionResource: try to list user sessions,username->[%s]", username)
+            res = api_client.api.list_chat_session(headers={"X-BKAIDEV-USER": username})
+
         return res
 
 
@@ -378,4 +384,14 @@ class CreateChatCompletionResource(Resource):
                 username=username,
             )
             return streaming_wrapper.as_streaming_response()
+        else:  # 非流式
+            execute_kwargs = ExecuteKwargs.model_validate(execute_kwargs)
+            logger.info(
+                "CreateChatCompletionResource: stream is false, start non-streaming,session_code->[%s], "
+                "execute_kwargs->[%s]",
+                session_code,
+                execute_kwargs,
+            )
+            result = agent_instance.execute(execute_kwargs)
+            return Response(result)
         return None

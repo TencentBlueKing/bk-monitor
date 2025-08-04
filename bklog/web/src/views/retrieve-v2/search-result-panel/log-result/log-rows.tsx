@@ -575,15 +575,19 @@ export default defineComponent({
       },
     );
 
+    const handleResultBoxResize = () => {
+      scrollXOffsetLeft = 0;
+      refScrollXBar.value?.scrollLeft(0);
+      computeRect(refResultRowBox.value);
+    };
+
     watch(
       () => [props.contentType],
       () => {
-        scrollXOffsetLeft = 0;
-        refScrollXBar.value?.scrollLeft(0);
         showCtxType.value = props.contentType;
         pageIndex.value = 1;
         setRenderList(50);
-        computeRect();
+        handleResultBoxResize();
       },
     );
 
@@ -594,9 +598,7 @@ export default defineComponent({
           setFullColumns();
         }
 
-        scrollXOffsetLeft = 0;
-        refScrollXBar.value?.scrollLeft(0);
-        computeRect(refResultRowBox.value);
+        handleResultBoxResize();
       },
     );
 
@@ -608,6 +610,16 @@ export default defineComponent({
       {
         immediate: true,
       },
+    );
+
+    RetrieveHelper.on(
+      [
+        RetrieveEvent.FAVORITE_WIDTH_CHANGE,
+        RetrieveEvent.LEFT_FIELD_SETTING_WIDTH_CHANGE,
+        RetrieveEvent.FAVORITE_SHOWN_CHANGE,
+        RetrieveEvent.LEFT_FIELD_SETTING_SHOWN_CHANGE,
+      ],
+      handleResultBoxResize,
     );
 
     const handleColumnWidthChange = (w, col) => {
@@ -729,10 +741,32 @@ export default defineComponent({
     });
 
     let isAnimating = false;
+
     useWheel({
       target: refRootElement,
       callback: (event: WheelEvent) => {
         const maxOffset = scrollWidth.value - offsetWidth.value;
+
+        // 检查是否按住 shift 键
+        if (event.shiftKey) {
+          // 当按住 shift 键时，让 refScrollXBar 执行系统默认的横向滚动能力
+          if (hasScrollX.value && refScrollXBar.value) {
+            event.stopPropagation();
+            event.stopImmediatePropagation();
+            event.preventDefault();
+
+            // 使用系统默认的滚动行为，通过 refScrollXBar 执行横向滚动
+            const currentScrollLeft = refScrollXBar.value.getScrollLeft?.() || 0;
+            const scrollStep = event.deltaY || event.deltaX;
+            const newScrollLeft = Math.max(0, Math.min(maxOffset, currentScrollLeft + scrollStep));
+
+            refScrollXBar.value.scrollLeft(newScrollLeft);
+            scrollXOffsetLeft = newScrollLeft;
+            setRowboxTransform();
+          }
+          return;
+        }
+
         if (event.deltaX !== 0 && hasScrollX.value) {
           event.stopPropagation();
           event.stopImmediatePropagation();
@@ -1035,6 +1069,14 @@ export default defineComponent({
       popInstanceUtil.uninstallInstance();
       resetRowListState(-1);
       RetrieveHelper.off(RetrieveEvent.SEARCHING_CHANGE, handleSearchingChange);
+      [
+        RetrieveEvent.FAVORITE_WIDTH_CHANGE,
+        RetrieveEvent.LEFT_FIELD_SETTING_WIDTH_CHANGE,
+        RetrieveEvent.FAVORITE_SHOWN_CHANGE,
+        RetrieveEvent.LEFT_FIELD_SETTING_SHOWN_CHANGE,
+      ].forEach(event => {
+        RetrieveHelper.off(event, handleResultBoxResize);
+      });
     });
 
     return {
