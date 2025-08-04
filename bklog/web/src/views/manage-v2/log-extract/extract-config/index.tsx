@@ -4,7 +4,7 @@ import useLocale from '@/hooks/use-locale';
 import http from '@/api';
 import * as authorityMap from '@/common/authority-map';
 import EmptyStatus from '@/components/empty-status/index.vue';
-import DirectoryManage from './directory-manage.vue';
+import ConfigSlider from './config-slider.tsx';
 import { Message, InfoBox } from 'bk-magic-vue';
 
 import './index.scss';
@@ -12,7 +12,7 @@ import './index.scss';
 export default defineComponent({
   name: 'ManageExtract',
   components: {
-    DirectoryManage,
+    ConfigSlider,
     EmptyStatus,
   },
   setup() {
@@ -402,10 +402,9 @@ export default defineComponent({
           transfer
           onAnimation-end={handleCloseSidebar}
         >
-          {/* 侧边栏内容区域 */}
           <template slot='content'>
-            {/* 目录管理组件 */}
-            <DirectoryManage
+            {/* 侧边栏内容组件 */}
+            <ConfigSlider
               ref={directoryRef}
               v-bkloading={{ isLoading: isSliderLoading.value }}
               allowCreate={allowCreate.value}
