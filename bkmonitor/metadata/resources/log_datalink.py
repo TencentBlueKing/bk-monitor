@@ -20,16 +20,16 @@ from bkmonitor.utils.user import get_request_username
 from core.drf_resource import Resource
 from metadata import config, models
 from metadata.models.constants import BULK_CREATE_BATCH_SIZE, BULK_UPDATE_BATCH_SIZE
+from metadata.models.space.space_table_id_redis import SpaceTableIDRedis
 from metadata.service.space_redis import (
-    push_and_publish_doris_table_id_detail,
     push_and_publish_es_aliases,
-    push_and_publish_es_table_id,
-    push_and_publish_log_space_router,
 )
 
 logger = logging.getLogger(__name__)
 
 # TODO：LogDataLink整体接口 多租户验证
+
+client = SpaceTableIDRedis()
 
 
 class ParamsSerializer(serializers.Serializer):
@@ -138,8 +138,11 @@ class CreateEsRouter(BaseLogRouter):
                 origin_table_id=data.get("origin_table_id", ""),
             )
         # 推送空间数据
-        push_and_publish_log_space_router(space_type=data["space_type"], space_id=data["space_id"])
-        # 推送别名到结果表数据
+        logger.info("CreateEsRouter: try to push route for table_id->[%s]", data["table_id"])
+        client.push_space_table_ids(
+            space_type=data["space_type"], space_id=data["space_id"], bk_tenant_id=bk_tenant_id, is_publish=True
+        )
+        client.push_es_table_id_detail(table_id_list=[data["table_id"]], is_publish=True)
         push_and_publish_es_aliases(bk_tenant_id=bk_tenant_id, data_label=data["data_label"])
 
 
@@ -201,8 +204,10 @@ class CreateDorisRouter(BaseLogRouter):
 
         logger.info("CreateDorisRouter: create doris datalink related records successfully,now try to push router")
         # 推送路由 空间路由+结果表详情路由
-        push_and_publish_doris_table_id_detail(bk_tenant_id=bk_tenant_id, table_id=data["table_id"])
-        push_and_publish_log_space_router(space_type=data["space_type"], space_id=data["space_id"])
+        client.push_doris_table_id_detail(table_id_list=[data["table_id"]], is_publish=True)
+        client.push_space_table_ids(
+            space_type=data["space_type"], space_id=data["space_id"], bk_tenant_id=bk_tenant_id, is_publish=True
+        )
 
         logger.info("CreateDorisRouter: push doris datalink router success")
 
@@ -259,23 +264,11 @@ class UpdateEsRouter(BaseLogRouter):
         # 更新options
         if data.get("options"):
             self.create_or_update_options(bk_tenant_id=bk_tenant_id, table_id=table_id, options=data["options"])
-        options = list(
-            models.ResultTableOption.objects.filter(bk_tenant_id=bk_tenant_id, table_id=table_id).values(
-                "name", "value", "value_type"
-            )
-        )
         # 如果别名或者索引集有变动，则需要通知到unify-query
         if need_refresh_data_label:
             push_and_publish_es_aliases(bk_tenant_id=bk_tenant_id, data_label=data["data_label"])
         logger.info("UpdateEsRouter: try to push es detail router for table_id->[%s]", table_id)
-        push_and_publish_es_table_id(
-            bk_tenant_id=result_table.bk_tenant_id,
-            table_id=table_id,
-            index_set=es_storage.index_set,
-            source_type=es_storage.source_type,
-            cluster_id=es_storage.storage_cluster_id,
-            options=options,
-        )
+        client.push_es_table_id_detail(table_id_list=[table_id], bk_tenant_id=bk_tenant_id, is_publish=True)
 
 
 class UpdateDorisRouter(BaseLogRouter):
@@ -338,7 +331,7 @@ class UpdateDorisRouter(BaseLogRouter):
 
         if need_refresh_table_id_detail:
             # 推送结果表详情路由
-            push_and_publish_doris_table_id_detail(bk_tenant_id=result_table.bk_tenant_id, table_id=table_id)
+            client.push_doris_table_id_detail(table_id_list=[table_id], bk_tenant_id=bk_tenant_id, is_publish=True)
 
         logger.info("UpdateDorisRouter:push doris router for table_id->[%s] successfully", table_id)
 
@@ -390,8 +383,8 @@ class CreateOrUpdateLogRouter(Resource):
             validated_request_data["storage_type"],
         )
 
-        # 更新查询别名
-        if validated_request_data.get("query_alias_settings"):
+        # 更新查询别名,兼容[]空列表
+        if validated_request_data.get("query_alias_settings") is not None:
             operator = get_request_username() or "system"
             models.ESFieldQueryAliasOption.manage_query_alias_settings(
                 table_id=table_id,

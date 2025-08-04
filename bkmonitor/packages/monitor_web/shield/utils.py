@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,10 +7,11 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import functools
-from typing import Dict, List
 
 import arrow
+from django.utils.translation import gettext as _
 
 from bkmonitor.models import Shield
 from bkmonitor.utils.shield import BaseShieldDisplayManager
@@ -20,8 +20,16 @@ from constants.shield import ShieldCategory, ShieldCycleType
 from core.drf_resource import api, resource
 from monitor_web.commons.cc.utils import CmdbUtil
 
+NODE_TYPE_MAP = {
+    "biz": _("业务"),
+    "set": _("集群"),
+    "module": _("模块"),
+    "other": _("其他"),
+}
+SERVICE = _("服务实例")
 
-class ShieldDetectManager(object):
+
+class ShieldDetectManager:
     """
     检查是否被屏蔽
     """
@@ -105,17 +113,17 @@ class ShieldDetectManager(object):
             ip_value = data.get("bk_target_ip", "")
 
             first_value = ip_value
-            if ip_value and isinstance(ip_value, (list, tuple)):
+            if ip_value and isinstance(ip_value, list | tuple):
                 first_value = ip_value[0]
 
             if isinstance(first_value, dict):
                 ip_value = first_value.get("bk_target_ip")
                 bk_cloud_id = first_value.get("bk_target_cloud_id", first_value.get("bk_cloud_id", "0"))
-                return ["{}|{}".format(ip_value, bk_cloud_id)]
+                return [f"{ip_value}|{bk_cloud_id}"]
 
             if first_value:
                 bk_cloud_id = data.get("bk_target_cloud_id", data.get("bk_cloud_id", "0"))
-                return ["{}|{}".format(ip_value, bk_cloud_id)]
+                return [f"{ip_value}|{bk_cloud_id}"]
 
         return self.get_list(data.get(key, []))
 
@@ -159,12 +167,74 @@ class ShieldDetectManager(object):
 
 
 class ShieldDisplayManager(BaseShieldDisplayManager):
-    def __init__(self, bk_biz_id=None):
-        super(ShieldDisplayManager, self).__init__()
+    def __init__(self, bk_biz_id):
+        super().__init__()
         self.node_manager = CmdbUtil(bk_biz_id)
-        self.dynamic_group_name_mapping: Dict[int, Dict[str, str]] = {}
+        self.helper = ShieldDisplayHelper()
+        # 预先获取并缓存业务名称
+        self.get_business_name(bk_biz_id)
 
-    def _get_dynamic_group_name_mapping(self, bk_biz_id: int):
+    def get_service_name_list(self, bk_biz_id, service_instance_id_list):
+        return self.node_manager.get_service_name(bk_biz_id, service_instance_id_list)
+
+    def get_node_path_list(self, bk_biz_id, bk_topo_node_list):
+        return self.node_manager.get_node_path(bk_biz_id, bk_topo_node_list)
+
+    def get_dynamic_group_name_list(self, bk_biz_id: int, dynamic_group_list: list[dict]) -> list:
+        return self.helper.get_dynamic_group_names(bk_biz_id, dynamic_group_list)
+
+    @functools.lru_cache(maxsize=128)
+    def get_business_name(self, bk_biz_id):
+        """根据 bk_biz_id 获取业务名，使用缓存以提高性能"""
+        business = resource.cc.get_app_by_id(bk_biz_id)
+        return business.name
+
+
+class SimpleShieldDisplayManager(BaseShieldDisplayManager):
+    def __init__(self):
+        super().__init__()
+        self.helper = ShieldDisplayHelper()
+
+    def get_service_name_list(self, bk_biz_id, service_instance_id_list):
+        if not service_instance_id_list:
+            return []
+        count = len(service_instance_id_list)
+        return [f"{count} {SERVICE}"]
+
+    def get_node_path_list(self, bk_biz_id, bk_topo_node_list):
+        if not bk_topo_node_list:
+            return []
+
+        node_counts = {"biz": 0, "set": 0, "module": 0, "other": 0}
+
+        for node in bk_topo_node_list:
+            obj_id = node.get("bk_obj_id", "")
+            if obj_id in node_counts:
+                node_counts[obj_id] += 1
+            else:
+                node_counts["other"] += 1
+
+        display_parts = []
+        for key, translated_name in NODE_TYPE_MAP.items():
+            count = node_counts.get(key, 0)
+            if count > 0:
+                display_parts.append(f"{count} {translated_name}")
+
+        return [display_parts] if display_parts else [[]]
+
+    def get_dynamic_group_name_list(self, bk_biz_id: int, dynamic_group_list: list[dict]) -> list:
+        return self.helper.get_dynamic_group_names(bk_biz_id, dynamic_group_list)
+
+    def get_business_name(self, bk_biz_id):
+        # 列表不展示业务名称
+        return ""
+
+
+class ShieldDisplayHelper:
+    def __init__(self):
+        self.dynamic_group_name_mapping: dict[int, dict[str, str]] = {}
+
+    def get_dynamic_group_name_mapping(self, bk_biz_id: int):
         if bk_biz_id in self.dynamic_group_name_mapping:
             return self.dynamic_group_name_mapping[bk_biz_id]
 
@@ -175,21 +245,9 @@ class ShieldDisplayManager(BaseShieldDisplayManager):
         self.dynamic_group_name_mapping[bk_biz_id] = dynamic_group_name_mapping
         return dynamic_group_name_mapping
 
-    def get_service_name_list(self, bk_biz_id, service_instance_id_list):
-        return self.node_manager.get_service_name(bk_biz_id, service_instance_id_list)
-
-    def get_node_path_list(self, bk_biz_id, bk_topo_node_list):
-        return self.node_manager.get_node_path(bk_biz_id, bk_topo_node_list)
-
-    def get_dynamic_group_name_list(self, bk_biz_id: int, dynamic_group_list: List[Dict]) -> List:
-        dynamic_group_name_mapping = self._get_dynamic_group_name_mapping(bk_biz_id)
+    def get_dynamic_group_names(self, bk_biz_id: int, dynamic_group_list: list[dict]) -> list:
+        dynamic_group_name_mapping = self.get_dynamic_group_name_mapping(bk_biz_id)
         return [
             dynamic_group_name_mapping.get(dynamic_group["dynamic_group_id"], dynamic_group["dynamic_group_id"])
             for dynamic_group in dynamic_group_list
         ]
-
-    @functools.lru_cache(maxsize=128)
-    def get_business_name(self, bk_biz_id):
-        """根据 bk_biz_id 获取业务名，使用缓存（基于 self 和 bk_biz_id）以提高性能。"""
-        business = resource.cc.get_app_by_id(bk_biz_id)
-        return business.name

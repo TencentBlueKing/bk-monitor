@@ -100,7 +100,7 @@ export class ApdexChart extends LineChart {
     try {
       this.unregisterObserver();
       // const series = apdexData.series || [];
-      const series = [];
+      let series = [];
       // const metrics = apdexData.series || [];
       const metrics = [];
       const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
@@ -151,11 +151,11 @@ export class ApdexChart extends LineChart {
       }
       await Promise.all(promiseList).catch(() => false);
       if (series.length) {
+        series = series.toSorted((a, b) => b.name?.localeCompare?.(a?.name));
         const seriesList = this.handleTransformSeries(
           series.map(item => ({
             name: item.target,
             cursor: 'auto',
-            // biome-ignore lint/style/noCommaOperator: <explanation>
             data: item.datapoints.reduce((pre: any, cur: any) => (pre.push(cur.reverse()), pre), []),
             stack: item.stack || random(10),
             unit: item.unit,
@@ -386,8 +386,12 @@ export class ApdexChart extends LineChart {
               ref='chart'
               class='chart-instance'
               onContextmenu={this.handleChartContextmenu}
-              onMouseenter={() => (this.showMouseTips = true)}
-              onMouseleave={() => (this.showMouseTips = false)}
+              onMouseenter={() => {
+                this.showMouseTips = true;
+              }}
+              onMouseleave={() => {
+                this.showMouseTips = false;
+              }}
             >
               {this.initialized && (
                 <BaseEchart
