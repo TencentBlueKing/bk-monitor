@@ -71,7 +71,7 @@ class Permission:
                     self.username = request.user.username
                     self.bk_tenant_id = request.user.tenant_id
                 else:
-                    self.bk_tenant_id = settings.DEFAULT_TENANT_ID
+                    self.bk_tenant_id = settings.BK_APP_TENANT_ID
                     logger.warning(
                         "IAM Permission init with local username, use default bk_tenant_id: %s", self.bk_tenant_id
                     )

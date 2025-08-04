@@ -46,7 +46,7 @@ class Command(BaseCommand):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.iam_client = Permission.get_iam_client(settings.DEFAULT_TENANT_ID)
+        self.iam_client = Permission.get_iam_client(settings.BK_APP_TENANT_ID)
         self.system_id = settings.BK_IAM_SYSTEM_ID
 
     def handle(self, **options):
