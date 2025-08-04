@@ -76,7 +76,11 @@ def adapt_non_bkcc_for_bknode(params):
     """
     # 处理蓝盾业务
     if scope_list := params.get("scope_list", []):
-        scope_list[0]["scope_id"] = get_non_bkcc_space_related_bkcc_biz_id(scope_list[0]["scope_id"])
+        scope_id = get_non_bkcc_space_related_bkcc_biz_id(scope_list[0]["scope_id"])
+        scope_list[0]["scope_id"] = scope_id
+        for item in params["host_list"]:
+            item["meta"]["scope_id"] = scope_id
+            item["meta"]["bk_biz_id"] = scope_id
         return params
 
     bk_biz_id = params.get("scope", {}).get("bk_biz_id", 0)
