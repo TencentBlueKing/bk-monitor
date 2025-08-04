@@ -157,7 +157,7 @@ export default class ApmTimeSeries extends TimeSeries {
     }
     try {
       this.unregisterObserver();
-      const series = [];
+      let series = [];
       const metrics = [];
       const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
       let params = {
@@ -240,6 +240,7 @@ export default class ApmTimeSeries extends TimeSeries {
       this.metrics = metrics || [];
       if (series.length && series?.some(s => !!s?.datapoints?.length)) {
         const { maxSeriesCount, maxXInterval } = getSeriesMaxInterval(series);
+        series = series.toSorted((a, b) => b.name?.localeCompare?.(a?.name));
         /* 派出图表数据包含的维度*/
         this.emitDimensions(series);
         this.series = Object.freeze(series) as any;

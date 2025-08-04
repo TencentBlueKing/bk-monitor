@@ -1646,3 +1646,6 @@ ENABLE_AIOPS_EVENT_CENTER_BIZ_LIST = []
 
 # 用户管理web api地址
 BK_USER_WEB_API_URL = os.getenv("BK_USER_WEB_API_URL") or f"{BK_COMPONENT_API_URL}/api/bk-user-web/prod/"
+
+# 进程采集独立数据源模式业务ID列表
+PROCESS_INDEPENDENT_DATAID_BIZ_IDS = []
