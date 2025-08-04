@@ -21,6 +21,7 @@ from metadata.models import (
 )
 from metadata.models.bcs import BCSClusterInfo
 from metadata.models.constants import BULK_CREATE_BATCH_SIZE
+from metadata.task.tasks import create_base_event_datalink_for_bkcc, create_basereport_datalink_for_bkcc
 
 from .constants import (
     BKCI_AUTHORIZED_DATA_ID_LIST,
@@ -808,6 +809,13 @@ def create_bkcc_spaces(biz_list: list[dict]) -> bool:
         )
 
     Space.objects.bulk_create(space_data)
+
+    # 初始化数据链路
+    if settings.ENABLE_MULTI_TENANT_MODE:
+        for biz in biz_list:
+            create_basereport_datalink_for_bkcc.delay(biz["bk_biz_id"])
+            create_base_event_datalink_for_bkcc.delay(biz["bk_biz_id"])
+
     logger.info("bulk create bkcc space successfully, space: %s", json.dumps(biz_list))
 
     return True

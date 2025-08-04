@@ -1252,6 +1252,7 @@ def create_basereport_datalink_for_bkcc(bk_biz_id, storage_cluster_name=None):
     )
 
 
+@app.task(ignore_result=True, queue="celery_metadata_task_worker")
 def create_base_event_datalink_for_bkcc(bk_biz_id, storage_cluster_name=None):
     """
     创建Agent基础事件数据链路
