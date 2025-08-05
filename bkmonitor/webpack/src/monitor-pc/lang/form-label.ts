@@ -1959,4 +1959,7 @@ export default {
   非空数据: 'Non-empty data',
   非空数据占比: 'Proportion of non-empty data',
   添加方式: 'Add method',
+
+  // 查询模板
+  '模板名称:': 'Template name:',
 };

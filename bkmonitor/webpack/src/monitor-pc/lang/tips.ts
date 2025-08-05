@@ -387,4 +387,12 @@ export default {
   暂无关联的事件数据: 'No related event data',
   '应安全需求，公共拨测节点需经过审核方可使用': 'The public testing nodes must undergo a review process before they can be used, in accordance with security requirements',
   点击申请业务权限: 'Click to apply for business privileges',
+  '调试数据范围取当前时间窗口前1000条数据': 'The debugging data range takes the previous 1000 entries from the current time window',
+  只有数值类型的字段可作为监控指标: 'Only fields of numeric type can be used as monitoring indicators'
+
+  // 查询模板
+  '当前仍然有关联的消费场景，无法编辑':
+    'Currently there are still associated consumption scenarios and cannot be edited',
+  '当前仍然有关联的消费场景，无法删除':
+    'Currently there are still associated consumption scenarios and cannot be deleted',
 };
