@@ -165,6 +165,7 @@ class _CCApi:
             url=self._build_url("api/v3/findmany/cloudarea", "search_cloud_area"),
             module=self.MODULE,
             description="查询云区域",
+            no_query_params=True,
             before_request=get_supplier_account_before,
             use_superuser=True,
         )
