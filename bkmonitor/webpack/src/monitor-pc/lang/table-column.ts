@@ -172,4 +172,9 @@ export default {
   变更人: 'Changed by',
   变更时间: 'Changed at',
   最近更新记录: 'Latest Update',
+
+  // 查询模板
+  模板名称: 'Template Name',
+  模板说明: 'Template Description',
+  消费场景: 'Consumption Scenario',
 };

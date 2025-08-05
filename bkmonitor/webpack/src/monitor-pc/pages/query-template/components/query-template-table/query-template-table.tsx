@@ -1,0 +1,416 @@
+/*
+ * Tencent is pleased to support the open source community by making
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
+ *
+ * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+ *
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
+ *
+ * License for 蓝鲸智云PaaS平台 (BlueKing PaaS):
+ *
+ * ---------------------------------------------------
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
+ * documentation files (the "Software"), to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and
+ * to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all copies or substantial portions of
+ * the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
+ * THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
+ * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+ * IN THE SOFTWARE.
+ */
+
+import { Component, Emit, Prop, Ref } from 'vue-property-decorator';
+import { Component as tsc } from 'vue-tsx-support';
+
+import { QueryTemplateSliderTabEnum, TABLE_DEFAULT_DISPLAY_FIELDS, TABLE_FIXED_DISPLAY_FIELDS } from '../../constants';
+import {
+  type IPagination,
+  type ITableSettingChangeEvent,
+  type ITableSettingSize,
+  type ITableSort,
+} from '../../typings';
+import DeleteConfirm from './components/delete-confirm';
+
+import './query-template-table.scss';
+
+interface QueryTemplateTableEmits {
+  /** 表格当前页码变化时的回调 */
+  onCurrentPageChange: (currentPage: number) => void;
+  /** 表格每页条数变化时的回调 */
+  onPageSizeChange: (pageSize: number) => void;
+  /** 表格排序变化后回调 */
+  onSortChange: (sort: `-${string}` | string) => void;
+}
+
+interface QueryTemplateTableProps {
+  /** 页码 */
+  current: number;
+  /** 每页条数 */
+  pageSize: number;
+  /** 排序 */
+  sort: `-${string}` | string;
+  /** 表格数据 */
+  tableData: any[];
+  /** 总数 */
+  total: number;
+}
+
+@Component
+export default class QueryTemplateTable extends tsc<QueryTemplateTableProps, QueryTemplateTableEmits> {
+  @Ref('deleteConfirmTipRef') deleteConfirmTipRef: Record<string, any>;
+
+  /** 页码 */
+  @Prop({ type: Number }) current: number;
+  /** 每页条数 */
+  @Prop({ type: Number, default: 50 }) pageSize: number;
+  /** 排序 */
+  @Prop({ type: String }) sort: `-${string}` | string;
+  /** 表格数据 */
+  @Prop({ type: Array, default: () => [] }) tableData: any[];
+  /** 总数 */
+  @Prop({ type: Number }) total: number;
+
+  /** 删除二次确认 popover 实例 */
+  deletePopoverInstance = null;
+  /** 删除二次确认 popover 延迟打开定时器 */
+  deletePopoverDelayTimer = null;
+  /** 表格展示的列id数据 */
+  displayFields = TABLE_DEFAULT_DISPLAY_FIELDS;
+  /** 表格尺寸 */
+  tableSize: ITableSettingSize = 'small';
+  /** 表格所有列配置 */
+  allTableColumns = {
+    name: {
+      id: 'name',
+      label: this.$t('模板名称'),
+      minWidth: 180,
+      formatter: this.clickShowSlicerColRenderer,
+    },
+    description: {
+      id: 'description',
+      label: this.$t('模板说明'),
+      minWidth: 220,
+    },
+    create_user: {
+      id: 'create_user',
+      label: this.$t('创建人'),
+      width: 100,
+    },
+    create_time: {
+      id: 'create_time',
+      label: this.$t('创建时间'),
+      sortable: true,
+      width: 180,
+    },
+    update_user: {
+      id: 'update_user',
+      label: this.$t('更新人'),
+      width: 100,
+    },
+    update_time: {
+      id: 'update_time',
+      label: this.$t('更新时间'),
+      sortable: true,
+      width: 180,
+    },
+    relevance_configs: {
+      id: 'relevance_configs',
+      label: this.$t('消费场景'),
+      sortable: true,
+      align: 'right',
+      width: 120,
+      formatter: this.clickShowSlicerColRenderer,
+    },
+    operator: {
+      id: 'operator',
+      label: this.$t('操作'),
+      width: 100,
+      resizable: false,
+      fixed: 'right',
+      formatter: this.operatorColRenderer,
+    },
+  };
+
+  /** 表格展示的列配置数组 */
+  get tableColumns() {
+    return this.displayFields.map(field => this.allTableColumns[field]);
+  }
+  /** 表格setting的可配置 显示/隐藏 的列配置 */
+  get tableSettingFields() {
+    return Object.values(this.allTableColumns).map(column => ({
+      id: column.id,
+      label: column.label,
+      disabled: TABLE_FIXED_DISPLAY_FIELDS.includes(column.id),
+    }));
+  }
+  /** 表格排序，将字符串形式转换为 ITableSort 形式  */
+  get tableSort(): ITableSort {
+    if (!this.sort) {
+      return {
+        prop: '',
+        order: null,
+      };
+    }
+    // 解析排序规则字符串
+    const isDescending = this.sort.startsWith('-');
+    const sortField = isDescending ? this.sort.slice(1) : this.sort;
+    return {
+      prop: sortField,
+      order: isDescending ? 'descending' : 'ascending',
+    };
+  }
+  /** 表格分页器配置 */
+  get pagination(): IPagination {
+    return {
+      current: this.current,
+      limit: this.pageSize,
+      count: this.total,
+    };
+  }
+
+  /**
+   * @description: 表格排序变化后回调
+   */
+  @Emit('sortChange')
+  handleSortChange(sortEvent: ITableSort) {
+    if (!sortEvent?.prop) return '';
+    return sortEvent.order === 'descending' ? `-${sortEvent.prop}` : sortEvent.prop;
+  }
+  /**
+   * @description 表格当前页码变化时的回调
+   */
+  @Emit('currentPageChange')
+  handleCurrentPageChange(currentPage: number) {
+    return currentPage;
+  }
+  /**
+   * @description 表格每页条数变化时的回调
+   */
+  @Emit('pageSizeChange')
+  handlePageSizeChange(pageSize: number) {
+    return pageSize;
+  }
+
+  /**
+   * @description: 显示 删除二次确认 popover
+   * @param {MouseEvent} e
+   */
+  handlePopoverShow(e: MouseEvent, row) {
+    if (this.deletePopoverInstance || this.deletePopoverDelayTimer) {
+      this.handlePopoverHide();
+    }
+    const instance = this.$bkPopover(e.currentTarget, {
+      content: this.deleteConfirmTipRef.$el,
+      trigger: 'click',
+      animation: false,
+      placement: 'bottom',
+      maxWidth: 'none',
+      arrow: true,
+      boundary: 'window',
+      interactive: true,
+      theme: 'light padding-0',
+      onHidden: () => {
+        this.handlePopoverHide();
+      },
+    });
+    // @ts-ignore
+    instance.deleteConfirmConfig = {
+      id: row.id,
+      templateName: row.name,
+    };
+    this.deletePopoverInstance = instance;
+    const popoverCache = this.deletePopoverInstance;
+    this.deletePopoverDelayTimer = setTimeout(() => {
+      if (popoverCache === this.deletePopoverInstance) {
+        this.deletePopoverInstance?.show?.(0);
+      } else {
+        popoverCache?.hide?.(0);
+        popoverCache?.destroy?.();
+      }
+    }, 300);
+  }
+
+  /**
+   * @description: 清除popover
+   */
+  handlePopoverHide() {
+    this.handleClearTimer();
+    this.deletePopoverInstance?.hide?.(0);
+    this.deletePopoverInstance?.destroy?.();
+    this.deletePopoverInstance = null;
+  }
+  /**
+   * @description: 清除popover延时打开定时器
+   *
+   */
+  handleClearTimer() {
+    this.deletePopoverDelayTimer && clearTimeout(this.deletePopoverDelayTimer);
+    this.deletePopoverDelayTimer = null;
+  }
+
+  /**
+   * @description: 表格setting配置确认后回调
+   * @param settingEvent 表格设置变更事件对象
+   */
+  handleSettingChange(settingEvent: ITableSettingChangeEvent) {
+    this.displayFields = settingEvent.fields?.map(item => item.id);
+    this.tableSize = settingEvent.size;
+  }
+
+  /**
+   * @description: 打开/关闭 侧弹详情抽屉面板
+   */
+  handleSliderShowChange(
+    isShow: boolean,
+    showEvent?: {
+      columnKey: string;
+      id: string;
+    }
+  ) {
+    const sliderTab =
+      showEvent?.columnKey === 'name' ? QueryTemplateSliderTabEnum.CONFIG : QueryTemplateSliderTabEnum.CONSUME;
+    console.log('================ isShow ================', isShow);
+    console.log('================ sliderTab ================', sliderTab);
+  }
+
+  /**
+   * @description 跳转至 编辑查询模板 页面
+   */
+  jumpToEditPage(id: string) {
+    this.$router.push({
+      name: 'query-template-edit',
+      params: {
+        id,
+      },
+    });
+  }
+
+  /**
+   * @description: 表格 点击打开侧弹详情抽屉面板 列渲染
+   */
+  clickShowSlicerColRenderer(row, column) {
+    const columnKey = column.columnKey;
+    const showSliderOption = {
+      columnKey: columnKey,
+      id: row.id,
+    };
+    let alias = row[columnKey];
+    if (columnKey === 'relevance_configs') {
+      alias = row[columnKey]?.length || 0;
+    }
+    return (
+      <span
+        class={`click-show-slicer-col `}
+        onClick={() => this.handleSliderShowChange(true, showSliderOption)}
+      >
+        {alias}
+      </span>
+    );
+  }
+  /**
+   * @description: 表格 操作 列渲染
+   */
+  operatorColRenderer(row) {
+    const disabledOperation = row.relevance_configs?.length > 0;
+    return (
+      <div class='operator-col'>
+        <span
+          v-bk-tooltips={{
+            content: this.$t('当前仍然有关联的消费场景，无法编辑'),
+            disabled: !disabledOperation,
+            placement: 'right',
+          }}
+        >
+          <bk-button
+            disabled={disabledOperation}
+            text={true}
+            onClick={() => this.jumpToEditPage(row.id)}
+          >
+            {this.$t('编辑')}
+          </bk-button>
+        </span>
+        <span
+          v-bk-tooltips={{
+            content: this.$t('当前仍然有关联的消费场景，无法删除'),
+            disabled: !disabledOperation,
+            placement: 'right',
+          }}
+        >
+          <bk-button
+            disabled={disabledOperation}
+            text={true}
+            onClick={(e: MouseEvent) => this.handlePopoverShow(e, row)}
+          >
+            {this.$t('删除')}
+          </bk-button>
+        </span>
+      </div>
+    );
+  }
+
+  transformColumn(column) {
+    return (
+      <bk-table-column
+        key={`column_${column.id}`}
+        width={column.width}
+        align={column.align}
+        class-name={`${column.align ?? 'left'}-align-cell`}
+        column-key={column.id}
+        fixed={column.fixed}
+        formatter={column.formatter}
+        label={column.label}
+        min-width={column.minWidth}
+        prop={column.id}
+        render-header={column?.renderHeader ? () => column.renderHeader(column) : undefined}
+        resizable={column.resizable ?? true}
+        show-overflow-tooltip={true}
+        sortable={column?.sortable && 'custom'}
+      />
+    );
+  }
+
+  render() {
+    return (
+      <div class='query-template-container'>
+        <bk-table
+          ref='tableRef'
+          height='100%'
+          class='query-template-table'
+          auto-scroll-to-top={true}
+          border={false}
+          data={this.tableData}
+          default-sort={this.tableSort}
+          outer-border={false}
+          pagination={this.pagination}
+          size={this.tableSize}
+          on-page-change={this.handleCurrentPageChange}
+          on-page-limit-change={this.handlePageSizeChange}
+          on-sort-change={this.handleSortChange}
+        >
+          {this.tableColumns.map(column => this.transformColumn(column))}
+          <bk-table-column type='setting'>
+            <bk-table-setting-content
+              fields={this.tableSettingFields}
+              selected={this.tableColumns}
+              size={this.tableSize}
+              on-setting-change={this.handleSettingChange}
+            />
+          </bk-table-column>
+        </bk-table>
+        <div style='display: none'>
+          <DeleteConfirm
+            ref='deleteConfirmTipRef'
+            templateName={this.deletePopoverInstance?.deleteConfirmConfig?.templateName}
+            onCancel={this.handlePopoverHide}
+            onConfirm={this.handlePopoverHide}
+          />
+        </div>
+      </div>
+    );
+  }
+}
