@@ -23,20 +23,3 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component } from 'vue-property-decorator';
-import { Component as tsc } from 'vue-tsx-support';
-
-import TemplateConfig from '../components/template-config/template-config';
-
-import './template-create.scss';
-
-@Component
-export default class TemplateCreate extends tsc<object> {
-  render() {
-    return (
-      <div class='template-create'>
-        <TemplateConfig />
-      </div>
-    );
-  }
-}
