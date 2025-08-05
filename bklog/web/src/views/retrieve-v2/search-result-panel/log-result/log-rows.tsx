@@ -29,6 +29,7 @@ import { parseTableRowData, setDefaultTableWidth, TABLE_LOG_FIELDS_SORT_REGULAR,
 import JsonFormatter from '@/global/json-formatter.vue';
 import useLocale from '@/hooks/use-locale';
 import useResizeObserve from '@/hooks/use-resize-observe';
+import { UseSegmentProp } from '@/hooks/use-segment-pop';
 import useStore from '@/hooks/use-store';
 import useWheel from '@/hooks/use-wheel';
 
@@ -83,13 +84,33 @@ export default defineComponent({
     const refTableHead: Ref<HTMLElement> = ref();
     const refLoadMoreElement: Ref<HTMLElement> = ref();
     const refResultRowBox: Ref<HTMLElement> = ref();
+    const refSegmentContent: Ref<HTMLElement> = ref();
+    const { handleOperation } = useTextAction(emit, 'origin');
+    let savedSelection: Range = null;
 
     const popInstanceUtil = new PopInstanceUtil({
-      refContent: ref('智能分析'),
+      refContent: () => refSegmentContent.value,
       tippyOptions: {
+        hideOnClick: true,
+        theme: 'segment-light',
+        placement: 'bottom',
         appendTo: document.body,
-        placement: 'top',
-        theme: 'dark',
+      },
+    });
+
+    const useSegmentPop = new UseSegmentProp({
+      delineate: true,
+      stopPropagation: true,
+      onclick: (e, ...args) => {
+        const [type] = args;
+        handleOperation(type, { value: savedSelection?.toString() ?? '', operation: type });
+        popInstanceUtil.hide();
+
+        if (savedSelection) {
+          const selection = window.getSelection();
+          selection.removeAllRanges();
+          selection.addRange(savedSelection);
+        }
       },
     });
 
@@ -310,25 +331,8 @@ export default defineComponent({
         fixed: 'left',
         renderBodyCell: ({ row }) => {
           const config: RowConfig = tableRowConfig.get(row).value;
-
-          const hanldeExpandClick = event => {
-            event.stopPropagation();
-            event.preventDefault();
-            event.stopImmediatePropagation();
-
-            config.expand = !config.expand;
-            nextTick(() => {
-              if (config.expand) {
-                hanldeAfterExpandClick(event.target);
-              }
-            });
-          };
-
           return (
-            <span
-              class={['bklog-expand-icon', { 'is-expaned': config.expand }]}
-              onClick={hanldeExpandClick}
-            >
+            <span class={['bklog-expand-icon', { 'is-expaned': config.expand }]}>
               <i
                 style={{ color: '#4D4F56', fontSize: '9px' }}
                 class='bk-icon icon-play-shape'
@@ -422,8 +426,6 @@ export default defineComponent({
         },
       ];
     });
-
-    const { handleOperation } = useTextAction(emit, 'origin');
 
     // 替换原有的handleIconClick
     const handleIconClick = (type, content, field, row, isLink, depth, isNestedField) => {
@@ -905,16 +907,32 @@ export default defineComponent({
       ];
     };
 
-    const handleRowClick = (e: MouseEvent, item: any) => {
-      const selection = window.getSelection();
+    const handleRowMousedown = (e: MouseEvent) => {
+      if (RetrieveHelper.isClickOnSelection(e, 2)) {
+        RetrieveHelper.stopEventPropagation(e);
+        return;
+      }
+
+      RetrieveHelper.setMousedownEvent(e);
+      savedSelection = null;
+    };
+
+    const handleRowMouseup = (e: MouseEvent, item: any) => {
+      if (RetrieveHelper.isClickOnSelection(e, 2) || RetrieveHelper.isMouseSelectionUpEvent(e)) {
+        RetrieveHelper.stopEventPropagation(e);
+        RetrieveHelper.setMousedownEvent(null);
+        const selection = window.getSelection();
+        if (selection.rangeCount > 0) {
+          savedSelection = selection.getRangeAt(0);
+        }
+        popInstanceUtil.show(e.target);
+        return;
+      }
+
       const target = e.target as HTMLElement;
       const expandCell = target.closest('.bklog-row-observe')?.querySelector('.expand-view-wrapper');
 
-      if (
-        target.classList.contains('valid-text') ||
-        expandCell?.contains(target) ||
-        (selection && !selection.isCollapsed && target.contains(selection.anchorNode))
-      ) {
+      if (target.classList.contains('valid-text') || expandCell?.contains(target)) {
         return;
       }
 
@@ -936,7 +954,8 @@ export default defineComponent({
             key={row[ROW_KEY]}
             class={['bklog-row-container', logLevel ?? 'normal']}
             row-index={rowIndex}
-            on-row-click={e => handleRowClick(e, row.item)}
+            on-row-mousedown={handleRowMousedown}
+            on-row-mouseup={e => handleRowMouseup(e, row.item)}
           >
             {renderRowCells(row.item, rowIndex)}
           </RowRender>,
@@ -1066,6 +1085,10 @@ export default defineComponent({
       );
     };
 
+    const renderDelineatePopContent = () => {
+      return <div style='display: none;'>{useSegmentPop.createSegmentContent(refSegmentContent)}</div>;
+    };
+
     onBeforeUnmount(() => {
       popInstanceUtil.uninstallInstance();
       resetRowListState(-1);
@@ -1084,6 +1107,7 @@ export default defineComponent({
       refRootElement,
       refResultRowBox,
       isTableLoading,
+      renderDelineatePopContent,
       renderRowVNode,
       renderFixRightShadow,
       renderScrollTop,
@@ -1120,6 +1144,7 @@ export default defineComponent({
         {this.renderScrollXBar()}
         {this.renderLoader()}
         {this.renderScrollTop()}
+        {this.renderDelineatePopContent()}
         <div class='resize-guide-line'></div>
       </div>
     );
