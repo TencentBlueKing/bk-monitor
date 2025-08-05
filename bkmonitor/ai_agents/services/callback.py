@@ -9,15 +9,14 @@ specific language governing permissions and limitations under the License.
 """
 
 from blueapps.utils.request_provider import get_local_request, get_local_request_id, get_request_username
-from django.conf import settings
 from langfuse.callback import CallbackHandler
 
 
 # TODO: 将callback集成至AgentSDK
 def get_langfuse_callback(metadata: dict | None = None) -> CallbackHandler | None:
-    if not settings.AIDEV_AGENT_ENABLE_LANGFUSE:
-        return None
-
+    """
+    获取langfuse回调
+    """
     user_id = get_request_username()
     if not user_id:
         local_request = get_local_request()
