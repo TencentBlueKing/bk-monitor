@@ -8,6 +8,8 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+from unittest.mock import Mock, patch
+
 from ai_agents.services.command_handler import *  # noqa
 
 command_processor = CommandProcessor()  # noqa
@@ -69,4 +71,47 @@ def test_explanation_command():
     processed_content = command_processor.process_command(command_data)
 
     expected = "\n        请解释以下内容SRE\n        解释要求: 确保解释准确无误，无需冗余回答内容\n        "
+    assert processed_content == expected
+
+
+def test_tracing_analysis_command():
+    """
+    测试【Tracing分析】快捷指令
+    """
+    params = {
+        "session_code": "900f2925-438a-4712-b66e-3423a678c01b",
+        "role": "user",
+        "content": "Tracing分析",
+        "property": {
+            "extra": {
+                "command": "tracing_analysis",
+                "context": [
+                    {"__key": "app_name", "__value": "SRE", "content": "SRE", "context_type": "textarea"},
+                    {
+                        "__key": "trace_id",
+                        "__value": "c4fb66ecbcce45e3c3bdaabca25fd647",
+                        "trace_id": "c4fb66ecbcce45e3c3bdaabca25fd647",
+                        "context_type": "textarea",
+                    },
+                ],
+                "anchor_path_resources": {},
+            }
+        },
+    }
+
+    property_data = params.get("property", {})
+    command_data = property_data.get("extra")
+
+    mock_req = Mock()
+    mock_req.session = {"bk_biz_id": 0}
+    mock_trace_data = {'trace_data': '[TRACING DATA]'}
+    with patch(
+        "ai_agents.services.command_handler.api.apm_api.query_trace_detail",
+        return_value=mock_trace_data,
+    ):
+        with patch("ai_agents.services.command_handler.get_request", return_value=mock_req):
+            processed_content = command_processor.process_command(command_data)
+
+    expected = f"\n        请分析 trace: {mock_trace_data['trace_data']}\n        结果要求: 确保分析准确无误，无需冗余回答内容\n        "
+
     assert processed_content == expected

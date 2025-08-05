@@ -8,8 +8,8 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-from abc import ABC, abstractmethod
 import logging
+from abc import ABC, abstractmethod
 from string import Formatter
 
 from bkmonitor.utils.request import get_request
@@ -111,7 +111,7 @@ class TracingAnalysisCommandHandler(CommandHandler):
     error_prompt = "获取Trace数据失败, 请检查参数是否正确"
     keys = ['status', 'kind', 'elapsed_time', 'start_time', 'span_name']
 
-    # 基于 32K 上下文长度设置
+    # 基于 128K 上下文长度设置
     max_character_length = 120_000
     max_span = 50
 
@@ -157,8 +157,8 @@ class TracingAnalysisCommandHandler(CommandHandler):
         结果要求: 确保分析准确无误，无需冗余回答内容
         """
 
-    def get_template(self) -> str:
-        raise NotImplementedError()
+    def get_template(self):
+        pass
 
 
 class CommandProcessor:
