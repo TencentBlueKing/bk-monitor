@@ -22,6 +22,9 @@ export const incidentAlertView = request('POST', 'rest/v2/incident/incident_aler
 export const alertIncidentDetail = request('GET', 'rest/v2/incident/alert_incident_detail/');
 export const incidentResults = request('GET', 'rest/v2/incident/incident_results/');
 export const incidentDiagnosis = request('POST', 'rest/v2/incident/incident_diagnosis/');
+export const incidentMetricsSearch = request('POST', 'rest/v2/incident_metrics/search/');
+export const incidentEventsSearch = request('POST', 'rest/v2/incident_events/search/');
+export const incidentEventsDetail = request('POST', 'rest/v2/incident_events/detail/');
 
 export default {
   incidentList,
@@ -46,4 +49,7 @@ export default {
   alertIncidentDetail,
   incidentResults,
   incidentDiagnosis,
+  incidentMetricsSearch,
+  incidentEventsSearch,
+  incidentEventsDetail
 };
