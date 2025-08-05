@@ -248,6 +248,7 @@ export default {
   '搜索套餐名称 / 类型 / 修改人': 'Search Solution /  Type / Modifier',
   '搜索 ID / 名称': 'Search ID / Name ',
   '搜索 索引 / 索引集名称': 'Support Index/Indices name',
+  '搜索 模板名称、模板说明、创建人、更新人': 'Search template name, template description, creator, updater',
 
   你可以将该搜索内容直接自定义为指标选项: 'You can directly customize the search content as a metric option',
 
