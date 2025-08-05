@@ -41,7 +41,7 @@ class BaseTokenHandler(ABC):
             return token_obj.token
 
         # 创建新 token
-        token_obj, created = ApiAuthToken.objects.get_or_create(
+        token_obj, created = ApiAuthToken.objects.create(
             space_uid=space_uid,
             type=self.get_token_type(),
             params=token_params,
@@ -99,11 +99,8 @@ class CodeccTokenHandler(BaseTokenHandler):
         index_set_id = kwargs.get("index_set_id")
         # 检查当前用户对指定索引集的检索权限
         self.check_index_set_search_permission(username, index_set_id)
-        # 生成token
-        token = self.get_or_create_token(space_uid, **kwargs)
-        # 记录申请记录
-        self.record_access(username, token)
-        return token
+        # 调用父类的generate_token方法
+        return super().generate_token(space_uid, **kwargs)
 
 
 class TokenHandlerFactory:
