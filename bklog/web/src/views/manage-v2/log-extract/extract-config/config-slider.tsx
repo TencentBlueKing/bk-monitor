@@ -3,9 +3,9 @@ import useStore from '@/hooks/use-store';
 import useLocale from '@/hooks/use-locale';
 import http from '@/api';
 import ModuleSelect from './module-select.tsx';
-// import ValidateInput from './validate-input.vue';
 import ValidateInput from './validate-input.tsx';
-import ValidateUserSelector from './validate-user-selector.vue';
+// import ValidateUserSelector from './validate-user-selector.vue';
+import ValidateUserSelector from './validate-user-selector.tsx';
 
 import './config-slider.scss';
 
@@ -273,9 +273,9 @@ export default defineComponent({
                 onChange={(val: any[]) => {
                   manageStrategyData.user_list = val;
                 }}
-                allowCreate={props.allowCreate}
+                // allowCreate={props.allowCreate}
                 api={props.userApi}
-                placeholder={props.allowCreate ? t('请输入QQ并按Enter结束（可多次添加）') : ''}
+                // placeholder={props.allowCreate ? t('请输入QQ并按Enter结束（可多次添加）') : ''}
               />
             </div>
           </div>
