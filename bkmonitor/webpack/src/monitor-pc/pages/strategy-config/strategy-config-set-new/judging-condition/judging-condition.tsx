@@ -166,8 +166,6 @@ export default class JudgingCondition extends tsc<Idata, IEvent> {
   /* 手动输入的维度(promql模式专用) */
   promqlDimensions = [];
 
-  isAddOnlyAiDetectRule = false;
-
   get aggDimensionCollection() {
     return this.metricData.reduce((acc, cur) => {
       cur.agg_dimension.forEach(dim => {
@@ -217,13 +215,10 @@ export default class JudgingCondition extends tsc<Idata, IEvent> {
   handleWatchIsOnlyAiDetectRule(v: boolean) {
     /* 策略编辑页的情况下不重置以下字段 */
     if (v) {
-      if (!this.isStrategyEdit || this.isAddOnlyAiDetectRule) {
-        this.localData.triggerConfig.checkWindow = 5;
-        this.localData.triggerConfig.count = 1;
-        this.localData.recoveryConfig.checkWindow = 5;
-        this.emitValueChange();
-      }
-      this.isAddOnlyAiDetectRule = true;
+      this.localData.triggerConfig.checkWindow = 5;
+      this.localData.triggerConfig.count = 1;
+      this.localData.recoveryConfig.checkWindow = 5;
+      this.emitValueChange();
     }
   }
 
@@ -445,7 +440,13 @@ export default class JudgingCondition extends tsc<Idata, IEvent> {
           dialogShow={noticeTemplate.previewTemplate}
           scenario={this.scenario}
           template={noticeTemplate.anomalyTemplate}
-          {...{ on: { 'update:dialogShow': val => (noticeTemplate.previewTemplate = val) } }}
+          {...{
+            on: {
+              'update:dialogShow': val => {
+                noticeTemplate.previewTemplate = val;
+              },
+            },
+          }}
         />
       </div>
     );
@@ -472,6 +473,11 @@ export default class JudgingCondition extends tsc<Idata, IEvent> {
               <bk-input
                 class='small-input'
                 v-model={this.localData.triggerConfig.checkWindow}
+                v-bk-tooltips={{
+                  content: this.$t('仅使用了智能算法不可编辑'),
+                  placements: ['top'],
+                  disabled: !this.isOnlyAiDetectRule,
+                }}
                 behavior='simplicity'
                 disabled={this.isOnlyAiDetectRule}
                 size='small'
@@ -482,6 +488,11 @@ export default class JudgingCondition extends tsc<Idata, IEvent> {
               <bk-input
                 class='small-input'
                 v-model={this.localData.triggerConfig.count}
+                v-bk-tooltips={{
+                  content: this.$t('仅使用了智能算法不可编辑'),
+                  placements: ['top'],
+                  disabled: !this.isOnlyAiDetectRule,
+                }}
                 behavior='simplicity'
                 disabled={this.isOnlyAiDetectRule}
                 size='small'
@@ -505,6 +516,11 @@ export default class JudgingCondition extends tsc<Idata, IEvent> {
                 <bk-input
                   class='small-input'
                   v-model={this.localData.recoveryConfig.checkWindow}
+                  v-bk-tooltips={{
+                    content: this.$t('仅使用了智能算法不可编辑'),
+                    placements: ['top'],
+                    disabled: !this.isOnlyAiDetectRule,
+                  }}
                   behavior='simplicity'
                   disabled={this.isOnlyAiDetectRule}
                   size='small'
@@ -682,13 +698,25 @@ export default class JudgingCondition extends tsc<Idata, IEvent> {
         </CommonItem>
         <StrategyTemplatePreview
           dialogShow={noticeTemplate.previewTemplate}
-          {...{ on: { 'update:dialogShow': val => (noticeTemplate.previewTemplate = val) } }}
+          {...{
+            on: {
+              'update:dialogShow': val => {
+                noticeTemplate.previewTemplate = val;
+              },
+            },
+          }}
           scenario={this.scenario}
           template={noticeTemplate.anomalyTemplate}
         />
         <StrategyVariateList
           dialogShow={noticeTemplate.variateListShow}
-          {...{ on: { 'update:dialogShow': val => (noticeTemplate.variateListShow = val) } }}
+          {...{
+            on: {
+              'update:dialogShow': val => {
+                noticeTemplate.variateListShow = val;
+              },
+            },
+          }}
           variate-list={noticeTemplate.variateList}
         />
       </div>
