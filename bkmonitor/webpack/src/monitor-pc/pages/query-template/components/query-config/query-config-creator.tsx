@@ -27,72 +27,51 @@
 import { Component, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { random } from 'monitor-common/utils/utils';
-
-import MetricSelector from '../../../../components/metric-selector/metric-selector';
-import SelectWrap from '../utils/select-wrap';
+import MethodCreator from '../method/method-creator';
+import MetricCreator from '../metric/metric-creator';
 
 import type { IScenarioItem, TMetricDetail } from '../type/typing';
 
-import './metric-creator.scss';
+import './query-config-creator.scss';
 
 interface IProps {
+  queryConfig?: IQueryConfig;
   scenarioList?: IScenarioItem[];
-  onSelectMetric?: (metric: TMetricDetail) => void;
+}
+interface IQueryConfig {
+  alias?: string;
 }
 
 @Component
-export default class MetricCreator extends tsc<IProps> {
+export default class QueryConfigCreator extends tsc<IProps> {
+  @Prop({ default: null }) queryConfig: IQueryConfig;
   @Prop({ type: Array, default: () => [] }) scenarioList: IScenarioItem[];
-  /* 指标选择器目标id */
-  selectId = '';
-  /* 指标选择器是否显示 */
-  showSelect = false;
-  /*  */
+
   curMetric = null;
 
-  get metricAlias() {
-    return !this.curMetric?.metric_field_name || this.curMetric?.metric_field_name === this.curMetric?.metric_field
-      ? ''
-      : this.curMetric?.metric_field_name;
-  }
-
-  created() {
-    this.selectId = random(8);
-  }
-
-  handleClick() {
-    this.showSelect = true;
-  }
-
-  handleSelectMetric(metric) {
+  handleSelectMetric(metric: TMetricDetail) {
     this.curMetric = metric;
-    this.$emit('selectMetric', metric);
   }
 
   render() {
     return (
-      <div class='template-metric-creator-component'>
-        <div class='metric-label'>{this.$t('指标')}</div>
-        <SelectWrap
-          id={this.selectId}
-          active={this.showSelect}
-          backgroundColor={'#FDF4E8'}
-          minWidth={432}
-          onClick={() => this.handleClick()}
-        >
-          <span class='metric-name'>{this.metricAlias}</span>
-        </SelectWrap>
-        <MetricSelector
-          metricId={this.curMetric?.metric_id}
-          scenarioList={this.scenarioList}
-          show={this.showSelect}
-          targetId={`#${this.selectId}`}
-          onSelected={this.handleSelectMetric}
-          onShowChange={val => {
-            this.showSelect = val;
-          }}
-        />
+      <div class='template-query-config-creator-component'>
+        <div class='alias-wrap'>
+          <span>{this.queryConfig?.alias || 'a'}</span>
+        </div>
+        <div class='query-config-wrap'>
+          <MetricCreator
+            scenarioList={this.scenarioList}
+            onSelectMetric={this.handleSelectMetric}
+          />
+          {!!this.curMetric && [
+            <MethodCreator key={'method'} />,
+            <MethodCreator key={'01'} />,
+            <MethodCreator key={'02'} />,
+            <MethodCreator key={'03'} />,
+            <MethodCreator key={'04'} />,
+          ]}
+        </div>
       </div>
     );
   }
