@@ -270,7 +270,7 @@ class ApplicationRequestSerializer(serializers.Serializer):
         if app_name and bk_biz_id:
             app = ApmApplication.objects.filter(bk_biz_id=bk_biz_id, app_name=app_name).first()
             if app:
-                attrs["application_id"] = app.application_id
+                attrs["application_id"] = app.id
                 return attrs
             raise ValidationError(f"the application({app_name}) does not exist")
 
@@ -279,7 +279,7 @@ class ApplicationRequestSerializer(serializers.Serializer):
             if bk_biz_id:
                 app = ApmApplication.objects.filter(bk_biz_id=bk_biz_id, app_name=app_name).first()
                 if app:
-                    attrs["application_id"] = app.application_id
+                    attrs["application_id"] = app.id
                     attrs["bk_biz_id"] = bk_biz_id
                     return attrs
                 # space_uid和app_name都合法并存在，但是组合起来查不到数据
