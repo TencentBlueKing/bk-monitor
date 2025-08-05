@@ -513,9 +513,18 @@ def remove_file(file_path):
     :param file_path:
     :return:
     """
-    shutil.rmtree(file_path)
+    if os.path.exists(file_path):
+        shutil.rmtree(file_path)
+
     if settings.USE_CEPH:
-        default_storage.delete(file_path.replace(settings.MEDIA_ROOT, ""))
+        path = file_path.replace(settings.MEDIA_ROOT, "")
+        if default_storage.exists(path):
+            # 先删除目录下的文件
+            files = default_storage.listdir(path)[1]
+            for package in files:
+                default_storage.delete(f"{path}{package}")
+            # 再删除目录本身
+            default_storage.delete(path)
 
 
 @shared_task(ignore_result=True)
