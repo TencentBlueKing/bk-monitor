@@ -75,7 +75,7 @@ const stateTpl = {
   pageLoading: true,
   authDialogData: null,
   // 是否将unix时间戳格式化
-  isFormatDate: true,
+  isFormatDate: false,
   // 当前运行环境
   runVersion: '',
   // 系统当前登录用户

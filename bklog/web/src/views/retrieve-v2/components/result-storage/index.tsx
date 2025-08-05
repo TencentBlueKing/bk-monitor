@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { computed, defineComponent, ref } from 'vue';
+import { computed, defineComponent } from 'vue';
 
 import useLocale from '@/hooks/use-locale';
 import useStore from '@/hooks/use-store';
@@ -45,6 +45,7 @@ export default defineComponent({
     const expandTextView = computed(() => store.state.storage[BK_LOG_STORAGE.IS_LIMIT_EXPAND_VIEW]);
     const isShowSourceField = computed(() => store.state.storage[BK_LOG_STORAGE.TABLE_SHOW_SOURCE_FIELD]);
     const isUnionSearch = computed(() => store.getters.isUnionSearch);
+    const isFormatDate = computed(() => store.state.isFormatDate);
     const currentSortField = computed(() => store.state.indexItem.sort_list?.[0] || []);
     const isSortShow = computed(() => {
       return requiredFields.includes(currentSortField.value[0]);
@@ -58,7 +59,6 @@ export default defineComponent({
       return isSortShow.value && isDesc;
     });
 
-    const formatDate = ref(false)
     const requiredFields = ['gseIndex', 'iterationIndex', 'dtEventTimeStamp'];
     const handleStorageChange = (val, key) => {
       store.commit('updateStorage', { [key]: val });
@@ -70,12 +70,8 @@ export default defineComponent({
       store.commit('updateStorage', { [BK_LOG_STORAGE.TABLE_JSON_FORMAT_DEPTH]: target });
     };
 
-    const handleShowSourceField = (val, key) => {
-      store.commit('updateStorage', { [key]: val });
-    }
-
     const handleFormatDate = (val) => {
-      store.commit('updateIsFormatDate', !val);
+      store.commit('updateIsFormatDate', val);
     }
     const handleShowLogTimeChange = (e, sort) => {
       const target = e.target;
@@ -147,7 +143,7 @@ export default defineComponent({
             class='bklog-option-item'
             theme='primary'
             value={isShowSourceField.value}
-            on-change={val => handleShowSourceField(val, BK_LOG_STORAGE.TABLE_SHOW_SOURCE_FIELD)}
+            on-change={val => handleStorageChange(val, BK_LOG_STORAGE.TABLE_SHOW_SOURCE_FIELD)}
           >
             <span class='switch-label'>{$t('日志来源')}</span>
           </bk-checkbox>
@@ -156,7 +152,7 @@ export default defineComponent({
           style='margin: 0 12px 0 0'
           class='bklog-option-item'
           theme='primary'
-          value={formatDate.value}
+          value={isFormatDate.value}
           on-change={val => handleFormatDate(val)}
         >
           <span class='switch-label'>{$t('时间格式化')}</span>
