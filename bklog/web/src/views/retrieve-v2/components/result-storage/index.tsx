@@ -70,17 +70,27 @@ export default defineComponent({
       store.commit('updateStorage', { [BK_LOG_STORAGE.TABLE_JSON_FORMAT_DEPTH]: target });
     };
 
-    const handleFormatDate = (val) => {
+    const handleFormatDate = val => {
       store.commit('updateIsFormatDate', val);
-    }
+    };
     const handleShowLogTimeChange = (e, sort) => {
       const target = e.target;
       const sortMap = {
         ascending: 'asc',
         descending: 'desc',
       };
-      let timeSort = sortMap[sort];
-      if (target.classList.contains('active')) {
+      const getNextSortOrder = current => {
+        switch (current) {
+          case 'asc':
+            return 'desc';
+          case 'desc':
+            return undefined;
+          default:
+            return 'asc';
+        }
+      };
+      let timeSort = sort === 'next' ? getNextSortOrder(currentSortField.value[1]) : sortMap[sort];
+      if (target.classList.contains('active') && sort !== 'next') {
         target.classList.remove('active');
         timeSort = null;
       }
@@ -123,7 +133,12 @@ export default defineComponent({
         </bk-checkbox>
 
         <div class='switch-label log-sort'>
-          <span class='bklog-option-item'>{$t('日志排序')}</span>
+          <span
+            class='bklog-option-item'
+            on-click={event => handleShowLogTimeChange(event, 'next')}
+          >
+            {$t('日志排序')}
+          </span>
           <span class='bk-table-caret-wrapper'>
             <i
               class={['bk-table-sort-caret', 'ascending', { active: ascShow.value }]}
