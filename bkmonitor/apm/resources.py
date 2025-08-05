@@ -260,7 +260,7 @@ class ApplicationRequestSerializer(serializers.Serializer):
         app_name = attrs.get("app_name", "")
 
         if application_id:
-            app = ApmApplication.objects.filter(application_id=application_id).first()
+            app = ApmApplication.objects.filter(id=application_id).first()
             if app:
                 attrs["bk_biz_id"] = app.bk_biz_id
                 attrs["app_name"] = app.app_name
