@@ -24,7 +24,31 @@
  * IN THE SOFTWARE.
  */
 
-export * from './create';
-export * from './detail';
-export * from './edit';
-export * from './table';
+/** 表格分页属性 */
+export interface IPagination {
+  count: number;
+  current: number;
+  limit: number;
+}
+
+/** 表格设置变更事件对象 */
+export interface ITableSettingChangeEvent {
+  fields: ITableSettingFieldItem[];
+  size: ITableSettingSize;
+}
+
+/** 表格设置字段项 */
+export interface ITableSettingFieldItem {
+  disabled: boolean;
+  id: string;
+  name: string;
+}
+
+/** 表格尺寸主题 */
+export type ITableSettingSize = 'large' | 'medium' | 'small';
+
+/** 表格排序属性 */
+export interface ITableSort {
+  order: 'ascending' | 'descending' | null;
+  prop: string;
+}

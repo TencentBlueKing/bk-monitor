@@ -24,7 +24,23 @@
  * IN THE SOFTWARE.
  */
 
-export * from './create';
-export * from './detail';
-export * from './edit';
-export * from './table';
+/** 查询模板列表-表格固定展示字段 */
+export const TABLE_FIXED_DISPLAY_FIELDS = ['name', 'operator'];
+/** 查询模板列表-表格默认展示字段 */
+export const TABLE_DEFAULT_DISPLAY_FIELDS = [
+  'name',
+  'description',
+  'create_time',
+  'update_user',
+  'update_time',
+  'relevance_configs',
+  'operator',
+];
+
+/** 查询模板 侧弹详情抽屉面板 Tab 枚举 */
+export const QueryTemplateSliderTabEnum = {
+  /** 配置信息 */
+  CONFIG: 'config',
+  /** 消费场景 */
+  CONSUME: 'consume',
+} as const;
