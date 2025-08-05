@@ -371,4 +371,10 @@ export default {
   请输入用户指令: 'Please enter the user instruction',
   '调试数据范围取当前时间窗口前1000条数据': 'The debugging data range takes the previous 1000 entries from the current time window',
   只有数值类型的字段可作为监控指标: 'Only fields of numeric type can be used as monitoring indicators'
+
+  // 查询模板
+  '当前仍然有关联的消费场景，无法编辑':
+    'Currently there are still associated consumption scenarios and cannot be edited',
+  '当前仍然有关联的消费场景，无法删除':
+    'Currently there are still associated consumption scenarios and cannot be deleted',
 };

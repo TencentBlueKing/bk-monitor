@@ -1,0 +1,33 @@
+.query-template-container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+
+  .query-template-table {
+    .bk-table-body-wrapper {
+      .right-align-cell {
+        .cell {
+          padding-right: calc(15px + 20px);
+        }
+      }
+    }
+
+    .bk-table-fixed-right {
+      border-bottom: 0;
+    }
+
+    .bk-table-pagination-wrapper {
+      border-top: 0;
+    }
+
+    .click-show-slicer-col {
+      color: #3a84ff;
+      cursor: pointer;
+    }
+
+    .operator-col {
+      display: flex;
+      column-gap: 16px;
+    }
+  }
+}
