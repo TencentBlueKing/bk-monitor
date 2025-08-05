@@ -12,20 +12,66 @@ from typing import Any
 from core.drf_resource.base import Resource
 from monitor_web.incident.metrics.constants import MetricType,EntityType,MetricName
 from monitor_web.incident.metrics.serializers import MetricsSearchSerializer
-from monitor_web.incident.metrics.config import get_config_by_index_info
+from monitor_web.incident.metrics.config import get_config_by_dimensions
 from bkmonitor.utils.thread_backend import InheritParentThread, run_threads
 from core.drf_resource import resource
 import threading
 
-class IncidentMetricsSearchResource(Resource):
+class BaseIncidentMetricsResource(Resource):
+    """
+    故障告警指标查询接口
+    """
+    def __init__(self):
+        super().__init__()
+        self._lock = threading.Lock()
+    
+    def _get_tables_by_entity_type(self, entity_type: str, **kwargs) -> str:
+        """
+        根据实体类型获取对应的table名集合
+        """
+
+        table_getters = {
+            EntityType.BcsPod.value: self._get_bcs_pod_tables,
+            EntityType.APMService.value: self._get_apm_service_table,
+            EntityType.BkNodeHost.value: self._get_bk_node_host_tables,
+        }
+
+        getter = table_getters.get(entity_type)
+        return getter(**kwargs) if getter else ""
+    
+    def _get_apm_service_table(self, **kwargs) -> str:
+        """
+        获取APMService类型的表名
+        """
+        app_name = kwargs.get("apm_app_name","")
+        bk_biz_id = kwargs.get("bk_biz_id",0)
+        if not app_name or not bk_biz_id:
+            return ""
+        
+        return f"{bk_biz_id}_bkapm_metric_{app_name}.__default__"
+        
+        
+    def _get_bcs_pod_tables(self, **kwargs) -> str:
+        """
+        获取BcsPod类型的表名
+        """
+        return ""
+    
+    def _get_bk_node_host_tables(self, **kwargs) -> str:
+        """
+        获取BKNodeHost类型的表名
+        """
+        return ""
+    
+
+class IncidentMetricsSearchResource(BaseIncidentMetricsResource):
     """
     故障告警指标查询接口
     """
     # ==================== 配置常量 ====================
-
+    
     def __init__(self):
         super().__init__()
-        self._response_lock = threading.Lock()
 
     RequestSerializer = MetricsSearchSerializer
 
@@ -64,7 +110,7 @@ class IncidentMetricsSearchResource(Resource):
         
         def _aggregation(req_data: dict[str, Any],metric_name: str):
             unify_query_resp = resource.grafana.graph_unify_query(req_data)
-            with self._response_lock:
+            with self._lock:
                 self._format_metrics_response(unify_query_resp, metric_query_response, metric_name, metric_type=metric_type)
 
         run_threads(
@@ -82,8 +128,9 @@ class IncidentMetricsSearchResource(Resource):
         start_time: int = validated_request_data.get("start_time")
         end_time: int = validated_request_data.get("end_time")
         bk_biz_id: int = validated_request_data.get("bk_biz_id")
-        service_name: str = index_info.get("service_name")
-        app_name: str = index_info.get("app_name")
+        
+        dimensions: dict[str, Any] = index_info.get("dimensions")
+        app_name: str = dimensions.get("apm_app_name")
         
         table_extra_params = {
             "bk_biz_id": bk_biz_id,
@@ -95,50 +142,11 @@ class IncidentMetricsSearchResource(Resource):
             "start_time": start_time,
             "end_time": end_time,
             "bk_biz_id": bk_biz_id,
-            "service_name": service_name,
-            "app_name": app_name,
             "table": table,
+            "entity_type": entity_type,
         }
-        query_requests = get_config_by_index_info(index_info,**config_extra_params)
+        query_requests = get_config_by_dimensions(dimensions,**config_extra_params)
         return query_requests
-    
-    def _get_tables_by_entity_type(self, entity_type: str, **kwargs) -> str:
-        """
-        根据实体类型获取对应的table名集合
-        """
-
-        table_getters = {
-            EntityType.BcsPod.value: self._get_bcs_pod_tables,
-            EntityType.APMService.value: self._get_apm_service_table,
-            EntityType.BkNodeHost.value: self._get_bk_node_host_tables,
-        }
-
-        getter = table_getters.get(entity_type)
-        return getter(**kwargs) if getter else ""
-    
-    def _get_apm_service_table(self, **kwargs) -> str:
-        """
-        获取APMService类型的表名
-        """
-        app_name = kwargs.get("app_name","")
-        bk_biz_id = kwargs.get("bk_biz_id",0)
-        if not app_name or not bk_biz_id:
-            return ""
-        
-        return f"{bk_biz_id}_bkapm_metric_{app_name}.__default__"
-        
-        
-    def _get_bcs_pod_tables(self, **kwargs) -> str:
-        """
-        获取BcsPod类型的表名
-        """
-        return ""
-    
-    def _get_bk_node_host_tables(self, **kwargs) -> str:
-        """
-        获取BKNodeHost类型的表名
-        """
-        return ""
     
     def _format_metrics_response(self, unify_query_resp: dict[str, Any], metric_query_response: dict[str, Any], metric_name: str, **kwargs):
         """

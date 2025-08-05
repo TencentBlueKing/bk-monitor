@@ -18,30 +18,27 @@ class MetricsSearchSerializer(serializers.Serializer):
     start_time = serializers.IntegerField(label="开始时间", default=None)
     end_time = serializers.IntegerField(label="结束时间", default=None)
 
-    def validate_index_info(self,  value: dict):
+    def validate_dimensions(self,  value: dict):
         entity_type = value.get("entity_type")
         if entity_type == EntityType.APMService.value:
-            if not value.get("service_name"):
-                raise serializers.ValidationError("index_info.service_name is required")
-            if not value.get("app_name"):
-                raise serializers.ValidationError("index_info.app_name is required")
-            return value
+            if not value.get("apm_service_name"):
+                raise serializers.ValidationError("dimension.apm_service_name is required")
+            if not value.get("apm_app_name"):
+                raise serializers.ValidationError("dimension.apm_app_name is required")
         
         elif entity_type == EntityType.BcsPod.value:
-            if not value.get("bcs_cluster_id"):
-                raise serializers.ValidationError("index_info.bcs_cluster_id is required")
+            if not value.get("cluster_id"):
+                raise serializers.ValidationError("dimension.cluster_id is required")
             if not value.get("namespace"):
-                raise serializers.ValidationError("index_info.namespace is required")
-            if not value.get("pod_name"):
-                raise serializers.ValidationError("index_info.pod_name is required")
-            return value
+                raise serializers.ValidationError("dimension.namespace is required")
+            if not value.get("pod_name") or not value.get("pod"):
+                raise serializers.ValidationError("dimension.pod_name is required")
         
         elif entity_type == EntityType.BkNodeHost.value:
-            if not value.get("bk_target_ip"):
-                raise serializers.ValidationError("index_info.bk_target_ip is required")
-            if not value.get("bk_target_cloud_id"):
-                raise serializers.ValidationError("index_info.bk_target_cloud_id is required")
-            return value
+            if not value.get("inner_ip"):
+                raise serializers.ValidationError("dimension.inner_ip is required")
+            if not value.get("bk_cloud_id"):
+                raise serializers.ValidationError("dimension.bk_cloud_id is required")
 
     def validate(self, attrs):
         index_info = attrs.get("index_info")
@@ -51,5 +48,8 @@ class MetricsSearchSerializer(serializers.Serializer):
         valid_metric_types = [choice[0] for choice in MetricType.choices()]
         if metric_type not in valid_metric_types:
             raise serializers.ValidationError(f"metric_type must be one of {valid_metric_types}")
-        attrs["index_info"] = self.validate_index_info(attrs.get("index_info"))
+        dimensions = index_info.get("dimensions")
+        if not dimensions:
+            raise serializers.ValidationError("index_info.dimensions is required")
+        self.validate_dimensions(dimensions)
         return attrs

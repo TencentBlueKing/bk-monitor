@@ -522,7 +522,7 @@ def _replace_query_config(query_config: dict,key:str,pattern:str,value:Any):
     query_config[key] = query_config[key].replace(pattern,value)
 
             
-def get_apm_config(index_info: dict[str, Any],**kwargs):
+def get_apm_config(dimensions: dict[str, Any],**kwargs):
     """获取APM配置
     
     Args:
@@ -548,7 +548,7 @@ def get_apm_config(index_info: dict[str, Any],**kwargs):
         # 填充每个指标的查询配置
         for query_config in filled_config[metric_name]["query_configs"]:
             _fill_query_config(query_config,"table",kwargs.get("table"))
-            _fill_query_config(query_config,"filter_dict",{"service_name": index_info.get("service_name")})
+            _fill_query_config(query_config,"filter_dict",{"service_name": dimensions.get("apm_service_name")})
             _fill_query_config(query_config,"interval",kwargs.get("interval", 120))
             
         filled_config[metric_name].update({
@@ -559,7 +559,7 @@ def get_apm_config(index_info: dict[str, Any],**kwargs):
     return filled_config
 
 
-def get_bcs_config(index_info: dict[str, Any],**kwargs):
+def get_bcs_config(dimensions: dict[str, Any],**kwargs):
     """获取BCS配置
     
     Args:
@@ -586,10 +586,10 @@ def get_bcs_config(index_info: dict[str, Any],**kwargs):
         for query_config in filled_config[metric_name]["query_configs"]:
             # 替换PromQL中的bcs_filter占位符
             if "promql" in query_config:
-                _replace_query_config(query_config,"promql","{namespace}", index_info.get("namespace"))
-                _replace_query_config(query_config,"promql","{pod_name}", index_info.get("pod_name"))
-                _replace_query_config(query_config,"promql","{container_name}", index_info.get("container_name","POD"))
-                _replace_query_config(query_config,"promql","{bcs_cluster_id}", index_info.get("bcs_cluster_id"))
+                _replace_query_config(query_config,"promql","{namespace}", dimensions.get("namespace"))
+                _replace_query_config(query_config,"promql","{pod_name}", dimensions.get("pod_name"))
+                _replace_query_config(query_config,"promql","{container_name}", dimensions.get("container_name","POD"))
+                _replace_query_config(query_config,"promql","{bcs_cluster_id}", dimensions.get("cluster_id"))
             
         filled_config[metric_name].update({
                 "start_time": kwargs.get("start_time"),
@@ -600,7 +600,7 @@ def get_bcs_config(index_info: dict[str, Any],**kwargs):
     return filled_config
 
 
-def get_host_config(index_info: dict[str, Any],**kwargs):
+def get_host_config(dimensions: dict[str, Any],**kwargs):
     """获取Host配置
     
     Args:
@@ -627,20 +627,19 @@ def get_host_config(index_info: dict[str, Any],**kwargs):
             # 替换目标参数
             if "filter_dict" in query_config and "targets" in query_config["filter_dict"]:
                 target = query_config["filter_dict"]["targets"][0]
-                target["bk_target_ip"] = index_info.get("bk_target_ip")
-                target["bk_target_cloud_id"] = index_info.get("bk_target_cloud_id")
+                target["bk_target_ip"] = dimensions.get("inner_ip")
+                target["bk_target_cloud_id"] = dimensions.get("bk_cloud_id")
             
         filled_config[metric_name].update({
                 "start_time": kwargs.get("start_time"),
                 "end_time": kwargs.get("end_time"),
                 "bk_biz_id": kwargs.get("bk_biz_id")
         })
-    
     return filled_config
 
-def get_config_by_index_info(index_info: dict[str, Any],**kwargs):
+def get_config_by_dimensions(dimensions: dict[str, Any],**kwargs):
     """根据实体类型获取配置"""
-    entity_type = index_info.get("entity_type")
+    entity_type = kwargs.get("entity_type")
     config_getters = {
             EntityType.BcsPod.value: get_bcs_config,
             EntityType.APMService.value: get_apm_config,
@@ -648,4 +647,4 @@ def get_config_by_index_info(index_info: dict[str, Any],**kwargs):
         }
 
     getter = config_getters.get(entity_type)
-    return getter(index_info,**kwargs) if getter else ""
+    return getter(dimensions,**kwargs) if getter else ""    
