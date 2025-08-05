@@ -522,8 +522,8 @@ def remove_file(file_path):
             # 先删除目录下的文件
             files = default_storage.listdir(path)[1]
             for package in files:
-                default_storage.delete(f"{path}{package}")
-            # 再删除目录本身
+                full_path = os.path.join(path, package)
+                default_storage.delete(full_path)
             default_storage.delete(path)
 
 
