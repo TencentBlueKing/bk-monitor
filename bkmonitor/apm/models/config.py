@@ -615,7 +615,7 @@ class AppConfigBase(models.Model):
         abstract = True
 
     @classmethod
-    def refresh_config(cls, bk_biz_id, app_name, config_level, config_key, refresh_configs, need_delete_config=False):
+    def refresh_config(cls, bk_biz_id, app_name, config_level, config_key, refresh_configs, need_delete_config=True):
         create_objs = []
         exist_ids = []
         if need_delete_config:

@@ -125,8 +125,9 @@ def build_event_body(
 
 
 @shared_task(ignore_result=True)
-def update_application_config(application_id):
-    Application.objects.get(application_id=application_id).refresh_config()
+def update_application_config(application_id, updated_config_keys):
+    # todo hhh 查找所有调用过该任务的地方
+    Application.objects.get(application_id=application_id).refresh_config(updated_config_keys)
 
 
 @shared_task(ignore_result=True)

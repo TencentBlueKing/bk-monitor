@@ -848,15 +848,18 @@ class SetupResource(Resource):
         ]
 
         need_handle_processors = []
+        updated_config_keys = set()
         for key, value in validated_data.items():
             for processor in processors:
                 if processor.group_key and key == processor.group_key:
                     processor.set_group_params(value)
                     need_handle_processors.append(processor)
+                    updated_config_keys.add(key)
 
                 if key in processor.update_key:
                     processor.set_params(key, value)
                     need_handle_processors.append(processor)
+                    updated_config_keys.add(key)
 
         for processor in need_handle_processors:
             processor.setup()
@@ -864,6 +867,7 @@ class SetupResource(Resource):
         # Step2: 因为采样配置较复杂所以不走Processor 交给单独Helper处理
         if validated_data.get("application_sampler_config"):
             SamplingHelpers(validated_data["application_id"]).setup(validated_data["application_sampler_config"])
+            updated_config_keys.add("application_sampler_config")
 
         Application.objects.filter(application_id=application.application_id).update(update_user=get_global_user())
 
@@ -873,7 +877,7 @@ class SetupResource(Resource):
 
         from apm_web.tasks import update_application_config
 
-        update_application_config.delay(application.application_id)
+        update_application_config.delay(application.application_id, list(updated_config_keys))
 
 
 class ListApplicationResource(PageListResource):
@@ -2863,7 +2867,7 @@ class CustomServiceConfigResource(Resource):
         application = Application.objects.filter(
             bk_biz_id=validated_data["bk_biz_id"], app_name=validated_data["app_name"]
         ).first()
-        update_application_config.delay(application.application_id)
+        update_application_config.delay(application.application_id, ["custom_service_config"])
 
     def validate_name(self, validated_data, config_id=None):
         if validated_data["match_type"] == CustomServiceMatchType.AUTO:
@@ -2914,7 +2918,7 @@ class DeleteCustomSeriviceResource(Resource):
         from apm_web.tasks import update_application_config
 
         application = Application.objects.filter(bk_biz_id=instance.bk_biz_id, app_name=instance.app_name).first()
-        update_application_config.delay(application.application_id)
+        update_application_config.delay(application.application_id, ["custom_service_config"])
 
 
 class CustomServiceMatchListResource(Resource):

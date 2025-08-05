@@ -792,57 +792,70 @@ class Application(AbstractRecordModel):
     def get_relation(self, relation_key):
         return ApplicationRelationInfo.get_relation(self.application_id, relation_key)
 
-    def refresh_config(self):
-        config = self.get_transfer_config()
+    def refresh_config(self, updated_config_keys=None):
+        """刷新配置到API侧"""
+
+        if updated_config_keys is None:
+            updated_config_keys = []
+        config = self.get_transfer_config(updated_config_keys)
 
         api.apm_api.release_app_config({"bk_biz_id": self.bk_biz_id, "app_name": self.app_name, **config})
 
-    def get_transfer_config(self):
+    def get_transfer_config(self, updated_config_keys):
         """获取传递给API侧的数据"""
-
-        application_config = self.get_application_transfer_config()
-        service_config = self.get_service_transfer_config()
+        application_config = self.get_application_transfer_config(updated_config_keys)
+        service_config = self.get_service_transfer_config(updated_config_keys)
 
         return {"service_configs": service_config, **application_config}
 
-    def get_application_transfer_config(self):
+    def get_application_transfer_config(self, updated_config_keys=None):
         res = {}
-        apdex_config = self.apdex_config
+
+        def should_include(key):
+            return not updated_config_keys or key in updated_config_keys
 
         # 组装apdex配置
-        res["apdex_config"] = []
-        for key, value in self.APDEX_RULE_MAPPING.items():
-            for item in value:
-                res["apdex_config"].append({"apdex_t": apdex_config[key], **item})
+        if should_include(self.APDEX_CONFIG_KEY):
+            apdex_config = self.apdex_config
+            res["apdex_config"] = []
+            for key, value in self.APDEX_RULE_MAPPING.items():
+                for item in value:
+                    res["apdex_config"].append({"apdex_t": apdex_config[key], **item})
 
         # 组装采样配置
-        res["sampler_config"] = {
-            "sampling_percentage": self.sampler_config["sampler_percentage"],
-            "sampler_type": self.sampler_config["sampler_type"],
-        }
+        if should_include(self.SAMPLER_CONFIG_KEY):
+            res["sampler_config"] = {
+                "sampling_percentage": self.sampler_config["sampler_percentage"],
+                "sampler_type": self.sampler_config["sampler_type"],
+            }
 
         # 组装实例配置
-        res["instance_name_config"] = self.instance_config.get("instance_name_composition", [])
+        if should_include(self.INSTANCE_NAME_CONFIG_KEY):
+            res["instance_name_config"] = self.instance_config.get("instance_name_composition", [])
 
         # 组装维度配置
-        res["dimension_config"] = self.dimension_config.get("dimensions")
+        if should_include(self.DIMENSION_CONFIG_KEY):
+            res["dimension_config"] = self.dimension_config.get("dimensions")
 
         # 组装db配置
-        db_configs = self.db_config
-        # 首字母大写
-        for item in db_configs:
-            item["db_system"] = str(item.get("db_system", "")).capitalize()
-        res["db_config"] = self.get_db_cut_drop_config(db_configs)
-        res["db_slow_command_config"] = self.get_db_slow_command_config(db_configs)
+        if should_include(self.DB_CONFIG_KEY):
+            db_configs = self.db_config
+            # 首字母大写
+            for item in db_configs:
+                item["db_system"] = str(item.get("db_system", "")).capitalize()
+            res["db_config"] = self.get_db_cut_drop_config(db_configs)
+            res["db_slow_command_config"] = self.get_db_slow_command_config(db_configs)
 
         # 组装自定义服务配置
-        query = ApplicationCustomService.objects.filter(bk_biz_id=self.bk_biz_id, app_name=self.app_name)
-        from apm_web.serializers import CustomServiceSerializer
+        if should_include("custom_service_config"):
+            query = ApplicationCustomService.objects.filter(bk_biz_id=self.bk_biz_id, app_name=self.app_name)
+            from apm_web.serializers import CustomServiceSerializer
 
-        res["custom_service_config"] = CustomServiceSerializer(instance=query, many=True).data
+            res["custom_service_config"] = CustomServiceSerializer(instance=query, many=True).data
 
         # 补充 QPS 配置
-        res["qps"] = self.qps_config
+        if should_include(self.QPS_CONFIG_KEY):
+            res["qps"] = self.qps_config
 
         return res
 
@@ -905,9 +918,11 @@ class Application(AbstractRecordModel):
 
         return {"cut": cut, "drop": drop}
 
-    def get_service_transfer_config(self):
+    def get_service_transfer_config(self, updated_config_keys):
         res = []
 
+        if self.APDEX_CONFIG_KEY not in updated_config_keys:
+            return res
         # 1. 获取服务Apdex配置
         from apm_web.models import ApdexServiceRelation
 

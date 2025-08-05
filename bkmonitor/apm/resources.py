@@ -405,7 +405,7 @@ class ReleaseAppConfigResource(Resource):
 
         db_slow_command_config = DbSlowCommandConfigSerializer(label="慢命令配置", default={})
 
-        qps = serializers.IntegerField(label="qps", min_value=1, required=False, default=settings.APM_APP_QPS)
+        qps = serializers.IntegerField(label="qps", min_value=1, required=False)
 
     def perform_request(self, validated_request_data):
         bk_biz_id = validated_request_data["bk_biz_id"]
@@ -418,7 +418,7 @@ class ReleaseAppConfigResource(Resource):
         service_configs = validated_request_data.get("service_configs", [])
         instance_configs = validated_request_data.get("instance_configs", [])
         self.set_config(bk_biz_id, app_name, app_name, ApdexConfig.APP_LEVEL, validated_request_data)
-        self.set_custom_service_config(bk_biz_id, app_name, validated_request_data["custom_service_config"])
+        self.set_custom_service_config(bk_biz_id, app_name, validated_request_data.get("custom_service_config"))
         self.set_qps_config(bk_biz_id, app_name, app_name, ApdexConfig.APP_LEVEL, validated_request_data.get("qps"))
 
         for service_config in service_configs:
@@ -438,6 +438,8 @@ class ReleaseAppConfigResource(Resource):
         QpsConfig.refresh_config(bk_biz_id, app_name, config_level, config_key, [{"qps": qps}])
 
     def set_custom_service_config(self, bk_biz_id, app_name, custom_services):
+        if not custom_services:
+            return
         CustomServiceConfig.objects.filter(
             bk_biz_id=bk_biz_id, app_name=app_name, config_level=ApdexConfig.APP_LEVEL, config_key=app_name
         ).delete()
@@ -469,12 +471,18 @@ class ReleaseAppConfigResource(Resource):
             )
 
     def set_instance_name_config(self, bk_biz_id, app_name, instance_name_config):
+        if not instance_name_config:
+            return
         ApmInstanceDiscover.refresh_config(bk_biz_id, app_name, instance_name_config)
 
     def set_dimension_config(self, bk_biz_id, app_name, dimension_configs):
+        if not dimension_configs:
+            return
         ApmMetricDimension.refresh_config(bk_biz_id, app_name, dimension_configs)
 
     def set_apdex_configs(self, bk_biz_id, app_name, config_key, config_level, apdex_configs):
+        if not apdex_configs:
+            return
         ApdexConfig.refresh_config(bk_biz_id, app_name, config_level, config_key, apdex_configs)
 
     def set_sampler_configs(self, bk_biz_id, app_name, config_key, config_level, sampler_config):

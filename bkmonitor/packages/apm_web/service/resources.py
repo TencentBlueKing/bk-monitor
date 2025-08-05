@@ -453,7 +453,7 @@ class ServiceConfigResource(Resource):
         application_id = Application.objects.filter(bk_biz_id=bk_biz_id, app_name=app_name).get().application_id
         from apm_web.tasks import update_application_config
 
-        update_application_config.delay(application_id)
+        update_application_config.delay(application_id, [Application.APDEX_CONFIG_KEY])
 
     def update_uri(self, bk_biz_id, app_name, service_name, uri_relations):
         if len(set(uri_relations)) != len(uri_relations):
