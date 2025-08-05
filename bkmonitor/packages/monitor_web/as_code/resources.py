@@ -511,6 +511,7 @@ class ExportConfigFileResource(ExportConfigResource):
     """
 
     class RequestSerializer(BkBizIdSerializer):
+        app = serializers.CharField(default=None, allow_blank=True, allow_null=True)
         dashboard_for_external = serializers.BooleanField(label="仪表盘导出", default=False)
         rule_ids = serializers.ListField(child=serializers.IntegerField(), default=None, allow_null=True)
         with_related_config = serializers.BooleanField(label="是否导出关联", default=False)
@@ -551,6 +552,7 @@ class ExportConfigFileResource(ExportConfigResource):
 
     def perform_request(self, params):
         bk_biz_id = params["bk_biz_id"]
+        app: str | None = params["app"]
 
         # 默认导出全部配置，除非传入策略ID列表
         rule_ids = params.get("rule_ids")
@@ -591,16 +593,46 @@ class ExportConfigFileResource(ExportConfigResource):
                 )
 
         configs = {
-            "rule": self.export_rules(bk_biz_id, rule_ids, params["with_id"], params["lock_filename"]),
+            "rule": self.export_rules(
+                bk_biz_id=bk_biz_id,
+                rule_ids=rule_ids,
+                app=app,
+                with_id=params["with_id"],
+                lock_filename=params["lock_filename"],
+            ),
             "notice": self.export_notice_groups(
-                bk_biz_id, notice_group_ids, params["with_id"], params["lock_filename"]
+                bk_biz_id=bk_biz_id,
+                notice_group_ids=notice_group_ids,
+                app=app,
+                with_id=params["with_id"],
+                lock_filename=params["lock_filename"],
             ),
-            "action": self.export_actions(bk_biz_id, action_ids, params["with_id"], params["lock_filename"]),
-            "grafana": self.export_dashboard(bk_biz_id, dashboard_uids, params["dashboard_for_external"]),
+            "action": self.export_actions(
+                bk_biz_id=bk_biz_id,
+                action_ids=action_ids,
+                app=app,
+                with_id=params["with_id"],
+                lock_filename=params["lock_filename"],
+            ),
+            "grafana": self.export_dashboard(
+                bk_biz_id=bk_biz_id,
+                dashboard_uids=dashboard_uids,
+                external=params["dashboard_for_external"],
+            ),
             "assign_group": self.export_assign_groups(
-                bk_biz_id, assign_group_ids, params["with_id"], params["lock_filename"]
+                bk_biz_id=bk_biz_id,
+                assign_group_ids=assign_group_ids,
+                app=app,
+                with_id=params["with_id"],
+                lock_filename=params["lock_filename"],
             ),
-            "duty": self.export_duties(bk_biz_id, duty_rules, params["with_id"], params["lock_filename"]),
+            "duty": self.export_duties(
+                bk_biz_id=bk_biz_id,
+                duty_rules=duty_rules,
+                app=app,
+                with_id=params["with_id"],
+                lock_filename=params["lock_filename"],
+            ),
         }
 
         # 压缩包制作
