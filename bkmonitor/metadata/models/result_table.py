@@ -282,7 +282,7 @@ class ResultTable(models.Model):
     def create_result_table(
         cls,
         bk_data_id,
-        table_id,
+        table_id: str,
         table_name_zh,
         is_custom_table,
         schema_type,
@@ -387,8 +387,9 @@ class ResultTable(models.Model):
         # 校验biz_id是否符合要求
         if str(bk_biz_id) > "0":
             # 如果有指定表的对应业务信息，需要校验结果表的命名是否符合规范
+            tenant_start_string = f"{bk_tenant_id}_{bk_biz_id}_"
             start_string = f"{bk_biz_id}_"
-            if not table_id.startswith(start_string):
+            if not table_id.startswith((start_string, tenant_start_string)):
                 logger.error(
                     "create_result_table: user->[%s] try to set table->[%s] under biz->[%s] in bk_tenant_id->[%s] but "
                     "table_id is not start with->[%s], maybe something go wrong?",
