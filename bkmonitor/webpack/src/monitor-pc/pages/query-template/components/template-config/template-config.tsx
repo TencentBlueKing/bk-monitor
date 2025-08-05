@@ -23,19 +23,50 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+
 import { Component } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import TemplateConfig from '../components/template-config/template-config';
+import { getScenarioList } from 'monitor-api/modules/strategies';
 
-import './template-create.scss';
+import QueryPanel from '../query-panel/query-panel';
+
+import type { IScenarioItem } from '../type/typing';
+
+import './template-config.scss';
 
 @Component
-export default class TemplateCreate extends tsc<object> {
+export default class TemplateConfig extends tsc<object> {
+  scenarioList: IScenarioItem[] = [];
+
+  created() {
+    this.getScenarioList();
+  }
+
+  // 获取监控对象数据
+  getScenarioList() {
+    getScenarioList().then(data => {
+      const list = data.reduce((total, cur) => {
+        const child = cur.children || [];
+        return total.concat(child);
+      }, []);
+      console.log(list);
+      this.scenarioList = list;
+    });
+  }
+
   render() {
     return (
-      <div class='template-create'>
-        <TemplateConfig />
+      <div class='template-config-wrap-component'>
+        <div class='template-config-title'>{this.$t('模板配置')}</div>
+        <div class='template-config-content'>
+          {['1'].map(key => (
+            <QueryPanel
+              key={key}
+              scenarioList={this.scenarioList}
+            />
+          ))}
+        </div>
       </div>
     );
   }

@@ -23,19 +23,43 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component } from 'vue-property-decorator';
+
+import { Component, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import TemplateConfig from '../components/template-config/template-config';
+import './select-wrap.scss';
 
-import './template-create.scss';
+interface IProps {
+  active?: boolean;
+  backgroundColor?: string;
+  id?: string;
+  minWidth?: number;
+  onClick: (e: Event) => void;
+}
 
 @Component
-export default class TemplateCreate extends tsc<object> {
+export default class SelectWrap extends tsc<IProps> {
+  @Prop({ default: false }) active: boolean;
+  @Prop({ default: 127 }) minWidth: number;
+  @Prop({ default: '#fff' }) backgroundColor: string;
+  @Prop({ default: '' }) id: string;
+
+  handleClick(e) {
+    this.$emit('click', e);
+  }
+
   render() {
     return (
-      <div class='template-create'>
-        <TemplateConfig />
+      <div
+        id={this.id}
+        style={{ minWidth: `${this.minWidth}px`, backgroundColor: this.backgroundColor }}
+        class='template-config-utils-select-wrap-component'
+        onClick={e => this.handleClick(e)}
+      >
+        {this.$slots?.default || ''}
+        <div class={['expand-wrap', { active: this.active }]}>
+          <span class='icon-monitor icon-mc-arrow-down' />
+        </div>
       </div>
     );
   }
