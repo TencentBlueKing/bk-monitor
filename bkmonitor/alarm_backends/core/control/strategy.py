@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -12,7 +11,6 @@ specific language governing permissions and limitations under the License.
 import json
 import logging
 from datetime import datetime
-from typing import Dict, Tuple
 
 import arrow
 from django.utils.functional import cached_property
@@ -31,7 +29,7 @@ from core.errors.alarm_backends import StrategyItemNotFound
 logger = logging.getLogger("core.control")
 
 
-class Strategy(object):
+class Strategy:
     def __init__(self, strategy_id, default_config=None):
         self.id = self.strategy_id = strategy_id
         self._config = default_config
@@ -134,7 +132,7 @@ class Strategy(object):
     def actions(self):
         return self.config.get("actions", [])
 
-    def in_alarm_time(self, now_time=None) -> Tuple[bool, str]:
+    def in_alarm_time(self, now_time=None) -> tuple[bool, str]:
         """
         是否在策略生效期间
         :return: bool, str
@@ -188,25 +186,50 @@ class Strategy(object):
             # 一个时间范围都没匹配上，这个策略就不生效
             return False, _("当前时刻不在策略生效时间范围: {}").format(", ".join(time_ranges))
 
-        # 再看看日历，是不是处于休息日
+        # 检查生效日历和不生效日历
+        active_calendar_ids = uptime.get("active_calendar") or []
         calendar_ids = uptime.get("calendars") or []
+
+        # 获取生效日历事项
+        active_item_messages = []
+        if active_calendar_ids:
+            active_calendars = CalendarCacheManager.mget(
+                calendar_ids=active_calendar_ids, bk_tenant_id=BusinessManager.get_tenant_id(self.bk_biz_id)
+            )
+            for items in active_calendars:
+                for item in items:
+                    item_list = item.get("list", [])
+                    for _item in item_list:
+                        active_item_messages.append(f"{_item['calendar_name']}({_item['name']})")
+
+        # 获取不生效日历事项
+        inactive_item_messages = []
         if calendar_ids:
             calendars = CalendarCacheManager.mget(
                 calendar_ids=calendar_ids, bk_tenant_id=BusinessManager.get_tenant_id(self.bk_biz_id)
             )
-        else:
-            calendars = []
+            for items in calendars:
+                for item in items:
+                    item_list = item.get("list", [])
+                    for _item in item_list:
+                        inactive_item_messages.append(f"{_item['calendar_name']}({_item['name']})")
 
-        item_messages = []
-        for items in calendars:
-            # 只要命中了任意一个节假日，则这个告警就不生效
-            for item in items:
-                item_list = item.get("list", [])
-                for _item in item_list:
-                    item_messages.append(f'{_item["calendar_name"]}({_item["name"]})')
-
-        if item_messages:
-            return False, _("当前时刻命中日历休息事项: {}").format(", ".join(item_messages))
+        # 处理日历冲突逻辑
+        # 优先级：生效日历 > 不生效日历
+        if active_item_messages and inactive_item_messages:
+            # 同时命中生效日历和不生效日历，生效日历优先
+            return True, _("当前时刻同时命中告警日历和休息日历，告警日历优先生效: 告警日历[{}], 休息日历[{}]").format(
+                ", ".join(active_item_messages), ", ".join(inactive_item_messages)
+            )
+        elif active_item_messages:
+            # 只命中生效日历
+            return True, _("当前时刻命中告警日历事项: {}").format(", ".join(active_item_messages))
+        elif inactive_item_messages:
+            # 只命中不生效日历
+            return False, _("当前时刻命中日历休息事项: {}").format(", ".join(inactive_item_messages))
+        elif active_calendar_ids:
+            # 配置了生效日历但未命中任何事项
+            return False, _("当前时刻未命中告警日历事项")
 
         return True, ""
 
@@ -261,7 +284,7 @@ class Strategy(object):
         return min([query_config.get("agg_interval", default_check_unit) for query_config in item["query_configs"]])
 
     @staticmethod
-    def get_trigger_configs(strategy: Dict) -> Dict[str, Dict]:
+    def get_trigger_configs(strategy: dict) -> dict[str, dict]:
         """
         获取不同级别算法的触发配置
         :return {
@@ -281,7 +304,7 @@ class Strategy(object):
         return trigger_config
 
     @staticmethod
-    def get_recovery_configs(strategy: Dict) -> Dict[str, Dict]:
+    def get_recovery_configs(strategy: dict) -> dict[str, dict]:
         """
         获取不同级别的恢复配置
         :return {
@@ -297,7 +320,7 @@ class Strategy(object):
         return recovery_config
 
     @staticmethod
-    def get_no_data_configs(item: Dict):
+    def get_no_data_configs(item: dict):
         """
         获取无数据告警的触发配置
         :return: {
@@ -315,4 +338,4 @@ class Strategy(object):
     def __getattr__(self, item):
         if item == "snapshot_key":
             return self.gen_strategy_snapshot()
-        return super(Strategy, self).__getattribute__(item)
+        return super().__getattribute__(item)
