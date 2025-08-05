@@ -99,7 +99,6 @@ export default defineComponent({
     const isRending = ref(false);
 
     const tableRowConfig = new WeakMap();
-    const hasMoreList = ref(true);
     const isPageLoading = ref(RetrieveHelper.isSearching);
     // 前端本地分页loadmore触发器
     // renderList 没有使用响应式，这里需要手动触发更新，所以这里使用一个计数器来触发更新
@@ -122,6 +121,9 @@ export default defineComponent({
     const tableList = computed<Array<any>>(() => Object.freeze(indexSetQueryResult.value?.list ?? []));
     const gradeOption = computed(() => store.state.indexFieldInfo.custom_config?.grade_options ?? { disabled: false });
     const indexSetType = computed(() => store.state.indexItem.isUnionIndex);
+    const hasMoreList = computed(() => {
+      return indexSetQueryResult.value.total > tableDataSize.value;
+    });
     const exceptionMsg = computed(() => {
       if (/^cancel$/gi.test(indexSetQueryResult.value?.exception_msg)) {
         return $t('检索结果为空');
@@ -535,7 +537,6 @@ export default defineComponent({
     };
 
     const resetRowListState = (oldValSize?) => {
-      hasMoreList.value = tableDataSize.value > 0 && tableDataSize.value % 50 === 0;
       setRenderList(null);
       debounceSetLoading();
       updateTableRowConfig(oldValSize ?? 0);
