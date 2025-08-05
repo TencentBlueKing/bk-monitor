@@ -24,6 +24,7 @@ import sys
 from collections.abc import Callable
 
 from django.conf import settings
+from django.core.cache import cache
 from django.utils import translation
 
 from apps.log_esquery.permission import EsquerySearchPermissions
@@ -76,11 +77,28 @@ def adapt_non_bkcc_for_bknode(params):
     """
     # 处理蓝盾业务
     if scope_list := params.get("scope_list", []):
-        scope_id = get_non_bkcc_space_related_bkcc_biz_id(scope_list[0]["scope_id"])
-        scope_list[0]["scope_id"] = scope_id
+        for item in scope_list:
+            scope_id = item["scope_id"]
+            _scope_id = cache.get(f"bkci_scope_id_{scope_id}")
+            if not _scope_id:
+                _scope_id = get_non_bkcc_space_related_bkcc_biz_id(scope_id)
+                cache.set(f"bkci_scope_id_{scope_id}", _scope_id, 60)
+            item["scope_id"] = _scope_id
+
         for item in params["host_list"]:
-            item["meta"]["scope_id"] = scope_id
-            item["meta"]["bk_biz_id"] = scope_id
+            meta_scope_id = item["meta"]["scope_id"]
+            meta_bk_biz_id = item["meta"]["bk_biz_id"]
+            _meta_scope_id = cache.get(f"bkci_meta_scope_id_{meta_scope_id}")
+            if not _meta_scope_id:
+                _meta_scope_id = get_non_bkcc_space_related_bkcc_biz_id(meta_scope_id)
+                cache.set(f"bkci_meta_scope_id_{meta_scope_id}", _meta_scope_id, 60)
+
+            _meta_bk_biz_id = cache.get(f"bkci_meta_bk_biz_id_{meta_bk_biz_id}")
+            if not _meta_bk_biz_id:
+                _meta_bk_biz_id = get_non_bkcc_space_related_bkcc_biz_id(meta_scope_id)
+                cache.set(f"bkci_meta_scope_id_{meta_bk_biz_id}", _meta_bk_biz_id, 60)
+            item["meta"]["scope_id"] = _meta_scope_id
+            item["meta"]["bk_biz_id"] = _meta_bk_biz_id
         return params
 
     bk_biz_id = params.get("scope", {}).get("bk_biz_id", 0)
