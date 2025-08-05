@@ -120,33 +120,6 @@ def get_request_app_code():
         return settings.APP_CODE
 
 
-def get_request_header(header_name, default=None):
-    """
-    获取请求头信息
-    参数:
-        header_name: 请求头名称，如 'HTTP_X_BKLOG_TOKEN'
-        default: 默认值
-    返回值:
-        请求头的值，如果不存在则返回default
-    """
-    try:
-        request = get_request(peaceful=True)
-        if not request:
-            return default
-
-        return request.META.get(header_name, default)
-    except Exception:  # pylint: disable=broad-except
-        return default
-
-
-def get_request_token():
-    """
-    获取请求中的token
-    从请求头HTTP_X_BKLOG_TOKEN获取
-    """
-    return get_request_header("HTTP_X_BKLOG_TOKEN")
-
-
 def set_local_param(key, value):
     """
     设置自定义线程变量
