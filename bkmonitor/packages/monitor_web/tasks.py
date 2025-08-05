@@ -527,6 +527,19 @@ def remove_file(file_path):
             default_storage.delete(path)
 
 
+def clean_ceph_tmp_file():
+    # 清理ceph临时导出文件
+    tmp = default_storage.listdir("/export_import/tmp/")[0]
+    for package_dir in tmp:
+        path = f"/export_import/tmp/{package_dir}/"
+        files = default_storage.listdir(path)[1]
+        for package in files:
+            default_storage.delete(f"{path}{package}")
+            print(f"delete {path}{package}")
+        print(f"delete {path}")
+        default_storage.delete(path)
+
+
 @shared_task(ignore_result=True)
 def append_event_metric_list_cache(bk_biz_id: int, bk_event_group_id: int):
     """
