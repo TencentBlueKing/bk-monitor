@@ -14,9 +14,9 @@ import operator
 from collections import defaultdict
 from typing import Any
 
-from django.db.models import Q
 from django.conf import settings
 from django.core.cache import cache
+from django.db.models import Q
 from django.utils.translation import gettext_lazy as _
 from opentelemetry.semconv.resource import ResourceAttributes
 from opentelemetry.semconv.trace import SpanAttributes
@@ -35,6 +35,7 @@ from apm_web.handlers.log_handler import ServiceLogHandler
 from apm_web.metric_handler import RequestCountInstance, ServiceFlowCount
 from apm_web.metrics import APPLICATION_LIST
 from apm_web.models import ApdexServiceRelation, Application, ApplicationCustomService
+from apm_web.utils import check_app_integration_status
 from bkmonitor.utils import group_by
 from bkmonitor.utils.cache import CacheType, lru_cache_with_ttl, using_cache
 from bkmonitor.utils.thread_backend import ThreadPool
@@ -287,6 +288,8 @@ class ServiceHandler:
 
         # Step1: 从 Flow 指标中获取
         application = Application.objects.get(bk_biz_id=bk_biz_id, app_name=app_name)
+        if check_app_integration_status(application) is False:
+            return node_mapping
         s, e = get_datetime_range(period="minute", distance=cls.QUERY_FLOW_MAX_TIME_RANGE, rounding=False)
 
         flow_response = ServiceFlowCount(

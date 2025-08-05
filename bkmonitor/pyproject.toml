@@ -182,6 +182,7 @@ env = [
 src = [".", "packages"]
 line-length = 120
 target-version = "py310"
+ignore = ["E741"]
 exclude = [
     ".git",
     "venv",

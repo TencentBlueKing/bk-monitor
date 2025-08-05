@@ -114,7 +114,7 @@ from apm_web.service.serializers import (
 )
 from apm_web.topo.handle.relation.relation_metric import RelationMetricHandler
 from apm_web.trace.service_color import ServiceColorClassifier
-from apm_web.utils import get_interval_number, span_time_strft
+from apm_web.utils import check_app_integration_status, get_interval_number, span_time_strft
 from bkm_space.api import SpaceApi
 from bkmonitor.data_source.unify_query.builder import QueryConfigBuilder, UnifyQuerySet
 from bkmonitor.share.api_auth_resource import ApiAuthResource
@@ -2978,6 +2978,8 @@ class CustomServiceDataViewResource(Resource):
             app = Application.objects.get(application_id=validated_request_data["application_id"])
         except Application.DoesNotExist:
             raise ValueError(_("应用不存在"))
+        if check_app_integration_status(app) is False:
+            return []
         database = app.metric_result_table_id.split(".")[0]
         return [
             {
@@ -3081,6 +3083,9 @@ class SimpleServiceList(Resource):
         ).first()
         if not app:
             raise ValueError(_("应用{}不存在").format(validate_data["app_name"]))
+
+        if check_app_integration_status(app) is False:
+            return []
 
         services = ServiceHandler.list_services(app)
 
