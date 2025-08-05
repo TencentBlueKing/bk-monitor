@@ -2,12 +2,9 @@ import { defineComponent, ref, reactive, computed, watch, nextTick } from 'vue';
 import useStore from '@/hooks/use-store';
 import useLocale from '@/hooks/use-locale';
 import http from '@/api';
-// @ts-ignore
-import ModuleSelect from './module-select';
-// @ts-ignore
-import ValidateInput from './validate-input';
-// @ts-ignore
-import ValidateUserSelector from './validate-user-selector';
+import ModuleSelect from './module-select.vue';
+import ValidateInput from './validate-input.vue';
+import ValidateUserSelector from './validate-user-selector.vue';
 
 import './config-slider.scss';
 
@@ -123,7 +120,7 @@ export default defineComponent({
       });
     };
 
-    // 确认选择
+    // 确认选择的授权目标
     const handleConfirmSelect = (selectType: string, modules: any[]) => {
       manageStrategyData.select_type = selectType;
       manageStrategyData.modules = modules;
@@ -325,14 +322,7 @@ export default defineComponent({
                 selectedModules={manageStrategyData.modules}
                 selectedType={manageStrategyData.select_type}
                 showSelectDialog={showSelectDialog.value}
-                {...{
-                  on: {
-                    'update:showSelectDialog': (val: boolean) => {
-                      showSelectDialog.value = val;
-                    },
-                    confirm: handleConfirmSelect,
-                  },
-                }}
+                onHandleConfirm={handleConfirmSelect}
               />
             </div>
           </div>

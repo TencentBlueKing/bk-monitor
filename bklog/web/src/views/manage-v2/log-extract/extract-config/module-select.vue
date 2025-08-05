@@ -104,6 +104,7 @@
         type: Array,
         default: () => [],
       },
+      onHandleConfirm: { type: Function  }
     },
     data() {
       return {
@@ -335,8 +336,10 @@
       },
       handleConfirm() {
         const selectedList = this.selectedTypeData === 'topo' ? this.selectedTopoList : this.selectedModuleList;
-        this.$emit('confirm', this.selectedTypeData, selectedList);
-        this.$emit('update:show-select-dialog', false);
+        this.$emit('handleConfirm', this.selectedTypeData, selectedList);
+        this.showSelectDialog = false;
+        // this.$emit('confirm', this.selectedTypeData, selectedList);
+        // this.$emit('update:show-select-dialog', false);
       },
     },
   };
