@@ -601,9 +601,6 @@ ELASTICSEARCH_DSL = {
     },
 }
 
-# BKSSM 配置
-BK_SSM_HOST = os.environ.get("BKAPP_BK_SSM_HOST", os.getenv("BK_SSM_HOST", "bkssm.service.consul"))
-BK_SSM_PORT = os.environ.get("BKAPP_BK_SSM_PORT", os.getenv("BK_SSM_PORT", "5000"))
 # BCS API Gateway 配置
 BCS_API_GATEWAY_TOKEN = os.environ.get("BKAPP_BCS_API_GATEWAY_TOKEN", os.getenv("BK_BCS_API_GATEWAY_TOKEN", None))
 BCS_API_GATEWAY_HOST = os.environ.get("BKAPP_BCS_API_GATEWAY_HOST", os.getenv("BK_BCS_API_GATEWAY_HOST", None))
@@ -1135,8 +1132,6 @@ NEW_MONITOR_API_BASE_URL = os.getenv("BKAPP_NEW_MONITOR_API_BASE_URL", "")
 BKDATA_API_BASE_URL = os.getenv("BKAPP_BKDATA_API_BASE_URL", "")
 # bkdata api only for query data (not required)
 BKDATA_QUERY_API_BASE_URL = os.getenv("BKAPP_BKDATA_QUERY_API_BASE_URL", "")
-# bkdata api only for query profiling data (not required)
-BKDATA_PROFILE_QUERY_API_BASE_URL = os.getenv("BKAPP_BKDATA_PROFILE_QUERY_API_BASE_URL", "")
 BKLOGSEARCH_API_BASE_URL = os.getenv("BKAPP_BKLOGSEARCH_API_BASE_URL", "")
 # 通过 apigw 访问日志平台 api 的地址
 BKLOGSEARCH_API_GW_BASE_URL = os.getenv("BKAPP_BKLOGSEARCH_API_GW_BASE_URL", "")
@@ -1153,11 +1148,6 @@ BK_IAM_APIGATEWAY_URL = os.getenv("BKAPP_IAM_API_BASE_URL") or f"{BK_COMPONENT_A
 # 以下是bkchat的apigw
 BKCHAT_API_BASE_URL = os.getenv("BKAPP_BKCHAT_API_BASE_URL", "")
 BKCHAT_MANAGE_URL = os.getenv("BKAPP_BKCHAT_MANAGE_URL", "")
-
-# 以下专门用来测试bkchat
-BKCHAT_APP_CODE = os.getenv("BKCHAT_APP_CODE", os.getenv("BKHCAT_APP_CODE", ""))
-BKCHAT_APP_SECRET = os.getenv("BKCHAT_APP_SECRET", os.getenv("BKHCAT_APP_SECRET", ""))
-BKCHAT_BIZ_ID = os.getenv("BKCHAT_BIZ_ID", "2")
 
 # aidev的apigw地址
 AIDEV_API_BASE_URL = os.getenv("BKAPP_AIDEV_API_BASE_URL", "")
