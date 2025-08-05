@@ -3,7 +3,8 @@ import useStore from '@/hooks/use-store';
 import useLocale from '@/hooks/use-locale';
 import http from '@/api';
 import ModuleSelect from './module-select.tsx';
-import ValidateInput from './validate-input.vue';
+// import ValidateInput from './validate-input.vue';
+import ValidateInput from './validate-input.tsx';
 import ValidateUserSelector from './validate-user-selector.vue';
 
 import './config-slider.scss';
@@ -195,7 +196,7 @@ export default defineComponent({
       ));
     };
 
-    // 渲染文件类型列表
+    // 渲染文件后缀列表
     const renderFileTypeList = () => {
       return manageStrategyData.file_type.map((item: string, index: number) => (
         <div
