@@ -1,4 +1,4 @@
-import { defineComponent, ref, PropType } from 'vue';
+import { defineComponent, ref } from 'vue';
 import BkUserSelector from '@blueking/user-selector';
 
 import './validate-user-selector.scss';
