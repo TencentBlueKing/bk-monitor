@@ -7,3 +7,26 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
+import re
+
+def is_ipv4(ip: str) -> bool:
+    """
+    判断是否为IPv4地址
+    """
+    return re.match(r"^(\d{1,3}\.){3}\d{1,3}$", ip) is not None
+
+def transform_to_ip4(inner_ip: str) -> str:
+    """
+    将node-9-136-170-171转换为9.136.170.171
+    """
+    if not inner_ip:
+        return ""
+    if is_ipv4(inner_ip):
+        return inner_ip
+    parts = inner_ip.split("-")
+    if len(parts) != 5:
+        return ""
+    return ".".join(parts[1:])
+    
+    

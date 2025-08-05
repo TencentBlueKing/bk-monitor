@@ -9,6 +9,7 @@ specific language governing permissions and limitations under the License.
 """
 
 from typing import Any
+from bkmonitor.packages.monitor_web.incident.metrics.utils import transform_to_ip4, is_ipv4
 from monitor_web.incident.metrics.constants import EntityType
 from monitor_web.incident.metrics.constants import MetricName
 
@@ -627,7 +628,8 @@ def get_host_config(dimensions: dict[str, Any],**kwargs):
             # 替换目标参数
             if "filter_dict" in query_config and "targets" in query_config["filter_dict"]:
                 target = query_config["filter_dict"]["targets"][0]
-                target["bk_target_ip"] = dimensions.get("inner_ip")
+                inner_ip = dimensions.get("inner_ip")
+                target["bk_target_ip"] = inner_ip if is_ipv4(inner_ip) else transform_to_ip4(inner_ip)
                 target["bk_target_cloud_id"] = dimensions.get("bk_cloud_id")
             
         filled_config[metric_name].update({
