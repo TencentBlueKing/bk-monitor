@@ -13,29 +13,41 @@ from rest_framework import serializers
 from monitor_web.incident.events.constants import EntityType
 
 
-class EventsSearchSerializer(serializers.Serializer):
+class BaseIncidentEventsSerializer(serializers.Serializer):
     bk_biz_id = serializers.IntegerField(label="业务ID", default=None)
-    index_info = serializers.JSONField(label="索引信息", default=None)
     start_time = serializers.IntegerField(label="开始时间", default=None)
     end_time = serializers.IntegerField(label="结束时间", default=None)
+
+
+class EventsSearchSerializer(BaseIncidentEventsSerializer):
+    index_info = serializers.JSONField(label="索引信息", default=None)
 
     def validate(self, attrs):
         index_info = attrs.get("index_info")
         if not isinstance(index_info, dict):
-            raise serializers.ValidationError("index_info must be a json object")
+            raise serializers.ValidationError(
+                "index_info must be a json object")
         entity_type = index_info.get("entity_type")
-        # 使用choices()方法进行验证，从choices中提取有效值
-        valid_entity_types = [choice[0] for choice in EntityType.choices()]
+        # 使用choices()方法进行验证，从choices中提取有效值  
+        valid_entity_types = EntityType.choices()
         if entity_type not in valid_entity_types:
-            raise serializers.ValidationError(f"entity_type must be one of {valid_entity_types}")
+            raise serializers.ValidationError(
+                f"entity_type must be one of {valid_entity_types}")
         return attrs
 
 
-class EventDetailSerializer(serializers.Serializer):
-    bk_biz_id = serializers.IntegerField(label="业务ID")
-    app_name = serializers.CharField(label="应用名称", required=False)
-    service_name = serializers.CharField(label="服务名称", required=False)
-    query_configs = serializers.ListField(label="查询配置列表", default=[])
-    expression = serializers.CharField(label="查询表达式", allow_blank=True)
-    start_time = serializers.IntegerField(required=False, label="开始时间")
-    end_time = serializers.IntegerField(required=False, label="结束时间")
+class EventDetailSerializer(BaseIncidentEventsSerializer):
+    index_info = serializers.JSONField(label="索引信息", default=None)
+
+    def validate(self, attrs):
+        index_info = attrs.get("index_info")
+        if not isinstance(index_info, dict):
+            raise serializers.ValidationError(
+                "index_info must be a json object")
+        entity_type = index_info.get("entity_type")
+        # 使用choices()方法进行验证，从choices中提取有效值
+        valid_entity_types = EntityType.choices()
+        if entity_type not in valid_entity_types:
+            raise serializers.ValidationError(
+                f"entity_type must be one of {valid_entity_types}")
+        return attrs

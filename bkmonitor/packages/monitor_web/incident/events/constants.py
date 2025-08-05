@@ -21,14 +21,11 @@ class EntityType(CachedEnum):
     BcsPod = "BcsPod"
     APMService = "APMService"
     BkNodeHost = "BkNodeHost"
-
+    UnKnown = "Unknown"
+    
     @classmethod
     def choices(cls):
-        return [
-            (cls.BcsPod.value, cls.BcsPod.value),
-            (cls.APMService.value, cls.APMService.value),
-            (cls.BkNodeHost.value, cls.BkNodeHost.value),
-        ]
+        return [choice.value for choice in cls.__members__.values()]
 
     @cached_property
     def label(self):
@@ -37,6 +34,7 @@ class EntityType(CachedEnum):
                 EntityType.BcsPod: _("BCS Pod"),
                 EntityType.APMService: _("APM服务"),
                 EntityType.BkNodeHost: _("主机节点"),
+                EntityType.UnKnown: _("未知"),
             }.get(self, self.value)
         )
 
