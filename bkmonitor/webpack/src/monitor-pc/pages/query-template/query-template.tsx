@@ -27,15 +27,99 @@
 import { Component } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
+import QueryTemplateTable from './components/query-template-table/query-template-table';
+
 import './query-template.scss';
 
 @Component
 export default class MetricTemplate extends tsc<object> {
+  current = 1;
+  pageSize = 50;
+  total = 100;
+  sort = '-update_time';
+  searchKeyword = '';
+  tableData = [
+    {
+      id: 1,
+      name: '指标模板名称占位AAA ',
+      description: '1×1×1×1×……×1=1，不要事情找你，而要你找事情，很傻很天真，又猛又持久',
+      create_user: '创建人',
+      create_time: '2025-06-24 10:32:51+0800',
+      update_user: '更新人',
+      update_time: '2025-06-24 10:32:51+0800',
+      relevance_configs: [1, 2, 3, 4, 5, 6, 7, 87],
+    },
+    {
+      id: 2,
+      name: '指标模板名称占位CCC ',
+      description: '1×1×1×1×……×1=1，不要事情找你，而要你找事情，很傻很天真，又猛又持久',
+      create_user: '创建人',
+      create_time: '2025-06-24 10:32:51+0800',
+      update_user: '更新人',
+      update_time: '2025-06-24 10:32:51+0800',
+      relevance_configs: [],
+    },
+  ];
+
+  handleSortChange(sort: `-${string}` | string) {
+    this.sort = sort;
+  }
+
+  handleCurrentPageChange(currentPage: number) {
+    this.current = currentPage;
+  }
+  handlePageSizeChange(pageSize: number) {
+    this.pageSize = pageSize;
+  }
+
+  handleSearchChange(keyword: string) {
+    this.searchKeyword = keyword;
+  }
+
+  /**
+   * @description 跳转至 新建查询模板 页面
+   */
+  jumpToCreatePage() {
+    this.$router.push({
+      name: 'query-template-create',
+    });
+  }
+
   render() {
     return (
       <div class='query-template'>
         <div class='query-template-header'>
-          <div class='query-template-header-left' />
+          <div class='query-template-header-operations'>
+            <bk-button
+              icon='plus'
+              theme='primary'
+              title={this.$t('新建')}
+              onClick={this.jumpToCreatePage}
+            >
+              {this.$t('新建')}
+            </bk-button>
+          </div>
+          <div class='query-template-header-search'>
+            <bk-input
+              class='search-input'
+              placeholder={this.$t('搜索 模板名称、模板说明、创建人、更新人')}
+              right-icon='bk-icon icon-search'
+              value={this.searchKeyword}
+              onChange={this.handleSearchChange}
+            />
+          </div>
+        </div>
+        <div class='query-template-main'>
+          <QueryTemplateTable
+            current={this.current}
+            pageSize={this.pageSize}
+            sort={this.sort}
+            tableData={this.tableData}
+            total={this.total}
+            onCurrentPageChange={this.handleCurrentPageChange}
+            onPageSizeChange={this.handlePageSizeChange}
+            onSortChange={this.handleSortChange}
+          />
         </div>
       </div>
     );

@@ -369,4 +369,10 @@ export default {
   用户指令: 'User Instruction',
   '请输入指标/PromQL语句': 'Please enter the metric/PromQL statement',
   请输入用户指令: 'Please enter the user instruction',
+
+  // 查询模板
+  '当前仍然有关联的消费场景，无法编辑':
+    'Currently there are still associated consumption scenarios and cannot be edited',
+  '当前仍然有关联的消费场景，无法删除':
+    'Currently there are still associated consumption scenarios and cannot be deleted',
 };

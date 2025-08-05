@@ -24,7 +24,9 @@
  * IN THE SOFTWARE.
  */
 
-export * from './create';
-export * from './detail';
-export * from './edit';
-export * from './table';
+import { type QueryTemplateSliderTabEnum } from '../constants';
+
+export type GetEnumTypeTool<T> = T[keyof T];
+
+/** 查询模板侧边栏tab Enum 枚举类型 */
+export type QueryTemplateSliderTabEnumType = GetEnumTypeTool<typeof QueryTemplateSliderTabEnum>;
