@@ -1,0 +1,30 @@
+.template-config-utils-select-wrap-component {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  height: 100%;
+  padding: 0 0 0 6px;
+  cursor: pointer;
+  background: #FDF4E8;
+
+  .expand-wrap {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 100%;
+    margin: 0 0 0 auto;
+
+    .icon-mc-arrow-down {
+      font-size: 14px;
+      color: #979BA5;
+      transition: 0.3s all;
+    }
+
+    &.active {
+      .icon-mc-arrow-down {
+        transform: rotate(180deg);
+      }
+    }
+  }
+}

@@ -27,72 +27,32 @@
 import { Component, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { random } from 'monitor-common/utils/utils';
+import QueryConfigCreator from '../query-config/query-config-creator';
 
-import MetricSelector from '../../../../components/metric-selector/metric-selector';
-import SelectWrap from '../utils/select-wrap';
+import type { IScenarioItem } from '../type/typing';
 
-import type { IScenarioItem, TMetricDetail } from '../type/typing';
-
-import './metric-creator.scss';
+import './query-panel.scss';
 
 interface IProps {
   scenarioList?: IScenarioItem[];
-  onSelectMetric?: (metric: TMetricDetail) => void;
 }
 
 @Component
-export default class MetricCreator extends tsc<IProps> {
+export default class QueryPanel extends tsc<IProps> {
   @Prop({ type: Array, default: () => [] }) scenarioList: IScenarioItem[];
-  /* 指标选择器目标id */
-  selectId = '';
-  /* 指标选择器是否显示 */
-  showSelect = false;
-  /*  */
-  curMetric = null;
-
-  get metricAlias() {
-    return !this.curMetric?.metric_field_name || this.curMetric?.metric_field_name === this.curMetric?.metric_field
-      ? ''
-      : this.curMetric?.metric_field_name;
-  }
-
-  created() {
-    this.selectId = random(8);
-  }
-
-  handleClick() {
-    this.showSelect = true;
-  }
-
-  handleSelectMetric(metric) {
-    this.curMetric = metric;
-    this.$emit('selectMetric', metric);
-  }
 
   render() {
     return (
-      <div class='template-metric-creator-component'>
-        <div class='metric-label'>{this.$t('指标')}</div>
-        <SelectWrap
-          id={this.selectId}
-          active={this.showSelect}
-          backgroundColor={'#FDF4E8'}
-          minWidth={432}
-          onClick={() => this.handleClick()}
-        >
-          <span class='metric-name'>{this.metricAlias}</span>
-        </SelectWrap>
-        <MetricSelector
-          metricId={this.curMetric?.metric_id}
-          scenarioList={this.scenarioList}
-          show={this.showSelect}
-          targetId={`#${this.selectId}`}
-          onSelected={this.handleSelectMetric}
-          onShowChange={val => {
-            this.showSelect = val;
-          }}
-        />
+      <div class='template-query-panel-component'>
+        <QueryConfigCreator scenarioList={this.scenarioList} />
+        <div class='query-panel-operator'>
+          <div class='add-btn'>
+            <span class='icon-monitor icon-mc-add' />
+          </div>
+          <div class='del-btn'>
+            <span class='icon-monitor icon-mc-delete-line' />
+          </div>
+        </div>
       </div>
     );
   }

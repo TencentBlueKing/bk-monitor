@@ -24,75 +24,30 @@
  * IN THE SOFTWARE.
  */
 
-import { Component, Prop } from 'vue-property-decorator';
+import { Component } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { random } from 'monitor-common/utils/utils';
-
-import MetricSelector from '../../../../components/metric-selector/metric-selector';
 import SelectWrap from '../utils/select-wrap';
 
-import type { IScenarioItem, TMetricDetail } from '../type/typing';
-
-import './metric-creator.scss';
-
-interface IProps {
-  scenarioList?: IScenarioItem[];
-  onSelectMetric?: (metric: TMetricDetail) => void;
-}
+import './method-creator.scss';
 
 @Component
-export default class MetricCreator extends tsc<IProps> {
-  @Prop({ type: Array, default: () => [] }) scenarioList: IScenarioItem[];
-  /* 指标选择器目标id */
-  selectId = '';
-  /* 指标选择器是否显示 */
+export default class MethodCreator extends tsc<object> {
   showSelect = false;
-  /*  */
-  curMetric = null;
 
-  get metricAlias() {
-    return !this.curMetric?.metric_field_name || this.curMetric?.metric_field_name === this.curMetric?.metric_field
-      ? ''
-      : this.curMetric?.metric_field_name;
-  }
-
-  created() {
-    this.selectId = random(8);
-  }
-
-  handleClick() {
-    this.showSelect = true;
-  }
-
-  handleSelectMetric(metric) {
-    this.curMetric = metric;
-    this.$emit('selectMetric', metric);
-  }
+  handleClick() {}
 
   render() {
     return (
-      <div class='template-metric-creator-component'>
-        <div class='metric-label'>{this.$t('指标')}</div>
+      <div class='template-method-creator-component'>
+        <div class='method-label'>{this.$t('汇聚方法')}</div>
         <SelectWrap
-          id={this.selectId}
           active={this.showSelect}
-          backgroundColor={'#FDF4E8'}
-          minWidth={432}
+          minWidth={127}
           onClick={() => this.handleClick()}
         >
-          <span class='metric-name'>{this.metricAlias}</span>
+          <span class='method-name'>avg</span>
         </SelectWrap>
-        <MetricSelector
-          metricId={this.curMetric?.metric_id}
-          scenarioList={this.scenarioList}
-          show={this.showSelect}
-          targetId={`#${this.selectId}`}
-          onSelected={this.handleSelectMetric}
-          onShowChange={val => {
-            this.showSelect = val;
-          }}
-        />
       </div>
     );
   }
