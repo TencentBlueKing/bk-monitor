@@ -58,7 +58,7 @@ from apps.log_search.constants import (
     SQL_SUFFIX,
 )
 from apps.log_search.decorators import search_history_record
-from apps.log_search.exceptions import BaseSearchIndexSetException
+from apps.log_search.exceptions import BaseSearchIndexSetException, TokenMissingException
 from apps.log_search.handlers.es.querystring_builder import QueryStringBuilder
 from apps.log_search.handlers.index_set import (
     IndexSetCustomConfigHandler,
@@ -2102,5 +2102,7 @@ class SearchViewSet(APIViewSet):
             }
         """
         data = self.params_valid(SearchLogForCodeSerializer)
-        result = UnifyQueryHandler.search_log_for_code(request.token, data)
-        return Response(result)
+        token = request.token
+        if not token or token == "":
+            raise TokenMissingException()
+        return Response(UnifyQueryHandler.search_log_for_code(token, data))

@@ -35,7 +35,7 @@ from apps.log_search.constants import (
     MAX_ASYNC_COUNT,
     SCROLL,
 )
-from apps.log_search.exceptions import BaseSearchResultAnalyzeException
+from apps.log_search.exceptions import BaseSearchResultAnalyzeException, TokenInvalidException
 from apps.log_search.handlers.index_set import BaseIndexSetHandler
 from apps.log_search.handlers.search.aggs_handlers import AggsHandlers
 from apps.log_search.handlers.search.mapping_handlers import MappingHandlers
@@ -1315,7 +1315,7 @@ class UnifyQueryHandler:
         try:
             record = ApiAuthToken.objects.get(token=token)
         except ApiAuthToken.DoesNotExist:
-            raise ValueError("Invalid token")
+            raise TokenInvalidException()
 
         # 2. 从token记录中解析参数
         index_set_id = record.params.get("index_set_id")
