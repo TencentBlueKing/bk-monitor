@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { computed, defineComponent, onMounted, ref } from 'vue';
+import { computed, defineComponent, ref } from 'vue';
 
 import useLocale from '@/hooks/use-locale';
 import useStore from '@/hooks/use-store';
@@ -57,11 +57,7 @@ export default defineComponent({
       const isDesc = currentSortField.value[1] === 'desc';
       return isSortShow.value && isDesc;
     });
-    onMounted(() => {
-      if(isShowSourceField.value){
-        store.dispatch('changeShowUnionSource')
-      }
-    });
+
     const formatDate = ref(false)
     const requiredFields = ['gseIndex', 'iterationIndex', 'dtEventTimeStamp'];
     const handleStorageChange = (val, key) => {
@@ -76,7 +72,6 @@ export default defineComponent({
 
     const handleShowSourceField = (val, key) => {
       store.commit('updateStorage', { [key]: val });
-      store.dispatch('changeShowUnionSource')
     }
 
     const handleFormatDate = (val) => {
