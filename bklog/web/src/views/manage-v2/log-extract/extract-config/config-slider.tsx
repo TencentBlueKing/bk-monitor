@@ -4,7 +4,6 @@ import useLocale from '@/hooks/use-locale';
 import http from '@/api';
 import ModuleSelect from './module-select.tsx';
 import ValidateInput from './validate-input.tsx';
-// import ValidateUserSelector from './validate-user-selector.vue';
 import ValidateUserSelector from './validate-user-selector.tsx';
 
 import './config-slider.scss';
