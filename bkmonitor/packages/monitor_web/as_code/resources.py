@@ -296,7 +296,7 @@ class ExportConfigResource(Resource):
             # 如果duty rule为一个空列表，表示没有需要导出的
             return
         if duty_rules:
-            duty_rule_queryset = duty_rule_queryset.filter(id__in=duty_rule_queryset)
+            duty_rule_queryset = duty_rule_queryset.filter(id__in=duty_rules)
 
         # 如果app不为None，则过滤app字段
         if app is not None:
