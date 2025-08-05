@@ -2,7 +2,7 @@ import { defineComponent, ref, reactive, computed, watch, nextTick } from 'vue';
 import useStore from '@/hooks/use-store';
 import useLocale from '@/hooks/use-locale';
 import http from '@/api';
-import ModuleSelect from './module-select.vue';
+import ModuleSelect from './module-select.tsx';
 import ValidateInput from './validate-input.vue';
 import ValidateUserSelector from './validate-user-selector.vue';
 
@@ -16,6 +16,7 @@ export default defineComponent({
     ValidateUserSelector,
   },
   props: {
+    // 策略数据
     strategyData: {
       type: Object,
       default: () => ({
@@ -28,10 +29,12 @@ export default defineComponent({
         operator: '',
       }),
     },
+    // 用户API
     userApi: {
       type: String,
       required: true,
     },
+    // 是否允许创建
     allowCreate: {
       type: Boolean,
       required: true,
@@ -40,11 +43,11 @@ export default defineComponent({
     onHandleCancelSlider: { type: Function },
   },
   emits: ['handleUpdatedTable', 'handleCancelSlider'],
+
   setup(props, { emit }) {
     const store = useStore();
     const { t } = useLocale();
 
-    // 响应式数据
     const isChangeOperatorLoading = ref(false); // 修改执行人加载状态
     const showSelectDialog = ref(false); // 是否显示选择对话框
     const manageStrategyData = reactive(JSON.parse(JSON.stringify(props.strategyData))); // 管理策略数据
@@ -57,7 +60,7 @@ export default defineComponent({
       manageStrategyData.file_type = [''];
     }
 
-    // 计算属性
+    // 是否验证通过
     const isValidated = computed(() => {
       return (
         manageStrategyData.strategy_name &&
@@ -122,9 +125,17 @@ export default defineComponent({
 
     // 确认选择的授权目标
     const handleConfirmSelect = (selectType: string, modules: any[]) => {
+      // 关闭选择对话框
+      showSelectDialog.value = false;
+      // 更新管理策略数据
       manageStrategyData.select_type = selectType;
       manageStrategyData.modules = modules;
     };
+
+    // 监听选择对话框的显示状态
+    const handleValueChange = (val: any) => {
+      showSelectDialog.value = val;
+    }; 
 
     // 修改执行人
     const changeOperator = async () => {
@@ -323,6 +334,7 @@ export default defineComponent({
                 selectedType={manageStrategyData.select_type}
                 showSelectDialog={showSelectDialog.value}
                 onHandleConfirm={handleConfirmSelect}
+                onHandleValueChange={handleValueChange}
               />
             </div>
           </div>
@@ -360,7 +372,7 @@ export default defineComponent({
           </div>
         </div>
 
-        {/* 按钮容器 */}
+        {/* 确认/取消按钮 */}
         <div class='button-container'>
           <bk-button
             style='margin-right: 24px'
