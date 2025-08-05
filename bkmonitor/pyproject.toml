@@ -52,6 +52,7 @@ dependencies = [
     "jmespath==1.0.1",
     "kafka-python==1.4.6",
     "kubernetes==18.20.0",
+    "langfuse==2.60.5",
     "luqum==0.13.0",
     "mockredis>=0.1.3.dev0",
     "netifaces==0.11.0",
