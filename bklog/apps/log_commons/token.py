@@ -24,20 +24,16 @@ class BaseTokenHandler(ABC):
         """创建token参数字典"""
         raise NotImplementedError
 
-    @abstractmethod
-    def check_permission(self, **kwargs) -> bool:
-        """检查权限"""
-        raise NotImplementedError
-
     def get_or_create_token(self, space_uid: str, **kwargs) -> str:
         """获取或创建token"""
         username = get_request_username()
+        token_params = self.create_token_params(**kwargs)
 
         # 查找现有令牌
         token_obj = ApiAuthToken.objects.filter(
             space_uid=space_uid,
             type=self.get_token_type(),
-            params__contains=self.create_token_params(**kwargs),
+            params__contains=token_params,
             created_by=username,
         ).first()
 
@@ -45,17 +41,17 @@ class BaseTokenHandler(ABC):
             return token_obj.token
 
         # 创建新 token
-        token_obj, created = ApiAuthToken.objects.update_or_create(
+        token_obj, created = ApiAuthToken.objects.get_or_create(
             space_uid=space_uid,
             type=self.get_token_type(),
-            params=self.create_token_params(**kwargs),
-            defaults={"created_by": username},
+            params=token_params,
+            created_by=username,
         )
         return token_obj.token
 
     def record_access(self, username: str, token: str):
         """记录访问记录"""
-        TokenAccessRecord.objects.create(
+        TokenAccessRecord.objects.update_or_create(
             created_by=username,
             token=token,
         )
@@ -63,8 +59,6 @@ class BaseTokenHandler(ABC):
     def generate_token(self, space_uid: str, **kwargs) -> str:
         """生成token的完整流程"""
         username = get_request_username()
-        # 检查权限
-        self.check_permission(space_uid=space_uid, **kwargs)
         # 生成token
         token = self.get_or_create_token(space_uid, **kwargs)
         # 记录申请记录
@@ -82,36 +76,34 @@ class CodeccTokenHandler(BaseTokenHandler):
         index_set_id = kwargs.get("index_set_id")
         if not index_set_id:
             raise ValueError("index_set_id is required for CodeCC token")
-
         return {"index_set_id": index_set_id}
 
-    def check_permission(self, **kwargs) -> bool:
-        # 当前是专门对 codecc场景 鉴权，直接把要判定的操作和资源写死
-        space_uid = kwargs.get("space_uid")
-        index_set_id = kwargs.get("index_set_id")
-
-        if not space_uid or not index_set_id:
-            return False
-
-        # 查找对应的token对象，获取创建人
-        token_obj = ApiAuthToken.objects.filter(
-            space_uid=space_uid,
-            type=self.get_token_type(),
-            params__contains=self.create_token_params(**kwargs),
-        ).first()
-
-        if not token_obj:
-            return False
-
-        # 检查token创建人对指定索引集的检索权限
-        permission = Permission(username=token_obj.created_by)
-        permission_result = permission.is_allowed(
+    @classmethod
+    def check_index_set_search_permission(cls, username: str, index_set_id: int) -> None:
+        """
+        检查用户对指定索引集的检索权限
+        参数:
+            username: 用户名
+            index_set_id: 索引集ID
+        """
+        permission = Permission(username=username)
+        permission.is_allowed(
             action=ActionEnum.SEARCH_LOG,
             resources=[ResourceEnum.INDICES.create_simple_instance(instance_id=index_set_id)],
             raise_exception=True,
         )
 
-        return permission_result
+    def generate_token(self, space_uid: str, **kwargs) -> str:
+        """生成token的完整流程"""
+        username = get_request_username()
+        index_set_id = kwargs.get("index_set_id")
+        # 检查当前用户对指定索引集的检索权限
+        self.check_index_set_search_permission(username, index_set_id)
+        # 生成token
+        token = self.get_or_create_token(space_uid, **kwargs)
+        # 记录申请记录
+        self.record_access(username, token)
+        return token
 
 
 class TokenHandlerFactory:

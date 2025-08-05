@@ -30,7 +30,6 @@ from django.conf import settings
 from django.core.cache import cache
 from django_redis import get_redis_connection
 from rest_framework import throttling
-from apps.log_commons.constants import TOKEN_REQUEST_LIMIT_COUNT, TOKEN_REQUEST_LIMIT_SECONDS
 
 redis_client = None  # pylint: disable=invalid-name
 if settings.USE_REDIS:
@@ -143,47 +142,3 @@ class QosThrottle(throttling.BaseThrottle):
 
     def wait(self):
         return cache.ttl(self.limit_key)
-
-
-class ApiTokenThrottle(throttling.BaseThrottle):
-    """API Token 请求频率限制"""
-
-    def __init__(self):
-        self.limit_key = ""
-
-    def allow_request(self, request, view):
-        if not settings.USE_REDIS:
-            return True
-
-        self.limit_key = self._build_limit_key(request)
-
-        # 如果已经被限制，直接禁止
-        if cache.has_key(self.limit_key):  # noqa
-            return False
-
-        # 获取当前时间窗口内的请求次数
-        count_key = self._build_count_key(request)
-        current_count = cache.get(count_key, 0)
-        current_count += 1
-
-        # 设置计数和过期时间
-        # 极端条件下会出现竞态 但是目前的使用场景基本不可能出现
-        cache.set(count_key, current_count, TOKEN_REQUEST_LIMIT_SECONDS)
-
-        if current_count >= TOKEN_REQUEST_LIMIT_COUNT:
-            # 设置禁止标记
-            cache.set(self.limit_key, "1", timeout=TOKEN_REQUEST_LIMIT_SECONDS, nx=True)
-            return False
-
-        return True
-
-    def wait(self):
-        return cache.ttl(self.limit_key)
-
-    def _build_count_key(self, request) -> str:
-        """构建计数缓存key"""
-        return f"{settings.APP_CODE}_api_token_count_{request.user.username}"
-
-    def _build_limit_key(self, request) -> str:
-        """构建限制缓存key"""
-        return f"{settings.APP_CODE}_api_token_limit_{request.user.username}"

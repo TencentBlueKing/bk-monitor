@@ -72,6 +72,7 @@ from apps.log_databus.models import CollectorConfig
 from apps.log_databus.constants import EtlConfig
 from apps.log_search.constants import ASYNC_SORTED
 from apps.log_commons.models import ApiAuthToken
+from apps.log_commons.token import CodeccTokenHandler
 from bkm_space.utils import space_uid_to_bk_biz_id
 
 
@@ -1324,14 +1325,7 @@ class UnifyQueryHandler:
             raise ValueError(f"无法从space_uid {space_uid} 获取有效的bk_biz_id")
 
         # 3. 权限验证
-        from apps.iam import Permission, ActionEnum, ResourceEnum
-
-        permission = Permission(username=record.created_by)
-        permission.is_allowed(
-            action=ActionEnum.SEARCH_LOG,
-            resources=[ResourceEnum.INDICES.create_simple_instance(instance_id=index_set_id)],
-            raise_exception=True,
-        )
+        CodeccTokenHandler.check_index_set_search_permission(record.created_by, index_set_id)
 
         # 4. 获取table_id
         table_id = BaseIndexSetHandler.get_data_label(index_set_id)
@@ -1345,5 +1339,4 @@ class UnifyQueryHandler:
                     query_item["table_id"] = table_id
 
         # 6. 执行查询
-        result = UnifyQueryApi.query_ts_raw(search_dict)
-        return result
+        return UnifyQueryApi.query_ts_raw(search_dict)

@@ -115,7 +115,7 @@ from apps.log_unifyquery.handler.context import UnifyQueryContextHandler
 from apps.log_unifyquery.handler.chart import UnifyQueryChartHandler
 from apps.log_unifyquery.handler.tail import UnifyQueryTailHandler
 from apps.utils.drf import detail_route, list_route
-from apps.utils.local import get_request_external_username, get_request_username, get_request_token
+from apps.utils.local import get_request_external_username, get_request_username
 from bkm_space.utils import space_uid_to_bk_biz_id
 
 
@@ -2101,7 +2101,6 @@ class SearchViewSet(APIViewSet):
                 'message': ''
             }
         """
-        token = get_request_token()
         data = self.params_valid(SearchLogForCodeSerializer)
-        result = UnifyQueryHandler.search_log_for_code(token, data)
+        result = UnifyQueryHandler.search_log_for_code(request.token, data)
         return Response(result)

@@ -1172,6 +1172,12 @@ class SearchLogForCodeSerializer(serializers.Serializer):
     CodeCC query_ts_raw 请求参数序列化器
     """
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["from"] = serializers.IntegerField(
+            label=_("起始位置"), required=False, default=DEFAULT_QUERY_OFFSET
+        )
+
     query_list = serializers.ListField(
         label=_("查询列表"), required=True, child=serializers.DictField(), allow_empty=False
     )
@@ -1181,8 +1187,3 @@ class SearchLogForCodeSerializer(serializers.Serializer):
     end_time = serializers.CharField(label=_("结束时间"), required=True)
     timezone = serializers.CharField(label=_("时区"), required=False, default="UTC")
     limit = serializers.IntegerField(label=_("限制条数"), required=False, default=DEFAULT_QUERY_LIMIT)
-
-
-SearchLogForCodeSerializer._declared_fields["from"] = serializers.IntegerField(
-    label=_("起始位置"), required=False, default=DEFAULT_QUERY_OFFSET
-)

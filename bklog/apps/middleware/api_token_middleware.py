@@ -68,6 +68,7 @@ class ApiTokenAuthenticationMiddleware(LoginRequiredMiddleware):
         """处理CodeCC认证：使用token创建者作为用户"""
         user = auth.authenticate(username=record.created_by)
         auth.login(request, user, backend=backend)
+        request.token = token
 
     def _handle_default_auth(self, request, record, backend, token):
         """处理默认认证：仅设置token"""

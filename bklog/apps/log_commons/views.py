@@ -57,7 +57,6 @@ from apps.log_commons.serializers import (
 from apps.log_commons.share import ShareHandler
 from apps.utils.drf import list_route
 from apps.log_commons.token import TokenHandlerFactory
-from apps.log_esquery.qos import ApiTokenThrottle
 
 # 用户白皮书在文档中心的根路径
 DOCS_USER_GUIDE_ROOT = f"LogSearch/{settings.VERSION[:3]}"
@@ -389,8 +388,6 @@ class ShareViewSet(APIViewSet):
 
 
 class GetApiTokenViewSet(APIViewSet):
-    throttle_classes = [ApiTokenThrottle]
-
     @list_route(methods=["get"], url_path="get_api_token")
     def get_api_token(self, request):
         """
