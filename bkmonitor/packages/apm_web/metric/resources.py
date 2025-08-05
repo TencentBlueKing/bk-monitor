@@ -78,6 +78,7 @@ from apm_web.serializers import AsyncSerializer, ComponentInstanceIdDynamicField
 from apm_web.topo.handle.relation.relation_metric import RelationMetricHandler
 from apm_web.utils import (
     Calculator,
+    check_app_integration_status,
     fill_series,
     fill_unify_query_series,
     get_bar_interval_number,
@@ -1844,7 +1845,11 @@ class ErrorListResource(ServiceAndComponentCompatibleResource):
         return self.has_stack_filter(error_data, data)
 
     def perform_request(self, data):
-        error_data = self.get_data(data)
+        app = Application.objects.filter(bk_biz_id=data["bk_biz_id"], app_name=data["app_name"]).first()
+        if check_app_integration_status(app) is False:
+            error_data = []
+        else:
+            error_data = self.get_data(data)
         # 统计错误次数百分比 此接口在多处用到(告警中心trace错误) 故暂不从get_data方法更改
         error_all_count = sum([i.get("error_count") for i in error_data])
 
@@ -2389,9 +2394,15 @@ class EndpointListResource(ServiceAndComponentCompatibleResource):
         )
 
     def perform_request(self, validate_data):
+        app = Application.objects.filter(
+            bk_biz_id=validate_data["bk_biz_id"], app_name=validate_data["app_name"]
+        ).first()
         service_name = validate_data["service_name"]
-
-        endpoints, metric = self.list_endpoints(validate_data, service_name)
+        if check_app_integration_status(app) is False:
+            endpoints = []
+            metric = defaultdict(dict)
+        else:
+            endpoints, metric = self.list_endpoints(validate_data, service_name)
         status_count = self.get_status_count(validate_data, endpoints, service_name, metric)
         endpoints = self.filter_status(validate_data, endpoints)
         endpoints = handle_filter_fields(endpoints, validate_data.get("filter_fields"))

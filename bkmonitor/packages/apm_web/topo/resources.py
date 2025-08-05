@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2022 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,8 +7,10 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import datetime
 
+from apm_web.models.application import Application
 from apm_web.topo.constants import GraphViewType, SourceType, TopoLinkType
 from apm_web.topo.handle.bar_query import BarQuery, LinkHelper
 from apm_web.topo.handle.graph_query import GraphQuery
@@ -25,7 +26,7 @@ from apm_web.topo.serializers import (
     NodeRelationSerializer,
     TopoQueryRequestSerializer,
 )
-from apm_web.utils import fill_series, get_bar_interval_number
+from apm_web.utils import check_app_integration_status, fill_series, get_bar_interval_number
 from core.drf_resource import Resource
 
 
@@ -66,6 +67,11 @@ class TopoViewResource(Resource):
     RequestSerializer = TopoQueryRequestSerializer
 
     def perform_request(self, validated_data):
+        app = Application.objects.filter(
+            app_name=validated_data["app_name"], bk_biz_id=validated_data["bk_biz_id"]
+        ).first()
+        if check_app_integration_status(app) is False:
+            return {"nodes": [], "edges": []}
         params = {
             "bk_biz_id": validated_data["bk_biz_id"],
             "app_name": validated_data["app_name"],

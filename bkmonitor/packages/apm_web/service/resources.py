@@ -14,9 +14,9 @@ import itertools
 import json
 import operator
 import re
+from datetime import timedelta
 from multiprocessing.pool import ApplyResult
 from typing import Any
-from datetime import timedelta
 
 import arrow
 from django.utils.translation import gettext as _
@@ -45,22 +45,22 @@ from apm_web.models import (
 )
 from apm_web.profile.doris.querier import QueryTemplate
 from apm_web.serializers import ApplicationListSerializer, ServiceApdexConfigSerializer
-from apm_web.service.mock_data import API_PIPELINE_OVERVIEW_RESPONSE, API_LIST_PIPELINE_RESPONSE
+from apm_web.service.mock_data import API_LIST_PIPELINE_RESPONSE, API_PIPELINE_OVERVIEW_RESPONSE
 from apm_web.service.serializers import (
     AppServiceRelationSerializer,
-    LogServiceRelationOutputSerializer,
-    ServiceConfigSerializer,
-    PipelineOverviewRequestSerializer,
     ListPipelineRequestSerializer,
+    LogServiceRelationOutputSerializer,
+    PipelineOverviewRequestSerializer,
+    ServiceConfigSerializer,
 )
 from apm_web.topo.handle.relation.relation_metric import RelationMetricHandler
+from apm_web.utils import check_app_integration_status
 from bkm_space.errors import NoRelatedResourceError
 from bkm_space.validate import validate_bk_biz_id
 from bkmonitor.commons.tools import batch_request
 from bkmonitor.utils.cache import lru_cache_with_ttl
 from bkmonitor.utils.request import get_request_username
-from bkmonitor.utils.thread_backend import InheritParentThread, run_threads
-from bkmonitor.utils.thread_backend import ThreadPool
+from bkmonitor.utils.thread_backend import InheritParentThread, ThreadPool, run_threads
 from bkmonitor.utils.time_tools import get_datetime_range
 from core.drf_resource import Resource, api
 
@@ -195,7 +195,12 @@ class ServiceInfoResource(Resource):
         app_name = validate_data["app_name"]
         service_name = validate_data["service_name"]
         app = Application.objects.get(bk_biz_id=bk_biz_id, app_name=app_name)
-
+        if check_app_integration_status(app) is False:
+            return {
+                "application_id": app.application_id,
+                "is_enabled_profiling": app.is_enabled_profiling,
+                "is_profiling_data_normal": False,
+            }
         if not validate_data["start_time"] and not validate_data["end_time"]:
             start_time, end_time = get_datetime_range(
                 period="day",
