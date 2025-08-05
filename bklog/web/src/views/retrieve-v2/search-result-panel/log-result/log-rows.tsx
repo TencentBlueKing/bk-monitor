@@ -152,7 +152,7 @@ export default defineComponent({
 
       return indexSetQueryResult.value?.exception_msg || $t('检索结果为空');
     });
-
+    const isShowSourceField = computed(() => store.state.storage[BK_LOG_STORAGE.TABLE_SHOW_SOURCE_FIELD]);
     const fullColumns = ref([]);
     const showCtxType = ref(props.contentType);
 
@@ -349,7 +349,7 @@ export default defineComponent({
         align: 'left',
         resize: false,
         fixed: 'left',
-        disabled: !indexSetOperatorConfig.value?.isShowSourceField || !indexSetType.value,
+        disabled: !isShowSourceField.value || !indexSetType.value,
         renderBodyCell: ({ row }) => {
           const indeSetName =
             unionIndexItemList.value.find(item => item.index_set_id === String(row.__index_set_id__))?.index_set_name ??

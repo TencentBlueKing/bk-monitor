@@ -37,13 +37,15 @@ export default defineComponent({
   setup() {
     const store = useStore();
     const { $t } = useLocale();
-
     const isWrap = computed(() => store.state.storage[BK_LOG_STORAGE.TABLE_LINE_IS_WRAP]);
     const jsonFormatDeep = computed(() => store.state.storage[BK_LOG_STORAGE.TABLE_JSON_FORMAT_DEPTH]);
     const isJsonFormat = computed(() => store.state.storage[BK_LOG_STORAGE.TABLE_JSON_FORMAT]);
     const isAllowEmptyField = computed(() => store.state.storage[BK_LOG_STORAGE.TABLE_ALLOW_EMPTY_FIELD]);
     const showRowIndex = computed(() => store.state.storage[BK_LOG_STORAGE.TABLE_SHOW_ROW_INDEX]);
     const expandTextView = computed(() => store.state.storage[BK_LOG_STORAGE.IS_LIMIT_EXPAND_VIEW]);
+    const isShowSourceField = computed(() => store.state.storage[BK_LOG_STORAGE.TABLE_SHOW_SOURCE_FIELD]);
+    const isUnionSearch = computed(() => store.getters.isUnionSearch);
+    const isFormatDate = computed(() => store.state.isFormatDate);
     const currentSortField = computed(() => store.state.indexItem.sort_list?.[0] || []);
     const isSortShow = computed(() => {
       return requiredFields.includes(currentSortField.value[0]);
@@ -56,6 +58,7 @@ export default defineComponent({
       const isDesc = currentSortField.value[1] === 'desc';
       return isSortShow.value && isDesc;
     });
+
     const requiredFields = ['gseIndex', 'iterationIndex', 'dtEventTimeStamp'];
     const handleStorageChange = (val, key) => {
       store.commit('updateStorage', { [key]: val });
@@ -67,6 +70,9 @@ export default defineComponent({
       store.commit('updateStorage', { [BK_LOG_STORAGE.TABLE_JSON_FORMAT_DEPTH]: target });
     };
 
+    const handleFormatDate = (val) => {
+      store.commit('updateIsFormatDate', val);
+    }
     const handleShowLogTimeChange = (e, sort) => {
       const target = e.target;
       const sortMap = {
@@ -131,7 +137,26 @@ export default defineComponent({
             ></i>
           </span>
         </div>
-
+        {isUnionSearch.value && (
+          <bk-checkbox
+            style='margin: 0 12px 0 0'
+            class='bklog-option-item'
+            theme='primary'
+            value={isShowSourceField.value}
+            on-change={val => handleStorageChange(val, BK_LOG_STORAGE.TABLE_SHOW_SOURCE_FIELD)}
+          >
+            <span class='switch-label'>{$t('日志来源')}</span>
+          </bk-checkbox>
+        )}
+        <bk-checkbox
+          style='margin: 0 12px 0 0'
+          class='bklog-option-item'
+          theme='primary'
+          value={isFormatDate.value}
+          on-change={val => handleFormatDate(val)}
+        >
+          <span class='switch-label'>{$t('时间格式化')}</span>
+        </bk-checkbox>
         <bk-popover
           extCls='storage-more-popover'
           placement='bottom-start'
