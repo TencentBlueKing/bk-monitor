@@ -159,7 +159,6 @@ class EtlHandler:
         etl_params=None,
         fields=None,
         username="",
-        alias_settings=None,
     ):
         # 停止状态下不能编辑
         if self.data and not self.data.is_active:
