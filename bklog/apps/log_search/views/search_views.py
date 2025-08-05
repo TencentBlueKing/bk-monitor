@@ -2102,7 +2102,7 @@ class SearchViewSet(APIViewSet):
             }
         """
         data = self.params_valid(SearchLogForCodeSerializer)
-        token = request.token
-        if not token or token == "":
+        token = getattr(request, "token")
+        if not token:
             raise TokenMissingException()
         return Response(UnifyQueryHandler.search_log_for_code(token, data))

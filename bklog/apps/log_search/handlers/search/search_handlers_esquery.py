@@ -119,6 +119,7 @@ from apps.log_search.models import (
     Space,
     StorageClusterRecord,
     UserIndexSetFieldsConfig,
+    UserIndexSetSearchHistory,
 )
 from apps.log_search.permission import Permission
 from apps.log_search.utils import sort_func, handle_es_query_error
@@ -139,9 +140,6 @@ from apps.utils.log import logger
 from apps.utils.lucene import EnhanceLuceneAdapter, generate_query_string
 from apps.utils.thread import MultiExecuteFunc
 from bkm_ipchooser.constants import CommonEnum
-from apps.log_search.models import (
-    UserIndexSetSearchHistory,
-)
 
 max_len_dict = dict[str, int]  # pylint: disable=invalid-name
 
