@@ -108,7 +108,6 @@ class PromQLHelperCommandHandler(CommandHandler):
 class TracingAnalysisCommandHandler(CommandHandler):
     command = "tracing_analysis"
 
-    error_prompt = "获取Trace数据失败, 请检查参数是否正确"
     keys = ['status', 'kind', 'elapsed_time', 'start_time', 'span_name']
 
     # 基于 128K 上下文长度设置
@@ -130,7 +129,7 @@ class TracingAnalysisCommandHandler(CommandHandler):
 
         req = get_request()
         if not req:
-            return self.error_prompt
+            raise ValueError("TracingAnalysisCommandHandler requires 'local request'")
 
         try:
             biz_id = req.session["bk_biz_id"]
@@ -149,8 +148,7 @@ class TracingAnalysisCommandHandler(CommandHandler):
                     {k: self._get_nested_value(x, k) for k in self.keys} for x in trace_data
                 ]
         except (BKAPIError, KeyError) as e:
-            logger.error("TracingAnalysisCommandHandler: Failed to query trace data: %s", str(e))
-            return self.error_prompt
+            raise ValueError("TracingAnalysis failed to query trace data") from e
 
         return f"""
         请分析 trace: {str(processed_trace_data)[: self.max_character_length]}
