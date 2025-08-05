@@ -4,7 +4,7 @@ requires-python = "==3.11.*"
 
 [[package]]
 name = "aidev-agent"
-version = "1.0.0b18"
+version = "1.0.0b21"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "asgiref" },
@@ -22,7 +22,7 @@ dependencies = [
     { name = "werkzeug" },
 ]
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/b9/f2/976c104fa3d3959344f42471cb2ca0f305bd1d788b0855fa8ec8cb5a8cfe/aidev_agent-1.0.0b18-py3-none-any.whl", hash = "sha256:19c60a2e7273a763c69fdd5652882fb429c28c91a228338542ef605aee267c10", size = 122404, upload-time = "2025-07-14T13:02:26.79Z" },
+    { url = "https://files.pythonhosted.org/packages/74/dc/c0c12735959ea591a7f5ff6ab94bcdcd08b20232a48cbfd2867cecf9bf0f/aidev_agent-1.0.0b21-py3-none-any.whl", hash = "sha256:e7e7a3d934861d2e3ae451ca68a5524b573aba8a482598dcf151c9ccf9976a52", size = 124417, upload-time = "2025-07-22T04:22:31.342Z" },
 ]
 
 [[package]]
@@ -436,7 +436,7 @@ test = [
 
 [package.metadata]
 requires-dist = [
-    { name = "aidev-agent", specifier = "==1.0.0b18" },
+    { name = "aidev-agent", specifier = "==1.0.0b21" },
     { name = "apigw-manager", specifier = "==4.0.4" },
     { name = "arrow", specifier = "==0.6.0" },
     { name = "babel", specifier = "==2.14.0" },
