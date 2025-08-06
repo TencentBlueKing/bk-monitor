@@ -23,7 +23,8 @@
   .log-sort{
     position: relative;
     display: flex;
-    margin: 1px 12px 0px 0px;
+    margin: 1px 12px 0px 12px;
+    cursor: pointer;
 
     .bk-table-caret-wrapper {
       position: relative;

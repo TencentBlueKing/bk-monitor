@@ -143,7 +143,16 @@ class CreateEsRouter(BaseLogRouter):
             space_type=data["space_type"], space_id=data["space_id"], bk_tenant_id=bk_tenant_id, is_publish=True
         )
         client.push_es_table_id_detail(table_id_list=[data["table_id"]], is_publish=True)
-        push_and_publish_es_aliases(bk_tenant_id=bk_tenant_id, data_label=data["data_label"])
+
+        if data.get("data_label", None):
+            logger.info(
+                "CreateEsRouter: try to push data label route for table_id->[%s], data_label->[%s]",
+                data["table_id"],
+                data["data_label"],
+            )
+            client.push_data_label_table_ids(
+                data_label_list=[data.get("data_label")], bk_tenant_id=bk_tenant_id, is_publish=True
+            )
 
 
 class CreateDorisRouter(BaseLogRouter):
@@ -208,6 +217,15 @@ class CreateDorisRouter(BaseLogRouter):
         client.push_space_table_ids(
             space_type=data["space_type"], space_id=data["space_id"], bk_tenant_id=bk_tenant_id, is_publish=True
         )
+        if data.get("data_label", None):
+            logger.info(
+                "CreateDorisRouter: try to push data label router for table_id->[%s],data_label->[%s]",
+                data["table_id"],
+                data["data_label"],
+            )
+            client.push_data_label_table_ids(
+                data_label_list=[data["data_label"]], bk_tenant_id=bk_tenant_id, is_publish=True
+            )
 
         logger.info("CreateDorisRouter: push doris datalink router success")
 
@@ -266,6 +284,14 @@ class UpdateEsRouter(BaseLogRouter):
             self.create_or_update_options(bk_tenant_id=bk_tenant_id, table_id=table_id, options=data["options"])
         # 如果别名或者索引集有变动，则需要通知到unify-query
         if need_refresh_data_label:
+            logger.info(
+                "UpdateEsRouter: try to push data label router for table_id->[%s], data_label->[%s]",
+                table_id,
+                data["data_label"],
+            )
+            client.push_data_label_table_ids(
+                data_label_list=[data["data_label"]], bk_tenant_id=bk_tenant_id, is_publish=True
+            )
             push_and_publish_es_aliases(bk_tenant_id=bk_tenant_id, data_label=data["data_label"])
         logger.info("UpdateEsRouter: try to push es detail router for table_id->[%s]", table_id)
         client.push_es_table_id_detail(table_id_list=[table_id], bk_tenant_id=bk_tenant_id, is_publish=True)
@@ -295,12 +321,14 @@ class UpdateDorisRouter(BaseLogRouter):
 
         update_doris_fields = []
         need_refresh_table_id_detail = False
+        need_refresh_data_label = False
 
         try:
             # data_label
             if data.get("data_label") and data["data_label"] != result_table.data_label:
                 result_table.data_label = data["data_label"]
                 result_table.save(update_fields=["data_label"])
+                need_refresh_data_label = True
             # index_set
             if data.get("index_set") and data["index_set"] != doris_storage.index_set:
                 doris_storage.index_set = data["index_set"]
@@ -332,6 +360,16 @@ class UpdateDorisRouter(BaseLogRouter):
         if need_refresh_table_id_detail:
             # 推送结果表详情路由
             client.push_doris_table_id_detail(table_id_list=[table_id], bk_tenant_id=bk_tenant_id, is_publish=True)
+
+        if need_refresh_data_label:
+            logger.info(
+                "UpdateDorisRouter: try to push data label router for table_id->[%s], data_label->[%s]",
+                table_id,
+                data["data_label"],
+            )
+            client.push_data_label_table_ids(
+                data_label_list=[data["data_label"]], bk_tenant_id=bk_tenant_id, is_publish=True
+            )
 
         logger.info("UpdateDorisRouter:push doris router for table_id->[%s] successfully", table_id)
 

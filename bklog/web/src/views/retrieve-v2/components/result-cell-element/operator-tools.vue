@@ -114,7 +114,7 @@
         >
         </span>
       </span>
-      <span
+      <!-- <span
         class="handle-card"
         v-bk-tooltips="
           $t('{0}日志来源', {
@@ -124,7 +124,7 @@
         @click.stop="handleClick('logSource')"
       >
         <i :class="['bk-icon bklog-handle', `${!isShowSourceField ? 'icon-eye' : 'icon-eye-slash'}`]"></i>
-      </span>
+      </span> -->
     </template>
     <template v-if="isAiAssistanceActive">
       <span

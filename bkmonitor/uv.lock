@@ -354,6 +354,7 @@ dependencies = [
     { name = "jmespath" },
     { name = "kafka-python" },
     { name = "kubernetes" },
+    { name = "langfuse" },
     { name = "luqum" },
     { name = "mockredis" },
     { name = "netifaces" },
@@ -483,6 +484,7 @@ requires-dist = [
     { name = "jmespath", specifier = "==1.0.1" },
     { name = "kafka-python", specifier = "==1.4.6" },
     { name = "kubernetes", specifier = "==18.20.0" },
+    { name = "langfuse", specifier = "==2.60.5" },
     { name = "luqum", specifier = "==0.13.0" },
     { name = "mockredis", specifier = ">=0.1.3.dev0" },
     { name = "netifaces", specifier = "==0.11.0" },
@@ -1935,7 +1937,7 @@ wheels = [
 
 [[package]]
 name = "langfuse"
-version = "2.60.8"
+version = "2.60.5"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "anyio" },
@@ -1947,9 +1949,9 @@ dependencies = [
     { name = "requests" },
     { name = "wrapt" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/66/b8/1928d39799370d8030f067af5010318b147753fa330c068b3958b233cdeb/langfuse-2.60.8.tar.gz", hash = "sha256:0125841e8503b9ce1f405ab95411a7af2c244106e70eba99726c1f1a743cd164", size = 152659, upload-time = "2025-06-03T15:39:46.21Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/d1/19/475034a497a8a6e1156f62b3121522b753a1dad92a7187462402a9238467/langfuse-2.60.5.tar.gz", hash = "sha256:a33ecddc98cf6d12289372e63071b77b72230e7bc8260ee349f1465d53bf425b", size = 152406, upload-time = "2025-05-15T12:37:13.637Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/f1/a0/566955928c599cb78bccb72f76c5a7b6d56cff723bc841c4e4806b48d2d0/langfuse-2.60.8-py3-none-any.whl", hash = "sha256:072b050ae4c20f81556b9c4c751359bc76de70970636225b32760d1bd4b93042", size = 275496, upload-time = "2025-06-03T15:39:44.023Z" },
+    { url = "https://files.pythonhosted.org/packages/e9/04/8d69112a6b24431bfdb257a2a394f0ab036e5be5dcf4cb3b15db43b367f6/langfuse-2.60.5-py3-none-any.whl", hash = "sha256:fd27d52017f36d6fa5ca652615213a2535dc93dd88c3375eeb811af26384d285", size = 275379, upload-time = "2025-05-15T12:37:11.641Z" },
 ]
 
 [[package]]
