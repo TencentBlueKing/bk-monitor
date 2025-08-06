@@ -69,6 +69,7 @@ class AiopsSignatureAndPattern(SoftDeleteModel):
     label = models.TextField(_("标签"), default="")
     remark = models.JSONField(_("备注信息"), default=list, null=True, blank=True)
     owners = models.JSONField(_("负责人"), default=list, null=True, blank=True)
+    origin_log = models.TextField(_("原始日志"), default="")
 
     class Meta:
         index_together = ["model_id", "signature"]
