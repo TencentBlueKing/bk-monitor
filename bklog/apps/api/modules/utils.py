@@ -85,7 +85,7 @@ def adapt_non_bkcc_for_bknode(params):
                 _scope_id = get_non_bkcc_space_related_bkcc_biz_id(scope_id)
                 _cache[scope_id] = _scope_id
             item["scope_id"] = _scope_id
-        for item in params["host_list"][:2]:
+        for item in params["host_list"]:
             meta_scope_id = item["meta"]["scope_id"]
             meta_bk_biz_id = item["meta"]["bk_biz_id"]
             _meta_scope_id = _cache.get(meta_scope_id)
