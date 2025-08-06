@@ -174,6 +174,19 @@ export default defineComponent({
         // 检查是否有子节点被选中
         const hasSelectedChild = item.children?.some(child => propValueStrList.value.includes(`${child.index_set_id}`));
 
+        if (isOpenNode) {
+          item.children.forEach(child => {
+            child.is_shown_node = true;
+
+            // 如果启用隐藏空数据
+            if (hiddenEmptyItem.value) {
+              if (!props.value.includes(`${child.index_set_id}`)) {
+                child.is_shown_node = !child.tags.some(tag => tag.tag_id === 4);
+              }
+            }
+          });
+        }
+
         return {
           ...item,
           is_shown_node: is_shown_node || isOpenNode,
