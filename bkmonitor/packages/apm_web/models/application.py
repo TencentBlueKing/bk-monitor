@@ -543,7 +543,7 @@ class Application(AbstractRecordModel):
         # 下发配置
         from apm_web.tasks import update_application_config
 
-        update_application_config.delay(self.application_id)
+        update_application_config.delay(self.application_id, ["all"])
 
     def refresh_log_trace_plugin(self, plugin_config=None):
         if not plugin_config:
@@ -792,11 +792,9 @@ class Application(AbstractRecordModel):
     def get_relation(self, relation_key):
         return ApplicationRelationInfo.get_relation(self.application_id, relation_key)
 
-    def refresh_config(self, updated_config_keys=None):
+    def refresh_config(self, updated_config_keys):
         """刷新配置到API侧"""
 
-        if updated_config_keys is None:
-            updated_config_keys = []
         config = self.get_transfer_config(updated_config_keys)
 
         api.apm_api.release_app_config({"bk_biz_id": self.bk_biz_id, "app_name": self.app_name, **config})
@@ -808,11 +806,11 @@ class Application(AbstractRecordModel):
 
         return {"service_configs": service_config, **application_config}
 
-    def get_application_transfer_config(self, updated_config_keys=None):
+    def get_application_transfer_config(self, updated_config_keys):
         res = {}
 
         def should_include(key):
-            return not updated_config_keys or key in updated_config_keys
+            return "all" in updated_config_keys or key in updated_config_keys
 
         # 组装apdex配置
         if should_include(self.APDEX_CONFIG_KEY):
