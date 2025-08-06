@@ -11,6 +11,30 @@ specific language governing permissions and limitations under the License.
 from django.conf import settings
 
 
+def message_queue_add(biz_id, dsn):
+    """
+    新增指定业务的队列推送配置
+    """
+    biz_id_str = str(biz_id)
+
+    # 如果当前是字符串，转换为字典格式
+    if isinstance(settings.MESSAGE_QUEUE_DSN, str):
+        current_dsn = settings.MESSAGE_QUEUE_DSN
+        settings.MESSAGE_QUEUE_DSN = {"0": current_dsn} if current_dsn else {}
+
+    settings.MESSAGE_QUEUE_DSN[biz_id_str] = dsn
+
+
+def message_queue_remove(biz_id):
+    """
+    移除指定业务的队列推送配置
+    """
+    biz_id_str = str(biz_id)
+
+    if isinstance(settings.MESSAGE_QUEUE_DSN, dict) and biz_id_str in settings.MESSAGE_QUEUE_DSN:
+        del settings.MESSAGE_QUEUE_DSN[biz_id_str]
+
+
 def qos_set_bk_data_ts(interval=3):
     settings.QOS_DATASOURCE_LABELS = settings.QOS_DATASOURCE_LABELS = [["bk_data", "time_series"]]
     settings.QOS_INTERVAL_EXPAND = interval
