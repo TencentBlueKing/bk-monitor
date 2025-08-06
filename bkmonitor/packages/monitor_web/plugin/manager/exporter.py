@@ -11,6 +11,7 @@ specific language governing permissions and limitations under the License.
 import logging
 import os
 from collections import namedtuple
+from pathlib import Path
 
 from django.utils.translation import gettext as _
 
@@ -227,15 +228,17 @@ class ExporterPluginManager(PluginManager):
 
     def _get_collector_json(self, plugin_params):
         collector_file = {}
+
         for sys_name, sys_dir in list(OS_TYPE_TO_DIRNAME.items()):
             # 获取不同操作系统下的文件名
             collector_name = f"{self.plugin.plugin_id}.exe" if sys_name == "windows" else self.plugin.plugin_id
             collector_path = os.path.join(sys_dir, self.plugin.plugin_id, collector_name)
             # _path = collector_path.replace('\\', '/')
-            if any([collector_path in i for i in self.filename_list]):
+            if any([collector_path in str(i) for i in self.filename_list]):
                 # 读取文件内容
                 collector_file[sys_name] = self.CollectorFile(
-                    data=self._read_file(os.path.join(self.tmp_path, collector_path)), name=collector_name
+                    data=self._decode_file(self.plugin_configs[Path(self.plugin.plugin_id, collector_path)]),
+                    name=collector_name,
                 )
 
         collector_json = {}

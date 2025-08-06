@@ -10,6 +10,7 @@ specific language governing permissions and limitations under the License.
 
 import base64
 import os
+from pathlib import Path
 
 import yaml
 from django.utils.translation import gettext as _
@@ -205,7 +206,7 @@ class ScriptPluginManager(PluginManager):
                 self.plugin.plugin_id, OS_TYPE_TO_DIRNAME[os_name], self.plugin.plugin_id, file_info["filename"]
             )
 
-            script_content = self._decode_file(self.plugin_configs[script_path])
+            script_content = self._decode_file(self.plugin_configs[Path(script_path)])
             collector_json[os_name] = {
                 "filename": file_info["filename"],
                 "type": file_info["type"],
