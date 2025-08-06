@@ -72,9 +72,10 @@ class ServiceDiscover(Discover):
         return list(merged_dimensions.values())
 
     def discover(self, start_time, end_time):
-        # 1 - 查询自定义指标中的 service_name 维度。
+        # 1 - 查询自定义指标中的 service_name 和 rpc_system 维度。
         custom_metric_promql: str = (
-            f'count by (service_name) ({{__name__=~"custom:{self.result_table_id}:.*",{CUSTOM_METRICS_PROMQL_FILTER}}})'
+            f"count by (service_name, rpc_system) "
+            f'({{__name__=~"custom:{self.result_table_id}:.*",{CUSTOM_METRICS_PROMQL_FILTER}}})'
         )
         # 2 - 查询 RPC 指标中的 service_name 和 rpc_system 维度。
         #     相较于上一个实现版本，去掉 target 维度（已由接收端清洗为 service_name），增加 rpc_system 维度（兼容更多 RPC 框架）。
