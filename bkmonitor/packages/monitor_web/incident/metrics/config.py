@@ -9,7 +9,7 @@ specific language governing permissions and limitations under the License.
 """
 
 from typing import Any
-from bkmonitor.packages.monitor_web.incident.metrics.utils import transform_to_ip4, is_ipv4
+from monitor_web.incident.metrics.utils import transform_to_ip4, is_ipv4
 from monitor_web.incident.metrics.constants import EntityType
 from monitor_web.incident.metrics.constants import MetricName
 
@@ -70,13 +70,13 @@ BCS_PROMQL_TEMPLATE = {
         bcs_cluster_id="{bcs_cluster_id}", namespace=~"^({namespace})$", pod_name=~"^({pod_name})$", container_name!="{container_name}" \
         }[1m]  )) / sum by(pod)(kube_pod_container_resource_limits_cpu_cores{ \
         bcs_cluster_id="{bcs_cluster_id}", namespace=~"^({namespace})$", pod_name=~"^({pod_name})$", container_name!="{container_name}" \
-        }  )'
+        }  )',
     },
     # 内存使用量
     MetricName.BCS_PERFORMANCE_MEMORY_USAGE.value: {
         "promql": 'sum by(pod)(container_memory_working_set_bytes{ \
         bcs_cluster_id="{bcs_cluster_id}", namespace=~"^({namespace})$", pod_name=~"^({pod_name})$", container_name!="{container_name}" \
-        }  )'
+        }  )',
     },
     # 内存 request使用率
     MetricName.BCS_PERFORMANCE_MEMORY_REQUEST_USAGE_RATE.value: {
@@ -84,7 +84,7 @@ BCS_PROMQL_TEMPLATE = {
         bcs_cluster_id="{bcs_cluster_id}", namespace=~"^({namespace})$", pod_name=~"^({pod_name})$", container_name!="{container_name}" \
         }  ) / sum by(pod)(kube_pod_container_resource_requests_memory_bytes{ \
         bcs_cluster_id="{bcs_cluster_id}", namespace=~"^({namespace})$", pod_name=~"^({pod_name})$", container_name!="{container_name}" \
-        }  )'
+        }  )',
     },
     # 内存 limit使用率
     MetricName.BCS_PERFORMANCE_MEMORY_LIMIT_USAGE_RATE.value: {
@@ -92,19 +92,19 @@ BCS_PROMQL_TEMPLATE = {
         bcs_cluster_id="{bcs_cluster_id}", namespace=~"^({namespace})$", pod_name=~"^({pod_name})$", container_name!="{container_name}" \
         }  ) / sum by(pod)(kube_pod_container_resource_limits_memory_bytes{ \
         bcs_cluster_id="{bcs_cluster_id}", namespace=~"^({namespace})$", pod_name=~"^({pod_name})$", container_name!="{container_name}" \
-        }  )'
+        }  )',
     },
     # 网络入带宽
     MetricName.BCS_TRAFFIC_IN.value: {
         "promql": 'sum by(pod)(rate(container_network_receive_bytes_total{ \
         bcs_cluster_id="{bcs_cluster_id}", namespace=~"^({namespace})$", pod_name=~"^({pod_name})$", \
-        }[1m]  ))'
+        }[1m]  ))',
     },
     # 网络出带宽
     MetricName.BCS_TRAFFIC_OUT.value: {
         "promql": 'sum by(pod)(rate(container_network_transmit_bytes_total{ \
         bcs_cluster_id="{bcs_cluster_id}", namespace=~"^({namespace})$", pod_name=~"^({pod_name})$", \
-        }[1m]  ))'
+        }[1m]  ))',
     },
 }
 
@@ -112,397 +112,428 @@ BCS_PROMQL_TEMPLATE = {
 EntityTypeMetricConfigMapping = {
     EntityType.APMService.value: {
         MetricName.APM_TOTAL_REQUEST_COUNT.value: {
-            "expression": "A",
-            "query_configs": [
-                {
-                    **APM_BASE_QUERY_CONFIG,
-                    "metrics": [{"field": "bk_apm_count", "method": "SUM", "alias": "A"}],
-                    "group_by": [],
-                    "display": True,
-                    "where": [],
-                    "table": "{table}",
-                    "filter_dict": "{filter_dict}",
-                    "interval": "{interval}"
-                }
-            ]
-        },
+            "default": {
+                "expression": "A",
+                "query_configs": [
+                    {
+                        **APM_BASE_QUERY_CONFIG,
+                        "metrics": [{"field": "bk_apm_count", "method": "SUM", "alias": "A"}],
+                        "group_by": [],
+                        "display": True,
+                        "where": [],
+                        "table": "{table}",
+                        "filter_dict": "{filter_dict}",
+                        "interval": "{interval}"
+                    }
+                ]
+            }},
         MetricName.APM_ACTIVE_REQUEST_COUNT.value: {
-            "expression": "A",
-            "query_configs": [
-                {
-                    **APM_BASE_QUERY_CONFIG,
-                    "metrics": [{"field": "bk_apm_count", "method": "SUM", "alias": "A"}],
-                    "group_by": [],
-                    "display": True,
-                    "where": [
-                        {"key": "kind", "method": "eq", "value": ["3"]},
-                        {"condition": "or", "key": "kind", "method": "eq", "value": ["4"]}
-                    ],
-                    "table": "{table}",
-                    "filter_dict": "{filter_dict}",
-                    "interval": "{interval}"
-                }
-            ]
-        },
-        MetricName.APM_PASSIVE_REQUEST_COUNT.value: {
-            "expression": "A",
-            "query_configs": [
-                {
-                    **APM_BASE_QUERY_CONFIG,
-                    "metrics": [{"field": "bk_apm_count", "method": "SUM", "alias": "A"}],
-                    "group_by": [],
-                    "display": True,
-                    "where": [
-                        {"key": "kind", "method": "eq", "value": ["2"]},
-                        {"condition": "or", "key": "kind", "method": "eq", "value": ["5"]}
-                    ],
-                    "table": "{table}",
-                    "filter_dict": "{filter_dict}",
-                    "interval": "{interval}"
-                }
-            ]
-        },
+            "default": {
+                "expression": "A",
+                "query_configs": [
+                    {
+                        **APM_BASE_QUERY_CONFIG,
+                        "metrics": [{"field": "bk_apm_count", "method": "SUM", "alias": "A"}],
+                        "group_by": [],
+                        "display": True,
+                        "where": [
+                            {"key": "kind", "method": "eq", "value": ["3"]},
+                            {"condition": "or", "key": "kind",
+                             "method": "eq", "value": ["4"]}
+                        ],
+                        "table": "{table}",
+                        "filter_dict": "{filter_dict}",
+                        "interval": "{interval}"
+                    }
+                ]
+            },
+            MetricName.APM_PASSIVE_REQUEST_COUNT.value: {
+                "expression": "A",
+                "query_configs": [
+                    {
+                        **APM_BASE_QUERY_CONFIG,
+                        "metrics": [{"field": "bk_apm_count", "method": "SUM", "alias": "A"}],
+                        "group_by": [],
+                        "display": True,
+                        "where": [
+                            {"key": "kind", "method": "eq", "value": ["2"]},
+                            {"condition": "or", "key": "kind",
+                             "method": "eq", "value": ["5"]}
+                        ],
+                        "table": "{table}",
+                        "filter_dict": "{filter_dict}",
+                        "interval": "{interval}"
+                    }
+                ]
+            }},
         MetricName.APM_ERROR_COUNT.value: {
-            "expression": "A",
-            "query_configs": [
-                {
-                    **APM_BASE_QUERY_CONFIG,
-                    "metrics": [{"field": "bk_apm_count", "method": "SUM", "alias": "A"}],
-                    "group_by": [],
-                    "display": True,
-                    "where": [
-                        {"key": "status_code", "method": "eq", "value": ["2"], "condition": "and"}
-                    ],
-                    "table": "{table}",
-                    "filter_dict": "{filter_dict}",
-                    "interval": "{interval}"
-                }
-            ]
-        },
+            "default": {
+                "expression": "A",
+                "query_configs": [
+                    {
+                        **APM_BASE_QUERY_CONFIG,
+                        "metrics": [{"field": "bk_apm_count", "method": "SUM", "alias": "A"}],
+                        "group_by": [],
+                        "display": True,
+                        "where": [
+                            {"key": "status_code", "method": "eq",
+                             "value": ["2"], "condition": "and"}
+                        ],
+                        "table": "{table}",
+                        "filter_dict": "{filter_dict}",
+                        "interval": "{interval}"
+                    }
+                ]
+            }},
         MetricName.APM_ERROR_RATE.value: {
-            "expression": "b / c",
-            "query_configs": [
-                {
-                    **APM_BASE_QUERY_CONFIG,
-                    "metrics": [{"field": "bk_apm_count", "method": "SUM", "alias": "b"}],
-                    "group_by": [],
-                    "where": [
-                        {"key": "status_code", "method": "eq", "value": ["2"], "condition": "and"}
-                    ],
-                    "table": "{table}",
-                    "filter_dict": "{filter_dict}",
-                    "interval": "{interval}"
-                },
-                {
-                    **APM_BASE_QUERY_CONFIG,
-                    "metrics": [{"field": "bk_apm_count", "method": "SUM", "alias": "c"}],
-                    "group_by": [],
-                    "where": [],
-                    "table": "{table}",
-                    "filter_dict": "{filter_dict}",
-                    "interval": "{interval}"
-                }
-            ]
-        },
-        MetricName.APM_DURATION_AVG.value: {
-            "expression": "a / b",
-            "query_configs": [
-                {
-                    **APM_BASE_QUERY_CONFIG,
-                    "metrics": [{"field": "bk_apm_duration_sum", "method": "SUM", "alias": "a"}],
-                    "group_by": [],
-                    "where": [],
-                    "functions": [{"id": "increase", "params": [{"id": "window", "value": "2m"}]}],
-                    "table": "{table}",
-                    "filter_dict": "{filter_dict}",
-                    "interval": "{interval}"
-                },
-                {
-                    **APM_BASE_QUERY_CONFIG,
-                    "metrics": [{"field": "bk_apm_total", "method": "SUM", "alias": "b"}],
-                    "group_by": [],
-                    "where": [],
-                    "functions": [{"id": "increase", "params": [{"id": "window", "value": "2m"}]}],
-                    "table": "{table}",
-                    "filter_dict": {},
-                    "interval": "{interval}"
-                }
-            ]
-        },
-        MetricName.APM_DURATION_P99.value: {
-            "expression": "A",
-            "query_configs": [
-                {
-                    **APM_BASE_QUERY_CONFIG,
-                    "table": "{table}",
-                    "metrics": [{"field": "bk_apm_duration_bucket", "method": "SUM", "alias": "A"}],
-                    "group_by": ["le"],
-                    "display": True,
-                    "where": [],
-                    "filter_dict": "{filter_dict}",
-                    "functions": [
-                        {"id": "rate", "params": [{"id": "window", "value": "2m"}]},
-                        {"id": "histogram_quantile", "params": [{"id": "scalar","value": 0.99}]}
-                    ],
-                    "interval": "{interval}"
-                }
-            ]
-        },
-        MetricName.APM_DURATION_P95.value:{ 
-            "expression": "A",
-            "query_configs": [
-                {
-                    **APM_BASE_QUERY_CONFIG,
-                    "table": "{table}",
-                    "metrics": [{"field": "bk_apm_duration_bucket", "method": "SUM", "alias": "A"}],
-                    "group_by": ["le"],
-                    "display": True,
-                    "where": [],
-                    "filter_dict": "{filter_dict}",
-                    "functions": [
-                        {"id": "rate", "params": [{"id": "window", "value": "2m"}]},
-                        {"id": "histogram_quantile", "params": [{"id": "scalar","value": 0.95}]}
-                    ],
-                    "interval": "{interval}"
-                }
-            ]
-        },
-        MetricName.APM_DURATION_P50.value: {
-            "expression": "A",
-            "query_configs": [
-                {
-                    **APM_BASE_QUERY_CONFIG,
-                    "table": "{table}",
-                    "metrics": [{"field": "bk_apm_duration_bucket", "method": "SUM", "alias": "A"}],
-                    "group_by": ["le"],
-                    "display": True,
-                    "where": [],
-                    "filter_dict": "{filter_dict}",
-                    "functions": [
-                        {"id": "rate", "params": [{"id": "window", "value": "2m"}]},
-                        {"id": "histogram_quantile", "params": [{"id": "scalar","value": 0.5}]}
-                    ],
-                    "interval": "{interval}"
-                }
-            ]
+            "default": {
+                "expression": "b / c",
+                "query_configs": [
+                    {
+                        **APM_BASE_QUERY_CONFIG,
+                        "metrics": [{"field": "bk_apm_count", "method": "SUM", "alias": "b"}],
+                        "group_by": [],
+                        "where": [
+                            {"key": "status_code", "method": "eq",
+                             "value": ["2"], "condition": "and"}
+                        ],
+                        "table": "{table}",
+                        "filter_dict": "{filter_dict}",
+                        "interval": "{interval}"
+                    },
+                    {
+                        **APM_BASE_QUERY_CONFIG,
+                        "metrics": [{"field": "bk_apm_count", "method": "SUM", "alias": "c"}],
+                        "group_by": [],
+                        "where": [],
+                        "table": "{table}",
+                        "filter_dict": "{filter_dict}",
+                        "interval": "{interval}"
+                    }
+                ]
+            }},
+        MetricName.APM_DURATION.value: {
+            "avg": {
+                "expression": "a / b",
+                "query_configs": [
+                    {
+                        **APM_BASE_QUERY_CONFIG,
+                        "metrics": [{"field": "bk_apm_duration_sum", "method": "SUM", "alias": "a"}],
+                        "group_by": [],
+                        "where": [],
+                        "functions": [{"id": "increase", "params": [{"id": "window", "value": "2m"}]}],
+                        "table": "{table}",
+                        "filter_dict": "{filter_dict}",
+                        "interval": "{interval}"
+                    },
+                    {
+                        **APM_BASE_QUERY_CONFIG,
+                        "metrics": [{"field": "bk_apm_total", "method": "SUM", "alias": "b"}],
+                        "group_by": [],
+                        "where": [],
+                        "functions": [{"id": "increase", "params": [{"id": "window", "value": "2m"}]}],
+                        "table": "{table}",
+                        "filter_dict": {},
+                        "interval": "{interval}"
+                    }
+                ]
+            },
+            "p99": {
+                "expression": "A",
+                "query_configs": [
+                    {
+                        **APM_BASE_QUERY_CONFIG,
+                        "table": "{table}",
+                        "metrics": [{"field": "bk_apm_duration_bucket", "method": "SUM", "alias": "A"}],
+                        "group_by": ["le"],
+                        "display": True,
+                        "where": [],
+                        "filter_dict": "{filter_dict}",
+                        "functions": [
+                            {"id": "rate", "params": [
+                                {"id": "window", "value": "2m"}]},
+                            {"id": "histogram_quantile", "params": [
+                                {"id": "scalar", "value": 0.99}]}
+                        ],
+                        "interval": "{interval}"
+                    }
+                ]
+            },
+            "p95":  {
+                "expression": "A",
+                "query_configs": [
+                    {
+                        **APM_BASE_QUERY_CONFIG,
+                        "table": "{table}",
+                        "metrics": [{"field": "bk_apm_duration_bucket", "method": "SUM", "alias": "A"}],
+                        "group_by": ["le"],
+                        "display": True,
+                        "where": [],
+                        "filter_dict": "{filter_dict}",
+                        "functions": [
+                            {"id": "rate", "params": [
+                                {"id": "window", "value": "2m"}]},
+                            {"id": "histogram_quantile", "params": [
+                                {"id": "scalar", "value": 0.95}]}
+                        ],
+                        "interval": "{interval}"
+                    }
+                ]
+            },
+            "p50": {
+                "expression": "A",
+                "query_configs": [
+                    {
+                        **APM_BASE_QUERY_CONFIG,
+                        "table": "{table}",
+                        "metrics": [{"field": "bk_apm_duration_bucket", "method": "SUM", "alias": "A"}],
+                        "group_by": ["le"],
+                        "display": True,
+                        "where": [],
+                        "filter_dict": "{filter_dict}",
+                        "functions": [
+                            {"id": "rate", "params": [
+                                {"id": "window", "value": "2m"}]},
+                            {"id": "histogram_quantile", "params": [
+                                {"id": "scalar", "value": 0.5}]}
+                        ],
+                        "interval": "{interval}"
+                    }
+                ]
+            }
         },
     },
     EntityType.BcsPod.value: {
         MetricName.BCS_PERFORMANCE_CPU_USAGE.value: {
-            "expression": "A",
-            "query_configs": [
-                {
-                    **BCS_BASE_QUERY_CONFIG,
-                    **BCS_PROMQL_TEMPLATE[MetricName.BCS_PERFORMANCE_CPU_USAGE.value]
-                }
-            ],
-            "down_sample_range": "6s",
-        },
+            "default": {
+                "expression": "A",
+                "query_configs": [
+                    {
+                        **BCS_BASE_QUERY_CONFIG,
+                        **BCS_PROMQL_TEMPLATE[MetricName.BCS_PERFORMANCE_CPU_USAGE.value]
+                    }
+                ],
+                "down_sample_range": "6s",
+            }},
         MetricName.BCS_PERFORMANCE_CPU_REQUEST_USAGE_RATE.value: {
-            "expression": "A",
-            "query_configs": [
-                {
-                    **BCS_BASE_QUERY_CONFIG,
-                    **BCS_PROMQL_TEMPLATE[MetricName.BCS_PERFORMANCE_CPU_REQUEST_USAGE_RATE.value]
-                }
-            ],
-            "down_sample_range": "10s",
-        },
+            "default": {
+                "expression": "A",
+                "query_configs": [
+                    {
+                        **BCS_BASE_QUERY_CONFIG,
+                        **BCS_PROMQL_TEMPLATE[MetricName.BCS_PERFORMANCE_CPU_REQUEST_USAGE_RATE.value]
+                    }
+                ],
+                "down_sample_range": "10s",
+            }},
         MetricName.BCS_PERFORMANCE_CPU_LIMIT_USAGE_RATE.value: {
-            "expression": "A",
-            "query_configs": [
-                {
-                    **BCS_BASE_QUERY_CONFIG,
-                    **BCS_PROMQL_TEMPLATE[MetricName.BCS_PERFORMANCE_CPU_LIMIT_USAGE_RATE.value]
-                }
-            ],
-            "down_sample_range": "10s",
-        },
+            "default": {
+                "expression": "A",
+                "query_configs": [
+                    {
+                        **BCS_BASE_QUERY_CONFIG,
+                        **BCS_PROMQL_TEMPLATE[MetricName.BCS_PERFORMANCE_CPU_LIMIT_USAGE_RATE.value]
+                    }
+                ],
+                "down_sample_range": "10s",
+            }},
         MetricName.BCS_PERFORMANCE_MEMORY_USAGE.value: {
-            "expression": "A",
-            "query_configs": [
-                {
-                    **BCS_BASE_QUERY_CONFIG,
-                    **BCS_PROMQL_TEMPLATE[MetricName.BCS_PERFORMANCE_MEMORY_USAGE.value]
-                }
-            ],
-            "down_sample_range": "10s",
-        },
+            "default": {
+                "expression": "A",
+                "query_configs": [
+                    {
+                        **BCS_BASE_QUERY_CONFIG,
+                        **BCS_PROMQL_TEMPLATE[MetricName.BCS_PERFORMANCE_MEMORY_USAGE.value]
+                    }
+                ],
+                "down_sample_range": "10s",
+            }},
         MetricName.BCS_PERFORMANCE_MEMORY_REQUEST_USAGE_RATE.value: {
-            "expression": "A",
-            "query_configs": [
-                {
-                    **BCS_BASE_QUERY_CONFIG,
-                    **BCS_PROMQL_TEMPLATE[MetricName.BCS_PERFORMANCE_MEMORY_REQUEST_USAGE_RATE.value]
-                }
-            ],
-            "down_sample_range": "10s",
-        },
+            "default": {
+                "expression": "A",
+                "query_configs": [
+                    {
+                        **BCS_BASE_QUERY_CONFIG,
+                        **BCS_PROMQL_TEMPLATE[MetricName.BCS_PERFORMANCE_MEMORY_REQUEST_USAGE_RATE.value]
+                    }
+                ],
+                "down_sample_range": "10s",
+            }},
         MetricName.BCS_PERFORMANCE_MEMORY_LIMIT_USAGE_RATE.value: {
-            "expression": "A",
-            "query_configs": [
-                {
-                    **BCS_BASE_QUERY_CONFIG,
-                    **BCS_PROMQL_TEMPLATE[MetricName.BCS_PERFORMANCE_MEMORY_LIMIT_USAGE_RATE.value]
-                }
-            ],
-            "down_sample_range": "10s",
-        },
+            "default": {
+                "expression": "A",
+                "query_configs": [
+                    {
+                        **BCS_BASE_QUERY_CONFIG,
+                        **BCS_PROMQL_TEMPLATE[MetricName.BCS_PERFORMANCE_MEMORY_LIMIT_USAGE_RATE.value]
+                    }
+                ],
+                "down_sample_range": "10s",
+            }},
         MetricName.BCS_TRAFFIC_IN.value: {
-            "expression": "A",
-            "query_configs": [
-                {
-                    **BCS_BASE_QUERY_CONFIG,
-                    **BCS_PROMQL_TEMPLATE[MetricName.BCS_TRAFFIC_IN.value]
-                }
-            ],
-            "down_sample_range": "10s",
-        },
+            "default": {
+                "expression": "A",
+                "query_configs": [
+                    {
+                        **BCS_BASE_QUERY_CONFIG,
+                        **BCS_PROMQL_TEMPLATE[MetricName.BCS_TRAFFIC_IN.value]
+                    }
+                ],
+                "down_sample_range": "10s",
+            }},
         MetricName.BCS_TRAFFIC_OUT.value: {
-            "expression": "A",
-            "query_configs": [
-                {
-                    **BCS_BASE_QUERY_CONFIG,
-                    **BCS_PROMQL_TEMPLATE[MetricName.BCS_TRAFFIC_OUT.value]
-                }
-            ],
-            "down_sample_range": "10s",
-        },
+            "default": {
+                "expression": "A",
+                "query_configs": [
+                    {
+                        **BCS_BASE_QUERY_CONFIG,
+                        **BCS_PROMQL_TEMPLATE[MetricName.BCS_TRAFFIC_OUT.value]
+                    }
+                ],
+                "down_sample_range": "10s",
+            }},
     },
     EntityType.BkNodeHost.value: {
         MetricName.HOST_CPU_FIVE_MINUTE_AVERAGE_LOAD.value: {
-            "expression": "A",
-            "query_configs": [
-                {
-                    **HOST_BASE_QUERY_CONFIG,
-                    "metrics": [{"field": "load5", "method": "MAX", "alias": "A"}],
-                    "table": "system.load",
-                    "group_by": [],
-                    "where": [],
-                    "filter_dict": {
-                        "targets": [
-                            {
-                                "bk_target_ip": "{bk_target_ip}",
-                                "bk_target_cloud_id": "{bk_target_cloud_id}"
-                            }
-                        ]
+            "default": {
+                "expression": "A",
+                "query_configs": [
+                    {
+                        **HOST_BASE_QUERY_CONFIG,
+                        "metrics": [{"field": "load5", "method": "MAX", "alias": "A"}],
+                        "table": "system.load",
+                        "group_by": [],
+                        "where": [],
+                        "filter_dict": {
+                            "targets": [
+                                {
+                                    "bk_target_ip": "{bk_target_ip}",
+                                    "bk_target_cloud_id": "{bk_target_cloud_id}"
+                                }
+                            ]
+                        }
                     }
-                }
-            ],
-            "down_sample_range": "18s",
-        },
+                ],
+                "down_sample_range": "18s",
+            }},
         MetricName.HOST_CPU_USAGE_RATE.value: {
-            "expression": "A",
-            "query_configs": [
-                {
-                    **HOST_BASE_QUERY_CONFIG,
-                    "metrics": [{"field": "usage", "method": "MAX", "alias": "A"}],
-                    "table": "system.cpu_summary",
-                    "group_by": [],
-                    "where": [],
-                    "filter_dict": {
-                        "targets": [
-                            {
-                                "bk_target_ip": "{bk_target_ip}",
-                                "bk_target_cloud_id": "{bk_target_cloud_id}"
-                            }
-                        ]
+            "default": {
+                "expression": "A",
+                "query_configs": [
+                    {
+                        **HOST_BASE_QUERY_CONFIG,
+                        "metrics": [{"field": "usage", "method": "MAX", "alias": "A"}],
+                        "table": "system.cpu_summary",
+                        "group_by": [],
+                        "where": [],
+                        "filter_dict": {
+                            "targets": [
+                                {
+                                    "bk_target_ip": "{bk_target_ip}",
+                                    "bk_target_cloud_id": "{bk_target_cloud_id}"
+                                }
+                            ]
+                        }
                     }
-                }
-            ],
-            "down_sample_range": "18s",
-        },
+                ],
+                "down_sample_range": "18s",
+            }},
         MetricName.HOST_MEM_PHYSICAL_FREE.value: {
-            "expression": "A",
-            "query_configs": [
-                {
-                    **HOST_BASE_QUERY_CONFIG,
-                    "metrics": [{"field": "free", "method": "MAX", "alias": "A"}],
-                    "table": "system.mem",
-                    "group_by": [],
-                    "where": [],
-                    "filter_dict": {
-                        "targets": [
-                            {
-                                "bk_target_ip": "{bk_target_ip}",
-                                "bk_target_cloud_id": "{bk_target_cloud_id}"
-                            }
-                        ]
+            "default": {
+                "expression": "A",
+                "query_configs": [
+                    {
+                        **HOST_BASE_QUERY_CONFIG,
+                        "metrics": [{"field": "free", "method": "MAX", "alias": "A"}],
+                        "table": "system.mem",
+                        "group_by": [],
+                        "where": [],
+                        "filter_dict": {
+                            "targets": [
+                                {
+                                    "bk_target_ip": "{bk_target_ip}",
+                                    "bk_target_cloud_id": "{bk_target_cloud_id}"
+                                }
+                            ]
+                        }
                     }
-                }
-            ],
-            "down_sample_range": "18s",
-        },
+                ],
+                "down_sample_range": "18s",
+            }},
         MetricName.HOST_NIC_IN_RATE.value: {
-            "expression": "A",
-            "query_configs": [
-                {
-                    **HOST_BASE_QUERY_CONFIG,
-                    "metrics": [{"field": "speed_recv_bit", "method": "MAX", "alias": "A"}],
-                    "table": "system.net",
-                    "group_by": ["device_name"],
-                    "where": [],
-                    "filter_dict": {
-                        "targets": [
-                            {
-                                "bk_target_ip": "{bk_target_ip}",
-                                "bk_target_cloud_id": "{bk_target_cloud_id}"
-                            }
-                        ]
+            "default": {
+                "expression": "A",
+                "query_configs": [
+                    {
+                        **HOST_BASE_QUERY_CONFIG,
+                        "metrics": [{"field": "speed_recv_bit", "method": "MAX", "alias": "A"}],
+                        "table": "system.net",
+                        "group_by": ["device_name"],
+                        "where": [],
+                        "filter_dict": {
+                            "targets": [
+                                {
+                                    "bk_target_ip": "{bk_target_ip}",
+                                    "bk_target_cloud_id": "{bk_target_cloud_id}"
+                                }
+                            ]
+                        }
                     }
-                }
-            ],
-            "down_sample_range": "19s",
-        },
+                ],
+                "down_sample_range": "19s",
+            }},
         MetricName.HOST_NIC_OUT_RATE.value: {
-            "expression": "A",
-            "query_configs": [
-                {
-                    **HOST_BASE_QUERY_CONFIG,
-                    "metrics": [{"field": "speed_sent_bit", "method": "MAX", "alias": "A"}],
-                    "table": "system.net",
-                    "group_by": ["device_name"],
-                    "where": [],
-                    "filter_dict": {
-                        "targets": [
-                            {
-                                "bk_target_ip": "{bk_target_ip}",
-                                "bk_target_cloud_id": "{bk_target_cloud_id}"
-                            }
-                        ]
+            "default": {
+                "expression": "A",
+                "query_configs": [
+                    {
+                        **HOST_BASE_QUERY_CONFIG,
+                        "metrics": [{"field": "speed_sent_bit", "method": "MAX", "alias": "A"}],
+                        "table": "system.net",
+                        "group_by": ["device_name"],
+                        "where": [],
+                        "filter_dict": {
+                            "targets": [
+                                {
+                                    "bk_target_ip": "{bk_target_ip}",
+                                    "bk_target_cloud_id": "{bk_target_cloud_id}"
+                                }
+                            ]
+                        }
                     }
-                }
-            ],
-            "down_sample_range": "19s",
-        },
+                ],
+                "down_sample_range": "19s",
+            }},
         MetricName.HOST_DISK_USAGE_RATE.value: {
-            "expression": "A",
-            "query_configs": [
-                {
-                    **HOST_BASE_QUERY_CONFIG,
-                    "metrics": [{"field": "in_use", "method": "MAX", "alias": "A"}],
-                    "table": "system.disk",
-                    "group_by": ["mount_point"],
-                    "where": [],
-                    "filter_dict": {
-                        "targets": [
-                            {
-                                "bk_target_ip": "{bk_target_ip}",
-                                "bk_target_cloud_id": "{bk_target_cloud_id}"
-                            }
-                        ]
+            "default": {
+                "expression": "A",
+                "query_configs": [
+                    {
+                        **HOST_BASE_QUERY_CONFIG,
+                        "metrics": [{"field": "in_use", "method": "MAX", "alias": "A"}],
+                        "table": "system.disk",
+                        "group_by": ["mount_point"],
+                        "where": [],
+                        "filter_dict": {
+                            "targets": [
+                                {
+                                    "bk_target_ip": "{bk_target_ip}",
+                                    "bk_target_cloud_id": "{bk_target_cloud_id}"
+                                }
+                            ]
+                        }
                     }
-                }
-            ],
-            "down_sample_range": "19s",
-        }
+                ],
+                "down_sample_range": "19s",
+            }},
     }
 }
 
-def _fill_query_config(query_config: dict,key:str,value:Any):
+
+def _fill_query_config(query_config: dict, key: str, value: Any):
     """
     填充/覆盖查询配置占位符
-    
+
     Args:
         query_config: 查询配置
         key: 需要填充的key
@@ -510,22 +541,22 @@ def _fill_query_config(query_config: dict,key:str,value:Any):
     """
     query_config[key] = value if query_config[key] == f"{{{key}}}" else query_config[key]
 
-def _replace_query_config(query_config: dict,key:str,pattern:str,value:Any):
+
+def _replace_query_config(query_config: dict, key: str, pattern: str, value: Any):
     """
     替换查询配置占位符(替换所有)
-    
+
     Args:
         query_config: 查询配置
         key: 需要替换的key
         pattern: 需要替换的pattern
         value: 需要替换的value
     """
-    query_config[key] = query_config[key].replace(pattern,value)
+    query_config[key] = query_config[key].replace(pattern, value)
 
-            
-def get_apm_config(dimensions: dict[str, Any],**kwargs):
+def get_apm_config(dimensions: dict[str, Any], **kwargs):
     """获取APM配置
-    
+
     Args:
         request_data: 请求数据，包含以下字段：
             - table: APM表名
@@ -533,36 +564,37 @@ def get_apm_config(dimensions: dict[str, Any],**kwargs):
             - start_time: 开始时间
             - end_time: 结束时间
             - bk_biz_id: 业务ID
-    
+
     Returns:
         填充后的APM所有指标配置
     """
-            
+
     # 获取APM配置模板
     apm_config = EntityTypeMetricConfigMapping[EntityType.APMService.value]
-    
+
     # 复制所有配置
     filled_config = {}
     for metric_name, metric_config in apm_config.items():
         filled_config[metric_name] = metric_config.copy()
-        
+
         # 填充每个指标的查询配置
-        for query_config in filled_config[metric_name]["query_configs"]:
-            _fill_query_config(query_config,"table",kwargs.get("table"))
-            _fill_query_config(query_config,"filter_dict",{"service_name": dimensions.get("apm_service_name")})
-            _fill_query_config(query_config,"interval",kwargs.get("interval", 120))
-            
-        filled_config[metric_name].update({
-            "start_time": kwargs.get("start_time"),
-            "end_time": kwargs.get("end_time"),
-            "bk_biz_id": kwargs.get("bk_biz_id")
-        })
+        for dimension_type, query in filled_config[metric_name].items():
+            for query_config in query["query_configs"]:
+                _fill_query_config(query_config, "table", kwargs.get("table"))
+                _fill_query_config(query_config, "filter_dict", {"service_name": dimensions.get("apm_service_name")})
+                _fill_query_config(query_config, "interval", kwargs.get("interval", 120))
+
+            filled_config[metric_name][dimension_type].update({
+                "start_time": kwargs.get("start_time"),
+                "end_time": kwargs.get("end_time"),
+                "bk_biz_id": kwargs.get("bk_biz_id")
+            })
     return filled_config
 
 
-def get_bcs_config(dimensions: dict[str, Any],**kwargs):
+def get_bcs_config(dimensions: dict[str, Any], **kwargs):
     """获取BCS配置
-    
+
     Args:
         request_data: 请求数据，包含以下字段：
             - bcs_cluster_id: BCS集群ID
@@ -571,39 +603,38 @@ def get_bcs_config(dimensions: dict[str, Any],**kwargs):
             - start_time: 开始时间
             - end_time: 结束时间
             - bk_biz_id: 业务ID
-    
+
     Returns:
         填充后的BCS所有指标配置
     """
     # 获取BCS配置模板
     bcs_config = EntityTypeMetricConfigMapping[EntityType.BcsPod.value]
-    
+    print(dimensions)
+    import json
     # 复制所有配置
     filled_config = {}
     for metric_name, metric_config in bcs_config.items():
         filled_config[metric_name] = metric_config.copy()
-        
         # 填充每个指标的查询配置
-        for query_config in filled_config[metric_name]["query_configs"]:
+        for dimension_type, query in filled_config[metric_name].items():
             # 替换PromQL中的bcs_filter占位符
-            if "promql" in query_config:
-                _replace_query_config(query_config,"promql","{namespace}", dimensions.get("namespace"))
-                _replace_query_config(query_config,"promql","{pod_name}", dimensions.get("pod_name"))
-                _replace_query_config(query_config,"promql","{container_name}", dimensions.get("container_name","POD"))
-                _replace_query_config(query_config,"promql","{bcs_cluster_id}", dimensions.get("cluster_id"))
-            
-        filled_config[metric_name].update({
+            for query_config in query["query_configs"]:
+                if "promql" in query_config:
+                    _replace_query_config(query_config, "promql", "{namespace}", dimensions.get("namespace"))
+                    _replace_query_config(query_config, "promql", "{pod_name}", dimensions.get("pod_name"))
+                    _replace_query_config(query_config, "promql", "{container_name}", dimensions.get("container_name", "POD"))
+                    _replace_query_config(query_config, "promql", "{bcs_cluster_id}", dimensions.get("cluster_id"))
+            filled_config[metric_name][dimension_type].update({
                 "start_time": kwargs.get("start_time"),
                 "end_time": kwargs.get("end_time"),
                 "bk_biz_id": kwargs.get("bk_biz_id")
-        })
-    
+            })
     return filled_config
 
 
-def get_host_config(dimensions: dict[str, Any],**kwargs):
+def get_host_config(dimensions: dict[str, Any], **kwargs):
     """获取Host配置
-    
+
     Args:
         request_data: 请求数据，包含以下字段：
             - bk_target_ip: 目标IP
@@ -611,42 +642,45 @@ def get_host_config(dimensions: dict[str, Any],**kwargs):
             - start_time: 开始时间
             - end_time: 结束时间
             - bk_biz_id: 业务ID
-    
+
     Returns:
         填充后的Host所有指标配置
     """
     # 获取Host配置模板
     host_config = EntityTypeMetricConfigMapping[EntityType.BkNodeHost.value]
-    
+
     # 复制所有配置
     filled_config = {}
     for metric_name, metric_config in host_config.items():
         filled_config[metric_name] = metric_config.copy()
-        
+
         # 填充每个指标的查询配置
-        for query_config in filled_config[metric_name]["query_configs"]:
+        for dimension_type, query in filled_config[metric_name].items():
             # 替换目标参数
-            if "filter_dict" in query_config and "targets" in query_config["filter_dict"]:
-                target = query_config["filter_dict"]["targets"][0]
+            for query_config in query["query_configs"]:
+                if "filter_dict" in query_config and "targets" in query_config["filter_dict"]:
+                    target = query_config["filter_dict"]["targets"][0]
                 inner_ip = dimensions.get("inner_ip")
-                target["bk_target_ip"] = inner_ip if is_ipv4(inner_ip) else transform_to_ip4(inner_ip)
+                target["bk_target_ip"] = inner_ip if is_ipv4(
+                    inner_ip) else transform_to_ip4(inner_ip)
                 target["bk_target_cloud_id"] = dimensions.get("bk_cloud_id")
-            
-        filled_config[metric_name].update({
+
+            filled_config[metric_name][dimension_type].update({
                 "start_time": kwargs.get("start_time"),
                 "end_time": kwargs.get("end_time"),
                 "bk_biz_id": kwargs.get("bk_biz_id")
-        })
+            })
     return filled_config
 
-def get_config_by_dimensions(dimensions: dict[str, Any],**kwargs):
+
+def get_config_by_dimensions(dimensions: dict[str, Any], **kwargs):
     """根据实体类型获取配置"""
     entity_type = kwargs.get("entity_type")
     config_getters = {
-            EntityType.BcsPod.value: get_bcs_config,
-            EntityType.APMService.value: get_apm_config,
-            EntityType.BkNodeHost.value: get_host_config,
-        }
+        EntityType.BcsPod.value: get_bcs_config,
+        EntityType.APMService.value: get_apm_config,
+        EntityType.BkNodeHost.value: get_host_config,
+    }
 
     getter = config_getters.get(entity_type)
-    return getter(dimensions,**kwargs) if getter else ""    
+    return getter(dimensions, **kwargs) if getter else {}

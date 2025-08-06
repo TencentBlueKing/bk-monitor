@@ -68,6 +68,8 @@ class MetricName(CachedEnum):
     APM_PASSIVE_REQUEST_COUNT = "apm.passive_request_count"
     APM_ERROR_COUNT = "apm.error_count"
     APM_ERROR_RATE = "apm.error_rate"
+    
+    APM_DURATION = "apm.duration"
     APM_DURATION_AVG = "apm.duration_avg"
     APM_DURATION_P99 = "apm.duration_p99"
     APM_DURATION_P95 = "apm.duration_p95"
@@ -105,6 +107,7 @@ class MetricName(CachedEnum):
                 MetricName.APM_PASSIVE_REQUEST_COUNT: "被调请求数",
                 MetricName.APM_ERROR_COUNT: "错误请求数",
                 MetricName.APM_ERROR_RATE: "错误率",
+                MetricName.APM_DURATION: "耗时",
                 MetricName.APM_DURATION_AVG: "平均耗时",
                 MetricName.APM_DURATION_P99: "99% 耗时",
                 MetricName.APM_DURATION_P95: "95% 耗时",

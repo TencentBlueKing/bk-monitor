@@ -18,26 +18,25 @@ class MetricsSearchSerializer(serializers.Serializer):
     start_time = serializers.IntegerField(label="开始时间", default=None)
     end_time = serializers.IntegerField(label="结束时间", default=None)
 
-    def validate_dimensions(self, entity_type: str, value: dict):
-        entity_type = value.get("entity_type")
+    def validate_dimensions(self, entity_type: str, dimensions: dict):
         if entity_type == EntityType.APMService.value:
-            if not value.get("apm_service_name"):
+            if not dimensions.get("apm_service_name"):
                 raise serializers.ValidationError("dimension.apm_service_name is required")
-            if not value.get("apm_app_name"):
+            if not dimensions.get("apm_app_name"):
                 raise serializers.ValidationError("dimension.apm_app_name is required")
         
         elif entity_type == EntityType.BcsPod.value:
-            if not value.get("cluster_id"):
+            if not dimensions.get("cluster_id"):
                 raise serializers.ValidationError("dimension.cluster_id is required")
-            if not value.get("namespace"):
+            if not dimensions.get("namespace"):
                 raise serializers.ValidationError("dimension.namespace is required")
-            if not value.get("pod_name") or not value.get("pod"):
+            if not dimensions.get("pod_name"):
                 raise serializers.ValidationError("dimension.pod_name is required")
         
         elif entity_type == EntityType.BkNodeHost.value:
-            if not value.get("inner_ip"):
+            if not dimensions.get("inner_ip"):
                 raise serializers.ValidationError("dimension.inner_ip is required")
-            if not value.get("bk_cloud_id"):
+            if not dimensions.get("bk_cloud_id"):
                 raise serializers.ValidationError("dimension.bk_cloud_id is required")
         
         elif entity_type == EntityType.UnKnown.value:
@@ -48,13 +47,17 @@ class MetricsSearchSerializer(serializers.Serializer):
         index_info = attrs.get("index_info")
         if not isinstance(index_info, dict):
             raise serializers.ValidationError("index_info must be a json object")
+        
         metric_type = attrs.get("metric_type")
         valid_metric_types = MetricType.choices()
         if metric_type not in valid_metric_types:
             raise serializers.ValidationError(f"metric_type must be one of {valid_metric_types}")
-        dimensions = index_info.get("dimensions") or {}
-        entity_type = index_info.get("entity_type")
-        if entity_type not in EntityType.choices():
-            raise serializers.ValidationError(f"entity_type must be one of {EntityType.choices()}")
+        
+        dimensions = index_info.get("dimensions",{})
+        entity_type = index_info.get("entity_type","")
+        valid_entity_types = EntityType.choices()
+        if entity_type not in valid_entity_types:
+            raise serializers.ValidationError(f"entity_type must be one of {valid_entity_types}")
+        
         self.validate_dimensions(entity_type, dimensions)
         return attrs

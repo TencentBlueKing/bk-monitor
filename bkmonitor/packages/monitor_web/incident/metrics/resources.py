@@ -17,14 +17,16 @@ from bkmonitor.utils.thread_backend import InheritParentThread, run_threads
 from core.drf_resource import resource
 import threading
 
+
 class BaseIncidentMetricsResource(Resource):
     """
     故障告警指标查询接口
     """
+
     def __init__(self):
         super().__init__()
         self._lock = threading.Lock()
-    
+
     def _get_tables_by_entity_type(self, entity_type: str, **kwargs) -> str:
         """
         根据实体类型获取对应的table名集合
@@ -38,38 +40,37 @@ class BaseIncidentMetricsResource(Resource):
 
         getter = table_getters.get(entity_type)
         return getter(**kwargs) if getter else ""
-    
+
     def _get_apm_service_table(self, **kwargs) -> str:
         """
         获取APMService类型的表名
         """
-        app_name = kwargs.get("apm_app_name","")
-        bk_biz_id = kwargs.get("bk_biz_id",0)
+        app_name = kwargs.get("apm_app_name", "")
+        bk_biz_id = kwargs.get("bk_biz_id", 0)
         if not app_name or not bk_biz_id:
             return ""
-        
+
         return f"{bk_biz_id}_bkapm_metric_{app_name}.__default__"
-        
-        
+
     def _get_bcs_pod_tables(self, **kwargs) -> str:
         """
         获取BcsPod类型的表名
         """
         return ""
-    
+
     def _get_bk_node_host_tables(self, **kwargs) -> str:
         """
         获取BKNodeHost类型的表名
         """
         return ""
-    
+
 
 class IncidentMetricsSearchResource(BaseIncidentMetricsResource):
     """
     故障告警指标查询接口
     """
     # ==================== 配置常量 ====================
-    
+
     def __init__(self):
         super().__init__()
 
@@ -83,42 +84,50 @@ class IncidentMetricsSearchResource(BaseIncidentMetricsResource):
             "metrics": {}
         }
         if metric_type == MetricType.NODE.value:
-            return self._query_node_metrics(validated_request_data,base_response)
+            return self._query_node_metrics(validated_request_data, base_response)
         elif metric_type == MetricType.EBPF_CALL.value:
-            return self._query_ebpf_call_metrics(validated_request_data,base_response)
+            return self._query_ebpf_call_metrics(validated_request_data, base_response)
+        
 
-    def _query_node_metrics(self, validated_request_data: dict,base_response: dict) -> dict:
+    def _query_node_metrics(self, validated_request_data: dict, base_response: dict) -> dict:
         """
         查询节点指标
         """
         query_requests = self._build_metrics_query_requests(validated_request_data)
         resp = self._execute_query(validated_request_data, query_requests, base_response)
         return resp
-    
-    def _query_ebpf_call_metrics(self, validated_request_data: dict,base_response: dict) -> dict:
+
+    def _query_ebpf_call_metrics(self, validated_request_data: dict, base_response: dict) -> dict:
         """
         查询边指标        
         """
         pass
-        
-    def _execute_query(self, validated_request_data: dict,query_requests: dict,base_response: dict) -> dict:
+
+    def _execute_query(self, validated_request_data: dict, query_requests: dict, base_response: dict) -> dict:
         """
         执行指标查询
         """
+        if not query_requests:
+            return base_response
         metric_type = validated_request_data.get("metric_type")
         metric_query_response = base_response
-        
-        def _aggregation(req_data: dict[str, Any],metric_name: str):
+
+        def _aggregation(req_data: dict[str, Any], metric_name: str, dimension_type: str):
             unify_query_resp = resource.grafana.graph_unify_query(req_data)
             with self._lock:
-                self._format_metrics_response(unify_query_resp, metric_query_response, metric_name, metric_type=metric_type)
+                self._format_metrics_response(unify_query_resp, metric_query_response, metric_name,
+                                              dimension_type=dimension_type,
+                                              metric_type=metric_type)
 
-        run_threads(
-            [InheritParentThread(target=_aggregation, args=(req, metric_name)) for metric_name, req in query_requests.items()]
-        )
+        for metric_name, req_dict in query_requests.items():
+            for dimension_type, req_data in req_dict.items():
+                run_threads(
+                    [InheritParentThread(target=_aggregation, args=(
+                        req_data, metric_name, dimension_type))]
+                )
 
         return metric_query_response
-    
+
     def _build_metrics_query_requests(self, validated_request_data: dict) -> dict:
         """
         构建指标查询请求(key为指标名称,value为查询请求)
@@ -128,16 +137,17 @@ class IncidentMetricsSearchResource(BaseIncidentMetricsResource):
         start_time: int = validated_request_data.get("start_time")
         end_time: int = validated_request_data.get("end_time")
         bk_biz_id: int = validated_request_data.get("bk_biz_id")
-        
-        dimensions: dict[str, Any] = index_info.get("dimensions")
-        app_name: str = dimensions.get("apm_app_name")
-        
+
+        dimensions: dict[str, Any] = index_info.get("dimensions", {})
+        app_name: str = dimensions.get("apm_app_name", "")
+
         table_extra_params = {
             "bk_biz_id": bk_biz_id,
             "app_name": app_name,
         }
-        table: str = self._get_tables_by_entity_type(entity_type, **table_extra_params)
-        
+        table: str = self._get_tables_by_entity_type(
+            entity_type, **table_extra_params)
+
         config_extra_params = {
             "start_time": start_time,
             "end_time": end_time,
@@ -145,18 +155,30 @@ class IncidentMetricsSearchResource(BaseIncidentMetricsResource):
             "table": table,
             "entity_type": entity_type,
         }
-        query_requests = get_config_by_dimensions(dimensions,**config_extra_params)
+        query_requests = get_config_by_dimensions(
+            dimensions, **config_extra_params)
         return query_requests
-    
+
     def _format_metrics_response(self, unify_query_resp: dict[str, Any], metric_query_response: dict[str, Any], metric_name: str, **kwargs):
         """
         格式化指标查询响应
         """
-        metric_info = {
-            "metric_name": metric_name,
-            "metric_alias": MetricName(metric_name).label,
-            "metric_type": kwargs.get("metric_type"),
-        }
-        for series in unify_query_resp.get("series",[]):
-            metric_info["time_series"] = [[datapoint[1],datapoint[0]] for datapoint in series.get("datapoints",[])]
-        metric_query_response["metrics"][metric_name] = metric_info
+        dimension_type = kwargs.get("dimension_type")
+
+        metric_info = metric_query_response["metrics"].get(metric_name, None)
+        if not metric_info:
+            metric_query_response["metrics"][metric_name] = {
+                "metric_name": metric_name,
+                "metric_alias": MetricName(metric_name).label,
+                "metric_type": kwargs.get("metric_type"),
+                "time_series": {},
+                "display_by_dimenions": False,
+            }
+            metric_info = metric_query_response["metrics"][metric_name]
+        else:
+            metric_info["display_by_dimenions"] = True
+            
+        for series in unify_query_resp.get("series", []):
+            metric_info["time_series"][dimension_type] = [
+                [datapoint[1], datapoint[0]] for datapoint in series.get("datapoints", [])]
+        
