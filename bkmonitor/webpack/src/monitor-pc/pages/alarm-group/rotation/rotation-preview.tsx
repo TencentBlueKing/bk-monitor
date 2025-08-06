@@ -34,10 +34,13 @@ import {
   getDutyPlansDetails,
 } from './utils';
 
+import type { DutyNotice } from './typing';
+
 import './rotation-preview.scss';
 
 interface IProps {
   alarmGroupId?: number | string;
+  dutyNotice?: DutyNotice;
   dutyPlans?: any[];
   previewDutyRules?: any[];
   value?: any;
@@ -47,6 +50,7 @@ interface IProps {
 
 @Component
 export default class RotationPreview extends tsc<IProps> {
+  @Prop({ type: Object }) dutyNotice: DutyNotice;
   @Prop({ type: Array, default: () => [] }) value: any[];
   @Prop({ type: [Number, String], default: '' }) alarmGroupId: number | string;
   /* 轮值历史 */
@@ -326,7 +330,9 @@ export default class RotationPreview extends tsc<IProps> {
                           left: `${(duty?.isStartBorder ? 1 : 0) + this.containerWidth * duty.range[0]}px`,
                         }}
                         class='user-item'
-                        onMouseenter={(event: Event) => this.handleMouseenter(event, duty.other)}
+                        onMouseenter={(event: Event) => {
+                          this.handleMouseenter(event, duty.other);
+                        }}
                       >
                         <div
                           style={{ background: duty.color }}
@@ -338,7 +344,14 @@ export default class RotationPreview extends tsc<IProps> {
                         >
                           <span>
                             {duty.users.map((u, index, arr) => [
-                              u.name ? <bk-user-display-name user-id={u.name} /> : u.id || '--',
+                              u.name ? (
+                                <bk-user-display-name
+                                  key={u.name}
+                                  user-id={u.name}
+                                />
+                              ) : (
+                                u.id || '--'
+                              ),
                               index !== arr.length - 1 && ',',
                             ])}
                           </span>
@@ -356,7 +369,9 @@ export default class RotationPreview extends tsc<IProps> {
                       left: `${this.containerWidth * item.range[0]}px`,
                     }}
                     class='free-col'
-                    onMouseenter={(event: Event) => this.handleMouseenter(event, { time: item.timeStr })}
+                    onMouseenter={(event: Event) => {
+                      this.handleMouseenter(event, { time: item.timeStr });
+                    }}
                   />
                 ))}
               {this.dutyData.overlapTimes.map((item, index) => (
@@ -370,12 +385,15 @@ export default class RotationPreview extends tsc<IProps> {
                     left: `${this.containerWidth * item.range.range[0]}px`,
                   }}
                   class='overlap-col'
-                  onMouseenter={(event: Event) =>
+                  onMouseenter={(event: Event) => {
+                    if (this.dutyNotice?.hit_first_duty === false) {
+                      return;
+                    }
                     this.handleMouseenter(event, {
                       time: item.range.timeStr,
                       users: this.$t('时间段冲突，优先执行节假日排班'),
-                    })
-                  }
+                    });
+                  }}
                 />
               ))}
             </div>
@@ -399,12 +417,13 @@ export default class RotationPreview extends tsc<IProps> {
                 >
                   <span class='item-left'>{`${item.startTime} ～ ${item.endTime}`}</span>
                   <span class='item-right'>
-                    {item.users
-                      .split('、')
-                      .map((user, index, arr) => [
-                        <bk-user-display-name user-id={user} />,
-                        index !== arr.length - 1 && '、',
-                      ])}
+                    {item.users.split('、').map((user, index, arr) => [
+                      <bk-user-display-name
+                        key={user}
+                        user-id={user}
+                      />,
+                      index !== arr.length - 1 && '、',
+                    ])}
                   </span>
                 </div>
               ))

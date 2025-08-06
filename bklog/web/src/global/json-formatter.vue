@@ -49,7 +49,7 @@
   import { computed, ref, watch, onBeforeUnmount, onMounted, inject } from 'vue';
 
   // @ts-ignore
-  import { formatDate, formatDateNanos, parseTableRowData } from '@/common/util';
+  import { parseTableRowData } from '@/common/util';
   import useFieldNameHook from '@/hooks/use-field-name';
 
   import useJsonRoot from '../hooks/use-json-root';
@@ -232,12 +232,12 @@
 
   const getFieldFormatter = (field, formatDate) => {
     const [objValue, val] = getFieldValue(field);
-
+    const strVal = getDateFieldValue(field, getCellRender(val), formatDate);
     return {
       ref: ref(),
       isJson: typeof objValue === 'object' && objValue !== undefined,
       value: getDateFieldValue(field, objValue, formatDate),
-      stringValue: getDateFieldValue(field, getCellRender(val), formatDate).replace(/<\/?mark>/igm, ''),
+      stringValue: strVal?.replace?.(/<\/?mark>/igm, '') ?? strVal,
       field,
     };
   };

@@ -37,6 +37,7 @@ from apps.log_search.exceptions import (
     UnsupportedOperationException,
     QueryServerUnavailableException,
     IndexMappingEmptyException,
+    TooManyBucketsException,
 )
 from apps.utils import ChoicesEnum
 from apps.utils.custom_report import render_otlp_report_config
@@ -98,6 +99,8 @@ DEFAULT_TAG_COLOR = TagColor.BLUE
 DEFAULT_BK_CLOUD_ID = 0
 MAX_RESULT_WINDOW = 10000
 MAX_SEARCH_SIZE = 100000
+DEFAULT_QUERY_OFFSET = 0
+DEFAULT_QUERY_LIMIT = 10000
 SCROLL = "1m"
 DEFAULT_TIME_FIELD = "dtEventTimeStamp"
 DEFAULT_TIME_FIELD_ALIAS_NAME = "utctime"
@@ -1784,4 +1787,5 @@ ES_ERROR_PATTERNS = [
     (r"Set fielddata=true on \[(?P<field_name>.*?)] in order to load fielddata", UnsupportedOperationException),
     (r"connect_timeout\[.*?]|timed out after|HTTPConnectionPool.*?Read timed out", QueryServerUnavailableException),
     (r"index is empty with \[(?P<result_table_id>.*?)]", IndexMappingEmptyException),
+    (r"too_many_buckets_exception.*?Trying to create too many buckets", TooManyBucketsException),
 ]

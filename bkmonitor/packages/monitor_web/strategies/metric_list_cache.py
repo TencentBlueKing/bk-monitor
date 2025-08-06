@@ -24,6 +24,9 @@ from django.db.models import Count, Max, Q
 from django.utils.translation import gettext as _
 from django.utils.translation import gettext_lazy as _lazy
 
+from bkm_space.api import SpaceApi
+from bkm_space.define import SpaceTypeEnum
+from bkm_space.utils import bk_biz_id_to_space_uid
 from bkmonitor.commons.tools import is_ipv6_biz
 from bkmonitor.data_source import is_build_in_process_data_source
 from bkmonitor.documents import AlertDocument
@@ -953,8 +956,7 @@ class CustomEventCacheManager(BaseMetricCacheManager):
 
     def get_tables(self):
         # 系统事件
-        if self.bk_biz_id == 0:
-            yield from self.SYSTEM_EVENTS
+        yield from self.get_system_event_tables(self.bk_tenant_id, self.bk_biz_id)
 
         custom_event_result = api.metadata.query_event_group.request.refresh(bk_biz_id=self.bk_biz_id)
         event_group_ids = [
@@ -965,6 +967,11 @@ class CustomEventCacheManager(BaseMetricCacheManager):
         for result in custom_event_result:
             if result["event_group_id"] in event_group_ids:
                 yield result
+        if self.bk_biz_id < 0:
+            space_uid = bk_biz_id_to_space_uid(self.bk_biz_id)
+            if space_uid.startswith(SpaceTypeEnum.BKCI.value):
+                space = SpaceApi.get_related_space(space_uid, SpaceTypeEnum.BKCC.value)
+                custom_event_result += api.metadata.query_event_group.request.refresh(bk_biz_id=space.bk_biz_id)
         # k8s 事件
         # 1. 先拿业务下的集群列表
         # 区分 custom_event 和 k8s_event (来自metadata的设计)
@@ -985,6 +992,8 @@ class CustomEventCacheManager(BaseMetricCacheManager):
         for cluster_id in cluster_map:
             for result in custom_event_result:
                 if cluster_id in result["event_group_name"]:
+                    if self.bk_biz_id < 0:
+                        result["bk_biz_id"] = self.bk_biz_id
                     # bcs 集群事件 目标调整为kubernetes
                     result["label"] = "kubernetes"
                     # 补充是否告警
@@ -998,6 +1007,36 @@ class CustomEventCacheManager(BaseMetricCacheManager):
                     cluster_map[cluster_id].update(extend_cluster_info)
                     result["k8s_cluster_info"] = cluster_map[cluster_id]
                     yield result
+
+    def get_system_event_tables(self, bk_tenant_id: str, bk_biz_id: int) -> list[dict[str, Any]]:
+        """
+        获取系统事件表
+        """
+        from metadata.models import DataSource
+
+        # 非多租户模式下，直接返回内置系统事件
+        if not settings.ENABLE_MULTI_TENANT_MODE:
+            if bk_biz_id == 0:
+                return self.SYSTEM_EVENTS
+            else:
+                return []
+
+        # 多租户模式下，跳过非cmdb业务
+        if bk_biz_id <= 0:
+            return []
+
+        # 获取cmdb业务下的系统事件数据源
+        data_source = DataSource.objects.filter(
+            bk_tenant_id=bk_tenant_id, data_name=f"base_{bk_biz_id}_agent_event"
+        ).first()
+        if not data_source:
+            return []
+
+        system_event = copy.deepcopy(self.SYSTEM_EVENTS[1])
+        system_event["bk_biz_id"] = bk_biz_id
+        system_event["bk_data_id"] = data_source.bk_data_id
+        system_event["table_id"] = f"base_{bk_tenant_id}_{bk_biz_id}_event"
+        return [system_event]
 
     def get_metrics_by_table(self, table):
         # 默认均为自定义事件

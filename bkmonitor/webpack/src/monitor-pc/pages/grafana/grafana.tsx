@@ -42,6 +42,7 @@ interface IMessageEvent extends MessageEvent {
     login_url?: string;
     pathname?: string;
     redirected?: boolean;
+    search?: string;
     status?: 'login' | 'logout';
   };
 }
@@ -50,19 +51,25 @@ const FavoriteDashboardRouteName = 'favorite-dashboard';
   name: 'grafana',
 })
 export default class MyComponent extends tsc<object> {
+  @Ref('iframe') iframeRef: HTMLIFrameElement;
   @Prop({ default: '' }) url: string;
   grafanaUrl = '';
   unWatch = null;
   loading = true;
   hasLogin = false;
   showAlert = false;
+  get grafanaPath() {
+    return process.env.NODE_ENV === 'development' ? '' : 'grafana/';
+  }
   get originUrl() {
-    return process.env.NODE_ENV === 'development' ? `${process.env.proxyUrl}/` : `${location.origin}${window.site_url}`;
+    return process.env.NODE_ENV === 'development'
+      ? `http://${process.env.devHost}:3000/`
+      : `${location.origin}${window.site_url}`;
   }
   get dashboardCheck() {
     return this.$store.getters['grafana/dashboardCheck'];
   }
-  @Ref('iframe') iframeRef: HTMLIFrameElement;
+
   @Watch('dashboardCheck')
   onIsCreateChange(v) {
     this.iframeRef?.contentWindow.postMessage(v.split('-')[0], '*');
@@ -103,7 +110,7 @@ export default class MyComponent extends tsc<object> {
     let grafanaUrl = '';
     if (!this.url) {
       if (this.$route.name === 'grafana-home') {
-        grafanaUrl = `${this.originUrl}grafana/?orgName=${this.$store.getters.bizId}${this.getUrlParamsString()}`;
+        grafanaUrl = `${this.originUrl}${this.grafanaPath}?orgName=${this.$store.getters.bizId}${this.getUrlParamsString()}`;
       } else {
         const list = await getDashboardList().catch(() => []);
         const { bizId } = this.$store.getters;
@@ -118,7 +125,7 @@ export default class MyComponent extends tsc<object> {
           });
           localStorage.setItem(DASHBOARD_ID_KEY, JSON.stringify({ ...dashboardCache, [bizId]: dashboardCacheId }));
         } else {
-          grafanaUrl = `${this.originUrl}grafana/?orgName=${this.$store.getters.bizId}${this.getUrlParamsString()}`;
+          grafanaUrl = `${this.originUrl}${this.grafanaPath}?orgName=${this.$store.getters.bizId}${this.getUrlParamsString()}`;
           this.$router.replace({ name: 'grafana-home' });
         }
         await this.$nextTick();
@@ -126,13 +133,13 @@ export default class MyComponent extends tsc<object> {
       // this.unWatch = this.$watch(
       //   'authority',
       //   () => {
-      //     this.$store.commit('grafana/setHasManageAuth', this.authority.MANAGE_AUTH);
+      //     this.$store.commit('${this.grafanaPath}setHasManageAuth', this.authority.MANAGE_AUTH);
       //   },
       //   { deep: true, immediate: true }
       // );
     } else {
       const isFavorite = this.$route.name === FavoriteDashboardRouteName;
-      grafanaUrl = `${this.originUrl}grafana/${isFavorite && !this.url?.startsWith('d/') ? `d/${this.url}` : this.url}?orgName=${
+      grafanaUrl = `${this.originUrl}${this.grafanaPath}${isFavorite && !this.url?.startsWith('d/') ? `d/${this.url}` : this.url}?orgName=${
         this.$store.getters.bizId
       }${this.getUrlParamsString()}`;
       isFavorite && this.handleSetDashboardCache(this.url);
@@ -144,6 +151,7 @@ export default class MyComponent extends tsc<object> {
       ...(this.$route.query || {}),
       ...Object.fromEntries(new URLSearchParams(location.search)),
     })
+      .filter(([key]) => !['orgName', 'orgId'].includes(key)) // 移除 orgName/orgId 参数
       .map(entry => entry.join('='))
       .join('&');
     if (str.length) return `&${str}`;
@@ -204,7 +212,11 @@ export default class MyComponent extends tsc<object> {
     return true;
   }
   handleMessage(e: IMessageEvent) {
-    if (e.origin !== location.origin) return;
+    if (e.origin !== location.origin) {
+      if (process.env.NODE_ENV !== 'development') {
+        return;
+      }
+    }
     // iframe 内路由变化
     if (e?.data?.pathname) {
       const pathname = `${e.data.pathname}`;
@@ -222,6 +234,12 @@ export default class MyComponent extends tsc<object> {
           },
         });
         this.handleSetDashboardCache(dashboardId);
+      } else {
+        this.$router.replace({
+          query: {
+            ...Object.fromEntries(new URLSearchParams(e.data?.search || '')),
+          },
+        });
       }
       return;
     }

@@ -34,6 +34,7 @@ import $http from '@/api';
 import store from '@/store';
 
 import './agg-chart.scss';
+import RetrieveHelper, { RetrieveEvent } from '@/views/retrieve-helper';
 
 @Component
 export default class AggChart extends tsc<object> {
@@ -143,6 +144,8 @@ export default class AggChart extends tsc<object> {
 
       router.replace({
         query,
+      }).then(() => {
+        RetrieveHelper.fire(RetrieveEvent.TREND_GRAPH_SEARCH);
       });
     });
   }
