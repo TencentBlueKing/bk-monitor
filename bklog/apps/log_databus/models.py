@@ -510,7 +510,6 @@ class CleanTemplate(SoftDeleteModel):
     bk_biz_id = models.IntegerField(_("业务id"))
     visible_type = models.CharField(_("可见类型"), max_length=64, default=VisibleEnum.CURRENT_BIZ.value)
     visible_bk_biz_id = MultiStrSplitByCommaFieldText(_("可见业务ID"), default="")
-    alias_settings = models.JSONField(_("别名配置"), null=True, blank=True)
 
     class Meta:
         verbose_name = _("清洗模板")
@@ -639,12 +638,12 @@ class RestoreConfig(SoftDeleteModel):
 
     @classmethod
     def get_collector_config_id(cls, restore_config_id):
-        restore: "RestoreConfig" = cls.objects.get(restore_config_id=restore_config_id)
+        restore: RestoreConfig = cls.objects.get(restore_config_id=restore_config_id)
         return restore.archive.collector_config_id
 
     @classmethod
     def get_index_set_id(cls, restore_config_id):
-        restore: "RestoreConfig" = cls.objects.get(restore_config_id=restore_config_id)
+        restore: RestoreConfig = cls.objects.get(restore_config_id=restore_config_id)
         return restore.archive.instance_id
 
 

@@ -1440,15 +1440,6 @@ class CollectorHandler:
 
         NOTIFY_EVENT(content=content, dimensions={"space_uid": space_uid, "msg_type": "create_collector_config"})
 
-    def update_alias_settings(self, alias_settings):
-        """
-        修改别名配置
-        """
-        from apps.log_databus.tasks.collector import update_alias_settings
-
-        update_alias_settings.delay(self.collector_config_id, alias_settings)
-        return
-
     @staticmethod
     def get_data_link_id(bk_biz_id: int, data_link_id: int = 0) -> int:
         """

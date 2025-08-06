@@ -1022,9 +1022,6 @@ class CleanTemplateSerializer(serializers.Serializer):
     bk_biz_id = serializers.IntegerField(label=_("业务id"), required=True)
     visible_type = serializers.CharField(label=_("可见类型"), required=False)
     visible_bk_biz_id = serializers.ListField(label=_("可见业务ID"), required=False)
-    alias_settings = serializers.ListField(
-        child=serializers.DictField(), label=_("别名配置"), required=False, default=list
-    )
 
 
 class CleanTemplateDestroySerializer(serializers.Serializer):

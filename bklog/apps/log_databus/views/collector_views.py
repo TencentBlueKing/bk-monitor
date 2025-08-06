@@ -76,7 +76,6 @@ from apps.log_databus.serializers import (
     SwitchBCSCollectorStorageSerializer,
     TaskDetailSerializer,
     TaskStatusSerializer,
-    UpdateAliasSettingsSerializers,
     ValidateContainerCollectorYamlSerializer,
 )
 from apps.log_search.constants import (
@@ -1321,10 +1320,6 @@ class CollectorViewSet(ModelViewSet):
         @apiParam {String} assessment_config.log_assessment 单机日志量
         @apiParam {Boolean} assessment_config.need_approval 需要审批
         @apiParam {List} assessment_config.approvals 审批人
-        @apiParam {Object[]} alias_settings 别名配置
-        @apiParam {String} alias_settings.field_name 原字段名
-        @apiParam {String} alias_settings.query_alias 别名
-        @apiParam {String} alias_settings.path_type 字段类型
         @apiParamExample {json} 请求样例:
         {
             "table_id": "xxx",
@@ -2564,8 +2559,3 @@ class CollectorViewSet(ModelViewSet):
             )
 
         return Response(proxy_host_info)
-
-    @detail_route(methods=["POST"], url_path="update_alias_settings")
-    def update_alias_settings(self, request, collector_config_id=None):
-        params = self.params_valid(UpdateAliasSettingsSerializers)
-        return Response(CollectorHandler(collector_config_id).update_alias_settings(params["alias_settings"]))
