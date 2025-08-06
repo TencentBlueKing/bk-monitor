@@ -13,8 +13,14 @@ from core.drf_resource.base import Resource
 from monitor_web.incident.events.serializers import EventsSearchSerializer, EventDetailSerializer
 from constants.data_source import DataSourceLabel, DataTypeLabel
 from monitor_web.data_explorer.event import resources as event_resources
-from monitor_web.data_explorer.event.serializers import EventTimeSeriesRequestSerializer
-from apm_web.event.serializers import EventTimeSeriesRequestSerializer as ApmEventTimeSeriesRequestSerializer
+from monitor_web.data_explorer.event.serializers import (
+    EventTimeSeriesRequestSerializer,
+    EventTagDetailRequestSerializer
+)
+from apm_web.event.serializers import (
+    EventTimeSeriesRequestSerializer as ApmEventTimeSeriesRequestSerializer, 
+    EventTagDetailRequestSerializer as ApmEventTagDetailRequestSerializer
+)
 from monitor_web.data_explorer.event.constants import EventSource, EventType
 from monitor_web.incident.utils import get_chinese_labels_dict, pascal_to_snake
 from bkmonitor.utils.thread_backend import InheritParentThread, run_threads
@@ -23,28 +29,17 @@ from typing import Any
 import copy
 import threading
 
-
-class IncidentEventsSearchResource(Resource):
+class BaseIncidentEventsResource(Resource):
     """
-    故障告警指标查询接口
-    支持 Entity 和 Edge 两种类型的事件查询
+    故障告警事件查询接口基类
     """
-
-    # ==================== 配置常量 ====================
+    
     DEFAULT_EXPRESSION = "a"
     DEFAULT_AGGREGATION_METHOD = "SUM"
     DEFAULT_INDEX_FIELD = "_index"
     DEFAULT_GROUP_BY_FIELDS = ["type", "source", "event_name"]
-
-    WHERE_SPECIAL_FILTER_VALUES = ["apm_application_name", "apm_service_name", "apm_service_category", "cluster_id"]
-
-    def __init__(self):
-        super().__init__()
-        self._response_lock = threading.Lock()
-        
-    RequestSerializer = EventsSearchSerializer
-
-    # ==================== 数据源映射配置 ====================
+    DEFAULT_QUERY_STRING = "*"
+    
     EntityTypeDataSourceMapping = {
         EntityType.BcsPod.value: DataSourceLabel.CUSTOM,
         EntityType.APMService.value: DataSourceLabel.BK_APM,
@@ -56,7 +51,7 @@ class IncidentEventsSearchResource(Resource):
         EntityType.APMService.value: DataTypeLabel.EVENT,
         EntityType.BkNodeHost.value: DataTypeLabel.EVENT,
     }
-
+    
     # dimension内一些特殊字段需要做映射处理
     WhereSpecialKeyMapping = {
         EntityType.BcsPod.value: {
@@ -67,126 +62,16 @@ class IncidentEventsSearchResource(Resource):
         },
         EntityType.BkNodeHost.value: {
             "inner_ip": "bk_target_ip",
+            "bk_cloud_id": "bk_target_cloud_id",
         },
-        EntityType.APMService.value: {},
+        EntityType.APMService.value: {
+        },
     }
-
-    # ==================== 主要入口方法 ====================
-    def perform_request(self, validated_request_data: dict) -> dict:
-        """
-        执行事件搜索请求，根据IndexType分类处理
-        """
-        index_info = validated_request_data.get("index_info", {})
-        index_type = index_info.get("index_type", "")
-        bk_biz_id = validated_request_data.get("bk_biz_id")
-
-        base_response = self._build_base_response(bk_biz_id)
-
-        # 根据IndexType分发到对应的查询处理器
-        if index_type == IndexType.ENTITY.value:
-            return self._query_entity_events(validated_request_data, base_response)
-        elif index_type == IndexType.EDGE.value:
-            return self._query_edge_events(validated_request_data, base_response)
-        else:
-            return base_response
-
-    # ==================== 查询处理器 ====================
-    def _query_entity_events(self, validated_request_data: dict, base_response: dict) -> dict:
-        """
-        查询Entity类型的事件数据
-        """
-        entity_query_requests = self._build_entity_query_requests(validated_request_data)
-        entity_query_response = self._execute_queries(entity_query_requests, base_response)
-        return self._format_events_response(entity_query_response, base_response)
-
-    def _query_edge_events(self, validated_request_data: dict, base_response: dict) -> dict:
-        """
-        查询Edge类型的事件数据
-        """
-        # TODO: 实现Edge类型的查询逻辑
-        edge_query_requests = self._build_edge_query_requests(validated_request_data)
-        edge_query_response = self._execute_queries(edge_query_requests, base_response)
-        return self._format_events_response(edge_query_response, base_response)
-
-    # ==================== 查询构建器 ====================
-    def _build_entity_query_requests(self, validated_request_data: dict) -> list:
-        """
-        构建Entity类型的查询请求配置
-        """
-        # 解析请求参数
-        index_info = validated_request_data.get("index_info", {})
-        entity_type = index_info.get("entity_type", "")
-        bk_biz_id = validated_request_data.get("bk_biz_id")
-        start_time = validated_request_data.get("start_time")
-        end_time = validated_request_data.get("end_time")
-        dimensions_filter = index_info.get("dimensions", {})
-
-        # 获取数据源配置
-        data_source_label = self.EntityTypeDataSourceMapping.get(entity_type, "")
-        data_type_label = self.EntityTypeDataTypeMapping.get(entity_type, "")
-
-        # 构建基础查询配置
-        base_config = self._build_base_query_config(data_source_label, data_type_label, bk_biz_id, start_time, end_time)
-
-        # 应用过滤条件
-        self._apply_dimension_filters(base_config, dimensions_filter, entity_type)
-
-        # 生成多表查询请求
-        tables = self._get_tables_by_entity_type(entity_type, bk_biz_id=bk_biz_id, **dimensions_filter)
-        requests = []
-        for table in tables:
-            request_copy = copy.deepcopy(base_config)
-            request_copy["query_configs"][0]["table"] = table
-            requests.append(request_copy)
-
-        validated_requests = []
-        for request in requests:
-            if entity_type == EntityType.APMService.value:
-                # 针对APM服务类型，需要额外添加app_name和service_name
-                serializer = ApmEventTimeSeriesRequestSerializer(data=request)
-            else:
-                serializer = EventTimeSeriesRequestSerializer(data=request)
-            serializer.is_valid()
-            validated_requests.append(serializer.validated_data)
-        return validated_requests
-
-    def _build_edge_query_requests(self, validated_request_data: dict) -> list:
-        """
-        构建Edge类型的查询请求配置
-        """
-        # TODO: 实现Edge类型的查询请求配置
-        return []
-
-    def _build_base_query_config(
-        self, data_source_label: str, data_type_label: str, bk_biz_id: int, start_time: int, end_time: int
-    ) -> dict:
-        """
-        构建基础查询配置
-        """
-        return {
-            "expression": self.DEFAULT_EXPRESSION,
-            "query_configs": [
-                {
-                    "data_source_label": data_source_label,
-                    "data_type_label": data_type_label,
-                    "query_string": "*",
-                    "where": [],
-                    "group_by": self.DEFAULT_GROUP_BY_FIELDS,
-                    "filter_dict": {},
-                    "metrics": [
-                        {
-                            "field": self.DEFAULT_INDEX_FIELD,
-                            "method": self.DEFAULT_AGGREGATION_METHOD,
-                            "alias": self.DEFAULT_EXPRESSION,
-                        }
-                    ],
-                }
-            ],
-            "bk_biz_id": bk_biz_id,
-            "start_time": start_time,
-            "end_time": end_time,
-        }
-
+    
+    def __init__(self):
+        super().__init__()
+        self._lock = threading.Lock()
+    
     # ==================== 数据源配置器 ====================
     @classmethod
     def _get_bk_data_id_by_cluster_id(cls, cluster_id: str) -> str:
@@ -200,15 +85,6 @@ class IncidentEventsSearchResource(Resource):
             cluster_info["cluster_id"]: cluster_info["k8s_event_data_id"] for cluster_info in cluster_infos
         }
         return cluster_to_data_id.get(cluster_id, "")
-
-    @classmethod
-    def _get_event_prefix_by_table(cls, table: str) -> str:
-        """
-        根据table名获取事件前缀
-        """
-        if table == "gse_system_event":
-            return "gse_system_event"
-        return "bkmonitor_event"
 
     @classmethod
     def _get_tables_by_entity_type(cls, entity_type: str, **kwargs) -> set[str]:
@@ -278,7 +154,10 @@ class IncidentEventsSearchResource(Resource):
                     "condition": "and",
                 }
             )
-        time_series_request["query_configs"][0]["where"] = where_filters
+        
+        # 将where_filters应用到每个query_config
+        for query_config in time_series_request["query_configs"]:
+            query_config["where"].extend(where_filters)
 
         # 添加特殊参数
         app_name = dimensions_filter.get("apm_application_name", "")
@@ -287,6 +166,124 @@ class IncidentEventsSearchResource(Resource):
             time_series_request["app_name"] = app_name
         if apm_service:
             time_series_request["service_name"] = apm_service
+
+class IncidentEventsSearchResource(BaseIncidentEventsResource):
+    """
+    故障告警指标查询接口
+    支持 Entity 和 Edge 两种类型的事件查询
+    """
+
+    # ==================== 配置常量 ====================
+
+    def __init__(self):
+        super().__init__()
+        
+    RequestSerializer = EventsSearchSerializer
+
+    # ==================== 主要入口方法 ====================
+    def perform_request(self, validated_request_data: dict) -> dict:
+        """
+        执行事件搜索请求，根据IndexType分类处理
+        """
+        index_info = validated_request_data.get("index_info", {})
+        index_type = index_info.get("index_type", "")
+        bk_biz_id = validated_request_data.get("bk_biz_id")
+
+        base_response = {
+            "bk_biz_id": bk_biz_id,
+            "statistics": {
+                "event_source": get_chinese_labels_dict(EventSource),
+                "event_level": get_chinese_labels_dict(EventType),
+            },
+            "events": {},
+        }
+
+        # 根据IndexType分发到对应的查询处理器,仅支持Entity类型的事件查询
+        if index_type == IndexType.ENTITY.value:
+            return self._query_entity_events(validated_request_data, base_response)
+        else:
+            return base_response
+
+    # ==================== 查询处理器 ====================
+    def _query_entity_events(self, validated_request_data: dict, base_response: dict) -> dict:
+        """
+        查询Entity类型的事件数据
+        """
+        entity_query_requests = self._build_entity_query_requests(validated_request_data)
+        entity_query_response = self._execute_queries(entity_query_requests, base_response)
+        return self._format_events_response(entity_query_response, base_response)
+
+    # ==================== 查询构建器 ====================
+    def _build_entity_query_requests(self, validated_request_data: dict) -> list:
+        """
+        构建Entity类型的查询请求配置
+        """
+        # 解析请求参数
+        index_info = validated_request_data.get("index_info", {})
+        entity_type = index_info.get("entity_type", "")
+        bk_biz_id = validated_request_data.get("bk_biz_id")
+        start_time = validated_request_data.get("start_time")
+        end_time = validated_request_data.get("end_time")
+        dimensions_filter = index_info.get("dimensions", {})
+
+        # 获取数据源配置
+        data_source_label = self.EntityTypeDataSourceMapping.get(entity_type, "")
+        data_type_label = self.EntityTypeDataTypeMapping.get(entity_type, "")
+
+        # 构建基础查询配置
+        base_config = self._build_base_query_config(data_source_label, data_type_label, bk_biz_id, start_time, end_time)
+
+        # 应用过滤条件
+        self._apply_dimension_filters(base_config, dimensions_filter, entity_type)
+
+        # 生成多表查询请求
+        tables = self._get_tables_by_entity_type(entity_type, bk_biz_id=bk_biz_id, **dimensions_filter)
+        requests = []
+        for table in tables:
+            request_copy = copy.deepcopy(base_config)
+            request_copy["query_configs"][0]["table"] = table
+            requests.append(request_copy)
+
+        validated_requests = []
+        for request in requests:
+            if entity_type == EntityType.APMService.value:
+                # 针对APM服务类型，需要额外添加app_name和service_name
+                serializer = ApmEventTimeSeriesRequestSerializer(data=request)
+            else:
+                serializer = EventTimeSeriesRequestSerializer(data=request)
+            serializer.is_valid()
+            validated_requests.append(serializer.validated_data)
+        return validated_requests
+
+    def _build_base_query_config(
+        self, data_source_label: str, data_type_label: str, bk_biz_id: int, start_time: int, end_time: int
+    ) -> dict:
+        """
+        构建基础查询配置
+        """
+        return {
+            "expression": self.DEFAULT_EXPRESSION,
+            "query_configs": [
+                {
+                    "data_source_label": data_source_label,
+                    "data_type_label": data_type_label,
+                    "query_string": self.DEFAULT_QUERY_STRING,
+                    "where": [],
+                    "group_by": self.DEFAULT_GROUP_BY_FIELDS,
+                    "filter_dict": {},
+                    "metrics": [
+                        {
+                            "field": self.DEFAULT_INDEX_FIELD,
+                            "method": self.DEFAULT_AGGREGATION_METHOD,
+                            "alias": self.DEFAULT_EXPRESSION,
+                        }
+                    ],
+                }
+            ],
+            "bk_biz_id": bk_biz_id,
+            "start_time": start_time,
+            "end_time": end_time,
+        }
 
     # ==================== 查询执行器 ====================
     def _execute_queries(self, validated_query_requests: list, base_response: dict) -> dict:
@@ -300,7 +297,7 @@ class IncidentEventsSearchResource(Resource):
             query_configs: list[dict] = req_data.get("query_configs", [{}])
             table = query_configs[0].get("table", "")
             resp = event_resources.EventTimeSeriesResource().perform_request(req_data)
-            with self._response_lock:
+            with self._lock:
                 self._format_events_response(resp, events_search_response, table)
 
         # 并发执行查询
@@ -326,22 +323,35 @@ class IncidentEventsSearchResource(Resource):
             event_name = event_info["event_name"]
 
             # 更新统计信息
-            self._update_statistics(base_response, dimensions)
+            source = dimensions.get("source", "")
+            event_level = dimensions.get("type", "")
+            if event_level in base_response["statistics"]["event_level"]:
+                base_response["statistics"]["event_level"][event_level] += 1
+            if source in base_response["statistics"]["event_source"]:
+                base_response["statistics"]["event_source"][source] += 1
 
             # 构建序列数据
-            series_info = self._build_series_info(series_data)
+            series_info = {
+                "dimensions": series_data.get("dimensions", {}),
+                "target": series_data.get("target", ""),
+                "metric_field": series_data.get("metric_field", ""),
+                "datapoints": [[datapoint[1], datapoint[0]] for datapoint in series_data.get("datapoints", [])],
+                "alias": series_data.get("alias", ""),
+                "type": series_data.get("type", ""),
+                "dimensions_translation": series_data.get("dimensions_translation", {}),
+                "unit": series_data.get("unit", ""),
+            }
 
             # 组装事件数据
             base_response["events"][event_name] = {**event_info, "series": [series_info]}
-
+            
         return base_response
 
-    @classmethod
-    def _build_event_info(cls, dimension: dict, table: str) -> dict:
+    def _build_event_info(self, dimension: dict, table: str) -> dict:
         """
         构建事件基础信息
         """
-        prefix = cls._get_event_prefix_by_table(table)
+        prefix = "bkmonitor_event" if table != "gse_system_event" else "gse_system_event"
         event_name = f"{prefix}.{pascal_to_snake(dimension.get('event_name', ''))}"
         return {
             "event_name": event_name,
@@ -350,50 +360,8 @@ class IncidentEventsSearchResource(Resource):
             "event_level": dimension.get("type", ""),
         }
 
-    def _update_statistics(self, base_response: dict, dimensions: dict) -> None:
-        """
-        更新统计信息
-        """
-        source = dimensions.get("source", "")
-        event_level = dimensions.get("type", "")
 
-        if event_level in base_response["statistics"]["event_level"]:
-            base_response["statistics"]["event_level"][event_level] += 1
-        if source in base_response["statistics"]["event_source"]:
-            base_response["statistics"]["event_source"][source] += 1
-
-    def _build_series_info(self, series_data: dict) -> dict:
-        """
-        构建序列数据信息
-        """
-        return {
-            "dimensions": series_data.get("dimensions", {}),
-            "target": series_data.get("target", ""),
-            "metric_field": series_data.get("metric_field", ""),
-            "datapoints": [[datapoint[1], datapoint[0]] for datapoint in series_data.get("datapoints", [])],
-            "alias": series_data.get("alias", ""),
-            "type": series_data.get("type", ""),
-            "dimensions_translation": series_data.get("dimensions_translation", {}),
-            "unit": series_data.get("unit", ""),
-        }
-
-    # ==================== 响应构建器 ====================
-    @classmethod
-    def _build_base_response(cls, bk_biz_id: int) -> dict:
-        """
-        构建基础响应数据
-        """
-        return {
-            "bk_biz_id": bk_biz_id,
-            "statistics": {
-                "event_source": get_chinese_labels_dict(EventSource),
-                "event_level": get_chinese_labels_dict(EventType),
-            },
-            "events": {},
-        }
-
-
-class IncidentEventsDetailResource(Resource):
+class IncidentEventsDetailResource(BaseIncidentEventsResource):
     """
     故障告警事件详情查询接口
     """
@@ -404,4 +372,84 @@ class IncidentEventsDetailResource(Resource):
     RequestSerializer = EventDetailSerializer
 
     def perform_request(self, validated_request_data: dict) -> dict:
-        return event_resources.EventTagDetailResource().perform_request(validated_request_data)
+        query_request = self.build_tag_detail_request(validated_request_data)
+        event_tag_detail_response = event_resources.EventTagDetailResource().perform_request(query_request)
+        all_response = event_tag_detail_response["All"]
+        warning_response = event_tag_detail_response["Warning"]
+        
+        return event_tag_detail_response
+    
+    def build_tag_detail_request(self, validated_request_data: dict) -> dict:
+        """
+        构建事件详情查询请求
+        """
+        index_info: dict = validated_request_data.get("index_info", {})
+        entity_type: str = index_info.get("entity_type", "")
+        dimensions_filter: dict = index_info.get("dimensions", {})
+        bk_biz_id: int = validated_request_data.get("bk_biz_id")
+        start_time: int = validated_request_data.get("start_time")
+        end_time: int = validated_request_data.get("end_time") or 0
+        data_source_label: str = self.EntityTypeDataSourceMapping.get(entity_type, "")
+        data_type_label: str = self.EntityTypeDataTypeMapping.get(entity_type, "")
+        query_request = {
+            "expression": self.DEFAULT_EXPRESSION,
+            "query_configs": [],
+            "bk_biz_id": bk_biz_id,
+            "start_time": start_time,
+            "end_time": end_time,
+        }
+        tables = self._get_tables_by_entity_type(entity_type, bk_biz_id=bk_biz_id, **dimensions_filter)
+        for table in tables:
+            query_request["query_configs"].append( {
+                    "data_source_label": data_source_label, 
+                    "data_type_label": data_type_label,
+                    "query_string": self.DEFAULT_QUERY_STRING,
+                    "where": [
+                        {"condition":"and","key":"type","method":"eq","value":["Normal","Warning",""]}
+                    ],
+                    "group_by": [],
+                    "filter_dict": {},
+                    "table": table,
+                    "interval": 3000,
+                })
+        
+        self._apply_dimension_filters(query_request, dimensions_filter, entity_type)
+
+        if entity_type == EntityType.APMService.value:
+            serializer = ApmEventTagDetailRequestSerializer(data=query_request)
+            serializer.is_valid()
+            query_request = serializer.validated_data
+        else:
+            serializer = EventTagDetailRequestSerializer(data=query_request)
+            serializer.is_valid()
+            query_request = serializer.validated_data
+        return query_request
+    
+    def build_target_info(self, query_request: dict, validated_request_data: dict) -> dict:
+        """
+        构建目标信息
+        """
+        index_info: dict = validated_request_data.get("index_info", {})
+        index_type: str = index_info.get("index_type", "")
+        entity_type: str = index_info.get("entity_type", "")
+        entity_name: str = index_info.get("entity_name", "")
+        query_configs: list[dict] = query_request.get("query_configs", [])
+        target_info = {
+            "target_type": index_type,
+            "entity_type": entity_type,
+            "entity_name": entity_name,
+            "table": [query_config.get("table", "") for query_config in query_configs],
+            "dimensions": {},
+        }
+        mapping_keys = self.WhereSpecialKeyMapping[entity_type]
+        dimensions = index_info.get("dimensions", {})
+        for key, value in dimensions.items():
+            if key in mapping_keys:
+                target_info["dimensions"][mapping_keys[key]] = value
+        app_name = dimensions.get("apm_application_name", "")
+        service_name = dimensions.get("apm_service_name", "")
+        if app_name:
+            target_info["dimensions"]["app_name"] = app_name
+        if service_name:
+            target_info["dimensions"]["service_name"] = service_name
+        return target_info
