@@ -43,7 +43,7 @@ def merge_resources(resources_dir: Path):
 
     # 生成合并后的资源
     resources = {
-        "swagger": "3.0.1",
+        "openapi": "3.0.1",
         "info": {"version": "2.0", "title": "API Gateway Resources", "description": ""},
         "paths": merged_data,
     }
