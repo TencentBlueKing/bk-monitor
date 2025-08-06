@@ -215,23 +215,23 @@ class Strategy:
 
         return True, ""
 
-    def _get_calendar_item_messages(self, calendar_ids: list) -> list[str]:
+    def _get_calendar_item_messages(self, calendar_ids: list[int]) -> list[str]:
         """
         获取日历事项消息列表
 
-        :param calendar_ids: 日历ID列表
+        :param calendar_ids: 日历ID列表（整数列表）
         :return: 日历事项消息列表，格式为 "日历名称(事项名称)"
         """
-        item_messages = []
+        item_messages: list[str] = []
         if not calendar_ids:
             return item_messages
 
-        calendars = CalendarCacheManager.mget(
+        calendars: list[list[dict]] = CalendarCacheManager.mget(
             calendar_ids=calendar_ids, bk_tenant_id=BusinessManager.get_tenant_id(self.bk_biz_id)
         )
         for items in calendars:
             for item in items:
-                item_list = item.get("list", [])
+                item_list: list[dict] = item.get("list", [])
                 for _item in item_list:
                     item_messages.append(f"{_item['calendar_name']}({_item['name']})")
 
