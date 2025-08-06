@@ -124,7 +124,7 @@ export const AI_BLUEKING_SHORTCUTS: AIBluekingShortcuts = [
   },
   {
     id: AI_BLUEKING_SHORTCUTS_ID.TRAFFIC_ASSISTANT,
-    name: window.i18n.t('链路助手'),
+    name: window.i18n.t('Trace助手'),
     // icon: 'icon-monitor icon-mc-help-fill',
     components: [
       {
