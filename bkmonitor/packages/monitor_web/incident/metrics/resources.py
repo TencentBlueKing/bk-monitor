@@ -172,18 +172,17 @@ class IncidentMetricsSearchResource(BaseIncidentMetricsResource):
                 "metric_alias": MetricName(metric_name).label,
                 "metric_type": kwargs.get("metric_type"),
                 "time_series": {},
-                "display_by_dimenions": False,
+                "display_by_dimensions": False,
             }
             metric_info = metric_query_response["metrics"][metric_name]
-            
         for series in unify_query_resp.get("series", []):
             # 如果series中包含dimensions，则将dimensions中的值作为dimension_type
             if "dimensions" in series and len(series["dimensions"]) >= 1:
                 for dimension_value in series["dimensions"].values():
                     dimension_type = dimension_value
-                metric_info["display_by_dimenions"] = True
+                metric_info["display_by_dimensions"] = True
                 
             metric_info["time_series"][dimension_type] = [[datapoint[1], datapoint[0]] for datapoint in series.get("datapoints", [])]
         
         if len(metric_info["time_series"]) > 1:
-            metric_info["display_by_dimenions"] = True
+            metric_info["display_by_dimensions"] = True
