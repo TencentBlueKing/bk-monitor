@@ -374,9 +374,8 @@ class IncidentEventsDetailResource(BaseIncidentEventsResource):
     def perform_request(self, validated_request_data: dict) -> dict:
         query_request = self.build_tag_detail_request(validated_request_data)
         event_tag_detail_response = event_resources.EventTagDetailResource().perform_request(query_request)
-        all_response = event_tag_detail_response["All"]
-        warning_response = event_tag_detail_response["Warning"]
-        
+        for value in event_tag_detail_response.values():
+            self.build_target_info(value, query_request, validated_request_data)
         return event_tag_detail_response
     
     def build_tag_detail_request(self, validated_request_data: dict) -> dict:
@@ -389,6 +388,7 @@ class IncidentEventsDetailResource(BaseIncidentEventsResource):
         bk_biz_id: int = validated_request_data.get("bk_biz_id")
         start_time: int = validated_request_data.get("start_time")
         end_time: int = validated_request_data.get("end_time") or 0
+        interval: int = validated_request_data.get("interval", 300)
         data_source_label: str = self.EntityTypeDataSourceMapping.get(entity_type, "")
         data_type_label: str = self.EntityTypeDataTypeMapping.get(entity_type, "")
         query_request = {
@@ -410,7 +410,7 @@ class IncidentEventsDetailResource(BaseIncidentEventsResource):
                     "group_by": [],
                     "filter_dict": {},
                     "table": table,
-                    "interval": 3000,
+                    "interval": interval,
                 })
         
         self._apply_dimension_filters(query_request, dimensions_filter, entity_type)
@@ -425,7 +425,7 @@ class IncidentEventsDetailResource(BaseIncidentEventsResource):
             query_request = serializer.validated_data
         return query_request
     
-    def build_target_info(self, query_request: dict, validated_request_data: dict) -> dict:
+    def build_target_info(self,response: dict, query_request: dict, validated_request_data: dict) -> dict:
         """
         构建目标信息
         """
@@ -433,23 +433,45 @@ class IncidentEventsDetailResource(BaseIncidentEventsResource):
         index_type: str = index_info.get("index_type", "")
         entity_type: str = index_info.get("entity_type", "")
         entity_name: str = index_info.get("entity_name", "")
-        query_configs: list[dict] = query_request.get("query_configs", [])
-        target_info = {
-            "target_type": index_type,
-            "entity_type": entity_type,
-            "entity_name": entity_name,
-            "table": [query_config.get("table", "") for query_config in query_configs],
-            "dimensions": {},
-        }
-        mapping_keys = self.WhereSpecialKeyMapping[entity_type]
         dimensions = index_info.get("dimensions", {})
-        for key, value in dimensions.items():
-            if key in mapping_keys:
-                target_info["dimensions"][mapping_keys[key]] = value
-        app_name = dimensions.get("apm_application_name", "")
-        service_name = dimensions.get("apm_service_name", "")
-        if app_name:
-            target_info["dimensions"]["app_name"] = app_name
-        if service_name:
-            target_info["dimensions"]["service_name"] = service_name
-        return target_info
+        query_configs: list[dict] = query_request.get("query_configs", [])
+        table = query_configs[0].get("table", "") if query_configs else ""
+        event_detail_data = {}
+        total = response.get("total", 0)
+        if total <=20:
+            event_detail_data = response["list"]
+        else:
+            event_detail_data = response["topk"]
+        
+        for event_detail in event_detail_data:
+            target_info = {
+                "target_type": index_type,
+                "entity_type": entity_type,
+                "entity_name": entity_name,
+                "dimensions": {},
+            }
+            target_info["table"] = table
+            target_info_demensions = target_info["dimensions"]
+            
+            # 处理维度映射(优先从origin_data中透传)
+            mapping_keys = self.WhereSpecialKeyMapping[entity_type]
+            for key, value in dimensions.items():
+                if key in mapping_keys:
+                    target_info_demensions[mapping_keys[key]] = value
+            
+            origin_data = event_detail.get("origin_data", {})
+            for key, value in origin_data.items():
+                if key.startswith("dimensions."):
+                    target_info_demensions[key.split(".")[1]] = value
+            
+            event_name = event_detail.get("event_name", "")
+            target_info["event_name"]= event_name["value"]
+            
+            app_name = dimensions.get("apm_application_name", "")
+            service_name = dimensions.get("apm_service_name", "")
+            if app_name:
+                target_info_demensions["app_name"] = app_name
+            if service_name:
+                target_info_demensions["service_name"] = service_name
+
+            event_detail["target_info"] = target_info
