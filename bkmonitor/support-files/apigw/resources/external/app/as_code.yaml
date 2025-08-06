@@ -11,6 +11,32 @@ paths:
     post:
       operationId: as_code_import_config
       description: 导入AsCode配置
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - configs
+              - bk_biz_id
+              properties:
+                app:
+                  type: string
+                  default: default
+                  description: 分组
+                configs:
+                  type: object
+                  properties:
+                    '':
+                      type: string
+                  description: 导入配置
+                bk_biz_id:
+                  type: number
+                  description: 业务ID
+                overwrite:
+                  type: boolean
+                  default: 'false'
+                  description: 是否跨分组覆盖同名配置
       x-bk-apigateway-resource:
         matchSubpath: false
         backend:

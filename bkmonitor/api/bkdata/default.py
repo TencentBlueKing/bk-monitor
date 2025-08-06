@@ -217,6 +217,14 @@ class QueryDataResource(UseSaaSAuthInfoMixin, BkDataQueryAPIGWResource):
         return validated_request_data
 
 
+class QueryProfileDataResource(QueryDataResource):
+    """
+    Profile专用查询入口，可以独立切换查询地址
+    """
+
+    base_url = settings.BKDATA_PROFILE_QUERY_API_BASE_URL or QueryDataResource.base_url
+
+
 class CommonRequestSerializer(serializers.Serializer):
     bkdata_authentication_method = serializers.CharField(default="user", label="鉴权模式，默认 user 即可")
     appenv = serializers.CharField(default="ieod", label="环境，默认 ieod 即可")
