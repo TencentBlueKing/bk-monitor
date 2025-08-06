@@ -270,6 +270,7 @@ def _update_metric_list(bk_tenant_id: str, period: int, offset: int):
             available_biz_ids = manager_class.get_available_biz_ids(bk_tenant_id)
         except Exception as e:
             logger.exception("Failed to get or process available biz IDs for source type(%s): %s", source_type, e)
+            available_biz_ids = []
 
         # 分页处理
         total_biz_count = len(available_biz_ids)
