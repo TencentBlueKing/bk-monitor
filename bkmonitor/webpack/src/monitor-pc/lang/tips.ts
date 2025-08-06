@@ -395,4 +395,9 @@ export default {
     'Currently there are still associated consumption scenarios and cannot be edited',
   '当前仍然有关联的消费场景，无法删除':
     'Currently there are still associated consumption scenarios and cannot be deleted',
+  '输入框：直接输入 {0} 即可新建变量': 'Input box: Enter {0} directly to create a new variable',
+  '选择框：在选项中选择 {0} 然后输入变量名': 'Select box: Select {0} in the options and then enter the variable name',
+  '新建后，右侧会出现 {0}': 'After creating, {0} will appear on the right side',
+  '可以定义 {0} {1} {2}': 'You can define {0} {1} {2}',
+  '在各消费场景，选择 {0} 后，可填入 {1}': 'In various consumption scenarios, after selecting {0}, you can fill in {1}',
 };
