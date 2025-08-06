@@ -52,57 +52,57 @@ HOST_BASE_QUERY_CONFIG = {
 BCS_PROMQL_TEMPLATE = {
     # CPU使用量
     MetricName.BCS_PERFORMANCE_CPU_USAGE.value: {
-        "promql": 'sum by(pod)(rate(container_cpu_usage_seconds_total{ \
+        "promql": 'sum(rate(container_cpu_usage_seconds_total{ \
         bcs_cluster_id="{bcs_cluster_id}", namespace=~"^({namespace})$", pod_name=~"^({pod_name})$", container_name!="{container_name}" \
         }[1m]  ))'
     },
     # CPU request使用率
     MetricName.BCS_PERFORMANCE_CPU_REQUEST_USAGE_RATE.value: {
-        "promql": 'sum by(pod)(rate(container_cpu_usage_seconds_total{ \
+        "promql": 'sum(rate(container_cpu_usage_seconds_total{ \
         bcs_cluster_id="{bcs_cluster_id}", namespace=~"^({namespace})$", pod_name=~"^({pod_name})$", container_name!="{container_name}" \
-        }[1m]  )) / sum by(pod)(kube_pod_container_resource_requests_cpu_cores{ \
+        }[1m]  )) / sum(kube_pod_container_resource_requests_cpu_cores{ \
         bcs_cluster_id="{bcs_cluster_id}", namespace=~"^({namespace})$", pod_name=~"^({pod_name})$", container_name!="{container_name}" \
         }  )'
     },
     # CPU limit使用率
     MetricName.BCS_PERFORMANCE_CPU_LIMIT_USAGE_RATE.value: {
-        "promql": 'sum by(pod)(rate(container_cpu_usage_seconds_total{ \
+        "promql": 'sum(rate(container_cpu_usage_seconds_total{ \
         bcs_cluster_id="{bcs_cluster_id}", namespace=~"^({namespace})$", pod_name=~"^({pod_name})$", container_name!="{container_name}" \
-        }[1m]  )) / sum by(pod)(kube_pod_container_resource_limits_cpu_cores{ \
+        }[1m]  )) / sum(kube_pod_container_resource_limits_cpu_cores{ \
         bcs_cluster_id="{bcs_cluster_id}", namespace=~"^({namespace})$", pod_name=~"^({pod_name})$", container_name!="{container_name}" \
         }  )',
     },
     # 内存使用量
     MetricName.BCS_PERFORMANCE_MEMORY_USAGE.value: {
-        "promql": 'sum by(pod)(container_memory_working_set_bytes{ \
+        "promql": 'sum(container_memory_working_set_bytes{ \
         bcs_cluster_id="{bcs_cluster_id}", namespace=~"^({namespace})$", pod_name=~"^({pod_name})$", container_name!="{container_name}" \
         }  )',
     },
     # 内存 request使用率
     MetricName.BCS_PERFORMANCE_MEMORY_REQUEST_USAGE_RATE.value: {
-        "promql": 'sum by(pod)(container_memory_working_set_bytes{ \
+        "promql": 'sum(container_memory_working_set_bytes{ \
         bcs_cluster_id="{bcs_cluster_id}", namespace=~"^({namespace})$", pod_name=~"^({pod_name})$", container_name!="{container_name}" \
-        }  ) / sum by(pod)(kube_pod_container_resource_requests_memory_bytes{ \
+        }  ) / sum(kube_pod_container_resource_requests_memory_bytes{ \
         bcs_cluster_id="{bcs_cluster_id}", namespace=~"^({namespace})$", pod_name=~"^({pod_name})$", container_name!="{container_name}" \
         }  )',
     },
     # 内存 limit使用率
     MetricName.BCS_PERFORMANCE_MEMORY_LIMIT_USAGE_RATE.value: {
-        "promql": 'sum by(pod)(container_memory_working_set_bytes{ \
+        "promql": 'sum(container_memory_working_set_bytes{ \
         bcs_cluster_id="{bcs_cluster_id}", namespace=~"^({namespace})$", pod_name=~"^({pod_name})$", container_name!="{container_name}" \
-        }  ) / sum by(pod)(kube_pod_container_resource_limits_memory_bytes{ \
+        }  ) / sum(kube_pod_container_resource_limits_memory_bytes{ \
         bcs_cluster_id="{bcs_cluster_id}", namespace=~"^({namespace})$", pod_name=~"^({pod_name})$", container_name!="{container_name}" \
         }  )',
     },
     # 网络入带宽
     MetricName.BCS_TRAFFIC_IN.value: {
-        "promql": 'sum by(pod)(rate(container_network_receive_bytes_total{ \
+        "promql": 'sum(rate(container_network_receive_bytes_total{ \
         bcs_cluster_id="{bcs_cluster_id}", namespace=~"^({namespace})$", pod_name=~"^({pod_name})$", \
         }[1m]  ))',
     },
     # 网络出带宽
     MetricName.BCS_TRAFFIC_OUT.value: {
-        "promql": 'sum by(pod)(rate(container_network_transmit_bytes_total{ \
+        "promql": 'sum(rate(container_network_transmit_bytes_total{ \
         bcs_cluster_id="{bcs_cluster_id}", namespace=~"^({namespace})$", pod_name=~"^({pod_name})$", \
         }[1m]  ))',
     },
