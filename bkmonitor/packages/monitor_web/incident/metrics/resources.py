@@ -175,10 +175,15 @@ class IncidentMetricsSearchResource(BaseIncidentMetricsResource):
                 "display_by_dimenions": False,
             }
             metric_info = metric_query_response["metrics"][metric_name]
-        else:
-            metric_info["display_by_dimenions"] = True
             
         for series in unify_query_resp.get("series", []):
-            metric_info["time_series"][dimension_type] = [
-                [datapoint[1], datapoint[0]] for datapoint in series.get("datapoints", [])]
+            # 如果series中包含dimensions，则将dimensions中的值作为dimension_type
+            if "dimensions" in series and len(series["dimensions"]) >= 1:
+                for dimension_value in series["dimensions"].values():
+                    dimension_type = dimension_value
+                metric_info["display_by_dimenions"] = True
+                
+            metric_info["time_series"][dimension_type] = [[datapoint[1], datapoint[0]] for datapoint in series.get("datapoints", [])]
         
+        if len(metric_info["time_series"]) > 1:
+            metric_info["display_by_dimenions"] = True

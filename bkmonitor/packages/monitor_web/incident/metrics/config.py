@@ -609,8 +609,6 @@ def get_bcs_config(dimensions: dict[str, Any], **kwargs):
     """
     # 获取BCS配置模板
     bcs_config = EntityTypeMetricConfigMapping[EntityType.BcsPod.value]
-    print(dimensions)
-    import json
     # 复制所有配置
     filled_config = {}
     for metric_name, metric_config in bcs_config.items():
