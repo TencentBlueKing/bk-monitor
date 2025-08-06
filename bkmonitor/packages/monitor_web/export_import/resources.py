@@ -690,24 +690,7 @@ class UploadPackageResource(Resource):
     class RequestSerializer(serializers.Serializer):
         file_data = serializers.FileField(required=True, label="文件内容")
 
-    def un_tar_package(self):
-        file_instance = self.file_manager.file_obj
-        t = None
-        try:
-            t = tarfile.open(fileobj=file_instance.file_data.file)
-            t.extractall(path=self.parse_path, filter="data")
-        except Exception as e:
-            logger.exception(f"压缩包解压失败: {e}")
-            raise UploadPackageError(
-                {"msg": _("导入文件格式不正确，需要是.tar.gz/.tgz/.tar.bz2/.tbz2等后缀(gzip或bzip2压缩)")}
-            )
-        finally:
-            if t is not None:
-                t.close()
-        if not any(list([x in os.listdir(self.parse_path) for x in DIRECTORY_LIST])):
-            raise UploadPackageError({"msg": _("导入包目录结构不对")})
-
-    def new_parse_collect_config(self, collect_configs: dict[Path, dict], plugin_configs: dict[Path, bytes]):
+    def parse_collect_config(self, collect_configs: dict[Path, dict], plugin_configs: dict[Path, bytes]):
         for file_path, file_content in collect_configs.items():
             parse_manager = CollectConfigParse(
                 file_path=file_path, file_content=file_content, plugin_configs=plugin_configs
@@ -755,62 +738,7 @@ class UploadPackageResource(Resource):
                     file_id=self.file_id,
                 )
 
-    # DELETE
-    def parse_collect_config(self):
-        collect_config_dir = os.path.join(self.parse_path, "collect_config_directory")
-        if not os.path.exists(collect_config_dir):
-            return
-
-        collect_filenames = os.listdir(collect_config_dir)
-        for filename in collect_filenames:
-            # 避免用户通过ide编辑配置，遗留ide缓存文件
-            if filename.startswith("."):
-                logger.info(f"collect_config parse ignore: {filename}")
-                continue
-            parse_manager = CollectConfigParse(file_path=os.path.join(collect_config_dir, filename))
-            parse_result = parse_manager.parse_msg()
-
-            if parse_result["file_status"] == ImportDetailStatus.SUCCESS:
-                ImportParse.objects.create(
-                    name=parse_result["collect_config"]["name"],
-                    label=parse_result["collect_config"].get("label", ""),
-                    uuid=str(uuid4()),
-                    type=ConfigType.COLLECT,
-                    config=parse_result["collect_config"],
-                    file_status=ImportDetailStatus.SUCCESS,
-                    file_id=self.file_id,
-                )
-                try:
-                    ImportParse.objects.update_or_create(
-                        file_id=self.file_id,
-                        type=ConfigType.PLUGIN,
-                        name=parse_result["plugin_config"]["plugin_id"],
-                        defaults={
-                            "name": parse_result["plugin_config"]["plugin_id"],
-                            "type": ConfigType.PLUGIN,
-                            "label": parse_result["plugin_config"]["label"],
-                            "uuid": str(uuid4()),
-                            "config": parse_result["plugin_config"],
-                            "file_status": ImportDetailStatus.SUCCESS,
-                            "file_id": self.file_id,
-                        },
-                    )
-                except KeyError:
-                    # 日志关键字类导入不存储插件信息，在创建时需要新建（它是虚拟插件）
-                    pass
-            else:
-                ImportParse.objects.create(
-                    name=parse_result["name"],
-                    label=parse_result["collect_config"].get("label", ""),
-                    uuid=str(uuid4()),
-                    type=ConfigType.COLLECT,
-                    config=parse_result["collect_config"],
-                    file_status=ImportDetailStatus.FAILED,
-                    error_msg=parse_result.get("error_msg", ""),
-                    file_id=self.file_id,
-                )
-
-    def new_parse_strategy_config(self, strategy_configs: dict):
+    def parse_strategy_config(self, strategy_configs: dict):
         for file_path, file_content in strategy_configs.items():
             import_collect_configs = ImportParse.objects.filter(
                 type=ConfigType.COLLECT, file_id=self.file_id, file_status=ImportDetailStatus.SUCCESS
@@ -838,68 +766,10 @@ class UploadPackageResource(Resource):
                 file_id=self.file_id,
             )
 
-    # DELETE
-    def parse_strategy_config(self):
-        strategy_config_dir = os.path.join(self.parse_path, "strategy_config_directory")
-        if not os.path.exists(strategy_config_dir):
-            return
-
-        strategy_filenames = os.listdir(strategy_config_dir)
-        import_collect_configs = ImportParse.objects.filter(
-            type=ConfigType.COLLECT, file_id=self.file_id, file_status=ImportDetailStatus.SUCCESS
-        )
-        import_collect_config_ids = [collect_config_msg.config["id"] for collect_config_msg in import_collect_configs]
-        for filename in strategy_filenames:
-            # 避免用户通过ide编辑配置，遗留ide缓存文件
-            if filename.startswith("."):
-                logger.info(f"strategy parse ignore: {filename}")
-                continue
-            parse_manager = StrategyConfigParse(file_path=os.path.join(strategy_config_dir, filename))
-            parse_result, bk_collect_config_ids = parse_manager.parse_msg()
-
-            if not set(bk_collect_config_ids).issubset(set(import_collect_config_ids)):
-                parse_result.update({"file_status": ImportDetailStatus.FAILED, "error_msg": _("关联采集配置未发现")})
-
-            ImportParse.objects.create(
-                name=parse_result["name"],
-                label=parse_result["config"].get("scenario", ""),
-                uuid=str(uuid4()),
-                type=ConfigType.STRATEGY,
-                config=parse_result["config"],
-                file_status=parse_result["file_status"],
-                error_msg=parse_result.get("error_msg", ""),
-                file_id=self.file_id,
-            )
-
-    def new_parse_view_config(self, view_configs: dict):
+    def parse_view_config(self, view_configs: dict):
         for file_path, file_content in view_configs.items():
             parse_manager = ViewConfigParse(file_path=file_path, file_content=file_content)
             parse_result = parse_manager.check_msg()
-
-            ImportParse.objects.create(
-                name=parse_result["name"],
-                label="view",
-                uuid=str(uuid4()),
-                type=ConfigType.VIEW,
-                config=parse_result["config"],
-                file_status=parse_result["file_status"],
-                error_msg=parse_result.get("error_msg", ""),
-                file_id=self.file_id,
-            )
-
-    def parse_view_config(self):
-        view_config_dir = os.path.join(self.parse_path, "view_config_directory")
-        if not os.path.exists(view_config_dir):
-            return
-
-        dashboard_filenames = os.listdir(view_config_dir)
-        for filename in dashboard_filenames:
-            # 避免用户通过ide编辑配置，遗留ide缓存文件
-            if filename.startswith("."):
-                logger.info(f"view parse ignore: {filename}")
-                continue
-            parse_manager = ViewConfigParse(file_path=os.path.join(view_config_dir, filename))
-            parse_result = parse_manager.parse_msg()
 
             ImportParse.objects.create(
                 name=parse_result["name"],
@@ -943,9 +813,9 @@ class UploadPackageResource(Resource):
                 case _:
                     pass
 
-        self.new_parse_collect_config(collect_configs, plugin_configs)
-        self.new_parse_strategy_config(strategy_configs)
-        self.new_parse_view_config(view_configs)
+        self.parse_collect_config(collect_configs, plugin_configs)
+        self.parse_strategy_config(strategy_configs)
+        self.parse_view_config(view_configs)
 
     def parse_package_without_decompress(self, file: FieldFile) -> None:
         """
