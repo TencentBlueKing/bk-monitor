@@ -144,9 +144,8 @@ class QueryTimeBuilder:
             retention_time = current_time.shift(days=-int(retention))
             # 向下取整
             retention_time = retention_time.floor("minute")
-            # 开始时间 结束时间 限制在过期时间前
+            # 开始时间限制在过期时间前，结束时间则不做处理
+            # 所以会出现结束时间小于开始时间的情况
             if start_time < retention_time:
                 start_time = retention_time
-            if end_time < retention_time:
-                end_time = retention_time
         return start_time, end_time
