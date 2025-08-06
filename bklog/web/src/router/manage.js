@@ -57,7 +57,7 @@ const ArchiveRestore = () => import(/* webpackChunkName: 'sdk-track' */ '@/views
 const ReportManage = () => import(/* webpackChunkName: 'report-manage' */ '@/views/manage/report-management');
 const ExtractConfig = () => import(/* webpackChunkName: 'manage-extract-permission' */ '@/views/manage-v2/log-extract/extract-config/index.tsx');
 const extract = () => import(/* webpackChunkName: 'logExtract' */ '@/views/manage-v2/log-extract/extract-task/index.tsx');
-const extractHome = () => import(/* webpackChunkName: 'extract-home' */ '@/views/extract/home');
+const extractHome = () => import(/* webpackChunkName: 'extract-home' */ '@/views/manage-v2/log-extract/extract-task/task-list/index.tsx');
 const extractCreate = () => import(/* webpackChunkName: 'extract-create' */ '@/views/extract/create');
 const ExtractLinkList = () => import(/* webpackChunkName: 'extract-link-manage' */ '@/views/manage/manage-extract/extract-link-manage/extract-link-list');
 const ExtractLinkCreate = () => import(/* webpackChunkName: 'extract-link-manage' */ '@/views/manage/manage-extract/extract-link-manage/extract-link-create');
