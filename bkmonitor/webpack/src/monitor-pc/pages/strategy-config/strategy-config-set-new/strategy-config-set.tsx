@@ -2787,7 +2787,6 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
                   isAlert={!this.isNeedJudgingCondition}
                   isDetailMode={this.isDetailMode}
                   isOnlyAiDetectRule={this.isOnlyAiDetectRule}
-                  isStrategyEdit={this.isEditMode}
                   // judgeTimeRange={this.judgeTimeRange}
                   legalDimensionList={this.legalDimensionList}
                   // onNoDataChange={this.handleNoDataChange}

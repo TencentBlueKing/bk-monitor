@@ -86,7 +86,6 @@ interface Idata {
   isDetailMode?: boolean;
   isFta?: boolean;
   isOnlyAiDetectRule?: boolean;
-  isStrategyEdit?: boolean;
   judgeTimeRange?: string[]; // 关联告警时只显示生效时间段
   legalDimensionList?: ICommonItem[];
   metricData: MetricDetail[];
@@ -146,8 +145,6 @@ export default class JudgingCondition extends tsc<Idata, IEvent> {
   @Prop({ type: String, default: 'Edit' }) editMode: EditModeType;
   /* 当前策略是否只选择了一个智能检测算法 */
   @Prop({ type: Boolean, default: false }) isOnlyAiDetectRule: boolean;
-  /* 当前策略页是否处于编辑态 */
-  @Prop({ type: Boolean, default: false }) isStrategyEdit: boolean;
   @Ref() calendarSelectRef: any;
 
   aggList = [];

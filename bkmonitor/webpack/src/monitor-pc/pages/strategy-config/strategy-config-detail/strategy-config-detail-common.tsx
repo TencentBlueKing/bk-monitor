@@ -47,7 +47,6 @@ import AlarmGroupDetail from '../../alarm-group/alarm-group-detail/alarm-group-d
 import CommonNavBar from '../../monitor-k8s/components/common-nav-bar';
 import { handleSetTargetDesc, isRecoveryDisable, isStatusSetterNoData } from '../common';
 import { signalNames } from '../strategy-config-set-new/alarm-handling/alarm-handling-list';
-import { AI_DETECT_RULE_TYPES } from '../strategy-config-set-new/detection-rules/detection-rules';
 import { RecoveryConfigStatusSetter } from '../strategy-config-set-new/judging-condition/judging-condition';
 import AiopsMonitorData from '../strategy-config-set-new/monitor-data/aiops-monitor-data';
 import {
@@ -434,16 +433,6 @@ export default class StrategyConfigDetailCommon extends tsc<object> {
     return this.metricData?.[0]?.data_type_label !== 'alert';
   }
 
-  /* 是否只选择了智能检测算法 */
-  get isOnlyAiDetectRule() {
-    return (
-      !!this.detectionConfig.data.length &&
-      this.detectionConfig.data.every(item => {
-        return AI_DETECT_RULE_TYPES.includes(item.type);
-      })
-    );
-  }
-
   created() {
     this.loading = true;
     const promiseList = [];
@@ -469,7 +458,9 @@ export default class StrategyConfigDetailCommon extends tsc<object> {
       .catch(err => {
         console.log(err);
       })
-      .finally(() => (this.loading = false));
+      .finally(() => {
+        this.loading = false;
+      });
   }
 
   mounted() {
@@ -1591,11 +1582,23 @@ export default class StrategyConfigDetailCommon extends tsc<object> {
                       <StrategyTemplatePreview
                         dialogShow={this.isShowTemplate}
                         template={this.templateData.message_tmpl}
-                        {...{ on: { 'update:dialogShow': v => (this.isShowTemplate = v) } }}
+                        {...{
+                          on: {
+                            'update:dialogShow': v => {
+                              this.isShowTemplate = v;
+                            },
+                          },
+                        }}
                       />
                       <StrategyVariateList
                         dialogShow={this.variateListShow}
-                        {...{ on: { 'update:dialogShow': val => (this.variateListShow = val) } }}
+                        {...{
+                          on: {
+                            'update:dialogShow': val => {
+                              this.variateListShow = val;
+                            },
+                          },
+                        }}
                         variate-list={this.variateList}
                       />
                     </div>
@@ -1605,7 +1608,11 @@ export default class StrategyConfigDetailCommon extends tsc<object> {
                     v-model={this.alarmGroupDetail.show}
                     customEdit
                     onEditGroup={this.handleEditAlarmGroup}
-                    onShowChange={val => !val && (this.alarmGroupDetail.id = 0)}
+                    onShowChange={val => {
+                      if (!val) {
+                        this.alarmGroupDetail.id = 0;
+                      }
+                    }}
                   />
                 </div>
               )}
@@ -1652,7 +1659,9 @@ export default class StrategyConfigDetailCommon extends tsc<object> {
             need-footer={false}
             show-footer={false}
             title={this.$t('监控目标')}
-            on-change={v => (this.showTargetTable = v)}
+            on-change={v => {
+              this.showTargetTable = v;
+            }}
           >
             <strategy-target-table
               objType={this.metricData[0]?.objectType || this.targetDetail?.instance_type || ''}

@@ -369,4 +369,5 @@ export default {
   用户指令: 'User Instruction',
   '请输入指标/PromQL语句': 'Please enter the metric/PromQL statement',
   请输入用户指令: 'Please enter the user instruction',
+  仅使用了智能算法不可编辑: 'Only using the smart algorithm is not editable',
 };
