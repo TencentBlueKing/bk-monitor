@@ -20,9 +20,12 @@ def message_queue_add(biz_id, dsn):
     # 如果当前是字符串，转换为字典格式
     if isinstance(settings.MESSAGE_QUEUE_DSN, str):
         current_dsn = settings.MESSAGE_QUEUE_DSN
-        settings.MESSAGE_QUEUE_DSN = {"0": current_dsn} if current_dsn else {}
+        dsn_config = {"0": current_dsn} if current_dsn else {}
+    else:
+        dsn_config = dict(settings.MESSAGE_QUEUE_DSN) if settings.MESSAGE_QUEUE_DSN else {}
 
-    settings.MESSAGE_QUEUE_DSN[biz_id_str] = dsn
+    dsn_config[biz_id_str] = dsn
+    settings.MESSAGE_QUEUE_DSN = dsn_config
 
 
 def message_queue_remove(biz_id):
@@ -32,7 +35,9 @@ def message_queue_remove(biz_id):
     biz_id_str = str(biz_id)
 
     if isinstance(settings.MESSAGE_QUEUE_DSN, dict) and biz_id_str in settings.MESSAGE_QUEUE_DSN:
-        del settings.MESSAGE_QUEUE_DSN[biz_id_str]
+        dsn_config = dict(settings.MESSAGE_QUEUE_DSN)
+        del dsn_config[biz_id_str]
+        settings.MESSAGE_QUEUE_DSN = dsn_config
 
 
 def qos_set_bk_data_ts(interval=3):
