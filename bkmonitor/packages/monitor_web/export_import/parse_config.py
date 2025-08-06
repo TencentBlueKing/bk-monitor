@@ -155,8 +155,12 @@ class CollectConfigParse(BaseParse):
             )
             import_manager.filename_list = self.get_filename_list(plugin_id)
             import_manager.plugin_configs = self.plugin_configs
+            info_path = {
+                file_path.name: self.plugin_configs[file_path]
+                for file_path in import_manager.filename_list
+                if file_path.parent.name == "info"
+            }
 
-            info_path = {file_path.name: content for file_path, content in self.plugin_configs.items()}
             tmp_version = import_manager.get_tmp_version(info_path=info_path)
             return {"tmp_version": tmp_version}
         except Exception:
@@ -167,7 +171,7 @@ class CollectConfigParse(BaseParse):
                 "error_msg": _("关联插件信息解析失败"),
             }
 
-    def get_filename_list(self, plugin_id: str) -> list[str]:
+    def get_filename_list(self, plugin_id: str) -> list[Path]:
         """获取插件的文件列表"""
         filename_list = []
         for file_path in self.plugin_configs.keys():
