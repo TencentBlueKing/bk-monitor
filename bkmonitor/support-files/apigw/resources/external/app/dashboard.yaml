@@ -11,6 +11,13 @@ paths:
     get:
       operationId: get_dashboard_directory_tree
       description: 获取仪表盘目录树
+      parameters:
+      - in: query
+        name: bk_biz_id
+        schema:
+          type: number
+        required: true
+        description: 业务ID
       x-bk-apigateway-resource:
         isPublic: true
         allowApplyPermission: true
@@ -29,6 +36,19 @@ paths:
     get:
       operationId: get_dashboard_detail
       description: 获取仪表盘详情
+      parameters:
+      - in: query
+        name: bk_biz_id
+        schema:
+          type: string
+        required: true
+        description: 业务ID
+      - in: query
+        name: dashboard_uid
+        schema:
+          type: string
+        required: true
+        description: 仪表盘uid
       x-bk-apigateway-resource:
         isPublic: true
         allowApplyPermission: true
