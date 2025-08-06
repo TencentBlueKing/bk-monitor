@@ -969,7 +969,9 @@ class UploadPackageResource(Resource):
                         file_list[member.name] = f.read()
 
         # 校验包目录结构
-        if set(DIRECTORY_LIST) - set(filepath.split("/")[0] for filepath in file_list.keys()):
+        if not any(
+            list([x in list(set(filepath.split("/")[0] for filepath in file_list.keys())) for x in DIRECTORY_LIST])
+        ):
             raise UploadPackageError({"msg": _("导入包目录结构不对")})
 
         return file_list
