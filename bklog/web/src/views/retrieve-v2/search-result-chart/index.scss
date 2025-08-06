@@ -1,65 +1,18 @@
-// 容器样式
-.monitor-echarts-container {
+.bklog-v2-echarts-container {
   position: relative;
   overflow: hidden;
   background-color: #fff;
+  padding-left: 15px;
 
   &.is-fold {
     height: 36px;
   }
 
-  .echart-legend {
-    display: flex;
-    justify-content: center;
-  }
-
-  .chart-empty {
-    position: absolute;
-    top: 0;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    width: 100%;
-    height: 100%;
-    background: #fff;
-
-    .icon-chart {
-      width: 38px;
-      height: 38px;
-      fill: #dcdee6;
-    }
-
-    .text {
-      font-size: 14px;
-      color: #979ba5;
-    }
-  }
-
-  .monitor-echart-wrap {
-    // height: 126px;
-    padding-top: 0;
-    padding-bottom: 0;
-
-    .chart-wrapper {
-      /* stylelint-disable-next-line declaration-no-important */
-      min-height: 126px !important;
-
-      /* stylelint-disable-next-line declaration-no-important */
-      max-height: 126px !important;
-    }
-
-    .bk-loading {
-      z-index: 1;
-    }
-  }
-}
-
-// 标题样式
-.title-wrapper-new {
+  // 标题样式
+  .title-wrapper {
     position: relative;
-    z-index: 999;
     flex: 1;
+    z-index: 3;
     display: flex;
     align-items: center;
     height: 36px;
@@ -163,18 +116,6 @@
       }
     }
 
-    .menu-list {
-      position: absolute;
-      top: 0;
-      right: 36px;
-
-      .bklog-icon {
-        font-size: 14px;
-        color: #979ba5;
-        cursor: pointer;
-      }
-    }
-
     .chart-spin {
       position: absolute;
       top: 27px;
@@ -182,15 +123,19 @@
     }
   }
 
-// 图表样式
-.monitor-echart-wrap {
-  position: relative;
-  width: 100%;
-  height: 100%;
-  padding-top: 18px;
-  color: #63656e;
-  background-color: #fff;
-  background-repeat: repeat;
-  background-position: top;
-  border-radius: 2px;
+  // 图表样式
+  .echart-wrapper {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    color: #63656e;
+    background-color: #fff;
+    background-repeat: repeat;
+    background-position: top;
+    border-radius: 2px;
+  }
+
+  .bk-loading {
+    z-index: 1;
+  }
 }

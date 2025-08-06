@@ -997,7 +997,9 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
         .join('')
     );
   }
-  handleOverflowEnter(e: MouseEvent, list) {
+  handleOverflowEnter(e: MouseEvent) {
+    // @ts-ignore
+    const list = Array.from(e?.currentTarget?.childNodes || []).map(spanDom => spanDom?.textContent);
     this.handlePopoverShow(e, list.join('、 '));
   }
 
@@ -1136,7 +1138,7 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
         <div class='col-classifiy'>
           {props.row[type]?.length > 0 ? (
             <div
-              onMouseenter={e => this.handleOverflowEnter(e, props.row[type])}
+              onMouseenter={e => this.handleOverflowEnter(e)}
               onMouseleave={this.handlePopoverHide}
             >
               {props.row[type].map(item => (

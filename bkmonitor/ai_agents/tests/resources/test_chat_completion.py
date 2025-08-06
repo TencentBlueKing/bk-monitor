@@ -52,3 +52,35 @@ def test_chat_completion_with_fast_command():
 
     destroy_chat_session_res = DestroyChatSessionResource().request(session_code=session_code)
     assert destroy_chat_session_res
+
+
+def test_chat_completion_with_non_streaming_mode():
+    """
+    测试非流式模式的LLM对话
+    """
+    session_code = generate_uuid()
+
+    create_session_res = CreateChatSessionResource().request(session_code=session_code, session_name="test_session")
+    assert create_session_res
+
+    translate_command_params = {
+        "session_code": session_code,
+        "role": "user",
+        "content": "翻译",
+        "property": {
+            "extra": {
+                "command": "translate",
+                "context": [
+                    {"__key": "content", "__value": "你好", "content": "你好", "context_type": "textarea"},
+                    {"__key": "language", "__value": "english", "language": "english", "context_type": "textarea"},
+                ],
+                "anchor_path_resources": {},
+            }
+        },
+    }
+
+    CreateChatSessionContentResource().request(**translate_command_params)
+
+    chat_completion_params = {"session_code": session_code, "execute_kwargs": {"stream": False}}
+    chat_completion_res = CreateChatCompletionResource().request(**chat_completion_params)
+    print(chat_completion_res)

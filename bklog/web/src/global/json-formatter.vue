@@ -49,7 +49,7 @@
   import { computed, ref, watch, onBeforeUnmount, onMounted, inject } from 'vue';
 
   // @ts-ignore
-  import { formatDate, formatDateNanos, parseTableRowData } from '@/common/util';
+  import { parseTableRowData } from '@/common/util';
   import useFieldNameHook from '@/hooks/use-field-name';
 
   import useJsonRoot from '../hooks/use-json-root';
