@@ -1409,7 +1409,7 @@ class IndexSetHandler(APIModel):
             )
 
         if doris_table_id := self.data.doris_table_id:
-            doris_result_table = doris_table_id.split(".")[0]
+            doris_result_table = doris_table_id.rsplit(".", maxsplit=1)[0]
             # Doris接入
             multi_execute_func.append(
                 result_key=self.data.index_set_id,
@@ -1680,7 +1680,7 @@ class BaseIndexSetHandler:
                     params=request_params,
                 )
             if doris_table_id := index_set.doris_table_id:
-                doris_result_table = doris_table_id.split(".")[0]
+                doris_result_table = doris_table_id.rsplit(".", maxsplit=1)[0]
                 # Doris接入
                 multi_execute_func.append(
                     result_key=index_set.index_set_id,

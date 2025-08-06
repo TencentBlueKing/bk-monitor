@@ -293,8 +293,8 @@ class IndexSetViewSet(ModelViewSet):
         response.data["list"] = IndexSetHandler.post_list(response.data["list"])
         return response
 
-    @list_route(methods=["GET"], url_path="list_routers")
-    def list_routers(self, request):
+    @list_route(methods=["GET"], url_path="list_es_router")
+    def list_es_router(self, request):
         params = self.params_valid(ESRouterListSerializer)
         router_list = []
         qs = LogIndexSet.objects.all()
@@ -442,7 +442,7 @@ class IndexSetViewSet(ModelViewSet):
         }
         for index_set in index_set_list:
             if doris_table_id := index_set["doris_table_id"]:
-                doris_result_table = doris_table_id.split(".")[0]
+                doris_result_table = doris_table_id.rsplit(".", maxsplit=1)[0]
                 base_doris_router.update(
                     {
                         "space_type": index_set["space_uid"].split("__")[0],
