@@ -1043,6 +1043,7 @@ class CallerLineChart extends CommonSimpleChart {
                 params: { id: 'n', value: '$time_shift' },
               };
             }
+            return f;
           });
         } else {
           queryConfig.functions = (queryConfig.functions || []).filter(f => f.id !== 'time_shift');
