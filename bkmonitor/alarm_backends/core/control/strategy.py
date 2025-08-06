@@ -26,6 +26,7 @@ from alarm_backends.core.cache.strategy import StrategyCacheManager
 from alarm_backends.core.control.item import Item
 from alarm_backends.core.i18n import i18n
 from bkmonitor.utils import time_tools
+from bkmonitor.models.strategy import AlgorithmModel
 from core.errors.alarm_backends import StrategyItemNotFound
 
 logger = logging.getLogger("core.control")
@@ -271,13 +272,31 @@ class Strategy(object):
             }
         }
         """
+        is_aiops_algorithm = True
+        for item in strategy.get("items", []):
+            for algorithm in item.get("algorithms"):
+                # 如果算法类型不是AIOPS算法，则说明不只有AIOPS算法
+                if algorithm["type"] not in AlgorithmModel.AIOPS_ALGORITHMS:
+                    is_aiops_algorithm = False
+                    break
+            # 如果 is_aiops_algorithm 为False，则说明不只有AIOPS算法，循环就不必继续，直接跳出循环
+            if not is_aiops_algorithm:
+                break
         trigger_config = {}
         for detect in strategy["detects"]:
-            trigger_config[str(detect["level"])] = {
-                "check_window_size": int(detect["trigger_config"]["check_window"]),
-                "trigger_count": int(detect["trigger_config"]["count"]),
-                "uptime": detect["trigger_config"].get("uptime"),
-            }
+            # 如果只有AIOPS算法，则写死 check_window_size 为 5，trigger_count 为 1
+            if is_aiops_algorithm:
+                trigger_config[str(detect["level"])] = {
+                    "check_window_size": 5,
+                    "trigger_count": 1,
+                    "uptime": detect["trigger_config"].get("uptime"),
+                }
+            else:
+                trigger_config[str(detect["level"])] = {
+                    "check_window_size": int(detect["trigger_config"]["check_window"]),
+                    "trigger_count": int(detect["trigger_config"]["count"]),
+                    "uptime": detect["trigger_config"].get("uptime"),
+                }
         return trigger_config
 
     @staticmethod
