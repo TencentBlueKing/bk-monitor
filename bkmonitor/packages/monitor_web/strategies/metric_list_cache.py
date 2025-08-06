@@ -789,32 +789,31 @@ class CustomMetricCacheManager(BaseMetricCacheManager):
         apm_ts_groups = self._get_apm_ts_groups()
 
         # 使用时序组数据中的维度
-        if apm_ts_groups:
-            for ts_group in apm_ts_groups:
-                # 标记为apm
-                ts_group["label"] = "apm"
-                # 处理metrics信息
-                for metric in ts_group.get("metric_info_list", []):
-                    metric_name = metric["field_name"]
-                    if metric_name in APM_METRICS_INFO:
-                        metric_info = APM_METRICS_INFO[metric_name]
-                        metric["unit"] = metric_info["unit"]
-                        metric["description"] = metric_info["description"]
+        for ts_group in apm_ts_groups:
+            # 标记为apm
+            ts_group["label"] = "apm"
+            # 处理metrics信息
+            for metric in ts_group.get("metric_info_list", []):
+                metric_name = metric["field_name"]
+                if metric_name in APM_METRICS_INFO:
+                    metric_info = APM_METRICS_INFO[metric_name]
+                    metric["unit"] = metric_info["unit"]
+                    metric["description"] = metric_info["description"]
 
-                        # 生成指标
-                        base_info = self._get_ts_base_info(ts_group)
-                        yield self._generate_ts_metric(base_info, metric, ts_group)
+                    # 生成指标
+                    base_info = self._get_ts_base_info(ts_group)
+                    yield self._generate_ts_metric(base_info, metric, ts_group)
 
     def _get_apm_ts_groups(self):
         """获取当前业务的APM时序组数据"""
         try:
             # 按业务ID过滤时序组
             ts_groups = api.metadata.query_time_series_group(bk_biz_id=self.bk_biz_id)
-            # 过滤出APM相关的时序组
-            return [ts_group for ts_group in ts_groups if APM_TABLE_REGEX.match(ts_group["table_id"])]
-        except Exception as e:
+        except BKAPIError as e:
             logger.exception(f"Failed to get APM time series groups: {e}")
             return []
+        # 过滤出APM相关的时序组
+        return [ts_group for ts_group in ts_groups if APM_TABLE_REGEX.match(ts_group["table_id"])]
 
     def _process_custom_ts_metrics(self):
         """处理其他自定义时序指标"""
@@ -1655,7 +1654,7 @@ class CustomEventCacheManager(BaseMetricCacheManager):
         # 获取有k8s集群的业务
         try:
             clusters = api.kubernetes.fetch_k8s_cluster_list(bk_biz_id=self.bk_biz_id, bk_tenant_id=self.bk_tenant_id)
-        except Exception as e:
+        except BKAPIError as e:
             logger.exception(f"Failed to fetch K8s clusters: {e}")
             return
 
@@ -1666,7 +1665,7 @@ class CustomEventCacheManager(BaseMetricCacheManager):
         alert_ids = []
         try:
             alert_ids = api.kubernetes.fetch_bcs_cluster_alert_enabled_id_list(bk_biz_id=self.bk_biz_id)
-        except Exception as e:
+        except BKAPIError as e:
             logger.exception(f"Failed to fetch K8s alert IDs: {e}")
 
         # 为每一个集群生成事件指标
@@ -1828,7 +1827,7 @@ class BkMonitorLogCacheManager(BaseMetricCacheManager):
         """
         # 获取符合条件的配置
         collect_configs = CollectConfigMeta.objects.filter(
-            Q(collect_type=CollectConfigMeta.CollectType.SNMP_TRAP) | Q(collect_type=CollectConfigMeta.CollectType.LOG),
+            collect_type__in=[CollectConfigMeta.CollectType.SNMP_TRAP, CollectConfigMeta.CollectType.LOG],
             bk_tenant_id=self.bk_tenant_id,
         )
         # 如果提供了bk_biz_id， 过滤对应业务的采集配置
@@ -1887,7 +1886,7 @@ class BkMonitorLogCacheManager(BaseMetricCacheManager):
             logger.info(f"Querying event groups with bk_data_ids: {list(data_ids)}")
             event_group_result = api.metadata.query_event_group.request.refresh(bk_data_ids=list(data_ids))
             logger.info(f"[QUERY_EVENT_GROUP] filtered event_group_list length: {len(event_group_result)}")
-        except Exception as e:
+        except BKAPIError as e:
             logger.exception(f"Error querying event groups: {e}")
             return {}
 
@@ -2667,7 +2666,7 @@ class BkmonitorMetricCacheManager(BaseMetricCacheManager):
                     "metric_field_name": metric_info["metric_field_name"],
                     "unit": metric_info["unit"],
                     "dimensions": metric_info["dimensions"],
-                    "default_dimensions": ["task_id"],
+                    "default_dimensions": [],
                     "default_condition": [],
                     "result_table_label": "uptimecheck",
                     "result_table_label_name": "服务拨测",
