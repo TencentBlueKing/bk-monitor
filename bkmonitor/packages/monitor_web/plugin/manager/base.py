@@ -794,7 +794,7 @@ class PluginManager(BasePluginManager):
         """获取插件版本号"""
         version_path = ""
         for filename in self.filename_list:
-            if filename.endswith("VERSION"):
+            if str(filename).endswith("VERSION"):
                 version_path = filename
                 break
 
@@ -802,7 +802,7 @@ class PluginManager(BasePluginManager):
             if self.plugin_configs:
                 version_str = self._decode_file(self.plugin_configs[version_path])
             else:
-                version_str = self._read_file(os.path.join(self.tmp_path, version_path))
+                version_str = self._read_file(os.path.join(self.tmp_path, str(version_path)))
 
             version_split = version_str.split(".")
             config_version = int(version_split[0])
