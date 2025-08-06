@@ -5,6 +5,7 @@ from apps.log_clustering.exceptions import ClusteringAccessNotSupportedException
 from apps.log_clustering.handlers.dataflow.constants import OnlineTaskTrainingArgs
 from apps.log_clustering.handlers.regex_template import RegexTemplateHandler
 from apps.log_clustering.models import ClusteringConfig
+from apps.log_databus.handlers.collector import CollectorHandler
 from apps.log_databus.handlers.collector_scenario import CollectorScenario
 from apps.log_databus.models import CollectorConfig
 from apps.log_search.models import LogIndexSet
@@ -65,6 +66,11 @@ class MiniLinkAccessHandler:
                 log_bk_data_id=self.collector_config.bk_data_id,
                 use_mini_link=True,
                 predict_cluster=self.read_config(params, "predict_cluster"),
+                signature_pattern_rt=CollectorHandler.build_result_table_id(
+                    self.collector_config.get_bk_biz_id(),
+                    self.collector_config.collector_config_name_en,
+                    is_pattern_rt=True,
+                ),
             ),
         )
 

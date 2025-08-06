@@ -304,6 +304,8 @@ class PatternHandler:
 
     @cached_property
     def pattern_aggs_field(self) -> str:
+        if self._clustering_config.use_mini_link:
+            return "signature"
         return f"{AGGS_FIELD_PREFIX}_{self._pattern_level}"
 
     @cached_property

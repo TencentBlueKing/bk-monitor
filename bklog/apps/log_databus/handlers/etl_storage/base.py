@@ -977,7 +977,6 @@ class EtlStorage:
         :param index_settings: 索引配置
         :param total_shards_per_node: 每个节点的分片总数
         """
-        from apps.log_databus.handlers.collector import CollectorHandler
 
         # ES 配置
         es_config = get_es_config(instance.get_bk_biz_id())
@@ -1010,7 +1009,7 @@ class EtlStorage:
         params = {
             "bk_data_id": instance.bk_data_id,
             # 必须为 库名.表名
-            "table_id": CollectorHandler.build_result_table_id(instance.get_bk_biz_id(), table_id, is_pattern_rt=True),
+            "table_id": table_id,
             "is_enable": True,
             "table_name_zh": f"{instance.get_name()}_Pattern",
             "is_custom_table": True,

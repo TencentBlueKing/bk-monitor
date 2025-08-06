@@ -24,7 +24,7 @@ from django.conf import settings
 from apps.constants import UserOperationActionEnum, UserOperationTypeEnum
 from apps.decorators import user_operation_record
 from apps.feature_toggle.handlers.toggle import FeatureToggleObject
-from apps.log_clustering.handlers.clustering_config import ClusteringConfigHandler
+from apps.log_clustering.models import ClusteringConfig
 from apps.log_clustering.tasks.flow import update_clustering_clean
 from apps.log_databus.exceptions import CollectorActiveException
 from apps.log_databus.handlers.collector import CollectorHandler
@@ -74,7 +74,8 @@ class TransferEtlHandler(EtlHandler):
             etl_params["record_parse_failure"] = True
 
         if self.data.is_clustering:
-            handler = ClusteringConfigHandler(collector_config_id=self.data.collector_config_id)
+            clustering_config = ClusteringConfig.objects.get(collector_config_id=self.data.collector_config_id)
+
             update_clustering_clean.delay(
                 collector_config_id=self.data.collector_config_id,
                 fields=fields,
@@ -82,7 +83,7 @@ class TransferEtlHandler(EtlHandler):
                 etl_params=etl_params,
             )
 
-            if handler.data.bkdata_data_id and handler.data.bkdata_data_id != self.data.bk_data_id:
+            if clustering_config.bkdata_data_id and clustering_config.bkdata_data_id != self.data.bk_data_id:
                 # 旧版聚类链路，由于入库链路不是独立的，需要更新 transfer 的结果表配置；新版则无需更新
                 etl_params["etl_flat"] = True
                 etl_params["separator_node_action"] = ""
@@ -100,7 +101,7 @@ class TransferEtlHandler(EtlHandler):
                             f"{EtlStorage.separator_node_name}.", ""
                         )
 
-            if handler.data.use_mini_link:
+            if clustering_config.use_mini_link:
                 fields = CollectorScenario.fields_insert_field_index(
                     source_fields=fields,
                     dst_fields=[
@@ -123,7 +124,7 @@ class TransferEtlHandler(EtlHandler):
                 # 接入聚类小型化必须要创建 pattern 结果表
                 EtlStorage.update_or_create_pattern_result_table(
                     instance=self.data,
-                    table_id=table_id,
+                    table_id=clustering_config.signature_pattern_rt,
                     storage_cluster_id=storage_cluster_id,
                     retention=retention,
                     allocation_min_days=allocation_min_days,
