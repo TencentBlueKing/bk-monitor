@@ -102,9 +102,12 @@ class ServiceDiscover(Discover):
             if not topo_key or topo_key in found_topo_keys:
                 continue
 
-            system: list[dict[str, Any]] = [
-                {"name": "trpc", "extra_data": {"rpc_system": item.get("rpc_system") or ""}}
-            ]
+            rpc_system: str | None = item.get("rpc_system")
+            system: list[dict[str, Any]] = [{"name": "trpc", "extra_data": {}}]
+            if rpc_system:
+                # 如果存在 rpc_system，才添加到 system 中，避免空值覆盖有值。
+                system[0]["extra_data"]["rpc_system"] = rpc_system
+
             if topo_key in exists_mapping:
                 source: list[str] = exists_mapping[topo_key]["source"] or [TelemetryDataType.METRIC.value]
                 if TelemetryDataType.METRIC.value not in source:
