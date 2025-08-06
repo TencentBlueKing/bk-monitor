@@ -24,8 +24,10 @@
  * IN THE SOFTWARE.
  */
 
-import { Component, Prop } from 'vue-property-decorator';
+import { Component, Prop, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
+import { xssFilter } from 'monitor-common/utils';
 
 import './select-wrap.scss';
 
@@ -33,8 +35,13 @@ interface IProps {
   active?: boolean;
   backgroundColor?: string;
   id?: string;
+  loading?: boolean;
   minWidth?: number;
-  onClick: (e: Event) => void;
+  needPop?: boolean;
+  tips?: string;
+  tipsPlacements?: string[];
+  onClick?: (e: Event) => void;
+  onOpenChange?: (v: boolean) => void;
 }
 
 @Component
@@ -43,9 +50,50 @@ export default class SelectWrap extends tsc<IProps> {
   @Prop({ default: 127 }) minWidth: number;
   @Prop({ default: '#fff' }) backgroundColor: string;
   @Prop({ default: '' }) id: string;
+  @Prop({ default: false }) loading: boolean;
+  @Prop({ default: '' }) tips: string;
+  @Prop({ default: () => ['top'], type: Array }) tipsPlacements: string[];
+  @Prop({ default: false }) needPop: boolean;
+
+  @Ref('pop') popRef: HTMLElement;
+
+  popoverInstance = null;
+  isShowPop = false;
 
   handleClick(e) {
+    if (this.loading) {
+      return;
+    }
+    if (this.needPop) {
+      this.handleShowPopover(e);
+      return;
+    }
     this.$emit('click', e);
+  }
+
+  handleShowPopover(e: Event) {
+    if (!this.popoverInstance) {
+      this.popoverInstance = this.$bkPopover(e.currentTarget, {
+        content: this.popRef,
+        arrow: false,
+        trigger: 'click',
+        placement: 'bottom-start',
+        theme: 'light common-monitor',
+        boundary: 'window',
+        duration: [200, 0],
+        distance: 1,
+        onHidden: () => {
+          this.popoverInstance?.hide();
+          this.popoverInstance.destroy();
+          this.popoverInstance = null;
+          this.isShowPop = false;
+          this.$emit('openChange', false);
+        },
+      });
+    }
+    this.isShowPop = true;
+    this.$emit('openChange', true);
+    this.popoverInstance?.show(100);
   }
 
   render() {
@@ -56,9 +104,24 @@ export default class SelectWrap extends tsc<IProps> {
         class='template-config-utils-select-wrap-component'
         onClick={e => this.handleClick(e)}
       >
-        {this.$slots?.default || ''}
+        <div
+          class='slot-wrap'
+          v-bk-tooltips={{
+            content: xssFilter(this.tips),
+            placements: this.tipsPlacements,
+            disabled: !this.tips,
+            delay: [300, 0],
+          }}
+        >
+          {this.$slots.default || ''}
+        </div>
+
         <div class={['expand-wrap', { active: this.active }]}>
           <span class='icon-monitor icon-mc-arrow-down' />
+        </div>
+        {this.loading && <div class='select-loading skeleton-element' />}
+        <div style={{ display: 'none' }}>
+          <div ref='pop'>{this.$slots.popover}</div>
         </div>
       </div>
     );

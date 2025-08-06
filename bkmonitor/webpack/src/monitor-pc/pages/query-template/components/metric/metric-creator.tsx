@@ -24,32 +24,35 @@
  * IN THE SOFTWARE.
  */
 
-import { Component, Prop } from 'vue-property-decorator';
+import { Component, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
+import { getMetricListV2 } from 'monitor-api/modules/strategies';
 import { random } from 'monitor-common/utils/utils';
 
 import MetricSelector from '../../../../components/metric-selector/metric-selector';
+import { type TMetricDetail, MetricDetail } from '../type/query-config';
+import { getMetricTip } from '../utils/metric-tip';
 import SelectWrap from '../utils/select-wrap';
-
-import type { IScenarioItem, TMetricDetail } from '../type/typing';
 
 import './metric-creator.scss';
 
 interface IProps {
-  scenarioList?: IScenarioItem[];
+  metricId?: string;
   onSelectMetric?: (metric: TMetricDetail) => void;
 }
 
 @Component
 export default class MetricCreator extends tsc<IProps> {
-  @Prop({ type: Array, default: () => [] }) scenarioList: IScenarioItem[];
+  /* 指标id */
+  @Prop({ type: String, default: '' }) metricId: string;
   /* 指标选择器目标id */
   selectId = '';
   /* 指标选择器是否显示 */
   showSelect = false;
-  /*  */
-  curMetric = null;
+  /* 已选指标 */
+  curMetric: TMetricDetail = null;
+  loading = false;
 
   get metricAlias() {
     return !this.curMetric?.metric_field_name || this.curMetric?.metric_field_name === this.curMetric?.metric_field
@@ -57,8 +60,31 @@ export default class MetricCreator extends tsc<IProps> {
       : this.curMetric?.metric_field_name;
   }
 
+  get metricTips() {
+    return getMetricTip(this.curMetric);
+  }
+
+  @Watch('metricId', { immediate: true })
+  async handleWatchMetricId() {
+    this.getMetricDetail();
+  }
+
   created() {
-    this.selectId = random(8);
+    this.selectId = `metric-selector-${random(8)}`;
+  }
+
+  async getMetricDetail() {
+    if (this.metricId && this.curMetric?.metric_id !== this.metricId) {
+      this.loading = true;
+      const { metric_list: metricList = [] } = await getMetricListV2({
+        conditions: [{ key: 'metric_id', value: [this.metricId] }],
+      }).catch(() => ({}));
+      const curMetric = metricList[0];
+      if (curMetric) {
+        this.curMetric = new MetricDetail(curMetric);
+      }
+      this.loading = false;
+    }
   }
 
   handleClick() {
@@ -66,8 +92,8 @@ export default class MetricCreator extends tsc<IProps> {
   }
 
   handleSelectMetric(metric) {
-    this.curMetric = metric;
-    this.$emit('selectMetric', metric);
+    this.curMetric = new MetricDetail(metric);
+    this.$emit('selectMetric', this.curMetric);
   }
 
   render() {
@@ -78,14 +104,16 @@ export default class MetricCreator extends tsc<IProps> {
           id={this.selectId}
           active={this.showSelect}
           backgroundColor={'#FDF4E8'}
+          loading={this.loading}
           minWidth={432}
+          tips={this.metricTips}
+          tipsPlacements={['right']}
           onClick={() => this.handleClick()}
         >
           <span class='metric-name'>{this.metricAlias}</span>
         </SelectWrap>
         <MetricSelector
-          metricId={this.curMetric?.metric_id}
-          scenarioList={this.scenarioList}
+          metricId={this.curMetric?.metric_id as string}
           show={this.showSelect}
           targetId={`#${this.selectId}`}
           onSelected={this.handleSelectMetric}

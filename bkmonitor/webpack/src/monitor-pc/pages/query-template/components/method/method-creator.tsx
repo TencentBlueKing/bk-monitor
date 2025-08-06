@@ -24,29 +24,78 @@
  * IN THE SOFTWARE.
  */
 
-import { Component } from 'vue-property-decorator';
+import { Component, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import SelectWrap from '../utils/select-wrap';
 
+import type { IMethodOptionsItem, IVariablesItem } from '../type/query-config';
+
 import './method-creator.scss';
 
-@Component
-export default class MethodCreator extends tsc<object> {
-  showSelect = false;
+interface IProps {
+  options?: IMethodOptionsItem[];
+  variables?: IVariablesItem[];
+}
 
-  handleClick() {}
+@Component
+export default class MethodCreator extends tsc<IProps> {
+  @Prop({ default: true }) showLabel: boolean;
+  @Prop({ default: () => [] }) variables: IVariablesItem[];
+  @Prop({ default: () => [] }) options: IMethodOptionsItem[];
+
+  showSelect = false;
+  /* 所有可选项（包含变量） */
+  allOptions: IMethodOptionsItem[] = [];
+
+  @Watch('options', { immediate: true })
+  handleWatchOptions() {
+    this.getAllOptions();
+  }
+
+  @Watch('variables', { immediate: true })
+  handleWatchVariables() {
+    this.getAllOptions();
+  }
+
+  getAllOptions() {
+    this.allOptions = [
+      ...this.variables.map(item => ({
+        id: item.name,
+        ...item,
+      })),
+      ...this.options,
+    ];
+  }
+
+  handleOpenChange(val: boolean) {
+    this.showSelect = val;
+  }
 
   render() {
     return (
       <div class='template-method-creator-component'>
-        <div class='method-label'>{this.$t('汇聚方法')}</div>
+        {this.showLabel && <div class='method-label'>{this.$slots?.label || this.$t('汇聚方法')}</div>}
         <SelectWrap
           active={this.showSelect}
           minWidth={127}
-          onClick={() => this.handleClick()}
+          needPop={true}
+          onOpenChange={this.handleOpenChange}
         >
           <span class='method-name'>avg</span>
+          <div
+            class='template-method-creator-component-options-popover'
+            slot='popover'
+          >
+            {this.allOptions.map((item, index) => (
+              <div
+                key={index}
+                class='options-item'
+              >
+                {item.name}
+              </div>
+            ))}
+          </div>
         </SelectWrap>
       </div>
     );

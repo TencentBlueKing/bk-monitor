@@ -23,12 +23,3 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-
-import type { MetricDetail } from '@/pages/strategy-config/strategy-config-set-new/typings';
-export interface IScenarioItem {
-  id: string;
-  index: number;
-  name: string;
-}
-
-export type TMetricDetail = MetricDetail;
