@@ -27,11 +27,8 @@
 import { Component } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { getScenarioList } from 'monitor-api/modules/strategies';
-
 import QueryPanel from '../query-panel/query-panel';
-
-import type { IScenarioItem } from '../type/typing';
+import { type IScenarioItem, type IVariablesItem, TVariableType } from '../type/query-config';
 
 import './template-config.scss';
 
@@ -39,21 +36,20 @@ import './template-config.scss';
 export default class TemplateConfig extends tsc<object> {
   scenarioList: IScenarioItem[] = [];
 
-  created() {
-    this.getScenarioList();
-  }
+  variablesList: IVariablesItem[] = [
+    {
+      name: 'var1',
+      type: TVariableType.METHOD,
+    },
+    {
+      name: 'var2',
+      type: TVariableType.DIMENSION,
+    },
+  ];
+
+  created() {}
 
   // 获取监控对象数据
-  getScenarioList() {
-    getScenarioList().then(data => {
-      const list = data.reduce((total, cur) => {
-        const child = cur.children || [];
-        return total.concat(child);
-      }, []);
-      console.log(list);
-      this.scenarioList = list;
-    });
-  }
 
   render() {
     return (
@@ -63,7 +59,7 @@ export default class TemplateConfig extends tsc<object> {
           {['1'].map(key => (
             <QueryPanel
               key={key}
-              scenarioList={this.scenarioList}
+              variables={this.variablesList}
             />
           ))}
         </div>

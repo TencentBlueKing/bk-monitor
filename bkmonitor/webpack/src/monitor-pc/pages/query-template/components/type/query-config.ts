@@ -24,36 +24,32 @@
  * IN THE SOFTWARE.
  */
 
-import { Component, Prop } from 'vue-property-decorator';
-import { Component as tsc } from 'vue-tsx-support';
+import { MetricDetail as BaseMetricDetail } from '@/pages/strategy-config/strategy-config-set-new/typings';
 
-import QueryConfigCreator from '../query-config/query-config-creator';
+import type { MetricDetail as TypeMetricDetail } from '@/pages/strategy-config/strategy-config-set-new/typings';
 
-import type { IVariablesItem } from '../type/query-config';
-
-import './query-panel.scss';
-
-interface IProps {
-  variables?: IVariablesItem[];
+export interface IScenarioItem {
+  id: string;
+  index: number;
+  name: string;
 }
 
-@Component
-export default class QueryPanel extends tsc<IProps> {
-  @Prop({ default: () => [] }) variables: IVariablesItem[];
+export type TMetricDetail = Partial<TypeMetricDetail>;
 
-  render() {
-    return (
-      <div class='template-query-panel-component'>
-        <QueryConfigCreator variables={this.variables} />
-        <div class='query-panel-operator'>
-          <div class='add-btn'>
-            <span class='icon-monitor icon-mc-add' />
-          </div>
-          <div class='del-btn'>
-            <span class='icon-monitor icon-mc-delete-line' />
-          </div>
-        </div>
-      </div>
-    );
-  }
+export class MetricDetail extends BaseMetricDetail {}
+
+// todo
+export const TVariableType = {
+  METHOD: 'method',
+  DIMENSION: 'dimension',
+  CONDITION: 'condition',
+  CONSTANT: 'constant', // （非变量类型）
+} as const;
+/** 汇聚方法选项 */
+export interface IMethodOptionsItem extends IVariablesItem {
+  id: string;
+}
+export interface IVariablesItem {
+  name?: string;
+  type?: (typeof TVariableType)[keyof typeof TVariableType];
 }
