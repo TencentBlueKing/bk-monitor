@@ -23,19 +23,88 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component } from 'vue-property-decorator';
+import { Component, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
+import BasicInfoCreate from '../components/basic-info/basic-info-create';
 import TemplateConfig from '../components/template-config/template-config';
+import VariablesManage from '../variables/variables-manage/variables-manage';
 
 import './template-create.scss';
 
 @Component
 export default class TemplateCreate extends tsc<object> {
+  @Ref() createContentWrap: HTMLDivElement;
+
+  steps = [
+    { title: this.$t('模板配置'), icon: 1 },
+    { title: this.$t('模板预览'), icon: 2 },
+  ];
+
+  curStep = 1;
+
+  resizeObserver = null;
+  isSticky = false;
+
+  basicInfoData = {
+    name: '',
+    desc: '',
+    effect: [],
+  };
+
+  variablesList = [];
+
+  handleBackGotoPage() {
+    this.$router.push({ name: 'query-template' });
+  }
+
+  observerCreateConfigResize() {
+    this.resizeObserver = new ResizeObserver(() => {
+      this.isSticky = this.createContentWrap.scrollHeight > this.createContentWrap.clientHeight;
+    });
+    this.resizeObserver.observe(this.createContentWrap);
+  }
+
+  mounted() {
+    this.observerCreateConfigResize();
+  }
+
+  beforeDestroy() {
+    this.resizeObserver.unobserve(this.createContentWrap);
+  }
+
   render() {
     return (
       <div class='template-create'>
-        <TemplateConfig />
+        <div class='template-create-nav'>
+          <span
+            class='icon-monitor icon-back-left navigation-bar-back'
+            onClick={() => this.handleBackGotoPage()}
+          />
+          <span class='title'>{this.$t('新建查询模板')}</span>
+          <bk-steps
+            class='template-steps'
+            cur-step={this.curStep}
+            lineType='solid'
+            steps={this.steps}
+          />
+        </div>
+        <div class='template-create-content'>
+          <div
+            ref='createContentWrap'
+            class='create-content-wrap'
+          >
+            <div class='create-config'>
+              <BasicInfoCreate formData={this.basicInfoData} />
+              <TemplateConfig />
+            </div>
+            <div class={['submit-btns', { sticky: this.isSticky }]}>
+              <bk-button theme='primary'>{this.$t('下一步')}</bk-button>
+              <bk-button theme='default'>{this.$t('取消')}</bk-button>
+            </div>
+          </div>
+          <VariablesManage variablesList={this.variablesList} />
+        </div>
       </div>
     );
   }
