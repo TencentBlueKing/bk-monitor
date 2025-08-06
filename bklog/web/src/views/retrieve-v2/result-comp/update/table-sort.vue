@@ -114,7 +114,7 @@
           <span
             style="font-size: 14px; color: #c4c6cc"
             class="bklog-icon bklog-circle-minus-filled"
-            @click="deleteTableItem(index)"
+            @click="deleteTableItem(index+totalTimeCount)"
           ></span>
         </li>
       </transition-group>
