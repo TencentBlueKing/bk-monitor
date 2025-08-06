@@ -57,7 +57,7 @@ export const AI_BLUEKING_SHORTCUTS_ID = {
   TRANSLATE: 'translate',
   PROMQL_HELPER: 'promql_helper',
   METADATA_DIAGNOSIS: 'metadata_diagnosis',
-  TRAFFIC_ASSISTANT: 'traffic_assistant',
+  TRACING_ANALYSIS: 'tracing_analysis',
 } as const;
 export type AIBluekingShortcutId = (typeof AI_BLUEKING_SHORTCUTS_ID)[keyof typeof AI_BLUEKING_SHORTCUTS_ID];
 export const AI_BLUEKING_SHORTCUTS: AIBluekingShortcuts = [
@@ -123,8 +123,8 @@ export const AI_BLUEKING_SHORTCUTS: AIBluekingShortcuts = [
     ],
   },
   {
-    id: AI_BLUEKING_SHORTCUTS_ID.TRAFFIC_ASSISTANT,
-    name: window.i18n.t('Trace助手'),
+    id: AI_BLUEKING_SHORTCUTS_ID.TRACING_ANALYSIS,
+    name: window.i18n.t('Trace 助手'),
     // icon: 'icon-monitor icon-mc-help-fill',
     components: [
       {

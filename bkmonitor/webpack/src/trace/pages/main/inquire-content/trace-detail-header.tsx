@@ -131,7 +131,7 @@ export default defineComponent({
               trace_id: this.traceId,
               app_name: this.appName,
             }}
-            shortcutId={AI_BLUEKING_SHORTCUTS_ID.TRAFFIC_ASSISTANT}
+            shortcutId={AI_BLUEKING_SHORTCUTS_ID.TRACING_ANALYSIS}
           />
         </div>
 
