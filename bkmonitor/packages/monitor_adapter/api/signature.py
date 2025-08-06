@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,11 +7,14 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
+from bkmonitor.utils.user import get_user_display_name
 from utils.signature import produce_watermark, render_img_file
 
 
 def signature(request):
-    # image = Image.new("RGB", (800, 600), random.choice(INK))
-    username = request.user.username
-    image = produce_watermark(username)
+    """
+    生成用户水印
+    """
+    image = produce_watermark(get_user_display_name(request.user.username))
     return render_img_file(image)

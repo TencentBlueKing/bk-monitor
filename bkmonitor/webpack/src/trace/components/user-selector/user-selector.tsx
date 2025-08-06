@@ -23,13 +23,13 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { type PropType, computed, defineComponent, onMounted, shallowRef } from 'vue';
+import { type createVNode, type PropType, type VNode, computed, defineComponent, onMounted, shallowRef } from 'vue';
 
 import { BkUserSelector } from '@blueking/bk-user-selector/vue3';
 import { getUserComponentConfig, USER_GROUP_TYPE } from 'monitor-pc/common/user-display-name';
 
 import type { ConfigOptions } from '@blueking/bk-user-display-name';
-import type { IUserGroup } from 'monitor-pc/components/user-selector/user-group';
+import type { IUserGroup, IUserInfo, UserSelectorDragEvent } from 'monitor-pc/components/user-selector/user-group';
 
 import './user-selector.scss';
 import '@blueking/bk-user-selector/vue3/vue3.css';
@@ -78,12 +78,30 @@ export default defineComponent({
     placeholder: {
       type: String,
     },
+    /**
+     * 空列表提示文本
+     */
     emptyText: {
       type: String,
+    },
+    /**
+     * 渲染tag
+     */
+    renderTag: {
+      type: Function as PropType<(h: typeof createVNode, userInfo: IUserInfo) => VNode>,
+    },
+    /**
+     * 渲染列表项
+     */
+    renderListItem: {
+      type: Function as PropType<(h: typeof createVNode, userInfo: IUserInfo) => VNode>,
     },
   },
   emits: {
     'update:modelValue': (value: string[]) => Array.isArray(value),
+    change: (userInfos: IUserInfo[]) => Array.isArray(userInfos),
+    dragStart: (dragStartEvent: UserSelectorDragEvent) => dragStartEvent instanceof Object,
+    dragEnd: (dragEndEvent: UserSelectorDragEvent) => dragEndEvent instanceof Object,
   },
   setup(props, { emit }) {
     const componentConfig = shallowRef<Partial<ConfigOptions>>({});
@@ -92,8 +110,35 @@ export default defineComponent({
       componentConfig.value = getUserComponentConfig();
     });
 
+    /**
+     * @description 选中值改变后回调
+     * @param value 变化后的用户id值
+     */
     const handleUpdateModuleValue = (value: string[]) => {
       emit('update:modelValue', value);
+    };
+    /**
+     * @description 选中值改变后回调
+     * @param userInfos 变化后的用户信息
+     */
+    const handleUserInfoChange = (userInfos: IUserInfo[]) => {
+      emit('change', userInfos);
+    };
+
+    /**
+     * @description 拖拽开始回调
+     * @param dragEndEvent 拖拽事件上下文信息
+     */
+    const handleDragStart = (dragStartEvent: UserSelectorDragEvent) => {
+      emit('dragStart', dragStartEvent);
+    };
+
+    /**
+     * @description 拖拽结束回调
+     * @param dragEndEvent 拖拽事件上下文信息
+     */
+    const handleDragEnd = (dragEndEvent: UserSelectorDragEvent) => {
+      emit('dragEnd', dragEndEvent);
     };
 
     /**
@@ -119,7 +164,10 @@ export default defineComponent({
      * @description 人员选择器下拉框列表项渲染
      *
      */
-    const listItemRender = (_, userInfo) => {
+    const listItemRender = (h: typeof createVNode, userInfo: IUserInfo) => {
+      if (props.renderListItem) {
+        return props.renderListItem?.(h, userInfo);
+      }
       const prefixIcon = getPrefixIcon(userInfo);
       return (
         <div class='user-selector-list-item'>
@@ -135,7 +183,10 @@ export default defineComponent({
      * @description 人员选择器已选项 tag 渲染
      *
      */
-    const tagItemRender = (_, userInfo) => {
+    const tagItemRender = (h: typeof createVNode, userInfo: IUserInfo) => {
+      if (props.renderTag) {
+        return props.renderTag?.(h, userInfo);
+      }
       const prefixIcon = getPrefixIcon(userInfo);
       return (
         <div class='user-selector-tag-item'>
@@ -151,8 +202,11 @@ export default defineComponent({
       enableMultiTenantMode,
       componentConfig,
       handleUpdateModuleValue,
+      handleUserInfoChange,
       listItemRender,
       tagItemRender,
+      handleDragStart,
+      handleDragEnd,
     };
   },
   render() {
@@ -173,6 +227,9 @@ export default defineComponent({
         renderTag={this.tagItemRender}
         tenantId={this.componentConfig.tenantId}
         userGroup={this.userGroupList}
+        onChange={this.handleUserInfoChange}
+        onDragEnd={this.handleDragEnd}
+        onDragStart={this.handleDragStart}
         onUpdate:modelValue={this.handleUpdateModuleValue}
       />
     );

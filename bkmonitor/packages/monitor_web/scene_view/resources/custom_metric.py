@@ -141,10 +141,11 @@ class GetCustomTsDimensionValues(Resource):
         )
 
         # 如果指标只有一个，则使用精确匹配
+        data_label = table.data_label.split(",")[0]
         if len(params["metrics"]) == 1:
-            match = f'{{__name__="bkmonitor:{table.data_label}:{params["metrics"][0]}"}}'
+            match = f'{{__name__="bkmonitor:{data_label}:{params["metrics"][0]}"}}'
         else:
-            match = f'{{__name__=~"bkmonitor:{table.data_label}:({"|".join(params["metrics"])})"}}'
+            match = f'{{__name__=~"bkmonitor:{data_label}:({"|".join(params["metrics"])})"}}'
 
         request_params = {
             "match": [match],
@@ -274,7 +275,7 @@ class GetCustomTsGraphConfig(Resource):
                     ],
                     "interval": metric.config.get("interval") or "auto",
                     "table": table.table_id,
-                    "data_label": table.data_label,
+                    "data_label": table.data_label.split(",")[0],
                     "data_source_label": DataSourceLabel.CUSTOM,
                     "data_type_label": DataTypeLabel.TIME_SERIES,
                     # 只使用指标的维度
@@ -297,7 +298,7 @@ class GetCustomTsGraphConfig(Resource):
                 panels.append(
                     {
                         "title": metric.description or metric.name,
-                        "sub_title": f"custom:{table.data_label}:{metric.name}",
+                        "sub_title": f"custom:{table.data_label.split(',')[0]}:{metric.name}",
                         "targets": [
                             {
                                 "expression": "a",
@@ -367,7 +368,7 @@ class GetCustomTsGraphConfig(Resource):
                         ],
                         "interval": metric.config.get("interval") or "auto",
                         "table": table.table_id,
-                        "data_label": table.data_label,
+                        "data_label": table.data_label.split(",")[0],
                         "data_source_label": DataSourceLabel.CUSTOM,
                         "data_type_label": DataTypeLabel.TIME_SERIES,
                         # 只使用指标的维度

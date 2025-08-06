@@ -1032,9 +1032,8 @@ class CustomEventCacheManager(BaseMetricCacheManager):
 
     def get_tables(self):
         # 1.系统事件(biz_id为0)
-        if self.bk_biz_id == 0:
-            yield from self.SYSTEM_EVENTS
-        # 2.自定义事件[查询CustomEventGroup表]
+        yield from self.get_system_event_tables(self.bk_tenant_id, self.bk_biz_id)
+        # # 2.自定义事件[查询CustomEventGroup表]
         custom_event_result = api.metadata.query_event_group.request.refresh(bk_biz_id=self.bk_biz_id)
         event_group_ids = [
             custom_event.bk_event_group_id
@@ -1718,6 +1717,7 @@ class BkmonitorMetricCacheManager(BaseMetricCacheManager):
         if settings.ENABLE_MULTI_TENANT_MODE:
             yield from self.get_metrics_multi_tenant()
             return
+
         try:
             result_table_id = table["table_id"]
             influx_db_name = table["table_id"].split(".")[0]

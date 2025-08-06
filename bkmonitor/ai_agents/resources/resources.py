@@ -26,6 +26,7 @@ from ai_agents.services.api_client import AidevApiClientBuilder
 import logging
 from django.conf import settings
 from bkmonitor.utils.user import get_request_username
+from rest_framework.views import Response
 
 logger = logging.getLogger("ai_agents")
 
@@ -378,4 +379,14 @@ class CreateChatCompletionResource(Resource):
                 username=username,
             )
             return streaming_wrapper.as_streaming_response()
+        else:  # 非流式
+            execute_kwargs = ExecuteKwargs.model_validate(execute_kwargs)
+            logger.info(
+                "CreateChatCompletionResource: stream is false, start non-streaming,session_code->[%s], "
+                "execute_kwargs->[%s]",
+                session_code,
+                execute_kwargs,
+            )
+            result = agent_instance.execute(execute_kwargs)
+            return Response(result)
         return None
