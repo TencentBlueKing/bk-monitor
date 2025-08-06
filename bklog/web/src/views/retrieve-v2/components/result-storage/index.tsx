@@ -59,7 +59,7 @@ export default defineComponent({
       return isSortShow.value && isDesc;
     });
 
-    const requiredFields = ['gseIndex', 'iterationIndex', 'dtEventTimeStamp'];
+    const requiredFields = ['dtEventTimeStamp', 'iterationIndex', 'gseIndex'];
     const handleStorageChange = (val, key) => {
       store.commit('updateStorage', { [key]: val });
     };
@@ -112,8 +112,28 @@ export default defineComponent({
 
     return () => (
       <div class='bklog-v3-storage'>
+        {/* <div class='switch-label log-sort'>
+          <span
+            class='bklog-option-item'
+            on-click={event => handleShowLogTimeChange(event, 'next')}
+          >
+            {$t('日志时间排序')}
+          </span>
+          <span class='bk-table-caret-wrapper'>
+            <i
+              class={['bk-table-sort-caret', 'ascending', { active: ascShow.value }]}
+              v-bk-tooltips={{ content: `${$t('升序')}`, placement: 'right' }}
+              on-click={event => handleShowLogTimeChange(event, 'ascending')}
+            ></i>
+            <i
+              class={['bk-table-sort-caret', 'descending', { active: descShow.value }]}
+              v-bk-tooltips={{ content: `${$t('降序')}`, placement: 'right' }}
+              on-click={event => handleShowLogTimeChange(event, 'descending')}
+            ></i>
+          </span>
+        </div> */}
         <bk-checkbox
-          style='margin: 0 12px'
+          style='margin: 0 12px 0 12px'
           class='bklog-option-item'
           theme='primary'
           value={showRowIndex.value}
@@ -132,26 +152,6 @@ export default defineComponent({
           <span class='switch-label'>{$t('换行')}</span>
         </bk-checkbox>
 
-        <div class='switch-label log-sort'>
-          <span
-            class='bklog-option-item'
-            on-click={event => handleShowLogTimeChange(event, 'next')}
-          >
-            {$t('日志排序')}
-          </span>
-          <span class='bk-table-caret-wrapper'>
-            <i
-              class={['bk-table-sort-caret', 'ascending', { active: ascShow.value }]}
-              v-bk-tooltips={{ content: `${$t('升序')}`, placement: 'right' }}
-              on-click={event => handleShowLogTimeChange(event, 'ascending')}
-            ></i>
-            <i
-              class={['bk-table-sort-caret', 'descending', { active: descShow.value }]}
-              v-bk-tooltips={{ content: `${$t('降序')}`, placement: 'right' }}
-              on-click={event => handleShowLogTimeChange(event, 'descending')}
-            ></i>
-          </span>
-        </div>
         {isUnionSearch.value && (
           <bk-checkbox
             style='margin: 0 12px 0 0'
@@ -163,15 +163,7 @@ export default defineComponent({
             <span class='switch-label'>{$t('日志来源')}</span>
           </bk-checkbox>
         )}
-        <bk-checkbox
-          style='margin: 0 12px 0 0'
-          class='bklog-option-item'
-          theme='primary'
-          value={isFormatDate.value}
-          on-change={val => handleFormatDate(val)}
-        >
-          <span class='switch-label'>{$t('时间格式化')}</span>
-        </bk-checkbox>
+
         <bk-popover
           extCls='storage-more-popover'
           placement='bottom-start'
@@ -227,6 +219,15 @@ export default defineComponent({
               on-change={val => handleStorageChange(val, BK_LOG_STORAGE.TABLE_ALLOW_EMPTY_FIELD)}
             >
               <span class='switch-label'>{$t('展示空字段')}</span>
+            </bk-checkbox>
+            <bk-checkbox
+              style='margin: 0 12px 0 0'
+              class='bklog-option-item'
+              theme='primary'
+              value={isFormatDate.value}
+              on-change={val => handleFormatDate(val)}
+            >
+              <span class='switch-label'>{$t('时间格式化')}</span>
             </bk-checkbox>
           </div>
         </bk-popover>
