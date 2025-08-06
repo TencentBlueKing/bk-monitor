@@ -130,7 +130,7 @@ export default defineComponent({
           <AiBluekingIcon
             style={{ marginLeft: '12px' }}
             content={traceId}
-            shortcutId={AI_BLUEKING_SHORTCUTS_ID.EXPLANATION}
+            shortcutId={AI_BLUEKING_SHORTCUTS_ID.TRAFFIC_ASSISTANT}
           />
         </div>
 

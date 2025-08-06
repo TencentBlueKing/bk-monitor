@@ -57,6 +57,7 @@ export const AI_BLUEKING_SHORTCUTS_ID = {
   TRANSLATE: 'translate',
   PROMQL_HELPER: 'promql_helper',
   METADATA_DIAGNOSIS: 'metadata_diagnosis',
+  TRAFFIC_ASSISTANT: 'traffic_assistant',
 } as const;
 export type AIBluekingShortcutId = (typeof AI_BLUEKING_SHORTCUTS_ID)[keyof typeof AI_BLUEKING_SHORTCUTS_ID];
 export const AI_BLUEKING_SHORTCUTS: AIBluekingShortcuts = [
@@ -118,6 +119,27 @@ export const AI_BLUEKING_SHORTCUTS: AIBluekingShortcuts = [
         fillBack: false,
         name: window.i18n.t('用户指令'),
         placeholder: window.i18n.t('请输入用户指令'),
+      },
+    ],
+  },
+  {
+    id: AI_BLUEKING_SHORTCUTS_ID.TRAFFIC_ASSISTANT,
+    name: window.i18n.t('链路助手'),
+    // icon: 'icon-monitor icon-mc-help-fill',
+    components: [
+      {
+        type: 'textarea',
+        key: 'trace_id',
+        fillBack: true,
+        name: window.i18n.t('Trace ID'),
+        placeholder: window.i18n.t('请输入Trace ID'),
+      },
+      {
+        type: 'textarea',
+        key: 'app_name',
+        fillBack: false,
+        name: window.i18n.t('应用名称'),
+        placeholder: window.i18n.t('请输入应用名称'),
       },
     ],
   },

@@ -38,7 +38,7 @@ export default defineComponent({
   props: {
     shortcutId: {
       type: String as PropType<AIBluekingShortcutId>,
-      default: AI_BLUEKING_SHORTCUTS_ID.EXPLANATION,
+      default: AI_BLUEKING_SHORTCUTS_ID.TRAFFIC_ASSISTANT,
     },
     content: {
       type: String,

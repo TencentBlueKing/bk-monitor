@@ -34,7 +34,6 @@ import { CancelToken } from 'monitor-api/cancel';
 import { query as apmProfileQuery } from 'monitor-api/modules/apm_profile';
 import { getSceneView } from 'monitor-api/modules/scene_view';
 import { copyText, deepClone, random } from 'monitor-common/utils/utils';
-import { AI_BLUEKING_SHORTCUTS_ID } from 'monitor-pc/components/ai-whale/types';
 import { useI18n } from 'vue-i18n';
 import VueJsonPretty from 'vue-json-pretty';
 
@@ -61,7 +60,7 @@ import {
 import { downFile, getSpanKindIcon } from '../../utils';
 import { safeParseJsonValueForWhere } from '../trace-explore/utils';
 import DashboardPanel from './dashboard-panel/dashboard-panel';
-import AiBluekingIcon from '@/components/ai-blueking-icon/ai-blueking-icon';
+// import AiBluekingIcon from '@/components/ai-blueking-icon/ai-blueking-icon';
 
 import type { Span } from '../../components/trace-view/typings';
 import type { IFlameGraphDataItem } from 'monitor-ui/chart-plugins/hooks/profiling-graph/types';
@@ -1607,10 +1606,10 @@ export default defineComponent({
                   <span class='text'>Span ID: </span>
                   <span class={['status', spanStatus.value?.icon]} />
                   <span class='name'>{props.spanDetails?.span_id || info.title}</span>
-                  <AiBluekingIcon
+                  {/* <AiBluekingIcon
                     content={props.spanDetails?.span_id || info.title}
                     shortcutId={AI_BLUEKING_SHORTCUTS_ID.EXPLANATION}
-                  />
+                  /> */}
                 </span>
                 {props.isShowPrevNextButtons ? (
                   <>
