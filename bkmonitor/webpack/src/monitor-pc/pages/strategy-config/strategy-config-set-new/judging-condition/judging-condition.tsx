@@ -210,7 +210,6 @@ export default class JudgingCondition extends tsc<Idata, IEvent> {
 
   @Watch('isOnlyAiDetectRule')
   handleWatchIsOnlyAiDetectRule(v: boolean) {
-    /* 策略编辑页的情况下不重置以下字段 */
     if (v) {
       this.localData.triggerConfig.checkWindow = 5;
       this.localData.triggerConfig.count = 1;
