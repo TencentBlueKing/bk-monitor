@@ -428,7 +428,8 @@ class SearchViewSet(APIViewSet):
         data = self.params_valid(OriginalSearchAttrSerializer)
         data["original_search"] = True
         data["is_desensitize"] = False
-        search_handler = SearchHandlerEsquery(index_set_id, data)
+        # TODO: 需要切换为 UnifyQuery 查询
+        search_handler = SearchHandlerEsquery(index_set_id, data, only_for_agg=True)
         return Response(search_handler.search())
 
     @detail_route(methods=["POST"], url_path="context")
