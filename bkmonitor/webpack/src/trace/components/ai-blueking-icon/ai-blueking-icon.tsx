@@ -40,9 +40,9 @@ export default defineComponent({
       type: String as PropType<AIBluekingShortcutId>,
       default: AI_BLUEKING_SHORTCUTS_ID.TRAFFIC_ASSISTANT,
     },
-    content: {
-      type: String,
-      default: '',
+    fillBackFieldMap: {
+      type: Object as PropType<Record<string, string>>,
+      default: () => ({}),
     },
   },
   setup(props) {
@@ -60,9 +60,12 @@ export default defineComponent({
             console.log(shortcut, window.__BK_WEWEB_DATA__?.handleAIBluekingShortcut);
             window.__BK_WEWEB_DATA__?.handleAIBluekingShortcut?.({
               ...shortcut,
-              components: shortcut.components?.map(component =>
-                Object.assign({}, component, component.fillBack ? { selectedText: props.content } : {})
-              ),
+              components: shortcut.components?.map(component => {
+                return {
+                  ...component,
+                  default: props.fillBackFieldMap?.[component.key] || '',
+                };
+              }),
             });
           }
         }}

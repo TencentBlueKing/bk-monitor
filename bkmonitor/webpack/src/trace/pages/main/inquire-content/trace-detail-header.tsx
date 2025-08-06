@@ -101,12 +101,10 @@ export default defineComponent({
   },
 
   render() {
-    const { isInTable, traceId } = this.$props;
-
     return (
-      <div class={`trace-detail-header ${isInTable ? 'is-in-table' : ''}`}>
+      <div class={`trace-detail-header ${this.isInTable ? 'is-in-table' : ''}`}>
         <div class='trace-header-title'>
-          <span class='trace-id'>{isInTable ? `Trace ID：${traceId}` : traceId}</span>
+          <span class='trace-id'>{this.isInTable ? `Trace ID：${this.traceId}` : this.traceId}</span>
           <Popover
             content={this.t('复制 TraceID')}
             placement='right'
@@ -129,7 +127,10 @@ export default defineComponent({
           </Popover>
           <AiBluekingIcon
             style={{ marginLeft: '12px' }}
-            content={traceId}
+            fillBackFieldMap={{
+              trace_id: this.traceId,
+              app_name: this.appName,
+            }}
             shortcutId={AI_BLUEKING_SHORTCUTS_ID.TRAFFIC_ASSISTANT}
           />
         </div>
