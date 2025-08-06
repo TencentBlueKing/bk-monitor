@@ -24,6 +24,7 @@ from django.db.models import Count, Max, Q
 from django.utils.translation import gettext as _
 from django.utils.translation import gettext_lazy as _lazy
 
+from apm_web.models import Application
 from bkm_space.api import SpaceApi
 from bkm_space.define import SpaceTypeEnum
 from bkm_space.utils import bk_biz_id_to_space_uid
@@ -67,6 +68,7 @@ from monitor_web.models import (
     CustomEventItem,
     DataTarget,
     DataTargetMapping,
+    CustomTSTable,
 )
 from monitor_web.models.plugin import CollectorPluginMeta, PluginVersionHistory
 from monitor_web.plugin.constant import ParamMode, PluginType
@@ -663,25 +665,26 @@ class CustomMetricCacheManager(BaseMetricCacheManager):
         """
         获取当前数据源类型可用的业务ID列表
         1. 有自定义时序指标的业务
-        2. 全局业务(0业务)
+        2. 有APM的业务
+        3. 全局业务(0业务)
         """
+        biz_ids = set()
         try:
-            custom_ts_result = api.metadata.query_time_series_group(bk_tenant_id=bk_tenant_id)
-        except Exception as e:
+            custom_ts_result = (
+                CustomTSTable.objects.filter(bk_tenant_id=bk_tenant_id).values_list("bk_biz_id", flat=True).distinct()
+            )
+            apm_biz_ids = list(
+                Application.objects.filter(bk_tenant_id=bk_tenant_id).values_list("bk_biz_id", flat=True).distinct()
+            )
+        except BKAPIError as e:
             logger.exception(f"Failed to get available biz_ids for custom metrics: {e}")
             # 如果API调用失败，确保进程相关的业务0被处理
             return [0]
+        biz_ids.update(custom_ts_result)
+        biz_ids.update(apm_biz_ids)
+        biz_ids.add(0)
 
-        # 从结果中提取业务ID
-        biz_ids = list(
-            set(int(group.get("bk_biz_id")) for group in custom_ts_result if group.get("bk_biz_id") is not None)
-        )
-
-        # 进程采集相关（映射到监控采集+时序）需要处理业务0
-        if 0 not in biz_ids and BuildInProcessMetric.result_table_list():
-            biz_ids.append(0)
-
-        return biz_ids
+        return list(biz_ids)
 
 
 class BkdataMetricCacheManager(BaseMetricCacheManager):
@@ -1187,9 +1190,7 @@ class CustomEventCacheManager(BaseMetricCacheManager):
                 biz_id = cluster["bk_biz_id"]
                 biz_ids.add(biz_id)
         # 3. 添加业务ID为0（处理系统事件）
-        if 0 not in biz_ids and cls.SYSTEM_EVENTS:
-            biz_ids.add(0)
-
+        biz_ids.add(0)
         return list(biz_ids)
 
 
@@ -1260,25 +1261,24 @@ class BkMonitorLogCacheManager(BaseMetricCacheManager):
         获取监控日志的可用biz_id列表
         只返回实际配置了日志采集或SNMP Trap的业务ID
         """
-        # 查询所有日志和SNMP TRAP类型的采集配置
-        collect_configs = CollectConfigMeta.objects.filter(
-            Q(collect_type=CollectConfigMeta.CollectType.SNMP_TRAP) | Q(collect_type=CollectConfigMeta.CollectType.LOG),
-            bk_tenant_id=bk_tenant_id,
+        # 直接查询并获取去重的业务ID列表
+        available_biz_ids = list(
+            CollectConfigMeta.objects.filter(
+                collect_type__in=[CollectConfigMeta.CollectType.SNMP_TRAP, CollectConfigMeta.CollectType.LOG],
+                bk_tenant_id=bk_tenant_id,
+                bk_biz_id__gt=0,  # 直接过滤掉非正常业务ID
+            )
+            .values_list("bk_biz_id", flat=True)
+            .distinct()
         )
 
-        # 提取不同的业务ID
-        available_biz_ids = set()
-        for config in collect_configs:
-            if config.bk_biz_id is not None and config.bk_biz_id > 0:
-                available_biz_ids.add(config.bk_biz_id)
-
-        # 如果没有配置采集项，需要返回空列表
+        # 如果没有配置采集项，记录日志并返回空列表
         if not available_biz_ids:
             logger.info("No log or SNMP trap collection configurations found, returning empty list")
             return []
 
         logger.info(f"Found {len(available_biz_ids)} business with log monitoring capabilities")
-        return list(available_biz_ids)
+        return available_biz_ids
 
 
 class BaseAlarmMetricCacheManager(BaseMetricCacheManager):
@@ -2054,26 +2054,20 @@ class BkmonitorK8sMetricCacheManager(BkmonitorMetricCacheManager):
         2. 业务0 - 处理内置的K8s指标
         """
         biz_ids = []
-        try:
-            businesses = SpaceApi.list_spaces(bk_tenant_id=bk_tenant_id)
-            for biz in businesses:
-                if not biz.space_code:
-                    # 非容器平台项目，不需要缓存容器指标
-                    continue
-                # 判断当前biz是否存在k8s集群
-                try:
-                    clusters = api.kubernetes.fetch_k8s_cluster_list(bk_biz_id=biz.bk_biz_id, bk_tenant_id=bk_tenant_id)
-                    if clusters:
-                        biz_ids.append(biz.bk_biz_id)
-                except BKAPIError:
-                    # 获取集群信息失败时跳过该业务
-                    continue
-
-        except Exception as e:
-            logger.exception(f"Failed to get K8s biz ids: {e}")
-            # 如果有内置K8s指标，确保返回业务0
-            if get_built_in_k8s_metrics():
-                return [0]
+        # 查询business列表
+        businesses = SpaceApi.list_spaces(bk_tenant_id=bk_tenant_id)
+        for biz in businesses:
+            if not biz.space_code:
+                # 非容器平台项目，不需要缓存容器指标
+                continue
+            # 判断当前biz是否存在k8s集群
+            try:
+                clusters = api.kubernetes.fetch_k8s_cluster_list(bk_biz_id=biz.bk_biz_id, bk_tenant_id=bk_tenant_id)
+                if clusters:
+                    biz_ids.append(biz.bk_biz_id)
+            except BKAPIError:
+                # 获取集群信息失败时跳过该业务
+                continue
 
         return biz_ids
 
