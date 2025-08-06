@@ -280,6 +280,7 @@ def _update_metric_list(bk_tenant_id: str, period: int, offset: int):
         biz_per_round = math.ceil(total_biz_count / period)
         biz_ids_for_current_round = available_biz_ids[offset * biz_per_round : (offset + 1) * biz_per_round]
 
+        logger.info(f"update metric list({source_type}) round {offset} by biz({biz_ids_for_current_round})")
         for biz_id in biz_ids_for_current_round:
             # 更新指标缓存
             update_metric(source_type, biz_id)

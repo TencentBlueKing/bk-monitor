@@ -1263,13 +1263,6 @@ class BkMonitorLogCacheManager(BaseMetricCacheManager):
             .values_list("bk_biz_id", flat=True)
             .distinct()
         )
-
-        # 如果没有配置采集项，记录日志并返回空列表
-        if not available_biz_ids:
-            logger.info("No log or SNMP trap collection configurations found, returning empty list")
-            return []
-
-        logger.info(f"Found {len(available_biz_ids)} business with log monitoring capabilities")
         return available_biz_ids
 
 
