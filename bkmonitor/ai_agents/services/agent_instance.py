@@ -17,6 +17,8 @@ from ai_agents.agent_factory import DEFAULT_AGENT
 from ai_agents.models import AgentConfigManager
 import logging
 
+from ai_agents.services.callback import get_langfuse_callback
+
 logger = logging.getLogger("ai_agents")
 
 
@@ -122,6 +124,9 @@ def build_chat_completion_agent(api_client, agent_code, session_context_data, sw
 
     agent_cls = agent_factory.get(DEFAULT_AGENT)
 
+    # 回调 langfuse
+    callbacks = [get_langfuse_callback()] if settings.AIDEV_AGENT_ENABLE_LANGFUSE else []
+
     return ChatCompletionAgent(
         chat_model=llm,
         role_prompt=config.role_prompt,
@@ -130,4 +135,5 @@ def build_chat_completion_agent(api_client, agent_code, session_context_data, sw
         knowledge_items=knowledge_items,
         chat_history=chat_history,
         agent_cls=agent_cls,
+        callbacks=callbacks,  # 回调
     )
