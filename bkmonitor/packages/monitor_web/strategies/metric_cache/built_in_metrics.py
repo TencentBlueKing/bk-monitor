@@ -1,6 +1,7 @@
-# 主机内置指标
 from typing import Any
+from django.utils.translation import gettext as _
 
+# 主机内置指标
 SYSTEM_HOST_METRICS: list[dict[str, Any]] = [
     {
         "result_table_label": "os",
@@ -642,3 +643,145 @@ PROCESS_PORT_METRIC_DIMENSIONS: list[dict[str, str]] = [
     {"id": "bk_target_service_category_id", "name": "bk_target_service_category_id"},
     {"id": "pid", "name": "进程序号"},
 ]
+
+# PING服务指标预定义【后续根据实际的逻辑进行修改】
+PINGSERVER_METRICS: list[dict[str, str]] = [
+    {
+        "result_table_id": "pingserver.task",
+        "result_table_name": "PING服务",
+        "result_table_label": "ping_server",
+        "data_label": "pingserver_task",
+        "dimensions": [
+            {"id": "bk_target_ip", "name": "目标IP"},
+            {"id": "bk_target_cloud_id", "name": "云区域ID"},
+            {"id": "task_id", "name": "任务ID"},
+        ],
+        "default_dimensions": ["bk_target_ip", "bk_target_cloud_id", "task_id"],
+        "metrics": [
+            {"metric_field": "rtt_avg", "metric_field_name": "平均延迟", "unit": "ms"},
+            {"metric_field": "pkg_loss", "metric_field_name": "丢包率", "unit": "percent"},
+        ],
+    }
+]
+
+# BK CI盾构机指标预定义【后续根据实际的逻辑进行修改】
+BKCI_METRICS: list[dict[str, str]] = [
+    {
+        "result_table_id": "agentmetric.job",
+        "result_table_name": "构建机指标",
+        "result_table_label": "bkci",
+        "data_label": "bkci_job",
+        "dimensions": [{"id": "job_id", "name": "作业ID"}, {"id": "ip", "name": "构建机IP"}],
+        "default_dimensions": ["job_id", "ip"],
+        "metrics": [
+            {"metric_field": "cpu_usage", "metric_field_name": "CPU使用率", "unit": "percent"},
+            {"metric_field": "memory_usage", "metric_field_name": "内存使用率", "unit": "percent"},
+        ],
+    }
+]
+
+# 预定义常量 - 日志采集器通用指标
+LOGBEAT_COMMON_METRICS = [
+    {
+        "field_name": "beat_cpu_total_norm_pct",
+        "description": _("beat-CPU资源占比"),
+        "unit": "percentunit",
+    },
+    {"field_name": "beat_cpu_total_pct", "description": _("beat-CPU资源单核占比")},
+    {"field_name": "beat_info_uptime_ms", "description": _("beat-采集器运行时间"), "unit": "ms"},
+    {"field_name": "beat_memstats_rss", "description": _("beat-内存使用情况"), "unit": "bytes"},
+    {"field_name": "bkbeat_crawler_dropped", "description": _("bkbeat-已过滤的事件数")},
+    {"field_name": "bkbeat_crawler_received", "description": _("bkbeat-已接收的采集事件数")},
+    {"field_name": "bkbeat_crawler_send_total", "description": _("bkbeat-已发送的事件数")},
+    {"field_name": "bkbeat_crawler_state", "description": _("bkbeat-已接收的采集进度数")},
+    {"field_name": "bkbeat_task_input_failed", "description": _("bkbeat-启动任务异常的次数")},
+    {
+        "field_name": "bkbeat_task_processors_failed",
+        "description": _("bkbeat-启动processors异常的次数"),
+    },
+    {"field_name": "bkbeat_task_sender_failed", "description": _("bkbeat-启动sender异常的次数")},
+    {"field_name": "bkbeat_registrar_marshal_error", "description": _("bkbeat-采集DB的解析异常的次数")},
+    {
+        "field_name": "bkbeat_gse_agent_receive_failed",
+        "description": _("gse_client-接收gse_agent异常的次数"),
+    },
+    {"field_name": "bkbeat_gse_agent_received", "description": _("gse_client-接收到gse_agent的次数")},
+    {"field_name": "bkbeat_gse_client_connect_retry", "description": _("gse_client-gse_agent重连次数")},
+    {
+        "field_name": "bkbeat_gse_client_connect_failed",
+        "description": _("gse_client-gse_agent连接失败的次数"),
+    },
+    {
+        "field_name": "bkbeat_gse_client_connected",
+        "description": _("gse_client-gse_agent连接成功的次数"),
+    },
+    {"field_name": "bkbeat_gse_client_received", "description": _("gse_client-已接收的事件数")},
+    {"field_name": "bkbeat_gse_client_send_retry", "description": _("gse_client-发送重试的次数")},
+    {"field_name": "bkbeat_gse_client_send_timeout", "description": _("gse_client-发送超时的次数")},
+    {"field_name": "bkbeat_gse_client_send_total", "description": _("gse_client-已发送的事件数")},
+    {"field_name": "bkbeat_gse_client_send_failed", "description": _("gse_client-发送失败的事件数")},
+    {"field_name": "bkbeat_gse_client_server_close", "description": _("gse_client-gse_agent断开次数")},
+    {"field_name": "bkbeat_gse_publish_received", "description": _("publish-已接收的采集事件数")},
+    {"field_name": "bkbeat_gse_publish_total", "description": _("publish-已发送的采集事件数")},
+    {"field_name": "bkbeat_gse_publish_dropped", "description": _("publish-已丢弃的采集事件数")},
+    {"field_name": "bkbeat_gse_publish_failed", "description": _("publish-发送失败的采集事件数")},
+    {"field_name": "bkbeat_gse_report_received", "description": _("publish-已接收的心跳事件数")},
+    {"field_name": "bkbeat_gse_report_send_total", "description": _("publish-已发送的心跳事件数")},
+    {"field_name": "bkbeat_gse_report_failed", "description": _("publish-发送失败的心跳事件数")},
+    {"field_name": "bkbeat_gse_send_total", "description": _("publish-发给gse_client的事件数")},
+    {"field_name": "bkbeat_manager_active", "description": _("bkbeat-当前有效的任务数")},
+    {"field_name": "bkbeat_manager_reload", "description": _("bkbeat-周期内Reload的任务数")},
+    {"field_name": "bkbeat_manager_start", "description": _("bkbeat-周期内启动的任务数")},
+    {"field_name": "bkbeat_manager_stop", "description": _("bkbeat-周期内停止的任务数")},
+    {"field_name": "bkbeat_manager_error", "description": _("bkbeat-周期内启动异常的任务数")},
+    {"field_name": "bkbeat_registrar_files", "description": _("bkbeat-采集DB注册的文件数")},
+    {"field_name": "bkbeat_registrar_flushed", "description": _("bkbeat-采集DB的刷新次数")},
+    {"field_name": "bkbeat_sender_received", "description": _("bkbeat-sender-已接收的采集事件数")},
+    {"field_name": "bkbeat_sender_send_total", "description": _("bkbeat-sender-已发送的事件数")},
+    {"field_name": "bkbeat_sender_state", "description": _("bkbeat-sender-已发送的采集进度数")},
+    {"field_name": "filebeat_harvester_closed", "description": _("beat-已释放的文件数")},
+    {"field_name": "filebeat_harvester_open_files", "description": _("beat-已打开的文件数")},
+    {"field_name": "filebeat_harvester_running", "description": _("beat-正在采集的文件数")},
+    {"field_name": "filebeat_harvester_skipped", "description": _("beat-已过滤的文件数")},
+    {"field_name": "filebeat_input_log_files_renamed", "description": _("beat-renamed的文件数")},
+    {"field_name": "filebeat_input_log_files_truncated", "description": _("beat-truncated的文件数")},
+    {"field_name": "libbeat_pipeline_events_active", "description": _("beat-正在发送的采集事件数")},
+    {"field_name": "libbeat_pipeline_events_published", "description": _("beat-已发送的采集事件数")},
+    {"field_name": "libbeat_pipeline_events_total", "description": _("beat-已接收的采集事件数")},
+    {"field_name": "libbeat_pipeline_queue_acked", "description": _("beat-已确认的采集事件数")},
+    {"field_name": "system_load_1", "description": _("beat-采集目标1分钟负载")},
+    {"field_name": "system_load_15", "description": _("beat-采集目标15分钟负载")},
+    {"field_name": "system_load_5", "description": _("beat-采集目标5分钟负载")},
+]
+
+# 预定义常量 - 日志采集器任务指标
+LOGBEAT_TASK_METRICS = [
+    {"field_name": "crawler_dropped", "description": _("需要过滤的事件数")},
+    {"field_name": "crawler_received", "description": _("接收到的采集事件数")},
+    {"field_name": "crawler_send_total", "description": _("正常发送事件数")},
+    {"field_name": "crawler_state", "description": _("接收到的采集进度事件数")},
+    {"field_name": "gse_publish_total", "description": _("按任务计算发送次数")},
+    {"field_name": "sender_received", "description": _("sender接收到的事件数")},
+    {"field_name": "sender_send_total", "description": _("sender发送的采集事件包数")},
+    {"field_name": "sender_state", "description": _("sender发送的采集进度包数")},
+    {"field_name": "gse_publish_failed", "description": _("按任务计算发送失败次数")},
+]
+
+# 预定义常量 - 日志采集器维度
+LOGBEAT_COMMON_DIMENSIONS = [
+    {"field_name": "bk_biz_id", "description": _("业务ID")},
+    {"field_name": "target", "description": _("目标")},
+    {"field_name": "task_data_id", "description": _("数据ID")},
+    {"field_name": "type", "description": _("类型")},
+    {"field_name": "version", "description": _("版本号")},
+]
+
+# 定义表映射map
+TABLE_TYPE_MAPPING: dict[str, str] = {
+    "system": "system",
+    "dbm_system": "system",
+    "devx_system": "system",
+    "perforce_system": "uptimecheck",
+    "pingserver": "pingserver",
+    "agentmetric": "bkci",
+}
