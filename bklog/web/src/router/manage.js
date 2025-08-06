@@ -55,9 +55,8 @@ const ArchiveRepository = () => import(/* webpackChunkName: 'sdk-track' */ '@/vi
 const ArchiveList = () => import(/* webpackChunkName: 'sdk-track' */ '@/views/manage-v2/log-archive/archive-list/index.tsx');
 const ArchiveRestore = () => import(/* webpackChunkName: 'sdk-track' */ '@/views/manage-v2/log-archive/archive-restore/index.tsx');
 const ReportManage = () => import(/* webpackChunkName: 'report-manage' */ '@/views/manage/report-management');
-// const ExtractPermission = () => import(/* webpackChunkName: 'manage-extract-permission' */ '@/views/manage/manage-extract/manage-extract-permission');
 const ExtractConfig = () => import(/* webpackChunkName: 'manage-extract-permission' */ '@/views/manage-v2/log-extract/extract-config/index.tsx');
-const extract = () => import(/* webpackChunkName: 'logExtract' */ '@/views/extract/index');
+const extract = () => import(/* webpackChunkName: 'logExtract' */ '@/views/manage-v2/log-extract/extract-task/index.tsx');
 const extractHome = () => import(/* webpackChunkName: 'extract-home' */ '@/views/extract/home');
 const extractCreate = () => import(/* webpackChunkName: 'extract-create' */ '@/views/extract/create');
 const ExtractLinkList = () => import(/* webpackChunkName: 'extract-link-manage' */ '@/views/manage/manage-extract/extract-link-manage/extract-link-list');
@@ -657,25 +656,25 @@ const getManageRoutes = () => [
           {
             path: 'extract-create',
             name: 'extract-create',
+            component: extractCreate,
             meta: {
               title: '日志提取',
               needBack: true,
               backName: 'log-extract-task',
               navId: 'log-extract-task',
             },
-            component: extractCreate,
           },
           // 克隆提取任务
           {
             path: 'extract-clone',
             name: 'extract-clone',
+            component: extractCreate,
             meta: {
               title: '日志提取',
               needBack: true,
               backName: 'log-extract-task',
               navId: 'log-extract-task',
             },
-            component: extractCreate,
           },
         ],
       },
