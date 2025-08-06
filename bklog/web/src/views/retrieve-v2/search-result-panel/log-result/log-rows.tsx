@@ -343,6 +343,19 @@ export default defineComponent({
       },
       {
         field: '',
+        key: ROW_INDEX,
+        title: tableShowRowIndex.value ? '#' : '',
+        width: tableShowRowIndex.value ? 50 : 0,
+        fixed: 'left',
+        align: 'center',
+        resize: false,
+        class: tableShowRowIndex.value ? 'is-show' : 'is-hidden',
+        renderBodyCell: ({ row }) => {
+          return tableRowConfig.get(row).value[ROW_INDEX] + 1;
+        },
+      },
+      {
+        field: '',
         key: ROW_SOURCE,
         title: '日志来源',
         width: 230,
@@ -361,19 +374,6 @@ export default defineComponent({
           };
 
           return <span onClick={hanldeSoureClick}>{indeSetName}</span>;
-        },
-      },
-      {
-        field: '',
-        key: ROW_INDEX,
-        title: tableShowRowIndex.value ? '#' : '',
-        width: tableShowRowIndex.value ? 50 : 0,
-        fixed: 'left',
-        align: 'center',
-        resize: false,
-        class: tableShowRowIndex.value ? 'is-show' : 'is-hidden',
-        renderBodyCell: ({ row }) => {
-          return tableRowConfig.get(row).value[ROW_INDEX] + 1;
         },
       },
     ]);
