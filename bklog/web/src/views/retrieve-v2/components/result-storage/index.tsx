@@ -112,7 +112,7 @@ export default defineComponent({
 
     return () => (
       <div class='bklog-v3-storage'>
-        <div class='switch-label log-sort'>
+        {/* <div class='switch-label log-sort'>
           <span
             class='bklog-option-item'
             on-click={event => handleShowLogTimeChange(event, 'next')}
@@ -131,9 +131,9 @@ export default defineComponent({
               on-click={event => handleShowLogTimeChange(event, 'descending')}
             ></i>
           </span>
-        </div>
+        </div> */}
         <bk-checkbox
-          style='margin: 0 12px 0 0'
+          style='margin: 0 12px 0 12px'
           class='bklog-option-item'
           theme='primary'
           value={showRowIndex.value}
