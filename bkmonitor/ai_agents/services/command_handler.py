@@ -8,10 +8,13 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+import logging
 from abc import ABC, abstractmethod
 from string import Formatter
 
-import logging
+from bkmonitor.utils.request import get_request
+from core.drf_resource import api
+from core.errors.api import BKAPIError
 
 logger = logging.getLogger("ai_agents")
 
@@ -102,6 +105,60 @@ class PromQLHelperCommandHandler(CommandHandler):
         """
 
 
+class TracingAnalysisCommandHandler(CommandHandler):
+    command = "tracing_analysis"
+
+    keys = ['status', 'kind', 'elapsed_time', 'start_time', 'span_name']
+
+    # 基于 128K 上下文长度设置
+    max_character_length = 120_000
+    max_span = 50
+
+    def _get_nested_value(self, data: dict, key: str, sep: str = '.'):
+        """获取嵌套字典中的值"""
+        keys = key.split(sep)
+        for k in keys:
+            if isinstance(data, dict) and k in data:
+                data = data[k]
+            else:
+                return None
+        return data
+
+    def process_content(self, context: list[dict]) -> str:
+        variables = self.extract_context_vars(context)
+
+        req = get_request()
+        if not req:
+            raise ValueError("TracingAnalysisCommandHandler requires 'local request'")
+
+        try:
+            biz_id = req.session["bk_biz_id"]
+            resp = api.apm_api.query_trace_detail(
+                {
+                    "bk_biz_id": biz_id,
+                    "app_name": variables["app_name"],
+                    "trace_id": variables["trace_id"],
+                }
+            )
+            trace_data = resp['trace_data']
+
+            processed_trace_data = trace_data
+            if len(trace_data) > self.max_span:
+                processed_trace_data = [
+                    {k: self._get_nested_value(x, k) for k in self.keys} for x in trace_data
+                ]
+        except (BKAPIError, KeyError) as e:
+            raise ValueError("TracingAnalysis failed to query trace data") from e
+
+        return f"""
+        请分析 trace: {str(processed_trace_data)[: self.max_character_length]}
+        结果要求: 确保分析准确无误，无需冗余回答内容
+        """
+
+    def get_template(self):
+        pass
+
+
 class CommandProcessor:
     _handlers: dict[str, type[CommandHandler]] = {}
 
@@ -131,3 +188,4 @@ CommandProcessor.register_handler("translate", TranslateCommandHandler)
 CommandProcessor.register_handler("explanation", ExplanationCommandHandler)
 CommandProcessor.register_handler("metadata_diagnosis", MetadataDiagnosisCommandHandler)
 CommandProcessor.register_handler("promql_helper", PromQLHelperCommandHandler)
+CommandProcessor.register_handler("tracing_analysis", TracingAnalysisCommandHandler)
