@@ -103,6 +103,9 @@ class Command(BaseCommand):
     def _get_biz_id_by_space(self, space_type_and_id: list) -> dict:
         space_and_biz = {}
         for space in set(space_type_and_id):
+            if len(space) != 2:
+                self.stderr.write(f"invalid space: {space}")
+                continue
             biz_id = models.Space.objects.get_biz_id_by_space(space_type=space[0], space_id=space[1])
             # 如果为 None， 则转换为 0
             space_and_biz[f"{space[0]}__{space[1]}"] = biz_id or 0
@@ -221,7 +224,10 @@ class Command(BaseCommand):
         if update_space_set:
             # 推送空间
             for space_type, space_id in update_space_set:
-                client.push_space_table_ids(space_type, space_id, is_publish=True)
+                try:
+                    client.push_space_table_ids(space_type, space_id, is_publish=True)
+                except Exception as e:
+                    self.stderr.write(f"failed to push space table ids, err: {e}, space: {space_type, space_id}")
         # 推送标签
         if update_data_label_set:
             client.push_data_label_table_ids(list(update_data_label_set), is_publish=True)

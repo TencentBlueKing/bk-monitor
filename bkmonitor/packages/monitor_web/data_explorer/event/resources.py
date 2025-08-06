@@ -131,6 +131,7 @@ class EventTimeSeriesResource(EventBaseResource):
 
 
 class EventLogsResource(EventBaseResource):
+    DEFAULT_SORT = ["-time"]
     DEFAULT_RESPONSE_DATA = {"list": []}
     RequestSerializer = serializers.EventLogsRequestSerializer
 
@@ -143,8 +144,9 @@ class EventLogsResource(EventBaseResource):
             .limit(validated_request_data["limit"])
             .offset(validated_request_data["offset"])
         )
-        # 预处理排序字段，默认按照时间降序
-        processed_sort_fields = self.process_sort_fields(validated_request_data["sort"])
+        # Q：为什么不在序列化器增加默认值？
+        # A：EventLogsResource 存在内部调用场景。
+        processed_sort_fields = self.process_sort_fields(validated_request_data.get("sort") or self.DEFAULT_SORT)
 
         # 添加查询到查询集中
         for query in [

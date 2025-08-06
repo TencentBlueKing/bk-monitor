@@ -12,10 +12,10 @@
   "dependencies": {
     "@antv/g6": "^4.8.25",
     "@blueking/bk-user-display-name": "1.0.3-beta.3",
-    "@blueking/bk-user-selector": "0.0.29-beta.10",
+    "@blueking/bk-user-selector": "0.0.35-beta.1",
     "@blueking/date-picker": "2.0.0-beta.48",
     "@blueking/fork-resize-detector": "^0.0.2",
-    "@blueking/ip-selector": "0.3.0-beta.44",
+    "@blueking/ip-selector": "0.3.0-beta.50",
     "@blueking/login-modal": "^1.0.6",
     "@blueking/monitor-trace-log": "2.0.5",
     "@blueking/tdesign-ui": "0.0.1-beta.32",

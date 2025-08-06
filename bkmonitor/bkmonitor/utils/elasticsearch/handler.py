@@ -68,6 +68,7 @@ class BaseTreeTransformer(TreeTransformer):
         new_conditions = copy.deepcopy(conditions)
         if new_conditions:
             for condition in new_conditions:
+                condition["origin_key"] = condition["key"]
                 condition["key"] = cls.transform_field_to_es_field(condition["key"])
         return new_conditions
 

@@ -26,6 +26,7 @@ from bkmonitor.commons.tools import batch_request
 from bkmonitor.utils.cache import CacheType, using_cache
 from bkmonitor.utils.common_utils import to_dict
 from bkmonitor.utils.ip import exploded_ip, is_v6
+from bkmonitor.utils.request import get_request_tenant_id
 from bkmonitor.utils.thread_backend import ThreadPool
 from constants.cmdb import TargetNodeType
 from core.drf_resource import CacheResource, api
@@ -415,6 +416,7 @@ class GetBusiness(Resource):
     """
 
     class RequestSerializer(serializers.Serializer):
+        bk_tenant_id = serializers.CharField(label="租户ID", required=False)
         bk_biz_ids = serializers.ListField(
             label="业务ID列表", child=serializers.IntegerField(), required=False, default=[]
         )
@@ -429,15 +431,22 @@ class GetBusiness(Resource):
             return attrs
 
     def perform_request(self, validated_request_data):
+        # 获取租户ID
+        bk_tenant_id = validated_request_data.get("bk_tenant_id")
+        if not bk_tenant_id:
+            bk_tenant_id = get_request_tenant_id()
+
         # 查询全部业务
         if validated_request_data["is_archived"]:
-            response_data = client.search_business(condition={"bk_data_status": "disabled"})["info"]
+            response_data = client.search_business(bk_tenant_id=bk_tenant_id, condition={"bk_data_status": "disabled"})[
+                "info"
+            ]
         else:
-            response_data = client.search_business()["info"]
+            response_data = client.search_business(bk_tenant_id=bk_tenant_id)["info"]
 
         if validated_request_data["all"]:
             # 额外空间列表
-            space_list = SpaceApi.list_spaces_dict()
+            space_list = SpaceApi.list_spaces_dict(bk_tenant_id=bk_tenant_id)
             others = [s for s in space_list if s["bk_biz_id"] < 0]
             response_data += others
         # 按业务ID过滤出需要的业务信息
@@ -449,7 +458,7 @@ class GetBusiness(Resource):
         # 查出业务中的用户字段，转换为列表
         member_fields = {
             attr["bk_property_id"]
-            for attr in client.search_object_attribute(bk_obj_id="biz")
+            for attr in client.search_object_attribute(bk_tenant_id=bk_tenant_id, bk_obj_id="biz")
             if attr["bk_property_type"] == "objuser"
         }
 

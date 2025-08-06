@@ -125,7 +125,7 @@ def list_spaces(
     include_resource_id: bool | None = False,
 ) -> dict:
     """查询空间实例信息
-
+    :param bk_tenant_id: 租户ID
     :param space_type_id: 空间类型ID
     :param space_id: 空间ID
     :param space_name: 空间中文名称
@@ -299,16 +299,15 @@ def get_dimension_values(space_type_id: str, space_id: str, resource_type: str |
     return dimension_list
 
 
-# TODO: 多租户改造联调验证
 @atomic(config.DATABASE_CONNECTION_NAME)
 def create_space(
+    bk_tenant_id: str,
     creator: str,
     space_id: str,
     space_type_id: str,
     space_name: str,
     resources: list | None = None,
     space_code: str | None = "",
-    bk_tenant_id: str = DEFAULT_TENANT_ID,
 ) -> dict:
     """创建空间
 
@@ -787,12 +786,12 @@ def get_project_clusters(bk_tenant_id: str, project_id: str) -> list:
 
 
 @atomic(config.DATABASE_CONNECTION_NAME)
-def create_bkcc_spaces(biz_list: list) -> bool:
+def create_bkcc_spaces(biz_list: list[dict]) -> bool:
     """创建业务对应的空间信息
 
     NOTE: 业务类型，不需要关联资源
 
-    :param biz_list: 需要创建的业务列表，需要包含业务ID、业务中文名称
+    :param biz_list: 需要创建的业务列表，需要包含业务ID、业务中文名称、租户ID
     :return: 返回 True 或异常
     """
     space_data = []
@@ -804,6 +803,7 @@ def create_bkcc_spaces(biz_list: list) -> bool:
                 space_type_id=SpaceTypes.BKCC.value,
                 space_id=str(biz["bk_biz_id"]),
                 space_name=biz["bk_biz_name"],
+                bk_tenant_id=biz["bk_tenant_id"],
             )
         )
 
