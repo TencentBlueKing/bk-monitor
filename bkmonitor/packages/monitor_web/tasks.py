@@ -266,7 +266,10 @@ def _update_metric_list(bk_tenant_id: str, period: int, offset: int):
     # 根据数据源类型分别处理有效业务ID
     for source_type, manager_class in SOURCE_TYPE.items():
         # 获取有效的业务ID列表
-        available_biz_ids = manager_class.get_available_biz_ids(bk_tenant_id)
+        try:
+            available_biz_ids = manager_class.get_available_biz_ids(bk_tenant_id)
+        except Exception as e:
+            logger.exception("Failed to get or process available biz IDs for source type(%s): %s", source_type, e)
 
         # 分页处理
         total_biz_count = len(available_biz_ids)

@@ -669,17 +669,12 @@ class CustomMetricCacheManager(BaseMetricCacheManager):
         3. 全局业务(0业务)
         """
         biz_ids = set()
-        try:
-            custom_ts_result = (
-                CustomTSTable.objects.filter(bk_tenant_id=bk_tenant_id).values_list("bk_biz_id", flat=True).distinct()
-            )
-            apm_biz_ids = list(
-                Application.objects.filter(bk_tenant_id=bk_tenant_id).values_list("bk_biz_id", flat=True).distinct()
-            )
-        except BKAPIError as e:
-            logger.exception(f"Failed to get available biz_ids for custom metrics: {e}")
-            # 如果API调用失败，确保进程相关的业务0被处理
-            return [0]
+        custom_ts_result = (
+            CustomTSTable.objects.filter(bk_tenant_id=bk_tenant_id).values_list("bk_biz_id", flat=True).distinct()
+        )
+        apm_biz_ids = list(
+            Application.objects.filter(bk_tenant_id=bk_tenant_id).values_list("bk_biz_id", flat=True).distinct()
+        )
         biz_ids.update(custom_ts_result)
         biz_ids.update(apm_biz_ids)
         biz_ids.add(0)
@@ -776,7 +771,7 @@ class BkdataMetricCacheManager(BaseMetricCacheManager):
             return []
         try:
             businesses = SpaceApi.list_spaces(bk_tenant_id=bk_tenant_id)
-        except Exception as e:
+        except BKAPIError as e:
             logger.exception(f"Failed to get available biz_ids for bkdata metrics: {e}")
             # 如果API调用失败，返回空列表
             return []
@@ -936,7 +931,7 @@ class BkLogSearchCacheManager(BaseMetricCacheManager):
         """日志平台指标缓存仅支持更新大于0业务"""
         try:
             businesses = SpaceApi.list_spaces(bk_tenant_id=bk_tenant_id)
-        except Exception as e:
+        except BKAPIError as e:
             logger.exception(f"Failed to get available biz_ids for bklog metrics: {e}")
             # 如果API调用失败，返回空列表
             return []
@@ -1176,20 +1171,23 @@ class CustomEventCacheManager(BaseMetricCacheManager):
         )
         biz_ids.update(custom_event_biz_ids)
 
-        all_clusters = []
-        # 2. 获取有K8s集群的业务ID
+        # 2.添加业务ID为0（处理系统事件）
+        biz_ids.add(0)
+
+        # 3. 获取有K8s集群的业务ID
         try:
             # 一次性获取租户下所有集群
             all_clusters = api.kubernetes.fetch_k8s_cluster_list(bk_tenant_id=bk_tenant_id)
-        except Exception as e:
+        except BKAPIError as e:
             logger.exception(f"Failed to get k8s clusters: {e}")
+            return list(biz_ids)
+
         # 从集群信息中提取业务ID并添加到结果集
         for cluster in all_clusters:
             if "bk_biz_id" in cluster:
                 biz_id = cluster["bk_biz_id"]
                 biz_ids.add(biz_id)
-        # 3. 添加业务ID为0（处理系统事件）
-        biz_ids.add(0)
+
         return list(biz_ids)
 
 
@@ -2055,19 +2053,19 @@ class BkmonitorK8sMetricCacheManager(BkmonitorMetricCacheManager):
         """
         biz_ids = []
         # 查询business列表
-        businesses = SpaceApi.list_spaces(bk_tenant_id=bk_tenant_id)
-        for biz in businesses:
-            if not biz.space_code:
-                # 非容器平台项目，不需要缓存容器指标
-                continue
-            # 判断当前biz是否存在k8s集群
-            try:
+        try:
+            businesses = SpaceApi.list_spaces(bk_tenant_id=bk_tenant_id)
+            for biz in businesses:
+                if not biz.space_code:
+                    # 非容器平台项目，不需要缓存容器指标
+                    continue
+                # 判断当前biz是否存在k8s集群
                 clusters = api.kubernetes.fetch_k8s_cluster_list(bk_biz_id=biz.bk_biz_id, bk_tenant_id=bk_tenant_id)
                 if clusters:
                     biz_ids.append(biz.bk_biz_id)
-            except BKAPIError:
-                # 获取集群信息失败时跳过该业务
-                continue
+        except BKAPIError as e:
+            logger.exception(f"Failed to get spaces for tenant {bk_tenant_id}: {e}")
+            return [0]  # 如果获取业务列表失败，至少返回业务0
 
         return biz_ids
 
@@ -2385,28 +2383,23 @@ class BkFtaAlertCacheManager(BaseMetricCacheManager):
         2. 业务ID 0(用于系统级告警事件)
         """
         biz_ids = []
-        try:
-            # 排除有策略ID的告警，只统计第三方告警
-            search = AlertDocument.search(all_indices=True).exclude("exists", field="strategy_id")
-            # 计算每个业务ID出现的文档数量
-            search.aggs.bucket("biz_ids", "terms", field="event.bk_biz_id", size=1000)
-            search_result = search[:0].execute()
-            # 从聚合结果中抽取biz_id
-            if hasattr(search_result, "aggs") and search_result.aggs:
-                biz_ids = [bucket.key for bucket in search_result.aggs.biz_ids.buckets]
+        # 排除有策略ID的告警，只统计第三方告警
+        search = AlertDocument.search(all_indices=True).exclude("exists", field="strategy_id")
+        # 计算每个业务ID出现的文档数量
+        search.aggs.bucket("biz_ids", "terms", field="event.bk_biz_id", size=1000)
+        search_result = search[:0].execute()
+        # 从聚合结果中抽取biz_id
+        if search_result.aggs:
+            biz_ids = [bucket.key for bucket in search_result.aggs.biz_ids.buckets]
 
-            # 仅保留大于0的业务ID
-            result = [biz_id for biz_id in biz_ids if biz_id > 0]
+        # 仅保留大于0的业务ID
+        result = [biz_id for biz_id in biz_ids if biz_id > 0]
 
-            # 总是添加业务ID为0，用于系统级告警事件
-            if 0 not in result:
-                result.append(0)
+        # 总是添加业务ID为0，用于系统级告警事件
+        if 0 not in result:
+            result.append(0)
 
-            return result
-        except Exception as e:
-            logger.exception(f"Failed to get alert biz ids: {e}")
-            # 发生异常时返回业务0，确保基础告警能被处理
-            return [0]
+        return result
 
 
 # 当前支持的数据来源（监控、计算平台、系统事件）
