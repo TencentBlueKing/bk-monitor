@@ -53,13 +53,13 @@ class ActionProcessor(BaseActionProcessor):
         # 处理字典格式
         elif isinstance(dsn_config, dict):
             # 1. 添加默认队列 (biz_id=0)
-            if 0 in dsn_config:
-                unique_dsns.add(dsn_config[0])
+            if "0" in dsn_config:
+                unique_dsns.add(dsn_config["0"])
 
             # 2. 添加业务特定队列
             biz_id = self.action.bk_biz_id
-            if biz_id in dsn_config:
-                unique_dsns.add(dsn_config[biz_id])
+            if str(biz_id) in dsn_config:
+                unique_dsns.add(dsn_config[str(biz_id)])
 
         for dsn in unique_dsns:
             clients.append(get_client(dsn))
