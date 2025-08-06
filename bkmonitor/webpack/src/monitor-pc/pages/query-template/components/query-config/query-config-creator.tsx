@@ -29,25 +29,32 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import MethodCreator from '../method/method-creator';
 import MetricCreator from '../metric/metric-creator';
-
-import type { IScenarioItem, TMetricDetail } from '../type/typing';
+import { type IVariablesItem, type TMetricDetail, TVariableType } from '../type/query-config';
 
 import './query-config-creator.scss';
 
 interface IProps {
   queryConfig?: IQueryConfig;
-  scenarioList?: IScenarioItem[];
+  variables?: IVariablesItem[];
 }
 interface IQueryConfig {
   alias?: string;
+  metric_id: string;
 }
 
 @Component
 export default class QueryConfigCreator extends tsc<IProps> {
   @Prop({ default: null }) queryConfig: IQueryConfig;
-  @Prop({ type: Array, default: () => [] }) scenarioList: IScenarioItem[];
+  @Prop({ default: () => [] }) variables: IVariablesItem[];
 
-  curMetric = null;
+  curMetric: TMetricDetail = null;
+
+  get getMethodVariables() {
+    return this.variables.filter(item => item.type === TVariableType.METHOD);
+  }
+  get getAggMethodList() {
+    return this.curMetric?.aggMethodList || [];
+  }
 
   handleSelectMetric(metric: TMetricDetail) {
     this.curMetric = metric;
@@ -61,15 +68,19 @@ export default class QueryConfigCreator extends tsc<IProps> {
         </div>
         <div class='query-config-wrap'>
           <MetricCreator
-            scenarioList={this.scenarioList}
+            metricId={this.queryConfig?.metric_id}
             onSelectMetric={this.handleSelectMetric}
           />
           {!!this.curMetric && [
-            <MethodCreator key={'method'} />,
-            <MethodCreator key={'01'} />,
-            <MethodCreator key={'02'} />,
-            <MethodCreator key={'03'} />,
-            <MethodCreator key={'04'} />,
+            <MethodCreator
+              key={'method'}
+              options={this.getAggMethodList}
+              variables={this.getMethodVariables}
+            />,
+            // <MethodCreator key={'01'} />,
+            // <MethodCreator key={'02'} />,
+            // <MethodCreator key={'03'} />,
+            // <MethodCreator key={'04'} />,
           ]}
         </div>
       </div>
