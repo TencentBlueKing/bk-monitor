@@ -694,7 +694,7 @@ class CustomMetricCacheManager(BaseMetricCacheManager):
                 "metric_field": metric_info["metric_field"],
                 "metric_field_name": metric_info["metric_field_name"],
                 "unit": metric_info["unit"],
-                "dimensions": PROCESS_METRIC_DIMENSIONS,
+                "dimensions": copy.deepcopy(PROCESS_METRIC_DIMENSIONS),
                 "default_dimensions": [],
                 "default_condition": [],
                 "result_table_label": "host_process",
@@ -2835,11 +2835,13 @@ class BkmonitorMetricCacheManager(BaseMetricCacheManager):
                     else:
                         dimension_infos.append(field)
 
-                # 维度列表
-                dimensions = [
-                    {"id": dimension_info["name"], "name": dimension_info["description"] or dimension_info["name"]}
-                    for dimension_info in dimension_infos
-                ]
+                # 维度列表需要深拷贝
+                dimensions = copy.deepcopy(
+                    [
+                        {"id": dimension_info["name"], "name": dimension_info["description"] or dimension_info["name"]}
+                        for dimension_info in dimension_infos
+                    ]
+                )
 
                 # 判断目标类型
                 data_target = DataTargetMapping.get_data_target(
@@ -2870,48 +2872,76 @@ class BkmonitorMetricCacheManager(BaseMetricCacheManager):
                     }
 
     def _process_pre_calculate_metrics(self) -> Generator[dict[str, Any], None, None]:
-        # 查询当前租户下的所有预计算规则
-        record_rules = RecordRule.objects.filter(bk_tenant_id=self.bk_tenant_id)
-        # 遍历所有预计算的规则
-        for rule in record_rules:
-            # 获取规则的指标配置信息
-            metrics = rule.rule_metrics or {}
+        """处理预计算指标"""
+        # 获取当前租户下的所有预计算规则的table_id
+        table_ids = list(
+            RecordRule.objects.filter(bk_tenant_id=self.bk_tenant_id).values_list("table_id", flat=True).distinct()
+        )
 
-            # 基本信息设置
-            base_info = {
+        if not table_ids:
+            logger.info("No precalculate rules found for tenant [%s]", self.bk_tenant_id)
+            return
+
+        logger.info("Found %s precalculate rule table_ids", len(table_ids))
+
+        # 传入table_ids进行过滤
+        pre_calc_tables = api.metadata.list_monitor_result_table(
+            bk_biz_id=self.bk_biz_id, table_ids=table_ids, with_option=False
+        )
+
+        # 处理每个表的指标
+        for table in pre_calc_tables:
+            # 设置默认维度
+            data_target = DataTargetMapping().get_data_target(
+                table.get("label", ""), DataSourceLabel.BK_MONITOR_COLLECTOR, DataTypeLabel.TIME_SERIES
+            )
+
+            # 根据data_target获取默认维度，与原始代码保持一致
+            default_dimensions = list([x["id"] for x in DEFAULT_DIMENSIONS_MAP[data_target]])
+
+            # 构建基础表信息
+            base_dict = {
                 "bk_biz_id": self.bk_biz_id if self.bk_biz_id is not None else 0,
-                "result_table_id": rule.table_id,
-                "result_table_name": rule.record_name or rule.table_id,
+                "result_table_id": table["table_id"],
+                "result_table_name": table["table_name_zh"],
                 "data_source_label": DataSourceLabel.BK_MONITOR_COLLECTOR,
                 "data_type_label": DataTypeLabel.TIME_SERIES,
-                "result_table_label": "precalculate",
-                "result_table_label_name": "预计算指标",
-                "data_target": DataTarget.NONE_TARGET,
+                "result_table_label": table["label"],
+                "result_table_label_name": self.get_label_name(table["label"]),
+                "data_target": data_target,
                 "related_name": "bk_pre_cal",
                 "related_id": "bk_pre_cal",
                 "category_display": _("预计算指标"),
-                "data_label": f"bkprecal_{rule.space_id}",
-                "default_dimensions": [],
+                "data_label": table.get("data_label", ""),
+                "default_dimensions": default_dimensions,
                 "default_condition": [],
             }
 
-            # 获取维度的信息
+            # 处理表中的维度信息
             dimensions = []
-            # todo 如何获取 ？？
+            for field in table["field_list"]:
+                if field["tag"] == "dimension" and field["field_name"] not in FILTER_DIMENSION_LIST:
+                    dimensions.append(
+                        {
+                            "id": field["field_name"],
+                            "name": field["description"] if field["description"] else field["field_name"],
+                        }
+                    )
 
-            # 设置维度列表
-            base_info["dimensions"] = dimensions
-            # 为每一个指标生成一个记录
-            for record_name, metric_name in metrics.items():
-                metric_info = copy.deepcopy(base_info)
-                metric_info.update(
-                    {
-                        "metric_field": metric_name,
-                        "metric_field_name": record_name,
-                        "unit": "",  # 单位信息可能需要从规则定义中提取
-                    }
-                )
-                yield metric_info
+            base_dict["dimensions"] = dimensions
+
+            # 处理表中的指标字段
+            for field in table["field_list"]:
+                if field["tag"] == "metric":
+                    metric_info = copy.deepcopy(base_dict)
+                    metric_info["metric_field"] = field["field_name"]
+                    metric_info["metric_field_name"] = (
+                        field["alias_name"] if field["alias_name"] else field["field_name"]
+                    )
+                    metric_info["unit"] = field.get("unit", "")
+                    metric_info["unit_conversion"] = field.get("unit_conversion", 1.0)
+
+                    yield metric_info
 
 
 class BkmonitorK8sMetricCacheManager(BkmonitorMetricCacheManager):

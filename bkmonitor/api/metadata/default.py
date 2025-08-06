@@ -122,6 +122,7 @@ class ListResultTableResource(MetaDataAPIGWResource):
         page = serializers.IntegerField(required=False, label="页数", min_value=1)
         page_size = serializers.IntegerField(required=False, label="页长")
         with_option = serializers.BooleanField(required=False, label="是否包含option字段")
+        table_ids = serializers.ListField(required=False, label="用于过滤table_id")
 
         def validate_is_public_include(self, val):
             return 1 if val else 0
@@ -269,6 +270,7 @@ class ListMonitorResultTableResource(Resource):
         datasource_type = serializers.CharField(required=False, label="需要过滤的结果表类型，如 system")
         is_public_include = serializers.BooleanField(required=False, label="是否包含全业务结果表")
         with_option = serializers.BooleanField(required=False, label="是否包含option字段")
+        table_ids = serializers.ListField(required=False, lable="使用table_ids过滤部分数据")
 
     def perform_request(self, validated_request_data):
         result_data = batch_request(api.metadata.list_result_table, validated_request_data, limit=1000, app="metadata")
@@ -276,6 +278,10 @@ class ListMonitorResultTableResource(Resource):
         for table in result_data:
             # 对非法table_id的数据进行过滤
             if len(table["table_id"].split(".")) != 2:
+                continue
+
+            # 如果指定了table_ids，进行过滤
+            if validated_request_data.get("table_ids") and table["table_id"] not in validated_request_data["table_ids"]:
                 continue
 
             for field in table["field_list"]:
