@@ -2,10 +2,14 @@
 
 .retrieve-v2.field-analysis-container {
   width: 480px;
+  min-height: 395px;
   padding: 6px 16px 10px;
   overflow: auto;
   font-size: 12px;
   color: #63656e;
+  &.is-no-data {
+    min-height: 200px;
+  }
   %num-box-extend {
     width: 48%;
     background: #f5f7fa;
@@ -116,7 +120,8 @@
 
       .num-val {
         min-width: 30px;
-        color: #313238;
+        color: #4d4f56;
+        font-weight: bold;
 
         @include flex-center();
       }
@@ -125,16 +130,23 @@
 
   .chart-title {
     margin: 12px 0;
-    font-size: 12px;
+    font-size: 14px;
     font-weight: bold;
     color: #313238;
 
     @include flex-justify(space-between);
+    .chart-title-time {
+      line-height: 22px;
+      color: #4d4f56;
+      font-weight: normal;
+      font-size: 12px;
+    }
   }
 
   .legend-box {
     align-content: center;
     margin-top: 10px;
+    margin-bottom: 5px;
 
     @include flex-justify(space-between);
 
