@@ -191,28 +191,10 @@ class Strategy:
         calendar_ids = uptime.get("calendars") or []
 
         # 获取生效日历事项
-        active_item_messages = []
-        if active_calendar_ids:
-            active_calendars = CalendarCacheManager.mget(
-                calendar_ids=active_calendar_ids, bk_tenant_id=BusinessManager.get_tenant_id(self.bk_biz_id)
-            )
-            for items in active_calendars:
-                for item in items:
-                    item_list = item.get("list", [])
-                    for _item in item_list:
-                        active_item_messages.append(f"{_item['calendar_name']}({_item['name']})")
+        active_item_messages = self._get_calendar_item_messages(active_calendar_ids)
 
         # 获取不生效日历事项
-        inactive_item_messages = []
-        if calendar_ids:
-            calendars = CalendarCacheManager.mget(
-                calendar_ids=calendar_ids, bk_tenant_id=BusinessManager.get_tenant_id(self.bk_biz_id)
-            )
-            for items in calendars:
-                for item in items:
-                    item_list = item.get("list", [])
-                    for _item in item_list:
-                        inactive_item_messages.append(f"{_item['calendar_name']}({_item['name']})")
+        inactive_item_messages = self._get_calendar_item_messages(calendar_ids)
 
         # 处理日历冲突逻辑
         # 优先级：生效日历 > 不生效日历
@@ -232,6 +214,28 @@ class Strategy:
             return False, _("当前时刻未命中告警日历事项")
 
         return True, ""
+
+    def _get_calendar_item_messages(self, calendar_ids: list) -> list[str]:
+        """
+        获取日历事项消息列表
+
+        :param calendar_ids: 日历ID列表
+        :return: 日历事项消息列表，格式为 "日历名称(事项名称)"
+        """
+        item_messages = []
+        if not calendar_ids:
+            return item_messages
+
+        calendars = CalendarCacheManager.mget(
+            calendar_ids=calendar_ids, bk_tenant_id=BusinessManager.get_tenant_id(self.bk_biz_id)
+        )
+        for items in calendars:
+            for item in items:
+                item_list = item.get("list", [])
+                for _item in item_list:
+                    item_messages.append(f"{_item['calendar_name']}({_item['name']})")
+
+        return item_messages
 
     def gen_strategy_snapshot(self):
         """
