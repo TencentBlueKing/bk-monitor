@@ -85,8 +85,8 @@ class IncidentMetricsSearchResource(BaseIncidentMetricsResource):
         }
         if metric_type == MetricType.NODE.value:
             return self._query_node_metrics(validated_request_data, base_response)
-        elif metric_type == MetricType.EBPF_CALL.value:
-            return self._query_ebpf_call_metrics(validated_request_data, base_response)
+        elif metric_type == MetricType.EBPF_CALL.value or metric_type == MetricType.DEPENDENCY.value:
+            return self._query_edge_metrics(validated_request_data, base_response)
         
 
     def _query_node_metrics(self, validated_request_data: dict, base_response: dict) -> dict:
@@ -97,11 +97,11 @@ class IncidentMetricsSearchResource(BaseIncidentMetricsResource):
         resp = self._execute_query(validated_request_data, query_requests, base_response)
         return resp
 
-    def _query_ebpf_call_metrics(self, validated_request_data: dict, base_response: dict) -> dict:
+    def _query_edge_metrics(self, validated_request_data: dict, base_response: dict) -> dict:
         """
         查询边指标        
         """
-        pass
+        return base_response
 
     def _execute_query(self, validated_request_data: dict, query_requests: dict, base_response: dict) -> dict:
         """

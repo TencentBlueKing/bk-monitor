@@ -18,7 +18,12 @@ class MetricsSearchSerializer(serializers.Serializer):
     start_time = serializers.IntegerField(label="开始时间", default=None)
     end_time = serializers.IntegerField(label="结束时间", default=None)
 
-    def validate_dimensions(self, entity_type: str, dimensions: dict):
+    def validate_node(self, index_info: dict):
+        entity_type = index_info.get("entity_type","")
+        valid_entity_types = EntityType.choices()
+        if entity_type not in valid_entity_types:
+            raise serializers.ValidationError(f"entity_type must be one of {valid_entity_types}")
+        dimensions = index_info.get("dimensions",{})
         if entity_type == EntityType.APMService.value:
             if not dimensions.get("apm_service_name"):
                 raise serializers.ValidationError("dimension.apm_service_name is required")
@@ -42,6 +47,15 @@ class MetricsSearchSerializer(serializers.Serializer):
         elif entity_type == EntityType.UnKnown.value:
             pass
         
+    def validate_edge(self, index_info: dict):
+        source_type = index_info.get("source_type","")
+        target_type = index_info.get("target_type","")
+        valid_entity_types = EntityType.choices()
+        if source_type not in valid_entity_types:
+            raise serializers.ValidationError(f"source_type must be one of {valid_entity_types}")
+        if target_type not in valid_entity_types:
+            raise serializers.ValidationError(f"target_type must be one of {valid_entity_types}")
+        
         
     def validate(self, attrs):
         index_info = attrs.get("index_info")
@@ -53,11 +67,10 @@ class MetricsSearchSerializer(serializers.Serializer):
         if metric_type not in valid_metric_types:
             raise serializers.ValidationError(f"metric_type must be one of {valid_metric_types}")
         
-        dimensions = index_info.get("dimensions",{})
-        entity_type = index_info.get("entity_type","")
-        valid_entity_types = EntityType.choices()
-        if entity_type not in valid_entity_types:
-            raise serializers.ValidationError(f"entity_type must be one of {valid_entity_types}")
-        
-        self.validate_dimensions(entity_type, dimensions)
+        if metric_type == MetricType.NODE.value:
+            self.validate_node(index_info)
+            
+        elif metric_type == MetricType.EBPF_CALL.value or metric_type == MetricType.DEPENDENCY.value:
+            self.validate_edge(index_info)
+            
         return attrs

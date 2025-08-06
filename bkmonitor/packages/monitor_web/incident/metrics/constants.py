@@ -48,7 +48,8 @@ class MetricType(CachedEnum):
 
     NODE = "node"
     EBPF_CALL = "ebpf_call"
-
+    DEPENDENCY = "dependency"
+    
     @classmethod
     def choices(cls):
         return [choice.value for choice in cls.__members__.values()]
