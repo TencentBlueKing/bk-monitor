@@ -332,9 +332,7 @@
    */
   function handleIndexConfigSliderOpen() {
     if (isFieldSettingShow.value) {
-      console.log('fieldAliasRef', fieldAliasRef.value);
       fieldAliasRef.value?.handleOpenSidebar?.();
-      // fieldSettingRef.value?.handleShowSlider?.();
     } else {
       bkMessage({
         theme: 'primary',
