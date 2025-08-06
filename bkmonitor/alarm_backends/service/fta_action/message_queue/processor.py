@@ -33,8 +33,8 @@ class ActionProcessor(BaseActionProcessor):
     def __init__(self, action_id, alerts=None):
         if not settings.ENABLE_MESSAGE_QUEUE or not settings.MESSAGE_QUEUE_DSN:
             return
-        self.clients = self._init_clients()
         self.action = ActionInstance.objects.get(id=action_id)
+        self.clients = self._init_clients()
         i18n.set_biz(self.action.bk_biz_id)
         self.alerts = alerts
         self.context = ActionContext(self.action, alerts=self.alerts, use_alert_snap=True).get_dictionary()
