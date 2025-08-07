@@ -1,0 +1,42 @@
+.template-config-variable-name-input {
+  position: relative;
+  display: flex;
+  flex: 1;
+  align-items: center;
+  width: 100%;
+  height: 32px;
+  background: #FEF9FB;
+  border: 1px solid #DC9DB8;
+  border-radius: 2px;
+
+  .label-left, .label-right {
+    display: flex;
+    justify-content: center;
+    width: 28px;
+    height: 100%;
+    line-height: 32px;
+    color: #E54488;
+    background: #FEEAF2;
+  }
+
+  .label-left {
+    width: 28px;
+    border-right: 1px solid #DC9DB8;
+  }
+
+  .label-right {
+    width: 21px;
+    border-left: 1px solid #DC9DB8;
+  }
+
+  .variable-name-input {
+    .bk-input-text {
+      .bk-form-input {
+        height: 30px;
+        font-weight: 700;
+        color: #E54488;
+        border: none;
+      }
+    }
+  }
+}

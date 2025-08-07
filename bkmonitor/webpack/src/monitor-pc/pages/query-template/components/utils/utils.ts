@@ -24,39 +24,19 @@
  * IN THE SOFTWARE.
  */
 
-import { VariableTypeEnum } from '../../constants';
-import { MetricDetail as BaseMetricDetail } from '@/pages/strategy-config/strategy-config-set-new/typings';
-
-import type { MetricDetail as TypeMetricDetail } from '@/pages/strategy-config/strategy-config-set-new/typings';
-
-export interface IScenarioItem {
-  id: string;
-  index: number;
-  name: string;
-}
-
-export type TMetricDetail = Partial<TypeMetricDetail>;
-
-export class MetricDetail extends BaseMetricDetail {}
-
-// todo
-export const TVariableType = {
-  METHOD: VariableTypeEnum.AGG_METHOD,
-  DIMENSION: VariableTypeEnum.DIMENSION,
-  CONDITION: VariableTypeEnum.CONDITION,
-  CONSTANT: 'constant', // （非变量类型）
-} as const;
-export interface IDimensionOptionsItem extends IVariablesItem {
-  id: string;
-  isVariable?: boolean;
-}
-/** 汇聚方法选项 */
-export interface IMethodOptionsItem extends IVariablesItem {
-  id: string;
-  isVariable?: boolean;
-}
-
-export interface IVariablesItem {
-  name?: string;
-  type?: (typeof TVariableType)[keyof typeof TVariableType];
+export function onClickOutside(element: HTMLElement | HTMLElement[], callback, { once = false } = {}) {
+  const handler = (event: MouseEvent) => {
+    let isInside = false;
+    if (Array.isArray(element)) {
+      isInside = element.some(el => !!el?.contains?.(event.target as HTMLElement));
+    } else {
+      isInside = element.contains(event.target as HTMLElement);
+    }
+    if (!isInside) {
+      callback(event);
+      if (once) window.removeEventListener('click', handler);
+    }
+  };
+  window.addEventListener('click', handler);
+  return () => window.removeEventListener('click', handler);
 }
