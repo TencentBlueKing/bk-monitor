@@ -27,41 +27,61 @@
 import { Component, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import QueryConfigCreator from '../query-config/query-config-creator';
+import SelectWrap from '../utils/select-wrap';
 
-import type { IVariablesItem } from '../type/query-config';
+import type { IDimensionOptionsItem, IVariablesItem } from '../type/query-config';
 
-import './query-panel.scss';
+import './dimension-creator.scss';
 
 interface IProps {
+  options?: IDimensionOptionsItem[];
+  showLabel?: boolean;
+  showVariables?: boolean;
   variables?: IVariablesItem[];
-  onCreateVariable?: (val: IVariablesItem) => void;
 }
 
 @Component
-export default class QueryPanel extends tsc<IProps> {
+export default class DimensionCreator extends tsc<IProps> {
+  /* 是否展示左侧标签 */
+  @Prop({ default: true }) showLabel: boolean;
+  /* 变量列表 */
   @Prop({ default: () => [] }) variables: IVariablesItem[];
+  /* 可选项列表 */
+  @Prop({ default: () => [] }) options: IDimensionOptionsItem[];
+  /* 是否展示变量 */
+  @Prop({ default: false }) showVariables: boolean;
 
-  handleCreateVariable(val: IVariablesItem) {
-    this.$emit('createVariable', val);
+  showSelect = false;
+  popClickHide = true;
+
+  handleOpenChange(v) {
+    this.showSelect = v;
   }
 
   render() {
     return (
-      <div class='template-query-panel-component'>
-        <QueryConfigCreator
-          variables={this.variables}
-          onCreateVariable={this.handleCreateVariable}
-        />
-
-        <div class='query-panel-operator'>
-          <div class='add-btn'>
-            <span class='icon-monitor icon-mc-add' />
+      <div class='template-dimension-creator-component'>
+        {this.showLabel && <div class='dimension-label'>{this.$slots?.label || this.$t('聚合维度')}</div>}
+        <SelectWrap
+          expanded={this.showSelect}
+          minWidth={408}
+          needPop={true}
+          popClickHide={this.popClickHide}
+          onOpenChange={this.handleOpenChange}
+        >
+          <div class='tags-wrap'>
+            <div class='tags-item'>
+              <span>xasdfas</span>
+              <span class='icon-monitor icon-mc-close' />
+            </div>
           </div>
-          <div class='del-btn'>
-            <span class='icon-monitor icon-mc-delete-line' />
+          <div
+            class='template-dimension-creator-component-options-popover'
+            slot='popover'
+          >
+            asdfasdfasdf
           </div>
-        </div>
+        </SelectWrap>
       </div>
     );
   }

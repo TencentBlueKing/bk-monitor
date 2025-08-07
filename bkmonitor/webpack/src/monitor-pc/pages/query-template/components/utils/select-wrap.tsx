@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { Component, Prop, Ref } from 'vue-property-decorator';
+import { Component, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { xssFilter } from 'monitor-common/utils';
@@ -32,12 +32,14 @@ import { xssFilter } from 'monitor-common/utils';
 import './select-wrap.scss';
 
 interface IProps {
-  active?: boolean;
   backgroundColor?: string;
+  expanded?: boolean;
   id?: string;
   loading?: boolean;
   minWidth?: number;
   needPop?: boolean;
+  popClickHide?: boolean;
+  showPop?: boolean;
   tips?: string;
   tipsPlacements?: string[];
   onClick?: (e: Event) => void;
@@ -46,19 +48,40 @@ interface IProps {
 
 @Component
 export default class SelectWrap extends tsc<IProps> {
-  @Prop({ default: false }) active: boolean;
+  /* 是否展开 */
+  @Prop({ default: false }) expanded: boolean;
+  /* 最小宽度 */
   @Prop({ default: 127 }) minWidth: number;
+  /* 背景颜色 */
   @Prop({ default: '#fff' }) backgroundColor: string;
+  /* dom id */
   @Prop({ default: '' }) id: string;
+  /* 是否显示loading */
   @Prop({ default: false }) loading: boolean;
+  /* 提示内容 */
   @Prop({ default: '' }) tips: string;
+  /* 提示位置 */
   @Prop({ default: () => ['top'], type: Array }) tipsPlacements: string[];
+  /* 是否需要点击触发popover */
   @Prop({ default: false }) needPop: boolean;
+  /* 点击popover外部是否隐藏 */
+  @Prop({ default: true }) popClickHide: boolean;
+  /* 是否展示popover */
+  @Prop({ default: false }) showPop: boolean;
 
   @Ref('pop') popRef: HTMLElement;
 
   popoverInstance = null;
   isShowPop = false;
+
+  outSideClean = null;
+
+  @Watch('expanded')
+  handleWatchShowPop(val) {
+    if (!val && this.needPop) {
+      this.popoverDestroy();
+    }
+  }
 
   handleClick(e) {
     if (this.loading) {
@@ -80,20 +103,28 @@ export default class SelectWrap extends tsc<IProps> {
         placement: 'bottom-start',
         theme: 'light common-monitor',
         boundary: 'window',
-        duration: [200, 0],
-        distance: 1,
+        interactive: true,
+        distance: 4,
+        zIndex: 5000,
+        onHide: () => {
+          return this.popClickHide;
+        },
         onHidden: () => {
-          this.popoverInstance?.hide();
-          this.popoverInstance.destroy();
-          this.popoverInstance = null;
-          this.isShowPop = false;
-          this.$emit('openChange', false);
+          this.popoverDestroy();
         },
       });
     }
     this.isShowPop = true;
     this.$emit('openChange', true);
     this.popoverInstance?.show(100);
+  }
+
+  popoverDestroy() {
+    this.popoverInstance?.hide();
+    this.popoverInstance?.destroy();
+    this.popoverInstance = null;
+    this.isShowPop = false;
+    this.$emit('openChange', false);
   }
 
   render() {
@@ -116,7 +147,7 @@ export default class SelectWrap extends tsc<IProps> {
           {this.$slots.default || ''}
         </div>
 
-        <div class={['expand-wrap', { active: this.active }]}>
+        <div class={['expand-wrap', { active: this.expanded }]}>
           <span class='icon-monitor icon-mc-arrow-down' />
         </div>
         {this.loading && <div class='select-loading skeleton-element' />}
