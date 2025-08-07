@@ -30,6 +30,7 @@ from django.db.models import Q as DQ
 from django.http import HttpResponse, HttpResponseRedirect
 from django.utils.translation import gettext as _
 from elasticsearch_dsl import Q
+from elasticsearch_dsl.aggs import Bucket
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
@@ -1925,6 +1926,7 @@ class AlertTopNResultResource(BaseTopNResource):
         is_finaly_partition = serializers.BooleanField(required=False, default=False, label="是否是最后一个分片")
         authorized_bizs = serializers.ListField(child=serializers.IntegerField(), default=None)
         unauthorized_bizs = serializers.ListField(child=serializers.IntegerField(), default=None)
+        need_bucket_count = serializers.BooleanField(required=False, default=True, label="是否需要进行基数聚合")
 
 
 class AlertTopNResource(Resource):
@@ -1937,6 +1939,8 @@ class AlertTopNResource(Resource):
         start_time = validated_request_data.pop("start_time")
         end_time = validated_request_data.pop("end_time")
         slice_times = slice_time_interval(start_time, end_time)
+        size = validated_request_data.get("size", 10)
+
         if validated_request_data["bk_biz_ids"] is not None:
             authorized_bizs, unauthorized_bizs = self.handler_cls.parse_biz_item(validated_request_data["bk_biz_ids"])
             validated_request_data["authorized_bizs"] = authorized_bizs
@@ -1949,6 +1953,7 @@ class AlertTopNResource(Resource):
                     "end_time": sliced_end_time,
                     "is_finaly_partition": True if index == len(slice_times) - 1 else False,
                     "is_time_partitioned": True,
+                    "need_bucket_count": False,  # 不在分片查询中进行基数聚合
                     **validated_request_data,
                 }
                 for index, (sliced_start_time, sliced_end_time) in enumerate(slice_times)
@@ -1990,7 +1995,85 @@ class AlertTopNResource(Resource):
                     else:
                         bucket_index = id_map[field["field"]][bucket["id"]]
                         result["fields"][field_index]["buckets"][bucket_index]["count"] += bucket["count"]
+
+        # 对每个字段的桶按count降序排序，并截取前size个
+        for field_data in result["fields"]:
+            field_data["buckets"].sort(key=lambda x: x["count"], reverse=True)
+            field_data["buckets"] = field_data["buckets"][:size]
+
         return result
+
+    def get_bucket_count(self, validated_request_data):
+        fields = validated_request_data("fields", [])
+        handler = self.handler_cls(**validated_request_data)
+        search_object = handler.get_search_object()
+        search_object = handler.add_conditions(search_object)
+        search_object = handler.add_query_string(search_object)
+        search_object = search_object.params(track_total_hits=True).extra(size=0)
+
+        bucket_count_suffix = handler.bucket_count_suffix
+
+        for filed in fields:
+            self._add_agg_bucket(search_object.aggs, filed, bucket_count_suffix)
+
+        search_result = search_object.execute()
+
+        result = {
+            "fields": [],
+        }
+
+        # 返回结果的数据处理
+        for field in fields:
+            if not search_result.aggs:
+                result["fields"].append(
+                    {
+                        "field": field,
+                        "bucket_count": 0,
+                    }
+                )
+                continue
+
+            actual_field = field.strip("-+")
+
+            if actual_field.startswith("tags."):
+                bucket_count = getattr(search_result.aggs, f"{field}{bucket_count_suffix}").key.value.value
+
+            elif actual_field == "duration":
+                bucket_count = len(handler.DurationOption.AGG)
+            elif actual_field == "bk_biz_id" and hasattr(self, "authorized_bizs"):
+                bucket_count = len(set(self.authorized_bizs))
+                # todo 这里后续还要做处理
+                # bucket_count = len(set(self.authorized_bizs) | exist_bizs)
+
+            else:
+                bucket_count = getattr(search_result.aggs, f"{field}{bucket_count_suffix}").value
+
+            result["fields"].append({"field": field, "bucket_count": bucket_count})
+        return result
+
+    def _add_agg_bucket(self, search_object: Bucket, field: str, bucket_count_suffix: str):
+        """
+        按字段添加聚合桶
+        """
+        # 处理桶排序
+        if field.startswith("-"):
+            actual_field = field[1:]
+        elif field.startswith("+"):
+            actual_field = field[1:]
+        else:
+            actual_field = field
+
+        if actual_field.startswith("tags."):
+            # tags 标签需要做嵌套查询
+            tag_key = actual_field[len("tags.") :]
+
+            search_object.bucket(f"{field}{bucket_count_suffix}", "nested", path="event.tags").bucket(
+                "key", "filter", {"term": {"event.tags.key": tag_key}}
+            ).bucket("value", "cardinality", field="event.tags.value.raw")
+        else:
+            agg_field = self.handler_cls.query_transformer.transform_field_to_es_field(actual_field, for_agg=True)
+            if agg_field != "duration":
+                search_object.bucket(f"{field}{bucket_count_suffix}", "cardinality", field=agg_field)
 
 
 class ActionTopNResource(BaseTopNResource):

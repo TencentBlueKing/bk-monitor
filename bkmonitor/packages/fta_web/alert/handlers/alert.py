@@ -422,6 +422,7 @@ class AlertQueryHandler(BaseBizQueryHandler):
         status: list[str] = None,
         is_time_partitioned: bool = False,
         is_finaly_partition: bool = False,
+        need_bucket_count: bool = True,
         **kwargs,
     ):
         super().__init__(bk_biz_ids, username, **kwargs)
@@ -432,6 +433,7 @@ class AlertQueryHandler(BaseBizQueryHandler):
             self.ordering = ["status", "-create_time", "-seq_id"]
         self.is_time_partitioned = is_time_partitioned
         self.is_finaly_partition = is_finaly_partition
+        self.need_bucket_count = need_bucket_count
 
     def get_search_object(
         self,

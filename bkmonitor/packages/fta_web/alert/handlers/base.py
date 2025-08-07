@@ -287,6 +287,7 @@ class BaseQueryHandler:
         conditions: list = None,
         page: int = 1,
         page_size: int = 10,
+        need_bucket_count: bool = True,
         **kwargs,
     ):
         self.start_time = start_time
@@ -303,6 +304,7 @@ class BaseQueryHandler:
         self.ordering = self.query_transformer.transform_ordering_fields(ordering)
         # 转换 condition 的字段
         self.conditions = self.query_transformer.transform_condition_fields(conditions)
+        self.bucket_count_suffix = ".bucket_count" if need_bucket_count else ""
 
     def scan(self):
         """
@@ -578,8 +580,7 @@ class BaseQueryHandler:
         # 最多不能超过10000个桶
         size = min(size, 10000)
 
-        bucket_count_suffix = ".bucket_count"
-
+        bucket_count_suffix = self.bucket_count_suffix
         for field in fields:
             self.add_agg_bucket(search_object.aggs, field, size=size, bucket_count_suffix=bucket_count_suffix)
 
@@ -594,6 +595,7 @@ class BaseQueryHandler:
 
         # 返回结果的数据处理
         for field in fields:
+            bucket_count = 0
             if not search_result.aggs:
                 result["fields"].append(
                     {
@@ -608,13 +610,17 @@ class BaseQueryHandler:
             actual_field = field.strip("-+")
 
             if actual_field.startswith("tags."):
-                bucket_count = getattr(search_result.aggs, f"{field}{bucket_count_suffix}").key.value.value
+                if bucket_count_suffix:
+                    bucket_count = getattr(search_result.aggs, f"{field}{bucket_count_suffix}").key.value.value
+
                 buckets = [
                     {"id": bucket.key, "name": bucket.key, "count": bucket.doc_count}
                     for bucket in getattr(search_result.aggs, field).key.value.buckets
                 ]
             elif actual_field == "duration":
-                bucket_count = len(self.DurationOption.AGG)
+                if bucket_count_suffix:
+                    bucket_count = len(self.DurationOption.AGG)
+
                 buckets = [
                     {
                         "id": self.DurationOption.QUERYSTRING[bucket.key],
@@ -636,13 +642,18 @@ class BaseQueryHandler:
                     if int(bk_biz_id) in exist_bizs:
                         continue
                     buckets.append({"id": bk_biz_id, "name": bk_biz_id, "count": 0})
-                bucket_count = len(set(self.authorized_bizs) | exist_bizs)
+
+                if bucket_count_suffix:
+                    bucket_count = len(set(self.authorized_bizs) | exist_bizs)
+
             else:
-                # 桶的总数
-                bucket_count = getattr(search_result.aggs, f"{field}{bucket_count_suffix}").value
+                if bucket_count_suffix:
+                    # 桶的总数
+                    bucket_count = getattr(search_result.aggs, f"{field}{bucket_count_suffix}").value
+
                 buckets = []
                 for bucket in getattr(search_result.aggs, field).buckets:
-                    if not bucket.key:
+                    if bucket_count_suffix and not bucket.key:
                         bucket_count -= 1
                     else:
                         buckets.append({"id": bucket.key, "name": bucket.key, "count": bucket.doc_count})
