@@ -163,26 +163,25 @@ class IncidentMetricsSearchResource(BaseIncidentMetricsResource):
         """
         格式化指标查询响应
         """
-        dimension_type = kwargs.get("dimension_type")
-
-        metric_info = metric_query_response["metrics"].get(metric_name, None)
+        # 初始化或获取metric_info
+        metric_info = metric_query_response["metrics"].get(metric_name)
         if not metric_info:
-            metric_query_response["metrics"][metric_name] = {
+            metric_info = {
                 "metric_name": metric_name,
                 "metric_alias": MetricName(metric_name).label,
                 "metric_type": kwargs.get("metric_type"),
                 "time_series": {},
                 "display_by_dimensions": False,
             }
-            metric_info = metric_query_response["metrics"][metric_name]
+            metric_query_response["metrics"][metric_name] = metric_info
+        
         for series in unify_query_resp.get("series", []):
-            # 如果series中包含dimensions，则将dimensions中的值作为dimension_type
-            if "dimensions" in series and len(series["dimensions"]) >= 1:
-                for dimension_value in series["dimensions"].values():
-                    dimension_type = dimension_value
+            current_dimension_type = kwargs.get("dimension_type")
+            if "dimensions" in series and series["dimensions"]:
+                current_dimension_type = next(iter(series["dimensions"].values()))
                 metric_info["display_by_dimensions"] = True
-                
-            metric_info["time_series"][dimension_type] = [[datapoint[1], datapoint[0]] for datapoint in series.get("datapoints", [])]
+            series["datapoints"] = [[datapoint[1], datapoint[0]] for datapoint in series.get("datapoints", [])]
+            metric_info["time_series"][current_dimension_type] = series
         
         if len(metric_info["time_series"]) > 1:
             metric_info["display_by_dimensions"] = True
