@@ -27,6 +27,7 @@ from bkmonitor.utils.cache import CacheType, using_cache
 from bkmonitor.utils.common_utils import to_dict
 from bkmonitor.utils.ip import exploded_ip, is_v6
 from bkmonitor.utils.request import get_request_tenant_id
+from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id
 from bkmonitor.utils.thread_backend import ThreadPool
 from constants.cmdb import TargetNodeType
 from core.drf_resource import CacheResource, api
@@ -124,11 +125,12 @@ def _get_topo_tree(bk_biz_id):
     :return: 拓扑树
     :rtype: Dict
     """
+    bk_tenant_id = bk_biz_id_to_bk_tenant_id(bk_biz_id)
     response_data = client.search_biz_inst_topo(bk_biz_id=bk_biz_id)
     if response_data:
         response_data = response_data[0]
     else:
-        response_biz_data = api.cmdb.get_business(bk_biz_ids=[bk_biz_id])
+        response_biz_data = api.cmdb.get_business(bk_tenant_id=bk_tenant_id, bk_biz_ids=[bk_biz_id])
         if response_biz_data:
             biz_data = response_biz_data[0]
             bk_inst_name = biz_data.bk_biz_name
