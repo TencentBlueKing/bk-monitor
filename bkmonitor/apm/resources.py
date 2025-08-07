@@ -383,7 +383,7 @@ class ReleaseAppConfigResource(Resource):
 
         apdex_config = serializers.ListField(label="应用Apdex配置规则", child=ApdexSerializer(), required=False)
         sampler_config = SampleSerializer(label="应用采样配置", required=False)
-        instance_name_config = serializers.ListField(child=serializers.CharField(), label="实例名称")
+        instance_name_config = serializers.ListField(child=serializers.CharField(), label="实例名称", required=False)
         dimension_config = serializers.ListField(
             child=DimensionConfigSerializer(label="应用维度配置"), required=False, allow_empty=True, allow_null=True
         )
