@@ -1,0 +1,19 @@
+.ai-blueking-icon {
+  display: inline-flex;
+  flex: 0 0 20px;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  margin-left: 4px;
+  object-fit: cover;
+  background-image: url('../../static/img/ai-logo.svg');
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: contain;
+
+  &:hover {
+    cursor: pointer;
+    filter: brightness(1.22);
+  }
+}
