@@ -29,6 +29,7 @@ export interface IPagination {
   count: number;
   current: number;
   limit: number;
+  showTotalCount: boolean;
 }
 
 /** 表格设置变更事件对象 */
