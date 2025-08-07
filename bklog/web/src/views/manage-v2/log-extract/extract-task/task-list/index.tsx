@@ -36,7 +36,7 @@ import EmptyStatus from '@/components/empty-status/index.vue';
 import DownloadUrl from './download-url.tsx';
 import ListBox from './list-box.tsx';
 import TaskStatusDetail from './task-status-detail.tsx';
-import TextFilterDetail from './text-filter-detail.vue';
+import TextFilterDetail from './text-filter-detail.tsx';
 
 import './index.scss';
 
