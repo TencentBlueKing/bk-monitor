@@ -27,6 +27,7 @@
 import { Component, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
+import DimensionCreator from '../dimension/dimension-creator';
 import MethodCreator from '../method/method-creator';
 import MetricCreator from '../metric/metric-creator';
 import { type IVariablesItem, type TMetricDetail, TVariableType } from '../type/query-config';
@@ -36,6 +37,7 @@ import './query-config-creator.scss';
 interface IProps {
   queryConfig?: IQueryConfig;
   variables?: IVariablesItem[];
+  onCreateVariable?: (val: IVariablesItem) => void;
 }
 interface IQueryConfig {
   alias?: string;
@@ -47,7 +49,10 @@ export default class QueryConfigCreator extends tsc<IProps> {
   @Prop({ default: null }) queryConfig: IQueryConfig;
   @Prop({ default: () => [] }) variables: IVariablesItem[];
 
+  /* 当前指标 */
   curMetric: TMetricDetail = null;
+  /* 汇聚周期 */
+  method = 'avg';
 
   get getMethodVariables() {
     return this.variables.filter(item => item.type === TVariableType.METHOD);
@@ -58,6 +63,12 @@ export default class QueryConfigCreator extends tsc<IProps> {
 
   handleSelectMetric(metric: TMetricDetail) {
     this.curMetric = metric;
+  }
+  handleCreateMethodVariable(val) {
+    this.$emit('createVariable', {
+      name: val,
+      type: TVariableType.METHOD,
+    });
   }
 
   render() {
@@ -75,12 +86,11 @@ export default class QueryConfigCreator extends tsc<IProps> {
             <MethodCreator
               key={'method'}
               options={this.getAggMethodList}
+              showVariables={true}
               variables={this.getMethodVariables}
+              onCreateVariable={this.handleCreateMethodVariable}
             />,
-            // <MethodCreator key={'01'} />,
-            // <MethodCreator key={'02'} />,
-            // <MethodCreator key={'03'} />,
-            // <MethodCreator key={'04'} />,
+            <DimensionCreator key={'dimension'} />,
           ]}
         </div>
       </div>
