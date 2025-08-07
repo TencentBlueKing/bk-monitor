@@ -37,7 +37,7 @@ def strategy():
     return strategy_obj
 
 
-def create_strategy_config(algorithms):
+def create_strategy_config(algorithms1, algorithms2):
     return {
         "id": 64963,
         "version": "v2",
@@ -72,10 +72,39 @@ def create_strategy_config(algorithms):
                         "unit": "",
                     }
                 ],
-                "algorithms": algorithms,
+                "algorithms": algorithms1,
                 "metric_type": "time_series",
                 "time_delay": 0,
-            }
+            },
+            {
+                "id": 7,
+                "name": "主机场景",
+                "no_data_config": {"level": 2, "continuous": 10, "is_enabled": False, "agg_dimension": []},
+                "target": [[]],
+                "expression": "a",
+                "functions": [],
+                "origin_sql": "",
+                "query_configs": [
+                    {
+                        "data_source_label": "bk_monitor",
+                        "data_type_label": "time_series",
+                        "alias": "a",
+                        "metric_id": "metric_id",
+                        "id": 8,
+                        "functions": [],
+                        "result_table_id": "system.cpu_detail",
+                        "agg_method": "AVG",
+                        "agg_interval": 60,
+                        "agg_dimension": ["bk_target_ip", "bk_target_cloud_id", "device_name"],
+                        "agg_condition": [],
+                        "metric_field": "usage",
+                        "unit": "",
+                    }
+                ],
+                "algorithms": algorithms2,
+                "metric_type": "time_series",
+                "time_delay": 0,
+            },
         ],
         "detects": [
             {
@@ -95,8 +124,11 @@ def create_strategy_config(algorithms):
 
 
 def test_only_aiops(strategy):
+    """
+    测试只有AIOPS算法的情况
+    """
     algorithms = [HOST_ANOMALY_DETECTION_CONFIG]
-    strategy_config = create_strategy_config(algorithms)
+    strategy_config = create_strategy_config(algorithms, algorithms)
     trigger_config = strategy.get_trigger_configs(strategy_config)
     expected_check_window_size = 5
     expected_trigger_count = 1
@@ -109,11 +141,17 @@ def test_only_aiops(strategy):
 
 
 def test_not_only_aiops(strategy):
-    algorithms = [
+    """
+    测试有AIOPS算法和非AIOPS算法的情况
+    """
+    algorithms1 = [
         THRESHOLD_ALGORITHM,
         HOST_ANOMALY_DETECTION_CONFIG,
     ]
-    strategy_config = create_strategy_config(algorithms)
+    algorithms2 = [
+        THRESHOLD_ALGORITHM,
+    ]
+    strategy_config = create_strategy_config(algorithms1, algorithms2)
     trigger_config = strategy.get_trigger_configs(strategy_config)
     expected_check_window_size = 5
     expected_trigger_count = 1
@@ -123,3 +161,75 @@ def test_not_only_aiops(strategy):
         actual_trigger_count = trigger_config[level].get("trigger_count")
         assert expected_check_window_size != actual_check_window_size
         assert expected_trigger_count != actual_trigger_count
+
+
+def test_only_not_aiops(strategy):
+    """
+    测试只有非AIOPS算法的情况
+    """
+    algorithms = [
+        THRESHOLD_ALGORITHM,
+    ]
+    strategy_config = create_strategy_config(algorithms, algorithms)
+    trigger_config = strategy.get_trigger_configs(strategy_config)
+    expected_check_window_size = 5
+    expected_trigger_count = 1
+    for detect in strategy_config.get("detects", []):
+        level = str(detect["level"])
+        actual_check_window_size = trigger_config[level].get("check_window_size")
+        actual_trigger_count = trigger_config[level].get("trigger_count")
+        assert expected_check_window_size != actual_check_window_size
+        assert expected_trigger_count != actual_trigger_count
+
+
+def test_empty_algorithms(strategy):
+    """
+    测试空算法的情况
+    """
+    algorithms = []
+    strategy_config = create_strategy_config(algorithms, algorithms)
+    trigger_config = strategy.get_trigger_configs(strategy_config)
+    expected_check_window_size = 5
+    expected_trigger_count = 1
+    for detect in strategy_config.get("detects", []):
+        level = str(detect["level"])
+        actual_check_window_size = trigger_config[level].get("check_window_size")
+        actual_trigger_count = trigger_config[level].get("trigger_count")
+        assert expected_check_window_size != actual_check_window_size
+        assert expected_trigger_count != actual_trigger_count
+
+
+def test_empty_and_no_aiops_algorithms(strategy):
+    """
+    测试空算法和非AIOPS算法的情况
+    """
+    algorithms1 = []
+    algorithms2 = [THRESHOLD_ALGORITHM]
+    strategy_config = create_strategy_config(algorithms1, algorithms2)
+    trigger_config = strategy.get_trigger_configs(strategy_config)
+    expected_check_window_size = 5
+    expected_trigger_count = 1
+    for detect in strategy_config.get("detects", []):
+        level = str(detect["level"])
+        actual_check_window_size = trigger_config[level].get("check_window_size")
+        actual_trigger_count = trigger_config[level].get("trigger_count")
+        assert expected_check_window_size != actual_check_window_size
+        assert expected_trigger_count != actual_trigger_count
+
+
+def test_empty_and_aiops_algorithms(strategy):
+    """
+    测试空算法和非AIOPS算法的情况
+    """
+    algorithms1 = []
+    algorithms2 = [HOST_ANOMALY_DETECTION_CONFIG]
+    strategy_config = create_strategy_config(algorithms1, algorithms2)
+    trigger_config = strategy.get_trigger_configs(strategy_config)
+    expected_check_window_size = 5
+    expected_trigger_count = 1
+    for detect in strategy_config.get("detects", []):
+        level = str(detect["level"])
+        actual_check_window_size = trigger_config[level].get("check_window_size")
+        actual_trigger_count = trigger_config[level].get("trigger_count")
+        assert expected_check_window_size == actual_check_window_size
+        assert expected_trigger_count == actual_trigger_count
