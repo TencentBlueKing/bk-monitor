@@ -1075,6 +1075,36 @@ class CustomEventCacheManager(BaseMetricCacheManager):
                     result["k8s_cluster_info"] = cluster_map[cluster_id]
                     yield result
 
+    def get_system_event_tables(self, bk_tenant_id: str, bk_biz_id: int) -> list[dict[str, Any]]:
+        """
+        获取系统事件表
+        """
+        from metadata.models import DataSource
+
+        # 非多租户模式下，直接返回内置系统事件
+        if not settings.ENABLE_MULTI_TENANT_MODE:
+            if bk_biz_id == 0:
+                return self.SYSTEM_EVENTS
+            else:
+                return []
+
+        # 多租户模式下，跳过非cmdb业务
+        if bk_biz_id <= 0:
+            return []
+
+        # 获取cmdb业务下的系统事件数据源
+        data_source = DataSource.objects.filter(
+            bk_tenant_id=bk_tenant_id, data_name=f"base_{bk_biz_id}_agent_event"
+        ).first()
+        if not data_source:
+            return []
+
+        system_event = copy.deepcopy(self.SYSTEM_EVENTS[1])
+        system_event["bk_biz_id"] = bk_biz_id
+        system_event["bk_data_id"] = data_source.bk_data_id
+        system_event["table_id"] = f"base_{bk_tenant_id}_{bk_biz_id}_event"
+        return [system_event]
+
     def get_metrics_by_table(self, table):
         # 默认均为自定义事件
         data_source_label = DataSourceLabel.CUSTOM
