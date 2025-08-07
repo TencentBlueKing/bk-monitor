@@ -323,7 +323,7 @@ class SpaceTableIDRedis:
         return data
 
     def push_doris_table_id_detail(
-        self, bk_tenant_id: str, table_id_list: list | None = None, is_publish: bool | None = True
+        self, bk_tenant_id: str = DEFAULT_TENANT_ID, table_id_list: list | None = None, is_publish: bool | None = True
     ):
         """
         推送Doris结果表详情路由
