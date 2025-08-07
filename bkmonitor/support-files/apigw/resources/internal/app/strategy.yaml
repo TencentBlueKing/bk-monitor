@@ -1,11 +1,3 @@
-swagger: '2.0'
-basePath: /
-info:
-  version: '1.0'
-  title: API Gateway Resources
-  description: ''
-schemes:
-- http
 paths:
   /app/strategy/qos_check/:
     get:
@@ -16,7 +8,7 @@ paths:
         allowApplyPermission: false
         matchSubpath: false
         backend:
-          type: HTTP
+          name: default
           method: get
           path: /api/v4/alarm_strategy_v3/qos_check/
           matchSubpath: false
