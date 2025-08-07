@@ -14,6 +14,7 @@ import os
 import shutil
 import tarfile
 import tempfile
+from typing import Any
 import zipfile
 from collections import defaultdict
 from collections.abc import Iterable
@@ -550,7 +551,7 @@ class ExportConfigFileResource(ExportConfigResource):
         shutil.rmtree(configs_path)
         return tarfile_path
 
-    def perform_request(self, params):
+    def perform_request(self, params: dict[str, Any]):
         bk_biz_id = params["bk_biz_id"]
         app: str | None = params["app"]
 
@@ -667,6 +668,7 @@ class ExportConfigFileResource(ExportConfigResource):
 
 class ExportAllConfigFileResource(ExportConfigFileResource):
     class RequestSerializer(BkBizIdSerializer):
+        app = serializers.CharField(default=None, allow_blank=True, allow_null=True)
         dashboard_for_external = serializers.BooleanField(label="仪表盘导出", default=False)
         lock_filename = serializers.BooleanField(label="锁定文件名", default=False)
         with_id = serializers.BooleanField(label="带上ID", default=False)
