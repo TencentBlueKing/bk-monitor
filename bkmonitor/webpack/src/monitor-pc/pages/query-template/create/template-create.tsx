@@ -30,6 +30,8 @@ import BasicInfoCreate from '../components/basic-info/basic-info-create';
 import TemplateConfig from '../components/template-config/template-config';
 import VariablesManage from '../variables/variables-manage/variables-manage';
 
+import type { VariableModel } from '../typings';
+
 import './template-create.scss';
 
 @Component
@@ -52,7 +54,15 @@ export default class TemplateCreate extends tsc<object> {
     effect: [],
   };
 
-  variablesList = [];
+  variablesList: VariableModel[] = [{ type: 'agg_method' }, { type: 'dimension' }];
+
+  handleNextStep() {
+    this.curStep += 1;
+  }
+
+  handlePrevStep() {
+    this.curStep -= 1;
+  }
 
   handleBackGotoPage() {
     this.$router.push({ name: 'query-template' });
@@ -99,8 +109,26 @@ export default class TemplateCreate extends tsc<object> {
               <TemplateConfig />
             </div>
             <div class={['submit-btns', { sticky: this.isSticky }]}>
-              <bk-button theme='primary'>{this.$t('下一步')}</bk-button>
-              <bk-button theme='default'>{this.$t('取消')}</bk-button>
+              <bk-button
+                theme='primary'
+                onClick={this.handleNextStep}
+              >
+                {this.$t(this.curStep === 2 ? '提交' : '下一步')}
+              </bk-button>
+              {this.curStep === 2 && (
+                <bk-button
+                  theme='default'
+                  onClick={this.handlePrevStep}
+                >
+                  {this.$t('上一步')}
+                </bk-button>
+              )}
+              <bk-button
+                theme='default'
+                onClick={this.handleBackGotoPage}
+              >
+                {this.$t('取消')}
+              </bk-button>
             </div>
           </div>
           <VariablesManage variablesList={this.variablesList} />

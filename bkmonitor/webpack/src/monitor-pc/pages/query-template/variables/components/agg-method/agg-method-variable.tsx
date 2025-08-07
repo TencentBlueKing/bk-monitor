@@ -26,29 +26,24 @@
 import { Component, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
+import { METHOD_LIST } from '../../../../../constant/constant';
 import VariableCommonForm from '../common-form/variable-common-form';
 
 import type { VariableModel } from '../../../typings';
-interface DimensionVariableEvents {
+interface AggMethodVariableEvents {
   onDataChange: (data: VariableModel) => void;
 }
-interface DimensionVariableProps {
+interface AggMethodVariableProps {
   data: VariableModel;
 }
 
 @Component
-export default class DimensionVariable extends tsc<DimensionVariableProps, DimensionVariableEvents> {
+export default class AggMethodVariable extends tsc<AggMethodVariableProps, AggMethodVariableEvents> {
   @Prop({ type: Object, required: true }) data!: VariableModel;
 
-  rules = {
-    optionalDimension: [
-      {
-        required: true,
-        message: this.$t('可选维度值必选'),
-        trigger: 'blur',
-      },
-    ],
-  };
+  get aggMethodList() {
+    return METHOD_LIST;
+  }
 
   handleValueChange(value: string) {
     this.handleDataChange({
@@ -63,28 +58,11 @@ export default class DimensionVariable extends tsc<DimensionVariableProps, Dimen
 
   render() {
     return (
-      <div class='dimension-variable'>
+      <div class='agg-method-variable'>
         <VariableCommonForm
           data={this.data}
-          rules={this.rules}
           onDataChange={this.handleDataChange}
         >
-          <bk-form-item label={this.$t('关联指标')}>
-            <bk-input
-              value={'cpu_userage'}
-              readonly
-            />
-          </bk-form-item>
-          <bk-form-item
-            label={this.$t('可选维度值')}
-            property='optionalDimension'
-            required
-          >
-            <bk-select
-              clearable={false}
-              multiple
-            />
-          </bk-form-item>
           <bk-form-item
             label={this.$t('默认值')}
             property='value'
@@ -93,7 +71,15 @@ export default class DimensionVariable extends tsc<DimensionVariableProps, Dimen
               clearable={false}
               value={this.data.value}
               onChange={this.handleValueChange}
-            />
+            >
+              {this.aggMethodList.map(item => (
+                <bk-option
+                  id={item.id}
+                  key={item.id}
+                  name={item.name}
+                />
+              ))}
+            </bk-select>
           </bk-form-item>
         </VariableCommonForm>
       </div>
