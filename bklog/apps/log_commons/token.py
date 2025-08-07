@@ -41,7 +41,7 @@ class BaseTokenHandler(ABC):
             return token_obj.token
 
         # 创建新 token
-        token_obj, created = ApiAuthToken.objects.create(
+        token_obj = ApiAuthToken.objects.create(
             space_uid=space_uid,
             type=self.get_token_type(),
             params=token_params,
