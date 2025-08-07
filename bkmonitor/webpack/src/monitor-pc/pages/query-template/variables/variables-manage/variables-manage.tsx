@@ -26,21 +26,24 @@
 import { Component, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
+import VariablePanel from '../components/variable-panel/variable-panel';
 import VariablesGuide from './variable-guide';
+
+import type { VariableModel } from '../../typings';
 
 import './variables-manage.scss';
 
 interface VariablesManageEvents {
-  onChange: (value: any, index: number) => void;
+  onChange: (value: VariableModel, index: number) => void;
 }
 
 interface VariablesManageProps {
-  variablesList: any[];
+  variablesList: VariableModel[];
 }
 
 @Component
 export default class VariablesManage extends tsc<VariablesManageProps, VariablesManageEvents> {
-  @Prop({ default: () => [] }) variablesList!: any[];
+  @Prop({ default: () => [] }) variablesList!: VariableModel[];
 
   searchValue = '';
 
@@ -49,7 +52,6 @@ export default class VariablesManage extends tsc<VariablesManageProps, Variables
       <div class='variables-manage-wrap'>
         <div class='variable-manage-header'>
           <div class='manage-title'>{this.$t('变量管理')}</div>
-
           {this.variablesList.length > 0 && (
             <bk-input
               class='variable-search'
@@ -57,12 +59,19 @@ export default class VariablesManage extends tsc<VariablesManageProps, Variables
               placeholder={this.$t('搜索 变量')}
             />
           )}
-
           <div class='bg-mask-wrap'>
             <div class='bg-mask' />
           </div>
         </div>
-        <div class='variable-manage-content'>{!this.variablesList.length && <VariablesGuide />}</div>
+        <div class='variable-manage-content'>
+          {this.variablesList.map(item => (
+            <VariablePanel
+              key={item.name}
+              data={item}
+            />
+          ))}
+          {!this.variablesList.length && <VariablesGuide />}
+        </div>
       </div>
     );
   }

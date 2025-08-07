@@ -23,12 +23,46 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+import { Component, Prop } from 'vue-property-decorator';
+import { Component as tsc } from 'vue-tsx-support';
 
-import type { QueryTemplateSliderTabEnum, VariableTypeEnum } from '../constants';
+import { VariableTypeMap } from '../../../constants';
+import AggMethodVariable from '../agg-method/agg-method-variable';
+import DimensionVariable from '../dimension/dimension-variable';
 
-export type GetEnumTypeTool<T> = T[keyof T];
+import type { VariableModel } from '../../../typings';
 
-/** 查询模板侧边栏tab Enum 枚举类型 */
-export type QueryTemplateSliderTabEnumType = GetEnumTypeTool<typeof QueryTemplateSliderTabEnum>;
+import './variable-panel.scss';
 
-export type VariableTypeEnumType = GetEnumTypeTool<typeof VariableTypeEnum>;
+interface VariablePanelProps {
+  data: VariableModel;
+  metric: any;
+}
+
+@Component
+export default class VariablePanel extends tsc<VariablePanelProps> {
+  @Prop() data: VariableModel;
+  @Prop() metric: any;
+
+  get title() {
+    return VariableTypeMap[this.data.type];
+  }
+
+  renderVariableForm() {
+    switch (this.data.type) {
+      case 'agg_method':
+        return <AggMethodVariable data={this.data} />;
+      case 'dimension':
+        return <DimensionVariable data={this.data} />;
+    }
+  }
+
+  render() {
+    return (
+      <div class='variable-panel'>
+        <div class='variable-type-title'>{this.title}</div>
+        <div class='variable-form'>{this.renderVariableForm()}</div>
+      </div>
+    );
+  }
+}

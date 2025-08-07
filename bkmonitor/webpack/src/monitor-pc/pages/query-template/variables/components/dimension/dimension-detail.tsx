@@ -23,12 +23,3 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-
-import type { QueryTemplateSliderTabEnum, VariableTypeEnum } from '../constants';
-
-export type GetEnumTypeTool<T> = T[keyof T];
-
-/** 查询模板侧边栏tab Enum 枚举类型 */
-export type QueryTemplateSliderTabEnumType = GetEnumTypeTool<typeof QueryTemplateSliderTabEnum>;
-
-export type VariableTypeEnumType = GetEnumTypeTool<typeof VariableTypeEnum>;
