@@ -24,38 +24,33 @@
  * IN THE SOFTWARE.
  */
 
-import { MetricDetail as BaseMetricDetail } from '@/pages/strategy-config/strategy-config-set-new/typings';
+import { Component, Prop } from 'vue-property-decorator';
+import { Component as tsc } from 'vue-tsx-support';
 
-import type { MetricDetail as TypeMetricDetail } from '@/pages/strategy-config/strategy-config-set-new/typings';
-
-export interface IScenarioItem {
-  id: string;
-  index: number;
+interface IProps {
   name: string;
 }
 
-export type TMetricDetail = Partial<TypeMetricDetail>;
+@Component
+export default class VariableName extends tsc<IProps> {
+  @Prop({ default: '' }) name: string;
 
-export class MetricDetail extends BaseMetricDetail {}
+  get displayName() {
+    if (/^\$\{\[^]+\}$/.test(this.name)) {
+      return this.name;
+    }
+    return `${'${'}${this.name}${'}'}`;
+  }
 
-// todo
-export const TVariableType = {
-  METHOD: 'method',
-  DIMENSION: 'dimension',
-  CONDITION: 'condition',
-  CONSTANT: 'constant', // （非变量类型）
-} as const;
-export interface IDimensionOptionsItem extends IVariablesItem {
-  id: string;
-  isVariable?: boolean;
-}
-/** 汇聚方法选项 */
-export interface IMethodOptionsItem extends IVariablesItem {
-  id: string;
-  isVariable?: boolean;
-}
-
-export interface IVariablesItem {
-  name?: string;
-  type?: (typeof TVariableType)[keyof typeof TVariableType];
+  render() {
+    return (
+      <span
+        style={{
+          color: '#E54488',
+        }}
+      >
+        {this.displayName}
+      </span>
+    );
+  }
 }

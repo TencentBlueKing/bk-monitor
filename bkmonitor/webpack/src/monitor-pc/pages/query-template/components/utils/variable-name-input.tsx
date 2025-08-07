@@ -24,38 +24,35 @@
  * IN THE SOFTWARE.
  */
 
-import { MetricDetail as BaseMetricDetail } from '@/pages/strategy-config/strategy-config-set-new/typings';
+import { Component, Prop } from 'vue-property-decorator';
+import { Component as tsc } from 'vue-tsx-support';
 
-import type { MetricDetail as TypeMetricDetail } from '@/pages/strategy-config/strategy-config-set-new/typings';
+import './variable-name-input.scss';
 
-export interface IScenarioItem {
-  id: string;
-  index: number;
-  name: string;
+interface IProps {
+  value: string;
+  onChange?: (val: string) => void;
 }
 
-export type TMetricDetail = Partial<TypeMetricDetail>;
+@Component
+export default class VariableNameInput extends tsc<IProps> {
+  @Prop({ type: String, default: '' }) value: string;
 
-export class MetricDetail extends BaseMetricDetail {}
+  handleChange(val: string) {
+    this.$emit('change', val);
+  }
 
-// todo
-export const TVariableType = {
-  METHOD: 'method',
-  DIMENSION: 'dimension',
-  CONDITION: 'condition',
-  CONSTANT: 'constant', // （非变量类型）
-} as const;
-export interface IDimensionOptionsItem extends IVariablesItem {
-  id: string;
-  isVariable?: boolean;
-}
-/** 汇聚方法选项 */
-export interface IMethodOptionsItem extends IVariablesItem {
-  id: string;
-  isVariable?: boolean;
-}
-
-export interface IVariablesItem {
-  name?: string;
-  type?: (typeof TVariableType)[keyof typeof TVariableType];
+  render() {
+    return (
+      <div class='template-config-variable-name-input'>
+        <div class='label-left'>{'${'}</div>
+        <bk-input
+          class='variable-name-input'
+          value={this.value}
+          onChange={this.handleChange}
+        />
+        <div class='label-right'>{'}'}</div>
+      </div>
+    );
+  }
 }

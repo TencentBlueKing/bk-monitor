@@ -23,39 +23,3 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-
-import { MetricDetail as BaseMetricDetail } from '@/pages/strategy-config/strategy-config-set-new/typings';
-
-import type { MetricDetail as TypeMetricDetail } from '@/pages/strategy-config/strategy-config-set-new/typings';
-
-export interface IScenarioItem {
-  id: string;
-  index: number;
-  name: string;
-}
-
-export type TMetricDetail = Partial<TypeMetricDetail>;
-
-export class MetricDetail extends BaseMetricDetail {}
-
-// todo
-export const TVariableType = {
-  METHOD: 'method',
-  DIMENSION: 'dimension',
-  CONDITION: 'condition',
-  CONSTANT: 'constant', // （非变量类型）
-} as const;
-export interface IDimensionOptionsItem extends IVariablesItem {
-  id: string;
-  isVariable?: boolean;
-}
-/** 汇聚方法选项 */
-export interface IMethodOptionsItem extends IVariablesItem {
-  id: string;
-  isVariable?: boolean;
-}
-
-export interface IVariablesItem {
-  name?: string;
-  type?: (typeof TVariableType)[keyof typeof TVariableType];
-}
