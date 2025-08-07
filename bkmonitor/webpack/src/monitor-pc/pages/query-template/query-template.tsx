@@ -38,28 +38,31 @@ export default class MetricTemplate extends tsc<object> {
   total = 100;
   sort = '-update_time';
   searchKeyword = '';
-  tableData = [
-    {
-      id: 1,
-      name: '指标模板名称占位AAA ',
-      description: '1×1×1×1×……×1=1，不要事情找你，而要你找事情，很傻很天真，又猛又持久',
-      create_user: '创建人',
-      create_time: '2025-06-24 10:32:51+0800',
-      update_user: '更新人',
-      update_time: '2025-06-24 10:32:51+0800',
-      relevance_configs: [1, 2, 3, 4, 5, 6, 7, 87],
-    },
-    {
-      id: 2,
-      name: '指标模板名称占位CCC ',
+  tableLoading = false;
+  tableData = new Array(Math.floor(Math.random() * 100)).fill(1).map((v, i) => {
+    if (i % 4 === 0) {
+      return {
+        id: i,
+        name: `指标模板名称占位${i}${i}${i}${i}`,
+        description: '1×1×1×1×……×1=1，不要事情找你，而要你找事情，很傻很天真，又猛又持久',
+        create_user: '创建人',
+        create_time: '2025-06-24 10:32:51+0800',
+        update_user: '更新人',
+        update_time: '2025-06-24 10:32:51+0800',
+        relevance_configs: [1, 2, 3, 4, 5, 6, 7, 87],
+      };
+    }
+    return {
+      id: i,
+      name: `指标模板名称占位${i}${i}${i}${i}`,
       description: '1×1×1×1×……×1=1，不要事情找你，而要你找事情，很傻很天真，又猛又持久',
       create_user: '创建人',
       create_time: '2025-06-24 10:32:51+0800',
       update_user: '更新人',
       update_time: '2025-06-24 10:32:51+0800',
       relevance_configs: [],
-    },
-  ];
+    };
+  });
 
   handleSortChange(sort: `-${string}` | string) {
     this.sort = sort;
@@ -112,6 +115,7 @@ export default class MetricTemplate extends tsc<object> {
         <div class='query-template-main'>
           <QueryTemplateTable
             current={this.current}
+            loading={this.tableLoading}
             pageSize={this.pageSize}
             sort={this.sort}
             tableData={this.tableData}
