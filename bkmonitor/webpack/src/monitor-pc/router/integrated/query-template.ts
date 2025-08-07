@@ -41,7 +41,7 @@ export default [
     name: 'query-template',
     component: MetricTemplate,
     meta: {
-      title: '指标模板',
+      title: '查询模板',
       navId: 'query-template',
       // authority: {
       //   map: customAuth,

@@ -1962,4 +1962,6 @@ export default {
 
   // 查询模板
   '模板名称:': 'Template name:',
+  模板详情: 'Template details',
+  模板配置: 'Template configuration',
 };
