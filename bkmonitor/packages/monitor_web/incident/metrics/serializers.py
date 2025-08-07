@@ -27,8 +27,8 @@ class MetricsSearchSerializer(serializers.Serializer):
         if entity_type == EntityType.APMService.value:
             if not dimensions.get("apm_service_name"):
                 raise serializers.ValidationError("dimension.apm_service_name is required")
-            if not dimensions.get("apm_app_name"):
-                raise serializers.ValidationError("dimension.apm_app_name is required")
+            if not dimensions.get("apm_application_name"):
+                raise serializers.ValidationError("dimension.apm_application_name is required")
         
         elif entity_type == EntityType.BcsPod.value:
             if not dimensions.get("cluster_id"):
@@ -55,7 +55,6 @@ class MetricsSearchSerializer(serializers.Serializer):
             raise serializers.ValidationError(f"source_type must be one of {valid_entity_types}")
         if target_type not in valid_entity_types:
             raise serializers.ValidationError(f"target_type must be one of {valid_entity_types}")
-        
         
     def validate(self, attrs):
         index_info = attrs.get("index_info")
