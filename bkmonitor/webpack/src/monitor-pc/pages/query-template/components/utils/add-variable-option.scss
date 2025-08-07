@@ -1,0 +1,65 @@
+.template-config-options-add-variable-option {
+  position: relative;
+  width: 100%;
+  height: 32px;
+  cursor: pointer;
+
+  &:hover {
+    background: #F5F7FA;
+  }
+
+  .add-var-name {
+    display: flex;
+    align-items: center;
+
+    .add-var-name-left {
+      margin-left: 12px;
+      font-size: 12px;
+      color: #4D4F56;
+    }
+
+    .icon-arrow-right {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 18px;
+      height: 32px;
+      font-size: 16px;
+      color: #4D4F56;
+    }
+  }
+}
+
+.template-config-options-add-variable-option-pop {
+    width: 258px;
+    height: 116px;
+    padding: 8px 12px 0 8px;
+    background: #FFF;
+    border: 1px solid #DCDEE5;
+    box-shadow: 0 2px 6px 0 #0000001a;
+
+    .header-title {
+      line-height: 20px;
+      color: #4D4F56;
+
+      .red-point {
+        margin-left: 6px;
+        color: #EA3636;
+        
+      }
+    }
+
+    .var-input {
+      margin-top: 6px;
+    }
+
+    .btn-wrap {
+      display: flex;
+      align-items: center;
+      margin-top: 12px;
+
+      .confirm-btn {
+        margin: 0 8px 0 auto;
+      }
+    }
+  }

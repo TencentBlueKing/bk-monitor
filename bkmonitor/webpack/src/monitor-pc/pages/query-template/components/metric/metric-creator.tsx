@@ -102,8 +102,8 @@ export default class MetricCreator extends tsc<IProps> {
         <div class='metric-label'>{this.$t('指标')}</div>
         <SelectWrap
           id={this.selectId}
-          active={this.showSelect}
           backgroundColor={'#FDF4E8'}
+          expanded={this.showSelect}
           loading={this.loading}
           minWidth={432}
           tips={this.metricTips}

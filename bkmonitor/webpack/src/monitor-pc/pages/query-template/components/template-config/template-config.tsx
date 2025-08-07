@@ -49,7 +49,12 @@ export default class TemplateConfig extends tsc<object> {
 
   created() {}
 
-  // 获取监控对象数据
+  handleCreateVariable(val: IVariablesItem) {
+    if (this.variablesList.find(item => item.name === val.name)) {
+      return;
+    }
+    this.variablesList.push(val);
+  }
 
   render() {
     return (
@@ -60,6 +65,7 @@ export default class TemplateConfig extends tsc<object> {
             <QueryPanel
               key={key}
               variables={this.variablesList}
+              onCreateVariable={this.handleCreateVariable}
             />
           ))}
         </div>
