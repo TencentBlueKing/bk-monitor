@@ -26,8 +26,14 @@ from ai_agents.services.api_client import AidevApiClientBuilder
 import logging
 from django.conf import settings
 from bkmonitor.utils.user import get_request_username
+from rest_framework.views import Response
 
 logger = logging.getLogger("ai_agents")
+
+# API 客户端
+api_client = AidevApiClientBuilder.get_client(
+    bk_app_code=settings.AIDEV_AGENT_APP_CODE, bk_app_secret=settings.AIDEV_AGENT_APP_SECRET
+)
 
 
 # -------------------- 会话管理 -------------------- #
@@ -47,18 +53,13 @@ class CreateChatSessionResource(Resource):
     def perform_request(self, validated_request_data):
         session_code = validated_request_data.get("session_code")
         session_name = validated_request_data.get("session_name")
+        username = get_request_username()
         logger.info(
             "CreateChatSessionResource: try to create session with session_code->[%s], session_name->[%s]",
             session_code,
             session_name,
         )
-
-        # agent_code = validated_request_data.get("agent_code")
-
-        api_client = AidevApiClientBuilder.get_client(
-            bk_app_code=settings.AIDEV_AGENT_APP_CODE, bk_app_secret=settings.AIDEV_AGENT_APP_SECRET
-        )
-        res = api_client.api.create_chat_session(json=validated_request_data)
+        res = api_client.api.create_chat_session(json=validated_request_data, headers={"X-BKAIDEV-USER": username})
         return res
 
 
@@ -68,18 +69,22 @@ class RetrieveChatSessionResource(Resource):
     """
 
     class RequestSerializer(serializers.Serializer):
-        session_code = serializers.CharField(label="会话代码", required=True)
+        session_code = serializers.CharField(label="会话代码", required=False, default=None)
 
     @ai_metrics_decorator()
     def perform_request(self, validated_request_data):
-        session_code = validated_request_data.get("session_code")
+        session_code = validated_request_data.get("session_code", None)
+        username = get_request_username()
 
         logger.info("RetrieveChatSessionResource: try to retrieve session with session_code->[%s]", session_code)
 
-        api_client = AidevApiClientBuilder.get_client(
-            bk_app_code=settings.AIDEV_AGENT_APP_CODE, bk_app_secret=settings.AIDEV_AGENT_APP_SECRET
-        )
-        res = api_client.api.retrieve_chat_session(path_params={"session_code": session_code})
+        if session_code:
+            logger.info("RetrieveChatSessionResource: try to retrieve session with session_code->[%s]", session_code)
+            res = api_client.api.retrieve_chat_session(path_params={"session_code": session_code})
+        else:  # 当前仅支持拉取主Agent的历史会话
+            logger.info("RetrieveChatSessionResource: try to list user sessions,username->[%s]", username)
+            res = api_client.api.list_chat_session(headers={"X-BKAIDEV-USER": username})
+
         return res
 
 
@@ -97,10 +102,29 @@ class DestroyChatSessionResource(Resource):
 
         logger.info("DestroyChatSessionResource: try to destroy session with session_code->[%s]", session_code)
 
-        api_client = AidevApiClientBuilder.get_client(
-            bk_app_code=settings.AIDEV_AGENT_APP_CODE, bk_app_secret=settings.AIDEV_AGENT_APP_SECRET
-        )
         res = api_client.api.destroy_chat_session(path_params={"session_code": session_code})
+        return res
+
+
+class UpdateChatSessionResource(Resource):
+    """
+    修改会话
+    """
+
+    class RequestSerializer(serializers.Serializer):
+        session_code = serializers.CharField(label="会话代码", required=True)
+        session_name = serializers.CharField(label="会话名称", required=False)
+        model = serializers.CharField(label="模型名称", required=False)
+        role_info = serializers.DictField(label="角色信息", required=False)
+
+    def perform_request(self, validated_request_data):
+        session_code = validated_request_data.get("session_code")
+
+        logger.info("UpdateChatSessionResource: try to modify session with session_code->[%s]", session_code)
+
+        res = api_client.api.update_chat_session(
+            path_params={"session_code": session_code}, json=validated_request_data
+        )
         return res
 
 
@@ -141,9 +165,6 @@ class CreateChatSessionContentResource(Resource):
         except Exception as e:  # pylint: disable=broad-except
             logger.error("CreateChatSessionContentResource: process command error->[%s]", e)
 
-        api_client = AidevApiClientBuilder.get_client(
-            bk_app_code=settings.AIDEV_AGENT_APP_CODE, bk_app_secret=settings.AIDEV_AGENT_APP_SECRET
-        )
         res = api_client.api.create_chat_session_content(json=validated_request_data)
         return res
 
@@ -160,9 +181,7 @@ class GetChatSessionContentsResource(Resource):
     def perform_request(self, validated_request_data):
         session_code = validated_request_data.get("session_code")
         logger.info("GetChatSessionContentResource: try to get content with session_code->[%s]", session_code)
-        api_client = AidevApiClientBuilder.get_client(
-            bk_app_code=settings.AIDEV_AGENT_APP_CODE, bk_app_secret=settings.AIDEV_AGENT_APP_SECRET
-        )
+
         res = api_client.api.get_chat_session_contents(params={"session_code": session_code})
 
         return res
@@ -179,9 +198,7 @@ class DestroyChatSessionContentResource(Resource):
     @ai_metrics_decorator()
     def perform_request(self, validated_request_data):
         id = validated_request_data.get("id")
-        api_client = AidevApiClientBuilder.get_client(
-            bk_app_code=settings.AIDEV_AGENT_APP_CODE, bk_app_secret=settings.AIDEV_AGENT_APP_SECRET
-        )
+
         res = api_client.api.destroy_chat_session_content(path_params={"id": id})
         return res
 
@@ -198,10 +215,6 @@ class BatchDeleteSessionContentResource(Resource):
     def perform_request(self, validated_request_data):
         logger.info(
             "BatchDeleteSessionContentResource: try to batch delete content with params->[%s]", validated_request_data
-        )
-
-        api_client = AidevApiClientBuilder.get_client(
-            bk_app_code=settings.AIDEV_AGENT_APP_CODE, bk_app_secret=settings.AIDEV_AGENT_APP_SECRET
         )
 
         res = api_client.api.batch_delete_chat_session_content(json=validated_request_data)
@@ -226,9 +239,6 @@ class UpdateChatSessionContentResource(Resource):
         session_code = validated_request_data.get("session_code")
         id = validated_request_data.get("id")
         logger.info("UpdateChatSessionContentResource: try to update content with session_code->[%s]", session_code)
-        api_client = AidevApiClientBuilder.get_client(
-            bk_app_code=settings.AIDEV_AGENT_APP_CODE, bk_app_secret=settings.AIDEV_AGENT_APP_SECRET
-        )
         res = api_client.api.update_chat_session_content(path_params={"id": id}, json=validated_request_data)
         return res
 
@@ -249,9 +259,6 @@ class GetAgentInfoResource(Resource):
         # user_name = get_request_username()  # 获取用户名
         agent_code = validated_request_data.get("agent_code")
         logger.info("GetAgentInfoResource: try to get agent info with agent_code->[%s]", agent_code)
-        api_client = AidevApiClientBuilder.get_client(
-            bk_app_code=settings.AIDEV_AGENT_APP_CODE, bk_app_secret=settings.AIDEV_AGENT_APP_SECRET
-        )
         res = api_client.api.retrieve_agent_config(path_params={"agent_code": agent_code})
         return res
 
@@ -355,10 +362,6 @@ class CreateChatCompletionResource(Resource):
             agent_code,
         )
 
-        api_client = AidevApiClientBuilder.get_client(
-            bk_app_code=settings.AIDEV_AGENT_APP_CODE, bk_app_secret=settings.AIDEV_AGENT_APP_SECRET
-        )
-
         # 传递默认智能体 agent_code 保持和session的创建者一致
         agent_instance = AgentInstanceBuilder.build_agent_instance_by_session(
             session_code=session_code, api_client=api_client, agent_code=agent_code
@@ -378,4 +381,14 @@ class CreateChatCompletionResource(Resource):
                 username=username,
             )
             return streaming_wrapper.as_streaming_response()
+        else:  # 非流式
+            execute_kwargs = ExecuteKwargs.model_validate(execute_kwargs)
+            logger.info(
+                "CreateChatCompletionResource: stream is false, start non-streaming,session_code->[%s], "
+                "execute_kwargs->[%s]",
+                session_code,
+                execute_kwargs,
+            )
+            result = agent_instance.execute(execute_kwargs)
+            return Response(result)
         return None

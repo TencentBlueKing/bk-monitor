@@ -151,6 +151,7 @@ export default class MyComponent extends tsc<object> {
       ...(this.$route.query || {}),
       ...Object.fromEntries(new URLSearchParams(location.search)),
     })
+      .filter(([key]) => !['orgName', 'orgId'].includes(key)) // 移除 orgName/orgId 参数
       .map(entry => entry.join('='))
       .join('&');
     if (str.length) return `&${str}`;

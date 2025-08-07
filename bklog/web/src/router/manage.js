@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-// 嵌套路由视图组件声明（用于实现多层嵌套路由结构时，多级 children 路由的占位）
+// 嵌套路由视图组件声明（用于实现多层嵌套路由结构时，多级 children 路由的占位） 
 const LogCollectionView = { name: 'LogCollection', template: '<router-view></router-view>' };
 const CollectionItemView = { name: 'CollectionItemView', template: '<router-view></router-view>' };
 const IndexSetView = { name: 'IndexSet', template: '<router-view :key="Date.now()"></router-view>' };
@@ -35,7 +35,7 @@ const LogCleanTempView = { name: 'LogCleanTempView', template: '<router-view></r
 const LogDesensitizeView = { name: 'LogDesensitizeView', template: '<router-view></router-view>' };
 
 // 管理模块各组件异步声明（用于路由懒加载）
-const Manage = () => import(/* webpackChunkName: 'manage' */ '@/views/manage');
+const Manage = () => import(/* webpackChunkName: 'manage' */ '@/views/manage'); 
 const CollectionItem = () => import(/* webpackChunkName: 'collection-item' */ '@/views/manage/manage-access/log-collection/collection-item');
 const ManageCollection = () => import(/* webpackChunkName: 'manage-collection' */ '@/views/manage/manage-access/log-collection/collection-item/manage-collection');
 const AccessSteps = () => import(/* webpackChunkName: 'access-steps' */ '@/components/collection-access');
@@ -51,9 +51,9 @@ const cleanList = () => import(/* webpackChunkName: 'sdk-track' */ '@/views/mana
 const cleanCreate = () => import(/* webpackChunkName: 'sdk-track' */ '@/views/manage/log-clean/clean-manage/create');
 const cleanTempCreate = () => import(/* webpackChunkName: 'sdk-track' */ '@/views/manage/log-clean/clean-template/create');
 const cleanTemplate = () => import(/* webpackChunkName: 'sdk-track' */ '@/views/manage/log-clean/clean-template/list');
-const ArchiveRepository = () => import(/* webpackChunkName: 'sdk-track' */ '@/views/manage/log-archive/archive-repository/list');
-const ArchiveList = () => import(/* webpackChunkName: 'sdk-track' */ '@/views/manage/log-archive/archive-list/list');
-const ArchiveRestore = () => import(/* webpackChunkName: 'sdk-track' */ '@/views/manage/log-archive/archive-restore/list');
+const ArchiveRepository = () => import(/* webpackChunkName: 'sdk-track' */ '@/views/manage-v2/log-archive/archive-repository/index.tsx');
+const ArchiveList = () => import(/* webpackChunkName: 'sdk-track' */ '@/views/manage-v2/log-archive/archive-list/index.tsx');
+const ArchiveRestore = () => import(/* webpackChunkName: 'sdk-track' */ '@/views/manage-v2/log-archive/archive-restore/index.tsx');
 const ReportManage = () => import(/* webpackChunkName: 'report-manage' */ '@/views/manage/report-management');
 const ExtractPermission = () => import(/* webpackChunkName: 'manage-extract-permission' */ '@/views/manage/manage-extract/manage-extract-permission');
 const extract = () => import(/* webpackChunkName: 'logExtract' */ '@/views/extract/index');
@@ -120,7 +120,7 @@ const getManageRoutes = () => [
               },
               // 查看采集项
               {
-                path: 'collection-item/manage/:collectorId',
+                path: 'manage/:collectorId',
                 name: 'manage-collection',
                 meta: {
                   title: '日志采集',
@@ -132,7 +132,7 @@ const getManageRoutes = () => [
               },
               // 新建采集项
               {
-                path: 'collection-item/add',
+                path: 'add',
                 name: 'collectAdd',
                 meta: {
                   title: '日志采集',
@@ -144,7 +144,7 @@ const getManageRoutes = () => [
               },
               // 编辑采集项
               {
-                path: 'collection-item/edit/:collectorId',
+                path: 'edit/:collectorId',
                 name: 'collectEdit',
                 meta: {
                   title: '日志采集',
@@ -156,7 +156,7 @@ const getManageRoutes = () => [
               },
               // 字段清洗
               {
-                path: 'collection-item/field/:collectorId',
+                path: 'field/:collectorId',
                 name: 'collectField',
                 meta: {
                   title: '日志采集',
@@ -168,7 +168,7 @@ const getManageRoutes = () => [
               },
               // 存储配置
               {
-                path: 'collection-item/storage/:collectorId',
+                path: 'storage/:collectorId',
                 name: 'collectStorage',
                 meta: {
                   title: '日志采集',
@@ -180,7 +180,7 @@ const getManageRoutes = () => [
               },
               // 脱敏配置
               {
-                path: 'collection-item/masking/:collectorId',
+                path: 'masking/:collectorId',
                 name: 'collectMasking',
                 meta: {
                   title: '日志采集',
@@ -192,7 +192,7 @@ const getManageRoutes = () => [
               },
               // 启用采集项
               {
-                path: 'collection-item/start/:collectorId',
+                path: 'start/:collectorId',
                 name: 'collectStart',
                 meta: {
                   title: '日志采集',
@@ -204,7 +204,7 @@ const getManageRoutes = () => [
               },
               // 停用采集项
               {
-                path: 'collection-item/stop/:collectorId',
+                path: 'stop/:collectorId',
                 name: 'collectStop',
                 meta: {
                   title: '日志采集',

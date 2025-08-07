@@ -35,7 +35,7 @@ from apps.log_search.constants import (
     MAX_ASYNC_COUNT,
     SCROLL,
 )
-from apps.log_search.exceptions import BaseSearchResultAnalyzeException
+from apps.log_search.exceptions import BaseSearchResultAnalyzeException, TokenInvalidException
 from apps.log_search.handlers.index_set import BaseIndexSetHandler
 from apps.log_search.handlers.search.aggs_handlers import AggsHandlers
 from apps.log_search.handlers.search.mapping_handlers import MappingHandlers
@@ -49,7 +49,7 @@ from apps.log_search.models import (
 )
 from apps.log_search.permission import Permission
 from apps.log_search.utils import handle_es_query_error
-from apps.log_unifyquery.constants import BASE_OP_MAP, MAX_LEN_DICT, REFERENCE_ALIAS
+from apps.log_unifyquery.constants import BASE_OP_MAP, MAX_LEN_DICT
 from apps.log_unifyquery.utils import deal_time_format, transform_advanced_addition
 from apps.utils.cache import cache_five_minute
 from apps.utils.core.cache.cmdb_host import CmdbHostCache
@@ -71,6 +71,9 @@ from apps.api import MonitorApi
 from apps.log_databus.models import CollectorConfig
 from apps.log_databus.constants import EtlConfig
 from apps.log_search.constants import ASYNC_SORTED
+from apps.log_commons.models import ApiAuthToken
+from apps.log_commons.token import CodeccTokenHandler
+from bkm_space.utils import space_uid_to_bk_biz_id
 
 
 def fields_config(name: str, is_active: bool = False):
@@ -519,6 +522,19 @@ class UnifyQueryHandler:
 
         return is_desensitize
 
+    @staticmethod
+    def generate_reference_name(n: int) -> str:
+        """
+        将数字转换为字母编号，如0->a, 1->b, 25->z, 26->aa, 27->ab等
+        """
+        result = []
+        while n >= 0:
+            result.append(chr(n % 26 + ord("a")))
+            n = n // 26 - 1
+
+        # 反转结果，因为是从最低位开始计算的
+        return "".join(reversed(result))
+
     def init_base_dict(self):
         # 自动周期处理
         if self.search_params.get("interval", "auto") == "auto":
@@ -531,7 +547,7 @@ class UnifyQueryHandler:
         for index, index_info in enumerate(self.index_info_list):
             query_dict = {
                 "data_source": settings.UNIFY_QUERY_DATA_SOURCE,
-                "reference_name": REFERENCE_ALIAS[index],
+                "reference_name": self.generate_reference_name(index),
                 "dimensions": [],
                 "time_field": "time",
                 "conditions": self._transform_additions(index_info),
@@ -1284,3 +1300,43 @@ class UnifyQueryHandler:
                 "collector_config_id": self.index_set["index_set_obj"].collector_config_id,
             },
         )
+
+    @staticmethod
+    def search_log_for_code(token: str, params: dict[str, Any]) -> dict[str, Any]:
+        """
+        根据codecc token查询日志
+        参数:
+            token (str): token
+            params (dict): 完整的查询参数，直接传给 query ts raw
+        返回值:
+            dict: 查询结果
+        """
+        # 1. 根据token查询record
+        try:
+            record = ApiAuthToken.objects.get(token=token)
+        except ApiAuthToken.DoesNotExist:
+            raise TokenInvalidException()
+
+        # 2. 从token记录中解析参数
+        index_set_id = record.params.get("index_set_id")
+        space_uid = record.space_uid
+        bk_biz_id = space_uid_to_bk_biz_id(space_uid) if space_uid else None
+        if not bk_biz_id:
+            raise ValueError(f"无法从space_uid {space_uid} 获取有效的bk_biz_id")
+
+        # 3. 权限验证
+        CodeccTokenHandler.check_index_set_search_permission(record.created_by, index_set_id)
+
+        # 4. 获取table_id
+        table_id = BaseIndexSetHandler.get_data_label(index_set_id)
+
+        # 5. 直接使用传入的参数，填充必要的table_id和bk_biz_id参数信息
+        search_dict = params.copy()
+        search_dict["bk_biz_id"] = bk_biz_id
+        if "query_list" in search_dict and search_dict["query_list"]:
+            for query_item in search_dict["query_list"]:
+                if isinstance(query_item, dict):
+                    query_item["table_id"] = table_id
+
+        # 6. 执行查询
+        return UnifyQueryApi.query_ts_raw(search_dict)

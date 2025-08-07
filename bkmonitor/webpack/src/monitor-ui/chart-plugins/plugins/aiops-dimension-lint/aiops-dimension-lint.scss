@@ -1,5 +1,5 @@
 /* stylelint-disable declaration-no-important */
-@import '../time-series/time-series.scss';
+@import '../time-series/time-series';
 
 .aiops-dimension-lint {
   .title-wrapper {
@@ -58,12 +58,12 @@
       display: flex;
       align-items: center;
       height: 18px;
-      padding: 0px 6px;
+      padding: 0 6px;
       margin-right: 10px;
       overflow: hidden;
+      text-overflow: ellipsis;
       color: #fe9c00;
       text-align: center;
-      text-overflow: ellipsis;
       white-space: nowrap;
       background: #ffe8c3;
       border: 1px solid #fe9c00;
@@ -93,6 +93,7 @@
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
+
       // flex: 1;
     }
   }
@@ -130,6 +131,6 @@
   }
 
   .chart-title {
-    padding: 0px 0px 10px 8px !important;
+    padding: 0 0 10px 8px !important;
   }
 }

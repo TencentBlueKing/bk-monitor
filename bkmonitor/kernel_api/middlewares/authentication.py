@@ -236,7 +236,7 @@ class AuthenticationMiddleware(MiddlewareMixin):
         # 校验app_code权限范围
         if not app_code or is_match_api_token(request, bk_tenant_id, app_code):
             request.user = auth.authenticate(username=username, bk_tenant_id=bk_tenant_id)
-            if settings.ENABLE_MULTI_TENANT_MODE and request.user.tenant_id != bk_tenant_id:
+            if settings.ENABLE_MULTI_TENANT_MODE and request.user and request.user.tenant_id != bk_tenant_id:
                 return HttpResponseForbidden(f"user tenant_id is {request.user.tenant_id} not match {bk_tenant_id}")
             return
 

@@ -219,7 +219,7 @@ class QueryDataResource(UseSaaSAuthInfoMixin, BkDataQueryAPIGWResource):
 
 class QueryProfileDataResource(QueryDataResource):
     """
-    临时提供给 Profile 类型，一个独立的查询地址 (you can delete me if you need)
+    Profile专用查询入口，可以独立切换查询地址
     """
 
     base_url = settings.BKDATA_PROFILE_QUERY_API_BASE_URL or QueryDataResource.base_url

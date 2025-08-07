@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -9,8 +8,7 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-from typing import List
-
+from django.conf import settings
 from django.utils.translation import gettext as _
 
 from constants.strategy import DataTarget
@@ -21,7 +19,7 @@ from monitor_web.plugin.manager import BuiltInPluginManager
 from monitor_web.plugin.serializers import ProcessSerializer
 
 
-class BuildInProcessDimension(object):
+class BuildInProcessDimension:
     """内置进程采集维度"""
 
     dimension_info_map = {
@@ -40,7 +38,7 @@ class BuildInProcessDimension(object):
         self.field_name_description = self.dimension_info_map.get(field_name, field_name)
 
 
-class BuildInProcessMetric(object):
+class BuildInProcessMetric:
     """
     内置进程采集指标
     """
@@ -115,7 +113,7 @@ class ProcessPluginManager(BuiltInPluginManager):
         "port": {"metric_list": ["alive"], "dimensions": ["listen_address", "listen_port", "process_name", "pid"]},
     }
 
-    def gen_metric_info(self) -> List[dict]:
+    def gen_metric_info(self) -> list[dict]:
         metrics = []
         for table_name, field_info in self.metric_info.items():
             field_list = []
@@ -160,39 +158,29 @@ class ProcessPluginManager(BuiltInPluginManager):
             metric_info_list.append(metric_dict)
         return metric_info_list
 
-    def touch(self):
+    def touch(self, bk_biz_id: int):
         # 确认插件是否被初始化过，如没有创建过，则初始化全局bkprocessbeat虚拟插件
         if self.plugin.create_time is None:
             self.setup()
-            return
-        # 插件创建成功，确认对应dataid是否成功接入：
-        for ts_name in self.metric_info:
-            try:
-                self.get_data_id(ts_name)
-                self.get_table(ts_name)
-            except BKAPIError:
-                self._access(ts_name)
-        # todo 如果metric 变更，需要更新插件，当前自定义指标不支持变更字段信息
-        pass
 
-    def get_data_id(self, ts_name):
-        data_name = resource.custom_report.create_custom_time_series.data_name(0, self.data_name_suffix(ts_name))
+        # 接入数据源
+        self.access(bk_biz_id)
+
+    def get_data_id(self, bk_biz_id: int, ts_name: str):
+        if bk_biz_id not in settings.PROCESS_INDEPENDENT_DATAID_BIZ_IDS:
+            bk_biz_id = 0
+        data_name = resource.custom_report.create_custom_time_series.data_name(bk_biz_id, f"process_{ts_name}")
         return api.metadata.get_data_id({"data_name": data_name, "with_rt_info": False})["bk_data_id"]
 
-    @staticmethod
-    def get_table_id(ts_name):
-        return "process.{}".format(ts_name)
+    def perf_data_id(self, bk_biz_id: int):
+        if bk_biz_id not in settings.PROCESS_INDEPENDENT_DATAID_BIZ_IDS:
+            bk_biz_id = 0
+        return self.get_data_id(bk_biz_id, "perf")
 
-    def get_table(self, ts_name):
-        return api.metadata.get_result_table(table_id=self.get_table_id(ts_name))
-
-    @property
-    def perf_data_id(self):
-        return self.get_data_id("perf")
-
-    @property
-    def port_data_id(self):
-        return self.get_data_id("port")
+    def port_data_id(self, bk_biz_id: int):
+        if bk_biz_id not in settings.PROCESS_INDEPENDENT_DATAID_BIZ_IDS:
+            bk_biz_id = 0
+        return self.get_data_id(bk_biz_id, "port")
 
     def setup(self):
         plugin_setup_dict = {
@@ -208,13 +196,9 @@ class ProcessPluginManager(BuiltInPluginManager):
         }
         # 安装并初始化本采集插件
         resource.plugin.create_plugin(plugin_setup_dict)
-        try:
-            self.access()
-        except BKAPIError:
-            pass
 
     def create_version(self, data):
-        version, need_debug = super(ProcessPluginManager, self).create_version(data)
+        version, need_debug = super().create_version(data)
         plugin = CollectorPluginMeta.objects.get(
             bk_tenant_id=version.plugin.bk_tenant_id, plugin_id=version.plugin.plugin_id
         )
@@ -222,27 +206,45 @@ class ProcessPluginManager(BuiltInPluginManager):
         plugin_manager.release_collector_plugin(version)
         return version, need_debug
 
-    def data_name_suffix(self, ts_name):
-        return f"process_{ts_name}"
-
-    def access(self):
-        # get_or_create dataid
-        # 2个dataid 写入同一个库的不同表
+    def access(self, bk_biz_id: int):
+        """
+        接入数据源
+        """
         for ts_name in self.metric_info:
-            self._access(ts_name)
+            # 独立数据源模式
+            if bk_biz_id in settings.PROCESS_INDEPENDENT_DATAID_BIZ_IDS:
+                table_id = ""
+                data_label = f"process.{ts_name},process"
+                is_split_measurement = True
+            else:
+                bk_biz_id = 0
+                table_id = f"process.{ts_name}"
+                data_label = "process"
+                is_split_measurement = False
 
-    def _access(self, ts_name):
-        params = {
-            "bk_biz_id": 0,
-            "name": self.data_name_suffix(ts_name),
-            "scenario": self.label,
-            "table_id": self.get_table_id(ts_name),
-            "metric_info_list": self.get_metric_info_list(ts_name),
-            "data_label": "process",
-            # 进程采集预定义了table_id，不能使用单指标单表模式
-            "is_split_measurement": False,
-        }
-        resource.custom_report.create_custom_time_series(params)
+            # 检查数据源是否存在
+            try:
+                self.get_data_id(bk_biz_id, ts_name)
+                if table_id:
+                    api.metadata.get_result_table(table_id=table_id)
+                continue
+            except BKAPIError:
+                pass
+
+            params = {
+                "bk_biz_id": bk_biz_id,
+                "name": f"process_{ts_name}",
+                "scenario": self.label,
+                "metric_info_list": self.get_metric_info_list(ts_name),
+                "data_label": data_label,
+                "is_split_measurement": is_split_measurement,
+            }
+
+            if table_id:
+                params["table_id"] = table_id
+
+            # 创建自定义上报
+            resource.custom_report.create_custom_time_series(params)
 
     def get_deploy_steps_params(self, plugin_version, param, target_nodes):
         match_type = param["process"]["match_type"]
