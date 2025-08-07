@@ -65,7 +65,17 @@ class _UnifyQueryApi:
             method="POST",
             url=UNIFYQUERY_APIGATEWAY_ROOT + "query/ts/raw/",
             module=self.MODULE,
-            description="时序型检索日志",
+            description="时序型检索原始日志",
+            after_request=add_data_after_request,
+            header_keys=["X-Bk-Scope-Skip-Space", "X-Bk-Scope-Space-Uid"],
+            before_request=add_unify_query_header_before,
+            bk_tenant_id=biz_to_tenant_getter(),
+        )
+        self.query_ts_raw_with_scroll = DataAPI(
+            method="POST",
+            url=UNIFYQUERY_APIGATEWAY_ROOT + "query/ts/raw_with_scroll/",
+            module=self.MODULE,
+            description="滚动检索原始数据",
             after_request=add_data_after_request,
             header_keys=["X-Bk-Scope-Skip-Space", "X-Bk-Scope-Space-Uid"],
             before_request=add_unify_query_header_before,
