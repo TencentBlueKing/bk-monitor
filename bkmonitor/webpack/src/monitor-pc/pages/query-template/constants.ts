@@ -44,3 +44,22 @@ export const QueryTemplateSliderTabEnum = {
   /** 消费场景 */
   CONSUME: 'consume',
 } as const;
+
+/** 变量类型枚举 */
+export const VariableTypeEnum = {
+  FUNCTION: 'function',
+  DIMENSION: 'dimension',
+  DIMENSION_VALUE: 'dimension_value',
+  AGG_METHOD: 'agg_method',
+  CONDITION: 'condition',
+  GENERAL: 'general',
+} as const;
+
+export const VariableTypeMap = {
+  [VariableTypeEnum.FUNCTION]: window.i18n.tc('函数变量'),
+  [VariableTypeEnum.DIMENSION]: window.i18n.tc('维度变量'),
+  [VariableTypeEnum.DIMENSION_VALUE]: window.i18n.tc('维度值变量'),
+  [VariableTypeEnum.AGG_METHOD]: window.i18n.tc('汇聚变量'),
+  [VariableTypeEnum.CONDITION]: window.i18n.tc('条件变量'),
+  [VariableTypeEnum.GENERAL]: window.i18n.tc('常规变量'),
+};

@@ -1,0 +1,25 @@
+.variable-panel {
+  background: #fff;
+  border-radius: 2px;
+  box-shadow: 0 2px 4px 0 #1919290d;
+
+  &+.variable-panel {
+    margin-top: 12px;
+  }
+
+  .variable-type-title {
+    display: inline-block;
+    height: 30px;
+    padding: 0 16px;
+    margin-bottom: 2px;
+    font-size: 12px;
+    line-height: 30px;
+    color: #fff;
+    background: #e54488;
+    border-radius: 2px 0 8px;
+  }
+
+  .variable-form {
+    padding: 0 16px;
+  }
+}
