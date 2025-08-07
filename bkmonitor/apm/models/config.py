@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,6 +7,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import itertools
 import logging
 import operator
@@ -233,9 +233,10 @@ class ApmTopoDiscoverRule(models.Model):
         filter_args = {}
         if _type != "all":
             filter_args["type"] = _type
-        return cls.objects.filter(
-            (Q(bk_biz_id=bk_biz_id) & Q(app_name=app_name)) | (Q(bk_biz_id=GLOBAL_CONFIG_BK_BIZ_ID)), **filter_args
-        ).order_by("sort")
+
+        app_rules = cls.objects.filter(Q(bk_biz_id=bk_biz_id) & Q(app_name=app_name), **filter_args).order_by("sort")
+        global_rules = cls.objects.filter(Q(bk_biz_id=GLOBAL_CONFIG_BK_BIZ_ID), **filter_args).order_by("sort")
+        return list(app_rules) + list(global_rules)
 
     @classmethod
     def init_builtin_config(cls):

@@ -199,7 +199,7 @@ export default class K8SCharts extends tsc<{
         type: 'row',
         collapsed: true,
         panels: item.children
-          ?.filter(panel => !this.hideMetrics.includes(panel.id))
+          ?.filter(panel => !this.hideMetrics.includes(panel.id) && panel.show_chart)
           .map(panel => ({
             id: panel.id,
             type: 'k8s_custom_graph',

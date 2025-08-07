@@ -112,8 +112,6 @@ class EventLogsRequestSerializer(BaseEventRequestSerializer):
 
     def validate(self, attrs):
         EventFilterSerializer.drop_group_by(attrs.get("query_configs") or [])
-        # 默认按时间降序
-        attrs["sort"] = attrs.get("sort") or ["-time"]
         return attrs
 
 

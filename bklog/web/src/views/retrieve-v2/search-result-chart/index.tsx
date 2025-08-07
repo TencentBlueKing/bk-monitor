@@ -187,9 +187,9 @@ export default defineComponent({
     const handleRequestSplit = (startTime, endTime) => {
       // if(chartInterval.value === 'auto') return 0; // 若需要auto模式下不分段请求，取消注释
       const duration = (endTime - startTime) / 3600000; // 计算时间间隔,单位:小时
-      if (duration <= 6) return 0;  // 0-6小时不分段请求
-      if (duration <= 48) return 21600 * 1000;  // 6-48小时, 每6小时1段
-      return (86400 * 1000) / 2;  // 超过48小时, 每12小时1段
+      if (duration <= 6) return 0; // 0-6小时不分段请求
+      if (duration <= 48) return 21600 * 1000; // 6-48小时, 每6小时1段
+      return (86400 * 1000) / 2; // 超过48小时, 每12小时1段
     };
 
     // 趋势图数据请求主函数
@@ -203,7 +203,7 @@ export default defineComponent({
 
         isStart.value = true; // 开始请求，设置状态
 
-        let result: IteratorResult<{ urlStr: string; indexId: string | string[]; queryData: any; isInit: boolean}>;
+        let result: IteratorResult<{ urlStr: string; indexId: string | string[]; queryData: any; isInit: boolean }>;
         result = gen.next();
         while (!result.done) {
           const { urlStr, indexId, queryData, isInit: currentIsInit } = result.value;
@@ -213,7 +213,7 @@ export default defineComponent({
 
             if (!res?.result || requestInterval === 0) break;
           } catch {
-            setChartData(null, null, true);  // 清空图表数据
+            setChartData(null, null, true); // 清空图表数据
             break;
           }
           result = gen.next();
@@ -467,11 +467,11 @@ export default defineComponent({
     return () => (
       <div
         ref={chartContainer}
-        class={['monitor-echarts-container', { 'is-fold': isFold.value }]}
+        class={['bklog-v2-echarts-container', { 'is-fold': isFold.value }]}
         data-test-id='retrieve_div_generalTrendEcharts'
       >
         {/* 标题部分 */}
-        <div class='title-wrapper-new'>
+        <div class='title-wrapper'>
           {/* 1. 标题内容 */}
           {chartTitleContent()}
           {/* 2. 加载中动画 */}
@@ -480,8 +480,8 @@ export default defineComponent({
         {/* 图表部分 */}
         <div
           v-show={!isFold.value}
-          class='monitor-echart-wrap'
-          v-bkloading={{ isLoading: !isStart.value && loading.value, zIndex: 1, size: 'mini' }}
+          class='echart-wrapper'
+          v-bkloading={{ isLoading: !isStart.value && loading.value, size: 'mini' }}
         >
           <div
             ref={trendChartCanvas}
