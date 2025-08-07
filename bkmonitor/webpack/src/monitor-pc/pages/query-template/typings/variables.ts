@@ -24,11 +24,24 @@
  * IN THE SOFTWARE.
  */
 
-import type { QueryTemplateSliderTabEnum, VariableTypeEnum } from '../constants';
+import type { VariableTypeEnumType } from '../typings/constants';
+import type { MetricDetail } from '@/pages/strategy-config/strategy-config-set-new/typings';
 
-export type GetEnumTypeTool<T> = T[keyof T];
+export interface VariableModel {
+  /** 变量别名 */
+  alias: string;
+  /** 变量描述 */
+  desc: string;
+  /** 变量对应指标 */
+  metric: MetricDetail;
+  /** 变量名 */
+  name: string;
+  /** 变量类型 */
+  type: VariableTypeEnumType;
+  /** 默认值 */
+  value: any;
+}
 
-/** 查询模板侧边栏tab Enum 枚举类型 */
-export type QueryTemplateSliderTabEnumType = GetEnumTypeTool<typeof QueryTemplateSliderTabEnum>;
-
-export type VariableTypeEnumType = GetEnumTypeTool<typeof VariableTypeEnum>;
+export type VariablePanelParams = Partial<Omit<VariableModel, 'type'>> & {
+  type: VariableTypeEnumType;
+};
