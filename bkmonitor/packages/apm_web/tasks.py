@@ -29,6 +29,7 @@ from bkmonitor.utils.custom_report_tools import custom_report_tool
 from bkmonitor.utils.time_tools import strftime_local
 from common.log import logger
 from constants.apm import TelemetryDataType
+from core.drf_resource import api
 
 
 class APMEvent(Enum):
@@ -125,8 +126,8 @@ def build_event_body(
 
 
 @shared_task(ignore_result=True)
-def update_application_config(application_id, updated_config_keys):
-    Application.objects.get(application_id=application_id).refresh_config(updated_config_keys)
+def update_application_config(bk_biz_id, app_name, config):
+    api.apm_api.release_app_config({"bk_biz_id": bk_biz_id, "app_name": app_name, **config})
 
 
 @shared_task(ignore_result=True)
