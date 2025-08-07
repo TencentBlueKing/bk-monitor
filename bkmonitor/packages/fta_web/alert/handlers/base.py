@@ -128,6 +128,7 @@ class BaseQueryTransformer(BaseTreeTransformer):
                 node.expr.value = f'"{ipv6}"'
 
             context.update({"search_field_name": node.name, "search_field_origin_name": origin_node_name})
+
             yield from self.generic_visit(node, context)
 
     @classmethod

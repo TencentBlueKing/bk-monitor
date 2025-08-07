@@ -86,6 +86,7 @@ export default class ValueTagInput extends tsc<IProps> {
   handleKeyDown(event) {
     const key = event.key || event.keyCode || event.which;
     if (key === 'Enter' || key === 13) {
+      event.stopPropagation();
       event.preventDefault();
     }
   }

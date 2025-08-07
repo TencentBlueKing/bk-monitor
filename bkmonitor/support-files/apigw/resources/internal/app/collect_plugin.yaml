@@ -16,7 +16,7 @@ paths:
         allowApplyPermission: false
         matchSubpath: false
         backend:
-          type: HTTP
+          name: default
           method: post
           path: /api/v4/collector_plugin/plugin_import_without_frontend/
           matchSubpath: false
@@ -34,7 +34,7 @@ paths:
         allowApplyPermission: false
         matchSubpath: false
         backend:
-          type: HTTP
+          name: default
           method: get
           path: /api/v4/collector_plugin/export_plugin/
           matchSubpath: false
@@ -52,7 +52,7 @@ paths:
         allowApplyPermission: true
         matchSubpath: false
         backend:
-          type: HTTP
+          name: default
           method: get
           path: /api/v4/plugin_upgrade_info/search/
           matchSubpath: false

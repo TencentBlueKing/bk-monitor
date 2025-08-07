@@ -80,6 +80,7 @@ from bkmonitor.strategy.serializers import (
     HostAnomalyDetectionSerializer,
     IntelligentDetectSerializer,
     MultivariateAnomalyDetectionSerializer,
+    NewSeriesSerializer,
     PrometheusTimeSeriesSerializer,
     QueryConfigSerializer,
     RingRatioAmplitudeSerializer,
@@ -929,6 +930,7 @@ class Algorithm(AbstractConfig):
     class Serializer(serializers.Serializer):
         AlgorithmSerializers = {
             "Threshold": partial(ThresholdSerializer, allow_empty=True),
+            "NewSeries": NewSeriesSerializer,
             "SimpleRingRatio": SimpleRingRatioSerializer,
             "AdvancedRingRatio": AdvancedRingRatioSerializer,
             "SimpleYearRound": SimpleYearRoundSerializer,
@@ -1306,9 +1308,9 @@ class QueryConfig(AbstractConfig):
         )
         self.id = obj.id
 
-    def save(self):
+    def save(self, instance=None):
         self._clean_empty_dimension()
-        self.supplement_adv_condition_dimension()
+        self.supplement_adv_condition_dimension(instance)
 
         try:
             if self.id > 0:
@@ -1357,12 +1359,16 @@ class QueryConfig(AbstractConfig):
             records.append(record)
         return records
 
-    def supplement_adv_condition_dimension(self):
+    def supplement_adv_condition_dimension(self, instance=None):
         """
         高级条件补全维度
         """
         if not hasattr(self, "agg_dimension"):
             return
+        if instance is not None:
+            # 多指标时，不进行维度补充
+            if len(instance.query_configs) > 1:
+                return
         data_source = load_data_source(self.data_source_label, self.data_type_label)
         has_advance_method = False
         dimensions = set()
@@ -1589,7 +1595,7 @@ class Item(AbstractConfig):
         )
 
         for query_config in self.query_configs:
-            query_config.save()
+            query_config.save(self)
 
     def save(self):
         try:

@@ -90,6 +90,9 @@ export default defineComponent({
       scrollLeft: (left: number) => {
         refSrollRoot.value.scrollLeft = left;
       },
+      getScrollLeft: () => {
+        return refSrollRoot.value.scrollLeft ?? 0;
+      },
     });
 
     return {

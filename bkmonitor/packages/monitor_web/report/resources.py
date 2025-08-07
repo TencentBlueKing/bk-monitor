@@ -201,6 +201,8 @@ class ReportCloneResource(Resource):
 
         report_item.pop("id")
         report_item["mail_title"] = new_mail_title
+        # 从report_item中移除bk_tenant_id字段，避免解包的时候无法覆盖bk_tenant_id字段导致报错
+        report_item.pop("bk_tenant_id", None)
         report_content_to_create = []
         report_contents = list(
             ReportContents.objects.filter(report_item=params["report_item_id"], bk_tenant_id=bk_tenant_id).values()

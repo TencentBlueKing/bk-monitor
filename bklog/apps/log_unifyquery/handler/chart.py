@@ -14,7 +14,6 @@ import time
 from django.conf import settings
 
 from apps.api import UnifyQueryApi
-from apps.log_unifyquery.constants import REFERENCE_ALIAS
 from apps.log_unifyquery.handler.base import UnifyQueryHandler
 
 
@@ -29,11 +28,11 @@ class UnifyQueryChartHandler(UnifyQueryHandler):
         for index, index_info in enumerate(self.index_info_list):
             query_dict = {
                 "data_source": settings.UNIFY_QUERY_DATA_SOURCE,
-                "reference_name": REFERENCE_ALIAS[index],
+                "reference_name": self.generate_reference_name(index),
                 "conditions": self._transform_additions(index_info),
                 "query_string": self.query_string,
                 "sql": self.sql,
-                "table_id": f"bkdata_index_set_{self.index_set_ids[0]}",
+                "table_id": f"bklog_index_set_{index_info['index_set_id']}_analysis",
             }
 
             query_list.append(query_dict)

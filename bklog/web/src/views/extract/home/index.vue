@@ -435,6 +435,9 @@
       handleCreateTask() {
         this.$router.push({
           name: 'extract-create',
+          query: {
+            ...this.$route.query
+          }
         });
       },
       // 克隆
@@ -443,6 +446,9 @@
         sessionStorage.setItem('cloneData', JSON.stringify(row));
         this.$router.push({
           name: 'extract-clone',
+          query: {
+            ...this.$route.query
+          }
         });
       },
       // 下载文件

@@ -1,23 +1,54 @@
-swagger: '2.0'
-basePath: /
+openapi: 3.0.1
+servers:
+- url: /
 info:
-  version: '1.0'
+  version: '2.0'
   title: API Gateway Resources
   description: ''
-schemes:
-- http
 paths:
   /app/as_code/import_config/:
     post:
       operationId: as_code_import_config
       description: 导入AsCode配置
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - configs
+              - bk_biz_id
+              properties:
+                app:
+                  type: string
+                  default: default
+                  description: 分组
+                configs:
+                  type: object
+                  properties:
+                    '':
+                      type: string
+                  description: 导入配置
+                bk_biz_id:
+                  type: number
+                  description: 业务ID
+                overwrite:
+                  type: boolean
+                  default: 'false'
+                  description: 是否跨分组覆盖同名配置
+        required: true
+        description: ''
       x-bk-apigateway-resource:
+        isPublic: true
+        allowApplyPermission: true
         matchSubpath: false
+        enableWebsocket: false
         backend:
-          type: HTTP
+          name: default
           method: post
           path: /api/v4/as_code/import_config/
           matchSubpath: false
+          timeout: 0
         descriptionEn: import AsCode config
   /app/as_code/export_config/:
     post:
@@ -25,9 +56,11 @@ paths:
       description: 导出AsCode配置
       x-bk-apigateway-resource:
         matchSubpath: false
+        enableWebsocket: false
         backend:
-          type: HTTP
+          name: default
           method: post
           path: /api/v4/as_code/export_config/
           matchSubpath: false
+          timeout: 0
         descriptionEn: export AsCode config

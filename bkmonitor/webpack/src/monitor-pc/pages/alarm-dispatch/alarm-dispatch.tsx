@@ -707,7 +707,8 @@ export default class AlarmDispatch extends tsc<object> {
                         {this.renderEditAttribute(`${this.$t('优先级')}:`, item.priority, 'priority', item.id)}
                         <div class='expand-update-record'>
                           <span class='label'>
-                            {this.$t('最近更新记录')}: {item.updateUser}
+                            {`${this.$t('最近更新记录')}: `}
+                            <bk-user-display-name user-id={item.updateUser} />
                           </span>
                           <span class='separator' />
                           <span class='update-time'>{item.updateTime}</span>

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -9,23 +8,22 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-
 import logging
 
 import redis
 from django.conf import settings
 from kafka import KafkaProducer
-from six.moves.urllib.parse import unquote, urlparse
+from urllib.parse import unquote, urlparse
 
 logger = logging.getLogger("action")
 
 
-class BaseClient(object):
+class BaseClient:
     def send(self, message):
         raise NotImplementedError
 
 
-class KafKaClient(object):
+class KafKaClient:
     """
     KafKa客户端
     """
@@ -33,7 +31,7 @@ class KafKaClient(object):
     def __init__(self, uri):
         uri_obj = urlparse(uri)
         params = {
-            "bootstrap_servers": "{}:{}".format(uri_obj.hostname, uri_obj.port),
+            "bootstrap_servers": f"{uri_obj.hostname}:{uri_obj.port}",
         }
 
         if uri_obj.username:
@@ -43,7 +41,7 @@ class KafKaClient(object):
 
         self.topic = uri_obj.path.strip("/")
         if not self.topic:
-            raise ValueError("KafKa URI({}) has not topic".format(uri))
+            raise ValueError(f"KafKa URI({uri}) has not topic")
 
         self.client = KafkaProducer(**params)
 
@@ -61,7 +59,7 @@ class KafKaClient(object):
             self.client.close()
 
 
-class RedisClient(object):
+class RedisClient:
     """
     Redis客户端
     """
@@ -73,7 +71,7 @@ class RedisClient(object):
             db = int(db)
             assert len(key) > 0
         except Exception as e:
-            logger.error("Redis URI({}) parse error, {}".format(uri, e))
+            logger.error(f"Redis URI({uri}) parse error, {e}")
             raise e
 
         self.key = key
@@ -113,6 +111,6 @@ def get_client(uri):
 
     client_class = SchemaClientMapping.get(uri_obj.scheme)
     if not client_class:
-        raise Exception("message queue schema {} is not support".format(uri_obj.scheme))
+        raise Exception(f"message queue schema {uri_obj.scheme} is not support")
 
     return client_class(uri)

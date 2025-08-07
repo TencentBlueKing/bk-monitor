@@ -20,6 +20,7 @@ from ai_agents.resources.resources import (
     DestroyChatSessionContentResource,
     CreateChatCompletionResource,
     BatchDeleteSessionContentResource,
+    UpdateChatSessionResource,
 )
 from bkmonitor.iam import ActionEnum
 from bkmonitor.iam.drf import BusinessActionPermission
@@ -41,6 +42,7 @@ class SessionViewSet(AIAgentsPermissionMixin, ResourceViewSet):
     resource_routes = [
         ResourceRoute("POST", CreateChatSessionResource),
         ResourceRoute("GET", RetrieveChatSessionResource),
+        ResourceRoute("PUT", UpdateChatSessionResource, pk_field="session_code"),
         ResourceRoute("DELETE", DestroyChatSessionResource, pk_field="session_code"),
     ]
 
@@ -48,7 +50,7 @@ class SessionViewSet(AIAgentsPermissionMixin, ResourceViewSet):
 class SessionContentViewSet(AIAgentsPermissionMixin, ResourceViewSet):
     resource_routes = [
         ResourceRoute("POST", CreateChatSessionContentResource),
-        ResourceRoute("GET", GetChatSessionContentsResource),
+        ResourceRoute("GET", GetChatSessionContentsResource, endpoint="content"),
         ResourceRoute("PUT", UpdateChatSessionContentResource, pk_field="id"),
         ResourceRoute("DELETE", DestroyChatSessionContentResource, pk_field="id"),
         ResourceRoute("POST", BatchDeleteSessionContentResource, endpoint="batch_delete"),

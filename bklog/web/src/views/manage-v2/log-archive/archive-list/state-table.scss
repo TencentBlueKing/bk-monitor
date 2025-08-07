@@ -1,0 +1,47 @@
+@import '@/scss/mixins/clearfix';
+@import '@/scss/conf';
+@import '@/scss/devops-common.scss';
+
+.archive-state-list {
+  max-height: 500px;
+  overflow: auto;
+
+  .state-table {
+    th.is-first,
+    td.is-first {
+      padding-left: 80px;
+    }
+
+    .filter-column {
+      .cell {
+        display: flex;
+      }
+    }
+
+    .restore-status {
+      display: flex;
+      align-items: center;
+    }
+
+    .status-icon {
+      display: inline-block;
+      width: 4px;
+      height: 4px;
+      margin-right: 6px;
+      border-radius: 50%;
+
+      &.is-SUCCESS {
+        background: #6dd400;
+      }
+
+      &.is-FAIL,
+      &.is-PARTIAL {
+        background: #e02020;
+      }
+
+      &.is-IN_PROGRESS {
+        background: #fe9c00;
+      }
+    }
+  }
+} 

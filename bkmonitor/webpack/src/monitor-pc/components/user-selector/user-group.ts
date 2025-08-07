@@ -23,6 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+import { type FormattedUser } from '@blueking/bk-user-selector/typings/types';
 export interface IUserGroup {
   hidden?: boolean;
   id: string;
@@ -32,6 +33,24 @@ export interface IUserGroup {
     name: string;
   }[];
 }
+
+export interface IUserInfo extends FormattedUser {
+  logo?: string;
+  type?: 'userGroup' | undefined;
+}
+
+export interface UserSelectorDragEvent {
+  clone: HTMLElement;
+  from: HTMLElement;
+  item: HTMLElement;
+  newDraggableIndex: number;
+  newIndex: number;
+  oldDraggableIndex: number;
+  oldIndex: number;
+  originalEvent: DragEvent;
+  to: HTMLElement;
+}
+
 /** 获取默认用户组同步用法 */
 export const getDefaultUserGroupListSync = (groupList = []): IUserGroup[] => {
   const defaultUserGroupList = [

@@ -583,6 +583,16 @@ class BkJwtVerifyFailException(BasePermException):
     MESSAGE = _("JWT校验失败")
 
 
+class TokenMissingException(BasePermException):
+    ERROR_CODE = "904"
+    MESSAGE = _("请求中缺少token或token为空")
+
+
+class TokenInvalidException(BasePermException):
+    ERROR_CODE = "905"
+    MESSAGE = _("token无效")
+
+
 class SettingMenuException(BasePermException):
     ERROR_CODE = "1001"
     MESSAGE = _("配置中menu对象异常")

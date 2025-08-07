@@ -150,6 +150,9 @@ export default class CustomChart extends TimeSeries {
           t.data.query_configs.forEach((q, qIndex) => {
             q.functions = JSON.parse(JSON.stringify(queryConfigs[qIndex].functions));
           });
+          t?.data?.unify_query_param?.query_configs?.forEach((q, qIndex) => {
+            q.functions = JSON.parse(JSON.stringify(queryConfigs[qIndex].functions));
+          });
         });
         this.handleFullScreen(copyPanel as any);
         break;

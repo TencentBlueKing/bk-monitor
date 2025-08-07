@@ -11,18 +11,21 @@ specific language governing permissions and limitations under the License.
 import logging
 import operator
 import time
+from datetime import datetime, timezone
 from collections import defaultdict
 from functools import reduce
 from itertools import chain
 
 from django.utils.translation import gettext as _
 from django.utils.translation import gettext_lazy as _lazy
+from django.db.models import Q as DQ
 from elasticsearch_dsl import Q
 from elasticsearch_dsl.response.aggs import BucketData
 from luqum.tree import FieldGroup, OrOperation, Phrase, SearchField, Word
 
 from bkmonitor.documents import ActionInstanceDocument, AlertDocument, AlertLog
 from bkmonitor.models import ActionInstance, ConvergeRelation, MetricListCache, Shield
+from bkmonitor.models.fta.action import ActionConfig
 from bkmonitor.strategy.new_strategy import get_metric_id
 from bkmonitor.utils.ip import exploded_ip
 from bkmonitor.utils.request import get_request_tenant_id
@@ -82,6 +85,56 @@ def readable_name_alias_to_id(node: SearchField):
     return
 
 
+def get_alert_ids_by_action_id(action_ids) -> list:
+    if not isinstance(action_ids, list):
+        action_ids = [action_ids]
+    try:
+        actions = ActionInstanceDocument.mget(action_ids)
+        if actions:
+            alert_ids = [action.alert_id for action in actions]
+        else:
+            action_ids = [int(str(action_id)[10:]) for action_id in action_ids]
+            alert_ids = ActionInstance.objects.filter(id__in=action_ids).values_list("alerts", flat=True)
+    except Exception:
+        alert_ids = []
+    alert_ids = set(chain.from_iterable(alert_ids))
+    return list(alert_ids)
+
+
+def get_alert_ids_by_action_name(action_names, bk_biz_ids, start_time=None, include=False, exclude=False) -> list:
+    """通过处理套餐名称获取告警ID"""
+    if not isinstance(action_names, list):
+        action_names = [action_names]
+
+    # 构建查询条件
+    if include:
+        # 模糊查询多个名称
+        name_conditions = DQ()
+        for action_name in action_names:
+            name_conditions |= DQ(name__icontains=action_name)
+        filter_params = {"bk_biz_id__in": bk_biz_ids}
+        filter_params_query = DQ(**filter_params) & name_conditions
+    else:
+        filter_params_query = DQ(name__in=action_names, bk_biz_id__in=bk_biz_ids)
+
+    if include is False and exclude:
+        filter_params_query = ~filter_params_query
+
+    action_config_ids = ActionConfig.objects.filter(filter_params_query).values_list("id", flat=True)
+
+    # 获取开始时间,没有则取7天前的时间
+    if start_time is None:
+        start_time = int(time.time()) - 7 * 24 * 60 * 60
+
+    start_time = datetime.fromtimestamp(start_time, tz=timezone.utc)
+
+    alert_id_ids = ActionInstance.objects.filter(
+        action_config_id__in=list(action_config_ids), create_time__gte=start_time
+    ).values_list("alerts", flat=True)
+    alert_ids = set(chain.from_iterable(alert_id_ids))
+    return list(alert_ids)
+
+
 class AlertQueryTransformer(BaseQueryTransformer):
     NESTED_KV_FIELDS = {"tags": "event.tags"}
     VALUE_TRANSLATE_FIELDS = {
@@ -134,6 +187,7 @@ class AlertQueryTransformer(BaseQueryTransformer):
         QueryField("ack_duration", _lazy("确认时间")),
         QueryField("data_type", _lazy("数据类型"), es_field="event.data_type"),
         QueryField("action_id", _lazy("处理记录ID"), es_field="id"),
+        QueryField("action_name", _lazy("处理套餐名称"), es_field="id"),
         QueryField("converge_id", _lazy("收敛记录ID"), es_field="id"),
         QueryField("event_id", _lazy("事件ID"), es_field="event.event_id", is_char=True),
         QueryField("plugin_id", _lazy("告警来源"), es_field="event.plugin_id", is_char=True),
@@ -153,6 +207,7 @@ class AlertQueryTransformer(BaseQueryTransformer):
                 self._process_action_id,
                 self._process_converge_id,
                 self._process_event_ipv6,
+                self._process_action_name,
                 self._process_module_id,
                 self._process_set_id,
             ]
@@ -209,16 +264,7 @@ class AlertQueryTransformer(BaseQueryTransformer):
             "action_id",
             _("处理记录ID"),
         ]:
-            # 处理动作ID不是告警的标准字段，需要从动作ID中提取出告警ID，再将其作为查询条件
-            action_id = node.value
-            try:
-                action = ActionInstanceDocument.get(action_id)
-                if action:
-                    alert_ids = action.alert_id
-                else:
-                    alert_ids = ActionInstance.objects.get(id=str(action_id)[10:]).alerts
-            except Exception:
-                alert_ids = []
+            alert_ids = get_alert_ids_by_action_id(node.value)
             node = FieldGroup(OrOperation(*[Word(str(alert_id)) for alert_id in alert_ids or [0]]))
             context.update({"ignore_search_field": True, "ignore_word": True})
 
@@ -259,6 +305,23 @@ class AlertQueryTransformer(BaseQueryTransformer):
             ip = exploded_ip(node.value.strip('"'))
             node.value = f'"{ip}"'
             return node, context
+        return None, None
+
+    def _process_action_name(self, node: Word, context: dict) -> tuple:
+        """处理动作名称"""
+        search_field_name = context.get("search_field_name")
+
+        if search_field_name == "id" and context.get("search_field_origin_name") in [
+            "action_name",
+            _("处理套餐名称"),
+        ]:
+            bk_biz_ids = context.get("bk_biz_ids", [])
+            start_time = context.get("start_time", None)
+            alert_ids = get_alert_ids_by_action_name([node.value], bk_biz_ids, start_time)
+            node = FieldGroup(OrOperation(*[Word(str(alert_id)) for alert_id in alert_ids or [0]]))
+            context = {"ignore_search_field": True, "ignore_word": True}
+            return node, context
+
         return None, None
 
     def _process_module_id(self, node: Word, context: dict) -> tuple:
@@ -440,11 +503,11 @@ class AlertQueryHandler(BaseBizQueryHandler):
         return search_object
 
     def search_raw(self, show_overview=False, show_aggs=False, show_dsl=False):
-        # 构建上下午查询信息
+        # 构建上下文信息
         context = {
             "bk_biz_ids": self.bk_biz_ids,
+            "start_time": self.start_time,
         }
-
         search_object = self.get_search_object()
         search_object = self.add_conditions(search_object)
         search_object = self.add_query_string(search_object, context=context)
@@ -679,6 +742,29 @@ class AlertQueryHandler(BaseBizQueryHandler):
             )
         elif condition["key"] == "alert_name":
             condition["key"] = "alert_name.raw"
+        elif condition["key"] == "id" and condition["origin_key"] == "action_id":
+            # 处理动作ID不是告警的标准字段，需要从动作ID中提取出告警ID，再将其作为查询条件
+            alert_ids = get_alert_ids_by_action_id(condition["value"])
+            if not alert_ids:
+                alert_ids = [0]
+            return Q("ids", values=alert_ids)
+
+        elif condition["origin_key"] == "action_name" and condition["key"] == "id":
+            # 用于支持对处理套餐名称查询
+            params = {
+                "action_names": condition["value"],
+                "bk_biz_ids": self.bk_biz_ids,
+                "start_time": self.start_time,
+                "include": condition["method"] == "include",
+                "exclude": condition["method"] == "exclude",
+            }
+            alert_ids = get_alert_ids_by_action_name(**params)
+
+            # 如果没有找到匹配的告警ID，则构造一个不可能匹配的条件
+            if not alert_ids:
+                alert_ids = [0]
+
+            return Q("ids", values=alert_ids)
         return super().parse_condition_item(condition)
 
     def add_biz_condition(self, search_object):
@@ -988,6 +1074,7 @@ class AlertQueryHandler(BaseBizQueryHandler):
 
         # 去掉无用字段
         cleaned_data.pop("action_id", None)
+        cleaned_data.pop("action_name", None)
         cleaned_data.pop("module_id", None)
         cleaned_data.pop("set_id", None)
 

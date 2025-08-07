@@ -1,11 +1,3 @@
-swagger: '2.0'
-basePath: /
-info:
-  version: '1.0'
-  title: API Gateway Resources
-  description: ''
-schemes:
-- http
 paths:
   /app/metric/get_data_source_config/:
     get:
@@ -16,7 +8,7 @@ paths:
         allowApplyPermission: true
         matchSubpath: false
         backend:
-          type: HTTP
+          name: default
           method: get
           path: /api/v4/grafana/get_data_source_config/
           matchSubpath: false

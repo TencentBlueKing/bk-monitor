@@ -1212,13 +1212,14 @@ const store = new Vuex.Store({
      *
      */
     requestIndexSetQuery(
-      { commit, state, getters, dispatch },
+      { commit, state, getters },
       payload = { isPagination: false, cancelToken: null, searchCount: undefined },
     ) {
       if (!payload?.isPagination) {
         commit('updateIndexSetQueryResult', {
           origin_log_list: [],
           list: [],
+          total: 0,
         });
       }
 
@@ -1228,7 +1229,7 @@ const store = new Vuex.Store({
       ) {
         state.searchTotal = 0;
         commit('updateSqlQueryFieldList', []);
-        commit('updateIndexSetQueryResult', { is_error: false, exception_msg: '' });
+        commit('updateIndexSetQueryResult', { is_error: false, exception_msg: '', total: 0 });
         return; // Promise.reject({ message: `index_set_id is undefined` });
       }
       let begin = state.indexItem.begin;
@@ -1324,6 +1325,7 @@ const store = new Vuex.Store({
                 const indexSetQueryResult = state.indexSetQueryResult;
                 const logList = parseBigNumberList(rsolvedData.list);
                 const originLogList = parseBigNumberList(rsolvedData.origin_log_list);
+                rsolvedData.total = rsolvedData.total.toNumber();
                 const size = logList.length;
 
                 rsolvedData.list = Object.freeze(
@@ -1357,7 +1359,7 @@ const store = new Vuex.Store({
                 };
               }
 
-              commit('updateIndexSetQueryResult', { exception_msg: message, is_error: !result });
+              commit('updateIndexSetQueryResult', { exception_msg: message, is_error: !result, total: 0 });
 
               return {
                 data,
@@ -1376,7 +1378,11 @@ const store = new Vuex.Store({
           state.searchTotal = 0;
           commit('updateSqlQueryFieldList', []);
           if (e.code !== 'ERR_CANCELED') {
-            commit('updateIndexSetQueryResult', { is_error: true, exception_msg: e?.message ?? e?.toString() });
+            commit('updateIndexSetQueryResult', {
+              is_error: true,
+              exception_msg: e?.message ?? e?.toString(),
+              total: 0,
+            });
           }
         })
         .finally(() => {

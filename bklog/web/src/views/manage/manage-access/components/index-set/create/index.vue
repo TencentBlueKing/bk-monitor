@@ -90,7 +90,7 @@
         <h3 class="title">{{ subTitle }}</h3>
         <template>
           <div
-            v-if="scenarioId !== 'bkdata'"
+            v-if="scenarioId === 'es'"
             class="collection-form"
           >
             <div class="collection-label">{{ $t('集群') }}</div>
@@ -505,7 +505,7 @@
             Object.assign(this.formData, {
               index_set_name: data.index_set_name,
               category_id: data.category_id,
-              storage_cluster_id: data.storage_cluster_id,
+              storage_cluster_id: this.scenarioId === 'log' ? '' : data.storage_cluster_id,
               indexes: data.indexes,
               target_fields: data.target_fields ?? [],
               sort_fields: data.sort_fields ?? [],
@@ -621,7 +621,7 @@
         this.$refs.selectCollectionRef.openDialog();
       },
       addCollection(item) {
-        if (this.scenarioId === 'log') this.formData.storage_cluster_id = item.storage_cluster_id;
+        item.scenarioId = this.scenarioId;
         this.formData.indexes.push(item);
         this.handleChangeShowTableList(item.result_table_id, true);
       },
@@ -647,6 +647,9 @@
             return this.messageError(this.$t('请选择索引'));
           }
           this.submitLoading = true;
+          this.formData.indexes.forEach(item => {
+            item.scenarioId = this.scenarioId;
+          });
           const requestBody = Object.assign(
             {
               view_roles: [], // 兼容后端历史遗留代码

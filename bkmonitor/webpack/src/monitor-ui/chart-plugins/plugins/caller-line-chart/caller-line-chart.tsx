@@ -209,7 +209,7 @@ class CallerLineChart extends CommonSimpleChart {
     this.emptyText = window.i18n.t('加载中...');
     try {
       this.unregisterObserver();
-      const series = [];
+      let series = [];
       const metrics = [];
       this.legendSorts = [];
       const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
@@ -344,7 +344,7 @@ class CallerLineChart extends CommonSimpleChart {
         });
         promiseList.push(...list);
       }
-      let customEventScatterSeries;
+      let customEventScatterSeries: IUnifyQuerySeriesItem[] = null;
       // 初始化事件分析配置
       if (!this.eventColumns.length) {
         const { config, columns } = await getCustomEventAnalysisConfig({
@@ -376,6 +376,7 @@ class CallerLineChart extends CommonSimpleChart {
       this.metrics = metrics || [];
       if (series.length) {
         const { maxSeriesCount, maxXInterval } = getSeriesMaxInterval(series);
+        series = series.toSorted((a, b) => b.name?.localeCompare?.(a?.name));
         /* 派出图表数据包含的维度*/
         this.series = Object.freeze(series) as any;
         const seriesResult = series
@@ -389,7 +390,6 @@ class CallerLineChart extends CommonSimpleChart {
           seriesResult.map(item => ({
             name: item.name,
             cursor: 'auto',
-            // biome-ignore lint/style/noCommaOperator: <explanation>
             data: item.datapoints.reduce((pre: any, cur: any) => (pre.push(cur.reverse()), pre), []),
             stack: item.stack || random(10),
             unit: this.panel.options?.unit || item.unit,
@@ -862,8 +862,19 @@ class CallerLineChart extends CommonSimpleChart {
         break;
       case 'fullscreen': {
         // 大图检索
-        const copyPanel = this.getCopyPanel();
-        this.handleFullScreen(copyPanel as any);
+        const copyPanel = this.getCopyPanel({ needTimeShiftVariable: true });
+        const timeShift = this.getTimeShiftCompareValue();
+        this.handleFullScreen(
+          copyPanel as any,
+          timeShift.length
+            ? {
+                compare: {
+                  type: 'time',
+                  value: timeShift,
+                },
+              }
+            : {}
+        );
         break;
       }
 
@@ -921,7 +932,6 @@ class CallerLineChart extends CommonSimpleChart {
   queryConfigsSetCallOptions(targetData) {
     if (!this.callOptions.group_by?.length || !this.isSupportGroupBy) {
       targetData.group_by_limit = undefined;
-    } else {
     }
     if (this.callOptions?.call_filter?.length) {
       const callFilter = this.callOptions?.call_filter.filter(f => f.key !== 'time');
@@ -979,7 +989,22 @@ class CallerLineChart extends CommonSimpleChart {
     this.handleAddStrategy(copyPanel as any, null, {}, true);
   }
 
-  getCopyPanel() {
+  getTimeShiftCompareValue() {
+    let timeShift = [];
+    for (const key in this.callOptions) {
+      if (key === 'time_shift') {
+        timeShift = this.callOptions[key];
+        break;
+      }
+    }
+    return timeShift;
+  }
+
+  getCopyPanel(
+    config = {
+      needTimeShiftVariable: false,
+    }
+  ) {
     try {
       const callOptions = {};
       for (const key in this.callOptions) {
@@ -1009,15 +1034,35 @@ class CallerLineChart extends CommonSimpleChart {
         ...selectPanelParams,
       });
       copyPanel = variablesService.transformVariables(copyPanel);
+      const setFunction = queryConfig => {
+        if (config.needTimeShiftVariable) {
+          queryConfig.functions = (queryConfig.functions || []).map(f => {
+            if (f.id === 'time_shift') {
+              return {
+                id: 'time_shift',
+                params: [{ id: 'n', value: '$time_shift' }],
+              };
+            }
+            return f;
+          });
+        } else {
+          queryConfig.functions = (queryConfig.functions || []).filter(f => f.id !== 'time_shift');
+        }
+      };
       for (const t of copyPanel.targets) {
         for (const q of t?.data?.query_configs || []) {
-          q.functions = (q.functions || []).filter(f => f.id !== 'time_shift');
+          setFunction(q);
+        }
+        for (const q of t?.data?.unify_query_param?.query_configs || []) {
+          setFunction(q);
         }
         this.queryConfigsSetCallOptions(t?.data);
       }
       if (this.enablePanelsSelector) {
         copyPanel.title = this.curTitle;
-        copyPanel.targets.map(item => (item.alias = this.curTitle));
+        copyPanel.targets.map(item => {
+          item.alias = this.curTitle;
+        });
       }
       (copyPanel.targets || []).map(item => {
         (item.data.query_configs || []).map(ele => {
