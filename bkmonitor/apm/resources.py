@@ -438,7 +438,7 @@ class ReleaseAppConfigResource(Resource):
         QpsConfig.refresh_config(bk_biz_id, app_name, config_level, config_key, [{"qps": qps}])
 
     def set_custom_service_config(self, bk_biz_id, app_name, custom_services):
-        if not custom_services:
+        if custom_services is None:
             return
         CustomServiceConfig.objects.filter(
             bk_biz_id=bk_biz_id, app_name=app_name, config_level=ApdexConfig.APP_LEVEL, config_key=app_name
@@ -471,17 +471,17 @@ class ReleaseAppConfigResource(Resource):
             )
 
     def set_instance_name_config(self, bk_biz_id, app_name, instance_name_config):
-        if not instance_name_config:
+        if instance_name_config is None:
             return
         ApmInstanceDiscover.refresh_config(bk_biz_id, app_name, instance_name_config)
 
     def set_dimension_config(self, bk_biz_id, app_name, dimension_configs):
-        if not dimension_configs:
+        if dimension_configs is None:
             return
         ApmMetricDimension.refresh_config(bk_biz_id, app_name, dimension_configs)
 
     def set_apdex_configs(self, bk_biz_id, app_name, config_key, config_level, apdex_configs):
-        if not apdex_configs:
+        if apdex_configs is None:
             return
         ApdexConfig.refresh_config(bk_biz_id, app_name, config_level, config_key, apdex_configs)
 
