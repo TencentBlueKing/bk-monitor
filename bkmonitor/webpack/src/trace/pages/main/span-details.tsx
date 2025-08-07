@@ -60,7 +60,6 @@ import {
 import { downFile, getSpanKindIcon } from '../../utils';
 import { safeParseJsonValueForWhere } from '../trace-explore/utils';
 import DashboardPanel from './dashboard-panel/dashboard-panel';
-// import AiBluekingIcon from '@/components/ai-blueking-icon/ai-blueking-icon';
 
 import type { Span } from '../../components/trace-view/typings';
 import type { IFlameGraphDataItem } from 'monitor-ui/chart-plugins/hooks/profiling-graph/types';
@@ -276,6 +275,8 @@ export default defineComponent({
     function getDetails() {
       const {
         span_id: originalSpanId,
+
+        spanID,
         app_name: appName,
         service_name: serviceName,
         duration,
@@ -858,9 +859,7 @@ export default defineComponent({
                   outline={!item.isFormat}
                   size='small'
                   theme='primary'
-                  onClick={() => {
-                    item.isFormat = !item.isFormat;
-                  }}
+                  onClick={() => (item.isFormat = !item.isFormat)}
                 >
                   <i class='icon-monitor icon-code' />
                   {t('格式化')}
@@ -898,14 +897,11 @@ export default defineComponent({
           ))}
         </div>
         <div class='stage-time-content'>
-          {content.map((item, index) => {
+          {content.map(item => {
             if (item.type === 'useTime') {
               const times = item[item.type] as any;
               return (
-                <div
-                  key={index}
-                  class='use-time'
-                >
+                <div class='use-time'>
                   <span class='left'>{times.tags[0]}</span>
                   <span class='center'>
                     {times.gap.type === 'toLeft'
@@ -948,10 +944,7 @@ export default defineComponent({
             }
             if (item.type === 'gapTime') {
               return (
-                <div
-                  key={index}
-                  class='gap-time'
-                >
+                <div class='gap-time'>
                   <div class='top' />
                   <div class='center'>{item[item.type]}</div>
                   <div class='bottom' />
@@ -1084,11 +1077,7 @@ export default defineComponent({
             apm_service_name: props.spanDetails.service_name,
             apm_span_id: props.spanDetails.span_id,
           },
-          {
-            cancelToken: new CancelToken(cb => {
-              hostAndContainerCancelToken = cb;
-            }),
-          }
+          { cancelToken: new CancelToken(cb => (hostAndContainerCancelToken = cb)) }
         ).catch(() => null);
         sceneData.value = new BookMarkModel(result);
         isTabPanelLoading.value = false;
@@ -1109,11 +1098,7 @@ export default defineComponent({
             start_time: startTime,
             end_time: endTime,
           },
-          {
-            cancelToken: new CancelToken(cb => {
-              hostAndContainerCancelToken = cb;
-            }),
-          }
+          { cancelToken: new CancelToken(cb => (hostAndContainerCancelToken = cb)) }
         ).catch(() => null);
         sceneData.value = new BookMarkModel(result);
         isTabPanelLoading.value = false;
@@ -1605,11 +1590,7 @@ export default defineComponent({
                 <span class='sideslider-title'>
                   <span class='text'>Span ID: </span>
                   <span class={['status', spanStatus.value?.icon]} />
-                  <span class='name'>{props.spanDetails?.span_id || info.title}</span>
-                  {/* <AiBluekingIcon
-                    content={props.spanDetails?.span_id || info.title}
-                    shortcutId={AI_BLUEKING_SHORTCUTS_ID.EXPLANATION}
-                  /> */}
+                  <span class='name'>{info.title}</span>
                 </span>
                 {props.isShowPrevNextButtons ? (
                   <>
