@@ -397,6 +397,7 @@ class IndexSetHandler(APIModel):
         is_editable=True,
         target_fields=None,
         sort_fields=None,
+        bcs_cluster_id=None,
     ):
         # 创建索引
         index_set_handler = cls.get_index_set_handler(scenario_id)
@@ -421,6 +422,7 @@ class IndexSetHandler(APIModel):
             is_editable=is_editable,
             target_fields=target_fields,
             sort_fields=sort_fields,
+            bcs_cluster_id=bcs_cluster_id,
         ).create_index_set()
 
         # add user_operation_record
@@ -1462,6 +1464,7 @@ class BaseIndexSetHandler:
         is_editable=True,
         target_fields=None,
         sort_fields=None,
+        bcs_cluster_id=None,
     ):
         super().__init__()
 
@@ -1483,6 +1486,7 @@ class BaseIndexSetHandler:
         self.username = username
         self.bcs_project_id = bcs_project_id
         self.is_editable = is_editable
+        self.bcs_cluster_id = bcs_cluster_id
 
         # time_field
         self.time_field, self.time_field_type, self.time_field_unit = self.init_time_field(
@@ -1569,6 +1573,12 @@ class BaseIndexSetHandler:
             self.is_trace_log_pre_check()
 
     def create(self):
+        tag_ids = []
+        if self.bcs_cluster_id:
+            # 为k8s容器添加默认标签
+            tag_id = IndexSetTag.get_tag_id(name=self.bcs_cluster_id)
+            tag_ids.append(str(tag_id))
+
         # 创建索引集
         self.index_set_obj = LogIndexSet.objects.create(
             index_set_name=self.index_set_name,
@@ -1588,6 +1598,7 @@ class BaseIndexSetHandler:
             is_editable=self.is_editable,
             target_fields=self.target_fields,
             sort_fields=self.sort_fields,
+            tag_ids=tag_ids if tag_ids else "",
         )
         logger.info(
             f"[create_index_set][{self.index_set_obj.index_set_id}]index_set_name => {self.index_set_name}, indexes => {len(self.indexes)}"
