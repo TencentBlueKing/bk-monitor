@@ -304,14 +304,19 @@ class BaseQueryHandler:
         # 转换 condition 的字段
         self.conditions = self.query_transformer.transform_condition_fields(conditions)
 
-    def scan(self):
+    def scan(self, source_fields=None):
         """
         扫描全量符合条件的文档
+
+        :param source_fields: 可选，指定需要返回的字段。如果为None，返回所有字段。
         """
         search_object = self.get_search_object()
         search_object = self.add_conditions(search_object)
         search_object = self.add_query_string(search_object)
         search_object = self.add_ordering(search_object)
+
+        if source_fields:
+            search_object = search_object.source(source_fields)
 
         yield from search_object.params(preserve_order=True).scan()
 

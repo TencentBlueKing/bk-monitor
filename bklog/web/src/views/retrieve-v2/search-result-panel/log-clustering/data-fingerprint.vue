@@ -447,8 +447,7 @@
   import { getConditionRouterParams } from '../panel-util';
   import { RetrieveUrlResolver } from '@/store/url-resolver';
   import { BK_LOG_STORAGE } from '@/store/store.type';
-  import RetrieveHelper from '@/views/retrieve-helper';
-
+  import RetrieveHelper, { RetrieveEvent } from '@/views/retrieve-helper';
   export default {
     components: {
       ClusterEventPopover,
@@ -712,6 +711,7 @@
           // 触发索引集查询
           this.$nextTick(() => {
             store.dispatch('requestIndexSetQuery');
+            RetrieveHelper.fire(RetrieveEvent.TREND_GRAPH_SEARCH);
           });
         });
       },

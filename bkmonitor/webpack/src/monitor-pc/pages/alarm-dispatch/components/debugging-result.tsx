@@ -217,7 +217,8 @@ export default class DebuggingResult extends tsc<IProps, IEvent> {
             class='wrap-content'
             v-bkloading={{ isLoading: this.loading }}
           >
-            {this.resultsGroup.length ? (
+            {this.resultsGroup.length ? [
+              <div class='content-tips' key='content-tips'>{this.$t('调试数据范围取当前时间窗口前1000条数据')}</div>,
               this.resultsGroup.map((item, index) => (
                 <div
                   key={item.key}
@@ -378,7 +379,7 @@ export default class DebuggingResult extends tsc<IProps, IEvent> {
                   ))}
                 </div>
               ))
-            ) : (
+            ] : (
               <div class='debugger-result-empty'>
                 {/* 空样式 */}
                 <div>
