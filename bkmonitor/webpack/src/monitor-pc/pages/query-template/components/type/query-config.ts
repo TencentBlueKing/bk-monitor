@@ -24,6 +24,7 @@
  * IN THE SOFTWARE.
  */
 
+import { VariableTypeEnum } from '../../constants';
 import { MetricDetail as BaseMetricDetail } from '@/pages/strategy-config/strategy-config-set-new/typings';
 
 import type { MetricDetail as TypeMetricDetail } from '@/pages/strategy-config/strategy-config-set-new/typings';
@@ -40,9 +41,9 @@ export class MetricDetail extends BaseMetricDetail {}
 
 // todo
 export const TVariableType = {
-  METHOD: 'method',
-  DIMENSION: 'dimension',
-  CONDITION: 'condition',
+  METHOD: VariableTypeEnum.AGG_METHOD,
+  DIMENSION: VariableTypeEnum.DIMENSION,
+  CONDITION: VariableTypeEnum.CONDITION,
   CONSTANT: 'constant', // （非变量类型）
 } as const;
 export interface IDimensionOptionsItem extends IVariablesItem {
