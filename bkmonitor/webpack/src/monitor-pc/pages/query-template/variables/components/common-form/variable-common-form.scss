@@ -1,0 +1,33 @@
+.bk-form.variable-common-form {
+  .bk-label {
+    padding: 0;
+    font-size: 12px;
+    color: #4D4F56;
+    text-align: left;
+  }
+
+  .bk-form-item {
+    margin-bottom: 16px;
+  }
+
+  .variable-name-input {
+    .bk-form-input,
+    .group-box {
+      border-color: #dc9db8 !important;
+    }
+
+    .bk-form-input {
+      color: #E54488;
+      background-color: #FEF9FB !important;
+    }
+
+    .group-box {
+      background-color: #feeaf2;
+
+      .group-text {
+        padding: 0 8px;
+        color: #E54488;
+      }
+    }
+  }
+}
