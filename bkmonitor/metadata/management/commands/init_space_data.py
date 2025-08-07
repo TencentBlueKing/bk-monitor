@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -32,7 +31,7 @@ class Command(BaseCommand):
         if options["init_type"] in ["True", "true"]:
             call_command("init_space_type")
         if options["sync_bkcc"] in ["True", "true"]:
-            call_command("sync_cmdb_space")
+            call_command("sync_cmdb_space", bk_tenant_id="system")
         if options["sync_bcs"] in ["True", "true"]:
             call_command("sync_bcs_space")
         if options["init_redis"] in ["True", "true"]:
