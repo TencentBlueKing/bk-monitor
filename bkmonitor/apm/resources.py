@@ -438,6 +438,9 @@ class ReleaseAppConfigResource(Resource):
         QpsConfig.refresh_config(bk_biz_id, app_name, config_level, config_key, [{"qps": qps}])
 
     def set_custom_service_config(self, bk_biz_id, app_name, custom_services):
+        """
+        custom_services为空列表时，意味着删除所有自定义服务
+        """
         if custom_services is None:
             return
         CustomServiceConfig.objects.filter(
@@ -451,7 +454,8 @@ class ReleaseAppConfigResource(Resource):
             instance_name_config = config.get("instance_name_config", [])
             dimension_config = config.get("dimension_config", [])
             sampler_config = config.get("sampler_config", {})
-            apdex_configs = config.get("apdex_config", [])
+            # apdex_configs 为空列表意味删除，因此使用 None
+            apdex_configs = config.get("apdex_config", None)
             license_config = config.get("license_config", {})
             db_config = config.get("db_config", {})
             probe_config = config.get("probe_config", {})
@@ -471,12 +475,12 @@ class ReleaseAppConfigResource(Resource):
             )
 
     def set_instance_name_config(self, bk_biz_id, app_name, instance_name_config):
-        if instance_name_config is None:
+        if not instance_name_config:
             return
         ApmInstanceDiscover.refresh_config(bk_biz_id, app_name, instance_name_config)
 
     def set_dimension_config(self, bk_biz_id, app_name, dimension_configs):
-        if dimension_configs is None:
+        if not dimension_configs:
             return
         ApmMetricDimension.refresh_config(bk_biz_id, app_name, dimension_configs)
 
