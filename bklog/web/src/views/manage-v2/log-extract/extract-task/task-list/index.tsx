@@ -24,6 +24,7 @@
  * IN THE SOFTWARE.
  */
 
+
 import { defineComponent, ref, computed, onMounted, onBeforeUnmount, reactive } from 'vue';
 import useStore from '@/hooks/use-store';
 import useLocale from '@/hooks/use-locale';
@@ -32,8 +33,8 @@ import useRoute from '@/hooks/use-route';
 import http from '@/api';
 
 import EmptyStatus from '@/components/empty-status/index.vue';
-import DownloadUrl from './download-url.vue';
-import ListBox from './list-box.vue';
+import DownloadUrl from './download-url.tsx';
+import ListBox from './list-box.tsx';
 import TaskStatusDetail from './task-status-detail.vue';
 import TextFilterDetail from './text-filter-detail.vue';
 
@@ -54,7 +55,6 @@ export default defineComponent({
     const router = useRouter();
     const route = useRoute();
 
-    // 响应式数据
     const searchKeyword = ref(''); // 搜索关键词
     const isLoading = ref(false); // 加载状态
     const taskList = ref<any[]>([]); // 任务列表
@@ -305,13 +305,6 @@ export default defineComponent({
         });
       }
       return [];
-    };
-
-    // 处理搜索变化
-    const handleSearchChange = (val: string) => {
-      if (val === '' && !isLoading.value) {
-        initTaskList();
-      }
     };
 
     // 处理操作
