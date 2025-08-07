@@ -139,10 +139,8 @@ class CreateEsRouter(BaseLogRouter):
             )
         # 推送空间数据
         logger.info("CreateEsRouter: try to push route for table_id->[%s]", data["table_id"])
-        client.push_space_table_ids(
-            space_type=data["space_type"], space_id=data["space_id"], bk_tenant_id=bk_tenant_id, is_publish=True
-        )
-        client.push_es_table_id_detail(table_id_list=[data["table_id"]], is_publish=True)
+        client.push_space_table_ids(space_type=data["space_type"], space_id=data["space_id"], is_publish=True)
+        client.push_es_table_id_detail(table_id_list=[data["table_id"]], is_publish=True, bk_tenant_id=bk_tenant_id)
 
         if data.get("data_label", None):
             logger.info(
@@ -214,9 +212,7 @@ class CreateDorisRouter(BaseLogRouter):
         logger.info("CreateDorisRouter: create doris datalink related records successfully,now try to push router")
         # 推送路由 空间路由+结果表详情路由
         client.push_doris_table_id_detail(table_id_list=[data["table_id"]], is_publish=True, bk_tenant_id=bk_tenant_id)
-        client.push_space_table_ids(
-            space_type=data["space_type"], space_id=data["space_id"], bk_tenant_id=bk_tenant_id, is_publish=True
-        )
+        client.push_space_table_ids(space_type=data["space_type"], space_id=data["space_id"], is_publish=True)
         if data.get("data_label", None):
             logger.info(
                 "CreateDorisRouter: try to push data label router for table_id->[%s],data_label->[%s]",
