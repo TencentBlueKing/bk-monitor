@@ -1,11 +1,3 @@
-swagger: '2.0'
-basePath: /
-info:
-  version: '1.0'
-  title: API Gateway Resources
-  description: ''
-schemes:
-- http
 paths:
   /app/dashboard/get_dashboard_directory_tree/:
     get:
@@ -19,18 +11,13 @@ paths:
         required: true
         description: 业务ID
       x-bk-apigateway-resource:
-        isPublic: true
-        allowApplyPermission: true
         matchSubpath: false
         backend:
-          type: HTTP
+          name: default
           method: get
           path: /api/v4/grafana/get_directory_tree/
           matchSubpath: false
-        authConfig:
-          appVerifiedRequired: true
-          userVerifiedRequired: false
-          resourcePermissionRequired: true
+          timeout: 0
         descriptionEn: get dashboard directory tree
   /app/dashboard/get_dashboard_detail/:
     get:
@@ -50,16 +37,11 @@ paths:
         required: true
         description: 仪表盘uid
       x-bk-apigateway-resource:
-        isPublic: true
-        allowApplyPermission: true
         matchSubpath: false
         backend:
-          type: HTTP
+          name: default
           method: get
           path: /api/v4/grafana/get_dashboard_detail/
           matchSubpath: false
-        authConfig:
-          appVerifiedRequired: true
-          userVerifiedRequired: false
-          resourcePermissionRequired: true
+          timeout: 0
         descriptionEn: get dashboard detail
