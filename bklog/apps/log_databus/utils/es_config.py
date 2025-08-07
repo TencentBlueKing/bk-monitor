@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -19,6 +18,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+
 from apps.feature_toggle.handlers.toggle import FeatureToggleObject
 from apps.feature_toggle.plugins.constants import BKLOG_ES_CONFIG
 
@@ -30,3 +30,20 @@ def get_es_config(bk_biz_id):
         if str(bk_biz_id) == str(biz_es_config.get("bk_biz_id", "")):
             return biz_es_config["es_config"]
     return bklog_es_config["global_es_config"]
+
+
+def is_version_less_than(version, target_version):
+    """检查版本是否小于目标版本"""
+    try:
+        v_parts = version.split(".")[:2]
+        t_parts = target_version.split(".")[:2]
+
+        if int(v_parts[0]) < int(t_parts[0]):
+            return True
+        elif int(v_parts[0]) > int(t_parts[0]):
+            return False
+        else:
+            return int(v_parts[1]) < int(t_parts[1])
+
+    except (ValueError, IndexError):
+        return True
