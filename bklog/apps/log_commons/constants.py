@@ -19,24 +19,6 @@ We undertake not to change the open source license (MIT license) applicable to t
 the project delivered to anyone in the future.
 """
 
-from django.conf.urls import include
-from django.urls import re_path
-from rest_framework import routers
-
-from apps.log_commons import views
-from apps.log_commons.views import FrontendEventViewSet
-
-router = routers.DefaultRouter(trailing_slash=True)
-router.register(r"external_permission", views.ExternalPermissionViewSet, basename="external_permission")
-router.register(r"share", views.ShareViewSet, basename="share")
-router.register(r"", views.GetApiTokenViewSet, basename="api_token")
-router.register(r"frontend_event", FrontendEventViewSet, basename="frontend_event")
-
-urlpatterns = [
-    # 获取文档链接地址
-    re_path(r"^get_docs_link/$", views.get_docs_link),
-    # 获取外部系统权限
-    re_path(r"^", include(router.urls)),
-    # 获取临时分享token
-    re_path(r"^", include(router.urls)),
-]
+# Token申请频率限制常量
+TOKEN_REQUEST_LIMIT_COUNT = 5  # 60秒内最多申请5次
+TOKEN_REQUEST_LIMIT_SECONDS = 60  # 限制时间窗口为60秒

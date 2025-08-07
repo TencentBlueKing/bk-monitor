@@ -27,7 +27,6 @@
 <template>
   <div
     id="app"
-    v-bkloading="{ isLoading: pageLoading }"
     :class="{ 'clear-min-height': $route.name === 'retrieve' }"
     :style="noticeComponentStyle"
   >
@@ -38,7 +37,7 @@
       @show-alert-change="showAlertChange"
     />
     <head-nav
-      v-show="!isAsIframe && !pageLoading"
+      v-show="!isAsIframe"
       :welcome-data="welcomePageData"
       @reload-router="routerKey += 1"
       @welcome="welcomePageData = $event"
