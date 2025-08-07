@@ -27,14 +27,13 @@
 import { Component, Emit, Prop, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
+import TableSkeleton from '../../../../components/skeleton/table-skeleton';
 import { QueryTemplateSliderTabEnum, TABLE_DEFAULT_DISPLAY_FIELDS, TABLE_FIXED_DISPLAY_FIELDS } from '../../constants';
-import {
-  type IPagination,
-  type ITableSettingChangeEvent,
-  type ITableSettingSize,
-  type ITableSort,
-} from '../../typings';
+import QueryTemplateSlider from '../query-template-slider/query-template-slider';
 import DeleteConfirm from './components/delete-confirm';
+
+import type { IPagination, ITableSettingChangeEvent, ITableSettingSize, ITableSort } from '../../typings';
+import type { QueryTemplateSliderTabEnumType } from '../../typings/constants';
 
 import './query-template-table.scss';
 
@@ -50,6 +49,8 @@ interface QueryTemplateTableEmits {
 interface QueryTemplateTableProps {
   /** 页码 */
   current: number;
+  /** 表格加载状态 */
+  loading: boolean;
   /** 每页条数 */
   pageSize: number;
   /** 排序 */
@@ -62,10 +63,13 @@ interface QueryTemplateTableProps {
 
 @Component
 export default class QueryTemplateTable extends tsc<QueryTemplateTableProps, QueryTemplateTableEmits> {
-  @Ref('deleteConfirmTipRef') deleteConfirmTipRef: Record<string, any>;
+  @Ref('tableRef') tableRef: Record<string, any>;
+  @Ref('deleteConfirmTipRef') deleteConfirmTipRef: InstanceType<typeof DeleteConfirm>;
 
   /** 页码 */
   @Prop({ type: Number }) current: number;
+  /** 表格加载状态 */
+  @Prop({ type: Boolean }) loading: boolean;
   /** 每页条数 */
   @Prop({ type: Number, default: 50 }) pageSize: number;
   /** 排序 */
@@ -75,6 +79,10 @@ export default class QueryTemplateTable extends tsc<QueryTemplateTableProps, Que
   /** 总数 */
   @Prop({ type: Number }) total: number;
 
+  /** 模板详情 - 侧弹抽屉显示状态 */
+  sliderShow = false;
+  /** 模板详情 - 侧弹抽屉显示时默认激活的 tab 面板 */
+  sliderActiveTab: QueryTemplateSliderTabEnumType = null;
   /** 删除二次确认 popover 实例 */
   deletePopoverInstance = null;
   /** 删除二次确认 popover 延迟打开定时器 */
@@ -136,6 +144,10 @@ export default class QueryTemplateTable extends tsc<QueryTemplateTableProps, Que
     },
   };
 
+  /** loading状态激活时 表格 和 骨架屏 类名 */
+  get tableLoadingActiveClassConfig() {
+    return this.loading ? 'table-loading-active' : '';
+  }
   /** 表格展示的列配置数组 */
   get tableColumns() {
     return this.displayFields.map(field => this.allTableColumns[field]);
@@ -170,6 +182,7 @@ export default class QueryTemplateTable extends tsc<QueryTemplateTableProps, Que
       current: this.current,
       limit: this.pageSize,
       count: this.total,
+      showTotalCount: true,
     };
   }
 
@@ -194,6 +207,13 @@ export default class QueryTemplateTable extends tsc<QueryTemplateTableProps, Que
   @Emit('pageSizeChange')
   handlePageSizeChange(pageSize: number) {
     return pageSize;
+  }
+
+  mounted() {
+    this.tableRef?.$el.addEventListener('wheel', this.handlePopoverHide);
+  }
+  beforeDestroy() {
+    this.tableRef?.$el.removeEventListener('wheel', this.handlePopoverHide);
   }
 
   /**
@@ -272,10 +292,14 @@ export default class QueryTemplateTable extends tsc<QueryTemplateTableProps, Que
       id: string;
     }
   ) {
-    const sliderTab =
-      showEvent?.columnKey === 'name' ? QueryTemplateSliderTabEnum.CONFIG : QueryTemplateSliderTabEnum.CONSUME;
-    console.log('================ isShow ================', isShow);
-    console.log('================ sliderTab ================', sliderTab);
+    let sliderTab = null;
+    if (isShow) {
+      sliderTab =
+        showEvent?.columnKey === 'name' ? QueryTemplateSliderTabEnum.CONFIG : QueryTemplateSliderTabEnum.CONSUME;
+    }
+
+    this.sliderActiveTab = sliderTab;
+    this.sliderShow = isShow;
   }
 
   /**
@@ -299,13 +323,13 @@ export default class QueryTemplateTable extends tsc<QueryTemplateTableProps, Que
       columnKey: columnKey,
       id: row.id,
     };
-    let alias = row[columnKey];
+    let alias = row?.[columnKey];
     if (columnKey === 'relevance_configs') {
-      alias = row[columnKey]?.length || 0;
+      alias = row?.[columnKey]?.length || 0;
     }
     return (
       <span
-        class={`click-show-slicer-col `}
+        class={'click-show-slicer-col'}
         onClick={() => this.handleSliderShowChange(true, showSliderOption)}
       >
         {alias}
@@ -380,7 +404,7 @@ export default class QueryTemplateTable extends tsc<QueryTemplateTableProps, Que
         <bk-table
           ref='tableRef'
           height='100%'
-          class='query-template-table'
+          class={`query-template-table ${this.tableLoadingActiveClassConfig}`}
           auto-scroll-to-top={true}
           border={false}
           data={this.tableData}
@@ -402,12 +426,21 @@ export default class QueryTemplateTable extends tsc<QueryTemplateTableProps, Que
             />
           </bk-table-column>
         </bk-table>
+        <TableSkeleton
+          class={`query-template-table-skeleton ${this.tableLoadingActiveClassConfig}`}
+          type={5}
+        />
         <div style='display: none'>
           <DeleteConfirm
             ref='deleteConfirmTipRef'
             templateName={this.deletePopoverInstance?.deleteConfirmConfig?.templateName}
             onCancel={this.handlePopoverHide}
             onConfirm={this.handlePopoverHide}
+          />
+          <QueryTemplateSlider
+            defaultActiveTab={this.sliderActiveTab}
+            sliderShow={this.sliderShow}
+            onSliderShowChange={this.handleSliderShowChange}
           />
         </div>
       </div>
