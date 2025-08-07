@@ -316,7 +316,6 @@ class UpdateDorisRouter(BaseLogRouter):
         logger.info("UpdateDorisRouter: try to update doris router for table_id->[%s]", table_id)
 
         update_doris_fields = []
-        need_refresh_table_id_detail = False
         need_refresh_data_label = False
 
         try:
@@ -338,7 +337,6 @@ class UpdateDorisRouter(BaseLogRouter):
                 doris_storage.storage_cluster_id = data["cluster_id"]
                 update_doris_fields.append("storage_cluster_id")
             if update_doris_fields:
-                need_refresh_table_id_detail = True
                 doris_storage.save(update_fields=update_doris_fields)
         except Exception as e:  # pylint:disable=broad-except
             logger.error("UpdateDorisRouter: failed to update doris router for table_id->[%s],error->[%s]", table_id, e)
@@ -347,15 +345,12 @@ class UpdateDorisRouter(BaseLogRouter):
         # 更新options
         if data.get("options"):
             self.create_or_update_options(bk_tenant_id=bk_tenant_id, table_id=table_id, options=data["options"])
-            need_refresh_table_id_detail = True
 
         logger.info(
             "UpdateDorisRouter:update doris router for table_id->[%s] successfully,now try to push router", table_id
         )
 
-        if need_refresh_table_id_detail:
-            # 推送结果表详情路由
-            client.push_doris_table_id_detail(table_id_list=[table_id], bk_tenant_id=bk_tenant_id, is_publish=True)
+        client.push_doris_table_id_detail(table_id_list=[table_id], bk_tenant_id=bk_tenant_id, is_publish=True)
 
         if need_refresh_data_label:
             logger.info(
