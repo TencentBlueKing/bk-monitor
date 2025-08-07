@@ -110,7 +110,7 @@ def sort_topo_tree_by_pinyin(topo_trees):
     """
     if not topo_trees:
         return topo_trees
-    topo_trees.sort(key=lambda topo: lazy_pinyin(topo["bk_inst_name"])[0])
+    topo_trees.sort(key=lambda topo: lazy_pinyin(topo["bk_inst_name"])[0] if topo["bk_inst_name"] else "")
     for topo_tree in topo_trees:
         sort_topo_tree_by_pinyin(topo_tree["child"])
 
