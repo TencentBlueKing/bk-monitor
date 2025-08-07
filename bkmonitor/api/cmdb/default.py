@@ -150,9 +150,7 @@ def _get_topo_tree(bk_biz_id):
         }
 
     # 添加空闲集群/模块
-    internal_module = client.get_biz_internal_module(
-        bk_biz_id=bk_biz_id, bk_supplier_account=settings.BK_SUPPLIER_ACCOUNT
-    )
+    internal_module = client.get_biz_internal_module(bk_biz_id=bk_biz_id)
     if internal_module:
         # 仅支持cmdb空间获取该信息
         if not internal_module["module"]:
