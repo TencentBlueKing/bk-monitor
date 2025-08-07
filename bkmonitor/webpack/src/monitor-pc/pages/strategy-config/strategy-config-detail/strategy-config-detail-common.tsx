@@ -458,7 +458,9 @@ export default class StrategyConfigDetailCommon extends tsc<object> {
       .catch(err => {
         console.log(err);
       })
-      .finally(() => (this.loading = false));
+      .finally(() => {
+        this.loading = false;
+      });
   }
 
   mounted() {
@@ -1256,6 +1258,7 @@ export default class StrategyConfigDetailCommon extends tsc<object> {
                             <span class='bold-span'>{triggerConfig.count}</span>
                           </i18n>
                         ),
+
                         commonItem(
                           this.$t('恢复条件'),
                           <i18n
@@ -1269,6 +1272,7 @@ export default class StrategyConfigDetailCommon extends tsc<object> {
                             ) : null}
                           </i18n>
                         ),
+
                         commonItem(
                           this.$t('无数据'),
                           noDataConfig.isEnabled ? (
@@ -1578,11 +1582,23 @@ export default class StrategyConfigDetailCommon extends tsc<object> {
                       <StrategyTemplatePreview
                         dialogShow={this.isShowTemplate}
                         template={this.templateData.message_tmpl}
-                        {...{ on: { 'update:dialogShow': v => (this.isShowTemplate = v) } }}
+                        {...{
+                          on: {
+                            'update:dialogShow': v => {
+                              this.isShowTemplate = v;
+                            },
+                          },
+                        }}
                       />
                       <StrategyVariateList
                         dialogShow={this.variateListShow}
-                        {...{ on: { 'update:dialogShow': val => (this.variateListShow = val) } }}
+                        {...{
+                          on: {
+                            'update:dialogShow': val => {
+                              this.variateListShow = val;
+                            },
+                          },
+                        }}
                         variate-list={this.variateList}
                       />
                     </div>
@@ -1592,7 +1608,11 @@ export default class StrategyConfigDetailCommon extends tsc<object> {
                     v-model={this.alarmGroupDetail.show}
                     customEdit
                     onEditGroup={this.handleEditAlarmGroup}
-                    onShowChange={val => !val && (this.alarmGroupDetail.id = 0)}
+                    onShowChange={val => {
+                      if (!val) {
+                        this.alarmGroupDetail.id = 0;
+                      }
+                    }}
                   />
                 </div>
               )}
@@ -1639,7 +1659,9 @@ export default class StrategyConfigDetailCommon extends tsc<object> {
             need-footer={false}
             show-footer={false}
             title={this.$t('监控目标')}
-            on-change={v => (this.showTargetTable = v)}
+            on-change={v => {
+              this.showTargetTable = v;
+            }}
           >
             <strategy-target-table
               objType={this.metricData[0]?.objectType || this.targetDetail?.instance_type || ''}

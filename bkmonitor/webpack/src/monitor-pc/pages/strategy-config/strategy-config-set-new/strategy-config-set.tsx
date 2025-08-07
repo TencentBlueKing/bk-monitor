@@ -67,7 +67,7 @@ import { type IValue as IAlarmItem, type IAllDefense, actionConfigGroupList } fr
 import AlarmHandlingList from './alarm-handling/alarm-handling-list';
 import BaseConfig, { type IBaseConfig } from './base-config/base-config';
 import GroupPanel from './components/group-panel';
-import DetectionRules from './detection-rules/detection-rules';
+import DetectionRules, { AI_DETECT_RULE_TYPES } from './detection-rules/detection-rules';
 import JudgingCondition, {
   type IJudgingData,
   DEFAULT_TIME_RANGES,
@@ -512,6 +512,17 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
   get strategyTarget() {
     return this.handleGetTargetParams();
   }
+
+  /* 是否只选择了智能检测算法 */
+  get isOnlyAiDetectRule() {
+    return (
+      !!this.detectionConfig.data.length &&
+      this.detectionConfig.data.every(item => {
+        return AI_DETECT_RULE_TYPES.includes(item.type);
+      })
+    );
+  }
+
   /**
    * 是否需要展示单位
    * 选择了表达式隐藏检测规则以及预览图的单位的展示
@@ -2775,6 +2786,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
                   editMode={this.monitorDataEditMode}
                   isAlert={!this.isNeedJudgingCondition}
                   isDetailMode={this.isDetailMode}
+                  isOnlyAiDetectRule={this.isOnlyAiDetectRule}
                   // judgeTimeRange={this.judgeTimeRange}
                   legalDimensionList={this.legalDimensionList}
                   // onNoDataChange={this.handleNoDataChange}

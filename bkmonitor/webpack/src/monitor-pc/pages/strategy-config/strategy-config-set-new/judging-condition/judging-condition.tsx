@@ -85,6 +85,7 @@ interface Idata {
   isAlert?: boolean; // 是否为关联告警
   isDetailMode?: boolean;
   isFta?: boolean;
+  isOnlyAiDetectRule?: boolean;
   judgeTimeRange?: string[]; // 关联告警时只显示生效时间段
   legalDimensionList?: ICommonItem[];
   metricData: MetricDetail[];
@@ -142,6 +143,8 @@ export default class JudgingCondition extends tsc<Idata, IEvent> {
   @Prop({ type: Array, default: () => ['00:00:00', '23:59:59'] }) judgeTimeRange: string[];
   @Prop({ type: Array, default: () => [] }) calendarList: IOptionsItem[]; // 日历列表可选项
   @Prop({ type: String, default: 'Edit' }) editMode: EditModeType;
+  /* 当前策略是否只选择了一个智能检测算法 */
+  @Prop({ type: Boolean, default: false }) isOnlyAiDetectRule: boolean;
   @Ref() calendarSelectRef: any;
 
   aggList = [];
@@ -202,6 +205,16 @@ export default class JudgingCondition extends tsc<Idata, IEvent> {
     } else {
       this.curDimensions = [];
       this.localData.noDataConfig.dimensions = [];
+    }
+  }
+
+  @Watch('isOnlyAiDetectRule')
+  handleWatchIsOnlyAiDetectRule(v: boolean) {
+    if (v) {
+      this.localData.triggerConfig.checkWindow = 5;
+      this.localData.triggerConfig.count = 1;
+      this.localData.recoveryConfig.checkWindow = 5;
+      this.emitValueChange();
     }
   }
 
@@ -423,7 +436,13 @@ export default class JudgingCondition extends tsc<Idata, IEvent> {
           dialogShow={noticeTemplate.previewTemplate}
           scenario={this.scenario}
           template={noticeTemplate.anomalyTemplate}
-          {...{ on: { 'update:dialogShow': val => (noticeTemplate.previewTemplate = val) } }}
+          {...{
+            on: {
+              'update:dialogShow': val => {
+                noticeTemplate.previewTemplate = val;
+              },
+            },
+          }}
         />
       </div>
     );
@@ -450,7 +469,13 @@ export default class JudgingCondition extends tsc<Idata, IEvent> {
               <bk-input
                 class='small-input'
                 v-model={this.localData.triggerConfig.checkWindow}
+                v-bk-tooltips={{
+                  content: this.$t('仅使用了智能算法不可编辑'),
+                  placements: ['top'],
+                  disabled: !this.isOnlyAiDetectRule,
+                }}
                 behavior='simplicity'
+                disabled={this.isOnlyAiDetectRule}
                 size='small'
                 type='number'
                 on-change={this.emitValueChange}
@@ -459,7 +484,13 @@ export default class JudgingCondition extends tsc<Idata, IEvent> {
               <bk-input
                 class='small-input'
                 v-model={this.localData.triggerConfig.count}
+                v-bk-tooltips={{
+                  content: this.$t('仅使用了智能算法不可编辑'),
+                  placements: ['top'],
+                  disabled: !this.isOnlyAiDetectRule,
+                }}
                 behavior='simplicity'
+                disabled={this.isOnlyAiDetectRule}
                 size='small'
                 type='number'
                 on-change={this.emitValueChange}
@@ -481,7 +512,13 @@ export default class JudgingCondition extends tsc<Idata, IEvent> {
                 <bk-input
                   class='small-input'
                   v-model={this.localData.recoveryConfig.checkWindow}
+                  v-bk-tooltips={{
+                    content: this.$t('仅使用了智能算法不可编辑'),
+                    placements: ['top'],
+                    disabled: !this.isOnlyAiDetectRule,
+                  }}
                   behavior='simplicity'
+                  disabled={this.isOnlyAiDetectRule}
                   size='small'
                   type='number'
                   on-change={this.emitValueChange}
@@ -498,6 +535,7 @@ export default class JudgingCondition extends tsc<Idata, IEvent> {
             </div>
           </VerifyItem>
         </CommonItem>
+
         <CommonItem
           title={this.$t('无数据')}
           show-semicolon
@@ -656,13 +694,25 @@ export default class JudgingCondition extends tsc<Idata, IEvent> {
         </CommonItem>
         <StrategyTemplatePreview
           dialogShow={noticeTemplate.previewTemplate}
-          {...{ on: { 'update:dialogShow': val => (noticeTemplate.previewTemplate = val) } }}
+          {...{
+            on: {
+              'update:dialogShow': val => {
+                noticeTemplate.previewTemplate = val;
+              },
+            },
+          }}
           scenario={this.scenario}
           template={noticeTemplate.anomalyTemplate}
         />
         <StrategyVariateList
           dialogShow={noticeTemplate.variateListShow}
-          {...{ on: { 'update:dialogShow': val => (noticeTemplate.variateListShow = val) } }}
+          {...{
+            on: {
+              'update:dialogShow': val => {
+                noticeTemplate.variateListShow = val;
+              },
+            },
+          }}
           variate-list={noticeTemplate.variateList}
         />
       </div>
