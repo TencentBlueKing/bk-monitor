@@ -1040,7 +1040,7 @@ class CallerLineChart extends CommonSimpleChart {
             if (f.id === 'time_shift') {
               return {
                 id: 'time_shift',
-                params: { id: 'n', value: '$time_shift' },
+                params: [{ id: 'n', value: '$time_shift' }],
               };
             }
             return f;
