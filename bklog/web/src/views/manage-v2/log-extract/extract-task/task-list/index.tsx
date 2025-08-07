@@ -24,7 +24,6 @@
  * IN THE SOFTWARE.
  */
 
-
 import { defineComponent, ref, computed, onMounted, onBeforeUnmount, reactive } from 'vue';
 import useStore from '@/hooks/use-store';
 import useLocale from '@/hooks/use-locale';
@@ -235,6 +234,9 @@ export default defineComponent({
     const handleCreateTask = () => {
       router.push({
         name: 'extract-create',
+        query: {
+          ...route.query,
+        },
       });
     };
 
@@ -244,6 +246,9 @@ export default defineComponent({
       sessionStorage.setItem('cloneData', JSON.stringify(row));
       router.push({
         name: 'extract-clone',
+        query: {
+          ...route.query,
+        },
       });
     };
 
