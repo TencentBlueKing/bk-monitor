@@ -1747,9 +1747,12 @@ class BaseIndexSetHandler:
             self.index_set_obj.sort_fields = self.sort_fields_raw
 
         # 标签
-        if self.bcs_cluster_id and not self.index_set_obj.tag_ids:
+        if self.bcs_cluster_id:
             tag_id = IndexSetTag.get_tag_id(name=self.bcs_cluster_id)
-            self.index_set_obj.tag_ids = [str(tag_id)]
+            tag_ids = list(self.index_set_obj.tag_ids)
+            if str(tag_id) not in tag_ids:
+                tag_ids.append(str(tag_id))
+                self.index_set_obj.tag_ids = tag_ids
 
         self.index_set_obj.save()
 
