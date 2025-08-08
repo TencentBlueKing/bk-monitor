@@ -314,7 +314,7 @@
         return [];
       },
       routerIndexSet() {
-        return window.__IS_MONITOR_COMPONENT__ ? this.$route.query.indexId : this.$route.params.indexId;
+        return Number(window.__IS_MONITOR_COMPONENT__ ? this.$route.query.indexId : this.$route.params.indexId) 
       },
     },
     watch: {
@@ -455,7 +455,7 @@
               });
               return;
             }
-            const lightName = this.indexSetList.find(item => item.index_set_id === this.routerIndexSet)?.lightenName;
+            const lightName = this.indexSetList.find(item => item.index_set_id == this.routerIndexSet)?.lightenName;
             const downloadName = lightName
               ? `bk_log_search_${lightName.substring(2, lightName.length - 1)}.${this.documentType}`
               : `bk_log_search.${this.documentType}`;
