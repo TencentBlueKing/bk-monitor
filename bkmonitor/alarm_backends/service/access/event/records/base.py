@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -9,11 +8,9 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-
 import json
 import logging
 from collections import defaultdict
-from typing import Dict
 
 import arrow
 from django.utils.functional import cached_property
@@ -33,12 +30,12 @@ class EventRecord(Filterer):
     """
 
     def __init__(self, raw_data):
-        super(EventRecord, self).__init__()
+        super().__init__()
         self.raw_data = raw_data
         self.data = {}
 
         self.is_retains = defaultdict(lambda: True)  # 保留记录，记录当前record经过filter之后是否仍然保留下来
-        self.inhibitions = defaultdict(lambda: False)  # 抑制记录，记录当前record是否被抑制
+        self.inhibitions = defaultdict(bool)  # 抑制记录，记录当前record是否被抑制
 
     def __str__(self):
         return json.dumps(self.__dict__)
@@ -76,6 +73,10 @@ class EventRecord(Filterer):
     @cached_property
     def _strategy_id(self):
         return self.raw_data["strategy"].id
+
+    @cached_property
+    def bk_tenant_id(self) -> str:
+        return self.raw_data["strategy"].bk_tenant_id
 
     @cached_property
     def _item_id(self):
@@ -142,7 +143,7 @@ class EventRecord(Filterer):
         return self.raw_data["strategy"].gen_strategy_snapshot()
 
     @property
-    def filter_dimensions(self) -> Dict:
+    def filter_dimensions(self) -> dict:
         return {}
 
     def clean_dimension_fields(self):

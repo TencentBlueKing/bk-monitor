@@ -19,11 +19,11 @@ from django.utils.translation import gettext as _
 from alarm_backends.constants import CONST_MINUTES, CONST_ONE_HOUR, NO_DATA_LEVEL
 from alarm_backends.core.cache import key
 from alarm_backends.core.cache.calendar import CalendarCacheManager
-from alarm_backends.core.cache.cmdb.business import BusinessManager
 from alarm_backends.core.cache.strategy import StrategyCacheManager
 from alarm_backends.core.control.item import Item
 from alarm_backends.core.i18n import i18n
 from bkmonitor.utils import time_tools
+from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id
 from bkmonitor.models.strategy import AlgorithmModel
 from core.errors.alarm_backends import StrategyItemNotFound
 
@@ -78,6 +78,10 @@ class Strategy:
                 min_interval = query_config["agg_interval"]
 
         return min_interval or CONST_MINUTES
+
+    @cached_property
+    def bk_tenant_id(self) -> str:
+        return bk_biz_id_to_bk_tenant_id(self.bk_biz_id)
 
     @property
     def priority(self):
@@ -190,9 +194,7 @@ class Strategy:
         # 再看看日历，是不是处于休息日
         calendar_ids = uptime.get("calendars") or []
         if calendar_ids:
-            calendars = CalendarCacheManager.mget(
-                calendar_ids=calendar_ids, bk_tenant_id=BusinessManager.get_tenant_id(self.bk_biz_id)
-            )
+            calendars = CalendarCacheManager.mget(calendar_ids=calendar_ids, bk_tenant_id=self.bk_tenant_id)
         else:
             calendars = []
 

@@ -889,7 +889,7 @@ def test_create_basereport_datalink_for_bkcc_metadata_part(create_or_delete_reco
         ) as mock_apply_with_retry,
     ):  # noqa
         # 调用多租户基础采集数据链路创建方法
-        create_basereport_datalink_for_bkcc(bk_biz_id=1)
+        create_basereport_datalink_for_bkcc(bk_tenant_id="system", bk_biz_id=1)
         mock_apply_with_retry.assert_called_once()
 
     table_id_prefix = "system_1_sys."
@@ -945,7 +945,7 @@ def test_create_basereport_datalink_for_bkcc_bkbase_v4_part(create_or_delete_rec
         ) as mock_apply_with_retry,
     ):  # noqa
         # 调用多租户基础采集数据链路创建方法
-        create_basereport_datalink_for_bkcc(bk_biz_id=1)
+        create_basereport_datalink_for_bkcc(bk_tenant_id="system", bk_biz_id=1)
         mock_apply_with_retry.assert_called_once()
 
     data_link_ins = models.DataLink.objects.get(data_link_name="system_1_sys_base")
@@ -2006,7 +2006,7 @@ def test_create_base_event_datalink_for_bkcc_metadata_part(create_or_delete_reco
         ) as mock_apply_with_retry,
     ):  # noqa
         # 调用多租户基础采集数据链路创建方法
-        create_base_event_datalink_for_bkcc(bk_biz_id=1)
+        create_base_event_datalink_for_bkcc(bk_tenant_id="system", bk_biz_id=1)
         mock_apply_with_retry.assert_called_once()
 
     table_id = "base_system_1_event"
@@ -2059,7 +2059,7 @@ def test_create_base_event_datalink_for_bkcc_bkbase_part(create_or_delete_record
         ) as mock_apply_with_retry,
     ):  # noqa
         # 调用多租户基础采集数据链路创建方法
-        create_base_event_datalink_for_bkcc(bk_biz_id=1)
+        create_base_event_datalink_for_bkcc(bk_tenant_id="system", bk_biz_id=1)
         mock_apply_with_retry.assert_called_once()
 
     data_link_ins = models.DataLink.objects.get(data_link_name="base_1_agent_event")
