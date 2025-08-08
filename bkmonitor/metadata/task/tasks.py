@@ -1539,7 +1539,7 @@ def create_system_proc_datalink_for_bkcc(bk_tenant_id: str, bk_biz_id: int, stor
                 etl_config=etl_config,
                 operator="system",
                 source_label="bk_monitor",
-                type_label="metric",
+                type_label="time_series",
                 space_uid=f"{SpaceTypes.BKCC.value}__{bk_biz_id}",
                 bk_biz_id=bk_biz_id,
                 bk_tenant_id=bk_tenant_id,
