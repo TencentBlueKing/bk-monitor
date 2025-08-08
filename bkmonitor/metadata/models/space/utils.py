@@ -21,7 +21,6 @@ from metadata.models import (
 )
 from metadata.models.bcs import BCSClusterInfo
 from metadata.models.constants import BULK_CREATE_BATCH_SIZE
-from metadata.task.tasks import create_system_proc_datalink_for_bkcc
 
 from .constants import (
     BKCI_AUTHORIZED_DATA_ID_LIST,
@@ -795,7 +794,11 @@ def create_bkcc_spaces(biz_list: list[dict]) -> bool:
     :param biz_list: 需要创建的业务列表，需要包含业务ID、业务中文名称、租户ID
     :return: 返回 True 或异常
     """
-    from metadata.task.tasks import create_basereport_datalink_for_bkcc, create_base_event_datalink_for_bkcc
+    from metadata.task.tasks import (
+        create_basereport_datalink_for_bkcc,
+        create_base_event_datalink_for_bkcc,
+        create_system_proc_datalink_for_bkcc,
+    )
 
     space_data = []
     for biz in biz_list:
