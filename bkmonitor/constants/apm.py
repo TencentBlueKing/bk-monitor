@@ -1539,8 +1539,8 @@ CUSTOM_METRICS_PROMQL_FILTER = ",".join(
         # SDK 会将主被调指标分组为 client_metrics & server_metrics
         'scope_name!~"^(client|server)_metrics$"',
         # 按指标名精确排除
-        '__name__!~"^rpc_(client|server)_(handled|started)_total$"',
-        '__name__!~"^rpc_(client|server)_handled_seconds_(sum|min|max|count|bucket)$"',
+        '__name__!~"^rpc_(client|server)_(handled|started)_total"',
+        '__name__!~"^rpc_(client|server)_handled_seconds_(sum|min|max|count|bucket)"',
         # 排除 Span 聚合指标
         '__name__!~"^(bk_apm_|apm_).*"',
     ]
