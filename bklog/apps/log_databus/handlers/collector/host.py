@@ -826,7 +826,11 @@ class HostCollectorHandler(CollectorHandler):
                 host_result_dict[key].append(host["bk_host_id"])
         return host_result_dict
 
-    def _get_dynamic_group_hosts(self, node_collect):
+    def _get_dynamic_group_hosts(self, node_collect) -> dict:
+        """
+        获取动态分组主机信息
+        @param node_collect {List} _get_collect_node处理后组成的node_collect
+        """
         host_result_dict = defaultdict(list)
         for node_obj in node_collect:
             key = "{}|{}".format(str(node_obj["bk_obj_id"]), str(node_obj["bk_inst_id"]))
@@ -843,7 +847,7 @@ class HostCollectorHandler(CollectorHandler):
         return host_result_dict
 
     @staticmethod
-    def _get_dynamic_group_info(bk_biz_id):
+    def _get_dynamic_group_info(bk_biz_id) -> dict:
         """
         查询业务下所有动态分组信息
         """
