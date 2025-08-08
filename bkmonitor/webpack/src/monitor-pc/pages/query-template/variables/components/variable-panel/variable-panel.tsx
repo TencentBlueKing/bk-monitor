@@ -27,8 +27,18 @@ import { Component, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { VariableTypeMap } from '../../../constants';
+import AggMethodDetail from '../agg-method/agg-method-detail';
 import AggMethodVariable from '../agg-method/agg-method-variable';
+import ConditionDetail from '../condition/condition-detail';
+import ConditionVariable from '../condition/condition-variable';
+import DimensionValueDetail from '../dimension-value/dimension-value-detail';
+import DimensionValueVariable from '../dimension-value/dimension-value-variable';
+import DimensionDetail from '../dimension/dimension-detail';
 import DimensionVariable from '../dimension/dimension-variable';
+import FunctionDetail from '../function/function-detail';
+import FunctionVariable from '../function/function-variable';
+import GeneralDetail from '../general/general-detail';
+import GeneralVariable from '../general/general-variable';
 
 import type { VariableModel } from '../../../typings';
 
@@ -37,15 +47,34 @@ import './variable-panel.scss';
 interface VariablePanelProps {
   data: VariableModel;
   metric: any;
+  scene?: 'create' | 'detail' | 'edit';
 }
 
 @Component
 export default class VariablePanel extends tsc<VariablePanelProps> {
   @Prop() data: VariableModel;
   @Prop() metric: any;
+  @Prop({ default: 'create', type: String }) scene: VariablePanelProps['scene'];
 
   get title() {
     return VariableTypeMap[this.data.type];
+  }
+
+  renderVariableDetail() {
+    switch (this.data.type) {
+      case 'agg_method':
+        return <AggMethodDetail data={this.data} />;
+      case 'dimension':
+        return <DimensionDetail data={this.data} />;
+      case 'dimension_value':
+        return <DimensionValueDetail data={this.data} />;
+      case 'function':
+        return <FunctionDetail data={this.data} />;
+      case 'condition':
+        return <ConditionDetail data={this.data} />;
+      default:
+        return <GeneralDetail data={this.data} />;
+    }
   }
 
   renderVariableForm() {
@@ -54,14 +83,24 @@ export default class VariablePanel extends tsc<VariablePanelProps> {
         return <AggMethodVariable data={this.data} />;
       case 'dimension':
         return <DimensionVariable data={this.data} />;
+      case 'dimension_value':
+        return <DimensionValueVariable data={this.data} />;
+      case 'function':
+        return <FunctionVariable data={this.data} />;
+      case 'condition':
+        return <ConditionVariable data={this.data} />;
+      default:
+        return <GeneralVariable data={this.data} />;
     }
   }
 
   render() {
     return (
-      <div class='variable-panel'>
+      <div class={['variable-panel', this.scene]}>
         <div class='variable-type-title'>{this.title}</div>
-        <div class='variable-form'>{this.renderVariableForm()}</div>
+        <div class='variable-form'>
+          {this.scene === 'detail' ? this.renderVariableDetail() : this.renderVariableForm()}
+        </div>
       </div>
     );
   }

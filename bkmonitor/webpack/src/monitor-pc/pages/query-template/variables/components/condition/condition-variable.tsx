@@ -26,58 +26,59 @@
 import { Component, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import VariablePanel from '../components/variable-panel/variable-panel';
-import VariablesGuide from './variable-guide';
+import VariableCommonForm from '../common-form/variable-common-form';
 
-import type { VariableModel } from '../../typings';
+import type { VariableModel } from '../../../typings';
 
-import './variables-manage.scss';
-
-interface VariablesManageEvents {
-  onChange: (value: VariableModel, index: number) => void;
+interface ConditionVariableEvents {
+  onDataChange: (data: VariableModel) => void;
 }
-
-interface VariablesManageProps {
-  variablesList: VariableModel[];
+interface ConditionVariableProps {
+  data: VariableModel;
 }
 
 @Component
-export default class VariablesManage extends tsc<VariablesManageProps, VariablesManageEvents> {
-  @Prop({ default: () => [] }) variablesList!: VariableModel[];
+export default class ConditionVariable extends tsc<ConditionVariableProps, ConditionVariableEvents> {
+  @Prop({ type: Object, required: true }) data!: VariableModel;
 
-  searchValue = '';
+  handleValueChange(value) {
+    this.handleDataChange({
+      ...this.data,
+      value,
+    });
+  }
+
+  handleDataChange(data: VariableModel) {
+    this.$emit('dataChange', data);
+  }
 
   render() {
     return (
-      <div class='variables-manage-wrap'>
-        <div class='variable-manage-header'>
-          <div class='manage-title'>{this.$t('变量管理')}</div>
-          {this.variablesList.length > 0 && (
+      <div class='condition-variable'>
+        <VariableCommonForm
+          data={this.data}
+          onDataChange={this.handleDataChange}
+        >
+          <bk-form-item
+            label={this.$t('关联指标')}
+            property='value'
+          >
             <bk-input
-              class='variable-search'
-              v-model={this.searchValue}
-              placeholder={this.$t('搜索 变量')}
+              value={'cpu_userage'}
+              readonly
             />
-          )}
-          <div class='bg-mask-wrap'>
-            <div class='bg-mask' />
-          </div>
-        </div>
-        <div class='variable-manage-content'>
-          {this.variablesList.map(item => [
-            <VariablePanel
-              key={item.name}
-              data={item}
-            />,
-            <VariablePanel
-              key={item.name}
-              data={item}
-              scene='detail'
-            />,
-          ])}
-
-          {!this.variablesList.length && <VariablesGuide />}
-        </div>
+          </bk-form-item>
+          <bk-form-item
+            label={this.$t('可选维度')}
+            property='value'
+          >
+            <bk-select />
+          </bk-form-item>
+          <bk-form-item
+            label={this.$t('默认值')}
+            property='value'
+          />
+        </VariableCommonForm>
       </div>
     );
   }
