@@ -977,7 +977,7 @@ def sync_bkbase_v4_metadata(key):
 
 
 @app.task(ignore_result=True, queue="celery_metadata_task_worker")
-def create_basereport_datalink_for_bkcc(bk_biz_id, storage_cluster_name=None):
+def create_basereport_datalink_for_bkcc(bk_tenant_id: str, bk_biz_id: int, storage_cluster_name: str | None = None):
     """
     为单个业务创建基础采集数据链路
     @param bk_biz_id: 业务ID
@@ -1002,9 +1002,6 @@ def create_basereport_datalink_for_bkcc(bk_biz_id, storage_cluster_name=None):
         logger.error("create_basereport_datalink_for_bkcc: get default vm cluster failed,error->[%s]", e)
         return
 
-    space_ins = models.Space.objects.get(space_type_id=SpaceTypes.BKCC.value, space_id=bk_biz_id)
-    bk_tenant_id = space_ins.bk_tenant_id
-
     # source -- 数据渠道 sys / dbm / devx / perforce
     source = BASEREPORT_SOURCE_SYSTEM
 
@@ -1028,7 +1025,7 @@ def create_basereport_datalink_for_bkcc(bk_biz_id, storage_cluster_name=None):
         )
         data_source = models.DataSource.create_data_source(
             data_name=data_name,
-            bk_tenant_id=space_ins.bk_tenant_id,
+            bk_tenant_id=bk_tenant_id,
             etl_config=EtlConfigs.BK_MULTI_TENANCY_BASEREPORT_ETL_CONFIG.value,
             operator="system",
             source_label="bk_monitor",
@@ -1220,7 +1217,7 @@ def create_basereport_datalink_for_bkcc(bk_biz_id, storage_cluster_name=None):
 
 
 @app.task(ignore_result=True, queue="celery_metadata_task_worker")
-def create_base_event_datalink_for_bkcc(bk_biz_id, storage_cluster_name=None):
+def create_base_event_datalink_for_bkcc(bk_tenant_id: str, bk_biz_id: int, storage_cluster_name: str | None = None):
     """
     创建Agent基础事件数据链路
     @param bk_biz_id: 业务ID
@@ -1248,8 +1245,6 @@ def create_base_event_datalink_for_bkcc(bk_biz_id, storage_cluster_name=None):
         logger.error("create_base_event_datalink_for_bkcc: get default es cluster failed,error->[%s]", e)
         return
 
-    space_ins = models.Space.objects.get(space_type_id=SpaceTypes.BKCC.value, space_id=bk_biz_id)
-    bk_tenant_id = space_ins.bk_tenant_id
     space_uid = f"{SpaceTypes.BKCC.value}__{bk_biz_id}"
 
     data_name = f"base_{bk_biz_id}_agent_event"
@@ -1497,6 +1492,19 @@ def _get_bk_biz_internal_data_ids(bk_tenant_id: str, bk_biz_id: int) -> list[dic
     system_event_data_source = DataSource.objects.filter(data_name=f"base_{bk_biz_id}_agent_event").first()
     if system_event_data_source:
         result.append({"task": "exceptionbeat", "dataid": system_event_data_source.bk_data_id})
+
+    # 系统进程
+    system_proc_data_source = DataSource.objects.filter(
+        data_name=SYSTEM_PROC_DATA_LINK_CONFIGS["perf"]["data_name_tpl"].format(bk_biz_id=bk_biz_id)
+    ).first()
+    if system_proc_data_source:
+        result.append({"task": "processbeat_perf", "dataid": system_proc_data_source.bk_data_id})
+
+    system_proc_port_data_source = DataSource.objects.filter(
+        data_name=SYSTEM_PROC_DATA_LINK_CONFIGS["port"]["data_name_tpl"].format(bk_biz_id=bk_biz_id)
+    ).first()
+    if system_proc_port_data_source:
+        result.append({"task": "processbeat_port", "dataid": system_proc_port_data_source.bk_data_id})
 
     return result
 
