@@ -115,7 +115,7 @@ class PatternHandler:
             # 在线训练逻辑适配
             pattern_map = AiopsSignatureAndPattern.objects.filter(
                 model_id=self._clustering_config.model_output_rt
-            ).values("signature", "pattern", "origin_pattern")
+            ).values("signature", "pattern", "origin_pattern", "origin_log")
         else:
             pattern_map = AiopsSignatureAndPattern.objects.filter(model_id=self._clustering_config.model_id).values(
                 "signature", "pattern", "origin_pattern", "origin_log"

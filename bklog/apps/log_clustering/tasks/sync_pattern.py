@@ -138,6 +138,7 @@ def get_pattern(content) -> list:
                         "signature": str(signature),
                         "pattern": " ".join(pattern_list),
                         "origin_pattern": " ".join(pattern_list),
+                        "origin_log": "",
                     }
                 )
                 continue
@@ -145,6 +146,7 @@ def get_pattern(content) -> list:
             origin_log = sensitive_pattern[ORIGIN_LOG_INDEX][0]
             if isinstance(origin_log, list):
                 origin_log = origin_log[0]
+            raw_origin_log = origin_log
             pattern_str = ""
             pattern_list = []
             for pattern in sensitive_pattern[PATTERN_INDEX]:
@@ -170,7 +172,7 @@ def get_pattern(content) -> list:
                     "signature": str(signature),
                     "pattern": pattern_str,
                     "origin_pattern": " ".join(pattern_list),
-                    "origin_log": origin_log,
+                    "origin_log": raw_origin_log,
                 }
             )
     return patterns
