@@ -314,7 +314,7 @@
         return [];
       },
       routerIndexSet() {
-        return Number(window.__IS_MONITOR_COMPONENT__ ? this.$route.query.indexId : this.$route.params.indexId) 
+        return window.__IS_MONITOR_COMPONENT__ ? this.$route.query.indexId : this.$route.params.indexId
       },
     },
     watch: {
@@ -381,7 +381,7 @@
         const params = Object.assign(rest, { begin: 0, bk_biz_id: this.bkBizId });
         const downRequestUrl = this.isUnionSearch
           ? `/search/index_set/union_async_export/`
-          : `/search/index_set/${this.routerIndexSet}/quick_export/`;
+          : `/search/index_set/${Number(this.routerIndexSet)}/quick_export/`;
         const data = {
           ...params,
           size: this.totalCount,
@@ -431,7 +431,7 @@
       openDownloadUrl() {
         const { timezone, ...rest } = this.retrieveParams;
         const params = Object.assign(rest, { begin: 0, bk_biz_id: this.bkBizId });
-        let downRequestUrl = `/search/index_set/${this.routerIndexSet}/export/`;
+        let downRequestUrl = `/search/index_set/${Number(this.routerIndexSet)}/export/`;
         if (this.isUnionSearch) {
           // 判断是否是联合查询 如果是 则加参数
           downRequestUrl = '/search/index_set/union_search/export/';
@@ -455,7 +455,7 @@
               });
               return;
             }
-            const lightName = this.indexSetList.find(item => item.index_set_id == this.routerIndexSet)?.lightenName;
+            const lightName = this.indexSetList.find(item => item.index_set_id === this.routerIndexSet)?.lightenName;
             const downloadName = lightName
               ? `bk_log_search_${lightName.substring(2, lightName.length - 1)}.${this.documentType}`
               : `bk_log_search.${this.documentType}`;
