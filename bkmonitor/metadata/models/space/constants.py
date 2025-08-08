@@ -108,6 +108,11 @@ class EtlConfigs(Enum):
 
     # 多租户基础Agent事件
     BK_MULTI_TENANCY_AGENT_EVENT_ETL_CONFIG = "bk_multi_tenancy_agent_event"
+
+    # 多租户下的系统进程数据采集
+    BK_MULTI_TENANCY_SYSTEM_PROC_PERF_ETL_CONFIG = "bk_multi_tenancy_system_proc_perf"
+    BK_MULTI_TENANCY_SYSTEM_PROC_PORT_ETL_CONFIG = "bk_multi_tenancy_system_proc_port"
+
     # 固定指标单表(metric_name)
     BK_EXPORTER = "bk_exporter"
     BK_STANDARD = "bk_standard"
@@ -125,6 +130,8 @@ class EtlConfigs(Enum):
         (BK_STANDARD, "bk_standard"),
         (BK_MULTI_TENANCY_AGENT_EVENT_ETL_CONFIG, "bk_multi_tenancy_agent_event"),
         (BK_MULTI_TENANCY_BASEREPORT_ETL_CONFIG, "bk_multi_tenancy_basereport"),
+        (BK_MULTI_TENANCY_SYSTEM_PROC_PERF_ETL_CONFIG, "bk_multi_tenancy_system_proc_perf"),
+        (BK_MULTI_TENANCY_SYSTEM_PROC_PORT_ETL_CONFIG, "bk_multi_tenancy_system_proc_port"),
     )
 
 
