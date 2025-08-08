@@ -22,7 +22,28 @@ class BaseIncidentMetricsResource(Resource):
     """
     故障告警指标查询接口
     """
+    # 明确定义的度量单位映射，便于扩展
+    UNIT_BY_METRIC = {
+        # 内存量（bytes）
+        MetricName.BCS_PERFORMANCE_MEMORY_USAGE.value: "bytes",
+        MetricName.HOST_MEM_PHYSICAL_FREE.value: "bytes",
 
+        # 使用率（percent）
+        MetricName.BCS_PERFORMANCE_CPU_USAGE.value: "percentunit",
+        MetricName.BCS_PERFORMANCE_CPU_REQUEST_USAGE_RATE.value: "percentunit",
+        MetricName.BCS_PERFORMANCE_CPU_LIMIT_USAGE_RATE.value: "percentunit",
+        MetricName.BCS_PERFORMANCE_MEMORY_REQUEST_USAGE_RATE.value: "percentunit",
+        MetricName.BCS_PERFORMANCE_MEMORY_LIMIT_USAGE_RATE.value: "percentunit",
+        MetricName.HOST_CPU_USAGE_RATE.value: "percentunit",
+        MetricName.HOST_DISK_USAGE_RATE.value: "percentunit",
+
+        # 流量带宽（Bps）
+        MetricName.BCS_TRAFFIC_IN.value: "Bps",
+        MetricName.BCS_TRAFFIC_OUT.value: "Bps",
+        MetricName.HOST_NIC_IN_RATE.value: "Bps",
+        MetricName.HOST_NIC_OUT_RATE.value: "Bps",
+    }
+    
     def __init__(self):
         super().__init__()
         self._lock = threading.Lock()
@@ -180,6 +201,13 @@ class IncidentMetricsSearchResource(BaseIncidentMetricsResource):
             if "dimensions" in series and series["dimensions"]:
                 current_dimension_type = next(iter(series["dimensions"].values()))
                 metric_info["display_by_dimensions"] = True
+            
+            # 当 unit 为空时，按规则填充：内存量=bytes；使用率=percentunit；流量带宽=Bps
+            unit = series.get("unit", "")
+            if unit == "":
+                override_unit = self.UNIT_BY_METRIC.get(metric_name)
+                series["unit"] = override_unit if override_unit else ""
+            # 将 datapoints 中的时间戳和值交换位置， 适配格式
             series["datapoints"] = [[datapoint[1], datapoint[0]] for datapoint in series.get("datapoints", [])]
             metric_info["time_series"][current_dimension_type] = series
         
