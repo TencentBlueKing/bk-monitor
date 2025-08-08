@@ -59,6 +59,7 @@ from fta_web.alert.handlers.translator import (
     PluginTranslator,
     StrategyTranslator,
 )
+from fta_web.alert.handlers.action import ActionQueryHandler
 
 logger = logging.getLogger(__name__)
 
@@ -101,11 +102,49 @@ def get_alert_ids_by_action_id(action_ids) -> list:
     return list(alert_ids)
 
 
-def get_alert_ids_by_action_name(action_names, bk_biz_ids, start_time=None, include=False, exclude=False) -> list:
+def get_alert_ids_by_action_name(action_names, bk_biz_ids, start_time, end_time, include=False, exclude=False) -> list:
     """通过处理套餐名称获取告警ID"""
     if not isinstance(action_names, list):
         action_names = [action_names]
 
+    # 边界检查：排除无效参数组合
+    if include and exclude:
+        raise ValueError("Parameters 'include' and 'exclude' cannot be True simultaneously")
+
+    alert_ids = _query_alert_ids_from_es(action_names, start_time, end_time, include, exclude)
+    if alert_ids:
+        return alert_ids
+
+    # ES无结果时，回退到Django ORM查询
+    return _query_alert_ids_from_db(action_names, bk_biz_ids, start_time, include, exclude)
+
+
+def _query_alert_ids_from_es(action_names, start_time, end_time, include=False, exclude=False):
+    """内部方法：通过ES查询获取告警ID"""
+    method = "exclude" if exclude else "include" if include else "eq"
+
+    params = {
+        "start_time": start_time,
+        "end_time": end_time,
+        "conditions": [{"key": "action_name.raw", "value": action_names, "method": method, "condition": "and"}],
+    }
+
+    action_handler = ActionQueryHandler(**params)
+    search_obj = action_handler.get_search_object()
+    search_obj = action_handler.add_conditions(search_obj)
+    search_obj = search_obj.source(["alert_id"])  # 仅请求必要字段
+
+    alert_ids = []
+    for hit in search_obj.scan():
+        if not hasattr(hit, "alert_id"):
+            continue
+        alert_ids.extend(hit.alert_id)
+
+    return list(set(alert_ids))
+
+
+def _query_alert_ids_from_db(action_names, bk_biz_ids, start_time, include=False, exclude=False):
+    """内部方法：通过DB查询获取告警ID"""
     # 构建查询条件
     if include:
         # 模糊查询多个名称
@@ -121,10 +160,6 @@ def get_alert_ids_by_action_name(action_names, bk_biz_ids, start_time=None, incl
         filter_params_query = ~filter_params_query
 
     action_config_ids = ActionConfig.objects.filter(filter_params_query).values_list("id", flat=True)
-
-    # 获取开始时间,没有则取7天前的时间
-    if start_time is None:
-        start_time = int(time.time()) - 7 * 24 * 60 * 60
 
     start_time = datetime.fromtimestamp(start_time, tz=timezone.utc)
 
@@ -317,7 +352,8 @@ class AlertQueryTransformer(BaseQueryTransformer):
         ]:
             bk_biz_ids = context.get("bk_biz_ids", [])
             start_time = context.get("start_time", None)
-            alert_ids = get_alert_ids_by_action_name([node.value], bk_biz_ids, start_time)
+            end_time = context.get("end_time", None)
+            alert_ids = get_alert_ids_by_action_name([node.value], bk_biz_ids, start_time, end_time)
             node = FieldGroup(OrOperation(*[Word(str(alert_id)) for alert_id in alert_ids or [0]]))
             context = {"ignore_search_field": True, "ignore_word": True}
             return node, context
@@ -507,10 +543,7 @@ class AlertQueryHandler(BaseBizQueryHandler):
 
     def search_raw(self, show_overview=False, show_aggs=False, show_dsl=False):
         # 构建上下文信息
-        context = {
-            "bk_biz_ids": self.bk_biz_ids,
-            "start_time": self.start_time,
-        }
+        context = {"bk_biz_ids": self.bk_biz_ids, "start_time": self.start_time, "end_time": self.end_time}
         search_object = self.get_search_object()
         search_object = self.add_conditions(search_object)
         search_object = self.add_query_string(search_object, context=context)
@@ -758,6 +791,7 @@ class AlertQueryHandler(BaseBizQueryHandler):
                 "action_names": condition["value"],
                 "bk_biz_ids": self.bk_biz_ids,
                 "start_time": self.start_time,
+                "end_time": self.end_time,
                 "include": condition["method"] == "include",
                 "exclude": condition["method"] == "exclude",
             }
