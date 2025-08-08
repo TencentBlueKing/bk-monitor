@@ -18,7 +18,6 @@
   // #if MONITOR_APP !== 'apm' && MONITOR_APP !== 'trace'
   import TimeSetting from './time-setting';
   import FieldSetting from '@/global/field-setting.vue';
-  import FildAlias from '../field-filter-comp/update/field-alias.vue'
   import VersionSwitch from '@/global/version-switch.vue';
   import ClusterSetting from '../setting-modal/index.vue';
   import BarGlobalSetting from './bar-global-setting.tsx';
@@ -51,7 +50,6 @@
   const store = useStore();
 
   const fieldSettingRef = ref(null);
-  const fieldAliasRef  = ref(null);
   const isShowClusterSetting = ref(false);
   const indexSetParams = computed(() => store.state.indexItem);
 
@@ -332,7 +330,7 @@
    */
   function handleIndexConfigSliderOpen() {
     if (isFieldSettingShow.value) {
-      fieldAliasRef.value?.handleOpenSidebar?.();
+      RetrieveHelper.setAliasConfigOpen(true);
     } else {
       bkMessage({
         theme: 'primary',
@@ -377,11 +375,6 @@
         ref="fieldSettingRef"
         class="custom-border-right"
       />
-      <FildAlias
-        v-show="false"
-        ref="fieldAliasRef"
-        class="custom-border-right"
-      ></FildAlias>
       <WarningSetting
         v-if="!isExternal"
         class="custom-border-right"
