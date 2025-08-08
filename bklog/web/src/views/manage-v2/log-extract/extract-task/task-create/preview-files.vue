@@ -152,11 +152,15 @@
       FileDatePicker,
       EmptyStatus,
     },
-    model: {
-      prop: 'downloadFiles',
-      event: 'checked',
-    },
+    // model: {
+    //   prop: 'downloadFiles',
+    //   event: 'checked',
+    // },
     props: {
+      downloadFiles: {
+        type: Array,
+        default: () => [],
+      },
       ipList: {
         type: Array,
         required: true,
@@ -209,16 +213,16 @@
           exploreList: this.explorerList.splice(0),
           fileOrPath: path,
         };
-        this.$emit('checked', []);
+        this.$emit('update:downloadFiles', []);
         if (path === '../' && this.historyStack.length) {
           // 返回上一级
           const cache = this.historyStack.pop();
           this.explorerList = cache.exploreList;
           const { fileOrPath } = this.historyStack[this.historyStack.length - 1];
-          this.$emit('update:file-or-path', fileOrPath);
+          this.$emit('update:fileOrPath', fileOrPath);
           return;
         }
-        this.$emit('update:file-or-path', path);
+        this.$emit('update:fileOrPath', path);
         const ipList = this.getFindIpList();
 
         this.isLoading = true;
@@ -354,7 +358,7 @@
       },
       handleSelect(selection) {
         this.$emit(
-          'checked',
+          'update:downloadFiles',
           selection.map(item => item.path),
         );
       },
