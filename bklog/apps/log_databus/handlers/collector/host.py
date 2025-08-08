@@ -826,6 +826,32 @@ class HostCollectorHandler(CollectorHandler):
                 host_result_dict[key].append(host["bk_host_id"])
         return host_result_dict
 
+    def _get_dynamic_group_hosts(self, node_collect):
+        host_result_dict = defaultdict(list)
+        for node_obj in node_collect:
+            key = "{}|{}".format(str(node_obj["bk_obj_id"]), str(node_obj["bk_inst_id"]))
+            host_result = CCApi.execute_dynamic_group.bulk_request(
+                params={
+                    "bk_biz_id": self.data.bk_biz_id,
+                    "id": node_obj["bk_inst_id"],
+                    "fields": CMDB_HOST_SEARCH_FIELDS,
+                }
+            )
+            for host in host_result:
+                host_result_dict[key].append((host["bk_host_innerip"], host["bk_cloud_id"]))
+                host_result_dict[key].append(host["bk_host_id"])
+        return host_result_dict
+
+    @staticmethod
+    def _get_dynamic_group_info(bk_biz_id):
+        """
+        查询业务下所有动态分组信息
+        """
+        dynamic_group_list = CCApi.search_dynamic_group.bulk_request(
+            params={"bk_biz_id": bk_biz_id, "no_request": True}
+        )
+        return {group["id"]: group for group in dynamic_group_list}
+
     @classmethod
     def _get_node_obj(cls, node_obj, template_mapping, node_mapping, map_key):
         """
@@ -925,6 +951,43 @@ class HostCollectorHandler(CollectorHandler):
                     "child": instance_status,
                 }
             ]
+            return {"task_ready": True, "contents": content_data}
+
+        # 如果采集目标是动态分组
+        if self.data.target_node_type == TargetNodeTypeEnum.DYNAMIC_GROUP.value:
+            total_host_result = self._get_dynamic_group_hosts(node_collect=self.data.target_nodes)
+            dynamic_group_info = self._get_dynamic_group_info(bk_biz_id=self.data.bk_biz_id)
+            target_mapping = self.get_target_mapping()
+
+            content_data = list()
+            node_collect = self._get_collect_node()
+            for node_obj in node_collect:
+                map_key = "{}|{}".format(str(node_obj["bk_obj_id"]), str(node_obj["bk_inst_id"]))
+                host_result = total_host_result.get(map_key, [])
+                label_name = target_mapping.get(map_key, "")
+                dynamic_group_name = dynamic_group_info.get(node_obj["bk_inst_id"], {}).get("name", "")
+
+                content_obj = {
+                    "is_label": False if not label_name else True,
+                    "label_name": label_name,
+                    "bk_obj_name": _("主机"),
+                    "node_path": dynamic_group_name,
+                    "bk_obj_id": node_obj["bk_obj_id"],
+                    "bk_inst_id": node_obj["bk_inst_id"],
+                    "bk_inst_name": dynamic_group_name,
+                    "child": [],
+                }
+
+                for instance_obj in instance_status:
+                    # delete 标签如果订阅任务状态action不为UNINSTALL
+                    if label_name == "delete" and instance_obj["steps"].get(LogPluginInfo.NAME) != "UNINSTALL":
+                        continue
+                    # 因为instance_obj兼容新版IP选择器的字段名, 所以这里的bk_cloud_id->cloud_id, bk_host_id->host_id
+                    if (instance_obj["ip"], instance_obj["cloud_id"]) in host_result or instance_obj[
+                        "host_id"
+                    ] in host_result:
+                        content_obj["child"].append(instance_obj)
+                content_data.append(content_obj)
             return {"task_ready": True, "contents": content_data}
 
         # 如果采集目标是HOST-TOPO
@@ -1076,6 +1139,38 @@ class HostCollectorHandler(CollectorHandler):
                     "child": instance_status,
                 }
             ]
+            return {"contents": content_data}
+
+        # 如果采集目标是动态分组
+        if self.data.target_node_type == TargetNodeTypeEnum.DYNAMIC_GROUP.value:
+            content_data = list()
+            total_host_result = self._get_dynamic_group_hosts(node_collect=self.data.target_nodes)
+            dynamic_group_info = self._get_dynamic_group_info(bk_biz_id=self.data.bk_biz_id)
+
+            for node_obj in self.data.target_nodes:
+                map_key = "{}|{}".format(str(node_obj["bk_obj_id"]), str(node_obj["bk_inst_id"]))
+                host_result = total_host_result.get(map_key, [])
+                dynamic_group_name = dynamic_group_info.get(node_obj["bk_inst_id"], {}).get("name", "")
+
+                content_obj = {
+                    "is_label": False,
+                    "label_name": "",
+                    "bk_obj_name": _("主机"),
+                    "node_path": dynamic_group_name,
+                    "bk_obj_id": node_obj["bk_obj_id"],
+                    "bk_inst_id": node_obj["bk_inst_id"],
+                    "bk_inst_name": dynamic_group_name,
+                    "child": [],
+                }
+
+                for instance_obj in instance_status:
+                    # 因为instance_obj兼容新版IP选择器的字段名, 所以这里的bk_cloud_id->cloud_id, bk_host_id->host_id
+                    if (instance_obj["ip"], instance_obj["cloud_id"]) in host_result or instance_obj[
+                        "host_id"
+                    ] in host_result:
+                        content_obj["child"].append(instance_obj)
+                content_data.append(content_obj)
+
             return {"contents": content_data}
 
         # 如果采集目标是HOST-TOPO
