@@ -329,6 +329,9 @@ class ListResultTableResource(Resource):
         is_config_by_user = serializers.BooleanField(
             required=False, label="是否需要包含非用户定义的结果表", default=True
         )
+        table_ids = serializers.ListField(
+            required=False, label="结果表ID列表", child=serializers.CharField(label="结果表ID")
+        )
 
     def perform_request(self, request_data):
         # 若开启多租户模式，需要获取租户ID
@@ -356,6 +359,11 @@ class ListResultTableResource(Resource):
 
         # 只查询不属于bcs指标的信息
         result_table_queryset = models.ResultTable.objects.filter(is_deleted=False, table_id__in=table_ids)
+
+        # 判断是否有table_ids的过滤
+        table_ids_filter = request_data.get("table_ids")
+        if table_ids_filter:
+            result_table_queryset = result_table_queryset.filter(table_id__in=table_ids_filter)
 
         # 判断是否有结果表类型的过滤
         datasource_type = request_data["datasource_type"]
