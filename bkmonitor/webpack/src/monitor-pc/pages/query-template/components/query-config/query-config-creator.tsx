@@ -28,9 +28,16 @@ import { Component, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import DimensionCreator from '../dimension/dimension-creator';
+import FunctionCreator from '../function/function-creator';
+import IntervalCreator from '../interval/interval-creator';
 import MethodCreator from '../method/method-creator';
 import MetricCreator from '../metric/metric-creator';
-import { type IVariablesItem, type TMetricDetail, TVariableType } from '../type/query-config';
+import {
+  type IDimensionOptionsItem,
+  type IVariablesItem,
+  type TMetricDetail,
+  TVariableType,
+} from '../type/query-config';
 
 import './query-config-creator.scss';
 
@@ -57,8 +64,14 @@ export default class QueryConfigCreator extends tsc<IProps> {
   get getMethodVariables() {
     return this.variables.filter(item => item.type === TVariableType.METHOD);
   }
+  get getDimensionVariables() {
+    return this.variables.filter(item => item.type === TVariableType.DIMENSION);
+  }
   get getAggMethodList() {
     return this.curMetric?.aggMethodList || [];
+  }
+  get getDimensionList() {
+    return this.curMetric?.dimensions || [];
   }
 
   handleSelectMetric(metric: TMetricDetail) {
@@ -68,6 +81,12 @@ export default class QueryConfigCreator extends tsc<IProps> {
     this.$emit('createVariable', {
       name: val,
       type: TVariableType.METHOD,
+    });
+  }
+  handleCreateDimensionVariable(val) {
+    this.$emit('createVariable', {
+      name: val,
+      type: TVariableType.DIMENSION,
     });
   }
 
@@ -90,7 +109,15 @@ export default class QueryConfigCreator extends tsc<IProps> {
               variables={this.getMethodVariables}
               onCreateVariable={this.handleCreateMethodVariable}
             />,
-            <DimensionCreator key={'dimension'} />,
+            <IntervalCreator key={'interval'} />,
+            <DimensionCreator
+              key={'dimension'}
+              options={this.getDimensionList as IDimensionOptionsItem[]}
+              showVariables={true}
+              variables={this.getDimensionVariables}
+              onCreateVariable={this.handleCreateDimensionVariable}
+            />,
+            <FunctionCreator key={'function'} />,
           ]}
         </div>
       </div>
