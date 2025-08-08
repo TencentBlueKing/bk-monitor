@@ -1,11 +1,5 @@
 .variable-panel {
   background: #fff;
-  border-radius: 2px;
-  box-shadow: 0 2px 4px 0 #1919290d;
-
-  &+.variable-panel {
-    margin-top: 12px;
-  }
 
   .variable-type-title {
     display: inline-block;
@@ -19,7 +13,33 @@
     border-radius: 2px 0 8px;
   }
 
-  .variable-form {
-    padding: 0 16px;
+  &.create {
+    border-radius: 2px;
+    box-shadow: 0 2px 4px 0 #1919290d;
+
+    & + .variable-panel {
+      margin-top: 12px;
+    }
+
+    .variable-form {
+      padding: 0 16px;
+    }
+  }
+
+  &.detail {
+    display: flex;
+
+    
+    & + .variable-panel {
+      margin-top: 8px;
+    }
+
+    .variable-type-title {
+      flex-shrink: 0;
+    }
+
+    .variable-form {
+      padding: 6px 0;
+    }
   }
 }
