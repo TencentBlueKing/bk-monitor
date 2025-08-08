@@ -350,7 +350,7 @@ class MappingHandlers:
         ):
             default_sort_tag = True
         sort_list = self.get_default_sort_list(
-            index_set_id=self.index_set_id, scenario_id=self.scenario_id, scope=scope, default_sort_tag=default_sort_tag
+            index_set_id=self.index_set_id, scenario_id=self.scenario_id, default_sort_tag=default_sort_tag
         )
         obj, created = IndexSetFieldsConfig.objects.get_or_create(
             index_set_id=self.index_set_id,
@@ -376,7 +376,6 @@ class MappingHandlers:
         self,
         index_set_id: int = None,
         scenario_id: str = None,
-        scope: str = SearchScopeEnum.DEFAULT.value,
         default_sort_tag: bool = False,
     ):
         """默认字段排序规则"""

@@ -414,6 +414,7 @@ class SearchHandler:
 
         result_dict: dict = {
             "fields": field_result,
+            "default_sort_list": self._get_default_sort_list(),
             "display_fields": display_fields,
             "sort_list": sort_field_list,
             "time_field": self.time_field,
@@ -1943,10 +1944,14 @@ class SearchHandler:
                 if sort_list:
                     return sort_list
         # 安全措施, 用户未设置排序规则，且未创建默认配置时, 使用默认排序规则
+        return self._get_default_sort_list()
+
+    def _get_default_sort_list(self):
+        """获取默认排序配置"""
+        index_set_id = self.search_dict.get("index_set_id")
         return self.mapping_handlers.get_default_sort_list(
             index_set_id=index_set_id,
             scenario_id=self.scenario_id,
-            scope=scope,
             default_sort_tag=self.search_dict.get("default_sort_tag", False),
         )
 
@@ -3179,6 +3184,7 @@ class UnionSearchHandler:
             "time_field": time_field,
             "time_field_type": time_field_type,
             "time_field_unit": time_field_unit,
+            "default_sort_list": default_sort_list,
         }
         return ret
 
