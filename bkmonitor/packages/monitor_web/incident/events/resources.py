@@ -37,7 +37,7 @@ class BaseIncidentEventsResource(Resource):
     DEFAULT_EXPRESSION = "a"
     DEFAULT_AGGREGATION_METHOD = "SUM"
     DEFAULT_INDEX_FIELD = "_index"
-    DEFAULT_GROUP_BY_FIELDS = ["type", "source", "event_name"]
+    DEFAULT_GROUP_BY_FIELDS = ["type", "event_name"]
     DEFAULT_QUERY_STRING = "*"
     
     EntityTypeDataSourceMapping = {
@@ -130,7 +130,7 @@ class BaseIncidentEventsResource(Resource):
         if bk_data_id and bk_biz_id:
             tables.add(f"{bk_biz_id}_bkmonitor_event_{bk_data_id}")
         return tables
-
+        
     # ==================== 过滤条件处理器 ====================
     def _apply_dimension_filters(
         self, time_series_request: dict, dimensions_filter: dict, entity_type: str = "BcsPod"
@@ -166,6 +166,16 @@ class BaseIncidentEventsResource(Resource):
             time_series_request["app_name"] = app_name
         if apm_service:
             time_series_request["service_name"] = apm_service
+            
+    def get_source_by_table(self, table: str) -> str:
+        """
+        根据表名获取事件来源
+        """
+        if table == "gse_system_event":
+            return EventSource.HOST.value
+        elif "bkmonitor_event" in table:
+            return EventSource.BCS.value
+        return EventSource.DEFAULT.value
 
 class IncidentEventsSearchResource(BaseIncidentEventsResource):
     """
@@ -246,6 +256,7 @@ class IncidentEventsSearchResource(BaseIncidentEventsResource):
 
         validated_requests = []
         for request in requests:
+            print(request)
             if entity_type == EntityType.APMService.value:
                 # 针对APM服务类型，需要额外添加app_name和service_name
                 serializer = ApmEventTimeSeriesRequestSerializer(data=request)
@@ -253,6 +264,7 @@ class IncidentEventsSearchResource(BaseIncidentEventsResource):
                 serializer = EventTimeSeriesRequestSerializer(data=request)
             serializer.is_valid()
             validated_requests.append(serializer.validated_data)
+        print(validated_requests)
         return validated_requests
 
     def _build_base_query_config(
@@ -323,7 +335,7 @@ class IncidentEventsSearchResource(BaseIncidentEventsResource):
             event_name = event_info["event_name"]
 
             # 更新统计信息
-            source = dimensions.get("source", "")
+            source = self.get_source_by_table(table)
             event_level = dimensions.get("type", "")
             if event_level in base_response["statistics"]["event_level"]:
                 base_response["statistics"]["event_level"][event_level] += 1
@@ -425,7 +437,7 @@ class IncidentEventsDetailResource(BaseIncidentEventsResource):
             query_request = serializer.validated_data
         return query_request
     
-    def build_target_info(self,response: dict, query_request: dict, validated_request_data: dict) -> dict:
+    def build_target_info(self, response: dict, query_request: dict, validated_request_data: dict) -> dict:
         """
         构建目标信息
         """
@@ -433,45 +445,43 @@ class IncidentEventsDetailResource(BaseIncidentEventsResource):
         index_type: str = index_info.get("index_type", "")
         entity_type: str = index_info.get("entity_type", "")
         entity_name: str = index_info.get("entity_name", "")
-        dimensions = index_info.get("dimensions", {})
+        dimensions: dict = index_info.get("dimensions", {})
         query_configs: list[dict] = query_request.get("query_configs", [])
-        table = query_configs[0].get("table", "") if query_configs else ""
-        event_detail_data = {}
-        total = response.get("total", 0)
-        if total <=20:
-            event_detail_data = response["list"]
-        else:
-            event_detail_data = response["topk"]
-        
+        table: str = query_configs[0].get("table", "") if query_configs else ""
+
+        # total ≤ 20 显示详情列表，否则显示 topk
+        total: int = response.get("total", 0)
+        event_detail_data = response["list"] if total <= 20 else response["topk"]
+
         for event_detail in event_detail_data:
             target_info = {
                 "target_type": index_type,
                 "entity_type": entity_type,
                 "entity_name": entity_name,
+                "table": table,
                 "dimensions": {},
             }
-            target_info["table"] = table
-            target_info_demensions = target_info["dimensions"]
-            
-            # 处理维度映射(优先从origin_data中透传)
+            target_dimensions = target_info["dimensions"]
+
+            # 处理维度映射（优先从 origin_data 中透传）
             mapping_keys = self.WhereSpecialKeyMapping[entity_type]
             for key, value in dimensions.items():
                 if key in mapping_keys:
-                    target_info_demensions[mapping_keys[key]] = value
-            
-            origin_data = event_detail.get("origin_data", {})
+                    target_dimensions[mapping_keys[key]] = value
+
+            origin_data: dict = event_detail.get("origin_data", {})
             for key, value in origin_data.items():
                 if key.startswith("dimensions."):
-                    target_info_demensions[key.split(".")[1]] = value
-            
+                    target_dimensions[key.split(".", 1)[1]] = value
+
             event_name = event_detail.get("event_name", "")
-            target_info["event_name"]= event_name["value"]
-            
+            target_info["event_name"] = event_name["value"]
+
             app_name = dimensions.get("apm_application_name", "")
-            service_name = dimensions.get("apm_service_name", "")
             if app_name:
-                target_info_demensions["app_name"] = app_name
+                target_dimensions["app_name"] = app_name
+            service_name = dimensions.get("apm_service_name", "")
             if service_name:
-                target_info_demensions["service_name"] = service_name
+                target_dimensions["service_name"] = service_name
 
             event_detail["target_info"] = target_info
