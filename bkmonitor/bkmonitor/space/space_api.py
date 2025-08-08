@@ -19,7 +19,6 @@ from rest_framework.exceptions import ValidationError
 from bkm_space import api as space_api
 from bkm_space.define import Space as SpaceDefine
 from bkm_space.define import SpaceTypeEnum
-from constants.common import DEFAULT_TENANT_ID
 from core.drf_resource import api
 from core.prometheus import metrics
 
@@ -156,6 +155,7 @@ class InjectSpaceApi(space_api.AbstractSpaceApi):
         with connections["monitor_api"].cursor() as cursor:
             sql = """
                 SELECT s.id,
+                       s.bk_tenant_id,
                        s.space_type_id,
                        s.space_id,
                        s.space_name,
@@ -185,11 +185,6 @@ class InjectSpaceApi(space_api.AbstractSpaceApi):
             cursor.execute(sql)
             columns = [col[0] for col in cursor.description]
             spaces: list[dict] = [dict(zip(columns, row)) for row in cursor.fetchall()]
-
-            # 如果空间没有指定租户，则补充默认租户
-            for space_dict in spaces:
-                if not space_dict.get("bk_tenant_id"):
-                    space_dict["bk_tenant_id"] = DEFAULT_TENANT_ID
 
             # 过滤指定租户
             if bk_tenant_id:
