@@ -735,3 +735,5 @@ RETRIEVE_CHAIN = [
     "add_container_configs",
     "encode_yaml_config",
 ]
+
+MIN_FLATTENED_SUPPORT_VERSION = "7.3"
