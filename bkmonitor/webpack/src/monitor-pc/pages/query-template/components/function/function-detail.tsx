@@ -23,33 +23,3 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-
-export interface IEvent {
-  onChange?: IntervalType;
-}
-export interface IIntervalOption {
-  id: IntervalType;
-  name: number | string;
-}
-
-export type IntervalType = 'auto' | number;
-
-export interface IOption {
-  children?: IIntervalOption[];
-  id: number | string;
-  name: number | string;
-}
-export interface IProps {
-  appendTo?: string;
-  hasExpanded?: boolean;
-  isNeedDefaultVal?: boolean;
-  minSec?: number;
-  needAuto?: boolean;
-  value?: IntervalType;
-}
-export interface ITimeVal {
-  unit: unitType;
-  value: number;
-}
-
-export type unitType = 'm' | 's';

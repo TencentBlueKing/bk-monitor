@@ -46,7 +46,13 @@ export const TVariableType = {
   CONDITION: VariableTypeEnum.CONDITION,
   CONSTANT: 'constant', // （非变量类型）
 } as const;
+/* 维度选项 */
 export interface IDimensionOptionsItem extends IVariablesItem {
+  id: string;
+  isVariable?: boolean;
+}
+/* 函数选项 */
+export interface IFunctionOptionsItem extends IVariablesItem {
   id: string;
   isVariable?: boolean;
 }
