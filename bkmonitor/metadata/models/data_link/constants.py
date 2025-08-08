@@ -103,6 +103,8 @@ BASEREPORT_USAGES = [
 ]
 
 BASEREPORT_DATABUS_FORMAT = "bkmonitor_basereport_v1"
+SYSTEM_PROC_PERF_DATABUS_FORMAT = "bkmonitor_proc_perf"
+SYSTEM_PROC_PORT_DATABUS_FORMAT = "bkmonitor_proc_port"
 
 
 # 基础采集数据链路来源 -- 主机系统、DBM、DEVX、Perforce

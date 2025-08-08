@@ -496,7 +496,6 @@ class UnifyQueryHandler:
         ).get_default_sort_list(
             index_set_id=index_set_id,
             scenario_id=index_info["scenario_id"],
-            scope=scope,
             default_sort_tag=self.search_params.get("default_sort_tag", False),
         )
 
