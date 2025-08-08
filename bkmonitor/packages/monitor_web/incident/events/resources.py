@@ -172,10 +172,10 @@ class BaseIncidentEventsResource(Resource):
         根据表名获取事件来源
         """
         if table == "gse_system_event":
-            return EventSource.HOST.value
+            return EventSource.HOST.label
         elif "bkmonitor_event" in table:
-            return EventSource.BCS.value
-        return EventSource.DEFAULT.value
+            return EventSource.BCS.label
+        return EventSource.DEFAULT.label
 
 class IncidentEventsSearchResource(BaseIncidentEventsResource):
     """
@@ -256,7 +256,6 @@ class IncidentEventsSearchResource(BaseIncidentEventsResource):
 
         validated_requests = []
         for request in requests:
-            print(request)
             if entity_type == EntityType.APMService.value:
                 # 针对APM服务类型，需要额外添加app_name和service_name
                 serializer = ApmEventTimeSeriesRequestSerializer(data=request)
@@ -264,7 +263,6 @@ class IncidentEventsSearchResource(BaseIncidentEventsResource):
                 serializer = EventTimeSeriesRequestSerializer(data=request)
             serializer.is_valid()
             validated_requests.append(serializer.validated_data)
-        print(validated_requests)
         return validated_requests
 
     def _build_base_query_config(
@@ -368,7 +366,7 @@ class IncidentEventsSearchResource(BaseIncidentEventsResource):
         return {
             "event_name": event_name,
             "event_alias": event_name,
-            "event_source": dimension.get("source", ""),
+            "event_source": self.get_source_by_table(table),
             "event_level": dimension.get("type", ""),
         }
 
