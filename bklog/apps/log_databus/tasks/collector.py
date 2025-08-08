@@ -237,83 +237,25 @@ def _get_cluster_connection_info(cluster):
     return domain_name, port, username, password
 
 
-def _get_indices_info(domain_name, port, username, password, index_format):
+def _get_indices_info(cluster, index_format):
     """
     获取索引信息的公共逻辑
-    :param domain_name: 域名
-    :param port: 端口
-    :param username: 用户名
-    :param password: 密码
-    :param index_format: 索引格式
-    :return: 索引信息列表
-    """
-    try:
-        return ElasticHandle(domain_name, port, username, password).get_indices_cat(
-            index=index_format, bytes="mb", column=["index", "store.size", "status"]
-        )
-    except Exception as e:  # pylint: disable=broad-except
-        logger.exception(f"集群[{domain_name}] 索引cat信息获取失败，错误信息：{e}")
-        return None
-
-
-def _filter_active_indices(indices_info):
-    """
-    过滤出活跃状态的索引（排除关闭状态的索引）
-    :param indices_info: 索引信息列表
-    :return: 过滤后的索引信息列表
-    """
-    return [index_info for index_info in indices_info if index_info["status"] != "close"]
-
-
-def _calculate_storage_capacity(cluster, index_format, target_biz_id=None):
-    """
-    计算存储容量的公共逻辑
     :param cluster: 集群信息
     :param index_format: 索引格式
-    :param target_biz_id: 目标业务ID，如果为None则计算所有业务
-    :return: 单个业务返回float，多个业务返回dict
+    :return: 索引信息列表
     """
     # 获取集群连接信息
     domain_name, port, username, password = _get_cluster_connection_info(cluster)
 
-    # 获取索引信息
-    indices_info = _get_indices_info(domain_name, port, username, password, index_format)
-    if indices_info is None:
-        raise Exception(f"获取集群[{domain_name}]索引信息失败")
-
-    # 过滤掉关闭状态的索引
-    active_indices = _filter_active_indices(indices_info)
-
-    # 如果是单个业务，直接累加容量
-    if target_biz_id is not None:
-        total_size = 0
-        for _info in active_indices:
-            total_size += int(_info["store.size"])
-        return round(total_size / 1024, 2)
-
-    # 如果是多个业务，按业务ID分组
-    biz_storage_map = {}
-    for index_info in active_indices:
-        index_name = index_info["index"]
-
-        # 尝试解析biz_id，如果解析失败说明不是有效的bklog索引
-        biz_id = parse_index_to_biz_id(index_name)
-        if biz_id is None:
-            continue
-        # 处理存储大小转换
-        store_size = int(index_info["store.size"])
-        # 累加存储容量
-        if biz_id in biz_storage_map:
-            biz_storage_map[biz_id] += store_size
-        else:
-            biz_storage_map[biz_id] = store_size
-
-    # 转换为GB并保留两位小数
-    result = {}
-    for biz_id, total_size in biz_storage_map.items():
-        result[biz_id] = round(total_size / 1024, 2)
-
-    return result
+    # 获取索引信息并过滤掉关闭状态的索引
+    try:
+        indices_info = ElasticHandle(domain_name, port, username, password).get_indices_cat(
+            index=index_format, bytes="mb", column=["index", "store.size", "status"]
+        )
+        return [index_info for index_info in indices_info if index_info["status"] != "close"]
+    except Exception as e:  # pylint: disable=broad-except
+        logger.exception(f"集群[{domain_name}] 索引cat信息获取失败，错误信息：{e}")
+        raise
 
 
 def get_biz_storage_capacity(bk_biz_id, cluster):
@@ -324,7 +266,13 @@ def get_biz_storage_capacity(bk_biz_id, cluster):
     :return: 存储容量（GB）
     """
     index_format = f"{bk_biz_id}_bklog_*"
-    return _calculate_storage_capacity(cluster, index_format, target_biz_id=bk_biz_id)
+    active_indices = _get_indices_info(cluster, index_format)
+
+    # 累加存储容量
+    total_size = 0
+    for _info in active_indices:
+        total_size += int(_info["store.size"])
+    return round(total_size / 1024, 2)
 
 
 def get_all_biz_storage_capacity(cluster):
@@ -334,7 +282,28 @@ def get_all_biz_storage_capacity(cluster):
     :return: 字典格式 {biz_id: storage_size}
     """
     index_format = "*_bklog_*"
-    return _calculate_storage_capacity(cluster, index_format)
+    active_indices = _get_indices_info(cluster, index_format)
+
+    # 按业务ID分组累加存储容量
+    biz_storage_map = defaultdict(int)
+    for index_info in active_indices:
+        index_name = index_info["index"]
+
+        # 尝试解析biz_id，如果解析失败说明不是有效的bklog索引
+        biz_id = parse_index_to_biz_id(index_name)
+        if biz_id is None:
+            continue
+        # 处理存储大小转换
+        store_size = int(index_info["store.size"])
+        # 累加存储容量
+        biz_storage_map[biz_id] += store_size
+
+    # 转换为GB并保留两位小数
+    result = {}
+    for biz_id, total_size in biz_storage_map.items():
+        result[biz_id] = round(total_size / 1024, 2)
+
+    return result
 
 
 def parse_index_to_biz_id(index_name):
@@ -353,7 +322,12 @@ def parse_index_to_biz_id(index_name):
     for pattern in patterns:
         match = re.match(pattern, index_name)
         if match:
-            biz_id = int(match.group(1))
+            if "v2_space_" in pattern:
+                # 对于空间ID，取负数才是真正的业务ID
+                space_id = int(match.group(1))
+                biz_id = -space_id
+            else:
+                biz_id = int(match.group(1))
             return biz_id
     return None
 
@@ -602,12 +576,10 @@ def batch_upsert_storage_used(storage_used_objects):
 
     total_count = len(storage_used_objects)
 
-    # 获取所有需要处理的唯一键
-    unique_keys = [(obj.bk_biz_id, obj.storage_cluster_id) for obj in storage_used_objects]
-
     # 查询现有数据
     existing_objects = StorageUsed.objects.filter(
-        bk_biz_id__in=[key[0] for key in unique_keys], storage_cluster_id__in=[key[1] for key in unique_keys]
+        bk_biz_id__in=set([obj.bk_biz_id for obj in storage_used_objects]),
+        storage_cluster_id__in=set([obj.storage_cluster_id for obj in storage_used_objects]),
     )
     existing_map = {(obj.bk_biz_id, obj.storage_cluster_id): obj for obj in existing_objects}
 
