@@ -471,6 +471,7 @@ class IndexSetHandler(APIModel):
         username="",
         target_fields=None,
         sort_fields=None,
+        bcs_cluster_id=None,
     ):
         index_set_handler = self.get_index_set_handler(self.scenario_id)
         view_roles = []
@@ -489,6 +490,7 @@ class IndexSetHandler(APIModel):
             username=username,
             target_fields=target_fields,
             sort_fields=sort_fields,
+            bcs_cluster_id=bcs_cluster_id,
         ).update_index_set(self.data)
 
         # add user_operation_record
@@ -1743,6 +1745,13 @@ class BaseIndexSetHandler:
             self.index_set_obj.target_fields = self.target_fields_raw
         if self.sort_fields_raw is not None:
             self.index_set_obj.sort_fields = self.sort_fields_raw
+
+        # 标签
+        tag_ids = []
+        if self.bcs_cluster_id and not self.index_set_obj.tag_ids:
+            tag_id = IndexSetTag.get_tag_id(name=self.bcs_cluster_id)
+            tag_ids.append(str(tag_id))
+            self.index_set_obj.tag_ids = tag_ids
 
         self.index_set_obj.save()
 

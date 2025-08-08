@@ -337,6 +337,7 @@ class EtlHandler:
                 username=username,
                 sort_fields=sort_fields,
                 target_fields=target_fields,
+                bcs_cluster_id=self.data.bcs_cluster_id,
             )
         else:
             if not view_roles:
