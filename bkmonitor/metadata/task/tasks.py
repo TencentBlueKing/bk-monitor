@@ -1122,42 +1122,6 @@ def create_basereport_datalink_for_bkcc(bk_biz_id, storage_cluster_name=None):
                 )
                 models.DataSourceResultTable.objects.bulk_create(dsrt_to_create)
 
-            # ResultTableOption is_split_measurement 是否开启单指标单表模式
-            # TODO 需要确认
-            # existing_rt_options = set(
-            #     models.ResultTableOption.objects.filter(
-            #         table_id__in=result_table_ids, bk_tenant_id=bk_tenant_id, name='is_split_measurement'
-            #     ).values_list("table_id", flat=True)
-            # )
-            # result_table_options_to_create = []
-            # for table_id in result_table_ids:
-            #     if table_id in existing_rt_options:
-            #         logger.info(
-            #             "create_basereport_datalink_for_bkcc: table_id->[%s] is_split_measurement rt option already "
-            #             "exists,skip",
-            #             table_id,
-            #         )
-            #         continue
-            #
-            #     result_table_options_to_create.append(
-            #         models.ResultTableOption(
-            #             table_id=table_id,
-            #             bk_tenant_id=bk_tenant_id,
-            #             name='is_split_measurement',
-            #             value='true',
-            #             value_type='bool'
-            #         )
-            #     )
-            #
-            # if result_table_options_to_create:  # 批量创建
-            #     logger.info(
-            #         "create_basereport_datalink_for_bkcc: creating result table options,bk_biz_id->[%s],"
-            #         "bk_tenant_id->[%s]",
-            #         bk_biz_id,
-            #         bk_tenant_id,
-            #     )
-            #     models.ResultTableOption.objects.bulk_create(result_table_options_to_create)
-
             # ResultTableField 结果表字段配置
             existing_fields_qs = models.ResultTableField.objects.filter(
                 table_id__in=result_table_ids, bk_tenant_id=bk_tenant_id
@@ -1305,6 +1269,7 @@ def create_base_event_datalink_for_bkcc(bk_biz_id, storage_cluster_name=None):
             type_label="event",
             space_uid=space_uid,
             bk_biz_id=bk_biz_id,
+            bk_tenant_id=bk_tenant_id,
             created_from=DataIdCreatedFromSystem.BKDATA.value,
         )
 
@@ -1432,7 +1397,9 @@ def create_base_event_datalink_for_bkcc(bk_biz_id, storage_cluster_name=None):
                 logger.info("create_base_event_datalink_for_bkcc: creating rt field options,table_id->[%s]", table_id)
                 models.ResultTableFieldOption.objects.bulk_create(field_option_to_create)
 
-            dsrt_qs = models.DataSourceResultTable.objects.filter(bk_data_id=data_source.bk_data_id, table_id=table_id)
+            dsrt_qs = models.DataSourceResultTable.objects.filter(
+                bk_data_id=data_source.bk_data_id, table_id=table_id, bk_tenant_id=bk_tenant_id
+            )
             if not dsrt_qs:
                 logger.info(
                     "create_base_event_datalink_for_bkcc: creating data_source_result_table relation for "
@@ -1572,6 +1539,7 @@ def create_system_proc_datalink_for_bkcc(bk_tenant_id: str, bk_biz_id: int, stor
                 type_label="metric",
                 space_uid=f"{SpaceTypes.BKCC.value}__{bk_biz_id}",
                 bk_biz_id=bk_biz_id,
+                bk_tenant_id=bk_tenant_id,
                 created_from=DataIdCreatedFromSystem.BKDATA.value,
             )
 
@@ -1592,6 +1560,22 @@ def create_system_proc_datalink_for_bkcc(bk_tenant_id: str, bk_biz_id: int, stor
                 default_storage=models.ClusterInfo.TYPE_VM,
                 creator="system",
                 label="os",
+            )
+
+        # 创建数据源结果表关联
+        dsrt_qs = models.DataSourceResultTable.objects.filter(
+            bk_data_id=data_source.bk_data_id, table_id=table_id, bk_tenant_id=bk_tenant_id
+        )
+        if not dsrt_qs:
+            logger.info(
+                "create_system_proc_datalink_for_bkcc: creating data_source_result_table relation for "
+                "bk_data_id->[%s],table_id->[%s],bk_biz_id->[%s]",
+                data_source.bk_data_id,
+                table_id,
+                bk_biz_id,
+            )
+            models.DataSourceResultTable.objects.create(
+                bk_data_id=data_source.bk_data_id, table_id=table_id, bk_tenant_id=bk_tenant_id
             )
 
         # 创建结果表字段
