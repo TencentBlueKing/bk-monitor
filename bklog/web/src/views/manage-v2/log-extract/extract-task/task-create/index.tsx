@@ -37,7 +37,7 @@ import LogIpSelector, { toSelectorNode, toTransformNode } from '@/components/log
 // #code const LogIpSelector = () => null;
 // #endif
 
-import FilesInput from './files-input.vue';
+import FilesInput from './files-input.tsx';
 import PreviewFiles from './preview-files.vue';
 import TextFilter from './test-filter.vue';
 
