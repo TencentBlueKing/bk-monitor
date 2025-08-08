@@ -37,6 +37,7 @@ from metadata.models.constants import (
 from metadata.models.data_link.constants import BASEREPORT_SOURCE_SYSTEM, BASEREPORT_USAGES, DataLinkResourceStatus
 from metadata.models.data_link.service import get_data_link_component_status
 from metadata.models.space.constants import EtlConfigs, SpaceTypes
+from metadata.models.vm.record import AccessVMRecord
 from metadata.models.vm.utils import (
     create_fed_bkbase_data_link,
     get_vm_cluster_id_name,
@@ -1505,6 +1506,8 @@ def create_system_proc_datalink_for_bkcc(bk_tenant_id: str, bk_biz_id: int, stor
             logger.error("create_system_proc_datalink_for_bkcc: get default vm cluster failed,return!")
             return
         storage_cluster_name = cluster.cluster_name
+    else:
+        cluster = models.ClusterInfo.objects.get(cluster_name=storage_cluster_name)
 
     data_name_to_etl_config = {
         "perf": EtlConfigs.BK_MULTI_TENANCY_SYSTEM_PROC_PERF_ETL_CONFIG,
@@ -1520,7 +1523,7 @@ def create_system_proc_datalink_for_bkcc(bk_tenant_id: str, bk_biz_id: int, stor
     for data_link_type, data_link_config in SYSTEM_PROC_DATA_LINK_CONFIGS.items():
         data_name: str = data_link_config["data_name_tpl"].format(bk_biz_id=bk_biz_id)
         etl_config = data_name_to_etl_config[data_link_type]
-        table_id: str = data_link_config["table_id_tpl"].format(bk_biz_id=bk_biz_id)
+        table_id: str = data_link_config["table_id_tpl"].format(bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id)
         fields: list[dict[str, Any]] = data_link_config["fields"]
 
         # 创建数据源
@@ -1544,39 +1547,46 @@ def create_system_proc_datalink_for_bkcc(bk_tenant_id: str, bk_biz_id: int, stor
             )
 
         # 创建结果表
-        result_table = models.ResultTable.objects.filter(table_id=table_id, bk_tenant_id=bk_tenant_id).first()
-        if not result_table:
-            logger.info(
-                "create_system_proc_datalink_for_bkcc: result table not found,for bk_biz_id->[%s],table_id->[%s]",
-                bk_biz_id,
-                table_id,
-            )
-            result_table = models.ResultTable.objects.create(
-                table_id=table_id,
-                bk_tenant_id=bk_tenant_id,
-                bk_biz_id=bk_biz_id,
-                table_name_zh=data_name,
-                is_custom_table=False,
-                default_storage=models.ClusterInfo.TYPE_VM,
-                creator="system",
-                label="os",
-            )
+        _, created = models.ResultTable.objects.update_or_create(
+            table_id=table_id,
+            bk_tenant_id=bk_tenant_id,
+            defaults={
+                "data_label": data_link_config["data_label"],
+                "table_name_zh": data_name,
+                "is_custom_table": False,
+                "default_storage": models.ClusterInfo.TYPE_VM,
+                "creator": "system",
+                "label": "os",
+                "bk_biz_id": bk_biz_id,
+            },
+        )
+        if created:
+            logger.info("create_system_proc_datalink_for_bkcc: result table created,table_id->[%s]", table_id)
 
         # 创建数据源结果表关联
-        dsrt_qs = models.DataSourceResultTable.objects.filter(
+        _, created = models.DataSourceResultTable.objects.update_or_create(
             bk_data_id=data_source.bk_data_id, table_id=table_id, bk_tenant_id=bk_tenant_id
         )
-        if not dsrt_qs:
+        if created:
             logger.info(
-                "create_system_proc_datalink_for_bkcc: creating data_source_result_table relation for "
-                "bk_data_id->[%s],table_id->[%s],bk_biz_id->[%s]",
+                "create_system_proc_datalink_for_bkcc: data source result table relation created,bk_data_id->[%s],table_id->[%s],bk_biz_id->[%s]",
                 data_source.bk_data_id,
                 table_id,
                 bk_biz_id,
             )
-            models.DataSourceResultTable.objects.create(
-                bk_data_id=data_source.bk_data_id, table_id=table_id, bk_tenant_id=bk_tenant_id
-            )
+
+        # 创建AccessVMRecord
+        AccessVMRecord.objects.update_or_create(
+            bk_tenant_id=bk_tenant_id,
+            result_table_id=table_id,
+            bk_base_data_id=data_source.bk_data_id,
+            bk_base_data_name=data_name,
+            defaults={
+                "vm_cluster_id": cluster.cluster_id,
+                "storage_cluster_id": cluster.cluster_id,
+                "vm_result_table_id": f"base_{bk_biz_id}_{data_name_to_data_link_strategy[data_link_type]}",
+            },
+        )
 
         # 创建结果表字段
         result_table_field_to_create = []
@@ -1608,7 +1618,6 @@ def create_system_proc_datalink_for_bkcc(bk_tenant_id: str, bk_biz_id: int, stor
                 )
             )
 
-        # 创建结果表字段
         if result_table_field_to_create:
             logger.info("create_system_proc_datalink_for_bkcc: creating result table fields,table_id->[%s]", table_id)
             models.ResultTableField.objects.bulk_create(result_table_field_to_create)

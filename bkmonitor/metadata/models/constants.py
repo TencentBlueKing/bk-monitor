@@ -3287,10 +3287,12 @@ BASE_EVENT_RESULT_TABLE_FIELD_OPTION_MAP = {
 }
 
 
+# 系统进程链路配置
 SYSTEM_PROC_DATA_LINK_CONFIGS = {
     "perf": {
         "data_name_tpl": "base_{bk_biz_id}_system_proc_perf",
-        "table_id_tpl": "base_{bk_biz_id}_system_proc_perf",
+        "table_id_tpl": "{bk_tenant_id}_{bk_biz_id}_system_proc.perf",
+        "data_label": "system.proc",
         "fields": [
             {
                 "field_name": "bk_agent_id",
@@ -3728,7 +3730,8 @@ SYSTEM_PROC_DATA_LINK_CONFIGS = {
     },
     "port": {
         "data_name_tpl": "base_{bk_biz_id}_system_proc_port",
-        "table_id_tpl": "base_{bk_biz_id}_system_proc_port",
+        "table_id_tpl": "{bk_tenant_id}_{bk_biz_id}_system_proc.port",
+        "data_label": "system.proc_port",
         "fields": [
             {
                 "field_name": "bind_ip",

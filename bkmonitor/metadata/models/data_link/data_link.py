@@ -894,6 +894,7 @@ class DataLink(models.Model):
                     vm_result_table_id = f"{bk_biz_id}_{bkbase_vmrt_prefix}_{usage}"
                     result_table_id = f"{self.bk_tenant_id}_{bk_biz_id}_{source}.{usage}"
                     vm_record, _ = AccessVMRecord.objects.update_or_create(
+                        bk_tenant_id=self.bk_tenant_id,
                         result_table_id=result_table_id,
                         bk_base_data_id=datasource.bk_data_id,
                         bk_base_data_name=datasource.data_name,
