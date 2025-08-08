@@ -91,6 +91,7 @@ export default class FieldAnalysis extends Vue {
   lineOptions = {};
   pillarOption = {};
   formatStr = 'HH:mm';
+  splitNumber = 5;
 
   fieldData = {
     total_count: 0,
@@ -300,6 +301,7 @@ export default class FieldAnalysis extends Vue {
       },
       xAxis: {
         ...pillarChartOption.xAxis,
+        splitNumber: this.splitNumber,
         axisLabel: {
           color: '#979BA5',
           interval: pillarInterval,
@@ -381,12 +383,13 @@ export default class FieldAnalysis extends Vue {
       color: lineColor,
       xAxis: {
         ...resetxAxis,
+        splitNumber: this.splitNumber,
         axisLabel: {
           color: '#979BA5',
           boundaryGap: false,
-          fontSize: 12,
+          fontSize: 11,
           formatter: (value: number) => dayjs.tz(value).format(this.formatStr),
-          interval: (index: number) => index % 2 === 0,
+          interval: 0,
         },
         scale: false,
         min: minTimestamp,
@@ -399,7 +402,6 @@ export default class FieldAnalysis extends Vue {
       legend: [],
       series,
     });
-
     this.$nextTick(() => {
       if (this.commonLegendRef) {
         this.isShowPageIcon = this.commonLegendRef.scrollHeight > this.commonLegendRef.clientHeight;
@@ -415,12 +417,13 @@ export default class FieldAnalysis extends Vue {
   setFormatStr(start: number, end: number) {
     if (!start || !end) return;
 
-    const differenceInHours = Math.abs(start - end) / 3600;
+    const differenceInHours = Math.abs(start - end) / 3600000;
 
-    if (differenceInHours <= 48) {
+    if (differenceInHours <= 24) {
       this.formatStr = 'HH:mm';
-    } else if (differenceInHours > 48 && differenceInHours <= 168) {
+    } else if (differenceInHours > 24 && differenceInHours <= 168) {
       this.formatStr = 'MM-DD HH:mm';
+      this.splitNumber = 4;
     } else {
       this.formatStr = 'MM-DD';
     }
@@ -761,14 +764,22 @@ export default class FieldAnalysis extends Vue {
                   <span class='count-num-title'>{window.mainComponent.$t('去重后字段统计')}</span>
                   <span class='distinct-count-num'>{distinctCount}</span>
                 </div>
-                <div class='moreFn'>
+                <div class='more-fn'>
+                  {!chartLoading && fieldData.distinct_count > 5 && (
+                    <span
+                      class='more-distinct'
+                      onClick={() => this.showMore(true)}
+                    >
+                      {window.mainComponent.$t('查看全部')}
+                    </span>
+                  )}
                   <span
-                    class='fnBtn bk-icon icon-download'
+                    class='fn-btn bk-icon icon-download'
                     v-bk-tooltips={window.mainComponent.$t('下载')}
                     onClick={this.downloadFieldStatistics}
                   ></span>
                   {/* <span
-                    class='fnBtn bk-icon icon-apps'
+                    class='fn-btn bk-icon icon-apps'
                     v-bk-tooltips='查看仪表盘'
                   ></span> */}
                 </div>
@@ -784,15 +795,6 @@ export default class FieldAnalysis extends Vue {
                   retrieve-params={this.queryParams}
                   statistical-field-data={this.queryParams.statisticalFieldData}
                 />
-              )}
-
-              {!chartLoading && fieldData.distinct_count > 5 && (
-                <span
-                  class='moreDistinct'
-                  onClick={() => this.showMore(true)}
-                >
-                  {window.mainComponent.$t('更多')}
-                </span>
               )}
             </div>
           )}

@@ -270,7 +270,7 @@ export default class AggChart extends tsc<object> {
         {this.listLoading ? (
           <ItemSkeleton
             columns={2}
-            rows={this.limit > 6 ? Math.ceil(this.limit / 10) : 2}
+            rows={this.limit > 6 ? Math.ceil(this.limit / 8) : 2}
             widths={['10%', '90%']}
           />
         ) : hasData ? (
