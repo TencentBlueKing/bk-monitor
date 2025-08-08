@@ -39,7 +39,7 @@ import LogIpSelector, { toSelectorNode, toTransformNode } from '@/components/log
 
 import FilesInput from './files-input.tsx';
 import PreviewFiles from './preview-files.tsx';
-import TextFilter from './test-filter.vue';
+import TextFilter from './test-filter.tsx';
 
 import './index.scss';
 
