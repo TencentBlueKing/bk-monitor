@@ -1058,7 +1058,6 @@
           is_delete: false,
           is_dimension: false,
           is_time: false,
-          query_alias: '',
           value: '',
           option: {
             time_format: '',
@@ -1118,7 +1117,6 @@
           field_name: '',
           field_type: '',
           description: '',
-          query_alias: '',
           is_case_sensitive: false,
           is_analyzed: false,
           is_built_in: false,
@@ -1149,7 +1147,6 @@
         isDebugLoading: false,
         builtFieldShow: false,
         fieldsObjectData: [],
-        alias_settings: [],
       };
     },
     computed: {
@@ -1586,15 +1583,6 @@
             delete data.etl_params['separator'];
           }
         }
-        data.alias_settings = fieldTableData
-          .filter(item => item.query_alias)
-          .map(item => {
-            return {
-              field_name: item.alias_name || item.field_name,
-              query_alias: item.query_alias,
-              path_type: item.field_type,
-            };
-          });
         data.etl_fields = data.etl_fields.filter(item => !item.is_built_in && !item.is_objectKey);
         let requestUrl;
         const urlParams = {};
@@ -1680,7 +1668,7 @@
       },
       /** 入库请求 */
       async fieldCollectionRequest(atLastFormData, callback) {
-        const { clean_type: etlConfig, etl_params: etlParams, etl_fields: etlFields, alias_settings } = atLastFormData;
+        const { clean_type: etlConfig, etl_params: etlParams, etl_fields: etlFields } = atLastFormData;
         // 检索设置 直接入库
         const {
           table_id,
@@ -1704,7 +1692,6 @@
           etl_config: etlConfig,
           fields: etlFields,
           etl_params: etlParams,
-          alias_settings,
         };
 
         const updateData = {
@@ -1922,12 +1909,9 @@
           etl_params: etlParams,
           fields,
           index_set_id,
-          alias_settings,
         } = this.curCollect;
         const option = { time_zone: '', time_format: '' };
         const copyFields = fields ? JSON.parse(JSON.stringify(fields)) : [];
-        this.alias_settings = this.changeAliasSettings(alias_settings);
-        this.concatenationQueryAlias(copyFields);
         copyFields.forEach(row => {
           row.value = '';
           if (row.is_delete) {
@@ -2331,7 +2315,6 @@
           .then(res => {
             if (res.data) {
               const { clean_type, etl_params: etlParams, etl_fields: etlFields } = res.data;
-              this.concatenationQueryAlias(etlFields);
               this.formData.fields.splice(0, this.formData.fields.length);
 
               this.params.etl_config = clean_type;
@@ -2401,8 +2384,6 @@
           })
           .then(async res => {
             if (res.data) {
-              this.alias_settings = this.changeAliasSettings(res.data.alias_settings);
-              this.concatenationQueryAlias(res.data.fields);
               this.$store.commit('collect/setCurCollect', res.data);
               this.getDetail();
               await this.getCleanStash(id);
@@ -2412,16 +2393,6 @@
           .finally(() => {
             this.basicLoading = false;
           });
-      },
-      // 拼接query_alias
-      concatenationQueryAlias(fields) {
-        fields.forEach(item => {
-          this.alias_settings.forEach(item2 => {
-            if (item.field_name === item2.field_name || item.alias_name === item2.field_name) {
-              item.query_alias = item2.query_alias;
-            }
-          });
-        });
       },
       // 新增、编辑清洗选择采集项
       async handleCollectorChange(id) {
@@ -2648,16 +2619,6 @@
       },
       deleteField(field) {
         this.formData.fields = this.formData.fields.filter(item => item.field_index !== field.field_index);
-      },
-      // 转换alias_settings格式
-      changeAliasSettings(alias_settings) {
-        const keys = Object.keys(alias_settings || {});
-        return keys.map(key => {
-          return {
-            query_alias: key,
-            field_name: alias_settings[key].path,
-          };
-        });
       },
       addChildrenToBuiltField(builtFieldList, item, name) {
         const field_name = name.split('.')[0].replace(/^_+|_+$/g, '');

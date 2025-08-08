@@ -55,7 +55,7 @@
             <bk-table-column
               :render-header="renderHeaderFieldName"
               :resizable="true"
-              width="220"
+              width="250"
             >
               <template #default="props">
                 <div
@@ -127,46 +127,12 @@
                 </bk-form-item>
               </template>
             </bk-table-column>
-            <!-- 别名 -->
-            <bk-table-column
-              :render-header="renderHeaderAliasName"
-              :resizable="true"
-              width="140"
-            >
-              <template #default="props">
-                <div
-                  v-if="(!props.row.is_edit && isPreviewMode) || tableType === 'originLog' || props.row.field_type === 'object'"
-                  class="overflow-tips"
-                  v-bk-overflow-tips
-                >
-                  <span>{{ props.row.query_alias }}</span>
-                </div>
-                <bk-form-item
-                  v-else
-                  :class="{ 'is-required is-error': props.row.aliasErr }"
-                >
-                  <bk-input
-                    v-model.trim="props.row.query_alias"
-                    :disabled="props.row.is_delete || isSetDisabled "
-                    @blur="checkQueryAliasItem(props.row)"
-                  >
-                  </bk-input>
-                  <template v-if="props.row.aliasErr">
-                    <i
-                      style="right: 8px"
-                      class="bk-icon icon-exclamation-circle-shape tooltips-icon"
-                      v-bk-tooltips.top="props.row.aliasErr"
-                    ></i>
-                  </template>
-                </bk-form-item>
-              </template>
-            </bk-table-column>
             <!-- 类型 -->
             <bk-table-column
               :render-header="renderHeaderDataType"
               :resizable="true"
               align="center"
-              width="100"
+              width="160"
             >
               <template #default="props">
                 <div
@@ -870,67 +836,12 @@
           }
         });
       },
-      checkQueryAliasItem(row) {
-        const { field_name: fieldName, query_alias: queryAlias, alias_name: aliasName, is_delete: isDelete } = row;
-        if (isDelete) {
-          return true;
-        }
-        this.$set(row, 'aliasErr', '');
-        if (queryAlias) {
-          // 设置了别名
-          if (!/^(?!^\d)[\w]+$/gi.test(queryAlias)) {
-            row.aliasErr = this.$t('别名只支持【英文、数字、下划线】，并且不能以数字开头');
-            return false;
-          }else if (queryAlias === fieldName) {
-            row.aliasErr = this.$t('别名与字段名重复');
-            return false;
-          }else if (queryAlias === aliasName) {
-            row.aliasErr = this.$t('别名与重命名重复');
-            return false;
-          }
-          if (this.globalsData.field_built_in.find(item => item.id === queryAlias.toLocaleLowerCase())) {
-            row.aliasErr = this.$t('别名不能与内置字段名相同');
-            return false;
-          }
-        } else if (this.globalsData.field_built_in.find(item => item.id === fieldName.toLocaleLowerCase())) {
-          if(row.alias_name || row.is_built_in){
-            row.aliasErr = '';
-            return true
-          }
-          row.aliasErr = this.$t('字段名与内置字段冲突，必须设置别名');
-          return false;
-        }
-        row.aliasErr = '';
-        return true;
-      },
-      checkQueryAlias() {
-        return new Promise((resolve, reject) => {
-          try {
-            let result = true;
-            const data = this.getAllData();
-            data.forEach(row => {
-              if (!this.checkQueryAliasItem(row)) {
-                result = false;
-              }
-            });
 
-            if (result) {
-              resolve();
-            } else {
-              console.warn('QueryAlias校验错误');
-              reject(result);
-            }
-          } catch (err) {
-            console.warn('QueryAlias校验错误');
-            reject(err);
-          }
-        });
-      },
+
       validateFieldTable() {
         const promises = [];
         promises.push(this.checkAliasName());
         promises.push(this.checkFieldName());
-        promises.push(this.checkQueryAlias());
         promises.push(this.checkType());
         return promises;
       },
@@ -950,30 +861,6 @@
             class: 'render-header',
           },
           [h('span', { directives: [{ name: 'bk-overflow-tips' }], class: 'title-overflow' }, [this.$t('字段名')])],
-        );
-      },
-      renderHeaderAliasName(h) {
-        return h(
-          'div',
-          {
-            directives: [
-              {
-                name: 'bk-tooltips',
-                value: this.$t('填写后原字段名和别名均可查询'),
-              },
-            ],
-            class: 'render-header decoration-header-cell',
-          },
-          [
-            h(
-              'span',
-              {
-                class: 'title-overflow',
-              },
-              [this.$t('别名')],
-            ),
-            h('span', this.$t('(选填)')),
-          ],
         );
       },
       renderHeaderDataType(h) {
