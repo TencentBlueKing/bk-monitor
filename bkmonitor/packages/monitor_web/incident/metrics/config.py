@@ -111,8 +111,8 @@ BCS_PROMQL_TEMPLATE = {
 # 实体类型指标配置映射
 EntityTypeMetricConfigMapping = {
     EntityType.APMService.value: {
-        MetricName.APM_TOTAL_REQUEST_COUNT.value: {
-            "default": {
+        MetricName.APM_REQUEST_COUNT.value: {
+            "总数": {
                 "expression": "A",
                 "query_configs": [
                     {
@@ -126,9 +126,8 @@ EntityTypeMetricConfigMapping = {
                         "interval": "{interval}"
                     }
                 ]
-            }},
-        MetricName.APM_ACTIVE_REQUEST_COUNT.value: {
-            "default": {
+            },
+            "主调":{
                 "expression": "A",
                 "query_configs": [
                     {
@@ -147,7 +146,7 @@ EntityTypeMetricConfigMapping = {
                     }
                 ]
             },
-            MetricName.APM_PASSIVE_REQUEST_COUNT.value: {
+            "被调": {
                 "expression": "A",
                 "query_configs": [
                     {
@@ -165,7 +164,8 @@ EntityTypeMetricConfigMapping = {
                         "interval": "{interval}"
                     }
                 ]
-            }},
+            }
+        },
         MetricName.APM_ERROR_COUNT.value: {
             "default": {
                 "expression": "A",
@@ -177,14 +177,15 @@ EntityTypeMetricConfigMapping = {
                         "display": True,
                         "where": [
                             {"key": "status_code", "method": "eq",
-                             "value": ["2"], "condition": "and"}
+                            "value": ["2"], "condition": "and"}
                         ],
                         "table": "{table}",
                         "filter_dict": "{filter_dict}",
                         "interval": "{interval}"
                     }
                 ]
-            }},
+            }
+        },
         MetricName.APM_ERROR_RATE.value: {
             "default": {
                 "expression": "b / c",
@@ -195,7 +196,7 @@ EntityTypeMetricConfigMapping = {
                         "group_by": [],
                         "where": [
                             {"key": "status_code", "method": "eq",
-                             "value": ["2"], "condition": "and"}
+                            "value": ["2"], "condition": "and"}
                         ],
                         "table": "{table}",
                         "filter_dict": "{filter_dict}",

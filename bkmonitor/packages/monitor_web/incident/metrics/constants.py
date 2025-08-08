@@ -64,9 +64,11 @@ class IndexType(CachedEnum):
 
 class MetricName(CachedEnum):
     # APM指标
+    APM_REQUEST_COUNT = "apm.request_count"
     APM_TOTAL_REQUEST_COUNT = "apm.total_request_count"
     APM_ACTIVE_REQUEST_COUNT = "apm.active_request_count"
     APM_PASSIVE_REQUEST_COUNT = "apm.passive_request_count"
+    
     APM_ERROR_COUNT = "apm.error_count"
     APM_ERROR_RATE = "apm.error_rate"
     
@@ -103,6 +105,7 @@ class MetricName(CachedEnum):
     def label(self):
         return str(
             {
+                MetricName.APM_REQUEST_COUNT: "请求数",
                 MetricName.APM_TOTAL_REQUEST_COUNT: "请求总数",
                 MetricName.APM_ACTIVE_REQUEST_COUNT: "主调请求数",
                 MetricName.APM_PASSIVE_REQUEST_COUNT: "被调请求数",
