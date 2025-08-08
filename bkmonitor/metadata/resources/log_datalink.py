@@ -391,7 +391,7 @@ class CreateOrUpdateLogRouter(Resource):
             query_alias = serializers.CharField(required=True, label="查询别名", help_text="字段的查询别名")
 
         query_alias_settings = QueryAliasSettingSerializer(
-            required=False, label="查询别名设置", default=list, many=True
+            required=False, label="查询别名设置", default=None, many=True
         )
 
     def perform_request(self, validated_request_data: dict) -> None:
