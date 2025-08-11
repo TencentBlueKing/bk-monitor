@@ -43,7 +43,7 @@ class TopoBase(models.Model):
         if not application:
             raise CustomException(_("业务下的应用: {} 不存在").format(app_name))
         last = datetime.datetime.now() - datetime.timedelta(application.trace_datasource.retention)
-        filter_params = {"bk_biz_id": bk_biz_id, "app_name": app_name, "updated_at__gte": last, **(filter_params or {})}
+        filter_params = {"bk_biz_id": bk_biz_id, "app_name": app_name, "updated_at__lte": last, **(filter_params or {})}
 
         cls.objects.filter(**filter_params).delete()
 
