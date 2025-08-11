@@ -723,7 +723,10 @@ def _refresh_data_link_status(bkbase_rt_record: BkBaseResultTable):
         with transaction.atomic():
             data_id_config = models.DataIdConfig.objects.get(name=bkbase_data_id_name)
             data_id_status = get_data_link_component_status(
-                kind=data_id_config.kind, namespace=data_id_config.namespace, component_name=data_id_config.name
+                bk_tenant_id=bkbase_rt_record.bk_tenant_id,
+                kind=data_id_config.kind,
+                namespace=data_id_config.namespace,
+                component_name=data_id_config.name,
             )
             # 当和DB中的数据不一致时，才进行变更
             if data_id_config.status != data_id_status:
@@ -760,7 +763,10 @@ def _refresh_data_link_status(bkbase_rt_record: BkBaseResultTable):
             with transaction.atomic():
                 component_ins = component.objects.get(name=bkbase_rt_name)
                 component_status = get_data_link_component_status(
-                    kind=component_ins.kind, namespace=component_ins.namespace, component_name=component_ins.name
+                    bk_tenant_id=bkbase_rt_record.bk_tenant_id,
+                    kind=component_ins.kind,
+                    namespace=component_ins.namespace,
+                    component_name=component_ins.name,
                 )
                 logger.info(
                     "_refresh_data_link_status: data_link_name->[%s],component->[%s],kind->[%s],status->[%s]",
@@ -1635,8 +1641,8 @@ def create_system_proc_datalink_for_bkcc(bk_tenant_id: str, bk_biz_id: int, stor
         cluster = models.ClusterInfo.objects.get(cluster_name=storage_cluster_name)
 
     data_name_to_etl_config = {
-        "perf": EtlConfigs.BK_MULTI_TENANCY_SYSTEM_PROC_PERF_ETL_CONFIG,
-        "port": EtlConfigs.BK_MULTI_TENANCY_SYSTEM_PROC_PORT_ETL_CONFIG,
+        "perf": EtlConfigs.BK_MULTI_TENANCY_SYSTEM_PROC_PERF_ETL_CONFIG.value,
+        "port": EtlConfigs.BK_MULTI_TENANCY_SYSTEM_PROC_PORT_ETL_CONFIG.value,
     }
 
     data_name_to_data_link_strategy = {
@@ -1709,7 +1715,7 @@ def create_system_proc_datalink_for_bkcc(bk_tenant_id: str, bk_biz_id: int, stor
             defaults={
                 "vm_cluster_id": cluster.cluster_id,
                 "storage_cluster_id": cluster.cluster_id,
-                "vm_result_table_id": f"base_{bk_biz_id}_{data_name_to_data_link_strategy[data_link_type]}",
+                "vm_result_table_id": f"{bk_biz_id}_base_{bk_biz_id}_{data_name_to_data_link_strategy[data_link_type]}",
             },
         )
 
