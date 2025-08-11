@@ -516,10 +516,9 @@ def create_fed_vm_data_link(
     config_list.extend([vm_conditional_sink_config, vm_data_bus_config])
 
     # 4. 调用计算平台接口，申请创建链路
-    data = {"config": config_list}
     try:
         logger.info("create_fed_vm_data_link start to apply data link")
-        api.bkdata.apply_data_link(data)
+        api.bkdata.apply_data_link(config=config_list, bk_tenant_id=data_source.bk_tenant_id)
     except Exception as e:
         logger.error("create_fed_vm_data_link apply data link error->[%s]", str(e))
         return
