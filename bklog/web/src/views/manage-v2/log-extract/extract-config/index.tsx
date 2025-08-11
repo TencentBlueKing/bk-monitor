@@ -58,7 +58,6 @@ export default defineComponent({
     const userApi = ref(''); // 用户API
     const emptyType = ref('empty'); // 空状态类型
 
-    // 计算属性
     const spaceUid = computed(() => store.getters.spaceUid); // 空间UID
     const bkBizId = computed(() => store.state.bkBizId); // 业务ID
     const userMeta = computed(() => store.state.userMeta); // 用户元数据

@@ -60,7 +60,7 @@ export default defineComponent({
     },
   },
 
-  setup(props, { emit }) {
+  setup(props, { emit, expose }) {
     const store = useStore();
     const { t } = useLocale();
 
@@ -269,6 +269,9 @@ export default defineComponent({
         selection.map(item => item.path),
       );
     };
+
+    // 暴露方法
+    expose({ handleClone });
 
     // 主渲染函数
     return () => (

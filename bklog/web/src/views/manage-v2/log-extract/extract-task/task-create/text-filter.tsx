@@ -29,7 +29,7 @@ import useLocale from '@/hooks/use-locale';
 
 export default defineComponent({
   name: 'TextFilter',
-  setup() {
+  setup(_, {expose}) {
     const { t } = useLocale();
 
     const filterType = ref(''); // 过滤类型
@@ -102,6 +102,9 @@ export default defineComponent({
         filterContent.value[key] = num;
       }
     };
+
+    // 暴露方法
+    expose({ handleClone });
 
     // 主渲染函数
     return () => (

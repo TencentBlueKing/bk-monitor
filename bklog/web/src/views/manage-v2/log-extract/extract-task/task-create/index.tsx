@@ -39,7 +39,7 @@ import LogIpSelector, { toSelectorNode, toTransformNode } from '@/components/log
 
 import FilesInput from './files-input.tsx';
 import PreviewFiles from './preview-files.tsx';
-import TextFilter from './test-filter.tsx';
+import TextFilter from './text-filter.tsx';
 
 import './index.scss';
 
@@ -365,7 +365,7 @@ export default defineComponent({
         {/* 文本过滤 */}
         <div class='row-container'>
           <div class='title'>{t('文本过滤')}</div>
-          <div class='content'>
+          <div class='content'> 
             <TextFilter ref={textFilterRef} />
           </div>
         </div>
