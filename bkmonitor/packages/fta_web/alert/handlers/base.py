@@ -485,7 +485,7 @@ class BaseQueryHandler:
         result = {"hits": {"total": {"value": 0, "relation": "eq"}, "max_score": 1.0, "hits": []}}
         return Response(Search(), result)
 
-    def add_agg_bucket(self, search_object: Bucket, field: str, size: int = 10, bucket_count_suffix: str = ""):
+    def add_agg_bucket(self, search_object: Bucket, field: str, size: int = 10):
         """
         按字段添加聚合桶
         """
@@ -518,11 +518,6 @@ class BaseQueryHandler:
                 )
             )
 
-            # 计算桶的个数
-            if bucket_count_suffix:
-                search_object.bucket(f"{field}{bucket_count_suffix}", "nested", path="event.tags").bucket(
-                    "key", "filter", {"term": {"event.tags.key": tag_key}}
-                ).bucket("value", "cardinality", field="event.tags.value.raw")
         else:
             agg_field = self.query_transformer.transform_field_to_es_field(actual_field, for_agg=True)
             if agg_field == "duration":
@@ -541,10 +536,22 @@ class BaseQueryHandler:
                     order=order,
                     size=size,
                 )
-            if bucket_count_suffix:
-                search_object.bucket(f"{field}{bucket_count_suffix}", "cardinality", field=agg_field)
 
         return new_search_object
+
+    def add_cardinality_bucket(self, search_object: Bucket, field: str, bucket_count_suffix: str):
+        """
+        添加基数聚合桶
+        """
+        actual_field = field.lstrip("+-")
+        if actual_field.startswith("tags."):
+            tag_key = actual_field[len("tags.") :]
+            search_object.bucket(f"{field}{bucket_count_suffix}", "nested", path="event.tags").bucket(
+                "key", "filter", {"term": {"event.tags.key": tag_key}}
+            ).bucket("value", "cardinality", field="event.tags.value.raw")
+        else:
+            agg_field = self.query_transformer.transform_field_to_es_field(actual_field, for_agg=True)
+            search_object.bucket(f"{field}{bucket_count_suffix}", "cardinality", field=agg_field)
 
     def top_n(self, fields: list, size=10, translators: dict[str, AbstractTranslator] = None, char_add_quotes=True):
         """
@@ -582,7 +589,9 @@ class BaseQueryHandler:
 
         bucket_count_suffix = self.bucket_count_suffix
         for field in fields:
-            self.add_agg_bucket(search_object.aggs, field, size=size, bucket_count_suffix=bucket_count_suffix)
+            self.add_agg_bucket(search_object.aggs, field, size=size)
+            if bucket_count_suffix:
+                self.add_cardinality_bucket(search_object.aggs, field, bucket_count_suffix)
 
         search_result = search_object.execute()
 
@@ -595,13 +604,13 @@ class BaseQueryHandler:
 
         # 返回结果的数据处理
         for field in fields:
-            bucket_count = 0
+            bucket_count = None
             if not search_result.aggs:
                 result["fields"].append(
                     {
                         "field": field,
                         "is_char": field in char_fields,
-                        "bucket_count": 0,
+                        "bucket_count": bucket_count,
                         "buckets": [],
                     }
                 )
