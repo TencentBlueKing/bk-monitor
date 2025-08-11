@@ -1932,13 +1932,18 @@ class AlertTopNResource(Resource):
     handler_cls = AlertQueryHandler
 
     class RequestSerializer(AlertSearchSerializer, BaseTopNResource.RequestSerializer):
-        pass
+        need_time_partition = serializers.BooleanField(required=False, default=False, label="是否需要按时间分片")
 
     def perform_request(self, validated_request_data):
         if validated_request_data["bk_biz_ids"] is not None:
             authorized_bizs, unauthorized_bizs = self.handler_cls.parse_biz_item(validated_request_data["bk_biz_ids"])
             validated_request_data["authorized_bizs"] = authorized_bizs
             validated_request_data["unauthorized_bizs"] = unauthorized_bizs
+
+        need_time_partition = validated_request_data.pop("need_time_partition")
+
+        if not need_time_partition:
+            return resource.alert.alert_top_n_result(**validated_request_data)
 
         executor = ThreadPoolExecutor(max_workers=1)
         future = executor.submit(self.get_bucket_count, validated_request_data)
