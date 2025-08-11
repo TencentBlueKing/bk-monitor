@@ -750,9 +750,9 @@ def test_create_bkbase_federal_proxy_data_link(create_or_delete_records, mocker)
 
     bcs_cluster_id = None
 
-    bcs_record = models.BCSClusterInfo.objects.filter(K8sMetricDataID=ds.bk_data_id)
+    bcs_record = models.BCSClusterInfo.objects.filter(K8sMetricDataID=ds.bk_data_id).first()
     if bcs_record:
-        bcs_cluster_id = bcs_record.first().cluster_id
+        bcs_cluster_id = bcs_record.cluster_id
 
     with patch.object(
         DataLink, "apply_data_link_with_retry", return_value={"status": "success"}
@@ -918,7 +918,7 @@ def test_create_basereport_datalink_for_bkcc_metadata_part(create_or_delete_reco
         assert dsrt.bk_data_id == 70010
         assert dsrt.bk_tenant_id == "system"
         # ResultTableField
-        expected_fields = BASEREPORT_RESULT_TABLE_FIELD_MAP.get(usage)
+        expected_fields = BASEREPORT_RESULT_TABLE_FIELD_MAP[usage]
         for expected_field in expected_fields:
             field = models.ResultTableField.objects.get(table_id=table_id, field_name=expected_field["field_name"])
             assert field
