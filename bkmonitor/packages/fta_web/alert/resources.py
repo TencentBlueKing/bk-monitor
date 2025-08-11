@@ -1932,7 +1932,7 @@ class AlertTopNResource(Resource):
     handler_cls = AlertQueryHandler
 
     class RequestSerializer(AlertSearchSerializer, BaseTopNResource.RequestSerializer):
-        need_time_partition = serializers.BooleanField(required=False, default=False, label="是否需要按时间分片")
+        need_time_partition = serializers.BooleanField(required=False, default=True, label="是否需要按时间分片")
 
     def perform_request(self, validated_request_data):
         if validated_request_data["bk_biz_ids"] is not None:
