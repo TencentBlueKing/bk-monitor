@@ -25,6 +25,11 @@ from core.prometheus import metrics
 logger = logging.getLogger(__name__)
 
 
+@app.task(ingnore_result=True, queue="celery_service_qos")
+def run_access_data_with_qos_queue(strategy_group_key, interval=60):
+    return run_access_data(strategy_group_key, interval)
+
+
 @app.task(ignore_result=True, queue="celery_service")
 def run_access_data(strategy_group_key, interval=60):
     with service_lock(key.SERVICE_LOCK_ACCESS, strategy_group_key=strategy_group_key):

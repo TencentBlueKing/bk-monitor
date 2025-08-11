@@ -1925,22 +1925,33 @@ class AlertTopNResultResource(BaseTopNResource):
         is_finaly_partition = serializers.BooleanField(required=False, default=False, label="是否是最后一个分片")
         authorized_bizs = serializers.ListField(child=serializers.IntegerField(), default=None)
         unauthorized_bizs = serializers.ListField(child=serializers.IntegerField(), default=None)
+        need_bucket_count = serializers.BooleanField(required=False, default=True, label="是否需要进行基数聚合")
 
 
 class AlertTopNResource(Resource):
     handler_cls = AlertQueryHandler
 
     class RequestSerializer(AlertSearchSerializer, BaseTopNResource.RequestSerializer):
-        pass
+        need_time_partition = serializers.BooleanField(required=False, default=True, label="是否需要按时间分片")
 
     def perform_request(self, validated_request_data):
-        start_time = validated_request_data.pop("start_time")
-        end_time = validated_request_data.pop("end_time")
-        slice_times = slice_time_interval(start_time, end_time)
         if validated_request_data["bk_biz_ids"] is not None:
             authorized_bizs, unauthorized_bizs = self.handler_cls.parse_biz_item(validated_request_data["bk_biz_ids"])
             validated_request_data["authorized_bizs"] = authorized_bizs
             validated_request_data["unauthorized_bizs"] = unauthorized_bizs
+
+        need_time_partition = validated_request_data.pop("need_time_partition")
+
+        if not need_time_partition:
+            return resource.alert.alert_top_n_result(**validated_request_data)
+
+        executor = ThreadPoolExecutor(max_workers=1)
+        future = executor.submit(self.get_bucket_count, validated_request_data)
+
+        start_time = validated_request_data.pop("start_time")
+        end_time = validated_request_data.pop("end_time")
+        slice_times = slice_time_interval(start_time, end_time)
+        size = validated_request_data.get("size", 10)
 
         results = resource.alert.alert_top_n_result.bulk_request(
             [
@@ -1949,6 +1960,7 @@ class AlertTopNResource(Resource):
                     "end_time": sliced_end_time,
                     "is_finaly_partition": True if index == len(slice_times) - 1 else False,
                     "is_time_partitioned": True,
+                    "need_bucket_count": False,  # 不在分片查询中进行基数聚合
                     **validated_request_data,
                 }
                 for index, (sliced_start_time, sliced_end_time) in enumerate(slice_times)
@@ -1959,37 +1971,104 @@ class AlertTopNResource(Resource):
             "doc_count": 0,
             "fields": [],
         }
+        field_buckets_map = {}
 
-        # 创建字段映射和ID映射
-        field_map = {}
-        id_map = {}
-
-        # 处理每个部分结果
         for sliced_result in results:
             result["doc_count"] += sliced_result["doc_count"]
 
-            for field in sliced_result["fields"]:
-                if field["field"] not in field_map:
-                    new_field = copy.deepcopy(field)
-                    new_field["buckets"] = []  # 清空buckets
-                    new_field["bucket_count"] = 0  # 初始化bucket_count
-                    result["fields"].append(new_field)
-                    field_index = len(result["fields"]) - 1
-                    field_map[field["field"]] = field_index
-                    id_map[field["field"]] = {}
-                else:
-                    field_index = field_map[field["field"]]
+            for field_info in sliced_result["fields"]:
+                field = field_info["field"]
+                if field not in field_buckets_map:
+                    field_buckets_map[field] = {
+                        "id_buckets_map": {},
+                        "field": field,
+                        "is_char": field_info["is_char"],
+                    }
 
-                for bucket in field["buckets"]:
-                    if bucket["id"] not in id_map[field["field"]]:
-                        new_bucket = copy.deepcopy(bucket)
-                        result["fields"][field_index]["buckets"].append(new_bucket)
-                        bucket_index = len(result["fields"][field_index]["buckets"]) - 1
-                        id_map[field["field"]][bucket["id"]] = bucket_index
-                        result["fields"][field_index]["bucket_count"] += 1
+                id_buckets_map = field_buckets_map[field]["id_buckets_map"]
+
+                for bucket in field_info["buckets"]:
+                    _id = bucket["id"]
+                    name = bucket["name"]
+                    if (_id, name) not in id_buckets_map:
+                        id_buckets_map[(_id, name)] = {
+                            "id": _id,
+                            "name": name,
+                            "count": bucket["count"],
+                        }
                     else:
-                        bucket_index = id_map[field["field"]][bucket["id"]]
-                        result["fields"][field_index]["buckets"][bucket_index]["count"] += bucket["count"]
+                        id_buckets_map[(_id, name)]["count"] += bucket["count"]
+
+        for filed_info in field_buckets_map.values():
+            field = {
+                "field": filed_info["field"],
+                "is_char": filed_info["is_char"],
+                "bucket_count": 0,
+                "buckets": list(filed_info["id_buckets_map"].values()),
+            }
+            result["fields"].append(field)
+
+        # 补充bucket_count值，以及限制buckets长度与size一致
+        field_bucket_count_map = future.result()
+        executor.shutdown(wait=True)
+        # 对每个字段的桶按count降序排序，并截取前size个
+        for field_data in result["fields"]:
+            field = field_data["field"]
+            if field == "bk_biz_id":
+                exist_bizs = {int(bucket["id"]) for bucket in field_data["buckets"]}
+                authorized_bizs = field_bucket_count_map[field]["authorized_bizs"]
+                bucket_count = field_bucket_count_map[field]["bucket_count"]
+                for biz in authorized_bizs:
+                    if len(exist_bizs) > size:
+                        break
+                    if int(biz) not in exist_bizs:
+                        field_data["buckets"].append({"id": biz, "name": biz, "count": 0})
+                        bucket_count += 1
+                field_bucket_count_map[field] = bucket_count
+            bucket_length = len(field_data["buckets"])
+            field_data["buckets"].sort(key=lambda x: x["count"], reverse=True)
+            field_data["buckets"] = field_data["buckets"][:size]
+
+            field_data["bucket_count"] = field_bucket_count_map.get(field, 0)
+            if field_data["bucket_count"] <= size:
+                field_data["bucket_count"] = bucket_length
+
+        return result
+
+    def get_bucket_count(self, validated_request_data):
+        fields = validated_request_data.get("fields", [])
+        handler = self.handler_cls(**validated_request_data)
+        search_object = handler.get_search_object()
+        search_object = handler.add_conditions(search_object)
+        search_object = handler.add_query_string(search_object)
+        search_object = search_object.params(track_total_hits=True).extra(size=0)
+
+        bucket_count_suffix = handler.bucket_count_suffix
+
+        for filed in fields:
+            handler.add_cardinality_bucket(search_object.aggs, filed, bucket_count_suffix)
+
+        search_result = search_object.execute()
+
+        result = {}
+
+        # 返回结果的数据处理
+        for field in fields:
+            if not search_result.aggs:
+                continue
+            actual_field = field.lstrip("-+")
+            if actual_field.startswith("tags."):
+                bucket_count = getattr(search_result.aggs, f"{field}{bucket_count_suffix}").key.value.value
+
+            elif actual_field == "duration":
+                bucket_count = len(handler.DurationOption.AGG)
+            elif actual_field == "bk_biz_id" and hasattr(handler, "authorized_bizs"):
+                authorized_bizs = set(handler.authorized_bizs)
+                bucket_count = {"bucket_count": len(authorized_bizs), "authorized_bizs": authorized_bizs}
+            else:
+                bucket_count = getattr(search_result.aggs, f"{field}{bucket_count_suffix}").value
+
+            result[actual_field] = bucket_count
         return result
 
 

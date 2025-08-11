@@ -380,7 +380,7 @@ class DataSource(models.Model):
             # 等待 3s 后查询一次，减少请求次数
             time.sleep(3)
             try:
-                data = get_data_id_v2(data_name=data_name, is_base=is_base)
+                data = get_data_id_v2(data_name=data_name, is_base=is_base, bk_biz_id=bk_biz_id)
             except BKAPIError as e:
                 logger.error("get data id from bkdata error: %s", e)
                 continue
@@ -459,7 +459,7 @@ class DataSource(models.Model):
     def create_data_source(
         cls,
         data_name,
-        etl_config,
+        etl_config: str,
         operator,
         source_label,
         type_label,
