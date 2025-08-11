@@ -8,7 +8,10 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+import json
 import logging
+from functools import partial
+from typing import TYPE_CHECKING
 
 from django.conf import settings
 from django.db import models, transaction
@@ -17,25 +20,29 @@ from tenacity import RetryError, retry, stop_after_attempt, wait_exponential
 from core.drf_resource import api
 from metadata.models.data_link import utils
 from metadata.models.data_link.constants import (
+    BASEREPORT_DATABUS_FORMAT,
+    BASEREPORT_USAGES,
+    BK_EXPORTER_TRANSFORMER_FORMAT,
+    BK_STANDARD_TRANSFORMER_FORMAT,
+    SYSTEM_PROC_PERF_DATABUS_FORMAT,
+    SYSTEM_PROC_PORT_DATABUS_FORMAT,
     DataLinkKind,
     DataLinkResourceStatus,
-    BASEREPORT_USAGES,
-    BASEREPORT_DATABUS_FORMAT,
-    BK_STANDARD_TRANSFORMER_FORMAT,
-    BK_EXPORTER_TRANSFORMER_FORMAT,
 )
 from metadata.models.data_link.data_link_configs import (
     ConditionalSinkConfig,
     DataBusConfig,
-    VMResultTableConfig,
-    LogResultTableConfig,
-    VMStorageBindingConfig,
     ESStorageBindingConfig,
     LogDataBusConfig,
+    LogResultTableConfig,
+    VMResultTableConfig,
+    VMStorageBindingConfig,
 )
-from metadata.models.data_link.utils import get_bkbase_raw_data_id_name, generate_result_table_field_list
+from metadata.models.data_link.utils import generate_result_table_field_list, get_bkbase_raw_data_id_name
 from metadata.models.storage import ClusterInfo
-import json
+
+if TYPE_CHECKING:
+    from metadata.models import DataSource
 
 logger = logging.getLogger("metadata")
 
@@ -52,6 +59,8 @@ class DataLink(models.Model):
     BCS_FEDERAL_PROXY_TIME_SERIES = "bcs_federal_proxy_time_series"  # 联邦代理集群（父集群）时序链路
     BCS_FEDERAL_SUBSET_TIME_SERIES = "bcs_federal_subset_time_series"  # 联邦集群（子集群）时序链路
     BASEREPORT_TIME_SERIES_V1 = "basereport_time_series_v1"  # 主机基础数据上报时序链路
+    SYSTEM_PROC_PERF = "system_proc_perf"  # 系统进程性能链路
+    SYSTEM_PROC_PORT = "system_proc_port"  # 系统进程端口链路
     BASE_EVENT_V1 = "base_event_v1"  # 基础事件链路
 
     DATA_LINK_STRATEGY_CHOICES = (
@@ -62,6 +71,8 @@ class DataLink(models.Model):
         (BCS_FEDERAL_SUBSET_TIME_SERIES, "联邦子集时序数据链路"),
         (BASEREPORT_TIME_SERIES_V1, "主机基础采集时序数据链路"),
         (BASE_EVENT_V1, "基础事件链路"),
+        (SYSTEM_PROC_PERF, "系统进程性能链路"),
+        (SYSTEM_PROC_PORT, "系统进程端口链路"),
     )
 
     # 各个套餐所需要的链路资源
@@ -78,6 +89,8 @@ class DataLink(models.Model):
         ],
         BASEREPORT_TIME_SERIES_V1: [VMResultTableConfig, VMStorageBindingConfig, ConditionalSinkConfig, DataBusConfig],
         BASE_EVENT_V1: [LogResultTableConfig, ESStorageBindingConfig, LogDataBusConfig],
+        SYSTEM_PROC_PERF: [VMResultTableConfig, VMStorageBindingConfig, DataBusConfig],
+        SYSTEM_PROC_PORT: [VMResultTableConfig, VMStorageBindingConfig, DataBusConfig],
     }
 
     STORAGE_TYPE_MAP = {
@@ -88,6 +101,8 @@ class DataLink(models.Model):
         BCS_FEDERAL_SUBSET_TIME_SERIES: ClusterInfo.TYPE_VM,
         BASEREPORT_TIME_SERIES_V1: ClusterInfo.TYPE_VM,
         BASE_EVENT_V1: ClusterInfo.TYPE_ES,
+        SYSTEM_PROC_PERF: ClusterInfo.TYPE_VM,
+        SYSTEM_PROC_PORT: ClusterInfo.TYPE_VM,
     }
 
     DATABUS_TRANSFORMER_FORMAT = {
@@ -122,11 +137,82 @@ class DataLink(models.Model):
             DataLink.BCS_FEDERAL_SUBSET_TIME_SERIES: self.compose_bcs_federal_subset_time_series_configs,
             DataLink.BASEREPORT_TIME_SERIES_V1: self.compose_basereport_time_series_configs,
             DataLink.BASE_EVENT_V1: self.compose_base_event_configs,
+            DataLink.SYSTEM_PROC_PERF: partial(
+                self.compose_system_proc_configs, data_link_strategy=DataLink.SYSTEM_PROC_PERF
+            ),
+            DataLink.SYSTEM_PROC_PORT: partial(
+                self.compose_system_proc_configs, data_link_strategy=DataLink.SYSTEM_PROC_PORT
+            ),
         }
-        compose_method = switcher.get(
-            self.data_link_strategy,
+        return switcher[self.data_link_strategy](*args, **kwargs)
+
+    def compose_system_proc_configs(
+        self,
+        data_link_strategy: str,
+        data_source: "DataSource",
+        table_id: str,
+        storage_cluster_name: str,
+        bk_biz_id: int,
+    ):
+        """
+        生成系统进程链路配置
+        """
+        logger.info(
+            "compose_system_proc_configs: data_link_name->[%s] ,data_link_strategy->[%s],data_source->[%s],table_id->[%s],storage_cluster_name->[%s],bk_biz_id->[%s]",
+            self.data_link_name,
+            data_link_strategy,
+            data_source,
+            table_id,
+            storage_cluster_name,
+            bk_biz_id,
         )
-        return compose_method(*args, **kwargs)
+
+        bkbase_vmrt_name = f"base_{bk_biz_id}_{data_link_strategy}"
+
+        transform_format_map = {
+            DataLink.SYSTEM_PROC_PERF: SYSTEM_PROC_PERF_DATABUS_FORMAT,
+            DataLink.SYSTEM_PROC_PORT: SYSTEM_PROC_PORT_DATABUS_FORMAT,
+        }
+
+        vm_table_id_ins, _ = VMResultTableConfig.objects.get_or_create(
+            name=bkbase_vmrt_name,
+            data_link_name=self.data_link_name,
+            namespace=self.namespace,
+            bk_biz_id=bk_biz_id,
+            bk_tenant_id=self.bk_tenant_id,
+        )
+
+        vm_storage_ins, _ = VMStorageBindingConfig.objects.get_or_create(
+            name=bkbase_vmrt_name,
+            vm_cluster_name=storage_cluster_name,
+            data_link_name=self.data_link_name,
+            namespace=self.namespace,
+            bk_biz_id=bk_biz_id,
+            bk_tenant_id=self.bk_tenant_id,
+        )
+
+        sink_item = {
+            "kind": DataLinkKind.VMSTORAGEBINDING.value,
+            "name": bkbase_vmrt_name,
+            "namespace": settings.DEFAULT_VM_DATA_LINK_NAMESPACE,
+        }
+        if settings.ENABLE_BKBASE_V4_MULTI_TENANT:
+            sink_item["tenant"] = self.bk_tenant_id
+
+        data_bus_ins, _ = DataBusConfig.objects.get_or_create(
+            name=self.data_link_name,
+            data_id_name=self.data_link_name,
+            data_link_name=self.data_link_name,
+            namespace=self.namespace,
+            bk_biz_id=bk_biz_id,
+            bk_tenant_id=self.bk_tenant_id,
+        )
+
+        return [
+            vm_table_id_ins.compose_config(),
+            vm_storage_ins.compose_config(),
+            data_bus_ins.compose_config(sinks=[sink_item], transform_format=transform_format_map[data_link_strategy]),
+        ]
 
     def compose_basereport_time_series_configs(self, data_source, storage_cluster_name, bk_biz_id, source):
         """
@@ -739,7 +825,7 @@ class DataLink(models.Model):
         @param configs: 链路资源配置
         """
         try:
-            response = api.bkdata.apply_data_link({"config": configs})
+            response = api.bkdata.apply_data_link(bk_tenant_id=self.bk_tenant_id, config=configs)
             return response
         except Exception as e:  # pylint: disable=broad-except
             logger.error(
@@ -791,7 +877,7 @@ class DataLink(models.Model):
         同步元数据
         同步全套链路信息 AccessVMRecord,
         """
-        from metadata.models import ClusterInfo, AccessVMRecord
+        from metadata.models import AccessVMRecord, ClusterInfo
 
         try:
             storage_cluster_id = ClusterInfo.objects.get(cluster_name=storage_cluster_name).cluster_id
@@ -808,6 +894,7 @@ class DataLink(models.Model):
                     vm_result_table_id = f"{bk_biz_id}_{bkbase_vmrt_prefix}_{usage}"
                     result_table_id = f"{self.bk_tenant_id}_{bk_biz_id}_{source}.{usage}"
                     vm_record, _ = AccessVMRecord.objects.update_or_create(
+                        bk_tenant_id=self.bk_tenant_id,
                         result_table_id=result_table_id,
                         bk_base_data_id=datasource.bk_data_id,
                         bk_base_data_name=datasource.data_name,

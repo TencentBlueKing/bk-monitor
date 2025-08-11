@@ -16,6 +16,7 @@ from django.conf import settings
 from django.db.models import Q
 from tenacity import RetryError, retry, stop_after_attempt, wait_exponential
 
+from constants.common import DEFAULT_TENANT_ID
 from constants.data_source import DATA_LINK_V3_VERSION_NAME, DATA_LINK_V4_VERSION_NAME
 from core.drf_resource import api
 from core.prometheus import metrics
@@ -54,7 +55,7 @@ def refine_bkdata_kafka_info():
     kafka_clusters = ClusterInfo.objects.filter(cluster_type=ClusterInfo.TYPE_KAFKA).values("cluster_id", "domain_name")
     kafka_domain_cluster_id = {obj["domain_name"]: obj["cluster_id"] for obj in kafka_clusters}
     # 通过集群平台获取可用的 kafka host
-    bkdata_kafka_data = api.bkdata.get_kafka_info()[0]
+    bkdata_kafka_data = api.bkdata.get_kafka_info(bk_tenant_id=DEFAULT_TENANT_ID)[0]
     bkdata_kafka_host_list = bkdata_kafka_data.get("ip_list", "").split(",")
 
     # NOTE: 获取 metadata 和接口返回的交集，然后任取其中一个; 如果不存在，则直接报错
