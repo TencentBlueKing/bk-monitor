@@ -53,6 +53,8 @@ from fta_web.alert.resources import BaseTopNResource
 from fta_web.alert.serializers import AlertSearchSerializer
 from fta_web.models.alert import SearchHistory, SearchType
 from monitor_web.incident.serializers import IncidentSearchSerializer
+from monitor_web.incident.metrics.resources import IncidentMetricsSearchResource  # noqa
+from monitor_web.incident.events.resources import IncidentEventsSearchResource, IncidentEventsDetailResource  # noqa
 
 
 class IncidentBaseResource(Resource):
