@@ -78,6 +78,9 @@ class KafKaClient:
             self.client.flush(timeout=3)
         except KafkaException as e:
             raise e
+        finally:
+            self.client.flush()  # 二次确保消息发送
+            del self.client  # 释放生产者对象
 
 
 class RedisClient:
