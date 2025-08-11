@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -9,6 +8,16 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+from constants.system_event import (
+    PING_EVENT_DIMENSION_FIELDS,
+    DISK_FULL_EVENT_DIMENSION_FIELDS,
+    COREFILE_EVENT_DIMENSION_FIELDS,
+    OOM_EVENT_DIMENSION_FIELDS,
+    AGENT_EVENT_DIMENSION_FIELDS,
+    DISK_READONLY_EVENT_DIMENSION_FIELDS,
+    GSE_CUSTOM_STR_EVENT_DIMENSION_FIELDS,
+    GSE_PROCESS_EVENT_DIMENSION_FIELDS,
+)
 
 import logging
 
@@ -25,9 +34,20 @@ class GSEBaseAlarmEventRecord(GseCustomStrEventRecord):
     NAME = ""
     METRIC_ID = ""
     TITLE = ""
+    # 事件类型到维度字段的映射
+    DIMENSION_FIELDS_MAP = {
+        "ping-gse": PING_EVENT_DIMENSION_FIELDS,
+        "disk-full-gse": DISK_FULL_EVENT_DIMENSION_FIELDS,
+        "corefile-gse": COREFILE_EVENT_DIMENSION_FIELDS,
+        "oom-gse": OOM_EVENT_DIMENSION_FIELDS,
+        "agent-gse": AGENT_EVENT_DIMENSION_FIELDS,
+        "disk-readonly-gse": DISK_READONLY_EVENT_DIMENSION_FIELDS,
+        "gse_custom_event": GSE_CUSTOM_STR_EVENT_DIMENSION_FIELDS,
+        "gse_process_event": GSE_PROCESS_EVENT_DIMENSION_FIELDS,
+    }
 
     def __init__(self, raw_data, strategies):
-        super(GSEBaseAlarmEventRecord, self).__init__(raw_data=raw_data, strategies=strategies)
+        super().__init__(raw_data=raw_data, strategies=strategies)
         self.strategies = strategies
 
     @property
@@ -40,10 +60,10 @@ class GSEBaseAlarmEventRecord(GseCustomStrEventRecord):
 
     def check(self):
         if len(self.raw_data["value"]) == 1:
-            logger.debug("GSE alarm value: %s" % self.raw_data)
+            logger.debug(f"GSE alarm value: {self.raw_data}")
             return True
         else:
-            logger.warning("GSE alarm value check fail: %s" % self.raw_data)
+            logger.warning(f"GSE alarm value check fail: {self.raw_data}")
             return False
 
     def get_plat_info(self, alarm):
@@ -103,3 +123,40 @@ class GSEBaseAlarmEventRecord(GseCustomStrEventRecord):
         except Exception as e:
             logger.exception("GSE %s: (%s) (%s)", self.NAME, self.raw_data, e)
             return []
+
+    def get_strategy_dimensions(self) -> set:
+        """
+        获取策略配置的维度字段（通用方法）
+        """
+        strategy_dimensions = set()
+
+        for _, strategy_dict in self.strategies.items():
+            for _, strategy in strategy_dict.items():
+                for item in strategy.items:
+                    for query_config in item.query_configs:
+                        agg_dimension = query_config.get("agg_dimension", [])
+                        if agg_dimension:
+                            strategy_dimensions.update(agg_dimension)
+
+        return strategy_dimensions
+
+    def clean_dimension_fields(self) -> list:
+        """
+        通用的维度字段获取方法
+        """
+        # 获取当前事件类型的默认维度
+        event_name = getattr(self, "NAME", "")
+        default_dimensions = set(self.DIMENSION_FIELDS_MAP.get(event_name, []))
+
+        # 从策略配置中获取的维度
+        strategy_dimensions = self.get_strategy_dimensions()
+
+        # 返回策略维度和常量维度的并集
+        final_dimensions = list(default_dimensions | strategy_dimensions)
+
+        logger.debug(
+            f"{self.__class__.__name__} dimensions: default={default_dimensions}, "
+            f"strategy={strategy_dimensions}, final={final_dimensions}"
+        )
+
+        return final_dimensions

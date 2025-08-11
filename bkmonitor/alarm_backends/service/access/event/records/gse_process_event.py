@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -85,7 +84,7 @@ class GseProcessEventRecord(GSEBaseAlarmEventRecord):
     TITLE = _("Gse进程托管事件上报")
 
     def __init__(self, raw_data, strategies):
-        super(GseProcessEventRecord, self).__init__(raw_data=raw_data, strategies=strategies)
+        super().__init__(raw_data=raw_data, strategies=strategies)
 
         self.strategies = strategies
 
@@ -93,9 +92,9 @@ class GseProcessEventRecord(GSEBaseAlarmEventRecord):
         for data in self.raw_data.get("data", []):
             # 是否存在符合规则的数据
             if data.get("event_name"):
-                logger.debug("custom event value: %s" % self.raw_data)
+                logger.debug(f"custom event value: {self.raw_data}")
                 return True
-        logger.warning("custom event value check fail: %s" % self.raw_data)
+        logger.warning(f"custom event value check fail: {self.raw_data}")
         return False
 
     def flat(self):
@@ -118,7 +117,7 @@ class GseProcessEventRecord(GSEBaseAlarmEventRecord):
                     "_host_": dimension.get("bk_target_ip"),
                     "_agent_id_": dimension.get("bk_agent_id", ""),
                     "_title_": _("事件类型: {}, 事件内容: {}").format(
-                        GSE_PROCESS_EVENT_NAME.get(dimension.get('event_name')), data.get('event', {}).get('content')
+                        GSE_PROCESS_EVENT_NAME.get(dimension.get("event_name")), data.get("event", {}).get("content")
                     ),
                     "_extra_": {"value": data},
                     "dimensions": dimension,
@@ -139,8 +138,3 @@ class GseProcessEventRecord(GSEBaseAlarmEventRecord):
             "process_name": dimension.get("process_name", ""),
             "agent_version": dimension.get("agent_version", ""),
         }
-
-    def clean_dimension_fields(self):
-        fields = super().clean_dimension_fields()
-        fields += ["process_group_id", "process_name"]
-        return fields

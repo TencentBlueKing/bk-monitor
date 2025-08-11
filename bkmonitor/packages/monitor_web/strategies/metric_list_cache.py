@@ -59,6 +59,7 @@ from constants.strategy import (
     SYSTEM_EVENT_RT_TABLE_ID,
     DimensionFieldType,
 )
+from constants.system_event import SYSTEM_EVENT_DIMENSIONS_MAP, BASE_DIMENSIONS, GSE_PROCESS_EVENT_DIMENSIONS
 from core.drf_resource import api
 from core.errors.api import BKAPIError
 from metadata import models
@@ -1307,12 +1308,7 @@ class BaseAlarmMetricCacheManager(BaseMetricCacheManager):
         """
         增加gse进程托管相关指标
         """
-        gse_process_dimensions = [
-            {"id": "event_name", "name": _("事件名称")},
-            {"id": "process_name", "name": _("进程名称")},
-            {"id": "process_group_id", "name": _("进程组ID")},
-            {"id": "process_index", "name": _("进程索引")},
-        ]
+        gse_process_dimensions = GSE_PROCESS_EVENT_DIMENSIONS
         gse_base_dict = {
             "bk_biz_id": 0,
             "result_table_id": SYSTEM_EVENT_RT_TABLE_ID,
@@ -1324,7 +1320,7 @@ class BaseAlarmMetricCacheManager(BaseMetricCacheManager):
                 result_table_label, DataSourceLabel.BK_MONITOR_COLLECTOR, DataTypeLabel.EVENT
             ),
             "dimensions": gse_process_dimensions,
-            "default_dimensions": ["process_name", "process_group_id", "process_index", "event_name"],
+            "default_dimensions": [dim["id"] for dim in GSE_PROCESS_EVENT_DIMENSIONS],
             "default_condition": [],
             "collect_config_ids": [],
         }
@@ -1346,6 +1342,7 @@ class BaseAlarmMetricCacheManager(BaseMetricCacheManager):
         if Platform.te:
             # te平台不展示ping不可达告警， 同时也不内置
             metric_list = metric_list.exclude(title="ping-gse")
+
         base_dict = {
             "bk_biz_id": 0,
             "result_table_id": SYSTEM_EVENT_RT_TABLE_ID,
@@ -1357,7 +1354,6 @@ class BaseAlarmMetricCacheManager(BaseMetricCacheManager):
                 result_table_label, DataSourceLabel.BK_MONITOR_COLLECTOR, DataTypeLabel.EVENT
             ),
             "default_dimensions": [],
-            "default_condition": [],
             "collect_config_ids": [],
         }
 
@@ -1366,40 +1362,65 @@ class BaseAlarmMetricCacheManager(BaseMetricCacheManager):
             metric_dict["metric_field"] = metric.title
             metric_dict["metric_field_name"] = metric.description
 
-            dimensions = metric.dimensions
-            # 调整oom维度，后续系统事件直接使用json文件记录
-            if metric.title == "oom-gse":
-                dimensions = ["oom_memcg", "task_memcg", "task", "constraint", "process", "message"]
+            if metric.title:
+                # 使用常量定义的完整维度（包含 is_dimension 等字段）
+                dimensions = SYSTEM_EVENT_DIMENSIONS_MAP.get(metric.title, BASE_DIMENSIONS)
+                default_dimensions = []
+            else:
+                # 兜底处理
+                dimensions = BASE_DIMENSIONS
+                default_dimensions = []
 
-            metric_dict["dimensions"] = [{"id": dimension, "name": dimension} for dimension in dimensions]
-            yield metric_dict
+            result_metric = base_dict.copy()
+            result_metric.update(
+                {
+                    "metric_field": metric.title,
+                    "metric_field_name": metric.description,
+                    "dimensions": dimensions,  # 完整的维度定义
+                    "default_dimensions": default_dimensions,  # 仅维度字段名
+                }
+            )
+
+            yield result_metric
 
         # 增加额外的系统事件指标
         extend_metrics = [
-            # deprecated
-            # {
-            #     "metric_field": "gse_custom_event",
-            #     "metric_field_name": _("自定义字符型告警"),
-            #     "dimensions": DefaultDimensions.host,
-            # },
             {
                 "metric_field": "proc_port",
                 "metric_field_name": _("进程端口"),
-                "dimensions": [
-                    {"id": "display_name", "name": "display_name"},
-                    {"id": "protocol", "name": "protocol"},
-                    {"id": "bind_ip", "name": "bind_ip"},
-                ]
-                + DefaultDimensions.host,
+                "event_name": "proc_port",
                 "result_table_label": "host_process",
             },
-            {"metric_field": "os_restart", "metric_field_name": _("主机重启"), "dimensions": DefaultDimensions.host},
+            {
+                "metric_field": "os_restart",
+                "metric_field_name": _("主机重启"),
+                "event_name": "os_restart",
+            },
         ]
 
         for metric in extend_metrics:
-            metric_dict = copy.deepcopy(base_dict)
-            metric_dict.update(metric)
-            yield metric_dict
+            dimensions = SYSTEM_EVENT_DIMENSIONS_MAP.get(metric["event_name"], BASE_DIMENSIONS)
+            default_dimensions = []
+
+            result_metric = base_dict.copy()
+            result_metric.update(
+                {
+                    "metric_field": metric["metric_field"],
+                    "metric_field_name": metric["metric_field_name"],
+                    "dimensions": dimensions,
+                    "default_dimensions": default_dimensions,
+                    "result_table_label": metric.get("result_table_label", result_table_label),
+                    "result_table_label_name": self.get_label_name(
+                        metric.get("result_table_label", result_table_label)
+                    ),
+                    "data_target": DataTargetMapping().get_data_target(
+                        metric.get("result_table_label", result_table_label),
+                        DataSourceLabel.BK_MONITOR_COLLECTOR,
+                        DataTypeLabel.EVENT,
+                    ),
+                }
+            )
+            yield result_metric
 
         # gse进程托管事件指标
         for metric in self.add_gse_process_event_metrics(result_table_label):

@@ -1369,6 +1369,18 @@ class QueryConfig(AbstractConfig):
             # 多指标时，不进行维度补充
             if len(instance.query_configs) > 1:
                 return
+
+        # 对于事件类型，确保必要维度存在
+        if (
+            self.data_source_label == DataSourceLabel.BK_MONITOR_COLLECTOR
+            and self.data_type_label == DataTypeLabel.EVENT
+        ):
+            required_dimensions = ["bk_target_cloud_id", "bk_target_ip"]
+            for dim in required_dimensions:
+                if dim not in self.agg_dimension:
+                    self.agg_dimension.append(dim)
+
+        # 加载数据源， 获取高级条件的定义
         data_source = load_data_source(self.data_source_label, self.data_type_label)
         has_advance_method = False
         dimensions = set()
@@ -2697,12 +2709,22 @@ class Strategy(AbstractConfig):
                 return
 
             for query_config in item.query_configs:
+                # 处理时序数据
                 if (
-                    query_config.data_source_label != DataSourceLabel.BK_MONITOR_COLLECTOR
-                    or query_config.data_type_label != DataTypeLabel.TIME_SERIES
+                    query_config.data_source_label == DataSourceLabel.BK_MONITOR_COLLECTOR
+                    and query_config.data_type_label == DataTypeLabel.TIME_SERIES
                 ):
-                    continue
-                query_config.agg_dimension = list(set(query_config.agg_dimension) | host_dimensions)
+                    query_config.agg_dimension = list(set(query_config.agg_dimension) | host_dimensions)
+
+                # 处理事件数据
+                elif (
+                    query_config.data_source_label == DataSourceLabel.BK_MONITOR_COLLECTOR
+                    and query_config.data_type_label == DataTypeLabel.EVENT
+                ):
+                    required_dimensions = ["bk_target_cloud_id", "bk_target_ip"]
+                    for dim in required_dimensions:
+                        if dim not in query_config.agg_dimension:
+                            query_config.agg_dimension.append(dim)
 
     def delete(self):
         if id == 0:

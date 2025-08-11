@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -9,9 +8,7 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-
 import logging
-from typing import Dict, List
 
 from django.utils.translation import gettext as _
 
@@ -62,7 +59,7 @@ class CorefileEvent(GSEBaseAlarmEventRecord):
     TITLE = _("Corefile产生-GSE")
 
     def __init__(self, raw_data, strategies):
-        super(CorefileEvent, self).__init__(raw_data, strategies)
+        super().__init__(raw_data, strategies)
 
     def clean_anomaly_message(self):
         raw = self.raw_data["_title_"]
@@ -84,7 +81,7 @@ class CorefileEvent(GSEBaseAlarmEventRecord):
         return _("产生corefile：{}".format(corefile))
 
     @property
-    def filter_dimensions(self) -> Dict:
+    def filter_dimensions(self) -> dict:
         return {
             "corefile": self.raw_data["_extra_"].get("corefile", ""),
             "executable_path": self.raw_data["_extra_"].get("executable_path", ""),
@@ -98,8 +95,3 @@ class CorefileEvent(GSEBaseAlarmEventRecord):
                 self.raw_data["dimensions"][k] = self.raw_data["_extra_"][k]
 
         return self.raw_data["dimensions"]
-
-    def clean_dimension_fields(self) -> List[str]:
-        dimension_fields = super().clean_dimension_fields()
-        dimension_fields.extend(["executable_path", "executable", "signal"])
-        return dimension_fields

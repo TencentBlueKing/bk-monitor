@@ -286,6 +286,29 @@ class BkMonitorEventSerializer(QueryConfigSerializer):
     result_table_id = serializers.CharField(label="结果表")
     metric_field = serializers.CharField(label="指标")
     agg_condition = serializers.ListField(label="查询条件", allow_empty=True, child=serializers.DictField())
+    agg_dimension = serializers.ListField(
+        required=True,
+        label="维度",
+        default=["bk_target_cloud_id", "bk_target_ip"],
+        help_text="用于更精细化配置监控告警的维度字段",
+    )
+
+    def validate_agg_dimension(self, value):
+        """
+        确保聚合维度中包含 bk_target_cloud_id 和 bk_target_ip
+        如果缺少，则自动添加
+        """
+        required_dimensions = ["bk_target_cloud_id", "bk_target_ip"]
+
+        # 创建一个新列表，包含原有值和必要的维度
+        validated_dimensions = list(value) if value else []
+
+        # 确保必要的维度都包含在列表中
+        for required_dim in required_dimensions:
+            if required_dim not in validated_dimensions:
+                validated_dimensions.append(required_dim)
+
+        return validated_dimensions
 
 
 class BkLogSearchTimeSeriesSerializer(TimeSeriesQueryConfigSerializer):
