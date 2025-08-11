@@ -391,3 +391,8 @@ class NodeDiscover(DiscoverBase):
             # remote service found by span additionally
             instance_map[instance_key]["extra_data"]["kind"] = ApmTopoDiscoverRule.TOPO_REMOTE_SERVICE
             instance_map[instance_key]["extra_data"]["predicate_value"] = extract_field_value(predicate_key, span)
+
+    def clear_expired(self):
+        self.model.clear_expired(
+            bk_biz_id=self.bk_biz_id, app_name=self.app_name, filter_params={"is_permanent": False}
+        )

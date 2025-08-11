@@ -17,8 +17,8 @@ from core.drf_resource.contrib.nested_api import KernelAPIResource
 class ApmAPIGWResource(KernelAPIResource):
     TIMEOUT = 300
     base_url_statement = None
-    base_url = settings.NEW_MONITOR_API_BASE_URL or "{}/api/bk-monitor/{}/".format(
-        settings.BK_COMPONENT_API_URL, settings.APIGW_STAGE
+    base_url = (
+        settings.NEW_MONITOR_API_BASE_URL or f"{settings.BK_COMPONENT_API_URL}/api/bk-monitor/{settings.APIGW_STAGE}/"
     )
 
     # 模块名
@@ -442,4 +442,13 @@ class QueryFieldStatisticsInfoResource(ApmAPIGWResource):
 
 class QueryFieldStatisticsGraphResource(ApmAPIGWResource):
     action = "/app/apm/query_apm_field_statistics_graph/"
+    method = "POST"
+
+
+class SetTopoNodePermanentResource(ApmAPIGWResource):
+    """
+    设置拓扑节点永久保存状态
+    """
+
+    action = "/app/apm/set_topo_node_permanent/"
     method = "POST"
