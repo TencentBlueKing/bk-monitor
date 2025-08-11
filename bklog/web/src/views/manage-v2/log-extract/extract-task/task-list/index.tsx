@@ -378,7 +378,6 @@ export default defineComponent({
         <bk-table
           class='king-table'
           data={taskList.value}
-          limit-list={pagination.limitList}
           pagination={pagination}
           data-test-id='fromBox_table_tableBox'
           onPage-change={handlePageChange}
@@ -498,10 +497,11 @@ export default defineComponent({
                     {t('详情')}
                   </span>
                   <span
-                    v-bk-tooltips-top={{
+                    v-bk-tooltips={{
                       content: row.message,
                       disabled: row.enable_clone,
-                      delay: 500,
+                      delay: 300,
+                      placement: 'top'
                     }}
                     class={['task-operation', !row.enable_clone && 'cannot-click']}
                     onClick={() => cloneTask(row)}
