@@ -98,6 +98,7 @@ class CreateDataIDResource(Resource):
     """创建数据源ID"""
 
     class RequestSerializer(serializers.Serializer):
+        bk_biz_id = serializers.IntegerField(required=False, label="业务ID")
         data_name = serializers.CharField(required=True, label="数据源名称")
         etl_config = serializers.CharField(required=True, label="清洗模板配置")
         operator = serializers.CharField(required=True, label="操作者")

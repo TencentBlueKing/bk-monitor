@@ -1,3 +1,5 @@
+from functools import lru_cache
+from django.conf import settings
 from bkm_space.api import SpaceApi
 from bkm_space.define import Space
 from bkmonitor.utils.local import local
@@ -53,3 +55,40 @@ def bk_biz_id_to_bk_tenant_id(bk_biz_id: int) -> str:
     if not space:
         raise ValueError("convert bk_biz_id to bk_tenant_id failed, bk_biz_id: %s", bk_biz_id)
     return space.bk_tenant_id
+
+
+@lru_cache(maxsize=1024)
+def get_tenant_default_biz_id(bk_tenant_id: str) -> int:
+    """
+    获取租户下的默认业务ID
+    """
+    # 如果未开启多租户模式，则返回默认业务ID
+    if not settings.ENABLE_MULTI_TENANT_MODE:
+        return settings.DEFAULT_BK_BIZ_ID
+
+    from core.drf_resource import api
+
+    variables = api.bk_login.list_tenant_variables(bk_tenant_id=bk_tenant_id)
+    for variable in variables:
+        if variable["name"] == "default_bk_biz_id":
+            return int(variable["value"])
+    raise ValueError("get tenant system biz id failed, bk_tenant_id: %s", bk_tenant_id)
+
+
+def get_tenant_datalink_biz_id(bk_tenant_id: str, bk_biz_id: int) -> tuple[int, int]:
+    """
+    获取租户下的数据链路业务ID
+    返回值为 (label_biz_id(标记业务ID), data_biz_id(实际数据业务ID))
+    """
+    # 如果业务ID小于等于0，则标记业务ID为默认业务ID
+    label_biz_id = bk_biz_id
+    if bk_biz_id <= 0:
+        label_biz_id = settings.DEFAULT_BK_BIZ_ID
+
+    # 如果未开启多租户模式，将数据全部归属到默认业务ID
+    if not settings.ENABLE_MULTI_TENANT_MODE:
+        return label_biz_id, settings.DEFAULT_BKDATA_BIZ_ID
+
+    # 多租户模式下，获取租户下的默认业务ID
+    default_biz_id = get_tenant_default_biz_id(bk_tenant_id)
+    return label_biz_id, default_biz_id

@@ -1140,19 +1140,19 @@ class ProfileDataSource(ApmDataSourceConfigBase):
     @classmethod
     @atomic(using=DATABASE_CONNECTION_NAME)
     def create_builtin_source(cls):
-        builtin_biz = api.cmdb.get_blueking_biz()
         # datasource is enough, no real app created.
-        cls.apply_datasource(bk_biz_id=builtin_biz, app_name=cls.BUILTIN_APP_NAME, option=True)
-        cls._CACHE_BUILTIN_DATASOURCE = cls.objects.get(bk_biz_id=builtin_biz, app_name=cls.BUILTIN_APP_NAME)
+        cls.apply_datasource(bk_biz_id=settings.DEFAULT_BK_BIZ_ID, app_name=cls.BUILTIN_APP_NAME, option=True)
+        cls._CACHE_BUILTIN_DATASOURCE = cls.objects.get(
+            bk_biz_id=settings.DEFAULT_BK_BIZ_ID, app_name=cls.BUILTIN_APP_NAME
+        )
 
     @classmethod
     def get_builtin_source(cls) -> Optional["ProfileDataSource"]:
         if cls._CACHE_BUILTIN_DATASOURCE:
             return cls._CACHE_BUILTIN_DATASOURCE
 
-        builtin_biz = api.cmdb.get_blueking_biz()
         try:
-            return cls.objects.get(bk_biz_id=builtin_biz, app_name=cls.BUILTIN_APP_NAME)
+            return cls.objects.get(bk_biz_id=settings.DEFAULT_BK_BIZ_ID, app_name=cls.BUILTIN_APP_NAME)
         except cls.DoesNotExist:
             return None
 

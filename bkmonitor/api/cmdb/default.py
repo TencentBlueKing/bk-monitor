@@ -673,24 +673,7 @@ class GetBluekingBiz(Resource):
     """
 
     def perform_request(self, validated_request_data):
-        try:
-            bk_biz_name = getattr(settings, "BLUEKING_NAME", "蓝鲸") or "蓝鲸"
-            result = client.search_business(
-                dict(
-                    fields=["bk_biz_id", "bk_biz_name"],
-                    condition={"bk_biz_name": bk_biz_name},
-                )  # noqa
-            )
-        except BKAPIError as e:
-            logger.info("GetBluekingBiz failed: {}", e.message)
-            return 2
-
-        if result["info"]:
-            for biz_info in result["info"]:
-                if biz_info["bk_biz_name"] == bk_biz_name:
-                    return biz_info["bk_biz_id"]
-
-        return 2
+        return settings.DEFAULT_BK_BIZ_ID
 
 
 class SearchServiceCategory(Resource):

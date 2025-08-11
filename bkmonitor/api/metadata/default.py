@@ -77,6 +77,7 @@ class CreateDataIdResource(MetaDataAPIGWResource):
         type_label = serializers.CharField(required=True)
         option = serializers.DictField(required=False)
         space_uid = serializers.CharField(required=False)
+        bk_biz_id = serializers.IntegerField(required=False)
 
 
 class CreateResultTableResource(MetaDataAPIGWResource):
