@@ -291,7 +291,19 @@
     // 开始输入字段【nam】
     const inputField = /^\s*(?<field>[\w.]+)$/.exec(lastFragment)?.groups?.field;
     if (inputField) {
-      fieldList.value = originFieldList().filter(item => getQualifiedFieldName(item).includes(inputField));
+      // fieldList.value = originFieldList().filter(item => getQualifiedFieldName(item).includes(inputField));
+      fieldList.value = originFieldList()
+        .reduce((acc, item) => {
+          const name = getQualifiedFieldName(item);
+          const index = name.indexOf(inputField);
+          if (index !== -1) {
+            acc.push({ index, filedName: item });
+          }
+          return acc;
+        }, [])
+      .sort((a, b) => a.index - b.index)
+      .map(item => item.filedName);
+      console.log(fieldList.value);
       if (fieldList.value.length) {
         showWhichDropdown(OptionItemType.Fields);
         return;
@@ -553,8 +565,12 @@
       setOptionActive();
     });
   });
- const filedNameShow = (item)=> {
-  return getQualifiedFieldName(item)
+  const filedNameShow = (item)=> {
+    return getQualifiedFieldName(item)
+  }
+  //  展示字段按照匹配度排序
+  const sortFieldList = (list) => {
+   
   }
   defineExpose({
     beforeShowndFn,
