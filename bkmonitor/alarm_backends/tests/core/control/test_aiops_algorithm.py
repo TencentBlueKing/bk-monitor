@@ -33,6 +33,13 @@ THRESHOLD_ALGORITHM = {
 
 
 @pytest.fixture
+def strategy_cache():
+    strategy_cache_obj = MagicMock()
+    strategy_cache_obj.get_strategies_map = StrategyCacheManager.get_strategies_map
+    return strategy_cache_obj
+
+
+@pytest.fixture
 def strategy():
     strategy_obj = MagicMock()
     strategy_obj.get_trigger_configs = Strategy.get_trigger_configs
@@ -237,25 +244,7 @@ def test_empty_and_aiops_algorithms(strategy):
         assert expected_trigger_count == actual_trigger_count
 
 
-@pytest.fixture
-def strategy_cache():
-    strategy_cache_obj = MagicMock()
-    strategy_cache_obj.get_strategies_map = StrategyCacheManager.get_strategies_map
-    return strategy_cache_obj
-
-
-def create_strategy_configs_map(algorithms1, algorithms2):
-    strategy_config = create_strategy_config(algorithms1, algorithms2)
-    return {strategy_config["id"]: strategy_config}
-
-
-def test_only_aiops_cache(strategy_cache):
-    """
-    测试只有AIOPS算法的情况
-    """
-    algorithms = [HOST_ANOMALY_DETECTION_CONFIG]
-    strategy_config = create_strategy_config(algorithms, algorithms)
-
+def get_result_map(strategy_config, strategy_cache):
     # Mock Strategy.from_models 方法返回预定义的策略配置
     with mock.patch("alarm_backends.core.cache.strategy.Strategy.from_models") as mock_from_models:
         # 创建一个模拟的策略对象
@@ -277,17 +266,27 @@ def test_only_aiops_cache(strategy_cache):
                 with mock.patch("alarm_backends.core.cache.strategy.StrategyCacheManager.check_related_strategy"):
                     # 调用 get_strategies_map 方法
                     result_map = strategy_cache.get_strategies_map()
+                    return result_map
 
-                    expected_check_window = 5
-                    expected_count = 1
 
-                    for strategy_id, strategy_config in result_map.items():
-                        # 检查 detects 列表中的每个 detect
-                        for detect in strategy_config.get("detects", []):
-                            actual_check_window = detect.get("trigger_config", {}).get("check_window")
-                            actual_count = detect.get("trigger_config", {}).get("count")
-                            assert expected_check_window == actual_check_window
-                            assert expected_count == actual_count
+def test_only_aiops_cache(strategy_cache):
+    """
+    测试只有AIOPS算法的情况
+    """
+    algorithms = [HOST_ANOMALY_DETECTION_CONFIG]
+    strategy_config = create_strategy_config(algorithms, algorithms)
+
+    result_map = get_result_map(strategy_config, strategy_cache)
+    expected_check_window = 5
+    expected_count = 1
+
+    for strategy_id, strategy_config in result_map.items():
+        # 检查 detects 列表中的每个 detect
+        for detect in strategy_config.get("detects", []):
+            actual_check_window = detect.get("trigger_config", {}).get("check_window")
+            actual_count = detect.get("trigger_config", {}).get("count")
+            assert expected_check_window == actual_check_window
+            assert expected_count == actual_count
 
 
 def test_not_only_aiops_cache(strategy_cache):
@@ -310,31 +309,18 @@ def test_not_only_aiops_cache(strategy_cache):
         mock_strategy.to_dict.return_value = strategy_config
         mock_from_models.return_value = [mock_strategy]
 
-        # Mock BusinessManager.keys() 方法，避免连接Redis
-        with mock.patch("alarm_backends.core.cache.strategy.BusinessManager.keys") as mock_biz_keys:
-            mock_biz_keys.return_value = [2]  # 返回一个示例业务ID列表
+        result_map = get_result_map(strategy_config, strategy_cache)
 
-            # Mock handle_strategy 方法，让它返回 True
-            with mock.patch(
-                "alarm_backends.core.cache.strategy.StrategyCacheManager.handle_strategy"
-            ) as mock_handle_strategy:
-                mock_handle_strategy.return_value = True
+        expected_check_window = 5
+        expected_count = 1
 
-                # Mock check_related_strategy 方法，避免它影响测试
-                with mock.patch("alarm_backends.core.cache.strategy.StrategyCacheManager.check_related_strategy"):
-                    # 调用 get_strategies_map 方法
-                    result_map = strategy_cache.get_strategies_map()
-
-                    expected_check_window = 5
-                    expected_count = 1
-
-                    for strategy_id, strategy_config in result_map.items():
-                        # 检查 detects 列表中的每个 detect
-                        for detect in strategy_config.get("detects", []):
-                            actual_check_window = detect.get("trigger_config", {}).get("check_window")
-                            actual_count = detect.get("trigger_config", {}).get("count")
-                            assert expected_check_window != actual_check_window
-                            assert expected_count != actual_count
+        for strategy_id, strategy_config in result_map.items():
+            # 检查 detects 列表中的每个 detect
+            for detect in strategy_config.get("detects", []):
+                actual_check_window = detect.get("trigger_config", {}).get("check_window")
+                actual_count = detect.get("trigger_config", {}).get("count")
+                assert expected_check_window != actual_check_window
+                assert expected_count != actual_count
 
 
 def test_empty_aiops_cache(strategy_cache):
@@ -344,38 +330,18 @@ def test_empty_aiops_cache(strategy_cache):
     algorithms = []
     strategy_config = create_strategy_config(algorithms, algorithms)
 
-    # Mock Strategy.from_models 方法返回预定义的策略配置
-    with mock.patch("alarm_backends.core.cache.strategy.Strategy.from_models") as mock_from_models:
-        # 创建一个模拟的策略对象
-        mock_strategy = MagicMock()
-        mock_strategy.to_dict.return_value = strategy_config
-        mock_from_models.return_value = [mock_strategy]
+    result_map = get_result_map(strategy_config, strategy_cache)
 
-        # Mock BusinessManager.keys() 方法，避免连接Redis
-        with mock.patch("alarm_backends.core.cache.strategy.BusinessManager.keys") as mock_biz_keys:
-            mock_biz_keys.return_value = [2]  # 返回一个示例业务ID列表
+    expected_check_window = 5
+    expected_count = 1
 
-            # Mock handle_strategy 方法，让它返回 True
-            with mock.patch(
-                "alarm_backends.core.cache.strategy.StrategyCacheManager.handle_strategy"
-            ) as mock_handle_strategy:
-                mock_handle_strategy.return_value = True
-
-                # Mock check_related_strategy 方法，避免它影响测试
-                with mock.patch("alarm_backends.core.cache.strategy.StrategyCacheManager.check_related_strategy"):
-                    # 调用 get_strategies_map 方法
-                    result_map = strategy_cache.get_strategies_map()
-
-                    expected_check_window = 5
-                    expected_count = 1
-
-                    for strategy_id, strategy_config in result_map.items():
-                        # 检查 detects 列表中的每个 detect
-                        for detect in strategy_config.get("detects", []):
-                            actual_check_window = detect.get("trigger_config", {}).get("check_window")
-                            actual_count = detect.get("trigger_config", {}).get("count")
-                            assert expected_check_window != actual_check_window
-                            assert expected_count != actual_count
+    for strategy_id, strategy_config in result_map.items():
+        # 检查 detects 列表中的每个 detect
+        for detect in strategy_config.get("detects", []):
+            actual_check_window = detect.get("trigger_config", {}).get("check_window")
+            actual_count = detect.get("trigger_config", {}).get("count")
+            assert expected_check_window != actual_check_window
+            assert expected_count != actual_count
 
 
 def test_empty_and_no_aiops_cache(strategy_cache):
@@ -386,38 +352,18 @@ def test_empty_and_no_aiops_cache(strategy_cache):
     algorithms2 = [THRESHOLD_ALGORITHM]
     strategy_config = create_strategy_config(algorithms1, algorithms2)
 
-    # Mock Strategy.from_models 方法返回预定义的策略配置
-    with mock.patch("alarm_backends.core.cache.strategy.Strategy.from_models") as mock_from_models:
-        # 创建一个模拟的策略对象
-        mock_strategy = MagicMock()
-        mock_strategy.to_dict.return_value = strategy_config
-        mock_from_models.return_value = [mock_strategy]
+    result_map = get_result_map(strategy_config, strategy_cache)
 
-        # Mock BusinessManager.keys() 方法，避免连接Redis
-        with mock.patch("alarm_backends.core.cache.strategy.BusinessManager.keys") as mock_biz_keys:
-            mock_biz_keys.return_value = [2]  # 返回一个示例业务ID列表
+    expected_check_window = 5
+    expected_count = 1
 
-            # Mock handle_strategy 方法，让它返回 True
-            with mock.patch(
-                "alarm_backends.core.cache.strategy.StrategyCacheManager.handle_strategy"
-            ) as mock_handle_strategy:
-                mock_handle_strategy.return_value = True
-
-                # Mock check_related_strategy 方法，避免它影响测试
-                with mock.patch("alarm_backends.core.cache.strategy.StrategyCacheManager.check_related_strategy"):
-                    # 调用 get_strategies_map 方法
-                    result_map = strategy_cache.get_strategies_map()
-
-                    expected_check_window = 5
-                    expected_count = 1
-
-                    for strategy_id, strategy_config in result_map.items():
-                        # 检查 detects 列表中的每个 detect
-                        for detect in strategy_config.get("detects", []):
-                            actual_check_window = detect.get("trigger_config", {}).get("check_window")
-                            actual_count = detect.get("trigger_config", {}).get("count")
-                            assert expected_check_window != actual_check_window
-                            assert expected_count != actual_count
+    for strategy_id, strategy_config in result_map.items():
+        # 检查 detects 列表中的每个 detect
+        for detect in strategy_config.get("detects", []):
+            actual_check_window = detect.get("trigger_config", {}).get("check_window")
+            actual_count = detect.get("trigger_config", {}).get("count")
+            assert expected_check_window != actual_check_window
+            assert expected_count != actual_count
 
 
 def test_empty_and_aiops_algorithms_cache(strategy_cache):
@@ -428,35 +374,15 @@ def test_empty_and_aiops_algorithms_cache(strategy_cache):
     algorithms2 = [HOST_ANOMALY_DETECTION_CONFIG]
     strategy_config = create_strategy_config(algorithms1, algorithms2)
 
-    # Mock Strategy.from_models 方法返回预定义的策略配置
-    with mock.patch("alarm_backends.core.cache.strategy.Strategy.from_models") as mock_from_models:
-        # 创建一个模拟的策略对象
-        mock_strategy = MagicMock()
-        mock_strategy.to_dict.return_value = strategy_config
-        mock_from_models.return_value = [mock_strategy]
+    result_map = get_result_map(strategy_config, strategy_cache)
 
-        # Mock BusinessManager.keys() 方法，避免连接Redis
-        with mock.patch("alarm_backends.core.cache.strategy.BusinessManager.keys") as mock_biz_keys:
-            mock_biz_keys.return_value = [2]  # 返回一个示例业务ID列表
+    expected_check_window = 5
+    expected_count = 1
 
-            # Mock handle_strategy 方法，让它返回 True
-            with mock.patch(
-                "alarm_backends.core.cache.strategy.StrategyCacheManager.handle_strategy"
-            ) as mock_handle_strategy:
-                mock_handle_strategy.return_value = True
-
-                # Mock check_related_strategy 方法，避免它影响测试
-                with mock.patch("alarm_backends.core.cache.strategy.StrategyCacheManager.check_related_strategy"):
-                    # 调用 get_strategies_map 方法
-                    result_map = strategy_cache.get_strategies_map()
-
-                    expected_check_window = 5
-                    expected_count = 1
-
-                    for strategy_id, strategy_config in result_map.items():
-                        # 检查 detects 列表中的每个 detect
-                        for detect in strategy_config.get("detects", []):
-                            actual_check_window = detect.get("trigger_config", {}).get("check_window")
-                            actual_count = detect.get("trigger_config", {}).get("count")
-                            assert expected_check_window == actual_check_window
-                            assert expected_count == actual_count
+    for strategy_id, strategy_config in result_map.items():
+        # 检查 detects 列表中的每个 detect
+        for detect in strategy_config.get("detects", []):
+            actual_check_window = detect.get("trigger_config", {}).get("check_window")
+            actual_count = detect.get("trigger_config", {}).get("count")
+            assert expected_check_window == actual_check_window
+            assert expected_count == actual_count
