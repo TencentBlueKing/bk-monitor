@@ -117,6 +117,7 @@ export default defineComponent({
     /** 删除操作相关配置 */
     const delTxtConfig = {
       delete: {
+        name: t('收藏名称'),
         label: t('删除'),
         tips: t('删除后，无法恢复，请谨慎操作。'),
         title: t('确认删除该收藏项？'),
@@ -124,6 +125,7 @@ export default defineComponent({
         idKey: 'id',
       },
       'dismiss-group': {
+        name: t('分组名称'),
         label: t('解散'),
         tips: t('解散后，该分组下的收藏项将统一挪动至[未分组]，请谨慎操作！'),
         title: t('确认解散该分组？'),
@@ -219,7 +221,6 @@ export default defineComponent({
       () => props.list,
       () => {
         handleCollapse();
-        selectedId.value = Number(route.query?.activeId);
       },
       { deep: true, immediate: true },
     );
@@ -293,7 +294,7 @@ export default defineComponent({
         <div class='menu-delete-item-popover'>
           <div class='menu-delete-item-title'>{delTxtConfig[type].title}</div>
           <div class='menu-delete-item-content'>
-            {t('分组名称')}：{item[delTxtConfig[type].nameKey]}
+            {delTxtConfig[type].name}：{item[delTxtConfig[type].nameKey]}
           </div>
           <div class='menu-delete-item-content'>{delTxtConfig[type].tips}</div>
           <div class='menu-delete-item-btns'>

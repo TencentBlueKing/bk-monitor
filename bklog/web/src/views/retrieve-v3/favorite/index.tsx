@@ -64,6 +64,8 @@ export default defineComponent({
      */
     const handleUpdateIsShow = (val: boolean) => {
       RetrieveHelper.setFavoriteShown(val);
+      /** 2025-08-11 当左侧收藏夹收起的时候，清空当前收藏夹选中态  */
+      RetrieveHelper.setFavoriteActive({});
     };
 
     onMounted(() => {

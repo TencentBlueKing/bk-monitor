@@ -123,6 +123,12 @@ export const useFavorite = () => {
       ),
     })),
   );
+  /**
+   * 当有搜索条件的时候，不显示favorites为空的分组
+   */
+  const showDataList = computed(() =>
+    searchValue.value ? filterDataList.value.filter(item => item.favorites.length) : filterDataList.value,
+  );
 
   /**
    * 搜索是否为空结果
@@ -193,7 +199,7 @@ export const useFavorite = () => {
       ? { ...route.params, indexId: undefined }
       : { ...route.params, indexId: ids?.[0] ? `${ids?.[0]}` : route.params?.indexId };
 
-    const query = { ...route.query, activeId: String(item?.id) };
+    const query = { ...route.query };
 
     // 使用 URL 解析器
     const { RetrieveUrlResolver } = require('@/store/url-resolver');
@@ -285,6 +291,8 @@ export const useFavorite = () => {
       RetrieveHelper.setFavoriteActive({ ...activeFavorite.value, search_mode });
       store.dispatch('requestIndexSetQuery');
     });
+
+    console.log(store.state, 'index---store');
   };
 
   /**
@@ -533,6 +541,7 @@ export const useFavorite = () => {
     showList,
     filterDataList,
     isSearchEmpty,
+    showDataList,
 
     // handle方法
     getFavoriteList,

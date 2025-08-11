@@ -28,7 +28,6 @@ import { computed, defineComponent, ref } from 'vue';
 
 import useLocale from '@/hooks/use-locale';
 import useStore from '@/hooks/use-store';
-import { ConditionOperator } from '@/store/condition-operator';
 
 import { useFavorite } from '../../hooks/useFavorite';
 import { IFavoriteItem, IGroupItem } from '../../types';
@@ -60,6 +59,7 @@ export default defineComponent({
   setup(props, { emit }) {
     const { t } = useLocale();
     const formRef = ref(null);
+    const selectRef = ref(null);
     const store = useStore();
     /** 当前空间id */
     const spaceUid = computed(() => store.state.spaceUid);
@@ -73,8 +73,6 @@ export default defineComponent({
     const favoriteData = ref<IFavoriteItem>({});
     // 可见状态为公共的时候显示的收藏组
     const publicGroupList = ref([]);
-    // 个人收藏 group_name替换为本人
-    const privateGroupList = ref([]);
     const isClickFavoriteEdit = ref(false);
     const isDisableSelect = ref(false);
     const loading = ref(false);
@@ -91,58 +89,9 @@ export default defineComponent({
         }));
         const len = groupList.value.length;
         publicGroupList.value = groupList.value.slice(1, len);
-        privateGroupList.value = [groupList.value[0]];
       });
     };
 
-    const getAdditionValue = (addition, ipChooser) => {
-      const newAddition = addition.filter(item => item.field !== '_ip-select_');
-      if (JSON.stringify(ipChooser) !== '{}') {
-        newAddition.push({
-          field: '_ip-select_',
-          operator: '',
-          value: [ipChooser],
-        });
-      }
-      return newAddition;
-    };
-    const showAddition = computed(() => {
-      const { addition = [], ip_chooser } = props.data;
-      return getAdditionValue(addition, ip_chooser);
-    });
-    const formatAddition = computed(() => {
-      return showAddition.value
-        .filter(item => {
-          if (!Object.keys(item).includes('disabled')) return true;
-          return !item.disabled;
-        })
-        .map(item => {
-          const instance = new ConditionOperator(item);
-          return instance.getRequestParam();
-        });
-    });
-    const additionString = computed(() => {
-      return `* AND (${formatAddition.value
-        .map(({ field, operator, value }) => {
-          if (field === '_ip-select_') {
-            const target = value?.[0] ?? {};
-            return Object.keys(target)
-              .reduce((output, key) => {
-                return [...output, `${key}:[${(target[key] ?? []).map(c => c.ip ?? c.objectId ?? c.id).join(' ')}]`];
-              }, [])
-              .join(' AND ');
-          }
-          return `${field} ${operator} [${value?.toString() ?? ''}]`;
-        })
-        .join(' AND ')})`;
-    });
-
-    const sqlString = computed(() => {
-      if (props.data.search_mode === 'sql') {
-        return props.data.keyword;
-      }
-      return additionString.value;
-    });
     /** 当前选中分组的favorites */
     const currentGroupFavorite = computed(() => {
       const favorites = props.favoriteList.find(item => item.group_id === props.data.group_id)?.favorites || [];
@@ -153,7 +102,7 @@ export default defineComponent({
 
     /** 根据visible_type 展示对应的分组名 */
     const showGroupList = computed(() => {
-      return favoriteData.value.visible_type === 'public' ? publicGroupList.value : privateGroupList.value;
+      return favoriteData.value.visible_type === 'public' ? publicGroupList.value : groupList.value;
     });
     const indexItem = computed(() => store.state.indexItem);
 
@@ -198,6 +147,13 @@ export default defineComponent({
       return !isUnionSearch.value ? indexSetName : (indexSetNames || []).join(',');
     };
 
+    /** 成功添加分组 */
+    const handleAddSubmit = (id: number) => {
+      handleRefreshGroup();
+      favoriteData.value.group_id = id;
+      selectRef.value?.close();
+    };
+
     return () => (
       <bk-dialog
         width={640}
@@ -238,9 +194,8 @@ export default defineComponent({
             required={true}
           >
             <bk-select
-              v-bk-tooltips={{ content: t('私有的只支持默认的“个人收藏”'), disabled: !isDisableSelect.value }}
+              ref={selectRef}
               clearable={false}
-              disabled={isDisableSelect.value}
               searchable={true}
               value={favoriteData.value.group_id}
               onChange={val => (favoriteData.value.group_id = val)}
@@ -258,10 +213,7 @@ export default defineComponent({
               >
                 <AddGroup
                   rules={ruleData.value}
-                  on-submit={id => {
-                    handleRefreshGroup();
-                    favoriteData.value.group_id = id;
-                  }}
+                  on-submit={id => handleAddSubmit(id)}
                 />
               </div>
             </bk-select>
@@ -276,7 +228,7 @@ export default defineComponent({
             <bk-input
               disabled={true}
               type='textarea'
-              value={sqlString.value}
+              value={favoriteData.value.query_string}
             ></bk-input>
           </bk-form-item>
         </bk-form>
