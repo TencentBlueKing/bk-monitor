@@ -460,9 +460,10 @@ class AlertQueryHandler(BaseBizQueryHandler):
                         & (Q("range", begin_time={"lte": end_time}) | Q("range", create_time={"lte": end_time}))
                     )
                 else:
+                    # ES 的时间切片应该使用 [start, end)
                     search_object = search_object.filter(
-                        (Q("range", end_time={"gte": start_time, "lte": end_time}) | ~Q("exists", field="end_time"))
-                        & (Q("range", begin_time={"lte": end_time}) | Q("range", create_time={"lte": end_time}))
+                        (Q("range", end_time={"gte": start_time, "lt": end_time}) | ~Q("exists", field="end_time"))
+                        & (Q("range", begin_time={"lt": end_time}) | Q("range", create_time={"lt": end_time}))
                     )
             else:
                 search_object = search_object.filter(

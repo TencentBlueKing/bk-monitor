@@ -2003,6 +2003,7 @@ class AlertTopNResource(Resource):
             field = {
                 "field": filed_info["field"],
                 "is_char": filed_info["is_char"],
+                "bucket_count": 0,
                 "buckets": list(filed_info["id_buckets_map"].values()),
             }
             result["fields"].append(field)
