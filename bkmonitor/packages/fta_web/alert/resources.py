@@ -1966,36 +1966,43 @@ class AlertTopNResource(Resource):
             "doc_count": 0,
             "fields": [],
         }
+        field_buckets_map = {}
 
-        # 创建字段映射和ID映射
-        field_map = {}
-        id_map = {}
-
-        # 处理每个部分结果
         for sliced_result in results:
             result["doc_count"] += sliced_result["doc_count"]
 
-            for field in sliced_result["fields"]:
-                if field["field"] not in field_map:
-                    new_field = copy.deepcopy(field)
-                    new_field["buckets"] = []  # 清空buckets
-                    result["fields"].append(new_field)
-                    field_index = len(result["fields"]) - 1
-                    field_map[field["field"]] = field_index
-                    id_map[field["field"]] = {}
-                else:
-                    field_index = field_map[field["field"]]
+            for field_info in sliced_result["fields"]:
+                field = field_info["field"]
+                if field not in field_buckets_map:
+                    field_buckets_map[field] = {
+                        "id_buckets_map": {},
+                        "field": field,
+                        "is_char": field_info["is_char"],
+                    }
 
-                for bucket in field["buckets"]:
-                    if bucket["id"] not in id_map[field["field"]]:
-                        new_bucket = copy.deepcopy(bucket)
-                        result["fields"][field_index]["buckets"].append(new_bucket)
-                        bucket_index = len(result["fields"][field_index]["buckets"]) - 1
-                        id_map[field["field"]][bucket["id"]] = bucket_index
+                id_buckets_map = field_buckets_map[field]["id_buckets_map"]
+
+                for bucket in field_info["buckets"]:
+                    _id = bucket["id"]
+                    name = bucket["name"]
+                    if (_id, name) not in id_buckets_map:
+                        id_buckets_map[(_id, name)] = {
+                            "id": _id,
+                            "name": name,
+                            "count": bucket["count"],
+                        }
                     else:
-                        bucket_index = id_map[field["field"]][bucket["id"]]
-                        result["fields"][field_index]["buckets"][bucket_index]["count"] += bucket["count"]
+                        id_buckets_map[(_id, name)]["count"] += bucket["count"]
 
+        for filed_info in field_buckets_map.values():
+            field = {
+                "field": filed_info["field"],
+                "is_char": filed_info["is_char"],
+                "buckets": list(filed_info["id_buckets_map"].values()),
+            }
+            result["fields"].append(field)
+
+        # 补充bucket_count值，以及限制buckets长度与size一致
         field_bucket_count_map = future.result()
         executor.shutdown(wait=True)
         # 对每个字段的桶按count降序排序，并截取前size个
@@ -2015,10 +2022,10 @@ class AlertTopNResource(Resource):
             bucket_length = len(field_data["buckets"])
             field_data["buckets"].sort(key=lambda x: x["count"], reverse=True)
             field_data["buckets"] = field_data["buckets"][:size]
-            if field in field_bucket_count_map:
-                field_data["bucket_count"] = max(field_bucket_count_map[field], bucket_length)
-            else:
-                field_data["bucket_count"] = len(field_data["buckets"])
+
+            field_data["bucket_count"] = field_bucket_count_map.get(field, 0)
+            if field_data["bucket_count"] <= size:
+                field_data["bucket_count"] = bucket_length
 
         return result
 
