@@ -2536,7 +2536,7 @@
           path_regexp: this.enableMetaData ? etlParams.path_regexp : null,
           enable_retain_content: etlParams.enable_retain_content,
           record_parse_failure: etlParams.enable_retain_content,
-          metadata_fields: etlParams.metadata_fields,
+          metadata_fields: this.enableMetaData ? etlParams.metadata_fields: [],
         };
         const data = {
           clean_type: etlConfig,
