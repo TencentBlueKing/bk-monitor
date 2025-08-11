@@ -34,6 +34,7 @@ import MethodCreator from '../method/method-creator';
 import MetricCreator from '../metric/metric-creator';
 import {
   type IDimensionOptionsItem,
+  type IFunctionOptionsItem,
   type IVariablesItem,
   type TMetricDetail,
   TVariableType,
@@ -42,6 +43,7 @@ import {
 import './query-config-creator.scss';
 
 interface IProps {
+  metricFunctions?: IFunctionOptionsItem[];
   queryConfig?: IQueryConfig;
   variables?: IVariablesItem[];
   onCreateVariable?: (val: IVariablesItem) => void;
@@ -55,6 +57,7 @@ interface IQueryConfig {
 export default class QueryConfigCreator extends tsc<IProps> {
   @Prop({ default: null }) queryConfig: IQueryConfig;
   @Prop({ default: () => [] }) variables: IVariablesItem[];
+  @Prop({ default: () => [] }) metricFunctions: IFunctionOptionsItem[];
 
   /* 当前指标 */
   curMetric: TMetricDetail = null;
@@ -66,6 +69,9 @@ export default class QueryConfigCreator extends tsc<IProps> {
   }
   get getDimensionVariables() {
     return this.variables.filter(item => item.type === TVariableType.DIMENSION);
+  }
+  get getFunctionVariables() {
+    return this.variables.filter(item => item.type === TVariableType.FUNCTION);
   }
   get getAggMethodList() {
     return this.curMetric?.aggMethodList || [];
@@ -87,6 +93,12 @@ export default class QueryConfigCreator extends tsc<IProps> {
     this.$emit('createVariable', {
       name: val,
       type: TVariableType.DIMENSION,
+    });
+  }
+  handleCreateFunctionVariable(val) {
+    this.$emit('createVariable', {
+      name: val,
+      type: TVariableType.FUNCTION,
     });
   }
 
@@ -117,7 +129,12 @@ export default class QueryConfigCreator extends tsc<IProps> {
               variables={this.getDimensionVariables}
               onCreateVariable={this.handleCreateDimensionVariable}
             />,
-            <FunctionCreator key={'function'} />,
+            <FunctionCreator
+              key={'function'}
+              options={this.metricFunctions}
+              variables={this.getFunctionVariables}
+              onCreateVariable={this.handleCreateFunctionVariable}
+            />,
           ]}
         </div>
       </div>

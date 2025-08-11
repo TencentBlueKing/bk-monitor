@@ -28,13 +28,21 @@ import { Component, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import SelectWrap from '../utils/select-wrap';
+import VariableName from '../utils/variable-name';
+import FunctionCreatorPop from './function-creator-pop';
+import FunctionCreatorTag from './function-creator-tag';
 
 import type { IFunctionOptionsItem, IVariablesItem } from '../type/query-config';
 
 import './function-creator.scss';
 
 interface IProps {
+  isExpSupport?: boolean;
+  options?: IFunctionOptionsItem[];
   showLabel?: boolean;
+  showVariables?: boolean;
+  variables?: IVariablesItem[];
+  onCreateVariable?: (val: string) => void;
 }
 
 @Component
@@ -47,41 +55,39 @@ export default class FunctionCreator extends tsc<IProps> {
   @Prop({ default: () => [] }) options: IFunctionOptionsItem[];
   /* 是否展示变量 */
   @Prop({ default: false }) showVariables: boolean;
+  /** 只展示支持表达式的函数 */
+  @Prop({ default: false, type: Boolean }) readonly isExpSupport: boolean;
 
   showSelect = false;
   popClickHide = true;
 
-  keyword = '';
-  activeFuncType = '';
-  activeFuncId = '';
-  activeItem = null;
-
-  get filterList() {
-    return [];
-  }
-  get activeFuncList() {
-    return [];
-  }
+  curTags: IFunctionOptionsItem[] = [];
 
   handleOpenChange(v) {
     this.showSelect = v;
   }
-  handleFuncTypeMouseenter(item) {
-    this.activeFuncType = item?.id || '';
-    this.activeFuncId = '';
-    this.activeItem = item;
+
+  handleAddVar(val: string) {
+    this.$emit('createVariable', val);
   }
 
-  handleSelectFunc(item) {
-    console.log(item);
+  handleSelect(item: IFunctionOptionsItem) {
+    if (!this.curTags.map(item => item.id).includes(item.id)) {
+      this.curTags.push(item);
+    }
   }
 
-  handleKeywordChange(v: string) {
-    this.keyword = v;
+  handleSelectVar(item: IFunctionOptionsItem) {
+    if (!this.curTags.map(item => item.id).includes(item.id)) {
+      this.curTags.push({
+        ...item,
+        isVariable: true,
+      });
+    }
   }
-  handleFuncMouseenter(item) {
-    this.activeFuncId = item?.id || '';
-    this.activeItem = item;
+
+  handleDelTag(index: number) {
+    this.curTags.splice(index, 1);
   }
 
   render() {
@@ -95,75 +101,38 @@ export default class FunctionCreator extends tsc<IProps> {
           popClickHide={this.popClickHide}
           onOpenChange={this.handleOpenChange}
         >
-          <div class='tags-wrap' />
-          <div
-            ref='menuPanel'
-            class='template-function-creator-component-popover'
-            slot='popover'
-          >
-            <bk-input
-              class='panel-search'
-              behavior='simplicity'
-              placeholder={this.$t('搜索函数')}
-              rightIcon='bk-icon icon-search'
-              value={this.keyword}
-              on-change={this.handleKeywordChange}
-            />
-            <div class='panel-list'>
-              {this.filterList?.length > 0 && (
-                <ul class='panel-item'>
-                  {this.filterList.map(item => (
-                    <li
-                      key={item.id}
-                      class={['list-item', { 'item-active': item.id === this.activeFuncType }]}
-                      on-mouseenter={() => this.handleFuncTypeMouseenter(item)}
-                    >
-                      {item.name}
-                      <i class='icon-monitor icon-arrow-right arrow-icon' />
-                    </li>
-                  ))}
-                </ul>
-              )}
-              {this.activeFuncList?.length > 0 && (
-                <ul class='panel-item'>
-                  {this.activeFuncList.map(
-                    item =>
-                      item.id.toLocaleLowerCase().includes(this.keyword.toLocaleLowerCase()) && (
-                        <li
-                          key={item.id}
-                          class={['list-item', { 'item-active': item.id === this.activeFuncId }]}
-                          on-click={() => this.handleSelectFunc(item)}
-                          on-mouseenter={() => this.handleFuncMouseenter(item)}
-                        >
-                          {item.name.slice(0, item.name.toLocaleLowerCase().indexOf(this.keyword.toLocaleLowerCase()))}
-                          <span style='color: #FF9C00'>
-                            {item.name.slice(
-                              item.name.toLocaleLowerCase().indexOf(this.keyword.toLocaleLowerCase()),
-                              item.name.toLocaleLowerCase().indexOf(this.keyword.toLocaleLowerCase()) +
-                                this.keyword.length
-                            )}
-                          </span>
-                          {item.name.slice(
-                            item.name.toLocaleLowerCase().indexOf(this.keyword.toLocaleLowerCase()) +
-                              this.keyword.length,
-                            item.name.length
-                          )}
-                        </li>
-                      )
-                  )}
-                </ul>
-              )}
-              {(this.activeFuncId || this.activeFuncType) && (
-                <div class='panel-desc'>
-                  <div class='desc-title'>{this.activeItem.name}</div>
-                  <div class='desc-content'>{this.activeItem.description}</div>
+          {this.curTags.length ? (
+            <div class='tags-wrap'>
+              {this.curTags.map((item, index) => (
+                <div
+                  key={index}
+                  class='tags-item'
+                >
+                  <span class='tags-item-name'>
+                    {item.isVariable ? <VariableName name={item.name} /> : <FunctionCreatorTag value={item} />}
+                  </span>
+                  <span
+                    class='icon-monitor icon-mc-close'
+                    onClick={e => {
+                      e.stopPropagation();
+                      this.handleDelTag(index);
+                    }}
+                  />
                 </div>
-              )}
-              {(!this.filterList?.length || !this.activeFuncList?.length) && (
-                <div class='panel-desc'>{this.$t('查无数据')}</div>
-              )}
+              ))}
             </div>
-          </div>
+          ) : (
+            <p class='placeholder'>{this.$t('请选择')}</p>
+          )}
+          <FunctionCreatorPop
+            slot='popover'
+            isExpSupport={this.isExpSupport}
+            options={this.options}
+            variables={this.variables}
+            onAddVar={this.handleAddVar}
+            onSelect={this.handleSelect}
+            onSelectVar={this.handleSelectVar}
+          />
         </SelectWrap>
       </div>
     );

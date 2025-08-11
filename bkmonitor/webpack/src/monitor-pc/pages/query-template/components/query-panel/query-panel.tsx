@@ -29,11 +29,12 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import QueryConfigCreator from '../query-config/query-config-creator';
 
-import type { IVariablesItem } from '../type/query-config';
+import type { IFunctionOptionsItem, IVariablesItem } from '../type/query-config';
 
 import './query-panel.scss';
 
 interface IProps {
+  metricFunctions?: IFunctionOptionsItem[];
   variables?: IVariablesItem[];
   onCreateVariable?: (val: IVariablesItem) => void;
 }
@@ -41,6 +42,7 @@ interface IProps {
 @Component
 export default class QueryPanel extends tsc<IProps> {
   @Prop({ default: () => [] }) variables: IVariablesItem[];
+  @Prop({ default: () => [] }) metricFunctions: IFunctionOptionsItem[];
 
   handleCreateVariable(val: IVariablesItem) {
     this.$emit('createVariable', val);
@@ -50,6 +52,7 @@ export default class QueryPanel extends tsc<IProps> {
     return (
       <div class='template-query-panel-component'>
         <QueryConfigCreator
+          metricFunctions={this.metricFunctions}
           variables={this.variables}
           onCreateVariable={this.handleCreateVariable}
         />

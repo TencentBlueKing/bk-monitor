@@ -37,6 +37,10 @@
         color: #E54488;
         background: #FEF9FB;
         border: none;
+
+        &:focus {
+          background-color: #FEF9FB !important;
+        }
       }
     }
   }
