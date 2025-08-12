@@ -502,43 +502,43 @@ export default defineComponent({
             {(item.favorites || []).length > 0 && expandedMap.value[item.group_id] && (
               <div class='collect-list-item-child'>
                 {item.favorites.map(child => (
-                  <div
-                    class={[
-                      'child-item',
-                      { 'is-active': child.id === selectedId.value },
-                      { 'is-disabled': isFailFavorite(child) },
-                    ]}
-                    onClick={() => handleSelectItem(child)}
+                  <BklogPopover
+                    class='child-item-name'
+                    options={{ offset: [10, 12], placement: 'right', appendTo: document.body, theme: 'dark' } as any}
+                    trigger='hover'
+                    {...{
+                      scopedSlots: { content: () => renderTips(child) },
+                    }}
                   >
-                    <BklogPopover
-                      class='child-item-name'
-                      options={{ placement: 'top', appendTo: document.body, theme: 'dark' } as any}
-                      trigger='hover'
-                      {...{
-                        scopedSlots: { content: () => renderTips(child) },
-                      }}
+                    <div
+                      class={[
+                        'child-item',
+                        { 'is-active': child.id === selectedId.value },
+                        { 'is-disabled': isFailFavorite(child) },
+                      ]}
+                      onClick={() => handleSelectItem(child)}
                     >
                       <span class='child-name'>
                         {child.name}
                         {isFailFavorite(child) && <span class='bklog-icon bklog-shixiao child-icon'></span>}
                         {isMultiIndex(child) && <span class='bk-icon icon-panels blue-icon'></span>}
                       </span>
-                    </BklogPopover>
 
-                    {/* 数据源不存在 */}
-                    <BklogPopover
-                      ref={el => (listMenuPopoverMap.value[child.id] = el)}
-                      options={
-                        { offset: [50, 5], placement: 'bottom-end', appendTo: document.body, arrow: false } as any
-                      }
-                      trigger='hover'
-                      {...{
-                        scopedSlots: { content: () => renderMenu(childMenu.value, child) },
-                      }}
-                    >
-                      <span class='bklog-icon bklog-more icon-more'></span>
-                    </BklogPopover>
-                  </div>
+                      {/* 数据源不存在 */}
+                      <BklogPopover
+                        ref={el => (listMenuPopoverMap.value[child.id] = el)}
+                        options={
+                          { offset: [30, 5], placement: 'bottom-end', appendTo: document.body, arrow: false } as any
+                        }
+                        trigger='hover'
+                        {...{
+                          scopedSlots: { content: () => renderMenu(childMenu.value, child) },
+                        }}
+                      >
+                        <span class='bklog-icon bklog-more icon-more'></span>
+                      </BklogPopover>
+                    </div>
+                  </BklogPopover>
                 ))}
               </div>
             )}

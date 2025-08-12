@@ -6,7 +6,7 @@
   padding: 12px 0 0 12px;
 
   .collect-list-item {
-    width: calc(100% - 10px);
+    width: calc(100% - 5px);
     padding: 6px 0;
     font-family: MicrosoftYaHei;
     font-size: 12px;
@@ -17,6 +17,7 @@
       vertical-align: middle;
       cursor: pointer;
       display: none;
+      margin-right: 4px;
       &:hover {
         background: #fff;
         color: #3a84ff;
@@ -84,12 +85,12 @@
         }
       }
       .child-item-name {
-        width: calc(100% - 18px);
+        width: 100%;
         word-wrap: break-word;
       }
       .child-name {
         display: inline-block;
-        max-width: 100%;
+        width: calc(100% - 18px);
         word-wrap: break-word;
       }
       .child-icon {
@@ -120,7 +121,7 @@
       font-size: 12px;
       color: #a3b1cc;
       text-align: right;
-      margin-right: 2px;
+      margin-right: 7px;
     }
   }
 }
