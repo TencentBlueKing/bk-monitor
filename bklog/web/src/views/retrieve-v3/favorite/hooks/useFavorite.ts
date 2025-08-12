@@ -123,12 +123,6 @@ export const useFavorite = () => {
       ),
     })),
   );
-  /**
-   * 当有搜索条件的时候，不显示favorites为空的分组
-   */
-  const showDataList = computed(() =>
-    searchValue.value ? filterDataList.value.filter(item => item.favorites.length) : filterDataList.value,
-  );
 
   /**
    * 搜索是否为空结果
@@ -539,7 +533,6 @@ export const useFavorite = () => {
     showList,
     filterDataList,
     isSearchEmpty,
-    showDataList,
 
     // handle方法
     getFavoriteList,

@@ -71,7 +71,6 @@ export default defineComponent({
       getFavoriteList,
       selectFavoriteItem,
       handleSearchInput,
-      showDataList,
     } = useFavorite();
 
     const collectToolRef = ref(null);
@@ -219,10 +218,11 @@ export default defineComponent({
           />
         </div>
         {!isSearchEmpty.value ? (
-          showDataList.value.length ? (
+          filterDataList.value.length ? (
             <CollectList
               isCollapse={isCollapseList.value}
-              list={showDataList.value}
+              isSearch={!!searchValue.value}
+              list={filterDataList.value}
               loading={favoriteLoading.value}
               on-refresh={handleRefresh}
               on-select-item={selectFavoriteItem}
