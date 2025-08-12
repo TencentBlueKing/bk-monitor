@@ -23,3 +23,62 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+
+import { Component, Prop } from 'vue-property-decorator';
+import { Component as tsc } from 'vue-tsx-support';
+
+import IntervalDetail from '../interval/interval-detail';
+import MethodDetail from '../method/method-detail';
+import MetricDetail from '../metric/metric-detail';
+import { TVariableType } from '../type/query-config';
+
+import type { VariablePanelParams } from '../../typings';
+
+import './query-config-detail.scss';
+
+interface IProps {
+  queryConfig?: IQueryConfig;
+  variables?: VariablePanelParams[];
+}
+
+interface IQueryConfig {
+  agg_interval: number;
+  agg_method: string;
+  alias?: string;
+  metric_id: string;
+}
+
+@Component
+export default class QueryConfigDetail extends tsc<IProps> {
+  @Prop({ default: null }) queryConfig: IQueryConfig;
+  @Prop({ default: () => [] }) variables: VariablePanelParams[];
+
+  get getMethodVariables() {
+    return this.variables.filter(item => item.type === TVariableType.METHOD);
+  }
+
+  render() {
+    return (
+      <div class='template-query-config-detail-component'>
+        <div class='alias-wrap'>
+          <span>{this.queryConfig?.alias || 'a'}</span>
+        </div>
+        <div class='query-config-wrap'>
+          <MetricDetail metricId={this.queryConfig?.metric_id} />
+          <MethodDetail
+            method={this.queryConfig?.agg_method}
+            variables={this.getMethodVariables}
+          />
+          <IntervalDetail interval={this.queryConfig?.agg_interval} />
+          {/* <MethodCreator
+            key={'method'}
+            showVariables={true}
+            variables={this.getMethodVariables}
+          />
+          ,
+          <DimensionCreator key={'dimension'} />, */}
+        </div>
+      </div>
+    );
+  }
+}
