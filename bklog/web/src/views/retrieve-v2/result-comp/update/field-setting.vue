@@ -160,18 +160,32 @@
   });
 
   const shadowTotal = computed(() => {
-    const reg = getRegExp(searchKeyword.value);
+    const searchText = searchKeyword.value.trim().toLowerCase();
+    const reg = getRegExp(searchText, 'i');;
     const filterFn = field =>
       !shadowVisible.value.some(shadowField => shadowField.field_name === field.field_name) &&
       field.field_type !== '__virtual__' &&
       (reg.test(field.field_name) || reg.test(field.query_alias ?? ''));
     const mapFn = item =>
-      Object.assign({}, item, {
-        first_name: item.query_alias || item.field_name,
-        last_name: item.field_name,
-      });
-
-    return fieldList.value.filter(filterFn).map(mapFn);
+      {
+        const fullText =`${item.query_alias|| ''}${item.field_name}`.toLowerCase()
+        return Object.assign({}, item, {
+          first_name: item.query_alias || item.field_name,
+          last_name: item.field_name,
+          matchIndex: fullText.indexOf(searchText),
+          matchType: fullText === searchText ? 2 : 1,
+        });
+      }
+      const sortByMatch = (a, b) => {
+        if (a.matchType !== b.matchType) {
+          return b.matchType - a.matchType;
+        }
+        if (a.matchIndex !== b.matchIndex) {
+          return a.matchIndex - b.matchIndex;
+        }
+        return a.matchIndex - b.matchIndex;
+      };
+    return fieldList.value.filter(filterFn).map(mapFn).sort(sortByMatch);
   });
 
   const emptyType = computed(() => {

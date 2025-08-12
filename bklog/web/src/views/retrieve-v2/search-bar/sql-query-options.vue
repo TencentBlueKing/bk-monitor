@@ -291,11 +291,10 @@
     // 开始输入字段【nam】
     const inputField = /^\s*(?<field>[\w.]+)$/.exec(lastFragment)?.groups?.field;
     if (inputField) {
-      // fieldList.value = originFieldList().filter(item => getQualifiedFieldName(item).includes(inputField));
       fieldList.value = originFieldList()
         .reduce((acc, item) => {
           const name = getQualifiedFieldName(item);
-          const index = name.indexOf(inputField);
+          const index = name.toLowerCase().indexOf(inputField.toLowerCase());
           if (index !== -1) {
             acc.push({ index, filedName: item });
           }
@@ -303,7 +302,6 @@
         }, [])
       .sort((a, b) => a.index - b.index)
       .map(item => item.filedName);
-      console.log(fieldList.value);
       if (fieldList.value.length) {
         showWhichDropdown(OptionItemType.Fields);
         return;
