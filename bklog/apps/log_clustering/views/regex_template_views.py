@@ -163,8 +163,8 @@ class RegexTemplateViewSet(ModelViewSet):
         return Response(
             RegexTemplateHandler().update_template(
                 template_id=id,
-                template_name=data["template_name"],
-                predefined_varibles=data["predefined_varibles"],
+                template_name=data.get("template_name"),
+                predefined_varibles=data.get("predefined_varibles"),
             )
         )
 
