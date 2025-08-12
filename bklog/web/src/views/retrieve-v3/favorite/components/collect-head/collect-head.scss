@@ -1,0 +1,36 @@
+.collect-head-box {
+  width: 100%;
+  padding: 14px 2px;
+  display: flex;
+  .collect-head-box-left {
+    flex: 1;
+    .collect-head-box-left-title {
+      font-size: 14px;
+      color: #313238;
+    }
+    .collect-head-box-left-num {
+      align-items: center;
+      background: #a3b1cc;
+      border-radius: 8px;
+      color: #fff;
+      display: inline-flex;
+      font-size: 12px;
+      font-weight: 700;
+      height: 16px;
+      letter-spacing: 0;
+      line-height: 16px;
+      margin: 0 4px;
+      padding: 0 8px;
+      text-align: center;
+      font-family: RobotoMono-Medium;
+    }
+  }
+  .collect-head-box-right {
+    color: #4d4f56;
+    .box-icon {
+      font-size: 16px;
+      cursor: pointer;
+      margin-left: 12px;
+    }
+  }
+}

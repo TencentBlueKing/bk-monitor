@@ -24,48 +24,60 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, onBeforeUnmount, ref } from 'vue';
+import { defineComponent, ref } from 'vue';
 
-import RetrieveHelper, { RetrieveEvent } from '../../retrieve-helper';
-import SubBar from '../../retrieve-v2/sub-bar/index.vue';
+import useLocale from '@/hooks/use-locale';
 
-import './index.scss';
+import FavoriteManageDialog from '../../../../retrieve-v2/collect/favorite-manage-dialog.vue';
+
+import './collect-head.scss';
 
 export default defineComponent({
-  name: 'V3Toolbar',
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  setup(_, {}) {
-    const isFavoriteShown = ref(RetrieveHelper.isFavoriteShown);
-    const onFavoriteShowChange = (val: boolean) => {
-      isFavoriteShown.value = val;
+  name: 'CollectHead',
+  props: {
+    total: {
+      type: Number,
+      default: 0,
+    },
+  },
+  emits: ['collapse'],
+  setup(props, { emit }) {
+    const { t } = useLocale();
+    const isShowManageDialog = ref(false);
+    /** 收藏管理 */
+    const handleFavoriteSettingClick = () => {
+      isShowManageDialog.value = true;
     };
-
-    RetrieveHelper.on(RetrieveEvent.FAVORITE_SHOWN_CHANGE, onFavoriteShowChange);
-
-    const handleCollectionShowChange = () => {
-      isFavoriteShown.value = !isFavoriteShown.value;
-      RetrieveHelper.setFavoriteShown(isFavoriteShown.value);
+    /** 收起 */
+    const handleCollapse = () => {
+      emit('collapse');
     };
-
-    onBeforeUnmount(() => {
-      RetrieveHelper.off(RetrieveEvent.FAVORITE_SHOWN_CHANGE, onFavoriteShowChange);
-    });
+    /** 关闭收藏管理 */
+    const closeShowManageDialog = () => {
+      isShowManageDialog.value = false;
+    };
 
     return () => (
-      <div class='v3-bklog-toolbar'>
-        {!window.__IS_MONITOR_COMPONENT__ && (
-          <div
-            class={`collection-box ${isFavoriteShown.value ? 'active' : ''}`}
-            onClick={handleCollectionShowChange}
-          >
-            <span
-              style={{ color: isFavoriteShown.value ? '#3A84FF' : '' }}
-              class='bklog-icon bklog-shoucangjia'
-            ></span>
-          </div>
-        )}
-
-        <SubBar></SubBar>
+      <div class='collect-head-box'>
+        <span class='collect-head-box-left'>
+          <span class='collect-head-box-left-title'>{t('收藏夹')}</span>
+          <span class='collect-head-box-left-num'>{props.total}</span>
+        </span>
+        <span class='collect-head-box-right'>
+          <span
+            class='bklog-icon bklog-shezhi box-icon'
+            onClick={handleFavoriteSettingClick}
+          ></span>
+          <span
+            class='bklog-icon bklog-collapse box-icon'
+            onClick={handleCollapse}
+          ></span>
+        </span>
+        {/* 收藏管理弹框 */}
+        <FavoriteManageDialog
+          modelValue={isShowManageDialog.value}
+          on-close={closeShowManageDialog}
+        />
       </div>
     );
   },
