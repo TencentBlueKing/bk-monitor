@@ -639,12 +639,12 @@ class RestoreConfig(SoftDeleteModel):
 
     @classmethod
     def get_collector_config_id(cls, restore_config_id):
-        restore: "RestoreConfig" = cls.objects.get(restore_config_id=restore_config_id)
+        restore: RestoreConfig = cls.objects.get(restore_config_id=restore_config_id)
         return restore.archive.collector_config_id
 
     @classmethod
     def get_index_set_id(cls, restore_config_id):
-        restore: "RestoreConfig" = cls.objects.get(restore_config_id=restore_config_id)
+        restore: RestoreConfig = cls.objects.get(restore_config_id=restore_config_id)
         return restore.archive.instance_id
 
 
