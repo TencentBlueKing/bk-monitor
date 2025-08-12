@@ -1956,6 +1956,10 @@ class SearchHandler:
         )
 
     def _init_desensitize(self) -> bool:
+        # 查询原始日志时不进行脱敏  original_search参数不由用户传入
+        if self.search_dict.get("original_search", False):
+            return False
+
         is_desensitize = self.search_dict.get("is_desensitize", True)
 
         if not is_desensitize:
@@ -2366,10 +2370,9 @@ class SearchHandler:
             # 判断原文字段是否存在log中
             if text_field not in log.keys():
                 continue
-
-            for _config in self.field_configs:
-                field_name = _config["field_name"]
-                if field_name not in log.keys() or field_name == text_field:
+            # 原始内容替换成脱敏后的内容
+            for field_name in log.keys():
+                if field_name == text_field:
                     continue
                 log[text_field] = log[text_field].replace(str(log_content_tmp[field_name]), str(log[field_name]))
 

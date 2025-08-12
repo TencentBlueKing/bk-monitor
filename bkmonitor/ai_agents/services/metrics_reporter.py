@@ -53,6 +53,7 @@ class AIMetricsReporter:
         duration: float | None = None,
         agent_code: str | None = None,
         username: str | None = None,
+        command: str | None = None,
     ):
         """
         上报请求指标
@@ -72,6 +73,7 @@ class AIMetricsReporter:
             resource_name=resource_name,
             status=status,
             username=username,
+            command=command,
         ).inc()
 
         # 上报请求耗时(如有)
@@ -81,6 +83,7 @@ class AIMetricsReporter:
                 resource_name=resource_name,
                 status=status,
                 username=username,
+                command=command,
             ).set(duration)
 
         metrics.report_all()
@@ -106,13 +109,14 @@ ai_metrics_reporter = AIMetricsReporter()
 # ===================== 装饰器实现 =====================
 
 
-def ai_metrics_decorator(extract_agent_code_func=None, extract_username_func=None):
+def ai_metrics_decorator(extract_agent_code_func=None, extract_username_func=None, extract_command_func=None):
     """
     AI服务指标上报装饰器
 
     Args:
         extract_agent_code_func: 提取agent_code的函数
         extract_username_func: 提取username的函数
+        extract_command_func: 提取command的函数
     """
 
     def decorator(func):
@@ -124,6 +128,7 @@ def ai_metrics_decorator(extract_agent_code_func=None, extract_username_func=Non
             # 提取标签值
             agent_code = None
             username = None
+            command = None
 
             try:
                 # 从请求数据中提取标签
@@ -135,12 +140,16 @@ def ai_metrics_decorator(extract_agent_code_func=None, extract_username_func=Non
                 if extract_username_func:
                     username = extract_username_func(validated_request_data)
 
+                if extract_command_func:
+                    command = extract_command_func(validated_request_data)
+
                 # 上报开始状态
                 ai_metrics_reporter.report_request(
                     resource_name=resource_name,
                     status=RequestStatus.STARTED,
                     agent_code=agent_code,
                     username=username,
+                    command=command,
                 )
 
                 # 执行原方法
@@ -164,6 +173,7 @@ def ai_metrics_decorator(extract_agent_code_func=None, extract_username_func=Non
                     duration=duration,
                     agent_code=agent_code,
                     username=username,
+                    command=command,
                 )
 
                 return result
@@ -179,6 +189,7 @@ def ai_metrics_decorator(extract_agent_code_func=None, extract_username_func=Non
                     duration=duration,
                     agent_code=agent_code,
                     username=username,
+                    command=command,
                 )
 
                 logger.error(f"AIMetricsReporter: AI service error in {resource_name}: {e}")
@@ -187,6 +198,23 @@ def ai_metrics_decorator(extract_agent_code_func=None, extract_username_func=Non
         return wrapper
 
     return decorator
+
+
+# ===================== 参数提取方法 =====================
+
+
+def extract_command_from_request(validated_request_data):
+    """提取快捷指令类型"""
+    try:
+        property_data = validated_request_data.get("property", {})
+        command_data = property_data.get("extra", {})
+        command = command_data.get("command")
+        if command:
+            return command  # 返回具体的指令名称
+        return "none"
+    except Exception as e:  # pylint: disable=broad-except
+        logger.error(f"AIMetricsReporter: Failed to extract command: {e}")
+        return "none"
 
 
 # ===================== 简化装饰器 =====================
