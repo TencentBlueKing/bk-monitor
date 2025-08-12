@@ -24,32 +24,21 @@
  * IN THE SOFTWARE.
  */
 
-import { Component, Prop } from 'vue-property-decorator';
+import { Component } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import ExpressionCreator from '../expression/expression-creator';
-import FunctionCreator from '../function/function-creator';
+import ExpressionConfigCreator from '../expression-config/expression-config-creator';
 
-import './expression-config-creator.scss';
-
-interface IProps {
-  expressionConfig?: any;
-}
-
+import './expression-panel.scss';
 @Component
-export default class ExpressionConfigCreator extends tsc<IProps> {
-  @Prop({ default: () => null }) expressionConfig: any;
-
+export default class ExpressionPanel extends tsc<object> {
   render() {
     return (
-      <div class='template-expression-config-creator-component'>
-        <div class='alias-wrap'>
-          <span class='icon-monitor icon-arrow-turn' />
+      <div class='template-expression-panel-component'>
+        <div class='template-expression-panel'>
+          <ExpressionConfigCreator />
         </div>
-        <div class='expression-config-wrap'>
-          <ExpressionCreator />
-          <FunctionCreator />
-        </div>
+        <div class='template-expression-panel-desc'>{this.$t('支持四则运算 + - * / % ^ ( ) ,如(A+B)/100')}</div>
       </div>
     );
   }

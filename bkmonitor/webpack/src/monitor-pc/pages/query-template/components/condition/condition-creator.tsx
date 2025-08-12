@@ -27,68 +27,36 @@
 import { Component, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import QueryConfigCreator from '../query-config/query-config-creator';
+import ConditionCreatorSelector from './condition-creator-selector';
 
-import type { IFunctionOptionsItem, IVariablesItem } from '../type/query-config';
+import type { IConditionOptionsItem, IVariablesItem } from '../type/query-config';
 
-import './query-panel.scss';
+import './condition-creator.scss';
 
 interface IProps {
-  hasAdd?: boolean;
-  hasDelete?: boolean;
-  metricFunctions?: IFunctionOptionsItem[];
+  options?: IConditionOptionsItem[];
+  showLabel?: boolean;
+  showVariables?: boolean;
   variables?: IVariablesItem[];
-  onAdd?: () => void;
-  onCreateVariable?: (val: IVariablesItem) => void;
-  onDelete?: () => void;
+  onCreateVariable?: (val: string) => void;
 }
 
 @Component
-export default class QueryPanel extends tsc<IProps> {
+export default class ConditionCreator extends tsc<IProps> {
+  /* 是否展示左侧标签 */
+  @Prop({ default: true }) showLabel: boolean;
+  /* 变量列表 */
   @Prop({ default: () => [] }) variables: IVariablesItem[];
-  @Prop({ default: () => [] }) metricFunctions: IFunctionOptionsItem[];
-  @Prop({ default: false }) hasDelete: boolean;
-  @Prop({ default: false }) hasAdd: boolean;
-
-  handleCreateVariable(val: IVariablesItem) {
-    this.$emit('createVariable', val);
-  }
-
-  handleAdd() {
-    this.$emit('add');
-  }
-
-  handleDelete() {
-    this.$emit('delete');
-  }
+  /* 可选项列表 */
+  @Prop({ default: () => [] }) options: IConditionOptionsItem[];
+  /* 是否展示变量 */
+  @Prop({ default: false }) showVariables: boolean;
 
   render() {
     return (
-      <div class='template-query-panel-component'>
-        <QueryConfigCreator
-          metricFunctions={this.metricFunctions}
-          variables={this.variables}
-          onCreateVariable={this.handleCreateVariable}
-        />
-
-        <div class='query-panel-operator'>
-          {this.hasAdd && (
-            <div
-              class='add-btn'
-              onClick={this.handleAdd}
-            >
-              <span class='icon-monitor icon-mc-add' />
-            </div>
-          )}
-          {this.hasDelete && (
-            <div
-              class='del-btn'
-              onClick={this.handleDelete}
-            >
-              <span class='icon-monitor icon-mc-delete-line' />
-            </div>
-          )}
-        </div>
+      <div class='template-condition-creator-component'>
+        {this.showLabel && <div class='condition-label'>{this.$slots?.label || this.$t('过滤条件')}</div>}
+        <ConditionCreatorSelector />
       </div>
     );
   }
