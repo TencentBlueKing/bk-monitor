@@ -111,6 +111,10 @@ def get_alert_ids_by_action_name(action_names, include=False, exclude=False, **k
     if include and exclude:
         raise ValueError("Parameters 'include' and 'exclude' cannot be True simultaneously")
 
+    if "page_size" in kwargs:
+        # 增加额外的查询数量
+        kwargs["page_size"] = kwargs["page_size"] + 50
+
     alert_ids = _query_alert_ids_from_es(action_names, include=include, exclude=exclude, **kwargs)
     if alert_ids:
         return alert_ids
