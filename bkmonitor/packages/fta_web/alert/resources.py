@@ -1272,6 +1272,63 @@ class AckAlertResource(Resource):
         }
 
 
+class CloseAlertResource(Resource):
+    """
+    告警关闭
+    """
+
+    class RequestSerializer(serializers.Serializer):
+        bk_biz_id = serializers.IntegerField(label="业务ID")
+        ids = serializers.ListField(label="告警ID", child=AlertIDField())
+        message = serializers.CharField(required=True, allow_blank=True, label="确认信息")
+
+    def perform_request(self, validated_request_data: dict[str, Any]):
+        alert_ids = validated_request_data["ids"]
+
+        alerts_should_close = set()
+        alerts_already_closed = set()
+        alerts_not_abnormal = set()
+
+        alerts = AlertDocument.mget(alert_ids)
+
+        for alert in alerts:
+            if alert.status != EventStatus.ABNORMAL:
+                alerts_not_abnormal.add(alert.id)
+            elif alert.status == EventStatus.CLOSED:
+                alerts_already_closed.add(alert.id)
+            else:
+                alerts_should_close.add(alert.id)
+
+        alerts_not_exist = set(alert_ids) - alerts_should_close - alerts_already_closed - alerts_not_abnormal
+
+        now_time = int(time.time())
+        # 保存流水日志
+        AlertLog(
+            alert_id=list(alerts_should_close),
+            op_type=AlertLog.OpType.CLOSE,
+            create_time=now_time,
+            description=validated_request_data["message"],
+            operator=get_request_username(),
+        ).save()
+
+        # 更新告警确认状态
+        alert_documents = [
+            AlertDocument(
+                id=alert_id,
+                status=EventStatus.CLOSED,
+                update_time=now_time,
+            )
+            for alert_id in alerts_should_close
+        ]
+        AlertDocument.bulk_create(alert_documents, action=BulkActionType.UPDATE)
+        return {
+            "alerts_close_success": list(alerts_should_close),
+            "alerts_not_exist": list(alerts_not_exist),
+            "alerts_already_closed": list(alerts_already_closed),
+            "alerts_not_abnormal": list(alerts_not_abnormal),
+        }
+
+
 class AlertGraphQueryResource(ApiAuthResource):
     """
     告警图表接口
