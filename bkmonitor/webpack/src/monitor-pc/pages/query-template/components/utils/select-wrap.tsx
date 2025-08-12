@@ -132,7 +132,7 @@ export default class SelectWrap extends tsc<IProps> {
       <div
         id={this.id}
         style={{ minWidth: `${this.minWidth}px`, backgroundColor: this.backgroundColor }}
-        class='template-config-utils-select-wrap-component'
+        class={['template-config-utils-select-wrap-component', { 'input-active': this.expanded }]}
         onClick={e => this.handleClick(e)}
       >
         <div
