@@ -24,71 +24,66 @@
  * IN THE SOFTWARE.
  */
 
-import { Component } from 'vue-property-decorator';
+import { Component, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { getFunctions } from 'monitor-api/modules/grafana';
+import VariableNameInput from './variable-name-input';
 
-import QueryPanel from '../query-panel/query-panel';
-import {
-  type IFunctionOptionsItem,
-  type IScenarioItem,
-  type IVariablesItem,
-  TVariableType,
-} from '../type/query-config';
+import './add-variable-wrap.scss';
 
-import './template-config.scss';
+interface IProps {
+  notPop?: boolean;
+  value: string;
+  onAdd?: () => void;
+  onCancel?: () => void;
+  onChange?: (val: string) => void;
+}
 
 @Component
-export default class TemplateConfig extends tsc<object> {
-  scenarioList: IScenarioItem[] = [];
+export default class AddVariableWrap extends tsc<IProps> {
+  @Prop({ type: String, default: '' }) value: string;
+  @Prop({ type: Boolean, default: false }) notPop: boolean;
 
-  variablesList: IVariablesItem[] = [
-    {
-      name: 'var1',
-      type: TVariableType.METHOD,
-    },
-    {
-      name: 'var2',
-      type: TVariableType.DIMENSION,
-    },
-    {
-      name: 'var3',
-      type: TVariableType.FUNCTION,
-    },
-  ];
-
-  metricFunctions: IFunctionOptionsItem[] = [];
-
-  created() {
-    this.handleGetMetricFunctions();
+  handleChange(val) {
+    this.$emit('change', val);
   }
 
-  handleCreateVariable(val: IVariablesItem) {
-    if (this.variablesList.find(item => item.name === val.name)) {
-      return;
-    }
-    this.variablesList.push(val);
+  handleAdd() {
+    this.$emit('add');
   }
-
-  async handleGetMetricFunctions() {
-    this.metricFunctions = await getFunctions().catch(() => []);
-    console.log(this.metricFunctions);
+  handleCancel() {
+    this.$emit('cancel');
   }
 
   render() {
     return (
-      <div class='template-config-wrap-component'>
-        <div class='template-config-title'>{this.$t('模板配置')}</div>
-        <div class='template-config-content'>
-          {['1'].map(key => (
-            <QueryPanel
-              key={key}
-              metricFunctions={this.metricFunctions}
-              variables={this.variablesList}
-              onCreateVariable={this.handleCreateVariable}
-            />
-          ))}
+      <div
+        class={['template-config-options-add-variable-option-pop', { 'not-pop': this.notPop }]}
+        onClick={e => e.stopPropagation()}
+      >
+        <div class='header-title'>
+          {this.$t('变量名')} <span class='red-point'>*</span>
+        </div>
+        <VariableNameInput
+          class='var-input'
+          value={this.value}
+          onChange={this.handleChange}
+        />
+        <div class='btn-wrap'>
+          <bk-button
+            class='confirm-btn'
+            size='small'
+            theme='primary'
+            onClick={this.handleAdd}
+          >
+            {this.$t('确定')}
+          </bk-button>
+          <bk-button
+            size='small'
+            onClick={this.handleCancel}
+          >
+            {this.$t('取消')}
+          </bk-button>
         </div>
       </div>
     );

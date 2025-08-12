@@ -22,7 +22,9 @@
     flex-wrap: wrap;
     align-items: center;
 
-    .template-metric-creator-component {
+    .template-metric-creator-component,
+    .template-dimension-creator-component,
+    .template-function-creator-component {
       flex: 1;
     }
 

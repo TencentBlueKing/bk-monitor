@@ -24,10 +24,13 @@
  * IN THE SOFTWARE.
  */
 
-import { Component, Prop } from 'vue-property-decorator';
+import { Component, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
+import AddVariableOption from '../utils/add-variable-option';
 import SelectWrap from '../utils/select-wrap';
+import VariableName from '../utils/variable-name';
+import AutoWidthInput from '@/components/retrieval-filter/auto-width-input';
 
 import type { IDimensionOptionsItem, IVariablesItem } from '../type/query-config';
 
@@ -38,6 +41,7 @@ interface IProps {
   showLabel?: boolean;
   showVariables?: boolean;
   variables?: IVariablesItem[];
+  onCreateVariable?: (val: string) => void;
 }
 
 @Component
@@ -54,8 +58,73 @@ export default class DimensionCreator extends tsc<IProps> {
   showSelect = false;
   popClickHide = true;
 
+  allOptions: IDimensionOptionsItem[] = [];
+  curTags: IDimensionOptionsItem[] = [];
+
+  inputValue = '';
+
+  @Watch('options', { immediate: true })
+  handleWatchOptions() {
+    this.getAllOptions();
+  }
+
+  @Watch('variables', { immediate: true })
+  handleWatchVariables() {
+    this.getAllOptions();
+  }
+
   handleOpenChange(v) {
     this.showSelect = v;
+  }
+
+  handleAddVar(val) {
+    this.$emit('createVariable', val);
+  }
+  handleAddVariableOpenChange(val: boolean) {
+    this.popClickHide = !val;
+  }
+
+  getAllOptions() {
+    const curTagsIds = this.curTags.map(item => item.id);
+    this.allOptions = [
+      ...this.variables.map(item => ({
+        ...item,
+        id: item.name,
+        isVariable: true,
+      })),
+      ...this.options,
+    ].filter(item => !curTagsIds.includes(item.id));
+  }
+
+  handleSelect(item: IDimensionOptionsItem) {
+    if (!this.popClickHide) {
+      return;
+    }
+    if (this.curTags.find(t => t.id === item.id)) {
+      return;
+    }
+    this.curTags.push(item);
+    this.getAllOptions();
+    this.showSelect = false;
+  }
+
+  handleInputChange(val: string) {
+    this.inputValue = val;
+  }
+
+  handleDelTag(index: number, _item: IDimensionOptionsItem) {
+    this.curTags.splice(index, 1);
+  }
+
+  handleInputEnter() {
+    if (this.inputValue) {
+      this.handleSelect({
+        id: this.inputValue,
+        name: this.inputValue,
+        isVariable: false,
+      });
+      this.inputValue = '';
+    }
   }
 
   render() {
@@ -70,16 +139,54 @@ export default class DimensionCreator extends tsc<IProps> {
           onOpenChange={this.handleOpenChange}
         >
           <div class='tags-wrap'>
-            <div class='tags-item'>
-              <span>xasdfas</span>
-              <span class='icon-monitor icon-mc-close' />
-            </div>
+            {this.curTags.map((item, index) => (
+              <div
+                key={index}
+                class='tags-item'
+              >
+                <span class='tags-item-name'>{item.isVariable ? <VariableName name={item.name} /> : item.name}</span>
+                <span
+                  class='icon-monitor icon-mc-close'
+                  onClick={e => {
+                    e.stopPropagation();
+                    this.handleDelTag(index, item);
+                  }}
+                />
+              </div>
+            ))}
+            <AutoWidthInput
+              placeholder={this.$t('请选择') as string}
+              value={this.inputValue}
+              onEnter={this.handleInputEnter}
+              onInput={this.handleInputChange}
+            />
           </div>
           <div
             class='template-dimension-creator-component-options-popover'
             slot='popover'
           >
-            asdfasdfasdf
+            {this.showVariables && (
+              <AddVariableOption
+                onAdd={this.handleAddVar}
+                onOpenChange={this.handleAddVariableOpenChange}
+              />
+            )}
+
+            {this.allOptions.map((item, index) => (
+              <div
+                key={index}
+                class='options-item'
+                onClick={() => this.handleSelect(item)}
+              >
+                {item.isVariable ? (
+                  <span class='options-item-name'>
+                    <VariableName name={item.name} />
+                  </span>
+                ) : (
+                  <span class='options-item-name'>{item.name}</span>
+                )}
+              </div>
+            ))}
           </div>
         </SelectWrap>
       </div>
