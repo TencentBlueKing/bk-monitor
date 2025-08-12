@@ -431,7 +431,7 @@ export default class FieldFilterComp extends tsc<object> {
       },
       { withDot: [], withoutDot: [] },
     );
-    return [...withDot, ...withoutDot.slice(0, 9)];
+    return [...withDot, ...withoutDot.slice(0, 10)];
   }
   handleSearchException(type: string) {
     if (type === 'clear-filter') {
