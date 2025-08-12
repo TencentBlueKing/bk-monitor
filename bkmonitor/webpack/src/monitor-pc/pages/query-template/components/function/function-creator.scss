@@ -1,4 +1,4 @@
-.template-dimension-creator-component {
+.template-function-creator-component {
   position: relative;
   display: flex;
   align-items: center;
@@ -6,20 +6,27 @@
   font-size: 12px;
   border: 1px solid #dcdee5;
 
-  .dimension-label {
+  .function-label {
     align-self: stretch;
     padding: 0 8px;
     line-height: 30px;
     color: #313238;
     background: #ebeef5;
     border-right: 1px solid #dcdee5;
-
   }
-  
+
+  .placeholder {
+    padding: 0;
+    margin: 0;
+    line-height: 30px;
+    color: #C4C6CC;
+  }
+
   .tags-wrap {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
+    min-height: 30px;
     padding: 4px 4px 0 0;
 
     .auto-width-input-component {
@@ -43,30 +50,6 @@
         margin-left: 4px;
         font-size: 16px;
       }
-    }
-  }
-}
-
-.template-dimension-creator-component-options-popover {
-  max-height: 232px;
-  padding: 4px 0;
-  overflow: scroll;
-
-  .options-item {
-    display: flex;
-    align-items: center;
-    width: 198px;
-    height: 32px;
-    cursor: pointer;
-
-    &:hover {
-      background: #F5F7FA;
-    }
-
-    .options-item-name {
-      margin-left: 12px;
-      font-size: 12px;
-      color: #4D4F56;
     }
   }
 }

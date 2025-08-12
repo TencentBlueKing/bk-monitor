@@ -118,6 +118,7 @@ export default class MethodCreator extends tsc<IProps> {
         >
           <span class='method-name'>
             {this.curValue?.isVariable ? <VariableName name={this.curValue.name} /> : this.curValue?.name}
+            {!this.curValue && <p class='placeholder'>{this.$t('请选择')}</p>}
           </span>
           <div
             class='template-method-creator-component-options-popover'
