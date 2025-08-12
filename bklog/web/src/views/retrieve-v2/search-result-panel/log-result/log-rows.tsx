@@ -254,7 +254,7 @@ export default defineComponent({
           );
         },
         renderHeaderCell: () => {
-          const sortable = field.es_doc_values && field.tag !== 'union-source';
+          const sortable = field.es_doc_values && field.tag !== 'union-source' && field.field_type !== 'flattened';
           return renderHead(field, order => {
             if (sortable) {
               const sortList = order ? [[field.field_name, order]] : [];
