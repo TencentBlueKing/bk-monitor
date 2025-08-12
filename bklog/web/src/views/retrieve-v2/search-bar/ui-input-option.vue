@@ -233,19 +233,36 @@
   });
 
   const filterFieldList = computed(() => {
-    const regExp = getRegExp(searchValue.value.trim());
+    const searchText = searchValue.value.trim().toLowerCase();
+    const regExp = getRegExp(searchText, 'i');
     const filterFn = field =>
       field.field_type !== '__virtual__' &&
       !excludesFields.includes(field.field_name) &&
-      (regExp.test(field.field_alias) || regExp.test(field.field_name) || regExp.test(field.query_alias));
+      regExp.test(`${field.query_alias || ''}${field.field_name}`) 
 
+     
     const mapFn = item =>
-      Object.assign({}, item, {
-        first_name: item.query_alias || item.field_name,
-        last_name: item.field_name,
-      });
-
-    return fieldList.value.filter(filterFn).map(mapFn);
+      {
+        const fullText =`${item.query_alias|| ''}${item.field_name}`.toLowerCase()
+        return Object.assign({}, item, {
+          first_name: item.query_alias || item.field_name,
+          last_name: item.field_name,
+          matchIndex: fullText.indexOf(searchText),
+          matchType: fullText === searchText ? 2 : 1,
+        });
+      }
+     
+      const sortByMatch = (a, b) => {
+        if (a.matchType !== b.matchType) {
+          return b.matchType - a.matchType;
+        }
+        if (a.matchIndex !== b.matchIndex) {
+          return a.matchIndex - b.matchIndex;
+        }
+        return a.matchIndex - b.matchIndex;
+      };
+    
+    return fieldList.value.filter(filterFn).map(mapFn).sort(sortByMatch);
   });
 
   const tagValidateFun = item => {
