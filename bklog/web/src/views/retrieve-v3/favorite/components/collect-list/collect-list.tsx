@@ -223,7 +223,6 @@ export default defineComponent({
     watch(
       () => props.list,
       () => {
-        console.log(props.list, 'console.log(props.list)');
         handleCollapse();
       },
       { deep: true, immediate: true },
