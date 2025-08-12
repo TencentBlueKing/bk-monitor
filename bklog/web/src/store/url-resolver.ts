@@ -171,9 +171,25 @@ class RouteUrlResolver {
     });
   }
 
+  private additionArrayResolver(str) {
+    if (!str) {
+      return [];
+    }
+
+    try {
+      return JSON.parse(decodeURIComponent(str));
+    } catch (e) {
+      console.error(e);
+      return [];
+    }
+  }
+
   private searchModeResolver() {
     const hasKeyword = this.query.keyword?.length;
-    const hasAddition = this.query.addition?.length;
+    const additionArray = this.additionArrayResolver(this.query.addition).filter(
+      str => str.length > 0 && str !== "" && str !== null && str !== undefined && str !== '',
+    );
+    const hasAddition = additionArray.length;
     const defValue = ['sql', 'ui'].includes(this.query.search_mode) ? this.query.search_mode : 'ui';
 
     if (['sql', 'ui'].includes(this.query.search_mode)) {

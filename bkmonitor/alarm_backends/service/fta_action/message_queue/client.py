@@ -32,6 +32,7 @@ class KafKaClient:
         uri_obj = urlparse(uri)
         params = {
             "bootstrap_servers": f"{uri_obj.hostname}:{uri_obj.port}",
+            "max_block_ms": 6000,
         }
 
         if uri_obj.username:

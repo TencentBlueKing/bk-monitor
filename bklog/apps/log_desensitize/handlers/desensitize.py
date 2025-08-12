@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -19,9 +18,9 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+
 import copy
 import re
-from typing import List
 
 from django.db.models import Q
 from django.utils.translation import gettext_lazy as _
@@ -37,13 +36,14 @@ from apps.log_desensitize.exceptions import (
 )
 from apps.log_desensitize.handlers.desensitize_operator import OPERATOR_MAPPING
 from apps.log_desensitize.models import DesensitizeFieldConfig, DesensitizeRule
-from apps.log_desensitize.utils import expand_nested_data
+from apps.log_desensitize.utils import expand_nested_data, merge_nested_data
 from apps.log_search.constants import CollectorScenarioEnum
 from apps.log_search.models import LogIndexSet, Scenario
 from apps.models import model_to_dict
+import builtins
 
 
-class DesensitizeHandler(object):
+class DesensitizeHandler:
     """
     日志脱敏工厂
     接收配置规则的列表, 进行规则匹配, 并调用相关的脱敏算子进行处理, 规则列表以流水线的方式处理
@@ -137,11 +137,22 @@ class DesensitizeHandler(object):
         if not self.field_rule_mapping or not log_content:
             return log_content
 
-        for _field, _rules in self.field_rule_mapping.items():
-            if _field not in log_content or not _rules:
-                continue
-            text = log_content[_field]
-            log_content[_field] = self.transform(log=str(text), rules=_rules)
+        for field, value in log_content.items():
+            # 查找字段对应的处理规则
+            rules = None
+            # 优先精确匹配字段
+            if field in self.field_rule_mapping:
+                rules = self.field_rule_mapping[field]
+            # 处理嵌套字段
+            elif "." in field:
+                top_level_field = field.split(".", 1)[0]  # 只分割一次，处理深层嵌套
+                if top_level_field in self.field_rule_mapping:
+                    rules = self.field_rule_mapping[top_level_field]
+
+            if rules:
+                # str(None)会转成字符串"None"，需要特殊处理
+                str_value = "" if value is None else str(value)
+                log_content[field] = self.transform(log=str_value, rules=rules)
 
         return log_content
 
@@ -240,7 +251,7 @@ class DesensitizeHandler(object):
         return "".join(outputs)
 
 
-class DesensitizeRuleHandler(object):
+class DesensitizeRuleHandler:
     """
     脱敏规则
     """
@@ -510,7 +521,7 @@ class DesensitizeRuleHandler(object):
         self.data.save()
 
     @staticmethod
-    def match_rule(space_uid: str, logs: List[dict], fields: List[str]):
+    def match_rule(space_uid: str, logs: builtins.list[dict], fields: builtins.list[str]):
         """
         匹配规则
         """
@@ -529,11 +540,11 @@ class DesensitizeRuleHandler(object):
             _hit_rule_ids = set()
             if not desensitize_rule_info:
                 continue
-            for _log in logs:
-                _log = expand_nested_data(_log)
-                if _field not in _log:
+            for _original_log in logs:
+                _log = expand_nested_data(_original_log)
+                if _field not in _log and _field not in _original_log:
                     continue
-                _text = str(_log[_field])
+                _text = str(_original_log[_field]) if _field in _original_log else str(_log[_field])
                 for _rule in desensitize_rule_info:
                     match_fields = _rule["match_fields"]
                     match_pattern = _rule["match_pattern"]
@@ -577,7 +588,7 @@ class DesensitizeRuleHandler(object):
         return res
 
     @staticmethod
-    def preview(logs: List[dict], field_configs: List[dict], text_fields: List[str]):
+    def preview(logs: builtins.list[dict], field_configs: builtins.list[dict], text_fields: builtins.list[str]):
         """
         脱敏预览
         """
@@ -667,10 +678,14 @@ class DesensitizeRuleHandler(object):
 
             # 处理日志原文字段自身的脱敏逻辑
             result = text_fields_desensitize_handler.transform_dict(_log)
+            merged_result = merge_nested_data(result)  # 用于处理flattened字段类型，合并成一个字段
 
             for _field_name in all_field_names:
                 if _field_name not in res:
                     res[_field_name] = list()
-                res[_field_name].append(result.get(_field_name))
+
+                res[_field_name].append(
+                    str(merged_result[_field_name]) if merged_result.get(_field_name) else result.get(_field_name)
+                )
 
         return res

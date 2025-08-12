@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -12,7 +11,6 @@ specific language governing permissions and limitations under the License.
 import json
 import logging
 from datetime import datetime
-from typing import Dict, Tuple
 
 import arrow
 from django.utils.functional import cached_property
@@ -26,12 +24,13 @@ from alarm_backends.core.cache.strategy import StrategyCacheManager
 from alarm_backends.core.control.item import Item
 from alarm_backends.core.i18n import i18n
 from bkmonitor.utils import time_tools
+from bkmonitor.models.strategy import AlgorithmModel
 from core.errors.alarm_backends import StrategyItemNotFound
 
 logger = logging.getLogger("core.control")
 
 
-class Strategy(object):
+class Strategy:
     def __init__(self, strategy_id, default_config=None):
         self.id = self.strategy_id = strategy_id
         self._config = default_config
@@ -134,7 +133,7 @@ class Strategy(object):
     def actions(self):
         return self.config.get("actions", [])
 
-    def in_alarm_time(self, now_time=None) -> Tuple[bool, str]:
+    def in_alarm_time(self, now_time=None) -> tuple[bool, str]:
         """
         是否在策略生效期间
         :return: bool, str
@@ -203,7 +202,7 @@ class Strategy(object):
             for item in items:
                 item_list = item.get("list", [])
                 for _item in item_list:
-                    item_messages.append(f'{_item["calendar_name"]}({_item["name"]})')
+                    item_messages.append(f"{_item['calendar_name']}({_item['name']})")
 
         if item_messages:
             return False, _("当前时刻命中日历休息事项: {}").format(", ".join(item_messages))
@@ -261,7 +260,7 @@ class Strategy(object):
         return min([query_config.get("agg_interval", default_check_unit) for query_config in item["query_configs"]])
 
     @staticmethod
-    def get_trigger_configs(strategy: Dict) -> Dict[str, Dict]:
+    def get_trigger_configs(strategy: dict) -> dict[str, dict]:
         """
         获取不同级别算法的触发配置
         :return {
@@ -271,17 +270,36 @@ class Strategy(object):
             }
         }
         """
+        is_aiops_algorithm = False
+        items = strategy.get("items", [])
+        if items:
+            is_aiops_list = [
+                algorithm["type"] in AlgorithmModel.AIOPS_ALGORITHMS
+                for item in items
+                for algorithm in item.get("algorithms") or []
+            ]
+            # is_aiops_list不为空时，算法类型全部都是AIOPS算法时，设置is_aiops_algorithm为True
+            is_aiops_algorithm = all(is_aiops_list) and len(is_aiops_list) > 0
+
         trigger_config = {}
-        for detect in strategy["detects"]:
-            trigger_config[str(detect["level"])] = {
-                "check_window_size": int(detect["trigger_config"]["check_window"]),
-                "trigger_count": int(detect["trigger_config"]["count"]),
-                "uptime": detect["trigger_config"].get("uptime"),
-            }
+        for detect in strategy.get("detects") or []:
+            # 如果只有AIOPS算法，则写死 check_window_size 为 5，trigger_count 为 1
+            if is_aiops_algorithm:
+                trigger_config[str(detect["level"])] = {
+                    "check_window_size": 5,
+                    "trigger_count": 1,
+                    "uptime": detect["trigger_config"].get("uptime"),
+                }
+            else:
+                trigger_config[str(detect["level"])] = {
+                    "check_window_size": int(detect["trigger_config"]["check_window"]),
+                    "trigger_count": int(detect["trigger_config"]["count"]),
+                    "uptime": detect["trigger_config"].get("uptime"),
+                }
         return trigger_config
 
     @staticmethod
-    def get_recovery_configs(strategy: Dict) -> Dict[str, Dict]:
+    def get_recovery_configs(strategy: dict) -> dict[str, dict]:
         """
         获取不同级别的恢复配置
         :return {
@@ -297,7 +315,7 @@ class Strategy(object):
         return recovery_config
 
     @staticmethod
-    def get_no_data_configs(item: Dict):
+    def get_no_data_configs(item: dict):
         """
         获取无数据告警的触发配置
         :return: {
@@ -315,4 +333,4 @@ class Strategy(object):
     def __getattr__(self, item):
         if item == "snapshot_key":
             return self.gen_strategy_snapshot()
-        return super(Strategy, self).__getattribute__(item)
+        return super().__getattribute__(item)
