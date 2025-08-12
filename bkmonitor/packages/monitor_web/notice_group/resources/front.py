@@ -20,7 +20,6 @@ from bkmonitor.views import serializers
 from core.drf_resource import api, resource
 from core.drf_resource.base import Resource
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from multiprocessing import cpu_count
 from core.errors.notice_group import NoticeGroupNotExist
 
 logger = logging.getLogger(__name__)
@@ -55,7 +54,7 @@ class GetReceiverResource(Resource):
         if all_members:
             step_size = 50
             all_members_list = sorted(all_members)
-            with ThreadPoolExecutor(max_workers=cpu_count()) as executor:
+            with ThreadPoolExecutor(max_workers=10) as executor:
                 for num in range(0, len(all_members_list), step_size):
                     futures.append(
                         executor.submit(
