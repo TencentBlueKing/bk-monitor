@@ -24,32 +24,39 @@
  * IN THE SOFTWARE.
  */
 
-export interface IEvent {
-  onChange?: IntervalType;
-}
-export interface IIntervalOption {
-  id: IntervalType;
-  name: number | string;
+import { Component, Prop } from 'vue-property-decorator';
+import { Component as tsc } from 'vue-tsx-support';
+
+import CycleInput from '@/components/cycle-input/cycle-input';
+
+import './interval-creator.scss';
+
+interface IProps {
+  showLabel?: boolean;
 }
 
-export type IntervalType = 'auto' | number;
+@Component
+export default class IntervalCreator extends tsc<IProps> {
+  /* 是否展示左侧标签 */
+  @Prop({ default: true }) showLabel: boolean;
+  interval = 60;
 
-export interface IOption {
-  children?: IIntervalOption[];
-  id: number | string;
-  name: number | string;
-}
-export interface IProps {
-  appendTo?: string;
-  hasExpanded?: boolean;
-  isNeedDefaultVal?: boolean;
-  minSec?: number;
-  needAuto?: boolean;
-  value?: IntervalType;
-}
-export interface ITimeVal {
-  unit: unitType;
-  value: number;
-}
+  handleIntervalChange(val) {
+    this.interval = val;
+  }
 
-export type unitType = 'm' | 's';
+  render() {
+    return (
+      <div class='template-interval-creator-component'>
+        {this.showLabel && <div class='interval-label'>{this.$slots?.label || this.$t('汇聚周期')}</div>}
+        <CycleInput
+          class='form-interval'
+          v-model={this.interval}
+          hasExpanded={true}
+          needAuto={false}
+          onChange={(v: number) => this.handleIntervalChange(v)}
+        />
+      </div>
+    );
+  }
+}
