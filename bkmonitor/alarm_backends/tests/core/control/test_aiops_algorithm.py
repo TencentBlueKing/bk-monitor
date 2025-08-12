@@ -10,6 +10,8 @@ specific language governing permissions and limitations under the License.
 
 import pytest
 from unittest.mock import MagicMock
+from unittest import mock
+from alarm_backends.core.cache.strategy import StrategyCacheManager
 from alarm_backends.core.control.strategy import Strategy
 
 HOST_ANOMALY_DETECTION_CONFIG = {
@@ -28,6 +30,13 @@ THRESHOLD_ALGORITHM = {
     "config": [[{"method": "gte", "threshold": 10.0}]],
     "unit_prefix": "",
 }
+
+
+@pytest.fixture
+def strategy_cache():
+    strategy_cache_obj = MagicMock()
+    strategy_cache_obj.get_strategies_map = StrategyCacheManager.get_strategies_map
+    return strategy_cache_obj
 
 
 @pytest.fixture
@@ -219,7 +228,7 @@ def test_empty_and_no_aiops_algorithms(strategy):
 
 def test_empty_and_aiops_algorithms(strategy):
     """
-    测试空算法和非AIOPS算法的情况
+    测试空算法和AIOPS算法的情况
     """
     algorithms1 = []
     algorithms2 = [HOST_ANOMALY_DETECTION_CONFIG]
@@ -233,3 +242,145 @@ def test_empty_and_aiops_algorithms(strategy):
         actual_trigger_count = trigger_config[level].get("trigger_count")
         assert expected_check_window_size == actual_check_window_size
         assert expected_trigger_count == actual_trigger_count
+
+
+def execute_strategy_test(strategy_config, strategy_cache):
+    """执行策略测试的通用方法"""
+    with mock.patch("alarm_backends.core.cache.strategy.Strategy.from_models") as mock_from_models:
+        mock_strategy = MagicMock()
+        mock_strategy.to_dict.return_value = strategy_config
+        mock_from_models.return_value = [mock_strategy]
+
+        with mock.patch("alarm_backends.core.cache.strategy.BusinessManager.keys") as mock_biz_keys:
+            mock_biz_keys.return_value = [2]
+
+            with mock.patch(
+                "alarm_backends.core.cache.strategy.StrategyCacheManager.handle_strategy"
+            ) as mock_handle_strategy:
+                mock_handle_strategy.return_value = True
+
+                with mock.patch("alarm_backends.core.cache.strategy.StrategyCacheManager.check_related_strategy"):
+                    result_map = strategy_cache.get_strategies_map()
+                    return result_map
+
+
+def test_only_aiops_cache(strategy_cache):
+    """
+    测试只有AIOPS算法的情况
+    """
+    algorithms = [HOST_ANOMALY_DETECTION_CONFIG]
+    strategy_config = create_strategy_config(algorithms, algorithms)
+
+    result_map = execute_strategy_test(strategy_config, strategy_cache)
+    expected_check_window = 5
+    expected_count = 1
+
+    for strategy_id, strategy_config in result_map.items():
+        # 检查 detects 列表中的每个 detect
+        for detect in strategy_config.get("detects", []):
+            actual_check_window = detect.get("trigger_config", {}).get("check_window")
+            actual_count = detect.get("trigger_config", {}).get("count")
+            actual_uptime = detect.get("trigger_config", {}).get("uptime")
+            assert expected_check_window == actual_check_window
+            assert expected_count == actual_count
+            assert actual_uptime is not None
+
+
+def test_not_only_aiops_cache(strategy_cache):
+    """
+    测试有AIOPS算法和非AIOPS算法的情况
+    """
+    algorithms1 = [
+        THRESHOLD_ALGORITHM,
+        HOST_ANOMALY_DETECTION_CONFIG,
+    ]
+    algorithms2 = [
+        THRESHOLD_ALGORITHM,
+    ]
+    strategy_config = create_strategy_config(algorithms1, algorithms2)
+
+    result_map = execute_strategy_test(strategy_config, strategy_cache)
+
+    expected_check_window = 5
+    expected_count = 1
+
+    for strategy_id, strategy_config in result_map.items():
+        # 检查 detects 列表中的每个 detect
+        for detect in strategy_config.get("detects", []):
+            actual_check_window = detect.get("trigger_config", {}).get("check_window")
+            actual_count = detect.get("trigger_config", {}).get("count")
+            actual_uptime = detect.get("trigger_config", {}).get("uptime")
+            assert expected_check_window != actual_check_window
+            assert expected_count != actual_count
+            assert actual_uptime is not None
+
+
+def test_empty_aiops_cache(strategy_cache):
+    """
+    测试空算法的情况
+    """
+    algorithms = []
+    strategy_config = create_strategy_config(algorithms, algorithms)
+
+    result_map = execute_strategy_test(strategy_config, strategy_cache)
+
+    expected_check_window = 5
+    expected_count = 1
+
+    for strategy_id, strategy_config in result_map.items():
+        # 检查 detects 列表中的每个 detect
+        for detect in strategy_config.get("detects", []):
+            actual_check_window = detect.get("trigger_config", {}).get("check_window")
+            actual_count = detect.get("trigger_config", {}).get("count")
+            actual_uptime = detect.get("trigger_config", {}).get("uptime")
+            assert expected_check_window != actual_check_window
+            assert expected_count != actual_count
+            assert actual_uptime is not None
+
+
+def test_empty_and_no_aiops_cache(strategy_cache):
+    """
+    测试空算法和非AIOPS算法的情况
+    """
+    algorithms1 = []
+    algorithms2 = [THRESHOLD_ALGORITHM]
+    strategy_config = create_strategy_config(algorithms1, algorithms2)
+
+    result_map = execute_strategy_test(strategy_config, strategy_cache)
+
+    expected_check_window = 5
+    expected_count = 1
+
+    for strategy_id, strategy_config in result_map.items():
+        # 检查 detects 列表中的每个 detect
+        for detect in strategy_config.get("detects", []):
+            actual_check_window = detect.get("trigger_config", {}).get("check_window")
+            actual_count = detect.get("trigger_config", {}).get("count")
+            actual_uptime = detect.get("trigger_config", {}).get("uptime")
+            assert expected_check_window != actual_check_window
+            assert expected_count != actual_count
+            assert actual_uptime is not None
+
+
+def test_empty_and_aiops_algorithms_cache(strategy_cache):
+    """
+    测试空算法和AIOPS算法的情况
+    """
+    algorithms1 = []
+    algorithms2 = [HOST_ANOMALY_DETECTION_CONFIG]
+    strategy_config = create_strategy_config(algorithms1, algorithms2)
+
+    result_map = execute_strategy_test(strategy_config, strategy_cache)
+
+    expected_check_window = 5
+    expected_count = 1
+
+    for strategy_id, strategy_config in result_map.items():
+        # 检查 detects 列表中的每个 detect
+        for detect in strategy_config.get("detects", []):
+            actual_check_window = detect.get("trigger_config", {}).get("check_window")
+            actual_count = detect.get("trigger_config", {}).get("count")
+            actual_uptime = detect.get("trigger_config", {}).get("uptime")
+            assert expected_check_window == actual_check_window
+            assert expected_count == actual_count
+            assert actual_uptime is not None
