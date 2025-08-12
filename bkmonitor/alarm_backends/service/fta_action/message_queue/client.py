@@ -12,7 +12,7 @@ import logging
 from typing import Any
 
 import redis
-from confluent_kafka import KafkaException, Producer
+from confluent_kafka import Producer
 from django.conf import settings
 from urllib.parse import urlparse, unquote
 
@@ -64,20 +64,9 @@ class KafKaClient:
         发送消息
         """
         try:
-
-            def delivery_report(err, msg):
-                if err:
-                    logger.error("消息投递失败: %s (Topic: %s)", err, msg.topic())
-                else:
-                    logger.debug("消息成功发送至 %s [分区 %s]", msg.topic(), msg.partition())
-
-            self.client.produce(topic=self.topic, value=message.encode("utf-8"), callback=delivery_report)
-            # 触发回调并处理事件（非阻塞）
-            self.client.poll(0)
+            self.client.produce(topic=self.topic, value=message.encode("utf-8"))
             # 等待发送完成（含重试）
             self.client.flush(timeout=3)
-        except KafkaException as e:
-            raise e
         finally:
             self.client.flush()  # 二次确保消息发送
             del self.client  # 释放生产者对象
