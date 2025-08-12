@@ -1405,6 +1405,12 @@ class AlertIncidentDetailResource(IncidentDetailResource):
         return result
 
 
+INCIDENT_ANALYSIS_MAPPING_CONFIG = {
+    "anomaly_analysis": {"content_key": "dimension_drill_result", "display_panel_name": "anomaly_analysis"},
+    "alerts_analysis": {"content_key": "dimension_drill", "display_panel_name": "anomaly_analysis"},
+}
+
+
 class IncidentResultsResource(IncidentBaseResource):
     class RequestSerializer(serializers.Serializer):
         id = serializers.IntegerField(required=True, label="故障ID")
@@ -1496,10 +1502,22 @@ class IncidentDiagnosisResource(IncidentBaseResource):
         incident_id = str(validated_request_data["id"])[10:]
         bk_biz_ids = validated_request_data["bk_biz_ids"]
         raw_results = api.bkdata.get_incident_analysis_results(incident_id=int(incident_id))
-        raw_content = raw_results.get(panel, {}).get("sub_panels", {}).get(sub_panel, {}).get("content", [])
-        if sub_panel == "anomaly_analysis":
-            content = []
-            for drill_result in raw_content:
+        raw_content = raw_results.get(panel, {}).get("sub_panels", {}).get(sub_panel, {}).get("content")
+        # 设置默认返回
+        display_panel = sub_panel
+        content = []
+        if sub_panel in ["anomaly_analysis", "alerts_analysis"]:
+            display_panel = INCIDENT_ANALYSIS_MAPPING_CONFIG.get(sub_panel, {}).get("display_panel_name") or sub_panel
+            drill_results_top = []
+            raw_content = raw_content if isinstance(raw_content, dict) else {}
+            content_key = INCIDENT_ANALYSIS_MAPPING_CONFIG.get(sub_panel, {}).get("content_key")
+            if content_key:
+                drill_results_top = sorted(
+                    raw_content.get(content_key, []),
+                    key=lambda x: float(x.get("score", 0)),
+                    reverse=True,
+                )[:5]
+            for drill_result in drill_results_top:
                 alerts = (
                     self.get_alerts_by_alert_ids(drill_result["alert_ids"], bk_biz_ids=bk_biz_ids)
                     if drill_result.get("alert_ids")
@@ -1527,4 +1545,4 @@ class IncidentDiagnosisResource(IncidentBaseResource):
                 content.append(content_item)
         else:
             content = raw_content
-        return {"sub_panel": sub_panel, "contents": content}
+        return {"sub_panel": display_panel, "contents": content}

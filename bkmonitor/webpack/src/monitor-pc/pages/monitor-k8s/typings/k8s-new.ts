@@ -183,6 +183,7 @@ export interface IK8SMetricItem {
   count?: number;
   id: string;
   name: string;
+  show_chart?: boolean;
   unit?: string;
   unsupported_resource?: string[];
 }

@@ -126,16 +126,17 @@ class ListSpacesResource(Resource):
         show_detail = serializers.BooleanField(required=False, default=False, allow_null=True)
 
     @classmethod
-    def get_space_by_user(cls, username, use_cache=True) -> list[dict]:
-        perm_client = Permission(username=username, bk_tenant_id=get_request_tenant_id())
+    def get_space_by_user(cls, bk_tenant_id: str, username: str, use_cache: bool = True) -> list[dict]:
+        perm_client = Permission(username=username, bk_tenant_id=bk_tenant_id)
         return perm_client.filter_space_list_by_action(ActionEnum.VIEW_BUSINESS, use_cache)
 
     def perform_request(self, validated_request_data) -> list[dict]:
         request = get_request(peaceful=True)
         username = get_request_username()
+        bk_tenant_id = get_request_tenant_id()
 
         if request and getattr(request, "external_user", None):
-            spaces: list[dict] = SpaceApi.list_spaces_dict()
+            spaces: list[dict] = SpaceApi.list_spaces_dict(bk_tenant_id=bk_tenant_id)
             external_biz_ids = (
                 ExternalPermission.objects.filter(authorized_user=request.external_user, expire_time__gt=timezone.now())
                 .values_list("bk_biz_id", flat=True)
@@ -145,15 +146,15 @@ class ListSpacesResource(Resource):
         elif validated_request_data["show_all"]:
             # 针对特定用户名屏蔽空间信息
             if settings.BLOCK_SPACE_RULE and re.search(settings.BLOCK_SPACE_RULE, username):
-                spaces: list[dict] = self.get_space_by_user(username)
+                spaces: list[dict] = self.get_space_by_user(bk_tenant_id, username)
             else:
-                spaces: list[dict] = SpaceApi.list_spaces_dict()
+                spaces: list[dict] = SpaceApi.list_spaces_dict(bk_tenant_id=bk_tenant_id)
         else:
-            spaces: list[dict] = self.get_space_by_user(username)
+            spaces: list[dict] = self.get_space_by_user(bk_tenant_id, username)
 
         if validated_request_data["show_detail"]:
             list(map(self.enrich_space_func, spaces))
-        return spaces
+        return [space for space in spaces if space["bk_tenant_id"] == bk_tenant_id]
 
     def enrich_space_func(self, space):
         # todo 使用运营数据判定是否接入

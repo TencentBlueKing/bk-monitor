@@ -453,7 +453,7 @@ class Permission:
         """
         获取有对应action权限的空间列表
         """
-        space_list = SpaceApi.list_spaces_dict(using_cache)
+        space_list = SpaceApi.list_spaces_dict(bk_tenant_id=self.bk_tenant_id, using_cache=using_cache)
         # 对后台API进行权限豁免
         if self.skip_check:
             return space_list

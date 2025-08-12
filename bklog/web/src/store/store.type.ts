@@ -95,6 +95,11 @@ enum BK_LOG_STORAGE {
    * 缓存趋势图历史选择的起止时间列表
    */
   CACHED_BATCH_LIST = '_18',
+  /**
+   * 表格是否展示日志来源
+   */
+  TABLE_SHOW_SOURCE_FIELD = '_19',
+  
 }
 
 

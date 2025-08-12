@@ -134,9 +134,20 @@ const getUrlArgs = (_route?) => {
 
   const result = urlResolver.convertQueryToStore<RouteParams>();
 
-  if (result.search_mode) {
-    updateLocalstorage({ [BK_LOG_STORAGE.SEARCH_TYPE]: result.search_mode === 'sql' ? 1 : 0 });
-  }
+  const storageKeys = [
+    ['search_mode', BK_LOG_STORAGE.SEARCH_TYPE, () => (result.search_mode === 'sql' ? 1 : 0)],
+    ['bizId', BK_LOG_STORAGE.BK_BIZ_ID, () => result.bizId],
+    ['spaceUid', BK_LOG_STORAGE.BK_SPACE_UID, () => result.spaceUid],
+  ];
+
+  const storageValue = storageKeys.reduce((out, [key, storageKey, fn]: [string, string, (...args: any[]) => any]) => {
+    if (result[key] !== undefined) {
+      out[storageKey] = fn?.(result[key]);
+    }
+    return out;
+  }, {});
+
+  updateLocalstorage(storageValue);
   return result;
 };
 
@@ -196,6 +207,7 @@ export const IndexFieldInfo = {
   fields: [],
   display_fields: [],
   sort_list: [],
+  default_sort_list: [],
   time_field: '',
   time_field_type: '',
   time_field_unit: '',
@@ -344,6 +356,7 @@ export const getStorageOptions = (values?: any) => {
       },
       [BK_LOG_STORAGE.LAST_INDEX_SET_ID]: {},
       [BK_LOG_STORAGE.COMMON_SPACE_ID_LIST]: [],
+      [BK_LOG_STORAGE.TABLE_SHOW_SOURCE_FIELD]: false,
     },
     storage,
   );

@@ -71,7 +71,7 @@ class ListTenantResource(BkUserApiResource):
             return [{"id": "system", "name": "Blueking", "status": "enabled"}]
 
         result = super().perform_request({"bk_tenant_id": DEFAULT_TENANT_ID})
-        result = [item for item in result if item["id"] in settings.INITIALIZED_TENANT_LIST]
+        # result = [item for item in result if item["id"] in settings.INITIALIZED_TENANT_LIST]
         return result
 
 
@@ -278,3 +278,16 @@ class ListTenantVariablesResource(BkUserApiResource):
 
     action = "/api/v3/open/tenant/common-variables/"
     method = "GET"
+
+
+class BatchQueryUserDisplayInfoResource(BkUserApiResource):
+    """
+    批量查询用户展示信息
+    """
+
+    cache_type = CacheType.USER
+    action = "/api/v3/open/tenant/users/-/display_info/"
+    method = "GET"
+
+    class RequestSerializer(serializers.Serializer):
+        bk_usernames = serializers.CharField(required=True)

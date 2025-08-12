@@ -414,6 +414,7 @@ class SearchHandler:
 
         result_dict: dict = {
             "fields": field_result,
+            "default_sort_list": self._get_default_sort_list(),
             "display_fields": display_fields,
             "sort_list": sort_field_list,
             "time_field": self.time_field,
@@ -1943,14 +1944,22 @@ class SearchHandler:
                 if sort_list:
                     return sort_list
         # 安全措施, 用户未设置排序规则，且未创建默认配置时, 使用默认排序规则
+        return self._get_default_sort_list()
+
+    def _get_default_sort_list(self):
+        """获取默认排序配置"""
+        index_set_id = self.search_dict.get("index_set_id")
         return self.mapping_handlers.get_default_sort_list(
             index_set_id=index_set_id,
             scenario_id=self.scenario_id,
-            scope=scope,
             default_sort_tag=self.search_dict.get("default_sort_tag", False),
         )
 
     def _init_desensitize(self) -> bool:
+        # 查询原始日志时不进行脱敏  original_search参数不由用户传入
+        if self.search_dict.get("original_search", False):
+            return False
+
         is_desensitize = self.search_dict.get("is_desensitize", True)
 
         if not is_desensitize:
@@ -2361,10 +2370,9 @@ class SearchHandler:
             # 判断原文字段是否存在log中
             if text_field not in log.keys():
                 continue
-
-            for _config in self.field_configs:
-                field_name = _config["field_name"]
-                if field_name not in log.keys() or field_name == text_field:
+            # 原始内容替换成脱敏后的内容
+            for field_name in log.keys():
+                if field_name == text_field:
                     continue
                 log[text_field] = log[text_field].replace(str(log_content_tmp[field_name]), str(log[field_name]))
 
@@ -3179,6 +3187,7 @@ class UnionSearchHandler:
             "time_field": time_field,
             "time_field_type": time_field_type,
             "time_field_unit": time_field_unit,
+            "default_sort_list": default_sort_list,
         }
         return ret
 

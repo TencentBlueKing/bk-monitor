@@ -14,6 +14,7 @@ from django.conf import settings
 from django.db.transaction import atomic
 from tenacity import RetryError, retry, stop_after_attempt, wait_exponential
 
+from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id
 from core.drf_resource import api
 from metadata import config
 from metadata.models import DataSource
@@ -26,7 +27,7 @@ logger = logging.getLogger("metadata")
 
 
 @atomic(config.DATABASE_CONNECTION_NAME)
-def apply_data_id(data_name: str) -> bool:
+def apply_data_id(data_name: str, bk_tenant_id: str) -> bool:
     """下发 data_id 资源，并记录对应的资源及配置"""
     logger.info("apply data_id for data_name: %s", data_name)
 
@@ -35,7 +36,7 @@ def apply_data_id(data_name: str) -> bool:
     if not data_id_config:
         return False
     # 调用接口创建 data_id 资源
-    api.bkdata.apply_data_link({"config": [data_id_config]})
+    api.bkdata.apply_data_link(bk_tenant_id=bk_tenant_id, config=[data_id_config])
     # 记录资源及配置
     # NOTE: 注意新创建的数据源都是单指标单标, 包含 es
     DataLinkResource.objects.create(data_id_name=data_id_name)
@@ -83,19 +84,24 @@ def apply_data_id_v2(
     )
     data_id_config = data_id_config_ins.compose_config(event_type=event_type)
 
-    api.bkdata.apply_data_link({"config": [data_id_config]})
+    api.bkdata.apply_data_link(config=[data_id_config], bk_tenant_id=bk_biz_id_to_bk_tenant_id(bk_biz_id))
     logger.info("apply_data_id_v2:apply data_id for data_name: %s success", data_name)
     return True
 
 
-def get_data_id(data_name: str, namespace: str | None = settings.DEFAULT_VM_DATA_LINK_NAMESPACE) -> dict:
+def get_data_id(
+    bk_tenant_id: str, data_name: str, namespace: str | None = settings.DEFAULT_VM_DATA_LINK_NAMESPACE
+) -> dict:
     """
     获取数据源对应的 data_id
     TODO: 待改造为通用查询状态方法
     """
     data_id_name = utils.compose_bkdata_data_id_name(data_name)
     data_id_config = api.bkdata.get_data_link(
-        kind=DataLinkKind.get_choice_value(DataLinkKind.DATAID.value), namespace=namespace, name=data_id_name
+        bk_tenant_id=bk_tenant_id,
+        kind=DataLinkKind.get_choice_value(DataLinkKind.DATAID.value),
+        namespace=namespace,
+        name=data_id_name,
     )
     # 解析数据获取到数据源ID
     phase = data_id_config.get("status", {}).get("phase")
@@ -129,7 +135,10 @@ def get_data_id_v2(
         data_id_name = utils.compose_bkdata_data_id_name(data_name)
 
     data_id_config = api.bkdata.get_data_link(
-        kind=DataLinkKind.get_choice_value(DataLinkKind.DATAID.value), namespace=namespace, name=data_id_name
+        kind=DataLinkKind.get_choice_value(DataLinkKind.DATAID.value),
+        namespace=namespace,
+        name=data_id_name,
+        bk_tenant_id=bk_biz_id_to_bk_tenant_id(bk_biz_id),
     )
     data_id_config_ins = DataIdConfig.objects.get(name=data_id_name, namespace=namespace)
     logger.info("get_data_id: request bkbase data_id_config->[%s]", data_id_config)
@@ -150,6 +159,7 @@ def get_data_id_v2(
 
 
 def get_data_link_component_config(
+    bk_tenant_id: str,
     kind: str,
     component_name: str,
     namespace: str | None = settings.DEFAULT_VM_DATA_LINK_NAMESPACE,
@@ -171,7 +181,9 @@ def get_data_link_component_config(
         bkbase_kind = DataLinkKind.get_choice_value(kind)
         if not bkbase_kind:
             logger.info("get_data_link_component_config: kind is not valid,kind->[%s]", kind)
-        component_config = api.bkdata.get_data_link(kind=bkbase_kind, namespace=namespace, name=component_name)
+        component_config = api.bkdata.get_data_link(
+            bk_tenant_id=bk_tenant_id, kind=bkbase_kind, namespace=namespace, name=component_name
+        )
         return component_config
     except Exception as e:
         logger.error(
@@ -186,6 +198,7 @@ def get_data_link_component_config(
 
 
 def get_data_link_component_status(
+    bk_tenant_id: str,
     kind: str,
     component_name: str,
     namespace: str | None = settings.DEFAULT_VM_DATA_LINK_NAMESPACE,
@@ -208,7 +221,7 @@ def get_data_link_component_status(
         if not bkbase_kind:
             logger.info("get_data_link_component_status: kind is not valid,kind->[%s]", kind)
         component_config = get_bkbase_component_status_with_retry(
-            kind=bkbase_kind, namespace=namespace, name=component_name
+            bk_tenant_id=bk_tenant_id, kind=bkbase_kind, namespace=namespace, name=component_name
         )
         phase = component_config.get("status", {}).get("phase")
         return phase
@@ -236,6 +249,7 @@ def get_data_link_component_status(
 
 @retry(stop=stop_after_attempt(4), wait=wait_exponential(multiplier=1, min=1, max=10))
 def get_bkbase_component_status_with_retry(
+    bk_tenant_id: str,
     kind: str,
     namespace: str,
     name: str,
@@ -244,8 +258,7 @@ def get_bkbase_component_status_with_retry(
     获取bkbase组件状态，具备重试机制
     """
     try:
-        bkbase_status = api.bkdata.get_data_link(kind=kind, namespace=namespace, name=name)
-        return bkbase_status
+        return api.bkdata.get_data_link(bk_tenant_id=bk_tenant_id, kind=kind, namespace=namespace, name=name)
     except Exception as e:  # pylint: disable=broad-except
         logger.error(
             "get_bkbase_component_status_with_retry: get component status failed,kind->[%s],name->[%s],error->[%s]",
@@ -310,7 +323,7 @@ def create_vm_data_link(
     logger.info("create_vm_data_link: apply configs: %s,is_fed_cluster: %s", configs, is_fed_cluster)
 
     # 2. 调用计算平台接口，申请V4链路
-    api.bkdata.apply_data_link({"config": configs})
+    api.bkdata.apply_data_link(bk_tenant_id=data_source.bk_tenant_id, config=configs)
 
     logger.info("create_vm_data_link: apply success")
 
@@ -358,6 +371,7 @@ def create_vm_data_link(
         vm_cluster_id = ClusterInfo.objects.get(cluster_name=vm_cluster_name).cluster_id
     # NOTE：这里的接入VM记录，现统一将对应的计算平台数据ID和数据名称存储下来，方便后续使用
     AccessVMRecord.objects.create(
+        bk_tenant_id=data_source.bk_tenant_id,
         result_table_id=table_id,
         bcs_cluster_id=bcs_cluster_id,
         vm_cluster_id=vm_cluster_id,
@@ -502,10 +516,9 @@ def create_fed_vm_data_link(
     config_list.extend([vm_conditional_sink_config, vm_data_bus_config])
 
     # 4. 调用计算平台接口，申请创建链路
-    data = {"config": config_list}
     try:
         logger.info("create_fed_vm_data_link start to apply data link")
-        api.bkdata.apply_data_link(data)
+        api.bkdata.apply_data_link(config=config_list, bk_tenant_id=data_source.bk_tenant_id)
     except Exception as e:
         logger.error("create_fed_vm_data_link apply data link error->[%s]", str(e))
         return

@@ -26,114 +26,129 @@
 
 <template>
   <div class="manage-container">
-    <div
-      v-if="!pageLoading"
-      class="manage-main"
-    >
+    <div v-if="!pageLoading" class="manage-main">
       <sub-nav></sub-nav>
-      <router-view
-        class="manage-content"
-        :key="routerKey"
-      ></router-view>
+      <router-view class="manage-content"></router-view>
     </div>
   </div>
 </template>
 
 <script>
-  import SubNav from '@/components/nav/manage-nav';
-  import { mapState, mapGetters } from 'vuex';
+import SubNav from '@/components/nav/manage-nav';
+import { mapState, mapGetters } from 'vuex';
 
-  export default {
-    name: 'ManageIndex',
-    components: {
-      SubNav,
-    },
-    data() {
-      return {
-        navThemeColor: '#2c354d',
-        routerKey: 0,
-        isExpand: true,
-      };
-    },
+export default {
+  name: 'ManageIndex',
+  components: {
+    SubNav,
+  },
+  data() {
+    return {
+      navThemeColor: '#2c354d',
+      isExpand: true,
+    };
+  },
 
-    computed: {
-      ...mapState(['topMenu', 'activeManageNav']),
-      ...mapState('globals', ['globalsData']),
-      ...mapGetters({
-        pageLoading: 'pageLoading',
-      }),
-      manageNavList() {
-        return this.topMenu.find(item => item.id === 'manage')?.children || [];
-      },
+  computed: {
+    ...mapState(['topMenu', 'activeManageNav', 'spaceUid', 'bkBizId']),
+    ...mapState('globals', ['globalsData']),
+    ...mapGetters({
+      pageLoading: 'pageLoading',
+    }),
+    manageNavList() {
+      return this.topMenu.find(item => item.id === 'manage')?.children || [];
     },
-    methods: {
-      getMenuIcon(item) {
-        if (item.icon) {
-          return `bklog-icon bklog-${item.icon}`;
-        }
+  },
+  watch: {
+    '$route.query.spaceUid'(newSpaceUid, oldSpaceUid) {
+      if (newSpaceUid !== oldSpaceUid) {
+        // 获取最外层路径
+        const topLevelRoute = this.getTopLevelRoute();
 
-        return 'bk-icon icon-home-shape';
-      },
-      handleClickNavItem(id) {
-        this.$router.push({
-          name: id,
+        this.$router.replace({
+          name: topLevelRoute,
           query: {
-            spaceUid: this.$store.state.spaceUid,
+            ...this.$route.query,
+            spaceUid: this.spaceUid,
+            bizId: this.bkBizId,
           },
         });
-        if (this.activeManageNav.id === id) {
-          // this.routerKey += 1;
-        }
-      },
-      handleToggle(data) {
-        this.isExpand = data;
-      },
+      }
     },
-    mounted() {
-      const bkBizId = this.$store.state.bkBizId;
-      const spaceUid = this.$store.state.spaceUid;
-
-      this.$router.replace({
+  },
+  methods: {
+    getMenuIcon(item) {
+      if (item.icon) {
+        return `bklog-icon bklog-${item.icon}`;
+      }
+      return 'bk-icon icon-home-shape';
+    },
+    handleClickNavItem(id) {
+      this.$router.push({
+        name: id,
         query: {
-          bizId: bkBizId,
-          spaceUid: spaceUid,
-          ...this.$route.query,
+          spaceUid: this.$store.state.spaceUid,
         },
       });
     },
-  };
+    handleToggle(data) {
+      this.isExpand = data;
+    },
+    // 获取当前路由的最外层路径，用于切换业务时跳转到菜单栏目录项
+    getTopLevelRoute() {
+      const currentPath = this.$route.path;
+      const match = currentPath.match(/^\/manage\/([^\/]+)/);  // 匹配 /manage/xxx 的模式
+
+      if(match) return match[1]; // 返回紧跟 /manage 的路径段
+
+      return 'manage';
+    },
+  },
+  mounted() {
+    const bkBizId = this.$store.state.bkBizId;
+    const spaceUid = this.$store.state.spaceUid;
+
+    this.$router.replace({
+      query: {
+        bizId: bkBizId,
+        spaceUid: spaceUid,
+        ...this.$route.query,
+      },
+    });
+  },
+};
 </script>
 
 <style lang="scss" scoped>
-  @import '../../scss/mixins/scroller.scss';
+@import '../../scss/mixins/scroller.scss';
 
-  .manage-container {
+.manage-container {
+  height: 100%;
+
+  .manage-content {
+    // height: 100%;
+    position: relative;
+    top: 48px;
+    height: calc(100% - 52px);
+    overflow: auto;
+
+    @include scroller($backgroundColor: #c4c6cc, $width: 4px);
+  }
+
+  .manage-main {
     height: 100%;
+  }
 
-    .manage-content {
-      // height: 100%;
-      position: relative;
-      top: 48px;
-      height: calc(100% - 52px);
-      overflow: auto;
+  :deep(.bk-table) {
+    background: #fff;
 
-      @include scroller($backgroundColor: #c4c6cc, $width: 4px);
+    .cell {
+      display: block;
     }
 
-    .manage-main {
-      height: 100%;
-    }
-
-    :deep(.bk-table) {
-      background: #fff;
-
-      .cell {
-        display: block;
-      }
-
-      .bk-table-pagination-wrapper {
-        background: #fafbfd;
-      }
+    .bk-table-pagination-wrapper {
+      background: #fafbfd;
     }
   }
+}
 </style>
