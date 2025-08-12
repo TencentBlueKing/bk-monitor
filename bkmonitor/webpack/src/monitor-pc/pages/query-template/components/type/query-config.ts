@@ -47,11 +47,16 @@ export const TVariableType = {
   FUNCTION: VariableTypeEnum.FUNCTION,
   CONSTANT: 'constant', // （非变量类型）
 } as const;
+export interface IConditionOptionsItem extends IVariablesItem {
+  id: string;
+  isVariable?: boolean;
+}
 /* 维度选项 */
 export interface IDimensionOptionsItem extends IVariablesItem {
   id: string;
   isVariable?: boolean;
 }
+
 /* 函数选项 */
 export interface IFunctionOptionsItem extends IVariablesItem {
   children?: IFunctionOptionsItem[];
@@ -83,3 +88,10 @@ export interface IVariablesItem {
   name?: string;
   type?: (typeof TVariableType)[keyof typeof TVariableType];
 }
+
+export const TConfigType = {
+  QUERY_CONFIG: 'query-config',
+  EXPRESSION_CONFIG: 'expression-config',
+};
+
+export type EConfigType = (typeof TConfigType)[keyof typeof TConfigType];
