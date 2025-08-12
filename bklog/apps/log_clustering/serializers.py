@@ -275,5 +275,5 @@ class CreateRegexTemplateSerializer(serializers.Serializer):
 
 
 class UpdateRegexTemplateSerializer(serializers.Serializer):
-    template_name = serializers.CharField(required=True)
-    predefined_varibles = serializers.CharField()
+    template_name = serializers.CharField(required=False)
+    predefined_varibles = serializers.CharField(required=False)
