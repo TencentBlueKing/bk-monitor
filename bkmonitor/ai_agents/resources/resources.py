@@ -19,6 +19,7 @@ from ai_agents.services.metrics_reporter import (
     EnhancedStreamingResponseWrapper,
     StreamingMetricsTracker,
     ai_enhanced_streaming_metrics,
+    extract_command_from_request,
 )
 from core.drf_resource import Resource
 from rest_framework import serializers
@@ -144,7 +145,7 @@ class CreateChatSessionContentResource(Resource):
         super().__init__()
         self.command_processor = CommandProcessor()
 
-    @ai_metrics_decorator()
+    @ai_metrics_decorator(extract_command_func=extract_command_from_request)
     def perform_request(self, validated_request_data):
         session_code = validated_request_data.get("session_code")
         property_data = validated_request_data.get("property", {})
