@@ -1142,7 +1142,11 @@ const store = new Vuex.Store({
           isUnionIndex ? {} : { catchIsShowMessage: false },
         )
         .then(res => {
-          commit('updateIndexFieldInfo', res.data ?? {});
+          const { default_sort_list = [], sort_list = [] } = res.data ?? {};
+          const defaultSortList = (((default_sort_list?.length ?? 0) > 0 ? default_sort_list : sort_list) ?? []).map(
+            ([field_name]) => [field_name, undefined],
+          );
+          commit('updateIndexFieldInfo', Object.assign({}, res.data ?? {}, { default_sort_list: defaultSortList }));
           commit('updataOperatorDictionary', res.data ?? {});
           commit('updateNotTextTypeFields', res.data ?? {});
           commit('updateIndexSetFieldConfig', res.data ?? {});
