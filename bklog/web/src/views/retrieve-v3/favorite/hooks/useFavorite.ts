@@ -291,8 +291,6 @@ export const useFavorite = () => {
       RetrieveHelper.setFavoriteActive({ ...activeFavorite.value, search_mode });
       store.dispatch('requestIndexSetQuery');
     });
-
-    console.log(store.state, 'index---store');
   };
 
   /**
