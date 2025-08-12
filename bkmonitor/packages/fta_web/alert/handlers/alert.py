@@ -102,7 +102,7 @@ def get_alert_ids_by_action_id(action_ids) -> list:
     return list(alert_ids)
 
 
-def get_alert_ids_by_action_name(action_names, bk_biz_ids, start_time, end_time, include=False, exclude=False) -> list:
+def get_alert_ids_by_action_name(action_names, include=False, exclude=False, **kwargs) -> list:
     """通过处理套餐名称获取告警ID"""
     if not isinstance(action_names, list):
         action_names = [action_names]
@@ -111,39 +111,38 @@ def get_alert_ids_by_action_name(action_names, bk_biz_ids, start_time, end_time,
     if include and exclude:
         raise ValueError("Parameters 'include' and 'exclude' cannot be True simultaneously")
 
-    alert_ids = _query_alert_ids_from_es(action_names, start_time, end_time, include, exclude)
+    if "page_size" in kwargs:
+        # 增加额外的查询数量
+        kwargs["page_size"] = kwargs["page_size"] + 50
+
+    alert_ids = _query_alert_ids_from_es(action_names, include=include, exclude=exclude, **kwargs)
     if alert_ids:
         return alert_ids
 
     # ES无结果时，回退到Django ORM查询
-    return _query_alert_ids_from_db(action_names, bk_biz_ids, start_time, include, exclude)
+    return _query_alert_ids_from_db(action_names, include=include, exclude=exclude, **kwargs)
 
 
-def _query_alert_ids_from_es(action_names, start_time, end_time, include=False, exclude=False):
+def _query_alert_ids_from_es(action_names, include=False, exclude=False, **kwargs):
     """内部方法：通过ES查询获取告警ID"""
     method = "exclude" if exclude else "include" if include else "eq"
 
-    params = {
-        "start_time": start_time,
-        "end_time": end_time,
-        "conditions": [{"key": "action_name.raw", "value": action_names, "method": method, "condition": "and"}],
-    }
+    kwargs["conditions"] = [{"key": "action_name.raw", "value": action_names, "method": method, "condition": "and"}]
 
-    action_handler = ActionQueryHandler(**params)
+    action_handler = ActionQueryHandler(**kwargs)
     search_obj = action_handler.get_search_object()
     search_obj = action_handler.add_conditions(search_obj)
+    search_obj = action_handler.add_pagination(search_obj)
     search_obj = search_obj.source(["alert_id"])  # 仅请求必要字段
 
-    alert_ids = []
-    for hit in search_obj.scan():
-        if not hasattr(hit, "alert_id"):
-            continue
-        alert_ids.extend(hit.alert_id)
-
+    result = search_obj.execute()
+    alert_ids = [item for hit in result.hits for item in hit.alert_id]
     return list(set(alert_ids))
 
 
-def _query_alert_ids_from_db(action_names, bk_biz_ids, start_time, include=False, exclude=False):
+def _query_alert_ids_from_db(
+    action_names, bk_biz_ids, start_time, end_time, page, page_size, include=False, exclude=False
+):
     """内部方法：通过DB查询获取告警ID"""
     # 构建查询条件
     if include:
@@ -162,10 +161,15 @@ def _query_alert_ids_from_db(action_names, bk_biz_ids, start_time, include=False
     action_config_ids = ActionConfig.objects.filter(filter_params_query).values_list("id", flat=True)
 
     start_time = datetime.fromtimestamp(start_time, tz=timezone.utc)
+    end_time = datetime.fromtimestamp(end_time, tz=timezone.utc)
 
-    alert_id_ids = ActionInstance.objects.filter(
-        action_config_id__in=list(action_config_ids), create_time__gte=start_time
-    ).values_list("alerts", flat=True)
+    alert_id_ids = (
+        ActionInstance.objects.filter(
+            action_config_id__in=list(action_config_ids), create_time__gte=start_time, create_time__lte=end_time
+        )
+        .values_list("alerts", flat=True)
+        .order_by("id")[(page - 1) * page_size : page * page_size]
+    )
     alert_ids = set(chain.from_iterable(alert_id_ids))
     return list(alert_ids)
 
@@ -350,10 +354,16 @@ class AlertQueryTransformer(BaseQueryTransformer):
             "action_name",
             _("处理套餐名称"),
         ]:
-            bk_biz_ids = context.get("bk_biz_ids", [])
-            start_time = context.get("start_time", None)
-            end_time = context.get("end_time", None)
-            alert_ids = get_alert_ids_by_action_name([node.value], bk_biz_ids, start_time, end_time)
+            params = {
+                "action_names": [node.value],
+                "bk_biz_ids": context.get("bk_biz_ids", []),
+                "start_time": context.get("start_time"),
+                "end_time": context.get("end_time"),
+                "page": context.get("page", 1),
+                "page_size": context.get("page_size", 10),
+            }
+
+            alert_ids = get_alert_ids_by_action_name(**params)
             node = FieldGroup(OrOperation(*[Word(str(alert_id)) for alert_id in alert_ids or [0]]))
             context = {"ignore_search_field": True, "ignore_word": True}
             return node, context
@@ -546,7 +556,14 @@ class AlertQueryHandler(BaseBizQueryHandler):
 
     def search_raw(self, show_overview=False, show_aggs=False, show_dsl=False):
         # 构建上下文信息
-        context = {"bk_biz_ids": self.bk_biz_ids, "start_time": self.start_time, "end_time": self.end_time}
+        context = {
+            "bk_biz_ids": self.bk_biz_ids,
+            "start_time": self.start_time,
+            "end_time": self.end_time,
+            "page": self.page,
+            "page_size": self.page_size,
+        }
+
         search_object = self.get_search_object()
         search_object = self.add_conditions(search_object)
         search_object = self.add_query_string(search_object, context=context)
@@ -795,6 +812,8 @@ class AlertQueryHandler(BaseBizQueryHandler):
                 "bk_biz_ids": self.bk_biz_ids,
                 "start_time": self.start_time,
                 "end_time": self.end_time,
+                "page": self.page,
+                "page_size": self.page_size,
                 "include": condition["method"] == "include",
                 "exclude": condition["method"] == "exclude",
             }

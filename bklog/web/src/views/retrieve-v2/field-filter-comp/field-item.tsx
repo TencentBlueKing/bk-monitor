@@ -60,7 +60,6 @@ export default class FieldItem extends tsc<object> {
   expandIconShow = false;
   queryParams = {};
 
-  cachedComputedFieldName: string = null;
   fieldIconCache: Record<string, { icon: string; color: string; textColor: string }> = {};
 
   get fieldTypeMap() {
@@ -106,18 +105,15 @@ export default class FieldItem extends tsc<object> {
   }
 
   get computedFieldName() {
-    if (!this.cachedComputedFieldName) {
-      let name = this.$store.state.storage[BK_LOG_STORAGE.SHOW_FIELD_ALIAS]
-        ? this.fieldItem.query_alias || this.fieldItem.alias_name || this.fieldItem.field_name
-        : this.fieldItem.field_name;
+    let name = this.$store.state.storage[BK_LOG_STORAGE.SHOW_FIELD_ALIAS]
+      ? this.fieldItem.query_alias || this.fieldItem.alias_name || this.fieldItem.field_name
+      : this.fieldItem.field_name;
 
-      if (this.isFieldObject) {
-        const parts = name.split('.');
-        name = parts[parts.length - 1] || parts[0];
-      }
-      this.cachedComputedFieldName = name;
+    if (this.isFieldObject) {
+      const parts = name.split('.');
+      name = parts[parts.length - 1] || parts[0];
     }
-    return this.cachedComputedFieldName;
+    return name;
   }
 
   beforeDestroy() {

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -19,6 +18,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+
 from apps.generic import ModelViewSet
 from apps.iam import ActionEnum, ResourceEnum
 from apps.iam.handlers.drf import ViewBusinessPermission, insert_permission_field
@@ -356,18 +356,6 @@ class CleanTemplateViewSet(ModelViewSet):
                 "bk_biz_id": 0,
                 "visible_bk_biz_id": [],
                 "visible_type": "current_biz",
-                "alias_settings":[
-                    {
-                        "field_name":"__ext.io_kubernetes_pod",
-                        "query_alias":"k8s_pod",
-                        "path_type":"keyword"
-                    },
-                    {
-                        "field_name":"__ext.io_kubernetes_ip",
-                        "query_alias":"k8s_ip",
-                        "path_type":"keyword"
-                    }
-                ],
             },
             "result":true
         }
@@ -420,18 +408,6 @@ class CleanTemplateViewSet(ModelViewSet):
             "bk_biz_id": 0,
             "visible_bk_biz_id": [1, 2, 3],
             "visible_type": "multi_biz",
-            "alias_settings":[
-                {
-                    "field_name":"__ext.io_kubernetes_pod",
-                    "query_alias":"k8s_pod",
-                    "path_type":"keyword"
-                },
-                {
-                    "field_name":"__ext.io_kubernetes_ip",
-                    "query_alias":"k8s_ip",
-                    "path_type":"keyword"
-                }
-            ],
         }
         @apiSuccessExample {json} 成功返回
         {
@@ -492,18 +468,6 @@ class CleanTemplateViewSet(ModelViewSet):
             "bk_biz_id": 0,
             "visible_bk_biz_id": [1, 2, 3],
             "visible_type": "multi_biz",
-            "alias_settings":[
-                {
-                    "field_name":"__ext.io_kubernetes_pod",
-                    "query_alias":"k8s_pod",
-                    "path_type":"keyword"
-                },
-                {
-                    "field_name":"__ext.io_kubernetes_ip",
-                    "query_alias":"k8s_ip",
-                    "path_type":"keyword"
-                }
-            ],
         }
         @apiSuccessExample {json} 成功返回
         {

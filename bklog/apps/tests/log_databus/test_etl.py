@@ -35,6 +35,7 @@ from apps.log_databus.handlers.etl import EtlHandler
 from apps.log_databus.handlers.etl_storage import EtlStorage
 from apps.log_databus.models import CollectorConfig
 from apps.log_databus.serializers import CollectorEtlStorageSerializer
+from apps.log_databus.utils.es_config import is_version_less_than
 from apps.log_search.constants import (
     ISO_8601_TIME_FORMAT_NAME,
     FieldBuiltInEnum,
@@ -635,3 +636,12 @@ class TestEtl(TestCase):
         self.assertEqual(etl_config["etl_params"]["separator_field_list"], ETL_DELIMITER_META_FIELDS)
 
         return True
+
+    def test_check_es_version(self):
+        self.assertTrue(is_version_less_than("5.6", "7.3"))
+        self.assertTrue(is_version_less_than("7.2", "7.3"))
+        self.assertFalse(is_version_less_than("7.3", "7.3"))
+        self.assertTrue(is_version_less_than("5.X", "7.3"))
+        self.assertTrue(is_version_less_than("7.X", "7.3"))
+        self.assertFalse(is_version_less_than("8.X", "7.3"))
+        self.assertFalse(is_version_less_than("7.5.0", "7.3"))
