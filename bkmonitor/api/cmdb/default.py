@@ -667,15 +667,6 @@ class GetObjectAttribute(Resource):
         return client.search_object_attribute(params)
 
 
-class GetBluekingBiz(Resource):
-    """
-    查询对象属性
-    """
-
-    def perform_request(self, validated_request_data):
-        return settings.DEFAULT_BK_BIZ_ID
-
-
 class SearchServiceCategory(Resource):
     """
     查询服务分类列表
