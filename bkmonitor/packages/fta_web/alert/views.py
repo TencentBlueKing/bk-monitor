@@ -44,6 +44,7 @@ class AlertViewSet(ResourceViewSet):
         write_actions = [
             "alert/save_experience",
             "alert/ack",
+            "alert/close",
             "event/top_n",
             "alert/feedback",
         ]
