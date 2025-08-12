@@ -44,12 +44,35 @@ export const TVariableType = {
   METHOD: VariableTypeEnum.AGG_METHOD,
   DIMENSION: VariableTypeEnum.DIMENSION,
   CONDITION: VariableTypeEnum.CONDITION,
+  FUNCTION: VariableTypeEnum.FUNCTION,
   CONSTANT: 'constant', // （非变量类型）
 } as const;
+/* 维度选项 */
 export interface IDimensionOptionsItem extends IVariablesItem {
   id: string;
   isVariable?: boolean;
 }
+/* 函数选项 */
+export interface IFunctionOptionsItem extends IVariablesItem {
+  children?: IFunctionOptionsItem[];
+  description?: string;
+  id: string;
+  isVariable?: boolean;
+  key?: string;
+  name: string;
+  params?: IFunctionParam[];
+  support_expression?: boolean;
+}
+
+export interface IFunctionParam {
+  default: number | string;
+  edit?: boolean;
+  id?: string;
+  name?: string;
+  shortlist: number[] | string[];
+  value?: number | string;
+}
+
 /** 汇聚方法选项 */
 export interface IMethodOptionsItem extends IVariablesItem {
   id: string;

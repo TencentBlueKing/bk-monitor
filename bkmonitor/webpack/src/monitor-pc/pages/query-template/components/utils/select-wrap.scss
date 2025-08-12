@@ -7,6 +7,12 @@
   padding: 0 0 0 6px;
   cursor: pointer;
   background: #FDF4E8;
+  border: 1px solid transparent;
+
+  &.input-active {
+    border: 1px solid #3a84ff;
+    box-shadow: 0 0 4px rgb(58 132 255 / 40%);
+  }
 
   .slot-wrap {
     display: flex;

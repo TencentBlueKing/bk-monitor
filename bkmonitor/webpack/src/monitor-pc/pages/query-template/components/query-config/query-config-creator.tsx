@@ -28,13 +28,22 @@ import { Component, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import DimensionCreator from '../dimension/dimension-creator';
+import FunctionCreator from '../function/function-creator';
+import IntervalCreator from '../interval/interval-creator';
 import MethodCreator from '../method/method-creator';
 import MetricCreator from '../metric/metric-creator';
-import { type IVariablesItem, type TMetricDetail, TVariableType } from '../type/query-config';
+import {
+  type IDimensionOptionsItem,
+  type IFunctionOptionsItem,
+  type IVariablesItem,
+  type TMetricDetail,
+  TVariableType,
+} from '../type/query-config';
 
 import './query-config-creator.scss';
 
 interface IProps {
+  metricFunctions?: IFunctionOptionsItem[];
   queryConfig?: IQueryConfig;
   variables?: IVariablesItem[];
   onCreateVariable?: (val: IVariablesItem) => void;
@@ -48,6 +57,7 @@ interface IQueryConfig {
 export default class QueryConfigCreator extends tsc<IProps> {
   @Prop({ default: null }) queryConfig: IQueryConfig;
   @Prop({ default: () => [] }) variables: IVariablesItem[];
+  @Prop({ default: () => [] }) metricFunctions: IFunctionOptionsItem[];
 
   /* 当前指标 */
   curMetric: TMetricDetail = null;
@@ -57,8 +67,17 @@ export default class QueryConfigCreator extends tsc<IProps> {
   get getMethodVariables() {
     return this.variables.filter(item => item.type === TVariableType.METHOD);
   }
+  get getDimensionVariables() {
+    return this.variables.filter(item => item.type === TVariableType.DIMENSION);
+  }
+  get getFunctionVariables() {
+    return this.variables.filter(item => item.type === TVariableType.FUNCTION);
+  }
   get getAggMethodList() {
     return this.curMetric?.aggMethodList || [];
+  }
+  get getDimensionList() {
+    return this.curMetric?.dimensions || [];
   }
 
   handleSelectMetric(metric: TMetricDetail) {
@@ -68,6 +87,18 @@ export default class QueryConfigCreator extends tsc<IProps> {
     this.$emit('createVariable', {
       name: val,
       type: TVariableType.METHOD,
+    });
+  }
+  handleCreateDimensionVariable(val) {
+    this.$emit('createVariable', {
+      name: val,
+      type: TVariableType.DIMENSION,
+    });
+  }
+  handleCreateFunctionVariable(val) {
+    this.$emit('createVariable', {
+      name: val,
+      type: TVariableType.FUNCTION,
     });
   }
 
@@ -90,7 +121,20 @@ export default class QueryConfigCreator extends tsc<IProps> {
               variables={this.getMethodVariables}
               onCreateVariable={this.handleCreateMethodVariable}
             />,
-            <DimensionCreator key={'dimension'} />,
+            <IntervalCreator key={'interval'} />,
+            <DimensionCreator
+              key={'dimension'}
+              options={this.getDimensionList as IDimensionOptionsItem[]}
+              showVariables={true}
+              variables={this.getDimensionVariables}
+              onCreateVariable={this.handleCreateDimensionVariable}
+            />,
+            <FunctionCreator
+              key={'function'}
+              options={this.metricFunctions}
+              variables={this.getFunctionVariables}
+              onCreateVariable={this.handleCreateFunctionVariable}
+            />,
           ]}
         </div>
       </div>
