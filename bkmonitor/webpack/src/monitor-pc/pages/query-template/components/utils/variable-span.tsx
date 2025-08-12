@@ -24,39 +24,20 @@
  * IN THE SOFTWARE.
  */
 
-import { Component, Prop } from 'vue-property-decorator';
+import { Component } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { secToString } from '../../../../components/cycle-input/utils';
-
-import './interval-detail.scss';
-
-interface IntervalProps {
-  /* 汇聚周期(秒级时间戳) */
-  interval: number;
-}
-
 @Component
-export default class IntervalDetail extends tsc<IntervalProps> {
-  /* 汇聚周期(秒级时间戳) */
-  @Prop({ type: Number, default: '' }) interval: number;
-
-  get intervalView() {
-    const unitMap = {
-      m: 'min',
-      s: 's',
-    };
-    const convertInterval = secToString({ value: this.interval, unit: '' });
-    return `${convertInterval?.value} ${unitMap[convertInterval?.unit]}`;
-  }
-
+export default class VariableSpan extends tsc<object> {
   render() {
     return (
-      <div class='template-interval-detail-component'>
-        <span class='interval-label'>{`${this.$t('汇聚周期')}`}</span>
-        <span class='interval-colon'>:</span>
-        <span class='interval-name'>{this.intervalView || '--'}</span>
-      </div>
+      <span
+        style={{
+          color: '#E54488',
+        }}
+      >
+        {this.$slots.default}
+      </span>
     );
   }
 }
