@@ -1143,7 +1143,7 @@ const store = new Vuex.Store({
         )
         .then(res => {
           const { default_sort_list = [], sort_list = [] } = res.data ?? {};
-          const defaultSortList = ((default_sort_list?.length ?? 0 ? default_sort_list : sort_list) ?? []).map(
+          const defaultSortList = (((default_sort_list?.length ?? 0) > 0 ? default_sort_list : sort_list) ?? []).map(
             ([field_name]) => [field_name, undefined],
           );
           commit('updateIndexFieldInfo', Object.assign({}, res.data ?? {}, { default_sort_list: defaultSortList }));
