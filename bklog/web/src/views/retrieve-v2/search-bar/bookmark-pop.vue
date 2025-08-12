@@ -183,6 +183,7 @@
           await store.dispatch('requestFavoriteList');
           favoriteData.value.group_id = res.data.id;
           window.mainComponent.messageSuccess($t('操作成功'));
+          favoriteGroupSelectRef.value?.close();
         }
       } catch (error) {
       } finally {
@@ -338,6 +339,7 @@
     popoverContentRef.value.hideHandler();
   };
   const favoriteNameInputRef = ref(null);
+  const favoriteGroupSelectRef = ref(null);
   const handlePopoverShow = () => {
     // 界面初始化隐藏弹窗样式
     nextTick(() => {
@@ -402,6 +404,7 @@
         <ul class="bk-dropdown-list">
           <li>
             <a
+              v-bk-tooltips="{ disabled: !matchSQLStr, content: $t('当前检索已收藏'), placement: 'left' }"
               :class="matchSQLStr ? 'disabled' : ''"
               href="javascript:;"
               @click.stop="saveCurrentFavorite"
@@ -431,8 +434,8 @@
           form-type="vertical"
         >
           <bk-form-item
-            :property="'name'"
             :label="$t('收藏名称')"
+            :property="'name'"
             required
           >
             <bk-input
@@ -441,15 +444,16 @@
             ></bk-input>
           </bk-form-item>
           <bk-form-item
-            :property="'project'"
             :label="$t('所属分组')"
+            :property="'project'"
           >
             <bk-select
+              ref="favoriteGroupSelectRef"
               ext-cls="add-popover-new-page-container"
               v-model="favoriteData.group_id"
+              :placeholder="$t('未编组')"
               :popover-options="{ appendTo: 'parent' }"
               :search-placeholder="$t('请输入关键字')"
-              :placeholder="$t('未编组')"
               searchable
               @change="handleSelectGroup"
             >

@@ -142,6 +142,10 @@ export default defineComponent({
     const tableList = computed<Array<any>>(() => Object.freeze(indexSetQueryResult.value?.list ?? []));
     const gradeOption = computed(() => store.state.indexFieldInfo.custom_config?.grade_options ?? { disabled: false });
     const indexSetType = computed(() => store.state.indexItem.isUnionIndex);
+
+    // 检索第一页数据时，loading状态
+    const isFirstPageLoading = computed(() => isLoading.value && !isRequesting.value);
+
     const hasMoreList = computed(() => {
       return indexSetQueryResult.value.total > tableDataSize.value;
     });
@@ -250,7 +254,7 @@ export default defineComponent({
           );
         },
         renderHeaderCell: () => {
-          const sortable = field.es_doc_values && field.tag !== 'union-source';
+          const sortable = field.es_doc_values && field.tag !== 'union-source' && field.field_type !== 'flattened';
           return renderHead(field, order => {
             if (sortable) {
               const sortList = order ? [[field.field_name, order]] : [];
@@ -605,6 +609,16 @@ export default defineComponent({
       },
     );
 
+    // 第一页数据加载完毕，更新滚动条位置
+    watch(
+      () => [indexSetQueryResult.value.is_loading],
+      () => {
+        if (!indexSetQueryResult.value.is_loading && !isRequesting.value) {
+          setTimeout(handleResultBoxResize, 180);
+        }
+      },
+    );
+
     watch(
       () => [tableDataSize.value],
       (val, oldVal) => {
@@ -810,6 +824,10 @@ export default defineComponent({
     });
 
     const renderHeadVNode = () => {
+      if (isFirstPageLoading.value) {
+        return null;
+      }
+
       const columnLength = allColumns.value.length;
       let hasFullWidth = false;
 
@@ -946,6 +964,10 @@ export default defineComponent({
     };
 
     const renderRowVNode = () => {
+      if (isFirstPageLoading.value) {
+        return null;
+      }
+
       return renderList.map((row, rowIndex) => {
         const logLevel = gradeOption.value.disabled ? '' : RetrieveHelper.getLogLevel(row.item, gradeOption.value);
 
@@ -1053,7 +1075,7 @@ export default defineComponent({
     });
 
     const exceptionType = computed(() => {
-      if (tableDataSize.value === 0) {
+      if (tableDataSize.value === 0 || indexFieldInfo.value.is_loading) {
         if (isRequesting.value || isLoading.value || isPageLoading.value) {
           return 'loading';
         }
