@@ -121,7 +121,7 @@ class RegexTemplateHandler:
             raise DuplicateNameException(DuplicateNameException.MESSAGE.format(name=template_name))
         pipeline_ids = []
         # 模板改变
-        if instance.predefined_varibles != predefined_varibles:
+        if predefined_varibles and instance.predefined_varibles != predefined_varibles:
             from apps.log_clustering.handlers.clustering_config import ClusteringConfigHandler
 
             instance.predefined_varibles = predefined_varibles
@@ -130,7 +130,8 @@ class RegexTemplateHandler:
             for c in configs:
                 if pipeline_id := ClusteringConfigHandler(index_set_id=c.index_set_id).update(update_params):
                     pipeline_ids.append(pipeline_id)
-        instance.template_name = template_name
+        if template_name:
+            instance.template_name = template_name
         instance.save()
         return {
             "id": instance.id,
