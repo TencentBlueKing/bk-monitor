@@ -46,16 +46,16 @@ class KafKaClient:
             uri_obj = urlparse(conf)
             self.topic = uri_obj.path.strip("/")
             if not self.topic:
-                raise ValueError(f"Kafka URI({conf}) has no topic")
+                raise ValueError(f"kafka uri({conf}) has no topic")
             bootstrap = f"{uri_obj.hostname}:{uri_obj.port}"
             producer_conf: dict[str, Any] = {"bootstrap.servers": bootstrap}
         elif isinstance(conf, dict):
-            self.topic = conf.get("topic", "")
+            self.topic = conf.pop("topic", "")
             if not self.topic:
-                raise ValueError("Kafka config (dict) requires 'topic'")
+                raise ValueError(f"kafka config (dict) requires 'topic' config: {conf}")
             producer_conf = dict(conf)
         else:
-            raise ValueError(f"Unsupported kafka config type: {type(conf)}")
+            raise ValueError(f"unsupported kafka config type: {conf}")
 
         self.client = Producer(producer_conf)
 
@@ -84,7 +84,7 @@ class RedisClient:
             db = int(db)
             assert len(key) > 0
         except Exception as e:
-            logger.error(f"Redis URI({uri}) parse error, {e}")
+            logger.error(f"redis uri({uri}) parse error, {e}")
             raise e
 
         self.key = key
