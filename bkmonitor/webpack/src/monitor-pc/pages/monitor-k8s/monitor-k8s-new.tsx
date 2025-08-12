@@ -32,7 +32,7 @@ import introduce from '../../common/introduce';
 import GuidePage from '../../components/guide-page/guide-page';
 import { DEFAULT_TIME_RANGE } from '../../components/time-range/utils';
 import { getDefaultTimezone } from '../../i18n/dayjs';
-import UserConfigMixin from '../../mixins/userStoreConfig';
+import NewUserConfigMixin from '../../mixins/newUserStoreConfig';
 import K8sEventExplore from '../event-explore/k8s-event-explore';
 import FilterByCondition from './components/filter-by-condition/filter-by-condition';
 import GroupByCondition from './components/group-by-condition/group-by-condition';
@@ -64,6 +64,8 @@ import './monitor-k8s-new.scss';
 
 const HIDE_METRICS_KEY = 'monitor_k8s_hide_metrics';
 
+const CACHE_SEARCH_QUERY = 'cacheSearchQuery';
+
 /** 网络场景默认隐藏的指标 */
 const networkDefaultHideMetrics = [
   'nw_container_network_receive_errors_total',
@@ -89,7 +91,7 @@ const tabList = [
 ];
 
 @Component
-export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
+export default class MonitorK8sNew extends Mixins(NewUserConfigMixin) {
   // 数据时间间隔
   @ProvideReactive('timeRange') timeRange: TimeRangeType = DEFAULT_TIME_RANGE;
   // 时区
@@ -288,8 +290,14 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
     }
   }
 
-  created() {
-    this.getRouteParams();
+  async created() {
+    /** URL没有参数且存在缓存查询条件，使用缓存查询条件 */
+    if (!Object.keys(this.$route.query).length) {
+      const data = await this.handleGetUserConfig<Record<string, string | string[]>>(CACHE_SEARCH_QUERY);
+      data && this.getRouteParams(await data);
+    } else {
+      this.getRouteParams(this.$route.query);
+    }
     this.getClusterList();
     this.getScenarioMetricList();
     this.getHideMetrics();
@@ -311,6 +319,12 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
     if (el) {
       this.resizeObserver.observe(el);
     }
+  }
+
+  beforeRouteLeave(to, from, next) {
+    // 离开时缓存当前查询条件，方便下次进入时使用
+    this.handleSetUserConfig(CACHE_SEARCH_QUERY, JSON.stringify(from.query));
+    next();
   }
 
   destroyed() {
@@ -572,7 +586,7 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
     this.showCancelDrill = false;
   }
 
-  getRouteParams() {
+  getRouteParams(query: Record<string, string | string[]> = {}) {
     const {
       from = 'now-1h',
       to = 'now',
@@ -584,7 +598,7 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
       activeTab = K8sNewTabEnum.LIST,
       targets,
       filterMode,
-    } = this.$route.query || {};
+    } = query;
     this.timeRange = [from as string, to as string];
     this.refreshInterval = Number(refreshInterval);
     this.cluster = cluster as string;
