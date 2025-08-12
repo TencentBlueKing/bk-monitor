@@ -27,7 +27,7 @@
 import { Component, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import VariableNameInput from './variable-name-input';
+import AddVariableWrap from './add-variable-wrap';
 
 import './add-variable-option.scss';
 
@@ -56,7 +56,7 @@ export default class AddVariableOption extends tsc<IProps> {
   handleShowPopover(e: Event) {
     if (!this.popoverInstance) {
       this.popoverInstance = this.$bkPopover(e.currentTarget, {
-        content: this.addVarPopRef,
+        content: this.addVarPopRef.$el,
         arrow: true,
         trigger: 'click',
         placement: 'right-start',
@@ -106,36 +106,13 @@ export default class AddVariableOption extends tsc<IProps> {
           <span class='icon-monitor icon-arrow-right' />
         </span>
         <div style={{ display: 'none' }}>
-          <div
+          <AddVariableWrap
             ref='addVarPopRef'
-            class='template-config-options-add-variable-option-pop'
-            onClick={e => e.stopPropagation()}
-          >
-            <div class='header-title'>
-              {this.$t('变量名')} <span class='red-point'>*</span>
-            </div>
-            <VariableNameInput
-              class='var-input'
-              value={this.inputValue}
-              onChange={this.handleChange}
-            />
-            <div class='btn-wrap'>
-              <bk-button
-                class='confirm-btn'
-                size='small'
-                theme='primary'
-                onClick={this.handleAdd}
-              >
-                {this.$t('确定')}
-              </bk-button>
-              <bk-button
-                size='small'
-                onClick={this.handleCancel}
-              >
-                {this.$t('取消')}
-              </bk-button>
-            </div>
-          </div>
+            value={this.inputValue}
+            onAdd={this.handleAdd}
+            onCancel={this.handleCancel}
+            onChange={this.handleChange}
+          />
         </div>
       </div>
     );
