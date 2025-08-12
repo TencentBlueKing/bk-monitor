@@ -254,7 +254,7 @@ class BaseMetricCacheManager:
         )
 
     @classmethod
-    def get_available_biz_ids(cls, bk_tenant_id: str) -> list:
+    def get_available_biz_ids(cls, bk_tenant_id: str) -> list[int]:
         """
         获取当前数据源类型可用的业务ID列表
         默认返回所有的业务ID， 子类根据自己的需求重写此方法， 返回符合要求的biz_id列表

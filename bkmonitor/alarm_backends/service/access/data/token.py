@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,6 +7,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import logging
 
 from django.conf import settings
@@ -41,22 +41,26 @@ from core.prometheus import metrics
 logger = logging.getLogger("access.data")
 
 
-class TokenBucket(object):
+class TokenBucket:
     def __init__(self, strategy_group_key, interval=60):
+        # interval: 任务执行周期，单位：秒
         self.strategy_group_key = strategy_group_key
         self.client = STRATEGY_TOKEN_BUCKET_KEY.client
         self.token_key = STRATEGY_TOKEN_BUCKET_KEY.get_key(strategy_group_key=strategy_group_key)
         # 每个access data task 在一个时间窗口的时间资源，单位：秒
         self.token_per_window = int(getattr(settings, "ACCESS_TIME_PER_WINDOW", 30))
+        # 对于短期执行多次的任务， 需要等比例放大token
         if interval < 60:
             # 按周期1分钟来分配token，当周期小于一分钟，等比例放大token
             self.token_per_window = int(self.token_per_window * (60 / interval))
 
+    # 初始化redis key
     def touch(self):
         # 如果没有令牌：新的时间窗口或者新的策略组，申请新的令牌
         self.client.set(self.token_key, self.token_per_window, nx=True, ex=STRATEGY_TOKEN_BUCKET_KEY.ttl)
         return self.token_per_window
 
+    # 获取redis令牌， 如果获取失败就使用监控记录
     def acquire(self):
         # 获取令牌
         token_remain = int(self.client.get(self.token_key) or self.touch())
@@ -71,6 +75,7 @@ class TokenBucket(object):
             metrics.ACCESS_TOKEN_FORBIDDEN_COUNT.inc()
         return succeed
 
+    # 任务执行完成后， 释放令牌
     def release(self, decrement):
         self.touch()
         token_remain = self.client.decr(self.token_key, int(decrement))
