@@ -9,11 +9,12 @@ specific language governing permissions and limitations under the License.
 """
 
 import logging
+from typing import Any
 
 import redis
+from confluent_kafka import Producer
 from django.conf import settings
-from kafka import KafkaProducer
-from urllib.parse import unquote, urlparse
+from urllib.parse import urlparse, unquote
 
 logger = logging.getLogger("action")
 
@@ -28,36 +29,47 @@ class KafKaClient:
     KafKa客户端
     """
 
-    def __init__(self, uri):
-        uri_obj = urlparse(uri)
-        params = {
-            "bootstrap_servers": f"{uri_obj.hostname}:{uri_obj.port}",
-            "max_block_ms": 6000,
-        }
+    def __init__(self, conf: Any):
+        """
+        支持两种输入：
+        1) 字符串 DSN：kafka://host:port/topic （不包含用户名/密码）
+        2) 结构化字典：必须包含 bootstrap.servers 与 topic，其它鉴权字段按示例配置
+        conf = {
+                'bootstrap.servers': 'host:port',
+                'security.protocol': 'SASL_PLAINTEXT',  # 明文传输；若集群启用SSL则用 SASL_SSL
+                'sasl.mechanism': 'SCRAM-SHA-512',
+                'sasl.username': 'username',
+                'sasl.password': 'password',
+            }
+        """
+        if isinstance(conf, str):
+            uri_obj = urlparse(conf)
+            self.topic = uri_obj.path.strip("/")
+            if not self.topic:
+                raise ValueError(f"Kafka URI({conf}) has no topic")
+            bootstrap = f"{uri_obj.hostname}:{uri_obj.port}"
+            producer_conf: dict[str, Any] = {"bootstrap.servers": bootstrap}
+        elif isinstance(conf, dict):
+            self.topic = conf.get("topic", "")
+            if not self.topic:
+                raise ValueError("Kafka config (dict) requires 'topic'")
+            producer_conf = dict(conf)
+        else:
+            raise ValueError(f"Unsupported kafka config type: {type(conf)}")
 
-        if uri_obj.username:
-            params.update(
-                {"sasl_plain_username": unquote(uri_obj.username), "sasl_plain_password": unquote(uri_obj.password)}
-            )
-
-        self.topic = uri_obj.path.strip("/")
-        if not self.topic:
-            raise ValueError(f"KafKa URI({uri}) has not topic")
-
-        self.client = KafkaProducer(**params)
+        self.client = Producer(producer_conf)
 
     def send(self, message: str):
         """
         发送消息
         """
         try:
-            self.client.send(
-                self.topic,
-                message.encode(),
-            )
+            self.client.produce(topic=self.topic, value=message.encode("utf-8"))
+            # 等待发送完成（含重试）
             self.client.flush(timeout=3)
         finally:
-            self.client.close()
+            self.client.flush()  # 二次确保消息发送
+            del self.client  # 释放生产者对象
 
 
 class RedisClient:
@@ -105,13 +117,15 @@ SchemaClientMapping = {
 def get_client(uri):
     """
     获取Client
-    :param uri: 消息队列的连接URI
+    :param uri: 消息队列的连接URI 或结构化Kafka配置字典
     :return: Client
     """
-    uri_obj = urlparse(uri)
+    # 结构化Kafka配置
+    if isinstance(uri, dict):
+        return KafKaClient(uri)
 
+    uri_obj = urlparse(uri)
     client_class = SchemaClientMapping.get(uri_obj.scheme)
     if not client_class:
         raise Exception(f"message queue schema {uri_obj.scheme} is not support")
-
     return client_class(uri)
