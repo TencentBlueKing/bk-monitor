@@ -270,7 +270,7 @@ class ListMonitorResultTableResource(Resource):
         datasource_type = serializers.CharField(required=False, label="需要过滤的结果表类型，如 system")
         is_public_include = serializers.BooleanField(required=False, label="是否包含全业务结果表")
         with_option = serializers.BooleanField(required=False, label="是否包含option字段")
-        table_ids = serializers.ListField(required=False, lable="使用table_ids过滤部分数据")
+        table_ids = serializers.ListField(required=False, label="使用table_ids过滤部分数据")
 
     def perform_request(self, validated_request_data):
         result_data = batch_request(api.metadata.list_result_table, validated_request_data, limit=1000, app="metadata")
