@@ -377,6 +377,9 @@ url("fonts/iconcool.eot?#iefix") format("embedded-opentype");
 .bklog-jump:before {
 	content: "\e1da";
 }
+.bklog-overview-table:before {
+	content: "\e216";
+}
 .bklog-overview1:before {
 	content: "\e1de";
 }
@@ -697,4 +700,22 @@ url("fonts/iconcool.eot?#iefix") format("embedded-opentype");
 }
 .bklog-share-link:before {
 	content: "\e211";
+}
+.bklog-zhengze:before {
+	content: "\e213";
+}
+.bklog-jiebang:before {
+	content: "\e215";
+}
+.bklog---2:before {
+	content: "\e218";
+}
+.bklog-down-4:before {
+	content: "\e219";
+}
+.bklog-up-2:before {
+	content: "\e217";
+}
+.bklog-fllatend:before {
+	content: "\e21a";
 }

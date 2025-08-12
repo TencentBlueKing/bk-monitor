@@ -24,48 +24,54 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, onBeforeUnmount, ref } from 'vue';
+import { defineComponent, onMounted, ref } from 'vue';
 
-import RetrieveHelper, { RetrieveEvent } from '../../retrieve-helper';
-import SubBar from '../../retrieve-v2/sub-bar/index.vue';
+import { ITabItem } from '../../types';
 
-import './index.scss';
+import './collect-tab.scss';
 
 export default defineComponent({
-  name: 'V3Toolbar',
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  setup(_, {}) {
-    const isFavoriteShown = ref(RetrieveHelper.isFavoriteShown);
-    const onFavoriteShowChange = (val: boolean) => {
-      isFavoriteShown.value = val;
-    };
-
-    RetrieveHelper.on(RetrieveEvent.FAVORITE_SHOWN_CHANGE, onFavoriteShowChange);
-
-    const handleCollectionShowChange = () => {
-      isFavoriteShown.value = !isFavoriteShown.value;
-      RetrieveHelper.setFavoriteShown(isFavoriteShown.value);
-    };
-
-    onBeforeUnmount(() => {
-      RetrieveHelper.off(RetrieveEvent.FAVORITE_SHOWN_CHANGE, onFavoriteShowChange);
+  name: 'CollectTab',
+  props: {
+    active: {
+      type: String,
+      default: 'origin',
+    },
+    list: {
+      type: Array as () => ITabItem[],
+      default: () => [],
+    },
+  },
+  emits: ['tab-change'],
+  setup(props, { emit }) {
+    const activeKey = ref('origin');
+    onMounted(() => {
+      activeKey.value = props.active;
     });
 
-    return () => (
-      <div class='v3-bklog-toolbar'>
-        {!window.__IS_MONITOR_COMPONENT__ && (
-          <div
-            class={`collection-box ${isFavoriteShown.value ? 'active' : ''}`}
-            onClick={handleCollectionShowChange}
-          >
-            <span
-              style={{ color: isFavoriteShown.value ? '#3A84FF' : '' }}
-              class='bklog-icon bklog-shoucangjia'
-            ></span>
-          </div>
-        )}
+    const handleTabClick = (key: string) => {
+      activeKey.value = key;
+      emit('tab-change', key);
+    };
 
-        <SubBar></SubBar>
+    return () => (
+      <div class='collect-tab-box'>
+        {props.list.map(item => (
+          <span
+            key={item.key}
+            class={[
+              'tab-item',
+              {
+                active: item.key === activeKey.value,
+              },
+            ]}
+            onClick={() => handleTabClick(item.key)}
+          >
+            <i class={`bklog-icon ${item.icon} tab-icon`}></i>
+            {item.name}
+            <span class='tab-count'>{item.count}</span>
+          </span>
+        ))}
       </div>
     );
   },
