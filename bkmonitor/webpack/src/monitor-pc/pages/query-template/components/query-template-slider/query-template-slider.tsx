@@ -28,12 +28,12 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import { QueryTemplateSliderTabEnum } from '../../constants';
 import ConfigPanel from './components/config-panel';
+import ConsumePanel from './components/consume-panel';
 import MonitorTab from '@/components/monitor-tab/monitor-tab';
 
 import type { QueryTemplateSliderTabEnumType } from '../../typings/constants';
 
 import './query-template-slider.scss';
-import ConsumePanel from './components/consume-panel';
 
 interface QueryTemplateSliderEmits {
   /** 模板详情 - 侧弹抽屉展示状态改变回调 */
