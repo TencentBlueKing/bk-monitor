@@ -207,6 +207,7 @@ export const IndexFieldInfo = {
   fields: [],
   display_fields: [],
   sort_list: [],
+  default_sort_list: [],
   time_field: '',
   time_field_type: '',
   time_field_unit: '',
