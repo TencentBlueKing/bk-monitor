@@ -29,6 +29,9 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import ExploreCollapseWrapper from 'monitor-ui/chart-plugins/plugins/explore-custom-graph/components/explore-collapse-wrapper';
 
+import QueryConfigDetail from '../../query-config/query-config-detail';
+import { TVariableType } from '../../type/query-config';
+
 import './config-panel.scss';
 
 @Component
@@ -60,6 +63,123 @@ export default class ConfigPanel extends tsc<object> {
           hasResize={false}
           title={this.$t('模板配置') as string}
         >
+          <QueryConfigDetail
+            queryConfig={{
+              alias: 'a',
+              metric_id: 'bk_monitor.system.io.util',
+              functions: [
+                {
+                  id: 'irate',
+                  params: [
+                    {
+                      id: 'window',
+                      value: '2m',
+                    },
+                  ],
+                },
+                {
+                  id: 'increase',
+                  params: [
+                    {
+                      id: 'window',
+                      value: '2m',
+                    },
+                  ],
+                },
+                {
+                  id: 'deriv',
+                  params: [
+                    {
+                      id: 'window',
+                      value: '2m',
+                    },
+                  ],
+                },
+              ],
+              agg_method: 'AVG',
+              agg_interval: 60,
+              agg_dimension: ['hostname', 'ip'],
+              agg_condition: [
+                {
+                  key: 'hostname',
+                  value: ['xxxxxx1', 'test22'],
+                  method: 'eq',
+                  condition: 'and',
+                  dimension_name: '主机名',
+                },
+                {
+                  key: 'ip',
+                  value: ['ipipipipipip'],
+                  method: 'neq',
+                  condition: 'and',
+                  dimension_name: '目标ID',
+                },
+              ],
+              metric_field: 'util',
+              unit: '',
+            }}
+          />
+          <QueryConfigDetail
+            queryConfig={{
+              alias: 'a',
+              metric_id: 'bk_monitor.system.io.util',
+              functions: [
+                {
+                  id: 'irate',
+                  params: [
+                    {
+                      id: 'window',
+                      value: '2m',
+                    },
+                  ],
+                },
+                {
+                  id: 'increase',
+                  params: [
+                    {
+                      id: 'window',
+                      value: '2m',
+                    },
+                  ],
+                },
+                {
+                  id: 'deriv',
+                  params: [
+                    {
+                      id: 'window',
+                      value: '2m',
+                    },
+                  ],
+                },
+              ],
+              agg_method: '${method_var}',
+              agg_interval: 47,
+              agg_dimension: ['hostname', 'ip'],
+              agg_condition: [
+                {
+                  key: 'hostname',
+                  value: ['xxxxxx1', 'test22'],
+                  method: 'eq',
+                  condition: 'and',
+                  dimension_name: '主机名',
+                },
+                {
+                  key: 'ip',
+                  value: ['ipipipipipip'],
+                  method: 'neq',
+                  condition: 'and',
+                  dimension_name: '目标ID',
+                },
+              ],
+            }}
+            variables={[
+              {
+                name: 'method_var',
+                value: 'SUM',
+                type: TVariableType.METHOD,
+              },
+            ]}
+          />
           {new Array(Math.floor(Math.random() * 10)).fill(1).map((_, index) => (
             <div
               key={index}

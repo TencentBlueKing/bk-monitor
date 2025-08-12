@@ -23,3 +23,57 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+
+import { Component, Prop } from 'vue-property-decorator';
+import { Component as tsc } from 'vue-tsx-support';
+
+import { QueryVariablesTool } from '../utils/query-variable-tool';
+import VariableSpan from '../utils/variable-span';
+
+import type { VariablePanelParams } from '../../typings';
+
+import './method-detail.scss';
+
+interface MethodProps {
+  /* 汇聚方法 */
+  method: string;
+  /* 变量列表 */
+  variables?: VariablePanelParams[];
+}
+
+@Component
+export default class MethodDetail extends tsc<MethodProps> {
+  /* 汇聚方法 */
+  @Prop({ type: String, default: '' }) method: string;
+  /* 变量列表 */
+  @Prop({ default: () => [] }) variables?: VariablePanelParams[];
+  variablesToolInstance = new QueryVariablesTool();
+
+  get variableMap() {
+    if (!this.variables?.length) {
+      return {};
+    }
+    return this.variables?.reduce?.((prev, curr) => {
+      prev[curr.name] = curr.value;
+      return prev;
+    }, {});
+  }
+
+  get methodConfig() {
+    return this.variablesToolInstance.transformVariables(this.method, this.variableMap);
+  }
+
+  get methodViewDom() {
+    return this.methodConfig.isVariable ? VariableSpan : 'span';
+  }
+
+  render() {
+    return (
+      <div class='template-method-detail-component'>
+        <span class='method-label'>{`${this.$t('汇聚方法')}`}</span>
+        <span class='method-colon'>:</span>
+        <this.methodViewDom class='method-name'>{this.methodConfig.value || '--'}</this.methodViewDom>
+      </div>
+    );
+  }
+}
