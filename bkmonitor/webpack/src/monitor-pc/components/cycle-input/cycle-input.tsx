@@ -50,6 +50,9 @@ export default class CycleInput extends tsc<IProps, IEvent> {
   @Prop({ default: true, type: Boolean }) needAuto: boolean; // 是否需要自动周期
   // @Prop({ default: 's', type: String }) defaultUnit: unitType; // 默认秒
   @Prop({ default: false, type: Boolean }) isNeedDefaultVal: boolean; // 是否需要设置默认值
+  /* 是否包含下拉状态图标 */
+  @Prop({ default: false, type: Boolean }) hasExpanded: boolean;
+
   @Ref('cyclePopover') cyclePopoverRef: any;
   @Ref('unitPopover') unitPopoverRef: any;
 
@@ -236,14 +239,23 @@ export default class CycleInput extends tsc<IProps, IEvent> {
           theme='light cycle-list-wrapper'
           tippyOptions={{ appendTo: this.appendTo === 'parent' ? 'parent' : document.body }}
           trigger='click'
-          onHide={() => (this.unitActive = false)}
+          onHide={() => {
+            this.unitActive = false;
+          }}
         >
           <span
             class={['cycle-unit', { 'line-active': this.unitActive, 'unit-active': this.unitActive }]}
             v-en-style='min-width: 60px'
-            onClick={() => (this.unitActive = true)}
+            onClick={() => {
+              this.unitActive = true;
+            }}
           >
             {this.unitName}
+            {this.hasExpanded && (
+              <span class='expand-wrap'>
+                <span class='icon-monitor icon-mc-arrow-down' />
+              </span>
+            )}
           </span>
           <ul
             ref='unitList'
