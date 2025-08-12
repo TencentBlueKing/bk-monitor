@@ -54,18 +54,22 @@ import { Component as tsc } from 'vue-tsx-support';
 import VariableCommonFormDetail from '../common-form/variable-common-form-detail';
 
 import type { VariableModel } from '../../../typings';
-interface AggMethodDetailProps {
+interface GeneralDetailProps {
   data: VariableModel;
 }
 
 @Component
-export default class AggMethodDetail extends tsc<AggMethodDetailProps> {
+export default class GeneralDetail extends tsc<GeneralDetailProps> {
   @Prop({ type: Object, required: true }) data!: VariableModel;
 
   render() {
     return (
-      <div class='agg-method-detail'>
+      <div class='general-detail'>
         <VariableCommonFormDetail data={this.data}>
+          <div class='form-item'>
+            <div class='form-item-label'>{this.$t('数据类型')}：</div>
+            <div class='form-item-value'>{this.data.value || '--'}</div>
+          </div>
           <div class='form-item'>
             <div class='form-item-label'>{this.$t('默认值')}：</div>
             <div class='form-item-value'>{this.data.value || '--'}</div>
