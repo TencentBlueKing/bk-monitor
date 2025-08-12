@@ -17,20 +17,25 @@
   }
 
   .query-config-wrap {
-    display: flex;
     flex: 1;
-    flex-wrap: wrap;
-    align-items: center;
 
-    .template-metric-creator-component,
-    .template-dimension-creator-component,
-    .template-function-creator-component {
+    .query-config-row {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+
+      & > div {
+        margin-bottom: 2px;
+        margin-left: -1px;
+      }
+    }
+
+    .template-metric-creator-component {
       flex: 1;
     }
 
-    & > div {
-      margin-bottom: 2px;
-      margin-left: -1px;
+    .template-dimension-creator-component {
+      flex: auto;
     }
   }
 }
