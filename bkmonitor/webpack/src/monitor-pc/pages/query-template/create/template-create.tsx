@@ -54,7 +54,14 @@ export default class TemplateCreate extends tsc<object> {
     effect: [],
   };
 
-  variablesList: VariableModel[] = [{ type: 'agg_method' }, { type: 'dimension' }];
+  variablesList: VariableModel[] = [
+    { type: 'agg_method', name: 'cup_agg' },
+    { type: 'dimension', name: 'dimension' },
+    { type: 'dimension_value', name: 'mount_point' },
+    { type: 'function', name: 'cpu_fx' },
+    { type: 'condition', name: 'filter' },
+    { type: 'general', name: 'weight_factor' },
+  ];
 
   handleNextStep() {
     this.curStep += 1;
