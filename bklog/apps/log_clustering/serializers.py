@@ -24,7 +24,6 @@ from rest_framework import serializers
 
 from apps.log_clustering.constants import (
     AGGS_FIELD_PREFIX,
-    DEFAULT_CLUSTERING_FIELDS,
     DEFULT_FILTER_NOT_CLUSTERING_OPERATOR,
     OwnerConfigEnum,
     PatternEnum,
@@ -96,7 +95,7 @@ class FilerRuleSerializer(serializers.Serializer):
 
 class ClusteringConfigSerializer(serializers.Serializer):
     bk_biz_id = serializers.IntegerField()
-    clustering_fields = serializers.CharField(default=DEFAULT_CLUSTERING_FIELDS)
+    clustering_fields = serializers.CharField(required=False)
     filter_rules = serializers.ListField(child=FilerRuleSerializer(), required=False)
     min_members = serializers.IntegerField(required=False)
     predefined_varibles = serializers.CharField(required=False, allow_blank=True)
