@@ -566,10 +566,6 @@
   const filedNameShow = (item)=> {
     return getQualifiedFieldName(item)
   }
-  //  展示字段按照匹配度排序
-  const sortFieldList = (list) => {
-   
-  }
   defineExpose({
     beforeShowndFn,
     beforeHideFn,
