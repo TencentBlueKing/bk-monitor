@@ -23,3 +23,75 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+
+import { Component, Prop, Watch } from 'vue-property-decorator';
+import { Component as tsc } from 'vue-tsx-support';
+
+import { getMetricListV2 } from 'monitor-api/modules/strategies';
+import { xssFilter } from 'monitor-common/utils';
+
+import { type TMetricDetail, MetricDetail as MetricDetailPanel } from '../type/query-config';
+import { getMetricTip } from '../utils/metric-tip';
+
+import './metric-detail.scss';
+
+interface IProps {
+  /* 指标id */
+  metricId?: string;
+}
+
+@Component
+export default class MetricDetail extends tsc<IProps> {
+  /* 指标id */
+  @Prop({ type: String, default: '' }) metricId: string;
+  /* 指标详情类实例 */
+  metricInstance: TMetricDetail = null;
+  loading = false;
+
+  get metricAlias() {
+    return this.metricInstance?.metric_field_name || this.metricId || '--';
+  }
+
+  get metricTips() {
+    return getMetricTip(this.metricInstance);
+  }
+
+  @Watch('metricId', { immediate: true })
+  async handleWatchMetricId() {
+    this.getMetricDetail();
+  }
+
+  async getMetricDetail() {
+    if (this.metricId && this.metricInstance?.metric_id !== this.metricId) {
+      this.loading = true;
+      const { metric_list: metricList = [] } = await getMetricListV2({
+        conditions: [{ key: 'metric_id', value: [this.metricId] }],
+      }).catch(() => ({}));
+      const metric = metricList[0];
+      if (metric) {
+        this.metricInstance = new MetricDetailPanel(metric);
+      }
+      this.loading = false;
+    }
+  }
+
+  render() {
+    return (
+      <div class='template-metric-detail-component'>
+        <span class='metric-label'>{`${this.$t('监控数据')}`}</span>
+        <span class='metric-colon'>:</span>
+        <span
+          class='metric-name'
+          v-bk-tooltips={{
+            content: xssFilter(this.metricTips),
+            placement: 'right',
+            disabled: !this.metricTips,
+            delay: [300, 0],
+          }}
+        >
+          {this.metricAlias}
+        </span>
+      </div>
+    );
+  }
+}
