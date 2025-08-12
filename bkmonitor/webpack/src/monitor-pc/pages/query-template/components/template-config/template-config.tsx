@@ -29,11 +29,13 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import { getFunctions } from 'monitor-api/modules/grafana';
 
+import ExpressionPanel from '../expression-panel/expression-panel';
 import QueryPanel from '../query-panel/query-panel';
 import {
   type IFunctionOptionsItem,
   type IScenarioItem,
   type IVariablesItem,
+  TConfigType,
   TVariableType,
 } from '../type/query-config';
 
@@ -60,6 +62,15 @@ export default class TemplateConfig extends tsc<object> {
 
   metricFunctions: IFunctionOptionsItem[] = [];
 
+  configs = [
+    {
+      type: TConfigType.QUERY_CONFIG,
+    },
+    {
+      type: TConfigType.EXPRESSION_CONFIG,
+    },
+  ];
+
   created() {
     this.handleGetMetricFunctions();
   }
@@ -76,19 +87,36 @@ export default class TemplateConfig extends tsc<object> {
     console.log(this.metricFunctions);
   }
 
+  handleAdd(index: number) {
+    this.configs.splice(index, 0, {
+      type: TConfigType.QUERY_CONFIG,
+    });
+  }
+  handleDelete(index: number) {
+    this.configs.splice(index, 1);
+  }
+
   render() {
     return (
       <div class='template-config-wrap-component'>
         <div class='template-config-title'>{this.$t('模板配置')}</div>
         <div class='template-config-content'>
-          {['1'].map(key => (
-            <QueryPanel
-              key={key}
-              metricFunctions={this.metricFunctions}
-              variables={this.variablesList}
-              onCreateVariable={this.handleCreateVariable}
-            />
-          ))}
+          {this.configs.map((item, index) =>
+            item.type === TConfigType.QUERY_CONFIG ? (
+              <QueryPanel
+                key={index}
+                hasAdd={index === this.configs.length - 2}
+                hasDelete={this.configs.length >= 3}
+                metricFunctions={this.metricFunctions}
+                variables={this.variablesList}
+                onAdd={() => this.handleAdd(index)}
+                onCreateVariable={this.handleCreateVariable}
+                onDelete={() => this.handleDelete(index)}
+              />
+            ) : (
+              <ExpressionPanel key={index} />
+            )
+          )}
         </div>
       </div>
     );

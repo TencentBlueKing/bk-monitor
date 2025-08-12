@@ -27,6 +27,7 @@
 import { Component, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
+import ConditionCreator from '../condition/condition-creator';
 import DimensionCreator from '../dimension/dimension-creator';
 import FunctionCreator from '../function/function-creator';
 import IntervalCreator from '../interval/interval-creator';
@@ -55,7 +56,7 @@ interface IQueryConfig {
 
 @Component
 export default class QueryConfigCreator extends tsc<IProps> {
-  @Prop({ default: null }) queryConfig: IQueryConfig;
+  @Prop({ default: () => null }) queryConfig: IQueryConfig;
   @Prop({ default: () => [] }) variables: IVariablesItem[];
   @Prop({ default: () => [] }) metricFunctions: IFunctionOptionsItem[];
 
@@ -109,32 +110,54 @@ export default class QueryConfigCreator extends tsc<IProps> {
           <span>{this.queryConfig?.alias || 'a'}</span>
         </div>
         <div class='query-config-wrap'>
-          <MetricCreator
-            metricId={this.queryConfig?.metric_id}
-            onSelectMetric={this.handleSelectMetric}
-          />
-          {!!this.curMetric && [
-            <MethodCreator
-              key={'method'}
-              options={this.getAggMethodList}
-              showVariables={true}
-              variables={this.getMethodVariables}
-              onCreateVariable={this.handleCreateMethodVariable}
-            />,
-            <IntervalCreator key={'interval'} />,
-            <DimensionCreator
-              key={'dimension'}
-              options={this.getDimensionList as IDimensionOptionsItem[]}
-              showVariables={true}
-              variables={this.getDimensionVariables}
-              onCreateVariable={this.handleCreateDimensionVariable}
-            />,
-            <FunctionCreator
-              key={'function'}
-              options={this.metricFunctions}
-              variables={this.getFunctionVariables}
-              onCreateVariable={this.handleCreateFunctionVariable}
-            />,
+          {[
+            <div
+              key={'row1'}
+              class='query-config-row'
+            >
+              <MetricCreator
+                metricId={this.queryConfig?.metric_id}
+                onSelectMetric={this.handleSelectMetric}
+              />
+              {!!this.curMetric && [
+                <MethodCreator
+                  key={'method'}
+                  options={this.getAggMethodList}
+                  showVariables={true}
+                  variables={this.getMethodVariables}
+                  onCreateVariable={this.handleCreateMethodVariable}
+                />,
+                <IntervalCreator key={'interval'} />,
+              ]}
+            </div>,
+            !!this.curMetric && (
+              <div
+                key={'row2'}
+                class='query-config-row'
+              >
+                <DimensionCreator
+                  key={'dimension'}
+                  options={this.getDimensionList as IDimensionOptionsItem[]}
+                  showVariables={true}
+                  variables={this.getDimensionVariables}
+                  onCreateVariable={this.handleCreateDimensionVariable}
+                />
+                <FunctionCreator
+                  key={'function'}
+                  options={this.metricFunctions}
+                  variables={this.getFunctionVariables}
+                  onCreateVariable={this.handleCreateFunctionVariable}
+                />
+              </div>
+            ),
+            !!this.curMetric && (
+              <div
+                key={'row3'}
+                class='query-config-row'
+              >
+                <ConditionCreator />
+              </div>
+            ),
           ]}
         </div>
       </div>
