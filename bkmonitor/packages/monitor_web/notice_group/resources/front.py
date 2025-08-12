@@ -69,7 +69,7 @@ class GetReceiverResource(Resource):
                 try:
                     user_list.extend(future.result()["results"])
                 except Exception as e:
-                    logger.warning(f"Failed to get user info: {e}")
+                    logger.warning(f"[GetReceiverResource] Failed to get user info: {e}")
                     continue
 
         display_name = {user["username"]: user["display_name"] for user in user_list}
