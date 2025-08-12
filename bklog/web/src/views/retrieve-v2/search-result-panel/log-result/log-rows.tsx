@@ -614,7 +614,7 @@ export default defineComponent({
       () => [indexSetQueryResult.value.is_loading],
       () => {
         if (!indexSetQueryResult.value.is_loading && !isRequesting.value) {
-          handleResultBoxResize();
+          setTimeout(handleResultBoxResize, 180);
         }
       },
     );
