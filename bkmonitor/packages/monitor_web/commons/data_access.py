@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,9 +7,9 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import copy
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from typing import Dict, Tuple
 
 from django.conf import settings
 from django.utils.encoding import force_str
@@ -28,7 +27,7 @@ from monitor_web.plugin.constant import (
 )
 
 
-class ResultTableField(object):
+class ResultTableField:
     FIELD_TYPE_FLOAT = ("double",)
     FIELD_TYPE_STRING = ("text",)
 
@@ -58,7 +57,7 @@ class ResultTableField(object):
             self.alias_name = alias_name
 
 
-class ResultTable(object):
+class ResultTable:
     def __init__(self, table_name, description, fields):
         self.table_name = table_name.lower()
         self.description = description
@@ -146,7 +145,7 @@ class ResultTable(object):
         return cls(table_name=table_dict["table_name"], description=table_dict.get("table_desc", ""), fields=fields)
 
 
-class DataAccessor(object):
+class DataAccessor:
     """
     申请数据链路资源
     """
@@ -182,22 +181,23 @@ class DataAccessor(object):
         """
         table_id:库.表(system.cpu)
         """
-        return "{}.{}".format(self.tsdb_name, table.table_name)
+        return f"{self.tsdb_name}.{table.table_name}"
 
     @property
     def tsdb_name(self):
-        return "{}_{}".format(self.bk_biz_id, self.db_name) if self.bk_biz_id else self.db_name
+        return f"{self.bk_biz_id}_{self.db_name}" if self.bk_biz_id else self.db_name
 
     @property
     def data_name(self):
         # TODO: 新规范是业务ID在后，这个要确定影响范围
-        return "{}_{}".format(self.bk_biz_id, self.db_name) if self.bk_biz_id else self.db_name
+        return f"{self.bk_biz_id}_{self.db_name}" if self.bk_biz_id else self.db_name
 
     def create_dataid(self):
         """
         创建/修改dataid
         """
         param = {
+            "bk_biz_id": self.bk_biz_id,
             "data_name": self.data_name,
             "etl_config": self.etl_config,
             "operator": self.operator,
@@ -245,7 +245,7 @@ class DataAccessor(object):
             "clean": old_table_id_set - new_table_id_set,
         }
 
-    def check_table_modify(self, new_table_info: ResultTable, old_result_table: Dict) -> bool:
+    def check_table_modify(self, new_table_info: ResultTable, old_result_table: dict) -> bool:
         """判断表配置是否修改
 
         :param new_table_info: 新提交的配置
@@ -446,14 +446,14 @@ class PluginDataAccessor(DataAccessor):
             fields.extend(list(map(get_field_instance, add_fields)))
             tables.append(ResultTable(table_name=table["table_name"], description=table["table_desc"], fields=fields))
 
-        db_name = "{}_{}".format(plugin_type, plugin_version.plugin.plugin_id)
+        db_name = f"{plugin_type}_{plugin_version.plugin.plugin_id}"
         if plugin_type in [PluginType.SCRIPT, PluginType.DATADOG]:
             etl_config = "bk_standard"
         elif plugin_type == PluginType.K8S:
             etl_config = "bk_standard_v2_time_series"
         else:
             etl_config = "bk_exporter"
-        super(PluginDataAccessor, self).__init__(
+        super().__init__(
             bk_biz_id=0,
             db_name=db_name,
             tables=tables,
@@ -593,25 +593,24 @@ class PluginDataAccessor(DataAccessor):
         return self.data_id
 
 
-class EventDataAccessor(object):
+class EventDataAccessor:
     def __init__(self, current_version, operator):
         self.bk_biz_id = current_version.plugin.bk_biz_id
-        self.name = "{}_{}".format(current_version.plugin.plugin_type, current_version.plugin_id)
+        self.name = f"{current_version.plugin.plugin_type}_{current_version.plugin_id}"
         self.label = current_version.plugin.label
         self.operator = operator
 
     def get_data_id(self):
-        data_id_info = api.metadata.get_data_id(
-            {"data_name": "{}_{}".format(self.name, self.bk_biz_id), "with_rt_info": False}
-        )
+        data_id_info = api.metadata.get_data_id({"data_name": f"{self.name}_{self.bk_biz_id}", "with_rt_info": False})
         return safe_int(data_id_info["bk_data_id"])
 
     def create_data_id(self, source_label, type_label):
-        data_name = "{}_{}".format(self.name, self.bk_biz_id)
+        data_name = f"{self.name}_{self.bk_biz_id}"
         try:
             data_id_info = api.metadata.get_data_id({"data_name": data_name, "with_rt_info": False})
         except BKAPIError:
             param = {
+                "bk_biz_id": self.bk_biz_id,
                 "data_name": data_name,
                 "etl_config": "bk_standard_v2_event",
                 "operator": self.operator,
@@ -677,7 +676,7 @@ class UptimecheckDataAccessor:
         self.task = task
         self.bk_biz_id = task.bk_biz_id
 
-    def get_data_id(self) -> Tuple[bool, str]:
+    def get_data_id(self) -> tuple[bool, str]:
         """
         TODO: 获取拨测数据链路ID
         :return: 是否是自定义上报，数据链路ID
@@ -720,6 +719,7 @@ class UptimecheckDataAccessor:
             pass
 
         params = {
+            "bk_biz_id": self.bk_biz_id,
             "data_name": self.data_name,
             "etl_config": "bk_standard_v2_time_series",
             "operator": "admin",
