@@ -1,5 +1,8 @@
 from functools import lru_cache
+from typing import NamedTuple
+
 from django.conf import settings
+
 from bkm_space.api import SpaceApi
 from bkm_space.define import Space
 from bkmonitor.utils.local import local
@@ -75,20 +78,31 @@ def get_tenant_default_biz_id(bk_tenant_id: str) -> int:
     raise ValueError("get tenant system biz id failed, bk_tenant_id: %s", bk_tenant_id)
 
 
-def get_tenant_datalink_biz_id(bk_tenant_id: str, bk_biz_id: int) -> tuple[int, int]:
+class DatalinkBizIds(NamedTuple):
+    """
+    数据链路业务ID
+    """
+
+    # 数据归属业务ID
+    label_biz_id: int
+    # 实际存储业务ID
+    data_biz_id: int
+
+
+def get_tenant_datalink_biz_id(bk_tenant_id: str, bk_biz_id: int | None = None) -> DatalinkBizIds:
     """
     获取租户下的数据链路业务ID
-    返回值为 (label_biz_id(标记业务ID), data_biz_id(实际数据业务ID))
     """
     # 如果业务ID小于等于0，则标记业务ID为默认业务ID
-    label_biz_id = bk_biz_id
-    if bk_biz_id <= 0:
-        label_biz_id = settings.DEFAULT_BK_BIZ_ID
+    if bk_biz_id is None or bk_biz_id <= 0:
+        label_biz_id: int = settings.DEFAULT_BK_BIZ_ID
+    else:
+        label_biz_id = bk_biz_id
 
     # 如果未开启多租户模式，将数据全部归属到默认业务ID
     if not settings.ENABLE_MULTI_TENANT_MODE:
-        return label_biz_id, settings.DEFAULT_BKDATA_BIZ_ID
+        return DatalinkBizIds(label_biz_id=label_biz_id, data_biz_id=settings.DEFAULT_BKDATA_BIZ_ID)
 
     # 多租户模式下，获取租户下的默认业务ID
     default_biz_id = get_tenant_default_biz_id(bk_tenant_id)
-    return label_biz_id, default_biz_id
+    return DatalinkBizIds(label_biz_id=label_biz_id, data_biz_id=default_biz_id)

@@ -26,8 +26,8 @@ logger = logging.getLogger("metadata")
 @atomic(config.DATABASE_CONNECTION_NAME)
 def apply_data_id_v2(
     data_name: str,
+    bk_biz_id: int,
     namespace: str = settings.DEFAULT_VM_DATA_LINK_NAMESPACE,
-    bk_biz_id: int = settings.DEFAULT_BKDATA_BIZ_ID,
     is_base: bool = False,
     event_type: str = "metric",
 ) -> bool:
@@ -41,30 +41,29 @@ def apply_data_id_v2(
     """
     logger.info("apply_data_id_v2:apply data_id for data_name: %s,event_type: %s", data_name, event_type)
 
+    bk_tenant_id = bk_biz_id_to_bk_tenant_id(bk_biz_id)
+
     if is_base:  # 如果是基础数据源（1000,1001）,那么沿用固定格式的data_name，会以此name作为bkbase申请时的唯一键
         bkbase_data_name = data_name
     else:  # 用户自定义数据源，需要进行二次处理，主要为避免超过meta长度限制和特殊字符
         bkbase_data_name = utils.compose_bkdata_data_id_name(data_name)
 
     logger.info("apply_data_id_v2:bkbase_data_name: %s", bkbase_data_name)
-    if not bk_biz_id:
-        logger.info("apply_data_id_v2:data_name->[%s], bk_biz_id is None,will use default", data_name)
-        bk_biz_id = settings.DEFAULT_BKDATA_BIZ_ID
 
     data_id_config_ins, _ = DataIdConfig.objects.get_or_create(
-        name=bkbase_data_name, namespace=namespace, bk_biz_id=bk_biz_id
+        name=bkbase_data_name, namespace=namespace, bk_biz_id=bk_biz_id, bk_tenant_id=bk_tenant_id
     )
     data_id_config = data_id_config_ins.compose_config(event_type=event_type)
 
-    api.bkdata.apply_data_link(config=[data_id_config], bk_tenant_id=bk_biz_id_to_bk_tenant_id(bk_biz_id))
+    api.bkdata.apply_data_link(config=[data_id_config], bk_tenant_id=bk_tenant_id)
     logger.info("apply_data_id_v2:apply data_id for data_name: %s success", data_name)
     return True
 
 
 def get_data_id_v2(
     data_name: str,
+    bk_biz_id: int,
     namespace: str | None = settings.DEFAULT_VM_DATA_LINK_NAMESPACE,
-    bk_biz_id: int = settings.DEFAULT_BKDATA_BIZ_ID,
     is_base: bool = False,
 ) -> dict:
     """
@@ -76,13 +75,15 @@ def get_data_id_v2(
     else:  # 用户自定义数据源，需要进行二次处理，主要为避免超过meta长度限制和特殊字符
         data_id_name = utils.compose_bkdata_data_id_name(data_name)
 
+    bk_tenant_id = bk_biz_id_to_bk_tenant_id(bk_biz_id)
+
     data_id_config = api.bkdata.get_data_link(
         kind=DataLinkKind.get_choice_value(DataLinkKind.DATAID.value),
         namespace=namespace,
         name=data_id_name,
-        bk_tenant_id=bk_biz_id_to_bk_tenant_id(bk_biz_id),
+        bk_tenant_id=bk_tenant_id,
     )
-    data_id_config_ins = DataIdConfig.objects.get(name=data_id_name, namespace=namespace)
+    data_id_config_ins = DataIdConfig.objects.get(name=data_id_name, namespace=namespace, bk_tenant_id=bk_tenant_id)
     logger.info("get_data_id: request bkbase data_id_config->[%s]", data_id_config)
     # 解析数据获取到数据源ID
     phase = data_id_config.get("status", {}).get("phase")

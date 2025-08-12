@@ -504,6 +504,7 @@ class DataLink(models.Model):
                     data_link_name=self.data_link_name,
                     namespace=self.namespace,
                     bk_biz_id=bk_biz_id,
+                    bk_tenant_id=self.bk_tenant_id,
                 )
                 vm_storage_ins, _ = VMStorageBindingConfig.objects.get_or_create(
                     name=bkbase_vmrt_name,
@@ -511,6 +512,7 @@ class DataLink(models.Model):
                     data_link_name=self.data_link_name,
                     namespace=self.namespace,
                     bk_biz_id=bk_biz_id,
+                    bk_tenant_id=self.bk_tenant_id,
                 )
         except Exception as e:  # pylint: disable=broad-except
             logger.error(
@@ -616,6 +618,7 @@ class DataLink(models.Model):
                     data_link_name=self.data_link_name,
                     namespace=self.namespace,
                     bk_biz_id=bk_biz_id,
+                    bk_tenant_id=self.bk_tenant_id,
                 )
                 data_bus_ins, _ = DataBusConfig.objects.get_or_create(
                     name=bkbase_vmrt_name,
@@ -623,6 +626,7 @@ class DataLink(models.Model):
                     data_link_name=self.data_link_name,
                     namespace=self.namespace,
                     bk_biz_id=bk_biz_id,
+                    bk_tenant_id=self.bk_tenant_id,
                 )
         except Exception as e:  # pylint: disable=broad-except
             logger.error(
@@ -675,6 +679,7 @@ class DataLink(models.Model):
                     data_link_name=self.data_link_name,
                     namespace=self.namespace,
                     bk_biz_id=bk_biz_id,
+                    bk_tenant_id=self.bk_tenant_id,
                 )
                 vm_storage_ins, _ = VMStorageBindingConfig.objects.get_or_create(
                     name=bkbase_vmrt_name,
@@ -682,6 +687,7 @@ class DataLink(models.Model):
                     data_link_name=self.data_link_name,
                     namespace=self.namespace,
                     bk_biz_id=bk_biz_id,
+                    bk_tenant_id=self.bk_tenant_id,
                 )
                 sinks = [
                     {
@@ -696,6 +702,7 @@ class DataLink(models.Model):
                     data_link_name=self.data_link_name,
                     namespace=self.namespace,
                     bk_biz_id=bk_biz_id,
+                    bk_tenant_id=self.bk_tenant_id,
                 )
         except Exception as e:  # pylint: disable=broad-except
             logger.error("compose_configs: data_link_name->[%s] error->[%s],rollback!", self.data_link_name, e)
@@ -724,6 +731,7 @@ class DataLink(models.Model):
                     data_link_name=self.data_link_name,
                     namespace=self.namespace,
                     bk_biz_id=bk_biz_id,
+                    bk_tenant_id=self.bk_tenant_id,
                 )
                 vm_storage_ins, _ = VMStorageBindingConfig.objects.get_or_create(
                     name=bkbase_vmrt_name,
@@ -731,6 +739,7 @@ class DataLink(models.Model):
                     data_link_name=self.data_link_name,
                     namespace=self.namespace,
                     bk_biz_id=bk_biz_id,
+                    bk_tenant_id=self.bk_tenant_id,
                 )
                 sink_item = {
                     "kind": DataLinkKind.VMSTORAGEBINDING.value,
@@ -749,6 +758,7 @@ class DataLink(models.Model):
                     data_link_name=self.data_link_name,
                     namespace=self.namespace,
                     bk_biz_id=bk_biz_id,
+                    bk_tenant_id=self.bk_tenant_id,
                 )
         except Exception as e:  # pylint: disable=broad-except
             logger.error("compose_configs: data_link_name->[%s] error->[%s],rollback!", self.data_link_name, e)
