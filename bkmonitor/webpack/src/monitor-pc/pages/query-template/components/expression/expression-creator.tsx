@@ -23,3 +23,23 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+
+import { Component } from 'vue-property-decorator';
+import { Component as tsc } from 'vue-tsx-support';
+
+import './expression-creator.scss';
+
+@Component
+export default class ExpressionCreator extends tsc<object> {
+  render() {
+    return (
+      <div class='template-expression-creator-component'>
+        <div class='expression-label'>{this.$t('表达式')}</div>
+        <div
+          class='expression-input'
+          contenteditable={true}
+        />
+      </div>
+    );
+  }
+}
