@@ -10,11 +10,8 @@ from .data_link_configs import (  # noqa
     ESStorageBindingConfig,
     LogDataBusConfig,
 )
-from .resource import DataLinkResource, DataLinkResourceConfig  # noqa
 
 __all__ = [
-    "DataLinkResource",
-    "DataLinkResourceConfig",
     "DataLinkResourceConfigBase",
     "DataLink",
     "DataIdConfig",

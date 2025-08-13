@@ -156,11 +156,12 @@ class CreateCustomTimeSeries(Resource):
         return "{}.{}".format(database_name, "base")
 
     @staticmethod
-    def get_data_id(data_name, operator, space_uid=None):
+    def get_data_id(bk_biz_id: int, data_name: str, operator: str, space_uid: str | None = None):
         try:
             data_id_info = api.metadata.get_data_id({"data_name": data_name, "with_rt_info": False})
         except BKAPIError:
             param = {
+                "bk_biz_id": bk_biz_id,
                 "data_name": data_name,
                 "etl_config": ETL_CONFIG.CUSTOM_TS,
                 "operator": operator,
@@ -211,7 +212,12 @@ class CreateCustomTimeSeries(Resource):
         )
         try:
             # 保证 data id 已存在
-            bk_data_id = self.get_data_id(data_name, operator, space_uid)
+            bk_data_id = self.get_data_id(
+                bk_biz_id=validated_request_data["bk_biz_id"],
+                data_name=data_name,
+                operator=operator,
+                space_uid=space_uid,
+            )
         except CustomValidationNameError as e:
             # dataid 已存在，判定 ts 是否存在：
             bk_data_id = e.data
