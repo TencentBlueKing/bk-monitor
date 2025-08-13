@@ -434,6 +434,7 @@ def ai_enhanced_streaming_metrics(func):
         # 提取标签值
         agent_code = validated_request_data.get("agent_code", "unknown")
         username = ai_metrics_reporter._get_username()
+        execute_kwargs = validated_request_data["execute_kwargs"]
 
         try:
             # 上报请求开始
@@ -449,7 +450,7 @@ def ai_enhanced_streaming_metrics(func):
 
             # 对于流式响应，我们不在这里上报完成状态
             # 完成状态由 StreamingMetricsTracker 负责上报
-            if hasattr(result, "as_streaming_response"):
+            if execute_kwargs.get("stream", False):
                 setup_duration = time.time() - start_time
                 logger.info(f"Streaming response setup completed in {setup_duration:.3f}s")
             else:

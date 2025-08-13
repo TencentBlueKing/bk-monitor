@@ -45,24 +45,24 @@ class ActionProcessor(BaseActionProcessor):
         """
         dsn_config = settings.MESSAGE_QUEUE_DSN
         clients = []
-        unique_dsns = set()
+        confs = []
 
         # 兼容字符串格式
         if isinstance(dsn_config, str):
-            unique_dsns.add(dsn_config)
+            confs.append(dsn_config)
         # 处理字典格式
         elif isinstance(dsn_config, dict):
             # 1. 添加默认队列 (biz_id=0)
             if "0" in dsn_config:
-                unique_dsns.add(dsn_config["0"])
+                confs.append(dsn_config["0"])
 
             # 2. 添加业务特定队列
             biz_id = self.action.bk_biz_id
             if str(biz_id) in dsn_config:
-                unique_dsns.add(dsn_config[str(biz_id)])
-
-        for dsn in unique_dsns:
-            clients.append(get_client(dsn))
+                confs.append(dsn_config[str(biz_id)])
+        # 依次构建客户端；支持字符串DSN与结构化字典
+        for conf in confs:
+            clients.append(get_client(conf))
         return clients
 
     def execute(self):
