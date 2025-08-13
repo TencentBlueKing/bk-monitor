@@ -26,17 +26,17 @@
 import { Component, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import type { VariableModel } from '../../../typings';
+import type { VariableModelType } from '../../index';
 
 import './variable-common-form-detail.scss';
 
 interface VariableCommonFormDetailProps {
-  data: VariableModel;
+  data: VariableModelType;
 }
 
 @Component
 export default class VariableCommonFormDetail extends tsc<VariableCommonFormDetailProps> {
-  @Prop({ type: Object, required: true }) data!: VariableModel;
+  @Prop({ type: Object, required: true }) data!: VariableModelType;
 
   render() {
     return (
