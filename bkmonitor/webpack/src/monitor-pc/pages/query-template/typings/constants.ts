@@ -24,9 +24,9 @@
  * IN THE SOFTWARE.
  */
 
-import type { QueryTemplateSliderTabEnum } from '../constants';
+import type { TemplateDetailTabEnum } from '../constants';
 
 export type GetEnumTypeTool<T> = T[keyof T];
 
 /** 查询模板侧边栏tab Enum 枚举类型 */
-export type QueryTemplateSliderTabEnumType = GetEnumTypeTool<typeof QueryTemplateSliderTabEnum>;
+export type TemplateDetailTabEnumType = GetEnumTypeTool<typeof TemplateDetailTabEnum>;

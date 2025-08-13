@@ -38,7 +38,7 @@ export const TABLE_DEFAULT_DISPLAY_FIELDS = [
 ];
 
 /** 查询模板 侧弹详情抽屉面板 Tab 枚举 */
-export const QueryTemplateSliderTabEnum = {
+export const TemplateDetailTabEnum = {
   /** 配置信息 */
   CONFIG: 'configPanel',
   /** 消费场景 */
