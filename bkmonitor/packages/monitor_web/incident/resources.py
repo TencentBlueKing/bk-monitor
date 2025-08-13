@@ -1416,6 +1416,14 @@ class IncidentResultsResource(IncidentBaseResource):
         id = serializers.IntegerField(required=True, label="故障ID")
         bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
 
+    @classmethod
+    def _content_valid(cls, content):
+        if not content:
+            return False
+        if isinstance(content, dict):
+            return all([sub_content for sub_content in content.values()])
+        return True
+
     def perform_request(self, validated_request_data: dict) -> dict:
         incident_results = {
             "panels": {
@@ -1450,7 +1458,9 @@ class IncidentResultsResource(IncidentBaseResource):
                 diagnosis_result["sub_panels"][sub_panel_name] = {
                     "status": sub_panel["status"],
                     "message": sub_panel["message"] if sub_panel.get("message") else "",
-                    "enabled": True if sub_panel.get("status") == "running" or sub_panel.get("content") else False,
+                    "enabled": True
+                    if sub_panel.get("status") == "running" or self._content_valid(sub_panel.get("content"))
+                    else False,
                 }
             self.set_upper_status(diagnosis_result, sub_key="sub_panels")
             incident_results["panels"]["incident_diagnosis"] = diagnosis_result
