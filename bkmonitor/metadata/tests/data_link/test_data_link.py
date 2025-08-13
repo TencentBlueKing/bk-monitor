@@ -292,7 +292,8 @@ def test_Standard_V2_Time_Series_compose_configs(create_or_delete_records):
         data_link_strategy=DataLink.BK_STANDARD_V2_TIME_SERIES,
     )
 
-    configs = data_link_ins.compose_configs(data_source=ds, table_id=rt.table_id, storage_cluster_name="vm-plat")
+    with patch("bkmonitor.utils.tenant.get_tenant_default_biz_id", return_value=2):
+        configs = data_link_ins.compose_configs(data_source=ds, table_id=rt.table_id, storage_cluster_name="vm-plat")
     assert json.dumps(configs) == expected_configs
 
     # 测试实例是否正确创建
@@ -375,7 +376,8 @@ def test_compose_bcs_federal_time_series_configs(create_or_delete_records):
         namespace="bkmonitor",
         data_link_strategy=models.DataLink.BCS_FEDERAL_PROXY_TIME_SERIES,
     )
-    configs = data_link_ins.compose_configs(data_source=ds, table_id=rt.table_id, storage_cluster_name="vm-plat")
+    with patch("bkmonitor.utils.tenant.get_tenant_default_biz_id", return_value=2):
+        configs = data_link_ins.compose_configs(data_source=ds, table_id=rt.table_id, storage_cluster_name="vm-plat")
     assert json.dumps(configs) == expected
 
 
@@ -862,7 +864,13 @@ def test_component_id(create_or_delete_records, mocker):
         bkbase_rt_name=bkbase_vmrt_name,
     )
 
-    DataBusConfig.objects.create(data_link_name=bkbase_data_name, namespace="bkmonitor", name=bkbase_vmrt_name)
+    DataBusConfig.objects.create(
+        bk_tenant_id="system",
+        bk_biz_id=1001,
+        data_link_name=bkbase_data_name,
+        namespace="bkmonitor",
+        name=bkbase_vmrt_name,
+    )
 
     # 测试component_id
     assert (
@@ -884,6 +892,7 @@ def test_create_basereport_datalink_for_bkcc_metadata_part(create_or_delete_reco
         patch.object(
             DataLink, "apply_data_link_with_retry", return_value={"status": "success"}
         ) as mock_apply_with_retry,
+        patch("bkmonitor.utils.tenant.get_tenant_default_biz_id", return_value=2),
     ):  # noqa
         # 调用多租户基础采集数据链路创建方法
         create_basereport_datalink_for_bkcc(bk_biz_id=1)
@@ -939,6 +948,7 @@ def test_create_basereport_datalink_for_bkcc_bkbase_v4_part(create_or_delete_rec
         patch.object(
             DataLink, "apply_data_link_with_retry", return_value={"status": "success"}
         ) as mock_apply_with_retry,
+        patch("bkmonitor.utils.tenant.get_tenant_default_biz_id", return_value=2),
     ):  # noqa
         # 调用多租户基础采集数据链路创建方法
         create_basereport_datalink_for_bkcc(bk_biz_id=1)
@@ -947,9 +957,13 @@ def test_create_basereport_datalink_for_bkcc_bkbase_v4_part(create_or_delete_rec
     data_link_ins = models.DataLink.objects.get(data_link_name="system_1_sys_base")
     data_source = models.DataSource.objects.get(data_name="system_1_sys_base")
     storage_cluster_name = "vm-default"
-    actual_configs = data_link_ins.compose_configs(
-        data_source=data_source, storage_cluster_name=storage_cluster_name, bk_biz_id=1, source=BASEREPORT_SOURCE_SYSTEM
-    )
+    with patch("bkmonitor.utils.tenant.get_tenant_default_biz_id", return_value=2):
+        actual_configs = data_link_ins.compose_configs(
+            data_source=data_source,
+            storage_cluster_name=storage_cluster_name,
+            bk_biz_id=1,
+            source=BASEREPORT_SOURCE_SYSTEM,
+        )
     expected_config = [
         {
             "kind": "ResultTable",
@@ -1999,6 +2013,7 @@ def test_create_base_event_datalink_for_bkcc_metadata_part(create_or_delete_reco
         patch.object(
             DataLink, "apply_data_link_with_retry", return_value={"status": "success"}
         ) as mock_apply_with_retry,
+        patch("bkmonitor.utils.tenant.get_tenant_default_biz_id", return_value=2),
     ):  # noqa
         # 调用多租户基础采集数据链路创建方法
         create_base_event_datalink_for_bkcc(bk_biz_id=1)
@@ -2051,6 +2066,7 @@ def test_create_base_event_datalink_for_bkcc_bkbase_part(create_or_delete_record
         patch.object(
             DataLink, "apply_data_link_with_retry", return_value={"status": "success"}
         ) as mock_apply_with_retry,
+        patch("bkmonitor.utils.tenant.get_tenant_default_biz_id", return_value=2),
     ):  # noqa
         # 调用多租户基础采集数据链路创建方法
         create_base_event_datalink_for_bkcc(bk_biz_id=1)
@@ -2059,9 +2075,10 @@ def test_create_base_event_datalink_for_bkcc_bkbase_part(create_or_delete_record
     data_link_ins = models.DataLink.objects.get(data_link_name="base_1_agent_event")
     data_source = models.DataSource.objects.get(data_name="base_1_agent_event", bk_tenant_id="system")
 
-    actual_configs = data_link_ins.compose_configs(
-        data_source=data_source, table_id="base_system_1_event", storage_cluster_name="es_default", bk_biz_id=1
-    )
+    with patch("bkmonitor.utils.tenant.get_tenant_default_biz_id", return_value=2):
+        actual_configs = data_link_ins.compose_configs(
+            data_source=data_source, table_id="base_system_1_event", storage_cluster_name="es_default", bk_biz_id=1
+        )
 
     expected_configs = [
         {
@@ -2195,6 +2212,7 @@ def test_create_bkbase_data_link_for_bk_exporter(create_or_delete_records, mocke
         patch.object(
             DataLink, "apply_data_link_with_retry", return_value={"status": "success"}
         ) as mock_apply_with_retry,
+        patch("bkmonitor.utils.tenant.get_tenant_default_biz_id", return_value=2),
     ):  # noqa
         create_bkbase_data_link(data_source=ds, monitor_table_id=rt.table_id, storage_cluster_name="vm-plat")
         # 验证 compose_configs 被调用并返回预期的配置
@@ -2211,7 +2229,10 @@ def test_create_bkbase_data_link_for_bk_exporter(create_or_delete_records, mocke
     assert vm_record.vm_cluster_id == 100111
     assert vm_record.vm_result_table_id == f"{settings.DEFAULT_BKDATA_BIZ_ID}_{bkbase_vmrt_name}"
 
-    actual_configs = data_link_ins.compose_configs(data_source=ds, table_id=rt.table_id, storage_cluster_name="vm-plat")
+    with patch("bkmonitor.utils.tenant.get_tenant_default_biz_id", return_value=2):
+        actual_configs = data_link_ins.compose_configs(
+            data_source=ds, table_id=rt.table_id, storage_cluster_name="vm-plat"
+        )
     expected_configs = [
         {
             "kind": "ResultTable",
@@ -2310,6 +2331,7 @@ def test_create_bkbase_data_link_for_bk_standard(create_or_delete_records, mocke
         patch.object(
             DataLink, "apply_data_link_with_retry", return_value={"status": "success"}
         ) as mock_apply_with_retry,
+        patch("bkmonitor.utils.tenant.get_tenant_default_biz_id", return_value=2),
     ):  # noqa
         create_bkbase_data_link(data_source=ds, monitor_table_id=rt.table_id, storage_cluster_name="vm-plat")
         # 验证 compose_configs 被调用并返回预期的配置
@@ -2326,7 +2348,10 @@ def test_create_bkbase_data_link_for_bk_standard(create_or_delete_records, mocke
     assert vm_record.vm_cluster_id == 100111
     assert vm_record.vm_result_table_id == f"{settings.DEFAULT_BKDATA_BIZ_ID}_{bkbase_vmrt_name}"
 
-    actual_configs = data_link_ins.compose_configs(data_source=ds, table_id=rt.table_id, storage_cluster_name="vm-plat")
+    with patch("bkmonitor.utils.tenant.get_tenant_default_biz_id", return_value=2):
+        actual_configs = data_link_ins.compose_configs(
+            data_source=ds, table_id=rt.table_id, storage_cluster_name="vm-plat"
+        )
     expected_configs = [
         {
             "kind": "ResultTable",
@@ -2418,6 +2443,7 @@ def test_create_system_proc_datalink_for_bkcc(create_or_delete_records, mocker):
         patch.object(
             DataLink, "apply_data_link_with_retry", return_value={"status": "success"}
         ) as mock_apply_with_retry,
+        patch("bkmonitor.utils.tenant.get_tenant_default_biz_id", return_value=2),
     ):  # noqa
         # 调用多租户系统进程数据链路创建方法
         create_system_proc_datalink_for_bkcc(bk_tenant_id=bk_tenant_id, bk_biz_id=1)

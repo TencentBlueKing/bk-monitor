@@ -450,6 +450,8 @@ def test_compose_log_databus_config(create_or_delete_records):
     # 单租户模式
     settings.ENABLE_BKBASE_V4_MULTI_TENANT = False
     log_databus_ins, _ = models.LogDataBusConfig.objects.get_or_create(
+        bk_tenant_id="system",
+        bk_biz_id=1,
         name="base_1_agent_event",
         namespace="bkmonitor",
         data_link_name="base_1_agent_event",
@@ -457,7 +459,7 @@ def test_compose_log_databus_config(create_or_delete_records):
     )
     expected_config = {
         "kind": "Databus",
-        "metadata": {"labels": {"bk_biz_id": "2"}, "name": "base_1_agent_event", "namespace": "bkmonitor"},
+        "metadata": {"labels": {"bk_biz_id": "1"}, "name": "base_1_agent_event", "namespace": "bkmonitor"},
         "spec": {
             "maintainers": ["admin"],
             "sinks": [{"kind": "ElasticSearchBinding", "name": "base_1_agent_event", "namespace": "bkmonitor"}],
@@ -473,7 +475,7 @@ def test_compose_log_databus_config(create_or_delete_records):
     expected_config = {
         "kind": "Databus",
         "metadata": {
-            "labels": {"bk_biz_id": "2"},
+            "labels": {"bk_biz_id": "1"},
             "name": "base_1_agent_event",
             "tenant": "system",
             "namespace": "bkmonitor",
