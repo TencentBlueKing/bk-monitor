@@ -26,20 +26,22 @@
 import { Component, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
+import { Debounce } from 'monitor-common/utils';
+
+import FunctionCreator from '../../../components/function/function-creator';
 import VariableCommonForm from '../common-form/variable-common-form';
 
-import type { VariableModel } from '../../../typings';
-
+import type { FunctionVariableModel } from '../../index';
 interface FunctionVariableEvents {
-  onDataChange: (data: VariableModel) => void;
+  onDataChange: (data: FunctionVariableModel) => void;
 }
 interface FunctionVariableProps {
-  data: VariableModel;
+  data: FunctionVariableModel;
 }
 
 @Component
 export default class FunctionVariable extends tsc<FunctionVariableProps, FunctionVariableEvents> {
-  @Prop({ type: Object, required: true }) data!: VariableModel;
+  @Prop({ type: Object, required: true }) data!: FunctionVariableModel;
 
   handleValueChange(value) {
     this.handleDataChange({
@@ -48,7 +50,8 @@ export default class FunctionVariable extends tsc<FunctionVariableProps, Functio
     });
   }
 
-  handleDataChange(data: VariableModel) {
+  @Debounce(200)
+  handleDataChange(data: FunctionVariableModel) {
     this.$emit('dataChange', data);
   }
 
@@ -63,10 +66,9 @@ export default class FunctionVariable extends tsc<FunctionVariableProps, Functio
             label={this.$t('默认值')}
             property='value'
           >
-            <bk-select
-              clearable={false}
-              value={this.data.value}
-              onChange={this.handleValueChange}
+            <FunctionCreator
+              hasCreateVariable={false}
+              showLabel={false}
             />
           </bk-form-item>
         </VariableCommonForm>
