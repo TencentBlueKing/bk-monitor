@@ -168,16 +168,17 @@ export default class AggChart extends tsc<object> {
   }
 
   // 添加查询条件
-  addCondition = (operator: string, value: any) => {
+  addCondition = (operator: string, value: any, fieldName: string) => {
     if (this.fieldType === '__virtual__') return;
 
     const router = this.$router;
     const route = this.$route;
     const mappedOperator = OPERATOR_MAPPING[operator] || operator;
 
+    console.log('addCondition', fieldName, operator, value);
     store
       .dispatch('setQueryCondition', {
-        field: this.fieldName,
+        field: fieldName,
         operator: mappedOperator,
         value: [value],
       })
@@ -201,21 +202,21 @@ export default class AggChart extends tsc<object> {
   };
 
   // 获取工具提示内容
-  getIconPopover = (operator: string, value: any) => {
+  getIconPopover = (operator: string, value: any, fieldName: string) => {
     if (this.fieldType === '__virtual__') return this.t('该字段为平台补充 不可检索');
-    if (this.filterIsExist(operator, value)) return this.t('已添加过滤条件');
-    return `${this.fieldName} ${operator} ${_escape(value)}`;
+    if (this.filterIsExist(operator, value, fieldName)) return this.t('已添加过滤条件');
+    return `${fieldName} ${operator} ${_escape(value)}`;
   };
 
   // 检查过滤条件是否已存在
-  filterIsExist = (operator: string, value: any) => {
+  filterIsExist = (operator: string, value: any, fieldName: string) => {
     if (this.fieldType === '__virtual__') return true;
 
     const mappedOperator = OPERATOR_MAPPING[operator] || operator;
     return (
       this.retrieveParams?.addition?.some(addition => {
         return (
-          addition.field === this.fieldName &&
+          addition.field === fieldName &&
           addition.operator === mappedOperator &&
           addition.value.toString() === value.toString()
         );
@@ -278,8 +279,8 @@ export default class AggChart extends tsc<object> {
             {this.showFiveList.map((item, index) => {
               const [value, count] = item;
               const percent = this.computePercent(count);
-              const isFiltered = this.filterIsExist('is', value);
-              const isNotFiltered = this.filterIsExist('is not', value);
+              const isFiltered = this.filterIsExist('is', value, this.fieldName);
+              const isNotFiltered = this.filterIsExist('is not', value, this.fieldName);
 
               return (
                 <li
@@ -290,13 +291,13 @@ export default class AggChart extends tsc<object> {
                   <div class='operation-container'>
                     <span
                       class={['bk-icon icon-enlarge-line', { disable: isFiltered }]}
-                      v-bk-tooltips={this.getIconPopover('=', value)}
-                      onClick={() => !isFiltered && this.addCondition('is', value)}
+                      v-bk-tooltips={this.getIconPopover('=', value, this.fieldName)}
+                      onClick={() => !isFiltered && this.addCondition('is', value, this.fieldName)}
                     ></span>
                     <span
                       class={['bk-icon icon-narrow-line', { disable: isNotFiltered }]}
-                      v-bk-tooltips={this.getIconPopover('!=', value)}
-                      onClick={() => !isNotFiltered && this.addCondition('is not', value)}
+                      v-bk-tooltips={this.getIconPopover('!=', value, this.fieldName)}
+                      onClick={() => !isNotFiltered && this.addCondition('is not', value, this.fieldName)}
                     ></span>
                   </div>
                   <div class='chart-content'>
