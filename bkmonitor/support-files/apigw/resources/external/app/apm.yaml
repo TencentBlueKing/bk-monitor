@@ -109,7 +109,7 @@ paths:
         descriptionEn: "apply strategies to apm services"
   /app/apm/list_flatten_traces/:
     post:
-      operationId: list_flatten_trace
+      operationId: list_flatten_traces
       description: 查询扁平化trace列表
       x-bk-apigateway-resource:
         isPublic: true
