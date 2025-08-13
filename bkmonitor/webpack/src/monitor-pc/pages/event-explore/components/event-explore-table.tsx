@@ -570,9 +570,10 @@ export default class EventExploreTable extends tsc<EventExploreTableProps, Event
       },
       ...customOptions,
     });
+    const target = e.currentTarget;
     const popoverCache = this.popoverInstance;
     this.popoverDelayTimer = setTimeout(() => {
-      if (popoverCache === this.popoverInstance) {
+      if (popoverCache === this.popoverInstance && target && document.body.contains(target as Node)) {
         this.popoverInstance?.show?.(0);
       } else {
         popoverCache?.hide?.(0);
