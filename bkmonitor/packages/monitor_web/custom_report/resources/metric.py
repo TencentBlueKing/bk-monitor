@@ -433,7 +433,7 @@ class CustomTimeSeriesList(Resource):
         )
 
         # 如果有业务过滤条件，进一步筛选query_configs
-        if strategy_ids is not None:
+        if strategy_ids:
             query_configs_queryset = query_configs_queryset.filter(strategy_id__in=strategy_ids)
 
         query_configs = list(query_configs_queryset)
