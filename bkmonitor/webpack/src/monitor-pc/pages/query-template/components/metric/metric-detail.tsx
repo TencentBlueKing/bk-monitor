@@ -24,55 +24,35 @@
  * IN THE SOFTWARE.
  */
 
-import { Component, Prop, Watch } from 'vue-property-decorator';
+import { Component, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { getMetricListV2 } from 'monitor-api/modules/strategies';
 import { xssFilter } from 'monitor-common/utils';
 
-import { type TMetricDetail, MetricDetail as MetricDetailPanel } from '../type/query-config';
 import { getMetricTip } from '../utils/metric-tip';
+
+import type { TMetricDetail } from '../type/query-config';
 
 import './metric-detail.scss';
 
 interface IProps {
-  /* 指标id */
-  metricId?: string;
+  /* 指标详情类实例 */
+  metric?: TMetricDetail;
 }
 
 @Component
 export default class MetricDetail extends tsc<IProps> {
-  /* 指标id */
-  @Prop({ type: String, default: '' }) metricId: string;
   /* 指标详情类实例 */
-  metricInstance: TMetricDetail = null;
-  loading = false;
+  @Prop({ type: Object }) metric: TMetricDetail;
 
+  /* 指标别名 */
   get metricAlias() {
-    return this.metricInstance?.metric_field_name || this.metricId || '--';
+    return this.metric?.metric_field_name || this.metric?.metric_id || '--';
   }
 
+  /* hover展示的指标详细信息内容dom */
   get metricTips() {
-    return getMetricTip(this.metricInstance);
-  }
-
-  @Watch('metricId', { immediate: true })
-  async handleWatchMetricId() {
-    this.getMetricDetail();
-  }
-
-  async getMetricDetail() {
-    if (this.metricId && this.metricInstance?.metric_id !== this.metricId) {
-      this.loading = true;
-      const { metric_list: metricList = [] } = await getMetricListV2({
-        conditions: [{ key: 'metric_id', value: [this.metricId] }],
-      }).catch(() => ({}));
-      const metric = metricList[0];
-      if (metric) {
-        this.metricInstance = new MetricDetailPanel(metric);
-      }
-      this.loading = false;
-    }
+    return getMetricTip(this.metric);
   }
 
   render() {
