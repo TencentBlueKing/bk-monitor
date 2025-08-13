@@ -80,6 +80,11 @@ enum RetrieveEvent {
   LEFT_FIELD_SETTING_WIDTH_CHANGE = 'left-field-setting-width-change',
 
   /**
+   * 检索结果容器resize
+   */
+  RESULT_ROW_BOX_RESIZE = 'result-row-box-resize',
+
+  /**
    * 搜索时间变化
    */
   SEARCH_TIME_CHANGE = 'search-time-change',

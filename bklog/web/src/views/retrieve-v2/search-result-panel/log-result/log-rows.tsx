@@ -86,6 +86,7 @@ export default defineComponent({
     const refResultRowBox: Ref<HTMLElement> = ref();
     const refSegmentContent: Ref<HTMLElement> = ref();
     const { handleOperation } = useTextAction(emit, 'origin');
+
     let savedSelection: Range = null;
 
     const popInstanceUtil = new PopInstanceUtil({
@@ -609,24 +610,23 @@ export default defineComponent({
       },
     );
 
-    // 第一页数据加载完毕，更新滚动条位置
-    watch(
-      () => [indexSetQueryResult.value.is_loading],
-      () => {
-        if (!indexSetQueryResult.value.is_loading && !isRequesting.value) {
-          handleResultBoxResize();
-        }
-      },
-    );
-
     watch(
       () => [tableDataSize.value],
-      (val, oldVal) => {
+      (_, oldVal) => {
         resetRowListState(oldVal?.[0]);
       },
       {
         immediate: true,
       },
+    );
+
+    useResizeObserve(
+      () => refResultRowBox.value,
+      () => {
+        handleResultBoxResize();
+        RetrieveHelper.fire(RetrieveEvent.RESULT_ROW_BOX_RESIZE);
+      },
+      60,
     );
 
     RetrieveHelper.on(
