@@ -24,24 +24,58 @@
  * IN THE SOFTWARE.
  */
 
-import type { VariableTypeEnumType } from '../typings/constants';
-import type { MetricDetail } from '@/pages/strategy-config/strategy-config-set-new/typings';
+import type { MetricDetail } from '../components/type/query-config';
+import type { VariableTypeEnum } from '../constants';
+import type { GetEnumTypeTool } from './constants';
+import type { IFilterItem } from '@/components/retrieval-filter/utils';
 
-export interface VariableModel {
-  /** 变量别名 */
-  alias: string;
-  /** 变量描述 */
-  desc: string;
-  /** 变量对应指标 */
-  metric: MetricDetail;
-  /** 变量名 */
+export interface ICommonVariableModel<T extends VariableTypeEnumType> {
+  alias?: string;
+  desc?: string;
   name: string;
-  /** 变量类型 */
-  type: VariableTypeEnumType;
-  /** 默认值 */
-  value: any;
+  type: T;
 }
 
-export type VariablePanelParams = Partial<Omit<VariableModel, 'type'>> & {
-  type: VariableTypeEnumType;
+export type IConditionVariableModel = {
+  /** 可选维度 */
+  dimensionOption?: string[];
+  metric: MetricDetail;
+  value?: IFilterItem[];
+} & ICommonVariableModel<typeof VariableTypeEnum.CONDITION>;
+
+export type IConstantVariableModel = ICommonVariableModel<typeof VariableTypeEnum.CONSTANT> & {
+  value?: string;
 };
+
+export type IDimensionValueVariableModel = {
+  metric: MetricDetail;
+  /** 关联维度 */
+  relationDimension: string;
+  value?: string;
+} & ICommonVariableModel<typeof VariableTypeEnum.DIMENSION_VALUE>;
+
+export type IDimensionVariableModel = {
+  /** 可选维度 */
+  dimensionOption?: string[];
+  metric: MetricDetail;
+  value?: string;
+} & ICommonVariableModel<typeof VariableTypeEnum.DIMENSION>;
+
+export type IFunctionVariableModel = ICommonVariableModel<typeof VariableTypeEnum.FUNCTION> & {
+  value?: any;
+};
+
+export type IMethodVariableModel = ICommonVariableModel<typeof VariableTypeEnum.METHOD> & {
+  metric: MetricDetail;
+  value?: string;
+};
+
+export type IVariableModel =
+  | IConditionVariableModel
+  | IConstantVariableModel
+  | IDimensionValueVariableModel
+  | IDimensionVariableModel
+  | IFunctionVariableModel
+  | IMethodVariableModel;
+
+export type VariableTypeEnumType = GetEnumTypeTool<typeof VariableTypeEnum>;

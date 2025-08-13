@@ -53,14 +53,14 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import VariableCommonFormDetail from '../common-form/variable-common-form-detail';
 
-import type { VariableModel } from '../../../typings';
+import type { FunctionVariableModel } from '../../index';
 interface FunctionDetailProps {
-  data: VariableModel;
+  data: FunctionVariableModel;
 }
 
 @Component
 export default class FunctionDetail extends tsc<FunctionDetailProps> {
-  @Prop({ type: Object, required: true }) data!: VariableModel;
+  @Prop({ type: Object, required: true }) data!: FunctionVariableModel;
 
   render() {
     return (

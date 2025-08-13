@@ -28,9 +28,10 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import BasicInfoCreate from '../components/basic-info/basic-info-create';
 import TemplateConfig from '../components/template-config/template-config';
+import { type VariableModelType, getVariableModel } from '../variables';
 import VariablesManage from '../variables/variables-manage/variables-manage';
 
-import type { VariableModel } from '../typings';
+import type { MetricDetail } from '../components/type/query-config';
 
 import './template-create.scss';
 
@@ -54,14 +55,21 @@ export default class TemplateCreate extends tsc<object> {
     effect: [],
   };
 
-  variablesList: VariableModel[] = [
-    { type: 'agg_method', name: 'cup_agg' },
-    { type: 'dimension', name: 'dimension' },
-    { type: 'dimension_value', name: 'mount_point' },
-    { type: 'function', name: 'cpu_fx' },
-    { type: 'condition', name: 'filter' },
-    { type: 'general', name: 'weight_factor' },
+  metricsList: MetricDetail[] = [];
+
+  variablesList: VariableModelType[] = [
+    getVariableModel({ type: 'method', name: 'cup_agg', metric: null }),
+    getVariableModel({ type: 'dimension', name: 'dimension', metric: null }),
+    getVariableModel({ type: 'dimension_value', name: 'mount_point', metric: null, relationDimension: 'mount_point' }),
+    getVariableModel({ type: 'function', name: 'cup_agg' }),
+    getVariableModel({ type: 'condition', name: 'cup_agg', metric: null }),
+    getVariableModel({ type: 'constant', name: 'cup_agg' }),
   ];
+
+  handleVariablesChange(variablesList: VariableModelType[]) {
+    console.log(variablesList);
+    this.variablesList = variablesList;
+  }
 
   handleNextStep() {
     this.curStep += 1;
@@ -138,7 +146,10 @@ export default class TemplateCreate extends tsc<object> {
               </bk-button>
             </div>
           </div>
-          <VariablesManage variablesList={this.variablesList} />
+          <VariablesManage
+            variablesList={this.variablesList}
+            onChange={this.handleVariablesChange}
+          />
         </div>
       </div>
     );
