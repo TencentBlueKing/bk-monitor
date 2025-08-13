@@ -5,9 +5,14 @@
   >
     <span
       :style="{ color: badgeCount !== 0 ? 'red' : '' }"
-      :class="`bklog-icon bklog-${badgeCount !== 0 ? 'gaojing-filled' : 'gaojing-line'}`"
-    ></span
-    >{{ $t('告警') }}
+      :class="`bklog-icon bklog-${badgeCount !== 0 ? 'gaojing-filled' : 'gaojing-line'} low-resolution-hide`"
+    ></span>
+    <span
+      :style="{ color: badgeCount !== 0 ? 'red' : '' }"
+      :class="`bklog-icon bklog-${badgeCount !== 0 ? 'gaojing-filled' : 'gaojing-line'} low-resolution-show`"
+      v-bk-tooltips.top="$t('告警')" 
+    ></span>
+    <span class='low-resolution-hide'>{{ $t('告警') }}</span>
     <bk-badge
       v-if="ownPendingCount !== 0"
       style="margin-top: -12px; margin-left: -3px"

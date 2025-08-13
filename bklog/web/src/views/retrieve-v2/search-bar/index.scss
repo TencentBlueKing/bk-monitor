@@ -2,6 +2,20 @@
   position: sticky;
   top: 0px;
   z-index: 4;
+  @media (max-width: 1366px) {
+    .search-bar-container .search-options {
+      width: 44px;
+      color: #313238;;
+
+      .mode-text{
+        display: none;
+      }
+
+      .low-resolution{
+        display: inline-flex;
+      }
+    }
+  }
 
   .search-bar-container {
     display: flex;
@@ -23,6 +37,10 @@
         display: inline-flex;
         font-size: 12px;
         color: #313238;
+      }
+
+      .low-resolution{
+        display: none;
       }
 
       .bklog-qiehuan-2 {
@@ -127,10 +145,10 @@
                 font-size: 12px;
                 line-height: 20px;
                 color: #e71818;
-                background: #f5f7fa;
-                border-radius: 2px;
                 word-break: break-all;
                 white-space: break-word;
+                background: #f5f7fa;
+                border-radius: 2px;
               }
 
               &:last-child {

@@ -251,8 +251,12 @@ export default defineComponent({
           class={`popover-trigger ${popoverInstance ? 'is-active' : ''}`}
           onClick={handleSettingPopoverShow}
         >
-          <i class='bklog-icon bklog-setting-line' />
-          <span class='trigger-label'>{t('全局设置')}</span>
+          <i class='bklog-icon bklog-setting-line low-resolution-hide' />
+          <i
+            class='bklog-icon bklog-setting-line low-resolution-show'
+            v-bk-tooltips={t('全局设置')}
+          />
+          <span class='trigger-label low-resolution-hide'>{t('全局设置')}</span>
         </div>
         <div style='display: none'>{settingContainerRender()}</div>
       </div>
