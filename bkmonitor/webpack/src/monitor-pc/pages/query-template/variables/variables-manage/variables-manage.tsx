@@ -29,23 +29,29 @@ import { Component as tsc } from 'vue-tsx-support';
 import VariablePanel from '../components/variable-panel/variable-panel';
 import VariablesGuide from './variable-guide';
 
-import type { VariableModel } from '../../typings';
+import type { VariableModelType } from '../index';
 
 import './variables-manage.scss';
 
 interface VariablesManageEvents {
-  onChange: (value: VariableModel, index: number) => void;
+  onChange: (value: VariableModelType[]) => void;
 }
 
 interface VariablesManageProps {
-  variablesList: VariableModel[];
+  variablesList: VariableModelType[];
 }
 
 @Component
 export default class VariablesManage extends tsc<VariablesManageProps, VariablesManageEvents> {
-  @Prop({ default: () => [] }) variablesList!: VariableModel[];
+  @Prop({ default: () => [] }) variablesList!: VariableModelType[];
 
   searchValue = '';
+
+  handleDataChange(value: VariableModelType, index: number) {
+    const list = JSON.parse(JSON.stringify(this.variablesList));
+    list[index] = value;
+    this.$emit('change', [...list]);
+  }
 
   render() {
     return (
@@ -64,15 +70,29 @@ export default class VariablesManage extends tsc<VariablesManageProps, Variables
           </div>
         </div>
         <div class='variable-manage-content'>
-          {this.variablesList.map(item => [
+          {this.variablesList.map((item, index) => [
             <VariablePanel
-              key={item.name}
+              key={`${item.id}_1`}
               data={item}
+              onDataChange={value => {
+                this.handleDataChange(value, index);
+              }}
             />,
             <VariablePanel
-              key={item.name}
+              key={`${item.name}_2`}
               data={item}
               scene='detail'
+              onDataChange={value => {
+                this.handleDataChange(value, index);
+              }}
+            />,
+            <VariablePanel
+              key={`${item.name}_3`}
+              data={item}
+              scene='edit'
+              onDataChange={value => {
+                this.handleDataChange(value, index);
+              }}
             />,
           ])}
 

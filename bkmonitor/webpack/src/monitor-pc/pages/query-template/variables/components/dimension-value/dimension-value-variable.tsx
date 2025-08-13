@@ -26,20 +26,22 @@
 import { Component, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
+import { Debounce } from 'monitor-common/utils';
+
 import VariableCommonForm from '../common-form/variable-common-form';
 
-import type { VariableModel } from '../../../typings';
+import type { DimensionValueVariableModel } from '../../index';
 
 interface DimensionValueVariableEvents {
-  onDataChange: (data: VariableModel) => void;
+  onDataChange: (data: DimensionValueVariableModel) => void;
 }
 interface DimensionValueVariableProps {
-  data: VariableModel;
+  data: DimensionValueVariableModel;
 }
 
 @Component
 export default class DimensionValueVariable extends tsc<DimensionValueVariableProps, DimensionValueVariableEvents> {
-  @Prop({ type: Object, required: true }) data!: VariableModel;
+  @Prop({ type: Object, required: true }) data!: DimensionValueVariableModel;
 
   handleValueChange(value) {
     this.handleDataChange({
@@ -48,7 +50,8 @@ export default class DimensionValueVariable extends tsc<DimensionValueVariablePr
     });
   }
 
-  handleDataChange(data: VariableModel) {
+  @Debounce(200)
+  handleDataChange(data: DimensionValueVariableModel) {
     this.$emit('dataChange', data);
   }
 
@@ -61,7 +64,7 @@ export default class DimensionValueVariable extends tsc<DimensionValueVariablePr
         >
           <bk-form-item
             label={this.$t('关联维度')}
-            property='value'
+            property='relatedDimension'
           >
             <bk-input
               value={'mount_point'}
