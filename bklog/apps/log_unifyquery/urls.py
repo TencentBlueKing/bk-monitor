@@ -26,7 +26,7 @@ from rest_framework import routers
 from apps.log_unifyquery import views
 
 router = routers.DefaultRouter(trailing_slash=True)
-router.register(r"", views.UnifyQueryViewSet, basename="unify_query")
+router.register(r"query", views.UnifyQueryViewSet, basename="unify_query")
 
 urlpatterns = [
     re_path(r"^", include(router.urls)),

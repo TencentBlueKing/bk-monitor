@@ -19,34 +19,34 @@ We undertake not to change the open source license (MIT license) applicable to t
 the project delivered to anyone in the future.
 """
 
+from django.conf import settings
 from rest_framework.response import Response
 
 from apps.api import UnifyQueryApi
 from apps.generic import APIViewSet
-from apps.utils.drf import list_route
+from apps.log_search.permission import Permission
 from apps.log_unifyquery.handler.base import UnifyQueryHandler
 from apps.log_unifyquery.utils import verify_unify_query_token
-from apps.log_search.permission import Permission
-from django.conf import settings
+from apps.utils.drf import list_route
 
 
 class UnifyQueryViewSet(APIViewSet):
-    def initial(self, request, *args, **kwargs):
-        """在请求处理前进行白名单判断和token验证"""
-        super().initial(request, *args, **kwargs)
+    def check_permissions(self, request):
+        """检查权限：白名单判断和token验证"""
+        super().check_permissions(request)
 
         # 白名单校验
-        auth_info = Permission.get_auth_info(self.request, raise_exception=False)
+        auth_info = Permission.get_auth_info(request, raise_exception=False)
         if auth_info and auth_info["bk_app_code"] in settings.ESQUERY_WHITE_LIST:
-            return []
+            return
 
         # 非白名单应用需要进行token验证
-        verify_unify_query_token(self.request, auth_info)
+        verify_unify_query_token(request, auth_info)
 
-    @list_route(methods=["post"], url_path="query/ts")
+    @list_route(methods=["post"], url_path="/ts")
     def query_ts(self, request):
         """
-        @api {post} /unify_query/query/ts/ 时序型检索
+        @api {post} /query/ts/ 时序型检索
         @apiName unify_query_query_ts
         @apiGroup unify_query
         @apiParam {Integer} bk_biz_id 业务ID
@@ -89,10 +89,10 @@ class UnifyQueryViewSet(APIViewSet):
         """
         return Response(UnifyQueryApi.query_ts(request.data))
 
-    @list_route(methods=["post"], url_path="query/ts/reference")
+    @list_route(methods=["post"], url_path="/ts/reference")
     def query_ts_reference(self, request):
         """
-        @api {post} /unify_query/query/ts/reference/ 非时序型检索
+        @api {post} /query/ts/reference/ 非时序型检索
         @apiName unify_query_query_ts_reference
         @apiGroup unify_query
         @apiParam {Integer} bk_biz_id 业务ID
@@ -135,10 +135,10 @@ class UnifyQueryViewSet(APIViewSet):
         """
         return Response(UnifyQueryHandler.query_ts_reference(request.data))
 
-    @list_route(methods=["post"], url_path="query/ts/raw")
+    @list_route(methods=["post"], url_path="/ts/raw")
     def query_ts_raw(self, request):
         """
-        @api {post} /unify_query/query/ts/raw/ 时序型检索日志
+        @api {post} /query/ts/raw/ 时序型检索日志
         @apiName unify_query_query_ts_raw
         @apiGroup unify_query
         @apiParam {Integer} bk_biz_id 业务ID

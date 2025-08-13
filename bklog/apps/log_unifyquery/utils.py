@@ -10,11 +10,11 @@ specific language governing permissions and limitations under the License.
 
 from dateutil import parser
 
-from apps.log_search.constants import OperatorEnum
-from apps.log_unifyquery.constants import ADVANCED_OP_MAP
-from apps.log_search.exceptions import TokenMissingException
-from apps.log_commons.models import ApiAuthToken
 from apps.constants import ApiTokenAuthType
+from apps.log_commons.models import ApiAuthToken
+from apps.log_search.constants import OperatorEnum
+from apps.log_search.exceptions import TokenMissingException
+from apps.log_unifyquery.constants import ADVANCED_OP_MAP
 from bkm_space.utils import bk_biz_id_to_space_uid
 
 

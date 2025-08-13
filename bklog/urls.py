@@ -57,7 +57,7 @@ urlpatterns = [
     re_path(r"^api/v1/", include("apps.log_clustering.urls")),
     re_path(r"^api/v1/", include("apps.log_desensitize.urls")),
     re_path(r"^api/v1/", include("apps.ai_assistant.urls")),
-    re_path(r"^api/v1/unify_query/", include("apps.log_unifyquery.urls")),
+    re_path(r"^api/v1/", include("apps.log_unifyquery.urls")),
     re_path(r"^", include("apps.grafana.urls")),
     re_path(r"^", include("log_adapter.urls")),
     # 前端页面
