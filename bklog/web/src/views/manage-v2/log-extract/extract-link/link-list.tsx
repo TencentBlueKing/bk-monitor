@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, ref, computed, onMounted } from 'vue';
+import { defineComponent, ref, reactive, computed, onMounted } from 'vue';
 import useStore from '@/hooks/use-store';
 import useRouter from '@/hooks/use-router';
 import useLocale from '@/hooks/use-locale';
@@ -53,6 +53,13 @@ export default defineComponent({
       qcloud_cos: t('腾讯云链路'),
       bk_repo: t('蓝鲸制品库'),
     }));
+    const pagination = reactive({
+      // 分页配置
+      count: 0,
+      current: 1,
+      limit: 10,
+      limitList: [10, 20, 50, 100],
+    });
 
     const spaceUid = computed(() => store.getters.spaceUid); // 空间UID
 
@@ -84,14 +91,35 @@ export default defineComponent({
     // 初始化链路列表
     const initList = async () => {
       try {
+        isLoading.value = true;
         const res = await http.request('extractManage/getLogExtractLinks');
-        extractLinkList.value = res.data;
+        // 分页处理
+        const allList = res.data;
+        pagination.count = allList.length;
+        const start = (pagination.current - 1) * pagination.limit;
+        const end = start + pagination.limit;
+        extractLinkList.value = allList.slice(start, end);
       } catch (e) {
         console.warn(e);
         emptyType.value = '500';
       } finally {
         isLoading.value = false;
       }
+    };
+
+        // 处理分页变化
+    const handlePageChange = (page: number) => {
+      if (pagination.current !== page) {
+        pagination.current = page;
+        initList();
+      }
+    };
+
+    // 处理每页数量变化
+    const handleLimitChange = (limit: number) => {
+      pagination.limit = limit;
+      pagination.current = 1;
+      initList();
     };
 
     // 新增链路
@@ -171,6 +199,7 @@ export default defineComponent({
     const handleOperation = (type: string) => {
       if (type === 'refresh') {
         emptyType.value = 'empty';
+        pagination.current = 1;
         initList();
       }
     };
@@ -210,6 +239,9 @@ export default defineComponent({
           data={extractLinkList.value}
           data-test-id='extractLinkListBox_table_LinkListTableBox'
           row-key='strategy_id'
+          pagination={pagination}
+          onPage-change={handlePageChange}
+          onPage-limit-change={handleLimitChange}
           scopedSlots={{
             empty: () => (
               <div>
