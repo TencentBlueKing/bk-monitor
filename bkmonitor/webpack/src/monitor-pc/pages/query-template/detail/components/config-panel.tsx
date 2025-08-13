@@ -29,8 +29,8 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import ExploreCollapseWrapper from 'monitor-ui/chart-plugins/plugins/explore-custom-graph/components/explore-collapse-wrapper';
 
-import QueryConfigDetail from '../../query-config/query-config-detail';
-import { TVariableType } from '../../type/query-config';
+import QueryConfigDetail from '../../components/query-config/query-config-detail';
+import { TVariableType } from '../../components/type/query-config';
 
 import './config-panel.scss';
 
@@ -98,7 +98,7 @@ export default class ConfigPanel extends tsc<object> {
               ],
               agg_method: 'AVG',
               agg_interval: 60,
-              agg_dimension: ['hostname', 'ip'],
+              agg_dimension: ['hostname', '${dimension}'],
               agg_condition: [
                 {
                   key: 'hostname',
@@ -118,6 +118,13 @@ export default class ConfigPanel extends tsc<object> {
               metric_field: 'util',
               unit: '',
             }}
+            variables={[
+              {
+                name: 'dimension',
+                value: ['bk_agent_id', 'device_name'],
+                type: TVariableType.DIMENSION,
+              },
+            ]}
           />
           <QueryConfigDetail
             queryConfig={{
