@@ -559,15 +559,12 @@ export default class EventExplore extends tsc<
       expression: 'a',
       query_configs: queryConfigs,
     };
-    let { href } = this.$router.resolve({
+    const { href } = this.$router.resolve({
       name: 'strategy-config-add',
       query: {
         data: JSON.stringify(queryData),
       }
     });
-    if (this.source === APIType.APM) {
-      href = href.replace('#/?', '#/strategy-config/add/?');
-    }
     window.open(href, '_blank');
   }
 
