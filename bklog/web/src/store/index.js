@@ -395,6 +395,9 @@ const store = new Vuex.Store({
      * @param {*} payload
      */
     resetIndexsetItemParams(state, payload) {
+      /** 当前选中的时间范围 */
+      const currentDatePickerValue = store.state.indexItem.datePickerValue;
+
       const defaultValue = { ...getDefaultRetrieveParams(), isUnionIndex: false, selectIsUnionSearch: false };
       ['ids', 'items', 'catchUnionBeginList'].forEach(key => {
         if (Array.isArray(state.indexItem[key])) {
@@ -405,6 +408,7 @@ const store = new Vuex.Store({
           );
         }
       });
+      defaultValue.datePickerValue = currentDatePickerValue;
 
       state.indexItem.isUnionIndex = false;
       state.unionIndexList.splice(0, state.unionIndexList.length);
