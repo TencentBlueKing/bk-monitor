@@ -41,7 +41,7 @@ export class MetricDetail extends BaseMetricDetail {}
 
 // todo
 export const TVariableType = {
-  METHOD: VariableTypeEnum.AGG_METHOD,
+  METHOD: VariableTypeEnum.METHOD,
   DIMENSION: VariableTypeEnum.DIMENSION,
   CONDITION: VariableTypeEnum.CONDITION,
   FUNCTION: VariableTypeEnum.FUNCTION,

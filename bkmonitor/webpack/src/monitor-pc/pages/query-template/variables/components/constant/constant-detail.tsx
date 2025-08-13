@@ -53,18 +53,18 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import VariableCommonFormDetail from '../common-form/variable-common-form-detail';
 
-import type { VariableModel } from '../../../typings';
-interface GeneralDetailProps {
-  data: VariableModel;
+import type { ConstantVariableModel } from '../../index';
+interface ConstantDetailProps {
+  data: ConstantVariableModel;
 }
 
 @Component
-export default class GeneralDetail extends tsc<GeneralDetailProps> {
-  @Prop({ type: Object, required: true }) data!: VariableModel;
+export default class ConstantDetail extends tsc<ConstantDetailProps> {
+  @Prop({ type: Object, required: true }) data!: ConstantVariableModel;
 
   render() {
     return (
-      <div class='general-detail'>
+      <div class='constant-detail'>
         <VariableCommonFormDetail data={this.data}>
           <div class='form-item'>
             <div class='form-item-label'>{this.$t('数据类型')}：</div>
